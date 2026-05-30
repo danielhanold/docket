@@ -50,9 +50,9 @@ These are the outcomes of the design brainstorm, each with its rationale. They f
 
 4. **One file per change.** Manifest frontmatter + a full why/what/scope body. No per-change folder, no duplicated design/plan files. Reconcile notes live in a `## Reconcile log` section.
 
-5. **Lifecycle is a `status` field + a single archive move.** Seven states; `active/` holds non-terminal, `archive/` holds terminal (`done`, `killed`). The happy-terminal state is **`done`** (a deliberate "definition of done"); the `archive/` directory keeps its name (it is the *location* for finished changes, both `done` and `killed`). The terminal move happens once per change, and is **idempotent and guarded** (re-pull, re-read status, no-op if already `done`; the `YYYY-MM-DD` prefix comes from the merge commit, not `now()`) — so the three paths that can trigger it (`docket-finalize`, the `docket-status` sweep, `implement-next` step 0) never corrupt each other. Finer state (blocked/deferred) is a field value, not a directory.
+5. **Lifecycle is a `status` field + a single archive move.** Seven states; `active/` holds non-terminal, `archive/` holds terminal (`done`, `killed`). The happy-terminal state is **`done`** (a deliberate "definition of done"); the `archive/` directory keeps its name (it is the *location* for finished changes, both `done` and `killed`). The terminal move happens once per change, and is **idempotent and guarded** (re-pull, re-read status, no-op if already `done`; the `YYYY-MM-DD` prefix comes from the merge commit, not `now()`) — so the three paths that can trigger it (`docket-finalize-change`, the `docket-status` sweep, `implement-next` step 0) never corrupt each other. Finer state (blocked/deferred) is a field value, not a directory.
 
-6. **Five skills**, flat-prefixed with `docket-` (Claude Code invokes skills by flat name, so the prefix *is* the grouping — a `docket:`-style colon namespace would imply grouping that doesn't exist): `docket-new-change` (producer), `docket-implement-next` (implementer), `docket-finalize` (close a change to `done`), `docket-status` (board + janitor), `docket-adr` (decision ledger).
+6. **Five skills**, flat-prefixed with `docket-` (Claude Code invokes skills by flat name, so the prefix *is* the grouping — a `docket:`-style colon namespace would imply grouping that doesn't exist): `docket-new-change` (producer), `docket-implement-next` (implementer), `docket-finalize-change` (close a change to `done`), `docket-status` (board + janitor), `docket-adr` (decision ledger).
 
 7. **Two agents coordinate purely through committed manifests in git** — no locks, no database.
 
@@ -82,7 +82,7 @@ docket/
       change-template.md   # the change-file stub (travels with the skill)
     docket-implement-next/
       SKILL.md             # implementer: pick → reconcile → build → PR → stop
-    docket-finalize/
+    docket-finalize-change/
       SKILL.md             # close out a merged/approved change to done (human)
     docket-status/
       SKILL.md             # board render + merge-sweep janitor + health checks
@@ -225,7 +225,7 @@ ADR frontmatter is machine-readable so `docket-adr` can generate the index and v
 
 ## 7. The five skills
 
-`docket-new-change`, `docket-implement-next`, `docket-finalize`, and `docket-status` own the change lifecycle (create → build → close out → board); `docket-adr` owns the decision ledger. All dispatch superpowers for the heavy work.
+`docket-new-change`, `docket-implement-next`, `docket-finalize-change`, and `docket-status` own the change lifecycle (create → build → close out → board); `docket-adr` owns the decision ledger. All dispatch superpowers for the heavy work.
 
 ### 7.1 `docket-new-change` — the producer (interactive)
 
@@ -246,14 +246,14 @@ ADR frontmatter is machine-readable so `docket-adr` can generate the index and v
 
 **Runs with no human interaction.** Picks the next build-ready change and drives it to a PR, then stops at the human merge gate.
 
-0. **Sync & sweep** — `git pull`; invoke the `docket-status` merge-sweep so any `implemented` change whose PR has merged is swept to `archive/` (status → `done`) first (self-cleaning safety net, for changes not already closed via `docket-finalize`).
+0. **Sync & sweep** — `git pull`; invoke the `docket-status` merge-sweep so any `implemented` change whose PR has merged is swept to `archive/` (status → `done`) first (self-cleaning safety net, for changes not already closed via `docket-finalize-change`).
 1. **Select** — among `active/` changes that are `proposed`, **build-ready** (have a `spec:` or `trivial: true`), and have all `depends_on` satisfied, rank by `priority` (`critical` > `high` > `medium` > `low`) → age; pick the top (or accept an explicit id). Skip `in-progress`/`blocked`/`deferred` and not-build-ready stubs.
 2. **Claim** — re-read the manifest after the pull (avoid double-claim), set `status: in-progress` + `branch`, `updated`; commit and push on `metadata_branch`. *The successful **push** of that commit is the lock — mutual exclusion comes from the remote rejecting a non-fast-forward update, not the local commit itself.* (No worktree yet — step 4.)
 3. **Reconcile** ⭐ — re-read the change + its spec against `related` + recently-archived changes, cited + recent ADRs, and current code; refresh the change body and spec to what is true *now* (drop work done elsewhere, adjust scope, fold in new constraints), **non-interactively**; append a dated `## Reconcile log` entry; set `reconciled: true`; commit and push on `metadata_branch` (so the next step's worktree carries the refreshed spec in default mode). Two escape hatches: if the change is now **obsolete** → `killed` (`## Why killed`) and loop back to Select; if the design is **fundamentally invalidated** (not just scope-adjustable) → **stop and escalate to the human** — it can't re-brainstorm alone.
 4. **Worktree + plan** — `git fetch origin` (confirm the step-3 reconcile push has landed on `origin`), then `git worktree add .worktrees/<slug> -b feat/<slug> origin/main` — based on the **freshly-fetched** `origin/main`, which now carries the reconciled spec in default mode (never base it on a *separate* metadata branch like `docket`; in default mode `metadata_branch` **is** `main`, which is correctly the base — see §8). Run `superpowers:writing-plans` (writes `docs/superpowers/plans/` **on the feature branch**); record the path in `plan:`.
 5. **Build** — `superpowers:subagent-driven-development` executes the plan task-by-task with TDD + per-task review.
 6. **Review + ADRs** — `superpowers:requesting-code-review` (whole-branch); for any non-obvious decision, invoke `docket-adr` to record it (it assigns the number + updates the index) and append the returned number to the change's `adrs:`.
-7. **PR + stop** — invoke `superpowers:finishing-a-development-branch`, **directed** to *push the feature branch and open a PR — do not merge, then stop*. Pre-specifying the outcome keeps it non-interactive (what the autonomous flow needs) while **reusing its push/PR mechanics** rather than reimplementing them — docket's "let superpowers carry the heavy work" principle. Set `status: implemented`, `pr:`, commit. **Stops.** The change stays in `active/` as `implemented` until a human **merges it, or approves `docket-finalize` to merge it for them** (§7.3).
+7. **PR + stop** — invoke `superpowers:finishing-a-development-branch`, **directed** to *push the feature branch and open a PR — do not merge, then stop*. Pre-specifying the outcome keeps it non-interactive (what the autonomous flow needs) while **reusing its push/PR mechanics** rather than reimplementing them — docket's "let superpowers carry the heavy work" principle. Set `status: implemented`, `pr:`, commit. **Stops.** The change stays in `active/` as `implemented` until a human **merges it, or approves `docket-finalize-change` to merge it for them** (§7.3).
 
 #### The reconcile pass and the `reconciled` flag — docket's quiet superpower
 
@@ -265,7 +265,7 @@ docket's **reconcile** step (step 3) is the antidote. Just before building, it r
 
 The **`reconciled` flag** is the visible record that this refresh ran: `false` at birth (the change reflects its drafting-day snapshot), `true` after the pass (it reflects current reality). It is an **audit signal** — paired with the dated `## Reconcile log` entry, anyone can see *when* a change was last brought up to date and *what changed* — and a **resume-safety guard**: it is **not** a selection criterion (every change is born `false`, and selection build-readiness is `spec:`-or-`trivial`, §7.2 step 1); rather, on resume a claimed (`in-progress`) change still showing `reconciled: false` tells the implementer reconcile didn't finish, so it re-runs before building. A one-line boolean that encodes docket's core stance: **plans rot; refresh them just-in-time, never trust a stale backlog.**
 
-### 7.3 `docket-finalize` — close out a change (human)
+### 7.3 `docket-finalize-change` — close out a change (human)
 
 The human's **closing bookend** (mirrors `docket-new-change`, the opening one). Run it when a change's PR is approved or merged, to complete the change to `done` *promptly* rather than waiting for the safety-net sweep. Given a change (explicit id, or auto-detect `implemented` changes whose PR is ready):
 
@@ -284,7 +284,7 @@ It never touches the PR diff — the archive is a clean metadata commit on `meta
 The queryable state plus housekeeping; run it to see "what's done, what's next, what's stuck."
 
 - **Board** — scan `active/` + `archive/` and **regenerate `BOARD.md` wholesale** (rich GitHub-Flavored Markdown): a one-line count summary; emoji-grouped sections per status with live counts (`## 🟢 In progress (2)`); per-group tables with clickable PR/spec links, a priority chip (`critical`/`high`/`medium`/`low`), and the **build-ready vs needs-brainstorm** split made visible (a change with an unsatisfied `depends_on` is shown as **⏳ waiting on #N**, not as build-ready); a **Mermaid dependency graph** built from `depends_on` edges (done nodes tinted); and a collapsible `<details>` Done section. It renders richly on **GitHub and in Markhaus** (Mermaid bundled, ADR-0011) and degrades gracefully in plain CommonMark viewers. Disciplines: **never hand-edited** (source of truth is the change files) and **no churny timestamp** (counts convey freshness). A small static `README.md` beside it explains the directory and links to `BOARD.md`.
-- **Merge sweep** (the *bulk* safety net; `docket-finalize` closes a single change on demand — §7.3) — for each `implemented` change, check via `gh` whether its `pr` merged → archive idempotently (re-pull, re-read; no-op if already `done`; move to `archive/<merge-date>-<id>-<slug>.md` using the **merge commit's** date), set `status: done`, commit, and remove the merged feature branch + worktree (provenance-guarded). Closes the loop after a human merge.
+- **Merge sweep** (the *bulk* safety net; `docket-finalize-change` closes a single change on demand — §7.3) — for each `implemented` change, check via `gh` whether its `pr` merged → archive idempotently (re-pull, re-read; no-op if already `done`; move to `archive/<merge-date>-<id>-<slug>.md` using the **merge commit's** date), set `status: done`, commit, and remove the merged feature branch + worktree (provenance-guarded). Closes the loop after a human merge.
 - **Health checks** — flag stale `in-progress` claims (branch gone / no commits in N days), a `spec:` that is **set but doesn't resolve against `metadata_branch`** (skipped for `trivial: true` changes, which have no spec), a `plan:` that doesn't resolve **on a `done` change** (link rot — ignored for `implemented` changes, whose plan legitimately still lives on the unmerged feature branch), `blocked` changes whose `blocked_by` may have cleared, and `depends_on` cycles.
 
 ### 7.5 `docket-adr` — the decision ledger
