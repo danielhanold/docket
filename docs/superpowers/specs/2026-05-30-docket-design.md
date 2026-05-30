@@ -169,7 +169,7 @@ change: 4                 # back-link: the change that produced this decision, i
 ## Consequences — what it enables, what it costs, what is given up
 ```
 
-ADR frontmatter is machine-readable so `docket-adr` can generate the index and validate links. The body follows the classic Context/Decision/Consequences shape. An `Accepted` ADR is immutable except its `status:` line; a non-reversing context change is appended as a dated `## Update` note, never an edit to the decision.
+ADR frontmatter is machine-readable so `docket-adr` can generate the index and validate links — a deliberate divergence from the classic prose-header ADR (e.g. Markhaus's `**Date:**` / `**Status:**` lines), chosen so the index and link-validation are robust rather than regex-parsed. The body follows the classic Context/Decision/Consequences shape. An `Accepted` ADR is immutable except its `status:` line; a non-reversing context change is appended as a dated `## Update` note, never an edit to the decision.
 
 ---
 
