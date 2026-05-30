@@ -17,7 +17,7 @@ docket takes the middle path: **a thin lifecycle layer expressed as plain files 
 
 ### One-line definition
 
-> A **change** is a self-contained, tracked unit of planned work (≈ one PR). docket records each change as a single markdown file with a status lifecycle, and provides four skills to propose changes, work the next change to a PR, report the board, and record architecture decisions (ADRs) — all coordinated through git, no CLI or database.
+> A **change** is a self-contained, tracked unit of planned work (≈ one PR). docket records each change as a single markdown file with a status lifecycle, and provides five skills to propose changes, work the next change to a PR, finalize a merged change, report the board, and record architecture decisions (ADRs) — all coordinated through git, no CLI or database.
 
 ---
 
@@ -52,13 +52,13 @@ These are the outcomes of the design brainstorm, each with its rationale. They f
 
 5. **Lifecycle is a `status` field + a single archive move.** Seven states; `active/` holds non-terminal, `archive/` holds terminal (`done`, `killed`). The happy-terminal state is **`done`** (a deliberate "definition of done"); the `archive/` directory keeps its name (it is the *location* for finished changes, both `done` and `killed`). The only physical file move happens once, on the terminal transition — so parallel agents never race on `git mv`. Finer state (blocked/deferred) is a field value, not a directory.
 
-6. **Four skills**, flat-prefixed with `docket-` (Claude Code invokes skills by flat name, so the prefix *is* the grouping — a `docket:`-style colon namespace would imply grouping that doesn't exist): `docket-new-change` (producer), `docket-implement-next` (implementer), `docket-status` (board + janitor), `docket-adr` (decision ledger).
+6. **Five skills**, flat-prefixed with `docket-` (Claude Code invokes skills by flat name, so the prefix *is* the grouping — a `docket:`-style colon namespace would imply grouping that doesn't exist): `docket-new-change` (producer), `docket-implement-next` (implementer), `docket-finalize` (close a change to `done`), `docket-status` (board + janitor), `docket-adr` (decision ledger).
 
 7. **Two agents coordinate purely through committed manifests in git** — no locks, no database.
 
 8. **Semi-autonomous, human gate at the PR.** The implementer runs the whole spine solo per change and stops at an open PR for human review/merge.
 
-9. **Skills are self-contained — convention duplicated, not shared.** Each `SKILL.md` embeds the convention (directory layout + manifest schema + lifecycle) inline as a marker-delimited `## Convention` block, and `docket-new-change` carries its own change template *inside its skill folder*. Nothing a skill needs lives outside its own directory, because skills are distributed by copying/symlinking that directory — an external `references/CONVENTION.md` would not travel with them. The duplication across the four skills is accepted; an optional `sync-convention.sh` propagates edits from one canonical block to keep the copies in step.
+9. **Skills are self-contained — convention duplicated, not shared.** Each `SKILL.md` embeds the convention (directory layout + manifest schema + lifecycle) inline as a marker-delimited `## Convention` block, and `docket-new-change` carries its own change template *inside its skill folder*. Nothing a skill needs lives outside its own directory, because skills are distributed by copying/symlinking that directory — an external `references/CONVENTION.md` would not travel with them. The duplication across the five skills is accepted; an optional `sync-convention.sh` propagates edits from one canonical block to keep the copies in step.
 
 10. **A `link-skills.sh` convenience script** symlinks the three skill directories into the **global** agent-harness skill dirs (`~/.claude/skills/`, `~/.cursor/skills/`, `~/.kiro/skills/`, `~/.windsurf/skills/`, `~/.agents/skills/`) with absolute symlinks back to `~/dev/docket/skills/<name>`. So the source of truth stays in `~/dev/docket`, docket installs once, and the skills are available in every project without copying. Modeled on `~/dev/obsidian-wiki/link-skills.sh` (idempotent: only creates missing links, leaves existing ones alone).
 
@@ -82,6 +82,8 @@ docket/
       change-template.md   # the change-file stub (travels with the skill)
     docket-implement-next/
       SKILL.md             # implementer: pick → reconcile → build → PR → stop
+    docket-finalize/
+      SKILL.md             # close out a merged/approved change to done (human)
     docket-status/
       SKILL.md             # board render + merge-sweep janitor + health checks
     docket-adr/
@@ -93,7 +95,7 @@ docket/
   docs/                    # design spec etc. — repo-only, never copied into a harness
 ```
 
-Each skill is a **self-contained** directory: it embeds the convention (directory layout + manifest schema + 7-state lifecycle) inline as a marker-delimited `## Convention` section, and the skills that need stubs carry their own (`docket-new-change` → `change-template.md`, `docket-adr` → `adr-template.md`). Nothing a skill needs lives outside its own folder — because skills are distributed by copying or symlinking their directory, and a shared external file (e.g. a top-level `references/CONVENTION.md`) would not travel with them. The convention is therefore duplicated across the four `SKILL.md` files; that duplication is accepted, and an optional `sync-convention.sh` propagates edits from a single canonical block to keep the copies in step.
+Each skill is a **self-contained** directory: it embeds the convention (directory layout + manifest schema + 7-state lifecycle) inline as a marker-delimited `## Convention` section, and the skills that need stubs carry their own (`docket-new-change` → `change-template.md`, `docket-adr` → `adr-template.md`). Nothing a skill needs lives outside its own folder — because skills are distributed by copying or symlinking their directory, and a shared external file (e.g. a top-level `references/CONVENTION.md`) would not travel with them. The convention is therefore duplicated across the five `SKILL.md` files; that duplication is accepted, and an optional `sync-convention.sh` propagates edits from a single canonical block to keep the copies in step.
 
 **Distribution.** The skills are the portable, install-once unit (symlinked into the harness skill dirs by `link-skills.sh`, or copied); the change *data* (`docs/changes/`) lives per consuming project. So docket-the-tool is installed once and works in every repo; docket-the-backlog is local to each repo.
 
@@ -112,7 +114,7 @@ docs/changes/
     0008-onboarding-tour.md
   archive/
     2026-05-30-0004-quicklook-extension.md   # YYYY-MM-DD-<id>-<slug>.md (date = archival date)
-  BOARD.md                               # generated status board (rich Markdown, see §7.3); spans active + archive
+  BOARD.md                               # generated status board (rich Markdown, see §7.4); spans active + archive
   README.md                              # small static blurb: explains the dir + links to BOARD.md (not generated)
 
 docs/adrs/
@@ -208,9 +210,9 @@ ADR frontmatter is machine-readable so `docket-adr` can generate the index and v
 
 ---
 
-## 7. The four skills
+## 7. The five skills
 
-The first three own the change lifecycle (change files + board); the fourth, `docket-adr`, owns the decision ledger. All dispatch superpowers for the heavy work.
+`docket-new-change`, `docket-implement-next`, `docket-finalize`, and `docket-status` own the change lifecycle (create → build → close out → board); `docket-adr` owns the decision ledger. All dispatch superpowers for the heavy work.
 
 ### 7.1 `docket-new-change` — the producer (interactive)
 
@@ -231,7 +233,7 @@ The first three own the change lifecycle (change files + board); the fourth, `do
 
 **Runs with no human interaction.** Picks the next build-ready change and drives it to a PR, then stops at the human merge gate.
 
-0. **Sync & sweep** — `git pull`; invoke the `docket-status` merge-sweep so any `implemented` change whose PR has merged is swept to `archive/` (status → `done`) first (self-cleaning loop).
+0. **Sync & sweep** — `git pull`; invoke the `docket-status` merge-sweep so any `implemented` change whose PR has merged is swept to `archive/` (status → `done`) first (self-cleaning safety net, for changes not already closed via `docket-finalize`).
 1. **Select** — among `active/` changes that are `proposed`, **build-ready** (have a `spec:` or `trivial: true`), and have all `depends_on` satisfied, rank by `priority` → readiness → age; pick the top (or accept an explicit id). Skip `in-progress`/`blocked`/`deferred` and not-build-ready stubs.
 2. **Claim** — re-read the manifest after the pull (avoid double-claim), set `status: in-progress` + `branch`, `updated`; commit on `metadata_branch`. *That commit is the lock.* (No worktree yet — step 4.)
 3. **Reconcile** ⭐ — re-read the change + its spec against `related` + recently-archived changes, cited + recent ADRs, and current code; refresh the change body and spec to what is true *now* (drop work done elsewhere, adjust scope, fold in new constraints), **non-interactively**; append a dated `## Reconcile log` entry; set `reconciled: true`; commit and push on `metadata_branch` (so the next step's worktree carries the refreshed spec in default mode). Two escape hatches: if the change is now **obsolete** → `killed` (`## Why killed`) and loop back to Select; if the design is **fundamentally invalidated** (not just scope-adjustable) → **stop and escalate to the human** — it can't re-brainstorm alone.
@@ -250,15 +252,27 @@ docket's **reconcile** step (step 3) is the antidote. Just before building, it r
 
 The **`reconciled` flag** is the visible record that this refresh ran: `false` at birth (the change reflects its drafting-day snapshot), `true` after the pass (it reflects current reality). It is both a **guard** — `docket-implement-next` will not build an unreconciled change — and an **audit signal**: paired with the dated `## Reconcile log` entry, anyone can see *when* a change was last brought up to date and *what changed*. A one-line boolean that encodes docket's core stance: **plans rot; refresh them just-in-time, never trust a stale backlog.**
 
-### 7.3 `docket-status` — the board & janitor
+### 7.3 `docket-finalize` — close out a change (human)
+
+The human's **closing bookend** (mirrors `docket-new-change`, the opening one). Run it when a change's PR is approved or merged, to complete the change to `done` *promptly* rather than waiting for the safety-net sweep. Given a change (explicit id, or auto-detect `implemented` changes whose PR is ready):
+
+1. **Check the PR** (`gh`). Already merged → straight to archive. Approved + mergeable but not merged → **merge it** (you invoking finalize *is* the merge decision — the gate is respected), then continue.
+2. **Verify** the merge landed on `main` (optionally, tests green on the merged result).
+3. **Archive** — move `active/<id>-<slug>.md` → `archive/YYYY-MM-DD-<id>-<slug>.md`, set `status: done`; commit on `metadata_branch` and push.
+4. **Clean up** — remove the merged feature branch + worktree (provenance-guarded, like `finishing-a-development-branch`).
+5. **Board** — regenerate `BOARD.md`.
+
+It never touches the PR diff — the archive is a clean metadata commit on `metadata_branch` (Option A). `docket-status`'s bulk merge-sweep (and step 0 of `docket-implement-next`) remain a self-healing safety net for any change merged via the GitHub button without running this skill.
+
+### 7.4 `docket-status` — the board & janitor
 
 The queryable state plus housekeeping; run it to see "what's done, what's next, what's stuck."
 
 - **Board** — scan `active/` + `archive/` and **regenerate `BOARD.md` wholesale** (rich GitHub-Flavored Markdown): a one-line count summary; emoji-grouped sections per status with live counts (`## 🟢 In progress (2)`); per-group tables with clickable PR/spec links, right-aligned priority, and the **build-ready vs needs-brainstorm** split made visible; a **Mermaid dependency graph** built from `depends_on` edges (done nodes tinted); and a collapsible `<details>` Done section. It renders richly on **GitHub and in Markhaus** (Mermaid bundled, ADR-0011) and degrades gracefully in plain CommonMark viewers. Disciplines: **never hand-edited** (source of truth is the change files) and **no churny timestamp** (counts convey freshness). A small static `README.md` beside it explains the directory and links to `BOARD.md`.
-- **Merge sweep** — for each `implemented` change, check via `gh` whether its `pr` merged → move the file to `archive/YYYY-MM-DD-<id>-<slug>.md`, set `status: done`, commit, and remove the merged feature branch + worktree (provenance-guarded). Closes the loop after a human merge.
+- **Merge sweep** (the *bulk* safety net; `docket-finalize` closes a single change on demand — §7.3) — for each `implemented` change, check via `gh` whether its `pr` merged → move the file to `archive/YYYY-MM-DD-<id>-<slug>.md`, set `status: done`, commit, and remove the merged feature branch + worktree (provenance-guarded). Closes the loop after a human merge.
 - **Health checks** — flag stale `in-progress` claims (branch gone / no commits in N days), a `spec:` that doesn't resolve (checked normally — the spec is metadata and should always be present), a `plan:` that doesn't resolve **on a `done` change** (link rot — ignored for `implemented` changes, whose plan legitimately still lives on the unmerged feature branch), `blocked` changes whose `blocked_by` may have cleared, and `depends_on` cycles.
 
-### 7.4 `docket-adr` — the decision ledger
+### 7.5 `docket-adr` — the decision ledger
 
 Owns `docs/adrs/`. Invoked by `docket-implement-next` (step 7) when a decision is made, or directly by a human/agent any time a decision must be recorded or changed. Actions:
 
@@ -325,7 +339,7 @@ The **spec** and **plan** live on *different* branches, because they're created 
 
 ## 9. ADRs — the decision ledger
 
-ADRs are a **first-class docket layer** (managed by `docket-adr`, §7.4; file schema in §5; convention in decision #11). They are the project-wide, immutable, numbered record of *why* — distinct from changes, which track *what* and are transient.
+ADRs are a **first-class docket layer** (managed by `docket-adr`, §7.5; file schema in §5; convention in decision #11). They are the project-wide, immutable, numbered record of *why* — distinct from changes, which track *what* and are transient.
 
 **How changes and ADRs relate:**
 - a change **cites** ADRs (`adrs:`); each ADR optionally back-links the `change:` that produced it,
