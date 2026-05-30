@@ -112,7 +112,8 @@ docs/changes/
     0008-onboarding-tour.md
   archive/
     2026-05-30-0004-quicklook-extension.md   # YYYY-MM-DD-<id>-<slug>.md (date = archival date)
-  README.md                              # generated status board, spans active + archive
+  BOARD.md                               # generated status board (rich Markdown, see §7.3); spans active + archive
+  README.md                              # small static blurb: explains the dir + links to BOARD.md (not generated)
 
 docs/adrs/
   0024-quicklook-interaction-limits.md   # NNNN-kebab-title.md (immutable once Accepted)
@@ -220,7 +221,7 @@ The first three own the change lifecycle (change files + board); the fourth, `do
 2. **Brainstorm** — run `superpowers:brainstorming` *with the human* to work through the design. This is the decision point. It **stops at the spec** — it does *not* continue to `writing-plans` (that's build-time). The spec is written natively to `docs/superpowers/specs/…` and committed to `metadata_branch`; record its path in `spec:`.
 3. **Recon** — scan neighbouring changes (active + recent archive) and the ADR index to pre-fill `related`, `depends_on`, `adrs`.
 4. **Draft the change** — write the thin `active/<id>-<slug>.md` from the bundled `change-template.md`: frontmatter (`status: proposed`, `spec:`, dates, priority) + a PM-altitude body (why/what/scope) distilled from the brainstorm. The design detail lives in the linked spec, not here.
-5. **Board, commit & push** — refresh `README.md`, commit the change + spec, and **push to the remote `metadata_branch`**. The pushed markdown is immediately reviewable on GitHub (e.g. when the change was authored from a phone) and visible to the autonomous implementer. **Stops. Never implements.**
+5. **Board, commit & push** — refresh `BOARD.md`, commit the change + spec, and **push to the remote `metadata_branch`**. The pushed markdown is immediately reviewable on GitHub (e.g. when the change was authored from a phone) and visible to the autonomous implementer. **Stops. Never implements.**
 
 **Trivial path:** for a small mechanical change with no real design questions, skip the brainstorm, set `trivial: true`, and write the change body directly — no spec, still build-ready (decision #14).
 
@@ -253,7 +254,7 @@ The **`reconciled` flag** is the visible record that this refresh ran: `false` a
 
 The queryable state plus housekeeping; run it to see "what's done, what's next, what's stuck."
 
-- **Board** — scan `active/` + `archive/`, render `README.md` grouped by status, with id/title/priority/deps/branch/PR/spec/plan links.
+- **Board** — scan `active/` + `archive/` and **regenerate `BOARD.md` wholesale** (rich GitHub-Flavored Markdown): a one-line count summary; emoji-grouped sections per status with live counts (`## 🟢 In progress (2)`); per-group tables with clickable PR/spec links, right-aligned priority, and the **build-ready vs needs-brainstorm** split made visible; a **Mermaid dependency graph** built from `depends_on` edges (done nodes tinted); and a collapsible `<details>` Done section. It renders richly on **GitHub and in Markhaus** (Mermaid bundled, ADR-0011) and degrades gracefully in plain CommonMark viewers. Disciplines: **never hand-edited** (source of truth is the change files) and **no churny timestamp** (counts convey freshness). A small static `README.md` beside it explains the directory and links to `BOARD.md`.
 - **Merge sweep** — for each `implemented` change, check via `gh` whether its `pr` merged → move the file to `archive/YYYY-MM-DD-<id>-<slug>.md`, set `status: done`, commit, and remove the merged feature branch + worktree (provenance-guarded). Closes the loop after a human merge.
 - **Health checks** — flag stale `in-progress` claims (branch gone / no commits in N days), a `spec:` that doesn't resolve (checked normally — the spec is metadata and should always be present), a `plan:` that doesn't resolve **on a `done` change** (link rot — ignored for `implemented` changes, whose plan legitimately still lives on the unmerged feature branch), `blocked` changes whose `blocked_by` may have cleared, and `depends_on` cycles.
 
@@ -279,7 +280,7 @@ The whole point: run the **human-driven producer** (`docket-new-change`, brainst
 
 ### Where metadata lives (the branch model)
 
-docket separates two kinds of write. **Metadata** — the change file, the board (`README.md`), and ADRs — is project-management state, not code. **Code** lives on a `feat/<slug>` branch and reaches `main` through a reviewed PR. The change file is **never edited on the feature branch**: the feature branch/PR carries only code, and the change file's `branch:`/`pr:` fields link the metadata to it. Operationally this falls out of worktrees — metadata commits happen in the main working tree, code commits in the feature worktree; two separate directories that never conflict. (This also avoids superspec's "commit the change dir to the feature branch first" merge workaround, since docket never puts the change file on the feature branch.)
+docket separates two kinds of write. **Metadata** — the change file, the board (`BOARD.md`), and ADRs — is project-management state, not code. **Code** lives on a `feat/<slug>` branch and reaches `main` through a reviewed PR. The change file is **never edited on the feature branch**: the feature branch/PR carries only code, and the change file's `branch:`/`pr:` fields link the metadata to it. Operationally this falls out of worktrees — metadata commits happen in the main working tree, code commits in the feature worktree; two separate directories that never conflict. (This also avoids superspec's "commit the change dir to the feature branch first" merge workaround, since docket never puts the change file on the feature branch.)
 
 For the two-agent lock to work, metadata commits must be visible on a branch both agents pull. docket exposes this as a configurable **`metadata_branch`**:
 
@@ -342,7 +343,7 @@ Clean split: **ADRs = durable "why, forever"; changes = scoped "what, now → do
 - **Claim race (two implementers):** `git pull` + re-read before the claim commit; skip non-`proposed`; lowest-eligible-id ordering. Worst case, two agents claim different changes — never the same one.
 - **Reconcile finds the change obsolete:** transition to `killed` with `## Why killed`, archive, and pick the next change — don't build dead work.
 - **Link rot:** `spec:`/`plan:` paths are validated by `docket-status` health checks; a broken link is surfaced, not silently ignored.
-- **Board merge conflicts:** `README.md` is *generated*, so on conflict it is regenerated from the change files (source of truth), never hand-merged. Per-change files rarely conflict because each change is its own file.
+- **Board merge conflicts:** `BOARD.md` is *generated*, so on conflict it is regenerated from the change files (source of truth), never hand-merged. Per-change files rarely conflict because each change is its own file.
 - **Stale `in-progress`:** health checks flag a claim whose branch was deleted or has no recent commits, so it can be reset to `proposed`.
 - **Archived files don't move their spec/plan:** the linked superpowers spec/plan stay in `docs/superpowers/` as frozen historical artifacts (like ADRs, they never move). Only the change file moves to `archive/`.
 - **ADR immutability & numbering:** the next ADR number is max+1 by scanning `docs/adrs/`; concurrent writers use the same commit-as-claim discipline as change ids. `docket-adr` never rewrites an `Accepted` ADR — a change of mind is always a new, superseding ADR, so the ledger stays trustworthy.
@@ -371,5 +372,5 @@ Skills are not unit-tested like code; verification is behavioural and dogfood-dr
 ## 13. Out of scope for v1 / open items
 
 - **Out of scope:** a living-spec/behavior-contract layer (deliberately absent — code is current-state truth); an OpenSpec-style CLI or YAML schema; multi-repo coordination.
-- **Open items to settle during implementation:** the board's rendered format; how `priority` is assigned/edited; whether `scan` mode reads a configurable list of "candidate sources."
+- **Open items to settle during implementation:** how `priority` is assigned/edited; whether `scan` mode reads a configurable list of "candidate sources."
 - **Naming:** `docket` chosen over `speclite` / `changeflow` / `slate` / `dossier` — it captures the *queue you drain*, which is the heart of the two-agent loop.
