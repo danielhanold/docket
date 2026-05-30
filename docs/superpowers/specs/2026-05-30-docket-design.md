@@ -220,7 +220,7 @@ The first three own the change lifecycle (change files + board); the fourth, `do
 2. **Brainstorm** — run `superpowers:brainstorming` *with the human* to work through the design. This is the decision point. It **stops at the spec** — it does *not* continue to `writing-plans` (that's build-time). The spec is written natively to `docs/superpowers/specs/…` and committed to `metadata_branch`; record its path in `spec:`.
 3. **Recon** — scan neighbouring changes (active + recent archive) and the ADR index to pre-fill `related`, `depends_on`, `adrs`.
 4. **Draft the change** — write the thin `active/<id>-<slug>.md` from the bundled `change-template.md`: frontmatter (`status: proposed`, `spec:`, dates, priority) + a PM-altitude body (why/what/scope) distilled from the brainstorm. The design detail lives in the linked spec, not here.
-5. **Board + commit** — refresh `README.md`, commit the change + spec to `metadata_branch`. **Stops. Never implements.**
+5. **Board, commit & push** — refresh `README.md`, commit the change + spec, and **push to the remote `metadata_branch`**. The pushed markdown is immediately reviewable on GitHub (e.g. when the change was authored from a phone) and visible to the autonomous implementer. **Stops. Never implements.**
 
 **Trivial path:** for a small mechanical change with no real design questions, skip the brainstorm, set `trivial: true`, and write the change body directly — no spec, still build-ready (decision #14).
 
@@ -265,6 +265,7 @@ The whole point: run the **human-driven producer** (`docket-new-change`, brainst
 - The producer only mints **new `proposed` ids** — it never touches in-flight changes, so it cannot collide with the implementer.
 - The implementer **claims atomically**: `git pull` → re-read manifest → set `in-progress` → commit. Anything already non-`proposed` is skipped. Deterministic ordering (lowest eligible id) keeps two implementers, if ever run together, off the same change.
 - Shared state is **the committed change files** — git is the coordination medium. No lock files, no database. Worktrees isolate the file changes during build.
+- **Every metadata commit is pushed to the remote `metadata_branch` immediately** (change creation, claim, reconcile, status transitions, board, ADRs). That is what makes the lock and board visible across sessions, lets a change authored on one device (e.g. a phone) be reviewed on GitHub, and lets the autonomous implementer pick up newly-proposed changes. The only exception is a single shared local clone where every agent works the same checkout.
 
 ### Where metadata lives (the branch model)
 
