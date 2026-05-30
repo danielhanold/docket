@@ -293,7 +293,7 @@ The board and these health checks share **one dependency-resolution pass** — f
 
 Owns `docs/adrs/`. Invoked by `docket-implement-next` (step 6) when a decision is made, or directly by a human/agent any time a decision must be recorded or changed. Actions:
 
-- **Create** — allocate the next ADR number (max+1 by scanning `docs/adrs/`), write `<NNNN>-<slug>.md` from the bundled `adr-template.md` (`status: Accepted`, optional `change:` back-link), add an index entry, commit, and **return the number** so the caller can cite it.
+- **Create** — allocate the next ADR number (max+1 by scanning the `id:` frontmatter in `docs/adrs/`; on a lost CAS push, re-read + renumber the file, same discipline as change ids), write `<NNNN>-<slug>.md` from the bundled `adr-template.md` (`status: Accepted`, optional `change:` back-link), and commit the **new ADR file only**. The `README.md` index is regenerated in a **separate commit** (see Index/validate) — like `BOARD.md`, so two concurrent ADR creates never conflict on the shared index. **Return the number** so the caller can cite it.
 - **Supersede / reverse** — never edits an Accepted ADR's body. Writes a *new* ADR (`supersedes:`/`reverses:` the old), flips only the old ADR's `status:` to `Superseded by ADR-NN` / `Reversed by ADR-NN`, and annotates **both** entries in the index.
 - **Update note** — for a non-reversing material change, append a dated `## Update` to the ADR (allowed) rather than touching the decision.
 - **Index / validate** — (re)render `docs/adrs/README.md` grouped Active / Superseded-Reversed / Deprecated (each row e.g. `- [ADR-0024](0024-quicklook-interaction-limits.md) — Quick Look interaction limits (Accepted) ← change #4`); flag numbering gaps, dangling `supersedes`/`relates_to` links, and status inconsistencies.
@@ -379,7 +379,7 @@ Clean split: **ADRs = durable "why, forever"; changes = scoped "what, now → do
 - **Board merge conflicts:** `BOARD.md` is *generated*, so on conflict it is regenerated from the change files (source of truth), never hand-merged. Per-change files rarely conflict because each change is its own file.
 - **Stale `in-progress`:** health checks flag a claim whose branch was deleted or has no recent commits, so it can be reset to `proposed`.
 - **Archived files don't move their spec/plan:** the linked superpowers spec/plan stay in `docs/superpowers/` as frozen historical artifacts (like ADRs, they never move). Only the change file moves to `archive/`.
-- **ADR immutability & numbering:** the next ADR number is max+1 by scanning `docs/adrs/`; concurrent writers use the same commit-as-claim discipline as change ids. `docket-adr` never rewrites an `Accepted` ADR — a change of mind is always a new, superseding ADR, so the ledger stays trustworthy.
+- **ADR immutability & numbering:** the next ADR number is max+1 by scanning `docs/adrs/`; concurrent writers use the same commit-as-claim discipline as change ids (the ADR-create commit is the **new ADR file only**; the index is a separate commit). The `docs/adrs/README.md` index is *generated*, so — like `BOARD.md` — on conflict it is regenerated from the ADR files, never hand-merged. `docket-adr` never rewrites an `Accepted` ADR — a change of mind is always a new, superseding ADR, so the ledger stays trustworthy.
 
 ---
 
