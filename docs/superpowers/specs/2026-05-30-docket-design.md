@@ -52,13 +52,13 @@ These are the outcomes of the design brainstorm, each with its rationale. They f
 
 5. **Lifecycle is a `status` field + a single archive move.** Seven states; `active/` holds non-terminal, `archive/` holds terminal (`done`, `killed`). The happy-terminal state is **`done`** (a deliberate "definition of done"); the `archive/` directory keeps its name (it is the *location* for finished changes, both `done` and `killed`). The only physical file move happens once, on the terminal transition — so parallel agents never race on `git mv`. Finer state (blocked/deferred) is a field value, not a directory.
 
-6. **Three skills:** `docket-propose` (producer), `docket-next` (implementer), `docket-status` (board + janitor).
+6. **Three skills**, flat-prefixed with `docket-` (Claude Code invokes skills by flat name, so the prefix *is* the grouping — a `docket:`-style colon namespace would imply grouping that doesn't exist): `docket-new-change` (producer), `docket-implement-next` (implementer), `docket-status` (board + janitor).
 
 7. **Two agents coordinate purely through committed manifests in git** — no locks, no database.
 
 8. **Semi-autonomous, human gate at the PR.** The implementer runs the whole spine solo per change and stops at an open PR for human review/merge.
 
-9. **Skills are self-contained — convention duplicated, not shared.** Each `SKILL.md` embeds the convention (directory layout + manifest schema + lifecycle) inline as a marker-delimited `## Convention` block, and `docket-propose` carries its own change template *inside its skill folder*. Nothing a skill needs lives outside its own directory, because skills are distributed by copying/symlinking that directory — an external `references/CONVENTION.md` would not travel with them. The duplication across the three skills is accepted; an optional `sync-convention.sh` propagates edits from one canonical block to keep the copies in step.
+9. **Skills are self-contained — convention duplicated, not shared.** Each `SKILL.md` embeds the convention (directory layout + manifest schema + lifecycle) inline as a marker-delimited `## Convention` block, and `docket-new-change` carries its own change template *inside its skill folder*. Nothing a skill needs lives outside its own directory, because skills are distributed by copying/symlinking that directory — an external `references/CONVENTION.md` would not travel with them. The duplication across the three skills is accepted; an optional `sync-convention.sh` propagates edits from one canonical block to keep the copies in step.
 
 10. **A `link-skills.sh` convenience script** symlinks the three skill directories into the **global** agent-harness skill dirs (`~/.claude/skills/`, `~/.cursor/skills/`, `~/.kiro/skills/`, `~/.windsurf/skills/`, `~/.agents/skills/`) with absolute symlinks back to `~/dev/docket/skills/<name>`. So the source of truth stays in `~/dev/docket`, docket installs once, and the skills are available in every project without copying. Modeled on `~/dev/obsidian-wiki/link-skills.sh` (idempotent: only creates missing links, leaves existing ones alone).
 
@@ -69,10 +69,10 @@ These are the outcomes of the design brainstorm, each with its rationale. They f
 ```
 docket/
   skills/
-    docket-propose/
+    docket-new-change/
       SKILL.md             # producer: idea → proposed change (+ opt-in scan mode)
       change-template.md   # the change-file stub (travels with the skill)
-    docket-next/
+    docket-implement-next/
       SKILL.md             # implementer: pick → reconcile → build → PR → stop
     docket-status/
       SKILL.md             # board render + merge-sweep janitor + health checks
@@ -82,7 +82,7 @@ docket/
   docs/                    # design spec etc. — repo-only, never copied into a harness
 ```
 
-Each skill is a **self-contained** directory: it embeds the convention (directory layout + manifest schema + 7-state lifecycle) inline as a marker-delimited `## Convention` section, and `docket-propose` carries its own `change-template.md`. Nothing a skill needs lives outside its own folder — because skills are distributed by copying or symlinking their directory, and a shared external file (e.g. a top-level `references/CONVENTION.md`) would not travel with them. The convention is therefore duplicated across the three `SKILL.md` files; that duplication is accepted, and an optional `sync-convention.sh` propagates edits from a single canonical block to keep the copies in step.
+Each skill is a **self-contained** directory: it embeds the convention (directory layout + manifest schema + 7-state lifecycle) inline as a marker-delimited `## Convention` section, and `docket-new-change` carries its own `change-template.md`. Nothing a skill needs lives outside its own folder — because skills are distributed by copying or symlinking their directory, and a shared external file (e.g. a top-level `references/CONVENTION.md`) would not travel with them. The convention is therefore duplicated across the three `SKILL.md` files; that duplication is accepted, and an optional `sync-convention.sh` propagates edits from a single canonical block to keep the copies in step.
 
 **Distribution.** The skills are the portable, install-once unit (symlinked into the harness skill dirs by `link-skills.sh`, or copied); the change *data* (`docs/changes/`) lives per consuming project. So docket-the-tool is installed once and works in every repo; docket-the-backlog is local to each repo.
 
@@ -173,7 +173,7 @@ The change body is a *PM-altitude proposal* (intent + scope). The detailed desig
 
 All three own only the lifecycle (change files + board) and dispatch superpowers for the work.
 
-### 7.1 `docket-propose` — the producer
+### 7.1 `docket-new-change` — the producer
 
 Turns an idea into a new change file. **Only ever creates new `proposed` ids**, so it structurally cannot collide with the implementer.
 
@@ -186,7 +186,7 @@ Turns an idea into a new change file. **Only ever creates new `proposed` ids**, 
 
 **Scan mode (opt-in, explicitly triggered):** survey TODOs, deferred changes, known gaps, and the ADR backlog, and propose several `proposed` changes in one pass. Same allocate/draft/commit machinery, batched. Kept opt-in so routine runs don't generate speculative noise.
 
-### 7.2 `docket-next` — the implementer
+### 7.2 `docket-implement-next` — the implementer
 
 Picks the next best change and drives it to a PR, then stops at the human gate.
 
@@ -212,7 +212,7 @@ The queryable state plus housekeeping; run it to see "what's done, what's next, 
 
 ## 8. Two-agent coordination
 
-The whole point: run a **producer agent** (`docket-propose`, filling the backlog) and an **implementer agent** (`docket-next` in a loop, draining it to PRs) in parallel.
+The whole point: run a **producer agent** (`docket-new-change`, filling the backlog) and an **implementer agent** (`docket-implement-next` in a loop, draining it to PRs) in parallel.
 
 - The producer only mints **new `proposed` ids** — it never touches in-flight changes, so it cannot collide with the implementer.
 - The implementer **claims atomically**: `git pull` → re-read manifest → set `in-progress` → commit. Anything already non-`proposed` is skipped. Deterministic ordering (lowest eligible id) keeps two implementers, if ever run together, off the same change.
@@ -258,7 +258,7 @@ Clean split: **ADRs = durable "why, forever"; changes = scoped "what, now → do
 
 Skills are not unit-tested like code; verification is behavioural and dogfood-driven.
 
-- **Smoke path:** on a throwaway change, run `docket-propose` → `docket-next` → `docket-status` and confirm: file created in `active/` as `proposed`; claim flips it to `in-progress` with a branch; reconcile appends a log entry; build produces a branch + PR; status flips to `implemented`; after a (simulated) merge, the sweep moves it to `archive/` as `done`.
+- **Smoke path:** on a throwaway change, run `docket-new-change` → `docket-implement-next` → `docket-status` and confirm: file created in `active/` as `proposed`; claim flips it to `in-progress` with a branch; reconcile appends a log entry; build produces a branch + PR; status flips to `implemented`; after a (simulated) merge, the sweep moves it to `archive/` as `done`.
 - **Manifest schema** is documented in each skill's embedded `## Convention` block so a change file is checkable by eye and by the `docket-status` health pass.
 - **First real dogfood: Markhaus.** Migrate Markhaus's existing `docs/plans/` + `*-results.md` into `docs/changes/` — completed plans become `done` changes (with their results folded into the body), and any open work (e.g. the current `feat/quicklook-interactions` branch → change `0007`) becomes a real `in-progress`/`implemented` change. This proves the lifecycle and the PR gate end-to-end before docket is carried to other repos.
 
@@ -267,5 +267,5 @@ Skills are not unit-tested like code; verification is behavioural and dogfood-dr
 ## 13. Out of scope for v1 / open items
 
 - **Out of scope:** managing ADRs (the project owns those); a living-spec/behavior-contract layer (deliberately absent — code is current-state truth); an OpenSpec-style CLI or YAML schema; multi-repo coordination.
-- **Open items to settle during implementation:** the branch model for lifecycle/board commits (integration branch vs dedicated `docket` branch vs feature branch) — affects the coordination guarantee; recommended approach noted in §8. Also: exact skill-name namespacing (`docket-propose` vs `docket:propose`); the board's rendered format; how `priority` is assigned/edited; whether `scan` mode reads a configurable list of "candidate sources."
+- **Open items to settle during implementation:** the branch model for lifecycle/board commits (integration branch vs dedicated `docket` branch vs feature branch) — affects the coordination guarantee; recommended approach noted in §8. Also: the board's rendered format; how `priority` is assigned/edited; whether `scan` mode reads a configurable list of "candidate sources."
 - **Naming:** `docket` chosen over `speclite` / `changeflow` / `slate` / `dossier` — it captures the *queue you drain*, which is the heart of the two-agent loop.
