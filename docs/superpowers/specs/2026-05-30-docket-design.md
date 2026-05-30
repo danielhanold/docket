@@ -89,7 +89,7 @@ docket/
       adr-template.md      # the ADR stub (travels with the skill)
   link-skills.sh           # symlink the skill dirs into agent-harness skill dirs
   sync-convention.sh       # (optional) propagate the shared Convention block across skills
-  README.md                # what docket is, install, the prerequisite (superpowers); must showcase the reconcile feature (§7.2)
+  README.md                # what docket is, install, prerequisite (superpowers); must showcase the reconcile feature (§7.2) + the main-as-pseudo-database transparency note (§8)
   docs/                    # design spec etc. — repo-only, never copied into a harness
 ```
 
@@ -292,6 +292,8 @@ For the two-agent lock to work, metadata commits must be visible on a branch bot
   - **Sync overhead** — the `docket` branch must be merged into `main` periodically to surface ADRs/board there; nothing does that automatically yet.
 
   A future docket version could mitigate these (auto-mirror metadata to `main`, or auto-merge the `docket` branch). Until then, the dedicated branch trades visibility for a clean `main`. (Under this mode the spec — being metadata — also lives on `docket`; see "Where the spec/plan live" below.)
+
+> **The README must state this plainly (transparency).** In the default mode, docket uses `main` as a **pseudo-database**: the live project state — backlog, board, decisions — is kept as files committed *directly* to `main`. Be upfront that **this is not how most projects treat `main`** — committing non-code bookkeeping straight to the integration branch is unconventional, and some teams will find it noisy or at odds with branch protection. The cleaner, conventional answer for them is the separate `metadata_branch` (`docket`) mode — but that mode is **currently underdeveloped** (dangling ADR refs, manual sync, per the drawbacks above) and is expected to improve in future versions (auto-mirror / auto-merge to `main`). Until it matures, docket defaults to `main` for its visibility and simplicity, eyes open to the trade-off.
 
 **The atomic claim** (either mode): `git pull --rebase` → re-read the change → if still `proposed`, set `in-progress`, commit, and **push before building**; if the push loses a race, `pull --rebase`, re-check, retry or pick another change. The claim is visible before any code work starts. (A single shared local clone needs no push — the local commit suffices.)
 
