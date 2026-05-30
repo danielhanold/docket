@@ -66,6 +66,8 @@ These are the outcomes of the design brainstorm, each with its rationale. They f
 
 12. **Metadata lives on a configurable branch, default `main`.** Change files, board, and ADRs are PM metadata committed to `main` by default — decoupled from the code PR, which carries only code. A `metadata_branch` setting (default name `docket` when enabled) redirects that metadata to a dedicated branch for hard-protected-`main` repos, at a documented visibility cost (§8).
 
+13. **The linked spec/plan ride the feature branch, not the metadata.** They are development artifacts created at implement time in the feature worktree and merged to `main` with the code (Markhaus practice). The producer captures propose-time thinking in the change body, not a spec file; a change's `spec:`/`plan:` links resolve only after merge (§8).
+
 ---
 
 ## 4. Architecture — the skill set
@@ -214,7 +216,7 @@ Turns an idea into a new change file. **Only ever creates new `proposed` ids**, 
 1. **Allocate** — scan `active/` + `archive/` for the max `id`, increment; derive `slug` from the title.
 2. **Recon** — scan neighbouring changes (active + recent archive) and the project's ADR index to pre-fill `related`, `depends_on`, `adrs`.
 3. **Draft** — write `active/<id>-<slug>.md` from the skill's bundled `change-template.md`: frontmatter (`status: proposed`, dates, priority) + body.
-4. **Design (optional)** — if the idea is fuzzy/large, dispatch `superpowers:brainstorming` → writes natively to `docs/superpowers/specs/`; record the path in `spec:`. Crisp/small → skip; the implementer can brainstorm at build time.
+4. **Enrich (optional)** — for a fuzzy/large idea, the producer may use `superpowers:brainstorming` to think it through, but folds the result into the change **body**. It does **not** emit a `docs/superpowers/specs/` file — spec/plan are implement-time, feature-branch artifacts (§8), so `spec:`/`plan:` stay empty until build time.
 5. **Board + commit** — refresh `README.md`, commit. **Stops. Never implements.**
 
 **Scan mode (opt-in, explicitly triggered):** survey TODOs, deferred changes, known gaps, and the ADR backlog, and propose several `proposed` changes in one pass. Same allocate/draft/commit machinery, batched. Kept opt-in so routine runs don't generate speculative noise.
@@ -227,8 +229,8 @@ Picks the next best change and drives it to a PR, then stops at the human gate.
 1. **Select** — among `active/` changes that are `proposed` with all `depends_on` satisfied, rank by `priority` → readiness → age; pick the top (or accept an explicit id). Skip `in-progress`/`blocked`/`deferred`.
 2. **Claim** — re-read the manifest after the pull (avoid double-claim), set `status: in-progress` + `branch`, `updated`, commit on `metadata_branch`. *That commit is the lock.* Create the `feat/<slug>` worktree **from the tip of `main`** (`superpowers:using-git-worktrees`) — never from the metadata branch; see §8.
 3. **Reconcile** ⭐ — re-read the change against `related` + recently-archived changes, cited + recent ADRs, and current code. Rewrite the body (and the linked `spec`, if any) to what is true *now*: drop work already done elsewhere, adjust scope, fold in new constraints. Append a dated `## Reconcile log` entry; set `reconciled: true`; commit. **If reconcile finds the change is now obsolete, transition it to `killed` (with `## Why killed`) instead of building** — and loop back to Select.
-4. **Design** — if no `spec:` and there are real design questions → `superpowers:brainstorming` (native `specs/`), record path. Mechanical change → skip.
-5. **Plan** — `superpowers:writing-plans` (native `plans/`), record path in `plan:`.
+4. **Design** — if there are real design questions → `superpowers:brainstorming` (writes `docs/superpowers/specs/` **on the feature branch**), record the path in `spec:`. Mechanical change → skip.
+5. **Plan** — `superpowers:writing-plans` (writes `docs/superpowers/plans/` **on the feature branch**), record the path in `plan:`.
 6. **Build** — `superpowers:subagent-driven-development` executes the plan task-by-task with TDD + per-task review.
 7. **Review + ADRs** — `superpowers:requesting-code-review` (whole-branch); for any non-obvious decision, invoke `docket-adr` to record it (it assigns the number + updates the index) and append the returned number to the change's `adrs:`.
 8. **PR + stop** — `superpowers:finishing-a-development-branch` (PR mode) opens the PR; set `status: implemented`, `pr:`, commit. **Stops.** The change stays in `active/` as `implemented` until a human merges.
@@ -239,7 +241,7 @@ The queryable state plus housekeeping; run it to see "what's done, what's next, 
 
 - **Board** — scan `active/` + `archive/`, render `README.md` grouped by status, with id/title/priority/deps/branch/PR/spec/plan links.
 - **Merge sweep** — for each `implemented` change, check via `gh` whether its `pr` merged → move the file to `archive/YYYY-MM-DD-<id>-<slug>.md`, set `status: done`, commit. Closes the loop after a human merge.
-- **Health checks** — flag stale `in-progress` claims (branch gone / no commits in N days), `spec:`/`plan:` paths that no longer resolve (link rot), `blocked` changes whose `blocked_by` may have cleared, and `depends_on` cycles.
+- **Health checks** — flag stale `in-progress` claims (branch gone / no commits in N days), `spec:`/`plan:` paths that no longer resolve **on a `done` change** (link rot — ignored for `implemented` changes, whose spec/plan legitimately still live on the unmerged feature branch), `blocked` changes whose `blocked_by` may have cleared, and `depends_on` cycles.
 
 ### 7.4 `docket-adr` — the decision ledger
 
@@ -286,6 +288,15 @@ Whatever `metadata_branch` is, **a change's `feat/<slug>` branch is always cut f
 - **`metadata_branch: docket`.** Code still targets `main`, so the feature branch is **still cut from `main`, never from `docket`.** This is the trap to call out loudly: `docket` holds metadata only and has diverged from `main`; branching a change off it bases your code on unrelated metadata commits and yields a junk PR. Here the implementer juggles three branches — `docket` (claim/status/board/ADR commits, in a `docket` checkout), `main` (feature-branch base + merge target), and `feat/<slug>` (code, in a worktree off `main`).
 
 > **The one-line rule the skills/README encode:** *new change ⇒ `git worktree add <path> -b feat/<slug> origin/main`* — in **both** modes. `metadata_branch` only redirects bookkeeping commits; it never changes where the code branch starts.
+
+### Where the spec/plan live
+
+The linked superpowers **spec and plan are development artifacts, not metadata** — they **ride the feature branch and reach `main` only when the PR merges** (matching Markhaus's current practice). Consequences:
+
+- They are created at **implement time, in the feature worktree** (`docket-implement-next` steps 4–5) and committed there with the code; the build reads the plan from that same worktree — no cross-tree read.
+- The producer does **not** emit a spec/plan file at propose time (no feature branch exists yet) — any propose-time design thinking is folded into the change **body**. `spec:`/`plan:` are populated only at implement time.
+- A change's `spec:`/`plan:` paths therefore **resolve only after the PR merges**; until then the files live on the unmerged feature branch. This is expected, so `docket-status`'s link-rot check ignores missing spec/plan on `implemented` (PR-open) changes and only flags them once a change is `done`.
+- In `metadata_branch: docket` mode, the change file (on `docket`) points at spec/plan that land on `main`; the two converge on `main` after the periodic `docket → main` sync.
 
 ---
 
@@ -338,5 +349,5 @@ Skills are not unit-tested like code; verification is behavioural and dogfood-dr
 ## 13. Out of scope for v1 / open items
 
 - **Out of scope:** a living-spec/behavior-contract layer (deliberately absent — code is current-state truth); an OpenSpec-style CLI or YAML schema; multi-repo coordination.
-- **Open items to settle during implementation:** the board's rendered format; how `priority` is assigned/edited; whether `scan` mode reads a configurable list of "candidate sources." Also — surfaced by the branch model (§8) — **where the linked superpowers spec/plan live branch-wise**: with the metadata (always resolvable next to the change file, but read cross-tree during a `metadata_branch: docket` build) vs. riding the feature branch into `main` (natural for the build, but the change file's `spec:`/`plan:` links resolve only after merge). Markhaus's current practice is the latter.
+- **Open items to settle during implementation:** the board's rendered format; how `priority` is assigned/edited; whether `scan` mode reads a configurable list of "candidate sources."
 - **Naming:** `docket` chosen over `speclite` / `changeflow` / `slate` / `dossier` — it captures the *queue you drain*, which is the heart of the two-agent loop.
