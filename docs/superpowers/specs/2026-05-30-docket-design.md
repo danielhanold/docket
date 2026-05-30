@@ -89,7 +89,7 @@ docket/
       adr-template.md      # the ADR stub (travels with the skill)
   link-skills.sh           # symlink the skill dirs into agent-harness skill dirs
   sync-convention.sh       # (optional) propagate the shared Convention block across skills
-  README.md                # what docket is, install, the one prerequisite (superpowers)
+  README.md                # what docket is, install, the prerequisite (superpowers); must showcase the reconcile feature (§7.2)
   docs/                    # design spec etc. — repo-only, never copied into a harness
 ```
 
@@ -238,6 +238,16 @@ The first three own the change lifecycle (change files + board); the fourth, `do
 5. **Build** — `superpowers:subagent-driven-development` executes the plan task-by-task with TDD + per-task review.
 6. **Review + ADRs** — `superpowers:requesting-code-review` (whole-branch); for any non-obvious decision, invoke `docket-adr` to record it (it assigns the number + updates the index) and append the returned number to the change's `adrs:`.
 7. **PR + stop** — `superpowers:finishing-a-development-branch` (PR mode) opens the PR; set `status: implemented`, `pr:`, commit. **Stops.** The change stays in `active/` as `implemented` until a human merges.
+
+#### The reconcile pass and the `reconciled` flag — docket's quiet superpower
+
+> **The README must surface this prominently** — it is docket's most valuable, least obvious feature, not mere bookkeeping.
+
+A change is drafted against a *snapshot* of the world — the codebase, the ADRs, and the other changes as they stood the day you brainstormed it. In an async backlog the implementer may not pick it up for weeks, by which point that snapshot is stale: other changes have shipped, new ADRs have landed, the code has moved. **Most backlog-driven systems build the ticket exactly as written, stale assumptions and all** — the classic failure mode where you implement something already half-done elsewhere, or that a later decision quietly invalidated.
+
+docket's **reconcile** step (step 3) is the antidote. Just before building, it re-reads the change and its spec against the *current* world and rewrites them to what is true *now*: drops work already done elsewhere, narrows or widens scope, folds in constraints from ADRs written since — and if the change is now pointless it **kills** it, or if the design is fundamentally invalidated it **stops and asks you**. It runs at the **last responsible moment**, because reconciling any earlier would just go stale again.
+
+The **`reconciled` flag** is the visible record that this refresh ran: `false` at birth (the change reflects its drafting-day snapshot), `true` after the pass (it reflects current reality). It is both a **guard** — `docket-implement-next` will not build an unreconciled change — and an **audit signal**: paired with the dated `## Reconcile log` entry, anyone can see *when* a change was last brought up to date and *what changed*. A one-line boolean that encodes docket's core stance: **plans rot; refresh them just-in-time, never trust a stale backlog.**
 
 ### 7.3 `docket-status` — the board & janitor
 
