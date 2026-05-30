@@ -60,7 +60,7 @@ These are the outcomes of the design brainstorm, each with its rationale. They f
 
 9. **Skills are self-contained — convention duplicated, not shared.** Each `SKILL.md` embeds the convention (directory layout + manifest schema + lifecycle) inline as a marker-delimited `## Convention` block, and `docket-propose` carries its own change template *inside its skill folder*. Nothing a skill needs lives outside its own directory, because skills are distributed by copying/symlinking that directory — an external `references/CONVENTION.md` would not travel with them. The duplication across the three skills is accepted; an optional `sync-convention.sh` propagates edits from one canonical block to keep the copies in step.
 
-10. **A `link-skills.sh` convenience script** symlinks the three skill directories into the agent-harness skill dirs, so the source of truth stays in `~/dev/docket` and harnesses pick the skills up without copying. Modeled on `~/dev/obsidian-wiki/link-skills.sh` (idempotent: only creates missing links, leaves existing ones alone).
+10. **A `link-skills.sh` convenience script** symlinks the three skill directories into the **global** agent-harness skill dirs (`~/.claude/skills/`, `~/.cursor/skills/`, `~/.kiro/skills/`, `~/.windsurf/skills/`, `~/.agents/skills/`) with absolute symlinks back to `~/dev/docket/skills/<name>`. So the source of truth stays in `~/dev/docket`, docket installs once, and the skills are available in every project without copying. Modeled on `~/dev/obsidian-wiki/link-skills.sh` (idempotent: only creates missing links, leaves existing ones alone).
 
 ---
 
@@ -267,5 +267,5 @@ Skills are not unit-tested like code; verification is behavioural and dogfood-dr
 ## 13. Out of scope for v1 / open items
 
 - **Out of scope:** managing ADRs (the project owns those); a living-spec/behavior-contract layer (deliberately absent — code is current-state truth); an OpenSpec-style CLI or YAML schema; multi-repo coordination.
-- **Open items to settle during implementation:** the branch model for lifecycle/board commits (integration branch vs dedicated `docket` branch vs feature branch) — affects the coordination guarantee; recommended approach noted in §8. Also: exact skill-name namespacing (`docket-propose` vs `docket:propose`); the board's rendered format; how `priority` is assigned/edited; whether `scan` mode reads a configurable list of "candidate sources"; and the `link-skills.sh` target (global harness skill dirs vs repo-local, per the reference script).
+- **Open items to settle during implementation:** the branch model for lifecycle/board commits (integration branch vs dedicated `docket` branch vs feature branch) — affects the coordination guarantee; recommended approach noted in §8. Also: exact skill-name namespacing (`docket-propose` vs `docket:propose`); the board's rendered format; how `priority` is assigned/edited; whether `scan` mode reads a configurable list of "candidate sources."
 - **Naming:** `docket` chosen over `speclite` / `changeflow` / `slate` / `dossier` — it captures the *queue you drain*, which is the heart of the two-agent loop.
