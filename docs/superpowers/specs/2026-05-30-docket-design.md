@@ -210,7 +210,7 @@ The first three own the change lifecycle (change files + board); the fourth, `do
 
 ### 7.1 `docket-new-change` — the producer
 
-Turns an idea into a new change file. **Only ever creates new `proposed` ids**, so it structurally cannot collide with the implementer.
+Turns an idea into a new change file. **Only ever creates new `proposed` ids**, so it structurally cannot collide with the implementer. It writes only a markdown file — **no branch, no worktree, no code** (those belong to `docket-implement-next`).
 
 **Formalizer mode (default):**
 1. **Allocate** — scan `active/` + `archive/` for the max `id`, increment; derive `slug` from the title.
@@ -240,7 +240,7 @@ Picks the next best change and drives it to a PR, then stops at the human gate.
 The queryable state plus housekeeping; run it to see "what's done, what's next, what's stuck."
 
 - **Board** — scan `active/` + `archive/`, render `README.md` grouped by status, with id/title/priority/deps/branch/PR/spec/plan links.
-- **Merge sweep** — for each `implemented` change, check via `gh` whether its `pr` merged → move the file to `archive/YYYY-MM-DD-<id>-<slug>.md`, set `status: done`, commit. Closes the loop after a human merge.
+- **Merge sweep** — for each `implemented` change, check via `gh` whether its `pr` merged → move the file to `archive/YYYY-MM-DD-<id>-<slug>.md`, set `status: done`, commit, and remove the merged feature branch + worktree (provenance-guarded). Closes the loop after a human merge.
 - **Health checks** — flag stale `in-progress` claims (branch gone / no commits in N days), `spec:`/`plan:` paths that no longer resolve **on a `done` change** (link rot — ignored for `implemented` changes, whose spec/plan legitimately still live on the unmerged feature branch), `blocked` changes whose `blocked_by` may have cleared, and `depends_on` cycles.
 
 ### 7.4 `docket-adr` — the decision ledger
@@ -288,6 +288,12 @@ Whatever `metadata_branch` is, **a change's `feat/<slug>` branch is always cut f
 - **`metadata_branch: docket`.** Code still targets `main`, so the feature branch is **still cut from `main`, never from `docket`.** This is the trap to call out loudly: `docket` holds metadata only and has diverged from `main`; branching a change off it bases your code on unrelated metadata commits and yields a junk PR. Here the implementer juggles three branches — `docket` (claim/status/board/ADR commits, in a `docket` checkout), `main` (feature-branch base + merge target), and `feat/<slug>` (code, in a worktree off `main`).
 
 > **The one-line rule the skills/README encode:** *new change ⇒ `git worktree add <path> -b feat/<slug> origin/main`* — in **both** modes. `metadata_branch` only redirects bookkeeping commits; it never changes where the code branch starts.
+
+**Who creates the worktree, and when.** The **agent** creates it inside `docket-implement-next` (the Claim/Build step) — **never the human, and never `docket-new-change`**. The producer writes only a markdown change file (no branch, no worktree, no code), so `proposed` changes that may never be built don't litter the repo with worktrees. Worktrees are one-per-change-being-built, owned by the implementer.
+
+Both skills are **invocation-branch-agnostic**: they `git fetch` and operate against `origin/main` (the feature base) and `metadata_branch` (bookkeeping) *explicitly*, so it does not matter which branch the human is on when invoking — basing the worktree on `origin/main` rather than the current local HEAD is exactly what makes this safe. (Convention, not requirement: invoke from the main checkout.)
+
+The worktree **persists through the `implemented` / PR-open state** (so review feedback can add commits) and is removed by the merge-sweep when the change is archived to `done` — same provenance-guard as `superpowers:finishing-a-development-branch` (only auto-remove worktrees under a known `.worktrees/`-style path).
 
 ### Where the spec/plan live
 
