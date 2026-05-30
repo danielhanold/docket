@@ -240,7 +240,7 @@ ADR frontmatter is machine-readable so `docket-adr` can generate the index and v
 4. **Worktree + plan** — `git fetch origin` (confirm the step-3 reconcile push has landed on `origin`), then `git worktree add .worktrees/<slug> -b feat/<slug> origin/main` — based on the **freshly-fetched** `origin/main`, which now carries the reconciled spec in default mode (never base it on a *separate* metadata branch like `docket`; in default mode `metadata_branch` **is** `main`, which is correctly the base — see §8). Run `superpowers:writing-plans` (writes `docs/superpowers/plans/` **on the feature branch**); record the path in `plan:`.
 5. **Build** — `superpowers:subagent-driven-development` executes the plan task-by-task with TDD + per-task review.
 6. **Review + ADRs** — `superpowers:requesting-code-review` (whole-branch); for any non-obvious decision, invoke `docket-adr` to record it (it assigns the number + updates the index) and append the returned number to the change's `adrs:`.
-7. **PR + stop** — `superpowers:finishing-a-development-branch` (PR mode) opens the PR; set `status: implemented`, `pr:`, commit. **Stops.** The change stays in `active/` as `implemented` until a human merges.
+7. **PR + stop** — push the feature branch and open the PR **directly** (`gh pr create`); the integration decision is already fixed by gate-at-PR, so this does *not* call the *interactive* `superpowers:finishing-a-development-branch` (which presents merge/keep/discard options to a human — wrong for an autonomous step; see §7.3). Set `status: implemented`, `pr:`, commit. **Stops.** The change stays in `active/` as `implemented` until a human **merges it, or approves `docket-finalize` to merge it for them** (§7.3).
 
 #### The reconcile pass and the `reconciled` flag — docket's quiet superpower
 
@@ -263,6 +263,8 @@ The human's **closing bookend** (mirrors `docket-new-change`, the opening one). 
 5. **Board** — regenerate `BOARD.md`.
 
 It never touches the PR diff — the archive is a clean metadata commit on `metadata_branch`. **In `docket` mode finalize spans two branches**: it merges the code into `main` (step 1) but commits the archive to `docket` (step 3), so the `done` state won't appear on `main` until the periodic `docket → main` sync (§8). `docket-status`'s bulk merge-sweep (and step 0 of `docket-implement-next`) remain a self-healing safety net for any change merged via the GitHub button without running this skill.
+
+**Where `superpowers:finishing-a-development-branch` fits.** docket does *not* use that skill on the autonomous PR-open (step 7 opens the PR directly). It is reserved for where a human is genuinely choosing how to integrate — a **non-standard closeout** (keep the branch as-is, discard it, or merge locally without a PR). In those cases the human invokes it directly; its interactive merge/keep/discard chooser is exactly that situation. (This mirrors superspec v4, which owns the git-side closeout directly and keeps `finishing-a-development-branch` as an escape hatch.) docket borrows only its **worktree provenance-guard** pattern for cleanup (steps above), not its interactive flow.
 
 ### 7.4 `docket-status` — the board & janitor
 
