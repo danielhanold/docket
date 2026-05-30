@@ -50,7 +50,7 @@ These are the outcomes of the design brainstorm, each with its rationale. They f
 
 4. **One file per change.** Manifest frontmatter + a full why/what/scope body. No per-change folder, no duplicated design/plan files. Reconcile notes live in a `## Reconcile log` section.
 
-5. **Lifecycle is a `status` field + a single archive move.** Seven states; `active/` holds non-terminal, `archive/` holds terminal (`done`, `killed`). The happy-terminal state is **`done`** (a deliberate "definition of done"); the `archive/` directory keeps its name (it is the *location* for finished changes, both `done` and `killed`). The only physical file move happens once, on the terminal transition — so parallel agents never race on `git mv`. Finer state (blocked/deferred) is a field value, not a directory.
+5. **Lifecycle is a `status` field + a single archive move.** Seven states; `active/` holds non-terminal, `archive/` holds terminal (`done`, `killed`). The happy-terminal state is **`done`** (a deliberate "definition of done"); the `archive/` directory keeps its name (it is the *location* for finished changes, both `done` and `killed`). The terminal move happens once per change, and is **idempotent and guarded** (re-pull, re-read status, no-op if already `done`; the `YYYY-MM-DD` prefix comes from the merge commit, not `now()`) — so the three paths that can trigger it (`docket-finalize`, the `docket-status` sweep, `implement-next` step 0) never corrupt each other. Finer state (blocked/deferred) is a field value, not a directory.
 
 6. **Five skills**, flat-prefixed with `docket-` (Claude Code invokes skills by flat name, so the prefix *is* the grouping — a `docket:`-style colon namespace would imply grouping that doesn't exist): `docket-new-change` (producer), `docket-implement-next` (implementer), `docket-finalize` (close a change to `done`), `docket-status` (board + janitor), `docket-adr` (decision ledger).
 
@@ -60,7 +60,7 @@ These are the outcomes of the design brainstorm, each with its rationale. They f
 
 9. **Skills are self-contained — convention duplicated, not shared.** Each `SKILL.md` embeds the convention (directory layout + manifest schema + lifecycle) inline as a marker-delimited `## Convention` block, and `docket-new-change` carries its own change template *inside its skill folder*. Nothing a skill needs lives outside its own directory, because skills are distributed by copying/symlinking that directory — an external `references/CONVENTION.md` would not travel with them. The duplication across the five skills is accepted; an optional `sync-convention.sh` propagates edits from one canonical block to keep the copies in step.
 
-10. **A `link-skills.sh` convenience script** symlinks the three skill directories into the **global** agent-harness skill dirs (`~/.claude/skills/`, `~/.cursor/skills/`, `~/.kiro/skills/`, `~/.windsurf/skills/`, `~/.agents/skills/`) with absolute symlinks back to `~/dev/docket/skills/<name>`. So the source of truth stays in `~/dev/docket`, docket installs once, and the skills are available in every project without copying. Modeled on `~/dev/obsidian-wiki/link-skills.sh` (idempotent: only creates missing links, leaves existing ones alone).
+10. **A `link-skills.sh` convenience script** symlinks the five skill directories into the **global** agent-harness skill dirs (`~/.claude/skills/`, `~/.cursor/skills/`, `~/.kiro/skills/`, `~/.windsurf/skills/`, `~/.agents/skills/`) with absolute symlinks back to `~/dev/docket/skills/<name>`. So the source of truth stays in `~/dev/docket`, docket installs once, and the skills are available in every project without copying. Modeled on `~/dev/obsidian-wiki/link-skills.sh` (idempotent: only creates missing links, leaves existing ones alone).
 
 11. **ADRs are first-class in docket — not delegated to the project.** Architecture decisions live in `docs/adrs/` (sibling to `docs/changes/`), follow an immutable-ledger convention (numbered `NNNN-kebab-title.md`; an `Accepted` ADR changes only its `Status:` line; a decision is reversed/superseded by a *new* ADR, never a rewrite), and are managed by the dedicated `docket-adr` skill. Changes `cite` and `produce` ADRs; ADRs outlive changes and are **never archived**. Markhaus proved the convention's value — but it was model-invented per project, so docket codifies it to stop it being reinvented (or missed) each time.
 
@@ -132,7 +132,7 @@ id: 7                     # integer; zero-padded to 4 digits in the filename
 slug: quicklook-interactions
 title: Quick Look interactions — external links + local images
 status: proposed          # proposed | in-progress | blocked | deferred | implemented | done | killed
-priority: 2               # 1 = highest
+priority: medium          # low | medium | high | critical  (default: medium)
 created: 2026-05-30
 updated: 2026-05-30
 depends_on: [4]           # change ids that must reach `done` before this can start
@@ -206,7 +206,7 @@ ADR frontmatter is machine-readable so `docket-adr` can generate the index and v
 | `done` | PR merged, filed away (happy terminal) | `archive/` |
 | `killed` | abandoned, never built (sad terminal) | `archive/` |
 
-**Rules.** `active/` holds every non-terminal status; `archive/` holds the two terminal outcomes. The single physical move (`active/ → archive/`, with a `YYYY-MM-DD-` date prefix) happens exactly once, on the terminal transition. Clearing a blocker or reviving a deferred change is a one-line frontmatter edit, no move. A change whose `depends_on` is unsatisfied is *implicitly* blocked — the implementer's selector skips it without a status change; reserve explicit `blocked` for external blockers the system can't infer.
+**Rules.** `active/` holds every non-terminal status; `archive/` holds the two terminal outcomes. The single physical move (`active/ → archive/`, prefixed with the **merge commit's** `YYYY-MM-DD` date) happens once on the terminal transition and is idempotent (decision #5). `deferred` may be entered from `proposed` or `in-progress` (with a `## Why deferred` note) and revived to `proposed`; clearing a blocker or reviving is a one-line frontmatter edit, no move. A change whose `depends_on` is unsatisfied is *implicitly* blocked — the selector skips it (no status change) and the board shows it as **waiting on #N**, never as plainly build-ready. Because `docket-implement-next` step 0 first sweeps any *merged* dependency to `done`, a dep that was merged-but-not-finalized becomes satisfied within the same run, so this rarely stalls. Reserve explicit `blocked` for external blockers the system can't infer.
 
 ---
 
@@ -219,10 +219,10 @@ ADR frontmatter is machine-readable so `docket-adr` can generate the index and v
 **This is where the human is in the loop.** It turns an idea into a *build-ready* change by brainstorming the design up front, so `docket-implement-next` can later run with no interaction. **Only ever creates new `proposed` ids**, so it structurally cannot collide with the implementer. Writes markdown only — **no branch, no worktree, no code**.
 
 **Brainstorm mode (default):**
-1. **Allocate** — scan `active/` + `archive/` for the max `id`, increment; derive `slug` from the title.
+1. **Allocate** — `git pull --rebase` on `metadata_branch`, scan `active/` + `archive/` for the max `id`, increment; derive `slug` from the title. (If the step-5 push is rejected because another `docket-new-change` took the same id first, re-pull, re-allocate, re-push.)
 2. **Brainstorm** — run `superpowers:brainstorming` *with the human* to work through the design. This is the decision point. It **stops at the spec** — it does *not* continue to `writing-plans` (that's build-time). The spec is written natively to `docs/superpowers/specs/…` and committed to `metadata_branch`; record its path in `spec:`.
 3. **Recon** — scan neighbouring changes (active + recent archive) and the ADR index to pre-fill `related`, `depends_on`, `adrs`.
-4. **Draft the change** — write the thin `active/<id>-<slug>.md` from the bundled `change-template.md`: frontmatter (`status: proposed`, `spec:`, dates, priority) + a PM-altitude body (why/what/scope) distilled from the brainstorm. The design detail lives in the linked spec, not here.
+4. **Draft the change** — write the thin `active/<id>-<slug>.md` from the bundled `change-template.md`: frontmatter (`status: proposed`, `spec:`, dates, `priority` — default `medium`) + a PM-altitude body (why/what/scope) distilled from the brainstorm. The design detail lives in the linked spec, not here.
 5. **Board, commit & push** — refresh `BOARD.md`, commit the change + spec, and **push to the remote `metadata_branch`**. The pushed markdown is immediately reviewable on GitHub (e.g. when the change was authored from a phone) and visible to the autonomous implementer. **Stops. Never implements.**
 
 **Trivial path:** for a small mechanical change with no real design questions, skip the brainstorm, set `trivial: true`, and write the change body directly — no spec, still build-ready (decision #14).
@@ -234,10 +234,10 @@ ADR frontmatter is machine-readable so `docket-adr` can generate the index and v
 **Runs with no human interaction.** Picks the next build-ready change and drives it to a PR, then stops at the human merge gate.
 
 0. **Sync & sweep** — `git pull`; invoke the `docket-status` merge-sweep so any `implemented` change whose PR has merged is swept to `archive/` (status → `done`) first (self-cleaning safety net, for changes not already closed via `docket-finalize`).
-1. **Select** — among `active/` changes that are `proposed`, **build-ready** (have a `spec:` or `trivial: true`), and have all `depends_on` satisfied, rank by `priority` → readiness → age; pick the top (or accept an explicit id). Skip `in-progress`/`blocked`/`deferred` and not-build-ready stubs.
-2. **Claim** — re-read the manifest after the pull (avoid double-claim), set `status: in-progress` + `branch`, `updated`; commit on `metadata_branch`. *That commit is the lock.* (No worktree yet — step 4.)
+1. **Select** — among `active/` changes that are `proposed`, **build-ready** (have a `spec:` or `trivial: true`), and have all `depends_on` satisfied, rank by `priority` (`critical` > `high` > `medium` > `low`) → age; pick the top (or accept an explicit id). Skip `in-progress`/`blocked`/`deferred` and not-build-ready stubs.
+2. **Claim** — re-read the manifest after the pull (avoid double-claim), set `status: in-progress` + `branch`, `updated`; commit and push on `metadata_branch`. *The successful **push** of that commit is the lock — mutual exclusion comes from the remote rejecting a non-fast-forward update, not the local commit itself.* (No worktree yet — step 4.)
 3. **Reconcile** ⭐ — re-read the change + its spec against `related` + recently-archived changes, cited + recent ADRs, and current code; refresh the change body and spec to what is true *now* (drop work done elsewhere, adjust scope, fold in new constraints), **non-interactively**; append a dated `## Reconcile log` entry; set `reconciled: true`; commit and push on `metadata_branch` (so the next step's worktree carries the refreshed spec in default mode). Two escape hatches: if the change is now **obsolete** → `killed` (`## Why killed`) and loop back to Select; if the design is **fundamentally invalidated** (not just scope-adjustable) → **stop and escalate to the human** — it can't re-brainstorm alone.
-4. **Worktree + plan** — create the `feat/<slug>` worktree **from the tip of `origin/main`** (now carrying the reconciled spec; never from the metadata branch — see §8); run `superpowers:writing-plans` (writes `docs/superpowers/plans/` **on the feature branch**); record the path in `plan:`.
+4. **Worktree + plan** — `git fetch origin` (confirm the step-3 reconcile push has landed on `origin`), then `git worktree add .worktrees/<slug> -b feat/<slug> origin/main` — based on the **freshly-fetched** `origin/main`, which now carries the reconciled spec in default mode (never base it on the metadata branch — see §8). Run `superpowers:writing-plans` (writes `docs/superpowers/plans/` **on the feature branch**); record the path in `plan:`.
 5. **Build** — `superpowers:subagent-driven-development` executes the plan task-by-task with TDD + per-task review.
 6. **Review + ADRs** — `superpowers:requesting-code-review` (whole-branch); for any non-obvious decision, invoke `docket-adr` to record it (it assigns the number + updates the index) and append the returned number to the change's `adrs:`.
 7. **PR + stop** — `superpowers:finishing-a-development-branch` (PR mode) opens the PR; set `status: implemented`, `pr:`, commit. **Stops.** The change stays in `active/` as `implemented` until a human merges.
@@ -250,7 +250,7 @@ A change is drafted against a *snapshot* of the world — the codebase, the ADRs
 
 docket's **reconcile** step (step 3) is the antidote. Just before building, it re-reads the change and its spec against the *current* world and rewrites them to what is true *now*: drops work already done elsewhere, narrows or widens scope, folds in constraints from ADRs written since — and if the change is now pointless it **kills** it, or if the design is fundamentally invalidated it **stops and asks you**. It runs at the **last responsible moment**, because reconciling any earlier would just go stale again.
 
-The **`reconciled` flag** is the visible record that this refresh ran: `false` at birth (the change reflects its drafting-day snapshot), `true` after the pass (it reflects current reality). It is both a **guard** — `docket-implement-next` will not build an unreconciled change — and an **audit signal**: paired with the dated `## Reconcile log` entry, anyone can see *when* a change was last brought up to date and *what changed*. A one-line boolean that encodes docket's core stance: **plans rot; refresh them just-in-time, never trust a stale backlog.**
+The **`reconciled` flag** is the visible record that this refresh ran: `false` at birth (the change reflects its drafting-day snapshot), `true` after the pass (it reflects current reality). It is an **audit signal** — paired with the dated `## Reconcile log` entry, anyone can see *when* a change was last brought up to date and *what changed* — and a **resume-safety guard**: it is **not** a selection criterion (every change is born `false`, and selection build-readiness is `spec:`-or-`trivial`, §7.2 step 1); rather, on resume a claimed (`in-progress`) change still showing `reconciled: false` tells the implementer reconcile didn't finish, so it re-runs before building. A one-line boolean that encodes docket's core stance: **plans rot; refresh them just-in-time, never trust a stale backlog.**
 
 ### 7.3 `docket-finalize` — close out a change (human)
 
@@ -258,23 +258,23 @@ The human's **closing bookend** (mirrors `docket-new-change`, the opening one). 
 
 1. **Check the PR** (`gh`). Already merged → straight to archive. Approved + mergeable but not merged → **merge it** (you invoking finalize *is* the merge decision — the gate is respected), then continue.
 2. **Verify** the merge landed on `main` (optionally, tests green on the merged result).
-3. **Archive** — move `active/<id>-<slug>.md` → `archive/YYYY-MM-DD-<id>-<slug>.md`, set `status: done`; commit on `metadata_branch` and push.
+3. **Archive (idempotent)** — `git pull --rebase`, re-read status; if already `done` (or already under `archive/`), no-op. Otherwise move `active/<id>-<slug>.md` → `archive/<merge-date>-<id>-<slug>.md` (the `YYYY-MM-DD` prefix is the **merge commit's** date, not `now()`, so concurrent paths produce the same filename), set `status: done`; commit on `metadata_branch` and push (retry on a non-fast-forward race).
 4. **Clean up** — remove the merged feature branch + worktree (provenance-guarded, like `finishing-a-development-branch`).
 5. **Board** — regenerate `BOARD.md`.
 
-It never touches the PR diff — the archive is a clean metadata commit on `metadata_branch` (Option A). `docket-status`'s bulk merge-sweep (and step 0 of `docket-implement-next`) remain a self-healing safety net for any change merged via the GitHub button without running this skill.
+It never touches the PR diff — the archive is a clean metadata commit on `metadata_branch`. **In `docket` mode finalize spans two branches**: it merges the code into `main` (step 1) but commits the archive to `docket` (step 3), so the `done` state won't appear on `main` until the periodic `docket → main` sync (§8). `docket-status`'s bulk merge-sweep (and step 0 of `docket-implement-next`) remain a self-healing safety net for any change merged via the GitHub button without running this skill.
 
 ### 7.4 `docket-status` — the board & janitor
 
 The queryable state plus housekeeping; run it to see "what's done, what's next, what's stuck."
 
-- **Board** — scan `active/` + `archive/` and **regenerate `BOARD.md` wholesale** (rich GitHub-Flavored Markdown): a one-line count summary; emoji-grouped sections per status with live counts (`## 🟢 In progress (2)`); per-group tables with clickable PR/spec links, right-aligned priority, and the **build-ready vs needs-brainstorm** split made visible; a **Mermaid dependency graph** built from `depends_on` edges (done nodes tinted); and a collapsible `<details>` Done section. It renders richly on **GitHub and in Markhaus** (Mermaid bundled, ADR-0011) and degrades gracefully in plain CommonMark viewers. Disciplines: **never hand-edited** (source of truth is the change files) and **no churny timestamp** (counts convey freshness). A small static `README.md` beside it explains the directory and links to `BOARD.md`.
-- **Merge sweep** (the *bulk* safety net; `docket-finalize` closes a single change on demand — §7.3) — for each `implemented` change, check via `gh` whether its `pr` merged → move the file to `archive/YYYY-MM-DD-<id>-<slug>.md`, set `status: done`, commit, and remove the merged feature branch + worktree (provenance-guarded). Closes the loop after a human merge.
-- **Health checks** — flag stale `in-progress` claims (branch gone / no commits in N days), a `spec:` that doesn't resolve (checked normally — the spec is metadata and should always be present), a `plan:` that doesn't resolve **on a `done` change** (link rot — ignored for `implemented` changes, whose plan legitimately still lives on the unmerged feature branch), `blocked` changes whose `blocked_by` may have cleared, and `depends_on` cycles.
+- **Board** — scan `active/` + `archive/` and **regenerate `BOARD.md` wholesale** (rich GitHub-Flavored Markdown): a one-line count summary; emoji-grouped sections per status with live counts (`## 🟢 In progress (2)`); per-group tables with clickable PR/spec links, a priority chip (`critical`/`high`/`medium`/`low`), and the **build-ready vs needs-brainstorm** split made visible (a change with an unsatisfied `depends_on` is shown as **⏳ waiting on #N**, not as build-ready); a **Mermaid dependency graph** built from `depends_on` edges (done nodes tinted); and a collapsible `<details>` Done section. It renders richly on **GitHub and in Markhaus** (Mermaid bundled, ADR-0011) and degrades gracefully in plain CommonMark viewers. Disciplines: **never hand-edited** (source of truth is the change files) and **no churny timestamp** (counts convey freshness). A small static `README.md` beside it explains the directory and links to `BOARD.md`.
+- **Merge sweep** (the *bulk* safety net; `docket-finalize` closes a single change on demand — §7.3) — for each `implemented` change, check via `gh` whether its `pr` merged → archive idempotently (re-pull, re-read; no-op if already `done`; move to `archive/<merge-date>-<id>-<slug>.md` using the **merge commit's** date), set `status: done`, commit, and remove the merged feature branch + worktree (provenance-guarded). Closes the loop after a human merge.
+- **Health checks** — flag stale `in-progress` claims (branch gone / no commits in N days), a `spec:` that is **set but doesn't resolve against `metadata_branch`** (skipped for `trivial: true` changes, which have no spec), a `plan:` that doesn't resolve **on a `done` change** (link rot — ignored for `implemented` changes, whose plan legitimately still lives on the unmerged feature branch), `blocked` changes whose `blocked_by` may have cleared, and `depends_on` cycles.
 
 ### 7.5 `docket-adr` — the decision ledger
 
-Owns `docs/adrs/`. Invoked by `docket-implement-next` (step 7) when a decision is made, or directly by a human/agent any time a decision must be recorded or changed. Actions:
+Owns `docs/adrs/`. Invoked by `docket-implement-next` (step 6) when a decision is made, or directly by a human/agent any time a decision must be recorded or changed. Actions:
 
 - **Create** — allocate the next ADR number (max+1 by scanning `docs/adrs/`), write `<NNNN>-<slug>.md` from the bundled `adr-template.md` (`status: Accepted`, optional `change:` back-link), add an index entry, commit, and **return the number** so the caller can cite it.
 - **Supersede / reverse** — never edits an Accepted ADR's body. Writes a *new* ADR (`supersedes:`/`reverses:` the old), flips only the old ADR's `status:` to `Superseded by ADR-NN` / `Reversed by ADR-NN`, and annotates **both** entries in the index.
@@ -302,7 +302,7 @@ For the two-agent lock to work, metadata commits must be visible on a branch bot
 - **Opt-in — a dedicated branch (default name `docket`).** Set `metadata_branch: docket` and all metadata churn commits there; agents pull that branch to coordinate; code still goes `feat → main` via PR. For repos with a hard-protected `main` that would *reject* a direct push.
 
   **Current drawbacks of the dedicated-branch mode** (documented so the trade-off is honest — these are *current* limitations, not fundamental):
-  - **ADRs aren't on `main`** until the `docket` branch is merged, so `See ADR-NN` references in code dangle on `main` in the meantime — the sharpest cost, since the ADR ledger is meant to be permanent main-tree record.
+  - **ADRs aren't on `main`** until the `docket` branch is merged, so `See ADR-NN` references in code dangle on `main` in the meantime — the sharpest cost, since the ADR ledger is meant to be permanent main-tree record (this also bites a reviewer following `See ADR-NN` from an open PR's diff against `main`).
   - **The board isn't on `main`** — you switch to the `docket` branch (or browse it on GitHub) to see the backlog.
   - **Sync overhead** — the `docket` branch must be merged into `main` periodically to surface ADRs/board there; nothing does that automatically yet.
 
@@ -310,16 +310,16 @@ For the two-agent lock to work, metadata commits must be visible on a branch bot
 
 > **The README must state this plainly (transparency).** In the default mode, docket uses `main` as a **pseudo-database**: the live project state — backlog, board, decisions — is kept as files committed *directly* to `main`. Be upfront that **this is not how most projects treat `main`** — committing non-code bookkeeping straight to the integration branch is unconventional, and some teams will find it noisy or at odds with branch protection. The cleaner, conventional answer for them is the separate `metadata_branch` (`docket`) mode — but that mode is **currently underdeveloped** (dangling ADR refs, manual sync, per the drawbacks above) and is expected to improve in future versions (auto-mirror / auto-merge to `main`). Until it matures, docket defaults to `main` for its visibility and simplicity, eyes open to the trade-off.
 
-**The atomic claim** (either mode): `git pull --rebase` → re-read the change → if still `proposed`, set `in-progress`, commit, and **push before building**; if the push loses a race, `pull --rebase`, re-check, retry or pick another change. The claim is visible before any code work starts. (A single shared local clone needs no push — the local commit suffices.)
+**The atomic claim** (either mode): `git pull --rebase` → re-read the change → if still `proposed`, set `in-progress`, commit, and **push before building**; if the push loses the race (non-fast-forward rejection), `pull --rebase`, re-check, retry or pick another change. The push is what arbitrates the race — so **don't run two agents against one shared local clone** (there is no remote to reject a colliding claim); give each agent its own clone.
 
 ### Starting a change's feature branch
 
-Whatever `metadata_branch` is, **a change's `feat/<slug>` branch is always cut from the tip of `main`** — its code merges into `main` via PR, so basing it anywhere else pollutes the diff. The feature branch carries *only code* and never touches docket metadata. The skills **and the README must state this explicitly**, per mode:
+Whatever `metadata_branch` is, **a change's `feat/<slug>` branch is always cut from the tip of `origin/main`** — its code merges into `main` via PR, so basing it anywhere else pollutes the diff. The feature branch carries *only code* and never touches docket metadata. The skills **and the README must state this explicitly**, per mode:
 
-- **`metadata_branch: main` (default).** `main` is both the metadata home and the feature-branch base. Flow: pull `main` → commit the claim on `main` → reconcile (refresh change + spec on `main`) → `git worktree add` the `feat/<slug>` worktree **from `main`** → build → later status commits on `main` → PR → merge.
-- **`metadata_branch: docket`.** Code still targets `main`, so the feature branch is **still cut from `main`, never from `docket`.** This is the trap to call out loudly: `docket` holds metadata only and has diverged from `main`; branching a change off it bases your code on unrelated metadata commits and yields a junk PR. Here the implementer juggles three branches — `docket` (claim/status/board/ADR/spec commits, in a `docket` checkout), `main` (feature-branch base + merge target), and `feat/<slug>` (code + plan, in a worktree off `main`).
+- **`metadata_branch: main` (default).** `main` is both the metadata home and the feature-branch base. Flow: pull `main` → commit the claim on `main` → reconcile (refresh change + spec on `main`) → `git fetch` then `git worktree add .worktrees/<slug> -b feat/<slug> origin/main` → build → later status commits on `main` → PR → merge.
+- **`metadata_branch: docket`.** Code still targets `main`, so the feature branch is **still cut from `origin/main`, never from `docket`.** This is the trap to call out loudly: `docket` holds metadata only and has diverged from `main`; branching a change off it bases your code on unrelated metadata commits and yields a junk PR. Here the implementer juggles three branches — `docket` (claim/status/board/ADR/spec commits, in a `docket` checkout), `main` (feature-branch base + merge target), and `feat/<slug>` (code + plan, in a worktree off `main`).
 
-> **The one-line rule the skills/README encode:** *new change ⇒ `git worktree add <path> -b feat/<slug> origin/main`* — in **both** modes. `metadata_branch` only redirects bookkeeping commits; it never changes where the code branch starts.
+> **The one-line rule the skills/README encode:** *new change ⇒ `git worktree add .worktrees/<slug> -b feat/<slug> origin/main`* — in **both** modes. `metadata_branch` only redirects bookkeeping commits; it never changes where the code branch starts.
 
 **Who creates the worktree, and when.** The **agent** creates it inside `docket-implement-next` (at the Worktree + plan step, *after* reconcile) — **never the human, and never `docket-new-change`**. The producer writes only a markdown change file (no branch, no worktree, no code), so `proposed` changes that may never be built don't litter the repo with worktrees. Worktrees are one-per-change-being-built, owned by the implementer.
 
@@ -333,7 +333,7 @@ The **spec** and **plan** live on *different* branches, because they're created 
 
 - **The spec (design) is propose-time metadata.** `docket-new-change` produces it via brainstorming and commits it to `metadata_branch` alongside the change, so its `spec:` link **always resolves**. In default mode it's already on `main`, so the feature worktree (cut from `origin/main` *after* reconcile) carries the reconciled spec for the build to read.
 - **The plan (task breakdown) is a build-time feature-branch artifact.** `docket-implement-next` writes it via `writing-plans` in the feature worktree; it merges to `main` with the code (Markhaus practice), and the build reads it from that same worktree — no cross-tree read. A change's `plan:` link therefore **resolves only after the PR merges**, so `docket-status`'s link-rot check ignores a missing `plan:` on an `implemented` change and flags it only once the change is `done`. (`spec:`, being metadata, is checked normally.)
-- In `metadata_branch: docket` mode the spec sits on `docket` while the build runs in a `main`-based worktree, so the build reads the spec **cross-tree** — the same documented cost docket-mode already carries; the plan + code still merge to `main`.
+- In `metadata_branch: docket` mode the spec sits on `docket`, **not** on `main`, so it is absent from the `origin/main`-based worktree. The build must read it explicitly from the metadata branch — `git show docket:docs/superpowers/specs/<file>` (or point `writing-plans` at a separate `docket` checkout). This cross-tree read is a known rough edge of the underdeveloped `docket` mode (§8 drawbacks); the plan + code still merge to `main`.
 
 ---
 
@@ -354,7 +354,8 @@ Clean split: **ADRs = durable "why, forever"; changes = scoped "what, now → do
 
 ## 10. Error handling & edge cases
 
-- **Claim race (two implementers):** `git pull` + re-read before the claim commit; skip non-`proposed`; lowest-eligible-id ordering. Worst case, two agents claim different changes — never the same one.
+- **Claim race (two implementers):** the **successful push** of the claim is the lock — `git pull --rebase` + re-read before claiming, push, and on a non-fast-forward rejection re-pull/re-check/retry or pick another; skip non-`proposed`; lowest-eligible-id ordering. Worst case, two agents claim different changes — never the same one. (Two agents must not share one local clone — §8.)
+- **Concurrent archive (finalize vs sweep):** the `implemented → done` move is idempotent — each path re-pulls, re-reads status, and no-ops if already `done`; the `YYYY-MM-DD` prefix is taken from the **merge commit** so concurrent paths agree on the filename; the metadata push is retried on a non-fast-forward race.
 - **Reconcile finds the change obsolete:** transition to `killed` with `## Why killed`, archive, and pick the next change — don't build dead work.
 - **Link rot:** `spec:`/`plan:` paths are validated by `docket-status` health checks; a broken link is surfaced, not silently ignored.
 - **Board merge conflicts:** `BOARD.md` is *generated*, so on conflict it is regenerated from the change files (source of truth), never hand-merged. Per-change files rarely conflict because each change is its own file.
@@ -386,5 +387,5 @@ Skills are not unit-tested like code; verification is behavioural and dogfood-dr
 ## 13. Out of scope for v1 / open items
 
 - **Out of scope:** a living-spec/behavior-contract layer (deliberately absent — code is current-state truth); an OpenSpec-style CLI or YAML schema; multi-repo coordination.
-- **Open items to settle during implementation:** how `priority` is assigned/edited; whether `scan` mode reads a configurable list of "candidate sources."
+- **Open items to settle during implementation:** whether `scan` mode reads a configurable list of "candidate sources."
 - **Naming:** `docket` chosen over `speclite` / `changeflow` / `slate` / `dossier` — it captures the *queue you drain*, which is the heart of the two-agent loop.
