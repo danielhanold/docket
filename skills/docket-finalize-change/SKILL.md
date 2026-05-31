@@ -149,21 +149,35 @@ The per-change steps below run for each selected change.
 
 ## Per-change steps
 
-1. **Check the PR** (`gh`). Already merged → straight to archive. Approved + mergeable but not merged → MERGE IT (invoking finalize IS the merge decision — the gate is respected), then continue.
+**Steps 1–4 run per selected change** (check → verify → archive → clean up), exactly mirroring `docket-status`'s per-change archive loop. **Step 5 (Board) runs once after all selected changes are processed** — it is wholesale and idempotent, so a single regen at the end is correct and avoids redundant regenerations.
+
+1. **Check the PR** (`gh`). Already merged → straight to archive. Approved + mergeable but not merged → MERGE IT (invoking finalize on an **explicit change id** IS the merge decision — the gate is respected; under **auto-detect**, PROMPT first per the Selection rules above before merging), then continue.
 
 2. **Verify the merge landed on main** (optionally: tests green on the merged result).
 
-3. **Archive (idempotent)** — `git pull --rebase`, re-read status; if already `done` (or already under `archive/`), no-op. Otherwise `git mv active/<id>-<slug>.md archive/<merge-date>-<id>-<slug>.md` where the YYYY-MM-DD prefix AND `updated:` are BOTH the merge commit's date in UTC (`gh`'s `mergedAt`, or `TZ=UTC git show -s --date=format-local:%Y-%m-%d`) — never `now()`. Set `status: done`. Commit on `metadata_branch` — the CHANGE FILE ONLY (`BOARD.md` regen is step 5, kept separate so concurrent archivers stay byte-identical). Push; retry on non-fast-forward.
+3. **Archive (idempotent):**
+
+   a. `git pull --rebase` on `metadata_branch`; re-read `status`.
+      Already `done` (or already under `archive/`) → no-op, continue to the next change.
+
+   b. **Compute the merge date in UTC** — use `gh`'s `mergedAt`, or
+      `TZ=UTC git show -s --date=format-local:%Y-%m-%d <merge-sha>`. Never `now()`.
+
+   c. `git mv active/<id>-<slug>.md archive/<merge-date>-<id>-<slug>.md`.
+
+   d. Set `status: done` and `updated: <merge-date>` (the **same** UTC date — never `now()`).
+
+   e. **Commit on `metadata_branch` — the CHANGE FILE ONLY** (`BOARD.md` regen is the separate Board step, so concurrent archivers stay byte-identical). Push; on non-fast-forward, `pull --rebase` and retry.
 
 4. **Clean up** — remove the merged feature branch + worktree (provenance-guarded, like `superpowers:finishing-a-development-branch` — only auto-remove worktrees under `.worktrees/<slug>`).
 
-5. **Board** — regenerate `BOARD.md` (`docket-status`'s Board pass).
+5. **Board** — regenerate `BOARD.md` (`docket-status`'s Board pass) and commit + push it on `metadata_branch` as a separate commit from the archive commits above.
 
 **Note:** This archive procedure is **identical** to `docket-status`'s merge-sweep archive — same UTC merge date, same change-file-only commit, same idempotency. Both skills describe the same operation; they must not diverge.
 
 ## Where finishing-a-development-branch fits
 
-docket **delegates git integration mechanics** to `superpowers:finishing-a-development-branch` rather than reimplementing them. When a human is present it can also drive a **non-standard close-out** (keep the branch, discard it, or merge locally without a PR) — its merge/keep/discard chooser fits naturally here. docket borrows its **worktree provenance-guard** for cleanup: only auto-remove a worktree whose path is under `.worktrees/<slug>` — never remove a worktree outside that known path.
+When a human is present, `superpowers:finishing-a-development-branch` can drive a **non-standard close-out** (keep the branch, discard it, or merge locally without a PR) — its merge/keep/discard chooser fits naturally at step 4. docket also borrows its **worktree provenance-guard**: only auto-remove a worktree whose path is under `.worktrees/<slug>` — never remove a worktree outside that known path.
 
 ## docket mode caveat
 
