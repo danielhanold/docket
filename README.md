@@ -12,7 +12,7 @@ OpenSpec / superspec solves that with a full lifecycle layer, but it requires a 
 
 docket sits in between. It adds a thin lifecycle layer — plain markdown files in your repo, five skills, no CLI — and delegates every execution step to superpowers wholesale. The core unit is a **change** (one file, one PR's worth of work). Architecture decisions are captured separately as **ADRs** (an immutable ledger). The code is always the current-state truth; docket carries no living-spec layer and does not try to mirror the codebase in prose.
 
-The five skills cover the full loop: create, implement, finalize, inspect, decide.
+The five skills cover the full loop: create, implement, finalize, report, decide.
 
 ---
 
@@ -60,7 +60,7 @@ adrs_dir: docs/adrs          # default
 
 ## The reconcile superpower
 
-This is the most valuable and least obvious part of docket. It warrants a careful read.
+This is the most valuable and least obvious part of docket.
 
 ### The problem
 
@@ -74,7 +74,7 @@ Most backlog-driven systems just build the ticket as written and let the impleme
 
 ### What docket does instead
 
-`docket-implement-next` includes a **reconcile step** (Step 3) that runs at the *last responsible moment* — after the change is claimed (so it belongs to this invocation) but before the worktree and plan are created (so no work is thrown away).
+`docket-implement-next` includes a **reconcile step** (Step 3) that runs at the *last responsible moment* — after the change is claimed (so it belongs to this invocation) but before the worktree and plan are created — so no plan or build work is wasted if the scope changes.
 
 The reconcile pass re-reads the change and its spec against:
 
@@ -105,7 +105,7 @@ This is not how most projects treat `main`. Committing non-code bookkeeping stra
 
 The cleaner conventional answer is `metadata_branch: docket` — a separate branch that holds all PM commits, keeping `main` code-only. That mode is supported in configuration, but it is **currently underdeveloped**. In v1, the cross-branch mechanics are not fully specified: spec files live on `docket` and must be read cross-tree during implementation, reconcile pushes land on `docket` but the feature branch still cuts from `origin/main`, and there is no automatic mirror or merge from `docket` into `main`. The `docket` mode works for motivated adopters who understand the rough edges, but it is not the recommended path yet.
 
-docket defaults to `main` mode for visibility and simplicity, with full awareness of the trade-off. Expect the separate-branch mode to improve in future versions as the cross-branch mechanics are specified and tooled.
+docket defaults to `main` mode for visibility and simplicity. Expect the separate-branch mode to improve in future versions as the cross-branch mechanics are specified and tooled.
 
 ---
 
@@ -115,7 +115,7 @@ docket defaults to `main` mode for visibility and simplicity, with full awarenes
 |---|---|
 | `docket-new-change` | Producer, interactive — turns an idea into a build-ready change via brainstorming; writes markdown only, never branches or code. |
 | `docket-implement-next` | Autonomous implementer — picks the next build-ready change, reconciles it against current reality, builds to an open PR, and stops at the human merge gate. |
-| `docket-finalize-change` | Human close-out — merges an approved PR, archives the change to `done`, cleans up the branch and worktree, and refreshes the board. |
+| `docket-finalize-change` | Human close-out — merges an approved PR or closes out an already-merged one: archives the change to `done`, cleans up the branch and worktree, refreshes the board. |
 | `docket-status` | Board and janitor — regenerates `BOARD.md`, sweeps merged PRs to `done`, and runs health checks for stale claims, broken links, and dependency stalls. |
 | `docket-adr` | Immutable decision ledger — records architecture decisions, handles supersessions and reversals, and maintains the ADR index. |
 
