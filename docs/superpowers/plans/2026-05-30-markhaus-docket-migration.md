@@ -4,6 +4,8 @@
 >
 > **This plan DEPENDS ON** the docket skill set being built and installed first — see `docs/superpowers/plans/2026-05-30-docket-skill-set.md` (Tasks 1–9, then `bash ~/dev/docket/link-skills.sh`). It exercises the five `docket-*` skills against a real repo; it does not build them.
 
+> **✅ STATUS — IMPLEMENTED 2026-05-31** (subagent-driven; each task ran implementer → spec-compliance review → code-quality review, plus a final holistic review). Executed in `/Users/homer/dev/macmd` on `main`: 6 commits (`a39a0c4..575f37d`), pushed to `origin/main`. Tasks 0–5 complete and verified (clean `docket-status` health checks; 28 ADRs + index, 11 changes, generated BOARD). **Task 6 deliberately skipped** — no build-ready change exists yet (its two steps stay unchecked; see the Task 6 note).
+
 **Goal:** Migrate the Markhaus repo (`/Users/homer/dev/macmd`) onto docket — convert its 28 prose-header ADRs in `docs/decisions/` to docket's frontmatter ledger in `docs/adrs/`, and turn its `docs/plans/` + `*-results.md` (and the newer `docs/superpowers/{specs,plans}/` generation) into tracked `docs/changes/` — proving docket's lifecycle, ADR index, and health checks end-to-end on real history.
 
 **Architecture:** Operate **in `/Users/homer/dev/macmd`** on default `metadata_branch: main`. Three migrations run in order: (1) bootstrap docket config + dirs; (2) ADR ledger (`docs/decisions/` → `docs/adrs/`, mechanical prose→frontmatter conversion preserving every ADR number and the existing supersede/reverse graph, then `docket-adr` regenerates + validates the index); (3) changes (`docs/plans/` + results → `docs/changes/active|archive/`, completed work folded into `done` change bodies, open work classified by reading). Then `docket-status` regenerates `BOARD.md` and its health checks are the verification gate.
@@ -88,7 +90,7 @@ Two generations exist. Suggested `id` = chronological order; **final status conf
 
 **Files:** none (read-only checks)
 
-- [ ] **Step 1: Confirm docket skills are installed and invocable**
+- [x] **Step 1: Confirm docket skills are installed and invocable**
 
 ```bash
 for s in docket-new-change docket-implement-next docket-finalize-change docket-status docket-adr; do
@@ -97,7 +99,7 @@ done
 ```
 Expected: five `ok` lines. If any `MISSING`, stop and complete the docket-skill-set plan.
 
-- [ ] **Step 2: Confirm the Markhaus working tree is clean and on `main`**
+- [x] **Step 2: Confirm the Markhaus working tree is clean and on `main`**
 
 ```bash
 cd /Users/homer/dev/macmd
@@ -116,7 +118,7 @@ Expected: empty porcelain output (clean tree), branch `main`. If dirty, stash or
 - Create: `docs/changes/active/` `docs/changes/archive/` (dirs)
 - Create: `docs/changes/README.md`
 
-- [ ] **Step 1: Write `.docket.yml` (defaults are correct for Markhaus, but make it explicit)**
+- [x] **Step 1: Write `.docket.yml` (defaults are correct for Markhaus, but make it explicit)**
 
 ```yaml
 # .docket.yml — committed; read by every docket skill at startup
@@ -125,7 +127,7 @@ changes_dir: docs/changes
 adrs_dir: docs/adrs
 ```
 
-- [ ] **Step 2: Create the change directories + static README**
+- [x] **Step 2: Create the change directories + static README**
 
 ```bash
 cd /Users/homer/dev/macmd
@@ -145,7 +147,7 @@ docket's backlog for Markhaus. Each change is one markdown file (≈ one PR) wit
 Decisions live in [`../adrs/`](../adrs/). See the docket skills for the workflow.
 ```
 
-- [ ] **Step 3: Verify and commit**
+- [x] **Step 3: Verify and commit**
 
 ```bash
 cd /Users/homer/dev/macmd
@@ -166,7 +168,7 @@ Expected: `ok skeleton`. (The empty `active/`/`archive/` dirs are committed once
 - Modify: each `docs/adrs/0001-….md … 0028-….md` (prose-header → frontmatter)
 - Modify: handle the static `docs/decisions/README.md` (Task 3 regenerates it)
 
-- [ ] **Step 1: Rename the directory (history-preserving)**
+- [x] **Step 1: Rename the directory (history-preserving)**
 
 ```bash
 cd /Users/homer/dev/macmd
@@ -174,7 +176,7 @@ git mv docs/decisions docs/adrs
 git commit -m "refactor: rename docs/decisions -> docs/adrs (docket ledger)"
 ```
 
-- [ ] **Step 2: Apply the conversion recipe to every `00NN-*.md`**
+- [x] **Step 2: Apply the conversion recipe to every `00NN-*.md`**
 
 For each ADR file, transform the prose header into docket frontmatter, **keeping the `## Context` / `## Decision` / `## Consequences` body verbatim**. The mechanical recipe:
 
@@ -206,7 +208,7 @@ change:
 
 Then the original `## Context` / `## Decision` / `## Consequences` sections follow unchanged. Remove the now-redundant `# ADR-NNNN: …` H1 and the `**Date:**`/`**Status:**` lines (their content moved to frontmatter).
 
-- [ ] **Step 3: Apply the 5 non-plain statuses + the link graph (from the Source Inventory table)**
+- [x] **Step 3: Apply the 5 non-plain statuses + the link graph (from the Source Inventory table)**
 
 - `0022-post-enrollment-signing-posture.md`: `status: Accepted`, `reverses: [1, 7, 19]`.
 - `0001-…`, `0007-…`, `0019-…`: `status: Reversed by ADR-0022`.
@@ -215,7 +217,7 @@ Then the original `## Context` / `## Decision` / `## Consequences` sections foll
 - `0027-page-size-and-margins-via-pagedjs.md`: `status: Accepted`, `supersedes: [25]`.
 - `0025-pdf-page-size-via-webview-frame.md`: `status: Superseded by ADR-0027`.
 
-- [ ] **Step 4: Verify every ADR converted correctly**
+- [x] **Step 4: Verify every ADR converted correctly**
 
 ```bash
 cd /Users/homer/dev/macmd
@@ -234,7 +236,7 @@ grep -q 'Superseded by ADR-0021'  docs/adrs/0015-*.md && grep -qF '## Update' do
 ```
 Expected: the four `ok …` link lines + `ok all 28 ADRs …`, no `NO/MISSING` lines.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd /Users/homer/dev/macmd
@@ -246,13 +248,13 @@ git commit -m "refactor: convert 28 ADRs to docket frontmatter (preserve numbers
 
 **Files:** Modify `docs/adrs/README.md` (regenerated)
 
-- [ ] **Step 1: Invoke `docket-adr`'s Index/validate action**
+- [x] **Step 1: Invoke `docket-adr`'s Index/validate action**
 
 Run the `docket-adr` skill's **Index / validate** action against `docs/adrs/`. It must:
 - (Re)render `docs/adrs/README.md` grouped **Active / Superseded-Reversed / Deprecated**, each row like `- [ADR-0024](0024-quicklook-v1-interaction-limitations.md) — Quick Look extension v1 ships with known interaction limitations (Accepted)`, with the superseded/reversed group annotating both endpoints (e.g. `0001 (Reversed by ADR-0022)` and `0022 … → reverses 0001, 0007, 0019`).
 - **Validate** and report: numbering gaps (expect none — 1..28 contiguous), dangling `supersedes`/`reverses`/`relates_to` links (expect none), and status inconsistencies (expect none — every "Reversed by ADR-0022" has 0022 listing it in `reverses`, etc.).
 
-- [ ] **Step 2: Verify the index**
+- [x] **Step 2: Verify the index**
 
 ```bash
 cd /Users/homer/dev/macmd
@@ -265,7 +267,7 @@ n=$(grep -oE '\(00[0-9][0-9]-[a-z0-9-]+\.md\)' "$R" | sort -u | wc -l | tr -d ' 
 ```
 Expected: `ok groups present`, `ok spans full range`, `ok all 28 linked`. Address any validation warnings the skill reported before committing.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 cd /Users/homer/dev/macmd
@@ -285,7 +287,7 @@ git commit -m "docs: regenerate ADR index via docket-adr (Active/Superseded/Reve
 
 Work the **Source Inventory** tables top to bottom. For each plan:
 
-- [ ] **Step 1: Classify by reading (the reconcile-style pass)**
+- [x] **Step 1: Classify by reading (the reconcile-style pass)**
 
 Read the plan, its `*-results.md` (if any), the governing ADRs' status, and `git log --oneline -- <relevant paths>`. Assign:
 - `status: done` if the work shipped (results file present, or code + Accepted ADR confirm it). Use the **completion date** as the archive prefix — the results file's date / the last relevant commit date in **UTC** (`TZ=UTC git log -1 --date=format-local:%Y-%m-%d --format=%ad -- <path>`), since there is no merge commit to read.
@@ -293,7 +295,7 @@ Read the plan, its `*-results.md` (if any), the governing ADRs' status, and `git
 - `status: proposed` if planned but not started.
 Record the chosen status **and the one-line reason** in the change's `## Reconcile log` (this migration *is* a reconcile against current reality).
 
-- [ ] **Step 2: Assign the id and write the change file**
+- [x] **Step 2: Assign the id and write the change file**
 
 Allocate ids sequentially by `created` date across **all** migrated changes (Gen-1 then Gen-2), lowest date = lowest id. Write from docket's `change-template.md`:
 - `created:` = the plan file's date; `updated:` = today (UTC) or the completion date for `done`.
@@ -303,16 +305,16 @@ Allocate ids sequentially by `created` date across **all** migrated changes (Gen
 - `depends_on:` / `related:` = cross-links you observe (e.g. the pdf-pagination followup `depends_on` the pdf-export change; the quicklook followup `related` to / `depends_on` the quicklook change).
 - Body: `## Why` + `## What changes` + `## Out of scope` distilled from the plan at PM altitude. **For `done` changes, fold the `*-results.md` summary into the body** (a `## Outcome` subsection or into `## What changes`) so the result is captured in the change — the results file itself stays in place as the historical artifact, linked.
 
-- [ ] **Step 3: Place the file in the right directory**
+- [x] **Step 3: Place the file in the right directory**
 
 - terminal (`done`/`killed`) → `docs/changes/archive/<completion-date>-<id>-<slug>.md`
 - non-terminal → `docs/changes/active/<id>-<slug>.md`
 
-- [ ] **Step 4: Dedupe the two preferences-pane plans**
+- [x] **Step 4: Dedupe the two preferences-pane plans**
 
 The Gen-1 `2026-05-20-preferences-pane.md` (+ results) and Gen-2 `2026-05-29-preferences-pane.md` (+ spec) may be the same feature re-planned. Read both: if Gen-2 supersedes Gen-1, make **one** change reflecting current reality (link both plans; the earlier as historical), not two. If they are genuinely distinct slices, make two changes with a `related:` link. Record the decision in the `## Reconcile log`.
 
-- [ ] **Step 5: Verify the change set**
+- [x] **Step 5: Verify the change set**
 
 ```bash
 cd /Users/homer/dev/macmd
@@ -333,11 +335,11 @@ for f in docs/changes/archive/*.md; do [ -e "$f" ] || continue; basename "$f" | 
 ```
 Expected: `ok unique ids`, `ok change frontmatter complete`, no `MISSING`/`DUPLICATE`/`BAD` lines.
 
-- [ ] **Step 6: Backfill ADR `change:` back-links**
+- [x] **Step 6: Backfill ADR `change:` back-links**
 
 Now that change ids exist, set each ADR's `change:` field to the id of the change that produced it (from the inventory `Governing ADRs` column — e.g. ADR-0024 ← the quicklook change; ADR-0027/0026 ← the pdf-pagination change). Leave empty for foundational ADRs (0005, 0008) with no single producing change.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 cd /Users/homer/dev/macmd
@@ -353,14 +355,14 @@ git commit -m "feat: migrate Markhaus plans+results into docket changes; backfil
 
 **Files:** Create `docs/changes/BOARD.md` (generated)
 
-- [ ] **Step 1: Run `docket-status`**
+- [x] **Step 1: Run `docket-status`**
 
 Invoke the `docket-status` skill in `/Users/homer/dev/macmd`. It must:
 - Regenerate `docs/changes/BOARD.md` wholesale: count summary, emoji-grouped status sections, per-group tables with priority chips + clickable `spec`/`plan`/`pr` links, the build-ready vs needs-brainstorm / waiting-on-#N split, a Mermaid `depends_on` graph, and a collapsible Done section spanning the archive.
 - Run the **merge sweep** (likely a no-op — migrated `done` changes are already archived; any `implemented` change with a real merged PR would be swept).
 - Run the **health checks** and report.
 
-- [ ] **Step 2: Confirm the board and triage health output**
+- [x] **Step 2: Confirm the board and triage health output**
 
 ```bash
 cd /Users/homer/dev/macmd
@@ -377,7 +379,7 @@ Review the health-check output. **Expected/acceptable** for migrated history:
 
 Investigate and fix any *unexpected* warning (e.g. a `spec:` link that doesn't resolve, a dependency pointing at a wrong id) before committing.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 cd /Users/homer/dev/macmd
@@ -389,11 +391,11 @@ git commit -m "docs: generate docket BOARD.md for Markhaus backlog"
 
 If Task 4 produced at least one genuinely open, build-ready change (e.g. the quicklook-interactions followup, if it has a `spec:` or is `trivial`), prove docket end-to-end on real work:
 
-- [ ] **Step 1: Run `docket-implement-next`**
+- [ ] **Step 1: Run `docket-implement-next`** — ⏭️ SKIPPED: migration produced no build-ready change (onboarding is `proposed` but needs-brainstorm: no `spec:`, `trivial: false`), so `docket-implement-next` has nothing to select. Per this task's own contingency, the live loop runs later once an open change is brainstormed via `docket-new-change`.
 
 Invoke `docket-implement-next` in `/Users/homer/dev/macmd`. Confirm it: syncs+sweeps (step 0), selects that change by the deterministic order, claims it (`in-progress` + `branch:`), reconciles (appends a `## Reconcile log` entry, `reconciled: true`), creates a `feat/<slug>` worktree off `origin/main`, runs `superpowers:writing-plans` → `subagent-driven-development` → `requesting-code-review`, records any ADRs via `docket-adr`, opens a PR, sets `status: implemented` + `pr:` on `main`, and **stops** at the merge gate.
 
-- [ ] **Step 2: Close the loop (human)**
+- [ ] **Step 2: Close the loop (human)** — ⏭️ SKIPPED: depends on Step 1 (no live loop was run).
 
 After reviewing the PR, run `docket-finalize-change` (or merge on GitHub then run `docket-status`'s sweep) and confirm the change archives to `done` with the UTC merge-date prefix and the feature branch/worktree are cleaned up. This is the full §12 smoke path on real Markhaus work.
 
