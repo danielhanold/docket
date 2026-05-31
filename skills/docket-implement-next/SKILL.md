@@ -142,11 +142,11 @@ Metadata (change file, `BOARD.md`, ADRs) commits to `metadata_branch` (default `
 
 ### Step 0 — Sync & sweep
 
-`git pull --rebase`; invoke `docket-status`'s merge-sweep so any `implemented` change whose PR merged is swept to `archive/` (status → done) FIRST. This is the self-cleaning safety net for changes not closed via `docket-finalize-change`.
+`git pull --rebase`; invoke `docket-status` (whose merge-sweep pass archives any `implemented` change whose PR has merged) before selection — the self-cleaning safety net for changes not closed via `docket-finalize-change`.
 
 ### Step 1 — Select
 
-Among `active/` changes that are `proposed`, BUILD-READY (have a `spec:` or `trivial: true`), and have all `depends_on` satisfied (satisfied = `done`), rank by priority (`critical` > `high` > `medium` > `low`) → age (`created`) → LOWEST `id` (the final deterministic tie-break §8 relies on). Pick the top, or accept an explicit id passed by the caller. Skip `in-progress`, `blocked`, `deferred`, and not-build-ready stubs.
+Among `active/` changes that are `proposed`, BUILD-READY (have a `spec:` or `trivial: true`), and have all `depends_on` satisfied (satisfied = `done`), rank by priority (`critical` > `high` > `medium` > `low`) → age (`created`) → LOWEST `id` (the final deterministic tie-break, so two implementers — if ever run concurrently — converge on the same winner and never claim the same change). Pick the top, or accept an explicit id passed by the caller. Skip `in-progress`, `blocked`, `deferred`, and not-build-ready stubs.
 
 ### Step 2 — Claim (compare-and-swap)
 
@@ -160,18 +160,18 @@ Re-read the change + its spec against `related` + recently-archived changes, cit
 
 Two escape hatches:
 
-- Change now **OBSOLETE** → set `killed` (+ `## Why killed`), archive, loop back to Step 1.
+- Change now **OBSOLETE** → set `killed` (+ `## Why killed`) + `updated: <UTC kill date>` (same UTC date used for the `archive/<date>-…` filename prefix), archive, loop back to Step 1.
 - Design **FUNDAMENTALLY invalidated** (not just scope-adjustable) → STOP and escalate to the human. This skill cannot re-brainstorm alone; re-brainstorming is a human act handled by `superpowers:brainstorming` + `docket-new-change`.
 
 ### Step 4 — Worktree + plan
 
-`git fetch origin`; CONFIRM the step-3 reconcile push has landed on `origin/main` (default mode). If it hasn't (push was rejected): `pull --rebase`, re-push, re-fetch — loop until the reconcile commit is on `origin/main` BEFORE continuing. Then:
+`git fetch origin`; CONFIRM the step-3 reconcile push has landed on `origin/main` (default mode). If it hasn't (push was rejected): `pull --rebase`, re-push, re-fetch — loop until the reconcile commit is on `origin/main` BEFORE continuing. For `metadata_branch: docket`, this cross-tree confirmation is a v1 rough edge — see the `docket` mode caveat at the end of this skill before proceeding. Then:
 
 ```
 git worktree add .worktrees/<slug> -b feat/<slug> origin/main
 ```
 
-The freshly-fetched `origin/main` carries the reconciled spec in default mode. NEVER base on a separate metadata branch; in default mode `metadata_branch` IS `main`, so `origin/main` is the correct base. Run `superpowers:writing-plans` (writes `docs/superpowers/plans/` ON THE FEATURE BRANCH); record the path in `plan:`.
+The freshly-fetched `origin/main` carries the reconciled spec in default mode. NEVER base on a separate metadata branch; in default mode `metadata_branch` IS `main`, so `origin/main` is the correct base. Run `superpowers:writing-plans` (writes `docs/superpowers/plans/` ON THE FEATURE BRANCH); record the path in `plan:` — this is a **metadata edit made in the main working tree on `metadata_branch`** (the change file is never edited in the feature worktree). The plan **file** that `writing-plans` produces is the feature-branch/build-time artifact and merges to `main` with the code, so the `plan:` link resolves on `main` only after the PR merges (which is why `docket-status` ignores a missing `plan:` on an `implemented` change).
 
 ### Step 5 — Build
 
@@ -179,7 +179,7 @@ The freshly-fetched `origin/main` carries the reconciled spec in default mode. N
 
 ### Step 6 — Review + ADRs
 
-`superpowers:requesting-code-review` (whole-branch). For any non-obvious decision made during implementation, invoke `docket-adr` to record it (it assigns the number + updates the index); append the returned number to the change's `adrs:`.
+`superpowers:requesting-code-review` (whole-branch). For any non-obvious decision made during implementation, invoke `docket-adr` to record it (it assigns the number + updates the index); append the returned number to the change's `adrs:`. Update `adrs:` in the **main working tree on `metadata_branch`** — never in the feature worktree (the change file is metadata; the same discipline as step 7). (`docket-adr` itself already commits the new ADR file on `metadata_branch`.)
 
 ### Step 7 — PR + stop
 
@@ -221,8 +221,8 @@ The feature branch is cut from `origin/main` AFTER claim + reconcile, adds only 
 
 ### Metadata vs. code commit separation
 
-- **Metadata commits** (claim, reconcile, `status: implemented`, `pr:`) happen in the **main working tree** on `metadata_branch`.
-- **Code and plan commits** happen in the **feature worktree** (`.worktrees/<slug>`) on `feat/<slug>`.
+- **Metadata commits** (claim, reconcile, `status: implemented`, `pr:`, and all change-file field updates including `plan:`) happen in the **main working tree** on `metadata_branch`.
+- **Code and plan file commits** happen in the **feature worktree** (`.worktrees/<slug>`) on `feat/<slug>`. The worktree commits the plan *file* + code; the change file's `plan:` *field* (like all change-file fields) is written on `metadata_branch` in the main tree. (The manifest's `plan:` note "set at build time, on the feature branch" refers to the plan *file*'s location; the *field* is a main-tree metadata edit.)
 
 Never cross these streams. A metadata write that lands in the feature worktree would either be silently diverged at merge or create a conflict.
 
