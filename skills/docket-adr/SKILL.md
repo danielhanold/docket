@@ -146,23 +146,28 @@ Metadata (change file, `BOARD.md`, ADRs) commits to `metadata_branch` (default `
 1. **Allocate the next ADR number** — scan the `id:` frontmatter of every file in `<adrs_dir>/`, take max + 1. The filename uses the 4-digit zero-pad: `0024-…`.
 2. **Write `<NNNN>-<slug>.md`** from `adr-template.md`: set `status: Accepted`, `date: <UTC today>`, and the optional `change:` back-link to the producing change.
 3. **Commit the new ADR file only.** The `README.md` index is regenerated in a separate commit (see Index / validate) — like `BOARD.md`, so two concurrent creates never conflict on the shared index.
-4. **On a lost compare-and-swap push** (someone minted the same id first): re-read max id, rename the file and fix any id-bearing links, re-push.
+4. **On a lost compare-and-swap push** (someone minted the same id first): re-read max id, rename the file to the new `NNNN` and update the `id:` field in the new ADR's frontmatter, re-push.
 5. **Return the number** so the caller (e.g. `docket-implement-next` step 6) can cite it in the change's `adrs:` field.
 
 ### Supersede / reverse
 
-Never edit an `Accepted` ADR's body. Write a new ADR with `supersedes:` or `reverses:` pointing at the old one. Flip only the old ADR's `status:` line to `"Superseded by ADR-NN"` or `"Reversed by ADR-NN"`. Annotate both entries in the index.
+Never edit an `Accepted` ADR's body. Write a new ADR with `supersedes:` or `reverses:` pointing at the old one. Flip only the old ADR's `status:` line (that is the only change to the old file) to `"Superseded by ADR-NN"` or `"Reversed by ADR-NN"`. Commit the new ADR file and the old ADR's flipped `status:` line together in **one commit**; regenerate the index in a **separate** commit (consistent with Create's separate-index-commit rule). In the index, the old ADR's row shows its `Superseded by ADR-NN` / `Reversed by ADR-NN` status, and the new ADR's row (in the Active group) shows `→ supersedes ADR-NN` / `→ reverses ADR-NN`.
 
 ### Update note
 
-For a non-reversing material change in context — where the decision still stands but important surrounding information has changed — append a dated `## Update` section to the ADR body. The `## Decision` section itself is never edited.
+For a non-reversing material change in context — where the decision still stands but important surrounding information has changed — append a dated `## Update` section to the ADR body. The `## Decision` section itself is never edited. Commit the updated ADR file; regenerate the index only if the update changes how the entry reads in the index.
 
 ### Index / validate
 
-(Re)render `<adrs_dir>/README.md` grouped into three sections: **Active**, **Superseded / Reversed**, and **Deprecated**. Row format:
+(Re)render `<adrs_dir>/README.md` grouped into three sections: **Active**, **Superseded / Reversed**, and **Deprecated**. Row format examples:
 
 ```
+## Active
 - [ADR-0024](0024-quicklook-interaction-limits.md) — Quick Look interaction limits (Accepted) ← change #4
+- [ADR-0027](0027-page-size-and-margins-via-pagedjs.md) — Page size & margins via Paged.js (Accepted) → supersedes ADR-0025
+
+## Superseded / Reversed
+- [ADR-0025](0025-pdf-page-size-via-webview-frame.md) — PDF page size via WebView frame (Superseded by ADR-0027)
 ```
 
 The index is regenerated wholesale (like `BOARD.md`); on a git conflict, regenerate from the ADR files rather than hand-merging.
