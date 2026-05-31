@@ -20,7 +20,8 @@ printf '# head\n%s\n## Convention\nOLD v1\n%s\nrest-status\n'  "$B" "$E" > "$tmp
 assert "--check flags drift (exit 1)" '[ "$rc" = "1" ]'
 
 # sync propagates canonical into status, preserving non-block content
-( cd "$tmp" && bash sync-convention.sh >/dev/null )
+( cd "$tmp" && bash sync-convention.sh >/dev/null ); rc=$?
+assert "sync exits 0" '[ "$rc" = "0" ]'
 assert "status block now matches canonical" 'grep -q "CANON v2" "$tmp/skills/docket-status/SKILL.md"'
 assert "stale block removed"               '! grep -q "OLD v1" "$tmp/skills/docket-status/SKILL.md"'
 assert "non-block content preserved"        'grep -q "rest-status" "$tmp/skills/docket-status/SKILL.md"'

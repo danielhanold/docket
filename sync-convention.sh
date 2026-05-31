@@ -21,7 +21,7 @@ extract() {  # print the block inclusive of its markers from file $1
 src="$SKILLS_DIR/$CANONICAL/SKILL.md"
 [ -f "$src" ] || { echo "canonical not found: $src" >&2; exit 2; }
 
-blockfile="$(mktemp)"; trap 'rm -f "$blockfile"' EXIT
+blockfile="$(mktemp)"; cleanup_extra=""; trap 'rm -f "$blockfile" $cleanup_extra' EXIT
 extract "$src" > "$blockfile"
 [ -s "$blockfile" ] || { echo "no convention block in canonical $src" >&2; exit 2; }
 
@@ -43,13 +43,13 @@ for f in "$SKILLS_DIR"/*/SKILL.md; do
     echo "markers missing in $f — add the convention markers before syncing" >&2
     exit 2
   fi
-  tmp="$(mktemp)"
+  tmp="$(mktemp "$f.XXXXXX")"; cleanup_extra="$tmp"
   awk -v b="$BEGIN" -v e="$END" -v rf="$blockfile" '
     $0==b { while ((getline line < rf) > 0) print line; close(rf); skip=1; next }
     $0==e { skip=0; next }
     !skip { print }
   ' "$f" > "$tmp"
-  mv "$tmp" "$f"
+  mv "$tmp" "$f"; cleanup_extra=""
   echo "synced $f"
 done
 
