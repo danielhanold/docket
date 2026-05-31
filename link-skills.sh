@@ -8,6 +8,7 @@
 # this list drifts.
 #
 # Usage: bash link-skills.sh
+# Test seam: set DOCKET_HARNESS_ROOT to override $HOME (used by tests/test_link_skills.sh).
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
