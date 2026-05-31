@@ -16,6 +16,23 @@ The five skills cover the full loop: create, implement, finalize, report, decide
 
 ---
 
+## The producer / implementer loop
+
+Two agents, run in parallel:
+
+| Role | Skill | Mode |
+|---|---|---|
+| **Producer** | `docket-new-change` | Interactive — you brainstorm changes into a build-ready backlog. |
+| **Implementer** | `docket-implement-next` | Autonomous — drains the backlog to open PRs, unsupervised. |
+
+They coordinate purely through committed change files in git — no locks, no database. The producer only mints new `proposed` change ids; the implementer claims the next build-ready change atomically (compare-and-swap on the status field), so concurrent runs cannot collide.
+
+The payoff: your interactive time is concentrated at change creation. Draining is hands-off for independent changes. The human stays in the loop at two points only — writing the change and merging the PR.
+
+One honest caveat: dependency chains serialize on the merge gate. A change that depends on another cannot start until that dependency is merged; the board surfaces this as "waiting on #N — needs your merge." Unrelated changes drain freely in parallel around it.
+
+---
+
 ## Prerequisite: superpowers
 
 docket is a lifecycle wrapper around superpowers, not a replacement for it. superpowers must be installed and available in your harness before any docket skill will function. Installing superpowers is the consuming user's responsibility; docket declares it as a prerequisite but does not bundle or install it.
