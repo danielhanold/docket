@@ -146,16 +146,16 @@ The default path for any non-trivial new change. Five steps:
 
 2. **Brainstorm** — run `superpowers:brainstorming` WITH THE HUMAN. This is the decision point. STOP AT THE SPEC — do NOT continue to `writing-plans` (that is build-time). The spec is written natively to `docs/superpowers/specs/…` and committed to `metadata_branch`; record its path in `spec:`.
 
-3. **Recon** — scan neighbouring changes (`active/` + recent `archive/`) and the ADR index to pre-fill `related`, `depends_on`, `adrs`.
+3. **Scan related context** — scan neighbouring changes (`active/` + recent `archive/`) and the ADR index to pre-fill `related`, `depends_on`, `adrs`. In practice, do this quick read just *before* step 2 so the brainstorm is informed by neighbouring work; record the resulting `related`/`depends_on`/`adrs` after the design settles.
 
-4. **Draft the change** — write the thin `active/<id>-<slug>.md` from `change-template.md`: frontmatter (`status: proposed`, `spec:`, `created`/`updated` = UTC today, priority default `medium`) + a PM-altitude why/what/scope body distilled from the brainstorm. Design detail lives in the linked spec, NOT here.
+4. **Draft the change** — write the thin `active/<id>-<slug>.md` from `change-template.md`: frontmatter (`status: proposed`, `spec:`, `created`/`updated` = UTC today (the UTC date of the commit), priority default `medium`) + a PM-altitude why/what/scope body distilled from the brainstorm. Design detail lives in the linked spec, NOT here.
 
 5. **Board, commit & push** — refresh `BOARD.md` (via `docket-status`'s Board pass), commit the change + spec, and PUSH to the remote `metadata_branch` (immediately reviewable on GitHub; visible to the autonomous implementer). STOP. Never implements.
 
 ## Trivial path
 
-For a small mechanical change with no real design questions: skip the brainstorm, set `trivial: true`, write the change body directly — no spec, still build-ready.
+For a small mechanical change with no real design questions: skip the brainstorm, set `trivial: true`, write the change body directly — no spec, still build-ready. It still follows Brainstorm mode's steps 1 (Allocate), 3 (Scan related context), 4 (Draft — but omit `spec:`), and 5 (Board, commit & push) — only step 2 (Brainstorm) is skipped.
 
 ## Scan mode (opt-in)
 
-Survey TODOs, deferred changes, known gaps, and the ADR backlog; emit several lightweight `proposed` STUBS in one pass — WITHOUT specs. Scan-stubs are NOT build-ready (no spec, not trivial) — the board calls this state `needs-brainstorm`. They form an "ideas to brainstorm" backlog a later brainstorm pass turns build-ready. Kept opt-in so routine runs don't generate speculative noise.
+Survey TODOs, deferred changes, known gaps, and the ADR backlog; emit several lightweight `proposed` STUBS in one pass — WITHOUT specs. Scan-stubs are NOT build-ready (no spec, not trivial) — the board calls this state `needs-brainstorm`. They form an "ideas to brainstorm" backlog a later brainstorm pass turns build-ready. Kept opt-in so routine runs don't generate speculative noise. Once all stubs are written, commit them together with a refreshed `BOARD.md` and push to `metadata_branch` (same push pattern as Brainstorm mode's step 5, but no spec).
