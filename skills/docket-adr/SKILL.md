@@ -63,7 +63,7 @@ depends_on: [4]           # change ids that must reach `done` (PR merged) first
 related: [4, 6]           # cross-links the reconcile pass reads
 adrs: [24]                # ADRs this change cites or produces
 spec:                     # superpowers design doc path; set at brainstorm (propose) time, on metadata_branch
-plan:                     # superpowers plan path; set at build time, on the feature branch
+plan:                     # plan FILE lives on the feature branch; this FIELD is set in the main tree at build time
 trivial: false            # true = no spec needed (small mechanical change); still build-ready
 branch:                   # planned feat/<slug> name, set on claim; branch itself created at build (step 4)
 pr:                       # set when the PR is opened

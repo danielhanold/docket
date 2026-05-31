@@ -62,7 +62,7 @@ depends_on: [4]           # change ids that must reach `done` (PR merged) first
 related: [4, 6]           # cross-links the reconcile pass reads
 adrs: [24]                # ADRs this change cites or produces
 spec:                     # superpowers design doc path; set at brainstorm (propose) time, on metadata_branch
-plan:                     # superpowers plan path; set at build time, on the feature branch
+plan:                     # plan FILE lives on the feature branch; this FIELD is set in the main tree at build time
 trivial: false            # true = no spec needed (small mechanical change); still build-ready
 branch:                   # planned feat/<slug> name, set on claim; branch itself created at build (step 4)
 pr:                       # set when the PR is opened
@@ -222,7 +222,7 @@ The feature branch is cut from `origin/main` AFTER claim + reconcile, adds only 
 ### Metadata vs. code commit separation
 
 - **Metadata commits** (claim, reconcile, `status: implemented`, `pr:`, and all change-file field updates including `plan:`) happen in the **main working tree** on `metadata_branch`.
-- **Code and plan file commits** happen in the **feature worktree** (`.worktrees/<slug>`) on `feat/<slug>`. The worktree commits the plan *file* + code; the change file's `plan:` *field* (like all change-file fields) is written on `metadata_branch` in the main tree. (The manifest's `plan:` note "set at build time, on the feature branch" refers to the plan *file*'s location; the *field* is a main-tree metadata edit.)
+- **Code and plan file commits** happen in the **feature worktree** (`.worktrees/<slug>`) on `feat/<slug>`. The worktree commits the plan *file* + code; the change file's `plan:` *field* (like all change-file fields) is written on `metadata_branch` in the main tree — the manifest comment on `plan:` says exactly this.
 
 Never cross these streams. A metadata write that lands in the feature worktree would either be silently diverged at merge or create a conflict.
 
