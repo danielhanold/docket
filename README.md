@@ -20,9 +20,12 @@ The five skills cover the full loop: create, implement, finalize, inspect, decid
 
 docket is a lifecycle wrapper around superpowers, not a replacement for it. superpowers must be installed and available in your harness before any docket skill will function. Installing superpowers is the consuming user's responsibility; docket declares it as a prerequisite but does not bundle or install it.
 
-During implementation, `docket-implement-next` calls these superpowers skills directly:
+`docket-new-change` (the interactive producer) calls:
 
-- `superpowers:brainstorming` — (via `docket-new-change`) for up-front design
+- `superpowers:brainstorming` — for up-front design before the spec is written
+
+`docket-implement-next` (the autonomous build) calls:
+
 - `superpowers:writing-plans` — to build the task plan from the spec
 - `superpowers:subagent-driven-development` — to execute the plan with TDD
 - `superpowers:requesting-code-review` — for a whole-branch review before the PR
@@ -32,10 +35,10 @@ During implementation, `docket-implement-next` calls these superpowers skills di
 
 ## Install
 
+Place the docket repo at `~/dev/docket` (the source of truth the symlinks point back to), then run:
+
 ```bash
-git clone https://github.com/your-org/docket ~/dev/docket
-cd ~/dev/docket
-bash link-skills.sh
+bash ~/dev/docket/link-skills.sh
 ```
 
 `link-skills.sh` creates absolute symlinks from each present harness's global skill directory back to `~/dev/docket/skills/<name>`. It only writes into harness directories that already exist on your machine; it is idempotent and safe to re-run after adding a new harness. Skills are installed once and available in every project you open.
