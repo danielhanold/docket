@@ -6,9 +6,9 @@ A change is a self-contained, tracked unit of planned work (≈ one PR). docket 
 
 ## What docket is
 
-[superpowers](https://github.com/anthropics/claude-code-skills) gives Claude excellent *execution*: brainstorm → spec → plan → TDD → code-review → merge, all in one invocation. What it does not give you is a tracked backlog or a "done" state that persists across invocations. Each session starts fresh.
+superpowers gives Claude excellent *execution*: brainstorm → spec → plan → TDD → code-review → merge, all in one invocation. What it does not give you is a tracked backlog or a "done" state that persists across invocations. Each session starts fresh.
 
-[OpenSpec / superspec](https://github.com/anthropics/superspec) solves that with a full lifecycle layer, but it requires a CLI dependency and a rigid markdown contract that not every project wants to adopt.
+OpenSpec / superspec solves that with a full lifecycle layer, but it requires a CLI dependency and a rigid markdown contract that not every project wants to adopt.
 
 docket sits in between. It adds a thin lifecycle layer — plain markdown files in your repo, five skills, no CLI — and delegates every execution step to superpowers wholesale. The core unit is a **change** (one file, one PR's worth of work). Architecture decisions are captured separately as **ADRs** (an immutable ledger). The code is always the current-state truth; docket carries no living-spec layer and does not try to mirror the codebase in prose.
 
