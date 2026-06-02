@@ -2,7 +2,7 @@
 id: 1
 slug: results-artifact
 title: Change results artifact — linked, optional close-out file
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-06-02
 updated: 2026-06-02
@@ -11,10 +11,10 @@ related: []
 adrs: []
 spec: docs/superpowers/specs/2026-06-02-results-artifact-design.md
 plan: docs/superpowers/plans/2026-06-02-results-artifact.md
-results:
+results: docs/results/2026-06-02-results-artifact-results.md
 trivial: false
 branch: feat/results-artifact
-pr:
+pr: https://github.com/danielhanold/docket/pull/2
 blocked_by:
 reconciled: true
 ---

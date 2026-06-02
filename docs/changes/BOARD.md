@@ -1,8 +1,8 @@
 # Backlog
 
-**1 change** — 🟢 1 in progress
+**1 change** — 🔵 1 implemented
 
-## 🟢 In progress (1)
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0001](active/0001-results-artifact.md) | Change results artifact — linked, optional close-out file | `medium` | [spec](../superpowers/specs/2026-06-02-results-artifact-design.md) | `feat/results-artifact` |
+## 🔵 Implemented — awaiting merge (1)
+| # | Title | Priority | PR |
+|---|-------|----------|----|
+| [0001](active/0001-results-artifact.md) | Change results artifact — linked, optional close-out file | `medium` | [#2](https://github.com/danielhanold/docket/pull/2) |
