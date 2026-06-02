@@ -16,7 +16,7 @@ trivial: false
 branch: feat/results-artifact
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Why
@@ -44,3 +44,14 @@ Touch-points: the synced convention block (manifest + layout + `.docket.yml` + b
 ## Open questions
 
 None outstanding — naming, cardinality, home, and the optional/triggered model are resolved in the spec.
+
+## Reconcile log
+
+**2026-06-02:** Reconciled at claim time — spec and change were authored the same day and `origin/main` has not advanced since, so this is a currency check, not a rewrite. Verified every spec §8 touch-point anchor against the live files:
+- `docket-status` broken-link health check (its `plan:`-on-`implemented` tolerance) → extend the same tolerance to `results:`.
+- Design-spec **line 401** ("results folded into the body") is a *historical description of the one-time Markhaus migration*, not a go-forward intent — so the reconcile action is to **add** a go-forward note + a §3 locked decision, not to rewrite the historical line.
+- `docket-finalize-change` per-change steps → add a short post-merge "append interactive outcomes / late findings to the results file on `main`" note.
+- README config block (`changes_dir`/`adrs_dir`) → add `results_dir`; mention the results artifact where artifacts are enumerated.
+- Added **`change-template.md`** (add the `results:` field) to scope explicitly, alongside the new `results-template.md`.
+
+Scope otherwise unchanged; no work shipped elsewhere to drop. Build approach: encode the requirements as content/sync **assertions** (TDD-style for a docs+invariant change) — a real "convention blocks are in sync" check and a "`results:`/`results_dir` present across all five skills" check — then edit the canonical convention block, run `sync-convention.sh` to propagate, and add the template.
