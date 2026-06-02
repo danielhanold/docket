@@ -70,6 +70,8 @@ These are the outcomes of the design brainstorm, each with its rationale. They f
 
 14. **The human is in the loop only at change creation; implementation is autonomous.** `docket-new-change` is **interactive** — it runs `superpowers:brainstorming` with the human and stops at the spec (it does *not* continue to `writing-plans`). `docket-implement-next` runs with **no human**: reconcile (non-interactive) → plan → build → review → PR. A change is **build-ready** — eligible for `docket-implement-next` — only when it has a `spec:` or is marked `trivial: true`. If reconcile finds the design *fundamentally* invalidated, the implementer **stops and escalates** rather than guessing.
 
+15. **The change *results* artifact.** A change's optional close-out doc — the human's merge-gate verification checklist, the build's findings, and any follow-ups — is a *feature-branch build artifact* (a twin of the plan), linked by a `results:` field and homed at `docs/results/` (the `results_dir` knob). It is written only when warranted (interactive verification needed / findings / follow-ups), never by default; otherwise the PR + CI are the receipt. This supersedes the earlier "fold results into the body" intent (§12). Full design: `docs/superpowers/specs/2026-06-02-results-artifact-design.md`.
+
 ---
 
 ## 4. Architecture — the skill set
@@ -398,7 +400,7 @@ Skills are not unit-tested like code; verification is behavioural and dogfood-dr
 
 - **Smoke path:** on a throwaway change, run `docket-new-change` → `docket-implement-next` → `docket-status` and confirm: file created in `active/` as `proposed`; claim flips it to `in-progress` with a branch; reconcile appends a log entry; build produces a branch + PR; status flips to `implemented`; after a (simulated) merge, the sweep moves it to `archive/` as `done`.
 - **Manifest schema** is documented in each skill's embedded `## Convention` block so a change file is checkable by eye and by the `docket-status` health pass.
-- **First real dogfood: Markhaus.** Migrate Markhaus's existing `docs/plans/` + `*-results.md` into `docs/changes/` — completed plans become `done` changes (with their results folded into the body), and any open work (e.g. the current `feat/quicklook-interactions` branch → change `0007`) becomes a real `in-progress`/`implemented` change. Markhaus's existing `docs/decisions/` is also renamed to `docs/adrs/` and its ADRs carry over (prose headers converted to the ADR frontmatter), exercising `docket-adr`'s index render against a real multi-ADR ledger. This proves the lifecycle and the PR gate end-to-end before docket is carried to other repos.
+- **First real dogfood: Markhaus.** Migrate Markhaus's existing `docs/plans/` + `*-results.md` into `docs/changes/` — completed plans become `done` changes (with their results folded into the body — that body-folding was the one-time migration approach; the go-forward convention for new close-out docs is the linked **results artifact**, see decision #15 and `docs/superpowers/specs/2026-06-02-results-artifact-design.md`), and any open work (e.g. the current `feat/quicklook-interactions` branch → change `0007`) becomes a real `in-progress`/`implemented` change. Markhaus's existing `docs/decisions/` is also renamed to `docs/adrs/` and its ADRs carry over (prose headers converted to the ADR frontmatter), exercising `docket-adr`'s index render against a real multi-ADR ledger. This proves the lifecycle and the PR gate end-to-end before docket is carried to other repos.
 
 ---
 
