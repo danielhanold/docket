@@ -1,9 +1,8 @@
 # Backlog
 
-**1 change** — 🟡 1 proposed
+**1 change** — 🟢 1 in progress
 
-## 🟡 Proposed (1)
-
-| # | Title | Priority | Spec | Readiness |
-|---|-------|----------|------|-----------|
-| [0001](active/0001-results-artifact.md) | Change results artifact — linked, optional close-out file | `medium` | [spec](../superpowers/specs/2026-06-02-results-artifact-design.md) | build-ready |
+## 🟢 In progress (1)
+| # | Title | Priority | Spec | Branch |
+|---|-------|----------|------|--------|
+| [0001](active/0001-results-artifact.md) | Change results artifact — linked, optional close-out file | `medium` | [spec](../superpowers/specs/2026-06-02-results-artifact-design.md) | `feat/results-artifact` |

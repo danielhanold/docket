@@ -2,7 +2,7 @@
 id: 1
 slug: results-artifact
 title: Change results artifact — linked, optional close-out file
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-06-02
 updated: 2026-06-02
@@ -13,7 +13,7 @@ spec: docs/superpowers/specs/2026-06-02-results-artifact-design.md
 plan:
 results:
 trivial: false
-branch:
+branch: feat/results-artifact
 pr:
 blocked_by:
 reconciled: false
