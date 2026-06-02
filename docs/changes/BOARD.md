@@ -1,8 +1,11 @@
 # Backlog
 
-**1 change** — 🔵 1 implemented
+**1 change** — ✅ 1 done
 
-## 🔵 Implemented — awaiting merge (1)
-| # | Title | Priority | PR |
-|---|-------|----------|----|
-| [0001](active/0001-results-artifact.md) | Change results artifact — linked, optional close-out file | `medium` | [#2](https://github.com/danielhanold/docket/pull/2) |
+<details><summary>✅ Archive — done (1)</summary>
+
+| # | Title | Merged |
+|---|-------|--------|
+| [0001](archive/2026-06-02-0001-results-artifact.md) | Change results artifact — linked, optional close-out file | 2026-06-02 |
+
+</details>
