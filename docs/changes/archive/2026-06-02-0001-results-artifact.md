@@ -2,7 +2,7 @@
 id: 1
 slug: results-artifact
 title: Change results artifact — linked, optional close-out file
-status: implemented
+status: done
 priority: medium
 created: 2026-06-02
 updated: 2026-06-02
