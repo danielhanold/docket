@@ -45,9 +45,9 @@ assert "results-template has Follow-ups section" \
 assert "implement-next has a results close-out step" \
   'grep -qi "results close-out" skills/docket-implement-next/SKILL.md'
 assert "status health check covers results: link" \
-  'grep -q "results:" skills/docket-status/SKILL.md'
+  'grep -q "those files legitimately still live on the unmerged" skills/docket-status/SKILL.md'
 assert "finalize mentions appending to the results file" \
-  'grep -qi "results" skills/docket-finalize-change/SKILL.md'
+  'grep -q "append interactive-verification" skills/docket-finalize-change/SKILL.md'
 
 # 7. Design spec + README reconciled.
 assert "design spec has results-artifact decision" \

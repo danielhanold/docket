@@ -185,11 +185,17 @@ The freshly-fetched `origin/main` carries the reconciled spec in default mode. N
 
 `superpowers:requesting-code-review` (whole-branch). For any non-obvious decision made during implementation, invoke `docket-adr` to record it (it assigns the number + updates the index); append the returned number to the change's `adrs:`. Update `adrs:` in the **main working tree on `metadata_branch`** — never in the feature worktree (the change file is metadata; the same discipline as step 7). (`docket-adr` itself already commits the new ADR file on `metadata_branch`.)
 
+### Step 6.5 — Results close-out (optional)
+
+Write a results file ONLY if at least one is true: **(a)** the human must run interactive/manual checks at the merge gate beyond automated tests, **(b)** the build surfaced findings worth recording (including any that became ADRs), or **(c)** there are follow-ups or notable plan deviations to capture. Otherwise SKIP it — the PR description + green CI are the receipt.
+
+When warranted: author `<results_dir>/<YYYY-MM-DD>-<slug>-results.md` from `results-template.md` **IN THE FEATURE WORKTREE** and commit it on `feat/<slug>` with the code — it is a build artifact, like the plan. Keep build-receipt detail (what shipped, full test tables) in the PR description, not here. The `results:` FIELD is set in the main tree in step 7 (the file is feature-branch, the field is metadata — same split as `plan:`).
+
 ### Step 7 — PR + stop
 
 Invoke `superpowers:finishing-a-development-branch`, DIRECTED to: push the feature branch and open a PR — do NOT merge — then stop. Pre-specifying the outcome keeps it non-interactive while reusing its push/PR mechanics.
 
-Then, BACK IN THE MAIN WORKING TREE, set `status: implemented` + `pr:` and commit + push on `metadata_branch` — NEVER in the feature worktree (metadata always lands on `metadata_branch`; this is also what lets the sweep read `pr:`).
+Then, BACK IN THE MAIN WORKING TREE, set `status: implemented` + `pr:` (and `results:` if a results file was written in step 6.5) and commit + push on `metadata_branch` — NEVER in the feature worktree (metadata always lands on `metadata_branch`; this is also what lets the sweep read `pr:`).
 
 **STOP.** The change stays in `active/` as `implemented` until a human merges it, or approves `docket-finalize-change` to merge it.
 

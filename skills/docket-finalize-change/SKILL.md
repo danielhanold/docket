@@ -159,6 +159,8 @@ The per-change steps below run for each selected change.
 
 2. **Verify the merge landed on main** (optionally: tests green on the merged result).
 
+   > **Close-out (optional).** If the change carries a `results:` file, this is the moment to append interactive-verification **outcomes** and any late findings to it — on `main`, post-merge. The results file is the durable record of what was hand-verified at the gate.
+
 3. **Archive (idempotent):**
 
    a. `git pull --rebase` on `metadata_branch`; re-read `status`.

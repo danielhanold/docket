@@ -1,6 +1,6 @@
 ---
 name: docket-status
-description: Use when you want to see or refresh the docket backlog — what is proposed, in progress, blocked, implemented, or done — by regenerating the BOARD.md board, sweeping merged changes to done, or running health checks for stale claims, broken spec/plan links, and dependency stalls.
+description: Use when you want to see or refresh the docket backlog — what is proposed, in progress, blocked, implemented, or done — by regenerating the BOARD.md board, sweeping merged changes to done, or running health checks for stale claims, broken spec/plan/results links, and dependency stalls.
 ---
 
 # docket-status — the board & janitor
@@ -14,7 +14,7 @@ description: Use when you want to see or refresh the docket backlog — what is 
 - You want to know what is done, what is next, or what is stuck.
 - A PR was merged via the GitHub button (not via `docket-finalize-change`) and the board is stale.
 - `docket-implement-next` calls this at step 0 as a self-cleaning safety net before selecting the next change.
-- You suspect spec or plan links are stale or broken.
+- You suspect spec, plan, or results links are stale or broken.
 - The board shows a change as waiting but you think the blocker has cleared.
 - You want to see the Mermaid dependency graph to understand build order.
 
@@ -248,7 +248,7 @@ Flag the following (do not auto-fix unless asked). Board and health checks share
 
 - **Stale `in-progress` past the build step** — the planned branch is gone, or exists but has had no commits in **3 days** (3 is the current fixed default; promoting it to a `.docket.yml` knob is a future enhancement). A just-claimed change with a `branch:` value but no branch yet created is **not** stale.
 - **Broken `spec:` link** — `spec:` is set but the path does not resolve against `metadata_branch`. Skip `trivial: true` changes; they have no spec.
-- **Broken `plan:` link on `done` changes** — a `done` change's `plan:` path must resolve (link rot check). Ignore a missing `plan:` on an `implemented` change — its plan legitimately still lives on the unmerged feature branch.
+- **Broken `plan:`/`results:` link on `done` changes** — a `done` change's `plan:` and `results:` paths must resolve (link rot check). Ignore a missing `plan:` or `results:` on an `implemented` change — those files legitimately still live on the unmerged feature branch.
 - **Human-merge gate stall** — a build-ready change whose only unsatisfied dependency is stuck at `implemented` (from the shared pass, reason = `"needs your merge"`). Surfaces the dependency so the human knows a single merge unblocks downstream work.
 - **`blocked` changes whose blocker may have cleared** — re-examine `blocked_by:` text; flag if the referenced issue/PR/event appears resolved.
 - **`depends_on` cycles** — detect circular dependency chains; flag every change in the cycle.
