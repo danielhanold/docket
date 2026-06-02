@@ -60,7 +60,7 @@ bash ~/dev/docket/link-skills.sh
 
 `link-skills.sh` creates absolute symlinks from each present harness's global skill directory back to `~/dev/docket/skills/<name>`. It only writes into harness directories that already exist on your machine; it is idempotent and safe to re-run after adding a new harness. Skills are installed once and available in every project you open.
 
-The change data — `docs/changes/`, `docs/adrs/` — lives per consuming project, not in the docket repo itself.
+The change data — `docs/changes/`, `docs/adrs/`, `docs/results/` — lives per consuming project, not in the docket repo itself.
 
 **Optional per-project configuration.** Add a committed `.docket.yml` at the repo root to override defaults:
 
@@ -69,6 +69,7 @@ The change data — `docs/changes/`, `docs/adrs/` — lives per consuming projec
 metadata_branch: main        # main (default) | docket
 changes_dir: docs/changes    # default
 adrs_dir: docs/adrs          # default
+results_dir: docs/results    # default
 ```
 
 `.docket.yml` is committed (not gitignored) because it governs cross-agent coordination; every clone, agent, and device needs the same values.

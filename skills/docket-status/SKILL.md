@@ -1,6 +1,6 @@
 ---
 name: docket-status
-description: Use when you want to see or refresh the docket backlog — what is proposed, in progress, blocked, implemented, or done — by regenerating the BOARD.md board, sweeping merged changes to done, or running health checks for stale claims, broken spec/plan links, and dependency stalls.
+description: Use when you want to see or refresh the docket backlog — what is proposed, in progress, blocked, implemented, or done — by regenerating the BOARD.md board, sweeping merged changes to done, or running health checks for stale claims, broken spec/plan/results links, and dependency stalls.
 ---
 
 # docket-status — the board & janitor
@@ -14,7 +14,7 @@ description: Use when you want to see or refresh the docket backlog — what is 
 - You want to know what is done, what is next, or what is stuck.
 - A PR was merged via the GitHub button (not via `docket-finalize-change`) and the board is stale.
 - `docket-implement-next` calls this at step 0 as a self-cleaning safety net before selecting the next change.
-- You suspect spec or plan links are stale or broken.
+- You suspect spec, plan, or results links are stale or broken.
 - The board shows a change as waiting but you think the blocker has cleared.
 - You want to see the Mermaid dependency graph to understand build order.
 
@@ -32,6 +32,7 @@ Read at startup by every docket skill. Absent ⇒ all defaults. It is **committe
 metadata_branch: main        # main (default) | docket  — where PM commits land (see "Branch model")
 changes_dir: docs/changes    # default
 adrs_dir: docs/adrs          # default
+results_dir: docs/results    # default  — close-out 'results' artifacts (build-time files, like plans)
 ```
 
 ### Directory layout (paths relative to the configured knobs)
@@ -45,6 +46,8 @@ adrs_dir: docs/adrs          # default
 <adrs_dir>/               # default docs/adrs/  — flat; ADRs are NEVER archived
   <NNNN>-<slug>.md        # immutable once Accepted (only its status: line ever changes)
   README.md               # generated ADR index
+<results_dir>/            # default docs/results/  — optional close-out artifacts (feature-branch build files; NEVER archived)
+  <YYYY-MM-DD>-<slug>-results.md
 ```
 
 The `archive/` filename date prefix is **UTC**: the **merge commit's** date for `done`, the **kill commit's** date for `killed`.
@@ -65,6 +68,7 @@ related: [4, 6]           # cross-links the reconcile pass reads
 adrs: [24]                # ADRs this change cites or produces
 spec:                     # superpowers design doc path; set at brainstorm (propose) time, on metadata_branch
 plan:                     # plan FILE lives on the feature branch; this FIELD is set in the main tree at build time
+results:                  # results FILE on the feature branch; this FIELD set in the main tree at close-out (optional)
 trivial: false            # true = no spec needed (small mechanical change); still build-ready
 branch:                   # planned feat/<slug> name, set on claim; branch itself created at build (step 4)
 pr:                       # set when the PR is opened
@@ -137,7 +141,7 @@ A change is **build-ready** — eligible for `docket-implement-next` — only wh
 
 ### Branch model (one-line rule)
 
-Metadata (change file, `BOARD.md`, ADRs) commits to `metadata_branch` (default `main`). **A change's `feat/<slug>` branch is ALWAYS cut from `origin/main`** in both modes — `metadata_branch` only redirects bookkeeping commits, never where code branches start. The feature branch adds only the plan + code and **never modifies** docket metadata.
+Metadata (change file, `BOARD.md`, ADRs) commits to `metadata_branch` (default `main`). **A change's `feat/<slug>` branch is ALWAYS cut from `origin/main`** in both modes — `metadata_branch` only redirects bookkeeping commits, never where code branches start. The feature branch adds only the plan + results + code and **never modifies** docket metadata.
 <!-- docket:convention:end -->
 
 ## Shared dependency-resolution pass
@@ -244,7 +248,7 @@ Flag the following (do not auto-fix unless asked). Board and health checks share
 
 - **Stale `in-progress` past the build step** — the planned branch is gone, or exists but has had no commits in **3 days** (3 is the current fixed default; promoting it to a `.docket.yml` knob is a future enhancement). A just-claimed change with a `branch:` value but no branch yet created is **not** stale.
 - **Broken `spec:` link** — `spec:` is set but the path does not resolve against `metadata_branch`. Skip `trivial: true` changes; they have no spec.
-- **Broken `plan:` link on `done` changes** — a `done` change's `plan:` path must resolve (link rot check). Ignore a missing `plan:` on an `implemented` change — its plan legitimately still lives on the unmerged feature branch.
+- **Broken `plan:`/`results:` link on `done` changes** — a `done` change's `plan:` and `results:` paths must resolve (link rot check). Ignore a missing `plan:` or `results:` on an `implemented` change — those files legitimately still live on the unmerged feature branch.
 - **Human-merge gate stall** — a build-ready change whose only unsatisfied dependency is stuck at `implemented` (from the shared pass, reason = `"needs your merge"`). Surfaces the dependency so the human knows a single merge unblocks downstream work.
 - **`blocked` changes whose blocker may have cleared** — re-examine `blocked_by:` text; flag if the referenced issue/PR/event appears resolved.
 - **`depends_on` cycles** — detect circular dependency chains; flag every change in the cycle.

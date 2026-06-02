@@ -30,6 +30,7 @@ Read at startup by every docket skill. Absent ⇒ all defaults. It is **committe
 metadata_branch: main        # main (default) | docket  — where PM commits land (see "Branch model")
 changes_dir: docs/changes    # default
 adrs_dir: docs/adrs          # default
+results_dir: docs/results    # default  — close-out 'results' artifacts (build-time files, like plans)
 ```
 
 ### Directory layout (paths relative to the configured knobs)
@@ -43,6 +44,8 @@ adrs_dir: docs/adrs          # default
 <adrs_dir>/               # default docs/adrs/  — flat; ADRs are NEVER archived
   <NNNN>-<slug>.md        # immutable once Accepted (only its status: line ever changes)
   README.md               # generated ADR index
+<results_dir>/            # default docs/results/  — optional close-out artifacts (feature-branch build files; NEVER archived)
+  <YYYY-MM-DD>-<slug>-results.md
 ```
 
 The `archive/` filename date prefix is **UTC**: the **merge commit's** date for `done`, the **kill commit's** date for `killed`.
@@ -63,6 +66,7 @@ related: [4, 6]           # cross-links the reconcile pass reads
 adrs: [24]                # ADRs this change cites or produces
 spec:                     # superpowers design doc path; set at brainstorm (propose) time, on metadata_branch
 plan:                     # plan FILE lives on the feature branch; this FIELD is set in the main tree at build time
+results:                  # results FILE on the feature branch; this FIELD set in the main tree at close-out (optional)
 trivial: false            # true = no spec needed (small mechanical change); still build-ready
 branch:                   # planned feat/<slug> name, set on claim; branch itself created at build (step 4)
 pr:                       # set when the PR is opened
@@ -135,7 +139,7 @@ A change is **build-ready** — eligible for `docket-implement-next` — only wh
 
 ### Branch model (one-line rule)
 
-Metadata (change file, `BOARD.md`, ADRs) commits to `metadata_branch` (default `main`). **A change's `feat/<slug>` branch is ALWAYS cut from `origin/main`** in both modes — `metadata_branch` only redirects bookkeeping commits, never where code branches start. The feature branch adds only the plan + code and **never modifies** docket metadata.
+Metadata (change file, `BOARD.md`, ADRs) commits to `metadata_branch` (default `main`). **A change's `feat/<slug>` branch is ALWAYS cut from `origin/main`** in both modes — `metadata_branch` only redirects bookkeeping commits, never where code branches start. The feature branch adds only the plan + results + code and **never modifies** docket metadata.
 <!-- docket:convention:end -->
 
 ## Procedure
@@ -181,11 +185,17 @@ The freshly-fetched `origin/main` carries the reconciled spec in default mode. N
 
 `superpowers:requesting-code-review` (whole-branch). For any non-obvious decision made during implementation, invoke `docket-adr` to record it (it assigns the number + updates the index); append the returned number to the change's `adrs:`. Update `adrs:` in the **main working tree on `metadata_branch`** — never in the feature worktree (the change file is metadata; the same discipline as step 7). (`docket-adr` itself already commits the new ADR file on `metadata_branch`.)
 
+### Step 6.5 — Results close-out (optional)
+
+Write a results file ONLY if at least one is true: **(a)** the human must run interactive/manual checks at the merge gate beyond automated tests, **(b)** the build surfaced findings worth recording (including any that became ADRs), or **(c)** there are follow-ups or notable plan deviations to capture. Otherwise SKIP it — the PR description + green CI are the receipt.
+
+When warranted: author `<results_dir>/<YYYY-MM-DD>-<slug>-results.md` from `results-template.md` **IN THE FEATURE WORKTREE** and commit it on `feat/<slug>` with the code — it is a build artifact, like the plan. Keep build-receipt detail (what shipped, full test tables) in the PR description, not here. The `results:` FIELD is set in the main tree in step 7 (the file is feature-branch, the field is metadata — same split as `plan:`).
+
 ### Step 7 — PR + stop
 
 Invoke `superpowers:finishing-a-development-branch`, DIRECTED to: push the feature branch and open a PR — do NOT merge — then stop. Pre-specifying the outcome keeps it non-interactive while reusing its push/PR mechanics.
 
-Then, BACK IN THE MAIN WORKING TREE, set `status: implemented` + `pr:` and commit + push on `metadata_branch` — NEVER in the feature worktree (metadata always lands on `metadata_branch`; this is also what lets the sweep read `pr:`).
+Then, BACK IN THE MAIN WORKING TREE, set `status: implemented` + `pr:` (and `results:` if a results file was written in step 6.5) and commit + push on `metadata_branch` — NEVER in the feature worktree (metadata always lands on `metadata_branch`; this is also what lets the sweep read `pr:`).
 
 **STOP.** The change stays in `active/` as `implemented` until a human merges it, or approves `docket-finalize-change` to merge it.
 
