@@ -11,6 +11,7 @@ related: []
 adrs: []
 spec:                     # path under docs/superpowers/specs/ once brainstormed (omit if trivial)
 plan:                     # left empty; set by docket-implement-next at build time
+results:                  # left empty; set by docket-implement-next at close-out if warranted
 trivial: false            # true for a small mechanical change with no design questions
 branch:
 pr:
