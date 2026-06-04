@@ -1,12 +1,12 @@
 # Backlog
 
-**2 changes** — 🟡 1 proposed · ✅ 1 done
+**2 changes** — 🔵 1 implemented · ✅ 1 done
 
-## 🟡 Proposed (1)
+## 🔵 Implemented — awaiting merge (1)
 
-| # | Title | Priority | Readiness |
-|---|-------|----------|-----------|
-| [0002](active/0002-docket-metadata-branch.md) | docket metadata branch — separate planning state from code history | `high` | build-ready |
+| # | Title | Priority | PR |
+|---|-------|----------|----|
+| [0002](active/0002-docket-metadata-branch.md) | docket metadata branch — separate planning state from code history | `high` | [#3](https://github.com/danielhanold/docket/pull/3) |
 
 <details><summary>✅ Archive — done (1)</summary>
 
