@@ -10,7 +10,7 @@ depends_on: []
 related: [1]
 adrs: []
 spec: docs/superpowers/specs/2026-06-02-docket-metadata-branch-design.md
-plan:
+plan: docs/superpowers/plans/2026-06-03-docket-metadata-branch.md
 results:
 trivial: false
 branch: feat/docket-metadata-branch
