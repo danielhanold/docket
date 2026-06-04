@@ -165,7 +165,7 @@ Metadata (change files, `BOARD.md`, ADRs, specs) commits to `metadata_branch` (d
 
 ### Step 0 — Sync & sweep
 
-`git pull --rebase`; invoke `docket-status` (whose merge-sweep pass archives any `implemented` change whose PR has merged) before selection — the self-cleaning safety net for changes not closed via `docket-finalize-change`.
+Ensure the **metadata working tree** is synced to its remote, then invoke `docket-status` (whose merge-sweep pass archives any `implemented` change whose PR has merged) before selection — the self-cleaning safety net for changes not closed via `docket-finalize-change`. All bookkeeping in this skill (claim, reconcile, `status`, `pr:`, the `plan:` field, `adrs:`) happens in the metadata working tree on `metadata_branch`, pushed to its remote immediately; only the plan + results + code land on the feature branch. In `docket`-mode the metadata working tree is the persistent `.docket/` worktree parked on `docket` — ensure it (state-specific create per the convention's Branch model, idempotent) and **sync it to `origin/docket` before any read** (`git -C .docket fetch origin docket && git -C .docket pull --rebase origin docket`); pushes target `origin/docket`. In single-branch/`main`-mode this degrades to the primary working tree on the integration branch (no `.docket/`): `git pull --rebase` and push on `origin/<metadata_branch>` (which equals `origin/<integration_branch>` there).
 
 ### Step 1 — Select
 
@@ -173,28 +173,29 @@ Among `active/` changes that are `proposed`, BUILD-READY (have a `spec:` or `tri
 
 ### Step 2 — Claim (compare-and-swap)
 
-Re-read the manifest after the pull; if still `proposed`, set `status: in-progress` + `branch: feat/<slug>` + `updated: <UTC today>`; commit and push on `metadata_branch`. On a non-fast-forward rejection: DISCARD the pending local claim commit (it edits the same `status:`/`branch:` lines and would conflict on replay), `git pull --rebase`, RE-READ (mandatory); if still `proposed`, re-claim and push — LOOP until the push lands (it can be rejected repeatedly under load). The arbiter is the re-read (abort if no longer `proposed`), not that any single push succeeds. No worktree yet.
+Re-read the manifest after the sync, in the **metadata working tree**; if still `proposed`, set `status: in-progress` + `branch: feat/<slug>` + `updated: <UTC today>`; commit and push on `metadata_branch` (in `docket`-mode, `origin/docket` via `.docket/`). On a non-fast-forward rejection: DISCARD the pending local claim commit (it edits the same `status:`/`branch:` lines and would conflict on replay), re-sync (`git pull --rebase`, or `git -C .docket pull --rebase origin docket`), RE-READ (mandatory); if still `proposed`, re-claim and push — LOOP until the push lands (it can be rejected repeatedly under load). The arbiter is the re-read (abort if no longer `proposed`), not that any single push succeeds. No worktree yet.
 
 > Two agents must NOT share one local clone — each needs its own.
 
 ### Step 3 — Reconcile ⭐
 
-Re-read the change + its spec against `related` + recently-archived changes, cited + recent ADRs, and CURRENT code; refresh the change body and spec to what is true NOW (drop work done elsewhere, adjust scope, fold in new constraints), NON-INTERACTIVELY. A trivial change has no spec — refresh the body only. Append a dated `## Reconcile log` entry; set `reconciled: true`; commit and push on `metadata_branch`.
+In the **metadata working tree** (re-synced to its remote), re-read the change + its spec against `related` + recently-archived changes, cited + recent ADRs, and CURRENT code; refresh the change body and spec to what is true NOW (drop work done elsewhere, adjust scope, fold in new constraints), NON-INTERACTIVELY. The spec lives alongside the change on `metadata_branch` (in `docket`-mode, `.docket/docs/superpowers/specs/…`). A trivial change has no spec — refresh the body only. Append a dated `## Reconcile log` entry; set `reconciled: true`; commit and push on `metadata_branch` (in `docket`-mode, `origin/docket`).
 
 Two escape hatches:
 
-- Change now **OBSOLETE** → set `killed` (+ `## Why killed`) + `updated: <UTC kill date>` (same UTC date used for the `archive/<date>-…` filename prefix), archive, loop back to Step 1.
+- Change now **OBSOLETE** → set `status: killed` (+ `## Why killed`) + `updated: <UTC kill date>` in the metadata working tree. In `docket`-mode: push `origin/docket`, then run the shared **terminal-publish procedure (the *Terminal publish (docket-mode)* procedure in `docket-finalize-change`)** with outcome `killed` (token `T = <id>`) — any `Accepted` ADRs already in the change's `adrs:` ride along — and prune any feature worktree/branch already created for this change before looping back to Step 1. In `main`-mode (no `docket` branch / no terminal-publish): do the archive move (`active/ → archive/<UTC kill date>-<id>-<slug>.md`) + `status: killed` + `## Why killed` directly in the metadata working tree (= the integration branch) and push `origin/<integration_branch>`, then loop back to Step 1. The `<UTC kill date>` is the same date used for the `archive/<date>-…` filename prefix.
 - Design **FUNDAMENTALLY invalidated** (not just scope-adjustable) → STOP and escalate to the human. This skill cannot re-brainstorm alone; re-brainstorming is a human act handled by `superpowers:brainstorming` + `docket-new-change`.
 
 ### Step 4 — Worktree + plan
 
-`git fetch origin`; CONFIRM the step-3 reconcile push has landed on `origin/main` (default mode). If it hasn't (push was rejected): `pull --rebase`, re-push, re-fetch — loop until the reconcile commit is on `origin/main` BEFORE continuing. For `metadata_branch: docket`, this cross-tree confirmation is a v1 rough edge — see the `docket` mode caveat at the end of this skill before proceeding. Then:
+CONFIRM the step-3 reconcile push has landed on the **metadata branch** before continuing — by **SHA-compare**, not "the push exited 0": after a fetch, the local metadata tip must equal the remote tip. In `docket`-mode: `git -C .docket fetch origin docket` then assert `git -C .docket rev-parse @ == git rev-parse origin/docket`; in `main`-mode: `git fetch origin` then assert the primary tree's tip equals `origin/<integration_branch>`. If they differ (push was rejected by a concurrent writer): re-sync (`pull --rebase`), re-push, re-fetch — loop until the SHAs match BEFORE continuing, so the build never reads bytes older than origin. Then cut the feature branch — **ALWAYS from `origin/<integration_branch>`**, in both modes (fetch it first for freshness):
 
 ```
-git worktree add .worktrees/<slug> -b feat/<slug> origin/main
+git fetch origin <integration_branch>
+git worktree add .worktrees/<slug> -b feat/<slug> origin/<integration_branch>
 ```
 
-The freshly-fetched `origin/main` carries the reconciled spec in default mode. NEVER base on a separate metadata branch; in default mode `metadata_branch` IS `main`, so `origin/main` is the correct base. Run `superpowers:writing-plans` (writes `docs/superpowers/plans/` ON THE FEATURE BRANCH); record the path in `plan:` — this is a **metadata edit made in the main working tree on `metadata_branch`** (the change file is never edited in the feature worktree). The plan **file** that `writing-plans` produces is the feature-branch/build-time artifact and merges to `main` with the code, so the `plan:` link resolves on `main` only after the PR merges (which is why `docket-status` ignores a missing `plan:` on an `implemented` change).
+`metadata_branch` only redirects bookkeeping commits — it NEVER determines where code branches start. The reconciled **spec is read from the metadata working tree** (in `docket`-mode, `.docket/docs/superpowers/specs/…`); **re-sync `.docket/` immediately before reading it** (`git -C .docket pull --rebase origin docket`) so it matches `origin/docket`. Run `superpowers:writing-plans`: it performs an intentional **cross-tree** step — reading the spec from the metadata working tree (`.docket/` in `docket`-mode) and writing the plan into `.worktrees/<slug>` (`docs/superpowers/plans/` ON THE FEATURE BRANCH). The feature tree never carries the spec — code branches from `origin/<integration_branch>`, the spec lives on `metadata_branch`, so the spec read is deliberately cross-tree, not a bug. Record the plan path in `plan:` — this is a **metadata edit made in the metadata working tree on `metadata_branch`** (the change file is never edited in the feature worktree). The plan **file** that `writing-plans` produces is the feature-branch/build-time artifact and merges to the integration branch with the code, so the `plan:` link resolves on `<integration_branch>` only after the PR merges (which is why `docket-status` ignores a missing `plan:` on an `implemented` change).
 
 ### Step 5 — Build
 
@@ -202,19 +203,19 @@ The freshly-fetched `origin/main` carries the reconciled spec in default mode. N
 
 ### Step 6 — Review + ADRs
 
-`superpowers:requesting-code-review` (whole-branch). For any non-obvious decision made during implementation, invoke `docket-adr` to record it (it assigns the number + updates the index); append the returned number to the change's `adrs:`. Update `adrs:` in the **main working tree on `metadata_branch`** — never in the feature worktree (the change file is metadata; the same discipline as step 7). (`docket-adr` itself already commits the new ADR file on `metadata_branch`.)
+`superpowers:requesting-code-review` (whole-branch). For any non-obvious decision made during implementation, invoke `docket-adr` to record it (it assigns the number + updates the index); append the returned number to the change's `adrs:`. Update `adrs:` in the **metadata working tree on `metadata_branch`** (in `docket`-mode, `.docket/` on `origin/docket`) — never in the feature worktree (the change file is metadata; the same discipline as step 7). (`docket-adr` itself already commits the new ADR file on `metadata_branch` and, on acceptance, publishes it onto the integration branch.)
 
 ### Step 6.5 — Results close-out (optional)
 
 Write a results file ONLY if at least one is true: **(a)** the human must run interactive/manual checks at the merge gate beyond automated tests, **(b)** the build surfaced findings worth recording (including any that became ADRs), or **(c)** there are follow-ups or notable plan deviations to capture. Otherwise SKIP it — the PR description + green CI are the receipt.
 
-When warranted: author `<results_dir>/<YYYY-MM-DD>-<slug>-results.md` from `results-template.md` **IN THE FEATURE WORKTREE** and commit it on `feat/<slug>` with the code — it is a build artifact, like the plan. Keep build-receipt detail (what shipped, full test tables) in the PR description, not here. The `results:` FIELD is set in the main tree in step 7 (the file is feature-branch, the field is metadata — same split as `plan:`).
+When warranted: author `<results_dir>/<YYYY-MM-DD>-<slug>-results.md` from `results-template.md` **IN THE FEATURE WORKTREE** and commit it on `feat/<slug>` with the code — it is a build artifact, like the plan. Keep build-receipt detail (what shipped, full test tables) in the PR description, not here. The `results:` FIELD is set in the metadata working tree in step 7 (the file is feature-branch, the field is metadata — same split as `plan:`).
 
 ### Step 7 — PR + stop
 
 Invoke `superpowers:finishing-a-development-branch`, DIRECTED to: push the feature branch and open a PR — do NOT merge — then stop. Pre-specifying the outcome keeps it non-interactive while reusing its push/PR mechanics.
 
-Then, BACK IN THE MAIN WORKING TREE, set `status: implemented` + `pr:` (and `results:` if a results file was written in step 6.5) and commit + push on `metadata_branch` — NEVER in the feature worktree (metadata always lands on `metadata_branch`; this is also what lets the sweep read `pr:`).
+Then, BACK IN THE **METADATA WORKING TREE** (in `docket`-mode, `.docket/`), set `status: implemented` + `pr:` (and `results:` if a results file was written in step 6.5) and commit + push on `metadata_branch` (in `docket`-mode, `origin/docket`) — NEVER in the feature worktree (metadata always lands on `metadata_branch`; this is also what lets the sweep read `pr:`).
 
 **STOP.** The change stays in `active/` as `implemented` until a human merges it, or approves `docket-finalize-change` to merge it.
 
@@ -234,7 +235,7 @@ It is two things:
 
 1. **An audit signal** — paired with the dated `## Reconcile log` entry, it proves the change was freshened against current reality before implementation began. The log entry records what was dropped, adjusted, or folded in.
 
-2. **A resume-safety guard** — on any resume of an `in-progress` change, check `reconciled`. If still `false`, reconcile didn't finish (crash, interruption) → re-run the full pass before continuing. On ANY resume, also re-run reconcile if `origin/main` has advanced since the last pass (idempotent, non-interactive; must always reflect the last responsible moment).
+2. **A resume-safety guard** — on any resume of an `in-progress` change, check `reconciled`. If still `false`, reconcile didn't finish (crash, interruption) → re-run the full pass before continuing. On ANY resume, also re-run reconcile if `origin/<integration_branch>` has advanced since the last pass (idempotent, non-interactive; must always reflect the last responsible moment).
 
 `reconciled` is **NOT a selection criterion**. Build-readiness is determined by `spec:`-or-`trivial: true` and satisfied `depends_on`. A change sitting at `reconciled: false` is still build-ready; reconcile happens in step 3, after selection and claim.
 
@@ -242,23 +243,19 @@ It is two things:
 
 ### The one-line rule
 
-New change ⇒ `git worktree add .worktrees/<slug> -b feat/<slug> origin/main` — in BOTH modes (`metadata_branch: main` and `metadata_branch: docket`). `metadata_branch` only redirects bookkeeping commits; it never determines where code branches start.
+New change ⇒ `git worktree add .worktrees/<slug> -b feat/<slug> origin/<integration_branch>` — in BOTH modes (`metadata_branch: docket` and `metadata_branch: main`). `metadata_branch` only redirects bookkeeping commits; it never determines where code branches start.
 
 ### Feature branch invariants
 
-The feature branch is cut from `origin/main` AFTER claim + reconcile, adds only plan + code, and **never modifies** docket metadata (the change file, `BOARD.md`, ADRs). This means: at merge, the 3-way merge takes `main`'s side for the change file unconditionally — the feature branch's copy equals the base at that path, so there is no conflict and no revert needed.
+The feature branch is cut from `origin/<integration_branch>` AFTER claim + reconcile, adds only plan + results + code, and **never modifies** docket metadata (the change file, `BOARD.md`, ADRs). This means: at merge, the 3-way merge takes the integration branch's side for the change file unconditionally — the feature branch's copy equals the base at that path, so there is no conflict and no revert needed. (In `docket`-mode the change file does not even exist on `origin/<integration_branch>` until terminal-publish copies it there, so the feature branch never touches it.)
 
 ### Metadata vs. code commit separation
 
-- **Metadata commits** (claim, reconcile, `status: implemented`, `pr:`, and all change-file field updates including `plan:`) happen in the **main working tree** on `metadata_branch`.
-- **Code and plan file commits** happen in the **feature worktree** (`.worktrees/<slug>`) on `feat/<slug>`. The worktree commits the plan *file* + code; the change file's `plan:` *field* (like all change-file fields) is written on `metadata_branch` in the main tree — the manifest comment on `plan:` says exactly this.
+- **Metadata commits** (claim, reconcile, `status: implemented`, `pr:`, and all change-file field updates including `plan:` and `adrs:`) happen in the **metadata working tree** on `metadata_branch` — the `.docket/` worktree in `docket`-mode, the primary working tree on the integration branch in `main`-mode.
+- **Code and plan/results file commits** happen in the **feature worktree** (`.worktrees/<slug>`) on `feat/<slug>`. The worktree commits the plan + results *files* + code; the change file's `plan:`/`results:` *fields* (like all change-file fields) are written on `metadata_branch` in the metadata working tree — the manifest comments on `plan:`/`results:` say exactly this.
 
-Never cross these streams. A metadata write that lands in the feature worktree would either be silently diverged at merge or create a conflict.
+Never cross these streams. A metadata write that lands in the feature worktree would either be silently diverged at merge or create a conflict. (The single deliberate cross-tree touch is the spec **read** in step 4: `writing-plans` reads the spec from the metadata working tree and writes the plan into the feature worktree — a read across trees, never a metadata write into the feature tree.)
 
 ### Invocation-branch-agnostic
 
-This skill is safe to invoke from any branch. It `git fetch`es and operates against `origin/main` (feature base) and `metadata_branch` (bookkeeping) explicitly; the branch the human happened to be on when they typed the command is irrelevant.
-
-### `docket` mode caveat (v1 rough edge)
-
-When `metadata_branch: docket`, code still branches from `origin/main`, but the spec lives on `docket` and must be read cross-tree (`git show docket:docs/superpowers/specs/<file>`), and the reconcile push lands on `docket`. These cross-branch mechanics are **not fully specified for v1** — default `main` mode is the supported path. The caveat is documented here so implementers do not attempt the `docket`-branch path and encounter silent failures.
+This skill is safe to invoke from any branch. It `git fetch`es and operates against `origin/<integration_branch>` (feature base) and `metadata_branch` (bookkeeping, via the metadata working tree) explicitly; the branch the human happened to be on when they typed the command is irrelevant.
