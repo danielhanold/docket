@@ -1,12 +1,10 @@
 # .docket.yml — committed on the repo's default branch; read by every docket skill at startup.
 #
-# docket dogfoods itself. Change 0002 flips the DEFAULT to docket-mode (planning metadata
-# on a dedicated `docket` branch). This repo is deliberately PINNED to single-branch (main)
-# mode until it runs its own migrate-to-docket.sh — a separate follow-up (see change 0002,
-# "Out of scope" + spec §14). Without this pin, the moment 0002 merges every docket skill
-# would hit the bootstrap guard (docket-mode default + no `docket` branch + metadata on main)
-# and STOP. Remove/flip these two knobs when this repo migrates to docket-mode.
-metadata_branch: main
+# This repo runs in DOCKET-MODE (migrated 2026-06-04 via migrate-to-docket.sh — the dogfood of
+# change 0002). Planning metadata (changes, board, ADRs, specs) is the live surface on the
+# `docket` branch; `main` keeps code, build artifacts, and published terminal records. To opt
+# back out to single-branch mode, set `metadata_branch: main`.
+metadata_branch: docket
 integration_branch: main
 changes_dir: docs/changes
 adrs_dir: docs/adrs
