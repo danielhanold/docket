@@ -1,6 +1,12 @@
 # Backlog
 
-**2 changes** — ✅ 2 done
+**3 changes** — 🟡 1 proposed · ✅ 2 done
+
+## 🟡 Proposed (1)
+
+| # | Title | Priority | Readiness |
+|---|-------|----------|-----------|
+| [0003](active/0003-migration-tool-pwd-target.md) | migrate-to-docket.sh targets the invoking repo ($PWD) — usable for consuming repos | `medium` | build-ready |
 
 <details><summary>✅ Archive — done (2)</summary>
 
