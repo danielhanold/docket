@@ -2,7 +2,7 @@
 id: 2
 slug: docket-metadata-branch
 title: docket metadata branch — separate planning state from code history
-status: in-progress
+status: implemented
 priority: high
 created: 2026-06-03
 updated: 2026-06-03
@@ -11,10 +11,10 @@ related: [1]
 adrs: [1, 2]
 spec: docs/superpowers/specs/2026-06-02-docket-metadata-branch-design.md
 plan: docs/superpowers/plans/2026-06-03-docket-metadata-branch.md
-results:
+results: docs/results/2026-06-03-docket-metadata-branch-results.md
 trivial: false
 branch: feat/docket-metadata-branch
-pr:
+pr: https://github.com/danielhanold/docket/pull/3
 blocked_by:
 reconciled: true
 ---
