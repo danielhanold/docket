@@ -2,7 +2,7 @@
 id: 2
 slug: docket-metadata-branch
 title: docket metadata branch — separate planning state from code history
-status: proposed
+status: in-progress
 priority: high
 created: 2026-06-03
 updated: 2026-06-03
@@ -13,7 +13,7 @@ spec: docs/superpowers/specs/2026-06-02-docket-metadata-branch-design.md
 plan:
 results:
 trivial: false
-branch:
+branch: feat/docket-metadata-branch
 pr:
 blocked_by:
 reconciled: false
