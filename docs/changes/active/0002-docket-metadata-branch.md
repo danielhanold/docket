@@ -8,7 +8,7 @@ created: 2026-06-03
 updated: 2026-06-03
 depends_on: []
 related: [1]
-adrs: []
+adrs: [1, 2]
 spec: docs/superpowers/specs/2026-06-02-docket-metadata-branch-design.md
 plan: docs/superpowers/plans/2026-06-03-docket-metadata-branch.md
 results:
