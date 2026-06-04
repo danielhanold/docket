@@ -2,10 +2,10 @@
 id: 2
 slug: docket-metadata-branch
 title: docket metadata branch — separate planning state from code history
-status: implemented
+status: done
 priority: high
 created: 2026-06-03
-updated: 2026-06-03
+updated: 2026-06-04
 depends_on: []
 related: [1]
 adrs: [1, 2]
