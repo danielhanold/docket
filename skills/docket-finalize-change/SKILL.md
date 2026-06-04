@@ -225,7 +225,7 @@ In `.docket/` (synced to `origin/docket`): `mkdir -p <changes_dir>/archive` (git
 
 **Idempotent across re-runs and day boundaries:** first probe (null-glob-safe, e.g. `find <changes_dir>/archive -name '*-<id>-<slug>.md'`) for an existing archive file and reuse that filename rather than recomputing today's date — otherwise an interrupted-then-resumed run could mint a second archive file. **Ordering is load-bearing:** step 3 copies the *archived* path, so it must exist on `origin/docket` first.
 
-(For the `done` path this is the same work as *Per-change steps* §3 above, run in `.docket/`. For a `killed` change there is usually no merged PR, so plan/results may not exist — kill publishes only what is on `docket`: the change file, plus its `spec:`/`adrs:` if set.)
+(For the `done` path this is the same work as *Per-change steps* step 3 above, run in `.docket/`. For a `killed` change there is usually no merged PR, so plan/results may not exist — kill publishes only what is on `docket`: the change file, plus its `spec:`/`adrs:` if set.)
 
 ### Step 2 — Provision a clean integration checkout
 

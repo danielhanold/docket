@@ -47,8 +47,8 @@ assert "terminal-publish procedure in finalize" \
   'grep -qi "terminal publish\|terminal-publish" skills/docket-finalize-change/SKILL.md'
 assert "publish copies from origin/docket (not a branch merge)" \
   'grep -q "checkout origin/docket" skills/docket-finalize-change/SKILL.md'
-assert "Accepted gate on ADR publish" \
-  'grep -qi "Accepted" skills/docket-finalize-change/SKILL.md'
+assert "Accepted gate on ADR publish (copy-site gate, not the ADR schema)" \
+  'grep -q "whose ADR is \`Accepted\`" skills/docket-finalize-change/SKILL.md'
 
 # I. Kill-publish wired in BOTH kill origins (producer + implementer), not just finalize.
 assert "proposed-kill wired in docket-new-change" \
@@ -64,9 +64,21 @@ assert "status sweep invokes terminal-publish" \
 assert "adr skill references terminal-publish / publish" \
   'grep -qi "terminal.publish\|terminal-publish\|publish" skills/docket-adr/SKILL.md'
 
-# L. main-mode backward-compat documented (the pinned opt-out).
+# L. main-mode backward-compat: the degradation is documented at each docket-mode
+#    mechanic site (spec §7.6/§12). These assertions FAIL if a degradation clause is
+#    deleted — unlike a bare "main-mode" grep, which any unrelated mention satisfies.
+# L1. Convention documents the pinned main-mode opt-out (non-vacuous: the exact opt-out prose).
 assert "main-mode opt-out documented in convention" \
-  'grep -qiE "metadata_branch: main|single-branch|main-mode" "skills/docket-new-change/SKILL.md"'
+  'grep -q "pinning \`metadata_branch: main\`" "skills/docket-new-change/SKILL.md"'
+# L2. Terminal-publish is explicitly skipped in main-mode (degradation at the publish site).
+assert "terminal-publish skipped entirely in main-mode" \
+  'grep -q "Skipped entirely in \`main\`-mode" skills/docket-finalize-change/SKILL.md'
+# L3. Proposed-kill (docket-new-change) carries its main-mode archive-move degradation clause.
+assert "proposed-kill degrades to a direct archive move in main-mode" \
+  'grep -q "no \`docket\` branch / no terminal-publish): do the archive move" skills/docket-new-change/SKILL.md'
+# L4. Reconcile-kill (docket-implement-next) carries its main-mode archive-move degradation clause.
+assert "reconcile-kill degrades to a direct archive move in main-mode" \
+  'grep -q "no \`docket\` branch / no terminal-publish): do the archive move" skills/docket-implement-next/SKILL.md'
 
 # M. .gitignore ignores the metadata worktree + feature worktrees.
 assert ".gitignore ignores .docket/" 'grep -qE "^\.docket/?" .gitignore'
