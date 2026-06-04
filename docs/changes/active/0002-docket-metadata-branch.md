@@ -16,7 +16,7 @@ trivial: false
 branch: feat/docket-metadata-branch
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Why
@@ -48,3 +48,11 @@ Make `docket`-mode real and the default (full design + git mechanics in the link
 None at PM altitude. The design is settled and reviewed; remaining items are git-command-level precision (idempotency guards, conflict handling, exact refspecs) that the build's TDD pins down — see the spec's §12 test assertions.
 
 ## Reconcile log
+
+**2026-06-03:** Reconciled at claim time. Spec + change were authored 2026-06-02/03 and `origin/main` has advanced only by the propose/claim commits and a user-added `.gitignore` (`b2a75ae`, contents: `.DS_Store`) — so this is a currency check, not a rewrite. Verified the spec's §12 touch-points against live reality:
+- **`.gitignore` now exists** (one fold-in): the change *extends* it with `.docket/` + `.worktrees/` rather than creating it; spec §12 updated.
+- **Skills + synced convention block are unchanged** from the v1 state the spec targets (no `skills/` commits since the 0001 results work) — the rewrite targets are all still present (`metadata_branch: main` default, the `docket` v1 caveat in `docket-implement-next`, hard-coded `origin/main`).
+- **No ADRs exist yet** (`docs/adrs/` empty) — nothing to cite; the 1–2 ADRs are produced at build.
+- **`0001` is `done`** as `related` assumed; its results-artifact work (the `results:` field/`results_dir`/templates) is already in the convention and accounted for in the §3 artifact table — no conflict.
+
+Scope otherwise unchanged; nothing shipped elsewhere to drop. **Build approach — TDD-for-docs** (the model change 0001 used): encode the spec's §12 assertions as content/sync checks in `tests/` first (convention blocks in sync after edits; `metadata_branch: docket` + `integration_branch` defaults present across all five skills; the v1 `docket` caveat removed; terminal-publish copy-set = {change, spec, `Accepted` adrs} + kill-publish wired in producer *and* implementer, not just finalize; `.gitignore` ignores `.docket/`+`.worktrees/`; `main`-mode backward-compat references no `docket`/`.docket/`/`checkout origin/docket`), then edit the canonical convention block, run `sync-convention.sh`, apply per-skill specifics (§7), add `migrate-to-docket.sh`, extend `.gitignore`, rewrite the README docket-mode section (§10), and record the branch-model + docket-as-default ADRs (§11).
