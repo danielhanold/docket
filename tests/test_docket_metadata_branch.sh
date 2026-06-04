@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+# tests/test_docket_metadata_branch.sh — verifies docket-mode (the metadata-branch change, 0002).
+# Run: bash tests/test_docket_metadata_branch.sh
+set -uo pipefail
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$REPO"
+fail=0
+assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
+SKILLS=(docket-new-change docket-status docket-implement-next docket-finalize-change docket-adr)
+
+# A. Convention blocks byte-identical across all skills.
+assert "convention blocks in sync (sync-convention.sh --check)" \
+  'bash sync-convention.sh --check >/dev/null 2>&1'
+
+# B. metadata_branch default flipped to docket, in every skill's convention.
+for s in "${SKILLS[@]}"; do
+  assert "metadata_branch default is docket in $s" \
+    'grep -Eq "^metadata_branch: docket" "skills/'"$s"'/SKILL.md"'
+done
+
+# C. integration_branch knob present in every skill's convention.
+for s in "${SKILLS[@]}"; do
+  assert "integration_branch knob present in $s" \
+    'grep -q "integration_branch" "skills/'"$s"'/SKILL.md"'
+done
+
+# D. The "metadata working tree" abstraction appears in every skill.
+for s in "${SKILLS[@]}"; do
+  assert "metadata working tree wording in $s" \
+    'grep -qi "metadata working tree" "skills/'"$s"'/SKILL.md"'
+done
+
+# E. Branch-model: feature branch cut from the integration branch (not hard-coded main).
+assert "branch-model generalized to integration_branch" \
+  'grep -q "origin/<integration_branch>" "skills/docket-new-change/SKILL.md"'
+
+# F. Bootstrap guard (refuse-to-migrate) present in the convention (visible in every skill via sync).
+assert "bootstrap guard present in convention" \
+  'grep -qiE "half-migrated|bootstrap guard|migrate-to-docket" "skills/docket-status/SKILL.md"'
+
+# G. The v1 docket caveat is REMOVED from docket-implement-next.
+assert "v1 docket caveat removed from implement-next" \
+  '! grep -qi "v1 rough edge" skills/docket-implement-next/SKILL.md'
+
+# H. Terminal-publish: single-sourced in finalize; copies from origin/docket; Accepted gate.
+assert "terminal-publish procedure in finalize" \
+  'grep -qi "terminal publish\|terminal-publish" skills/docket-finalize-change/SKILL.md'
+assert "publish copies from origin/docket (not a branch merge)" \
+  'grep -q "checkout origin/docket" skills/docket-finalize-change/SKILL.md'
+assert "Accepted gate on ADR publish" \
+  'grep -qi "Accepted" skills/docket-finalize-change/SKILL.md'
+
+# I. Kill-publish wired in BOTH kill origins (producer + implementer), not just finalize.
+assert "proposed-kill wired in docket-new-change" \
+  'grep -qi "kill" skills/docket-new-change/SKILL.md && grep -qi "terminal.publish\|terminal-publish" skills/docket-new-change/SKILL.md'
+assert "reconcile-kill wired in docket-implement-next" \
+  'grep -qi "kill" skills/docket-implement-next/SKILL.md && grep -qi "terminal.publish\|terminal-publish" skills/docket-implement-next/SKILL.md'
+
+# J. docket-status: sweep invokes terminal-publish.
+assert "status sweep invokes terminal-publish" \
+  'grep -qi "terminal.publish\|terminal-publish" skills/docket-status/SKILL.md'
+
+# K. docket-adr: Accepted ADRs publish.
+assert "adr skill references terminal-publish / publish" \
+  'grep -qi "terminal.publish\|terminal-publish\|publish" skills/docket-adr/SKILL.md'
+
+# L. main-mode backward-compat documented (the pinned opt-out).
+assert "main-mode opt-out documented in convention" \
+  'grep -qiE "metadata_branch: main|single-branch|main-mode" "skills/docket-new-change/SKILL.md"'
+
+# M. .gitignore ignores the metadata worktree + feature worktrees.
+assert ".gitignore ignores .docket/" 'grep -qE "^\.docket/?" .gitignore'
+assert ".gitignore ignores .worktrees/" 'grep -qE "^\.worktrees/?" .gitignore'
+
+# N. migrate-to-docket.sh exists, executable, creates orphan + prunes.
+assert "migrate-to-docket.sh exists" '[ -f migrate-to-docket.sh ]'
+assert "migrate-to-docket.sh is executable" '[ -x migrate-to-docket.sh ]'
+assert "migration creates an orphan docket branch" \
+  'grep -q "checkout --orphan docket\|worktree add --orphan" migrate-to-docket.sh'
+assert "migration prunes the live surface" \
+  'grep -qi "active\|BOARD.md" migrate-to-docket.sh'
+
+# O. README documents docket-mode + integration_branch + artifact locations.
+assert "README documents metadata_branch: docket default" 'grep -q "metadata_branch: docket" README.md'
+assert "README documents integration_branch" 'grep -q "integration_branch" README.md'
+assert "README has docket-mode / artifact-location content" \
+  'grep -qiE "docket-mode|artifact|lives on" README.md'
+
+# P. Existing conventions preserved (no regression of the 0001 results work).
+assert "results: field still present (no regression)" 'grep -q "^results:" skills/docket-new-change/SKILL.md'
+
+exit $fail
