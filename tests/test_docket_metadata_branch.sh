@@ -101,4 +101,14 @@ assert "README has docket-mode / artifact-location content" \
 # P. Existing conventions preserved (no regression of the 0001 results work).
 assert "results: field still present (no regression)" 'grep -q "^results:" skills/docket-new-change/SKILL.md'
 
+# Q. migrate-to-docket.sh targets $PWD's repo (not its own SCRIPT_DIR) + has a --yes bypass (change 0003).
+assert "migrate resolves target via git rev-parse --show-toplevel" \
+  'grep -q "rev-parse --show-toplevel" migrate-to-docket.sh'
+assert "migrate no longer cd's to SCRIPT_DIR" \
+  '! grep -q "cd \"\$SCRIPT_DIR\"" migrate-to-docket.sh'
+assert "migrate has a --yes/-y confirmation bypass" \
+  'grep -qE "\-\-yes\b|\b-y\b" migrate-to-docket.sh'
+assert "migrate prompts for confirmation (reads /dev/tty)" \
+  'grep -q "/dev/tty" migrate-to-docket.sh'
+
 exit $fail
