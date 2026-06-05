@@ -4,7 +4,10 @@
 # surface for ALL planning state (changes, board, ADRs, specs), while the integration branch
 # (main | develop) keeps only code, build artifacts, and PUBLISHED TERMINAL RECORDS.
 #
-#   bash migrate-to-docket.sh
+#   cd <target-repo> && bash /path/to/docket/migrate-to-docket.sh [--yes]
+#
+# It migrates the git repo containing the INVOCATION directory ($PWD), not its own
+# location. A confirmation prompt guards the mutation; --yes/-y bypasses it.
 #
 # What it does (spec §9):
 #   1. Resolve config (.docket.yml or defaults) and print it.
@@ -27,15 +30,30 @@
 # No history rewrite, no force-push, no rm -rf outside a temp dir this script created.
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
-
 # ---------------------------------------------------------------------------
-# Output helpers
+# Output helpers (defined first — the arg-parse + repo resolution below use die()).
 # ---------------------------------------------------------------------------
 say()  { printf '%s\n' "$*"; }
 step() { printf '\n==> %s\n' "$*"; }
 die()  { printf 'migrate-to-docket: %s\n' "$*" >&2; exit 1; }
+
+# ---------------------------------------------------------------------------
+# Target resolution — operate on the git repo containing the INVOCATION directory
+# ($PWD), NOT the script's own location. This makes the script usable from any
+# consuming repo: `cd <target-repo> && bash /path/to/docket/migrate-to-docket.sh`.
+# ---------------------------------------------------------------------------
+# --yes/-y skips the confirmation prompt (for automation).
+ASSUME_YES=0
+for arg in "$@"; do
+  case "$arg" in
+    -y|--yes) ASSUME_YES=1 ;;
+    *) die "unknown argument: $arg  (usage: cd <target-repo> && bash /path/to/docket/migrate-to-docket.sh [--yes])" ;;
+  esac
+done
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" \
+  || die "not inside a git repo — cd into the repo you want to migrate, then re-run."
+cd "$REPO_ROOT"
 
 # ---------------------------------------------------------------------------
 # 1. Resolve config — .docket.yml if present, else defaults.
@@ -84,6 +102,7 @@ fi
 CHANGES_README="$CHANGES_DIR/README.md"
 
 step "Resolved configuration"
+say  "  target repo        : $REPO_ROOT  (the repo that will be migrated)"
 say  "  integration_branch : $INTEGRATION_BRANCH  (code lands here; ref $INTEGRATION_REF)"
 say  "  changes_dir        : $CHANGES_DIR"
 say  "  adrs_dir           : $ADRS_DIR"
@@ -94,6 +113,17 @@ if [ -f "$CONFIG_FILE" ]; then
   say "  (source: $CONFIG_FILE)"
 else
   say "  (source: defaults — no $CONFIG_FILE present)"
+fi
+
+# Confirmation gate — guard the mutation on an explicit yes (bypassed by --yes/-y).
+# Read from /dev/tty so the prompt works even if stdin is redirected.
+if [ "$ASSUME_YES" -ne 1 ]; then
+  printf 'Migrate this repo (%s) to docket-mode? [y/N] ' "$REPO_ROOT"
+  read -r reply </dev/tty 2>/dev/null || reply=""   # no tty (e.g. automation w/o --yes) → empty → abort cleanly below
+  case "$reply" in
+    y|Y|yes|YES) ;;
+    *) die "aborted — no changes made." ;;
+  esac
 fi
 
 # ---------------------------------------------------------------------------
