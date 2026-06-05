@@ -1,12 +1,12 @@
 # Backlog
 
-**3 changes** — 🟡 1 proposed · ✅ 2 done
+**3 changes** — 🔵 1 implemented · ✅ 2 done
 
-## 🟡 Proposed (1)
+## 🔵 Implemented — awaiting merge (1)
 
-| # | Title | Priority | Readiness |
-|---|-------|----------|-----------|
-| [0003](active/0003-migration-tool-pwd-target.md) | migrate-to-docket.sh targets the invoking repo ($PWD) — usable for consuming repos | `medium` | build-ready |
+| # | Title | Priority | PR |
+|---|-------|----------|----|
+| [0003](active/0003-migration-tool-pwd-target.md) | migrate-to-docket.sh targets the invoking repo ($PWD) — usable for consuming repos | `medium` | [#4](https://github.com/danielhanold/docket/pull/4) |
 
 <details><summary>✅ Archive — done (2)</summary>
 
