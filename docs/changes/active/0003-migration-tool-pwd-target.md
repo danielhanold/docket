@@ -16,7 +16,7 @@ trivial: false
 branch: feat/migration-tool-pwd-target
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Why
@@ -38,3 +38,10 @@ Retarget the script to operate on **the git repo containing the invocation direc
 None — the design is settled (target via `--show-toplevel`; confirm-from-`/dev/tty` with `--yes` bypass).
 
 ## Reconcile log
+
+**2026-06-04:** Reconciled at claim time — a currency check, not a rewrite (spec + change authored today; `origin/main` carries `migrate-to-docket.sh` as merged by 0002; `origin/docket` advanced only by this change's own commits). Verified against current code + reality:
+- **Current `migrate-to-docket.sh` matches the spec's assumptions** — it opens with `cd "$SCRIPT_DIR"` and `SCRIPT_DIR` is used nowhere else, so the §3 retarget (swap to `git rev-parse --show-toplevel`) is a clean one-line change; no `--yes` flag or confirm prompt exists yet.
+- **A third repo hit the gap:** `~/dev/markhaus` was migrated 2026-06-04 via a `/tmp`-patched-`cd` workaround (copy the script, patch its one `cd` line to the target path) — exactly the manual pain 0003 removes. Native `$PWD` targeting supersedes patching the `cd` line. Motivation strengthened; design unchanged.
+- **Adjacent gaps stay OUT of scope:** the markhaus run also showed the script does not flip `.docket.yml` (`metadata_branch: main → docket`) nor fast-forward the local integration branch after its transient-worktree push. Real, but **separate** from 0003's targeting+confirm scope — leave to a future change; do not expand 0003.
+
+Scope otherwise unchanged. Build approach: TDD-for-docs/script — extend `tests/test_docket_metadata_branch.sh` with the §4 assertions (`git rev-parse --show-toplevel` present; no `cd "$SCRIPT_DIR"`; `--yes`/`-y` bypass), then the one-line target swap + flag-parse + `/dev/tty` confirm prompt, and the README usage update. `bash -n` clean; exercise from a subdir of a throwaway repo at build.
