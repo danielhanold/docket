@@ -2,10 +2,10 @@
 id: 3
 slug: migration-tool-pwd-target
 title: migrate-to-docket.sh targets the invoking repo ($PWD) — usable for consuming repos
-status: implemented
+status: done
 priority: medium
 created: 2026-06-04
-updated: 2026-06-04
+updated: 2026-06-05
 depends_on: []
 related: [2]
 adrs: []
