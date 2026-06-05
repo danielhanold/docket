@@ -119,7 +119,7 @@ fi
 # Read from /dev/tty so the prompt works even if stdin is redirected.
 if [ "$ASSUME_YES" -ne 1 ]; then
   printf 'Migrate this repo (%s) to docket-mode? [y/N] ' "$REPO_ROOT"
-  read -r reply </dev/tty || reply=""
+  read -r reply </dev/tty 2>/dev/null || reply=""   # no tty (e.g. automation w/o --yes) → empty → abort cleanly below
   case "$reply" in
     y|Y|yes|YES) ;;
     *) die "aborted — no changes made." ;;
