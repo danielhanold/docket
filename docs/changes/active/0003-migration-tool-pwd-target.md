@@ -10,7 +10,7 @@ depends_on: []
 related: [2]
 adrs: []
 spec: docs/superpowers/specs/2026-06-04-migration-tool-pwd-target-design.md
-plan:
+plan: docs/superpowers/plans/2026-06-04-migration-tool-pwd-target.md
 results:
 trivial: false
 branch: feat/migration-tool-pwd-target
