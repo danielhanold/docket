@@ -9,7 +9,7 @@ updated: 2026-06-07
 depends_on: []
 related: [2]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-06-07-board-refresh-on-status-transition-design.md
 plan:
 results:
 trivial: false

@@ -6,7 +6,7 @@
 
 | # | Title | Priority | Spec | Readiness |
 |---|-------|----------|------|-----------|
-| [0004](active/0004-board-refresh-on-status-transition.md) | BOARD.md goes stale during a build — refresh it on status transitions (claim / implemented), not only at Step 0 | `medium` | — | needs-brainstorm |
+| [0004](active/0004-board-refresh-on-status-transition.md) | BOARD.md goes stale during a build — refresh it on status transitions (claim / implemented), not only at Step 0 | `medium` | [spec](../superpowers/specs/2026-06-07-board-refresh-on-status-transition-design.md) | build-ready |
 
 <details><summary>✅ Archive — done (3)</summary>
 
