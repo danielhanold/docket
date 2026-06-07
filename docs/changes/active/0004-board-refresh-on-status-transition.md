@@ -10,7 +10,7 @@ depends_on: []
 related: [2]
 adrs: []
 spec: docs/superpowers/specs/2026-06-07-board-refresh-on-status-transition-design.md
-plan:
+plan: docs/superpowers/plans/2026-06-07-board-refresh-on-status-transition.md
 results:
 trivial: false
 branch: feat/board-refresh-on-status-transition
