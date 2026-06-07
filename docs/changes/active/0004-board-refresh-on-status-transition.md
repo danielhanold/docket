@@ -2,7 +2,7 @@
 id: 4
 slug: board-refresh-on-status-transition
 title: BOARD.md goes stale during a build — refresh it on status transitions (claim / implemented), not only at Step 0
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-06-07
 updated: 2026-06-07
@@ -14,7 +14,7 @@ plan: docs/superpowers/plans/2026-06-07-board-refresh-on-status-transition.md
 results:
 trivial: false
 branch: feat/board-refresh-on-status-transition
-pr:
+pr: https://github.com/danielhanold/docket/pull/5
 blocked_by:
 reconciled: true
 ---
