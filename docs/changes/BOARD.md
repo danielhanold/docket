@@ -1,6 +1,12 @@
 # Backlog
 
-**3 changes** — ✅ 3 done
+**4 changes** — 🟡 1 proposed · ✅ 3 done
+
+## 🟡 Proposed (1)
+
+| # | Title | Priority | Spec | Readiness |
+|---|-------|----------|------|-----------|
+| [0004](active/0004-board-refresh-on-status-transition.md) | BOARD.md goes stale during a build — refresh it on status transitions (claim / implemented), not only at Step 0 | `medium` | — | needs-brainstorm |
 
 <details><summary>✅ Archive — done (3)</summary>
 
