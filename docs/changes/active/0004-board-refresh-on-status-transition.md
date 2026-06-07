@@ -16,7 +16,7 @@ trivial: false
 branch: feat/board-refresh-on-status-transition
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Why
@@ -97,3 +97,31 @@ and, on a `pull --rebase` collision in `BOARD.md`, rebuilds from the change file
   class, not just the two `docket-implement-next` sites.
 - **Should `docket-status`'s health checks flag board/source drift** (board shows a status
   that disagrees with the change file) as a safety net regardless of who regenerates?
+
+## Reconcile log
+
+### 2026-06-07 — brainstormed + reconciled (spec written same day)
+
+Spec: `docs/superpowers/specs/2026-06-07-board-refresh-on-status-transition-design.md`.
+Verified the spec's anchors against the live skills — no drift (the spec is hours old):
+claim (implement-next Step 2), reconcile-kill (Step 3), `implemented` (Step 7), new-change
+proposed-kill sub-path, terminal-publish's "BOARD.md is never published", docket-status
+health checks, and the `sync-convention.sh` canonical block all present as described.
+
+All five **Open questions** are resolved by the spec:
+
+1. **Defect vs eventual-consistency** → fix it (live-on-transition), but cheaply.
+2. **Where the regen lives** → one terse invariant in the canonical `## Convention` block
+   (synced ×5) + inline Board-pass calls at each status-write site; no heavyweight shared
+   "regen" step. Renderer stays single-sourced in docket-status; board stays a *separate*
+   commit (bundling rejected — it breaks the claim-CAS determinism).
+3. **Cost under concurrency** → the refreshes implement-next runs inline (claim, reconcile-kill,
+   `implemented`) are **best-effort / non-fatal** (bounded retry, then log-and-continue);
+   self-heal at the next must-land Board pass.
+4. **Other skills with the gap** → the class is bigger than the two named sites: the **two
+   `killed` origins** (new-change proposed-kill, implement-next reconcile-kill) also skip the
+   board (they invoke only terminal-publish, which never touches BOARD.md). **Four** sites get
+   a Board pass. `blocked`/`deferred`/revive have no driving skill → covered by the tripwire.
+5. **Drift tripwire** → yes; add a board/source drift warning to docket-status health checks.
+
+Scope/altitude unchanged; no code exists yet, so nothing to drop or fold in. Build-ready.
