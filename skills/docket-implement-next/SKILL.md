@@ -177,6 +177,8 @@ Among `active/` changes that are `proposed`, BUILD-READY (have a `spec:` or `tri
 
 Re-read the manifest after the sync, in the **metadata working tree**; if still `proposed`, set `status: in-progress` + `branch: feat/<slug>` + `updated: <UTC today>`; commit and push on `metadata_branch` (in `docket`-mode, `origin/docket` via `.docket/`). On a non-fast-forward rejection: DISCARD the pending local claim commit (it edits the same `status:`/`branch:` lines and would conflict on replay), re-sync (`git pull --rebase`, or `git -C .docket pull --rebase origin docket`), RE-READ (mandatory); if still `proposed`, re-claim and push — LOOP until the push lands (it can be rejected repeatedly under load). The arbiter is the re-read (abort if no longer `proposed`), not that any single push succeeds. No worktree yet.
 
+Then run the Board pass (best-effort — see *Best-effort board refresh*) as a separate commit, so the board reflects the change as `in-progress` rather than build-ready.
+
 > Two agents must NOT share one local clone — each needs its own.
 
 ### Step 3 — Reconcile ⭐
@@ -185,7 +187,7 @@ In the **metadata working tree** (re-synced to its remote), re-read the change +
 
 Two escape hatches:
 
-- Change now **OBSOLETE** → set `status: killed` (+ `## Why killed`) + `updated: <UTC kill date>` in the metadata working tree. In `docket`-mode: push `origin/docket`, then run the shared **terminal-publish procedure (the *Terminal publish (docket-mode)* procedure in `docket-finalize-change`)** with outcome `killed` (token `T = <id>`) — any `Accepted` ADRs already in the change's `adrs:` ride along — and prune any feature worktree/branch already created for this change before looping back to Step 1. In `main`-mode (no `docket` branch / no terminal-publish): do the archive move (`active/ → archive/<UTC kill date>-<id>-<slug>.md`) + `status: killed` + `## Why killed` directly in the metadata working tree (= the integration branch) and push `origin/<integration_branch>`, then loop back to Step 1. The `<UTC kill date>` is the same date used for the `archive/<date>-…` filename prefix.
+- Change now **OBSOLETE** → set `status: killed` (+ `## Why killed`) + `updated: <UTC kill date>` in the metadata working tree. In `docket`-mode: push `origin/docket`, then run the shared **terminal-publish procedure (the *Terminal publish (docket-mode)* procedure in `docket-finalize-change`)** with outcome `killed` (token `T = <id>`) — any `Accepted` ADRs already in the change's `adrs:` ride along — and prune any feature worktree/branch already created for this change before looping back to Step 1. In `main`-mode (no `docket` branch / no terminal-publish): do the archive move (`active/ → archive/<UTC kill date>-<id>-<slug>.md`) + `status: killed` + `## Why killed` directly in the metadata working tree (= the integration branch) and push `origin/<integration_branch>`, then loop back to Step 1. The `<UTC kill date>` is the same date used for the `archive/<date>-…` filename prefix. In both modes, after the kill is archived, run the Board pass (best-effort — see *Best-effort board refresh*) as a separate commit so the board drops the killed change before looping back to Step 1.
 - Design **FUNDAMENTALLY invalidated** (not just scope-adjustable) → STOP and escalate to the human. This skill cannot re-brainstorm alone; re-brainstorming is a human act handled by `superpowers:brainstorming` + `docket-new-change`.
 
 ### Step 4 — Worktree + plan
@@ -217,9 +219,13 @@ When warranted: author `<results_dir>/<YYYY-MM-DD>-<slug>-results.md` from `resu
 
 Invoke `superpowers:finishing-a-development-branch`, DIRECTED to: push the feature branch and open a PR — do NOT merge — then stop. Pre-specifying the outcome keeps it non-interactive while reusing its push/PR mechanics.
 
-Then, BACK IN THE **METADATA WORKING TREE** (in `docket`-mode, `.docket/`), set `status: implemented` + `pr:` (and `results:` if a results file was written in step 6.5) and commit + push on `metadata_branch` (in `docket`-mode, `origin/docket`) — NEVER in the feature worktree (metadata always lands on `metadata_branch`; this is also what lets the sweep read `pr:`).
+Then, BACK IN THE **METADATA WORKING TREE** (in `docket`-mode, `.docket/`), set `status: implemented` + `pr:` (and `results:` if a results file was written in step 6.5) and commit + push on `metadata_branch` (in `docket`-mode, `origin/docket`) — NEVER in the feature worktree (metadata always lands on `metadata_branch`; this is also what lets the sweep read `pr:`). Then run the Board pass (best-effort — see *Best-effort board refresh*) as a separate commit, so the board shows the change as `implemented` — needs your merge.
 
 **STOP.** The change stays in `active/` as `implemented` until a human merges it, or approves `docket-finalize-change` to merge it.
+
+### Best-effort board refresh
+
+The Board pass this skill runs after its own status writes (claim, reconcile-kill, `implemented`) is **best-effort**: attempt the regen + push with bounded retries, then **log and continue** — never abort the build for it. The build's correctness rests on the change-file CAS, not the board; any residual staleness self-heals at the next must-land Board pass (the next change's Step 0 `docket-status`, a manual `docket-status`, or finalize). The board is always a **separate commit** from the `status:` write (keeping the claim CAS byte-identical across concurrent agents).
 
 ## The reconcile pass and the `reconciled` flag
 
