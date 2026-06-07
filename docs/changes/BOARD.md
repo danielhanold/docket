@@ -1,12 +1,12 @@
 # Backlog
 
-**4 changes** — 🟡 1 proposed · ✅ 3 done
+**4 changes** — 🔵 1 implemented · ✅ 3 done
 
-## 🟡 Proposed (1)
+## 🔵 Implemented — awaiting merge (1)
 
-| # | Title | Priority | Spec | Readiness |
-|---|-------|----------|------|-----------|
-| [0004](active/0004-board-refresh-on-status-transition.md) | BOARD.md goes stale during a build — refresh it on status transitions (claim / implemented), not only at Step 0 | `medium` | [spec](../superpowers/specs/2026-06-07-board-refresh-on-status-transition-design.md) | build-ready |
+| # | Title | Priority | PR |
+|---|-------|----------|----|
+| [0004](active/0004-board-refresh-on-status-transition.md) | BOARD.md goes stale during a build — refresh it on status transitions (claim / implemented), not only at Step 0 | `medium` | [#5](https://github.com/danielhanold/docket/pull/5) |
 
 <details><summary>✅ Archive — done (3)</summary>
 
