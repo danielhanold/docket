@@ -1,12 +1,12 @@
 # Backlog
 
-**5 changes** — 🟢 1 in progress · ✅ 4 done
+**5 changes** — 🔵 1 implemented · ✅ 4 done
 
-## 🟢 In progress (1)
+## 🔵 Implemented — awaiting merge (1)
 
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0005](active/0005-convention-extraction-skill.md) | Extract the shared convention into a docket-convention skill — reference-loaded, not embedded | `medium` | [spec](../superpowers/specs/2026-06-10-convention-extraction-skill-design.md) | `feat/convention-extraction-skill` |
+| # | Title | Priority | PR |
+|---|-------|----------|----|
+| [0005](active/0005-convention-extraction-skill.md) | Extract the shared convention into a docket-convention skill — reference-loaded, not embedded | `medium` | [#6](https://github.com/danielhanold/docket/pull/6) |
 
 <details><summary>✅ Archive — done (4)</summary>
 
