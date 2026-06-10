@@ -2,7 +2,7 @@
 id: 5
 slug: convention-extraction-skill
 title: Extract the shared convention into a docket-convention skill — reference-loaded, not embedded
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-06-10
 updated: 2026-06-10
@@ -13,7 +13,7 @@ spec: docs/superpowers/specs/2026-06-10-convention-extraction-skill-design.md
 plan:
 results:
 trivial: false
-branch:
+branch: feat/convention-extraction-skill
 pr:
 blocked_by:
 reconciled: false
