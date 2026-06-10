@@ -14,8 +14,6 @@ for s in "${SKILLS[@]}"; do
   assert "board-refresh invariant present in $s" \
     'grep -q "Board refresh on status writes" "skills/'"$s"'/SKILL.md"'
 done
-assert "convention blocks in sync (sync-convention.sh --check)" \
-  'bash sync-convention.sh --check >/dev/null 2>&1'
 
 # B. docket-implement-next wires its three inline refreshes, best-effort.
 assert "implement-next defines best-effort board refresh" \

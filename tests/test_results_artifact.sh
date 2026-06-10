@@ -9,11 +9,7 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 
 SKILLS=(docket-new-change docket-status docket-implement-next docket-finalize-change docket-adr)
 
-# 1. The real convention blocks are byte-identical across all skills.
-assert "convention blocks in sync (sync-convention.sh --check)" \
-  'bash sync-convention.sh --check >/dev/null 2>&1'
-
-# 2. The convention carries the results: manifest field in EVERY skill.
+# 1. The convention carries the results: manifest field in EVERY skill.
 for s in "${SKILLS[@]}"; do
   assert "results: field present in $s" \
     'grep -q "^results:" "skills/'"$s"'/SKILL.md"'

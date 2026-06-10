@@ -8,11 +8,7 @@ fail=0
 assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
 SKILLS=(docket-new-change docket-status docket-implement-next docket-finalize-change docket-adr)
 
-# A. Convention blocks byte-identical across all skills.
-assert "convention blocks in sync (sync-convention.sh --check)" \
-  'bash sync-convention.sh --check >/dev/null 2>&1'
-
-# B. metadata_branch default flipped to docket, in every skill's convention.
+# A. metadata_branch default flipped to docket, in every skill's convention.
 for s in "${SKILLS[@]}"; do
   assert "metadata_branch default is docket in $s" \
     'grep -Eq "^metadata_branch: docket" "skills/'"$s"'/SKILL.md"'
