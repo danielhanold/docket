@@ -10,7 +10,7 @@ depends_on: []
 related: [4]
 adrs: []
 spec: docs/superpowers/specs/2026-06-10-convention-extraction-skill-design.md
-plan:
+plan: docs/superpowers/plans/2026-06-10-convention-extraction-skill.md
 results:
 trivial: false
 branch: feat/convention-extraction-skill
