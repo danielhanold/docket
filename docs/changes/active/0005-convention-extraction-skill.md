@@ -16,7 +16,7 @@ trivial: false
 branch: feat/convention-extraction-skill
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Why
@@ -43,3 +43,5 @@ The brainstorm (2026-06-10) evaluated the risks of replacing embedding with a si
 None — both brainstorm-time questions (the `docket-convention` frontmatter `description` wording, and the anti-copy grep sentinels) were settled 2026-06-10 and recorded in spec §3 and §5.
 
 ## Reconcile log
+
+- **2026-06-10** — Reconciled same-day as the brainstorm; `origin/main` unmoved since (tip `56840df`, change 0004's terminal publish). Verified the spec's one untested assumption: `link-skills.sh` globs `skills/*/` (no hardcoded skill list), so the sixth skill links automatically. Sentinel collision scan and 146-line block measurement were already run against current skills during the brainstorm. No scope changes; spec stands as written.
