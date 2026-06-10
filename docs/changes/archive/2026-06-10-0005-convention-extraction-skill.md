@@ -2,7 +2,7 @@
 id: 5
 slug: convention-extraction-skill
 title: Extract the shared convention into a docket-convention skill — reference-loaded, not embedded
-status: implemented
+status: done
 priority: medium
 created: 2026-06-10
 updated: 2026-06-10
