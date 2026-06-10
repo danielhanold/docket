@@ -37,9 +37,9 @@ The central worry: how reliable is "invoke `docket-convention` to learn the conv
 
 A **pure reference skill**: no procedure, no reads or writes, no git. Body = the current convention block verbatim, with exactly one substantive edit: the sentence claiming the block "is kept byte-identical across the five skills by `sync-convention.sh` (canonical source: `docket-new-change/SKILL.md`)" is replaced by one stating that **this skill is the single source of the convention; the operating skills load it at startup and never restate it**. The `<!-- docket:convention:begin/end -->` markers are dropped — nothing syncs anymore.
 
-Frontmatter `description` serves both audiences: the operating skills' mandatory Step-0 load, and a human asking how docket tracks work. Sketch (final wording at build time):
+Frontmatter `description` serves both audiences: the operating skills' mandatory Step-0 load, and a human asking how docket tracks work. Final wording (settled 2026-06-10):
 
-> Use when any docket skill starts (mandatory first load for docket-new-change, docket-implement-next, docket-status, docket-finalize-change, docket-adr), or when you need to understand how docket tracks work — the shared contract: `.docket.yml` configuration, directory layout, change manifest and lifecycle, ADR format, build-readiness, bootstrap guard, and branch model.
+> Use when any docket skill runs — docket-new-change, docket-implement-next, docket-status, docket-finalize-change, and docket-adr load this first (their blocking Step 0) — or when you need to understand how docket tracks work: the shared contract covering .docket.yml configuration, directory layout, the change manifest and lifecycle, ADR format, build-readiness and selection, the bootstrap guard, and the branch model. Pure reference — defines the convention; performs no reads, writes, or git operations.
 
 ## 4. The five operating skills slim down
 
@@ -55,7 +55,21 @@ Existing per-skill prose that points at the convention ("per the convention's Br
 
 - **Retire** `sync-convention.sh` and `tests/test_sync_convention.sh`.
 - **Update** the three tests that run sync checks (`test_board_refresh_on_transition.sh`, `test_results_artifact.sh`, `test_docket_metadata_branch.sh`) to drop those steps.
-- **Add** `tests/test_convention_extraction.sh` asserting: (a) `skills/docket-convention/SKILL.md` exists and contains the convention's key section headers (Configuration, Directory layout, Change manifest, ADR file, Lifecycle, Build-readiness, Bootstrap guard, Branch model); (b) no operating skill contains a convention copy — grep for the old markers and for distinctive convention sentences; (c) every operating skill contains the Step-0 load line naming `docket-convention`.
+- **Add** `tests/test_convention_extraction.sh` asserting: (a) `skills/docket-convention/SKILL.md` exists and contains the convention's key section headers (Configuration, Directory layout, Change manifest, ADR file, Lifecycle, Build-readiness, Bootstrap guard, Branch model); (b) no operating skill contains a convention copy — grep (fixed-string) for the old markers `<!-- docket:convention:begin -->` / `<!-- docket:convention:end -->` and for the sentinel sentences below; (c) every operating skill contains the Step-0 load line naming `docket-convention`.
+
+  **Anti-copy sentinels** (settled 2026-06-10; one per convention section, each verified absent from every operating skill's non-convention text today, so a hit can only mean convention content crept back in):
+
+  | Convention section | Sentinel (fixed string) |
+  |---|---|
+  | Configuration | `never gitignored` |
+  | Lifecycle diagram | `proposed ──claim──▶` |
+  | Lifecycle rules | `satisfied when it reaches` |
+  | ADR file | `immutable once Accepted` |
+  | Bootstrap guard (probe) | `live planning surface` |
+  | Bootstrap guard (2×2) | `half-migrated` |
+  | Branch model | `only flow of metadata onto the code line` |
+
+  Rejected candidate: `` never a `git merge docket` `` — collides with `docket-adr`'s own body text. The build must re-run the collision scan if it rewords any skill body, and each sentinel must of course still appear in `docket-convention/SKILL.md` itself (the test asserts both directions: present in the reference, absent in the operating skills).
 - `link-skills.sh` globs `skills/*` and picks up the sixth skill automatically; the new test verifies the glob covers it.
 
 ## 6. Explicitly untouched

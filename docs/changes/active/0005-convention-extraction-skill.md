@@ -40,7 +40,6 @@ The brainstorm (2026-06-10) evaluated the risks of replacing embedding with a si
 
 ## Open questions
 
-- Final frontmatter `description` wording for `docket-convention` so it triggers for both the skills' mandatory load and human "how does docket work?" questions (sketch in spec §3).
-- Which "distinctive convention sentences" the anti-copy grep in `test_convention_extraction.sh` should key on.
+None — both brainstorm-time questions (the `docket-convention` frontmatter `description` wording, and the anti-copy grep sentinels) were settled 2026-06-10 and recorded in spec §3 and §5.
 
 ## Reconcile log
