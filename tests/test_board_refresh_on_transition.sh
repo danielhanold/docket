@@ -7,15 +7,9 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO"
 fail=0
 assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
-SKILLS=(docket-new-change docket-status docket-implement-next docket-finalize-change docket-adr)
-
-# A. The board-refresh invariant lives in the canonical convention → present in ALL five skills.
-for s in "${SKILLS[@]}"; do
-  assert "board-refresh invariant present in $s" \
-    'grep -q "Board refresh on status writes" "skills/'"$s"'/SKILL.md"'
-done
-assert "convention blocks in sync (sync-convention.sh --check)" \
-  'bash sync-convention.sh --check >/dev/null 2>&1'
+# A. The board-refresh invariant lives in the convention (single-sourced in docket-convention).
+assert "board-refresh invariant present in the convention" \
+  'grep -q "Board refresh on status writes" skills/docket-convention/SKILL.md'
 
 # B. docket-implement-next wires its three inline refreshes, best-effort.
 assert "implement-next defines best-effort board refresh" \
