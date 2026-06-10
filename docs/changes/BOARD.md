@@ -1,6 +1,12 @@
 # Backlog
 
-**4 changes** — ✅ 4 done
+**5 changes** — 🟡 1 proposed · ✅ 4 done
+
+## 🟡 Proposed (1)
+
+| # | Title | Priority | Spec | Readiness |
+|---|-------|----------|------|-----------|
+| [0005](active/0005-convention-extraction-skill.md) | Extract the shared convention into a docket-convention skill — reference-loaded, not embedded | `medium` | [spec](../superpowers/specs/2026-06-10-convention-extraction-skill-design.md) | build-ready |
 
 <details><summary>✅ Archive — done (4)</summary>
 
