@@ -39,7 +39,9 @@ A **pure reference skill**: no procedure, no reads or writes, no git. Body = the
 
 Frontmatter `description` serves both audiences: the operating skills' mandatory Step-0 load, and a human asking how docket tracks work. Final wording (settled 2026-06-10):
 
-> Use when any docket skill runs — docket-new-change, docket-implement-next, docket-status, docket-finalize-change, and docket-adr load this first (their blocking Step 0) — or when you need to understand how docket tracks work: the shared contract covering .docket.yml configuration, directory layout, the change manifest and lifecycle, ADR format, build-readiness and selection, the bootstrap guard, and the branch model. Pure reference — defines the convention; performs no reads, writes, or git operations.
+> Use when any docket skill runs — docket-new-change, docket-implement-next, docket-status, docket-finalize-change, and docket-adr load this first (their blocking Step 0) — or when you need to understand how docket tracks work. The shared contract — .docket.yml configuration, directory layout, the change manifest and lifecycle, ADR format, build-readiness and selection, the bootstrap guard, and the branch model. Pure reference — defines the convention; performs no reads, writes, or git operations.
+
+*(Build note 2026-06-10: the original settled wording used a colon after "how docket tracks work"; a `: ` inside a plain YAML scalar is invalid, and the repo's skill frontmatter style is unquoted scalars, so the colon became an em-dash at build time. Semantics unchanged.)*
 
 ## 4. The five operating skills slim down
 
@@ -68,6 +70,11 @@ Existing per-skill prose that points at the convention ("per the convention's Br
   | Bootstrap guard (probe) | `live planning surface` |
   | Bootstrap guard (2×2) | `half-migrated` |
   | Branch model | `only flow of metadata onto the code line` |
+  | Directory layout | `zero-padded to 4 digits` |
+  | Change body sections | `PM-altitude proposal` |
+  | Lifecycle rules (board) | `must never trail the change files` |
+
+  *(The last three were added at build time after the whole-branch review found the original six left the manifest/body/board-rule sections uncovered; all three verified collision-free the same way.)*
 
   Rejected candidate: `` never a `git merge docket` `` — collides with `docket-adr`'s own body text. The build must re-run the collision scan if it rewords any skill body, and each sentinel must of course still appear in `docket-convention/SKILL.md` itself (the test asserts both directions: present in the reference, absent in the operating skills).
 - `link-skills.sh` globs `skills/*` and picks up the sixth skill automatically; the new test verifies the glob covers it.
