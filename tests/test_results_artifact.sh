@@ -11,7 +11,7 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 assert "results: field present in the convention" \
   'grep -q "^results:" skills/docket-convention/SKILL.md'
 
-# 2. The convention carries the results_dir knob + the docs/results layout entry.
+# 2. The convention carries the results_dir knob + the docs/results layout entry (single-sourced in docket-convention).
 assert "results_dir knob present in the convention" 'grep -q "results_dir" skills/docket-convention/SKILL.md'
 assert "results_dir layout entry present in the convention" 'grep -q "<results_dir>/" skills/docket-convention/SKILL.md'
 
