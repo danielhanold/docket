@@ -138,6 +138,8 @@ An `Accepted` ADR is immutable except its `status:` line; a non-reversing contex
 
 **Rules.** `active/` holds every non-terminal status; `archive/` holds the two terminal outcomes. The single physical move (`active/ → archive/`, date-prefixed) happens once on the terminal transition and is **idempotent**: re-pull, re-read `status` on `metadata_branch`, no-op if already terminal. `deferred` may be entered from `proposed` or `in-progress` (add `## Why deferred`) and revived to `proposed`; clearing a blocker or reviving is a one-line frontmatter edit, no move. A change whose `depends_on` is unsatisfied is *implicitly* blocked — the selector skips it (no status change) and the board shows it **waiting on #N**. A dependency is **satisfied when it reaches `done`**. If `#N` is still `implemented` (PR open, unmerged), the dependent is gated on a human merge — the board flags **waiting on #N — needs your merge**, distinct from **waiting on #N — not yet built**. Reserve explicit `blocked` for external blockers the system can't infer.
 
+**Board refresh on status writes.** Any skill that writes a change's `status:` regenerates `BOARD.md` (the Board pass) in a separate commit immediately after — the board is a derived view and must never trail the change files.
+
 ### Build-readiness & selection (shared definition)
 
 A change is **build-ready** — eligible for `docket-implement-next` — only when it is `proposed`, has a `spec:` **or** `trivial: true`, and all `depends_on` are satisfied (`done`). A `proposed` change with neither a spec nor `trivial: true` is **needs-brainstorm** (not build-ready). The implementer's deterministic selection order is `priority` (`critical` > `high` > `medium` > `low`) → age (`created`) → **lowest `id`**.
@@ -196,3 +198,5 @@ In `docket`-mode: in `.docket/` (synced to `origin/docket` first), set `status: 
 In `main`-mode (no `docket` branch / no terminal-publish): do the archive move (`active/ → archive/<UTC kill date>-<id>-<slug>.md`) + `status: killed` + `## Why killed` directly in the metadata working tree (= the integration branch) and push `origin/<integration_branch>` — exactly as the `done` archive degrades in `docket-finalize-change`. The `<UTC kill date>` is the same date used for the `archive/<date>-…` filename prefix.
 
 A `proposed` change never had a feature branch or open PR, so there is nothing to clean up — and usually no plan/results, so the kill publishes only what is on `docket`: the change file, plus its `spec:`/`adrs:` if set. This skill still writes markdown only — the terminal-publish copy touches no code.
+
+In both modes, after the kill is archived, refresh `BOARD.md` via the **must-land Board pass** (a separate commit, same as the create path's step 5) so the killed change leaves the board. terminal-publish copies records to the integration branch but never touches `BOARD.md`, so the board refresh is this skill's responsibility.
