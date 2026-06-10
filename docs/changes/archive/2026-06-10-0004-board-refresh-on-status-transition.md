@@ -2,10 +2,10 @@
 id: 4
 slug: board-refresh-on-status-transition
 title: BOARD.md goes stale during a build — refresh it on status transitions (claim / implemented), not only at Step 0
-status: implemented
+status: done
 priority: medium
 created: 2026-06-07
-updated: 2026-06-07
+updated: 2026-06-10
 depends_on: []
 related: [2]
 adrs: []
