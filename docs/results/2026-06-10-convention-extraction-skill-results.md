@@ -5,7 +5,7 @@ Change: #5 · Branch: feat/convention-extraction-skill · PR: see `pr:` in the c
 
 Automated coverage is green (all 5 test files pass; `test_convention_extraction.sh` alone carries 93 asserts, both directions). These need a human eye at the merge gate:
 
-- [ ] **Fresh-session load check (spec §8):** in a NEW session (so nothing is pre-loaded), invoke `docket-status`. The transcript must show `docket-convention` invoked via the Skill tool BEFORE any pass reads the metadata worktree. This is the one behavior no shell test can capture — it is the risk the whole design rides on.
+- [x] **Fresh-session load check (spec §8):** VERIFIED 2026-06-10 (pre-merge, via temporary symlinks pointing ~/.claude/skills at this branch's worktree). Fresh session, `/docket-status`: transcript shows `Skill(docket-status)` immediately followed by `Skill(docket-convention)`, before any metadata read — the blocking Step-0 load held with nothing pre-loaded in context.
 - [ ] Same check on `docket-new-change`'s trivial path (any throwaway idea; kill it after).
 - [ ] Skim `skills/docket-convention/SKILL.md` once end-to-end — it is now the single copy of the contract; a transcription defect here propagates everywhere (the build verified byte-fidelity by diff, but the human gate is the right place for a sanity read).
 
