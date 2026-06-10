@@ -28,7 +28,7 @@ Ensure the **metadata working tree** is synced to its remote, then invoke `docke
 
 ### Step 1 — Select
 
-Among `active/` changes that are `proposed`, BUILD-READY (have a `spec:` or `trivial: true`), and have all `depends_on` satisfied (satisfied = `done`), rank by priority (`critical` > `high` > `medium` > `low`) → age (`created`) → LOWEST `id` (the final deterministic tie-break, so two implementers — if ever run concurrently — converge on the same winner and never claim the same change). Pick the top, or accept an explicit id passed by the caller. Skip `in-progress`, `blocked`, `deferred`, and not-build-ready stubs.
+Among `active/` changes, select per the convention's **Build-readiness & selection** definition: build-ready `proposed` changes only, ranked by its deterministic order — whose final tie-break is LOWEST `id`, so two implementers (if ever run concurrently) converge on the same winner and never claim the same change. Pick the top, or accept an explicit id passed by the caller. Skip `in-progress`, `blocked`, `deferred`, and not-build-ready stubs.
 
 ### Step 2 — Claim (compare-and-swap)
 

@@ -31,10 +31,14 @@ SENTINELS=(
   "live planning surface"
   "half-migrated"
   "only flow of metadata onto the code line"
+  "zero-padded to 4 digits"
+  "PM-altitude proposal"
+  "must never trail the change files"
   "<!-- docket:convention:begin -->"
   "<!-- docket:convention:end -->"
 )
-for s in "${SENTINELS[@]:0:7}"; do
+# slice excludes the two markers — they must be absent everywhere, including the reference
+for s in "${SENTINELS[@]:0:10}"; do
   assert "reference contains sentinel: $s" '[ -f "$REF" ] && grep -qF "$s" "$REF"'
 done
 for sk in "${OPERATING[@]}"; do
