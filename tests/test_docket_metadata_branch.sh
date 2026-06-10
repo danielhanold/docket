@@ -8,17 +8,17 @@ fail=0
 assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
 SKILLS=(docket-new-change docket-status docket-implement-next docket-finalize-change docket-adr)
 
-# A. metadata_branch default flipped to docket, in every skill's convention.
-for s in "${SKILLS[@]}"; do
-  assert "metadata_branch default is docket in $s" \
-    'grep -Eq "^metadata_branch: docket" "skills/'"$s"'/SKILL.md"'
-done
+# A. metadata_branch default flipped to docket, in the convention (single-sourced in docket-convention).
+assert "metadata_branch default is docket in the convention" \
+  'grep -Eq "^metadata_branch: docket" skills/docket-convention/SKILL.md'
 
-# C. integration_branch knob present in every skill's convention.
+# C. integration_branch vocabulary used in every skill (knob itself lives in docket-convention).
 for s in "${SKILLS[@]}"; do
   assert "integration_branch knob present in $s" \
     'grep -q "integration_branch" "skills/'"$s"'/SKILL.md"'
 done
+assert "integration_branch knob present in the convention" \
+  'grep -q "integration_branch" skills/docket-convention/SKILL.md'
 
 # D. The "metadata working tree" abstraction appears in every skill.
 for s in "${SKILLS[@]}"; do
@@ -30,9 +30,9 @@ done
 assert "branch-model generalized to integration_branch" \
   'grep -q "origin/<integration_branch>" "skills/docket-new-change/SKILL.md"'
 
-# F. Bootstrap guard (refuse-to-migrate) present in the convention (visible in every skill via sync).
+# F. Bootstrap guard (refuse-to-migrate) present in the convention (single-sourced in docket-convention).
 assert "bootstrap guard present in convention" \
-  'grep -qiE "half-migrated|bootstrap guard|migrate-to-docket" "skills/docket-status/SKILL.md"'
+  'grep -qiE "half-migrated|bootstrap guard|migrate-to-docket" "skills/docket-convention/SKILL.md"'
 
 # G. The v1 docket caveat is REMOVED from docket-implement-next.
 assert "v1 docket caveat removed from implement-next" \
@@ -65,7 +65,7 @@ assert "adr skill references terminal-publish / publish" \
 #    deleted — unlike a bare "main-mode" grep, which any unrelated mention satisfies.
 # L1. Convention documents the pinned main-mode opt-out (non-vacuous: the exact opt-out prose).
 assert "main-mode opt-out documented in convention" \
-  'grep -q "pinning \`metadata_branch: main\`" "skills/docket-new-change/SKILL.md"'
+  'grep -q "pinning \`metadata_branch: main\`" "skills/docket-convention/SKILL.md"'
 # L2. Terminal-publish is explicitly skipped in main-mode (degradation at the publish site).
 assert "terminal-publish skipped entirely in main-mode" \
   'grep -q "Skipped entirely in \`main\`-mode" skills/docket-finalize-change/SKILL.md'
@@ -95,7 +95,7 @@ assert "README has docket-mode / artifact-location content" \
   'grep -qiE "docket-mode|artifact|lives on" README.md'
 
 # P. Existing conventions preserved (no regression of the 0001 results work).
-assert "results: field still present (no regression)" 'grep -q "^results:" skills/docket-new-change/SKILL.md'
+assert "results: field still present (no regression)" 'grep -q "^results:" skills/docket-convention/SKILL.md'
 
 # Q. migrate-to-docket.sh targets $PWD's repo (not its own SCRIPT_DIR) + has a --yes bypass (change 0003).
 assert "migrate resolves target via git rev-parse --show-toplevel" \
