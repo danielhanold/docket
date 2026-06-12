@@ -1,12 +1,12 @@
 # Backlog
 
-**14 changes** — 🟢 1 in progress · 🟡 5 proposed · ✅ 8 done
+**14 changes** — 🟡 5 proposed · 🔵 1 implemented · ✅ 8 done
 
-## 🟢 In progress (1)
+## 🔵 Implemented — awaiting merge (1)
 
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0014](active/0014-docket-auto-groom.md) | docket-auto-groom — autonomous grooming drain over auto-groomable stubs | `high` | [spec](../superpowers/specs/2026-06-12-docket-auto-groom-design.md) | `feat/docket-auto-groom` |
+| # | Title | Priority | PR |
+|---|-------|----------|----|
+| [0014](active/0014-docket-auto-groom.md) | docket-auto-groom — autonomous grooming drain over auto-groomable stubs | `high` | [#10](https://github.com/danielhanold/docket/pull/10) |
 
 ## 🟡 Proposed (5)
 
