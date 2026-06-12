@@ -2,7 +2,7 @@
 id: 6
 slug: learnings-ledger
 title: Learnings ledger — an append-only per-repo memory that builds feed and future builds read
-status: in-progress
+status: implemented
 priority: high
 created: 2026-06-11
 updated: 2026-06-12
@@ -11,10 +11,10 @@ related: [1, 12]
 adrs: [5]
 spec: docs/superpowers/specs/2026-06-12-learnings-ledger-design.md
 plan: docs/superpowers/plans/2026-06-12-learnings-ledger.md
-results:
+results: docs/results/2026-06-12-learnings-ledger-results.md
 trivial: false
 branch: feat/learnings-ledger
-pr:
+pr: https://github.com/danielhanold/docket/pull/8
 blocked_by:
 reconciled: true
 ---
