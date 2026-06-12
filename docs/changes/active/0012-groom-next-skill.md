@@ -16,7 +16,7 @@ trivial: false
 branch: feat/groom-next-skill
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Why
@@ -52,8 +52,9 @@ brainstorm with the human instead of an autonomous build), and the exit state (b
   - Takes no claim: the final push's `pull --rebase`-and-retry loop is the CAS, with a re-read
     if the rebase touched the groomed change's file. Board pass as a separate must-land commit.
 - Touch-ups: `docket-new-change` scan mode names `docket-groom-next` as its "later brainstorm
-  pass"; `docket-convention`'s operating-skills enumeration grows to six; `link-skills.sh` and
-  inventory-style tests gain the new entry.
+  pass"; `docket-convention`'s operating-skills enumeration grows to six; the hardcoded skill
+  arrays in `tests/test_convention_extraction.sh` and `tests/test_docket_metadata_branch.sh`
+  gain the new entry (`link-skills.sh` globs and needs no change).
 
 Name settled 2026-06-12: `docket-groom-next`. "Grooming" is the Jira-lineage term for exactly
 this transformation (stubbed-out item → ready to build), it keeps the `-next` symmetry with
@@ -72,3 +73,10 @@ for designing a *new* change in `docket-new-change`. (Considered and rejected:
 - New `.docket.yml` knobs, frontmatter fields, or lifecycle statuses — deliberately none.
 
 ## Reconcile log
+
+- 2026-06-12 — Reconciled same-day as groom; codebase unmoved. One correction: `link-skills.sh`
+  is glob-based (`skills/*/`) and needs no edit — the real inventory touch points are the
+  hardcoded arrays in `tests/test_convention_extraction.sh` (`OPERATING=`) and
+  `tests/test_docket_metadata_branch.sh` (`SKILLS=`). Spec §6 and the body updated to match.
+  Verified: convention's five-skill enumeration and new-change's "later brainstorm pass" wording
+  are as the spec assumes.

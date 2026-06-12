@@ -53,7 +53,7 @@ All writes happen in the **metadata working tree** on `metadata_branch` and are 
 - **`docket-new-change`** — scan mode's "a later brainstorm pass turns build-ready" now names `docket-groom-next` as that pass. No mechanics change.
 - **`docket-convention`** — the operating-skills enumeration (five skills) grows to six; the lifecycle/build-readiness text is already correct and needs no change (groom-next moves a change *within* `proposed`, except the defer/kill exits which reuse existing transitions).
 - **`docket-status`** — no change. Board rendering already distinguishes needs-brainstorm from build-ready; no new states exist.
-- **Repo plumbing** — `link-skills.sh` and any test that enumerates the skill set gain the sixth (seventh file counting `docket-convention`) entry.
+- **Repo plumbing** — `link-skills.sh` needs **no change** (it globs `skills/*/`; verified at reconcile 2026-06-12). The hardcoded skill enumerations in tests do: `tests/test_convention_extraction.sh` (`OPERATING=` array — Step-0/sentinel assertions) and `tests/test_docket_metadata_branch.sh` (`SKILLS=` array) gain `docket-groom-next`.
 
 ## 7. New skill file
 
