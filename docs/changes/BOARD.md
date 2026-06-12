@@ -1,11 +1,12 @@
 # Backlog
 
-**13 changes** — 🟡 5 proposed · ✅ 8 done
+**14 changes** — 🟡 6 proposed · ✅ 8 done
 
-## 🟡 Proposed (5)
+## 🟡 Proposed (6)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
+| [0014](active/0014-docket-auto-groom.md) | docket-auto-groom — autonomous grooming drain over auto-groomable stubs | `high` | build-ready |
 | [0007](active/0007-recurring-change-templates.md) | Recurring change templates — scheduled maintenance work that spawns proposed instances | `medium` | needs-brainstorm |
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | needs-brainstorm |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | needs-brainstorm |
