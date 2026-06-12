@@ -1,12 +1,6 @@
 # Backlog
 
-**12 changes** — 🔵 1 implemented · 🟡 6 proposed · ✅ 5 done
-
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | PR |
-|---|-------|----------|----|
-| [0012](active/0012-groom-next-skill.md) | Groom-next skill — pick the next needs-brainstorm stub and groom it to build-ready | `high` | [#7](https://github.com/danielhanold/docket/pull/7) |
+**12 changes** — 🟡 6 proposed · ✅ 6 done
 
 ## 🟡 Proposed (6)
 
@@ -19,10 +13,11 @@
 | [0011](active/0011-github-issues-board-mirror.md) | GitHub Issues mirror of the board — one-way visual sync, change files stay source of truth | `medium` | needs-brainstorm |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | needs-brainstorm |
 
-<details><summary>✅ Archive — done (5)</summary>
+<details><summary>✅ Archive — done (6)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0012](archive/2026-06-12-0012-groom-next-skill.md) | Groom-next skill — pick the next needs-brainstorm stub and groom it to build-ready | 2026-06-12 |
 | [0005](archive/2026-06-10-0005-convention-extraction-skill.md) | Extract the shared convention into a docket-convention skill — reference-loaded, not embedded | 2026-06-10 |
 | [0004](archive/2026-06-10-0004-board-refresh-on-status-transition.md) | BOARD.md goes stale during a build — refresh it on status transitions (claim / implemented), not only at Step 0 | 2026-06-10 |
 | [0003](archive/2026-06-05-0003-migration-tool-pwd-target.md) | migrate-to-docket.sh targets the invoking repo ($PWD) — usable for consuming repos | 2026-06-05 |
