@@ -75,10 +75,10 @@ assert "groom-next: abstained stubs first" \
   'grep -qF "## Auto-groom blocked" "$GN"'
 assert "groom-next: auto-groomable stubs flagged, not hidden" \
   'grep -qF "docket-auto-groom will handle it unless you want it now" "$GN"'
-band1_line="$(grep -nF "abstained" "$GN" | head -1 | cut -d: -f1)"
-band3_line="$(grep -nF "will handle it unless you want it now" "$GN" | head -1 | cut -d: -f1)"
+band1_off="$(grep -obF "abstained" "$GN" | head -1 | cut -d: -f1)"
+band3_off="$(grep -obF "will handle it unless you want it now" "$GN" | head -1 | cut -d: -f1)"
 assert "groom-next: abstained band stated before auto-groomable band" \
-  '[ -n "$band1_line" ] && [ -n "$band3_line" ] && [ "$band1_line" -lt "$band3_line" ]'
+  '[ -n "$band1_off" ] && [ -n "$band3_off" ] && [ "$band1_off" -lt "$band3_off" ]'
 
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
