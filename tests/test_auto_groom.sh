@@ -32,5 +32,39 @@ assert "convention: body sections list the Auto-groom blocked section" \
 assert "convention: groom-next selection bands defined" \
   'grep -qF "selection bands" "$CONV"'
 
+AG="$REPO/skills/docket-auto-groom/SKILL.md"
+
+# --- the skill itself ---
+assert "auto-groom: skill file exists" '[ -f "$AG" ]'
+assert "auto-groom: drains until the queue is empty" \
+  'grep -qF "until no autonomous-eligible stub remains" "$AG"'
+assert "auto-groom: loads the convention first" \
+  'grep -qF "docket-convention" "$AG"'
+assert "auto-groom: rejects the simulated-human auto-answerer" \
+  'grep -qiF "not invoke \`superpowers:brainstorming\`" "$AG"'
+assert "auto-groom: designer records an Assumptions block" \
+  'grep -qF "## Assumptions" "$AG"'
+assert "auto-groom: designer reads the learnings ledger" \
+  'grep -qF "LEARNINGS.md" "$AG"'
+assert "auto-groom: critic is a fresh subagent, not the designer" \
+  'grep -qF "fresh subagent" "$AG"'
+assert "auto-groom: critic gates trivial verdicts too" \
+  'grep -qF "trivial verdicts alike" "$AG"'
+assert "auto-groom: kill and defer are never autonomous" \
+  'grep -qF "Kill and defer are NEVER autonomous" "$AG"'
+assert "auto-groom: abstain flips the flag and appends the blocked section" \
+  'grep -qF "auto_groomable: false" "$AG" && grep -qF "## Auto-groom blocked" "$AG"'
+assert "auto-groom: takes no claim, cites ADR-0004" \
+  'grep -qF "ADR-0004" "$AG"'
+assert "auto-groom: never implements (markdown only)" \
+  'grep -qF "never branches, worktrees, or code" "$AG"'
+
+# order: designer pass precedes critic pass precedes exits
+designer_line="$(grep -nF "### Step 2 — Designer pass" "$AG" | head -1 | cut -d: -f1)"
+critic_line="$(grep -nF "### Step 3 — Critic pass" "$AG" | head -1 | cut -d: -f1)"
+exit_line="$(grep -nF "### Step 4 — Exit" "$AG" | head -1 | cut -d: -f1)"
+assert "auto-groom: designer → critic → exit, in that order" \
+  '[ -n "$designer_line" ] && [ -n "$critic_line" ] && [ -n "$exit_line" ] && [ "$designer_line" -lt "$critic_line" ] && [ "$critic_line" -lt "$exit_line" ]'
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
