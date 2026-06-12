@@ -1,6 +1,6 @@
 # docket
 
-A change is a self-contained, tracked unit of planned work (≈ one PR). docket records each change as a single markdown file with a status lifecycle, and provides six skills to create changes, work the next change to a PR, finalize a merged change, report the board, record architecture decisions (ADRs), and define the shared convention they all load — all coordinated through git, no CLI or database.
+A change is a self-contained, tracked unit of planned work (≈ one PR). docket records each change as a single markdown file with a status lifecycle, and provides eight skills to create changes, groom stubs to build-ready (interactively or autonomously), work the next change to a PR, finalize a merged change, report the board, record architecture decisions (ADRs), and define the shared convention they all load — all coordinated through git, no CLI or database.
 
 ---
 
@@ -10,9 +10,9 @@ superpowers gives Claude excellent *execution*: brainstorm → spec → plan →
 
 OpenSpec / superspec solves that with a full lifecycle layer, but it requires a CLI dependency and a rigid markdown contract that not every project wants to adopt.
 
-docket sits in between. It adds a thin lifecycle layer — plain markdown files in your repo, six skills, no CLI — and delegates every execution step to superpowers wholesale. The core unit is a **change** (one file, one PR's worth of work). Architecture decisions are captured separately as **ADRs** (an immutable ledger). The code is always the current-state truth; docket carries no living-spec layer and does not try to mirror the codebase in prose.
+docket sits in between. It adds a thin lifecycle layer — plain markdown files in your repo, eight skills, no CLI — and delegates every execution step to superpowers wholesale. The core unit is a **change** (one file, one PR's worth of work). Architecture decisions are captured separately as **ADRs** (an immutable ledger). The code is always the current-state truth; docket carries no living-spec layer and does not try to mirror the codebase in prose.
 
-The six skills cover the full loop: create, implement, finalize, report, decide — plus the shared contract they all load as a pure-reference skill.
+The eight skills cover the full loop: create, groom, implement, finalize, report, decide — plus the shared contract they all load as a pure-reference skill.
 
 ---
 
@@ -195,11 +195,13 @@ This reproduces the original single-branch behavior **exactly**: no `docket` bra
 
 ---
 
-## The six skills
+## The eight skills
 
 | Skill | Role |
 |---|---|
 | `docket-new-change` | Producer, interactive — turns an idea into a build-ready change via brainstorming; writes markdown only, never branches or code. |
+| `docket-groom-next` | Interactive groomer — selects the next needs-brainstorm stub deterministically and designs it to build-ready with the human; abstained auto-groom stubs come first. |
+| `docket-auto-groom` | Autonomous groomer — drains the auto-groomable needs-brainstorm queue with no human: default-biased self-brainstorm gated by an adversarial critic; emits specs/trivial verdicts or abstains back to the human queue; never kills or defers. |
 | `docket-implement-next` | Autonomous implementer — picks the next build-ready change, reconciles it against current reality, builds to an open PR, and stops at the human merge gate. |
 | `docket-finalize-change` | Human close-out — merges an approved PR or closes out an already-merged one: archives the change to `done`, cleans up the branch and worktree, refreshes the board. |
 | `docket-status` | Board and janitor — regenerates `BOARD.md`, sweeps merged PRs to `done`, and runs health checks for stale claims, broken links, and dependency stalls. |
