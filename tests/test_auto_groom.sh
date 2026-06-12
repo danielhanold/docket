@@ -18,7 +18,7 @@ CONV="$REPO/skills/docket-convention/SKILL.md"
 assert "convention: .docket.yml example carries the auto_groom knob (default false)" \
   'grep -qE "^auto_groom: false" "$CONV"'
 assert "convention: manifest carries tri-state auto_groomable" \
-  'grep -qF "auto_groomable:" "$CONV"'
+  'grep -qE "^auto_groomable:[[:space:]]+#" "$CONV"'
 assert "convention: unset means inherit the repo default" \
   'grep -qF "unset ⇒ inherit" "$CONV"'
 assert "convention: effective auto-groomable is defined" \
