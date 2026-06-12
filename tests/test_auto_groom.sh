@@ -66,5 +66,19 @@ exit_line="$(grep -nF "### Step 4 — Exit" "$AG" | head -1 | cut -d: -f1)"
 assert "auto-groom: designer → critic → exit, in that order" \
   '[ -n "$designer_line" ] && [ -n "$critic_line" ] && [ -n "$exit_line" ] && [ "$designer_line" -lt "$critic_line" ] && [ "$critic_line" -lt "$exit_line" ]'
 
+GN="$REPO/skills/docket-groom-next/SKILL.md"
+
+# --- groom-next: auto-groom-aware bands ---
+assert "groom-next: selection bands present" \
+  'grep -qF "selection bands" "$GN"'
+assert "groom-next: abstained stubs first" \
+  'grep -qF "## Auto-groom blocked" "$GN"'
+assert "groom-next: auto-groomable stubs flagged, not hidden" \
+  'grep -qF "docket-auto-groom will handle it unless you want it now" "$GN"'
+band1_line="$(grep -nF "abstained" "$GN" | head -1 | cut -d: -f1)"
+band3_line="$(grep -nF "will handle it unless you want it now" "$GN" | head -1 | cut -d: -f1)"
+assert "groom-next: abstained band stated before auto-groomable band" \
+  '[ -n "$band1_line" ] && [ -n "$band3_line" ] && [ "$band1_line" -lt "$band3_line" ]'
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
