@@ -10,7 +10,7 @@ depends_on: []
 related: [12]
 adrs: []
 spec:
-plan:
+plan: docs/superpowers/plans/2026-06-12-groom-next-stub-recap.md
 results:
 trivial: true
 branch: feat/groom-next-stub-recap
