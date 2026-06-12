@@ -51,7 +51,7 @@ Dispatch a **fresh subagent** (never the designer reviewing itself) to adversari
 
 ### Step 5 — Commit, push, board
 
-Commit the stub's outcome (change-file edit + spec when emitted) in the metadata working tree; push `origin/docket`. On a non-fast-forward rejection: `pull --rebase`, and if the rebase brought in commits touching this stub's file, RE-READ it — no longer autonomous-eligible (groomed, killed, claimed, or opted out elsewhere) ⇒ DISCARD this iteration's writes for it and loop. Then refresh `BOARD.md` via `docket-status`'s Board pass as a separate, must-land commit. Loop to step 1.
+Commit the stub's outcome (change-file edit + spec when emitted) in the metadata working tree; push `origin/docket`. On a non-fast-forward rejection: `pull --rebase`, and if the rebase brought in commits touching this stub's file, RE-READ it — no longer autonomous-eligible (groomed, killed, claimed, or opted out elsewhere) ⇒ DISCARD this iteration's writes for it (`git -C .docket restore -- <changed paths>` for the change-file edit, and delete the just-drafted spec file — it is this iteration's own uncommitted artifact) and loop. Then refresh `BOARD.md` via `docket-status`'s Board pass as a separate, must-land commit. Loop to step 1.
 
 ### Step 6 — Report
 
