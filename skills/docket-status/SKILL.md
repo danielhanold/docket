@@ -54,7 +54,7 @@ Regenerate `BOARD.md` wholesale in `.docket/` on `docket` by scanning `<changes_
 
 3. **Per-group tables** with columns relevant to the status (id · title · priority chip · spec/pr links · readiness). Readiness rules:
    - A dependency-waiting change renders **⏳ waiting on #N — not yet built** or **⏳ waiting on #N — needs your merge** (from the shared pass); it is never shown as build-ready.
-   - A `proposed` change with no spec and not `trivial: true` renders **needs-brainstorm**.
+   - A `proposed` change with no spec and not `trivial: true` renders **needs-brainstorm** — unless its body carries an `## Auto-groom blocked` section, in which case it renders **auto-groom blocked — needs you** (the autonomous groomer abstained; a human must resolve or re-arm it).
 
 4. **Mermaid dependency graph** built from `depends_on` edges; `done` nodes tinted with `classDef done fill:#d3f9d8;`. Renders on GitHub and Markhaus (a Markdown viewer that bundles Mermaid); degrades gracefully in plain CommonMark.
 

@@ -91,5 +91,11 @@ assert "new-change: scan stubs leave the field unset (inherit)" \
 assert "template: documents tri-state auto_groomable" \
   'grep -qF "auto_groomable:" "$TPL"'
 
+ST="$REPO/skills/docket-status/SKILL.md"
+
+# --- status: board renders abstained stubs distinctly ---
+assert "status: abstained readiness cell defined" \
+  'grep -qF "auto-groom blocked — needs you" "$ST"'
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
