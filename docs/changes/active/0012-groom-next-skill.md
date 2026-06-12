@@ -2,7 +2,7 @@
 id: 12
 slug: groom-next-skill
 title: Groom-next skill — pick the next needs-brainstorm stub and groom it to build-ready
-status: in-progress
+status: implemented
 priority: high
 created: 2026-06-12
 updated: 2026-06-12
@@ -11,10 +11,10 @@ related: []
 adrs: [4]
 spec: docs/superpowers/specs/2026-06-12-groom-next-skill-design.md
 plan: docs/superpowers/plans/2026-06-12-groom-next-skill.md
-results:
+results: docs/results/2026-06-12-groom-next-skill-results.md
 trivial: false
 branch: feat/groom-next-skill
-pr:
+pr: https://github.com/danielhanold/docket/pull/7
 blocked_by:
 reconciled: true
 ---
