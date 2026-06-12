@@ -20,7 +20,7 @@ Per LEARNINGS 2026-06-02 (#1), this is one tightly-coupled artifact — build in
 
 - [ ] **Step 1: Write the failing sentinel test**
 
-Create `tests/test_groom_recap.sh` (mode 755, like its siblings):
+Create `tests/test_groom_recap.sh` (mode 755; siblings are 644 but the suite is run via `bash`, so the bit is cosmetic):
 
 ```bash
 #!/usr/bin/env bash
