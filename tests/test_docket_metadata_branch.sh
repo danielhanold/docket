@@ -6,7 +6,7 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO"
 fail=0
 assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
-SKILLS=(docket-new-change docket-status docket-implement-next docket-finalize-change docket-adr)
+SKILLS=(docket-new-change docket-status docket-implement-next docket-finalize-change docket-adr docket-groom-next)
 
 # A. metadata_branch default flipped to docket, in the convention (single-sourced in docket-convention).
 assert "metadata_branch default is docket in the convention" \
