@@ -51,7 +51,7 @@ Append-only by default. When the file exceeds **~300 lines** (decision record: 1
 3. **`docket-status`** — the sweep invokes the harvest procedure by reference (same pattern as its terminal-publish invocation).
 4. **`docket-implement-next`** — read lines at plan time and the review step.
 5. **`docket-groom-next`** — read line in scan-related-context.
-6. **Retro-seed** (decision record: ship non-empty): the build's first act creates `LEARNINGS.md` and seeds it from the already-archived changes' results files (0005's and 0012's findings are the available sources), giving the entry format worked examples and the first reader immediate value.
+6. **Retro-seed** (decision record: ship non-empty): the build's first act creates `LEARNINGS.md` and seeds it from the already-archived changes' results files — five exist on the integration branch (changes 0001, 0002, 0003, 0005, 0012; verified at reconcile 2026-06-12) — giving the entry format worked examples and the first reader immediate value. Not every results file must yield an entry; the zero-is-fine harvest rule applies retroactively too.
 7. **Tests** — extend the existing structural pattern: the ledger file exists with its header contract; the five touched skills carry their harvest/read references; sentinel-style assertions that no skill restates the ledger rules (the convention subsection is the single source).
 
 ## 7. Out of scope

@@ -16,7 +16,7 @@ trivial: false
 branch: feat/learnings-ledger
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Why
@@ -56,3 +56,9 @@ is no low-ceremony, docket-owned place where the *build loop itself* deposits an
 - Harvesting killed changes; mid-build appends; write access outside the harvest procedure.
 
 ## Reconcile log
+
+- 2026-06-12 — Reconciled same-day as groom; codebase unmoved since. One correction: five results
+  files exist on the integration branch for retro-seeding (0001, 0002, 0003, 0005, 0012), not the
+  two the spec named; spec §6.6 updated, with the zero-entries-is-fine rule applied retroactively.
+  Verified the read-site line numbers still hold in docket-implement-next / docket-groom-next /
+  docket-finalize-change / docket-status as the spec assumes.
