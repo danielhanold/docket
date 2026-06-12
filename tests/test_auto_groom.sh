@@ -80,5 +80,16 @@ band3_off="$(grep -obF "will handle it unless you want it now" "$GN" | head -1 |
 assert "groom-next: abstained band stated before auto-groomable band" \
   '[ -n "$band1_off" ] && [ -n "$band3_off" ] && [ "$band1_off" -lt "$band3_off" ]'
 
+NC="$REPO/skills/docket-new-change/SKILL.md"
+TPL="$REPO/skills/docket-new-change/change-template.md"
+
+# --- new-change: create-time flag ---
+assert "new-change: create-time auto_groomable mention" \
+  'grep -qF "auto_groomable: true" "$NC"'
+assert "new-change: scan stubs leave the field unset (inherit)" \
+  'grep -qF "leave \`auto_groomable\` unset" "$NC"'
+assert "template: documents tri-state auto_groomable" \
+  'grep -qF "auto_groomable:" "$TPL"'
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"

@@ -13,6 +13,7 @@ spec:                     # path under docs/superpowers/specs/ once brainstormed
 plan:                     # left empty; set by docket-implement-next at build time
 results:                  # left empty; set by docket-implement-next at close-out if warranted
 trivial: false            # true for a small mechanical change with no design questions
+auto_groomable:           # tri-state: unset ⇒ inherit repo auto_groom; true/false ⇒ explicit override
 branch:
 pr:
 blocked_by:
