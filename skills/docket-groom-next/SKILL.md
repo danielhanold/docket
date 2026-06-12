@@ -36,7 +36,7 @@ No claim is taken — see *Concurrency — no claim* below.
 
 ### Step 2 — Scan related context
 
-Read the neighbouring `active/` changes, recently archived changes, and the ADR index BEFORE the brainstorm, so the conversation is informed by adjacent work. Record the resulting `related:`/`depends_on:`/`adrs:` updates after the design settles.
+Read the neighbouring `active/` changes, recently archived changes, the ADR index, and `<changes_dir>/LEARNINGS.md` BEFORE the brainstorm, so the conversation is informed by adjacent work and past lessons. Record the resulting `related:`/`depends_on:`/`adrs:` updates after the design settles.
 
 ### Step 3 — Groom with the human
 

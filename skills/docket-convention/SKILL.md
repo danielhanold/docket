@@ -34,6 +34,7 @@ results_dir: docs/results    # default  — close-out 'results' artifacts (build
   archive/                # the two terminal outcomes:    <YYYY-MM-DD>-<id>-<slug>.md
   BOARD.md                # generated board (NEVER hand-edited); spans active + archive
   README.md               # small static blurb linking to BOARD.md (NOT generated)
+  LEARNINGS.md            # curated build-loop lessons; harvested at close-out (see "Learnings ledger")
 <adrs_dir>/               # default docs/adrs/  — flat; ADRs are NEVER archived
   <NNNN>-<slug>.md        # immutable once Accepted (only its status: line ever changes)
   README.md               # generated ADR index
@@ -133,6 +134,16 @@ An `Accepted` ADR is immutable except its `status:` line; a non-reversing contex
 ### Build-readiness & selection (shared definition)
 
 A change is **build-ready** — eligible for `docket-implement-next` — only when it is `proposed`, has a `spec:` **or** `trivial: true`, and all `depends_on` are satisfied (`done`). A `proposed` change with neither a spec nor `trivial: true` is **needs-brainstorm** (not build-ready). The implementer's deterministic selection order is `priority` (`critical` > `high` > `medium` > `low`) → age (`created`) → **lowest `id`**.
+
+### Learnings ledger
+
+`<changes_dir>/LEARNINGS.md` — the project's **build-loop memory**: a curated, hand-edited file of lessons the build loop taught, living on `metadata_branch` only (like `BOARD.md`, it is never published to the integration branch — but unlike the board it is curated prose, never regenerated). Flat dated entries, **newest first**, one to three lines each, with provenance and an actionable phrasing — e.g. `- 2026-06-12 (#12, PR #7) — <what happened, one clause>. Apply: <the rule to follow next time>.`
+
+**Writing.** Entries are added only by the **harvest** at close-out (its procedural single source is the *Harvest learnings* step in `docket-finalize-change`; `docket-status`'s sweep invokes it by reference). Zero entries for a change is normal. Kills are not harvested — `## Why killed` already records the rationale.
+
+**Reading.** `docket-implement-next` reads the ledger at plan time and again at its review step; `docket-groom-next` reads it before a brainstorm. No other skill reads it.
+
+**Distilling.** Append-only until the file exceeds **~300 lines**; the next harvest past the cap also distills — merge near-duplicates and drop entries since promoted to CLAUDE.md or this convention. Distillation is **compression, not destruction**: git history keeps everything dropped. Boundary: the ledger holds lessons for the build loop; durable project conventions belong in CLAUDE.md — promotion removes the entry here.
 
 ### Bootstrap guard (`docket`-mode first-run safety)
 
