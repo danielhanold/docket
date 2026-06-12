@@ -2,7 +2,7 @@
 id: 12
 slug: groom-next-skill
 title: Groom-next skill — pick the next needs-brainstorm stub and groom it to build-ready
-status: implemented
+status: done
 priority: high
 created: 2026-06-12
 updated: 2026-06-12
