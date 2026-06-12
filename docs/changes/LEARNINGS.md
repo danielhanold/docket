@@ -4,6 +4,9 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-06-12 (#13, PR #9) — A sentinel test guarded every clause of an ordered procedure but
+  would have false-passed had the clauses been reordered; review caught it. Apply: when order is
+  part of the contract, assert it — compare `grep -n` line numbers, don't just grep for presence.
 - 2026-06-12 (#6, PR #8) — The spec asked for a test asserting a metadata-branch file exists,
   but the suite runs against the integration-branch checkout where that file never lives. Apply:
   when specifying tests for metadata-branch artifacts, verify them at build time and record in
