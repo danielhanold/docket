@@ -10,7 +10,7 @@ depends_on: []
 related: []
 adrs: []
 spec: docs/superpowers/specs/2026-06-12-groom-next-skill-design.md
-plan:
+plan: docs/superpowers/plans/2026-06-12-groom-next-skill.md
 results:
 trivial: false
 branch: feat/groom-next-skill
