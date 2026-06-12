@@ -1,12 +1,17 @@
 # Backlog
 
-**12 changes** — 🟡 6 proposed · ✅ 6 done
+**12 changes** — 🟢 1 in progress · 🟡 5 proposed · ✅ 6 done
 
-## 🟡 Proposed (6)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Spec | Branch |
+|---|-------|----------|------|--------|
+| [0006](active/0006-learnings-ledger.md) | Learnings ledger — an append-only per-repo memory that builds feed and future builds read | `high` | [spec](../superpowers/specs/2026-06-12-learnings-ledger-design.md) | `feat/learnings-ledger` |
+
+## 🟡 Proposed (5)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
-| [0006](active/0006-learnings-ledger.md) | Learnings ledger — an append-only per-repo memory that builds feed and future builds read | `high` | build-ready ([spec](../superpowers/specs/2026-06-12-learnings-ledger-design.md)) |
 | [0007](active/0007-recurring-change-templates.md) | Recurring change templates — scheduled maintenance work that spawns proposed instances | `medium` | needs-brainstorm |
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | needs-brainstorm |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | needs-brainstorm |
