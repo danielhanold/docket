@@ -16,7 +16,7 @@ trivial: true
 branch: feat/groom-next-stub-recap
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Why
@@ -55,3 +55,11 @@ confirmation gate; the human can redirect in the brainstorm itself.
 - New `.docket.yml` knobs, frontmatter fields, or lifecycle statuses.
 
 ## Reconcile log
+
+- 2026-06-12 — Reconciled same-day as proposal; codebase unmoved since #12 merged. Verified:
+  `skills/docket-groom-next/SKILL.md` on `origin/main` is byte-identical to the installed copy
+  the proposal was written against; Step 1 requires stating dependency statuses but no recap of
+  the stub itself; Step 3 enters the brainstorm directly. Per the #12 learning, plumbing needs
+  no edits — `link-skills.sh` globs, and the three test files only assert skill-inventory
+  membership plus a `LEARNINGS.md` read line, none of which this edit touches. Scope holds:
+  single-file edit to the skill text.
