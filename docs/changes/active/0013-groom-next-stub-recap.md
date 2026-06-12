@@ -2,7 +2,7 @@
 id: 13
 slug: groom-next-stub-recap
 title: Groom-next recap — introduce the selected stub before the brainstorm starts
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-06-12
 updated: 2026-06-12
@@ -14,7 +14,7 @@ plan: docs/superpowers/plans/2026-06-12-groom-next-stub-recap.md
 results:
 trivial: true
 branch: feat/groom-next-stub-recap
-pr:
+pr: https://github.com/danielhanold/docket/pull/9
 blocked_by:
 reconciled: true
 ---
