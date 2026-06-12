@@ -9,7 +9,7 @@ updated: 2026-06-12
 depends_on: []
 related: []
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-06-12-groom-next-skill-design.md
 plan:
 results:
 trivial: false
@@ -36,19 +36,24 @@ brainstorm with the human instead of an autonomous build), and the exit state (b
 
 ## What changes
 
-- A new skill, `docket-groom-next`, that:
+- A new standalone operating skill, `docket-groom-next` (`skills/docket-groom-next/SKILL.md`,
+  post-0005 reference-loading pattern, writes markdown only), that:
   - Selects the next needs-brainstorm change — `proposed`, no `spec:`, not `trivial: true` —
-    using the same deterministic order as implement-next: `priority` → age (`created`) →
-    lowest `id`; an explicit id can be passed to override.
-  - Runs `superpowers:brainstorming` WITH THE HUMAN on that change (selection is autonomous,
-    the brainstorm is not), informed by the stub's body, related changes, and ADRs — same
-    stop-at-the-spec rule as `docket-new-change`.
-  - Writes the spec to the metadata branch, sets `spec:`, refreshes the stub's body from the
-    brainstorm outcome, updates `updated:`, runs the Board pass, pushes — the change leaves the
-    board as `needs-brainstorm` and becomes build-ready.
-  - May conclude the stub should die instead — then it follows the existing proposed-kill
-    sub-path rather than forcing a spec.
-- Convention/`docket-new-change` touch-ups pointing "a later brainstorm pass" at the new skill.
+    using implement-next's deterministic order: `priority` → age (`created`) → lowest `id`;
+    an explicit id overrides (an id that is not needs-brainstorm is an error, not a re-pick).
+  - Treats unsatisfied `depends_on` as non-gating but states each dependency's status at
+    session start — design ahead of builds; reconcile catches drift at build time.
+  - Runs `superpowers:brainstorming` WITH THE HUMAN (selection is autonomous, the brainstorm is
+    not), seeded with the stub's body and open questions, after the scan-related-context read —
+    same stop-at-the-spec rule as `docket-new-change`.
+  - Exits via one of four existing transitions, no new lifecycle status: spec written +
+    `spec:` set (build-ready), `trivial: true` verdict (build-ready), the proposed-kill
+    sub-path, or `deferred`.
+  - Takes no claim: the final push's `pull --rebase`-and-retry loop is the CAS, with a re-read
+    if the rebase touched the groomed change's file. Board pass as a separate must-land commit.
+- Touch-ups: `docket-new-change` scan mode names `docket-groom-next` as its "later brainstorm
+  pass"; `docket-convention`'s operating-skills enumeration grows to six; `link-skills.sh` and
+  inventory-style tests gain the new entry.
 
 Name settled 2026-06-12: `docket-groom-next`. "Grooming" is the Jira-lineage term for exactly
 this transformation (stubbed-out item → ready to build), it keeps the `-next` symmetry with
@@ -63,15 +68,7 @@ for designing a *new* change in `docket-new-change`. (Considered and rejected:
 - Autonomous (no-human) spec writing — the brainstorm stays interactive; the human is the point.
 - Batch mode (brainstorming several stubs in one run) — one stub per invocation, like
   implement-next; loop by re-invoking.
-
-## Open questions
-
-- Does selection require `depends_on` satisfied? Building needs deps `done`, but brainstorming a
-  dependent change early is often fine (reconcile catches drift) — maybe deps-unsatisfied stubs
-  are eligible but flagged.
-- Does it claim? Implement-next CAS-claims to exclude concurrent builders; a brainstorm is
-  human-attended, so collisions are unlikely — is a claim (or a lighter marker) worth it?
-- Relationship to `docket-new-change`: separate sixth operating skill, or a mode of
-  `docket-new-change` ("brainstorm an existing stub")?
+- Re-grooming changes that already have a spec — drift is the reconcile pass's job.
+- New `.docket.yml` knobs, frontmatter fields, or lifecycle statuses — deliberately none.
 
 ## Reconcile log
