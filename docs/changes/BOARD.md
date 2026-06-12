@@ -1,12 +1,13 @@
 # Backlog
 
-**11 changes** — 🟡 6 proposed · ✅ 5 done
+**12 changes** — 🟡 7 proposed · ✅ 5 done
 
-## 🟡 Proposed (6)
+## 🟡 Proposed (7)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
 | [0006](active/0006-learnings-ledger.md) | Learnings ledger — an append-only per-repo memory that builds feed and future builds read | `high` | needs-brainstorm |
+| [0012](active/0012-brainstorm-next-skill.md) | Brainstorm-next skill — pick the next needs-brainstorm stub and drive it to build-ready | `high` | needs-brainstorm |
 | [0007](active/0007-recurring-change-templates.md) | Recurring change templates — scheduled maintenance work that spawns proposed instances | `medium` | needs-brainstorm |
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | needs-brainstorm |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | needs-brainstorm |
