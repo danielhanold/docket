@@ -13,7 +13,7 @@ fail=0
 assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
 
 REF="$REPO/skills/docket-convention/SKILL.md"
-OPERATING=(docket-new-change docket-implement-next docket-status docket-finalize-change docket-adr)
+OPERATING=(docket-new-change docket-implement-next docket-status docket-finalize-change docket-adr docket-groom-next)
 
 # (a) reference skill exists and carries the convention's section headers
 assert "docket-convention/SKILL.md exists" '[ -f "$REF" ]'

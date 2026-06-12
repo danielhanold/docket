@@ -1,15 +1,15 @@
 ---
 name: docket-convention
-description: Use when any docket skill runs — docket-new-change, docket-implement-next, docket-status, docket-finalize-change, and docket-adr load this first (their blocking Step 0) — or when you need to understand how docket tracks work. The shared contract — .docket.yml configuration, directory layout, the change manifest and lifecycle, ADR format, build-readiness and selection, the bootstrap guard, and the branch model. Pure reference — defines the convention; performs no reads, writes, or git operations.
+description: Use when any docket skill runs — docket-new-change, docket-groom-next, docket-implement-next, docket-status, docket-finalize-change, and docket-adr load this first (their blocking Step 0) — or when you need to understand how docket tracks work. The shared contract — .docket.yml configuration, directory layout, the change manifest and lifecycle, ADR format, build-readiness and selection, the bootstrap guard, and the branch model. Pure reference — defines the convention; performs no reads, writes, or git operations.
 ---
 
 # docket-convention — the shared contract (pure reference)
 
-This skill defines the docket convention and does nothing else: no procedure, no reads or writes, no git. The five operating skills load it as their blocking Step 0 and use its vocabulary without restating it.
+This skill defines the docket convention and does nothing else: no procedure, no reads or writes, no git. The six operating skills load it as their blocking Step 0 and use its vocabulary without restating it.
 
 ## Convention
 
-docket tracks planned work as **changes** — one markdown file each, roughly one PR — and records architecture decisions as **ADRs**. This skill is the single source of the convention; the operating skills (docket-new-change, docket-implement-next, docket-status, docket-finalize-change, docket-adr) load it at startup as their blocking Step 0 and never restate it.
+docket tracks planned work as **changes** — one markdown file each, roughly one PR — and records architecture decisions as **ADRs**. This skill is the single source of the convention; the operating skills (docket-new-change, docket-groom-next, docket-implement-next, docket-status, docket-finalize-change, docket-adr) load it at startup as their blocking Step 0 and never restate it.
 
 ### Configuration — `.docket.yml` (optional, committed on the default branch)
 
