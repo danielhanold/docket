@@ -1,12 +1,12 @@
 # Backlog
 
-**13 changes** — 🟢 1 in progress · 🟡 5 proposed · ✅ 7 done
+**13 changes** — 🟡 5 proposed · 🔵 1 implemented · ✅ 7 done
 
-## 🟢 In progress (1)
+## 🔵 Implemented — awaiting merge (1)
 
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0013](active/0013-groom-next-stub-recap.md) | Groom-next recap — introduce the selected stub before the brainstorm starts | `medium` | — (trivial) | `feat/groom-next-stub-recap` |
+| # | Title | Priority | PR |
+|---|-------|----------|----|
+| [0013](active/0013-groom-next-stub-recap.md) | Groom-next recap — introduce the selected stub before the brainstorm starts | `medium` | [#9](https://github.com/danielhanold/docket/pull/9) |
 
 ## 🟡 Proposed (5)
 
