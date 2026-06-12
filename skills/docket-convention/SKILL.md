@@ -5,7 +5,7 @@ description: Use when any docket skill runs — docket-new-change, docket-groom-
 
 # docket-convention — the shared contract (pure reference)
 
-This skill defines the docket convention and does nothing else: no procedure, no reads or writes, no git. The six operating skills load it as their blocking Step 0 and use its vocabulary without restating it.
+This skill defines the docket convention and does nothing else: no procedure, no reads or writes, no git. The seven operating skills load it as their blocking Step 0 and use its vocabulary without restating it.
 
 ## Convention
 
@@ -80,7 +80,7 @@ reconciled: false         # set true after the just-in-time reconcile pass
 - `## Out of scope` — explicit non-goals.
 - `## Open questions` — unknowns to resolve during reconcile/design.
 - `## Reconcile log` — dated entries appended by the implementer's reconcile pass.
-- `## Auto-groom blocked` — dated entries appended by `docket-auto-groom` when it abstains: the decision(s) it could not default, what context is missing, and any recommendation. Its presence distinguishes "the agent tried and bailed" from "a human opted out" of auto-grooming.
+- `## Auto-groom blocked` — dated abstain record appended by `docket-auto-groom`; contents and lifecycle (including removal on re-arm) are defined by the *Autonomous grooming* shared definition below.
 - `## Why deferred` / `## Why killed` — added when entering those states.
 
 The change body is a **PM-altitude proposal** (intent + scope). Detailed design lives in the linked superpowers spec; the task breakdown in the linked superpowers plan. Different zoom levels, no duplication.
@@ -144,7 +144,7 @@ A change's **effective auto-groomable** value is its `auto_groomable:` override 
 
 A stub is **autonomous-eligible** — selectable by `docket-auto-groom` — when it is needs-brainstorm (`proposed`, no `spec:`, not `trivial: true`) AND effective auto-groomable. Unsatisfied `depends_on` does NOT exclude it (the same design-ahead rule as interactive grooming; the implementer's reconcile re-validates at build time). Ranking is the same deterministic selection order as build-ready selection.
 
-**Abstain rule.** When autonomous grooming cannot safely default a decision, it emits NO spec; it flips `auto_groomable: false` and appends a dated `## Auto-groom blocked` body section. The stub stays needs-brainstorm — out of the autonomous queue, still in the interactive one. Re-arm = a human supplies the missing context and flips the flag back to `true`. Kill and defer are never autonomous: they surface inside the blocked section as recommendations.
+**Abstain rule.** When autonomous grooming cannot safely default a decision, it emits NO spec; it flips `auto_groomable: false` and appends a dated `## Auto-groom blocked` body section. The stub stays needs-brainstorm — out of the autonomous queue, still in the interactive one. Re-arm = a human supplies the missing context, flips the flag back to `true`, and DELETES the `## Auto-groom blocked` section (git history keeps it) — the section's presence is what drives the board's needs-you cell and `docket-groom-next`'s first band, so a stale section would mislabel a re-armed stub. Kill and defer are never autonomous: they surface inside the blocked section as recommendations.
 
 **Interactive selection bands.** `docket-groom-next` still sees every needs-brainstorm stub, but its default order prefers stubs that need a human: (1) abstained (`## Auto-groom blocked` present), (2) effective `auto_groomable: false`, (3) effective auto-groomable — flagged "docket-auto-groom will handle it unless you want it now." Within each band, the deterministic selection order applies. The board renders abstained stubs as **auto-groom blocked — needs you**, distinct from plain needs-brainstorm.
 
