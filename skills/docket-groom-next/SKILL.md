@@ -32,7 +32,7 @@ Sync the metadata working tree, then rank every needs-brainstorm change in `acti
 
 Unsatisfied `depends_on` does NOT exclude a stub — designing ahead of dependencies is expected (that is what specs are for, and the implementer's reconcile pass re-validates every spec against current reality at build time). Instead, open the session by stating each dependency and its current status, so the human designs with eyes open.
 
-No claim is taken — see *Concurrency* below.
+No claim is taken — see *Concurrency — no claim* below.
 
 ### Step 2 — Scan related context
 
@@ -53,7 +53,7 @@ All four exits reuse existing transitions — this skill introduces no new lifec
 
 ### Step 5 — Commit, push, board
 
-Commit the change-file edit + spec together in the metadata working tree and push to `origin/docket`. On a non-fast-forward rejection: `pull --rebase` and retry; if the rebase brought in commits touching the groomed change's file, RE-READ it first — if it is no longer needs-brainstorm (someone else groomed, killed, or claimed it), STOP and report rather than overwrite. Then refresh `BOARD.md` via `docket-status`'s Board pass as a separate, must-land commit (same pattern as `docket-new-change`'s step 5) — the readiness cell flips from needs-brainstorm, or the row leaves the Proposed section on a kill or defer. STOP — grooming never implements.
+Commit the change-file edit + spec together in the metadata working tree and push to `origin/docket`. On a non-fast-forward rejection: `pull --rebase` and retry; if the rebase brought in commits touching the groomed change's file, RE-READ it first — if it is no longer needs-brainstorm (someone else groomed, killed, or claimed it), STOP and report rather than overwrite. Then refresh `BOARD.md` via `docket-status`'s Board pass as a separate, must-land commit — retry until it lands, in contrast to `docket-implement-next`'s best-effort mid-build refresh (same pattern as `docket-new-change`'s step 5) — the readiness cell flips from needs-brainstorm, or the row leaves the Proposed section on a kill or defer. STOP — grooming never implements.
 
 ## Concurrency — no claim
 
