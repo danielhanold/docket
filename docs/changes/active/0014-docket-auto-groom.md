@@ -8,7 +8,7 @@ created: 2026-06-12
 updated: 2026-06-12
 depends_on: []
 related: [8, 9, 12]
-adrs: []
+adrs: [4]
 spec: docs/superpowers/specs/2026-06-12-docket-auto-groom-design.md
 plan:
 results:
@@ -16,7 +16,7 @@ trivial: false
 branch: feat/docket-auto-groom
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Why
@@ -79,3 +79,11 @@ future orchestration change (with 0008).
 - Token/runtime budget per drain: cap the number of stubs per run, or always drain dry?
 
 ## Reconcile log
+
+- 2026-06-12 — Reconciled same-day against 0012/0013 which merged after the brainstorm:
+  `docket-groom-next` is now built, so the selection amendment targets its real Step 1.
+  Spec updated to (a) cite ADR-0004 for the no-claim/final-push-CAS stance (autonomous
+  variant of its rationale noted), (b) add `LEARNINGS.md` to the designer pass's inputs
+  (ledger shipped in 0006), (c) state that unsatisfied `depends_on` does not exclude a
+  stub from auto-grooming — same design-ahead rule as interactive grooming. `adrs: [4]`.
+  Design unchanged otherwise.

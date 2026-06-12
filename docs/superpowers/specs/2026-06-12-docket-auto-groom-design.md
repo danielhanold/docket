@@ -47,7 +47,10 @@ Loop, per iteration:
 
 1. Sync the metadata tree. Select the next **eligible** stub: needs-brainstorm
    (`proposed`, no `spec:`, not `trivial: true`) AND effective-auto-groomable — in the
-   shared deterministic order (`priority` → `created` → lowest `id`).
+   shared deterministic order (`priority` → `created` → lowest `id`). Unsatisfied
+   `depends_on` does NOT exclude a stub — same design-ahead rule as `docket-groom-next`;
+   the designer pass factors dependency state into its assumptions, and the implementer's
+   build-time reconcile re-validates the spec anyway.
 2. Groom it via the designer + critic passes (below); exit spec / trivial / abstain.
 3. Commit and push that stub's outcome individually, CAS-style: a rejected push ⇒
    re-pull, re-validate the stub is still eligible, re-apply or skip. Board pass rides
@@ -60,8 +63,11 @@ Loop, per iteration:
 effective-auto-groomable). No stub is visited twice per drain.
 
 **Concurrency:** no claim field. The CAS push discipline is the only guard; a lost race
-skips the stub. (This also answers 0012's open "does groom-next claim?" question the
-same way: no.)
+skips the stub. This adopts ADR-0004 ("Grooming takes no claim — final-push CAS
+suffices"): half of that ADR's rationale (human-attended sessions) does not apply to an
+autonomous drain, but the load-bearing half does — each stub's writes land in a single
+final commit, so a late collision wastes minutes, not hours, and the mandatory re-read
+after a rebased push is the arbiter.
 
 ## The groom step — self-brainstorm + critic
 
@@ -72,7 +78,9 @@ recommended option" is the model agreeing with itself while faking an approval g
 Rejected explicitly.
 
 **Designer pass.** Read the stub body, related changes (`related`/`depends_on`
-neighbours), the ADR index, and relevant code. Enumerate the decision points an
+neighbours), the ADR index, `<changes_dir>/LEARNINGS.md` (the learnings ledger —
+`docket-groom-next` reads it pre-brainstorm; the autonomous designer gets the same
+memory), and relevant code. Enumerate the decision points an
 interactive brainstorm would raise. For each, weigh 2–3 approaches and commit to the
 conservative / recommended default. Draft the spec to the normal spec path
 (`docs/superpowers/specs/…` on the metadata branch). The spec carries an
