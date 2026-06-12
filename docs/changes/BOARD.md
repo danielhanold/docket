@@ -1,8 +1,8 @@
 # Backlog
 
-**12 changes** — 🟡 5 proposed · ✅ 7 done
+**13 changes** — 🟡 6 proposed · ✅ 7 done
 
-## 🟡 Proposed (5)
+## 🟡 Proposed (6)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -10,6 +10,7 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | needs-brainstorm |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | needs-brainstorm |
 | [0011](active/0011-github-issues-board-mirror.md) | GitHub Issues mirror of the board — one-way visual sync, change files stay source of truth | `medium` | needs-brainstorm |
+| [0013](active/0013-groom-next-stub-recap.md) | Groom-next recap — introduce the selected stub before the brainstorm starts | `medium` | build-ready (trivial) |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | needs-brainstorm |
 
 <details><summary>✅ Archive — done (7)</summary>
