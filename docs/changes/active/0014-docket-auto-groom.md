@@ -2,7 +2,7 @@
 id: 14
 slug: docket-auto-groom
 title: docket-auto-groom — autonomous grooming drain over auto-groomable stubs
-status: in-progress
+status: implemented
 priority: high
 created: 2026-06-12
 updated: 2026-06-12
@@ -11,10 +11,10 @@ related: [8, 9, 12]
 adrs: [4, 6]
 spec: docs/superpowers/specs/2026-06-12-docket-auto-groom-design.md
 plan: docs/superpowers/plans/2026-06-12-docket-auto-groom.md
-results:
+results: docs/results/2026-06-12-docket-auto-groom-results.md
 trivial: false
 branch: feat/docket-auto-groom
-pr:
+pr: https://github.com/danielhanold/docket/pull/10
 blocked_by:
 reconciled: true
 ---
