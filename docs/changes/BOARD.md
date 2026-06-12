@@ -1,12 +1,6 @@
 # Backlog
 
-**14 changes** — 🟡 5 proposed · 🔵 1 implemented · ✅ 8 done
-
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | PR |
-|---|-------|----------|----|
-| [0014](active/0014-docket-auto-groom.md) | docket-auto-groom — autonomous grooming drain over auto-groomable stubs | `high` | [#10](https://github.com/danielhanold/docket/pull/10) |
+**14 changes** — 🟡 5 proposed · ✅ 9 done
 
 ## 🟡 Proposed (5)
 
@@ -18,10 +12,11 @@
 | [0011](active/0011-github-issues-board-mirror.md) | GitHub Issues mirror of the board — one-way visual sync, change files stay source of truth | `medium` | needs-brainstorm |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | needs-brainstorm |
 
-<details><summary>✅ Archive — done (8)</summary>
+<details><summary>✅ Archive — done (9)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0014](archive/2026-06-12-0014-docket-auto-groom.md) | docket-auto-groom — autonomous grooming drain over auto-groomable stubs | 2026-06-12 |
 | [0013](archive/2026-06-12-0013-groom-next-stub-recap.md) | Groom-next recap — introduce the selected stub before the brainstorm starts | 2026-06-12 |
 | [0006](archive/2026-06-12-0006-learnings-ledger.md) | Learnings ledger — an append-only per-repo memory that builds feed and future builds read | 2026-06-12 |
 | [0012](archive/2026-06-12-0012-groom-next-skill.md) | Groom-next skill — pick the next needs-brainstorm stub and groom it to build-ready | 2026-06-12 |
