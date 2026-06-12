@@ -30,7 +30,7 @@ All reads and writes happen in the **metadata working tree** on `metadata_branch
 
 Sync the metadata working tree, then rank every needs-brainstorm change in `active/` — `status: proposed`, no `spec:`, not `trivial: true` — by the convention's deterministic selection order (the same ranking `docket-implement-next` uses). Pick the top, or accept an explicit id from the caller; an explicit id that is not needs-brainstorm is an error to report, never a silent re-pick. Empty queue → report that nothing needs grooming and stop.
 
-Unsatisfied `depends_on` does NOT exclude a stub — designing ahead of dependencies is expected (that is what specs are for, and the implementer's reconcile pass re-validates every spec against current reality at build time). Instead, open the session by stating each dependency and its current status, so the human designs with eyes open.
+Unsatisfied `depends_on` does NOT exclude a stub — designing ahead of dependencies is expected (that is what specs are for, and the implementer's reconcile pass re-validates every spec against current reality at build time). Instead, state each dependency and its current status as part of the Step 3 recap, so the human designs with eyes open.
 
 No claim is taken — see *Concurrency — no claim* below.
 
@@ -38,9 +38,18 @@ No claim is taken — see *Concurrency — no claim* below.
 
 Read the neighbouring `active/` changes, recently archived changes, the ADR index, and `<changes_dir>/LEARNINGS.md` BEFORE the brainstorm, so the conversation is informed by adjacent work and past lessons. Record the resulting `related:`/`depends_on:`/`adrs:` updates after the design settles.
 
-### Step 3 — Groom with the human
+### Step 3 — Recap, then groom with the human
 
-Run `superpowers:brainstorming` WITH THE HUMAN, seeded with the stub's body and its `## Open questions` — the open questions are the session's starting agenda. STOP AT THE SPEC — do NOT continue to `superpowers:writing-plans` (planning is build-time, owned by `docket-implement-next`).
+Open with a **recap of the selected stub**, written for a reader with no prior context — grooming is routinely invoked from a phone or a fresh session, long after the stub was captured, and a cold-start human cannot answer design questions about a change they have not been reminded of. The recap covers:
+
+- What was selected and why: id, title, priority — and whether it was the deterministic pick or an explicitly requested id.
+- A PM-altitude summary of the stub: its `## Why` and `## What changes` distilled into a few sentences.
+- Each `depends_on` entry and its current status (the statement Step 1 requires).
+- The stub's `## Open questions`, framed as the agenda the brainstorm will work through.
+
+The recap is an introduction, not a confirmation gate — flow directly into the brainstorm; the human redirects there, not at a pre-brainstorm prompt.
+
+Then run `superpowers:brainstorming` WITH THE HUMAN, seeded with the stub's body and its `## Open questions` — the open questions are the session's starting agenda. STOP AT THE SPEC — do NOT continue to `superpowers:writing-plans` (planning is build-time, owned by `docket-implement-next`).
 
 ### Step 4 — Exit (one of four; the human confirms which)
 
