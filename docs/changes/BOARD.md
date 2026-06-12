@@ -1,12 +1,12 @@
 # Backlog
 
-**12 changes** — 🟢 1 in progress · 🟡 5 proposed · ✅ 6 done
+**12 changes** — 🔵 1 implemented · 🟡 5 proposed · ✅ 6 done
 
-## 🟢 In progress (1)
+## 🔵 Implemented — awaiting merge (1)
 
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0006](active/0006-learnings-ledger.md) | Learnings ledger — an append-only per-repo memory that builds feed and future builds read | `high` | [spec](../superpowers/specs/2026-06-12-learnings-ledger-design.md) | `feat/learnings-ledger` |
+| # | Title | Priority | PR |
+|---|-------|----------|----|
+| [0006](active/0006-learnings-ledger.md) | Learnings ledger — an append-only per-repo memory that builds feed and future builds read | `high` | [#8](https://github.com/danielhanold/docket/pull/8) |
 
 ## 🟡 Proposed (5)
 
