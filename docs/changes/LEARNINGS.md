@@ -4,6 +4,18 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-06-12 (#14, PR #10) — A plan's order assertion compared `grep -n` line numbers, which
+  cannot order two phrases inside one paragraph; the implementer "satisfied" it by splitting a
+  sentence mid-paragraph. Apply: order-assert with byte offsets (`grep -ob`) when both anchors
+  can share a line — and treat an implementer contorting the artifact to pass a test as a signal
+  the assertion itself is wrong.
+- 2026-06-12 (#14, PR #10) — Two views keyed off a body section's *presence* (board cell,
+  selection band), but the state transition out (re-arm) didn't remove the section — a re-armed
+  stub stayed mislabeled. Apply: when state is encoded by an artifact's presence, every
+  transition out of that state must remove the artifact.
+- 2026-06-12 (#14, PR #10) — Adding a member to an enumerated set left two stale counts ("six
+  skills" in README from 0012, "six operating skills" in the convention from 0014's own edit).
+  Apply: when a set gains a member, grep the repo for the old count word and the enumeration.
 - 2026-06-12 (#13, PR #9) — A sentinel test guarded every clause of an ordered procedure but
   would have false-passed had the clauses been reordered; review caught it. Apply: when order is
   part of the contract, assert it — compare `grep -n` line numbers, don't just grep for presence.
