@@ -7,7 +7,7 @@
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
 | [0006](active/0006-learnings-ledger.md) | Learnings ledger — an append-only per-repo memory that builds feed and future builds read | `high` | needs-brainstorm |
-| [0012](active/0012-groom-next-skill.md) | Groom-next skill — pick the next needs-brainstorm stub and groom it to build-ready | `high` | needs-brainstorm |
+| [0012](active/0012-groom-next-skill.md) | Groom-next skill — pick the next needs-brainstorm stub and groom it to build-ready | `high` | build-ready ([spec](../superpowers/specs/2026-06-12-groom-next-skill-design.md)) |
 | [0007](active/0007-recurring-change-templates.md) | Recurring change templates — scheduled maintenance work that spawns proposed instances | `medium` | needs-brainstorm |
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | needs-brainstorm |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | needs-brainstorm |
