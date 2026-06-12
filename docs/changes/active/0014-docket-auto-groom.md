@@ -10,7 +10,7 @@ depends_on: []
 related: [8, 9, 12]
 adrs: [4]
 spec: docs/superpowers/specs/2026-06-12-docket-auto-groom-design.md
-plan:
+plan: docs/superpowers/plans/2026-06-12-docket-auto-groom.md
 results:
 trivial: false
 branch: feat/docket-auto-groom
