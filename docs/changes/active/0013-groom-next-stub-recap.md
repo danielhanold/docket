@@ -2,7 +2,7 @@
 id: 13
 slug: groom-next-stub-recap
 title: Groom-next recap — introduce the selected stub before the brainstorm starts
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-06-12
 updated: 2026-06-12
@@ -13,7 +13,7 @@ spec:
 plan:
 results:
 trivial: true
-branch:
+branch: feat/groom-next-stub-recap
 pr:
 blocked_by:
 reconciled: false
