@@ -2,7 +2,7 @@
 id: 6
 slug: learnings-ledger
 title: Learnings ledger — an append-only per-repo memory that builds feed and future builds read
-status: proposed
+status: in-progress
 priority: high
 created: 2026-06-11
 updated: 2026-06-12
@@ -13,7 +13,7 @@ spec: docs/superpowers/specs/2026-06-12-learnings-ledger-design.md
 plan:
 results:
 trivial: false
-branch:
+branch: feat/learnings-ledger
 pr:
 blocked_by:
 reconciled: false
