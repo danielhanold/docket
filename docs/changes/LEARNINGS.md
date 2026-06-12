@@ -4,6 +4,10 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-06-12 (#6, PR #8) — The spec asked for a test asserting a metadata-branch file exists,
+  but the suite runs against the integration-branch checkout where that file never lives. Apply:
+  when specifying tests for metadata-branch artifacts, verify them at build time and record in
+  the results file instead — repo tests can only see the integration branch.
 - 2026-06-12 (#12, PR #7) — A code-review finding cited a sentence that did not exist in the
   reviewed file. Apply: verify review claims against the artifact (byte-diff against canonical
   content) before implementing fixes; reject false positives with evidence.
