@@ -44,7 +44,7 @@ For a small mechanical change with no real design questions: skip the brainstorm
 
 ## Scan mode (opt-in)
 
-Survey TODOs, deferred changes, known gaps, and the ADR backlog; emit several lightweight `proposed` STUBS in one pass — WITHOUT specs. Scan-stubs are NOT build-ready (no spec, not trivial) — the board calls this state `needs-brainstorm`. They form an "ideas to brainstorm" backlog a later brainstorm pass turns build-ready. Kept opt-in so routine runs don't generate speculative noise. Once all stubs are written, commit them together with a refreshed `BOARD.md` and push to `origin/docket` (same push pattern as Brainstorm mode's step 5, but no spec).
+Survey TODOs, deferred changes, known gaps, and the ADR backlog; emit several lightweight `proposed` STUBS in one pass — WITHOUT specs. Scan-stubs are NOT build-ready (no spec, not trivial) — the board calls this state `needs-brainstorm`. They form an "ideas to brainstorm" backlog that `docket-groom-next` — the later brainstorm pass — turns build-ready. Kept opt-in so routine runs don't generate speculative noise. Once all stubs are written, commit them together with a refreshed `BOARD.md` and push to `origin/docket` (same push pattern as Brainstorm mode's step 5, but no spec).
 
 ## Proposed-kill sub-path
 
