@@ -1,7 +1,7 @@
 ---
 id: 12
-slug: brainstorm-next-skill
-title: Brainstorm-next skill — pick the next needs-brainstorm stub and drive it to build-ready
+slug: groom-next-skill
+title: Groom-next skill — pick the next needs-brainstorm stub and groom it to build-ready
 status: proposed
 priority: high
 created: 2026-06-12
@@ -36,7 +36,7 @@ brainstorm with the human instead of an autonomous build), and the exit state (b
 
 ## What changes
 
-- A new skill (working name `docket-brainstorm-next` — naming is an open question) that:
+- A new skill, `docket-groom-next`, that:
   - Selects the next needs-brainstorm change — `proposed`, no `spec:`, not `trivial: true` —
     using the same deterministic order as implement-next: `priority` → age (`created`) →
     lowest `id`; an explicit id can be passed to override.
@@ -50,6 +50,13 @@ brainstorm with the human instead of an autonomous build), and the exit state (b
     sub-path rather than forcing a spec.
 - Convention/`docket-new-change` touch-ups pointing "a later brainstorm pass" at the new skill.
 
+Name settled 2026-06-12: `docket-groom-next`. "Grooming" is the Jira-lineage term for exactly
+this transformation (stubbed-out item → ready to build), it keeps the `-next` symmetry with
+`docket-implement-next`, and it avoids overloading "brainstorm", which the suite already uses
+for designing a *new* change in `docket-new-change`. (Considered and rejected:
+`docket-brainstorm-next` for that ambiguity; `docket-refine`, `docket-spec-next`,
+`docket-ready-next` as less evocative.)
+
 ## Out of scope
 
 - Building anything — it stops at build-ready, exactly where `docket-implement-next` picks up.
@@ -59,10 +66,6 @@ brainstorm with the human instead of an autonomous build), and the exit state (b
 
 ## Open questions
 
-- **Name.** Candidates: `docket-brainstorm-next` (mirrors implement-next; the board's
-  `needs-brainstorm` label points straight at it), `docket-refine` (Scrum "backlog refinement"),
-  `docket-spec-next` (names the output), `docket-ready-next` (names the exit state),
-  `docket-groom` (older grooming term).
 - Does selection require `depends_on` satisfied? Building needs deps `done`, but brainstorming a
   dependent change early is often fine (reconcile catches drift) — maybe deps-unsatisfied stubs
   are eligible but flagged.
