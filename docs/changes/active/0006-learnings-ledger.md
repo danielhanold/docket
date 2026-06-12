@@ -8,7 +8,7 @@ created: 2026-06-11
 updated: 2026-06-12
 depends_on: []
 related: [1, 12]
-adrs: []
+adrs: [5]
 spec: docs/superpowers/specs/2026-06-12-learnings-ledger-design.md
 plan: docs/superpowers/plans/2026-06-12-learnings-ledger.md
 results:
