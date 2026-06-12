@@ -8,7 +8,7 @@ created: 2026-06-12
 updated: 2026-06-12
 depends_on: []
 related: []
-adrs: []
+adrs: [4]
 spec: docs/superpowers/specs/2026-06-12-groom-next-skill-design.md
 plan: docs/superpowers/plans/2026-06-12-groom-next-skill.md
 results:
