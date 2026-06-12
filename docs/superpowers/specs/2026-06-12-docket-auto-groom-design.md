@@ -117,8 +117,12 @@ the decision(s) that could not be defaulted, what the critic refuted or what con
 missing, what a human would need to supply, and any recommendation. The flag flip is the
 dedup guard — the drain never re-selects an abstained stub — and the body section is the
 provenance that distinguishes "agent bailed" from "human opted out" (no section ⇒ a
-human set the flag). **Re-arm** = human supplies the missing context in the stub and
-flips `auto_groomable` back to `true`; next drain re-attempts with the new context.
+human set the flag). **Re-arm** = human supplies the missing context in the stub, flips
+`auto_groomable` back to `true`, and DELETES the `## Auto-groom blocked` section (git
+history keeps it) — the section's presence drives the board's needs-you cell and
+groom-next's first band, so a stale section would mislabel a re-armed stub; next drain
+re-attempts with the new context. (Deletion-on-re-arm added at build-time review,
+2026-06-12.)
 Forward-compatible with 0009: once the human-escalation-loop exists, the blocked note
 upgrades naturally into structured questions-for-you with notification delivery — same
 content, plus a channel.
