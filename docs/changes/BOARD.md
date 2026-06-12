@@ -1,12 +1,12 @@
 # Backlog
 
-**12 changes** — 🟢 1 in progress · 🟡 6 proposed · ✅ 5 done
+**12 changes** — 🔵 1 implemented · 🟡 6 proposed · ✅ 5 done
 
-## 🟢 In progress (1)
+## 🔵 Implemented — awaiting merge (1)
 
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0012](active/0012-groom-next-skill.md) | Groom-next skill — pick the next needs-brainstorm stub and groom it to build-ready | `high` | [spec](../superpowers/specs/2026-06-12-groom-next-skill-design.md) | `feat/groom-next-skill` |
+| # | Title | Priority | PR |
+|---|-------|----------|----|
+| [0012](active/0012-groom-next-skill.md) | Groom-next skill — pick the next needs-brainstorm stub and groom it to build-ready | `high` | [#7](https://github.com/danielhanold/docket/pull/7) |
 
 ## 🟡 Proposed (6)
 
