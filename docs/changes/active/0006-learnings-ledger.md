@@ -5,11 +5,11 @@ title: Learnings ledger — an append-only per-repo memory that builds feed and 
 status: proposed
 priority: high
 created: 2026-06-11
-updated: 2026-06-11
+updated: 2026-06-12
 depends_on: []
-related: [1]
+related: [1, 12]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-06-12-learnings-ledger-design.md
 plan:
 results:
 trivial: false
@@ -35,25 +35,24 @@ is no low-ceremony, docket-owned place where the *build loop itself* deposits an
 
 ## What changes
 
-- A `LEARNINGS.md` ledger on the metadata branch (location/knob to be decided in the brainstorm,
-  e.g. `<changes_dir>/LEARNINGS.md`) — append-only dated entries, each a short lesson with its
-  provenance (change id, PR review comment, reconcile finding).
-- `docket-finalize-change` gains a harvest step: at close-out, distill merge-gate feedback and PR
-  review comments into ledger entries.
-- `docket-implement-next` reads the ledger at reconcile/plan time and again at its review step, so
-  past lessons shape the build and the self-review checklist.
-- Convention addition in `docket-convention` defining the ledger format and ownership rules.
+- `<changes_dir>/LEARNINGS.md` on the metadata branch — no new knob; never published to the
+  integration branch. Flat dated entries, newest first, each with provenance (change id / PR)
+  and an actionable phrasing; curated prose, never regenerated.
+- Harvest single-sourced in `docket-finalize-change` as a close-out step (zero entries is fine);
+  `docket-status`'s sweep invokes the same procedure by reference, best-effort, with an
+  entry-per-change-id idempotency probe. Kills are not harvested.
+- Readers: `docket-implement-next` at plan time and its review step; `docket-groom-next` in its
+  scan-related-context step.
+- Distill at a ~300-line soft cap: merge near-duplicates, drop entries promoted to CLAUDE.md or
+  the convention (the boundary rule lives in the file header). Git history keeps what's dropped.
+- Convention gains a *Learnings ledger* subsection (single source of the rules); the build
+  retro-seeds the ledger from already-archived changes' results files so it ships non-empty.
 
 ## Out of scope
 
 - Anything server-side or database-backed — the ledger is a markdown file in git.
 - Replacing CLAUDE.md: the ledger is build-loop memory, not general project instructions.
 - Automatic promotion of ledger entries into CLAUDE.md (could be a later change).
-
-## Open questions
-
-- One flat file vs. categorized sections (security / review-feedback / process)?
-- Pruning/compaction policy — does the ledger ever get distilled, or grow forever?
-- Should the harvest step also mine results files (change 0001) retroactively?
+- Harvesting killed changes; mid-build appends; write access outside the harvest procedure.
 
 ## Reconcile log
