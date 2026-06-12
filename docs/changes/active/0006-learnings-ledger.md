@@ -10,7 +10,7 @@ depends_on: []
 related: [1, 12]
 adrs: []
 spec: docs/superpowers/specs/2026-06-12-learnings-ledger-design.md
-plan:
+plan: docs/superpowers/plans/2026-06-12-learnings-ledger.md
 results:
 trivial: false
 branch: feat/learnings-ledger
