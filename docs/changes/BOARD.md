@@ -1,12 +1,12 @@
 # Backlog
 
-**14 changes** — 🟢 1 in progress · 🟡 4 proposed · ✅ 9 done
+**14 changes** — 🔵 1 implemented · 🟡 4 proposed · ✅ 9 done
 
-## 🟢 In progress (1)
+## 🔵 Implemented — awaiting merge (1)
 
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0011](active/0011-github-issues-board-mirror.md) | GitHub board mirror — selectable board surfaces, one-way Issues + Projects mirror | `medium` | [spec](../superpowers/specs/2026-06-14-github-issues-board-mirror-design.md) | `feat/github-issues-board-mirror` |
+| # | Title | Priority | PR |
+|---|-------|----------|----|
+| [0011](active/0011-github-issues-board-mirror.md) | GitHub board mirror — selectable board surfaces, one-way Issues + Projects mirror | `medium` | [#11](https://github.com/danielhanold/docket/pull/11) |
 
 ## 🟡 Proposed (4)
 
