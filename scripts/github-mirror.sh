@@ -188,8 +188,13 @@ mirror_change(){
     local created num
     created="$(run_gh issue create ${REPO:+-R "$REPO"} --title "$title" --body "$body" "${label_args[@]}")"
     num="$(printf '%s' "$created" | grep -oE '[0-9]+$' | tail -n1)"
-    [ -n "$num" ] || num="(dry-run)"
-    printf 'issue-minted %s %s\n' "$id" "$num"
+    if [ "$DRY" = 1 ]; then
+      printf 'issue-minted %s (dry-run)\n' "$id"          # number unknown without a real create
+    elif [ -n "$num" ]; then
+      printf 'issue-minted %s %s\n' "$id" "$num"          # caller persists this into issue:
+    else
+      log "issue create returned no number for #$id (best-effort) — issue: not minted this pass"
+    fi
   else
     # UPDATE — title/body + reconcile labels (add-label is additive; docket:* only).
     local -a add_args=(); local i=0
