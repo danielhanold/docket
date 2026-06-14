@@ -77,6 +77,21 @@ A visibility *pointer*, never a second home for the content (mirroring the full 
 3. **`## Why` distilled** to one or two sentences.
 4. **Hrefs to every relevant artifact** (the brainstorm's explicit addition — not just the change file): a deep link to the **change file on `docket`**, to the **`spec:`**, to **each ADR in `adrs:`**, and to **`plan:`/`results:`** once those fields are populated. Each link is emitted only when its field resolves, so the link set grows as the change moves through its lifecycle.
 
+### 4.4 Implementation — a deterministic sync script, not agent prose
+
+**Decided in the brainstorm (2026-06-14):** the `github` surface is implemented as a **deterministic script** that `docket-status`'s Board pass *invokes*, NOT as agent-constructed `gh`/GraphQL calls written inline in skill prose.
+
+This is a deliberate departure from the rest of docket. Every other board operation is local, idempotent-by-regeneration, and side-effect-free (`inline` rewrites a file from the change files), so agent-executed prose is fine there. The mirror is the opposite: **idempotent, side-effectful writes to an external API** (create-or-update one issue per change, reconcile a label set, add/move project items). LLM variance on that surface is a real hazard — a non-deterministic agent could mint duplicate issues, drift a label name, set the wrong close reason, or spawn a second project — and the writes are invisible to the test suite (which only sees the integration-branch checkout, per the LEARNINGS note on metadata-branch artifacts). A script makes the external behavior reproducible and lets tests **assert command construction** against mocked `gh`/GraphQL, without a live GitHub.
+
+Shape (settle exact form at build time):
+
+- A single entry point — e.g. `scripts/github-mirror.sh` (or a small program if shell + GraphQL proves unwieldy) — that takes the parsed backlog (or reads the change files directly) and performs the full upsert: issues, labels, Projects items, close states.
+- **Pure-ish and idempotent:** given the same change files + the same GitHub state, it converges to the same result and is safe to re-run. It owns the `issue:`/`github_project` reads but the **change-file writes** (minting `issue:`, the `.docket.yml` project write-back) stay with the Board pass / git discipline — the script emits what to persist; the skill commits it. (Reconcile may instead let the script do the metadata git writes; flag the boundary at build time.)
+- **Best-effort contract preserved:** the script exits non-zero / no-ops cleanly on missing network, auth, or `project` scope; the Board pass treats any failure as best-effort (log, continue, never abort a build) exactly like today's board rule.
+- **Testable:** a `tests/test_github_mirror.sh` asserts command construction against a mocked `gh` (and GraphQL), covering create-vs-update, the seven status→state/reason mappings, the `docket:` label set, and the Projects-skipped-when-no-scope degradation. This is the build-time verification the LEARNINGS ledger calls for in place of suite assertions on live GitHub state.
+
+The `inline` surface stays agent-prose (unchanged); only the `github` surface gets the script. `docket-status` documents the invocation; the script is the single source of the external-write mechanics.
+
 ## 5. Labels — `docket:` namespace, owns only its own
 
 Every mirror label is prefixed `docket:` and docket **only ever creates or updates labels inside that namespace** — it never touches a label it did not mint, so a repo already using bare `status:`-style labels is untouched and collision-proof.
@@ -98,10 +113,11 @@ The headline win (open issue + linked PR in an awaiting-merge view) needs a PR�
 ## 7. Touch-ups to existing skills and docs
 
 - **`docket-convention`** — the single source for all new contract: the `board_surfaces` list (members, default `[inline]`, `[]` = no board, unknown-token warn-and-ignore), the `github_project` knob (auto-create, private, write-back), the per-change `issue:` field added to the manifest, the status→issue-state + close-reason mapping, the `docket:` label namespace, and the one-way rule. The "regenerate BOARD.md on status write" and "offline-safe canonical view" sentences are generalized to "each enabled surface" / "property of the `inline` surface" per §3.
-- **`docket-status`** — the Board pass becomes render-each-enabled-surface; add the `github` surface (Issues + Projects upsert, best-effort) and gate `inline` on membership. The drift-compare health check generalizes per §3; add a check for an `issue:` set but unreachable. Merge-sweep/finalize close the mirror issue via the sync's normal pass (no new write path — closing is just the `done`/`killed` status mapping).
+- **`docket-status`** — the Board pass becomes render-each-enabled-surface; for the `github` surface it **invokes the deterministic mirror script** (§4.4) best-effort, and gates `inline` on membership. The drift-compare health check generalizes per §3; add a check for an `issue:` set but unreachable. Merge-sweep/finalize close the mirror issue via the sync's normal pass (no new write path — closing is just the `done`/`killed` status mapping).
+- **`scripts/github-mirror.sh`** (new, §4.4) — the deterministic sync engine for the `github` surface; the single source of the external-write mechanics. Wired into `link`/plumbing only if needed (it is invoked by `docket-status`, not auto-discovered like skills).
 - **`docket-implement-next`** — at PR-open, best-effort add the `#N` reference to the PR body when `issue:` is set (§6). No `Closes`.
 - **`docket-new-change` / `docket-finalize-change`** — no mechanics change; finalize's terminal transition already drives a Board pass, which now also closes the mirror issue with the right reason.
-- **Repo plumbing / tests** — config-parsing for `.docket.yml` gains the two keys; any test enumerating config keys or skills' Board behavior updates accordingly. `gh`/GraphQL calls must be mockable in tests (the suite runs against the integration-branch checkout and has no live GitHub — assert command construction, not live effects; verify live behavior at build time and record in the results file, per the LEARNINGS note about metadata-branch artifacts).
+- **Repo plumbing / tests** — config-parsing for `.docket.yml` gains the two keys; any test enumerating config keys or skills' Board behavior updates accordingly. The mirror's `gh`/GraphQL calls are exercised through the **deterministic script** (§4.4), so tests assert the script's command construction against a mocked `gh` (the suite runs against the integration-branch checkout and has no live GitHub — assert command construction, not live effects; verify live behavior at build time and record in the results file, per the LEARNINGS note about metadata-branch artifacts).
 
 ## 8. Residuals for the implementer (reconcile / build time)
 

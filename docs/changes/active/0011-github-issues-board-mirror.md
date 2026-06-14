@@ -58,6 +58,9 @@ never read back. A repo picks the offline-safe inline board, the GitHub mirror, 
     `docket:waiting/*`, `docket:readiness/*`); docket touches only labels it minted.
   - **Closing is sync-owned.** The PR *references* the issue (linked-PR awaiting-merge view) but
     never `Closes #N`; the Board-pass sync stays the sole writer of open/closed state and reason.
+  - **Implemented as a deterministic script** (`scripts/github-mirror.sh`) the Board pass invokes,
+    not agent-constructed `gh`/GraphQL calls — idempotent external writes need reproducibility and
+    testable command construction (the `inline` surface stays agent-prose).
 - **Convention additions (`docket-convention`)** — `board_surfaces`, `github_project`, the
   `issue:` field, the status→issue/close-reason mapping, the `docket:` label namespace, the
   one-way rule, and the generalized "each enabled surface" board invariants.
