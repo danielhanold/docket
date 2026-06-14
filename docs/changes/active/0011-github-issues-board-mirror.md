@@ -10,7 +10,7 @@ depends_on: []
 related: [4, 10]
 adrs: []
 spec: docs/superpowers/specs/2026-06-14-github-issues-board-mirror-design.md
-plan:
+plan: docs/superpowers/plans/2026-06-14-github-issues-board-mirror.md
 results:
 trivial: false
 branch: feat/github-issues-board-mirror
