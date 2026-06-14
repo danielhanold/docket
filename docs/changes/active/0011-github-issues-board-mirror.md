@@ -16,7 +16,7 @@ trivial: false
 branch: feat/github-issues-board-mirror
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Why
@@ -74,3 +74,15 @@ never read back. A repo picks the offline-safe inline board, the GitHub mirror, 
 - Auto-creating the project as public or under a non-owner account — private, repo owner only.
 
 ## Reconcile log
+
+- 2026-06-14 — Reconciled at claim. Spec is hours old (same-day groom); no changes shipped
+  since, `origin/main` unchanged, so no scope drift to fold in. Verified against current code:
+  (1) no `scripts/` dir exists yet — `scripts/github-mirror.sh` is net-new; (2) the test harness
+  is **sentinel-grep** against skill prose + scripts (`tests/*.sh`, `assert` = `grep`), so the
+  mirror's test asserts the script's **command construction against a mocked `gh`**, not live
+  GitHub effects (matches the spec §4.4 / the LEARNINGS note on metadata-branch artifacts);
+  (3) the existing `test_board_refresh_on_transition.sh` pins the convention heading
+  **"Board refresh on status writes"** and a `>=3` count of best-effort Board-pass clauses in
+  `docket-implement-next` — the generalization to "each enabled surface" must PRESERVE that
+  heading, and the PR→issue touch-up must not reduce the board-pass clause count. No design
+  change; proceeding to plan.
