@@ -8,7 +8,7 @@ created: 2026-06-12
 updated: 2026-06-14
 depends_on: []
 related: [4, 10]
-adrs: []
+adrs: [7]
 spec: docs/superpowers/specs/2026-06-14-github-issues-board-mirror-design.md
 plan: docs/superpowers/plans/2026-06-14-github-issues-board-mirror.md
 results:
