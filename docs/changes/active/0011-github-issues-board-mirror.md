@@ -2,7 +2,7 @@
 id: 11
 slug: github-issues-board-mirror
 title: GitHub board mirror — selectable board surfaces, one-way Issues + Projects mirror
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-06-12
 updated: 2026-06-14
@@ -11,10 +11,10 @@ related: [4, 10]
 adrs: [7]
 spec: docs/superpowers/specs/2026-06-14-github-issues-board-mirror-design.md
 plan: docs/superpowers/plans/2026-06-14-github-issues-board-mirror.md
-results:
+results: docs/results/2026-06-14-github-issues-board-mirror-results.md
 trivial: false
 branch: feat/github-issues-board-mirror
-pr:
+pr: https://github.com/danielhanold/docket/pull/11
 blocked_by:
 reconciled: true
 ---
