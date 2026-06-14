@@ -2,7 +2,7 @@
 id: 11
 slug: github-issues-board-mirror
 title: GitHub board mirror — selectable board surfaces, one-way Issues + Projects mirror
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-06-12
 updated: 2026-06-14
@@ -13,7 +13,7 @@ spec: docs/superpowers/specs/2026-06-14-github-issues-board-mirror-design.md
 plan:
 results:
 trivial: false
-branch:
+branch: feat/github-issues-board-mirror
 pr:
 blocked_by:
 reconciled: false
