@@ -1,15 +1,20 @@
 # Backlog
 
-**14 changes** — 🟡 5 proposed · ✅ 9 done
+**14 changes** — 🟢 1 in progress · 🟡 4 proposed · ✅ 9 done
 
-## 🟡 Proposed (5)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Spec | Branch |
+|---|-------|----------|------|--------|
+| [0011](active/0011-github-issues-board-mirror.md) | GitHub board mirror — selectable board surfaces, one-way Issues + Projects mirror | `medium` | [spec](../superpowers/specs/2026-06-14-github-issues-board-mirror-design.md) | `feat/github-issues-board-mirror` |
+
+## 🟡 Proposed (4)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
 | [0007](active/0007-recurring-change-templates.md) | Recurring change templates — scheduled maintenance work that spawns proposed instances | `medium` | needs-brainstorm |
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | needs-brainstorm |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | needs-brainstorm |
-| [0011](active/0011-github-issues-board-mirror.md) | GitHub board mirror — selectable board surfaces, one-way Issues + Projects mirror | `medium` | build-ready |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | needs-brainstorm |
 
 <details><summary>✅ Archive — done (9)</summary>
