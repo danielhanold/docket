@@ -1,6 +1,6 @@
 # Backlog
 
-**14 changes** — 🔵 1 implemented · 🟡 4 proposed · ✅ 9 done
+**17 changes** — 🔵 1 implemented · 🟡 7 proposed · ✅ 9 done
 
 ## 🔵 Implemented — awaiting merge (1)
 
@@ -8,7 +8,7 @@
 |---|-------|----------|----|
 | [0011](active/0011-github-issues-board-mirror.md) | GitHub board mirror — selectable board surfaces, one-way Issues + Projects mirror | `medium` | [#11](https://github.com/danielhanold/docket/pull/11) |
 
-## 🟡 Proposed (4)
+## 🟡 Proposed (7)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -16,6 +16,9 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | needs-brainstorm |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | needs-brainstorm |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | needs-brainstorm |
+| [0015](active/0015-finalize-rebase-retest-gate.md) | finalize — rebase onto base + re-run tests before merge | `medium` | needs-brainstorm |
+| [0016](active/0016-docket-subagent-model-effort.md) | docket skills as model/effort-pinned subagents — foundation | `medium` | build-ready |
+| [0017](active/0017-docket-subagent-composition-wiring.md) | docket subagent composition — nested status/adr/critic dispatch | `medium` | needs-brainstorm · waiting on #16 |
 
 <details><summary>✅ Archive — done (9)</summary>
 
