@@ -124,13 +124,59 @@ assert "emits a machine-readable mint line for newly created issues" \
   'echo "$out" | grep -qE "issue-minted 11 "'
 
 # === B. PROJECTS degradation =================================================
-# No --project given -> Projects skipped cleanly, issues still emitted, exit 0.
-bash "$SCRIPT" --dry-run --changes-dir "$tmp" --repo o/r >/dev/null 2>&1
+# No --project and no --auto-create -> Projects skipped cleanly, issues still emitted, exit 0.
+bash "$SCRIPT" --dry-run --changes-dir "$tmp" --repo o/r >/dev/null 2>&1; rcB=$?
 assert "exits 0 when no project is configured (Projects skipped, issues still mirrored)" \
-  '[ "$?" -eq 0 ]'
+  '[ "'$rcB'" -eq 0 ]'
+noproj="$(bash "$SCRIPT" --dry-run --changes-dir "$tmp" --repo o/r 2>&1)"
+assert "no project + no --auto-create-project: never mints a board" \
+  '! echo "$noproj" | grep -qE "project create"'
+assert "no project + no --auto-create-project: logs the skip notice" \
+  'echo "$noproj" | grep -qiF "no project configured"'
+
+# With an existing --project: link items, never create a board.
 projout="$(bash "$SCRIPT" --dry-run --changes-dir "$tmp" --repo o/r --project o/7 2>&1)"
-assert "with --project, constructs a GraphQL Projects call" \
-  'echo "$projout" | grep -qE "api graphql"'
+assert "with --project, adds mirrored issues to the board (item-add)" \
+  'echo "$projout" | grep -qE "project item-add 7 --owner o"'
+assert "with --project, links an existing issue by its URL" \
+  'echo "$projout" | grep -qF "https://github.com/o/r/issues/142"'
+assert "with --project, sets the item Status field (item-edit)" \
+  'echo "$projout" | grep -qE "project item-edit .*--single-select-option-id"'
+assert "with --project, never mints a board (only --auto-create-project does)" \
+  '! echo "$projout" | grep -qE "project create"'
+
+# === D. PROJECTS auto-create =================================================
+# --auto-create-project with no --project: mint a private board, seed the field, emit project-minted.
+autoout="$(bash "$SCRIPT" --dry-run --changes-dir "$tmp" --repo o/r --auto-create-project 2>&1)"
+assert "auto-create mints a board under the repo owner" \
+  'echo "$autoout" | grep -qE "project create --owner o"'
+assert "auto-create seeds a SINGLE_SELECT Status field with the five active statuses" \
+  'echo "$autoout" | grep -qE "project field-create .*--data-type SINGLE_SELECT" && echo "$autoout" | grep -qF "proposed,in-progress,blocked,deferred,implemented"'
+assert "auto-create emits a machine-readable project-minted line for write-back" \
+  'echo "$autoout" | grep -qE "project-minted o( |$)"'
+assert "auto-create then links the mirrored issues as items" \
+  'echo "$autoout" | grep -qE "project item-add DRYNUM --owner o"'
+# Capture first (don't pipe the live script into grep -q: grep exits on first match, the still-
+# writing script takes SIGPIPE, and pipefail would turn that 141 into a flaky failure).
+ownerout="$(bash "$SCRIPT" --dry-run --changes-dir "$tmp" --repo o/r --auto-create-project --project-owner acme 2>&1)"
+assert "auto-create respects --project-owner override" \
+  'echo "$ownerout" | grep -qE "project create --owner acme"'
+assert "terminal (done/killed) changes get no Status column value" \
+  '! echo "$autoout" | grep -qE "issues/(88|77)\""'
+
+# === E. WRONG-TREE GUARD =====================================================
+# An empty active/ next to a populated archive/ = the pruned integration-branch checkout signature.
+wrong="$(mktemp -d)"; mkdir -p "$wrong/active" "$wrong/archive"
+cp "$tmp/archive/2026-06-12-0006-donezo.md" "$wrong/archive/"
+guardout="$(bash "$SCRIPT" --dry-run --changes-dir "$wrong" --repo o/r 2>&1)"
+assert "warns when active/ is empty but archive/ is populated (wrong-tree footgun)" \
+  'echo "$guardout" | grep -qiE "integration-branch checkout|active.* is empty"'
+assert "guard still mirrors the archived changes (best-effort, never aborts)" \
+  'echo "$guardout" | grep -qE "issue edit 88"'
+rm -rf "$wrong"
+# A healthy tree (active/ populated) must NOT warn.
+assert "no wrong-tree warning when active/ is populated" \
+  '! echo "$out" | grep -qiF "integration-branch checkout"'
 
 # === C. REAL invocation through the mock gh (idempotent, best-effort) ========
 GH_LOG="$tmp/gh.log" GH="$mock/gh" bash "$SCRIPT" --changes-dir "$tmp" --repo o/r \
@@ -141,6 +187,24 @@ assert "mock gh actually received an issue create call" \
   'grep -qE "MOCKGH issue create" "$tmp/gh.log"'
 assert "mock gh received the close-completed call for the done change" \
   'grep -qE "MOCKGH issue close 88 .*--reason completed" "$tmp/gh.log"'
+
+# A change that is ALREADY terminal on its first sync (no issue: yet) must mint AND close in the
+# same pass — not be left open until a later run. The mock returns issue 4242 on create.
+fresh="$(mktemp -d)"; mkdir -p "$fresh/active" "$fresh/archive"
+cat > "$fresh/archive/2026-06-12-0003-fresh-done.md" <<'EOF'
+---
+id: 3
+slug: fresh-done
+title: A done change never mirrored before
+status: done
+priority: medium
+depends_on: []
+issue:
+EOF
+GH_LOG="$fresh/gh.log" GH="$mock/gh" bash "$SCRIPT" --changes-dir "$fresh" --repo o/r >/dev/null 2>&1
+assert "a freshly-minted done change is created AND closed-completed in the same pass" \
+  'grep -qE "MOCKGH issue create" "$fresh/gh.log" && grep -qE "MOCKGH issue close 4242 .*--reason completed" "$fresh/gh.log"'
+rm -rf "$fresh"
 
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
