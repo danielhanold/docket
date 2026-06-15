@@ -114,6 +114,8 @@ Idempotent: re-run after editing any layer. Unlike `link-skills.sh`'s symlinks, 
 
 **`--check` mode (CI gate).** `sync-agents.sh --check` re-resolves config and exits non-zero with a diff if any committed project-level agent file drifts from what the config would generate — guarding the reproducibility guarantee for per-repo overrides. Write mode and `--check` share one resolver so they cannot disagree.
 
+**Generation lifecycle — on-demand, not per-session.** `sync-agents.sh` runs **on demand**: at docket install time and whenever a config layer is edited — the same mental model as `link-skills.sh`. It does **not** hook into session start. Generated agents are copies (they bake resolved model/effort, so they can't symlink-track config the way skills do), but the committed project-level agents are exactly what gives per-repo overrides their reproducibility — silently regenerating them every session would mutate committed files out of band and race the commits that make the override clone-identical. The drift backstop is therefore **CI `--check`**, not a session hook: edit config → run `sync-agents.sh` → commit; CI fails if committed agents fall out of sync. (A per-session refresh scoped to the user-level `~/.claude/agents/` layer only would be safe, but is out of scope — optional polish, not core.)
+
 ## 9. Testing strategy
 
 Following `tests/test_link_skills.sh`'s seam (`DOCKET_HARNESS_ROOT` overrides `$HOME`):
@@ -131,6 +133,7 @@ Following `tests/test_link_skills.sh`'s seam (`DOCKET_HARNESS_ROOT` overrides `$
 - **Generator:** a separate `sync-agents.sh`, not an extension of `link-skills.sh`.
 - **Global file:** `~/.config/docket/agents.yaml` (XDG); no broader global docket config file is introduced.
 - **`--check` mode:** in scope — CI gate asserting committed project-level agents match resolved config.
+- **Generation lifecycle:** on-demand (install / config-change), no session hook; CI `--check` is the drift backstop.
 
 Remaining for plan time:
 
