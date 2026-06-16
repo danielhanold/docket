@@ -5,24 +5,44 @@ Change: #11 · Branch: feat/github-issues-board-mirror · PR: #11 · Plan: docs/
 
 The automated suite only exercises `scripts/github-mirror.sh` command construction against a
 mocked `gh` in `--dry-run` (no live GitHub — the suite runs against the integration-branch
-checkout). Live behavior must be checked at the merge gate with a real `gh` token:
+checkout). Live behavior must be checked at the merge gate with a real `gh` token.
 
-- [ ] On a test repo, set `board_surfaces: [inline, github]` and run `docket-status`; confirm one
-      issue is minted per change with the one-way banner, `docket:`-namespaced labels, and the
-      artifact hrefs, and that the change file's `issue:` is recorded on `docket`.
-- [ ] Re-run `docket-status`; confirm it **edits** (no duplicate issues) — idempotency holds.
-- [ ] Drive a change to `done` and one to `killed`; confirm the issues close as **completed** and
-      **not planned** respectively, and that no `Closes #N` ever appeared in a PR body.
-- [ ] With a `project`-scoped token, run `docket-status` with `github_project` unset; confirm the
-      private Projects v2 board auto-creates (via `--auto-create-project`), `project-minted` is
-      recorded as `github_project` in `.docket.yml` on the default branch, the **"Docket Status"**
-      single-select field carries the five active statuses, and each issue is added as an item with
-      the right Status. Re-run with `github_project` set; confirm it links items (no second board).
-      With a token lacking `project` scope, confirm Projects is skipped and Issues still mirror.
-      **Live-only checks** (the mock suite can't reach these): that "Docket Status" doesn't collide
-      with a project's default field, and that `gh project create` lands the board private.
+**Live run — 2026-06-15, scratch repo `danielhanold/docket-mirror-test` + auto-created board
+`users/danielhanold/projects/1` (both since torn down).** Ran the bare script against the real
+`.docket/docs/changes` with `--auto-create-project` and a `project`-scoped token. Confirmed:
+
+- [x] Issues minted one-per-change with the one-way banner and `docket:`-namespaced labels,
+      including the computed readiness/waiting labels (`needs-brainstorm`, `build-ready`,
+      `waiting/not-yet-built`). (`issue:` write-back is the `docket-status` Board pass's job, not
+      the bare script's — see below; persistence itself unchanged from prior passes.)
+- [x] `done` changes closed as **completed** in the **same first pass** (close-on-first-mint fix),
+      and no `Closes #N` appears anywhere.
+- [x] Projects auto-create: a **private** board minted under the repo owner; the **"Docket Status"**
+      single-select field carried the five active statuses with **no collision** with the built-in
+      "Status" field; every issue added as an item; active items set to the right Docket Status
+      (proposed×4, implemented×1) and terminal items correctly left with no Docket Status value.
+- [x] `project-minted <owner> <number>` emitted for the `.docket.yml` write-back.
+
+Still to verify (out of scope for that run):
+
+- [ ] **Idempotency re-run** — confirm a second pass **edits** (no duplicate issues/items) once
+      `issue:`/`github_project` are persisted. Covered by the mock suite (create-vs-update keyed on
+      `issue:`); not re-run live this round.
+- [ ] **`killed` → not planned** — no `killed` change exists in the backlog, so the not-planned
+      close reason is mock-verified only.
+- [ ] **`.docket.yml` write-back path** — the `docket-status` Board pass persisting `project-minted`
+      into `.docket.yml` on the default branch (the bare script does no git writes by contract).
+- [ ] **Degradation** — token lacking `project` scope skips Projects, keeps Issues (seen
+      incidentally before the scope was added; worth an explicit pass).
 - [ ] Set `board_surfaces: []` and confirm the Board pass is a clean no-op (no `BOARD.md`, no
       mirror) and nothing authoritative is lost.
+
+**Known board wart (decision: keep separate field).** An auto-created ProjectV2 keeps its built-in
+"Status" field (Todo/In Progress/Done), and the project's **default view groups by it** — so our
+"Docket Status" column isn't what a human sees first until they switch the view's group-by. We
+keep the separate, collision-proof "Docket Status" field deliberately; repurposing the built-in
+field was rejected (fragile, re-introduces the collision). Switching the default view is a
+one-time human step.
 
 ## Findings
 
