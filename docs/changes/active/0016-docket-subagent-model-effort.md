@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/docket-subagent-model-effort
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Why
@@ -75,8 +75,42 @@ pinned model/effort.
 
 ## Open questions
 
-- Exact harness agent-dir list `sync-agents.sh` writes into (mirror
-  `link-skills.sh`'s `HARNESS_SKILL_DIRS`, swapping `skills` → `agents`).
+- ~~Exact harness agent-dir list `sync-agents.sh` writes into~~ — **resolved
+  (reconcile 2026-06-16):** mirror `link-skills.sh`'s `HARNESS_SKILL_DIRS`,
+  swapping `skills` → `agents`; write only into harness roots that already exist;
+  per-repo overrides target `<repo>/.claude/agents/` (the only project-over-user
+  harness).
 - Whether the agent-layer convention warrants its own ADR (decide at build).
 
 ## Reconcile log
+
+### 2026-06-16 — reconcile before build (implement-next)
+
+Verified the spec against `origin/main` (`e5ca467`); the design holds and nothing
+was built elsewhere. Notes:
+
+- **Code assumptions confirmed.** `link-skills.sh` exists with `HARNESS_SKILL_DIRS`
+  (6 entries: `.claude`/`.codex`/`.cursor`/`.agents`/`.kiro`/`.windsurf` `+/skills`)
+  and the `DOCKET_HARNESS_ROOT` test seam; `tests/test_link_skills.sh` exercises
+  that seam exactly as §9 describes; all 5 autonomous + 2 interactive skills exist
+  under `skills/`; there is **no `agents/` dir** and **no `agents:` block** in
+  `.docket.yml` yet — clean slate.
+- **Open question #1 resolved (harness agent-dir list).** Mirror `link-skills.sh`'s
+  `HARNESS_SKILL_DIRS` swapping `skills`→`agents`: `~/.claude/agents`,
+  `~/.codex/agents`, `~/.cursor/agents`, `~/.agents/agents`, `~/.kiro/agents`,
+  `~/.windsurf/agents` — write only into harness roots that already exist. The
+  per-repo override pass targets `<repo>/.claude/agents/` specifically (the only
+  harness with project-over-user precedence).
+- **Scope tightened: 5 wrapper files in 0016.** One wrapper per autonomous skill
+  (`docket-implement-next`, `docket-auto-groom`, `docket-finalize-change`,
+  `docket-status`, `docket-adr`). The §4 table's separate auto-groom *critic* row
+  is **not** a distinct file in 0016 — 0016 never spawns it; per spec §10 the
+  critic-file-vs-variant question is settled in 0017's rewiring.
+- **Related/archived: no conflict.** 0015 (proposed) consumes the abort-and-report
+  + fan-out patterns later; 0017 (proposed, `depends_on: 16`) is the explicit
+  composition follow-on, out of scope here. Most-recent archive 0011 (github
+  mirror) is orthogonal — the `agents:` addition to `.docket.yml`/convention is
+  purely additive alongside `board_surfaces`.
+- **ADR (open question #2) deferred to build/review** per the spec — likely
+  warranted for the separate-generator and committed-project-override-for-
+  reproducibility decisions; recorded via `docket-adr` at step 6 if so.

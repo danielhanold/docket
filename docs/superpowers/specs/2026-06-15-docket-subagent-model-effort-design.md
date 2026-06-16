@@ -137,8 +137,8 @@ Following `tests/test_link_skills.sh`'s seam (`DOCKET_HARNESS_ROOT` overrides `$
 
 Remaining for plan time:
 
-- Exact harness agent-dir list `sync-agents.sh` writes into (mirror `link-skills.sh`'s `HARNESS_SKILL_DIRS`, swapping `skills` → `agents`).
-- Whether `auto-groom`'s critic is a distinct committed wrapper file or a variant the skill spawns — settled with 0017's rewiring, since 0016 doesn't yet spawn it.
+- ~~Exact harness agent-dir list `sync-agents.sh` writes into~~ — **resolved at reconcile (2026-06-16):** mirror `link-skills.sh`'s `HARNESS_SKILL_DIRS` swapping `skills` → `agents` (`.claude`/`.codex`/`.cursor`/`.agents`/`.kiro`/`.windsurf` `+/agents`); write only into harness roots that already exist; the per-repo override pass targets `<repo>/.claude/agents/`.
+- ~~Whether `auto-groom`'s critic is a distinct committed wrapper file or a variant~~ — **scoped at reconcile (2026-06-16):** 0016 ships **5 wrapper files**, one per autonomous skill (`docket-implement-next`, `docket-auto-groom`, `docket-finalize-change`, `docket-status`, `docket-adr`); the separate critic wrapper is **not** generated here (0016 never spawns it) and is settled with 0017's rewiring.
 
 ## 11. Scope
 
