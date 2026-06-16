@@ -81,6 +81,14 @@ assert "auto keeps the built-in model" '[ "$(fm "$SBX/.claude/agents/docket-impl
 assert "unlisted skill keeps built-in model+effort" '[ "$(fm "$SBX/.claude/agents/docket-adr.md" model)/$(fm "$SBX/.claude/agents/docket-adr.md" effort)" = "sonnet/medium" ]'
 rm -rf "$SBX"
 
+# -- global keys are top-level only: an indented decoy must not shadow the real top-level key --
+make_sandbox
+mkdir -p "$SBX/.config/docket"
+printf 'decoy:\n  status: { model: haiku }\nstatus: { model: fable }\n' > "$SBX/.config/docket/agents.yaml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null )
+assert "global match anchors at top level (indented decoy ignored)" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "fable" ]'
+rm -rf "$SBX"
+
 # -- per-repo layer: .docket.yml agents: => committed project-level files --
 # Decouple the harness root from the repo so <repo>/.claude/agents holds ONLY project-level output
 # (else the user-level pass writes verbatim copies there and masks a too-eager per-repo pass).

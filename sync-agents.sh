@@ -52,21 +52,25 @@ short_name(){ local b; b="$(basename "$1")"; b="${b#docket-}"; printf '%s' "${b%
 # Print the single config line for <name> from <file>, optionally only within an `agents:` block.
 # Captures each pipeline stage into a variable (never `producer | grep -q`) to stay SIGPIPE-safe.
 entry_line() {  # $1=file  $2=name  $3=under_block(0|1)
-  local file="$1" name="$2" under="$3" body stripped matched
+  local file="$1" name="$2" under="$3" body stripped anchor matched
   [ -f "$file" ] || return 0
   if [ "$under" = "1" ]; then
     body="$(awk '/^agents:[[:space:]]*$/{f=1;next} f&&/^[^[:space:]#]/{f=0} f{print}' "$file")"
+    anchor="^[[:space:]]*"   # block entries are indented under `agents:`
   else
     body="$(cat "$file")"
+    anchor="^"               # global entries are top-level (column 0) only; an indented decoy must not shadow
   fi
   stripped="$(printf '%s\n' "$body" | sed 's/#.*//')"
-  matched="$(printf '%s\n' "$stripped" | grep -E "^[[:space:]]*${name}[[:space:]]*:" || true)"
-  printf '%s\n' "$matched" | head -n1
+  matched="$(printf '%s\n' "$stripped" | grep -E "${anchor}${name}[[:space:]]*:" || true)"
+  head -n1 <<<"$matched"     # here-string, not `producer | head` (SIGPIPE-safe under pipefail)
 }
 
 # Extract one field value (model/effort) from a config entry line. Empty if absent.
 field_of() {  # $1=line  $2=field
-  printf '%s' "$1" | sed -nE "s/.*[{,[:space:]]${2}[[:space:]]*:[[:space:]]*([A-Za-z0-9._-]+).*/\1/p" | head -n1
+  local out
+  out="$(printf '%s' "$1" | sed -nE "s/.*[{,[:space:]]${2}[[:space:]]*:[[:space:]]*([A-Za-z0-9._-]+).*/\1/p")"
+  head -n1 <<<"$out"
 }
 
 # Names listed under <file>'s `agents:` block, one per line.
