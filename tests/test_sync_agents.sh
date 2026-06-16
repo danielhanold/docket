@@ -122,4 +122,15 @@ chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check 2>&1)"; 
 assert "--check passes when no agents: block (rc=0)" '[ "$chk_rc" = "0" ]'
 rm -rf "$SBX"
 
+# ---- Task 5: docket-convention documents the agent layer -------------------
+CONV="$REPO/skills/docket-convention/SKILL.md"
+assert "convention documents the agents: config block" 'grep -q "agents:" "$CONV"'
+assert "convention names the generator sync-agents.sh" 'grep -q "sync-agents.sh" "$CONV"'
+assert "convention states the precedence" 'grep -qi "per-repo > global > built-in" "$CONV"'
+assert "convention states auto => omit effort" 'grep -qi "auto" "$CONV" && grep -qi "omit" "$CONV"'
+assert "convention states abort-and-report for autonomous subagents" 'grep -qi "abort-and-report" "$CONV"'
+assert "convention points at composition (0017)" 'grep -q "0017" "$CONV"'
+# Non-vacuous guard: the agent section must be a distinct heading, not an incidental word.
+assert "convention has an agent-layer section heading" 'grep -qiE "^#+ .*(agent layer|model/effort|subagent)" "$CONV"'
+
 exit $fail

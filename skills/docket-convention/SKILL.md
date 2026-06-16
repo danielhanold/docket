@@ -25,11 +25,39 @@ results_dir: docs/results    # default  — close-out 'results' artifacts (build
 auto_groom: false            # repo default for autonomous grooming; per-change auto_groomable overrides
 board_surfaces: [inline]     # which derived board view(s) to render: inline (BOARD.md) and/or github; [] = none
 github_project:              # {owner, number} of the auto-managed Projects v2 board; unset ⇒ auto-create on first github sync
+agents:                      # per-skill subagent model/effort (change 0016); see "Agent layer" below
 ```
 
 `.docket.yml` lives on the repo's **default branch (`origin/HEAD`)**, NOT on the integration branch — `integration_branch` is a value *read from* the file, so the file cannot be located *by* it. The default branch is discoverable with zero prior config, but `origin/HEAD` is not reliably populated, so skills **repair it first**: `git remote set-head origin -a`, then resolve `git symbolic-ref refs/remotes/origin/HEAD`. Read config authoritatively via `git show origin/HEAD:.docket.yml` (after a fetch); the working-tree copy is trusted only on the default branch's *primary* checkout. **A ref-unresolvable `origin/HEAD` ≠ a file-absent default branch:** if `origin/HEAD` resolves but the file is genuinely absent ⇒ defaults apply (`metadata_branch: docket`, `integration_branch: auto`); if `origin/HEAD` is unresolvable or `origin` is unreachable ⇒ do **not** assume defaults (abort with a clear error, keying on the `set-head`/fetch return code, never on `git show` — a cached `origin/HEAD` lets `git show` succeed with stale bytes). The file then **declares `integration_branch`**, which may differ from the default branch (default `main`, integration `develop`). `metadata_branch` resolves where PM commits land; `integration_branch` (default `auto` → `origin/HEAD`, fallback `main`; explicit `main`/`develop` verbatim) resolves where code lands — feature branches always cut from `origin/<integration_branch>`. **Backward-compatible opt-out:** pinning `metadata_branch: main` (with `integration_branch: main`) reproduces today's single-branch behavior exactly — no `docket` branch, no `.docket/` worktree.
 
 **`board_surfaces` — the board as 0..n derived views.** The board is a *derived view* over the change files; `board_surfaces` lists which surfaces to render. Members: `inline` (the committed, offline-safe `BOARD.md`) and `github` (the one-way Issues + Projects v2 mirror, see *GitHub board mirror*). Default `[inline]` — backward-compatible, and `github` is strictly opt-in (an existing repo never starts minting issues until it asks). `[inline, github]` renders both; `[github]` is GitHub-only; **`[]` disables the board entirely** — no `BOARD.md`, no mirror, the change files plus git history remain the only (and fully authoritative) record. An unknown token is warned-and-ignored (a typo must never abort a build); a non-GitHub remote silently drops `github`. `github_project` is consulted only when `github` is enabled, and is minted-and-written-back on first sync if unset (see *GitHub board mirror*).
+
+### Agent layer — model/effort-pinned subagents (change 0016)
+
+Each **autonomous** docket skill can run as a model/effort-pinned **subagent** instead of inline at the session model. Five skills get a wrapper — `docket-implement-next`, `docket-auto-groom`, `docket-finalize-change`, `docket-status`, `docket-adr`; the two **interactive** skills (`docket-new-change`, `docket-groom-next`) stay inline and only surface an **advisory** recommended model/effort at startup (a skill cannot force the session model). `docket-convention` is not an agent — it is injected into every wrapper via `skills:`.
+
+A wrapper is a thin file: it pins `model` + `effort`, injects the skill via `skills: [<skill>, docket-convention]`, and adds a one-line directive. The skill body stays the single source of behavior. Because a subagent cannot pause to ask a human, every autonomous wrapper carries an **abort-and-report** rule: an unmet precondition or blocking ambiguity (e.g. finalize finding a PR not actually approved, a merge conflict, or a dirty worktree) is surfaced and stopped on — never turned into an interactive prompt.
+
+**Layered config (precedence: per-repo > global > built-in).** Frontmatter is static, so configurability is a **generator** — `sync-agents.sh` — that resolves layers and writes agent files (generated copies it owns and overwrites, unlike `link-skills.sh`'s symlinks):
+
+| Layer | Source | Generates |
+|---|---|---|
+| Built-in | `agents/docket-*.md` shipped in docket (each ships its default model/effort) | — |
+| Global | `~/.config/docket/agents.yaml` (optional, XDG) | user-level `~/.claude/agents/docket-*.md` |
+| Per-repo | `.docket.yml` `agents:` block (committed) | **project-level** `<repo>/.claude/agents/docket-*.md` |
+
+```yaml
+agents:
+  implement-next: { model: opus,   effort: xhigh }
+  status:         { model: sonnet, effort: medium }
+  # unlisted -> built-in default; effort: auto (or omitted) -> omit the effort line (inherit model default)
+```
+
+User-level files are built-in ⊕ global; project-level files are built-in ⊕ per-repo. Claude Code applies **project-over-user precedence natively**, so the effective order is per-repo > global > built-in without the generator merging three layers per file — and because the per-repo overrides generate **committed** project-level files, the same autonomous change builds on the same model for every clone (the reproducibility guarantee). An agent with neither a built-in nor a config entry defaults to `model: inherit` with no `effort`.
+
+`sync-agents.sh` runs **on demand** (install time, and after editing any config layer) — the same mental model as `link-skills.sh`; it does NOT hook session start (silently regenerating committed files out of band would race the commits that make overrides clone-identical). The drift backstop is **`sync-agents.sh --check`**, a CI gate that exits non-zero with a diff when committed project-level files fall out of sync with the resolved config.
+
+**Composition (built in change 0017).** Nesting lets sub-invocations run at their own models: `docket-implement-next` will spawn `docket-status` (step 0) and `docket-adr` (step 6) as nested subagents, and `docket-auto-groom` will spawn its critic. Until 0017 lands those sub-invocations still run inline at the parent's model; 0016 only establishes the wrappers, config, and generator so standalone invocation works.
 
 ### Directory layout (paths relative to the configured knobs)
 
