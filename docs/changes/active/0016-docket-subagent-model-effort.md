@@ -8,7 +8,7 @@ created: 2026-06-15
 updated: 2026-06-16
 depends_on: []
 related: [15, 17]
-adrs: []
+adrs: [8]
 spec: docs/superpowers/specs/2026-06-15-docket-subagent-model-effort-design.md
 plan: docs/superpowers/plans/2026-06-16-docket-subagent-model-effort.md
 results:
