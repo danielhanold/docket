@@ -114,3 +114,12 @@ was built elsewhere. Notes:
 - **ADR (open question #2) deferred to build/review** per the spec — likely
   warranted for the separate-generator and committed-project-override-for-
   reproducibility decisions; recorded via `docket-adr` at step 6 if so.
+
+### 2026-06-16 — post-review addition (install.sh)
+
+Adding `sync-agents.sh` made machine install a two-script step (it was one,
+`link-skills.sh`, before this change) — a DX regression flagged in review. Added an
+umbrella **`install.sh`** that runs both primitives in order (idempotent), plus
+`tests/test_install.sh` and a rewritten README Install section leading with the
+one command. `migrate-to-docket.sh` stays out (per-repo migration, not machine
+setup). The two primitives remain callable directly. Pushed to PR #30.
