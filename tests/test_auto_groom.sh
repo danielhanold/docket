@@ -48,6 +48,8 @@ assert "auto-groom: designer reads the learnings ledger" \
   'grep -qF "LEARNINGS.md" "$AG"'
 assert "auto-groom: critic is a fresh subagent, not the designer" \
   'grep -qF "fresh subagent" "$AG"'
+assert "auto-groom: step 3 dispatches the named docket-auto-groom-critic subagent" \
+  'grep -qF "docket-auto-groom-critic" "$AG"'
 assert "auto-groom: critic gates trivial verdicts too" \
   'grep -qF "trivial verdicts alike" "$AG"'
 assert "auto-groom: kill and defer are never autonomous" \

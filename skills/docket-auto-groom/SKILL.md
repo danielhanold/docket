@@ -39,7 +39,7 @@ Read the stub body, its `related`/`depends_on` neighbours (active + recently arc
 
 ### Step 3 — Critic pass
 
-Dispatch a **fresh subagent** (never the designer reviewing itself) to adversarially attack the draft — specs and trivial verdicts alike. Per assumption, one verdict: **sound** (stands) · **wrong but fixable from available context** (designer revises; ONE bounded revision round; the critic re-checks only the revised items) · **needs human context** (⇒ the whole groom abstains — a spec must only be emitted when every decision in it is safe to auto-commit, because emission = build-ready = the autonomous builder will build it).
+Dispatch the dedicated **`docket-auto-groom-critic`** subagent (foreground, pinned opus/xhigh via its wrapper) — a fresh subagent (never the designer reviewing itself), isolated in its own context, loading only `docket-convention` and never this designer skill — to adversarially attack the draft — specs and trivial verdicts alike. Per assumption, one verdict: **sound** (stands) · **wrong but fixable from available context** (designer revises; ONE bounded revision round; the critic re-checks only the revised items) · **needs human context** (⇒ the whole groom abstains — a spec must only be emitted when every decision in it is safe to auto-commit, because emission = build-ready = the autonomous builder will build it).
 
 ### Step 4 — Exit (one of three)
 
