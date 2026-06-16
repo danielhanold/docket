@@ -10,7 +10,7 @@ depends_on: [16]
 related: [15, 16]
 adrs: []
 spec: docs/superpowers/specs/2026-06-16-docket-subagent-composition-wiring-design.md
-plan:
+plan: docs/superpowers/plans/2026-06-16-docket-subagent-composition-wiring.md
 results:
 trivial: false
 auto_groomable:
