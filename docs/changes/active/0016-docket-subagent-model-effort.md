@@ -2,10 +2,10 @@
 id: 16
 slug: docket-subagent-model-effort
 title: docket skills as model/effort-pinned subagents — foundation
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-06-15
-updated: 2026-06-15
+updated: 2026-06-16
 depends_on: []
 related: [15, 17]
 adrs: []
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/docket-subagent-model-effort
 pr:
 blocked_by:
 reconciled: false
