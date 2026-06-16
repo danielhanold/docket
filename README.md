@@ -56,9 +56,12 @@ Place the docket repo at `~/dev/docket` (the source of truth the symlinks point 
 
 ```bash
 bash ~/dev/docket/link-skills.sh
+bash ~/dev/docket/sync-agents.sh
 ```
 
 `link-skills.sh` creates absolute symlinks from each present harness's global skill directory back to `~/dev/docket/skills/<name>`. It only writes into harness directories that already exist on your machine; it is idempotent and safe to re-run after adding a new harness. Skills are installed once and available in every project you open.
+
+`sync-agents.sh` generates docket's model/effort-pinned subagent wrappers from layered config (built-in defaults ⊕ `~/.config/docket/agents.yaml` ⊕ a repo's `.docket.yml agents:` block) into each present harness's `agents/` directory, and writes committed project-level wrappers for any repo that pins per-skill overrides. Unlike the symlinks `link-skills.sh` creates, these are generated copies — re-run it after editing any config layer, and run `sync-agents.sh --check` in CI to fail on drift.
 
 The change data — `docs/changes/`, `docs/adrs/`, `docs/results/` — lives per consuming project, not in the docket repo itself.
 
@@ -71,6 +74,7 @@ integration_branch: auto     # auto (default → origin/HEAD, fallback main) | m
 changes_dir: docs/changes    # default
 adrs_dir: docs/adrs          # default
 results_dir: docs/results    # default
+agents:                      # per-skill subagent model/effort (see "Agent layer" in docket-convention)
 ```
 
 With no `.docket.yml` at all, docket runs in its default **docket-mode** (`metadata_branch: docket`, `integration_branch: auto`). See the **docket-mode** section below for what that means and how to opt out.
