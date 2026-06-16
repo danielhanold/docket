@@ -1,8 +1,14 @@
 # Backlog
 
-**17 changes** — 🟡 7 proposed · ✅ 10 done
+**17 changes** — 🟢 1 in progress · 🟡 6 proposed · ✅ 10 done
 
-## 🟡 Proposed (7)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Spec | Branch |
+|---|-------|----------|------|--------|
+| [0016](active/0016-docket-subagent-model-effort.md) | docket skills as model/effort-pinned subagents — foundation | `medium` | [spec](../superpowers/specs/2026-06-15-docket-subagent-model-effort-design.md) | `feat/docket-subagent-model-effort` |
+
+## 🟡 Proposed (6)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -11,7 +17,6 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | needs-brainstorm |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | needs-brainstorm |
 | [0015](active/0015-finalize-rebase-retest-gate.md) | finalize — rebase onto base + re-run tests before merge | `medium` | needs-brainstorm |
-| [0016](active/0016-docket-subagent-model-effort.md) | docket skills as model/effort-pinned subagents — foundation | `medium` | build-ready |
 | [0017](active/0017-docket-subagent-composition-wiring.md) | docket subagent composition — nested status/adr/critic dispatch | `medium` | needs-brainstorm · waiting on #16 |
 
 <details><summary>✅ Archive — done (10)</summary>
