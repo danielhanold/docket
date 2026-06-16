@@ -4,6 +4,20 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-06-16 (#11, PR #11) — A test piped a live-producing script straight into `grep -q`; grep
+  exits on first match, the still-writing producer takes SIGPIPE, and `pipefail` turned that 141
+  into an intermittent failure. Apply: capture a producer's output into a variable first, then
+  grep the variable — never `producer | grep -q` under `set -o pipefail`.
+- 2026-06-16 (#11, PR #11) — A derived-surface mirror keyed idempotency on a persisted change-file
+  field but did no git writes itself, so a bare run (outside the orchestrating pass that records
+  the field) re-created every time — and it was pointed at the integration checkout where `active/`
+  is pruned, so it only saw archived changes. Apply: a script that reads change files must read the
+  metadata working tree (guard the pruned tree) and is idempotent only via the orchestrating pass's
+  write-back — drive it through that pass, never bare.
+- 2026-06-16 (#11, PR #11) — First-sync close-state keyed on the *pre-existing* id field (empty on
+  a fresh mint), so an already-terminal item was created open and only closed on a later pass.
+  Apply: when a create-and-set-state pass mints an id, key the state write on the effective id
+  (existing OR just-minted), not the stored field.
 - 2026-06-12 (#14, PR #10) — A plan's order assertion compared `grep -n` line numbers, which
   cannot order two phrases inside one paragraph; the implementer "satisfied" it by splitting a
   sentence mid-paragraph. Apply: order-assert with byte offsets (`grep -ob`) when both anchors
