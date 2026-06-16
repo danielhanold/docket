@@ -108,6 +108,14 @@ chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check 2>&1)"; 
 assert "--check fails on drift (rc!=0)" '[ "$chk_rc" != "0" ]'
 assert "--check reports a diff" 'printf "%s" "$chk_out" | grep -q "drift"'
 
+# Committed file entirely absent (--check before sync-agents.sh ever ran) -> drift.
+make_sandbox
+printf 'agents:\n  status: { model: sonnet, effort: high }\n' > "$SBX/.docket.yml"
+# intentionally do NOT generate; $SBX/.claude/agents/docket-status.md does not exist
+chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check 2>&1)"; chk_rc=$?
+assert "--check fails when committed file is missing (rc!=0)" '[ "$chk_rc" != "0" ]'
+assert "--check reports missing-file drift" 'printf "%s" "$chk_out" | grep -q "drift"'
+
 # A repo with no agents: block has nothing to check -> passes.
 rm -f "$SBX/.docket.yml"; : > "$SBX/.docket.yml"
 chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check 2>&1)"; chk_rc=$?
