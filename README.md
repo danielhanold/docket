@@ -55,10 +55,15 @@ docket is a lifecycle wrapper around superpowers, not a replacement for it. supe
 Place the docket repo at `~/dev/docket` (the source of truth the symlinks point back to), then run:
 
 ```bash
-bash ~/dev/docket/link-skills.sh
+bash ~/dev/docket/install.sh
 ```
 
-`link-skills.sh` creates absolute symlinks from each present harness's global skill directory back to `~/dev/docket/skills/<name>`. It only writes into harness directories that already exist on your machine; it is idempotent and safe to re-run after adding a new harness. Skills are installed once and available in every project you open.
+That's the whole install. `install.sh` runs the two primitives in order — and is idempotent, so re-run it any time (after adding a harness, or after editing `~/.config/docket/agents.yaml`):
+
+- **`link-skills.sh`** creates absolute symlinks from each present harness's global skill directory back to `~/dev/docket/skills/<name>`. It only writes into harness directories that already exist on your machine. Skills are symlinks, so editing one in the repo is picked up everywhere immediately.
+- **`sync-agents.sh`** generates docket's model/effort-pinned subagent wrappers from layered config (built-in defaults ⊕ `~/.config/docket/agents.yaml` ⊕ a repo's `.docket.yml agents:` block) into each present harness's `agents/` directory, and writes committed project-level wrappers for any repo that pins per-skill overrides. Unlike the skill symlinks, these are generated **copies** (they bake in resolved model/effort), so re-run after editing any config layer — `install.sh` does this for you, or call `sync-agents.sh` directly. Run `sync-agents.sh --check` in CI to fail on drift.
+
+(You can still run either primitive on its own — `install.sh` just saves you from remembering both.) Migrating an *existing* repo to docket-mode is a separate step — `migrate-to-docket.sh`, run from inside that repo — not part of this machine install.
 
 The change data — `docs/changes/`, `docs/adrs/`, `docs/results/` — lives per consuming project, not in the docket repo itself.
 
@@ -71,6 +76,7 @@ integration_branch: auto     # auto (default → origin/HEAD, fallback main) | m
 changes_dir: docs/changes    # default
 adrs_dir: docs/adrs          # default
 results_dir: docs/results    # default
+agents:                      # per-skill subagent model/effort (see "Agent layer" in docket-convention)
 ```
 
 With no `.docket.yml` at all, docket runs in its default **docket-mode** (`metadata_branch: docket`, `integration_branch: auto`). See the **docket-mode** section below for what that means and how to opt out.
@@ -171,7 +177,7 @@ On a **terminal transition** — a change reaching `done` (PR merged) or `killed
 
 ### Migrating an existing repo
 
-A repo that has been running in single-branch mode (everything on `main`) moves to docket-mode with a one-shot, idempotent script: **`migrate-to-docket.sh`** (it ships in this docket repo, alongside `link-skills.sh`). The script operates on the git repo containing your **current directory** — so run it *from within the repo you want to migrate*, pointing at the script wherever docket is checked out:
+A repo that has been running in single-branch mode (everything on `main`) moves to docket-mode with a one-shot, idempotent script: **`migrate-to-docket.sh`** (it ships in this docket repo, alongside `link-skills.sh` and `sync-agents.sh`). The script operates on the git repo containing your **current directory** — so run it *from within the repo you want to migrate*, pointing at the script wherever docket is checked out:
 
 ```bash
 cd <target-repo>

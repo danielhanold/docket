@@ -16,6 +16,10 @@ description: Use when stubs are sitting at needs-brainstorm on the docket board 
 - Do NOT use to capture a brand-new idea — that is `docket-new-change`'s job; this skill never mints ids.
 - Do NOT use to re-groom a change that already has a spec — drift against current reality is the reconcile pass's job in `docket-implement-next`. A human who wants to redo a design can clear `spec:` by hand first.
 
+## Recommended model/effort (advisory)
+
+This skill grooms interactively with a human, so it cannot be a fire-and-forget subagent and cannot force the session model. **Recommended: `sonnet` / `high`** (the cold-start recap is genuine synthesis). Set `/model sonnet` and `/effort high` to match; this is advisory only — the human owns the session.
+
 ## Convention (load first — blocking)
 
 Before anything else in this skill, invoke the `docket-convention` skill via the Skill tool — unless it was already invoked earlier in this session and its content is in context. Everything below uses its vocabulary (needs-brainstorm, build-ready, metadata working tree, the bootstrap probes, …) without redefinition; no step below is executable without the convention loaded.

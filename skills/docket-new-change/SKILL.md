@@ -16,6 +16,10 @@ description: Use when capturing a new unit of planned work (a change, roughly on
 - You want to quickly stub several `proposed` candidates without brainstorming yet (scan mode — opt-in).
 - A trivial mechanical change needs to be tracked but has no real design questions (trivial path).
 
+## Recommended model/effort (advisory)
+
+This skill brainstorms with a human, so it cannot be a fire-and-forget subagent and cannot force the session model. **Recommended: `sonnet`, effort: model default** (wide variance from a trivial stub to a full brainstorm). Set `/model sonnet` to match; this is advisory only — the human owns the session.
+
 ## Convention (load first — blocking)
 
 Before anything else in this skill, invoke the `docket-convention` skill via the Skill tool — unless it was already invoked earlier in this session and its content is in context. Everything below uses its vocabulary (build-ready, metadata working tree, terminal-publish, the `DOCKET`/`LIVE` bootstrap probes, …) without redefinition; no step below is executable without the convention loaded.
