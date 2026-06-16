@@ -46,4 +46,50 @@ assert "adr built-in = sonnet/medium" \
 assert "no wrapper for new-change (advisory)" '[ ! -f "$AGENTS/docket-new-change.md" ]'
 assert "no wrapper for groom-next (advisory)" '[ ! -f "$AGENTS/docket-groom-next.md" ]'
 
+# ---- Task 2: sync-agents.sh generator --------------------------------------
+SYNC="$REPO/sync-agents.sh"
+assert "sync-agents.sh exists and is executable-by-bash" '[ -f "$SYNC" ]'
+
+# Helper: a fresh fake harness root + repo for an isolated generator run.
+make_sandbox(){ SBX="$(mktemp -d)"; mkdir -p "$SBX/.claude" "$SBX/.agents"; }   # .cursor/.codex/.kiro/.windsurf absent on purpose
+
+# -- user-level install: built-in wrappers, verbatim, into present harnesses --
+make_sandbox
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null )
+assert "writes into present .claude/agents" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
+assert "writes into present .agents/agents" '[ -f "$SBX/.agents/agents/docket-status.md" ]'
+assert "all 5 wrappers land in .claude/agents" '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "5" ]'
+assert "does NOT create an absent harness (.cursor)" '[ ! -d "$SBX/.cursor/agents" ]'
+assert "no override => byte-identical to built-in source" 'diff -q "$REPO/agents/docket-status.md" "$SBX/.claude/agents/docket-status.md" >/dev/null'
+
+# -- idempotency: second run is byte-identical ----
+before="$(cat "$SBX/.claude/agents/docket-implement-next.md")"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null )
+after="$(cat "$SBX/.claude/agents/docket-implement-next.md")"
+assert "second run idempotent (byte-identical)" '[ "$before" = "$after" ]'
+rm -rf "$SBX"
+
+# -- global layer: ~/.config/docket/agents.yaml overrides model/effort (user-level) --
+make_sandbox
+mkdir -p "$SBX/.config/docket"
+printf 'status: { model: haiku, effort: low }\nimplement-next: { effort: auto }\n' > "$SBX/.config/docket/agents.yaml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null )
+assert "global override sets model" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "haiku" ]'
+assert "global override sets effort" '[ "$(fm "$SBX/.claude/agents/docket-status.md" effort)" = "low" ]'
+assert "effort: auto drops the effort line" '! grep -q "^effort:" "$SBX/.claude/agents/docket-implement-next.md"'
+assert "auto keeps the built-in model" '[ "$(fm "$SBX/.claude/agents/docket-implement-next.md" model)" = "opus" ]'
+assert "unlisted skill keeps built-in model+effort" '[ "$(fm "$SBX/.claude/agents/docket-adr.md" model)/$(fm "$SBX/.claude/agents/docket-adr.md" effort)" = "sonnet/medium" ]'
+rm -rf "$SBX"
+
+# -- per-repo layer: .docket.yml agents: => committed project-level files --
+make_sandbox
+printf 'agents:\n  status: { model: sonnet, effort: high }\n  new-change: { model: opus }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null )
+assert "per-repo override writes project-level file" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
+assert "per-repo override applies model" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "sonnet" ]'
+assert "per-repo override applies effort" '[ "$(fm "$SBX/.claude/agents/docket-status.md" effort)" = "high" ]'
+assert "no project-level file for unlisted skill (implement-next)" '[ ! -f "$SBX/.claude/agents/docket-implement-next.md" ] || diff -q "$REPO/agents/docket-implement-next.md" "$SBX/.claude/agents/docket-implement-next.md" >/dev/null'
+assert "advisory skill in agents: produces NO file (new-change)" '[ ! -f "$SBX/.claude/agents/docket-new-change.md" ]'
+rm -rf "$SBX"
+
 exit $fail
