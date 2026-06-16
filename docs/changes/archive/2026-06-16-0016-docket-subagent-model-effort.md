@@ -2,7 +2,7 @@
 id: 16
 slug: docket-subagent-model-effort
 title: docket skills as model/effort-pinned subagents — foundation
-status: implemented
+status: done
 priority: medium
 created: 2026-06-15
 updated: 2026-06-16
