@@ -4,6 +4,15 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-06-16 (#16, PR #30) — A generator test set `DOCKET_HARNESS_ROOT` to the same dir as the
+  repo root, so the user-level pass and the project-level pass both wrote one `.claude/agents/`
+  and an "unlisted skill gets no project file" assertion passed vacuously through a weak `|| diff`
+  arm. Apply: when a tool writes to BOTH a user/harness location and a project/repo location, give
+  the test SEPARATE dirs — a shared dir lets one pass's output mask the other's bugs.
+- 2026-06-16 (#16, PR #30) — review found a `producer | head` (not just `grep -q`) that could 141
+  under `pipefail` — `head` closes the pipe early too. Apply: the no-`producer | grep -q` rule
+  generalizes to ANY early-closing consumer (`head`, `head -n1`) — capture into a var, then
+  `head -n1 <<<"$var"`.
 - 2026-06-16 (#11, PR #11) — A test piped a live-producing script straight into `grep -q`; grep
   exits on first match, the still-writing producer takes SIGPIPE, and `pipefail` turned that 141
   into an intermittent failure. Apply: capture a producer's output into a variable first, then
