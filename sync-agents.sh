@@ -18,7 +18,8 @@
 #   bash sync-agents.sh --check   # CI gate: exit non-zero (with a diff) if committed project-level
 #                                 # files drift from what the resolved config would generate
 #
-# Test seam: DOCKET_HARNESS_ROOT overrides $HOME (harness dirs AND the global-config root).
+# Test seam: DOCKET_HARNESS_ROOT overrides $HOME for harness dirs and the global-config root
+# (the latter only when XDG_CONFIG_HOME is unset — a set XDG_CONFIG_HOME wins; tests unset it).
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -108,7 +109,10 @@ user_level_pass() {  # built-in ⊕ global -> each present harness */agents dir
     name="$(short_name "$src")"
     resolve_from "$GLOBAL_CFG" "$name" 0
     for dir in "${HARNESS_AGENT_DIRS[@]}"; do
-      [ -d "$(dirname "$dir")" ] || continue   # only into harnesses that exist (parent root present)
+      # Intentional divergence from link-skills.sh (which leaf-checks <harness>/skills): check the
+      # harness ROOT and mkdir agents/, because agents/ is docket-introduced and won't pre-exist
+      # even on a harness you use. So: write into every PRESENT harness root, creating agents/.
+      [ -d "$(dirname "$dir")" ] || continue
       mkdir -p "$dir"
       emit "$src" "$RES_MODEL" "$RES_EFFORT" > "$dir/$(basename "$src")"
     done

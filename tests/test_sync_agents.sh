@@ -82,14 +82,17 @@ assert "unlisted skill keeps built-in model+effort" '[ "$(fm "$SBX/.claude/agent
 rm -rf "$SBX"
 
 # -- per-repo layer: .docket.yml agents: => committed project-level files --
-make_sandbox
+# Decouple the harness root from the repo so <repo>/.claude/agents holds ONLY project-level output
+# (else the user-level pass writes verbatim copies there and masks a too-eager per-repo pass).
+make_sandbox                                       # SBX = the repo
+HROOT="$(mktemp -d)"; mkdir -p "$HROOT/.claude"    # separate user-level harness root
 printf 'agents:\n  status: { model: sonnet, effort: high }\n  new-change: { model: opus }\n' > "$SBX/.docket.yml"
-( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null )
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT" bash "$SYNC" >/dev/null )
 assert "per-repo override writes project-level file" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
 assert "per-repo override applies model" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "sonnet" ]'
 assert "per-repo override applies effort" '[ "$(fm "$SBX/.claude/agents/docket-status.md" effort)" = "high" ]'
-assert "no project-level file for unlisted skill (implement-next)" '[ ! -f "$SBX/.claude/agents/docket-implement-next.md" ] || diff -q "$REPO/agents/docket-implement-next.md" "$SBX/.claude/agents/docket-implement-next.md" >/dev/null'
+assert "no project-level file for unlisted skill (implement-next)" '[ ! -f "$SBX/.claude/agents/docket-implement-next.md" ]'
 assert "advisory skill in agents: produces NO file (new-change)" '[ ! -f "$SBX/.claude/agents/docket-new-change.md" ]'
-rm -rf "$SBX"
+rm -rf "$SBX" "$HROOT"
 
 exit $fail
