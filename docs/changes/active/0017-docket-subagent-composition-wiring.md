@@ -8,7 +8,7 @@ created: 2026-06-15
 updated: 2026-06-16
 depends_on: [16]
 related: [15, 16]
-adrs: []
+adrs: [8, 9]
 spec: docs/superpowers/specs/2026-06-16-docket-subagent-composition-wiring-design.md
 plan: docs/superpowers/plans/2026-06-16-docket-subagent-composition-wiring.md
 results:
