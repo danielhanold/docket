@@ -9,3 +9,11 @@ integration_branch: main
 changes_dir: docs/changes
 adrs_dir: docs/adrs
 results_dir: docs/results
+
+# Which derived board view(s) to render. A list; [] disables the board entirely.
+#   inline  → BOARD.md on the metadata branch (offline-safe, committed)
+#   github  → one-way GitHub Issues + Projects v2 mirror (scripts/github-mirror.sh)
+# Default [inline] (github is strictly opt-in). [inline, github] = both; [github] = GitHub-only.
+board_surfaces: [inline]
+# github_project: {owner: <owner>, number: <n>}  — auto-managed Projects v2 board; minted
+# (private, under the repo owner) and written back here on first `github` sync when unset.

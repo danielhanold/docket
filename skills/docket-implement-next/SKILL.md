@@ -76,6 +76,8 @@ When warranted: author `<results_dir>/<YYYY-MM-DD>-<slug>-results.md` from `resu
 
 Invoke `superpowers:finishing-a-development-branch`, DIRECTED to: push the feature branch and open a PR — do NOT merge — then stop. Pre-specifying the outcome keeps it non-interactive while reusing its push/PR mechanics.
 
+**Best-effort PR→issue reference (when the `github` board surface is enabled).** If the change carries an `issue:` (its GitHub mirror exists from an earlier Board pass), add a plain `#<issue>` reference to the PR body so GitHub renders the linked-PR "awaiting merge" view — but **never `Closes #N`**: the mirror sync stays the sole writer of issue state and close reason (`killed → not planned` cannot be expressed by GitHub's auto-close). Skip silently when `issue:` is unset (no mirror yet, e.g. a prior sync was offline) — the reference is a one-time courtesy, not a build gate.
+
 Then, BACK IN THE **METADATA WORKING TREE** (in `docket`-mode, `.docket/`), set `status: implemented` + `pr:` (and `results:` if a results file was written in step 6.5) and commit + push on `metadata_branch` (in `docket`-mode, `origin/docket`) — NEVER in the feature worktree (metadata always lands on `metadata_branch`; this is also what lets the sweep read `pr:`). Then run the Board pass (best-effort — see *Best-effort board refresh*) as a separate commit, so the board shows the change as `implemented` — needs your merge.
 
 **STOP.** The change stays in `active/` as `implemented` until a human merges it, or approves `docket-finalize-change` to merge it.

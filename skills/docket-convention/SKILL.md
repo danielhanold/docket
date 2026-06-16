@@ -23,9 +23,13 @@ changes_dir: docs/changes    # default
 adrs_dir: docs/adrs          # default
 results_dir: docs/results    # default  — close-out 'results' artifacts (build-time files, like plans)
 auto_groom: false            # repo default for autonomous grooming; per-change auto_groomable overrides
+board_surfaces: [inline]     # which derived board view(s) to render: inline (BOARD.md) and/or github; [] = none
+github_project:              # {owner, number} of the auto-managed Projects v2 board; unset ⇒ auto-create on first github sync
 ```
 
 `.docket.yml` lives on the repo's **default branch (`origin/HEAD`)**, NOT on the integration branch — `integration_branch` is a value *read from* the file, so the file cannot be located *by* it. The default branch is discoverable with zero prior config, but `origin/HEAD` is not reliably populated, so skills **repair it first**: `git remote set-head origin -a`, then resolve `git symbolic-ref refs/remotes/origin/HEAD`. Read config authoritatively via `git show origin/HEAD:.docket.yml` (after a fetch); the working-tree copy is trusted only on the default branch's *primary* checkout. **A ref-unresolvable `origin/HEAD` ≠ a file-absent default branch:** if `origin/HEAD` resolves but the file is genuinely absent ⇒ defaults apply (`metadata_branch: docket`, `integration_branch: auto`); if `origin/HEAD` is unresolvable or `origin` is unreachable ⇒ do **not** assume defaults (abort with a clear error, keying on the `set-head`/fetch return code, never on `git show` — a cached `origin/HEAD` lets `git show` succeed with stale bytes). The file then **declares `integration_branch`**, which may differ from the default branch (default `main`, integration `develop`). `metadata_branch` resolves where PM commits land; `integration_branch` (default `auto` → `origin/HEAD`, fallback `main`; explicit `main`/`develop` verbatim) resolves where code lands — feature branches always cut from `origin/<integration_branch>`. **Backward-compatible opt-out:** pinning `metadata_branch: main` (with `integration_branch: main`) reproduces today's single-branch behavior exactly — no `docket` branch, no `.docket/` worktree.
+
+**`board_surfaces` — the board as 0..n derived views.** The board is a *derived view* over the change files; `board_surfaces` lists which surfaces to render. Members: `inline` (the committed, offline-safe `BOARD.md`) and `github` (the one-way Issues + Projects v2 mirror, see *GitHub board mirror*). Default `[inline]` — backward-compatible, and `github` is strictly opt-in (an existing repo never starts minting issues until it asks). `[inline, github]` renders both; `[github]` is GitHub-only; **`[]` disables the board entirely** — no `BOARD.md`, no mirror, the change files plus git history remain the only (and fully authoritative) record. An unknown token is warned-and-ignored (a typo must never abort a build); a non-GitHub remote silently drops `github`. `github_project` is consulted only when `github` is enabled, and is minted-and-written-back on first sync if unset (see *GitHub board mirror*).
 
 ### Directory layout (paths relative to the configured knobs)
 
@@ -68,6 +72,7 @@ trivial: false            # true = no spec needed (small mechanical change); sti
 auto_groomable:           # tri-state: unset ⇒ inherit the repo's auto_groom; true/false ⇒ explicit override
 branch:                   # planned feat/<slug> name, set on claim; branch itself created at build (step 4)
 pr:                       # set when the PR is opened
+issue:                    # GitHub mirror issue number; minted on first `github` sync (one-way), shape of pr:
 blocked_by:               # free text; set only when status: blocked
 reconciled: false         # set true after the just-in-time reconcile pass
 ---
@@ -132,7 +137,7 @@ An `Accepted` ADR is immutable except its `status:` line; a non-reversing contex
 
 **Rules.** `active/` holds every non-terminal status; `archive/` holds the two terminal outcomes. The single physical move (`active/ → archive/`, date-prefixed) happens once on the terminal transition and is **idempotent**: re-pull, re-read `status` on `metadata_branch`, no-op if already terminal. `deferred` may be entered from `proposed` or `in-progress` (add `## Why deferred`) and revived to `proposed`; clearing a blocker or reviving is a one-line frontmatter edit, no move. A change whose `depends_on` is unsatisfied is *implicitly* blocked — the selector skips it (no status change) and the board shows it **waiting on #N**. A dependency is **satisfied when it reaches `done`**. If `#N` is still `implemented` (PR open, unmerged), the dependent is gated on a human merge — the board flags **waiting on #N — needs your merge**, distinct from **waiting on #N — not yet built**. Reserve explicit `blocked` for external blockers the system can't infer.
 
-**Board refresh on status writes.** Any skill that writes a change's `status:` regenerates `BOARD.md` (the Board pass) in a separate commit immediately after — the board is a derived view and must never trail the change files.
+**Board refresh on status writes.** Any skill that writes a change's `status:` refreshes **each enabled board surface** (the Board pass) immediately after — the `inline` surface regenerates `BOARD.md` in a separate commit; the `github` surface runs the mirror upsert (best-effort); `board_surfaces: []` makes this a no-op. The board is a derived view and must never trail the change files.
 
 ### Build-readiness & selection (shared definition)
 
@@ -157,6 +162,20 @@ A stub is **autonomous-eligible** — selectable by `docket-auto-groom` — when
 **Reading.** `docket-implement-next` reads the ledger at plan time and again at its review step; `docket-groom-next` reads it before a brainstorm. No other skill reads it.
 
 **Distilling.** Append-only until the file exceeds **~300 lines**; the next harvest past the cap also distills — merge near-duplicates and drop entries since promoted to CLAUDE.md or this convention. Distillation is **compression, not destruction**: git history keeps everything dropped. Boundary: the ledger holds lessons for the build loop; durable project conventions belong in CLAUDE.md — promotion removes the entry here.
+
+### GitHub board mirror (shared definition)
+
+The `github` board surface mirrors each change to one GitHub issue (and one Projects v2 item) — **strictly one-way**: change files are the source of truth, the mirror is derived output that is **never read back** (no comments, labels, assignments, or state flow into change files). It rides in the Board pass (`docket-status`) and is **best-effort**, identical to the inline board rule: it needs network + `gh` auth, it self-heals on the next pass, and it **never aborts a build**. The mirror's external-write mechanics are owned by the deterministic `scripts/github-mirror.sh` (not agent-constructed `gh` calls); the Board pass only invokes it.
+
+**`issue:` field.** One issue per change, upserted idempotently on the per-change `issue:` field (shape of `pr:`), minted on first sync and persisted into the change file on `metadata_branch`.
+
+**Status → issue mapping (all seven).** Active states (`proposed`, `in-progress`, `blocked`, `deferred`, `implemented`) keep the issue **open**; terminal states close it with the native reason — `done` → closed as **completed**, `killed` → closed as **not planned**. The sync is the **sole writer** of issue open/closed state and reason: a PR may *reference* its mirror issue (a plain `#N` link, for the linked-PR "awaiting merge" view) but never `Closes #N`, which would make GitHub a second writer that cannot express `killed → not planned`.
+
+**Labels — `docket:` namespace only.** Mirror labels are prefixed `docket:` (`docket:status/<state>`, `docket:priority/<p>`, and the derived `docket:readiness/<needs-brainstorm|auto-groom-blocked|build-ready>` / `docket:waiting/<needs-your-merge|not-yet-built>`). docket creates/updates only labels inside that namespace and never touches a label it did not mint, so existing repo labels are collision-proof.
+
+**Issue body.** A visibility pointer, never a second home for the content: a one-way banner, a one-line frontmatter digest, the `## Why` distilled to a sentence or two, and hrefs to every relevant artifact (the change file on `metadata_branch`, the `spec:`, each ADR in `adrs:`, and `plan:`/`results:` once those resolve on the integration branch).
+
+**Projects v2.** The optional half of `github`. When `github_project` is unset, first sync mints a **private** Projects v2 board under the integration repo's owner (Status single-select seeded from the active statuses) and writes its `{owner, number}` back into `.docket.yml` on the default branch — a one-time config commit that keeps later runs idempotent. Missing `project` token scope or any GraphQL failure ⇒ skip Projects and still mirror Issues + labels.
 
 ### Bootstrap guard (`docket`-mode first-run safety)
 
