@@ -11,7 +11,7 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | needs-brainstorm |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | needs-brainstorm |
 | [0015](active/0015-finalize-rebase-retest-gate.md) | finalize — rebase onto base + re-run tests before merge | `medium` | needs-brainstorm |
-| [0017](active/0017-docket-subagent-composition-wiring.md) | docket subagent composition — nested status/adr/critic dispatch | `medium` | needs-brainstorm |
+| [0017](active/0017-docket-subagent-composition-wiring.md) | docket subagent composition — nested status/adr/critic dispatch | `medium` | build-ready |
 | [0018](active/0018-yq-yaml-parsing.md) | Evaluate adopting yq for YAML parsing across docket scripts | `low` | needs-brainstorm |
 
 <details><summary>✅ Archive — done (11)</summary>
