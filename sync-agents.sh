@@ -139,6 +139,35 @@ $names
 EOF
 }
 
+check_project_level() {  # diff committed project-level files against freshly-resolved config
+  local rc=0 names name src got tmp d
+  [ -f "$DOCKET_YML" ] || { log "no .docket.yml in $REPO — nothing to check"; return 0; }
+  names="$(block_names "$DOCKET_YML")"
+  [ -n "$names" ] || { log "no agents: block — nothing to check"; return 0; }
+  tmp="$(mktemp -d)"
+  while IFS= read -r name; do
+    [ -n "$name" ] || continue
+    src="$AGENTS_SRC/docket-$name.md"
+    [ -f "$src" ] || continue
+    resolve_from "$DOCKET_YML" "$name" 1
+    emit "$src" "$RES_MODEL" "$RES_EFFORT" > "$tmp/docket-$name.md"
+    got="$PROJECT_AGENT_DIR/docket-$name.md"
+    if [ ! -f "$got" ]; then
+      log "drift: missing $got (run: bash sync-agents.sh)"; rc=1; continue
+    fi
+    d="$(diff -u "$got" "$tmp/docket-$name.md" || true)"   # capture (SIGPIPE-safe), do not pipe to grep -q
+    if [ -n "$d" ]; then log "drift in docket-$name.md:"; printf '%s\n' "$d" >&2; rc=1; fi
+  done <<EOF
+$names
+EOF
+  rm -rf "$tmp"
+  return $rc
+}
+
+if [ "$CHECK" = "1" ]; then
+  if check_project_level; then exit 0; else exit 1; fi
+fi
+
 user_level_pass
 project_level_pass
 log "done"

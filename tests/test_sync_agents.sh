@@ -95,4 +95,23 @@ assert "no project-level file for unlisted skill (implement-next)" '[ ! -f "$SBX
 assert "advisory skill in agents: produces NO file (new-change)" '[ ! -f "$SBX/.claude/agents/docket-new-change.md" ]'
 rm -rf "$SBX" "$HROOT"
 
+# ---- Task 3: --check drift gate --------------------------------------------
+make_sandbox
+printf 'agents:\n  status: { model: sonnet, effort: high }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null )   # generate committed project file
+chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check 2>&1)"; chk_rc=$?
+assert "--check passes when committed agents match config (rc=0)" '[ "$chk_rc" = "0" ]'
+
+# Out-of-band edit to a committed project-level file -> drift.
+sed -i.bak 's/^model: sonnet/model: haiku/' "$SBX/.claude/agents/docket-status.md"; rm -f "$SBX/.claude/agents/docket-status.md.bak"
+chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check 2>&1)"; chk_rc=$?
+assert "--check fails on drift (rc!=0)" '[ "$chk_rc" != "0" ]'
+assert "--check reports a diff" 'printf "%s" "$chk_out" | grep -q "drift"'
+
+# A repo with no agents: block has nothing to check -> passes.
+rm -f "$SBX/.docket.yml"; : > "$SBX/.docket.yml"
+chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check 2>&1)"; chk_rc=$?
+assert "--check passes when no agents: block (rc=0)" '[ "$chk_rc" = "0" ]'
+rm -rf "$SBX"
+
 exit $fail
