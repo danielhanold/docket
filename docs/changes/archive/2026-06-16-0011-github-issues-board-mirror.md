@@ -2,10 +2,10 @@
 id: 11
 slug: github-issues-board-mirror
 title: GitHub board mirror — selectable board surfaces, one-way Issues + Projects mirror
-status: implemented
+status: done
 priority: medium
 created: 2026-06-12
-updated: 2026-06-14
+updated: 2026-06-16
 depends_on: []
 related: [4, 10]
 adrs: [7]
