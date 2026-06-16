@@ -2,7 +2,7 @@
 id: 16
 slug: docket-subagent-model-effort
 title: docket skills as model/effort-pinned subagents — foundation
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-06-15
 updated: 2026-06-16
@@ -15,7 +15,7 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/docket-subagent-model-effort
-pr:
+pr: https://github.com/danielhanold/docket/pull/30
 blocked_by:
 reconciled: true
 ---
