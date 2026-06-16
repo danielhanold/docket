@@ -1,12 +1,12 @@
 # Backlog
 
-**18 changes** — 🟢 1 in progress · 🟡 6 proposed · ✅ 11 done
+**18 changes** — 🔵 1 implemented · 🟡 6 proposed · ✅ 11 done
 
-## 🟢 In progress (1)
+## 🔵 Implemented — awaiting merge (1)
 
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0017](active/0017-docket-subagent-composition-wiring.md) | docket subagent composition — nested status/adr/critic dispatch | `medium` | [spec](../superpowers/specs/2026-06-16-docket-subagent-composition-wiring-design.md) | `feat/docket-subagent-composition-wiring` |
+| # | Title | Priority | PR |
+|---|-------|----------|----|
+| [0017](active/0017-docket-subagent-composition-wiring.md) | docket subagent composition — nested status/adr/critic dispatch | `medium` | [#31](https://github.com/danielhanold/docket/pull/31) |
 
 ## 🟡 Proposed (6)
 
