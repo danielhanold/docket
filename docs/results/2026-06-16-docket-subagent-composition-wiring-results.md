@@ -14,8 +14,9 @@ Change: #17 · Branch: feat/docket-subagent-composition-wiring · PR: <set on op
 - **Two ADRs produced** (both ride this change's terminal publish to `main` on merge, via
   `adrs: [8, 9]`):
   - **ADR-0009 (new)** — *Auto-groom critic isolation*: the critic is a dedicated wrapper that
-    loads only `docket-convention`, never the `docket-auto-groom` designer body, pinned opus/xhigh,
-    so the adversarial gate is real and not self-agreement theater.
+    loads only `docket-convention`, never the `docket-auto-groom` designer body, pinned at or above
+    the designer's tier (built-in default in the wrapper; config-overridable), so the adversarial
+    gate is real and not self-agreement theater.
   - **ADR-0008 (`## Update`)** — records that the composition it deferred has landed (foreground +
     git-state-as-contract dispatch). Its `Decision` is unchanged; immutable-body discipline kept.
 - **"fresh subagent" phrase kept deliberately** in `auto-groom` Step 3. `tests/test_auto_groom.sh`
@@ -28,6 +29,15 @@ Change: #17 · Branch: feat/docket-subagent-composition-wiring · PR: <set on op
 - **Wrapper count is "five skills, six wrappers"** — the convention's "Five *skills* get a wrapper"
   line stays correct; the critic is a sixth *wrapper* that wraps no skill. Repo swept for stale
   count prose (LEARNINGS #5/#14); none found outside the immutable 0016 archive/ADR.
+- **Dispatch prose pins NO literal model/effort tier** (review feedback, corrected pre-merge). The
+  first cut wrote "pinned opus/xhigh / sonnet/medium via its wrapper" into the three skill bodies +
+  the convention composition paragraph — a second source of truth that drifts the moment a repo
+  overrides the tier via `.docket.yml`/global config (the whole point of ADR-0008's layered config).
+  Fixed: the prose names the subagent and says it runs at "the model/effort its wrapper resolves";
+  the built-in defaults live only in `agents/docket-*.md`. Guarded by a regex assert in
+  `test_composition_wiring.sh` (IMPL + CONV) and `test_auto_groom.sh` (critic) that no
+  `alias/effort` literal appears in the dispatch prose. **LEARNINGS candidate:** a layer that makes
+  a value config-overridable must not restate that value in prose — point at the source instead.
 
 ## Follow-ups
 
