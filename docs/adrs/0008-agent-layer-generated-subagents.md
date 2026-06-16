@@ -90,3 +90,17 @@ force the session model). Four sub-decisions:
   sub-invocations (`implement-next → status`/`adr`, `auto-groom → critic`) still run
   inline at the parent's model until 0017 rewires them. 0016 only establishes the
   wrappers, config, and generator so standalone invocation works.
+
+## Update
+
+**2026-06-16 (change 0017, [[0009]]).** The composition deferred in the final
+consequence above is implemented in change 0017. The three nested sub-invocations
+named there — `implement-next → status` (step 0) and `→ adr` (step 6), and
+`auto-groom → critic` (step 3) — now dispatch **named, model/effort-pinned subagents**
+**foreground**, with **git state on `origin/docket` as the contract**: the parent
+suspends, re-syncs `.docket/`, and re-reads the child's commits rather than relying on
+an in-context return (the `adr` dispatch additionally returns its number for the
+`adrs:` write-back). The critic is materialized as the dedicated
+`docket-auto-groom-critic` wrapper that loads only `docket-convention`; the rationale
+for that isolation is its own decision, [[0009]]. The `Decision` above is unchanged —
+this note only records that its deferred item has landed.
