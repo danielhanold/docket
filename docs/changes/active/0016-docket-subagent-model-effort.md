@@ -10,7 +10,7 @@ depends_on: []
 related: [15, 17]
 adrs: []
 spec: docs/superpowers/specs/2026-06-15-docket-subagent-model-effort-design.md
-plan:
+plan: docs/superpowers/plans/2026-06-16-docket-subagent-model-effort.md
 results:
 trivial: false
 auto_groomable:
