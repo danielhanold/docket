@@ -1,12 +1,6 @@
 # Backlog
 
-**17 changes** — 🔵 1 implemented · 🟡 7 proposed · ✅ 9 done
-
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | PR |
-|---|-------|----------|----|
-| [0011](active/0011-github-issues-board-mirror.md) | GitHub board mirror — selectable board surfaces, one-way Issues + Projects mirror | `medium` | [#11](https://github.com/danielhanold/docket/pull/11) |
+**17 changes** — 🟡 7 proposed · ✅ 10 done
 
 ## 🟡 Proposed (7)
 
@@ -20,10 +14,11 @@
 | [0016](active/0016-docket-subagent-model-effort.md) | docket skills as model/effort-pinned subagents — foundation | `medium` | build-ready |
 | [0017](active/0017-docket-subagent-composition-wiring.md) | docket subagent composition — nested status/adr/critic dispatch | `medium` | needs-brainstorm · waiting on #16 |
 
-<details><summary>✅ Archive — done (9)</summary>
+<details><summary>✅ Archive — done (10)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0011](archive/2026-06-16-0011-github-issues-board-mirror.md) | GitHub board mirror — selectable board surfaces, one-way Issues + Projects mirror | 2026-06-16 |
 | [0014](archive/2026-06-12-0014-docket-auto-groom.md) | docket-auto-groom — autonomous grooming drain over auto-groomable stubs | 2026-06-12 |
 | [0013](archive/2026-06-12-0013-groom-next-stub-recap.md) | Groom-next recap — introduce the selected stub before the brainstorm starts | 2026-06-12 |
 | [0006](archive/2026-06-12-0006-learnings-ledger.md) | Learnings ledger — an append-only per-repo memory that builds feed and future builds read | 2026-06-12 |
