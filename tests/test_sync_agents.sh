@@ -133,4 +133,14 @@ assert "convention points at composition (0017)" 'grep -q "0017" "$CONV"'
 # Non-vacuous guard: the agent section must be a distinct heading, not an incidental word.
 assert "convention has an agent-layer section heading" 'grep -qiE "^#+ .*(agent layer|model/effort|subagent)" "$CONV"'
 
+# ---- Task 6: advisory recommendation in the interactive skills -------------
+NEWC="$REPO/skills/docket-new-change/SKILL.md"
+GROOM="$REPO/skills/docket-groom-next/SKILL.md"
+assert "new-change carries an advisory recommendation" 'grep -qi "[Rr]ecommended model" "$NEWC"'
+assert "new-change recommends sonnet" 'grep -qi "sonnet" "$NEWC"'
+assert "groom-next carries an advisory recommendation" 'grep -qi "[Rr]ecommended model" "$GROOM"'
+assert "groom-next recommends sonnet/high" 'grep -qiE "sonnet[^A-Za-z]+high|high[^A-Za-z]+sonnet" "$GROOM"'
+# Non-vacuous: it must be advisory, not a hard requirement (we cannot force the session model).
+assert "new-change frames it as advisory" 'grep -qi "advisory" "$NEWC"'
+
 exit $fail
