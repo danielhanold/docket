@@ -2,7 +2,7 @@
 id: 17
 slug: docket-subagent-composition-wiring
 title: docket subagent composition — nested status/adr/critic dispatch
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-06-15
 updated: 2026-06-16
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/docket-subagent-composition-wiring
 pr:
 blocked_by:
 reconciled: false
