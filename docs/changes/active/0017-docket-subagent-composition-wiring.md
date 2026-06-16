@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/docket-subagent-composition-wiring
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Why
@@ -59,3 +59,31 @@ the linked spec.
   its own change.
 
 ## Reconcile log
+
+### 2026-06-16 — reconcile (build claim)
+
+Verified the spec's §9 reconcile notes against current `origin/main` (`f9cbd1f` —
+unchanged since the spec was written 2026-06-16, so 0016's shipped reality still
+holds). All assumptions confirmed; nothing dropped, adjusted, or folded in:
+
+- `agents/` ships exactly the 5 wrappers, no critic — 0017 adds the 6th
+  (`agents/docket-auto-groom-critic.md`).
+- `sync-agents.sh` globs `agents/docket-*.md` and derives keys via `short_name`
+  (line 49 strips `docket-` + `.md` ⇒ critic key `auto-groom-critic`); the
+  generator needs no edit, the glob auto-discovers the wrapper.
+- `tests/test_sync_agents.sh` hardcodes `= "5"` at lines 17 ("exactly 5 built-in
+  wrappers") and 61 ("all 5 wrappers land in .claude/agents"); the `AUTONOMOUS`
+  loop (L19–31) excludes the critic, so its assertions go in a separate block —
+  matching spec §7.
+- The three call sites are exactly where §5 expects: `implement-next` step 0
+  (invoke `docket-status`), step 6 (invoke `docket-adr`); `auto-groom` step 3
+  ("Dispatch a **fresh subagent**").
+- `docket-convention` L60 carries the forward-pointer ("built in change 0017 …
+  will spawn … Until 0017 lands … run inline") to convert to present tense; L37
+  "Five skills get a wrapper" stays accurate (the composition paragraph introduces
+  the 6th wrapper, which wraps no skill).
+- ADR-0008 is `Accepted` (immutable except status) ⇒ touched only via a dated
+  `## Update`, or a new ADR for the critic-isolation decision — decided at build
+  (step 6).
+- Related: #15 (finalize rebase/retest) still `proposed`, independent — no impact;
+  #16 (foundation) `done`.
