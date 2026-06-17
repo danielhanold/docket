@@ -1,8 +1,8 @@
 # Backlog
 
-**20 changes** — 🟡 6 proposed · ✅ 14 done
+**21 changes** — 🟡 7 proposed · ✅ 14 done
 
-## 🟡 Proposed (6)
+## 🟡 Proposed (7)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -12,6 +12,7 @@
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | needs-brainstorm |
 | [0018](active/0018-yq-yaml-parsing.md) | Evaluate adopting yq for YAML parsing across docket scripts | `low` | needs-brainstorm |
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
+| [0021](active/0021-finalize-consent-model.md) | Finalize consent model — ambiguity-only prompt + require_pr_approval policy gate | `medium` | build-ready |
 
 <details><summary>✅ Archive — done (14)</summary>
 
