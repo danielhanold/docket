@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/finalize-rebase-retest-gate
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Why
@@ -60,3 +60,30 @@ abort-and-report set — is in the linked spec.
   `opus/xhigh` tier, not the test suite.
 
 ## Reconcile log
+
+### 2026-06-17 — reconciled at claim (no scope change)
+
+Spec was authored **today** (2026-06-17) via `docket-groom-next`, *after* change 0017
+merged (PR #31, archived 2026-06-17), so it was already drafted against the current
+world. Verified the design against current code on `origin/main` — all in sync,
+nothing dropped, adjusted, or folded in. Specifics confirmed:
+
+- **All 8 touch points present and accurate:** `skills/docket-finalize-change/SKILL.md`
+  step 1 is the merge step the gate guards; `.docket.yml` has no `finalize:` block yet
+  (to add); `skills/docket-convention/SKILL.md` carries the wrapper-count prose at the
+  Agent-layer + Composition sections; `skills/docket-status/SKILL.md` has the
+  `## Merge sweep` section for the one-line finalize-only note; `agents/` has 6 wrappers
+  today (the auto-discovery glob means the two new ones need no `sync-agents.sh` edit);
+  `tests/test_sync_agents.sh` has the two `= "6"` count asserts (lines 17, 61) +
+  the Task-1b critic block to mirror.
+- **ADR landscape clarified.** Spec's header calls change 0017's decision
+  "composition wiring — ADR-0009", but on disk **ADR-0009 is "auto-groom-critic
+  isolation"**; the composition wiring itself is the dated **Update to ADR-0008**
+  (2026-06-16). Both are immutable and must NOT be edited. The new ADR(s) this change
+  produces should `relates_to: [8, 9]` and reuse 0017's named-subagent-dispatch +
+  git-state-contract pattern — exactly as the spec's design body (§5) intends.
+- **Stale-count trap (LEARNINGS #5/#14).** Adding two no-skill wrappers takes the
+  total **6 → 8** (5 skill-wrappers + critic + these two). The "five *skills* get a
+  wrapper" language stays exact (these wrap no skill, like the critic). Plan includes
+  a repo-wide grep for stale count words beyond the two known spots.
+- **No obsolescence, no fundamental invalidation** — proceeding to plan + build.
