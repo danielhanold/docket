@@ -1,12 +1,6 @@
 # Backlog
 
-**20 changes** — 🔵 1 implemented · 🟡 6 proposed · ✅ 13 done
-
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | PR |
-|---|-------|----------|----|
-| [0020](active/0020-convention-progressive-disclosure.md) | Split the docket-convention skill via progressive disclosure — extract the GitHub board mirror first | `medium` | [#33](https://github.com/danielhanold/docket/pull/33) |
+**20 changes** — 🟡 6 proposed · ✅ 14 done
 
 ## 🟡 Proposed (6)
 
@@ -19,10 +13,11 @@
 | [0018](active/0018-yq-yaml-parsing.md) | Evaluate adopting yq for YAML parsing across docket scripts | `low` | needs-brainstorm |
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 
-<details><summary>✅ Archive — done (13)</summary>
+<details><summary>✅ Archive — done (14)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0020](archive/2026-06-17-0020-convention-progressive-disclosure.md) | docket-convention progressive disclosure — extract the GitHub board mirror to a sibling | 2026-06-17 |
 | [0015](archive/2026-06-17-0015-finalize-rebase-retest-gate.md) | finalize — rebase onto base + re-run tests before merge | 2026-06-17 |
 | [0017](archive/2026-06-17-0017-docket-subagent-composition-wiring.md) | docket subagent composition — nested status/adr/critic dispatch | 2026-06-17 |
 | [0016](archive/2026-06-16-0016-docket-subagent-model-effort.md) | docket skills as model/effort-pinned subagents — foundation | 2026-06-16 |
