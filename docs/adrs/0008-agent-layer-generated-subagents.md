@@ -104,3 +104,16 @@ an in-context return (the `adr` dispatch additionally returns its number for the
 `docket-auto-groom-critic` wrapper that loads only `docket-convention`; the rationale
 for that isolation is its own decision, [[0009]]. The `Decision` above is unchanged —
 this note only records that its deferred item has landed.
+
+**2026-06-17 (change 0015, [[0010]]).** Change 0015's finalize merge gate adds a new
+instance of the abort-and-report rule (sub-decision 4 above), and **extends** it
+rather than reversing it: finalize may now *author* a repair (via the
+`docket-integration-repair` subagent, ②), but **an auto-authored repair never merges
+unseen**. Under **interactive** finalize the gate prompts before merging the repair;
+under **autonomous** finalize it **force-pushes** the ②-authored repair and then
+aborts-and-reports — the human reviews the pushed repair and re-runs finalize to merge.
+This is the first time abort-and-report fires *after* the subagent has written work
+(prior instances aborted on an unmet precondition before acting); the invariant —
+an autonomous subagent never completes a human-gated action unseen — is preserved. The
+split-agent gate and its sign-off rule are their own decision, [[0010]]; the `Decision`
+above is unchanged.
