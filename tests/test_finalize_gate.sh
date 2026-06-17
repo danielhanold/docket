@@ -56,7 +56,7 @@ assert "integration-repair dispatch is tied to a red/failed suite" \
 
 # ---- local validation runs BEFORE the force-push (ordering is the contract) ----
 assert "finalize force-pushes with --force-with-lease" 'grep -q "force-with-lease" "$FIN"'
-local_ln="$(grep -nEi "run the suite|validate|local" "$FIN" | grep -i "before" | head -n1 | cut -d: -f1)"
+local_ln="$(grep -ni "before any push" "$FIN" | head -n1 | cut -d: -f1)"
 push_ln="$(grep -ni "force-with-lease" "$FIN" | head -n1 | cut -d: -f1)"
 assert "finalize states local validation precedes the push" '[ -n "$local_ln" ] && [ -n "$push_ln" ] && [ "$local_ln" -lt "$push_ln" ]'
 
@@ -79,6 +79,7 @@ assert "finalize body restates NO effort literal" '! grep -qiE "\bxhigh\b" "$FIN
 assert "finalize names the wrapper as the tier source" 'grep -Eqi "model/effort its wrapper resolves|its wrapper resolves" "$FIN"'
 
 # ---- docket repo dogfoods the gate -------------------------------------------
-assert "repo .docket.yml sets finalize gate to local" '[ "$(gate_of "$DYML")" = "local" ]'
+assert "repo .docket.yml sets finalize gate to local" \
+  '[ "$(gate_of "$DYML")" = "local" ] && grep -Eq "^finalize:" "$DYML" && grep -Eq "^[[:space:]]+gate[[:space:]]*:[[:space:]]*local" "$DYML"'
 
 exit $fail
