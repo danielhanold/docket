@@ -14,7 +14,7 @@ AGENTS="$REPO/agents"
 AUTONOMOUS="docket-implement-next docket-auto-groom docket-finalize-change docket-status docket-adr"
 
 assert "agents/ source dir exists" '[ -d "$AGENTS" ]'
-assert "exactly 5 built-in wrappers" '[ "$(find "$AGENTS" -maxdepth 1 -name "docket-*.md" | wc -l | tr -d " ")" = "5" ]'
+assert "exactly 6 built-in wrappers" '[ "$(find "$AGENTS" -maxdepth 1 -name "docket-*.md" | wc -l | tr -d " ")" = "6" ]'
 
 for w in $AUTONOMOUS; do
   f="$AGENTS/$w.md"
@@ -58,7 +58,7 @@ make_sandbox
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null )
 assert "writes into present .claude/agents" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
 assert "writes into present .agents/agents" '[ -f "$SBX/.agents/agents/docket-status.md" ]'
-assert "all 5 wrappers land in .claude/agents" '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "5" ]'
+assert "all 6 wrappers land in .claude/agents" '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "6" ]'
 assert "does NOT create an absent harness (.cursor)" '[ ! -d "$SBX/.cursor/agents" ]'
 assert "no override => byte-identical to built-in source" 'diff -q "$REPO/agents/docket-status.md" "$SBX/.claude/agents/docket-status.md" >/dev/null'
 
@@ -102,6 +102,35 @@ assert "per-repo override applies effort" '[ "$(fm "$SBX/.claude/agents/docket-s
 assert "no project-level file for unlisted skill (implement-next)" '[ ! -f "$SBX/.claude/agents/docket-implement-next.md" ]'
 assert "advisory skill in agents: produces NO file (new-change)" '[ ! -f "$SBX/.claude/agents/docket-new-change.md" ]'
 rm -rf "$SBX" "$HROOT"
+
+# ---- Task 1b: the docket-auto-groom-critic wrapper (wraps NO skill) ---------
+CRITIC="$AGENTS/docket-auto-groom-critic.md"
+assert "critic wrapper exists" '[ -f "$CRITIC" ]'
+assert "critic: name matches file" '[ "$(fm "$CRITIC" name)" = "docket-auto-groom-critic" ]'
+assert "critic: has a description" '[ -n "$(fm "$CRITIC" description)" ]'
+assert "critic: model is opus" '[ "$(fm "$CRITIC" model)" = "opus" ]'
+assert "critic: effort is xhigh" '[ "$(fm "$CRITIC" effort)" = "xhigh" ]'
+assert "critic: skills injects docket-convention" 'grep -Eq "^skills:.*docket-convention" "$CRITIC"'
+# Isolation: the skills: line must NOT pull in the designer skill (would re-inject its bias).
+# Scope the check to the skills: line — the name: line legitimately contains "docket-auto-groom".
+crit_skills_line="$(grep -E "^skills:" "$CRITIC" || true)"
+assert "critic: skills EXCLUDES the docket-auto-groom designer skill" '! grep -q "docket-auto-groom" <<<"$crit_skills_line"'
+assert "critic: body carries abort-and-report directive" 'grep -qi "abort-and-report" "$CRITIC"'
+
+# Per-repo override of the critic key (auto-groom-critic) resolves to this wrapper source,
+# proving the precedence path + --check drift gate cover the critic.
+make_sandbox                                        # SBX = the repo
+HROOT2="$(mktemp -d)"; mkdir -p "$HROOT2/.claude"   # separate user-level harness root
+printf 'agents:\n  auto-groom-critic: { model: sonnet, effort: high }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT2" bash "$SYNC" >/dev/null )
+assert "per-repo critic override writes project-level file" '[ -f "$SBX/.claude/agents/docket-auto-groom-critic.md" ]'
+assert "per-repo critic override applies model" '[ "$(fm "$SBX/.claude/agents/docket-auto-groom-critic.md" model)" = "sonnet" ]'
+chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT2" bash "$SYNC" --check 2>&1)"; chk_rc=$?
+assert "--check passes for in-sync critic (rc=0)" '[ "$chk_rc" = "0" ]'
+sed -i.bak 's/^model: sonnet/model: haiku/' "$SBX/.claude/agents/docket-auto-groom-critic.md"; rm -f "$SBX/.claude/agents/docket-auto-groom-critic.md.bak"
+chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT2" bash "$SYNC" --check 2>&1)"; chk_rc=$?
+assert "--check flags critic drift (rc!=0)" '[ "$chk_rc" != "0" ]'
+rm -rf "$SBX" "$HROOT2"
 
 # ---- Task 3: --check drift gate --------------------------------------------
 make_sandbox
