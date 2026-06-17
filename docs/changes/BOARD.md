@@ -1,12 +1,12 @@
 # Backlog
 
-**20 changes** — 🟢 1 in progress · 🟡 6 proposed · ✅ 13 done
+**20 changes** — 🔵 1 implemented · 🟡 6 proposed · ✅ 13 done
 
-## 🟢 In progress (1)
+## 🔵 Implemented — awaiting merge (1)
 
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0020](active/0020-convention-progressive-disclosure.md) | Split the docket-convention skill via progressive disclosure — extract the GitHub board mirror first | `medium` | [spec](../superpowers/specs/2026-06-17-convention-progressive-disclosure-design.md) | `feat/convention-progressive-disclosure` |
+| # | Title | Priority | PR |
+|---|-------|----------|----|
+| [0020](active/0020-convention-progressive-disclosure.md) | Split the docket-convention skill via progressive disclosure — extract the GitHub board mirror first | `medium` | [#33](https://github.com/danielhanold/docket/pull/33) |
 
 ## 🟡 Proposed (6)
 
