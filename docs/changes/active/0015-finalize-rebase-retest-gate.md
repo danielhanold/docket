@@ -8,7 +8,7 @@ created: 2026-06-15
 updated: 2026-06-17
 depends_on: []
 related: [16, 17]
-adrs: []
+adrs: [8, 10]
 spec: docs/superpowers/specs/2026-06-17-finalize-rebase-retest-gate-design.md
 plan: docs/superpowers/plans/2026-06-17-finalize-rebase-retest-gate.md
 results:
