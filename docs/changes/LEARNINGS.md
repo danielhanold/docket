@@ -4,6 +4,22 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-06-17 (#15, PR #32) — A read-only review subagent ran `git checkout <sha>` in the SHARED
+  feature worktree to inspect a diff, detaching HEAD; the controller's later commits (plan, results)
+  landed on the detached HEAD, the branch ref stayed put, and a plain `git push` of the branch
+  silently published only the pre-detach tip (the PR was briefly missing files). Apply: review/
+  inspection subagents must NOT `git checkout` in a shared worktree (use `git show`/`git diff <sha>`,
+  or a throwaway worktree); after every push the controller SHA-compares local vs origin AND checks
+  `git symbolic-ref -q HEAD` is the feature branch — never trust the push exit code alone.
+- 2026-06-17 (#15, PR #32) — An ordering sentinel grepped a broad keyword OR-set
+  (`run the suite|validate|local` + a separate `before` filter) and latched onto an unintended
+  EARLIER line (step-1 prose), passing vacuously no matter what the real clause said. Apply: anchor
+  an order/presence assert to the UNIQUE phrase its target clause owns (e.g. "before any push"), not
+  a broad keyword set — and mutation-test it by deleting the real clause (must flip to NOT OK).
+- 2026-06-17 (#15, PR #32) — A config enum value (`gate: off`) collides with a YAML 1.1 boolean —
+  safe under docket's grep/awk reads (it stays the literal string "off"), but it would parse as
+  `false` under a real YAML loader. Apply: a config value that is a YAML boolean keyword
+  (on/off/yes/no/true/false) must be quoted or avoided once a YAML library is in play (flagged for #0018/yq).
 - 2026-06-17 (#17, PR #31) — Skill-body prose pinned literal model/effort tiers ("dispatch the
   critic, pinned opus/xhigh via its wrapper") for the dispatched subagents — a second source of
   truth for a value whose home is the wrapper frontmatter + layered `.docket.yml`/global config,
