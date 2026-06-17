@@ -10,7 +10,7 @@ depends_on: []
 related: [16, 17]
 adrs: []
 spec: docs/superpowers/specs/2026-06-17-finalize-rebase-retest-gate-design.md
-plan:
+plan: docs/superpowers/plans/2026-06-17-finalize-rebase-retest-gate.md
 results:
 trivial: false
 auto_groomable:
