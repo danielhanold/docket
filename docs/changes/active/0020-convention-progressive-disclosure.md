@@ -2,7 +2,7 @@
 id: 20
 slug: convention-progressive-disclosure
 title: Split the docket-convention skill via progressive disclosure — extract the GitHub board mirror first
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-06-17
 updated: 2026-06-17
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/convention-progressive-disclosure
 pr:
 blocked_by:
 reconciled: false
