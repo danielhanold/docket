@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/finalize-consent-model
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Why
@@ -67,3 +67,14 @@ were all settled in the 2026-06-17 brainstorm (see spec §8).
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+- 2026-06-17 — Reconciled against `origin/main` (tip `c02c119`). Verified every spec premise still
+  holds against current code: `skills/docket-finalize-change/SKILL.md` **Selection** section still
+  carries the old unconditional "PROMPT before merging — merging is a deliberate act" language (the
+  thing this change replaces with ambiguity-only prompting); the **rebase-retest merge gate** config
+  block exposes exactly `gate:` + `test_command:` (the nesting spot for `require_pr_approval:`); and
+  `.docket.yml`'s `finalize:` block has `gate: local` with no approval knob yet. Related changes
+  unchanged since the brainstorm: 0015 (rebase-retest gate, ADR-0010) is `done` and is the gate this
+  layers on; 0019 (finalize ci/both functional test) is still `proposed`/needs-brainstorm and
+  non-overlapping. `tests/test_finalize_gate.sh` exists with an awk-based `gate_of()` parser to extend
+  for the new knob. No scope dropped, no new constraints — spec and body carried into build as written.
