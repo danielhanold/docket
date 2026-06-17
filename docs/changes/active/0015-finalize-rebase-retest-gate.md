@@ -5,11 +5,11 @@ title: finalize — rebase onto base + re-run tests before merge
 status: proposed
 priority: medium
 created: 2026-06-15
-updated: 2026-06-15
+updated: 2026-06-17
 depends_on: []
-related: [16]
+related: [16, 17]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-06-17-finalize-rebase-retest-gate-design.md
 plan:
 results:
 trivial: false
@@ -22,52 +22,41 @@ reconciled: false
 
 ## Why
 
-`docket-finalize-change` trusts the PR's own CI and merges via a merge commit
-(`gh pr merge --merge`). It never rebases the feature branch onto
-`origin/<integration_branch>` first, and its only test step is a parenthetical
-*optional* — "verify the merge landed (optionally: tests green on the merged
-result)". So the effective gate today is "the PR head was green when a human
-approved it."
-
-That leaves a real gap: a PR can be **behind base** and still pass its own CI,
-yet produce a logically-broken integration branch once merged — a semantic
-conflict git auto-merges cleanly (e.g. base renamed a symbol the PR still
-calls). Nothing re-validates the *merged* result before it lands on the
-integration branch. The same gap exists in `docket-status`'s bulk merge-sweep,
-which shares finalize's archive path.
+`docket-finalize-change` merges an approved PR by trusting the PR's own CI —
+green on the PR **head**. `gh pr merge --merge` blocks only *textual* conflicts.
+So a PR that is **behind base** can pass its own CI yet produce a logically-broken
+integration branch once merged — a **semantic** conflict git auto-merges cleanly
+(e.g. base renamed a symbol the PR still calls). Nothing re-validates the *merged*
+result before it lands. Finalize's only test step today is a parenthetical
+*optional*, so the effective gate is "the PR head was green when a human approved
+it."
 
 ## What changes
 
-Add a **rebase-onto-base + re-run-tests gate** to the close-out path, before the
-merge is allowed to land: update the feature branch onto
-`origin/<integration_branch>`, resolve conflicts, run the project's test
-command on the rebased result, and only merge if it is green. On a conflict that
-can't be auto-resolved, or a red suite, **abort-and-report** (no merge) — matching
-the subagent abort-and-report semantics from change 0016.
+Add a **rebase-onto-base + re-run-tests gate** to finalize's merge step — the only
+place docket itself performs a merge. Before the merge lands: rebase the feature
+branch onto `origin/<integration_branch>`, validate the integrated result against
+the repo's suite, and merge only if green.
+
+- **Config** (`.docket.yml`): `finalize.gate` = `local` (default) · `ci` · `both` ·
+  `off`. The test command is auto-detected (optional `test_command` override); `off`
+  restores today's behavior.
+- **Two pinned `opus/xhigh` subagents**, split at rebase-completion: a
+  **`docket-rebase-resolver`** reconciles rebase conflicts *during* the rebase, and a
+  **`docket-integration-repair`** owns red-test outcomes *after* it (root-cause +
+  minimal fix, ≤2 attempts). Both abort-and-report when ambiguous or stuck.
+- **Auto-authored repairs never merge unseen**: interactive finalize prompts with
+  the diff before merging; autonomous finalize pushes the repair and aborts-and-reports.
+
+Full design — the gate flow, the two-agent boundary, the sign-off rule, and the
+abort-and-report set — is in the linked spec.
 
 ## Out of scope
 
-- Changing the merge *mode* (merge vs squash vs rebase-merge) — that stays the
-  team's `gh` flag choice.
-- Re-running tests for changes whose PR is already merged (the merge already
-  landed; this gate is pre-merge only).
-- The model/effort plumbing itself — that is change 0016; this change consumes it.
-
-## Open questions
-
-- **Two-subagent fan-out.** Split finalize's close-out into two subagents: a
-  **rebase/conflict-resolver** (Opus — conflict resolution is real judgment) and
-  a **close-out executor** (Sonnet — the existing procedural archive/publish/board
-  flow). This generalizes the same "split by reasoning-load within one skill"
-  pattern as auto-groom's designer/critic. Decide during grooming whether the
-  split is worth the extra subagent hop or whether one Sonnet subagent that
-  escalates to Opus only on conflict is simpler.
-- Where the project's test command comes from (a `.docket.yml` knob? infer from
-  repo? reuse whatever `docket-implement-next`'s build step already runs?).
-- Does the bulk `docket-status` sweep get the same gate, or only the deliberate
-  single-change finalize? (The sweep is unattended — a red re-test there should
-  skip-and-flag, not block the whole sweep.)
-- Interaction with change 0016: finalize-as-subagent can't pause to ask, so the
-  rebase resolver must abort-and-report on anything ambiguous.
+- The merge *mode* (merge / squash / rebase-merge) — stays the team's `gh` flag.
+- The `docket-status` sweep — it only archives already-merged PRs, so a pre-merge
+  gate has nothing to act on there; the gate is finalize-only.
+- Asserting the two agents' resolution/repair *quality* — governed by their
+  `opus/xhigh` tier, not the test suite.
 
 ## Reconcile log
