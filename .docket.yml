@@ -10,6 +10,16 @@ changes_dir: docs/changes
 adrs_dir: docs/adrs
 results_dir: docs/results
 
+# Finalize merge gate (change 0015): rebase the feature branch onto the integration
+# branch and re-validate the merged result before docket merges, so a behind-base PR
+# can't land a semantically-broken integration branch. gate: local (default, on) |
+# ci | both | off. `off` restores pre-0015 behavior (merge trusting the PR's own CI).
+# test_command is normally unset — finalize auto-detects the suite; set it only to
+# override a wrong guess.
+finalize:
+  gate: local
+  # test_command:
+
 # Which derived board view(s) to render. A list; [] disables the board entirely.
 #   inline  → BOARD.md on the metadata branch (offline-safe, committed)
 #   github  → one-way GitHub Issues + Projects v2 mirror (scripts/github-mirror.sh)
