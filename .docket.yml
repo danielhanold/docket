@@ -19,6 +19,9 @@ results_dir: docs/results
 finalize:
   gate: local
   # test_command:
+  # require_pr_approval: false  # default. true => the auto-detect (no-arg) path refuses to merge an
+  #                             #   unapproved PR (reviewDecision != APPROVED), surfacing it instead.
+  #                             #   An explicit `docket-finalize-change <id>` always overrides this.
 
 # Which derived board view(s) to render. A list; [] disables the board entirely.
 #   inline  → BOARD.md on the metadata branch (offline-safe, committed)

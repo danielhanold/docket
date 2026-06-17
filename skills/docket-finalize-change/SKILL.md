@@ -74,8 +74,10 @@ Configured by `.docket.yml`:
 
 ```yaml
 finalize:
-  gate: local          # local (default) | ci | both | off
-  test_command:        # OPTIONAL override; unset => the agent auto-detects the suite
+  gate: local                 # local (default) | ci | both | off
+  test_command:               # OPTIONAL override; unset => the agent auto-detects the suite
+  require_pr_approval: false  # default false. true => the auto-detect path refuses to merge
+                              #   an unapproved PR (reviewDecision != APPROVED), surfacing instead.
 ```
 
 `gate` defaults to **`local`** (gate on, validating against the repo's local suite);
@@ -85,6 +87,15 @@ pre-gate behavior).
 `test_command` is normally unset — auto-detect the suite by inspecting the repo
 (Makefile, `package.json` scripts, a `tests/` dir, CI config); the override is used
 verbatim only when auto-detection guesses wrong.
+
+`require_pr_approval` defaults to **`false`** — approval is never a selection-time
+blocker (the single-human-friendly default: the author pushes their own PR and so
+cannot approve it on GitHub at all). Set it **`true`** to make the **auto-detect path**
+refuse to merge an unapproved PR (`reviewDecision != APPROVED`), surfacing it instead of
+merging — `gate` validates *correctness*, `require_pr_approval` validates *human sign-off*.
+It governs **only the auto-detect path**: an explicit `docket-finalize-change <id>` always
+overrides it (the explicit id is itself the human authorization the gate asks for), and the
+rebase-retest correctness gate still runs regardless.
 
 The gate operates in the change's feature worktree (`.worktrees/<slug>`) if it still
 exists, else a transient worktree on `feat/<slug>` provisioned and torn down like

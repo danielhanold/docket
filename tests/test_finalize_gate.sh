@@ -40,6 +40,45 @@ assert "config-parse: gate off (opt-out)"    '[ "$(gate_of "$TMPC/off.yml")"   =
 assert "config-parse: absent block => local" '[ "$(gate_of "$TMPC/absent.yml")" = "local" ]'
 rm -rf "$TMPC"
 
+# ---- Config parse: the nested finalize.require_pr_approval key (default false) -
+# Same block-scoped awk idiom as gate_of; SIGPIPE-safe (capture, no producer|grep).
+rpa_of(){  # $1 = path to a .docket.yml ; echoes true|false (default false)
+  local v
+  v="$(awk '
+    /^finalize:[[:space:]]*$/{f=1;next}
+    f&&/^[^[:space:]#]/{f=0}
+    f&&/^[[:space:]]+require_pr_approval[[:space:]]*:/{
+      line=$0; sub(/#.*/,"",line); sub(/.*require_pr_approval[[:space:]]*:[[:space:]]*/,"",line);
+      gsub(/[[:space:]]/,"",line); print line; exit
+    }' "$1" 2>/dev/null)"
+  printf '%s' "${v:-false}"
+}
+TMPR="$(mktemp -d)"
+printf 'finalize:\n  require_pr_approval: true\n'  > "$TMPR/true.yml"
+printf 'finalize:\n  require_pr_approval: false\n' > "$TMPR/false.yml"
+printf 'finalize:\n  gate: local\n'                > "$TMPR/nokey.yml"   # finalize block, no rpa key
+printf 'metadata_branch: docket\n'                 > "$TMPR/absent.yml"  # no finalize block
+assert "rpa-parse: require_pr_approval true"            '[ "$(rpa_of "$TMPR/true.yml")"   = "true" ]'
+assert "rpa-parse: require_pr_approval false"           '[ "$(rpa_of "$TMPR/false.yml")"  = "false" ]'
+assert "rpa-parse: key absent in finalize => false"     '[ "$(rpa_of "$TMPR/nokey.yml")"  = "false" ]'
+assert "rpa-parse: no finalize block => false"          '[ "$(rpa_of "$TMPR/absent.yml")" = "false" ]'
+# A commented knob must parse as the default (commented line is not a key):
+printf 'finalize:\n  # require_pr_approval: false\n'    > "$TMPR/commented.yml"
+assert "rpa-parse: commented knob => default false"     '[ "$(rpa_of "$TMPR/commented.yml")" = "false" ]'
+rm -rf "$TMPR"
+
+# ---- finalize SKILL documents require_pr_approval with default false ----------
+assert "finalize documents require_pr_approval default false" \
+  'grep -Eqi "require_pr_approval.*default.*false" "$FIN"'
+assert "finalize ties require_pr_approval to the auto-detect path + unapproved PR" \
+  'grep -q "reviewDecision != APPROVED" "$FIN"'
+
+# ---- repo .docket.yml carries the knob (commented) at its default -------------
+assert "repo .docket.yml mentions require_pr_approval (discoverability)" \
+  'grep -q "require_pr_approval" "$DYML"'
+assert "repo .docket.yml leaves require_pr_approval at default false" \
+  '[ "$(rpa_of "$DYML")" = "false" ]'
+
 # ---- finalize SKILL gates on finalize.gate ------------------------------------
 assert "finalize references the finalize.gate config" 'grep -Eq "finalize\.gate|finalize:" "$FIN"'
 assert "finalize names all four gate modes" \
