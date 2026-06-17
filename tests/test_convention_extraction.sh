@@ -63,5 +63,26 @@ mkdir -p "$tmp/.claude/skills"
 DOCKET_HARNESS_ROOT="$tmp" bash "$REPO/link-skills.sh" >/dev/null
 assert "link-skills.sh links docket-convention" '[ -L "$tmp/.claude/skills/docket-convention" ]'
 
+# (f) progressive disclosure — the GitHub board mirror moved to a sibling (change 0020)
+MIRROR_REF="$REPO/skills/docket-convention/github-board-mirror.md"
+STATUS="$REPO/skills/docket-status/SKILL.md"
+# the sibling exists and carries the moved mechanics (two distinct mirror-only phrases)
+assert "mirror sibling exists" '[ -f "$MIRROR_REF" ]'
+assert "mirror sibling carries the status-mapping mechanics" \
+  '[ -f "$MIRROR_REF" ] && grep -qF "closed as **not planned**" "$MIRROR_REF"'
+assert "mirror sibling carries the label-namespace rule" \
+  '[ -f "$MIRROR_REF" ] && grep -qF "never touches a label it did not mint" "$MIRROR_REF"'
+# moved, NOT copied — those mechanics are gone from the core SKILL.md
+assert "core no longer carries the status-mapping mechanics" \
+  '! grep -qF "closed as **not planned**" "$REF"'
+assert "core no longer carries the label-namespace rule" \
+  '! grep -qF "never touches a label it did not mint" "$REF"'
+# the core keeps the stub heading (anchor for Configuration's cross-refs) AND a pointer
+assert "core keeps the GitHub board mirror stub heading" 'grep -qF "### GitHub board mirror" "$REF"'
+assert "core points at the mirror sibling" 'grep -qF "github-board-mirror.md" "$REF"'
+# docket-status (the Board-pass owner) points at the sibling
+assert "docket-status points at the mirror sibling" \
+  '[ -f "$STATUS" ] && grep -qF "github-board-mirror.md" "$STATUS"'
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
