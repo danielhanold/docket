@@ -79,8 +79,9 @@ finalize:
 ```
 
 `gate` defaults to **`local`** (gate on, validating against the repo's local suite);
-`ci` validates GitHub checks; `both` requires local **and** CI green; **`off`** restores
-today's behavior exactly — merge trusting the PR's own CI, no rebase and no re-test.
+`ci` validates GitHub checks; `both` requires local **and** CI green; **`off`** is the
+documented opt-out — merge trusting the PR's own CI, with no rebase and no re-test (the
+pre-gate behavior).
 `test_command` is normally unset — auto-detect the suite by inspecting the repo
 (Makefile, `package.json` scripts, a `tests/` dir, CI config); the override is used
 verbatim only when auto-detection guesses wrong.
@@ -91,14 +92,18 @@ terminal-publish's `pub-<T>` tree.
 
 **Flow** (runs before `gh pr merge`):
 
-1. `gate == off` → merge as today (no rebase, no re-test); skip the rest of the gate.
+1. `gate == off` → merge trusting the PR's own CI (no rebase, no re-test); skip the rest of the gate.
 2. **Rebase** `feat/<slug>` onto `origin/<integration_branch>`. On a clean rebase,
    continue. On conflict, **dispatch the `docket-rebase-resolver` subagent**
    (foreground, at the model/effort its wrapper resolves) to reconcile every hunk
    until the rebase completes; if it reports an **ambiguous conflict** it cannot
    resolve, the rebase is aborted and the gate **aborts-and-reports**.
 3. **Determine the suite:** the `test_command` override, else auto-detect. Under
-   `local`/`both` with **no detectable suite and no `test_command`**, **abort-and-report**.
+   `local`/`both` with **no detectable suite and no `test_command`**, **abort-and-report** —
+   the gate is on but has nothing to validate; the reason names the remedy (set
+   `test_command` to point at the suite, or `gate: off` to opt out). This fires only when the
+   suite is **undetectable**: a *detected* suite that runs clean — even one with zero tests —
+   is green and proceeds.
 4. **Validate per `gate`:**
    - `local` → run the suite in the worktree **before any push**.
    - `ci` → push `--force-with-lease`, then poll `gh pr checks`.
@@ -150,6 +155,16 @@ an ambiguous rebase conflict ① gives up on · `local`/`both` with no detectabl
 no `test_command` override · ② cannot reach green in ≤2 attempts · `ci`/`both` with red or
 absent CI checks · a `--force-with-lease` rejected by a concurrent push · any ② repair
 under **autonomous** finalize (sign-off).
+
+**Where the reason surfaces.** The resolver/repair subagent returns its diagnosis to
+finalize in-context (the subagent contract — that is what "stop and surface" means for a
+dispatched agent); finalize relays it in its own abort-and-report output — to the human in
+an interactive session, or to the dispatching caller when finalize itself runs
+autonomously. Because an autonomous return is ephemeral, finalize also records the reason
+durably as a **comment on the PR** (`gh pr comment`): the change stays `implemented` with
+the PR open, so a human returning to it reads exactly why the auto-merge stopped (what
+failed, the agent's hypothesis, what it tried). For a ② repair the force-pushed commit is
+itself part of that durable record on the PR.
 
 ## Where finishing-a-development-branch fits
 
