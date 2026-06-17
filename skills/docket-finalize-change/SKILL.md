@@ -24,10 +24,34 @@ Before anything else in this skill, invoke the `docket-convention` skill via the
 
 ## Selection
 
-Given an explicit change id, OR auto-detect:
+Given an explicit change id, OR auto-detect.
 
-- Auto-detect FINALIZES every `implemented` change whose `pr:` is already merged (safe, idempotent), AND
-- For any that are only approved-and-mergeable (not yet merged), PROMPT before merging — merging is a deliberate act.
+**Explicit id** (`docket-finalize-change <id>`) — never prompts (an explicit id is
+unambiguous). The rebase-retest correctness gate still runs. The explicit id is itself the
+human authorization, so **an explicit id overrides `require_pr_approval`**: it merges even an
+unapproved PR. The approval policy governs only the auto-detect path; merging an unapproved PR
+simply requires being explicit about it.
+
+**Auto-detect** — already-merged PRs are archived silently (idempotent, unchanged). For the
+rest, classify every `implemented` candidate and act per this matrix:
+
+| Candidate | Behavior |
+|---|---|
+| Not git-mergeable (`CLOSED`, `DRAFT`, or a GitHub-reported conflict the gate can't act on) | **Surface, do not merge** |
+| `require_pr_approval: true` AND unapproved (`reviewDecision != APPROVED`) | **Surface, do not merge** — the policy gate; report it so you know docket saw it and why it skipped |
+| **Exactly one eligible** candidate | **Run the full flow — gate + merge + finalize — with NO prompt** |
+| **More than one eligible** candidate | **Prompt**: list them and confirm the batch (the blast-radius guard) |
+
+"Eligible" = git-mergeable AND (`require_pr_approval: false` OR approved). The ambiguity count
+is over *eligible* candidates only: under `require_pr_approval: true` an unapproved PR is
+surfaced-not-merged and does **not** count toward the prompt. Git-conflict *resolution* is
+delegated to the rebase-retest gate (it rebases onto base and dispatches
+`docket-rebase-resolver`); selection's "surface, do not merge" covers only states the gate
+can't act on (draft/closed/flatly un-mergeable).
+
+The prompt exists **only to guard the bulk-merge blast radius** — more than one eligible
+target at once. The common case, one obvious target the human deliberately invoked finalize on,
+merges with **no prompt**.
 
 The per-change steps below run for each selected change.
 
@@ -35,7 +59,7 @@ The per-change steps below run for each selected change.
 
 **Steps 1–4 run per selected change** (check → verify → harvest → archive → clean up), exactly mirroring `docket-status`'s per-change archive loop (which invokes the same harvest by reference). **Step 5 (Board) runs once after all selected changes are processed** — it is wholesale and idempotent, so a single regen at the end is correct and avoids redundant regenerations.
 
-1. **Check the PR** (`gh`). Already merged → straight to archive. Approved + mergeable but not merged → **merge it into the integration branch** — `gh pr merge --merge "$pr" --repo … ` (or the team's merge mode) targeting the change's PR against **`<integration_branch>`** (resolved from `.docket.yml`; default `auto` → `origin/HEAD`, fallback `main`), **not hard-coded `main`** (a GitFlow repo merges into `develop`). Invoking finalize on an **explicit change id** IS the merge decision — the gate is respected; under **auto-detect**, PROMPT first per the Selection rules above before merging. **Before the merge lands, run *The rebase-retest merge gate* below** (unless `finalize.gate` is `off`) — it brings the feature branch up to base, validates the integrated result, and only then proceeds to `gh pr merge`. Then continue. (Merging the PR is the only thing that lands plan + results + code on the integration branch — they ride the merge, not the terminal-publish.)
+1. **Check the PR** (`gh`). Already merged → straight to archive. Approved + mergeable but not merged → **merge it into the integration branch** — `gh pr merge --merge "$pr" --repo … ` (or the team's merge mode) targeting the change's PR against **`<integration_branch>`** (resolved from `.docket.yml`; default `auto` → `origin/HEAD`, fallback `main`), **not hard-coded `main`** (a GitFlow repo merges into `develop`). Invoking finalize on an **explicit change id** IS the merge decision (and overrides `require_pr_approval`) — the gate is respected; under **auto-detect**, follow the Selection matrix above — a single eligible candidate merges with **no prompt**, and finalize prompts **only when more than one** is eligible. **Before the merge lands, run *The rebase-retest merge gate* below** (unless `finalize.gate` is `off`) — it brings the feature branch up to base, validates the integrated result, and only then proceeds to `gh pr merge`. Then continue. (Merging the PR is the only thing that lands plan + results + code on the integration branch — they ride the merge, not the terminal-publish.)
 
 2. **Verify the merge landed on the integration branch** (optionally: tests green on the merged result).
 

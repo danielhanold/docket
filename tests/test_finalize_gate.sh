@@ -79,6 +79,22 @@ assert "repo .docket.yml mentions require_pr_approval (discoverability)" \
 assert "repo .docket.yml leaves require_pr_approval at default false" \
   '[ "$(rpa_of "$DYML")" = "false" ]'
 
+# ---- Selection: ambiguity-only prompting (the §4.1 matrix) --------------------
+# Anchor each assert to the UNIQUE phrase its matrix row owns (LEARNINGS #15) — not a
+# broad keyword set that could latch onto step-1 prose. Each is a single-line grep so
+# the two halves must co-occur in the same row.
+assert "selection: exactly one eligible => no prompt" \
+  'grep -Eqi "exactly one eligible.*no prompt" "$FIN"'
+assert "selection: more than one eligible => prompt" \
+  'grep -Eqi "more than one eligible.*prompt" "$FIN"'
+assert "selection: surface-don't-merge an un-mergeable candidate" \
+  'grep -Eqi "not git-mergeable.*surface, do not merge" "$FIN"'
+assert "selection: surface-don't-merge an unapproved PR under the policy" \
+  'grep -Eqi "require_pr_approval.{0,40}surface, do not merge|reviewDecision != APPROVED.{0,80}surface, do not merge" "$FIN"'
+# ---- §4.2 explicit id overrides the approval policy --------------------------
+assert "selection: explicit id overrides require_pr_approval" \
+  'grep -Eqi "explicit id overrides .{0,4}require_pr_approval|explicit id.{0,40}overrides.{0,40}require_pr_approval" "$FIN"'
+
 # ---- finalize SKILL gates on finalize.gate ------------------------------------
 assert "finalize references the finalize.gate config" 'grep -Eq "finalize\.gate|finalize:" "$FIN"'
 assert "finalize names all four gate modes" \
