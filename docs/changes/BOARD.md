@@ -1,12 +1,6 @@
 # Backlog
 
-**18 changes** — 🔵 1 implemented · 🟡 6 proposed · ✅ 11 done
-
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | PR |
-|---|-------|----------|----|
-| [0017](active/0017-docket-subagent-composition-wiring.md) | docket subagent composition — nested status/adr/critic dispatch | `medium` | [#31](https://github.com/danielhanold/docket/pull/31) |
+**18 changes** — 🟡 6 proposed · ✅ 12 done
 
 ## 🟡 Proposed (6)
 
@@ -19,10 +13,11 @@
 | [0015](active/0015-finalize-rebase-retest-gate.md) | finalize — rebase onto base + re-run tests before merge | `medium` | needs-brainstorm |
 | [0018](active/0018-yq-yaml-parsing.md) | Evaluate adopting yq for YAML parsing across docket scripts | `low` | needs-brainstorm |
 
-<details><summary>✅ Archive — done (11)</summary>
+<details><summary>✅ Archive — done (12)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0017](archive/2026-06-17-0017-docket-subagent-composition-wiring.md) | docket subagent composition — nested status/adr/critic dispatch | 2026-06-17 |
 | [0016](archive/2026-06-16-0016-docket-subagent-model-effort.md) | docket skills as model/effort-pinned subagents — foundation | 2026-06-16 |
 | [0011](archive/2026-06-16-0011-github-issues-board-mirror.md) | GitHub board mirror — selectable board surfaces, one-way Issues + Projects mirror | 2026-06-16 |
 | [0014](archive/2026-06-12-0014-docket-auto-groom.md) | docket-auto-groom — autonomous grooming drain over auto-groomable stubs | 2026-06-12 |
