@@ -82,4 +82,14 @@ assert "finalize names the wrapper as the tier source" 'grep -Eqi "model/effort 
 assert "repo .docket.yml sets finalize gate to local" \
   '[ "$(gate_of "$DYML")" = "local" ] && grep -Eq "^finalize:" "$DYML" && grep -Eq "^[[:space:]]+gate[[:space:]]*:[[:space:]]*local" "$DYML"'
 
+# ---- convention documents the gate + the two new wrappers --------------------
+assert "convention documents finalize.gate" 'grep -Eqi "finalize\.gate|finalize:" "$CONV" && grep -qi "gate" "$CONV"'
+assert "convention names the four gate modes" \
+  'grep -Eqi "local[^.]*ci[^.]*both[^.]*off|gate.*off.*opt" "$CONV"'
+assert "convention names docket-rebase-resolver" 'grep -q "docket-rebase-resolver" "$CONV"'
+assert "convention names docket-integration-repair" 'grep -q "docket-integration-repair" "$CONV"'
+assert "convention count prose says eight wrappers" 'grep -qi "eight" "$CONV"'
+# Non-vacuous count guard: the "five skills get a wrapper" language must stay exact.
+assert "convention keeps 'five skills get a wrapper' exact" 'grep -qi "five .*skills.* get a wrapper" "$CONV"'
+
 exit $fail
