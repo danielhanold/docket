@@ -2,7 +2,7 @@
 id: 15
 slug: finalize-rebase-retest-gate
 title: finalize — rebase onto base + re-run tests before merge
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-06-15
 updated: 2026-06-17
@@ -11,11 +11,11 @@ related: [16, 17]
 adrs: [8, 10]
 spec: docs/superpowers/specs/2026-06-17-finalize-rebase-retest-gate-design.md
 plan: docs/superpowers/plans/2026-06-17-finalize-rebase-retest-gate.md
-results:
+results: docs/results/2026-06-17-finalize-rebase-retest-gate-results.md
 trivial: false
 auto_groomable:
 branch: feat/finalize-rebase-retest-gate
-pr:
+pr: https://github.com/danielhanold/docket/pull/32
 blocked_by:
 reconciled: true
 ---
