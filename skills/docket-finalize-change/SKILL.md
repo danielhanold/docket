@@ -35,7 +35,7 @@ The per-change steps below run for each selected change.
 
 **Steps 1–4 run per selected change** (check → verify → harvest → archive → clean up), exactly mirroring `docket-status`'s per-change archive loop (which invokes the same harvest by reference). **Step 5 (Board) runs once after all selected changes are processed** — it is wholesale and idempotent, so a single regen at the end is correct and avoids redundant regenerations.
 
-1. **Check the PR** (`gh`). Already merged → straight to archive. Approved + mergeable but not merged → **merge it into the integration branch** — `gh pr merge --merge "$pr" --repo … ` (or the team's merge mode) targeting the change's PR against **`<integration_branch>`** (resolved from `.docket.yml`; default `auto` → `origin/HEAD`, fallback `main`), **not hard-coded `main`** (a GitFlow repo merges into `develop`). Invoking finalize on an **explicit change id** IS the merge decision — the gate is respected; under **auto-detect**, PROMPT first per the Selection rules above before merging. Then continue. (Merging the PR is the only thing that lands plan + results + code on the integration branch — they ride the merge, not the terminal-publish.)
+1. **Check the PR** (`gh`). Already merged → straight to archive. Approved + mergeable but not merged → **merge it into the integration branch** — `gh pr merge --merge "$pr" --repo … ` (or the team's merge mode) targeting the change's PR against **`<integration_branch>`** (resolved from `.docket.yml`; default `auto` → `origin/HEAD`, fallback `main`), **not hard-coded `main`** (a GitFlow repo merges into `develop`). Invoking finalize on an **explicit change id** IS the merge decision — the gate is respected; under **auto-detect**, PROMPT first per the Selection rules above before merging. **Before the merge lands, run *The rebase-retest merge gate* below** (unless `finalize.gate` is `off`) — it brings the feature branch up to base, validates the integrated result, and only then proceeds to `gh pr merge`. Then continue. (Merging the PR is the only thing that lands plan + results + code on the integration branch — they ride the merge, not the terminal-publish.)
 
 2. **Verify the merge landed on the integration branch** (optionally: tests green on the merged result).
 
@@ -64,6 +64,107 @@ The per-change steps below run for each selected change.
 5. **Board** — regenerate `BOARD.md` (`docket-status`'s Board pass) in the metadata working tree and commit + push it on `metadata_branch` (in `docket`-mode, `origin/docket`) as a separate commit from the archive commits above. The board is the **live planning view and stays on `metadata_branch`** — it is never published to the integration branch.
 
 **Note:** This archive procedure is **identical** to `docket-status`'s merge-sweep archive — same UTC merge date, same change-file-only commit, same reuse-existing-file idempotency, same terminal-publish invocation. Both skills describe the same operation; they must not diverge.
+
+## The rebase-retest merge gate
+
+Guards step 1's merge — the **only** place docket itself merges. It validates the
+*merged result*, not just the PR head: a PR that is behind base can pass its own CI
+and still break the integration branch on a semantic conflict git auto-merges cleanly.
+Configured by `.docket.yml`:
+
+```yaml
+finalize:
+  gate: local          # local (default) | ci | both | off
+  test_command:        # OPTIONAL override; unset => the agent auto-detects the suite
+```
+
+`gate` defaults to **`local`** (gate on, validating against the repo's local suite);
+`ci` validates GitHub checks; `both` requires local **and** CI green; **`off`** is the
+documented opt-out — merge trusting the PR's own CI, with no rebase and no re-test (the
+pre-gate behavior).
+`test_command` is normally unset — auto-detect the suite by inspecting the repo
+(Makefile, `package.json` scripts, a `tests/` dir, CI config); the override is used
+verbatim only when auto-detection guesses wrong.
+
+The gate operates in the change's feature worktree (`.worktrees/<slug>`) if it still
+exists, else a transient worktree on `feat/<slug>` provisioned and torn down like
+terminal-publish's `pub-<T>` tree.
+
+**Flow** (runs before `gh pr merge`):
+
+1. `gate == off` → merge trusting the PR's own CI (no rebase, no re-test); skip the rest of the gate.
+2. **Rebase** `feat/<slug>` onto `origin/<integration_branch>`. On a clean rebase,
+   continue. On conflict, **dispatch the `docket-rebase-resolver` subagent**
+   (foreground, at the model/effort its wrapper resolves) to reconcile every hunk
+   until the rebase completes; if it reports an **ambiguous conflict** it cannot
+   resolve, the rebase is aborted and the gate **aborts-and-reports**.
+3. **Determine the suite:** the `test_command` override, else auto-detect. Under
+   `local`/`both` with **no detectable suite and no `test_command`**, **abort-and-report** —
+   the gate is on but has nothing to validate; the reason names the remedy (set
+   `test_command` to point at the suite, or `gate: off` to opt out). This fires only when the
+   suite is **undetectable**: a *detected* suite that runs clean — even one with zero tests —
+   is green and proceeds.
+4. **Validate per `gate`:**
+   - `local` → run the suite in the worktree **before any push**.
+   - `ci` → push `--force-with-lease`, then poll `gh pr checks`.
+   - `both` → local first, then push + CI.
+   On green, continue. On **red**, **dispatch the `docket-integration-repair` subagent**
+   (foreground, at the model/effort its wrapper resolves) — it owns every red-test
+   outcome, root-causes it, and writes a minimal fix in **at most two attempts**. If it
+   reaches green, apply the **sign-off rule** below. If it is **stuck / cannot reach
+   green**, **abort-and-report**. A `ci`/`both` run with **red or absent CI checks**
+   also **aborts-and-reports**.
+5. **Push** `--force-with-lease` if the branch was rebased and not already pushed; a
+   **lease rejected by a concurrent push** → **abort-and-report**.
+6. `gh pr merge` → the existing close-out (harvest → archive → terminal-publish →
+   cleanup → board).
+
+The rebase makes the feature sit on top of base, so the eventual `gh pr merge` is
+conflict-free — validating the rebased branch validates what actually lands. `local`
+runs the suite **before** the force-push so a broken rebase is never force-pushed;
+`ci` validates after the push (CI runs on the pushed branch); `both` does both.
+
+### The two agents (split at rebase-completion)
+
+Conflict resolution and semantic repair are different shapes — a bounded reconciliation
+versus open-ended debugging — so they are two dedicated wrappers
+(`agents/docket-rebase-resolver.md` ①, `agents/docket-integration-repair.md` ②), each
+wrapping **no skill** (loading only `docket-convention`), both carrying abort-and-report,
+each dispatched **foreground at the model/effort its wrapper resolves** (never a literal
+tier in this prose — the wrapper + layered config are the single source). The boundary is
+**the rebase completing**: ① resolves conflicts *during* the rebase and never runs tests;
+② owns the **red suite** *after* the rebase lands, regardless of cause (base drift or a
+bad ① resolution). ①'s report is **conflicts resolved**; ②'s is an **authored repair** —
+and an authored repair is what fires the sign-off rule.
+
+### Sign-off on auto-authored repairs
+
+A ② repair is code the human's approval predated, so it **never merges unseen** —
+reconciling with the agent layer's abort-and-report rule for autonomous subagents:
+
+- **Interactive finalize** (a human is attending the session): force-push `--force-with-lease` the repaired branch, **report the repair diff + what broke**, and **prompt** for go-ahead before `gh pr merge` (the interactive sign-off).
+- **Autonomous finalize** (running as its own subagent, no human to ask): it **cannot** prompt, so it **force-pushes the repair and follows abort-and-report** — STOP, do not merge. The human reviews the pushed repair on the PR and re-runs finalize to merge.
+
+Pure ① conflict resolution does **not** trigger sign-off — it completes the merge the
+human already intended and flows through the normal merge path.
+
+### abort-and-report points (the full set)
+
+Each leaves the **PR open** and the change **`implemented`**, surfacing a clear reason:
+an ambiguous rebase conflict ① gives up on · `local`/`both` with no detectable suite and
+no `test_command` override · ② cannot reach green in ≤2 attempts · `ci`/`both` with red or
+absent CI checks · a `--force-with-lease` rejected by a concurrent push · any ② repair
+under **autonomous** finalize (sign-off).
+
+**Where the reason surfaces.** The resolver/repair subagent returns its diagnosis to
+finalize in-context (the subagent contract — that is what "stop and surface" means for a
+dispatched agent); finalize relays it in its own abort-and-report output — to the human in
+an interactive session, or to the dispatching caller when finalize itself runs
+autonomously. Because an autonomous return is ephemeral, finalize also records the reason
+durably as a **comment on the PR** (`gh pr comment`): the change stays `implemented` with
+the PR open, so a human returning to it reads exactly why the auto-merge stopped (what
+failed, the agent's hypothesis, what it tried). For a ② repair the force-pushed commit is
+itself part of that durable record on the PR.
 
 ## Where finishing-a-development-branch fits
 
