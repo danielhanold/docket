@@ -10,7 +10,7 @@ depends_on: []
 related: [5]
 adrs: [3]
 spec: docs/superpowers/specs/2026-06-17-convention-progressive-disclosure-design.md
-plan:
+plan: docs/superpowers/plans/2026-06-17-convention-progressive-disclosure.md
 results:
 trivial: false
 auto_groomable:
