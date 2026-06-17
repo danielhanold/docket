@@ -4,6 +4,13 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-06-17 (#20, PR #33) — Invoking a skill presents only its `SKILL.md`; sibling files are NOT
+  auto-loaded, so a section moved out for progressive disclosure leaves every consumer's context
+  unless something Reads it. Apply: extract only a section that is heavy AND off the common path
+  (opt-in, or its work is script-delegated — like the GitHub mirror → `github-mirror.sh`); leave a
+  stub + pointer under the original heading so name-based cross-refs still resolve, and add a pointer
+  in the one consumer that needs the mechanics. Verify the MOVE by byte-diffing the sibling against
+  the base section and mutation-testing each new grep assertion (extends #5).
 - 2026-06-17 (#15, PR #32) — A read-only review subagent ran `git checkout <sha>` in the SHARED
   feature worktree to inspect a diff, detaching HEAD; the controller's later commits (plan, results)
   landed on the detached HEAD, the branch ref stayed put, and a plain `git push` of the branch
