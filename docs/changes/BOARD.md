@@ -1,12 +1,6 @@
 # Backlog
 
-**19 changes** — 🔵 1 implemented · 🟡 6 proposed · ✅ 12 done
-
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | PR |
-|---|-------|----------|----|
-| [0015](active/0015-finalize-rebase-retest-gate.md) | finalize — rebase onto base + re-run tests before merge | `medium` | [#32](https://github.com/danielhanold/docket/pull/32) |
+**19 changes** — 🟡 6 proposed · ✅ 13 done
 
 ## 🟡 Proposed (6)
 
@@ -19,10 +13,11 @@
 | [0018](active/0018-yq-yaml-parsing.md) | Evaluate adopting yq for YAML parsing across docket scripts | `low` | needs-brainstorm |
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 
-<details><summary>✅ Archive — done (12)</summary>
+<details><summary>✅ Archive — done (13)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0015](archive/2026-06-17-0015-finalize-rebase-retest-gate.md) | finalize — rebase onto base + re-run tests before merge | 2026-06-17 |
 | [0017](archive/2026-06-17-0017-docket-subagent-composition-wiring.md) | docket subagent composition — nested status/adr/critic dispatch | 2026-06-17 |
 | [0016](archive/2026-06-16-0016-docket-subagent-model-effort.md) | docket skills as model/effort-pinned subagents — foundation | 2026-06-16 |
 | [0011](archive/2026-06-16-0011-github-issues-board-mirror.md) | GitHub board mirror — selectable board surfaces, one-way Issues + Projects mirror | 2026-06-16 |
