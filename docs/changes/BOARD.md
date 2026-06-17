@@ -1,12 +1,12 @@
 # Backlog
 
-**18 changes** — 🟢 1 in progress · 🟡 5 proposed · ✅ 12 done
+**18 changes** — 🔵 1 implemented · 🟡 5 proposed · ✅ 12 done
 
-## 🟢 In progress (1)
+## 🔵 Implemented — awaiting merge (1)
 
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0015](active/0015-finalize-rebase-retest-gate.md) | finalize — rebase onto base + re-run tests before merge | `medium` | [spec](../superpowers/specs/2026-06-17-finalize-rebase-retest-gate-design.md) | `feat/finalize-rebase-retest-gate` |
+| # | Title | Priority | PR |
+|---|-------|----------|----|
+| [0015](active/0015-finalize-rebase-retest-gate.md) | finalize — rebase onto base + re-run tests before merge | `medium` | [#32](https://github.com/danielhanold/docket/pull/32) |
 
 ## 🟡 Proposed (5)
 
