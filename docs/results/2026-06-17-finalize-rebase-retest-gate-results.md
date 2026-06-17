@@ -1,0 +1,18 @@
+# finalize — rebase-onto-base + re-run-tests gate — results
+Change: #15 · Branch: feat/finalize-rebase-retest-gate · PR: (see change #0015 manifest `pr:`) · Plan: docs/superpowers/plans/2026-06-17-finalize-rebase-retest-gate.md · ADRs: 8 (Update), 10 (new)
+
+## Verify (human)
+
+<!-- Manual checks for the merge gate, beyond the automated suite (13/13 green; details in the PR description). -->
+- [ ] **Install the two new gate wrappers locally.** They ship as built-in sources (`agents/docket-rebase-resolver.md`, `agents/docket-integration-repair.md`) but are only dispatchable once generated into a harness agents dir. After merge, run `bash sync-agents.sh` and confirm `docket-rebase-resolver.md` + `docket-integration-repair.md` appear in your `~/.claude/agents/` (the repo carries no `agents:` block, so `sync-agents.sh --check` stays a no-op — there are no committed project-level wrappers to drift).
+- [ ] **(Optional) Watch the gate fire once.** docket dogfoods the gate (`.docket.yml` → `finalize: { gate: local }`). On the next real `docket-finalize-change`, sanity-check it rebases the feature branch onto `origin/main` and runs the suite *before* merging.
+
+## Findings
+
+- **Two decisions recorded.** ADR-0010 (new, `finalize-merge-gate-split-agents`) captures the gate + the two-agent split (① resolver during rebase / ② repair after, at the rebase-completion boundary; both wrap no skill). ADR-0008 got a dated `## Update` extending its abort-and-report-for-autonomous-subagents rule to finalize's auto-authored repair sign-off. Both are on `origin/docket`; they ride change 0015's terminal-publish onto `main` (a standalone direct push was deliberately avoided — it would dangle the `[[0010]]` cross-link in 0008's Update until 0010 publishes; this is the 2026-06-17 #17 learnings-ledger lesson).
+- **Build caught two test/doc-quality issues (both fixed in-branch).** (1) The first `local`-before-`force-push` ordering assert was vacuous — it matched step 1's "before merging" prose, not the gate's "before any push" clause; re-anchored and mutation-proved non-vacuous (`927d4ee`). (2) The convention's "All three are foreground … contract is git state on `origin/docket`, never an in-context return" was stale once finalize added two more dispatches — finalize's gate dispatches have the *opposite* contract (report back to finalize in-context, on the feature branch), so the sentence was scoped to the three metadata dispatches and finalize's contrasting contract stated separately (`a01e2e5`). This is the same stale-count class the change itself guards against.
+
+## Follow-ups
+
+- **`gate: off` is a latent YAML-boolean footgun.** Under YAML 1.1, bare `off` parses as boolean `false`. docket reads `.docket.yml` only via grep/awk today (treating it as the literal string `"off"`), so it is correct now — but if **change #0018 (yq adoption)** lands a real YAML loader, `gate: off` must be quoted or special-cased. Flagged for #0018.
+- **`ci`-mode abort prose is slightly ambiguous** (whole-branch review, Minor). `skills/docket-finalize-change/SKILL.md` step 4: "A `ci`/`both` run with red or absent CI checks **also** aborts-and-reports" — it reads as faithful to the spec but leaves unclear whether a `ci` red attempts repair before aborting (intent: "absent CI checks" is the no-repair-possible straight-abort case). Left verbatim to the human-approved spec; a one-clause clarification is a candidate doc refinement.
