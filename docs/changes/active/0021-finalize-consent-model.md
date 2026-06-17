@@ -2,7 +2,7 @@
 id: 21
 slug: finalize-consent-model
 title: Finalize consent model — ambiguity-only prompt + require_pr_approval policy gate
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-06-17
 updated: 2026-06-17
@@ -11,11 +11,11 @@ related: [15, 19]
 adrs: [10, 11]
 spec: docs/superpowers/specs/2026-06-17-finalize-consent-model-design.md
 plan: docs/superpowers/plans/2026-06-17-finalize-consent-model.md
-results:
+results: docs/results/2026-06-17-finalize-consent-model-results.md
 trivial: false
 auto_groomable:
 branch: feat/finalize-consent-model
-pr:
+pr: https://github.com/danielhanold/docket/pull/34
 blocked_by:
 reconciled: true
 ---
