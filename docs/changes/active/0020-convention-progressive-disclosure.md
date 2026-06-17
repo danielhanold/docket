@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/convention-progressive-disclosure
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Why
@@ -64,4 +64,12 @@ brainstorm (see spec §7).
 
 ## Reconcile log
 
-<!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+- **2026-06-17** — Reconciled same-session as the brainstorm. `origin/main` at `f6c2253`
+  (0015's terminal-publish; PR #32 merged the finalize rebase-retest gate) — none of it touches
+  the convention mirror, the docket-status mirror reference, or `test_convention_extraction.sh`.
+  Verified against `origin/main` (the build base): the `### GitHub board mirror` section is
+  lines 206–218 of `skills/docket-convention/SKILL.md`; the `### Configuration` block references
+  it by name twice (line 36, `see *GitHub board mirror*`), so the stub heading must survive;
+  docket-status line 47 carries the single mirror reference to retarget; the mirror header/phrase
+  is absent from the test's header + sentinel lists, so extraction breaks no existing assertion.
+  No scope changes — spec stands as written.
