@@ -68,8 +68,13 @@ assert "rpa-parse: commented knob => default false"     '[ "$(rpa_of "$TMPR/comm
 rm -rf "$TMPR"
 
 # ---- finalize SKILL documents require_pr_approval with default false ----------
-assert "finalize documents require_pr_approval default false" \
-  'grep -Eqi "require_pr_approval.*default.*false" "$FIN"'
+# Two sharp anchors (not one broad "require_pr_approval.*default.*false" that the YAML
+# comment AND the prose both satisfy — dropping the substantive prose would leave it green):
+#   (1) the config-block YAML knob line, and (2) the prose paragraph's unique sentence.
+assert "finalize config block documents require_pr_approval default false" \
+  'grep -Eqi "require_pr_approval: *false +#.*default false" "$FIN"'
+assert "finalize prose explains require_pr_approval as the human-sign-off gate" \
+  'grep -Eqi "validates .{1,3}human sign-off" "$FIN"'
 assert "finalize ties require_pr_approval to the auto-detect path + unapproved PR" \
   'grep -q "reviewDecision != APPROVED" "$FIN"'
 
