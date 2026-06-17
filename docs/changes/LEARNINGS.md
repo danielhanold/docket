@@ -4,7 +4,20 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
-- 2026-06-16 (#16, PR #30) — A generator test set `DOCKET_HARNESS_ROOT` to the same dir as the
+- 2026-06-17 (#17, PR #31) — Skill-body prose pinned literal model/effort tiers ("dispatch the
+  critic, pinned opus/xhigh via its wrapper") for the dispatched subagents — a second source of
+  truth for a value whose home is the wrapper frontmatter + layered `.docket.yml`/global config,
+  so it drifts silently the moment a repo overrides the tier (the whole point of the agent layer).
+  Caught by the human at the merge gate, not the build. Apply: a layer that makes a value
+  config-overridable must NOT restate that value in prose — name the source ("at the model/effort
+  its wrapper resolves") and guard with a regex test that no `alias/effort` literal appears in the
+  dispatch prose.
+- 2026-06-17 (#17, PR #31) — An `## Update` to an already-published, immutable ADR (0008) had to
+  reach the integration branch alongside a NEW ADR (0009) it cross-references, without a premature
+  direct-to-`main` push (which would dangle the `[[0009]]` link until the new ADR merged). Apply:
+  to deliver an ADR body update onto the integration branch atomically, list that ADR id in the
+  producing change's `adrs:` so terminal-publish re-copies it on merge — never a standalone
+  push that races the cross-referenced ADR's own publish.
   repo root, so the user-level pass and the project-level pass both wrote one `.claude/agents/`
   and an "unlisted skill gets no project file" assertion passed vacuously through a weak `|| diff`
   arm. Apply: when a tool writes to BOTH a user/harness location and a project/repo location, give
