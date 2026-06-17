@@ -10,7 +10,7 @@ depends_on: []
 related: [15, 19]
 adrs: [10]
 spec: docs/superpowers/specs/2026-06-17-finalize-consent-model-design.md
-plan:
+plan: docs/superpowers/plans/2026-06-17-finalize-consent-model.md
 results:
 trivial: false
 auto_groomable:
