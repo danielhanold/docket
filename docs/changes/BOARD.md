@@ -1,6 +1,6 @@
 # Backlog
 
-**18 changes** — 🔵 1 implemented · 🟡 5 proposed · ✅ 12 done
+**19 changes** — 🔵 1 implemented · 🟡 6 proposed · ✅ 12 done
 
 ## 🔵 Implemented — awaiting merge (1)
 
@@ -8,7 +8,7 @@
 |---|-------|----------|----|
 | [0015](active/0015-finalize-rebase-retest-gate.md) | finalize — rebase onto base + re-run tests before merge | `medium` | [#32](https://github.com/danielhanold/docket/pull/32) |
 
-## 🟡 Proposed (5)
+## 🟡 Proposed (6)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -17,6 +17,7 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | needs-brainstorm |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | needs-brainstorm |
 | [0018](active/0018-yq-yaml-parsing.md) | Evaluate adopting yq for YAML parsing across docket scripts | `low` | needs-brainstorm |
+| [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 
 <details><summary>✅ Archive — done (12)</summary>
 
