@@ -2,7 +2,7 @@
 id: 15
 slug: finalize-rebase-retest-gate
 title: finalize — rebase onto base + re-run tests before merge
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-06-15
 updated: 2026-06-17
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/finalize-rebase-retest-gate
 pr:
 blocked_by:
 reconciled: false
