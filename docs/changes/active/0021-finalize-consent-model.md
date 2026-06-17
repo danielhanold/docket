@@ -8,7 +8,7 @@ created: 2026-06-17
 updated: 2026-06-17
 depends_on: []
 related: [15, 19]
-adrs: [10]
+adrs: [10, 11]
 spec: docs/superpowers/specs/2026-06-17-finalize-consent-model-design.md
 plan: docs/superpowers/plans/2026-06-17-finalize-consent-model.md
 results:
