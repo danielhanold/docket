@@ -14,7 +14,7 @@ AGENTS="$REPO/agents"
 AUTONOMOUS="docket-implement-next docket-auto-groom docket-finalize-change docket-status docket-adr"
 
 assert "agents/ source dir exists" '[ -d "$AGENTS" ]'
-assert "exactly 6 built-in wrappers" '[ "$(find "$AGENTS" -maxdepth 1 -name "docket-*.md" | wc -l | tr -d " ")" = "6" ]'
+assert "exactly 8 built-in wrappers" '[ "$(find "$AGENTS" -maxdepth 1 -name "docket-*.md" | wc -l | tr -d " ")" = "8" ]'
 
 for w in $AUTONOMOUS; do
   f="$AGENTS/$w.md"
@@ -58,7 +58,7 @@ make_sandbox
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null )
 assert "writes into present .claude/agents" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
 assert "writes into present .agents/agents" '[ -f "$SBX/.agents/agents/docket-status.md" ]'
-assert "all 6 wrappers land in .claude/agents" '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "6" ]'
+assert "all 8 wrappers land in .claude/agents" '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "8" ]'
 assert "does NOT create an absent harness (.cursor)" '[ ! -d "$SBX/.cursor/agents" ]'
 assert "no override => byte-identical to built-in source" 'diff -q "$REPO/agents/docket-status.md" "$SBX/.claude/agents/docket-status.md" >/dev/null'
 
@@ -131,6 +131,39 @@ sed -i.bak 's/^model: sonnet/model: haiku/' "$SBX/.claude/agents/docket-auto-gro
 chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT2" bash "$SYNC" --check 2>&1)"; chk_rc=$?
 assert "--check flags critic drift (rc!=0)" '[ "$chk_rc" != "0" ]'
 rm -rf "$SBX" "$HROOT2"
+
+# ---- Task 1c: the two finalize-gate wrappers (wrap NO skill) ----------------
+# docket-rebase-resolver (①) and docket-integration-repair (②): like the critic,
+# they inject ONLY docket-convention, pin opus/xhigh, and carry abort-and-report.
+for nw in docket-rebase-resolver docket-integration-repair; do
+  f="$AGENTS/$nw.md"
+  assert "$nw: wrapper exists" '[ -f "$f" ]'
+  assert "$nw: name matches file" '[ "$(fm "$f" name)" = "$nw" ]'
+  assert "$nw: has a description" '[ -n "$(fm "$f" description)" ]'
+  assert "$nw: model is opus" '[ "$(fm "$f" model)" = "opus" ]'
+  assert "$nw: effort is xhigh" '[ "$(fm "$f" effort)" = "xhigh" ]'
+  assert "$nw: skills injects docket-convention" 'grep -Eq "^skills:.*docket-convention" "$f"'
+  # Isolation: the skills: line wraps NO docket skill (only the convention).
+  nw_skills_line="$(grep -E "^skills:" "$f" || true)"
+  assert "$nw: skills EXCLUDES any wrapped docket skill" \
+    '! grep -Eq "docket-(finalize-change|implement-next|auto-groom|status|adr|groom-next|new-change)" <<<"$nw_skills_line"'
+  assert "$nw: body carries abort-and-report directive" 'grep -qi "abort-and-report" "$f"'
+done
+
+# Per-repo override of a new key (rebase-resolver) resolves to its wrapper source,
+# proving the precedence path + --check drift gate cover the new wrappers.
+make_sandbox                                        # SBX = the repo
+HROOT3="$(mktemp -d)"; mkdir -p "$HROOT3/.claude"   # separate user-level harness root
+printf 'agents:\n  rebase-resolver: { model: sonnet, effort: high }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT3" bash "$SYNC" >/dev/null )
+assert "per-repo rebase-resolver override writes project-level file" '[ -f "$SBX/.claude/agents/docket-rebase-resolver.md" ]'
+assert "per-repo rebase-resolver override applies model" '[ "$(fm "$SBX/.claude/agents/docket-rebase-resolver.md" model)" = "sonnet" ]'
+chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT3" bash "$SYNC" --check 2>&1)"; chk_rc=$?
+assert "--check passes for in-sync rebase-resolver (rc=0)" '[ "$chk_rc" = "0" ]'
+sed -i.bak 's/^model: sonnet/model: haiku/' "$SBX/.claude/agents/docket-rebase-resolver.md"; rm -f "$SBX/.claude/agents/docket-rebase-resolver.md.bak"
+chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT3" bash "$SYNC" --check 2>&1)"; chk_rc=$?
+assert "--check flags rebase-resolver drift (rc!=0)" '[ "$chk_rc" != "0" ]'
+rm -rf "$SBX" "$HROOT3"
 
 # ---- Task 3: --check drift gate --------------------------------------------
 make_sandbox
