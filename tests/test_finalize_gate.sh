@@ -92,4 +92,8 @@ assert "convention count prose says eight wrappers" 'grep -qi "eight" "$CONV"'
 # Non-vacuous count guard: the "five skills get a wrapper" language must stay exact.
 assert "convention keeps 'five skills get a wrapper' exact" 'grep -qi "five .*skills.* get a wrapper" "$CONV"'
 
+# ---- docket-status notes the gate is finalize-only ---------------------------
+assert "status notes the rebase-retest gate is finalize-only" \
+  'grep -Eqi "finalize-only|the sweep[^.]*never merges|only archives already-merged" "$STAT"'
+
 exit $fail
