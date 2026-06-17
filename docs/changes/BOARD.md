@@ -1,8 +1,14 @@
 # Backlog
 
-**20 changes** — 🟡 7 proposed · ✅ 13 done
+**20 changes** — 🟢 1 in progress · 🟡 6 proposed · ✅ 13 done
 
-## 🟡 Proposed (7)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Spec | Branch |
+|---|-------|----------|------|--------|
+| [0020](active/0020-convention-progressive-disclosure.md) | Split the docket-convention skill via progressive disclosure — extract the GitHub board mirror first | `medium` | [spec](../superpowers/specs/2026-06-17-convention-progressive-disclosure-design.md) | `feat/convention-progressive-disclosure` |
+
+## 🟡 Proposed (6)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -12,7 +18,6 @@
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | needs-brainstorm |
 | [0018](active/0018-yq-yaml-parsing.md) | Evaluate adopting yq for YAML parsing across docket scripts | `low` | needs-brainstorm |
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
-| [0020](active/0020-convention-progressive-disclosure.md) | Split the docket-convention skill via progressive disclosure — extract the GitHub board mirror first | `medium` | build-ready |
 
 <details><summary>✅ Archive — done (13)</summary>
 
