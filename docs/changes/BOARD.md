@@ -1,6 +1,6 @@
 # Backlog
 
-**23 changes** — 🟡 8 proposed · 🔵 1 implemented · ✅ 14 done
+**24 changes** — 🟡 9 proposed · 🔵 1 implemented · ✅ 14 done
 
 ## 🔵 Implemented — awaiting merge (1)
 
@@ -8,7 +8,7 @@
 |---|-------|----------|----|
 | [0021](active/0021-finalize-consent-model.md) | Finalize consent model — ambiguity-only prompt + require_pr_approval policy gate | `medium` | [#34](https://github.com/danielhanold/docket/pull/34) |
 
-## 🟡 Proposed (8)
+## 🟡 Proposed (9)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -20,6 +20,7 @@
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0022](active/0022-render-board-script.md) | Extract inline board rendering into a deterministic script | `medium` | needs-brainstorm |
 | [0023](active/0023-script-sweep-and-health-checks.md) | Decide and apply scripting vs model-driven for the merge sweep and health checks | `medium` | ⏳ waiting on #22 — not yet built |
+| [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | ⏳ waiting on #22 — not yet built |
 
 ```mermaid
 graph TD
@@ -31,6 +32,7 @@ graph TD
   0018
   0019
   0022 --> 0023
+  0022 --> 0024
   0001:::done
   0002:::done
   0003:::done
