@@ -84,9 +84,12 @@ To be finalized at brainstorm. The likely shape:
 
 ## Open questions
 
-- **Where the shared dependency-resolution pass lives** — inline in
-  `render-board.sh`, or a sourced helper (`scripts/lib/…`) that
-  `github-mirror.sh` also pulls in? The latter avoids two parsers drifting.
+- **Where the shared dependency-resolution pass lives** — *resolved during 0023
+  grooming (2026-06-18):* a **sourced helper script** (working name
+  `scripts/lib/docket-frontmatter.sh`) holding `field`/`list_field`/`has_section`
+  (lifted verbatim from `github-mirror.sh`) plus a single `resolve_deps`. 0022
+  introduces it as the first consumer; 0023 reuses it; `github-mirror.sh` migrates
+  onto it (deleting its private copies) so the count of parsers goes down, not up.
 - **Frontmatter parsing approach** — hand-rolled `sed`/`awk` (the current
   zero-dependency house style) vs `yq`. This overlaps change 0018's open
   question; `render-board.sh` should parse like the other scripts do *today*

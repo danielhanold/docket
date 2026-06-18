@@ -7,9 +7,9 @@ priority: medium
 created: 2026-06-18
 updated: 2026-06-18
 depends_on: [22]
-related: [11, 18]
+related: [11, 18, 24]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-06-18-script-sweep-and-health-checks-design.md
 plan:
 results:
 trivial: false
@@ -47,44 +47,45 @@ deliberate the messier two passes.
 
 ## What changes
 
-To be decided at brainstorm. The likely shape:
+Designed at brainstorm 2026-06-18 — see
+[the spec](../../superpowers/specs/2026-06-18-script-sweep-and-health-checks-design.md).
+Decisions:
 
-- **Health checks:** move the purely-mechanical probes (broken-link resolution,
-  dependency cycles, stale-branch age, human-merge-gate stalls, inline
-  board/source drift) into a script — either `scripts/board-checks.sh` or an
-  extension of 0022's `render-board.sh` — reusing the shared
-  dependency-resolution core. Keep the judgment-bearing `blocked_by:`
-  re-examination model-driven.
-- **Merge sweep:** likely script the mechanical core (the `gh` is-merged probe
-  and the idempotent, byte-deterministic archive add) while keeping the
-  terminal-publish copy and the learnings harvest agent-driven, since those are
-  shared with `docket-finalize-change` and must not diverge from it.
-- Record the per-pass decision as an **ADR** if it sets a reusable boundary
-  (e.g. "mechanical-and-side-effect-free ⇒ script; judgment or shared
-  terminal-transition side effects ⇒ agent-prose") — this generalizes the
-  0007/0011 stance.
-- Tests for whatever is scripted, matching the existing suite pattern.
+- **Shared helper (resolved):** dependency resolution and frontmatter parsing
+  live in **one sourced helper script** (working name
+  `scripts/lib/docket-frontmatter.sh`), introduced by 0022 and reused here:
+  `field`/`list_field`/`has_section` (lifted verbatim from `github-mirror.sh`)
+  plus a single `resolve_deps`. `github-mirror.sh` migrates onto it, so the
+  extraction *reduces* parser count rather than adding one. Frontmatter parsing
+  **stays hand-rolled** — `yq` would not simplify the flat-scalar / single-line-list
+  shape these passes read (the nested-config case is 0018's, decided "keep
+  as-is"); so 0023 does not depend on 0018.
+- **Health checks → script the mechanical ones.** A new `scripts/board-checks.sh`
+  (sourcing the helper) runs broken-link resolution, `depends_on` cycles,
+  stale-`in-progress` age, and the human-merge-gate stall, printing findings;
+  `docket-status` invokes it, then runs the **one** judgment-bearing check
+  (`blocked_by:` re-examination) in-model. No auto-fix (unchanged).
+- **Merge sweep → stays model-driven** (deferred, with cause): its archive add is
+  the *same* terminal-transition primitive `docket-finalize-change` performs and
+  must not diverge from; scripting it correctly means routing both through one
+  shared archive helper — out of scope. See the spec's §5b.
+- Record the boundary ("mechanical & side-effect-free ⇒ script; judgment or
+  shared terminal-transition ⇒ agent-prose") as an **ADR** (generalizes 0007).
+- `tests/test_board_checks.sh`, matching `tests/test_github_mirror.sh`.
 
 ## Out of scope
 
 - The `inline` board render — owned by change 0022 (the dependency).
-- Changing *what* the health checks flag or the sweep's terminal-publish /
-  harvest contract — this change moves the work between model and script, it
-  does not change the behavior.
-- The `github` surface — already scripted.
+- **Retiring/downgrading the inline board/source-drift check** once rendering is
+  deterministic — spun out to change **0024**.
+- Scripting the merge sweep — deferred (spec §5b); entangled with
+  `docket-finalize-change`.
+- Changing *what* the checks flag or the sweep's terminal-publish / harvest
+  contract — this change moves work between model and script, not behavior.
+- The `github` surface (already scripted) and adopting `yq` (change 0018).
 
 ## Open questions
 
-- **Which health checks are mechanical enough to script** vs need model
-  judgment? `blocked_by:` re-examination is the clear model-side case; is any
-  other?
-- **Can the sweep's idempotent archive add be a script** while terminal-publish
-  + harvest stay agent-driven, without the two halves drifting from
-  `docket-finalize-change`'s identical per-change archive?
-- **Reuse of 0022's shared dependency-resolution core** — same helper, same
-  parsing approach (and the same `yq`-vs-bash question from 0018).
-- Does the inline **board/source-drift** check survive once 0022 makes inline
-  rendering deterministic, or collapse into a "writer skipped the refresh"
-  check?
+Resolved at brainstorm — see the spec. None blocking; build-ready.
 
 ## Reconcile log
