@@ -66,7 +66,17 @@ for f in "${FILES[@]}"; do
     done
   fi
 
-  # >>> stale-in-progress    (Task 4 inserts here)
+  # --- stale-in-progress: in-progress, branch exists, newest commit older than 3 days ---
+  # Carve-out: branch: set but the branch does not exist ⇒ not stale (just-claimed / indistinguishable).
+  if [ "$status" = "in-progress" ]; then
+    branch="$(field "$f" branch)"
+    if [ -n "$branch" ] && "$GIT" -C "$CHANGES_DIR" rev-parse --verify --quiet "$branch" >/dev/null 2>&1; then
+      ts="$("$GIT" -C "$CHANGES_DIR" log -1 --format=%ct "$branch" 2>/dev/null)"
+      if [ -n "$ts" ] && [ "$(( NOW - ts ))" -gt "$(( 3*86400 ))" ]; then
+        emit stale-in-progress "$id" "branch $branch idle >3 days (last commit $(( (NOW - ts) / 86400 ))d ago)"
+      fi
+    fi
+  fi
 
   # >>> merge-gate-stall     (Task 5 inserts here)
 done

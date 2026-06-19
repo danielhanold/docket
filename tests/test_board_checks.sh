@@ -202,5 +202,58 @@ assert "dep-cycle silent for a DAG node (id 4)" '! has_finding "$gout" dep-cycle
 assert "dep-cycle silent for a DAG leaf (id 5)" '! has_finding "$gout" dep-cycle 5'
 assert "dep-cycle silent for a dangling depends_on (id 6 → missing 99)" '! has_finding "$gout" dep-cycle 6'
 
+# ============================ stale-in-progress ============================
+# in-progress + branch with last commit 4 days old ⇒ finding. branch with a commit today ⇒ silent.
+# in-progress + branch: set but branch absent ⇒ silent (carve-out).
+read -r S _ < <(new_repo)
+STALE_EPOCH=$(( NOW_EPOCH - 4*86400 ))
+FRESH_EPOCH=$(( NOW_EPOCH - 3600 ))
+# feat/stale — aged commit
+git -C "$S" checkout -b feat/stale >/dev/null 2>&1
+echo x > "$S/x"; git -C "$S" add x
+GIT_AUTHOR_DATE="@$STALE_EPOCH +0000" GIT_COMMITTER_DATE="@$STALE_EPOCH +0000" git_quiet -C "$S" commit -m "aged"
+# feat/fresh — commit "now"
+git -C "$S" checkout -b feat/fresh docket >/dev/null 2>&1
+echo y > "$S/y"; git -C "$S" add y
+GIT_AUTHOR_DATE="@$FRESH_EPOCH +0000" GIT_COMMITTER_DATE="@$FRESH_EPOCH +0000" git_quiet -C "$S" commit -m "fresh"
+git -C "$S" checkout docket >/dev/null 2>&1
+cat > "$S/docs/changes/active/0020-stale.md" <<'EOF'
+---
+id: 20
+slug: stale
+title: Stale claim
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/stale
+EOF
+cat > "$S/docs/changes/active/0021-fresh.md" <<'EOF'
+---
+id: 21
+slug: fresh
+title: Fresh claim
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/fresh
+EOF
+cat > "$S/docs/changes/active/0022-justclaimed.md" <<'EOF'
+---
+id: 22
+slug: justclaimed
+title: Just claimed, no branch yet
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/justclaimed
+EOF
+sout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$S/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "stale-in-progress fires for a branch idle >3 days (id 20)" \
+  'has_finding "$sout" stale-in-progress 20'
+assert "stale-in-progress silent for a branch with a recent commit (id 21)" \
+  '! has_finding "$sout" stale-in-progress 21'
+assert "stale-in-progress silent when branch: set but branch absent (id 22, carve-out)" \
+  '! has_finding "$sout" stale-in-progress 22'
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
