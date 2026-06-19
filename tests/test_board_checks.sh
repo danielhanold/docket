@@ -83,17 +83,17 @@ cat > "$W/docs/changes/active/0003-trivial.md" <<'EOF'
 ---
 id: 3
 slug: trivial
-title: Trivial, no spec
+title: Trivial, unresolvable spec
 status: proposed
 priority: medium
 depends_on: []
-spec:
+spec: docs/superpowers/specs/2026-06-01-ABSENT.md
 trivial: true
 EOF
 out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$W/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
 assert "broken-spec fires for a missing spec path (id 2)" 'has_finding "$out" broken-spec 2'
 assert "broken-spec silent for a present spec (id 1)" '! has_finding "$out" broken-spec 1'
-assert "broken-spec silent for a trivial change with no spec (id 3, carve-out)" '! has_finding "$out" broken-spec 3'
+assert "broken-spec silent for a trivial change even with an unresolvable spec (id 3, carve-out)" '! has_finding "$out" broken-spec 3'
 
 # ============================ clean tree + exit codes ============================
 # A repo whose only change cites a present spec ⇒ no output, exit 0; --strict still exit 0.
