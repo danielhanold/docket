@@ -1,8 +1,8 @@
 # Backlog
 
-**26 changes** — 🟡 7 proposed · 🔵 1 implemented · ✅ 18 done
+**27 changes** — 🟡 8 proposed · 🔵 1 implemented · ✅ 18 done
 
-## 🟡 Proposed (7)
+## 🟡 Proposed (8)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -13,6 +13,7 @@
 | [0018](active/0018-yq-yaml-parsing.md) | Evaluate adopting yq for YAML parsing across docket scripts | `low` | needs-brainstorm |
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | needs-brainstorm |
+| [0027](active/0027-claude-settings-publish-permission.md) | Auto-grant docket's integration-branch push permission via a per-repo Claude settings rule | `medium` | ⏳ waiting on #26 — needs your merge |
 
 ## 🔵 Implemented — awaiting merge (1)
 
@@ -30,6 +31,7 @@ graph TD
   0015 --> 0019
   0022 --> 0024
   0026
+  0026 --> 0027
   0001:::done
   0002:::done
   0003:::done
