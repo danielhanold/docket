@@ -217,10 +217,10 @@ assert "done: status set to done" '[ "$(. "$REPO/scripts/lib/docket-frontmatter.
 assert "done: updated set to date" '[ "$(. "$REPO/scripts/lib/docket-frontmatter.sh"; field "$W/docs/changes/archive/2026-06-18-0007-sample.md" updated)" = 2026-06-18 ]'
 assert "done: results link written" '[ "$(. "$REPO/scripts/lib/docket-frontmatter.sh"; field "$W/docs/changes/archive/2026-06-18-0007-sample.md" results)" = docs/results/2026-06-18-sample-results.md ]'
 assert "done: pushed (origin docket == local)" '[ "$(git -C "$W" rev-parse @)" = "$(git -C "$W" rev-parse origin/docket)" ]'
-assert "done: commit touched ONLY the change file" '[ "$(git -C "$W" show --name-only --format= HEAD | grep -c .)" -eq 2 ] && git -C "$W" show --name-only --format= HEAD | grep -q "0007-sample.md"'
+assert "done: commit touched ONLY the change file (nothing else)" 'other="$(git -C "$W" show --name-only --format= HEAD | grep -v "^$" | grep -v "0007-sample.md" || true)"; [ -z "$other" ] && git -C "$W" show --name-only --format= HEAD | grep -q "0007-sample.md"'
 ```
 
-(The "ONLY the change file" assert expects exactly two pathnames in the commit — the `active/` deletion and the `archive/` addition of the same change file — and nothing else.)
+(The "ONLY the change file" assert is robust to git rename-detection — whether the commit lists one path (`archive/…`) or two (`active/…` deletion + `archive/…` addition), every listed path must contain `0007-sample.md` and at least one must be present; nothing else — no `BOARD.md`, no stray file — may appear.)
 
 - [ ] **Step 3: Run the test — verify it fails**
 
