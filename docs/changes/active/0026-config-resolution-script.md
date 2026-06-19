@@ -2,7 +2,7 @@
 id: 26
 slug: config-resolution-script
 title: Extract config resolution + bootstrap guard into a deterministic script
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-06-19
 updated: 2026-06-19
@@ -11,11 +11,11 @@ related: [11, 22, 25]
 adrs: [2, 7]
 spec: docs/superpowers/specs/2026-06-19-config-resolution-script-design.md
 plan: docs/superpowers/plans/2026-06-19-config-resolution-script.md
-results:
+results: docs/results/2026-06-19-config-resolution-script-results.md
 trivial: false
 auto_groomable:
 branch: feat/config-resolution-script
-pr:
+pr: https://github.com/danielhanold/docket/pull/38
 blocked_by:
 reconciled: true
 ---
