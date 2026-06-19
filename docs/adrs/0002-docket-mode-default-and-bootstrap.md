@@ -25,3 +25,9 @@ Making docket-mode real (ADR-0001) raised three decisions that the branch model 
 - **Enables:** clean code history out of the box; one procedure to maintain with four references (the test suite asserts both the single source and the references); GitFlow support.
 - **Costs / given up:** every existing single-branch repo (including docket itself) must either run `migrate-to-docket.sh` or pin `metadata_branch: main` before the default flip reaches it. docket therefore **dogfoods the pin** — it ships a `.docket.yml` pinning `main`-mode and defers its own migration to a separate follow-up — so the default flip doesn't break its own tooling on merge.
 - **Trade:** refuse-and-migrate costs a one-time manual step on legacy repos in exchange for zero risk of silently stranding planning metadata on the wrong branch.
+
+## Update — 2026-06-19 (change 0025)
+
+**Decision 3 still stands.** Change 0025 extracted the *mechanics* of the terminal-transition close-out into three deterministic, fail-closed scripts — `scripts/archive-change.sh`, `scripts/terminal-publish.sh`, and `scripts/cleanup-feature-branch.sh`. This does NOT reverse or supersede Decision 3: `docket-finalize-change` remains the single documented **source and owner** of the procedure. It still owns *when* to run each step and authors the human-legible commit messages. What changed is that the four call sites now **invoke the named scripts** rather than restating the git sequence in prose — the same doc-owner-keeps-*when* / script-owns-*how* split that `docket-status` ↔ `render-board.sh` already has (ADR-0007).
+
+The **ADR-only publish path** (`T = adr-<NN>`, driven by `docket-adr` for standalone ADRs) is **not** covered by `scripts/terminal-publish.sh` (which is keyed on `--id` for a change) and remains documented as an in-procedure step inside `docket-finalize-change`'s terminal-publish procedure. No change there.
