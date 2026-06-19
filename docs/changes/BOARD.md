@@ -1,12 +1,11 @@
 # Backlog
 
-**24 changes** — 🟡 8 proposed · 🔵 2 implemented · ✅ 14 done
+**24 changes** — 🟡 8 proposed · 🔵 1 implemented · ✅ 15 done
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
-| [0021](active/0021-finalize-consent-model.md) | Finalize consent model — ambiguity-only prompt + require_pr_approval policy gate | `medium` | [#34](https://github.com/danielhanold/docket/pull/34) |
 | [0022](active/0022-render-board-script.md) | Extract inline board rendering into a deterministic script | `medium` | [#35](https://github.com/danielhanold/docket/pull/35) |
 
 ## 🟡 Proposed (8)
@@ -19,12 +18,11 @@
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | needs-brainstorm |
 | [0018](active/0018-yq-yaml-parsing.md) | Evaluate adopting yq for YAML parsing across docket scripts | `low` | needs-brainstorm |
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
-| [0023](active/0023-script-sweep-and-health-checks.md) | Decide and apply scripting vs model-driven for the merge sweep and health checks | `medium` | ⏳ waiting on #22 — not yet built |
-| [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | ⏳ waiting on #22 — not yet built |
+| [0023](active/0023-script-sweep-and-health-checks.md) | Decide and apply scripting vs model-driven for the merge sweep and health checks | `medium` | ⏳ waiting on #22 — needs your merge |
+| [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | ⏳ waiting on #22 — needs your merge |
 
 ```mermaid
 graph TD
-  0021
   0007
   0008
   0009
@@ -47,13 +45,15 @@ graph TD
   0016:::done
   0017:::done
   0020:::done
+  0021:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅ Archive — done (14)</summary>
+<details><summary>✅ Archive — done (15)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0021](archive/2026-06-19-0021-finalize-consent-model.md) | Finalize consent model — ambiguity-only prompt + require_pr_approval policy gate | 2026-06-19 |
 | [0020](archive/2026-06-17-0020-convention-progressive-disclosure.md) | Split the docket-convention skill via progressive disclosure — extract the GitHub board mirror first | 2026-06-17 |
 | [0017](archive/2026-06-17-0017-docket-subagent-composition-wiring.md) | docket subagent composition — nested status/adr/critic dispatch | 2026-06-17 |
 | [0015](archive/2026-06-17-0015-finalize-rebase-retest-gate.md) | finalize — rebase onto base + re-run tests before merge | 2026-06-17 |
