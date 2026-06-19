@@ -10,7 +10,7 @@ depends_on: []
 related: [11, 22, 23]
 adrs: [1, 2, 7]
 spec: docs/superpowers/specs/2026-06-19-closeout-scripts-design.md
-plan:
+plan: docs/superpowers/plans/2026-06-19-closeout-scripts.md
 results:
 trivial: false
 auto_groomable:
