@@ -2,7 +2,7 @@
 id: 25
 slug: closeout-scripts
 title: Extract the shared terminal-transition close-out mechanics into deterministic scripts
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-06-19
 updated: 2026-06-19
@@ -11,11 +11,11 @@ related: [11, 22, 23]
 adrs: [1, 2, 7]
 spec: docs/superpowers/specs/2026-06-19-closeout-scripts-design.md
 plan: docs/superpowers/plans/2026-06-19-closeout-scripts.md
-results:
+results: docs/results/2026-06-19-closeout-scripts-results.md
 trivial: false
 auto_groomable:
 branch: feat/closeout-scripts
-pr:
+pr: https://github.com/danielhanold/docket/pull/36
 blocked_by:
 reconciled: true
 ---
