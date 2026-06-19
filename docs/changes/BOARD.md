@@ -1,8 +1,8 @@
 # Backlog
 
-**25 changes** — 🟡 9 proposed · ✅ 16 done
+**26 changes** — 🟡 10 proposed · ✅ 16 done
 
-## 🟡 Proposed (9)
+## 🟡 Proposed (10)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -15,6 +15,7 @@
 | [0023](active/0023-script-sweep-and-health-checks.md) | Decide and apply scripting vs model-driven for the merge sweep and health checks | `medium` | build-ready |
 | [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | needs-brainstorm |
 | [0025](active/0025-closeout-scripts.md) | Extract the shared terminal-transition close-out mechanics into deterministic scripts | `medium` | build-ready |
+| [0026](active/0026-config-resolution-script.md) | Extract config resolution + bootstrap guard into a deterministic script | `medium` | build-ready |
 
 ```mermaid
 graph TD
@@ -27,6 +28,7 @@ graph TD
   0022 --> 0023
   0022 --> 0024
   0025
+  0026
   0001:::done
   0002:::done
   0003:::done
