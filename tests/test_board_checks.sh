@@ -255,5 +255,60 @@ assert "stale-in-progress silent for a branch with a recent commit (id 21)" \
 assert "stale-in-progress silent when branch: set but branch absent (id 22, carve-out)" \
   '! has_finding "$sout" stale-in-progress 22'
 
+# ============================ merge-gate-stall ============================
+# A build-ready change depends_on a change at 'implemented' ⇒ finding naming that dep.
+# A build-ready change depends_on a change still 'proposed' (not yet built) ⇒ NOT a merge-gate-stall.
+read -r M _ < <(new_repo)
+cat > "$M/docs/changes/active/0030-impl.md" <<'EOF'
+---
+id: 30
+slug: impl
+title: Implemented dep
+status: implemented
+priority: medium
+depends_on: []
+pr: https://github.com/o/r/pull/9
+EOF
+cat > "$M/docs/changes/active/0031-waiter.md" <<'EOF'
+---
+id: 31
+slug: waiter
+title: Build-ready, waiting on a merge
+status: proposed
+priority: medium
+depends_on: [30]
+spec: docs/superpowers/specs/2026-06-01-present.md
+trivial: false
+EOF
+cat > "$M/docs/changes/active/0032-unbuilt.md" <<'EOF'
+---
+id: 32
+slug: unbuilt
+title: Unbuilt dep
+status: proposed
+priority: medium
+depends_on: []
+spec: docs/superpowers/specs/2026-06-01-present.md
+trivial: false
+EOF
+cat > "$M/docs/changes/active/0033-waiter2.md" <<'EOF'
+---
+id: 33
+slug: waiter2
+title: Waiting on a not-yet-built dep
+status: proposed
+priority: medium
+depends_on: [32]
+spec: docs/superpowers/specs/2026-06-01-present.md
+trivial: false
+EOF
+mout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$M/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "merge-gate-stall fires for a build-ready change waiting on an implemented dep (id 31)" \
+  'has_finding "$mout" merge-gate-stall 31'
+assert "merge-gate-stall names the blocking dep #30" \
+  'printf "%s" "$mout" | grep -E "$(printf "^merge-gate-stall\t31\t")" | grep -qF "#30"'
+assert "merge-gate-stall silent for a change waiting on a not-yet-built dep (id 33)" \
+  '! has_finding "$mout" merge-gate-stall 33'
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"

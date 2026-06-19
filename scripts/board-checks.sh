@@ -78,7 +78,12 @@ for f in "${FILES[@]}"; do
     fi
   fi
 
-  # >>> merge-gate-stall     (Task 5 inserts here)
+  # --- merge-gate-stall: build-ready, but its worst-unmet dep is stuck at 'implemented' ---
+  if [ "$status" = "proposed" ] && { [ -n "$spec" ] || [ "$trivial" = "true" ]; }; then
+    if [ "${DEP_REASON[$id]:-}" = "needs your merge" ]; then
+      emit merge-gate-stall "$id" "build-ready but waiting on #${DEP_ON[$id]} — needs your merge"
+    fi
+  fi
 done
 
 # --- dep-cycle: DFS over depends_on; mark every node that lies on a cycle ---
