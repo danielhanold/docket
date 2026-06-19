@@ -33,23 +33,20 @@ skill. The implementer records it as a new ADR; `adrs:` stays `[]` until accepte
 
 ## 3. The shared helper (decision — resolves an 0022/0023 open question)
 
-Dependency resolution and frontmatter parsing live in **one sourced helper
-script**, never duplicated inline. 0022 introduces it as its first consumer
-(working name `scripts/lib/docket-frontmatter.sh`); this change reuses and, if
-needed, extends it. Contents:
+The helper is **defined and built by 0022** (see its spec §2); 0023 only
+*consumes* it — no new parser here. The pinned interface this change relies on:
 
-- `field FILE KEY`, `list_field FILE KEY`, `has_section FILE STR` — lifted
-  **verbatim** from the proven copies in `scripts/github-mirror.sh`.
-- `resolve_deps` — the convention's dependency-resolution pass (per change:
-  `satisfied` / `needs your merge` / `not yet built`, and `dependency-clear`
-  vs `dependency-waiting` with the worst-unmet reason). The convention's "computed
-  **once** per run, consumed by both the board and the health checks" invariant
-  becomes literal: one parser, one resolver, sourced by **all three** scripts.
+- `field FILE KEY`, `list_field FILE KEY`, `has_section FILE STR` — frontmatter
+  accessors.
+- `resolve_deps CHANGES_DIR` — scans once and **populates global associative
+  arrays** `STATUS_OF[id]`, `DEP_STATE[id]` (`clear`|`waiting`), `DEP_REASON[id]`
+  (worst unmet: `needs your merge` > `not yet built`). `board-checks.sh` reads
+  `DEP_REASON` for the merge-gate-stall check and `STATUS_OF` for the others.
 
-`github-mirror.sh` **migrates onto the helper**, deleting its private `field`/
-`list_field`/`has_section` copies — so the extraction reduces total code rather
-than adding a fourth parser. (This migration may land with 0022, whichever
-extracts the helper first; 0023 must not leave two parsers behind.)
+0022 also migrates `github-mirror.sh` onto this helper, so the "compute
+dependency resolution once, one parser, one resolver" invariant already holds by
+the time 0023 lands. If `board-checks.sh` needs a helper not yet present, it is
+added to `lib/docket-frontmatter.sh` (not re-implemented locally).
 
 ## 4. Frontmatter parsing — yq assessment (decision: stay hand-rolled)
 
@@ -68,20 +65,60 @@ scope and already decided "keep as-is." 0023 therefore stays hand-rolled and
 
 ### 5a. Health checks → script the mechanical ones; keep `blocked_by` model-side
 
-A new **`scripts/board-checks.sh`** (sources the §3 helper) runs every check that
-is pure state inspection and **prints findings to stdout**; it never auto-fixes
-(unchanged contract). `docket-status` invokes it, then the model layers on the one
-judgment-bearing check.
-
 | Health check | Verdict | Rationale |
 |---|---|---|
 | Broken `spec:` link (vs `metadata_branch`) | **script** | path resolution: `git cat-file -e <branch>:<path>` |
-| Broken `plan:`/`results:` on `done` (vs `origin/<integration>`) | **script** | same, against the integration branch |
+| Broken `plan:`/`results:` on `done` (vs the integration branch) | **script** | same, against the integration branch |
 | `depends_on` cycles | **script** | graph walk over frontmatter |
-| Stale `in-progress` (branch gone, or no commit in 3 d) | **script** | `git branch`/`git log` probes |
+| Stale `in-progress` (branch exists, no commit in 3 d) | **script** | `git`/`git log` probes |
 | Human-merge-gate stall | **script** | falls straight out of `resolve_deps` |
 | Inline board/source drift | **→ 0024** | hinges on 0022 making rendering deterministic; decide there |
 | `blocked_by:` blocker may have cleared | **model** | judgment — reading free text to infer whether an external issue/PR is resolved |
+
+#### `scripts/board-checks.sh` — contract
+
+**CLI:** `board-checks.sh --changes-dir DIR --metadata-branch BR --integration-branch BR [--strict]`
+
+- Sources `lib/docket-frontmatter.sh` (0022); calls `resolve_deps DIR` once.
+- **Git-only** (no `gh`, no network). Mock seam `GIT="${GIT:-git}"` — the only
+  external dependency, so tests inject a temp repo (§7).
+- **Output:** one finding per line on **stdout**, TAB-separated
+  `<check-id>\t<change-id>\t<message>`, where `<check-id>` ∈ `{broken-spec,
+  broken-plan-results, dep-cycle, stale-in-progress, merge-gate-stall}`. Clean
+  tree ⇒ **no output**. Findings are sorted by `(check-id, change-id)` for
+  determinism. **Warn-only — never auto-fixes** (unchanged contract).
+- **Exit code:** `0` normally (findings go to stdout; the caller surfaces them);
+  `--strict` ⇒ exit `1` if any finding (for a future CI gate). In `main`-mode
+  `metadata_branch == integration_branch`; the script takes both verbatim and the
+  two link checks resolve on the same branch with no special-casing.
+
+#### Per-check predicates (with the SKILL's carve-outs, encoded)
+
+- **broken-spec** — for each change with `spec:` non-empty **and** not
+  `trivial: true`: finding iff `$GIT cat-file -e <metadata-branch>:<spec-path>`
+  fails. (Skip `trivial` changes — they have no spec.)
+- **broken-plan-results** — for each `status: done` change, for each of `plan:`/
+  `results:` that is **set**: finding iff it does not resolve on the integration
+  branch (link-rot). **Carve-out:** never flag a `plan:`/`results:` on an
+  `implemented` change — those files legitimately still live on the unmerged
+  feature branch.
+- **dep-cycle** — DFS over the `depends_on` graph (built from `list_field`); on a
+  cycle, emit one finding **per change in the cycle** (each node, so the human
+  sees the whole loop).
+- **stale-in-progress** — for each `status: in-progress` change with `branch:` set:
+  if `$GIT rev-parse --verify <branch>` **fails**, skip (**carve-out:** a
+  just-claimed change whose branch is not yet created is *not* stale — and "branch
+  gone after creation" is indistinguishable from "not yet created" via git alone,
+  so we conservatively do not flag it). If the branch **exists**, finding iff its
+  newest commit (`$GIT log -1 --format=%ct`) is older than **3 days** from now.
+  (3 d is the current fixed default — a future `.docket.yml` knob, out of scope.)
+- **merge-gate-stall** — straight from `resolve_deps`: a build-ready change
+  (`proposed`, `spec`-or-`trivial`) whose `DEP_REASON[id]` is `needs your merge`.
+  The message names the blocking dep (re-walk that change's `depends_on` for the
+  one at `implemented`). Surfaces "a single merge unblocks downstream work."
+
+The **`blocked_by:` re-examination** stays model-driven (judgment); it is **not**
+in `board-checks.sh`.
 
 ### 5b. Merge sweep → stays model-driven (deferred, with cause)
 
@@ -104,12 +141,24 @@ finalize too. (The is-merged probe is too trivial to script in isolation.)
 
 **In scope**
 - Reuse/extend the §3 shared helper; migrate `github-mirror.sh` onto it.
-- `scripts/board-checks.sh` — the mechanical health checks (§5a), printing findings.
+- `scripts/board-checks.sh` — the mechanical health checks (§5a contract).
 - Wire `docket-status`'s health-check pass to invoke the script, then run the
-  `blocked_by` judgment check in-model on top.
+  `blocked_by` judgment check in-model on top (§6a).
 - Record the §2 boundary as an ADR.
-- `tests/test_board_checks.sh` — fixtures producing each finding (matches
-  `tests/test_github_mirror.sh`).
+- `tests/test_board_checks.sh` (§7).
+
+### 6a. `docket-status` wiring (SKILL edit)
+
+In `docket-status`'s **Health checks** section, replace the five mechanical
+bullets (broken `spec:`, broken `plan:`/`results:`, `depends_on` cycles, stale
+`in-progress`, human-merge-gate stall) with: "invoke `scripts/board-checks.sh
+--changes-dir <metadata tree> --metadata-branch <mb> --integration-branch <ib>`
+and surface each finding line as a warning." **Keep model-driven, unchanged:** the
+`blocked_by:` re-examination bullet, and — until change 0024 lands — the inline
+board/source-drift bullet (0023 does not touch it). **Keep:** the "do not auto-fix
+unless asked" stance and the "share the one dependency-resolution pass" note (it
+is now literally `resolve_deps`, run by the script). The `github`-surface
+mirror-reachability flag is unaffected.
 
 **Out of scope**
 - The `inline` board render — change 0022.
@@ -120,9 +169,24 @@ finalize too. (The is-merged probe is too trivial to script in isolation.)
 
 ## 7. Test plan
 
-`tests/test_board_checks.sh`: build a fixture `changes/` tree exercising each
-scripted finding — a broken `spec:` link, a `done` change with a missing
-`results:`, a `depends_on` cycle, a stale `in-progress` (branch absent), and a
-merge-gate stall — and assert `board-checks.sh` emits exactly those findings and
-no false positives on a clean tree. Confirm `github-mirror.sh`'s existing tests
-still pass after it migrates onto the shared helper (no behavior change).
+`tests/test_board_checks.sh` — unlike `test_github_mirror.sh` (a mocked-`gh`
+fixture), these checks probe real git, so the harness builds a **temp git repo**
+(`GIT_COMMITTER_DATE` to age commits), matching the `mktemp -d` + `trap rm`
+idiom. Assert each finding fires and a clean tree is silent:
+
+- **broken-spec** — a change citing a `spec:` path absent on `metadata_branch` ⇒
+  one `broken-spec` line; a `trivial: true` change with no spec ⇒ silent.
+- **broken-plan-results** — a `done` change whose `results:` path is absent on the
+  integration branch ⇒ one finding; the **same** missing field on an
+  `implemented` change ⇒ silent (carve-out).
+- **dep-cycle** — `A→B→A` ⇒ a finding for **each** node.
+- **stale-in-progress** — an `in-progress` change whose feature branch's last
+  commit is 4 days old ⇒ finding; a freshly-claimed one whose `branch:` is set but
+  the branch **doesn't exist** ⇒ silent (carve-out); a branch with a commit today
+  ⇒ silent.
+- **merge-gate-stall** — a build-ready change `depends_on` a change at
+  `implemented` ⇒ a finding naming that dep.
+- **clean tree** ⇒ empty stdout, exit `0`; `--strict` on a finding ⇒ exit `1`.
+
+Plus regression: `tests/test_github_mirror.sh` stays green after `github-mirror.sh`
+migrates onto the shared helper (per 0022 §5) — no behavior change.
