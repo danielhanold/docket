@@ -1,6 +1,6 @@
 # Backlog
 
-**27 changes** — 🟡 8 proposed · 🔵 1 implemented · ✅ 18 done
+**27 changes** — 🟡 8 proposed · ✅ 19 done
 
 ## 🟡 Proposed (8)
 
@@ -13,13 +13,7 @@
 | [0018](active/0018-yq-yaml-parsing.md) | Evaluate adopting yq for YAML parsing across docket scripts | `low` | needs-brainstorm |
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | needs-brainstorm |
-| [0027](active/0027-claude-settings-publish-permission.md) | Auto-grant docket's integration-branch push permission via a per-repo Claude settings rule | `medium` | ⏳ waiting on #26 — needs your merge |
-
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | PR |
-|---|-------|----------|----|
-| [0026](active/0026-config-resolution-script.md) | Extract config resolution + bootstrap guard into a deterministic script | `medium` | [#38](https://github.com/danielhanold/docket/pull/38) |
+| [0027](active/0027-claude-settings-publish-permission.md) | Auto-grant docket's integration-branch push permission via a per-repo Claude settings rule | `medium` | build-ready |
 
 ```mermaid
 graph TD
@@ -30,7 +24,6 @@ graph TD
   0016 --> 0018
   0015 --> 0019
   0022 --> 0024
-  0026
   0026 --> 0027
   0001:::done
   0002:::done
@@ -50,13 +43,15 @@ graph TD
   0022:::done
   0023:::done
   0025:::done
+  0026:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅ Archive — done (18)</summary>
+<details><summary>✅ Archive — done (19)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0026](archive/2026-06-19-0026-config-resolution-script.md) | Extract config resolution + bootstrap guard into a deterministic script | 2026-06-19 |
 | [0025](archive/2026-06-19-0025-closeout-scripts.md) | Extract the shared terminal-transition close-out mechanics into deterministic scripts | 2026-06-19 |
 | [0023](archive/2026-06-19-0023-script-sweep-and-health-checks.md) | Decide and apply scripting vs model-driven for the merge sweep and health checks | 2026-06-19 |
 | [0022](archive/2026-06-19-0022-render-board-script.md) | Extract inline board rendering into a deterministic script | 2026-06-19 |
