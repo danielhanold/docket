@@ -4,6 +4,14 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-06-19 (#26, PR #38 close-out) — A hand-rolled archive staged the `git mv` rename but DROPPED the
+  follow-on `status: done` frontmatter edit: the `git add` listed the already-moved `active/` path
+  beside the `archive/` path, the non-matching pathspec aborted the whole `git add` (staging nothing),
+  and the rename-only commit (carrying `status: implemented`) then rode terminal-publish onto `main`.
+  Apply: never bundle the already-removed `active/` path into the archive `git add` — stage the
+  `archive/` file alone, and gate the commit on a `git diff --cached` that shows the `status:` line
+  actually changed (the extracted `archive-change.sh` exists precisely to remove this hand-staging
+  failure mode from the finalize path).
 - 2026-06-19 (#26, PR #38) — A `.docket.yml` reader interpolated the lookup key straight into an ERE
   (`^[[:space:]]*<key>`), so any future key carrying a regex metacharacter would match unintended
   lines; the same unescaped helper is still copy-pasted in `migrate-to-docket.sh`. Apply: escape ERE
