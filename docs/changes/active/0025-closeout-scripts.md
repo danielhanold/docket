@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/closeout-scripts
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Why
@@ -87,3 +87,35 @@ finalize remains the documented owner while delegating the *mechanics* to the sc
 (exactly as `docket-status` delegates to `render-board.sh`).
 
 ## Reconcile log
+
+### 2026-06-19 — reconciled at claim (no drift)
+
+Same-day claim: the change and spec were both authored 2026-06-19 and
+`origin/main` is unchanged since the 0022 close-out (`bd6ca91`) that triggered
+this change, so the snapshot the design was drafted against is still current.
+Confirmed against current reality before planning:
+
+- **Cited code present and matching.** `scripts/lib/docket-frontmatter.sh`
+  exposes `field` / `list_field` / `has_section` (the accessors the scripts
+  source — no new parser). The canonical *Terminal publish (docket-mode)*
+  procedure, the per-change archive (steps 3–4), and the `cleanup` provenance
+  guard all live in `docket-finalize-change/SKILL.md` and match spec §4a–4c
+  verbatim. The `tests/test_github_mirror.sh` / `tests/test_render_board.sh`
+  hermetic-fixture pattern §8 mirrors exists.
+- **The four call sites verified.** `docket-finalize-change` is the single
+  source of the shared procedure; `docket-status`'s sweep, `docket-new-change`'s
+  proposed-kill, and `docket-implement-next`'s reconcile-kill each *reference*
+  it rather than restate it — so the rewire ("author a message → call the
+  script") is exactly the four sites the spec names.
+- **ADRs.** ADR-0001 (publish by copy), ADR-0002 (terminal-publish
+  single-sourced in finalize), ADR-0007 (script-extraction boundary) are all
+  `Accepted` with titles matching the spec's assumptions. The §2 build-time
+  review item stands: decide whether ADR-0002 wants a one-line `## Update`
+  noting finalize delegates the *mechanics* to the script while remaining the
+  documented owner. No new ADR required (faithful extraction, as 0022 needed
+  none).
+- **Related.** 0011 (`github-mirror.sh`) and 0022 (`render-board.sh`) are
+  `done`; 0023 (script-sweep-and-health-checks) is still `proposed` — this
+  change *unblocks* its §5b deferred sweep-scripting and does not conflict (0023
+  is not built). Not obsolete; design not invalidated. Scope unchanged: faithful
+  extraction, no behavior change.
