@@ -9,7 +9,7 @@ updated: 2026-06-18
 depends_on: []
 related: [11, 18, 20]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-06-18-render-board-script-design.md
 plan:
 results:
 trivial: false
@@ -84,21 +84,20 @@ To be finalized at brainstorm. The likely shape:
 
 ## Open questions
 
-- **Where the shared dependency-resolution pass lives** — *resolved during 0023
-  grooming (2026-06-18):* a **sourced helper script** (working name
-  `scripts/lib/docket-frontmatter.sh`) holding `field`/`list_field`/`has_section`
-  (lifted verbatim from `github-mirror.sh`) plus a single `resolve_deps`. 0022
-  introduces it as the first consumer; 0023 reuses it; `github-mirror.sh` migrates
-  onto it (deleting its private copies) so the count of parsers goes down, not up.
-- **Frontmatter parsing approach** — hand-rolled `sed`/`awk` (the current
-  zero-dependency house style) vs `yq`. This overlaps change 0018's open
-  question; `render-board.sh` should parse like the other scripts do *today*
-  and switch later if 0018 lands `yq` project-wide — it must not block on that
-  decision (hence `related`, not `depends_on`).
-- **Mermaid + emoji fidelity in bash** — reproducing the exact graph edges,
-  `classDef done` tint, and emoji headings byte-identically.
-- **Can the inline "Board/source drift" health check be retired** once rendering
-  is deterministic, or downgraded to a "did a writer skip the refresh" check?
-  (Decide alongside 0023, which owns the health checks.)
+All resolved at brainstorm 2026-06-18 — see
+[the spec](../../superpowers/specs/2026-06-18-render-board-script-design.md):
+
+- **Shared helper** — a sourced `scripts/lib/docket-frontmatter.sh`:
+  `field`/`list_field`/`has_section` (verbatim from `github-mirror.sh`), plus
+  `resolve_deps` (populates `STATUS_OF`/`DEP_STATE`/`DEP_REASON`) and `readiness`.
+  0022 introduces it; `github-mirror.sh` migrates onto it (its private copies and
+  inline dep-walk deleted), so parser count goes down. 0023/0024 consume it.
+- **Frontmatter parsing** — stays hand-rolled; `yq` would not simplify the
+  flat-scalar shape these passes read. Decoupled from 0018 (`related`).
+- **Mermaid + emoji fidelity** — exact serialization (count line, emoji map, per-
+  status columns, readiness precedence, mermaid node/edge ordering) pinned in the
+  spec and locked byte-for-byte by a golden fixture in `tests/test_render_board.sh`.
+- **Board/source-drift retirement** — spun out to change **0024** (it presupposes
+  this change's deterministic render).
 
 ## Reconcile log
