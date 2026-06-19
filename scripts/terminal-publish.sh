@@ -56,7 +56,8 @@ metaref="$REMOTE/$META_BRANCH"
 
 # locate the archived change file path on the metadata branch by id
 tree="$($GIT ls-tree -r --name-only "$metaref" -- "$CHANGES_DIR/archive")"
-change_path="$(printf '%s\n' "$tree" | grep -m1 -E "/[0-9]{4}-[0-9]{2}-[0-9]{2}-$pad-[^/]*\.md$")"
+change_path="$(printf '%s\n' "$tree" | grep -E "/[0-9]{4}-[0-9]{2}-[0-9]{2}-$pad-[^/]*\.md$")"
+change_path="${change_path%%$'\n'*}"
 [ -n "$change_path" ] || die "no archived change file for id $ID on $metaref"
 
 # read its frontmatter via a temp dump (field operates on files)
@@ -73,7 +74,8 @@ copyset=("$change_path")
 adr_tree="$($GIT ls-tree -r --name-only "$metaref" -- "$ADRS_DIR")"
 for aid in $adr_ids; do
   apad="$(printf '%04d' "$aid")"
-  apath="$(printf '%s\n' "$adr_tree" | grep -m1 -E "/$apad-[^/]*\.md$")"
+  apath="$(printf '%s\n' "$adr_tree" | grep -E "/$apad-[^/]*\.md$")"
+  apath="${apath%%$'\n'*}"
   [ -n "$apath" ] || { log "adr $aid: file not found on $metaref; skipping"; continue; }
   $GIT show "$metaref:$apath" > "$tmpd/adr.md" || { log "adr $aid: unreadable; skipping"; continue; }
   if [ "$(field "$tmpd/adr.md" status)" = "Accepted" ]; then
