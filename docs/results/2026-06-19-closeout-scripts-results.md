@@ -13,7 +13,6 @@ git, no `gh`/network) and all 16 docket suites are green. Two soft watch items:
   against the real backlog is worth eyeballing once (it was deliberately not smoke-tested
   against live data — the test seam is hermetic, per spec §6). Compare its archived file +
   integration-branch copy-set against what the old prose would have produced.
-- [ ] **Decide the two follow-ups below** (both small; neither blocks this merge).
 
 ## Findings
 
@@ -57,20 +56,20 @@ git, no `gh`/network) and all 16 docket suites are green. Two soft watch items:
 - **Hygiene:** `.superpowers/` (the subagent-driven-development scratch dir) was not
   gitignored; two scratch reports leaked into intermediate commits. Added `.superpowers/`
   to `.gitignore` and untracked them — the branch's net diff vs `main` carries no scratch.
+- **CAS conflict else-branch now covered (was a deferred follow-up; done in this PR).**
+  `terminal-publish.sh`'s most intricate path — `pull --rebase` conflicts on a copy-set
+  path → re-checkout `origin/docket`'s authoritative bytes → `rebase --continue` — is now
+  exercised by a `publish(conflict)` test whose competing writer DIVERGES the archived
+  change file (the existing competing-push test only hit the clean-rebase if-branch via
+  `README`). Mutation-confirmed: neutralizing the re-checkout flips 3 of its 4 asserts.
+  Scripting-to-test-the-intricate-git-dance is this change's whole thesis (spec §3), so
+  leaving it uncovered was the wrong call — closed here.
+- **Tree-identity precondition documented (was a deferred follow-up; done in this PR).**
+  `archive-change.sh`'s header now states callers MUST derive `--date`/`--results`
+  deterministically from the manifest, so two concurrent archivers stage a tree-identical
+  change-file-only commit — making the invariant defensive rather than incidental.
 
 ## Follow-ups
 
-- **Same-file CAS-conflict test (small).** `terminal-publish.sh`'s CAS retry has a
-  conflict else-branch (`pull --rebase` fails → re-`checkout` the copyset →
-  `rebase --continue`) that no test exercises — the competing-push test advances `README`
-  (a clean rebase), not a copy-set path. The branch is faithfully ported from the original
-  prose (pre-existing, untested), but a fixture whose competing push touches a copy-set
-  file would lock down the one mechanically intricate uncovered path.
-- **Document the tree-identity precondition (trivial).** "Change-file-only commit
-  tree-identical across concurrent archivers" holds *because* both racers (finalize + the
-  sweep) derive the same merge-date and `results:` path from the manifest. A one-line note
-  in `archive-change.sh`'s header that callers must compute `--date`/`--results`
-  deterministically from the manifest would make that invariant defensive rather than
-  incidental.
 - **Unblocks 0023.** Its deferred §5b "script the merge sweep" piece can now route the
   sweep's archive through these shared scripts instead of a divergent copy.

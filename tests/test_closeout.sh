@@ -169,6 +169,32 @@ assert "publish: CAS push succeeds despite a competing advance" "[ $rc -eq 0 ]"
 assert "publish: copy-set landed atop the competing commit" 'git -C "$W" ls-tree -r --name-only origin/main | grep -q "docs/changes/archive/2026-06-18-0007-sample.md"'
 assert "publish: competing commit preserved (not clobbered)" 'git -C "$W" log origin/main --oneline | grep -q competing'
 
+# --- terminal-publish.sh: CAS conflict ELSE-branch (competing writer DIVERGES a copy-set path) ---
+# The test above advanced README (a different path => clean rebase, the if-branch). Here the
+# competing writer rewrites the SAME archived change file with divergent bytes. publish provisions
+# pub on the work clone's STALE origin/main (it only fetched docket), so its push is non-FF; the
+# `pull --rebase` then replays our "add archived file (docket bytes)" onto the competing
+# "add archived file (other bytes)" => add/add CONFLICT => the loop takes its else-branch
+# (re-checkout origin/docket's authoritative bytes -> rebase --continue). docket's bytes must win
+# and no conflict markers may leak.
+read -r W _ < <(new_repo)
+"$ARCHIVE" --changes-dir "$W/docs/changes" --id 7 --outcome done --date 2026-06-18 >/dev/null 2>&1
+comp="$(mktemp -d)"; git clone "$(git -C "$W" remote get-url origin)" "$comp" >/dev/null 2>&1
+git -C "$comp" checkout main >/dev/null 2>&1
+mkdir -p "$comp/docs/changes/archive"
+printf 'COMPETING-DIVERGENT-BYTES must be overwritten by docket authoritative content\n' \
+  > "$comp/docs/changes/archive/2026-06-18-0007-sample.md"
+git -C "$comp" add -A
+git -C "$comp" -c user.email=c@c -c user.name=c commit -m "competing divergence on a copy-set path" >/dev/null 2>&1
+git -C "$comp" push origin main >/dev/null 2>&1
+( cd "$W" && "$PUBLISH" --id 7 --outcome done --integration-branch main --metadata-branch docket --changes-dir docs/changes --adrs-dir docs/adrs ) >/dev/null 2>&1
+rc=$?; git -C "$W" fetch origin main >/dev/null 2>&1
+landed="$(git -C "$W" show origin/main:docs/changes/archive/2026-06-18-0007-sample.md 2>/dev/null)"
+assert "publish(conflict): exits 0 after resolving the same-file rebase conflict" "[ $rc -eq 0 ]"
+assert "publish(conflict): docket authoritative bytes win (status: done present)" 'printf "%s\n" "$landed" | grep -q "^status: done"'
+assert "publish(conflict): competing divergent bytes overwritten" '! printf "%s\n" "$landed" | grep -q "COMPETING-DIVERGENT-BYTES"'
+assert "publish(conflict): no conflict markers leaked into the landed file" '! printf "%s\n" "$landed" | grep -q "^<<<<<<<"'
+
 # --- terminal-publish.sh: main-mode no-op ---
 read -r W _ < <(new_repo)
 ( cd "$W" && "$PUBLISH" --id 7 --outcome done --integration-branch main --metadata-branch main --changes-dir docs/changes --adrs-dir docs/adrs ) >/dev/null 2>&1

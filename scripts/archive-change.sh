@@ -6,6 +6,12 @@
 # Fail-closed: self-verifies its postconditions and exits non-zero with a diagnostic on deviation.
 # Idempotent: a reuse-existing-archive probe makes a racing/resumed run a safe no-op.
 #
+# CONCURRENCY PRECONDITION: callers MUST derive --date (the UTC merge/kill date) and --results
+# deterministically from the manifest, never from now(). That is what keeps the change-file-only
+# commit tree-identical across two concurrent archivers (finalize racing the docket-status sweep):
+# they stage the same rename to the same dated path with the same fields, so neither clobbers the
+# other and the CAS push resolves to identical bytes.
+#
 # Usage:
 #   archive-change.sh --changes-dir DIR --id N --outcome done|killed --date YYYY-MM-DD
 #                     [--message MSG] [--results PATH] [--reason TEXT] [--remote R]
