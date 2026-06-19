@@ -126,5 +126,50 @@ assert "finding present without --strict ⇒ exit 0" '[ "$rc" = 0 ]'
 bash "$SCRIPT" --metadata-branch docket --integration-branch main >/dev/null 2>&1; rc=$?
 assert "missing --changes-dir ⇒ exit 2" '[ "$rc" = 2 ]'
 
+# ============================ broken-plan-results ============================
+# A 'done' change whose results: path is absent on the integration branch ⇒ one finding.
+# The SAME missing field on an 'implemented' change ⇒ silent (carve-out). Present links ⇒ silent.
+read -r P _ < <(new_repo)
+cat > "$P/docs/changes/archive/2026-06-02-0010-donegood.md" <<'EOF'
+---
+id: 10
+slug: donegood
+title: Done, links present
+status: done
+priority: medium
+depends_on: []
+plan: docs/superpowers/plans/2026-06-01-present.md
+results: docs/results/2026-06-01-present-results.md
+EOF
+cat > "$P/docs/changes/archive/2026-06-02-0011-donerot.md" <<'EOF'
+---
+id: 11
+slug: donerot
+title: Done, results link rotted
+status: done
+priority: medium
+depends_on: []
+plan: docs/superpowers/plans/2026-06-01-present.md
+results: docs/results/2026-06-01-ABSENT-results.md
+EOF
+cat > "$P/docs/changes/active/0012-implmissing.md" <<'EOF'
+---
+id: 12
+slug: implmissing
+title: Implemented, plan not on integration yet
+status: implemented
+priority: medium
+depends_on: []
+plan: docs/superpowers/plans/2026-06-01-ABSENT.md
+results:
+EOF
+pout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$P/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "broken-plan-results fires for a done change with a rotted results link (id 11)" \
+  'has_finding "$pout" broken-plan-results 11'
+assert "broken-plan-results silent for a done change with present links (id 10)" \
+  '! has_finding "$pout" broken-plan-results 10'
+assert "broken-plan-results silent for an implemented change with an absent plan (id 12, carve-out)" \
+  '! has_finding "$pout" broken-plan-results 12'
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"

@@ -56,7 +56,15 @@ for f in "${FILES[@]}"; do
     git_has "$METADATA_BRANCH" "$spec" || emit broken-spec "$id" "spec not found on $METADATA_BRANCH: $spec"
   fi
 
-  # >>> broken-plan-results  (Task 2 inserts here)
+  # --- broken-plan-results: a done change's set plan:/results: must resolve on the integration branch ---
+  # Carve-out: never flag an 'implemented' change — those files still live on the unmerged feature branch.
+  if [ "$status" = "done" ]; then
+    for key in plan results; do
+      val="$(field "$f" "$key")"
+      [ -n "$val" ] || continue
+      git_has "$INTEGRATION_BRANCH" "$val" || emit broken-plan-results "$id" "$key not found on $INTEGRATION_BRANCH: $val"
+    done
+  fi
 
   # >>> stale-in-progress    (Task 4 inserts here)
 
