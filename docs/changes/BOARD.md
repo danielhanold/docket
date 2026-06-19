@@ -1,6 +1,6 @@
 # Backlog
 
-**26 changes** — 🟡 9 proposed · 🔵 1 implemented · ✅ 16 done
+**26 changes** — 🟡 9 proposed · ✅ 17 done
 
 ## 🟡 Proposed (9)
 
@@ -16,12 +16,6 @@
 | [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | needs-brainstorm |
 | [0026](active/0026-config-resolution-script.md) | Extract config resolution + bootstrap guard into a deterministic script | `medium` | build-ready |
 
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | PR |
-|---|-------|----------|----|
-| [0025](active/0025-closeout-scripts.md) | Extract the shared terminal-transition close-out mechanics into deterministic scripts | `medium` | [#36](https://github.com/danielhanold/docket/pull/36) |
-
 ```mermaid
 graph TD
   0007
@@ -32,7 +26,6 @@ graph TD
   0015 --> 0019
   0022 --> 0023
   0022 --> 0024
-  0025
   0026
   0001:::done
   0002:::done
@@ -50,13 +43,15 @@ graph TD
   0020:::done
   0021:::done
   0022:::done
+  0025:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅ Archive — done (16)</summary>
+<details><summary>✅ Archive — done (17)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0025](archive/2026-06-19-0025-closeout-scripts.md) | Extract the shared terminal-transition close-out mechanics into deterministic scripts | 2026-06-19 |
 | [0022](archive/2026-06-19-0022-render-board-script.md) | Extract inline board rendering into a deterministic script | 2026-06-19 |
 | [0021](archive/2026-06-19-0021-finalize-consent-model.md) | Finalize consent model — ambiguity-only prompt + require_pr_approval policy gate | 2026-06-19 |
 | [0020](archive/2026-06-17-0020-convention-progressive-disclosure.md) | Split the docket-convention skill via progressive disclosure — extract the GitHub board mirror first | 2026-06-17 |
