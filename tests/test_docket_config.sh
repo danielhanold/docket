@@ -164,5 +164,41 @@ mkrepo "$tmp/w4"; make_docket "$tmp/w4"
 out="$(run "$tmp/w4" --bootstrap --export)"; eval "$out"
 assert "bootstrap migrated: PROCEED"            '[ "$BOOTSTRAP" = PROCEED ]'
 
+# --- fail-closed error paths (non-zero exit, stderr diagnostic, no KEY=value) ----
+run_rc(){ local d="$1"; shift; bash "$SCRIPT" --repo-dir "$d" "$@" >/dev/null 2>&1; echo $?; }
+
+# (F1) unreachable origin -> exit≠0, no output
+mkrepo "$tmp/f1"
+rm -rf "$tmp/f1.origin.git"                       # destroy the remote
+assert "unreachable origin: nonzero exit" '[ "$(run_rc "$tmp/f1" --export)" -ne 0 ]'
+assert "unreachable origin: emits nothing" '[ -z "$(bash "$SCRIPT" --repo-dir "$tmp/f1" --export 2>/dev/null)" ]'
+
+# (F2) cached-but-stale origin/HEAD must NOT mask an unreachable origin (keys on fetch rc,
+#      not git show — LEARNINGS / spec §7). origin/HEAD + .docket.yml are cached locally,
+#      so `git show origin/HEAD:.docket.yml` would still succeed with stale bytes.
+mkrepo "$tmp/f2"
+echo 'metadata_branch: docket' > "$tmp/f2/.docket.yml"
+git -C "$tmp/f2" add .docket.yml; git -C "$tmp/f2" commit --quiet -m cfg
+git -C "$tmp/f2" push --quiet origin main
+git -C "$tmp/f2" fetch --quiet origin              # populate caches
+rm -rf "$tmp/f2.origin.git"                         # now unreachable
+assert "stale cache does not mask unreachable origin" '[ "$(run_rc "$tmp/f2" --export)" -ne 0 ]'
+
+# (F3) integration ref absent (docket-mode) -> ls-tree rc≠0 -> hard error
+mkrepo "$tmp/f3"
+printf 'metadata_branch: docket\nintegration_branch: nope\n' > "$tmp/f3/.docket.yml"
+git -C "$tmp/f3" add .docket.yml; git -C "$tmp/f3" commit --quiet -m cfg
+git -C "$tmp/f3" push --quiet origin main
+assert "absent integration ref: nonzero exit" '[ "$(run_rc "$tmp/f3" --export)" -ne 0 ]'
+
+# (F4) bad metadata_branch -> unparseable -> hard error
+mkrepo "$tmp/f4"
+echo 'metadata_branch: banana' > "$tmp/f4/.docket.yml"
+git -C "$tmp/f4" add .docket.yml; git -C "$tmp/f4" commit --quiet -m cfg
+git -C "$tmp/f4" push --quiet origin main
+assert "bad metadata_branch: nonzero exit" '[ "$(run_rc "$tmp/f4" --export)" -ne 0 ]'
+err="$(bash "$SCRIPT" --repo-dir "$tmp/f4" --export 2>&1 >/dev/null)"
+assert "bad metadata_branch: diagnostic mentions metadata_branch" 'printf "%s" "$err" | grep -q metadata_branch'
+
 if [ "$fail" = 0 ]; then echo PASS; else echo FAIL; fi
 exit "$fail"
