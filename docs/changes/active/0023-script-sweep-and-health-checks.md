@@ -8,7 +8,7 @@ created: 2026-06-18
 updated: 2026-06-19
 depends_on: [22]
 related: [11, 18, 24, 25]
-adrs: []
+adrs: [12]
 spec: docs/superpowers/specs/2026-06-18-script-sweep-and-health-checks-design.md
 plan: docs/superpowers/plans/2026-06-19-script-sweep-and-health-checks.md
 results:
