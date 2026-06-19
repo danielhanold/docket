@@ -1,6 +1,6 @@
 # Backlog
 
-**26 changes** — 🟢 1 in progress · 🟡 7 proposed · 🔵 1 implemented · ✅ 17 done
+**26 changes** — 🟢 1 in progress · 🟡 7 proposed · ✅ 18 done
 
 ## 🟢 In progress (1)
 
@@ -20,12 +20,6 @@
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | needs-brainstorm |
 
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | PR |
-|---|-------|----------|----|
-| [0023](active/0023-script-sweep-and-health-checks.md) | Decide and apply scripting vs model-driven for the merge sweep and health checks | `medium` | [#37](https://github.com/danielhanold/docket/pull/37) |
-
 ```mermaid
 graph TD
   0007
@@ -34,7 +28,6 @@ graph TD
   0010
   0016 --> 0018
   0015 --> 0019
-  0022 --> 0023
   0022 --> 0024
   0026
   0001:::done
@@ -53,15 +46,17 @@ graph TD
   0020:::done
   0021:::done
   0022:::done
+  0023:::done
   0025:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅ Archive — done (17)</summary>
+<details><summary>✅ Archive — done (18)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0025](archive/2026-06-19-0025-closeout-scripts.md) | Extract the shared terminal-transition close-out mechanics into deterministic scripts | 2026-06-19 |
+| [0023](archive/2026-06-19-0023-script-sweep-and-health-checks.md) | Decide and apply scripting vs model-driven for the merge sweep and health checks | 2026-06-19 |
 | [0022](archive/2026-06-19-0022-render-board-script.md) | Extract inline board rendering into a deterministic script | 2026-06-19 |
 | [0021](archive/2026-06-19-0021-finalize-consent-model.md) | Finalize consent model — ambiguity-only prompt + require_pr_approval policy gate | 2026-06-19 |
 | [0020](archive/2026-06-17-0020-convention-progressive-disclosure.md) | Split the docket-convention skill via progressive disclosure — extract the GitHub board mirror first | 2026-06-17 |
