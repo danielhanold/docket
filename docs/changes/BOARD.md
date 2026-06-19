@@ -1,8 +1,14 @@
 # Backlog
 
-**26 changes** — 🟡 10 proposed · ✅ 16 done
+**26 changes** — 🟢 1 in progress · 🟡 9 proposed · ✅ 16 done
 
-## 🟡 Proposed (10)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Spec | Branch |
+|---|-------|----------|------|--------|
+| [0025](active/0025-closeout-scripts.md) | Extract the shared terminal-transition close-out mechanics into deterministic scripts | `medium` | [spec](../superpowers/specs/2026-06-19-closeout-scripts-design.md) | `feat/closeout-scripts` |
+
+## 🟡 Proposed (9)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -14,7 +20,6 @@
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0023](active/0023-script-sweep-and-health-checks.md) | Decide and apply scripting vs model-driven for the merge sweep and health checks | `medium` | build-ready |
 | [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | needs-brainstorm |
-| [0025](active/0025-closeout-scripts.md) | Extract the shared terminal-transition close-out mechanics into deterministic scripts | `medium` | build-ready |
 | [0026](active/0026-config-resolution-script.md) | Extract config resolution + bootstrap guard into a deterministic script | `medium` | build-ready |
 
 ```mermaid
