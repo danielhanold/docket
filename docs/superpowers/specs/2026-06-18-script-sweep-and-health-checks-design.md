@@ -7,6 +7,26 @@
 
 ---
 
+> **Reconcile addendum (2026-06-19, change 0023 build — authoritative where it conflicts below).**
+> The world moved since this spec was brainstormed (2026-06-18). Change **0025** has since landed
+> (`done`, PR #36): it extracted the shared terminal-transition close-out into
+> `archive-change.sh` / `terminal-publish.sh` / `cleanup-feature-branch.sh` and **already rewired**
+> `docket-status`'s merge sweep + both kill paths to invoke them. Consequences for this build:
+>
+> - **§5b is resolved/superseded.** The merge sweep is **entirely out of 0023's scope** — 0025 owns
+>   its close-out. The lone residual (the sweep's merged-PR `gh` probe) **stays model-driven** (trivial,
+>   interleaved with the sweep's per-change `pull --rebase`/re-read). 0023 does **not** touch the sweep.
+> - **§3 / §6 / §7 "migrate `github-mirror.sh` onto the helper" is already 0022's done work** — drop it
+>   from this build; `test_github_mirror.sh` is green on the shared helper. 0023 only *consumes* the helper.
+> - **§3 interface confirmed**, with a bonus: `resolve_deps` also populates `DEP_ON[id]` (worst-unmet
+>   dep id), so §5a's **merge-gate-stall** names the dep from `DEP_ON[id]` rather than re-walking `depends_on`.
+> - **Net remaining build:** `scripts/board-checks.sh` (the five §5a mechanical checks) + the §6a
+>   `docket-status` wiring + the §2 boundary ADR (next number **0012**) + `tests/test_board_checks.sh`.
+>
+> Everything else in §5a / §6a / §7 stands as written.
+
+---
+
 ## 1. Context
 
 `docket-status` runs three passes: the `inline` **board render**, the **merge

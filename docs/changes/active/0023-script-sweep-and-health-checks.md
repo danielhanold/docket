@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/script-sweep-and-health-checks
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Why
@@ -71,10 +71,11 @@ Decisions:
   `terminal-publish.sh` + `cleanup-feature-branch.sh`), *and* 0025 rewires the sweep
   call-site to invoke them. So this change no longer scripts the sweep's archive /
   terminal-publish / cleanup; it **consumes 0025's scripts** there. What remains for
-  the sweep is the **merged-PR detection** (a mechanical `gh` query — script-or-keep
-  is a small call settled at build) and the **harvest** (judgment — stays
-  model-driven). 0023 and 0025 both touch `docket-status`'s sweep prose, so the
-  implementer's reconcile pass must align against whichever lands first.
+  the sweep is the **merged-PR detection** (a mechanical `gh` query — **kept
+  model-driven**, settled at reconcile: too trivial and too interleaved with the
+  sweep's per-change `pull --rebase`/re-read to script in isolation) and the
+  **harvest** (judgment — stays model-driven). **0025 landed first** and already
+  rewired `docket-status`'s sweep prose, so 0023 does **not** touch the sweep.
 - Record the boundary ("mechanical & side-effect-free ⇒ script; judgment or
   shared terminal-transition ⇒ agent-prose") as an **ADR** (generalizes 0007).
 - `tests/test_board_checks.sh`, matching `tests/test_github_mirror.sh`.
@@ -105,3 +106,39 @@ sweep's mechanics rather than deciding them. Not blocking; flagged for the recon
 pass.
 
 ## Reconcile log
+
+### 2026-06-19 — reconciled at claim (scope narrowed to health-checks-only)
+
+Reconciled against `origin/main` @ `2d322db` (post-PR-#36) and `origin/docket` before
+planning. The world moved since the 2026-06-18 brainstorm — change **0025 is now
+`done`** (the 2026-06-19 scope note above said "created"; it has since shipped).
+
+**Verified present (no new parser needed):** `scripts/lib/docket-frontmatter.sh`
+exposes `field`/`list_field`/`has_section`, `resolve_deps DIR` (populating
+`STATUS_OF`/`DEP_STATE`/`DEP_REASON`/**`DEP_ON`**), and `readiness FILE` — the full
+spec §3 interface **plus** a bonus `DEP_ON[id]` (worst-unmet dep id). So
+`board-checks.sh`'s merge-gate-stall names the blocking dep straight from
+`DEP_ON[id]` — no re-walk of `depends_on` (a simplification over spec §5a).
+
+**Dropped — already done by 0022:** `scripts/github-mirror.sh` already sources the
+helper and calls `resolve_deps`, and `render-board.sh` consumes it too. The spec's
+"migrate `github-mirror.sh` onto the helper" (§3/§6/§7) is 0022's completed work;
+`test_github_mirror.sh` is green on the shared helper. 0023 only *consumes* the helper.
+
+**Sweep fully out (spec §5b superseded by 0025).** 0025 rewired `docket-status`'s
+sweep (its close-out now invokes `archive-change.sh`/`terminal-publish.sh`/
+`cleanup-feature-branch.sh`) plus both kill paths. The lone residual — the sweep's
+merged-PR `gh` probe — is **kept model-driven** (trivial, interleaved with the sweep's
+per-change rebase/re-read). **Settled: 0023 does not touch the sweep at all.**
+
+**Health-checks scope (confirmed against current prose, unchanged).** Five mechanical
+checks → `scripts/board-checks.sh` (broken-spec, broken-plan-results, dep-cycle,
+stale-in-progress, merge-gate-stall). Two stay model-driven: `blocked_by:`
+re-examination (judgment) and inline board/source-drift (owned by change **0024**, a
+still-open needs-brainstorm stub — untouched here). The §6a wiring edit stands.
+
+**ADR.** The §2 boundary principle becomes a new ADR (next number **0012**),
+generalizing `Accepted` ADR-0007. `adrs:` stays `[]` until `docket-adr` assigns + accepts it.
+
+**Net remaining build:** `scripts/board-checks.sh` (5 checks) + the §6a `docket-status`
+wiring + boundary ADR-0012 + `tests/test_board_checks.sh`. Not obsolete; design not invalidated.
