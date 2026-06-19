@@ -2,7 +2,7 @@
 id: 25
 slug: closeout-scripts
 title: Extract the shared terminal-transition close-out mechanics into deterministic scripts
-status: implemented
+status: done
 priority: medium
 created: 2026-06-19
 updated: 2026-06-19
