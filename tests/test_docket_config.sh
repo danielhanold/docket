@@ -202,5 +202,14 @@ assert "bad metadata_branch: nonzero exit" '[ "$(run_rc "$tmp/f4" --export)" -ne
 err="$(bash "$SCRIPT" --repo-dir "$tmp/f4" --export 2>&1 >/dev/null)"
 assert "bad metadata_branch: diagnostic mentions metadata_branch" 'printf "%s" "$err" | grep -q metadata_branch'
 
+# --- skill-wiring sentinels (the SKILLs are code on the integration branch) ------
+CONV="$REPO/skills/docket-convention/SKILL.md"
+assert "convention names docket-config.sh" 'grep -qF "scripts/docket-config.sh" "$CONV"'
+for s in docket-implement-next docket-status docket-new-change docket-groom-next \
+         docket-finalize-change docket-adr docket-auto-groom; do
+  f="$REPO/skills/$s/SKILL.md"
+  assert "$s Step 0 invokes docket-config.sh" 'grep -qF "scripts/docket-config.sh" "$f"'
+done
+
 if [ "$fail" = 0 ]; then echo PASS; else echo FAIL; fi
 exit "$fail"
