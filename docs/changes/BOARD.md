@@ -1,8 +1,14 @@
 # Backlog
 
-**26 changes** — 🟡 9 proposed · ✅ 17 done
+**26 changes** — 🟢 1 in progress · 🟡 8 proposed · ✅ 17 done
 
-## 🟡 Proposed (9)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Spec | Branch |
+|---|-------|----------|------|--------|
+| [0023](active/0023-script-sweep-and-health-checks.md) | Decide and apply scripting vs model-driven for the merge sweep and health checks | `medium` | [spec](../superpowers/specs/2026-06-18-script-sweep-and-health-checks-design.md) | `feat/script-sweep-and-health-checks` |
+
+## 🟡 Proposed (8)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -12,7 +18,6 @@
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | needs-brainstorm |
 | [0018](active/0018-yq-yaml-parsing.md) | Evaluate adopting yq for YAML parsing across docket scripts | `low` | needs-brainstorm |
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
-| [0023](active/0023-script-sweep-and-health-checks.md) | Decide and apply scripting vs model-driven for the merge sweep and health checks | `medium` | build-ready |
 | [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | needs-brainstorm |
 | [0026](active/0026-config-resolution-script.md) | Extract config resolution + bootstrap guard into a deterministic script | `medium` | build-ready |
 
