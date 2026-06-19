@@ -13,7 +13,7 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 mkrepo(){
   local dir="$1" bare="$1.origin.git"
   git init --quiet --bare "$bare"
-  git clone --quiet "$bare" "$dir"
+  git clone --quiet "$bare" "$dir" 2>/dev/null
   git -C "$dir" config user.email t@t.test
   git -C "$dir" config user.name  Test
   git -C "$dir" checkout --quiet -b main
