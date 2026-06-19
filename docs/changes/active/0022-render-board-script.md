@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/render-board-script
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Why
@@ -101,3 +101,29 @@ All resolved at brainstorm 2026-06-18 — see
   this change's deterministic render).
 
 ## Reconcile log
+
+### 2026-06-18 — reconcile (build claim)
+
+Spec was brainstormed today against current code; `origin/main` is unchanged
+since (tip `9a7a3d7`), so drift is minimal. Verified against CURRENT reality:
+
+- **Helpers still present verbatim** in `scripts/github-mirror.sh`: `field`,
+  `list_field`, `has_section` (the lift source), and the inline `readiness_label`
+  dep-walk (the migration target). `scripts/lib/` does not yet exist.
+- **Regression gate present**: `tests/test_github_mirror.sh` — must stay green
+  after the §5 migration.
+- **Documented algorithm intact**: `skills/docket-status/SKILL.md` *Board →
+  Structure* (the spec to re-implement) is unchanged; the script reproduces it.
+- **Related changes consistent**: 0011 (done — the `github-mirror.sh` precedent,
+  ADR-0007), 0018 (yq — stays `related`, hand-rolled decision holds), 0020 (done
+  — progressive-disclosure refinement). 0023/0024 are downstream consumers of the
+  shared helper, not yet built — no conflict. 0021 (PR #34) touches finalize, not
+  board scripts — no overlap.
+- **Observation folded into the build, not a scope change**: the *live* `BOARD.md`
+  currently renders Implemented before Proposed, but the documented Structure and
+  spec §3 fix the canonical order `in-progress · proposed · blocked · deferred ·
+  implemented`. The deterministic renderer corrects this drift; the golden fixture
+  must encode the canonical order (so the next `docket-status` render re-sorts the
+  live board). No body/spec edits required.
+
+Scope unchanged; proceeding to plan.
