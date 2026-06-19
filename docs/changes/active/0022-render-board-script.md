@@ -2,7 +2,7 @@
 id: 22
 slug: render-board-script
 title: Extract inline board rendering into a deterministic script
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-06-18
 updated: 2026-06-18
@@ -11,11 +11,11 @@ related: [11, 18, 20]
 adrs: []
 spec: docs/superpowers/specs/2026-06-18-render-board-script-design.md
 plan: docs/superpowers/plans/2026-06-18-render-board-script.md
-results:
+results: docs/results/2026-06-18-render-board-script-results.md
 trivial: false
 auto_groomable:
 branch: feat/render-board-script
-pr:
+pr: https://github.com/danielhanold/docket/pull/35
 blocked_by:
 reconciled: true
 ---
