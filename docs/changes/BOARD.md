@@ -1,12 +1,6 @@
 # Backlog
 
-**24 changes** — 🟡 8 proposed · 🔵 1 implemented · ✅ 15 done
-
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | PR |
-|---|-------|----------|----|
-| [0022](active/0022-render-board-script.md) | Extract inline board rendering into a deterministic script | `medium` | [#35](https://github.com/danielhanold/docket/pull/35) |
+**24 changes** — 🟡 8 proposed · ✅ 16 done
 
 ## 🟡 Proposed (8)
 
@@ -18,8 +12,8 @@
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | needs-brainstorm |
 | [0018](active/0018-yq-yaml-parsing.md) | Evaluate adopting yq for YAML parsing across docket scripts | `low` | needs-brainstorm |
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
-| [0023](active/0023-script-sweep-and-health-checks.md) | Decide and apply scripting vs model-driven for the merge sweep and health checks | `medium` | ⏳ waiting on #22 — needs your merge |
-| [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | ⏳ waiting on #22 — needs your merge |
+| [0023](active/0023-script-sweep-and-health-checks.md) | Decide and apply scripting vs model-driven for the merge sweep and health checks | `medium` | build-ready |
+| [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | needs-brainstorm |
 
 ```mermaid
 graph TD
@@ -27,8 +21,8 @@ graph TD
   0008
   0009
   0010
-  0018
-  0019
+  0016 --> 0018
+  0015 --> 0019
   0022 --> 0023
   0022 --> 0024
   0001:::done
@@ -46,13 +40,15 @@ graph TD
   0017:::done
   0020:::done
   0021:::done
+  0022:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅ Archive — done (15)</summary>
+<details><summary>✅ Archive — done (16)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0022](archive/2026-06-19-0022-render-board-script.md) | Extract inline board rendering into a deterministic script | 2026-06-19 |
 | [0021](archive/2026-06-19-0021-finalize-consent-model.md) | Finalize consent model — ambiguity-only prompt + require_pr_approval policy gate | 2026-06-19 |
 | [0020](archive/2026-06-17-0020-convention-progressive-disclosure.md) | Split the docket-convention skill via progressive disclosure — extract the GitHub board mirror first | 2026-06-17 |
 | [0017](archive/2026-06-17-0017-docket-subagent-composition-wiring.md) | docket subagent composition — nested status/adr/critic dispatch | 2026-06-17 |
