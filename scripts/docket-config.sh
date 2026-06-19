@@ -27,7 +27,8 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --export)    MODE=export ;;
     --bootstrap) DO_BOOTSTRAP=1 ;;
-    --repo-dir)  REPO_DIR="$2"; shift ;;
+    --repo-dir)  [ $# -ge 2 ] || { printf 'docket-config: --repo-dir requires an argument\n' >&2; exit 2; }
+                 REPO_DIR="$2"; shift ;;
     -h|--help)   grep '^#' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) printf 'docket-config: unknown argument: %s\n' "$1" >&2; exit 2 ;;
   esac
@@ -52,11 +53,17 @@ create_orphan() {
 }
 
 # Minimal flat scalar reader for `key: value` (strips inline #comments, quotes, whitespace).
-# Ported from migrate-to-docket.sh — .docket.yml is intentionally a flat scalar file (no yq).
-# Nested finalize.gate / finalize.test_command are read by their unique leaf-key name.
+# Adapted from migrate-to-docket.sh's reader (.docket.yml is intentionally a flat scalar file,
+# no yq); migrate's identical copy is out of this change's scope and left as-is. The key is
+# escaped before it enters the regex so a metacharacter in any future key can't match
+# unintended lines. Nested finalize.gate / finalize.test_command are read by their unique
+# leaf-key name. NOTE: a value may not contain a literal '#' — it is treated as the start of an
+# inline comment and truncated (fine for the current enum / path / empty values).
 yaml_get() {  # yaml_get <file> <key>  -> value on stdout (empty if key absent)
   [ -f "$1" ] || return 1
-  sed -n -E "s/^[[:space:]]*$2[[:space:]]*:[[:space:]]*([^#]*).*/\1/p" "$1" \
+  local key_re
+  key_re="$(printf '%s' "$2" | sed 's#[^[:alnum:]_]#\\&#g')"   # escape ERE metachars in the key
+  sed -n -E "s/^[[:space:]]*$key_re[[:space:]]*:[[:space:]]*([^#]*).*/\1/p" "$1" \
     | head -n1 | sed -E 's/[[:space:]]+$//; s/^"(.*)"$/\1/; s/^'\''(.*)'\''$/\1/'
 }
 

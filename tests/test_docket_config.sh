@@ -159,10 +159,13 @@ out="$(run "$tmp/w3" --bootstrap --export)"; eval "$out"
 assert "bootstrap guard: no write in single-branch cell" '! origin_has_docket "$tmp/w3"'
 assert "bootstrap guard: verdict stays STOP_MIGRATE"     '[ "$BOOTSTRAP" = STOP_MIGRATE ]'
 
-# (W4) --bootstrap in migrated cell: idempotent no-op, PROCEED
+# (W4) --bootstrap in migrated cell: idempotent no-op, PROCEED (origin/docket SHA unchanged)
 mkrepo "$tmp/w4"; make_docket "$tmp/w4"
+w4_before="$(git -C "$tmp/w4.origin.git" rev-parse refs/heads/docket)"
 out="$(run "$tmp/w4" --bootstrap --export)"; eval "$out"
+w4_after="$(git -C "$tmp/w4.origin.git" rev-parse refs/heads/docket)"
 assert "bootstrap migrated: PROCEED"            '[ "$BOOTSTRAP" = PROCEED ]'
+assert "bootstrap migrated: origin/docket SHA unchanged (no-op)" '[ "$w4_before" = "$w4_after" ]'
 
 # --- fail-closed error paths (non-zero exit, stderr diagnostic, no KEY=value) ----
 run_rc(){ local d="$1"; shift; bash "$SCRIPT" --repo-dir "$d" "$@" >/dev/null 2>&1; echo $?; }
@@ -201,6 +204,11 @@ git -C "$tmp/f4" push --quiet origin main
 assert "bad metadata_branch: nonzero exit" '[ "$(run_rc "$tmp/f4" --export)" -ne 0 ]'
 err="$(bash "$SCRIPT" --repo-dir "$tmp/f4" --export 2>&1 >/dev/null)"
 assert "bad metadata_branch: diagnostic mentions metadata_branch" 'printf "%s" "$err" | grep -q metadata_branch'
+
+# (F5) --repo-dir with no following argument -> usage error (exit≠0 + diagnostic), no set -u crash
+rc5=0; err5="$(bash "$SCRIPT" --repo-dir 2>&1 >/dev/null)" || rc5=$?
+assert "F5 --repo-dir no arg: nonzero exit" '[ "$rc5" -ne 0 ]'
+assert "F5 --repo-dir no arg: diagnostic mentions --repo-dir" 'printf "%s" "$err5" | grep -q -- "--repo-dir"'
 
 # --- skill-wiring sentinels (the SKILLs are code on the integration branch) ------
 CONV="$REPO/skills/docket-convention/SKILL.md"
