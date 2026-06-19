@@ -4,6 +4,16 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-06-19 (#26, PR #38) — A `.docket.yml` reader interpolated the lookup key straight into an ERE
+  (`^[[:space:]]*<key>`), so any future key carrying a regex metacharacter would match unintended
+  lines; the same unescaped helper is still copy-pasted in `migrate-to-docket.sh`. Apply: escape ERE
+  metacharacters in a key before building a `grep -E`/regex match from it — and when you fix one copy
+  of a duplicated shell helper, note the un-fixed twin so the divergence is tracked, not silent.
+- 2026-06-19 (#26, PR #38) — Hermetic shell fixtures that `git clone` a freshly-`init --bare` origin
+  each emit `warning: You appear to have cloned an empty repository` to stderr, so a passing suite
+  still had noisy non-empty stderr (16× here). Apply: silence the empty-bare-clone warning in fixture
+  builders so a green run leaves stderr 0-byte — pristine stderr is what makes a real-data smoke test's
+  "0-byte stderr" assertion meaningful (extends #22).
 - 2026-06-19 (#25, PR #36) — An in-place `sed` that sets a frontmatter field (`status:`/`updated:`/
   `results:`) was unanchored, so it would have rewritten *any* column-0 match — including body prose,
   a live risk for docket's own change/ADR files (which discuss those field names). Apply: anchor a
