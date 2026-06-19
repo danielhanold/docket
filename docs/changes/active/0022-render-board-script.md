@@ -10,7 +10,7 @@ depends_on: []
 related: [11, 18, 20]
 adrs: []
 spec: docs/superpowers/specs/2026-06-18-render-board-script-design.md
-plan:
+plan: docs/superpowers/plans/2026-06-18-render-board-script.md
 results:
 trivial: false
 auto_groomable:
