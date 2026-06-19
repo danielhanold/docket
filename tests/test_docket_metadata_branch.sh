@@ -71,10 +71,10 @@ assert "terminal-publish skipped entirely in main-mode" \
   'grep -q "Skipped entirely in \`main\`-mode" skills/docket-finalize-change/SKILL.md'
 # K3. Proposed-kill (docket-new-change) carries its main-mode archive-move degradation clause.
 assert "proposed-kill degrades to a direct archive move in main-mode" \
-  'grep -q "no \`docket\` branch / no terminal-publish): do the archive move" skills/docket-new-change/SKILL.md'
+  'grep -q "the integration branch), performing the archive move" skills/docket-new-change/SKILL.md'
 # K4. Reconcile-kill (docket-implement-next) carries its main-mode archive-move degradation clause.
 assert "reconcile-kill degrades to a direct archive move in main-mode" \
-  'grep -q "no \`docket\` branch / no terminal-publish): do the archive move" skills/docket-implement-next/SKILL.md'
+  'grep -q "the integration branch), performing the archive move" skills/docket-implement-next/SKILL.md'
 
 # L. .gitignore ignores the metadata worktree + feature worktrees.
 assert ".gitignore ignores .docket/" 'grep -qE "^\.docket/?" .gitignore'

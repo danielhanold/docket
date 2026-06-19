@@ -195,4 +195,17 @@ assert "wiring(finalize): Accepted gate still documented" 'grep -qiE "whose ADR 
 assert "wiring(finalize): ADR-only publish path preserved" 'grep -qiE "adr-<NN>|ADR-only" "$FINALIZE"'
 assert "wiring(finalize): no leftover raw archive bash (git mv active/)" '! grep -qE "git mv .*active/" "$FINALIZE"'
 
+# --- call-site wiring sentinels: status sweep + two kill paths invoke the scripts ---
+STATUS="$REPO/skills/docket-status/SKILL.md"
+NEWCHG="$REPO/skills/docket-new-change/SKILL.md"
+IMPL="$REPO/skills/docket-implement-next/SKILL.md"
+assert "wiring(status): sweep invokes archive-change.sh"   'grep -q "scripts/archive-change.sh" "$STATUS"'
+assert "wiring(status): sweep invokes terminal-publish.sh" 'grep -q "scripts/terminal-publish.sh" "$STATUS"'
+assert "wiring(status): sweep invokes cleanup-feature-branch.sh" 'grep -q "scripts/cleanup-feature-branch.sh" "$STATUS"'
+assert "wiring(new-change): proposed-kill invokes archive-change.sh"   'grep -q "scripts/archive-change.sh" "$NEWCHG"'
+assert "wiring(new-change): proposed-kill invokes terminal-publish.sh" 'grep -q "scripts/terminal-publish.sh" "$NEWCHG"'
+assert "wiring(implement-next): reconcile-kill invokes archive-change.sh"     'grep -q "scripts/archive-change.sh" "$IMPL"'
+assert "wiring(implement-next): reconcile-kill invokes cleanup-feature-branch.sh" 'grep -q "scripts/cleanup-feature-branch.sh" "$IMPL"'
+assert "wiring(implement-next): reconcile-kill invokes terminal-publish.sh" 'grep -q "scripts/terminal-publish.sh" "$IMPL"'
+
 exit "$fail"
