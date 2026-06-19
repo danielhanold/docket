@@ -1,12 +1,6 @@
 # Backlog
 
-**26 changes** — 🟢 1 in progress · 🟡 7 proposed · ✅ 18 done
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0026](active/0026-config-resolution-script.md) | Extract config resolution + bootstrap guard into a deterministic script | `medium` | [spec](../superpowers/specs/2026-06-19-config-resolution-script-design.md) | `feat/config-resolution-script` |
+**26 changes** — 🟡 7 proposed · 🔵 1 implemented · ✅ 18 done
 
 ## 🟡 Proposed (7)
 
@@ -19,6 +13,12 @@
 | [0018](active/0018-yq-yaml-parsing.md) | Evaluate adopting yq for YAML parsing across docket scripts | `low` | needs-brainstorm |
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | needs-brainstorm |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | PR |
+|---|-------|----------|----|
+| [0026](active/0026-config-resolution-script.md) | Extract config resolution + bootstrap guard into a deterministic script | `medium` | [#38](https://github.com/danielhanold/docket/pull/38) |
 
 ```mermaid
 graph TD
