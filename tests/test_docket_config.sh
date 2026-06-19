@@ -98,5 +98,45 @@ assert "direct-pipe: 13 KEY=value lines emitted"       '[ "$n" -eq 13 ]'
 last="$(run "$tmp/c" --export | tail -n1)"
 assert "direct-pipe: last line is BOOTSTRAP"           'case "$last" in BOOTSTRAP=*) true;; *) false;; esac'
 
+# --- bootstrap 2×2 fixtures (docket-mode; mkrepo leaves origin/main = README only) ---
+# seed_live <dir> : put the live planning surface on origin/main (=> LIVE=1)
+seed_live(){
+  local d="$1"
+  mkdir -p "$d/docs/changes/active"
+  : > "$d/docs/changes/active/0001-x.md"
+  : > "$d/docs/changes/README.md"
+  : > "$d/docs/changes/BOARD.md"
+  git -C "$d" add docs; git -C "$d" commit --quiet -m live
+  git -C "$d" push --quiet origin main
+}
+# make_docket <dir> : create an empty origin/docket (=> DOCKET=1) without a local branch
+make_docket(){
+  local d="$1" t c
+  t="$(git -C "$d" mktree </dev/null)"
+  c="$(git -C "$d" commit-tree "$t" -m seed)"
+  git -C "$d" push --quiet origin "$c:refs/heads/docket"
+  git -C "$d" fetch --quiet origin docket
+}
+
+# (B1) migrated: DOCKET ∧ ¬LIVE -> PROCEED
+mkrepo "$tmp/b1"; make_docket "$tmp/b1"
+out="$(run "$tmp/b1" --export)"; eval "$out"
+assert "2x2 migrated -> PROCEED"            '[ "$BOOTSTRAP" = PROCEED ]'
+
+# (B2) fresh: ¬DOCKET ∧ ¬LIVE -> CREATE_ORPHAN
+mkrepo "$tmp/b2"
+out="$(run "$tmp/b2" --export)"; eval "$out"
+assert "2x2 fresh -> CREATE_ORPHAN"         '[ "$BOOTSTRAP" = CREATE_ORPHAN ]'
+
+# (B3) existing single-branch: ¬DOCKET ∧ LIVE -> STOP_MIGRATE
+mkrepo "$tmp/b3"; seed_live "$tmp/b3"
+out="$(run "$tmp/b3" --export)"; eval "$out"
+assert "2x2 single-branch -> STOP_MIGRATE"  '[ "$BOOTSTRAP" = STOP_MIGRATE ]'
+
+# (B4) half-migrated: DOCKET ∧ LIVE -> STOP_MIGRATE
+mkrepo "$tmp/b4"; seed_live "$tmp/b4"; make_docket "$tmp/b4"
+out="$(run "$tmp/b4" --export)"; eval "$out"
+assert "2x2 half-migrated -> STOP_MIGRATE"  '[ "$BOOTSTRAP" = STOP_MIGRATE ]'
+
 if [ "$fail" = 0 ]; then echo PASS; else echo FAIL; fi
 exit "$fail"

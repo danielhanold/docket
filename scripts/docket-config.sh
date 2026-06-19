@@ -86,8 +86,25 @@ else
   BOARD_SURFACES="$(echo $bs)"                             # trim/collapse; "[]" => ""
 fi
 
-# --- Stage 3: bootstrap verdict (Task 2 replaces the docket-mode branch with the 2×2) ---
+# --- Stage 3: bootstrap guard — evaluate the DOCKET/LIVE 2×2 (docket-mode only) ---
 BOOTSTRAP=PROCEED
+if [ "$DOCKET_MODE" = docket ]; then
+  # DOCKET = the docket branch exists (origin OR local)
+  if g rev-parse --verify --quiet refs/remotes/origin/docket >/dev/null 2>&1 \
+     || g rev-parse --verify --quiet refs/heads/docket >/dev/null 2>&1; then
+    DOCKET=1; else DOCKET=0; fi
+  # LIVE = the pruned live planning surface still sits on the integration branch.
+  # ls-tree exit≠0 => the ref is absent/unreadable => HARD config error, NOT ¬LIVE.
+  live_out="$(g ls-tree "origin/$INTEGRATION_BRANCH" -- \
+              "$CHANGES_DIR/active" "$CHANGES_DIR/README.md" "$CHANGES_DIR/BOARD.md" 2>/dev/null)"
+  rc=$?
+  [ "$rc" -eq 0 ] || die "cannot read origin/$INTEGRATION_BRANCH (git ls-tree exit $rc) — integration_branch ref absent/unreadable (config error, not ¬LIVE)"
+  [ -n "$live_out" ] && LIVE=1 || LIVE=0
+  if   [ "$DOCKET" -eq 1 ] && [ "$LIVE" -eq 0 ]; then BOOTSTRAP=PROCEED        # migrated
+  elif [ "$DOCKET" -eq 0 ] && [ "$LIVE" -eq 0 ]; then BOOTSTRAP=CREATE_ORPHAN  # fresh
+  else BOOTSTRAP=STOP_MIGRATE   # ¬DOCKET∧LIVE (single-branch) | DOCKET∧LIVE (half-migrated)
+  fi
+fi
 
 # --- emit ---
 if [ "$MODE" = export ]; then
