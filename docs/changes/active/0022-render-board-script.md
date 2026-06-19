@@ -2,7 +2,7 @@
 id: 22
 slug: render-board-script
 title: Extract inline board rendering into a deterministic script
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-06-18
 updated: 2026-06-18
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/render-board-script
 pr:
 blocked_by:
 reconciled: false
