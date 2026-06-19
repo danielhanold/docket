@@ -40,6 +40,66 @@ assert "config-parse: gate off (opt-out)"    '[ "$(gate_of "$TMPC/off.yml")"   =
 assert "config-parse: absent block => local" '[ "$(gate_of "$TMPC/absent.yml")" = "local" ]'
 rm -rf "$TMPC"
 
+# ---- Config parse: the nested finalize.require_pr_approval key (default false) -
+# Same block-scoped awk idiom as gate_of; SIGPIPE-safe (capture, no producer|grep).
+rpa_of(){  # $1 = path to a .docket.yml ; echoes true|false (default false)
+  local v
+  v="$(awk '
+    /^finalize:[[:space:]]*$/{f=1;next}
+    f&&/^[^[:space:]#]/{f=0}
+    f&&/^[[:space:]]+require_pr_approval[[:space:]]*:/{
+      line=$0; sub(/#.*/,"",line); sub(/.*require_pr_approval[[:space:]]*:[[:space:]]*/,"",line);
+      gsub(/[[:space:]]/,"",line); print line; exit
+    }' "$1" 2>/dev/null)"
+  printf '%s' "${v:-false}"
+}
+TMPR="$(mktemp -d)"
+printf 'finalize:\n  require_pr_approval: true\n'  > "$TMPR/true.yml"
+printf 'finalize:\n  require_pr_approval: false\n' > "$TMPR/false.yml"
+printf 'finalize:\n  gate: local\n'                > "$TMPR/nokey.yml"   # finalize block, no rpa key
+printf 'metadata_branch: docket\n'                 > "$TMPR/absent.yml"  # no finalize block
+assert "rpa-parse: require_pr_approval true"            '[ "$(rpa_of "$TMPR/true.yml")"   = "true" ]'
+assert "rpa-parse: require_pr_approval false"           '[ "$(rpa_of "$TMPR/false.yml")"  = "false" ]'
+assert "rpa-parse: key absent in finalize => false"     '[ "$(rpa_of "$TMPR/nokey.yml")"  = "false" ]'
+assert "rpa-parse: no finalize block => false"          '[ "$(rpa_of "$TMPR/absent.yml")" = "false" ]'
+# A commented knob must parse as the default (commented line is not a key):
+printf 'finalize:\n  # require_pr_approval: false\n'    > "$TMPR/commented.yml"
+assert "rpa-parse: commented knob => default false"     '[ "$(rpa_of "$TMPR/commented.yml")" = "false" ]'
+rm -rf "$TMPR"
+
+# ---- finalize SKILL documents require_pr_approval with default false ----------
+# Two sharp anchors (not one broad "require_pr_approval.*default.*false" that the YAML
+# comment AND the prose both satisfy — dropping the substantive prose would leave it green):
+#   (1) the config-block YAML knob line, and (2) the prose paragraph's unique sentence.
+assert "finalize config block documents require_pr_approval default false" \
+  'grep -Eqi "require_pr_approval: *false +#.*default false" "$FIN"'
+assert "finalize prose explains require_pr_approval as the human-sign-off gate" \
+  'grep -Eqi "validates .{1,3}human sign-off" "$FIN"'
+assert "finalize ties require_pr_approval to the auto-detect path + unapproved PR" \
+  'grep -q "reviewDecision != APPROVED" "$FIN"'
+
+# ---- repo .docket.yml carries the knob (commented) at its default -------------
+assert "repo .docket.yml mentions require_pr_approval (discoverability)" \
+  'grep -q "require_pr_approval" "$DYML"'
+assert "repo .docket.yml leaves require_pr_approval at default false" \
+  '[ "$(rpa_of "$DYML")" = "false" ]'
+
+# ---- Selection: ambiguity-only prompting (the §4.1 matrix) --------------------
+# Anchor each assert to the UNIQUE phrase its matrix row owns (LEARNINGS #15) — not a
+# broad keyword set that could latch onto step-1 prose. Each is a single-line grep so
+# the two halves must co-occur in the same row.
+assert "selection: exactly one eligible => no prompt" \
+  'grep -Eqi "exactly one eligible.*no prompt" "$FIN"'
+assert "selection: more than one eligible => prompt" \
+  'grep -Eqi "more than one eligible.*prompt" "$FIN"'
+assert "selection: surface-don't-merge an un-mergeable candidate" \
+  'grep -Eqi "not git-mergeable.*surface, do not merge" "$FIN"'
+assert "selection: surface-don't-merge an unapproved PR under the policy" \
+  'grep -Eqi "require_pr_approval.{0,40}surface, do not merge|reviewDecision != APPROVED.{0,80}surface, do not merge" "$FIN"'
+# ---- §4.2 explicit id overrides the approval policy --------------------------
+assert "selection: explicit id overrides require_pr_approval" \
+  'grep -Eqi "explicit id overrides .{0,4}require_pr_approval|explicit id.{0,40}overrides.{0,40}require_pr_approval" "$FIN"'
+
 # ---- finalize SKILL gates on finalize.gate ------------------------------------
 assert "finalize references the finalize.gate config" 'grep -Eq "finalize\.gate|finalize:" "$FIN"'
 assert "finalize names all four gate modes" \
