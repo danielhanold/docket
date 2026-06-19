@@ -2,7 +2,7 @@
 id: 23
 slug: script-sweep-and-health-checks
 title: Decide and apply scripting vs model-driven for the merge sweep and health checks
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-06-18
 updated: 2026-06-19
@@ -11,11 +11,11 @@ related: [11, 18, 24, 25]
 adrs: [12]
 spec: docs/superpowers/specs/2026-06-18-script-sweep-and-health-checks-design.md
 plan: docs/superpowers/plans/2026-06-19-script-sweep-and-health-checks.md
-results:
+results: docs/results/2026-06-19-script-sweep-and-health-checks-results.md
 trivial: false
 auto_groomable:
 branch: feat/script-sweep-and-health-checks
-pr:
+pr: https://github.com/danielhanold/docket/pull/37
 blocked_by:
 reconciled: true
 ---
