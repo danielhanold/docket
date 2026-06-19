@@ -138,5 +138,31 @@ mkrepo "$tmp/b4"; seed_live "$tmp/b4"; make_docket "$tmp/b4"
 out="$(run "$tmp/b4" --export)"; eval "$out"
 assert "2x2 half-migrated -> STOP_MIGRATE"  '[ "$BOOTSTRAP" = STOP_MIGRATE ]'
 
+# --- opt-in --bootstrap write (the only mutation; guarded to ¬DOCKET ∧ ¬LIVE) ---
+origin_has_docket(){ git -C "$1.origin.git" rev-parse --verify --quiet refs/heads/docket >/dev/null 2>&1; }
+
+# (W1) default --export in fresh cell: NO write, verdict CREATE_ORPHAN
+mkrepo "$tmp/w1"
+out="$(run "$tmp/w1" --export)"; eval "$out"
+assert "read-only default: no orphan created" '! origin_has_docket "$tmp/w1"'
+assert "read-only default: verdict CREATE_ORPHAN" '[ "$BOOTSTRAP" = CREATE_ORPHAN ]'
+
+# (W2) --bootstrap in fresh cell: creates origin/docket, re-reports PROCEED
+mkrepo "$tmp/w2"
+out="$(run "$tmp/w2" --bootstrap --export)"; eval "$out"
+assert "bootstrap fresh: origin/docket created" 'origin_has_docket "$tmp/w2"'
+assert "bootstrap fresh: verdict now PROCEED"   '[ "$BOOTSTRAP" = PROCEED ]'
+
+# (W3) --bootstrap in STOP_MIGRATE cell: GUARD holds — no orphan written
+mkrepo "$tmp/w3"; seed_live "$tmp/w3"
+out="$(run "$tmp/w3" --bootstrap --export)"; eval "$out"
+assert "bootstrap guard: no write in single-branch cell" '! origin_has_docket "$tmp/w3"'
+assert "bootstrap guard: verdict stays STOP_MIGRATE"     '[ "$BOOTSTRAP" = STOP_MIGRATE ]'
+
+# (W4) --bootstrap in migrated cell: idempotent no-op, PROCEED
+mkrepo "$tmp/w4"; make_docket "$tmp/w4"
+out="$(run "$tmp/w4" --bootstrap --export)"; eval "$out"
+assert "bootstrap migrated: PROCEED"            '[ "$BOOTSTRAP" = PROCEED ]'
+
 if [ "$fail" = 0 ]; then echo PASS; else echo FAIL; fi
 exit "$fail"

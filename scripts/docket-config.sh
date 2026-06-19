@@ -38,6 +38,19 @@ die() { printf 'docket-config: %s\n' "$*" >&2; exit 1; }
 g()   { "$GIT" -C "$REPO_DIR" "$@"; }
 emit(){ printf '%s=%q\n' "$1" "$2"; }
 
+# Create an empty orphan `docket` and push to origin. Worktree-free (empty-tree root
+# commit via plumbing) and leaves NO local branch: we push the commit straight to
+# origin's refs/heads/docket, then fetch so refs/remotes/origin/docket is populated.
+create_orphan() {
+  local tree commit
+  tree="$(g mktree </dev/null)" || die "mktree failed"
+  commit="$(g commit-tree "$tree" -m 'docket: initialize empty orphan metadata branch')" \
+    || die "commit-tree failed — is git user.name/email set?"
+  g push origin "$commit:refs/heads/docket" >/dev/null 2>&1 \
+    || die "could not push orphan docket to origin"
+  g fetch --quiet origin docket 2>/dev/null || true
+}
+
 # Minimal flat scalar reader for `key: value` (strips inline #comments, quotes, whitespace).
 # Ported from migrate-to-docket.sh — .docket.yml is intentionally a flat scalar file (no yq).
 # Nested finalize.gate / finalize.test_command are read by their unique leaf-key name.
@@ -103,6 +116,10 @@ if [ "$DOCKET_MODE" = docket ]; then
   if   [ "$DOCKET" -eq 1 ] && [ "$LIVE" -eq 0 ]; then BOOTSTRAP=PROCEED        # migrated
   elif [ "$DOCKET" -eq 0 ] && [ "$LIVE" -eq 0 ]; then BOOTSTRAP=CREATE_ORPHAN  # fresh
   else BOOTSTRAP=STOP_MIGRATE   # ¬DOCKET∧LIVE (single-branch) | DOCKET∧LIVE (half-migrated)
+  fi
+  if [ "$DO_BOOTSTRAP" -eq 1 ] && [ "$BOOTSTRAP" = CREATE_ORPHAN ]; then
+    create_orphan
+    BOOTSTRAP=PROCEED   # the repo is now migrated; the caller may proceed
   fi
 fi
 
