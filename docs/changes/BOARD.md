@@ -1,6 +1,12 @@
 # Backlog
 
-**24 changes** — 🟡 9 proposed · 🔵 1 implemented · ✅ 14 done
+**24 changes** — 🟢 1 in progress · 🟡 8 proposed · 🔵 1 implemented · ✅ 14 done
+
+## 🟢 In progress (1)
+
+| # | Title | Priority | Spec | Branch |
+|---|-------|----------|------|--------|
+| [0022](active/0022-render-board-script.md) | Extract inline board rendering into a deterministic script | `medium` | [spec](../superpowers/specs/2026-06-18-render-board-script-design.md) | `feat/render-board-script` |
 
 ## 🔵 Implemented — awaiting merge (1)
 
@@ -8,7 +14,7 @@
 |---|-------|----------|----|
 | [0021](active/0021-finalize-consent-model.md) | Finalize consent model — ambiguity-only prompt + require_pr_approval policy gate | `medium` | [#34](https://github.com/danielhanold/docket/pull/34) |
 
-## 🟡 Proposed (9)
+## 🟡 Proposed (8)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -18,7 +24,6 @@
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | needs-brainstorm |
 | [0018](active/0018-yq-yaml-parsing.md) | Evaluate adopting yq for YAML parsing across docket scripts | `low` | needs-brainstorm |
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
-| [0022](active/0022-render-board-script.md) | Extract inline board rendering into a deterministic script | `medium` | build-ready |
 | [0023](active/0023-script-sweep-and-health-checks.md) | Decide and apply scripting vs model-driven for the merge sweep and health checks | `medium` | ⏳ waiting on #22 — not yet built |
 | [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | ⏳ waiting on #22 — not yet built |
 
