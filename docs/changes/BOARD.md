@@ -1,18 +1,13 @@
 # Backlog
 
-**24 changes** — 🟢 1 in progress · 🟡 8 proposed · 🔵 1 implemented · ✅ 14 done
+**24 changes** — 🟡 8 proposed · 🔵 2 implemented · ✅ 14 done
 
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0022](active/0022-render-board-script.md) | Extract inline board rendering into a deterministic script | `medium` | [spec](../superpowers/specs/2026-06-18-render-board-script-design.md) | `feat/render-board-script` |
-
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
 | [0021](active/0021-finalize-consent-model.md) | Finalize consent model — ambiguity-only prompt + require_pr_approval policy gate | `medium` | [#34](https://github.com/danielhanold/docket/pull/34) |
+| [0022](active/0022-render-board-script.md) | Extract inline board rendering into a deterministic script | `medium` | [#35](https://github.com/danielhanold/docket/pull/35) |
 
 ## 🟡 Proposed (8)
 
