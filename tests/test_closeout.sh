@@ -167,4 +167,22 @@ read -r W _ < <(new_repo)
 assert "publish: main-mode exits 0 (no-op)" "[ $? -eq 0 ]"
 assert "publish: main-mode created no pub worktree" '! git -C "$W" worktree list | grep -q "pub-7"'
 
+# --- cleanup-feature-branch.sh: removes a worktree under .worktrees/<slug> + its branch ---
+read -r W _ < <(new_repo)
+git -C "$W" worktree add "$W/.worktrees/sample" -b feat/sample main >/dev/null 2>&1
+git -C "$W" push -u origin feat/sample >/dev/null 2>&1
+( cd "$W" && "$CLEANUP" --slug sample ) >/dev/null 2>&1
+assert "cleanup: worktree removed" '[ ! -e "$W/.worktrees/sample" ]'
+assert "cleanup: local branch deleted" '! git -C "$W" rev-parse --verify -q feat/sample >/dev/null'
+assert "cleanup: remote branch deleted" '! git -C "$W" ls-remote --exit-code origin feat/sample >/dev/null 2>&1'
+
+# --- cleanup-feature-branch.sh: provenance guard refuses an out-of-.worktrees path ---
+read -r W _ < <(new_repo)
+out_base="$(mktemp -d)"
+git -C "$W" worktree add "$out_base/evil" -b feat/evil main >/dev/null 2>&1
+( cd "$W" && "$CLEANUP" --slug evil --worktrees-dir "$out_base" ) >/dev/null 2>&1; rc_guard=$?
+assert "cleanup: refuses a worktree outside .worktrees/ (non-zero)" '[ "$rc_guard" -ne 0 ]'
+assert "cleanup: out-of-tree worktree survives the refusal" '[ -e "$out_base/evil" ]'
+assert "cleanup: refused branch feat/evil still present (guard fired before delete)" 'git -C "$W" rev-parse --verify -q feat/evil >/dev/null'
+
 exit "$fail"
