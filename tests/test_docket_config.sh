@@ -183,6 +183,7 @@ git -C "$tmp/f2" push --quiet origin main
 git -C "$tmp/f2" fetch --quiet origin              # populate caches
 rm -rf "$tmp/f2.origin.git"                         # now unreachable
 assert "stale cache does not mask unreachable origin" '[ "$(run_rc "$tmp/f2" --export)" -ne 0 ]'
+assert "stale cache: emits nothing" '[ -z "$(bash "$SCRIPT" --repo-dir "$tmp/f2" --export 2>/dev/null)" ]'
 
 # (F3) integration ref absent (docket-mode) -> ls-tree rc≠0 -> hard error
 mkrepo "$tmp/f3"
@@ -190,6 +191,7 @@ printf 'metadata_branch: docket\nintegration_branch: nope\n' > "$tmp/f3/.docket.
 git -C "$tmp/f3" add .docket.yml; git -C "$tmp/f3" commit --quiet -m cfg
 git -C "$tmp/f3" push --quiet origin main
 assert "absent integration ref: nonzero exit" '[ "$(run_rc "$tmp/f3" --export)" -ne 0 ]'
+assert "absent integration ref: emits nothing" '[ -z "$(bash "$SCRIPT" --repo-dir "$tmp/f3" --export 2>/dev/null)" ]'
 
 # (F4) bad metadata_branch -> unparseable -> hard error
 mkrepo "$tmp/f4"
