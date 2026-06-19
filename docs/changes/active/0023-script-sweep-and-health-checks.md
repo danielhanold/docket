@@ -10,7 +10,7 @@ depends_on: [22]
 related: [11, 18, 24, 25]
 adrs: []
 spec: docs/superpowers/specs/2026-06-18-script-sweep-and-health-checks-design.md
-plan:
+plan: docs/superpowers/plans/2026-06-19-script-sweep-and-health-checks.md
 results:
 trivial: false
 auto_groomable:
