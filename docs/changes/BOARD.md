@@ -1,12 +1,6 @@
 # Backlog
 
-**26 changes** — 🟢 1 in progress · 🟡 9 proposed · ✅ 16 done
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0025](active/0025-closeout-scripts.md) | Extract the shared terminal-transition close-out mechanics into deterministic scripts | `medium` | [spec](../superpowers/specs/2026-06-19-closeout-scripts-design.md) | `feat/closeout-scripts` |
+**26 changes** — 🟡 9 proposed · 🔵 1 implemented · ✅ 16 done
 
 ## 🟡 Proposed (9)
 
@@ -21,6 +15,12 @@
 | [0023](active/0023-script-sweep-and-health-checks.md) | Decide and apply scripting vs model-driven for the merge sweep and health checks | `medium` | build-ready |
 | [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | needs-brainstorm |
 | [0026](active/0026-config-resolution-script.md) | Extract config resolution + bootstrap guard into a deterministic script | `medium` | build-ready |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | PR |
+|---|-------|----------|----|
+| [0025](active/0025-closeout-scripts.md) | Extract the shared terminal-transition close-out mechanics into deterministic scripts | `medium` | [#36](https://github.com/danielhanold/docket/pull/36) |
 
 ```mermaid
 graph TD
