@@ -93,10 +93,14 @@ readiness_cell(){ # readiness_cell FILE ID  (proposed)
     build-ready) printf 'build-ready' ;;
   esac
 }
-pr_cell(){ local f="$1" pr; pr="$(field "$f" pr)"
+pr_cell(){ local f="$1" pr num; pr="$(field "$f" pr)"
   [ -n "$pr" ] || { printf ''; return; }
-  if [ -n "$REPO" ]; then printf '[#%s](https://github.com/%s/pull/%s)' "$pr" "$REPO" "$pr"
-  else printf '#%s' "$pr"; fi
+  num="${pr##*/}"                                   # trailing PR number, whether pr: is a full URL or bare
+  case "$pr" in
+    http*) printf '[#%s](%s)' "$num" "$pr" ;;       # the docket convention: pr: holds the full URL
+    *) if [ -n "$REPO" ]; then printf '[#%s](https://github.com/%s/pull/%s)' "$num" "$REPO" "$num"
+       else printf '#%s' "$num"; fi ;;              # bare-number fallback
+  esac
 }
 print_section(){ # print_section STATUS HEADER_SUFFIX
   local st="$1" suffix="$2" n; n="$(count_of "$st")"

@@ -19,9 +19,10 @@
 # --- frontmatter accessors (lifted from github-mirror.sh, which now sources them here) --------
 field(){
   local raw; raw="$(sed -n "s/^$2:[[:space:]]*//p" "$1")"
-  raw="${raw%%$'\n'*}"                            # keep only the first matching line — no pipe
-  printf '%s' "${raw%"${raw##*[![:space:]]}"}"    # strip trailing whitespace
-}
+  raw="${raw%%$'\n'*}"                              # keep only the first matching line — no pipe
+  printf '%s\n' "${raw%"${raw##*[![:space:]]}"}"   # strip trailing whitespace; trailing \n matches the
+}                                                  # original sed form (callers that pipe field directly,
+                                                   # e.g. the mermaid done-id list, rely on the separator)
 list_field(){
   local raw; raw="$(field "$1" "$2")"
   raw="${raw#[}"; raw="${raw%]}"

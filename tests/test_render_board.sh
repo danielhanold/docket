@@ -99,7 +99,7 @@ title: Hotel feature
 status: implemented
 priority: high
 depends_on: []
-pr: 142
+pr: https://github.com/o/r/pull/142
 EOF
 cat > "$tmp/active/0009-india.md" <<'EOF'
 ---
@@ -119,6 +119,15 @@ status: done
 priority: medium
 depends_on: []
 EOF
+cat > "$tmp/archive/2026-06-16-0012-lima.md" <<'EOF'
+---
+id: 12
+slug: lima
+title: Lima feature
+status: done
+priority: medium
+depends_on: []
+EOF
 cat > "$tmp/archive/2026-06-14-0011-kilo.md" <<'EOF'
 ---
 id: 11
@@ -134,7 +143,7 @@ golden="$tmp/golden.md"
 cat > "$golden" <<'EOF'
 # Backlog
 
-**11 changes** — 🟢 1 in progress · 🟡 5 proposed · 🔴 1 blocked · ⚪ 1 deferred · 🔵 1 implemented · ✅ 1 done · 🗑️ 1 killed
+**12 changes** — 🟢 1 in progress · 🟡 5 proposed · 🔴 1 blocked · ⚪ 1 deferred · 🔵 1 implemented · ✅ 2 done · 🗑️ 1 killed
 
 ## 🟢 In progress (1)
 
@@ -182,13 +191,15 @@ graph TD
   0008
   0009
   0010:::done
+  0012:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (2)</summary>
+<details><summary>✅🗑️ Archive — done + killed (3)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0012](archive/2026-06-16-0012-lima.md) | Lima feature | 2026-06-16 |
 | [0010](archive/2026-06-15-0010-juliet.md) | Juliet feature | 2026-06-15 |
 | [0011](archive/2026-06-14-0011-kilo.md) | Kilo feature | 2026-06-14 |
 
@@ -203,6 +214,26 @@ assert "rendered output matches the golden byte-for-byte" 'diff -u "$golden" "$r
 rendered2="$tmp/out2.md"
 bash "$SCRIPT" --changes-dir "$tmp" --repo o/r > "$rendered2" 2>/dev/null
 assert "render is idempotent (re-run is byte-identical)" 'diff -u "$rendered" "$rendered2"'
+
+# PR cell: the docket convention is that pr: holds the FULL URL (#8 Hotel above, exercised by the
+# golden). Also cover the bare-number fallback in a focused fixture (renders the same #N link via --repo).
+bare="$(mktemp -d)"; mkdir -p "$bare/active" "$bare/archive"
+cat > "$bare/active/0001-bare.md" <<'EOF'
+---
+id: 1
+slug: bare
+title: Bare PR
+status: implemented
+priority: medium
+depends_on: []
+pr: 77
+EOF
+bareout="$(bash "$SCRIPT" --changes-dir "$bare" --repo o/r 2>/dev/null)"
+assert "pr: full URL renders [#N](url) without double-wrapping (Hotel #8 in the golden)" \
+  'grep -qF "[#142](https://github.com/o/r/pull/142)" "$rendered"'
+assert "pr: bare number falls back to [#N](built-url) via --repo" \
+  'printf "%s" "$bareout" | grep -qF "[#77](https://github.com/o/r/pull/77)"'
+rm -rf "$bare"
 
 # --- docket-status inline-surface wiring sentinels (the SKILL is code on main) ---
 assert "docket-status inline surface invokes render-board.sh" \
