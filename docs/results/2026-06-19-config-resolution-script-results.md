@@ -20,8 +20,10 @@ Change: #26 · Branch: feat/config-resolution-script · PR: (opened at close-out
 
 ## Follow-ups
 
-Three Minor findings from the final whole-branch review, none merge-blocking — bundle into one low-priority follow-up change if/when touched:
-- **`yaml_get` interpolates the key `$2` unsanitized into the `sed -E` expression** (`scripts/docket-config.sh`). Latent only — all call sites pass safe identifiers; it is a verbatim port of `migrate-to-docket.sh`'s reader, so harden both together or neither.
-- **`--repo-dir` with no following argument crashes on `set -u`** with a bare "unbound variable" (no `docket-config:` diagnostic). Still fails closed (non-zero, no output); only the message is unfriendly. Skills always pass a fixed arg shape.
-- **W4 test** (migrated-cell `--bootstrap`) asserts `BOOTSTRAP=PROCEED` but not the idempotent no-op (e.g. `origin/docket` SHA unchanged). Logically covered in aggregate by B1 + the guard; a one-line "SHA unchanged" assertion would close the gap.
-- Optional: a one-line `yaml_get` comment noting inline-`#` truncation of values (harmless for the current enum/empty keys).
+All four Minor review findings were folded into this change (commit `fc2d505`) rather than deferred:
+- ✅ **`yaml_get` key now escaped** — ERE metacharacters in the key are escaped before the regex, so a future key with a metacharacter can't match unintended lines. No-op for the current `[a-z_]` keys (the 57-assertion suite confirms no regression). `migrate-to-docket.sh` carries an identical copy but is explicitly out of this change's scope, so it is left as-is; its alignment (or a shared-lib extraction) remains a possible separate change. The `docket-config.sh` comment was updated from "ported verbatim" to "adapted" to keep the record honest.
+- ✅ **`--repo-dir` with no argument** now exits 2 with a `docket-config: --repo-dir requires an argument` diagnostic instead of a bare `set -u` "unbound variable" crash (test F5).
+- ✅ **W4 (migrated-cell `--bootstrap`)** now asserts `origin/docket` SHA is unchanged — mutation-confirming the idempotent no-op, not just the verdict.
+- ✅ **Inline-`#` truncation** documented in the `yaml_get` comment (a value may not contain a literal `#`; harmless for the current enum / path / empty values).
+
+No remaining follow-ups.
