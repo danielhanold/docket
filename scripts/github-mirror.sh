@@ -76,6 +76,9 @@ done
 [ -n "$CHANGES_DIR" ] || { log "missing --changes-dir"; exit 2; }
 [ -d "$CHANGES_DIR" ] || { log "changes dir not found: $CHANGES_DIR"; exit 0; }  # best-effort no-op
 
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/lib/docket-frontmatter.sh"
+
 # Wrong-tree guard (best-effort, never aborts): an empty active/ next to a populated archive/ is
 # the signature of the pruned integration-branch checkout — the live backlog lives only on the
 # metadata branch (the .docket/ worktree in docket-mode). Mirroring that tree would create/refresh
@@ -100,27 +103,12 @@ run_gh(){
   "$GH" "$@" 2>/dev/null || { log "gh call failed (best-effort, continuing): $*"; return 1; }
 }
 
-# --- frontmatter helpers ------------------------------------------------------
-# field FILE KEY — first matching scalar in the file's frontmatter, trimmed.
-field(){
-  sed -n "s/^$2:[[:space:]]*//p" "$1" | head -n1 \
-    | sed 's/[[:space:]]*$//'
-}
-# list_field FILE KEY — `[a, b]` → space-separated `a b` (empty for `[]` / unset).
-list_field(){
-  local raw; raw="$(field "$1" "$2")"
-  raw="${raw#[}"; raw="${raw%]}"
-  printf '%s' "$raw" | tr ',' ' ' | xargs 2>/dev/null || true
-}
-has_section(){ grep -qF "$2" "$1"; }
-
-# --- pass 1: index id -> status (for dependency readiness) --------------------
-declare -A STATUS_OF
-declare -A ISSUE_NUM    # id -> issue number; seeded from issue:, updated on a fresh mint (for Projects)
+# --- pass 1: dependency resolution + issue index ------------------------------
+resolve_deps "$CHANGES_DIR"     # populates STATUS_OF / DEP_STATE / DEP_REASON / DEP_ON
+declare -A ISSUE_NUM            # id -> issue number; seeded from issue:, updated on a fresh mint
 mapfile -t FILES < <(find "$CHANGES_DIR/active" "$CHANGES_DIR/archive" -maxdepth 1 -name '*.md' 2>/dev/null | sort)
 for f in "${FILES[@]}"; do
   id="$(field "$f" id)"; [ -n "$id" ] || continue
-  STATUS_OF["$id"]="$(field "$f" status)"
   iss="$(field "$f" issue)"; [ -n "$iss" ] && ISSUE_NUM["$id"]="$iss"
 done
 
@@ -130,26 +118,19 @@ blob(){ # blob BRANCH PATH
   printf 'https://github.com/%s/blob/%s/%s' "$REPO" "$1" "$2"
 }
 
-# --- readiness (only meaningful for proposed) ---------------------------------
-# Echoes a single docket: label, or nothing. Mirrors docket-status's dependency pass.
+# --- readiness label (maps the shared readiness token to the docket: label) ---
 readiness_label(){
-  local f="$1" status="$2"
+  local f="$1" status="$2" id tok
   [ "$status" = "proposed" ] || return 0
-  local worst="" dep dstat
-  for dep in $(list_field "$f" depends_on); do
-    dstat="${STATUS_OF[$dep]:-}"
-    if [ "$dstat" = "done" ]; then continue
-    elif [ "$dstat" = "implemented" ]; then worst="needs-your-merge"
-    else [ "$worst" = "needs-your-merge" ] || worst="not-yet-built"; fi
-  done
-  if [ -n "$worst" ]; then printf 'docket:waiting/%s' "$worst"; return 0; fi
-  local spec trivial; spec="$(field "$f" spec)"; trivial="$(field "$f" trivial)"
-  if [ -z "$spec" ] && [ "$trivial" != "true" ]; then
-    if has_section "$f" "## Auto-groom blocked"; then printf 'docket:readiness/auto-groom-blocked'
-    else printf 'docket:readiness/needs-brainstorm'; fi
-    return 0
-  fi
-  printf 'docket:readiness/build-ready'
+  id="$(field "$f" id)"; tok="$(readiness "$f")"
+  case "$tok" in
+    waiting)
+      local r="${DEP_REASON[$id]:-not yet built}"
+      printf 'docket:waiting/%s' "${r// /-}" ;;     # "needs your merge" -> needs-your-merge
+    auto-groom-blocked) printf 'docket:readiness/auto-groom-blocked' ;;
+    needs-brainstorm)   printf 'docket:readiness/needs-brainstorm' ;;
+    build-ready)        printf 'docket:readiness/build-ready' ;;
+  esac
 }
 
 # --- issue body ---------------------------------------------------------------
