@@ -2,10 +2,10 @@
 id: 21
 slug: finalize-consent-model
 title: Finalize consent model — ambiguity-only prompt + require_pr_approval policy gate
-status: implemented
+status: done
 priority: medium
 created: 2026-06-17
-updated: 2026-06-17
+updated: 2026-06-19
 depends_on: []
 related: [15, 19]
 adrs: [10, 11]
