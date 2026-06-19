@@ -71,7 +71,37 @@ for f in "${FILES[@]}"; do
   # >>> merge-gate-stall     (Task 5 inserts here)
 done
 
-# >>> dep-cycle pass         (Task 3 inserts here)
+# --- dep-cycle: DFS over depends_on; mark every node that lies on a cycle ---
+declare -A ADJ COLOR INSTACK ONCYCLE
+for f in "${FILES[@]}"; do
+  cid="$(field "$f" id)"; [ -n "$cid" ] || continue
+  ADJ["$cid"]="$(list_field "$f" depends_on)"
+done
+PATH_STACK=()
+dfs(){ # dfs NODE — colors: white(unset) / gray(on stack) / black(done)
+  local node="$1" dep i seen
+  COLOR["$node"]=gray; INSTACK["$node"]=1; PATH_STACK+=("$node")
+  for dep in ${ADJ["$node"]:-}; do
+    [ -n "${ADJ[$dep]+x}" ] || continue            # dep is not a known change ⇒ not a graph edge
+    if [ "${INSTACK[$dep]:-0}" = 1 ]; then
+      seen=0                                        # back edge: mark dep..top-of-stack
+      for i in "${PATH_STACK[@]}"; do
+        [ "$i" = "$dep" ] && seen=1
+        [ "$seen" = 1 ] && ONCYCLE["$i"]=1
+      done
+    elif [ "${COLOR[$dep]:-white}" = white ]; then
+      dfs "$dep"
+    fi
+  done
+  COLOR["$node"]=black; INSTACK["$node"]=0
+  PATH_STACK=("${PATH_STACK[@]:0:${#PATH_STACK[@]}-1}")   # pop (bash-4.0-safe; no unset arr[-1])
+}
+for node in "${!ADJ[@]}"; do
+  [ "${COLOR[$node]:-white}" = white ] && dfs "$node"
+done
+for node in "${!ONCYCLE[@]}"; do
+  emit dep-cycle "$node" "participates in a depends_on cycle"
+done
 
 # Emit findings sorted by (check-id asc, change-id numeric asc) for determinism.
 if [ -n "$FINDINGS" ]; then

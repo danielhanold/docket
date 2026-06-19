@@ -171,5 +171,36 @@ assert "broken-plan-results silent for a done change with present links (id 10)"
 assert "broken-plan-results silent for an implemented change with an absent plan (id 12, carve-out)" \
   '! has_finding "$pout" broken-plan-results 12'
 
+# ============================ dep-cycle ============================
+# A→B→A ⇒ a finding for EACH node (1 and 2). A self-loop C→C ⇒ a finding for C.
+# A clean DAG (D→E, no back edge) ⇒ silent. A dangling depends_on (F→99 missing) ⇒ silent.
+read -r G _ < <(new_repo)
+mk(){ # mk ID SLUG DEPS  — minimal proposed change with a present spec (so broken-spec stays quiet)
+  cat > "$G/docs/changes/active/$(printf '%04d' "$1")-$2.md" <<EOF
+---
+id: $1
+slug: $2
+title: $2
+status: proposed
+priority: medium
+depends_on: [$3]
+spec: docs/superpowers/specs/2026-06-01-present.md
+trivial: false
+EOF
+}
+mk 1 a 2
+mk 2 b 1
+mk 3 c 3
+mk 4 d 5
+mk 5 e ""
+mk 6 f 99
+gout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$G/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "dep-cycle fires for both nodes of A→B→A (id 1)" 'has_finding "$gout" dep-cycle 1'
+assert "dep-cycle fires for both nodes of A→B→A (id 2)" 'has_finding "$gout" dep-cycle 2'
+assert "dep-cycle fires for a self-loop (id 3)" 'has_finding "$gout" dep-cycle 3'
+assert "dep-cycle silent for a DAG node (id 4)" '! has_finding "$gout" dep-cycle 4'
+assert "dep-cycle silent for a DAG leaf (id 5)" '! has_finding "$gout" dep-cycle 5'
+assert "dep-cycle silent for a dangling depends_on (id 6 → missing 99)" '! has_finding "$gout" dep-cycle 6'
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
