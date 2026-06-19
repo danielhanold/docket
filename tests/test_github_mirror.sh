@@ -66,6 +66,31 @@ adrs: []
 issue: 77
 EOF
 
+cat > "$tmp/active/0013-target.md" <<'EOF'
+---
+id: 13
+slug: target
+title: Target change (implemented)
+status: implemented
+priority: medium
+depends_on: []
+adrs: []
+issue: 200
+EOF
+
+cat > "$tmp/active/0012-waiter.md" <<'EOF'
+---
+id: 12
+slug: waiter
+title: Waiter change (proposed, depends on implemented)
+status: proposed
+priority: medium
+depends_on: [13]
+adrs: []
+spec:
+issue: 201
+EOF
+
 # --- mock gh: records argv and fakes `issue create` returning a URL ---
 mock="$tmp/bin"; mkdir -p "$mock"
 cat > "$mock/gh" <<'EOF'
@@ -104,6 +129,8 @@ assert "emits docket:status/ label" 'echo "$out" | grep -qF "docket:status/in-pr
 assert "emits docket:priority/ label" 'echo "$out" | grep -qF "docket:priority/medium"'
 assert "emits a needs-brainstorm readiness label for the proposed no-spec change" \
   'echo "$out" | grep -qF "docket:readiness/needs-brainstorm"'
+assert "proposed change waiting on an implemented dep emits the needs-your-merge waiting label" \
+  'echo "$out" | grep -qF "docket:waiting/needs-your-merge"'
 assert "every mirror label is docket:-namespaced" \
   '! echo "$out" | grep -oE -- "--(add-label|label) [^ ]+" | grep -vqE "docket:|--(add-label|label)$"'
 

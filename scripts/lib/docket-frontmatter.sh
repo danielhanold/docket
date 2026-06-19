@@ -18,8 +18,9 @@
 
 # --- frontmatter accessors (verbatim from github-mirror.sh) -------------------
 field(){
-  sed -n "s/^$2:[[:space:]]*//p" "$1" | head -n1 \
-    | sed 's/[[:space:]]*$//'
+  local raw; raw="$(sed -n "s/^$2:[[:space:]]*//p" "$1")"
+  raw="${raw%%$'\n'*}"                            # keep only the first matching line — no pipe
+  printf '%s' "${raw%"${raw##*[![:space:]]}"}"    # strip trailing whitespace
 }
 list_field(){
   local raw; raw="$(field "$1" "$2")"

@@ -117,6 +117,7 @@ assert "readiness build-ready (spec + satisfied dep)" '[ "$(readiness "$tmp/acti
 assert "readiness needs-brainstorm (no spec, not trivial)" '[ "$(readiness "$tmp/active/0003-charlie.md")" = "needs-brainstorm" ]'
 assert "readiness auto-groom-blocked (no spec + blocked section)" '[ "$(readiness "$tmp/active/0004-delta.md")" = "auto-groom-blocked" ]'
 assert "readiness waiting takes precedence over missing spec" '[ "$(readiness "$tmp/active/0005-echo.md")" = "waiting" ]'
+assert "readiness waiting (needs-your-merge dep) returns waiting" '[ "$(readiness "$tmp/active/0006-foxtrot.md")" = "waiting" ]'
 
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
