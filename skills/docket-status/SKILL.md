@@ -42,13 +42,29 @@ All three passes read and write in the **metadata working tree** on `metadata_br
 
 The Board pass renders **each surface listed in `board_surfaces`** (config; default `[inline]`). It scans `<changes_dir>/active/` and `archive/`, parses each file's frontmatter, and applies the dependency-resolution pass above **once**, then drives the enabled surfaces from that single result. `board_surfaces: []` makes the whole pass a no-op (the change files remain the source of truth); an unknown token is warned-and-ignored; a non-GitHub remote drops `github`.
 
-**`inline` surface** (the default). Regenerate `BOARD.md` wholesale in `.docket/` on `docket`; commit it and push `origin/docket`. `BOARD.md` is the **live planning view and stays on `docket`** — it is **never** published to the integration branch (it is the one metadata file the terminal-publish never copies). **Never hand-edit `BOARD.md`, never merge it.** On a `pull --rebase` conflict in `BOARD.md` during the push loop, **regenerate, never 3-way merge**: discard the conflict markers (either side — they invert under rebase anyway), re-run this Board pass to rebuild `BOARD.md` from the change files, `git add` it, then `git rebase --continue`. Dropping `inline` forfeits this offline-safe view — the documented tradeoff of a GitHub-only board.
+**`inline` surface** (the default). Regenerate `BOARD.md` by invoking the deterministic
+`scripts/render-board.sh --changes-dir <metadata working tree>/<changes_dir> > <metadata working
+tree>/<changes_dir>/BOARD.md` (in `docket`-mode the metadata working tree is `.docket/`; pass
+`--repo <owner>/<repo>` so `pr:` cells hyperlink). The script owns *how* to render — it reproduces
+the *Structure* below byte-for-byte from the change files, offline (no `gh`, no network) and
+deterministically (same change files ⇒ identical bytes); the skill owns *when* to render and the
+commit discipline. `BOARD.md` is the **live planning view and stays on `docket`** — it is **never**
+published to the integration branch (the one metadata file terminal-publish never copies). **Never
+hand-edit `BOARD.md`, never merge it.** Commit it and push `origin/docket`. On a `pull --rebase`
+conflict in `BOARD.md` during the push loop, **regenerate, never 3-way merge**: discard the conflict
+markers (either side — they invert under rebase anyway), **re-run `scripts/render-board.sh`** to
+rebuild `BOARD.md` from the change files, `git add` it, then `git rebase --continue`. Dropping
+`inline` forfeits this offline-safe view — the documented tradeoff of a GitHub-only board.
 
 **`github` surface** — the one-way Issues + Projects v2 mirror (per the convention's *GitHub board mirror* definition; mechanics in `skills/docket-convention/github-board-mirror.md`). Invoke the deterministic `scripts/github-mirror.sh` against the change files, **best-effort**: it needs network + `gh` auth, it never aborts the pass, and it self-heals next run. Point `--changes-dir` at the **metadata working tree** (`.docket/<changes_dir>` in `docket`-mode) — never the integration-branch checkout, where `active/` is pruned (the script warns if it detects that wrong tree, but the run still misses the live backlog). The script upserts one issue per change (keyed on `issue:`), reconciles the `docket:` label set, sets close state/reason, and best-effort-syncs Projects; on a fresh mint it prints `issue-minted <id> <number>` lines — record each into the change file's `issue:` on `metadata_branch` (the script does no git writes). **Projects auto-create is opt-in:** when `github_project` is unset, pass `--auto-create-project` (owner defaults to the integration repo's owner; override with `--project-owner`) — the script mints a private board, prints `project-minted <owner> <number>`, which you record as `github_project: {owner, number}` in `.docket.yml` on the default branch (the first-sync write-back); when `github_project` is set, pass it as `--project <owner>/<number>` instead. Both metadata writes follow the normal push discipline; a `gh`/network failure logs and continues.
 
 **No churny timestamp.** Counts convey freshness; a generated-at line would churn on every run.
 
 ### Structure (in order)
+
+`scripts/render-board.sh` is the executable source of this structure (change 0022); the prose
+below documents what it emits and the dependency-resolution it shares with the sweep and the
+health checks.
 
 1. **Count summary** — one line, e.g.:
 
@@ -57,8 +73,8 @@ The Board pass renders **each surface listed in `board_surfaces`** (config; defa
 2. **Emoji-grouped `##` sections** per status with live counts in the heading, e.g. `## 🟢 In progress (2)`. Omit a section if its count is zero.
 
 3. **Per-group tables** with columns relevant to the status (id · title · priority chip · spec/pr links · readiness). Readiness rules:
-   - A dependency-waiting change renders **⏳ waiting on #N — not yet built** or **⏳ waiting on #N — needs your merge** (from the shared pass); it is never shown as build-ready.
-   - A `proposed` change with no spec and not `trivial: true` renders **needs-brainstorm** — unless its body carries an `## Auto-groom blocked` section, in which case it renders **auto-groom blocked — needs you** (the autonomous groomer abstained; a human must resolve or re-arm it).
+   - A dependency-waiting change renders **⏳ waiting on #N — not yet built** or **⏳ waiting on #N — needs your merge** (from the shared pass); it is never shown as build-ready, and this **takes precedence over a missing spec** (a stub that also waits renders as waiting).
+   - A `proposed` change that is **not** dependency-waiting, with no spec and not `trivial: true`, renders **needs-brainstorm** — unless its body carries an `## Auto-groom blocked` section, in which case it renders **auto-groom blocked — needs you** (the autonomous groomer abstained; a human must resolve or re-arm it).
 
 4. **Mermaid dependency graph** built from `depends_on` edges; `done` nodes tinted with `classDef done fill:#d3f9d8;`. Renders on GitHub and Markhaus (a Markdown viewer that bundles Mermaid); degrades gracefully in plain CommonMark.
 
