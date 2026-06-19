@@ -4,6 +4,19 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-06-19 (#21, PR #34) — A spec's stated *rationale* for a scope boundary was factually wrong
+  (§3 claimed the convention's `.docket.yml` example "does not enumerate `finalize:`" — it does),
+  yet the boundary it justified (keep the new knob's doc in finalize's own SKILL, not the convention)
+  was still sound on other grounds (the gate/test_command doc-ownership precedent). Apply: when a
+  build finds a spec's reason false but its conclusion defensible, record the discrepancy in the
+  results file — do NOT silently "fix" (override) an explicit spec scope boundary mid-build; leave
+  the re-scope to the human.
+- 2026-06-19 (#21, PR #34) — A doc sentinel was non-vacuous yet *double-guarded*: one grep was
+  satisfied by two independent clauses (a YAML config-comment line AND a prose sentence), so deleting
+  the substantive prose left it green while a whole-region mutation test still "proved" it
+  non-vacuous. Apply: one assert anchors to exactly ONE clause it owns; if a pattern can be satisfied
+  from two independent locations, split into separately-anchored asserts and mutation-test EACH clause
+  in isolation (the per-clause refinement of #2's non-vacuity rule and #20/#15's mutation testing).
 - 2026-06-17 (#20, PR #33) — Invoking a skill presents only its `SKILL.md`; sibling files are NOT
   auto-loaded, so a section moved out for progressive disclosure leaves every consumer's context
   unless something Reads it. Apply: extract only a section that is heavy AND off the common path
