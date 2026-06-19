@@ -185,4 +185,14 @@ assert "cleanup: refuses a worktree outside .worktrees/ (non-zero)" '[ "$rc_guar
 assert "cleanup: out-of-tree worktree survives the refusal" '[ -e "$out_base/evil" ]'
 assert "cleanup: refused branch feat/evil still present (guard fired before delete)" 'git -C "$W" rev-parse --verify -q feat/evil >/dev/null'
 
+# --- finalize wiring sentinels: docket-finalize-change invokes the scripts (single source) ---
+FINALIZE="$REPO/skills/docket-finalize-change/SKILL.md"
+assert "wiring(finalize): invokes archive-change.sh" 'grep -q "scripts/archive-change.sh" "$FINALIZE"'
+assert "wiring(finalize): invokes terminal-publish.sh" 'grep -q "scripts/terminal-publish.sh" "$FINALIZE"'
+assert "wiring(finalize): invokes cleanup-feature-branch.sh" 'grep -q "scripts/cleanup-feature-branch.sh" "$FINALIZE"'
+assert "wiring(finalize): Terminal publish section heading preserved (cross-ref anchor)" 'grep -qF "## Terminal publish (docket-mode)" "$FINALIZE"'
+assert "wiring(finalize): Accepted gate still documented" 'grep -qiE "whose ADR is .?Accepted|Accepted. gate|status: is .?Accepted|status.? is \*\*Accepted" "$FINALIZE"'
+assert "wiring(finalize): ADR-only publish path preserved" 'grep -qiE "adr-<NN>|ADR-only" "$FINALIZE"'
+assert "wiring(finalize): no leftover raw archive bash (git mv active/)" '! grep -qE "git mv .*active/" "$FINALIZE"'
+
 exit "$fail"
