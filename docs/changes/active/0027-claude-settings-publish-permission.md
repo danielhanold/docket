@@ -10,7 +10,7 @@ depends_on: [26]
 related: [15, 22, 25, 26]
 adrs: []
 spec: docs/superpowers/specs/2026-06-19-claude-settings-publish-permission-design.md
-plan:
+plan: docs/superpowers/plans/2026-06-19-claude-settings-publish-permission.md
 results:
 trivial: false
 auto_groomable:
