@@ -4,6 +4,20 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-06-19 (#25, PR #36) — An in-place `sed` that sets a frontmatter field (`status:`/`updated:`/
+  `results:`) was unanchored, so it would have rewritten *any* column-0 match — including body prose,
+  a live risk for docket's own change/ADR files (which discuss those field names). Apply: anchor a
+  frontmatter-field edit to the first `---…---` block, never a bare line match — and lock it with a
+  test where a body `status:` line survives verbatim while the frontmatter field is set.
+- 2026-06-19 (#25, PR #36) — A script resolving a worktree-relative path built from `mktemp` matched
+  nothing on macOS: `mktemp` yields `/var/…` but git reports `/private/var/…`, so stripping the
+  worktree prefix failed. Apply: `pwd -P` (resolve symlinks) on both the path and the prefix before
+  stripping a git-worktree prefix — the same discipline the `cleanup` provenance guard needs.
+- 2026-06-19 (#25, PR #36) — Extracting an intricate git dance into a script is meant to make its hard
+  branch testable, yet the CAS conflict-retry branch shipped green-but-uncovered: the competing-writer
+  test touched an *unrelated* file, hitting only the clean if-branch. Apply: to cover a conflict/CAS-
+  retry path the competing writer must DIVERGE the *same* contended path, mutation-confirmed by
+  neutralizing the re-checkout (extends #22 — green tests ≠ the hard branch was exercised).
 - 2026-06-19 (#22, PR #35) — A shell-helper refactor claimed "byte-identical" but had dropped a
   trailing newline (`printf '%s'` replacing a final `sed`); every `$(field …)` caller masked it
   (command substitution strips trailing newlines), and only a **direct-pipe** caller (`field … | sort`)
