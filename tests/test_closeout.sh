@@ -93,6 +93,14 @@ assert "done: results link written" '[ "$(. "$REPO/scripts/lib/docket-frontmatte
 assert "done: pushed (origin docket == local)" '[ "$(git -C "$W" rev-parse @)" = "$(git -C "$W" rev-parse origin/docket)" ]'
 assert "done: commit touched ONLY the change file (nothing else)" 'other="$(git -C "$W" show --name-only --format= HEAD | grep -v "^$" | grep -v "0007-sample.md" || true)"; [ -z "$other" ] && git -C "$W" show --name-only --format= HEAD | grep -q "0007-sample.md"'
 
+# --- archive-change.sh: set_field does NOT rewrite a body-level status: line ---
+read -r W _ < <(new_repo)
+printf '\nstatus: this-is-body-prose-not-frontmatter\n' >> "$W/docs/changes/active/0007-sample.md"
+"$ARCHIVE" --changes-dir "$W/docs/changes" --id 7 --outcome done --date 2026-06-18 >/dev/null 2>&1
+af="$W/docs/changes/archive/2026-06-18-0007-sample.md"
+assert "set_field: frontmatter status set to done" '[ "$(. "$REPO/scripts/lib/docket-frontmatter.sh"; field "'"$af"'" status)" = done ]'
+assert "set_field: body status: line untouched (not rewritten to done)" 'grep -qF "status: this-is-body-prose-not-frontmatter" "'"$af"'"'
+
 # --- archive-change.sh: killed path + ## Why killed ---
 read -r W _ < <(new_repo)
 "$ARCHIVE" --changes-dir "$W/docs/changes" --id 7 --outcome killed --date 2026-06-18 \

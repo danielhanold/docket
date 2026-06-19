@@ -59,9 +59,10 @@ cas_push(){
 }
 
 # set_field FILE KEY VALUE — replace a top-level frontmatter scalar in place (portable sed).
+# Only touches the first ---...--- frontmatter block; never rewrites matching prose in the body.
 set_field(){
   local f="$1" k="$2" v="$3" t; t="$(mktemp)"
-  sed -E "s|^($k:)[[:space:]]*.*|\1 $v|" "$f" > "$t" && mv "$t" "$f"
+  sed -E "/^---$/,/^---$/ s|^($k:)[[:space:]]*.*|\1 $v|" "$f" > "$t" && mv "$t" "$f"
 }
 
 branch="$($GIT -C "$WT" rev-parse --abbrev-ref HEAD)"
