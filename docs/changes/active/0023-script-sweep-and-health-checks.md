@@ -2,7 +2,7 @@
 id: 23
 slug: script-sweep-and-health-checks
 title: Decide and apply scripting vs model-driven for the merge sweep and health checks
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-06-18
 updated: 2026-06-19
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/script-sweep-and-health-checks
 pr:
 blocked_by:
 reconciled: false
