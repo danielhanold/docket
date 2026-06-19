@@ -16,7 +16,7 @@
 #   DEP_REASON[id]  "" | "not yet built" | "needs your merge"   (worst unmet; needs-your-merge wins)
 #   DEP_ON[id]      bare id of the worst unmet dependency ("" when clear) — display support for #N
 
-# --- frontmatter accessors (verbatim from github-mirror.sh) -------------------
+# --- frontmatter accessors (lifted from github-mirror.sh, which now sources them here) --------
 field(){
   local raw; raw="$(sed -n "s/^$2:[[:space:]]*//p" "$1")"
   raw="${raw%%$'\n'*}"                            # keep only the first matching line — no pipe
