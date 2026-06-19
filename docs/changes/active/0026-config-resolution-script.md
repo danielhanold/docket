@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/config-resolution-script
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Why
@@ -52,9 +52,14 @@ To be built per [the spec](../../superpowers/specs/2026-06-19-config-resolution-
   to the `¬DOCKET ∧ ¬LIVE` cell. **Fail-closed:** non-zero + diagnostic on a hard error
   (unreachable origin, unresolvable `origin/HEAD`, unparseable yaml); `STOP_MIGRATE` /
   `CREATE_ORPHAN` are valid verdicts at exit 0 for the skill to act on.
-- **Rewire the 7 skills'** blocking Step 0 to invoke the resolver instead of restating
-  the resolution + 2×2 prose; the skill keeps acting on `STOP_MIGRATE` (refuse-and-point
-  at `migrate-to-docket.sh`) and deciding when to opt into the bootstrap write.
+- **Rewire the skills'** blocking Step 0 to invoke the resolver instead of restating the
+  resolution + 2×2 prose. The canonical resolution + bootstrap prose is **centralized in
+  `docket-convention`** (its *Configuration* + *Bootstrap guard* sections — the single
+  source the 7 operating skills load), so the rewire concentrates there plus each
+  operating skill's Step 0 reference, exactly as `docket-status` already names
+  `render-board.sh` / `github-mirror.sh` inline (it is NOT 7 duplicate edits). The skill
+  keeps acting on `STOP_MIGRATE` (refuse-and-point at `migrate-to-docket.sh`) and deciding
+  when to opt into the bootstrap write.
 - `tests/test_docket_config.sh` with **hermetic local fixtures** (temp repos + bare
   origins, no network): every config permutation, all four bootstrap cells, and the
   fail-closed error paths (unreachable origin, stale-`origin/HEAD`).
@@ -78,3 +83,34 @@ read-only-default + opt-in-`--bootstrap`-write boundary and the `KEY=value` outp
 contract were settled there.)
 
 ## Reconcile log
+
+### 2026-06-19 — reconciled by docket-implement-next
+
+Checked the change + spec against `related` (11, 22, 25), cited ADRs (2, 7), recent
+archive, and current code. **Verdict: valid, current, scope intact — build-ready, no
+escape hatch.**
+
+- **Precedent pattern is live and unchanged.** 0011 (`github-mirror.sh`), 0022
+  (`render-board.sh`), and 0025 (`archive-change.sh` / `terminal-publish.sh` /
+  `cleanup-feature-branch.sh`) are all merged on `origin/main`. ADR-0002's 2026-06-19
+  Update (from 0025) reaffirms the "skill owns *when*, script owns *how*" split (ADR-0007)
+  this extraction follows. ADR-0002 + the convention's *Configuration* / *Bootstrap guard*
+  sections remain the verbatim semantics — no redesign, no new ADR.
+- **No overlap with in-flight work.** 0023 (script-sweep/health-checks, PR #37 open) and
+  0024 (retire drift check) are explicitly out of scope; 0018 (yq adoption) is not built
+  and not a dependency — the script uses the repo's existing shell-only parsing approach.
+- **Scope refinement (folded into body + spec):** the resolution + 2×2 prose is
+  **centralized in `docket-convention`**, not duplicated across 7 skill bodies, so the
+  "rewire the 7 skills" work concentrates in the convention's two sections plus each
+  operating skill's Step 0 reference (same inline-naming pattern docket-status already uses
+  for its scripts). Reframed the third `## What changes` bullet accordingly.
+- **Build constraint (added to spec §4):** `.docket.yml` is a plain YAML doc (no `---`
+  frontmatter delimiters) with a **nested `finalize:` block** and list-valued
+  `board_surfaces`, so `scripts/lib/docket-frontmatter.sh`'s `field`/`list_field` (which
+  read flat change-file frontmatter between `---`) do **not** directly apply — the resolver
+  needs its own minimal `.docket.yml` reader covering top-level scalars, the `board_surfaces`
+  list, and the `finalize.gate` / `finalize.test_command` nested keys (the `agents:` block
+  stays out of scope).
+- **This repo is itself docket-mode** (`.docket.yml` migrated 2026-06-04), so the resolver
+  is exercised in docket-mode by its own skills immediately on merge — heaviest path is
+  covered first.

@@ -109,6 +109,17 @@ emitted with exit 0** (the config resolved fine; the repo state is the skill's t
 on), so a skill can `eval` the output, trust that a zero exit means the config is
 sound, then branch on `BOOTSTRAP=`.
 
+**`.docket.yml` parsing (reconcile note, 2026-06-19).** `.docket.yml` is a plain YAML
+document — it has **no `---` frontmatter delimiters** and a **nested `finalize:` block**
+(`finalize.gate`, `finalize.test_command`) plus the list-valued `board_surfaces`. The
+existing `scripts/lib/docket-frontmatter.sh` `field` / `list_field` accessors read *flat*
+change-file frontmatter between `---` delimiters, so they do **not** directly apply here.
+The resolver therefore needs its own minimal, shell-only `.docket.yml` reader covering:
+top-level scalars (`metadata_branch`, `integration_branch`, the three dirs, `auto_groom`),
+the `board_surfaces` list, and the two `finalize.*` nested keys. The `agents:` block is
+out of scope (§6). Keep it deterministic and offline, consistent with the other scripts
+(no `yq` dependency — 0018 is unbuilt and not a dependency).
+
 ## 5. What the skills keep owning
 
 - **Acting on `STOP_MIGRATE`** — surface the migration instruction and abort (the
