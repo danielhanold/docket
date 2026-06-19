@@ -2,7 +2,7 @@
 id: 26
 slug: config-resolution-script
 title: Extract config resolution + bootstrap guard into a deterministic script
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-06-19
 updated: 2026-06-19
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/config-resolution-script
 pr:
 blocked_by:
 reconciled: false
