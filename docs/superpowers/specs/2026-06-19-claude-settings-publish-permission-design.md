@@ -82,9 +82,14 @@ the pattern enforces a word boundary). docket's real command is always
 
 **Settings file & precedence.** `<repo>/.claude/settings.local.json` is read and merged by
 Claude Code at a precedence above shared-project (`.claude/settings.json`) and user
-(`~/.claude/settings.json`) settings, and is **gitignored by convention** (already true in
-this repo) — so the grant is local to the user's machine and never committed or forced onto
-collaborators. Schema:
+(`~/.claude/settings.json`) settings, and is **gitignored** — so the grant is local to the
+user's machine and never committed or forced onto collaborators. **Reconcile correction
+(2026-06-19):** that ignore must be guaranteed at the **repo** level, not assumed from a
+per-user global excludesfile. On the build machine `.claude/settings.local.json` was ignored
+only via `~/.config/git/ignore`; the docket repo's own `.gitignore` did not list it. So §5
+extends `migrate-to-docket.sh`'s `.gitignore` step to add `.claude/settings.local.json`
+(committed once), making the "never committed onto collaborators" guarantee
+machine-independent. Schema:
 
 ```json
 { "permissions": { "allow": ["Bash(git -C * push origin HEAD:main)"] } }
@@ -132,9 +137,17 @@ exercise the real resolver path.
 
 `migrate-to-docket.sh` is the **per-repo** setup tool (run inside the repo being migrated;
 already idempotent and interrupted-run-safe; already mutates per-repo files such as
-`.gitignore`). Add a step — adjacent to the existing `.gitignore` extension (its step 5) —
-that invokes `scripts/ensure-claude-settings.sh`. Migrating a repo to docket-mode thus grants
-the rule as part of setup. Mention it in the script's closing "next steps".
+`.gitignore`). Two additions:
+
+1. **Invoke `scripts/ensure-claude-settings.sh`** as a setup step (adjacent to the existing
+   `.gitignore` extension, step 5), so migrating a repo to docket-mode grants the rule.
+2. **Extend the step-5 `.gitignore` list with `.claude/settings.local.json`** (reconcile
+   addition), alongside the existing `.docket/` and `.worktrees/` entries — idempotent, add
+   only if absent, committed on the integration branch like the other entries. This makes the
+   grant's "never committed" guarantee hold for every clone, not only machines that happen to
+   ignore `settings.local.json` user-globally.
+
+Mention both in the script's closing "next steps".
 
 ## 6. Standalone / fresh-cloner path
 
@@ -155,16 +168,22 @@ Hermetic (temp repo, no network), matching the style of `tests/test_github_mirro
 - **Preserve existing:** a pre-existing `settings.local.json` with unrelated keys and an
   unrelated allow-rule keeps them all; only the new rule is appended.
 - **Branch resolution:** a `main` fixture and a `develop` fixture each produce the rule with
-  the correct `HEAD:<branch>` tail (via the test seam / a fixture `.docket.yml`).
-- **No git writes:** the run leaves the git index/tree unchanged (the file is gitignored).
+  the correct `HEAD:<branch>` tail (via the test seam / a fixture `.docket.yml`). The seam can
+  simply be `docket-config.sh --repo-dir <fixture>` against a fixture `.docket.yml` (no new
+  flag strictly required) or a `DOCKET_INTEGRATION_BRANCH` override — final choice at build.
+- **No git writes (helper):** the standalone `ensure-claude-settings.sh` run leaves the git
+  index/tree unchanged (the repo's `.gitignore` — set up by migrate — already ignores the
+  file). The repo-level gitignore of `.claude/settings.local.json` is a `migrate-to-docket.sh`
+  concern; if `tests/test_migrate*` exists, assert the entry is added idempotently there,
+  otherwise it is covered by migrate's existing gitignore-step assertions.
 
 ## 8. Dependencies & relations
 
 - **`depends_on: [26]`** — the helper consumes `scripts/docket-config.sh --export`'s
-  `INTEGRATION_BRANCH` rather than re-parsing `.docket.yml`. #26 is `implemented` (PR #38);
-  #27 becomes build-ready when #26 reaches `done`. Gating here is deliberate: it eliminates a
-  second config-resolution site (the project's standing direction — lift deterministic blocks
-  into one tested place: #11, #22, #25, #26).
+  `INTEGRATION_BRANCH` rather than re-parsing `.docket.yml`. #26 is now `done` (PR #38 merged;
+  resolver live on `origin/main`, emitting `INTEGRATION_BRANCH=main`), so #27 is build-ready.
+  Gating here is deliberate: it eliminates a second config-resolution site (the project's
+  standing direction — lift deterministic blocks into one tested place: #11, #22, #25, #26).
 - **`related: [15, 22, 25, 26]`** — #15 (finalize merge gate, where the push lives), #22/#25
   (the script-extraction precedent and the close-out mechanics that issue the push), #26 (the
   resolver consumed here).

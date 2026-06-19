@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/claude-settings-publish-permission
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Why
@@ -58,6 +58,13 @@ Decisions:
   its "next steps" plus the README, including that a fresh cloner of an already-migrated repo
   can run the helper **standalone** to grant themselves the rule (the gitignored/per-user
   gap).
+- **Repo-level `.gitignore` of `.claude/settings.local.json`** (reconcile finding). The
+  grant's "never committed onto collaborators" guarantee must not depend on each developer
+  having a user-global ignore for `settings.local.json`. So `migrate-to-docket.sh`'s existing
+  step-5 `.gitignore` extension also adds `.claude/settings.local.json` (committed once, for
+  every clone). The **standalone helper itself stays git-write-free** — a fresh cloner already
+  inherits the committed `.gitignore` entry, so the file it writes is ignored without the
+  helper touching git.
 - `tests/test_ensure_claude_settings.sh` — hermetic: create-when-absent, idempotent (no dup),
   preserve existing settings, `main` vs `develop` branch resolution, no git writes.
 
@@ -80,9 +87,37 @@ override. None blocking.
 
 **Dependency note.** `depends_on: [26]` is deliberate — the helper consumes #26's
 `docket-config.sh` resolver for `<integration_branch>` rather than re-parsing `.docket.yml`,
-eliminating a second config-resolution site. #26 is `implemented` (PR #38); #27 becomes
-build-ready when #26 reaches `done`.
+eliminating a second config-resolution site. #26 is now `done` (PR #38 merged); the resolver
+is live on `origin/main` (`scripts/docket-config.sh --export` → `INTEGRATION_BRANCH`, with
+`--repo-dir DIR` as a ready-made hermetic test seam). #27 is build-ready.
 
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-06-19 — reconcile before build
+
+Brainstormed and built the same day; the world moved only by the dependency landing.
+
+- **Dependency #26 reached `done`** (PR #38 merged into `origin/main` since brainstorm). The
+  consumed resolver `scripts/docket-config.sh --export` is live and emits
+  `INTEGRATION_BRANCH=main` (verified on `origin/main`). Build base `origin/main` is at
+  `af27acd`, ahead of the brainstorm snapshot. Change is build-ready.
+- **Rule shape confirmed against the real command.** `scripts/terminal-publish.sh:108` runs
+  `git -C "$pub" push "$REMOTE" "HEAD:$INT_BRANCH"` with `REMOTE` defaulting to `origin` and
+  `INT_BRANCH=main` → `git -C "$pub" push origin HEAD:main`. The planned allow-rule
+  `Bash(git -C * push origin HEAD:main)` matches it verbatim; force-push / other-branch pushes
+  stay guarded as designed.
+- **New constraint folded in — repo-level gitignore.** `.claude/settings.local.json` is
+  ignored on this machine only via the *user-global* excludesfile (`~/.config/git/ignore`),
+  **not** the repo `.gitignore` (which lists only `.DS_Store`, `.docket/`, `.worktrees/`,
+  `.superpowers/`). The spec's "gitignored by convention (already true in this repo)" is
+  therefore a per-machine property, not a repo property — a collaborator without that global
+  ignore could accidentally commit their local grant, defeating the change's "never committed
+  onto collaborators" goal. Added to scope: `migrate-to-docket.sh`'s step-5 `.gitignore`
+  extension also ignores `.claude/settings.local.json` (committed, machine-independent); the
+  standalone helper stays git-write-free. Spec §3/§5/§7 updated to match.
+- **Test seam simplification noted.** `docket-config.sh --repo-dir DIR` already exists as a
+  clean hermetic seam (point it at a fixture repo with a `.docket.yml`), so the new helper may
+  not need its own `--integration-branch` flag — a build-time choice, non-blocking.
+- No scope dropped; design not invalidated. Proceeding to plan + build.
