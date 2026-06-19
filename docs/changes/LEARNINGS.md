@@ -4,6 +4,20 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-06-19 (#22, PR #35) — A shell-helper refactor claimed "byte-identical" but had dropped a
+  trailing newline (`printf '%s'` replacing a final `sed`); every `$(field …)` caller masked it
+  (command substitution strips trailing newlines), and only a **direct-pipe** caller (`field … | sort`)
+  exposed it — there the missing `\n` concatenated multiple ids into one token (`printf: Result too
+  large`). Apply: a "byte-identical" claim for a shell helper must be validated against a direct-pipe
+  caller, not only `$(…)` callers — `$()` silently hides a dropped trailing newline.
+- 2026-06-19 (#22, PR #35) — A green golden-fixture test still shipped two real-data bugs: the fixture
+  used `pr: 142` (real changes store a full `pr:` URL) and had a single `done` change, so neither the
+  URL-format path nor the multi-id concatenation bug was exercised; a live smoke test against the real
+  backlog caught both. Apply: a golden fixture for a deterministic renderer must (a) use **real-shaped
+  field values** (full-URL `pr:`, not a bare number) and (b) include **plurality** — ≥2 of every kind
+  it renders as a list — and the renderer must be **smoke-tested against real data before merge**; the
+  fixture is necessary but not sufficient (extends #20/#15 mutation testing to the data dimension).
+
 - 2026-06-19 (#21, PR #34) — A spec's stated *rationale* for a scope boundary was factually wrong
   (§3 claimed the convention's `.docket.yml` example "does not enumerate `finalize:`" — it does),
   yet the boundary it justified (keep the new knob's doc in finalize's own SKILL, not the convention)
