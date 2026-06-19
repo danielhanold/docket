@@ -117,4 +117,54 @@ read -r W _ < <(new_repo)
 "$ARCHIVE" --changes-dir "$W/docs/changes" --id 99 --outcome done --date 2026-06-18 >/dev/null 2>&1; rc_fail=$?
 assert "fail-closed: missing id exits non-zero" '[ "$rc_fail" -ne 0 ]'
 
+assert "publish: terminal-publish.sh exists and is executable" '[ -x "$PUBLISH" ]'
+
+# --- terminal-publish.sh: copy-set built correctly with the Accepted-ADR gate ---
+read -r W _ < <(new_repo)
+# precondition: archive the change on docket first (publish copies the archived path)
+"$ARCHIVE" --changes-dir "$W/docs/changes" --id 7 --outcome done --date 2026-06-18 >/dev/null 2>&1
+( cd "$W" && "$PUBLISH" --id 7 --outcome done --integration-branch main --metadata-branch docket \
+    --changes-dir docs/changes --adrs-dir docs/adrs ) >/dev/null 2>&1
+# inspect what landed on origin/main
+git -C "$W" fetch origin main >/dev/null 2>&1
+ls_main(){ git -C "$W" ls-tree -r --name-only origin/main; }
+assert "publish: archived change file on integration branch" 'ls_main | grep -q "docs/changes/archive/2026-06-18-0007-sample.md"'
+assert "publish: spec on integration branch" 'ls_main | grep -q "docs/superpowers/specs/2026-06-01-sample.md"'
+assert "publish: Accepted ADR-0003 on integration branch" 'ls_main | grep -q "docs/adrs/0003-accepted.md"'
+assert "publish: Proposed ADR-0005 SKIPPED (gate)" '! ls_main | grep -q "docs/adrs/0005-proposed.md"'
+assert "publish: pub-7 worktree torn down" '! git -C "$W" worktree list | grep -q "pub-7"'
+assert "publish: BOARD.md never published" '! ls_main | grep -q "docs/changes/BOARD.md"'
+
+# --- terminal-publish.sh: guarded no-op re-run (byte-identical second publish) ---
+read -r W _ < <(new_repo)
+"$ARCHIVE" --changes-dir "$W/docs/changes" --id 7 --outcome done --date 2026-06-18 >/dev/null 2>&1
+( cd "$W" && "$PUBLISH" --id 7 --outcome done --integration-branch main --metadata-branch docket --changes-dir docs/changes --adrs-dir docs/adrs ) >/dev/null 2>&1
+git -C "$W" fetch origin main >/dev/null 2>&1; before="$(git -C "$W" rev-parse origin/main)"
+( cd "$W" && "$PUBLISH" --id 7 --outcome done --integration-branch main --metadata-branch docket --changes-dir docs/changes --adrs-dir docs/adrs ) >/dev/null 2>&1
+rc=$?; git -C "$W" fetch origin main >/dev/null 2>&1; after="$(git -C "$W" rev-parse origin/main)"
+assert "publish: re-run exits 0" "[ $rc -eq 0 ]"
+assert "publish: re-run is a no-op (no new integration commit)" '[ "$before" = "$after" ]'
+
+# --- terminal-publish.sh: CAS retry under a competing push between provision and push ---
+# Inject a competing commit on origin/main mid-flight via GIT wrapper that fires once before the
+# pub push. Simpler hermetic form: push a competing commit, then run publish and assert it still lands.
+read -r W _ < <(new_repo)
+"$ARCHIVE" --changes-dir "$W/docs/changes" --id 7 --outcome done --date 2026-06-18 >/dev/null 2>&1
+# competing writer advances origin/main
+comp="$(mktemp -d)"; git clone "$(git -C "$W" remote get-url origin)" "$comp" >/dev/null 2>&1
+git -C "$comp" checkout main >/dev/null 2>&1
+echo more >> "$comp/README.md"; git -C "$comp" -c user.email=c@c -c user.name=c commit -am "competing" >/dev/null 2>&1
+git -C "$comp" push origin main >/dev/null 2>&1
+( cd "$W" && "$PUBLISH" --id 7 --outcome done --integration-branch main --metadata-branch docket --changes-dir docs/changes --adrs-dir docs/adrs ) >/dev/null 2>&1
+rc=$?; git -C "$W" fetch origin main >/dev/null 2>&1
+assert "publish: CAS push succeeds despite a competing advance" "[ $rc -eq 0 ]"
+assert "publish: copy-set landed atop the competing commit" 'git -C "$W" ls-tree -r --name-only origin/main | grep -q "docs/changes/archive/2026-06-18-0007-sample.md"'
+assert "publish: competing commit preserved (not clobbered)" 'git -C "$W" log origin/main --oneline | grep -q competing'
+
+# --- terminal-publish.sh: main-mode no-op ---
+read -r W _ < <(new_repo)
+( cd "$W" && "$PUBLISH" --id 7 --outcome done --integration-branch main --metadata-branch main --changes-dir docs/changes --adrs-dir docs/adrs ) >/dev/null 2>&1
+assert "publish: main-mode exits 0 (no-op)" "[ $? -eq 0 ]"
+assert "publish: main-mode created no pub worktree" '! git -C "$W" worktree list | grep -q "pub-7"'
+
 exit "$fail"
