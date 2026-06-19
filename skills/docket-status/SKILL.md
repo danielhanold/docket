@@ -159,12 +159,24 @@ For each `implemented` change:
 
 ## Health checks
 
-Flag the following (do not auto-fix unless asked). Board and health checks share the one dependency-resolution pass computed above — it is not re-run.
+Flag the following (do not auto-fix unless asked). Board and health checks share the one dependency-resolution pass computed above — it is not re-run (it is now literally `resolve_deps`, run inside the script below).
 
-- **Stale `in-progress` past the build step** — the planned branch is gone, or exists but has had no commits in **3 days** (3 is the current fixed default; promoting it to a `.docket.yml` knob is a future enhancement). A just-claimed change with a `branch:` value but no branch yet created is **not** stale.
-- **Broken `spec:` link** — `spec:` is set but the path does not resolve against `metadata_branch` (in `docket`-mode, against `docket` — where the spec lives). Skip `trivial: true` changes; they have no spec.
-- **Broken `plan:`/`results:` link on `done` changes** — resolve `plan:` and `results:` against **`origin/<integration_branch>`, NOT `docket`** (those files never live on `docket` — they are feature-branch build artifacts that reach the integration branch via the PR merge; resolving them against `docket` would flag every `done` change as a permanent broken link). A `done` change's `plan:` and `results:` paths must resolve there (link rot check). Ignore a missing `plan:` or `results:` on an `implemented` change — those files legitimately still live on the unmerged feature branch (pre-merge they don't resolve on the integration branch yet; that is tolerated until merge). In `main`-mode `metadata_branch == integration_branch`, so both resolve on the same branch.
-- **Human-merge gate stall** — a build-ready change whose only unsatisfied dependency is stuck at `implemented` (from the shared pass, reason = `"needs your merge"`). Surfaces the dependency so the human knows a single merge unblocks downstream work.
-- **`blocked` changes whose blocker may have cleared** — re-examine `blocked_by:` text; flag if the referenced issue/PR/event appears resolved.
-- **`depends_on` cycles** — detect circular dependency chains; flag every change in the cycle.
-- **Board/source drift** — runs **per enabled surface** (skipped entirely when `board_surfaces: []`). For `inline`: render the board in-memory from the change files (reusing the shared dependency-resolution pass) and compare it to the committed `BOARD.md`; if any change's rendered status or placement disagrees, **warn** naming the change(s) (a writer skipped the board-refresh invariant). For `github`: warn on a change carrying an `issue:` whose mirror is unreachable (the upsert is best-effort and self-heals; this is only a visibility flag). Like the other checks it only warns — it never auto-fixes; the Board pass in this same `docket-status` run re-renders the enabled surfaces and heals the drift regardless. A best-effort refresh is allowed to lose a race.
+**Mechanical checks → `scripts/board-checks.sh` (change 0023).** The five mechanical checks are deterministic git probes, so they live in a script, not in prose. Invoke:
+
+```
+scripts/board-checks.sh --changes-dir <metadata working tree>/<changes_dir> \
+  --metadata-branch <metadata_branch> --integration-branch origin/<integration_branch>
+```
+
+(in `docket`-mode the metadata working tree is `.docket/`, so `--changes-dir .docket/<changes_dir> --metadata-branch docket`; resolve `plan:`/`results:` against `origin/<integration_branch>` — those files never live on `docket`. In `main`-mode pass `--metadata-branch <integration_branch> --integration-branch origin/<integration_branch>`; both link checks then resolve on the same content). The script sources the shared helper, calls `resolve_deps` once, and prints one finding per line on stdout — TAB-separated `<check-id>\t<change-id>\t<message>`, `check-id` ∈ `{broken-spec, broken-plan-results, dep-cycle, stale-in-progress, merge-gate-stall}`. **Surface each finding line as a warning.** A clean tree prints nothing. The script is **git-only** (no `gh`, no network) and **warn-only** (it never auto-fixes); `--strict` makes it exit non-zero on any finding, for a future CI gate. What the five cover:
+
+- **`broken-spec`** — `spec:` set (and not `trivial: true`) but the path does not resolve on the metadata branch.
+- **`broken-plan-results`** — a `done` change's set `plan:`/`results:` does not resolve on the integration branch (link rot). An `implemented` change is never flagged — those files legitimately still live on the unmerged feature branch.
+- **`dep-cycle`** — a `depends_on` cycle; one finding per change in the loop.
+- **`stale-in-progress`** — an `in-progress` change whose feature branch exists but has had no commit in **3 days** (the current fixed default). A just-claimed change with a `branch:` value but no branch yet created is **not** stale.
+- **`merge-gate-stall`** — a build-ready change whose worst-unmet dependency is stuck at `implemented` (reason `"needs your merge"`), naming the blocking `#N`. Surfaces that a single merge unblocks downstream work.
+
+**Model-driven checks (judgment — stay in-model, on top of the script):**
+
+- **`blocked` changes whose blocker may have cleared** — re-examine `blocked_by:` free text; flag if the referenced issue/PR/event appears resolved. Judgment, not a git probe — never scripted.
+- **Board/source drift** — runs **per enabled surface** (skipped entirely when `board_surfaces: []`). For `inline`: render the board in-memory from the change files (reusing the shared dependency-resolution pass) and compare it to the committed `BOARD.md`; if any change's rendered status or placement disagrees, **warn** naming the change(s) (a writer skipped the board-refresh invariant). For `github`: warn on a change carrying an `issue:` whose mirror is unreachable (the upsert is best-effort and self-heals; this is only a visibility flag). Like the other checks it only warns — it never auto-fixes; the Board pass in this same `docket-status` run re-renders the enabled surfaces and heals the drift regardless. A best-effort refresh is allowed to lose a race. (Retiring/downgrading this `inline` drift check once rendering is deterministic is change **0024**.)

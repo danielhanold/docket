@@ -310,5 +310,22 @@ assert "merge-gate-stall names the blocking dep #30" \
 assert "merge-gate-stall silent for a change waiting on a not-yet-built dep (id 33)" \
   '! has_finding "$mout" merge-gate-stall 33'
 
+# ============================ docket-status wiring sentinels (SKILL is code on main) ============================
+assert "docket-status Health checks invoke board-checks.sh" \
+  'grep -qF "scripts/board-checks.sh" "$SKILL"'
+# The five mechanical checks are now delegated — their old standalone bullets are gone as bullets,
+# but the SKILL still names them so a reader knows what the script covers. Assert the two
+# judgment/0024 checks remain explicitly model-driven, each anchored to a phrase it owns.
+assert "docket-status keeps blocked_by re-examination model-driven" \
+  'grep -qiF "blocked_by:" "$SKILL"'
+assert "docket-status keeps the inline board/source drift check (owned by change 0024)" \
+  'grep -qiF "board/source drift" "$SKILL" || grep -qiF "board/source-drift" "$SKILL"'
+assert "docket-status keeps the do-not-auto-fix stance" \
+  'grep -qiF "do not auto-fix" "$SKILL"'
+# Mutation guard: the board-checks invocation passes the changes-dir + both branch refs.
+assert "the board-checks invocation passes --changes-dir" 'grep -qF -- "--changes-dir" "$SKILL"'
+assert "the board-checks invocation passes --metadata-branch and --integration-branch" \
+  'grep -qF -- "--metadata-branch" "$SKILL" && grep -qF -- "--integration-branch" "$SKILL"'
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
