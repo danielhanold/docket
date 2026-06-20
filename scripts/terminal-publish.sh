@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
-# scripts/terminal-publish.sh — the shared "Terminal publish (docket-mode)" procedure (change 0025).
-# Copies a change's terminal records (archived change file + its spec + its Accepted ADRs) from
-# origin/<metadata-branch> onto the integration branch, via a transient worktree, with a CAS push.
-# docket-mode only: a no-op in main-mode (metadata-branch == integration-branch). Fail-closed:
-# re-fetches and asserts the full copy-set landed before exiting 0. Idempotent and re-run safe.
+# scripts/terminal-publish.sh — the shared "Terminal publish (docket-mode)" procedure (change 0025;
+# --adr mode added in 0030). The single executor of BOTH publish shapes. In change mode it copies a
+# change's terminal records (archived change file + its spec + its Accepted ADRs); in ADR mode it
+# copies a single ADR file (no Accepted gate; archive step skipped) — both from origin/<metadata-branch>
+# onto the integration branch, via a transient worktree, with a CAS push. docket-mode only: a no-op in
+# main-mode (metadata-branch == integration-branch). Fail-closed: re-fetches and asserts the full
+# copy-set landed before exiting 0. Idempotent and re-run safe.
 #
-# Usage:
+# Usage (exactly one of --id / --adr):
 #   terminal-publish.sh --id N --outcome done|killed --integration-branch B --metadata-branch M
+#                       --changes-dir REL --adrs-dir REL [--message MSG] [--remote R]
+#   terminal-publish.sh --adr NN --integration-branch B --metadata-branch M
 #                       --changes-dir REL --adrs-dir REL [--message MSG] [--remote R]
 #
 # Mock seam: GIT="${GIT:-git}".
@@ -15,7 +19,7 @@ set -uo pipefail
 . "$(dirname "$0")/lib/docket-frontmatter.sh"
 
 GIT="${GIT:-git}"
-ID="" OUTCOME="" INT_BRANCH="" META_BRANCH="" CHANGES_DIR="" ADRS_DIR="" MESSAGE="" REMOTE="origin"
+ID="" ADR="" OUTCOME="" INT_BRANCH="" META_BRANCH="" CHANGES_DIR="" ADRS_DIR="" MESSAGE="" REMOTE="origin"
 
 die(){ printf '%s\n' "terminal-publish: $*" >&2; exit 1; }
 log(){ printf '%s\n' "terminal-publish: $*" >&2; }
@@ -23,6 +27,7 @@ log(){ printf '%s\n' "terminal-publish: $*" >&2; }
 while [ $# -gt 0 ]; do
   case "$1" in
     --id) ID="$2"; shift ;;
+    --adr) ADR="$2"; shift ;;
     --outcome) OUTCOME="$2"; shift ;;
     --integration-branch) INT_BRANCH="$2"; shift ;;
     --metadata-branch) META_BRANCH="$2"; shift ;;
@@ -36,8 +41,13 @@ while [ $# -gt 0 ]; do
   shift
 done
 
-[ -n "$ID" ] || die "missing --id"
-case "$OUTCOME" in done|killed) ;; *) die "missing/invalid --outcome" ;; esac
+# exactly one of --id / --adr
+if [ -n "$ID" ] && [ -n "$ADR" ]; then die "--id and --adr are mutually exclusive"; fi
+if [ -z "$ID" ] && [ -z "$ADR" ]; then die "exactly one of --id / --adr is required"; fi
+# --outcome is required (and validated) only in change (--id) mode
+if [ -n "$ID" ]; then
+  case "$OUTCOME" in done|killed) ;; *) die "missing/invalid --outcome" ;; esac
+fi
 [ -n "$INT_BRANCH" ] && [ -n "$META_BRANCH" ] || die "missing --integration-branch/--metadata-branch"
 [ -n "$CHANGES_DIR" ] && [ -n "$ADRS_DIR" ]   || die "missing --changes-dir/--adrs-dir"
 
@@ -47,54 +57,63 @@ if [ "$META_BRANCH" = "$INT_BRANCH" ]; then
   exit 0
 fi
 
-pad="$(printf '%04d' "$ID")"
-[ -n "$MESSAGE" ] || MESSAGE="docket($pad): publish terminal record ($OUTCOME)"
-
-# --- build the copy-set from origin/<metadata-branch> (authoritative remote bytes) ---
+# --- fetch the authoritative metadata remote tip ---
 $GIT fetch "$REMOTE" "$META_BRANCH" >/dev/null 2>&1 || die "fetch $REMOTE/$META_BRANCH failed"
 metaref="$REMOTE/$META_BRANCH"
 
-# locate the archived change file path on the metadata branch by id
-tree="$($GIT ls-tree -r --name-only "$metaref" -- "$CHANGES_DIR/archive")"
-change_path="$(printf '%s\n' "$tree" | grep -E "/[0-9]{4}-[0-9]{2}-[0-9]{2}-$pad-[^/]*\.md$")"
-change_path="${change_path%%$'\n'*}"
-[ -n "$change_path" ] || die "no archived change file for id $ID on $metaref"
-
-# read its frontmatter via a temp dump (field operates on files)
 tmpd="$(mktemp -d)"
 trap 'rm -rf "$tmpd"' EXIT
-$GIT show "$metaref:$change_path" > "$tmpd/change.md" || die "cannot read $change_path"
-spec_path="$(field "$tmpd/change.md" spec)"
-adr_ids="$(list_field "$tmpd/change.md" adrs)"
 
-copyset=("$change_path")
-[ -n "$spec_path" ] && copyset+=("$spec_path")
-
-# Accepted gate: include an ADR only if its status: is Accepted on the metadata branch
-adr_tree="$($GIT ls-tree -r --name-only "$metaref" -- "$ADRS_DIR")"
-for aid in $adr_ids; do
-  apad="$(printf '%04d' "$aid")"
+if [ -n "$ADR" ]; then
+  # ----- ADR-only publish: copy-set = the single ADR file; step-1 archive skipped; no Accepted gate -----
+  apad="$(printf '%04d' "$ADR")"
+  T="adr-$apad"
+  [ -n "$MESSAGE" ] || MESSAGE="docket(adr-$apad): publish ADR-$apad"
+  adr_tree="$($GIT ls-tree -r --name-only "$metaref" -- "$ADRS_DIR")"
   apath="$(printf '%s\n' "$adr_tree" | grep -E "/$apad-[^/]*\.md$")"
   apath="${apath%%$'\n'*}"
-  [ -n "$apath" ] || { log "adr $aid: file not found on $metaref; skipping"; continue; }
-  $GIT show "$metaref:$apath" > "$tmpd/adr.md" || { log "adr $aid: unreadable; skipping"; continue; }
-  if [ "$(field "$tmpd/adr.md" status)" = "Accepted" ]; then
-    copyset+=("$apath")
-  else
-    log "adr $aid: not Accepted; skipped by gate"
-  fi
-done
+  [ -n "$apath" ] || die "no ADR file for id $ADR on $metaref"
+  copyset=("$apath")
+else
+  # ----- change publish: token = the id; build copy-set from the archived change manifest -----
+  pad="$(printf '%04d' "$ID")"
+  T="$ID"
+  [ -n "$MESSAGE" ] || MESSAGE="docket($pad): publish terminal record ($OUTCOME)"
+  tree="$($GIT ls-tree -r --name-only "$metaref" -- "$CHANGES_DIR/archive")"
+  change_path="$(printf '%s\n' "$tree" | grep -E "/[0-9]{4}-[0-9]{2}-[0-9]{2}-$pad-[^/]*\.md$")"
+  change_path="${change_path%%$'\n'*}"
+  [ -n "$change_path" ] || die "no archived change file for id $ID on $metaref"
+  $GIT show "$metaref:$change_path" > "$tmpd/change.md" || die "cannot read $change_path"
+  spec_path="$(field "$tmpd/change.md" spec)"
+  adr_ids="$(list_field "$tmpd/change.md" adrs)"
+  copyset=("$change_path")
+  [ -n "$spec_path" ] && copyset+=("$spec_path")
+  # Accepted gate: include an ADR only if its status: is Accepted on the metadata branch
+  adr_tree="$($GIT ls-tree -r --name-only "$metaref" -- "$ADRS_DIR")"
+  for aid in $adr_ids; do
+    apad="$(printf '%04d' "$aid")"
+    apath="$(printf '%s\n' "$adr_tree" | grep -E "/$apad-[^/]*\.md$")"
+    apath="${apath%%$'\n'*}"
+    [ -n "$apath" ] || { log "adr $aid: file not found on $metaref; skipping"; continue; }
+    $GIT show "$metaref:$apath" > "$tmpd/adr.md" || { log "adr $aid: unreadable; skipping"; continue; }
+    if [ "$(field "$tmpd/adr.md" status)" = "Accepted" ]; then
+      copyset+=("$apath")
+    else
+      log "adr $aid: not Accepted; skipped by gate"
+    fi
+  done
+fi
 
 # --- provision a transient integration checkout on a throwaway branch ---
 pub="$(mktemp -d)/pub"
 $GIT worktree prune
-$GIT worktree add -B "pub-$ID" "$pub" "$REMOTE/$INT_BRANCH" >/dev/null 2>&1 \
-  || die "could not provision pub-$ID worktree"
+$GIT worktree add -B "pub-$T" "$pub" "$REMOTE/$INT_BRANCH" >/dev/null 2>&1 \
+  || die "could not provision pub-$T worktree"
 
 teardown(){
   $GIT -C "$pub" checkout --detach >/dev/null 2>&1
   $GIT worktree remove --force "$pub" >/dev/null 2>&1
-  $GIT branch -D "pub-$ID" >/dev/null 2>&1 || true
+  $GIT branch -D "pub-$T" >/dev/null 2>&1 || true
   rm -rf "$(dirname "$pub")" "$tmpd"
 }
 
@@ -122,6 +141,6 @@ done
 teardown
 # teardown removed the worktree; assert it is gone (registration pruned)
 wt_list="$($GIT worktree list)"
-printf '%s\n' "$wt_list" | grep -q "pub-$ID" && die "postcondition: pub-$ID worktree survived"
-log "published ${#copyset[@]} record(s) for id $ID onto $INT_BRANCH"
+printf '%s\n' "$wt_list" | grep -q "pub-$T" && die "postcondition: pub-$T worktree survived"
+log "published ${#copyset[@]} record(s) for $T onto $INT_BRANCH"
 exit 0

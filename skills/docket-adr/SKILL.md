@@ -51,27 +51,41 @@ For a non-reversing material change in context — where the decision still stan
 The rule: **an `Accepted` ADR publishes to the integration branch** — the decision ledger is a durable record that belongs with the code. ADRs are authored on `docket`; the copy onto the integration branch goes through the shared **terminal-publish procedure (the *Terminal publish (docket-mode)* procedure in `docket-finalize-change`)** — the same `git checkout origin/docket -- <paths>` copy mechanism, never a `git merge docket`. Three cases, all reusing that one procedure (do **not** restate its git sequence here):
 
 - **Change-tied ADR** (the common case) — it is in its change manifest's `adrs:`, so the terminal publish copies it on that change's `done` (or `killed`) transition, driven by `docket-finalize-change` / the kill origin. `docket-adr` does nothing extra; the `Accepted` gate at the copy site skips it if it is still `Proposed`/draft.
-- **Standalone ADR** (`docket-adr` invoked directly, not tied to an in-flight change) — `docket-adr` publishes it itself: on acceptance it runs the procedure's **ADR-only** entry (token `T = adr-<NN>`, copy-set = that single ADR file, **step 1 archive is skipped** — there is no change file) and the integration branch gets the file. Without this, a change-less ADR would be stranded on `docket` and the integration-branch ledger would be silently incomplete.
-- **Status change to an already-published ADR** (`Superseded by`/`Reversed by`/`Deprecated`) — whether or not the ADR was originally change-tied, it is re-published by `docket-adr`'s **own ADR-only** invocation (`T = adr-<NN>`, copy-set = that one file), because its producing change is long since `done` and can no longer drive a publish.
+- **Standalone ADR** (`docket-adr` invoked directly, not tied to an in-flight change) — `docket-adr` publishes it itself: on acceptance it invokes:
+
+  ```
+  scripts/terminal-publish.sh --adr <NN> --integration-branch <integration_branch> --metadata-branch <metadata_branch> --changes-dir <changes_dir> --adrs-dir <adrs_dir>
+  ```
+
+  **Step 1 archive is skipped** (there is no change file); the integration branch gets the ADR file. Without this, a change-less ADR would be stranded on `docket` and the integration-branch ledger would be silently incomplete. Note that ADR mode applies no `Accepted` gate — the script publishes the ADR's current bytes exactly as-is.
+
+- **Status change to an already-published ADR** (`Superseded by`/`Reversed by`/`Deprecated`) — whether or not the ADR was originally change-tied, it is re-published by `docket-adr` invoking the same script:
+
+  ```
+  scripts/terminal-publish.sh --adr <NN> --integration-branch <integration_branch> --metadata-branch <metadata_branch> --changes-dir <changes_dir> --adrs-dir <adrs_dir>
+  ```
+
+  This publishes the ADR's current bytes (including a just-flipped `status:` line), which is exactly what the supersede/reverse and deprecate paths need. The producing change is long since `done` and can no longer drive a publish; ADR mode applies no `Accepted` gate.
 
 In `main`-mode there is no `docket` branch and no terminal-publish — the metadata working tree *is* the integration branch, so writing the ADR there is itself the publish; this whole section is a `docket`-mode-only concern.
 
 ### Index / validate
 
-(Re)render `<adrs_dir>/README.md` grouped into three sections: **Active**, **Superseded / Reversed**, and **Deprecated**. Row format examples:
+(Re)render `<adrs_dir>/README.md` by invoking the deterministic generator — never hand-render it:
 
 ```
-## Active
-- [ADR-0024](0024-quicklook-interaction-limits.md) — Quick Look interaction limits (Accepted) ← change #4
-- [ADR-0027](0027-page-size-and-margins-via-pagedjs.md) — Page size & margins via Paged.js (Accepted) → supersedes ADR-0025
-
-## Superseded / Reversed
-- [ADR-0025](0025-pdf-page-size-via-webview-frame.md) — PDF page size via WebView frame (Superseded by ADR-0027)
+scripts/render-adr-index.sh --adrs-dir <metadata tree>/<adrs_dir> > <metadata tree>/<adrs_dir>/README.md
 ```
 
-The index is regenerated wholesale (like `BOARD.md`); on a git conflict, regenerate from the ADR files rather than hand-merging.
+In `docket`-mode the metadata tree is `.docket/`, so: `scripts/render-adr-index.sh --adrs-dir .docket/<adrs_dir> > .docket/<adrs_dir>/README.md`. It emits the index grouped into **Active**, **Superseded / Reversed**, and **Deprecated**, each row sorted by ascending id, with the `← change #N` / `→ supersedes ADR-NN` / `→ reverses ADR-NN` / `· relates to ADR-NN` annotations — offline and deterministic (same ADR files ⇒ byte-identical). Commit the regenerated index as a **separate commit** (like `BOARD.md`, so concurrent ADR creates never conflict on the shared index) and push `origin/docket`. On a git conflict on the index, **re-run the script** rather than hand-merging (the regenerate-don't-3-way-merge rule).
 
-Validate the ledger and flag:
-- **Numbering gaps** — ids that are missing from the sequence.
-- **Dangling links** — `supersedes:`, `reverses:`, or `relates_to:` values that reference an id with no corresponding file.
-- **Status inconsistencies** — e.g. an ADR whose `status:` says `Superseded by ADR-NN` but no ADR with that number exists, or an ADR that `supersedes:` another without the old ADR's `status:` being updated.
+Validate the ledger by invoking the checker and surfacing each finding line:
+
+```
+scripts/adr-checks.sh --adrs-dir <metadata tree>/<adrs_dir>
+```
+
+It is warn-only (one TAB-separated `<check-id>\t<adr-id>\t<message>` per line; `--strict` exits 1 for a future CI gate) and covers:
+- **`adr-numbering-gap`** — an id missing from the `1..max` sequence.
+- **`adr-dangling-link`** — a `supersedes:` / `reverses:` / `relates_to:` value referencing an id with no corresponding file.
+- **`adr-status-inconsistent`** — an ADR whose `status:` says `Superseded by ADR-NN` / `Reversed by ADR-NN` but no such ADR exists, or an ADR that `supersedes:` / `reverses:` another without the old ADR's `status:` flipped to point back.

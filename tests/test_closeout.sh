@@ -201,6 +201,47 @@ read -r W _ < <(new_repo)
 assert "publish: main-mode exits 0 (no-op)" "[ $? -eq 0 ]"
 assert "publish: main-mode created no pub worktree" '! git -C "$W" worktree list | grep -q "pub-7"'
 
+# --- terminal-publish.sh --adr: standalone Accepted ADR publishes to the integration branch ---
+read -r W _ < <(new_repo)
+( cd "$W" && "$PUBLISH" --adr 3 --integration-branch main --metadata-branch docket \
+    --changes-dir docs/changes --adrs-dir docs/adrs ) >/dev/null 2>&1
+rc=$?; git -C "$W" fetch origin main >/dev/null 2>&1
+ls_main(){ git -C "$W" ls-tree -r --name-only origin/main; }
+assert "publish --adr: exits 0" "[ $rc -eq 0 ]"
+assert "publish --adr: ADR-0003 file landed on integration branch" 'ls_main | grep -q "docs/adrs/0003-accepted.md"'
+assert "publish --adr: no change file published (archive skipped)" '! ls_main | grep -q "docs/changes/"'
+assert "publish --adr: pub-adr-3 worktree torn down" '! git -C "$W" worktree list | grep -q "pub-adr-3"'
+
+# --- terminal-publish.sh --adr: NO Accepted gate (a non-Accepted ADR still publishes) ---
+read -r W _ < <(new_repo)
+( cd "$W" && "$PUBLISH" --adr 5 --integration-branch main --metadata-branch docket \
+    --changes-dir docs/changes --adrs-dir docs/adrs ) >/dev/null 2>&1
+git -C "$W" fetch origin main >/dev/null 2>&1
+assert "publish --adr: Proposed ADR-0005 still published (no gate in adr mode)" \
+  'git -C "$W" ls-tree -r --name-only origin/main | grep -q "docs/adrs/0005-proposed.md"'
+
+# --- terminal-publish.sh --adr: idempotent re-run is a no-op ---
+read -r W _ < <(new_repo)
+( cd "$W" && "$PUBLISH" --adr 3 --integration-branch main --metadata-branch docket --changes-dir docs/changes --adrs-dir docs/adrs ) >/dev/null 2>&1
+git -C "$W" fetch origin main >/dev/null 2>&1; before="$(git -C "$W" rev-parse origin/main)"
+( cd "$W" && "$PUBLISH" --adr 3 --integration-branch main --metadata-branch docket --changes-dir docs/changes --adrs-dir docs/adrs ) >/dev/null 2>&1
+rc=$?; git -C "$W" fetch origin main >/dev/null 2>&1; after="$(git -C "$W" rev-parse origin/main)"
+assert "publish --adr: re-run exits 0" "[ $rc -eq 0 ]"
+assert "publish --adr: re-run is a no-op (no new integration commit)" '[ "$before" = "$after" ]'
+
+# --- terminal-publish.sh --adr: main-mode no-op ---
+read -r W _ < <(new_repo)
+( cd "$W" && "$PUBLISH" --adr 3 --integration-branch main --metadata-branch main --changes-dir docs/changes --adrs-dir docs/adrs ) >/dev/null 2>&1
+assert "publish --adr: main-mode exits 0 (no-op)" "[ $? -eq 0 ]"
+assert "publish --adr: main-mode created no pub-adr worktree" '! git -C "$W" worktree list | grep -q "pub-adr-3"'
+
+# --- terminal-publish.sh: --id and --adr are mutually exclusive; exactly one required ---
+read -r W _ < <(new_repo)
+( cd "$W" && "$PUBLISH" --id 7 --adr 3 --outcome done --integration-branch main --metadata-branch docket --changes-dir docs/changes --adrs-dir docs/adrs ) >/dev/null 2>&1
+assert "publish: --id + --adr together is rejected (non-zero)" '[ "$?" -ne 0 ]'
+( cd "$W" && "$PUBLISH" --integration-branch main --metadata-branch docket --changes-dir docs/changes --adrs-dir docs/adrs ) >/dev/null 2>&1
+assert "publish: neither --id nor --adr is rejected (non-zero)" '[ "$?" -ne 0 ]'
+
 # --- cleanup-feature-branch.sh: removes a worktree under .worktrees/<slug> + its branch ---
 read -r W _ < <(new_repo)
 git -C "$W" worktree add "$W/.worktrees/sample" -b feat/sample main >/dev/null 2>&1
@@ -228,6 +269,8 @@ assert "wiring(finalize): Terminal publish section heading preserved (cross-ref 
 assert "wiring(finalize): Accepted gate still documented" 'grep -qiE "whose ADR is .?Accepted|Accepted. gate|status: is .?Accepted|status.? is \*\*Accepted" "$FINALIZE"'
 assert "wiring(finalize): ADR-only publish path preserved" 'grep -qiE "adr-<NN>|ADR-only" "$FINALIZE"'
 assert "wiring(finalize): no leftover raw archive bash (git mv active/)" '! grep -qE "git mv .*active/" "$FINALIZE"'
+assert "wiring(finalize): ADR-only publish names terminal-publish.sh --adr" 'grep -qE "terminal-publish\.sh --adr" "$FINALIZE"'
+assert "wiring(finalize): no leftover by-hand pub-adr git block" '! grep -qE "git worktree add -B .?pub-adr" "$FINALIZE"'
 
 # --- call-site wiring sentinels: status sweep + two kill paths invoke the scripts ---
 STATUS="$REPO/skills/docket-status/SKILL.md"
