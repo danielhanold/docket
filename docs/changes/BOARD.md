@@ -1,6 +1,6 @@
 # Backlog
 
-**33 changes** — 🟡 10 proposed · 🔵 1 implemented · ✅ 21 done · 🗑️ 1 killed
+**33 changes** — 🟡 10 proposed · ✅ 22 done · 🗑️ 1 killed
 
 ## 🟡 Proposed (10)
 
@@ -13,15 +13,9 @@
 | [0018](active/0018-yq-yaml-parsing.md) | Evaluate adopting yq for YAML parsing across docket scripts | `low` | needs-brainstorm |
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | needs-brainstorm |
-| [0031](active/0031-adr-status-check-verb-match.md) | ADR status-consistency check — match the supersede/reverse verb, not just the target id | `low` | ⏳ waiting on #30 — needs your merge |
-| [0032](active/0032-frontmatter-id-validation.md) | Validate numeric id across the frontmatter script family | `low` | ⏳ waiting on #30 — needs your merge |
-| [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | ⏳ waiting on #30 — needs your merge |
-
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | PR |
-|---|-------|----------|----|
-| [0030](active/0030-script-adr-passes.md) | Script docket-adr's deterministic passes — index render, ledger checks, ADR-only publish | `high` | [#41](https://github.com/danielhanold/docket/pull/41) |
+| [0031](active/0031-adr-status-check-verb-match.md) | ADR status-consistency check — match the supersede/reverse verb, not just the target id | `low` | needs-brainstorm |
+| [0032](active/0032-frontmatter-id-validation.md) | Validate numeric id across the frontmatter script family | `low` | needs-brainstorm |
+| [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | needs-brainstorm |
 
 ```mermaid
 graph TD
@@ -32,7 +26,6 @@ graph TD
   0016 --> 0018
   0015 --> 0019
   0022 --> 0024
-  0030
   0030 --> 0031
   0030 --> 0032
   0030 --> 0033
@@ -57,13 +50,15 @@ graph TD
   0026:::done
   0027:::done
   0029:::done
+  0030:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (22)</summary>
+<details><summary>✅🗑️ Archive — done + killed (23)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0030](archive/2026-06-20-0030-script-adr-passes.md) | Script docket-adr's deterministic passes — index render, ledger checks, ADR-only publish | 2026-06-20 |
 | [0029](archive/2026-06-20-0029-sync-integration-after-merge.md) | Fast-forward the local integration branch after a docket merge | 2026-06-20 |
 | [0028](archive/2026-06-20-0028-wire-closeout-call-sites.md) | Wire the close-out call sites to the extracted scripts | 2026-06-20 |
 | [0027](archive/2026-06-20-0027-claude-settings-publish-permission.md) | Auto-grant docket's integration-branch push permission via a per-repo Claude settings rule | 2026-06-20 |
