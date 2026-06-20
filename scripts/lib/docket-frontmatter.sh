@@ -28,6 +28,12 @@ list_field(){
   raw="${raw#[}"; raw="${raw%]}"
   printf '%s' "$raw" | tr ',' ' ' | xargs 2>/dev/null || true
 }
+# int_field FILE KEY — like field(), but returns the value ONLY when it is a well-formed
+# non-negative integer (^[0-9]+$); empty string otherwise. Pure; no side effects on source.
+int_field(){
+  local v; v="$(field "$1" "$2")"
+  case "$v" in (''|*[!0-9]*) printf '' ;; (*) printf '%s' "$v" ;; esac
+}
 has_section(){ grep -qF "$2" "$1"; }
 
 # --- dependency resolution ----------------------------------------------------

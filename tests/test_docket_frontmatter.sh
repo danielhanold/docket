@@ -12,6 +12,26 @@ assert "library exists" '[ -f "$LIB" ]'
 # shellcheck source=/dev/null
 source "$LIB"
 
+# --- int_field: integer-only accessor ---
+ifd="$(mktemp -d)"
+printf -- '---\nid: 7\n---\n'    > "$ifd/ok.md"
+printf -- '---\nid: 007\n---\n'  > "$ifd/pad.md"
+printf -- '---\nid: 0\n---\n'    > "$ifd/zero.md"
+printf -- '---\nid: abc\n---\n'  > "$ifd/abc.md"
+printf -- '---\nid: 1.5\n---\n'  > "$ifd/dot.md"
+printf -- '---\nid: 7x\n---\n'   > "$ifd/trail.md"
+printf -- '---\nid: -3\n---\n'   > "$ifd/neg.md"
+printf -- '---\nslug: x\n---\n'  > "$ifd/none.md"
+assert "int_field accepts 7"        '[ "$(int_field "$ifd/ok.md" id)" = "7" ]'
+assert "int_field accepts 007"      '[ "$(int_field "$ifd/pad.md" id)" = "007" ]'
+assert "int_field accepts 0"        '[ "$(int_field "$ifd/zero.md" id)" = "0" ]'
+assert "int_field rejects abc"      '[ -z "$(int_field "$ifd/abc.md" id)" ]'
+assert "int_field rejects 1.5"      '[ -z "$(int_field "$ifd/dot.md" id)" ]'
+assert "int_field rejects 7x"       '[ -z "$(int_field "$ifd/trail.md" id)" ]'
+assert "int_field rejects -3"       '[ -z "$(int_field "$ifd/neg.md" id)" ]'
+assert "int_field empty when unset" '[ -z "$(int_field "$ifd/none.md" id)" ]'
+rm -rf "$ifd"
+
 tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
 mkdir -p "$tmp/active" "$tmp/archive"
 
