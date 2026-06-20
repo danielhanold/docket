@@ -12,6 +12,15 @@
   rest on a committed repo `.gitignore` entry, never a per-machine user-global ignore — and when a
   change *generates* such a file, add the ignore in the same change (the migrate step here) so the
   guarantee ships with the feature instead of silently depending on each dev's box.
+- 2026-06-19 (#26, PR #38 close-out) — The dropped-status bug below had a deeper trigger than
+  hand-staging: the harness ran a **stale** finalize skill. `~/.claude/skills/*` are symlinks into the
+  docket clone's primary checkout, which in docket-mode is never fast-forwarded (work lives in
+  `.docket/` + worktrees), so it sat 39 commits behind `origin/main` and loaded the *pre-0025*
+  manual-archive skill even though the script-calling version had shipped hours earlier — and a grep of
+  that stale tree made me wrongly conclude "the rewire never landed" (it had). Apply: a symlinked-skill
+  source reflects its clone's checked-out commit — verify a skill's content against
+  `origin/<integration_branch>`, never the local working copy, and keep the clone current (fix: change
+  0029 FFs the local integration branch at the two merge sites).
 - 2026-06-19 (#26, PR #38 close-out) — A hand-rolled archive staged the `git mv` rename but DROPPED the
   follow-on `status: done` frontmatter edit: the `git add` listed the already-moved `active/` path
   beside the `archive/` path, the non-matching pathspec aborted the whole `git add` (staging nothing),
