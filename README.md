@@ -186,6 +186,12 @@ bash /path/to/docket/migrate-to-docket.sh
 
 It prints the resolved target repo and prompts for confirmation before changing anything; pass `--yes` (or `-y`) to skip the prompt in automation. It then creates the orphan `docket` branch seeded from your current planning directories, prunes the live planning surface (`active/` changes, the changes `README.md`, `BOARD.md`) off the integration branch while keeping terminal records and build artifacts there, and adds `.docket/` + `.worktrees/` to `.gitignore`. Re-running it converges from any partial state.
 
+Migration also grants one **local, per-repo** Claude Code permission: an allow-rule for docket's terminal-publish push to the integration branch (written to `.claude/settings.local.json`, which migration adds to `.gitignore`). This pre-authorizes the one push the permission classifier guards on every close-out, narrowly and only in this repo — force-pushes and pushes to other branches stay guarded. Because `settings.local.json` is gitignored and per-user, anyone who later **clones** an already-migrated repo can grant themselves the same rule by running the helper standalone:
+
+```bash
+bash /path/to/docket/scripts/ensure-claude-settings.sh
+```
+
 The skills will **not** migrate a repo for you. On first run against an un-migrated repo (metadata still on the integration branch, no `docket` branch yet), a **bootstrap guard** STOPs and points you at `migrate-to-docket.sh` rather than silently moving your data. The same guard detects a half-finished migration and points back to the script to complete it.
 
 ### `main`-mode: the single-branch opt-out

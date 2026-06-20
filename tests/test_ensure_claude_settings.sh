@@ -104,5 +104,9 @@ MIG="$REPO/migrate-to-docket.sh"
 assert "migrate gitignores .claude/settings.local.json" 'grep -qF ".claude/settings.local.json" "$MIG"'
 assert "migrate invokes ensure-claude-settings.sh"       'grep -qF "ensure-claude-settings.sh" "$MIG"'
 
+# --- doc sentinel: README documents the standalone grant path ------------------
+assert "README documents scripts/ensure-claude-settings.sh" \
+  'grep -qF "scripts/ensure-claude-settings.sh" "$REPO/README.md"'
+
 if [ "$fail" = 0 ]; then echo PASS; else echo FAIL; fi
 exit "$fail"
