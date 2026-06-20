@@ -10,7 +10,7 @@ depends_on: [30]
 related: [30, 22, 23]
 adrs: [12]
 spec: docs/superpowers/specs/2026-06-20-frontmatter-id-validation-design.md
-plan:
+plan: docs/superpowers/plans/2026-06-20-frontmatter-id-validation.md
 results:
 trivial: false
 auto_groomable: true
