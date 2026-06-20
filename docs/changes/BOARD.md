@@ -1,8 +1,8 @@
 # Backlog
 
-**29 changes** — 🟡 8 proposed · ✅ 20 done · 🗑️ 1 killed
+**30 changes** — 🟡 9 proposed · ✅ 20 done · 🗑️ 1 killed
 
-## 🟡 Proposed (8)
+## 🟡 Proposed (9)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -14,6 +14,7 @@
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | needs-brainstorm |
 | [0029](active/0029-sync-integration-after-merge.md) | Fast-forward the local integration branch after a docket merge | `high` | build-ready |
+| [0030](active/0030-script-adr-passes.md) | Script docket-adr's deterministic passes — index render, ledger checks, ADR-only publish | `high` | build-ready |
 
 ```mermaid
 graph TD
@@ -25,6 +26,7 @@ graph TD
   0015 --> 0019
   0022 --> 0024
   0029
+  0030
   0001:::done
   0002:::done
   0003:::done
