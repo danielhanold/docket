@@ -9,7 +9,7 @@ updated: 2026-06-20
 depends_on: [30]
 related: [30, 22, 23]
 adrs: [12]
-spec:
+spec: docs/superpowers/specs/2026-06-20-frontmatter-id-validation-design.md
 plan:
 results:
 trivial: false
@@ -49,11 +49,19 @@ pattern" property — so this must cover the whole family in one change.
 
 ## Open questions
 
-- Fail-closed (exit non-zero) vs. warn-and-skip the malformed file? Likely
-  per-script: renderers skip the bad row, validators emit a finding.
-- Should a `malformed-id` finding be added to `board-checks.sh` / `adr-checks.sh`
-  as a first-class check, or just a defensive guard?
-- Does this subsume any existing ad-hoc id handling worth removing?
+_Resolved at grooming (see spec) — behaviour split **by role**._
+
+- **Fail-closed vs warn-and-skip?** → Per role: renderers + the shared `resolve_deps`
+  scan **skip** the bad row (so one bad file never blanks the board/index);
+  validators **flag** it; `terminal-publish.sh` (whose id is a CLI arg, not
+  frontmatter) **fails closed** on a non-integer `--id`/`--adr`.
+- **First-class check vs guard?** → A first-class warn-only `malformed-id` finding in
+  `board-checks.sh` / `adr-checks.sh` — a validator that silently skipped a malformed
+  id would hide the exact inconsistency it exists to report. Guard-only in renderers.
+- **Subsumes existing ad-hoc id handling?** → No removal: the existing
+  `[ -n "$id" ] || continue` guards remain (now fed by a shared `int_field` helper in
+  `scripts/lib/docket-frontmatter.sh`); `pad`/arithmetic become guaranteed-integer
+  downstream of the guard.
 
 ## Reconcile log
 
