@@ -1,6 +1,6 @@
 # Backlog
 
-**30 changes** — 🟡 8 proposed · 🔵 1 implemented · ✅ 20 done · 🗑️ 1 killed
+**30 changes** — 🟡 8 proposed · ✅ 21 done · 🗑️ 1 killed
 
 ## 🟡 Proposed (8)
 
@@ -15,12 +15,6 @@
 | [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | needs-brainstorm |
 | [0030](active/0030-script-adr-passes.md) | Script docket-adr's deterministic passes — index render, ledger checks, ADR-only publish | `high` | build-ready |
 
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | PR |
-|---|-------|----------|----|
-| [0029](active/0029-sync-integration-after-merge.md) | Fast-forward the local integration branch after a docket merge | `high` | [#40](https://github.com/danielhanold/docket/pull/40) |
-
 ```mermaid
 graph TD
   0007
@@ -30,7 +24,6 @@ graph TD
   0016 --> 0018
   0015 --> 0019
   0022 --> 0024
-  0029
   0030
   0001:::done
   0002:::done
@@ -52,13 +45,15 @@ graph TD
   0025:::done
   0026:::done
   0027:::done
+  0029:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (21)</summary>
+<details><summary>✅🗑️ Archive — done + killed (22)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0029](archive/2026-06-20-0029-sync-integration-after-merge.md) | Fast-forward the local integration branch after a docket merge | 2026-06-20 |
 | [0028](archive/2026-06-20-0028-wire-closeout-call-sites.md) | Wire the close-out call sites to the extracted scripts | 2026-06-20 |
 | [0027](archive/2026-06-20-0027-claude-settings-publish-permission.md) | Auto-grant docket's integration-branch push permission via a per-repo Claude settings rule | 2026-06-20 |
 | [0026](archive/2026-06-19-0026-config-resolution-script.md) | Extract config resolution + bootstrap guard into a deterministic script | 2026-06-19 |
