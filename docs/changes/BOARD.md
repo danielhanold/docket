@@ -1,8 +1,8 @@
 # Backlog
 
-**30 changes** — 🟡 7 proposed · 🔵 1 implemented · ✅ 21 done · 🗑️ 1 killed
+**33 changes** — 🟡 10 proposed · 🔵 1 implemented · ✅ 21 done · 🗑️ 1 killed
 
-## 🟡 Proposed (7)
+## 🟡 Proposed (10)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -13,6 +13,9 @@
 | [0018](active/0018-yq-yaml-parsing.md) | Evaluate adopting yq for YAML parsing across docket scripts | `low` | needs-brainstorm |
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | needs-brainstorm |
+| [0031](active/0031-adr-status-check-verb-match.md) | ADR status-consistency check — match the supersede/reverse verb, not just the target id | `low` | ⏳ waiting on #30 — needs your merge |
+| [0032](active/0032-frontmatter-id-validation.md) | Validate numeric id across the frontmatter script family | `low` | ⏳ waiting on #30 — needs your merge |
+| [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | ⏳ waiting on #30 — needs your merge |
 
 ## 🔵 Implemented — awaiting merge (1)
 
@@ -30,6 +33,9 @@ graph TD
   0015 --> 0019
   0022 --> 0024
   0030
+  0030 --> 0031
+  0030 --> 0032
+  0030 --> 0033
   0001:::done
   0002:::done
   0003:::done
