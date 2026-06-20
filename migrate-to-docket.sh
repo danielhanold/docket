@@ -20,7 +20,8 @@
 #   4. Prune the live surface (<changes_dir>/active/, the changes README, BOARD.md) from the
 #      integration branch; KEEP terminal records (<changes_dir>/archive/, <adrs_dir>/ + its
 #      index README) and build artifacts (<results_dir>/, docs/superpowers/plans/). Commit + push.
-#   5. Extend .gitignore with .docket/ + .worktrees/ (idempotent).
+#   5. Extend .gitignore with .docket/ + .worktrees/ + .claude/settings.local.json (idempotent),
+#      then grant docket's terminal-publish push via scripts/ensure-claude-settings.sh.
 #   6. Print next steps.
 #
 # This is a ONE-TIME, per-repo operation, but it is fully IDEMPOTENT and interrupted-run safe:
@@ -36,6 +37,11 @@ set -euo pipefail
 say()  { printf '%s\n' "$*"; }
 step() { printf '\n==> %s\n' "$*"; }
 die()  { printf 'migrate-to-docket: %s\n' "$*" >&2; exit 1; }
+
+# This script's own directory — resolve siblings (scripts/ensure-claude-settings.sh) relative
+# to it, since we operate on the TARGET repo ($PWD), not docket's own checkout. Computed BEFORE
+# the cd into the target repo so a relative invocation path still resolves.
+MIGRATE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 
 # ---------------------------------------------------------------------------
 # Target resolution — operate on the git repo containing the INVOCATION directory
@@ -318,11 +324,11 @@ fi
 # ---------------------------------------------------------------------------
 # 5. Extend .gitignore on the integration branch (idempotent — add only if absent).
 # ---------------------------------------------------------------------------
-step "Ensuring .gitignore ignores .docket/ and .worktrees/"
+step "Ensuring .gitignore ignores .docket/, .worktrees/, .claude/settings.local.json"
 GITIGNORE="$PRUNE_WT/.gitignore"
 touch "$GITIGNORE"
 added_ignore=0
-for entry in ".docket/" ".worktrees/"; do
+for entry in ".docket/" ".worktrees/" ".claude/settings.local.json"; do
   # Match an existing line with or without the trailing slash (e.g. ".docket" or ".docket/").
   pat="^${entry%/}/?$"
   if ! grep -qE "$pat" "$GITIGNORE"; then
@@ -336,7 +342,7 @@ done
 if [ "$added_ignore" -eq 1 ]; then
   git -C "$PRUNE_WT" add .gitignore
   if ! git -C "$PRUNE_WT" diff --cached --quiet; then
-    git -C "$PRUNE_WT" commit --quiet -m "docket: gitignore .docket/ and .worktrees/ (migrate-to-docket.sh)"
+    git -C "$PRUNE_WT" commit --quiet -m "docket: gitignore .docket/, .worktrees/, .claude/settings.local.json (migrate-to-docket.sh)"
   fi
 fi
 
@@ -361,6 +367,18 @@ git branch -D "migrate-prune-$INTEGRATION_BRANCH" >/dev/null 2>&1 || true
 PRUNE_WT=""
 
 # ---------------------------------------------------------------------------
+# 5b. Grant docket's terminal-publish push permission (local Claude settings).
+#     Best-effort: a failure here must not fail the migration (the grant is a convenience,
+#     and is recoverable by running scripts/ensure-claude-settings.sh standalone).
+# ---------------------------------------------------------------------------
+step "Granting docket's integration-branch push permission (local Claude settings)"
+if DOCKET_INTEGRATION_BRANCH="$INTEGRATION_BRANCH" bash "$MIGRATE_DIR/scripts/ensure-claude-settings.sh"; then
+  :
+else
+  say "  (warning: could not write the local grant; run 'bash $MIGRATE_DIR/scripts/ensure-claude-settings.sh' from this repo later.)"
+fi
+
+# ---------------------------------------------------------------------------
 # 6. Next steps
 # ---------------------------------------------------------------------------
 step "Migration complete"
@@ -378,4 +396,8 @@ cat <<EOF
       single-branch mode.
     - Re-running this script is safe: every step is idempotent and converges from any
       partial state.
+    - A Claude Code allow-rule for docket's terminal-publish push to $INTEGRATION_BRANCH has been
+      written to .claude/settings.local.json (gitignored, per-user). Anyone who later CLONES this
+      repo can grant themselves the same rule by running:
+          bash /path/to/docket/scripts/ensure-claude-settings.sh
 EOF

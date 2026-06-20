@@ -99,5 +99,10 @@ run "$tmp/f" >/dev/null            # NO env seam -> exercises scripts/docket-con
 SF="$tmp/f/.claude/settings.local.json"
 assert "real resolver: develop tail from docket-config.sh" 'has_rule "$SF" "$RULE_DEV"'
 
+# --- wiring sentinels: migrate-to-docket.sh integrates the helper + the gitignore entry ---
+MIG="$REPO/migrate-to-docket.sh"
+assert "migrate gitignores .claude/settings.local.json" 'grep -qF ".claude/settings.local.json" "$MIG"'
+assert "migrate invokes ensure-claude-settings.sh"       'grep -qF "ensure-claude-settings.sh" "$MIG"'
+
 if [ "$fail" = 0 ]; then echo PASS; else echo FAIL; fi
 exit "$fail"
