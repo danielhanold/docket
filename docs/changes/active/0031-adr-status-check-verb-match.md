@@ -10,7 +10,7 @@ depends_on: [30]
 related: [30]
 adrs: [12, 13]
 spec: docs/superpowers/specs/2026-06-20-adr-status-check-verb-match-design.md
-plan:
+plan: docs/superpowers/plans/2026-06-20-adr-status-check-verb-match.md
 results:
 trivial: false
 auto_groomable: true
