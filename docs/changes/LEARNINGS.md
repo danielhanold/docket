@@ -4,6 +4,14 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-06-19 (#27, PR #39) — A change promised its locally-written file (`.claude/settings.local.json`)
+  would "never be committed onto collaborators," but on the build machine that guarantee only held
+  because a *user-global* excludesfile (`~/.config/git/ignore`) ignored it — the repo `.gitignore` did
+  not. Reconcile caught it; unfixed, a collaborator without that global ignore could have committed the
+  file, defeating the change's whole point. Apply: an "every clone / never committed" guarantee must
+  rest on a committed repo `.gitignore` entry, never a per-machine user-global ignore — and when a
+  change *generates* such a file, add the ignore in the same change (the migrate step here) so the
+  guarantee ships with the feature instead of silently depending on each dev's box.
 - 2026-06-19 (#26, PR #38 close-out) — A hand-rolled archive staged the `git mv` rename but DROPPED the
   follow-on `status: done` frontmatter edit: the `git add` listed the already-moved `active/` path
   beside the `archive/` path, the non-matching pathspec aborted the whole `git add` (staging nothing),
