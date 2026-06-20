@@ -4,6 +4,20 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-06-20 (#32, PR #43) — A new frontmatter accessor `int_field` ended `printf '%s'` (no newline)
+  where the existing `field` ended `printf '%s\n'`. Every adoption was a command substitution
+  `id="$(int_field …)"` (which strips trailing newlines anyway) **except** one *direct pipe*
+  (`render-board.sh`'s done-node list: `… && field "$f" id; done | sort -n`), where the missing
+  newline concatenated ids (`10`,`12` → `1012`). TDD's golden compare caught it. Apply: when swapping
+  in an accessor that drops the trailing newline, audit for *un-captured* uses in a pipe/concatenation —
+  command-substitution sites are safe, raw-pipe sites are not.
+
+- 2026-06-20 (#32, PR #43) — The spec enumerated the id-read sites illustratively and said "grep them
+  all"; reconcile found two it under-named (`readiness()` and a dep-cycle scan), and they were hardened
+  too. Apply: treat a spec's enumerated call-site list as a floor, not a ceiling — `grep` the whole
+  family for the pattern before a codebase-wide swap, and let reconcile pin the full inventory in the
+  change before the build starts.
+
 - 2026-06-20 (#30, PR #41) — Scripting a "this file is generated — do not hand-edit" ADR index
   surfaced that the published `README.md` had silently accreted richer text than the source `title:`
   fields (backticks on one row, trailing clauses on two more) — the new generator emits each
