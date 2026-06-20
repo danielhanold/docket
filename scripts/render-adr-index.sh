@@ -50,27 +50,26 @@ for f in "${FILES[@]}"; do
   esac
 done
 
-row(){ # row ID GROUP (group: active|suprev|depr)
-  local id="$1" group="${2:-active}" line ann=""
+row(){ # row ID
+  local id="$1" line ann=""
   line="- [ADR-$(pad "$id")](${T_FILE[$id]}) — ${T_TITLE[$id]} (${T_STATUS[$id]})"
-  # change back-ref only emitted for Active ADRs (golden contract)
-  [ "$group" = "active" ] && [ -n "${T_CHANGE[$id]}" ] && ann+=" ← change #${T_CHANGE[$id]}"
+  [ -n "${T_CHANGE[$id]}" ]  && ann+=" ← change #${T_CHANGE[$id]}"
   [ -n "${T_SUPS[$id]}" ]    && ann+=" → supersedes $(adr_list "${T_SUPS[$id]}")"
   [ -n "${T_REVS[$id]}" ]    && ann+=" → reverses $(adr_list "${T_REVS[$id]}")"
   [ -n "${T_REL[$id]}" ]     && ann+=" · relates to $(adr_list "${T_REL[$id]}")"
   printf '%s%s\n' "$line" "$ann"
 }
 
-emit_group(){ # emit_group HEADER IDSTR GROUP
+emit_group(){ # emit_group HEADER IDSTR
   printf '\n## %s\n\n' "$1"
   local sorted id
   sorted="$(printf '%s' "$2" | sed '/^$/d' | sort -n)"
   if [ -z "$sorted" ]; then printf '_None._\n'; return; fi
-  while IFS= read -r id; do [ -n "$id" ] && row "$id" "${3:-active}"; done <<<"$sorted"
+  while IFS= read -r id; do [ -n "$id" ] && row "$id"; done <<<"$sorted"
 }
 
 printf '# Architecture Decision Records\n\n'
 printf 'Immutable, numbered record of *why*. ADRs are never archived or rewritten; once `Accepted`, only the `status:` line changes (on supersession/reversal). This index is generated — do not hand-edit.\n'
-emit_group "Active" "$ACTIVE_IDS" "active"
-emit_group "Superseded / Reversed" "$SUPREV_IDS" "suprev"
-emit_group "Deprecated" "$DEPR_IDS" "depr"
+emit_group "Active" "$ACTIVE_IDS"
+emit_group "Superseded / Reversed" "$SUPREV_IDS"
+emit_group "Deprecated" "$DEPR_IDS"

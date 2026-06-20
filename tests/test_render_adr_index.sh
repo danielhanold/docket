@@ -143,7 +143,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 ## Superseded / Reversed
 
 - [ADR-0003](0003-charlie.md) — Charlie decision (Reversed by ADR-0006)
-- [ADR-0004](0004-delta.md) — Delta decision (Superseded by ADR-0006)
+- [ADR-0004](0004-delta.md) — Delta decision (Superseded by ADR-0006) ← change #4
 - [ADR-0005](0005-echo.md) — Echo decision (Superseded by ADR-0006)
 
 ## Deprecated
