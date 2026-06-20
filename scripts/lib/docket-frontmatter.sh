@@ -28,6 +28,12 @@ list_field(){
   raw="${raw#[}"; raw="${raw%]}"
   printf '%s' "$raw" | tr ',' ' ' | xargs 2>/dev/null || true
 }
+# int_field FILE KEY — like field(), but returns the value ONLY when it is a well-formed
+# non-negative integer (^[0-9]+$); empty string otherwise. Pure; no side effects on source.
+int_field(){
+  local v; v="$(field "$1" "$2")"
+  case "$v" in (''|*[!0-9]*) printf '' ;; (*) printf '%s' "$v" ;; esac
+}
 has_section(){ grep -qF "$2" "$1"; }
 
 # --- dependency resolution ----------------------------------------------------
@@ -40,12 +46,12 @@ resolve_deps(){ # resolve_deps CHANGES_DIR
   mapfile -t files < <(find "$dir/active" "$dir/archive" -maxdepth 1 -name '*.md' 2>/dev/null | sort)
   # pass 1: id -> own status
   for f in "${files[@]}"; do
-    id="$(field "$f" id)"; [ -n "$id" ] || continue
+    id="$(int_field "$f" id)"; [ -n "$id" ] || continue
     STATUS_OF["$id"]="$(field "$f" status)"
   done
   # pass 2: resolve each change's depends_on into the worst unmet reason + its id
   for f in "${files[@]}"; do
-    id="$(field "$f" id)"; [ -n "$id" ] || continue
+    id="$(int_field "$f" id)"; [ -n "$id" ] || continue
     worst=""; worst_on=""
     for dep in $(list_field "$f" depends_on); do
       dstat="${STATUS_OF[$dep]:-}"
@@ -68,7 +74,7 @@ resolve_deps(){ # resolve_deps CHANGES_DIR
 # --- readiness (precedence pinned: waiting > missing-spec > build-ready) -------
 readiness(){ # readiness FILE  (only meaningful for a proposed change)
   local f="$1" id spec trivial
-  id="$(field "$f" id)"
+  id="$(int_field "$f" id)"
   if [ "${DEP_STATE[$id]:-clear}" = "waiting" ]; then printf 'waiting'; return; fi
   spec="$(field "$f" spec)"; trivial="$(field "$f" trivial)"
   if [ -z "$spec" ] && [ "$trivial" != "true" ]; then

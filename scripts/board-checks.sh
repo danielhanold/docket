@@ -47,7 +47,11 @@ emit(){ FINDINGS+="$1"$'\t'"$2"$'\t'"$3"$'\n'; }
 # Walk every change file (active + archive); per-check filters apply inside.
 mapfile -t FILES < <(find "$CHANGES_DIR/active" "$CHANGES_DIR/archive" -maxdepth 1 -name '*.md' 2>/dev/null | sort)
 for f in "${FILES[@]}"; do
-  id="$(field "$f" id)"; [ -n "$id" ] || continue
+  raw="$(field "$f" id)"; id="$(int_field "$f" id)"
+  if [ -z "$id" ]; then
+    [ -n "$raw" ] && emit malformed-id "$raw" "non-integer id '$raw' in $(basename "$f")"
+    continue
+  fi
   status="$(field "$f" status)"
   spec="$(field "$f" spec)"; trivial="$(field "$f" trivial)"
 
@@ -89,7 +93,7 @@ done
 # --- dep-cycle: DFS over depends_on; mark every node that lies on a cycle ---
 declare -A ADJ COLOR INSTACK ONCYCLE
 for f in "${FILES[@]}"; do
-  cid="$(field "$f" id)"; [ -n "$cid" ] || continue
+  cid="$(int_field "$f" id)"; [ -n "$cid" ] || continue
   ADJ["$cid"]="$(list_field "$f" depends_on)"
 done
 PATH_STACK=()

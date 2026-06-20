@@ -44,6 +44,9 @@ done
 # exactly one of --id / --adr
 if [ -n "$ID" ] && [ -n "$ADR" ]; then die "--id and --adr are mutually exclusive"; fi
 if [ -z "$ID" ] && [ -z "$ADR" ]; then die "exactly one of --id / --adr is required"; fi
+# fail closed on a non-integer id (CLI arg, never frontmatter) — a publish must hard-stop, not skip
+case "$ID"  in (''|*[!0-9]*) [ -z "$ID" ]  || die "non-integer --id: '$ID'"  ;; esac
+case "$ADR" in (''|*[!0-9]*) [ -z "$ADR" ] || die "non-integer --adr: '$ADR'" ;; esac
 # --outcome is required (and validated) only in change (--id) mode
 if [ -n "$ID" ]; then
   case "$OUTCOME" in done|killed) ;; *) die "missing/invalid --outcome" ;; esac

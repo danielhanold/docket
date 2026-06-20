@@ -35,7 +35,7 @@ declare -A T_FILE T_TITLE T_STATUS T_CHANGE T_SUPS T_REVS T_REL
 ACTIVE_IDS=""; SUPREV_IDS=""; DEPR_IDS=""
 mapfile -t FILES < <(find "$ADRS_DIR" -maxdepth 1 -name '*.md' ! -name 'README.md' 2>/dev/null | sort)
 for f in "${FILES[@]}"; do
-  id="$(field "$f" id)"; [ -n "$id" ] || continue
+  id="$(int_field "$f" id)"; [ -n "$id" ] || continue
   T_FILE["$id"]="$(basename "$f")"
   T_TITLE["$id"]="$(field "$f" title)"
   T_STATUS["$id"]="$(field "$f" status)"

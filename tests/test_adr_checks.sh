@@ -117,6 +117,23 @@ rm -rf "$d"
 # ===== usage =====
 bash "$SCRIPT" >/dev/null 2>&1; assert "missing --adrs-dir exits 2" '[ "$?" -eq 2 ]'
 
+# ===== malformed-id: a non-integer id is flagged, valid neighbours unaffected =====
+d="$(mktemp -d)"
+mkadr "$d" 1 Accepted "[]" "[]" "[]"
+mkadr "$d" 2 Accepted "[]" "[]" "[]"
+printf -- '---\nid: abc\nslug: bad\ntitle: Bad\nstatus: Accepted\ndate: 2026-06-01\nsupersedes: []\nreverses: []\nrelates_to: []\nchange:\n---\n## Decision\nx.\n' > "$d/9001-bad.md"
+out="$(bash "$SCRIPT" --adrs-dir "$d" 2>/dev/null)"; rc=$?
+assert "adr malformed-id flagged on non-integer id 'abc'" 'has_finding "$out" malformed-id abc'
+assert "adr malformed-id: no numbering-gap false positive (valid 1,2 only)" '! has_finding "$out" adr-numbering-gap 1'
+assert "adr malformed-id: script still exits 0 (warn-only)" '[ "$rc" -eq 0 ]'
+rm -rf "$d"
+# control: clean ledger emits no malformed-id
+d="$(mktemp -d)"
+mkadr "$d" 1 Accepted "[]" "[]" "[]"
+out="$(bash "$SCRIPT" --adrs-dir "$d" 2>/dev/null)"
+assert "adr malformed-id silent on clean ledger" '! has_finding "$out" malformed-id 1'
+rm -rf "$d"
+
 # ===== docket-adr wiring sentinel =====
 assert "docket-adr Index/validate invokes adr-checks.sh" 'grep -qF "scripts/adr-checks.sh" "$SKILL"'
 
