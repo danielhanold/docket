@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
-# scripts/terminal-publish.sh — the shared "Terminal publish (docket-mode)" procedure (change 0025).
-# Copies a change's terminal records (archived change file + its spec + its Accepted ADRs) from
-# origin/<metadata-branch> onto the integration branch, via a transient worktree, with a CAS push.
-# docket-mode only: a no-op in main-mode (metadata-branch == integration-branch). Fail-closed:
-# re-fetches and asserts the full copy-set landed before exiting 0. Idempotent and re-run safe.
+# scripts/terminal-publish.sh — the shared "Terminal publish (docket-mode)" procedure (change 0025;
+# --adr mode added in 0030). The single executor of BOTH publish shapes. In change mode it copies a
+# change's terminal records (archived change file + its spec + its Accepted ADRs); in ADR mode it
+# copies a single ADR file (no Accepted gate; archive step skipped) — both from origin/<metadata-branch>
+# onto the integration branch, via a transient worktree, with a CAS push. docket-mode only: a no-op in
+# main-mode (metadata-branch == integration-branch). Fail-closed: re-fetches and asserts the full
+# copy-set landed before exiting 0. Idempotent and re-run safe.
 #
-# Usage:
+# Usage (exactly one of --id / --adr):
 #   terminal-publish.sh --id N --outcome done|killed --integration-branch B --metadata-branch M
+#                       --changes-dir REL --adrs-dir REL [--message MSG] [--remote R]
+#   terminal-publish.sh --adr NN --integration-branch B --metadata-branch M
 #                       --changes-dir REL --adrs-dir REL [--message MSG] [--remote R]
 #
 # Mock seam: GIT="${GIT:-git}".
