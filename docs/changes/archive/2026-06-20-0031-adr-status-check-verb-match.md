@@ -2,7 +2,7 @@
 id: 31
 slug: adr-status-check-verb-match
 title: ADR status-consistency check — match the supersede/reverse verb, not just the target id
-status: implemented
+status: done
 priority: low
 created: 2026-06-20
 updated: 2026-06-20
