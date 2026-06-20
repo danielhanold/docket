@@ -9,7 +9,7 @@ updated: 2026-06-20
 depends_on: [30]
 related: [30]
 adrs: [12, 13]
-spec:
+spec: docs/superpowers/specs/2026-06-20-adr-status-check-verb-match-design.md
 plan:
 results:
 trivial: false
@@ -50,9 +50,13 @@ correct-flip controls green).
 
 ## Open questions
 
-- Is right-target/wrong-verb worth a distinct finding message, or fold into the
-  existing arm-(b) message with the expected verb named?
-- Severity: warn-only like the rest (almost certainly yes — keep it consistent).
+_Resolved at grooming (see spec)._
+
+- **Distinct message vs fold?** → Fold into the existing `adr-status-inconsistent`
+  check-id; no new check-id. The message names the expected back-pointer
+  (`expected 'Reversed by ADR-X'`) so the verb-mismatch case is diagnosable.
+- **Severity?** → Warn-only, like every other finding; `--strict` already escalates
+  any finding to exit 1.
 
 ## Reconcile log
 
