@@ -2,7 +2,7 @@
 id: 30
 slug: script-adr-passes
 title: Script docket-adr's deterministic passes — index render, ledger checks, ADR-only publish
-status: in-progress
+status: implemented
 priority: high
 created: 2026-06-20
 updated: 2026-06-20
@@ -11,11 +11,11 @@ related: [22, 23, 25, 26]
 adrs: [2, 7, 12, 13]
 spec: docs/superpowers/specs/2026-06-20-script-adr-passes-design.md
 plan: docs/superpowers/plans/2026-06-20-script-adr-passes.md
-results:
+results: docs/results/2026-06-20-script-adr-passes-results.md
 trivial: false
 auto_groomable:
 branch: feat/script-adr-passes
-pr:
+pr: https://github.com/danielhanold/docket/pull/41
 blocked_by:
 reconciled: true
 ---
