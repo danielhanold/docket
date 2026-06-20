@@ -2,7 +2,7 @@
 id: 32
 slug: frontmatter-id-validation
 title: Validate numeric id across the frontmatter script family
-status: proposed
+status: in-progress
 priority: low
 created: 2026-06-20
 updated: 2026-06-20
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch:
+branch: feat/frontmatter-id-validation
 pr:
 blocked_by:
 reconciled: false
