@@ -2,7 +2,7 @@
 id: 29
 slug: sync-integration-after-merge
 title: Fast-forward the local integration branch after a docket merge
-status: proposed
+status: in-progress
 priority: high
 created: 2026-06-20
 updated: 2026-06-20
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/sync-integration-after-merge
 pr:
 blocked_by:
 reconciled: false
