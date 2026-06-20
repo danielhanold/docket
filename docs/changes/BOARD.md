@@ -1,8 +1,8 @@
 # Backlog
 
-**28 changes** — 🟡 7 proposed · ✅ 20 done · 🗑️ 1 killed
+**29 changes** — 🟡 8 proposed · ✅ 20 done · 🗑️ 1 killed
 
-## 🟡 Proposed (7)
+## 🟡 Proposed (8)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -13,6 +13,7 @@
 | [0018](active/0018-yq-yaml-parsing.md) | Evaluate adopting yq for YAML parsing across docket scripts | `low` | needs-brainstorm |
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | needs-brainstorm |
+| [0029](active/0029-sync-integration-after-merge.md) | Fast-forward the local integration branch after a docket merge | `high` | build-ready |
 
 ```mermaid
 graph TD
@@ -23,6 +24,7 @@ graph TD
   0016 --> 0018
   0015 --> 0019
   0022 --> 0024
+  0029
   0001:::done
   0002:::done
   0003:::done
