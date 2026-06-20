@@ -17,7 +17,7 @@ auto_groomable: true
 branch: feat/adr-status-check-verb-match
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Why
@@ -61,3 +61,10 @@ _Resolved at grooming (see spec)._
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+- **2026-06-20** — Spec authored earlier this same session; reconcile confirms it
+  still holds. `origin/main` unchanged (`ad799b1`) since authoring; `adr-checks.sh`
+  arm (b) and `status_target` on `origin/main` match the spec's target verbatim
+  (merged `${SUPS[$id]} ${REVS[$id]}` loop, id-only `back != id` check). No new ADRs
+  (ledger still 1–13), no related-change drift. **No scope change** — proceed to
+  plan as written.
