@@ -2,7 +2,7 @@
 id: 29
 slug: sync-integration-after-merge
 title: Fast-forward the local integration branch after a docket merge
-status: in-progress
+status: implemented
 priority: high
 created: 2026-06-20
 updated: 2026-06-20
@@ -15,7 +15,7 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/sync-integration-after-merge
-pr:
+pr: https://github.com/danielhanold/docket/pull/40
 blocked_by:
 reconciled: true
 ---
