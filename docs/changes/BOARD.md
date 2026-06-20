@@ -1,6 +1,6 @@
 # Backlog
 
-**28 changes** — 🟡 7 proposed · 🔵 1 implemented · ✅ 19 done · 🗑️ 1 killed
+**28 changes** — 🟡 7 proposed · ✅ 20 done · 🗑️ 1 killed
 
 ## 🟡 Proposed (7)
 
@@ -14,12 +14,6 @@
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | needs-brainstorm |
 
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | PR |
-|---|-------|----------|----|
-| [0027](active/0027-claude-settings-publish-permission.md) | Auto-grant docket's integration-branch push permission via a per-repo Claude settings rule | `medium` | [#39](https://github.com/danielhanold/docket/pull/39) |
-
 ```mermaid
 graph TD
   0007
@@ -29,7 +23,6 @@ graph TD
   0016 --> 0018
   0015 --> 0019
   0022 --> 0024
-  0026 --> 0027
   0001:::done
   0002:::done
   0003:::done
@@ -49,14 +42,16 @@ graph TD
   0023:::done
   0025:::done
   0026:::done
+  0027:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (20)</summary>
+<details><summary>✅🗑️ Archive — done + killed (21)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0028](archive/2026-06-20-0028-wire-closeout-call-sites.md) | Wire the close-out call sites to the extracted scripts | 2026-06-20 |
+| [0027](archive/2026-06-20-0027-claude-settings-publish-permission.md) | Auto-grant docket's integration-branch push permission via a per-repo Claude settings rule | 2026-06-20 |
 | [0026](archive/2026-06-19-0026-config-resolution-script.md) | Extract config resolution + bootstrap guard into a deterministic script | 2026-06-19 |
 | [0025](archive/2026-06-19-0025-closeout-scripts.md) | Extract the shared terminal-transition close-out mechanics into deterministic scripts | 2026-06-19 |
 | [0023](archive/2026-06-19-0023-script-sweep-and-health-checks.md) | Decide and apply scripting vs model-driven for the merge sweep and health checks | 2026-06-19 |
