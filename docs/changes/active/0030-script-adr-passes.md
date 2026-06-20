@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/script-adr-passes
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Why
@@ -103,3 +103,30 @@ a new ADR; priority high. None blocking — build-ready.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-06-20 — reconcile (build start)
+
+Reconciled against current `origin/main` (tip `71074ef`, last change #0029, no
+scope overlap) and `origin/docket`. Verdict: **no rescope, no obsolescence** —
+the design is faithful and current. Verified against reality:
+
+- **Drift still present** (the motivation holds): the published ADR index on
+  `main` (`docs/adrs/README.md`) lists only ADR-0001/0002, while the authoritative
+  copy on `docket` lists all twelve. The new `render-adr-index.sh` heals this on
+  the next index pass, exactly as the spec states.
+- **All sibling scripts exist at the assumed shapes** — `scripts/render-board.sh`
+  (`--changes-dir`), `scripts/board-checks.sh`, `scripts/terminal-publish.sh`
+  (keyed on `--id`; `--id` is currently a hard requirement at the arg-parse, which
+  the `--adr` mode relaxes to "exactly one of `--id`/`--adr`"), and
+  `scripts/lib/docket-frontmatter.sh`. The two new scripts and the extension fit
+  these unchanged.
+- **The prose to retire is intact** — `docket-adr`'s *Index / validate* section
+  (hand-render + ledger-validation prose) and its two ADR-only-publish references;
+  `docket-finalize-change`'s *Terminal publish (docket-mode)* → *The mechanics*
+  by-hand ADR-only block.
+- **Related changes 0022/0023/0025/0026 are all `done`** (archived) and none
+  pre-empted this work. `tests/` uses the `test_*.sh` convention, so the new
+  `tests/test_render_adr_index.sh` / `tests/test_adr_checks.sh` and the
+  `terminal-publish.sh --adr` harness addition match existing naming.
+
+No body or spec edits required; proceeding to plan + build.
