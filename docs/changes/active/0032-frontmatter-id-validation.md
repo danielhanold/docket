@@ -17,7 +17,7 @@ auto_groomable: true
 branch: feat/frontmatter-id-validation
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Why
@@ -66,3 +66,21 @@ _Resolved at grooming (see spec) — behaviour split **by role**._
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+- **2026-06-20** — Spec authored earlier this same session; `origin/main` unchanged
+  (`ad799b1`) since. Reconcile confirms the design holds and pins the **complete
+  id-read inventory** (the spec's enumeration was illustrative + told the builder to
+  `grep` every site — this makes the full list concrete):
+  - `lib/docket-frontmatter.sh`: **3** reads — `resolve_deps` pass 1 (L43) + pass 2
+    (L48), **and `readiness()` (L71)** (the spec named only the two `resolve_deps`
+    passes — `readiness` is the third; harden it too).
+  - `render-board.sh`: **3** — SECTION builder (L52), done-id list (L164), archive
+    builder (L182). (Matches the spec.)
+  - `render-adr-index.sh`: **1** — scan (L38).
+  - `board-checks.sh`: **2** — main scan (L50) **and cycle-detection `cid` (L92)**
+    (spec named the scan; L92 is the second — harden it too).
+  - `adr-checks.sh`: **1** — scan (L35); the at-risk arithmetic is `[ "$id" -gt "$MAXID" ]` (L42).
+  - `terminal-publish.sh`: `--id` is a CLI arg (L29), padded at L79 — fail-closed guard, not a frontmatter read.
+  - **No scope change** — same `int_field` helper + by-role adoption; the plan must
+    simply cover all the sites above, including the two the spec under-enumerated
+    (`readiness` L71, `board-checks` L92).
