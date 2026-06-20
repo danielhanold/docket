@@ -1,8 +1,14 @@
 # Backlog
 
-**33 changes** — 🟡 9 proposed · 🔵 1 implemented · ✅ 22 done · 🗑️ 1 killed
+**33 changes** — 🟢 1 in progress · 🟡 8 proposed · 🔵 1 implemented · ✅ 22 done · 🗑️ 1 killed
 
-## 🟡 Proposed (9)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Spec | Branch |
+|---|-------|----------|------|--------|
+| [0032](active/0032-frontmatter-id-validation.md) | Validate numeric id across the frontmatter script family | `low` | [spec](../superpowers/specs/2026-06-20-frontmatter-id-validation-design.md) | `feat/frontmatter-id-validation` |
+
+## 🟡 Proposed (8)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -13,7 +19,6 @@
 | [0018](active/0018-yq-yaml-parsing.md) | Evaluate adopting yq for YAML parsing across docket scripts | `low` | needs-brainstorm |
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | needs-brainstorm |
-| [0032](active/0032-frontmatter-id-validation.md) | Validate numeric id across the frontmatter script family | `low` | build-ready |
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 
 ## 🔵 Implemented — awaiting merge (1)
