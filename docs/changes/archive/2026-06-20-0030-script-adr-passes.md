@@ -2,7 +2,7 @@
 id: 30
 slug: script-adr-passes
 title: Script docket-adr's deterministic passes — index render, ledger checks, ADR-only publish
-status: implemented
+status: done
 priority: high
 created: 2026-06-20
 updated: 2026-06-20
