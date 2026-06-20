@@ -2,10 +2,10 @@
 id: 27
 slug: claude-settings-publish-permission
 title: Auto-grant docket's integration-branch push permission via a per-repo Claude settings rule
-status: implemented
+status: done
 priority: medium
 created: 2026-06-19
-updated: 2026-06-19
+updated: 2026-06-20
 depends_on: [26]
 related: [15, 22, 25, 26]
 adrs: []
