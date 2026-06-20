@@ -2,10 +2,10 @@
 id: 28
 slug: wire-closeout-call-sites
 title: Wire the close-out call sites to the extracted scripts
-status: proposed
+status: killed
 priority: high
 created: 2026-06-19
-updated: 2026-06-19
+updated: 2026-06-20
 depends_on: []
 related: [22, 23, 25, 26]
 adrs: [7]
@@ -74,3 +74,9 @@ Per [the spec](../../superpowers/specs/2026-06-19-wire-closeout-call-sites-desig
   post-mortem; not a blocker.)
 
 ## Reconcile log
+
+## Why killed
+
+Premise invalid — the rewire this change proposed has already shipped. The change assumed 0025's close-out-script rewire never landed in the skills, but that conclusion came from grepping a **stale local checkout**. On `origin/main` all four call sites already invoke the scripts (finalize 9 refs, status 4, new-change 3, implement-next 4).
+
+The real root cause of the #26 `status: done` drop was operational, not a missing rewire: the local primary `main` working tree — the symlink source for `~/.claude/skills` — was 39 commits behind `origin/main`, so `/docket-finalize-change` loaded the pre-0025 *manual-archive* skill and hand-staged the `git mv` + `git add` (which aborted on the moved `active/` pathspec and dropped the status edit). Fixed immediately by fast-forwarding local `main`. The durable fix — a skill-staleness guard / sync discipline so docket skills cannot silently run N commits behind — is being captured as a separate change.
