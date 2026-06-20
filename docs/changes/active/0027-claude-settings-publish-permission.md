@@ -2,7 +2,7 @@
 id: 27
 slug: claude-settings-publish-permission
 title: Auto-grant docket's integration-branch push permission via a per-repo Claude settings rule
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-06-19
 updated: 2026-06-19
@@ -11,11 +11,11 @@ related: [15, 22, 25, 26]
 adrs: []
 spec: docs/superpowers/specs/2026-06-19-claude-settings-publish-permission-design.md
 plan: docs/superpowers/plans/2026-06-19-claude-settings-publish-permission.md
-results:
+results: docs/results/2026-06-19-claude-settings-publish-permission-results.md
 trivial: false
 auto_groomable:
 branch: feat/claude-settings-publish-permission
-pr:
+pr: https://github.com/danielhanold/docket/pull/39
 blocked_by:
 reconciled: true
 ---
