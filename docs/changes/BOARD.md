@@ -1,12 +1,6 @@
 # Backlog
 
-**33 changes** — 🟢 1 in progress · 🟡 8 proposed · 🔵 1 implemented · ✅ 22 done · 🗑️ 1 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0032](active/0032-frontmatter-id-validation.md) | Validate numeric id across the frontmatter script family | `low` | [spec](../superpowers/specs/2026-06-20-frontmatter-id-validation-design.md) | `feat/frontmatter-id-validation` |
+**33 changes** — 🟡 8 proposed · 🔵 2 implemented · ✅ 22 done · 🗑️ 1 killed
 
 ## 🟡 Proposed (8)
 
@@ -21,11 +15,12 @@
 | [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | needs-brainstorm |
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
 | [0031](active/0031-adr-status-check-verb-match.md) | ADR status-consistency check — match the supersede/reverse verb, not just the target id | `low` | [#42](https://github.com/danielhanold/docket/pull/42) |
+| [0032](active/0032-frontmatter-id-validation.md) | Validate numeric id across the frontmatter script family | `low` | [#43](https://github.com/danielhanold/docket/pull/43) |
 
 ```mermaid
 graph TD
