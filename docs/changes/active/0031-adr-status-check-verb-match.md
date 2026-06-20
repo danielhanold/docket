@@ -2,7 +2,7 @@
 id: 31
 slug: adr-status-check-verb-match
 title: ADR status-consistency check — match the supersede/reverse verb, not just the target id
-status: proposed
+status: in-progress
 priority: low
 created: 2026-06-20
 updated: 2026-06-20
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch:
+branch: feat/adr-status-check-verb-match
 pr:
 blocked_by:
 reconciled: false
