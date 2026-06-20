@@ -49,7 +49,7 @@ resolve_deps "$CHANGES_DIR"
 declare -A SECTION         # status -> newline-separated "id\tfile"
 mapfile -t AFILES < <(find "$CHANGES_DIR/active" -maxdepth 1 -name '*.md' 2>/dev/null | sort)
 for f in "${AFILES[@]}"; do
-  id="$(field "$f" id)"; [ -n "$id" ] || continue
+  id="$(int_field "$f" id)"; [ -n "$id" ] || continue
   st="$(field "$f" status)"
   SECTION["$st"]+="$id"$'\t'"$f"$'\n'
 done
@@ -161,7 +161,7 @@ done < <(
 )
 # done nodes (ascending id); killed omitted
 mapfile -t DONE_IDS < <(for f in "${ARCFILES[@]}"; do
-  [ "$(field "$f" status)" = "done" ] && field "$f" id; done | sort -n)
+  [ "$(field "$f" status)" = "done" ] && { v="$(int_field "$f" id)"; [ -n "$v" ] && printf '%s\n' "$v"; }; done | sort -n)
 for id in "${DONE_IDS[@]}"; do [ -n "$id" ] && printf '  %s:::done\n' "$(pad "$id")"; done
 printf '  classDef done fill:#d3f9d8;\n```\n'
 
@@ -179,7 +179,7 @@ if [ $(( ndone + nkilled )) -gt 0 ]; then
     printf '| [%s](archive/%s) | %s | %s |\n' "$(pad "$id")" "$(basename "$f")" "$(field "$f" title)" "$date"
   done < <(
     for f in "${ARCFILES[@]}"; do
-      base="$(basename "$f")"; d="${base:0:10}"; id="$(field "$f" id)"
+      base="$(basename "$f")"; d="${base:0:10}"; id="$(int_field "$f" id)"
       printf '%s\t%s\t%s\n' "$d" "$id" "$f"
     done | sort -t$'\t' -k1,1r -k2,2nr
   )

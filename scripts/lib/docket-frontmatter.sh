@@ -46,12 +46,12 @@ resolve_deps(){ # resolve_deps CHANGES_DIR
   mapfile -t files < <(find "$dir/active" "$dir/archive" -maxdepth 1 -name '*.md' 2>/dev/null | sort)
   # pass 1: id -> own status
   for f in "${files[@]}"; do
-    id="$(field "$f" id)"; [ -n "$id" ] || continue
+    id="$(int_field "$f" id)"; [ -n "$id" ] || continue
     STATUS_OF["$id"]="$(field "$f" status)"
   done
   # pass 2: resolve each change's depends_on into the worst unmet reason + its id
   for f in "${files[@]}"; do
-    id="$(field "$f" id)"; [ -n "$id" ] || continue
+    id="$(int_field "$f" id)"; [ -n "$id" ] || continue
     worst=""; worst_on=""
     for dep in $(list_field "$f" depends_on); do
       dstat="${STATUS_OF[$dep]:-}"
@@ -74,7 +74,7 @@ resolve_deps(){ # resolve_deps CHANGES_DIR
 # --- readiness (precedence pinned: waiting > missing-spec > build-ready) -------
 readiness(){ # readiness FILE  (only meaningful for a proposed change)
   local f="$1" id spec trivial
-  id="$(field "$f" id)"
+  id="$(int_field "$f" id)"
   if [ "${DEP_STATE[$id]:-clear}" = "waiting" ]; then printf 'waiting'; return; fi
   spec="$(field "$f" spec)"; trivial="$(field "$f" trivial)"
   if [ -z "$spec" ] && [ "$trivial" != "true" ]; then
