@@ -1,8 +1,8 @@
 # Backlog
 
-**28 changes** — 🟡 8 proposed · 🔵 1 implemented · ✅ 19 done
+**28 changes** — 🟡 7 proposed · 🔵 1 implemented · ✅ 19 done · 🗑️ 1 killed
 
-## 🟡 Proposed (8)
+## 🟡 Proposed (7)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -13,7 +13,6 @@
 | [0018](active/0018-yq-yaml-parsing.md) | Evaluate adopting yq for YAML parsing across docket scripts | `low` | needs-brainstorm |
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | needs-brainstorm |
-| [0028](active/0028-wire-closeout-call-sites.md) | Wire the close-out call sites to the extracted scripts | `high` | build-ready |
 
 ## 🔵 Implemented — awaiting merge (1)
 
@@ -31,7 +30,6 @@ graph TD
   0015 --> 0019
   0022 --> 0024
   0026 --> 0027
-  0028
   0001:::done
   0002:::done
   0003:::done
@@ -54,10 +52,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅ Archive — done (19)</summary>
+<details><summary>✅🗑️ Archive — done + killed (20)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0028](archive/2026-06-20-0028-wire-closeout-call-sites.md) | Wire the close-out call sites to the extracted scripts | 2026-06-20 |
 | [0026](archive/2026-06-19-0026-config-resolution-script.md) | Extract config resolution + bootstrap guard into a deterministic script | 2026-06-19 |
 | [0025](archive/2026-06-19-0025-closeout-scripts.md) | Extract the shared terminal-transition close-out mechanics into deterministic scripts | 2026-06-19 |
 | [0023](archive/2026-06-19-0023-script-sweep-and-health-checks.md) | Decide and apply scripting vs model-driven for the merge sweep and health checks | 2026-06-19 |
