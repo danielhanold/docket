@@ -1,12 +1,6 @@
 # Backlog
 
-**30 changes** — 🟢 1 in progress · 🟡 8 proposed · ✅ 20 done · 🗑️ 1 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0029](active/0029-sync-integration-after-merge.md) | Fast-forward the local integration branch after a docket merge | `high` | [spec](../superpowers/specs/2026-06-20-sync-integration-after-merge-design.md) | `feat/sync-integration-after-merge` |
+**30 changes** — 🟡 8 proposed · 🔵 1 implemented · ✅ 20 done · 🗑️ 1 killed
 
 ## 🟡 Proposed (8)
 
@@ -20,6 +14,12 @@
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | needs-brainstorm |
 | [0030](active/0030-script-adr-passes.md) | Script docket-adr's deterministic passes — index render, ledger checks, ADR-only publish | `high` | build-ready |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | PR |
+|---|-------|----------|----|
+| [0029](active/0029-sync-integration-after-merge.md) | Fast-forward the local integration branch after a docket merge | `high` | [#40](https://github.com/danielhanold/docket/pull/40) |
 
 ```mermaid
 graph TD
