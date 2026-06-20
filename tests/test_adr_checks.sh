@@ -83,6 +83,29 @@ out2="$(bash "$SCRIPT" --adrs-dir "$d2" 2>/dev/null)"
 assert "status-inconsistent (b) silent when target correctly flipped" '! has_finding "$out2" adr-status-inconsistent 1'
 rm -rf "$d" "$d2"
 
+# ===== adr-status-inconsistent arm (b) verb-mismatch: right id, WRONG verb =====
+# ADR-2 supersedes [1] but ADR-1's status uses the REVERSED verb -> must flag ADR-1.
+d="$(mktemp -d)"
+mkadr "$d" 1 "Reversed by ADR-0002" "[]" "[]" "[]"
+mkadr "$d" 2 Accepted "[1]" "[]" "[]"
+out="$(bash "$SCRIPT" --adrs-dir "$d" 2>/dev/null)"
+assert "status-inconsistent (b) flagged on supersedes-edge w/ reversed-verb target" 'has_finding "$out" adr-status-inconsistent 1'
+rm -rf "$d"
+# ADR-2 reverses [1] but ADR-1's status uses the SUPERSEDED verb -> must flag ADR-1.
+d="$(mktemp -d)"
+mkadr "$d" 1 "Superseded by ADR-0002" "[]" "[]" "[]"
+mkadr "$d" 2 Accepted "[]" "[1]" "[]"
+out="$(bash "$SCRIPT" --adrs-dir "$d" 2>/dev/null)"
+assert "status-inconsistent (b) flagged on reverses-edge w/ superseded-verb target" 'has_finding "$out" adr-status-inconsistent 1'
+rm -rf "$d"
+# control: reverses edge with the CORRECT verb on target -> silent.
+d="$(mktemp -d)"
+mkadr "$d" 1 "Reversed by ADR-0002" "[]" "[]" "[]"
+mkadr "$d" 2 Accepted "[]" "[1]" "[]"
+out="$(bash "$SCRIPT" --adrs-dir "$d" 2>/dev/null)"
+assert "status-inconsistent (b) silent on reverses edge correctly flipped" '! has_finding "$out" adr-status-inconsistent 1'
+rm -rf "$d"
+
 # ===== --strict exits 1 on any finding =====
 d="$(mktemp -d)"
 mkadr "$d" 1 Accepted "[]" "[]" "[]"
