@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/sync-integration-after-merge
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Why
@@ -70,3 +70,25 @@ Per [the spec](../../superpowers/specs/2026-06-20-sync-integration-after-merge-d
   acceptable — the end behavior is identical.
 
 ## Reconcile log
+
+### 2026-06-20 — reconcile (build claim)
+
+Verified against current `origin/main` + `origin/docket`; the spec holds unchanged. No
+scope adjustment, nothing folded in or dropped.
+
+- **Targets confirmed absent** — `scripts/sync-integration-branch.sh` and
+  `tests/test_sync_integration_branch.sh` do not exist; both are net-new (no prior
+  partial landed).
+- **Two merge sites confirmed** — `docket-finalize-change` ends its close-out at step 5
+  (Board); the helper call goes *after* that. `docket-status`'s merge sweep is the second
+  site. The prose audit (`grep`) shows these are the only two docket operations that merge
+  PRs; terminal-publish copies records but never merges, so it is correctly out of scope.
+- **Lineage** — this is the durable fix 0028's `## Why killed` explicitly deferred ("the
+  durable fix … is being captured as a separate change"). 0028 itself was a no-op once its
+  premise (a missing rewire) was disproven; the surviving problem is the stale primary
+  checkout, which this change repairs at the two merge sites.
+- **Open question resolved → dedicated helper.** Kept as a script, not inlined: it is
+  reused by both sites and is hermetically testable, matching the established extraction
+  precedent (`github-mirror.sh`, `render-board.sh`, the 0025 close-out scripts) and ADR
+  0007's script-owns-*how* / skill-owns-*when* split. Best-effort posture follows
+  `github-mirror.sh` (skip-and-note, never fail-closed), not `archive-change.sh`.
