@@ -1,6 +1,6 @@
 # Backlog
 
-**33 changes** — 🟡 8 proposed · 🔵 2 implemented · ✅ 22 done · 🗑️ 1 killed
+**33 changes** — 🟡 8 proposed · ✅ 24 done · 🗑️ 1 killed
 
 ## 🟡 Proposed (8)
 
@@ -15,13 +15,6 @@
 | [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | needs-brainstorm |
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 
-## 🔵 Implemented — awaiting merge (2)
-
-| # | Title | Priority | PR |
-|---|-------|----------|----|
-| [0031](active/0031-adr-status-check-verb-match.md) | ADR status-consistency check — match the supersede/reverse verb, not just the target id | `low` | [#42](https://github.com/danielhanold/docket/pull/42) |
-| [0032](active/0032-frontmatter-id-validation.md) | Validate numeric id across the frontmatter script family | `low` | [#43](https://github.com/danielhanold/docket/pull/43) |
-
 ```mermaid
 graph TD
   0007
@@ -31,8 +24,6 @@ graph TD
   0016 --> 0018
   0015 --> 0019
   0022 --> 0024
-  0030 --> 0031
-  0030 --> 0032
   0030 --> 0033
   0001:::done
   0002:::done
@@ -56,13 +47,17 @@ graph TD
   0027:::done
   0029:::done
   0030:::done
+  0031:::done
+  0032:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (23)</summary>
+<details><summary>✅🗑️ Archive — done + killed (25)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0032](archive/2026-06-20-0032-frontmatter-id-validation.md) | Validate numeric id across the frontmatter script family | 2026-06-20 |
+| [0031](archive/2026-06-20-0031-adr-status-check-verb-match.md) | ADR status-consistency check — match the supersede/reverse verb, not just the target id | 2026-06-20 |
 | [0030](archive/2026-06-20-0030-script-adr-passes.md) | Script docket-adr's deterministic passes — index render, ledger checks, ADR-only publish | 2026-06-20 |
 | [0029](archive/2026-06-20-0029-sync-integration-after-merge.md) | Fast-forward the local integration branch after a docket merge | 2026-06-20 |
 | [0028](archive/2026-06-20-0028-wire-closeout-call-sites.md) | Wire the close-out call sites to the extracted scripts | 2026-06-20 |
