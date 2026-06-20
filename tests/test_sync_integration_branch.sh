@@ -87,7 +87,7 @@ after="$(git -C "$W" rev-parse HEAD)"
 parents="$(git -C "$W" rev-list --parents -n1 HEAD | wc -w | tr -d ' ')"
 assert "non-FF: exit 0"                    "[ $rc -eq 0 ]"
 assert "non-FF: tip unchanged"             "[ '$after' = '$before' ]"
-assert "non-FF: no merge commit (1 parent)" "[ '$parents' = '2' ]"   # 'sha parent' = 2 words ⇒ single parent
+assert "non-FF: no merge commit (single parent)" "[ '$parents' = '2' ]"   # 'sha parent' = 2 words ⇒ single parent
 
 # --- Case 5: already current — origin not advanced → no-op ---
 read -r W O < <(new_repo)
