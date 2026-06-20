@@ -4,6 +4,15 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-06-20 (#30, PR #41) — Scripting a "this file is generated — do not hand-edit" ADR index
+  surfaced that the published `README.md` had silently accreted richer text than the source `title:`
+  fields (backticks on one row, trailing clauses on two more) — the new generator emits each
+  frontmatter field verbatim, so all of it is dropped on the first regen. The plan predicted one
+  drifted row; the real-data run found three. Apply: a generated index/board renders its source field
+  verbatim, so any embellishment a human wants to keep must live in that source-of-truth field (the
+  ADR/change frontmatter), never typed into the generated file — and expect a fresh generator's first
+  real run to surface more pre-existing hand-drift than a code read predicts.
+
 - 2026-06-19 (#27, PR #39) — A change promised its locally-written file (`.claude/settings.local.json`)
   would "never be committed onto collaborators," but on the build machine that guarantee only held
   because a *user-global* excludesfile (`~/.config/git/ignore`) ignored it — the repo `.gitignore` did
