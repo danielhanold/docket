@@ -54,6 +54,15 @@ status_target(){
   esac
 }
 
+# status_verb STATUS -> "supersedes" | "reverses" | "" — the edge a back-pointer status implies
+status_verb(){
+  case "$1" in
+    "Superseded by ADR-"*) printf 'supersedes' ;;
+    "Reversed by ADR-"*)   printf 'reverses' ;;
+    *) printf '' ;;
+  esac
+}
+
 # --- adr-numbering-gap: every id missing from 1..MAXID ---
 n=1
 while [ "$n" -le "$MAXID" ]; do
@@ -77,12 +86,23 @@ while IFS= read -r id; do
     emit adr-status-inconsistent "$id" "status '${STATUS[$id]}' but no ADR-$(pad "$tgt") exists"
   fi
 
-  # --- adr-status-inconsistent arm (b): this ADR supersedes/reverses a target NOT flipped back ---
-  for ref in ${SUPS[$id]} ${REVS[$id]}; do
+  # --- adr-status-inconsistent arm (b): supersedes/reverses target NOT flipped back (verb-aware) ---
+  # a supersedes edge requires the target status 'Superseded by ADR-X'; a reverses edge requires
+  # 'Reversed by ADR-X'. Right id but wrong verb is a finding, not a silent pass.
+  for ref in ${SUPS[$id]}; do
     [ -n "${EXISTS[$ref]:-}" ] || continue              # dangling already flagged above
     back="$(status_target "${STATUS[$ref]}")"
-    if [ "$back" != "$id" ]; then
-      emit adr-status-inconsistent "$ref" "ADR-$(pad "$id") supersedes/reverses it but its status is '${STATUS[$ref]}'"
+    verb="$(status_verb "${STATUS[$ref]}")"
+    if [ "$back" != "$id" ] || [ "$verb" != supersedes ]; then
+      emit adr-status-inconsistent "$ref" "ADR-$(pad "$id") supersedes it but its status is '${STATUS[$ref]}' (expected 'Superseded by ADR-$(pad "$id")')"
+    fi
+  done
+  for ref in ${REVS[$id]}; do
+    [ -n "${EXISTS[$ref]:-}" ] || continue              # dangling already flagged above
+    back="$(status_target "${STATUS[$ref]}")"
+    verb="$(status_verb "${STATUS[$ref]}")"
+    if [ "$back" != "$id" ] || [ "$verb" != reverses ]; then
+      emit adr-status-inconsistent "$ref" "ADR-$(pad "$id") reverses it but its status is '${STATUS[$ref]}' (expected 'Reversed by ADR-$(pad "$id")')"
     fi
   done
 done <<<"$SORTED_IDS"
