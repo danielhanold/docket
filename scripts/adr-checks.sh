@@ -30,9 +30,17 @@ pad(){ printf '%04d' "$1"; }
 # --- single scan: existence + status + cross-ref lists, keyed by integer id ---
 declare -A EXISTS STATUS SUPS REVS REL
 IDS=""; MAXID=0
+
+FINDINGS=""
+emit(){ FINDINGS+="$1"$'\t'"$2"$'\t'"$3"$'\n'; }
+
 mapfile -t FILES < <(find "$ADRS_DIR" -maxdepth 1 -name '*.md' ! -name 'README.md' 2>/dev/null | sort)
 for f in "${FILES[@]}"; do
-  id="$(field "$f" id)"; [ -n "$id" ] || continue
+  raw="$(field "$f" id)"; id="$(int_field "$f" id)"
+  if [ -z "$id" ]; then
+    [ -n "$raw" ] && emit malformed-id "$raw" "non-integer id '$raw' in $(basename "$f")"
+    continue
+  fi
   EXISTS["$id"]=1
   STATUS["$id"]="$(field "$f" status)"
   SUPS["$id"]="$(list_field "$f" supersedes)"
@@ -41,9 +49,6 @@ for f in "${FILES[@]}"; do
   IDS+="$id"$'\n'
   [ "$id" -gt "$MAXID" ] && MAXID="$id"
 done
-
-FINDINGS=""
-emit(){ FINDINGS+="$1"$'\t'"$2"$'\t'"$3"$'\n'; }
 
 # status_target STATUS -> bare integer id from "Superseded by ADR-0006" / "Reversed by ADR-0006" ("" otherwise)
 status_target(){

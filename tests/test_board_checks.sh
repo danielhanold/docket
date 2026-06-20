@@ -310,6 +310,12 @@ assert "merge-gate-stall names the blocking dep #30" \
 assert "merge-gate-stall silent for a change waiting on a not-yet-built dep (id 33)" \
   '! has_finding "$mout" merge-gate-stall 33'
 
+# ============================ malformed-id: a non-integer change id is flagged ============================
+read -r work origin <<<"$(new_repo)"
+printf -- '---\nid: abc\nslug: bad\ntitle: Bad\nstatus: proposed\npriority: low\ndepends_on: []\n---\n' > "$work/docs/changes/active/0001-bad.md"
+out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$work/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "board malformed-id flagged on non-integer change id 'abc'" 'has_finding "$out" malformed-id abc'
+
 # ============================ docket-status wiring sentinels (SKILL is code on main) ============================
 assert "docket-status Health checks invoke board-checks.sh" \
   'grep -qF "scripts/board-checks.sh" "$SKILL"'
