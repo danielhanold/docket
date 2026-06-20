@@ -1,12 +1,6 @@
 # Backlog
 
-**28 changes** — 🟢 1 in progress · 🟡 8 proposed · ✅ 19 done
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0027](active/0027-claude-settings-publish-permission.md) | Auto-grant docket's integration-branch push permission via a per-repo Claude settings rule | `medium` | [spec](../superpowers/specs/2026-06-19-claude-settings-publish-permission-design.md) | `feat/claude-settings-publish-permission` |
+**28 changes** — 🟡 8 proposed · 🔵 1 implemented · ✅ 19 done
 
 ## 🟡 Proposed (8)
 
@@ -20,6 +14,12 @@
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | needs-brainstorm |
 | [0028](active/0028-wire-closeout-call-sites.md) | Wire the close-out call sites to the extracted scripts | `high` | build-ready |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | PR |
+|---|-------|----------|----|
+| [0027](active/0027-claude-settings-publish-permission.md) | Auto-grant docket's integration-branch push permission via a per-repo Claude settings rule | `medium` | [#39](https://github.com/danielhanold/docket/pull/39) |
 
 ```mermaid
 graph TD
