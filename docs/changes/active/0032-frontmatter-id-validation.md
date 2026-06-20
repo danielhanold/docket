@@ -2,7 +2,7 @@
 id: 32
 slug: frontmatter-id-validation
 title: Validate numeric id across the frontmatter script family
-status: in-progress
+status: implemented
 priority: low
 created: 2026-06-20
 updated: 2026-06-20
@@ -11,11 +11,11 @@ related: [30, 22, 23]
 adrs: [12]
 spec: docs/superpowers/specs/2026-06-20-frontmatter-id-validation-design.md
 plan: docs/superpowers/plans/2026-06-20-frontmatter-id-validation.md
-results:
+results: docs/results/2026-06-20-frontmatter-id-validation-results.md
 trivial: false
 auto_groomable: true
 branch: feat/frontmatter-id-validation
-pr:
+pr: https://github.com/danielhanold/docket/pull/43
 blocked_by:
 reconciled: true
 ---
