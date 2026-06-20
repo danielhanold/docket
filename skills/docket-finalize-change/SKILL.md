@@ -85,6 +85,8 @@ The per-change steps below run for each selected change.
 
 5. **Board** — regenerate `BOARD.md` (`docket-status`'s Board pass) in the metadata working tree and commit + push it on `metadata_branch` (in `docket`-mode, `origin/docket`) as a separate commit from the archive commits above. The board is the **live planning view and stays on `metadata_branch`** — it is never published to the integration branch.
 
+6. **Sync the integration checkout (best-effort)** — once at the very end of the run (after the board step, so a batch finalize fast-forwards once after all its merges): `scripts/sync-integration-branch.sh --integration-branch <integration_branch>`. This fast-forwards the clone's local `<integration_branch>` checkout to the tip the merges just pushed, keeping the skills symlinked from it current (change 0029). It is **best-effort like the board** (per the convention's Branch model): FF-only, guarded (on-branch + clean + true-FF), and it **never aborts or alters the close-out** — every skip (wrong branch, dirty tree, non-FF, fetch failure) is a normal exit 0. A no-op in `main`-mode where the metadata working tree already *is* the integration checkout.
+
 **Note:** This archive procedure is **identical** to `docket-status`'s merge-sweep archive — same UTC merge date, same change-file-only commit, same reuse-existing-file idempotency, same terminal-publish invocation. Both skills describe the same operation; they must not diverge.
 
 ## The rebase-retest merge gate

@@ -155,6 +155,8 @@ For each `implemented` change:
 
    h. **Harvest learnings (best-effort)** — invoke the harvest procedure (the *Harvest learnings* step in `docket-finalize-change`, its single source) for the swept change. Its idempotency probe makes a sweep racing `docket-finalize-change` a safe no-op. Best-effort like the board: log and continue on failure — never abort the sweep for it.
 
+   i. **Sync the integration checkout (best-effort)** — once after the sweep's merges + publishes complete: `scripts/sync-integration-branch.sh --integration-branch <integration_branch>`. Same best-effort, FF-only helper finalize runs (change 0029) — it fast-forwards the clone's local `<integration_branch>` checkout so the symlinked skills track the just-swept merges. Omitting it would leave swept close-outs stale. Best-effort like the board: never aborts the sweep; a no-op in `main`-mode.
+
 **Determinism invariant.** Two agents both reading `implemented` produce a byte-identical add (change-file-only, UTC merge date, no `now()`). The loser's `pull --rebase` resolves cleanly because both adds are identical. `BOARD.md` is regenerated separately, never hand-merged.
 
 **Note:** This archive procedure is **identical** to `docket-finalize-change`'s per-change archive — same UTC merge date, same change-file-only commit, same reuse-existing-file idempotency, same terminal-publish invocation. Both skills describe the same operation; they must not diverge.
