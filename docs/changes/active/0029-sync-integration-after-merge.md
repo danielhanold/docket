@@ -10,7 +10,7 @@ depends_on: []
 related: [25, 26, 28]
 adrs: [7]
 spec: docs/superpowers/specs/2026-06-20-sync-integration-after-merge-design.md
-plan:
+plan: docs/superpowers/plans/2026-06-20-sync-integration-after-merge.md
 results:
 trivial: false
 auto_groomable:
