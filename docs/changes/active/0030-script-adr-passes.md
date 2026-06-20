@@ -8,7 +8,7 @@ created: 2026-06-20
 updated: 2026-06-20
 depends_on: []
 related: [22, 23, 25, 26]
-adrs: [2, 7, 12]
+adrs: [2, 7, 12, 13]
 spec: docs/superpowers/specs/2026-06-20-script-adr-passes-design.md
 plan: docs/superpowers/plans/2026-06-20-script-adr-passes.md
 results:
