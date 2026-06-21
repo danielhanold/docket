@@ -4,6 +4,22 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-06-21 (#37, PR #48) — A change stripping prose from `docket-status/SKILL.md` was mid-build when
+  PR #47 (#36) merged into `origin/main` with newer fixes to the *same* file. Rebasing onto the new
+  base, the reflexive "keep my side" of the conflict would have **silently reverted** #36's ordering +
+  failure-posture fixes — the branch's version simply predated them. Apply: when the integration branch
+  advances mid-build into a file you're editing, resolve the rebase by *intent* against the landed
+  version, and recognize when a same-file change that merged *after* you diverged **supersedes** your
+  edit (drop yours) rather than treating it as a conflict to win.
+
+- 2026-06-21 (#37, PR #48) — A test pins a literal substring (`the integration branch), performing the
+  archive move`) as a *presence* sentinel via `grep -q`. A prose strip satisfied the grep by
+  **relocating** the substring into a docket-mode bullet — passing GREEN while producing a
+  factually-wrong sentence (docket-mode archives on `origin/docket`, not the integration branch). Caught
+  in review. Apply: a `grep -q "literal"` presence sentinel is satisfied by the literal appearing
+  *anywhere* — keep such a must-preserve substring in its **meaningful location as grammatical prose**,
+  never relocate/jam it to pass the grep (the false-GREEN twin of #36's false-RED absence-sentinel).
+
 - 2026-06-21 (#36, PR #47) — A `! grep "must-not-say-X"` absence-sentinel was self-defeating: the
   doc legitimately contained X inside a *contrastive* clause ("…deliberately divergent from finalize's
   `non-zero ⇒ abort-and-report`…"), which a blunt absence-grep cannot tell apart from the forbidden
