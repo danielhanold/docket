@@ -1,12 +1,6 @@
 # Backlog
 
-**35 changes** — 🟢 1 in progress · 🟡 9 proposed · ✅ 24 done · 🗑️ 1 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0035](active/0035-artifact-links.md) | Artifact links — a generated link block at the top of every change | `medium` | [spec](../superpowers/specs/2026-06-21-artifact-links-design.md) | `feat/artifact-links` |
+**35 changes** — 🟡 9 proposed · 🔵 1 implemented · ✅ 24 done · 🗑️ 1 killed
 
 ## 🟡 Proposed (9)
 
@@ -21,6 +15,12 @@
 | [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | needs-brainstorm |
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0034](active/0034-consuming-repo-script-resolution.md) | Helper scripts unreachable in consuming repos — skills call repo-relative `scripts/…` that exists only in the docket source repo | `high` | needs-brainstorm |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | PR |
+|---|-------|----------|----|
+| [0035](active/0035-artifact-links.md) | Artifact links — a generated link block at the top of every change | `medium` | [#44](https://github.com/danielhanold/docket/pull/44) |
 
 ```mermaid
 graph TD
