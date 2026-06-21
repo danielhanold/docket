@@ -9,7 +9,7 @@ updated: 2026-06-21
 depends_on: [34]
 related: [34]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-06-21-skill-fallback-progressive-disclosure-design.md
 plan:
 results:
 trivial: false
@@ -19,6 +19,14 @@ pr:
 blocked_by:
 reconciled: false
 ---
+
+## Artifacts
+
+<!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-06-21-skill-fallback-progressive-disclosure-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-06-21-skill-fallback-progressive-disclosure-design.md) |
+<!-- docket:artifacts:end -->
 
 ## Why
 
@@ -38,15 +46,28 @@ each script) but **moved off the hot path**.
 
 ## What changes
 
-Relocate the per-skill manual-fallback / script-contract prose out of each `SKILL.md` into
-an **on-demand sibling file**, linked from the skill via **progressive disclosure** — the
-same pattern docket already uses for `docket-convention/github-board-mirror.md` ("read it
-when `board_surfaces` includes `github`") and the `*-template.md` siblings.
+Give every helper script an authoritative, readable prose contract **co-located with the
+script** — `scripts/<name>.md` beside `scripts/<name>.sh` — and shed the script-*internals*
+prose out of the always-loaded skill bodies onto it. Two wins in one: a durable per-script
+spec (bash is the hard-to-read part) **and** slimmer skill bodies. Design detail is in the
+linked spec; the shape:
 
-- Each skill's `SKILL.md` keeps a short pointer ("if a script is unreachable / you need the
-  operation's contract, see `<sibling>.md`") instead of the inline prose.
-- The detailed operations prose moves to the sibling, loaded only when needed.
-- Net effect: every `SKILL.md` shrinks; no prose is lost.
+- **Exhaustive, scaled to complexity.** Every script gets a contract — full mechanics for
+  `terminal-publish.sh`, a tight few lines for a thin wrapper.
+- **Co-located, reachable via #34's `DOCKET_SCRIPTS_DIR`** (`$DOCKET_SCRIPTS_DIR/<name>.md`) —
+  so consuming repos reach the contract by the same mechanism #34 built for the scripts.
+- **The naming convention is the pointer.** Stated once in `docket-convention`: every
+  `scripts/<name>.sh` has a co-located `scripts/<name>.md` — no hand-written pointer at the
+  ~65 call sites.
+- **Body↔contract boundary:** bodies keep the *operational* facts (when to call, the args,
+  exit-code handling, step ordering); the script's *internals* move to the contract. The
+  convention is special-cased — it keeps the conceptual definitions it owns (knob/verdict
+  meaning, the bootstrap 2×2 semantics) and points to `scripts/docket-config.md` for the
+  script's mechanics.
+- **Drift discipline:** a test-suite static audit asserts `scripts/*.sh` ↔ `scripts/*.md`
+  match 1:1 (catches a script or contract added/removed without its pair); content fidelity is
+  left to co-location + review. `docket-convention/github-board-mirror.md` stays put — it is
+  skill-reference, not a single-script contract.
 
 **Folded in (found at #34's merge gate):** harden `tests/test_consuming_repo_scripts.sh`
 so it can't false-RED. Its fail-loud assertions (the `${DOCKET_SCRIPTS_DIR:?…}` checks)
@@ -62,21 +83,8 @@ because this change already revisits the suite's sentinels.
 ## Out of scope
 
 - The script-reachability fix itself (`DOCKET_SCRIPTS_DIR`, install-time injection,
-  fail-loud) — that is **#34**, which this builds on.
+  fail-loud) — that is **#34** (now done), which this builds on.
 - Rewriting the scripts or their behaviour.
-
-## Open questions
-
-- **Framing/naming of the sibling.** Post-#34 the prose is really the script's
-  *operations/contract reference*, not a "re-implement by hand" path. Name and frame it as
-  such (e.g. `operations.md` / `<skill>-contract.md`) rather than "manual-fallback", so it
-  reads as authoritative reference, not an encouraged escape hatch?
-- **Granularity.** One sibling per skill, or one shared reference per *script* that multiple
-  skills link (several skills invoke the same scripts — `archive-change.sh`,
-  `terminal-publish.sh`, `render-board.sh`)? A per-script contract referenced by many skills
-  avoids restating the same prose in N siblings.
-- **Drift discipline.** The script stays the source of truth; the sibling must not silently
-  drift from it. Add a check (mirroring #34's CI drift-guard) that the contract reference
-  stays in sync — or keep the convention's "prose is the contract" assertion as the binding
-  rule and audit at review.
-- **Which skills.** All eight bodies, or only those with substantial inline operations prose?
+- Mechanical content-sync verification of prose against bash (flaky/gameable — the audit is
+  existence-only; content fidelity rests on co-location + review).
+- `docket-convention/github-board-mirror.md` — skill-reference, not a single-script contract.
