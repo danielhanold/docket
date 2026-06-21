@@ -1,8 +1,8 @@
 # Backlog
 
-**37 changes** — 🟡 10 proposed · 🔵 1 implemented · ✅ 25 done · 🗑️ 1 killed
+**38 changes** — 🟡 11 proposed · 🔵 1 implemented · ✅ 25 done · 🗑️ 1 killed
 
-## 🟡 Proposed (10)
+## 🟡 Proposed (11)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -16,6 +16,7 @@
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0036](active/0036-status-sweep-double-archive.md) | docket-status sweep — delegate archiving to archive-change.sh (remove the double-archive) | `low` | build-ready |
 | [0037](active/0037-skill-fallback-progressive-disclosure.md) | Slim skills — move the per-skill manual-fallback / script-contract prose into on-demand sibling files | `medium` | ⏳ waiting on #34 — needs your merge |
+| [0038](active/0038-test-grep-stray-dash-warning.md) | Test suite — drop over-escaped dashes in test_docket_metadata_branch.sh grep (silences "stray \ before -") | `low` | build-ready |
 
 ## 🔵 Implemented — awaiting merge (1)
 
@@ -36,6 +37,7 @@ graph TD
   0034
   0035 --> 0036
   0034 --> 0037
+  0038
   0001:::done
   0002:::done
   0003:::done
