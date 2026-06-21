@@ -63,7 +63,7 @@ Then run `superpowers:brainstorming` WITH THE HUMAN, seeded with the stub's body
 
 All four exits reuse existing transitions — this skill introduces no new lifecycle status:
 
-1. **Spec** (the normal exit): write the design doc natively to `.docket/docs/superpowers/specs/<UTC date>-<slug>-design.md` (on `metadata_branch`); set `spec:`; refresh the change body to the settled design (keep it at proposal altitude — design detail lives in the spec); remove resolved `## Open questions` entries; set `updated: <UTC today>`. The change is now build-ready.
+1. **Spec** (the normal exit): write the design doc natively to `.docket/docs/superpowers/specs/<UTC date>-<slug>-design.md` (on `metadata_branch`); set `spec:`; refresh the change body to the settled design (keep it at proposal altitude — design detail lives in the spec); remove resolved `## Open questions` entries; set `updated: <UTC today>`. After writing `spec:`, regenerate the change's `## Artifacts` block: `scripts/render-change-links.sh --change-file .docket/<changes_dir>/active/<id>-<slug>.md --adrs-dir .docket/<adrs_dir>` (trivial verdict has no spec — block stays empty until build; the block edit rides with this spec-write commit; the renderer is the sole writer of the block). The change is now build-ready.
 2. **Trivial verdict**: the brainstorm concludes there is no real design question — set `trivial: true`, tighten the body, no spec, set `updated:`. Also build-ready.
 3. **Kill**: the stub is obsolete, a duplicate, or decided against — follow the proposed-kill sub-path in `docket-new-change` (it owns the kill mechanics; do not restate them here).
 4. **Defer**: right idea, wrong time — set `status: deferred`, add `## Why deferred`, set `updated:`.
