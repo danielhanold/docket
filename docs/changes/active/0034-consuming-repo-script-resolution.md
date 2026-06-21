@@ -83,49 +83,57 @@ contract), surfaced in every consuming repo, not a markhaus problem.
 
 ## What changes
 
-Make the deterministic helper scripts **reliably reachable from any consuming
-repo**, and make their absence **fail loud** instead of degrading silently. The
-actual mechanism is a design decision to be groomed — candidate approaches,
-roughly in order of preference:
+The whole problem reduces to one thing: **the skills need a single absolute path
+to the docket clone's `scripts/`**, instead of the bare CWD-relative `scripts/…`.
+So the fix is small — give them that path and make its absence fail loud. Two
+simple mechanisms, both grounded in machinery docket already has:
 
-1. **Ship a `docket` CLI on `PATH` (recommended).** Have `install.sh` symlink a
-   single dispatcher (or each `docket-*.sh`) into a `PATH` dir (`~/.local/bin`,
-   or alongside the harness install), and change the skills to call
-   `docket config --export` / `docket render-board …` / `docket archive-change …`
-   etc. The skills are *already* globally available via symlink and run from
-   arbitrary consuming-repo CWDs; the scripts should be globally resolvable the
-   same way, with no per-repo install and no CWD assumption. One install, every
-   repo. (Keep `scripts/` as the implementation behind the dispatcher.)
+### A. Env var pointing at the live scripts dir — **recommended**
 
-2. **Resolve an absolute scripts dir at skill Step 0.** Since each installed
-   skill is an absolute symlink back into `~/dev/docket/skills/<name>`, a skill
-   can resolve its own real path (`readlink`/`realpath`) to derive
-   `…/docket/scripts/` and invoke scripts through that absolute dir
-   (`"$DOCKET_SCRIPTS"/docket-config.sh …`). No install change, but the
-   resolution preamble must be harness-agnostic and robust to non-symlink
-   installs.
+- `install.sh` already computes the docket clone's absolute path
+  (`SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"`), so it already
+  *holds* the value. Have it write `env.DOCKET_SCRIPTS = "$SCRIPT_DIR/scripts"`
+  into the **user-level** `~/.claude/settings.json` `env` block (and a shell-profile
+  `export` as the cross-harness fallback). User-level ⇒ every repo and every
+  worktree sees it, no per-repo step.
+- Skills change `scripts/docket-config.sh` → `"${DOCKET_SCRIPTS:?run docket/install.sh}/docket-config.sh"`
+  — a uniform, ~one-token-per-call-site edit. The `:?` form makes a missing/incomplete
+  install **fail loud with the remedy**, folding the guardrail (was option 5) in for free.
+- **No drift.** It points at the single live clone — the same clone the skill
+  symlinks already point into — so skills (live) and scripts (live) stay
+  version-matched automatically. This is the property that makes it strictly
+  better than copying.
+- **Reuses existing plumbing.** `scripts/ensure-claude-settings.sh` (change 0027)
+  already writes `<repo>/.claude/settings.local.json` idempotently with `jq`; the
+  same pattern writes the `env` entry. Low-surface, well-trodden.
 
-3. **Vendor the scripts into the consuming repo at migrate time.** Have
-   `migrate-to-docket.sh` copy (or symlink) `scripts/docket-*.sh` + `scripts/lib/`
-   into the target repo's `scripts/`, **committed**, so every clone/agent/device
-   has them (the same reproducibility argument the convention makes for committed
-   config). Makes the bare `scripts/…` path resolve as-written. Costs: copies
-   drift from the source repo, symlinks don't survive other clones/machines, and
-   the consuming repo gets pinned to a docket version.
+### B. Copy/symlink the scripts into a relative `.claude/` dir — alternative
 
-4. **Symlink a per-repo `scripts/`/`.docket/bin` shim via an install step.** A
-   `link-scripts.sh` (sibling of `link-skills.sh`) that points a known per-repo
-   location at the docket `scripts/`. Less clean than `PATH`, repo-local.
+- Place the scripts at a stable relative spot that does **not** collide with the
+  project's own `scripts/` (the original confusion): e.g. `<repo>/.claude/docket/scripts/`,
+  resolved by skills as `.claude/docket/scripts/docket-config.sh`. Self-contained per repo.
+- Trade-off: a **copy drifts** — the scripts are actively developed in lockstep
+  with the skills, so a copied script lags a live skill edit; you'd need a re-sync
+  on every docket update (an `install`/`migrate --repair` step). A **symlink** at
+  that path avoids drift but does not survive a fresh clone on another machine.
+  The only thing copying buys is hermetic, version-pinned reproducibility — not
+  the goal here.
 
-5. **Guardrail (pair with whichever real fix): fail-closed Step 0 presence
-   check.** Each skill's Step 0 detects an unresolvable `docket-config.sh` and
-   **STOPs with an actionable remediation** ("docket scripts not found — run
-   `bash /path/to/docket/install.sh`"), rather than emitting a bare
-   `no such file or directory` and silently hand-working the rest. This turns a
-   silent guarantee-loss into a loud, fixable error and is cheap to add now.
+### Either way
 
-A one-off **repair for already-migrated consuming repos** (markhaus today has the
-scripts absent) is part of the rollout, however the mechanism is chosen.
+- **Fail loud, not silent.** Whichever resolution is chosen, an unresolvable
+  scripts dir must STOP with an actionable message (`DOCKET_SCRIPTS` unset / scripts
+  not found → run `docket/install.sh`), never the bare `no such file or directory`
+  that the agent silently works around today.
+- **Back-fill already-migrated repos** (markhaus has the scripts absent now) — the
+  env-var route fixes this automatically once `install.sh` is re-run (user-level,
+  repo-agnostic); the copy route needs a per-repo repair pass.
+
+*Also considered (heavier, demoted):* a `docket` CLI dispatcher on `PATH`
+(equivalent reach to A but adds a dispatcher layer + a `PATH` install); resolving
+the scripts dir from the skill symlink's own realpath at Step 0 (no install change,
+but fragile across harnesses and non-symlink installs); a per-repo `link-scripts.sh`
+shim. All are strictly more moving parts than A for the same outcome.
 
 ## Out of scope
 
@@ -138,17 +146,23 @@ scripts absent) is part of the rollout, however the mechanism is chosen.
 
 ## Open questions
 
-- **Which approach** (CLI-on-`PATH` vs absolute-resolve-at-Step-0 vs
-  vendor-at-migrate vs per-repo shim) — and is it one mechanism or a
-  primary + the Step-0 guardrail?
-- **Harness-agnostic resolution:** if we resolve via the skill symlink, how do we
-  stay robust across `.claude`/`.codex`/`.cursor`/… and non-symlink installs?
-- **Reproducibility vs drift:** a committed per-repo copy guarantees every clone
-  has the scripts but pins a docket version and can drift; a `PATH`/symlink model
-  avoids drift but depends on machine setup. Which guarantee matters more?
-- **Fail-closed vs documented fallback:** should Step 0 hard-STOP on missing
-  scripts, or keep the manual prose path available behind an explicit flag?
-- **Back-fill:** how do already-migrated repos (markhaus) get repaired — a
-  `migrate-to-docket.sh --repair`, an `install.sh` step, or a documented one-liner?
+Leaning toward **approach A (env var)**; the remaining unknowns are mostly about
+the injection point:
+
+- **Does the var reach the agent's non-interactive shell?** Confirm Claude Code
+  injects `~/.claude/settings.json` `env` into the Bash-tool environment (the
+  load-bearing assumption). If yes, that is the primary injector; a shell-profile
+  `export` is the cross-harness fallback.
+- **Per-harness injection:** docket targets `.claude`/`.codex`/`.cursor`/… — what
+  is the equivalent `env` mechanism in each, and does `install.sh` write all the
+  present ones (mirroring how `link-skills.sh` links into each present harness)?
+- **User-level vs per-repo settings:** user-level `~/.claude/settings.json` is
+  repo-agnostic (one write, every worktree) — preferred — but is committed/global;
+  per-repo `.claude/settings.local.json` (the `ensure-claude-settings.sh` precedent)
+  is gitignored/per-user and would need re-running per clone. Pick the level.
+- **Should the manual prose fallback stay?** Once the scripts are reliably
+  reachable + fail loud, is the convention's "prose is the contract" path retired
+  to true-last-resort, or kept behind an explicit override?
 - **CI / drift guard:** mirror `sync-agents.sh --check` with a check that a
-  consuming repo can actually resolve `docket-config.sh` (catch this class early).
+  consuming repo can actually resolve `docket-config.sh` via `DOCKET_SCRIPTS`
+  (catch this whole class early).
