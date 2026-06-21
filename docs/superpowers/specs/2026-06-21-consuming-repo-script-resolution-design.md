@@ -214,3 +214,26 @@ deterministic layer the model defers to, and this change restores that layer's
 reachability from consuming repos. Likely **produces a new ADR** recording the
 consuming-repo script-resolution contract (`DOCKET_SCRIPTS_DIR`, profile-`export`-primary +
 settings-`env`-reinforcement, fail-loud) — assigned at build time by `docket-adr`.
+
+## Reconcile note (2026-06-21 — implement-next, pre-plan)
+
+Verified against current `origin/main` (46c4520); every decision above holds unchanged. Three
+build-reality refinements for the plan (full record in the change's `## Reconcile log`):
+
+1. **Drift-guard = test-suite static audit, not GitHub Actions.** The repo has no
+   `.github/workflows/` CI. The decision-11 "`sync-agents.sh --check`-style gate" lands in
+   `tests/` — mirroring `tests/test_change_links_coverage.sh` (a repo-wide sentinel scan) and how
+   `sync-agents.sh --check` is itself exercised by `tests/test_sync_agents.sh`. The test suite is
+   the de-facto gate; a `--check`-style invocable is the right shape and is wired into it.
+2. **Wiring-sentinel updates are in-scope (newly surfaced).** Rewriting the ~65 call sites removes
+   the literal `scripts/<name>.sh` substring from each skill body, which breaks ~8 existing
+   sentinel tests that grep for it: `test_change_links_coverage`, `test_docket_config`,
+   `test_render_board`, `test_closeout`, `test_adr_checks`, `test_render_adr_index`,
+   `test_board_checks`. Update each to the `DOCKET_SCRIPTS_DIR`-resolved form in lockstep. Leave
+   doc-reference greps that intentionally point at the docket clone's own path (e.g.
+   `test_ensure_claude_settings.sh`'s README check, which documents
+   `bash /path/to/docket/scripts/ensure-claude-settings.sh`).
+3. **Settings-`env` write target.** User-level `~/.claude/settings.json` `.env.DOCKET_SCRIPTS_DIR`,
+   idempotent `jq` per the `ensure-claude-settings.sh` precedent — a *distinct* file from that
+   script's per-repo `settings.local.json` permissions write. The open per-harness question stays
+   low-stakes; default to Claude Code only (the profile `export` is the harness-agnostic guarantee).

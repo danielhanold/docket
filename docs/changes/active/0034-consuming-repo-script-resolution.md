@@ -17,7 +17,7 @@ auto_groomable: false
 branch: feat/consuming-repo-script-resolution
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Why
@@ -55,8 +55,11 @@ env var, and make its absence fail loud:
 - The `:?` form **fails loud** (no more silent degradation). The existing per-skill
   manual-fallback prose is **left in place** here — slimming the skills by relocating it to
   on-demand sibling files (progressive disclosure) is **follow-up #37**.
-- A **CI drift-guard** fails when a consuming repo can't resolve the scripts via
-  `DOCKET_SCRIPTS_DIR`, or when a skill still uses a bare `scripts/` path.
+- A **drift-guard** fails when a consuming repo can't resolve the scripts via
+  `DOCKET_SCRIPTS_DIR`, or when a skill body still uses a bare `scripts/<name>.sh` path. It
+  lands as a **test-suite static audit** (mirroring `tests/test_change_links_coverage.sh`
+  and how `sync-agents.sh --check` is exercised by `tests/test_sync_agents.sh`) — the repo
+  has no `.github/workflows/` CI today, so the test suite is the de-facto gate.
 
 Full design — injection mechanics, the shell floor (zsh/bash `export`, fish `set -gx`,
 POSIX-`export` fallback for others — grounded in how Starship/zoxide/mise/rustup/Homebrew
@@ -81,3 +84,36 @@ relocation is follow-up #37. One build-time question remains:
   harness** (`.claude`/`.codex`/`.cursor`/…, looping like `link-skills.sh`) or only Claude
   Code — low-stakes, since the shell-profile `export` is harness-agnostic and is the actual
   guarantee.
+
+## Reconcile log
+
+### 2026-06-21 — implement-next reconcile (pre-plan)
+
+Verified the spec against current `origin/main` (46c4520, in sync). The change is **valid and
+the design holds** — not obsolete, not invalidated. Every premise checks out against live code:
+
+- **`install.sh`** runs only `link-skills.sh` + `sync-agents.sh` (no script injection) and
+  already exposes the docket clone's absolute path as `SCRIPT_DIR` → inject
+  `DOCKET_SCRIPTS_DIR="$SCRIPT_DIR/scripts"`. **`link-skills.sh`** symlinks skill dirs only;
+  **`migrate-to-docket.sh`** resolves only its own `$MIGRATE_DIR/scripts/ensure-claude-settings.sh`
+  and vendors nothing else. No `DOCKET_SCRIPTS_DIR` exists anywhere yet. Defect confirmed current.
+- **Rewrite scope measured:** ~65 bare `scripts/<name>.sh` call sites across **9 files** — the 8
+  skill/agent bodies (`docket-status` 13, `docket-implement-next` 11, `docket-finalize-change` 10,
+  `docket-convention` 10, `docket-new-change` 7, `docket-adr` 7, `docket-groom-next` 3,
+  `docket-auto-groom` 3) plus `docket-convention/github-board-mirror.md` (1) — all switching to
+  `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/<name>.sh`.
+- **Folded in (new constraint): wiring-sentinel updates are in-scope.** The rewrite removes the
+  literal `scripts/<name>.sh` substring those skill bodies carry, breaking ~8 existing sentinel
+  tests that grep for it (`test_change_links_coverage`, `test_docket_config`, `test_render_board`,
+  `test_closeout`, `test_adr_checks`, `test_render_adr_index`, `test_board_checks`). They must be
+  updated in lockstep to the `DOCKET_SCRIPTS_DIR`-resolved form. Doc-reference greps that point at
+  the docket clone's own path (e.g. `test_ensure_claude_settings.sh`'s README check) stay as-is.
+- **Drift-guard realization adjusted:** no `.github/workflows/` CI exists; it lands as a
+  test-suite static audit (the de-facto gate), per the body edit above.
+- **Settings-`env` reinforcement** targets user-level `~/.claude/settings.json` `.env.DOCKET_SCRIPTS_DIR`
+  via the idempotent-`jq` pattern from `ensure-claude-settings.sh` (a distinct file from that
+  script's per-repo `settings.local.json` permissions write). Open question (per-harness vs
+  Claude-only) stays low-stakes — default to Claude Code only; the harness-agnostic profile
+  `export` is the actual guarantee. Final call deferred to the plan.
+
+No scope dropped; no work already done elsewhere. Proceeding to plan.
