@@ -103,7 +103,7 @@ assert "migrate resolves target via git rev-parse --show-toplevel" \
 assert "migrate no longer cd's to SCRIPT_DIR" \
   '! grep -q "cd \"\$SCRIPT_DIR\"" migrate-to-docket.sh'
 assert "migrate has a --yes/-y confirmation bypass" \
-  'grep -qE "\-\-yes\b|\b-y\b" migrate-to-docket.sh'
+  'grep -qE -e "--yes\b|\b-y\b" migrate-to-docket.sh'
 assert "migrate prompts for confirmation (reads /dev/tty)" \
   'grep -q "/dev/tty" migrate-to-docket.sh'
 
