@@ -8,7 +8,7 @@ created: 2026-06-20
 updated: 2026-06-21
 depends_on: []
 related: [37]
-adrs: [12]
+adrs: [12, 14]
 spec: docs/superpowers/specs/2026-06-21-consuming-repo-script-resolution-design.md
 plan: docs/superpowers/plans/2026-06-21-consuming-repo-script-resolution.md
 results:
@@ -27,7 +27,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-06-21-consuming-repo-script-resolution-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-06-21-consuming-repo-script-resolution-design.md) |
 | Plan | [2026-06-21-consuming-repo-script-resolution.md](https://github.com/danielhanold/docket/blob/feat/consuming-repo-script-resolution/docs/superpowers/plans/2026-06-21-consuming-repo-script-resolution.md) |
-| ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md) |
+| ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0014](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0014-consuming-repo-script-resolution.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
