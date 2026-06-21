@@ -63,4 +63,9 @@ assert "stale path replaced"               'grep -qF "export DOCKET_SCRIPTS_DIR=
 assert "stale path: old value gone"        '! grep -qF "/old/path/scripts" "$H/.zshenv"'
 assert "stale path: still one block"       '[ "$(grep -cF ">>> docket (DOCKET_SCRIPTS_DIR) >>>" "$H/.zshenv")" = "1" ]'
 
+# migrate-to-docket.sh points the user at install.sh for script reachability (DOCKET_SCRIPTS_DIR)
+MIG="$REPO/migrate-to-docket.sh"
+assert "migrate next-steps names DOCKET_SCRIPTS_DIR"  'grep -qF "DOCKET_SCRIPTS_DIR" "$MIG"'
+assert "migrate next-steps points at install.sh"      'grep -qE "install\.sh" "$MIG"'
+
 exit $fail

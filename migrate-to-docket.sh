@@ -396,6 +396,12 @@ cat <<EOF
       single-branch mode.
     - Re-running this script is safe: every step is idempotent and converges from any
       partial state.
+    - Make docket's helper scripts reachable from THIS repo: run docket's installer once on this
+      machine —
+          bash $MIGRATE_DIR/install.sh
+      It exports DOCKET_SCRIPTS_DIR (the path to docket's scripts/) into your shell profile and
+      Claude Code settings, so the skills can run their deterministic helpers here. Re-running it
+      is safe and back-fills any already-migrated clone.
     - A Claude Code allow-rule for docket's terminal-publish push to $INTEGRATION_BRANCH has been
       written to .claude/settings.local.json (gitignored, per-user). Anyone who later CLONES this
       repo can grant themselves the same rule by running:
