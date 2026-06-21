@@ -2,7 +2,7 @@
 id: 36
 slug: status-sweep-double-archive
 title: docket-status sweep — delegate archiving to archive-change.sh (remove the double-archive)
-status: implemented
+status: done
 priority: low
 created: 2026-06-21
 updated: 2026-06-21
