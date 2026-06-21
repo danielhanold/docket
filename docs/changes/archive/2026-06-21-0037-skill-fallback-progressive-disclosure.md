@@ -2,7 +2,7 @@
 id: 37
 slug: skill-fallback-progressive-disclosure
 title: Slim skills — move the per-skill manual-fallback / script-contract prose into on-demand sibling files
-status: implemented
+status: done
 priority: medium
 created: 2026-06-21
 updated: 2026-06-21
