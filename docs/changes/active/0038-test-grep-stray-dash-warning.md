@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/test-grep-stray-dash-warning
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -42,12 +42,24 @@ was surfaced during change #34's regression sweep (the change did not touch this
 
 ## What changes
 
-One-line fix in `tests/test_docket_metadata_branch.sh:106`: drop the two backslashes before the
-leading dashes so the ERE reads `--yes\b|\b-y\b`. The pattern's meaning is unchanged (it still
-matches `--yes` or `-y`); only the spurious warning goes away.
+One-line fix in `tests/test_docket_metadata_branch.sh:106`. The `\-\-yes` over-escaping must go
+(it triggers GNU grep's `stray \ before -` warning), but **simply dropping the backslashes is not
+enough**: an unescaped ERE that *begins* with `--` (`--yes\b|\b-y\b`) is parsed by grep as a
+command-line **option**, not a pattern, so `grep -qE "--yes\b|\b-y\b"` fails with
+`unrecognized option '--yes…'` (exit 2) on GNU grep. The over-escaping was incidentally doubling
+as option-guarding. The correct fix uses grep's explicit pattern flag `-e`:
+
+```sh
+'grep -qE -e "--yes\b|\b-y\b" migrate-to-docket.sh'
+```
+
+`-e <PATTERN>` is POSIX and tells grep the next argument is a pattern, never an option — verified
+to give exit 0 with **empty stderr on both GNU grep and BSD grep**. The assertion's meaning is
+unchanged (it still matches `--yes` or `-y`); the spurious warning goes away and the leading-`--`
+option-parse trap is closed.
 
 After the fix, a full-suite run should leave `test_docket_metadata_branch.sh` with 0-byte
-stderr (it currently emits the one warning line).
+stderr (it currently emits the one warning line under GNU grep).
 
 ## Out of scope
 
@@ -57,3 +69,20 @@ stderr (it currently emits the one warning line).
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-06-21 — reconcile before build
+
+- **Verified the premise against current `origin/main`.** Line 106 is unchanged and still the
+  sole over-escaped grep in `tests/`: `'grep -qE "\-\-yes\b|\b-y\b" migrate-to-docket.sh'`.
+  Reproduced `grep: warning: stray \ before -` with GNU grep (BSD grep stays silent — the warning
+  is GNU/Linux-CI specific, as the change implied). `migrate-to-docket.sh` still carries the
+  `-y|--yes` bypass (line 55), so the assertion remains meaningful.
+- **Corrected the proposed fix — the change body's original fix was wrong.** The body said to
+  "drop the two backslashes" leaving `grep -qE "--yes\b|\b-y\b"`. That FAILS on GNU grep: a pattern
+  beginning with `--` is parsed as a command-line option (`unrecognized option '--yes…'`, exit 2).
+  The `\-` over-escaping was incidentally guarding against option-parsing. Adopted the explicit
+  pattern flag instead: `grep -qE -e "--yes\b|\b-y\b"`. Verified exit 0 + empty stderr on **both**
+  GNU grep and BSD grep. Updated `## What changes` to document this.
+- **Scope unchanged:** single-line edit, one file. `related: [34]` (the regression sweep that
+  surfaced this) is now `done` (PR #45 merged 2026-06-21) — no longer in flight, nothing to fold
+  in from it.
