@@ -292,8 +292,8 @@ assert "wiring(status): sweep names render-change-links.sh in the delegated arch
 # The sweep's failure posture is log-and-continue (its own unique phrasing), NOT abort-and-report.
 assert "wiring(status): sweep failure posture is log-and-continue (abandon the remainder of this change)" \
   'grep -qiE "abandon the remainder of (this|THIS) change" "$STATUS"'
-assert "wiring(status): sweep does NOT adopt finalize abort-and-report for the archive flow" \
-  '! grep -qiE "non-zero . abort-and-report" "$STATUS"'
+assert "wiring(status): sweep documents abort-and-report as a deliberate divergence, not its own posture" \
+  'grep -qiE "deliberately divergent from .?docket-finalize-change" "$STATUS"'
 assert "wiring(new-change): proposed-kill invokes archive-change.sh"   'grep -q "/archive-change.sh" "$NEWCHG"'
 assert "wiring(new-change): proposed-kill invokes terminal-publish.sh" 'grep -q "/terminal-publish.sh" "$NEWCHG"'
 assert "wiring(implement-next): reconcile-kill invokes archive-change.sh"     'grep -q "/archive-change.sh" "$IMPL"'
