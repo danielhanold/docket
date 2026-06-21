@@ -2,7 +2,7 @@
 id: 36
 slug: status-sweep-double-archive
 title: docket-status sweep — delegate archiving to archive-change.sh (remove the double-archive)
-status: in-progress
+status: implemented
 priority: low
 created: 2026-06-21
 updated: 2026-06-21
@@ -11,11 +11,11 @@ related: [35]
 adrs: []
 spec: docs/superpowers/specs/2026-06-21-status-sweep-double-archive-design.md
 plan: docs/superpowers/plans/2026-06-21-status-sweep-double-archive.md
-results:
+results: docs/results/2026-06-21-status-sweep-double-archive-results.md
 trivial: false
 auto_groomable: true
 branch: feat/status-sweep-double-archive
-pr:
+pr: https://github.com/danielhanold/docket/pull/47
 blocked_by:
 reconciled: true
 ---
@@ -27,6 +27,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-06-21-status-sweep-double-archive-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-06-21-status-sweep-double-archive-design.md) |
 | Plan | [2026-06-21-status-sweep-double-archive.md](https://github.com/danielhanold/docket/blob/feat/status-sweep-double-archive/docs/superpowers/plans/2026-06-21-status-sweep-double-archive.md) |
+| Results | [2026-06-21-status-sweep-double-archive-results.md](https://github.com/danielhanold/docket/blob/feat/status-sweep-double-archive/docs/results/2026-06-21-status-sweep-double-archive-results.md) |
+| PR | [#47](https://github.com/danielhanold/docket/pull/47) |
 <!-- docket:artifacts:end -->
 
 ## Why
