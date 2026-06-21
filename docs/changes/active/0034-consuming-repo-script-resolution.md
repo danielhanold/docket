@@ -2,7 +2,7 @@
 id: 34
 slug: consuming-repo-script-resolution
 title: Helper scripts unreachable in consuming repos — skills call repo-relative `scripts/…` that exists only in the docket source repo
-status: in-progress
+status: implemented
 priority: high
 created: 2026-06-20
 updated: 2026-06-21
@@ -11,11 +11,11 @@ related: [37]
 adrs: [12, 14]
 spec: docs/superpowers/specs/2026-06-21-consuming-repo-script-resolution-design.md
 plan: docs/superpowers/plans/2026-06-21-consuming-repo-script-resolution.md
-results:
+results: docs/results/2026-06-21-consuming-repo-script-resolution-results.md
 trivial: false
 auto_groomable: false
 branch: feat/consuming-repo-script-resolution
-pr:
+pr: https://github.com/danielhanold/docket/pull/45
 blocked_by:
 reconciled: true
 ---
@@ -27,6 +27,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-06-21-consuming-repo-script-resolution-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-06-21-consuming-repo-script-resolution-design.md) |
 | Plan | [2026-06-21-consuming-repo-script-resolution.md](https://github.com/danielhanold/docket/blob/feat/consuming-repo-script-resolution/docs/superpowers/plans/2026-06-21-consuming-repo-script-resolution.md) |
+| Results | [2026-06-21-consuming-repo-script-resolution-results.md](https://github.com/danielhanold/docket/blob/feat/consuming-repo-script-resolution/docs/results/2026-06-21-consuming-repo-script-resolution-results.md) |
+| PR | [#45](https://github.com/danielhanold/docket/pull/45) |
 | ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0014](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0014-consuming-repo-script-resolution.md) |
 <!-- docket:artifacts:end -->
 
