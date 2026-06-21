@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/artifact-links
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Why
@@ -72,3 +72,25 @@ rows) are recorded there and open to revision at build time.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-06-21
+
+Reconciled against current `main` (HEAD `279b532`). The change was drafted today, so the world
+had not moved — scope, link form, render mechanism, per-artifact ref lifecycle, and placement
+all hold. One correction folded into the spec; body unchanged.
+
+- **Dropped/adjusted:** nothing. No related change (#1, #11, #22 — all `done`) or ADR (#7, #12
+  — both `Accepted`) shifted the design. No new constraint emerged.
+- **Folded in (spec edit):** the spec said the renderer should "reuse `github-mirror.sh`'s
+  remote resolution" for owner/repo. Verified against current code: `github-mirror.sh` takes
+  `--repo` from its caller and does **not** self-derive the remote — the inline origin-URL
+  derivation actually lives in `render-board.sh` (lines ~31-36). Corrected the spec's renderer
+  Inputs to point the implementer at `render-board.sh`'s pattern (plus an optional `--repo`
+  override for test mocking). Branch refs still come from `docket-config.sh --export`, as
+  written.
+- **Verified holding:** the frontmatter helper API (`field`/`list_field` in
+  `scripts/lib/docket-frontmatter.sh`), the plain-bash golden-file + idempotency + wiring-
+  sentinel test pattern under `tests/`, the field-writing call sites (`docket-new-change`,
+  `docket-groom-next`, `docket-auto-groom`, `docket-implement-next`, `docket-finalize-change`,
+  `docket-status` sweep), `change-template.md`'s location and shape, and the convention-load
+  (not -copy) mechanism guarded by `tests/test_convention_extraction.sh` — all match the spec.

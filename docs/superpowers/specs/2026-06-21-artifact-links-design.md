@@ -104,8 +104,12 @@ A new deterministic script, consistent with the existing `render-board.sh`,
 **Inputs**
 - The change file path (operates on one change at a time).
 - Resolved config via `docket-config.sh --export` — `METADATA_BRANCH`, `INTEGRATION_BRANCH`,
-  `CHANGES_DIR`, `ADRS_DIR`, and the remote owner/repo (reuse `github-mirror.sh`'s remote
-  resolution; a non-GitHub or absent remote ⇒ fallback mode).
+  `CHANGES_DIR`, `ADRS_DIR`. For the remote owner/repo, reuse the inline origin-URL
+  derivation already in `render-board.sh` (lines ~31-36: `git remote get-url origin`, then
+  strip `.git` / `git@github.com:` / `https://github.com/`) — NOT `github-mirror.sh`, which
+  takes `--repo` from its caller and does not self-derive. A non-GitHub or absent remote ⇒
+  fallback mode (bare code-formatted paths). The script may also accept an optional `--repo`
+  override mirroring `render-board.sh`, to stay testable with a mock remote.
 
 **Behavior**
 1. Parse the change frontmatter (`status`, `branch`, `spec`, `plan`, `results`, `adrs`,
