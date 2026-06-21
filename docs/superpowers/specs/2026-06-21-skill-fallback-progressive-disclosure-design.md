@@ -137,9 +137,29 @@ the actual tree).
 
 ## Scope / inventory
 
-All ~14 scripts get a contract; the eight skill bodies lose their script-internals prose.
-The reconcile pass should treat this list as a **floor**, not a ceiling — `ls scripts/*.sh`
-at build time is the authoritative inventory.
+**Reconciled against the tree (2026-06-21).** The authoritative inventory is
+`ls scripts/*.sh` (top-level only) — **13 scripts**, each gets a co-located `scripts/<name>.md`;
+the eight skill bodies lose their script-internals prose:
+
+`adr-checks.sh`, `archive-change.sh`, `board-checks.sh`, `cleanup-feature-branch.sh`,
+`docket-config.sh`, `ensure-claude-settings.sh`, `ensure-docket-env.sh`, `github-mirror.sh`,
+`render-adr-index.sh`, `render-board.sh`, `render-change-links.sh`,
+`sync-integration-branch.sh`, `terminal-publish.sh`.
+
+`ensure-claude-settings.sh` + `ensure-docket-env.sh` landed with #34 (install-time settings +
+env injection) and were not named in the original draft — folded in; the 1:1 audit requires
+their contracts.
+
+**Excluded from the `scripts/*.md` 1:1 set (pinned at reconcile):**
+
+- **Repo-root scripts** — `install.sh`, `link-skills.sh`, `sync-agents.sh`,
+  `migrate-to-docket.sh` live at the repo root, not `scripts/`, so they are *not* reachable via
+  `$DOCKET_SCRIPTS_DIR/<name>.md` and fall outside the §6 audit (which globs top-level
+  `scripts/*.sh`). The original draft's inventory loosely listed three of them — narrowed here.
+  Their convention prose is conceptual/operational (the layered-config model, when each runs)
+  and stays per §4; relocating root-script internals is a possible follow-up, not this change.
+- **`scripts/lib/docket-frontmatter.sh`** — a sourced helper, not an entry point; excluded per
+  §6's recommendation. The audit globs **top-level** `scripts/*.sh` only (non-recursive).
 
 Heaviest prose to relocate (highest context win):
 
@@ -152,7 +172,7 @@ Heaviest prose to relocate (highest context win):
 Lighter (tight contracts; bodies mostly keep just the invocation): `render-board.sh`,
 `render-change-links.sh`, `render-adr-index.sh`, `github-mirror.sh`,
 `cleanup-feature-branch.sh`, `sync-integration-branch.sh`, `board-checks.sh`,
-`adr-checks.sh`, `sync-agents.sh`, `link-skills.sh`, `migrate-to-docket.sh`.
+`adr-checks.sh`, `ensure-claude-settings.sh`, `ensure-docket-env.sh`.
 
 ## Out of scope
 

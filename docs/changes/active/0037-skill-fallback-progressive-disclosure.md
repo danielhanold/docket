@@ -17,7 +17,7 @@ auto_groomable: false
 branch: feat/skill-fallback-progressive-disclosure
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -88,3 +88,37 @@ because this change already revisits the suite's sentinels.
 - Mechanical content-sync verification of prose against bash (flaky/gameable — the audit is
   existence-only; content fidelity rests on co-location + review).
 - `docket-convention/github-board-mirror.md` — skill-reference, not a single-script contract.
+
+## Reconcile log
+
+### 2026-06-21 — reconciled against the as-landed tree (implementer, pre-plan)
+
+Dependency #34 (PR #45) confirmed **done** (archived `2026-06-21-0034-…`); its as-landed form
+verified and pinned for the build:
+
+- **Pointer syntax** is `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/<name>.sh` (43 call
+  sites across the eight skill bodies). Contracts are reached the same way:
+  `"${DOCKET_SCRIPTS_DIR:?…}"/<name>.md`.
+- **#34's bare-path audit** is `tests/test_consuming_repo_scripts.sh`; the **§6 coverage
+  audit** mirrors `tests/test_change_links_coverage.sh` (ROOT resolution + `ok`/`no` + exit
+  `$fail`). New audit name: `tests/test_script_contracts_coverage.sh`.
+- ADR-0012 (script↔model boundary) and ADR-0014 (#34's consuming-repo resolution) both
+  present; this change's body↔contract split is downstream of ADR-0012.
+
+**Inventory pinned** (`ls scripts/*.sh`, top-level): **13 scripts**, each gets
+`scripts/<name>.md`. Two were not named in the original draft —
+`ensure-claude-settings.sh` + `ensure-docket-env.sh` (landed with #34) — **folded in**.
+
+**Scope narrowed** (decisions pinned, see spec *Scope / inventory*):
+- Repo-**root** scripts (`install.sh`, `link-skills.sh`, `sync-agents.sh`,
+  `migrate-to-docket.sh`) are **out** — they live at the repo root, not `scripts/`, and are
+  unreachable via `$DOCKET_SCRIPTS_DIR/<name>.md`; the original draft loosely listed three of
+  them. Their convention prose is conceptual/operational and stays per §4.
+- `scripts/lib/docket-frontmatter.sh` is **out** — sourced helper, not an entry point; the
+  audit globs top-level `scripts/*.sh` only (non-recursive).
+
+**Constraint carried into the plan:** stripping internals prose must not delete literal
+substrings the wiring-sentinel tests grep for — audit `test_convention_extraction.sh`,
+`test_composition_wiring.sh`, `test_change_links_coverage.sh`, `test_render_board.sh`, and the
+per-script tests in lockstep, exactly as #34 did. No new constraints invalidate the design;
+proceeding to plan.
