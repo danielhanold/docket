@@ -151,4 +151,72 @@ else
   no "D: empty block keeps markers, no table header"; sed -n '1,20p' "$cf3"
 fi
 
+# ---- Case E: multiple ADRs, slug resolved from local adr files ----
+mkdir -p "$tmp/adrs"
+cat > "$tmp/adrs/0007-github-board-mirror-boundary.md" <<'EOF'
+---
+id: 7
+slug: github-board-mirror-boundary
+---
+EOF
+cat > "$tmp/adrs/0012-docket-status-script-vs-model-boundary.md" <<'EOF'
+---
+id: 12
+slug: docket-status-script-vs-model-boundary
+---
+EOF
+cf4="$tmp/0096-adrs.md"
+cat > "$cf4" <<'EOF'
+---
+id: 96
+slug: adrs
+status: in-progress
+spec:
+plan:
+results:
+branch: feat/adrs
+pr:
+adrs: [7, 12]
+---
+
+## Artifacts
+
+<!-- docket:artifacts:start (generated — do not hand-edit) -->
+<!-- docket:artifacts:end -->
+
+## Why
+
+x
+EOF
+render "$cf4" --adrs-dir "$tmp/adrs" >/dev/null 2>&1
+expected_adr='| ADRs | [ADR-0007](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0007-github-board-mirror-boundary.md), [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md) |'
+if grep -qF "$expected_adr" "$cf4"; then ok "E: multi-ADR row with resolved slugs"; else no "E: multi-ADR row with resolved slugs"; grep -F '| ADRs' "$cf4" || true; fi
+
+# ---- Case F: missing ADR file => fallback to dir listing link ----
+cf5="$tmp/0095-adrmiss.md"
+cat > "$cf5" <<'EOF'
+---
+id: 95
+slug: adrmiss
+status: in-progress
+spec:
+plan:
+results:
+branch: feat/adrmiss
+pr:
+adrs: [999]
+---
+
+## Artifacts
+
+<!-- docket:artifacts:start (generated — do not hand-edit) -->
+<!-- docket:artifacts:end -->
+
+## Why
+
+x
+EOF
+render "$cf5" --adrs-dir "$tmp/adrs" >/dev/null 2>&1
+if grep -qF '| ADRs | [ADR-0999](https://github.com/danielhanold/docket/blob/docket/docs/adrs) |' "$cf5"; then ok "F: missing ADR falls back to dir listing"; else no "F: missing ADR falls back to dir listing"; grep -F '| ADRs' "$cf5" || true; fi
+
 exit $fail

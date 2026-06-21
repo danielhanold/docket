@@ -107,7 +107,22 @@ if [ -n "$pr" ]; then
   num="${pr##*/}"
   if [ "$GITHUB" = 1 ]; then rows+="| PR | [#$num]($pr) |"$'\n'; else rows+="| PR | $pr |"$'\n'; fi
 fi
-# ADRs handled in Task 2 (appended after this block).
+# ADRs — each id on METADATA_BRANCH; slug resolved from the local ADR file; missing => dir link.
+if [ -n "$adrs" ]; then
+  adr_cell=""
+  for id in $adrs; do
+    padded="$(printf '%04d' "$id")"
+    m=( "$ADRS_DIR_LOCAL"/"${padded}"-*.md )   # glob, not `ls | head` (pipefail-safe)
+    if [ -e "${m[0]}" ]; then
+      relpath="$ADRS_DIR/$(basename "${m[0]}")"
+      if [ "$GITHUB" = 1 ]; then link="[ADR-$padded]($(blob "$METADATA_BRANCH" "$relpath"))"; else link="\`$relpath\`"; fi
+    else
+      if [ "$GITHUB" = 1 ]; then link="[ADR-$padded]($(blob "$METADATA_BRANCH" "$ADRS_DIR"))"; else link="ADR-$padded"; fi
+    fi
+    if [ -n "$adr_cell" ]; then adr_cell+=", $link"; else adr_cell="$link"; fi
+  done
+  rows+="| ADRs | $adr_cell |"$'\n'
+fi
 
 # build_row may emit an empty line (killed + no pr). Strip blank lines from rows.
 rows="$(printf '%s' "$rows" | sed '/^$/d')"
