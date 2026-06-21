@@ -23,6 +23,8 @@ Mock seam: `GIT="${GIT:-git}"` — override in tests.
 
 ## Behavior
 
+**H1 title.** The first line emitted is `# Backlog` (followed by a blank line).
+
 **Validation.** Exits 2 if `--changes-dir` is missing or is not a directory.
 
 **Repo derivation.** When `--repo` is not supplied, extracts `OWNER/REPO` from `git remote get-url
