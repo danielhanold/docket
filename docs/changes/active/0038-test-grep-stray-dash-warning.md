@@ -2,7 +2,7 @@
 id: 38
 slug: test-grep-stray-dash-warning
 title: Test suite — drop over-escaped dashes in test_docket_metadata_branch.sh grep (silences "stray \ before -")
-status: proposed
+status: in-progress
 priority: low
 created: 2026-06-21
 updated: 2026-06-21
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: true
 auto_groomable:
-branch:
+branch: feat/test-grep-stray-dash-warning
 pr:
 blocked_by:
 reconciled: false
