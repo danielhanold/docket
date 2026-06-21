@@ -25,7 +25,7 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Plan | [2026-06-21-trim-docket-status-archive-prose.md](https://github.com/danielhanold/docket/blob/feat/trim-docket-status-archive-prose/docs/superpowers/plans/2026-06-21-trim-docket-status-archive-prose.md) |
+| Plan | [2026-06-21-trim-docket-status-archive-prose.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-06-21-trim-docket-status-archive-prose.md) |
 | PR | [#49](https://github.com/danielhanold/docket/pull/49) |
 <!-- docket:artifacts:end -->
 
