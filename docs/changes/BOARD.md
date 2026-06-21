@@ -1,8 +1,8 @@
 # Backlog
 
-**34 changes** — 🟡 9 proposed · ✅ 24 done · 🗑️ 1 killed
+**35 changes** — 🟡 10 proposed · ✅ 24 done · 🗑️ 1 killed
 
-## 🟡 Proposed (9)
+## 🟡 Proposed (10)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -15,6 +15,7 @@
 | [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | needs-brainstorm |
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0034](active/0034-consuming-repo-script-resolution.md) | Helper scripts unreachable in consuming repos — skills call repo-relative `scripts/…` that exists only in the docket source repo | `high` | needs-brainstorm |
+| [0035](active/0035-artifact-links.md) | Artifact links — a generated link block at the top of every change | `medium` | build-ready |
 
 ```mermaid
 graph TD
@@ -27,6 +28,7 @@ graph TD
   0022 --> 0024
   0030 --> 0033
   0034
+  0035
   0001:::done
   0002:::done
   0003:::done
