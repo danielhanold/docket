@@ -33,4 +33,11 @@ err="$(cd "$tmp" && bash -c 'echo "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"
 printf '%s' "$err" | grep -qF "run docket/install.sh" && ok "fail-loud message carries the remedy" \
                                                        || no "fail-loud message carries the remedy"
 
+# (3b) FAIL-LOUD at the real Step-0 eval shape: the :? fires inside the command
+# substitution, so the outer eval does NOT exit non-zero — but the remedy still
+# reaches stderr, which is what the executing agent sees and stops on.
+evalerr="$(cd "$tmp" && bash -c 'eval "$("${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket-config.sh --export)"' 2>&1)"
+printf '%s' "$evalerr" | grep -qF "run docket/install.sh" && ok "eval-site: unset var surfaces the remedy on stderr" \
+                                                           || no "eval-site: unset var surfaces the remedy on stderr"
+
 exit $fail

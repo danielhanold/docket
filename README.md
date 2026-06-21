@@ -58,12 +58,13 @@ Place the docket repo at `~/dev/docket` (the source of truth the symlinks point 
 bash ~/dev/docket/install.sh
 ```
 
-That's the whole install. `install.sh` runs the two primitives in order — and is idempotent, so re-run it any time (after adding a harness, or after editing `~/.config/docket/agents.yaml`):
+That's the whole install. `install.sh` runs the three primitives in order — and is idempotent, so re-run it any time (after adding a harness, or after editing `~/.config/docket/agents.yaml`):
 
 - **`link-skills.sh`** creates absolute symlinks from each present harness's global skill directory back to `~/dev/docket/skills/<name>`. It only writes into harness directories that already exist on your machine. Skills are symlinks, so editing one in the repo is picked up everywhere immediately.
 - **`sync-agents.sh`** generates docket's model/effort-pinned subagent wrappers from layered config (built-in defaults ⊕ `~/.config/docket/agents.yaml` ⊕ a repo's `.docket.yml agents:` block) into each present harness's `agents/` directory, and writes committed project-level wrappers for any repo that pins per-skill overrides. Unlike the skill symlinks, these are generated **copies** (they bake in resolved model/effort), so re-run after editing any config layer — `install.sh` does this for you, or call `sync-agents.sh` directly. Run `sync-agents.sh --check` in CI to fail on drift.
+- **`ensure-docket-env.sh`** exports `DOCKET_SCRIPTS_DIR` — the absolute path to docket's `scripts/` directory — into your shell profile (and Claude Code's user-level `settings.json` `env`), so every docket skill can reach its deterministic helper scripts from *any* repo, not just this clone. Re-running `install.sh` back-fills already-migrated repos. Without it the skills fail loud with the `run docket/install.sh` remedy rather than silently hand-working each operation.
 
-(You can still run either primitive on its own — `install.sh` just saves you from remembering both.) Migrating an *existing* repo to docket-mode is a separate step — `migrate-to-docket.sh`, run from inside that repo — not part of this machine install.
+(You can still run any primitive on its own — `install.sh` just saves you from remembering both.) Migrating an *existing* repo to docket-mode is a separate step — `migrate-to-docket.sh`, run from inside that repo — not part of this machine install.
 
 The change data — `docs/changes/`, `docs/adrs/`, `docs/results/` — lives per consuming project, not in the docket repo itself.
 
