@@ -20,6 +20,11 @@ blocked_by:
 reconciled: false
 ---
 
+## Artifacts
+
+<!-- docket:artifacts:start (generated — do not hand-edit) -->
+<!-- docket:artifacts:end -->
+
 ## Why
 
 <!-- The motivation. Why does this work matter now? As detailed as warranted. -->

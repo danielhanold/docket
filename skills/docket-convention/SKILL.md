@@ -122,6 +122,7 @@ reconciled: false         # set true after the just-in-time reconcile pass
 
 ### Change body sections
 
+- `## Artifacts` — **first body section** (immediately after the frontmatter closing `---`, above `## Why`). Marker-bounded (`<!-- docket:artifacts:start (generated — do not hand-edit) -->` / `<!-- docket:artifacts:end -->`); rendered by `scripts/render-change-links.sh` from frontmatter; **never hand-edited** — the renderer is the sole writer. The change template seeds it empty; field-writing skills regenerate it after every frontmatter update.
 - `## Why` — the motivation, as detailed as warranted (no length limit).
 - `## What changes` — scope of the work.
 - `## Out of scope` — explicit non-goals.
@@ -208,6 +209,8 @@ A stub is **autonomous-eligible** — selectable by `docket-auto-groom` — when
 ### GitHub board mirror (shared definition)
 
 The `github` board surface mirrors each change to one GitHub issue (and one Projects v2 item) — **strictly one-way**: change files are the source of truth, the mirror is derived output that is **never read back**. It rides in the Board pass (`docket-status`) and is **best-effort** (network + `gh` auth; self-heals next pass; never aborts a build); its external-write mechanics are owned by the deterministic `scripts/github-mirror.sh` (not agent-constructed `gh` calls) — the Board pass only invokes it. **Full mechanics — the `issue:` upsert, the `docket:` label namespace, the status→issue mapping across all seven states, the issue body, and Projects v2 — are in [`github-board-mirror.md`](github-board-mirror.md); read it when `board_surfaces` includes `github`.**
+
+**Derived-view script family.** The deterministic scripts that produce derived views from the change files: `scripts/render-board.sh` (the `BOARD.md` inline surface), `scripts/github-mirror.sh` (the GitHub Issues/Projects mirror), `scripts/render-change-links.sh` (per-change `## Artifacts` link-block renderer — sole writer of that block per ADR-0012 script-vs-model boundary; offline, falls back to bare code-formatted paths when no GitHub remote is detected). Each script is the sole writer of its output; field-writing skills call `render-change-links.sh` immediately after every frontmatter field write.
 
 ### Bootstrap guard (`docket`-mode first-run safety)
 
