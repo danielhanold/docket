@@ -1,6 +1,6 @@
 # Backlog
 
-**38 changes** — 🟢 2 in progress · 🟡 9 proposed · 🔵 1 implemented · ✅ 25 done · 🗑️ 1 killed
+**38 changes** — 🟢 2 in progress · 🟡 9 proposed · ✅ 26 done · 🗑️ 1 killed
 
 ## 🟢 In progress (2)
 
@@ -21,13 +21,7 @@
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | needs-brainstorm |
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
-| [0037](active/0037-skill-fallback-progressive-disclosure.md) | Slim skills — move the per-skill manual-fallback / script-contract prose into on-demand sibling files | `medium` | ⏳ waiting on #34 — needs your merge |
-
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | PR |
-|---|-------|----------|----|
-| [0034](active/0034-consuming-repo-script-resolution.md) | Helper scripts unreachable in consuming repos — skills call repo-relative `scripts/…` that exists only in the docket source repo | `high` | [#45](https://github.com/danielhanold/docket/pull/45) |
+| [0037](active/0037-skill-fallback-progressive-disclosure.md) | Slim skills — move the per-skill manual-fallback / script-contract prose into on-demand sibling files | `medium` | needs-brainstorm |
 
 ```mermaid
 graph TD
@@ -39,7 +33,6 @@ graph TD
   0015 --> 0019
   0022 --> 0024
   0030 --> 0033
-  0034
   0035 --> 0036
   0034 --> 0037
   0038
@@ -67,15 +60,17 @@ graph TD
   0030:::done
   0031:::done
   0032:::done
+  0034:::done
   0035:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (26)</summary>
+<details><summary>✅🗑️ Archive — done + killed (27)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0035](archive/2026-06-21-0035-artifact-links.md) | Artifact links — a generated link block at the top of every change | 2026-06-21 |
+| [0034](archive/2026-06-21-0034-consuming-repo-script-resolution.md) | Helper scripts unreachable in consuming repos — skills call repo-relative `scripts/…` that exists only in the docket source repo | 2026-06-21 |
 | [0032](archive/2026-06-20-0032-frontmatter-id-validation.md) | Validate numeric id across the frontmatter script family | 2026-06-20 |
 | [0031](archive/2026-06-20-0031-adr-status-check-verb-match.md) | ADR status-consistency check — match the supersede/reverse verb, not just the target id | 2026-06-20 |
 | [0030](archive/2026-06-20-0030-script-adr-passes.md) | Script docket-adr's deterministic passes — index render, ledger checks, ADR-only publish | 2026-06-20 |
