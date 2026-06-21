@@ -77,7 +77,7 @@ The per-change steps below run for each selected change.
    "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/archive-change.sh --changes-dir .docket/<changes_dir> --id <id> --outcome done --date <merge-date> [--results <path>] --message "<msg>"
    ```
 
-   **Trust the exit code:** `0` ⇒ archived (idempotent no-op if it was already archived — including across a day boundary, since it reuses the existing dated filename); non-zero ⇒ **abort-and-report**. The script owns all the mechanics — the dated `archive/<merge-date>-<id>-<slug>.md` move, `status: done` / `updated: <merge-date>` / the `results:` link, the **change-file-only** commit, and the push-with-rebase-retry on `metadata_branch`.
+   **Trust the exit code:** `0` ⇒ archived (idempotent no-op if it was already archived — including across a day boundary, since it reuses the existing dated filename); non-zero ⇒ **abort-and-report**. The script owns the mechanics (see `scripts/archive-change.md`); the one fact the steps below rely on is that it commits **the change file only** on `metadata_branch` — so the board (step 5) and the re-point (below) stay separate commits and concurrent archivers converge tree-identically.
 
    This is **step 1 of the terminal publish** below (archive-on-`docket`-first). Once `archive-change.sh` returns 0, **re-point the block before publishing** — order matters because `terminal-publish.sh` copies the change file *from `origin/docket`*, so the re-pointed block must already be there. In `docket`-mode:
    1. Invoke the renderer to regenerate the change's `## Artifacts` block on the archived file: `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/render-change-links.sh --change-file .docket/<changes_dir>/archive/<merge-date>-<id>-<slug>.md --adrs-dir .docket/<adrs_dir>` (plan/results now re-point to the integration branch at `done`; the renderer is the sole writer of the block). Commit this as a **follow-on metadata commit** on `metadata_branch` and **push `origin/docket`** — so the re-pointed block is on `origin/docket` before the publish reads it.
@@ -216,62 +216,19 @@ The shared procedure that copies a change's terminal records from `origin/docket
 It runs on **every** terminal transition. A terminal transition is `done` (driven by this skill — step 3 above, and `docket-status`'s sweep) or `killed` (driven by the killing skill). Two entry shapes, distinguished by a **publish token `T`** used to name the throwaway branch:
 
 - **Change publish** (`done` or `killed`): `T = <id>`. The copy-set is built from the change manifest (below); **step 1 (archive-first) applies**. This path is executed by `terminal-publish.sh` (see below).
-- **ADR-only publish** (a standalone or supersession/reversal ADR, from `docket-adr`): `T = adr-<NN>`. The copy-set is the single ADR file; **step 1 is skipped** (there is no change file to archive). This path is handled by `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/terminal-publish.sh --adr <NN>` — the single executor of both publish shapes — which follows the generic provision → copy → CAS-push → teardown mechanics described in *The mechanics* below over its single-ADR copy-set.
+- **ADR-only publish** (a standalone or supersession/reversal ADR, from `docket-adr`): `T = adr-<NN>`. The copy-set is the single ADR file; **step 1 is skipped** (there is no change file to archive). This path is handled by `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/terminal-publish.sh --adr <NN>` — the single executor of both publish shapes — over its single-ADR copy-set (mechanics: `scripts/terminal-publish.md`).
 
 **Skipped entirely in `main`-mode.** It is guarded on `metadata_branch == docket`; in `main`-mode there is no `docket` branch — the metadata working tree *is* the integration branch, so the archive move there (step 3 above, or the kill clauses in `docket-new-change` / `docket-implement-next`) is itself the terminal record. The **archive-move contract is identical in both modes**: the dated `archive/<DATE>-<id>-<slug>.md` filename (UTC merge/kill-commit date, per the convention) and the reuse-existing-file idempotency rule apply to the `main`-mode archive too; only the tree it runs in differs.
 
-**The copy-set** (assembled as a list, never a fixed command, so it is never empty):
-
-- the **archived change file** — always present (for a change publish);
-- the `spec:` path — **iff** the manifest's `spec:` is non-empty;
-- each `adrs:` entry **whose ADR is `Accepted`** — skip `Proposed`/draft ADRs (the **`Accepted` gate** fires here, at the copy site).
-
-For an ADR-only publish (`T = adr-<NN>`) the copy-set is the single ADR file.
+**The copy-set** is the archived change file (always present), its `spec:` file when set, and each `adrs:` entry **whose ADR is `Accepted`** — `Proposed`/draft ADRs are skipped (the **`Accepted` gate**, applied at copy time). `BOARD.md` is **never** published. For an ADR-only publish (`T = adr-<NN>`) it is the single ADR file. `terminal-publish.sh` assembles this list from the manifest; finalize relies only on those facts — see `scripts/terminal-publish.md` for the assembly details.
 
 ### The change-publish path (`T = <id>`)
 
 Run the two scripts in order — **archive-first ordering is load-bearing**: step 1 archives the change on `origin/docket` so the copy step can copy the *archived* path:
 
-1. **Archive on `docket` first** — `archive-change.sh` (the same invocation as *Per-change steps* step 3 above, run against the `.docket/` tree synced to `origin/docket`): it moves `active/<id>-<slug>.md` → the dated `archive/<DATE>-<id>-<slug>.md`, sets the terminal `status` (and the `results:` link for `done`, or a `## Why killed` section for `killed`), commits **the change file only**, and pushes `origin/docket`. (For a `killed` change there is usually no merged PR, so plan/results may not exist — a kill publishes only what is on `docket`: the change file, plus its `spec:`/`adrs:` if set.)
-2. **Publish** — `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/terminal-publish.sh --id <id> --outcome <done|killed> --integration-branch <integration_branch> --metadata-branch <metadata_branch> --changes-dir <changes_dir> --adrs-dir <adrs_dir> --message "<msg>"`. **Trust the exit code** (`0` ⇒ the copy-set landed; non-zero ⇒ abort-and-report). The script builds the copy-set above (applying the `Accepted` gate), provisions a transient `pub-<id>` worktree on the integration branch, copies the records from `origin/docket`, CAS-pushes them (fast-forward-or-retry), **self-verifies** the full copy-set landed on `origin/<integration_branch>`, and tears `pub-<id>` down. `BOARD.md` is never published; plan/results/code already arrived via the PR (`done`) or do not exist (`killed`). The script is a no-op in `main`-mode (`metadata_branch == integration_branch`).
+1. **Archive on `docket` first** — `archive-change.sh` (the same invocation as *Per-change steps* step 3 above, run against the `.docket/` tree synced to `origin/docket`). **Trust the exit code** (`0` ⇒ archived; non-zero ⇒ abort-and-report); mechanics in `scripts/archive-change.md`. (For a `killed` change there is usually no merged PR, so plan/results may not exist — a kill publishes only what is on `docket`: the change file, plus its `spec:`/`adrs:` if set.)
+2. **Publish** — `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/terminal-publish.sh --id <id> --outcome <done|killed> --integration-branch <integration_branch> --metadata-branch <metadata_branch> --changes-dir <changes_dir> --adrs-dir <adrs_dir> --message "<msg>"`. **Trust the exit code** (`0` ⇒ the copy-set landed and self-verified on `origin/<integration_branch>`; non-zero ⇒ abort-and-report). The publish is a **copy, not a branch merge** — the script `checkout origin/docket -- <copy-set>` onto the integration branch (applying the `Accepted` gate); `BOARD.md` is never published, and plan/results/code already arrived via the PR (`done`) or do not exist (`killed`). The script is a no-op in `main`-mode (`metadata_branch == integration_branch`). (Mechanics: `scripts/terminal-publish.md`.)
 
-`terminal-publish.sh` is the **executor of both publish shapes** (`--id` for change publish, `--adr` for ADR-only) — both shapes follow the generic mechanics below; the ADR-only variant (`--adr`) runs those same steps over its single-ADR copy-set with step 1 skipped.
+`terminal-publish.sh` is the **executor of both publish shapes** (`--id` for change publish, `--adr` for ADR-only); the ADR-only variant runs over its single-ADR copy-set with step 1 skipped.
 
-### The mechanics
-
-These are the steps `terminal-publish.sh` implements for **both** `--id` (change publish) and `--adr` (ADR-only publish, driven by `docket-adr`) — the documented contract, not a by-hand runbook. For `--adr`: copy-set = the single ADR file, **step 1 archive skipped**:
-
-1. **(change publish only) Archive on `docket` first** — as above; skipped for ADR-only.
-2. **Provision a clean integration checkout** without disturbing the main tree (which never switches branches): a **transient worktree in a temp dir** on a throwaway local branch `pub-<T>` so the push has a real ref to name. Use `-B` (reset-or-create) and prune leaks so the procedure is re-run safe even if a prior run died before teardown:
-
-   ```bash
-   pub="$(mktemp -d)/pub"
-   git worktree prune                                                 # clear any leaked registration
-   git worktree add -B pub-<T> "$pub" origin/<integration_branch>     # -B: reset/adopt a leftover pub-<T>
-   ```
-
-   (Temp-dir location ⇒ no in-repo path, no `.gitignore` entry, no `.worktrees/` slug-collision or prune hazard.)
-3. **Copy the terminal records from `origin/docket`** — from the *remote* tip, never the stale local ref, then commit and push with a **fast-forward-or-retry** loop (the integration branch is the most concurrency-exposed write in the design; it gets the same compare-and-swap discipline as `origin/docket`):
-
-   ```bash
-   git -C "$pub" fetch origin docket
-   git -C "$pub" checkout origin/docket -- "${copyset[@]}"     # copyset built per above; never empty
-   git -C "$pub" diff --cached --quiet || \
-     git -C "$pub" commit -m "docket(<T>): publish terminal record (<done|killed>)"   # or "publish ADR-<NN>"
-   until git -C "$pub" push origin HEAD:<integration_branch>; do   # CAS retry on non-fast-forward
-     git -C "$pub" pull --rebase origin <integration_branch> \
-       || { git -C "$pub" checkout origin/docket -- "${copyset[@]}"; git -C "$pub" rebase --continue; }  # same-file race: re-copy authoritative bytes
-   done
-   ```
-
-   **Push `HEAD:<integration_branch>` explicitly** — a bare `git push origin <integration_branch>` from this worktree resolves the *source* to the local `refs/heads/<integration_branch>` (a stale or absent local ref, never the publish commit on `pub-<T>`), silently dropping or rejecting it. The guarded commit (`diff --cached --quiet ||`) makes a no-op re-run safe under `set -e`. `BOARD.md` is **never** published; plan/results/code already arrived via the PR (`done`) or do not exist (`killed`).
-4. **Tear down** (force, since the temp tree is disposable):
-
-   ```bash
-   git -C "$pub" checkout --detach 2>/dev/null
-   git worktree remove --force "$pub"
-   git branch -D pub-<T> 2>/dev/null || true
-   rm -rf "$(dirname "$pub")"
-   ```
-
-The whole procedure is **re-run safe**: step 1 reuses the existing archive filename; step 2's `-B` + `prune` adopt a leaked branch/registration; step 3's guarded copy+commit is a no-op when bytes already match, and the push loop completes an interrupted push. A sweep that races finalize on the same change is therefore a safe no-op — and `terminal-publish.sh` carries this same re-run safety for the change-publish path.
+The script owns the mechanics — provisioning a transient `pub-<T>` worktree on the integration branch, copying the records from `origin/docket`, the CAS (compare-and-swap) push with its same-file-race retry, the post-push self-verify, the teardown, and the re-run safety (a sweep that races finalize on the same change is a safe no-op). Finalize does not restate them: see `scripts/terminal-publish.md` for the full contract.
