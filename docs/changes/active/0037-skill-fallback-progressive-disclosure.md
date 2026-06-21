@@ -2,7 +2,7 @@
 id: 37
 slug: skill-fallback-progressive-disclosure
 title: Slim skills — move the per-skill manual-fallback / script-contract prose into on-demand sibling files
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-06-21
 updated: 2026-06-21
@@ -11,11 +11,11 @@ related: [34]
 adrs: []
 spec: docs/superpowers/specs/2026-06-21-skill-fallback-progressive-disclosure-design.md
 plan: docs/superpowers/plans/2026-06-21-skill-fallback-progressive-disclosure.md
-results:
+results: docs/results/2026-06-21-skill-fallback-progressive-disclosure-results.md
 trivial: false
 auto_groomable: false
 branch: feat/skill-fallback-progressive-disclosure
-pr:
+pr: https://github.com/danielhanold/docket/pull/48
 blocked_by:
 reconciled: true
 ---
@@ -27,6 +27,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-06-21-skill-fallback-progressive-disclosure-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-06-21-skill-fallback-progressive-disclosure-design.md) |
 | Plan | [2026-06-21-skill-fallback-progressive-disclosure.md](https://github.com/danielhanold/docket/blob/feat/skill-fallback-progressive-disclosure/docs/superpowers/plans/2026-06-21-skill-fallback-progressive-disclosure.md) |
+| Results | [2026-06-21-skill-fallback-progressive-disclosure-results.md](https://github.com/danielhanold/docket/blob/feat/skill-fallback-progressive-disclosure/docs/results/2026-06-21-skill-fallback-progressive-disclosure-results.md) |
+| PR | [#48](https://github.com/danielhanold/docket/pull/48) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -123,3 +125,20 @@ substrings the wiring-sentinel tests grep for — audit `test_convention_extract
 `test_composition_wiring.sh`, `test_change_links_coverage.sh`, `test_render_board.sh`, and the
 per-script tests in lockstep, exactly as #34 did. No new constraints invalidate the design;
 proceeding to plan.
+
+### 2026-06-21 — mid-build reconciliation: #0036 merged into `main` (implementer, at PR open)
+
+While this change was building, **PR #47 / change 0036** ("status sweep — delegate archiving
+to `archive-change.sh`; remove double-archive") merged into `origin/main`, advancing the
+feature base from `0e68c54` → `d9243e9` and editing `skills/docket-status/SKILL.md` — the same
+file this change's Task 10 stripped. The pre-0036 strip would have **reverted** two 0036 fixes
+(the #0035 re-render-before-publish ordering and the per-change *log-and-continue* sweep
+failure posture; my strip had rewritten the latter to finalize's *abort-and-report*).
+**Resolution:** rebased onto `origin/main` and resolved `docket-status` to **0036's version**
+— this change's docket-status strip is **superseded** (0036 already slimmed that body by
+delegating the sweep to the script). All other work (13 contracts, convention §4/§2, the
+finalize/adr/new-change/implement-next strips, the audit, the folded fix) is independent of
+0036 and rebased cleanly; full suite re-validated green (both ambient and `env -u`) post-rebase.
+A follow-up (trim 0036's residual archive-internals prose against `scripts/archive-change.md`)
+is recorded in the results file. No new ADR minted — the co-located-contracts decision is
+captured in the published spec + the convention §2 rule (extends ADR-0012).
