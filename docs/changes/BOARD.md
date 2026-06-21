@@ -1,6 +1,6 @@
 # Backlog
 
-**39 changes** — 🟡 9 proposed · 🔵 1 implemented · ✅ 28 done · 🗑️ 1 killed
+**39 changes** — 🟡 9 proposed · ✅ 29 done · 🗑️ 1 killed
 
 ## 🟡 Proposed (9)
 
@@ -14,13 +14,7 @@
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | needs-brainstorm |
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
-| [0039](active/0039-trim-docket-status-archive-prose.md) | Trim docket-status's residual archive-internals prose onto scripts/archive-change.md | `low` | ⏳ waiting on #37 — needs your merge |
-
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | PR |
-|---|-------|----------|----|
-| [0037](active/0037-skill-fallback-progressive-disclosure.md) | Slim skills — move the per-skill manual-fallback / script-contract prose into on-demand sibling files | `medium` | [#48](https://github.com/danielhanold/docket/pull/48) |
+| [0039](active/0039-trim-docket-status-archive-prose.md) | Trim docket-status's residual archive-internals prose onto scripts/archive-change.md | `low` | build-ready |
 
 ```mermaid
 graph TD
@@ -32,7 +26,6 @@ graph TD
   0015 --> 0019
   0022 --> 0024
   0030 --> 0033
-  0034 --> 0037
   0037 --> 0039
   0001:::done
   0002:::done
@@ -61,15 +54,17 @@ graph TD
   0034:::done
   0035:::done
   0036:::done
+  0037:::done
   0038:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (29)</summary>
+<details><summary>✅🗑️ Archive — done + killed (30)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0038](archive/2026-06-21-0038-test-grep-stray-dash-warning.md) | Test suite — drop over-escaped dashes in test_docket_metadata_branch.sh grep (silences "stray \ before -") | 2026-06-21 |
+| [0037](archive/2026-06-21-0037-skill-fallback-progressive-disclosure.md) | Slim skills — move the per-skill manual-fallback / script-contract prose into on-demand sibling files | 2026-06-21 |
 | [0036](archive/2026-06-21-0036-status-sweep-double-archive.md) | docket-status sweep — delegate archiving to archive-change.sh (remove the double-archive) | 2026-06-21 |
 | [0035](archive/2026-06-21-0035-artifact-links.md) | Artifact links — a generated link block at the top of every change | 2026-06-21 |
 | [0034](archive/2026-06-21-0034-consuming-repo-script-resolution.md) | Helper scripts unreachable in consuming repos — skills call repo-relative `scripts/…` that exists only in the docket source repo | 2026-06-21 |
