@@ -10,7 +10,7 @@ depends_on: [34]
 related: [34]
 adrs: []
 spec: docs/superpowers/specs/2026-06-21-skill-fallback-progressive-disclosure-design.md
-plan:
+plan: docs/superpowers/plans/2026-06-21-skill-fallback-progressive-disclosure.md
 results:
 trivial: false
 auto_groomable: false
@@ -26,6 +26,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-06-21-skill-fallback-progressive-disclosure-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-06-21-skill-fallback-progressive-disclosure-design.md) |
+| Plan | [2026-06-21-skill-fallback-progressive-disclosure.md](https://github.com/danielhanold/docket/blob/feat/skill-fallback-progressive-disclosure/docs/superpowers/plans/2026-06-21-skill-fallback-progressive-disclosure.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
