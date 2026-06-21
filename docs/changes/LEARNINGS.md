@@ -4,6 +4,16 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-06-21 (#34, PR #45) — finalize's local merge gate ran the suite RED on the change's own
+  drift-guard test — but only because `DOCKET_SCRIPTS_DIR` was *exported* in the interactive shell
+  (this change's `install.sh` writes it to the shell profile). The test's `${VAR:?}` fail-loud
+  assertions assume the var is unset; the ambient export was inherited by the test's sub-shells and
+  masked them. A clean-env re-run (`env -u DOCKET_SCRIPTS_DIR`) was all-green — the merged result
+  was never broken. Apply: when the gate's suite tests a `${VAR:?}`/fail-loud path for a var the
+  feature itself injects into the dev shell, re-run RED tests under `env -u VAR` before trusting the
+  failure — and author such tests to `env -u VAR` their own fail-loud sub-shells so a dev shell with
+  the feature installed never false-REDs them.
+
 - 2026-06-21 (#35, PR #44) — A close-out feature that re-renders derived content *into the change
   file* (here the `## Artifacts` block re-pointing plan/results after the feature branch is gone) was
   wired to run terminal-publish **before** the re-render committed to `origin/docket`. Since
