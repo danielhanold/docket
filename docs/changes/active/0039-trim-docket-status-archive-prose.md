@@ -10,7 +10,7 @@ depends_on: [37]
 related: [36, 37]
 adrs: []
 spec:
-plan:
+plan: docs/superpowers/plans/2026-06-21-trim-docket-status-archive-prose.md
 results:
 trivial: true
 auto_groomable:
@@ -23,6 +23,9 @@ reconciled: true
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Plan | [2026-06-21-trim-docket-status-archive-prose.md](https://github.com/danielhanold/docket/blob/feat/trim-docket-status-archive-prose/docs/superpowers/plans/2026-06-21-trim-docket-status-archive-prose.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
