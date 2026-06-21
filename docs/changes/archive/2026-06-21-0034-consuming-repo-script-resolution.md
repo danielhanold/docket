@@ -2,7 +2,7 @@
 id: 34
 slug: consuming-repo-script-resolution
 title: Helper scripts unreachable in consuming repos — skills call repo-relative `scripts/…` that exists only in the docket source repo
-status: implemented
+status: done
 priority: high
 created: 2026-06-20
 updated: 2026-06-21
