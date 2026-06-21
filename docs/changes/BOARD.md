@@ -1,6 +1,6 @@
 # Backlog
 
-**38 changes** — 🟢 1 in progress · 🟡 8 proposed · 🔵 1 implemented · ✅ 27 done · 🗑️ 1 killed
+**38 changes** — 🟢 1 in progress · 🟡 8 proposed · ✅ 28 done · 🗑️ 1 killed
 
 ## 🟢 In progress (1)
 
@@ -21,12 +21,6 @@
 | [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | needs-brainstorm |
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | PR |
-|---|-------|----------|----|
-| [0036](active/0036-status-sweep-double-archive.md) | docket-status sweep — delegate archiving to archive-change.sh (remove the double-archive) | `low` | [#47](https://github.com/danielhanold/docket/pull/47) |
-
 ```mermaid
 graph TD
   0007
@@ -37,7 +31,6 @@ graph TD
   0015 --> 0019
   0022 --> 0024
   0030 --> 0033
-  0035 --> 0036
   0034 --> 0037
   0001:::done
   0002:::done
@@ -65,15 +58,17 @@ graph TD
   0032:::done
   0034:::done
   0035:::done
+  0036:::done
   0038:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (28)</summary>
+<details><summary>✅🗑️ Archive — done + killed (29)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0038](archive/2026-06-21-0038-test-grep-stray-dash-warning.md) | Test suite — drop over-escaped dashes in test_docket_metadata_branch.sh grep (silences "stray \ before -") | 2026-06-21 |
+| [0036](archive/2026-06-21-0036-status-sweep-double-archive.md) | docket-status sweep — delegate archiving to archive-change.sh (remove the double-archive) | 2026-06-21 |
 | [0035](archive/2026-06-21-0035-artifact-links.md) | Artifact links — a generated link block at the top of every change | 2026-06-21 |
 | [0034](archive/2026-06-21-0034-consuming-repo-script-resolution.md) | Helper scripts unreachable in consuming repos — skills call repo-relative `scripts/…` that exists only in the docket source repo | 2026-06-21 |
 | [0032](archive/2026-06-20-0032-frontmatter-id-validation.md) | Validate numeric id across the frontmatter script family | 2026-06-20 |
