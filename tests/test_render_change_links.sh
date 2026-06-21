@@ -5,7 +5,6 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SCRIPT="$ROOT/scripts/render-change-links.sh"
 fail=0
-note(){ printf '%s\n' "$*"; }
 ok(){ printf 'ok   - %s\n' "$1"; }
 no(){ printf 'NOT OK - %s\n' "$1"; fail=1; }
 
@@ -282,7 +281,7 @@ else
   no "H: plan flips to integration branch at done"; grep -F '| Plan' "$cf7" || true
 fi
 
-# ---- Case I: killed-from-in-progress => plan/results point at PR; omit when no PR ----
+# ---- Case I: killed-from-in-progress => plan row points at PR (pr present) ----
 cf8="$tmp/0092-killed.md"
 cat > "$cf8" <<'EOF'
 ---
@@ -311,6 +310,40 @@ if grep -qF '| Plan | [2026-06-21-killed.md](https://github.com/danielhanold/doc
   ok "I: killed plan row points at PR"
 else
   no "I: killed plan row points at PR"; grep -F '| Plan' "$cf8" || true
+fi
+
+# ---- Case I2: killed with NO pr => plan/results rows omitted, block stays well-formed ----
+cf8b="$tmp/0090-killednopr.md"
+cat > "$cf8b" <<'EOF'
+---
+id: 90
+slug: killednopr
+status: killed
+spec: docs/superpowers/specs/2026-06-21-knp-design.md
+plan: docs/superpowers/plans/2026-06-21-knp.md
+results:
+branch: feat/knp
+pr:
+adrs: []
+---
+
+## Artifacts
+
+<!-- docket:artifacts:start (generated — do not hand-edit) -->
+<!-- docket:artifacts:end -->
+
+## Why
+
+x
+EOF
+render "$cf8b" >/dev/null 2>&1
+if ! grep -qF '| Plan |' "$cf8b" \
+   && grep -qF '<!-- docket:artifacts:start (generated — do not hand-edit) -->' "$cf8b" \
+   && grep -qF '<!-- docket:artifacts:end -->' "$cf8b" \
+   && grep -qF '| Spec |' "$cf8b"; then
+  ok "I2: killed-no-pr omits plan row, block well-formed"
+else
+  no "I2: killed-no-pr omits plan row, block well-formed"; sed -n '/## Artifacts/,/artifacts:end/p' "$cf8b"
 fi
 
 # ---- Case J: non-GitHub remote => bare code-formatted paths; PR stays a URL ----
