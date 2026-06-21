@@ -2,7 +2,7 @@
 id: 35
 slug: artifact-links
 title: Artifact links — a generated link block at the top of every change
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-06-21
 updated: 2026-06-21
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/artifact-links
 pr:
 blocked_by:
 reconciled: false
