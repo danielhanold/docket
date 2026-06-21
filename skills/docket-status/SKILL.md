@@ -36,7 +36,7 @@ A change with all deps satisfied (or none) is **dependency-clear**. A change wit
 
 ## Where the board, sweep, and checks operate
 
-Resolve config + the bootstrap verdict deterministically: `eval "$(scripts/docket-config.sh --export)"` (fail-closed; read-only). Act on `BOOTSTRAP` — `PROCEED` to continue; `STOP_MIGRATE` to refuse-and-point at `migrate-to-docket.sh`; `CREATE_ORPHAN` to opt into `scripts/docket-config.sh --bootstrap` (fresh repo only).
+Resolve config + the bootstrap verdict deterministically: `eval "$("${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket-config.sh --export)"` (fail-closed; read-only). Act on `BOOTSTRAP` — `PROCEED` to continue; `STOP_MIGRATE` to refuse-and-point at `migrate-to-docket.sh`; `CREATE_ORPHAN` to opt into `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket-config.sh --bootstrap` (fresh repo only).
 
 All three passes read and write in the **metadata working tree** on `metadata_branch`, pushed to its remote immediately. In `docket`-mode that tree is the persistent `.docket/` worktree parked on `docket` — ensure it (state-specific create per the convention's Branch model, idempotent) and **sync it to `origin/docket` before any read** (`git -C .docket fetch origin docket && git -C .docket pull --rebase origin docket`); pushes target `origin/docket`. In single-branch/`main`-mode this degrades to the primary working tree on the integration branch (no `.docket/`): `git pull --rebase` and push on `origin/<metadata_branch>` (which equals `origin/<integration_branch>` there). The passes below say "`.docket/`" / "`origin/docket`" for the common (`docket`-mode) case; read those as the metadata working tree / `origin/<metadata_branch>` in `main`-mode.
 
@@ -45,7 +45,7 @@ All three passes read and write in the **metadata working tree** on `metadata_br
 The Board pass renders **each surface listed in `board_surfaces`** (config; default `[inline]`). It scans `<changes_dir>/active/` and `archive/`, parses each file's frontmatter, and applies the dependency-resolution pass above **once**, then drives the enabled surfaces from that single result. `board_surfaces: []` makes the whole pass a no-op (the change files remain the source of truth); an unknown token is warned-and-ignored; a non-GitHub remote drops `github`.
 
 **`inline` surface** (the default). Regenerate `BOARD.md` by invoking the deterministic
-`scripts/render-board.sh --changes-dir <metadata working tree>/<changes_dir> > <metadata working
+`"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/render-board.sh --changes-dir <metadata working tree>/<changes_dir> > <metadata working
 tree>/<changes_dir>/BOARD.md` (in `docket`-mode the metadata working tree is `.docket/`; pass
 `--repo <owner>/<repo>` so `pr:` cells hyperlink). The script owns *how* to render — it reproduces
 the *Structure* below byte-for-byte from the change files, offline (no `gh`, no network) and
@@ -54,17 +54,17 @@ commit discipline. `BOARD.md` is the **live planning view and stays on `docket`*
 published to the integration branch (the one metadata file terminal-publish never copies). **Never
 hand-edit `BOARD.md`, never merge it.** Commit it and push `origin/docket`. On a `pull --rebase`
 conflict in `BOARD.md` during the push loop, **regenerate, never 3-way merge**: discard the conflict
-markers (either side — they invert under rebase anyway), **re-run `scripts/render-board.sh`** to
+markers (either side — they invert under rebase anyway), **re-run `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/render-board.sh`** to
 rebuild `BOARD.md` from the change files, `git add` it, then `git rebase --continue`. Dropping
 `inline` forfeits this offline-safe view — the documented tradeoff of a GitHub-only board.
 
-**`github` surface** — the one-way Issues + Projects v2 mirror (per the convention's *GitHub board mirror* definition; mechanics in `skills/docket-convention/github-board-mirror.md`). Invoke the deterministic `scripts/github-mirror.sh` against the change files, **best-effort**: it needs network + `gh` auth, it never aborts the pass, and it self-heals next run. Point `--changes-dir` at the **metadata working tree** (`.docket/<changes_dir>` in `docket`-mode) — never the integration-branch checkout, where `active/` is pruned (the script warns if it detects that wrong tree, but the run still misses the live backlog). The script upserts one issue per change (keyed on `issue:`), reconciles the `docket:` label set, sets close state/reason, and best-effort-syncs Projects; on a fresh mint it prints `issue-minted <id> <number>` lines — record each into the change file's `issue:` on `metadata_branch` (the script does no git writes). **Projects auto-create is opt-in:** when `github_project` is unset, pass `--auto-create-project` (owner defaults to the integration repo's owner; override with `--project-owner`) — the script mints a private board, prints `project-minted <owner> <number>`, which you record as `github_project: {owner, number}` in `.docket.yml` on the default branch (the first-sync write-back); when `github_project` is set, pass it as `--project <owner>/<number>` instead. Both metadata writes follow the normal push discipline; a `gh`/network failure logs and continues.
+**`github` surface** — the one-way Issues + Projects v2 mirror (per the convention's *GitHub board mirror* definition; mechanics in `skills/docket-convention/github-board-mirror.md`). Invoke the deterministic `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/github-mirror.sh` against the change files, **best-effort**: it needs network + `gh` auth, it never aborts the pass, and it self-heals next run. Point `--changes-dir` at the **metadata working tree** (`.docket/<changes_dir>` in `docket`-mode) — never the integration-branch checkout, where `active/` is pruned (the script warns if it detects that wrong tree, but the run still misses the live backlog). The script upserts one issue per change (keyed on `issue:`), reconciles the `docket:` label set, sets close state/reason, and best-effort-syncs Projects; on a fresh mint it prints `issue-minted <id> <number>` lines — record each into the change file's `issue:` on `metadata_branch` (the script does no git writes). **Projects auto-create is opt-in:** when `github_project` is unset, pass `--auto-create-project` (owner defaults to the integration repo's owner; override with `--project-owner`) — the script mints a private board, prints `project-minted <owner> <number>`, which you record as `github_project: {owner, number}` in `.docket.yml` on the default branch (the first-sync write-back); when `github_project` is set, pass it as `--project <owner>/<number>` instead. Both metadata writes follow the normal push discipline; a `gh`/network failure logs and continues.
 
 **No churny timestamp.** Counts convey freshness; a generated-at line would churn on every run.
 
 ### Structure (in order)
 
-`scripts/render-board.sh` is the executable source of this structure (change 0022); the prose
+`render-board.sh` is the executable source of this structure (change 0022); the prose
 below documents what it emits and the dependency-resolution it shares with the sweep and the
 health checks.
 
@@ -140,22 +140,22 @@ For each `implemented` change:
 
    c. `git mv active/<id>-<slug>.md archive/<merge-date>-<id>-<slug>.md`. **Reuse-existing-file idempotency:** first probe for an already-archived file (null-glob-safe, e.g. `find <changes_dir>/archive -name '*-<id>-<slug>.md'`) and reuse that filename rather than recomputing today's date.
 
-   d. Set `status: done`, write the `results:` link into the manifest if a results file exists (the *file* arrived via the PR merge), and set `updated: <merge-date>` (the **same** UTC date — never `now()`). Before committing, invoke the renderer to regenerate the change's `## Artifacts` block: `scripts/render-change-links.sh --change-file .docket/<changes_dir>/archive/<merge-date>-<id>-<slug>.md --adrs-dir .docket/<adrs_dir>` (plan/results re-point to the integration branch at `done`; its block edit is bundled into this same done-transition commit; the renderer is the sole writer of the block).
+   d. Set `status: done`, write the `results:` link into the manifest if a results file exists (the *file* arrived via the PR merge), and set `updated: <merge-date>` (the **same** UTC date — never `now()`). Before committing, invoke the renderer to regenerate the change's `## Artifacts` block: `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/render-change-links.sh --change-file .docket/<changes_dir>/archive/<merge-date>-<id>-<slug>.md --adrs-dir .docket/<adrs_dir>` (plan/results re-point to the integration branch at `done`; its block edit is bundled into this same done-transition commit; the renderer is the sole writer of the block).
 
    e. **Commit the change file only.** `BOARD.md` is regenerated by the Board pass, not bundled here — this is what keeps concurrent archivers byte-identical. Push to `origin/<metadata_branch>` (in `docket`-mode, `origin/docket`); on non-fast-forward, `pull --rebase` and retry.
 
    f. **Archive + publish the terminal record.** The archive and terminal-publish mechanics are the same two-script sequence finalize uses (it is the single source — *Terminal publish (docket-mode)* in `docket-finalize-change`):
 
-      - **Archive:** `scripts/archive-change.sh --changes-dir .docket/<changes_dir> --id <id> --outcome done --date <merge-date> [--results <path>] --message "<msg>"` — moves the file, sets `status: done` / `updated: <merge-date>`, commits the **change file only**, and pushes `origin/docket`. Trust the exit code.
-      - **Publish (`docket`-mode):** after archiving, `scripts/terminal-publish.sh --id <id> --outcome done --integration-branch <integration_branch> --metadata-branch docket --changes-dir <changes_dir> --adrs-dir <adrs_dir> --message "<msg>"` — copies the terminal records from `origin/docket` onto the integration branch. Trust the exit code. The script's reuse-existing-file idempotency makes a sweep racing `docket-finalize-change` on the same change a safe no-op.
+      - **Archive:** `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/archive-change.sh --changes-dir .docket/<changes_dir> --id <id> --outcome done --date <merge-date> [--results <path>] --message "<msg>"` — moves the file, sets `status: done` / `updated: <merge-date>`, commits the **change file only**, and pushes `origin/docket`. Trust the exit code.
+      - **Publish (`docket`-mode):** after archiving, `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/terminal-publish.sh --id <id> --outcome done --integration-branch <integration_branch> --metadata-branch docket --changes-dir <changes_dir> --adrs-dir <adrs_dir> --message "<msg>"` — copies the terminal records from `origin/docket` onto the integration branch. Trust the exit code. The script's reuse-existing-file idempotency makes a sweep racing `docket-finalize-change` on the same change a safe no-op.
 
       In `main`-mode the metadata working tree *is* the integration branch, so the archive commit is itself the terminal record and `terminal-publish.sh` is a no-op (its own mode-guard fires).
 
-   g. **Remove the merged feature branch + worktree**, provenance-guarded: invoke `scripts/cleanup-feature-branch.sh --slug <slug>` — only removes a worktree resolving under `.worktrees/<slug>`, never the `.docket/` metadata worktree or any out-of-tree path; the same guard as `superpowers:finishing-a-development-branch`. Trust the exit code.
+   g. **Remove the merged feature branch + worktree**, provenance-guarded: invoke `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/cleanup-feature-branch.sh --slug <slug>` — only removes a worktree resolving under `.worktrees/<slug>`, never the `.docket/` metadata worktree or any out-of-tree path; the same guard as `superpowers:finishing-a-development-branch`. Trust the exit code.
 
    h. **Harvest learnings (best-effort)** — invoke the harvest procedure (the *Harvest learnings* step in `docket-finalize-change`, its single source) for the swept change. Its idempotency probe makes a sweep racing `docket-finalize-change` a safe no-op. Best-effort like the board: log and continue on failure — never abort the sweep for it.
 
-**Sync the integration checkout (best-effort).** Once after all swept changes are archived — not once per swept change — run `scripts/sync-integration-branch.sh --integration-branch <integration_branch>`. Same best-effort, FF-only helper finalize runs (change 0029) — it fast-forwards the clone's local `<integration_branch>` checkout so the symlinked skills track the just-swept merges. Omitting it would leave swept close-outs stale. Best-effort like the board: never aborts the sweep; a no-op in `main`-mode.
+**Sync the integration checkout (best-effort).** Once after all swept changes are archived — not once per swept change — run `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/sync-integration-branch.sh --integration-branch <integration_branch>`. Same best-effort, FF-only helper finalize runs (change 0029) — it fast-forwards the clone's local `<integration_branch>` checkout so the symlinked skills track the just-swept merges. Omitting it would leave swept close-outs stale. Best-effort like the board: never aborts the sweep; a no-op in `main`-mode.
 
 **Determinism invariant.** Two agents both reading `implemented` produce a byte-identical add (change-file-only, UTC merge date, no `now()`). The loser's `pull --rebase` resolves cleanly because both adds are identical. `BOARD.md` is regenerated separately, never hand-merged.
 
@@ -165,10 +165,10 @@ For each `implemented` change:
 
 Flag the following (do not auto-fix unless asked). Board and health checks share the one dependency-resolution pass computed above — it is not re-run (it is now literally `resolve_deps`, run inside the script below).
 
-**Mechanical checks → `scripts/board-checks.sh` (change 0023).** The five mechanical checks are deterministic git probes, so they live in a script, not in prose. Invoke:
+**Mechanical checks → `board-checks.sh` (change 0023).** The five mechanical checks are deterministic git probes, so they live in a script, not in prose. Invoke:
 
 ```
-scripts/board-checks.sh --changes-dir <metadata working tree>/<changes_dir> \
+"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/board-checks.sh --changes-dir <metadata working tree>/<changes_dir> \
   --metadata-branch <metadata_branch> --integration-branch origin/<integration_branch>
 ```
 

@@ -22,7 +22,7 @@ Before anything else in this skill, invoke the `docket-convention` skill via the
 
 ## Where everything is read and written
 
-Resolve config + the bootstrap verdict deterministically: `eval "$(scripts/docket-config.sh --export)"` (fail-closed; read-only). Act on `BOOTSTRAP` — `PROCEED` to continue; `STOP_MIGRATE` to refuse-and-point at `migrate-to-docket.sh`; `CREATE_ORPHAN` to opt into `scripts/docket-config.sh --bootstrap` (fresh repo only).
+Resolve config + the bootstrap verdict deterministically: `eval "$("${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket-config.sh --export)"` (fail-closed; read-only). Act on `BOOTSTRAP` — `PROCEED` to continue; `STOP_MIGRATE` to refuse-and-point at `migrate-to-docket.sh`; `CREATE_ORPHAN` to opt into `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket-config.sh --bootstrap` (fresh repo only).
 
 All reads and writes happen in the **metadata working tree** on `metadata_branch`, pushed to its remote immediately. In `docket`-mode that tree is the persistent `.docket/` worktree parked on `docket` — ensure it (state-specific create per the convention's Branch model, idempotent) and **sync it to `origin/docket` before any read**. In single-branch/`main`-mode this degrades to the primary working tree on the integration branch. The steps below say "`.docket/`" / "`origin/docket`" for the common case; read those as the metadata working tree / `origin/<metadata_branch>` in `main`-mode.
 
@@ -45,7 +45,7 @@ Dispatch the dedicated **`docket-auto-groom-critic`** subagent (foreground, at t
 
 ### Step 4 — Exit (one of three)
 
-1. **Spec** — every assumption survived: set `spec:`, refresh the body to the settled design (proposal altitude), resolve `## Open questions`, set `updated: <UTC today>`. After writing `spec:`, regenerate the change's `## Artifacts` block: `scripts/render-change-links.sh --change-file .docket/<changes_dir>/active/<id>-<slug>.md --adrs-dir .docket/<adrs_dir>` (the block edit rides with the spec-write commit; the renderer is the sole writer of the block). Build-ready.
+1. **Spec** — every assumption survived: set `spec:`, refresh the body to the settled design (proposal altitude), resolve `## Open questions`, set `updated: <UTC today>`. After writing `spec:`, regenerate the change's `## Artifacts` block: `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/render-change-links.sh --change-file .docket/<changes_dir>/active/<id>-<slug>.md --adrs-dir .docket/<adrs_dir>` (the block edit rides with the spec-write commit; the renderer is the sole writer of the block). Build-ready.
 2. **Trivial** — the critic confirmed no hidden design decisions: set `trivial: true`, tighten the body, log the reasoning in the body, set `updated:`. Build-ready, no spec.
 3. **Abstain** — any needs-human-context verdict: emit NO spec; flip `auto_groomable: false` and append a dated `## Auto-groom blocked` section (the undecidable decision(s), what context is missing, what a human should supply, and any recommendation — including "this should probably be killed/deferred because …"). The stub stays needs-brainstorm, first in `docket-groom-next`'s queue.
 

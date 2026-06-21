@@ -14,7 +14,7 @@ SKILLS=(
 )
 for s in "${SKILLS[@]}"; do
   f="$ROOT/skills/$s/SKILL.md"
-  if grep -qF 'scripts/render-change-links.sh' "$f"; then ok "$s invokes render-change-links.sh"; else no "$s invokes render-change-links.sh"; fi
+  if grep -qF '/render-change-links.sh' "$f"; then ok "$s invokes render-change-links.sh"; else no "$s invokes render-change-links.sh"; fi
 done
 
 # The renderer script exists and is executable.

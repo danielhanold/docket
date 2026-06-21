@@ -262,9 +262,9 @@ assert "cleanup: refused branch feat/evil still present (guard fired before dele
 
 # --- finalize wiring sentinels: docket-finalize-change invokes the scripts (single source) ---
 FINALIZE="$REPO/skills/docket-finalize-change/SKILL.md"
-assert "wiring(finalize): invokes archive-change.sh" 'grep -q "scripts/archive-change.sh" "$FINALIZE"'
-assert "wiring(finalize): invokes terminal-publish.sh" 'grep -q "scripts/terminal-publish.sh" "$FINALIZE"'
-assert "wiring(finalize): invokes cleanup-feature-branch.sh" 'grep -q "scripts/cleanup-feature-branch.sh" "$FINALIZE"'
+assert "wiring(finalize): invokes archive-change.sh" 'grep -q "/archive-change.sh" "$FINALIZE"'
+assert "wiring(finalize): invokes terminal-publish.sh" 'grep -q "/terminal-publish.sh" "$FINALIZE"'
+assert "wiring(finalize): invokes cleanup-feature-branch.sh" 'grep -q "/cleanup-feature-branch.sh" "$FINALIZE"'
 assert "wiring(finalize): Terminal publish section heading preserved (cross-ref anchor)" 'grep -qF "## Terminal publish (docket-mode)" "$FINALIZE"'
 assert "wiring(finalize): Accepted gate still documented" 'grep -qiE "whose ADR is .?Accepted|Accepted. gate|status: is .?Accepted|status.? is \*\*Accepted" "$FINALIZE"'
 assert "wiring(finalize): ADR-only publish path preserved" 'grep -qiE "adr-<NN>|ADR-only" "$FINALIZE"'
@@ -276,13 +276,13 @@ assert "wiring(finalize): no leftover by-hand pub-adr git block" '! grep -qE "gi
 STATUS="$REPO/skills/docket-status/SKILL.md"
 NEWCHG="$REPO/skills/docket-new-change/SKILL.md"
 IMPL="$REPO/skills/docket-implement-next/SKILL.md"
-assert "wiring(status): sweep invokes archive-change.sh"   'grep -q "scripts/archive-change.sh" "$STATUS"'
-assert "wiring(status): sweep invokes terminal-publish.sh" 'grep -q "scripts/terminal-publish.sh" "$STATUS"'
-assert "wiring(status): sweep invokes cleanup-feature-branch.sh" 'grep -q "scripts/cleanup-feature-branch.sh" "$STATUS"'
-assert "wiring(new-change): proposed-kill invokes archive-change.sh"   'grep -q "scripts/archive-change.sh" "$NEWCHG"'
-assert "wiring(new-change): proposed-kill invokes terminal-publish.sh" 'grep -q "scripts/terminal-publish.sh" "$NEWCHG"'
-assert "wiring(implement-next): reconcile-kill invokes archive-change.sh"     'grep -q "scripts/archive-change.sh" "$IMPL"'
-assert "wiring(implement-next): reconcile-kill invokes cleanup-feature-branch.sh" 'grep -q "scripts/cleanup-feature-branch.sh" "$IMPL"'
-assert "wiring(implement-next): reconcile-kill invokes terminal-publish.sh" 'grep -q "scripts/terminal-publish.sh" "$IMPL"'
+assert "wiring(status): sweep invokes archive-change.sh"   'grep -q "/archive-change.sh" "$STATUS"'
+assert "wiring(status): sweep invokes terminal-publish.sh" 'grep -q "/terminal-publish.sh" "$STATUS"'
+assert "wiring(status): sweep invokes cleanup-feature-branch.sh" 'grep -q "/cleanup-feature-branch.sh" "$STATUS"'
+assert "wiring(new-change): proposed-kill invokes archive-change.sh"   'grep -q "/archive-change.sh" "$NEWCHG"'
+assert "wiring(new-change): proposed-kill invokes terminal-publish.sh" 'grep -q "/terminal-publish.sh" "$NEWCHG"'
+assert "wiring(implement-next): reconcile-kill invokes archive-change.sh"     'grep -q "/archive-change.sh" "$IMPL"'
+assert "wiring(implement-next): reconcile-kill invokes cleanup-feature-branch.sh" 'grep -q "/cleanup-feature-branch.sh" "$IMPL"'
+assert "wiring(implement-next): reconcile-kill invokes terminal-publish.sh" 'grep -q "/terminal-publish.sh" "$IMPL"'
 
 exit "$fail"
