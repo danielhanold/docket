@@ -219,4 +219,137 @@ EOF
 render "$cf5" --adrs-dir "$tmp/adrs" >/dev/null 2>&1
 if grep -qF '| ADRs | [ADR-0999](https://github.com/danielhanold/docket/blob/docket/docs/adrs) |' "$cf5"; then ok "F: missing ADR falls back to dir listing"; else no "F: missing ADR falls back to dir listing"; grep -F '| ADRs' "$cf5" || true; fi
 
+# ---- Case G: plan/results pinned to feature branch while in-progress ----
+cf6="$tmp/0094-build.md"
+cat > "$cf6" <<'EOF'
+---
+id: 94
+slug: build
+status: in-progress
+spec:
+plan: docs/superpowers/plans/2026-06-21-build.md
+results: docs/results/2026-06-21-build-results.md
+branch: feat/build
+pr:
+adrs: []
+---
+
+## Artifacts
+
+<!-- docket:artifacts:start (generated — do not hand-edit) -->
+<!-- docket:artifacts:end -->
+
+## Why
+
+x
+EOF
+render "$cf6" >/dev/null 2>&1
+if grep -qF '| Plan | [2026-06-21-build.md](https://github.com/danielhanold/docket/blob/feat/build/docs/superpowers/plans/2026-06-21-build.md) |' "$cf6" \
+   && grep -qF '| Results | [2026-06-21-build-results.md](https://github.com/danielhanold/docket/blob/feat/build/docs/results/2026-06-21-build-results.md) |' "$cf6"; then
+  ok "G: plan/results pinned to feature branch while in-progress"
+else
+  no "G: plan/results pinned to feature branch while in-progress"; grep -F '| Plan\|| Results' "$cf6" || true
+fi
+
+# ---- Case H: plan/results flip to integration branch once done ----
+cf7="$tmp/0093-done.md"
+cat > "$cf7" <<'EOF'
+---
+id: 93
+slug: done
+status: done
+spec:
+plan: docs/superpowers/plans/2026-06-21-done.md
+results:
+branch: feat/done
+pr:
+adrs: []
+---
+
+## Artifacts
+
+<!-- docket:artifacts:start (generated — do not hand-edit) -->
+<!-- docket:artifacts:end -->
+
+## Why
+
+x
+EOF
+render "$cf7" >/dev/null 2>&1
+if grep -qF '| Plan | [2026-06-21-done.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-06-21-done.md) |' "$cf7"; then
+  ok "H: plan flips to integration branch at done"
+else
+  no "H: plan flips to integration branch at done"; grep -F '| Plan' "$cf7" || true
+fi
+
+# ---- Case I: killed-from-in-progress => plan/results point at PR; omit when no PR ----
+cf8="$tmp/0092-killed.md"
+cat > "$cf8" <<'EOF'
+---
+id: 92
+slug: killed
+status: killed
+spec:
+plan: docs/superpowers/plans/2026-06-21-killed.md
+results:
+branch: feat/killed
+pr: https://github.com/danielhanold/docket/pull/50
+adrs: []
+---
+
+## Artifacts
+
+<!-- docket:artifacts:start (generated — do not hand-edit) -->
+<!-- docket:artifacts:end -->
+
+## Why
+
+x
+EOF
+render "$cf8" >/dev/null 2>&1
+if grep -qF '| Plan | [2026-06-21-killed.md](https://github.com/danielhanold/docket/pull/50) |' "$cf8"; then
+  ok "I: killed plan row points at PR"
+else
+  no "I: killed plan row points at PR"; grep -F '| Plan' "$cf8" || true
+fi
+
+# ---- Case J: non-GitHub remote => bare code-formatted paths; PR stays a URL ----
+cf9="$tmp/0091-fallback.md"
+cat > "$cf9" <<'EOF'
+---
+id: 91
+slug: fallback
+status: in-progress
+spec: docs/superpowers/specs/2026-06-21-fallback-design.md
+plan:
+results:
+branch: feat/fallback
+pr: https://example.com/pr/7
+adrs: []
+---
+
+## Artifacts
+
+<!-- docket:artifacts:start (generated — do not hand-edit) -->
+<!-- docket:artifacts:end -->
+
+## Why
+
+x
+EOF
+# No --repo, and a GIT mock that reports a non-github origin => fallback mode.
+cat > "$tmp/git-nongh" <<'EOF'
+#!/usr/bin/env bash
+if [ "$1" = "-C" ]; then shift 2; fi
+case "$1 $2" in "remote get-url") echo "git@gitlab.com:foo/bar.git" ;; *) exec git "$@" ;; esac
+EOF
+chmod +x "$tmp/git-nongh"
+DOCKET_CONFIG="$tmp/docket-config.sh" GIT="$tmp/git-nongh" bash "$SCRIPT" --change-file "$cf9" >/dev/null 2>&1
+if grep -qF '| Spec | `docs/superpowers/specs/2026-06-21-fallback-design.md` |' "$cf9" \
+   && grep -qF '| PR | https://example.com/pr/7 |' "$cf9"; then
+  ok "J: non-GitHub remote => bare paths, PR stays URL"
+else
+  no "J: non-GitHub remote => bare paths, PR stays URL"; sed -n '/Artifacts/,/artifacts:end/p' "$cf9"
+fi
+
 exit $fail
