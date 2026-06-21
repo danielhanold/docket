@@ -1,12 +1,6 @@
 # Backlog
 
-**39 changes** — 🟢 1 in progress · 🟡 8 proposed · ✅ 29 done · 🗑️ 1 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0039](active/0039-trim-docket-status-archive-prose.md) | Trim docket-status's residual archive-internals prose onto scripts/archive-change.md | `low` | [spec](../) | `feat/trim-docket-status-archive-prose` |
+**39 changes** — 🟡 8 proposed · 🔵 1 implemented · ✅ 29 done · 🗑️ 1 killed
 
 ## 🟡 Proposed (8)
 
@@ -20,6 +14,12 @@
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | needs-brainstorm |
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | PR |
+|---|-------|----------|----|
+| [0039](active/0039-trim-docket-status-archive-prose.md) | Trim docket-status's residual archive-internals prose onto scripts/archive-change.md | `low` | [#49](https://github.com/danielhanold/docket/pull/49) |
 
 ```mermaid
 graph TD
