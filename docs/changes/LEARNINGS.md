@@ -4,6 +4,15 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-06-21 (#36, PR #47) — A `! grep "must-not-say-X"` absence-sentinel was self-defeating: the
+  doc legitimately contained X inside a *contrastive* clause ("…deliberately divergent from finalize's
+  `non-zero ⇒ abort-and-report`…"), which a blunt absence-grep cannot tell apart from the forbidden
+  *adopted* posture. Caught and fixed during the build. Apply: a `! grep` "must-not-say-X" sentinel is
+  fragile when X can legitimately appear in a contrast/negation clause of the same doc; assert the
+  intent with a POSITIVE anchor on the divergence framing (e.g. `grep -qE "deliberately divergent from
+  .?docket-finalize-change"`) — satisfied by the correct prose, flips to NOT OK only if the divergence
+  framing is actually dropped.
+
 - 2026-06-21 (#38, PR #46) — A test grepped for a CLI flag with `grep -qE "\-\-yes\b|\b-y\b"`; the
   `\-` over-escaping silenced one trap (a bare ERE that *leads* with `--` is parsed as a grep
   **option**, not a pattern — `unrecognized option`, exit 2) only by springing another (GNU grep's
