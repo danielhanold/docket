@@ -2,7 +2,7 @@
 id: 39
 slug: trim-docket-status-archive-prose
 title: Trim docket-status's residual archive-internals prose onto scripts/archive-change.md
-status: proposed
+status: in-progress
 priority: low
 created: 2026-06-21
 updated: 2026-06-21
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: true
 auto_groomable:
-branch:
+branch: feat/trim-docket-status-archive-prose
 pr:
 blocked_by:
 reconciled: false
