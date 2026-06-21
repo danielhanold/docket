@@ -25,7 +25,7 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Plan | [2026-06-21-test-grep-stray-dash-warning.md](https://github.com/danielhanold/docket/blob/feat/test-grep-stray-dash-warning/docs/superpowers/plans/2026-06-21-test-grep-stray-dash-warning.md) |
+| Plan | [2026-06-21-test-grep-stray-dash-warning.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-06-21-test-grep-stray-dash-warning.md) |
 | PR | [#46](https://github.com/danielhanold/docket/pull/46) |
 <!-- docket:artifacts:end -->
 
