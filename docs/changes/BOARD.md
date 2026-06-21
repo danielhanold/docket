@@ -1,13 +1,12 @@
 # Backlog
 
-**38 changes** — 🟢 2 in progress · 🟡 9 proposed · ✅ 26 done · 🗑️ 1 killed
+**38 changes** — 🟢 1 in progress · 🟡 9 proposed · 🔵 1 implemented · ✅ 26 done · 🗑️ 1 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Spec | Branch |
 |---|-------|----------|------|--------|
 | [0036](active/0036-status-sweep-double-archive.md) | docket-status sweep — delegate archiving to archive-change.sh (remove the double-archive) | `low` | [spec](../superpowers/specs/2026-06-21-status-sweep-double-archive-design.md) | `feat/status-sweep-double-archive` |
-| [0038](active/0038-test-grep-stray-dash-warning.md) | Test suite — drop over-escaped dashes in test_docket_metadata_branch.sh grep (silences "stray \ before -") | `low` | [spec](../) | `feat/test-grep-stray-dash-warning` |
 
 ## 🟡 Proposed (9)
 
@@ -22,6 +21,12 @@
 | [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | needs-brainstorm |
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0037](active/0037-skill-fallback-progressive-disclosure.md) | Slim skills — move the per-skill manual-fallback / script-contract prose into on-demand sibling files | `medium` | needs-brainstorm |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | PR |
+|---|-------|----------|----|
+| [0038](active/0038-test-grep-stray-dash-warning.md) | Test suite — drop over-escaped dashes in test_docket_metadata_branch.sh grep (silences "stray \ before -") | `low` | [#46](https://github.com/danielhanold/docket/pull/46) |
 
 ```mermaid
 graph TD
