@@ -58,12 +58,12 @@ When a `proposed` change is abandoned (obsolete, decided against, a duplicate) t
 
 In `docket`-mode: the kill is driven by the same two-script sequence as `docket-finalize-change` (mechanics in `scripts/archive-change.md` and `scripts/terminal-publish.md`):
 
-- **Archive (ordered first):** `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/archive-change.sh --changes-dir .docket/<changes_dir> --id <id> --outcome killed --date <UTC kill date> --reason "<why killed text>" --message "<msg>"` — performs the archive move, the integration branch), performing the archive move into `archive/<UTC kill date>-<id>-<slug>.md`, sets `status: killed`, commits the change file only, and pushes `origin/docket`. Trust the exit code; abort and report on non-zero.
+- **Archive (ordered first):** `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/archive-change.sh --changes-dir .docket/<changes_dir> --id <id> --outcome killed --date <UTC kill date> --reason "<why killed text>" --message "<msg>"` — performs the `active/ → archive/<UTC kill date>-<id>-<slug>.md` move, sets `status: killed`, commits the **change file only**, and pushes `origin/docket`. Trust the exit code; abort and report on non-zero.
 - **Publish (after archive):** `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/terminal-publish.sh --id <id> --outcome killed --integration-branch <integration_branch> --metadata-branch docket --changes-dir <changes_dir> --adrs-dir <adrs_dir> --message "<msg>"` — copies terminal records from `origin/docket` onto the integration branch. Trust the exit code; abort and report on non-zero.
 
 **Ordering is load-bearing:** archive on `docket` must complete before `terminal-publish.sh` runs — the publish script reads the archived path from `origin/<metadata_branch>`.
 
-In `main`-mode: `archive-change.sh --outcome killed …` runs against the primary working tree (the integration branch) directly. `terminal-publish.sh` is a no-op in `main`-mode (its own mode-guard fires on `metadata_branch == integration_branch`). The `<UTC kill date>` is the same date used for the `archive/<date>-…` filename prefix and `origin/<integration_branch>`.
+In `main`-mode: `archive-change.sh --outcome killed …` runs against the primary working tree (the integration branch), performing the archive move directly there. `terminal-publish.sh` is a no-op in `main`-mode (its own mode-guard fires on `metadata_branch == integration_branch`). The `<UTC kill date>` is the same date used for the `archive/<date>-…` filename prefix and `origin/<integration_branch>`.
 
 A `proposed` change never had a feature branch or open PR, so there is nothing to clean up — and usually no plan/results, so the kill publishes only what is on `docket`: the change file, plus its `spec:`/`adrs:` if set. This skill still writes markdown only — the terminal-publish copy touches no code.
 
