@@ -135,7 +135,7 @@ assert "adr malformed-id silent on clean ledger" '! has_finding "$out" malformed
 rm -rf "$d"
 
 # ===== docket-adr wiring sentinel =====
-assert "docket-adr Index/validate invokes adr-checks.sh" 'grep -qF "scripts/adr-checks.sh" "$SKILL"'
+assert "docket-adr Index/validate invokes adr-checks.sh" 'grep -qF "/adr-checks.sh" "$SKILL"'
 
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"

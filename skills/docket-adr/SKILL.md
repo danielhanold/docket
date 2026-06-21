@@ -23,7 +23,7 @@ Before anything else in this skill, invoke the `docket-convention` skill via the
 
 ## Where ADRs are read and written
 
-Resolve config + the bootstrap verdict deterministically: `eval "$(scripts/docket-config.sh --export)"` (fail-closed; read-only). Act on `BOOTSTRAP` — `PROCEED` to continue; `STOP_MIGRATE` to refuse-and-point at `migrate-to-docket.sh`; `CREATE_ORPHAN` to opt into `scripts/docket-config.sh --bootstrap` (fresh repo only).
+Resolve config + the bootstrap verdict deterministically: `eval "$("${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket-config.sh --export)"` (fail-closed; read-only). Act on `BOOTSTRAP` — `PROCEED` to continue; `STOP_MIGRATE` to refuse-and-point at `migrate-to-docket.sh`; `CREATE_ORPHAN` to opt into `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket-config.sh --bootstrap` (fresh repo only).
 
 All ADR reads and writes happen in the **metadata working tree** on `metadata_branch`, pushed to its remote immediately. In `docket`-mode that tree is the persistent `.docket/` worktree parked on `docket` — ensure it (state-specific create per the convention's Branch model, idempotent) and **sync it to `origin/docket` before any read** (`git -C .docket fetch origin docket && git -C .docket pull --rebase origin docket`); ADR files and the regenerated index in `.docket/docs/adrs/…` are committed and pushed to `origin/docket`. In single-branch/`main`-mode this degrades to the primary working tree on the integration branch (no `.docket/`): `git pull --rebase` and push on `origin/<metadata_branch>` (which equals `origin/<integration_branch>` there). The actions below say "`.docket/`" / "`origin/docket`" for the common (`docket`-mode) case; read those as the metadata working tree / `origin/<metadata_branch>` in `main`-mode.
 
@@ -54,7 +54,7 @@ The rule: **an `Accepted` ADR publishes to the integration branch** — the deci
 - **Standalone ADR** (`docket-adr` invoked directly, not tied to an in-flight change) — `docket-adr` publishes it itself: on acceptance it invokes:
 
   ```
-  scripts/terminal-publish.sh --adr <NN> --integration-branch <integration_branch> --metadata-branch <metadata_branch> --changes-dir <changes_dir> --adrs-dir <adrs_dir>
+  "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/terminal-publish.sh --adr <NN> --integration-branch <integration_branch> --metadata-branch <metadata_branch> --changes-dir <changes_dir> --adrs-dir <adrs_dir>
   ```
 
   **Step 1 archive is skipped** (there is no change file); the integration branch gets the ADR file. Without this, a change-less ADR would be stranded on `docket` and the integration-branch ledger would be silently incomplete. Note that ADR mode applies no `Accepted` gate — the script publishes the ADR's current bytes exactly as-is.
@@ -62,7 +62,7 @@ The rule: **an `Accepted` ADR publishes to the integration branch** — the deci
 - **Status change to an already-published ADR** (`Superseded by`/`Reversed by`/`Deprecated`) — whether or not the ADR was originally change-tied, it is re-published by `docket-adr` invoking the same script:
 
   ```
-  scripts/terminal-publish.sh --adr <NN> --integration-branch <integration_branch> --metadata-branch <metadata_branch> --changes-dir <changes_dir> --adrs-dir <adrs_dir>
+  "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/terminal-publish.sh --adr <NN> --integration-branch <integration_branch> --metadata-branch <metadata_branch> --changes-dir <changes_dir> --adrs-dir <adrs_dir>
   ```
 
   This publishes the ADR's current bytes (including a just-flipped `status:` line), which is exactly what the supersede/reverse and deprecate paths need. The producing change is long since `done` and can no longer drive a publish; ADR mode applies no `Accepted` gate.
@@ -74,15 +74,15 @@ In `main`-mode there is no `docket` branch and no terminal-publish — the metad
 (Re)render `<adrs_dir>/README.md` by invoking the deterministic generator — never hand-render it:
 
 ```
-scripts/render-adr-index.sh --adrs-dir <metadata tree>/<adrs_dir> > <metadata tree>/<adrs_dir>/README.md
+"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/render-adr-index.sh --adrs-dir <metadata tree>/<adrs_dir> > <metadata tree>/<adrs_dir>/README.md
 ```
 
-In `docket`-mode the metadata tree is `.docket/`, so: `scripts/render-adr-index.sh --adrs-dir .docket/<adrs_dir> > .docket/<adrs_dir>/README.md`. It emits the index grouped into **Active**, **Superseded / Reversed**, and **Deprecated**, each row sorted by ascending id, with the `← change #N` / `→ supersedes ADR-NN` / `→ reverses ADR-NN` / `· relates to ADR-NN` annotations — offline and deterministic (same ADR files ⇒ byte-identical). Commit the regenerated index as a **separate commit** (like `BOARD.md`, so concurrent ADR creates never conflict on the shared index) and push `origin/docket`. On a git conflict on the index, **re-run the script** rather than hand-merging (the regenerate-don't-3-way-merge rule).
+In `docket`-mode the metadata tree is `.docket/`, so: `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/render-adr-index.sh --adrs-dir .docket/<adrs_dir> > .docket/<adrs_dir>/README.md`. It emits the index grouped into **Active**, **Superseded / Reversed**, and **Deprecated**, each row sorted by ascending id, with the `← change #N` / `→ supersedes ADR-NN` / `→ reverses ADR-NN` / `· relates to ADR-NN` annotations — offline and deterministic (same ADR files ⇒ byte-identical). Commit the regenerated index as a **separate commit** (like `BOARD.md`, so concurrent ADR creates never conflict on the shared index) and push `origin/docket`. On a git conflict on the index, **re-run the script** rather than hand-merging (the regenerate-don't-3-way-merge rule).
 
 Validate the ledger by invoking the checker and surfacing each finding line:
 
 ```
-scripts/adr-checks.sh --adrs-dir <metadata tree>/<adrs_dir>
+"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/adr-checks.sh --adrs-dir <metadata tree>/<adrs_dir>
 ```
 
 It is warn-only (one TAB-separated `<check-id>\t<adr-id>\t<message>` per line; `--strict` exits 1 for a future CI gate) and covers:

@@ -237,7 +237,7 @@ rm -rf "$bare"
 
 # --- docket-status inline-surface wiring sentinels (the SKILL is code on main) ---
 assert "docket-status inline surface invokes render-board.sh" \
-  'grep -qF "scripts/render-board.sh" "$SKILL"'
+  'grep -qF "/render-board.sh" "$SKILL"'
 assert "docket-status keeps the regenerate-don't-3-way-merge rule" \
   'grep -qiF "never 3-way merge" "$SKILL"'
 

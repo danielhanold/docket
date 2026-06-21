@@ -175,7 +175,7 @@ bash "$SCRIPT" >/dev/null 2>&1; assert "missing --adrs-dir exits 2" '[ "$?" -eq 
 bash "$SCRIPT" --adrs-dir "$tmp/nope" >/dev/null 2>&1; assert "absent dir exits 2" '[ "$?" -eq 2 ]'
 
 # --- docket-adr wiring sentinels (the SKILL is code on the integration branch) ---
-assert "docket-adr Index/validate invokes render-adr-index.sh" 'grep -qF "scripts/render-adr-index.sh" "$SKILL"'
+assert "docket-adr Index/validate invokes render-adr-index.sh" 'grep -qF "/render-adr-index.sh" "$SKILL"'
 
 # --- malformed ADR id is skipped, renderer still succeeds ---
 printf -- '---\nid: xyz\nslug: bad\ntitle: Bad ADR\nstatus: Accepted\ndate: 2026-06-01\nsupersedes: []\nreverses: []\nrelates_to: []\nchange:\n---\n## Decision\nx.\n' > "$tmp/0099-bad.md"

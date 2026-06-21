@@ -212,11 +212,15 @@ assert "F5 --repo-dir no arg: diagnostic mentions --repo-dir" 'printf "%s" "$err
 
 # --- skill-wiring sentinels (the SKILLs are code on the integration branch) ------
 CONV="$REPO/skills/docket-convention/SKILL.md"
-assert "convention names docket-config.sh" 'grep -qF "scripts/docket-config.sh" "$CONV"'
+assert "convention names docket-config.sh" 'grep -qF "/docket-config.sh" "$CONV"'
+assert "convention defines the DOCKET_SCRIPTS_DIR resolved form" \
+  'grep -qF "\${DOCKET_SCRIPTS_DIR:?run docket/install.sh}" "$CONV"'
+assert "convention documents DOCKET_ namespacing" \
+  'grep -qiF "DOCKET_-namespaced" "$CONV"'
 for s in docket-implement-next docket-status docket-new-change docket-groom-next \
          docket-finalize-change docket-adr docket-auto-groom; do
   f="$REPO/skills/$s/SKILL.md"
-  assert "$s Step 0 invokes docket-config.sh" 'grep -qF "scripts/docket-config.sh" "$f"'
+  assert "$s Step 0 invokes docket-config.sh" 'grep -qF "/docket-config.sh" "$f"'
 done
 
 if [ "$fail" = 0 ]; then echo PASS; else echo FAIL; fi

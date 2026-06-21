@@ -4,7 +4,7 @@
 > includes `github`. The core contract (one-way · change-files-authoritative · script-owned)
 > lives in `SKILL.md`'s *GitHub board mirror* stub; this file is the full mechanics.
 
-The `github` board surface mirrors each change to one GitHub issue (and one Projects v2 item) — **strictly one-way**: change files are the source of truth, the mirror is derived output that is **never read back** (no comments, labels, assignments, or state flow into change files). It rides in the Board pass (`docket-status`) and is **best-effort**, identical to the inline board rule: it needs network + `gh` auth, it self-heals on the next pass, and it **never aborts a build**. The mirror's external-write mechanics are owned by the deterministic `scripts/github-mirror.sh` (not agent-constructed `gh` calls); the Board pass only invokes it.
+The `github` board surface mirrors each change to one GitHub issue (and one Projects v2 item) — **strictly one-way**: change files are the source of truth, the mirror is derived output that is **never read back** (no comments, labels, assignments, or state flow into change files). It rides in the Board pass (`docket-status`) and is **best-effort**, identical to the inline board rule: it needs network + `gh` auth, it self-heals on the next pass, and it **never aborts a build**. The mirror's external-write mechanics are owned by the deterministic `github-mirror.sh` (not agent-constructed `gh` calls); the Board pass only invokes it.
 
 **`issue:` field.** One issue per change, upserted idempotently on the per-change `issue:` field (shape of `pr:`), minted on first sync and persisted into the change file on `metadata_branch`.
 

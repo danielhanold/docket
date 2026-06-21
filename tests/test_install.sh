@@ -12,13 +12,17 @@ mkdir -p "$tmp/.claude/skills"
 
 # Run the umbrella installer against the sandbox harness, from a repo-less cwd (so sync-agents.sh's
 # per-repo pass is a no-op — we are only exercising the user-level install both primitives perform).
-out="$(cd "$tmp" && DOCKET_HARNESS_ROOT="$tmp" bash "$REPO/install.sh" 2>&1)"; rc=$?
+out="$(cd "$tmp" && HOME="$tmp" DOCKET_HARNESS_ROOT="$tmp" DOCKET_TARGET_SHELL=zsh bash "$REPO/install.sh" 2>&1)"; rc=$?
 assert "install.sh exits 0" '[ "$rc" = "0" ]'
 assert "install.sh ran link-skills.sh (skill symlinked)" '[ -L "$tmp/.claude/skills/docket-status" ]'
 assert "install.sh ran sync-agents.sh (agent generated)" '[ -f "$tmp/.claude/agents/docket-status.md" ]'
+assert "install.sh injected DOCKET_SCRIPTS_DIR into the shell profile" \
+  'grep -qF "export DOCKET_SCRIPTS_DIR=\"$REPO/scripts\"" "$tmp/.zshenv"'
+assert "install.sh injected env.DOCKET_SCRIPTS_DIR into settings.json" \
+  'jq -e --arg v "$REPO/scripts" ".env.DOCKET_SCRIPTS_DIR == \$v" "$tmp/.claude/settings.json" >/dev/null'
 
 # Idempotent: a second run still succeeds.
-out2="$(cd "$tmp" && DOCKET_HARNESS_ROOT="$tmp" bash "$REPO/install.sh" 2>&1)"; rc2=$?
+out2="$(cd "$tmp" && HOME="$tmp" DOCKET_HARNESS_ROOT="$tmp" DOCKET_TARGET_SHELL=zsh bash "$REPO/install.sh" 2>&1)"; rc2=$?
 assert "install.sh idempotent (second run exits 0)" '[ "$rc2" = "0" ]'
 
 exit $fail
