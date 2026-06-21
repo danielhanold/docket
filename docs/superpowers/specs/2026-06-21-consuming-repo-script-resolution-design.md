@@ -88,14 +88,14 @@ when it is missing.
    does). nushell / PowerShell are deferred (add on demand; PowerShell only if docket ever
    targets Windows). The shell-agnostic settings-`env` write backstops anything the profile
    write misses.
-10. **No per-skill manual fallback — fail loud, contract documented once.** Skills carry
-    **no** "hand-work it from the prose" escape hatch (that hatch is exactly what produced
-    the silent degradation). A skill calls the script via `${DOCKET_SCRIPTS_DIR:?…}` and
-    **stops loud** if it is unreachable. The behavioural contract of *what each script does*
-    stays documented in **one** place — the convention's script-family / ADR-0012
-    boundary section (and each script's own header) — as reference, never restated per
-    skill. Net effect the human asked for: **every skill gets shorter**, and the
-    deterministic path is the only path.
+10. **Fail loud now; relocate the fallback prose in a follow-up.** This change makes the
+    script call **fail loud** via `${DOCKET_SCRIPTS_DIR:?…}`, but it **leaves the existing
+    per-skill manual-fallback prose untouched**. Slimming the skills by moving that prose
+    out of each `SKILL.md` into an on-demand **sibling file** (progressive disclosure, like
+    the convention's `github-board-mirror.md`) is a separate cross-cutting change —
+    **follow-up #37** — so #34 stays a focused reachability fix and the two passes over
+    every skill body don't collide. During the transition the retained prose and the new
+    fail-loud form coexist harmlessly.
 11. **CI drift-guard.** Add a check (mirroring `sync-agents.sh --check`) that fails when a
     consuming repo cannot resolve `docket-config.sh` via `DOCKET_SCRIPTS_DIR`, and when any
     skill body still references a bare `scripts/<name>.sh` instead of `${DOCKET_SCRIPTS_DIR`.
@@ -166,14 +166,12 @@ write misses.
   `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/<name>.sh` uniformly (`docket-new-change`,
   `docket-groom-next`, `docket-auto-groom`, `docket-implement-next`, `docket-status`,
   `docket-finalize-change`, `docket-adr`, and the convention's bootstrap-probe references).
-  Step 0 inherits the fail-loud check via `:?`. **Also strip any per-skill manual-fallback
-  prose** (decision 10) — this is a net *reduction* in skill length, not an addition.
+  Step 0 inherits the fail-loud check via `:?`. The existing manual-fallback prose is **left
+  in place** here — its relocation is follow-up #37 (decision 10).
 - **`migrate-to-docket.sh`** — ensure `install.sh` has run (or point at it) so a freshly
   migrated repo is immediately script-reachable, not just settings-granted.
 - **Convention** — document `DOCKET_SCRIPTS_DIR` resolution + the `DOCKET_` namespacing
-  constraint where the script family is described, and host the **single** copy of the
-  "scripts are the deterministic layer; if unreachable, fail loud and run `install.sh`"
-  statement (decision 10) so no skill restates it.
+  constraint where the script family is described.
 - **CI** — the drift-guard from decision 11 (a `sync-agents.sh --check`-style gate): a
   consuming repo resolves `docket-config.sh` via `DOCKET_SCRIPTS_DIR`, and no skill body
   references a bare `scripts/<name>.sh`.
@@ -188,17 +186,17 @@ write misses.
   resolving the scripts dir from the skill symlink's own realpath at Step 0, a per-repo
   `link-scripts.sh` shim — all more moving parts than the env var for the same reach.
 - Rewriting the scripts' internal logic — they work; the defect is *reachability*.
-- Removing the convention's per-script *contract* documentation — that stays as the single
-  reference (decision 10 removes the per-*skill* fallback prose, not the convention's
-  description of what each script does).
+- **Relocating / removing the per-skill manual-fallback prose — deferred to follow-up #37**
+  (progressive-disclosure sibling files). This change leaves that prose untouched.
 - Tightening the scripts' non-namespaced `GIT` / `REPO` mock seams — minor adjacent debt,
   separate change.
 - Windows profile injection (gh #20112).
 
 ## Open questions (build-time)
 
-Shell floor, the manual-fallback removal, and the CI drift-guard are now decided
-(decisions 9–11). One genuine question remains:
+Shell floor (decision 9) and the CI drift-guard (decision 11) are now decided; the
+manual-fallback relocation moved to follow-up #37 (decision 10). One genuine question
+remains:
 
 - **Per-harness settings `env`:** the shell-profile `export` (the primary) is
   harness-agnostic and already covers every harness. The open question is only about the

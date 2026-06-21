@@ -7,7 +7,7 @@ priority: high
 created: 2026-06-20
 updated: 2026-06-21
 depends_on: []
-related: []
+related: [37]
 adrs: [12]
 spec: docs/superpowers/specs/2026-06-21-consuming-repo-script-resolution-design.md
 plan:
@@ -52,9 +52,9 @@ env var, and make its absence fail loud:
   subagents docket dispatches), reinforcement = user-level `~/.claude/settings.json`
   `env`. Points at the **live clone** the skill symlinks already use → **zero drift**.
 - Re-running `install.sh` **back-fills** already-migrated repos (markhaus included).
-- **Skills get shorter:** each skill body drops its manual "hand-work it from the prose"
-  fallback (that hatch is what caused the silent degradation) — it calls the script and
-  fails loud; the script contract stays documented once in the convention.
+- The `:?` form **fails loud** (no more silent degradation). The existing per-skill
+  manual-fallback prose is **left in place** here — slimming the skills by relocating it to
+  on-demand sibling files (progressive disclosure) is **follow-up #37**.
 - A **CI drift-guard** fails when a consuming repo can't resolve the scripts via
   `DOCKET_SCRIPTS_DIR`, or when a skill still uses a bare `scripts/` path.
 
@@ -68,14 +68,14 @@ demoted) — is in the linked **spec**.
 
 - Copy/symlink vendoring of the scripts into the consuming repo (rejected — drift).
 - The heavier resolutions (PATH CLI dispatcher, realpath-from-symlink, per-repo shim).
-- Rewriting the scripts' internal logic; removing the convention's per-script *contract*
-  documentation (the single reference stays); tightening the non-namespaced `GIT`/`REPO`
-  mock seams; Windows profile injection.
+- Rewriting the scripts' internal logic; **relocating the per-skill manual-fallback prose**
+  (deferred to follow-up #37); tightening the non-namespaced `GIT`/`REPO` mock seams;
+  Windows profile injection.
 
 ## Open questions
 
-Shell floor, the manual-fallback removal, and the CI drift-guard are now decided (see
-spec). One build-time question remains:
+Shell floor and the CI drift-guard are now decided (see spec); the manual-fallback
+relocation is follow-up #37. One build-time question remains:
 
 - Whether `install.sh` writes the settings-`env` *reinforcement* for **each present
   harness** (`.claude`/`.codex`/`.cursor`/…, looping like `link-skills.sh`) or only Claude
