@@ -20,6 +20,9 @@ NAME="DOCKET_SCRIPTS_DIR"
 MARK_OPEN="# >>> docket (DOCKET_SCRIPTS_DIR) >>>"
 MARK_CLOSE="# <<< docket (DOCKET_SCRIPTS_DIR) <<<"
 say(){ printf 'ensure-docket-env: %s\n' "$*"; }
+# Portably read a file's permission bits (octal); falls back to 644 when file is
+# brand-new or stat is unavailable (macOS BSD stat vs GNU stat).
+file_mode(){ stat -f '%Lp' "$1" 2>/dev/null || stat -c '%a' "$1" 2>/dev/null || echo 644; }
 
 # --- 1. shell-profile export (primary) ---------------------------------------
 shell="${DOCKET_TARGET_SHELL:-$(basename "${SHELL:-sh}")}"
@@ -32,12 +35,14 @@ esac
 mkdir -p "$(dirname "$prof")"; touch "$prof"
 # Idempotent marker block: strip any existing docket block, then append a fresh one
 # (a moved clone updates the exported path instead of duplicating the block).
+_prof_mode="$(file_mode "$prof")"
 tmp="$(mktemp)"
 awk -v o="$MARK_OPEN" -v c="$MARK_CLOSE" '
   $0==o {skip=1; next} $0==c {skip=0; next} !skip {print}
 ' "$prof" > "$tmp"
 printf '%s\n%s\n%s\n' "$MARK_OPEN" "$line" "$MARK_CLOSE" >> "$tmp"
 mv "$tmp" "$prof"
+chmod "$_prof_mode" "$prof"
 say "wrote $NAME -> $prof ($shell)"
 
 # --- 2. Claude Code user-level settings.json env (reinforcement) --------------
@@ -47,9 +52,11 @@ if command -v jq >/dev/null 2>&1; then
   mkdir -p "$(dirname "$settings")"
   [ -f "$settings" ] || printf '{}\n' > "$settings"
   if jq empty "$settings" 2>/dev/null; then
+    _settings_mode="$(file_mode "$settings")"
     t="$(mktemp)"
     if jq --arg v "$VALUE" '.env //= {} | .env.DOCKET_SCRIPTS_DIR = $v' "$settings" > "$t"; then
-      mv "$t" "$settings"; say "set env.$NAME -> ${settings#"$HARNESS_ROOT"/}"
+      mv "$t" "$settings"; chmod "$_settings_mode" "$settings"
+      say "set env.$NAME -> ${settings#"$HARNESS_ROOT"/}"
     else rm -f "$t"; say "warning: could not update $settings"; fi
   else say "warning: $settings is not valid JSON — left unchanged"; fi
 else
