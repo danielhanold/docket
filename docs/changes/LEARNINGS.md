@@ -4,6 +4,23 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-06-21 (#35, PR #44) — A close-out feature that re-renders derived content *into the change
+  file* (here the `## Artifacts` block re-pointing plan/results after the feature branch is gone) was
+  wired to run terminal-publish **before** the re-render committed to `origin/docket`. Since
+  terminal-publish copies the archived change file *from `origin/docket`*, it would have published
+  the **stale** block onto the integration branch — defeating the re-point on the exact public
+  surface it targets. The `docket-status` sweep was already ordered correctly; finalize had to
+  converge to it (commit `2d74b88`). Apply: any close-out step that mutates a change file's derived
+  content must commit+push to `origin/docket` **before** terminal-publish copies from it —
+  terminal-publish publishes whatever is on `origin/docket` at copy time, never the working tree.
+
+- 2026-06-21 (#35, PR #44) — A `/tmp`-fixture smoke of a renderer whose output branches on git
+  remote resolution silently exercised only the no-remote (bare-path) fallback — `/tmp` has no
+  origin, so the GitHub-mode link path was never hit until the smoke was re-run *inside a real
+  worktree*. Apply: when a script's behavior depends on `git remote`/origin-URL resolution, run its
+  real-data smoke inside an actual repo worktree, not a `/tmp` fixture dir — the fixture path passes
+  while covering only the degraded branch (sharpens #22's "smoke against real data").
+
 - 2026-06-20 (#32, PR #43) — A new frontmatter accessor `int_field` ended `printf '%s'` (no newline)
   where the existing `field` ended `printf '%s\n'`. Every adoption was a command substitution
   `id="$(int_field …)"` (which strips trailing newlines anyway) **except** one *direct pipe*
