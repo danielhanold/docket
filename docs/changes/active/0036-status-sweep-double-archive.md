@@ -17,7 +17,7 @@ auto_groomable: true
 branch: feat/status-sweep-double-archive
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -84,3 +84,32 @@ Both resolved in the spec (groomed 2026-06-21):
 One presentation call is open at build time (recorded in the spec): whether the sweep
 *references* finalize step 3 as the single source for the archive+render+publish sequence
 (overriding only the failure posture) or byte-aligns the prose.
+
+## Reconcile log
+
+- 2026-06-21 — Reconciled against `origin/main` (the feature-branch base, advanced past local
+  `main` by the #0034/PR-#45 merge) before planning. Findings:
+  - **Premise holds.** `skills/docket-status/SKILL.md`'s merge sweep on `origin/main` still does
+    the double-archive exactly as the spec describes: steps c–e hand-roll the archive (`git mv
+    active/ → archive/`, set `status: done`/`results:`/`updated:`, re-render `## Artifacts`,
+    commit change-file-only + push) and step f then re-invokes `archive-change.sh` +
+    `terminal-publish.sh`. Nothing has pre-fixed this. Scope unchanged.
+  - **Convergence target confirmed.** `docket-finalize-change`'s step 3 (on `origin/main`) is the
+    byte-confirmed model: `archive-change.sh` → renderer follow-on commit+push (before publish) →
+    terminal-publish; its failure posture is `non-zero ⇒ abort-and-report`. The sweep must adopt
+    the same *sequence* but keep its own **log-and-continue** posture (spec A6) — a genuine,
+    deliberate divergence.
+  - **Dependency satisfied.** #0035 is `done` (PR #44 merged, archived 2026-06-21), so the
+    renderer call already exists in both skills; no design-ahead gap.
+  - **Script interface verified.** `archive-change.sh` accepts the exact flags both skills invoke
+    (`--changes-dir --id --outcome --date [--results] --message`). No script change needed.
+  - **No collision.** The parallel change #0038 touches only `tests/test_docket_metadata_branch.sh`
+    — disjoint from `skills/docket-status/SKILL.md` and the sweep tests this change edits.
+  - **No new ADR** (spec A8): this applies ADR-0012 (script-vs-model boundary), the #0026
+    archive-primitive extraction, and the #0035 renderer-ordering learning; it makes no new
+    decision. `adrs: []` stays.
+  - **Presentation call (spec A9) resolved for build:** byte-align the sweep's prose to finalize
+    step 3's sequence while keeping the sweep's own explicit log-and-continue failure posture in
+    its own words — not reference-by-link — because the sweep's failure handling legitimately
+    diverges and its surrounding prose (best-effort safety-net framing) is already self-contained.
+    Final wording locked in the plan.
