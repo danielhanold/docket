@@ -81,13 +81,20 @@ adrs="$(list_field "$CHANGE_FILE" adrs)"   # space-separated ids, "" when [] / u
 build_ref="$branch"
 [ "$status" = "done" ] && build_ref="$INTEGRATION_BRANCH"
 
+# True only when $1 looks like a URL (has a scheme). Used to avoid emitting a broken
+# markdown link from a malformed, non-URL `pr:` (e.g. a bare number); the convention sets a
+# full URL, but the renderer never produces a broken link on bad input. Empty => false.
+is_url(){ case "$1" in *://*) return 0 ;; *) return 1 ;; esac; }
+
 # Emit one artifact row to stdout (nothing if it must be omitted). $1 label, $2 path.
 build_row(){
   local label="$1" path="$2" text; text="$(basename "$path")"
   if [ "$GITHUB" != 1 ]; then printf '| %s | `%s` |\n' "$label" "$path"; return; fi
   if [ "$status" = "killed" ]; then
-    # feature branch gone, not merged: link to the PR if there is one, else omit.
-    [ -n "$pr" ] && printf '| %s | [%s](%s) |\n' "$label" "$text" "$pr"
+    # feature branch gone, not merged: link to the PR if it's a URL; a non-URL pr renders the
+    # filename as plain text (no broken link); no pr at all => omit the row.
+    if is_url "$pr"; then printf '| %s | [%s](%s) |\n' "$label" "$text" "$pr"
+    elif [ -n "$pr" ]; then printf '| %s | %s |\n' "$label" "$text"; fi
     return
   fi
   printf '| %s | [%s](%s) |\n' "$label" "$text" "$(blob "$build_ref" "$path")"
@@ -102,10 +109,14 @@ fi
 # Plan / Results — lifecycle-pinned (build_row).
 [ -n "$plan" ]    && rows+="$(build_row Plan "$plan")"$'\n'
 [ -n "$results" ] && rows+="$(build_row Results "$results")"$'\n'
-# PR — its URL verbatim (#NN text).
+# PR — a URL renders as [#NN](url) in GitHub mode; anything else (non-GitHub mode, or a
+# non-URL/malformed pr) renders verbatim, never a broken link.
 if [ -n "$pr" ]; then
-  num="${pr##*/}"
-  if [ "$GITHUB" = 1 ]; then rows+="| PR | [#$num]($pr) |"$'\n'; else rows+="| PR | $pr |"$'\n'; fi
+  if [ "$GITHUB" = 1 ] && is_url "$pr"; then
+    num="${pr##*/}"; rows+="| PR | [#$num]($pr) |"$'\n'
+  else
+    rows+="| PR | $pr |"$'\n'
+  fi
 fi
 # ADRs — each id on METADATA_BRANCH; slug resolved from the local ADR file; missing => dir link.
 if [ -n "$adrs" ]; then

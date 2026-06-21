@@ -19,13 +19,13 @@ Automated tests + CI are the primary receipt; these are optional spot-checks at 
 
 - **Reconcile correction folded into the spec.** The spec said the renderer should reuse `github-mirror.sh`'s remote resolution; in fact `github-mirror.sh` takes `--repo` from its caller and does not self-derive. The inline origin-URL derivation lives in `render-board.sh` — the renderer reuses that pattern (plus an optional `--repo` override for test mocking). Branch refs come from `docket-config.sh --export`, as the spec said.
 
+- **Non-URL `pr:` now fails closed (review finding M2, fixed).** A malformed bare-number `pr:` (e.g. `pr: 44`) previously rendered `[#44](44)` — a broken relative link. The renderer now only emits the `[#NN](url)` link form when `pr:` is an actual URL (an `is_url` scheme check); any non-URL value renders verbatim (no broken link), in both the PR row and the killed-change plan/results row. Covered by test cases L and M (mutation-checked).
+
 - **No new ADR.** The spec scoped this as a direct application of **ADR-0007** (one-way, change-files-authoritative derived output) and **ADR-0012** (script-vs-model boundary). The build introduced no decision that contradicts or extends either, so `adrs:` stays `[7, 12]`.
 
 ## Follow-ups
 
 These were deferred from the whole-branch review (Minor; outside the happy path). Capture as new proposed changes if wanted:
-
-- **M2 — bare-number `pr:` renders a broken link.** A non-URL `pr:` (e.g. `pr: 44`) produces `[#44](44)`. The convention mandates a full-URL `pr:` and change #0032 added id-validation, so this is malformed input rather than a real path — but the renderer does not fail closed on it. Cheap hardening: treat a non-URL `pr:` as fallback (bare text) rather than emitting a broken relative link.
 
 - **M3 — insert path can duplicate a `## Artifacts` heading on a legacy marker-less file that already has one.** The marker-insert path unconditionally adds a `## Artifacts` heading after the frontmatter. A legacy hand-edited change with a pre-existing `## Artifacts` section but no markers would get a second heading (idempotent thereafter). No current docket change has that shape, and the template ships markers, so new changes never hit it. Optional guard: skip insertion if a `## Artifacts` line already exists.
 

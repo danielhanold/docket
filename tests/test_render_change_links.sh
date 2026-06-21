@@ -396,4 +396,66 @@ else
   no "K: template ships empty marker block before ## Why"
 fi
 
+# ---- Case L: non-URL pr (bare number) renders verbatim in GitHub mode, never a broken link ----
+cfL="$tmp/0089-barepr.md"
+cat > "$cfL" <<'EOF'
+---
+id: 89
+slug: barepr
+status: implemented
+spec:
+plan:
+results:
+branch: feat/barepr
+pr: 44
+adrs: []
+---
+
+## Artifacts
+
+<!-- docket:artifacts:start (generated — do not hand-edit) -->
+<!-- docket:artifacts:end -->
+
+## Why
+
+x
+EOF
+render "$cfL" >/dev/null 2>&1
+if grep -qF '| PR | 44 |' "$cfL" && ! grep -qF '[#44](44)' "$cfL"; then
+  ok "L: non-URL pr renders verbatim, no broken link"
+else
+  no "L: non-URL pr renders verbatim, no broken link"; grep -F '| PR' "$cfL" || true
+fi
+
+# ---- Case M: killed + non-URL pr => plan row renders filename as plain text, no broken link ----
+cfM="$tmp/0088-killedbarepr.md"
+cat > "$cfM" <<'EOF'
+---
+id: 88
+slug: killedbarepr
+status: killed
+spec:
+plan: docs/superpowers/plans/2026-06-21-kbp.md
+results:
+branch: feat/kbp
+pr: 99
+adrs: []
+---
+
+## Artifacts
+
+<!-- docket:artifacts:start (generated — do not hand-edit) -->
+<!-- docket:artifacts:end -->
+
+## Why
+
+x
+EOF
+render "$cfM" >/dev/null 2>&1
+if grep -qF '| Plan | 2026-06-21-kbp.md |' "$cfM" && ! grep -qF '](99)' "$cfM"; then
+  ok "M: killed + non-URL pr => plan filename plain text, no broken link"
+else
+  no "M: killed + non-URL pr => plan filename plain text, no broken link"; grep -F '| Plan' "$cfM" || true
+fi
+
 exit $fail
