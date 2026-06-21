@@ -26,8 +26,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-06-21-consuming-repo-script-resolution-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-06-21-consuming-repo-script-resolution-design.md) |
-| Plan | [2026-06-21-consuming-repo-script-resolution.md](https://github.com/danielhanold/docket/blob/feat/consuming-repo-script-resolution/docs/superpowers/plans/2026-06-21-consuming-repo-script-resolution.md) |
-| Results | [2026-06-21-consuming-repo-script-resolution-results.md](https://github.com/danielhanold/docket/blob/feat/consuming-repo-script-resolution/docs/results/2026-06-21-consuming-repo-script-resolution-results.md) |
+| Plan | [2026-06-21-consuming-repo-script-resolution.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-06-21-consuming-repo-script-resolution.md) |
+| Results | [2026-06-21-consuming-repo-script-resolution-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-06-21-consuming-repo-script-resolution-results.md) |
 | PR | [#45](https://github.com/danielhanold/docket/pull/45) |
 | ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0014](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0014-consuming-repo-script-resolution.md) |
 <!-- docket:artifacts:end -->
