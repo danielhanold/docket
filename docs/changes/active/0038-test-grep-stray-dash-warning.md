@@ -10,7 +10,7 @@ depends_on: []
 related: [34]
 adrs: []
 spec:
-plan:
+plan: docs/superpowers/plans/2026-06-21-test-grep-stray-dash-warning.md
 results:
 trivial: true
 auto_groomable:
@@ -23,6 +23,9 @@ reconciled: true
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Plan | [2026-06-21-test-grep-stray-dash-warning.md](https://github.com/danielhanold/docket/blob/feat/test-grep-stray-dash-warning/docs/superpowers/plans/2026-06-21-test-grep-stray-dash-warning.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
