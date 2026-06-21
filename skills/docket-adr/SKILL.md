@@ -48,7 +48,7 @@ For a non-reversing material change in context — where the decision still stan
 
 ## How an ADR reaches the integration branch
 
-The rule: **an `Accepted` ADR publishes to the integration branch** — the decision ledger is a durable record that belongs with the code. ADRs are authored on `docket`; the copy onto the integration branch goes through the shared **terminal-publish procedure (the *Terminal publish (docket-mode)* procedure in `docket-finalize-change`)** — the same `git checkout origin/docket -- <paths>` copy mechanism, never a `git merge docket`. Three cases, all reusing that one procedure (do **not** restate its git sequence here):
+The rule: **an `Accepted` ADR publishes to the integration branch** — the decision ledger is a durable record that belongs with the code. ADRs are authored on `docket`; the copy onto the integration branch goes through the shared terminal-publish procedure (contract: `scripts/terminal-publish.md`) — a `git checkout` copy from `origin/docket`, never a `git merge docket`. Three cases, all reusing that one procedure (do **not** restate its git sequence here):
 
 - **Change-tied ADR** (the common case) — it is in its change manifest's `adrs:`, so the terminal publish copies it on that change's `done` (or `killed`) transition, driven by `docket-finalize-change` / the kill origin. `docket-adr` does nothing extra; the `Accepted` gate at the copy site skips it if it is still `Proposed`/draft.
 - **Standalone ADR** (`docket-adr` invoked directly, not tied to an in-flight change) — `docket-adr` publishes it itself: on acceptance it invokes:
@@ -57,15 +57,15 @@ The rule: **an `Accepted` ADR publishes to the integration branch** — the deci
   "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/terminal-publish.sh --adr <NN> --integration-branch <integration_branch> --metadata-branch <metadata_branch> --changes-dir <changes_dir> --adrs-dir <adrs_dir>
   ```
 
-  **Step 1 archive is skipped** (there is no change file); the integration branch gets the ADR file. Without this, a change-less ADR would be stranded on `docket` and the integration-branch ledger would be silently incomplete. Note that ADR mode applies no `Accepted` gate — the script publishes the ADR's current bytes exactly as-is.
+  Trust the exit code. Without this, a change-less ADR would be stranded on `docket` and the integration-branch ledger would be silently incomplete.
 
-- **Status change to an already-published ADR** (`Superseded by`/`Reversed by`/`Deprecated`) — whether or not the ADR was originally change-tied, it is re-published by `docket-adr` invoking the same script:
+- **Status change to an already-published ADR** (`Superseded by`/`Reversed by`/`Deprecated`) — whether or not the ADR was originally change-tied, it is re-published by `docket-adr` invoking the same script (trust the exit code):
 
   ```
   "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/terminal-publish.sh --adr <NN> --integration-branch <integration_branch> --metadata-branch <metadata_branch> --changes-dir <changes_dir> --adrs-dir <adrs_dir>
   ```
 
-  This publishes the ADR's current bytes (including a just-flipped `status:` line), which is exactly what the supersede/reverse and deprecate paths need. The producing change is long since `done` and can no longer drive a publish; ADR mode applies no `Accepted` gate.
+  The producing change is long since `done` and can no longer drive the re-publish; `--adr` mode publishes the ADR's current bytes (including a just-flipped `status:` line), which is exactly what the supersede/reverse and deprecate paths need.
 
 In `main`-mode there is no `docket` branch and no terminal-publish — the metadata working tree *is* the integration branch, so writing the ADR there is itself the publish; this whole section is a `docket`-mode-only concern.
 
@@ -77,7 +77,7 @@ In `main`-mode there is no `docket` branch and no terminal-publish — the metad
 "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/render-adr-index.sh --adrs-dir <metadata tree>/<adrs_dir> > <metadata tree>/<adrs_dir>/README.md
 ```
 
-In `docket`-mode the metadata tree is `.docket/`, so: `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/render-adr-index.sh --adrs-dir .docket/<adrs_dir> > .docket/<adrs_dir>/README.md`. It emits the index grouped into **Active**, **Superseded / Reversed**, and **Deprecated**, each row sorted by ascending id, with the `← change #N` / `→ supersedes ADR-NN` / `→ reverses ADR-NN` / `· relates to ADR-NN` annotations — offline and deterministic (same ADR files ⇒ byte-identical). Commit the regenerated index as a **separate commit** (like `BOARD.md`, so concurrent ADR creates never conflict on the shared index) and push `origin/docket`. On a git conflict on the index, **re-run the script** rather than hand-merging (the regenerate-don't-3-way-merge rule).
+In `docket`-mode the metadata tree is `.docket/`, so: `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/render-adr-index.sh --adrs-dir .docket/<adrs_dir> > .docket/<adrs_dir>/README.md` (contract: `scripts/render-adr-index.md` — the grouping, ordering, annotations, and determinism). Commit the regenerated index as a **separate commit** (like `BOARD.md`, so concurrent ADR creates never conflict on the shared index) and push `origin/docket`. On a git conflict on the index, **re-run the script** rather than hand-merging (the regenerate-don't-3-way-merge rule).
 
 Validate the ledger by invoking the checker and surfacing each finding line:
 
@@ -85,7 +85,4 @@ Validate the ledger by invoking the checker and surfacing each finding line:
 "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/adr-checks.sh --adrs-dir <metadata tree>/<adrs_dir>
 ```
 
-It is warn-only (one TAB-separated `<check-id>\t<adr-id>\t<message>` per line; `--strict` exits 1 for a future CI gate) and covers:
-- **`adr-numbering-gap`** — an id missing from the `1..max` sequence.
-- **`adr-dangling-link`** — a `supersedes:` / `reverses:` / `relates_to:` value referencing an id with no corresponding file.
-- **`adr-status-inconsistent`** — an ADR whose `status:` says `Superseded by ADR-NN` / `Reversed by ADR-NN` but no such ADR exists, or an ADR that `supersedes:` / `reverses:` another without the old ADR's `status:` flipped to point back.
+It is warn-only — one finding per line; `--strict` exits 1 for a future CI gate. The checks it runs (numbering gaps, dangling `supersedes:`/`reverses:`/`relates_to:` links, status inconsistencies) and their output format are the contract `scripts/adr-checks.md`.

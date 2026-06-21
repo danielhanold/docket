@@ -46,11 +46,11 @@ In the **metadata working tree** (re-synced to its remote), re-read the change +
 
 Two escape hatches:
 
-- Change now **OBSOLETE** → kill it using the same two-script sequence finalize uses (it is the single source — *Terminal publish (docket-mode)* in `docket-finalize-change`):
+- Change now **OBSOLETE** → kill it using the same archive-then-publish-then-prune sequence finalize uses (contracts: `scripts/archive-change.md`, `scripts/terminal-publish.md`, `scripts/cleanup-feature-branch.md` — do not restate their mechanics):
 
-  In `docket`-mode:
-  - **Archive:** `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/archive-change.sh --changes-dir .docket/<changes_dir> --id <id> --outcome killed --date <UTC kill date> --reason "<why this change is obsolete>" --message "<msg>"` — moves the file, inserts the `## Why killed` section, sets `status: killed` / `updated: <UTC kill date>`, commits the **change file only**, and pushes `origin/docket`. Trust the exit code.
-  - **Publish:** `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/terminal-publish.sh --id <id> --outcome killed --integration-branch <integration_branch> --metadata-branch docket --changes-dir <changes_dir> --adrs-dir <adrs_dir> --message "<msg>"` — copies the terminal records from `origin/docket` onto the integration branch. Trust the exit code.
+  In `docket`-mode, in order:
+  - **Archive:** `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/archive-change.sh --changes-dir .docket/<changes_dir> --id <id> --outcome killed --date <UTC kill date> --reason "<why this change is obsolete>" --message "<msg>"`. Trust the exit code.
+  - **Publish:** `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/terminal-publish.sh --id <id> --outcome killed --integration-branch <integration_branch> --metadata-branch docket --changes-dir <changes_dir> --adrs-dir <adrs_dir> --message "<msg>"`. Trust the exit code.
   - **Prune:** `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/cleanup-feature-branch.sh --slug <slug>` — removes any feature worktree/branch already created for this change. Trust the exit code.
 
   In `main`-mode (no `docket` branch / no terminal-publish): `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/archive-change.sh --outcome killed …` runs against the primary working tree (the integration branch), performing the archive move + `## Why killed` insertion + push directly there. `terminal-publish.sh` is a no-op (its own mode-guard fires). `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/cleanup-feature-branch.sh --slug <slug>` still prunes any created worktree/branch. The `<UTC kill date>` is the same date used for the `archive/<date>-…` filename prefix. Loop back to Step 1. In both modes, after the kill is archived, run the Board pass (best-effort — see *Best-effort board refresh*) as a separate commit so the board drops the killed change before looping back to Step 1.
