@@ -166,22 +166,27 @@ The load-bearing assumption was checked against the official Claude Code docs
 - **Precedence (per-key merge, higher wins):** managed > CLI > local
   (`.claude/settings.local.json`) > project (`.claude/settings.json`) > user
   (`~/.claude/settings.json`).
-- ⚠️ **Subagent propagation is undocumented** — the docs do not confirm whether
-  settings `env` reaches spawned Task-agent Bash shells. This is why the design
-  leads with the **shell-profile `export`** (OS process-tree inheritance reaches
-  subagents) and treats settings `env` as reinforcement. docket's autonomous
-  skills dispatch script-running subagents, so this is load-bearing for us.
+- ✅ **Subagent propagation — empirically confirmed for the shell-profile route.**
+  The docs don't cover whether settings `env` reaches spawned Task-agent Bash
+  shells, so it was tested directly: each Bash call (main session AND dispatched
+  subagent) runs `/bin/zsh` and **sources `~/.zshrc`** — a dispatched subagent saw
+  the profile-only vars `ZSH`, `TF_PLUGIN_CACHE_DIR`, `OPENTUI_FORCE_WCWIDTH`. So a
+  shell-profile `export` **does** propagate to subagent Bash shells. Conversely,
+  Claude-process-injected vars are *not* uniformly inherited (`CLAUDE_EFFORT` was
+  set in the main session but **UNSET** in the subagent; `AI_AGENT` was present in
+  both) — which confirms why the design leads with the **profile `export`**
+  (re-sourced on every Bash call, main or subagent) rather than relying on
+  settings-`env`/process injection for docket's script-running subagents. Settings
+  `env` stays as main-session reinforcement.
 - Minor: a known Windows bug (gh #20112) where settings `env` isn't injected into
   Bash — docket is bash/macOS-Linux, low concern.
 
 ## Open questions
 
-Approach **A (env var)** is viable (verification above). Remaining unknowns:
+Approach **A (env var)** is viable and the injection mechanism is settled: the
+shell-profile `export` is the primary (empirically reaches subagents), settings
+`env` is main-session reinforcement (verification above). Remaining unknowns:
 
-- **Confirm subagent propagation empirically** — write `DOCKET_SCRIPTS` via the
-  shell-profile `export` and assert a dispatched subagent's Bash sees it (and,
-  separately, whether settings `env` alone reaches subagents). This decides whether
-  the profile `export` is strictly required or merely belt-and-suspenders.
 - **Per-harness injection:** docket targets `.claude`/`.codex`/`.cursor`/… — the
   shell-profile `export` is harness-agnostic, but does each harness also have a
   settings-style `env` worth writing, and does `install.sh` write all present ones
