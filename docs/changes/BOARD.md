@@ -1,12 +1,6 @@
 # Backlog
 
-**37 changes** — 🟢 1 in progress · 🟡 10 proposed · ✅ 25 done · 🗑️ 1 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0034](active/0034-consuming-repo-script-resolution.md) | Helper scripts unreachable in consuming repos — skills call repo-relative `scripts/…` that exists only in the docket source repo | `high` | [spec](../superpowers/specs/2026-06-21-consuming-repo-script-resolution-design.md) | `feat/consuming-repo-script-resolution` |
+**37 changes** — 🟡 10 proposed · 🔵 1 implemented · ✅ 25 done · 🗑️ 1 killed
 
 ## 🟡 Proposed (10)
 
@@ -21,7 +15,13 @@
 | [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | needs-brainstorm |
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0036](active/0036-status-sweep-double-archive.md) | docket-status sweep — delegate archiving to archive-change.sh (remove the double-archive) | `low` | build-ready |
-| [0037](active/0037-skill-fallback-progressive-disclosure.md) | Slim skills — move the per-skill manual-fallback / script-contract prose into on-demand sibling files | `medium` | ⏳ waiting on #34 — not yet built |
+| [0037](active/0037-skill-fallback-progressive-disclosure.md) | Slim skills — move the per-skill manual-fallback / script-contract prose into on-demand sibling files | `medium` | ⏳ waiting on #34 — needs your merge |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | PR |
+|---|-------|----------|----|
+| [0034](active/0034-consuming-repo-script-resolution.md) | Helper scripts unreachable in consuming repos — skills call repo-relative `scripts/…` that exists only in the docket source repo | `high` | [#45](https://github.com/danielhanold/docket/pull/45) |
 
 ```mermaid
 graph TD
