@@ -95,16 +95,30 @@ simple mechanisms, both grounded in machinery docket already has:
   *holds* the value (a literal absolute path — exactly what the injector needs,
   since settings `env` values are literal strings with no expansion).
 - **Injection point (refined by the verification below).** Write the var in **two
-  places**, both of which `install.sh` can do: (1) a **shell-profile `export`**
-  (`~/.zshrc`/`~/.bashrc`) — this lands in the OS process environment that the whole
-  Claude process tree inherits, so it reaches **subagent** Bash shells too (the
-  case that matters for docket's subagent-heavy autonomous flows); (2) the
-  **user-level `~/.claude/settings.json` `env` block** — confirmed to inject into
-  the main session's Bash tool, as reinforcement / for sessions not launched from a
-  profile-sourcing shell. User-level ⇒ every repo and every worktree, no per-repo step.
+  places**, both of which `install.sh` can do: (1) a **shell-profile `export`** in
+  the user's shell rc — the harness re-initialises every Bash-tool shell from the
+  user profile on **each** call, so a profile export is re-sourced by the main
+  session *and* by dispatched **subagent** Bash shells (the case that matters for
+  docket's subagent-heavy autonomous flows). Note this is *re-sourcing per call*,
+  **not** OS process-tree inheritance — the verification below shows a
+  Claude-injected process var (`CLAUDE_EFFORT`) present in the main session but
+  absent in a subagent, so we cannot rely on inheritance; the profile re-source is
+  what makes it reliable. (2) the **user-level `~/.claude/settings.json` `env`
+  block** — confirmed to inject into the main session's Bash tool, as reinforcement
+  / for sessions not launched from a profile-sourcing shell. User-level ⇒ every repo
+  and every worktree, no per-repo step. *The profile write in (1) is shell-specific
+  — see the multi-shell open question.*
 - Skills change `scripts/docket-config.sh` → `"${DOCKET_SCRIPTS:?run docket/install.sh}/docket-config.sh"`
   — a uniform, ~one-token-per-call-site edit. The `:?` form makes a missing/incomplete
   install **fail loud with the remedy**, folding the guardrail (was option 5) in for free.
+- **Namespaced.** The introduced var is `DOCKET_SCRIPTS` — `DOCKET_`-prefixed,
+  joining the scripts' existing `DOCKET_MODE` / `DOCKET_INTEGRATION_BRANCH` /
+  `DOCKET_HARNESS_ROOT` seams. **Constraint:** every env var docket introduces is
+  `DOCKET_`-namespaced, to avoid collisions in the user's shared shell environment.
+  (`AI_AGENT` / `CLAUDE_EFFORT` from the verification are *Claude Code's own* injected
+  vars used here only as test probes — not docket's, so not ours to rename. Minor
+  adjacent debt: the scripts' non-namespaced `GIT` / `REPO` mock seams predate this
+  and could be tightened separately.)
 - **No drift.** It points at the single live clone — the same clone the skill
   symlinks already point into — so skills (live) and scripts (live) stay
   version-matched automatically. This is the property that makes it strictly
@@ -187,6 +201,18 @@ Approach **A (env var)** is viable and the injection mechanism is settled: the
 shell-profile `export` is the primary (empirically reaches subagents), settings
 `env` is main-session reinforcement (verification above). Remaining unknowns:
 
+- **Multi-shell profile injection.** The helper *scripts* are shell-agnostic
+  (`#!/usr/bin/env bash` — they run via their shebang regardless of the user's login
+  shell, so no per-shell port is needed there). But the **profile `export` in (1) is
+  shell-specific** and must match whatever shell the Bash tool actually launches
+  (here it ran `/bin/zsh` = the user's `$SHELL`). `install.sh` must therefore detect
+  the user's shell(s) and write to the right rc with the right syntax:
+  zsh → `~/.zshrc`/`~/.zshenv` (`export`), bash → `~/.bashrc`/`~/.bash_profile`
+  (`export`), **fish → `~/.config/fish/config.fish` with `set -gx VAR val`** (not
+  `export`), and ideally tolerate others. Open: support which set (zsh+bash+fish as
+  the floor?), write-all-present vs detect-`$SHELL`, and prefer an always-sourced
+  file where one exists (zsh `~/.zshenv`). The settings-`env` reinforcement is
+  shell-agnostic, so it cushions the main session if a shell's profile write is missed.
 - **Per-harness injection:** docket targets `.claude`/`.codex`/`.cursor`/… — the
   shell-profile `export` is harness-agnostic, but does each harness also have a
   settings-style `env` worth writing, and does `install.sh` write all present ones
