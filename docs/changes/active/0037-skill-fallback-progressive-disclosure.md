@@ -48,6 +48,17 @@ when `board_surfaces` includes `github`") and the `*-template.md` siblings.
 - The detailed operations prose moves to the sibling, loaded only when needed.
 - Net effect: every `SKILL.md` shrinks; no prose is lost.
 
+**Folded in (found at #34's merge gate):** harden `tests/test_consuming_repo_scripts.sh`
+so it can't false-RED. Its fail-loud assertions (the `${DOCKET_SCRIPTS_DIR:?…}` checks)
+run `bash -c '…'` sub-shells that **inherit an exported `DOCKET_SCRIPTS_DIR`** — and
+#34's `install.sh` exports exactly that into the dev shell's profile. So in any shell
+where docket is installed, those sub-shells see the var set, `:?` never fires, and the
+three fail-loud assertions go NOT OK even though the code is correct (observed live
+finalizing #34 — a clean-env `env -u DOCKET_SCRIPTS_DIR` re-run was all-green). Fix: have
+the test's fail-loud sub-shells `env -u DOCKET_SCRIPTS_DIR bash -c '…'` so they exercise
+the unset path regardless of the ambient environment. Small and self-contained; rides here
+because this change already revisits the suite's sentinels.
+
 ## Out of scope
 
 - The script-reachability fix itself (`DOCKET_SCRIPTS_DIR`, install-time injection,
