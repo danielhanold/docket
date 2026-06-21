@@ -1,6 +1,6 @@
 # Backlog
 
-**38 changes** — 🟢 1 in progress · 🟡 9 proposed · 🔵 1 implemented · ✅ 26 done · 🗑️ 1 killed
+**38 changes** — 🟢 1 in progress · 🟡 9 proposed · ✅ 27 done · 🗑️ 1 killed
 
 ## 🟢 In progress (1)
 
@@ -22,12 +22,6 @@
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0037](active/0037-skill-fallback-progressive-disclosure.md) | Slim skills — move the per-skill manual-fallback / script-contract prose into on-demand sibling files | `medium` | needs-brainstorm |
 
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | PR |
-|---|-------|----------|----|
-| [0038](active/0038-test-grep-stray-dash-warning.md) | Test suite — drop over-escaped dashes in test_docket_metadata_branch.sh grep (silences "stray \ before -") | `low` | [#46](https://github.com/danielhanold/docket/pull/46) |
-
 ```mermaid
 graph TD
   0007
@@ -40,7 +34,6 @@ graph TD
   0030 --> 0033
   0035 --> 0036
   0034 --> 0037
-  0038
   0001:::done
   0002:::done
   0003:::done
@@ -67,13 +60,15 @@ graph TD
   0032:::done
   0034:::done
   0035:::done
+  0038:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (27)</summary>
+<details><summary>✅🗑️ Archive — done + killed (28)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0038](archive/2026-06-21-0038-test-grep-stray-dash-warning.md) | Test suite — drop over-escaped dashes in test_docket_metadata_branch.sh grep (silences "stray \ before -") | 2026-06-21 |
 | [0035](archive/2026-06-21-0035-artifact-links.md) | Artifact links — a generated link block at the top of every change | 2026-06-21 |
 | [0034](archive/2026-06-21-0034-consuming-repo-script-resolution.md) | Helper scripts unreachable in consuming repos — skills call repo-relative `scripts/…` that exists only in the docket source repo | 2026-06-21 |
 | [0032](archive/2026-06-20-0032-frontmatter-id-validation.md) | Validate numeric id across the frontmatter script family | 2026-06-20 |
