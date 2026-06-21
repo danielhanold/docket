@@ -352,4 +352,15 @@ else
   no "J: non-GitHub remote => bare paths, PR stays URL"; sed -n '/Artifacts/,/artifacts:end/p' "$cf9"
 fi
 
+# ---- Case K: change-template.md ships the empty marker block as the first body section ----
+tpl="$ROOT/skills/docket-new-change/change-template.md"
+if grep -qF '## Artifacts' "$tpl" \
+   && grep -qF '<!-- docket:artifacts:start (generated — do not hand-edit) -->' "$tpl" \
+   && grep -qF '<!-- docket:artifacts:end -->' "$tpl" \
+   && awk '/^## Artifacts/{a=NR} /^## Why/{w=NR} END{exit !(a>0 && w>0 && a<w)}' "$tpl"; then
+  ok "K: template ships empty marker block before ## Why"
+else
+  no "K: template ships empty marker block before ## Why"
+fi
+
 exit $fail
