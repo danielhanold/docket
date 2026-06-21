@@ -1,8 +1,8 @@
 # Backlog
 
-**36 changes** — 🟡 10 proposed · ✅ 25 done · 🗑️ 1 killed
+**37 changes** — 🟡 11 proposed · ✅ 25 done · 🗑️ 1 killed
 
-## 🟡 Proposed (10)
+## 🟡 Proposed (11)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -16,6 +16,7 @@
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0034](active/0034-consuming-repo-script-resolution.md) | Helper scripts unreachable in consuming repos — skills call repo-relative `scripts/…` that exists only in the docket source repo | `high` | build-ready |
 | [0036](active/0036-status-sweep-double-archive.md) | docket-status sweep — delegate archiving to archive-change.sh (remove the double-archive) | `low` | needs-brainstorm |
+| [0037](active/0037-skill-fallback-progressive-disclosure.md) | Slim skills — move the per-skill manual-fallback / script-contract prose into on-demand sibling files | `medium` | ⏳ waiting on #34 — not yet built |
 
 ```mermaid
 graph TD
@@ -29,6 +30,7 @@ graph TD
   0030 --> 0033
   0034
   0035 --> 0036
+  0034 --> 0037
   0001:::done
   0002:::done
   0003:::done
