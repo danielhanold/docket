@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/trim-docket-status-archive-prose
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -81,3 +81,26 @@ Net: a small body-only edit to one skill, guarded by the existing sweep sentinel
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-06-21 — reconcile (docket-implement-next)
+
+Premise **confirmed** against current code (`origin/main` @ `77491d8`). `skills/docket-status/SKILL.md`
+sweep **step c** still narrates `archive-change.sh`'s internals — the dated `active/ → archive/` move
+with reuse-existing idempotency, the `status` / `updated` / `results` writes, the change-file-only
+commit, the push-with-rebase-retry, and the fail-closed self-verification — every one of which is now
+carried by `scripts/archive-change.md` (Purpose + Behavior §3/§5/§6/§7/§8/§9 + Invariants). The trim is
+pure relocation; it loses nothing.
+
+**Mirror target:** #37's already-trimmed `docket-finalize-change` step 3 — keep the invocation, the exact
+args, "trust the exit code", and the one fact downstream steps rely on (it commits **the change file
+only**), and defer the mechanics to `scripts/archive-change.md`. **Divergence preserved:** the sweep keeps
+its own `non-zero ⇒ log-and-continue` posture, **not** finalize's `abort-and-report` (the #36 semantic, and
+the exact trap #37's Task-10 strip hit before its rebase corrected it). Untouched by the trim: step d's
+#0035 re-render-before-publish ordering, the per-change failure-posture paragraph (steps c–e), the
+determinism invariant, and the "identical to finalize" note.
+
+**Guardrails verified real:** the five sweep sentinels (`test_board_refresh_on_transition`,
+`test_learnings_ledger`, `test_results_artifact`, `test_docket_metadata_branch`, `test_closeout`) exist;
+no test asserts the trimmed prose tokens verbatim, so a markdown-only edit keeps them green. World unchanged
+since drafting (same day) — no scope or spec adjustment needed; `trivial: true`, body-only. Proceeding to
+plan.
