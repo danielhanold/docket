@@ -279,6 +279,21 @@ IMPL="$REPO/skills/docket-implement-next/SKILL.md"
 assert "wiring(status): sweep invokes archive-change.sh"   'grep -q "/archive-change.sh" "$STATUS"'
 assert "wiring(status): sweep invokes terminal-publish.sh" 'grep -q "/terminal-publish.sh" "$STATUS"'
 assert "wiring(status): sweep invokes cleanup-feature-branch.sh" 'grep -q "/cleanup-feature-branch.sh" "$STATUS"'
+# --- change 0036: the sweep delegates archiving to archive-change.sh (no manual double-archive) ---
+# The sweep's per-change archive must NOT hand-roll the move any more (mirrors the finalize sentinel).
+assert "wiring(status): sweep has no leftover raw archive bash (git mv active/)" \
+  '! grep -qE "git mv .*active/" "$STATUS"'
+# The renderer re-render must be ordered AFTER archive-change.sh and BEFORE terminal-publish
+# (LEARNINGS #0035 — anchor to the unique "before … terminal-publish" phrasing, assert order not presence).
+assert "wiring(status): sweep re-renders the Artifacts block before terminal-publish" \
+  'awk "/render-change-links\\.sh/{r=NR} /terminal-publish\\.sh/{if(r && r<NR){print \"ok\"; exit}}" "$STATUS" | grep -q ok'
+assert "wiring(status): sweep names render-change-links.sh in the delegated archive flow" \
+  'grep -q "render-change-links.sh" "$STATUS"'
+# The sweep's failure posture is log-and-continue (its own unique phrasing), NOT abort-and-report.
+assert "wiring(status): sweep failure posture is log-and-continue (abandon the remainder of this change)" \
+  'grep -qiE "abandon the remainder of (this|THIS) change" "$STATUS"'
+assert "wiring(status): sweep documents abort-and-report as a deliberate divergence, not its own posture" \
+  'grep -qiE "deliberately divergent from .?docket-finalize-change" "$STATUS"'
 assert "wiring(new-change): proposed-kill invokes archive-change.sh"   'grep -q "/archive-change.sh" "$NEWCHG"'
 assert "wiring(new-change): proposed-kill invokes terminal-publish.sh" 'grep -q "/terminal-publish.sh" "$NEWCHG"'
 assert "wiring(implement-next): reconcile-kill invokes archive-change.sh"     'grep -q "/archive-change.sh" "$IMPL"'
