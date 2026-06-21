@@ -2,7 +2,7 @@
 id: 35
 slug: artifact-links
 title: Artifact links — a generated link block at the top of every change
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-06-21
 updated: 2026-06-21
@@ -11,11 +11,11 @@ related: [1, 11, 22]
 adrs: [7, 12]
 spec: docs/superpowers/specs/2026-06-21-artifact-links-design.md
 plan: docs/superpowers/plans/2026-06-21-artifact-links.md
-results:
+results: docs/results/2026-06-21-artifact-links-results.md
 trivial: false
 auto_groomable:
 branch: feat/artifact-links
-pr:
+pr: https://github.com/danielhanold/docket/pull/44
 blocked_by:
 reconciled: true
 ---
