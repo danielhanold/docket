@@ -10,7 +10,7 @@ depends_on: [35]
 related: [35]
 adrs: []
 spec: docs/superpowers/specs/2026-06-21-status-sweep-double-archive-design.md
-plan:
+plan: docs/superpowers/plans/2026-06-21-status-sweep-double-archive.md
 results:
 trivial: false
 auto_groomable: true
@@ -26,6 +26,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-06-21-status-sweep-double-archive-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-06-21-status-sweep-double-archive-design.md) |
+| Plan | [2026-06-21-status-sweep-double-archive.md](https://github.com/danielhanold/docket/blob/feat/status-sweep-double-archive/docs/superpowers/plans/2026-06-21-status-sweep-double-archive.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
