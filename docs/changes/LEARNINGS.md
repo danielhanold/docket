@@ -4,6 +4,14 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-06-21 (#38, PR #46) — A test grepped for a CLI flag with `grep -qE "\-\-yes\b|\b-y\b"`; the
+  `\-` over-escaping silenced one trap (a bare ERE that *leads* with `--` is parsed as a grep
+  **option**, not a pattern — `unrecognized option`, exit 2) only by springing another (GNU grep's
+  `stray \ before -` stderr warning; BSD grep stays silent, so it hides on macOS). Naively dropping
+  the backslashes re-opens the option-parse trap. Apply: to grep for a `--flag`, declare the pattern
+  with `grep -E -e "<pat>"` — POSIX `-e` makes the next arg a pattern, never an option; clean (exit 0,
+  empty stderr) on **both** GNU and BSD grep. Never lead a bare ERE with `--`.
+
 - 2026-06-21 (#34, PR #45) — finalize's local merge gate ran the suite RED on the change's own
   drift-guard test — but only because `DOCKET_SCRIPTS_DIR` was *exported* in the interactive shell
   (this change's `install.sh` writes it to the shell profile). The test's `${VAR:?}` fail-loud
