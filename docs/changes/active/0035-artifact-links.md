@@ -10,7 +10,7 @@ depends_on: []
 related: [1, 11, 22]
 adrs: [7, 12]
 spec: docs/superpowers/specs/2026-06-21-artifact-links-design.md
-plan:
+plan: docs/superpowers/plans/2026-06-21-artifact-links.md
 results:
 trivial: false
 auto_groomable:
