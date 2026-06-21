@@ -2,7 +2,7 @@
 id: 38
 slug: test-grep-stray-dash-warning
 title: Test suite — drop over-escaped dashes in test_docket_metadata_branch.sh grep (silences "stray \ before -")
-status: in-progress
+status: implemented
 priority: low
 created: 2026-06-21
 updated: 2026-06-21
@@ -15,7 +15,7 @@ results:
 trivial: true
 auto_groomable:
 branch: feat/test-grep-stray-dash-warning
-pr:
+pr: https://github.com/danielhanold/docket/pull/46
 blocked_by:
 reconciled: true
 ---
@@ -26,6 +26,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Plan | [2026-06-21-test-grep-stray-dash-warning.md](https://github.com/danielhanold/docket/blob/feat/test-grep-stray-dash-warning/docs/superpowers/plans/2026-06-21-test-grep-stray-dash-warning.md) |
+| PR | [#46](https://github.com/danielhanold/docket/pull/46) |
 <!-- docket:artifacts:end -->
 
 ## Why
