@@ -2,7 +2,7 @@
 id: 39
 slug: trim-docket-status-archive-prose
 title: Trim docket-status's residual archive-internals prose onto scripts/archive-change.md
-status: in-progress
+status: implemented
 priority: low
 created: 2026-06-21
 updated: 2026-06-21
@@ -15,7 +15,7 @@ results:
 trivial: true
 auto_groomable:
 branch: feat/trim-docket-status-archive-prose
-pr:
+pr: https://github.com/danielhanold/docket/pull/49
 blocked_by:
 reconciled: true
 ---
@@ -26,6 +26,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Plan | [2026-06-21-trim-docket-status-archive-prose.md](https://github.com/danielhanold/docket/blob/feat/trim-docket-status-archive-prose/docs/superpowers/plans/2026-06-21-trim-docket-status-archive-prose.md) |
+| PR | [#49](https://github.com/danielhanold/docket/pull/49) |
 <!-- docket:artifacts:end -->
 
 ## Why
