@@ -92,10 +92,16 @@ simple mechanisms, both grounded in machinery docket already has:
 
 - `install.sh` already computes the docket clone's absolute path
   (`SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"`), so it already
-  *holds* the value. Have it write `env.DOCKET_SCRIPTS = "$SCRIPT_DIR/scripts"`
-  into the **user-level** `~/.claude/settings.json` `env` block (and a shell-profile
-  `export` as the cross-harness fallback). User-level ⇒ every repo and every
-  worktree sees it, no per-repo step.
+  *holds* the value (a literal absolute path — exactly what the injector needs,
+  since settings `env` values are literal strings with no expansion).
+- **Injection point (refined by the verification below).** Write the var in **two
+  places**, both of which `install.sh` can do: (1) a **shell-profile `export`**
+  (`~/.zshrc`/`~/.bashrc`) — this lands in the OS process environment that the whole
+  Claude process tree inherits, so it reaches **subagent** Bash shells too (the
+  case that matters for docket's subagent-heavy autonomous flows); (2) the
+  **user-level `~/.claude/settings.json` `env` block** — confirmed to inject into
+  the main session's Bash tool, as reinforcement / for sessions not launched from a
+  profile-sourcing shell. User-level ⇒ every repo and every worktree, no per-repo step.
 - Skills change `scripts/docket-config.sh` → `"${DOCKET_SCRIPTS:?run docket/install.sh}/docket-config.sh"`
   — a uniform, ~one-token-per-call-site edit. The `:?` form makes a missing/incomplete
   install **fail loud with the remedy**, folding the guardrail (was option 5) in for free.
@@ -144,22 +150,42 @@ shim. All are strictly more moving parts than A for the same outcome.
 - Re-litigating the symlink-vs-copy model for *skills* (`link-skills.sh`) — this
   change is about the **scripts**, which today have no distribution path at all.
 
+### Verification — Claude Code settings `env` (2026-06-20)
+
+The load-bearing assumption was checked against the official Claude Code docs
+([env-vars](https://code.claude.com/docs/en/env-vars.md), [settings](https://code.claude.com/docs/en/settings.md)):
+
+- ✅ **`settings.json` `env` injects into the Bash tool.** Docs: *"Every command
+  executed via the Bash tool and every hook script can read these variables…
+  Claude Code injects these key-value pairs into the session's environment at
+  startup."* So `env.DOCKET_SCRIPTS` is visible to skill Bash calls.
+- **Read at session start** — a settings edit takes effect on the next `claude`
+  launch, not mid-session. Fine for an install-time write.
+- **Literal strings only** — no `${…}`/`~` expansion, no dynamic eval; `install.sh`
+  writes the already-resolved absolute path, so this is a non-issue.
+- **Precedence (per-key merge, higher wins):** managed > CLI > local
+  (`.claude/settings.local.json`) > project (`.claude/settings.json`) > user
+  (`~/.claude/settings.json`).
+- ⚠️ **Subagent propagation is undocumented** — the docs do not confirm whether
+  settings `env` reaches spawned Task-agent Bash shells. This is why the design
+  leads with the **shell-profile `export`** (OS process-tree inheritance reaches
+  subagents) and treats settings `env` as reinforcement. docket's autonomous
+  skills dispatch script-running subagents, so this is load-bearing for us.
+- Minor: a known Windows bug (gh #20112) where settings `env` isn't injected into
+  Bash — docket is bash/macOS-Linux, low concern.
+
 ## Open questions
 
-Leaning toward **approach A (env var)**; the remaining unknowns are mostly about
-the injection point:
+Approach **A (env var)** is viable (verification above). Remaining unknowns:
 
-- **Does the var reach the agent's non-interactive shell?** Confirm Claude Code
-  injects `~/.claude/settings.json` `env` into the Bash-tool environment (the
-  load-bearing assumption). If yes, that is the primary injector; a shell-profile
-  `export` is the cross-harness fallback.
-- **Per-harness injection:** docket targets `.claude`/`.codex`/`.cursor`/… — what
-  is the equivalent `env` mechanism in each, and does `install.sh` write all the
-  present ones (mirroring how `link-skills.sh` links into each present harness)?
-- **User-level vs per-repo settings:** user-level `~/.claude/settings.json` is
-  repo-agnostic (one write, every worktree) — preferred — but is committed/global;
-  per-repo `.claude/settings.local.json` (the `ensure-claude-settings.sh` precedent)
-  is gitignored/per-user and would need re-running per clone. Pick the level.
+- **Confirm subagent propagation empirically** — write `DOCKET_SCRIPTS` via the
+  shell-profile `export` and assert a dispatched subagent's Bash sees it (and,
+  separately, whether settings `env` alone reaches subagents). This decides whether
+  the profile `export` is strictly required or merely belt-and-suspenders.
+- **Per-harness injection:** docket targets `.claude`/`.codex`/`.cursor`/… — the
+  shell-profile `export` is harness-agnostic, but does each harness also have a
+  settings-style `env` worth writing, and does `install.sh` write all present ones
+  (mirroring how `link-skills.sh` links into each present harness)?
 - **Should the manual prose fallback stay?** Once the scripts are reliably
   reachable + fail loud, is the convention's "prose is the contract" path retired
   to true-last-resort, or kept behind an explicit override?
