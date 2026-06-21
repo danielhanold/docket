@@ -44,17 +44,23 @@ defect surfaced in every consuming repo, not a consuming-repo problem.
 Give the skills one reliable **absolute** path to the docket clone's `scripts/`, via an
 env var, and make its absence fail loud:
 
-- Introduce **`DOCKET_SCRIPTS`** (absolute path to the docket clone's `scripts/`). Skills
-  resolve every call as `"${DOCKET_SCRIPTS:?run docket/install.sh}/<name>.sh"` — the `:?`
+- Introduce **`DOCKET_SCRIPTS_DIR`** (absolute path to the docket clone's `scripts/`). Skills
+  resolve every call as `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}/<name>.sh"` — the `:?`
   makes a missing install fail loud with the remedy.
 - **`install.sh` injects it** (it already holds the absolute path): primary = a
   **shell-profile `export`** (re-sourced on every Bash call, so it reaches the
   subagents docket dispatches), reinforcement = user-level `~/.claude/settings.json`
   `env`. Points at the **live clone** the skill symlinks already use → **zero drift**.
 - Re-running `install.sh` **back-fills** already-migrated repos (markhaus included).
+- **Skills get shorter:** each skill body drops its manual "hand-work it from the prose"
+  fallback (that hatch is what caused the silent degradation) — it calls the script and
+  fails loud; the script contract stays documented once in the convention.
+- A **CI drift-guard** fails when a consuming repo can't resolve the scripts via
+  `DOCKET_SCRIPTS_DIR`, or when a skill still uses a bare `scripts/` path.
 
-Full design — injection mechanics, the multi-shell profile write (zsh/bash `export`, fish
-`set -gx`), the verification, the `DOCKET_` namespacing constraint, and the alternatives
+Full design — injection mechanics, the shell floor (zsh/bash `export`, fish `set -gx`,
+POSIX-`export` fallback for others — grounded in how Starship/zoxide/mise/rustup/Homebrew
+do it), the verification, the `DOCKET_` namespacing constraint, and the alternatives
 weighed (copy-into-`.claude` rejected for drift; PATH-CLI / realpath / per-repo-shim
 demoted) — is in the linked **spec**.
 
@@ -62,17 +68,16 @@ demoted) — is in the linked **spec**.
 
 - Copy/symlink vendoring of the scripts into the consuming repo (rejected — drift).
 - The heavier resolutions (PATH CLI dispatcher, realpath-from-symlink, per-repo shim).
-- Rewriting the scripts' internal logic; retiring the convention's manual-prose fallback
-  (stays a true last resort); tightening the non-namespaced `GIT`/`REPO` mock seams;
-  Windows profile injection.
+- Rewriting the scripts' internal logic; removing the convention's per-script *contract*
+  documentation (the single reference stays); tightening the non-namespaced `GIT`/`REPO`
+  mock seams; Windows profile injection.
 
 ## Open questions
 
-Design is settled (see spec); these are build-time choices:
+Shell floor, the manual-fallback removal, and the CI drift-guard are now decided (see
+spec). One build-time question remains:
 
-- Shell support floor (zsh + bash + fish?) and write strategy (all-present vs detect
-  `$SHELL`; prefer an always-sourced file like zsh `~/.zshenv`).
-- Whether each present harness also gets its settings-`env` equivalent written.
-- Retire the manual-prose fallback, or keep it behind an explicit override.
-- A CI drift-guard (mirror `sync-agents.sh --check`) asserting a consuming repo can
-  resolve `docket-config.sh` via `DOCKET_SCRIPTS`.
+- Whether `install.sh` writes the settings-`env` *reinforcement* for **each present
+  harness** (`.claude`/`.codex`/`.cursor`/…, looping like `link-skills.sh`) or only Claude
+  Code — low-stakes, since the shell-profile `export` is harness-agnostic and is the actual
+  guarantee.

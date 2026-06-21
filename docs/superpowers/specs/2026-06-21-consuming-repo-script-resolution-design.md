@@ -1,4 +1,4 @@
-# Consuming-repo script resolution — reach docket's helper scripts via `DOCKET_SCRIPTS`
+# Consuming-repo script resolution — reach docket's helper scripts via `DOCKET_SCRIPTS_DIR`
 
 **Change:** #34
 **Status:** design (brainstorm output; stops at spec per `docket-groom-next`)
@@ -42,15 +42,15 @@ when it is missing.
 
 ## Decisions (locked in brainstorm)
 
-1. **Env var, not vendoring.** Introduce `DOCKET_SCRIPTS` = the absolute path to the
+1. **Env var, not vendoring.** Introduce `DOCKET_SCRIPTS_DIR` = the absolute path to the
    docket clone's `scripts/`. Skills resolve every call as
-   `"${DOCKET_SCRIPTS:?run docket/install.sh}/<name>.sh"`. **Rejected:**
+   `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}/<name>.sh"`. **Rejected:**
    copying/symlinking the scripts into the consuming repo (e.g.
    `<repo>/.claude/docket/scripts/`) — a copy **drifts** (the scripts are developed in
    lockstep with the live-symlinked skills; a copied script lags a skill edit), a
    symlink doesn't survive a fresh clone; copying only buys hermetic version-pinning,
    which is not wanted.
-2. **Points at the live clone → zero drift.** `DOCKET_SCRIPTS` names the same clone the
+2. **Points at the live clone → zero drift.** `DOCKET_SCRIPTS_DIR` names the same clone the
    skill symlinks already point into, so skills (live) and scripts (live) stay
    version-matched automatically. This is the property that makes the env var strictly
    better than any copy.
@@ -65,10 +65,10 @@ when it is missing.
 4. **`install.sh` writes both.** It already computes the docket clone's absolute path
    (`SCRIPT_DIR`), so it holds the literal value the injector needs. The settings-`env`
    write reuses the `ensure-claude-settings.sh` idempotent-`jq` precedent (change 0027).
-5. **Fail loud, not silent.** The `${DOCKET_SCRIPTS:?…}` form turns a missing/incomplete
+5. **Fail loud, not silent.** The `${DOCKET_SCRIPTS_DIR:?…}` form turns a missing/incomplete
    install into a clear, actionable error at the first script call — folding the former
    standalone "guardrail" option in for free. Each skill's Step 0 surfaces it.
-6. **`DOCKET_` namespacing.** `DOCKET_SCRIPTS` joins the scripts' existing `DOCKET_MODE`
+6. **`DOCKET_` namespacing.** `DOCKET_SCRIPTS_DIR` joins the scripts' existing `DOCKET_MODE`
    / `DOCKET_INTEGRATION_BRANCH` / `DOCKET_HARNESS_ROOT` seams. **Constraint:** every env
    var docket introduces is `DOCKET_`-namespaced, to avoid collisions in the user's
    shared shell environment.
@@ -78,18 +78,40 @@ when it is missing.
 8. **Back-fill is free for the env route.** Re-running `install.sh` repairs
    already-migrated repos (markhaus today has the scripts absent) — the user-level
    injection is repo-agnostic, so one re-run covers every repo and worktree.
+9. **Shell floor = zsh + bash + fish, with a POSIX `export` fallback.** Grounded in a
+   survey of how common tools do shell integration — Starship, zoxide, mise, rustup, and
+   Homebrew **all** support bash + zsh + fish first-class; everything beyond is a long tail
+   (nushell strongest at 4/5, PowerShell Windows-centric, elvish/xonsh/tcsh/cmd niche).
+   So `install.sh` writes `export` for bash/zsh and `set -gx` for fish, and — mirroring
+   Homebrew `shellenv` and rustup — **falls back to a POSIX `export`** for any other/unknown
+   shell. It prefers an **always-sourced** file where one exists (zsh `~/.zshenv`, as rustup
+   does). nushell / PowerShell are deferred (add on demand; PowerShell only if docket ever
+   targets Windows). The shell-agnostic settings-`env` write backstops anything the profile
+   write misses.
+10. **No per-skill manual fallback — fail loud, contract documented once.** Skills carry
+    **no** "hand-work it from the prose" escape hatch (that hatch is exactly what produced
+    the silent degradation). A skill calls the script via `${DOCKET_SCRIPTS_DIR:?…}` and
+    **stops loud** if it is unreachable. The behavioural contract of *what each script does*
+    stays documented in **one** place — the convention's script-family / ADR-0012
+    boundary section (and each script's own header) — as reference, never restated per
+    skill. Net effect the human asked for: **every skill gets shorter**, and the
+    deterministic path is the only path.
+11. **CI drift-guard.** Add a check (mirroring `sync-agents.sh --check`) that fails when a
+    consuming repo cannot resolve `docket-config.sh` via `DOCKET_SCRIPTS_DIR`, and when any
+    skill body still references a bare `scripts/<name>.sh` instead of `${DOCKET_SCRIPTS_DIR`.
+    Catches this whole class early.
 
 ## The env var
 
 ```
-DOCKET_SCRIPTS = <docket clone>/scripts        # absolute, e.g. /Users/me/dev/docket/scripts
+DOCKET_SCRIPTS_DIR = <docket clone>/scripts        # absolute, e.g. /Users/me/dev/docket/scripts
 ```
 
 Skill call-site shape (uniform, ~one token per call):
 
 ```
-eval "$("${DOCKET_SCRIPTS:?run docket/install.sh}"/docket-config.sh --export)"
-"${DOCKET_SCRIPTS:?run docket/install.sh}"/render-board.sh --changes-dir …
+eval "$("${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket-config.sh --export)"
+"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/render-board.sh --changes-dir …
 ```
 
 ## Injection — where `install.sh` writes it
@@ -101,14 +123,22 @@ with the right syntax:
 
 | Shell | File | Syntax |
 |---|---|---|
-| zsh  | `~/.zshenv` (always sourced) or `~/.zshrc` | `export DOCKET_SCRIPTS="…"` |
-| bash | `~/.bashrc` / `~/.bash_profile` | `export DOCKET_SCRIPTS="…"` |
-| fish | `~/.config/fish/config.fish` | `set -gx DOCKET_SCRIPTS "…"` |
+| zsh  | `~/.zshenv` (always sourced) or `~/.zshrc` | `export DOCKET_SCRIPTS_DIR="…"` |
+| bash | `~/.bashrc` / `~/.bash_profile` | `export DOCKET_SCRIPTS_DIR="…"` |
+| fish | `~/.config/fish/config.fish` | `set -gx DOCKET_SCRIPTS_DIR "…"` |
+| *other / unknown* | the shell's profile if detectable | POSIX `export` (fallback) |
 
-Plus the shell-agnostic reinforcement: `env.DOCKET_SCRIPTS` in user-level
+bash + zsh + fish is the **floor** because every surveyed tool (Starship, zoxide, mise,
+rustup, Homebrew) supports exactly that set first-class. For any other shell, follow the
+Homebrew-`shellenv` / rustup pattern and emit a **POSIX `export`** (covers sh/dash/ash/ksh
+and most). Prefer an **always-sourced** file where one exists — zsh `~/.zshenv` (rustup
+writes there), not just `~/.zshrc`. nushell / PowerShell are out of the floor (decision 9).
+
+Plus the shell-agnostic reinforcement: `env.DOCKET_SCRIPTS_DIR` in user-level
 `~/.claude/settings.json` (idempotent `jq` write, per the `ensure-claude-settings.sh`
 pattern). Both writes are idempotent and marked so re-running `install.sh` is a no-op
-when already present. Prefer an always-sourced file where one exists (zsh `~/.zshenv`).
+when already present — and the settings-`env` write backstops any shell the profile
+write misses.
 
 ## Verification (done during brainstorm)
 
@@ -130,21 +160,26 @@ when already present. Prefer an always-sourced file where one exists (zsh `~/.zs
 
 ## Touch-points
 
-- **`install.sh`** — write `DOCKET_SCRIPTS` to the detected shell profile(s) + user-level
+- **`install.sh`** — write `DOCKET_SCRIPTS_DIR` to the detected shell profile(s) + user-level
   `~/.claude/settings.json` `env`; idempotent; this is the back-fill path too.
 - **Every skill body** — replace bare `scripts/<name>.sh` with
-  `"${DOCKET_SCRIPTS:?run docket/install.sh}"/<name>.sh` uniformly (`docket-new-change`,
+  `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/<name>.sh` uniformly (`docket-new-change`,
   `docket-groom-next`, `docket-auto-groom`, `docket-implement-next`, `docket-status`,
   `docket-finalize-change`, `docket-adr`, and the convention's bootstrap-probe references).
-  Step 0 inherits the fail-loud check via `:?`.
+  Step 0 inherits the fail-loud check via `:?`. **Also strip any per-skill manual-fallback
+  prose** (decision 10) — this is a net *reduction* in skill length, not an addition.
 - **`migrate-to-docket.sh`** — ensure `install.sh` has run (or point at it) so a freshly
   migrated repo is immediately script-reachable, not just settings-granted.
-- **Convention** — document `DOCKET_SCRIPTS` resolution and the `DOCKET_` namespacing
-  constraint where the script family is described.
-- **Tests** — assert a consuming-repo shell with `DOCKET_SCRIPTS` set resolves
+- **Convention** — document `DOCKET_SCRIPTS_DIR` resolution + the `DOCKET_` namespacing
+  constraint where the script family is described, and host the **single** copy of the
+  "scripts are the deterministic layer; if unreachable, fail loud and run `install.sh`"
+  statement (decision 10) so no skill restates it.
+- **CI** — the drift-guard from decision 11 (a `sync-agents.sh --check`-style gate): a
+  consuming repo resolves `docket-config.sh` via `DOCKET_SCRIPTS_DIR`, and no skill body
+  references a bare `scripts/<name>.sh`.
+- **Tests** — assert a consuming-repo shell with `DOCKET_SCRIPTS_DIR` set resolves
   `docket-config.sh`; assert the multi-shell profile-write syntax (zsh/bash `export`,
-  fish `set -gx`); assert idempotent re-runs; a `sync-*`-style check that every skill body
-  references `${DOCKET_SCRIPTS` rather than a bare `scripts/`.
+  fish `set -gx`, POSIX-`export` fallback); assert idempotent re-runs.
 
 ## Out of scope
 
@@ -153,30 +188,31 @@ when already present. Prefer an always-sourced file where one exists (zsh `~/.zs
   resolving the scripts dir from the skill symlink's own realpath at Step 0, a per-repo
   `link-scripts.sh` shim — all more moving parts than the env var for the same reach.
 - Rewriting the scripts' internal logic — they work; the defect is *reachability*.
-- Retiring the convention's "prose is the contract" fallback documentation — it stays a
-  true last resort (but is no longer the de-facto path).
+- Removing the convention's per-script *contract* documentation — that stays as the single
+  reference (decision 10 removes the per-*skill* fallback prose, not the convention's
+  description of what each script does).
 - Tightening the scripts' non-namespaced `GIT` / `REPO` mock seams — minor adjacent debt,
   separate change.
 - Windows profile injection (gh #20112).
 
 ## Open questions (build-time)
 
-- **Shell support floor + write strategy:** zsh + bash + fish as the floor? Write to all
-  present shells' rc, or detect `$SHELL` and write one? Prefer an always-sourced file
-  (zsh `~/.zshenv`)?
-- **Per-harness settings `env`:** docket targets `.claude`/`.codex`/`.cursor`/… — does
-  each present harness get its settings-`env` equivalent written (mirroring how
-  `link-skills.sh` links into each present harness)?
-- **Retire the manual-prose fallback** once scripts are reachable + fail loud, or keep it
-  behind an explicit override?
-- **CI drift-guard:** mirror `sync-agents.sh --check` with a check that a consuming repo
-  can actually resolve `docket-config.sh` via `DOCKET_SCRIPTS` — catch this whole class
-  early.
+Shell floor, the manual-fallback removal, and the CI drift-guard are now decided
+(decisions 9–11). One genuine question remains:
+
+- **Per-harness settings `env`:** the shell-profile `export` (the primary) is
+  harness-agnostic and already covers every harness. The open question is only about the
+  *reinforcement* layer — docket's `link-skills.sh` installs into whichever of
+  `.claude`/`.codex`/`.cursor`/`.agents`/`.kiro`/`.windsurf` are present, and each has its
+  own (or no) settings-`env` mechanism. Build decides whether `install.sh` writes each
+  present harness's equivalent (looping like `link-skills.sh`) or only Claude Code's, with
+  the others relying on the profile `export` alone. Low-stakes because the profile `export`
+  is the actual guarantee; the settings write is belt-and-suspenders.
 
 ## ADRs
 
 Cites **ADR-0012** (the `docket-status` script-vs-model boundary): the scripts are the
 deterministic layer the model defers to, and this change restores that layer's
 reachability from consuming repos. Likely **produces a new ADR** recording the
-consuming-repo script-resolution contract (`DOCKET_SCRIPTS`, profile-`export`-primary +
+consuming-repo script-resolution contract (`DOCKET_SCRIPTS_DIR`, profile-`export`-primary +
 settings-`env`-reinforcement, fail-loud) — assigned at build time by `docket-adr`.
