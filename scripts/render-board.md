@@ -1,0 +1,88 @@
+# render-board.sh — deterministic board renderer
+
+## Purpose
+
+Reads the change files (`active/` and `archive/`) and emits `BOARD.md` to **STDOUT**. The caller
+redirects the output and commits it; this script performs no git writes. It is the **sole writer**
+of `BOARD.md` — skills never construct the board by hand. Running it with the same change files
+always produces byte-identical output (deterministic and idempotent). Offline: no network calls,
+no `gh`. Introduced in change 0022.
+
+## Usage
+
+```
+render-board.sh --changes-dir DIR [--repo OWNER/REPO]
+```
+
+| Flag | Required | Description |
+|---|---|---|
+| `--changes-dir DIR` | yes | Path to the changes directory (`active/` and `archive/` are children of this dir). |
+| `--repo OWNER/REPO` | no | Used to build `pr:` hyperlinks in the **Implemented** column. Defaults to deriving `OWNER/REPO` from the `origin` remote of `--changes-dir` (best-effort, offline). Absent or non-GitHub remote: PR numbers render as bare `#N`. |
+
+Mock seam: `GIT="${GIT:-git}"` — override in tests.
+
+## Behavior
+
+**H1 title.** The first line emitted is `# Backlog` (followed by a blank line).
+
+**Validation.** Exits 2 if `--changes-dir` is missing or is not a directory.
+
+**Repo derivation.** When `--repo` is not supplied, extracts `OWNER/REPO` from `git remote get-url
+origin` on the `--changes-dir` repo by stripping the `.git` suffix and `git@github.com:` /
+`https://github.com/` prefixes. Failure is silently swallowed; PR links degrade to bare numbers.
+
+**Count line.** Counts all `*.md` files across `active/` and `archive/`. Emits a bold count +
+per-status emoji summary: `**N changes** — 🟢 N in progress · 🟡 N proposed · …`. Only statuses
+with at least one change appear.
+
+**Active sections.** For each status that has at least one change, emits a `## <Emoji> <Status>
+(N)` heading followed by a Markdown table. Column layout varies by status:
+
+| Status | Columns |
+|---|---|
+| in-progress | `# · Title · Priority · Spec · Branch` |
+| proposed | `# · Title · Priority · Readiness` |
+| blocked | `# · Title · Priority · Blocked by` |
+| deferred | `# · Title · Priority` |
+| implemented | `# · Title · Priority · PR` |
+
+The `#` cell links to the change file (`active/<filename>`). IDs are zero-padded to four digits.
+Sections are emitted in the fixed order: in-progress → proposed → blocked → deferred →
+implemented. The **Implemented** heading suffix is `— awaiting merge`. Empty statuses are omitted.
+
+**Readiness cell (proposed).** Calls `readiness()` from `lib/docket-frontmatter.sh`; maps the
+token: `waiting` → `⏳ waiting on #N — <reason>`; `auto-groom-blocked` → `auto-groom blocked —
+needs you`; `needs-brainstorm` → `needs-brainstorm`; `build-ready` → `build-ready`.
+
+**PR cell (implemented).** If `pr:` is a full URL, renders `[#N](url)`. If it is a bare number
+and `--repo` is set, constructs `https://github.com/OWNER/REPO/pull/N`. Otherwise renders `#N`.
+
+**Dependency graph (Mermaid).** After the active sections, emits a fenced `mermaid` block with a
+`graph TD`. Each active change is a node (ID padded to four digits). Changes with `depends_on:`
+emit `PARENT --> CHILD` edges; standalone changes emit a bare node. Done changes from archive are
+listed with `:::done` and a `classDef done fill:#d3f9d8;` rule. Killed archive entries are omitted
+from the graph.
+
+**Archive section.** If `archive/` contains any `*.md` files, emits a collapsible `<details>` block
+with a `| # | Title | Merged |` table. Rows are sorted by merged date descending, then by ID
+descending. The `#` cell links to `archive/<filename>`. The merged date is the first ten characters
+of the archive filename (the `YYYY-MM-DD` prefix).
+
+## Exit codes
+
+| Code | Meaning |
+|---|---|
+| 0 | BOARD.md written to stdout successfully. |
+| 2 | Missing or invalid argument (`--changes-dir` absent or not a directory; unknown flag). |
+
+## Invariants
+
+- **STDOUT only.** All board content goes to stdout; all diagnostics go to stderr. The caller
+  redirects stdout to the `BOARD.md` path and commits.
+- **Sole writer.** Skills never construct or patch `BOARD.md` by hand. On a git conflict,
+  re-run the script rather than hand-merging.
+- **Offline.** No network calls, no `gh`. Depends only on the change files and (optionally) a
+  local `git remote get-url` call.
+- **Deterministic.** Same change files → identical bytes every time. Safe to re-run at any point.
+- **No git writes.** The script never touches the git index or working tree; the caller owns the
+  commit.

@@ -27,7 +27,7 @@ got="$(cd "$tmp" && DOCKET_SCRIPTS_DIR="$REPO/scripts" bash -c 'echo "${DOCKET_S
               || no "DOCKET_SCRIPTS_DIR resolves docket-config.sh from a foreign CWD ($got)"
 
 # (3) FAIL-LOUD: unset DOCKET_SCRIPTS_DIR -> the :? form exits non-zero with the remedy.
-err="$(cd "$tmp" && bash -c 'echo "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket-config.sh' 2>&1)"; rc=$?
+err="$(cd "$tmp" && env -u DOCKET_SCRIPTS_DIR bash -c 'echo "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket-config.sh' 2>&1)"; rc=$?  # env -u: exercise the unset path even when the dev shell exports the var (LEARNINGS #34)
 [ "$rc" -ne 0 ] && ok "unset DOCKET_SCRIPTS_DIR fails loud (non-zero exit)" \
                || no "unset DOCKET_SCRIPTS_DIR fails loud (non-zero exit)"
 printf '%s' "$err" | grep -qF "run docket/install.sh" && ok "fail-loud message carries the remedy" \
@@ -36,7 +36,7 @@ printf '%s' "$err" | grep -qF "run docket/install.sh" && ok "fail-loud message c
 # (3b) FAIL-LOUD at the real Step-0 eval shape: the :? fires inside the command
 # substitution, so the outer eval does NOT exit non-zero — but the remedy still
 # reaches stderr, which is what the executing agent sees and stops on.
-evalerr="$(cd "$tmp" && bash -c 'eval "$("${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket-config.sh --export)"' 2>&1)"
+evalerr="$(cd "$tmp" && env -u DOCKET_SCRIPTS_DIR bash -c 'eval "$("${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket-config.sh --export)"' 2>&1)"  # env -u: exercise the unset path even when the dev shell exports the var (LEARNINGS #34)
 printf '%s' "$evalerr" | grep -qF "run docket/install.sh" && ok "eval-site: unset var surfaces the remedy on stderr" \
                                                            || no "eval-site: unset var surfaces the remedy on stderr"
 
