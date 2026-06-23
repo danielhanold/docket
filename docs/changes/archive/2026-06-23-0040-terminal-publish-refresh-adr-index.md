@@ -2,7 +2,7 @@
 id: 40
 slug: terminal-publish-refresh-adr-index
 title: terminal-publish leaves the integration-branch ADR index stale — regenerate it when an ADR is published
-status: implemented
+status: done
 priority: medium
 created: 2026-06-23
 updated: 2026-06-23
