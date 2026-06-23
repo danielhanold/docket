@@ -2,7 +2,7 @@
 id: 40
 slug: terminal-publish-refresh-adr-index
 title: terminal-publish leaves the integration-branch ADR index stale — regenerate it when an ADR is published
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-06-23
 updated: 2026-06-23
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch:
+branch: claude/docket-change-40-gkv95o
 pr:
 blocked_by:
 reconciled: false
