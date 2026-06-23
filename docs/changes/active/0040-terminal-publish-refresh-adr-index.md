@@ -2,7 +2,7 @@
 id: 40
 slug: terminal-publish-refresh-adr-index
 title: terminal-publish leaves the integration-branch ADR index stale — regenerate it when an ADR is published
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-06-23
 updated: 2026-06-23
@@ -11,11 +11,11 @@ related: [33]
 adrs: []
 spec: docs/superpowers/specs/2026-06-23-terminal-publish-refresh-adr-index-design.md
 plan: docs/superpowers/plans/2026-06-23-terminal-publish-refresh-adr-index.md
-results:
+results: docs/results/2026-06-23-terminal-publish-refresh-adr-index-results.md
 trivial: false
 auto_groomable: true
 branch: claude/docket-change-40-gkv95o
-pr:
+pr: https://github.com/danielhanold/docket/pull/50
 blocked_by:
 reconciled: true
 ---
@@ -27,6 +27,8 @@ reconciled: true
 |---|---|
 | Spec | `docs/superpowers/specs/2026-06-23-terminal-publish-refresh-adr-index-design.md` |
 | Plan | `docs/superpowers/plans/2026-06-23-terminal-publish-refresh-adr-index.md` |
+| Results | `docs/results/2026-06-23-terminal-publish-refresh-adr-index-results.md` |
+| PR | https://github.com/danielhanold/docket/pull/50 |
 <!-- docket:artifacts:end -->
 
 ## Why
