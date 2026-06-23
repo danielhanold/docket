@@ -21,8 +21,12 @@ sync-integration-branch.sh \
 ```
 
 - `--integration-branch` — the branch to fast-forward (required; typically `main` or `develop`).
-- `--clone-dir` — directory of the git clone to operate on. Defaults to the repo root containing
-  the script itself (`dirname "$0"/..`, resolved with `pwd -P`).
+- `--clone-dir` — directory of the git clone to operate on. Defaults to the **main worktree of the
+  repo the script is invoked from** (CWD) — the first entry of `git worktree list --porcelain`, which
+  git always lists first and which is reachable from any linked worktree in the set. This targets the
+  consuming repo's primary checkout even when the caller's shell sits in a linked worktree (the sync
+  site runs from the `.docket/` metadata worktree on the `docket` branch). An explicit `--clone-dir`
+  overrides; if CWD is not inside a git repo the not-a-repo gate skips (best-effort, exit 0).
 - `--remote` — remote name (default `origin`).
 
 **Mock seam:** `GIT="${GIT:-git}"` — tests substitute a wrapper.
@@ -40,13 +44,24 @@ sync-integration-branch.sh \
   1. The clone's current checkout is exactly `<integration_branch>` (not detached HEAD, not a
      feature branch, not `main` when `integration_branch` is `develop`).
   2. The working tree is clean: `git status --porcelain` produces no output (tracked modifications
-     and untracked non-ignored files both block the fast-forward).
+     and untracked non-ignored files both block the fast-forward). The skip **note** is explicit that
+     untracked non-ignored files block too and states the remedy (commit/stash tracked edits; remove
+     or `.gitignore` untracked paths), so a consuming repo with stray untracked files gets a
+     diagnosable skip rather than a silent drift. The gate **condition** is unchanged — only the note.
   3. The local tip is a strict ancestor of `FETCH_HEAD` (true fast-forward): `git merge-base
      --is-ancestor HEAD FETCH_HEAD`. Diverged histories are skipped, not forced.
 
 - **FF-only merge.** `git merge --ff-only FETCH_HEAD` is the only merge operation. Failure of
   this call (e.g., unexpected conflict) is treated as best-effort: a note is emitted and the
   script exits 0 without aborting.
+
+- **Default `--clone-dir` resolves the invoking repo's main worktree, not the script's repo.** With
+  no `--clone-dir`, the dir is the first entry of `git -C "$PWD" worktree list --porcelain` (the main
+  worktree — CWD-independent and reachable from any linked worktree). This is why a bare invocation
+  from the linked `.docket/` worktree still fast-forwards the consuming repo's primary checkout. Using
+  `git rev-parse --show-toplevel` would instead return the *linked* worktree (on the `docket` branch),
+  which gate 1 then skips — so main-worktree resolution is load-bearing. An explicit `--clone-dir`
+  overrides (the hermetic tests rely on this).
 
 - **Fetch is included.** `git fetch <remote> <branch>` runs on every invocation (cheap/no-op at
   merge sites that already fetched). Fetch failure is a best-effort skip, not an error.
