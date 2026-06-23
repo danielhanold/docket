@@ -17,7 +17,7 @@ auto_groomable: true
 branch: feat/post-merge-sync-targets-consuming-repo
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -105,3 +105,20 @@ _All resolved at grooming (2026-06-23); recorded in the spec's "Resolved design 
 - A consuming-repo finalize does **not** also refresh the docket skills clone (separate workflow).
 
 ## Reconcile log
+
+### 2026-06-23 — reconciled at claim (no scope change)
+
+Verified against current reality before planning:
+
+- **Target code unchanged.** `scripts/sync-integration-branch.sh` on `origin/main` has exactly
+  one commit (the change-0029 ship); the buggy default `--clone-dir="$(cd "$(dirname "$0")/.." …)"`
+  (lines 40–43) and the generic gate-2 note `working tree not clean — skipping (no fast-forward
+  onto local edits)` (line 58) are both present as the spec assumes. No drift.
+- **Existing tests safe.** All 7 hermetic cases in `tests/test_sync_integration_branch.sh` pass an
+  explicit `--clone-dir`, so the default retarget leaves them green — confirms the spec's claim;
+  the two new cases (bare-invocation main-worktree FF; louder dirty/untracked note) are additive.
+- **Cited ADRs still Accepted:** 0007 (board-mirror boundary), 0012 (script-vs-model boundary),
+  0014 (consuming-repo script resolution) — the deterministic-git-in-the-script rationale stands.
+- **Related changes both `done`:** 0029 (script origin) and 0034 (separate-clone model / ADR-0014).
+- **Design settled same day (interactive groom).** All five "Resolved design decisions" hold; no
+  new constraint, nothing shipped elsewhere, no scope to drop. Building as specified.
