@@ -194,12 +194,19 @@ assert "publish(conflict): exits 0 after resolving the same-file rebase conflict
 assert "publish(conflict): docket authoritative bytes win (status: done present)" 'printf "%s\n" "$landed" | grep -q "^status: done"'
 assert "publish(conflict): competing divergent bytes overwritten" '! printf "%s\n" "$landed" | grep -q "COMPETING-DIVERGENT-BYTES"'
 assert "publish(conflict): no conflict markers leaked into the landed file" '! printf "%s\n" "$landed" | grep -q "^<<<<<<<"'
+# change 0040: the copy-set (--id 7) includes Accepted ADR-0003, so the retry path must ALSO
+# regenerate the ADR index (A7 — regenerate-don't-3-way-merge); same-path divergence exercises it.
+cidx="$(git -C "$W" show origin/main:docs/adrs/README.md 2>/dev/null)"
+assert "publish(conflict): ADR index regenerated in the CAS retry path (lists ADR-0003)" 'printf "%s\n" "$cidx" | grep -q "ADR-0003"'
+assert "publish(conflict): no conflict markers leaked into the retry-path index" '! printf "%s\n" "$cidx" | grep -q "^<<<<<<<"'
 
 # --- terminal-publish.sh: main-mode no-op ---
 read -r W _ < <(new_repo)
 ( cd "$W" && "$PUBLISH" --id 7 --outcome done --integration-branch main --metadata-branch main --changes-dir docs/changes --adrs-dir docs/adrs ) >/dev/null 2>&1
 assert "publish: main-mode exits 0 (no-op)" "[ $? -eq 0 ]"
 assert "publish: main-mode created no pub worktree" '! git -C "$W" worktree list | grep -q "pub-7"'
+# change 0040: main-mode early-exits before the copy/render region, so it writes no ADR index.
+assert "publish(index): main-mode writes no ADR index" '! git -C "$W" ls-tree -r --name-only origin/main 2>/dev/null | grep -q "docs/adrs/README.md"'
 
 # --- terminal-publish.sh --adr: standalone Accepted ADR publishes to the integration branch ---
 read -r W _ < <(new_repo)
@@ -241,6 +248,94 @@ read -r W _ < <(new_repo)
 assert "publish: --id + --adr together is rejected (non-zero)" '[ "$?" -ne 0 ]'
 ( cd "$W" && "$PUBLISH" --integration-branch main --metadata-branch docket --changes-dir docs/changes --adrs-dir docs/adrs ) >/dev/null 2>&1
 assert "publish: neither --id nor --adr is rejected (non-zero)" '[ "$?" -ne 0 ]'
+
+# =====================================================================================
+# change 0040 — terminal-publish refreshes the integration-branch ADR index when it
+# publishes an ADR, rendered from the integration branch's OWN ADR set (no dangling links),
+# in the SAME publish commit, only when an ADR is actually published, a no-op in main-mode.
+# Helper: extract the ADR-file links the index emits (rows render `(NNNN-slug.md)` relative paths).
+idx_links(){ printf '%s\n' "$1" | grep -oE '\(([0-9]{4}-[^)]+\.md)\)' | tr -d '()'; }
+
+# (1) change-publish (--id) with an Accepted ADR → index lists it, every link resolves, same commit
+read -r W _ < <(new_repo)
+"$ARCHIVE" --changes-dir "$W/docs/changes" --id 7 --outcome done --date 2026-06-18 >/dev/null 2>&1
+( cd "$W" && "$PUBLISH" --id 7 --outcome done --integration-branch main --metadata-branch docket --changes-dir docs/changes --adrs-dir docs/adrs ) >/dev/null 2>&1
+git -C "$W" fetch origin main >/dev/null 2>&1
+idx="$(git -C "$W" show origin/main:docs/adrs/README.md 2>/dev/null)"
+assert "publish(index): README.md present on integration branch after --id publish" '[ -n "$idx" ]'
+assert "publish(index): index lists the published Accepted ADR-0003" 'printf "%s\n" "$idx" | grep -q "ADR-0003"'
+landed_adrs="$(git -C "$W" ls-tree -r --name-only origin/main -- docs/adrs)"
+dangle=0; for l in $(idx_links "$idx"); do printf '%s\n' "$landed_adrs" | grep -qx "docs/adrs/$l" || dangle=1; done
+assert "publish(index): every index link resolves to a file on the branch (no dangling row)" '[ "$dangle" -eq 0 ]'
+tip_files="$(git -C "$W" show --name-only --format= origin/main)"
+assert "publish(index): ADR file and index land in the SAME publish commit" \
+  'printf "%s\n" "$tip_files" | grep -qx "docs/adrs/0003-accepted.md" && printf "%s\n" "$tip_files" | grep -qx "docs/adrs/README.md"'
+
+# (2) ADR-only publish (--adr) → index includes the published ADR; every link resolves
+read -r W _ < <(new_repo)
+( cd "$W" && "$PUBLISH" --adr 3 --integration-branch main --metadata-branch docket --changes-dir docs/changes --adrs-dir docs/adrs ) >/dev/null 2>&1
+git -C "$W" fetch origin main >/dev/null 2>&1
+idx="$(git -C "$W" show origin/main:docs/adrs/README.md 2>/dev/null)"
+assert "publish --adr(index): index lists the published ADR-0003" 'printf "%s\n" "$idx" | grep -q "ADR-0003"'
+landed_adrs="$(git -C "$W" ls-tree -r --name-only origin/main -- docs/adrs)"
+dangle=0; for l in $(idx_links "$idx"); do printf '%s\n' "$landed_adrs" | grep -qx "docs/adrs/$l" || dangle=1; done
+assert "publish --adr(index): every index link resolves (no dangling row)" '[ "$dangle" -eq 0 ]'
+
+# (3) renders from the BRANCH set, not the metadata superset — dangling-link guard (A4).
+# ADR-0003 is Accepted on docket but its change is not terminal, so its FILE is not on main.
+# Publishing a DIFFERENT ADR (0005) must yield an index that lists 0005 and NOT 0003.
+read -r W _ < <(new_repo)
+( cd "$W" && "$PUBLISH" --adr 5 --integration-branch main --metadata-branch docket --changes-dir docs/changes --adrs-dir docs/adrs ) >/dev/null 2>&1
+git -C "$W" fetch origin main >/dev/null 2>&1
+idx="$(git -C "$W" show origin/main:docs/adrs/README.md 2>/dev/null)"
+assert "publish(index, branch-set): lists the just-published ADR-0005" 'printf "%s\n" "$idx" | grep -q "ADR-0005"'
+assert "publish(index, branch-set): does NOT list ADR-0003 whose file is not on the branch (no dangling row)" \
+  '! printf "%s\n" "$idx" | grep -q "ADR-0003"'
+
+# (4) no-ADR change-publish → no spurious ADR index back-fill commit
+read -r W _ < <(new_repo)
+sed -i.bak 's/^adrs: \[3, 5\]/adrs:/' "$W/docs/changes/active/0007-sample.md" && rm -f "$W/docs/changes/active/0007-sample.md.bak"
+git -C "$W" commit -aqm "test: change with no adrs" >/dev/null 2>&1
+git_quiet -C "$W" push origin docket
+"$ARCHIVE" --changes-dir "$W/docs/changes" --id 7 --outcome done --date 2026-06-18 >/dev/null 2>&1
+( cd "$W" && "$PUBLISH" --id 7 --outcome done --integration-branch main --metadata-branch docket --changes-dir docs/changes --adrs-dir docs/adrs ) >/dev/null 2>&1
+git -C "$W" fetch origin main >/dev/null 2>&1
+assert "publish(index): no-ADR change-publish writes NO ADR index (no spurious back-fill)" \
+  '! git -C "$W" ls-tree -r --name-only origin/main | grep -q "docs/adrs/README.md"'
+assert "publish(index): no-ADR change-publish still lands the change file" \
+  'git -C "$W" ls-tree -r --name-only origin/main | grep -q "docs/changes/archive/2026-06-18-0007-sample.md"'
+
+# (6) idempotent re-run → the index is byte-stable (no new integration commit, no churn)
+read -r W _ < <(new_repo)
+"$ARCHIVE" --changes-dir "$W/docs/changes" --id 7 --outcome done --date 2026-06-18 >/dev/null 2>&1
+( cd "$W" && "$PUBLISH" --id 7 --outcome done --integration-branch main --metadata-branch docket --changes-dir docs/changes --adrs-dir docs/adrs ) >/dev/null 2>&1
+git -C "$W" fetch origin main >/dev/null 2>&1; idx1="$(git -C "$W" show origin/main:docs/adrs/README.md 2>/dev/null)"; rev1="$(git -C "$W" rev-parse origin/main)"
+( cd "$W" && "$PUBLISH" --id 7 --outcome done --integration-branch main --metadata-branch docket --changes-dir docs/changes --adrs-dir docs/adrs ) >/dev/null 2>&1
+git -C "$W" fetch origin main >/dev/null 2>&1; idx2="$(git -C "$W" show origin/main:docs/adrs/README.md 2>/dev/null)"; rev2="$(git -C "$W" rev-parse origin/main)"
+assert "publish(index): idempotent re-run keeps the index byte-stable" '[ "$idx1" = "$idx2" ] && [ -n "$idx1" ]'
+assert "publish(index): idempotent re-run makes no new integration commit" '[ "$rev1" = "$rev2" ]'
+
+# (7) CAS retry where the competing writer DIVERGES the index PATH itself (A7, LEARNINGS #25).
+# A concurrent push lands divergent docs/adrs/README.md on main; our --adr 3 publish also ADDs a
+# rendered README, so the rebase hits an add/add CONFLICT on the index path. The retry-path
+# refresh_adr_index must REGENERATE (not 3-way-merge): docket's freshly-rendered index wins, the
+# competing bytes are overwritten, and no conflict markers leak. (Provisioning pub on the work
+# clone's STALE origin/main is what forces the non-FF push and the rebase.)
+read -r W _ < <(new_repo)
+comp="$(mktemp -d)"; git clone "$(git -C "$W" remote get-url origin)" "$comp" >/dev/null 2>&1
+git -C "$comp" checkout main >/dev/null 2>&1
+mkdir -p "$comp/docs/adrs"
+printf 'COMPETING-INDEX-BYTES must be overwritten by the regenerated ADR index\n' > "$comp/docs/adrs/README.md"
+git -C "$comp" add -A
+git -C "$comp" -c user.email=c@c -c user.name=c commit -m "competing divergence on the index path" >/dev/null 2>&1
+git -C "$comp" push origin main >/dev/null 2>&1
+( cd "$W" && "$PUBLISH" --adr 3 --integration-branch main --metadata-branch docket --changes-dir docs/changes --adrs-dir docs/adrs ) >/dev/null 2>&1
+rc=$?; git -C "$W" fetch origin main >/dev/null 2>&1
+idx="$(git -C "$W" show origin/main:docs/adrs/README.md 2>/dev/null)"
+assert "publish(index-conflict): exits 0 after resolving an add/add conflict on the index path" "[ $rc -eq 0 ]"
+assert "publish(index-conflict): regenerated index wins (lists ADR-0003)" 'printf "%s\n" "$idx" | grep -q "ADR-0003"'
+assert "publish(index-conflict): competing index bytes overwritten" '! printf "%s\n" "$idx" | grep -q "COMPETING-INDEX-BYTES"'
+assert "publish(index-conflict): no conflict markers leaked into the landed index" '! printf "%s\n" "$idx" | grep -q "^<<<<<<<"'
 
 # --- cleanup-feature-branch.sh: removes a worktree under .worktrees/<slug> + its branch ---
 read -r W _ < <(new_repo)

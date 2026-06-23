@@ -150,6 +150,34 @@ These steps execute after the copy-set is assembled:
    branch, and removes the temp dir. Then asserts the worktree registration is gone (a final
    postcondition guard).
 
+### ADR index refresh (change 0040)
+
+When (and only when) a publish copies **≥1 ADR file** onto the integration branch, the script also
+regenerates the integration-branch ADR index `<adrs_dir>/README.md` and stages it into the **same
+publish commit**. The fire condition is tracked as `adr_published`: **true** in `--adr` mode (the
+lone copy-set entry is an ADR), and in `--id` mode **true iff** ≥1 ADR passed the Accepted gate
+(was appended to the copy-set). A no-ADR change-publish never touches the index — no spurious
+back-fill commit.
+
+The index is rendered by `render-adr-index.sh --adrs-dir "$pub/<adrs_dir>"` **after** the copy-set
+is checked out into `pub`, so it reads the **integration branch's own ADR files with this publish's
+ADR(s) overlaid** — never the metadata branch's superset. This is load-bearing: the metadata index
+lists `Accepted` ADRs whose files reach the branch only at their own terminal publish, so copying it
+verbatim would emit rows linking to not-yet-published files (dangling links). Rendering from the
+branch's set guarantees every index row links to a file that is actually present, and incidentally
+re-lists any previously-published-but-unindexed ADRs (incremental self-heal of prior drift). A
+consequence — intended — is that the integration index **trails** the metadata index while an ADR
+is `Accepted` but its change is not yet terminal.
+
+The render rides the existing guarded `diff --cached --quiet || commit`, so the copy-set and the
+index land in **one** commit; a byte-identical re-render leaves nothing to commit (idempotent). The
+refresh is mirrored in the CAS push-reject retry path (re-render after the re-checkout, before
+`rebase --continue`) so a concurrent push is resolved by deterministic regeneration, never a 3-way
+merge of the index. The post-push self-verify additionally asserts `<adrs_dir>/README.md` landed on
+`origin/<integration_branch>` when `adr_published` is true (fail-closed). **A no-op in `main`-mode**
+— the mode guard early-exits before this region, and `docket-adr` already maintains the index in
+place there.
+
 ## Exit codes
 
 - `0` — the full copy-set landed on `origin/<integration_branch>` and the worktree was torn down
@@ -176,6 +204,10 @@ because this script reads the archived path from `origin/<metadata_branch>`. Thi
 archive; it only copies.
 
 **`BOARD.md` is never published** — not in the copy-set, not in any retry path.
+
+**The ADR index is refreshed only from the integration branch's published ADR files, and only when
+an ADR is published** — rendered from `pub`'s own `<adrs_dir>` (never the metadata superset), in the
+same publish commit; a no-ADR change-publish and `main`-mode both leave the index untouched.
 
 **Accepted gate fires at copy time** — an ADR that is `Proposed` at the moment the copy-set is
 assembled is excluded, even if it was `Accepted` at claim time.

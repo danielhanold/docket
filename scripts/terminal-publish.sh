@@ -67,6 +67,10 @@ metaref="$REMOTE/$META_BRANCH"
 tmpd="$(mktemp -d)"
 trap 'rm -rf "$tmpd"' EXIT
 
+# Tracks whether the copy-set includes ≥1 ADR file (change 0040). When true, the publish also
+# regenerates the integration-branch ADR index from the branch's own ADR set (see render block below).
+adr_published=false
+
 if [ -n "$ADR" ]; then
   # ----- ADR-only publish: copy-set = the single ADR file; step-1 archive skipped; no Accepted gate -----
   apad="$(printf '%04d' "$ADR")"
@@ -77,6 +81,7 @@ if [ -n "$ADR" ]; then
   apath="${apath%%$'\n'*}"
   [ -n "$apath" ] || die "no ADR file for id $ADR on $metaref"
   copyset=("$apath")
+  adr_published=true   # the lone copy-set entry is an ADR
 else
   # ----- change publish: token = the id; build copy-set from the archived change manifest -----
   pad="$(printf '%04d' "$ID")"
@@ -101,6 +106,7 @@ else
     $GIT show "$metaref:$apath" > "$tmpd/adr.md" || { log "adr $aid: unreadable; skipping"; continue; }
     if [ "$(field "$tmpd/adr.md" status)" = "Accepted" ]; then
       copyset+=("$apath")
+      adr_published=true   # ≥1 Accepted ADR in the copy-set
     else
       log "adr $aid: not Accepted; skipped by gate"
     fi
@@ -120,9 +126,23 @@ teardown(){
   rm -rf "$(dirname "$pub")" "$tmpd"
 }
 
+# change 0040: regenerate the integration-branch ADR index, staged into the same publish commit.
+# Fires only when this publish copies ≥1 ADR ($adr_published). Renders from pub's OWN <adrs_dir>
+# — the integration branch's ADR files with this publish's ADR(s) overlaid (the copy-set was just
+# checked out) — never the metadata superset, so every index link resolves (no dangling rows). The
+# dir is guaranteed present (an ADR was just checked out into it). Idempotent: a byte-identical
+# re-render leaves nothing for the guarded commit to capture.
+refresh_adr_index(){
+  [ "$adr_published" = true ] || return 0
+  "$(dirname "$0")/render-adr-index.sh" --adrs-dir "$pub/$ADRS_DIR" > "$pub/$ADRS_DIR/README.md" \
+    || { teardown; die "adr index render failed"; }
+  $GIT -C "$pub" add "$ADRS_DIR/README.md"
+}
+
 # --- copy the terminal records from the metadata remote tip and CAS-push ---
 $GIT -C "$pub" fetch "$REMOTE" "$META_BRANCH" >/dev/null 2>&1 || { teardown; die "fetch in pub failed"; }
 $GIT -C "$pub" checkout "$metaref" -- "${copyset[@]}" || { teardown; die "checkout copyset failed"; }
+refresh_adr_index
 if ! $GIT -C "$pub" diff --cached --quiet; then
   $GIT -C "$pub" commit -m "$MESSAGE" >/dev/null || { teardown; die "publish commit failed"; }
 fi
@@ -130,6 +150,7 @@ fi
 until $GIT -C "$pub" push "$REMOTE" "HEAD:$INT_BRANCH"; do
   if $GIT -C "$pub" pull --rebase "$REMOTE" "$INT_BRANCH"; then :; else
     $GIT -C "$pub" checkout "$metaref" -- "${copyset[@]}"
+    refresh_adr_index   # regenerate deterministically on conflict — never a 3-way-merge of the index
     $GIT -C "$pub" rebase --continue || { teardown; die "CAS rebase --continue failed"; }
   fi
 done
@@ -140,6 +161,11 @@ landed="$($GIT ls-tree -r --name-only "$REMOTE/$INT_BRANCH")"
 for p in "${copyset[@]}"; do
   printf '%s\n' "$landed" | grep -qxF "$p" || { teardown; die "postcondition: $p missing on $REMOTE/$INT_BRANCH"; }
 done
+# change 0040: the rendered ADR index is not in the copy-set, so assert it separately (fail-closed).
+if [ "$adr_published" = true ]; then
+  printf '%s\n' "$landed" | grep -qxF "$ADRS_DIR/README.md" \
+    || { teardown; die "postcondition: $ADRS_DIR/README.md missing on $REMOTE/$INT_BRANCH"; }
+fi
 
 teardown
 # teardown removed the worktree; assert it is gone (registration pruned)
