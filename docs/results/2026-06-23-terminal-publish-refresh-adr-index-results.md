@@ -1,0 +1,20 @@
+# terminal-publish: refresh the integration-branch ADR index — results
+Change: #0040 · Branch: claude/docket-change-40-gkv95o · PR: <set on open> · Plan: docs/superpowers/plans/2026-06-23-terminal-publish-refresh-adr-index.md · ADRs: none
+
+## Verify (human)
+
+Automated tests cover the behavior fully; no manual gate checks are required. One optional, *informational* observation to be aware of at merge:
+
+- [ ] (informational, not a blocker) After this merges, the **first ADR-bearing terminal publish** onto `main` will full-re-render `docs/adrs/README.md` and thereby **self-heal the present drift** — `origin/main`'s index currently lists only through **ADR-0002** while ADR files exist through **ADR-0014**. Expect that publish's commit to add the missing ADR-0003…0014 rows (plus the new one). This is the intended incremental self-heal, not a regression. An on-the-spot back-fill (before the next natural publish) remains a manual `render-adr-index.sh` + push, exactly as before — out of scope per the spec.
+
+## Findings
+
+- **No new architectural decision.** Per spec (`## What the implementer edits` and A-list), this is additive, reversible tooling applying existing decisions (ADR-0012 script-vs-model boundary; `render-adr-index`'s sole-writer/regenerate-don't-merge rules). `adrs:` stays `[]`; no ADR recorded.
+- **Implementation is exactly the spec's "Target flow"** — three insertions in `scripts/terminal-publish.sh` confined to the copy/push region: the `adr_published` flag during copy-set assembly; a `refresh_adr_index` render+add after the copy-set checkout (guarded by the flag); the same render+add mirrored in the CAS push-reject retry path. Plus the recommended A9 hardening: a fail-closed self-verify that `docs/adrs/README.md` landed on `origin/main` when `adr_published`. Documented in `scripts/terminal-publish.md` (behavior subsection + invariant) and the convention's Branch-model copy-set description.
+- **Adversarial review (independent subagent): no correctness bugs.** It hand-built and verified the one scenario the suite did not originally exercise — a competing writer landing **divergent bytes on the index path itself**, forcing an `add/add` conflict on `docs/adrs/README.md`. The retry-path `refresh_adr_index` regenerates (never 3-way-merges): docket's freshly-rendered index wins, competing bytes are overwritten, no conflict markers leak. That scenario is now a **committed regression test** (`publish(index-conflict): …`, LEARNINGS #25 same-path divergence), mutation-verified by removing the retry-path render.
+- **Test coverage:** the spec's 6-test floor + the CAS-retry index assertion (folded into the existing change-file-divergence conflict test) + the new index-path-conflict test. Every new assertion was mutation-verified non-vacuous (neutralize the render → positive assertions flip; force `adr_published=false` → the same flip; render-from-metadata-superset → the dangling-link/branch-set guard flips).
+
+## Follow-ups
+
+- **#0033 (`adr-index-main-maintenance`) — owner disposition.** Per spec A2, emitting #0040 effectively resolves #0033's open (a)-vs-(b) question in favor of **(b)** (keep the integration index, re-render from the branch's own ADR set). #0033 is still `proposed` and was deliberately not touched here (kill/defer/edit of another stub is never autonomous). The owner may now want to **kill #0033** or **narrow it** to its remaining sub-question ("should the resulting convention be recorded in a new ADR?"). `related: [33]` is recorded on #0040.
+- **Environmental (not introduced by this change):** in this sandbox, `tests/test_docket_config.sh` and `tests/test_ensure_claude_settings.sh` exit non-zero because `docket-config.sh` cannot resolve `origin/HEAD` (`git remote set-head failed` — a network/remote-head limitation of the execution environment). Zero assertion failures; the root cause is unrelated to the changed files (`terminal-publish.sh`/`.md`, `test_closeout.sh`, the convention). All suites that read the changed files are green.
