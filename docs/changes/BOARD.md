@@ -1,12 +1,11 @@
 # Backlog
 
-**41 changes** — 🟢 2 in progress · 🟡 8 proposed · ✅ 30 done · 🗑️ 1 killed
+**41 changes** — 🟢 1 in progress · 🟡 8 proposed · 🔵 1 implemented · ✅ 30 done · 🗑️ 1 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Spec | Branch |
 |---|-------|----------|------|--------|
-| [0040](active/0040-terminal-publish-refresh-adr-index.md) | terminal-publish leaves the integration-branch ADR index stale — regenerate it when an ADR is published | `medium` | [spec](../superpowers/specs/2026-06-23-terminal-publish-refresh-adr-index-design.md) | `claude/docket-change-40-gkv95o` |
 | [0041](active/0041-post-merge-sync-targets-consuming-repo.md) | Post-merge integration sync fast-forwards the docket clone, not the consuming repo where the merge landed | `medium` | [spec](../superpowers/specs/2026-06-23-post-merge-sync-targets-consuming-repo-design.md) | `feat/post-merge-sync-targets-consuming-repo` |
 
 ## 🟡 Proposed (8)
@@ -21,6 +20,12 @@
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | needs-brainstorm |
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | PR |
+|---|-------|----------|----|
+| [0040](active/0040-terminal-publish-refresh-adr-index.md) | terminal-publish leaves the integration-branch ADR index stale — regenerate it when an ADR is published | `medium` | [#50](https://github.com/danielhanold/docket/pull/50) |
 
 ```mermaid
 graph TD
