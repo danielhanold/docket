@@ -17,7 +17,7 @@ auto_groomable: true
 branch: claude/docket-change-40-gkv95o
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -78,6 +78,24 @@ detail in the linked spec (groomed 2026-06-23):
 This change presupposes model (b) of #0033 (keep the ADR index on the integration
 branch, re-rendered from its own ADR set), which the owner chose by framing this
 stub. See the spec's `## Assumptions` (A2) and `related: [33]`.
+
+## Reconcile log
+
+- 2026-06-23 — Reconciled at the last responsible moment (after claim, before plan). Re-read the
+  change + spec against current `scripts/terminal-publish.sh`, `scripts/terminal-publish.md`,
+  `scripts/render-adr-index.sh`, and `tests/test_closeout.sh`. The spec's "Target flow" still
+  matches the live script byte-for-byte: the copy-set checkout (`terminal-publish.sh:125`), the CAS
+  retry re-checkout + `rebase --continue` (`:132-133`), and the fail-closed self-verify
+  (`:138-142`) are exactly the three insertion points the spec names. `render-adr-index.sh` still
+  takes `--adrs-dir DIR`, reads a local dir, emits to stdout, and excludes `README.md` from its
+  scan — reusable as-is. The dogfood drift the stub cites is confirmed present on `origin/main`
+  today (ADR files through 0014, index lists only through ADR-0002). **Nothing dropped or
+  rescoped** — work is wholly unimplemented and independently buildable. Related #0033 is still
+  `proposed`; per spec A2 its disposition (kill/narrow) is the owner's call and is not touched here
+  (kill/defer/edit of another stub is never autonomous). Verified one edge the spec leaves
+  implicit: `render-adr-index.sh` requires its `--adrs-dir` to exist, but the render only fires when
+  `adr_published` is true, i.e. after ≥1 ADR file was checked out into `$pub/$ADRS_DIR`, so the dir
+  is always present at render time even on an integration branch that previously had no `docs/adrs/`.
 
 ## Out of scope
 
