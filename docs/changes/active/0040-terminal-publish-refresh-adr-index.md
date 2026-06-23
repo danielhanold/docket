@@ -10,7 +10,7 @@ depends_on: []
 related: [33]
 adrs: []
 spec: docs/superpowers/specs/2026-06-23-terminal-publish-refresh-adr-index-design.md
-plan:
+plan: docs/superpowers/plans/2026-06-23-terminal-publish-refresh-adr-index.md
 results:
 trivial: false
 auto_groomable: true
@@ -25,7 +25,8 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | [2026-06-23-terminal-publish-refresh-adr-index-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-06-23-terminal-publish-refresh-adr-index-design.md) |
+| Spec | `docs/superpowers/specs/2026-06-23-terminal-publish-refresh-adr-index-design.md` |
+| Plan | `docs/superpowers/plans/2026-06-23-terminal-publish-refresh-adr-index.md` |
 <!-- docket:artifacts:end -->
 
 ## Why
