@@ -2,7 +2,7 @@
 id: 41
 slug: post-merge-sync-targets-consuming-repo
 title: Post-merge integration sync fast-forwards the docket clone, not the consuming repo where the merge landed
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-06-23
 updated: 2026-06-23
@@ -15,7 +15,7 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/post-merge-sync-targets-consuming-repo
-pr:
+pr: https://github.com/danielhanold/docket/pull/51
 blocked_by:
 reconciled: true
 ---
@@ -27,6 +27,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-06-23-post-merge-sync-targets-consuming-repo-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-06-23-post-merge-sync-targets-consuming-repo-design.md) |
 | Plan | [2026-06-23-post-merge-sync-targets-consuming-repo.md](https://github.com/danielhanold/docket/blob/feat/post-merge-sync-targets-consuming-repo/docs/superpowers/plans/2026-06-23-post-merge-sync-targets-consuming-repo.md) |
+| PR | [#51](https://github.com/danielhanold/docket/pull/51) |
 <!-- docket:artifacts:end -->
 
 ## Why
