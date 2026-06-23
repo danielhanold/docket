@@ -1,8 +1,8 @@
 # Backlog
 
-**40 changes** — 🟡 9 proposed · ✅ 30 done · 🗑️ 1 killed
+**41 changes** — 🟡 10 proposed · ✅ 30 done · 🗑️ 1 killed
 
-## 🟡 Proposed (9)
+## 🟡 Proposed (10)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -15,6 +15,7 @@
 | [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | needs-brainstorm |
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0040](active/0040-terminal-publish-refresh-adr-index.md) | terminal-publish leaves the integration-branch ADR index stale — regenerate it when an ADR is published | `medium` | build-ready |
+| [0041](active/0041-post-merge-sync-targets-consuming-repo.md) | Post-merge integration sync fast-forwards the docket clone, not the consuming repo where the merge landed | `medium` | needs-brainstorm |
 
 ```mermaid
 graph TD
@@ -27,6 +28,7 @@ graph TD
   0022 --> 0024
   0030 --> 0033
   0040
+  0041
   0001:::done
   0002:::done
   0003:::done
