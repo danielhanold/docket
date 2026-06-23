@@ -128,7 +128,7 @@ mkdir -p "$root/bin"; cp "$HELPER" "$root/bin/sync.sh"; chmod +x "$root/bin/sync
 before="$(git -C "$W" rev-parse HEAD)"
 out="$(cd "$root/linked" && "$root/bin/sync.sh" --integration-branch main 2>&1)"; rc=$?
 after="$(git -C "$W" rev-parse HEAD)"
-remote_tip="$(git -C "$W" rev-parse origin/main)"
+remote_tip="$(git -C "$O" rev-parse main)"
 sentinel="$(cat "$W/skills/sentinel.txt")"
 assert "bare-linked: exit 0"                        "[ $rc -eq 0 ]"
 assert "bare-linked: MAIN worktree fast-forwarded"  "[ '$after' = '$remote_tip' ]"
