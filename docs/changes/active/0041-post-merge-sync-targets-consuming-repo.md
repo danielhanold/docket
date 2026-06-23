@@ -13,7 +13,7 @@ spec:
 plan:
 results:
 trivial: false
-auto_groomable: true
+auto_groomable: false
 branch:
 pr:
 blocked_by:
@@ -91,3 +91,75 @@ in. Likely shape, to be settled at brainstorm:
   skip-and-note is still the right call there rather than a surprise.
 
 ## Reconcile log
+
+## Auto-groom blocked
+
+### 2026-06-23 — autonomous groom abstained
+
+A default-biased self-brainstorm designed this change and an adversarial critic gated the
+draft. Four of five design decisions cleared as **sound** (independently re-verified); one is
+**human intent the groom cannot default**, so no spec was emitted and `auto_groomable` is
+flipped to `false`. The settled work is recorded below so an interactive groom (or the author)
+starts from it rather than re-deriving it.
+
+**The undecidable decision — does fixing this change require also addressing gate 2 (the
+dirty-tree skip) for consuming repos?**
+
+The targeting fix (below) makes the post-merge sync resolve the **consuming repo's main
+worktree** instead of the docket clone. But `sync-integration-branch.sh`'s **gate 2** skips on
+*any* `git status --porcelain` output — including untracked, non-ignored files. The markhaus
+evidence that motivated this change records an **untracked `design/` directory** in markhaus's
+primary checkout. So even with correct targeting, gate 2 still trips on that untracked dir and
+the FF still skips — meaning **the targeting fix alone leaves markhaus's reported drift (local
+`main` 6 commits behind `origin/main`) unresolved.**
+
+The stub contradicts itself here and the contradiction is material:
+- **Out of scope** says "Changing … the gate conditions themselves" — forecloses touching gate 2.
+- **Open questions** reopens exactly that: "Does the clean-tree gate need any carve-out for
+  consuming repos? markhaus had an untracked `design/` directory that would skip even a
+  correctly-targeted FF — confirm skip-and-note is still the right call there rather than a
+  surprise."
+
+Two defensible intents diverge on whether the change is even *complete*:
+1. **Ship targeting-only** — the dirty-tree skip is correct conservatism; markhaus should
+   gitignore / clean `design/`; the gate stays untouched.
+2. **Stop the drift fully** — the change's whole point is that the consuming repo stops
+   drifting; a fix that leaves markhaus still drifting is incomplete, so gate 2 must also be
+   addressed for consuming repos (and *how* — stash-and-FF, ignore-untracked in the FF
+   decision, or a louder warn — is itself an unsettled design choice the author scoped out).
+
+Resolving #2's "how" is a second design decision, not a mechanical default; and choosing
+between #1 and #2 is a product-completeness call the author reserved by attaching the markhaus
+evidence to the open question. An autonomous groom cannot supply that intent.
+
+**What a human should supply.** Answer: *is a fix that demonstrably leaves the reporting repo
+(markhaus) still drifting an acceptable resolution of this change?* If **yes** → re-arm as the
+targeting-only design below (it is build-ready). If **no** → the change must also settle the
+gate-2 behavior for consuming repos before it is build-ready (decide the approach), and the
+"don't change the gate" line in Out-of-scope should be revised accordingly.
+
+**Recommendation.** Not a kill or defer — the change is valid and worth doing. Re-arm by
+answering the gate-2 question (flip `auto_groomable` back to `true` and **delete this section**
+once answered), or groom it interactively (`docket-groom-next`), where this is now first in the
+needs-you band.
+
+**Settled design (sound per the critic; reuse, do not rebuild):**
+- **Retarget belongs in the script's default, not a skill-passed `--clone-dir`.** Change
+  `sync-integration-branch.sh`'s default `--clone-dir` from `dirname "$0"/..` (the repo the
+  script lives in) to the **main worktree of the repo it was invoked from (CWD)**. Call sites
+  stay bare; explicit `--clone-dir` still overrides (the hermetic tests all pass it, so they are
+  unaffected). Keeps deterministic git plumbing in the script per ADR-0012 / ADR-0007.
+- **Resolution is the main worktree, NOT `git rev-parse --show-toplevel`.** At the sync site
+  (finalize step 6 / after the status sweep) the shell CWD is typically a *linked* worktree
+  (`.docket/`, on `docket`), so `--show-toplevel` returns the wrong path on the wrong branch and
+  gate 1 would skip — the change body's first-named shape does **not** fix the bug (verified
+  2026-06-23). Use `git worktree list --porcelain` first entry (≡ `--git-common-dir` parent),
+  which resolves the integration-branch primary checkout from any worktree in the set,
+  CWD-independent.
+- **Dogfooding preserved with no special-casing** — when docket runs on itself, CWD's main
+  worktree *is* the docket primary checkout, equal to the old `dirname "$0"/..`.
+- **Skills-clone refresh stays out of scope** — the separate "update docket" workflow (per 0029).
+- **Test note:** ADR-0014 makes the test suite the de-facto CI gate; a new bare-invocation case
+  (from inside a linked worktree, asserting the **main** worktree is FF'd) is needed to lock the
+  default — but a clean-tree fixture exercises only the happy path and would NOT surface the
+  gate-2 gap above, so the test passing is not evidence the drift is fixed.
