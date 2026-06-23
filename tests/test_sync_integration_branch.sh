@@ -114,5 +114,26 @@ read -r W O < <(new_repo)
 out="$("$HELPER" --clone-dir "$W" 2>&1)"; rc=$?
 assert "usage: missing --integration-branch exits 2" "[ $rc -eq 2 ]"
 
+# --- Case 8: bare invocation (no --clone-dir) resolves the MAIN worktree of CWD ---
+# Retarget fix (change 0041): with no --clone-dir the helper must fast-forward the MAIN worktree of
+# the repo it was invoked from — even when the shell sits in a LINKED worktree (the real sync site
+# runs from .docket/, a linked worktree on the docket branch). Hermetic: the helper is copied into
+# the fixture so the OLD dirname-based default stays sandboxed in the RED phase (its dirname/.. is a
+# non-repo temp dir → not-a-repo skip), never the real docket clone.
+read -r W O < <(new_repo)
+advance_origin "$W"                                   # origin main → C1 (v1); W's local main still C0
+root="$(dirname "$W")"                                # $root/work == W (the main worktree)
+git_quiet -C "$W" worktree add "$root/linked" -b feat/x   # linked worktree, on feat/x
+mkdir -p "$root/bin"; cp "$HELPER" "$root/bin/sync.sh"; chmod +x "$root/bin/sync.sh"
+before="$(git -C "$W" rev-parse HEAD)"
+out="$(cd "$root/linked" && "$root/bin/sync.sh" --integration-branch main 2>&1)"; rc=$?
+after="$(git -C "$W" rev-parse HEAD)"
+remote_tip="$(git -C "$W" rev-parse origin/main)"
+sentinel="$(cat "$W/skills/sentinel.txt")"
+assert "bare-linked: exit 0"                        "[ $rc -eq 0 ]"
+assert "bare-linked: MAIN worktree fast-forwarded"  "[ '$after' = '$remote_tip' ]"
+assert "bare-linked: main advanced past C0"         "[ '$after' != '$before' ]"
+assert "bare-linked: main worktree sentinel = v1"   "[ '$sentinel' = 'v1' ]"
+
 if [ "$fail" -eq 0 ]; then echo "ALL PASS"; else echo "FAILURES"; fi
 exit "$fail"
