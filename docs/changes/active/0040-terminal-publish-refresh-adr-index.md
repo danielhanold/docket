@@ -7,9 +7,9 @@ priority: medium
 created: 2026-06-23
 updated: 2026-06-23
 depends_on: []
-related: []
+related: [33]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-06-23-terminal-publish-refresh-adr-index-design.md
 plan:
 results:
 trivial: false
@@ -23,6 +23,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-06-23-terminal-publish-refresh-adr-index-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-06-23-terminal-publish-refresh-adr-index-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -46,18 +49,35 @@ the integration branch sees an index that disagrees with the ADR files beside it
 
 ## What changes
 
-Make the integration-branch ADR index stay consistent with the ADR files
-published there, automatically — no manual catch-up.
+Make `terminal-publish.sh` regenerate the integration-branch ADR index from the
+integration branch's own ADR files and include it in the same publish commit,
+whenever (and only when) the publish copies one or more ADR files onto that
+branch. This keeps the integration index consistent with the ADR files published
+beside it, for every caller, with no per-caller wiring. Settled design — full
+detail in the linked spec (groomed 2026-06-23):
 
-The likely shape (for the designer to confirm): whenever `terminal-publish.sh`
-publishes one or more Accepted ADRs to the integration branch, also regenerate
-`docs/adrs/README.md` from the integration branch's ADR files
-(`render-adr-index.sh --adrs-dir <integration adrs>`) and include it in the same
-publish commit. The index regenerated on the integration branch must reflect only
-the ADR files actually present there (not the metadata branch's superset), so
-every link resolves. This must cover both publish shapes — change-publish
-(`--id`, when the change's `adrs:` include Accepted ones) and ADR-only publish
-(`--adr`). A no-op in `main`-mode (no separate integration branch).
+- **In-script, in the same publish commit.** The refresh lives inside
+  `terminal-publish.sh` (the single publish executor every terminal transition
+  delegates to), so finalize, the kill paths, the `docket-status` sweep, and
+  `docket-adr`'s `--adr` publishes all get an atomic, consistent refresh for free.
+- **Render from the integration branch's own ADR set**, never the metadata
+  branch's superset: the metadata index lists `Accepted` ADRs whose files reach
+  the branch only at terminal publish, so a verbatim copy would emit rows linking
+  to not-yet-published files (dangling links). Rendering from the branch's set
+  (`render-adr-index.sh --adrs-dir <pub>/<adrs_dir>` after the copy-set is checked
+  out) keeps every link resolvable.
+- **Fire only when an ADR is actually published** — both shapes: change-publish
+  (`--id`, when the change's `adrs:` include `Accepted` ones) and ADR-only publish
+  (`--adr`). Each fire is a *full* re-render, so prior drift self-heals on the next
+  ADR publish.
+- **A no-op in `main`-mode** (the existing mode guard early-exits; `docket-adr`
+  already maintains the index in place there). No new ADR — additive, reversible
+  tooling applying existing decisions (ADR-0012 script-vs-model boundary;
+  `render-adr-index`'s sole-writer rule).
+
+This change presupposes model (b) of #0033 (keep the ADR index on the integration
+branch, re-rendered from its own ADR set), which the owner chose by framing this
+stub. See the spec's `## Assumptions` (A2) and `related: [33]`.
 
 ## Out of scope
 
@@ -70,10 +90,13 @@ every link resolves. This must cover both publish shapes — change-publish
 
 ## Open questions
 
-- Should the index refresh ride inside `terminal-publish.sh` (one publish commit
-  with the ADR files + index), or be a separate step the calling skills invoke
-  after publish? In-script keeps it atomic and covers every caller.
-- When a publish copies an ADR whose change is `done` but a *later* ADR's change
-  is not yet terminal, the integration index will trail the metadata index by
-  design — confirm that "index reflects what's on the branch" is the intended
-  contract (it is, to keep links resolvable).
+Both resolved in the spec (groomed 2026-06-23):
+
+- *In `terminal-publish.sh`, or a separate per-caller step?* In-script — an atomic
+  same-commit refresh, zero per-caller duplication, covering every caller.
+- *Does the integration index trailing the metadata index (when an ADR is
+  `Accepted` but its change isn't yet terminal) match the intended contract?* Yes
+  — "the index reflects what is on the branch" is the contract precisely because
+  it keeps every link resolvable; rendering from the branch's own ADR set
+  guarantees it, and each ADR-bearing publish converges the branch index as files
+  land.
