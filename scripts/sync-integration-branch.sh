@@ -61,9 +61,18 @@ if [ "$cur" != "$BRANCH" ]; then
   note "checkout is on '${cur:-(detached)}', not '$BRANCH' — skipping"; exit 0
 fi
 
-# Gate 2: clean working tree? (any porcelain output — tracked or untracked-non-ignored — blocks)
-if [ -n "$("$GIT" -C "$CLONE_DIR" status --porcelain 2>/dev/null)" ]; then
-  note "working tree not clean — skipping (no fast-forward onto local edits)"; exit 0
+# Gate 2: clean working tree? (any porcelain output — tracked OR untracked-non-ignored — blocks).
+# Condition unchanged; the note is explicit so an untracked-only tree is a diagnosable skip, not a
+# silent drift (change 0041).
+porcelain="$("$GIT" -C "$CLONE_DIR" status --porcelain 2>/dev/null)"
+if [ -n "$porcelain" ]; then
+  count="$(printf '%s\n' "$porcelain" | wc -l | tr -d ' ')"
+  note "working tree not clean — skipping (best-effort; never fast-forwards onto a non-pristine tree)."
+  note "  Untracked (non-ignored) files also block the fast-forward, not only tracked edits."
+  note "  Remedy: commit or stash tracked changes, and remove or .gitignore untracked paths, then re-run."
+  note "  ${count} offending path(s) (git status --porcelain):"
+  printf '%s\n' "$porcelain" | head -5 | sed 's/^/    /' >&2
+  exit 0
 fi
 
 # Fetch the branch (cheap/no-op for the merge sites, which already fetched). Swallow git's own

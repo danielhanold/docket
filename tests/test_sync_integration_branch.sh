@@ -135,5 +135,21 @@ assert "bare-linked: MAIN worktree fast-forwarded"  "[ '$after' = '$remote_tip' 
 assert "bare-linked: main advanced past C0"         "[ '$after' != '$before' ]"
 assert "bare-linked: main worktree sentinel = v1"   "[ '$sentinel' = 'v1' ]"
 
+# --- Case 9: untracked (non-ignored) files block the FF, and the skip note says so + gives a remedy ---
+# Gate 2 stays conservative (change 0041): untracked files block the auto-FF exactly like dirty
+# tracked edits. What changed is the NOTE — it must name untracked files as a blocker and give the
+# remedy, so a consuming repo with stray untracked files (markhaus's design/) gets a diagnosable
+# skip instead of a silent drift.
+read -r W O < <(new_repo)
+advance_origin "$W"                                   # origin ahead (C1): a real drift the untracked file blocks
+mkdir -p "$W/design"; echo "stray" > "$W/design/untracked.txt"   # untracked, non-ignored
+before="$(git -C "$W" rev-parse HEAD)"
+out="$("$HELPER" --clone-dir "$W" --integration-branch main 2>&1)"; rc=$?
+after="$(git -C "$W" rev-parse HEAD)"
+assert "untracked: exit 0"                               "[ $rc -eq 0 ]"
+assert "untracked: tip unchanged (no FF over untracked)" "[ '$after' = '$before' ]"
+assert "untracked: note names untracked as a blocker"    "printf '%s' \"\$out\" | grep -qi untracked"
+assert "untracked: note gives a remedy"                  "printf '%s' \"\$out\" | grep -qiE 'gitignore|stash|remove|commit'"
+
 if [ "$fail" -eq 0 ]; then echo "ALL PASS"; else echo "FAILURES"; fi
 exit "$fail"
