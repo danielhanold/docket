@@ -10,7 +10,7 @@ depends_on: []
 related: [29, 34]
 adrs: []
 spec: docs/superpowers/specs/2026-06-23-post-merge-sync-targets-consuming-repo-design.md
-plan:
+plan: docs/superpowers/plans/2026-06-23-post-merge-sync-targets-consuming-repo.md
 results:
 trivial: false
 auto_groomable: true
@@ -26,6 +26,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-06-23-post-merge-sync-targets-consuming-repo-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-06-23-post-merge-sync-targets-consuming-repo-design.md) |
+| Plan | [2026-06-23-post-merge-sync-targets-consuming-repo.md](https://github.com/danielhanold/docket/blob/feat/post-merge-sync-targets-consuming-repo/docs/superpowers/plans/2026-06-23-post-merge-sync-targets-consuming-repo.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
