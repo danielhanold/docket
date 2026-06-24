@@ -1,6 +1,6 @@
 # Backlog
 
-**41 changes** — 🟡 8 proposed · 🔵 1 implemented · ✅ 31 done · 🗑️ 1 killed
+**41 changes** — 🟡 8 proposed · ✅ 32 done · 🗑️ 1 killed
 
 ## 🟡 Proposed (8)
 
@@ -15,12 +15,6 @@
 | [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | needs-brainstorm |
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | PR |
-|---|-------|----------|----|
-| [0041](active/0041-post-merge-sync-targets-consuming-repo.md) | Post-merge integration sync fast-forwards the docket clone, not the consuming repo where the merge landed | `medium` | [#51](https://github.com/danielhanold/docket/pull/51) |
-
 ```mermaid
 graph TD
   0007
@@ -31,7 +25,6 @@ graph TD
   0015 --> 0019
   0022 --> 0024
   0030 --> 0033
-  0041
   0001:::done
   0002:::done
   0003:::done
@@ -63,13 +56,15 @@ graph TD
   0038:::done
   0039:::done
   0040:::done
+  0041:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (32)</summary>
+<details><summary>✅🗑️ Archive — done + killed (33)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0041](archive/2026-06-24-0041-post-merge-sync-targets-consuming-repo.md) | Post-merge integration sync fast-forwards the docket clone, not the consuming repo where the merge landed | 2026-06-24 |
 | [0040](archive/2026-06-23-0040-terminal-publish-refresh-adr-index.md) | terminal-publish leaves the integration-branch ADR index stale — regenerate it when an ADR is published | 2026-06-23 |
 | [0039](archive/2026-06-21-0039-trim-docket-status-archive-prose.md) | Trim docket-status's residual archive-internals prose onto scripts/archive-change.md | 2026-06-21 |
 | [0038](archive/2026-06-21-0038-test-grep-stray-dash-warning.md) | Test suite — drop over-escaped dashes in test_docket_metadata_branch.sh grep (silences "stray \ before -") | 2026-06-21 |
