@@ -2,10 +2,10 @@
 id: 41
 slug: post-merge-sync-targets-consuming-repo
 title: Post-merge integration sync fast-forwards the docket clone, not the consuming repo where the merge landed
-status: implemented
+status: done
 priority: medium
 created: 2026-06-23
-updated: 2026-06-23
+updated: 2026-06-24
 depends_on: []
 related: [29, 34]
 adrs: []
