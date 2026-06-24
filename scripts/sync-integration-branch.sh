@@ -14,7 +14,7 @@
 # strictly ahead with the local tip an ancestor (a true fast-forward). Then: git merge --ff-only.
 #
 # Usage: sync-integration-branch.sh --integration-branch BR [--clone-dir DIR] [--remote R]
-#   --clone-dir defaults to the script's own repo root.  --remote defaults to origin.
+#   --clone-dir defaults to the main worktree of the invoking repo (CWD).  --remote defaults to origin.
 #
 # Mock seam: GIT="${GIT:-git}".
 set -uo pipefail
@@ -37,9 +37,17 @@ while [ $# -gt 0 ]; do
 done
 [ -n "$BRANCH" ] || die "missing --integration-branch"
 
-# --clone-dir defaults to this script's repo root.
+# --clone-dir defaults to the MAIN worktree of the repo this script was invoked from (CWD), NOT
+# the repo the script physically lives in. git lists the main worktree first and it is reachable
+# from any linked worktree in the set, so this resolves the consuming repo's primary checkout even
+# when the caller's shell sits in a linked worktree (the sync site runs from the .docket/ metadata
+# worktree on the docket branch). `git rev-parse --show-toplevel` would instead return that linked
+# worktree (on the docket branch) and gate 1 would skip it — so main-worktree resolution is
+# load-bearing. An explicit --clone-dir still overrides. If CWD is not inside a git repo the
+# resolution is empty and we fall back to CWD so the not-a-repo gate below emits the standard skip.
 if [ -z "$CLONE_DIR" ]; then
-  CLONE_DIR="$(cd "$(dirname "$0")/.." && pwd -P)"
+  CLONE_DIR="$("$GIT" -C "$PWD" worktree list --porcelain 2>/dev/null | sed -n '1s/^worktree //p')"
+  [ -n "$CLONE_DIR" ] || CLONE_DIR="$PWD"
 fi
 
 # not-a-repo → best-effort skip (never abort the close-out).
@@ -53,9 +61,18 @@ if [ "$cur" != "$BRANCH" ]; then
   note "checkout is on '${cur:-(detached)}', not '$BRANCH' — skipping"; exit 0
 fi
 
-# Gate 2: clean working tree? (any porcelain output — tracked or untracked-non-ignored — blocks)
-if [ -n "$("$GIT" -C "$CLONE_DIR" status --porcelain 2>/dev/null)" ]; then
-  note "working tree not clean — skipping (no fast-forward onto local edits)"; exit 0
+# Gate 2: clean working tree? (any porcelain output — tracked OR untracked-non-ignored — blocks).
+# Condition unchanged; the note is explicit so an untracked-only tree is a diagnosable skip, not a
+# silent drift (change 0041).
+porcelain="$("$GIT" -C "$CLONE_DIR" status --porcelain 2>/dev/null)"
+if [ -n "$porcelain" ]; then
+  count="$(printf '%s\n' "$porcelain" | wc -l | tr -d ' ')"
+  note "working tree not clean — skipping (best-effort; never fast-forwards onto a non-pristine tree)."
+  note "  Untracked (non-ignored) files also block the fast-forward, not only tracked edits."
+  note "  Remedy: commit or stash tracked changes, and remove or .gitignore untracked paths, then re-run."
+  note "  ${count} offending path(s) (git status --porcelain):"
+  printf '%s\n' "$porcelain" | head -5 | sed 's/^/    /' >&2
+  exit 0
 fi
 
 # Fetch the branch (cheap/no-op for the merge sites, which already fetched). Swallow git's own
