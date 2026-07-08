@@ -1,6 +1,6 @@
 # Backlog
 
-**46 changes** — 🟡 9 proposed · 🔵 1 implemented · ✅ 34 done · 🗑️ 2 killed
+**46 changes** — 🟡 9 proposed · ✅ 35 done · 🗑️ 2 killed
 
 ## 🟡 Proposed (9)
 
@@ -14,13 +14,7 @@
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | build-ready |
-| [0046](active/0046-per-harness-agent-models.md) | Per-harness model overrides for docket agents | `medium` | ⏳ waiting on #45 — needs your merge |
-
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | PR |
-|---|-------|----------|----|
-| [0045](active/0045-multi-harness-agent-generation.md) | Per-repo agent model config reaches Cursor via multi-harness generation | `medium` | [#54](https://github.com/danielhanold/docket/pull/54) |
+| [0046](active/0046-per-harness-agent-models.md) | Per-harness model overrides for docket agents | `medium` | build-ready |
 
 ```mermaid
 graph TD
@@ -32,7 +26,6 @@ graph TD
   0015 --> 0019
   0030 --> 0033
   0044
-  0045
   0045 --> 0046
   0001:::done
   0002:::done
@@ -68,13 +61,15 @@ graph TD
   0040:::done
   0041:::done
   0042:::done
+  0045:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (36)</summary>
+<details><summary>✅🗑️ Archive — done + killed (37)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0045](archive/2026-07-08-0045-multi-harness-agent-generation.md) | Per-repo agent model config reaches Cursor via multi-harness generation | 2026-07-08 |
 | [0043](archive/2026-07-08-0043-agent-model-tiers.md) | Model-tier indirection for agent model selection + config-driven advisories | 2026-07-08 |
 | [0042](archive/2026-07-08-0042-retune-agent-model-defaults.md) | Re-tune default agent models for the Claude 5 lineup (pin explicit versions) | 2026-07-08 |
 | [0024](archive/2026-07-08-0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | 2026-07-08 |
