@@ -4,6 +4,14 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-07-08 (#45, PR #54) — A plan that split multi-harness generation across two tasks left a
+  Task-1 seam: Task 1 removed the `PROJECT_AGENT_DIR` variable, but `check_project_level` (only
+  rewritten in Task 2) still referenced it, an unbound-variable crash under `set -euo pipefail` that
+  would have reddened the `--check` tests had the tasks landed in isolation. Apply: when a plan
+  splits one function's rewrite across sequential tasks, treat the intermediate (Task N of M) state
+  as itself buildable and testable — don't assume the earlier task's leftover references are safe
+  because a later task will delete them.
+
 - 2026-07-08 (#42, PR #52) — Re-pinning the agent-model aliases to full IDs, the spec's "touch-points"
   list enumerated the test edits but **undercounted them**: 4 more assertions hardcoded the old bare
   aliases and surfaced only in the reconcile pass's exhaustive grep, not the spec's enumeration. Apply:
