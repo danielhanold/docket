@@ -212,5 +212,8 @@ assert "groom-next carries an advisory recommendation" 'grep -qi "[Rr]ecommended
 assert "groom-next recommends sonnet/high" 'grep -qiE "sonnet[^A-Za-z]+high|high[^A-Za-z]+sonnet" "$GROOM"'
 # Non-vacuous: it must be advisory, not a hard requirement (we cannot force the session model).
 assert "new-change frames it as advisory" 'grep -qi "advisory" "$NEWC"'
+# Explicit pin (change 0042): the advisory must name the full model ID, not the bare alias.
+assert "new-change advisory pins claude-sonnet-5" 'grep -q "claude-sonnet-5" "$NEWC"'
+assert "groom-next advisory pins claude-sonnet-5" 'grep -q "claude-sonnet-5" "$GROOM"'
 
 exit $fail
