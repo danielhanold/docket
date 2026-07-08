@@ -328,7 +328,21 @@ check_project_level() {  # diff committed <repo>/.<H>/agents files against fresh
     done
   done
   rm -rf "$tmp"
-  # docket:0048 dispatch-rule check inserted here by Task 3
+  # Dispatch-rule drift: re-assemble and byte-diff the committed per-repo rule for each listed
+  # dispatch-rule harness (cursor). The rule bytes are harness-independent, so assemble once.
+  local h rule_got rule_tmp rd
+  rule_tmp="$(mktemp)"
+  assemble_dispatch_rule > "$rule_tmp"
+  for h in $HARNESSES; do
+    harness_has_dispatch_rule "$h" || continue
+    rule_got="$REPO/.$h/rules/docket-dispatch.mdc"
+    if [ ! -f "$rule_got" ]; then
+      log "drift: missing $rule_got (run: bash sync-agents.sh)"; rc=1; continue
+    fi
+    rd="$(diff -u "$rule_got" "$rule_tmp" || true)"
+    if [ -n "$rd" ]; then log "drift in .$h/rules/docket-dispatch.mdc:"; printf '%s\n' "$rd" >&2; rc=1; fi
+  done
+  rm -f "$rule_tmp"
   # docket:0048 orphan report inserted here by Task 4
   return $rc
 }

@@ -172,6 +172,25 @@ assert "0048 auto-block: still emits a docket-status subsection" 'grep -q "^## d
 assert "0048 auto-block: subsection includes a Task subagent_type" 'grep -q "subagent_type: \"docket-status\"" "$RULE"'
 rm -rf "$SBX" "$HROOT48F" "$SCRATCH"
 
+# 0048 Piece 2 --check — a committed dispatch rule that drifts fails --check.
+make_sandbox
+HROOT48C="$(mktemp -d)"; mkdir -p "$HROOT48C/.claude"
+printf 'agent_harnesses: [claude, cursor]\nagents:\n  default:\n    status: { model: sonnet }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48C" bash "$SYNC" >/dev/null )
+chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48C" bash "$SYNC" --check 2>&1)"; chk_rc=$?
+assert "0048 rule-check: passes for an in-sync committed rule (rc=0)" '[ "$chk_rc" = "0" ]'
+# Hand-edit the committed rule -> drift.
+printf '\n<!-- tampered -->\n' >> "$SBX/.cursor/rules/docket-dispatch.mdc"
+chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48C" bash "$SYNC" --check 2>&1)"; chk_rc=$?
+assert "0048 rule-check: flags a hand-edited rule (rc!=0)" '[ "$chk_rc" != "0" ]'
+assert "0048 rule-check: names the dispatch rule in the drift report" 'printf "%s" "$chk_out" | grep -q "docket-dispatch.mdc"'
+# Delete the committed rule -> missing-file drift.
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48C" bash "$SYNC" >/dev/null )   # regenerate clean
+rm -f "$SBX/.cursor/rules/docket-dispatch.mdc"
+chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48C" bash "$SYNC" --check 2>&1)"; chk_rc=$?
+assert "0048 rule-check: flags a missing committed rule (rc!=0)" '[ "$chk_rc" != "0" ]'
+rm -rf "$SBX" "$HROOT48C"
+
 # (a)+(b) harness override wins; field-level merge — model from cursor, effort inherited from default.
 make_sandbox
 HROOTM="$(mktemp -d)"; mkdir -p "$HROOTM/.claude"
