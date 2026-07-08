@@ -1,12 +1,6 @@
 # Backlog
 
-**44 changes** — 🟢 1 in progress · 🟡 10 proposed · ✅ 32 done · 🗑️ 1 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0042](active/0042-retune-agent-model-defaults.md) | Re-tune default agent models for the Claude 5 lineup (pin explicit versions) | `high` | [spec](../superpowers/specs/2026-07-07-retune-agent-model-defaults-design.md) | `feat/retune-agent-model-defaults` |
+**44 changes** — 🟡 10 proposed · 🔵 1 implemented · ✅ 32 done · 🗑️ 1 killed
 
 ## 🟡 Proposed (10)
 
@@ -20,8 +14,14 @@
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | needs-brainstorm |
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
-| [0043](active/0043-agent-model-tiers.md) | Model-tier indirection for agent model selection + config-driven advisories | `medium` | ⏳ waiting on #42 — not yet built |
+| [0043](active/0043-agent-model-tiers.md) | Model-tier indirection for agent model selection + config-driven advisories | `medium` | ⏳ waiting on #42 — needs your merge |
 | [0044](active/0044-configurable-build-model.md) | Configurable TDD build model for docket-implement-next | `low` | ⏳ waiting on #43 — not yet built |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | PR |
+|---|-------|----------|----|
+| [0042](active/0042-retune-agent-model-defaults.md) | Re-tune default agent models for the Claude 5 lineup (pin explicit versions) | `high` | [#52](https://github.com/danielhanold/docket/pull/52) |
 
 ```mermaid
 graph TD
