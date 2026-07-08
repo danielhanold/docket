@@ -2,7 +2,7 @@
 id: 47
 slug: readme-agent-config-discoverability
 title: Make the agent-config refresh workflow discoverable in the README
-status: in-progress
+status: implemented
 priority: low
 created: 2026-07-08
 updated: 2026-07-08
@@ -15,7 +15,7 @@ results:
 trivial: true
 auto_groomable:
 branch: feat/readme-agent-config-discoverability
-pr:
+pr: https://github.com/danielhanold/docket/pull/55
 blocked_by:
 reconciled: true
 ---
@@ -26,6 +26,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Plan | [2026-07-08-readme-agent-config-discoverability.md](https://github.com/danielhanold/docket/blob/feat/readme-agent-config-discoverability/docs/superpowers/plans/2026-07-08-readme-agent-config-discoverability.md) |
+| PR | [#55](https://github.com/danielhanold/docket/pull/55) |
 | ADRs | [ADR-0008](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0008-agent-layer-generated-subagents.md), [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md) |
 <!-- docket:artifacts:end -->
 
