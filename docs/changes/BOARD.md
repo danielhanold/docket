@@ -1,12 +1,6 @@
 # Backlog
 
-**45 changes** — 🟢 1 in progress · 🟡 9 proposed · ✅ 33 done · 🗑️ 2 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | [spec](../superpowers/specs/2026-07-08-retire-board-source-drift-check-design.md) | `feat/retire-board-source-drift-check` |
+**45 changes** — 🟡 9 proposed · 🔵 1 implemented · ✅ 33 done · 🗑️ 2 killed
 
 ## 🟡 Proposed (9)
 
@@ -21,6 +15,12 @@
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | build-ready |
 | [0045](active/0045-multi-harness-agent-generation.md) | Per-repo agent model config reaches Cursor via multi-harness generation | `medium` | build-ready |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | PR |
+|---|-------|----------|----|
+| [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | [#53](https://github.com/danielhanold/docket/pull/53) |
 
 ```mermaid
 graph TD
