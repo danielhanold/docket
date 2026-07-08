@@ -4,6 +4,14 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-07-08 (#47, PR #55) — A docs change whose whole job was to document an *existing* behavior
+  (how `effort: auto` affects a generated agent) nearly documented the wrong thing: the neighboring
+  docket-convention "Agent layer" prose says "`effort: auto` (or omitted) → omit the effort line,"
+  but `sync-agents.sh:145` omits the line only for `auto` — omitting the *key* keeps the built-in
+  effort. The README was salvaged only by writing it against the code, not the sibling prose. Apply:
+  when a change's job is to document existing behavior, treat the code (cite the line) as the source
+  of truth — sibling prose describing the same behavior may have drifted; don't copy it forward.
+
 - 2026-07-08 (#45, PR #54) — A plan that split multi-harness generation across two tasks left a
   Task-1 seam: Task 1 removed the `PROJECT_AGENT_DIR` variable, but `check_project_level` (only
   rewritten in Task 2) still referenced it, an unbound-variable crash under `set -euo pipefail` that
