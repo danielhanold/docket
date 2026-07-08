@@ -324,4 +324,33 @@ assert "0045 anchor: top-level agent_harnesses honored (.claude generated)" '[ -
 assert "0045 anchor: indented decoy ignored (.cursor NOT generated)" '[ ! -e "$SBX/.cursor/agents/docket-status.md" ]'
 rm -rf "$SBX" "$HROOTH"
 
+# ---- README discoverability of the agent model/effort refresh workflow (change 0047) ----
+# The facts already exist buried in the Install prose, so a whole-README grep would pass
+# vacuously. Extract the NEW dedicated section (heading -> next `## `) and assert within it,
+# so each sentinel is RED before the section exists and non-vacuous after.
+READMEF="$REPO/README.md"
+sec="$(awk '/^##[[:space:]].*[Aa]gent.*([Mm]odel|[Ee]ffort)/{f=1;print;next} f&&/^##[[:space:]]/{f=0} f{print}' "$READMEF")"
+
+assert "0047: README has a discoverable agent model/effort section" '[ -n "$sec" ]'
+assert "0047 §agent-cfg: names the global layer ~/.config/docket/agents.yaml" \
+  'grep -qF "~/.config/docket/agents.yaml" <<<"$sec"'
+assert "0047 §agent-cfg: names the per-repo .docket.yml agents: layer" \
+  'grep -qF "\`agents:\` block in a repo" <<<"$sec"'
+assert "0047 §agent-cfg: gives the refresh command (bash sync-agents.sh)" \
+  'grep -qE "bash sync-agents\.sh" <<<"$sec"'
+assert "0047 §agent-cfg: names the user-level target (every present harness)" \
+  'grep -qiE "present.*harness" <<<"$sec"'
+assert "0047 §agent-cfg: names the project-level target (agent_harnesses)" \
+  'grep -qF "agent_harnesses" <<<"$sec"'
+assert "0047 §agent-cfg: documents the --check drift gate" \
+  'grep -qF "sync-agents.sh --check" <<<"$sec"'
+assert "0047 §agent-cfg: references docket-convention Agent layer for the shape (not restated)" \
+  'grep -qF "docket-convention" <<<"$sec" && grep -qi "agent layer" <<<"$sec"'
+assert "0047 §agent-cfg: documents effort: auto drops the pinned effort line" \
+  'grep -qF "effort: auto" <<<"$sec" && grep -qF "drops the effort line" <<<"$sec"'
+# Non-restatement guard: the section must NOT hardcode a per-skill model/effort literal
+# (those are config-overridable; built-in defaults live only in agents/docket-*.md). LEARNINGS #17.
+assert "0047 §agent-cfg: does NOT hardcode a model/effort literal (references the source instead)" \
+  '! grep -qiE "\b(opus|sonnet|haiku|fable)\b.*\b(xhigh|high|medium|low)\b|model:[[:space:]]*(opus|sonnet|haiku|claude-)" <<<"$sec"'
+
 exit $fail
