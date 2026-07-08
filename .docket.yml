@@ -31,6 +31,13 @@ board_surfaces: [inline]
 # github_project: {owner: <owner>, number: <n>}  — auto-managed Projects v2 board; minted
 # (private, under the repo owner) and written back here on first `github` sync when unset.
 
+# Which harnesses the per-repo agent pass generates committed wrappers for (change 0045).
+# Default [claude] (byte-identical to before). A Cursor repo would set [claude, cursor] so the
+# committed agents: model config also reaches <repo>/.cursor/agents/. Model IDs pass through
+# verbatim (harness-neutral — a Cursor id like gpt-5.5-medium-fast is emitted as-is). Unknown
+# tokens are warned + dropped. sync-agents.sh --check validates every listed harness's files.
+# agent_harnesses: [claude]
+
 # Per-skill subagent model/effort (change 0016). Generated into agent wrappers by sync-agents.sh.
 # Keys are skill SHORT names; precedence is per-repo (this block) > global
 # (~/.config/docket/agents.yaml) > built-in (agents/docket-*.md). An `effort: auto` (or omitted)

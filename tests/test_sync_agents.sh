@@ -294,4 +294,12 @@ chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTF" bash "$SYNC" --check 2>&1)
 assert "0045 check: flags missing cursor file (rc!=0)" '[ "$chk_rc" != "0" ]'
 rm -rf "$SBX" "$HROOTF"
 
+# Convention documents agent_harnesses + the direct-model-ID (harness-neutral) contract.
+CONV="$REPO/skills/docket-convention/SKILL.md"
+assert "0045 doc: convention names agent_harnesses" 'grep -q "agent_harnesses" "$CONV"'
+assert "0045 doc: convention states default [claude]" 'grep -qE "agent_harnesses[^\n]*\[claude\]|default[^\n]*\[claude\]" "$CONV"'
+assert "0045 doc: convention states harness-neutral direct model IDs" 'grep -qiE "harness-neutral|direct model id" "$CONV"'
+assert "0045 doc: convention notes passthrough enables non-Claude harnesses" 'grep -qi "passthrough" "$CONV"'
+assert "0045 doc: convention points at ADR-0015 near agent_harnesses" 'grep -Pzoq "agent_harnesses[\s\S]{0,500}ADR-0015|ADR-0015[\s\S]{0,500}agent_harnesses" "$CONV"'
+
 exit $fail
