@@ -320,12 +320,15 @@ assert "board malformed-id flagged on non-integer change id 'abc'" 'has_finding 
 assert "docket-status Health checks invoke board-checks.sh" \
   'grep -qF "/board-checks.sh" "$SKILL"'
 # The five mechanical checks are now delegated — their old standalone bullets are gone as bullets,
-# but the SKILL still names them so a reader knows what the script covers. Assert the two
-# judgment/0024 checks remain explicitly model-driven, each anchored to a phrase it owns.
+# but the SKILL still names them so a reader knows what the script covers. Assert the surviving
+# model-driven signals, each anchored to a phrase it owns: the blocked_by re-examination
+# (judgment) and the github mirror-reachability visibility flag. Change 0024 retired the inline
+# board/source-drift check (deterministic render + the unconditional Board-pass re-render make it
+# vacuous); its removed tripwire lives in tests/test_board_refresh_on_transition.sh.
 assert "docket-status keeps blocked_by re-examination model-driven" \
   'grep -qiF "blocked_by:" "$SKILL"'
-assert "docket-status keeps the inline board/source drift check (owned by change 0024)" \
-  'grep -qiF "board/source drift" "$SKILL" || grep -qiF "board/source-drift" "$SKILL"'
+assert "docket-status keeps the github mirror-reachability visibility flag (survives 0024 inline-drift retirement)" \
+  'grep -qiF "mirror reachability" "$SKILL" || grep -qiF "mirror-reachability" "$SKILL"'
 assert "docket-status keeps the do-not-auto-fix stance" \
   'grep -qiF "do not auto-fix" "$SKILL"'
 # Mutation guard: the board-checks invocation passes the changes-dir + both branch refs.
