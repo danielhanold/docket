@@ -1,8 +1,8 @@
 # Backlog
 
-**46 changes** — 🟡 9 proposed · ✅ 35 done · 🗑️ 2 killed
+**47 changes** — 🟡 10 proposed · ✅ 35 done · 🗑️ 2 killed
 
-## 🟡 Proposed (9)
+## 🟡 Proposed (10)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -15,6 +15,7 @@
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | build-ready |
 | [0046](active/0046-per-harness-agent-models.md) | Per-harness model overrides for docket agents | `medium` | build-ready |
+| [0047](active/0047-readme-agent-config-discoverability.md) | Make the agent-config refresh workflow discoverable in the README | `low` | build-ready |
 
 ```mermaid
 graph TD
@@ -27,6 +28,7 @@ graph TD
   0030 --> 0033
   0044
   0045 --> 0046
+  0047
   0001:::done
   0002:::done
   0003:::done
