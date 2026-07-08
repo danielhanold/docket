@@ -1,8 +1,8 @@
 # Backlog
 
-**44 changes** — 🟡 9 proposed · ✅ 33 done · 🗑️ 2 killed
+**45 changes** — 🟡 10 proposed · ✅ 33 done · 🗑️ 2 killed
 
-## 🟡 Proposed (9)
+## 🟡 Proposed (10)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -15,6 +15,7 @@
 | [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | needs-brainstorm |
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | build-ready |
+| [0045](active/0045-multi-harness-agent-generation.md) | Per-repo agent model config reaches Cursor via multi-harness generation | `medium` | build-ready |
 
 ```mermaid
 graph TD
@@ -27,6 +28,7 @@ graph TD
   0022 --> 0024
   0030 --> 0033
   0044
+  0045
   0001:::done
   0002:::done
   0003:::done
