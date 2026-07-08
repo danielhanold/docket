@@ -10,7 +10,7 @@ depends_on: []
 related: [16, 42, 43, 44]
 adrs: [15]
 spec: docs/superpowers/specs/2026-07-08-multi-harness-agent-generation-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-08-multi-harness-agent-generation.md
 results:
 trivial: false
 auto_groomable:
@@ -26,6 +26,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-08-multi-harness-agent-generation-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-08-multi-harness-agent-generation-design.md) |
+| Plan | [2026-07-08-multi-harness-agent-generation.md](https://github.com/danielhanold/docket/blob/feat/multi-harness-agent-generation/docs/superpowers/plans/2026-07-08-multi-harness-agent-generation.md) |
 | ADRs | [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md) |
 <!-- docket:artifacts:end -->
 
