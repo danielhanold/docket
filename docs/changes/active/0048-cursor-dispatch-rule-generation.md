@@ -10,7 +10,7 @@ depends_on: [46]
 related: [45, 16, 15]
 adrs: [15, 16]
 spec: docs/superpowers/specs/2026-07-08-cursor-dispatch-rule-generation-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-08-cursor-dispatch-rule-generation.md
 results:
 trivial: false
 auto_groomable:
@@ -26,6 +26,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-08-cursor-dispatch-rule-generation-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-08-cursor-dispatch-rule-generation-design.md) |
+| Plan | [2026-07-08-cursor-dispatch-rule-generation.md](https://github.com/danielhanold/docket/blob/feat/cursor-dispatch-rule-generation/docs/superpowers/plans/2026-07-08-cursor-dispatch-rule-generation.md) |
 | ADRs | [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md), [ADR-0016](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0016-harness-first-agent-config.md) |
 <!-- docket:artifacts:end -->
 
