@@ -82,8 +82,12 @@ They are decoupled:
 
 `agents:` is harness-first only. A **bare agent key** at the top level of `agents:` (today's
 pre-0046 shape, e.g. `agents:\n  implement-next: …`) is neither `default` nor a known harness →
-**warned + ignored**, and `--check` reports it as drift. Safe because docket's own `agents:` block
-is commented (no live entries) and #0045 is unbuilt, so nothing consumes the old shape yet.
+**warned + ignored**, and `--check` reports it as drift. Safe because there is no live agent-keyed
+config anywhere to break: docket's own `agents:` block is commented (no live entries) and no global
+`~/.config/docket/agents.yaml` exists on consuming machines. (Reconcile 2026-07-08: #0045 has since
+**merged**, so the spec's original "unbuilt" rationale is superseded — #0045's `project_level_pass` /
+`resolve_from(... under=1)` agent-keyed reader is exactly the code #0046 rewrites, confirmed against
+the merged `sync-agents.sh` at the repo root.)
 
 ### Footgun warning (heuristic, allowlist-free)
 

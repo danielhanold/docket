@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/per-harness-agent-models
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -75,3 +75,31 @@ Make the `agents:` block **harness-first** (full design in the linked spec):
   decided at build.
 
 ## Reconcile log
+
+### 2026-07-08 — reconciled against current `main`
+
+Verified the design against current reality; **valid, not obsolete, not fundamentally invalidated.**
+Scope stands as specced. Refinements folded in:
+
+- **#0045 confirmed merged (`done`)** and its fan-out shape verified in the live `sync-agents.sh`:
+  `project_level_pass` loops `for harness in $HARNESSES` and writes the **same** `emit` output to
+  each harness dir ("bytes are harness-independent"), resolving `agents:` via `resolve_from(…,
+  under=1)`. That agent-keyed reader + the byte-identical fan-out are exactly what #0046 rewrites to
+  harness-first. The spec's clean-break "#0045 is unbuilt" rationale is now stale and was corrected
+  in the spec (the break is still safe: docket's own `agents:` block is commented, and no global
+  `~/.config/docket/agents.yaml` exists — no live agent-keyed config to break).
+- **Path correction:** `sync-agents.sh` and `tests/test_sync_agents.sh` live at the **repo root**,
+  not `scripts/`. No script contract (`scripts/sync-agents.md`) exists — this script is root-level.
+- **No README edit needed.** #0047 (just merged) deliberately delegated the config *shape* to
+  docket-convention's "Agent layer" (README references it instead of duplicating field examples),
+  so #0046's edit set stays: `sync-agents.sh` + `docket-convention` + `.docket.yml` + tests. The
+  README's `.docket.yml` example shows only the `agents:` key (no agent-keyed children), so it does
+  not stale.
+- **#0044 (`build:` surface) remains `proposed`/out of scope** — it adds a separate `build:` block,
+  no overlap with the `agents:` reshape.
+- **Parser nuance for the build:** `.docket.yml` reads entries under the `agents:` block
+  (`under_block=1`, so harness-first needs three nesting levels: `agents:` → `<harness>`/`default` →
+  agent entry), while the global `~/.config/docket/agents.yaml` is read top-level
+  (`under_block=0`, two levels, no `agents:` wrapper). The plan must handle both shapes.
+- **ADR (Open question 2)** deferred to the build's ADR step: harness-first refines (does not
+  reverse) ADR-0015 — new ADR vs a dated `## Update` note decided there.
