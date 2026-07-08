@@ -2,7 +2,7 @@
 id: 45
 slug: multi-harness-agent-generation
 title: Per-repo agent model config reaches Cursor via multi-harness generation
-status: implemented
+status: done
 priority: medium
 created: 2026-07-08
 updated: 2026-07-08
