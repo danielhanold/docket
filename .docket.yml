@@ -44,8 +44,9 @@ board_surfaces: [inline]
 # need to list the fields that differ; resolution is field-by-field: agents.<harness>.<agent> ->
 # agents.default.<agent> -> shipped built-in (agents/docket-*.md). Precedence across layers is
 # per-repo (this block) > global (~/.config/docket/agents.yaml, same harness-first shape but at the
-# FILE's top level — no `agents:` wrapper) > built-in. An `effort: auto` (or omitted) means inherit
-# the model default (the frontmatter effort line is dropped). Only the 5 autonomous skills have
+# FILE's top level — no `agents:` wrapper) > built-in. `effort: auto` explicitly drops the effort
+# line (inherit the model default); omitting the `effort:` key instead keeps the built-in effort —
+# auto and omitted are NOT equivalent. Only the 5 autonomous skills have
 # wrappers; new-change/groom-next are advisory-only and ignore this block. Listing a skill here
 # generates a COMMITTED project-level .<harness>/agents/docket-<skill>.md for each harness in
 # agent_harnesses — run `sync-agents.sh` after editing, and `sync-agents.sh --check` in CI to catch

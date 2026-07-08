@@ -67,8 +67,12 @@ A wrapper is a thin file: it pins `model` + `effort`, injects the skill via `ski
 | Per-repo | `.docket.yml` `agents:` block (committed) | **project-level** `<repo>/.claude/agents/docket-*.md` |
 
 Both the global file and the per-repo `agents:` block are **harness-first** (change 0046): a reserved
-`default:` key holds the harness-neutral fallback, and any harness name (drawn from `agent_harnesses`,
-e.g. `cursor`) can override just the fields that differ for that harness:
+`default:` key holds the harness-neutral fallback, and any harness name (e.g. `cursor`) can override
+just the fields that differ for that harness — the harness key is just a map key in either file.
+`agent_harnesses` does **not** gate which harness keys either file may carry; it only gates the
+**per-repo** generation pass (which `<repo>/.<H>/agents/` directories get committed wrapper files).
+The global/user-level pass consults no such list — it writes every harness `agents/` directory
+**present on disk** (`~/.claude/agents`, `~/.cursor/agents`, …), whatever keys the global file has:
 
 ```yaml
 agents:                                 # harness-first: reserved `default:` + harness-name keys
@@ -79,7 +83,8 @@ agents:                                 # harness-first: reserved `default:` + h
     implement-next: { model: gpt-5.1, effort: high }
     status:         { model: gpt-5.5-medium-fast }
   # Resolution is field-by-field, first non-empty wins: agents.<harness>.<agent> -> agents.default.<agent> -> shipped built-in (agents/docket-*.md).
-  # effort: auto (or omitted) -> omit the effort line (inherit the model default).
+  # effort: auto explicitly drops the effort line (inherit the model default); omitting the
+  # effort: key instead keeps the built-in effort — auto and omitted are NOT equivalent.
   # The global ~/.config/docket/agents.yaml uses the SAME harness-first map, but at the FILE's top level
   # (no `agents:` wrapper — the file IS the map). A non-`claude` harness whose model falls to default/built-in
   # gets a non-fatal warning (likely-wrong ID; docket never validates model IDs).
