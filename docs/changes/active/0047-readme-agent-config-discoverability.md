@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/readme-agent-config-discoverability
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -61,3 +61,20 @@ Add a short, discoverable **agent-config** section (or clearly-titled subsection
 - The effort-omission ergonomics (point 3) — decided 2026-07-08 to rely on `effort: auto`; no change.
 
 ## Reconcile log
+
+### 2026-07-08 — reconcile before build (no scope change)
+
+- **Gap still real.** The refresh workflow is still buried in the Install section (repo-root
+  `README.md` lines 61–64) plus the lone `agents:` line in the `.docket.yml` example (line 80); there
+  is no discoverable section answering "how do I change an agent's model/effort?". The change's premise
+  holds.
+- **#0045 (multi-harness `agent_harnesses`) is `done` and live.** Verified `sync-agents.sh`: the
+  per-repo project-level pass writes the committed `agent_harnesses` list, and the user-level pass
+  writes every **present** harness root (`~/.<harness>/agents/`). The facts this change will document
+  match current code exactly.
+- **#0046 (per-harness models) is still `proposed`** (spec'd, not merged). The design decision to
+  *reference* docket-convention's "Agent layer" for the config **shape** rather than restate field
+  examples remains correct — it stays accurate whether or not #0046 lands first, which is the whole
+  point (single source for the shape).
+- **`sync-agents.sh --check`** confirmed as the CI drift gate. No work done elsewhere to drop; scope
+  unchanged. Proceed to build as written.
