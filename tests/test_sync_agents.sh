@@ -69,39 +69,61 @@ after="$(cat "$SBX/.claude/agents/docket-implement-next.md")"
 assert "second run idempotent (byte-identical)" '[ "$before" = "$after" ]'
 rm -rf "$SBX"
 
-# -- global layer: ~/.config/docket/agents.yaml overrides model/effort (user-level) --
+# -- global layer (harness-first): ~/.config/docket/agents.yaml default: block overrides model/effort --
 make_sandbox
 mkdir -p "$SBX/.config/docket"
-printf 'status: { model: haiku, effort: low }\nimplement-next: { effort: auto }\n' > "$SBX/.config/docket/agents.yaml"
+printf 'default:\n  status: { model: haiku, effort: low }\n  implement-next: { effort: auto }\n' > "$SBX/.config/docket/agents.yaml"
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null )
-assert "global override sets model" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "haiku" ]'
-assert "global override sets effort" '[ "$(fm "$SBX/.claude/agents/docket-status.md" effort)" = "low" ]'
+assert "global default sets model" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "haiku" ]'
+assert "global default sets effort" '[ "$(fm "$SBX/.claude/agents/docket-status.md" effort)" = "low" ]'
 assert "effort: auto drops the effort line" '! grep -q "^effort:" "$SBX/.claude/agents/docket-implement-next.md"'
 assert "auto keeps the built-in model" '[ "$(fm "$SBX/.claude/agents/docket-implement-next.md" model)" = "claude-opus-4-8" ]'
 assert "unlisted skill keeps built-in model+effort" '[ "$(fm "$SBX/.claude/agents/docket-adr.md" model)/$(fm "$SBX/.claude/agents/docket-adr.md" effort)" = "claude-sonnet-5/medium" ]'
 rm -rf "$SBX"
 
-# -- global keys are top-level only: an indented decoy must not shadow the real top-level key --
-make_sandbox
-mkdir -p "$SBX/.config/docket"
-printf 'decoy:\n  status: { model: haiku }\nstatus: { model: fable }\n' > "$SBX/.config/docket/agents.yaml"
+# -- global: a per-harness block overrides default for THAT harness only (user-level) --
+make_sandbox                                        # .claude and .cursor both present so both get user-level files
+mkdir -p "$SBX/.cursor" "$SBX/.config/docket"
+printf 'default:\n  status: { model: haiku }\ncursor:\n  status: { model: gpt-5.5-medium-fast }\n' > "$SBX/.config/docket/agents.yaml"
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null )
-assert "global match anchors at top level (indented decoy ignored)" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "fable" ]'
+assert "global cursor block wins for cursor" '[ "$(fm "$SBX/.cursor/agents/docket-status.md" model)" = "gpt-5.5-medium-fast" ]'
+assert "global claude falls to default" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "haiku" ]'
 rm -rf "$SBX"
 
-# -- per-repo layer: .docket.yml agents: => committed project-level files --
-# Decouple the harness root from the repo so <repo>/.claude/agents holds ONLY project-level output
-# (else the user-level pass writes verbatim copies there and masks a too-eager per-repo pass).
+# -- per-repo layer (harness-first): .docket.yml agents.default: => committed project-level files --
 make_sandbox                                       # SBX = the repo
 HROOT="$(mktemp -d)"; mkdir -p "$HROOT/.claude"    # separate user-level harness root
-printf 'agents:\n  status: { model: sonnet, effort: high }\n  new-change: { model: opus }\n' > "$SBX/.docket.yml"
+printf 'agents:\n  default:\n    status: { model: sonnet, effort: high }\n    new-change: { model: opus }\n' > "$SBX/.docket.yml"
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT" bash "$SYNC" >/dev/null )
-assert "per-repo override writes project-level file" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
-assert "per-repo override applies model" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "sonnet" ]'
-assert "per-repo override applies effort" '[ "$(fm "$SBX/.claude/agents/docket-status.md" effort)" = "high" ]'
+assert "per-repo default writes project-level file" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
+assert "per-repo default applies model" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "sonnet" ]'
+assert "per-repo default applies effort" '[ "$(fm "$SBX/.claude/agents/docket-status.md" effort)" = "high" ]'
 assert "no project-level file for unlisted skill (implement-next)" '[ ! -f "$SBX/.claude/agents/docket-implement-next.md" ]'
 assert "advisory skill in agents: produces NO file (new-change)" '[ ! -f "$SBX/.claude/agents/docket-new-change.md" ]'
 rm -rf "$SBX" "$HROOT"
+
+# (a)+(b) harness override wins; field-level merge — model from cursor, effort inherited from default.
+make_sandbox
+HROOTM="$(mktemp -d)"; mkdir -p "$HROOTM/.claude"
+printf 'agent_harnesses: [claude, cursor]\nagents:\n  default:\n    status: { model: sonnet, effort: high }\n  cursor:\n    status: { model: gpt-5.5-medium-fast }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTM" bash "$SYNC" >/dev/null )
+assert "0046 (a): cursor model from cursor block" '[ "$(fm "$SBX/.cursor/agents/docket-status.md" model)" = "gpt-5.5-medium-fast" ]'
+assert "0046 (b): cursor effort inherited from default" '[ "$(fm "$SBX/.cursor/agents/docket-status.md" effort)" = "high" ]'
+assert "0046 (a): claude model falls to default" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "sonnet" ]'
+assert "0046 (a): claude effort from default" '[ "$(fm "$SBX/.claude/agents/docket-status.md" effort)" = "high" ]'
+# (c) arbitrary non-Claude id passes through verbatim; the two harness files now DIFFER (was byte-identical pre-0046).
+assert "0046 (c): non-Claude id verbatim in .cursor" '[ "$(fm "$SBX/.cursor/agents/docket-status.md" model)" = "gpt-5.5-medium-fast" ]'
+assert "0046: harness files differ when overridden" '! diff -q "$SBX/.claude/agents/docket-status.md" "$SBX/.cursor/agents/docket-status.md" >/dev/null'
+rm -rf "$SBX" "$HROOTM"
+
+# (d) default-only (no harness block) reproduces today's .claude/agents output byte-for-byte across harnesses.
+make_sandbox
+HROOTD0="$(mktemp -d)"; mkdir -p "$HROOTD0/.claude"
+printf 'agent_harnesses: [claude, cursor]\nagents:\n  default:\n    status: { model: sonnet, effort: high }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTD0" bash "$SYNC" >/dev/null )
+assert "0046 (d): default-only => both harness files byte-identical" 'diff -q "$SBX/.claude/agents/docket-status.md" "$SBX/.cursor/agents/docket-status.md" >/dev/null'
+assert "0046 (d): default-only applies model to claude" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "sonnet" ]'
+rm -rf "$SBX" "$HROOTD0"
 
 # ---- Task 1b: the docket-auto-groom-critic wrapper (wraps NO skill) ---------
 CRITIC="$AGENTS/docket-auto-groom-critic.md"
@@ -121,7 +143,7 @@ assert "critic: body carries abort-and-report directive" 'grep -qi "abort-and-re
 # proving the precedence path + --check drift gate cover the critic.
 make_sandbox                                        # SBX = the repo
 HROOT2="$(mktemp -d)"; mkdir -p "$HROOT2/.claude"   # separate user-level harness root
-printf 'agents:\n  auto-groom-critic: { model: sonnet, effort: high }\n' > "$SBX/.docket.yml"
+printf 'agents:\n  default:\n    auto-groom-critic: { model: sonnet, effort: high }\n' > "$SBX/.docket.yml"
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT2" bash "$SYNC" >/dev/null )
 assert "per-repo critic override writes project-level file" '[ -f "$SBX/.claude/agents/docket-auto-groom-critic.md" ]'
 assert "per-repo critic override applies model" '[ "$(fm "$SBX/.claude/agents/docket-auto-groom-critic.md" model)" = "sonnet" ]'
@@ -154,7 +176,7 @@ done
 # proving the precedence path + --check drift gate cover the new wrappers.
 make_sandbox                                        # SBX = the repo
 HROOT3="$(mktemp -d)"; mkdir -p "$HROOT3/.claude"   # separate user-level harness root
-printf 'agents:\n  rebase-resolver: { model: sonnet, effort: high }\n' > "$SBX/.docket.yml"
+printf 'agents:\n  default:\n    rebase-resolver: { model: sonnet, effort: high }\n' > "$SBX/.docket.yml"
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT3" bash "$SYNC" >/dev/null )
 assert "per-repo rebase-resolver override writes project-level file" '[ -f "$SBX/.claude/agents/docket-rebase-resolver.md" ]'
 assert "per-repo rebase-resolver override applies model" '[ "$(fm "$SBX/.claude/agents/docket-rebase-resolver.md" model)" = "sonnet" ]'
@@ -167,7 +189,7 @@ rm -rf "$SBX" "$HROOT3"
 
 # ---- Task 3: --check drift gate --------------------------------------------
 make_sandbox
-printf 'agents:\n  status: { model: sonnet, effort: high }\n' > "$SBX/.docket.yml"
+printf 'agents:\n  default:\n    status: { model: sonnet, effort: high }\n' > "$SBX/.docket.yml"
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null )   # generate committed project file
 chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check 2>&1)"; chk_rc=$?
 assert "--check passes when committed agents match config (rc=0)" '[ "$chk_rc" = "0" ]'
@@ -180,7 +202,7 @@ assert "--check reports a diff" 'printf "%s" "$chk_out" | grep -q "drift"'
 
 # Committed file entirely absent (--check before sync-agents.sh ever ran) -> drift.
 make_sandbox
-printf 'agents:\n  status: { model: sonnet, effort: high }\n' > "$SBX/.docket.yml"
+printf 'agents:\n  default:\n    status: { model: sonnet, effort: high }\n' > "$SBX/.docket.yml"
 # intentionally do NOT generate; $SBX/.claude/agents/docket-status.md does not exist
 chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check 2>&1)"; chk_rc=$?
 assert "--check fails when committed file is missing (rc!=0)" '[ "$chk_rc" != "0" ]'
@@ -225,30 +247,30 @@ assert "groom-next advisory pins claude-sonnet-5" 'grep -q "claude-sonnet-5" "$G
 #     so <repo>/.claude/agents is purely project-level output.
 make_sandbox                                          # SBX = the repo
 HROOTA="$(mktemp -d)"; mkdir -p "$HROOTA/.claude"     # separate user-level root
-printf 'agents:\n  status: { model: sonnet, effort: high }\n' > "$SBX/.docket.yml"
+printf 'agents:\n  default:\n    status: { model: sonnet, effort: high }\n' > "$SBX/.docket.yml"
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTA" bash "$SYNC" >/dev/null )
 assert "0045 default: writes project-level .claude/agents" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
 assert "0045 default: does NOT write .cursor/agents" '[ ! -e "$SBX/.cursor/agents/docket-status.md" ]'
 assert "0045 default: per-repo model applied" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "sonnet" ]'
 rm -rf "$SBX" "$HROOTA"
 
-# (b) agent_harnesses: [claude, cursor] => BOTH dirs generated, byte-identical,
-#     carrying an arbitrary NON-Claude id verbatim (ADR-0008/0015 passthrough).
+# (b) agent_harnesses: [claude, cursor] => BOTH dirs generated; cursor gets its own model
+#     override so the files DIFFER (0046: no longer byte-identical when overridden).
 make_sandbox
 HROOTB="$(mktemp -d)"; mkdir -p "$HROOTB/.claude"
-printf 'agent_harnesses: [claude, cursor]\nagents:\n  status: { model: gpt-5.5-medium-fast }\n' > "$SBX/.docket.yml"
+printf 'agent_harnesses: [claude, cursor]\nagents:\n  default:\n    status: { model: sonnet }\n  cursor:\n    status: { model: gpt-5.5-medium-fast }\n' > "$SBX/.docket.yml"
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTB" bash "$SYNC" >/dev/null )
 assert "0045 fanout: .claude/agents generated" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
 assert "0045 fanout: .cursor/agents generated" '[ -f "$SBX/.cursor/agents/docket-status.md" ]'
-assert "0045 fanout: claude file carries passthrough model" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "gpt-5.5-medium-fast" ]'
-assert "0045 fanout: cursor file carries passthrough model" '[ "$(fm "$SBX/.cursor/agents/docket-status.md" model)" = "gpt-5.5-medium-fast" ]'
-assert "0045 fanout: both harness files byte-identical" 'diff -q "$SBX/.claude/agents/docket-status.md" "$SBX/.cursor/agents/docket-status.md" >/dev/null'
+assert "0046 fanout: claude carries default model" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "sonnet" ]'
+assert "0046 fanout: cursor carries its override model" '[ "$(fm "$SBX/.cursor/agents/docket-status.md" model)" = "gpt-5.5-medium-fast" ]'
+assert "0046 fanout: harness files differ when cursor overrides" '! diff -q "$SBX/.claude/agents/docket-status.md" "$SBX/.cursor/agents/docket-status.md" >/dev/null'
 rm -rf "$SBX" "$HROOTB"
 
 # (b') agent_harnesses: [cursor] ONLY => cursor generated, claude NOT (no forced-claude).
 make_sandbox
 HROOTC="$(mktemp -d)"; mkdir -p "$HROOTC/.claude"
-printf 'agent_harnesses: [cursor]\nagents:\n  status: { model: sonnet }\n' > "$SBX/.docket.yml"
+printf 'agent_harnesses: [cursor]\nagents:\n  default:\n    status: { model: sonnet }\n' > "$SBX/.docket.yml"
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTC" bash "$SYNC" >/dev/null )
 assert "0045 cursor-only: .cursor/agents generated" '[ -f "$SBX/.cursor/agents/docket-status.md" ]'
 assert "0045 cursor-only: .claude/agents NOT generated" '[ ! -e "$SBX/.claude/agents/docket-status.md" ]'
@@ -257,7 +279,7 @@ rm -rf "$SBX" "$HROOTC"
 # (d) unknown harness token => warned + dropped, NOT fatal; known harness still generated.
 make_sandbox
 HROOTD="$(mktemp -d)"; mkdir -p "$HROOTD/.claude"
-printf 'agent_harnesses: [claude, bogus]\nagents:\n  status: { model: sonnet }\n' > "$SBX/.docket.yml"
+printf 'agent_harnesses: [claude, bogus]\nagents:\n  default:\n    status: { model: sonnet }\n' > "$SBX/.docket.yml"
 gen_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTD" bash "$SYNC" 2>&1 >/dev/null)"; gen_rc=$?
 assert "0045 unknown-token: generation not fatal (rc=0)" '[ "$gen_rc" = "0" ]'
 assert "0045 unknown-token: warns about the token" 'printf "%s" "$gen_err" | grep -qi "unknown agent_harnesses token"'
@@ -270,7 +292,7 @@ rm -rf "$SBX" "$HROOTD"
 #     files generated (mirrors board_surfaces: []). Locks the empty-set code path.
 make_sandbox
 HROOTE0="$(mktemp -d)"; mkdir -p "$HROOTE0/.claude"
-printf 'agent_harnesses: []\nagents:\n  status: { model: sonnet }\n' > "$SBX/.docket.yml"
+printf 'agent_harnesses: []\nagents:\n  default:\n    status: { model: sonnet }\n' > "$SBX/.docket.yml"
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTE0" bash "$SYNC" >/dev/null )
 assert "0045 empty-list: no .claude project file" '[ ! -e "$SBX/.claude/agents/docket-status.md" ]'
 assert "0045 empty-list: no .cursor project file" '[ ! -e "$SBX/.cursor/agents/docket-status.md" ]'
@@ -279,7 +301,7 @@ rm -rf "$SBX" "$HROOTE0"
 # --check must span every listed harness: drift in a .cursor/agents file fails CI.
 make_sandbox
 HROOTF="$(mktemp -d)"; mkdir -p "$HROOTF/.claude"
-printf 'agent_harnesses: [claude, cursor]\nagents:\n  status: { model: sonnet, effort: high }\n' > "$SBX/.docket.yml"
+printf 'agent_harnesses: [claude, cursor]\nagents:\n  default:\n    status: { model: sonnet, effort: high }\n' > "$SBX/.docket.yml"
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTF" bash "$SYNC" >/dev/null )   # generate both harness files
 chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTF" bash "$SYNC" --check 2>&1)"; chk_rc=$?
 assert "0045 check: passes when both harness files in sync (rc=0)" '[ "$chk_rc" = "0" ]'
@@ -307,7 +329,7 @@ assert "0045 doc: convention points at ADR-0015 near agent_harnesses" 'grep -Pzo
 make_sandbox
 HROOTG="$(mktemp -d)"; mkdir -p "$HROOTG/.claude"
 : > "$SBX/DECOYFILE"                                  # a filename the glob would match
-printf 'agent_harnesses: [claude, *]\nagents:\n  status: { model: sonnet }\n' > "$SBX/.docket.yml"
+printf 'agent_harnesses: [claude, *]\nagents:\n  default:\n    status: { model: sonnet }\n' > "$SBX/.docket.yml"
 gen_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTG" bash "$SYNC" 2>&1 >/dev/null)"; gen_rc=$?
 assert "0045 glob-token: generation not fatal (rc=0)" '[ "$gen_rc" = "0" ]'
 assert "0045 glob-token: cwd decoy file did NOT leak into warnings" '! printf "%s" "$gen_err" | grep -q "DECOYFILE"'
@@ -318,7 +340,7 @@ rm -rf "$SBX" "$HROOTG"
 #     block must NOT be read; the real top-level key wins.
 make_sandbox
 HROOTH="$(mktemp -d)"; mkdir -p "$HROOTH/.claude"
-printf 'decoy:\n  agent_harnesses: [cursor]\nagent_harnesses: [claude]\nagents:\n  status: { model: sonnet }\n' > "$SBX/.docket.yml"
+printf 'decoy:\n  agent_harnesses: [cursor]\nagent_harnesses: [claude]\nagents:\n  default:\n    status: { model: sonnet }\n' > "$SBX/.docket.yml"
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTH" bash "$SYNC" >/dev/null )
 assert "0045 anchor: top-level agent_harnesses honored (.claude generated)" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
 assert "0045 anchor: indented decoy ignored (.cursor NOT generated)" '[ ! -e "$SBX/.cursor/agents/docket-status.md" ]'
