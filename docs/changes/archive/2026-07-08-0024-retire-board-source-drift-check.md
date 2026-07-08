@@ -2,7 +2,7 @@
 id: 24
 slug: retire-board-source-drift-check
 title: Retire or downgrade the inline board/source-drift health check once rendering is deterministic
-status: implemented
+status: done
 priority: low
 created: 2026-06-18
 updated: 2026-07-08
