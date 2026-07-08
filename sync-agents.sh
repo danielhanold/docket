@@ -24,6 +24,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AGENTS_SRC="$SCRIPT_DIR/agents"
+CURSOR_RULES_SRC="$SCRIPT_DIR/cursor-rules"
 REPO="$PWD"
 
 HARNESS_ROOT="${DOCKET_HARNESS_ROOT:-$HOME}"
@@ -89,6 +90,13 @@ resolve_agent_harnesses(){
 }
 
 short_name(){ local b; b="$(basename "$1")"; b="${b#docket-}"; printf '%s' "${b%.md}"; }
+
+# Extract the single-line `description:` frontmatter value from a wrapper source file.
+agent_description(){ sed -n 's/^description:[[:space:]]*//p' "$1" | head -n1; }
+
+# Harnesses that get a generated Cursor-style dispatch rule (only cursor exhibits the inline quirk).
+HARNESS_HAS_DISPATCH_RULES="cursor"
+harness_has_dispatch_rule(){ case " $HARNESS_HAS_DISPATCH_RULES " in *" $1 "*) return 0;; *) return 1;; esac; }
 
 # --- config helpers ----------------------------------------------------------
 # Print the body nested under the first bare `<key>:` header from stdin, DEDENTED to column 0
@@ -187,6 +195,35 @@ emit() {  # $1=src file  $2=model  $3=effort
     }' "$1"
 }
 
+# Assemble the Cursor dispatch rule to stdout: static head + one subsection per built-in agent
+# (glob order). A built-in agent with a fragment uses it verbatim; one without gets a minimal
+# auto-block derived from its description + a warning (a new agent is never silently un-dispatched).
+assemble_dispatch_rule() {
+  cat "$CURSOR_RULES_SRC/dispatch.head.md"
+  local src name frag desc
+  for src in "$AGENTS_SRC"/docket-*.md; do
+    [ -e "$src" ] || continue
+    name="$(short_name "$src")"
+    frag="$CURSOR_RULES_SRC/dispatch/docket-$name.md"
+    printf '\n'
+    if [ -f "$frag" ]; then
+      cat "$frag"
+    else
+      desc="$(agent_description "$src")"
+      printf '## docket-%s — dispatch only\n\n' "$name"
+      printf '%s\n\n' "$desc"
+      printf 'When this applies, do NOT run the skill inline. Launch a Task with `subagent_type: "docket-%s"`, `run_in_background: false`, and relay its result.\n' "$name"
+      log "WARN no dispatch fragment for docket-$name — emitted a minimal auto-block; add cursor-rules/dispatch/docket-$name.md"
+    fi
+  done
+}
+
+# Write the dispatch rule into a harness root's rules/ dir (<root>/.<harness>/rules/docket-dispatch.mdc).
+write_dispatch_rule() {  # $1 = <root>/.<harness> base path
+  mkdir -p "$1/rules"
+  assemble_dispatch_rule > "$1/rules/docket-dispatch.mdc"
+}
+
 # Non-fatal footgun warning: when generating a NON-claude harness file whose `model` resolved from
 # default/built-in (no agents.<harness> override supplied it), the ID is likely wrong for that
 # harness (ADR-0015: some harnesses silently run their house default on an unknown model). Never
@@ -224,6 +261,12 @@ user_level_pass() {  # built-in ⊕ global -> each present harness */agents dir,
       emit "$src" "$RES_MODEL" "$RES_EFFORT" > "$dir/$(basename "$src")"
     done
   done
+  # Cursor-only dispatch rule, user-level, for each present dispatch-rule harness root.
+  local drh
+  for drh in $HARNESS_HAS_DISPATCH_RULES; do
+    [ -d "$HARNESS_ROOT/.$drh" ] || continue
+    write_dispatch_rule "$HARNESS_ROOT/.$drh"
+  done
 }
 
 project_level_pass() {  # built-in ⊕ per-repo -> <repo>/.<H>/agents for each H in HARNESSES (committed)
@@ -252,6 +295,12 @@ project_level_pass() {  # built-in ⊕ per-repo -> <repo>/.<H>/agents for each H
       mkdir -p "$dir"
       emit "$src" "$RES_MODEL" "$RES_EFFORT" > "$dir/docket-$name.md"
     done
+  done
+  # Cursor-only dispatch rule, per-repo (committed) when cursor is a targeted harness.
+  local h
+  for h in $HARNESSES; do
+    harness_has_dispatch_rule "$h" || continue
+    write_dispatch_rule "$REPO/.$h"
   done
 }
 

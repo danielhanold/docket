@@ -121,6 +121,57 @@ assert "0048: UNLISTED agent generated at built-in default (implement-next=claud
   '[ "$(fm "$SBX/.claude/agents/docket-implement-next.md" model)/$(fm "$SBX/.claude/agents/docket-implement-next.md" effort)" = "claude-opus-4-8/xhigh" ]'
 rm -rf "$SBX" "$HROOT48A"
 
+# 0048 Piece 2 — the Cursor dispatch rule is generated per-repo when cursor is listed.
+make_sandbox
+HROOT48R="$(mktemp -d)"; mkdir -p "$HROOT48R/.claude"
+printf 'agent_harnesses: [claude, cursor]\nagents:\n  default:\n    status: { model: sonnet }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48R" bash "$SYNC" >/dev/null )
+RULE="$SBX/.cursor/rules/docket-dispatch.mdc"
+assert "0048 rule: per-repo docket-dispatch.mdc written for cursor" '[ -f "$RULE" ]'
+assert "0048 rule: carries alwaysApply: true frontmatter" 'grep -q "^alwaysApply: true" "$RULE"'
+assert "0048 rule: has the required dispatch pattern heading" 'grep -q "## Required dispatch pattern" "$RULE"'
+assert "0048 rule: has a subsection for every built-in agent (8)" \
+  '[ "$(grep -cE "^## docket-.* — dispatch only" "$RULE")" = "8" ]'
+assert "0048 rule: names docket-implement-next as a subsection" 'grep -q "^## docket-implement-next — dispatch only" "$RULE"'
+assert "0048 rule: names docket-status as a subsection" 'grep -q "^## docket-status — dispatch only" "$RULE"'
+assert "0048 rule: no subsection for a non-existent agent" '! grep -q "docket-nonexistent" "$RULE"'
+assert "0048 rule: deterministic order — adr before status" \
+  '[ "$(grep -n "^## docket-adr — dispatch only" "$RULE" | cut -d: -f1)" -lt "$(grep -n "^## docket-status — dispatch only" "$RULE" | cut -d: -f1)" ]'
+rm -rf "$SBX" "$HROOT48R"
+
+# 0048 Piece 2 — cursor NOT listed => no per-repo rule (claude/other harness gets none).
+make_sandbox
+HROOT48N="$(mktemp -d)"; mkdir -p "$HROOT48N/.claude"
+printf 'agent_harnesses: [claude]\nagents:\n  default:\n    status: { model: sonnet }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48N" bash "$SYNC" >/dev/null )
+assert "0048 rule: no dispatch rule for a claude-only repo" '[ ! -e "$SBX/.cursor/rules/docket-dispatch.mdc" ]'
+assert "0048 rule: no rules dir under .claude" '[ ! -e "$SBX/.claude/rules/docket-dispatch.mdc" ]'
+rm -rf "$SBX" "$HROOT48N"
+
+# 0048 Piece 2 — user-level: rule written to ~/.cursor/rules when ~/.cursor present, skipped when absent.
+make_sandbox                                  # make_sandbox creates .claude + .agents; .cursor ABSENT
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null )
+assert "0048 rule: user-level rule SKIPPED when ~/.cursor absent" '[ ! -e "$SBX/.cursor/rules/docket-dispatch.mdc" ]'
+mkdir -p "$SBX/.cursor"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null )
+assert "0048 rule: user-level rule WRITTEN when ~/.cursor present" '[ -f "$SBX/.cursor/rules/docket-dispatch.mdc" ]'
+rm -rf "$SBX"
+
+# 0048 Piece 2 — a built-in agent lacking a fragment gets a minimal auto-block + a warning.
+# Simulate by pointing the generator at a scratch clone whose fragment we remove.
+make_sandbox
+HROOT48F="$(mktemp -d)"; mkdir -p "$HROOT48F/.claude"
+printf 'agent_harnesses: [cursor]\nagents:\n  default:\n    status: { model: sonnet }\n' > "$SBX/.docket.yml"
+# Remove one fragment in a throwaway copy of the repo scripts so the auto-block path fires.
+SCRATCH="$(mktemp -d)"; cp -R "$REPO/agents" "$REPO/cursor-rules" "$REPO/sync-agents.sh" "$SCRATCH/"
+rm -f "$SCRATCH/cursor-rules/dispatch/docket-status.md"
+gen_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48F" bash "$SCRATCH/sync-agents.sh" 2>&1 >/dev/null)"
+RULE="$SBX/.cursor/rules/docket-dispatch.mdc"
+assert "0048 auto-block: warns about the missing fragment" 'printf "%s" "$gen_err" | grep -qi "no dispatch fragment for docket-status"'
+assert "0048 auto-block: still emits a docket-status subsection" 'grep -q "^## docket-status — dispatch only" "$RULE"'
+assert "0048 auto-block: subsection includes a Task subagent_type" 'grep -q "subagent_type: \"docket-status\"" "$RULE"'
+rm -rf "$SBX" "$HROOT48F" "$SCRATCH"
+
 # (a)+(b) harness override wins; field-level merge — model from cursor, effort inherited from default.
 make_sandbox
 HROOTM="$(mktemp -d)"; mkdir -p "$HROOTM/.claude"
