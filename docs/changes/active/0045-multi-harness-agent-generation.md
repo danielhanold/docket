@@ -2,7 +2,7 @@
 id: 45
 slug: multi-harness-agent-generation
 title: Per-repo agent model config reaches Cursor via multi-harness generation
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-08
 updated: 2026-07-08
@@ -11,11 +11,11 @@ related: [16, 42, 43, 44]
 adrs: [15]
 spec: docs/superpowers/specs/2026-07-08-multi-harness-agent-generation-design.md
 plan: docs/superpowers/plans/2026-07-08-multi-harness-agent-generation.md
-results:
+results: docs/results/2026-07-08-multi-harness-agent-generation-results.md
 trivial: false
 auto_groomable:
 branch: feat/multi-harness-agent-generation
-pr:
+pr: https://github.com/danielhanold/docket/pull/54
 blocked_by:
 reconciled: true
 ---
@@ -27,6 +27,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-08-multi-harness-agent-generation-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-08-multi-harness-agent-generation-design.md) |
 | Plan | [2026-07-08-multi-harness-agent-generation.md](https://github.com/danielhanold/docket/blob/feat/multi-harness-agent-generation/docs/superpowers/plans/2026-07-08-multi-harness-agent-generation.md) |
+| Results | [2026-07-08-multi-harness-agent-generation-results.md](https://github.com/danielhanold/docket/blob/feat/multi-harness-agent-generation/docs/results/2026-07-08-multi-harness-agent-generation-results.md) |
+| PR | [#54](https://github.com/danielhanold/docket/pull/54) |
 | ADRs | [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md) |
 <!-- docket:artifacts:end -->
 
