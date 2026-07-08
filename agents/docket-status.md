@@ -1,7 +1,7 @@
 ---
 name: docket-status
 description: Use when you want to see or refresh the docket backlog — what is proposed, in progress, blocked, implemented, or done — by regenerating the BOARD.md board, sweeping merged changes to done, or running health checks for stale claims, broken spec/plan/results links, and dependency stalls.
-model: sonnet
+model: claude-haiku-4-5-20251001
 effort: medium
 skills: [docket-status, docket-convention]
 ---

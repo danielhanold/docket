@@ -18,7 +18,7 @@ description: Use when stubs are sitting at needs-brainstorm on the docket board 
 
 ## Recommended model/effort (advisory)
 
-This skill grooms interactively with a human, so it cannot be a fire-and-forget subagent and cannot force the session model. **Recommended: `sonnet` / `high`** (the cold-start recap is genuine synthesis). Set `/model sonnet` and `/effort high` to match; this is advisory only — the human owns the session.
+This skill grooms interactively with a human, so it cannot be a fire-and-forget subagent and cannot force the session model. **Recommended: `claude-sonnet-5` / `high`** (the cold-start recap is genuine synthesis). Set `/model claude-sonnet-5` and `/effort high` to match; this is advisory only — the human owns the session.
 
 ## Convention (load first — blocking)
 

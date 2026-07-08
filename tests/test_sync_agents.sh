@@ -23,7 +23,7 @@ for w in $AUTONOMOUS; do
   assert "$w: has a description" '[ -n "$(fm "$f" description)" ]'
   assert "$w: description matches the skill (single source)" \
     '[ "$(fm "$f" description)" = "$(fm "$REPO/skills/$w/SKILL.md" description)" ]'
-  assert "$w: model is a known alias" '[[ "$(fm "$f" model)" =~ ^(opus|sonnet|haiku|fable)$ ]]'
+  assert "$w: model is a known alias or full id" '[[ "$(fm "$f" model)" =~ ^(opus|sonnet|haiku|fable|claude-[a-z0-9]+(-[a-z0-9]+)*)$ ]]'
   assert "$w: effort in allowed set" '[[ "$(fm "$f" effort)" =~ ^(low|medium|high|xhigh|max)$ ]]'
   assert "$w: skills: injects the skill itself" 'grep -Eq "^skills:.*\b'"$w"'\b" "$f"'
   assert "$w: skills: injects docket-convention" 'grep -Eq "^skills:.*docket-convention" "$f"'
@@ -31,16 +31,16 @@ for w in $AUTONOMOUS; do
 done
 
 # Built-in model/effort match the §4 default table.
-assert "implement-next built-in = opus/xhigh" \
-  '[ "$(fm "$AGENTS/docket-implement-next.md" model)/$(fm "$AGENTS/docket-implement-next.md" effort)" = "opus/xhigh" ]'
-assert "auto-groom built-in = opus/xhigh" \
-  '[ "$(fm "$AGENTS/docket-auto-groom.md" model)/$(fm "$AGENTS/docket-auto-groom.md" effort)" = "opus/xhigh" ]'
-assert "finalize-change built-in = sonnet/medium" \
-  '[ "$(fm "$AGENTS/docket-finalize-change.md" model)/$(fm "$AGENTS/docket-finalize-change.md" effort)" = "sonnet/medium" ]'
-assert "status built-in = sonnet/medium" \
-  '[ "$(fm "$AGENTS/docket-status.md" model)/$(fm "$AGENTS/docket-status.md" effort)" = "sonnet/medium" ]'
-assert "adr built-in = sonnet/medium" \
-  '[ "$(fm "$AGENTS/docket-adr.md" model)/$(fm "$AGENTS/docket-adr.md" effort)" = "sonnet/medium" ]'
+assert "implement-next built-in = claude-opus-4-8/xhigh" \
+  '[ "$(fm "$AGENTS/docket-implement-next.md" model)/$(fm "$AGENTS/docket-implement-next.md" effort)" = "claude-opus-4-8/xhigh" ]'
+assert "auto-groom built-in = claude-opus-4-8/xhigh" \
+  '[ "$(fm "$AGENTS/docket-auto-groom.md" model)/$(fm "$AGENTS/docket-auto-groom.md" effort)" = "claude-opus-4-8/xhigh" ]'
+assert "finalize-change built-in = claude-sonnet-5/medium" \
+  '[ "$(fm "$AGENTS/docket-finalize-change.md" model)/$(fm "$AGENTS/docket-finalize-change.md" effort)" = "claude-sonnet-5/medium" ]'
+assert "status built-in = claude-haiku-4-5-20251001/medium" \
+  '[ "$(fm "$AGENTS/docket-status.md" model)/$(fm "$AGENTS/docket-status.md" effort)" = "claude-haiku-4-5-20251001/medium" ]'
+assert "adr built-in = claude-sonnet-5/medium" \
+  '[ "$(fm "$AGENTS/docket-adr.md" model)/$(fm "$AGENTS/docket-adr.md" effort)" = "claude-sonnet-5/medium" ]'
 
 # Advisory/interactive skills must NOT have a wrapper file.
 assert "no wrapper for new-change (advisory)" '[ ! -f "$AGENTS/docket-new-change.md" ]'
@@ -77,8 +77,8 @@ printf 'status: { model: haiku, effort: low }\nimplement-next: { effort: auto }\
 assert "global override sets model" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "haiku" ]'
 assert "global override sets effort" '[ "$(fm "$SBX/.claude/agents/docket-status.md" effort)" = "low" ]'
 assert "effort: auto drops the effort line" '! grep -q "^effort:" "$SBX/.claude/agents/docket-implement-next.md"'
-assert "auto keeps the built-in model" '[ "$(fm "$SBX/.claude/agents/docket-implement-next.md" model)" = "opus" ]'
-assert "unlisted skill keeps built-in model+effort" '[ "$(fm "$SBX/.claude/agents/docket-adr.md" model)/$(fm "$SBX/.claude/agents/docket-adr.md" effort)" = "sonnet/medium" ]'
+assert "auto keeps the built-in model" '[ "$(fm "$SBX/.claude/agents/docket-implement-next.md" model)" = "claude-opus-4-8" ]'
+assert "unlisted skill keeps built-in model+effort" '[ "$(fm "$SBX/.claude/agents/docket-adr.md" model)/$(fm "$SBX/.claude/agents/docket-adr.md" effort)" = "claude-sonnet-5/medium" ]'
 rm -rf "$SBX"
 
 # -- global keys are top-level only: an indented decoy must not shadow the real top-level key --
@@ -108,7 +108,7 @@ CRITIC="$AGENTS/docket-auto-groom-critic.md"
 assert "critic wrapper exists" '[ -f "$CRITIC" ]'
 assert "critic: name matches file" '[ "$(fm "$CRITIC" name)" = "docket-auto-groom-critic" ]'
 assert "critic: has a description" '[ -n "$(fm "$CRITIC" description)" ]'
-assert "critic: model is opus" '[ "$(fm "$CRITIC" model)" = "opus" ]'
+assert "critic: model is claude-opus-4-8" '[ "$(fm "$CRITIC" model)" = "claude-opus-4-8" ]'
 assert "critic: effort is xhigh" '[ "$(fm "$CRITIC" effort)" = "xhigh" ]'
 assert "critic: skills injects docket-convention" 'grep -Eq "^skills:.*docket-convention" "$CRITIC"'
 # Isolation: the skills: line must NOT pull in the designer skill (would re-inject its bias).
@@ -140,7 +140,7 @@ for nw in docket-rebase-resolver docket-integration-repair; do
   assert "$nw: wrapper exists" '[ -f "$f" ]'
   assert "$nw: name matches file" '[ "$(fm "$f" name)" = "$nw" ]'
   assert "$nw: has a description" '[ -n "$(fm "$f" description)" ]'
-  assert "$nw: model is opus" '[ "$(fm "$f" model)" = "opus" ]'
+  assert "$nw: model is claude-opus-4-8" '[ "$(fm "$f" model)" = "claude-opus-4-8" ]'
   assert "$nw: effort is xhigh" '[ "$(fm "$f" effort)" = "xhigh" ]'
   assert "$nw: skills injects docket-convention" 'grep -Eq "^skills:.*docket-convention" "$f"'
   # Isolation: the skills: line wraps NO docket skill (only the convention).
@@ -212,5 +212,8 @@ assert "groom-next carries an advisory recommendation" 'grep -qi "[Rr]ecommended
 assert "groom-next recommends sonnet/high" 'grep -qiE "sonnet[^A-Za-z]+high|high[^A-Za-z]+sonnet" "$GROOM"'
 # Non-vacuous: it must be advisory, not a hard requirement (we cannot force the session model).
 assert "new-change frames it as advisory" 'grep -qi "advisory" "$NEWC"'
+# Explicit pin (change 0042): the advisory must name the full model ID, not the bare alias.
+assert "new-change advisory pins claude-sonnet-5" 'grep -q "claude-sonnet-5" "$NEWC"'
+assert "groom-next advisory pins claude-sonnet-5" 'grep -q "claude-sonnet-5" "$GROOM"'
 
 exit $fail

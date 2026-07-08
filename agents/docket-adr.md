@@ -1,7 +1,7 @@
 ---
 name: docket-adr
 description: Use when recording, superseding, reversing, or indexing an architecture decision (ADR) — capturing why a non-obvious technical decision was made into the immutable docs/adrs ledger, or regenerating and validating the ADR index. Invoked by docket-implement-next, or directly any time a decision must be recorded or changed.
-model: sonnet
+model: claude-sonnet-5
 effort: medium
 skills: [docket-adr, docket-convention]
 ---

@@ -18,7 +18,7 @@ description: Use when capturing a new unit of planned work (a change, roughly on
 
 ## Recommended model/effort (advisory)
 
-This skill brainstorms with a human, so it cannot be a fire-and-forget subagent and cannot force the session model. **Recommended: `sonnet`, effort: model default** (wide variance from a trivial stub to a full brainstorm). Set `/model sonnet` to match; this is advisory only — the human owns the session.
+This skill brainstorms with a human, so it cannot be a fire-and-forget subagent and cannot force the session model. **Recommended: `claude-sonnet-5`, effort: model default** (wide variance from a trivial stub to a full brainstorm). Set `/model claude-sonnet-5` to match; this is advisory only — the human owns the session.
 
 ## Convention (load first — blocking)
 

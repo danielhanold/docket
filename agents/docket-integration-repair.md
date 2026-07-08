@@ -1,7 +1,7 @@
 ---
 name: docket-integration-repair
 description: Makes the test suite pass after finalize's rebase lands — root-causes the red tests, writes a minimal fix in at most two attempts, never weakens tests, and reports an authored repair the dispatcher gates behind sign-off.
-model: opus
+model: claude-opus-4-8
 effort: xhigh
 skills: [docket-convention]
 ---
