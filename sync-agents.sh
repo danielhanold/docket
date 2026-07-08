@@ -76,6 +76,7 @@ resolve_agent_harnesses(){
   fi
   list="${raw#[}"; list="${list%]}"; list="${list//,/ }"   # strip flow brackets, commas -> spaces
   HARNESSES=""
+  set -f   # disable globbing: tokens are externally-sourced, e.g. a bare "*" must not glob-expand
   for tok in $list; do
     if is_valid_harness "$tok"; then
       HARNESSES="$HARNESSES $tok"
@@ -83,6 +84,7 @@ resolve_agent_harnesses(){
       log "unknown agent_harnesses token '$tok' — ignored"
     fi
   done
+  set +f
   HARNESSES="$(echo $HARNESSES)"                  # trim/collapse ("[]" or all-unknown => "")
 }
 

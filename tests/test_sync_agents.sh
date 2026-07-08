@@ -297,9 +297,31 @@ rm -rf "$SBX" "$HROOTF"
 # Convention documents agent_harnesses + the direct-model-ID (harness-neutral) contract.
 CONV="$REPO/skills/docket-convention/SKILL.md"
 assert "0045 doc: convention names agent_harnesses" 'grep -q "agent_harnesses" "$CONV"'
-assert "0045 doc: convention states default [claude]" 'grep -qE "agent_harnesses[^\n]*\[claude\]|default[^\n]*\[claude\]" "$CONV"'
+assert "0045 doc: convention states default [claude]" 'grep -qE "agent_harnesses.*\[claude\]|default.*\[claude\]" "$CONV"'
 assert "0045 doc: convention states harness-neutral direct model IDs" 'grep -qiE "harness-neutral|direct model id" "$CONV"'
 assert "0045 doc: convention notes passthrough enables non-Claude harnesses" 'grep -qi "passthrough" "$CONV"'
 assert "0045 doc: convention points at ADR-0015 near agent_harnesses" 'grep -Pzoq "agent_harnesses[\s\S]{0,500}ADR-0015|ADR-0015[\s\S]{0,500}agent_harnesses" "$CONV"'
+
+# (f) a glob-metachar token must NOT expand against the cwd (set -f guard). A decoy
+#     file present in the repo must never leak into the warnings.
+make_sandbox
+HROOTG="$(mktemp -d)"; mkdir -p "$HROOTG/.claude"
+: > "$SBX/DECOYFILE"                                  # a filename the glob would match
+printf 'agent_harnesses: [claude, *]\nagents:\n  status: { model: sonnet }\n' > "$SBX/.docket.yml"
+gen_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTG" bash "$SYNC" 2>&1 >/dev/null)"; gen_rc=$?
+assert "0045 glob-token: generation not fatal (rc=0)" '[ "$gen_rc" = "0" ]'
+assert "0045 glob-token: cwd decoy file did NOT leak into warnings" '! printf "%s" "$gen_err" | grep -q "DECOYFILE"'
+assert "0045 glob-token: known harness still generated" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
+rm -rf "$SBX" "$HROOTG"
+
+# (g) agent_harnesses is a top-level (column-0) key: an indented decoy under another
+#     block must NOT be read; the real top-level key wins.
+make_sandbox
+HROOTH="$(mktemp -d)"; mkdir -p "$HROOTH/.claude"
+printf 'decoy:\n  agent_harnesses: [cursor]\nagent_harnesses: [claude]\nagents:\n  status: { model: sonnet }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTH" bash "$SYNC" >/dev/null )
+assert "0045 anchor: top-level agent_harnesses honored (.claude generated)" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
+assert "0045 anchor: indented decoy ignored (.cursor NOT generated)" '[ ! -e "$SBX/.cursor/agents/docket-status.md" ]'
+rm -rf "$SBX" "$HROOTH"
 
 exit $fail
