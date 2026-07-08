@@ -2,10 +2,10 @@
 id: 42
 slug: retune-agent-model-defaults
 title: Re-tune default agent models for the Claude 5 lineup (pin explicit versions)
-status: implemented
+status: done
 priority: high
 created: 2026-07-07
-updated: 2026-07-07
+updated: 2026-07-08
 depends_on: []
 related: [16, 43]
 adrs: []
