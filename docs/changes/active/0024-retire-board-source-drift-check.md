@@ -10,7 +10,7 @@ depends_on: [22]
 related: [23]
 adrs: []
 spec: docs/superpowers/specs/2026-07-08-retire-board-source-drift-check-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-08-retire-board-source-drift-check.md
 results:
 trivial: false
 auto_groomable:
@@ -26,6 +26,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-08-retire-board-source-drift-check-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-08-retire-board-source-drift-check-design.md) |
+| Plan | [2026-07-08-retire-board-source-drift-check.md](https://github.com/danielhanold/docket/blob/feat/retire-board-source-drift-check/docs/superpowers/plans/2026-07-08-retire-board-source-drift-check.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
