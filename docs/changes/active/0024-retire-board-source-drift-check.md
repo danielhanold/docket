@@ -2,7 +2,7 @@
 id: 24
 slug: retire-board-source-drift-check
 title: Retire or downgrade the inline board/source-drift health check once rendering is deterministic
-status: in-progress
+status: implemented
 priority: low
 created: 2026-06-18
 updated: 2026-07-08
@@ -15,7 +15,7 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/retire-board-source-drift-check
-pr:
+pr: https://github.com/danielhanold/docket/pull/53
 blocked_by:
 reconciled: true
 ---
@@ -27,6 +27,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-08-retire-board-source-drift-check-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-08-retire-board-source-drift-check-design.md) |
 | Plan | [2026-07-08-retire-board-source-drift-check.md](https://github.com/danielhanold/docket/blob/feat/retire-board-source-drift-check/docs/superpowers/plans/2026-07-08-retire-board-source-drift-check.md) |
+| PR | [#53](https://github.com/danielhanold/docket/pull/53) |
 <!-- docket:artifacts:end -->
 
 ## Why
