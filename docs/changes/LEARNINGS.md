@@ -4,6 +4,13 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-07-08 (#42, PR #52) — Re-pinning the agent-model aliases to full IDs, the spec's "touch-points"
+  list enumerated the test edits but **undercounted them**: 4 more assertions hardcoded the old bare
+  aliases and surfaced only in the reconcile pass's exhaustive grep, not the spec's enumeration. Apply:
+  when a change substitutes a literal value that tests assert on, grep the whole suite for *every*
+  occurrence of the old literal before trusting the spec — a spec's enumerated touch-points are a floor,
+  not the complete set.
+
 - 2026-06-21 (#37, PR #48) — A change stripping prose from `docket-status/SKILL.md` was mid-build when
   PR #47 (#36) merged into `origin/main` with newer fixes to the *same* file. Rebasing onto the new
   base, the reflexive "keep my side" of the conflict would have **silently reverted** #36's ordering +
