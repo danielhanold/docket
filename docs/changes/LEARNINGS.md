@@ -4,6 +4,14 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-07-08 (#46, PR #56) — Two latent bugs rode in from the plan's own awk and surfaced only at
+  task review, not at planning: `ind()` used `[^ ]` (a literal-space class) so a **tab-indented**
+  config layer was silently dropped — fixed to `[^[:space:]]` (both awk copies) with a tab-indented
+  regression test; and `printf … | section_body` SIGPIPE'd because the consumer `exit`s early —
+  guarded with `|| true`. Apply: when a plan hands you awk/shell it authored, treat whitespace
+  character classes and any producer piped into an early-exiting consumer as suspect — test
+  tab-indented input, and guard pipes whose reader may stop reading before EOF.
+
 - 2026-07-08 (#47, PR #55) — A docs change whose whole job was to document an *existing* behavior
   (how `effort: auto` affects a generated agent) nearly documented the wrong thing: the neighboring
   docket-convention "Agent layer" prose says "`effort: auto` (or omitted) → omit the effort line,"
