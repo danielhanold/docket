@@ -60,7 +60,11 @@ Add a short, discoverable **agent-config** section (or clearly-titled subsection
 - Any behavior change to `sync-agents.sh` (docs only).
 - The `agents:` config **shape** itself — owned by #0046 (harness-first rework); this change references
   it, never restates it.
-- The effort-omission ergonomics (point 3) — decided 2026-07-08 to rely on `effort: auto`; no change.
+- Changing the effort-omission *mechanism* (point 3) — still out of scope: docket relies on the
+  existing `effort: auto` sentinel, no code change. (Merge-gate re-scope 2026-07-08: the README now
+  *documents* that existing behavior — that `effort: auto` drops the pinned effort line while omitting
+  the key keeps the built-in — since surfacing it is precisely the model-override discoverability goal.
+  The mechanism itself is unchanged.)
 
 ## Reconcile log
 
@@ -80,3 +84,15 @@ Add a short, discoverable **agent-config** section (or clearly-titled subsection
   point (single source for the shape).
 - **`sync-agents.sh --check`** confirmed as the CI drift gate. No work done elsewhere to drop; scope
   unchanged. Proceed to build as written.
+
+### 2026-07-08 — merge-gate feedback (author): surface `effort: auto`
+
+- The built section deferred all effort semantics to the docket-convention "Agent layer" reference.
+  Author flagged at the merge gate that the most useful nugget for the motivating use case (overriding
+  an agent's model, e.g. to a non-Claude Cursor model where Claude's effort tiers don't apply) is that
+  `effort: auto` *drops* the effort line so the agent inherits the model default — verified against
+  `sync-agents.sh:145`. Added a direct, code-accurate note + an owning section sentinel. PR #55 updated.
+- **Discrepancy noted (not fixed here — #0046/convention territory):** docket-convention's Agent-layer
+  comment reads "`effort: auto` (or omitted) → omit the effort line", but the code omits the line only
+  for `auto`; **omitting the key keeps the built-in effort**. The README documents the code's actual
+  behavior; the convention comment is left for a follow-up.
