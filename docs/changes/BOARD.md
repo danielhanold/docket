@@ -1,12 +1,6 @@
 # Backlog
 
-**47 changes** — 🟢 1 in progress · 🟡 8 proposed · ✅ 36 done · 🗑️ 2 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0046](active/0046-per-harness-agent-models.md) | Per-harness model overrides for docket agents | `medium` | [spec](../superpowers/specs/2026-07-08-per-harness-agent-models-design.md) | `feat/per-harness-agent-models` |
+**47 changes** — 🟡 8 proposed · 🔵 1 implemented · ✅ 36 done · 🗑️ 2 killed
 
 ## 🟡 Proposed (8)
 
@@ -20,6 +14,12 @@
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | build-ready |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | PR |
+|---|-------|----------|----|
+| [0046](active/0046-per-harness-agent-models.md) | Per-harness model overrides for docket agents | `medium` | [#56](https://github.com/danielhanold/docket/pull/56) |
 
 ```mermaid
 graph TD
