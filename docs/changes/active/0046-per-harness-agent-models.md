@@ -2,7 +2,7 @@
 id: 46
 slug: per-harness-agent-models
 title: Per-harness model overrides for docket agents
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-07-08
 updated: 2026-07-08
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/per-harness-agent-models
 pr:
 blocked_by:
 reconciled: false
