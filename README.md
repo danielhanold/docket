@@ -219,6 +219,8 @@ Each **autonomous** docket skill runs as a model/effort-pinned subagent (`docket
 
 The config **shape** — the `agents:` keys and how `model:`/`effort:` are written — is documented once in docket-convention's **"Agent layer"**; consult it there rather than copying field examples here, so the shape has a single source of truth and stays current as it evolves.
 
+**Changing only the model?** To override an agent's model while *dropping* its pinned effort — e.g. pointing it at a non-Claude harness model, where Claude's effort tiers do not apply — set `effort: auto`, which drops the effort line entirely so the agent inherits the model default. Omitting the `effort:` key instead *keeps* the built-in effort, so `auto` is the explicit way to drop it.
+
 **2. Refresh the generated wrappers.** The resolved model/effort are baked into generated wrapper *copies* (not symlinks), so after editing any layer, regenerate them:
 
 ```bash

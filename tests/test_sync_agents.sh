@@ -346,6 +346,8 @@ assert "0047 §agent-cfg: documents the --check drift gate" \
   'grep -qF "sync-agents.sh --check" <<<"$sec"'
 assert "0047 §agent-cfg: references docket-convention Agent layer for the shape (not restated)" \
   'grep -qF "docket-convention" <<<"$sec" && grep -qi "agent layer" <<<"$sec"'
+assert "0047 §agent-cfg: documents effort: auto drops the pinned effort line" \
+  'grep -qF "effort: auto" <<<"$sec" && grep -qF "drops the effort line" <<<"$sec"'
 # Non-restatement guard: the section must NOT hardcode a per-skill model/effort literal
 # (those are config-overridable; built-in defaults live only in agents/docket-*.md). LEARNINGS #17.
 assert "0047 §agent-cfg: does NOT hardcode a model/effort literal (references the source instead)" \
