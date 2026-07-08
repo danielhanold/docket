@@ -228,24 +228,23 @@ user_level_pass() {  # built-in ⊕ global -> each present harness */agents dir,
 
 project_level_pass() {  # built-in ⊕ per-repo -> <repo>/.<H>/agents for each H in HARNESSES (committed)
   [ -f "$DOCKET_YML" ] || return 0
-  local names name src harness dir
+  local src name harness dir cfg_h cfgname
   warn_legacy_shape "$DOCKET_YML" 1
   # Warn on any agents.<harness> block whose harness is NOT in agent_harnesses (dead config).
-  local cfg_h
   while IFS= read -r cfg_h; do
     [ -n "$cfg_h" ] || continue
     [ "$cfg_h" = "default" ] && continue
     case " $HARNESSES " in *" $cfg_h "*) : ;; *) log "WARN agents.$cfg_h: block is not in agent_harnesses — ignored (dead config)." ;; esac
   done < <(agents_block_harnesses "$DOCKET_YML")
-  names="$(agent_keys "$DOCKET_YML" 1)"
-  [ -n "$names" ] || return 0
-  while IFS= read -r name; do
-    [ -n "$name" ] || continue
-    src="$AGENTS_SRC/docket-$name.md"
-    if [ ! -f "$src" ]; then
-      log "skip '$name' — no built-in wrapper (advisory/interactive skills have no agent file)"
-      continue
-    fi
+  # Typo guard: an agents: entry that overrides no real built-in is a no-op — warn (do not fail).
+  while IFS= read -r cfgname; do
+    [ -n "$cfgname" ] || continue
+    [ -f "$AGENTS_SRC/docket-$cfgname.md" ] || log "WARN agents: '$cfgname' overrides no built-in agent (no agents/docket-$cfgname.md) — ignored (typo? advisory/interactive skills have no wrapper)."
+  done < <(agent_keys "$DOCKET_YML" 1)
+  # Always generate the FULL built-in set (config is override-only) into each listed harness.
+  for src in "$AGENTS_SRC"/docket-*.md; do
+    [ -e "$src" ] || continue
+    name="$(short_name "$src")"
     for harness in $HARNESSES; do
       resolve_agent "$DOCKET_YML" "$harness" "$name" 1
       warn_fallback_model "$harness" "$name"
@@ -253,28 +252,23 @@ project_level_pass() {  # built-in ⊕ per-repo -> <repo>/.<H>/agents for each H
       mkdir -p "$dir"
       emit "$src" "$RES_MODEL" "$RES_EFFORT" > "$dir/docket-$name.md"
     done
-  done <<EOF
-$names
-EOF
+  done
 }
 
 check_project_level() {  # diff committed <repo>/.<H>/agents files against freshly-resolved config (per harness)
-  local rc=0 names name src got tmp d harness
+  local rc=0 src name got tmp d harness
   [ -f "$DOCKET_YML" ] || { log "no .docket.yml in $REPO — nothing to check"; return 0; }
   local legacy; legacy="$(legacy_agent_keys "$DOCKET_YML" 1)"
   if [ -n "$legacy" ]; then
     log "drift: legacy bare-agent-key agents: shape ($(printf '%s' "$legacy" | tr '\n' ' ')) — reshape to agents.default.<agent> (run: bash sync-agents.sh)"
     rc=1
   fi
-  names="$(agent_keys "$DOCKET_YML" 1)"
-  [ -n "$names" ] || { log "no agents: block — nothing to check"; return $rc; }
   tmp="$(mktemp -d)"
-  while IFS= read -r name; do
-    [ -n "$name" ] || continue
-    src="$AGENTS_SRC/docket-$name.md"
-    [ -f "$src" ] || continue
+  for src in "$AGENTS_SRC"/docket-*.md; do
+    [ -e "$src" ] || continue
+    name="$(short_name "$src")"
     for harness in $HARNESSES; do
-      resolve_agent "$DOCKET_YML" "$harness" "$name" 1      # harness-specific bytes (no longer harness-independent)
+      resolve_agent "$DOCKET_YML" "$harness" "$name" 1
       emit "$src" "$RES_MODEL" "$RES_EFFORT" > "$tmp/docket-$name.md"
       got="$REPO/.$harness/agents/docket-$name.md"
       if [ ! -f "$got" ]; then
@@ -283,10 +277,10 @@ check_project_level() {  # diff committed <repo>/.<H>/agents files against fresh
       d="$(diff -u "$got" "$tmp/docket-$name.md" || true)"
       if [ -n "$d" ]; then log "drift in .$harness/agents/docket-$name.md:"; printf '%s\n' "$d" >&2; rc=1; fi
     done
-  done <<EOF
-$names
-EOF
+  done
   rm -rf "$tmp"
+  # docket:0048 dispatch-rule check inserted here by Task 3
+  # docket:0048 orphan report inserted here by Task 4
   return $rc
 }
 

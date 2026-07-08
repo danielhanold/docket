@@ -98,9 +98,28 @@ printf 'agents:\n  default:\n    status: { model: sonnet, effort: high }\n    ne
 assert "per-repo default writes project-level file" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
 assert "per-repo default applies model" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "sonnet" ]'
 assert "per-repo default applies effort" '[ "$(fm "$SBX/.claude/agents/docket-status.md" effort)" = "high" ]'
-assert "no project-level file for unlisted skill (implement-next)" '[ ! -f "$SBX/.claude/agents/docket-implement-next.md" ]'
+assert "0048: unlisted skill NOW generated at built-in default (implement-next)" '[ -f "$SBX/.claude/agents/docket-implement-next.md" ]'
+assert "0048: unlisted implement-next carries built-in model (claude-opus-4-8)" '[ "$(fm "$SBX/.claude/agents/docket-implement-next.md" model)" = "claude-opus-4-8" ]'
 assert "advisory skill in agents: produces NO file (new-change)" '[ ! -f "$SBX/.claude/agents/docket-new-change.md" ]'
 rm -rf "$SBX" "$HROOT"
+
+# ============================================================================
+# Change 0048 — always-full-set per-repo generation (Piece 1)
+# ============================================================================
+
+# Per-repo now generates the FULL built-in set for a listed harness even when the
+# agents: block lists only a subset; unlisted agents carry the built-in default model.
+make_sandbox                                       # SBX = the repo
+HROOT48A="$(mktemp -d)"; mkdir -p "$HROOT48A/.claude"
+printf 'agents:\n  default:\n    status: { model: sonnet, effort: high }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48A" bash "$SYNC" >/dev/null )
+assert "0048: full set — all 8 built-ins land in project-level .claude/agents" \
+  '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "8" ]'
+assert "0048: listed agent carries its override (status=sonnet)" \
+  '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "sonnet" ]'
+assert "0048: UNLISTED agent generated at built-in default (implement-next=claude-opus-4-8/xhigh)" \
+  '[ "$(fm "$SBX/.claude/agents/docket-implement-next.md" model)/$(fm "$SBX/.claude/agents/docket-implement-next.md" effort)" = "claude-opus-4-8/xhigh" ]'
+rm -rf "$SBX" "$HROOT48A"
 
 # (a)+(b) harness override wins; field-level merge — model from cursor, effort inherited from default.
 make_sandbox
@@ -217,10 +236,17 @@ chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check 2>&1)"; 
 assert "--check fails when committed file is missing (rc!=0)" '[ "$chk_rc" != "0" ]'
 assert "--check reports missing-file drift" 'printf "%s" "$chk_out" | grep -q "drift"'
 
-# A repo with no agents: block has nothing to check -> passes.
+# 0048: an empty agents: block still expects the FULL committed set. Generate, then --check passes.
 rm -f "$SBX/.docket.yml"; : > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null )
 chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check 2>&1)"; chk_rc=$?
-assert "--check passes when no agents: block (rc=0)" '[ "$chk_rc" = "0" ]'
+assert "0048: --check passes with empty agents: block once full set is committed (rc=0)" '[ "$chk_rc" = "0" ]'
+rm -rf "$SBX"
+
+# 0048: a repo with NO .docket.yml at all has nothing to check -> passes.
+make_sandbox
+chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check 2>&1)"; chk_rc=$?
+assert "0048: --check passes when no .docket.yml (rc=0)" '[ "$chk_rc" = "0" ]'
 rm -rf "$SBX"
 
 # ---- Task 5: docket-convention documents the agent layer -------------------
