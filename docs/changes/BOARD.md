@@ -1,12 +1,6 @@
 # Backlog
 
-**46 changes** — 🟢 1 in progress · 🟡 9 proposed · ✅ 34 done · 🗑️ 2 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0045](active/0045-multi-harness-agent-generation.md) | Per-repo agent model config reaches Cursor via multi-harness generation | `medium` | [spec](../superpowers/specs/2026-07-08-multi-harness-agent-generation-design.md) | `feat/multi-harness-agent-generation` |
+**46 changes** — 🟡 9 proposed · 🔵 1 implemented · ✅ 34 done · 🗑️ 2 killed
 
 ## 🟡 Proposed (9)
 
@@ -20,7 +14,13 @@
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | build-ready |
-| [0046](active/0046-per-harness-agent-models.md) | Per-harness model overrides for docket agents | `medium` | ⏳ waiting on #45 — not yet built |
+| [0046](active/0046-per-harness-agent-models.md) | Per-harness model overrides for docket agents | `medium` | ⏳ waiting on #45 — needs your merge |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | PR |
+|---|-------|----------|----|
+| [0045](active/0045-multi-harness-agent-generation.md) | Per-repo agent model config reaches Cursor via multi-harness generation | `medium` | [#54](https://github.com/danielhanold/docket/pull/54) |
 
 ```mermaid
 graph TD
