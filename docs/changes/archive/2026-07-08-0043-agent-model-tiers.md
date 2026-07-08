@@ -2,10 +2,10 @@
 id: 43
 slug: agent-model-tiers
 title: Model-tier indirection for agent model selection + config-driven advisories
-status: proposed
+status: killed
 priority: medium
 created: 2026-07-07
-updated: 2026-07-07
+updated: 2026-07-08
 depends_on: [42]
 related: [16, 17, 42]
 adrs: []
@@ -74,3 +74,7 @@ become generated artifacts) — decided at build.
 - The advisory-lookup surface on `docket-config.sh`, incl. graceful offline behavior.
 
 ## Reconcile log
+
+## Why killed
+
+Killed in favor of a simpler, harness-neutral direction. Per-agent model configuration already flows end-to-end without a tier layer: the .docket.yml `agents:` block feeds sync-agents.sh, which passes any model-ID string through verbatim (no allowlist — the only alias assertion is a docket-repo test over the shipped built-ins), into agent frontmatter, which the running harness honors (observed reaching Cursor's model selection). The tier indirection this change proposed (critical/standard/economy → concrete Claude models) is Claude-lineage-specific and works against the goal that actually surfaced — pointing docket's agents at an arbitrary, harness-provided model roster, i.e. running docket through Cursor where the models are not Claude's. Chosen mechanism: direct per-agent model IDs in the `agents:` block; no tier abstraction is added. The SDD build-model follow-up (#0044) is reshaped to take direct model IDs rather than this tier map. Decided 2026-07-08, owner.
