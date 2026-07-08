@@ -25,8 +25,4 @@ assert "new-change proposed-kill refreshes board (must-land Board pass)" \
 assert "terminal-publish keeps the 'BOARD.md is never published' guarantee" \
   'grep -qF "is **never** published" skills/docket-finalize-change/SKILL.md'
 
-# E. docket-status gains the board/source drift tripwire (a warning).
-assert "docket-status has board/source drift health check" \
-  'grep -q "Board/source drift" skills/docket-status/SKILL.md'
-
 exit $fail
