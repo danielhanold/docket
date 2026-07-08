@@ -1,12 +1,6 @@
 # Backlog
 
-**47 changes** — 🟢 1 in progress · 🟡 9 proposed · ✅ 35 done · 🗑️ 2 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0047](active/0047-readme-agent-config-discoverability.md) | Make the agent-config refresh workflow discoverable in the README | `low` | [spec](../) | `feat/readme-agent-config-discoverability` |
+**47 changes** — 🟡 9 proposed · 🔵 1 implemented · ✅ 35 done · 🗑️ 2 killed
 
 ## 🟡 Proposed (9)
 
@@ -21,6 +15,12 @@
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | build-ready |
 | [0046](active/0046-per-harness-agent-models.md) | Per-harness model overrides for docket agents | `medium` | build-ready |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | PR |
+|---|-------|----------|----|
+| [0047](active/0047-readme-agent-config-discoverability.md) | Make the agent-config refresh workflow discoverable in the README | `low` | [#55](https://github.com/danielhanold/docket/pull/55) |
 
 ```mermaid
 graph TD
