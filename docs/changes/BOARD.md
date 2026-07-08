@@ -1,6 +1,6 @@
 # Backlog
 
-**44 changes** — 🟡 10 proposed · 🔵 1 implemented · ✅ 32 done · 🗑️ 1 killed
+**44 changes** — 🟡 10 proposed · ✅ 33 done · 🗑️ 1 killed
 
 ## 🟡 Proposed (10)
 
@@ -14,14 +14,8 @@
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | needs-brainstorm |
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
-| [0043](active/0043-agent-model-tiers.md) | Model-tier indirection for agent model selection + config-driven advisories | `medium` | ⏳ waiting on #42 — needs your merge |
+| [0043](active/0043-agent-model-tiers.md) | Model-tier indirection for agent model selection + config-driven advisories | `medium` | build-ready |
 | [0044](active/0044-configurable-build-model.md) | Configurable TDD build model for docket-implement-next | `low` | ⏳ waiting on #43 — not yet built |
-
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | PR |
-|---|-------|----------|----|
-| [0042](active/0042-retune-agent-model-defaults.md) | Re-tune default agent models for the Claude 5 lineup (pin explicit versions) | `high` | [#52](https://github.com/danielhanold/docket/pull/52) |
 
 ```mermaid
 graph TD
@@ -33,7 +27,6 @@ graph TD
   0015 --> 0019
   0022 --> 0024
   0030 --> 0033
-  0042
   0042 --> 0043
   0043 --> 0044
   0001:::done
@@ -68,13 +61,15 @@ graph TD
   0039:::done
   0040:::done
   0041:::done
+  0042:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (33)</summary>
+<details><summary>✅🗑️ Archive — done + killed (34)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0042](archive/2026-07-08-0042-retune-agent-model-defaults.md) | Re-tune default agent models for the Claude 5 lineup (pin explicit versions) | 2026-07-08 |
 | [0041](archive/2026-06-24-0041-post-merge-sync-targets-consuming-repo.md) | Post-merge integration sync fast-forwards the docket clone, not the consuming repo where the merge landed | 2026-06-24 |
 | [0040](archive/2026-06-23-0040-terminal-publish-refresh-adr-index.md) | terminal-publish leaves the integration-branch ADR index stale — regenerate it when an ADR is published | 2026-06-23 |
 | [0039](archive/2026-06-21-0039-trim-docket-status-archive-prose.md) | Trim docket-status's residual archive-internals prose onto scripts/archive-change.md | 2026-06-21 |
