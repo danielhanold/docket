@@ -2,7 +2,7 @@
 id: 46
 slug: per-harness-agent-models
 title: Per-harness model overrides for docket agents
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-08
 updated: 2026-07-08
@@ -11,11 +11,11 @@ related: [16, 42, 43, 44, 45]
 adrs: [15, 16]
 spec: docs/superpowers/specs/2026-07-08-per-harness-agent-models-design.md
 plan: docs/superpowers/plans/2026-07-08-per-harness-agent-models.md
-results:
+results: docs/results/2026-07-08-per-harness-agent-models-results.md
 trivial: false
 auto_groomable:
 branch: feat/per-harness-agent-models
-pr:
+pr: https://github.com/danielhanold/docket/pull/56
 blocked_by:
 reconciled: true
 ---
@@ -27,6 +27,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-08-per-harness-agent-models-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-08-per-harness-agent-models-design.md) |
 | Plan | [2026-07-08-per-harness-agent-models.md](https://github.com/danielhanold/docket/blob/feat/per-harness-agent-models/docs/superpowers/plans/2026-07-08-per-harness-agent-models.md) |
+| Results | [2026-07-08-per-harness-agent-models-results.md](https://github.com/danielhanold/docket/blob/feat/per-harness-agent-models/docs/results/2026-07-08-per-harness-agent-models-results.md) |
+| PR | [#56](https://github.com/danielhanold/docket/pull/56) |
 | ADRs | [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md), [ADR-0016](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0016-harness-first-agent-config.md) |
 <!-- docket:artifacts:end -->
 
