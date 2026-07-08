@@ -48,8 +48,12 @@ Token→dir mapping reuses the existing `HARNESS_AGENT_DIRS` vocabulary (`claude
   each. Default `[claude]` reproduces current behavior exactly.
 - **`check_project_level` (`--check`)** — extend the drift diff to every generated per-harness file
   across `agent_harnesses`. A missing or stale file for any listed harness fails CI.
-- Read `agent_harnesses` (default `[claude]`, unknown-token warn-and-drop) — lean on
-  `docket-config.sh --export` so the skill and the CI gate share one resolver.
+- Read `agent_harnesses` (default `[claude]`, unknown-token warn-and-drop) via a **direct parse in
+  `sync-agents.sh`**, a small top-level list reader beside `block_names`. `sync-agents.sh` does not
+  use `docket-config.sh` (it is a self-contained `.docket.yml` parser); generation and `--check`
+  are the same script, so the reader is shared between them with no cross-script dependency, and it
+  reads the local working-tree `.docket.yml` — the correct file, since sync generates committed
+  files in that same tree. (RESOLVED — see Open questions.)
 
 ### User-level pass — unchanged (deliberate)
 
@@ -62,10 +66,9 @@ wanted — and then the default must preserve today's user-level fan-out.
 
 ## What the implementer edits
 
-- **`sync-agents.sh`** — `project_level_pass` loop over `agent_harnesses`; `check_project_level`
-  over the same set; the token→dir map + unknown-token warn.
-- **`scripts/docket-config.sh`** (+ `.md`) — parse and export `agent_harnesses` (default
-  `[claude]`, unknown-token warn-and-drop).
+- **`sync-agents.sh`** — a small top-level `agent_harnesses` list parser (default `[claude]`,
+  unknown-token warn-and-drop); `project_level_pass` loop over it; `check_project_level` over the
+  same set; the token→dir map. No `docket-config.sh` change — sync stays a self-contained parser.
 - **`docket-convention`** — document `agent_harnesses` in the config schema + the Agent-layer
   prose; state the **direct-model-ID (harness-neutral) contract** and that project generation now
   targets the listed harnesses. Note the passthrough is what makes non-Claude harnesses work.
@@ -85,14 +88,26 @@ wanted — and then the default must preserve today's user-level fan-out.
 - Validating model IDs against a harness roster — docket stays passthrough (ADR-0008/0015); a
   wrong ID is a documented footgun, not a docket error.
 
+## Resolved decisions
+
+1. **`agent_harnesses` is read by a direct parse in `sync-agents.sh`** — not `docket-config.sh`.
+   sync is a self-contained `.docket.yml` parser; generation and `--check` are the same script (so
+   the reader is shared), and it must read the *local working-tree* `.docket.yml` it is syncing —
+   not `docket-config.sh`'s authoritative `origin/HEAD` copy. `docket-config.sh` is untouched.
+2. **Dir creation** — sync's existing `mkdir -p` per listed harness (as for `.claude/agents`); no
+   `install.sh` seeding.
+
 ## Open questions (resolve at build)
 
-1. Where `agent_harnesses` is read — `docket-config.sh --export` (preferred, shared with CI) vs a
-   direct parse in `sync-agents.sh`.
-2. Dir creation — lean on sync's existing `mkdir -p` per listed harness (as it already does for
-   `.claude/agents`); no install.sh seeding needed.
-3. Confirm the **generated** `.cursor/agents/docket-*.md` is read by Cursor identically to the
-   hand-made probe file (filename/format parity).
+1. **Live verification (NOT an automated test): the generated wrapper functions under Cursor.**
+   The hermetic suite (`test_sync_agents.sh`) can only assert the *bytes generated*; whether Cursor
+   *honors* the file is live behavior, verified once at build (per the repo's metadata-branch
+   testing convention). The generated `.cursor/agents/docket-*.md` is richer than the hand-made
+   probe — it carries `effort:` and, load-bearingly, `skills: [docket-<skill>, docket-convention]`.
+   Confirm on the real generated file that Cursor (a) still **honors `model:`** despite the extra
+   frontmatter, and (b) still **loads the skill via `skills:`** so the agent actually *is* the
+   docket agent (not a bare model on an empty prompt). If (b) fails, Cursor may need the skill body
+   inlined rather than referenced — a possible follow-up beyond this change.
 
 ## ADR
 

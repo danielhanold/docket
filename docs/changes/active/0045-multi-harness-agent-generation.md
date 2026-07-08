@@ -48,7 +48,8 @@ over (full detail in the linked spec; decision in ADR-0015):
   each listed harness (`claude`→`.claude`, `cursor`→`.cursor`, …); default `[claude]` is
   byte-identical to today.
 - **`sync-agents.sh --check`** extends its drift diff to every generated per-harness file.
-- **`docket-config.sh`** parses/exports `agent_harnesses` (unknown token warned + dropped).
+- **`sync-agents.sh`** parses `agent_harnesses` directly (unknown token warned + dropped) — it is a
+  self-contained `.docket.yml` parser and does not use `docket-config.sh`.
 - Model IDs stay **direct, harness-neutral passthrough** — no tier layer (killed #0043).
 - Docs (`docket-convention`) cover `agent_harnesses` + the direct-model-ID contract.
 
@@ -63,8 +64,11 @@ over (full detail in the linked spec; decision in ADR-0015):
 
 ## Open questions
 
-- Where `agent_harnesses` is read (docket-config.sh vs direct parse) — lean docket-config.sh.
-- Confirm the generated `.cursor/agents/docket-*.md` is read by Cursor identically to the hand-made
-  probe file.
+- Build-time **live verification** (not an automated test): confirm the *generated* wrapper — richer
+  than the hand-made probe (`effort:` + `skills:`) — is honored by Cursor for `model:` **and** still
+  loads the skill via `skills:` (else the agent runs on the right model but with no docket behavior).
+
+_Resolved: `agent_harnesses` read via direct parse in `sync-agents.sh` (not `docket-config.sh`);
+dir creation via sync's `mkdir -p` per harness._
 
 ## Reconcile log
