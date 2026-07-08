@@ -216,4 +216,64 @@ assert "new-change frames it as advisory" 'grep -qi "advisory" "$NEWC"'
 assert "new-change advisory pins claude-sonnet-5" 'grep -q "claude-sonnet-5" "$NEWC"'
 assert "groom-next advisory pins claude-sonnet-5" 'grep -q "claude-sonnet-5" "$GROOM"'
 
+# ============================================================================
+# Change 0045 — multi-harness project-level generation (agent_harnesses)
+# ============================================================================
+
+# (a) DEFAULT (no agent_harnesses key) => [claude]: project-level writes
+#     .claude/agents ONLY (byte-identical to pre-0045 behavior). Separate HROOT
+#     so <repo>/.claude/agents is purely project-level output.
+make_sandbox                                          # SBX = the repo
+HROOTA="$(mktemp -d)"; mkdir -p "$HROOTA/.claude"     # separate user-level root
+printf 'agents:\n  status: { model: sonnet, effort: high }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTA" bash "$SYNC" >/dev/null )
+assert "0045 default: writes project-level .claude/agents" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
+assert "0045 default: does NOT write .cursor/agents" '[ ! -e "$SBX/.cursor/agents/docket-status.md" ]'
+assert "0045 default: per-repo model applied" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "sonnet" ]'
+rm -rf "$SBX" "$HROOTA"
+
+# (b) agent_harnesses: [claude, cursor] => BOTH dirs generated, byte-identical,
+#     carrying an arbitrary NON-Claude id verbatim (ADR-0008/0015 passthrough).
+make_sandbox
+HROOTB="$(mktemp -d)"; mkdir -p "$HROOTB/.claude"
+printf 'agent_harnesses: [claude, cursor]\nagents:\n  status: { model: gpt-5.5-medium-fast }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTB" bash "$SYNC" >/dev/null )
+assert "0045 fanout: .claude/agents generated" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
+assert "0045 fanout: .cursor/agents generated" '[ -f "$SBX/.cursor/agents/docket-status.md" ]'
+assert "0045 fanout: claude file carries passthrough model" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "gpt-5.5-medium-fast" ]'
+assert "0045 fanout: cursor file carries passthrough model" '[ "$(fm "$SBX/.cursor/agents/docket-status.md" model)" = "gpt-5.5-medium-fast" ]'
+assert "0045 fanout: both harness files byte-identical" 'diff -q "$SBX/.claude/agents/docket-status.md" "$SBX/.cursor/agents/docket-status.md" >/dev/null'
+rm -rf "$SBX" "$HROOTB"
+
+# (b') agent_harnesses: [cursor] ONLY => cursor generated, claude NOT (no forced-claude).
+make_sandbox
+HROOTC="$(mktemp -d)"; mkdir -p "$HROOTC/.claude"
+printf 'agent_harnesses: [cursor]\nagents:\n  status: { model: sonnet }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTC" bash "$SYNC" >/dev/null )
+assert "0045 cursor-only: .cursor/agents generated" '[ -f "$SBX/.cursor/agents/docket-status.md" ]'
+assert "0045 cursor-only: .claude/agents NOT generated" '[ ! -e "$SBX/.claude/agents/docket-status.md" ]'
+rm -rf "$SBX" "$HROOTC"
+
+# (d) unknown harness token => warned + dropped, NOT fatal; known harness still generated.
+make_sandbox
+HROOTD="$(mktemp -d)"; mkdir -p "$HROOTD/.claude"
+printf 'agent_harnesses: [claude, bogus]\nagents:\n  status: { model: sonnet }\n' > "$SBX/.docket.yml"
+gen_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTD" bash "$SYNC" 2>&1 >/dev/null)"; gen_rc=$?
+assert "0045 unknown-token: generation not fatal (rc=0)" '[ "$gen_rc" = "0" ]'
+assert "0045 unknown-token: warns about the token" 'printf "%s" "$gen_err" | grep -qi "unknown agent_harnesses token"'
+assert "0045 unknown-token: names the bad token" 'printf "%s" "$gen_err" | grep -q "bogus"'
+assert "0045 unknown-token: known harness still generated" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
+assert "0045 unknown-token: bad-token dir NOT created" '[ ! -e "$SBX/.bogus/agents" ]'
+rm -rf "$SBX" "$HROOTD"
+
+# (e) explicit empty list agent_harnesses: [] => resolves to no targets: no project
+#     files generated (mirrors board_surfaces: []). Locks the empty-set code path.
+make_sandbox
+HROOTE0="$(mktemp -d)"; mkdir -p "$HROOTE0/.claude"
+printf 'agent_harnesses: []\nagents:\n  status: { model: sonnet }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTE0" bash "$SYNC" >/dev/null )
+assert "0045 empty-list: no .claude project file" '[ ! -e "$SBX/.claude/agents/docket-status.md" ]'
+assert "0045 empty-list: no .cursor project file" '[ ! -e "$SBX/.cursor/agents/docket-status.md" ]'
+rm -rf "$SBX" "$HROOTE0"
+
 exit $fail

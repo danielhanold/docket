@@ -29,7 +29,6 @@ REPO="$PWD"
 HARNESS_ROOT="${DOCKET_HARNESS_ROOT:-$HOME}"
 GLOBAL_CFG="${XDG_CONFIG_HOME:-$HARNESS_ROOT/.config}/docket/agents.yaml"
 DOCKET_YML="$REPO/.docket.yml"
-PROJECT_AGENT_DIR="$REPO/.claude/agents"
 
 # Mirror link-skills.sh's HARNESS_SKILL_DIRS, swapping skills -> agents.
 HARNESS_AGENT_DIRS=(
@@ -41,10 +40,50 @@ HARNESS_AGENT_DIRS=(
   "$HARNESS_ROOT/.windsurf/agents"
 )
 
+# Valid harness tokens, derived from HARNESS_AGENT_DIRS (single source of truth):
+# ".../.claude/agents" -> "claude". The project-level dir for token H is $REPO/.<H>/agents.
+VALID_HARNESS_TOKENS=""
+for _hd in "${HARNESS_AGENT_DIRS[@]}"; do
+  _hb="$(basename "$(dirname "$_hd")")"          # ".claude"
+  VALID_HARNESS_TOKENS="$VALID_HARNESS_TOKENS ${_hb#.}"   # "claude"
+done
+unset _hd _hb
+
 CHECK=0
 [ "${1:-}" = "--check" ] && CHECK=1
 
 log(){ printf '%s\n' "sync-agents: $*" >&2; }
+
+is_valid_harness(){  # $1=token -> rc 0 if it is a known harness token
+  case " $VALID_HARNESS_TOKENS " in *" $1 "*) return 0;; *) return 1;; esac
+}
+
+# Resolve the per-repo agent_harnesses flow-list from .docket.yml into HARNESSES
+# (space-separated). Unset/empty-value => default "claude". Unknown tokens warned + dropped.
+# Self-contained (no docket-config.sh); mirrors board_surfaces flow-list parsing.
+resolve_agent_harnesses(){
+  local raw list tok
+  raw=""
+  if [ -f "$DOCKET_YML" ]; then
+    # top-level (column 0) key only; strip a trailing comment; capture-then-head (SIGPIPE-safe).
+    raw="$(sed -n -E 's/^agent_harnesses[[:space:]]*:[[:space:]]*([^#]*).*/\1/p' "$DOCKET_YML")"
+    raw="$(head -n1 <<<"$raw" | sed -E 's/[[:space:]]+$//')"
+  fi
+  if [ -z "$raw" ]; then
+    HARNESSES="claude"                            # unset / bare key => default [claude]
+    return 0
+  fi
+  list="${raw#[}"; list="${list%]}"; list="${list//,/ }"   # strip flow brackets, commas -> spaces
+  HARNESSES=""
+  for tok in $list; do
+    if is_valid_harness "$tok"; then
+      HARNESSES="$HARNESSES $tok"
+    else
+      log "unknown agent_harnesses token '$tok' — ignored"
+    fi
+  done
+  HARNESSES="$(echo $HARNESSES)"                  # trim/collapse ("[]" or all-unknown => "")
+}
 
 short_name(){ local b; b="$(basename "$1")"; b="${b#docket-}"; printf '%s' "${b%.md}"; }
 
@@ -123,9 +162,9 @@ user_level_pass() {  # built-in ⊕ global -> each present harness */agents dir
   done
 }
 
-project_level_pass() {  # built-in ⊕ per-repo -> <repo>/.claude/agents (committed)
+project_level_pass() {  # built-in ⊕ per-repo -> <repo>/.<H>/agents for each H in HARNESSES (committed)
   [ -f "$DOCKET_YML" ] || return 0
-  local names name src
+  local names name src harness dir
   names="$(block_names "$DOCKET_YML")"
   [ -n "$names" ] || return 0
   while IFS= read -r name; do
@@ -136,8 +175,11 @@ project_level_pass() {  # built-in ⊕ per-repo -> <repo>/.claude/agents (commit
       continue
     fi
     resolve_from "$DOCKET_YML" "$name" 1
-    mkdir -p "$PROJECT_AGENT_DIR"
-    emit "$src" "$RES_MODEL" "$RES_EFFORT" > "$PROJECT_AGENT_DIR/docket-$name.md"
+    for harness in $HARNESSES; do
+      dir="$REPO/.$harness/agents"
+      mkdir -p "$dir"
+      emit "$src" "$RES_MODEL" "$RES_EFFORT" > "$dir/docket-$name.md"
+    done
   done <<EOF
 $names
 EOF
@@ -155,7 +197,7 @@ check_project_level() {  # diff committed project-level files against freshly-re
     [ -f "$src" ] || continue
     resolve_from "$DOCKET_YML" "$name" 1
     emit "$src" "$RES_MODEL" "$RES_EFFORT" > "$tmp/docket-$name.md"
-    got="$PROJECT_AGENT_DIR/docket-$name.md"
+    got="$REPO/.claude/agents/docket-$name.md"   # Task 1 scope only; Task 2 loops this over HARNESSES
     if [ ! -f "$got" ]; then
       log "drift: missing $got (run: bash sync-agents.sh)"; rc=1; continue
     fi
@@ -167,6 +209,8 @@ EOF
   rm -rf "$tmp"
   return $rc
 }
+
+resolve_agent_harnesses
 
 if [ "$CHECK" = "1" ]; then
   if check_project_level; then exit 0; else exit 1; fi
