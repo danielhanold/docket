@@ -28,6 +28,8 @@ finalize:                    # merge gate (change 0015): rebase onto base + re-t
   gate: local                # local (default, on) | ci | both | off  — off = pre-0015 (trust the PR's CI)
   test_command:              # OPTIONAL; unset => finalize auto-detects the suite
 github_project:              # {owner, number} of the auto-managed Projects v2 board; unset ⇒ auto-create on first github sync
+agent_harnesses: [claude]    # harnesses the per-repo agent pass generates committed wrappers for
+                             # (change 0045); default [claude]. e.g. [claude, cursor] for a Cursor repo.
 agents:                      # per-skill subagent model/effort (change 0016); see "Agent layer" below
 ```
 
@@ -74,6 +76,19 @@ agents:
 User-level files are built-in ⊕ global; project-level files are built-in ⊕ per-repo. Claude Code applies **project-over-user precedence natively**, so the effective order is per-repo > global > built-in without the generator merging three layers per file — and because the per-repo overrides generate **committed** project-level files, the same autonomous change builds on the same model for every clone (the reproducibility guarantee). An agent with neither a built-in nor a config entry defaults to `model: inherit` with no `effort`.
 
 `sync-agents.sh` runs **on demand** (install time, and after editing any config layer) — the same mental model as `link-skills.sh`; it does NOT hook session start (silently regenerating committed files out of band would race the commits that make overrides clone-identical). The drift backstop is **`sync-agents.sh --check`**, a CI gate that exits non-zero with a diff when committed project-level files fall out of sync with the resolved config.
+
+**Harness-portable model IDs (change 0045, ADR-0015).** Agent `model:` values are **direct model
+IDs, harness-neutral and passed through verbatim** — no tier layer (change 0043's tiers were
+rejected). The running harness interprets the string (a Claude alias/ID under Claude Code; a Cursor
+model ID like `gpt-5.5-medium-fast` under Cursor). This unvalidated **passthrough** is exactly what
+lets docket drive non-Claude harnesses. The per-repo (committed) generation fans out over an explicit
+`.docket.yml` `agent_harnesses:` list — **global default `[claude]`** (byte-identical to before) — so
+each listed harness `H` gets committed `<repo>/.<H>/agents/docket-*.md`; a Cursor repo sets
+`agent_harnesses: [claude, cursor]`. Explicit over present-directory auto-detection, so a stray
+`.cursor/` never silently mints committed files; an unknown harness token is warned-and-ignored. The
+`sync-agents.sh --check` drift gate spans every generated per-harness file. The **user-level** pass is
+unchanged (it still writes every present harness). `agent_harnesses` is read by a direct parse in
+`sync-agents.sh` (not `docket-config.sh`).
 
 **Composition (change 0017).** Nesting lets each whole-skill sub-invocation run at its own model. `docket-implement-next` **dispatches the `docket-status` subagent** at step 0 and the **`docket-adr` subagent** at step 6; `docket-auto-groom` **dispatches the dedicated `docket-auto-groom-critic` subagent** for its adversarial gate. `docket-finalize-change` **dispatches the `docket-rebase-resolver` subagent** when its merge gate hits a rebase conflict and the **`docket-integration-repair` subagent** when the rebased suite is red (change 0015) — both **foreground**, but their contract differs from the three above: the agent's report flows **back to finalize in-context** to gate the merge (continue, sign-off, or abort), and they act in the feature worktree, not on `origin/docket`. Each runs at the model/effort its own wrapper resolves through the layered config — the literal tiers are **never restated** in the dispatch prose, so a per-repo or global override can never drift from the documentation (the built-in defaults live only in `agents/docket-*.md`, per the Agent layer above). The `docket-status`, `docket-adr`, and `docket-auto-groom-critic` dispatches are **foreground** (the parent suspends until the child returns) and **unconditional** (baked into the skill body, so the sub-call gets its own model whether the parent ran as its wrapper subagent or as a plain inline skill); their contract is **git state** on `origin/docket` (and, for adr, a published ADR on the integration branch), re-read after a re-sync — never an in-context return. Three of the **eight** generated wrappers wrap **no skill** — `agents/docket-auto-groom-critic.md` (config key `auto-groom-critic`, attached to `auto-groom`), and `agents/docket-rebase-resolver.md` + `agents/docket-integration-repair.md` (config keys `rebase-resolver` / `integration-repair`, attached to `finalize-change`'s gate). Each loads only `docket-convention`, never a designer/driver skill body, so it inherits no caller bias; all are auto-discovered by `sync-agents.sh`'s `agents/docket-*.md` glob (no generator edit). (The "Agent layer" line above stays exact: **five *skills* get a wrapper**; these three are wrappers that wrap no skill — eight wrappers, five skills.)
 
