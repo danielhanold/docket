@@ -1,6 +1,6 @@
 # Backlog
 
-**47 changes** — 🟡 9 proposed · 🔵 1 implemented · ✅ 35 done · 🗑️ 2 killed
+**47 changes** — 🟡 9 proposed · ✅ 36 done · 🗑️ 2 killed
 
 ## 🟡 Proposed (9)
 
@@ -16,12 +16,6 @@
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | build-ready |
 | [0046](active/0046-per-harness-agent-models.md) | Per-harness model overrides for docket agents | `medium` | build-ready |
 
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | PR |
-|---|-------|----------|----|
-| [0047](active/0047-readme-agent-config-discoverability.md) | Make the agent-config refresh workflow discoverable in the README | `low` | [#55](https://github.com/danielhanold/docket/pull/55) |
-
 ```mermaid
 graph TD
   0007
@@ -33,7 +27,6 @@ graph TD
   0030 --> 0033
   0044
   0045 --> 0046
-  0047
   0001:::done
   0002:::done
   0003:::done
@@ -69,13 +62,15 @@ graph TD
   0041:::done
   0042:::done
   0045:::done
+  0047:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (37)</summary>
+<details><summary>✅🗑️ Archive — done + killed (38)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0047](archive/2026-07-08-0047-readme-agent-config-discoverability.md) | Make the agent-config refresh workflow discoverable in the README | 2026-07-08 |
 | [0045](archive/2026-07-08-0045-multi-harness-agent-generation.md) | Per-repo agent model config reaches Cursor via multi-harness generation | 2026-07-08 |
 | [0043](archive/2026-07-08-0043-agent-model-tiers.md) | Model-tier indirection for agent model selection + config-driven advisories | 2026-07-08 |
 | [0042](archive/2026-07-08-0042-retune-agent-model-defaults.md) | Re-tune default agent models for the Claude 5 lineup (pin explicit versions) | 2026-07-08 |
