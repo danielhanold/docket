@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/retire-board-source-drift-check
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -85,3 +85,14 @@ Resolved at auto-groom 2026-07-08 (see the spec). None blocking; build-ready.
   (spec §A3).
 
 ## Reconcile log
+
+- **2026-07-08** — Reconciled at claim, just-in-time before planning. Verified against
+  current `origin/main` @ `394cead` — unchanged since the spec was authored today, so the
+  spec's assumptions hold verbatim. Ran the spec's build-time regrep (`board/source[- ]drift`
+  over `skills/`, `tests/`, `scripts/` on `origin/main`): it returns **exactly** the three
+  touch-points the spec names — `skills/docket-status/SKILL.md:185`,
+  `tests/test_board_checks.sh:327-328`, `tests/test_board_refresh_on_transition.sh:28-30` — and
+  no additional live consumer. Dependency `#22` (render-board.sh determinism) is `done`;
+  related `#23` is `done`. Scope unchanged: retire the `inline` drift check, keep the `github`
+  mirror-reachability flag, no scripted replacement, no ADR, no convention edit. Nothing dropped
+  or folded in; the change and spec are current as written. Build-ready.
