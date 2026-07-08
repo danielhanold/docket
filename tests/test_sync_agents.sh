@@ -125,6 +125,15 @@ assert "0046 (d): default-only => both harness files byte-identical" 'diff -q "$
 assert "0046 (d): default-only applies model to claude" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "sonnet" ]'
 rm -rf "$SBX" "$HROOTD0"
 
+# 0046: tab-indented .docket.yml agents: block resolves (ind() must count tabs as indentation, not drop the block)
+make_sandbox
+HROOTT="$(mktemp -d)"; mkdir -p "$HROOTT/.claude"
+printf 'agents:\n\tdefault:\n\t\tstatus: { model: sonnet, effort: high }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTT" bash "$SYNC" >/dev/null )
+assert "0046: tab-indented agents: block is not silently dropped" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
+assert "0046: tab-indented default: resolves model" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "sonnet" ]'
+rm -rf "$SBX" "$HROOTT"
+
 # ---- Task 1b: the docket-auto-groom-critic wrapper (wraps NO skill) ---------
 CRITIC="$AGENTS/docket-auto-groom-critic.md"
 assert "critic wrapper exists" '[ -f "$CRITIC" ]'

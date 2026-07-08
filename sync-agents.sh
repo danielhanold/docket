@@ -97,7 +97,7 @@ short_name(){ local b; b="$(basename "$1")"; b="${b#docket-}"; printf '%s' "${b%
 # at the header's indent-or-less. Values are printed raw (comment-stripping is the caller's job).
 section_body() {  # $1=key ; reads stdin
   awk -v key="$1" '
-    function ind(s,   m){ m=match(s, /[^ ]/); return (m==0 ? length(s) : m-1) }
+    function ind(s,   m){ m=match(s, /[^[:space:]]/); return (m==0 ? length(s) : m-1) }
     { nc=$0; sub(/#.*/,"",nc) }
     !inb { if (nc ~ ("^[[:space:]]*" key "[[:space:]]*:[[:space:]]*$")) { inb=1; kin=ind(nc) } next }
     nc ~ /[^[:space:]]/ && ind(nc) <= kin { exit }                 # first line back at/above header -> block done
@@ -119,7 +119,7 @@ harness_agent_line() {  # $1=file  $2=harness  $3=agent  $4=under_agents(0|1)
   local sub hbody stripped matched
   [ -f "$1" ] || return 0
   if [ "$4" = "1" ]; then sub="$(section_body agents < "$1")"; else sub="$(cat "$1")"; fi
-  hbody="$(printf '%s\n' "$sub" | section_body "$2")"                        # body under <harness>/<default>
+  hbody="$(printf '%s\n' "$sub" | section_body "$2" || true)"                # body under <harness>/<default>
   stripped="$(printf '%s\n' "$hbody" | sed 's/#.*//')"
   matched="$(printf '%s\n' "$stripped" | grep -E "^[[:space:]]*$3[[:space:]]*:" || true)"
   head -n1 <<<"$matched"
@@ -144,7 +144,7 @@ agent_keys() {  # $1=file  $2=under_agents(0|1)
   [ -f "$1" ] || return 0
   if [ "$2" = "1" ]; then sub="$(section_body agents < "$1")"; else sub="$(cat "$1")"; fi
   printf '%s\n' "$sub" | awk '
-    function ind(s,   m){ m=match(s,/[^ ]/); return (m==0?length(s):m-1) }
+    function ind(s,   m){ m=match(s,/[^[:space:]]/); return (m==0?length(s):m-1) }
     { nc=$0; sub(/#.*/,"",nc) }
     nc ~ /^[A-Za-z0-9._-]+[[:space:]]*:[[:space:]]*$/ { basei=ind(nc); inb=1; next }   # a harness/default header (col 0, bare)
     inb && nc ~ /[^[:space:]]/ && ind(nc) <= basei { inb=0 }
