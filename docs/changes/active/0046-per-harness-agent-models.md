@@ -10,7 +10,7 @@ depends_on: [45]
 related: [16, 42, 43, 44, 45]
 adrs: [15]
 spec: docs/superpowers/specs/2026-07-08-per-harness-agent-models-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-08-per-harness-agent-models.md
 results:
 trivial: false
 auto_groomable:
@@ -26,6 +26,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-08-per-harness-agent-models-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-08-per-harness-agent-models-design.md) |
+| Plan | [2026-07-08-per-harness-agent-models.md](https://github.com/danielhanold/docket/blob/feat/per-harness-agent-models/docs/superpowers/plans/2026-07-08-per-harness-agent-models.md) |
 | ADRs | [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md) |
 <!-- docket:artifacts:end -->
 
