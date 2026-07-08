@@ -208,6 +208,30 @@ This reproduces the original single-branch behavior **exactly**: no `docket` bra
 
 ---
 
+## Tuning an agent's model & effort
+
+Each **autonomous** docket skill runs as a model/effort-pinned subagent (`docket-implement-next`, `docket-auto-groom`, `docket-finalize-change`, `docket-status`, `docket-adr`; the two interactive skills, `docket-new-change` and `docket-groom-next`, stay inline and only surface an advisory recommendation). To change the model or effort one of them runs at:
+
+**1. Edit a config layer.** Two layers override the built-in defaults (precedence: per-repo > global > built-in):
+
+- **Global** — `~/.config/docket/agents.yaml` (user-level; applies to every repo on your machine).
+- **Per-repo** — the `agents:` block in a repo's committed `.docket.yml` (applies to that repo for every clone and agent, so an autonomous change builds on the same model everywhere).
+
+The config **shape** — the `agents:` keys and how `model:`/`effort:` are written — is documented once in docket-convention's **"Agent layer"**; consult it there rather than copying field examples here, so the shape has a single source of truth and stays current as it evolves.
+
+**2. Refresh the generated wrappers.** The resolved model/effort are baked into generated wrapper *copies* (not symlinks), so after editing any layer, regenerate them:
+
+```bash
+bash sync-agents.sh        # or re-run install.sh, which calls it for you
+```
+
+- A **global** edit rewrites user-level wrappers into every **present** harness root (`~/.<harness>/agents/`, e.g. `~/.claude/agents/`).
+- A **per-repo** edit rewrites the committed **project-level** wrappers for each harness in that repo's `.docket.yml` `agent_harnesses:` list (default `[claude]`; e.g. `[claude, cursor]` for a repo that also drives Cursor).
+
+**3. Guard drift in CI.** `sync-agents.sh --check` exits non-zero (with a diff) when the committed project-level wrappers have fallen out of sync with the resolved config — wire it into CI so a config edit that was never regenerated fails the build instead of silently drifting.
+
+---
+
 ## The eight skills
 
 | Skill | Role |
