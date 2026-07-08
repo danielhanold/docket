@@ -26,8 +26,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-08-per-harness-agent-models-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-08-per-harness-agent-models-design.md) |
-| Plan | [2026-07-08-per-harness-agent-models.md](https://github.com/danielhanold/docket/blob/feat/per-harness-agent-models/docs/superpowers/plans/2026-07-08-per-harness-agent-models.md) |
-| Results | [2026-07-08-per-harness-agent-models-results.md](https://github.com/danielhanold/docket/blob/feat/per-harness-agent-models/docs/results/2026-07-08-per-harness-agent-models-results.md) |
+| Plan | [2026-07-08-per-harness-agent-models.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-08-per-harness-agent-models.md) |
+| Results | [2026-07-08-per-harness-agent-models-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-08-per-harness-agent-models-results.md) |
 | PR | [#56](https://github.com/danielhanold/docket/pull/56) |
 | ADRs | [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md), [ADR-0016](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0016-harness-first-agent-config.md) |
 <!-- docket:artifacts:end -->
