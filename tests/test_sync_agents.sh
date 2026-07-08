@@ -335,7 +335,7 @@ assert "0047: README has a discoverable agent model/effort section" '[ -n "$sec"
 assert "0047 §agent-cfg: names the global layer ~/.config/docket/agents.yaml" \
   'grep -qF "~/.config/docket/agents.yaml" <<<"$sec"'
 assert "0047 §agent-cfg: names the per-repo .docket.yml agents: layer" \
-  'grep -qF ".docket.yml" <<<"$sec" && grep -qi "per-repo" <<<"$sec"'
+  'grep -qF "\`agents:\` block in a repo" <<<"$sec"'
 assert "0047 §agent-cfg: gives the refresh command (bash sync-agents.sh)" \
   'grep -qE "bash sync-agents\.sh" <<<"$sec"'
 assert "0047 §agent-cfg: names the user-level target (every present harness)" \

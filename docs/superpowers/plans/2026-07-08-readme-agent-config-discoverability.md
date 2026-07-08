@@ -42,7 +42,7 @@ assert "0047: README has a discoverable agent model/effort section" '[ -n "$sec"
 assert "0047 §agent-cfg: names the global layer ~/.config/docket/agents.yaml" \
   'grep -qF "~/.config/docket/agents.yaml" <<<"$sec"'
 assert "0047 §agent-cfg: names the per-repo .docket.yml agents: layer" \
-  'grep -qF ".docket.yml" <<<"$sec" && grep -qi "per-repo" <<<"$sec"'
+  'grep -qF "\`agents:\` block in a repo" <<<"$sec"'  # owns the layer bullet uniquely (LEARNINGS #21)
 assert "0047 §agent-cfg: gives the refresh command (bash sync-agents.sh)" \
   'grep -qE "bash sync-agents\.sh" <<<"$sec"'
 assert "0047 §agent-cfg: names the user-level target (every present harness)" \
@@ -110,4 +110,4 @@ git commit -m "docs(0047): discoverable agent model/effort section in README"
 
 **2. Placeholder scan** — README content and test code are given verbatim; no TBD/TODO.
 
-**3. Type/name consistency** — the awk heading regex `.*[Aa]gent.*([Mm]odel|[Ee]ffort)` matches the chosen heading `## Tuning an agent's model & effort` ("agent" then "model"). Sentinel substrings (`~/.config/docket/agents.yaml`, `.docket.yml`, `per-repo`, `bash sync-agents.sh`, `present`+`harness`, `agent_harnesses`, `sync-agents.sh --check`, `docket-convention`+`agent layer`) each appear in the section body and are anchored to one clause each (no double-guard).
+**3. Type/name consistency** — the awk heading regex `.*[Aa]gent.*([Mm]odel|[Ee]ffort)` matches the chosen heading `## Tuning an agent's model & effort` ("agent" then "model"). Sentinel substrings (`~/.config/docket/agents.yaml`, `` `agents:` block in a repo ``, `bash sync-agents.sh`, `present`+`harness`, `agent_harnesses`, `sync-agents.sh --check`, `docket-convention`+`agent layer`) each appear in the section body and are anchored to one clause each (no double-guard). Review note: the per-repo-layer sentinel was tightened from a `.docket.yml`+`per-repo` pair (both satisfiable from the project-level bullet — a non-owning double-guard) to the unique `` `agents:` block in a repo `` anchor so deleting the layer bullet flips it NOT OK.
