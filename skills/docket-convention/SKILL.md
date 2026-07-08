@@ -30,7 +30,7 @@ finalize:                    # merge gate (change 0015): rebase onto base + re-t
 github_project:              # {owner, number} of the auto-managed Projects v2 board; unset ⇒ auto-create on first github sync
 agent_harnesses: [claude]    # harnesses the per-repo agent pass generates committed wrappers for
                              # (change 0045); default [claude]. e.g. [claude, cursor] for a Cursor repo.
-agents:                      # per-skill subagent model/effort (change 0016); see "Agent layer" below
+agents:                      # harness-first per-skill subagent model/effort (change 0046); see "Agent layer" below
 ```
 
 `.docket.yml` lives on the repo's **default branch (`origin/HEAD`)**, NOT on the integration branch — `integration_branch` is a value *read from* the file, so the file cannot be located *by* it. The file then **declares `integration_branch`**, which may differ from the default branch (default `main`, integration `develop`). `metadata_branch` resolves where PM commits land; `integration_branch` (default `auto` → `origin/HEAD`, fallback `main`; explicit `main`/`develop` verbatim) resolves where code lands — feature branches always cut from `origin/<integration_branch>`. A genuinely absent file ⇒ defaults apply (`metadata_branch: docket`, `integration_branch: auto`); an unreachable `origin` is never silently treated as "file absent." **Backward-compatible opt-out:** pinning `metadata_branch: main` (with `integration_branch: main`) reproduces today's single-branch behavior exactly — no `docket` branch, no `.docket/` worktree.
@@ -66,14 +66,37 @@ A wrapper is a thin file: it pins `model` + `effort`, injects the skill via `ski
 | Global | `~/.config/docket/agents.yaml` (optional, XDG) | user-level `~/.claude/agents/docket-*.md` |
 | Per-repo | `.docket.yml` `agents:` block (committed) | **project-level** `<repo>/.claude/agents/docket-*.md` |
 
+Both the global file and the per-repo `agents:` block are **harness-first** (change 0046): a reserved
+`default:` key holds the harness-neutral fallback, and any harness name (drawn from `agent_harnesses`,
+e.g. `cursor`) can override just the fields that differ for that harness:
+
 ```yaml
-agents:
-  implement-next: { model: opus,   effort: xhigh }
-  status:         { model: sonnet, effort: medium }
-  # unlisted -> built-in default; effort: auto (or omitted) -> omit the effort line (inherit model default)
+agents:                                 # harness-first: reserved `default:` + harness-name keys
+  default:                              # neutral fallback for any harness without its own entry
+    implement-next: { model: claude-opus-4-8, effort: xhigh }
+    status:         { model: claude-haiku-4-5-20251001 }
+  cursor:                               # per-harness override — only what differs
+    implement-next: { model: gpt-5.1, effort: high }
+    status:         { model: gpt-5.5-medium-fast }
+  # Resolution is field-by-field, first non-empty wins: agents.<harness>.<agent> -> agents.default.<agent> -> shipped built-in (agents/docket-*.md).
+  # effort: auto (or omitted) -> omit the effort line (inherit the model default).
+  # The global ~/.config/docket/agents.yaml uses the SAME harness-first map, but at the FILE's top level
+  # (no `agents:` wrapper — the file IS the map). A non-`claude` harness whose model falls to default/built-in
+  # gets a non-fatal warning (likely-wrong ID; docket never validates model IDs).
+  # A harness block not in `agent_harnesses`, or a bare pre-0046 agent key, is warned + ignored.
 ```
 
-User-level files are built-in ⊕ global; project-level files are built-in ⊕ per-repo. Claude Code applies **project-over-user precedence natively**, so the effective order is per-repo > global > built-in without the generator merging three layers per file — and because the per-repo overrides generate **committed** project-level files, the same autonomous change builds on the same model for every clone (the reproducibility guarantee). An agent with neither a built-in nor a config entry defaults to `model: inherit` with no `effort`.
+`agent_harnesses` (which harness directories get generated files at all) is **orthogonal** to
+`agents.<harness>` (which values those files carry) — a harness can appear in one list without
+appearing in the other, and each falls back independently: `agent_harnesses` defaults to `[claude]`;
+an unlisted `agents.<harness>` falls to `agents.default`, then to the built-in.
+
+User-level files are built-in ⊕ global; project-level files are built-in ⊕ per-repo — where the harness-first
+resolution above runs first, inside each layer, to pick that layer's per-field value before the ⊕ with built-in.
+Claude Code applies **project-over-user precedence natively**, so the effective order is per-repo > global > built-in
+without the generator merging three layers per file — and because the per-repo overrides generate **committed**
+project-level files, the same autonomous change builds on the same model for every clone (the reproducibility
+guarantee). An agent with neither a built-in nor a config entry defaults to `model: inherit` with no `effort`.
 
 `sync-agents.sh` runs **on demand** (install time, and after editing any config layer) — the same mental model as `link-skills.sh`; it does NOT hook session start (silently regenerating committed files out of band would race the commits that make overrides clone-identical). The drift backstop is **`sync-agents.sh --check`**, a CI gate that exits non-zero with a diff when committed project-level files fall out of sync with the resolved config.
 

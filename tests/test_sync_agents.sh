@@ -234,6 +234,12 @@ assert "convention points at composition (0017)" 'grep -q "0017" "$CONV"'
 # Non-vacuous guard: the agent section must be a distinct heading, not an incidental word.
 assert "convention has an agent-layer section heading" 'grep -qiE "^#+ .*(agent layer|model/effort|subagent)" "$CONV"'
 
+# 0046: convention documents the harness-first agents: shape (default: + harness keys, field-level fallback).
+assert "0046 doc: convention names the reserved default: key" 'grep -qE "default:" "$CONV" && grep -Pzoq "agents:[\s\S]{0,400}default:" "$CONV"'
+assert "0046 doc: convention shows a per-harness key example (cursor)" 'grep -Pzoq "agents:[\s\S]{0,600}cursor:" "$CONV"'
+assert "0046 doc: convention states field-level fallback H -> default -> built-in" 'grep -qiE "harness.*default.*built-in|<harness>.*default.*built-in" "$CONV"'
+assert "0046 doc: convention notes non-Claude fallback warning" 'grep -qi "default/built-in" "$CONV"'
+
 # ---- Task 6: advisory recommendation in the interactive skills -------------
 NEWC="$REPO/skills/docket-new-change/SKILL.md"
 GROOM="$REPO/skills/docket-groom-next/SKILL.md"

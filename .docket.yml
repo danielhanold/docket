@@ -38,14 +38,22 @@ board_surfaces: [inline]
 # tokens are warned + dropped. sync-agents.sh --check validates every listed harness's files.
 # agent_harnesses: [claude]
 
-# Per-skill subagent model/effort (change 0016). Generated into agent wrappers by sync-agents.sh.
-# Keys are skill SHORT names; precedence is per-repo (this block) > global
-# (~/.config/docket/agents.yaml) > built-in (agents/docket-*.md). An `effort: auto` (or omitted)
-# means inherit the model default (the frontmatter effort line is dropped). Only the 5 autonomous
-# skills have wrappers; new-change/groom-next are advisory-only and ignore this block. Listing a
-# skill here generates a COMMITTED project-level .claude/agents/docket-<skill>.md — run
-# `sync-agents.sh` after editing, and `sync-agents.sh --check` in CI to catch drift.
+# Per-skill subagent model/effort (change 0016), harness-first (change 0046). Generated into agent
+# wrappers by sync-agents.sh. Keys are skill SHORT names nested under a reserved `default:` (the
+# harness-neutral fallback) and, optionally, per-harness override keys (e.g. `cursor:`) that only
+# need to list the fields that differ; resolution is field-by-field: agents.<harness>.<agent> ->
+# agents.default.<agent> -> shipped built-in (agents/docket-*.md). Precedence across layers is
+# per-repo (this block) > global (~/.config/docket/agents.yaml, same harness-first shape but at the
+# FILE's top level — no `agents:` wrapper) > built-in. An `effort: auto` (or omitted) means inherit
+# the model default (the frontmatter effort line is dropped). Only the 5 autonomous skills have
+# wrappers; new-change/groom-next are advisory-only and ignore this block. Listing a skill here
+# generates a COMMITTED project-level .<harness>/agents/docket-<skill>.md for each harness in
+# agent_harnesses — run `sync-agents.sh` after editing, and `sync-agents.sh --check` in CI to catch
+# drift.
 #
-# agents:
-#   implement-next: { model: opus,   effort: xhigh }
-#   status:         { model: sonnet, effort: medium }
+# agents:                                # harness-first: reserved default: + harness-name keys (change 0046)
+#   default:                             # neutral fallback (field-level: <harness> -> default -> built-in)
+#     implement-next: { model: opus,   effort: xhigh }
+#     status:         { model: sonnet, effort: medium }
+#   cursor:                              # override only what differs for a non-Claude harness
+#     status:         { model: gpt-5.5-medium-fast }
