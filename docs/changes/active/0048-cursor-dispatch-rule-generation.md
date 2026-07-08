@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/cursor-dispatch-rule-generation
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -83,3 +83,26 @@ Three coherent pieces in `sync-agents.sh`, layered on 0046 (full design in the l
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-07-08 — reconcile before build
+
+Verified against current `origin/main` (d23de96, the 0046 close-out) and confirmed the change is
+current — no scope adjustment needed. It was drafted today against this exact HEAD.
+
+- **Both target problems confirmed live in `sync-agents.sh`.** `user_level_pass` iterates the full
+  built-in set (`for src in agents/docket-*.md`); `project_level_pass` iterates only the config-listed
+  `agent_keys` — the listed-only asymmetry Piece 1 fixes. No `cursor-rules/` directory and no
+  `.cursor/` dir exist in the repo yet, matching the spec's greenfield assumption.
+- **Dependency #46 is `done`** (archived `2026-07-08-0046-per-harness-agent-models.md`). All the
+  0046 machinery the spec builds on is present: `resolve_agent` (field-level harness→default→built-in),
+  `section_body`, `agent_keys`, `agents_block_harnesses`, `warn_fallback_model`, `legacy_agent_keys`.
+- **Related 45/16/15 all `done`; cited ADR-0015/0016 exist.** The change refines (does not reverse)
+  them — the new-ADR-vs-`## Update` decision stays deferred to the build's ADR step per Open questions.
+- **Built-in agent set is the expected 8 wrappers** (adr, auto-groom, auto-groom-critic,
+  finalize-change, implement-next, integration-repair, rebase-resolver, status) — the set the
+  always-full-set pass (Piece 1) and dispatch-rule assembly (Piece 2) iterate.
+- **This repo's own `.docket.yml` stays `claude`-only** (`agent_harnesses` commented → default
+  `[claude]`, no `agents:` block), so the Cursor per-repo path is exercised only by the tests via the
+  `DOCKET_HARNESS_ROOT` seam, not by this repo's committed files — no change to this repo's `.cursor/`.
+
+Dropped: nothing. Adjusted: nothing. Folded in: nothing.
