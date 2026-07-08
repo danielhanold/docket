@@ -2,7 +2,7 @@
 id: 42
 slug: retune-agent-model-defaults
 title: Re-tune default agent models for the Claude 5 lineup (pin explicit versions)
-status: in-progress
+status: implemented
 priority: high
 created: 2026-07-07
 updated: 2026-07-07
@@ -15,7 +15,7 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/retune-agent-model-defaults
-pr:
+pr: https://github.com/danielhanold/docket/pull/52
 blocked_by:
 reconciled: true
 ---
@@ -27,6 +27,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-07-retune-agent-model-defaults-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-07-retune-agent-model-defaults-design.md) |
 | Plan | [2026-07-07-retune-agent-model-defaults.md](https://github.com/danielhanold/docket/blob/feat/retune-agent-model-defaults/docs/superpowers/plans/2026-07-07-retune-agent-model-defaults.md) |
+| PR | [#52](https://github.com/danielhanold/docket/pull/52) |
 <!-- docket:artifacts:end -->
 
 ## Why
