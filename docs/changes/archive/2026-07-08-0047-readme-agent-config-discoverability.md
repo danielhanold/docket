@@ -25,7 +25,7 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Plan | [2026-07-08-readme-agent-config-discoverability.md](https://github.com/danielhanold/docket/blob/feat/readme-agent-config-discoverability/docs/superpowers/plans/2026-07-08-readme-agent-config-discoverability.md) |
+| Plan | [2026-07-08-readme-agent-config-discoverability.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-08-readme-agent-config-discoverability.md) |
 | PR | [#55](https://github.com/danielhanold/docket/pull/55) |
 | ADRs | [ADR-0008](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0008-agent-layer-generated-subagents.md), [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md) |
 <!-- docket:artifacts:end -->
