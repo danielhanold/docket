@@ -153,6 +153,27 @@ agent_keys() {  # $1=file  $2=under_agents(0|1)
     }' | sort -u
 }
 
+# Pre-0046 flat shape: bare agent keys sitting DIRECTLY under agents: (or top level for global),
+# i.e. neither `default` nor a known harness. One per line. Used to warn + drop + flag as --check drift.
+legacy_agent_keys() {  # $1=file  $2=under_agents(0|1)
+  local sub
+  [ -f "$1" ] || return 0
+  if [ "$2" = "1" ]; then sub="$(section_body agents < "$1")"; else sub="$(cat "$1")"; fi
+  printf '%s\n' "$sub" | awk '
+    { nc=$0; sub(/#.*/,"",nc) }
+    /^[A-Za-z0-9._-]+[[:space:]]*:[[:space:]]*\{/ {                  # col-0 key WITH an inline {…} value == a bare agent entry
+      k=nc; sub(/[[:space:]]*:.*/,"",k); if (k!="") print k
+    }'
+}
+
+# Harness/default header names present under agents: (the top-level keys of the harness map).
+agents_block_harnesses() {  # $1=file  (docket.yml, under_agents=1)
+  local sub
+  [ -f "$1" ] || return 0
+  sub="$(section_body agents < "$1")"
+  printf '%s\n' "$sub" | awk '{ nc=$0; sub(/#.*/,"",nc) } /^[A-Za-z0-9._-]+[[:space:]]*:[[:space:]]*$/ { k=nc; sub(/[[:space:]]*:.*/,"",k); if(k!="") print k }'
+}
+
 # --- emit a resolved wrapper to stdout ---------------------------------------
 # Rewrites model:/effort: lines inside the frontmatter. Empty override => keep built-in.
 # effort override "auto" => drop the effort line entirely (inherit model default).
@@ -166,8 +187,23 @@ emit() {  # $1=src file  $2=model  $3=effort
     }' "$1"
 }
 
-# Non-fatal footgun warning — body added in Task 2. No-op stub keeps Task 1's positive-path build green.
-warn_fallback_model(){ :; }   # $1=harness $2=agent  (consumes RES_MODEL / RES_MODEL_FROM_HARNESS)
+# Non-fatal footgun warning: when generating a NON-claude harness file whose `model` resolved from
+# default/built-in (no agents.<harness> override supplied it), the ID is likely wrong for that
+# harness (ADR-0015: some harnesses silently run their house default on an unknown model). Never
+# an error; sync still succeeds. Scoped to non-claude — the claude built-ins/default ARE Claude IDs.
+warn_fallback_model(){  # $1=harness $2=agent ; consumes RES_MODEL_FROM_HARNESS / RES_MODEL
+  [ "$1" = "claude" ] && return 0
+  [ "$RES_MODEL_FROM_HARNESS" = "1" ] && return 0
+  log "WARN $1/docket-$2: model '${RES_MODEL:-<built-in>}' came from default/built-in; may not be a valid model ID for harness '$1'."
+}
+
+warn_legacy_shape(){  # $1=file $2=under_agents ; warns once per bare agent key
+  local k
+  while IFS= read -r k; do
+    [ -n "$k" ] || continue
+    log "WARN legacy agents: shape — bare agent key '$k' is neither 'default' nor a known harness; ignored (use agents.default.$k or agents.<harness>.$k)."
+  done < <(legacy_agent_keys "$1" "$2")
+}
 
 # --- passes ------------------------------------------------------------------
 # Map a user-level harness *dir* ("$HARNESS_ROOT/.cursor/agents") to its token ("cursor").
@@ -175,6 +211,7 @@ harness_of_dir(){ local b; b="$(basename "$(dirname "$1")")"; printf '%s' "${b#.
 
 user_level_pass() {  # built-in ⊕ global -> each present harness */agents dir, resolved per (harness, agent)
   local src dir name harness
+  warn_legacy_shape "$GLOBAL_CFG" 0
   for src in "$AGENTS_SRC"/docket-*.md; do
     [ -e "$src" ] || continue
     name="$(short_name "$src")"
@@ -192,6 +229,14 @@ user_level_pass() {  # built-in ⊕ global -> each present harness */agents dir,
 project_level_pass() {  # built-in ⊕ per-repo -> <repo>/.<H>/agents for each H in HARNESSES (committed)
   [ -f "$DOCKET_YML" ] || return 0
   local names name src harness dir
+  warn_legacy_shape "$DOCKET_YML" 1
+  # Warn on any agents.<harness> block whose harness is NOT in agent_harnesses (dead config).
+  local cfg_h
+  while IFS= read -r cfg_h; do
+    [ -n "$cfg_h" ] || continue
+    [ "$cfg_h" = "default" ] && continue
+    case " $HARNESSES " in *" $cfg_h "*) : ;; *) log "WARN agents.$cfg_h: block is not in agent_harnesses — ignored (dead config)." ;; esac
+  done < <(agents_block_harnesses "$DOCKET_YML")
   names="$(agent_keys "$DOCKET_YML" 1)"
   [ -n "$names" ] || return 0
   while IFS= read -r name; do
@@ -216,8 +261,13 @@ EOF
 check_project_level() {  # diff committed <repo>/.<H>/agents files against freshly-resolved config (per harness)
   local rc=0 names name src got tmp d harness
   [ -f "$DOCKET_YML" ] || { log "no .docket.yml in $REPO — nothing to check"; return 0; }
+  local legacy; legacy="$(legacy_agent_keys "$DOCKET_YML" 1)"
+  if [ -n "$legacy" ]; then
+    log "drift: legacy bare-agent-key agents: shape ($(printf '%s' "$legacy" | tr '\n' ' ')) — reshape to agents.default.<agent> (run: bash sync-agents.sh)"
+    rc=1
+  fi
   names="$(agent_keys "$DOCKET_YML" 1)"
-  [ -n "$names" ] || { log "no agents: block — nothing to check"; return 0; }
+  [ -n "$names" ] || { log "no agents: block — nothing to check"; return $rc; }
   tmp="$(mktemp -d)"
   while IFS= read -r name; do
     [ -n "$name" ] || continue

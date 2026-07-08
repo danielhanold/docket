@@ -384,4 +384,51 @@ assert "0047 §agent-cfg: documents effort: auto drops the pinned effort line" \
 assert "0047 §agent-cfg: does NOT hardcode a model/effort literal (references the source instead)" \
   '! grep -qiE "\b(opus|sonnet|haiku|fable)\b.*\b(xhigh|high|medium|low)\b|model:[[:space:]]*(opus|sonnet|haiku|claude-)" <<<"$sec"'
 
+# ============================================================================
+# Change 0046 — per-harness values: diagnostics
+# ============================================================================
+
+# (h) Non-Claude fallback warning: a cursor file whose model fell through to default/built-in warns;
+#     suppressed for claude, and suppressed when cursor supplies its own model.
+make_sandbox
+HROOTW="$(mktemp -d)"; mkdir -p "$HROOTW/.claude"
+printf 'agent_harnesses: [claude, cursor]\nagents:\n  default:\n    status: { model: claude-opus-4-8 }\n' > "$SBX/.docket.yml"
+gen_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTW" bash "$SYNC" 2>&1 >/dev/null)"; gen_rc=$?
+assert "0046 (h): generation not fatal (rc=0)" '[ "$gen_rc" = "0" ]'
+assert "0046 (h): warns cursor model came from default/built-in" 'printf "%s" "$gen_err" | grep -qi "cursor" && printf "%s" "$gen_err" | grep -qi "default/built-in"'
+assert "0046 (h): does NOT warn for the claude harness" '! printf "%s" "$gen_err" | grep -qiE "claude/docket-status|WARN claude"'
+rm -rf "$SBX" "$HROOTW"
+
+# (h') warning suppressed when the cursor block supplies the model.
+make_sandbox
+HROOTW2="$(mktemp -d)"; mkdir -p "$HROOTW2/.claude"
+printf 'agent_harnesses: [claude, cursor]\nagents:\n  default:\n    status: { model: claude-opus-4-8 }\n  cursor:\n    status: { model: gpt-5.5-medium-fast }\n' > "$SBX/.docket.yml"
+gen_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTW2" bash "$SYNC" 2>&1 >/dev/null)"; gen_rc=$?
+assert "0046 (h'): no fallback warning when cursor supplies model" '! printf "%s" "$gen_err" | grep -qi "status.*default/built-in"'
+rm -rf "$SBX" "$HROOTW2"
+
+# (f) Legacy bare-agent-key block (pre-0046 flat shape) => warned + ignored; --check flags it as drift.
+make_sandbox
+HROOTL="$(mktemp -d)"; mkdir -p "$HROOTL/.claude"
+printf 'agents:\n  status: { model: sonnet, effort: high }\n' > "$SBX/.docket.yml"   # bare agent key, no default:/harness
+gen_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTL" bash "$SYNC" 2>&1 >/dev/null)"; gen_rc=$?
+assert "0046 (f): legacy shape not fatal (rc=0)" '[ "$gen_rc" = "0" ]'
+assert "0046 (f): warns about the legacy bare agent key" 'printf "%s" "$gen_err" | grep -qi "legacy" && printf "%s" "$gen_err" | grep -q "status"'
+assert "0046 (f): legacy status NOT applied (no project file / built-in only)" '[ ! -f "$SBX/.claude/agents/docket-status.md" ] || [ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "claude-haiku-4-5-20251001" ]'
+chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTL" bash "$SYNC" --check 2>&1)"; chk_rc=$?
+assert "0046 (g'): --check flags the legacy shape (rc!=0)" '[ "$chk_rc" != "0" ]'
+assert "0046 (g'): --check names the legacy shape" 'printf "%s" "$chk_out" | grep -qi "legacy"'
+rm -rf "$SBX" "$HROOTL"
+
+# (e) Dead-config harness (a block in agents: not present in agent_harnesses) => warned + dropped.
+make_sandbox
+HROOTX="$(mktemp -d)"; mkdir -p "$HROOTX/.claude"
+printf 'agent_harnesses: [claude]\nagents:\n  default:\n    status: { model: sonnet }\n  cursor:\n    status: { model: gpt-5.5-medium-fast }\n' > "$SBX/.docket.yml"
+gen_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTX" bash "$SYNC" 2>&1 >/dev/null)"; gen_rc=$?
+assert "0046 (e): dead-config not fatal (rc=0)" '[ "$gen_rc" = "0" ]'
+assert "0046 (e): warns cursor block is not in agent_harnesses" 'printf "%s" "$gen_err" | grep -qi "cursor" && printf "%s" "$gen_err" | grep -qi "agent_harnesses"'
+assert "0046 (e): cursor file NOT generated (dropped)" '[ ! -e "$SBX/.cursor/agents/docket-status.md" ]'
+assert "0046 (e): claude still generated from default" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "sonnet" ]'
+rm -rf "$SBX" "$HROOTX"
+
 exit $fail
