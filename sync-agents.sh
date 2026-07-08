@@ -55,6 +55,7 @@ CHECK=0
 log(){ printf '%s\n' "sync-agents: $*" >&2; }
 
 is_valid_harness(){  # $1=token -> rc 0 if it is a known harness token
+  [ -n "$1" ] || return 1
   case " $VALID_HARNESS_TOKENS " in *" $1 "*) return 0;; *) return 1;; esac
 }
 
@@ -185,8 +186,8 @@ $names
 EOF
 }
 
-check_project_level() {  # diff committed project-level files against freshly-resolved config
-  local rc=0 names name src got tmp d
+check_project_level() {  # diff committed <repo>/.<H>/agents files against freshly-resolved config
+  local rc=0 names name src got tmp d harness
   [ -f "$DOCKET_YML" ] || { log "no .docket.yml in $REPO — nothing to check"; return 0; }
   names="$(block_names "$DOCKET_YML")"
   [ -n "$names" ] || { log "no agents: block — nothing to check"; return 0; }
@@ -196,13 +197,15 @@ check_project_level() {  # diff committed project-level files against freshly-re
     src="$AGENTS_SRC/docket-$name.md"
     [ -f "$src" ] || continue
     resolve_from "$DOCKET_YML" "$name" 1
-    emit "$src" "$RES_MODEL" "$RES_EFFORT" > "$tmp/docket-$name.md"
-    got="$REPO/.claude/agents/docket-$name.md"   # Task 1 scope only; Task 2 loops this over HARNESSES
-    if [ ! -f "$got" ]; then
-      log "drift: missing $got (run: bash sync-agents.sh)"; rc=1; continue
-    fi
-    d="$(diff -u "$got" "$tmp/docket-$name.md" || true)"   # capture (SIGPIPE-safe), do not pipe to grep -q
-    if [ -n "$d" ]; then log "drift in docket-$name.md:"; printf '%s\n' "$d" >&2; rc=1; fi
+    emit "$src" "$RES_MODEL" "$RES_EFFORT" > "$tmp/docket-$name.md"   # bytes are harness-independent
+    for harness in $HARNESSES; do
+      got="$REPO/.$harness/agents/docket-$name.md"
+      if [ ! -f "$got" ]; then
+        log "drift: missing $got (run: bash sync-agents.sh)"; rc=1; continue
+      fi
+      d="$(diff -u "$got" "$tmp/docket-$name.md" || true)"   # capture (SIGPIPE-safe), do not pipe to grep -q
+      if [ -n "$d" ]; then log "drift in .$harness/agents/docket-$name.md:"; printf '%s\n' "$d" >&2; rc=1; fi
+    done
   done <<EOF
 $names
 EOF

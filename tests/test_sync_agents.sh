@@ -276,4 +276,22 @@ assert "0045 empty-list: no .claude project file" '[ ! -e "$SBX/.claude/agents/d
 assert "0045 empty-list: no .cursor project file" '[ ! -e "$SBX/.cursor/agents/docket-status.md" ]'
 rm -rf "$SBX" "$HROOTE0"
 
+# --check must span every listed harness: drift in a .cursor/agents file fails CI.
+make_sandbox
+HROOTF="$(mktemp -d)"; mkdir -p "$HROOTF/.claude"
+printf 'agent_harnesses: [claude, cursor]\nagents:\n  status: { model: sonnet, effort: high }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTF" bash "$SYNC" >/dev/null )   # generate both harness files
+chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTF" bash "$SYNC" --check 2>&1)"; chk_rc=$?
+assert "0045 check: passes when both harness files in sync (rc=0)" '[ "$chk_rc" = "0" ]'
+# Drift the CURSOR file only.
+sed -i.bak 's/^model: sonnet/model: haiku/' "$SBX/.cursor/agents/docket-status.md"; rm -f "$SBX/.cursor/agents/docket-status.md.bak"
+chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTF" bash "$SYNC" --check 2>&1)"; chk_rc=$?
+assert "0045 check: flags .cursor/agents drift (rc!=0)" '[ "$chk_rc" != "0" ]'
+assert "0045 check: drift report names the cursor harness" 'printf "%s" "$chk_out" | grep -q "drift" && printf "%s" "$chk_out" | grep -q "cursor"'
+# A listed-harness file never generated -> missing-file drift.
+rm -f "$SBX/.cursor/agents/docket-status.md"
+chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTF" bash "$SYNC" --check 2>&1)"; chk_rc=$?
+assert "0045 check: flags missing cursor file (rc!=0)" '[ "$chk_rc" != "0" ]'
+rm -rf "$SBX" "$HROOTF"
+
 exit $fail
