@@ -2,7 +2,7 @@
 id: 47
 slug: readme-agent-config-discoverability
 title: Make the agent-config refresh workflow discoverable in the README
-status: implemented
+status: done
 priority: low
 created: 2026-07-08
 updated: 2026-07-08
