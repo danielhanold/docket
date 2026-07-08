@@ -10,7 +10,7 @@ depends_on: []
 related: [16, 45, 46]
 adrs: [8, 15]
 spec:
-plan:
+plan: docs/superpowers/plans/2026-07-08-readme-agent-config-discoverability.md
 results:
 trivial: true
 auto_groomable:
@@ -25,6 +25,7 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Plan | [2026-07-08-readme-agent-config-discoverability.md](https://github.com/danielhanold/docket/blob/feat/readme-agent-config-discoverability/docs/superpowers/plans/2026-07-08-readme-agent-config-discoverability.md) |
 | ADRs | [ADR-0008](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0008-agent-layer-generated-subagents.md), [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md) |
 <!-- docket:artifacts:end -->
 
