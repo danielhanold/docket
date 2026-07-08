@@ -1,6 +1,6 @@
 # Backlog
 
-**45 changes** — 🟢 1 in progress · 🟡 8 proposed · 🔵 1 implemented · ✅ 33 done · 🗑️ 2 killed
+**45 changes** — 🟢 1 in progress · 🟡 8 proposed · ✅ 34 done · 🗑️ 2 killed
 
 ## 🟢 In progress (1)
 
@@ -21,12 +21,6 @@
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | build-ready |
 
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | PR |
-|---|-------|----------|----|
-| [0024](active/0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | `low` | [#53](https://github.com/danielhanold/docket/pull/53) |
-
 ```mermaid
 graph TD
   0007
@@ -35,7 +29,6 @@ graph TD
   0010
   0016 --> 0018
   0015 --> 0019
-  0022 --> 0024
   0030 --> 0033
   0044
   0045
@@ -56,6 +49,7 @@ graph TD
   0021:::done
   0022:::done
   0023:::done
+  0024:::done
   0025:::done
   0026:::done
   0027:::done
@@ -75,12 +69,13 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (35)</summary>
+<details><summary>✅🗑️ Archive — done + killed (36)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0043](archive/2026-07-08-0043-agent-model-tiers.md) | Model-tier indirection for agent model selection + config-driven advisories | 2026-07-08 |
 | [0042](archive/2026-07-08-0042-retune-agent-model-defaults.md) | Re-tune default agent models for the Claude 5 lineup (pin explicit versions) | 2026-07-08 |
+| [0024](archive/2026-07-08-0024-retire-board-source-drift-check.md) | Retire or downgrade the inline board/source-drift health check once rendering is deterministic | 2026-07-08 |
 | [0041](archive/2026-06-24-0041-post-merge-sync-targets-consuming-repo.md) | Post-merge integration sync fast-forwards the docket clone, not the consuming repo where the merge landed | 2026-06-24 |
 | [0040](archive/2026-06-23-0040-terminal-publish-refresh-adr-index.md) | terminal-publish leaves the integration-branch ADR index stale — regenerate it when an ADR is published | 2026-06-23 |
 | [0039](archive/2026-06-21-0039-trim-docket-status-archive-prose.md) | Trim docket-status's residual archive-internals prose onto scripts/archive-change.md | 2026-06-21 |
