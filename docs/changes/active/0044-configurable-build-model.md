@@ -1,13 +1,13 @@
 ---
 id: 44
 slug: configurable-build-model
-title: Configurable TDD build model for docket-implement-next
+title: Configurable SDD build models for docket-implement-next
 status: proposed
 priority: low
 created: 2026-07-07
-updated: 2026-07-07
-depends_on: [43]
-related: [16]
+updated: 2026-07-08
+depends_on: []
+related: [16, 42]
 adrs: []
 spec: docs/superpowers/specs/2026-07-07-configurable-build-model-design.md
 plan:
@@ -32,20 +32,23 @@ reconciled: false
 
 `docket-implement-next` builds each change through `superpowers:subagent-driven-development` (SDD),
 which dispatches an implementer per plan task, a task-reviewer after each, fix subagents, and a
-final whole-branch code-reviewer — where the vast majority of a build's tokens are spent. SDD
-picks each dispatch's model by **controller judgment** (a prose "Model Selection" heuristic); there
-is **no config knob**. So a repo cannot express a policy like "build implementers on Haiku 4.5,
-reviewers on Sonnet 5" — the single biggest cost lever in the system is unconfigurable. #0016
-explicitly scoped this out; this change closes it, reusing #0043's tier vocabulary.
+final whole-branch code-reviewer — where the vast majority of a build's tokens are spent. SDD picks
+each dispatch's model by **controller judgment** (a prose "Model Selection" heuristic); there is
+**no config knob**. So a repo cannot express a policy like "build implementers on the cheap model,
+reviewers on the strong one" — the single biggest cost lever in the system is unconfigurable. This
+bites hardest on a **non-Claude / mixed roster** (e.g. running docket through Cursor), where the
+operator knows which of *their* models fits each role better than SDD's Claude-shaped heuristic
+does. #0016 explicitly scoped this out; this change closes it.
 
 ## What changes
 
-Add a **`build:` config surface** with two per-role tiers, resolved through #0043's tier map, plus
-a behavioral rule in `docket-implement-next` (full detail in the linked spec):
+Add a **`build:` config surface** with two per-role **model IDs**, plus a behavioral rule in
+`docket-implement-next` (full detail in the linked spec):
 
 - **`build.implementer`** governs the per-task implementer **and** fix subagents; **`build.reviewer`**
-  governs the task-reviewer **and** the final code-reviewer. Values are tier names (explicit model
-  IDs also accepted).
+  governs the task-reviewer **and** the final code-reviewer. Values are **direct model IDs** passed
+  straight to SDD's `model:` field — whatever the running harness honors (a Claude alias/ID under
+  Claude Code, a Cursor model ID under Cursor). No tier indirection.
 - **`docket-implement-next`** resolves these at plan-execution time and fills SDD's already-required
   `model:` field from them; **unset → SDD's own Model Selection** (purely additive, backward-
   compatible). No new script, no fork of SDD.
@@ -56,15 +59,19 @@ predictable cost/quality policy. Likely warrants a small ADR — decided at buil
 ## Out of scope
 
 - Redesigning or forking SDD — this only supplies the `model:` value SDD already requires.
+- A tier abstraction over the model IDs — #0043 (tier indirection) was killed; `build:` takes
+  direct model IDs, matching the `agents:` block.
 - Per-task / per-complexity build-model config (mechanical/integration/architecture buckets) — a
   possible future refinement.
 - The reconcile/plan/escalation model of implement-next itself — that stays the `implement-next`
-  wrapper's tier (#0042/#0043); `build:` governs only the SDD sub-dispatches.
+  wrapper's own model (#0042); `build:` governs only the SDD sub-dispatches.
 
 ## Open questions
 
 - Config placement — top-level `build:` vs nested under `agents:` (lean top-level).
 - Whether the final code-reviewer folds into `build.reviewer` (this design) or gets its own role.
 - Exact SDD override point — confirm against the SDD version in use at build.
+- Whether the target harness (Cursor, in the motivating case) honors the `model:` field on SDD's
+  subagent dispatches the way it honors it on docket's agent wrappers — verify at build.
 
 ## Reconcile log
