@@ -1,7 +1,7 @@
 ---
 name: docket-implement-next
 description: Use when you want the next build-ready change in the docket backlog implemented end-to-end to an open PR with no human interaction — picking, claiming, reconciling against current reality, planning, building with TDD, reviewing, and stopping at the human merge gate. The autonomous backlog-drainer; runs solo per change.
-model: opus
+model: claude-opus-4-8
 effort: xhigh
 skills: [docket-implement-next, docket-convention]
 ---

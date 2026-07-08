@@ -1,7 +1,7 @@
 ---
 name: docket-rebase-resolver
 description: Resolves rebase conflicts during finalize's rebase-onto-base gate — reconciles each conflicted hunk by merge intent and continues the rebase to completion; never runs tests.
-model: opus
+model: claude-opus-4-8
 effort: xhigh
 skills: [docket-convention]
 ---
