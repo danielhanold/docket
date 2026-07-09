@@ -1,8 +1,8 @@
 # Backlog
 
-**49 changes** — 🟡 8 proposed · ✅ 39 done · 🗑️ 2 killed
+**50 changes** — 🟡 9 proposed · ✅ 39 done · 🗑️ 2 killed
 
-## 🟡 Proposed (8)
+## 🟡 Proposed (9)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -14,6 +14,7 @@
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | build-ready |
+| [0050](active/0050-global-config-layer.md) | Global config layer — full-schema ~/.config/docket/config.yml with a coordination-key fence | `medium` | build-ready |
 
 ```mermaid
 graph TD
@@ -25,6 +26,7 @@ graph TD
   0015 --> 0019
   0030 --> 0033
   0044
+  0050
   0001:::done
   0002:::done
   0003:::done
