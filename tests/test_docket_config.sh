@@ -227,6 +227,10 @@ for s in docket-implement-next docket-status docket-new-change docket-groom-next
   f="$REPO/skills/$s/SKILL.md"
   assert "$s Step 0 invokes docket-config.sh" 'grep -qF "/docket-config.sh" "$f"'
 done
+assert "new-change brainstorm uses SKILL_BRAINSTORM" \
+  'grep -qF "SKILL_BRAINSTORM" "$REPO/skills/docket-new-change/SKILL.md"'
+assert "groom-next brainstorm uses SKILL_BRAINSTORM" \
+  'grep -qF "SKILL_BRAINSTORM" "$REPO/skills/docket-groom-next/SKILL.md"'
 
 # --- (G) skills: absent -> five superpowers defaults (byte-identical behavior) ---
 mkrepo "$tmp/g"
