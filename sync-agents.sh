@@ -7,7 +7,8 @@
 #
 # Layers & precedence — per-repo > global > built-in:
 #   built-in  agents/docket-*.md in this repo (each ships its default model/effort)
-#   global    ~/.config/docket/agents.yaml        -> user-level    ~/.claude/agents/docket-*.md
+#   global    ~/.config/docket/config.yml `agents:` block -> user-level ~/.claude/agents/docket-*.md
+#             (the legacy ~/.config/docket/agents.yaml is auto-migrated into it, then renamed .migrated)
 #   per-repo  <repo>/.docket.yml `agents:` block  -> project-level <repo>/.claude/agents/docket-*.md (committed)
 # Claude Code applies project-over-user precedence natively, so the generator writes two layers
 # (user = built-in⊕global, project = built-in⊕per-repo) and never hand-merges all three.
@@ -28,7 +29,9 @@ CURSOR_RULES_SRC="$SCRIPT_DIR/cursor-rules"
 REPO="$PWD"
 
 HARNESS_ROOT="${DOCKET_HARNESS_ROOT:-$HOME}"
-GLOBAL_CFG="${XDG_CONFIG_HOME:-$HARNESS_ROOT/.config}/docket/agents.yaml"
+GLOBAL_CFG_DIR="${XDG_CONFIG_HOME:-$HARNESS_ROOT/.config}/docket"
+GLOBAL_CFG="$GLOBAL_CFG_DIR/config.yml"
+LEGACY_GLOBAL_CFG="$GLOBAL_CFG_DIR/agents.yaml"
 DOCKET_YML="$REPO/.docket.yml"
 
 # Mirror link-skills.sh's HARNESS_SKILL_DIRS, swapping skills -> agents.
@@ -54,6 +57,26 @@ CHECK=0
 [ "${1:-}" = "--check" ] && CHECK=1
 
 log(){ printf '%s\n' "sync-agents: $*" >&2; }
+
+# --- agents.yaml -> config.yml auto-migration (change 0050) -------------------
+# Idempotent: (1) live agents.yaml + config.yml WITHOUT an agents: block -> rewrite the old
+# top-level harness-first map under agents: in config.yml (creating the file if needed),
+# rename the original to .migrated (git-less users keep a copy), log loudly. (2) config.yml
+# already has agents: and a live agents.yaml is also present -> warn stale, do not read it.
+# After this change the global agent config is read ONLY from config.yml (no dual-read).
+migrate_legacy_global(){
+  [ -f "$LEGACY_GLOBAL_CFG" ] || return 0
+  if [ -f "$GLOBAL_CFG" ] && grep -qE '^agents[[:space:]]*:' "$GLOBAL_CFG"; then
+    log "WARN $LEGACY_GLOBAL_CFG is STALE and unread — global agent config lives under agents: in $GLOBAL_CFG; delete or rename the old file"
+    return 0
+  fi
+  {
+    printf 'agents:\n'
+    sed 's/^\(.\)/  \1/' "$LEGACY_GLOBAL_CFG"    # indent every non-empty line under agents:
+  } >> "$GLOBAL_CFG"
+  mv "$LEGACY_GLOBAL_CFG" "$LEGACY_GLOBAL_CFG.migrated"
+  log "MIGRATED global agent config: $LEGACY_GLOBAL_CFG -> agents: block in $GLOBAL_CFG (original kept at $LEGACY_GLOBAL_CFG.migrated)"
+}
 
 is_valid_harness(){  # $1=token -> rc 0 if it is a known harness token
   [ -n "$1" ] || return 1
@@ -259,14 +282,14 @@ harness_of_dir(){ local b; b="$(basename "$(dirname "$1")")"; printf '%s' "${b#.
 
 user_level_pass() {  # built-in ⊕ global -> each present harness */agents dir, resolved per (harness, agent)
   local src dir name harness
-  warn_legacy_shape "$GLOBAL_CFG" 0
+  warn_legacy_shape "$GLOBAL_CFG" 1
   for src in "$AGENTS_SRC"/docket-*.md; do
     [ -e "$src" ] || continue
     name="$(short_name "$src")"
     for dir in "${HARNESS_AGENT_DIRS[@]}"; do
       [ -d "$(dirname "$dir")" ] || continue          # only write into a PRESENT harness root
       harness="$(harness_of_dir "$dir")"
-      resolve_agent "$GLOBAL_CFG" "$harness" "$name" 0
+      resolve_agent "$GLOBAL_CFG" "$harness" "$name" 1
       warn_fallback_model "$harness" "$name"
       mkdir -p "$dir"
       emit "$src" "$RES_MODEL" "$RES_EFFORT" > "$dir/$(basename "$src")"
@@ -429,6 +452,7 @@ if [ "$CHECK" = "1" ]; then
   if check_project_level; then exit 0; else exit 1; fi
 fi
 
+migrate_legacy_global
 user_level_pass
 project_level_pass
 prune_orphans all

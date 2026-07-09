@@ -69,10 +69,10 @@ after="$(cat "$SBX/.claude/agents/docket-implement-next.md")"
 assert "second run idempotent (byte-identical)" '[ "$before" = "$after" ]'
 rm -rf "$SBX"
 
-# -- global layer (harness-first): ~/.config/docket/agents.yaml default: block overrides model/effort --
+# -- global layer (harness-first, change 0050): config.yml agents: default: block overrides model/effort --
 make_sandbox
 mkdir -p "$SBX/.config/docket"
-printf 'default:\n  status: { model: haiku, effort: low }\n  implement-next: { effort: auto }\n' > "$SBX/.config/docket/agents.yaml"
+printf 'agents:\n  default:\n    status: { model: haiku, effort: low }\n    implement-next: { effort: auto }\n' > "$SBX/.config/docket/config.yml"
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null )
 assert "global default sets model" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "haiku" ]'
 assert "global default sets effort" '[ "$(fm "$SBX/.claude/agents/docket-status.md" effort)" = "low" ]'
@@ -84,7 +84,7 @@ rm -rf "$SBX"
 # -- global: a per-harness block overrides default for THAT harness only (user-level) --
 make_sandbox                                        # .claude and .cursor both present so both get user-level files
 mkdir -p "$SBX/.cursor" "$SBX/.config/docket"
-printf 'default:\n  status: { model: haiku }\ncursor:\n  status: { model: gpt-5.5-medium-fast }\n' > "$SBX/.config/docket/agents.yaml"
+printf 'agents:\n  default:\n    status: { model: haiku }\n  cursor:\n    status: { model: gpt-5.5-medium-fast }\n' > "$SBX/.config/docket/config.yml"
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null )
 assert "global cursor block wins for cursor" '[ "$(fm "$SBX/.cursor/agents/docket-status.md" model)" = "gpt-5.5-medium-fast" ]'
 assert "global claude falls to default" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "haiku" ]'
@@ -603,5 +603,58 @@ assert "0046 (e): warns cursor block is not in agent_harnesses" 'printf "%s" "$g
 assert "0046 (e): cursor file NOT generated (dropped)" '[ ! -e "$SBX/.cursor/agents/docket-status.md" ]'
 assert "0046 (e): claude still generated from default" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "sonnet" ]'
 rm -rf "$SBX" "$HROOTX"
+
+# ============================================================================
+# Change 0050 — agents.yaml -> config.yml auto-migration (owned by sync-agents.sh)
+# ============================================================================
+
+# Happy path: agents.yaml (old top-level harness-first map) is rewritten under agents:
+# in config.yml, the original renamed .migrated, the run logs loudly, values apply.
+make_sandbox
+mkdir -p "$SBX/.config/docket"
+printf 'default:\n  status: { model: haiku, effort: low }\n' > "$SBX/.config/docket/agents.yaml"
+mig_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" 2>&1 >/dev/null)"
+assert "0050 mig: config.yml gains an agents: block" 'grep -qE "^agents[[:space:]]*:" "$SBX/.config/docket/config.yml"'
+assert "0050 mig: old file renamed to .migrated" '[ -f "$SBX/.config/docket/agents.yaml.migrated" ] && [ ! -e "$SBX/.config/docket/agents.yaml" ]'
+assert "0050 mig: logs the migration loudly" 'printf "%s" "$mig_err" | grep -qi "migrat"'
+assert "0050 mig: migrated values applied to wrappers" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "haiku" ]'
+# Idempotency: a second run leaves config.yml byte-identical (no duplicate agents: block).
+cfg_before="$(cat "$SBX/.config/docket/config.yml")"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
+cfg_after="$(cat "$SBX/.config/docket/config.yml")"
+assert "0050 mig: second run no-ops on config.yml" '[ "$cfg_before" = "$cfg_after" ]'
+assert "0050 mig: exactly one agents: block" '[ "$(grep -cE "^agents[[:space:]]*:" "$SBX/.config/docket/config.yml")" = "1" ]'
+rm -rf "$SBX"
+
+# Migration preserves pre-existing non-agents config.yml content.
+make_sandbox
+mkdir -p "$SBX/.config/docket"
+printf 'auto_groom: true\n' > "$SBX/.config/docket/config.yml"
+printf 'default:\n  status: { model: haiku }\n' > "$SBX/.config/docket/agents.yaml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
+assert "0050 mig: pre-existing config.yml keys preserved" 'grep -q "^auto_groom: true" "$SBX/.config/docket/config.yml"'
+assert "0050 mig: agents: appended alongside" 'grep -qE "^agents[[:space:]]*:" "$SBX/.config/docket/config.yml"'
+assert "0050 mig: values from the appended block apply" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "haiku" ]'
+rm -rf "$SBX"
+
+# Stale twin: config.yml already has agents: AND a live agents.yaml is present ->
+# warn stale, do NOT read it, do NOT rename it (only the migration renames).
+make_sandbox
+mkdir -p "$SBX/.config/docket"
+printf 'agents:\n  default:\n    status: { model: sonnet }\n' > "$SBX/.config/docket/config.yml"
+printf 'default:\n  status: { model: haiku }\n' > "$SBX/.config/docket/agents.yaml"
+stale_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" 2>&1 >/dev/null)"
+assert "0050 stale: warns agents.yaml is stale/unread" 'printf "%s" "$stale_err" | grep -qi "stale"'
+assert "0050 stale: config.yml value wins" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "sonnet" ]'
+assert "0050 stale: agents.yaml left in place" '[ -f "$SBX/.config/docket/agents.yaml" ]'
+rm -rf "$SBX"
+
+# No dual-read: a lone agents.yaml.migrated (post-migration state) is never read.
+make_sandbox
+mkdir -p "$SBX/.config/docket"
+printf 'default:\n  status: { model: haiku }\n' > "$SBX/.config/docket/agents.yaml.migrated"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
+assert "0050 no-dual-read: .migrated is not read (built-in model)" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "claude-haiku-4-5-20251001" ]'
+rm -rf "$SBX"
 
 exit $fail
