@@ -207,7 +207,7 @@ itself part of that durable record on the PR.
 
 ## Where finishing-a-development-branch fits
 
-When a human is present, `superpowers:finishing-a-development-branch` can drive a **non-standard close-out** (keep the branch, discard it, or merge locally without a PR) — its merge/keep/discard chooser fits naturally at step 4. docket also borrows its **worktree provenance-guard**: only auto-remove a worktree whose path is under `.worktrees/<slug>` — never remove a worktree outside that known path.
+When a human is present, the **resolved finish skill** — `$SKILL_FINISH` (default `superpowers:finishing-a-development-branch`) — can drive a **non-standard close-out** (keep the branch, discard it, or merge locally without a PR) — its merge/keep/discard chooser fits naturally at step 4. docket also borrows `superpowers:finishing-a-development-branch`'s **worktree provenance-guard**: only auto-remove a worktree whose path is under `.worktrees/<slug>` — never remove a worktree outside that known path.
 
 ## Terminal publish (docket-mode)
 

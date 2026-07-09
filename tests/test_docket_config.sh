@@ -231,6 +231,13 @@ assert "new-change brainstorm uses SKILL_BRAINSTORM" \
   'grep -qF "SKILL_BRAINSTORM" "$REPO/skills/docket-new-change/SKILL.md"'
 assert "groom-next brainstorm uses SKILL_BRAINSTORM" \
   'grep -qF "SKILL_BRAINSTORM" "$REPO/skills/docket-groom-next/SKILL.md"'
+IMPL="$REPO/skills/docket-implement-next/SKILL.md"
+assert "implement-next plan uses SKILL_PLAN"     'grep -qF "SKILL_PLAN" "$IMPL"'
+assert "implement-next build uses SKILL_BUILD"   'grep -qF "SKILL_BUILD" "$IMPL"'
+assert "implement-next review uses SKILL_REVIEW" 'grep -qF "SKILL_REVIEW" "$IMPL"'
+assert "implement-next finish uses SKILL_FINISH" 'grep -qF "SKILL_FINISH" "$IMPL"'
+assert "finalize finish uses SKILL_FINISH" \
+  'grep -qF "SKILL_FINISH" "$REPO/skills/docket-finalize-change/SKILL.md"'
 
 # --- (G) skills: absent -> five superpowers defaults (byte-identical behavior) ---
 mkrepo "$tmp/g"
