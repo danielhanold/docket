@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/global-config-layer
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -72,3 +72,13 @@ One global file, `${XDG_CONFIG_HOME:-~/.config}/docket/config.yml`, accepting th
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+- 2026-07-09 — Reconciled same-day as the brainstorm; `origin/main` unmoved since the spec
+  (tip `32aa634`, the 0049 close-out the spec already accounts for). Verified against current
+  code: `docket-config.sh` reads only `.docket.yml` from `origin/HEAD` (no global read, no
+  misplacement guard yet); `sync-agents.sh` reads `~/.config/docket/agents.yaml` with
+  `under_agents=0` and its `resolve_agent`/`harness_agent_line` parameterization supports the
+  planned `config.yml` `under_agents=1` read as the spec claims; `resolve_agent_harnesses`
+  is per-repo-only today, so the global user-level-pass scope is net-new logic as designed.
+  Test seams exist (`tests/test_docket_config.sh`, `tests/test_sync_agents.sh`). Related #0044
+  is still `proposed` with no scope overlap. No body or spec adjustments needed.
