@@ -123,6 +123,9 @@ parse in `sync-agents.sh` (not `docket-config.sh`).
 the full built-in agent set** for every harness in `agent_harnesses` — the `agents:` block is
 **override-only** (it tunes a model/effort; it never decides *which* agents exist, since the agents
 compose and a harness needs all of them). An `agents:` entry naming no built-in is a typo warning.
+Per-repo generation is **opt-in**: a repo opts in by declaring an `agents:` block or a top-level
+`agent_harnesses:` key; a `.docket.yml` present for change-tracking only (neither key) commits no
+per-repo wrappers and its `--check` stays a no-op — pre-0048 behavior for tracking-only repos.
 Additionally, the `cursor` harness gets a generated **`docket-dispatch.mdc`** rule (`~/.cursor/rules/`
 user-level; `<repo>/.cursor/rules/` per-repo) that forces a Task dispatch to the matching
 `subagent_type` — Cursor otherwise runs a directly-invoked skill inline at the current model,
