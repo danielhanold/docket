@@ -19,6 +19,8 @@ Built autonomously via `docket-implement-next` (SDD: 6 plan tasks, per-task spec
 
 ## Follow-ups (candidates, none blocking)
 
+- **#0051 filed (live-test finding, 2026-07-09):** in a repo opted into per-repo generation, the global `agents:` block is fully shadowed — the committed full set (change 0048) resolves from `.docket.yml` + built-ins only and takes harness precedence over the user-level wrappers carrying the global models. A loud causal warning was added to this PR as a stopgap; #0051 decides the real semantics (restore pre-0048 per-agent fall-through, a seed command, or docs-only).
+
 - **Pre-existing bash-3.2 hazard** (predates this branch, confirmed at base): `prune_orphans`' `for dir in "${scan_dirs[@]}"` errors under macOS `/bin/bash` 3.2 + `set -u` when the array is empty (no harness roots on disk AND repo not opted in). Guard: `[ ${#scan_dirs[@]} -gt 0 ]`. Fine rider on the next sync-agents change.
 - Migration polish: a directory at `config.yml` plus a live `agents.yaml` aborts `sync-agents.sh` with a raw redirection error (fail-loud but unprefixed — `docket-config.sh` handles the same state gracefully); `mv` would silently clobber a pre-existing `agents.yaml.migrated` (only reachable by recreating `agents.yaml` after a prior migration).
 - Cosmetic: an unknown `skills:` role present in both layers warns twice; one fence-loop printf is double-quoted where siblings are single-quoted.

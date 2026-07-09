@@ -769,4 +769,25 @@ assert "0050 doc: convention states the coordination-key fence" 'grep -qi "fence
 assert "0050 doc: convention Agent layer global row points at config.yml agents: block" \
   'grep -qE "^\| Global \|.*config\.yml" "$CONV"'
 
+# ---- Change 0050 follow-up (stopgap for #0051) — global agents: shadowing warning ----
+# An opted-in repo + a global agents: block => loud causal warning: the global block never
+# reaches committed wrappers, and the committed full set shadows the user-level wrappers.
+make_sandbox
+HROOTSW="$(mktemp -d)"; mkdir -p "$HROOTSW/.claude" "$HROOTSW/.config/docket"
+printf 'agents:\n  cursor:\n    status: { model: gpt-5.5-medium-fast }\n' > "$HROOTSW/.config/docket/config.yml"
+printf 'agent_harnesses: [claude]\nagents:\n  default:\n    status: { model: sonnet }\n' > "$SBX/.docket.yml"
+sw_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTSW" bash "$SYNC" 2>&1 >/dev/null)"
+assert "0050 shadow: warns global agents block is SHADOWED by per-repo generation" 'printf "%s" "$sw_err" | grep -q "SHADOWED"'
+assert "0050 shadow: warning names the remedy (.docket.yml agents: block)" 'printf "%s" "$sw_err" | grep -q "\.docket\.yml agents: block"'
+# Not opted in => the global block is live (user-level), no shadowing => no warning.
+printf 'metadata_branch: docket\n' > "$SBX/.docket.yml"
+sw_err2="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTSW" bash "$SYNC" 2>&1 >/dev/null)"
+assert "0050 shadow: no warning for a non-opted-in repo" '! printf "%s" "$sw_err2" | grep -q "SHADOWED"'
+# Opted in but the global file has no agents: entries => nothing shadowed => no warning.
+printf 'agent_harnesses: [claude]\n' > "$SBX/.docket.yml"
+printf 'auto_groom: false\n' > "$HROOTSW/.config/docket/config.yml"
+sw_err3="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTSW" bash "$SYNC" 2>&1 >/dev/null)"
+assert "0050 shadow: no warning when the global file has no agents entries" '! printf "%s" "$sw_err3" | grep -q "SHADOWED"'
+rm -rf "$SBX" "$HROOTSW"
+
 exit $fail

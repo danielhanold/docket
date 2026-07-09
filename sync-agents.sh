@@ -358,6 +358,14 @@ project_level_pass() {  # built-in ⊕ per-repo -> <repo>/.<H>/agents for each H
   per_repo_opted_in || return 0
   local src name harness dir cfg_h cfgname
   warn_legacy_shape "$DOCKET_YML" 1
+  # Shadowing warning (change 0050 live-test finding; real semantics decided by change 0051):
+  # a global agents: block NEVER reaches committed per-repo wrappers — they resolve from
+  # .docket.yml + built-ins only — and the committed full set takes harness precedence over
+  # the user-level wrappers that DO carry the global values. Without this warning the global
+  # config silently goes dead the moment a repo opts in.
+  if [ -n "$(agent_keys "$GLOBAL_CFG" 1)" ]; then
+    log "WARN global agents: config ($GLOBAL_CFG) is SHADOWED in this repo: per-repo generation commits the full agent set resolved from .docket.yml + built-ins only, and committed wrappers take precedence over the user-level wrappers carrying your global models — copy the overrides you want into this repo's .docket.yml agents: block"
+  fi
   # Warn on any agents.<harness> block whose harness is NOT in agent_harnesses (dead config).
   while IFS= read -r cfg_h; do
     [ -n "$cfg_h" ] || continue
