@@ -353,12 +353,28 @@ chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check 2>&1)"; 
 assert "--check fails when committed file is missing (rc!=0)" '[ "$chk_rc" != "0" ]'
 assert "--check reports missing-file drift" 'printf "%s" "$chk_out" | grep -q "drift"'
 
-# 0048: an empty agents: block still expects the FULL committed set. Generate, then --check passes.
-rm -f "$SBX/.docket.yml"; : > "$SBX/.docket.yml"
-( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null )
-chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check 2>&1)"; chk_rc=$?
-assert "0048: --check passes with empty agents: block once full set is committed (rc=0)" '[ "$chk_rc" = "0" ]'
-rm -rf "$SBX"
+# 0048 opt-in: a .docket.yml present for change-tracking only (no agents: / no agent_harnesses) does
+# NOT opt into per-repo generation — nothing is written and --check stays a no-op (backward-compat).
+make_sandbox                                          # SBX = the repo
+HROOTTO="$(mktemp -d)"; mkdir -p "$HROOTTO/.claude"   # separate user-level root
+printf 'metadata_branch: docket\n' > "$SBX/.docket.yml"      # tracking-only: no opt-in keys
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTTO" bash "$SYNC" >/dev/null )
+assert "0048 opt-in: tracking-only repo writes NO project-level wrappers" '[ ! -e "$SBX/.claude/agents/docket-status.md" ]'
+chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTTO" bash "$SYNC" --check 2>&1)"; chk_rc=$?
+assert "0048 opt-in: tracking-only repo --check is a no-op (rc=0)" '[ "$chk_rc" = "0" ]'
+rm -rf "$SBX" "$HROOTTO"
+
+# 0048 opt-in: agent_harnesses alone (NO agents: block) opts in — the real Cursor-repo case:
+# full built-in set + dispatch rule generated for the listed harnesses, at built-in defaults.
+make_sandbox
+HROOTAH="$(mktemp -d)"; mkdir -p "$HROOTAH/.claude"
+printf 'agent_harnesses: [claude, cursor]\n' > "$SBX/.docket.yml"   # no agents: block at all
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTAH" bash "$SYNC" >/dev/null )
+assert "0048 opt-in: agent_harnesses-only generates full set for cursor" '[ "$(find "$SBX/.cursor/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "8" ]'
+assert "0048 opt-in: agent_harnesses-only generates full set for claude" '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "8" ]'
+assert "0048 opt-in: agent_harnesses-only generates the cursor dispatch rule" '[ -f "$SBX/.cursor/rules/docket-dispatch.mdc" ]'
+assert "0048 opt-in: agent_harnesses-only wrappers carry built-in default (no overrides)" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "claude-haiku-4-5-20251001" ]'
+rm -rf "$SBX" "$HROOTAH"
 
 # 0048: a repo with NO .docket.yml at all has nothing to check -> passes.
 make_sandbox

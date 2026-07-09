@@ -89,10 +89,21 @@ resolve_agent_harnesses(){
   HARNESSES="$(echo $HARNESSES)"                  # trim/collapse ("[]" or all-unknown => "")
 }
 
+# Per-repo generation is OPT-IN: a repo opts in by declaring an `agents:` override block OR an
+# explicit top-level `agent_harnesses:` key. A .docket.yml present for change-tracking only (neither
+# key) gets NO committed per-repo wrappers — preserving pre-0048 behavior for tracking-only repos
+# (no surprise files from `sync-agents.sh`, and `--check` stays a no-op).
+per_repo_opted_in() {
+  [ -f "$DOCKET_YML" ] || return 1
+  grep -qE '^agent_harnesses[[:space:]]*:' "$DOCKET_YML" && return 0
+  grep -qE '^agents[[:space:]]*:' "$DOCKET_YML" && return 0
+  return 1
+}
+
 short_name(){ local b; b="$(basename "$1")"; b="${b#docket-}"; printf '%s' "${b%.md}"; }
 
 # Extract the single-line `description:` frontmatter value from a wrapper source file.
-agent_description(){ sed -n 's/^description:[[:space:]]*//p' "$1" | head -n1; }
+agent_description(){ sed -n '/^description:/{s/^description:[[:space:]]*//;p;q;}' "$1"; }
 
 # Harnesses that get a generated Cursor-style dispatch rule (only cursor exhibits the inline quirk).
 HARNESS_HAS_DISPATCH_RULES="cursor"
@@ -270,7 +281,7 @@ user_level_pass() {  # built-in ⊕ global -> each present harness */agents dir,
 }
 
 project_level_pass() {  # built-in ⊕ per-repo -> <repo>/.<H>/agents for each H in HARNESSES (committed)
-  [ -f "$DOCKET_YML" ] || return 0
+  per_repo_opted_in || return 0
   local src name harness dir cfg_h cfgname
   warn_legacy_shape "$DOCKET_YML" 1
   # Warn on any agents.<harness> block whose harness is NOT in agent_harnesses (dead config).
@@ -306,7 +317,7 @@ project_level_pass() {  # built-in ⊕ per-repo -> <repo>/.<H>/agents for each H
 
 check_project_level() {  # diff committed <repo>/.<H>/agents files against freshly-resolved config (per harness)
   local rc=0 src name got tmp d harness
-  [ -f "$DOCKET_YML" ] || { log "no .docket.yml in $REPO — nothing to check"; return 0; }
+  per_repo_opted_in || { log "no per-repo agent opt-in (agents:/agent_harnesses) in $REPO — nothing to check"; return 0; }
   local legacy; legacy="$(legacy_agent_keys "$DOCKET_YML" 1)"
   if [ -n "$legacy" ]; then
     log "drift: legacy bare-agent-key agents: shape ($(printf '%s' "$legacy" | tr '\n' ' ')) — reshape to agents.default.<agent> (run: bash sync-agents.sh)"
@@ -372,10 +383,13 @@ rmdir_if_docket_emptied() {  # $1 = dir
 #                  plus per-repo de-listed-harness cleanup.
 #   scope=per-repo --check — per-repo only, report-only.
 prune_orphans() {  # $1 = scope (all|per-repo)
-  local scope="$1" dir f name tok pruned
-  # (1) Removed built-in agent: any docket-<name>.md whose built-in source is gone.
+  local scope="$1" dir f name tok pruned_agents pruned_rule
   local -a scan_dirs=()
-  for tok in $HARNESSES; do scan_dirs+=("$REPO/.$tok/agents"); done
+  # (1a) per-repo removed-builtin dirs — only for a repo that opted into per-repo generation.
+  if per_repo_opted_in; then
+    for tok in $HARNESSES; do scan_dirs+=("$REPO/.$tok/agents"); done
+  fi
+  # (1b) user-level removed-builtin dirs — every present harness (normal run only).
   if [ "$scope" = "all" ]; then
     for dir in "${HARNESS_AGENT_DIRS[@]}"; do
       [ -d "$(dirname "$dir")" ] && scan_dirs+=("$dir")
@@ -389,31 +403,24 @@ prune_orphans() {  # $1 = scope (all|per-repo)
       [ -f "$AGENTS_SRC/docket-$name.md" ] || handle_orphan "$f"
     done
   done
-  # (2) De-listed per-repo harness: a known harness NOT in HARNESSES with docket-owned per-repo files.
-  # "De-listed from agent_harnesses" is only a meaningful concept when this repo actually HAS a
-  # .docket.yml (mirrors the same guard project_level_pass/check_project_level already use): without
-  # one, $REPO/.$tok/* is never a committed per-repo target, and — when REPO happens to equal
-  # HARNESS_ROOT (a test/dev harness-root override) — skipping here keeps this from mistaking a
-  # still-present USER-LEVEL dir for a de-listed per-repo one.
-  if [ -f "$DOCKET_YML" ]; then
-    for tok in $VALID_HARNESS_TOKENS; do
-      case " $HARNESSES " in *" $tok "*) continue;; esac      # still listed -> not de-listed
-      pruned=0
-      for f in "$REPO/.$tok/agents"/docket-*.md; do
-        [ -e "$f" ] || continue
-        handle_orphan "$f"; pruned=1
-      done
-      if [ -e "$REPO/.$tok/rules/docket-dispatch.mdc" ]; then
-        handle_orphan "$REPO/.$tok/rules/docket-dispatch.mdc"; pruned=1
-      fi
-      # Only rmdir dirs docket just emptied (pruned=1) — never a user's pre-existing dir.
-      if [ "$pruned" = "1" ]; then
-        rmdir_if_docket_emptied "$REPO/.$tok/agents"
-        rmdir_if_docket_emptied "$REPO/.$tok/rules"
-        rmdir_if_docket_emptied "$REPO/.$tok"
-      fi
+  # (2) de-listed per-repo harness — only for an opted-in repo. A known harness NOT in HARNESSES that
+  # still holds docket-owned per-repo files (agents + dispatch rule) is pruned; only the specific
+  # dirs docket actually emptied are rmdir'd (never a pre-existing / user dir).
+  per_repo_opted_in || return 0
+  for tok in $VALID_HARNESS_TOKENS; do
+    case " $HARNESSES " in *" $tok "*) continue;; esac      # still listed -> not de-listed
+    pruned_agents=0; pruned_rule=0
+    for f in "$REPO/.$tok/agents"/docket-*.md; do
+      [ -e "$f" ] || continue
+      handle_orphan "$f"; pruned_agents=1
     done
-  fi
+    if [ -e "$REPO/.$tok/rules/docket-dispatch.mdc" ]; then
+      handle_orphan "$REPO/.$tok/rules/docket-dispatch.mdc"; pruned_rule=1
+    fi
+    if [ "$pruned_agents" = "1" ]; then rmdir_if_docket_emptied "$REPO/.$tok/agents"; fi
+    if [ "$pruned_rule" = "1" ]; then rmdir_if_docket_emptied "$REPO/.$tok/rules"; fi
+    if [ "$pruned_agents" = "1" ] || [ "$pruned_rule" = "1" ]; then rmdir_if_docket_emptied "$REPO/.$tok"; fi
+  done
 }
 
 resolve_agent_harnesses
