@@ -47,10 +47,10 @@ board_surfaces: [inline]
 # FILE's top level — no `agents:` wrapper) > built-in. `effort: auto` explicitly drops the effort
 # line (inherit the model default); omitting the `effort:` key instead keeps the built-in effort —
 # auto and omitted are NOT equivalent. Only the 5 autonomous skills have
-# wrappers; new-change/groom-next are advisory-only and ignore this block. Listing a skill here
-# generates a COMMITTED project-level .<harness>/agents/docket-<skill>.md for each harness in
-# agent_harnesses — run `sync-agents.sh` after editing, and `sync-agents.sh --check` in CI to catch
-# drift.
+# wrappers; new-change/groom-next are advisory-only and ignore this block. Configuring a skill
+# here overrides its model/effort in the COMMITTED project-level .<harness>/agents/docket-<skill>.md
+# — which is generated for every built-in regardless (full set; this block is override-only). Run
+# `sync-agents.sh` after editing, and `sync-agents.sh --check` in CI to catch drift.
 #
 # The per-repo pass writes the FULL built-in agent set for every harness in agent_harnesses; this
 # block is OVERRIDE-ONLY (tunes model/effort, never decides which agents exist). A `cursor` harness
