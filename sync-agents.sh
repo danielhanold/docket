@@ -24,6 +24,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AGENTS_SRC="$SCRIPT_DIR/agents"
+CURSOR_RULES_SRC="$SCRIPT_DIR/cursor-rules"
 REPO="$PWD"
 
 HARNESS_ROOT="${DOCKET_HARNESS_ROOT:-$HOME}"
@@ -88,7 +89,25 @@ resolve_agent_harnesses(){
   HARNESSES="$(echo $HARNESSES)"                  # trim/collapse ("[]" or all-unknown => "")
 }
 
+# Per-repo generation is OPT-IN: a repo opts in by declaring an `agents:` override block OR an
+# explicit top-level `agent_harnesses:` key. A .docket.yml present for change-tracking only (neither
+# key) gets NO committed per-repo wrappers — preserving pre-0048 behavior for tracking-only repos
+# (no surprise files from `sync-agents.sh`, and `--check` stays a no-op).
+per_repo_opted_in() {
+  [ -f "$DOCKET_YML" ] || return 1
+  grep -qE '^agent_harnesses[[:space:]]*:' "$DOCKET_YML" && return 0
+  grep -qE '^agents[[:space:]]*:' "$DOCKET_YML" && return 0
+  return 1
+}
+
 short_name(){ local b; b="$(basename "$1")"; b="${b#docket-}"; printf '%s' "${b%.md}"; }
+
+# Extract the single-line `description:` frontmatter value from a wrapper source file.
+agent_description(){ sed -n '/^description:/{s/^description:[[:space:]]*//;p;q;}' "$1"; }
+
+# Harnesses that get a generated Cursor-style dispatch rule (only cursor exhibits the inline quirk).
+HARNESS_HAS_DISPATCH_RULES="cursor"
+harness_has_dispatch_rule(){ case " $HARNESS_HAS_DISPATCH_RULES " in *" $1 "*) return 0;; *) return 1;; esac; }
 
 # --- config helpers ----------------------------------------------------------
 # Print the body nested under the first bare `<key>:` header from stdin, DEDENTED to column 0
@@ -187,6 +206,35 @@ emit() {  # $1=src file  $2=model  $3=effort
     }' "$1"
 }
 
+# Assemble the Cursor dispatch rule to stdout: static head + one subsection per built-in agent
+# (glob order). A built-in agent with a fragment uses it verbatim; one without gets a minimal
+# auto-block derived from its description + a warning (a new agent is never silently un-dispatched).
+assemble_dispatch_rule() {
+  cat "$CURSOR_RULES_SRC/dispatch.head.md"
+  local src name frag desc
+  for src in "$AGENTS_SRC"/docket-*.md; do
+    [ -e "$src" ] || continue
+    name="$(short_name "$src")"
+    frag="$CURSOR_RULES_SRC/dispatch/docket-$name.md"
+    printf '\n'
+    if [ -f "$frag" ]; then
+      cat "$frag"
+    else
+      desc="$(agent_description "$src")"
+      printf '## docket-%s — dispatch only\n\n' "$name"
+      printf '%s\n\n' "$desc"
+      printf 'When this applies, do NOT run the skill inline. Launch a Task with `subagent_type: "docket-%s"`, `run_in_background: false`, and relay its result.\n' "$name"
+      log "WARN no dispatch fragment for docket-$name — emitted a minimal auto-block; add cursor-rules/dispatch/docket-$name.md"
+    fi
+  done
+}
+
+# Write the dispatch rule into a harness root's rules/ dir (<root>/.<harness>/rules/docket-dispatch.mdc).
+write_dispatch_rule() {  # $1 = <root>/.<harness> base path
+  mkdir -p "$1/rules"
+  assemble_dispatch_rule > "$1/rules/docket-dispatch.mdc"
+}
+
 # Non-fatal footgun warning: when generating a NON-claude harness file whose `model` resolved from
 # default/built-in (no agents.<harness> override supplied it), the ID is likely wrong for that
 # harness (ADR-0015: some harnesses silently run their house default on an unknown model). Never
@@ -224,28 +272,33 @@ user_level_pass() {  # built-in ⊕ global -> each present harness */agents dir,
       emit "$src" "$RES_MODEL" "$RES_EFFORT" > "$dir/$(basename "$src")"
     done
   done
+  # Cursor-only dispatch rule, user-level, for each present dispatch-rule harness root.
+  local drh
+  for drh in $HARNESS_HAS_DISPATCH_RULES; do
+    [ -d "$HARNESS_ROOT/.$drh" ] || continue
+    write_dispatch_rule "$HARNESS_ROOT/.$drh"
+  done
 }
 
 project_level_pass() {  # built-in ⊕ per-repo -> <repo>/.<H>/agents for each H in HARNESSES (committed)
-  [ -f "$DOCKET_YML" ] || return 0
-  local names name src harness dir
+  per_repo_opted_in || return 0
+  local src name harness dir cfg_h cfgname
   warn_legacy_shape "$DOCKET_YML" 1
   # Warn on any agents.<harness> block whose harness is NOT in agent_harnesses (dead config).
-  local cfg_h
   while IFS= read -r cfg_h; do
     [ -n "$cfg_h" ] || continue
     [ "$cfg_h" = "default" ] && continue
     case " $HARNESSES " in *" $cfg_h "*) : ;; *) log "WARN agents.$cfg_h: block is not in agent_harnesses — ignored (dead config)." ;; esac
   done < <(agents_block_harnesses "$DOCKET_YML")
-  names="$(agent_keys "$DOCKET_YML" 1)"
-  [ -n "$names" ] || return 0
-  while IFS= read -r name; do
-    [ -n "$name" ] || continue
-    src="$AGENTS_SRC/docket-$name.md"
-    if [ ! -f "$src" ]; then
-      log "skip '$name' — no built-in wrapper (advisory/interactive skills have no agent file)"
-      continue
-    fi
+  # Typo guard: an agents: entry that overrides no real built-in is a no-op — warn (do not fail).
+  while IFS= read -r cfgname; do
+    [ -n "$cfgname" ] || continue
+    [ -f "$AGENTS_SRC/docket-$cfgname.md" ] || log "WARN agents: '$cfgname' overrides no built-in agent (no agents/docket-$cfgname.md) — ignored (typo? advisory/interactive skills have no wrapper)."
+  done < <(agent_keys "$DOCKET_YML" 1)
+  # Always generate the FULL built-in set (config is override-only) into each listed harness.
+  for src in "$AGENTS_SRC"/docket-*.md; do
+    [ -e "$src" ] || continue
+    name="$(short_name "$src")"
     for harness in $HARNESSES; do
       resolve_agent "$DOCKET_YML" "$harness" "$name" 1
       warn_fallback_model "$harness" "$name"
@@ -253,28 +306,29 @@ project_level_pass() {  # built-in ⊕ per-repo -> <repo>/.<H>/agents for each H
       mkdir -p "$dir"
       emit "$src" "$RES_MODEL" "$RES_EFFORT" > "$dir/docket-$name.md"
     done
-  done <<EOF
-$names
-EOF
+  done
+  # Cursor-only dispatch rule, per-repo (committed) when cursor is a targeted harness.
+  local h
+  for h in $HARNESSES; do
+    harness_has_dispatch_rule "$h" || continue
+    write_dispatch_rule "$REPO/.$h"
+  done
 }
 
 check_project_level() {  # diff committed <repo>/.<H>/agents files against freshly-resolved config (per harness)
-  local rc=0 names name src got tmp d harness
-  [ -f "$DOCKET_YML" ] || { log "no .docket.yml in $REPO — nothing to check"; return 0; }
+  local rc=0 src name got tmp d harness
+  per_repo_opted_in || { log "no per-repo agent opt-in (agents:/agent_harnesses) in $REPO — nothing to check"; return 0; }
   local legacy; legacy="$(legacy_agent_keys "$DOCKET_YML" 1)"
   if [ -n "$legacy" ]; then
     log "drift: legacy bare-agent-key agents: shape ($(printf '%s' "$legacy" | tr '\n' ' ')) — reshape to agents.default.<agent> (run: bash sync-agents.sh)"
     rc=1
   fi
-  names="$(agent_keys "$DOCKET_YML" 1)"
-  [ -n "$names" ] || { log "no agents: block — nothing to check"; return $rc; }
   tmp="$(mktemp -d)"
-  while IFS= read -r name; do
-    [ -n "$name" ] || continue
-    src="$AGENTS_SRC/docket-$name.md"
-    [ -f "$src" ] || continue
+  for src in "$AGENTS_SRC"/docket-*.md; do
+    [ -e "$src" ] || continue
+    name="$(short_name "$src")"
     for harness in $HARNESSES; do
-      resolve_agent "$DOCKET_YML" "$harness" "$name" 1      # harness-specific bytes (no longer harness-independent)
+      resolve_agent "$DOCKET_YML" "$harness" "$name" 1
       emit "$src" "$RES_MODEL" "$RES_EFFORT" > "$tmp/docket-$name.md"
       got="$REPO/.$harness/agents/docket-$name.md"
       if [ ! -f "$got" ]; then
@@ -283,11 +337,90 @@ check_project_level() {  # diff committed <repo>/.<H>/agents files against fresh
       d="$(diff -u "$got" "$tmp/docket-$name.md" || true)"
       if [ -n "$d" ]; then log "drift in .$harness/agents/docket-$name.md:"; printf '%s\n' "$d" >&2; rc=1; fi
     done
-  done <<EOF
-$names
-EOF
+  done
   rm -rf "$tmp"
+  # Dispatch-rule drift: re-assemble and byte-diff the committed per-repo rule for each listed
+  # dispatch-rule harness (cursor). The rule bytes are harness-independent, so assemble once.
+  local h rule_got rule_tmp rd
+  rule_tmp="$(mktemp)"
+  assemble_dispatch_rule > "$rule_tmp"
+  for h in $HARNESSES; do
+    harness_has_dispatch_rule "$h" || continue
+    rule_got="$REPO/.$h/rules/docket-dispatch.mdc"
+    if [ ! -f "$rule_got" ]; then
+      log "drift: missing $rule_got (run: bash sync-agents.sh)"; rc=1; continue
+    fi
+    rd="$(diff -u "$rule_got" "$rule_tmp" || true)"
+    if [ -n "$rd" ]; then log "drift in .$h/rules/docket-dispatch.mdc:"; printf '%s\n' "$rd" >&2; rc=1; fi
+  done
+  rm -f "$rule_tmp"
+  # Orphan report (per-repo only, report-only): a committed docket-owned file with no source.
+  ORPHAN_DRIFT=0
+  prune_orphans per-repo
+  [ "$ORPHAN_DRIFT" = "1" ] && rc=1
   return $rc
+}
+
+# Handle one orphaned docket-owned file: report it as drift under --check, else rm it.
+handle_orphan() {  # $1 = path ; sets ORPHAN_DRIFT=1 under --check
+  if [ "$CHECK" = "1" ]; then
+    log "drift: orphaned docket-owned file $1 (run: bash sync-agents.sh)"
+    ORPHAN_DRIFT=1
+  else
+    rm -f "$1"
+  fi
+}
+
+# rmdir a dir ONLY if docket emptied it this run (never a pre-existing empty/user dir). Delete mode only.
+rmdir_if_docket_emptied() {  # $1 = dir
+  [ "$CHECK" = "1" ] && return 0
+  [ -d "$1" ] || return 0
+  rmdir "$1" 2>/dev/null || true
+}
+
+# Prune orphaned docket-owned files. Scope:
+#   scope=all      normal run — per-repo (HARNESSES) + user-level (present harnesses) removed-builtins,
+#                  plus per-repo de-listed-harness cleanup.
+#   scope=per-repo --check — per-repo only, report-only.
+prune_orphans() {  # $1 = scope (all|per-repo)
+  local scope="$1" dir f name tok pruned_agents pruned_rule
+  local -a scan_dirs=()
+  # (1a) per-repo removed-builtin dirs — only for a repo that opted into per-repo generation.
+  if per_repo_opted_in; then
+    for tok in $HARNESSES; do scan_dirs+=("$REPO/.$tok/agents"); done
+  fi
+  # (1b) user-level removed-builtin dirs — every present harness (normal run only).
+  if [ "$scope" = "all" ]; then
+    for dir in "${HARNESS_AGENT_DIRS[@]}"; do
+      [ -d "$(dirname "$dir")" ] && scan_dirs+=("$dir")
+    done
+  fi
+  for dir in "${scan_dirs[@]}"; do
+    [ -d "$dir" ] || continue
+    for f in "$dir"/docket-*.md; do
+      [ -e "$f" ] || continue
+      name="$(short_name "$f")"
+      [ -f "$AGENTS_SRC/docket-$name.md" ] || handle_orphan "$f"
+    done
+  done
+  # (2) de-listed per-repo harness — only for an opted-in repo. A known harness NOT in HARNESSES that
+  # still holds docket-owned per-repo files (agents + dispatch rule) is pruned; only the specific
+  # dirs docket actually emptied are rmdir'd (never a pre-existing / user dir).
+  per_repo_opted_in || return 0
+  for tok in $VALID_HARNESS_TOKENS; do
+    case " $HARNESSES " in *" $tok "*) continue;; esac      # still listed -> not de-listed
+    pruned_agents=0; pruned_rule=0
+    for f in "$REPO/.$tok/agents"/docket-*.md; do
+      [ -e "$f" ] || continue
+      handle_orphan "$f"; pruned_agents=1
+    done
+    if [ -e "$REPO/.$tok/rules/docket-dispatch.mdc" ]; then
+      handle_orphan "$REPO/.$tok/rules/docket-dispatch.mdc"; pruned_rule=1
+    fi
+    if [ "$pruned_agents" = "1" ]; then rmdir_if_docket_emptied "$REPO/.$tok/agents"; fi
+    if [ "$pruned_rule" = "1" ]; then rmdir_if_docket_emptied "$REPO/.$tok/rules"; fi
+    if [ "$pruned_agents" = "1" ] || [ "$pruned_rule" = "1" ]; then rmdir_if_docket_emptied "$REPO/.$tok"; fi
+  done
 }
 
 resolve_agent_harnesses
@@ -298,4 +431,5 @@ fi
 
 user_level_pass
 project_level_pass
+prune_orphans all
 log "done"

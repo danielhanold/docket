@@ -98,9 +98,145 @@ printf 'agents:\n  default:\n    status: { model: sonnet, effort: high }\n    ne
 assert "per-repo default writes project-level file" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
 assert "per-repo default applies model" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "sonnet" ]'
 assert "per-repo default applies effort" '[ "$(fm "$SBX/.claude/agents/docket-status.md" effort)" = "high" ]'
-assert "no project-level file for unlisted skill (implement-next)" '[ ! -f "$SBX/.claude/agents/docket-implement-next.md" ]'
+assert "0048: unlisted skill NOW generated at built-in default (implement-next)" '[ -f "$SBX/.claude/agents/docket-implement-next.md" ]'
+assert "0048: unlisted implement-next carries built-in model (claude-opus-4-8)" '[ "$(fm "$SBX/.claude/agents/docket-implement-next.md" model)" = "claude-opus-4-8" ]'
 assert "advisory skill in agents: produces NO file (new-change)" '[ ! -f "$SBX/.claude/agents/docket-new-change.md" ]'
 rm -rf "$SBX" "$HROOT"
+
+# ============================================================================
+# Change 0048 — always-full-set per-repo generation (Piece 1)
+# ============================================================================
+
+# Per-repo now generates the FULL built-in set for a listed harness even when the
+# agents: block lists only a subset; unlisted agents carry the built-in default model.
+make_sandbox                                       # SBX = the repo
+HROOT48A="$(mktemp -d)"; mkdir -p "$HROOT48A/.claude"
+printf 'agents:\n  default:\n    status: { model: sonnet, effort: high }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48A" bash "$SYNC" >/dev/null )
+assert "0048: full set — all 8 built-ins land in project-level .claude/agents" \
+  '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "8" ]'
+assert "0048: listed agent carries its override (status=sonnet)" \
+  '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "sonnet" ]'
+assert "0048: UNLISTED agent generated at built-in default (implement-next=claude-opus-4-8/xhigh)" \
+  '[ "$(fm "$SBX/.claude/agents/docket-implement-next.md" model)/$(fm "$SBX/.claude/agents/docket-implement-next.md" effort)" = "claude-opus-4-8/xhigh" ]'
+rm -rf "$SBX" "$HROOT48A"
+
+# 0048 Piece 2 — the Cursor dispatch rule is generated per-repo when cursor is listed.
+make_sandbox
+HROOT48R="$(mktemp -d)"; mkdir -p "$HROOT48R/.claude"
+printf 'agent_harnesses: [claude, cursor]\nagents:\n  default:\n    status: { model: sonnet }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48R" bash "$SYNC" >/dev/null )
+RULE="$SBX/.cursor/rules/docket-dispatch.mdc"
+assert "0048 rule: per-repo docket-dispatch.mdc written for cursor" '[ -f "$RULE" ]'
+assert "0048 rule: carries alwaysApply: true frontmatter" 'grep -q "^alwaysApply: true" "$RULE"'
+assert "0048 rule: has the required dispatch pattern heading" 'grep -q "## Required dispatch pattern" "$RULE"'
+assert "0048 rule: has a subsection for every built-in agent (8)" \
+  '[ "$(grep -cE "^## docket-.* — dispatch only" "$RULE")" = "8" ]'
+assert "0048 rule: names docket-implement-next as a subsection" 'grep -q "^## docket-implement-next — dispatch only" "$RULE"'
+assert "0048 rule: names docket-status as a subsection" 'grep -q "^## docket-status — dispatch only" "$RULE"'
+assert "0048 rule: no subsection for a non-existent agent" '! grep -q "docket-nonexistent" "$RULE"'
+assert "0048 rule: deterministic order — adr before status" \
+  '[ "$(grep -n "^## docket-adr — dispatch only" "$RULE" | cut -d: -f1)" -lt "$(grep -n "^## docket-status — dispatch only" "$RULE" | cut -d: -f1)" ]'
+rm -rf "$SBX" "$HROOT48R"
+
+# 0048 Piece 2 — cursor NOT listed => no per-repo rule (claude/other harness gets none).
+make_sandbox
+HROOT48N="$(mktemp -d)"; mkdir -p "$HROOT48N/.claude"
+printf 'agent_harnesses: [claude]\nagents:\n  default:\n    status: { model: sonnet }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48N" bash "$SYNC" >/dev/null )
+assert "0048 rule: no dispatch rule for a claude-only repo" '[ ! -e "$SBX/.cursor/rules/docket-dispatch.mdc" ]'
+assert "0048 rule: no rules dir under .claude" '[ ! -e "$SBX/.claude/rules/docket-dispatch.mdc" ]'
+rm -rf "$SBX" "$HROOT48N"
+
+# 0048 Piece 2 — user-level: rule written to ~/.cursor/rules when ~/.cursor present, skipped when absent.
+make_sandbox                                  # make_sandbox creates .claude + .agents; .cursor ABSENT
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null )
+assert "0048 rule: user-level rule SKIPPED when ~/.cursor absent" '[ ! -e "$SBX/.cursor/rules/docket-dispatch.mdc" ]'
+mkdir -p "$SBX/.cursor"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null )
+assert "0048 rule: user-level rule WRITTEN when ~/.cursor present" '[ -f "$SBX/.cursor/rules/docket-dispatch.mdc" ]'
+rm -rf "$SBX"
+
+# 0048 Piece 2 — a built-in agent lacking a fragment gets a minimal auto-block + a warning.
+# Simulate by pointing the generator at a scratch clone whose fragment we remove.
+make_sandbox
+HROOT48F="$(mktemp -d)"; mkdir -p "$HROOT48F/.claude"
+printf 'agent_harnesses: [cursor]\nagents:\n  default:\n    status: { model: sonnet }\n' > "$SBX/.docket.yml"
+# Remove one fragment in a throwaway copy of the repo scripts so the auto-block path fires.
+SCRATCH="$(mktemp -d)"; cp -R "$REPO/agents" "$REPO/cursor-rules" "$REPO/sync-agents.sh" "$SCRATCH/"
+rm -f "$SCRATCH/cursor-rules/dispatch/docket-status.md"
+gen_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48F" bash "$SCRATCH/sync-agents.sh" 2>&1 >/dev/null)"
+RULE="$SBX/.cursor/rules/docket-dispatch.mdc"
+assert "0048 auto-block: warns about the missing fragment" 'printf "%s" "$gen_err" | grep -qi "no dispatch fragment for docket-status"'
+assert "0048 auto-block: still emits a docket-status subsection" 'grep -q "^## docket-status — dispatch only" "$RULE"'
+assert "0048 auto-block: subsection includes a Task subagent_type" 'grep -q "subagent_type: \"docket-status\"" "$RULE"'
+rm -rf "$SBX" "$HROOT48F" "$SCRATCH"
+
+# 0048 Piece 2 --check — a committed dispatch rule that drifts fails --check.
+make_sandbox
+HROOT48C="$(mktemp -d)"; mkdir -p "$HROOT48C/.claude"
+printf 'agent_harnesses: [claude, cursor]\nagents:\n  default:\n    status: { model: sonnet }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48C" bash "$SYNC" >/dev/null )
+chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48C" bash "$SYNC" --check 2>&1)"; chk_rc=$?
+assert "0048 rule-check: passes for an in-sync committed rule (rc=0)" '[ "$chk_rc" = "0" ]'
+# Hand-edit the committed rule -> drift.
+printf '\n<!-- tampered -->\n' >> "$SBX/.cursor/rules/docket-dispatch.mdc"
+chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48C" bash "$SYNC" --check 2>&1)"; chk_rc=$?
+assert "0048 rule-check: flags a hand-edited rule (rc!=0)" '[ "$chk_rc" != "0" ]'
+assert "0048 rule-check: names the dispatch rule in the drift report" 'printf "%s" "$chk_out" | grep -q "docket-dispatch.mdc"'
+# Delete the committed rule -> missing-file drift.
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48C" bash "$SYNC" >/dev/null )   # regenerate clean
+rm -f "$SBX/.cursor/rules/docket-dispatch.mdc"
+chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48C" bash "$SYNC" --check 2>&1)"; chk_rc=$?
+assert "0048 rule-check: flags a missing committed rule (rc!=0)" '[ "$chk_rc" != "0" ]'
+rm -rf "$SBX" "$HROOT48C"
+
+# 0048 Piece 3 — removing a built-in agent prunes its generated files (both layers) + rule subsection.
+make_sandbox
+HROOT48P="$(mktemp -d)"; mkdir -p "$HROOT48P/.cursor"   # present user-level cursor root
+printf 'agent_harnesses: [cursor]\nagents:\n  default:\n    status: { model: sonnet }\n' > "$SBX/.docket.yml"
+# Scratch clone we can mutate (remove a built-in agent + its fragment).
+SCRATCH="$(mktemp -d)"; cp -R "$REPO/agents" "$REPO/cursor-rules" "$REPO/sync-agents.sh" "$SCRATCH/"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48P" bash "$SCRATCH/sync-agents.sh" >/dev/null )
+assert "0048 prune: adr generated before removal (per-repo)" '[ -f "$SBX/.cursor/agents/docket-adr.md" ]'
+assert "0048 prune: adr generated before removal (user-level)" '[ -f "$HROOT48P/.cursor/agents/docket-adr.md" ]'
+# Remove the built-in agent + its fragment, regenerate: the orphan must be pruned.
+rm -f "$SCRATCH/agents/docket-adr.md" "$SCRATCH/cursor-rules/dispatch/docket-adr.md"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48P" bash "$SCRATCH/sync-agents.sh" >/dev/null )
+assert "0048 prune: removed built-in pruned from per-repo .cursor/agents" '[ ! -e "$SBX/.cursor/agents/docket-adr.md" ]'
+assert "0048 prune: removed built-in pruned from user-level .cursor/agents" '[ ! -e "$HROOT48P/.cursor/agents/docket-adr.md" ]'
+assert "0048 prune: rule subsection for removed agent dropped" '! grep -q "^## docket-adr — dispatch only" "$SBX/.cursor/rules/docket-dispatch.mdc"'
+assert "0048 prune: a surviving agent remains" '[ -f "$SBX/.cursor/agents/docket-status.md" ]'
+rm -rf "$SBX" "$HROOT48P" "$SCRATCH"
+
+# 0048 Piece 3 — de-listing cursor prunes its per-repo docket files + rule, keeps a co-located non-docket file.
+make_sandbox
+HROOT48D="$(mktemp -d)"; mkdir -p "$HROOT48D/.claude"
+printf 'agent_harnesses: [claude, cursor]\nagents:\n  default:\n    status: { model: sonnet }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48D" bash "$SYNC" >/dev/null )
+: > "$SBX/.cursor/agents/my-own-agent.md"          # operator's own co-located file
+assert "0048 delist: cursor agents present before de-list" '[ -f "$SBX/.cursor/agents/docket-status.md" ]'
+assert "0048 delist: cursor rule present before de-list" '[ -f "$SBX/.cursor/rules/docket-dispatch.mdc" ]'
+# De-list cursor.
+printf 'agent_harnesses: [claude]\nagents:\n  default:\n    status: { model: sonnet }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48D" bash "$SYNC" >/dev/null )
+assert "0048 delist: cursor docket agents pruned" '[ ! -e "$SBX/.cursor/agents/docket-status.md" ]'
+assert "0048 delist: cursor dispatch rule pruned" '[ ! -e "$SBX/.cursor/rules/docket-dispatch.mdc" ]'
+assert "0048 delist: operator's co-located non-docket file preserved" '[ -f "$SBX/.cursor/agents/my-own-agent.md" ]'
+assert "0048 delist: claude still generated" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
+rm -rf "$SBX" "$HROOT48D"
+
+# 0048 Piece 3 --check — an orphaned committed file is reported as drift, NOT deleted.
+make_sandbox
+HROOT48O="$(mktemp -d)"; mkdir -p "$HROOT48O/.claude"
+printf 'agent_harnesses: [claude]\nagents:\n  default:\n    status: { model: sonnet }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48O" bash "$SYNC" >/dev/null )
+: > "$SBX/.claude/agents/docket-bogus.md"           # an orphan: no built-in docket-bogus
+chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48O" bash "$SYNC" --check 2>&1)"; chk_rc=$?
+assert "0048 orphan-check: reports the orphan as drift (rc!=0)" '[ "$chk_rc" != "0" ]'
+assert "0048 orphan-check: names the orphaned file" 'printf "%s" "$chk_out" | grep -q "docket-bogus.md"'
+assert "0048 orphan-check: --check does NOT delete the orphan" '[ -f "$SBX/.claude/agents/docket-bogus.md" ]'
+rm -rf "$SBX" "$HROOT48O"
 
 # (a)+(b) harness override wins; field-level merge — model from cursor, effort inherited from default.
 make_sandbox
@@ -217,10 +353,33 @@ chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check 2>&1)"; 
 assert "--check fails when committed file is missing (rc!=0)" '[ "$chk_rc" != "0" ]'
 assert "--check reports missing-file drift" 'printf "%s" "$chk_out" | grep -q "drift"'
 
-# A repo with no agents: block has nothing to check -> passes.
-rm -f "$SBX/.docket.yml"; : > "$SBX/.docket.yml"
+# 0048 opt-in: a .docket.yml present for change-tracking only (no agents: / no agent_harnesses) does
+# NOT opt into per-repo generation — nothing is written and --check stays a no-op (backward-compat).
+make_sandbox                                          # SBX = the repo
+HROOTTO="$(mktemp -d)"; mkdir -p "$HROOTTO/.claude"   # separate user-level root
+printf 'metadata_branch: docket\n' > "$SBX/.docket.yml"      # tracking-only: no opt-in keys
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTTO" bash "$SYNC" >/dev/null )
+assert "0048 opt-in: tracking-only repo writes NO project-level wrappers" '[ ! -e "$SBX/.claude/agents/docket-status.md" ]'
+chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTTO" bash "$SYNC" --check 2>&1)"; chk_rc=$?
+assert "0048 opt-in: tracking-only repo --check is a no-op (rc=0)" '[ "$chk_rc" = "0" ]'
+rm -rf "$SBX" "$HROOTTO"
+
+# 0048 opt-in: agent_harnesses alone (NO agents: block) opts in — the real Cursor-repo case:
+# full built-in set + dispatch rule generated for the listed harnesses, at built-in defaults.
+make_sandbox
+HROOTAH="$(mktemp -d)"; mkdir -p "$HROOTAH/.claude"
+printf 'agent_harnesses: [claude, cursor]\n' > "$SBX/.docket.yml"   # no agents: block at all
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTAH" bash "$SYNC" >/dev/null )
+assert "0048 opt-in: agent_harnesses-only generates full set for cursor" '[ "$(find "$SBX/.cursor/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "8" ]'
+assert "0048 opt-in: agent_harnesses-only generates full set for claude" '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "8" ]'
+assert "0048 opt-in: agent_harnesses-only generates the cursor dispatch rule" '[ -f "$SBX/.cursor/rules/docket-dispatch.mdc" ]'
+assert "0048 opt-in: agent_harnesses-only wrappers carry built-in default (no overrides)" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "claude-haiku-4-5-20251001" ]'
+rm -rf "$SBX" "$HROOTAH"
+
+# 0048: a repo with NO .docket.yml at all has nothing to check -> passes.
+make_sandbox
 chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check 2>&1)"; chk_rc=$?
-assert "--check passes when no agents: block (rc=0)" '[ "$chk_rc" = "0" ]'
+assert "0048: --check passes when no .docket.yml (rc=0)" '[ "$chk_rc" = "0" ]'
 rm -rf "$SBX"
 
 # ---- Task 5: docket-convention documents the agent layer -------------------
@@ -239,6 +398,12 @@ assert "0046 doc: convention names the reserved default: key" 'grep -qE "default
 assert "0046 doc: convention shows a per-harness key example (cursor)" 'grep -Pzoq "agents:[\s\S]{0,600}cursor:" "$CONV"'
 assert "0046 doc: convention states field-level fallback H -> default -> built-in" 'grep -qiE "harness.*default.*built-in|<harness>.*default.*built-in" "$CONV"'
 assert "0046 doc: convention notes non-Claude fallback warning" 'grep -qi "default/built-in" "$CONV"'
+
+# 0048 doc: convention states per-repo generates the full built-in set (config override-only)
+# and that cursor gets a generated docket-dispatch.mdc rule.
+assert "0048 doc: convention says per-repo writes the full built-in set" 'grep -qiE "full (built-in )?(agent )?set" "$CONV"'
+assert "0048 doc: convention says the agents: block is override-only" 'grep -qi "override-only" "$CONV"'
+assert "0048 doc: convention names the cursor dispatch rule" 'grep -q "docket-dispatch.mdc" "$CONV"'
 
 # ---- Task 6: advisory recommendation in the interactive skills -------------
 NEWC="$REPO/skills/docket-new-change/SKILL.md"
@@ -289,6 +454,7 @@ printf 'agent_harnesses: [cursor]\nagents:\n  default:\n    status: { model: son
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTC" bash "$SYNC" >/dev/null )
 assert "0045 cursor-only: .cursor/agents generated" '[ -f "$SBX/.cursor/agents/docket-status.md" ]'
 assert "0045 cursor-only: .claude/agents NOT generated" '[ ! -e "$SBX/.claude/agents/docket-status.md" ]'
+assert "0048: [cursor]-only leaves the pre-existing user .claude dir intact" '[ -d "$SBX/.claude" ]'
 rm -rf "$SBX" "$HROOTC"
 
 # (d) unknown harness token => warned + dropped, NOT fatal; known harness still generated.
@@ -311,6 +477,7 @@ printf 'agent_harnesses: []\nagents:\n  default:\n    status: { model: sonnet }\
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTE0" bash "$SYNC" >/dev/null )
 assert "0045 empty-list: no .claude project file" '[ ! -e "$SBX/.claude/agents/docket-status.md" ]'
 assert "0045 empty-list: no .cursor project file" '[ ! -e "$SBX/.cursor/agents/docket-status.md" ]'
+assert "0048: empty-list leaves the pre-existing user .claude dir intact" '[ -d "$SBX/.claude" ]'
 rm -rf "$SBX" "$HROOTE0"
 
 # --check must span every listed harness: drift in a .cursor/agents file fails CI.
