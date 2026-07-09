@@ -343,8 +343,77 @@ check_project_level() {  # diff committed <repo>/.<H>/agents files against fresh
     if [ -n "$rd" ]; then log "drift in .$h/rules/docket-dispatch.mdc:"; printf '%s\n' "$rd" >&2; rc=1; fi
   done
   rm -f "$rule_tmp"
-  # docket:0048 orphan report inserted here by Task 4
+  # Orphan report (per-repo only, report-only): a committed docket-owned file with no source.
+  ORPHAN_DRIFT=0
+  prune_orphans per-repo
+  [ "$ORPHAN_DRIFT" = "1" ] && rc=1
   return $rc
+}
+
+# Handle one orphaned docket-owned file: report it as drift under --check, else rm it.
+handle_orphan() {  # $1 = path ; sets ORPHAN_DRIFT=1 under --check
+  if [ "$CHECK" = "1" ]; then
+    log "drift: orphaned docket-owned file $1 (run: bash sync-agents.sh)"
+    ORPHAN_DRIFT=1
+  else
+    rm -f "$1"
+  fi
+}
+
+# rmdir a dir ONLY if docket emptied it this run (never a pre-existing empty/user dir). Delete mode only.
+rmdir_if_docket_emptied() {  # $1 = dir
+  [ "$CHECK" = "1" ] && return 0
+  [ -d "$1" ] || return 0
+  rmdir "$1" 2>/dev/null || true
+}
+
+# Prune orphaned docket-owned files. Scope:
+#   scope=all      normal run — per-repo (HARNESSES) + user-level (present harnesses) removed-builtins,
+#                  plus per-repo de-listed-harness cleanup.
+#   scope=per-repo --check — per-repo only, report-only.
+prune_orphans() {  # $1 = scope (all|per-repo)
+  local scope="$1" dir f name tok pruned
+  # (1) Removed built-in agent: any docket-<name>.md whose built-in source is gone.
+  local -a scan_dirs=()
+  for tok in $HARNESSES; do scan_dirs+=("$REPO/.$tok/agents"); done
+  if [ "$scope" = "all" ]; then
+    for dir in "${HARNESS_AGENT_DIRS[@]}"; do
+      [ -d "$(dirname "$dir")" ] && scan_dirs+=("$dir")
+    done
+  fi
+  for dir in "${scan_dirs[@]}"; do
+    [ -d "$dir" ] || continue
+    for f in "$dir"/docket-*.md; do
+      [ -e "$f" ] || continue
+      name="$(short_name "$f")"
+      [ -f "$AGENTS_SRC/docket-$name.md" ] || handle_orphan "$f"
+    done
+  done
+  # (2) De-listed per-repo harness: a known harness NOT in HARNESSES with docket-owned per-repo files.
+  # "De-listed from agent_harnesses" is only a meaningful concept when this repo actually HAS a
+  # .docket.yml (mirrors the same guard project_level_pass/check_project_level already use): without
+  # one, $REPO/.$tok/* is never a committed per-repo target, and — when REPO happens to equal
+  # HARNESS_ROOT (a test/dev harness-root override) — skipping here keeps this from mistaking a
+  # still-present USER-LEVEL dir for a de-listed per-repo one.
+  if [ -f "$DOCKET_YML" ]; then
+    for tok in $VALID_HARNESS_TOKENS; do
+      case " $HARNESSES " in *" $tok "*) continue;; esac      # still listed -> not de-listed
+      pruned=0
+      for f in "$REPO/.$tok/agents"/docket-*.md; do
+        [ -e "$f" ] || continue
+        handle_orphan "$f"; pruned=1
+      done
+      if [ -e "$REPO/.$tok/rules/docket-dispatch.mdc" ]; then
+        handle_orphan "$REPO/.$tok/rules/docket-dispatch.mdc"; pruned=1
+      fi
+      # Only rmdir dirs docket just emptied (pruned=1) — never a user's pre-existing dir.
+      if [ "$pruned" = "1" ]; then
+        rmdir_if_docket_emptied "$REPO/.$tok/agents"
+        rmdir_if_docket_emptied "$REPO/.$tok/rules"
+        rmdir_if_docket_emptied "$REPO/.$tok"
+      fi
+    done
+  fi
 }
 
 resolve_agent_harnesses
@@ -355,4 +424,5 @@ fi
 
 user_level_pass
 project_level_pass
+prune_orphans all
 log "done"

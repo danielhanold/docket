@@ -191,6 +191,53 @@ chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48C" bash "$SYNC" --check 2>&
 assert "0048 rule-check: flags a missing committed rule (rc!=0)" '[ "$chk_rc" != "0" ]'
 rm -rf "$SBX" "$HROOT48C"
 
+# 0048 Piece 3 — removing a built-in agent prunes its generated files (both layers) + rule subsection.
+make_sandbox
+HROOT48P="$(mktemp -d)"; mkdir -p "$HROOT48P/.cursor"   # present user-level cursor root
+printf 'agent_harnesses: [cursor]\nagents:\n  default:\n    status: { model: sonnet }\n' > "$SBX/.docket.yml"
+# Scratch clone we can mutate (remove a built-in agent + its fragment).
+SCRATCH="$(mktemp -d)"; cp -R "$REPO/agents" "$REPO/cursor-rules" "$REPO/sync-agents.sh" "$SCRATCH/"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48P" bash "$SCRATCH/sync-agents.sh" >/dev/null )
+assert "0048 prune: adr generated before removal (per-repo)" '[ -f "$SBX/.cursor/agents/docket-adr.md" ]'
+assert "0048 prune: adr generated before removal (user-level)" '[ -f "$HROOT48P/.cursor/agents/docket-adr.md" ]'
+# Remove the built-in agent + its fragment, regenerate: the orphan must be pruned.
+rm -f "$SCRATCH/agents/docket-adr.md" "$SCRATCH/cursor-rules/dispatch/docket-adr.md"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48P" bash "$SCRATCH/sync-agents.sh" >/dev/null )
+assert "0048 prune: removed built-in pruned from per-repo .cursor/agents" '[ ! -e "$SBX/.cursor/agents/docket-adr.md" ]'
+assert "0048 prune: removed built-in pruned from user-level .cursor/agents" '[ ! -e "$HROOT48P/.cursor/agents/docket-adr.md" ]'
+assert "0048 prune: rule subsection for removed agent dropped" '! grep -q "^## docket-adr — dispatch only" "$SBX/.cursor/rules/docket-dispatch.mdc"'
+assert "0048 prune: a surviving agent remains" '[ -f "$SBX/.cursor/agents/docket-status.md" ]'
+rm -rf "$SBX" "$HROOT48P" "$SCRATCH"
+
+# 0048 Piece 3 — de-listing cursor prunes its per-repo docket files + rule, keeps a co-located non-docket file.
+make_sandbox
+HROOT48D="$(mktemp -d)"; mkdir -p "$HROOT48D/.claude"
+printf 'agent_harnesses: [claude, cursor]\nagents:\n  default:\n    status: { model: sonnet }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48D" bash "$SYNC" >/dev/null )
+: > "$SBX/.cursor/agents/my-own-agent.md"          # operator's own co-located file
+assert "0048 delist: cursor agents present before de-list" '[ -f "$SBX/.cursor/agents/docket-status.md" ]'
+assert "0048 delist: cursor rule present before de-list" '[ -f "$SBX/.cursor/rules/docket-dispatch.mdc" ]'
+# De-list cursor.
+printf 'agent_harnesses: [claude]\nagents:\n  default:\n    status: { model: sonnet }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48D" bash "$SYNC" >/dev/null )
+assert "0048 delist: cursor docket agents pruned" '[ ! -e "$SBX/.cursor/agents/docket-status.md" ]'
+assert "0048 delist: cursor dispatch rule pruned" '[ ! -e "$SBX/.cursor/rules/docket-dispatch.mdc" ]'
+assert "0048 delist: operator's co-located non-docket file preserved" '[ -f "$SBX/.cursor/agents/my-own-agent.md" ]'
+assert "0048 delist: claude still generated" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
+rm -rf "$SBX" "$HROOT48D"
+
+# 0048 Piece 3 --check — an orphaned committed file is reported as drift, NOT deleted.
+make_sandbox
+HROOT48O="$(mktemp -d)"; mkdir -p "$HROOT48O/.claude"
+printf 'agent_harnesses: [claude]\nagents:\n  default:\n    status: { model: sonnet }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48O" bash "$SYNC" >/dev/null )
+: > "$SBX/.claude/agents/docket-bogus.md"           # an orphan: no built-in docket-bogus
+chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48O" bash "$SYNC" --check 2>&1)"; chk_rc=$?
+assert "0048 orphan-check: reports the orphan as drift (rc!=0)" '[ "$chk_rc" != "0" ]'
+assert "0048 orphan-check: names the orphaned file" 'printf "%s" "$chk_out" | grep -q "docket-bogus.md"'
+assert "0048 orphan-check: --check does NOT delete the orphan" '[ -f "$SBX/.claude/agents/docket-bogus.md" ]'
+rm -rf "$SBX" "$HROOT48O"
+
 # (a)+(b) harness override wins; field-level merge — model from cursor, effort inherited from default.
 make_sandbox
 HROOTM="$(mktemp -d)"; mkdir -p "$HROOTM/.claude"
