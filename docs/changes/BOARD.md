@@ -14,7 +14,7 @@
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | build-ready |
-| [0051](active/0051-global-agents-middle-layer.md) | Make the global agents: block a real middle layer for opted-in repos (restore per-agent fall-through, or seed) | `high` | needs-brainstorm |
+| [0051](active/0051-global-agents-middle-layer.md) | Machine-local config layer (.docket.local.yml) + all-local agent generation | `high` | build-ready |
 
 ```mermaid
 graph TD
