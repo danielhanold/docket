@@ -119,6 +119,18 @@ fan-out scope is unchanged (it still writes every present harness — change 004
 file's values resolve, per the harness-first Agent layer above). `agent_harnesses` is read by a direct
 parse in `sync-agents.sh` (not `docket-config.sh`).
 
+**Always-full-set generation + the Cursor dispatch rule (change 0048).** The **per-repo pass writes
+the full built-in agent set** for every harness in `agent_harnesses` — the `agents:` block is
+**override-only** (it tunes a model/effort; it never decides *which* agents exist, since the agents
+compose and a harness needs all of them). An `agents:` entry naming no built-in is a typo warning.
+Additionally, the `cursor` harness gets a generated **`docket-dispatch.mdc`** rule (`~/.cursor/rules/`
+user-level; `<repo>/.cursor/rules/` per-repo) that forces a Task dispatch to the matching
+`subagent_type` — Cursor otherwise runs a directly-invoked skill inline at the current model,
+defeating the pin. Because the per-repo pass generates that same full set into the harness, the
+rule's dispatch targets resolve by construction. `sync-agents.sh` prunes orphaned `docket-*` files (a
+removed built-in; a de-listed harness) and `sync-agents.sh --check` spans the committed agents and the
+dispatch rule.
+
 **Composition (change 0017).** Nesting lets each whole-skill sub-invocation run at its own model. `docket-implement-next` **dispatches the `docket-status` subagent** at step 0 and the **`docket-adr` subagent** at step 6; `docket-auto-groom` **dispatches the dedicated `docket-auto-groom-critic` subagent** for its adversarial gate. `docket-finalize-change` **dispatches the `docket-rebase-resolver` subagent** when its merge gate hits a rebase conflict and the **`docket-integration-repair` subagent** when the rebased suite is red (change 0015) — both **foreground**, but their contract differs from the three above: the agent's report flows **back to finalize in-context** to gate the merge (continue, sign-off, or abort), and they act in the feature worktree, not on `origin/docket`. Each runs at the model/effort its own wrapper resolves through the layered config — the literal tiers are **never restated** in the dispatch prose, so a per-repo or global override can never drift from the documentation (the built-in defaults live only in `agents/docket-*.md`, per the Agent layer above). The `docket-status`, `docket-adr`, and `docket-auto-groom-critic` dispatches are **foreground** (the parent suspends until the child returns) and **unconditional** (baked into the skill body, so the sub-call gets its own model whether the parent ran as its wrapper subagent or as a plain inline skill); their contract is **git state** on `origin/docket` (and, for adr, a published ADR on the integration branch), re-read after a re-sync — never an in-context return. Three of the **eight** generated wrappers wrap **no skill** — `agents/docket-auto-groom-critic.md` (config key `auto-groom-critic`, attached to `auto-groom`), and `agents/docket-rebase-resolver.md` + `agents/docket-integration-repair.md` (config keys `rebase-resolver` / `integration-repair`, attached to `finalize-change`'s gate). Each loads only `docket-convention`, never a designer/driver skill body, so it inherits no caller bias; all are auto-discovered by `sync-agents.sh`'s `agents/docket-*.md` glob (no generator edit). (The "Agent layer" line above stays exact: **five *skills* get a wrapper**; these three are wrappers that wrap no skill — eight wrappers, five skills.)
 
 ### Directory layout (paths relative to the configured knobs)

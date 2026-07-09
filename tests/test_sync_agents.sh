@@ -383,6 +383,12 @@ assert "0046 doc: convention shows a per-harness key example (cursor)" 'grep -Pz
 assert "0046 doc: convention states field-level fallback H -> default -> built-in" 'grep -qiE "harness.*default.*built-in|<harness>.*default.*built-in" "$CONV"'
 assert "0046 doc: convention notes non-Claude fallback warning" 'grep -qi "default/built-in" "$CONV"'
 
+# 0048 doc: convention states per-repo generates the full built-in set (config override-only)
+# and that cursor gets a generated docket-dispatch.mdc rule.
+assert "0048 doc: convention says per-repo writes the full built-in set" 'grep -qiE "full (built-in )?(agent )?set" "$CONV"'
+assert "0048 doc: convention says the agents: block is override-only" 'grep -qi "override-only" "$CONV"'
+assert "0048 doc: convention names the cursor dispatch rule" 'grep -q "docket-dispatch.mdc" "$CONV"'
+
 # ---- Task 6: advisory recommendation in the interactive skills -------------
 NEWC="$REPO/skills/docket-new-change/SKILL.md"
 GROOM="$REPO/skills/docket-groom-next/SKILL.md"

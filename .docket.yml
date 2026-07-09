@@ -52,6 +52,11 @@ board_surfaces: [inline]
 # agent_harnesses — run `sync-agents.sh` after editing, and `sync-agents.sh --check` in CI to catch
 # drift.
 #
+# The per-repo pass writes the FULL built-in agent set for every harness in agent_harnesses; this
+# block is OVERRIDE-ONLY (tunes model/effort, never decides which agents exist). A `cursor` harness
+# additionally gets a generated .cursor/rules/docket-dispatch.mdc dispatch rule. sync-agents.sh
+# prunes orphaned docket-* files; --check spans the agents and the rule.
+#
 # agents:                                # harness-first: reserved default: + harness-name keys (change 0046)
 #   default:                             # neutral fallback (field-level: <harness> -> default -> built-in)
 #     implement-next: { model: opus,   effort: xhigh }

@@ -232,6 +232,8 @@ bash sync-agents.sh        # or re-run install.sh, which calls it for you
 
 **3. Guard drift in CI.** `sync-agents.sh --check` exits non-zero (with a diff) when the committed project-level wrappers have fallen out of sync with the resolved config — wire it into CI so a config edit that was never regenerated fails the build instead of silently drifting.
 
+**Always the full set, plus a Cursor dispatch rule.** The per-repo layer writes the **full built-in agent set** for every harness in `agent_harnesses` (the `agents:` block only *overrides* model/effort — it never decides which agents exist). A repo listing `cursor` also gets a generated `.cursor/rules/docket-dispatch.mdc` that forces Cursor to dispatch docket agents instead of running them inline. `sync-agents.sh --check` covers both the generated agents and the dispatch rule.
+
 ---
 
 ## The eight skills
