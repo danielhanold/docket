@@ -4,6 +4,15 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-07-09 (#49, PR #58) — A change that added a new user-facing config knob (the role-keyed
+  `skills:` map) shipped its resolution logic and skill-body wiring but NOT its surfacing: the
+  commented sample `.docket.yml` never gained the new keys, README still framed superpowers as a
+  hard requirement rather than a configurable default, and the option went undocumented — all caught
+  by the human at the merge gate, not the build. Apply: a new config knob is not done when it merely
+  *works* — ship it end-to-end in the same change: add it (commented, with every option) to the sample
+  `.docket.yml`, document it in README, and update any prose that stated the now-relaxed requirement
+  as absolute.
+
 - 2026-07-09 (#48, PR #57) — A new per-repo generation behavior (committed agent wrappers + a Cursor
   dispatch rule) was gated on merely `.docket.yml` being *present*, which silently broke tracking-only
   adopters: `install.sh`'s `sync-agents.sh` run littered 8 untracked `.claude/agents/docket-*.md` into
@@ -274,9 +283,6 @@
 - 2026-06-12 (#14, PR #10) — Adding a member to an enumerated set left two stale counts ("six
   skills" in README from 0012, "six operating skills" in the convention from 0014's own edit).
   Apply: when a set gains a member, grep the repo for the old count word and the enumeration.
-- 2026-06-12 (#13, PR #9) — A sentinel test guarded every clause of an ordered procedure but
-  would have false-passed had the clauses been reordered; review caught it. Apply: when order is
-  part of the contract, assert it — compare `grep -n` line numbers, don't just grep for presence.
 - 2026-06-12 (#6, PR #8) — The spec asked for a test asserting a metadata-branch file exists,
   but the suite runs against the integration-branch checkout where that file never lives. Apply:
   when specifying tests for metadata-branch artifacts, verify them at build time and record in
@@ -286,14 +292,11 @@
   content) before implementing fixes; reject false positives with evidence.
 - 2026-06-12 (#12, PR #7) — link-skills.sh needed no edit for a new skill — it globs skills/*/.
   Apply: at reconcile, check whether plumbing auto-discovers before planning an edit to it.
-- 2026-06-10 (#5, PR #6) — A full convention restatement hid in paraphrase ("satisfied = done")
-  where fixed-string sentinels could not see it. Apply: sentinel greps are sampling, not parsing;
-  pair them with a whole-branch review that reads for meaning.
 - 2026-06-10 (#5, PR #6) — YAML frontmatter: an unquoted scalar value cannot contain ": "
   (colon-space). Apply: reword with an em-dash or quote the scalar in skill descriptions.
-- 2026-06-04 (#2) — A backward-compat test assertion was vacuous (any "main-mode" mention
-  satisfied it). Apply: prove each assertion non-vacuous — deleting the clause it guards must
-  flip the test to NOT OK.
-- 2026-06-02 (#1) — Fragmenting a tightly-coupled single-artifact edit across subagents risks
-  inconsistent edits to shared content. Apply: build inline when tasks share one artifact; fan
-  out only for genuinely independent tasks.
+- 2026-06-02–12 (#1, #2, #5, #13) — Foundational sentinel/test discipline (consolidated; richer,
+  more specific restatements live in #15, #21, #36, #37 above): sentinel greps are sampling, not
+  parsing — pair them with a whole-branch review that reads for meaning; prove each assertion
+  non-vacuous (deleting the clause it guards must flip the test to NOT OK); when order is part of the
+  contract, assert it explicitly rather than inferring it from presence; and build inline when tasks
+  share one artifact, fanning out only for genuinely independent work.
