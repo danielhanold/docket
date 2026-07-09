@@ -2,10 +2,10 @@
 id: 48
 slug: cursor-dispatch-rule-generation
 title: Generate Cursor dispatch rules; always write the full agent set per harness
-status: implemented
+status: done
 priority: medium
 created: 2026-07-08
-updated: 2026-07-08
+updated: 2026-07-09
 depends_on: [46]
 related: [45, 16, 15]
 adrs: [15, 16, 17]
