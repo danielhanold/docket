@@ -2,10 +2,10 @@
 id: 49
 slug: pluggable-workflow-skills
 title: Pluggable workflow skills — make superpowers invocations configurable, with auto fallback
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-07-08
-updated: 2026-07-08
+updated: 2026-07-09
 depends_on: []
 related: [44, 16]
 adrs: []
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/pluggable-workflow-skills
 pr:
 blocked_by:
 reconciled: false
