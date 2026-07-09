@@ -1,8 +1,14 @@
 # Backlog
 
-**49 changes** — 🟡 9 proposed · ✅ 38 done · 🗑️ 2 killed
+**49 changes** — 🟢 1 in progress · 🟡 8 proposed · ✅ 38 done · 🗑️ 2 killed
 
-## 🟡 Proposed (9)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Spec | Branch |
+|---|-------|----------|------|--------|
+| [0049](active/0049-pluggable-workflow-skills.md) | Pluggable workflow skills — make superpowers invocations configurable, with auto fallback | `medium` | [spec](../superpowers/specs/2026-07-08-pluggable-workflow-skills-design.md) | `feat/pluggable-workflow-skills` |
+
+## 🟡 Proposed (8)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -14,7 +20,6 @@
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | build-ready |
-| [0049](active/0049-pluggable-workflow-skills.md) | Pluggable workflow skills — make superpowers invocations configurable, with auto fallback | `medium` | build-ready |
 
 ```mermaid
 graph TD
