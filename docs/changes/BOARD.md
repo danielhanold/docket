@@ -1,6 +1,6 @@
 # Backlog
 
-**51 changes** — 🟡 9 proposed · 🔵 1 implemented · ✅ 39 done · 🗑️ 2 killed
+**51 changes** — 🟡 9 proposed · ✅ 40 done · 🗑️ 2 killed
 
 ## 🟡 Proposed (9)
 
@@ -14,13 +14,7 @@
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | build-ready |
-| [0051](active/0051-global-agents-middle-layer.md) | Make the global agents: block a real middle layer for opted-in repos (restore per-agent fall-through, or seed) | `high` | ⏳ waiting on #50 — needs your merge |
-
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | PR |
-|---|-------|----------|----|
-| [0050](active/0050-global-config-layer.md) | Global config layer — full-schema ~/.config/docket/config.yml with a coordination-key fence | `medium` | [#59](https://github.com/danielhanold/docket/pull/59) |
+| [0051](active/0051-global-agents-middle-layer.md) | Make the global agents: block a real middle layer for opted-in repos (restore per-agent fall-through, or seed) | `high` | needs-brainstorm |
 
 ```mermaid
 graph TD
@@ -32,7 +26,6 @@ graph TD
   0015 --> 0019
   0030 --> 0033
   0044
-  0050
   0050 --> 0051
   0001:::done
   0002:::done
@@ -73,13 +66,15 @@ graph TD
   0047:::done
   0048:::done
   0049:::done
+  0050:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (41)</summary>
+<details><summary>✅🗑️ Archive — done + killed (42)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0050](archive/2026-07-09-0050-global-config-layer.md) | Global config layer — full-schema ~/.config/docket/config.yml with a coordination-key fence | 2026-07-09 |
 | [0049](archive/2026-07-09-0049-pluggable-workflow-skills.md) | Pluggable workflow skills — make superpowers invocations configurable, with auto fallback | 2026-07-09 |
 | [0048](archive/2026-07-09-0048-cursor-dispatch-rule-generation.md) | Generate Cursor dispatch rules; always write the full agent set per harness | 2026-07-09 |
 | [0047](archive/2026-07-08-0047-readme-agent-config-discoverability.md) | Make the agent-config refresh workflow discoverable in the README | 2026-07-08 |
