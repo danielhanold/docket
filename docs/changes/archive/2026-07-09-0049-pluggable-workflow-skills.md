@@ -26,8 +26,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-08-pluggable-workflow-skills-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-08-pluggable-workflow-skills-design.md) |
-| Plan | [2026-07-09-pluggable-workflow-skills.md](https://github.com/danielhanold/docket/blob/feat/pluggable-workflow-skills/docs/superpowers/plans/2026-07-09-pluggable-workflow-skills.md) |
-| Results | [2026-07-09-pluggable-workflow-skills-results.md](https://github.com/danielhanold/docket/blob/feat/pluggable-workflow-skills/docs/results/2026-07-09-pluggable-workflow-skills-results.md) |
+| Plan | [2026-07-09-pluggable-workflow-skills.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-09-pluggable-workflow-skills.md) |
+| Results | [2026-07-09-pluggable-workflow-skills-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-09-pluggable-workflow-skills-results.md) |
 | PR | [#58](https://github.com/danielhanold/docket/pull/58) |
 | ADRs | [ADR-0018](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0018-pluggable-skills-passthrough-degrade.md) |
 <!-- docket:artifacts:end -->
