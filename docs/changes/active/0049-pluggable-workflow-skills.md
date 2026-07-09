@@ -8,7 +8,7 @@ created: 2026-07-08
 updated: 2026-07-09
 depends_on: []
 related: [44, 16]
-adrs: []
+adrs: [18]
 spec: docs/superpowers/specs/2026-07-08-pluggable-workflow-skills-design.md
 plan: docs/superpowers/plans/2026-07-09-pluggable-workflow-skills.md
 results:
@@ -27,6 +27,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-08-pluggable-workflow-skills-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-08-pluggable-workflow-skills-design.md) |
 | Plan | [2026-07-09-pluggable-workflow-skills.md](https://github.com/danielhanold/docket/blob/feat/pluggable-workflow-skills/docs/superpowers/plans/2026-07-09-pluggable-workflow-skills.md) |
+| ADRs | [ADR-0018](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0018-pluggable-skills-passthrough-degrade.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
