@@ -1,8 +1,8 @@
 # Backlog
 
-**50 changes** — 🟡 8 proposed · 🔵 1 implemented · ✅ 39 done · 🗑️ 2 killed
+**51 changes** — 🟡 9 proposed · 🔵 1 implemented · ✅ 39 done · 🗑️ 2 killed
 
-## 🟡 Proposed (8)
+## 🟡 Proposed (9)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -14,6 +14,7 @@
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | build-ready |
+| [0051](active/0051-global-agents-middle-layer.md) | Make the global agents: block a real middle layer for opted-in repos (restore per-agent fall-through, or seed) | `high` | ⏳ waiting on #50 — needs your merge |
 
 ## 🔵 Implemented — awaiting merge (1)
 
@@ -32,6 +33,7 @@ graph TD
   0030 --> 0033
   0044
   0050
+  0050 --> 0051
   0001:::done
   0002:::done
   0003:::done
