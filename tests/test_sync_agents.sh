@@ -682,12 +682,15 @@ assert "0050 gah: present-but-UNLISTED harness narrowed (.agents untouched)" '[ 
 assert "0050 gah: user-level cursor dispatch rule written when cursor listed" '[ -f "$SBX/.cursor/rules/docket-dispatch.mdc" ]'
 rm -rf "$SBX"
 
-# Global [] => the user-level pass writes nothing (explicit empty list, not "unset").
+# Global [] => the user-level pass writes nothing (explicit empty list, not "unset"),
+# and existing user-level docket wrappers are pruned (every known harness is de-listed).
 make_sandbox
-mkdir -p "$SBX/.config/docket"
+mkdir -p "$SBX/.config/docket" "$SBX/.claude/agents"
+: > "$SBX/.claude/agents/docket-status.md"          # stale wrapper from an earlier run
 printf 'agent_harnesses: []\n' > "$SBX/.config/docket/config.yml"
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
 assert "0050 gah []: no user-level files written despite present .claude" '[ ! -e "$SBX/.claude/agents/docket-status.md" ]'
+assert "0050 gah []: harness root preserved after prune" '[ -d "$SBX/.claude" ]'
 rm -rf "$SBX"
 
 # Unset global key => presence-on-disk detection unchanged (regression pin).

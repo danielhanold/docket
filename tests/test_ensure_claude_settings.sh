@@ -3,6 +3,7 @@
 # (change 0027). Run: bash tests/test_ensure_claude_settings.sh
 # Env-seam cases need no network; one bare-origin fixture exercises the real docket-config.sh path.
 set -uo pipefail
+unset XDG_CONFIG_HOME   # hermetic: avoid inheriting the dev's real global config into the real-resolver fixture
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 SCRIPT="$REPO/scripts/ensure-claude-settings.sh"
 fail=0
