@@ -1,6 +1,6 @@
 # Backlog
 
-**49 changes** — 🟡 9 proposed · 🔵 1 implemented · ✅ 37 done · 🗑️ 2 killed
+**49 changes** — 🟡 9 proposed · ✅ 38 done · 🗑️ 2 killed
 
 ## 🟡 Proposed (9)
 
@@ -16,12 +16,6 @@
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | build-ready |
 | [0049](active/0049-pluggable-workflow-skills.md) | Pluggable workflow skills — make superpowers invocations configurable, with auto fallback | `medium` | build-ready |
 
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | PR |
-|---|-------|----------|----|
-| [0048](active/0048-cursor-dispatch-rule-generation.md) | Generate Cursor dispatch rules; always write the full agent set per harness | `medium` | [#57](https://github.com/danielhanold/docket/pull/57) |
-
 ```mermaid
 graph TD
   0007
@@ -32,7 +26,6 @@ graph TD
   0015 --> 0019
   0030 --> 0033
   0044
-  0046 --> 0048
   0049
   0001:::done
   0002:::done
@@ -71,13 +64,15 @@ graph TD
   0045:::done
   0046:::done
   0047:::done
+  0048:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (39)</summary>
+<details><summary>✅🗑️ Archive — done + killed (40)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0048](archive/2026-07-09-0048-cursor-dispatch-rule-generation.md) | Generate Cursor dispatch rules; always write the full agent set per harness | 2026-07-09 |
 | [0047](archive/2026-07-08-0047-readme-agent-config-discoverability.md) | Make the agent-config refresh workflow discoverable in the README | 2026-07-08 |
 | [0046](archive/2026-07-08-0046-per-harness-agent-models.md) | Per-harness model overrides for docket agents | 2026-07-08 |
 | [0045](archive/2026-07-08-0045-multi-harness-agent-generation.md) | Per-repo agent model config reaches Cursor via multi-harness generation | 2026-07-08 |
