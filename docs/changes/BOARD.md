@@ -1,6 +1,6 @@
 # Backlog
 
-**49 changes** — 🟡 8 proposed · 🔵 1 implemented · ✅ 38 done · 🗑️ 2 killed
+**49 changes** — 🟡 8 proposed · ✅ 39 done · 🗑️ 2 killed
 
 ## 🟡 Proposed (8)
 
@@ -15,12 +15,6 @@
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | build-ready |
 
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | PR |
-|---|-------|----------|----|
-| [0049](active/0049-pluggable-workflow-skills.md) | Pluggable workflow skills — make superpowers invocations configurable, with auto fallback | `medium` | [#58](https://github.com/danielhanold/docket/pull/58) |
-
 ```mermaid
 graph TD
   0007
@@ -31,7 +25,6 @@ graph TD
   0015 --> 0019
   0030 --> 0033
   0044
-  0049
   0001:::done
   0002:::done
   0003:::done
@@ -70,13 +63,15 @@ graph TD
   0046:::done
   0047:::done
   0048:::done
+  0049:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (40)</summary>
+<details><summary>✅🗑️ Archive — done + killed (41)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0049](archive/2026-07-09-0049-pluggable-workflow-skills.md) | Pluggable workflow skills — make superpowers invocations configurable, with auto fallback | 2026-07-09 |
 | [0048](archive/2026-07-09-0048-cursor-dispatch-rule-generation.md) | Generate Cursor dispatch rules; always write the full agent set per harness | 2026-07-09 |
 | [0047](archive/2026-07-08-0047-readme-agent-config-discoverability.md) | Make the agent-config refresh workflow discoverable in the README | 2026-07-08 |
 | [0046](archive/2026-07-08-0046-per-harness-agent-models.md) | Per-harness model overrides for docket agents | 2026-07-08 |
