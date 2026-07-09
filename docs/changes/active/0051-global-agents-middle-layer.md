@@ -2,7 +2,7 @@
 id: 51
 slug: global-agents-middle-layer
 title: Machine-local config layer (.docket.local.yml) + all-local agent generation
-status: proposed
+status: in-progress
 priority: high
 created: 2026-07-09
 updated: 2026-07-09
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable: false
-branch:
+branch: feat/global-agents-middle-layer
 pr:
 blocked_by:
 reconciled: false
