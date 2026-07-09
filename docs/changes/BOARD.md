@@ -1,12 +1,6 @@
 # Backlog
 
-**49 changes** — 🟢 1 in progress · 🟡 9 proposed · ✅ 37 done · 🗑️ 2 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0048](active/0048-cursor-dispatch-rule-generation.md) | Generate Cursor dispatch rules; always write the full agent set per harness | `medium` | [spec](../superpowers/specs/2026-07-08-cursor-dispatch-rule-generation-design.md) | `feat/cursor-dispatch-rule-generation` |
+**49 changes** — 🟡 9 proposed · 🔵 1 implemented · ✅ 37 done · 🗑️ 2 killed
 
 ## 🟡 Proposed (9)
 
@@ -21,6 +15,12 @@
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | build-ready |
 | [0049](active/0049-pluggable-workflow-skills.md) | Pluggable workflow skills — make superpowers invocations configurable, with auto fallback | `medium` | build-ready |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | PR |
+|---|-------|----------|----|
+| [0048](active/0048-cursor-dispatch-rule-generation.md) | Generate Cursor dispatch rules; always write the full agent set per harness | `medium` | [#57](https://github.com/danielhanold/docket/pull/57) |
 
 ```mermaid
 graph TD
