@@ -454,7 +454,8 @@ rmdir_if_docket_emptied() {  # $1 = dir
 
 # Prune orphaned docket-owned files. Scope:
 #   scope=all      normal run — per-repo (HARNESSES) + user-level (present harnesses) removed-builtins,
-#                  plus per-repo de-listed-harness cleanup.
+#                  plus per-repo de-listed-harness cleanup, plus (when the global agent_harnesses
+#                  list is set) user-level de-listed-harness cleanup.
 #   scope=per-repo --check — per-repo only, report-only.
 prune_orphans() {  # $1 = scope (all|per-repo)
   local scope="$1" dir f name tok pruned_agents pruned_rule
@@ -480,20 +481,42 @@ prune_orphans() {  # $1 = scope (all|per-repo)
   # (2) de-listed per-repo harness — only for an opted-in repo. A known harness NOT in HARNESSES that
   # still holds docket-owned per-repo files (agents + dispatch rule) is pruned; only the specific
   # dirs docket actually emptied are rmdir'd (never a pre-existing / user dir).
-  per_repo_opted_in || return 0
+  if per_repo_opted_in; then
+    for tok in $VALID_HARNESS_TOKENS; do
+      case " $HARNESSES " in *" $tok "*) continue;; esac      # still listed -> not de-listed
+      pruned_agents=0; pruned_rule=0
+      for f in "$REPO/.$tok/agents"/docket-*.md; do
+        [ -e "$f" ] || continue
+        handle_orphan "$f"; pruned_agents=1
+      done
+      if [ -e "$REPO/.$tok/rules/docket-dispatch.mdc" ]; then
+        handle_orphan "$REPO/.$tok/rules/docket-dispatch.mdc"; pruned_rule=1
+      fi
+      if [ "$pruned_agents" = "1" ]; then rmdir_if_docket_emptied "$REPO/.$tok/agents"; fi
+      if [ "$pruned_rule" = "1" ]; then rmdir_if_docket_emptied "$REPO/.$tok/rules"; fi
+      if [ "$pruned_agents" = "1" ] || [ "$pruned_rule" = "1" ]; then rmdir_if_docket_emptied "$REPO/.$tok"; fi
+    done
+  fi
+  # (3) de-listed USER-LEVEL harness (change 0050): when the global agent_harnesses list is
+  # SET, a known harness NOT in the user-level target list that still holds user-level
+  # docket-owned files is pruned (mirrors the per-repo de-list rule — the files are
+  # docket-owned generated copies). Never rmdir the harness root itself: it is the user's
+  # own config dir, not a docket artifact. Delete-mode only concerns aside, --check never
+  # reaches here (scope=per-repo returns above).
+  [ "$scope" = "all" ] || return 0
+  [ "${USER_HARNESSES_SET:-0}" = "1" ] || return 0
   for tok in $VALID_HARNESS_TOKENS; do
-    case " $HARNESSES " in *" $tok "*) continue;; esac      # still listed -> not de-listed
+    case " ${USER_TARGETS:-} " in *" $tok "*) continue;; esac
     pruned_agents=0; pruned_rule=0
-    for f in "$REPO/.$tok/agents"/docket-*.md; do
+    for f in "$HARNESS_ROOT/.$tok/agents"/docket-*.md; do
       [ -e "$f" ] || continue
       handle_orphan "$f"; pruned_agents=1
     done
-    if [ -e "$REPO/.$tok/rules/docket-dispatch.mdc" ]; then
-      handle_orphan "$REPO/.$tok/rules/docket-dispatch.mdc"; pruned_rule=1
+    if [ -e "$HARNESS_ROOT/.$tok/rules/docket-dispatch.mdc" ]; then
+      handle_orphan "$HARNESS_ROOT/.$tok/rules/docket-dispatch.mdc"; pruned_rule=1
     fi
-    if [ "$pruned_agents" = "1" ]; then rmdir_if_docket_emptied "$REPO/.$tok/agents"; fi
-    if [ "$pruned_rule" = "1" ]; then rmdir_if_docket_emptied "$REPO/.$tok/rules"; fi
-    if [ "$pruned_agents" = "1" ] || [ "$pruned_rule" = "1" ]; then rmdir_if_docket_emptied "$REPO/.$tok"; fi
+    if [ "$pruned_agents" = "1" ]; then rmdir_if_docket_emptied "$HARNESS_ROOT/.$tok/agents"; fi
+    if [ "$pruned_rule" = "1" ]; then rmdir_if_docket_emptied "$HARNESS_ROOT/.$tok/rules"; fi
   done
 }
 

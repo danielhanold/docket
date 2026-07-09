@@ -729,4 +729,21 @@ assert "0050 gah scope: global [cursor] scopes user-level (cursor written)" '[ -
 assert "0050 gah scope: user-level claude NOT written (narrowed by global list)" '[ ! -e "$HROOT51/.claude/agents/docket-status.md" ]'
 rm -rf "$REPO51" "$HROOT51"
 
+# Narrowing the global list on a later run prunes the de-listed harness's USER-LEVEL
+# docket-owned files (mirrors the per-repo de-list rule); user content + the root survive.
+make_sandbox
+mkdir -p "$SBX/.config/docket" "$SBX/.cursor"
+printf 'agent_harnesses: [claude, cursor]\n' > "$SBX/.config/docket/config.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
+assert "0050 gah prune: cursor user files present before narrowing" '[ -f "$SBX/.cursor/agents/docket-status.md" ]'
+: > "$SBX/.cursor/agents/my-own-agent.md"
+printf 'agent_harnesses: [claude]\n' > "$SBX/.config/docket/config.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
+assert "0050 gah prune: de-listed cursor docket agents pruned" '[ ! -e "$SBX/.cursor/agents/docket-status.md" ]'
+assert "0050 gah prune: de-listed cursor dispatch rule pruned" '[ ! -e "$SBX/.cursor/rules/docket-dispatch.mdc" ]'
+assert "0050 gah prune: user's own co-located file preserved" '[ -f "$SBX/.cursor/agents/my-own-agent.md" ]'
+assert "0050 gah prune: harness root dir preserved" '[ -d "$SBX/.cursor" ]'
+assert "0050 gah prune: listed claude still written" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
+rm -rf "$SBX"
+
 exit $fail
