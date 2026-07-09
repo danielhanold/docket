@@ -637,6 +637,16 @@ assert "0050 mig: agents: appended alongside" 'grep -qE "^agents[[:space:]]*:" "
 assert "0050 mig: values from the appended block apply" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "haiku" ]'
 rm -rf "$SBX"
 
+# Migration into a config.yml whose last line lacks a trailing newline must not glue keys.
+make_sandbox
+mkdir -p "$SBX/.config/docket"
+printf 'auto_groom: true' > "$SBX/.config/docket/config.yml"     # NO trailing newline
+printf 'default:\n  status: { model: haiku }\n' > "$SBX/.config/docket/agents.yaml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
+assert "0050 mig: no-trailing-newline config.yml not glued" 'grep -q "^auto_groom: true$" "$SBX/.config/docket/config.yml" && grep -qE "^agents[[:space:]]*:" "$SBX/.config/docket/config.yml"'
+assert "0050 mig: no-trailing-newline values still apply" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "haiku" ]'
+rm -rf "$SBX"
+
 # Stale twin: config.yml already has agents: AND a live agents.yaml is present ->
 # warn stale, do NOT read it, do NOT rename it (only the migration renames).
 make_sandbox

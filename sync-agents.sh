@@ -70,6 +70,8 @@ migrate_legacy_global(){
     log "WARN $LEGACY_GLOBAL_CFG is STALE and unread — global agent config lives under agents: in $GLOBAL_CFG; delete or rename the old file"
     return 0
   fi
+  # A pre-existing config.yml without a trailing newline would glue agents: onto its last line.
+  if [ -s "$GLOBAL_CFG" ] && [ -n "$(tail -c1 "$GLOBAL_CFG")" ]; then printf '\n' >> "$GLOBAL_CFG"; fi
   {
     printf 'agents:\n'
     sed 's/^\(.\)/  \1/' "$LEGACY_GLOBAL_CFG"    # indent every non-empty line under agents:
