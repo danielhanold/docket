@@ -2,7 +2,7 @@
 id: 48
 slug: cursor-dispatch-rule-generation
 title: Generate Cursor dispatch rules; always write the full agent set per harness
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-08
 updated: 2026-07-08
@@ -11,11 +11,11 @@ related: [45, 16, 15]
 adrs: [15, 16, 17]
 spec: docs/superpowers/specs/2026-07-08-cursor-dispatch-rule-generation-design.md
 plan: docs/superpowers/plans/2026-07-08-cursor-dispatch-rule-generation.md
-results:
+results: docs/results/2026-07-08-cursor-dispatch-rule-generation-results.md
 trivial: false
 auto_groomable:
 branch: feat/cursor-dispatch-rule-generation
-pr:
+pr: https://github.com/danielhanold/docket/pull/57
 blocked_by:
 reconciled: true
 ---
@@ -27,6 +27,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-08-cursor-dispatch-rule-generation-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-08-cursor-dispatch-rule-generation-design.md) |
 | Plan | [2026-07-08-cursor-dispatch-rule-generation.md](https://github.com/danielhanold/docket/blob/feat/cursor-dispatch-rule-generation/docs/superpowers/plans/2026-07-08-cursor-dispatch-rule-generation.md) |
+| Results | [2026-07-08-cursor-dispatch-rule-generation-results.md](https://github.com/danielhanold/docket/blob/feat/cursor-dispatch-rule-generation/docs/results/2026-07-08-cursor-dispatch-rule-generation-results.md) |
+| PR | [#57](https://github.com/danielhanold/docket/pull/57) |
 | ADRs | [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md), [ADR-0016](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0016-harness-first-agent-config.md), [ADR-0017](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0017-cursor-dispatch-rule-full-agent-set.md) |
 <!-- docket:artifacts:end -->
 
