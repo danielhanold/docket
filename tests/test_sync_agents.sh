@@ -69,10 +69,10 @@ after="$(cat "$SBX/.claude/agents/docket-implement-next.md")"
 assert "second run idempotent (byte-identical)" '[ "$before" = "$after" ]'
 rm -rf "$SBX"
 
-# -- global layer (harness-first): ~/.config/docket/agents.yaml default: block overrides model/effort --
+# -- global layer (harness-first, change 0050): config.yml agents: default: block overrides model/effort --
 make_sandbox
 mkdir -p "$SBX/.config/docket"
-printf 'default:\n  status: { model: haiku, effort: low }\n  implement-next: { effort: auto }\n' > "$SBX/.config/docket/agents.yaml"
+printf 'agents:\n  default:\n    status: { model: haiku, effort: low }\n    implement-next: { effort: auto }\n' > "$SBX/.config/docket/config.yml"
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null )
 assert "global default sets model" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "haiku" ]'
 assert "global default sets effort" '[ "$(fm "$SBX/.claude/agents/docket-status.md" effort)" = "low" ]'
@@ -84,7 +84,7 @@ rm -rf "$SBX"
 # -- global: a per-harness block overrides default for THAT harness only (user-level) --
 make_sandbox                                        # .claude and .cursor both present so both get user-level files
 mkdir -p "$SBX/.cursor" "$SBX/.config/docket"
-printf 'default:\n  status: { model: haiku }\ncursor:\n  status: { model: gpt-5.5-medium-fast }\n' > "$SBX/.config/docket/agents.yaml"
+printf 'agents:\n  default:\n    status: { model: haiku }\n  cursor:\n    status: { model: gpt-5.5-medium-fast }\n' > "$SBX/.config/docket/config.yml"
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null )
 assert "global cursor block wins for cursor" '[ "$(fm "$SBX/.cursor/agents/docket-status.md" model)" = "gpt-5.5-medium-fast" ]'
 assert "global claude falls to default" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "haiku" ]'
@@ -536,8 +536,8 @@ READMEF="$REPO/README.md"
 sec="$(awk '/^##[[:space:]].*[Aa]gent.*([Mm]odel|[Ee]ffort)/{f=1;print;next} f&&/^##[[:space:]]/{f=0} f{print}' "$READMEF")"
 
 assert "0047: README has a discoverable agent model/effort section" '[ -n "$sec" ]'
-assert "0047 §agent-cfg: names the global layer ~/.config/docket/agents.yaml" \
-  'grep -qF "~/.config/docket/agents.yaml" <<<"$sec"'
+assert "0047 §agent-cfg: names the global layer ~/.config/docket/config.yml" \
+  'grep -qF "~/.config/docket/config.yml" <<<"$sec"'
 assert "0047 §agent-cfg: names the per-repo .docket.yml agents: layer" \
   'grep -qF "\`agents:\` block in a repo" <<<"$sec"'
 assert "0047 §agent-cfg: gives the refresh command (bash sync-agents.sh)" \
@@ -603,5 +603,191 @@ assert "0046 (e): warns cursor block is not in agent_harnesses" 'printf "%s" "$g
 assert "0046 (e): cursor file NOT generated (dropped)" '[ ! -e "$SBX/.cursor/agents/docket-status.md" ]'
 assert "0046 (e): claude still generated from default" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "sonnet" ]'
 rm -rf "$SBX" "$HROOTX"
+
+# ============================================================================
+# Change 0050 — agents.yaml -> config.yml auto-migration (owned by sync-agents.sh)
+# ============================================================================
+
+# Happy path: agents.yaml (old top-level harness-first map) is rewritten under agents:
+# in config.yml, the original renamed .migrated, the run logs loudly, values apply.
+make_sandbox
+mkdir -p "$SBX/.config/docket"
+printf 'default:\n  status: { model: haiku, effort: low }\n' > "$SBX/.config/docket/agents.yaml"
+mig_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" 2>&1 >/dev/null)"
+assert "0050 mig: config.yml gains an agents: block" 'grep -qE "^agents[[:space:]]*:" "$SBX/.config/docket/config.yml"'
+assert "0050 mig: old file renamed to .migrated" '[ -f "$SBX/.config/docket/agents.yaml.migrated" ] && [ ! -e "$SBX/.config/docket/agents.yaml" ]'
+assert "0050 mig: logs the migration loudly" 'printf "%s" "$mig_err" | grep -qi "migrat"'
+assert "0050 mig: migrated values applied to wrappers" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "haiku" ]'
+# Idempotency: a second run leaves config.yml byte-identical (no duplicate agents: block).
+cfg_before="$(cat "$SBX/.config/docket/config.yml")"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
+cfg_after="$(cat "$SBX/.config/docket/config.yml")"
+assert "0050 mig: second run no-ops on config.yml" '[ "$cfg_before" = "$cfg_after" ]'
+assert "0050 mig: exactly one agents: block" '[ "$(grep -cE "^agents[[:space:]]*:" "$SBX/.config/docket/config.yml")" = "1" ]'
+rm -rf "$SBX"
+
+# Migration preserves pre-existing non-agents config.yml content.
+make_sandbox
+mkdir -p "$SBX/.config/docket"
+printf 'auto_groom: true\n' > "$SBX/.config/docket/config.yml"
+printf 'default:\n  status: { model: haiku }\n' > "$SBX/.config/docket/agents.yaml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
+assert "0050 mig: pre-existing config.yml keys preserved" 'grep -q "^auto_groom: true" "$SBX/.config/docket/config.yml"'
+assert "0050 mig: agents: appended alongside" 'grep -qE "^agents[[:space:]]*:" "$SBX/.config/docket/config.yml"'
+assert "0050 mig: values from the appended block apply" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "haiku" ]'
+rm -rf "$SBX"
+
+# Migration into a config.yml whose last line lacks a trailing newline must not glue keys.
+make_sandbox
+mkdir -p "$SBX/.config/docket"
+printf 'auto_groom: true' > "$SBX/.config/docket/config.yml"     # NO trailing newline
+printf 'default:\n  status: { model: haiku }\n' > "$SBX/.config/docket/agents.yaml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
+assert "0050 mig: no-trailing-newline config.yml not glued" 'grep -q "^auto_groom: true$" "$SBX/.config/docket/config.yml" && grep -qE "^agents[[:space:]]*:" "$SBX/.config/docket/config.yml"'
+assert "0050 mig: no-trailing-newline values still apply" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "haiku" ]'
+rm -rf "$SBX"
+
+# Stale twin: config.yml already has agents: AND a live agents.yaml is present ->
+# warn stale, do NOT read it, do NOT rename it (only the migration renames).
+make_sandbox
+mkdir -p "$SBX/.config/docket"
+printf 'agents:\n  default:\n    status: { model: sonnet }\n' > "$SBX/.config/docket/config.yml"
+printf 'default:\n  status: { model: haiku }\n' > "$SBX/.config/docket/agents.yaml"
+stale_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" 2>&1 >/dev/null)"
+assert "0050 stale: warns agents.yaml is stale/unread" 'printf "%s" "$stale_err" | grep -qi "stale"'
+assert "0050 stale: config.yml value wins" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "sonnet" ]'
+assert "0050 stale: agents.yaml left in place" '[ -f "$SBX/.config/docket/agents.yaml" ]'
+rm -rf "$SBX"
+
+# No dual-read: a lone agents.yaml.migrated (post-migration state) is never read.
+make_sandbox
+mkdir -p "$SBX/.config/docket"
+printf 'default:\n  status: { model: haiku }\n' > "$SBX/.config/docket/agents.yaml.migrated"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
+assert "0050 no-dual-read: .migrated is not read (built-in model)" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "claude-haiku-4-5-20251001" ]'
+rm -rf "$SBX"
+
+# ============================================================================
+# Change 0050 — global agent_harnesses scopes the USER-LEVEL pass only
+# ============================================================================
+
+# Extends + narrows: the global list overrides presence-on-disk detection.
+make_sandbox                                   # creates .claude + .agents; .cursor ABSENT
+mkdir -p "$SBX/.config/docket"
+printf 'agent_harnesses: [claude, cursor]\n' > "$SBX/.config/docket/config.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
+assert "0050 gah: listed ABSENT harness extended (cursor created+written)" '[ -f "$SBX/.cursor/agents/docket-status.md" ]'
+assert "0050 gah: listed present harness written (claude)" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
+assert "0050 gah: present-but-UNLISTED harness narrowed (.agents untouched)" '[ ! -e "$SBX/.agents/agents/docket-status.md" ]'
+assert "0050 gah: user-level cursor dispatch rule written when cursor listed" '[ -f "$SBX/.cursor/rules/docket-dispatch.mdc" ]'
+rm -rf "$SBX"
+
+# Global [] => the user-level pass writes nothing (explicit empty list, not "unset"),
+# and existing user-level docket wrappers are pruned (every known harness is de-listed).
+make_sandbox
+mkdir -p "$SBX/.config/docket" "$SBX/.claude/agents"
+: > "$SBX/.claude/agents/docket-status.md"          # stale wrapper from an earlier run
+printf 'agent_harnesses: []\n' > "$SBX/.config/docket/config.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
+assert "0050 gah []: no user-level files written despite present .claude" '[ ! -e "$SBX/.claude/agents/docket-status.md" ]'
+assert "0050 gah []: harness root preserved after prune" '[ -d "$SBX/.claude" ]'
+rm -rf "$SBX"
+
+# Unset global key => presence-on-disk detection unchanged (regression pin).
+make_sandbox
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
+assert "0050 gah unset: presence detection still writes .claude" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
+assert "0050 gah unset: absent harness still skipped" '[ ! -d "$SBX/.cursor/agents" ]'
+rm -rf "$SBX"
+
+# Unknown token in the GLOBAL list: warned + dropped, not fatal.
+make_sandbox
+mkdir -p "$SBX/.config/docket"
+printf 'agent_harnesses: [claude, bogus]\n' > "$SBX/.config/docket/config.yml"
+gah_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" 2>&1 >/dev/null)"; gah_rc=$?
+assert "0050 gah unknown: not fatal (rc=0)" '[ "$gah_rc" = "0" ]'
+assert "0050 gah unknown: warns and names the token" 'printf "%s" "$gah_err" | grep -qi "unknown agent_harnesses token" && printf "%s" "$gah_err" | grep -q "bogus"'
+assert "0050 gah unknown: known harness still written" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
+rm -rf "$SBX"
+
+# Scope split: the global key never opts a repo into per-repo generation, and the
+# per-repo committed pass is governed SOLELY by the repo's own agent_harnesses.
+REPO50="$(mktemp -d)"; HROOT50="$(mktemp -d)"
+mkdir -p "$HROOT50/.claude" "$HROOT50/.config/docket"
+printf 'metadata_branch: docket\n' > "$REPO50/.docket.yml"          # tracking-only repo
+printf 'agent_harnesses: [claude]\n' > "$HROOT50/.config/docket/config.yml"
+( cd "$REPO50" && DOCKET_HARNESS_ROOT="$HROOT50" bash "$SYNC" >/dev/null 2>&1 )
+assert "0050 gah scope: global key does NOT opt repo into per-repo generation" '[ ! -e "$REPO50/.claude/agents/docket-status.md" ]'
+assert "0050 gah scope: user-level still written" '[ -f "$HROOT50/.claude/agents/docket-status.md" ]'
+rm -rf "$REPO50" "$HROOT50"
+
+REPO51="$(mktemp -d)"; HROOT51="$(mktemp -d)"
+mkdir -p "$HROOT51/.claude" "$HROOT51/.config/docket"
+printf 'agent_harnesses: [claude]\n' > "$REPO51/.docket.yml"        # repo opts in: claude only
+printf 'agent_harnesses: [cursor]\n' > "$HROOT51/.config/docket/config.yml"
+( cd "$REPO51" && DOCKET_HARNESS_ROOT="$HROOT51" bash "$SYNC" >/dev/null 2>&1 )
+assert "0050 gah scope: per-repo pass follows the REPO list (claude written)" '[ -f "$REPO51/.claude/agents/docket-status.md" ]'
+assert "0050 gah scope: per-repo pass ignores the global list (no repo .cursor)" '[ ! -e "$REPO51/.cursor/agents/docket-status.md" ]'
+assert "0050 gah scope: global [cursor] scopes user-level (cursor written)" '[ -f "$HROOT51/.cursor/agents/docket-status.md" ]'
+assert "0050 gah scope: user-level claude NOT written (narrowed by global list)" '[ ! -e "$HROOT51/.claude/agents/docket-status.md" ]'
+rm -rf "$REPO51" "$HROOT51"
+
+# Narrowing the global list on a later run prunes the de-listed harness's USER-LEVEL
+# docket-owned files (mirrors the per-repo de-list rule); user content + the root survive.
+make_sandbox
+mkdir -p "$SBX/.config/docket" "$SBX/.cursor"
+printf 'agent_harnesses: [claude, cursor]\n' > "$SBX/.config/docket/config.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
+assert "0050 gah prune: cursor user files present before narrowing" '[ -f "$SBX/.cursor/agents/docket-status.md" ]'
+: > "$SBX/.cursor/agents/my-own-agent.md"
+printf 'agent_harnesses: [claude]\n' > "$SBX/.config/docket/config.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
+assert "0050 gah prune: de-listed cursor docket agents pruned" '[ ! -e "$SBX/.cursor/agents/docket-status.md" ]'
+assert "0050 gah prune: de-listed cursor dispatch rule pruned" '[ ! -e "$SBX/.cursor/rules/docket-dispatch.mdc" ]'
+assert "0050 gah prune: user's own co-located file preserved" '[ -f "$SBX/.cursor/agents/my-own-agent.md" ]'
+assert "0050 gah prune: harness root dir preserved" '[ -d "$SBX/.cursor" ]'
+assert "0050 gah prune: listed claude still written" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
+rm -rf "$SBX"
+
+# ---- Change 0050 — README "Global config" section + convention three-layer story ----
+# Extract the new dedicated README section (heading -> next `## `), assert within it.
+gsec="$(awk '/^##[[:space:]].*[Gg]lobal config/{f=1;print;next} f&&/^##[[:space:]]/{f=0} f{print}' "$READMEF")"
+assert "0050 doc: README has a Global config section" '[ -n "$gsec" ]'
+assert "0050 doc: §global names the canonical path" 'grep -qF "~/.config/docket/config.yml" <<<"$gsec"'
+assert "0050 doc: §global states the same-schema rule" 'grep -qiE "same schema as .?\.docket\.yml" <<<"$gsec"'
+assert "0050 doc: §global states per-key precedence" 'grep -qiE "per-repo.*>.*global.*>.*built-in" <<<"$gsec"'
+assert "0050 doc: §global states coordination keys are per-repo-only" 'grep -qi "per-repo-only" <<<"$gsec"'
+assert "0050 doc: §global names the agents.yaml migration" 'grep -qF "agents.yaml.migrated" <<<"$gsec"'
+assert "0050 doc: §global scopes agent_harnesses to the user-level pass" 'grep -qiE "user-level pass" <<<"$gsec"'
+# Tuning section gains the both-passes clarification (LEARNINGS #49 — surface end-to-end).
+sec="$(awk '/^##[[:space:]].*[Aa]gent.*([Mm]odel|[Ee]ffort)/{f=1;print;next} f&&/^##[[:space:]]/{f=0} f{print}' "$READMEF")"
+assert "0050 doc: tuning section states sync-agents writes BOTH layers" 'grep -qiE "both" <<<"$sec" && grep -qiE "project (level )?win|project-over-user|project wins" <<<"$sec"'
+# Convention: Configuration documents the three-layer story + the fence.
+CONV="$REPO/skills/docket-convention/SKILL.md"
+assert "0050 doc: convention names config.yml" 'grep -qF "config.yml" "$CONV"'
+assert "0050 doc: convention states the coordination-key fence" 'grep -qi "fence" "$CONV" && grep -qi "per-repo-only" "$CONV"'
+assert "0050 doc: convention Agent layer global row points at config.yml agents: block" \
+  'grep -qE "^\| Global \|.*config\.yml" "$CONV"'
+
+# ---- Change 0050 follow-up (stopgap for #0051) — global agents: shadowing warning ----
+# An opted-in repo + a global agents: block => loud causal warning: the global block never
+# reaches committed wrappers, and the committed full set shadows the user-level wrappers.
+make_sandbox
+HROOTSW="$(mktemp -d)"; mkdir -p "$HROOTSW/.claude" "$HROOTSW/.config/docket"
+printf 'agents:\n  cursor:\n    status: { model: gpt-5.5-medium-fast }\n' > "$HROOTSW/.config/docket/config.yml"
+printf 'agent_harnesses: [claude]\nagents:\n  default:\n    status: { model: sonnet }\n' > "$SBX/.docket.yml"
+sw_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTSW" bash "$SYNC" 2>&1 >/dev/null)"
+assert "0050 shadow: warns global agents block is SHADOWED by per-repo generation" 'printf "%s" "$sw_err" | grep -q "SHADOWED"'
+assert "0050 shadow: warning names the remedy (.docket.yml agents: block)" 'printf "%s" "$sw_err" | grep -q "\.docket\.yml agents: block"'
+# Not opted in => the global block is live (user-level), no shadowing => no warning.
+printf 'metadata_branch: docket\n' > "$SBX/.docket.yml"
+sw_err2="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTSW" bash "$SYNC" 2>&1 >/dev/null)"
+assert "0050 shadow: no warning for a non-opted-in repo" '! printf "%s" "$sw_err2" | grep -q "SHADOWED"'
+# Opted in but the global file has no agents: entries => nothing shadowed => no warning.
+printf 'agent_harnesses: [claude]\n' > "$SBX/.docket.yml"
+printf 'auto_groom: false\n' > "$HROOTSW/.config/docket/config.yml"
+sw_err3="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTSW" bash "$SYNC" 2>&1 >/dev/null)"
+assert "0050 shadow: no warning when the global file has no agents entries" '! printf "%s" "$sw_err3" | grep -q "SHADOWED"'
+rm -rf "$SBX" "$HROOTSW"
 
 exit $fail

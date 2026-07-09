@@ -28,6 +28,13 @@ run(){ local d="$1"; shift; bash "$SCRIPT" --repo-dir "$d" "$@"; }
 
 tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
 
+# Hermetic: never read the dev machine's real global config (change 0050 — docket-config.sh
+# now reads ${XDG_CONFIG_HOME:-$HOME/.config}/docket/config.yml). Point XDG at a void.
+export XDG_CONFIG_HOME="$tmp/xdg-void"
+# rung <xdgdir> <repodir> [args...] : run the resolver with the global layer rooted at <xdgdir>
+rung(){ local x="$1" d="$2"; shift 2; XDG_CONFIG_HOME="$x" bash "$SCRIPT" --repo-dir "$d" "$@"; }
+rung_rc(){ local x="$1" d="$2"; shift 2; XDG_CONFIG_HOME="$x" bash "$SCRIPT" --repo-dir "$d" "$@" >/dev/null 2>&1; echo $?; }
+
 # --- (A) absent .docket.yml -> all defaults (docket-mode) --------------------
 mkrepo "$tmp/a"
 out="$(run "$tmp/a" --export)"; eval "$out"
@@ -281,6 +288,119 @@ out="$(run "$tmp/j" --export 2>/dev/null)"; eval "$out"
 assert "skills unknown key: warned on stderr"       'printf "%s" "$jerr" | grep -qi "unknown skills role"'
 assert "skills unknown key: known PLAN still parsed" '[ "$SKILL_PLAN" = auto ]'
 assert "skills unknown key: does not abort (exit 0)" '[ "$(run_rc "$tmp/j" --export)" -eq 0 ]'
+
+# ============================================================================
+# Change 0050 — global config layer (~/.config/docket/config.yml)
+# ============================================================================
+
+# --- (K) global-only keys honored (repo has no .docket.yml) ------------------
+mkrepo "$tmp/k"
+mkdir -p "$tmp/k.xdg/docket"
+cat > "$tmp/k.xdg/docket/config.yml" <<'EOF'
+auto_groom: true
+finalize:
+  gate: ci
+skills:
+  build: auto
+EOF
+out="$(rung "$tmp/k.xdg" "$tmp/k" --export)"; eval "$out"
+assert "0050 K: global auto_groom honored"          '[ "$AUTO_GROOM" = true ]'
+assert "0050 K: global finalize.gate honored"       '[ "$FINALIZE_GATE" = ci ]'
+assert "0050 K: global skills.build honored"        '[ "$SKILL_BUILD" = auto ]'
+assert "0050 K: unset key stays built-in (inline)"  '[ "$BOARD_SURFACES" = inline ]'
+assert "0050 K: unset skill role stays default"     '[ "$SKILL_PLAN" = superpowers:writing-plans ]'
+
+# --- (L) per-repo overrides global, field-by-field skills merge --------------
+mkrepo "$tmp/l"
+cat > "$tmp/l/.docket.yml" <<'EOF'
+metadata_branch: main
+auto_groom: false
+skills:
+  plan: superpowers:writing-plans
+EOF
+git -C "$tmp/l" add .docket.yml; git -C "$tmp/l" commit --quiet -m cfg
+git -C "$tmp/l" push --quiet origin main
+mkdir -p "$tmp/l.xdg/docket"
+cat > "$tmp/l.xdg/docket/config.yml" <<'EOF'
+auto_groom: true
+skills:
+  plan: auto
+  review: my-org:global-review
+EOF
+out="$(rung "$tmp/l.xdg" "$tmp/l" --export)"; eval "$out"
+assert "0050 L: per-repo auto_groom false beats global true" '[ "$AUTO_GROOM" = false ]'
+assert "0050 L: skills merge — repo plan wins over global"   '[ "$SKILL_PLAN" = superpowers:writing-plans ]'
+assert "0050 L: skills merge — global review holds"          '[ "$SKILL_REVIEW" = my-org:global-review ]'
+assert "0050 L: skills merge — unset role stays default"     '[ "$SKILL_BUILD" = superpowers:subagent-driven-development ]'
+
+# --- (Q) XDG_CONFIG_HOME honored; HOME/.config is the fallback ---------------
+mkrepo "$tmp/q"
+mkdir -p "$tmp/q.home/.config/docket"
+printf 'auto_groom: true\n' > "$tmp/q.home/.config/docket/config.yml"
+out="$(env -u XDG_CONFIG_HOME HOME="$tmp/q.home" bash "$SCRIPT" --repo-dir "$tmp/q" --export)"; eval "$out"
+assert "0050 Q: XDG unset -> \$HOME/.config fallback read"   '[ "$AUTO_GROOM" = true ]'
+
+# --- (E') emit-interface guard: still exactly 18 lines with a global file present ---
+n50="$(rung "$tmp/k.xdg" "$tmp/k" --export | grep -c '=')"
+assert "0050 E': still 18 KEY=value lines with global layer" '[ "$n50" -eq 18 ]'
+
+# --- (M) coordination-key fence: warned-and-ignored, never honored, never fatal ---
+mkrepo "$tmp/m"
+mkdir -p "$tmp/m.xdg/docket"
+cat > "$tmp/m.xdg/docket/config.yml" <<'EOF'
+metadata_branch: main
+changes_dir: elsewhere/changes
+auto_groom: true
+EOF
+merr="$(rung "$tmp/m.xdg" "$tmp/m" --export 2>&1 >/dev/null)"
+out="$(rung "$tmp/m.xdg" "$tmp/m" --export 2>/dev/null)"; eval "$out"
+assert "0050 M: fence warns metadata_branch"        'printf "%s" "$merr" | grep -q "metadata_branch"'
+assert "0050 M: fence names per-repo-only"          'printf "%s" "$merr" | grep -qi "per-repo-only"'
+assert "0050 M: fence warns changes_dir"            'printf "%s" "$merr" | grep -q "changes_dir"'
+assert "0050 M: global metadata_branch NOT honored" '[ "$METADATA_BRANCH" = docket ]'
+assert "0050 M: CHANGES_DIR stays default"          '[ "$CHANGES_DIR" = docs/changes ]'
+assert "0050 M: global-able key in same file still honored" '[ "$AUTO_GROOM" = true ]'
+assert "0050 M: fence is not fatal (exit 0)"        '[ "$(rung_rc "$tmp/m.xdg" "$tmp/m" --export)" -eq 0 ]'
+
+# --- (N) global board_surfaces: github token dropped; [] and [inline] work -------
+mkrepo "$tmp/n"
+mkdir -p "$tmp/n.xdg/docket"
+printf 'board_surfaces: [inline, github]\n' > "$tmp/n.xdg/docket/config.yml"
+nerr="$(rung "$tmp/n.xdg" "$tmp/n" --export 2>&1 >/dev/null)"
+out="$(rung "$tmp/n.xdg" "$tmp/n" --export 2>/dev/null)"; eval "$out"
+assert "0050 N: global github token warned"         'printf "%s" "$nerr" | grep -q "github"'
+assert "0050 N: global github token dropped"        '[ "$BOARD_SURFACES" = inline ]'
+printf 'board_surfaces: []\n' > "$tmp/n.xdg/docket/config.yml"
+out="$(rung "$tmp/n.xdg" "$tmp/n" --export 2>/dev/null)"; eval "$out"
+assert "0050 N: global [] honored (board disabled)"  '[ -z "$BOARD_SURFACES" ]'
+# per-repo github is untouched by the fence:
+mkrepo "$tmp/n2"
+printf 'metadata_branch: main\nboard_surfaces: [inline, github]\n' > "$tmp/n2/.docket.yml"
+git -C "$tmp/n2" add .docket.yml; git -C "$tmp/n2" commit --quiet -m cfg
+git -C "$tmp/n2" push --quiet origin main
+n2err="$(rung "$tmp/n.xdg" "$tmp/n2" --export 2>&1 >/dev/null)"
+out="$(rung "$tmp/n.xdg" "$tmp/n2" --export 2>/dev/null)"; eval "$out"
+assert "0050 N: per-repo github honored"            '[ "$BOARD_SURFACES" = "inline github" ]'
+assert "0050 N: per-repo github NOT warned"         '! printf "%s" "$n2err" | grep -q "board_surfaces token github"'
+
+# --- (O) misplacement guard: ~/.config/docket/.docket.yml is warned, never read ---
+mkrepo "$tmp/o"
+mkdir -p "$tmp/o.xdg/docket"
+printf 'auto_groom: true\n' > "$tmp/o.xdg/docket/.docket.yml"
+oerr="$(rung "$tmp/o.xdg" "$tmp/o" --export 2>&1 >/dev/null)"
+out="$(rung "$tmp/o.xdg" "$tmp/o" --export 2>/dev/null)"; eval "$out"
+assert "0050 O: misplacement warned, names config.yml" 'printf "%s" "$oerr" | grep -q "config.yml"'
+assert "0050 O: misplaced file NOT read (auto_groom default)" '[ "$AUTO_GROOM" = false ]'
+assert "0050 O: misplacement not fatal (exit 0)"    '[ "$(rung_rc "$tmp/o.xdg" "$tmp/o" --export)" -eq 0 ]'
+
+# --- (P) malformed global file: warned, built-ins fallback, repos not bricked -----
+mkrepo "$tmp/p"
+mkdir -p "$tmp/p.xdg/docket/config.yml"            # a DIRECTORY at the config path
+perr="$(rung "$tmp/p.xdg" "$tmp/p" --export 2>&1 >/dev/null)"
+out="$(rung "$tmp/p.xdg" "$tmp/p" --export 2>/dev/null)"; eval "$out"
+assert "0050 P: malformed global warned"            'printf "%s" "$perr" | grep -qi "not a readable regular file"'
+assert "0050 P: built-ins fallback (auto_groom)"    '[ "$AUTO_GROOM" = false ]'
+assert "0050 P: malformed global not fatal (exit 0)" '[ "$(rung_rc "$tmp/p.xdg" "$tmp/p" --export)" -eq 0 ]'
 
 if [ "$fail" = 0 ]; then echo PASS; else echo FAIL; fi
 exit "$fail"

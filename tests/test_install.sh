@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # tests/test_install.sh — run: bash tests/test_install.sh
 set -uo pipefail
+unset XDG_CONFIG_HOME   # hermetic: sync-agents.sh reads ${XDG_CONFIG_HOME:-$HARNESS_ROOT/.config}; a set XDG would leak (and since 0050, MIGRATE) the dev's real global config
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 fail=0
 assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }

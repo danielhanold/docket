@@ -41,6 +41,8 @@ skills:                      # pluggable workflow skills (change 0049); unset ke
 
 `.docket.yml` lives on the repo's **default branch (`origin/HEAD`)**, NOT on the integration branch — `integration_branch` is a value *read from* the file, so the file cannot be located *by* it. The file then **declares `integration_branch`**, which may differ from the default branch (default `main`, integration `develop`). `metadata_branch` resolves where PM commits land; `integration_branch` (default `auto` → `origin/HEAD`, fallback `main`; explicit `main`/`develop` verbatim) resolves where code lands — feature branches always cut from `origin/<integration_branch>`. A genuinely absent file ⇒ defaults apply (`metadata_branch: docket`, `integration_branch: auto`); an unreachable `origin` is never silently treated as "file absent." **Backward-compatible opt-out:** pinning `metadata_branch: main` (with `integration_branch: main`) reproduces today's single-branch behavior exactly — no `docket` branch, no `.docket/` worktree.
 
+**Global config layer (change 0050).** One optional user-level file — `${XDG_CONFIG_HOME:-~/.config}/docket/config.yml` — accepts the full `.docket.yml` schema, resolved **per-key** as **per-repo > global > built-in** (map-valued `skills:`/`agents:` merge field-by-field). `docket-config.sh --export` implements the layer as the single runtime reader; skills' Step-0 interface is unchanged. **Coordination-key fence:** a key whose effect writes shared, non-re-derivable state (`metadata_branch`, `integration_branch`, `changes_dir`/`adrs_dir`/`results_dir`, `github_project`, and `board_surfaces`' `github` token) is per-repo-only — set globally it is loudly warned-and-ignored, never honored, never fatal. Global-able: `skills:`, `agents:`, `auto_groom`, `finalize.*`, `board_surfaces` minus `github`, and `agent_harnesses` scoped to `sync-agents.sh`'s user-level pass only. A misplaced `~/.config/docket/.docket.yml` warns ("the global file is config.yml") and is never read; a malformed global file warns and falls back to built-ins without bricking any repo. The legacy `~/.config/docket/agents.yaml` is auto-migrated by `sync-agents.sh` into `config.yml`'s `agents:` block (original renamed `.migrated`; no dual-read remains).
+
 This resolution — repair `origin/HEAD`, read `.docket.yml` authoritatively, apply every default, and resolve `integration_branch` — is performed deterministically by **`docket-config.sh --export`**, which a skill consumes in one turn: `eval "$("${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket-config.sh --export)"`. The prose in this section is the spec the script implements; its interface and mechanics — the `origin/HEAD` repair, the authoritative `.docket.yml` read, the emitted `KEY=value` contract, and the fail-closed exit codes — are in its contract [`scripts/docket-config.md`](../../scripts/docket-config.md). The script is the single implementation the skills run instead of re-deriving this each session.
 
 **Reaching the helper scripts (`DOCKET_SCRIPTS_DIR`).** Every helper script this convention names lives in the docket clone's `scripts/` directory, NOT in the consuming repo. A skill resolves each as `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/<name>.sh` — `DOCKET_SCRIPTS_DIR` is the absolute path to that directory, injected into the shell profile (re-sourced on every Bash-tool call, so it reaches dispatched subagents) and Claude Code's user-level `settings.json` `env` by `install.sh`; re-running `install.sh` back-fills any already-migrated clone. Pointing at the live clone the skills are symlinked from keeps scripts and skills version-matched (zero drift). The `:?` makes a missing/incomplete install **fail loud**: the first helper call prints the `run docket/install.sh` remedy to stderr (and a bare invocation aborts outright), so the executing agent stops and fixes the install instead of silently degrading to hand-worked operations. Every env var docket introduces is **DOCKET_-namespaced** (joining `DOCKET_MODE` / `DOCKET_INTEGRATION_BRANCH` / `DOCKET_HARNESS_ROOT`) to avoid collisions in the user's shared shell. In prose this convention names a script by basename (e.g. `render-board.sh`); a runnable invocation always uses the resolved form.
@@ -69,16 +71,22 @@ A wrapper is a thin file: it pins `model` + `effort`, injects the skill via `ski
 | Layer | Source | Generates |
 |---|---|---|
 | Built-in | `agents/docket-*.md` shipped in docket (each ships its default model/effort) | — |
-| Global | `~/.config/docket/agents.yaml` (optional, XDG) | user-level `~/.claude/agents/docket-*.md` |
+| Global | the `agents:` block in `~/.config/docket/config.yml` (optional, XDG; legacy `agents.yaml` auto-migrated) | user-level `~/.claude/agents/docket-*.md` |
 | Per-repo | `.docket.yml` `agents:` block (committed) | **project-level** `<repo>/.claude/agents/docket-*.md` |
 
-Both the global file and the per-repo `agents:` block are **harness-first** (change 0046): a reserved
+Both `config.yml`'s `agents:` block and the per-repo `agents:` block are **harness-first** (change 0046): a reserved
 `default:` key holds the harness-neutral fallback, and any harness name (e.g. `cursor`) can override
-just the fields that differ for that harness — the harness key is just a map key in either file.
-`agent_harnesses` does **not** gate which harness keys either file may carry; it only gates the
-**per-repo** generation pass (which `<repo>/.<H>/agents/` directories get committed wrapper files).
-The global/user-level pass consults no such list — it writes every harness `agents/` directory
-**present on disk** (`~/.claude/agents`, `~/.cursor/agents`, …), whatever keys the global file has:
+just the fields that differ for that harness — the harness key is just a map key in either block.
+`agent_harnesses` does **not** gate which harness keys either block may carry; the per-repo
+`.docket.yml` `agent_harnesses` gates only the **per-repo** generation pass (which
+`<repo>/.<H>/agents/` directories get committed wrapper files). The user-level pass writes every
+harness `agents/` directory **present on disk** — unless the
+global `config.yml` sets `agent_harnesses:`, which then governs the user-level target list:
+creating listed dirs, skipping unlisted ones, and pruning docket-owned files from any de-listed
+known harness (never rmdir'ing the harness root itself — it is the user's own config directory,
+not a docket artifact; change 0050). The per-repo committed pass is governed solely by the repo's
+own `agent_harnesses`, never the global value. Whatever keys `config.yml`'s `agents:` block has,
+they resolve the same harness-first way (`~/.claude/agents`, `~/.cursor/agents`, …):
 
 ```yaml
 agents:                                 # harness-first: reserved `default:` + harness-name keys
@@ -91,9 +99,10 @@ agents:                                 # harness-first: reserved `default:` + h
   # Resolution is field-by-field, first non-empty wins: agents.<harness>.<agent> -> agents.default.<agent> -> shipped built-in (agents/docket-*.md).
   # effort: auto explicitly drops the effort line (inherit the model default); omitting the
   # effort: key instead keeps the built-in effort — auto and omitted are NOT equivalent.
-  # The global ~/.config/docket/agents.yaml uses the SAME harness-first map, but at the FILE's top level
-  # (no `agents:` wrapper — the file IS the map). A non-`claude` harness whose model falls to default/built-in
-  # gets a non-fatal warning (likely-wrong ID; docket never validates model IDs).
+  # The global ~/.config/docket/config.yml uses the SAME agents: wrapper shape (change 0050
+  # unified it; the pre-0050 top-level-map agents.yaml is auto-migrated on the next sync).
+  # A non-`claude` harness whose model falls to default/built-in gets a non-fatal warning
+  # (likely-wrong ID; docket never validates model IDs).
   # A harness block not in `agent_harnesses`, or a bare pre-0046 agent key, is warned + ignored.
 ```
 
@@ -122,8 +131,9 @@ each listed harness `H` gets committed `<repo>/.<H>/agents/docket-*.md`; a Curso
 `.cursor/` never silently mints committed files; an unknown harness token is warned-and-ignored. The
 `sync-agents.sh --check` drift gate spans every generated per-harness file. The **user-level** pass's
 fan-out scope is unchanged (it still writes every present harness — change 0046 reshaped only how each
-file's values resolve, per the harness-first Agent layer above). `agent_harnesses` is read by a direct
-parse in `sync-agents.sh` (not `docket-config.sh`).
+file's values resolve, per the harness-first Agent layer above) — change 0050 later made a global
+`agent_harnesses` override this presence detection for the user-level pass only. `agent_harnesses` is
+read by a direct parse in `sync-agents.sh` (not `docket-config.sh`).
 
 **Always-full-set generation + the Cursor dispatch rule (change 0048).** The **per-repo pass writes
 the full built-in agent set** for every harness in `agent_harnesses` — the `agents:` block is

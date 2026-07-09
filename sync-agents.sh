@@ -7,8 +7,12 @@
 #
 # Layers & precedence — per-repo > global > built-in:
 #   built-in  agents/docket-*.md in this repo (each ships its default model/effort)
-#   global    ~/.config/docket/agents.yaml        -> user-level    ~/.claude/agents/docket-*.md
+#   global    ~/.config/docket/config.yml `agents:` block -> user-level ~/.claude/agents/docket-*.md
+#             (the legacy ~/.config/docket/agents.yaml is auto-migrated into it, then renamed .migrated)
 #   per-repo  <repo>/.docket.yml `agents:` block  -> project-level <repo>/.claude/agents/docket-*.md (committed)
+# A global `agent_harnesses:` (config.yml top-level key) scopes the USER-LEVEL pass only —
+# overriding presence-on-disk detection; it never opts a repo into per-repo generation, which
+# stays governed solely by the repo's own .docket.yml `agent_harnesses:`.
 # Claude Code applies project-over-user precedence natively, so the generator writes two layers
 # (user = built-in⊕global, project = built-in⊕per-repo) and never hand-merges all three.
 #
@@ -28,7 +32,9 @@ CURSOR_RULES_SRC="$SCRIPT_DIR/cursor-rules"
 REPO="$PWD"
 
 HARNESS_ROOT="${DOCKET_HARNESS_ROOT:-$HOME}"
-GLOBAL_CFG="${XDG_CONFIG_HOME:-$HARNESS_ROOT/.config}/docket/agents.yaml"
+GLOBAL_CFG_DIR="${XDG_CONFIG_HOME:-$HARNESS_ROOT/.config}/docket"
+GLOBAL_CFG="$GLOBAL_CFG_DIR/config.yml"
+LEGACY_GLOBAL_CFG="$GLOBAL_CFG_DIR/agents.yaml"
 DOCKET_YML="$REPO/.docket.yml"
 
 # Mirror link-skills.sh's HARNESS_SKILL_DIRS, swapping skills -> agents.
@@ -54,6 +60,28 @@ CHECK=0
 [ "${1:-}" = "--check" ] && CHECK=1
 
 log(){ printf '%s\n' "sync-agents: $*" >&2; }
+
+# --- agents.yaml -> config.yml auto-migration (change 0050) -------------------
+# Idempotent: (1) live agents.yaml + config.yml WITHOUT an agents: block -> rewrite the old
+# top-level harness-first map under agents: in config.yml (creating the file if needed),
+# rename the original to .migrated (git-less users keep a copy), log loudly. (2) config.yml
+# already has agents: and a live agents.yaml is also present -> warn stale, do not read it.
+# After this change the global agent config is read ONLY from config.yml (no dual-read).
+migrate_legacy_global(){
+  [ -f "$LEGACY_GLOBAL_CFG" ] || return 0
+  if [ -f "$GLOBAL_CFG" ] && grep -qE '^agents[[:space:]]*:' "$GLOBAL_CFG"; then
+    log "WARN $LEGACY_GLOBAL_CFG is STALE and unread — global agent config lives under agents: in $GLOBAL_CFG; delete or rename the old file"
+    return 0
+  fi
+  # A pre-existing config.yml without a trailing newline would glue agents: onto its last line.
+  if [ -s "$GLOBAL_CFG" ] && [ -n "$(tail -c1 "$GLOBAL_CFG")" ]; then printf '\n' >> "$GLOBAL_CFG"; fi
+  {
+    printf 'agents:\n'
+    sed 's/^\(.\)/  \1/' "$LEGACY_GLOBAL_CFG"    # indent every non-empty line under agents:
+  } >> "$GLOBAL_CFG"
+  mv "$LEGACY_GLOBAL_CFG" "$LEGACY_GLOBAL_CFG.migrated"
+  log "MIGRATED global agent config: $LEGACY_GLOBAL_CFG -> agents: block in $GLOBAL_CFG (original kept at $LEGACY_GLOBAL_CFG.migrated)"
+}
 
 is_valid_harness(){  # $1=token -> rc 0 if it is a known harness token
   [ -n "$1" ] || return 1
@@ -87,6 +115,53 @@ resolve_agent_harnesses(){
   done
   set +f
   HARNESSES="$(echo $HARNESSES)"                  # trim/collapse ("[]" or all-unknown => "")
+}
+
+# Resolve the GLOBAL agent_harnesses (config.yml top-level key) — change 0050. Scope: it
+# overrides the user-level pass's presence-on-disk selector ONLY; the per-repo committed
+# pass is governed solely by the repo's own agent_harnesses (a global value shaping
+# committed files would fail --check on every other machine). Unset => USER_HARNESSES_SET=0
+# (presence detection); set (even to []) => the list governs.
+resolve_global_agent_harnesses(){
+  local raw list tok
+  USER_HARNESSES_SET=0; USER_HARNESSES=""
+  raw=""
+  if [ -f "$GLOBAL_CFG" ]; then
+    raw="$(sed -n -E 's/^agent_harnesses[[:space:]]*:[[:space:]]*([^#]*).*/\1/p' "$GLOBAL_CFG")"
+    raw="$(head -n1 <<<"$raw" | sed -E 's/[[:space:]]+$//')"
+  fi
+  [ -n "$raw" ] || return 0
+  USER_HARNESSES_SET=1
+  list="${raw#[}"; list="${list%]}"; list="${list//,/ }"
+  set -f
+  for tok in $list; do
+    if is_valid_harness "$tok"; then
+      USER_HARNESSES="$USER_HARNESSES $tok"
+    else
+      log "unknown agent_harnesses token '$tok' in $GLOBAL_CFG — ignored"
+    fi
+  done
+  set +f
+  USER_HARNESSES="$(echo $USER_HARNESSES)"
+}
+
+# The user-level pass's final harness token list: the global agent_harnesses when set
+# (extends: absent dirs are created; narrows: unlisted present dirs are skipped), else
+# every harness root present on disk. Space-separated string (bash-3.2-safe under set -u).
+compute_user_targets(){
+  local dir
+  if [ "$USER_HARNESSES_SET" = "1" ]; then
+    USER_TARGETS="$USER_HARNESSES"
+  else
+    USER_TARGETS=""
+    for dir in "${HARNESS_AGENT_DIRS[@]}"; do
+      if [ -d "$(dirname "$dir")" ]; then
+        USER_TARGETS="$USER_TARGETS $(harness_of_dir "$dir")"
+      fi
+    done
+    USER_TARGETS="$(echo $USER_TARGETS)"
+  fi
+  return 0
 }
 
 # Per-repo generation is OPT-IN: a repo opts in by declaring an `agents:` override block OR an
@@ -257,26 +332,25 @@ warn_legacy_shape(){  # $1=file $2=under_agents ; warns once per bare agent key
 # Map a user-level harness *dir* ("$HARNESS_ROOT/.cursor/agents") to its token ("cursor").
 harness_of_dir(){ local b; b="$(basename "$(dirname "$1")")"; printf '%s' "${b#.}"; }
 
-user_level_pass() {  # built-in ⊕ global -> each present harness */agents dir, resolved per (harness, agent)
+user_level_pass() {  # built-in ⊕ global -> each user-level target harness, resolved per (harness, agent)
   local src dir name harness
-  warn_legacy_shape "$GLOBAL_CFG" 0
+  warn_legacy_shape "$GLOBAL_CFG" 1
+  compute_user_targets
   for src in "$AGENTS_SRC"/docket-*.md; do
     [ -e "$src" ] || continue
     name="$(short_name "$src")"
-    for dir in "${HARNESS_AGENT_DIRS[@]}"; do
-      [ -d "$(dirname "$dir")" ] || continue          # only write into a PRESENT harness root
-      harness="$(harness_of_dir "$dir")"
-      resolve_agent "$GLOBAL_CFG" "$harness" "$name" 0
+    for harness in $USER_TARGETS; do
+      dir="$HARNESS_ROOT/.$harness/agents"
+      resolve_agent "$GLOBAL_CFG" "$harness" "$name" 1
       warn_fallback_model "$harness" "$name"
       mkdir -p "$dir"
       emit "$src" "$RES_MODEL" "$RES_EFFORT" > "$dir/$(basename "$src")"
     done
   done
-  # Cursor-only dispatch rule, user-level, for each present dispatch-rule harness root.
+  # Cursor-only dispatch rule, user-level, for each targeted dispatch-rule harness.
   local drh
   for drh in $HARNESS_HAS_DISPATCH_RULES; do
-    [ -d "$HARNESS_ROOT/.$drh" ] || continue
-    write_dispatch_rule "$HARNESS_ROOT/.$drh"
+    case " $USER_TARGETS " in *" $drh "*) write_dispatch_rule "$HARNESS_ROOT/.$drh" ;; esac
   done
 }
 
@@ -284,6 +358,14 @@ project_level_pass() {  # built-in ⊕ per-repo -> <repo>/.<H>/agents for each H
   per_repo_opted_in || return 0
   local src name harness dir cfg_h cfgname
   warn_legacy_shape "$DOCKET_YML" 1
+  # Shadowing warning (change 0050 live-test finding; real semantics decided by change 0051):
+  # a global agents: block NEVER reaches committed per-repo wrappers — they resolve from
+  # .docket.yml + built-ins only — and the committed full set takes harness precedence over
+  # the user-level wrappers that DO carry the global values. Without this warning the global
+  # config silently goes dead the moment a repo opts in.
+  if [ -n "$(agent_keys "$GLOBAL_CFG" 1)" ]; then
+    log "WARN global agents: config ($GLOBAL_CFG) is SHADOWED in this repo: per-repo generation commits the full agent set resolved from .docket.yml + built-ins only, and committed wrappers take precedence over the user-level wrappers carrying your global models — copy the overrides you want into this repo's .docket.yml agents: block"
+  fi
   # Warn on any agents.<harness> block whose harness is NOT in agent_harnesses (dead config).
   while IFS= read -r cfg_h; do
     [ -n "$cfg_h" ] || continue
@@ -380,7 +462,8 @@ rmdir_if_docket_emptied() {  # $1 = dir
 
 # Prune orphaned docket-owned files. Scope:
 #   scope=all      normal run — per-repo (HARNESSES) + user-level (present harnesses) removed-builtins,
-#                  plus per-repo de-listed-harness cleanup.
+#                  plus per-repo de-listed-harness cleanup, plus (when the global agent_harnesses
+#                  list is set) user-level de-listed-harness cleanup.
 #   scope=per-repo --check — per-repo only, report-only.
 prune_orphans() {  # $1 = scope (all|per-repo)
   local scope="$1" dir f name tok pruned_agents pruned_rule
@@ -406,20 +489,42 @@ prune_orphans() {  # $1 = scope (all|per-repo)
   # (2) de-listed per-repo harness — only for an opted-in repo. A known harness NOT in HARNESSES that
   # still holds docket-owned per-repo files (agents + dispatch rule) is pruned; only the specific
   # dirs docket actually emptied are rmdir'd (never a pre-existing / user dir).
-  per_repo_opted_in || return 0
+  if per_repo_opted_in; then
+    for tok in $VALID_HARNESS_TOKENS; do
+      case " $HARNESSES " in *" $tok "*) continue;; esac      # still listed -> not de-listed
+      pruned_agents=0; pruned_rule=0
+      for f in "$REPO/.$tok/agents"/docket-*.md; do
+        [ -e "$f" ] || continue
+        handle_orphan "$f"; pruned_agents=1
+      done
+      if [ -e "$REPO/.$tok/rules/docket-dispatch.mdc" ]; then
+        handle_orphan "$REPO/.$tok/rules/docket-dispatch.mdc"; pruned_rule=1
+      fi
+      if [ "$pruned_agents" = "1" ]; then rmdir_if_docket_emptied "$REPO/.$tok/agents"; fi
+      if [ "$pruned_rule" = "1" ]; then rmdir_if_docket_emptied "$REPO/.$tok/rules"; fi
+      if [ "$pruned_agents" = "1" ] || [ "$pruned_rule" = "1" ]; then rmdir_if_docket_emptied "$REPO/.$tok"; fi
+    done
+  fi
+  # (3) de-listed USER-LEVEL harness (change 0050): when the global agent_harnesses list is
+  # SET, a known harness NOT in the user-level target list that still holds user-level
+  # docket-owned files is pruned (mirrors the per-repo de-list rule — the files are
+  # docket-owned generated copies). Never rmdir the harness root itself: it is the user's
+  # own config dir, not a docket artifact. Delete-mode only concerns aside, --check never
+  # reaches here (scope=per-repo returns above).
+  [ "$scope" = "all" ] || return 0
+  [ "${USER_HARNESSES_SET:-0}" = "1" ] || return 0
   for tok in $VALID_HARNESS_TOKENS; do
-    case " $HARNESSES " in *" $tok "*) continue;; esac      # still listed -> not de-listed
+    case " ${USER_TARGETS:-} " in *" $tok "*) continue;; esac
     pruned_agents=0; pruned_rule=0
-    for f in "$REPO/.$tok/agents"/docket-*.md; do
+    for f in "$HARNESS_ROOT/.$tok/agents"/docket-*.md; do
       [ -e "$f" ] || continue
       handle_orphan "$f"; pruned_agents=1
     done
-    if [ -e "$REPO/.$tok/rules/docket-dispatch.mdc" ]; then
-      handle_orphan "$REPO/.$tok/rules/docket-dispatch.mdc"; pruned_rule=1
+    if [ -e "$HARNESS_ROOT/.$tok/rules/docket-dispatch.mdc" ]; then
+      handle_orphan "$HARNESS_ROOT/.$tok/rules/docket-dispatch.mdc"; pruned_rule=1
     fi
-    if [ "$pruned_agents" = "1" ]; then rmdir_if_docket_emptied "$REPO/.$tok/agents"; fi
-    if [ "$pruned_rule" = "1" ]; then rmdir_if_docket_emptied "$REPO/.$tok/rules"; fi
-    if [ "$pruned_agents" = "1" ] || [ "$pruned_rule" = "1" ]; then rmdir_if_docket_emptied "$REPO/.$tok"; fi
+    if [ "$pruned_agents" = "1" ]; then rmdir_if_docket_emptied "$HARNESS_ROOT/.$tok/agents"; fi
+    if [ "$pruned_rule" = "1" ]; then rmdir_if_docket_emptied "$HARNESS_ROOT/.$tok/rules"; fi
   done
 }
 
@@ -429,6 +534,8 @@ if [ "$CHECK" = "1" ]; then
   if check_project_level; then exit 0; else exit 1; fi
 fi
 
+migrate_legacy_global
+resolve_global_agent_harnesses
 user_level_pass
 project_level_pass
 prune_orphans all

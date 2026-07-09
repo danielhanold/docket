@@ -8,7 +8,7 @@
 #   3. ensure-docket-env.sh — export DOCKET_SCRIPTS_DIR so the skills can reach scripts/ from any
 #                             consuming repo (re-run back-fills already-migrated clones)
 # All are idempotent, so install.sh is safe to re-run any time (e.g. after adding a harness or
-# editing ~/.config/docket/agents.yaml).
+# editing ~/.config/docket/config.yml).
 #
 # NOT part of install: migrate-to-docket.sh — that migrates an existing repo to docket-mode and is
 # run from INSIDE the repo you are migrating, not as machine setup.
