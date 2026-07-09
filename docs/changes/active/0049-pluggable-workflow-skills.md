@@ -10,7 +10,7 @@ depends_on: []
 related: [44, 16]
 adrs: []
 spec: docs/superpowers/specs/2026-07-08-pluggable-workflow-skills-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-09-pluggable-workflow-skills.md
 results:
 trivial: false
 auto_groomable:
@@ -26,6 +26,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-08-pluggable-workflow-skills-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-08-pluggable-workflow-skills-design.md) |
+| Plan | [2026-07-09-pluggable-workflow-skills.md](https://github.com/danielhanold/docket/blob/feat/pluggable-workflow-skills/docs/superpowers/plans/2026-07-09-pluggable-workflow-skills.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
