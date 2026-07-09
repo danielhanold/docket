@@ -432,6 +432,7 @@ printf 'agent_harnesses: [cursor]\nagents:\n  default:\n    status: { model: son
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTC" bash "$SYNC" >/dev/null )
 assert "0045 cursor-only: .cursor/agents generated" '[ -f "$SBX/.cursor/agents/docket-status.md" ]'
 assert "0045 cursor-only: .claude/agents NOT generated" '[ ! -e "$SBX/.claude/agents/docket-status.md" ]'
+assert "0048: [cursor]-only leaves the pre-existing user .claude dir intact" '[ -d "$SBX/.claude" ]'
 rm -rf "$SBX" "$HROOTC"
 
 # (d) unknown harness token => warned + dropped, NOT fatal; known harness still generated.
@@ -454,6 +455,7 @@ printf 'agent_harnesses: []\nagents:\n  default:\n    status: { model: sonnet }\
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTE0" bash "$SYNC" >/dev/null )
 assert "0045 empty-list: no .claude project file" '[ ! -e "$SBX/.claude/agents/docket-status.md" ]'
 assert "0045 empty-list: no .cursor project file" '[ ! -e "$SBX/.cursor/agents/docket-status.md" ]'
+assert "0048: empty-list leaves the pre-existing user .claude dir intact" '[ -d "$SBX/.claude" ]'
 rm -rf "$SBX" "$HROOTE0"
 
 # --check must span every listed harness: drift in a .cursor/agents file fails CI.
