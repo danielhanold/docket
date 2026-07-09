@@ -4,6 +4,26 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-07-09 (#50, PR #59) — A feature that added a write path to a shared per-user location
+  (`sync-agents.sh`'s auto-migration writes `~/.config/docket/config.yml`) upgraded every
+  non-hermetic test that reaches it from read-leak to write hazard: `tests/test_install.sh`
+  inherited `XDG_CONFIG_HOME`, so on machines exporting it (common on Linux) the suite would have
+  **rewritten the developer's real global config** as a test side effect — caught by the final
+  whole-branch review, fixed pre-merge (`585b5ae`). Apply: when a change adds a write path to a
+  shared user-level location, audit every test that can transitively reach that path and pin the
+  relevant env (XDG/HOME) hermetically — tests that merely read-leaked before the change become
+  data-loss hazards after it.
+
+- 2026-07-09 (#50, PR #59) — The new global config layer passed every unit fixture, yet in live use
+  its `agents:` values were fully shadowed in any repo opted into per-repo generation: the committed
+  full wrapper set (change 0048) resolves from `.docket.yml` + built-ins only and takes harness
+  precedence over the user-level wrappers carrying the global values. Found only by live-testing on
+  a real repo *after* the build (a loud causal warning landed as a stopgap; real semantics deferred
+  to #0051). Apply: when adding a lower-precedence config layer, enumerate every higher-precedence
+  **generated artifact** that can shadow it — not just the direct readers — and live-test the new
+  layer's effect in a repo where those artifacts exist; a value can resolve correctly and still
+  never take effect.
+
 - 2026-07-09 (#49, PR #58) — A change that added a new user-facing config knob (the role-keyed
   `skills:` map) shipped its resolution logic and skill-body wiring but NOT its surfacing: the
   commented sample `.docket.yml` never gained the new keys, README still framed superpowers as a
@@ -46,12 +66,12 @@
   as itself buildable and testable — don't assume the earlier task's leftover references are safe
   because a later task will delete them.
 
-- 2026-07-08 (#42, PR #52) — Re-pinning the agent-model aliases to full IDs, the spec's "touch-points"
-  list enumerated the test edits but **undercounted them**: 4 more assertions hardcoded the old bare
-  aliases and surfaced only in the reconcile pass's exhaustive grep, not the spec's enumeration. Apply:
-  when a change substitutes a literal value that tests assert on, grep the whole suite for *every*
-  occurrence of the old literal before trusting the spec — a spec's enumerated touch-points are a floor,
-  not the complete set.
+- 2026-07-08 (#42, PR #52; also #32, PR #43 — merged near-duplicates) — Twice, a spec's enumerated
+  touch-point/call-site list **undercounted**: 4 extra test assertions hardcoding the old model
+  aliases, and two un-named id-read sites, all surfaced only by the reconcile pass's exhaustive grep,
+  not the spec's enumeration. Apply: a spec's enumerated list is a floor, not the complete set — grep
+  the whole repo/suite for every occurrence of the old literal or pattern before a codebase-wide
+  swap, and let reconcile pin the full inventory in the change before the build starts.
 
 - 2026-06-21 (#37, PR #48) — A change stripping prose from `docket-status/SKILL.md` was mid-build when
   PR #47 (#36) merged into `origin/main` with newer fixes to the *same* file. Rebasing onto the new
@@ -113,19 +133,12 @@
   real-data smoke inside an actual repo worktree, not a `/tmp` fixture dir — the fixture path passes
   while covering only the degraded branch (sharpens #22's "smoke against real data").
 
-- 2026-06-20 (#32, PR #43) — A new frontmatter accessor `int_field` ended `printf '%s'` (no newline)
-  where the existing `field` ended `printf '%s\n'`. Every adoption was a command substitution
-  `id="$(int_field …)"` (which strips trailing newlines anyway) **except** one *direct pipe*
-  (`render-board.sh`'s done-node list: `… && field "$f" id; done | sort -n`), where the missing
-  newline concatenated ids (`10`,`12` → `1012`). TDD's golden compare caught it. Apply: when swapping
-  in an accessor that drops the trailing newline, audit for *un-captured* uses in a pipe/concatenation —
-  command-substitution sites are safe, raw-pipe sites are not.
-
-- 2026-06-20 (#32, PR #43) — The spec enumerated the id-read sites illustratively and said "grep them
-  all"; reconcile found two it under-named (`readiness()` and a dep-cycle scan), and they were hardened
-  too. Apply: treat a spec's enumerated call-site list as a floor, not a ceiling — `grep` the whole
-  family for the pattern before a codebase-wide swap, and let reconcile pin the full inventory in the
-  change before the build starts.
+- 2026-06-19/20 (#22 PR #35; #32 PR #43 — merged near-duplicates) — Twice, a shell accessor that
+  dropped the trailing newline (`printf '%s'` where the original ended `'%s\n'`) shipped masked:
+  every `$(…)` command-substitution caller strips trailing newlines anyway, and only a **direct-pipe**
+  caller (`field … | sort`) exposed it — the missing `\n` concatenating ids (`10`,`12` → `1012`).
+  Apply: a "byte-identical"/drop-in claim for a shell helper must be validated against a direct-pipe
+  caller, not only `$(…)` callers — audit for un-captured pipe/concatenation uses before the swap.
 
 - 2026-06-20 (#30, PR #41) — Scripting a "this file is generated — do not hand-edit" ADR index
   surfaced that the published `README.md` had silently accreted richer text than the source `title:`
@@ -185,12 +198,6 @@
   test touched an *unrelated* file, hitting only the clean if-branch. Apply: to cover a conflict/CAS-
   retry path the competing writer must DIVERGE the *same* contended path, mutation-confirmed by
   neutralizing the re-checkout (extends #22 — green tests ≠ the hard branch was exercised).
-- 2026-06-19 (#22, PR #35) — A shell-helper refactor claimed "byte-identical" but had dropped a
-  trailing newline (`printf '%s'` replacing a final `sed`); every `$(field …)` caller masked it
-  (command substitution strips trailing newlines), and only a **direct-pipe** caller (`field … | sort`)
-  exposed it — there the missing `\n` concatenated multiple ids into one token (`printf: Result too
-  large`). Apply: a "byte-identical" claim for a shell helper must be validated against a direct-pipe
-  caller, not only `$(…)` callers — `$()` silently hides a dropped trailing newline.
 - 2026-06-19 (#22, PR #35) — A green golden-fixture test still shipped two real-data bugs: the fixture
   used `pr: 142` (real changes store a full `pr:` URL) and had a single `done` change, so neither the
   URL-format path nor the multi-id concatenation bug was exercised; a live smoke test against the real
@@ -249,18 +256,16 @@
   to deliver an ADR body update onto the integration branch atomically, list that ADR id in the
   producing change's `adrs:` so terminal-publish re-copies it on merge — never a standalone
   push that races the cross-referenced ADR's own publish.
+- 2026-06-16 (#16, PR #30) — A generator test set `DOCKET_HARNESS_ROOT` to the same dir as the
   repo root, so the user-level pass and the project-level pass both wrote one `.claude/agents/`
   and an "unlisted skill gets no project file" assertion passed vacuously through a weak `|| diff`
   arm. Apply: when a tool writes to BOTH a user/harness location and a project/repo location, give
   the test SEPARATE dirs — a shared dir lets one pass's output mask the other's bugs.
-- 2026-06-16 (#16, PR #30) — review found a `producer | head` (not just `grep -q`) that could 141
-  under `pipefail` — `head` closes the pipe early too. Apply: the no-`producer | grep -q` rule
-  generalizes to ANY early-closing consumer (`head`, `head -n1`) — capture into a var, then
-  `head -n1 <<<"$var"`.
-- 2026-06-16 (#11, PR #11) — A test piped a live-producing script straight into `grep -q`; grep
-  exits on first match, the still-writing producer takes SIGPIPE, and `pipefail` turned that 141
-  into an intermittent failure. Apply: capture a producer's output into a variable first, then
-  grep the variable — never `producer | grep -q` under `set -o pipefail`.
+- 2026-06-16 (#11 PR #11; #16 PR #30 — merged near-duplicates) — A test piped a live-producing
+  script straight into `grep -q`; grep exits on first match, the still-writing producer takes
+  SIGPIPE, and `pipefail` turned that 141 into an intermittent failure — and review later found the
+  same shape with `head`. Apply: never `producer | early-exiting-consumer` (`grep -q`, `head`,
+  `head -n1`) under `set -o pipefail` — capture into a variable first, then grep/`head <<<"$var"`.
 - 2026-06-16 (#11, PR #11) — A derived-surface mirror keyed idempotency on a persisted change-file
   field but did no git writes itself, so a bare run (outside the orchestrating pass that records
   the field) re-created every time — and it was pointed at the integration checkout where `active/`
