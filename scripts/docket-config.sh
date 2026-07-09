@@ -104,6 +104,26 @@ GCFG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/docket"
 GCFG="$GCFG_DIR/config.yml"
 gbl(){ yaml_get "$GCFG" "$1"; }   # global-layer scalar read (empty when absent)
 
+# --- Stage 2c: fail-loud guards + the coordination-key fence (change 0050) ----
+# Misplacement: a global .docket.yml is NEVER read — the global file is config.yml.
+if [ -e "$GCFG_DIR/.docket.yml" ]; then
+  printf 'docket-config: warning: %s/.docket.yml is not read — global config is config.yml, not .docket.yml (did you mean %s?)\n' "$GCFG_DIR" "$GCFG" >&2
+fi
+# Malformed/unreadable: warn and fall back to built-ins for the GLOBAL layer only
+# (a broken personal file must not brick every repo; per-repo config is still honored).
+if [ -e "$GCFG" ] && { [ ! -f "$GCFG" ] || [ ! -r "$GCFG" ]; }; then
+  printf 'docket-config: warning: %s is not a readable regular file — global config layer ignored\n' "$GCFG" >&2
+  GCFG=/dev/null
+fi
+# Coordination-key fence: a key whose effect writes SHARED state (commits on shared
+# branches, committed generated files, external GitHub objects) is per-repo-only; a global
+# value is loudly warned-and-ignored — never honored, never fatal. (ADR records the rule.)
+for _fkey in metadata_branch integration_branch changes_dir adrs_dir results_dir github_project; do
+  if [ -n "$(yaml_get "$GCFG" "$_fkey")" ]; then
+    printf "docket-config: warning: global config key %s is per-repo-only — set it in the repo's committed .docket.yml; ignored\n" "$_fkey" >&2
+  fi
+done
+
 METADATA_BRANCH="$(yaml_get "$CFG" metadata_branch)"; METADATA_BRANCH="${METADATA_BRANCH:-docket}"
 case "$METADATA_BRANCH" in
   docket) DOCKET_MODE=docket; METADATA_WORKTREE=.docket ;;
@@ -133,6 +153,19 @@ if [ -z "$bs_raw" ]; then
 else
   bs="${bs_raw#[}"; bs="${bs%]}"; bs="${bs//,/ }"
   BOARD_SURFACES="$(echo $bs)"                             # trim/collapse; "[]" => ""
+  # The github token is per-repo-only when it arrives from the GLOBAL layer: it mints
+  # issues + a Projects board (external objects, not self-healing). Per-repo github is honored.
+  if [ "$bs_from_global" -eq 1 ] && [ -n "$BOARD_SURFACES" ]; then
+    _filtered=""
+    for _tok in $BOARD_SURFACES; do
+      if [ "$_tok" = github ]; then
+        printf 'docket-config: warning: global board_surfaces token github is per-repo-only (mints external GitHub objects) — ignored\n' >&2
+      else
+        _filtered="$_filtered $_tok"
+      fi
+    done
+    BOARD_SURFACES="$(echo $_filtered)"
+  fi
 fi
 
 # --- skills: role-keyed pluggable workflow skills (change 0049 + 0050 global layer) ---

@@ -344,5 +344,63 @@ assert "0050 Q: XDG unset -> \$HOME/.config fallback read"   '[ "$AUTO_GROOM" = 
 n50="$(rung "$tmp/k.xdg" "$tmp/k" --export | grep -c '=')"
 assert "0050 E': still 18 KEY=value lines with global layer" '[ "$n50" -eq 18 ]'
 
+# --- (M) coordination-key fence: warned-and-ignored, never honored, never fatal ---
+mkrepo "$tmp/m"
+mkdir -p "$tmp/m.xdg/docket"
+cat > "$tmp/m.xdg/docket/config.yml" <<'EOF'
+metadata_branch: main
+changes_dir: elsewhere/changes
+auto_groom: true
+EOF
+merr="$(rung "$tmp/m.xdg" "$tmp/m" --export 2>&1 >/dev/null)"
+out="$(rung "$tmp/m.xdg" "$tmp/m" --export 2>/dev/null)"; eval "$out"
+assert "0050 M: fence warns metadata_branch"        'printf "%s" "$merr" | grep -q "metadata_branch"'
+assert "0050 M: fence names per-repo-only"          'printf "%s" "$merr" | grep -qi "per-repo-only"'
+assert "0050 M: fence warns changes_dir"            'printf "%s" "$merr" | grep -q "changes_dir"'
+assert "0050 M: global metadata_branch NOT honored" '[ "$METADATA_BRANCH" = docket ]'
+assert "0050 M: CHANGES_DIR stays default"          '[ "$CHANGES_DIR" = docs/changes ]'
+assert "0050 M: global-able key in same file still honored" '[ "$AUTO_GROOM" = true ]'
+assert "0050 M: fence is not fatal (exit 0)"        '[ "$(rung_rc "$tmp/m.xdg" "$tmp/m" --export)" -eq 0 ]'
+
+# --- (N) global board_surfaces: github token dropped; [] and [inline] work -------
+mkrepo "$tmp/n"
+mkdir -p "$tmp/n.xdg/docket"
+printf 'board_surfaces: [inline, github]\n' > "$tmp/n.xdg/docket/config.yml"
+nerr="$(rung "$tmp/n.xdg" "$tmp/n" --export 2>&1 >/dev/null)"
+out="$(rung "$tmp/n.xdg" "$tmp/n" --export 2>/dev/null)"; eval "$out"
+assert "0050 N: global github token warned"         'printf "%s" "$nerr" | grep -q "github"'
+assert "0050 N: global github token dropped"        '[ "$BOARD_SURFACES" = inline ]'
+printf 'board_surfaces: []\n' > "$tmp/n.xdg/docket/config.yml"
+out="$(rung "$tmp/n.xdg" "$tmp/n" --export 2>/dev/null)"; eval "$out"
+assert "0050 N: global [] honored (board disabled)"  '[ -z "$BOARD_SURFACES" ]'
+# per-repo github is untouched by the fence:
+mkrepo "$tmp/n2"
+printf 'metadata_branch: main\nboard_surfaces: [inline, github]\n' > "$tmp/n2/.docket.yml"
+git -C "$tmp/n2" add .docket.yml; git -C "$tmp/n2" commit --quiet -m cfg
+git -C "$tmp/n2" push --quiet origin main
+n2err="$(rung "$tmp/n.xdg" "$tmp/n2" --export 2>&1 >/dev/null)"
+out="$(rung "$tmp/n.xdg" "$tmp/n2" --export 2>/dev/null)"; eval "$out"
+assert "0050 N: per-repo github honored"            '[ "$BOARD_SURFACES" = "inline github" ]'
+assert "0050 N: per-repo github NOT warned"         '! printf "%s" "$n2err" | grep -q "board_surfaces token github"'
+
+# --- (O) misplacement guard: ~/.config/docket/.docket.yml is warned, never read ---
+mkrepo "$tmp/o"
+mkdir -p "$tmp/o.xdg/docket"
+printf 'auto_groom: true\n' > "$tmp/o.xdg/docket/.docket.yml"
+oerr="$(rung "$tmp/o.xdg" "$tmp/o" --export 2>&1 >/dev/null)"
+out="$(rung "$tmp/o.xdg" "$tmp/o" --export 2>/dev/null)"; eval "$out"
+assert "0050 O: misplacement warned, names config.yml" 'printf "%s" "$oerr" | grep -q "config.yml"'
+assert "0050 O: misplaced file NOT read (auto_groom default)" '[ "$AUTO_GROOM" = false ]'
+assert "0050 O: misplacement not fatal (exit 0)"    '[ "$(rung_rc "$tmp/o.xdg" "$tmp/o" --export)" -eq 0 ]'
+
+# --- (P) malformed global file: warned, built-ins fallback, repos not bricked -----
+mkrepo "$tmp/p"
+mkdir -p "$tmp/p.xdg/docket/config.yml"            # a DIRECTORY at the config path
+perr="$(rung "$tmp/p.xdg" "$tmp/p" --export 2>&1 >/dev/null)"
+out="$(rung "$tmp/p.xdg" "$tmp/p" --export 2>/dev/null)"; eval "$out"
+assert "0050 P: malformed global warned"            'printf "%s" "$perr" | grep -qi "not a readable regular file"'
+assert "0050 P: built-ins fallback (auto_groom)"    '[ "$AUTO_GROOM" = false ]'
+assert "0050 P: malformed global not fatal (exit 0)" '[ "$(rung_rc "$tmp/p.xdg" "$tmp/p" --export)" -eq 0 ]'
+
 if [ "$fail" = 0 ]; then echo PASS; else echo FAIL; fi
 exit "$fail"
