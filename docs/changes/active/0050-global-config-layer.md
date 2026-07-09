@@ -2,7 +2,7 @@
 id: 50
 slug: global-config-layer
 title: Global config layer — full-schema ~/.config/docket/config.yml with a coordination-key fence
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-07-09
 updated: 2026-07-09
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/global-config-layer
 pr:
 blocked_by:
 reconciled: false
