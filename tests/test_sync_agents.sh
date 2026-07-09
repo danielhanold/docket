@@ -536,8 +536,8 @@ READMEF="$REPO/README.md"
 sec="$(awk '/^##[[:space:]].*[Aa]gent.*([Mm]odel|[Ee]ffort)/{f=1;print;next} f&&/^##[[:space:]]/{f=0} f{print}' "$READMEF")"
 
 assert "0047: README has a discoverable agent model/effort section" '[ -n "$sec" ]'
-assert "0047 §agent-cfg: names the global layer ~/.config/docket/agents.yaml" \
-  'grep -qF "~/.config/docket/agents.yaml" <<<"$sec"'
+assert "0047 §agent-cfg: names the global layer ~/.config/docket/config.yml" \
+  'grep -qF "~/.config/docket/config.yml" <<<"$sec"'
 assert "0047 §agent-cfg: names the per-repo .docket.yml agents: layer" \
   'grep -qF "\`agents:\` block in a repo" <<<"$sec"'
 assert "0047 §agent-cfg: gives the refresh command (bash sync-agents.sh)" \
@@ -745,5 +745,24 @@ assert "0050 gah prune: user's own co-located file preserved" '[ -f "$SBX/.curso
 assert "0050 gah prune: harness root dir preserved" '[ -d "$SBX/.cursor" ]'
 assert "0050 gah prune: listed claude still written" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
 rm -rf "$SBX"
+
+# ---- Change 0050 — README "Global config" section + convention three-layer story ----
+# Extract the new dedicated README section (heading -> next `## `), assert within it.
+gsec="$(awk '/^##[[:space:]].*[Gg]lobal config/{f=1;print;next} f&&/^##[[:space:]]/{f=0} f{print}' "$READMEF")"
+assert "0050 doc: README has a Global config section" '[ -n "$gsec" ]'
+assert "0050 doc: §global names the canonical path" 'grep -qF "~/.config/docket/config.yml" <<<"$gsec"'
+assert "0050 doc: §global states the same-schema rule" 'grep -qiE "same schema as .?\.docket\.yml" <<<"$gsec"'
+assert "0050 doc: §global states per-key precedence" 'grep -qiE "per-repo.*>.*global.*>.*built-in" <<<"$gsec"'
+assert "0050 doc: §global states coordination keys are per-repo-only" 'grep -qi "per-repo-only" <<<"$gsec"'
+assert "0050 doc: §global names the agents.yaml migration" 'grep -qF "agents.yaml.migrated" <<<"$gsec"'
+assert "0050 doc: §global scopes agent_harnesses to the user-level pass" 'grep -qiE "user-level pass" <<<"$gsec"'
+# Tuning section gains the both-passes clarification (LEARNINGS #49 — surface end-to-end).
+sec="$(awk '/^##[[:space:]].*[Aa]gent.*([Mm]odel|[Ee]ffort)/{f=1;print;next} f&&/^##[[:space:]]/{f=0} f{print}' "$READMEF")"
+assert "0050 doc: tuning section states sync-agents writes BOTH layers" 'grep -qiE "both" <<<"$sec" && grep -qiE "project (level )?win|project-over-user|project wins" <<<"$sec"'
+# Convention: Configuration documents the three-layer story + the fence.
+CONV="$REPO/skills/docket-convention/SKILL.md"
+assert "0050 doc: convention names config.yml" 'grep -qF "config.yml" "$CONV"'
+assert "0050 doc: convention states the coordination-key fence" 'grep -qi "fence" "$CONV" && grep -qi "per-repo-only" "$CONV"'
+assert "0050 doc: convention Agent layer global row points at config.yml agents: block" 'grep -Pzoq "Global[\s\S]{0,200}config\.yml" "$CONV"'
 
 exit $fail

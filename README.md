@@ -59,10 +59,10 @@ Place the docket repo at `~/dev/docket` (the source of truth the symlinks point 
 bash ~/dev/docket/install.sh
 ```
 
-That's the whole install. `install.sh` runs the three primitives in order — and is idempotent, so re-run it any time (after adding a harness, or after editing `~/.config/docket/agents.yaml`):
+That's the whole install. `install.sh` runs the three primitives in order — and is idempotent, so re-run it any time (after adding a harness, or after editing `~/.config/docket/config.yml`):
 
 - **`link-skills.sh`** creates absolute symlinks from each present harness's global skill directory back to `~/dev/docket/skills/<name>`. It only writes into harness directories that already exist on your machine. Skills are symlinks, so editing one in the repo is picked up everywhere immediately.
-- **`sync-agents.sh`** generates docket's model/effort-pinned subagent wrappers from layered config (built-in defaults ⊕ `~/.config/docket/agents.yaml` ⊕ a repo's `.docket.yml agents:` block) into each present harness's `agents/` directory, and writes committed project-level wrappers for any repo that opts in (via an `agents:` block or an `agent_harnesses:` key). Unlike the skill symlinks, these are generated **copies** (they bake in resolved model/effort), so re-run after editing any config layer — `install.sh` does this for you, or call `sync-agents.sh` directly. Run `sync-agents.sh --check` in CI to fail on drift.
+- **`sync-agents.sh`** generates docket's model/effort-pinned subagent wrappers from layered config (built-in defaults ⊕ the `agents:` block in `~/.config/docket/config.yml` ⊕ a repo's `.docket.yml` `agents:` block) into each present harness's `agents/` directory, and writes committed project-level wrappers for any repo that opts in (via an `agents:` block or an `agent_harnesses:` key). Unlike the skill symlinks, these are generated **copies** (they bake in resolved model/effort), so re-run after editing any config layer — `install.sh` does this for you, or call `sync-agents.sh` directly. Run `sync-agents.sh --check` in CI to fail on drift.
 - **`ensure-docket-env.sh`** exports `DOCKET_SCRIPTS_DIR` — the absolute path to docket's `scripts/` directory — into your shell profile (and Claude Code's user-level `settings.json` `env`), so every docket skill can reach its deterministic helper scripts from *any* repo, not just this clone. Re-running `install.sh` back-fills already-migrated repos. Without it the skills fail loud with the `run docket/install.sh` remedy rather than silently hand-working each operation.
 
 (You can still run any primitive on its own — `install.sh` just saves you from remembering all three.) Migrating an *existing* repo to docket-mode is a separate step — `migrate-to-docket.sh`, run from inside that repo — not part of this machine install.
@@ -95,6 +95,32 @@ finalize:                    # merge gate: rebase onto base + re-test before doc
 With no `.docket.yml` at all, docket runs in its default **docket-mode** (`metadata_branch: docket`, `integration_branch: auto`). See the **docket-mode** section below for what that means and how to opt out.
 
 `.docket.yml` is committed (not gitignored) because it governs cross-agent coordination.
+
+## Global config (`~/.config/docket/config.yml`)
+
+Cross-repo defaults live in one optional user-level file: `${XDG_CONFIG_HOME:-~/.config}/docket/config.yml`. It accepts the **same schema as `.docket.yml`**, and every key resolves **per key**, with precedence **per-repo > global > built-in**: a repo's committed `.docket.yml` wins, then this global `config.yml`, then the built-in default. Map-valued keys (`skills:`, `agents:`) merge field-by-field with the same precedence.
+
+```yaml
+# ~/.config/docket/config.yml — optional; applies to every repo on this machine.
+# Same schema as .docket.yml; a repo's committed .docket.yml wins per key.
+skills:                      # rebind workflow roles for all your repos
+  build: auto
+agents:                      # agent model/effort defaults (same agents: shape as .docket.yml)
+  default:
+    implement-next: { model: claude-opus-4-8, effort: xhigh }
+auto_groom: false
+finalize:
+  gate: local
+board_surfaces: [inline]     # the github token is per-repo-only and ignored here (see below)
+agent_harnesses: [claude]    # scopes sync-agents.sh's user-level pass ONLY (overrides
+                             # presence-on-disk detection); never the per-repo committed pass
+```
+
+**Coordination keys are per-repo-only.** Keys whose effect writes shared state — `metadata_branch`, `integration_branch`, `changes_dir`, `adrs_dir`, `results_dir`, `github_project`, and the `github` token of `board_surfaces` — are ignored with a loud warning when set globally: a global value for these would silently split the backlog across machines or mint external GitHub objects. Set them in the repo's committed `.docket.yml`.
+
+**Misplacement fails loud.** A `~/.config/docket/.docket.yml` is never read — `docket-config.sh` warns and points at `config.yml`. A malformed/unreadable `config.yml` warns and falls back to built-ins for the global layer (per-repo config is still honored — a broken personal file never bricks a repo).
+
+**Migrating from `agents.yaml`.** The old single-purpose global file (`~/.config/docket/agents.yaml`) is migrated automatically: the next `sync-agents.sh` (or `install.sh`) run rewrites it under `agents:` in `config.yml` and renames the original to `agents.yaml.migrated`. Nothing reads the old file after migration.
 
 ---
 
@@ -226,7 +252,7 @@ Each **autonomous** docket skill runs as a model/effort-pinned subagent (`docket
 
 **1. Edit a config layer.** Two layers override the built-in defaults (precedence: per-repo > global > built-in):
 
-- **Global** — `~/.config/docket/agents.yaml` (user-level; applies to every repo on your machine).
+- **Global** — the `agents:` block in `~/.config/docket/config.yml` (user-level; applies to every repo on your machine; the legacy `agents.yaml` is auto-migrated into it — see **Global config** above).
 - **Per-repo** — the `agents:` block in a repo's committed `.docket.yml` (applies to that repo for every clone and agent, so an autonomous change builds on the same model everywhere).
 
 The config **shape** — the `agents:` keys and how `model:`/`effort:` are written — is documented once in docket-convention's **"Agent layer"**; consult it there rather than copying field examples here, so the shape has a single source of truth and stays current as it evolves.
@@ -241,6 +267,8 @@ bash sync-agents.sh        # or re-run install.sh, which calls it for you
 
 - A **global** edit rewrites user-level wrappers into every **present** harness root (`~/.<harness>/agents/`, e.g. `~/.claude/agents/`).
 - A **per-repo** edit rewrites the committed **project-level** wrappers for each harness in that repo's `.docket.yml` `agent_harnesses:` list (default `[claude]`; e.g. `[claude, cursor]` for a repo that also drives Cursor).
+
+Note `sync-agents.sh` always writes **both** layers in one run — user-level wrappers into each targeted harness root AND (for opted-in repos) committed project-level wrappers — with the project level winning at runtime. Seeing files appear in your repo after a "global" edit is that second pass, not a misfire: the committed copies are what make an autonomous change build on the same model for every clone.
 
 **3. Guard drift in CI.** `sync-agents.sh --check` exits non-zero (with a diff) when the committed project-level wrappers have fallen out of sync with the resolved config — wire it into CI so a config edit that was never regenerated fails the build instead of silently drifting.
 
