@@ -67,6 +67,21 @@ yaml_get() {  # yaml_get <file> <key>  -> value on stdout (empty if key absent)
     | head -n1 | sed -E 's/[[:space:]]+$//; s/^"(.*)"$/\1/; s/^'\''(.*)'\''$/\1/'
 }
 
+# Emit the indented child lines of a top-level block key (block-style YAML only). Used for the
+# nested `skills:` map (change 0049) so each leaf is read WITHIN the block via yaml_get — never as
+# a bare top-level key, which a future top-level `build:`/`review:` could otherwise shadow.
+# Comment-strips each line (matching yaml_get semantics) so a trailing comment on `skills:` or a
+# full-line comment inside the block can't fool block detection. `[[:space:]]` => tab OR space.
+yaml_block_body() {  # yaml_block_body <file> <top-level-key>  -> child lines on stdout
+  [ -f "$1" ] || return 0
+  awk -v parent="$2" '
+    { line=$0; sub(/[[:space:]]*#.*/, "", line) }
+    line ~ ("^" parent "[[:space:]]*:[[:space:]]*$") { inblk=1; next }
+    inblk && line ~ /^[^[:space:]]/ { inblk=0 }
+    inblk { print }
+  ' "$1"
+}
+
 # --- Stage 1: resolve origin/HEAD + default branch (keyed on fetch/set-head rc) ---
 g rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "not a git repo: $REPO_DIR"
 g fetch --quiet origin 2>/dev/null || die "cannot reach origin (git fetch failed) — check the remote/network"
@@ -106,6 +121,24 @@ else
   BOARD_SURFACES="$(echo $bs)"                             # trim/collapse; "[]" => ""
 fi
 
+# --- skills: role-keyed pluggable workflow skills (change 0049) ---------------
+# Nested block; each leaf read within the block only. Unset leaf => the superpowers default.
+SKILLS_BLK="$(mktemp)"; yaml_block_body "$CFG" skills >"$SKILLS_BLK"
+SKILL_BRAINSTORM="$(yaml_get "$SKILLS_BLK" brainstorm)"; SKILL_BRAINSTORM="${SKILL_BRAINSTORM:-superpowers:brainstorming}"
+SKILL_PLAN="$(yaml_get "$SKILLS_BLK" plan)";             SKILL_PLAN="${SKILL_PLAN:-superpowers:writing-plans}"
+SKILL_BUILD="$(yaml_get "$SKILLS_BLK" build)";           SKILL_BUILD="${SKILL_BUILD:-superpowers:subagent-driven-development}"
+SKILL_REVIEW="$(yaml_get "$SKILLS_BLK" review)";         SKILL_REVIEW="${SKILL_REVIEW:-superpowers:requesting-code-review}"
+SKILL_FINISH="$(yaml_get "$SKILLS_BLK" finish)";         SKILL_FINISH="${SKILL_FINISH:-superpowers:finishing-a-development-branch}"
+# Unknown role keys: warn-and-ignore (a typo must never abort — the board_surfaces posture).
+while IFS= read -r _role; do
+  [ -n "$_role" ] || continue
+  case " brainstorm plan build review finish " in
+    *" $_role "*) ;;
+    *) printf 'docket-config: warning: unknown skills role %s — ignored\n' "$_role" >&2 ;;
+  esac
+done < <(sed -n -E 's/^[[:space:]]*([[:alnum:]_-]+)[[:space:]]*:.*/\1/p' "$SKILLS_BLK")
+rm -f "$SKILLS_BLK"
+
 # --- Stage 3: bootstrap guard — evaluate the DOCKET/LIVE 2×2 (docket-mode only) ---
 BOOTSTRAP=PROCEED
 if [ "$DOCKET_MODE" = docket ]; then
@@ -144,5 +177,10 @@ if [ "$MODE" = export ]; then
   emit FINALIZE_TEST_COMMAND "$FINALIZE_TEST_COMMAND"
   emit BOARD_SURFACES "$BOARD_SURFACES"
   emit AUTO_GROOM "$AUTO_GROOM"
+  emit SKILL_BRAINSTORM "$SKILL_BRAINSTORM"
+  emit SKILL_PLAN "$SKILL_PLAN"
+  emit SKILL_BUILD "$SKILL_BUILD"
+  emit SKILL_REVIEW "$SKILL_REVIEW"
+  emit SKILL_FINISH "$SKILL_FINISH"
   emit BOOTSTRAP "$BOOTSTRAP"
 fi

@@ -66,3 +66,19 @@ board_surfaces: [inline]
 #     status:         { model: sonnet, effort: medium }
 #   cursor:                              # override only what differs for a non-Claude harness
 #     status:         { model: gpt-5.5-medium-fast }
+
+# Pluggable workflow skills (change 0049). Rebinds any of the five workflow invocation points —
+# brainstorm / plan / build / review / finish — to a different skill (the name passes to the Skill
+# tool verbatim, unvalidated) or to `auto` (no skill; the running agent performs the step inline at
+# its own model). Unset keys default to the superpowers skills shown, so an absent block is
+# byte-identical to superpowers-everywhere; a resolved-but-unavailable skill degrades to that
+# role's `auto` fallback with a prominent warning. Unknown role keys are warned + ignored. Shape
+# and per-role fallback artifacts: docket-convention "Skill layer". This repo uses the superpowers
+# defaults, so the block stays commented out.
+#
+# skills:
+#   brainstorm: superpowers:brainstorming
+#   plan:       superpowers:writing-plans
+#   build:      superpowers:subagent-driven-development   # e.g. `auto` to build inline without SDD
+#   review:     superpowers:requesting-code-review
+#   finish:     superpowers:finishing-a-development-branch

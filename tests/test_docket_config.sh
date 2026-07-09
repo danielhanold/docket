@@ -94,7 +94,7 @@ assert "board []: BOARD_SURFACES empty"                '[ -z "$BOARD_SURFACES" ]
 
 # --- (E) direct-pipe caller (LEARNINGS #22: $() hides a dropped trailing \n) -
 n="$(run "$tmp/c" --export | grep -c '=')"
-assert "direct-pipe: 13 KEY=value lines emitted"       '[ "$n" -eq 13 ]'
+assert "direct-pipe: 18 KEY=value lines emitted"       '[ "$n" -eq 18 ]'
 last="$(run "$tmp/c" --export | tail -n1)"
 assert "direct-pipe: last line is BOOTSTRAP"           'case "$last" in BOOTSTRAP=*) true;; *) false;; esac'
 
@@ -217,11 +217,70 @@ assert "convention defines the DOCKET_SCRIPTS_DIR resolved form" \
   'grep -qF "\${DOCKET_SCRIPTS_DIR:?run docket/install.sh}" "$CONV"'
 assert "convention documents DOCKET_ namespacing" \
   'grep -qiF "DOCKET_-namespaced" "$CONV"'
+assert "convention documents the Skill layer" 'grep -qF "Skill layer" "$CONV"'
+assert "convention names SKILL_ resolution vars" \
+  'grep -qF "SKILL_BRAINSTORM" "$CONV" && grep -qF "SKILL_FINISH" "$CONV"'
+assert "convention documents the auto sentinel + degrade rule" \
+  'grep -qiF "degrade to auto" "$CONV"'
 for s in docket-implement-next docket-status docket-new-change docket-groom-next \
          docket-finalize-change docket-adr docket-auto-groom; do
   f="$REPO/skills/$s/SKILL.md"
   assert "$s Step 0 invokes docket-config.sh" 'grep -qF "/docket-config.sh" "$f"'
 done
+assert "new-change brainstorm uses SKILL_BRAINSTORM" \
+  'grep -qF "SKILL_BRAINSTORM" "$REPO/skills/docket-new-change/SKILL.md"'
+assert "groom-next brainstorm uses SKILL_BRAINSTORM" \
+  'grep -qF "SKILL_BRAINSTORM" "$REPO/skills/docket-groom-next/SKILL.md"'
+IMPL="$REPO/skills/docket-implement-next/SKILL.md"
+assert "implement-next plan uses SKILL_PLAN"     'grep -qF "SKILL_PLAN" "$IMPL"'
+assert "implement-next build uses SKILL_BUILD"   'grep -qF "SKILL_BUILD" "$IMPL"'
+assert "implement-next review uses SKILL_REVIEW" 'grep -qF "SKILL_REVIEW" "$IMPL"'
+assert "implement-next finish uses SKILL_FINISH" 'grep -qF "SKILL_FINISH" "$IMPL"'
+assert "finalize finish uses SKILL_FINISH" \
+  'grep -qF "SKILL_FINISH" "$REPO/skills/docket-finalize-change/SKILL.md"'
+
+# --- (G) skills: absent -> five superpowers defaults (byte-identical behavior) ---
+mkrepo "$tmp/g"
+printf 'metadata_branch: main\n' > "$tmp/g/.docket.yml"
+git -C "$tmp/g" add .docket.yml; git -C "$tmp/g" commit --quiet -m cfg; git -C "$tmp/g" push --quiet origin main
+out="$(run "$tmp/g" --export)"; eval "$out"
+assert "skills absent: BRAINSTORM default" '[ "$SKILL_BRAINSTORM" = superpowers:brainstorming ]'
+assert "skills absent: PLAN default"       '[ "$SKILL_PLAN" = superpowers:writing-plans ]'
+assert "skills absent: BUILD default"      '[ "$SKILL_BUILD" = superpowers:subagent-driven-development ]'
+assert "skills absent: REVIEW default"     '[ "$SKILL_REVIEW" = superpowers:requesting-code-review ]'
+assert "skills absent: FINISH default"     '[ "$SKILL_FINISH" = superpowers:finishing-a-development-branch ]'
+
+# --- (H) skills: explicit overrides incl. `auto`, a custom name, and a partial map ---
+mkrepo "$tmp/h"
+cat > "$tmp/h/.docket.yml" <<'EOF'
+metadata_branch: main
+skills:
+  build: auto
+  review: my-org:custom-review
+  brainstorm: superpowers:brainstorming
+EOF
+git -C "$tmp/h" add .docket.yml; git -C "$tmp/h" commit --quiet -m cfg; git -C "$tmp/h" push --quiet origin main
+out="$(run "$tmp/h" --export)"; eval "$out"
+assert "skills auto: BUILD is auto"         '[ "$SKILL_BUILD" = auto ]'
+assert "skills custom: REVIEW verbatim"     '[ "$SKILL_REVIEW" = my-org:custom-review ]'
+assert "skills partial: PLAN still default" '[ "$SKILL_PLAN" = superpowers:writing-plans ]'
+
+# --- (I) skills: TAB-indented block parses (LEARNINGS #46 — whitespace class) ---
+mkrepo "$tmp/i"
+printf 'metadata_branch: main\nskills:\n\tplan: auto\n' > "$tmp/i/.docket.yml"
+git -C "$tmp/i" add .docket.yml; git -C "$tmp/i" commit --quiet -m cfg; git -C "$tmp/i" push --quiet origin main
+out="$(run "$tmp/i" --export)"; eval "$out"
+assert "skills tab-indent: PLAN auto"       '[ "$SKILL_PLAN" = auto ]'
+
+# --- (J) skills: unknown role key -> warned on stderr, ignored; known keys still resolve ---
+mkrepo "$tmp/j"
+printf 'metadata_branch: main\nskills:\n  bogus: x\n  plan: auto\n' > "$tmp/j/.docket.yml"
+git -C "$tmp/j" add .docket.yml; git -C "$tmp/j" commit --quiet -m cfg; git -C "$tmp/j" push --quiet origin main
+jerr="$(run "$tmp/j" --export 2>&1 >/dev/null)"
+out="$(run "$tmp/j" --export 2>/dev/null)"; eval "$out"
+assert "skills unknown key: warned on stderr"       'printf "%s" "$jerr" | grep -qi "unknown skills role"'
+assert "skills unknown key: known PLAN still parsed" '[ "$SKILL_PLAN" = auto ]'
+assert "skills unknown key: does not abort (exit 0)" '[ "$(run_rc "$tmp/j" --export)" -eq 0 ]'
 
 if [ "$fail" = 0 ]; then echo PASS; else echo FAIL; fi
 exit "$fail"
