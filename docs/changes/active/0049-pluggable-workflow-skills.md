@@ -2,7 +2,7 @@
 id: 49
 slug: pluggable-workflow-skills
 title: Pluggable workflow skills — make superpowers invocations configurable, with auto fallback
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-08
 updated: 2026-07-09
@@ -11,11 +11,11 @@ related: [44, 16]
 adrs: [18]
 spec: docs/superpowers/specs/2026-07-08-pluggable-workflow-skills-design.md
 plan: docs/superpowers/plans/2026-07-09-pluggable-workflow-skills.md
-results:
+results: docs/results/2026-07-09-pluggable-workflow-skills-results.md
 trivial: false
 auto_groomable:
 branch: feat/pluggable-workflow-skills
-pr:
+pr: https://github.com/danielhanold/docket/pull/58
 blocked_by:
 reconciled: true
 ---
@@ -27,6 +27,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-08-pluggable-workflow-skills-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-08-pluggable-workflow-skills-design.md) |
 | Plan | [2026-07-09-pluggable-workflow-skills.md](https://github.com/danielhanold/docket/blob/feat/pluggable-workflow-skills/docs/superpowers/plans/2026-07-09-pluggable-workflow-skills.md) |
+| Results | [2026-07-09-pluggable-workflow-skills-results.md](https://github.com/danielhanold/docket/blob/feat/pluggable-workflow-skills/docs/results/2026-07-09-pluggable-workflow-skills-results.md) |
+| PR | [#58](https://github.com/danielhanold/docket/pull/58) |
 | ADRs | [ADR-0018](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0018-pluggable-skills-passthrough-degrade.md) |
 <!-- docket:artifacts:end -->
 
