@@ -94,6 +94,16 @@ DEFAULT_BRANCH="${DEFAULT_BRANCH#origin/}"
 CFG="$(mktemp)"; trap 'rm -f "$CFG"' EXIT
 g show "origin/HEAD:.docket.yml" >"$CFG" 2>/dev/null || : >"$CFG"   # absent file => defaults (NOT an error)
 
+# --- Stage 2b: global config layer (change 0050) ------------------------------
+# ${XDG_CONFIG_HOME:-$HOME/.config}/docket/config.yml — the full .docket.yml schema,
+# resolved PER-KEY: per-repo > global > built-in (map-valued skills: merges field-by-field).
+# Read from the LOCAL filesystem — the file is per-machine by definition, so there is no
+# authoritative-ref concern as with .docket.yml's origin/HEAD read. Coordination keys are
+# fenced (warned-and-ignored) in Stage 2c below.
+GCFG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/docket"
+GCFG="$GCFG_DIR/config.yml"
+gbl(){ yaml_get "$GCFG" "$1"; }   # global-layer scalar read (empty when absent)
+
 METADATA_BRANCH="$(yaml_get "$CFG" metadata_branch)"; METADATA_BRANCH="${METADATA_BRANCH:-docket}"
 case "$METADATA_BRANCH" in
   docket) DOCKET_MODE=docket; METADATA_WORKTREE=.docket ;;
@@ -109,35 +119,48 @@ fi
 CHANGES_DIR="$(yaml_get "$CFG" changes_dir)"; CHANGES_DIR="${CHANGES_DIR:-docs/changes}"
 ADRS_DIR="$(yaml_get "$CFG" adrs_dir)";       ADRS_DIR="${ADRS_DIR:-docs/adrs}"
 RESULTS_DIR="$(yaml_get "$CFG" results_dir)"; RESULTS_DIR="${RESULTS_DIR:-docs/results}"
-FINALIZE_GATE="$(yaml_get "$CFG" gate)";      FINALIZE_GATE="${FINALIZE_GATE:-local}"
-FINALIZE_TEST_COMMAND="$(yaml_get "$CFG" test_command)"
-AUTO_GROOM="$(yaml_get "$CFG" auto_groom)";   AUTO_GROOM="${AUTO_GROOM:-false}"
+FINALIZE_GATE="$(yaml_get "$CFG" gate)";      FINALIZE_GATE="${FINALIZE_GATE:-$(gbl gate)}"; FINALIZE_GATE="${FINALIZE_GATE:-local}"
+FINALIZE_TEST_COMMAND="$(yaml_get "$CFG" test_command)"; FINALIZE_TEST_COMMAND="${FINALIZE_TEST_COMMAND:-$(gbl test_command)}"
+AUTO_GROOM="$(yaml_get "$CFG" auto_groom)";   AUTO_GROOM="${AUTO_GROOM:-$(gbl auto_groom)}"; AUTO_GROOM="${AUTO_GROOM:-false}"
 
-bs_raw="$(yaml_get "$CFG" board_surfaces)"
+bs_raw="$(yaml_get "$CFG" board_surfaces)"; bs_from_global=0
 if [ -z "$bs_raw" ]; then
-  BOARD_SURFACES="inline"                                  # unset => default [inline]
+  bs_raw="$(gbl board_surfaces)"
+  [ -n "$bs_raw" ] && bs_from_global=1
+fi
+if [ -z "$bs_raw" ]; then
+  BOARD_SURFACES="inline"                                  # unset in both layers => default [inline]
 else
   bs="${bs_raw#[}"; bs="${bs%]}"; bs="${bs//,/ }"
   BOARD_SURFACES="$(echo $bs)"                             # trim/collapse; "[]" => ""
 fi
 
-# --- skills: role-keyed pluggable workflow skills (change 0049) ---------------
-# Nested block; each leaf read within the block only. Unset leaf => the superpowers default.
-SKILLS_BLK="$(mktemp)"; yaml_block_body "$CFG" skills >"$SKILLS_BLK"
-SKILL_BRAINSTORM="$(yaml_get "$SKILLS_BLK" brainstorm)"; SKILL_BRAINSTORM="${SKILL_BRAINSTORM:-superpowers:brainstorming}"
-SKILL_PLAN="$(yaml_get "$SKILLS_BLK" plan)";             SKILL_PLAN="${SKILL_PLAN:-superpowers:writing-plans}"
-SKILL_BUILD="$(yaml_get "$SKILLS_BLK" build)";           SKILL_BUILD="${SKILL_BUILD:-superpowers:subagent-driven-development}"
-SKILL_REVIEW="$(yaml_get "$SKILLS_BLK" review)";         SKILL_REVIEW="${SKILL_REVIEW:-superpowers:requesting-code-review}"
-SKILL_FINISH="$(yaml_get "$SKILLS_BLK" finish)";         SKILL_FINISH="${SKILL_FINISH:-superpowers:finishing-a-development-branch}"
-# Unknown role keys: warn-and-ignore (a typo must never abort — the board_surfaces posture).
-while IFS= read -r _role; do
-  [ -n "$_role" ] || continue
-  case " brainstorm plan build review finish " in
-    *" $_role "*) ;;
-    *) printf 'docket-config: warning: unknown skills role %s — ignored\n' "$_role" >&2 ;;
-  esac
-done < <(sed -n -E 's/^[[:space:]]*([[:alnum:]_-]+)[[:space:]]*:.*/\1/p' "$SKILLS_BLK")
-rm -f "$SKILLS_BLK"
+# --- skills: role-keyed pluggable workflow skills (change 0049 + 0050 global layer) ---
+# Nested block; each leaf read within the block only. Per-key precedence:
+# per-repo leaf > global leaf > the superpowers default.
+SKILLS_BLK="$(mktemp)";  yaml_block_body "$CFG"  skills >"$SKILLS_BLK"
+GSKILLS_BLK="$(mktemp)"; yaml_block_body "$GCFG" skills >"$GSKILLS_BLK"
+skill_role(){  # skill_role <role> <default> -> resolved value on stdout
+  local v; v="$(yaml_get "$SKILLS_BLK" "$1")"
+  [ -n "$v" ] || v="$(yaml_get "$GSKILLS_BLK" "$1")"
+  printf '%s' "${v:-$2}"
+}
+SKILL_BRAINSTORM="$(skill_role brainstorm superpowers:brainstorming)"
+SKILL_PLAN="$(skill_role plan superpowers:writing-plans)"
+SKILL_BUILD="$(skill_role build superpowers:subagent-driven-development)"
+SKILL_REVIEW="$(skill_role review superpowers:requesting-code-review)"
+SKILL_FINISH="$(skill_role finish superpowers:finishing-a-development-branch)"
+# Unknown role keys in EITHER layer: warn-and-ignore (a typo must never abort).
+for _blk in "$SKILLS_BLK" "$GSKILLS_BLK"; do
+  while IFS= read -r _role; do
+    [ -n "$_role" ] || continue
+    case " brainstorm plan build review finish " in
+      *" $_role "*) ;;
+      *) printf 'docket-config: warning: unknown skills role %s — ignored\n' "$_role" >&2 ;;
+    esac
+  done < <(sed -n -E 's/^[[:space:]]*([[:alnum:]_-]+)[[:space:]]*:.*/\1/p' "$_blk")
+done
+rm -f "$SKILLS_BLK" "$GSKILLS_BLK"
 
 # --- Stage 3: bootstrap guard — evaluate the DOCKET/LIVE 2×2 (docket-mode only) ---
 BOOTSTRAP=PROCEED
