@@ -4,6 +4,15 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-07-09 (#48, PR #57) — A new per-repo generation behavior (committed agent wrappers + a Cursor
+  dispatch rule) was gated on merely `.docket.yml` being *present*, which silently broke tracking-only
+  adopters: `install.sh`'s `sync-agents.sh` run littered 8 untracked `.claude/agents/docket-*.md` into
+  any change-tracking-only repo and flipped its `sync-agents.sh --check` from a no-op to failing — a
+  backward-incompatible break caught only by the whole-branch review, not planning. Apply: when adding
+  output-generating behavior to a tool that has a minimal "tracking-only" adoption mode, gate it on an
+  explicit opt-in signal (a dedicated config key), never on the mere presence of the config file — and
+  add a regression test asserting the minimal adopter generates zero files and keeps `--check` a no-op.
+
 - 2026-07-08 (#46, PR #56) — Two latent bugs rode in from the plan's own awk and surfaced only at
   task review, not at planning: `ind()` used `[^ ]` (a literal-space class) so a **tab-indented**
   config layer was silently dropped — fixed to `[^[:space:]]` (both awk copies) with a tab-indented
