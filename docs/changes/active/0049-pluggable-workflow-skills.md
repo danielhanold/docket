@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/pluggable-workflow-skills
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -72,3 +72,30 @@ A role-keyed **`skills:` map in `.docket.yml`** covering the five pluggable invo
 - One ADR likely (passthrough + degrade-to-auto posture) — decided at build.
 
 ## Reconcile log
+
+### 2026-07-09 — reconcile (build-time, autonomous)
+
+Verified against current `origin/main` (`4f9f071`) and recently-merged changes 0045–0048.
+
+- **Invocation points unchanged.** All five hard-coded superpowers invocations sit exactly where
+  the spec's table places them — brainstorm in `docket-new-change` step 2 and `docket-groom-next`;
+  plan / build / review / finish in `docket-implement-next` steps 4 / 5 / 6 / 7; finish also in
+  `docket-finalize-change`'s non-standard close-out. The prose-only mentions (the `do NOT continue
+  to writing-plans` guards, "re-brainstorming is a human act handled by `superpowers:brainstorming`")
+  remain out of scope, as the change body states.
+- **Recent merges are orthogonal.** 0045 / 0046 / 0048 (multi-harness + harness-first agent-model
+  generation) and 0047 (README discoverability) all touch the **agent-model** axis — which model
+  each docket subagent runs at — not the **skill-invocation** axis this change adds. No overlap with
+  the touched surfaces.
+- **Harness-first `agents:` shape considered; skills held flat.** 0046 reshaped `agents:` into a
+  harness-first map (`default:` + per-harness keys) because model IDs are harness-specific. Skill
+  availability is a different axis — a per-machine property already handled by the spec's
+  degrade-to-auto + warn rule — so a flat role-keyed `skills:` map stays correct: a Cursor /
+  no-superpowers machine simply degrades an unavailable skill to `auto`. Harness-keyed skills remain
+  out of scope (matches the spec's rejected "per-skill + step keys" alternative — deeper schema, no
+  identified need).
+- **#0044 guard still valid.** 0044 (configurable SDD build models) remains `proposed`; its
+  `build.implementer` / `build.reviewer` knobs stay inert unless `skills.build` resolves to SDD,
+  exactly as the spec's relationship section records.
+
+No scope, body, or spec changes required — the design is current as drafted.
