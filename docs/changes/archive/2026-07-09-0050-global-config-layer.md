@@ -26,8 +26,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-09-global-config-layer-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-09-global-config-layer-design.md) |
-| Plan | [2026-07-09-global-config-layer.md](https://github.com/danielhanold/docket/blob/feat/global-config-layer/docs/superpowers/plans/2026-07-09-global-config-layer.md) |
-| Results | [2026-07-09-global-config-layer-results.md](https://github.com/danielhanold/docket/blob/feat/global-config-layer/docs/results/2026-07-09-global-config-layer-results.md) |
+| Plan | [2026-07-09-global-config-layer.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-09-global-config-layer.md) |
+| Results | [2026-07-09-global-config-layer-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-09-global-config-layer-results.md) |
 | PR | [#59](https://github.com/danielhanold/docket/pull/59) |
 | ADRs | [ADR-0002](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0002-docket-mode-default-and-bootstrap.md), [ADR-0008](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0008-agent-layer-generated-subagents.md), [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md), [ADR-0016](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0016-harness-first-agent-config.md), [ADR-0019](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0019-global-config-fence-classification.md) |
 <!-- docket:artifacts:end -->
