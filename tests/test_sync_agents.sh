@@ -763,6 +763,7 @@ assert "0050 doc: tuning section states sync-agents writes BOTH layers" 'grep -q
 CONV="$REPO/skills/docket-convention/SKILL.md"
 assert "0050 doc: convention names config.yml" 'grep -qF "config.yml" "$CONV"'
 assert "0050 doc: convention states the coordination-key fence" 'grep -qi "fence" "$CONV" && grep -qi "per-repo-only" "$CONV"'
-assert "0050 doc: convention Agent layer global row points at config.yml agents: block" 'grep -Pzoq "Global[\s\S]{0,200}config\.yml" "$CONV"'
+assert "0050 doc: convention Agent layer global row points at config.yml agents: block" \
+  'grep -qE "^\| Global \|.*config\.yml" "$CONV"'
 
 exit $fail
