@@ -77,6 +77,15 @@ A value may not contain a literal `#` — it is treated as the start of an inlin
 | `board_surfaces` | `inline` | YAML list `[a, b]` stripped of brackets/commas; `[]` → empty string |
 | `auto_groom` | `false` | |
 
+**`skills:` (change 0049).** Reads the optional nested `skills:` block and emits
+`SKILL_BRAINSTORM`, `SKILL_PLAN`, `SKILL_BUILD`, `SKILL_REVIEW`, `SKILL_FINISH`. Each unset
+leaf defaults to its superpowers skill (`superpowers:brainstorming`,
+`superpowers:writing-plans`, `superpowers:subagent-driven-development`,
+`superpowers:requesting-code-review`, `superpowers:finishing-a-development-branch`); a set
+leaf is passed through verbatim (or the sentinel `auto`). Leaves are read *within the block*
+(never as bare top-level keys). An unknown role key under `skills:` is warned on stderr and
+ignored — never fatal.
+
 **`metadata_branch` drives mode and worktree:**
 - `docket` → `DOCKET_MODE=docket`, `METADATA_WORKTREE=.docket`
 - `main` → `DOCKET_MODE=main`, `METADATA_WORKTREE=.`
@@ -142,10 +151,15 @@ FINALIZE_GATE
 FINALIZE_TEST_COMMAND
 BOARD_SURFACES
 AUTO_GROOM
+SKILL_BRAINSTORM
+SKILL_PLAN
+SKILL_BUILD
+SKILL_REVIEW
+SKILL_FINISH
 BOOTSTRAP
 ```
 
-13 lines total. The last line is always `BOOTSTRAP=…`.
+18 lines total. The last line is always `BOOTSTRAP=…`.
 
 ## Exit codes
 
@@ -181,5 +195,5 @@ emits no `KEY=value` output.
   post-write state, so the caller's `eval` sees `PROCEED` without a second invocation.
 - **`main`-mode skips the bootstrap guard entirely.** `DOCKET`/`LIVE` are not evaluated;
   `BOOTSTRAP` is always `PROCEED` in main-mode.
-- **13 `KEY=value` lines always emitted in the same order.** Skills may rely on the order
+- **18 `KEY=value` lines always emitted in the same order.** Skills may rely on the order
   for pipe consumers, but should use the variable names (via `eval`) for correctness.
