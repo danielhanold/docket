@@ -31,6 +31,12 @@ github_project:              # {owner, number} of the auto-managed Projects v2 b
 agent_harnesses: [claude]    # harnesses the per-repo agent pass generates committed wrappers for
                              # (change 0045); default [claude]. e.g. [claude, cursor] for a Cursor repo.
 agents:                      # harness-first per-skill subagent model/effort (change 0046); see "Agent layer" below
+skills:                      # pluggable workflow skills (change 0049); unset key = the superpowers default shown
+  brainstorm: superpowers:brainstorming
+  plan:       superpowers:writing-plans
+  build:      superpowers:subagent-driven-development   # e.g. `auto` to build inline without SDD
+  review:     superpowers:requesting-code-review
+  finish:     superpowers:finishing-a-development-branch
 ```
 
 `.docket.yml` lives on the repo's **default branch (`origin/HEAD`)**, NOT on the integration branch — `integration_branch` is a value *read from* the file, so the file cannot be located *by* it. The file then **declares `integration_branch`**, which may differ from the default branch (default `main`, integration `develop`). `metadata_branch` resolves where PM commits land; `integration_branch` (default `auto` → `origin/HEAD`, fallback `main`; explicit `main`/`develop` verbatim) resolves where code lands — feature branches always cut from `origin/<integration_branch>`. A genuinely absent file ⇒ defaults apply (`metadata_branch: docket`, `integration_branch: auto`); an unreachable `origin` is never silently treated as "file absent." **Backward-compatible opt-out:** pinning `metadata_branch: main` (with `integration_branch: main`) reproduces today's single-branch behavior exactly — no `docket` branch, no `.docket/` worktree.
@@ -135,6 +141,43 @@ removed built-in drops its wrapper; a de-listed harness drops its wrappers and i
 `sync-agents.sh --check` spans the committed agents and the dispatch rule.
 
 **Composition (change 0017).** Nesting lets each whole-skill sub-invocation run at its own model. `docket-implement-next` **dispatches the `docket-status` subagent** at step 0 and the **`docket-adr` subagent** at step 6; `docket-auto-groom` **dispatches the dedicated `docket-auto-groom-critic` subagent** for its adversarial gate. `docket-finalize-change` **dispatches the `docket-rebase-resolver` subagent** when its merge gate hits a rebase conflict and the **`docket-integration-repair` subagent** when the rebased suite is red (change 0015) — both **foreground**, but their contract differs from the three above: the agent's report flows **back to finalize in-context** to gate the merge (continue, sign-off, or abort), and they act in the feature worktree, not on `origin/docket`. Each runs at the model/effort its own wrapper resolves through the layered config — the literal tiers are **never restated** in the dispatch prose, so a per-repo or global override can never drift from the documentation (the built-in defaults live only in `agents/docket-*.md`, per the Agent layer above). The `docket-status`, `docket-adr`, and `docket-auto-groom-critic` dispatches are **foreground** (the parent suspends until the child returns) and **unconditional** (baked into the skill body, so the sub-call gets its own model whether the parent ran as its wrapper subagent or as a plain inline skill); their contract is **git state** on `origin/docket` (and, for adr, a published ADR on the integration branch), re-read after a re-sync — never an in-context return. Three of the **eight** generated wrappers wrap **no skill** — `agents/docket-auto-groom-critic.md` (config key `auto-groom-critic`, attached to `auto-groom`), and `agents/docket-rebase-resolver.md` + `agents/docket-integration-repair.md` (config keys `rebase-resolver` / `integration-repair`, attached to `finalize-change`'s gate). Each loads only `docket-convention`, never a designer/driver skill body, so it inherits no caller bias; all are auto-discovered by `sync-agents.sh`'s `agents/docket-*.md` glob (no generator edit). (The "Agent layer" line above stays exact: **five *skills* get a wrapper**; these three are wrappers that wrap no skill — eight wrappers, five skills.)
+
+### Skill layer — pluggable workflow skills (change 0049)
+
+docket's workflow quality rests on five superpowers skill invocations. Each is a **pluggable
+role**: the optional `skills:` map in `.docket.yml` rebinds it to a different skill, or to the
+sentinel `auto` (no skill — the running agent performs the step inline at its own model). An unset
+key defaults to the superpowers skill, so an absent `skills:` map is byte-identical to pre-0049
+behavior.
+
+| Role | Default skill | Invoked by | `auto` / fallback artifact — stop-point |
+|---|---|---|---|
+| brainstorm | `superpowers:brainstorming` | `docket-new-change` §2, `docket-groom-next` | a spec file at the configured spec path; stop at the spec |
+| plan | `superpowers:writing-plans` | `docket-implement-next` §4 | a plan file on the feature branch, recorded in `plan:` |
+| build | `superpowers:subagent-driven-development` | `docket-implement-next` §5 | the plan executed on the feature branch |
+| review | `superpowers:requesting-code-review` | `docket-implement-next` §6 | a whole-branch review before the PR opens |
+| finish | `superpowers:finishing-a-development-branch` | `docket-implement-next` §7; `docket-finalize-change` close-out | a pushed feature branch + open PR — never merged; stop |
+
+- **Passthrough.** A value is a skill name passed verbatim to the Skill tool — docket never
+  validates it against a registry (the ADR-0015 harness-neutral-passthrough philosophy; the
+  passthrough is exactly what lets any third-party or in-repo skill plug in). Unknown *role keys*
+  are warned-and-ignored (the `board_surfaces` posture — a typo never aborts a run).
+- **`auto` sentinel.** No skill is invoked; the running agent does the step itself at whatever
+  model it already runs at (the wrapper-resolved model for a subagent, the session model inline).
+  The per-role fallback defines only the **final artifact / stop-point** (column 4) — never the
+  method (no mandated TDD, dialogue shape, question cadence, or commit granularity).
+- **Missing-skill rule — degrade to auto + warn.** If the resolved skill cannot be invoked at
+  runtime (superpowers not installed, plugin unavailable, a typo'd custom name), the invoking skill
+  **degrades to that role's `auto` fallback and warns prominently** — in the run output, and (for
+  the build-time roles: plan/build/review/finish) as a note in the PR body. A repo with no
+  superpowers plugin therefore works out of the box with zero config. This is softer than the
+  autonomous abort-and-report rule because skill availability is a per-machine property, not a
+  repo-state error — aborting would make docket unusable for exactly the users this serves.
+- **Resolution** is deterministic via `docket-config.sh --export`, which emits `SKILL_BRAINSTORM`,
+  `SKILL_PLAN`, `SKILL_BUILD`, `SKILL_REVIEW`, `SKILL_FINISH` (each defaulted when the key is unset).
+  Consuming skill bodies read the variable from their Step-0 export; none re-parse YAML. Existing
+  gates are untouched — `docket-finalize-change`'s rebase-retest merge gate (`finalize.gate`) still
+  validates the suite before any merge regardless of the resolved build method.
 
 ### Directory layout (paths relative to the configured knobs)
 

@@ -217,6 +217,11 @@ assert "convention defines the DOCKET_SCRIPTS_DIR resolved form" \
   'grep -qF "\${DOCKET_SCRIPTS_DIR:?run docket/install.sh}" "$CONV"'
 assert "convention documents DOCKET_ namespacing" \
   'grep -qiF "DOCKET_-namespaced" "$CONV"'
+assert "convention documents the Skill layer" 'grep -qF "Skill layer" "$CONV"'
+assert "convention names SKILL_ resolution vars" \
+  'grep -qF "SKILL_BRAINSTORM" "$CONV" && grep -qF "SKILL_FINISH" "$CONV"'
+assert "convention documents the auto sentinel + degrade rule" \
+  'grep -qiF "degrade to auto" "$CONV"'
 for s in docket-implement-next docket-status docket-new-change docket-groom-next \
          docket-finalize-change docket-adr docket-auto-groom; do
   f="$REPO/skills/$s/SKILL.md"
