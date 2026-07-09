@@ -10,7 +10,7 @@ depends_on: []
 related: [16, 26, 44, 45, 46, 47, 49]
 adrs: [2, 8, 15, 16]
 spec: docs/superpowers/specs/2026-07-09-global-config-layer-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-09-global-config-layer.md
 results:
 trivial: false
 auto_groomable:
@@ -26,6 +26,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-09-global-config-layer-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-09-global-config-layer-design.md) |
+| Plan | [2026-07-09-global-config-layer.md](https://github.com/danielhanold/docket/blob/feat/global-config-layer/docs/superpowers/plans/2026-07-09-global-config-layer.md) |
 | ADRs | [ADR-0002](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0002-docket-mode-default-and-bootstrap.md), [ADR-0008](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0008-agent-layer-generated-subagents.md), [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md), [ADR-0016](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0016-harness-first-agent-config.md) |
 <!-- docket:artifacts:end -->
 
