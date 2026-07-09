@@ -17,7 +17,7 @@ auto_groomable: false
 branch: feat/global-agents-middle-layer
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -67,6 +67,9 @@ machine-scoped per-repo config file that 0050 deferred.
 - **Docs + ADR:** README/convention rewritten to the four-layer story; a build-time ADR
   supersedes ADR-0017's committed-generation model and updates ADR-0008/0016 — the
   clone-identical-committed-wrapper guarantee is consciously retired (solo-first call).
+- **Rider (from 0050 results):** guard `prune_orphans`' empty `scan_dirs[@]` expansion in
+  `sync-agents.sh` against macOS bash 3.2 under `set -u` (pre-existing hazard, explicitly
+  deferred to "the next sync-agents change" — this one).
 
 ## Out of scope
 
@@ -78,3 +81,13 @@ machine-scoped per-repo config file that 0050 deferred.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+- **2026-07-09 (implement-next):** Groomed and claimed the same day, so the world has barely
+  moved. Verified against `origin/main` @ `b331756`: change 0050 is `done` (PR #59 merged +
+  terminal-published), satisfying `depends_on: [50]`; the PR #59 stopgap shadowing warning this
+  change removes exists at `sync-agents.sh:361–368`; ADR-0019 (fence classification) is
+  published and its global-able key set matches the spec's `.docket.local.yml` key list;
+  `docket-config.sh` carries 0050's global rung (`GCFG=…/config.yml`, misplacement guard) ready
+  for the fourth layer. Scope adjustment: folded in the bash-3.2 `prune_orphans` empty-array
+  guard that 0050's results file explicitly deferred to "the next sync-agents change". No work
+  done elsewhere to drop; spec stands as approved.
