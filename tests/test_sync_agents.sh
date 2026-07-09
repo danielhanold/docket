@@ -667,4 +667,66 @@ printf 'default:\n  status: { model: haiku }\n' > "$SBX/.config/docket/agents.ya
 assert "0050 no-dual-read: .migrated is not read (built-in model)" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "claude-haiku-4-5-20251001" ]'
 rm -rf "$SBX"
 
+# ============================================================================
+# Change 0050 — global agent_harnesses scopes the USER-LEVEL pass only
+# ============================================================================
+
+# Extends + narrows: the global list overrides presence-on-disk detection.
+make_sandbox                                   # creates .claude + .agents; .cursor ABSENT
+mkdir -p "$SBX/.config/docket"
+printf 'agent_harnesses: [claude, cursor]\n' > "$SBX/.config/docket/config.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
+assert "0050 gah: listed ABSENT harness extended (cursor created+written)" '[ -f "$SBX/.cursor/agents/docket-status.md" ]'
+assert "0050 gah: listed present harness written (claude)" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
+assert "0050 gah: present-but-UNLISTED harness narrowed (.agents untouched)" '[ ! -e "$SBX/.agents/agents/docket-status.md" ]'
+assert "0050 gah: user-level cursor dispatch rule written when cursor listed" '[ -f "$SBX/.cursor/rules/docket-dispatch.mdc" ]'
+rm -rf "$SBX"
+
+# Global [] => the user-level pass writes nothing (explicit empty list, not "unset").
+make_sandbox
+mkdir -p "$SBX/.config/docket"
+printf 'agent_harnesses: []\n' > "$SBX/.config/docket/config.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
+assert "0050 gah []: no user-level files written despite present .claude" '[ ! -e "$SBX/.claude/agents/docket-status.md" ]'
+rm -rf "$SBX"
+
+# Unset global key => presence-on-disk detection unchanged (regression pin).
+make_sandbox
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
+assert "0050 gah unset: presence detection still writes .claude" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
+assert "0050 gah unset: absent harness still skipped" '[ ! -d "$SBX/.cursor/agents" ]'
+rm -rf "$SBX"
+
+# Unknown token in the GLOBAL list: warned + dropped, not fatal.
+make_sandbox
+mkdir -p "$SBX/.config/docket"
+printf 'agent_harnesses: [claude, bogus]\n' > "$SBX/.config/docket/config.yml"
+gah_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" 2>&1 >/dev/null)"; gah_rc=$?
+assert "0050 gah unknown: not fatal (rc=0)" '[ "$gah_rc" = "0" ]'
+assert "0050 gah unknown: warns and names the token" 'printf "%s" "$gah_err" | grep -qi "unknown agent_harnesses token" && printf "%s" "$gah_err" | grep -q "bogus"'
+assert "0050 gah unknown: known harness still written" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
+rm -rf "$SBX"
+
+# Scope split: the global key never opts a repo into per-repo generation, and the
+# per-repo committed pass is governed SOLELY by the repo's own agent_harnesses.
+REPO50="$(mktemp -d)"; HROOT50="$(mktemp -d)"
+mkdir -p "$HROOT50/.claude" "$HROOT50/.config/docket"
+printf 'metadata_branch: docket\n' > "$REPO50/.docket.yml"          # tracking-only repo
+printf 'agent_harnesses: [claude]\n' > "$HROOT50/.config/docket/config.yml"
+( cd "$REPO50" && DOCKET_HARNESS_ROOT="$HROOT50" bash "$SYNC" >/dev/null 2>&1 )
+assert "0050 gah scope: global key does NOT opt repo into per-repo generation" '[ ! -e "$REPO50/.claude/agents/docket-status.md" ]'
+assert "0050 gah scope: user-level still written" '[ -f "$HROOT50/.claude/agents/docket-status.md" ]'
+rm -rf "$REPO50" "$HROOT50"
+
+REPO51="$(mktemp -d)"; HROOT51="$(mktemp -d)"
+mkdir -p "$HROOT51/.claude" "$HROOT51/.config/docket"
+printf 'agent_harnesses: [claude]\n' > "$REPO51/.docket.yml"        # repo opts in: claude only
+printf 'agent_harnesses: [cursor]\n' > "$HROOT51/.config/docket/config.yml"
+( cd "$REPO51" && DOCKET_HARNESS_ROOT="$HROOT51" bash "$SYNC" >/dev/null 2>&1 )
+assert "0050 gah scope: per-repo pass follows the REPO list (claude written)" '[ -f "$REPO51/.claude/agents/docket-status.md" ]'
+assert "0050 gah scope: per-repo pass ignores the global list (no repo .cursor)" '[ ! -e "$REPO51/.cursor/agents/docket-status.md" ]'
+assert "0050 gah scope: global [cursor] scopes user-level (cursor written)" '[ -f "$HROOT51/.cursor/agents/docket-status.md" ]'
+assert "0050 gah scope: user-level claude NOT written (narrowed by global list)" '[ ! -e "$HROOT51/.claude/agents/docket-status.md" ]'
+rm -rf "$REPO51" "$HROOT51"
+
 exit $fail
