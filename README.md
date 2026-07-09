@@ -10,7 +10,7 @@ superpowers gives Claude excellent *execution*: brainstorm → spec → plan →
 
 OpenSpec / superspec solves that with a full lifecycle layer, but it requires a CLI dependency and a rigid markdown contract that not every project wants to adopt.
 
-docket sits in between. It adds a thin lifecycle layer — plain markdown files in your repo, eight skills, no CLI — and delegates every execution step to superpowers wholesale. The core unit is a **change** (one file, one PR's worth of work). Architecture decisions are captured separately as **ADRs** (an immutable ledger). The code is always the current-state truth; docket carries no living-spec layer and does not try to mirror the codebase in prose.
+docket sits in between. It adds a thin lifecycle layer — plain markdown files in your repo, eight skills, no CLI — and delegates every execution step to superpowers by default (each invocation point is rebindable via `skills:` in `.docket.yml` — see below). The core unit is a **change** (one file, one PR's worth of work). Architecture decisions are captured separately as **ADRs** (an immutable ledger). The code is always the current-state truth; docket carries no living-spec layer and does not try to mirror the codebase in prose.
 
 The eight skills cover the full loop: create, groom, implement, finalize, report, decide — plus the shared contract they all load as a pure-reference skill.
 
@@ -33,20 +33,21 @@ One honest caveat: dependency chains serialize on the merge gate. A change that 
 
 ---
 
-## Prerequisite: superpowers
+## Workflow engine: superpowers by default, pluggable per role
 
-docket is a lifecycle wrapper around superpowers, not a replacement for it. superpowers must be installed and available in your harness before any docket skill will function. Installing superpowers is the consuming user's responsibility; docket declares it as a prerequisite but does not bundle or install it.
+docket is a lifecycle wrapper around a workflow engine, and **superpowers is the default engine — recommended, but not a hard requirement.** Each of the five workflow invocation points is a pluggable **role**: an optional `skills:` map in `.docket.yml` rebinds any of them to a different skill (the name is passed to the Skill tool verbatim) or to the sentinel `auto` (no skill — the running agent performs the step inline at its own model).
 
-`docket-new-change` (the interactive producer) calls:
+| Role | Default skill | Invoked by |
+|---|---|---|
+| `brainstorm` | `superpowers:brainstorming` | `docket-new-change`, `docket-groom-next` — up-front design before the spec |
+| `plan` | `superpowers:writing-plans` | `docket-implement-next` — the task plan from the spec |
+| `build` | `superpowers:subagent-driven-development` | `docket-implement-next` — execute the plan with TDD |
+| `review` | `superpowers:requesting-code-review` | `docket-implement-next` — whole-branch review before the PR |
+| `finish` | `superpowers:finishing-a-development-branch` | `docket-implement-next`, `docket-finalize-change` — push the branch, open the PR |
 
-- `superpowers:brainstorming` — for up-front design before the spec is written
+Unset keys default to the superpowers skills above — an absent `skills:` map is byte-identical to superpowers-everywhere. And if a resolved skill cannot be invoked at runtime (superpowers not installed, a typo'd custom name), docket **degrades to that role's `auto` fallback with a prominent warning**, so a repo without superpowers works out of the box with zero config. The config shape — the `skills:` keys, the `auto` sentinel, and each role's fallback artifact — is documented once in docket-convention's **"Skill layer"**; consult it there rather than copying examples here.
 
-`docket-implement-next` (the autonomous build) calls:
-
-- `superpowers:writing-plans` — to build the task plan from the spec
-- `superpowers:subagent-driven-development` — to execute the plan with TDD
-- `superpowers:requesting-code-review` — for a whole-branch review before the PR
-- `superpowers:finishing-a-development-branch` — to push the branch and open the PR
+When you want the default engine, installing superpowers is the consuming user's responsibility; docket does not bundle or install it.
 
 ---
 
@@ -71,13 +72,24 @@ The change data — `docs/changes/`, `docs/adrs/`, `docs/results/` — lives per
 **Optional per-project configuration.** Add a `.docket.yml` to override defaults. It is committed on your repo's **default branch** (`origin/HEAD`) — every clone, agent, and device needs the same values, and the default branch is the one place a skill can find the file with zero prior config:
 
 ```yaml
-# .docket.yml — committed on the repo's default branch; read by every docket skill at startup
+# .docket.yml — committed on the repo's default branch; read by every docket skill at startup.
+# Every key is optional; unset = the default shown. Commented keys are opt-in.
 metadata_branch: docket      # docket (default) | main  — where planning commits land
 integration_branch: auto     # auto (default → origin/HEAD, fallback main) | main | develop — where code lands
 changes_dir: docs/changes    # default
 adrs_dir: docs/adrs          # default
 results_dir: docs/results    # default
-agents:                      # per-skill subagent model/effort (see "Agent layer" in docket-convention)
+auto_groom: false            # repo default for autonomous grooming; per-change auto_groomable overrides
+board_surfaces: [inline]     # derived board views: inline (BOARD.md) and/or github; [] disables the board
+# github_project: {owner: <o>, number: <n>}  # Projects v2 board; minted + written back on first github sync
+finalize:                    # merge gate: rebase onto base + re-test before docket merges
+  gate: local                # local (default) | ci | both | off
+  # test_command:            # unset => finalize auto-detects the suite
+  # require_pr_approval: false  # true => the no-arg finalize refuses to merge an unapproved PR
+# agent_harnesses: [claude]  # harnesses the per-repo agent pass generates committed wrappers for
+# agents:                    # per-skill subagent model/effort (see "Agent layer" in docket-convention)
+# skills:                    # rebind the five workflow roles — brainstorm/plan/build/review/finish — to
+#                            # any skill name or `auto` (see "Skill layer" in docket-convention)
 ```
 
 With no `.docket.yml` at all, docket runs in its default **docket-mode** (`metadata_branch: docket`, `integration_branch: auto`). See the **docket-mode** section below for what that means and how to opt out.
