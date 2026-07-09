@@ -26,8 +26,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-08-cursor-dispatch-rule-generation-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-08-cursor-dispatch-rule-generation-design.md) |
-| Plan | [2026-07-08-cursor-dispatch-rule-generation.md](https://github.com/danielhanold/docket/blob/feat/cursor-dispatch-rule-generation/docs/superpowers/plans/2026-07-08-cursor-dispatch-rule-generation.md) |
-| Results | [2026-07-08-cursor-dispatch-rule-generation-results.md](https://github.com/danielhanold/docket/blob/feat/cursor-dispatch-rule-generation/docs/results/2026-07-08-cursor-dispatch-rule-generation-results.md) |
+| Plan | [2026-07-08-cursor-dispatch-rule-generation.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-08-cursor-dispatch-rule-generation.md) |
+| Results | [2026-07-08-cursor-dispatch-rule-generation-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-08-cursor-dispatch-rule-generation-results.md) |
 | PR | [#57](https://github.com/danielhanold/docket/pull/57) |
 | ADRs | [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md), [ADR-0016](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0016-harness-first-agent-config.md), [ADR-0017](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0017-cursor-dispatch-rule-full-agent-set.md) |
 <!-- docket:artifacts:end -->
