@@ -72,43 +72,66 @@ A value may not contain a literal `#` — it is treated as the start of an inlin
 | `changes_dir` | `docs/changes` | no (fenced) | |
 | `adrs_dir` | `docs/adrs` | no (fenced) | |
 | `results_dir` | `docs/results` | no (fenced) | |
-| `gate` (finalize) | `local` | yes | read from `finalize.gate` leaf key; falls back to the global `finalize.gate` leaf when unset per-repo |
-| `test_command` (finalize) | `` (empty) | yes | read from `finalize.test_command` leaf key; falls back to the global leaf when unset per-repo |
-| `board_surfaces` | `inline` | yes, minus `github` | YAML list `[a, b]` stripped of brackets/commas; `[]` → empty string; a global `github` token is dropped (Stage 2c) |
-| `auto_groom` | `false` | yes | falls back to the global `auto_groom` when unset per-repo |
+| `gate` (finalize) | `local` | yes | read from `finalize.gate` leaf key; resolves repo-local > repo-committed > global |
+| `test_command` (finalize) | `` (empty) | yes | read from `finalize.test_command` leaf key; resolves repo-local > repo-committed > global |
+| `board_surfaces` | `inline` | yes, minus `github` | YAML list `[a, b]` stripped of brackets/commas; `[]` → empty string; a `github` token arriving from either machine-scoped layer (repo-local or global) is dropped (Stage 2c) |
+| `auto_groom` | `false` | yes | resolves repo-local > repo-committed > global |
 
 `github_project` and `agents:`/`agent_harnesses` are per-repo-only / not read by this script (see
-Stage 2b/2c below and `sync-agents.sh`'s own contract, respectively) — every other key above not
-marked "Global-able" is per-repo-only.
+Stage 2b/2b'/2c below and `sync-agents.sh`'s own contract, respectively) — every other key above
+not marked "Global-able" is per-repo-only.
 
 **`skills:` (change 0049).** Reads the optional nested `skills:` block and emits
 `SKILL_BRAINSTORM`, `SKILL_PLAN`, `SKILL_BUILD`, `SKILL_REVIEW`, `SKILL_FINISH`. Each leaf
-resolves **per-repo > global > superpowers default** — the per-repo `skills:` block wins if the
-leaf is set there, else the global `config.yml`'s `skills:` block, else the built-in superpowers
-skill (`superpowers:brainstorming`, `superpowers:writing-plans`,
+resolves **repo-local > repo-committed > global > superpowers default** — the repo-local
+`.docket.local.yml`'s `skills:` block wins if the leaf is set there, else the per-repo
+`.docket.yml`'s `skills:` block, else the global `config.yml`'s `skills:` block, else the
+built-in superpowers skill (`superpowers:brainstorming`, `superpowers:writing-plans`,
 `superpowers:subagent-driven-development`, `superpowers:requesting-code-review`,
 `superpowers:finishing-a-development-branch`); a set leaf is passed through verbatim (or the
 sentinel `auto`). Leaves are read *within the block* (never as bare top-level keys). An unknown
-role key under `skills:`, in either layer, is warned on stderr and ignored — never fatal.
+role key under `skills:`, in any of the three layers, is warned on stderr and ignored — never
+fatal.
 
 ### Stage 2b: global config layer (change 0050)
 
 `${XDG_CONFIG_HOME:-$HOME/.config}/docket/config.yml` — read from the **local filesystem**
 (per-machine by definition; no authoritative-ref concern). Full `.docket.yml` schema,
-resolved per-key: per-repo > global > built-in. Map-valued `skills:` merges field-by-field.
-`agents:` and `agent_harnesses` are **not read here** — `sync-agents.sh` is their reader.
+resolved per-key: repo-local > repo-committed > global > built-in. Map-valued `skills:` merges
+field-by-field. `agents:` and `agent_harnesses` are **not read here** — `sync-agents.sh` is their
+reader.
 
 **Guards (Stage 2c), all warn-and-ignore, never fatal:**
 - `~/.config/docket/.docket.yml` present → warned ("global config is config.yml"), never read.
 - `config.yml` exists but is not a readable regular file → warned; global layer ignored.
 - **Coordination-key fence:** `metadata_branch`, `integration_branch`, `changes_dir`,
-  `adrs_dir`, `results_dir`, `github_project` set globally → each warned "per-repo-only"
-  and ignored. (Block-style `github_project:` with an empty value line is not detected —
-  the fence reads the scalar value; nothing reads a global `github_project` regardless.)
-- `board_surfaces` **from the global layer** drops a `github` token with a warning
-  (external objects stay repo opt-in); a per-repo `github` is honored as before. The
-  global fallback happens on the RAW value, so a global `[]` (disable) is distinguishable
-  from unset (default `[inline]`).
+  `adrs_dir`, `results_dir`, `github_project` set in the global layer OR in
+  `.docket.local.yml` → each warned "per-repo-only" (naming which file) and ignored. (Block-style
+  `github_project:` with an empty value line is not detected — the fence reads the scalar value;
+  nothing reads a global/local `github_project` regardless.)
+- `board_surfaces` **from either machine-scoped layer** (`.docket.local.yml` or the global
+  `config.yml`) drops a `github` token with a warning (external objects stay repo opt-in); a
+  per-repo `github` is honored as before. The machine-layer fallback happens on the RAW value, so
+  a machine-scoped `[]` (disable) is distinguishable from unset (default `[inline]`).
+
+### Stage 2b': machine-local layer (change 0051)
+
+`<repo>/.docket.local.yml` — machine-**and**-repo-scoped overrides for exactly the global-able
+key set. Read from the **working tree** (not `origin/HEAD`) since the file is inherently
+per-machine and typically gitignored; the origin/HEAD-authoritative read applies only to the
+committed `.docket.yml`. Because the file is machine-scoped, the ADR-0019 coordination-key fence
+applies to it verbatim, same as the global layer.
+
+Precedence per field is the four-layer chain (the `.env` pattern): **repo-local >
+repo-committed > global > built-in.** This applies uniformly to `finalize.gate`,
+`finalize.test_command`, `auto_groom`, `board_surfaces`, and each `skills:` leaf.
+
+**Guards, both warn-and-ignore, never fatal:**
+- `.docket.local.yml` exists but is not a readable regular file (e.g. a directory) → warned,
+  naming the file, and the local layer is ignored for the rest of the run (falls through to
+  repo-committed/global/built-in as if the file were absent).
+- Any fenced key set in `.docket.local.yml` → warned "per-repo-only", naming both the key and
+  `.docket.local.yml`, and ignored (same posture as a fenced global key).
 
 **`metadata_branch` drives mode and worktree:**
 - `docket` → `DOCKET_MODE=docket`, `METADATA_WORKTREE=.docket`
@@ -183,7 +206,9 @@ SKILL_FINISH
 BOOTSTRAP
 ```
 
-18 lines total. The last line is always `BOOTSTRAP=…`.
+18 lines total. The last line is always `BOOTSTRAP=…`. The emitted `KEY=value` set and order are
+**unchanged** by the machine-local layer (change 0051) — `.docket.local.yml` only adds a
+higher-precedence input to the values already resolved above; no new KEY is introduced.
 
 ## Exit codes
 
@@ -223,3 +248,6 @@ emits no `KEY=value` output.
   for pipe consumers, but should use the variable names (via `eval`) for correctness.
 - **The global layer never aborts a run.** Every global-file problem (misplaced, malformed,
   fenced key) is a stderr warning; exit codes are unaffected.
+- **The machine-local layer never aborts a run either.** A malformed `.docket.local.yml` or a
+  fenced key set within it is a stderr warning (never fatal); the run falls through to the next
+  layer in the chain.

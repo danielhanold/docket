@@ -9,6 +9,10 @@
 # metadata_branch). Abort keys on the fetch/set-head return code, NEVER on git show
 # (a cached origin/HEAD lets git show succeed with stale bytes). Semantics are ADR-0002 +
 # the convention's Configuration / Bootstrap guard, implemented verbatim — no new ADR.
+# Four config layers resolve per-key (change 0051 adds the local rung): repo-local
+# (<repo>/.docket.local.yml, gitignored, machine-AND-repo-scoped) > repo-committed
+# (.docket.yml) > global (${XDG_CONFIG_HOME:-$HOME/.config}/docket/config.yml) > built-in.
+# The coordination-key fence (ADR-0019) applies to both machine-scoped layers alike.
 #
 # Usage: docket-config.sh [--export] [--bootstrap] [--repo-dir DIR]
 #   --export        emit resolved KEY=value lines (default mode)
@@ -96,13 +100,27 @@ g show "origin/HEAD:.docket.yml" >"$CFG" 2>/dev/null || : >"$CFG"   # absent fil
 
 # --- Stage 2b: global config layer (change 0050) ------------------------------
 # ${XDG_CONFIG_HOME:-$HOME/.config}/docket/config.yml — the full .docket.yml schema,
-# resolved PER-KEY: per-repo > global > built-in (map-valued skills: merges field-by-field).
+# resolved PER-KEY: repo-local > repo-committed > global > built-in (map-valued skills:
+# merges field-by-field).
 # Read from the LOCAL filesystem — the file is per-machine by definition, so there is no
 # authoritative-ref concern as with .docket.yml's origin/HEAD read. Coordination keys are
 # fenced (warned-and-ignored) in Stage 2c below.
 GCFG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/docket"
 GCFG="$GCFG_DIR/config.yml"
 gbl(){ yaml_get "$GCFG" "$1"; }   # global-layer scalar read (empty when absent)
+
+# --- Stage 2b': machine-local layer (change 0051) ------------------------------
+# <repo>/.docket.local.yml — machine-AND-repo-scoped overrides for exactly the
+# global-able key set (the file is machine-scoped, so the ADR-0019 fence applies
+# verbatim). Read from the WORKING TREE — the origin/HEAD-authoritative read applies
+# only to the committed .docket.yml. Precedence per field (the .env pattern):
+# repo-local > repo-committed > global > built-in.
+LCFG="$REPO_DIR/.docket.local.yml"
+if [ -e "$LCFG" ] && { [ ! -f "$LCFG" ] || [ ! -r "$LCFG" ]; }; then
+  printf 'docket-config: warning: %s is not a readable regular file — machine-local config layer ignored\n' "$LCFG" >&2
+  LCFG=/dev/null
+fi
+lcl(){ yaml_get "$LCFG" "$1"; }   # local-layer scalar read (empty when absent)
 
 # --- Stage 2c: fail-loud guards + the coordination-key fence (change 0050) ----
 # Misplacement: a global .docket.yml is NEVER read — the global file is config.yml.
@@ -122,6 +140,9 @@ for _fkey in metadata_branch integration_branch changes_dir adrs_dir results_dir
   if [ -n "$(yaml_get "$GCFG" "$_fkey")" ]; then
     printf "docket-config: warning: global config key %s is per-repo-only — set it in the repo's committed .docket.yml; ignored\n" "$_fkey" >&2
   fi
+  if [ -n "$(yaml_get "$LCFG" "$_fkey")" ]; then
+    printf "docket-config: warning: .docket.local.yml key %s is per-repo-only — set it in the repo's committed .docket.yml; ignored\n" "$_fkey" >&2
+  fi
 done
 
 METADATA_BRANCH="$(yaml_get "$CFG" metadata_branch)"; METADATA_BRANCH="${METADATA_BRANCH:-docket}"
@@ -139,27 +160,30 @@ fi
 CHANGES_DIR="$(yaml_get "$CFG" changes_dir)"; CHANGES_DIR="${CHANGES_DIR:-docs/changes}"
 ADRS_DIR="$(yaml_get "$CFG" adrs_dir)";       ADRS_DIR="${ADRS_DIR:-docs/adrs}"
 RESULTS_DIR="$(yaml_get "$CFG" results_dir)"; RESULTS_DIR="${RESULTS_DIR:-docs/results}"
-FINALIZE_GATE="$(yaml_get "$CFG" gate)";      FINALIZE_GATE="${FINALIZE_GATE:-$(gbl gate)}"; FINALIZE_GATE="${FINALIZE_GATE:-local}"
-FINALIZE_TEST_COMMAND="$(yaml_get "$CFG" test_command)"; FINALIZE_TEST_COMMAND="${FINALIZE_TEST_COMMAND:-$(gbl test_command)}"
-AUTO_GROOM="$(yaml_get "$CFG" auto_groom)";   AUTO_GROOM="${AUTO_GROOM:-$(gbl auto_groom)}"; AUTO_GROOM="${AUTO_GROOM:-false}"
+FINALIZE_GATE="$(lcl gate)"; FINALIZE_GATE="${FINALIZE_GATE:-$(yaml_get "$CFG" gate)}"; FINALIZE_GATE="${FINALIZE_GATE:-$(gbl gate)}"; FINALIZE_GATE="${FINALIZE_GATE:-local}"
+FINALIZE_TEST_COMMAND="$(lcl test_command)"; FINALIZE_TEST_COMMAND="${FINALIZE_TEST_COMMAND:-$(yaml_get "$CFG" test_command)}"; FINALIZE_TEST_COMMAND="${FINALIZE_TEST_COMMAND:-$(gbl test_command)}"
+AUTO_GROOM="$(lcl auto_groom)"; AUTO_GROOM="${AUTO_GROOM:-$(yaml_get "$CFG" auto_groom)}"; AUTO_GROOM="${AUTO_GROOM:-$(gbl auto_groom)}"; AUTO_GROOM="${AUTO_GROOM:-false}"
 
-bs_raw="$(yaml_get "$CFG" board_surfaces)"; bs_from_global=0
+bs_raw="$(lcl board_surfaces)"; bs_machine=0
+[ -n "$bs_raw" ] && bs_machine=1                            # local = machine-scoped
+if [ -z "$bs_raw" ]; then bs_raw="$(yaml_get "$CFG" board_surfaces)"; fi
 if [ -z "$bs_raw" ]; then
   bs_raw="$(gbl board_surfaces)"
-  [ -n "$bs_raw" ] && bs_from_global=1
+  [ -n "$bs_raw" ] && bs_machine=1                          # global = machine-scoped
 fi
 if [ -z "$bs_raw" ]; then
-  BOARD_SURFACES="inline"                                  # unset in both layers => default [inline]
+  BOARD_SURFACES="inline"                                  # unset in all layers => default [inline]
 else
   bs="${bs_raw#[}"; bs="${bs%]}"; bs="${bs//,/ }"
   BOARD_SURFACES="$(echo $bs)"                             # trim/collapse; "[]" => ""
-  # The github token is per-repo-only when it arrives from the GLOBAL layer: it mints
-  # issues + a Projects board (external objects, not self-healing). Per-repo github is honored.
-  if [ "$bs_from_global" -eq 1 ] && [ -n "$BOARD_SURFACES" ]; then
+  # The github token is per-repo-only when it arrives from a MACHINE-scoped layer (local or
+  # global): it mints issues + a Projects board (external objects, not self-healing). Per-repo
+  # github is honored.
+  if [ "$bs_machine" -eq 1 ] && [ -n "$BOARD_SURFACES" ]; then
     _filtered=""
     for _tok in $BOARD_SURFACES; do
       if [ "$_tok" = github ]; then
-        printf 'docket-config: warning: global board_surfaces token github is per-repo-only (mints external GitHub objects) — ignored\n' >&2
+        printf 'docket-config: warning: board_surfaces token github is per-repo-only (mints external GitHub objects) — set it in the committed .docket.yml; ignored\n' >&2
       else
         _filtered="$_filtered $_tok"
       fi
@@ -173,8 +197,10 @@ fi
 # per-repo leaf > global leaf > the superpowers default.
 SKILLS_BLK="$(mktemp)";  yaml_block_body "$CFG"  skills >"$SKILLS_BLK"
 GSKILLS_BLK="$(mktemp)"; yaml_block_body "$GCFG" skills >"$GSKILLS_BLK"
+LSKILLS_BLK="$(mktemp)"; yaml_block_body "$LCFG" skills >"$LSKILLS_BLK"
 skill_role(){  # skill_role <role> <default> -> resolved value on stdout
-  local v; v="$(yaml_get "$SKILLS_BLK" "$1")"
+  local v; v="$(yaml_get "$LSKILLS_BLK" "$1")"
+  [ -n "$v" ] || v="$(yaml_get "$SKILLS_BLK" "$1")"
   [ -n "$v" ] || v="$(yaml_get "$GSKILLS_BLK" "$1")"
   printf '%s' "${v:-$2}"
 }
@@ -184,7 +210,7 @@ SKILL_BUILD="$(skill_role build superpowers:subagent-driven-development)"
 SKILL_REVIEW="$(skill_role review superpowers:requesting-code-review)"
 SKILL_FINISH="$(skill_role finish superpowers:finishing-a-development-branch)"
 # Unknown role keys in EITHER layer: warn-and-ignore (a typo must never abort).
-for _blk in "$SKILLS_BLK" "$GSKILLS_BLK"; do
+for _blk in "$LSKILLS_BLK" "$SKILLS_BLK" "$GSKILLS_BLK"; do
   while IFS= read -r _role; do
     [ -n "$_role" ] || continue
     case " brainstorm plan build review finish " in
@@ -193,7 +219,7 @@ for _blk in "$SKILLS_BLK" "$GSKILLS_BLK"; do
     esac
   done < <(sed -n -E 's/^[[:space:]]*([[:alnum:]_-]+)[[:space:]]*:.*/\1/p' "$_blk")
 done
-rm -f "$SKILLS_BLK" "$GSKILLS_BLK"
+rm -f "$SKILLS_BLK" "$GSKILLS_BLK" "$LSKILLS_BLK"
 
 # --- Stage 3: bootstrap guard — evaluate the DOCKET/LIVE 2×2 (docket-mode only) ---
 BOOTSTRAP=PROCEED
