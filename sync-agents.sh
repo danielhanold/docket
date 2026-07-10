@@ -350,6 +350,52 @@ write_dispatch_rule() {  # $1 = <root>/.<harness> base path
   assemble_dispatch_rule > "$1/rules/docket-dispatch.mdc"
 }
 
+# --- managed .gitignore block (change 0051) -----------------------------------
+# sync-agents.sh owns a marker-bounded block in <repo>/.gitignore covering every
+# machine-local artifact it generates. Patterns are emitted from the SAME harness
+# table generation uses (VALID_HARNESS_TOKENS / HARNESS_HAS_DISPATCH_RULES), so a
+# new harness extends the block without a second roster. Nothing outside the
+# markers is ever touched.
+GITIGNORE="$REPO/.gitignore"
+GI_START='# docket:generated:start (managed by sync-agents.sh — do not hand-edit)'
+GI_END='# docket:generated:end'
+
+emit_gitignore_block() {
+  printf '%s\n' "$GI_START"
+  printf '.docket.local.yml\n'
+  local tok
+  for tok in $VALID_HARNESS_TOKENS; do printf '.%s/agents/docket-*.md\n' "$tok"; done
+  for tok in $HARNESS_HAS_DISPATCH_RULES; do printf '.%s/rules/docket-dispatch.mdc\n' "$tok"; done
+  printf '%s\n' "$GI_END"
+}
+
+# The block is maintained for opted-in repos AND any repo carrying a .docket.local.yml
+# (a tracking-only repo using it for skills:/finalize: must never risk committing it).
+# NOTE: test the RAW path — LOCAL_CFG may have been redirected to /dev/null.
+gitignore_block_wanted(){ per_repo_opted_in && return 0; [ -e "$REPO/.docket.local.yml" ]; }
+
+current_gitignore_block() {
+  [ -f "$GITIGNORE" ] || return 0
+  awk -v s="$GI_START" -v e="$GI_END" '$0==s{f=1} f{print} $0==e{f=0}' "$GITIGNORE"
+}
+
+ensure_gitignore_block() {  # create/refresh; bytes outside the markers are never touched
+  gitignore_block_wanted || return 0
+  local want have rest
+  want="$(emit_gitignore_block)"
+  have="$(current_gitignore_block)"
+  [ "$want" = "$have" ] && return 0
+  rest=""
+  if [ -f "$GITIGNORE" ]; then
+    rest="$(awk -v s="$GI_START" -v e="$GI_END" '$0==s{f=1} !f{print} $0==e{f=0}' "$GITIGNORE")"
+  fi
+  {
+    if [ -n "$rest" ]; then printf '%s\n\n' "$rest"; fi
+    printf '%s\n' "$want"
+  } > "$GITIGNORE"
+  log "UPDATED $GITIGNORE managed block (docket:generated) — COMMIT THIS so machine-local generated files stay untracked"
+}
+
 # Non-fatal footgun warning: when generating a NON-claude harness file whose `model` resolved from
 # default/built-in (no agents.<harness> override supplied it), the ID is likely wrong for that
 # harness (ADR-0015: some harnesses silently run their house default on an unknown model). Never
@@ -577,6 +623,7 @@ fi
 migrate_legacy_global
 resolve_global_agent_harnesses
 user_level_pass
+ensure_gitignore_block
 project_level_pass
 prune_orphans all
 log "done"

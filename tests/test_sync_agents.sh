@@ -864,4 +864,58 @@ rid_rc=0
 assert "0051 rider: empty scan_dirs run succeeds under /bin/bash (rc=0)" '[ "$rid_rc" = "0" ]'
 rm -rf "$SBXR"
 
+# ============================================================================
+# Change 0051 — managed .gitignore block (# docket:generated:start/end)
+# ============================================================================
+
+# (gi-a) opted-in repo: block created (file didn't exist), loud "commit" notice,
+# patterns strictly docket-scoped, emitted from the harness table (all 6 tokens).
+make_sandbox
+HROOTGA="$(mktemp -d)"; mkdir -p "$HROOTGA/.claude"
+printf 'agent_harnesses: [claude]\n' > "$SBX/.docket.yml"
+gi_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTGA" bash "$SYNC" 2>&1 >/dev/null)"
+GI="$SBX/.gitignore"
+assert "0051 gi: .gitignore created with the managed block" 'grep -q "^# docket:generated:start" "$GI" && grep -q "^# docket:generated:end$" "$GI"'
+assert "0051 gi: block ignores .docket.local.yml"            'grep -q "^\.docket\.local\.yml$" "$GI"'
+assert "0051 gi: block ignores claude agents pattern"        'grep -q "^\.claude/agents/docket-\*\.md$" "$GI"'
+assert "0051 gi: block ignores cursor agents pattern"        'grep -q "^\.cursor/agents/docket-\*\.md$" "$GI"'
+assert "0051 gi: block ignores the cursor dispatch rule"     'grep -q "^\.cursor/rules/docket-dispatch\.mdc$" "$GI"'
+assert "0051 gi: loud commit-this notice"                    'printf "%s" "$gi_err" | grep -qi "commit"'
+assert "0051 gi: every block line is docket-scoped (starts with . or #)" \
+  '! awk "/# docket:generated:start/,/# docket:generated:end/" "$GI" | grep -qvE "^(#|\.)"'
+
+# (gi-b) idempotent: second run leaves .gitignore byte-identical and prints no notice.
+gi_before="$(cat "$GI")"
+gi_err2="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTGA" bash "$SYNC" 2>&1 >/dev/null)"
+assert "0051 gi: second run byte-identical"    '[ "$gi_before" = "$(cat "$GI")" ]'
+assert "0051 gi: second run no UPDATED notice" '! printf "%s" "$gi_err2" | grep -q "managed block"'
+
+# (gi-c) hand-edit inside the block repaired; content OUTSIDE the markers preserved.
+printf 'my-own-ignore/\n%s\n' "$(cat "$GI")" > "$GI"          # user content above the block
+sed -i.bak '/docket-dispatch/d' "$GI"; rm -f "$GI.bak"        # vandalize the block
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTGA" bash "$SYNC" >/dev/null 2>&1 )
+assert "0051 gi: hand-edited block repaired"   'grep -q "docket-dispatch" "$GI"'
+assert "0051 gi: user content preserved"       'grep -q "^my-own-ignore/$" "$GI"'
+assert "0051 gi: exactly one block after repair" '[ "$(grep -c "^# docket:generated:start" "$GI")" = "1" ]'
+rm -rf "$SBX" "$HROOTGA"
+
+# (gi-d) tracking-only repo WITH a .docket.local.yml that has NO opt-in keys: the block
+# is still written (the local file itself must never be committable); zero agent files.
+make_sandbox
+HROOTGD="$(mktemp -d)"; mkdir -p "$HROOTGD/.claude"
+printf 'metadata_branch: docket\n' > "$SBX/.docket.yml"
+printf 'finalize:\n  gate: off\n' > "$SBX/.docket.local.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTGD" bash "$SYNC" >/dev/null 2>&1 )
+assert "0051 gi: local-file-present repo gets the block"  'grep -q "^# docket:generated:start" "$SBX/.gitignore"'
+assert "0051 gi: but still generates zero agent files"    '[ ! -e "$SBX/.claude/agents/docket-status.md" ]'
+rm -rf "$SBX" "$HROOTGD"
+
+# (gi-e) repo with NEITHER signal: .gitignore never touched/created (LEARNINGS #48 posture).
+make_sandbox
+HROOTGE="$(mktemp -d)"; mkdir -p "$HROOTGE/.claude"
+printf 'metadata_branch: docket\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTGE" bash "$SYNC" >/dev/null 2>&1 )
+assert "0051 gi: no-signal repo gets NO .gitignore" '[ ! -e "$SBX/.gitignore" ]'
+rm -rf "$SBX" "$HROOTGE"
+
 exit $fail
