@@ -34,11 +34,11 @@ For every change, resolve each id in its `depends_on`:
 
 A change with all deps satisfied (or none) is **dependency-clear**. A change with at least one unsatisfied dep is **dependency-waiting**, carrying the worst unmet reason for display (`"needs your merge"` > `"not yet built"`).
 
+Readiness cells the board renders from this pass: a dependency-waiting change shows **⏳ waiting on #N — not yet built** or **⏳ waiting on #N — needs your merge** (never build-ready; waiting takes precedence over a missing spec). A `proposed` change that is not waiting, has no spec, and is not `trivial: true` shows **needs-brainstorm** — or **auto-groom blocked — needs you** when its body carries an `## Auto-groom blocked` section.
+
 ## Where the board, sweep, and checks operate
 
-Resolve config + the bootstrap verdict deterministically: `eval "$("${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket-config.sh --export)"` (fail-closed; read-only). Act on `BOOTSTRAP` — `PROCEED` to continue; `STOP_MIGRATE` to refuse-and-point at `migrate-to-docket.sh`; `CREATE_ORPHAN` to opt into `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket-config.sh --bootstrap` (fresh repo only).
-
-All three passes read and write in the **metadata working tree** on `metadata_branch`, pushed to its remote immediately. In `docket`-mode that tree is the persistent `.docket/` worktree parked on `docket` — ensure it (state-specific create per the convention's Branch model, idempotent) and **sync it to `origin/docket` before any read** (`git -C .docket fetch origin docket && git -C .docket pull --rebase origin docket`); pushes target `origin/docket`. In single-branch/`main`-mode this degrades to the primary working tree on the integration branch (no `.docket/`): `git pull --rebase` and push on `origin/<metadata_branch>` (which equals `origin/<integration_branch>` there). The passes below say "`.docket/`" / "`origin/docket`" for the common (`docket`-mode) case; read those as the metadata working tree / `origin/<metadata_branch>` in `main`-mode.
+Run the convention's *Step-0 preamble* — config export (`eval "$("${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket-config.sh --export)"`), `BOOTSTRAP` verdict, metadata-working-tree ensure + sync. All three passes read and write in that tree on `metadata_branch`, pushed to its remote immediately; the passes below say "`.docket/`" / "`origin/docket`" for the common (`docket`-mode) case.
 
 ## Board
 
@@ -47,8 +47,8 @@ The Board pass renders **each surface listed in `board_surfaces`** (config; defa
 **`inline` surface** (the default). Regenerate `BOARD.md` by invoking the deterministic
 `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/render-board.sh --changes-dir <metadata working tree>/<changes_dir> > <metadata working
 tree>/<changes_dir>/BOARD.md` (in `docket`-mode the metadata working tree is `.docket/`; pass
-`--repo <owner>/<repo>` so `pr:` cells hyperlink). The script owns *how* to render — it reproduces
-the *Structure* below byte-for-byte from the change files, offline (no `gh`, no network) and
+`--repo <owner>/<repo>` so `pr:` cells hyperlink). The script owns *how* to render — its contract
+(`scripts/render-board.md`) documents the emitted structure, offline (no `gh`, no network) and
 deterministically (same change files ⇒ identical bytes); the skill owns *when* to render and the
 commit discipline. `BOARD.md` is the **live planning view and stays on `docket`** — it is **never**
 published to the integration branch (the one metadata file terminal-publish never copies). **Never
@@ -61,64 +61,6 @@ rebuild `BOARD.md` from the change files, `git add` it, then `git rebase --conti
 **`github` surface** — the one-way Issues + Projects v2 mirror (per the convention's *GitHub board mirror* definition; mechanics in `skills/docket-convention/github-board-mirror.md`). Invoke the deterministic `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/github-mirror.sh` against the change files, **best-effort**: it needs network + `gh` auth, it never aborts the pass, and it self-heals next run. Point `--changes-dir` at the **metadata working tree** (`.docket/<changes_dir>` in `docket`-mode) — never the integration-branch checkout, where `active/` is pruned (the script warns if it detects that wrong tree, but the run still misses the live backlog). The script upserts one issue per change (keyed on `issue:`), reconciles the `docket:` label set, sets close state/reason, and best-effort-syncs Projects; on a fresh mint it prints `issue-minted <id> <number>` lines — record each into the change file's `issue:` on `metadata_branch` (the script does no git writes). **Projects auto-create is opt-in:** when `github_project` is unset, pass `--auto-create-project` (owner defaults to the integration repo's owner; override with `--project-owner`) — the script mints a private board, prints `project-minted <owner> <number>`, which you record as `github_project: {owner, number}` in `.docket.yml` on the default branch (the first-sync write-back); when `github_project` is set, pass it as `--project <owner>/<number>` instead. Both metadata writes follow the normal push discipline; a `gh`/network failure logs and continues.
 
 **No churny timestamp.** Counts convey freshness; a generated-at line would churn on every run.
-
-### Structure (in order)
-
-`render-board.sh` is the executable source of this structure (change 0022); the prose
-below documents what it emits and the dependency-resolution it shares with the sweep and the
-health checks.
-
-1. **Count summary** — one line, e.g.:
-
-   `**12 changes** — 🟢 2 in progress · 🟡 3 proposed · 🔴 1 blocked · ⚪ 1 deferred · 🔵 2 implemented · ✅ 3 done`
-
-2. **Emoji-grouped `##` sections** per status with live counts in the heading, e.g. `## 🟢 In progress (2)`. Omit a section if its count is zero.
-
-3. **Per-group tables** with columns relevant to the status (id · title · priority chip · spec/pr links · readiness). Readiness rules:
-   - A dependency-waiting change renders **⏳ waiting on #N — not yet built** or **⏳ waiting on #N — needs your merge** (from the shared pass); it is never shown as build-ready, and this **takes precedence over a missing spec** (a stub that also waits renders as waiting).
-   - A `proposed` change that is **not** dependency-waiting, with no spec and not `trivial: true`, renders **needs-brainstorm** — unless its body carries an `## Auto-groom blocked` section, in which case it renders **auto-groom blocked — needs you** (the autonomous groomer abstained; a human must resolve or re-arm it).
-
-4. **Mermaid dependency graph** built from `depends_on` edges; `done` nodes tinted with `classDef done fill:#d3f9d8;`. Renders on GitHub and Markhaus (a Markdown viewer that bundles Mermaid); degrades gracefully in plain CommonMark.
-
-5. **Collapsible `<details>` archive section** for both terminal states (done and killed).
-
-### Example — abbreviated rendered `BOARD.md`
-
-````markdown
-# Backlog
-
-**5 changes** — 🟢 1 in progress · 🟡 1 proposed · 🔵 1 implemented · ✅ 1 done · 🗑️ 1 killed
-
-## 🟢 In progress (1)
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0007](active/0007-quicklook-interactions.md) | Quick Look interactions | `high` | [spec](../superpowers/specs/2026-05-30-quicklook.md) | `feat/quicklook-interactions` |
-
-## 🟡 Proposed (1)
-| # | Title | Priority | Readiness |
-|---|-------|----------|-----------|
-| [0009](active/0009-export-pdf.md) | Export to PDF | `medium` | ⏳ waiting on #7 — not yet built |
-
-## 🔵 Implemented — awaiting merge (1)
-| # | Title | Priority | PR |
-|---|-------|----------|----|
-| [0008](active/0008-onboarding-tour.md) | Onboarding tour | `medium` | [#142](https://github.com/o/r/pull/142) |
-
-```mermaid
-graph TD
-  0007 --> 0009
-  0004:::done
-  classDef done fill:#d3f9d8;
-```
-
-<details><summary>✅🗑️ Archive — done + killed (1)</summary>
-
-| # | Title | Merged |
-|---|-------|--------|
-| [0004](archive/2026-05-30-0004-quicklook-extension.md) | Quick Look extension | 2026-05-30 |
-
-</details>
-````
 
 ## Merge sweep
 
@@ -138,33 +80,31 @@ For each `implemented` change:
    b. **Compute the merge date in UTC** — use `gh`'s `mergedAt`, or
       `TZ=UTC git show -s --date=format-local:%Y-%m-%d <merge-sha>`. Never `now()`.
 
-   c. **Archive (delegated to `archive-change.sh`).** Author the commit message, determine whether a `results:` file exists (it arrived via the PR merge → pass `--results <path>`), then invoke the archive primitive — the same call `docket-finalize-change`'s step 3 uses:
-      ```
-      "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/archive-change.sh --changes-dir .docket/<changes_dir> --id <id> --outcome done --date <merge-date> [--results <path>] --message "<msg>"
-      ```
-      **Trust the exit code:** `0` ⇒ archived (idempotent no-op if it was already archived — including across a day boundary, since it reuses the existing dated filename); non-zero ⇒ **per the per-change failure posture below, log and move to the next change.** The script owns the mechanics (see `scripts/archive-change.md`); the one fact the steps below rely on is that it commits **the change file only** on `origin/docket` — so the step-d re-render and the board stay separate commits and concurrent archivers converge tree-identically (the determinism invariant).
+   c–e. **Close out via the shared sequence** — run the convention's terminal close-out
+   (**read `../docket-convention/references/terminal-close-out.md` now — blocking**) with
+   `--outcome done` and the UTC merge date from step b, through its **cleanup** step (steps 1–4:
+   archive, re-render, terminal-publish onto the integration branch in `docket`-mode, cleanup —
+   the reference owns invocations, ordering, and the `main`-mode degradation). Its step 5 (board)
+   is covered by this same `docket-status` run's own Board pass — do not re-render per change.
 
-   d. **Re-render the `## Artifacts` block (follow-on commit, before publish).** After `archive-change.sh` returns `0`, regenerate the block on the **archived** file: `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/render-change-links.sh --change-file .docket/<changes_dir>/archive/<merge-date>-<id>-<slug>.md --adrs-dir .docket/<adrs_dir>` (plan/results re-point to the integration branch at `done`; the renderer is the sole writer of the block). Commit this as a **separate follow-on metadata commit** on `docket` and **push `origin/docket`** — it must land on `origin/docket` **before** the publish below, because `terminal-publish.sh` copies the change file *from `origin/docket`*; publishing before the re-render lands would copy the stale block (the #0035 footgun). It is a separate commit, never bundled into the script-owned archive commit, which must stay change-file-only and byte-identical across concurrent archivers (the determinism invariant).
-
-   e. **Publish the terminal record (`docket`-mode).** Reached **only if the step-d re-render commit landed on `origin/docket`**: `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/terminal-publish.sh --id <id> --outcome done --integration-branch <integration_branch> --metadata-branch docket --changes-dir <changes_dir> --adrs-dir <adrs_dir> --message "<msg>"` — copies the now-re-pointed terminal records from `origin/docket` onto the integration branch. The script's reuse-existing-file idempotency makes a sweep racing `docket-finalize-change` on the same change a safe no-op. In `main`-mode the metadata working tree *is* the integration branch, so the step-c archive commit is itself the terminal record and `terminal-publish.sh` is a no-op (its own mode-guard fires); the step-d renderer still runs once to re-point the block in place.
-
-   **Per-change failure posture (steps c–e).** The sweep is a **bulk best-effort safety net** run unattended — its other steps (cleanup `g`, harvest `h`, the integration sync) are already explicitly log-and-continue. The three delegated archive steps take the **same** posture: on a non-zero exit from `archive-change.sh`, the renderer follow-on commit/push, **or** `terminal-publish.sh`, **log it, abandon the remainder of this change's close-out, and continue to the next change.** "Abandon the remainder" carries the #0035 guard — a failed archive skips the re-render and publish, and a **failed re-render commit skips publish**, so a stale `## Artifacts` block is never published. The next sweep self-heals idempotently (each script is a reuse-existing / byte-identical no-op on the already-done portion and re-attempts the rest). This is **deliberately divergent from `docket-finalize-change`'s step 3**, whose `non-zero ⇒ abort-and-report` fits a single-change close-out, not a janitor draining N changes — the sequence is shared, the failure posture is not.
-
-   g. **Remove the merged feature branch + worktree**, provenance-guarded: invoke `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/cleanup-feature-branch.sh --slug <slug>` — only removes a worktree resolving under `.worktrees/<slug>`, never the `.docket/` metadata worktree or any out-of-tree path; the same guard as `superpowers:finishing-a-development-branch`. Trust the exit code.
+   **Sweep posture (steps c–e):** the sweep is a bulk janitor draining N changes — on any non-zero
+   exit, **log it, abandon the remainder of this change's close-out, and continue to the next
+   change**; the next sweep self-heals idempotently. A failed
+   `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/render-change-links.sh` follow-on
+   commit **skips publish** (a stale `## Artifacts` block is never published). This posture is
+   **deliberately divergent from `docket-finalize-change`'s** abort-and-report — the sequence is
+   shared, the failure posture is not. Determinism: concurrent archivers produce byte-identical
+   change-file-only commits; `BOARD.md` is regenerated separately, never hand-merged.
 
    h. **Harvest learnings (best-effort)** — invoke the harvest procedure (the *Harvest learnings* step in `docket-finalize-change`, its single source) for the swept change. Its idempotency probe makes a sweep racing `docket-finalize-change` a safe no-op. Best-effort like the board: log and continue on failure — never abort the sweep for it.
 
-**Sync the integration checkout (best-effort).** Once after all swept changes are archived — not once per swept change — run `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/sync-integration-branch.sh --integration-branch <integration_branch>`. Same best-effort, FF-only helper finalize runs (change 0029) — it fast-forwards the clone's local `<integration_branch>` checkout so the symlinked skills track the just-swept merges. Omitting it would leave swept close-outs stale. Best-effort like the board: never aborts the sweep; a no-op in `main`-mode.
-
-**Determinism invariant.** Two agents both reading `implemented` produce a byte-identical add (change-file-only, UTC merge date, no `now()`). The loser's `pull --rebase` resolves cleanly because both adds are identical. `BOARD.md` is regenerated separately, never hand-merged.
-
-**Note:** This archive procedure is **identical** to `docket-finalize-change`'s per-change archive — same UTC merge date, same change-file-only commit, same reuse-existing-file idempotency, same terminal-publish invocation. Both skills describe the same operation; they must not diverge.
+**Sync the integration checkout (best-effort).** Once after all swept changes are archived — not once per swept change — run `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/sync-integration-branch.sh --integration-branch <integration_branch>`. Same best-effort, FF-only helper finalize runs — it fast-forwards the clone's local `<integration_branch>` checkout so the symlinked skills track the just-swept merges. Omitting it would leave swept close-outs stale. Best-effort like the board: never aborts the sweep; a no-op in `main`-mode.
 
 ## Health checks
 
 Flag the following (do not auto-fix unless asked). Board and health checks share the one dependency-resolution pass computed above — it is not re-run (it is now literally `resolve_deps`, run inside the script below).
 
-**Mechanical checks → `board-checks.sh` (change 0023).** The five mechanical checks are deterministic git probes, so they live in a script, not in prose. Invoke:
+**Mechanical checks → `board-checks.sh`.** The five mechanical checks are deterministic git probes, so they live in a script, not in prose. Invoke:
 
 ```
 "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/board-checks.sh --changes-dir <metadata working tree>/<changes_dir> \
@@ -182,4 +122,4 @@ Flag the following (do not auto-fix unless asked). Board and health checks share
 **Model-driven checks (judgment — stay in-model, on top of the script):**
 
 - **`blocked` changes whose blocker may have cleared** — re-examine `blocked_by:` free text; flag if the referenced issue/PR/event appears resolved. Judgment, not a git probe — never scripted.
-- **`github` mirror reachability** — runs only when `board_surfaces` includes `github` (skipped otherwise): warn on a change carrying an `issue:` whose mirror is unreachable (the upsert is best-effort and self-heals; this is only a visibility flag). Like the other checks it only warns — it never auto-fixes, and a best-effort refresh is allowed to lose a race. *(The paired `inline` board/source-drift check was **retired by change 0024**. It became vacuous once change 0022's `render-board.sh` made `inline` rendering deterministic: `docket-status`'s Board pass unconditionally re-renders `BOARD.md` **before** this Health-checks pass, healing any staleness first, so a drift check placed here cannot observe the condition it existed to flag. The convention's board-refresh-on-status-writes invariant is the real defense; the board is a self-healing derived view.)*
+- **`github` mirror reachability** — runs only when `board_surfaces` includes `github` (skipped otherwise): warn on a change carrying an `issue:` whose mirror is unreachable (the upsert is best-effort and self-heals; this is only a visibility flag). Like the other checks it only warns — it never auto-fixes, and a best-effort refresh is allowed to lose a race.
