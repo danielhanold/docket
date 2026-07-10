@@ -5,9 +5,9 @@
 #
 # Unlike link-skills.sh (which SYMLINKS skills/<name>), agent files bake resolved model/effort,
 # so they are GENERATED COPIES this script owns and OVERWRITES on every run. Per-repo generated
-# files are machine-local artifacts (intended to be gitignored, not committed — the managed
-# .gitignore block and migration of any pre-existing committed copies land in a following
-# change; this change only wires the resolution + opt-in).
+# files are machine-local artifacts (intended to be gitignored, not committed). A managed
+# .gitignore block is maintained by this script; a one-time migration untracks any 0048-era
+# committed wrappers so regenerated copies stay machine-local.
 #
 # Layers & precedence, per FIELD (model/effort independently) — local > committed > global > built-in:
 #   built-in   agents/docket-*.md in this repo (each ships its default model/effort)

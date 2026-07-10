@@ -90,7 +90,7 @@ assert "global cursor block wins for cursor" '[ "$(fm "$SBX/.cursor/agents/docke
 assert "global claude falls to default" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "haiku" ]'
 rm -rf "$SBX"
 
-# -- per-repo layer (harness-first): .docket.yml agents.default: => committed project-level files --
+# -- per-repo layer (harness-first): .docket.yml agents.default: => project-level files (machine-local since 0051) --
 make_sandbox                                       # SBX = the repo
 HROOT="$(mktemp -d)"; mkdir -p "$HROOT/.claude"    # separate user-level harness root
 printf 'agents:\n  default:\n    status: { model: sonnet, effort: high }\n    new-change: { model: opus }\n' > "$SBX/.docket.yml"

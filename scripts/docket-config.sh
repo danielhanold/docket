@@ -172,7 +172,7 @@ if [ -z "$bs_raw" ]; then
   [ -n "$bs_raw" ] && bs_machine=1                          # global = machine-scoped
 fi
 if [ -z "$bs_raw" ]; then
-  BOARD_SURFACES="inline"                                  # unset in both layers => default [inline]
+  BOARD_SURFACES="inline"                                  # unset in all layers => default [inline]
 else
   bs="${bs_raw#[}"; bs="${bs%]}"; bs="${bs//,/ }"
   BOARD_SURFACES="$(echo $bs)"                             # trim/collapse; "[]" => ""
