@@ -1,8 +1,8 @@
 # Backlog
 
-**52 changes** — 🟡 9 proposed · 🔵 1 implemented · ✅ 40 done · 🗑️ 2 killed
+**55 changes** — 🟡 12 proposed · 🔵 1 implemented · ✅ 40 done · 🗑️ 2 killed
 
-## 🟡 Proposed (9)
+## 🟡 Proposed (12)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -15,6 +15,9 @@
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | build-ready |
 | [0052](active/0052-readme-doc-critic-refresh.md) | README doc-critic refresh — accuracy, structure, newcomer clarity (post-0051) | `medium` | ⏳ waiting on #51 — needs your merge |
+| [0053](active/0053-slim-convention-status-skills.md) | Slim docket-convention + docket-status via progressive disclosure | `medium` | ⏳ waiting on #51 — needs your merge |
+| [0054](active/0054-slim-finalize-change-skill.md) | Slim docket-finalize-change — rewire close-out to the shared reference | `medium` | ⏳ waiting on #53 — not yet built |
+| [0055](active/0055-slim-remaining-skills.md) | Slim docket-implement-next + propagate Step-0 preamble to the small skills | `medium` | ⏳ waiting on #53 — not yet built |
 
 ## 🔵 Implemented — awaiting merge (1)
 
@@ -34,6 +37,9 @@ graph TD
   0044
   0050 --> 0051
   0051 --> 0052
+  0051 --> 0053
+  0053 --> 0054
+  0053 --> 0055
   0001:::done
   0002:::done
   0003:::done
