@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/slim-convention-status-skills
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -69,3 +69,14 @@ Behavior-neutral restructure of the two hottest skills — no contract semantics
   file (decide at plan time against the ~190-line target).
 
 ## Reconcile log
+
+- 2026-07-10 — Reconciled against origin/main + origin/docket; no scope change. The spec's
+  premise verified exactly: 0051 merged (PR #60, done 2026-07-10) and the current sizes match the
+  spec's post-0051 numbers to the line/word (`docket-convention` 380 L / 5,982 w;
+  `docket-status` 185 L / 2,820 w). `github-board-mirror.md` confirmed as a SKILL.md sibling
+  (stays as-is); new reference files land under `skills/docket-convention/references/`.
+  Follow-ups 0054/0055 exist as stubs gated on this change and their scope matches the spec's
+  categorization (§4) — no overlap folded back in. No ADRs newer than the spec (latest ADR-0020,
+  from 0051) touch skill structure; ADR-0012's script-vs-model boundary is unchanged. LEARNINGS
+  reviewed — no entry constrains this restructure (the 0051 marker-block lesson concerns script
+  edits of managed blocks, which this change does not touch).
