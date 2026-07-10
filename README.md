@@ -22,6 +22,7 @@ What you get:
 - [Tuning agent models & effort](#tuning-agent-models--effort)
 - [The eight skills](#the-eight-skills)
 - [Status](#status)
+- [Migration](#migration)
 
 ---
 
@@ -122,7 +123,7 @@ That is the whole install. `install.sh` runs three primitives in order and is id
 
 (You can still run any primitive on its own — `install.sh` just saves you from remembering all three.)
 
-The change data — `docs/changes/`, `docs/adrs/`, `docs/results/` — lives in each consuming project, not in the docket repo itself. To adopt docket in an *existing* repo, run `migrate-to-docket.sh` from inside that repo — a separate step from this machine install (see [docket-mode](#docket-mode-where-metadata-lives)).
+The change data — `docs/changes/`, `docs/adrs/`, `docs/results/` — lives in each consuming project, not in the docket repo itself. To adopt docket in an *existing* repo, run `migrate-to-docket.sh` from inside that repo — a separate step from this machine install (see [Migration](#migration)).
 
 ---
 
@@ -308,25 +309,6 @@ Git checks out one branch per folder. To write a file that lives on `docket` whi
 
 On a **terminal transition** — a change reaching `done` (PR merged) or `killed` (abandoned) — the driving skill copies that change's terminal records onto the integration branch in one dedicated commit: the archived change file, its spec (if any), and the **`Accepted`** ADRs from its manifest, sourced from `origin/docket`. This is a selective **file copy**, never a branch merge, so none of the planning churn comes with it. The **live board stays on `docket`** and is never published. The result: your code history reads as code plus a clean trail of closed-out changes, while the working backlog churns entirely on `docket`.
 
-### Migrating an existing repo
-
-A repo that has been running in single-branch mode (everything on `main`) moves to docket-mode with a one-shot, idempotent script: **`migrate-to-docket.sh`** (it ships in this docket repo, alongside `link-skills.sh` and `sync-agents.sh`). The script operates on the git repo containing your **current directory** — so run it *from within the repo you want to migrate*, pointing at the script wherever docket is checked out:
-
-```bash
-cd <target-repo>
-bash /path/to/docket/migrate-to-docket.sh
-```
-
-It prints the resolved target repo and prompts for confirmation before changing anything; pass `--yes` (or `-y`) to skip the prompt in automation. It then creates the orphan `docket` branch seeded from your current planning directories, prunes the live planning surface (`active/` changes, the changes `README.md`, `BOARD.md`) off the integration branch while keeping terminal records and build artifacts there, and adds `.docket/` + `.worktrees/` to `.gitignore`. Re-running it converges from any partial state.
-
-Migration also grants one **local, per-repo** Claude Code permission: an allow-rule for docket's terminal-publish push to the integration branch (written to `.claude/settings.local.json`, which migration adds to `.gitignore`). This pre-authorizes the one push the permission classifier guards on every close-out, narrowly and only in this repo — force-pushes and pushes to other branches stay guarded. Because `settings.local.json` is gitignored and per-user, anyone who later **clones** an already-migrated repo can grant themselves the same rule by running the helper standalone:
-
-```bash
-bash /path/to/docket/scripts/ensure-claude-settings.sh
-```
-
-The skills will **not** migrate a repo for you. On first run against an un-migrated repo (metadata still on the integration branch, no `docket` branch yet), a **bootstrap guard** STOPs and points you at `migrate-to-docket.sh` rather than silently moving your data. The same guard detects a half-finished migration and points back to the script to complete it.
-
 ### `main`-mode: the single-branch opt-out
 
 If you want everything on one branch — for example, a small repo, or a team that prefers all state in one place — pin both knobs:
@@ -375,8 +357,6 @@ bash sync-agents.sh        # or re-run install.sh, which calls it for you
 
 **Generated per-repo agent files are machine-local — gitignored, never committed.** Unlike a repo's committed `.docket.yml`, `<repo>/.<harness>/agents/docket-*.md` (and, for Cursor, `docket-dispatch.mdc`) are regenerated on every machine from that machine's own resolved config; they carry no team intent of their own — the committed `agents:` block is the artifact that does. `sync-agents.sh` owns a marker-bounded `# docket:generated` block in the repo's `.gitignore`, covering every file it can generate for every harness (plus `.docket.local.yml` itself); it creates or repairs that block the moment a repo opts in — declares an `agents:` block or an `agent_harnesses:` key, in either file, or merely carries a `.docket.local.yml` — and prints a loud one-time notice to **commit it once**. After that the block is invisible plumbing.
 
-**Migrating a pre-0051 repo.** Repos that predate this (change 0048 committed the per-repo files directly) get a one-time, automatic migration on the next `sync-agents.sh` run: it deletes the stale tracked copies from the working tree, writes the `.gitignore` block, regenerates the local set fresh, and prints the single remedy commit to run — `git rm -r --cached '.claude/agents/docket-*.md' … && git add .gitignore && git commit -m "…"` — so the repo converges in one commit per clone.
-
 **3. Guard drift in CI.** `sync-agents.sh --check` is a four-part gate:
 
 - The `.gitignore` `docket:generated` block is present and current, **and** no per-repo generated file is tracked by git — both are **CI-meaningful** (`rc != 0` fails the build; the second leg also catches a repo whose migration commit never happened).
@@ -411,3 +391,32 @@ The eight skills cover the full loop — create, groom, implement, finalize, rep
 **docket-mode is the supported default.** Planning metadata lives on the orphan `docket` branch via the `.docket/` worktree; terminal records are selectively published onto the integration branch; trunk-based and GitFlow layouts are both supported. Existing single-branch repos move over with `migrate-to-docket.sh`, and the bootstrap guard refuses to run against an un-migrated repo rather than touching your data.
 
 `main`-mode remains a simple, fully-supported opt-out: pin `metadata_branch: main` (and `integration_branch: main`) to keep everything on one branch with exactly the original single-branch behavior.
+
+---
+
+## Migration
+
+Two one-time migrations, each relevant only when you bring an *existing* repo onto docket or carry one forward from an older docket layout. A brand-new repo needs neither.
+
+### Migrating an existing repo to docket-mode
+
+A repo that has been running in single-branch mode (everything on `main`) moves to docket-mode with a one-shot, idempotent script: **`migrate-to-docket.sh`** (it ships in this docket repo, alongside `link-skills.sh` and `sync-agents.sh`). The script operates on the git repo containing your **current directory** — so run it *from within the repo you want to migrate*, pointing at the script wherever docket is checked out:
+
+```bash
+cd <target-repo>
+bash /path/to/docket/migrate-to-docket.sh
+```
+
+It prints the resolved target repo and prompts for confirmation before changing anything; pass `--yes` (or `-y`) to skip the prompt in automation. It then creates the orphan `docket` branch seeded from your current planning directories, prunes the live planning surface (`active/` changes, the changes `README.md`, `BOARD.md`) off the integration branch while keeping terminal records and build artifacts there, and adds `.docket/` + `.worktrees/` to `.gitignore`. Re-running it converges from any partial state.
+
+Migration also grants one **local, per-repo** Claude Code permission: an allow-rule for docket's terminal-publish push to the integration branch (written to `.claude/settings.local.json`, which migration adds to `.gitignore`). This pre-authorizes the one push the permission classifier guards on every close-out, narrowly and only in this repo — force-pushes and pushes to other branches stay guarded. Because `settings.local.json` is gitignored and per-user, anyone who later **clones** an already-migrated repo can grant themselves the same rule by running the helper standalone:
+
+```bash
+bash /path/to/docket/scripts/ensure-claude-settings.sh
+```
+
+The skills will **not** migrate a repo for you. On first run against an un-migrated repo (metadata still on the integration branch, no `docket` branch yet), a **bootstrap guard** STOPs and points you at `migrate-to-docket.sh` rather than silently moving your data. The same guard detects a half-finished migration and points back to the script to complete it.
+
+### Migrating a pre-0051 repo
+
+Repos that predate change 0051 (change 0048 committed the per-repo agent files directly) get a one-time, automatic migration on the next `sync-agents.sh` run: it deletes the stale tracked copies from the working tree, writes the `.gitignore` block, regenerates the local set fresh, and prints the single remedy commit to run — `git rm -r --cached '.claude/agents/docket-*.md' … && git add .gitignore && git commit -m "…"` — so the repo converges in one commit per clone.
