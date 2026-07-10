@@ -1,8 +1,14 @@
 # Backlog
 
-**57 changes** — 🟡 12 proposed · 🔵 2 implemented · ✅ 41 done · 🗑️ 2 killed
+**57 changes** — 🟢 1 in progress · 🟡 11 proposed · 🔵 2 implemented · ✅ 41 done · 🗑️ 2 killed
 
-## 🟡 Proposed (12)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Spec | Branch |
+|---|-------|----------|------|--------|
+| [0057](active/0057-docket-owned-gitignore-consolidation.md) | Fold the migration-time .gitignore entries into the managed docket:generated block | `low` | [spec](../superpowers/specs/2026-07-10-docket-owned-gitignore-consolidation-design.md) | `feat/docket-owned-gitignore-consolidation` |
+
+## 🟡 Proposed (11)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -17,7 +23,6 @@
 | [0054](active/0054-slim-finalize-change-skill.md) | Slim docket-finalize-change — rewire close-out to the shared reference | `medium` | ⏳ waiting on #53 — needs your merge |
 | [0055](active/0055-slim-remaining-skills.md) | Slim docket-implement-next + propagate Step-0 preamble to the small skills | `medium` | ⏳ waiting on #53 — needs your merge |
 | [0056](active/0056-consultant-brainstorm.md) | Consultant-authored brainstorm — opt-in pinned design agent for the brainstorm role | `medium` | build-ready |
-| [0057](active/0057-docket-owned-gitignore-consolidation.md) | Fold the migration-time .gitignore entries into the managed docket:generated block | `low` | build-ready |
 
 ## 🔵 Implemented — awaiting merge (2)
 
