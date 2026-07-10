@@ -8,7 +8,7 @@ created: 2026-07-09
 updated: 2026-07-09
 depends_on: [50]
 related: [45, 46, 48, 50]
-adrs: [8, 15, 16, 17, 19]
+adrs: [8, 15, 16, 17, 19, 20]
 spec: docs/superpowers/specs/2026-07-09-global-agents-middle-layer-design.md
 plan: docs/superpowers/plans/2026-07-09-global-agents-middle-layer.md
 results:
@@ -27,7 +27,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-09-global-agents-middle-layer-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-09-global-agents-middle-layer-design.md) |
 | Plan | [2026-07-09-global-agents-middle-layer.md](https://github.com/danielhanold/docket/blob/feat/global-agents-middle-layer/docs/superpowers/plans/2026-07-09-global-agents-middle-layer.md) |
-| ADRs | [ADR-0008](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0008-agent-layer-generated-subagents.md), [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md), [ADR-0016](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0016-harness-first-agent-config.md), [ADR-0017](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0017-cursor-dispatch-rule-full-agent-set.md), [ADR-0019](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0019-global-config-fence-classification.md) |
+| ADRs | [ADR-0008](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0008-agent-layer-generated-subagents.md), [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md), [ADR-0016](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0016-harness-first-agent-config.md), [ADR-0017](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0017-cursor-dispatch-rule-full-agent-set.md), [ADR-0019](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0019-global-config-fence-classification.md), [ADR-0020](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0020-generated-agent-artifacts-machine-local.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
