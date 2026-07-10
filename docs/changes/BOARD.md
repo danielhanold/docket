@@ -1,8 +1,8 @@
 # Backlog
 
-**56 changes** — 🟡 13 proposed · 🔵 1 implemented · ✅ 40 done · 🗑️ 2 killed
+**57 changes** — 🟡 14 proposed · 🔵 1 implemented · ✅ 40 done · 🗑️ 2 killed
 
-## 🟡 Proposed (13)
+## 🟡 Proposed (14)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -19,6 +19,7 @@
 | [0054](active/0054-slim-finalize-change-skill.md) | Slim docket-finalize-change — rewire close-out to the shared reference | `medium` | ⏳ waiting on #53 — not yet built |
 | [0055](active/0055-slim-remaining-skills.md) | Slim docket-implement-next + propagate Step-0 preamble to the small skills | `medium` | ⏳ waiting on #53 — not yet built |
 | [0056](active/0056-consultant-brainstorm.md) | Consultant-authored brainstorm — opt-in pinned design agent for the brainstorm role | `medium` | build-ready |
+| [0057](active/0057-docket-owned-gitignore-consolidation.md) | Fold the migration-time .gitignore entries into the managed docket:generated block | `low` | ⏳ waiting on #51 — needs your merge |
 
 ## 🔵 Implemented — awaiting merge (1)
 
@@ -42,6 +43,7 @@ graph TD
   0053 --> 0054
   0053 --> 0055
   0056
+  0051 --> 0057
   0001:::done
   0002:::done
   0003:::done
