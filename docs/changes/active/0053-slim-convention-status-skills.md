@@ -2,7 +2,7 @@
 id: 53
 slug: slim-convention-status-skills
 title: Slim docket-convention + docket-status via progressive disclosure
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-07-10
 updated: 2026-07-10
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/slim-convention-status-skills
 pr:
 blocked_by:
 reconciled: false
