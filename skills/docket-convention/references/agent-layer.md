@@ -78,9 +78,8 @@ The per-repo generation fans out over the repo's
 `<repo>/.<H>/agents/docket-*.md`; a Cursor repo sets `agent_harnesses: [claude, cursor]`. Explicit
 over present-directory auto-detection, so a stray
 `.cursor/` never silently mints generated files; an unknown harness token is warned-and-ignored. The
-`sync-agents.sh --check` drift gate spans every generated per-harness file. The **user-level** pass's
-fan-out scope is unchanged — unless the global `config.yml` sets `agent_harnesses:`, which governs
-the user-level target list only. `agent_harnesses` is
+`sync-agents.sh --check` drift gate spans every generated per-harness file. (The user-level pass's
+scope rule is stated once, above.) `agent_harnesses` is
 read by a direct parse in `sync-agents.sh` (not `docket-config.sh`).
 
 ## Harness-portable model IDs

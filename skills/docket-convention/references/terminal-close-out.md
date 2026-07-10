@@ -1,11 +1,14 @@
 # Terminal close-out — the shared per-change sequence
 
-> Single source for the close-out sequence every terminal transition (`done` or `killed`) runs:
-> archive → re-render `## Artifacts` → terminal-publish → cleanup → board. Callers —
-> `docket-finalize-change` (per-change close-out), `docket-status`'s merge sweep,
-> `docket-implement-next`'s reconcile-kill, `docket-new-change`'s proposed-kill — run the SAME
-> sequence; only the failure posture differs (table below). This file owns ordering and posture;
-> each script's mechanics live in its co-located contract (`scripts/<name>.md`).
+> Single source for the close-out sequence a terminal transition (`done` or `killed`) runs:
+> archive → re-render `## Artifacts` → terminal-publish → cleanup → board. Live consumers today:
+> `docket-finalize-change`'s per-change close-out and `docket-status`'s merge sweep (the two
+> `done` drivers). The kill callers — `docket-implement-next`'s reconcile-kill and
+> `docket-new-change`'s proposed-kill — are still governed by their own skill bodies (archive →
+> publish → prune, with no step-2 re-render) until changes 0054/0055 rewire them onto this file;
+> their posture rows below describe that adoption. The sequence is one; only the failure posture
+> differs per caller (table below). This file owns ordering and posture; each script's mechanics
+> live in its co-located contract (`scripts/<name>.md`).
 
 Contents: [The sequence](#the-sequence-docket-mode) · [main-mode degradation](#main-mode-degradation) · [Failure posture](#failure-posture--per-caller) · [Determinism invariant](#determinism-invariant)
 
@@ -91,8 +94,10 @@ The sequence is shared; the posture on a non-zero exit from steps 1–3 is the c
 | `docket-new-change` proposed-kill | same as reconcile-kill — surface and stop; nothing else is in flight |
 
 **The skip-publish guard (all callers):** a failed step 1 skips steps 2–3; a **failed step-2
-commit/push skips step 3** — a stale `## Artifacts` block must never be published. Steps 4–5 are
-best-effort everywhere (log and continue; the board self-heals on the next pass).
+commit/push skips step 3** — a stale `## Artifacts` block must never be published. Steps 4–5
+follow the caller's own skill body: the sweep treats both as best-effort (log and continue; the
+board self-heals on the next pass); other callers keep their own posture (e.g.
+`docket-new-change`'s post-kill Board pass is must-land).
 
 ## Determinism invariant
 
