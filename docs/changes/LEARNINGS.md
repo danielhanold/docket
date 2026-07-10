@@ -4,6 +4,23 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-07-10 (#51, PR #60) — A managed block bounded by `# docket:generated:start/end` markers
+  turned an awk **range** edit into a data-loss hazard: when the end marker was lost (truncation
+  or a bad merge), `/start/,/end/` ran to EOF and silently deleted the user's own `.gitignore`
+  content after the dangling start — caught in per-task review, fixed to detect the unterminated
+  marker, warn loudly, and leave the file untouched (`b0c1980`). Apply: any script editing a
+  marker-delimited managed block with an awk/sed range must first verify the block is *closed*
+  (both markers present, in order); on a dangling start marker refuse the edit and warn — never
+  let the range consume to EOF.
+
+- 2026-07-10 (#51, PR #60) — A printed migration remedy chained `git add .gitignore && git commit`
+  unconditionally, but in a repo with stale tracked wrappers and no current opt-in no block is
+  written, so the command failed as-run — the remedy was valid only in the state the author
+  pictured, not the state that triggered it (fixed to make the `git add` clause conditional on the
+  block actually being maintained, `41d9815`). Apply: a remedy command you print for a user to run
+  verbatim must be valid in the *exact* repo state that produced it — branch the printed text on the
+  same condition that gates the underlying write, never emit one fixed command for divergent states.
+
 - 2026-07-09 (#50, PR #59) — A feature that added a write path to a shared per-user location
   (`sync-agents.sh`'s auto-migration writes `~/.config/docket/config.yml`) upgraded every
   non-hermetic test that reaches it from read-leak to write hazard: `tests/test_install.sh`
@@ -81,22 +98,16 @@
   version, and recognize when a same-file change that merged *after* you diverged **supersedes** your
   edit (drop yours) rather than treating it as a conflict to win.
 
-- 2026-06-21 (#37, PR #48) — A test pins a literal substring (`the integration branch), performing the
-  archive move`) as a *presence* sentinel via `grep -q`. A prose strip satisfied the grep by
-  **relocating** the substring into a docket-mode bullet — passing GREEN while producing a
-  factually-wrong sentence (docket-mode archives on `origin/docket`, not the integration branch). Caught
-  in review. Apply: a `grep -q "literal"` presence sentinel is satisfied by the literal appearing
-  *anywhere* — keep such a must-preserve substring in its **meaningful location as grammatical prose**,
-  never relocate/jam it to pass the grep (the false-GREEN twin of #36's false-RED absence-sentinel).
-
-- 2026-06-21 (#36, PR #47) — A `! grep "must-not-say-X"` absence-sentinel was self-defeating: the
-  doc legitimately contained X inside a *contrastive* clause ("…deliberately divergent from finalize's
-  `non-zero ⇒ abort-and-report`…"), which a blunt absence-grep cannot tell apart from the forbidden
-  *adopted* posture. Caught and fixed during the build. Apply: a `! grep` "must-not-say-X" sentinel is
-  fragile when X can legitimately appear in a contrast/negation clause of the same doc; assert the
-  intent with a POSITIVE anchor on the divergence framing (e.g. `grep -qE "deliberately divergent from
-  .?docket-finalize-change"`) — satisfied by the correct prose, flips to NOT OK only if the divergence
-  framing is actually dropped.
+- 2026-06-21 (#36 PR #47; #37 PR #48 — twin sentinel-failure modes, merged) — Two dual failures of
+  literal-substring doc-sentinels, both caught in review: (false-RED) a `! grep "must-not-say-X"`
+  absence-sentinel fired on X appearing legitimately in a *contrastive* clause ("…deliberately
+  divergent from finalize's `non-zero ⇒ abort-and-report`…"), which a blunt absence-grep can't tell
+  from the forbidden *adopted* posture; (false-GREEN) a `grep -q "literal"` presence-sentinel stayed
+  green when a prose strip **relocated** the must-preserve substring into an unrelated docket-mode
+  bullet, producing a factually-wrong sentence. Apply: assert doc intent with a POSITIVE anchor on the
+  meaningful framing (e.g. `grep -qE "deliberately divergent from .?docket-finalize-change"`), keep a
+  must-preserve substring in its grammatical location (never relocate/jam it to pass), and never rely
+  on a blunt `! grep`/`grep -q` over a literal that can legitimately appear elsewhere in the same doc.
 
 - 2026-06-21 (#38, PR #46) — A test grepped for a CLI flag with `grep -qE "\-\-yes\b|\b-y\b"`; the
   `\-` over-escaping silenced one trap (a bare ERE that *leads* with `--` is parsed as a grep
