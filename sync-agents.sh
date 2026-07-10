@@ -437,13 +437,22 @@ tracked_docket_files() {  # tracked generated agent/rule paths, one per line (em
 }
 
 migrate_tracked_wrappers() {  # one-time: untrack 0048-era committed wrappers; idempotent
-  local tracked f
+  local tracked f cmd
   tracked="$(tracked_docket_files)"
   [ -n "$tracked" ] || return 0
   log "MIGRATING (change 0051): generated agent files are machine-local now and must not be tracked"
   while IFS= read -r f; do rm -f "$REPO/$f"; done <<<"$tracked"
   log "deleted the tracked copies from the working tree (regenerated locally below); complete with ONE commit:"
-  log "  git rm -r --cached $(tr '\n' ' ' <<<"$tracked")&& git add .gitignore && git commit -m 'docket: generated agent files go machine-local (change 0051)'"
+  cmd="git rm -r --cached $(tr '\n' ' ' <<<"$tracked")"
+  # only tell them to `git add .gitignore` when this run actually wrote/refreshed the block
+  # (gitignore_block_wanted() below); otherwise there may be no .gitignore to add, and the
+  # printed remedy would fail at that clause (pathspec error) leaving the rm --cached
+  # staged but uncommitted.
+  if gitignore_block_wanted; then
+    cmd="${cmd}&& git add .gitignore "
+  fi
+  cmd="${cmd}&& git commit -m 'docket: generated agent files go machine-local (change 0051)'"
+  log "  $cmd"
 }
 
 # Non-fatal footgun warning: when generating a NON-claude harness file whose `model` resolved from

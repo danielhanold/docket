@@ -990,6 +990,26 @@ chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTM" bash "$SYNC" --check 2>&1)
 assert "0051 mig: post-migration --check green (rc=0)" '[ "$chk_rc" = "0" ]'
 rm -rf "$SBX" "$HROOTM"
 
+# (mig-b) stale tracked wrappers in a repo with NO current opt-in and no .gitignore:
+# the printed remedy must be runnable AS PRINTED (no git add .gitignore clause).
+mkgitrepo
+HROOTMB="$(mktemp -d)"; mkdir -p "$HROOTMB/.claude"
+printf 'metadata_branch: docket\n' > "$SBX/.docket.yml"        # tracking-only: NOT opted in
+mkdir -p "$SBX/.claude/agents"
+printf 'stale 0048 wrapper\n' > "$SBX/.claude/agents/docket-status.md"
+git -C "$SBX" add -A; git -C "$SBX" commit --quiet -m "0048-era stale state"
+migb_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTMB" bash "$SYNC" 2>&1 >/dev/null)"; migb_rc=$?
+assert "0051 mig-b: run succeeds (rc=0)"                      '[ "$migb_rc" = "0" ]'
+assert "0051 mig-b: remedy omits git add .gitignore"          'printf "%s" "$migb_err" | grep -e "git rm" | grep -v -q "git add .gitignore"'
+assert "0051 mig-b: no .gitignore was created (not wanted)"   '[ ! -e "$SBX/.gitignore" ]'
+# the printed remedy must actually run: extract and eval it, then leg (b) goes green.
+remedy="$(printf '%s\n' "$migb_err" | sed -n 's/^sync-agents:[[:space:]]*\(git rm .*\)$/\1/p' | head -n1)"
+assert "0051 mig-b: a runnable remedy line was printed"       '[ -n "$remedy" ]'
+( cd "$SBX" && eval "$remedy" ) >/dev/null 2>&1
+migb_chk="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTMB" bash "$SYNC" --check 2>&1)"; migb_chk_rc=$?
+assert "0051 mig-b: after running the printed remedy, --check leg (b) green (rc=0)" '[ "$migb_chk_rc" = "0" ]'
+rm -rf "$SBX" "$HROOTMB"
+
 # (chk-a) leg (a): opted-in repo, block missing (sync never ran) -> rc!=0 naming the block.
 make_sandbox
 HROOTCA="$(mktemp -d)"; mkdir -p "$HROOTCA/.claude"
