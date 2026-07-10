@@ -99,3 +99,14 @@ reversed; nothing about 0015 changes status.
   docket's generator must merge the global layer into that harness's project-level file
   itself rather than relying on the harness to layer them — a build-time, live-verification
   item for change 0046.
+
+## Update
+
+**2026-07-09 (change 0051, [[0020]]).** [[0020]] retires the premise this open follow-up was
+asking about: generated agent artifacts are no longer committed project-level files at all
+(they are gitignored and machine-local), so per-harness project-over-user precedence for
+*committed* files is moot. The question of whether a non-Claude harness natively layers
+local-over-global-over-built-in the way Claude Code does remains open, now scoped to
+[[0020]]'s four local/global/committed/built-in layers instead of two. The harness-first
+field-by-field resolution this ADR establishes is unchanged and is exactly what [[0020]]
+extends with two more layers.

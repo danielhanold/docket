@@ -117,3 +117,12 @@ This is the first time abort-and-report fires *after* the subagent has written w
 an autonomous subagent never completes a human-gated action unseen — is preserved. The
 split-agent gate and its sign-off rule are their own decision, [[0010]]; the `Decision`
 above is unchanged.
+
+**2026-07-09 (change 0051, [[0020]]).** Sub-decision 2's committed project-level generation
+(project-level = built-in ⊕ per-repo, reproducible via committed bytes) is **superseded** by
+[[0020]]: generated agent artifacts are now machine-local and gitignored, resolved across
+four layers instead of two, and the clone-identical committed-wrapper reproducibility
+guarantee this sub-decision introduced is consciously retired. See [[0020]] for the full
+rationale and what is kept (the generator, the built-in-defaults glob, the on-demand +
+`--check` operating model of sub-decision 3, which is redefined but not reversed). This
+`Decision` section is otherwise unchanged.
