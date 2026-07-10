@@ -8,8 +8,8 @@ created: 2026-07-10
 updated: 2026-07-10
 depends_on: [53]
 related: [53, 55]
-adrs: []
-spec:
+adrs: [2]
+spec: docs/superpowers/specs/2026-07-10-slim-finalize-change-skill-design.md
 plan:
 results:
 trivial: false
@@ -23,6 +23,10 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-07-10-slim-finalize-change-skill-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-10-slim-finalize-change-skill-design.md) |
+| ADRs | [ADR-0002](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0002-docket-mode-default-and-bootstrap.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -36,21 +40,27 @@ highest-blast-radius path.
 
 ## What changes
 
-- Rewire per-change steps 3–5 and the Terminal-publish section to point at
-  `references/terminal-close-out.md` (finalize's posture: abort-and-report).
-- Compress the rebase-retest gate and Selection prose without weakening them: the gate flow, the
-  two-agent split, the sign-off rule, and the full abort-and-report set must survive in meaning.
-- Apply the convention's Step-0 preamble compression (#0053 §3).
-- Cut provenance narration per #0053's decision 2.
+Behavior-neutral restructure per the spec (target 234 → ≤ ~140 lines / ≤ ~2,200 words):
+
+- Rewire per-change step 3 and the Terminal-publish section to loud blocking pointers at
+  `references/terminal-close-out.md`; delete finalize's single-source ownership claims and the
+  "identical — must not diverge" note (the reference is the single source now). Finalize keeps
+  only its own facts: UTC merge date, `--results`, abort-and-report posture.
+- The rebase-retest gate stays **inline**, compressed ~95 → ~65 lines (it runs on every
+  finalize — LEARNINGS #20): the config block, 6-step flow, two-agent split, sign-off rule,
+  full abort-and-report set, and PR-comment durable-reason rule survive in meaning.
+- The *Harvest learnings* step stays finalize-owned and intact (cited by name as single source
+  by the convention and docket-status; not part of #0053's reference).
+- Append a dated `## Update` to ADR-0002 (its "terminal-publish single-sourced in finalize"
+  clause goes stale); `adrs: [2]` re-publishes it at merge.
+- Apply the convention's Step-0 preamble compression (#0053 §3); cut provenance narration per
+  #0053's decision 2.
+- Re-anchor the doc sentinels in the seven test files that grep finalize prose, preserving each
+  assertion's intent.
 
 ## Out of scope
 
 - Any change to gate semantics, selection matrix behavior, sign-off, or close-out ordering.
 - The other skills (#0053, #0055).
-
-## Open questions
-
-- Whether the gate flow itself warrants its own reference file or stays inline (it runs on every
-  finalize, so inline is the default lean).
 
 ## Reconcile log
