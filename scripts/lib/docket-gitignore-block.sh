@@ -32,13 +32,17 @@ emit_docket_gitignore_block(){
   printf '%s\n' "$DOCKET_GI_END"
 }
 
-# True iff FILE has a START line ($2) with no matching END line ($3). grep on the file path
-# (no producer|grep pipeline) so it is safe under pipefail; bash-3.2-safe.
-_docket_gi_unterminated(){  # $1=file $2=start $3=end
+# Return 0 (MALFORMED -> caller must refuse) if the START/END markers in FILE are not a clean,
+# ordered set of non-overlapping pairs: dangling start, dangling end, end-before-start, or nested
+# start all count as malformed. Return 1 (well-formed: zero or more properly ordered, non-
+# overlapping pairs). String-exact marker match (same as grep -F -x); safe under pipefail.
+_docket_gi_malformed(){  # $1=file $2=start $3=end
   [ -f "$1" ] || return 1
-  grep -F -x -q -- "$2" "$1" || return 1
-  grep -F -x -q -- "$3" "$1" && return 1
-  return 0
+  awk -v s="$2" -v e="$3" '
+    $0==s { if (inb) bad=1; inb=1; next }
+    $0==e { if (!inb) bad=1; else inb=0; next }
+    END   { if (bad || inb) exit 0; exit 1 }
+  ' "$1"
 }
 
 # Print FILE with the [start,end] block (inclusive) removed; bytes outside preserved.
@@ -68,16 +72,18 @@ _docket_gi_dedup_advisory(){  # $1=text outside the block
 # closed-block guard on BOTH spellings, one-time legacy upgrade, idempotence, outside-bytes
 # invariant, dedup advisory. Trigger policy is the CALLER's — ensure always tries.
 ensure_docket_gitignore_block(){  # $1=repo-root
-  local root="$1" gi="$1/.gitignore" want have rest legacy_present=0
+  local gi="$1/.gitignore" want have rest legacy_present=0
   want="$(emit_docket_gitignore_block)"
 
-  # (1) Closed-block guard — dangling start of EITHER spelling: refuse, warn, touch nothing.
-  if _docket_gi_unterminated "$gi" "$DOCKET_GI_START" "$DOCKET_GI_END"; then
-    _docket_gi_log "WARN $gi has an UNTERMINATED docket block (start present, end missing) — corrupt; refusing to rewrite so no bytes are lost. Repair or remove the dangling '$DOCKET_GI_START' line by hand, then re-run."
+  # (1) Closed-block guard — dangling/malformed/out-of-order markers of EITHER spelling: refuse,
+  # warn, touch nothing. Order-aware (not just presence) so an END sitting above its START (e.g.
+  # a hand-corrupted file) is caught here instead of letting the awk range below consume to EOF.
+  if _docket_gi_malformed "$gi" "$DOCKET_GI_START" "$DOCKET_GI_END"; then
+    _docket_gi_log "WARN $gi has an UNTERMINATED or malformed docket block (dangling/out-of-order start or end) — corrupt; refusing to rewrite so no bytes are lost. Repair or remove the '$DOCKET_GI_START' / '$DOCKET_GI_END' lines by hand, then re-run."
     return 0
   fi
-  if _docket_gi_unterminated "$gi" "$DOCKET_GI_LEGACY_START" "$DOCKET_GI_LEGACY_END"; then
-    _docket_gi_log "WARN $gi has an UNTERMINATED legacy docket:generated block (start present, end missing) — corrupt; refusing to rewrite so no bytes are lost. Repair or remove the dangling '$DOCKET_GI_LEGACY_START' line by hand, then re-run."
+  if _docket_gi_malformed "$gi" "$DOCKET_GI_LEGACY_START" "$DOCKET_GI_LEGACY_END"; then
+    _docket_gi_log "WARN $gi has an UNTERMINATED or malformed legacy docket:generated block (dangling/out-of-order start or end) — corrupt; refusing to rewrite so no bytes are lost. Repair or remove the '$DOCKET_GI_LEGACY_START' / '$DOCKET_GI_LEGACY_END' lines by hand, then re-run."
     return 0
   fi
 

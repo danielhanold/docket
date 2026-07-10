@@ -331,9 +331,11 @@ fi
 step "Seeding the managed docket .gitignore block on '$INTEGRATION_BRANCH'"
 GITIGNORE="$PRUNE_WT/.gitignore"
 touch "$GITIGNORE"
-# Remove the three bare lines migrate historically wrote (its own provenance; same match it
-# used to add them) — they now live inside the managed block. User-authored duplicates, if
-# any, are indistinguishable and are left to the lib's dedup advisory, not deleted here.
+# Remove docket's three historical bare provenance lines by exact match (same match it used to
+# add them) — they now live inside the managed block. A user-authored line byte-identical to one
+# of the three is also removed, but the same path stays ignored via the block, so that's harmless.
+# On this one-time migrate run there is no pre-existing block yet, so this only ever hits the
+# historical bares (the lib's dedup advisory has nothing left to flag on a migrate-seeded file).
 for entry in $DOCKET_GI_CORE_ENTRIES; do
   bare="${entry%/}"
   tmp="$(mktemp)"; grep -F -x -v -- "$bare" "$GITIGNORE" | grep -F -x -v -- "$bare/" > "$tmp" || true

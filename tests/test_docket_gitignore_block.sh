@@ -83,6 +83,26 @@ assert "dangling-legacy: warns unterminated/corrupt" 'printf "%s" "$dl_err" | gr
 assert "dangling-legacy: file byte-identical"        '[ "$before" = "$(cat "$SBX/.gitignore")" ]'
 rm -rf "$SBX"
 
+# --- ensure: out-of-order markers (END above START, same spelling) -> refuse, warn, byte-identical ---
+SBX="$(mktemp -d)"
+{ printf '# docket:end\nkeepme-A/\n# docket:start (managed by docket — do not hand-edit)\n.docket/\nkeepme-B/\n'; } > "$SBX/.gitignore"
+before="$(cat "$SBX/.gitignore")"
+oo_err="$( { ensure_docket_gitignore_block "$SBX"; } 2>&1 >/dev/null )"; oo_rc=$?
+assert "out-of-order: run returns 0"                 '[ "$oo_rc" = "0" ]'
+assert "out-of-order: warns corrupt/unterminated"    'printf "%s" "$oo_err" | grep -qiE "untermin|corrupt|malformed|out.of.order"'
+assert "out-of-order: file byte-identical (no data loss)" '[ "$before" = "$(cat "$SBX/.gitignore")" ]'
+assert "out-of-order: keepme-B/ survived"            'grep -qxF "keepme-B/" "$SBX/.gitignore"'
+rm -rf "$SBX"
+# same for the LEGACY spelling
+SBX="$(mktemp -d)"
+{ printf '# docket:generated:end\nkeepme-A/\n# docket:generated:start (managed by sync-agents.sh — do not hand-edit)\n.docket.local.yml\nkeepme-B/\n'; } > "$SBX/.gitignore"
+before="$(cat "$SBX/.gitignore")"
+ool_err="$( { ensure_docket_gitignore_block "$SBX"; } 2>&1 >/dev/null )"; ool_rc=$?
+assert "out-of-order legacy: run returns 0"          '[ "$ool_rc" = "0" ]'
+assert "out-of-order legacy: warns"                  'printf "%s" "$ool_err" | grep -qiE "untermin|corrupt|malformed|out.of.order"'
+assert "out-of-order legacy: byte-identical"         '[ "$before" = "$(cat "$SBX/.gitignore")" ]'
+rm -rf "$SBX"
+
 # --- ensure: dedup advisory for bare literals OUTSIDE the block ---------------
 SBX="$(mktemp -d)"
 printf '.docket/\n.worktrees\n' > "$SBX/.gitignore"   # pre-existing bare entries (note: no trailing slash on second)
