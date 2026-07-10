@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/docket-owned-gitignore-consolidation
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -82,3 +82,37 @@ fear dissolves.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-07-10 — reconcile before build
+
+Spec is same-day fresh (groomed 2026-07-10) and every assumption verifies against current
+`origin/main` (`d7f4a96`). Design holds, scope unchanged; **not** obsolete, **not** fundamentally
+invalidated. Verified against current code:
+
+- `sync-agents.sh` — the 0051 managed block (`# docket:generated:start … sync-agents.sh …` /
+  `:end`), `emit_gitignore_block()` looping the static `VALID_HARNESS_TOKENS`
+  (claude codex cursor agents kiro windsurf) + `HARNESS_HAS_DISPATCH_RULES` (cursor) with **no**
+  core entries yet, `gitignore_block_wanted` (opted-in **or** `.docket.local.yml`),
+  `gitignore_block_unterminated` on the single 0051 spelling, and `--check` leg (a) — all present
+  exactly as the spec describes. The "constant emitter" load-bearing fact confirmed.
+- `migrate-to-docket.sh` step 5 — appends the three bare lines (`.docket/`, `.worktrees/`,
+  `.claude/settings.local.json`) in `PRUNE_WT/.gitignore` and commits on the integration branch.
+- `docket-config.sh` `create_orphan` (the `--bootstrap`/`CREATE_ORPHAN` path) — worktree-free,
+  writes **no** `.gitignore`; the fresh-repo gap is real.
+- ADR-0020 — `Accepted`, present on both `docket` and `origin/main`; sections Context/Decision/
+  Consequences. The dated `## Update` (decision 3, ownership broadening) appends after
+  `## Consequences` as a **metadata edit on the `docket` branch**, delivered to `origin/main` via
+  this change's `adrs: [20]` at terminal-publish — **not** feature-branch code (the feature branch
+  never modifies ADRs).
+
+**Coordination notes (no scope change):**
+
+- Two open PRs overlap only the *prose-sweep* surface, neither a dependency, both sharing the
+  `origin/main` base 0057 builds on: **PR #61 (0052)** rewrites `README.md`; **PR #62 (0053)**
+  restructures `docket-convention` SKILL.md (moving the Agent-layer deep-dive into
+  `references/agent-layer.md`). 0057's `docket:generated`→new-marker prose edits land against
+  *current* `origin/main`; if either merges first, finalize's rebase-retest gate surfaces the
+  README/convention conflict for resolution. Keep the prose-sweep edits minimal and marker-scoped
+  so that conflict surface stays small.
+- The shell-script consolidation (new `scripts/lib/docket-gitignore-block.sh`, the three writers,
+  block contents) touches files neither open PR modifies — no code-level overlap.
