@@ -179,16 +179,19 @@ printf 'agent_harnesses: [claude, cursor]\nagents:\n  default:\n    status: { mo
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48C" bash "$SYNC" >/dev/null )
 chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48C" bash "$SYNC" --check 2>&1)"; chk_rc=$?
 assert "0048 rule-check: passes for an in-sync committed rule (rc=0)" '[ "$chk_rc" = "0" ]'
-# Hand-edit the committed rule -> drift.
+# Hand-edit the committed rule -> advisory (leg c; content staleness never fails CI).
 printf '\n<!-- tampered -->\n' >> "$SBX/.cursor/rules/docket-dispatch.mdc"
 chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48C" bash "$SYNC" --check 2>&1)"; chk_rc=$?
-assert "0048 rule-check: flags a hand-edited rule (rc!=0)" '[ "$chk_rc" != "0" ]'
-assert "0048 rule-check: names the dispatch rule in the drift report" 'printf "%s" "$chk_out" | grep -q "docket-dispatch.mdc"'
-# Delete the committed rule -> missing-file drift.
+assert "0048 rule-check: advisory-flags a hand-edited rule (rc=0)" '[ "$chk_rc" = "0" ]'
+assert "0048 rule-check: names the dispatch rule in the advisory report" \
+  'printf "%s" "$chk_out" | grep -q "advisory" && printf "%s" "$chk_out" | grep -q "docket-dispatch.mdc"'
+# Delete the committed rule -> advisory (missing local file).
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48C" bash "$SYNC" >/dev/null )   # regenerate clean
 rm -f "$SBX/.cursor/rules/docket-dispatch.mdc"
 chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48C" bash "$SYNC" --check 2>&1)"; chk_rc=$?
-assert "0048 rule-check: flags a missing committed rule (rc!=0)" '[ "$chk_rc" != "0" ]'
+assert "0048 rule-check: advisory-flags a missing committed rule (rc=0)" '[ "$chk_rc" = "0" ]'
+assert "0048 rule-check: missing-rule advisory names it" \
+  'printf "%s" "$chk_out" | grep -q "advisory" && printf "%s" "$chk_out" | grep -q "docket-dispatch.mdc"'
 rm -rf "$SBX" "$HROOT48C"
 
 # 0048 Piece 3 — removing a built-in agent prunes its generated files (both layers) + rule subsection.
@@ -226,15 +229,16 @@ assert "0048 delist: operator's co-located non-docket file preserved" '[ -f "$SB
 assert "0048 delist: claude still generated" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
 rm -rf "$SBX" "$HROOT48D"
 
-# 0048 Piece 3 --check — an orphaned committed file is reported as drift, NOT deleted.
+# 0048 Piece 3 --check — an orphaned local file is reported as advisory, NOT deleted
+# (change 0051: orphaned per-repo files are untracked local artifacts now, not CI-fatal).
 make_sandbox
 HROOT48O="$(mktemp -d)"; mkdir -p "$HROOT48O/.claude"
 printf 'agent_harnesses: [claude]\nagents:\n  default:\n    status: { model: sonnet }\n' > "$SBX/.docket.yml"
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48O" bash "$SYNC" >/dev/null )
 : > "$SBX/.claude/agents/docket-bogus.md"           # an orphan: no built-in docket-bogus
 chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48O" bash "$SYNC" --check 2>&1)"; chk_rc=$?
-assert "0048 orphan-check: reports the orphan as drift (rc!=0)" '[ "$chk_rc" != "0" ]'
-assert "0048 orphan-check: names the orphaned file" 'printf "%s" "$chk_out" | grep -q "docket-bogus.md"'
+assert "0048 orphan-check: advisory-flags the orphan (rc=0)" '[ "$chk_rc" = "0" ]'
+assert "0048 orphan-check: names the orphaned file" 'printf "%s" "$chk_out" | grep -q "advisory" && printf "%s" "$chk_out" | grep -q "docket-bogus.md"'
 assert "0048 orphan-check: --check does NOT delete the orphan" '[ -f "$SBX/.claude/agents/docket-bogus.md" ]'
 rm -rf "$SBX" "$HROOT48O"
 
@@ -296,7 +300,9 @@ chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT2" bash "$SYNC" --check 2>&1)
 assert "--check passes for in-sync critic (rc=0)" '[ "$chk_rc" = "0" ]'
 sed -i.bak 's/^model: sonnet/model: haiku/' "$SBX/.claude/agents/docket-auto-groom-critic.md"; rm -f "$SBX/.claude/agents/docket-auto-groom-critic.md.bak"
 chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT2" bash "$SYNC" --check 2>&1)"; chk_rc=$?
-assert "--check flags critic drift (rc!=0)" '[ "$chk_rc" != "0" ]'
+assert "--check advisory-flags critic drift (rc=0)" '[ "$chk_rc" = "0" ]'
+assert "--check advisory-flags critic drift (names file)" \
+  'printf "%s" "$chk_out" | grep -q "advisory" && printf "%s" "$chk_out" | grep -q "docket-auto-groom-critic.md"'
 rm -rf "$SBX" "$HROOT2"
 
 # ---- Task 1c: the two finalize-gate wrappers (wrap NO skill) ----------------
@@ -329,7 +335,9 @@ chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT3" bash "$SYNC" --check 2>&1)
 assert "--check passes for in-sync rebase-resolver (rc=0)" '[ "$chk_rc" = "0" ]'
 sed -i.bak 's/^model: sonnet/model: haiku/' "$SBX/.claude/agents/docket-rebase-resolver.md"; rm -f "$SBX/.claude/agents/docket-rebase-resolver.md.bak"
 chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT3" bash "$SYNC" --check 2>&1)"; chk_rc=$?
-assert "--check flags rebase-resolver drift (rc!=0)" '[ "$chk_rc" != "0" ]'
+assert "--check advisory-flags rebase-resolver drift (rc=0)" '[ "$chk_rc" = "0" ]'
+assert "--check advisory-flags rebase-resolver drift (names file)" \
+  'printf "%s" "$chk_out" | grep -q "advisory" && printf "%s" "$chk_out" | grep -q "docket-rebase-resolver.md"'
 rm -rf "$SBX" "$HROOT3"
 
 # ---- Task 3: --check drift gate --------------------------------------------
@@ -339,19 +347,28 @@ printf 'agents:\n  default:\n    status: { model: sonnet, effort: high }\n' > "$
 chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check 2>&1)"; chk_rc=$?
 assert "--check passes when committed agents match config (rc=0)" '[ "$chk_rc" = "0" ]'
 
-# Out-of-band edit to a committed project-level file -> drift.
+# Out-of-band edit to a local project-level file -> advisory (leg c), never CI-fatal.
 sed -i.bak 's/^model: sonnet/model: haiku/' "$SBX/.claude/agents/docket-status.md"; rm -f "$SBX/.claude/agents/docket-status.md.bak"
 chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check 2>&1)"; chk_rc=$?
-assert "--check fails on drift (rc!=0)" '[ "$chk_rc" != "0" ]'
-assert "--check reports a diff" 'printf "%s" "$chk_out" | grep -q "drift"'
+assert "--check advisory-flags drift (rc=0)" '[ "$chk_rc" = "0" ]'
+assert "--check reports an advisory" 'printf "%s" "$chk_out" | grep -q "advisory"'
 
-# Committed file entirely absent (--check before sync-agents.sh ever ran) -> drift.
+# Local file removed after having been generated once (block already written) ->
+# advisory only (leg c; missing local file is never CI-fatal).
 make_sandbox
 printf 'agents:\n  default:\n    status: { model: sonnet, effort: high }\n' > "$SBX/.docket.yml"
-# intentionally do NOT generate; $SBX/.claude/agents/docket-status.md does not exist
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null )   # generate + write the gitignore block
+rm -f "$SBX/.claude/agents/docket-status.md"
 chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check 2>&1)"; chk_rc=$?
-assert "--check fails when committed file is missing (rc!=0)" '[ "$chk_rc" != "0" ]'
-assert "--check reports missing-file drift" 'printf "%s" "$chk_out" | grep -q "drift"'
+assert "--check advisory-flags a missing local file (rc=0)" '[ "$chk_rc" = "0" ]'
+assert "--check reports the missing-local-file advisory" 'printf "%s" "$chk_out" | grep -q "advisory"'
+
+# leg (a): opted-in repo whose .gitignore block was never written (sync never ran) -> rc!=0.
+make_sandbox
+printf 'agents:\n  default:\n    status: { model: sonnet, effort: high }\n' > "$SBX/.docket.yml"
+chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check 2>&1)"; chk_rc=$?
+assert "--check leg-a: missing gitignore block fails (rc!=0)" '[ "$chk_rc" != "0" ]'
+assert "--check leg-a: names the gitignore block" 'printf "%s" "$chk_out" | grep -qi "gitignore"'
 
 # 0048 opt-in: a .docket.yml present for change-tracking only (no agents: / no agent_harnesses) does
 # NOT opt into per-repo generation — nothing is written and --check stays a no-op (backward-compat).
@@ -487,15 +504,16 @@ printf 'agent_harnesses: [claude, cursor]\nagents:\n  default:\n    status: { mo
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTF" bash "$SYNC" >/dev/null )   # generate both harness files
 chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTF" bash "$SYNC" --check 2>&1)"; chk_rc=$?
 assert "0045 check: passes when both harness files in sync (rc=0)" '[ "$chk_rc" = "0" ]'
-# Drift the CURSOR file only.
+# Drift the CURSOR file only -> advisory (leg c), never CI-fatal.
 sed -i.bak 's/^model: sonnet/model: haiku/' "$SBX/.cursor/agents/docket-status.md"; rm -f "$SBX/.cursor/agents/docket-status.md.bak"
 chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTF" bash "$SYNC" --check 2>&1)"; chk_rc=$?
-assert "0045 check: flags .cursor/agents drift (rc!=0)" '[ "$chk_rc" != "0" ]'
-assert "0045 check: drift report names the cursor harness" 'printf "%s" "$chk_out" | grep -q "drift" && printf "%s" "$chk_out" | grep -q "cursor"'
-# A listed-harness file never generated -> missing-file drift.
+assert "0045 check: advisory-flags .cursor/agents drift (rc=0)" '[ "$chk_rc" = "0" ]'
+assert "0045 check: advisory report names the cursor harness" 'printf "%s" "$chk_out" | grep -q "advisory" && printf "%s" "$chk_out" | grep -q "cursor"'
+# A listed-harness file never generated locally -> advisory (missing local file).
 rm -f "$SBX/.cursor/agents/docket-status.md"
 chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTF" bash "$SYNC" --check 2>&1)"; chk_rc=$?
-assert "0045 check: flags missing cursor file (rc!=0)" '[ "$chk_rc" != "0" ]'
+assert "0045 check: advisory-flags missing cursor file (rc=0)" '[ "$chk_rc" = "0" ]'
+assert "0045 check: missing-file advisory names cursor" 'printf "%s" "$chk_out" | grep -q "advisory" && printf "%s" "$chk_out" | grep -q "cursor"'
 rm -rf "$SBX" "$HROOTF"
 
 # Convention documents agent_harnesses + the direct-model-ID (harness-neutral) contract.
@@ -588,6 +606,9 @@ gen_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTL" bash "$SYNC" 2>&1 >/dev/nu
 assert "0046 (f): legacy shape not fatal (rc=0)" '[ "$gen_rc" = "0" ]'
 assert "0046 (f): warns about the legacy bare agent key" 'printf "%s" "$gen_err" | grep -qi "legacy" && printf "%s" "$gen_err" | grep -q "status"'
 assert "0046 (f): legacy status NOT applied (no project file / built-in only)" '[ ! -f "$SBX/.claude/agents/docket-status.md" ] || [ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "claude-haiku-4-5-20251001" ]'
+# Pre-run a normal sync so the .gitignore block exists (leg a green) and the legacy
+# committed-config-shape leg is isolated (still rc!=0 — CI-meaningful, not advisory).
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTL" bash "$SYNC" >/dev/null 2>&1 )
 chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTL" bash "$SYNC" --check 2>&1)"; chk_rc=$?
 assert "0046 (g'): --check flags the legacy shape (rc!=0)" '[ "$chk_rc" != "0" ]'
 assert "0046 (g'): --check names the legacy shape" 'printf "%s" "$chk_out" | grep -qi "legacy"'
@@ -930,5 +951,91 @@ assert "0051 gi-f: unterminated block run still succeeds (rc=0)" '[ "$gf_rc" = "
 assert "0051 gi-f: warns the block is corrupt/unterminated" 'printf "%s" "$gf_err" | grep -qi "untermin\|corrupt"'
 assert "0051 gi-f: file left byte-identical (user content preserved)" '[ "$gi_before" = "$(cat "$SBX/.gitignore")" ]'
 rm -rf "$SBX" "$HROOTGF"
+
+# ============================================================================
+# Change 0051 — migration (0048-era tracked wrappers) + --check three legs
+# ============================================================================
+
+# git-repo fixture: sandbox repo with identity + one commit (for ls-files-based legs).
+mkgitrepo(){
+  SBX="$(mktemp -d)"
+  git -C "$SBX" init --quiet
+  git -C "$SBX" config user.email t@t.test
+  git -C "$SBX" config user.name Test
+}
+
+# (mig-a) 0048-era repo: tracked wrappers + rule -> deleted from the worktree, block
+# written, local set regenerated, single migration commit printed. Idempotent.
+mkgitrepo
+HROOTM="$(mktemp -d)"; mkdir -p "$HROOTM/.claude"
+printf 'agent_harnesses: [claude, cursor]\nagents:\n  default:\n    status: { model: sonnet }\n' > "$SBX/.docket.yml"
+mkdir -p "$SBX/.claude/agents" "$SBX/.cursor/agents" "$SBX/.cursor/rules"
+printf 'stale 0048 wrapper\n' > "$SBX/.claude/agents/docket-status.md"
+printf 'stale 0048 wrapper\n' > "$SBX/.cursor/agents/docket-status.md"
+printf 'stale 0048 rule\n'    > "$SBX/.cursor/rules/docket-dispatch.mdc"
+git -C "$SBX" add -A; git -C "$SBX" commit --quiet -m "0048-era state"
+mig_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTM" bash "$SYNC" 2>&1 >/dev/null)"; mig_rc=$?
+assert "0051 mig: run succeeds (rc=0)"                     '[ "$mig_rc" = "0" ]'
+assert "0051 mig: announces the migration"                 'printf "%s" "$mig_err" | grep -qi "migrat"'
+assert "0051 mig: prints git rm --cached instructions"     'printf "%s" "$mig_err" | grep -q -e "git rm" '
+assert "0051 mig: gitignore block written"                 'grep -q "^# docket:generated:start" "$SBX/.gitignore"'
+assert "0051 mig: local files regenerated (fresh content)" 'grep -q "^model: sonnet" "$SBX/.claude/agents/docket-status.md"'
+assert "0051 mig: full local set regenerated"              '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "8" ]'
+# perform the printed migration commit; second run must NOT re-announce
+( cd "$SBX" && git rm -r -q --cached '.claude/agents/docket-*.md' '.cursor/agents/docket-*.md' '.cursor/rules/docket-dispatch.mdc' && git add .gitignore && git commit -q -m "docket: agent files go machine-local" )
+mig_err2="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTM" bash "$SYNC" 2>&1 >/dev/null)"
+assert "0051 mig: idempotent — post-commit run is silent about migration" '! printf "%s" "$mig_err2" | grep -qi "migrat"'
+# and --check is fully green now (all three legs)
+chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTM" bash "$SYNC" --check 2>&1)"; chk_rc=$?
+assert "0051 mig: post-migration --check green (rc=0)" '[ "$chk_rc" = "0" ]'
+rm -rf "$SBX" "$HROOTM"
+
+# (chk-a) leg (a): opted-in repo, block missing (sync never ran) -> rc!=0 naming the block.
+make_sandbox
+HROOTCA="$(mktemp -d)"; mkdir -p "$HROOTCA/.claude"
+printf 'agents:\n  default:\n    status: { model: sonnet }\n' > "$SBX/.docket.yml"
+chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTCA" bash "$SYNC" --check 2>&1)"; chk_rc=$?
+assert "0051 chk-a: missing block fails --check (rc!=0)" '[ "$chk_rc" != "0" ]'
+assert "0051 chk-a: names the gitignore block"           'printf "%s" "$chk_out" | grep -qi "gitignore"'
+# stale block (hand-pruned pattern) also fails:
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTCA" bash "$SYNC" >/dev/null 2>&1 )
+sed -i.bak '/docket-dispatch/d' "$SBX/.gitignore"; rm -f "$SBX/.gitignore.bak"
+chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTCA" bash "$SYNC" --check 2>&1)"; chk_rc=$?
+assert "0051 chk-a: stale block fails --check (rc!=0)"   '[ "$chk_rc" != "0" ]'
+rm -rf "$SBX" "$HROOTCA"
+
+# (chk-b) leg (b): tracked generated file -> rc!=0 with the migration remedy.
+mkgitrepo
+HROOTCB="$(mktemp -d)"; mkdir -p "$HROOTCB/.claude"
+printf 'agents:\n  default:\n    status: { model: sonnet }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTCB" bash "$SYNC" >/dev/null 2>&1 )   # block + local files
+git -C "$SBX" add -A -f; git -C "$SBX" commit --quiet -m "wrongly track everything"
+chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTCB" bash "$SYNC" --check 2>&1)"; chk_rc=$?
+assert "0051 chk-b: tracked generated file fails --check (rc!=0)" '[ "$chk_rc" != "0" ]'
+assert "0051 chk-b: names a tracked path"                          'printf "%s" "$chk_out" | grep -q "docket-status.md"'
+rm -rf "$SBX" "$HROOTCB"
+
+# (chk-c) leg (c): content staleness is ADVISORY — rc stays 0, output says advisory.
+make_sandbox
+HROOTCC="$(mktemp -d)"; mkdir -p "$HROOTCC/.claude"
+printf 'agents:\n  default:\n    status: { model: sonnet }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTCC" bash "$SYNC" >/dev/null 2>&1 )
+sed -i.bak 's/^model: sonnet/model: haiku/' "$SBX/.claude/agents/docket-status.md"; rm -f "$SBX/.claude/agents/docket-status.md.bak"
+chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTCC" bash "$SYNC" --check 2>&1)"; chk_rc=$?
+assert "0051 chk-c: content drift is advisory (rc=0)"  '[ "$chk_rc" = "0" ]'
+assert "0051 chk-c: advisory names the drifted file"   'printf "%s" "$chk_out" | grep -q "advisory" && printf "%s" "$chk_out" | grep -q "docket-status.md"'
+rm -rf "$SBX" "$HROOTCC"
+
+# (chk-d) fresh clone of a MIGRATED repo: committed .docket.yml (opted-in) + committed
+# block, NO generated files -> --check fully green (leg c vacuous on CI).
+mkgitrepo
+HROOTCD="$(mktemp -d)"; mkdir -p "$HROOTCD/.claude"
+printf 'agents:\n  default:\n    status: { model: sonnet }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTCD" bash "$SYNC" >/dev/null 2>&1 )     # writes block + files
+find "$SBX" -name 'docket-*.md' -path '*/agents/*' -delete                       # simulate the fresh clone
+git -C "$SBX" add .docket.yml .gitignore; git -C "$SBX" commit --quiet -m "migrated repo"
+chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTCD" bash "$SYNC" --check 2>&1)"; chk_rc=$?
+assert "0051 chk-d: fresh migrated clone --check green (rc=0)" '[ "$chk_rc" = "0" ]'
+rm -rf "$SBX" "$HROOTCD"
 
 exit $fail
