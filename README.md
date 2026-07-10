@@ -1,13 +1,13 @@
 # docket
 
-docket keeps a backlog of planned work as plain markdown files that live inside your repo, and ships a set of agent skills that work that backlog for you. Each unit of work is a **change** — one markdown file, roughly one pull request's worth of work, with a status that moves through a fixed lifecycle. You design changes interactively with Claude; an autonomous implementer skill drains them to open pull requests one at a time, and you stay in control at the merge gate — all coordinated through git, with no CLI to install and no database to run.
+docket keeps a backlog of planned work as plain markdown files that live inside your repo, and ships a set of agent skills that work that backlog for you. Each unit of work is a **change** — one markdown file, roughly one pull request's worth of work, with a status that moves through a fixed lifecycle. You design changes interactively in your agent harness; an autonomous implementer skill drains them to open pull requests one at a time, and you stay in control at the merge gate — all coordinated through git, with no CLI to install and no database to run.
 
 What you get:
 
 - **A durable backlog that outlives the session.** Planned work is tracked in-repo as markdown, so a change you brainstorm today is still there, with its full context, when an agent picks it up next week.
 - **Hands-off implementation.** An autonomous skill claims the next ready change, refreshes it against the current state of the code, builds it with test-driven development, and opens a PR — with no supervision in between.
 - **You stay at the merge gate.** Agents never merge. Your review of the pull request is the one required human checkpoint on the way to `done`.
-- **No new infrastructure.** No service, no database, no bespoke CLI — just markdown files, git, and skills any Claude Code session can run.
+- **No new infrastructure.** No service, no database, no bespoke CLI — just markdown files, git, and skills any supported agent harness can run; Claude Code, Cursor, and Codex are first-class.
 
 ---
 
@@ -56,7 +56,7 @@ One honest caveat: dependency chains serialize on the merge gate. A change that 
 
 ## Why docket
 
-If you already use Claude Code, you have probably felt the gap docket fills.
+If you already run coding agents in your repos, you have probably felt the gap docket fills.
 
 **superpowers gives you excellent execution but no memory.** Its workflow — brainstorm → spec → plan → TDD → code review → merge — runs well, but all inside a single invocation. It has no notion of a tracked backlog or a "done" state that outlives the session. Every session starts from a blank slate.
 
@@ -101,7 +101,7 @@ docket installs once per machine and then works in every repo you use it from.
 
 ### Prerequisites
 
-- **Claude Code** (or another supported agent harness). docket's skills run inside an agent **harness** — an agent front-end such as Claude Code or Cursor, each with its own on-disk `skills/` and `agents/` directories that docket writes into.
+- **An agent harness.** docket's skills run inside an agent **harness** — an agent front-end with its own on-disk `skills/` and `agents/` directories that docket writes into. **Claude Code, Cursor, and Codex** are first-class supported harnesses; docket also writes into `.agents/`, `.kiro/`, and `.windsurf/` harness roots when they are present on your machine.
 - **`git` and the GitHub CLI (`gh`).** Every docket operation is a git operation, and the implementer opens pull requests with `gh`.
 - **A GitHub remote** for the pull-request flow. docket pushes branches and opens PRs against your `origin`.
 - **The superpowers plugin — recommended, not required.** superpowers is docket's default execution engine (brainstorm, plan, build, review, finish). Installing it is the consuming user's responsibility; docket does not bundle or fetch it. If it is absent, each workflow step **degrades to running inline at the agent's own model, with a prominent warning** — so docket still works out of the box with zero config, just without superpowers' structured execution. See [Configuration](#configuration--docketyml-global-config-and-machine-local-overrides) to rebind any step.
@@ -118,7 +118,7 @@ That is the whole install. `install.sh` runs three primitives in order and is id
 
 - **`link-skills.sh`** creates absolute symlinks from each present harness's global skill directory back to `~/dev/docket/skills/<name>`. It only writes into harness directories that already exist on your machine. Because skills are symlinks, editing one in the repo takes effect everywhere immediately.
 - **`sync-agents.sh`** generates docket's model/effort-pinned subagent wrappers from layered config (built-in defaults ⊕ global `config.yml` ⊕ a repo's committed `.docket.yml` ⊕ that repo's `.docket.local.yml`) into each present harness's `agents/` directory. For any repo that opts in (via an `agents:` block or an `agent_harnesses:` key, in either file), it also writes the full per-repo agent set as **machine-local**, gitignored files — **never committed**. Unlike the skill symlinks, these are generated **copies** (they bake in the resolved model and effort), so re-run it after editing any config layer — `install.sh` does this for you, or call `sync-agents.sh` directly. Run `sync-agents.sh --check` in CI to catch a missing or stale `.gitignore` block, or an accidentally-tracked generated file.
-- **`ensure-docket-env.sh`** exports `DOCKET_SCRIPTS_DIR` — the absolute path to docket's `scripts/` directory — into your shell profile (and Claude Code's user-level `settings.json` `env`), so every docket skill can reach its deterministic helper scripts from *any* repo, not just this clone. Re-running `install.sh` back-fills already-migrated repos. Without it, the skills fail loud with a `run docket/install.sh` remedy rather than silently hand-working each operation.
+- **`ensure-docket-env.sh`** exports `DOCKET_SCRIPTS_DIR` — the absolute path to docket's `scripts/` directory — into your shell profile (and, for the Claude Code harness, its user-level `settings.json` `env`), so every docket skill can reach its deterministic helper scripts from *any* repo, not just this clone. Re-running `install.sh` back-fills already-migrated repos. Without it, the skills fail loud with a `run docket/install.sh` remedy rather than silently hand-working each operation.
 
 (You can still run any primitive on its own — `install.sh` just saves you from remembering all three.)
 
@@ -128,7 +128,7 @@ The change data — `docs/changes/`, `docs/adrs/`, `docs/results/` — lives in 
 
 ## Quickstart: the daily loop
 
-Once docket is installed and your repo is in [docket-mode](#docket-mode-where-metadata-lives) (planning metadata on its own branch), a day of work is a handful of skill invocations you make (by name) in a Claude Code session opened in that repo.
+Once docket is installed and your repo is in [docket-mode](#docket-mode-where-metadata-lives) (planning metadata on its own branch), a day of work is a handful of skill invocations you make (by name) in an agent-harness session — Claude Code, Cursor, or Codex — opened in that repo.
 
 **1. Capture work — `docket-new-change`.** Describe an idea; docket brainstorms it with you into a build-ready change — a spec, dependencies noted — and commits the change file to the backlog. Run it whenever an idea lands; the backlog is durable, so you can capture now and implement later.
 
@@ -352,7 +352,15 @@ Each **autonomous** docket skill runs as a model/effort-pinned subagent (`docket
 
 The config **shape** — the `agents:` keys and how the model and effort are written — is documented once in docket-convention's **"Agent layer"**; consult it there rather than copying field examples here, so the shape has a single source of truth and stays current as it evolves.
 
-**Changing only the model?** To override an agent's model while *dropping* its pinned effort — e.g. pointing it at a non-Claude harness model, where Claude's effort tiers do not apply — set `effort: auto`, which drops the effort line entirely so the agent inherits the model default. Omitting the `effort:` key instead *keeps* the built-in effort, so `auto` is the explicit way to drop it.
+**Changing only the model?** To override an agent's model while *dropping* its pinned effort — e.g. pointing it at another harness's model, where Claude Code's effort tiers do not apply — set `effort: auto`, which drops the effort line entirely so the agent inherits the model default. Omitting the `effort:` key instead *keeps* the built-in effort, so `auto` is the explicit way to drop it.
+
+**Finding model IDs.** A `model:` value is passed to the harness verbatim — docket never validates it — so use exactly the IDs your harness reports:
+
+| Harness | List available model IDs |
+|---|---|
+| Claude Code | `ant models list` ([reference](https://platform.claude.com/docs/en/api/cli/models/list)) |
+| Cursor | `cursor-agent models` |
+| Codex | `codex debug models \| jq -r '.models[] \| .slug'` |
 
 **2. Refresh the generated wrappers.** The resolved model and effort are baked into generated wrapper *copies* (not symlinks), so after editing any layer, regenerate them:
 
@@ -360,7 +368,7 @@ The config **shape** — the `agents:` keys and how the model and effort are wri
 bash sync-agents.sh        # or re-run install.sh, which calls it for you
 ```
 
-- A **global** edit rewrites user-level wrappers into every **present** harness root (`~/.<harness>/agents/`, e.g. `~/.claude/agents/`).
+- A **global** edit rewrites user-level wrappers into every **present** harness root (`~/.<harness>/agents/`, e.g. `~/.claude/agents/`, `~/.cursor/agents/`, `~/.codex/agents/`).
 - A **repo-committed or repo-local** edit rewrites that repo's per-repo wrappers for each harness in its (local-then-committed) `agent_harnesses:` list (default `[claude]`; e.g. `[claude, cursor]` for a repo that also drives Cursor).
 
 `sync-agents.sh` always writes **both** passes in one run — user-level wrappers into each targeted harness root AND (for opted-in repos) per-repo wrappers — and project wins over global at generation time, per the four-layer precedence above.
