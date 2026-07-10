@@ -33,8 +33,9 @@
 #                                 # single commit that finishes it; a managed .gitignore block is then
 #                                 # written/refreshed so the regenerated local copies stay untracked.
 #   bash sync-agents.sh --check   # CI gate, THREE legs (per repo):
-#                                 #   (a) the committed .gitignore docket:generated block is present
-#                                 #       and current — CI-meaningful, exit non-zero if missing/stale.
+#                                 #   (a) the committed .gitignore docket block is present and current
+#                                 #       (a legacy docket:generated spelling upgrades on the next run)
+#                                 #       — CI-meaningful, exit non-zero if missing/stale.
 #                                 #   (b) no generated agent/rule file is TRACKED by git (0048-era
 #                                 #       leftovers or a re-add) — CI-meaningful, exit non-zero if any
 #                                 #       are tracked, naming them + the migration remedy.
@@ -50,6 +51,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=/dev/null
+. "$SCRIPT_DIR/scripts/lib/docket-gitignore-block.sh"
 AGENTS_SRC="$SCRIPT_DIR/agents"
 CURSOR_RULES_SRC="$SCRIPT_DIR/cursor-rules"
 REPO="$PWD"
@@ -67,24 +70,12 @@ if [ -e "$LOCAL_CFG" ] && { [ ! -f "$LOCAL_CFG" ] || [ ! -r "$LOCAL_CFG" ]; }; t
   LOCAL_CFG=/dev/null
 fi
 
-# Mirror link-skills.sh's HARNESS_SKILL_DIRS, swapping skills -> agents.
-HARNESS_AGENT_DIRS=(
-  "$HARNESS_ROOT/.claude/agents"
-  "$HARNESS_ROOT/.codex/agents"
-  "$HARNESS_ROOT/.cursor/agents"
-  "$HARNESS_ROOT/.agents/agents"
-  "$HARNESS_ROOT/.kiro/agents"
-  "$HARNESS_ROOT/.windsurf/agents"
-)
+# Harness agent dirs, derived from the lib's canonical roster (single source of truth).
+HARNESS_AGENT_DIRS=()
+for _tok in $DOCKET_GI_HARNESS_TOKENS; do HARNESS_AGENT_DIRS+=("$HARNESS_ROOT/.$_tok/agents"); done
+unset _tok
 
-# Valid harness tokens, derived from HARNESS_AGENT_DIRS (single source of truth):
-# ".../.claude/agents" -> "claude". The project-level dir for token H is $REPO/.<H>/agents.
-VALID_HARNESS_TOKENS=""
-for _hd in "${HARNESS_AGENT_DIRS[@]}"; do
-  _hb="$(basename "$(dirname "$_hd")")"          # ".claude"
-  VALID_HARNESS_TOKENS="$VALID_HARNESS_TOKENS ${_hb#.}"   # "claude"
-done
-unset _hd _hb
+VALID_HARNESS_TOKENS="$DOCKET_GI_HARNESS_TOKENS"
 
 CHECK=0
 [ "${1:-}" = "--check" ] && CHECK=1
@@ -219,7 +210,7 @@ short_name(){ local b; b="$(basename "$1")"; b="${b#docket-}"; printf '%s' "${b%
 agent_description(){ sed -n '/^description:/{s/^description:[[:space:]]*//;p;q;}' "$1"; }
 
 # Harnesses that get a generated Cursor-style dispatch rule (only cursor exhibits the inline quirk).
-HARNESS_HAS_DISPATCH_RULES="cursor"
+HARNESS_HAS_DISPATCH_RULES="$DOCKET_GI_DISPATCH_HARNESSES"
 harness_has_dispatch_rule(){ case " $HARNESS_HAS_DISPATCH_RULES " in *" $1 "*) return 0;; *) return 1;; esac; }
 
 # --- config helpers ----------------------------------------------------------
@@ -362,64 +353,24 @@ write_dispatch_rule() {  # $1 = <root>/.<harness> base path
   assemble_dispatch_rule > "$1/rules/docket-dispatch.mdc"
 }
 
-# --- managed .gitignore block (change 0051) -----------------------------------
-# sync-agents.sh owns a marker-bounded block in <repo>/.gitignore covering every
-# machine-local artifact it generates. Patterns are emitted from the SAME harness
-# table generation uses (VALID_HARNESS_TOKENS / HARNESS_HAS_DISPATCH_RULES), so a
-# new harness extends the block without a second roster. Nothing outside the
-# markers is ever touched.
+# --- managed .gitignore block (change 0051; mechanics moved into scripts/lib/docket-gitignore-block.sh
+# in change 0057, which sync-agents.sh sources — that lib is the single home for ALL docket-owned
+# ignores and is shared by all three writers: migrate-to-docket.sh, docket-config.sh --bootstrap, and
+# this script). Trigger policy stays HERE — sync-agents.sh decides WHEN the block is wanted; the lib
+# only knows HOW to emit/ensure it.
 GITIGNORE="$REPO/.gitignore"
-GI_START='# docket:generated:start (managed by sync-agents.sh — do not hand-edit)'
-GI_END='# docket:generated:end'
 
-emit_gitignore_block() {
-  printf '%s\n' "$GI_START"
-  printf '.docket.local.yml\n'
-  local tok
-  for tok in $VALID_HARNESS_TOKENS; do printf '.%s/agents/docket-*.md\n' "$tok"; done
-  for tok in $HARNESS_HAS_DISPATCH_RULES; do printf '.%s/rules/docket-dispatch.mdc\n' "$tok"; done
-  printf '%s\n' "$GI_END"
-}
-
-# The block is maintained for opted-in repos AND any repo carrying a .docket.local.yml
-# (a tracking-only repo using it for skills:/finalize: must never risk committing it).
-# NOTE: test the RAW path — LOCAL_CFG may have been redirected to /dev/null.
-gitignore_block_wanted(){ per_repo_opted_in && return 0; [ -e "$REPO/.docket.local.yml" ]; }
-
-current_gitignore_block() {
-  [ -f "$GITIGNORE" ] || return 0
-  awk -v s="$GI_START" -v e="$GI_END" '$0==s{f=1} f{print} $0==e{f=0}' "$GITIGNORE"
-}
-
-# True if $GITIGNORE contains a GI_START line with no matching GI_END line — a truncated/corrupt
-# block whose true extent we cannot know. grep runs directly on the file path (no producer|grep -q
-# pipeline), so this is safe under `set -o pipefail`; bash-3.2-safe.
-gitignore_block_unterminated() {
-  [ -f "$GITIGNORE" ] || return 1
-  grep -F -x -q -- "$GI_START" "$GITIGNORE" || return 1
-  grep -F -x -q -- "$GI_END" "$GITIGNORE" && return 1
-  return 0
-}
-
-ensure_gitignore_block() {  # create/refresh; bytes outside the markers are never touched
-  gitignore_block_wanted || return 0
-  if gitignore_block_unterminated; then
-    log "WARN $GITIGNORE has an UNTERMINATED docket:generated block (start marker present, end marker missing) — corrupt; refusing to rewrite so no bytes are lost. Repair or remove the dangling '$GI_START' line by hand, then re-run."
-    return 0
-  fi
-  local want have rest
-  want="$(emit_gitignore_block)"
-  have="$(current_gitignore_block)"
-  [ "$want" = "$have" ] && return 0
-  rest=""
-  if [ -f "$GITIGNORE" ]; then
-    rest="$(awk -v s="$GI_START" -v e="$GI_END" '$0==s{f=1} !f{print} $0==e{f=0}' "$GITIGNORE")"
-  fi
-  {
-    if [ -n "$rest" ]; then printf '%s\n\n' "$rest"; fi
-    printf '%s\n' "$want"
-  } > "$GITIGNORE"
-  log "UPDATED $GITIGNORE managed block (docket:generated) — COMMIT THIS so machine-local generated files stay untracked"
+# The block is maintained for opted-in repos, any repo carrying a .docket.local.yml, any repo
+# with a docket branch (the bootstrap guard's DOCKET probe — an explicit repo-level signal,
+# LEARNINGS #48), or any repo already carrying the block (heal-if-present, either spelling).
+gitignore_block_wanted(){
+  per_repo_opted_in && return 0
+  [ -e "$REPO/.docket.local.yml" ] && return 0
+  git -C "$REPO" rev-parse --verify --quiet refs/remotes/origin/docket >/dev/null 2>&1 && return 0
+  git -C "$REPO" rev-parse --verify --quiet refs/heads/docket >/dev/null 2>&1 && return 0
+  [ -f "$GITIGNORE" ] && grep -F -x -q -- "$DOCKET_GI_START" "$GITIGNORE" && return 0
+  [ -f "$GITIGNORE" ] && grep -F -x -q -- "$DOCKET_GI_LEGACY_START" "$GITIGNORE" && return 0
+  return 1
 }
 
 # --- 0048-era migration: generated files must not be tracked (change 0051) ----
@@ -554,9 +505,9 @@ check_project_level() {  # three legs: (a) gitignore block current [CI-meaningfu
     log "no per-repo agent opt-in (agents:/agent_harnesses) and no .docket.local.yml in $REPO — nothing else to check"
     return $rc
   fi
-  # leg (a) — the committed .gitignore block is present and current (CI-meaningful).
-  if [ "$(emit_gitignore_block)" != "$(current_gitignore_block)" ]; then
-    log "check: .gitignore docket:generated block missing or stale — run: bash sync-agents.sh and commit .gitignore"
+  # leg (a) — the .gitignore block is present and current, evaluated against the NEW markers.
+  if [ "$(emit_docket_gitignore_block)" != "$(_docket_gi_current_block "$GITIGNORE" "$DOCKET_GI_START" "$DOCKET_GI_END")" ]; then
+    log "check: .gitignore docket block missing or stale (a legacy docket:generated block upgrades on the next run) — run: bash sync-agents.sh and commit .gitignore"
     rc=1
   fi
   # committed-config shape (the committed .docket.yml is CI-visible): legacy bare agent keys.
@@ -698,7 +649,7 @@ migrate_legacy_global
 resolve_global_agent_harnesses
 user_level_pass
 migrate_tracked_wrappers
-ensure_gitignore_block
+if gitignore_block_wanted; then ensure_docket_gitignore_block "$REPO"; fi
 project_level_pass
 prune_orphans all
 log "done"
