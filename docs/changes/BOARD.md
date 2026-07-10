@@ -1,12 +1,6 @@
 # Backlog
 
-**52 changes** — 🟢 1 in progress · 🟡 9 proposed · ✅ 40 done · 🗑️ 2 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0051](active/0051-global-agents-middle-layer.md) | Machine-local config layer (.docket.local.yml) + all-local agent generation | `high` | [spec](../superpowers/specs/2026-07-09-global-agents-middle-layer-design.md) | `feat/global-agents-middle-layer` |
+**52 changes** — 🟡 9 proposed · 🔵 1 implemented · ✅ 40 done · 🗑️ 2 killed
 
 ## 🟡 Proposed (9)
 
@@ -20,7 +14,13 @@
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | build-ready |
-| [0052](active/0052-readme-doc-critic-refresh.md) | README doc-critic refresh — accuracy, structure, newcomer clarity (post-0051) | `medium` | ⏳ waiting on #51 — not yet built |
+| [0052](active/0052-readme-doc-critic-refresh.md) | README doc-critic refresh — accuracy, structure, newcomer clarity (post-0051) | `medium` | ⏳ waiting on #51 — needs your merge |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | PR |
+|---|-------|----------|----|
+| [0051](active/0051-global-agents-middle-layer.md) | Machine-local config layer (.docket.local.yml) + all-local agent generation | `high` | [#60](https://github.com/danielhanold/docket/pull/60) |
 
 ```mermaid
 graph TD
