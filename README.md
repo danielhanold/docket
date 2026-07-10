@@ -248,7 +248,7 @@ Some keys write shared state, and a machine-scoped value for them would silently
 
 ### When a file is misplaced or malformed
 
-- A `~/.config/docket/.docket.yml` is never read — `docket-config.sh` warns and points you at `config.yml`.
+- A `~/.config/docket/.docket.yml` is never read — `docket-config.sh` (the per-skill runtime resolver every docket skill consults at startup) warns and points you at `config.yml`.
 - A malformed or unreadable `config.yml` (or `.docket.local.yml`) warns and falls back to built-ins **for that layer only** — the repo and its other layers are still honored, so a broken personal or machine file never bricks a repo.
 
 ### Migrating from `agents.yaml`
@@ -369,9 +369,10 @@ bash sync-agents.sh        # or re-run install.sh, which calls it for you
 
 **Migrating a pre-0051 repo.** Repos that predate this (change 0048 committed the per-repo files directly) get a one-time, automatic migration on the next `sync-agents.sh` run: it deletes the stale tracked copies from the working tree, writes the `.gitignore` block, regenerates the local set fresh, and prints the single remedy commit to run — `git rm -r --cached '.claude/agents/docket-*.md' … && git add .gitignore && git commit -m "…"` — so the repo converges in one commit per clone.
 
-**3. Guard drift in CI.** `sync-agents.sh --check` is a three-part gate:
+**3. Guard drift in CI.** `sync-agents.sh --check` is a four-part gate:
 
 - The `.gitignore` `docket:generated` block is present and current, **and** no per-repo generated file is tracked by git — both are **CI-meaningful** (`rc != 0` fails the build; the second leg also catches a repo whose migration commit never happened).
+- A committed `.docket.yml` using the legacy bare-agent-key `agents:` shape (agent keys sitting directly under `agents:` instead of nested under `agents: default:`) also fails — **CI-meaningful** (`rc != 0`) — naming the offending keys and the reshape to `agents.default.<agent>` in its message.
 - Generated content drifting from the resolved config is **advisory only** (`rc` unaffected) — every clone regenerates its own copy at build time, so a stale local file is a nudge to re-run `sync-agents.sh`, not a CI failure.
 
 **Always the full set, plus a Cursor dispatch rule.** The per-repo layer writes the **full built-in agent set** for every harness in `agent_harnesses` (the `agents:` block only *overrides* model/effort — it never decides which agents exist). It is **opt-in**: a repo opts in by declaring an `agents:` block or an `agent_harnesses:` key, in **either** its committed `.docket.yml` or its local `.docket.local.yml`; a repo with neither key set in either file generates no per-repo wrappers and its `--check` stays a no-op. A repo listing `cursor` also gets a generated `.cursor/rules/docket-dispatch.mdc` that forces Cursor to dispatch docket agents instead of running them inline. `sync-agents.sh --check` covers both the generated agents and the dispatch rule.
