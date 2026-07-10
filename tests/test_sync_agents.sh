@@ -401,26 +401,29 @@ rm -rf "$SBX"
 
 # ---- Task 5: docket-convention documents the agent layer -------------------
 CONV="$REPO/skills/docket-convention/SKILL.md"
+AGL="$REPO/skills/docket-convention/references/agent-layer.md"
+assert "agent-layer reference exists" '[ -f "$AGL" ]'
+assert "convention points at the agent-layer reference (blocking)" 'grep -qF "references/agent-layer.md" "$CONV"'
 assert "convention documents the agents: config block" 'grep -q "agents:" "$CONV"'
 assert "convention names the generator sync-agents.sh" 'grep -q "sync-agents.sh" "$CONV"'
 assert "convention states the precedence" 'grep -qi "repo-local > repo-committed > global > built-in" "$CONV"'
-assert "convention states auto => omit effort" 'grep -qi "auto" "$CONV" && grep -qi "omit" "$CONV"'
+assert "agent-layer ref states auto => omit effort" 'grep -qi "auto" "$AGL" && grep -qi "omit" "$AGL"'
 assert "convention states abort-and-report for autonomous subagents" 'grep -qi "abort-and-report" "$CONV"'
 assert "convention points at composition (0017)" 'grep -q "0017" "$CONV"'
 # Non-vacuous guard: the agent section must be a distinct heading, not an incidental word.
 assert "convention has an agent-layer section heading" 'grep -qiE "^#+ .*(agent layer|model/effort|subagent)" "$CONV"'
 
 # 0046: convention documents the harness-first agents: shape (default: + harness keys, field-level fallback).
-assert "0046 doc: convention names the reserved default: key" 'grep -qE "default:" "$CONV" && grep -Pzoq "agents:[\s\S]{0,400}default:" "$CONV"'
-assert "0046 doc: convention shows a per-harness key example (cursor)" 'grep -Pzoq "agents:[\s\S]{0,600}cursor:" "$CONV"'
-assert "0046 doc: convention states field-level fallback H -> default -> built-in" 'grep -qiE "harness.*default.*built-in|<harness>.*default.*built-in" "$CONV"'
-assert "0046 doc: convention notes non-Claude fallback warning" 'grep -qi "default/built-in" "$CONV"'
+assert "0046 doc: agent-layer ref names the reserved default: key" 'grep -qE "default:" "$AGL" && grep -Pzoq "agents:[\s\S]{0,400}default:" "$AGL"'
+assert "0046 doc: agent-layer ref shows a per-harness key example (cursor)" 'grep -Pzoq "agents:[\s\S]{0,600}cursor:" "$AGL"'
+assert "0046 doc: agent-layer ref states field-level fallback H -> default -> built-in" 'grep -qiE "harness.*default.*built-in|<harness>.*default.*built-in" "$AGL"'
+assert "0046 doc: agent-layer ref notes non-Claude fallback warning" 'grep -qi "default/built-in" "$AGL"'
 
 # 0048 doc: convention states per-repo generates the full built-in set (config override-only)
 # and that cursor gets a generated docket-dispatch.mdc rule.
-assert "0048 doc: convention says per-repo writes the full built-in set" 'grep -qiE "full (built-in )?(agent )?set" "$CONV"'
-assert "0048 doc: convention says the agents: block is override-only" 'grep -qi "override-only" "$CONV"'
-assert "0048 doc: convention names the cursor dispatch rule" 'grep -q "docket-dispatch.mdc" "$CONV"'
+assert "0048 doc: agent-layer ref says per-repo writes the full built-in set" 'grep -qiE "full (built-in )?(agent )?set" "$AGL"'
+assert "0048 doc: agent-layer ref says the agents: block is override-only" 'grep -qi "override-only" "$AGL"'
+assert "0048 doc: agent-layer ref names the cursor dispatch rule" 'grep -q "docket-dispatch.mdc" "$AGL"'
 
 # ---- Task 6: advisory recommendation in the interactive skills -------------
 NEWC="$REPO/skills/docket-new-change/SKILL.md"
@@ -518,11 +521,12 @@ rm -rf "$SBX" "$HROOTF"
 
 # Convention documents agent_harnesses + the direct-model-ID (harness-neutral) contract.
 CONV="$REPO/skills/docket-convention/SKILL.md"
+AGL="$REPO/skills/docket-convention/references/agent-layer.md"
 assert "0045 doc: convention names agent_harnesses" 'grep -q "agent_harnesses" "$CONV"'
 assert "0045 doc: convention states default [claude]" 'grep -qE "agent_harnesses.*\[claude\]|default.*\[claude\]" "$CONV"'
-assert "0045 doc: convention states harness-neutral direct model IDs" 'grep -qiE "harness-neutral|direct model id" "$CONV"'
-assert "0045 doc: convention notes passthrough enables non-Claude harnesses" 'grep -qi "passthrough" "$CONV"'
-assert "0045 doc: convention points at ADR-0015 near agent_harnesses" 'grep -Pzoq "agent_harnesses[\s\S]{0,500}ADR-0015|ADR-0015[\s\S]{0,500}agent_harnesses" "$CONV"'
+assert "0045 doc: agent-layer ref states harness-neutral direct model IDs" 'grep -qiE "harness-neutral|direct model id" "$AGL"'
+assert "0045 doc: agent-layer ref notes passthrough enables non-Claude harnesses" 'grep -qi "passthrough" "$AGL"'
+assert "0045 doc: agent-layer ref points at ADR-0015 near agent_harnesses" 'grep -Pzoq "agent_harnesses[\s\S]{0,500}ADR-0015|ADR-0015[\s\S]{0,500}agent_harnesses" "$AGL"'
 
 # (f) a glob-metachar token must NOT expand against the cwd (set -f guard). A decoy
 #     file present in the repo must never leak into the warnings.
@@ -785,10 +789,11 @@ sec="$(awk '/^##[[:space:]].*[Aa]gent.*([Mm]odel|[Ee]ffort)/{f=1;print;next} f&&
 assert "0050 doc: tuning section states sync-agents writes BOTH layers" 'grep -qiE "both" <<<"$sec" && grep -qiE "project (level )?win|project-over-user|project wins" <<<"$sec"'
 # Convention: Configuration documents the three-layer story + the fence.
 CONV="$REPO/skills/docket-convention/SKILL.md"
+AGL="$REPO/skills/docket-convention/references/agent-layer.md"
 assert "0050 doc: convention names config.yml" 'grep -qF "config.yml" "$CONV"'
 assert "0050 doc: convention states the coordination-key fence" 'grep -qi "fence" "$CONV" && grep -qi "per-repo-only" "$CONV"'
-assert "0050 doc: convention Agent layer global row points at config.yml agents: block" \
-  'grep -qE "^\| Global \|.*config\.yml" "$CONV"'
+assert "0050 doc: agent-layer ref Agent layer global row points at config.yml agents: block" \
+  'grep -qE "^\| Global \|.*config\.yml" "$AGL"'
 
 # ---- Change 0051 doc sentinels ----
 assert "0051 doc: README documents .docket.local.yml" 'grep -qF ".docket.local.yml" "$READMEF"'
@@ -797,8 +802,8 @@ assert "0051 doc: README states generated agents are machine-local, never commit
 assert "0051 doc: README documents the docket:generated gitignore block" 'grep -qF "docket:generated" "$READMEF"'
 assert "0051 doc: README documents the migration (git rm --cached / one commit)" 'grep -qiE "migrat" "$READMEF" && grep -qF -e "--cached" "$READMEF"'
 assert "0051 doc: convention documents .docket.local.yml" 'grep -qF ".docket.local.yml" "$CONV"'
-assert "0051 doc: convention states all-local generation (gitignored, never committed)" 'grep -qiE "gitignored, never committed|machine-local, never committed" "$CONV"'
-assert "0051 doc: convention documents the three-leg --check" 'grep -qi "advisory" "$CONV" && grep -qF "docket:generated" "$CONV"'
+assert "0051 doc: agent-layer ref states all-local generation (gitignored, never committed)" 'grep -qiE "gitignored, never committed|machine-local, never committed" "$AGL"'
+assert "0051 doc: agent-layer ref documents the three-leg --check" 'grep -qi "advisory" "$AGL" && grep -qF "docket:generated" "$AGL"'
 assert "0051 doc: sample .docket.yml agents comment states machine-local generation" 'grep -qi "machine-local" "$REPO/.docket.yml"'
 assert "0051 doc: sample .docket.yml drops the stale agents.yaml global reference" '! grep -q "agents.yaml" "$REPO/.docket.yml"'
 
