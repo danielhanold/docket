@@ -403,7 +403,7 @@ rm -rf "$SBX"
 CONV="$REPO/skills/docket-convention/SKILL.md"
 assert "convention documents the agents: config block" 'grep -q "agents:" "$CONV"'
 assert "convention names the generator sync-agents.sh" 'grep -q "sync-agents.sh" "$CONV"'
-assert "convention states the precedence" 'grep -qi "per-repo > global > built-in" "$CONV"'
+assert "convention states the precedence" 'grep -qi "repo-local > repo-committed > global > built-in" "$CONV"'
 assert "convention states auto => omit effort" 'grep -qi "auto" "$CONV" && grep -qi "omit" "$CONV"'
 assert "convention states abort-and-report for autonomous subagents" 'grep -qi "abort-and-report" "$CONV"'
 assert "convention points at composition (0017)" 'grep -q "0017" "$CONV"'
@@ -776,7 +776,7 @@ gsec="$(awk '/^##[[:space:]].*[Gg]lobal config/{f=1;print;next} f&&/^##[[:space:
 assert "0050 doc: README has a Global config section" '[ -n "$gsec" ]'
 assert "0050 doc: §global names the canonical path" 'grep -qF "~/.config/docket/config.yml" <<<"$gsec"'
 assert "0050 doc: §global states the same-schema rule" 'grep -qiE "same schema as .?\.docket\.yml" <<<"$gsec"'
-assert "0050 doc: §global states per-key precedence" 'grep -qiE "per-repo.*>.*global.*>.*built-in" <<<"$gsec"'
+assert "0050 doc: §global states per-key precedence" 'grep -qi "repo-local > repo-committed > global > built-in" <<<"$gsec"'
 assert "0050 doc: §global states coordination keys are per-repo-only" 'grep -qi "per-repo-only" <<<"$gsec"'
 assert "0050 doc: §global names the agents.yaml migration" 'grep -qF "agents.yaml.migrated" <<<"$gsec"'
 assert "0050 doc: §global scopes agent_harnesses to the user-level pass" 'grep -qiE "user-level pass" <<<"$gsec"'
@@ -789,6 +789,18 @@ assert "0050 doc: convention names config.yml" 'grep -qF "config.yml" "$CONV"'
 assert "0050 doc: convention states the coordination-key fence" 'grep -qi "fence" "$CONV" && grep -qi "per-repo-only" "$CONV"'
 assert "0050 doc: convention Agent layer global row points at config.yml agents: block" \
   'grep -qE "^\| Global \|.*config\.yml" "$CONV"'
+
+# ---- Change 0051 doc sentinels ----
+assert "0051 doc: README documents .docket.local.yml" 'grep -qF ".docket.local.yml" "$READMEF"'
+assert "0051 doc: README states generated agents are machine-local, never committed" \
+  'grep -qiE "machine-local" "$READMEF" && grep -qiE "never committed" "$READMEF"'
+assert "0051 doc: README documents the docket:generated gitignore block" 'grep -qF "docket:generated" "$READMEF"'
+assert "0051 doc: README documents the migration (git rm --cached / one commit)" 'grep -qiE "migrat" "$READMEF" && grep -qF -e "--cached" "$READMEF"'
+assert "0051 doc: convention documents .docket.local.yml" 'grep -qF ".docket.local.yml" "$CONV"'
+assert "0051 doc: convention states all-local generation (gitignored, never committed)" 'grep -qiE "gitignored, never committed|machine-local, never committed" "$CONV"'
+assert "0051 doc: convention documents the three-leg --check" 'grep -qi "advisory" "$CONV" && grep -qF "docket:generated" "$CONV"'
+assert "0051 doc: sample .docket.yml agents comment states machine-local generation" 'grep -qi "machine-local" "$REPO/.docket.yml"'
+assert "0051 doc: sample .docket.yml drops the stale agents.yaml global reference" '! grep -q "agents.yaml" "$REPO/.docket.yml"'
 
 # ============================================================================
 # Change 0051 — four-layer per-field agents: resolution; all-local generation.

@@ -31,34 +31,39 @@ board_surfaces: [inline]
 # github_project: {owner: <owner>, number: <n>}  — auto-managed Projects v2 board; minted
 # (private, under the repo owner) and written back here on first `github` sync when unset.
 
-# Which harnesses the per-repo agent pass generates committed wrappers for (change 0045).
-# Default [claude] (byte-identical to before). A Cursor repo would set [claude, cursor] so the
-# committed agents: model config also reaches <repo>/.cursor/agents/. Model IDs pass through
-# verbatim (harness-neutral — a Cursor id like gpt-5.5-medium-fast is emitted as-is). Unknown
-# tokens are warned + dropped. sync-agents.sh --check validates every listed harness's files.
+# Which harnesses the per-repo agent pass generates files for (change 0045; generation went
+# all-local in change 0051 — see below). Default [claude] (byte-identical to before). A Cursor
+# repo would set [claude, cursor] so the agents: model config also reaches <repo>/.cursor/agents/.
+# Model IDs pass through verbatim (harness-neutral — a Cursor id like gpt-5.5-medium-fast is
+# emitted as-is). Unknown tokens are warned + dropped. This key (like agents: below) can also be
+# set in .docket.local.yml — see that file's note. sync-agents.sh --check validates every listed
+# harness's files.
 # agent_harnesses: [claude]
 
 # Per-skill subagent model/effort (change 0016), harness-first (change 0046). Generated into agent
 # wrappers by sync-agents.sh. Keys are skill SHORT names nested under a reserved `default:` (the
 # harness-neutral fallback) and, optionally, per-harness override keys (e.g. `cursor:`) that only
 # need to list the fields that differ; resolution is field-by-field: agents.<harness>.<agent> ->
-# agents.default.<agent> -> shipped built-in (agents/docket-*.md). Precedence across layers is
-# per-repo (this block) > global (~/.config/docket/agents.yaml, same harness-first shape but at the
-# FILE's top level — no `agents:` wrapper) > built-in. `effort: auto` explicitly drops the effort
-# line (inherit the model default); omitting the `effort:` key instead keeps the built-in effort —
-# auto and omitted are NOT equivalent. Only the 5 autonomous skills have
-# wrappers; new-change/groom-next are advisory-only and ignore this block. Configuring a skill
-# here overrides its model/effort in the COMMITTED project-level .<harness>/agents/docket-<skill>.md
-# — which is generated for every built-in regardless (full set; this block is override-only). Run
-# `sync-agents.sh` after editing, and `sync-agents.sh --check` in CI to catch drift.
+# agents.default.<agent> -> shipped built-in (agents/docket-*.md). Precedence across layers, per
+# field (change 0051): this repo's .docket.local.yml (machine-local, gitignored, highest) > this
+# block (repo-committed) > global (the agents: block in ~/.config/docket/config.yml) > built-in.
+# `effort: auto` explicitly drops the effort line (inherit the model default); omitting the
+# `effort:` key instead keeps the built-in effort — auto and omitted are NOT equivalent. Only the
+# 5 autonomous skills have wrappers; new-change/groom-next are advisory-only and ignore this block.
+# Configuring a skill here overrides its model/effort in the generated, machine-local
+# .<harness>/agents/docket-<skill>.md — which is regenerated for every built-in regardless (full
+# set; this block is override-only), gitignored via a managed .gitignore block, and never
+# committed. Run `sync-agents.sh` after editing, and `sync-agents.sh --check` in CI to catch a
+# missing/stale .gitignore block or an accidentally-tracked generated file (content drift itself is
+# advisory only — every clone regenerates its own copy).
 #
 # The per-repo pass writes the FULL built-in agent set for every harness in agent_harnesses; this
 # block is OVERRIDE-ONLY (tunes model/effort, never decides which agents exist). Per-repo generation
-# is OPT-IN: declare this agents: block OR an agent_harnesses: key to opt in; a .docket.yml present
-# for change-tracking only (neither key — like this repo) commits no per-repo wrappers and its
-# --check stays a no-op. A `cursor` harness additionally gets a generated
-# .cursor/rules/docket-dispatch.mdc dispatch rule. sync-agents.sh prunes orphaned docket-* files;
-# --check spans the agents and the rule.
+# is OPT-IN: declare this agents: block OR an agent_harnesses: key, in EITHER this file or
+# .docket.local.yml, to opt in; a .docket.yml present for change-tracking only, with neither key
+# set anywhere (like this repo), generates no per-repo wrappers and its --check stays a no-op. A
+# `cursor` harness additionally gets a generated .cursor/rules/docket-dispatch.mdc dispatch rule.
+# sync-agents.sh prunes orphaned docket-* files; --check spans the agents and the rule.
 #
 # agents:                                # harness-first: reserved default: + harness-name keys (change 0046)
 #   default:                             # neutral fallback (field-level: <harness> -> default -> built-in)

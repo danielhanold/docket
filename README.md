@@ -62,7 +62,7 @@ bash ~/dev/docket/install.sh
 That's the whole install. `install.sh` runs the three primitives in order — and is idempotent, so re-run it any time (after adding a harness, or after editing `~/.config/docket/config.yml`):
 
 - **`link-skills.sh`** creates absolute symlinks from each present harness's global skill directory back to `~/dev/docket/skills/<name>`. It only writes into harness directories that already exist on your machine. Skills are symlinks, so editing one in the repo is picked up everywhere immediately.
-- **`sync-agents.sh`** generates docket's model/effort-pinned subagent wrappers from layered config (built-in defaults ⊕ the `agents:` block in `~/.config/docket/config.yml` ⊕ a repo's `.docket.yml` `agents:` block) into each present harness's `agents/` directory, and writes committed project-level wrappers for any repo that opts in (via an `agents:` block or an `agent_harnesses:` key). Unlike the skill symlinks, these are generated **copies** (they bake in resolved model/effort), so re-run after editing any config layer — `install.sh` does this for you, or call `sync-agents.sh` directly. Run `sync-agents.sh --check` in CI to fail on drift.
+- **`sync-agents.sh`** generates docket's model/effort-pinned subagent wrappers from layered config (built-in defaults ⊕ global `config.yml` ⊕ a repo's committed `.docket.yml` ⊕ that repo's `.docket.local.yml`) into each present harness's `agents/` directory, and for any repo that opts in (via an `agents:` block or an `agent_harnesses:` key, in either file) writes the full per-repo agent set as **machine-local, gitignored** files — never committed. Unlike the skill symlinks, these are generated **copies** (they bake in resolved model/effort), so re-run after editing any config layer — `install.sh` does this for you, or call `sync-agents.sh` directly. Run `sync-agents.sh --check` in CI to catch a missing/stale `.gitignore` block or an accidentally-tracked generated file.
 - **`ensure-docket-env.sh`** exports `DOCKET_SCRIPTS_DIR` — the absolute path to docket's `scripts/` directory — into your shell profile (and Claude Code's user-level `settings.json` `env`), so every docket skill can reach its deterministic helper scripts from *any* repo, not just this clone. Re-running `install.sh` back-fills already-migrated repos. Without it the skills fail loud with the `run docket/install.sh` remedy rather than silently hand-working each operation.
 
 (You can still run any primitive on its own — `install.sh` just saves you from remembering all three.) Migrating an *existing* repo to docket-mode is a separate step — `migrate-to-docket.sh`, run from inside that repo — not part of this machine install.
@@ -96,9 +96,11 @@ With no `.docket.yml` at all, docket runs in its default **docket-mode** (`metad
 
 `.docket.yml` is committed (not gitignored) because it governs cross-agent coordination.
 
-## Global config (`~/.config/docket/config.yml`)
+## Global config (`~/.config/docket/config.yml`) and the machine-local layer
 
-Cross-repo defaults live in one optional user-level file: `${XDG_CONFIG_HOME:-~/.config}/docket/config.yml`. It accepts the **same schema as `.docket.yml`**, and every key resolves **per key**, with precedence **per-repo > global > built-in**: a repo's committed `.docket.yml` wins, then this global `config.yml`, then the built-in default. Map-valued keys (`skills:`, `agents:`) merge field-by-field with the same precedence.
+Every key resolves **per key**, across up to four layers, with precedence **repo-local > repo-committed > global > built-in**: a repo's own `.docket.local.yml` (this machine only) wins first, then that repo's committed `.docket.yml` (every clone), then the cross-repo global `config.yml` (this machine, every repo), then the built-in default. Map-valued keys (`skills:`, `agents:`) merge field-by-field with the same precedence.
+
+Cross-repo defaults live in one optional user-level file: `${XDG_CONFIG_HOME:-~/.config}/docket/config.yml`. It accepts the **same schema as `.docket.yml`**.
 
 ```yaml
 # ~/.config/docket/config.yml — optional; applies to every repo on this machine.
@@ -113,14 +115,38 @@ finalize:
   gate: local
 board_surfaces: [inline]     # the github token is per-repo-only and ignored here (see below)
 agent_harnesses: [claude]    # scopes sync-agents.sh's user-level pass ONLY (overrides
-                             # presence-on-disk detection); never the per-repo committed pass
+                             # presence-on-disk detection); never the per-repo generation pass
 ```
 
-**Coordination keys are per-repo-only.** Keys whose effect writes shared state — `metadata_branch`, `integration_branch`, `changes_dir`, `adrs_dir`, `results_dir`, `github_project`, and the `github` token of `board_surfaces` — are ignored with a loud warning when set globally: a global value for these would silently split the backlog across machines or mint external GitHub objects. Set them in the repo's committed `.docket.yml`.
+**Coordination keys are per-repo-only.** Keys whose effect writes shared state — `metadata_branch`, `integration_branch`, `changes_dir`, `adrs_dir`, `results_dir`, `github_project`, and the `github` token of `board_surfaces` — are ignored with a loud warning when set globally **or** in a repo's `.docket.local.yml`: a machine-scoped value for these would silently split the backlog across machines or mint external GitHub objects. Set them in the repo's committed `.docket.yml` only.
 
-**Misplacement fails loud.** A `~/.config/docket/.docket.yml` is never read — `docket-config.sh` warns and points at `config.yml`. A malformed/unreadable `config.yml` warns and falls back to built-ins for the global layer (per-repo config is still honored — a broken personal file never bricks a repo).
+**Misplacement fails loud.** A `~/.config/docket/.docket.yml` is never read — `docket-config.sh` warns and points at `config.yml`. A malformed/unreadable `config.yml` (or `.docket.local.yml`) warns and falls back to built-ins for that layer only — the repo, and its other layers, are still honored; a broken personal or machine file never bricks a repo.
 
 **Migrating from `agents.yaml`.** The old single-purpose global file (`~/.config/docket/agents.yaml`) is migrated automatically: the next `sync-agents.sh` (or `install.sh`) run rewrites it under `agents:` in `config.yml` and renames the original to `agents.yaml.migrated`. Nothing reads the old file after migration.
+
+### `.docket.local.yml` — the machine-local layer
+
+`<repo>/.docket.local.yml` is an optional, **gitignored** sibling of the repo's committed `.docket.yml` — a machine-*and*-repo-scoped override that never leaves this clone: a personal model preference, a local `finalize.test_command`, or a way to try `agent_harnesses` before committing it for the team. It accepts exactly the same **global-able** key set as `config.yml` above — the coordination-key fence applies here too, verbatim: a fenced key set locally is loudly warned-and-ignored, never honored, never fatal.
+
+```yaml
+# <repo>/.docket.local.yml — optional, gitignored; overrides ONLY on this machine, for this repo.
+# Accepts the same global-able keys as ~/.config/docket/config.yml. Fenced keys (metadata_branch,
+# integration_branch, changes_dir, adrs_dir, results_dir, github_project, and board_surfaces'
+# github token) are warned-and-ignored here too — set those in the committed .docket.yml instead.
+skills:
+  build: auto
+agents:
+  default:
+    implement-next: { model: claude-opus-4-8, effort: xhigh }
+agent_harnesses: [claude]     # can opt a tracking-only repo into per-repo agent generation on
+                              # its own, without touching the committed .docket.yml
+finalize:
+  gate: local
+auto_groom: false
+board_surfaces: [inline]      # the github token is fenced here too — per-repo-only
+```
+
+Its own path (and every file `sync-agents.sh` generates) is kept out of git by a managed `# docket:generated` block the script owns in the repo's `.gitignore` — see **Tuning an agent's model & effort** below.
 
 ---
 
@@ -250,10 +276,11 @@ This reproduces the original single-branch behavior **exactly**: no `docket` bra
 
 Each **autonomous** docket skill runs as a model/effort-pinned subagent (`docket-implement-next`, `docket-auto-groom`, `docket-finalize-change`, `docket-status`, `docket-adr`; the two interactive skills, `docket-new-change` and `docket-groom-next`, stay inline and only surface an advisory recommendation). To change the model or effort one of them runs at:
 
-**1. Edit a config layer.** Two layers override the built-in defaults (precedence: per-repo > global > built-in):
+**1. Edit a config layer.** Up to three layers override the built-in default, resolved per field (precedence: repo-local > repo-committed > global > built-in):
 
 - **Global** — the `agents:` block in `~/.config/docket/config.yml` (user-level; applies to every repo on your machine; the legacy `agents.yaml` is auto-migrated into it — see **Global config** above).
-- **Per-repo** — the `agents:` block in a repo's committed `.docket.yml` (applies to that repo for every clone and agent, so an autonomous change builds on the same model everywhere).
+- **Repo-committed** — the `agents:` block in a repo's committed `.docket.yml` (applies to that repo for every clone and agent).
+- **Repo-local** — the `agents:` block in that repo's `.docket.local.yml` (this machine only; wins over the committed value for this clone — see **`.docket.local.yml`** above).
 
 The config **shape** — the `agents:` keys and how `model:`/`effort:` are written — is documented once in docket-convention's **"Agent layer"**; consult it there rather than copying field examples here, so the shape has a single source of truth and stays current as it evolves.
 
@@ -266,13 +293,22 @@ bash sync-agents.sh        # or re-run install.sh, which calls it for you
 ```
 
 - A **global** edit rewrites user-level wrappers into every **present** harness root (`~/.<harness>/agents/`, e.g. `~/.claude/agents/`).
-- A **per-repo** edit rewrites the committed **project-level** wrappers for each harness in that repo's `.docket.yml` `agent_harnesses:` list (default `[claude]`; e.g. `[claude, cursor]` for a repo that also drives Cursor).
+- A **repo-committed or repo-local** edit rewrites that repo's per-repo wrappers for each harness in its (local-then-committed) `agent_harnesses:` list (default `[claude]`; e.g. `[claude, cursor]` for a repo that also drives Cursor).
 
-Note `sync-agents.sh` always writes **both** layers in one run — user-level wrappers into each targeted harness root AND (for opted-in repos) committed project-level wrappers — with the project level winning at runtime. Seeing files appear in your repo after a "global" edit is that second pass, not a misfire: the committed copies are what make an autonomous change build on the same model for every clone.
+Note `sync-agents.sh` always writes **both** passes in one run — user-level wrappers into each targeted harness root AND (for opted-in repos) per-repo wrappers — project wins over global at generation time, per the four-layer precedence above.
 
-**3. Guard drift in CI.** `sync-agents.sh --check` exits non-zero (with a diff) when the committed project-level wrappers have fallen out of sync with the resolved config — wire it into CI so a config edit that was never regenerated fails the build instead of silently drifting.
+**Generated per-repo agent files are machine-local — gitignored, never committed.** Unlike a repo's committed `.docket.yml`, `<repo>/.<harness>/agents/docket-*.md` (and, for Cursor, `docket-dispatch.mdc`) are regenerated on every machine from that machine's own resolved config; they carry no team intent of their own — the committed `agents:` block is the artifact that does. `sync-agents.sh` owns a marker-bounded `# docket:generated` block in the repo's `.gitignore`, covering every file it can generate for every harness (plus `.docket.local.yml` itself); it creates or repairs that block the moment a repo opts in — declares an `agents:` block or an `agent_harnesses:` key, in either file, or merely carries a `.docket.local.yml` — and prints a loud one-time notice to **commit it once**. After that the block is invisible plumbing.
 
-**Always the full set, plus a Cursor dispatch rule.** The per-repo layer writes the **full built-in agent set** for every harness in `agent_harnesses` (the `agents:` block only *overrides* model/effort — it never decides which agents exist). It is **opt-in**: a repo opts in by declaring an `agents:` block or an `agent_harnesses:` key; a `.docket.yml` present for change-tracking only (neither key) commits no per-repo wrappers and its `--check` stays a no-op. A repo listing `cursor` also gets a generated `.cursor/rules/docket-dispatch.mdc` that forces Cursor to dispatch docket agents instead of running them inline. `sync-agents.sh --check` covers both the generated agents and the dispatch rule.
+**Migrating a pre-0051 repo.** Repos that predate this (change 0048 committed the per-repo files directly) get a one-time, automatic migration on the next `sync-agents.sh` run: it deletes the stale tracked copies from the working tree, writes the `.gitignore` block, regenerates the local set fresh, and prints the single remedy commit to run — `git rm -r --cached '.claude/agents/docket-*.md' … && git add .gitignore && git commit -m "…"` — so the repo converges in one commit per clone.
+
+**3. Guard drift in CI.** `sync-agents.sh --check` is a three-part gate:
+
+- The `.gitignore` `docket:generated` block is present and current, **and** no per-repo generated file is tracked by git — both are **CI-meaningful** (`rc != 0` fails the build; the second leg also catches a repo whose migration commit never happened).
+- Generated content drifting from the resolved config is **advisory only** (`rc` unaffected) — every clone regenerates its own copy at build time, so a stale local file is a nudge to re-run `sync-agents.sh`, not a CI failure.
+
+**Always the full set, plus a Cursor dispatch rule.** The per-repo layer writes the **full built-in agent set** for every harness in `agent_harnesses` (the `agents:` block only *overrides* model/effort — it never decides which agents exist). It is **opt-in**: a repo opts in by declaring an `agents:` block or an `agent_harnesses:` key, in **either** its committed `.docket.yml` or its local `.docket.local.yml`; a repo with neither key set in either file generates no per-repo wrappers and its `--check` stays a no-op. A repo listing `cursor` also gets a generated `.cursor/rules/docket-dispatch.mdc` that forces Cursor to dispatch docket agents instead of running them inline. `sync-agents.sh --check` covers both the generated agents and the dispatch rule.
+
+**The clone-identical guarantee is retired.** Before this change, committing the generated per-repo files meant an autonomous change built on the exact same model on every clone, by construction. Generation is now all-local, so that guarantee is gone — a deliberate trade, not an oversight: never having to reconcile a machine-generated file in a PR diff, at the cost of no CI-enforced pinning of the generated copies. Team defaults for a repo still live in its committed `.docket.yml` `agents:` block, by convention.
 
 ---
 
