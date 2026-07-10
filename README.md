@@ -86,7 +86,7 @@ finalize:                    # merge gate: rebase onto base + re-test before doc
   gate: local                # local (default) | ci | both | off
   # test_command:            # unset => finalize auto-detects the suite
   # require_pr_approval: false  # true => the no-arg finalize refuses to merge an unapproved PR
-# agent_harnesses: [claude]  # harnesses the per-repo agent pass generates committed wrappers for
+# agent_harnesses: [claude]  # harnesses the per-repo agent pass generates machine-local files for
 # agents:                    # per-skill subagent model/effort (see "Agent layer" in docket-convention)
 # skills:                    # rebind the five workflow roles — brainstorm/plan/build/review/finish — to
 #                            # any skill name or `auto` (see "Skill layer" in docket-convention)
