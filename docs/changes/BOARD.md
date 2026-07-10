@@ -1,12 +1,6 @@
 # Backlog
 
-**57 changes** — 🟢 1 in progress · 🟡 12 proposed · 🔵 1 implemented · ✅ 41 done · 🗑️ 2 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0053](active/0053-slim-convention-status-skills.md) | Slim docket-convention + docket-status via progressive disclosure | `medium` | [spec](../superpowers/specs/2026-07-10-docket-skill-slimming-design.md) | `feat/slim-convention-status-skills` |
+**57 changes** — 🟡 12 proposed · 🔵 2 implemented · ✅ 41 done · 🗑️ 2 killed
 
 ## 🟡 Proposed (12)
 
@@ -20,16 +14,17 @@
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | build-ready |
-| [0054](active/0054-slim-finalize-change-skill.md) | Slim docket-finalize-change — rewire close-out to the shared reference | `medium` | ⏳ waiting on #53 — not yet built |
-| [0055](active/0055-slim-remaining-skills.md) | Slim docket-implement-next + propagate Step-0 preamble to the small skills | `medium` | ⏳ waiting on #53 — not yet built |
+| [0054](active/0054-slim-finalize-change-skill.md) | Slim docket-finalize-change — rewire close-out to the shared reference | `medium` | ⏳ waiting on #53 — needs your merge |
+| [0055](active/0055-slim-remaining-skills.md) | Slim docket-implement-next + propagate Step-0 preamble to the small skills | `medium` | ⏳ waiting on #53 — needs your merge |
 | [0056](active/0056-consultant-brainstorm.md) | Consultant-authored brainstorm — opt-in pinned design agent for the brainstorm role | `medium` | build-ready |
 | [0057](active/0057-docket-owned-gitignore-consolidation.md) | Fold the migration-time .gitignore entries into the managed docket:generated block | `low` | build-ready |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
 | [0052](active/0052-readme-doc-critic-refresh.md) | README doc-critic refresh — accuracy, structure, newcomer clarity (post-0051) | `medium` | [#61](https://github.com/danielhanold/docket/pull/61) |
+| [0053](active/0053-slim-convention-status-skills.md) | Slim docket-convention + docket-status via progressive disclosure | `medium` | [#62](https://github.com/danielhanold/docket/pull/62) |
 
 ```mermaid
 graph TD
