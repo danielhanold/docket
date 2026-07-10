@@ -2,10 +2,10 @@
 id: 52
 slug: readme-doc-critic-refresh
 title: README doc-critic refresh — accuracy, structure, newcomer clarity (post-0051)
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-07-09
-updated: 2026-07-09
+updated: 2026-07-10
 depends_on: [51]
 related: [45, 46, 47, 50, 51]
 adrs: [15, 19]
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/readme-doc-critic-refresh
 pr:
 blocked_by:
 reconciled: false
