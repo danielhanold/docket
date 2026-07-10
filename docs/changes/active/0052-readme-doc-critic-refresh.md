@@ -10,7 +10,7 @@ depends_on: [51]
 related: [45, 46, 47, 50, 51]
 adrs: [15, 19, 20]
 spec: docs/superpowers/specs/2026-07-09-readme-doc-critic-refresh-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-10-readme-doc-critic-refresh.md
 results:
 trivial: false
 auto_groomable:
@@ -26,6 +26,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-09-readme-doc-critic-refresh-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-09-readme-doc-critic-refresh-design.md) |
+| Plan | [2026-07-10-readme-doc-critic-refresh.md](https://github.com/danielhanold/docket/blob/feat/readme-doc-critic-refresh/docs/superpowers/plans/2026-07-10-readme-doc-critic-refresh.md) |
 | ADRs | [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md), [ADR-0019](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0019-global-config-fence-classification.md), [ADR-0020](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0020-generated-agent-artifacts-machine-local.md) |
 <!-- docket:artifacts:end -->
 
