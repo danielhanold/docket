@@ -9,7 +9,7 @@ updated: 2026-07-10
 depends_on: [51]
 related: [51]
 adrs: [20]
-spec:
+spec: docs/superpowers/specs/2026-07-10-docket-owned-gitignore-consolidation-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Spec | [2026-07-10-docket-owned-gitignore-consolidation-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-10-docket-owned-gitignore-consolidation-design.md) |
 | ADRs | [ADR-0020](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0020-generated-agent-artifacts-machine-local.md) |
 <!-- docket:artifacts:end -->
 
@@ -42,27 +43,41 @@ should plausibly live in the one marker-bounded, self-healing place.
 
 ## What changes
 
-Fold the three migration-time entries into the managed `docket:generated` block (or
-explicitly decide not to, recording why) so a single docket-owned, self-healing section of
-`.gitignore` carries every ignore docket needs.
+Full consolidation: the managed block becomes the single home for ALL docket-owned ignores.
+The block's emitted content is a pure constant (core entries + the static harness roster),
+so a shared emitter gives byte-identical output from every writer — the "second roster"
+fear dissolves.
+
+- New sourceable `scripts/lib/docket-gitignore-block.sh` owns the mechanics: the canonical
+  harness roster (moved from `sync-agents.sh`, which sources it), the marker constants, the
+  constant emitter (`.docket/`, `.worktrees/`, `.claude/settings.local.json`,
+  `.docket.local.yml`, roster patterns), and the hardened ensure (closed-block guard on both
+  marker spellings, legacy upgrade, outside-bytes invariant, dedup advisory). Trigger policy
+  stays with the callers.
+- Markers renamed — `# docket:start (managed by docket — do not hand-edit)` /
+  `# docket:end` — with a one-time in-place upgrade of the day-old 0051
+  `docket:generated` block; a dangling marker of either spelling refuses-and-warns.
+- Three writers: `migrate-to-docket.sh` step 5 seeds the block instead of bare lines (and
+  removes the three bare entries it historically wrote); `docket-config.sh --bootstrap`
+  seeds it on `CREATE_ORPHAN` (write + loud COMMIT-THIS notice, no auto-commit — closes the
+  fresh-repo gap where bootstrapped repos got no ignores at all); `sync-agents.sh`
+  self-heals with a widened trigger (opted-in, `.docket.local.yml`, the bootstrap guard's
+  `DOCKET` branch probe, or heal-if-present).
+- In already-migrated repos the healer never deletes the old bare lines outside the block
+  (they could be user-authored) — it logs a safe-to-delete advisory; duplicates are
+  harmless.
+- Prose sweep: every `docket:generated` reference in docket-convention, README,
+  migrate header comments, and `docket-config.md` updates; ADR-0020 decision 3 gets a dated
+  `## Update` via this change's `adrs:` listing.
 
 ## Out of scope
 
 - Any change to which agent artifacts are generated or where (ADR-0020 semantics stay).
-- Ignoring anything beyond the three existing migration entries + the 0051 block patterns.
-
-## Open questions
-
-- The 0051 block is written only for agent-opted-in repos or repos carrying a
-  `.docket.local.yml`; the three migration entries are needed by EVERY docket-mode repo.
-  Either `migrate-to-docket.sh` seeds the block too (a second writer of a block
-  `sync-agents.sh` currently owns exclusively — needs a shared emitter to avoid a second
-  roster) or the block's write trigger widens (which would touch `.gitignore` in
-  tracking-only repos, against the learned zero-surprise-writes posture from change 0048).
-- Dedup/migration story for existing repos that already carry the bare entries outside the
-  block: leave harmless duplicates, or remove the old lines when the block adopts them?
-- `.claude/settings.local.json` is written by `ensure-claude-settings.sh`, not generation —
-  does it belong in a "generated" block, or does the block need a broader name/section?
+- Ignoring anything beyond the three existing migration entries + `.docket.local.yml` +
+  the 0051 block patterns.
+- `ensure-claude-settings.sh` (the block now guarantees its ignore in docket-mode).
+- Tracking-only main-mode repos still get no ignores — status quo preserved, accepted gap.
+- `link-skills.sh`'s duplicate harness-dir list — noted divergence, not consolidated here.
 
 ## Reconcile log
 
