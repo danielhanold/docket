@@ -1,6 +1,6 @@
 # docket
 
-docket keeps a backlog of planned work as plain markdown files that live inside your repo, and ships a set of agent skills that work that backlog for you. Each unit of work is a **change** — one markdown file, roughly one pull request's worth of work, with a status that moves through a fixed lifecycle. You design changes interactively with Claude; an autonomous implementer skill picks them up one at a time and drains them to open pull requests; you stay in control at the merge gate. It is all coordinated through git — there is no CLI to install and no database to run.
+docket keeps a backlog of planned work as plain markdown files that live inside your repo, and ships a set of agent skills that work that backlog for you. Each unit of work is a **change** — one markdown file, roughly one pull request's worth of work, with a status that moves through a fixed lifecycle. You design changes interactively with Claude; an autonomous implementer skill drains them to open pull requests one at a time, and you stay in control at the merge gate — all coordinated through git, with no CLI to install and no database to run.
 
 What you get:
 
@@ -58,7 +58,7 @@ One honest caveat: dependency chains serialize on the merge gate. A change that 
 
 If you already use Claude Code, you have probably felt the gap docket fills.
 
-**superpowers gives you excellent execution but no memory.** Its workflow — brainstorm → spec → plan → TDD → code review → merge — runs beautifully, but all inside a single invocation. It has no notion of a tracked backlog or a "done" state that outlives the session. Every session starts from a blank slate.
+**superpowers gives you excellent execution but no memory.** Its workflow — brainstorm → spec → plan → TDD → code review → merge — runs well, but all inside a single invocation. It has no notion of a tracked backlog or a "done" state that outlives the session. Every session starts from a blank slate.
 
 **OpenSpec-style tools close that gap, but heavily.** They add a full living-spec lifecycle — at the cost of a CLI dependency and a rigid markdown contract that not every project wants to adopt.
 
@@ -128,7 +128,7 @@ The change data — `docs/changes/`, `docs/adrs/`, `docs/results/` — lives in 
 
 ## Quickstart: the daily loop
 
-Once docket is installed and your repo is in docket-mode, a day of work is a handful of skill invocations you make (by name) in a Claude Code session opened in that repo.
+Once docket is installed and your repo is in [docket-mode](#docket-mode-where-metadata-lives) (planning metadata on its own branch), a day of work is a handful of skill invocations you make (by name) in a Claude Code session opened in that repo.
 
 **1. Capture work — `docket-new-change`.** Describe an idea; docket brainstorms it with you into a build-ready change — a spec, dependencies noted — and commits the change file to the backlog. Run it whenever an idea lands; the backlog is durable, so you can capture now and implement later.
 
@@ -363,7 +363,7 @@ bash sync-agents.sh        # or re-run install.sh, which calls it for you
 - A **global** edit rewrites user-level wrappers into every **present** harness root (`~/.<harness>/agents/`, e.g. `~/.claude/agents/`).
 - A **repo-committed or repo-local** edit rewrites that repo's per-repo wrappers for each harness in its (local-then-committed) `agent_harnesses:` list (default `[claude]`; e.g. `[claude, cursor]` for a repo that also drives Cursor).
 
-Note that `sync-agents.sh` always writes **both** passes in one run — user-level wrappers into each targeted harness root AND (for opted-in repos) per-repo wrappers — and project wins over global at generation time, per the four-layer precedence above.
+`sync-agents.sh` always writes **both** passes in one run — user-level wrappers into each targeted harness root AND (for opted-in repos) per-repo wrappers — and project wins over global at generation time, per the four-layer precedence above.
 
 **Generated per-repo agent files are machine-local — gitignored, never committed.** Unlike a repo's committed `.docket.yml`, `<repo>/.<harness>/agents/docket-*.md` (and, for Cursor, `docket-dispatch.mdc`) are regenerated on every machine from that machine's own resolved config; they carry no team intent of their own — the committed `agents:` block is the artifact that does. `sync-agents.sh` owns a marker-bounded `# docket:generated` block in the repo's `.gitignore`, covering every file it can generate for every harness (plus `.docket.local.yml` itself); it creates or repairs that block the moment a repo opts in — declares an `agents:` block or an `agent_harnesses:` key, in either file, or merely carries a `.docket.local.yml` — and prints a loud one-time notice to **commit it once**. After that the block is invisible plumbing.
 
