@@ -4,6 +4,17 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-07-10 (#52, PR #61) — A critique-driven README rewrite audited hard against its three named
+  goals (accuracy, structure, newcomer clarity) and shipped clean — but a dimension *outside* that
+  goal set slipped through: the prose stayed Claude-centric for a tool that first-classes three
+  agent harnesses (Claude Code, Cursor, Codex), and the owner caught it at the merge gate, not the
+  build. The accuracy audit verified every claim was *true*, which a single-harness framing can be.
+  Apply: a goal-scoped rewrite only examines the dimensions in its goal set — anything outside it
+  (here, harness-neutrality) passes through unaudited even when every claim is correct. When
+  documenting a multi-harness/multi-backend tool, add "neutral across the supported set" as an
+  explicit rewrite goal, and default narrative examples to the *neutral* term, naming a specific
+  harness only when the mechanic is genuinely specific to it.
+
 - 2026-07-10 (#51, PR #60) — A managed block bounded by `# docket:generated:start/end` markers
   turned an awk **range** edit into a data-loss hazard: when the end marker was lost (truncation
   or a bad merge), `/start/,/end/` ran to EOF and silently deleted the user's own `.gitignore`
