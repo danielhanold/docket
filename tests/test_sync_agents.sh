@@ -809,11 +809,14 @@ assert "0050 doc: agent-layer ref Agent layer global row points at config.yml ag
 assert "0051 doc: README documents .docket.local.yml" 'grep -qF ".docket.local.yml" "$READMEF"'
 assert "0051 doc: README states generated agents are machine-local, never committed" \
   'grep -qiE "machine-local" "$READMEF" && grep -qiE "never committed" "$READMEF"'
-assert "0051 doc: README documents the docket:generated gitignore block" 'grep -qF "docket:generated" "$READMEF"'
+assert "0057 doc: README documents the managed docket .gitignore block" 'grep -qF "# docket:start" "$READMEF" || grep -qE "managed .docket. block" "$READMEF"'
+assert "0057 doc: README no longer names the legacy docket:generated block" '! grep -qF "docket:generated" "$READMEF"'
 assert "0051 doc: README documents the migration (git rm --cached / one commit)" 'grep -qiE "migrat" "$READMEF" && grep -qF -e "--cached" "$READMEF"'
 assert "0051 doc: convention documents .docket.local.yml" 'grep -qF ".docket.local.yml" "$CONV"'
 assert "0051 doc: agent-layer ref states all-local generation (gitignored, never committed)" 'grep -qiE "gitignored, never committed|machine-local, never committed" "$AGL"'
-assert "0051 doc: agent-layer ref documents the three-leg --check" 'grep -qi "advisory" "$AGL" && grep -qF "docket:generated" "$AGL"'
+assert "0057 doc: agent-layer ref documents the managed docket block (new marker)" 'grep -qF "# docket:start" "$AGL" || grep -qi "managed docket .gitignore block" "$AGL"'
+assert "0057 doc: agent-layer ref documents the check via the managed block" 'grep -qi "advisory" "$AGL"'
+assert "0057 doc: agent-layer ref no longer names docket:generated" '! grep -qF "docket:generated" "$AGL"'
 assert "0051 doc: sample .docket.yml agents comment states machine-local generation" 'grep -qi "machine-local" "$REPO/.docket.yml"'
 assert "0051 doc: sample .docket.yml drops the stale agents.yaml global reference" '! grep -q "agents.yaml" "$REPO/.docket.yml"'
 

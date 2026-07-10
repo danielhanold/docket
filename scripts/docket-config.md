@@ -176,9 +176,17 @@ Guarded strictly to the `¬DOCKET ∧ ¬LIVE` cell. When `--bootstrap` is passed
    metadata branch'` (requires `user.name`/`user.email` to be set; aborts if not).
 3. Pushes the commit directly to `origin/refs/heads/docket` (no local branch created).
 4. Fetches `origin docket` to populate `refs/remotes/origin/docket`.
-5. Re-reports `BOOTSTRAP=PROCEED` — the repo is now migrated; the caller may proceed.
+5. Seeds the managed `# docket` `.gitignore` block in the primary tree (`ensure_docket_gitignore_block`,
+   change 0057) — closing the fresh-repo gap where a repo bootstrapped straight into docket-mode
+   would otherwise never get the block from `migrate-to-docket.sh`. Prints a loud
+   `COMMIT THIS` notice to stderr; it does **not** auto-commit — bootstrap runs inside a skill's
+   startup, and committing to the user's integration branch from a config script crosses a
+   write-scope line docket holds. The `.gitignore` is left modified but unstaged.
+6. Re-reports `BOOTSTRAP=PROCEED` — the repo is now migrated; the caller may proceed.
 
-In every other cell (`STOP_MIGRATE`, `PROCEED`, or `main`-mode), `--bootstrap` is a no-op.
+In every other cell (`STOP_MIGRATE`, `PROCEED`, or `main`-mode), `--bootstrap` is a no-op. `--export`
+without `--bootstrap` remains strictly read-only in every cell — it never touches `.gitignore` or
+any other file; only the `--bootstrap` orphan-create write path (above) writes.
 
 ### Emit
 
@@ -229,9 +237,9 @@ emits no `KEY=value` output.
 
 ## Invariants
 
-- **Read-only by default.** The only write (`create_orphan`) is opt-in via `--bootstrap`
-  and guarded to `¬DOCKET ∧ ¬LIVE`. Fetch and `remote set-head` are the sole side effects
-  of a plain `--export` call.
+- **Read-only by default.** The only writes (`create_orphan`, and seeding the managed
+  `.gitignore` block) are opt-in via `--bootstrap` and guarded to `¬DOCKET ∧ ¬LIVE`. Fetch
+  and `remote set-head` are the sole side effects of a plain `--export` call.
 - **Abort keys on fetch/set-head return code, never on `git show`.** A cached `origin/HEAD`
   would let `git show` succeed with stale bytes even after the remote is destroyed. All
   abort decisions precede the `git show` call.

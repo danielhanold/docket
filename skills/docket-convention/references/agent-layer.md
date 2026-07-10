@@ -100,9 +100,10 @@ committed `.docket.yml` or its `.docket.local.yml`; a repo with neither key set 
 generates no per-repo wrappers and its `--check` stays a no-op — pre-0048 behavior for
 tracking-only repos. The generated files themselves are **gitignored, never committed** —
 `<repo>/.<H>/agents/docket-*.md` (and the dispatch rule below) are regenerated from each machine's
-own resolved config, not shared through git. `sync-agents.sh` owns a marker-bounded
-`# docket:generated` block in the repo's `.gitignore`, covering every pattern it can generate for
-every harness (plus `.docket.local.yml` itself); it writes or repairs that block the moment a repo
+own resolved config, not shared through git. `sync-agents.sh` maintains the marker-bounded
+`# docket:start` / `# docket:end` block in the repo's `.gitignore`, covering every docket-owned
+path, including every pattern it can generate for every harness (plus `.docket.local.yml` itself);
+it writes or repairs that block the moment a repo
 opts in, or merely carries a `.docket.local.yml`, and prints a one-time notice to commit the block.
 A repo that predates this (0048-era committed copies) gets a one-time migration on the next run:
 the tracked copies are deleted from the working tree, the local set is regenerated fresh, and the
@@ -123,7 +124,7 @@ Generated files are machine-local: per-repo wrappers were committed before the a
 `sync-agents.sh` runs **on demand** (install time, and after editing any config layer) — the same mental model as
 `link-skills.sh`; it does NOT hook session start (silently regenerating out of band mid-session would be
 surprising, and per-repo files are gitignored, so there is no commit to race). The drift backstop is
-**`sync-agents.sh --check`**, a CI gate with three legs: (1) the managed `# docket:generated` `.gitignore` block
+**`sync-agents.sh --check`**, a CI gate with three legs: (1) the managed docket `.gitignore` block
 is present and current, and (2) no generated agent or dispatch-rule file is tracked by git — both are
 **CI-meaningful** (`rc != 0`); (3) whether the local files on disk match what the resolved config would generate
 is reported as `advisory:` output only — it never fails the build, since every machine regenerates its own copy.
