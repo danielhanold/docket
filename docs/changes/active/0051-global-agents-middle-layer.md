@@ -10,7 +10,7 @@ depends_on: [50]
 related: [45, 46, 48, 50]
 adrs: [8, 15, 16, 17, 19]
 spec: docs/superpowers/specs/2026-07-09-global-agents-middle-layer-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-09-global-agents-middle-layer.md
 results:
 trivial: false
 auto_groomable: false
@@ -26,6 +26,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-09-global-agents-middle-layer-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-09-global-agents-middle-layer-design.md) |
+| Plan | [2026-07-09-global-agents-middle-layer.md](https://github.com/danielhanold/docket/blob/feat/global-agents-middle-layer/docs/superpowers/plans/2026-07-09-global-agents-middle-layer.md) |
 | ADRs | [ADR-0008](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0008-agent-layer-generated-subagents.md), [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md), [ADR-0016](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0016-harness-first-agent-config.md), [ADR-0017](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0017-cursor-dispatch-rule-full-agent-set.md), [ADR-0019](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0019-global-config-fence-classification.md) |
 <!-- docket:artifacts:end -->
 
