@@ -402,5 +402,96 @@ assert "0050 P: malformed global warned"            'printf "%s" "$perr" | grep 
 assert "0050 P: built-ins fallback (auto_groom)"    '[ "$AUTO_GROOM" = false ]'
 assert "0050 P: malformed global not fatal (exit 0)" '[ "$(rung_rc "$tmp/p.xdg" "$tmp/p" --export)" -eq 0 ]'
 
+# ============================================================================
+# Change 0051 — machine-local layer: <repo>/.docket.local.yml
+# Precedence per field: repo-local > repo-committed > global > built-in.
+# ============================================================================
+
+# (L1) local beats committed beats global (skills.build), per-field independence:
+# build set in all three layers -> local wins; review set only globally -> global wins.
+mkrepo "$tmp/l1"
+cat > "$tmp/l1/.docket.yml" <<'EOF'
+metadata_branch: main
+integration_branch: main
+skills:
+  build: committed-build
+EOF
+git -C "$tmp/l1" add .docket.yml; git -C "$tmp/l1" commit --quiet -m cfg
+git -C "$tmp/l1" push --quiet origin main
+mkdir -p "$tmp/xdg-l1/docket"
+printf 'skills:\n  build: global-build\n  review: global-review\n' > "$tmp/xdg-l1/docket/config.yml"
+printf 'skills:\n  build: local-build\n' > "$tmp/l1/.docket.local.yml"
+out="$(rung "$tmp/xdg-l1" "$tmp/l1" --export)"; eval "$out"
+assert "0051 L1: local skills.build beats committed+global"  '[ "$SKILL_BUILD" = local-build ]'
+assert "0051 L1: unset-local review falls to global"         '[ "$SKILL_REVIEW" = global-review ]'
+assert "0051 L1: unset-everywhere plan falls to built-in"    '[ "$SKILL_PLAN" = superpowers:writing-plans ]'
+
+# (L2) scalars: local auto_groom beats committed; local finalize.gate beats global.
+mkrepo "$tmp/l2"
+cat > "$tmp/l2/.docket.yml" <<'EOF'
+metadata_branch: main
+integration_branch: main
+auto_groom: false
+EOF
+git -C "$tmp/l2" add .docket.yml; git -C "$tmp/l2" commit --quiet -m cfg
+git -C "$tmp/l2" push --quiet origin main
+mkdir -p "$tmp/xdg-l2/docket"
+printf 'finalize:\n  gate: ci\n' > "$tmp/xdg-l2/docket/config.yml"
+printf 'auto_groom: true\nfinalize:\n  gate: both\n  test_command: make local-test\n' > "$tmp/l2/.docket.local.yml"
+out="$(rung "$tmp/xdg-l2" "$tmp/l2" --export)"; eval "$out"
+assert "0051 L2: local auto_groom beats committed"       '[ "$AUTO_GROOM" = true ]'
+assert "0051 L2: local finalize.gate beats global"       '[ "$FINALIZE_GATE" = both ]'
+assert "0051 L2: local finalize.test_command honored"    '[ "$FINALIZE_TEST_COMMAND" = "make local-test" ]'
+
+# (L3) fenced keys in the local file: loudly warned-and-ignored, never honored, never fatal.
+mkrepo "$tmp/l3"
+printf 'metadata_branch: main\nchanges_dir: sneaky/changes\ngithub_project: {owner: x, number: 1}\n' > "$tmp/l3/.docket.local.yml"
+errout="$(rung "$tmp/l3-noxdg" "$tmp/l3" --export 2>&1 >/dev/null)"; rc=$?
+out="$(rung "$tmp/l3-noxdg" "$tmp/l3" --export 2>/dev/null)"; eval "$out"
+assert "0051 L3: fenced local keys not fatal (rc=0)"     '[ "$rc" = "0" ]'
+assert "0051 L3: warns metadata_branch is per-repo-only" 'grep -q "metadata_branch" <<<"$errout" && grep -qi "per-repo-only" <<<"$errout"'
+assert "0051 L3: warning names the local file"           'grep -q "docket.local.yml" <<<"$errout"'
+assert "0051 L3: fenced local metadata_branch IGNORED (mode stays docket-default)" '[ "$METADATA_BRANCH" = docket ]'
+assert "0051 L3: fenced local changes_dir IGNORED"       '[ "$CHANGES_DIR" = docs/changes ]'
+
+# (L4) board_surfaces from the local layer: honored, but its github token is machine-fenced.
+mkrepo "$tmp/l4"
+cat > "$tmp/l4/.docket.yml" <<'EOF'
+metadata_branch: main
+integration_branch: main
+EOF
+git -C "$tmp/l4" add .docket.yml; git -C "$tmp/l4" commit --quiet -m cfg
+git -C "$tmp/l4" push --quiet origin main
+printf 'board_surfaces: [inline, github]\n' > "$tmp/l4/.docket.local.yml"
+errout="$(rung "$tmp/l4-noxdg" "$tmp/l4" --export 2>&1 >/dev/null)"
+out="$(rung "$tmp/l4-noxdg" "$tmp/l4" --export 2>/dev/null)"; eval "$out"
+assert "0051 L4: local board_surfaces honored minus github" '[ "$BOARD_SURFACES" = inline ]'
+assert "0051 L4: warns the github token is per-repo-only"   'grep -qi "github" <<<"$errout" && grep -qi "per-repo-only" <<<"$errout"'
+# committed github stays honored (regression pin for the per-repo path):
+mkrepo "$tmp/l4b"
+cat > "$tmp/l4b/.docket.yml" <<'EOF'
+metadata_branch: main
+integration_branch: main
+board_surfaces: [inline, github]
+EOF
+git -C "$tmp/l4b" add .docket.yml; git -C "$tmp/l4b" commit --quiet -m cfg
+git -C "$tmp/l4b" push --quiet origin main
+out="$(run "$tmp/l4b" --export)"; eval "$out"
+assert "0051 L4: committed github token still honored" '[ "$BOARD_SURFACES" = "inline github" ]'
+
+# (L5) malformed local file (a directory): warn + skip, repo still works.
+mkrepo "$tmp/l5"
+mkdir "$tmp/l5/.docket.local.yml"
+errout="$(rung "$tmp/l5-noxdg" "$tmp/l5" --export 2>&1 >/dev/null)"; rc=$?
+assert "0051 L5: malformed local not fatal (rc=0)"  '[ "$rc" = "0" ]'
+assert "0051 L5: warns local layer ignored"          'grep -qi "docket.local.yml" <<<"$errout" && grep -qi "ignored" <<<"$errout"'
+
+# (L6) unknown skills role in the LOCAL block: warned + ignored.
+mkrepo "$tmp/l6"
+printf 'skills:\n  bogusrole: x\n' > "$tmp/l6/.docket.local.yml"
+errout="$(rung "$tmp/l6-noxdg" "$tmp/l6" --export 2>&1 >/dev/null)"; rc=$?
+assert "0051 L6: unknown local role not fatal (rc=0)" '[ "$rc" = "0" ]'
+assert "0051 L6: warns unknown role"                  'grep -qi "unknown skills role" <<<"$errout" && grep -q "bogusrole" <<<"$errout"'
+
 if [ "$fail" = 0 ]; then echo PASS; else echo FAIL; fi
 exit "$fail"
