@@ -1,0 +1,23 @@
+# Docket-owned .gitignore consolidation — results
+Change: #0057 · Branch: feat/docket-owned-gitignore-consolidation · PR: <set at close-out> · Plan: docs/superpowers/plans/2026-07-10-docket-owned-gitignore-consolidation.md · ADRs: 20 (dated `## Update`)
+
+## Verify (human)
+
+Interactive/manual checks for the merge gate, beyond the automated suite (29 files green, `sync-agents.sh --check` rc=0 from inside the repo):
+
+- [ ] **Rebase conflict on `README.md` is EXPECTED.** Change 0052 (PR #61, the README doc-critic rewrite) merged to `main` *during* this build, so 0057's base (`d7f4a96`) predates it. The post-0052 README still carries the three `# docket:generated` references (relocated to ~lines 244/358/362) — the Task-5 rename is therefore still needed; the resolution is to apply the `docket:generated` → `# docket` block rename + the "single home for all docket-owned ignores / three writers" ownership broadening to those three references in the new README. `docket-finalize-change`'s rebase gate (`docket-rebase-resolver`) handles this by intent (LEARNINGS #37) — do not blindly keep-mine.
+- [ ] **A `skills/docket-convention/SKILL.md` conflict will appear once 0053 merges.** Change 0053 (PR #62, convention slim/restructure) is still `implemented` (open) as of this build. When it merges first, 0057's two convention marker-rename edits (~lines 137/169) will conflict; the Agent-layer deep-dive may have moved into `references/agent-layer.md`, so apply the rename wherever the `docket:generated` reference landed.
+- [ ] **Widened-trigger CI behavior change (intended convergence).** A *tracking-only* repo that has a `docket` branch now satisfies `gitignore_block_wanted`, so its `sync-agents.sh --check` leg (a) newly enforces the managed block and can go **red** until someone runs `sync-agents.sh` and commits the seeded `.gitignore`. This is the deliberate consolidation path (a docket-mode repo should carry the block), not a regression — but it is a real broadening for such repos' CI. docket's own repo was dogfooded in this branch (commit seeding its `.gitignore`) so its own `--check` stays green.
+- [ ] **(Optional) Fresh-repo bootstrap seed.** On a brand-new docket-mode repo, `docket-config.sh --bootstrap` now writes the block to the primary tree and prints a loud COMMIT notice (no auto-commit). Confirm the notice reads well in a real bootstrap if you exercise that path.
+
+## Findings
+
+- **ADR-0020 `## Update` (delivered via `adrs: [20]`).** Decision 3's managed block was renamed (`# docket:generated:*` → `# docket:*`), its scope broadened to all docket-owned ignores, and its ownership broadened from sole-`sync-agents.sh` to three writers via a shared lib. Recorded as a dated `## Update` (non-reversing context change), not a new ADR — the design was fixed at groom time; the build was faithful execution.
+- **Data-loss hardening (final-review Important, fixed in-branch).** The initial closed-block guard checked marker *presence*, not *order*: an END-before-START (same spelling) hand-corrupted "do-not-hand-edit" block bypassed it and the strip consumed to EOF, dropping user bytes (empirically confirmed; the exact LEARNINGS #51 class). Replaced with an order-aware `_docket_gi_malformed` (refuse-and-warn on dangling / out-of-order / nested / unbalanced markers, either spelling); regression tests added for both spellings; user bytes now verified to survive.
+- **Constant-emitter equivalence holds by construction.** `emit_docket_gitignore_block` reads only static constants; all three writers route through it, so the "second roster" drift the stub feared cannot happen. (Note for future editors: the loops are intentionally unquoted for word-splitting and rely on default `IFS`; they are invoked as fresh `bash` processes, never sourced into an interactive shell with a customized `IFS`.)
+
+## Follow-ups
+
+- **Accepted Minor (not fixed):** migrate step-5's bare-strip transiently strips in-block core entries on a hypothetical re-run, so `ensure` logs a redundant "UPDATED … COMMIT THIS" even though the file ends byte-identical and no commit is made. Harmless — migrate runs once and a second full run is blocked by the pre-existing `origin/docket` guard. Optional future cleanup: skip the strip loop when `have == want`.
+- **Plan-doc nit (no code impact):** the plan's Task-5 verification grep listed `sync-agents.sh` + the lib among files that should be free of `docket:generated`; those legitimately retain the string as legacy-marker upgrade constants. The shipped tests correctly assert only on the prose docs.
+- `link-skills.sh`'s duplicate harness-dir list remains un-consolidated (explicit out-of-scope, tracked divergence).
