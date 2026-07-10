@@ -2,7 +2,7 @@
 id: 17
 slug: cursor-dispatch-rule-full-agent-set
 title: Per-repo agent generation goes always-full-set, opt-in, with a Cursor dispatch rule
-status: Accepted
+status: Superseded by ADR-20
 date: 2026-07-08
 supersedes: []
 reverses: []
