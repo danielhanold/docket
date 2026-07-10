@@ -10,7 +10,7 @@ depends_on: [51]
 related: [51]
 adrs: [20]
 spec: docs/superpowers/specs/2026-07-10-docket-owned-gitignore-consolidation-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-10-docket-owned-gitignore-consolidation.md
 results:
 trivial: false
 auto_groomable:
@@ -26,6 +26,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-10-docket-owned-gitignore-consolidation-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-10-docket-owned-gitignore-consolidation-design.md) |
+| Plan | [2026-07-10-docket-owned-gitignore-consolidation.md](https://github.com/danielhanold/docket/blob/feat/docket-owned-gitignore-consolidation/docs/superpowers/plans/2026-07-10-docket-owned-gitignore-consolidation.md) |
 | ADRs | [ADR-0020](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0020-generated-agent-artifacts-machine-local.md) |
 <!-- docket:artifacts:end -->
 
