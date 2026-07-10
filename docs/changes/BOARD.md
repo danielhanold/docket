@@ -1,6 +1,6 @@
 # Backlog
 
-**57 changes** — 🟢 1 in progress · 🟡 11 proposed · 🔵 2 implemented · ✅ 41 done · 🗑️ 2 killed
+**57 changes** — 🟢 1 in progress · 🟡 11 proposed · 🔵 1 implemented · ✅ 42 done · 🗑️ 2 killed
 
 ## 🟢 In progress (1)
 
@@ -24,11 +24,10 @@
 | [0055](active/0055-slim-remaining-skills.md) | Slim docket-implement-next + propagate Step-0 preamble to the small skills | `medium` | ⏳ waiting on #53 — needs your merge |
 | [0056](active/0056-consultant-brainstorm.md) | Consultant-authored brainstorm — opt-in pinned design agent for the brainstorm role | `medium` | build-ready |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
-| [0052](active/0052-readme-doc-critic-refresh.md) | README doc-critic refresh — accuracy, structure, newcomer clarity (post-0051) | `medium` | [#61](https://github.com/danielhanold/docket/pull/61) |
 | [0053](active/0053-slim-convention-status-skills.md) | Slim docket-convention + docket-status via progressive disclosure | `medium` | [#62](https://github.com/danielhanold/docket/pull/62) |
 
 ```mermaid
@@ -41,7 +40,6 @@ graph TD
   0015 --> 0019
   0030 --> 0033
   0044
-  0051 --> 0052
   0051 --> 0053
   0053 --> 0054
   0053 --> 0055
@@ -88,13 +86,15 @@ graph TD
   0049:::done
   0050:::done
   0051:::done
+  0052:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (43)</summary>
+<details><summary>✅🗑️ Archive — done + killed (44)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0052](archive/2026-07-10-0052-readme-doc-critic-refresh.md) | README doc-critic refresh — accuracy, structure, newcomer clarity (post-0051) | 2026-07-10 |
 | [0051](archive/2026-07-10-0051-global-agents-middle-layer.md) | Machine-local config layer (.docket.local.yml) + all-local agent generation | 2026-07-10 |
 | [0050](archive/2026-07-09-0050-global-config-layer.md) | Global config layer — full-schema ~/.config/docket/config.yml with a coordination-key fence | 2026-07-09 |
 | [0049](archive/2026-07-09-0049-pluggable-workflow-skills.md) | Pluggable workflow skills — make superpowers invocations configurable, with auto fallback | 2026-07-09 |
