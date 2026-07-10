@@ -918,4 +918,17 @@ printf 'metadata_branch: docket\n' > "$SBX/.docket.yml"
 assert "0051 gi: no-signal repo gets NO .gitignore" '[ ! -e "$SBX/.gitignore" ]'
 rm -rf "$SBX" "$HROOTGE"
 
+# (gi-f) UNTERMINATED block (start marker, no end): refuse to rewrite, warn, preserve
+# every byte — user content after the dangling marker must survive.
+make_sandbox
+HROOTGF="$(mktemp -d)"; mkdir -p "$HROOTGF/.claude"
+printf 'agent_harnesses: [claude]\n' > "$SBX/.docket.yml"
+printf '# docket:generated:start (managed by sync-agents.sh — do not hand-edit)\n.docket.local.yml\nnode_modules/\n' > "$SBX/.gitignore"
+gi_before="$(cat "$SBX/.gitignore")"
+gf_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTGF" bash "$SYNC" 2>&1 >/dev/null)"; gf_rc=$?
+assert "0051 gi-f: unterminated block run still succeeds (rc=0)" '[ "$gf_rc" = "0" ]'
+assert "0051 gi-f: warns the block is corrupt/unterminated" 'printf "%s" "$gf_err" | grep -qi "untermin\|corrupt"'
+assert "0051 gi-f: file left byte-identical (user content preserved)" '[ "$gi_before" = "$(cat "$SBX/.gitignore")" ]'
+rm -rf "$SBX" "$HROOTGF"
+
 exit $fail

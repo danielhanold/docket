@@ -379,8 +379,22 @@ current_gitignore_block() {
   awk -v s="$GI_START" -v e="$GI_END" '$0==s{f=1} f{print} $0==e{f=0}' "$GITIGNORE"
 }
 
+# True if $GITIGNORE contains a GI_START line with no matching GI_END line — a truncated/corrupt
+# block whose true extent we cannot know. grep runs directly on the file path (no producer|grep -q
+# pipeline), so this is safe under `set -o pipefail`; bash-3.2-safe.
+gitignore_block_unterminated() {
+  [ -f "$GITIGNORE" ] || return 1
+  grep -F -x -q -- "$GI_START" "$GITIGNORE" || return 1
+  grep -F -x -q -- "$GI_END" "$GITIGNORE" && return 1
+  return 0
+}
+
 ensure_gitignore_block() {  # create/refresh; bytes outside the markers are never touched
   gitignore_block_wanted || return 0
+  if gitignore_block_unterminated; then
+    log "WARN $GITIGNORE has an UNTERMINATED docket:generated block (start marker present, end marker missing) — corrupt; refusing to rewrite so no bytes are lost. Repair or remove the dangling '$GI_START' line by hand, then re-run."
+    return 0
+  fi
   local want have rest
   want="$(emit_gitignore_block)"
   have="$(current_gitignore_block)"
