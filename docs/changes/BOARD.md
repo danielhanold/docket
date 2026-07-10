@@ -1,14 +1,8 @@
 # Backlog
 
-**57 changes** — 🟢 1 in progress · 🟡 11 proposed · 🔵 1 implemented · ✅ 42 done · 🗑️ 2 killed
+**58 changes** — 🟡 12 proposed · 🔵 2 implemented · ✅ 42 done · 🗑️ 2 killed
 
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0057](active/0057-docket-owned-gitignore-consolidation.md) | Fold the migration-time .gitignore entries into the managed docket:generated block | `low` | [spec](../superpowers/specs/2026-07-10-docket-owned-gitignore-consolidation-design.md) | `feat/docket-owned-gitignore-consolidation` |
-
-## 🟡 Proposed (11)
+## 🟡 Proposed (12)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -23,12 +17,14 @@
 | [0054](active/0054-slim-finalize-change-skill.md) | Slim docket-finalize-change — rewire close-out to the shared reference | `medium` | ⏳ waiting on #53 — needs your merge |
 | [0055](active/0055-slim-remaining-skills.md) | Slim docket-implement-next + propagate Step-0 preamble to the small skills | `medium` | ⏳ waiting on #53 — needs your merge |
 | [0056](active/0056-consultant-brainstorm.md) | Consultant-authored brainstorm — opt-in pinned design agent for the brainstorm role | `medium` | build-ready |
+| [0058](active/0058-docket-status-orchestrator.md) | docket-status orchestrator — collapse the status pass into one script call | `high` | ⏳ waiting on #53 — needs your merge |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
 | [0053](active/0053-slim-convention-status-skills.md) | Slim docket-convention + docket-status via progressive disclosure | `medium` | [#62](https://github.com/danielhanold/docket/pull/62) |
+| [0057](active/0057-docket-owned-gitignore-consolidation.md) | Fold the migration-time .gitignore entries into the managed docket:generated block | `low` | [#63](https://github.com/danielhanold/docket/pull/63) |
 
 ```mermaid
 graph TD
@@ -45,6 +41,7 @@ graph TD
   0053 --> 0055
   0056
   0051 --> 0057
+  0053 --> 0058
   0001:::done
   0002:::done
   0003:::done
