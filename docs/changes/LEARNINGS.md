@@ -179,23 +179,19 @@
   rest on a committed repo `.gitignore` entry, never a per-machine user-global ignore — and when a
   change *generates* such a file, add the ignore in the same change (the migrate step here) so the
   guarantee ships with the feature instead of silently depending on each dev's box.
-- 2026-06-19 (#26, PR #38 close-out) — The dropped-status bug below had a deeper trigger than
-  hand-staging: the harness ran a **stale** finalize skill. `~/.claude/skills/*` are symlinks into the
-  docket clone's primary checkout, which in docket-mode is never fast-forwarded (work lives in
-  `.docket/` + worktrees), so it sat 39 commits behind `origin/main` and loaded the *pre-0025*
-  manual-archive skill even though the script-calling version had shipped hours earlier — and a grep of
-  that stale tree made me wrongly conclude "the rewire never landed" (it had). Apply: a symlinked-skill
-  source reflects its clone's checked-out commit — verify a skill's content against
-  `origin/<integration_branch>`, never the local working copy, and keep the clone current (fix: change
-  0029 FFs the local integration branch at the two merge sites).
-- 2026-06-19 (#26, PR #38 close-out) — A hand-rolled archive staged the `git mv` rename but DROPPED the
-  follow-on `status: done` frontmatter edit: the `git add` listed the already-moved `active/` path
-  beside the `archive/` path, the non-matching pathspec aborted the whole `git add` (staging nothing),
-  and the rename-only commit (carrying `status: implemented`) then rode terminal-publish onto `main`.
-  Apply: never bundle the already-removed `active/` path into the archive `git add` — stage the
-  `archive/` file alone, and gate the commit on a `git diff --cached` that shows the `status:` line
-  actually changed (the extracted `archive-change.sh` exists precisely to remove this hand-staging
-  failure mode from the finalize path).
+- 2026-06-19 (#26, PR #38 close-out) — One botched hand-rolled close-out, two lessons, both now
+  structurally prevented. (a) A **stale** symlinked finalize skill ran: `~/.claude/skills/*` symlink
+  into the docket clone's primary checkout, which in docket-mode is never fast-forwarded (work lives
+  in `.docket/` + worktrees), so it sat 39 commits behind `origin/main` and loaded the *pre-0025*
+  manual-archive skill — and a grep of that stale tree wrongly "proved" the rewire never landed (it
+  had). (b) The hand-rolled archive staged the `git mv` rename but DROPPED the follow-on `status: done`
+  edit: the `git add` listed the already-moved `active/` path beside the `archive/` path, the
+  non-matching pathspec aborted the whole `git add` (staging nothing), and the rename-only commit
+  (still `status: implemented`) rode terminal-publish onto `main`. Apply: (a) verify a skill's content
+  against `origin/<integration_branch>`, never the local symlinked working copy, and keep the clone
+  current (fixed by change 0029's FF at the two merge sites); (b) stage the `archive/` file alone,
+  gated on a `git diff --cached` showing `status:` actually changed — the extracted `archive-change.sh`
+  exists precisely to remove this hand-staging failure mode.
 - 2026-06-19 (#26, PR #38) — A `.docket.yml` reader interpolated the lookup key straight into an ERE
   (`^[[:space:]]*<key>`), so any future key carrying a regex metacharacter would match unintended
   lines; the same unescaped helper is still copy-pasted in `migrate-to-docket.sh`. Apply: escape ERE
@@ -264,14 +260,6 @@
   safe under docket's grep/awk reads (it stays the literal string "off"), but it would parse as
   `false` under a real YAML loader. Apply: a config value that is a YAML boolean keyword
   (on/off/yes/no/true/false) must be quoted or avoided once a YAML library is in play (flagged for #0018/yq).
-- 2026-06-17 (#17, PR #31) — Skill-body prose pinned literal model/effort tiers ("dispatch the
-  critic, pinned opus/xhigh via its wrapper") for the dispatched subagents — a second source of
-  truth for a value whose home is the wrapper frontmatter + layered `.docket.yml`/global config,
-  so it drifts silently the moment a repo overrides the tier (the whole point of the agent layer).
-  Caught by the human at the merge gate, not the build. Apply: a layer that makes a value
-  config-overridable must NOT restate that value in prose — name the source ("at the model/effort
-  its wrapper resolves") and guard with a regex test that no `alias/effort` literal appears in the
-  dispatch prose.
 - 2026-06-17 (#17, PR #31) — An `## Update` to an already-published, immutable ADR (0008) had to
   reach the integration branch alongside a NEW ADR (0009) it cross-references, without a premature
   direct-to-`main` push (which would dangle the `[[0009]]` link until the new ADR merged). Apply:
