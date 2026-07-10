@@ -20,8 +20,9 @@
 #   4. Prune the live surface (<changes_dir>/active/, the changes README, BOARD.md) from the
 #      integration branch; KEEP terminal records (<changes_dir>/archive/, <adrs_dir>/ + its
 #      index README) and build artifacts (<results_dir>/, docs/superpowers/plans/). Commit + push.
-#   5. Extend .gitignore with .docket/ + .worktrees/ + .claude/settings.local.json (idempotent),
-#      then grant docket's terminal-publish push via scripts/ensure-claude-settings.sh.
+#   5. Seed the managed docket .gitignore block (.docket/, .worktrees/, .claude/settings.local.json, ...) on
+#      the integration branch (idempotent), then grant docket's terminal-publish push via
+#      scripts/ensure-claude-settings.sh.
 #   6. Print next steps.
 #
 # This is a ONE-TIME, per-repo operation, but it is fully IDEMPOTENT and interrupted-run safe:
@@ -42,6 +43,9 @@ die()  { printf 'migrate-to-docket: %s\n' "$*" >&2; exit 1; }
 # to it, since we operate on the TARGET repo ($PWD), not docket's own checkout. Computed BEFORE
 # the cd into the target repo so a relative invocation path still resolves.
 MIGRATE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+
+# shellcheck source=/dev/null
+. "$MIGRATE_DIR/scripts/lib/docket-gitignore-block.sh"
 
 # ---------------------------------------------------------------------------
 # Target resolution — operate on the git repo containing the INVOCATION directory
@@ -322,28 +326,23 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 5. Extend .gitignore on the integration branch (idempotent — add only if absent).
+# 5. Seed the managed docket .gitignore block on the integration branch (idempotent).
 # ---------------------------------------------------------------------------
-step "Ensuring .gitignore ignores .docket/, .worktrees/, .claude/settings.local.json"
+step "Seeding the managed docket .gitignore block on '$INTEGRATION_BRANCH'"
 GITIGNORE="$PRUNE_WT/.gitignore"
 touch "$GITIGNORE"
-added_ignore=0
-for entry in ".docket/" ".worktrees/" ".claude/settings.local.json"; do
-  # Match an existing line with or without the trailing slash (e.g. ".docket" or ".docket/").
-  pat="^${entry%/}/?$"
-  if ! grep -qE "$pat" "$GITIGNORE"; then
-    printf '%s\n' "$entry" >> "$GITIGNORE"
-    say "  Added '$entry' to .gitignore"
-    added_ignore=1
-  else
-    say "  '$entry' already in .gitignore"
-  fi
+# Remove the three bare lines migrate historically wrote (its own provenance; same match it
+# used to add them) — they now live inside the managed block. User-authored duplicates, if
+# any, are indistinguishable and are left to the lib's dedup advisory, not deleted here.
+for entry in $DOCKET_GI_CORE_ENTRIES; do
+  bare="${entry%/}"
+  tmp="$(mktemp)"; grep -F -x -v -- "$bare" "$GITIGNORE" | grep -F -x -v -- "$bare/" > "$tmp" || true
+  mv "$tmp" "$GITIGNORE"
 done
-if [ "$added_ignore" -eq 1 ]; then
-  git -C "$PRUNE_WT" add .gitignore
-  if ! git -C "$PRUNE_WT" diff --cached --quiet; then
-    git -C "$PRUNE_WT" commit --quiet -m "docket: gitignore .docket/, .worktrees/, .claude/settings.local.json (migrate-to-docket.sh)"
-  fi
+ensure_docket_gitignore_block "$PRUNE_WT"
+git -C "$PRUNE_WT" add .gitignore
+if ! git -C "$PRUNE_WT" diff --cached --quiet; then
+  git -C "$PRUNE_WT" commit --quiet -m "docket: seed managed .gitignore block (migrate-to-docket.sh)"
 fi
 
 # PUSH guard for the integration branch: push only if origin/<integration_branch> differs from

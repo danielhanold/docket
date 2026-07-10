@@ -92,5 +92,25 @@ assert "dedup: outside bare .docket/ NOT deleted"        'grep -qxF ".docket/" <
 assert "dedup: block still written"                      'grep -qxF "# docket:end" "$SBX/.gitignore"'
 rm -rf "$SBX"
 
+# --- constant-emitter equivalence: a "migrate-seeded" tree and a "sync-healed" tree end with
+#     byte-identical blocks (both call the shared emitter). ------------------------------------
+A="$(mktemp -d)"; B="$(mktemp -d)"
+# migrate-shaped: pre-existing bare lines the migration must remove, then ensure.
+printf '.docket/\n.worktrees/\n.claude/settings.local.json\n' > "$A/.gitignore"
+for e in $DOCKET_GI_CORE_ENTRIES; do   # emulate migrate's own bare-line removal (^entry(/)?$)
+  bare="${e%/}"; tmp="$(mktemp)"; grep -Ev "^${bare//./\\.}/?$" "$A/.gitignore" > "$tmp"; mv "$tmp" "$A/.gitignore"
+done
+( ensure_docket_gitignore_block "$A" ) 2>/dev/null
+# sync-shaped: empty start, just ensure.
+( ensure_docket_gitignore_block "$B" ) 2>/dev/null
+assert "equivalence: migrate-seeded == sync-healed block bytes" \
+  '[ "$(awk "/# docket:start/{f=1} f{print} /# docket:end/{f=0}" "$A/.gitignore")" = "$(awk "/# docket:start/{f=1} f{print} /# docket:end/{f=0}" "$B/.gitignore")" ]'
+assert "equivalence: migrate-seeded leaves no bare .docket/ outside the block" \
+  '[ -z "$(awk "/# docket:start/{f=1} !f{print} /# docket:end/{f=0}" "$A/.gitignore" | grep -xF ".docket/")" ]'
+# idempotent re-run
+before="$(cat "$A/.gitignore")"; ( ensure_docket_gitignore_block "$A" ) 2>/dev/null
+assert "equivalence: migrate seed re-run idempotent" '[ "$before" = "$(cat "$A/.gitignore")" ]'
+rm -rf "$A" "$B"
+
 [ "$fail" = 0 ] && echo "ALL PASS" || echo "SOME FAILED"
 exit "$fail"
