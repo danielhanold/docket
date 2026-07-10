@@ -2,7 +2,7 @@
 id: 53
 slug: slim-convention-status-skills
 title: Slim docket-convention + docket-status via progressive disclosure
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-10
 updated: 2026-07-10
@@ -11,11 +11,11 @@ related: [51, 54, 55]
 adrs: [12]
 spec: docs/superpowers/specs/2026-07-10-docket-skill-slimming-design.md
 plan: docs/superpowers/plans/2026-07-10-slim-convention-status-skills.md
-results:
+results: docs/results/2026-07-10-slim-convention-status-skills-results.md
 trivial: false
 auto_groomable:
 branch: feat/slim-convention-status-skills
-pr:
+pr: https://github.com/danielhanold/docket/pull/62
 blocked_by:
 reconciled: true
 ---
@@ -27,6 +27,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-10-docket-skill-slimming-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-10-docket-skill-slimming-design.md) |
 | Plan | [2026-07-10-slim-convention-status-skills.md](https://github.com/danielhanold/docket/blob/feat/slim-convention-status-skills/docs/superpowers/plans/2026-07-10-slim-convention-status-skills.md) |
+| Results | [2026-07-10-slim-convention-status-skills-results.md](https://github.com/danielhanold/docket/blob/feat/slim-convention-status-skills/docs/results/2026-07-10-slim-convention-status-skills-results.md) |
+| PR | [#62](https://github.com/danielhanold/docket/pull/62) |
 | ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md) |
 <!-- docket:artifacts:end -->
 
