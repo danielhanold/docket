@@ -2,7 +2,7 @@
 id: 57
 slug: docket-owned-gitignore-consolidation
 title: Fold the migration-time .gitignore entries into the managed docket:generated block
-status: proposed
+status: in-progress
 priority: low
 created: 2026-07-10
 updated: 2026-07-10
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/docket-owned-gitignore-consolidation
 pr:
 blocked_by:
 reconciled: false
