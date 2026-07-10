@@ -43,26 +43,35 @@ routinely.)
 
 ## What changes
 
-- New `skills/docket-brainstorm`: the consultant-author flow — a pinned consultant agent
-  returns approaches + key questions (call 1), the parent runs the real human dialogue
-  inline, the consultant authors the spec (call 2, continuation preferred / recap-dispatch
-  fallback), the parent presents and writes it. Stops at the spec per the 0049 role
-  contract.
-- New `agents/docket-brainstorm-consultant.md`: ADR-0009-pattern wrapper — wraps no skill,
-  injects only `docket-convention`, default opus/xhigh, config key `brainstorm-consultant`,
-  auto-discovered by `sync-agents.sh`.
+- New `skills/docket-brainstorm`: the single-dispatch consultant-author flow — the parent
+  runs the real human dialogue inline at the session model; once the design settles, one
+  fresh pinned consultant dispatch either **authors the spec** or returns **critique
+  concerns** for another human round (nothing becomes build-ready without pinned-tier
+  sign-off). No `SendMessage`/continuation anywhere — fully harness-portable. Stops at
+  the spec per the 0049 role contract.
+- New `agents/docket-brainstorm-consultant.md`: wraps no skill and injects **no
+  convention** (documented deviation from the ADR-0009 critic — the consultant authors
+  prose, performs zero docket operations); a compact brief rides the dispatch prompt.
+  Default opus/xhigh, config key `brainstorm-consultant`, auto-discovered by
+  `sync-agents.sh`.
 - **Off by default.** The built-in brainstorm role default stays
   `superpowers:brainstorming`. Two opt-in channels: per-invocation (the human asks for a
   consultant-written spec when running `docket-new-change`/`docket-groom-next`; one-line
   discoverability note in each) and durable (`skills: brainstorm: docket-brainstorm`).
+- README documents the opt-in status **prominently** (top-level feature section), plus
+  the capture-then-groom guidance: to run *all* portions of a brainstorm at a specific
+  model, stub via `docket-new-change`, then run `docket-groom-next` from a session on
+  that model — no new machinery, docs only.
 - Degrade rule per ADR-0018: consultant undispatchable ⇒ inline at session model + warn.
-- One ADR at build time recording the pattern as a refinement (not reversal) of ADR-0008.
+- One ADR at build time recording the pattern as a refinement (not reversal) of ADR-0008
+  and the wrapper's no-convention deviation from ADR-0009.
 
 ## Out of scope
 
 - `docket-auto-groom` (designer already pinned; critic already adversarial).
 - The plan/build/review/finish roles; the advisory mechanism (stays as-is).
-- Relay/ping-pong dialogue proxying; simulated-human answering (ADR-0006 boundary).
+- Relay/ping-pong dialogue proxying; pre-dialogue consultant analysis calls;
+  `SendMessage`/continuation dependence; simulated-human answering (ADR-0006 boundary).
 - Flipping the built-in brainstorm default to `docket-brainstorm` (possible later change).
 
 ## Reconcile log
