@@ -2,7 +2,7 @@
 id: 52
 slug: readme-doc-critic-refresh
 title: README doc-critic refresh — accuracy, structure, newcomer clarity (post-0051)
-status: implemented
+status: done
 priority: medium
 created: 2026-07-09
 updated: 2026-07-10
