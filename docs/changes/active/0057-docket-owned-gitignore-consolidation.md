@@ -2,7 +2,7 @@
 id: 57
 slug: docket-owned-gitignore-consolidation
 title: Fold the migration-time .gitignore entries into the managed docket:generated block
-status: in-progress
+status: implemented
 priority: low
 created: 2026-07-10
 updated: 2026-07-10
@@ -11,11 +11,11 @@ related: [51]
 adrs: [20]
 spec: docs/superpowers/specs/2026-07-10-docket-owned-gitignore-consolidation-design.md
 plan: docs/superpowers/plans/2026-07-10-docket-owned-gitignore-consolidation.md
-results:
+results: docs/results/2026-07-10-docket-owned-gitignore-consolidation-results.md
 trivial: false
 auto_groomable:
 branch: feat/docket-owned-gitignore-consolidation
-pr:
+pr: https://github.com/danielhanold/docket/pull/63
 blocked_by:
 reconciled: true
 ---
@@ -27,6 +27,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-10-docket-owned-gitignore-consolidation-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-10-docket-owned-gitignore-consolidation-design.md) |
 | Plan | [2026-07-10-docket-owned-gitignore-consolidation.md](https://github.com/danielhanold/docket/blob/feat/docket-owned-gitignore-consolidation/docs/superpowers/plans/2026-07-10-docket-owned-gitignore-consolidation.md) |
+| Results | [2026-07-10-docket-owned-gitignore-consolidation-results.md](https://github.com/danielhanold/docket/blob/feat/docket-owned-gitignore-consolidation/docs/results/2026-07-10-docket-owned-gitignore-consolidation-results.md) |
+| PR | [#63](https://github.com/danielhanold/docket/pull/63) |
 | ADRs | [ADR-0020](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0020-generated-agent-artifacts-machine-local.md) |
 <!-- docket:artifacts:end -->
 
