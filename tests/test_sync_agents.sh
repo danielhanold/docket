@@ -769,25 +769,99 @@ assert "0050 doc: convention states the coordination-key fence" 'grep -qi "fence
 assert "0050 doc: convention Agent layer global row points at config.yml agents: block" \
   'grep -qE "^\| Global \|.*config\.yml" "$CONV"'
 
-# ---- Change 0050 follow-up (stopgap for #0051) — global agents: shadowing warning ----
-# An opted-in repo + a global agents: block => loud causal warning: the global block never
-# reaches committed wrappers, and the committed full set shadows the user-level wrappers.
+# ============================================================================
+# Change 0051 — four-layer per-field agents: resolution; all-local generation.
+# Precedence: local.agents.H.X -> local.default.X -> committed.H.X -> committed.default.X
+#             -> global.H.X -> global.default.X -> built-in. THE 0050 BUG FIX:
+# a global agents: block now REACHES per-repo generated files (no committed shadow).
+# ============================================================================
+
+# (4L-a) THE FIX — opted-in repo + global agents: + no repo/local override
+# => the generated project-level file carries the GLOBAL model (was: built-in + SHADOWED warning).
 make_sandbox
-HROOTSW="$(mktemp -d)"; mkdir -p "$HROOTSW/.claude" "$HROOTSW/.config/docket"
-printf 'agents:\n  cursor:\n    status: { model: gpt-5.5-medium-fast }\n' > "$HROOTSW/.config/docket/config.yml"
-printf 'agent_harnesses: [claude]\nagents:\n  default:\n    status: { model: sonnet }\n' > "$SBX/.docket.yml"
-sw_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTSW" bash "$SYNC" 2>&1 >/dev/null)"
-assert "0050 shadow: warns global agents block is SHADOWED by per-repo generation" 'printf "%s" "$sw_err" | grep -q "SHADOWED"'
-assert "0050 shadow: warning names the remedy (.docket.yml agents: block)" 'printf "%s" "$sw_err" | grep -q "\.docket\.yml agents: block"'
-# Not opted in => the global block is live (user-level), no shadowing => no warning.
-printf 'metadata_branch: docket\n' > "$SBX/.docket.yml"
-sw_err2="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTSW" bash "$SYNC" 2>&1 >/dev/null)"
-assert "0050 shadow: no warning for a non-opted-in repo" '! printf "%s" "$sw_err2" | grep -q "SHADOWED"'
-# Opted in but the global file has no agents: entries => nothing shadowed => no warning.
+HROOT51A="$(mktemp -d)"; mkdir -p "$HROOT51A/.claude" "$HROOT51A/.config/docket"
+printf 'agents:\n  default:\n    status: { model: global-model-x }\n' > "$HROOT51A/.config/docket/config.yml"
 printf 'agent_harnesses: [claude]\n' > "$SBX/.docket.yml"
-printf 'auto_groom: false\n' > "$HROOTSW/.config/docket/config.yml"
-sw_err3="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTSW" bash "$SYNC" 2>&1 >/dev/null)"
-assert "0050 shadow: no warning when the global file has no agents entries" '! printf "%s" "$sw_err3" | grep -q "SHADOWED"'
-rm -rf "$SBX" "$HROOTSW"
+sw_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT51A" bash "$SYNC" 2>&1 >/dev/null)"
+assert "0051 4L: global agents value reaches the per-repo generated file" \
+  '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "global-model-x" ]'
+assert "0051 4L: the 0050 SHADOWED stopgap warning is gone" '! printf "%s" "$sw_err" | grep -q "SHADOWED"'
+rm -rf "$SBX" "$HROOT51A"
+
+# (4L-b) full chain: local beats committed beats global; per-FIELD independence
+# (model from local, effort from committed) and harness-over-default within a layer.
+make_sandbox
+HROOT51B="$(mktemp -d)"; mkdir -p "$HROOT51B/.claude" "$HROOT51B/.config/docket"
+printf 'agents:\n  default:\n    status: { model: global-m, effort: low }\n' > "$HROOT51B/.config/docket/config.yml"
+printf 'agents:\n  default:\n    status: { model: committed-m, effort: high }\n' > "$SBX/.docket.yml"
+printf 'agents:\n  default:\n    status: { model: local-m }\n' > "$SBX/.docket.local.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT51B" bash "$SYNC" >/dev/null 2>&1 )
+assert "0051 4L: local model beats committed+global"        '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "local-m" ]'
+assert "0051 4L: effort unset locally falls to committed"   '[ "$(fm "$SBX/.claude/agents/docket-status.md" effort)" = "high" ]'
+# harness key in a LOWER layer still loses to default in a HIGHER layer for that field:
+printf 'agents:\n  claude:\n    status: { model: committed-claude-m }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT51B" bash "$SYNC" >/dev/null 2>&1 )
+assert "0051 4L: local default beats committed harness key" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "local-m" ]'
+rm -rf "$SBX" "$HROOT51B"
+
+# (4L-c) opt-in via the LOCAL file alone — a machine opts a tracking-only repo in
+# without touching committed config; local agent_harnesses governs the target list.
+make_sandbox
+HROOT51C="$(mktemp -d)"; mkdir -p "$HROOT51C/.claude"
+printf 'metadata_branch: docket\n' > "$SBX/.docket.yml"           # tracking-only committed file
+printf 'agent_harnesses: [claude, cursor]\nagents:\n  default:\n    status: { model: local-m }\n' > "$SBX/.docket.local.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT51C" bash "$SYNC" >/dev/null 2>&1 )
+assert "0051 opt-in: local file alone opts in (claude generated)"  '[ -f "$SBX/.claude/agents/docket-status.md" ]'
+assert "0051 opt-in: local agent_harnesses honored (cursor too)"   '[ -f "$SBX/.cursor/agents/docket-status.md" ]'
+assert "0051 opt-in: cursor dispatch rule generated"               '[ -f "$SBX/.cursor/rules/docket-dispatch.mdc" ]'
+assert "0051 opt-in: local model applied"                          '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "local-m" ]'
+rm -rf "$SBX" "$HROOT51C"
+
+# (4L-d) local agent_harnesses BEATS committed (key-level precedence, not a merge).
+make_sandbox
+HROOT51D="$(mktemp -d)"; mkdir -p "$HROOT51D/.claude"
+printf 'agent_harnesses: [claude, cursor]\n' > "$SBX/.docket.yml"
+printf 'agent_harnesses: [claude]\n' > "$SBX/.docket.local.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT51D" bash "$SYNC" >/dev/null 2>&1 )
+assert "0051 gah: local list wins (claude generated)"     '[ -f "$SBX/.claude/agents/docket-status.md" ]'
+assert "0051 gah: committed cursor overridden away"       '[ ! -e "$SBX/.cursor/agents/docket-status.md" ]'
+rm -rf "$SBX" "$HROOT51D"
+
+# (4L-e) tracking-only repo with NEITHER file opted in: still zero files (regression pin).
+make_sandbox
+HROOT51E="$(mktemp -d)"; mkdir -p "$HROOT51E/.claude"
+printf 'metadata_branch: docket\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT51E" bash "$SYNC" >/dev/null 2>&1 )
+assert "0051 opt-in: neither file => zero project files" '[ ! -e "$SBX/.claude/agents/docket-status.md" ]'
+rm -rf "$SBX" "$HROOT51E"
+
+# (4L-f) malformed .docket.local.yml (a directory): warn + skip, run still succeeds,
+# committed layer still honored.
+make_sandbox
+HROOT51F="$(mktemp -d)"; mkdir -p "$HROOT51F/.claude"
+printf 'agents:\n  default:\n    status: { model: committed-m }\n' > "$SBX/.docket.yml"
+mkdir "$SBX/.docket.local.yml"
+mf_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT51F" bash "$SYNC" 2>&1 >/dev/null)"; mf_rc=$?
+assert "0051 malformed local: not fatal (rc=0)"        '[ "$mf_rc" = "0" ]'
+assert "0051 malformed local: warns and names the file" 'printf "%s" "$mf_err" | grep -qi "docket.local.yml"'
+assert "0051 malformed local: committed layer still applies" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "committed-m" ]'
+rm -rf "$SBX" "$HROOT51F"
+
+# (4L-g) tab-indented local YAML resolves (LEARNINGS #46 — indent classes must be [^[:space:]]).
+make_sandbox
+HROOT51G="$(mktemp -d)"; mkdir -p "$HROOT51G/.claude"
+printf 'agent_harnesses: [claude]\n' > "$SBX/.docket.yml"
+printf 'agents:\n\tdefault:\n\t\tstatus: { model: tab-m }\n' > "$SBX/.docket.local.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT51G" bash "$SYNC" >/dev/null 2>&1 )
+assert "0051 4L: tab-indented local YAML resolves" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "tab-m" ]'
+rm -rf "$SBX" "$HROOT51G"
+
+# (rider) prune_orphans empty-scan_dirs guard: bash 3.2 + set -u with NO harness roots
+# on disk AND no opt-in must not crash ("${scan_dirs[@]}" on an empty array).
+SBXR="$(mktemp -d)"                                   # deliberately NO .claude/.agents dirs
+rid_rc=0
+( cd "$SBXR" && DOCKET_HARNESS_ROOT="$SBXR" /bin/bash "$SYNC" >/dev/null 2>&1 ) || rid_rc=$?
+assert "0051 rider: empty scan_dirs run succeeds under /bin/bash (rc=0)" '[ "$rid_rc" = "0" ]'
+rm -rf "$SBXR"
 
 exit $fail

@@ -1,26 +1,37 @@
 #!/usr/bin/env bash
 # sync-agents.sh — generate docket's model/effort-pinned subagent wrappers into each PRESENT
-# agent-harness dir, resolving layered config (built-in ⊕ global ⊕ per-repo).
+# agent-harness dir, resolving FOUR-LAYER config (built-in ⊕ global ⊕ per-repo committed
+# ⊕ per-repo machine-local).
 #
 # Unlike link-skills.sh (which SYMLINKS skills/<name>), agent files bake resolved model/effort,
-# so they are GENERATED COPIES this script owns and OVERWRITES on every run.
+# so they are GENERATED COPIES this script owns and OVERWRITES on every run. Per-repo generated
+# files are machine-local artifacts (intended to be gitignored, not committed — the managed
+# .gitignore block and migration of any pre-existing committed copies land in a following
+# change; this change only wires the resolution + opt-in).
 #
-# Layers & precedence — per-repo > global > built-in:
-#   built-in  agents/docket-*.md in this repo (each ships its default model/effort)
-#   global    ~/.config/docket/config.yml `agents:` block -> user-level ~/.claude/agents/docket-*.md
-#             (the legacy ~/.config/docket/agents.yaml is auto-migrated into it, then renamed .migrated)
-#   per-repo  <repo>/.docket.yml `agents:` block  -> project-level <repo>/.claude/agents/docket-*.md (committed)
+# Layers & precedence, per FIELD (model/effort independently) — local > committed > global > built-in:
+#   built-in   agents/docket-*.md in this repo (each ships its default model/effort)
+#   global     ~/.config/docket/config.yml `agents:` block -> user-level ~/.claude/agents/docket-*.md
+#              (the legacy ~/.config/docket/agents.yaml is auto-migrated into it, then renamed .migrated)
+#   committed  <repo>/.docket.yml `agents:` block          -> project-level <repo>/.claude/agents/docket-*.md
+#   local      <repo>/.docket.local.yml `agents:` block     -> project-level <repo>/.claude/agents/docket-*.md
+#              (gitignored, machine-scoped; a missing/unreadable file is warned + skipped, never fatal)
+# Per-repo generation is opt-in: either the LOCAL or the COMMITTED file declaring `agent_harnesses:`
+# or an `agents:` block opts the repo in (key-level precedence — the first of local/committed that
+# HAS the `agent_harnesses:` key wins the target-harness list outright, not a merge of the two).
 # A global `agent_harnesses:` (config.yml top-level key) scopes the USER-LEVEL pass only —
-# overriding presence-on-disk detection; it never opts a repo into per-repo generation, which
-# stays governed solely by the repo's own .docket.yml `agent_harnesses:`.
-# Claude Code applies project-over-user precedence natively, so the generator writes two layers
-# (user = built-in⊕global, project = built-in⊕per-repo) and never hand-merges all three.
+# overriding presence-on-disk detection; it never opts a repo into per-repo generation.
+# Claude Code applies project-over-user precedence natively, so the generator writes two passes
+# (user = built-in⊕global, project = built-in⊕local⊕committed⊕global) and never hand-merges
+# the user-level and project-level output onto the same file.
 #
 # Usage:
 #   bash sync-agents.sh           # write user-level (built-in ⊕ global); and, if <repo>/.docket.yml
-#                                 # has an `agents:` block, project-level (built-in ⊕ per-repo)
-#   bash sync-agents.sh --check   # CI gate: exit non-zero (with a diff) if committed project-level
-#                                 # files drift from what the resolved config would generate
+#                                 # or <repo>/.docket.local.yml opts in, project-level (all four layers)
+#   bash sync-agents.sh --check   # CI gate: exit non-zero (with a diff) if the per-repo files on disk
+#                                 # drift from what the resolved config would generate (--check's
+#                                 # exact meaning is being redefined for the machine-local posture in
+#                                 # a following change; today it still diffs against files on disk)
 #
 # Test seam: DOCKET_HARNESS_ROOT overrides $HOME for harness dirs and the global-config root
 # (the latter only when XDG_CONFIG_HOME is unset — a set XDG_CONFIG_HOME wins; tests unset it).
@@ -36,6 +47,13 @@ GLOBAL_CFG_DIR="${XDG_CONFIG_HOME:-$HARNESS_ROOT/.config}/docket"
 GLOBAL_CFG="$GLOBAL_CFG_DIR/config.yml"
 LEGACY_GLOBAL_CFG="$GLOBAL_CFG_DIR/agents.yaml"
 DOCKET_YML="$REPO/.docket.yml"
+LOCAL_CFG="$REPO/.docket.local.yml"
+# Malformed/unreadable local file: warn + skip (0050's malformed-global posture) — a broken
+# machine-local file must never break the run; committed + global layers still apply.
+if [ -e "$LOCAL_CFG" ] && { [ ! -f "$LOCAL_CFG" ] || [ ! -r "$LOCAL_CFG" ]; }; then
+  printf '%s\n' "sync-agents: WARN $LOCAL_CFG is not a readable regular file — machine-local layer ignored" >&2
+  LOCAL_CFG=/dev/null
+fi
 
 # Mirror link-skills.sh's HARNESS_SKILL_DIRS, swapping skills -> agents.
 HARNESS_AGENT_DIRS=(
@@ -94,11 +112,15 @@ is_valid_harness(){  # $1=token -> rc 0 if it is a known harness token
 resolve_agent_harnesses(){
   local raw list tok
   raw=""
-  if [ -f "$DOCKET_YML" ]; then
-    # top-level (column 0) key only; strip a trailing comment; capture-then-head (SIGPIPE-safe).
-    raw="$(sed -n -E 's/^agent_harnesses[[:space:]]*:[[:space:]]*([^#]*).*/\1/p' "$DOCKET_YML")"
-    raw="$(head -n1 <<<"$raw" | sed -E 's/[[:space:]]+$//')"
-  fi
+  local f
+  for f in "$LOCAL_CFG" "$DOCKET_YML"; do
+    [ -f "$f" ] || continue
+    if grep -qE '^agent_harnesses[[:space:]]*:' "$f"; then
+      raw="$(sed -n -E 's/^agent_harnesses[[:space:]]*:[[:space:]]*([^#]*).*/\1/p' "$f")"
+      raw="$(head -n1 <<<"$raw" | sed -E 's/[[:space:]]+$//')"
+      break
+    fi
+  done
   if [ -z "$raw" ]; then
     HARNESSES="claude"                            # unset / bare key => default [claude]
     return 0
@@ -165,13 +187,17 @@ compute_user_targets(){
 }
 
 # Per-repo generation is OPT-IN: a repo opts in by declaring an `agents:` override block OR an
-# explicit top-level `agent_harnesses:` key. A .docket.yml present for change-tracking only (neither
-# key) gets NO committed per-repo wrappers — preserving pre-0048 behavior for tracking-only repos
-# (no surprise files from `sync-agents.sh`, and `--check` stays a no-op).
+# explicit top-level `agent_harnesses:` key in EITHER .docket.local.yml or .docket.yml (checked in
+# that order — a machine can opt a tracking-only repo in locally without touching committed config).
+# A repo with neither file declaring either key gets NO per-repo wrappers — preserving pre-0048
+# behavior for tracking-only repos (no surprise files from `sync-agents.sh`, and `--check` stays a no-op).
 per_repo_opted_in() {
-  [ -f "$DOCKET_YML" ] || return 1
-  grep -qE '^agent_harnesses[[:space:]]*:' "$DOCKET_YML" && return 0
-  grep -qE '^agents[[:space:]]*:' "$DOCKET_YML" && return 0
+  local f
+  for f in "$LOCAL_CFG" "$DOCKET_YML"; do
+    [ -f "$f" ] || continue
+    grep -qE '^agent_harnesses[[:space:]]*:' "$f" && return 0
+    grep -qE '^agents[[:space:]]*:' "$f" && return 0
+  done
   return 1
 }
 
@@ -219,17 +245,31 @@ harness_agent_line() {  # $1=file  $2=harness  $3=agent  $4=under_agents(0|1)
   head -n1 <<<"$matched"
 }
 
-# Resolve (harness, agent) into RES_MODEL / RES_EFFORT via INDEPENDENT field-level fallback:
-#   agents.<harness>.<agent>  ->  agents.default.<agent>   (built-in floor is handled by emit()).
-# RES_MODEL_FROM_HARNESS=1 iff the model value came from the harness-specific line (not default).
-resolve_agent() {  # $1=file  $2=harness  $3=agent  $4=under_agents(0|1)
-  local hline dline hm he
-  hline="$(harness_agent_line "$1" "$2" "$3" "$4")"
-  dline="$(harness_agent_line "$1" default "$3" "$4")"
-  hm="$(field_of "$hline" model)"; he="$(field_of "$hline" effort)"
-  RES_MODEL_FROM_HARNESS=0
-  if [ -n "$hm" ]; then RES_MODEL="$hm"; RES_MODEL_FROM_HARNESS=1; else RES_MODEL="$(field_of "$dline" model)"; fi
-  if [ -n "$he" ]; then RES_EFFORT="$he"; else RES_EFFORT="$(field_of "$dline" effort)"; fi
+# Resolve (harness, agent) per-field across the given layer files, highest precedence
+# first (each read under a top-level agents: wrapper). Within a layer the harness line
+# beats the default line; across layers the first layer supplying a field wins; the
+# built-in floor is handled by emit(). RES_MODEL_FROM_HARNESS=1 iff the model came from
+# a harness-specific line in ANY layer (drives warn_fallback_model).
+resolve_agent_layers() {  # $1=harness  $2=agent  $3..=layer files (precedence order)
+  local harness="$1" agent="$2" f hline dline hm he dm de
+  shift 2
+  RES_MODEL=""; RES_EFFORT=""; RES_MODEL_FROM_HARNESS=0
+  for f in "$@"; do
+    hline="$(harness_agent_line "$f" "$harness" "$agent" 1)"
+    dline="$(harness_agent_line "$f" default "$agent" 1)"
+    hm="$(field_of "$hline" model)";  he="$(field_of "$hline" effort)"
+    dm="$(field_of "$dline" model)";  de="$(field_of "$dline" effort)"
+    if [ -z "$RES_MODEL" ]; then
+      if   [ -n "$hm" ]; then RES_MODEL="$hm"; RES_MODEL_FROM_HARNESS=1
+      elif [ -n "$dm" ]; then RES_MODEL="$dm"; fi
+    fi
+    if [ -z "$RES_EFFORT" ]; then
+      if   [ -n "$he" ]; then RES_EFFORT="$he"
+      elif [ -n "$de" ]; then RES_EFFORT="$de"; fi
+    fi
+    if [ -n "$RES_MODEL" ] && [ -n "$RES_EFFORT" ]; then break; fi
+  done
+  return 0
 }
 
 # Union (sorted-unique) of agent keys configured under any harness sub-block or `default`.
@@ -341,7 +381,7 @@ user_level_pass() {  # built-in ⊕ global -> each user-level target harness, re
     name="$(short_name "$src")"
     for harness in $USER_TARGETS; do
       dir="$HARNESS_ROOT/.$harness/agents"
-      resolve_agent "$GLOBAL_CFG" "$harness" "$name" 1
+      resolve_agent_layers "$harness" "$name" "$GLOBAL_CFG"
       warn_fallback_model "$harness" "$name"
       mkdir -p "$dir"
       emit "$src" "$RES_MODEL" "$RES_EFFORT" > "$dir/$(basename "$src")"
@@ -354,35 +394,33 @@ user_level_pass() {  # built-in ⊕ global -> each user-level target harness, re
   done
 }
 
-project_level_pass() {  # built-in ⊕ per-repo -> <repo>/.<H>/agents for each H in HARNESSES (committed)
+project_level_pass() {  # built-in ⊕ local ⊕ committed ⊕ global -> <repo>/.<H>/agents for each H in HARNESSES
   per_repo_opted_in || return 0
-  local src name harness dir cfg_h cfgname
-  warn_legacy_shape "$DOCKET_YML" 1
-  # Shadowing warning (change 0050 live-test finding; real semantics decided by change 0051):
-  # a global agents: block NEVER reaches committed per-repo wrappers — they resolve from
-  # .docket.yml + built-ins only — and the committed full set takes harness precedence over
-  # the user-level wrappers that DO carry the global values. Without this warning the global
-  # config silently goes dead the moment a repo opts in.
-  if [ -n "$(agent_keys "$GLOBAL_CFG" 1)" ]; then
-    log "WARN global agents: config ($GLOBAL_CFG) is SHADOWED in this repo: per-repo generation commits the full agent set resolved from .docket.yml + built-ins only, and committed wrappers take precedence over the user-level wrappers carrying your global models — copy the overrides you want into this repo's .docket.yml agents: block"
-  fi
+  local src name harness dir cfg_h cfgname layer_f
+  for layer_f in "$LOCAL_CFG" "$DOCKET_YML"; do
+    warn_legacy_shape "$layer_f" 1
+  done
   # Warn on any agents.<harness> block whose harness is NOT in agent_harnesses (dead config).
-  while IFS= read -r cfg_h; do
-    [ -n "$cfg_h" ] || continue
-    [ "$cfg_h" = "default" ] && continue
-    case " $HARNESSES " in *" $cfg_h "*) : ;; *) log "WARN agents.$cfg_h: block is not in agent_harnesses — ignored (dead config)." ;; esac
-  done < <(agents_block_harnesses "$DOCKET_YML")
+  for layer_f in "$LOCAL_CFG" "$DOCKET_YML"; do
+    while IFS= read -r cfg_h; do
+      [ -n "$cfg_h" ] || continue
+      [ "$cfg_h" = "default" ] && continue
+      case " $HARNESSES " in *" $cfg_h "*) : ;; *) log "WARN agents.$cfg_h: block is not in agent_harnesses — ignored (dead config)." ;; esac
+    done < <(agents_block_harnesses "$layer_f")
+  done
   # Typo guard: an agents: entry that overrides no real built-in is a no-op — warn (do not fail).
-  while IFS= read -r cfgname; do
-    [ -n "$cfgname" ] || continue
-    [ -f "$AGENTS_SRC/docket-$cfgname.md" ] || log "WARN agents: '$cfgname' overrides no built-in agent (no agents/docket-$cfgname.md) — ignored (typo? advisory/interactive skills have no wrapper)."
-  done < <(agent_keys "$DOCKET_YML" 1)
+  for layer_f in "$LOCAL_CFG" "$DOCKET_YML"; do
+    while IFS= read -r cfgname; do
+      [ -n "$cfgname" ] || continue
+      [ -f "$AGENTS_SRC/docket-$cfgname.md" ] || log "WARN agents: '$cfgname' overrides no built-in agent (no agents/docket-$cfgname.md) — ignored (typo? advisory/interactive skills have no wrapper)."
+    done < <(agent_keys "$layer_f" 1)
+  done
   # Always generate the FULL built-in set (config is override-only) into each listed harness.
   for src in "$AGENTS_SRC"/docket-*.md; do
     [ -e "$src" ] || continue
     name="$(short_name "$src")"
     for harness in $HARNESSES; do
-      resolve_agent "$DOCKET_YML" "$harness" "$name" 1
+      resolve_agent_layers "$harness" "$name" "$LOCAL_CFG" "$DOCKET_YML" "$GLOBAL_CFG"
       warn_fallback_model "$harness" "$name"
       dir="$REPO/.$harness/agents"
       mkdir -p "$dir"
@@ -410,7 +448,7 @@ check_project_level() {  # diff committed <repo>/.<H>/agents files against fresh
     [ -e "$src" ] || continue
     name="$(short_name "$src")"
     for harness in $HARNESSES; do
-      resolve_agent "$DOCKET_YML" "$harness" "$name" 1
+      resolve_agent_layers "$harness" "$name" "$LOCAL_CFG" "$DOCKET_YML" "$GLOBAL_CFG"
       emit "$src" "$RES_MODEL" "$RES_EFFORT" > "$tmp/docket-$name.md"
       got="$REPO/.$harness/agents/docket-$name.md"
       if [ ! -f "$got" ]; then
@@ -478,14 +516,16 @@ prune_orphans() {  # $1 = scope (all|per-repo)
       [ -d "$(dirname "$dir")" ] && scan_dirs+=("$dir")
     done
   fi
-  for dir in "${scan_dirs[@]}"; do
-    [ -d "$dir" ] || continue
-    for f in "$dir"/docket-*.md; do
-      [ -e "$f" ] || continue
-      name="$(short_name "$f")"
-      [ -f "$AGENTS_SRC/docket-$name.md" ] || handle_orphan "$f"
+  if [ ${#scan_dirs[@]} -gt 0 ]; then
+    for dir in "${scan_dirs[@]}"; do
+      [ -d "$dir" ] || continue
+      for f in "$dir"/docket-*.md; do
+        [ -e "$f" ] || continue
+        name="$(short_name "$f")"
+        [ -f "$AGENTS_SRC/docket-$name.md" ] || handle_orphan "$f"
+      done
     done
-  done
+  fi
   # (2) de-listed per-repo harness — only for an opted-in repo. A known harness NOT in HARNESSES that
   # still holds docket-owned per-repo files (agents + dispatch rule) is pruned; only the specific
   # dirs docket actually emptied are rmdir'd (never a pre-existing / user dir).
