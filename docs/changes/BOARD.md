@@ -1,12 +1,11 @@
 # Backlog
 
-**57 changes** — 🟢 2 in progress · 🟡 12 proposed · ✅ 41 done · 🗑️ 2 killed
+**57 changes** — 🟢 1 in progress · 🟡 12 proposed · 🔵 1 implemented · ✅ 41 done · 🗑️ 2 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Spec | Branch |
 |---|-------|----------|------|--------|
-| [0052](active/0052-readme-doc-critic-refresh.md) | README doc-critic refresh — accuracy, structure, newcomer clarity (post-0051) | `medium` | [spec](../superpowers/specs/2026-07-09-readme-doc-critic-refresh-design.md) | `feat/readme-doc-critic-refresh` |
 | [0053](active/0053-slim-convention-status-skills.md) | Slim docket-convention + docket-status via progressive disclosure | `medium` | [spec](../superpowers/specs/2026-07-10-docket-skill-slimming-design.md) | `feat/slim-convention-status-skills` |
 
 ## 🟡 Proposed (12)
@@ -25,6 +24,12 @@
 | [0055](active/0055-slim-remaining-skills.md) | Slim docket-implement-next + propagate Step-0 preamble to the small skills | `medium` | ⏳ waiting on #53 — not yet built |
 | [0056](active/0056-consultant-brainstorm.md) | Consultant-authored brainstorm — opt-in pinned design agent for the brainstorm role | `medium` | build-ready |
 | [0057](active/0057-docket-owned-gitignore-consolidation.md) | Fold the migration-time .gitignore entries into the managed docket:generated block | `low` | build-ready |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | PR |
+|---|-------|----------|----|
+| [0052](active/0052-readme-doc-critic-refresh.md) | README doc-critic refresh — accuracy, structure, newcomer clarity (post-0051) | `medium` | [#61](https://github.com/danielhanold/docket/pull/61) |
 
 ```mermaid
 graph TD
