@@ -4,6 +4,15 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-07-11 (#56, PR #68) — Adding the 9th generated wrapper (docket-brainstorm-consultant)
+  turned a hardcoded count into stale prose+tests in many places at once: the convention's
+  "eight wrappers / three no-skill" line, one assertion in test_finalize_gate, and seven
+  "8 built-in wrappers" assertions in test_sync_agents — all had to move to nine / four-no-skill,
+  and the full suite (not the change's enumerated sentinels) was what proved none were missed.
+  Apply: a literal count of an enumerated set (wrappers, states, skills) repeated across
+  convention prose and test assertions is a cross-cutting invariant — before adding a member,
+  grep the whole repo for the current number and update every copy in the same change.
+
 - 2026-07-11 (#55, PR #67) — A behavior-neutral skill slim (docket-implement-next + the four
   small skills) landed all five files modestly over the spec's line-count targets
   (implement-next 137→107 vs ≤~100, groom-next 77→75 vs ~65, adr 88→86 vs ~78); the whole-branch
