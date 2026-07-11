@@ -50,6 +50,81 @@ ensure_and_sync_worktree(){
   fi
 }
 
+board_pass(){
+  local surfaces="${BOARD_SURFACES:-}"
+  [ -n "$surfaces" ] || return 0
+  local mw
+  if [ "${DOCKET_MODE:-}" = docket ]; then mw="${METADATA_WORKTREE:-.docket}"; else mw="."; fi
+  local cd_dir="$mw/$CHANGES_DIR"
+  local tok
+  for tok in $surfaces; do
+    case "$tok" in
+      inline) board_pass_inline "$mw" "$cd_dir" ;;
+      github) board_pass_github "$cd_dir" ;;
+      *) echo "docket-status: unknown board surface '$tok'" >&2 ;;
+    esac
+  done
+}
+
+board_pass_inline(){
+  local mw="$1" cd_dir="$2"
+  local board="$cd_dir/BOARD.md" tmp="$cd_dir/BOARD.md.tmp"
+  if ! "$SELF_DIR"/render-board.sh --changes-dir "$cd_dir" ${REPO_FLAG:+--repo "$REPO_FLAG"} > "$tmp" 2>&2 || [ ! -s "$tmp" ]; then
+    echo "docket-status: board render failed; keeping existing BOARD.md" >&2
+    rm -f "$tmp"
+    return 0
+  fi
+  if [ -f "$board" ] && cmp -s "$tmp" "$board"; then
+    rm -f "$tmp"
+    echo "board inline clean"
+    return 0
+  fi
+  mv "$tmp" "$board"
+  "$GIT" -C "$mw" add "$(basename "$board")" >&2 2>/dev/null || "$GIT" -C "$mw" add "$board" >&2
+  "$GIT" -C "$mw" commit -q -m "docket: board refresh" >&2 || true
+
+  local attempt=0 pushed=0
+  while [ $attempt -lt 5 ]; do
+    attempt=$((attempt + 1))
+    if "$GIT" -C "$mw" push >&2 2>&1; then
+      pushed=1
+      break
+    fi
+    if ! "$GIT" -C "$mw" pull --rebase >&2 2>&1; then
+      if "$GIT" -C "$mw" status --porcelain 2>/dev/null | grep -q "BOARD.md"; then
+        "$SELF_DIR"/render-board.sh --changes-dir "$cd_dir" ${REPO_FLAG:+--repo "$REPO_FLAG"} > "$board" 2>&2
+        "$GIT" -C "$mw" add "$(basename "$board")" >&2 2>/dev/null || "$GIT" -C "$mw" add "$board" >&2
+        "$GIT" -C "$mw" rebase --continue >&2 2>&1 || break
+      else
+        break
+      fi
+    fi
+  done
+  if [ $pushed -eq 1 ]; then
+    echo "board inline changed pushed"
+  else
+    echo "board inline changed push-failed"
+  fi
+}
+
+board_pass_github(){
+  local cd_dir="$1"
+  local out rc
+  out="$("$SELF_DIR"/github-mirror.sh --changes-dir "$cd_dir" ${REPO_FLAG:+--repo "$REPO_FLAG"} ${PROJECT_FLAG:+--project "$PROJECT_FLAG"} $([ "$AUTO_CREATE_PROJECT" = 1 ] && echo --auto-create-project) ${PROJECT_OWNER:+--project-owner "$PROJECT_OWNER"} 2>&2)"
+  rc=$?
+  echo "$out" | while IFS= read -r line; do
+    case "$line" in
+      "issue-minted "*) set -- $line; echo "minted issue $2 $3" ;;
+      "project-minted "*) set -- $line; echo "minted project $2 $3" ;;
+    esac
+  done
+  if [ $rc -eq 0 ]; then
+    echo "board github ok"
+  else
+    echo "board github failed"
+  fi
+}
+
 main(){
   local cfg; cfg="$(config_export)" || { echo "docket-status: config export failed" >&2; exit 1; }
   eval "$cfg"
@@ -60,6 +135,7 @@ main(){
     *) echo "docket-status: unknown bootstrap verdict '${BOOTSTRAP:-}'" >&2; exit 1 ;;
   esac
   ensure_and_sync_worktree
-  # Steps 3..7 wired in later tasks.
+  board_pass
+  # Steps 4..7 wired in later tasks.
 }
 main "$@"
