@@ -4,6 +4,12 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-07-11 (#57, PR #63) — A guard on a marker-bounded "do-not-hand-edit" managed block checked
+  marker *presence*, not *order*: an END-before-START (same spelling) corrupted block bypassed it and
+  the strip consumed to EOF, dropping user bytes (the LEARNINGS #51 class, re-hit). Apply: when
+  stripping/rewriting a marker-delimited block, validate marker *order and balance* (refuse-and-warn
+  on dangling / out-of-order / nested / unbalanced markers, either spelling) — never presence alone.
+
 - 2026-07-10 (#52, PR #61) — A critique-driven README rewrite audited hard against its three named
   goals (accuracy, structure, newcomer clarity) and shipped clean — but a dimension *outside* that
   goal set slipped through: the prose stayed Claude-centric for a tool that first-classes three
