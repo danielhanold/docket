@@ -2,10 +2,10 @@
 id: 58
 slug: docket-status-orchestrator
 title: docket-status orchestrator — collapse the status pass into one script call
-status: proposed
+status: in-progress
 priority: high
 created: 2026-07-10
-updated: 2026-07-10
+updated: 2026-07-11
 depends_on: [53]
 related: [53, 54, 55]
 adrs: [12]
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/docket-status-orchestrator
 pr:
 blocked_by:
 reconciled: false
