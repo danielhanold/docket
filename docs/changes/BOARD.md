@@ -1,8 +1,14 @@
 # Backlog
 
-**62 changes** — 🟡 9 proposed · 🔵 1 implemented · ✅ 50 done · 🗑️ 2 killed
+**62 changes** — 🟢 1 in progress · 🟡 8 proposed · 🔵 1 implemented · ✅ 50 done · 🗑️ 2 killed
 
-## 🟡 Proposed (9)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Spec | Branch |
+|---|-------|----------|------|--------|
+| [0061](active/0061-claude-context-fork-dispatch.md) | Claude Code skill-invocation parity — context:fork dispatch to pinned wrappers | `medium` | [spec](../superpowers/specs/2026-07-11-claude-context-fork-dispatch-design.md) | `feat/claude-context-fork-dispatch` |
+
+## 🟡 Proposed (8)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -13,7 +19,6 @@
 | [0018](active/0018-yq-yaml-parsing.md) | Evaluate adopting yq for YAML parsing across docket scripts | `low` | needs-brainstorm |
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
-| [0061](active/0061-claude-context-fork-dispatch.md) | Claude Code skill-invocation parity — context:fork dispatch to pinned wrappers | `medium` | build-ready |
 | [0062](active/0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | `low` | needs-brainstorm |
 
 ## 🔵 Implemented — awaiting merge (1)
