@@ -953,4 +953,11 @@ assert "main-mode full run (no merges) exits zero" '[ $rc -eq 0 ]'
 assert "main-mode full run: integration_sync not invoked (no sweep)" '[ ! -f "$mm2_sync_marker" ]'
 assert "main-mode full run: no .docket metadata worktree created" '[ ! -d "$mm2_dir/work/.docket" ]'
 
+# skill-body wiring: the docket-status SKILL invokes the orchestrator script and no longer
+# inlines the full per-change sweep loop prose it now delegates to docket-status.sh.
+SKILL="$REPO/skills/docket-status/SKILL.md"
+assert "SKILL invokes docket-status.sh" 'grep -qF "/docket-status.sh" "$SKILL"'
+assert "SKILL no longer inlines the sweep loop enumeration" \
+  '! grep -qF "For each \`implemented\` change:" "$SKILL"'
+
 exit $fail
