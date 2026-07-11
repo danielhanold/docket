@@ -4,6 +4,14 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-07-11 (#59, PR #64) — 0059 was designed around a still-`proposed` sibling (0058) "later"
+  composing its board-refresh gate, but 0058 merged first and independently built the same gate,
+  inverting 0059's scope twice; and because 0059 touched every skill file, three slim PRs
+  (0054/0055/0056) merged mid-flight and re-slimmed its exact target lines. Apply: never design a
+  change around what a still-proposed sibling will do — reconcile against what has actually merged,
+  not the planned backlog; and for the most conflict-prone change in flight (touches many shared
+  files), hold it and rebase it LAST, once, onto the settled base rather than reconciling repeatedly.
+
 - 2026-07-11 (#56, PR #68) — Adding the 9th generated wrapper (docket-brainstorm-consultant)
   turned a hardcoded count into stale prose+tests in many places at once: the convention's
   "eight wrappers / three no-skill" line, one assertion in test_finalize_gate, and seven
