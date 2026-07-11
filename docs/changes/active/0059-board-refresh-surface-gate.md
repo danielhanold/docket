@@ -2,7 +2,7 @@
 id: 59
 slug: board-refresh-surface-gate
 title: board-refresh honors board_surfaces — gate BOARD.md regeneration on the resolved surface set
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-10
 updated: 2026-07-11
@@ -11,7 +11,7 @@ related: [58, 11]
 adrs: []
 spec: docs/superpowers/specs/2026-07-10-board-refresh-surface-gate-design.md
 plan: docs/superpowers/plans/2026-07-11-board-refresh-surface-gate.md
-results:
+results: docs/results/2026-07-11-board-refresh-surface-gate-results.md
 trivial: false
 auto_groomable:
 branch: feat/board-refresh-surface-gate
@@ -27,6 +27,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-10-board-refresh-surface-gate-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-10-board-refresh-surface-gate-design.md) |
 | Plan | [2026-07-11-board-refresh-surface-gate.md](https://github.com/danielhanold/docket/blob/feat/board-refresh-surface-gate/docs/superpowers/plans/2026-07-11-board-refresh-surface-gate.md) |
+| Results | [2026-07-11-board-refresh-surface-gate-results.md](https://github.com/danielhanold/docket/blob/feat/board-refresh-surface-gate/docs/results/2026-07-11-board-refresh-surface-gate-results.md) |
 | PR | [#64](https://github.com/danielhanold/docket/pull/64) |
 <!-- docket:artifacts:end -->
 
@@ -81,6 +82,18 @@ Introduce a deterministic gate so the opt-out is enforced in code, not prose (pe
 
 ## Reconcile log
 
+- 2026-07-11 — **Resumed and rebuilt after #67 (0055) and #68 (0056) merged.** All overlapping slim
+  changes are now on `main` (0054/0055/0056; `main` at `5ce5b49`, which also added ADR-0022 + a new
+  `docket-brainstorm` skill via 0056). Re-reconciled and rebuilt the branch **last**: reset
+  `feat/board-refresh-surface-gate` onto current `main`, carried the 9 non-overlapping files (the
+  `board-refresh.sh` primitive, the `docket-status.sh` composition, tests, plan), and **re-applied the
+  board-refresh gating to the slimmed skill prose** — the original 0059 wording still matched most
+  target lines; `finalize` step 5 (reworded by 0054) and `docket-new-change`'s proposed-kill line
+  (reworded by 0055) were adapted, preserving finalize's `is **never** published` assertion. Full suite
+  **32/32 green** (was 31 pre-0056). Independent code review: no material findings (the two minor
+  observations were verified non-issues — the empty-render guard is unreachable, and the porcelain
+  path's mode-agnostic form is correct as written). Force-pushed PR #64 (3 clean commits on `5ce5b49`,
+  MERGEABLE/CLEAN); wrote a results file. Status → `implemented`. Ready for the human merge gate.
 - 2026-07-11 — **HELD pending PRs #67 (0055) and #68 (0056).** After the 0058 rescope was built and
   the full suite passed green (on a branch rebased onto main@`2a3e20a`), `origin/main` advanced twice
   mid-work: 0058 (#65) then **0054/#66 merged** (slimmed `finalize/SKILL.md`), and a concurrent
