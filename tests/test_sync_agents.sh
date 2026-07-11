@@ -6,6 +6,23 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 fail=0
 assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
 
+# True when any occurrence of $2 is followed by $3 within $4 characters in $1.
+# Use Perl rather than grep -Pz: BSD grep lacks -P and caps interval bounds at 255.
+within(){
+  perl -0e '
+    my ($file, $first, $second, $limit) = @ARGV;
+    open my $fh, "<", $file or exit 1;
+    local $/;
+    my $text = <$fh>;
+    my $offset = 0;
+    while (($offset = index($text, $first, $offset)) >= 0) {
+      exit 0 if index(substr($text, $offset, length($first) + $limit), $second) >= 0;
+      ++$offset;
+    }
+    exit 1;
+  ' "$1" "$2" "$3" "$4"
+}
+
 # Extract a single-line frontmatter scalar value from a markdown file.
 fm(){ sed -n "s/^$2:[[:space:]]*//p" "$1" | head -n1 | sed 's/[[:space:]]*$//'; }
 
@@ -424,8 +441,8 @@ assert "convention points at composition (0017)" 'grep -q "0017" "$CONV"'
 assert "convention has an agent-layer section heading" 'grep -qiE "^#+ .*(agent layer|model/effort|subagent)" "$CONV"'
 
 # 0046: convention documents the harness-first agents: shape (default: + harness keys, field-level fallback).
-assert "0046 doc: agent-layer ref names the reserved default: key" 'grep -qE "default:" "$AGL" && grep -Pzoq "agents:[\s\S]{0,400}default:" "$AGL"'
-assert "0046 doc: agent-layer ref shows a per-harness key example (cursor)" 'grep -Pzoq "agents:[\s\S]{0,600}cursor:" "$AGL"'
+assert "0046 doc: agent-layer ref names the reserved default: key" 'within "$AGL" "agents:" "default:" 400'
+assert "0046 doc: agent-layer ref shows a per-harness key example (cursor)" 'within "$AGL" "agents:" "cursor:" 600'
 assert "0046 doc: agent-layer ref states field-level fallback H -> default -> built-in" 'grep -qiE "harness.*default.*built-in|<harness>.*default.*built-in" "$AGL"'
 assert "0046 doc: agent-layer ref notes non-Claude fallback warning" 'grep -qi "default/built-in" "$AGL"'
 
@@ -536,7 +553,7 @@ assert "0045 doc: convention names agent_harnesses" 'grep -q "agent_harnesses" "
 assert "0045 doc: convention states default [claude]" 'grep -qE "agent_harnesses.*\[claude\]|default.*\[claude\]" "$CONV"'
 assert "0045 doc: agent-layer ref states harness-neutral direct model IDs" 'grep -qiE "harness-neutral|direct model id" "$AGL"'
 assert "0045 doc: agent-layer ref notes passthrough enables non-Claude harnesses" 'grep -qi "passthrough" "$AGL"'
-assert "0045 doc: agent-layer ref points at ADR-0015 near agent_harnesses" 'grep -Pzoq "agent_harnesses[\s\S]{0,500}ADR-0015|ADR-0015[\s\S]{0,500}agent_harnesses" "$AGL"'
+assert "0045 doc: agent-layer ref points at ADR-0015 near agent_harnesses" 'within "$AGL" "agent_harnesses" "ADR-0015" 500 || within "$AGL" "ADR-0015" "agent_harnesses" 500'
 
 # (f) a glob-metachar token must NOT expand against the cwd (set -f guard). A decoy
 #     file present in the repo must never leak into the warnings.
