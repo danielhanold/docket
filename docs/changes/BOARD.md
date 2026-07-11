@@ -1,8 +1,14 @@
 # Backlog
 
-**59 changes** — 🟡 13 proposed · 🔵 1 implemented · ✅ 43 done · 🗑️ 2 killed
+**59 changes** — 🟢 1 in progress · 🟡 12 proposed · 🔵 1 implemented · ✅ 43 done · 🗑️ 2 killed
 
-## 🟡 Proposed (13)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Spec | Branch |
+|---|-------|----------|------|--------|
+| [0059](active/0059-board-refresh-surface-gate.md) | board-refresh honors board_surfaces — gate BOARD.md regeneration on the resolved surface set | `medium` | [spec](../superpowers/specs/2026-07-10-board-refresh-surface-gate-design.md) | `feat/board-refresh-surface-gate` |
+
+## 🟡 Proposed (12)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -18,7 +24,6 @@
 | [0055](active/0055-slim-remaining-skills.md) | Slim docket-implement-next + propagate Step-0 preamble to the small skills | `medium` | build-ready |
 | [0056](active/0056-consultant-brainstorm.md) | Consultant-authored brainstorm — opt-in pinned design agent for the brainstorm role | `medium` | build-ready |
 | [0058](active/0058-docket-status-orchestrator.md) | docket-status orchestrator — collapse the status pass into one script call | `high` | build-ready |
-| [0059](active/0059-board-refresh-surface-gate.md) | board-refresh honors board_surfaces — gate BOARD.md regeneration on the resolved surface set | `medium` | build-ready |
 
 ## 🔵 Implemented — awaiting merge (1)
 
