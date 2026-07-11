@@ -162,4 +162,69 @@ rc=$?
 assert "board_pass empty-surfaces run exits zero" '[ $rc -eq 0 ]'
 assert "board_pass empty-surfaces emits no board line" '! grep -qw "board" "$tmp/board-run3.txt"'
 
+# board_pass rebase-conflict-regenerate branch: force a push rejection whose only conflicting
+# path is BOARD.md, so the orchestrator must pull --rebase, hit a BOARD.md-only conflict,
+# regenerate via render-board.sh, and continue — never leaving BOARD.md empty/truncated.
+# A GIT wrapper races a competing push (from a second clone) in right after the orchestrator's
+# initial worktree sync but before its own push, so the sync itself sees no conflict and the
+# race is deterministic (no real network timing).
+git_repo_setup "$tmp/conflict-case"
+git clone -q "$tmp/conflict-case/origin.git" "$tmp/conflict-case/work" 2>/dev/null
+seed_changes_fixture "$tmp/conflict-case/work"
+git -C "$tmp/conflict-case/work" -c user.email=t@t -c user.name=t add docs/changes
+git -C "$tmp/conflict-case/work" -c user.email=t@t -c user.name=t commit -q -m "seed changes fixture"
+git -C "$tmp/conflict-case/work" push -q origin main
+
+git clone -q "$tmp/conflict-case/origin.git" "$tmp/conflict-case/work2" 2>/dev/null
+cat > "$tmp/conflict-case/work2/docs/changes/active/0002-beta.md" <<'EOF'
+---
+id: 2
+slug: beta
+title: Beta feature
+status: proposed
+priority: medium
+depends_on: []
+spec: docs/superpowers/specs/2026-06-11-beta.md
+branch: feat/beta
+EOF
+"$REPO/scripts/render-board.sh" --changes-dir "$tmp/conflict-case/work2/docs/changes" --repo x/y \
+  > "$tmp/conflict-case/work2/docs/changes/BOARD.md"
+git -C "$tmp/conflict-case/work2" -c user.email=t@t -c user.name=t add docs/changes
+git -C "$tmp/conflict-case/work2" -c user.email=t@t -c user.name=t commit -q -m "add beta + board"
+# NOTE: work2's competing commit is pushed by the GIT race wrapper below, after $work's initial
+# sync, so the orchestrator's own push (not its startup sync) is the one that gets rejected.
+
+sed -i.bak 's/Alpha feature/Alpha feature v2/' "$tmp/conflict-case/work/docs/changes/active/0001-alpha.md"
+rm -f "$tmp/conflict-case/work/docs/changes/active/0001-alpha.md.bak"
+git -C "$tmp/conflict-case/work" -c user.email=t@t -c user.name=t add docs/changes
+git -C "$tmp/conflict-case/work" -c user.email=t@t -c user.name=t commit -q -m "alpha v2 (local, unpushed)"
+
+cat > "$tmp/git-race.sh" <<EOF
+#!/usr/bin/env bash
+# Wraps real git; races work2's push in once, right after \$work's startup sync pull, so
+# the orchestrator's own board_pass push collides deterministically without real timing.
+raced="$tmp/conflict-case/.raced"
+if [ "\$1" = pull ] && [ ! -f "\$raced" ]; then
+  git "\$@"; rc=\$?
+  touch "\$raced"
+  git -C "$tmp/conflict-case/work2" push -q origin main
+  exit \$rc
+fi
+exec git "\$@"
+EOF
+chmod +x "$tmp/git-race.sh"
+
+write_board_fixture inline
+(cd "$tmp/conflict-case/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" GIT="$tmp/git-race.sh" "$SCRIPT" --board-only >"$tmp/conflict-run.txt" 2>"$tmp/conflict-run-err.txt")
+rc=$?
+assert "conflict run exits zero" '[ $rc -eq 0 ]'
+assert "conflict run reports inline changed pushed or push-failed" 'grep -Eq "board inline changed (pushed|push-failed)" "$tmp/conflict-run.txt"'
+assert "conflict run: BOARD.md non-empty after run" '[ -s "$tmp/conflict-case/work/docs/changes/BOARD.md" ]'
+if grep -q "board inline changed pushed" "$tmp/conflict-run.txt"; then
+  assert "conflict run pushed: local BOARD.md carries both merged changes" \
+    'grep -q "beta" "$tmp/conflict-case/work/docs/changes/BOARD.md" && grep -q "Alpha feature v2" "$tmp/conflict-case/work/docs/changes/BOARD.md"'
+  assert "conflict run pushed: remote BOARD.md matches local" \
+    'git -C "$tmp/conflict-case/work" show origin/main:docs/changes/BOARD.md 2>/dev/null | cmp -s - "$tmp/conflict-case/work/docs/changes/BOARD.md"'
+fi
+
 exit $fail

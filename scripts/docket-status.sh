@@ -92,10 +92,18 @@ board_pass_inline(){
     fi
     if ! "$GIT" -C "$mw" pull --rebase >&2 2>&1; then
       if "$GIT" -C "$mw" status --porcelain 2>/dev/null | grep -q "BOARD.md"; then
-        "$SELF_DIR"/render-board.sh --changes-dir "$cd_dir" ${REPO_FLAG:+--repo "$REPO_FLAG"} > "$board" 2>&2
+        if ! "$SELF_DIR"/render-board.sh --changes-dir "$cd_dir" ${REPO_FLAG:+--repo "$REPO_FLAG"} > "$tmp" 2>&2 || [ ! -s "$tmp" ]; then
+          echo "docket-status: board regeneration during rebase failed; aborting rebase" >&2
+          rm -f "$tmp"
+          "$GIT" -C "$mw" rebase --abort >&2 2>/dev/null || true
+          pushed=-1
+          break
+        fi
+        mv "$tmp" "$board"
         "$GIT" -C "$mw" add "$(basename "$board")" >&2 2>/dev/null || "$GIT" -C "$mw" add "$board" >&2
-        "$GIT" -C "$mw" rebase --continue >&2 2>&1 || break
+        "$GIT" -C "$mw" rebase --continue >&2 2>&1 || { "$GIT" -C "$mw" rebase --abort >&2 2>/dev/null || true; pushed=-1; break; }
       else
+        "$GIT" -C "$mw" rebase --abort >&2 2>/dev/null || true
         break
       fi
     fi
