@@ -10,7 +10,7 @@ depends_on: []
 related: [16, 17, 49]
 adrs: [8, 9, 18]
 spec: docs/superpowers/specs/2026-07-10-consultant-brainstorm-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-11-consultant-brainstorm.md
 results:
 trivial: false
 auto_groomable:
@@ -26,6 +26,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-10-consultant-brainstorm-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-10-consultant-brainstorm-design.md) |
+| Plan | [2026-07-11-consultant-brainstorm.md](https://github.com/danielhanold/docket/blob/feat/consultant-brainstorm/docs/superpowers/plans/2026-07-11-consultant-brainstorm.md) |
 | ADRs | [ADR-0008](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0008-agent-layer-generated-subagents.md), [ADR-0009](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0009-auto-groom-critic-isolation.md), [ADR-0018](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0018-pluggable-skills-passthrough-degrade.md) |
 <!-- docket:artifacts:end -->
 
