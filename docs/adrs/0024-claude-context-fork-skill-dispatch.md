@@ -1,7 +1,7 @@
 ---
 id: 24
 slug: claude-context-fork-skill-dispatch
-title: "Claude Code uses `context: fork` frontmatter as its inline-skill dispatch mechanism; fork only human-non-interactive skills"
+title: Claude Code uses `context: fork` frontmatter as its inline-skill dispatch mechanism; fork only human-non-interactive skills
 status: Accepted
 date: 2026-07-11
 supersedes: []
