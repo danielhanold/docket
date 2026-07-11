@@ -1,127 +1,92 @@
 # Board-render truncation guard — design
 
-**Change:** #0060 · **Slug:** board-render-truncation-guard · **Status:** proposed (build-ready)
-**Related:** #0059 (board-refresh-surface-gate, in progress) · **Depends on:** none
+**Change:** #0060 · **Slug:** board-render-truncation-guard · **Status:** in-progress (reconciled)
+**Related:** #0059 (board-refresh-surface-gate, **merged** PR #64) · **Depends on:** none
+
+> **Reconciled 2026-07-11 against merged #0059.** #0059 already built the atomic-write guard this
+> spec originally proposed for `render-board.sh`, but located it in a new `scripts/board-refresh.sh`
+> and migrated every Board-pass call site there. This spec is rewritten to its residual: the one
+> sub-case #0059 left unclosed — the **non-empty** half of the success test. The original
+> `render-board.sh --out` mode and call-site migration are dropped as obsolete. History of the
+> original design is in git.
 
 ## Problem
 
-Every docket Board pass is invoked as:
+The Board pass must never overwrite `BOARD.md` with an empty or partial render — a wiped board
+committed to `origin/docket` is a success-shaped silent failure, and an autonomous loop that hit it
+would publish it with no human to catch it. Two real, hand-recovered incidents motivated the
+original guard (#0052 `/dev/null` misdirection; #0055 unknown-flag → exit 2 → truncated redirect,
+146-deletion board wipe on `origin/docket`).
 
-```
-render-board.sh --changes-dir <dir> > docs/changes/BOARD.md
-```
+**Current state after #0059 (merged).** `scripts/board-refresh.sh` is now the sole gated writer of
+the `inline` `BOARD.md`. It renders `render-board.sh` into a `mktemp` temp file **inside the changes
+dir** (same filesystem → atomic `mv`), captures the renderer's exit code, and:
 
-The shell opens — and **truncates to zero bytes** — the redirect target *before*
-`render-board.sh` runs. So any run that exits non-zero or emits nothing to stdout leaves
-`BOARD.md` emptied, and the follow-on `git add && commit` publishes a wiped board.
-`render-board.sh` is faithful to its stdout-only contract; the fragility lives entirely in the
-**call pattern**.
+- exit ≠ 0 → prints `render-board.sh failed …; BOARD.md left untouched`, leaves the prior board
+  byte-identical, and propagates the code (test `test_board_refresh.sh` #9 pins this — partial
+  output + exit 7);
+- exit 0 → `chmod 644` the temp file and `mv` it onto `BOARD.md`.
 
-This has caused two real, hand-recovered incidents:
+Every call site (docket-status.sh's `board_pass_inline`, and the skills that point at it) routes
+through `board-refresh.sh`; the `> BOARD.md` shell redirect is **gone from the codebase**. Both
+motivating incidents are therefore structurally prevented already.
 
-- **#0052 finalize** — the render was piped to `/dev/null`; the staged stale board reported
-  "board unchanged" (a success-shaped silent no-op) and origin kept showing the change
-  in-progress. (Memory: `docket-render-board-stdout-redirect`.)
-- **#0055 finalize (2026-07-11)** — a Board pass passed an unknown flag (`--adrs-dir`, which
-  render-board does not accept, unlike its sibling renderers `render-change-links.sh` /
-  `terminal-publish.sh`); the script exited 2 with empty stdout, the redirect had already
-  truncated `BOARD.md`, and a 146-deletion "wipe the board" commit landed on `origin/docket`
-  before it was caught and reverted by hand.
-
-An autonomous loop that hits this would publish an empty board with no human to catch it.
-
-**Scope boundary (from a call-site scan):** `render-board.sh` is the *only* derived-view script
-that writes via a shell redirect. `render-change-links.sh` edits its target in place
-(`--change-file`, sole writer of the marker block) and `terminal-publish.sh` commits directly.
-So the blast radius is exactly the `inline` `BOARD.md` write, across the Board-pass call sites:
-the docket-status **Board** step (single source) and the sites that point at it
-(`references/terminal-close-out.md` §5, `docket-new-change` §5, `docket-groom-next` §5, and the
-two kill paths).
+**The residual gap.** `board-refresh.sh` gates the `mv` on the exit code **only** — it never checks
+that the temp file is **non-empty**. The original design's success test was `exit 0 **AND**
+[ -s tmp ]` (below); #0059 implemented only the exit-code half. `render-board.sh` unconditionally
+emits a `# Backlog\n\n` header on any clean run, so an exit-0-but-empty render cannot happen today
+with the real renderer — but the guard's completeness rests on that implicit coupling. A future
+render-board regression (an early `exit 0`, swallowed output) or the `RENDER_BOARD` mock seam could
+still `mv` an empty temp file over a good board. This change closes that hole so board-refresh.sh's
+no-truncate guarantee is self-contained by construction.
 
 ## Decision
 
-Add an optional atomic-write mode to `render-board.sh` and route every Board pass through it, so
-`BOARD.md` is only ever overwritten by a *successful, non-empty* render — the guard holds by
-construction, not by author discipline (which is what failed twice).
+Add the missing **non-empty guard** to `scripts/board-refresh.sh`. `render-board.sh` stays an
+unchanged pure stdout renderer; all write ownership already lives in `board-refresh.sh` (per #0059).
 
-### 1. `render-board.sh --out <file>`
+Between the existing exit-code check and the `mv`, add a second gate: the temp file must be
+non-empty (`[ -s "$tmp_board" ]`).
 
-Default behavior (no `--out`) is **unchanged**: render the board to stdout. Existing callers and
-tests that redirect stdout keep working; the mode is purely additive.
+- **Success test** becomes: `render-board.sh` exited 0 **AND** the temp file is non-empty.
+  - Success → `chmod 644` + `mv` onto `BOARD.md` (unchanged).
+  - Empty (exit 0, zero bytes) → print a distinct `board-refresh: render produced empty output;
+    BOARD.md left untouched` to stderr, let the `EXIT` trap remove the temp file, leave `BOARD.md`
+    **byte-identical**, and **exit non-zero** so the caller skips its `git add`/commit — mirroring
+    the existing non-zero-exit branch.
 
-With `--out <file>`:
+Exit code for the empty case: a fixed non-zero code (e.g. `1`) distinct from the propagated
+renderer code and from the usage `exit 2`, so callers and tests can tell "renderer failed" from
+"renderer produced nothing." No structural/format validation beyond non-empty (a `# Backlog` H1
+check remains rejected as YAGNI — no incident has hit a non-empty-but-truncated render, and it
+would couple the guard to the output format).
 
-1. **Validate arguments first, before touching any file.** Missing/invalid `--changes-dir`, an
-   unknown flag, or any other usage error exits non-zero (the existing exit 2) and writes
-   nothing — this is the property the shell `>` redirect cannot provide, and the exact class the
-   #0055 bad-flag incident hit.
-2. Render into a temp file created with `mktemp` **in the same directory as `<file>`**, so the
-   final replace is an atomic same-filesystem `mv` (a cross-filesystem `/tmp` temp would make the
-   replace non-atomic).
-3. **Success test:** the render's exit status is `0` **and** the temp file is non-empty (`[ -s ]`).
-   - Success → `mv` the temp file over `<file>` (atomic replace) and exit 0.
-   - Failure → remove the temp file, leave `<file>` **byte-identical to its prior contents**, and
-     exit non-zero so the caller skips its `git add`/commit.
+`render-board.sh` always emitting the `# Backlog` header means a *legitimately* empty board is
+impossible, so the non-empty gate has no false-positive risk — the empty branch is pure
+defense-in-depth.
 
-No structural/format validation of the rendered content beyond non-empty — `render-board.sh` is
-deterministic and unit-tested, so a zero-exit, non-empty render is trusted well-formed. (A
-`# Backlog` H1 sanity check was considered and rejected as YAGNI: no incident has hit a
-truncated-but-non-empty render, and it would couple the guard to the output format.)
-
-This also eliminates the `/dev/null`-misdirection class outright: the script owns the write, so
-there is no separate shell redirect a caller can aim at the wrong target.
-
-### 2. Call-site migration
-
-`render-board.sh` and `render-board.md` (its contract) gain the `--out` flag and the
-no-truncate-on-failure invariant.
-
-The **single source** is docket-status's **Board** step. Make it explicitly invoke:
-
-```
-render-board.sh --changes-dir <metadata-tree>/<changes_dir> --out <metadata-tree>/<changes_dir>/BOARD.md
-```
-
-— no `>` redirect — and gate the subsequent `git add`/commit on the script's exit status. The
-other Board-pass sites already point at this prose; the implementer greps the skills, references,
-and tests for any literal `> …BOARD.md` example and re-points it to the `--out` form. Where the
-prior redirect was the *only* thing a call site said about writing the board, the substitution is
-mechanical.
-
-### 3. Interaction with #0059 (orthogonal)
-
-#0059 (board-refresh-surface-gate) decides **whether** the Board pass runs at all, gating on the
-resolved `board_surfaces` (when `inline` is disabled, `BOARD.md` is legitimately not written).
-`--out` governs **how** the render writes *when it does run*. The two are orthogonal: the guard
-must never treat "inline intentionally disabled → skipped" as a failure, and it does not — a
-skipped pass simply never calls `render-board.sh`.
-
-Both changes edit the docket-status Board prose, so this is a **reconcile note, not a
-dependency**. #0059 is in flight (PR #64). Whichever merges second rebases; the implementer's
-reconcile pass re-reads the current Board prose at build time and folds `--out` into whatever
-#0059 left. Kept as `related`, not `depends_on` — designing ahead of an in-flight sibling is
-expected.
+Update `scripts/board-refresh.md` (the contract) to state the two-part success condition
+(exit 0 **and** non-empty) and the new empty-render failure row/exit code.
 
 ## Testing
 
-Extend `tests/test_render_board.sh`, reusing its existing `GIT="${GIT:-git}"` mock seam and temp-repo
-fixtures:
+Extend `tests/test_board_refresh.sh`, reusing its `RENDER_BOARD` mock seam and hermetic temp-repo
+fixtures (the same pattern as its existing test #9):
 
-1. **`--out` success** — writes `<file>`, exits 0, and the written content is byte-identical to
-   the stdout render of the same fixture.
-2. **`--out` failure leaves target intact** — seed a pre-existing `<file>` with known bytes, force
-   a non-zero render (e.g. bad `--changes-dir`), assert `<file>` is byte-identical afterward and
-   the script exits non-zero.
-3. **`--out` empty render leaves target intact** — same as (2) for an empty-stdout render.
-4. **Arg-validation does not truncate** — a pre-existing `--out` target plus an unknown flag
-   (the #0055 regression): exits non-zero and the target is untouched.
-5. **Default stdout path unchanged** — existing stdout assertions stand (regression guard for the
-   additive change).
+1. **Empty render leaves target intact** — a `RENDER_BOARD` stub that prints nothing and exits 0;
+   seed a pre-existing `BOARD.md` with known bytes; assert after the run that `BOARD.md` is
+   byte-identical, board-refresh.sh exits non-zero (the chosen empty-render code), the stderr names
+   the empty-output failure, and no temp file leaks in the changes dir.
+2. **Existing coverage stands** — the current tests (#9 non-zero-exit/partial-output leaves board
+   untouched; happy-path byte-identical write; `chmod 644`; disabled/empty/github-only surfaces;
+   arg-validation exit 2) remain as regression guards for the additive change.
 
 ## Out of scope
 
 - Board *content* or layout, and any dependency-resolution/readiness logic (render-board's and
   #0059's domain).
 - The `github` board surface / mirror path — this is specifically the `inline` `BOARD.md` write.
-- Reworking `render-board.sh`'s stdout contract for its other consumers beyond adding the opt-in
-  `--out` path.
+- `render-board.sh` itself — unchanged pure stdout renderer.
+- The `render-board.sh --out` mode and the Board-pass call-site migration from the original design —
+  dropped as obsolete (superseded by #0059's `board-refresh.sh` write ownership + call-site
+  migration).
