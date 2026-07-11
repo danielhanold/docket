@@ -304,6 +304,54 @@ sweep_execute_one(){
   echo "harvest $id $archived"
 }
 
+# health_checks — runs board-checks.sh (the mechanical git-only checks) over the current
+# changes-dir and prefixes each TSV finding line as "check <check-id> <change-id> <message>".
+# Best-effort: a clean tree (or a board-checks failure) prints nothing extra; never aborts the pass.
+health_checks(){
+  local mw
+  if [ "${DOCKET_MODE:-}" = docket ]; then mw="${METADATA_WORKTREE:-.docket}"; else mw="."; fi
+  local cd_dir="$mw/$CHANGES_DIR"
+  local metadata_branch
+  if [ "${DOCKET_MODE:-}" = docket ]; then metadata_branch="$METADATA_BRANCH"; else metadata_branch="$INTEGRATION_BRANCH"; fi
+  "$SCRIPTS_DIR"/board-checks.sh \
+    --changes-dir "$cd_dir" --metadata-branch "$metadata_branch" \
+    --integration-branch "origin/$INTEGRATION_BRANCH" 2>&2 | \
+  while IFS=$'\t' read -r check_id change_id message; do
+    [ -n "$check_id" ] || continue
+    echo "check $check_id $change_id $message"
+  done
+  return 0
+}
+
+# emit_judgment — one "judgment blocked <id> <blocked_by text>" line per `blocked` change under
+# $CD/active. The judgment (whether the blocking reason still holds) is left to the caller/skill.
+emit_judgment(){
+  local mw
+  if [ "${DOCKET_MODE:-}" = docket ]; then mw="${METADATA_WORKTREE:-.docket}"; else mw="."; fi
+  local cd_dir="$mw/$CHANGES_DIR"
+
+  local -a files
+  mapfile -t files < <(find "$cd_dir/active" -maxdepth 1 -name '*.md' 2>/dev/null | sort)
+  [ ${#files[@]} -gt 0 ] || return 0
+
+  local f status id blocked_by
+  for f in "${files[@]}"; do
+    status="$(field "$f" status)"
+    [ "$status" = blocked ] || continue
+    id="$(field "$f" id)"
+    blocked_by="$(field "$f" blocked_by)"
+    echo "judgment blocked $id $blocked_by"
+  done
+  return 0
+}
+
+# integration_sync — best-effort FF-only sync of the invoking repo's integration-branch
+# checkout, run once at the end of a pass that swept at least one change.
+integration_sync(){
+  "$SCRIPTS_DIR"/sync-integration-branch.sh --integration-branch "$INTEGRATION_BRANCH" >&2 2>&1 || true
+  return 0
+}
+
 main(){
   local cfg; cfg="$(config_export)" || { echo "docket-status: config export failed" >&2; exit 1; }
   eval "$cfg"
@@ -315,7 +363,21 @@ main(){
   esac
   ensure_and_sync_worktree
   board_pass
-  # Steps 4..7 wired in later tasks.
+  [ "$BOARD_ONLY" = 1 ] && exit 0
+
+  local swept_count=0 line
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    printf '%s\n' "$line"
+    case "$line" in
+      "swept "*) swept_count=$((swept_count + 1)) ;;
+    esac
+  done < <(detect_merged | sweep_execute)
+
+  health_checks
+  emit_judgment
+  [ "$swept_count" -gt 0 ] && integration_sync
+  exit 0
 }
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then
   main "$@"

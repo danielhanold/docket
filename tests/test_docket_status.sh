@@ -436,4 +436,230 @@ assert "sweep_execute: cleanup failure emits sweep-failed before swept/harvest (
 assert "sweep_execute: cleanup failure does not block clean-thing (loop continues)" \
   'printf "%s\n" "$sweep_out" | grep -qE "^swept 20 2026-07-08$"'
 
+# health_checks: prefixes board-checks.sh's TSV findings as "check <id> <change-id> <message>".
+# Mock board-checks.sh via SCRIPTS_DIR — this is a pure formatting/plumbing test, not a
+# re-test of board-checks.sh's own check logic.
+health_dir="$tmp/health-case"
+mkdir -p "$health_dir/docs/changes/active" "$tmp/mock-health"
+cat > "$tmp/mock-health/board-checks.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "board-checks $*" >> "$HEALTH_LOG"
+printf 'broken-spec\t12\tspec path missing on docket\n'
+EOF
+chmod +x "$tmp/mock-health/board-checks.sh"
+health_log="$tmp/health-calls.log"; : > "$health_log"
+
+health_out="$( cd "$health_dir" && \
+  DOCKET_MODE=main CHANGES_DIR=docs/changes INTEGRATION_BRANCH=main METADATA_BRANCH=main \
+  SCRIPTS_DIR="$tmp/mock-health" HEALTH_LOG="$health_log" \
+  bash -c '. "'"$SCRIPT"'"; health_checks' )"
+assert "health_checks: prefixes board-checks finding as 'check <id> <change-id> <message>'" \
+  'printf "%s\n" "$health_out" | grep -qF "check broken-spec 12 spec path missing on docket"'
+assert "health_checks: invokes board-checks.sh with expected flags" \
+  'grep -Eq -- "--changes-dir \./?docs/changes" "$health_log" && grep -q -- "--metadata-branch main" "$health_log" \
+   && grep -q -- "--integration-branch origin/main" "$health_log"'
+
+# health_checks: clean tree (no findings) prints nothing.
+mkdir -p "$tmp/mock-health-clean"
+cat > "$tmp/mock-health-clean/board-checks.sh" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+chmod +x "$tmp/mock-health-clean/board-checks.sh"
+health_clean_out="$( cd "$health_dir" && \
+  DOCKET_MODE=main CHANGES_DIR=docs/changes INTEGRATION_BRANCH=main METADATA_BRANCH=main \
+  SCRIPTS_DIR="$tmp/mock-health-clean" \
+  bash -c '. "'"$SCRIPT"'"; health_checks' )"
+assert "health_checks: clean board-checks output emits nothing" '[ -z "$health_clean_out" ]'
+
+# emit_judgment: one "judgment blocked <id> <blocked_by text>" per blocked active change.
+judg_dir="$tmp/judgment-case"
+mkdir -p "$judg_dir/docs/changes/active"
+cat > "$judg_dir/docs/changes/active/0012-waiting-thing.md" <<'EOF'
+---
+id: 12
+slug: waiting-thing
+title: Waiting thing
+status: blocked
+priority: high
+depends_on: []
+blocked_by: needs decision from platform team on auth flow
+EOF
+cat > "$judg_dir/docs/changes/active/0013-not-blocked.md" <<'EOF'
+---
+id: 13
+slug: not-blocked
+title: Not blocked
+status: proposed
+priority: high
+depends_on: []
+EOF
+
+judg_out="$( cd "$judg_dir" && \
+  DOCKET_MODE=main CHANGES_DIR=docs/changes \
+  bash -c '. "'"$SCRIPT"'"; emit_judgment' )"
+assert "emit_judgment: blocked change emits judgment line with id and blocked_by text" \
+  'printf "%s\n" "$judg_out" | grep -qF "judgment blocked 12 needs decision from platform team on auth flow"'
+assert "emit_judgment: non-blocked change emits nothing" \
+  '! printf "%s\n" "$judg_out" | grep -q " 13 "'
+
+# Full-run wiring: main() runs health_checks/emit_judgment always, and gates integration_sync
+# on swept_count > 0. Mock every shared script via SCRIPTS_DIR so the run is hermetic; use
+# BOARD_SURFACES="" to skip the board pass entirely (already covered above).
+write_full_fixture(){
+  # $1 board_surfaces (usually empty)
+  cat > "$tmp/fixture-full.sh" <<EOF
+#!/usr/bin/env bash
+printf '%s\n' \
+  'BOOTSTRAP=PROCEED' \
+  'METADATA_BRANCH=main' \
+  'INTEGRATION_BRANCH=main' \
+  'DOCKET_MODE=main' \
+  'METADATA_WORKTREE=.docket' \
+  'CHANGES_DIR=docs/changes' \
+  'ADRS_DIR=docs/adrs' \
+  'RESULTS_DIR=docs/results' \
+  'BOARD_SURFACES=$1'
+EOF
+}
+write_full_fixture ""
+
+mkdir -p "$tmp/mock-full"
+full_log="$tmp/full-calls.log"
+cat > "$tmp/mock-full/board-checks.sh" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+cat > "$tmp/mock-full/archive-change.sh" <<'EOF'
+#!/usr/bin/env bash
+changes_dir="" id="" date=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --changes-dir) changes_dir="$2"; shift ;;
+    --id) id="$2"; shift ;;
+    --date) date="$2"; shift ;;
+  esac
+  shift
+done
+pad="$(printf '%04d' "$id")"
+active="$(find "$changes_dir/active" -maxdepth 1 -name "${pad}-*.md" | head -n1)"
+[ -n "$active" ] || exit 1
+base="$(basename "$active")"
+slug="${base#"${pad}"-}"; slug="${slug%.md}"
+mkdir -p "$changes_dir/archive"
+dest="$changes_dir/archive/${date}-${pad}-${slug}.md"
+root="$(git -C "$changes_dir" rev-parse --show-toplevel)"
+git -C "$root" mv "$active" "$dest"
+sed -i.bak "s/^status:.*/status: done/" "$dest" && rm -f "$dest.bak"
+git -C "$root" add -- "$dest" 2>/dev/null
+git -C "$root" -c user.email=t@t -c user.name=t commit -q -m "mock archive" >/dev/null 2>&1
+git -C "$root" push -q origin main >/dev/null 2>&1
+exit 0
+EOF
+cat > "$tmp/mock-full/render-change-links.sh" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+cat > "$tmp/mock-full/terminal-publish.sh" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+cat > "$tmp/mock-full/cleanup-feature-branch.sh" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+cat > "$tmp/mock-full/sync-integration-branch.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "sync-integration-branch $*" >> "$FULL_LOG"
+touch "$SYNC_MARKER"
+exit 0
+EOF
+chmod +x "$tmp/mock-full/"*.sh
+
+cat > "$tmp/gh-full-merged.sh" <<'EOF'
+#!/usr/bin/env bash
+if [ "$1" = api ] && [ "$2" = graphql ]; then
+  cat <<'JSON'
+{"data":{"p30":{"number":30,"mergedAt":"2026-07-08T12:00:00Z","state":"MERGED"}}}
+JSON
+  exit 0
+fi
+echo "gh-full-merged: unexpected args: $*" >&2
+exit 1
+EOF
+chmod +x "$tmp/gh-full-merged.sh"
+
+cat > "$tmp/gh-full-none.sh" <<'EOF'
+#!/usr/bin/env bash
+if [ "$1" = repo ] && [ "$2" = view ]; then
+  echo "x/y"; exit 0
+fi
+echo "gh-full-none: unexpected args: $*" >&2
+exit 1
+EOF
+chmod +x "$tmp/gh-full-none.sh"
+
+# Case 1: one merged change present ⇒ sweep occurs ⇒ integration_sync IS invoked.
+git_repo_setup "$tmp/full-merged-case"
+git clone -q "$tmp/full-merged-case/origin.git" "$tmp/full-merged-case/work" 2>/dev/null
+mkdir -p "$tmp/full-merged-case/work/docs/changes/active" "$tmp/full-merged-case/work/docs/adrs"
+cat > "$tmp/full-merged-case/work/docs/changes/active/0030-merged-full.md" <<'EOF'
+---
+id: 30
+slug: merged-full
+title: Merged full
+status: implemented
+priority: high
+depends_on: []
+branch: feat/merged-full
+pr: 30
+EOF
+git -C "$tmp/full-merged-case/work" -c user.email=t@t -c user.name=t add docs/changes
+git -C "$tmp/full-merged-case/work" -c user.email=t@t -c user.name=t commit -q -m "seed"
+git -C "$tmp/full-merged-case/work" push -q origin main
+
+sync_marker_yes="$tmp/sync-marker-yes"
+rm -f "$sync_marker_yes"
+(cd "$tmp/full-merged-case/work" && \
+  CONFIG_EXPORT_CMD="bash $tmp/fixture-full.sh" GH="$tmp/gh-full-merged.sh" \
+  SCRIPTS_DIR="$tmp/mock-full" FULL_LOG="$full_log" SYNC_MARKER="$sync_marker_yes" \
+  "$SCRIPT" --repo x/y >"$tmp/full-merged-out.txt" 2>"$tmp/full-merged-err.txt")
+rc=$?
+assert "full run (merged case) exits zero" '[ $rc -eq 0 ]'
+assert "full run (merged case) emits swept line" \
+  'grep -qE "^swept 30 2026-07-08$" "$tmp/full-merged-out.txt"'
+assert "full run (merged case) invokes integration_sync (marker touched)" \
+  '[ -f "$sync_marker_yes" ]'
+
+# Case 2: no merged changes ⇒ no sweep ⇒ integration_sync is NOT invoked.
+git_repo_setup "$tmp/full-none-case"
+git clone -q "$tmp/full-none-case/origin.git" "$tmp/full-none-case/work" 2>/dev/null
+mkdir -p "$tmp/full-none-case/work/docs/changes/active" "$tmp/full-none-case/work/docs/adrs"
+git -C "$tmp/full-none-case/work" -c user.email=t@t -c user.name=t commit -q --allow-empty -m "seed2" 2>/dev/null || true
+git -C "$tmp/full-none-case/work" push -q origin main 2>/dev/null || true
+
+sync_marker_no="$tmp/sync-marker-no"
+rm -f "$sync_marker_no"
+(cd "$tmp/full-none-case/work" && \
+  CONFIG_EXPORT_CMD="bash $tmp/fixture-full.sh" GH="$tmp/gh-full-none.sh" \
+  SCRIPTS_DIR="$tmp/mock-full" FULL_LOG="$full_log" SYNC_MARKER="$sync_marker_no" \
+  "$SCRIPT" >"$tmp/full-none-out.txt" 2>"$tmp/full-none-err.txt")
+rc=$?
+assert "full run (no merges) exits zero" '[ $rc -eq 0 ]'
+assert "full run (no merges) does not invoke integration_sync (no marker)" \
+  '[ ! -f "$sync_marker_no" ]'
+
+# --board-only: exits after board_pass with no check/swept/judgment lines and no sync call.
+sync_marker_bo="$tmp/sync-marker-boardonly"
+rm -f "$sync_marker_bo"
+(cd "$tmp/full-none-case/work" && \
+  CONFIG_EXPORT_CMD="bash $tmp/fixture-full.sh" GH="$tmp/gh-full-none.sh" \
+  SCRIPTS_DIR="$tmp/mock-full" SYNC_MARKER="$sync_marker_bo" \
+  "$SCRIPT" --board-only >"$tmp/full-boardonly-out.txt" 2>"$tmp/full-boardonly-err.txt")
+rc=$?
+assert "--board-only exits zero" '[ $rc -eq 0 ]'
+assert "--board-only emits no check/swept/judgment/sweep-skipped lines" \
+  '! grep -Eq "^(check|swept|judgment|sweep-skipped|sweep-failed|harvest) " "$tmp/full-boardonly-out.txt"'
+assert "--board-only does not invoke integration_sync" '[ ! -f "$sync_marker_bo" ]'
+
 exit $fail
