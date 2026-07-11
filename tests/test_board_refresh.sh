@@ -144,5 +144,28 @@ assert "perms: inline write exit 0" '[ "$rc10" -eq 0 ]'
 mode="$(stat -f '%OLp' "$tmp/BOARD.md" 2>/dev/null || stat -c '%a' "$tmp/BOARD.md")"
 assert "perms: BOARD.md is mode 644 after a successful inline write" '[ "$mode" = "644" ]'
 
+# --- 11: enabled render that exits 0 with EMPTY output must NOT overwrite BOARD.md. render-board.sh
+# always emits a `# Backlog` header on a clean run, so this cannot happen with the real renderer —
+# but the guard must be self-contained (a future render-board regression / the mock seam could hit
+# it). Belt-and-suspenders companion to test #9 (non-zero exit). Mirrors what a real renderer could
+# do: exit 0, print nothing.
+empty_stub="$work/empty-render.sh"
+cat > "$empty_stub" <<'EOF'
+#!/usr/bin/env bash
+# Emits nothing, exits 0 — the exit-0-but-empty case.
+exit 0
+EOF
+chmod +x "$empty_stub"
+rm -f "$tmp/BOARD.md"
+printf '# Known Good Board\n\nPre-existing, must survive an empty render.\n' > "$tmp/BOARD.md"
+cp "$tmp/BOARD.md" "$work/pre-empty-board.md"
+RENDER_BOARD="$empty_stub" "$SCRIPT" --changes-dir "$tmp" --surfaces "inline" >"$work/out11" 2>"$work/err11"; rc11=$?
+assert "empty render: exits non-zero (1), not 0" '[ "$rc11" -eq 1 ]'
+assert "empty render: pre-existing BOARD.md untouched (byte-identical)" \
+  'diff -u "$work/pre-empty-board.md" "$tmp/BOARD.md"'
+assert "empty render: no leftover temp file in changes dir (only BOARD.md remains)" \
+  '[ "$(count_files)" -eq 1 ]'
+assert "empty render: reports empty output on stderr" 'grep -qF "empty output" "$work/err11"'
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
