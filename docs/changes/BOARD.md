@@ -1,12 +1,6 @@
 # Backlog
 
-**60 changes** — 🟢 1 in progress · 🟡 7 proposed · 🔵 1 implemented · ✅ 49 done · 🗑️ 2 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0060](active/0060-board-render-truncation-guard.md) | board-refresh.sh must not write an empty BOARD.md — non-empty guard on the atomic write | `medium` | [spec](../superpowers/specs/2026-07-11-board-render-truncation-guard-design.md) | `feat/board-render-truncation-guard` |
+**60 changes** — 🟡 7 proposed · 🔵 2 implemented · ✅ 49 done · 🗑️ 2 killed
 
 ## 🟡 Proposed (7)
 
@@ -20,11 +14,12 @@
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | [#69](https://github.com/danielhanold/docket/pull/69) |
+| [0060](active/0060-board-render-truncation-guard.md) | board-refresh.sh must not write an empty BOARD.md — non-empty guard on the atomic write | `medium` | [#70](https://github.com/danielhanold/docket/pull/70) |
 
 ```mermaid
 graph TD
