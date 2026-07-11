@@ -324,6 +324,7 @@ EOF
 }
 seed_sweep_change 20 clean-thing implemented
 seed_sweep_change 21 broken-render implemented
+seed_sweep_change 23 cleanup-broken implemented
 git -C "$sweep_dir/work" -c user.email=t@t -c user.name=t add docs/changes
 git -C "$sweep_dir/work" -c user.email=t@t -c user.name=t commit -q -m "seed sweep changes"
 git -C "$sweep_dir/work" push -q origin main
@@ -376,12 +377,13 @@ EOF
 cat > "$tmp/mock-scripts/cleanup-feature-branch.sh" <<'EOF'
 #!/usr/bin/env bash
 echo "cleanup-feature-branch $*" >> "$SWEEP_LOG"
+case "$*" in *cleanup-broken*) exit 1 ;; esac
 exit 0
 EOF
 chmod +x "$tmp/mock-scripts/"*.sh
 
 sweep_input="$tmp/sweep-input.tsv"
-printf '20\tclean-thing\t20\t2026-07-08\n21\tbroken-render\t21\t2026-07-09\n22\talready-done\t22\t2026-07-05\n' > "$sweep_input"
+printf '20\tclean-thing\t20\t2026-07-08\n21\tbroken-render\t21\t2026-07-09\n22\talready-done\t22\t2026-07-05\n23\tcleanup-broken\t23\t2026-07-10\n' > "$sweep_input"
 
 # NOTE: docket-status.sh's own top-level flag parser consumes "$@" at source time, so no
 # positional args can be passed through `bash -c '. script; ...' _ <args>` here — feed the
@@ -419,5 +421,19 @@ assert "sweep_execute: terminal-publish called before cleanup-feature-branch (or
   'publish_line=$(grep -n "^terminal-publish" "$sweep_log" | grep -- "--id 20 " | head -n1 | cut -d: -f1); \
    cleanup_line=$(grep -n "^cleanup-feature-branch" "$sweep_log" | grep -- "--slug clean-thing" | head -n1 | cut -d: -f1); \
    [ -n "$publish_line" ] && [ -n "$cleanup_line" ] && [ "$publish_line" -lt "$cleanup_line" ]'
+assert "sweep_execute: cleanup failure emits sweep-failed cleanup" \
+  'printf "%s\n" "$sweep_out" | grep -qE "^sweep-failed 23 cleanup "'
+assert "sweep_execute: cleanup failure still emits swept (terminal transition already durable)" \
+  'printf "%s\n" "$sweep_out" | grep -qE "^swept 23 2026-07-10$"'
+assert "sweep_execute: cleanup failure still emits harvest" \
+  'printf "%s\n" "$sweep_out" | grep -qE "^harvest 23 .*2026-07-10-0023-cleanup-broken\.md$"'
+assert "sweep_execute: cleanup failure emits sweep-failed before swept/harvest (order)" \
+  'failed_line=$(printf "%s\n" "$sweep_out" | grep -n "^sweep-failed 23 cleanup " | head -n1 | cut -d: -f1); \
+   swept_line=$(printf "%s\n" "$sweep_out" | grep -n "^swept 23 " | head -n1 | cut -d: -f1); \
+   harvest_line=$(printf "%s\n" "$sweep_out" | grep -n "^harvest 23 " | head -n1 | cut -d: -f1); \
+   [ -n "$failed_line" ] && [ -n "$swept_line" ] && [ -n "$harvest_line" ] \
+   && [ "$failed_line" -lt "$swept_line" ] && [ "$swept_line" -lt "$harvest_line" ]'
+assert "sweep_execute: cleanup failure does not block clean-thing (loop continues)" \
+  'printf "%s\n" "$sweep_out" | grep -qE "^swept 20 2026-07-08$"'
 
 exit $fail

@@ -298,7 +298,6 @@ sweep_execute_one(){
 
   if ! "$SCRIPTS_DIR"/cleanup-feature-branch.sh --slug "$slug" >&2; then
     echo "sweep-failed $id cleanup script-error"
-    return 0
   fi
 
   echo "swept $id $merged_date"
