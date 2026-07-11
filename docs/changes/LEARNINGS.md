@@ -4,6 +4,13 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-07-11 (#58, PR #65) — A `gh api graphql` jq path read one level too shallow
+  (`.data.pN.mergedAt` vs `.data.pN.pullRequest.mergedAt`); the bug was masked because the test
+  mock returned a *flattened* JSON shape `gh` never actually emits, so the test passed against a
+  fiction. Apply: a tool-output mock must mirror the real tool's exact response shape (nesting and
+  all) — a mock shaped to match the code under test rather than the real tool validates nothing and
+  hides production parse bugs.
+
 - 2026-07-11 (#57, PR #63) — A guard on a marker-bounded "do-not-hand-edit" managed block checked
   marker *presence*, not *order*: an END-before-START (same spelling) corrupted block bypassed it and
   the strip consumed to EOF, dropping user bytes (the LEARNINGS #51 class, re-hit). Apply: when
