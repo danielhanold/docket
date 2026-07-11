@@ -662,4 +662,77 @@ assert "--board-only emits no check/swept/judgment/sweep-skipped lines" \
   '! grep -Eq "^(check|swept|judgment|sweep-skipped|sweep-failed|harvest) " "$tmp/full-boardonly-out.txt"'
 assert "--board-only does not invoke integration_sync" '[ ! -f "$sync_marker_bo" ]'
 
+# --board-only fast mode (task 7): LOCK that the early exit sits immediately after board_pass,
+# even when the fixture WOULD sweep in a full run (a merged `implemented` change present).
+# Mock every sweep/checks/sync sub-script with a marker-touching stub and assert none fire.
+bo_dir="$tmp/board-only-lock-case"
+git_repo_setup "$bo_dir"
+git clone -q "$bo_dir/origin.git" "$bo_dir/work" 2>/dev/null
+mkdir -p "$bo_dir/work/docs/changes/active" "$bo_dir/work/docs/adrs"
+cat > "$bo_dir/work/docs/changes/active/0040-mergeable-thing.md" <<'EOF'
+---
+id: 40
+slug: mergeable-thing
+title: Mergeable thing
+status: implemented
+priority: high
+depends_on: []
+branch: feat/mergeable-thing
+pr: 40
+EOF
+git -C "$bo_dir/work" -c user.email=t@t -c user.name=t add docs/changes
+git -C "$bo_dir/work" -c user.email=t@t -c user.name=t commit -q -m "seed board-only-lock fixture"
+git -C "$bo_dir/work" push -q origin main
+
+mkdir -p "$tmp/mock-bo"
+bo_marker_checks="$tmp/mock-bo/.marker-board-checks"
+bo_marker_sync="$tmp/mock-bo/.marker-sync-integration"
+bo_marker_archive="$tmp/mock-bo/.marker-archive"
+bo_marker_cleanup="$tmp/mock-bo/.marker-cleanup"
+rm -f "$bo_marker_checks" "$bo_marker_sync" "$bo_marker_archive" "$bo_marker_cleanup"
+
+cat > "$tmp/mock-bo/board-checks.sh" <<EOF
+#!/usr/bin/env bash
+touch "$bo_marker_checks"
+exit 0
+EOF
+cat > "$tmp/mock-bo/sync-integration-branch.sh" <<EOF
+#!/usr/bin/env bash
+touch "$bo_marker_sync"
+exit 0
+EOF
+cat > "$tmp/mock-bo/archive-change.sh" <<EOF
+#!/usr/bin/env bash
+touch "$bo_marker_archive"
+exit 0
+EOF
+cat > "$tmp/mock-bo/cleanup-feature-branch.sh" <<EOF
+#!/usr/bin/env bash
+touch "$bo_marker_cleanup"
+exit 0
+EOF
+chmod +x "$tmp/mock-bo/"*.sh
+
+cat > "$tmp/gh-bo.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "gh-bo: should never be invoked in --board-only: $*" >&2
+exit 1
+EOF
+chmod +x "$tmp/gh-bo.sh"
+
+write_board_fixture inline
+(cd "$bo_dir/work" && \
+  CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" GH="$tmp/gh-bo.sh" \
+  SCRIPTS_DIR="$tmp/mock-bo" \
+  "$SCRIPT" --board-only >"$tmp/bo-out.txt" 2>"$tmp/bo-err.txt")
+rc=$?
+assert "board-only-lock: exits zero" '[ $rc -eq 0 ]'
+assert "board-only-lock: emits board inline line" 'grep -qw "board" "$tmp/bo-out.txt" && grep -qw "inline" "$tmp/bo-out.txt"'
+assert "board-only-lock: no swept/harvest/check/judgment/sweep-failed/sweep-skipped lines" \
+  '! grep -Eq "^(swept|harvest|check|judgment|sweep-failed|sweep-skipped) " "$tmp/bo-out.txt"'
+assert "board-only-lock: board-checks.sh never invoked" '[ ! -f "$bo_marker_checks" ]'
+assert "board-only-lock: sync-integration-branch.sh never invoked" '[ ! -f "$bo_marker_sync" ]'
+assert "board-only-lock: archive-change.sh never invoked" '[ ! -f "$bo_marker_archive" ]'
+assert "board-only-lock: cleanup-feature-branch.sh never invoked" '[ ! -f "$bo_marker_cleanup" ]'
+
 exit $fail
