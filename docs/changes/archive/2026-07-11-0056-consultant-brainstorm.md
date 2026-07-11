@@ -2,7 +2,7 @@
 id: 56
 slug: consultant-brainstorm
 title: Consultant-authored brainstorm — opt-in pinned design agent for the brainstorm role
-status: implemented
+status: done
 priority: medium
 created: 2026-07-10
 updated: 2026-07-11
