@@ -77,6 +77,16 @@ if [ "$rc" -ne 0 ]; then
   exit "$rc"
 fi
 
+# Second gate: the render exited 0 but must also be NON-EMPTY before it replaces BOARD.md. A
+# zero-exit-but-empty render (a future render-board.sh regression, or an injected stub) would
+# otherwise mv an empty file over a good board. Leave BOARD.md byte-identical (the EXIT trap
+# removes the temp file) and exit non-zero so the caller skips its git add/commit — the
+# belt-and-suspenders companion to the non-zero-exit branch above.
+if [ ! -s "$tmp_board" ]; then
+  printf 'board-refresh: render produced empty output; BOARD.md left untouched\n' >&2
+  exit 1
+fi
+
 # mktemp creates the temp file at 0600; normalize to 0644 (the git-tracked, pushed board's mode)
 # before the rename so a successful write matches what a plain `> BOARD.md` redirect would leave.
 chmod 644 "$tmp_board"

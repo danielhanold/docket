@@ -47,7 +47,9 @@ never cause a non-zero exit and never prevent `inline` (if also present) from ta
 
 **Rendering.** When `inline` is present, invokes `render-board.sh --changes-dir DIR [--repo
 OWNER/REPO]` exactly as documented in `render-board.md` — this script does not reimplement or
-alter any rendering logic.
+alter any rendering logic. `BOARD.md` is replaced only when the render **exits 0 AND** its output
+is **non-empty**; if either condition fails, `BOARD.md` is left byte-identical to what it was
+before the run.
 
 **Stale-board no-op decision.** When `inline` is absent, the script returns before doing
 anything filesystem-related: no temp file is created, `BOARD.md` is not opened, truncated, or
@@ -63,6 +65,7 @@ even ran.
 | Inline disabled (no-op) | stdout | `board-refresh: inline disabled — no-op` |
 | Unknown surface token | stderr | `board-refresh: unknown surface token ignored: <token>` |
 | `render-board.sh` fails | stderr | `board-refresh: render-board.sh failed (exit N); BOARD.md left untouched` |
+| `render-board.sh` exits 0 but produces empty output | stderr | `board-refresh: render produced empty output; BOARD.md left untouched` |
 | Missing `--changes-dir` | stderr | `board-refresh: missing --changes-dir` |
 | Invalid `--changes-dir` | stderr | `board-refresh: changes dir not found: <dir>` |
 | Missing `--surfaces` flag | stderr | `board-refresh: missing --surfaces (pass --surfaces "" for none)` |
@@ -73,8 +76,9 @@ even ran.
 | Code | Meaning |
 |---|---|
 | 0 | Either `BOARD.md` was rendered and written (`inline` present), or the run was a deliberate no-op (`inline` absent) — both are success. |
+| 1 | The inline render exited 0 but produced empty output; `BOARD.md` is left untouched. Distinct from a propagated renderer failure below. |
 | 2 | Argument/wiring error: `--changes-dir` missing or not a directory, `--surfaces` flag absent entirely, or an unrecognized flag. |
-| *(other)* | Propagated verbatim from `render-board.sh` when the inline render fails; `BOARD.md` is left untouched in this case. |
+| *(other)* | Propagated verbatim from `render-board.sh` when the inline render fails (non-zero exit); `BOARD.md` is left untouched in this case. |
 
 ## Invariants
 
@@ -83,7 +87,7 @@ even ran.
 - **Atomic write.** When enabled, the render is captured in a temp file created *inside*
   `--changes-dir` (via `mktemp "$CHANGES_DIR/.board-refresh.XXXXXX"`), guaranteeing the final
   `mv` onto `BOARD.md` is a same-filesystem rename, not a copy. The move happens only after
-  `render-board.sh` exits 0, and the `mv` itself is checked: if the rename fails the script exits
+  `render-board.sh` exits 0 **and** the temp file is non-empty, and the `mv` itself is checked: if the rename fails the script exits
   non-zero rather than falsely reporting success. The temp file is created only on the enabled
   path (after argument validation and the disabled-no-op return), so its `trap … EXIT` cleanup
   covers exactly that path's exits — a successful write (where the rename already consumed the
