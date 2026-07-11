@@ -24,15 +24,15 @@ adrs_dir: docs/adrs          # default
 results_dir: docs/results    # default  — close-out 'results' artifacts (build-time files, like plans)
 auto_groom: false            # repo default for autonomous grooming; per-change auto_groomable overrides
 board_surfaces: [inline]     # which derived board view(s) to render: inline (BOARD.md) and/or github; [] = none
-finalize:                    # merge gate (change 0015): rebase onto base + re-test before merge
+finalize:                    # merge gate: rebase onto base + re-test before merge
   gate: local                # local (default, on) | ci | both | off  — off = pre-0015 (trust the PR's CI)
   test_command:              # OPTIONAL; unset => finalize auto-detects the suite
 github_project:              # {owner, number} of the auto-managed Projects v2 board; unset ⇒ auto-create on first github sync
 agent_harnesses: [claude]    # harnesses the per-repo agent pass generates machine-local wrapper
-                             # files for (change 0045); default [claude]. e.g. [claude, cursor]
-                             # for a Cursor repo. Can also be set in .docket.local.yml (change 0051).
-agents:                      # harness-first per-skill subagent model/effort (change 0046); see "Agent layer" below
-skills:                      # pluggable workflow skills (change 0049); unset key = the superpowers default shown
+                             # files; default [claude]. e.g. [claude, cursor]
+                             # for a Cursor repo.
+agents:                      # harness-first per-skill subagent model/effort; see "Agent layer" below
+skills:                      # pluggable workflow skills; unset key = the superpowers default shown
   brainstorm: superpowers:brainstorming
   plan:       superpowers:writing-plans
   build:      superpowers:subagent-driven-development   # e.g. `auto` to build inline without SDD
@@ -40,17 +40,17 @@ skills:                      # pluggable workflow skills (change 0049); unset ke
   finish:     superpowers:finishing-a-development-branch
 ```
 
-`.docket.yml` lives on the repo's **default branch (`origin/HEAD`)**, NOT on the integration branch — `integration_branch` is a value *read from* the file, so the file cannot be located *by* it. The file then **declares `integration_branch`**, which may differ from the default branch (default `main`, integration `develop`). `metadata_branch` resolves where PM commits land; `integration_branch` (default `auto` → `origin/HEAD`, fallback `main`; explicit `main`/`develop` verbatim) resolves where code lands — feature branches always cut from `origin/<integration_branch>`. A genuinely absent file ⇒ defaults apply (`metadata_branch: docket`, `integration_branch: auto`); an unreachable `origin` is never silently treated as "file absent." **Backward-compatible opt-out:** pinning `metadata_branch: main` (with `integration_branch: main`) reproduces today's single-branch behavior exactly — no `docket` branch, no `.docket/` worktree.
+`.docket.yml` lives on the repo's **default branch (`origin/HEAD`)**, NOT on the integration branch — `integration_branch` is a value *read from* the file, so the file cannot be located *by* it. The file then **declares `integration_branch`**, which may differ from the default branch. `metadata_branch` resolves where PM commits land; `integration_branch` (default `auto` → `origin/HEAD`, fallback `main`; explicit `main`/`develop` verbatim) resolves where code lands — feature branches always cut from `origin/<integration_branch>`. A genuinely absent file ⇒ defaults apply (`metadata_branch: docket`, `integration_branch: auto`); an unreachable `origin` is never silently treated as "file absent." **Backward-compatible opt-out:** pinning `metadata_branch: main` (with `integration_branch: main`) reproduces today's single-branch behavior exactly — no `docket` branch, no `.docket/` worktree.
 
-**Config layers (change 0050, extended 0051).** Beyond the repo's own committed `.docket.yml`, two more optional layers exist. One optional **user-level** file — `${XDG_CONFIG_HOME:-~/.config}/docket/config.yml` — accepts the full `.docket.yml` schema and applies to every repo on this machine. One optional **machine-local** file — `<repo>/.docket.local.yml`, gitignored, a sibling of the repo's committed `.docket.yml` — overrides on this machine, for this repo only, and accepts the same **global-able** key set as `config.yml` (below). Every key resolves **per-field**, four layers deep: **repo-local > repo-committed > global > built-in** (map-valued `skills:`/`agents:` merge field-by-field, the same resolver at each layer). `docket-config.sh --export` implements all four layers as the single runtime reader; skills' Step-0 interface — the emitted `KEY=value` set — is unchanged. **Coordination-key fence:** a key whose effect writes shared, non-re-derivable state (`metadata_branch`, `integration_branch`, `changes_dir`/`adrs_dir`/`results_dir`, `github_project`, and `board_surfaces`' `github` token) is per-repo-only — set in `config.yml` or `.docket.local.yml` it is loudly warned-and-ignored, never honored, never fatal (the same posture in both machine-scoped layers). Global-able: `skills:`, `agents:`, `auto_groom`, `finalize.*`, `board_surfaces` minus `github`, and `agent_harnesses` (scoped to `sync-agents.sh`'s user-level pass when set in `config.yml`; scoped to that repo's own generation pass when set in `.docket.local.yml` — see "Agent layer" below). A misplaced `~/.config/docket/.docket.yml` warns ("the global file is config.yml") and is never read; a malformed `config.yml` or `.docket.local.yml` warns and falls back to built-ins for that layer only, without bricking any repo. The legacy `~/.config/docket/agents.yaml` is auto-migrated by `sync-agents.sh` into `config.yml`'s `agents:` block (original renamed `.migrated`; no dual-read remains).
+**Config layers.** Two more optional layers: a **user-level** `${XDG_CONFIG_HOME:-~/.config}/docket/config.yml` (accepts the full `.docket.yml` schema; applies to every repo on this machine) and a **machine-local** `<repo>/.docket.local.yml` (gitignored; this repo, this machine only). Every key resolves **per-field**, four layers deep: **repo-local > repo-committed > global > built-in** (map-valued `skills:`/`agents:` merge field-by-field, the same resolver at each layer). **Coordination-key fence:** a key whose effect writes shared, non-re-derivable state (`metadata_branch`, `integration_branch`, `changes_dir`/`adrs_dir`/`results_dir`, `github_project`, and `board_surfaces`' `github` token) is per-repo-only — set in either machine-scoped file it is loudly warned-and-ignored, never honored, never fatal (the classification rule is ADR-0019). Everything else is global-able; `agent_harnesses`' per-pass scoping is in *Agent layer*. The per-key classification table and the misplaced/malformed-file postures are authoritative in the contract [`scripts/docket-config.md`](../../scripts/docket-config.md); the legacy `agents.yaml` auto-migration is owned by `sync-agents.sh` (ADR-0019).
 
-This resolution — repair `origin/HEAD`, read `.docket.yml` authoritatively, apply every default, and resolve `integration_branch` — is performed deterministically by **`docket-config.sh --export`**, which a skill consumes in one turn: `eval "$("${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket-config.sh --export)"`. The prose in this section is the spec the script implements; its interface and mechanics — the `origin/HEAD` repair, the authoritative `.docket.yml` read, the emitted `KEY=value` contract, and the fail-closed exit codes — are in its contract [`scripts/docket-config.md`](../../scripts/docket-config.md). The script is the single implementation the skills run instead of re-deriving this each session.
+This resolution — repair `origin/HEAD`, read `.docket.yml` authoritatively, apply every default, resolve `integration_branch` — is performed deterministically by **`docket-config.sh --export`** (invocation: see the *Step-0 preamble*). The prose in this section is the spec the script implements; its interface and mechanics are in its contract [`scripts/docket-config.md`](../../scripts/docket-config.md).
 
-**Reaching the helper scripts (`DOCKET_SCRIPTS_DIR`).** Every helper script this convention names lives in the docket clone's `scripts/` directory, NOT in the consuming repo. A skill resolves each as `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/<name>.sh` — `DOCKET_SCRIPTS_DIR` is the absolute path to that directory, injected into the shell profile (re-sourced on every Bash-tool call, so it reaches dispatched subagents) and Claude Code's user-level `settings.json` `env` by `install.sh`; re-running `install.sh` back-fills any already-migrated clone. Pointing at the live clone the skills are symlinked from keeps scripts and skills version-matched (zero drift). The `:?` makes a missing/incomplete install **fail loud**: the first helper call prints the `run docket/install.sh` remedy to stderr (and a bare invocation aborts outright), so the executing agent stops and fixes the install instead of silently degrading to hand-worked operations. Every env var docket introduces is **DOCKET_-namespaced** (joining `DOCKET_MODE` / `DOCKET_INTEGRATION_BRANCH` / `DOCKET_HARNESS_ROOT`) to avoid collisions in the user's shared shell. In prose this convention names a script by basename (e.g. `render-board.sh`); a runnable invocation always uses the resolved form.
+**Reaching the helper scripts (`DOCKET_SCRIPTS_DIR`).** Every helper script this convention names lives in the docket clone's `scripts/` directory, NOT in the consuming repo; a skill resolves each as `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/<name>.sh`. `install.sh` injects the variable into the shell profile and Claude Code's user-level `settings.json` `env` (mechanics: `scripts/ensure-docket-env.md`); the `:?` makes a missing/incomplete install **fail loud** — the executing agent stops and fixes the install instead of silently degrading to hand-worked operations. Every env var docket introduces is **DOCKET_-namespaced** to avoid collisions in the user's shared shell.
 
-**Script contracts (`scripts/<name>.md`).** Every `scripts/<name>.sh` has a co-located `scripts/<name>.md` contract — its authoritative, human-readable spec (Purpose / Usage / Behavior / Exit codes / Invariants). Read it for a script's internals; reach it from a consuming repo as `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/<name>.md`, the same mechanism that reaches the scripts. (`docket-convention/github-board-mirror.md` is skill-reference, not a single-script contract.)
+**Script contracts (`scripts/<name>.md`).** Every `scripts/<name>.sh` has a co-located `scripts/<name>.md` contract — its authoritative spec (Purpose / Usage / Behavior / Exit codes / Invariants). Read it for a script's internals; reach it from a consuming repo the same way as the script. (`docket-convention/github-board-mirror.md` is skill-reference, not a single-script contract.)
 
-**`board_surfaces` — the board as 0..n derived views.** The board is a *derived view* over the change files; `board_surfaces` lists which surfaces to render. Members: `inline` (the committed, offline-safe `BOARD.md`) and `github` (the one-way Issues + Projects v2 mirror, see *GitHub board mirror*). Default `[inline]` — backward-compatible, and `github` is strictly opt-in (an existing repo never starts minting issues until it asks). `[inline, github]` renders both; `[github]` is GitHub-only; **`[]` disables the board entirely** — no `BOARD.md`, no mirror, the change files plus git history remain the only (and fully authoritative) record. An unknown token is warned-and-ignored (a typo must never abort a build); a non-GitHub remote silently drops `github`. `github_project` is consulted only when `github` is enabled, and is minted-and-written-back on first sync if unset (see *GitHub board mirror*).
+**`board_surfaces` — the board as 0..n derived views.** The board is a *derived view* over the change files; `board_surfaces` lists which surfaces to render. Members: `inline` (the committed, offline-safe `BOARD.md`) and `github` (the one-way Issues + Projects v2 mirror, see *GitHub board mirror*); default `[inline]`, and `github` is strictly opt-in (an existing repo never starts minting issues until it asks). **`[]` disables the board entirely** — the change files plus git history remain the only (and fully authoritative) record. An unknown token is warned-and-ignored (a typo must never abort a build); a non-GitHub remote silently drops `github`; `github_project` is consulted only when `github` is enabled, and is minted-and-written-back on first sync if unset.
 
 **`finalize` — the rebase-retest merge gate.** `finalize.gate` (`local` default · `ci` ·
 `both` · `off`) governs `docket-finalize-change`'s merge step: before docket merges, it
@@ -61,135 +61,29 @@ restores pre-gate behavior (merge trusting the PR's own CI). The gate is **final
 the `docket-status` sweep never merges, so it has nothing to gate. Details: the gate flow and
 its two judgment-tier agents live in `docket-finalize-change`.
 
+### Step-0 preamble (every operating skill)
+
+Every operating skill starts identically; skill bodies compress to a pointer here plus one line naming where their writes land.
+
+1. Load this convention (blocking).
+2. Resolve config + the bootstrap verdict: `eval "$("${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket-config.sh --export)"` (fail-closed; read-only). Act on `BOOTSTRAP` — `PROCEED` → continue; `STOP_MIGRATE` → refuse and point at `migrate-to-docket.sh`; `CREATE_ORPHAN` → opt into `docket-config.sh --bootstrap` (fresh repo only).
+3. Ensure + sync the **metadata working tree**. In `docket`-mode: the persistent `.docket/` worktree parked on `docket` (state-specific create per *Branch model*, idempotent); **sync before any read** — `git -C .docket fetch origin docket && git -C .docket pull --rebase origin docket`; pushes target `origin/docket`. In single-branch/`main`-mode this degrades to the primary working tree on the integration branch (no `.docket/`): `git pull --rebase` and push on `origin/<metadata_branch>` (= `origin/<integration_branch>` there). Skill prose that says "`.docket/`" / "`origin/docket`" reads as the metadata working tree / `origin/<metadata_branch>` in `main`-mode.
+
+All metadata reads and writes happen in that tree on `metadata_branch`, pushed to its remote immediately.
+
 ### Agent layer — model/effort-pinned subagents (change 0016)
 
 Each **autonomous** docket skill can run as a model/effort-pinned **subagent** instead of inline at the session model. Five skills get a wrapper — `docket-implement-next`, `docket-auto-groom`, `docket-finalize-change`, `docket-status`, `docket-adr`; the two **interactive** skills (`docket-new-change`, `docket-groom-next`) stay inline and only surface an **advisory** recommended model/effort at startup (a skill cannot force the session model). `docket-convention` is not an agent — it is injected into every wrapper via `skills:`.
 
-A wrapper is a thin file: it pins `model` + `effort`, injects the skill via `skills: [<skill>, docket-convention]`, and adds a one-line directive. The skill body stays the single source of behavior. Because a subagent cannot pause to ask a human, every autonomous wrapper carries an **abort-and-report** rule: an unmet precondition or blocking ambiguity (e.g. finalize finding a PR not actually approved, a merge conflict, or a dirty worktree) is surfaced and stopped on — never turned into an interactive prompt.
+A wrapper is a thin generated file: it pins `model` + `effort` and injects the skill via `skills: [<skill>, docket-convention]`; the skill body stays the single source of behavior. Because a subagent cannot pause to ask a human, every autonomous wrapper carries an **abort-and-report** rule: an unmet precondition or blocking ambiguity (e.g. a PR not actually approved, a merge conflict, a dirty worktree) is surfaced and stopped on — never turned into an interactive prompt. Wrappers are generated by `sync-agents.sh` from the layered config (precedence: repo-local > repo-committed > global > built-in); an agent with no entry in any layer defaults to `model: inherit` with no `effort`.
 
-**Layered config (precedence: repo-local > repo-committed > global > built-in; change 0051 added the repo-local rung).** Frontmatter is static, so configurability is a **generator** — `sync-agents.sh` — that resolves layers and writes agent files (generated copies it owns and overwrites, unlike `link-skills.sh`'s symlinks):
+**Composition (change 0017).** `docket-implement-next` dispatches the `docket-status` subagent (step 0) and the `docket-adr` subagent (step 6); `docket-auto-groom` dispatches the `docket-auto-groom-critic` subagent for its adversarial gate. These dispatches are **foreground** (the parent suspends until the child returns) and **unconditional**; their contract is **git state** on `origin/docket` (for adr, plus a published ADR on the integration branch), re-read after a re-sync — never an in-context return. `docket-finalize-change` dispatches the `docket-rebase-resolver` subagent when its merge gate hits a rebase conflict and the `docket-integration-repair` subagent when the rebased suite is red — also foreground, but their reports flow **back to finalize in-context** to gate the merge, and they act in the feature worktree, not on `origin/docket`. Each dispatched agent runs at the model/effort its own wrapper resolves — literal tiers are never restated in dispatch prose, so an override can never drift from the documentation. Three of the **eight** generated wrappers wrap **no skill** — `docket-auto-groom-critic`, `docket-rebase-resolver`, `docket-integration-repair`; each loads only `docket-convention`, so it inherits no caller bias, and all are auto-discovered by `sync-agents.sh`'s `agents/docket-*.md` glob. (Five *skills* get a wrapper; these three are wrappers that wrap no skill — eight wrappers, five skills.)
 
-| Layer | Source | Generates |
-|---|---|---|
-| Built-in | `agents/docket-*.md` shipped in docket (each ships its default model/effort) | — |
-| Global | the `agents:` block in `~/.config/docket/config.yml` (optional, XDG; legacy `agents.yaml` auto-migrated) | user-level `~/.claude/agents/docket-*.md` |
-| Repo-committed | `.docket.yml` `agents:` block (committed, every clone) | project-level `<repo>/.claude/agents/docket-*.md` (gitignored, machine-local — see below) |
-| Repo-local | `.docket.local.yml` `agents:` block (gitignored, this machine only; change 0051) | same project-level files, highest precedence |
-
-Every one of `config.yml`'s, the repo's committed `.docket.yml`'s, and the repo's `.docket.local.yml`'s
-`agents:` blocks are **harness-first** (change 0046): a reserved `default:` key holds the
-harness-neutral fallback, and any harness name (e.g. `cursor`) can override just the fields that
-differ for that harness — the harness key is just a map key in any of the three blocks.
-`agent_harnesses` does **not** gate which harness keys any block may carry; it gates only which
-harness *directories* get generated files. The repo's own `agent_harnesses` — read from **either**
-`.docket.local.yml` or `.docket.yml`, whichever declares the key first (local wins outright, not a
-merge) — gates the **per-repo** generation pass (which `<repo>/.<H>/agents/` directories get
-generated files). The user-level pass writes every harness `agents/` directory **present on disk**
-— unless the global `config.yml` sets `agent_harnesses:`, which then governs the user-level target
-list: creating listed dirs, skipping unlisted ones, and pruning docket-owned files from any
-de-listed known harness (never rmdir'ing the harness root itself — it is the user's own config
-directory, not a docket artifact; change 0050). The per-repo generation pass is governed solely by
-the repo's own (local-then-committed) `agent_harnesses`, never the global value. Whatever keys any
-of the three blocks has, they resolve the same harness-first way (`~/.claude/agents`,
-`~/.cursor/agents`, …):
-
-```yaml
-agents:                                 # harness-first: reserved `default:` + harness-name keys
-  default:                              # neutral fallback for any harness without its own entry
-    implement-next: { model: claude-opus-4-8, effort: xhigh }
-    status:         { model: claude-haiku-4-5-20251001 }
-  cursor:                               # per-harness override — only what differs
-    implement-next: { model: gpt-5.1, effort: high }
-    status:         { model: gpt-5.5-medium-fast }
-  # Resolution is field-by-field, first non-empty wins: agents.<harness>.<agent> -> agents.default.<agent> -> shipped built-in (agents/docket-*.md).
-  # effort: auto explicitly drops the effort line (inherit the model default); omitting the
-  # effort: key instead keeps the built-in effort — auto and omitted are NOT equivalent.
-  # The global ~/.config/docket/config.yml uses the SAME agents: wrapper shape (change 0050
-  # unified it; the pre-0050 top-level-map agents.yaml is auto-migrated on the next sync).
-  # <repo>/.docket.local.yml (change 0051) uses the SAME agents: wrapper shape too — gitignored,
-  # this machine only, and the highest-precedence layer of the four.
-  # A non-`claude` harness whose model falls to default/built-in gets a non-fatal warning
-  # (likely-wrong ID; docket never validates model IDs).
-  # A harness block not in `agent_harnesses`, or a bare pre-0046 agent key, is warned + ignored.
-```
-
-`agent_harnesses` (which harness directories get generated files at all) is **orthogonal** to
-`agents.<harness>` (which values those files carry) — a harness can appear in one list without
-appearing in the other, and each falls back independently: `agent_harnesses` defaults to `[claude]`;
-an unlisted `agents.<harness>` falls to `agents.default`, then to the built-in.
-
-User-level files are built-in ⊕ global; project-level files are built-in ⊕ local ⊕ committed ⊕ global — where the
-harness-first resolution above runs first, inside each layer, to pick that layer's per-field value before folding
-into the next. Claude Code applies **project-over-user precedence natively**, so the effective order for a
-project-level file's own resolved value is **repo-local > repo-committed > global > built-in**, without the
-generator hand-merging the two directories onto the same file. An agent with no entry in any layer defaults to
-`model: inherit` with no `effort`.
-
-**The clone-identical-committed-wrapper guarantee is retired.** Before change 0051, the per-repo pass generated
-**committed** project-level files, so an autonomous change built on the exact same model on every clone by
-construction. Generation is now all-local (below), so that guarantee no longer holds — a deliberate trade-off,
-not an oversight: team defaults for a repo still live in its committed `.docket.yml` `agents:` block by
-convention, just without CI-enforced pinning of the generated copies.
-
-`sync-agents.sh` runs **on demand** (install time, and after editing any config layer) — the same mental model as
-`link-skills.sh`; it does NOT hook session start (silently regenerating out of band mid-session would be
-surprising, and per-repo files are gitignored, so there is no commit to race). The drift backstop is
-**`sync-agents.sh --check`**, a CI gate with three legs: (1) the managed `# docket:generated` `.gitignore` block
-is present and current, and (2) no generated agent or dispatch-rule file is tracked by git — both are
-**CI-meaningful** (`rc != 0`); (3) whether the local files on disk match what the resolved config would generate
-is reported as `advisory:` output only — it never fails the build, since every machine regenerates its own copy.
-
-**Harness-portable model IDs (change 0045, ADR-0015).** Agent `model:` values are **direct model
-IDs, harness-neutral and passed through verbatim** — no tier layer (change 0043's tiers were
-rejected). The running harness interprets the string (a Claude alias/ID under Claude Code; a Cursor
-model ID like `gpt-5.5-medium-fast` under Cursor). This unvalidated **passthrough** is exactly what
-lets docket drive non-Claude harnesses. The per-repo generation fans out over the repo's
-`agent_harnesses:` list (read from `.docket.local.yml` or `.docket.yml` — change 0051) —
-**default `[claude]`** (byte-identical to before) — so each listed harness `H` gets generated
-`<repo>/.<H>/agents/docket-*.md`; a Cursor repo sets `agent_harnesses: [claude, cursor]`. Explicit
-over present-directory auto-detection, so a stray
-`.cursor/` never silently mints generated files; an unknown harness token is warned-and-ignored. The
-`sync-agents.sh --check` drift gate spans every generated per-harness file. The **user-level** pass's
-fan-out scope is unchanged (it still writes every present harness — change 0046 reshaped only how each
-file's values resolve, per the harness-first Agent layer above) — change 0050 later made a global
-`agent_harnesses` override this presence detection for the user-level pass only. `agent_harnesses` is
-read by a direct parse in `sync-agents.sh` (not `docket-config.sh`).
-
-**Always-full-set generation, now machine-local, + the Cursor dispatch rule (change 0048, extended
-0051).** The **per-repo pass writes the full built-in agent set** for every harness in
-`agent_harnesses` — the `agents:` block is **override-only** (it tunes a model/effort; it never
-decides *which* agents exist, since the agents compose and a harness needs all of them). An
-`agents:` entry naming no built-in is a typo warning. Per-repo generation is **opt-in**: a repo
-opts in by declaring an `agents:` block or a top-level `agent_harnesses:` key, in **either** its
-committed `.docket.yml` or its `.docket.local.yml`; a repo with neither key set in either file
-generates no per-repo wrappers and its `--check` stays a no-op — pre-0048 behavior for
-tracking-only repos. The generated files themselves are **gitignored, never committed** —
-`<repo>/.<H>/agents/docket-*.md` (and the dispatch rule below) are regenerated from each machine's
-own resolved config, not shared through git. `sync-agents.sh` owns a marker-bounded
-`# docket:generated` block in the repo's `.gitignore`, covering every pattern it can generate for
-every harness (plus `.docket.local.yml` itself); it writes or repairs that block the moment a repo
-opts in, or merely carries a `.docket.local.yml`, and prints a one-time notice to commit the block.
-A repo that predates this (0048-era committed copies) gets a one-time migration on the next run:
-the tracked copies are deleted from the working tree, the local set is regenerated fresh, and the
-single remedy commit (`git rm -r --cached … && git add .gitignore && git commit …`) is printed.
-Additionally, the `cursor` harness gets a generated **`docket-dispatch.mdc`** rule
-(`~/.cursor/rules/` user-level; `<repo>/.cursor/rules/` per-repo, also gitignored) that forces a
-Task dispatch to the matching `subagent_type` — Cursor otherwise runs a directly-invoked skill
-inline at the current model, defeating the pin. Because the per-repo pass generates that same full
-set into the harness, the rule's dispatch targets resolve by construction. `sync-agents.sh` prunes
-orphaned `docket-*` files (a removed built-in drops its wrapper; a de-listed harness drops its
-wrappers and its dispatch rule) and `sync-agents.sh --check` spans the `.gitignore` block, the
-tracked-file check, and (advisory) content staleness for both the agents and the dispatch rule.
-
-**Composition (change 0017).** Nesting lets each whole-skill sub-invocation run at its own model. `docket-implement-next` **dispatches the `docket-status` subagent** at step 0 and the **`docket-adr` subagent** at step 6; `docket-auto-groom` **dispatches the dedicated `docket-auto-groom-critic` subagent** for its adversarial gate. `docket-finalize-change` **dispatches the `docket-rebase-resolver` subagent** when its merge gate hits a rebase conflict and the **`docket-integration-repair` subagent** when the rebased suite is red (change 0015) — both **foreground**, but their contract differs from the three above: the agent's report flows **back to finalize in-context** to gate the merge (continue, sign-off, or abort), and they act in the feature worktree, not on `origin/docket`. Each runs at the model/effort its own wrapper resolves through the layered config — the literal tiers are **never restated** in the dispatch prose, so a per-repo or global override can never drift from the documentation (the built-in defaults live only in `agents/docket-*.md`, per the Agent layer above). The `docket-status`, `docket-adr`, and `docket-auto-groom-critic` dispatches are **foreground** (the parent suspends until the child returns) and **unconditional** (baked into the skill body, so the sub-call gets its own model whether the parent ran as its wrapper subagent or as a plain inline skill); their contract is **git state** on `origin/docket` (and, for adr, a published ADR on the integration branch), re-read after a re-sync — never an in-context return. Three of the **eight** generated wrappers wrap **no skill** — `agents/docket-auto-groom-critic.md` (config key `auto-groom-critic`, attached to `auto-groom`), and `agents/docket-rebase-resolver.md` + `agents/docket-integration-repair.md` (config keys `rebase-resolver` / `integration-repair`, attached to `finalize-change`'s gate). Each loads only `docket-convention`, never a designer/driver skill body, so it inherits no caller bias; all are auto-discovered by `sync-agents.sh`'s `agents/docket-*.md` glob (no generator edit). (The "Agent layer" line above stays exact: **five *skills* get a wrapper**; these three are wrappers that wrap no skill — eight wrappers, five skills.)
+**Configuring the layer** — the harness-first `agents:` blocks (`default:` + per-harness keys), `agent_harnesses` scoping, harness-portable model IDs (ADR-0015), always-full-set generation, the Cursor dispatch rule, `effort: auto` vs omitted, and `sync-agents.sh` / `--check` mechanics — is a separate read: **read [`references/agent-layer.md`](references/agent-layer.md) now (blocking) before configuring `agents:`/`agent_harnesses:` or running/debugging `sync-agents.sh`.**
 
 ### Skill layer — pluggable workflow skills (change 0049)
 
-docket's workflow quality rests on five superpowers skill invocations. Each is a **pluggable
-role**: the optional `skills:` map in `.docket.yml` rebinds it to a different skill, or to the
-sentinel `auto` (no skill — the running agent performs the step inline at its own model). An unset
-key defaults to the superpowers skill, so an absent `skills:` map is byte-identical to pre-0049
-behavior.
+docket's five workflow steps are **pluggable roles**: the optional `skills:` map rebinds each to any skill name, or to the sentinel `auto`. An unset key defaults to the superpowers skill — an absent map is byte-identical to pre-0049 behavior.
 
 | Role | Default skill | Invoked by | `auto` / fallback artifact — stop-point |
 |---|---|---|---|
@@ -199,26 +93,10 @@ behavior.
 | review | `superpowers:requesting-code-review` | `docket-implement-next` §6 | a whole-branch review before the PR opens |
 | finish | `superpowers:finishing-a-development-branch` | `docket-implement-next` §7; `docket-finalize-change` close-out | a pushed feature branch + open PR — never merged; stop |
 
-- **Passthrough.** A value is a skill name passed verbatim to the Skill tool — docket never
-  validates it against a registry (the ADR-0015 harness-neutral-passthrough philosophy; the
-  passthrough is exactly what lets any third-party or in-repo skill plug in). Unknown *role keys*
-  are warned-and-ignored (the `board_surfaces` posture — a typo never aborts a run).
-- **`auto` sentinel.** No skill is invoked; the running agent does the step itself at whatever
-  model it already runs at (the wrapper-resolved model for a subagent, the session model inline).
-  The per-role fallback defines only the **final artifact / stop-point** (column 4) — never the
-  method (no mandated TDD, dialogue shape, question cadence, or commit granularity).
-- **Missing-skill rule — degrade to auto + warn.** If the resolved skill cannot be invoked at
-  runtime (superpowers not installed, plugin unavailable, a typo'd custom name), the invoking skill
-  **degrades to that role's `auto` fallback and warns prominently** — in the run output, and (for
-  the build-time roles: plan/build/review/finish) as a note in the PR body. A repo with no
-  superpowers plugin therefore works out of the box with zero config. This is softer than the
-  autonomous abort-and-report rule because skill availability is a per-machine property, not a
-  repo-state error — aborting would make docket unusable for exactly the users this serves.
-- **Resolution** is deterministic via `docket-config.sh --export`, which emits `SKILL_BRAINSTORM`,
-  `SKILL_PLAN`, `SKILL_BUILD`, `SKILL_REVIEW`, `SKILL_FINISH` (each defaulted when the key is unset).
-  Consuming skill bodies read the variable from their Step-0 export; none re-parse YAML. Existing
-  gates are untouched — `docket-finalize-change`'s rebase-retest merge gate (`finalize.gate`) still
-  validates the suite before any merge regardless of the resolved build method.
+- **Passthrough.** A value is passed verbatim to the Skill tool — never validated against a registry (the ADR-0015 passthrough philosophy; exactly what lets any third-party or in-repo skill plug in). Unknown *role keys* are warned-and-ignored.
+- **`auto` sentinel.** No skill is invoked; the running agent does the step itself at whatever model it already runs at. The per-role fallback defines only the **final artifact / stop-point** (column 4) — never the method.
+- **Missing-skill rule — degrade to auto + warn.** If the resolved skill cannot be invoked at runtime, the invoking skill degrades to that role's `auto` fallback and warns prominently — in the run output and (for plan/build/review/finish) in the PR body. Softer than abort-and-report because skill availability is per-machine, not repo state.
+- **Resolution** is deterministic via `docket-config.sh --export`, which emits `SKILL_BRAINSTORM`, `SKILL_PLAN`, `SKILL_BUILD`, `SKILL_REVIEW`, `SKILL_FINISH` (defaulted when unset); skill bodies read the variable, never re-parse YAML. `docket-finalize-change`'s merge gate (`finalize.gate`) still validates regardless of the resolved build method.
 
 ### Directory layout (paths relative to the configured knobs)
 
@@ -345,13 +223,9 @@ A stub is **autonomous-eligible** — selectable by `docket-auto-groom` — when
 
 ### Learnings ledger
 
-`<changes_dir>/LEARNINGS.md` — the project's **build-loop memory**: a curated, hand-edited file of lessons the build loop taught, living on `metadata_branch` only (like `BOARD.md`, it is never published to the integration branch — but unlike the board it is curated prose, never regenerated). Flat dated entries, **newest first**, one to three lines each, with provenance and an actionable phrasing — e.g. `- 2026-06-12 (#12, PR #7) — <what happened, one clause>. Apply: <the rule to follow next time>.`
+`<changes_dir>/LEARNINGS.md` — the project's **build-loop memory**: curated, hand-edited lessons, on `metadata_branch` only (never published to the integration branch; unlike the board it is prose, never regenerated). Flat dated entries, **newest first**, one to three lines with provenance: `- 2026-06-12 (#12, PR #7) — <what happened>. Apply: <the rule>.`
 
-**Writing.** Entries are added only by the **harvest** at close-out (its procedural single source is the *Harvest learnings* step in `docket-finalize-change`; `docket-status`'s sweep invokes it by reference). Zero entries for a change is normal. Kills are not harvested — `## Why killed` already records the rationale.
-
-**Reading.** `docket-implement-next` reads the ledger at plan time and again at its review step; `docket-groom-next` reads it before a brainstorm. No other skill reads it.
-
-**Distilling.** Append-only until the file exceeds **~300 lines**; the next harvest past the cap also distills — merge near-duplicates and drop entries since promoted to CLAUDE.md or this convention. Distillation is **compression, not destruction**: git history keeps everything dropped. Boundary: the ledger holds lessons for the build loop; durable project conventions belong in CLAUDE.md — promotion removes the entry here.
+**Writing:** only the harvest at close-out appends (single source: the *Harvest learnings* step in `docket-finalize-change`; `docket-status`'s sweep invokes it by reference). Zero entries is normal; kills are not harvested. **Reading:** `docket-implement-next` at plan time and review; `docket-groom-next` before a brainstorm. **Distilling:** append-only until ~300 lines; the next harvest past the cap also distills — merge near-duplicates, drop entries promoted to CLAUDE.md or this convention. Distillation is **compression, not destruction** (git history keeps everything); durable conventions belong in CLAUDE.md, and promotion removes the entry here.
 
 ### GitHub board mirror (shared definition)
 
@@ -363,8 +237,8 @@ The `github` board surface mirrors each change to one GitHub issue (and one Proj
 
 At startup, after resolving config, when `metadata_branch == docket`, fetch origin and evaluate a 2×2 over two probes (both stated over the **same vocabulary**):
 
-- **`DOCKET`** = the `docket` branch exists (origin OR local): `git rev-parse --verify --quiet refs/remotes/origin/docket || git rev-parse --verify --quiet refs/heads/docket`.
-- **`LIVE`** = the **live planning surface** still sits on the integration branch: `git ls-tree origin/<integration_branch> -- <changes_dir>/active <changes_dir>/README.md <changes_dir>/BOARD.md` (non-empty ⇒ present). Probe **only** this pruned surface — `archive/`, `<adrs_dir>/`, and pre-migration specs deliberately *stay* on integration, so probing them would read `LIVE` forever. Use `git ls-tree`, never bare `<ref>:<path>`. If `origin/<integration_branch>` does not resolve, `ls-tree` exits ≠0 with empty stdout — treat that as a **hard config error**, not `¬LIVE`.
+- **`DOCKET`** = the `docket` branch exists (origin OR local).
+- **`LIVE`** = the **live planning surface** still sits on the integration branch — probe ONLY the pruned surface (`<changes_dir>/active`, `README.md`, `BOARD.md`) via `git ls-tree origin/<integration_branch>`; `archive/`, `<adrs_dir>/`, and pre-migration specs deliberately *stay* on integration, so probing them would read `LIVE` forever. An unresolvable `origin/<integration_branch>` is a **hard config error**, not `¬LIVE`.
 
 | | `LIVE` | `¬LIVE` |
 |---|---|---|
@@ -377,4 +251,8 @@ The guard is a no-op in `main`-mode (`DOCKET`/`LIVE` are only evaluated when `me
 
 ### Branch model
 
-Metadata (change files, `BOARD.md`, ADRs, specs) commits to `metadata_branch` (default `docket`) via the **metadata working tree** — which is the **primary working tree on the integration branch** in single-branch (`main`) mode, and the persistent **`.docket/` worktree** in `docket`-mode — and is **always pushed to its remote immediately** (a local-only orphan branch defeats the purpose; the backlog, board, specs, and ADRs stay browsable on the remote at all times). A change's `feat/<slug>` branch is **ALWAYS cut from `origin/<integration_branch>`** (default trunk `main`; `develop` for GitFlow) — `metadata_branch` only redirects bookkeeping commits, never where code branches start. The feature branch adds only the plan + results + code and **never modifies** docket metadata. On a terminal transition (`done` *or* `killed`), the driving skill runs the shared **terminal-publish** procedure: it **copies** the change's terminal records (the archived change file + its `spec:` if set + the **`Accepted`** ADRs in `adrs:`) from `origin/docket` onto the integration branch in one dedicated commit — also refreshing the integration-branch ADR index from that branch's own ADR set whenever the commit publishes an ADR (change 0040) — and pushes (`git checkout origin/docket -- <paths>`, never a `git merge docket`) — the only flow of metadata onto the code line. (In `main`-mode the metadata working tree *is* the integration branch, so terminal-publish is skipped — the archive move there is itself the terminal record.) After a merge lands on `origin/<integration_branch>`, both merge sites (`docket-finalize-change` and the `docket-status` sweep) run the best-effort, FF-only `sync-integration-branch.sh` once at end of run to fast-forward the clone's *local* `<integration_branch>` checkout — keeping the skills symlinked from the primary checkout current in `docket`-mode, where it is otherwise never advanced (a no-op in `main`-mode and on any non-FF/dirty/feature-branch tree).
+Metadata (change files, `BOARD.md`, ADRs, specs) commits to `metadata_branch` (default `docket`) via the **metadata working tree** — the primary working tree on the integration branch in single-branch (`main`) mode, the persistent `.docket/` worktree in `docket`-mode — and is **always pushed to its remote immediately** (the backlog, board, specs, and ADRs stay browsable on the remote at all times).
+
+A change's `feat/<slug>` branch is **ALWAYS cut from `origin/<integration_branch>`** — `metadata_branch` only redirects bookkeeping commits, never where code branches start. The feature branch adds only the plan + results + code and **never modifies** docket metadata.
+
+On a terminal transition (`done` *or* `killed`), the driving skill runs the shared **terminal close-out** sequence — archive, re-render, **terminal-publish** (copying the archived change file + its `spec:` + the `Accepted` ADRs in `adrs:` from `origin/docket` onto the integration branch via `git checkout origin/docket -- <paths>`, never a `git merge docket` — the only flow of metadata onto the code line, also refreshing the integration-branch ADR index whenever the commit publishes an ADR), cleanup, board. Ordering, per-caller failure postures, and the `main`-mode degradation live in **[`references/terminal-close-out.md`](references/terminal-close-out.md) — read it before driving any terminal transition.** After a merge lands, both merge sites run the best-effort, FF-only `sync-integration-branch.sh` once at end of run to fast-forward the clone's local `<integration_branch>` checkout (a no-op in `main`-mode and on any non-FF/dirty/feature-branch tree).

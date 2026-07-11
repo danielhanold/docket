@@ -369,19 +369,21 @@ assert "wiring(finalize): no leftover by-hand pub-adr git block" '! grep -qE "gi
 
 # --- call-site wiring sentinels: status sweep + two kill paths invoke the scripts ---
 STATUS="$REPO/skills/docket-status/SKILL.md"
+TCO="$REPO/skills/docket-convention/references/terminal-close-out.md"
+assert "wiring(status): sweep points at the terminal-close-out reference" 'grep -qF "terminal-close-out.md" "$STATUS"'
 NEWCHG="$REPO/skills/docket-new-change/SKILL.md"
 IMPL="$REPO/skills/docket-implement-next/SKILL.md"
-assert "wiring(status): sweep invokes archive-change.sh"   'grep -q "/archive-change.sh" "$STATUS"'
-assert "wiring(status): sweep invokes terminal-publish.sh" 'grep -q "/terminal-publish.sh" "$STATUS"'
-assert "wiring(status): sweep invokes cleanup-feature-branch.sh" 'grep -q "/cleanup-feature-branch.sh" "$STATUS"'
+assert "wiring(close-out ref): sweep invokes archive-change.sh"   'grep -q "/archive-change.sh" "$TCO"'
+assert "wiring(close-out ref): sweep invokes terminal-publish.sh" 'grep -q "/terminal-publish.sh" "$TCO"'
+assert "wiring(close-out ref): sweep invokes cleanup-feature-branch.sh" 'grep -q "/cleanup-feature-branch.sh" "$TCO"'
 # --- change 0036: the sweep delegates archiving to archive-change.sh (no manual double-archive) ---
 # The sweep's per-change archive must NOT hand-roll the move any more (mirrors the finalize sentinel).
 assert "wiring(status): sweep has no leftover raw archive bash (git mv active/)" \
   '! grep -qE "git mv .*active/" "$STATUS"'
 # The renderer re-render must be ordered AFTER archive-change.sh and BEFORE terminal-publish
 # (LEARNINGS #0035 — anchor to the unique "before … terminal-publish" phrasing, assert order not presence).
-assert "wiring(status): sweep re-renders the Artifacts block before terminal-publish" \
-  'awk "/render-change-links\\.sh/{r=NR} /terminal-publish\\.sh/{if(r && r<NR){print \"ok\"; exit}}" "$STATUS" | grep -q ok'
+assert "wiring(close-out ref): sweep re-renders the Artifacts block before terminal-publish" \
+  'awk "/render-change-links\\.sh/{r=NR} /terminal-publish\\.sh/{if(r && r<NR){print \"ok\"; exit}}" "$TCO" | grep -q ok'
 assert "wiring(status): sweep names render-change-links.sh in the delegated archive flow" \
   'grep -q "render-change-links.sh" "$STATUS"'
 # The sweep's failure posture is log-and-continue (its own unique phrasing), NOT abort-and-report.
