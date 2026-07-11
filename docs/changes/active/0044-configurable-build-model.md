@@ -8,7 +8,7 @@ created: 2026-07-07
 updated: 2026-07-11
 depends_on: []
 related: [16, 42]
-adrs: []
+adrs: [23]
 spec: docs/superpowers/specs/2026-07-07-configurable-build-model-design.md
 plan: docs/superpowers/plans/2026-07-11-configurable-build-model.md
 results:
@@ -27,6 +27,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-07-configurable-build-model-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-07-configurable-build-model-design.md) |
 | Plan | [2026-07-11-configurable-build-model.md](https://github.com/danielhanold/docket/blob/feat/configurable-build-model/docs/superpowers/plans/2026-07-11-configurable-build-model.md) |
+| ADRs | [ADR-0023](https://github.com/danielhanold/docket/blob/docket/docs/adrs) |
 <!-- docket:artifacts:end -->
 
 ## Why
