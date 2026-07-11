@@ -119,3 +119,34 @@ Rejected alternatives (recorded in the change 0051 spec):
   file: repo-local (uncommitted, this ADR) > repo-committed (`.docket.yml`) > global
   (`config.yml`) > built-in — the same per-field, fence-respecting resolution rule extended
   by one more layer rather than redesigned.
+
+## Update — 2026-07-10 (change 0057)
+
+Change 0057 broadens decision 3's managed `.gitignore` block along three axes. The decision
+itself — one marker-bounded, self-healing, CI-gated block derived from a single harness roster —
+**stands**; this is a non-reversing context change, recorded here rather than as a new ADR:
+
+- **Renamed.** The marker is now `# docket:start (managed by docket — do not hand-edit)` /
+  `# docket:end` (was `# docket:generated:*`). The block no longer describes only *generated*
+  artifacts, so "generated" in the name was misleading. `sync-agents.sh` performs a one-time
+  in-place upgrade of any lingering legacy-spelling block; `--check` leg (a) evaluates the new
+  spelling and treats a legacy block as stale (its remedy — a `sync-agents.sh` run — performs
+  the upgrade).
+- **Broadened scope.** The block is now the single home for **all** docket-owned ignores — the
+  core entries `.docket/`, `.worktrees/`, `.claude/settings.local.json`, and `.docket.local.yml`
+  in addition to the per-harness generated-artifact patterns. Its emitted content stays a pure
+  constant (core entries + the static roster), so the "second roster" drift risk does not
+  materialise.
+- **Broadened ownership.** No longer sole-`sync-agents.sh`: a shared sourceable lib
+  (`scripts/lib/docket-gitignore-block.sh`) owns the mechanics (roster, markers, constant
+  emitter, hardened `ensure`), and **three** writers seed/heal the block —
+  `migrate-to-docket.sh` (seeds it at migration, replacing the three bare lines it used to
+  append), `docket-config.sh --bootstrap` (seeds it on a fresh docket-mode repo, closing the
+  prior gap where a bootstrapped repo got no ignores at all), and `sync-agents.sh` (self-heals
+  with a widened trigger: opted-in, `.docket.local.yml` present, a `docket` branch present, or
+  the block already present). Because the emitter is a pure constant, every writer emits
+  byte-identical bytes by construction.
+
+The four-leg `--check` shape (decision 4) is unchanged. The block mechanics are additionally
+hardened against dangling/out-of-order/malformed markers (refuse-and-warn, never consume to
+EOF — the outside-bytes invariant now holds even for a hand-corrupted block).
