@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/slim-remaining-skills
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -66,3 +66,15 @@ deliberate reinforcement for an autonomous agent.
 ## Open questions
 
 ## Reconcile log
+
+- 2026-07-11 — Reconciled at claim (design-ahead obligations discharged). Verified on
+  `origin/main`: (a) the `### Step-0 preamble (every operating skill)` heading exists (pointer
+  target holds); (b) `skills/docket-convention/references/terminal-close-out.md` exists and has
+  NO existing no-diff-is-success clarifier — decision 3's one-line addition is new, not a
+  duplicate; (c) the five skills match the spec's baselines — implement-next 137L/2895w,
+  new-change 70L, groom-next 77L, adr 88L, auto-groom 64L; (d) **#0054 is implemented but NOT
+  merged** (finalize is still 234L on `origin/main`), so this branch cuts from the pre-#0054 base
+  and inherits none of its edits — but #0054 is disjoint (finalize-only; it made zero test-file
+  edits), so there is nothing to fold in and no ordering constraint. `depends_on: [53]` satisfied
+  (#53 merged). Scope unchanged; the single named behavior delta (kill-path step-2 re-render +
+  reference clarifier) stands.
