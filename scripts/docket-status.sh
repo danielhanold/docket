@@ -72,6 +72,8 @@ board_pass(){
 board_pass_inline(){
   local mw="$1" cd_dir="$2"
   local board="$cd_dir/BOARD.md" tmp="$cd_dir/BOARD.md.tmp"
+  # 2>&2 is intentional (not a typo for 2>&1): route the sub-script's stderr to our
+  # stderr while stdout is captured separately into $tmp, keeping stdout machine-parseable.
   if ! "$SELF_DIR"/render-board.sh --changes-dir "$cd_dir" ${REPO_FLAG:+--repo "$REPO_FLAG"} > "$tmp" 2>&2 || [ ! -s "$tmp" ]; then
     echo "docket-status: board render failed; keeping existing BOARD.md" >&2
     rm -f "$tmp"
@@ -197,8 +199,8 @@ detect_merged(){
   for i in "${!ids[@]}"; do
     id="${ids[$i]}"; slug="${slugs[$i]}"; pr="${prs[$i]}"
     if [ -n "$pr" ]; then
-      merged_at="$(printf '%s' "$gql_json" | jq -r ".data.p${id}.mergedAt // empty" 2>/dev/null)"
-      state="$(printf '%s' "$gql_json" | jq -r ".data.p${id}.state // empty" 2>/dev/null)"
+      merged_at="$(printf '%s' "$gql_json" | jq -r ".data.p${id}.pullRequest.mergedAt // empty" 2>/dev/null)"
+      state="$(printf '%s' "$gql_json" | jq -r ".data.p${id}.pullRequest.state // empty" 2>/dev/null)"
       if [ "$state" = MERGED ] && [ -n "$merged_at" ]; then
         date="${merged_at:0:10}"
         printf '%s\t%s\t%s\t%s\n' "$id" "$slug" "$pr" "$date"
@@ -235,6 +237,13 @@ sweep_execute(){
   local id slug pr merged_date
   while IFS=$'\t' read -r id slug pr merged_date; do
     [ -n "$id" ] || continue
+    # Not a valid close-out record (e.g. detect_merged's "sweep-skipped <reason>" line,
+    # which carries no TAB fields) — pass it through verbatim so it reaches the report
+    # instead of being silently dropped as a bogus change record.
+    if ! [[ "$id" =~ ^[0-9]+$ ]]; then
+      printf '%s\n' "$id"
+      continue
+    fi
     sweep_execute_one "$mw" "$cd_dir" "$id" "$slug" "$pr" "$merged_date"
   done
 }

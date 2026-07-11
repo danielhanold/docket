@@ -263,7 +263,7 @@ if [ "$1" = repo ] && [ "$2" = view ]; then
 fi
 if [ "$1" = api ] && [ "$2" = graphql ]; then
   cat <<'JSON'
-{"data":{"p10":{"number":101,"mergedAt":"2026-07-05T18:22:31Z","state":"MERGED"},"p11":{"number":102,"mergedAt":null,"state":"OPEN"}}}
+{"data":{"p10":{"pullRequest":{"number":101,"mergedAt":"2026-07-05T18:22:31Z","state":"MERGED"}},"p11":{"pullRequest":{"number":102,"mergedAt":null,"state":"OPEN"}}}}
 JSON
   exit 0
 fi
@@ -297,6 +297,18 @@ detect_fail_rc=$?
 assert "detect_merged with failing GH reports sweep-skipped" \
   'printf "%s\n" "$detect_fail_out" | grep -q "^sweep-skipped"'
 assert "detect_merged with failing GH returns success (best-effort)" '[ $detect_fail_rc -eq 0 ]'
+
+# I1 regression: detect_merged's "sweep-skipped <reason>" line must survive the
+# `detect_merged | sweep_execute` pipe composition (sweep_execute must not silently
+# swallow it as a bogus TSV close-out record), and no git/close-out action must fire.
+pipe_out="$( cd "$detect_dir" && \
+  DOCKET_MODE=main CHANGES_DIR=docs/changes GH="$tmp/gh-detect-fail.sh" GIT="$tmp/git-should-not-run.sh" \
+  SCRIPTS_DIR="$tmp/scripts-should-not-run" \
+  bash -c '. "'"$SCRIPT"'"; detect_merged | sweep_execute' )"
+assert "detect_merged | sweep_execute: sweep-skipped reaches stdout through the pipe" \
+  'printf "%s\n" "$pipe_out" | grep -q "^sweep-skipped"'
+assert "detect_merged | sweep_execute: no bogus close-out output for the skip line" \
+  '! printf "%s\n" "$pipe_out" | grep -Eq "^(swept|harvest|sweep-failed) "'
 
 # sweep_execute: chained close-out (task 5). Mock the four shared scripts via the SCRIPTS_DIR
 # seam so the loop is hermetic — no network, no real docket-config.sh, no real close-out logic.
@@ -580,7 +592,7 @@ cat > "$tmp/gh-full-merged.sh" <<'EOF'
 #!/usr/bin/env bash
 if [ "$1" = api ] && [ "$2" = graphql ]; then
   cat <<'JSON'
-{"data":{"p30":{"number":30,"mergedAt":"2026-07-08T12:00:00Z","state":"MERGED"}}}
+{"data":{"p30":{"pullRequest":{"number":30,"mergedAt":"2026-07-08T12:00:00Z","state":"MERGED"}}}}
 JSON
   exit 0
 fi
@@ -814,7 +826,7 @@ if [ "$1" = repo ] && [ "$2" = view ]; then
 fi
 if [ "$1" = api ] && [ "$2" = graphql ]; then
   cat <<'JSON'
-{"data":{"p50":{"number":50,"mergedAt":"2026-07-08T12:00:00Z","state":"MERGED"}}}
+{"data":{"p50":{"pullRequest":{"number":50,"mergedAt":"2026-07-08T12:00:00Z","state":"MERGED"}}}}
 JSON
   exit 0
 fi
