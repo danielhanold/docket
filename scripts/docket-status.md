@@ -88,7 +88,11 @@ changed) → `terminal-publish.sh` → `cleanup-feature-branch.sh`. Each step's 
 loop always continues to the next change; a `cleanup-feature-branch.sh` failure is the one
 exception — it still emits the terminal `swept`/`harvest` lines for that change since publish
 already succeeded. Full success for a change emits `swept <id> <merged-date>` followed by
-`harvest <id> <archived-path>`.
+`harvest <id> <archived-path>`. Self-heal is idempotent for a failure at `sync` (rebase-pull) or
+`archive`, and for a `cleanup` failure (all retry cleanly next pass) — but a `sweep-failed` at
+`render-change-links` or `terminal-publish` leaves the change **archived but its terminal record
+unpublished**, invisible to future detection (which only scans `active/*.md`), and requires a
+manual `terminal-publish.sh --id <id>` follow-up.
 
 **6. Health checks.** Runs `board-checks.sh` over the current changes-dir and metadata/integration
 branches, and prefixes each of its TSV findings as `check <check-id> <change-id> <message>` on

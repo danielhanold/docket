@@ -72,7 +72,7 @@ The bulk safety net: every `implemented` change whose PR has merged gets archive
 
 The rebase-onto-base + re-run-tests gate lives in `docket-finalize-change`'s merge step and is **finalize-only** — the sweep only archives PRs that are already merged, it never merges, so the gate has nothing to act on here.
 
-**Sweep posture:** per-change failures **log the error, abandon the remainder of this change's close-out, and continue to the next change**; the next sweep self-heals idempotently. This is **deliberately divergent from `docket-finalize-change`'s** abort-and-report posture — the sequence is shared, the failure posture is not. A failed `/render-change-links.sh` follow-on skips publish (a stale `## Artifacts` block is never published).
+**Sweep posture:** per-change failures **log the error, abandon the remainder of this change's close-out, and continue to the next change**; the next sweep self-heals idempotently **only for a failure before the archive step** (`sync pull-failed` or `archive script-error`) or a `cleanup` failure — those retry cleanly next pass. A `sweep-failed` at `render-change-links` or `terminal-publish` leaves the change **archived but its terminal record unpublished**, and no later sweep resumes it (detection only scans `active/*.md`); it needs a manual `terminal-publish.sh --id <id>` follow-up. This is **deliberately divergent from `docket-finalize-change`'s** abort-and-report posture — the sequence is shared, the failure posture is not. A failed `/render-change-links.sh` follow-on skips publish (a stale `## Artifacts` block is never published).
 
 ### Health checks
 
