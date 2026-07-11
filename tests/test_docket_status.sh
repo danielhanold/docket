@@ -227,4 +227,75 @@ if grep -q "board inline changed pushed" "$tmp/conflict-run.txt"; then
     'git -C "$tmp/conflict-case/work" show origin/main:docs/changes/BOARD.md 2>/dev/null | cmp -s - "$tmp/conflict-case/work/docs/changes/BOARD.md"'
 fi
 
+# detect_merged: batched sweep detection (task 4). Source the script (guarded so it doesn't
+# auto-run main), seed a hermetic changes tree with two `implemented` changes — one whose GH
+# mock reports a merged PR, one open — and a GH stub serving canned graphql JSON.
+detect_dir="$tmp/detect-case"
+mkdir -p "$detect_dir/docs/changes/active"
+cat > "$detect_dir/docs/changes/active/0010-merged-thing.md" <<'EOF'
+---
+id: 10
+slug: merged-thing
+title: Merged thing
+status: implemented
+priority: high
+depends_on: []
+branch: feat/merged-thing
+pr: 101
+EOF
+cat > "$detect_dir/docs/changes/active/0011-open-thing.md" <<'EOF'
+---
+id: 11
+slug: open-thing
+title: Open thing
+status: implemented
+priority: high
+depends_on: []
+branch: feat/open-thing
+pr: 102
+EOF
+
+cat > "$tmp/gh-detect-ok.sh" <<'EOF'
+#!/usr/bin/env bash
+if [ "$1" = repo ] && [ "$2" = view ]; then
+  echo "x/y"
+  exit 0
+fi
+if [ "$1" = api ] && [ "$2" = graphql ]; then
+  cat <<'JSON'
+{"data":{"p10":{"number":101,"mergedAt":"2026-07-05T18:22:31Z","state":"MERGED"},"p11":{"number":102,"mergedAt":null,"state":"OPEN"}}}
+JSON
+  exit 0
+fi
+echo "gh-detect-ok: unexpected args: $*" >&2
+exit 1
+EOF
+chmod +x "$tmp/gh-detect-ok.sh"
+
+detect_out="$( cd "$detect_dir" && \
+  DOCKET_MODE=main CHANGES_DIR=docs/changes GH="$tmp/gh-detect-ok.sh" \
+  bash -c '. "'"$SCRIPT"'"; detect_merged' )"
+expected_line="$(printf '10\tmerged-thing\t101\t2026-07-05')"
+assert "detect_merged prints exactly the merged change" \
+  'printf "%s\n" "$detect_out" | grep -qF "$expected_line"'
+assert "detect_merged does not print the open change" \
+  '! printf "%s\n" "$detect_out" | grep -q "open-thing"'
+assert "detect_merged output has exactly one candidate line" \
+  '[ "$(printf "%s\n" "$detect_out" | grep -c "$(printf "\t")")" -eq 1 ]'
+
+cat > "$tmp/gh-detect-fail.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "gh-detect-fail: boom" >&2
+exit 1
+EOF
+chmod +x "$tmp/gh-detect-fail.sh"
+
+detect_fail_out="$( cd "$detect_dir" && \
+  DOCKET_MODE=main CHANGES_DIR=docs/changes GH="$tmp/gh-detect-fail.sh" \
+  bash -c '. "'"$SCRIPT"'"; detect_merged' )"
+detect_fail_rc=$?
+assert "detect_merged with failing GH reports sweep-skipped" \
+  'printf "%s\n" "$detect_fail_out" | grep -q "^sweep-skipped"'
+assert "detect_merged with failing GH returns success (best-effort)" '[ $detect_fail_rc -eq 0 ]'
+
 exit $fail
