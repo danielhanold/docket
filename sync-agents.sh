@@ -209,7 +209,11 @@ short_name(){ local b; b="$(basename "$1")"; b="${b#docket-}"; printf '%s' "${b%
 # Extract the single-line `description:` frontmatter value from a wrapper source file.
 agent_description(){ sed -n '/^description:/{s/^description:[[:space:]]*//;p;q;}' "$1"; }
 
-# Harnesses that get a generated Cursor-style dispatch rule (only cursor exhibits the inline quirk).
+# Harnesses that get a generated Cursor-style dispatch rule. Both Cursor and Claude Code exhibit
+# the inline quirk (a directly-invoked skill runs at the session model, defeating the wrapper's
+# model/effort pin), but they fix it differently: Cursor needs this generated alwaysApply dispatch
+# rule, while Claude Code uses native per-skill `context: fork` frontmatter (see skills/docket-*/
+# SKILL.md). So only Cursor belongs in this list.
 HARNESS_HAS_DISPATCH_RULES="$DOCKET_GI_DISPATCH_HARNESSES"
 harness_has_dispatch_rule(){ case " $HARNESS_HAS_DISPATCH_RULES " in *" $1 "*) return 0;; *) return 1;; esac; }
 
