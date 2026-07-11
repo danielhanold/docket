@@ -111,8 +111,18 @@ single remedy commit (`git rm -r --cached … && git add .gitignore && git commi
 Additionally, the `cursor` harness gets a generated **`docket-dispatch.mdc`** rule
 (`~/.cursor/rules/` user-level; `<repo>/.cursor/rules/` per-repo, also gitignored) that forces a
 Task dispatch to the matching `subagent_type` — Cursor otherwise runs a directly-invoked skill
-inline at the current model, defeating the pin. Because the per-repo pass generates that same full
-set into the harness, the rule's dispatch targets resolve by construction. `sync-agents.sh` prunes
+inline at the current model, defeating the pin. Claude Code hits the same inline quirk but fixes it
+natively rather than through a generated rule: the four headless-safe autonomous skills
+(`docket-status`, `docket-adr`, `docket-implement-next`, `docket-auto-groom`) carry `context: fork`
++ `agent: docket-<name>` frontmatter directly in their `SKILL.md`, which forks a directly-invoked
+skill into the same pinned wrapper — no generated file to sync, and inert (ignored) in every other
+harness. **Fork-exclusion principle:** only skills that never need the human mid-run are forked,
+since a forked subagent has no channel back to the human (Claude Code withholds `AskUserQuestion`
+and similar); the two interactive skills stay inline for that reason, and `docket-finalize-change`
+stays unforked too — not because it needs the human, but because its headless merge is blocked by
+Claude Code's Merge-Without-Review classifier, a separate decision tracked as change 0062. Because
+the per-repo pass generates that same full set into the harness, the Cursor rule's dispatch targets
+resolve by construction. `sync-agents.sh` prunes
 orphaned `docket-*` files (a removed built-in drops its wrapper; a de-listed harness drops its
 wrappers and its dispatch rule) and `sync-agents.sh --check` spans the `.gitignore` block, the
 tracked-file check, and (advisory) content staleness for both the agents and the dispatch rule.
