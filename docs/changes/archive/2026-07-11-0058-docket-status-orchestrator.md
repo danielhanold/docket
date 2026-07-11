@@ -2,7 +2,7 @@
 id: 58
 slug: docket-status-orchestrator
 title: docket-status orchestrator — collapse the status pass into one script call
-status: implemented
+status: done
 priority: high
 created: 2026-07-10
 updated: 2026-07-11
