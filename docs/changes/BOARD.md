@@ -1,6 +1,6 @@
 # Backlog
 
-**59 changes** — 🟡 7 proposed · 🔵 6 implemented · ✅ 44 done · 🗑️ 2 killed
+**59 changes** — 🟡 7 proposed · 🔵 5 implemented · ✅ 45 done · 🗑️ 2 killed
 
 ## 🟡 Proposed (7)
 
@@ -14,7 +14,7 @@
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 
-## 🔵 Implemented — awaiting merge (6)
+## 🔵 Implemented — awaiting merge (5)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
@@ -22,7 +22,6 @@
 | [0054](active/0054-slim-finalize-change-skill.md) | Slim docket-finalize-change — rewire close-out to the shared reference | `medium` | [#66](https://github.com/danielhanold/docket/pull/66) |
 | [0055](active/0055-slim-remaining-skills.md) | Slim docket-implement-next + propagate Step-0 preamble to the small skills | `medium` | [#67](https://github.com/danielhanold/docket/pull/67) |
 | [0056](active/0056-consultant-brainstorm.md) | Consultant-authored brainstorm — opt-in pinned design agent for the brainstorm role | `medium` | [#68](https://github.com/danielhanold/docket/pull/68) |
-| [0058](active/0058-docket-status-orchestrator.md) | docket-status orchestrator — collapse the status pass into one script call | `high` | [#65](https://github.com/danielhanold/docket/pull/65) |
 | [0059](active/0059-board-refresh-surface-gate.md) | board-refresh honors board_surfaces — gate BOARD.md regeneration on the resolved surface set | `medium` | [#64](https://github.com/danielhanold/docket/pull/64) |
 
 ```mermaid
@@ -38,7 +37,6 @@ graph TD
   0053 --> 0054
   0053 --> 0055
   0056
-  0053 --> 0058
   0059
   0001:::done
   0002:::done
@@ -84,13 +82,15 @@ graph TD
   0052:::done
   0053:::done
   0057:::done
+  0058:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (46)</summary>
+<details><summary>✅🗑️ Archive — done + killed (47)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0058](archive/2026-07-11-0058-docket-status-orchestrator.md) | docket-status orchestrator — collapse the status pass into one script call | 2026-07-11 |
 | [0057](archive/2026-07-11-0057-docket-owned-gitignore-consolidation.md) | Fold the migration-time .gitignore entries into the managed docket:generated block | 2026-07-11 |
 | [0053](archive/2026-07-11-0053-slim-convention-status-skills.md) | Slim docket-convention + docket-status via progressive disclosure | 2026-07-11 |
 | [0052](archive/2026-07-10-0052-readme-doc-critic-refresh.md) | README doc-critic refresh — accuracy, structure, newcomer clarity (post-0051) | 2026-07-10 |
