@@ -26,8 +26,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-10-slim-finalize-change-skill-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-10-slim-finalize-change-skill-design.md) |
-| Plan | [2026-07-11-slim-finalize-change-skill.md](https://github.com/danielhanold/docket/blob/feat/slim-finalize-change-skill/docs/superpowers/plans/2026-07-11-slim-finalize-change-skill.md) |
-| Results | [2026-07-11-slim-finalize-change-skill-results.md](https://github.com/danielhanold/docket/blob/feat/slim-finalize-change-skill/docs/results/2026-07-11-slim-finalize-change-skill-results.md) |
+| Plan | [2026-07-11-slim-finalize-change-skill.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-11-slim-finalize-change-skill.md) |
+| Results | [2026-07-11-slim-finalize-change-skill-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-11-slim-finalize-change-skill-results.md) |
 | PR | [#66](https://github.com/danielhanold/docket/pull/66) |
 | ADRs | [ADR-0002](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0002-docket-mode-default-and-bootstrap.md) |
 <!-- docket:artifacts:end -->
