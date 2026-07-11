@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/configurable-build-model
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -75,3 +75,19 @@ predictable cost/quality policy. Likely warrants a small ADR — decided at buil
   subagent dispatches the way it honors it on docket's agent wrappers — verify at build.
 
 ## Reconcile log
+
+- 2026-07-11 — Reconciled at claim. `depends_on: []`; related #16/#42 present; #0043 (tier
+  indirection) confirmed killed, so `build:` takes direct model IDs (no tier layer). Verified the
+  implementation surface: `scripts/docket-config.sh` line 80 **already anticipates** a top-level
+  `build:` key ("a future top-level `build:`/`review:` could otherwise shadow…"); the `skills:`
+  block parser (`yaml_block_body` + `skill_role`, layered local > repo-committed > global) is the
+  exact pattern `build:` mirrors — add `build_role` emitting `BUILD_IMPLEMENTER`/`BUILD_REVIEWER`
+  (empty when unset). `build:` is **global-able** (a per-machine model preference, same class as
+  `skills:`/`agents:` — not a coordination key, so NOT fenced in the machine-scoped layers).
+  Confirmed SDD's prompt templates still carry `model: [MODEL — REQUIRED]` in BOTH
+  `implementer-prompt.md` and `task-reviewer-prompt.md` (the spec's 2026-07-07 check holds), so the
+  wiring fills SDD's already-required field — no SDD fork. Open questions resolved by the spec's
+  leans: top-level `build:` (Q1), fold final-reviewer into `build.reviewer` (Q2), fill the template
+  `model:` per dispatch (Q3); Q4 (does the target harness honor the dispatch model) is a
+  build-time/live note — the same verification that gates the `agents:` block, not hermetically
+  testable. Scope unchanged.
