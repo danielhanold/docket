@@ -1,6 +1,6 @@
 # Backlog
 
-**59 changes** — 🟡 13 proposed · 🔵 2 implemented · ✅ 42 done · 🗑️ 2 killed
+**59 changes** — 🟡 13 proposed · 🔵 1 implemented · ✅ 43 done · 🗑️ 2 killed
 
 ## 🟡 Proposed (13)
 
@@ -14,17 +14,16 @@
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | build-ready |
-| [0054](active/0054-slim-finalize-change-skill.md) | Slim docket-finalize-change — rewire close-out to the shared reference | `medium` | ⏳ waiting on #53 — needs your merge |
-| [0055](active/0055-slim-remaining-skills.md) | Slim docket-implement-next + propagate Step-0 preamble to the small skills | `medium` | ⏳ waiting on #53 — needs your merge |
+| [0054](active/0054-slim-finalize-change-skill.md) | Slim docket-finalize-change — rewire close-out to the shared reference | `medium` | build-ready |
+| [0055](active/0055-slim-remaining-skills.md) | Slim docket-implement-next + propagate Step-0 preamble to the small skills | `medium` | build-ready |
 | [0056](active/0056-consultant-brainstorm.md) | Consultant-authored brainstorm — opt-in pinned design agent for the brainstorm role | `medium` | build-ready |
-| [0058](active/0058-docket-status-orchestrator.md) | docket-status orchestrator — collapse the status pass into one script call | `high` | ⏳ waiting on #53 — needs your merge |
+| [0058](active/0058-docket-status-orchestrator.md) | docket-status orchestrator — collapse the status pass into one script call | `high` | build-ready |
 | [0059](active/0059-board-refresh-surface-gate.md) | board-refresh honors board_surfaces — gate BOARD.md regeneration on the resolved surface set | `medium` | build-ready |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
-| [0053](active/0053-slim-convention-status-skills.md) | Slim docket-convention + docket-status via progressive disclosure | `medium` | [#62](https://github.com/danielhanold/docket/pull/62) |
 | [0057](active/0057-docket-owned-gitignore-consolidation.md) | Fold the migration-time .gitignore entries into the managed docket:generated block | `low` | [#63](https://github.com/danielhanold/docket/pull/63) |
 
 ```mermaid
@@ -37,7 +36,6 @@ graph TD
   0015 --> 0019
   0030 --> 0033
   0044
-  0051 --> 0053
   0053 --> 0054
   0053 --> 0055
   0056
@@ -86,13 +84,15 @@ graph TD
   0050:::done
   0051:::done
   0052:::done
+  0053:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (44)</summary>
+<details><summary>✅🗑️ Archive — done + killed (45)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0053](archive/2026-07-11-0053-slim-convention-status-skills.md) | Slim docket-convention + docket-status via progressive disclosure | 2026-07-11 |
 | [0052](archive/2026-07-10-0052-readme-doc-critic-refresh.md) | README doc-critic refresh — accuracy, structure, newcomer clarity (post-0051) | 2026-07-10 |
 | [0051](archive/2026-07-10-0051-global-agents-middle-layer.md) | Machine-local config layer (.docket.local.yml) + all-local agent generation | 2026-07-10 |
 | [0050](archive/2026-07-09-0050-global-config-layer.md) | Global config layer — full-schema ~/.config/docket/config.yml with a coordination-key fence | 2026-07-09 |
