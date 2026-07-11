@@ -1,12 +1,6 @@
 # Backlog
 
-**63 changes** — 🟢 1 in progress · 🟡 8 proposed · 🔵 2 implemented · ✅ 50 done · 🗑️ 2 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0063](active/0063-git-hook-coexistence.md) | Coexist with git-hook frameworks — docket bookkeeping commits skip hooks | `high` | [spec](../superpowers/specs/2026-07-11-git-hook-coexistence-design.md) | `feat/git-hook-coexistence` |
+**63 changes** — 🟡 8 proposed · 🔵 3 implemented · ✅ 50 done · 🗑️ 2 killed
 
 ## 🟡 Proposed (8)
 
@@ -21,12 +15,13 @@
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0062](active/0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | `low` | build-ready |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (3)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | [#69](https://github.com/danielhanold/docket/pull/69) |
 | [0061](active/0061-claude-context-fork-dispatch.md) | Claude Code skill-invocation parity — context:fork dispatch to pinned wrappers | `medium` | [#71](https://github.com/danielhanold/docket/pull/71) |
+| [0063](active/0063-git-hook-coexistence.md) | Coexist with git-hook frameworks — docket bookkeeping commits skip hooks | `high` | [#72](https://github.com/danielhanold/docket/pull/72) |
 
 ```mermaid
 graph TD
