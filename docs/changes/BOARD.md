@@ -1,12 +1,6 @@
 # Backlog
 
-**59 changes** — 🟢 1 in progress · 🟡 11 proposed · 🔵 1 implemented · ✅ 44 done · 🗑️ 2 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0058](active/0058-docket-status-orchestrator.md) | docket-status orchestrator — collapse the status pass into one script call | `high` | [spec](../superpowers/specs/2026-07-10-docket-status-orchestrator-design.md) | `feat/docket-status-orchestrator` |
+**59 changes** — 🟡 11 proposed · 🔵 2 implemented · ✅ 44 done · 🗑️ 2 killed
 
 ## 🟡 Proposed (11)
 
@@ -24,10 +18,11 @@
 | [0055](active/0055-slim-remaining-skills.md) | Slim docket-implement-next + propagate Step-0 preamble to the small skills | `medium` | build-ready |
 | [0056](active/0056-consultant-brainstorm.md) | Consultant-authored brainstorm — opt-in pinned design agent for the brainstorm role | `medium` | build-ready |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
+| [0058](active/0058-docket-status-orchestrator.md) | docket-status orchestrator — collapse the status pass into one script call | `high` | [#65](https://github.com/danielhanold/docket/pull/65) |
 | [0059](active/0059-board-refresh-surface-gate.md) | board-refresh honors board_surfaces — gate BOARD.md regeneration on the resolved surface set | `medium` | [#64](https://github.com/danielhanold/docket/pull/64) |
 
 ```mermaid
