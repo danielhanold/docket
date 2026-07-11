@@ -1,6 +1,12 @@
 # Backlog
 
-**59 changes** — 🟡 7 proposed · 🔵 5 implemented · ✅ 45 done · 🗑️ 2 killed
+**59 changes** — 🟢 1 in progress · 🟡 7 proposed · 🔵 4 implemented · ✅ 45 done · 🗑️ 2 killed
+
+## 🟢 In progress (1)
+
+| # | Title | Priority | Spec | Branch |
+|---|-------|----------|------|--------|
+| [0059](active/0059-board-refresh-surface-gate.md) | board-refresh honors board_surfaces — gate BOARD.md regeneration on the resolved surface set | `medium` | [spec](../superpowers/specs/2026-07-10-board-refresh-surface-gate-design.md) | `feat/board-refresh-surface-gate` |
 
 ## 🟡 Proposed (7)
 
@@ -14,7 +20,7 @@
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 
-## 🔵 Implemented — awaiting merge (5)
+## 🔵 Implemented — awaiting merge (4)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
@@ -22,7 +28,6 @@
 | [0054](active/0054-slim-finalize-change-skill.md) | Slim docket-finalize-change — rewire close-out to the shared reference | `medium` | [#66](https://github.com/danielhanold/docket/pull/66) |
 | [0055](active/0055-slim-remaining-skills.md) | Slim docket-implement-next + propagate Step-0 preamble to the small skills | `medium` | [#67](https://github.com/danielhanold/docket/pull/67) |
 | [0056](active/0056-consultant-brainstorm.md) | Consultant-authored brainstorm — opt-in pinned design agent for the brainstorm role | `medium` | [#68](https://github.com/danielhanold/docket/pull/68) |
-| [0059](active/0059-board-refresh-surface-gate.md) | board-refresh honors board_surfaces — gate BOARD.md regeneration on the resolved surface set | `medium` | [#64](https://github.com/danielhanold/docket/pull/64) |
 
 ```mermaid
 graph TD
