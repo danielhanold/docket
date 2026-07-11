@@ -26,6 +26,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0021](0021-pipeline-script-authored-mechanical-commits.md) — Deterministic pipeline scripts may author formulaic commits and mutate blessed-sequence state (Accepted) ← change #58 · relates to ADR-0012
 - [ADR-0022](0022-consultant-authored-brainstorm.md) — Consultant-authored brainstorm — opt-in pinned design agent for the brainstorm role (Accepted) ← change #56 · relates to ADR-0008, ADR-0009, ADR-0018
 - [ADR-0024](0024-claude-context-fork-skill-dispatch.md) — Claude Code uses `context: fork` frontmatter as its inline-skill dispatch mechanism; fork only human-non-interactive skills (Accepted) ← change #61 · relates to ADR-0008, ADR-0017
+- [ADR-0025](0025-docket-worktrees-disable-git-hooks.md) — docket bookkeeping commits skip shared git hooks via worktree-scoped core.hooksPath (Accepted) ← change #63 · relates to ADR-0001
 
 ## Superseded / Reversed
 
