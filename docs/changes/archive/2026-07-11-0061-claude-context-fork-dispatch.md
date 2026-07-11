@@ -26,8 +26,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-11-claude-context-fork-dispatch-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-11-claude-context-fork-dispatch-design.md) |
-| Plan | [2026-07-11-claude-context-fork-dispatch.md](https://github.com/danielhanold/docket/blob/feat/claude-context-fork-dispatch/docs/superpowers/plans/2026-07-11-claude-context-fork-dispatch.md) |
-| Results | [2026-07-11-claude-context-fork-dispatch-results.md](https://github.com/danielhanold/docket/blob/feat/claude-context-fork-dispatch/docs/results/2026-07-11-claude-context-fork-dispatch-results.md) |
+| Plan | [2026-07-11-claude-context-fork-dispatch.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-11-claude-context-fork-dispatch.md) |
+| Results | [2026-07-11-claude-context-fork-dispatch-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-11-claude-context-fork-dispatch-results.md) |
 | PR | [#71](https://github.com/danielhanold/docket/pull/71) |
 | ADRs | [ADR-0008](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0008-agent-layer-generated-subagents.md), [ADR-0024](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0024-claude-context-fork-skill-dispatch.md) |
 <!-- docket:artifacts:end -->
