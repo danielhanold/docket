@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/git-hook-coexistence
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -58,3 +58,17 @@ Full mechanism, the `extensions.worktreeConfig` safety caveat, the create/ensure
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-07-11 — reconciled against origin/main
+
+Verified the design still holds against current code — all core claims confirmed:
+
+- **No hook-skipping exists anywhere** (`git grep -E 'no-verify|hooksPath|PRE_COMMIT_ALLOW_NO_CONFIG'` over `scripts/`, `skills/`, `*.sh` → nil). The systematic gap the change targets is real and unaddressed.
+- All named commit/worktree sites still present: `scripts/docket-status.sh` `ensure_and_sync_worktree()` (worktree-add at L44-45), `migrate-to-docket.sh` (worktree-add paths L196/251/260), `scripts/terminal-publish.sh` publish commit (L147, `$GIT -C "$pub" commit`). `scripts/disable-worktree-hooks.sh` does not yet exist (new file, as planned).
+
+Two **plan-level refinements** (scope unchanged, design not invalidated):
+
+1. **Drop `docket-config.sh --bootstrap` as a hook-disable site.** `create_orphan()` (docket-config.sh L53-59) is **worktree-free** — it builds the orphan `docket` via `commit-tree` + push, creating **no `.docket` worktree**. A worktree-scoped `core.hooksPath` has nothing to attach to at bootstrap. The `.docket` worktree is created immediately afterward by the Step-0 preamble / `ensure_and_sync_worktree`, which is a helper site and self-heals — so bootstrap needs no helper call. The worktree-creation helper sites are therefore: `docket-status.sh` `ensure_and_sync_worktree()` and `migrate-to-docket.sh`.
+2. **terminal-publish: prefer the worktree-scoped disable on the transient `pub-$T` worktree over a single per-invocation `-c`.** The publish path commits at L147 **and** replays via `rebase --continue` inside the push-retry loop (L150-156); a lone `-c core.hooksPath` on the L147 commit would not cover the rebase replay. Applying the helper (worktree-scoped `core.hooksPath`) to the `pub-$T` worktree right after `worktree add` (L119) covers every commit in it, reuses the single-sourced helper, and is torn down with the worktree. Confirm exact mechanism at plan time.
+
+Open questions carried into planning unchanged: unsafe-`worktreeConfig` degrade path (lean relocate-and-proceed) and README placement (cosmetic).

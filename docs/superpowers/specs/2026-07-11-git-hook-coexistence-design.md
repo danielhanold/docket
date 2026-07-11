@@ -42,8 +42,9 @@ The hook-disable is applied at **every** site that creates or ensures the `.dock
 
 - `scripts/docket-status.sh` → `ensure_and_sync_worktree()` (the shared ensure path).
 - `migrate-to-docket.sh` (each `.docket` worktree-add path).
-- `scripts/docket-config.sh --bootstrap` (fresh orphan-branch create).
 - The convention **Step-0 preamble** "ensure + sync the metadata working tree" — so interactive skills (`docket-new-change`, `docket-groom-next`) that ensure the worktree inline also apply it.
+
+> **Reconcile refinement (2026-07-11):** `scripts/docket-config.sh --bootstrap` was listed here, but `create_orphan()` is **worktree-free** (builds the orphan via `commit-tree` + push; no `.docket` worktree exists yet), so a worktree-scoped `core.hooksPath` has nothing to attach to at bootstrap. The `.docket` worktree is created immediately afterward by the Step-0 preamble / `ensure_and_sync_worktree` — a helper site that self-heals — so **bootstrap needs no helper call**. Worktree-creation helper sites are `docket-status.sh` and `migrate-to-docket.sh` only.
 
 To keep this DRY and single-sourced, factor the disable into one small idempotent helper — proposed `scripts/disable-worktree-hooks.sh` (with a co-located `scripts/disable-worktree-hooks.md` contract, per docket's script-contract convention) — that every site calls after `worktree add`. The helper owns: creating the empty hooks dir, enabling `extensions.worktreeConfig`, and setting the worktree-scoped `core.hooksPath`; it is a no-op when already applied.
 
@@ -55,7 +56,9 @@ To keep this DRY and single-sourced, factor the disable into one small idempoten
 git -C "$pub" -c core.hooksPath=<ABS-EMPTY-DIR> commit -m "<message>"
 ```
 
-This is docket bookkeeping (its own docs), not the team's code, consistent with the scope decision. `terminal-publish.sh` is a script (single commit site), so a per-invocation `-c` is sufficient and needs no worktree config.
+This is docket bookkeeping (its own docs), not the team's code, consistent with the scope decision.
+
+> **Reconcile refinement (2026-07-11):** terminal-publish is **not** a single commit site — beyond the L147 publish commit it **replays via `rebase --continue`** inside the CAS push-retry loop (L150-156), which a lone per-invocation `-c core.hooksPath` on the L147 commit would not cover. Preferred mechanism: apply the **worktree-scoped disable** (reusing `disable-worktree-hooks.sh`) to the transient `pub-$T` worktree right after `git worktree add` (L119), so **every** commit in it — publish and rebase replay alike — skips hooks; it is torn down with the worktree. Confirm exact wiring at plan time.
 
 ### The empty hooks directory
 
@@ -76,8 +79,7 @@ The fix is entirely at the git layer, so it serves **Cursor, Claude Code, and Co
 - **New:** `scripts/disable-worktree-hooks.sh` + `scripts/disable-worktree-hooks.md` (the idempotent helper + contract).
 - `scripts/docket-status.sh` — call the helper in `ensure_and_sync_worktree()` after worktree add.
 - `migrate-to-docket.sh` — call the helper at each `.docket` create path.
-- `scripts/docket-config.sh` — call the helper on the `--bootstrap` orphan create.
-- `scripts/terminal-publish.sh` — add `-c core.hooksPath=<empty>` to the publish commit(s).
+- `scripts/terminal-publish.sh` — apply the helper (worktree-scoped disable) to the transient `pub-$T` worktree after `worktree add`, covering both the publish commit and the rebase-continue replay. (Reconcile refinement — supersedes the earlier per-invocation `-c` on `docket-config.sh --bootstrap`, dropped as worktree-free.)
 - `skills/docket-convention/SKILL.md` — Step-0 preamble + Branch-model: note that ensuring the `.docket` worktree also disables its hooks (single-sentence, pointing at the helper).
 - `README.md` — a short "git-hook frameworks" note (docket's bookkeeping commits skip your hooks; your code commits still run them).
 - **Tests:** `tests/test_metadata_worktree_hooks.sh` (below); `tests/test_script_contracts_coverage.sh` picks up the new contract automatically.
