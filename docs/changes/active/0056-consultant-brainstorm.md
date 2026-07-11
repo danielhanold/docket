@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/consultant-brainstorm
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -77,3 +77,16 @@ routinely.)
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+- 2026-07-11 — Reconciled at claim. `depends_on: []`; related #16/#17/#49 and cited ADRs 8/9/18
+  all present. Verified the agent-layer mechanism this change plugs into: `sync-agents.sh` rewrites
+  ONLY the `model:`/`effort:` frontmatter lines and uses the built-in `agents/docket-*.md` file
+  **verbatim** otherwise — so the consultant's "no skill, no convention" shape is achieved simply by
+  authoring `agents/docket-brainstorm-consultant.md` with NO `skills:` line (no sync-agents.sh code
+  change needed for that; the glob auto-discovers it). The existing `test_sync_agents.sh` no-skill
+  loops enumerate FIXED lists (`docket-auto-groom-critic`; `docket-rebase-resolver
+  docket-integration-repair`) that each assert `skills: docket-convention`, so they will NOT wrongly
+  include the consultant — but a NEW test block is required asserting the consultant injects NEITHER
+  a wrapped skill NOR `docket-convention` (the deliberate ADR-0009 deviation). The 0049 skill
+  passthrough (`skills: brainstorm:`) and `$SKILL_BRAINSTORM` resolution are live. #0053's convention
+  slimming is adjacent but NOT a dependency (spec §5). Scope unchanged.
