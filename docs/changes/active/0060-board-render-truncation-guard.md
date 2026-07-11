@@ -2,7 +2,7 @@
 id: 60
 slug: board-render-truncation-guard
 title: Board pass must not truncate BOARD.md when render-board.sh exits non-zero
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-07-11
 updated: 2026-07-11
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/board-render-truncation-guard
 pr:
 blocked_by:
 reconciled: false
