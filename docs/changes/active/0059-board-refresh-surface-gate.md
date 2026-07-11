@@ -2,10 +2,10 @@
 id: 59
 slug: board-refresh-surface-gate
 title: board-refresh honors board_surfaces — gate BOARD.md regeneration on the resolved surface set
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-10
-updated: 2026-07-10
+updated: 2026-07-11
 depends_on: []
 related: [58, 11]
 adrs: []
@@ -15,7 +15,7 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/board-refresh-surface-gate
-pr:
+pr: https://github.com/danielhanold/docket/pull/64
 blocked_by:
 reconciled: true
 ---
@@ -27,6 +27,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-10-board-refresh-surface-gate-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-10-board-refresh-surface-gate-design.md) |
 | Plan | [2026-07-11-board-refresh-surface-gate.md](https://github.com/danielhanold/docket/blob/feat/board-refresh-surface-gate/docs/superpowers/plans/2026-07-11-board-refresh-surface-gate.md) |
+| PR | [#64](https://github.com/danielhanold/docket/pull/64) |
 <!-- docket:artifacts:end -->
 
 ## Why
