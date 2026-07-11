@@ -249,6 +249,7 @@ if ! local_branch_exists docket; then
   say "  Local 'docket' branch absent — creating orphan and seeding from $INTEGRATION_REF."
   git worktree prune 2>/dev/null || true
   git worktree add --orphan -b docket "$DOCKET_WT" >/dev/null
+  "$MIGRATE_DIR/scripts/disable-worktree-hooks.sh" --worktree "$DOCKET_WT" >/dev/null 2>&1 || true
   # The orphan starts empty; populate its index+tree from the integration ref.
   git -C "$DOCKET_WT" checkout "$INTEGRATION_REF" -- "${seed_paths[@]}"
   git -C "$DOCKET_WT" commit --quiet -m "docket: seed metadata branch from $INTEGRATION_BRANCH (migrate-to-docket.sh)"
@@ -258,6 +259,7 @@ else
   say "  Local 'docket' branch exists — verifying seed paths (top up only what is missing)."
   git worktree prune 2>/dev/null || true
   git worktree add "$DOCKET_WT" docket >/dev/null
+  "$MIGRATE_DIR/scripts/disable-worktree-hooks.sh" --worktree "$DOCKET_WT" >/dev/null 2>&1 || true
   missing=()
   for p in "${seed_paths[@]}"; do
     if ! tree_has refs/heads/docket -- "$p"; then
@@ -303,6 +305,7 @@ PRUNE_PATHS=("$CHANGES_DIR/active" "$CHANGES_README" "$BOARD")
 PRUNE_WT="$TMP_ROOT/prune"
 git worktree prune 2>/dev/null || true
 git worktree add -B "migrate-prune-$INTEGRATION_BRANCH" "$PRUNE_WT" "$INTEGRATION_REF" >/dev/null
+"$MIGRATE_DIR/scripts/disable-worktree-hooks.sh" --worktree "$PRUNE_WT" >/dev/null 2>&1 || true
 
 # Probe the LOCAL (worktree) tree: only paths still present there need removing. Probing origin
 # would re-`rm` an already-pushed-but-locally-pruned path on re-run (a hard error) — hence local.

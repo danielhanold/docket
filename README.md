@@ -370,6 +370,16 @@ integration_branch: main
 
 This reproduces the original single-branch behavior **exactly**: no `docket` branch, no `.docket/` worktree, no terminal-publish copy. Planning commits land on the integration branch alongside your code, and the archive move there *is* the terminal record. Because docket-mode is now the default, an existing single-branch repo must pin `metadata_branch: main` to keep running as-is until it deliberately migrates — otherwise the bootstrap guard will stop and ask it to migrate.
 
+### git-hook frameworks (pre-commit, husky, lefthook)
+
+docket makes many small machine-generated bookkeeping commits (claims, board refreshes, status
+writes, ADRs) on its metadata branch. Those commits **skip your repo's git hooks** by construction —
+the `.docket` metadata worktree (and docket's transient publish/migration worktrees) have
+`core.hooksPath` pointed at an empty directory, so a shared `pre-commit` hook never fires against
+docket's own commits (which live on the orphan `docket` branch with no hook config anyway). Your
+**code** commits on feature branches are untouched — the team's hooks still run on everything headed
+to a PR. Nothing to configure; it is applied and self-heals on every docket run.
+
 ---
 
 ## Tuning agent models & effort

@@ -45,6 +45,10 @@ ensure_and_sync_worktree(){
         || "$GIT" worktree add "$wt" "origin/$METADATA_BRANCH" >&2 \
         || { echo "docket-status: cannot create metadata worktree $wt" >&2; exit 1; }
     fi
+    # Change 0063: skip the repo's shared git hooks on the metadata worktree (idempotent; self-heals
+    # existing installs). Best-effort — a failure here must not block the status pass.
+    "$SELF_DIR"/disable-worktree-hooks.sh --worktree "$wt" >&2 \
+      || echo "docket-status: warning — could not disable hooks on $wt (continuing)" >&2
     "$GIT" -C "$wt" fetch origin "$METADATA_BRANCH" >&2 \
       && "$GIT" -C "$wt" pull --rebase origin "$METADATA_BRANCH" >&2 \
       || { echo "docket-status: metadata worktree sync failed" >&2; exit 1; }
