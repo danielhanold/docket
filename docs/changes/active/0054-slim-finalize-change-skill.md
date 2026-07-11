@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/slim-finalize-change-skill
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -64,3 +64,15 @@ Behavior-neutral restructure per the spec (target 234 → ≤ ~140 lines / ≤ ~
 - The other skills (#0053, #0055).
 
 ## Reconcile log
+
+- 2026-07-11 — Reconciled at claim (design-ahead obligations discharged against landed #53).
+  Verified on `origin/main`: (a) `skills/docket-convention/references/terminal-close-out.md`
+  exists with a `## Failure posture — per caller` table carrying a `docket-finalize-change`
+  **abort-and-report** row (spec assumption holds); (b) the convention heading is exactly
+  `### Step-0 preamble (every operating skill)` — the ~3-line citation must use it verbatim;
+  (c) finalize is still **234 lines / 3529 words** (matches the spec's baseline; size targets
+  ≤~140L/≤~2200w stand); (d) all seven sentinel test files present; (e) the `2.5 **Harvest
+  learnings.**` heading is intact and byte-stable; (f) ADR-0002 already carries `## Update —
+  2026-06-19 (change 0025)`, so this change appends a new dated `## Update` (not an edit).
+  #0053 landed as the spec anticipated; related #55 still `proposed` (no overlap). Scope
+  unchanged; no drops or additions.
