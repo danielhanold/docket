@@ -2,10 +2,10 @@
 id: 54
 slug: slim-finalize-change-skill
 title: Slim docket-finalize-change — rewire close-out to the shared reference
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-07-10
-updated: 2026-07-10
+updated: 2026-07-11
 depends_on: [53]
 related: [53, 55]
 adrs: [2]
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/slim-finalize-change-skill
 pr:
 blocked_by:
 reconciled: false
