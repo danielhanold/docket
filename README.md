@@ -241,7 +241,7 @@ auto_groom: false
 board_surfaces: [inline]      # the github token is fenced here too — per-repo-only
 ```
 
-Its own path (and every file `sync-agents.sh` generates) is kept out of git by a managed `# docket:generated` block the script owns in the repo's `.gitignore` — see [Tuning agent models & effort](#tuning-agent-models--effort).
+Its own path (and every file `sync-agents.sh` generates) is kept out of git by the managed docket `.gitignore` block (the `# docket:start` / `# docket:end` markers) the script owns — see **Tuning an agent's model & effort** below.
 
 ### Coordination keys are per-repo-only
 
@@ -355,11 +355,11 @@ bash sync-agents.sh        # or re-run install.sh, which calls it for you
 
 `sync-agents.sh` always writes **both** passes in one run — user-level wrappers into each targeted harness root AND (for opted-in repos) per-repo wrappers — and project wins over global at generation time, per the four-layer precedence above.
 
-**Generated per-repo agent files are machine-local — gitignored, never committed.** Unlike a repo's committed `.docket.yml`, `<repo>/.<harness>/agents/docket-*.md` (and, for Cursor, `docket-dispatch.mdc`) are regenerated on every machine from that machine's own resolved config; they carry no team intent of their own — the committed `agents:` block is the artifact that does. `sync-agents.sh` owns a marker-bounded `# docket:generated` block in the repo's `.gitignore`, covering every file it can generate for every harness (plus `.docket.local.yml` itself); it creates or repairs that block the moment a repo opts in — declares an `agents:` block or an `agent_harnesses:` key, in either file, or merely carries a `.docket.local.yml` — and prints a loud one-time notice to **commit it once**. After that the block is invisible plumbing.
+**Generated per-repo agent files are machine-local — gitignored, never committed.** Unlike a repo's committed `.docket.yml`, `<repo>/.<harness>/agents/docket-*.md` (and, for Cursor, `docket-dispatch.mdc`) are regenerated on every machine from that machine's own resolved config; they carry no team intent of their own — the committed `agents:` block is the artifact that does. A single marker-bounded `# docket` block in the repo's `.gitignore` covers every docket-owned path — the `.docket/` worktree, `.worktrees/`, `.claude/settings.local.json`, `.docket.local.yml`, and every generated agent file for every harness — not just the generated-agents subset. It is seeded by `migrate-to-docket.sh` (fresh migration) or `docket-config.sh --bootstrap` (fresh orphan-branch bootstrap), and self-healed by `sync-agents.sh` — which creates or repairs it the moment a repo opts in — declares an `agents:` block or an `agent_harnesses:` key, in either file, or merely carries a `.docket.local.yml` — and prints a loud one-time notice to **commit it once**. After that the block is invisible plumbing.
 
 **3. Guard drift in CI.** `sync-agents.sh --check` is a four-part gate:
 
-- The `.gitignore` `docket:generated` block is present and current, **and** no per-repo generated file is tracked by git — both are **CI-meaningful** (`rc != 0` fails the build; the second leg also catches a repo whose migration commit never happened).
+- The `.gitignore` `# docket` block is present and current, **and** no per-repo generated file is tracked by git — both are **CI-meaningful** (`rc != 0` fails the build; the second leg also catches a repo whose migration commit never happened).
 - A committed `.docket.yml` using the legacy bare-agent-key `agents:` shape (agent keys sitting directly under `agents:` instead of nested under `agents: default:`) also fails — **CI-meaningful** (`rc != 0`) — naming the offending keys and the reshape to `agents.default.<agent>` in its message.
 - Generated content drifting from the resolved config is **advisory only** (`rc` unaffected) — every clone regenerates its own copy at build time, so a stale local file is a nudge to re-run `sync-agents.sh`, not a CI failure.
 

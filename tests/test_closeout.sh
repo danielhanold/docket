@@ -167,7 +167,7 @@ git -C "$comp" push origin main >/dev/null 2>&1
 rc=$?; git -C "$W" fetch origin main >/dev/null 2>&1
 assert "publish: CAS push succeeds despite a competing advance" "[ $rc -eq 0 ]"
 assert "publish: copy-set landed atop the competing commit" 'git -C "$W" ls-tree -r --name-only origin/main | grep -q "docs/changes/archive/2026-06-18-0007-sample.md"'
-assert "publish: competing commit preserved (not clobbered)" 'git -C "$W" log origin/main --oneline | grep -q competing'
+assert "publish: competing commit preserved (not clobbered)" 'git -C "$W" log origin/main --oneline --grep=competing | grep -q .'
 
 # --- terminal-publish.sh: CAS conflict ELSE-branch (competing writer DIVERGES a copy-set path) ---
 # The test above advanced README (a different path => clean rebase, the if-branch). Here the

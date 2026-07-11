@@ -6,6 +6,23 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 fail=0
 assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
 
+# True when any occurrence of $2 is followed by $3 within $4 characters in $1.
+# Use Perl rather than grep -Pz: BSD grep lacks -P and caps interval bounds at 255.
+within(){
+  perl -0e '
+    my ($file, $first, $second, $limit) = @ARGV;
+    open my $fh, "<", $file or exit 1;
+    local $/;
+    my $text = <$fh>;
+    my $offset = 0;
+    while (($offset = index($text, $first, $offset)) >= 0) {
+      exit 0 if index(substr($text, $offset, length($first) + $limit), $second) >= 0;
+      ++$offset;
+    }
+    exit 1;
+  ' "$1" "$2" "$3" "$4"
+}
+
 # Extract a single-line frontmatter scalar value from a markdown file.
 fm(){ sed -n "s/^$2:[[:space:]]*//p" "$1" | head -n1 | sed 's/[[:space:]]*$//'; }
 
@@ -52,6 +69,16 @@ assert "sync-agents.sh exists and is executable-by-bash" '[ -f "$SYNC" ]'
 
 # Helper: a fresh fake harness root + repo for an isolated generator run.
 make_sandbox(){ SBX="$(mktemp -d)"; mkdir -p "$SBX/.claude" "$SBX/.agents"; }   # .cursor/.codex/.kiro/.windsurf absent on purpose
+
+# git-repo fixture: sandbox repo with identity + one commit (for ls-files-based legs).
+# Defined here (rather than at first historical use, further down) so the change-0057
+# widened-trigger tests — which need a real docket branch — can use it too.
+mkgitrepo(){
+  SBX="$(mktemp -d)"
+  git -C "$SBX" init --quiet
+  git -C "$SBX" config user.email t@t.test
+  git -C "$SBX" config user.name Test
+}
 
 # -- user-level install: built-in wrappers, verbatim, into present harnesses --
 make_sandbox
@@ -163,7 +190,7 @@ make_sandbox
 HROOT48F="$(mktemp -d)"; mkdir -p "$HROOT48F/.claude"
 printf 'agent_harnesses: [cursor]\nagents:\n  default:\n    status: { model: sonnet }\n' > "$SBX/.docket.yml"
 # Remove one fragment in a throwaway copy of the repo scripts so the auto-block path fires.
-SCRATCH="$(mktemp -d)"; cp -R "$REPO/agents" "$REPO/cursor-rules" "$REPO/sync-agents.sh" "$SCRATCH/"
+SCRATCH="$(mktemp -d)"; cp -R "$REPO/agents" "$REPO/cursor-rules" "$REPO/scripts" "$REPO/sync-agents.sh" "$SCRATCH/"
 rm -f "$SCRATCH/cursor-rules/dispatch/docket-status.md"
 gen_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48F" bash "$SCRATCH/sync-agents.sh" 2>&1 >/dev/null)"
 RULE="$SBX/.cursor/rules/docket-dispatch.mdc"
@@ -199,7 +226,7 @@ make_sandbox
 HROOT48P="$(mktemp -d)"; mkdir -p "$HROOT48P/.cursor"   # present user-level cursor root
 printf 'agent_harnesses: [cursor]\nagents:\n  default:\n    status: { model: sonnet }\n' > "$SBX/.docket.yml"
 # Scratch clone we can mutate (remove a built-in agent + its fragment).
-SCRATCH="$(mktemp -d)"; cp -R "$REPO/agents" "$REPO/cursor-rules" "$REPO/sync-agents.sh" "$SCRATCH/"
+SCRATCH="$(mktemp -d)"; cp -R "$REPO/agents" "$REPO/cursor-rules" "$REPO/scripts" "$REPO/sync-agents.sh" "$SCRATCH/"
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48P" bash "$SCRATCH/sync-agents.sh" >/dev/null )
 assert "0048 prune: adr generated before removal (per-repo)" '[ -f "$SBX/.cursor/agents/docket-adr.md" ]'
 assert "0048 prune: adr generated before removal (user-level)" '[ -f "$HROOT48P/.cursor/agents/docket-adr.md" ]'
@@ -414,8 +441,8 @@ assert "convention points at composition (0017)" 'grep -q "0017" "$CONV"'
 assert "convention has an agent-layer section heading" 'grep -qiE "^#+ .*(agent layer|model/effort|subagent)" "$CONV"'
 
 # 0046: convention documents the harness-first agents: shape (default: + harness keys, field-level fallback).
-assert "0046 doc: agent-layer ref names the reserved default: key" 'grep -qE "default:" "$AGL" && grep -Pzoq "agents:[\s\S]{0,400}default:" "$AGL"'
-assert "0046 doc: agent-layer ref shows a per-harness key example (cursor)" 'grep -Pzoq "agents:[\s\S]{0,600}cursor:" "$AGL"'
+assert "0046 doc: agent-layer ref names the reserved default: key" 'within "$AGL" "agents:" "default:" 400'
+assert "0046 doc: agent-layer ref shows a per-harness key example (cursor)" 'within "$AGL" "agents:" "cursor:" 600'
 assert "0046 doc: agent-layer ref states field-level fallback H -> default -> built-in" 'grep -qiE "harness.*default.*built-in|<harness>.*default.*built-in" "$AGL"'
 assert "0046 doc: agent-layer ref notes non-Claude fallback warning" 'grep -qi "default/built-in" "$AGL"'
 
@@ -526,7 +553,7 @@ assert "0045 doc: convention names agent_harnesses" 'grep -q "agent_harnesses" "
 assert "0045 doc: convention states default [claude]" 'grep -qE "agent_harnesses.*\[claude\]|default.*\[claude\]" "$CONV"'
 assert "0045 doc: agent-layer ref states harness-neutral direct model IDs" 'grep -qiE "harness-neutral|direct model id" "$AGL"'
 assert "0045 doc: agent-layer ref notes passthrough enables non-Claude harnesses" 'grep -qi "passthrough" "$AGL"'
-assert "0045 doc: agent-layer ref points at ADR-0015 near agent_harnesses" 'grep -Pzoq "agent_harnesses[\s\S]{0,500}ADR-0015|ADR-0015[\s\S]{0,500}agent_harnesses" "$AGL"'
+assert "0045 doc: agent-layer ref points at ADR-0015 near agent_harnesses" 'within "$AGL" "agent_harnesses" "ADR-0015" 500 || within "$AGL" "ADR-0015" "agent_harnesses" 500'
 
 # (f) a glob-metachar token must NOT expand against the cwd (set -f guard). A decoy
 #     file present in the repo must never leak into the warnings.
@@ -799,11 +826,14 @@ assert "0050 doc: agent-layer ref Agent layer global row points at config.yml ag
 assert "0051 doc: README documents .docket.local.yml" 'grep -qF ".docket.local.yml" "$READMEF"'
 assert "0051 doc: README states generated agents are machine-local, never committed" \
   'grep -qiE "machine-local" "$READMEF" && grep -qiE "never committed" "$READMEF"'
-assert "0051 doc: README documents the docket:generated gitignore block" 'grep -qF "docket:generated" "$READMEF"'
+assert "0057 doc: README documents the managed docket .gitignore block" 'grep -qF "# docket:start" "$READMEF" || grep -qE "managed .docket. block" "$READMEF"'
+assert "0057 doc: README no longer names the legacy docket:generated block" '! grep -qF "docket:generated" "$READMEF"'
 assert "0051 doc: README documents the migration (git rm --cached / one commit)" 'grep -qiE "migrat" "$READMEF" && grep -qF -e "--cached" "$READMEF"'
 assert "0051 doc: convention documents .docket.local.yml" 'grep -qF ".docket.local.yml" "$CONV"'
 assert "0051 doc: agent-layer ref states all-local generation (gitignored, never committed)" 'grep -qiE "gitignored, never committed|machine-local, never committed" "$AGL"'
-assert "0051 doc: agent-layer ref documents the three-leg --check" 'grep -qi "advisory" "$AGL" && grep -qF "docket:generated" "$AGL"'
+assert "0057 doc: agent-layer ref documents the managed docket block (new marker)" 'grep -qF "# docket:start" "$AGL" || grep -qi "managed docket .gitignore block" "$AGL"'
+assert "0057 doc: agent-layer ref documents the check via the managed block" 'grep -qi "advisory" "$AGL"'
+assert "0057 doc: agent-layer ref no longer names docket:generated" '! grep -qF "docket:generated" "$AGL"'
 assert "0051 doc: sample .docket.yml agents comment states machine-local generation" 'grep -qi "machine-local" "$REPO/.docket.yml"'
 assert "0051 doc: sample .docket.yml drops the stale agents.yaml global reference" '! grep -q "agents.yaml" "$REPO/.docket.yml"'
 
@@ -903,7 +933,8 @@ assert "0051 rider: empty scan_dirs run succeeds under /bin/bash (rc=0)" '[ "$ri
 rm -rf "$SBXR"
 
 # ============================================================================
-# Change 0051 — managed .gitignore block (# docket:generated:start/end)
+# Change 0051/0057 — managed .gitignore block (# docket:start/end; mechanics now
+# live in scripts/lib/docket-gitignore-block.sh, sourced by sync-agents.sh)
 # ============================================================================
 
 # (gi-a) opted-in repo: block created (file didn't exist), loud "commit" notice,
@@ -913,14 +944,14 @@ HROOTGA="$(mktemp -d)"; mkdir -p "$HROOTGA/.claude"
 printf 'agent_harnesses: [claude]\n' > "$SBX/.docket.yml"
 gi_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTGA" bash "$SYNC" 2>&1 >/dev/null)"
 GI="$SBX/.gitignore"
-assert "0051 gi: .gitignore created with the managed block" 'grep -q "^# docket:generated:start" "$GI" && grep -q "^# docket:generated:end$" "$GI"'
+assert "0051 gi: .gitignore created with the managed block" 'grep -q "^# docket:start" "$GI" && grep -q "^# docket:end$" "$GI"'
 assert "0051 gi: block ignores .docket.local.yml"            'grep -q "^\.docket\.local\.yml$" "$GI"'
 assert "0051 gi: block ignores claude agents pattern"        'grep -q "^\.claude/agents/docket-\*\.md$" "$GI"'
 assert "0051 gi: block ignores cursor agents pattern"        'grep -q "^\.cursor/agents/docket-\*\.md$" "$GI"'
 assert "0051 gi: block ignores the cursor dispatch rule"     'grep -q "^\.cursor/rules/docket-dispatch\.mdc$" "$GI"'
 assert "0051 gi: loud commit-this notice"                    'printf "%s" "$gi_err" | grep -qi "commit"'
 assert "0051 gi: every block line is docket-scoped (starts with . or #)" \
-  '! awk "/# docket:generated:start/,/# docket:generated:end/" "$GI" | grep -qvE "^(#|\.)"'
+  '! awk "/# docket:start/,/# docket:end/" "$GI" | grep -qvE "^(#|\.)"'
 
 # (gi-b) idempotent: second run leaves .gitignore byte-identical and prints no notice.
 gi_before="$(cat "$GI")"
@@ -934,7 +965,7 @@ sed -i.bak '/docket-dispatch/d' "$GI"; rm -f "$GI.bak"        # vandalize the bl
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTGA" bash "$SYNC" >/dev/null 2>&1 )
 assert "0051 gi: hand-edited block repaired"   'grep -q "docket-dispatch" "$GI"'
 assert "0051 gi: user content preserved"       'grep -q "^my-own-ignore/$" "$GI"'
-assert "0051 gi: exactly one block after repair" '[ "$(grep -c "^# docket:generated:start" "$GI")" = "1" ]'
+assert "0051 gi: exactly one block after repair" '[ "$(grep -c "^# docket:start" "$GI")" = "1" ]'
 rm -rf "$SBX" "$HROOTGA"
 
 # (gi-d) tracking-only repo WITH a .docket.local.yml that has NO opt-in keys: the block
@@ -944,7 +975,7 @@ HROOTGD="$(mktemp -d)"; mkdir -p "$HROOTGD/.claude"
 printf 'metadata_branch: docket\n' > "$SBX/.docket.yml"
 printf 'finalize:\n  gate: off\n' > "$SBX/.docket.local.yml"
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTGD" bash "$SYNC" >/dev/null 2>&1 )
-assert "0051 gi: local-file-present repo gets the block"  'grep -q "^# docket:generated:start" "$SBX/.gitignore"'
+assert "0051 gi: local-file-present repo gets the block"  'grep -q "^# docket:start" "$SBX/.gitignore"'
 assert "0051 gi: but still generates zero agent files"    '[ ! -e "$SBX/.claude/agents/docket-status.md" ]'
 rm -rf "$SBX" "$HROOTGD"
 
@@ -956,12 +987,59 @@ printf 'metadata_branch: docket\n' > "$SBX/.docket.yml"
 assert "0051 gi: no-signal repo gets NO .gitignore" '[ ! -e "$SBX/.gitignore" ]'
 rm -rf "$SBX" "$HROOTGE"
 
+# (gi-core) the block now carries the three core docket-owned entries (change 0057).
+make_sandbox
+HROOTGC="$(mktemp -d)"; mkdir -p "$HROOTGC/.claude"
+printf 'agent_harnesses: [claude]\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTGC" bash "$SYNC" >/dev/null 2>&1 )
+GI="$SBX/.gitignore"
+assert "0057 gi: block carries .docket/"              'grep -qxF ".docket/" "$GI"'
+assert "0057 gi: block carries .worktrees/"           'grep -qxF ".worktrees/" "$GI"'
+assert "0057 gi: block carries settings.local.json"   'grep -qxF ".claude/settings.local.json" "$GI"'
+assert "0057 gi: new start marker, no legacy marker"  'grep -qxF "# docket:start (managed by docket — do not hand-edit)" "$GI" && ! grep -qF "docket:generated" "$GI"'
+rm -rf "$SBX" "$HROOTGC"
+
+# (gi-widen+) widened trigger POSITIVE: a tracking-only repo (NOT opted in, no local file) that
+# HAS a local docket branch heals the block (the bootstrap guard's DOCKET probe).
+mkgitrepo
+HROOTGW="$(mktemp -d)"; mkdir -p "$HROOTGW/.claude"
+printf 'metadata_branch: docket\n' > "$SBX/.docket.yml"        # tracking-only, not opted in
+git -C "$SBX" add -A; git -C "$SBX" commit --quiet -m init
+git -C "$SBX" branch docket                                    # DOCKET signal present
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTGW" bash "$SYNC" >/dev/null 2>&1 )
+assert "0057 gi: docket-branch repo heals the block"  'grep -qxF "# docket:start (managed by docket — do not hand-edit)" "$SBX/.gitignore"'
+assert "0057 gi: but still generates zero agent files" '[ ! -e "$SBX/.claude/agents/docket-status.md" ]'
+rm -rf "$SBX" "$HROOTGW"
+
+# (gi-widen-) widened trigger NEGATIVE (the 0048 regression): a repo with NO docket signal
+# (no opt-in, no .docket.local.yml, no docket branch, no existing block) is untouched.
+mkgitrepo
+HROOTGN="$(mktemp -d)"; mkdir -p "$HROOTGN/.claude"
+printf 'metadata_branch: docket\n' > "$SBX/.docket.yml"
+git -C "$SBX" add -A; git -C "$SBX" commit --quiet -m init
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTGN" bash "$SYNC" >/dev/null 2>&1 )
+assert "0057 gi: no-signal repo gets NO .gitignore" '[ ! -e "$SBX/.gitignore" ]'
+chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTGN" bash "$SYNC" --check 2>&1)"; chk_rc=$?
+assert "0057 gi: no-signal repo --check stays a no-op (rc=0)" '[ "$chk_rc" = "0" ]'
+rm -rf "$SBX" "$HROOTGN"
+
+# (gi-heal-present) heal-if-present: a repo carrying only a legacy block (no other signal) is
+# UPGRADED to the new block.
+mkgitrepo
+HROOTGH="$(mktemp -d)"; mkdir -p "$HROOTGH/.claude"
+printf 'metadata_branch: docket\n' > "$SBX/.docket.yml"
+printf '# docket:generated:start (managed by sync-agents.sh — do not hand-edit)\n.docket.local.yml\n# docket:generated:end\n' > "$SBX/.gitignore"
+git -C "$SBX" add -A; git -C "$SBX" commit --quiet -m init
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTGH" bash "$SYNC" >/dev/null 2>&1 )
+assert "0057 gi: legacy-only repo upgraded to new block" 'grep -qxF "# docket:start (managed by docket — do not hand-edit)" "$SBX/.gitignore" && ! grep -qF "docket:generated" "$SBX/.gitignore"'
+rm -rf "$SBX" "$HROOTGH"
+
 # (gi-f) UNTERMINATED block (start marker, no end): refuse to rewrite, warn, preserve
 # every byte — user content after the dangling marker must survive.
 make_sandbox
 HROOTGF="$(mktemp -d)"; mkdir -p "$HROOTGF/.claude"
 printf 'agent_harnesses: [claude]\n' > "$SBX/.docket.yml"
-printf '# docket:generated:start (managed by sync-agents.sh — do not hand-edit)\n.docket.local.yml\nnode_modules/\n' > "$SBX/.gitignore"
+printf '# docket:start (managed by docket — do not hand-edit)\n.docket.local.yml\nnode_modules/\n' > "$SBX/.gitignore"
 gi_before="$(cat "$SBX/.gitignore")"
 gf_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTGF" bash "$SYNC" 2>&1 >/dev/null)"; gf_rc=$?
 assert "0051 gi-f: unterminated block run still succeeds (rc=0)" '[ "$gf_rc" = "0" ]'
@@ -973,13 +1051,8 @@ rm -rf "$SBX" "$HROOTGF"
 # Change 0051 — migration (0048-era tracked wrappers) + --check three legs
 # ============================================================================
 
-# git-repo fixture: sandbox repo with identity + one commit (for ls-files-based legs).
-mkgitrepo(){
-  SBX="$(mktemp -d)"
-  git -C "$SBX" init --quiet
-  git -C "$SBX" config user.email t@t.test
-  git -C "$SBX" config user.name Test
-}
+# (mkgitrepo defined earlier, alongside make_sandbox, so the 0057 widened-trigger tests above
+# can use it too.)
 
 # (mig-a) 0048-era repo: tracked wrappers + rule -> deleted from the worktree, block
 # written, local set regenerated, single migration commit printed. Idempotent.
@@ -995,7 +1068,7 @@ mig_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTM" bash "$SYNC" 2>&1 >/dev/nu
 assert "0051 mig: run succeeds (rc=0)"                     '[ "$mig_rc" = "0" ]'
 assert "0051 mig: announces the migration"                 'printf "%s" "$mig_err" | grep -qi "migrat"'
 assert "0051 mig: prints git rm --cached instructions"     'printf "%s" "$mig_err" | grep -q -e "git rm" '
-assert "0051 mig: gitignore block written"                 'grep -q "^# docket:generated:start" "$SBX/.gitignore"'
+assert "0051 mig: gitignore block written"                 'grep -q "^# docket:start" "$SBX/.gitignore"'
 assert "0051 mig: local files regenerated (fresh content)" 'grep -q "^model: sonnet" "$SBX/.claude/agents/docket-status.md"'
 assert "0051 mig: full local set regenerated"              '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "8" ]'
 # perform the printed migration commit; second run must NOT re-announce

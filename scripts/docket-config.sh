@@ -23,6 +23,10 @@
 # Mock seam: GIT="${GIT:-git}".
 set -uo pipefail
 
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=/dev/null
+. "$SELF_DIR/lib/docket-gitignore-block.sh"
+
 GIT="${GIT:-git}"
 MODE=export
 DO_BOOTSTRAP=0
@@ -241,6 +245,12 @@ if [ "$DOCKET_MODE" = docket ]; then
   fi
   if [ "$DO_BOOTSTRAP" -eq 1 ] && [ "$BOOTSTRAP" = CREATE_ORPHAN ]; then
     create_orphan
+    # Seed the managed .gitignore block in the primary tree (closes the fresh-repo gap). We do
+    # NOT auto-commit — bootstrap runs inside a skill's startup, and committing to the user's
+    # integration branch from a config script crosses a write-scope line docket holds. --export
+    # stays strictly read-only (this branch only runs under --bootstrap).
+    ensure_docket_gitignore_block "$REPO_DIR"
+    printf 'docket-config: seeded the managed .gitignore block in %s/.gitignore — COMMIT THIS so the .docket/ worktree and other docket-owned files stay untracked.\n' "$REPO_DIR" >&2
     BOOTSTRAP=PROCEED   # the repo is now migrated; the caller may proceed
   fi
 fi

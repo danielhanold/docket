@@ -160,6 +160,21 @@ out="$(run "$tmp/w2" --bootstrap --export)"; eval "$out"
 assert "bootstrap fresh: origin/docket created" 'origin_has_docket "$tmp/w2"'
 assert "bootstrap fresh: verdict now PROCEED"   '[ "$BOOTSTRAP" = PROCEED ]'
 
+# (W2-gi) --bootstrap in the fresh cell also SEEDS the managed .gitignore block in the
+# primary tree, prints a loud COMMIT notice, and commits NOTHING (change 0057).
+w2gi="$tmp/w2gi"; mkrepo "$w2gi"                       # fresh docket-mode repo (¬DOCKET ∧ ¬LIVE)
+head_before="$(git -C "$w2gi" rev-parse HEAD 2>/dev/null || echo none)"
+bs_err="$(run "$w2gi" --bootstrap --export 2>&1 >/dev/null)"
+assert "0057 bootstrap: block seeded in primary tree" 'grep -qxF "# docket:start (managed by docket — do not hand-edit)" "$w2gi/.gitignore"'
+assert "0057 bootstrap: loud COMMIT notice printed"   'printf "%s" "$bs_err" | grep -qi "commit"'
+assert "0057 bootstrap: nothing auto-committed"       '[ "$(git -C "$w2gi" rev-parse HEAD 2>/dev/null || echo none)" = "$head_before" ]'
+assert "0057 bootstrap: .gitignore left UNstaged"     '[ -z "$(git -C "$w2gi" diff --cached --name-only 2>/dev/null)" ]'
+
+# (W1-gi) default --export in the fresh cell stays strictly READ-ONLY: no .gitignore written.
+w1gi="$tmp/w1gi"; mkrepo "$w1gi"
+run "$w1gi" --export >/dev/null 2>&1
+assert "0057 export: read-only — no .gitignore seeded" '[ ! -e "$w1gi/.gitignore" ]'
+
 # (W3) --bootstrap in STOP_MIGRATE cell: GUARD holds — no orphan written
 mkrepo "$tmp/w3"; seed_live "$tmp/w3"
 out="$(run "$tmp/w3" --bootstrap --export)"; eval "$out"

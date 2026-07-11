@@ -151,7 +151,8 @@ until $GIT -C "$pub" push "$REMOTE" "HEAD:$INT_BRANCH"; do
   if $GIT -C "$pub" pull --rebase "$REMOTE" "$INT_BRANCH"; then :; else
     $GIT -C "$pub" checkout "$metaref" -- "${copyset[@]}"
     refresh_adr_index   # regenerate deterministically on conflict — never a 3-way-merge of the index
-    $GIT -C "$pub" rebase --continue || { teardown; die "CAS rebase --continue failed"; }
+    GIT_EDITOR=true $GIT -C "$pub" rebase --continue \
+      || { teardown; die "CAS rebase --continue failed"; }
   fi
 done
 
