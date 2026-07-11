@@ -35,10 +35,12 @@ disable-worktree-hooks.sh --worktree DIR
    avoids "hooksPath does not exist" surprises in git and in a framework's own `core.hooksPath`
    checks. Living under `.git/`, it is never tracked and never leaks into a commit.
 2. **worktreeConfig safety (first enable only).** If `extensions.worktreeConfig` is not already
-   `true`, detect a pre-existing **common-config** `core.worktree`/`core.bare` value: relocate it to
-   the main worktree's per-worktree config, then enable `extensions.worktreeConfig`. If a value is
-   present and cannot be relocated safely, warn loudly and exit 1 (fail-closed) — never enable
-   blindly. In virtually all repos these keys are unset, so this is a no-op path.
+   `true`, enable it (git requires the extension enabled before any `--worktree` write can happen at
+   all), then detect a pre-existing **common-config** `core.worktree`/`core.bare` value and relocate
+   it to the main worktree's per-worktree config. If a value is present and cannot be relocated
+   safely, roll back the enable (unset `extensions.worktreeConfig`) and exit 1 (fail-closed) — the
+   extension is never left enabled with a value stranded in common config. In virtually all repos
+   these keys are unset, so this is a no-op path.
 3. **Set the worktree-scoped hooks path.** `git -C DIR config --worktree core.hooksPath <empty>`.
    `--worktree` replaces rather than appends, so re-running never duplicates the entry.
 
@@ -61,4 +63,5 @@ disable-worktree-hooks.sh --worktree DIR
 - **Local-only.** Touches only `.git/config` and `.git/worktrees/<wt>/config.worktree` plus a dir
   under `.git/`. Never the remote, teammates' clones, or the committed `.docket.yml`.
 - **Fail-closed on the worktreeConfig caveat.** Rather than risk silently unsetting `core.worktree`/
-  `core.bare` for linked worktrees, it relocates-or-refuses.
+  `core.bare` for linked worktrees, it relocates-or-refuses; on a failed relocation the tentative
+  `extensions.worktreeConfig` enable is rolled back so the repo is never left half-migrated.

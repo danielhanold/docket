@@ -70,5 +70,19 @@ W2="$(setup)"
 try_commit "$W2/.docket"
 assert "non-vacuous: unpatched .docket commit fails" "[ \"\$RC\" -ne 0 ]"
 
+# --- Case 6: relocation success path — a deliberate non-default core.bare in COMMON config is
+# relocated to the main worktree's per-worktree config, not left stranded, and the helper still
+# succeeds end-to-end (hooks still skipped in .docket afterward).
+W3="$(setup)"
+git -C "$W3" config --local core.bare true
+"$HELPER" --worktree "$W3/.docket" >/dev/null 2>&1; rc=$?
+assert "relocate: helper exits 0"                    "[ $rc -eq 0 ]"
+common_bare="$(git -C "$W3" config --local --get core.bare 2>/dev/null || true)"
+assert "relocate: common core.bare no longer set"    "[ -z \"$common_bare\" ]"
+worktree_bare="$(git -C "$W3" config --worktree --get core.bare 2>/dev/null || true)"
+assert "relocate: per-worktree core.bare == true"    "[ \"$worktree_bare\" = true ]"
+try_commit "$W3/.docket"
+assert "relocate: .docket commit still succeeds"     "[ \"\$RC\" -eq 0 ]"
+
 if [ "$fail" -eq 0 ]; then echo "ALL PASS"; else echo "FAILURES"; fi
 exit "$fail"

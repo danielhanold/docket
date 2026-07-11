@@ -27,24 +27,27 @@ empty="$common/docket/empty-hooks"
 mkdir -p "$empty"
 
 # worktreeConfig safety (git >=2.20): once enabled, core.worktree/core.bare read per-worktree, so a
-# value in the COMMON config would silently stop applying to linked worktrees. Detect before enabling
-# and relocate to the MAIN worktree's per-worktree config (git's guidance); if that cannot be done
-# safely, warn loudly and fail closed rather than proceed blindly.
+# value in the COMMON config would silently stop applying to linked worktrees. Relocate any such
+# value to the MAIN worktree's per-worktree config (git's guidance); if that cannot be done safely,
+# warn loudly, roll back the enable, and fail closed rather than leave it enabled blindly.
 if [ "$("$GIT" -C "$WT" config --local --get extensions.worktreeConfig 2>/dev/null || true)" != "true" ]; then
   main_wt="$("$GIT" -C "$WT" worktree list --porcelain 2>/dev/null | awk '/^worktree /{print $2; exit}')"
+  # git requires extensions.worktreeConfig enabled BEFORE any --worktree write, so enable it once
+  # up front. If a needed relocation then fails, roll this back so the repo is never left with the
+  # extension enabled but a core.worktree/core.bare value stranded (and now ignored) in common config.
+  "$GIT" -C "$WT" config extensions.worktreeConfig true
   for key in core.worktree core.bare; do
     val="$("$GIT" -C "$WT" config --local --get "$key" 2>/dev/null || true)"
     [ -n "$val" ] || continue
     if [ -n "$main_wt" ] \
-       && "$GIT" -C "$WT" config extensions.worktreeConfig true \
        && "$GIT" -C "$main_wt" config --worktree "$key" "$val" \
        && "$GIT" -C "$WT" config --local --unset "$key"; then
       echo "disable-worktree-hooks: relocated common $key='$val' to $main_wt (worktreeConfig safety)" >&2
     else
+      "$GIT" -C "$WT" config --local --unset extensions.worktreeConfig 2>/dev/null || true
       die "refusing to enable worktreeConfig — common $key='$val' present and could not be relocated safely; set core.hooksPath per-invocation instead"
     fi
   done
-  "$GIT" -C "$WT" config extensions.worktreeConfig true
 fi
 
 # Point THIS worktree's hook lookup at the empty dir (worktree-scoped). Idempotent: a repeat write is
