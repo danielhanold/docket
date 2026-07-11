@@ -34,6 +34,22 @@ done
 # Config export mock seam: CONFIG_EXPORT_CMD lets tests inject a stub export.
 config_export(){ ${CONFIG_EXPORT_CMD:-"$SELF_DIR"/docket-config.sh --export}; }
 
+ensure_and_sync_worktree(){
+  if [ "${DOCKET_MODE:-}" = docket ]; then
+    local wt="${METADATA_WORKTREE:-.docket}"
+    if [ ! -d "$wt" ]; then
+      "$GIT" worktree add "$wt" "$METADATA_BRANCH" >&2 2>/dev/null \
+        || "$GIT" worktree add "$wt" "origin/$METADATA_BRANCH" >&2 \
+        || { echo "docket-status: cannot create metadata worktree $wt" >&2; exit 1; }
+    fi
+    "$GIT" -C "$wt" fetch origin "$METADATA_BRANCH" >&2 \
+      && "$GIT" -C "$wt" pull --rebase origin "$METADATA_BRANCH" >&2 \
+      || { echo "docket-status: metadata worktree sync failed" >&2; exit 1; }
+  else
+    "$GIT" pull --rebase >&2 || { echo "docket-status: metadata sync failed" >&2; exit 1; }
+  fi
+}
+
 main(){
   local cfg; cfg="$(config_export)" || { echo "docket-status: config export failed" >&2; exit 1; }
   eval "$cfg"
@@ -43,6 +59,7 @@ main(){
     CREATE_ORPHAN) echo "docket-status: fresh repo — bootstrap is opt-in; run a docket skill to create the docket branch" >&2; exit 1 ;;
     *) echo "docket-status: unknown bootstrap verdict '${BOOTSTRAP:-}'" >&2; exit 1 ;;
   esac
-  # Steps 2..7 wired in later tasks.
+  ensure_and_sync_worktree
+  # Steps 3..7 wired in later tasks.
 }
 main "$@"
