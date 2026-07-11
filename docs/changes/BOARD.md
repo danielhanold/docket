@@ -1,12 +1,6 @@
 # Backlog
 
-**59 changes** — 🟢 1 in progress · 🟡 7 proposed · 🔵 5 implemented · ✅ 44 done · 🗑️ 2 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | [spec](../superpowers/specs/2026-07-07-configurable-build-model-design.md) | `feat/configurable-build-model` |
+**59 changes** — 🟡 7 proposed · 🔵 6 implemented · ✅ 44 done · 🗑️ 2 killed
 
 ## 🟡 Proposed (7)
 
@@ -20,10 +14,11 @@
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 
-## 🔵 Implemented — awaiting merge (5)
+## 🔵 Implemented — awaiting merge (6)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
+| [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | [#69](https://github.com/danielhanold/docket/pull/69) |
 | [0054](active/0054-slim-finalize-change-skill.md) | Slim docket-finalize-change — rewire close-out to the shared reference | `medium` | [#66](https://github.com/danielhanold/docket/pull/66) |
 | [0055](active/0055-slim-remaining-skills.md) | Slim docket-implement-next + propagate Step-0 preamble to the small skills | `medium` | [#67](https://github.com/danielhanold/docket/pull/67) |
 | [0056](active/0056-consultant-brainstorm.md) | Consultant-authored brainstorm — opt-in pinned design agent for the brainstorm role | `medium` | [#68](https://github.com/danielhanold/docket/pull/68) |
