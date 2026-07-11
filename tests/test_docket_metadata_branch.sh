@@ -69,12 +69,18 @@ assert "main-mode opt-out documented in convention" \
 # K2. Terminal-publish is explicitly skipped in main-mode (degradation at the publish site).
 assert "terminal-publish skipped entirely in main-mode" \
   'grep -q "Skipped entirely in \`main\`-mode" skills/docket-finalize-change/SKILL.md'
-# K3. Proposed-kill (docket-new-change) carries its main-mode archive-move degradation clause.
-assert "proposed-kill degrades to a direct archive move in main-mode" \
-  'grep -q "the integration branch), performing the archive move" skills/docket-new-change/SKILL.md'
-# K4. Reconcile-kill (docket-implement-next) carries its main-mode archive-move degradation clause.
-assert "reconcile-kill degrades to a direct archive move in main-mode" \
-  'grep -q "the integration branch), performing the archive move" skills/docket-implement-next/SKILL.md'
+# K3. Proposed-kill (docket-new-change) delegates to the close-out reference, which carries the
+#     main-mode archive-move degradation clause (moved out of the skill by the kill-path rewire).
+assert "close-out ref documents main-mode archive-move degradation (proposed-kill)" \
+  'grep -q "archive commit is itself the terminal record" skills/docket-convention/references/terminal-close-out.md'
+assert "docket-new-change points proposed-kill at the close-out reference" \
+  'grep -qF "terminal-close-out.md" skills/docket-new-change/SKILL.md'
+# K4. Reconcile-kill (docket-implement-next) delegates to the close-out reference, which carries the
+#     main-mode archive-move degradation clause (moved out of the skill by the kill-path rewire).
+assert "close-out ref documents main-mode archive-move degradation (reconcile-kill)" \
+  'grep -q "archive commit is itself the terminal record" skills/docket-convention/references/terminal-close-out.md'
+assert "docket-implement-next points reconcile-kill at the close-out reference" \
+  'grep -qF "terminal-close-out.md" skills/docket-implement-next/SKILL.md'
 
 # L. .gitignore ignores the metadata worktree + feature worktrees.
 assert ".gitignore ignores .docket/" 'grep -qE "^\.docket/?" .gitignore'
