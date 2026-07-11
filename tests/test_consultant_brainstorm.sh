@@ -18,5 +18,9 @@ assert "degrade rule: inline + warn when undispatchable" 'grep -qiE "degrade|und
 assert "respects ADR-0006 — no simulated human / real dialogue inline" 'grep -qiE "real human|no.{0,4}simulat|inline" "$SKILL"'
 assert "Convention load-first block present" 'grep -qF "## Convention (load first — blocking)" "$SKILL" || grep -qi "docket-convention" "$SKILL"'
 
+NC="$REPO/skills/docket-new-change/SKILL.md"; GN="$REPO/skills/docket-groom-next/SKILL.md"
+assert "new-change notes the consultant verbal opt-in" 'grep -q "docket-brainstorm" "$NC"'
+assert "groom-next notes the consultant verbal opt-in" 'grep -q "docket-brainstorm" "$GN"'
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
