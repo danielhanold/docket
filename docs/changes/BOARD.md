@@ -1,6 +1,6 @@
 # Backlog
 
-**63 changes** — 🟡 8 proposed · 🔵 3 implemented · ✅ 50 done · 🗑️ 2 killed
+**63 changes** — 🟡 8 proposed · 🔵 2 implemented · ✅ 51 done · 🗑️ 2 killed
 
 ## 🟡 Proposed (8)
 
@@ -15,13 +15,12 @@
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0062](active/0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | `low` | build-ready |
 
-## 🔵 Implemented — awaiting merge (3)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | [#69](https://github.com/danielhanold/docket/pull/69) |
 | [0061](active/0061-claude-context-fork-dispatch.md) | Claude Code skill-invocation parity — context:fork dispatch to pinned wrappers | `medium` | [#71](https://github.com/danielhanold/docket/pull/71) |
-| [0063](active/0063-git-hook-coexistence.md) | Coexist with git-hook frameworks — docket bookkeeping commits skip hooks | `high` | [#72](https://github.com/danielhanold/docket/pull/72) |
 
 ```mermaid
 graph TD
@@ -35,7 +34,6 @@ graph TD
   0044
   0061
   0062
-  0063
   0001:::done
   0002:::done
   0003:::done
@@ -86,13 +84,15 @@ graph TD
   0058:::done
   0059:::done
   0060:::done
+  0063:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (52)</summary>
+<details><summary>✅🗑️ Archive — done + killed (53)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0063](archive/2026-07-11-0063-git-hook-coexistence.md) | Coexist with git-hook frameworks — docket bookkeeping commits skip hooks | 2026-07-11 |
 | [0060](archive/2026-07-11-0060-board-render-truncation-guard.md) | board-refresh.sh must not write an empty BOARD.md — non-empty guard on the atomic write | 2026-07-11 |
 | [0059](archive/2026-07-11-0059-board-refresh-surface-gate.md) | board-refresh honors board_surfaces — gate BOARD.md regeneration on the resolved surface set | 2026-07-11 |
 | [0058](archive/2026-07-11-0058-docket-status-orchestrator.md) | docket-status orchestrator — collapse the status pass into one script call | 2026-07-11 |
