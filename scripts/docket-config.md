@@ -93,6 +93,15 @@ sentinel `auto`). Leaves are read *within the block* (never as bare top-level ke
 role key under `skills:`, in any of the three layers, is warned on stderr and ignored — never
 fatal.
 
+**`build:` (change 0044).** Reads the optional nested `build:` block and emits
+`BUILD_IMPLEMENTER`, `BUILD_REVIEWER` — direct model-ID passthrough strings for SDD build
+dispatches (no interpretation or validation; any literal string, Claude or not, is passed
+through unchanged). Each leaf resolves **repo-local > repo-committed > global**; empty string
+when unset in all three layers (there is no built-in default, unlike `skills:`). Global-able
+(a per-machine model preference), so `build:` is **not** subject to the coordination-key fence.
+Leaves are read *within the block* (never as bare top-level keys). An unknown role key under
+`build:`, in any of the three layers, is warned on stderr and ignored — never fatal.
+
 ### Stage 2b: global config layer (change 0050)
 
 `${XDG_CONFIG_HOME:-$HOME/.config}/docket/config.yml` — read from the **local filesystem**
@@ -211,10 +220,12 @@ SKILL_PLAN
 SKILL_BUILD
 SKILL_REVIEW
 SKILL_FINISH
+BUILD_IMPLEMENTER
+BUILD_REVIEWER
 BOOTSTRAP
 ```
 
-18 lines total. The last line is always `BOOTSTRAP=…`. The emitted `KEY=value` set and order are
+20 lines total. The last line is always `BOOTSTRAP=…`. The emitted `KEY=value` set and order are
 **unchanged** by the machine-local layer (change 0051) — `.docket.local.yml` only adds a
 higher-precedence input to the values already resolved above; no new KEY is introduced.
 
@@ -252,7 +263,7 @@ emits no `KEY=value` output.
   post-write state, so the caller's `eval` sees `PROCEED` without a second invocation.
 - **`main`-mode skips the bootstrap guard entirely.** `DOCKET`/`LIVE` are not evaluated;
   `BOOTSTRAP` is always `PROCEED` in main-mode.
-- **18 `KEY=value` lines always emitted in the same order.** Skills may rely on the order
+- **20 `KEY=value` lines always emitted in the same order.** Skills may rely on the order
   for pipe consumers, but should use the variable names (via `eval`) for correctness.
 - **The global layer never aborts a run.** Every global-file problem (misplaced, malformed,
   fenced key) is a stderr warning; exit codes are unaffected.

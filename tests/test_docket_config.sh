@@ -101,7 +101,7 @@ assert "board []: BOARD_SURFACES empty"                '[ -z "$BOARD_SURFACES" ]
 
 # --- (E) direct-pipe caller (LEARNINGS #22: $() hides a dropped trailing \n) -
 n="$(run "$tmp/c" --export | grep -c '=')"
-assert "direct-pipe: 18 KEY=value lines emitted"       '[ "$n" -eq 18 ]'
+assert "direct-pipe: 20 KEY=value lines emitted"       '[ "$n" -eq 20 ]'
 last="$(run "$tmp/c" --export | tail -n1)"
 assert "direct-pipe: last line is BOOTSTRAP"           'case "$last" in BOOTSTRAP=*) true;; *) false;; esac'
 
@@ -357,7 +357,7 @@ assert "0050 Q: XDG unset -> \$HOME/.config fallback read"   '[ "$AUTO_GROOM" = 
 
 # --- (E') emit-interface guard: still exactly 18 lines with a global file present ---
 n50="$(rung "$tmp/k.xdg" "$tmp/k" --export | grep -c '=')"
-assert "0050 E': still 18 KEY=value lines with global layer" '[ "$n50" -eq 18 ]'
+assert "0050 E': still 20 KEY=value lines with global layer" '[ "$n50" -eq 20 ]'
 
 # --- (M) coordination-key fence: warned-and-ignored, never honored, never fatal ---
 mkrepo "$tmp/m"
@@ -507,6 +507,68 @@ printf 'skills:\n  bogusrole: x\n' > "$tmp/l6/.docket.local.yml"
 errout="$(rung "$tmp/l6-noxdg" "$tmp/l6" --export 2>&1 >/dev/null)"; rc=$?
 assert "0051 L6: unknown local role not fatal (rc=0)" '[ "$rc" = "0" ]'
 assert "0051 L6: warns unknown role"                  'grep -qi "unknown skills role" <<<"$errout" && grep -q "bogusrole" <<<"$errout"'
+
+# ============================================================================
+# Change 0044 — build: role-keyed SDD build models (direct model-ID passthrough)
+# ============================================================================
+
+# (R1) explicit build: block with arbitrary non-Claude model IDs -> passthrough verbatim.
+mkrepo "$tmp/r1"
+cat > "$tmp/r1/.docket.yml" <<'EOF'
+metadata_branch: main
+integration_branch: main
+build:
+  implementer: my-cheap-model
+  reviewer: my-strong-model
+EOF
+git -C "$tmp/r1" add .docket.yml; git -C "$tmp/r1" commit --quiet -m cfg
+git -C "$tmp/r1" push --quiet origin main
+out="$(run "$tmp/r1" --export)"; eval "$out"
+assert "0044 R1: BUILD_IMPLEMENTER passthrough"  '[ "$BUILD_IMPLEMENTER" = my-cheap-model ]'
+assert "0044 R1: BUILD_REVIEWER passthrough"     '[ "$BUILD_REVIEWER" = my-strong-model ]'
+
+# (R2) no build: block -> both empty.
+mkrepo "$tmp/r2"
+out="$(run "$tmp/r2" --export)"; eval "$out"
+assert "0044 R2: BUILD_IMPLEMENTER empty when unset" '[ -z "$BUILD_IMPLEMENTER" ]'
+assert "0044 R2: BUILD_REVIEWER empty when unset"    '[ -z "$BUILD_REVIEWER" ]'
+
+# (R3) layering: global sets build.implementer; repo overrides -> repo wins; global-only
+# role resolves to the global value.
+mkrepo "$tmp/r3"
+cat > "$tmp/r3/.docket.yml" <<'EOF'
+metadata_branch: main
+integration_branch: main
+build:
+  implementer: r-model
+EOF
+git -C "$tmp/r3" add .docket.yml; git -C "$tmp/r3" commit --quiet -m cfg
+git -C "$tmp/r3" push --quiet origin main
+mkdir -p "$tmp/r3.xdg/docket"
+cat > "$tmp/r3.xdg/docket/config.yml" <<'EOF'
+build:
+  implementer: g-model
+  reviewer: g-reviewer-model
+EOF
+out="$(rung "$tmp/r3.xdg" "$tmp/r3" --export)"; eval "$out"
+assert "0044 R3: repo build.implementer wins over global" '[ "$BUILD_IMPLEMENTER" = r-model ]'
+assert "0044 R3: global-only role falls to global"         '[ "$BUILD_REVIEWER" = g-reviewer-model ]'
+
+# (R4) .docket.local.yml wins over repo (committed) and global.
+mkrepo "$tmp/r4"
+cat > "$tmp/r4/.docket.yml" <<'EOF'
+metadata_branch: main
+integration_branch: main
+build:
+  implementer: committed-model
+EOF
+git -C "$tmp/r4" add .docket.yml; git -C "$tmp/r4" commit --quiet -m cfg
+git -C "$tmp/r4" push --quiet origin main
+mkdir -p "$tmp/r4.xdg/docket"
+printf 'build:\n  implementer: global-model\n' > "$tmp/r4.xdg/docket/config.yml"
+printf 'build:\n  implementer: local-model\n' > "$tmp/r4/.docket.local.yml"
+out="$(rung "$tmp/r4.xdg" "$tmp/r4" --export)"; eval "$out"
+assert "0044 R4: local build.implementer beats committed+global" '[ "$BUILD_IMPLEMENTER" = local-model ]'
 
 if [ "$fail" = 0 ]; then echo PASS; else echo FAIL; fi
 exit "$fail"
