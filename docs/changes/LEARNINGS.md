@@ -4,6 +4,15 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-07-11 (#60, PR #70) — 0060's original spec (a `render-board.sh --out` atomic-write mode +
+  migrating every Board-pass call site) was ~90% delivered by sibling 0059, which merged first;
+  reconcile correctly folded 0060 down to the single residual sub-case 0059 left — the non-empty
+  half of the guard — instead of killing it or rebuilding the overlap. Apply: when a sibling ships
+  the bulk of an unstarted change's scope, don't reflexively kill it — reconcile it down to the
+  residual (here: one defensive assertion), and if the residual is genuinely covered, kill; but a
+  real unimplemented sub-case is a legitimate small change worth keeping. (Counterpart to the #59
+  lesson below on designing around unmerged siblings.)
+
 - 2026-07-11 (#59, PR #64) — 0059 was designed around a still-`proposed` sibling (0058) "later"
   composing its board-refresh gate, but 0058 merged first and independently built the same gate,
   inverting 0059's scope twice; and because 0059 touched every skill file, three slim PRs
