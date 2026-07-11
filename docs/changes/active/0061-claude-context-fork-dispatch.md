@@ -2,7 +2,7 @@
 id: 61
 slug: claude-context-fork-dispatch
 title: Claude Code skill-invocation parity — context:fork dispatch to pinned wrappers
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-07-11
 updated: 2026-07-11
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/claude-context-fork-dispatch
 pr:
 blocked_by:
 reconciled: false
