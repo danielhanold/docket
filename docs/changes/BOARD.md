@@ -6,7 +6,7 @@
 
 | # | Title | Priority | Spec | Branch |
 |---|-------|----------|------|--------|
-| [0060](active/0060-board-render-truncation-guard.md) | Board pass must not truncate BOARD.md when render-board.sh exits non-zero | `medium` | [spec](../superpowers/specs/2026-07-11-board-render-truncation-guard-design.md) | `feat/board-render-truncation-guard` |
+| [0060](active/0060-board-render-truncation-guard.md) | board-refresh.sh must not write an empty BOARD.md — non-empty guard on the atomic write | `medium` | [spec](../superpowers/specs/2026-07-11-board-render-truncation-guard-design.md) | `feat/board-render-truncation-guard` |
 
 ## 🟡 Proposed (7)
 
