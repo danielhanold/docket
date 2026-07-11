@@ -26,8 +26,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-10-board-refresh-surface-gate-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-10-board-refresh-surface-gate-design.md) |
-| Plan | [2026-07-11-board-refresh-surface-gate.md](https://github.com/danielhanold/docket/blob/feat/board-refresh-surface-gate/docs/superpowers/plans/2026-07-11-board-refresh-surface-gate.md) |
-| Results | [2026-07-11-board-refresh-surface-gate-results.md](https://github.com/danielhanold/docket/blob/feat/board-refresh-surface-gate/docs/results/2026-07-11-board-refresh-surface-gate-results.md) |
+| Plan | [2026-07-11-board-refresh-surface-gate.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-11-board-refresh-surface-gate.md) |
+| Results | [2026-07-11-board-refresh-surface-gate-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-11-board-refresh-surface-gate-results.md) |
 | PR | [#64](https://github.com/danielhanold/docket/pull/64) |
 <!-- docket:artifacts:end -->
 
