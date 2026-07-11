@@ -148,7 +148,8 @@ assert "convention names the four gate modes" \
   'grep -Eqi "local[^.]*ci[^.]*both[^.]*off|gate.*off.*opt" "$CONV"'
 assert "convention names docket-rebase-resolver" 'grep -q "docket-rebase-resolver" "$CONV"'
 assert "convention names docket-integration-repair" 'grep -q "docket-integration-repair" "$CONV"'
-assert "convention count prose says eight wrappers" 'grep -qi "eight" "$CONV"'
+assert "convention count prose says nine wrappers" 'grep -qi "nine" "$CONV"'
+assert "convention names the no-convention consultant wrapper" 'grep -q "docket-brainstorm-consultant" "$CONV"'
 # Non-vacuous count guard: the "five skills get a wrapper" language must stay exact.
 assert "convention keeps 'five skills get a wrapper' exact" 'grep -qi "five .*skills.* get a wrapper" "$CONV"'
 

@@ -31,7 +31,7 @@ AGENTS="$REPO/agents"
 AUTONOMOUS="docket-implement-next docket-auto-groom docket-finalize-change docket-status docket-adr"
 
 assert "agents/ source dir exists" '[ -d "$AGENTS" ]'
-assert "exactly 8 built-in wrappers" '[ "$(find "$AGENTS" -maxdepth 1 -name "docket-*.md" | wc -l | tr -d " ")" = "8" ]'
+assert "exactly 9 built-in wrappers" '[ "$(find "$AGENTS" -maxdepth 1 -name "docket-*.md" | wc -l | tr -d " ")" = "9" ]'
 
 for w in $AUTONOMOUS; do
   f="$AGENTS/$w.md"
@@ -85,7 +85,7 @@ make_sandbox
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null )
 assert "writes into present .claude/agents" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
 assert "writes into present .agents/agents" '[ -f "$SBX/.agents/agents/docket-status.md" ]'
-assert "all 8 wrappers land in .claude/agents" '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "8" ]'
+assert "all 9 wrappers land in .claude/agents" '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "9" ]'
 assert "does NOT create an absent harness (.cursor)" '[ ! -d "$SBX/.cursor/agents" ]'
 assert "no override => byte-identical to built-in source" 'diff -q "$REPO/agents/docket-status.md" "$SBX/.claude/agents/docket-status.md" >/dev/null'
 
@@ -141,7 +141,7 @@ HROOT48A="$(mktemp -d)"; mkdir -p "$HROOT48A/.claude"
 printf 'agents:\n  default:\n    status: { model: sonnet, effort: high }\n' > "$SBX/.docket.yml"
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48A" bash "$SYNC" >/dev/null )
 assert "0048: full set — all 8 built-ins land in project-level .claude/agents" \
-  '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "8" ]'
+  '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "9" ]'
 assert "0048: listed agent carries its override (status=sonnet)" \
   '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "sonnet" ]'
 assert "0048: UNLISTED agent generated at built-in default (implement-next=claude-opus-4-8/xhigh)" \
@@ -157,8 +157,8 @@ RULE="$SBX/.cursor/rules/docket-dispatch.mdc"
 assert "0048 rule: per-repo docket-dispatch.mdc written for cursor" '[ -f "$RULE" ]'
 assert "0048 rule: carries alwaysApply: true frontmatter" 'grep -q "^alwaysApply: true" "$RULE"'
 assert "0048 rule: has the required dispatch pattern heading" 'grep -q "## Required dispatch pattern" "$RULE"'
-assert "0048 rule: has a subsection for every built-in agent (8)" \
-  '[ "$(grep -cE "^## docket-.* — dispatch only" "$RULE")" = "8" ]'
+assert "0048 rule: has a subsection for every built-in agent (9)" \
+  '[ "$(grep -cE "^## docket-.* — dispatch only" "$RULE")" = "9" ]'
 assert "0048 rule: names docket-implement-next as a subsection" 'grep -q "^## docket-implement-next — dispatch only" "$RULE"'
 assert "0048 rule: names docket-status as a subsection" 'grep -q "^## docket-status — dispatch only" "$RULE"'
 assert "0048 rule: no subsection for a non-existent agent" '! grep -q "docket-nonexistent" "$RULE"'
@@ -350,6 +350,18 @@ for nw in docket-rebase-resolver docket-integration-repair; do
   assert "$nw: body carries abort-and-report directive" 'grep -qi "abort-and-report" "$f"'
 done
 
+# ---- the brainstorm consultant wrapper (wraps NO skill AND injects NO convention) ----
+CONSULT="$AGENTS/docket-brainstorm-consultant.md"
+assert "consultant: wrapper exists" '[ -f "$CONSULT" ]'
+assert "consultant: name matches file" '[ "$(fm "$CONSULT" name)" = "docket-brainstorm-consultant" ]'
+assert "consultant: has a description" '[ -n "$(fm "$CONSULT" description)" ]'
+assert "consultant: model is claude-opus-4-8" '[ "$(fm "$CONSULT" model)" = "claude-opus-4-8" ]'
+assert "consultant: effort is xhigh" '[ "$(fm "$CONSULT" effort)" = "xhigh" ]'
+# Deliberate ADR-0009 deviation: injects NEITHER a wrapped skill NOR docket-convention.
+assert "consultant: injects NO docket-convention" '! grep -Eq "^skills:.*docket-convention" "$CONSULT"'
+assert "consultant: injects NO wrapped docket skill" '! grep -Eq "^skills:.*docket-(finalize-change|implement-next|auto-groom|status|adr|groom-next|new-change|brainstorm)\b" "$CONSULT"'
+assert "consultant: body names the spec deliverable + assumptions requirement" 'grep -qi "spec" "$CONSULT" && grep -qi "assumption" "$CONSULT"'
+
 # Per-repo override of a new key (rebase-resolver) resolves to its wrapper source,
 # proving the precedence path + --check drift gate cover the new wrappers.
 make_sandbox                                        # SBX = the repo
@@ -414,8 +426,8 @@ make_sandbox
 HROOTAH="$(mktemp -d)"; mkdir -p "$HROOTAH/.claude"
 printf 'agent_harnesses: [claude, cursor]\n' > "$SBX/.docket.yml"   # no agents: block at all
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTAH" bash "$SYNC" >/dev/null )
-assert "0048 opt-in: agent_harnesses-only generates full set for cursor" '[ "$(find "$SBX/.cursor/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "8" ]'
-assert "0048 opt-in: agent_harnesses-only generates full set for claude" '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "8" ]'
+assert "0048 opt-in: agent_harnesses-only generates full set for cursor" '[ "$(find "$SBX/.cursor/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "9" ]'
+assert "0048 opt-in: agent_harnesses-only generates full set for claude" '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "9" ]'
 assert "0048 opt-in: agent_harnesses-only generates the cursor dispatch rule" '[ -f "$SBX/.cursor/rules/docket-dispatch.mdc" ]'
 assert "0048 opt-in: agent_harnesses-only wrappers carry built-in default (no overrides)" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "claude-haiku-4-5-20251001" ]'
 rm -rf "$SBX" "$HROOTAH"
@@ -1070,7 +1082,7 @@ assert "0051 mig: announces the migration"                 'printf "%s" "$mig_er
 assert "0051 mig: prints git rm --cached instructions"     'printf "%s" "$mig_err" | grep -q -e "git rm" '
 assert "0051 mig: gitignore block written"                 'grep -q "^# docket:start" "$SBX/.gitignore"'
 assert "0051 mig: local files regenerated (fresh content)" 'grep -q "^model: sonnet" "$SBX/.claude/agents/docket-status.md"'
-assert "0051 mig: full local set regenerated"              '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "8" ]'
+assert "0051 mig: full local set regenerated"              '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "9" ]'
 # perform the printed migration commit; second run must NOT re-announce
 ( cd "$SBX" && git rm -r -q --cached '.claude/agents/docket-*.md' '.cursor/agents/docket-*.md' '.cursor/rules/docket-dispatch.mdc' && git add .gitignore && git commit -q -m "docket: agent files go machine-local" )
 mig_err2="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTM" bash "$SYNC" 2>&1 >/dev/null)"
