@@ -8,7 +8,7 @@ created: 2026-07-11
 updated: 2026-07-11
 depends_on: []
 related: [16, 45, 46, 48]
-adrs: [8]
+adrs: [8, 24]
 spec: docs/superpowers/specs/2026-07-11-claude-context-fork-dispatch-design.md
 plan: docs/superpowers/plans/2026-07-11-claude-context-fork-dispatch.md
 results:
@@ -27,7 +27,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-11-claude-context-fork-dispatch-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-11-claude-context-fork-dispatch-design.md) |
 | Plan | [2026-07-11-claude-context-fork-dispatch.md](https://github.com/danielhanold/docket/blob/feat/claude-context-fork-dispatch/docs/superpowers/plans/2026-07-11-claude-context-fork-dispatch.md) |
-| ADRs | [ADR-0008](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0008-agent-layer-generated-subagents.md) |
+| ADRs | [ADR-0008](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0008-agent-layer-generated-subagents.md), [ADR-0024](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0024-claude-context-fork-skill-dispatch.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
