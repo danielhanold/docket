@@ -298,4 +298,126 @@ assert "detect_merged with failing GH reports sweep-skipped" \
   'printf "%s\n" "$detect_fail_out" | grep -q "^sweep-skipped"'
 assert "detect_merged with failing GH returns success (best-effort)" '[ $detect_fail_rc -eq 0 ]'
 
+# sweep_execute: chained close-out (task 5). Mock the four shared scripts via the SCRIPTS_DIR
+# seam so the loop is hermetic — no network, no real docket-config.sh, no real close-out logic.
+sweep_dir="$tmp/sweep-case"
+git_repo_setup "$sweep_dir"
+git clone -q "$sweep_dir/origin.git" "$sweep_dir/work" 2>/dev/null
+mkdir -p "$sweep_dir/work/docs/changes/active" "$sweep_dir/work/docs/changes/archive" "$sweep_dir/work/docs/adrs"
+
+seed_sweep_change(){
+  # $1 id, $2 slug, $3 status
+  cat > "$sweep_dir/work/docs/changes/active/$(printf '%04d' "$1")-$2.md" <<EOF
+---
+id: $1
+slug: $2
+title: $2 change
+status: $3
+priority: high
+depends_on: []
+branch: feat/$2
+pr: $1
+---
+
+Body.
+EOF
+}
+seed_sweep_change 20 clean-thing implemented
+seed_sweep_change 21 broken-render implemented
+git -C "$sweep_dir/work" -c user.email=t@t -c user.name=t add docs/changes
+git -C "$sweep_dir/work" -c user.email=t@t -c user.name=t commit -q -m "seed sweep changes"
+git -C "$sweep_dir/work" push -q origin main
+
+mkdir -p "$tmp/mock-scripts"
+sweep_log="$tmp/sweep-calls.log"
+: > "$sweep_log"
+
+cat > "$tmp/mock-scripts/archive-change.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "archive-change $*" >> "$SWEEP_LOG"
+changes_dir="" id="" date=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --changes-dir) changes_dir="$2"; shift ;;
+    --id) id="$2"; shift ;;
+    --date) date="$2"; shift ;;
+  esac
+  shift
+done
+pad="$(printf '%04d' "$id")"
+active="$(find "$changes_dir/active" -maxdepth 1 -name "${pad}-*.md" | head -n1)"
+[ -n "$active" ] || exit 1
+base="$(basename "$active")"
+slug="${base#"${pad}"-}"; slug="${slug%.md}"
+mkdir -p "$changes_dir/archive"
+dest="$changes_dir/archive/${date}-${pad}-${slug}.md"
+root="$(git -C "$changes_dir" rev-parse --show-toplevel)"
+git -C "$root" mv "$active" "$dest"
+sed -i.bak "s/^status:.*/status: done/" "$dest" && rm -f "$dest.bak"
+git -C "$root" add -- "$dest" 2>/dev/null
+git -C "$root" -c user.email=t@t -c user.name=t commit -q -m "mock archive" >/dev/null 2>&1
+git -C "$root" push -q origin main >/dev/null 2>&1
+exit 0
+EOF
+
+cat > "$tmp/mock-scripts/render-change-links.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "render-change-links $*" >> "$SWEEP_LOG"
+case "$*" in *broken-render*) exit 1 ;; esac
+exit 0
+EOF
+
+cat > "$tmp/mock-scripts/terminal-publish.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "terminal-publish $*" >> "$SWEEP_LOG"
+exit 0
+EOF
+
+cat > "$tmp/mock-scripts/cleanup-feature-branch.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "cleanup-feature-branch $*" >> "$SWEEP_LOG"
+exit 0
+EOF
+chmod +x "$tmp/mock-scripts/"*.sh
+
+sweep_input="$tmp/sweep-input.tsv"
+printf '20\tclean-thing\t20\t2026-07-08\n21\tbroken-render\t21\t2026-07-09\n22\talready-done\t22\t2026-07-05\n' > "$sweep_input"
+
+# NOTE: docket-status.sh's own top-level flag parser consumes "$@" at source time, so no
+# positional args can be passed through `bash -c '. script; ...' _ <args>` here — feed the
+# canned merged-change list via a file instead.
+sweep_out="$( cd "$sweep_dir/work" && \
+  DOCKET_MODE=main CHANGES_DIR=docs/changes ADRS_DIR=docs/adrs \
+  INTEGRATION_BRANCH=main METADATA_BRANCH=main \
+  SCRIPTS_DIR="$tmp/mock-scripts" SWEEP_LOG="$sweep_log" SWEEP_INPUT="$sweep_input" \
+  bash -c '. "'"$SCRIPT"'"; sweep_execute < "$SWEEP_INPUT"' )"
+
+assert "sweep_execute: clean change emits swept" \
+  'printf "%s\n" "$sweep_out" | grep -qE "^swept 20 2026-07-08$"'
+assert "sweep_execute: clean change emits harvest with archived path" \
+  'printf "%s\n" "$sweep_out" | grep -qE "^harvest 20 .*2026-07-08-0020-clean-thing\.md$"'
+assert "sweep_execute: clean change calls all four stubs" \
+  'grep -q -- "--id 20 " "$sweep_log" && grep -q "clean-thing" "$sweep_log" \
+   && grep -q "^terminal-publish" "$sweep_log" && grep -q "^cleanup-feature-branch" "$sweep_log"'
+assert "sweep_execute: broken-render change emits sweep-failed render-change-links" \
+  'printf "%s\n" "$sweep_out" | grep -qE "^sweep-failed 21 render-change-links "'
+assert "sweep_execute: broken-render change does NOT call terminal-publish" \
+  '! grep -q "terminal-publish.*--id 21 " "$sweep_log"'
+assert "sweep_execute: broken-render change does not emit swept" \
+  '! printf "%s\n" "$sweep_out" | grep -qE "^swept 21 "'
+assert "sweep_execute: already-done (missing active file) is a silent no-op" \
+  '! printf "%s\n" "$sweep_out" | grep -qE " 22 "'
+assert "sweep_execute: archive-change called before render-change-links (order)" \
+  'archive_line=$(grep -n "^archive-change" "$sweep_log" | grep " --id 20 " | head -n1 | cut -d: -f1); \
+   render_line=$(grep -n "^render-change-links" "$sweep_log" | grep "clean-thing" | head -n1 | cut -d: -f1); \
+   [ -n "$archive_line" ] && [ -n "$render_line" ] && [ "$archive_line" -lt "$render_line" ]'
+assert "sweep_execute: render-change-links called before terminal-publish (order, change 20)" \
+  'render_line=$(grep -n "^render-change-links" "$sweep_log" | grep "clean-thing" | head -n1 | cut -d: -f1); \
+   publish_line=$(grep -n "^terminal-publish" "$sweep_log" | grep -- "--id 20 " | head -n1 | cut -d: -f1); \
+   [ -n "$render_line" ] && [ -n "$publish_line" ] && [ "$render_line" -lt "$publish_line" ]'
+assert "sweep_execute: terminal-publish called before cleanup-feature-branch (order, change 20)" \
+  'publish_line=$(grep -n "^terminal-publish" "$sweep_log" | grep -- "--id 20 " | head -n1 | cut -d: -f1); \
+   cleanup_line=$(grep -n "^cleanup-feature-branch" "$sweep_log" | grep -- "--slug clean-thing" | head -n1 | cut -d: -f1); \
+   [ -n "$publish_line" ] && [ -n "$cleanup_line" ] && [ "$publish_line" -lt "$cleanup_line" ]'
+
 exit $fail

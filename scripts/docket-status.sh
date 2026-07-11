@@ -16,6 +16,7 @@ set -uo pipefail
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GIT="${GIT:-git}"
 GH="${GH:-gh}"
+SCRIPTS_DIR="${SCRIPTS_DIR:-$SELF_DIR}"
 # shellcheck source=lib/docket-frontmatter.sh
 . "$SELF_DIR"/lib/docket-frontmatter.sh
 
@@ -216,6 +217,92 @@ detect_merged(){
     fi
   done
   return 0
+}
+
+# sweep_execute — chains the shared ADR-0035 close-out scripts (archive-change.sh →
+# render-change-links.sh → terminal-publish.sh → cleanup-feature-branch.sh) for each merged
+# change fed on stdin as TAB-separated "<id>\t<slug>\t<pr>\t<merged-date>" (detect_merged's
+# format; pipe `detect_merged | sweep_execute`). Log-and-continue: any per-change step failure
+# emits "sweep-failed <id> <step> <reason>" and abandons the REST of that change's close-out,
+# but the loop always continues to the next change. Full success emits "swept <id> <date>" and
+# "harvest <id> <archived-path>" (the archived file — a hook for the caller to harvest
+# learnings). Idempotent: a change already done/archived is a silent no-op.
+sweep_execute(){
+  local mw cd_dir
+  if [ "${DOCKET_MODE:-}" = docket ]; then mw="${METADATA_WORKTREE:-.docket}"; else mw="."; fi
+  cd_dir="$mw/$CHANGES_DIR"
+
+  local id slug pr merged_date
+  while IFS=$'\t' read -r id slug pr merged_date; do
+    [ -n "$id" ] || continue
+    sweep_execute_one "$mw" "$cd_dir" "$id" "$slug" "$pr" "$merged_date"
+  done
+}
+
+sweep_execute_one(){
+  local mw="$1" cd_dir="$2" id="$3" slug="$4" pr="$5" merged_date="$6"
+  local pad; pad="$(printf '%04d' "$id" 2>/dev/null)"
+  [ -n "$pad" ] || pad="$id"
+
+  if ! "$GIT" -C "$mw" pull --rebase >&2; then
+    echo "sweep-failed $id sync pull-failed"
+    return 0
+  fi
+
+  local active status
+  active="$(find "$cd_dir/active" -maxdepth 1 -name "${pad}-*.md" 2>/dev/null | head -n1)"
+  if [ -z "$active" ]; then
+    return 0   # already archived — idempotent no-op
+  fi
+  status="$(field "$active" status)"
+  case "$status" in
+    done|killed) return 0 ;;   # already terminal — idempotent no-op
+  esac
+
+  if ! "$SCRIPTS_DIR"/archive-change.sh \
+        --changes-dir "$cd_dir" --id "$id" --outcome done --date "$merged_date" \
+        --message "docket($id): done — archived (status done, $merged_date)" >&2; then
+    echo "sweep-failed $id archive script-error"
+    return 0
+  fi
+
+  local archived
+  archived="$(find "$cd_dir/archive" -maxdepth 1 -name "${merged_date}-${pad}-*.md" 2>/dev/null | head -n1)"
+  if [ -z "$archived" ]; then
+    echo "sweep-failed $id archive archived-file-not-found"
+    return 0
+  fi
+
+  if ! "$SCRIPTS_DIR"/render-change-links.sh \
+        --change-file "$archived" --adrs-dir "$mw/$ADRS_DIR" >&2; then
+    echo "sweep-failed $id render-change-links skipped-publish"
+    return 0
+  fi
+  if [ -n "$("$GIT" -C "$mw" status --porcelain -- "$archived" 2>/dev/null)" ]; then
+    "$GIT" -C "$mw" add "$archived" >&2
+    "$GIT" -C "$mw" commit -q -m "docket($id): refresh artifacts links" >&2
+    if ! "$GIT" -C "$mw" push >&2; then
+      echo "sweep-failed $id render-change-links push-failed"
+      return 0
+    fi
+  fi
+
+  if ! "$SCRIPTS_DIR"/terminal-publish.sh \
+        --id "$id" --outcome done \
+        --integration-branch "$INTEGRATION_BRANCH" --metadata-branch "$METADATA_BRANCH" \
+        --changes-dir "$CHANGES_DIR" --adrs-dir "$ADRS_DIR" \
+        --message "docket($id): publish terminal record (done)" >&2; then
+    echo "sweep-failed $id terminal-publish script-error"
+    return 0
+  fi
+
+  if ! "$SCRIPTS_DIR"/cleanup-feature-branch.sh --slug "$slug" >&2; then
+    echo "sweep-failed $id cleanup script-error"
+    return 0
+  fi
+
+  echo "swept $id $merged_date"
+  echo "harvest $id $archived"
 }
 
 main(){
