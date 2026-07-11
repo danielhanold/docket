@@ -2,7 +2,7 @@
 id: 59
 slug: board-refresh-surface-gate
 title: board-refresh honors board_surfaces — gate BOARD.md regeneration on the resolved surface set
-status: implemented
+status: done
 priority: medium
 created: 2026-07-10
 updated: 2026-07-11
