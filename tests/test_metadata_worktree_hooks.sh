@@ -84,5 +84,20 @@ assert "relocate: per-worktree core.bare == true"    "[ \"$worktree_bare\" = tru
 try_commit "$W3/.docket"
 assert "relocate: .docket commit still succeeds"     "[ \"\$RC\" -eq 0 ]"
 
+# --- Case 7: no-relocation path — a DEFAULT repo (git init's core.bare=false in common config,
+# no core.worktree at all). The ubiquitous default must NOT be relocated: worktreeConfig still
+# gets enabled, but common core.bare stays put and no per-worktree copy is created.
+W4="$(setup)"
+"$HELPER" --worktree "$W4/.docket" >/dev/null 2>&1; rc=$?
+assert "no-op enable: helper exits 0"                 "[ $rc -eq 0 ]"
+enabled="$(git -C "$W4" config --local --get extensions.worktreeConfig 2>/dev/null || true)"
+assert "no-op enable: worktreeConfig enabled"         "[ \"$enabled\" = true ]"
+common_bare4="$(git -C "$W4" config --local --get core.bare 2>/dev/null || true)"
+assert "no-op enable: common core.bare still false"   "[ \"$common_bare4\" = false ]"
+worktree_bare4="$(git -C "$W4" config --worktree --get core.bare 2>/dev/null || true)"
+assert "no-op enable: no per-worktree core.bare copy" "[ -z \"$worktree_bare4\" ]"
+try_commit "$W4/.docket"
+assert "no-op enable: .docket commit still skips"     "[ \"\$RC\" -eq 0 ]"
+
 if [ "$fail" -eq 0 ]; then echo "ALL PASS"; else echo "FAILURES"; fi
 exit "$fail"

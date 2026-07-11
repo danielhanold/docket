@@ -39,6 +39,7 @@ if [ "$("$GIT" -C "$WT" config --local --get extensions.worktreeConfig 2>/dev/nu
   for key in core.worktree core.bare; do
     val="$("$GIT" -C "$WT" config --local --get "$key" 2>/dev/null || true)"
     [ -n "$val" ] || continue
+    [ "$key" = core.bare ] && [ "$val" != true ] && continue   # false is git's harmless default — leave it in common config
     if [ -n "$main_wt" ] \
        && "$GIT" -C "$main_wt" config --worktree "$key" "$val" \
        && "$GIT" -C "$WT" config --local --unset "$key"; then

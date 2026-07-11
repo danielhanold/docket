@@ -36,14 +36,19 @@ disable-worktree-hooks.sh --worktree DIR
    checks. Living under `.git/`, it is never tracked and never leaks into a commit.
 2. **worktreeConfig safety (first enable only).** If `extensions.worktreeConfig` is not already
    `true`, enable it (git requires the extension enabled before any `--worktree` write can happen at
-   all), then detect a pre-existing **common-config** `core.worktree`/`core.bare` value and relocate
-   it to the main worktree's per-worktree config. If a value is present and cannot be relocated
-   safely, roll back the enable (unset `extensions.worktreeConfig`) and exit 1 (fail-closed), so the
-   extension is not left enabled with a value stranded in common config. In virtually all repos these
-   keys are unset (or only `core.bare` is set, to its default) so this is a no-op or single-value
-   path; the rollback fully restores that case. (The pathological case of *both* keys set in common
-   config with a write failing on the second is left as-is — negligibly rare, since `core.worktree`
-   in common config is itself unusual.)
+   all), then check for a pre-existing **common-config** `core.worktree` value, or a `core.bare`
+   value of `true` — the only cases where a value stuck in common config would silently stop
+   applying once worktreeConfig is on — and relocate it to the main worktree's per-worktree config.
+   The ubiquitous `core.bare=false` that `git init`/`git clone` write into every repo's common
+   config is git's harmless default; it is deliberately left in place rather than relocated (both
+   worktrees still report the correct bare-ness, and hook-skip still works). If a value that does
+   need relocating cannot be relocated safely, roll back the enable (unset
+   `extensions.worktreeConfig`) and exit 1 (fail-closed), so the extension is not left enabled with a
+   value stranded in common config. Relocation is genuinely rare — `core.worktree` in common config
+   is unusual, and `core.bare=true` in a non-bare working repo is unusual too; the vast majority of
+   runs enable the extension and touch nothing else. (The pathological case of *both* keys needing
+   relocation with the second write failing is left as-is — negligibly rare — rather than atomically
+   unwound.)
 3. **Set the worktree-scoped hooks path.** `git -C DIR config --worktree core.hooksPath <empty>`.
    `--worktree` replaces rather than appends, so re-running never duplicates the entry.
 
@@ -64,10 +69,14 @@ disable-worktree-hooks.sh --worktree DIR
   duplicate `core.hooksPath` entry and no error. This is what makes it self-healing at every
   create/ensure site.
 - **Local-only.** Touches only `.git/config` and `.git/worktrees/<wt>/config.worktree` plus a dir
-  under `.git/`. Never the remote, teammates' clones, or the committed `.docket.yml`.
-- **Fail-closed on the worktreeConfig caveat.** Rather than risk silently unsetting `core.worktree`/
-  `core.bare` for linked worktrees, it relocates-or-refuses; on a failed relocation the tentative
-  `extensions.worktreeConfig` enable is rolled back, fully restoring the original state for the
-  no-value and single-value cases (the universal ones). A simultaneous two-value relocation whose
-  second write fails is not atomically unwound — a deliberately accepted, negligibly-rare gap
-  (`core.worktree` in common config is itself unusual), not a claim of full multi-value atomicity.
+  under `.git/`. Never the remote, teammates' clones, or the committed `.docket.yml`. On the rare
+  run that does relocate a value, it additionally writes the MAIN worktree's `config.worktree` and
+  unsets the key from common `.git/config` — still local-only, just two files instead of one.
+- **Fail-closed on the worktreeConfig caveat.** Rather than risk silently unsetting a common-config
+  `core.worktree` or `core.bare=true` for linked worktrees, it relocates-or-refuses; on a failed
+  relocation the tentative `extensions.worktreeConfig` enable is rolled back, fully restoring the
+  original state for the no-value and single-value cases (the universal ones — the ubiquitous
+  `core.bare=false` default is never a relocation candidate in the first place). A simultaneous
+  two-value relocation whose second write fails is not atomically unwound — a deliberately accepted,
+  negligibly-rare gap (`core.worktree` in common config is itself unusual), not a claim of full
+  multi-value atomicity.
