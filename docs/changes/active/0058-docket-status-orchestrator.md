@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/docket-status-orchestrator
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -69,3 +69,12 @@ invoking them one turn at a time.
   decide at plan time.
 
 ## Reconcile log
+
+- 2026-07-11 — Reconciled at claim. `depends_on: [53]` satisfied (#53 done, archived; the slimmed
+  `docket-status` SKILL.md body is live on origin/docket). All shared scripts the orchestrator
+  sequences exist (`archive-change.sh`, `render-change-links.sh`, `terminal-publish.sh`,
+  `cleanup-feature-branch.sh`, `board-checks.sh`, `render-board.sh`, `sync-integration-branch.sh`,
+  `github-mirror.sh`, `docket-config.sh`); no `docket-status.sh` present yet. Related #54/#55 still
+  `proposed` — no overlap (they slim other skill bodies; this adds the orchestrator + rewrites the
+  status skill). Test harness confirmed at `tests/` (script-test pattern, e.g. `test_render_board.sh`).
+  Scope unchanged; no drops or additions.
