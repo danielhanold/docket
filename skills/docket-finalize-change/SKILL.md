@@ -18,7 +18,7 @@ description: Use when a change's PR is approved or merged and you want to close 
 
 ## Convention (load first — blocking)
 
-Invoke `docket-convention` first (unless already loaded this session) and follow its **Step-0 preamble (every operating skill)**: load the convention, resolve config + the bootstrap verdict via `docket-config.sh --export`, and sync the metadata working tree. Everything below uses its vocabulary without redefinition.
+Invoke `docket-convention` first (unless already loaded this session) and follow its **Step-0 preamble (every operating skill)**: load the convention, resolve config + the bootstrap verdict via `eval "$("${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket-config.sh --export)"`, and sync the metadata working tree. Everything below uses its vocabulary without redefinition.
 
 ## Selection
 
@@ -77,7 +77,10 @@ finalize:
 1. `gate == off` → merge trusting the PR's own CI; skip the rest of the gate.
 2. **Rebase** `feat/<slug>` onto `origin/<integration_branch>`. On conflict, dispatch the `docket-rebase-resolver` subagent (foreground, at the model/effort its wrapper resolves) to reconcile every hunk until the rebase completes; an **ambiguous conflict** it can't resolve aborts the rebase and the gate **abort-and-reports**.
 3. **Determine the suite:** `test_command` override, else auto-detect. Under `local`/`both` with no detectable suite and no `test_command`, **abort-and-report**.
-4. **Validate per `gate`:** `local` runs the suite in the worktree **before any push**; `ci` pushes `--force-with-lease` then polls `gh pr checks`; `both` does both. On **red**, dispatch `docket-integration-repair` (foreground, at the model/effort its wrapper resolves) — it root-causes and writes a minimal fix in at most two attempts. Green → apply the sign-off rule below. Stuck / cannot reach green → **abort-and-report**. Red or absent CI checks under `ci`/`both` also **abort-and-report**.
+4. **Validate per `gate`:**
+   - `local` runs the suite in the worktree **before any push**.
+   - `ci` pushes `--force-with-lease` then polls `gh pr checks`; `both` does both.
+   - On **red**, dispatch `docket-integration-repair` (foreground, at the model/effort its wrapper resolves) — it root-causes and writes a minimal fix in at most two attempts. Green → apply the sign-off rule below. Stuck / cannot reach green → **abort-and-report**. Red or absent CI checks under `ci`/`both` also **abort-and-report**.
 5. **Push** `--force-with-lease` if rebased and not already pushed; a lease rejected by a concurrent push → **abort-and-report**.
 6. `gh pr merge` → the existing close-out (harvest → archive → terminal-publish → cleanup → board).
 
