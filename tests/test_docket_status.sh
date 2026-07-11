@@ -9,6 +9,17 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 assert "script exists and is executable" '[ -x "$SCRIPT" ]'
 assert "--help exits 0 and prints usage" '"$SCRIPT" --help 2>&1 | grep -qi "usage"'
 
+# --- inline-board wiring sentinel (change 0059) ---
+# board_pass_inline must route its render through the gated board-refresh.sh primitive, never
+# call render-board.sh directly — so render-board.sh is reached ONLY via board-refresh.sh (one
+# gated inline-board write path across the whole system). board_pass already gates on the `inline`
+# token, so board_pass_inline passes --surfaces inline verbatim; the atomic/truncation-safe write
+# lives in board-refresh.sh.
+assert "docket-status routes the inline render through board-refresh.sh" \
+  'grep -qF "/board-refresh.sh" "$SCRIPT"'
+assert "docket-status never calls render-board.sh directly (gated via board-refresh.sh)" \
+  '! grep -qF "/render-board.sh" "$SCRIPT"'
+
 # Bootstrap gate: stub docket-config.sh --export via CONFIG_EXPORT_CMD (a hermetic fixture
 # script emitting the eval-able KEY=value block), and assert the gate's exit code + remedy text.
 tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT

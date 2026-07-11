@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # tests/test_board_refresh_on_transition.sh — verifies change 0004:
 # BOARD.md is refreshed on every status transition, not only at Step 0.
+# Extended by change 0059 (Task 3): every status-writing Board-pass caller must name the
+# gated `board-refresh.sh` entry point at its Board site AND state the diff-only commit rule
+# (only if BOARD.md changed), not just delegate to "docket-status's Board pass" prose.
 # Run: bash tests/test_board_refresh_on_transition.sh
 set -uo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -24,5 +27,32 @@ assert "new-change proposed-kill refreshes board (must-land Board pass)" \
 # D. terminal-publish stays board-agnostic — the kill gap is fixed at the SITES, not here.
 assert "terminal-publish keeps the 'BOARD.md is never published' guarantee" \
   'grep -qF "is **never** published" skills/docket-finalize-change/SKILL.md'
+
+# --- change 0059 Task 3: every Board-pass caller must be explicit + gated, not a bare delegation ---
+# The consistent, grep-able diff-only phrase every rewired site uses (see task-3 brief).
+DIFF_ONLY_PHRASE="only if BOARD.md changed"
+PORCELAIN_MENTION="git status --porcelain"
+
+# E. The convention names board-refresh.sh as the gated inline entry point.
+assert "convention names board-refresh.sh (inline entry point)" \
+  'grep -q "board-refresh.sh" skills/docket-convention/SKILL.md'
+
+CALLERS=(
+  skills/docket-new-change/SKILL.md
+  skills/docket-groom-next/SKILL.md
+  skills/docket-auto-groom/SKILL.md
+  skills/docket-finalize-change/SKILL.md
+  skills/docket-implement-next/SKILL.md
+)
+
+for f in "${CALLERS[@]}"; do
+  name="$(basename "$(dirname "$f")")"
+  assert "$name names board-refresh.sh at a Board site" \
+    "grep -q \"board-refresh.sh\" \"$f\""
+  assert "$name states the diff-only commit rule ($DIFF_ONLY_PHRASE)" \
+    "grep -qF \"$DIFF_ONLY_PHRASE\" \"$f\""
+  assert "$name mentions the git status --porcelain diff check" \
+    "grep -qF \"$PORCELAIN_MENTION\" \"$f\""
+done
 
 exit $fail

@@ -71,21 +71,23 @@ board_pass(){
 
 board_pass_inline(){
   local mw="$1" cd_dir="$2"
-  local board="$cd_dir/BOARD.md" tmp="$cd_dir/BOARD.md.tmp"
-  # 2>&2 is intentional (not a typo for 2>&1): route the sub-script's stderr to our
-  # stderr while stdout is captured separately into $tmp, keeping stdout machine-parseable.
-  if ! "$SELF_DIR"/render-board.sh --changes-dir "$cd_dir" ${REPO_FLAG:+--repo "$REPO_FLAG"} > "$tmp" 2>&2 || [ ! -s "$tmp" ]; then
+  # $rel is BOARD.md's path RELATIVE TO $mw (the metadata worktree) — the form git -C "$mw"
+  # accepts (verified: a full "$mw/.../BOARD.md" pathspec fatals under git -C "$mw").
+  local rel="$CHANGES_DIR/BOARD.md"
+  # Render through the single gated inline-board primitive (board-refresh.sh, change 0059): it
+  # owns the atomic, truncation-safe write of BOARD.md (render to temp -> chmod 644 -> rename),
+  # so render-board.sh is reached ONLY via this helper. board_pass already gated on the `inline`
+  # token, so pass it verbatim; a render failure leaves the prior BOARD.md untouched.
+  if ! "$SELF_DIR"/board-refresh.sh --changes-dir "$cd_dir" --surfaces inline ${REPO_FLAG:+--repo "$REPO_FLAG"} >&2 2>&2; then
     echo "docket-status: board render failed; keeping existing BOARD.md" >&2
-    rm -f "$tmp"
     return 0
   fi
-  if [ -f "$board" ] && cmp -s "$tmp" "$board"; then
-    rm -f "$tmp"
+  # board-refresh.sh wrote BOARD.md in place; commit + push only if it actually changed.
+  if [ -z "$("$GIT" -C "$mw" status --porcelain -- "$rel" 2>/dev/null)" ]; then
     echo "board inline clean"
     return 0
   fi
-  mv "$tmp" "$board"
-  "$GIT" -C "$mw" add "$(basename "$board")" >&2 2>/dev/null || "$GIT" -C "$mw" add "$board" >&2
+  "$GIT" -C "$mw" add "$rel" >&2
   "$GIT" -C "$mw" commit -q -m "docket: board refresh" >&2 || true
 
   local attempt=0 pushed=0
@@ -97,15 +99,15 @@ board_pass_inline(){
     fi
     if ! "$GIT" -C "$mw" pull --rebase >&2 2>&1; then
       if "$GIT" -C "$mw" status --porcelain 2>/dev/null | grep -q "BOARD.md"; then
-        if ! "$SELF_DIR"/render-board.sh --changes-dir "$cd_dir" ${REPO_FLAG:+--repo "$REPO_FLAG"} > "$tmp" 2>&2 || [ ! -s "$tmp" ]; then
+        # Regenerate through the same gated primitive (never a raw redirect) so a rebase never
+        # leaves conflict markers or an empty/truncated board.
+        if ! "$SELF_DIR"/board-refresh.sh --changes-dir "$cd_dir" --surfaces inline ${REPO_FLAG:+--repo "$REPO_FLAG"} >&2 2>&2; then
           echo "docket-status: board regeneration during rebase failed; aborting rebase" >&2
-          rm -f "$tmp"
           "$GIT" -C "$mw" rebase --abort >&2 2>/dev/null || true
           pushed=-1
           break
         fi
-        mv "$tmp" "$board"
-        "$GIT" -C "$mw" add "$(basename "$board")" >&2 2>/dev/null || "$GIT" -C "$mw" add "$board" >&2
+        "$GIT" -C "$mw" add "$rel" >&2
         "$GIT" -C "$mw" rebase --continue >&2 2>&1 || { "$GIT" -C "$mw" rebase --abort >&2 2>/dev/null || true; pushed=-1; break; }
       else
         "$GIT" -C "$mw" rebase --abort >&2 2>/dev/null || true

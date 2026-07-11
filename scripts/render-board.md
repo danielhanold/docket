@@ -2,11 +2,14 @@
 
 ## Purpose
 
-Reads the change files (`active/` and `archive/`) and emits `BOARD.md` to **STDOUT**. The caller
-redirects the output and commits it; this script performs no git writes. It is the **sole writer**
-of `BOARD.md` — skills never construct the board by hand. Running it with the same change files
-always produces byte-identical output (deterministic and idempotent). Offline: no network calls,
-no `gh`. Introduced in change 0022.
+Reads the change files (`active/` and `archive/`) and emits the board to **STDOUT**; it performs
+no git writes and never touches `BOARD.md` on disk itself. It is the pure *renderer* — the inner
+layer. Since change 0059 its immediate caller is `board-refresh.sh`, which captures this stdout
+into a temp file and owns the surface-gated decision to atomically replace `BOARD.md` (see
+`board-refresh.md`); the git add/commit/push of that file stays the skill caller's job. Skills
+never construct the board by hand. Running it with the same change files always produces
+byte-identical output (deterministic and idempotent). Offline: no network calls, no `gh`.
+Introduced in change 0022.
 
 ## Usage
 
@@ -77,10 +80,12 @@ of the archive filename (the `YYYY-MM-DD` prefix).
 
 ## Invariants
 
-- **STDOUT only.** All board content goes to stdout; all diagnostics go to stderr. The caller
-  redirects stdout to the `BOARD.md` path and commits.
-- **Sole writer.** Skills never construct or patch `BOARD.md` by hand. On a git conflict,
-  re-run the script rather than hand-merging.
+- **STDOUT only.** All board content goes to stdout; all diagnostics go to stderr. The immediate
+  caller (`board-refresh.sh`) captures this stdout into a temp file and owns the atomic replace of
+  `BOARD.md`; the skill above it commits.
+- **Renderer, not writer.** This script is the inner renderer: it never writes, truncates, or
+  deletes `BOARD.md` — `board-refresh.sh` owns that write decision. Skills never construct or patch
+  `BOARD.md` by hand. On a git conflict, re-run the gated helper rather than hand-merging.
 - **Offline.** No network calls, no `gh`. Depends only on the change files and (optionally) a
   local `git remote get-url` call.
 - **Deterministic.** Same change files → identical bytes every time. Safe to re-run at any point.
