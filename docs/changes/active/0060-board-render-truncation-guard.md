@@ -9,7 +9,7 @@ updated: 2026-07-11
 depends_on: []
 related: [59]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-07-11-board-render-truncation-guard-design.md
 plan:
 results:
 trivial: false
@@ -23,6 +23,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-07-11-board-render-truncation-guard-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-11-board-render-truncation-guard-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -51,16 +54,18 @@ and an autonomous loop that hit it would silently publish an empty board with no
 
 ## What changes
 
-Make the Board pass **fail-safe**: BOARD.md is only ever overwritten by a *successful, non-empty*
-render. Candidate shapes for the brainstorm to decide between (not yet chosen):
+Make the Board pass **fail-safe** by construction (design: linked spec):
 
-- Have the Board pass render to a temp file, gate on exit code **and** non-empty output, then move
-  into place — codified once so every call site inherits it (a tiny wrapper script, or a
-  `render-board.sh --out <file>` mode that writes atomically only on success and never truncates on
-  failure).
-- Whichever shape wins, update the single-source Board-pass prose (`docket-status`'s *Board* step,
-  which the other skills point at) so the `> BOARD.md` redirect pattern is retired everywhere, and
-  add a regression test asserting a failed/empty render leaves the prior BOARD.md intact.
+- Add an optional `render-board.sh --out <file>` mode: validate args first (so a bad invocation
+  writes nothing), render to a `mktemp` file in the target's directory, and atomically `mv` into
+  place **only** when the render exits 0 and is non-empty — otherwise leave the prior `BOARD.md`
+  byte-identical and exit non-zero. Default stdout behavior is unchanged (purely additive). This
+  also removes the `/dev/null`-misdirection class, since the script owns the write.
+- Retire the `> BOARD.md` redirect at every Board-pass call site: make docket-status's *Board*
+  step (the single source the other skills point at) invoke `--out` explicitly and gate its
+  commit on the exit status; re-point any literal redirect examples in the references/kill paths.
+- Add regression tests (in `test_render_board.sh`) asserting a failed/empty render — including the
+  #0055 unknown-flag case — leaves a pre-existing `BOARD.md` untouched.
 
 ## Out of scope
 
@@ -72,13 +77,9 @@ render. Candidate shapes for the brainstorm to decide between (not yet chosen):
 
 ## Open questions
 
-- Fix locus: a shared wrapper the Board pass calls, a new `--out` atomic-write mode on
-  `render-board.sh`, or prose-only guidance mandating temp-file-then-move? (Prose-only repeats the
-  human-discipline failure that caused both incidents, so lean toward a mechanical guard.)
-- Should the guard also treat a *structurally degenerate but non-empty* render (e.g. missing the
-  count line) as failure, or only zero-byte / non-zero-exit?
-- Does this interact with #0059's surface-gating — i.e. when `inline` is disabled the Board pass
-  must legitimately NOT write BOARD.md; the guard must not confuse "intentionally skipped" with
-  "failed"?
+<!-- Resolved during grooming (see spec): fix locus = `render-board.sh --out` atomic-write mode;
+     failure test = non-zero exit OR empty output (no structural check); #0059 interaction is
+     orthogonal (it gates whether the pass runs; --out gates how it writes) — a reconcile note,
+     not a dependency. -->
 
 ## Reconcile log
