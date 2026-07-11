@@ -1,12 +1,6 @@
 # Backlog
 
-**60 changes** — 🟢 1 in progress · 🟡 8 proposed · 🔵 1 implemented · ✅ 48 done · 🗑️ 2 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0059](active/0059-board-refresh-surface-gate.md) | board-refresh honors board_surfaces — gate BOARD.md regeneration on the resolved surface set | `medium` | [spec](../superpowers/specs/2026-07-10-board-refresh-surface-gate-design.md) | `feat/board-refresh-surface-gate` |
+**60 changes** — 🟡 8 proposed · 🔵 1 implemented · ✅ 49 done · 🗑️ 2 killed
 
 ## 🟡 Proposed (8)
 
@@ -37,7 +31,6 @@ graph TD
   0015 --> 0019
   0030 --> 0033
   0044
-  0059
   0060
   0001:::done
   0002:::done
@@ -87,13 +80,15 @@ graph TD
   0056:::done
   0057:::done
   0058:::done
+  0059:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (50)</summary>
+<details><summary>✅🗑️ Archive — done + killed (51)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0059](archive/2026-07-11-0059-board-refresh-surface-gate.md) | board-refresh honors board_surfaces — gate BOARD.md regeneration on the resolved surface set | 2026-07-11 |
 | [0058](archive/2026-07-11-0058-docket-status-orchestrator.md) | docket-status orchestrator — collapse the status pass into one script call | 2026-07-11 |
 | [0057](archive/2026-07-11-0057-docket-owned-gitignore-consolidation.md) | Fold the migration-time .gitignore entries into the managed docket:generated block | 2026-07-11 |
 | [0056](archive/2026-07-11-0056-consultant-brainstorm.md) | Consultant-authored brainstorm — opt-in pinned design agent for the brainstorm role | 2026-07-11 |
