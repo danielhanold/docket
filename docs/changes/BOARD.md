@@ -1,6 +1,6 @@
 # Backlog
 
-**60 changes** — 🟡 7 proposed · 🔵 2 implemented · ✅ 49 done · 🗑️ 2 killed
+**60 changes** — 🟡 7 proposed · 🔵 1 implemented · ✅ 50 done · 🗑️ 2 killed
 
 ## 🟡 Proposed (7)
 
@@ -14,12 +14,11 @@
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | [#69](https://github.com/danielhanold/docket/pull/69) |
-| [0060](active/0060-board-render-truncation-guard.md) | board-refresh.sh must not write an empty BOARD.md — non-empty guard on the atomic write | `medium` | [#70](https://github.com/danielhanold/docket/pull/70) |
 
 ```mermaid
 graph TD
@@ -31,7 +30,6 @@ graph TD
   0015 --> 0019
   0030 --> 0033
   0044
-  0060
   0001:::done
   0002:::done
   0003:::done
@@ -81,13 +79,15 @@ graph TD
   0057:::done
   0058:::done
   0059:::done
+  0060:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (51)</summary>
+<details><summary>✅🗑️ Archive — done + killed (52)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0060](archive/2026-07-11-0060-board-render-truncation-guard.md) | board-refresh.sh must not write an empty BOARD.md — non-empty guard on the atomic write | 2026-07-11 |
 | [0059](archive/2026-07-11-0059-board-refresh-surface-gate.md) | board-refresh honors board_surfaces — gate BOARD.md regeneration on the resolved surface set | 2026-07-11 |
 | [0058](archive/2026-07-11-0058-docket-status-orchestrator.md) | docket-status orchestrator — collapse the status pass into one script call | 2026-07-11 |
 | [0057](archive/2026-07-11-0057-docket-owned-gitignore-consolidation.md) | Fold the migration-time .gitignore entries into the managed docket:generated block | 2026-07-11 |
