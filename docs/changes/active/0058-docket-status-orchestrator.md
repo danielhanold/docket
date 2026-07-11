@@ -2,7 +2,7 @@
 id: 58
 slug: docket-status-orchestrator
 title: docket-status orchestrator — collapse the status pass into one script call
-status: in-progress
+status: implemented
 priority: high
 created: 2026-07-10
 updated: 2026-07-11
@@ -11,11 +11,11 @@ related: [53, 54, 55]
 adrs: [12, 21]
 spec: docs/superpowers/specs/2026-07-10-docket-status-orchestrator-design.md
 plan: docs/superpowers/plans/2026-07-11-docket-status-orchestrator.md
-results:
+results: docs/results/2026-07-11-docket-status-orchestrator-results.md
 trivial: false
 auto_groomable:
 branch: feat/docket-status-orchestrator
-pr:
+pr: https://github.com/danielhanold/docket/pull/65
 blocked_by:
 reconciled: true
 ---
@@ -27,6 +27,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-10-docket-status-orchestrator-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-10-docket-status-orchestrator-design.md) |
 | Plan | [2026-07-11-docket-status-orchestrator.md](https://github.com/danielhanold/docket/blob/feat/docket-status-orchestrator/docs/superpowers/plans/2026-07-11-docket-status-orchestrator.md) |
+| Results | [2026-07-11-docket-status-orchestrator-results.md](https://github.com/danielhanold/docket/blob/feat/docket-status-orchestrator/docs/results/2026-07-11-docket-status-orchestrator-results.md) |
+| PR | [#65](https://github.com/danielhanold/docket/pull/65) |
 | ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0021](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0021-pipeline-script-authored-mechanical-commits.md) |
 <!-- docket:artifacts:end -->
 
