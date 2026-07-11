@@ -18,13 +18,13 @@ site**:
   The config layer is **not** the bug.
 - `render-board.sh` is a **pure renderer** with no surface gate — it always emits a full board to
   stdout.
-- Every skill's board step is the raw redirect `render-board.sh --changes-dir … > BOARD.md`
-  followed by an **unconditional** commit + push. The empty-surfaces guard lives only in prose,
-  inside `docket-status`'s Board-pass section. The other skills
+- `docket-status`'s canonical inline Board-pass step is the raw redirect
+  `render-board.sh --changes-dir … > BOARD.md` followed by an **unconditional** commit + push.
+  The empty-surfaces guard lives only in prose immediately above it. The other skills
   (`docket-new-change`, `docket-groom-next`, `docket-auto-groom`, `docket-finalize-change`,
   `docket-implement-next`) delegate to it as "refresh `BOARD.md` via `docket-status`'s Board
-  pass" — an executing agent reads "refresh, commit, push" and never re-loads the cross-referenced
-  gate, so it regenerates and pushes anyway.
+  pass" — an executing agent can follow the refresh/commit/push instruction without carrying the
+  cross-referenced surface gate into the delegated call, so it regenerates and pushes anyway.
 
 Compounding trap: the redirect `render-board.sh > BOARD.md` **truncates `BOARD.md` before the
 script runs**. So a naive fix that makes `render-board.sh` emit nothing when disabled would blank
@@ -137,6 +137,9 @@ pattern):
 - Missing `--surfaces` flag → exit 2; missing/invalid `--changes-dir` → exit 2.
 - Exit 0 in all rendered/no-op cases.
 
+Update `tests/test_render_board.sh`'s existing docket-status wiring sentinel to require
+`board-refresh.sh` instead of `render-board.sh`; the renderer's behavioral tests remain unchanged.
+
 The new `scripts/board-refresh.md` contract satisfies the existing
 `tests/test_script_contracts_coverage.sh` (globs `scripts/*.sh` → requires a co-located `.md`).
 
@@ -154,3 +157,17 @@ The new `scripts/board-refresh.md` contract satisfies the existing
 - Deleting/cleaning up a stale `BOARD.md` when a repo switches to `[]` (decision 4).
 - Any change to the `github` mirror surface or its existing conditional invocation.
 - Any change to `render-board.sh`'s rendering logic or its stdout contract.
+
+## Reconcile notes (2026-07-11)
+
+- Reconciled against `origin/main` at `3fad316` after change 0053's skill slimming landed. The
+  current prose has one concrete raw redirect in `docket-status`; sibling skills delegate to that
+  Board pass rather than repeating the command. The implementation still updates every listed
+  caller so each delegated status-write path explicitly uses the gated helper and commits only a
+  real `BOARD.md` diff.
+- Related change 0058 remains proposed and introduces a future `docket-status.sh` orchestrator.
+  It does not invalidate this change: `board-refresh.sh` is the deterministic inline primitive
+  that orchestrator can call later, while this PR fixes the current executable skill path.
+- Current tests include a `test_render_board.sh` sentinel requiring `docket-status` to name
+  `render-board.sh`; it must move to `board-refresh.sh` or the full suite will reject the intended
+  wiring. No recent ADR changes the approved ADR-0012 script/model boundary.

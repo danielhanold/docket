@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/board-refresh-surface-gate
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -70,3 +70,11 @@ Introduce a deterministic gate so the opt-out is enforced in code, not prose (pe
 - Any change to `render-board.sh`'s rendering logic or its stdout contract.
 
 ## Reconcile log
+
+- 2026-07-11 — Reconciled against `origin/main` at `3fad316`, related changes 0058/0011,
+  ADR-0012, recent archived change 0053, and current scripts/tests. No design invalidation:
+  0058 is still proposed and can later compose the new helper into its orchestrator. Scope was
+  sharpened for current reality: only `docket-status` contains the literal raw redirect after
+  0053's slimming, while sibling skills delegate to its Board pass; each delegated caller still
+  needs an explicit gated/diff-only contract. Added the required update to
+  `test_render_board.sh`'s existing wiring sentinel so the full suite accepts the new entry point.
