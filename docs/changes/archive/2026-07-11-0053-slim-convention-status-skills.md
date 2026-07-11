@@ -2,10 +2,10 @@
 id: 53
 slug: slim-convention-status-skills
 title: Slim docket-convention + docket-status via progressive disclosure
-status: implemented
+status: done
 priority: medium
 created: 2026-07-10
-updated: 2026-07-10
+updated: 2026-07-11
 depends_on: [51]
 related: [51, 54, 55]
 adrs: [12]
