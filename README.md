@@ -181,7 +181,12 @@ finalize:                    # merge gate: rebase onto base + re-test before doc
 # agents:                    # per-skill subagent model/effort (see "Agent layer" in docket-convention)
 # skills:                    # rebind the five workflow roles — brainstorm/plan/build/review/finish — to
 #                            # any skill name or `auto` (see "Skill layer" in docket-convention)
+# build:                     # per-role SDD build model IDs — the biggest cost lever in a docket build
+#   implementer: <model-id>  # per-task implementer + fix subagents; unset => SDD picks by complexity
+#   reviewer: <model-id>     # task-reviewer + final code-reviewer; unset => SDD picks by complexity
 ```
+
+`build:` targets `docket-implement-next`'s two SDD sub-dispatches — `implementer` (the per-task TDD work and its fix subagents) and `reviewer` (the per-task reviewer and the final whole-branch review). Each value is a **direct model ID**, passed straight through to SDD, the same harness-neutral passthrough as `agents:` — under Claude Code a Claude alias/ID, under another harness (e.g. Cursor) one of that harness's own model IDs. Leave a role unset and that dispatch keeps SDD's own Model Selection judgment; the motivating case is a non-Claude or mixed model roster running through Cursor, where the operator — not SDD's Claude-shaped heuristic — knows which model fits each role.
 
 With no `.docket.yml` at all, docket runs in its default **docket-mode** (`metadata_branch: docket`, `integration_branch: auto`). See [docket-mode](#docket-mode-where-metadata-lives) for what that means and how to opt out.
 

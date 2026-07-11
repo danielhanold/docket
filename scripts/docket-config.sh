@@ -225,6 +225,32 @@ for _blk in "$LSKILLS_BLK" "$SKILLS_BLK" "$GSKILLS_BLK"; do
 done
 rm -f "$SKILLS_BLK" "$GSKILLS_BLK" "$LSKILLS_BLK"
 
+# --- build: role-keyed SDD build models (change 0044) — direct model-ID passthrough ---
+# Nested block; per-key precedence: repo-local leaf > per-repo leaf > global leaf.
+# Global-able (a per-machine model preference), so NOT in the coordination-key fence.
+BUILD_BLK="$(mktemp)";  yaml_block_body "$CFG"  build >"$BUILD_BLK"
+GBUILD_BLK="$(mktemp)"; yaml_block_body "$GCFG" build >"$GBUILD_BLK"
+LBUILD_BLK="$(mktemp)"; yaml_block_body "$LCFG" build >"$LBUILD_BLK"
+build_role(){  # build_role <role> -> resolved model-ID on stdout, empty when unset
+  local v; v="$(yaml_get "$LBUILD_BLK" "$1")"
+  [ -n "$v" ] || v="$(yaml_get "$BUILD_BLK" "$1")"
+  [ -n "$v" ] || v="$(yaml_get "$GBUILD_BLK" "$1")"
+  printf '%s' "$v"
+}
+BUILD_IMPLEMENTER="$(build_role implementer)"
+BUILD_REVIEWER="$(build_role reviewer)"
+# Unknown role keys in EITHER layer: warn-and-ignore (a typo must never abort).
+for _blk in "$LBUILD_BLK" "$BUILD_BLK" "$GBUILD_BLK"; do
+  while IFS= read -r _brole; do
+    [ -n "$_brole" ] || continue
+    case " implementer reviewer " in
+      *" $_brole "*) ;;
+      *) printf 'docket-config: warning: unknown build role %s — ignored\n' "$_brole" >&2 ;;
+    esac
+  done < <(sed -n -E 's/^[[:space:]]*([[:alnum:]_-]+)[[:space:]]*:.*/\1/p' "$_blk")
+done
+rm -f "$BUILD_BLK" "$GBUILD_BLK" "$LBUILD_BLK"
+
 # --- Stage 3: bootstrap guard — evaluate the DOCKET/LIVE 2×2 (docket-mode only) ---
 BOOTSTRAP=PROCEED
 if [ "$DOCKET_MODE" = docket ]; then
@@ -274,5 +300,7 @@ if [ "$MODE" = export ]; then
   emit SKILL_BUILD "$SKILL_BUILD"
   emit SKILL_REVIEW "$SKILL_REVIEW"
   emit SKILL_FINISH "$SKILL_FINISH"
+  emit BUILD_IMPLEMENTER "$BUILD_IMPLEMENTER"
+  emit BUILD_REVIEWER "$BUILD_REVIEWER"
   emit BOOTSTRAP "$BOOTSTRAP"
 fi
