@@ -2,7 +2,7 @@
 id: 63
 slug: git-hook-coexistence
 title: Coexist with git-hook frameworks — docket bookkeeping commits skip hooks
-status: implemented
+status: done
 priority: high
 created: 2026-07-11
 updated: 2026-07-11
