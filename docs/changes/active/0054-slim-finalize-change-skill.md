@@ -10,7 +10,7 @@ depends_on: [53]
 related: [53, 55]
 adrs: [2]
 spec: docs/superpowers/specs/2026-07-10-slim-finalize-change-skill-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-11-slim-finalize-change-skill.md
 results:
 trivial: false
 auto_groomable:
@@ -26,6 +26,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-10-slim-finalize-change-skill-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-10-slim-finalize-change-skill-design.md) |
+| Plan | [2026-07-11-slim-finalize-change-skill.md](https://github.com/danielhanold/docket/blob/feat/slim-finalize-change-skill/docs/superpowers/plans/2026-07-11-slim-finalize-change-skill.md) |
 | ADRs | [ADR-0002](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0002-docket-mode-default-and-bootstrap.md) |
 <!-- docket:artifacts:end -->
 
