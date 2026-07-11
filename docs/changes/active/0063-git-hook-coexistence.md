@@ -8,7 +8,7 @@ created: 2026-07-11
 updated: 2026-07-11
 depends_on: []
 related: []
-adrs: [1]
+adrs: [1, 25]
 spec: docs/superpowers/specs/2026-07-11-git-hook-coexistence-design.md
 plan: docs/superpowers/plans/2026-07-11-git-hook-coexistence.md
 results:
@@ -27,7 +27,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-11-git-hook-coexistence-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-11-git-hook-coexistence-design.md) |
 | Plan | [2026-07-11-git-hook-coexistence.md](https://github.com/danielhanold/docket/blob/feat/git-hook-coexistence/docs/superpowers/plans/2026-07-11-git-hook-coexistence.md) |
-| ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md) |
+| ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md), [ADR-0025](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0025-docket-worktrees-disable-git-hooks.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
