@@ -2,7 +2,7 @@
 id: 60
 slug: board-render-truncation-guard
 title: board-refresh.sh must not write an empty BOARD.md — non-empty guard on the atomic write
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-11
 updated: 2026-07-11
@@ -11,11 +11,11 @@ related: [59]
 adrs: []
 spec: docs/superpowers/specs/2026-07-11-board-render-truncation-guard-design.md
 plan: docs/superpowers/plans/2026-07-11-board-render-truncation-guard.md
-results:
+results: docs/results/2026-07-11-board-render-truncation-guard-results.md
 trivial: false
 auto_groomable:
 branch: feat/board-render-truncation-guard
-pr:
+pr: https://github.com/danielhanold/docket/pull/70
 blocked_by:
 reconciled: true
 ---
@@ -27,6 +27,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-11-board-render-truncation-guard-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-11-board-render-truncation-guard-design.md) |
 | Plan | [2026-07-11-board-render-truncation-guard.md](https://github.com/danielhanold/docket/blob/feat/board-render-truncation-guard/docs/superpowers/plans/2026-07-11-board-render-truncation-guard.md) |
+| Results | [2026-07-11-board-render-truncation-guard-results.md](https://github.com/danielhanold/docket/blob/feat/board-render-truncation-guard/docs/results/2026-07-11-board-render-truncation-guard-results.md) |
+| PR | [#70](https://github.com/danielhanold/docket/pull/70) |
 <!-- docket:artifacts:end -->
 
 ## Why
