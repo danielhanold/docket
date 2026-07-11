@@ -4,6 +4,15 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-07-11 (#55, PR #67) — A behavior-neutral skill slim (docket-implement-next + the four
+  small skills) landed all five files modestly over the spec's line-count targets
+  (implement-next 137→107 vs ≤~100, groom-next 77→75 vs ~65, adr 88→86 vs ~78); the whole-branch
+  review confirmed the residual was load-bearing/test-anchored content (selection bands, the recap
+  contract, the four ADR publish contracts, SHA-compare narration), not un-cut prose — the spec's
+  size estimates were simply optimistic. Apply: on a behavior-neutral slim, the size target is a
+  direction, not a gate — once review shows the remaining lines are load-bearing or test-anchored,
+  accept the size and stop trimming; behavior-neutrality outranks hitting the number.
+
 - 2026-07-11 (#54, PR #66) — A behavior-neutral skill slim (docket-finalize-change, 234 → 114
   lines) passed its own goal-scoped whole-branch review, yet the finalize gate's **full** suite
   caught a regression the spec's 7 enumerated sentinel tests did not: the slim had dropped
