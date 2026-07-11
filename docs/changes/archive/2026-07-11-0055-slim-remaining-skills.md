@@ -2,7 +2,7 @@
 id: 55
 slug: slim-remaining-skills
 title: Slim docket-implement-next + propagate Step-0 preamble to the small skills
-status: implemented
+status: done
 priority: medium
 created: 2026-07-10
 updated: 2026-07-11
