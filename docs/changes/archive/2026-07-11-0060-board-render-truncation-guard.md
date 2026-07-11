@@ -2,7 +2,7 @@
 id: 60
 slug: board-render-truncation-guard
 title: board-refresh.sh must not write an empty BOARD.md — non-empty guard on the atomic write
-status: implemented
+status: done
 priority: medium
 created: 2026-07-11
 updated: 2026-07-11
