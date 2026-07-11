@@ -236,10 +236,56 @@ assert "pr: bare number falls back to [#N](built-url) via --repo" \
 rm -rf "$bare"
 
 # --- docket-status inline-surface wiring sentinels (the SKILL is code on main) ---
-assert "docket-status inline surface invokes render-board.sh" \
+# Since change 0058 the docket-status Board pass lives in scripts/docket-status.sh, not this
+# SKILL — the SKILL only *describes* the inline surface (naming render-board.sh) and delegates to
+# the orchestrator. Change 0059 therefore does NOT edit this SKILL; the gated-write wiring
+# (board_pass_inline -> board-refresh.sh) is asserted in tests/test_docket_status.sh instead. These
+# two sentinels are unchanged from main.
+assert "docket-status inline surface names render-board.sh" \
   'grep -qF "/render-board.sh" "$SKILL"'
 assert "docket-status keeps the regenerate-don't-3-way-merge rule" \
   'grep -qiF "never 3-way merge" "$SKILL"'
+
+# --- negative sentinel: no skill body may redirect render-board.sh stdout straight into
+# BOARD.md (the pre-0059 anti-pattern this task removes). Whitespace-normalize per file first
+# since the old redirect could span physical lines. The guard regex:
+#   render-board\.sh.{0,200}[[:space:]]>[[:space:]].{0,200}/BOARD\.md
+# Design (each element defends a specific real shape in this codebase's prose):
+#   - `.{0,200}` bounded any-char gaps (NOT `[^>]*`): the historical redirect's destination is
+#     a bracket placeholder `<metadata working tree>/<changes_dir>/BOARD.md` whose `>` characters
+#     and internal spaces a `[^>]*` class could never cross — so `[^>]*` was BLIND to the exact
+#     reintroduction shape this sentinel exists to catch. `.` crosses placeholder `>`s freely.
+#   - `[[:space:]]>[[:space:]]` a whitespace-bounded redirect operator: a real ` > ` redirect has
+#     a space on both sides, whereas a placeholder's closing bracket is `tree>` / `dir>/` (letter
+#     before `>`, or no space after) — so the porcelain guard line and every `<...>` placeholder
+#     are structurally excluded.
+#   - `/BOARD\.md` (slash required, not bare `BOARD.md`): a real redirect target is a PATH ending
+#     in `/BOARD.md`; this rejects a flattened markdown blockquote (`\n> ` -> ` > `) that lands a
+#     bare "BOARD.md" prose word within the window — blockquotes genuinely appear in
+#     docket-status and docket-implement-next, so this is a live false-positive class, not
+#     hypothetical.
+# All five requirements + the blockquote case are verified empirically below and by the
+# positive-control assertion. THE SAME REGEX is used for both the positive control and the
+# across-skills scan, so weakening it (e.g. back to `[^>]*`) trips the positive control loudly.
+REDIRECT_RE='render-board\.sh.{0,200}[[:space:]]>[[:space:]].{0,200}/BOARD\.md'
+
+# Positive control ("test the test"): the historical bracket-placeholder redirect that WAS in
+# this codebase pre-0059 MUST still be flagged by the guard. If a future edit weakens REDIRECT_RE
+# so it can no longer cross placeholder brackets, this assertion fails — not the silent scan.
+HISTORICAL_REDIRECT='"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/render-board.sh --changes-dir <metadata working tree>/<changes_dir> > <metadata working tree>/<changes_dir>/BOARD.md'
+assert "guard regex flags the historical bracket-placeholder redirect (positive control)" \
+  'printf "%s" "$HISTORICAL_REDIRECT" | tr "\n" " " | grep -Eq "$REDIRECT_RE"'
+
+# Negative scan: no CURRENT skill body redirects render-board.sh stdout into BOARD.md.
+redirect_found=0
+for f in "$REPO"/skills/*/SKILL.md; do
+  if tr '\n' ' ' < "$f" | grep -Eq "$REDIRECT_RE"; then
+    echo "  (direct render-board.sh -> BOARD.md redirect found in: $f)"
+    redirect_found=1
+  fi
+done
+assert "no skills/*/SKILL.md redirects render-board.sh stdout directly into BOARD.md" \
+  '[ "$redirect_found" -eq 0 ]'
 
 # --- malformed id is skipped (active + archive), renderer still succeeds ---
 printf -- '---\nid: abc\nslug: bad\ntitle: Bad Active\nstatus: proposed\npriority: low\ndepends_on: []\n---\n' > "$tmp/active/0099-bad.md"
