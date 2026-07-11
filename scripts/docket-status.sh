@@ -151,7 +151,7 @@ detect_merged(){
   mapfile -t files < <(find "$cd_dir/active" -maxdepth 1 -name '*.md' 2>/dev/null | sort)
   [ ${#files[@]} -gt 0 ] || return 0
 
-  local -a ids slugs prs
+  local -a ids=() slugs=() prs=()
   local f id slug status pr
   for f in "${files[@]}"; do
     status="$(field "$f" status)"

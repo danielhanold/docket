@@ -735,4 +735,222 @@ assert "board-only-lock: sync-integration-branch.sh never invoked" '[ ! -f "$bo_
 assert "board-only-lock: archive-change.sh never invoked" '[ ! -f "$bo_marker_archive" ]'
 assert "board-only-lock: cleanup-feature-branch.sh never invoked" '[ ! -f "$bo_marker_cleanup" ]'
 
+# determinism / idempotence: a full orchestrator pass over a fixture, then a second full pass
+# over the now-unchanged change files. Board output must be byte-identical across runs, the
+# second run must be a board no-op ("board inline clean", no re-commit), and re-running
+# detect_merged/sweep_execute over an already-`done` change must not re-emit "swept".
+det_dir="$tmp/det-case"
+git_repo_setup "$det_dir"
+git clone -q "$det_dir/origin.git" "$det_dir/work" 2>/dev/null
+mkdir -p "$det_dir/work/docs/changes/active" "$det_dir/work/docs/adrs"
+cat > "$det_dir/work/docs/changes/active/0050-det-thing.md" <<'EOF'
+---
+id: 50
+slug: det-thing
+title: Det thing
+status: implemented
+priority: high
+depends_on: []
+branch: feat/det-thing
+pr: 50
+EOF
+git -C "$det_dir/work" -c user.email=t@t -c user.name=t add docs/changes
+git -C "$det_dir/work" -c user.email=t@t -c user.name=t commit -q -m "seed determinism fixture"
+git -C "$det_dir/work" push -q origin main
+
+mkdir -p "$tmp/mock-det"
+cat > "$tmp/mock-det/archive-change.sh" <<'EOF'
+#!/usr/bin/env bash
+changes_dir="" id="" date=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --changes-dir) changes_dir="$2"; shift ;;
+    --id) id="$2"; shift ;;
+    --date) date="$2"; shift ;;
+  esac
+  shift
+done
+pad="$(printf '%04d' "$id")"
+active="$(find "$changes_dir/active" -maxdepth 1 -name "${pad}-*.md" | head -n1)"
+[ -n "$active" ] || exit 1
+base="$(basename "$active")"
+slug="${base#"${pad}"-}"; slug="${slug%.md}"
+mkdir -p "$changes_dir/archive"
+dest="$changes_dir/archive/${date}-${pad}-${slug}.md"
+root="$(git -C "$changes_dir" rev-parse --show-toplevel)"
+git -C "$root" mv "$active" "$dest"
+sed -i.bak "s/^status:.*/status: done/" "$dest" && rm -f "$dest.bak"
+git -C "$root" add -- "$dest" 2>/dev/null
+git -C "$root" -c user.email=t@t -c user.name=t commit -q -m "mock archive" >/dev/null 2>&1
+git -C "$root" push -q origin main >/dev/null 2>&1
+exit 0
+EOF
+cat > "$tmp/mock-det/render-change-links.sh" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+cat > "$tmp/mock-det/terminal-publish.sh" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+cat > "$tmp/mock-det/cleanup-feature-branch.sh" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+cat > "$tmp/mock-det/board-checks.sh" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+cat > "$tmp/mock-det/sync-integration-branch.sh" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+chmod +x "$tmp/mock-det/"*.sh
+
+cat > "$tmp/gh-det.sh" <<'EOF'
+#!/usr/bin/env bash
+if [ "$1" = repo ] && [ "$2" = view ]; then
+  echo "x/y"; exit 0
+fi
+if [ "$1" = api ] && [ "$2" = graphql ]; then
+  cat <<'JSON'
+{"data":{"p50":{"number":50,"mergedAt":"2026-07-08T12:00:00Z","state":"MERGED"}}}
+JSON
+  exit 0
+fi
+echo "gh-det: unexpected args: $*" >&2
+exit 1
+EOF
+chmod +x "$tmp/gh-det.sh"
+
+write_full_fixture ""
+(cd "$det_dir/work" && \
+  CONFIG_EXPORT_CMD="bash $tmp/fixture-full.sh" GH="$tmp/gh-det.sh" \
+  SCRIPTS_DIR="$tmp/mock-det" \
+  "$SCRIPT" >"$tmp/det-run1.txt" 2>"$tmp/det-run1-err.txt")
+rc=$?
+assert "determinism run1 exits zero" '[ $rc -eq 0 ]'
+assert "determinism run1 emits swept" 'grep -qE "^swept 50 2026-07-08$" "$tmp/det-run1.txt"'
+
+# Mock archive-change.sh mutates status to done so the second run's active file already
+# reflects sweep having happened, but since the real archive script is mocked as a no-op above,
+# the fixture's `implemented` file stays put — so instead lock board determinism via two
+# board-only passes, plus idempotence of detect_merged/sweep_execute over an already-`done` change.
+write_board_fixture inline
+(cd "$det_dir/work" && \
+  CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" \
+  "$SCRIPT" --board-only >"$tmp/det-board1.txt" 2>"$tmp/det-board1-err.txt")
+rc=$?
+assert "determinism board pass 1 exits zero" '[ $rc -eq 0 ]'
+cp "$det_dir/work/docs/changes/BOARD.md" "$tmp/det-board-snapshot1.md"
+
+(cd "$det_dir/work" && \
+  CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" \
+  "$SCRIPT" --board-only >"$tmp/det-board2.txt" 2>"$tmp/det-board2-err.txt")
+rc=$?
+assert "determinism board pass 2 exits zero" '[ $rc -eq 0 ]'
+assert "determinism: second board pass is a no-op (board inline clean)" \
+  'grep -qF "board inline clean" "$tmp/det-board2.txt"'
+assert "determinism: BOARD.md byte-identical across the two board-only runs" \
+  'cmp -s "$tmp/det-board-snapshot1.md" "$det_dir/work/docs/changes/BOARD.md"'
+
+# Idempotence: re-run detect_merged | sweep_execute over a change already at `done` (as it
+# would be after a real sweep) — must not re-emit "swept".
+done_dir="$tmp/done-case"
+git_repo_setup "$tmp/done-seed"
+git clone -q "$tmp/done-seed/origin.git" "$done_dir" 2>/dev/null
+mkdir -p "$done_dir/docs/changes/active" "$done_dir/docs/changes/archive"
+cat > "$done_dir/docs/changes/active/0051-already-done.md" <<'EOF'
+---
+id: 51
+slug: already-done
+title: Already done
+status: done
+priority: high
+depends_on: []
+branch: feat/already-done
+pr: 51
+EOF
+
+idem_out="$( cd "$done_dir" && \
+  DOCKET_MODE=main CHANGES_DIR=docs/changes GH="$tmp/gh-det.sh" \
+  bash -c '. "'"$SCRIPT"'"; detect_merged' )"
+assert "idempotence: detect_merged skips an already-done change (implemented-only filter)" \
+  '! printf "%s\n" "$idem_out" | grep -q "already-done"'
+
+sweep_idem_input="$tmp/sweep-idem-input.tsv"
+printf '51\talready-done\t51\t2026-07-08\n' > "$sweep_idem_input"
+sweep_idem_out="$( cd "$done_dir" && \
+  DOCKET_MODE=main CHANGES_DIR=docs/changes ADRS_DIR=docs/adrs \
+  INTEGRATION_BRANCH=main METADATA_BRANCH=main \
+  SCRIPTS_DIR="$tmp/mock-det" \
+  bash -c '. "'"$SCRIPT"'"; sweep_execute < "'"$sweep_idem_input"'"' )"
+assert "idempotence: sweep_execute over an already-done change emits no swept line" \
+  '! printf "%s\n" "$sweep_idem_out" | grep -qE "^swept 51 "'
+
+# main-mode degradation: DOCKET_MODE=main, no .docket worktree anywhere — board renders
+# against the primary tree (mw="."), and integration_sync is a genuine no-op appropriate to
+# main-mode (still invoked as a best-effort call, but touches nothing beyond it). Run exits 0
+# and never creates/uses a .docket metadata worktree.
+mm_dir="$tmp/mainmode-case"
+git_repo_setup "$mm_dir"
+git clone -q "$mm_dir/origin.git" "$mm_dir/work" 2>/dev/null
+seed_changes_fixture "$mm_dir/work"
+git -C "$mm_dir/work" -c user.email=t@t -c user.name=t add docs/changes
+git -C "$mm_dir/work" -c user.email=t@t -c user.name=t commit -q -m "seed main-mode fixture"
+git -C "$mm_dir/work" push -q origin main
+
+mkdir -p "$tmp/mock-mm"
+mm_sync_marker="$tmp/mock-mm/.marker-sync"
+cat > "$tmp/mock-mm/sync-integration-branch.sh" <<EOF
+#!/usr/bin/env bash
+touch "$mm_sync_marker"
+exit 0
+EOF
+chmod +x "$tmp/mock-mm/sync-integration-branch.sh"
+
+write_board_fixture inline
+assert "main-mode: .docket worktree absent before run" '[ ! -d "$mm_dir/work/.docket" ]'
+(cd "$mm_dir/work" && \
+  CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" SCRIPTS_DIR="$tmp/mock-mm" \
+  "$SCRIPT" --board-only >"$tmp/mm-out.txt" 2>"$tmp/mm-err.txt")
+rc=$?
+assert "main-mode run exits zero" '[ $rc -eq 0 ]'
+assert "main-mode: board renders against primary tree (BOARD.md written at repo root)" \
+  '[ -s "$mm_dir/work/docs/changes/BOARD.md" ]'
+assert "main-mode: no .docket metadata worktree created" '[ ! -d "$mm_dir/work/.docket" ]'
+assert "main-mode: board reports changed pushed" 'grep -qw "changed" "$tmp/mm-out.txt" && grep -qw "pushed" "$tmp/mm-out.txt"'
+
+# main-mode: integration_sync is invoked only when a sweep happened; with --board-only it's
+# skipped entirely, and no .docket worktree is created regardless of sweep activity. Confirm a
+# full (non --board-only) main-mode run with no merges also never creates .docket.
+mm2_dir="$tmp/mainmode-full-case"
+git_repo_setup "$mm2_dir"
+git clone -q "$mm2_dir/origin.git" "$mm2_dir/work" 2>/dev/null
+mkdir -p "$mm2_dir/work/docs/changes/active" "$mm2_dir/work/docs/adrs"
+git -C "$mm2_dir/work" -c user.email=t@t -c user.name=t commit -q --allow-empty -m "seed mm2" 2>/dev/null || true
+git -C "$mm2_dir/work" push -q origin main 2>/dev/null || true
+
+write_full_fixture ""
+mkdir -p "$tmp/mock-mm2"
+cat > "$tmp/mock-mm2/board-checks.sh" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+mm2_sync_marker="$tmp/mock-mm2/.marker-sync"
+cat > "$tmp/mock-mm2/sync-integration-branch.sh" <<EOF
+#!/usr/bin/env bash
+touch "$mm2_sync_marker"
+exit 0
+EOF
+chmod +x "$tmp/mock-mm2/"*.sh
+(cd "$mm2_dir/work" && \
+  CONFIG_EXPORT_CMD="bash $tmp/fixture-full.sh" GH="$tmp/gh-full-none.sh" \
+  SCRIPTS_DIR="$tmp/mock-mm2" \
+  "$SCRIPT" >"$tmp/mm2-out.txt" 2>"$tmp/mm2-err.txt")
+rc=$?
+assert "main-mode full run (no merges) exits zero" '[ $rc -eq 0 ]'
+assert "main-mode full run: integration_sync not invoked (no sweep)" '[ ! -f "$mm2_sync_marker" ]'
+assert "main-mode full run: no .docket metadata worktree created" '[ ! -d "$mm2_dir/work/.docket" ]'
+
 exit $fail
