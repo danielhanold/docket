@@ -1,8 +1,8 @@
 # Backlog
 
-**58 changes** — 🟡 12 proposed · 🔵 2 implemented · ✅ 42 done · 🗑️ 2 killed
+**59 changes** — 🟡 13 proposed · 🔵 2 implemented · ✅ 42 done · 🗑️ 2 killed
 
-## 🟡 Proposed (12)
+## 🟡 Proposed (13)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -18,6 +18,7 @@
 | [0055](active/0055-slim-remaining-skills.md) | Slim docket-implement-next + propagate Step-0 preamble to the small skills | `medium` | ⏳ waiting on #53 — needs your merge |
 | [0056](active/0056-consultant-brainstorm.md) | Consultant-authored brainstorm — opt-in pinned design agent for the brainstorm role | `medium` | build-ready |
 | [0058](active/0058-docket-status-orchestrator.md) | docket-status orchestrator — collapse the status pass into one script call | `high` | ⏳ waiting on #53 — needs your merge |
+| [0059](active/0059-board-refresh-surface-gate.md) | board-refresh honors board_surfaces — gate BOARD.md regeneration on the resolved surface set | `medium` | build-ready |
 
 ## 🔵 Implemented — awaiting merge (2)
 
@@ -42,6 +43,7 @@ graph TD
   0056
   0051 --> 0057
   0053 --> 0058
+  0059
   0001:::done
   0002:::done
   0003:::done
