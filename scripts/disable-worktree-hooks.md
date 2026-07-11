@@ -38,9 +38,12 @@ disable-worktree-hooks.sh --worktree DIR
    `true`, enable it (git requires the extension enabled before any `--worktree` write can happen at
    all), then detect a pre-existing **common-config** `core.worktree`/`core.bare` value and relocate
    it to the main worktree's per-worktree config. If a value is present and cannot be relocated
-   safely, roll back the enable (unset `extensions.worktreeConfig`) and exit 1 (fail-closed) — the
-   extension is never left enabled with a value stranded in common config. In virtually all repos
-   these keys are unset, so this is a no-op path.
+   safely, roll back the enable (unset `extensions.worktreeConfig`) and exit 1 (fail-closed), so the
+   extension is not left enabled with a value stranded in common config. In virtually all repos these
+   keys are unset (or only `core.bare` is set, to its default) so this is a no-op or single-value
+   path; the rollback fully restores that case. (The pathological case of *both* keys set in common
+   config with a write failing on the second is left as-is — negligibly rare, since `core.worktree`
+   in common config is itself unusual.)
 3. **Set the worktree-scoped hooks path.** `git -C DIR config --worktree core.hooksPath <empty>`.
    `--worktree` replaces rather than appends, so re-running never duplicates the entry.
 
@@ -64,4 +67,7 @@ disable-worktree-hooks.sh --worktree DIR
   under `.git/`. Never the remote, teammates' clones, or the committed `.docket.yml`.
 - **Fail-closed on the worktreeConfig caveat.** Rather than risk silently unsetting `core.worktree`/
   `core.bare` for linked worktrees, it relocates-or-refuses; on a failed relocation the tentative
-  `extensions.worktreeConfig` enable is rolled back so the repo is never left half-migrated.
+  `extensions.worktreeConfig` enable is rolled back, fully restoring the original state for the
+  no-value and single-value cases (the universal ones). A simultaneous two-value relocation whose
+  second write fails is not atomically unwound — a deliberately accepted, negligibly-rare gap
+  (`core.worktree` in common config is itself unusual), not a claim of full multi-value atomicity.
