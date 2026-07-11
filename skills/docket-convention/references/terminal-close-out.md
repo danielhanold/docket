@@ -94,7 +94,10 @@ The sequence is shared; the posture on a non-zero exit from steps 1–3 is the c
 | `docket-new-change` proposed-kill | same as reconcile-kill — surface and stop; nothing else is in flight |
 
 **The skip-publish guard (all callers):** a failed step 1 skips steps 2–3; a **failed step-2
-commit/push skips step 3** — a stale `## Artifacts` block must never be published. Steps 4–5
+commit/push skips step 3** — a stale `## Artifacts` block must never be published. A **no-diff
+re-render is success**: commit the block only when it actually changed; an unchanged block
+(nothing to re-point) is not a failure and proceeds to publish — the skip-publish guard fires on
+a *failed* commit/push, never on an empty diff. Steps 4–5
 follow the caller's own skill body: the sweep treats both as best-effort (log and continue; the
 board self-heals on the next pass); other callers keep their own posture (e.g.
 `docket-new-change`'s post-kill Board pass is must-land).
