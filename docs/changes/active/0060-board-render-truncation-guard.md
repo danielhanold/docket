@@ -10,7 +10,7 @@ depends_on: []
 related: [59]
 adrs: []
 spec: docs/superpowers/specs/2026-07-11-board-render-truncation-guard-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-11-board-render-truncation-guard.md
 results:
 trivial: false
 auto_groomable:
@@ -26,6 +26,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-11-board-render-truncation-guard-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-11-board-render-truncation-guard-design.md) |
+| Plan | [2026-07-11-board-render-truncation-guard.md](https://github.com/danielhanold/docket/blob/feat/board-render-truncation-guard/docs/superpowers/plans/2026-07-11-board-render-truncation-guard.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
