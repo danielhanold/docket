@@ -20,11 +20,9 @@ description: Use when a repo (or individual stubs) opted into autonomous groomin
 
 Before anything else in this skill, invoke the `docket-convention` skill via the Skill tool — unless it was already invoked earlier in this session and its content is in context. Everything below uses its vocabulary (needs-brainstorm, **effective auto-groomable**, **autonomous-eligible**, the abstain rule, metadata working tree, …) without redefinition; no step below is executable without the convention loaded.
 
-## Where everything is read and written
+## Step 0
 
-Resolve config + the bootstrap verdict deterministically: `eval "$("${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket-config.sh --export)"` (fail-closed; read-only). Act on `BOOTSTRAP` — `PROCEED` to continue; `STOP_MIGRATE` to refuse-and-point at `migrate-to-docket.sh`; `CREATE_ORPHAN` to opt into `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket-config.sh --bootstrap` (fresh repo only).
-
-All reads and writes happen in the **metadata working tree** on `metadata_branch`, pushed to its remote immediately. In `docket`-mode that tree is the persistent `.docket/` worktree parked on `docket` — ensure it (state-specific create per the convention's Branch model, idempotent) and **sync it to `origin/docket` before any read**. In single-branch/`main`-mode this degrades to the primary working tree on the integration branch. The steps below say "`.docket/`" / "`origin/docket`" for the common case; read those as the metadata working tree / `origin/<metadata_branch>` in `main`-mode.
+Run the convention's *Step-0 preamble*: load the convention, resolve config + the bootstrap verdict (`eval "$("${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket-config.sh --export)"`, fail-closed; act on `BOOTSTRAP`), then ensure + sync the metadata working tree. All reads and writes land in that tree on `metadata_branch`, pushed to its remote immediately — `.docket/` on `origin/docket` in `docket`-mode; the primary working tree on `origin/<integration_branch>` in `main`-mode.
 
 ## Procedure — the drain loop
 

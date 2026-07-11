@@ -24,11 +24,9 @@ This skill brainstorms with a human, so it cannot be a fire-and-forget subagent 
 
 Before anything else in this skill, invoke the `docket-convention` skill via the Skill tool — unless it was already invoked earlier in this session and its content is in context. Everything below uses its vocabulary (build-ready, metadata working tree, terminal-publish, the `DOCKET`/`LIVE` bootstrap probes, …) without redefinition; no step below is executable without the convention loaded.
 
-## Where everything is read and written
+## Step 0
 
-Resolve config + the bootstrap verdict deterministically: `eval "$("${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket-config.sh --export)"` (fail-closed; read-only). Act on `BOOTSTRAP` — `PROCEED` to continue; `STOP_MIGRATE` to refuse-and-point at `migrate-to-docket.sh`; `CREATE_ORPHAN` to opt into `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket-config.sh --bootstrap` (fresh repo only).
-
-All reads and writes happen in the **metadata working tree** on `metadata_branch`, pushed to its remote immediately so the backlog is reviewable on GitHub and visible to the autonomous implementer. In `docket`-mode that tree is the persistent `.docket/` worktree parked on `docket` — ensure it (state-specific create per the convention's Branch model, idempotent) and **sync it to `origin/docket` before any read** (`git -C .docket fetch origin docket && git -C .docket pull --rebase origin docket`); the change, spec, and refreshed `BOARD.md` are committed in `.docket/` and pushed to `origin/docket`. In single-branch/`main`-mode this degrades to the primary working tree on the integration branch (no `.docket/`): `git pull --rebase` and push on `origin/<metadata_branch>` (which equals `origin/<integration_branch>` there). The steps below say "`.docket/`" / "`origin/docket`" for the common (`docket`-mode) case; read those as the metadata working tree / `origin/<metadata_branch>` in `main`-mode.
+Run the convention's *Step-0 preamble*: load the convention, resolve config + the bootstrap verdict (`eval "$("${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket-config.sh --export)"`, fail-closed; act on `BOOTSTRAP`), then ensure + sync the metadata working tree. All reads and writes land in that tree on `metadata_branch`, pushed to its remote immediately so the backlog is reviewable on GitHub and visible to the autonomous implementer — `.docket/` on `origin/docket` in `docket`-mode; the primary working tree on `origin/<integration_branch>` in `main`-mode. The change, spec, and refreshed `BOARD.md` are committed there.
 
 ## Brainstorm mode (default)
 
@@ -56,15 +54,6 @@ Survey TODOs, deferred changes, known gaps, and the ADR backlog; emit several li
 
 When a `proposed` change is abandoned (obsolete, decided against, a duplicate) the producer drives it to the `killed` terminal state — this is one of the two kill origins the shared terminal-publish serves (the other is the implementer's reconcile-kill from `in-progress`).
 
-In `docket`-mode: the kill is driven by the same two-script sequence as `docket-finalize-change` (mechanics in `scripts/archive-change.md` and `scripts/terminal-publish.md`):
+Follow `references/terminal-close-out.md`'s sequence with `--outcome killed`: archive → re-render `## Artifacts` → `terminal-publish` (mechanics, ordering, and `main`-mode degradation live there — do not restate them here). Trust each exit code; a failure aborts the kill and is surfaced. A `proposed` change never had a feature branch or open PR, so there is nothing to clean up — the reference's cleanup step is a no-op here — and usually no plan/results, so the kill publishes only what is on `docket`: the change file, plus its `spec:`/`adrs:` if set. `<UTC kill date>` matches `origin/<integration_branch>`.
 
-- **Archive (ordered first):** `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/archive-change.sh --changes-dir .docket/<changes_dir> --id <id> --outcome killed --date <UTC kill date> --reason "<why killed text>" --message "<msg>"` — performs the `active/ → archive/<UTC kill date>-<id>-<slug>.md` move, sets `status: killed`, commits the **change file only**, and pushes `origin/docket`. Trust the exit code; abort and report on non-zero.
-- **Publish (after archive):** `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/terminal-publish.sh --id <id> --outcome killed --integration-branch <integration_branch> --metadata-branch docket --changes-dir <changes_dir> --adrs-dir <adrs_dir> --message "<msg>"` — copies terminal records from `origin/docket` onto the integration branch. Trust the exit code; abort and report on non-zero.
-
-**Ordering is load-bearing:** archive on `docket` must complete before `terminal-publish.sh` runs — the publish script reads the archived path from `origin/<metadata_branch>`.
-
-In `main`-mode: `archive-change.sh --outcome killed …` runs against the primary working tree (the integration branch), performing the archive move directly there. `terminal-publish.sh` is a no-op in `main`-mode (its own mode-guard fires on `metadata_branch == integration_branch`). The `<UTC kill date>` is the same date used for the `archive/<date>-…` filename prefix and `origin/<integration_branch>`.
-
-A `proposed` change never had a feature branch or open PR, so there is nothing to clean up — and usually no plan/results, so the kill publishes only what is on `docket`: the change file, plus its `spec:`/`adrs:` if set. This skill still writes markdown only — the terminal-publish copy touches no code.
-
-In both modes, after the kill is archived, refresh `BOARD.md` via the **must-land Board pass** (a separate commit, same as the create path's step 5) so the killed change leaves the board. terminal-publish copies records to the integration branch but never touches `BOARD.md`, so the board refresh is this skill's responsibility.
+Unlike the reference's best-effort default, after the kill is archived this skill runs a **must-land Board pass**: refresh `BOARD.md` as a separate commit, retrying until it lands, so the killed change leaves the board — terminal-publish never touches `BOARD.md`.
