@@ -2,7 +2,7 @@
 id: 55
 slug: slim-remaining-skills
 title: Slim docket-implement-next + propagate Step-0 preamble to the small skills
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-10
 updated: 2026-07-11
@@ -11,11 +11,11 @@ related: [53, 54]
 adrs: []
 spec: docs/superpowers/specs/2026-07-10-slim-remaining-skills-design.md
 plan: docs/superpowers/plans/2026-07-11-slim-remaining-skills.md
-results:
+results: docs/results/2026-07-11-slim-remaining-skills-results.md
 trivial: false
 auto_groomable:
 branch: feat/slim-remaining-skills
-pr:
+pr: https://github.com/danielhanold/docket/pull/67
 blocked_by:
 reconciled: true
 ---
@@ -27,6 +27,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-10-slim-remaining-skills-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-10-slim-remaining-skills-design.md) |
 | Plan | [2026-07-11-slim-remaining-skills.md](https://github.com/danielhanold/docket/blob/feat/slim-remaining-skills/docs/superpowers/plans/2026-07-11-slim-remaining-skills.md) |
+| Results | [2026-07-11-slim-remaining-skills-results.md](https://github.com/danielhanold/docket/blob/feat/slim-remaining-skills/docs/results/2026-07-11-slim-remaining-skills-results.md) |
+| PR | [#67](https://github.com/danielhanold/docket/pull/67) |
 <!-- docket:artifacts:end -->
 
 ## Why
