@@ -2,7 +2,7 @@
 id: 54
 slug: slim-finalize-change-skill
 title: Slim docket-finalize-change — rewire close-out to the shared reference
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-10
 updated: 2026-07-11
@@ -11,11 +11,11 @@ related: [53, 55]
 adrs: [2]
 spec: docs/superpowers/specs/2026-07-10-slim-finalize-change-skill-design.md
 plan: docs/superpowers/plans/2026-07-11-slim-finalize-change-skill.md
-results:
+results: docs/results/2026-07-11-slim-finalize-change-skill-results.md
 trivial: false
 auto_groomable:
 branch: feat/slim-finalize-change-skill
-pr:
+pr: https://github.com/danielhanold/docket/pull/66
 blocked_by:
 reconciled: true
 ---
@@ -27,6 +27,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-10-slim-finalize-change-skill-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-10-slim-finalize-change-skill-design.md) |
 | Plan | [2026-07-11-slim-finalize-change-skill.md](https://github.com/danielhanold/docket/blob/feat/slim-finalize-change-skill/docs/superpowers/plans/2026-07-11-slim-finalize-change-skill.md) |
+| Results | [2026-07-11-slim-finalize-change-skill-results.md](https://github.com/danielhanold/docket/blob/feat/slim-finalize-change-skill/docs/results/2026-07-11-slim-finalize-change-skill-results.md) |
+| PR | [#66](https://github.com/danielhanold/docket/pull/66) |
 | ADRs | [ADR-0002](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0002-docket-mode-default-and-bootstrap.md) |
 <!-- docket:artifacts:end -->
 
