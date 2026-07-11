@@ -2,10 +2,10 @@
 id: 44
 slug: configurable-build-model
 title: Configurable SDD build models for docket-implement-next
-status: proposed
+status: in-progress
 priority: low
 created: 2026-07-07
-updated: 2026-07-08
+updated: 2026-07-11
 depends_on: []
 related: [16, 42]
 adrs: []
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/configurable-build-model
 pr:
 blocked_by:
 reconciled: false
