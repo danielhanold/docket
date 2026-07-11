@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/board-refresh-surface-gate
 pr: https://github.com/danielhanold/docket/pull/64
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts

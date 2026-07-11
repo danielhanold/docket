@@ -110,7 +110,7 @@ Concrete sites to edit:
 
 | Skill | Site(s) |
 |---|---|
-| `docket-status` | Board pass inline-surface render **and** the rebase-conflict "re-run `render-board.sh`" regenerate loop → re-run `board-refresh.sh` |
+| `docket-status` | **Post-0058 (merged): the Board pass moved out of skill prose into `scripts/docket-status.sh`.** Do NOT edit `docket-status/SKILL.md` (58 already deleted the raw redirect; the skill now just invokes the orchestrator and trusts its exit code). Instead compose the primitive into `scripts/docket-status.sh` `board_pass_inline` — its two `render-board.sh … > tmp` sites (initial render + the rebase-conflict regenerate loop) route through `board-refresh.sh` (already atomic/truncation-safe), so `render-board.sh` is only ever reached via `board-refresh.sh`. `board_pass` already gates on the `inline` token, so `board_pass_inline` passes `--surfaces inline` explicitly and keeps its own commit/push+rebase loop. |
 | `docket-new-change` | Step 5 (Board, commit & push), scan mode's board refresh, proposed-kill board refresh |
 | `docket-groom-next` | The must-land Board-pass step |
 | `docket-auto-groom` | The must-land Board-pass step |
@@ -137,8 +137,13 @@ pattern):
 - Missing `--surfaces` flag → exit 2; missing/invalid `--changes-dir` → exit 2.
 - Exit 0 in all rendered/no-op cases.
 
-Update `tests/test_render_board.sh`'s existing docket-status wiring sentinel to require
-`board-refresh.sh` instead of `render-board.sh`; the renderer's behavioral tests remain unchanged.
+**Post-0058 test wiring.** Leave `tests/test_render_board.sh`'s existing docket-status sentinel
+(`grep -qF "/render-board.sh" "$SKILL"`) unchanged — the SKILL still *describes* `render-board.sh`
+(58's reference section), and we are not editing that SKILL. Add to `test_render_board.sh` only the
+**general negative scan**: no `skills/*/SKILL.md` body may redirect `render-board.sh` stdout into
+`BOARD.md` (with a positive-control assertion so the guard regex can't silently weaken). The
+meaningful docket-status assertion moves to `tests/test_docket_status.sh`: assert
+`board_pass_inline` routes its render through `board-refresh.sh` (not `render-board.sh` directly).
 
 The new `scripts/board-refresh.md` contract satisfies the existing
 `tests/test_script_contracts_coverage.sh` (globs `scripts/*.sh` → requires a co-located `.md`).
@@ -171,3 +176,32 @@ The new `scripts/board-refresh.md` contract satisfies the existing
 - Current tests include a `test_render_board.sh` sentinel requiring `docket-status` to name
   `render-board.sh`; it must move to `board-refresh.sh` or the full suite will reject the intended
   wiring. No recent ADR changes the approved ADR-0012 script/model boundary.
+
+## Reconcile notes (2026-07-11 — after change 0058 merged, PR #65)
+
+The prior note's premise ("0058 remains proposed … does not invalidate this change") inverted:
+**0058 landed first** and, in `scripts/docket-status.sh`, independently built the same inline gate
+this spec set out to add — `board_pass` short-circuits empty surfaces (`[ -n "$surfaces" ] ||
+return 0`), keys on the `inline` token, and `board_pass_inline` renders to a temp + `cmp -s` diff
+(no truncation trap) + commits/pushes only on change. 0058 also **deleted** the raw-redirect prose
+section from `docket-status/SKILL.md` — the exact section this spec's original call-site table
+targeted. Rescope, keeping the design core (a git-write-free `board-refresh.sh` gated on `inline`)
+unchanged:
+
+- **Drop** the `docket-status/SKILL.md` edit — obsolete + conflicting. The skill now just invokes
+  the orchestrator; the gate lives in the script.
+- **Keep** `board-refresh.sh` and the sibling-skill rewiring (`docket-new-change`,
+  `docket-groom-next`, `docket-auto-groom`, `docket-finalize-change`, `docket-implement-next`, the
+  two `docket-convention` references) — 0058 never touched those, so the residual bug (they still
+  push `BOARD.md` under `board_surfaces: []`) is real and this change is what fixes it.
+- **Add** composing `board-refresh.sh` into `scripts/docket-status.sh` `board_pass_inline` — a
+  single-source-of-gate dedup (0058's path is already *correct*, just a second copy of the gate),
+  yielding one inline-board primitive and the invariant "`render-board.sh` is only ever reached via
+  `board-refresh.sh`."
+- **Test wiring** updated as in the revised *Testing* section: keep `test_render_board.sh`'s
+  `render-board.sh` SKILL sentinel, add its general negative-redirect scan, and move the
+  docket-status assertion into `test_docket_status.sh`.
+- Chose `board-refresh.sh` over routing siblings through 0058's `docket-status.sh --board-only`
+  (a heavyweight self-syncing/self-committing pass that would fight each sibling's own commit
+  discipline). PR #64 (branched pre-0058 at `3fad316`) is rebased onto `origin/main` and reworked
+  accordingly.
