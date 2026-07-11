@@ -10,7 +10,7 @@ depends_on: []
 related: []
 adrs: [1]
 spec: docs/superpowers/specs/2026-07-11-git-hook-coexistence-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-11-git-hook-coexistence.md
 results:
 trivial: false
 auto_groomable:
@@ -26,6 +26,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-11-git-hook-coexistence-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-11-git-hook-coexistence-design.md) |
+| Plan | [2026-07-11-git-hook-coexistence.md](https://github.com/danielhanold/docket/blob/feat/git-hook-coexistence/docs/superpowers/plans/2026-07-11-git-hook-coexistence.md) |
 | ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md) |
 <!-- docket:artifacts:end -->
 
