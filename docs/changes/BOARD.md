@@ -1,6 +1,6 @@
 # Backlog
 
-**59 changes** — 🟢 1 in progress · 🟡 7 proposed · 🔵 2 implemented · ✅ 47 done · 🗑️ 2 killed
+**60 changes** — 🟢 1 in progress · 🟡 8 proposed · 🔵 2 implemented · ✅ 47 done · 🗑️ 2 killed
 
 ## 🟢 In progress (1)
 
@@ -8,7 +8,7 @@
 |---|-------|----------|------|--------|
 | [0059](active/0059-board-refresh-surface-gate.md) | board-refresh honors board_surfaces — gate BOARD.md regeneration on the resolved surface set | `medium` | [spec](../superpowers/specs/2026-07-10-board-refresh-surface-gate-design.md) | `feat/board-refresh-surface-gate` |
 
-## 🟡 Proposed (7)
+## 🟡 Proposed (8)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -19,6 +19,7 @@
 | [0018](active/0018-yq-yaml-parsing.md) | Evaluate adopting yq for YAML parsing across docket scripts | `low` | needs-brainstorm |
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
+| [0060](active/0060-board-render-truncation-guard.md) | Board pass must not truncate BOARD.md when render-board.sh exits non-zero | `medium` | needs-brainstorm |
 
 ## 🔵 Implemented — awaiting merge (2)
 
@@ -39,6 +40,7 @@ graph TD
   0044
   0056
   0059
+  0060
   0001:::done
   0002:::done
   0003:::done
