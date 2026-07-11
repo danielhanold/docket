@@ -15,6 +15,7 @@ What you get:
 
 - [How it works](#how-it-works)
 - [Why docket](#why-docket)
+- [Consultant-authored brainstorm (opt-in)](#consultant-authored-brainstorm-opt-in)
 - [Install](#install)
 - [Quickstart: the daily loop](#quickstart-the-daily-loop)
 - [Configuration — `.docket.yml`, global config, and machine-local overrides](#configuration--docketyml-global-config-and-machine-local-overrides)
@@ -93,6 +94,55 @@ Two escape hatches handle the cases a rewrite can't:
 - If the design is **fundamentally invalidated** — it needs re-thinking, not just scope-trimming — the implementer stops and escalates to you. Re-brainstorming needs a human and `docket-new-change`; the autonomous implementer will not do it alone.
 
 **The stance: plans rot. Refresh them just-in-time; never trust a stale backlog.** The `reconciled` flag is the visible proof that a change was freshened against reality before implementation began. If an `in-progress` change resumes after a crash or interruption with `reconciled` still `false`, the full reconcile pass runs again before any work continues.
+
+---
+
+## Consultant-authored brainstorm (opt-in)
+
+By default, the `brainstorm` role (the up-front design step in `docket-new-change` and
+`docket-groom-next`) runs `superpowers:brainstorming` — the dialogue and the spec are
+both produced inline, at the session model. **`docket-brainstorm` is an opt-in
+alternative** that keeps the design conversation exactly where it is — with you, inline,
+at whatever model the session runs — but adds a pinned, high-tier design **consultant**
+that authors (or audits) the final spec once the dialogue has settled the design. You
+talk it through as usual; the consultant fires once, at the end, either handing back an
+authored spec or critique concerns that send you back to the dialogue. This is **off by
+default**: nothing changes unless you opt in.
+
+Two ways to opt in:
+
+- **Per-invocation (verbal).** Just say so when you run the interactive skill, e.g.
+  `/docket-new-change "… have a consultant write the spec"`. This wins for that one run
+  regardless of any configured default.
+- **Durable (config).** Bind the role in `.docket.yml` (or global `config.yml`):
+
+  ```yaml
+  skills:
+    brainstorm: docket-brainstorm
+  ```
+
+  Every brainstorm — `docket-new-change` and `docket-groom-next` alike — now goes
+  through the consultant, using the same `skills:` map described in
+  [Workflow roles](#configuration--docketyml-global-config-and-machine-local-overrides).
+
+If the consultant can't be dispatched on this machine (agents not synced, harness
+without dispatch support, or any other per-machine gap), `docket-brainstorm` **degrades
+to running the whole flow inline at the session model, with a prominent warning** —
+no worse than not having opted in.
+
+**Capture-then-groom: running an entire brainstorm at a chosen model.** The consultant
+path pins *authorship*; the dialogue and option generation still run at whatever model
+the session is on. If you want the *whole* brainstorm — dialogue included — pinned to a
+specific model, no new machinery is needed: capture the idea as a stub with
+`docket-new-change` in whichever session it strikes you (skip straight past
+brainstorming — the stub lands at `needs-brainstorm`), then run `docket-groom-next` from
+a session set to the model you want. That session does the full design conversation at
+its own model, and can still opt into consultant authorship on top if you like.
+
+Note: `docket-brainstorm` is its own opt-in **role** skill (bound via the `brainstorm`
+key), not one of the operating-loop stages in [The eight skills](#the-eight-skills)
+below — it's why you'll find nine directories under `skills/` even though that table
+lists eight.
 
 ---
 

@@ -22,5 +22,11 @@ NC="$REPO/skills/docket-new-change/SKILL.md"; GN="$REPO/skills/docket-groom-next
 assert "new-change notes the consultant verbal opt-in" 'grep -q "docket-brainstorm" "$NC"'
 assert "groom-next notes the consultant verbal opt-in" 'grep -q "docket-brainstorm" "$GN"'
 
+RM="$REPO/README.md"
+assert "README documents the consultant brainstorm" 'grep -qi "consultant" "$RM" && grep -q "docket-brainstorm" "$RM"'
+assert "README states off-by-default" 'grep -qiE "off by default|opt-in" "$RM"'
+assert "README documents capture-then-groom" 'grep -qiE "capture-then-groom|capture .* groom" "$RM"'
+assert "README shows the durable binding" 'grep -qF "brainstorm: docket-brainstorm" "$RM"'
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
