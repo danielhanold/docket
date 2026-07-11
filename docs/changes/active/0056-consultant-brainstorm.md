@@ -2,7 +2,7 @@
 id: 56
 slug: consultant-brainstorm
 title: Consultant-authored brainstorm — opt-in pinned design agent for the brainstorm role
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-10
 updated: 2026-07-11
@@ -11,11 +11,11 @@ related: [16, 17, 49]
 adrs: [8, 9, 18, 22]
 spec: docs/superpowers/specs/2026-07-10-consultant-brainstorm-design.md
 plan: docs/superpowers/plans/2026-07-11-consultant-brainstorm.md
-results:
+results: docs/results/2026-07-11-consultant-brainstorm-results.md
 trivial: false
 auto_groomable:
 branch: feat/consultant-brainstorm
-pr:
+pr: https://github.com/danielhanold/docket/pull/68
 blocked_by:
 reconciled: true
 ---
@@ -27,7 +27,9 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-10-consultant-brainstorm-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-10-consultant-brainstorm-design.md) |
 | Plan | [2026-07-11-consultant-brainstorm.md](https://github.com/danielhanold/docket/blob/feat/consultant-brainstorm/docs/superpowers/plans/2026-07-11-consultant-brainstorm.md) |
-| ADRs | [ADR-0008](https://github.com/danielhanold/docket/blob/docket/docs/adrs), [ADR-0009](https://github.com/danielhanold/docket/blob/docket/docs/adrs), [ADR-0018](https://github.com/danielhanold/docket/blob/docket/docs/adrs), [ADR-0022](https://github.com/danielhanold/docket/blob/docket/docs/adrs) |
+| Results | [2026-07-11-consultant-brainstorm-results.md](https://github.com/danielhanold/docket/blob/feat/consultant-brainstorm/docs/results/2026-07-11-consultant-brainstorm-results.md) |
+| PR | [#68](https://github.com/danielhanold/docket/pull/68) |
+| ADRs | [ADR-0008](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0008-agent-layer-generated-subagents.md), [ADR-0009](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0009-auto-groom-critic-isolation.md), [ADR-0018](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0018-pluggable-skills-passthrough-degrade.md), [ADR-0022](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0022-consultant-authored-brainstorm.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
