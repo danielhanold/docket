@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/claude-context-fork-dispatch
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -56,3 +56,15 @@ Full design, selection table, composition (no-recursion) argument, and plan-time
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-07-11 — reconcile at claim (docket-implement-next)
+
+Verified against current `origin/main` (`7bcc80f`) and the metadata tree. No scope change; spec and body remain accurate. Findings:
+
+- All **4 fork-target skills** (`docket-status`, `docket-adr`, `docket-implement-next`, `docket-auto-groom`) currently carry only `name:`/`description:` frontmatter — none has `context: fork` yet, so the parity fix is still needed.
+- All **3 excluded skills** (`docket-finalize-change`, `docket-new-change`, `docket-groom-next`) lack the frontmatter — the test's negative assertion premise holds.
+- `sync-agents.sh:212` still reads `# Harnesses that get a generated Cursor-style dispatch rule (only cursor exhibits the inline quirk).` — the stale comment to correct.
+- README harness section (~L408–420) documents the Cursor dispatch rule but not Claude's inline quirk / `context: fork` — the two-mechanism story must be added.
+- Related work all landed: 0016 (agent layer, ADR-0008), 0045 (multi-harness generation), 0046 (per-harness models), 0048 (Cursor dispatch-rule generation — the Cursor half of the two-mechanism story) are all **done**.
+- Referenced follow-up **0062** (autonomous-finalize-merge-authorization) exists in `active/` — the "finalize is out of scope, tracked as 0062" reference resolves.
+- No existing `context: fork` anywhere in the repo — clean introduction.
