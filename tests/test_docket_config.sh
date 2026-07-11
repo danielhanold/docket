@@ -570,5 +570,22 @@ printf 'build:\n  implementer: local-model\n' > "$tmp/r4/.docket.local.yml"
 out="$(rung "$tmp/r4.xdg" "$tmp/r4" --export)"; eval "$out"
 assert "0044 R4: local build.implementer beats committed+global" '[ "$BUILD_IMPLEMENTER" = local-model ]'
 
+# (R5) unknown build: role: warned + ignored, other roles still resolve, non-fatal.
+mkrepo "$tmp/r5"
+cat > "$tmp/r5/.docket.yml" <<'EOF'
+metadata_branch: main
+integration_branch: main
+build:
+  bogus: x
+  implementer: real-model
+EOF
+git -C "$tmp/r5" add .docket.yml; git -C "$tmp/r5" commit --quiet -m cfg
+git -C "$tmp/r5" push --quiet origin main
+errout="$(run "$tmp/r5" --export 2>&1 >/dev/null)"; rc=$?
+out="$(run "$tmp/r5" --export 2>/dev/null)"; eval "$out"
+assert "0044 R5: unknown build role not fatal (rc=0)" '[ "$rc" = "0" ]'
+assert "0044 R5: warns unknown build role"             'grep -qi "unknown build role" <<<"$errout" && grep -q "bogus" <<<"$errout"'
+assert "0044 R5: BUILD_IMPLEMENTER still resolves"      '[ "$BUILD_IMPLEMENTER" = real-model ]'
+
 if [ "$fail" = 0 ]; then echo PASS; else echo FAIL; fi
 exit "$fail"
