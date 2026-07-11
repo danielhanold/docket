@@ -1,8 +1,8 @@
 # Backlog
 
-**62 changes** — 🟡 8 proposed · 🔵 2 implemented · ✅ 50 done · 🗑️ 2 killed
+**63 changes** — 🟡 9 proposed · 🔵 2 implemented · ✅ 50 done · 🗑️ 2 killed
 
-## 🟡 Proposed (8)
+## 🟡 Proposed (9)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -14,6 +14,7 @@
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0062](active/0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | `low` | needs-brainstorm |
+| [0063](active/0063-git-hook-coexistence.md) | Coexist with git-hook frameworks — docket bookkeeping commits skip hooks | `high` | build-ready |
 
 ## 🔵 Implemented — awaiting merge (2)
 
@@ -34,6 +35,7 @@ graph TD
   0044
   0061
   0062
+  0063
   0001:::done
   0002:::done
   0003:::done
