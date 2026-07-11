@@ -48,7 +48,7 @@ The per-change steps below run for each selected change; step 5 (Board) runs onc
 
 2.5 **Harvest learnings.** Distill this change's close-out signals — PR review comments, merge-gate feedback, `results:` findings — into zero or more entries at the top of `LEARNINGS.md` (format per the convention's *Learnings ledger*; provenance `(#<id>, PR #<n>)`). Zero entries is normal. **Idempotency probe:** skip if the ledger already cites `(#<id>`. Commit as its own commit on `metadata_branch` (never bundled with the archive commit) and push. Kills are not harvested. This step is the harvest procedure's single source; `docket-status`'s sweep invokes it by reference.
 
-3. **Archive → re-render → publish.** This is the shared terminal close-out sequence — **the single source is `skills/docket-convention/references/terminal-close-out.md`; follow it exactly, steps 1–3.** Finalize-only facts the reference doesn't carry: compute the merge date in **UTC** via `gh`'s `mergedAt` (never `now()`); pass `--results <path>` to `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/archive-change.sh` when a results file arrived via the merge; this skill's posture on any non-zero exit is **abort-and-report** (stop this change's close-out, surface the failure — see the reference's *Failure posture* table).
+3. **Archive → re-render → publish.** This is the shared terminal close-out sequence — **the single source is `skills/docket-convention/references/terminal-close-out.md`; follow it exactly, steps 1–3.** Finalize-only facts the reference doesn't carry: compute the merge date in **UTC** via `gh`'s `mergedAt` (never `now()`); pass `--results <path>` to `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/archive-change.sh` when a results file arrived via the merge; the sequence's re-render step is `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/render-change-links.sh` (sole writer of the archived file's `## Artifacts` block, committed as a follow-on and pushed before publish reads it); this skill's posture on any non-zero exit is **abort-and-report** (stop this change's close-out, surface the failure — see the reference's *Failure posture* table).
 
 4. **Clean up** — invoke `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/cleanup-feature-branch.sh --slug <slug>`; trust the exit code.
 
@@ -76,7 +76,7 @@ finalize:
 
 1. `gate == off` → merge trusting the PR's own CI; skip the rest of the gate.
 2. **Rebase** `feat/<slug>` onto `origin/<integration_branch>`. On conflict, dispatch the `docket-rebase-resolver` subagent (foreground, at the model/effort its wrapper resolves) to reconcile every hunk until the rebase completes; an **ambiguous conflict** it can't resolve aborts the rebase and the gate **abort-and-reports**.
-3. **Determine the suite:** `test_command` override, else auto-detect. Under `local`/`both` with no detectable suite and no `test_command`, **abort-and-report**.
+3. **Determine the suite:** `test_command` override, else auto-detect. Under `local`/`both` with no detectable suite and no `test_command`, **abort-and-report** — this fires only when the suite is *undetectable*; a detected suite that runs clean (even one with zero tests) is green and proceeds.
 4. **Validate per `gate`:**
    - `local` runs the suite in the worktree **before any push**.
    - `ci` pushes `--force-with-lease` then polls `gh pr checks`; `both` does both.
