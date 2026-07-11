@@ -1,8 +1,14 @@
 # Backlog
 
-**60 changes** — 🟡 8 proposed · 🔵 1 implemented · ✅ 49 done · 🗑️ 2 killed
+**60 changes** — 🟢 1 in progress · 🟡 7 proposed · 🔵 1 implemented · ✅ 49 done · 🗑️ 2 killed
 
-## 🟡 Proposed (8)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Spec | Branch |
+|---|-------|----------|------|--------|
+| [0060](active/0060-board-render-truncation-guard.md) | Board pass must not truncate BOARD.md when render-board.sh exits non-zero | `medium` | [spec](../superpowers/specs/2026-07-11-board-render-truncation-guard-design.md) | `feat/board-render-truncation-guard` |
+
+## 🟡 Proposed (7)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -13,7 +19,6 @@
 | [0018](active/0018-yq-yaml-parsing.md) | Evaluate adopting yq for YAML parsing across docket scripts | `low` | needs-brainstorm |
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
-| [0060](active/0060-board-render-truncation-guard.md) | Board pass must not truncate BOARD.md when render-board.sh exits non-zero | `medium` | build-ready |
 
 ## 🔵 Implemented — awaiting merge (1)
 
