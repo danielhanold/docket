@@ -71,9 +71,13 @@ before the first read; every commit pushes immediately.
    `.worktrees/<slug>` are removed — never the `.docket/` metadata worktree or any out-of-tree
    path.
 
-5. **Board refresh.** Regenerate each enabled board surface (the Board pass) and commit + push on
-   `metadata_branch` — always a **separate commit** from the archive commits above. `BOARD.md` is
-   the live planning view and is never published to the integration branch.
+5. **Board refresh.** Regenerate each enabled board surface (the Board pass): for `inline`, invoke
+   `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/board-refresh.sh --changes-dir .docket/<changes_dir> --surfaces "$BOARD_SURFACES"`,
+   then stage `BOARD.md` and commit + push it on `metadata_branch` — only if BOARD.md changed
+   (`git status --porcelain -- <changes_dir>/BOARD.md` is non-empty) — always a **separate commit**
+   from the archive commits above; when `inline` is disabled or the render is unchanged, this step
+   commits nothing. `BOARD.md` is the live planning view and is never published to the integration
+   branch.
 
 ## main-mode degradation
 

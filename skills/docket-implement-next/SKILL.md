@@ -82,7 +82,7 @@ Then, BACK IN THE **METADATA WORKING TREE** (in `docket`-mode, `.docket/`), set 
 
 ### Best-effort board refresh
 
-The Board pass this skill runs after its own status writes (claim, reconcile-kill, `implemented`) is **best-effort**: attempt the regen + push with bounded retries, then **log and continue** — never abort the build for it. The build's correctness rests on the change-file CAS, not the board; any residual staleness self-heals at the next must-land Board pass (the next change's Step 0 `docket-status`, a manual `docket-status`, or finalize). The board is always a **separate commit** from the `status:` write (keeping the claim CAS byte-identical across concurrent agents).
+The Board pass this skill runs after its own status writes (claim, reconcile-kill, `implemented`) is **best-effort**: invoke `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/board-refresh.sh --changes-dir .docket/<changes_dir> --surfaces "$BOARD_SURFACES"`, stage `BOARD.md`, and — only if BOARD.md changed (`git status --porcelain -- <changes_dir>/BOARD.md` is non-empty) — commit + push it with bounded retries, then **log and continue** — never abort the build for it. When `inline` is disabled or the render didn't change, `board-refresh.sh` leaves the file untouched, so there is nothing staged and this step is a clean no-op. The build's correctness rests on the change-file CAS, not the board; any residual staleness self-heals at the next must-land Board pass (the next change's Step 0 `docket-status`, a manual `docket-status`, or finalize). The board is always a **separate commit** from the `status:` write (keeping the claim CAS byte-identical across concurrent agents).
 
 ## The reconcile pass and the `reconciled` flag
 
