@@ -1,6 +1,6 @@
 # Backlog
 
-**60 changes** — 🟢 1 in progress · 🟡 8 proposed · 🔵 2 implemented · ✅ 47 done · 🗑️ 2 killed
+**60 changes** — 🟢 1 in progress · 🟡 8 proposed · 🔵 1 implemented · ✅ 48 done · 🗑️ 2 killed
 
 ## 🟢 In progress (1)
 
@@ -21,12 +21,11 @@
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0060](active/0060-board-render-truncation-guard.md) | Board pass must not truncate BOARD.md when render-board.sh exits non-zero | `medium` | needs-brainstorm |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | [#69](https://github.com/danielhanold/docket/pull/69) |
-| [0056](active/0056-consultant-brainstorm.md) | Consultant-authored brainstorm — opt-in pinned design agent for the brainstorm role | `medium` | [#68](https://github.com/danielhanold/docket/pull/68) |
 
 ```mermaid
 graph TD
@@ -38,7 +37,6 @@ graph TD
   0015 --> 0019
   0030 --> 0033
   0044
-  0056
   0059
   0060
   0001:::done
@@ -86,17 +84,19 @@ graph TD
   0053:::done
   0054:::done
   0055:::done
+  0056:::done
   0057:::done
   0058:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (49)</summary>
+<details><summary>✅🗑️ Archive — done + killed (50)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0058](archive/2026-07-11-0058-docket-status-orchestrator.md) | docket-status orchestrator — collapse the status pass into one script call | 2026-07-11 |
 | [0057](archive/2026-07-11-0057-docket-owned-gitignore-consolidation.md) | Fold the migration-time .gitignore entries into the managed docket:generated block | 2026-07-11 |
+| [0056](archive/2026-07-11-0056-consultant-brainstorm.md) | Consultant-authored brainstorm — opt-in pinned design agent for the brainstorm role | 2026-07-11 |
 | [0055](archive/2026-07-11-0055-slim-remaining-skills.md) | Slim docket-implement-next + propagate Step-0 preamble to the small skills | 2026-07-11 |
 | [0054](archive/2026-07-11-0054-slim-finalize-change-skill.md) | Slim docket-finalize-change — rewire close-out to the shared reference | 2026-07-11 |
 | [0053](archive/2026-07-11-0053-slim-convention-status-skills.md) | Slim docket-convention + docket-status via progressive disclosure | 2026-07-11 |
