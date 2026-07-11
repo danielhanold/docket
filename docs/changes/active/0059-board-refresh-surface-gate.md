@@ -81,6 +81,27 @@ Introduce a deterministic gate so the opt-out is enforced in code, not prose (pe
 
 ## Reconcile log
 
+- 2026-07-11 — **HELD pending PRs #67 (0055) and #68 (0056).** After the 0058 rescope was built and
+  the full suite passed green (on a branch rebased onto main@`2a3e20a`), `origin/main` advanced twice
+  mid-work: 0058 (#65) then **0054/#66 merged** (slimmed `finalize/SKILL.md`), and a concurrent
+  session/loop is actively finalizing. **0059 is the most conflict-prone change in the backlog** — it
+  touches ~18 files (every skill), and the still-open slim PRs overlap heavily: **#67 (0055)** shares
+  5 files (`docket-auto-groom`, `docket-groom-next`, `docket-implement-next`, `docket-new-change`,
+  `references/terminal-close-out.md`) and **#68 (0056)** shares 3 (`docket-convention`,
+  `docket-groom-next`, `docket-new-change`). Decision (human, 2026-07-11): **rebase 0059 LAST** — land
+  #67 and #68 first, then rebase 0059 once onto the fully-slimmed skills (one clean reconcile instead
+  of three). **State of the held work:** the rescoped rework is committed on the local feature branch
+  `feat/board-refresh-surface-gate` (tip `1f0b4b0`, rebased onto `2a3e20a` + the docket-status
+  composition) but **NOT force-pushed** — PR #64's remote branch stays at `b83bf0c` (pre-rebase).
+  **To resume once #67/#68 are done:** (1) rebase `feat/board-refresh-surface-gate` onto the new
+  `origin/main`; (2) resolve conflicts in the overlapping skill files by re-applying 0059's
+  board-refresh rewiring to the *slimmed* prose — notably `finalize/SKILL.md` step 5's board line
+  became a one-liner after 0054, and 0055 will similarly slim the other siblings + `terminal-close-out.md`;
+  the docket-status composition commit (`1f0b4b0`) touches `scripts/docket-status.sh`,
+  `tests/test_docket_status.sh`, `tests/test_render_board.sh` — none overlap #67/#68, so it replays
+  cleanly; (3) re-run the full suite foreground; (4) force-push PR #64; (5) finalize. `reconciled` is
+  left `true` for the 0058 pass, but this rebase-onto-final-main is a fresh reconcile the resumer must
+  perform (per the implementer's "re-reconcile if origin advanced" rule).
 - 2026-07-11 — **Re-reconciled after change 0058 merged (PR #65).** The prior entry's assumption
   ("0058 is still proposed and can later compose the new helper") inverted: 0058 landed first and
   independently built the same gate inside its new `scripts/docket-status.sh` orchestrator —
