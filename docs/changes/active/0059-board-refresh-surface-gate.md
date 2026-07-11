@@ -10,7 +10,7 @@ depends_on: []
 related: [58, 11]
 adrs: []
 spec: docs/superpowers/specs/2026-07-10-board-refresh-surface-gate-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-11-board-refresh-surface-gate.md
 results:
 trivial: false
 auto_groomable:
@@ -26,6 +26,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-10-board-refresh-surface-gate-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-10-board-refresh-surface-gate-design.md) |
+| Plan | [2026-07-11-board-refresh-surface-gate.md](https://github.com/danielhanold/docket/blob/feat/board-refresh-surface-gate/docs/superpowers/plans/2026-07-11-board-refresh-surface-gate.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
