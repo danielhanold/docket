@@ -4,6 +4,16 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-07-11 (#54, PR #66) — A behavior-neutral skill slim (docket-finalize-change, 234 → 114
+  lines) passed its own goal-scoped whole-branch review, yet the finalize gate's **full** suite
+  caught a regression the spec's 7 enumerated sentinel tests did not: the slim had dropped
+  finalize's required `render-change-links.sh` mention, reddening `test_change_links_coverage` — a
+  test outside the anticipated set. The #52 pattern (a goal-scoped rewrite passes its own audit
+  while an out-of-goal dimension slips), caught here by the gate machinery, not a human. Apply: run
+  the WHOLE suite at the merge/build gate, never only the tests the spec enumerated as touched — the
+  sentinel list is a floor (cf. #42), and a regression in an out-of-goal dimension is exactly what
+  the tests *outside* that list exist to catch.
+
 - 2026-07-11 (#58, PR #65) — A `gh api graphql` jq path read one level too shallow
   (`.data.pN.mergedAt` vs `.data.pN.pullRequest.mergedAt`); the bug was masked because the test
   mock returned a *flattened* JSON shape `gh` never actually emits, so the test passed against a
@@ -11,11 +21,15 @@
   all) — a mock shaped to match the code under test rather than the real tool validates nothing and
   hides production parse bugs.
 
-- 2026-07-11 (#57, PR #63) — A guard on a marker-bounded "do-not-hand-edit" managed block checked
-  marker *presence*, not *order*: an END-before-START (same spelling) corrupted block bypassed it and
-  the strip consumed to EOF, dropping user bytes (the LEARNINGS #51 class, re-hit). Apply: when
-  stripping/rewriting a marker-delimited block, validate marker *order and balance* (refuse-and-warn
-  on dangling / out-of-order / nested / unbalanced markers, either spelling) — never presence alone.
+- 2026-07-10/11 (#51 PR #60; #57 PR #63 — merged, re-hit class) — An awk/sed **range** edit
+  (`/start/,/end/`) over a marker-bounded "do-not-hand-edit" managed block is a data-loss hazard
+  whenever the end marker is lost (truncation / bad merge) or the markers are out of order
+  (END-before-START, same spelling): the range runs to EOF and silently deletes the user's own
+  content after the dangling start (`.gitignore` bytes here). A guard checking marker *presence*
+  alone is bypassed by the corrupted block. Apply: before stripping/rewriting a marker-delimited
+  block, validate marker *order and balance* — refuse-and-warn on dangling / out-of-order / nested /
+  unbalanced markers (either spelling) and leave the file untouched; never presence alone, never let
+  the range consume to EOF.
 
 - 2026-07-10 (#52, PR #61) — A critique-driven README rewrite audited hard against its three named
   goals (accuracy, structure, newcomer clarity) and shipped clean — but a dimension *outside* that
@@ -27,15 +41,6 @@
   documenting a multi-harness/multi-backend tool, add "neutral across the supported set" as an
   explicit rewrite goal, and default narrative examples to the *neutral* term, naming a specific
   harness only when the mechanic is genuinely specific to it.
-
-- 2026-07-10 (#51, PR #60) — A managed block bounded by `# docket:generated:start/end` markers
-  turned an awk **range** edit into a data-loss hazard: when the end marker was lost (truncation
-  or a bad merge), `/start/,/end/` ran to EOF and silently deleted the user's own `.gitignore`
-  content after the dangling start — caught in per-task review, fixed to detect the unterminated
-  marker, warn loudly, and leave the file untouched (`b0c1980`). Apply: any script editing a
-  marker-delimited managed block with an awk/sed range must first verify the block is *closed*
-  (both markers present, in order); on a dangling start marker refuse the edit and warn — never
-  let the range consume to EOF.
 
 - 2026-07-10 (#51, PR #60) — A printed migration remedy chained `git add .gitignore && git commit`
   unconditionally, but in a repo with stale tracked wrappers and no current opt-in no block is
