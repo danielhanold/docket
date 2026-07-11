@@ -1,6 +1,8 @@
 ---
 name: docket-implement-next
 description: Use when you want the next build-ready change in the docket backlog implemented end-to-end to an open PR with no human interaction — picking, claiming, reconciling against current reality, planning, building with TDD, reviewing, and stopping at the human merge gate. The autonomous backlog-drainer; runs solo per change.
+context: fork
+agent: docket-implement-next
 ---
 
 # docket-implement-next — the implementer (autonomous)

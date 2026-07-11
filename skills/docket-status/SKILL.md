@@ -1,6 +1,8 @@
 ---
 name: docket-status
 description: Use when you want to see or refresh the docket backlog — what is proposed, in progress, blocked, implemented, or done — by regenerating the BOARD.md board, sweeping merged changes to done, or running health checks for stale claims, broken spec/plan/results links, and dependency stalls.
+context: fork
+agent: docket-status
 ---
 
 # docket-status — the board & janitor
