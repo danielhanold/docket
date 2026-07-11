@@ -1,8 +1,14 @@
 # Backlog
 
-**59 changes** — 🟡 9 proposed · 🔵 4 implemented · ✅ 44 done · 🗑️ 2 killed
+**59 changes** — 🟢 1 in progress · 🟡 8 proposed · 🔵 4 implemented · ✅ 44 done · 🗑️ 2 killed
 
-## 🟡 Proposed (9)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Spec | Branch |
+|---|-------|----------|------|--------|
+| [0056](active/0056-consultant-brainstorm.md) | Consultant-authored brainstorm — opt-in pinned design agent for the brainstorm role | `medium` | [spec](../superpowers/specs/2026-07-10-consultant-brainstorm-design.md) | `feat/consultant-brainstorm` |
+
+## 🟡 Proposed (8)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -14,7 +20,6 @@
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | build-ready |
-| [0056](active/0056-consultant-brainstorm.md) | Consultant-authored brainstorm — opt-in pinned design agent for the brainstorm role | `medium` | build-ready |
 
 ## 🔵 Implemented — awaiting merge (4)
 
