@@ -118,6 +118,10 @@ pub="$(mktemp -d)/pub"
 $GIT worktree prune
 $GIT worktree add -B "pub-$T" "$pub" "$REMOTE/$INT_BRANCH" >/dev/null 2>&1 \
   || die "could not provision pub-$T worktree"
+# Change 0063: this is docket's own doc-publish commit (its archived change/spec/ADRs), not the
+# team's code — skip the integration branch's shared hooks on it. Covers the publish commit AND the
+# CAS rebase --continue replay below (worktree-scoped, torn down with the worktree). Best-effort.
+"$(dirname "$0")/disable-worktree-hooks.sh" --worktree "$pub" >/dev/null 2>&1 || true
 
 teardown(){
   $GIT -C "$pub" checkout --detach >/dev/null 2>&1
