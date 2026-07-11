@@ -26,8 +26,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-10-docket-owned-gitignore-consolidation-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-10-docket-owned-gitignore-consolidation-design.md) |
-| Plan | [2026-07-10-docket-owned-gitignore-consolidation.md](https://github.com/danielhanold/docket/blob/feat/docket-owned-gitignore-consolidation/docs/superpowers/plans/2026-07-10-docket-owned-gitignore-consolidation.md) |
-| Results | [2026-07-10-docket-owned-gitignore-consolidation-results.md](https://github.com/danielhanold/docket/blob/feat/docket-owned-gitignore-consolidation/docs/results/2026-07-10-docket-owned-gitignore-consolidation-results.md) |
+| Plan | [2026-07-10-docket-owned-gitignore-consolidation.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-10-docket-owned-gitignore-consolidation.md) |
+| Results | [2026-07-10-docket-owned-gitignore-consolidation-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-10-docket-owned-gitignore-consolidation-results.md) |
 | PR | [#63](https://github.com/danielhanold/docket/pull/63) |
 | ADRs | [ADR-0020](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0020-generated-agent-artifacts-machine-local.md) |
 <!-- docket:artifacts:end -->
