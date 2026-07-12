@@ -1,15 +1,16 @@
 # Backlog
 
-**66 changes** — 🟢 2 in progress · 🟡 9 proposed · 🔵 1 implemented · ✅ 52 done · 🗑️ 2 killed
+**66 changes** — 🟢 3 in progress · 🟡 8 proposed · 🔵 1 implemented · ✅ 52 done · 🗑️ 2 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (3)
 
 | # | Title | Priority | Spec | Branch |
 |---|-------|----------|------|--------|
 | [0064](active/0064-optional-terminal-publish.md) | Optional terminal-publish — per-repo opt-out to keep metadata on docket | `medium` | [spec](../superpowers/specs/2026-07-12-optional-terminal-publish-design.md) | `feat/optional-terminal-publish` |
 | [0065](active/0065-agent-model-pinning-docs.md) | Document the two invocation paths and per-agent model pinning; ADR the context:fork findings | `medium` | [spec](../superpowers/specs/2026-07-12-agent-model-pinning-docs-design.md) | `feat/agent-model-pinning-docs` |
+| [0066](active/0066-auto-groom-critic-recheck-foreground.md) | Auto-groom's critic re-check must be foreground — a forked skill that yields returns a half-done run to its caller | `high` | [spec](../superpowers/specs/2026-07-12-auto-groom-critic-recheck-foreground-design.md) | `feat/auto-groom-critic-recheck-foreground` |
 
-## 🟡 Proposed (9)
+## 🟡 Proposed (8)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -21,7 +22,6 @@
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0062](active/0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | `low` | build-ready |
-| [0066](active/0066-auto-groom-critic-recheck-foreground.md) | Auto-groom's critic re-check must be foreground — a forked skill that yields returns a half-done run to its caller | `high` | build-ready |
 
 ## 🔵 Implemented — awaiting merge (1)
 
