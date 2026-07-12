@@ -21,7 +21,7 @@
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0062](active/0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | `low` | build-ready |
-| [0066](active/0066-auto-groom-critic-recheck-foreground.md) | Auto-groom's critic re-check must be foreground — a forked skill that yields returns a half-done run to its caller | `high` | needs-brainstorm |
+| [0066](active/0066-auto-groom-critic-recheck-foreground.md) | Auto-groom's critic re-check must be foreground — a forked skill that yields returns a half-done run to its caller | `high` | build-ready |
 
 ## 🔵 Implemented — awaiting merge (1)
 
