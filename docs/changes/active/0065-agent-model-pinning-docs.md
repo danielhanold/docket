@@ -9,7 +9,7 @@ updated: 2026-07-12
 depends_on: []
 related: [16, 45, 46, 61]
 adrs:
-spec:
+spec: docs/superpowers/specs/2026-07-12-agent-model-pinning-docs-design.md
 plan:
 results:
 trivial: false
@@ -24,6 +24,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-07-12-agent-model-pinning-docs-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-12-agent-model-pinning-docs-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -40,17 +43,19 @@ The docs gap is also **wider than docket**. The per-agent `model`/`effort` pin i
 
 ## What changes
 
-**1. An ADR recording the verified `context: fork` behavior** (Claude Code 2.1.207, four probe skills + one live in-session invocation):
+Documentation plus one ADR. No script, no schema, no skill behavior changes.
 
-- `context: fork` **is honored**, including when the skill is reached through the Skill tool — a real subagent is spawned with its own `subagents/agent-<id>.jsonl` and `agentType` metadata.
-- The wrapper's **`model`/`effort` pin is honored** inside the fork (haiku-pinned wrappers ran at `claude-haiku-4-5` under an opus/sonnet parent).
-- The **self-preloading cycle is safe** — an agent whose `skills:` preloads the skill that forks into it neither recurses nor degrades to inline. This closes 0061's open question.
-- A forked run is **not drillable in the TUI**, unlike an Agent-tool dispatch; its log is only reachable on disk.
-- Skills and agents are registered at **process start**, so a session that predates a frontmatter change runs the old definition — the failure mode that made the fork look broken.
+**1. ADR-0026 — accept fork opacity; two invocation paths; no tooling.** A new ADR (`relates_to: [8, 17, 20, 24]`) whose *decision* is the one the 2026-07-12 findings force: a forked run is unobservable in the TUI by design of the harness, and docket **accepts that rather than tooling around it** (no log-tailer, no progress protocol) — instead documenting two first-class invocation paths into the same pinned wrapper, plus the on-disk transcript path as the escape hatch. Its `## Context` carries the five verified findings (Claude Code 2.1.207, four probe skills + one live invocation): `context: fork` is honored through the Skill tool; the wrapper's `model`/`effort` pin holds inside the fork; the **self-preloading cycle is safe** (this closes 0061's open question); the fork is not drillable in the TUI; skills and agents register at **process start**, so a stale session runs old definitions — the failure mode that made a healthy fork look broken.
 
-**2. README: the two invocation paths.** Document skill-invoke (`/docket-status` — forks, pinned, cheapest, opaque) vs agent-dispatch (`@docket-status` — same pin, drillable, costs the dispatch turn), when to reach for each, and where the fork's log lands on disk.
+ADR-0024 is not edited, but gets a dated `## Update` note pointing forward to 0026 — the ADR index renders no back-links, so without it a reader of 0024 never learns its open question was closed.
 
-**3. README: per-agent model pinning as a first-class idea.** Expand beyond docket-specific mechanics into the general principle the agent layer embodies — matching model tier and reasoning effort to the task rather than to the session, why a single-model session overpays or underthinks, and how `agents:` in `.docket.yml` expresses it. This is teaching material, not reference: assume the reader has never considered that one session can span several models.
+**2. README: the two invocation paths.** Skill-invoke (`/docket-status` — forks, pinned, cheapest, opaque) vs agent-dispatch (`@docket-status` — same pin, drillable, costs a dispatch turn), when to reach for each, where the fork's transcript lands on disk (flagged as an observed harness internal, not a contract), and the restart-your-session caveat.
+
+**3. README: per-agent model pinning as a first-class idea.** The general principle the agent layer embodies — match model tier and effort to the *task*, not the *session*; why a single-model session overpays or underthinks; how `agents:` expresses it. Teaching altitude, for a reader who has never considered that one session can span several models. Both README additions land as bold-lead paragraph blocks inside the existing `## Tuning agent models & effort` (that section uses no `###` headings).
+
+**4. `references/agent-layer.md`** gets the mechanics in ~6 lines (both paths land on the same pinned wrapper), and `tests/test_skill_fork_dispatch.sh` gains positive-anchor doc sentinels so this prose cannot go stale unnoticed — the exact drift 0061's review caught.
+
+Full design, the eight audited assumptions, and the file-by-file scope are in the linked spec.
 
 ## Out of scope
 
@@ -61,7 +66,9 @@ The docs gap is also **wider than docket**. The per-agent `model`/`effort` pin i
 
 ## Open questions
 
-- Does the ADR supersede or merely extend ADR-0024 (`claude-context-fork-skill-dispatch`)? Leaning extend — 0024's decision holds; this adds verified consequences and the observability caveat.
-- Does the model-pinning explainer belong in README, or in a `docs/` guide that README links to, given README length?
+Both resolved at auto-groom (2026-07-12); the reasoning and rejected alternatives are audited in the spec's `## Assumptions` block.
+
+- **Supersede or extend ADR-0024?** → **Extend.** 0024's decision is confirmed, not replaced, so ADR-0026 is parallel and additive — plus a dated `## Update` note on 0024, because the ADR index renders no back-links and a reader of 0024 would otherwise never find 0026 (spec A1).
+- **README or a `docs/` guide?** → **README.** It is the repo's only prose doc on `main` (no guides tree exists), it already carries teaching-altitude sections, and a second home for agent-layer prose is precisely how this material drifted before (spec A3). ~540 lines is the accepted cost; extracting later is a pure move.
 
 ## Reconcile log
