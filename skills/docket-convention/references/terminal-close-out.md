@@ -1,14 +1,13 @@
 # Terminal close-out — the shared per-change sequence
 
 > Single source for the close-out sequence a terminal transition (`done` or `killed`) runs:
-> archive → re-render `## Artifacts` → terminal-publish → cleanup → board. Live consumers today:
-> `docket-finalize-change`'s per-change close-out and `docket-status`'s merge sweep (the two
-> `done` drivers). The kill callers — `docket-implement-next`'s reconcile-kill and
-> `docket-new-change`'s proposed-kill — are still governed by their own skill bodies (archive →
-> publish → prune, with no step-2 re-render) until changes 0054/0055 rewire them onto this file;
-> their posture rows below describe that adoption. The sequence is one; only the failure posture
-> differs per caller (table below). This file owns ordering and posture; each script's mechanics
-> live in its co-located contract (`scripts/<name>.md`).
+> archive → re-render `## Artifacts` → terminal-publish → cleanup → board. All four drivers route
+> through this file: `docket-finalize-change`'s per-change close-out and `docket-status`'s merge
+> sweep (the two `done` drivers), plus the kill callers — `docket-implement-next`'s reconcile-kill
+> and `docket-new-change`'s proposed-kill (rewired onto this file by changes 0054/0055). The
+> sequence is one; only the failure posture differs per caller (table below). This file owns
+> ordering and posture; each script's mechanics live in its co-located contract
+> (`scripts/<name>.md`).
 
 Contents: [The sequence](#the-sequence-docket-mode) · [main-mode degradation](#main-mode-degradation) · [Failure posture](#failure-posture--per-caller) · [Determinism invariant](#determinism-invariant)
 
@@ -48,11 +47,12 @@ before the first read; every commit pushes immediately.
    into the step-1 archive commit (which must stay change-file-only and byte-identical across
    concurrent archivers).
 
-3. **Publish the terminal record.** Reached only after the step-2 commit is on `origin/docket`:
+3. **Publish the terminal record.** Reached only after the step-2 commit is on `origin/docket`.
+   **Gated by `TERMINAL_PUBLISH`** (change 0064) — pass the resolved value straight through:
 
    ```
-   "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/terminal-publish.sh --id <id> --outcome <done|killed> \
-     --integration-branch <integration_branch> --metadata-branch docket \
+   "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/terminal-publish.sh --id <id> --enabled "$TERMINAL_PUBLISH" \
+     --outcome <done|killed> --integration-branch <integration_branch> --metadata-branch docket \
      --changes-dir <changes_dir> --adrs-dir <adrs_dir> --message "<msg>"
    ```
 
@@ -60,6 +60,11 @@ before the first read; every commit pushes immediately.
    from `origin/docket` onto the integration branch in one dedicated commit — the only flow of
    metadata onto the code line. Trust the exit code; its reuse-existing-file idempotency makes two
    drivers racing on the same change a safe no-op.
+
+   When the repo sets `terminal_publish: false`, the script is a **no-op that exits 0** — the
+   record stays on `docket`, and a suppressed publish is *success*: it does NOT trip the
+   skip-publish guard, so steps 4–5 still run. Callers pass the flag and keep trusting the exit
+   code; no caller branches on the knob itself.
 
 4. **Clean up the feature branch + worktree.**
 
@@ -85,6 +90,9 @@ In single-branch/`main`-mode the metadata working tree *is* the integration bran
 archive commit is itself the terminal record: `terminal-publish.sh` is a no-op (its own mode-guard
 fires), and the step-2 renderer still runs once to re-point the block in place, committed before
 cleanup. Steps 4–5 are unchanged.
+
+The `terminal_publish` knob (change 0064) is likewise inert in `main`-mode — the mode guard already
+makes the publish a no-op, so there is no surface for the knob to act on.
 
 ## Failure posture — per caller
 

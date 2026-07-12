@@ -459,4 +459,24 @@ assert "wiring(close-out ref): reconcile-kill invokes archive-change.sh"     'gr
 assert "wiring(close-out ref): reconcile-kill invokes cleanup-feature-branch.sh" 'grep -q "/cleanup-feature-branch.sh" "$TCO"'
 assert "wiring(close-out ref): reconcile-kill invokes terminal-publish.sh" 'grep -q "/terminal-publish.sh" "$TCO"'
 
+# --- change 0064: every documented terminal-publish call site passes --enabled ---
+ADRSKILL="$REPO/skills/docket-adr/SKILL.md"
+assert "0064 wiring: close-out step 3 passes --enabled" \
+  'grep -q -- "--enabled" "$TCO"'
+assert "0064 wiring: close-out step 3 passes the TERMINAL_PUBLISH value" \
+  'grep -q -- "--enabled \"\$TERMINAL_PUBLISH\"" "$TCO"'
+assert "0064 wiring: docket-adr passes --enabled on BOTH --adr call sites" \
+  '[ "$(grep -c -- "--enabled \"\$TERMINAL_PUBLISH\"" "$ADRSKILL")" -eq 2 ]'
+# The invariant: no documented invocation may omit the gate. Every line that invokes
+# terminal-publish.sh in the skill/reference prose must carry --enabled.
+assert "0064 wiring: no ungated terminal-publish invocation in skills/" \
+  '[ -z "$(grep -rn "terminal-publish\.sh --\(id\|adr\)" "$REPO/skills/" | grep -v -- "--enabled")" ]'
+
+# The close-out contract: a SUPPRESSED publish is success, so it must not trip the skip-publish
+# guard — cleanup (step 4) and the board refresh (step 5) still run. This is the spec's
+# "close-out integration" requirement; the sequence is skill-driven prose, so it is asserted here
+# as a contract sentinel rather than an executable close-out fixture.
+assert "0064 wiring: close-out states a suppressed publish does not skip steps 4-5" \
+  'grep -qi "does NOT trip the\|not trip the skip-publish" "$TCO"'
+
 exit "$fail"
