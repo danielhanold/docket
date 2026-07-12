@@ -18,7 +18,7 @@ branch: feat/agent-model-pinning-docs
 pr:
 issue:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -72,3 +72,24 @@ Both resolved at auto-groom (2026-07-12); the reasoning and rejected alternative
 - **README or a `docs/` guide?** → **README.** It is the repo's only prose doc on `main` (no guides tree exists), it already carries teaching-altitude sections, and a second home for agent-layer prose is precisely how this material drifted before (spec A3). ~540 lines is the accepted cost; extracting later is a pure move.
 
 ## Reconcile log
+
+### 2026-07-12 — reconciled at claim (no scope change)
+
+The spec was authored earlier the same day by `docket-auto-groom`, so the world had barely moved.
+Every assumption it rests on was re-verified against `origin/main` + `origin/docket` at build time,
+and all of them still hold:
+
+- **Next free ADR id is still 0026** — the ledger on `origin/docket` tops out at `0025-docket-worktrees-disable-git-hooks.md`.
+- **README is 484 lines**; `## Tuning agent models & effort` spans L385–433 and contains **zero `###` headings**. Both paragraphs the new blocks anchor between — *Two mechanisms for one inline quirk.* and *The clone-identical guarantee is retired.* — are present and adjacent, so the §2/§3 insertion points are exactly as designed (the "no new `###`" constraint remains load-bearing).
+- **ADR-0024** is `Accepted`, `relates_to: [8, 17]`, and its `## Consequences` still carries the *stated-but-untested* no-recursion argument that ADR-0026 closes.
+- **`tests/test_skill_fork_dispatch.sh`** exists and guards the 4/3 fork invariant; the positive-anchor README-sentinel precedent (`tests/test_consultant_brainstorm.sh`) is confirmed as the form to copy.
+- **`references/agent-layer.md`** (140 lines) carries the two-mechanism story in `## Always-full-set generation + the Cursor dispatch rule` — the §4 insertion point.
+
+**In-flight interaction check.** #0064 (*optional-terminal-publish*, in-progress) adds a
+`terminal_publish` knob whose built-in default is `true`, and this repo's `.docket.yml` does not set
+it — so terminal-publish still runs here and the spec's §1 reasoning (listing **24** in `adrs:` is
+what carries 0024's new `## Update` note to `main`) is unaffected either way. #0062 is still
+`proposed`, so the README's clause excluding `docket-finalize-change` from the fork set remains
+accurate as written. #0044 (implemented, PR #69) touches only the `skills: build` binding — no overlap.
+
+Not obsolete, not invalidated. Building to the spec as written.
