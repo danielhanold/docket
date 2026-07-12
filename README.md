@@ -223,6 +223,9 @@ adrs_dir: docs/adrs          # default
 results_dir: docs/results    # default
 auto_groom: false            # repo default for autonomous grooming; per-change auto_groomable overrides
 board_surfaces: [inline]     # derived board views: inline (BOARD.md) and/or github; [] disables the board
+terminal_publish: true       # default: copy a closed change's record (change file, spec, Accepted ADRs)
+                             # onto the integration branch. false = keep it all on the metadata branch,
+                             # for repos where every write to the integration branch must go via a PR
 # github_project: {owner: <o>, number: <n>}  # Projects v2 board; minted + written back on first github sync
 finalize:                    # merge gate: rebase onto base + re-test before docket merges
   gate: local                # local (default) | ci | both | off
