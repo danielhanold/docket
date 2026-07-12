@@ -132,7 +132,7 @@ and an explicit agent dispatch (`@docket-status`, or a `Task` naming the wrapper
 *same* generated wrapper and run at the *same* resolved model/effort; they differ only in
 **observability** (the dispatch is drillable in the TUI, the fork is not) and in **cost** (the
 dispatch spends a turn). The trade-off table, the fork's on-disk transcript path, and the
-restart-your-session caveat live in the README's *Tuning agent models & effort* — not restated here.
+restart-your-session caveat live in docket's README (*Tuning agent models & effort*) — not restated here.
 Two mechanics do belong here, because they govern how the wrappers compose: **a wrapper whose
 `skills:` preloads the very skill that forks into it does not recurse** (preload is content
 injection at startup; the fork fires on invocation — verified on Claude Code 2.1.207, closing the
