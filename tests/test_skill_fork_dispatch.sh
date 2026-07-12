@@ -44,7 +44,7 @@ README="$REPO/README.md"
 AGENT_LAYER="$REPO/skills/docket-convention/references/agent-layer.md"
 
 assert "README names both invocation paths into the pinned wrapper" \
-  'grep -qi "skill-invoke" "$README" && grep -qi "agent-dispatch" "$README"'
+  'grep -qF "| **Skill-invoke** |" "$README" && grep -qF "| **Agent-dispatch** |" "$README"'
 assert "README contrasts them by observability (forked run opaque, dispatch drillable)" \
   'grep -qiF "completed (forked execution)" "$README" && grep -qi "drillable" "$README"'
 assert "README names the fork transcript path as the escape hatch" \
