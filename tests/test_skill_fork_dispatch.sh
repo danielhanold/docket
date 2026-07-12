@@ -36,5 +36,21 @@ for s in $EXCLUDED; do
   assert "$s: no agent field (not forked)" '[ -z "$(fmval "$f" agent)" ]'
 done
 
+# --- change 0065: doc sentinels -----------------------------------------------------------------
+# Positive anchors on the MEANINGFUL FRAMING of the invocation-path / model-pinning docs, not on
+# incidental wording (LEARNINGS #36/#37). Each assert owns exactly ONE clause in ONE file, so it can
+# be mutation-tested in isolation (LEARNINGS #21) and the prose stays freely rewritable.
+README="$REPO/README.md"
+AGENT_LAYER="$REPO/skills/docket-convention/references/agent-layer.md"
+
+assert "README names both invocation paths into the pinned wrapper" \
+  'grep -qi "skill-invoke" "$README" && grep -qi "agent-dispatch" "$README"'
+assert "README contrasts them by observability (forked run opaque, dispatch drillable)" \
+  'grep -qiF "completed (forked execution)" "$README" && grep -qi "drillable" "$README"'
+assert "README names the fork transcript path as the escape hatch" \
+  'grep -qF "subagents/agent-" "$README"'
+assert "README carries the process-start registration caveat" \
+  'grep -qiE "register(ed)? at .{0,4}process start" "$README" && grep -qi "restart" "$README"'
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
