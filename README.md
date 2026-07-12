@@ -277,8 +277,9 @@ agent_harnesses: [claude]    # scopes sync-agents.sh's user-level pass ONLY (ove
 ```yaml
 # <repo>/.docket.local.yml — optional, gitignored; overrides ONLY on this machine, for this repo.
 # Accepts the same global-able keys as ~/.config/docket/config.yml. Fenced keys (metadata_branch,
-# integration_branch, changes_dir, adrs_dir, results_dir, github_project, and board_surfaces'
-# github token) are warned-and-ignored here too — set those in the committed .docket.yml instead.
+# integration_branch, changes_dir, adrs_dir, results_dir, github_project, terminal_publish, and
+# board_surfaces' github token) are warned-and-ignored here too — set those in the committed
+# .docket.yml instead.
 skills:
   build: auto
 agents:
@@ -296,7 +297,7 @@ Its own path (and every file `sync-agents.sh` generates) is kept out of git by t
 
 ### Coordination keys are per-repo-only
 
-Some keys write shared state, and a machine-scoped value for them would silently split the backlog across machines or mint external GitHub objects. These keys — `metadata_branch`, `integration_branch`, `changes_dir`, `adrs_dir`, `results_dir`, `github_project`, and the `github` token of `board_surfaces` — are therefore **per-repo-only**: they are ignored with a loud warning when set globally **or** in a repo's `.docket.local.yml`. Set them in the repo's committed `.docket.yml` only.
+Some keys write shared state, and a machine-scoped value for them would silently split the backlog across machines or mint external GitHub objects. These keys — `metadata_branch`, `integration_branch`, `changes_dir`, `adrs_dir`, `results_dir`, `github_project`, `terminal_publish`, and the `github` token of `board_surfaces` — are therefore **per-repo-only**: they are ignored with a loud warning when set globally **or** in a repo's `.docket.local.yml`. Set them in the repo's committed `.docket.yml` only.
 
 ### When a file is misplaced or malformed
 
@@ -359,6 +360,26 @@ Git checks out one branch per folder. To write a file that lives on `docket` whi
 ### Finalize → selective publish
 
 On a **terminal transition** — a change reaching `done` (PR merged) or `killed` (abandoned) — the driving skill copies that change's terminal records onto the integration branch in one dedicated commit: the archived change file, its spec (if any), and the **`Accepted`** ADRs from its manifest, sourced from `origin/docket`. This is a selective **file copy**, never a branch merge, so none of the planning churn comes with it. The **live board stays on `docket`** and is never published. The result: your code history reads as code plus a clean trail of closed-out changes, while the working backlog churns entirely on `docket`.
+
+### Keeping metadata off the integration branch (`terminal_publish`)
+
+By default, when a change reaches a terminal state docket copies its record — the archived change
+file, its spec, and its `Accepted` ADRs — from the `docket` branch onto the integration branch in a
+direct commit. In a repo where **every** write to the integration branch is expected to go through a
+pull request, that direct commit fights the workflow.
+
+Set `terminal_publish: false` in the repo's committed `.docket.yml` to suppress it:
+
+```yaml
+terminal_publish: false   # keep change files, specs, and ADRs on the docket branch
+```
+
+Then the integration branch accumulates **only** code, plans, and results — all through PRs — while
+change files, specs, and ADRs live on `docket`, fully browsable there. The knob gates both publish
+shapes: the change close-out *and* `docket-adr`'s ADR publish. It is **per-repo-only** (a
+machine-scoped value is warned-and-ignored), because the headless `docket-status` merge sweep must
+see the same policy as every other agent. It is inert in `main`-mode, and it never retroactively
+removes records already published.
 
 ### `main`-mode: the single-branch opt-out
 

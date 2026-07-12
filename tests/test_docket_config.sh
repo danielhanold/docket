@@ -559,5 +559,18 @@ assert "0064: unparseable terminal_publish exits non-zero" \
 assert "0064: unparseable terminal_publish emits nothing"  \
   '[ -z "$(run "$tmp/tp5" --export 2>/dev/null)" ]'
 
+# --- (0064) surfacing: the knob is documented end-to-end (learning #49) ---
+CONV_SKILL="$REPO/skills/docket-convention/SKILL.md"
+assert "0064 doc: convention schema block documents terminal_publish" \
+  'grep -q "terminal_publish" "$CONV_SKILL"'
+assert "0064 doc: convention fence list includes terminal_publish" \
+  'grep -q "terminal_publish" <<<"$(grep -A2 "Coordination-key fence" "$CONV_SKILL")"'
+assert "0064 doc: README documents terminal_publish" \
+  'grep -q "terminal_publish" "$REPO/README.md"'
+assert "0064 doc: sample .docket.yml carries the commented knob" \
+  'grep -q "terminal_publish" "$REPO/.docket.yml"'
+assert "0064 doc: config contract classifies terminal_publish as fenced" \
+  'grep -q "terminal_publish" "$REPO/scripts/docket-config.md"'
+
 if [ "$fail" = 0 ]; then echo PASS; else echo FAIL; fi
 exit "$fail"
