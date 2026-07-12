@@ -2,7 +2,7 @@
 id: 64
 slug: optional-terminal-publish
 title: Optional terminal-publish — per-repo opt-out to keep metadata on docket
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-07-12
 updated: 2026-07-12
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/optional-terminal-publish
 pr:
 blocked_by:
 reconciled: false
