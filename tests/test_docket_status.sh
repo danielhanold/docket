@@ -459,6 +459,195 @@ assert "sweep_execute: cleanup failure emits sweep-failed before swept/harvest (
 assert "sweep_execute: cleanup failure does not block clean-thing (loop continues)" \
   'printf "%s\n" "$sweep_out" | grep -qE "^swept 20 2026-07-08$"'
 
+# --- change 0064 (Finding 1): TERMINAL_PUBLISH gates the REAL sweep's terminal-publish.sh call ---
+# A behavioral test (not just wiring): drives docket-status.sh's actual merge-sweep pipeline in a
+# hermetic docket-mode fixture (separate docket/main branches on a bare origin) with the REAL
+# terminal-publish.sh and REAL cleanup-feature-branch.sh in play (archive-change.sh and
+# render-change-links.sh are mocked, matching this file's existing sweep_execute convention, since
+# their own behavior is already covered above — this section is about the --enabled wiring and the
+# knob's suppress-but-don't-abort contract). GH/graphql is mocked (no network).
+gate_setup(){
+  # $1 = root dir. Seeds a bare origin with docket+main, a real `implemented` change on docket
+  # (id 60, slug gate-thing, pr 60), and a real feat/gate-thing branch+worktree on the primary
+  # checkout so cleanup-feature-branch.sh has genuine work to do.
+  local root="$1"
+  git_repo_setup "$root"
+  git clone -q "$root/origin.git" "$root/seed-docket" 2>/dev/null
+  git -C "$root/seed-docket" checkout docket >/dev/null 2>&1
+  mkdir -p "$root/seed-docket/docs/changes/active" "$root/seed-docket/docs/changes/archive" "$root/seed-docket/docs/adrs"
+  cat > "$root/seed-docket/docs/changes/active/0060-gate-thing.md" <<'EOF'
+---
+id: 60
+slug: gate-thing
+title: Gate thing
+status: implemented
+priority: high
+depends_on: []
+branch: feat/gate-thing
+pr: 60
+---
+
+Body.
+EOF
+  git -C "$root/seed-docket" add docs
+  git -C "$root/seed-docket" -c user.email=t@t -c user.name=t commit -q -m "seed gate change"
+  git -C "$root/seed-docket" push -q origin docket
+  git clone -q "$root/origin.git" "$root/work" 2>/dev/null
+  git -C "$root/work" worktree add "$root/work/.worktrees/gate-thing" -b feat/gate-thing main >/dev/null 2>&1
+  git -C "$root/work" push -q origin feat/gate-thing
+}
+
+mkdir -p "$tmp/mock-gate"
+# NOTE: unlike the sweep_execute mock above (mw="." — changes-dir IS the worktree root, so
+# cwd-relative paths and worktree-relative paths coincide), this fixture runs in DOCKET_MODE=docket
+# (mw=".docket", a linked worktree). `git -C "$root" mv <cwd-relative-path>` would resolve that
+# path against $root, not the invoking cwd, so the paths must be converted to be relative to the
+# worktree root first (mirrors archive-change.sh's own REL_ABS/REL computation).
+cat > "$tmp/mock-gate/archive-change.sh" <<'EOF'
+#!/usr/bin/env bash
+changes_dir="" id="" date=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --changes-dir) changes_dir="$2"; shift ;;
+    --id) id="$2"; shift ;;
+    --date) date="$2"; shift ;;
+  esac
+  shift
+done
+pad="$(printf '%04d' "$id")"
+active="$(find "$changes_dir/active" -maxdepth 1 -name "${pad}-*.md" | head -n1)"
+[ -n "$active" ] || exit 1
+base="$(basename "$active")"
+slug="${base#"${pad}"-}"; slug="${slug%.md}"
+mkdir -p "$changes_dir/archive"
+root="$(git -C "$changes_dir" rev-parse --show-toplevel)"
+rel_abs="$(cd "$changes_dir" && pwd -P)"
+rel="${rel_abs#"$root"/}"
+active_rel="$rel/active/$base"
+dest_rel="$rel/archive/${date}-${pad}-${slug}.md"
+git -C "$root" mv "$active_rel" "$dest_rel"
+dest="$changes_dir/archive/${date}-${pad}-${slug}.md"
+sed -i.bak "s/^status:.*/status: done/" "$dest" && rm -f "$dest.bak"
+git -C "$root" add -- "$dest_rel" 2>/dev/null
+git -C "$root" -c user.email=t@t -c user.name=t commit -q -m "mock archive" >/dev/null 2>&1
+branch="$(git -C "$root" rev-parse --abbrev-ref HEAD)"
+git -C "$root" push -q origin "$branch" >/dev/null 2>&1
+exit 0
+EOF
+cat > "$tmp/mock-gate/render-change-links.sh" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+# terminal-publish.sh and cleanup-feature-branch.sh are the REAL scripts (exec'd by absolute
+# path so their own $(dirname "$0") resolution — e.g. terminal-publish.sh sourcing
+# lib/docket-frontmatter.sh — still finds their real co-located files).
+cat > "$tmp/mock-gate/terminal-publish.sh" <<EOF
+#!/usr/bin/env bash
+exec "$REPO/scripts/terminal-publish.sh" "\$@"
+EOF
+cat > "$tmp/mock-gate/cleanup-feature-branch.sh" <<EOF
+#!/usr/bin/env bash
+exec "$REPO/scripts/cleanup-feature-branch.sh" "\$@"
+EOF
+cat > "$tmp/mock-gate/board-checks.sh" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+cat > "$tmp/mock-gate/sync-integration-branch.sh" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+chmod +x "$tmp/mock-gate/"*.sh
+
+cat > "$tmp/gh-gate.sh" <<'EOF'
+#!/usr/bin/env bash
+if [ "$1" = api ] && [ "$2" = graphql ]; then
+  cat <<'JSON'
+{"data":{"p60":{"pullRequest":{"number":60,"mergedAt":"2026-07-11T12:00:00Z","state":"MERGED"}}}}
+JSON
+  exit 0
+fi
+echo "gh-gate: unexpected args: $*" >&2
+exit 1
+EOF
+chmod +x "$tmp/gh-gate.sh"
+
+# Case A: terminal_publish: false — the archived record must NOT reach the integration branch,
+# but the rest of the close-out (archive on docket, cleanup) still completes: a suppressed publish
+# is success, not a reason to abort the sweep.
+cat > "$tmp/fixture-gate-disabled.sh" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' \
+  'BOOTSTRAP=PROCEED' \
+  'METADATA_BRANCH=docket' \
+  'INTEGRATION_BRANCH=main' \
+  'DOCKET_MODE=docket' \
+  'METADATA_WORKTREE=.docket' \
+  'CHANGES_DIR=docs/changes' \
+  'ADRS_DIR=docs/adrs' \
+  'RESULTS_DIR=docs/results' \
+  'BOARD_SURFACES=' \
+  'TERMINAL_PUBLISH=false'
+EOF
+
+gate_dir="$tmp/gate-disabled-case"
+gate_setup "$gate_dir"
+(cd "$gate_dir/work" && \
+  CONFIG_EXPORT_CMD="bash $tmp/fixture-gate-disabled.sh" GH="$tmp/gh-gate.sh" \
+  SCRIPTS_DIR="$tmp/mock-gate" \
+  "$SCRIPT" --repo x/y >"$tmp/gate-disabled-out.txt" 2>"$tmp/gate-disabled-err.txt")
+rc=$?
+assert "0064 gate(disabled): sweep exits zero" '[ $rc -eq 0 ]'
+assert "0064 gate(disabled): sweep emits swept (archive still ran)" \
+  'grep -qE "^swept 60 2026-07-11$" "$tmp/gate-disabled-out.txt"'
+assert "0064 gate(disabled): no sweep-failed lines (suppressed publish is not a failure)" \
+  '! grep -q "sweep-failed 60" "$tmp/gate-disabled-out.txt"'
+git -C "$gate_dir/work" fetch origin main >/dev/null 2>&1
+assert "0064 gate(disabled): archived record NOT published to the integration branch" \
+  '! git -C "$gate_dir/work" ls-tree -r --name-only origin/main | grep -q "docs/changes/archive/2026-07-11-0060-gate-thing.md"'
+git -C "$gate_dir/work" fetch origin docket >/dev/null 2>&1
+assert "0064 gate(disabled): the archive itself still landed on the metadata branch" \
+  'git -C "$gate_dir/work" ls-tree -r --name-only origin/docket | grep -q "docs/changes/archive/2026-07-11-0060-gate-thing.md"'
+assert "0064 gate(disabled): terminal-publish logged the suppression" \
+  'grep -q "terminal_publish: false" "$tmp/gate-disabled-err.txt"'
+assert "0064 gate(disabled): the sweep still cleaned up the feature worktree" \
+  '[ ! -e "$gate_dir/work/.worktrees/gate-thing" ]'
+assert "0064 gate(disabled): the sweep still deleted the remote feature branch" \
+  '! git -C "$gate_dir/work" ls-remote --exit-code origin feat/gate-thing >/dev/null 2>&1'
+
+# Case B: TERMINAL_PUBLISH entirely UNSET by the config mock (not merely "true") — reproduces the
+# exact hazard the fix guards against: sweep_execute_one runs under `set -u`, so a bare
+# $TERMINAL_PUBLISH would abort the sweep with an unbound-variable error under a stale/mocked
+# config export that doesn't emit the key. "${TERMINAL_PUBLISH:-true}" must default to enabled
+# instead, matching pre-0064 behavior.
+cat > "$tmp/fixture-gate-unset.sh" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' \
+  'BOOTSTRAP=PROCEED' \
+  'METADATA_BRANCH=docket' \
+  'INTEGRATION_BRANCH=main' \
+  'DOCKET_MODE=docket' \
+  'METADATA_WORKTREE=.docket' \
+  'CHANGES_DIR=docs/changes' \
+  'ADRS_DIR=docs/adrs' \
+  'RESULTS_DIR=docs/results' \
+  'BOARD_SURFACES='
+EOF
+
+gate_dir2="$tmp/gate-enabled-case"
+gate_setup "$gate_dir2"
+(cd "$gate_dir2/work" && \
+  CONFIG_EXPORT_CMD="bash $tmp/fixture-gate-unset.sh" GH="$tmp/gh-gate.sh" \
+  SCRIPTS_DIR="$tmp/mock-gate" \
+  "$SCRIPT" --repo x/y >"$tmp/gate-enabled-out.txt" 2>"$tmp/gate-enabled-err.txt")
+rc=$?
+assert "0064 gate(TERMINAL_PUBLISH unset): sweep exits zero (no unbound-variable crash)" '[ $rc -eq 0 ]'
+assert "0064 gate(TERMINAL_PUBLISH unset): sweep emits swept" \
+  'grep -qE "^swept 60 2026-07-11$" "$tmp/gate-enabled-out.txt"'
+git -C "$gate_dir2/work" fetch origin main >/dev/null 2>&1
+assert "0064 gate(TERMINAL_PUBLISH unset): defaults to enabled — archived record DOES reach the integration branch" \
+  'git -C "$gate_dir2/work" ls-tree -r --name-only origin/main | grep -q "docs/changes/archive/2026-07-11-0060-gate-thing.md"'
+
 # health_checks: prefixes board-checks.sh's TSV findings as "check <id> <change-id> <message>".
 # Mock board-checks.sh via SCRIPTS_DIR — this is a pure formatting/plumbing test, not a
 # re-test of board-checks.sh's own check logic.

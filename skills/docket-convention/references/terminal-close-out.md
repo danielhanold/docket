@@ -51,9 +51,10 @@ before the first read; every commit pushes immediately.
    **Gated by `TERMINAL_PUBLISH`** (change 0064) — pass the resolved value straight through:
 
    ```
-   "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/terminal-publish.sh --id <id> --enabled "$TERMINAL_PUBLISH" \
-     --outcome <done|killed> --integration-branch <integration_branch> --metadata-branch docket \
-     --changes-dir <changes_dir> --adrs-dir <adrs_dir> --message "<msg>"
+   "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/terminal-publish.sh --id <id> --outcome <done|killed> \
+     --integration-branch <integration_branch> --metadata-branch docket \
+     --changes-dir <changes_dir> --adrs-dir <adrs_dir> --message "<msg>" \
+     --enabled "$TERMINAL_PUBLISH"
    ```
 
    Copies the archived change file + its `spec:` (if set) + the **`Accepted`** ADRs in `adrs:`

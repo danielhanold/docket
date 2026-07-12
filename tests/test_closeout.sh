@@ -13,6 +13,42 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 
 git_quiet(){ git "$@" >/dev/null 2>&1; }
 
+# Joins backslash-line-continuations so a multi-line shell invocation collapses to one logical
+# line (matches real shell continuation semantics) — used by the 0064 --enabled gate sentinel
+# below so a wrapped invocation is inspected as a whole, not line-by-line. Plain awk (not a
+# GNU-sed N/branch idiom) so it behaves identically under BSD sed (macOS) and GNU sed (Linux CI).
+join_continuations(){
+  awk '
+    {
+      line = $0
+      if (sub(/\\[[:space:]]*$/, "", line)) {
+        buf = buf line " "
+        next
+      }
+      print buf line
+      buf = ""
+    }
+    END { if (buf != "") print buf }
+  ' "$1"
+}
+
+# Every REAL terminal-publish.sh call site (skills/ prose + scripts/*.sh code) that supplies
+# --id or --adr must also supply --enabled, regardless of flag order or line-wrapping. Scans
+# skills/ (all files) and scripts/*.sh (code only — not scripts/*.md contracts, which document
+# the CLI generically), excludes terminal-publish.sh's own usage header/--help text (not a call
+# site, and its own [--enabled true|false] sits on a separate non-continued comment line), and
+# excludes tests/ (which deliberately exercises the back-compat default-omitted-enabled path).
+find_ungated_terminal_publish_call_sites(){
+  local f
+  while IFS= read -r f; do
+    join_continuations "$f" \
+      | grep -n "terminal-publish\.sh" \
+      | grep -E -- '--(id|adr)([[:space:]"]|$)' \
+      | grep -v -- '--enabled' \
+      | sed "s#^#$f:#"
+  done < <(find "$REPO/skills" -type f; find "$REPO/scripts" -type f -name '*.sh' ! -name 'terminal-publish.sh')
+}
+
 # new_repo: prints "<work> <origin>" — a fresh clone with a bare origin holding docket + main.
 # docket branch: docs/changes/active/0007-sample.md, its spec, one Accepted + one Proposed ADR.
 # main branch: a trivial baseline (the integration branch publish target).
@@ -467,10 +503,12 @@ assert "0064 wiring: close-out step 3 passes the TERMINAL_PUBLISH value" \
   'grep -q -- "--enabled \"\$TERMINAL_PUBLISH\"" "$TCO"'
 assert "0064 wiring: docket-adr passes --enabled on BOTH --adr call sites" \
   '[ "$(grep -c -- "--enabled \"\$TERMINAL_PUBLISH\"" "$ADRSKILL")" -eq 2 ]'
-# The invariant: no documented invocation may omit the gate. Every line that invokes
-# terminal-publish.sh in the skill/reference prose must carry --enabled.
-assert "0064 wiring: no ungated terminal-publish invocation in skills/" \
-  '[ -z "$(grep -rn "terminal-publish\.sh --\(id\|adr\)" "$REPO/skills/" | grep -v -- "--enabled")" ]'
+# The invariant: no REAL terminal-publish.sh call site may omit the gate — checked across BOTH
+# skills/ prose AND scripts/*.sh code (the earlier version only grepped skills/, and only matched
+# --id/--adr as the literal next token on the same physical line, so it was blind to
+# scripts/docket-status.sh's real sweep call site and to ordinary flag reordering).
+assert "0064 wiring: no terminal-publish.sh call site (skills/ prose or scripts/*.sh) omits --enabled" \
+  '[ -z "$(find_ungated_terminal_publish_call_sites)" ]'
 
 # The close-out contract: a SUPPRESSED publish is success, so it must not trip the skip-publish
 # guard — cleanup (step 4) and the board refresh (step 5) still run. This is the spec's
