@@ -51,6 +51,10 @@ assert "README names the fork transcript path as the escape hatch" \
   'grep -qF "subagents/agent-" "$README"'
 assert "README carries the process-start registration caveat" \
   'grep -qiE "register(ed)? at .{0,4}process start" "$README" && grep -qi "restart" "$README"'
+assert "README teaches model-per-task over model-per-session" \
+  'grep -qiE "one session, one model" "$README" && grep -qi "cheap tier" "$README"'
+assert "README's What you get list surfaces per-agent model pinning" \
+  'grep -qF "**The right model for each step.**" "$README"'
 
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"

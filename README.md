@@ -8,6 +8,7 @@ What you get:
 - **Hands-off implementation.** An autonomous skill claims the next ready change, refreshes it against the current state of the code, builds it with test-driven development, and opens a PR — with no supervision in between.
 - **You stay at the merge gate.** Agents never merge. Your review of the pull request is the one required human checkpoint on the way to `done`.
 - **No new infrastructure.** No service, no database, no bespoke CLI — just markdown files, git, and skills any supported agent harness can run; Claude Code, Cursor, and Codex are first-class.
+- **The right model for each step.** Every autonomous skill is pinned to its own model and effort, so a board refresh runs at a cheap tier while a build runs at a top one — in the same session, with no model choice from you. See [Tuning agent models & effort](#tuning-agent-models--effort).
 
 ---
 
@@ -383,6 +384,12 @@ to a PR. Nothing to configure; it is applied and self-heals on every docket run.
 ---
 
 ## Tuning agent models & effort
+
+**Why pin a model per agent.** Most harnesses invite one mental model: *one session, one model.* You choose a tier when you start, and everything you do that hour runs at it. That is how you end up paying top-tier prices to regenerate a board — and thinking at the cheap tier while designing a build. Both are the same mistake, in opposite directions: the model was matched to the **session** instead of to the **task**.
+
+docket's unit of work is the **skill**, so the tier is a property of the skill, not of your session. A `docket-status` sweep is mechanical file bookkeeping — cheap tier, low effort. A `docket-implement-next` build is the deepest reasoning in the loop — top tier, high effort. A design pass sits between them. They run in the **same session**, minutes apart, each at its own model, and you never pick one.
+
+A single afternoon's loop spans all three: groom a stub at the mid tier, build it at the top tier, sweep the merged PR at the cheap tier. The `agents:` block below is how you *express* that; the generated wrapper is how it is *enforced*; and `context: fork` (Claude Code) and the generated dispatch rule (Cursor) are how the pin survives even a direct `/docket-status` invocation. Tune the tiers to your budget — docket's built-in defaults are a starting point, not a contract.
 
 Each **autonomous** docket skill runs as a model/effort-pinned subagent (`docket-implement-next`, `docket-auto-groom`, `docket-finalize-change`, `docket-status`, `docket-adr`; the two interactive skills, `docket-new-change` and `docket-groom-next`, stay inline and only surface an advisory recommendation). To change the model or effort one of them runs at:
 
