@@ -2,7 +2,7 @@
 id: 66
 slug: auto-groom-critic-recheck-foreground
 title: Auto-groom's critic re-check must be foreground — a forked skill that yields returns a half-done run to its caller
-status: proposed
+status: in-progress
 priority: high
 created: 2026-07-12
 updated: 2026-07-12
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch:
+branch: feat/auto-groom-critic-recheck-foreground
 pr:
 issue:
 blocked_by:
