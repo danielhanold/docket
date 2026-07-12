@@ -52,7 +52,7 @@ assert "README names the fork transcript path as the escape hatch" \
 assert "README carries the process-start registration caveat" \
   'grep -qiE "register(ed)? at .{0,4}process start" "$README" && grep -qi "restart" "$README"'
 assert "README teaches model-per-task over model-per-session" \
-  'grep -qiE "one session, one model" "$README" && grep -qi "cheap tier" "$README"'
+  'grep -qiE "one session, one model" "$README" && grep -qiE "matched to the .{0,6}session.{0,6} instead of" "$README"'
 assert "README's What you get list surfaces per-agent model pinning" \
   'grep -qF "**The right model for each step.**" "$README"'
 
