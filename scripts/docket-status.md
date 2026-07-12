@@ -92,7 +92,7 @@ already succeeded. Full success for a change emits `swept <id> <merged-date>` fo
 `archive`, and for a `cleanup` failure (all retry cleanly next pass) — but a `sweep-failed` at
 `render-change-links` or `terminal-publish` leaves the change **archived but its terminal record
 unpublished**, invisible to future detection (which only scans `active/*.md`), and requires a
-manual `terminal-publish.sh --id <id>` follow-up.
+manual `terminal-publish.sh --id <id> --enabled "$TERMINAL_PUBLISH"` follow-up.
 
 **6. Health checks.** Runs `board-checks.sh` over the current changes-dir and metadata/integration
 branches, and prefixes each of its TSV findings as `check <check-id> <change-id> <message>` on
