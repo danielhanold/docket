@@ -8,8 +8,8 @@ created: 2026-07-12
 updated: 2026-07-12
 depends_on: []
 related: [17, 61, 65]
-adrs:
-spec:
+adrs: [24]
+spec: docs/superpowers/specs/2026-07-12-auto-groom-critic-recheck-foreground-design.md
 plan:
 results:
 trivial: false
@@ -24,6 +24,10 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-07-12-auto-groom-critic-recheck-foreground-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-12-auto-groom-critic-recheck-foreground-design.md) |
+| ADRs | [ADR-0024](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0024-claude-context-fork-skill-dispatch.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -46,19 +50,28 @@ Left alone, an overnight drain silently hands build-ready-looking stubs (or unco
 
 ## What changes
 
-- **Close the wording gap in `docket-auto-groom`**: make the critic's **re-check** round explicitly foreground, in the same sentence that bounds the revision round — so no reader (human or agent) can take the qualifier as applying only to the first dispatch.
-- **State the general rule where it binds every skill, not just this one**: a forked/dispatched skill must complete its own work before returning — it may never background a child and wait on a notification, because it cannot receive one. Natural home is `docket-convention`'s *Composition* paragraph (which already declares dispatches foreground) and/or the autonomous wrappers' abort-and-report rule. Blocking on a child is fine; **yielding** to wait for one is not.
-- **Consider a caller-side guard**: the hazard is only dangerous because a premature return is indistinguishable from a real completion. Whether docket can detect this (e.g. a groom that returns without either a linked spec or an abstain section is an incomplete run, not a success) is a design question for the spec.
+Skill + convention wording, one guard test, and one dated ADR update note. No script, schema, or dispatch *mechanics* change — only the prose that governs how a dispatch is awaited.
+
+**1. Close the wording gap in `docket-auto-groom` §3.** Qualify the critic's **re-check** round explicitly foreground, in the same sentence that bounds the revision round, and point it at the general rule — so no reader (human or agent) can take the `(foreground, …)` on the first dispatch as applying only there.
+
+**2. State the general never-yield rule at the single contract source — `docket-convention`'s *Composition* paragraph** (which already declares dispatches foreground). A forked/dispatched skill's parent must **actively block** on the child; it may never background a child and *yield* to await a task-notification, because a fork has no channel to receive one — a "wait for the notification" hands control back to the caller and returns a half-done run that reads as `completed`. This one statement binds `docket-auto-groom` (the re-check), the two single-shot dispatchers, and any future multi-round dispatch — no per-skill duplication. Reciprocally, a caller must not read a bare `completed` as proof of completion: it verifies the child's git-state transition (the contract already in that paragraph) and never adopts a child's uncommitted working-tree files.
+
+**3. Guard both** in `tests/test_composition_wiring.sh` (owner of the composition contract) with positive-anchor sentinels: the convention states the never-yield rule; auto-groom's re-check is foreground.
+
+**4. A dated `## Update` note on ADR-0024** extends its "no channel to the human" to its corollary — no channel to a task-notification either — keeping the principle discoverable from the decision that spawns it. `adrs: [24]` carries the note to `main` at close-out.
 
 ## Out of scope
 
 - Changing how the critic gate works, its verdict vocabulary, or the one-bounded-revision-round rule — the gate behaved correctly; only its *dispatch mechanics* are at fault.
 - Removing `context: fork` from auto-groom or any other skill (0061's fork-exclusion principle stands; see #0065).
-- Concurrency control / locking for the shared `.docket` worktree. The race here was a *consequence* of the premature return, not an independent defect. If the spec concludes locking is the real fix, that is a separate change.
+- Editing the two single-shot dispatchers' SKILL.md files — their dispatch sites are already foreground-qualified and single-shot; the general convention rule covers them by construction.
+- Concurrency control / locking for the shared `.docket` worktree. The race here was a *consequence* of the premature return, not an independent defect. If locking is ever the real fix, that is a separate change.
 
 ## Open questions
 
-- Does the same wording gap exist in the other composing skills — `docket-implement-next` (dispatches `docket-status` and `docket-adr`) and `docket-finalize-change` (dispatches the rebase-resolver and integration-repair)? Their dispatches are single-shot, so there is no "second round" to under-qualify, but the general never-yield rule should be checked against each.
-- Should the caller-side guard be advisory (warn) or hard (treat a spec-less, abstain-less groom return as a failed run)?
+Both resolved at groom (2026-07-12); the reasoning and rejected alternatives are audited in the spec's *Design decisions* block.
+
+- **Same gap in the other composing skills?** → **No edits needed.** `docket-implement-next` (→ status/adr) and `docket-finalize-change` (→ rebase-resolver/integration-repair) dispatch single-shot children, each already `(foreground, …)`; there is no second round to under-qualify, and the general convention rule (change 2) binds them regardless (spec D1).
+- **Caller-side guard advisory or hard?** → **Advisory.** Lean on the existing git-state dispatch contract — a caller verifies the child's transition and does not treat a bare `completed` as done — rather than a new enforced validator; the root-cause fix (never-yield) removes the hazard, and a hard guard is a clean follow-up only if premature returns recur (spec D2).
 
 ## Reconcile log
