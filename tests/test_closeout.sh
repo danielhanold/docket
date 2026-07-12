@@ -242,6 +242,68 @@ read -r W _ < <(new_repo)
 assert "publish --adr: main-mode exits 0 (no-op)" "[ $? -eq 0 ]"
 assert "publish --adr: main-mode created no pub-adr worktree" '! git -C "$W" worktree list | grep -q "pub-adr-3"'
 
+# --- change 0064: --enabled false suppresses the publish (change shape) ---
+read -r W _ < <(new_repo)
+before="$(git -C "$W" rev-parse origin/main)"
+( cd "$W" && "$PUBLISH" --id 7 --outcome done --integration-branch main --metadata-branch docket \
+    --changes-dir docs/changes --adrs-dir docs/adrs --enabled false ) >/dev/null 2>&1
+rc=$?
+git -C "$W" fetch origin main >/dev/null 2>&1
+after="$(git -C "$W" rev-parse origin/main)"
+assert "0064 publish --enabled false: exits 0 (suppressed publish is success)" '[ "$rc" -eq 0 ]'
+assert "0064 publish --enabled false: integration branch untouched" '[ "$before" = "$after" ]'
+assert "0064 publish --enabled false: no pub worktree provisioned" '! git -C "$W" worktree list | grep -q "pub-7"'
+
+# --- change 0064: --enabled false suppresses the ADR shape too (the docket-adr path) ---
+read -r W _ < <(new_repo)
+before="$(git -C "$W" rev-parse origin/main)"
+( cd "$W" && "$PUBLISH" --adr 3 --integration-branch main --metadata-branch docket \
+    --changes-dir docs/changes --adrs-dir docs/adrs --enabled false ) >/dev/null 2>&1
+rc=$?
+git -C "$W" fetch origin main >/dev/null 2>&1
+after="$(git -C "$W" rev-parse origin/main)"
+assert "0064 publish --adr --enabled false: exits 0" '[ "$rc" -eq 0 ]'
+assert "0064 publish --adr --enabled false: no ADR file on integration branch" \
+  '! git -C "$W" ls-tree -r --name-only origin/main | grep -q "docs/adrs/0003-accepted.md"'
+assert "0064 publish --adr --enabled false: no ADR index on integration branch" \
+  '! git -C "$W" ls-tree -r --name-only origin/main | grep -q "docs/adrs/README.md"'
+assert "0064 publish --adr --enabled false: integration branch untouched" '[ "$before" = "$after" ]'
+
+# --- change 0064: back-compat — omitting --enabled still publishes (default true) ---
+read -r W _ < <(new_repo)
+( cd "$W" && "$PUBLISH" --adr 3 --integration-branch main --metadata-branch docket \
+    --changes-dir docs/changes --adrs-dir docs/adrs ) >/dev/null 2>&1
+rc=$?
+git -C "$W" fetch origin main >/dev/null 2>&1
+assert "0064 publish: omitting --enabled defaults to true (publishes)" '[ "$rc" -eq 0 ]'
+assert "0064 publish: default-true actually landed the ADR" \
+  'git -C "$W" ls-tree -r --name-only origin/main | grep -q "docs/adrs/0003-accepted.md"'
+
+# --- change 0064: an explicit --enabled true publishes exactly as today ---
+read -r W _ < <(new_repo)
+( cd "$W" && "$PUBLISH" --adr 3 --integration-branch main --metadata-branch docket \
+    --changes-dir docs/changes --adrs-dir docs/adrs --enabled true ) >/dev/null 2>&1
+rc=$?
+git -C "$W" fetch origin main >/dev/null 2>&1
+assert "0064 publish --enabled true: exits 0" '[ "$rc" -eq 0 ]'
+assert "0064 publish --enabled true: ADR landed on integration branch" \
+  'git -C "$W" ls-tree -r --name-only origin/main | grep -q "docs/adrs/0003-accepted.md"'
+
+# --- change 0064: fail-closed — an unparseable --enabled value aborts ---
+read -r W _ < <(new_repo)
+( cd "$W" && "$PUBLISH" --id 7 --outcome done --integration-branch main --metadata-branch docket \
+    --changes-dir docs/changes --adrs-dir docs/adrs --enabled maybe ) >/dev/null 2>&1
+rc=$?
+assert "0064 publish: unparseable --enabled exits non-zero (never coerced to true)" '[ "$rc" -ne 0 ]'
+
+# --- change 0064: argument validation still fires when publishing is disabled ---
+# A disabled publish must not mask a broken call site.
+read -r W _ < <(new_repo)
+( cd "$W" && "$PUBLISH" --id 7 --integration-branch main --metadata-branch docket \
+    --changes-dir docs/changes --adrs-dir docs/adrs --enabled false ) >/dev/null 2>&1
+rc=$?
+assert "0064 publish: missing --outcome still aborts even with --enabled false" '[ "$rc" -ne 0 ]'
+
 # --- terminal-publish.sh: --id and --adr are mutually exclusive; exactly one required ---
 read -r W _ < <(new_repo)
 ( cd "$W" && "$PUBLISH" --id 7 --adr 3 --outcome done --integration-branch main --metadata-branch docket --changes-dir docs/changes --adrs-dir docs/adrs ) >/dev/null 2>&1

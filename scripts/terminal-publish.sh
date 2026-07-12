@@ -10,8 +10,15 @@
 # Usage (exactly one of --id / --adr):
 #   terminal-publish.sh --id N --outcome done|killed --integration-branch B --metadata-branch M
 #                       --changes-dir REL --adrs-dir REL [--message MSG] [--remote R]
+#                       [--enabled true|false]
 #   terminal-publish.sh --adr NN --integration-branch B --metadata-branch M
 #                       --changes-dir REL --adrs-dir REL [--message MSG] [--remote R]
+#                       [--enabled true|false]
+#
+# --enabled false (change 0064: the per-repo `terminal_publish` knob) makes this script a no-op:
+# the record stays on the metadata branch and nothing is committed onto the integration branch.
+# Default true — omitting the flag behaves exactly as before the knob existed. The guard sits
+# BEFORE the --id/--adr mode dispatch, so one guard covers BOTH publish shapes.
 #
 # Mock seam: GIT="${GIT:-git}".
 set -uo pipefail
@@ -20,6 +27,7 @@ set -uo pipefail
 
 GIT="${GIT:-git}"
 ID="" ADR="" OUTCOME="" INT_BRANCH="" META_BRANCH="" CHANGES_DIR="" ADRS_DIR="" MESSAGE="" REMOTE="origin"
+ENABLED="true"   # change 0064: default true == today's behavior
 
 die(){ printf '%s\n' "terminal-publish: $*" >&2; exit 1; }
 log(){ printf '%s\n' "terminal-publish: $*" >&2; }
@@ -35,6 +43,7 @@ while [ $# -gt 0 ]; do
     --adrs-dir) ADRS_DIR="$2"; shift ;;
     --message) MESSAGE="$2"; shift ;;
     --remote) REMOTE="$2"; shift ;;
+    --enabled) ENABLED="$2"; shift ;;
     -h|--help) grep '^#' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) die "unknown argument: $1" ;;
   esac
@@ -53,10 +62,21 @@ if [ -n "$ID" ]; then
 fi
 [ -n "$INT_BRANCH" ] && [ -n "$META_BRANCH" ] || die "missing --integration-branch/--metadata-branch"
 [ -n "$CHANGES_DIR" ] && [ -n "$ADRS_DIR" ]   || die "missing --changes-dir/--adrs-dir"
+# change 0064: fail closed on an unparseable value — never silently coerce to true, which would
+# publish onto the integration branch against the repo's stated intent.
+case "$ENABLED" in true|false) ;; *) die "invalid --enabled: '$ENABLED' (expected true|false)" ;; esac
 
 # Mode guard: main-mode has no docket branch to copy from.
 if [ "$META_BRANCH" = "$INT_BRANCH" ]; then
   log "main-mode (metadata-branch == integration-branch); no-op"
+  exit 0
+fi
+
+# Knob guard (change 0064): terminal_publish: false. A second no-op guard beside the mode guard,
+# placed BEFORE the --id/--adr dispatch so it covers BOTH publish shapes. A suppressed publish is
+# SUCCESS (exit 0) — callers trust the exit code, and close-out steps 4-5 (cleanup, board) still run.
+if [ "$ENABLED" = false ]; then
+  log "terminal_publish: false — skipping publish onto $INT_BRANCH; the record stays on $META_BRANCH"
   exit 0
 fi
 
