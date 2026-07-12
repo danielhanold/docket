@@ -56,6 +56,17 @@ re-render, feature-branch cleanup, board refresh — is unchanged.
    guard and keeps the skill prose unchanged. The script stays pure and testable: it receives the
    value as an explicit `--enabled <true|false>` flag rather than sourcing config itself.
 
+5. **The gate covers BOTH publish shapes — `--id` and `--adr` (added at reconcile, 2026-07-12).**
+   `terminal-publish.sh` is the executor of two shapes: the close-out change publish (`--id`) and
+   `docket-adr`'s standalone ADR publish (`--adr`, used both when an ADR is Accepted and when an
+   already-published ADR's `status:` flips). Both write metadata directly onto the integration
+   branch outside the PR gate — so both are in the knob's remit, and gating only the close-out
+   shape would leave `docket-adr` still committing ADRs to `main`, contradicting this change's own
+   promise that "Accepted ADRs stay on `docket` only". The guard is therefore placed **before the
+   `--id`/`--adr` mode dispatch**, beside the existing `main`-mode guard, so one guard covers both
+   shapes; the two `docket-adr` call sites pass `--enabled "$TERMINAL_PUBLISH"` like every close-out
+   driver.
+
 ## What is and isn't affected
 
 **Affected (suppressed when `false`):**
@@ -64,6 +75,10 @@ re-render, feature-branch cleanup, board refresh — is unchanged.
 - terminal-publish's copy of the `spec:` file onto the integration branch
 - terminal-publish's copy of the `Accepted` ADRs in `adrs:` onto the integration branch
 - the integration-branch ADR-index refresh that rides the publish commit (changes 0033/0040)
+- **`docket-adr`'s standalone `--adr` publish** — both the on-acceptance publish and the
+  status-change (`Superseded by`/`Reversed by`/`Deprecated`) re-publish (reconcile, 2026-07-12).
+  Same rationale: it is a direct commit of metadata onto the integration branch. Leaving it live
+  would defeat the knob — ADRs would keep landing on `main` even with `terminal_publish: false`.
 
 **Not affected (unchanged regardless of the knob):**
 
@@ -95,10 +110,13 @@ records there.
 ### `terminal-publish.sh` + contract (`scripts/terminal-publish.md`)
 
 - New flag `--enabled <true|false>`, default `true` (back-compat: omitting it behaves exactly as
-  today).
+  today). An unparseable value is a hard `die` (fail-closed, consistent with the script's other
+  argument validation) — never a silent coerce to `true`.
 - When `--enabled false`: no-op with a clear, single log line explaining the skip — a second guard
-  beside the existing `main`-mode no-op guard. Exit `0` (a suppressed publish is success, not
-  failure).
+  beside the existing `main`-mode no-op guard, placed **before the `--id`/`--adr` mode dispatch** so
+  it covers both publish shapes. Exit `0` (a suppressed publish is success, not failure).
+- Argument *validation* still runs before the guard, so a malformed call fails loudly whether or not
+  publishing is enabled — a disabled publish must not mask a broken call site.
 - Update the `.md` contract's Usage / Behavior / Exit-codes / Invariants sections.
 
 ### `references/terminal-close-out.md`
@@ -106,6 +124,13 @@ records there.
 - Document step 3 as **gated by `TERMINAL_PUBLISH`**, passed to `terminal-publish.sh` as
   `--enabled "$TERMINAL_PUBLISH"`. Note that a suppressed publish is a success (exit 0) and does
   not trip the skip-publish guard on steps 4–5.
+
+### `docket-adr` SKILL.md (added at reconcile, 2026-07-12)
+
+- Both `--adr` publish call sites (the on-acceptance publish and the status-change re-publish) pass
+  `--enabled "$TERMINAL_PUBLISH"`, so the knob holds on the ADR path too.
+- Add one sentence noting that under `terminal_publish: false` the ADR ledger lives on `docket`
+  only — the integration branch carries no ADR files and no ADR index.
 
 ### `docket-convention` SKILL.md + `docket-config.md`
 
@@ -135,9 +160,14 @@ classification) and ADR-0012/0013 (script-vs-model boundary — the guard living
   `.docket.local.yml`; `TERMINAL_PUBLISH=true` when unset anywhere.
 - **`terminal-publish.sh`:** `--enabled false` leaves the integration branch untouched and exits 0
   (asserted against a fixture repo); `--enabled true` (and omitting the flag) publishes exactly as
-  today.
+  today; an unparseable `--enabled` value exits non-zero.
+- **`terminal-publish.sh --adr` (reconcile, 2026-07-12):** `--adr N --enabled false` leaves the
+  integration branch untouched and exits 0 — the guard covers the ADR shape, not just `--id`.
 - **Close-out integration:** a `done` close-out in a `terminal_publish: false` fixture archives on
   `docket`, refreshes the board, and cleans up — with no new commit on the integration branch.
+- **Call-site wiring (reconcile, 2026-07-12):** a structural check that every `terminal-publish.sh`
+  invocation in the skill/reference prose passes `--enabled` — the close-out reference's step 3 and
+  both `docket-adr` sites — so a future call site can't silently reintroduce an ungated publish.
 
 ## Out of scope
 

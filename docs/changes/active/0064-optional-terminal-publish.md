@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/optional-terminal-publish
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -61,6 +61,12 @@ self-guards to a no-op in `main`-mode — one guard covers all four close-out dr
 to skill bodies. `docket-config.sh` reads the leaf, applies the fence, and emits `TERMINAL_PUBLISH`.
 Design detail, testing, and the component breakdown live in the linked spec.
 
+The gate sits **before the `--id`/`--adr` mode dispatch**, so it also covers `docket-adr`'s
+standalone ADR publish (on acceptance, and on a `Superseded`/`Reversed`/`Deprecated` status flip) —
+the second path that commits metadata straight to the integration branch. Both `docket-adr` call
+sites pass the flag. Without this, ADRs would keep landing on `main` under `terminal_publish: false`
+and the knob would not deliver its promise (folded in at reconcile — see the log below).
+
 ## Out of scope
 
 - Per-artifact granularity (e.g. suppress the change file but still publish ADRs) — all-or-nothing.
@@ -76,3 +82,34 @@ Design detail, testing, and the component breakdown live in the linked spec.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-07-12 — reconciled before build (docket-implement-next)
+
+Re-read the change + spec against `related` (2, 26, 40), the cited ADRs (12, 19), the recently
+archived changes, and current code (`scripts/terminal-publish.sh`, `scripts/docket-config.sh`,
+`skills/docket-convention/references/terminal-close-out.md`, `skills/docket-adr/SKILL.md`).
+
+**Scope widened — the ADR publish path.** The spec accounted for only one of
+`terminal-publish.sh`'s two publish shapes. The script is also the executor of `docket-adr`'s
+standalone `--adr` publish (`skills/docket-adr/SKILL.md:57` on acceptance, `:65` on a status flip),
+which likewise commits metadata directly onto the integration branch — exactly the write this change
+exists to suppress. Gating only the close-out (`--id`) call sites would have left ADRs landing on
+`main` under `terminal_publish: false`, contradicting this change's own promise that Accepted ADRs
+stay on `docket` only. Folded in: the guard is placed **before the `--id`/`--adr` mode dispatch** (so
+one guard still covers everything, per the spec's original single-guard intent), and both
+`docket-adr` call sites now pass `--enabled "$TERMINAL_PUBLISH"`. Spec updated: new decision 5, a new
+"Affected" bullet, a `docket-adr` mechanism section, and two new test cases (an `--adr --enabled
+false` no-op, and a structural check that every call site passes the flag).
+
+**Design otherwise intact.** The core decisions — built-in default `true`, coordination-key fence
+(per-repo-only), all-or-nothing suppression, guard in the script rather than the skill bodies — all
+still hold against current code. `docket-config.sh`'s Stage-2c fence loop and `--export` emit are
+exactly the seams the spec assumed; `terminal-publish.sh`'s existing `main`-mode guard is where the
+new guard slots in beside.
+
+**Noted, not fixed (out of scope → follow-up).** `terminal-close-out.md`'s preamble still says the
+kill callers "are still governed by their own skill bodies … until changes 0054/0055 rewire them
+onto this file". 0054 and 0055 are both `done` (archived 2026-07-11) and all four drivers now route
+through the reference. Since this change edits that file's step 3 and the stale sentence directly
+concerns which callers the new gate covers, the preamble's caller-coverage claim is corrected in
+passing; no broader rewrite of the reference is in scope.
