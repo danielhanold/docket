@@ -127,6 +127,18 @@ orphaned `docket-*` files (a removed built-in drops its wrapper; a de-listed har
 wrappers and its dispatch rule) and `sync-agents.sh --check` spans the `.gitignore` block, the
 tracked-file check, and (advisory) content staleness for both the agents and the dispatch rule.
 
+**Both invocation paths land on the same pinned wrapper.** A forked skill-invoke (`/docket-status`)
+and an explicit agent dispatch (`@docket-status`, or a `Task` naming the wrapper) resolve to the
+*same* generated wrapper and run at the *same* resolved model/effort. They differ only in
+**observability** — the dispatch is drillable in the TUI, while the fork returns as `completed
+(forked execution)` with its transcript reachable only on disk — and in **cost**: the dispatch
+spends a turn, the fork does not. Verified on Claude Code 2.1.207, together with the composition
+question ADR-0024 left open: a wrapper whose `skills:` preloads the very skill that forks into it
+does **not** recurse (preload is content injection at startup; the fork fires on invocation).
+**Caveat: skills and agents register at process start** — after `sync-agents.sh` or a
+skill-frontmatter edit, an already-open session still runs the old definitions, so restart the
+harness process or a healthy fork will look broken.
+
 Generated files are machine-local: per-repo wrappers were committed before the all-local model, so identical-on-every-clone pinning is retired — a deliberate trade-off; team defaults still live in the committed `.docket.yml` `agents:` block by convention, without CI-enforced pinning of generated copies.
 
 ## sync-agents.sh runs + the --check gate

@@ -55,6 +55,8 @@ assert "README teaches model-per-task over model-per-session" \
   'grep -qiE "one session, one model" "$README" && grep -qiE "matched to the .{0,6}session.{0,6} instead of" "$README"'
 assert "README's What you get list surfaces per-agent model pinning" \
   'grep -qF "**The right model for each step.**" "$README"'
+assert "agent-layer reference states both paths land on the same pinned wrapper" \
+  'grep -qiE "[Bb]oth invocation paths land on the same pinned wrapper" "$AGENT_LAYER"'
 
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
