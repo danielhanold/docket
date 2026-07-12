@@ -10,7 +10,7 @@ depends_on: []
 related: [16, 45, 46, 61]
 adrs:
 spec: docs/superpowers/specs/2026-07-12-agent-model-pinning-docs-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-12-agent-model-pinning-docs.md
 results:
 trivial: false
 auto_groomable: true
@@ -27,6 +27,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-12-agent-model-pinning-docs-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-12-agent-model-pinning-docs-design.md) |
+| Plan | [2026-07-12-agent-model-pinning-docs.md](https://github.com/danielhanold/docket/blob/feat/agent-model-pinning-docs/docs/superpowers/plans/2026-07-12-agent-model-pinning-docs.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
