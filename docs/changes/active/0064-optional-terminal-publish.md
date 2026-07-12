@@ -10,7 +10,7 @@ depends_on: []
 related: [2, 26, 40]
 adrs: [12, 19]
 spec: docs/superpowers/specs/2026-07-12-optional-terminal-publish-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-12-optional-terminal-publish.md
 results:
 trivial: false
 auto_groomable:
@@ -26,6 +26,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-12-optional-terminal-publish-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-12-optional-terminal-publish-design.md) |
+| Plan | [2026-07-12-optional-terminal-publish.md](https://github.com/danielhanold/docket/blob/feat/optional-terminal-publish/docs/superpowers/plans/2026-07-12-optional-terminal-publish.md) |
 | ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0019](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0019-global-config-fence-classification.md) |
 <!-- docket:artifacts:end -->
 
