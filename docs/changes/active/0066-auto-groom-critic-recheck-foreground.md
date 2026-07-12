@@ -18,7 +18,7 @@ branch: feat/auto-groom-critic-recheck-foreground
 pr:
 issue:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -75,3 +75,12 @@ Both resolved at groom (2026-07-12); the reasoning and rejected alternatives are
 - **Caller-side guard advisory or hard?** → **Advisory.** Lean on the existing git-state dispatch contract — a caller verifies the child's transition and does not treat a bare `completed` as done — rather than a new enforced validator; the root-cause fix (never-yield) removes the hazard, and a hard guard is a clean follow-up only if premature returns recur (spec D2).
 
 ## Reconcile log
+
+### 2026-07-12 — reconcile at claim (docket-implement-next)
+
+Re-read the change + spec against `related` [17, 61, 65], ADR-0024, and current code on `origin/main`/`origin/docket`. **Design holds unchanged; no scope or body edits.**
+
+- **Current code matches every spec assumption.** `docket-auto-groom` §3 still carries the under-qualified revision-round clause (SKILL.md:44 — `the critic re-checks only the revised items`, no foreground qualifier); `docket-convention`'s *Composition (change 0017)* paragraph still declares dispatches foreground without the never-yield / caller-side reading; `tests/test_composition_wiring.sh` is present in the positive-anchor sampling form; ADR-0024 is `Accepted` with the "no channel to the human" text and no `## Update` note yet. All four edit sites are exactly as the spec describes.
+- **#17 and #61 are merged** — this builds on their landed contracts (composition wiring; `context: fork` dispatch + ADR-0024), not on unmerged work. `depends_on: []` remains correct.
+- **#65 overlap noted (not a blocker).** #0065 (in-progress, own feature branch, unmerged) also appends a dated `## Update` note to ADR-0024 (forward-pointer to a new ADR-0026) and edits `tests/test_skill_fork_dispatch.sh`. No collision: our test target is `test_composition_wiring.sh` (different file), and the two ADR-0024 notes are independent dated `## Update` sections that compose — terminal-publish copies the current `origin/docket` ADR-0024 (carrying whichever notes have landed) onto `main`. Our feature branch (cut from `origin/main`) never touches ADR-0024; the note lands as a metadata commit on `docket`.
+- **Metadata/code split for this change:** skill + convention + test edits are product code on `feat/auto-groom-critic-recheck-foreground`; the ADR-0024 `## Update` note is a metadata commit on `docket`, carried to `main` at close-out via `adrs: [24]`.
