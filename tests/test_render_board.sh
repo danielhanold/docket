@@ -246,6 +246,172 @@ assert "docket-status inline surface names render-board.sh" \
 assert "docket-status keeps the regenerate-don't-3-way-merge rule" \
   'grep -qiF "never 3-way merge" "$SKILL"'
 
+# --- Guard 1: the repo-wide render-board.sh WRITE sentinel (change 0070) ----------------------
+# THE INVARIANT, stated once: render-board.sh's stdout reaches a file through board-refresh.sh
+# and NOTHING else.
+#
+# Every guard that came before encoded a PROXY for that sentence — "a --format digest flag is
+# present" (tests/test_docket_status.sh), "a ` > ` appears near the string BOARD.md" (REDIRECT_RE,
+# below) — and every known evasion is an exploit of the gap between the proxy and the invariant.
+# This guard prohibits the WRITE instead of recognizing the write TARGET, so it never matches a
+# filename and cannot be evaded by renaming one:
+#     >"$d/BOARD.md"   (no space — the IDIOMATIC shell form, which REDIRECT_RE cannot see)
+#     >> / >|          (append and clobber-force)
+#     > "$mw/$rel"     (VARIABLE target — the literal string "BOARD.md" appears nowhere near the
+#                       redirect, so NO regex keyed on /BOARD\.md can reach it AT ANY WIDTH; this
+#                       is what forecloses "just widen REDIRECT_RE" as a complete answer)
+# all die identically. It does not ask WHERE you are writing; it asserts you are not writing.
+#
+# The call-site list is DERIVED FROM A find(1) SWEEP, never hand-maintained (ledger #64: never
+# hand-list the call sites of an operation you are gating). The sweep covers scripts/lib/*.sh,
+# which a flat scripts/*.sh glob would silently miss. board-refresh.sh — the one gated writer
+# (change 0059: render to temp -> chmod -> rename) — is the ONLY allowlisted script.
+#
+# PIPELINE ORDER IS LOAD-BEARING:
+#   1. JOIN backslash-continuations into logical lines. The tokenizer is line-oriented, so a
+#      redirect parked on a continuation line hands it a first-line token with no `>` — a clean
+#      pass. (REDIRECT_RE survived that shape only because it flattens the file with `tr` first;
+#      that flattening was never incidental. Guard 1 subsumes the scan it replaces ONLY because
+#      it joins.)
+#   2. DROP whole-line comments — prose that merely NAMES the script is not an invocation.
+#      render-adr-index.sh, render-change-links.sh, and render-board.sh itself mention it in
+#      comments ONLY, so this step is what keeps them out of the scan, not a nicety.
+#   3. ERASE fd dups (>&2, 2>&1) BEFORE tokenizing. Subtle and mandatory: the tokenizer splits on
+#      ; & | — and the `&` of `2>&2` would CUT the token mid-redirect, leaving a dangling `>` that
+#      fires on the codebase's own CORRECT invocation. Erase first and the fd dup is gone before
+#      it can be mistaken for a write.
+#   4. TOKENIZE PER INVOCATION, not per line: a logical line carrying a clean call beside a rogue
+#      one must not be whitewashed by the clean one (ledger #64).
+#   5. ANY surviving `>` in a token is a file-directed redirect => violation. This rejects even a
+#      stderr-to-file form (2>/dev/null) — deliberately conservative: the correct way to route
+#      this renderer's stderr is the fd dup already in use (2>&2), and a guard that permits SOME
+#      writes is a guard whose next author must relitigate which.
+#
+# KNOWN, ACCEPTED GAP: a pipe into a writer (`render-board.sh ... | tee f`) is not caught — the
+# tokenizer ends the invocation at the `|`. The answer to that class is the filesystem-effect test
+# the design DEFERRED (run the orchestrator against a fixture, assert BOARD.md's bytes): it is
+# syntax-independent but path-dependent, and it earns its cost when a write path exists that a
+# source scan cannot reach. Today none does.
+#
+# The battery below is the substance of this guard (ledger #64: a guard is code — mutation-test it
+# before trusting it, or it is decoration). Every evasion above is injected into a fixture and MUST
+# turn the guard RED; the fd-dup control — the codebase's real invocation — MUST keep it GREEN.
+
+# Folds backslash-continuations into logical lines. awk, not sed: BSD sed does not portably treat
+# `\n` in an s/// LHS as a newline, so the classic `:a; /\\$/N; s/\\\n//; ta` is a GNU-ism here.
+# TWIN: an identical function lives in tests/test_docket_status.sh (Guard 3 tokenizes the same
+# unit and inherits the same fix) — keep the two in step.
+join_continuations(){
+  awk '{ while (sub(/\\$/, "")) { if ((getline nxt) > 0) { $0 = $0 nxt } else { break } } print }' "$1"
+}
+
+# 0 = clean; 1 = at least one render-board.sh invocation carries a file-directed redirect.
+render_board_write_free(){
+  local f="$1" violation=0 inv
+  while IFS= read -r inv; do
+    [ -n "$inv" ] || continue
+    echo "  (render-board.sh invocation writes to a file in ${f##*/}: $inv)"
+    violation=1
+  done < <(
+    join_continuations "$f" \
+      | grep -v '^[[:space:]]*#' \
+      | sed 's/[0-9]*>&[0-9-]*//g' \
+      | grep -oE '[^;&|]*/render-board\.sh[^;&|]*' \
+      | grep '>' || true
+  )
+  return "$violation"
+}
+
+# --- the mutation battery: each row is a fixture the guard must judge correctly ---
+mut="$tmp/mut"; mkdir -p "$mut"
+
+# (1) spaced redirect — the ONLY shape REDIRECT_RE could already see. Establishes the baseline.
+printf '%s\n' '#!/usr/bin/env bash' \
+  '"$SCRIPTS_DIR"/render-board.sh --changes-dir "$d" > "$d/BOARD.md"' > "$mut/spaced.sh"
+assert "guard1 flags a spaced redirect into BOARD.md" \
+  '! render_board_write_free "$mut/spaced.sh"'
+
+# (2) NO SPACE — the idiomatic shell redirect, invisible to REDIRECT_RE's [[:space:]]>[[:space:]].
+printf '%s\n' '#!/usr/bin/env bash' \
+  '"$SCRIPTS_DIR"/render-board.sh --changes-dir "$d" >"$d/BOARD.md"' > "$mut/nospace.sh"
+assert "guard1 flags a no-space redirect into BOARD.md" \
+  '! render_board_write_free "$mut/nospace.sh"'
+
+# (3) append. Not special-cased: the board is a full regeneration, never an accumulation — but
+#     this dies for the same reason everything else does, not because append is uniquely wrong.
+printf '%s\n' '#!/usr/bin/env bash' \
+  '"$SCRIPTS_DIR"/render-board.sh --changes-dir "$d" >> "$d/BOARD.md"' > "$mut/append.sh"
+assert "guard1 flags an append (>>) redirect into BOARD.md" \
+  '! render_board_write_free "$mut/append.sh"'
+
+# (4) clobber-force.
+printf '%s\n' '#!/usr/bin/env bash' \
+  '"$SCRIPTS_DIR"/render-board.sh --changes-dir "$d" >| "$d/BOARD.md"' > "$mut/clobber.sh"
+assert "guard1 flags a clobber-force (>|) redirect into BOARD.md" \
+  '! render_board_write_free "$mut/clobber.sh"'
+
+# (5) VARIABLE TARGET — the row that forecloses widening. docket-status.sh really does hold the
+#     board path in a variable (`local rel="$CHANGES_DIR/BOARD.md"`), so a rogue write can carry
+#     the literal "BOARD.md" nowhere near the redirect. Unreachable by any BOARD.md-keyed regex.
+printf '%s\n' '#!/usr/bin/env bash' \
+  'rel="$CHANGES_DIR/BOARD.md"' \
+  '"$SCRIPTS_DIR"/render-board.sh --changes-dir "$d" > "$mw/$rel"' > "$mut/vartarget.sh"
+assert "guard1 flags a redirect to a VARIABLE target (no BOARD.md near the >)" \
+  '! render_board_write_free "$mut/vartarget.sh"'
+
+# (6) CONTINUATION LINE — the redirect sits on the second physical line. A line-oriented tokenizer
+#     sees a first-line token with no `>` and passes it clean. This is why joining precedes
+#     tokenizing, and why dropping the old flattened scan is only safe once it does.
+printf '%s\n' '#!/usr/bin/env bash' \
+  '"$SCRIPTS_DIR"/render-board.sh --changes-dir "$d" \' \
+  '  > "$f"' > "$mut/continuation.sh"
+assert "guard1 flags a redirect parked on a continuation line" \
+  '! render_board_write_free "$mut/continuation.sh"'
+
+# (6b) CONTINUATION + NO SPACE — the union shape the design named as still-live under BOTH old
+#      guards (evades the line-oriented tokenizer AND REDIRECT_RE's whitespace requirement).
+printf '%s\n' '#!/usr/bin/env bash' \
+  '"$SCRIPTS_DIR"/render-board.sh --changes-dir "$d" \' \
+  '  >"$mw/$rel"' > "$mut/continuation-nospace.sh"
+assert "guard1 flags a no-space redirect on a continuation line (the union evasion)" \
+  '! render_board_write_free "$mut/continuation-nospace.sh"'
+
+# (7) FALSE-POSITIVE CONTROL — the codebase's REAL invocation, copied verbatim from
+#     scripts/docket-status.sh, fd dup and all. A guard that fires on this is a guard someone
+#     disables; this row carries as much weight as every RED row above it.
+printf '%s\n' '#!/usr/bin/env bash' \
+  'if ! out="$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$cd_dir" --format digest 2>&2)"; then' \
+  '  return 1' \
+  'fi' > "$mut/fddup.sh"
+assert "guard1 stays GREEN on the real 2>&2 --format digest invocation (false-positive control)" \
+  'render_board_write_free "$mut/fddup.sh"'
+
+# (8) FALSE-POSITIVE CONTROL — a 2>&1 fd dup beside a COMMENT that spells out the old redirect.
+#     Comment-stripping is load-bearing: three scripts name render-board.sh in comments only.
+printf '%s\n' '#!/usr/bin/env bash' \
+  '# historical (pre-0059): render-board.sh --changes-dir "$d" > "$d/BOARD.md"' \
+  'out="$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$d" 2>&1)"' > "$mut/comment.sh"
+assert "guard1 stays GREEN on an fd-dup call beside a comment naming the old redirect" \
+  'render_board_write_free "$mut/comment.sh"'
+
+# --- the real scan: every script under scripts/ EXCEPT the one allowlisted writer ---
+guard1_violation=0
+scanned=0
+while IFS= read -r s; do
+  [ "${s##*/}" = "board-refresh.sh" ] && continue
+  scanned=$((scanned + 1))
+  render_board_write_free "$s" || guard1_violation=1
+done < <(find "$REPO/scripts" -name '*.sh' -type f | sort)
+assert "no script under scripts/ (except board-refresh.sh) writes render-board.sh's stdout to a file" \
+  '[ "$guard1_violation" -eq 0 ]'
+
+# Anti-vacuity: a scan over zero files passes for the wrong reason. Assert the sweep actually saw
+# the tree, and that the allowlisted writer it skips really exists (a rename must not silently
+# turn the allowlist into a no-op that hides the real writer).
+assert "the write scan is not vacuous (it swept the scripts tree)" '[ "$scanned" -ge 10 ]'
+assert "the allowlisted writer scripts/board-refresh.sh exists" \
+  '[ -f "$REPO/scripts/board-refresh.sh" ]'
+
 # --- negative sentinel: no skill body may redirect render-board.sh stdout straight into
 # BOARD.md (the pre-0059 anti-pattern this task removes). Whitespace-normalize per file first
 # since the old redirect could span physical lines. The guard regex:
