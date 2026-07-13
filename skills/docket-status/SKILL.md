@@ -9,7 +9,7 @@ agent: docket-status
 
 ## Overview
 
-`docket-status` gives you a queryable, up-to-date view of the backlog and keeps it clean. It has three jobs: refresh docket state (rendering each enabled board surface — `BOARD.md` when `inline` is enabled, nothing at all when `board_surfaces` is empty), sweep any `implemented` change whose PR merged into the archive, and run health checks that flag stale claims, broken links, and dependency stalls. The change files are the source of truth; any board is always generated output, never edited by hand. Since change 0058 all of this is sequenced by the deterministic orchestrator (contract: `scripts/docket-status.md`) — this skill's job is to invoke it, trust its exit code, surface its report, and apply the handful of judgment calls the script deliberately leaves in-model.
+`docket-status` gives you a queryable, up-to-date view of the backlog and keeps it clean. It has four jobs: **report the backlog digest** (the `backlog <status> <count>` and `change <id> <status> <readiness> <slug>` lines — emitted in *every* configuration, board or no board, and **the channel you write your summary from**), refresh docket state (rendering each enabled board surface — `BOARD.md` when `inline` is enabled, nothing at all when `board_surfaces` is empty), sweep any `implemented` change whose PR merged into the archive, and run health checks that flag stale claims, broken links, and dependency stalls. The change files are the source of truth; any board is always generated output, never edited by hand. Since change 0058 all of this is sequenced by the deterministic orchestrator (contract: `scripts/docket-status.md`) as one 8-step pass — this skill's job is to invoke it, trust its exit code, surface its report, and apply the handful of judgment calls the script deliberately leaves in-model.
 
 ## When to use
 
@@ -39,7 +39,7 @@ Run the convention's *Step-0 preamble*: `eval "$("${DOCKET_SCRIPTS_DIR:?run dock
 "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket-status.sh [--board-only]
 ```
 
-Trust its exit code: `0` is the pass completing (findings, `sweep-failed`, `sweep-skipped`, `board *-failed`, and `judgment` lines on stdout are normal outcomes, not errors); non-zero is a hard error (config export failure, an unusable `BOOTSTRAP` verdict, an unusable metadata worktree, or a bad CLI argument) — surface the stderr diagnostic and stop rather than improvising a fix.
+Trust its exit code: `0` is the pass completing (`board off`, `pass ok`, findings, `sweep-failed`, `sweep-skipped`, `board *-failed`, and `judgment` lines on stdout are all normal outcomes, not errors); non-zero is a hard error (config export failure, an unusable `BOOTSTRAP` verdict, an unusable metadata worktree, or a bad CLI argument) — surface the stderr diagnostic and stop rather than improvising a fix.
 
 The script owns the mechanics of what it renders, sweeps, and checks — see `scripts/docket-status.md` for the full 8-step sequence, its output-line shapes, and its failure postures. Surface its report to the user in human terms (what's on the board, what got swept, what health checks flagged) rather than pasting the raw line-oriented output. Health checks stay warn-only — do not auto-fix findings unless the user explicitly asks.
 
@@ -48,7 +48,7 @@ The script owns the mechanics of what it renders, sweeps, and checks — see `sc
 The report is **self-evidencing**: it always states what it did, so you never have to go looking for corroboration.
 
 - **`board off`** — the repo sets `board_surfaces: []` and there is deliberately **no board**. This is a configuration, not a failure. Do not look for `BOARD.md`; it must not exist.
-- **`backlog <status> <count>` + `change <id> <status> <readiness> <slug>`** — the backlog digest, emitted in **every** configuration. **This is your backlog-state channel.** Write the summary from these lines.
+- **`backlog <status> <count>` + `change <id> <status> <readiness> <slug>`** — the backlog digest, emitted in **every** configuration. **This is your backlog-state channel.** Write the summary from these lines. On a full pass the digest is taken **after** the sweep, so it already accounts for everything this pass closed out: a change on a `swept` line is counted under `backlog done` and has no `change` line of its own. Never report a swept change as still awaiting merge.
 - **`pass ok`** — the orchestrator ran to completion. It is always the last line of a successful pass.
 
 Two rules follow, and they are not optional:

@@ -287,6 +287,20 @@ done
 assert "no skills/*/SKILL.md redirects render-board.sh stdout directly into BOARD.md" \
   '[ "$redirect_found" -eq 0 ]'
 
+# Same regex, now also over scripts/docket-status.sh (change 0069). That script gained a LEGITIMATE
+# render-board.sh call (`--format digest`, read-only, piped into its report), and the sentinel in
+# tests/test_docket_status.sh that polices it only tokenizes the FLAG — so
+# `render-board.sh --changes-dir "$1" --format digest > "$1/BOARD.md"` satisfies it while writing
+# the very file board-refresh.sh is supposed to own. This scan guards the WRITE, not the flag; the
+# two catch different holes, so both stay.
+status_redirect=0
+if tr '\n' ' ' < "$REPO/scripts/docket-status.sh" | grep -Eq "$REDIRECT_RE"; then
+  echo "  (direct render-board.sh -> BOARD.md redirect found in: scripts/docket-status.sh)"
+  status_redirect=1
+fi
+assert "scripts/docket-status.sh never redirects render-board.sh stdout into BOARD.md" \
+  '[ "$status_redirect" -eq 0 ]'
+
 # --- malformed id is skipped (active + archive), renderer still succeeds ---
 printf -- '---\nid: abc\nslug: bad\ntitle: Bad Active\nstatus: proposed\npriority: low\ndepends_on: []\n---\n' > "$tmp/active/0099-bad.md"
 printf -- '---\nid: nope\nslug: badarc\ntitle: Bad Archive\nstatus: done\npriority: low\ndepends_on: []\n---\n' > "$tmp/archive/2026-06-01-0098-badarc.md"
@@ -362,7 +376,11 @@ frc=$?
 assert "unknown --format exits 2" '[ "$frc" -eq 2 ]'
 assert "unknown --format names the flag on stderr" 'grep -qi "format" "$tmp/fmt-err.txt"'
 
-# (h) the digest performs no git writes and needs no worktree (offline, pure).
+# (h) the digest is a READ-ONLY projection: it writes no BOARD.md (that file is board-refresh.sh's
+#     alone) and creates no git state. The BOARD.md check is the one that bites — nothing ever
+#     `git init`s $tmp, so the git-free half is true before render-board.sh is even invoked and
+#     would stay green even if the digest branch wrote the board.
+assert "digest run writes no BOARD.md into the changes dir" '[ ! -e "$tmp/BOARD.md" ]'
 assert "digest run leaves the fixture dir git-free" '[ ! -d "$tmp/.git" ]'
 
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
