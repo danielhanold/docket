@@ -70,4 +70,35 @@ assert "preflight exits zero on a migrated repo" '[ "$pf_rc" -eq 0 ]'
 assert "preflight created the metadata worktree" '[ -d "$work/.docket" ]'
 assert "preflight prints the env block (BOOTSTRAP present)" 'printf "%s\n" "$pf_out" | grep -qxF "BOOTSTRAP=PROCEED"'
 
+# ============================================================================
+# Inventory sentinel (change 0068) — derive both sides by grep; never hand-list.
+# ============================================================================
+FSH="$REPO/scripts/docket.sh"; FMD="$REPO/scripts/docket.md"
+
+# ops declared in docket.sh: the two verbs + the WRAPPED_OPS array value, tokenized.
+sh_wrapped="$(sed -n 's/^WRAPPED_OPS="\(.*\)"/\1/p' "$FSH")"
+sh_ops="$(printf 'preflight\nenv\n%s\n' "$sh_wrapped" | tr ' ' '\n' | sed '/^$/d' | sort -u)"
+
+# ops documented in docket.md: the leading `| \`op\` |` cell of each inventory-table row.
+md_ops="$(grep -oE '^\| `[a-z-]+` ' "$FMD" | tr -d '`|' | tr -d ' ' | sort -u)"
+
+assert "docket.sh op set == docket.md documented op set" '[ "$sh_ops" = "$md_ops" ] || { echo "sh=[$sh_ops] md=[$md_ops]" >&2; false; }'
+
+# each wrapped op has a live helper of the same basename
+sentinel_ok=1
+for o in $sh_wrapped; do [ -f "$REPO/scripts/$o.sh" ] || { echo "op $o has no scripts/$o.sh" >&2; sentinel_ok=0; }; done
+assert "every wrapped op maps to scripts/<op>.sh" '[ "$sentinel_ok" -eq 1 ]'
+
+# not-exposed scripts never appear as ops (dispatch table or contract table)
+for ne in docket-config disable-worktree-hooks render-board install migrate-to-docket sync-agents ensure-docket-env ensure-claude-settings; do
+  assert "not-exposed '$ne' is not a docket.sh op"  '! printf "%s\n" "$sh_ops" | grep -qxF "$ne"'
+  assert "not-exposed '$ne' is not a docket.md op"  '! printf "%s\n" "$md_ops" | grep -qxF "$ne"'
+done
+
+# no escape-hatch op name; never evals positional args
+for hatch in run exec-op shell eval; do
+  assert "docket.sh dispatch has no '$hatch' operation arm" '! grep -qE "^\s*'"$hatch"'\)" "$FSH"'
+done
+assert "docket.sh never evals caller args" '! grep -qE "eval .*\"\$[@*]\"|eval .*\$op" "$FSH"'
+
 exit $fail
