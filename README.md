@@ -8,6 +8,7 @@ What you get:
 - **Hands-off implementation.** An autonomous skill claims the next ready change, refreshes it against the current state of the code, builds it with test-driven development, and opens a PR — with no supervision in between.
 - **You stay at the merge gate.** Agents never merge. Your review of the pull request is the one required human checkpoint on the way to `done`.
 - **No new infrastructure.** No service, no database, no bespoke CLI — just markdown files, git, and skills any supported agent harness can run; Claude Code, Cursor, and Codex are first-class.
+- **The right model for each step.** Every autonomous skill is pinned to its own model and effort, so a board refresh runs at a cheap tier while a build runs at a top one — in the same session, with no model choice from you. See [Tuning agent models & effort](#tuning-agent-models--effort).
 
 ---
 
@@ -384,6 +385,12 @@ to a PR. Nothing to configure; it is applied and self-heals on every docket run.
 
 ## Tuning agent models & effort
 
+**Why pin a model per agent.** Most harnesses invite one mental model: *one session, one model.* You choose a tier when you start, and everything you do that hour runs at it. That is how you end up paying top-tier prices to regenerate a board — and thinking at the cheap tier while designing a build. Both are the same mistake, in opposite directions: the model was matched to the **session** instead of to the **task**.
+
+docket's unit of work is the **skill**, so the tier is a property of the skill, not of your session. A `docket-status` sweep is mechanical file bookkeeping — the cheap tier. A `docket-implement-next` build is the deepest reasoning in the loop — the top tier, at high effort — and an autonomous design pass earns that same tier, because deciding what to build is no cheaper than building it. Recording the decision it reached (`docket-adr`) sits between them, at the mid tier. They run in the **same session**, minutes apart, each at its own model, and you never pick one.
+
+A single afternoon's loop spans all three: design and build the change at the top tier, record its ADR at the mid tier, sweep the merged PR at the cheap tier. The `agents:` block below is how you *express* that; the generated wrapper is how it is *enforced*; and `context: fork` (Claude Code) and the generated dispatch rule (Cursor) are how the pin survives even a direct `/docket-status` invocation. Tune the tiers to your budget — docket's built-in defaults are a starting point, not a contract.
+
 Each **autonomous** docket skill runs as a model/effort-pinned subagent (`docket-implement-next`, `docket-auto-groom`, `docket-finalize-change`, `docket-status`, `docket-adr`; the two interactive skills, `docket-new-change` and `docket-groom-next`, stay inline and only surface an advisory recommendation). To change the model or effort one of them runs at:
 
 **1. Edit a config layer.** Up to three layers override the built-in default, resolved per field (precedence: repo-local > repo-committed > global > built-in):
@@ -426,6 +433,17 @@ bash sync-agents.sh        # or re-run install.sh, which calls it for you
 **Always the full set, plus a Cursor dispatch rule.** The per-repo layer writes the **full built-in agent set** for every harness in `agent_harnesses` (the `agents:` block only *overrides* model/effort — it never decides which agents exist). It is **opt-in**: a repo opts in by declaring an `agents:` block or an `agent_harnesses:` key, in **either** its committed `.docket.yml` or its local `.docket.local.yml`; a repo with neither key set in either file generates no per-repo wrappers and its `--check` stays a no-op. A repo listing `cursor` also gets a generated `.cursor/rules/docket-dispatch.mdc` that forces Cursor to dispatch docket agents instead of running them inline. `sync-agents.sh --check` covers both the generated agents and the dispatch rule.
 
 **Two mechanisms for one inline quirk.** Both Cursor and Claude Code run a *directly-invoked* skill — a human typing `/docket-status`, or the model auto-invoking it — inline at the session model, which silently defeats the wrapper's model/effort pin. They fix it differently: Cursor uses the generated `docket-dispatch.mdc` rule above; **Claude Code uses native `context: fork` + `agent: docket-<name>` frontmatter** committed in each forked skill's `SKILL.md`, which forks the invocation into the same pinned wrapper. That frontmatter is inert in every other harness (unknown keys are ignored), so one shared `SKILL.md` serves all of them, and it degrades to today's inline behavior on a Claude Code too old to know the field. **Fork-exclusion principle:** only skills that never need the human mid-run are forked — a forked subagent has no channel to the human (Claude Code withholds `AskUserQuestion`, `EnterPlanMode`, and similar from subagents). So the four headless-safe autonomous skills — `docket-status`, `docket-adr`, `docket-implement-next`, `docket-auto-groom` — carry the frontmatter; the two interactive brainstorm skills (`docket-new-change`, `docket-groom-next`) and `docket-finalize-change` (whose headless merge is blocked by Claude Code's Merge-Without-Review classifier, a separate decision tracked as change 0062) do not.
+
+**The two invocation paths.** Both mechanisms above land a directly-invoked skill on the *same* pinned wrapper, so the model and effort it runs at are identical either way. What differs is what **you** see while it runs:
+
+| Path | How | You get | You give up |
+|---|---|---|---|
+| **Skill-invoke** | `/docket-status`, or the model auto-invoking the skill | The pinned run, forked — cheapest, no dispatch turn | Observability: it returns as `completed (forked execution)`, with no box to drill into in the TUI |
+| **Agent-dispatch** | `@docket-status`, or a `Task` dispatch naming the wrapper | The **identical** pinned run, drillable live in the TUI | One dispatch turn of overhead |
+
+Reach for **agent-dispatch when you want to watch a long run** — a build you intend to babysit — and **skill-invoke for everything else**. A forked run is not lost, only unobservable in the TUI: Claude Code still writes its full transcript to `~/.claude/projects/<project-slug>/<session-id>/subagents/agent-<id>.jsonl`. Treat that path as an **observed internal, not an interface** — it was accurate on Claude Code 2.1.207, it may move, and docket depends on it for nothing. Cursor users are always on the drillable path: the generated dispatch rule routes a direct invocation through a real `Task` dispatch.
+
+**Restart your session after changing an agent or a skill.** Skills and agents are **registered at process start**. After you run `sync-agents.sh`, or edit a skill's frontmatter, an already-open session keeps running the *old* definitions — so a freshly-added fork appears to do nothing, and a healthy pin looks broken. Restart the harness process (a new session — clearing the context is not enough) and re-invoke.
 
 **The clone-identical guarantee is retired.** Before this change, committing the generated per-repo files meant an autonomous change built on the exact same model on every clone, by construction. Generation is now all-local, so that guarantee is gone — a deliberate trade, not an oversight: never having to reconcile a machine-generated file in a PR diff, at the cost of no CI-enforced pinning of the generated copies. Team defaults for a repo still live in its committed `.docket.yml` `agents:` block, by convention.
 
