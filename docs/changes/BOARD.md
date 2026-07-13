@@ -1,8 +1,8 @@
 # Backlog
 
-**70 changes** — 🟡 11 proposed · 🔵 2 implemented · ✅ 55 done · 🗑️ 2 killed
+**71 changes** — 🟡 12 proposed · 🔵 2 implemented · ✅ 55 done · 🗑️ 2 killed
 
-## 🟡 Proposed (11)
+## 🟡 Proposed (12)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -17,6 +17,7 @@
 | [0067](active/0067-learnings-promotion-destination.md) | Give the learnings ledger a promotion destination — it has no way to shrink | `medium` | needs-brainstorm |
 | [0068](active/0068-cursor-sandbox-permissions-docs.md) | Provide a stable Cursor command boundary for docket workflows | `medium` | needs-brainstorm |
 | [0070](active/0070-redirect-regex-board-write-guard.md) | Harden the BOARD.md write guard — REDIRECT_RE misses real redirect forms | `medium` | needs-brainstorm |
+| [0071](active/0071-board-surfaces-unset-vs-empty.md) | An unresolved $BOARD_SURFACES is indistinguishable from a deliberately disabled board | `high` | needs-brainstorm |
 
 ## 🔵 Implemented — awaiting merge (2)
 
@@ -40,6 +41,7 @@ graph TD
   0068
   0069
   0070
+  0071
   0001:::done
   0002:::done
   0003:::done
