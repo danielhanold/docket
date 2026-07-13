@@ -30,24 +30,27 @@ Any other argument is a hard error (`docket-status: unknown argument: <arg>`, ex
 
 Configuration (`DOCKET_MODE`, `METADATA_WORKTREE`, `METADATA_BRANCH`, `INTEGRATION_BRANCH`,
 `CHANGES_DIR`, `ADRS_DIR`, `BOARD_SURFACES`, `TERMINAL_PUBLISH`, `BOOTSTRAP`, …) comes entirely from
-`docket-config.sh --export`, evaluated with `eval` at the top of `main`. The script defines no config
-of its own.
+`docket-config.sh --export`, evaluated with `eval` into `main()`'s scope by the shared
+`docket_preflight` call at the top of `main` (see Behavior, steps 1–2). The script defines no
+config of its own.
 
 ## Behavior
 
 The pass runs as a fixed 8-step sequence:
 
-**1. Config + bootstrap gate.** Runs `config_export` (normally `docket-config.sh --export`,
-overridable via the `CONFIG_EXPORT_CMD` mock seam) and `eval`s the output. A non-zero exit from
-config export is a hard error. The resulting `BOOTSTRAP` verdict is then gated: `PROCEED`
-continues; `STOP_MIGRATE` and `CREATE_ORPHAN` each print a remedy to stderr and exit 1; any other
-value is an unknown-verdict hard error (exit 1).
-
-**2. Metadata worktree ensure + sync.** In `DOCKET_MODE=docket`, ensures the metadata worktree
-(`METADATA_WORKTREE`, default `.docket`) exists — creating it from `METADATA_BRANCH` or
-`origin/METADATA_BRANCH` if missing — then fetches and rebase-pulls `METADATA_BRANCH` inside it.
-In non-docket mode, rebase-pulls the current checkout directly. Any fetch/pull/create failure is a
-hard error (exit 1) with a diagnostic on stderr.
+**1–2. Config, bootstrap gate, and metadata worktree ensure + sync — delegated.** Step-0 sync is
+delegated to the shared `scripts/lib/docket-preflight.sh` (`docket_preflight`), the single sync
+implementation shared with the `docket.sh` facade. `main()` calls `docket_preflight "$SCRIPTS_DIR"`,
+which: (1) runs config export (normally `docket-config.sh --export`, overridable via the
+`CONFIG_EXPORT_CMD` mock seam) and `eval`s the output into `main()`'s scope — a non-zero exit from
+config export is a hard error; gates the resulting `BOOTSTRAP` verdict (`PROCEED` continues;
+`STOP_MIGRATE` and `CREATE_ORPHAN` each print a remedy to stderr and return non-zero; any other
+value is an unknown-verdict hard error); then (2) in `DOCKET_MODE=docket`, ensures the metadata
+worktree (`METADATA_WORKTREE`, default `.docket`) exists — creating it from `METADATA_BRANCH` or
+`origin/METADATA_BRANCH` if missing — then fetches and rebase-pulls `METADATA_BRANCH` inside it; in
+non-docket mode, rebase-pulls the current checkout directly. A non-zero return from
+`docket_preflight` (config export failure, bootstrap gate, or an unusable metadata worktree) is a
+hard error and this script exits 1 immediately.
 
 **3. Board pass**, once per surface token in the space-separated `BOARD_SURFACES` config value.
 **No surfaces configured emits a positive `board off` line** (change 0069) — never silence: an
@@ -201,4 +204,6 @@ All report lines are stdout, one shape per line, diagnostics go to stderr:
   surface's work within the same pass.
 - **Mock seams.** `GIT="${GIT:-git}"`, `GH="${GH:-gh}"`, `SCRIPTS_DIR="${SCRIPTS_DIR:-$SELF_DIR}"`
   (where the chained scripts are looked up), and `CONFIG_EXPORT_CMD` (overrides the
-  `docket-config.sh --export` call) — all overridable in tests for hermetic runs.
+  `docket-config.sh --export` call) — all overridable in tests for hermetic runs. The shared
+  `docket_preflight` (`scripts/lib/docket-preflight.sh`) honors the same `GIT` and
+  `CONFIG_EXPORT_CMD` seams.
