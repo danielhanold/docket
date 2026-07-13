@@ -8,7 +8,7 @@ created: 2026-07-12
 updated: 2026-07-13
 depends_on: []
 related: [2, 26, 40]
-adrs: [12, 19]
+adrs: [12, 19, 27]
 spec: docs/superpowers/specs/2026-07-12-optional-terminal-publish-design.md
 plan: docs/superpowers/plans/2026-07-12-optional-terminal-publish.md
 results:
@@ -27,7 +27,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-12-optional-terminal-publish-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-12-optional-terminal-publish-design.md) |
 | Plan | [2026-07-12-optional-terminal-publish.md](https://github.com/danielhanold/docket/blob/feat/optional-terminal-publish/docs/superpowers/plans/2026-07-12-optional-terminal-publish.md) |
-| ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0019](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0019-global-config-fence-classification.md) |
+| ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0019](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0019-global-config-fence-classification.md), [ADR-0027](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0027-terminal-publish-repo-scoped-script-gated.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -98,7 +98,11 @@ exists to suppress. Gating only the close-out (`--id`) call sites would have lef
 `main` under `terminal_publish: false`, contradicting this change's own promise that Accepted ADRs
 stay on `docket` only. Folded in: the guard is placed **before the `--id`/`--adr` mode dispatch** (so
 one guard still covers everything, per the spec's original single-guard intent), and both
-`docket-adr` call sites now pass `--enabled "$TERMINAL_PUBLISH"`. Spec updated: new decision 5, a new
+`docket-adr` call sites now pass the flag. (Shipped form: the skill/reference prose passes the
+`--enabled <terminal_publish>` placeholder, matching the `<integration_branch>`/`<changes_dir>`
+idiom of the same code blocks — and fail-closed, since an unsubstituted placeholder kills the
+script; the executable call site in `docket-status.sh` passes `--enabled "${TERMINAL_PUBLISH:-true}"`.)
+Spec updated: new decision 5, a new
 "Affected" bullet, a `docket-adr` mechanism section, and two new test cases (an `--adr --enabled
 false` no-op, and a structural check that every call site passes the flag).
 
