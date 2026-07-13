@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/docket-command-facade
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -91,3 +91,37 @@ The shell round-trip adds nothing but fragility and the un-allowlistable command
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-07-13 — reconcile (docket-implement-next)
+
+Verified the same-day design against current `origin/docket` and the integration branch; no
+scope change needed, no design invalidation. Findings:
+
+- **Net-new, no collision.** `scripts/docket.sh` and `scripts/docket.md` do not exist yet — this
+  is greenfield facade engineering.
+- **Inventory is complete and current.** All 16 `scripts/*.sh` map cleanly to the spec's table:
+  13 exposed operations (`env`, `docket-status`, `board-refresh`, `archive-change`,
+  `terminal-publish`, `cleanup-feature-branch`, `github-mirror`, `sync-integration-branch`,
+  `render-change-links`, `render-adr-index`, `adr-checks`, `board-checks`, plus the new
+  `preflight`), and the not-exposed set (`docket-config.sh` reached via `env`,
+  `disable-worktree-hooks.sh`, `render-board.sh` internal to `board-refresh`, and the
+  human-initiated `install.sh`/`migrate-to-docket.sh`/`sync-agents.sh`/`ensure-*.sh`). Nothing
+  new has been added to `scripts/` that the table would miss.
+- **Preflight extraction target confirmed.** `docket-status.sh`'s private
+  `ensure_and_sync_worktree` is at lines 42–60 today (spec cited 40–56; the body is unchanged in
+  substance — worktree ensure → `disable-worktree-hooks.sh` → fetch + `pull --rebase`, with the
+  `main`-mode `git pull --rebase` degrade). It reuses `CONFIG_EXPORT_CMD`/`GIT`/`GH` mock seams
+  the shared preflight should preserve.
+- **`env` presentation constraint (build note, not a scope change).** `docket-config.sh`'s
+  `emit()` prints `%q`-**shell-quoted** `KEY=value` lines (built for `eval`). The spec's `env` op
+  must present *raw*, unquoted `KEY=value` for the model to read as literals — so the build must
+  either add a plain-emit path to the resolver or un-`%q` its output; the planner should pick and
+  test this explicitly (the resolver stays the single source of resolved values).
+- **Related changes.** #48/#63/#65 are `done` (no overlap with this facade); #71
+  (board-surfaces-unset-vs-empty), #72 (facade-skill-rewiring), #73 (cursor-guide) remain
+  `proposed` follow-ups — #72/#73 correctly still depend on this landing first. Out-of-scope
+  boundaries hold.
+- **Sentinel guidance intact.** LEARNINGS #64 (derive gated call-site lists by grep, never by
+  hand; mutation-test the sentinel) and #64b (an aborting resolver emits nothing → clear the
+  asserted var before re-reading) are present and directly govern the inventory sentinel and the
+  `env` empty-output test this change ships.
