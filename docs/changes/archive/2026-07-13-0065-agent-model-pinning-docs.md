@@ -2,10 +2,10 @@
 id: 65
 slug: agent-model-pinning-docs
 title: Document the two invocation paths and per-agent model pinning; ADR the context:fork findings
-status: implemented
+status: done
 priority: medium
 created: 2026-07-12
-updated: 2026-07-12
+updated: 2026-07-13
 depends_on: []
 related: [16, 45, 46, 61]
 adrs: [24, 26]
