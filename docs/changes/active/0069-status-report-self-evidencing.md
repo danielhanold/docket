@@ -8,7 +8,7 @@ created: 2026-07-13
 updated: 2026-07-13
 depends_on: []
 related: [58, 59]
-adrs: []
+adrs: [28]
 spec: docs/superpowers/specs/2026-07-13-status-report-self-evidencing-design.md
 plan: docs/superpowers/plans/2026-07-13-status-report-self-evidencing.md
 results:
@@ -27,6 +27,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-13-status-report-self-evidencing-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-13-status-report-self-evidencing-design.md) |
 | Plan | [2026-07-13-status-report-self-evidencing.md](https://github.com/danielhanold/docket/blob/feat/status-report-self-evidencing/docs/superpowers/plans/2026-07-13-status-report-self-evidencing.md) |
+| ADRs | [ADR-0028](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0028-report-channel-is-not-a-board-surface.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
