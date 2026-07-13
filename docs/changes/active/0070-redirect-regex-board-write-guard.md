@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/redirect-regex-board-write-guard
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -86,3 +86,30 @@ Design: [`docs/superpowers/specs/2026-07-13-redirect-regex-board-write-guard-des
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-07-13 — verified against `origin/main` @ `d80dca8`; design unchanged
+
+Re-read the change + spec against current code, #59/#69 (both `done`), and the ledger. Every premise
+the design rests on is still true byte-for-byte:
+
+- `REDIRECT_RE` (`tests/test_render_board.sh:270`) is unchanged, still whitespace-bounded, still
+  scanning `skills/*/SKILL.md` **plus** `scripts/docket-status.sh` (0069's scan, lines ~290–302) —
+  the scan Guard 1 replaces.
+- The flag check (`tests/test_docket_status.sh:24–33`) is present and line-oriented
+  (`grep -oE '[^;&|]*/render-board\.sh[^;&|]*'` over `grep -v '^[[:space:]]*#'`), confirming the
+  continuation-line hole.
+- The false-positive control is live: `docket-status.sh:172` is
+  `out="$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$cd_dir" --format digest 2>&2)"`.
+- A repo-wide sweep of `render-board.sh` across `scripts/*.sh` shows the only executable invocations
+  are that one and `board-refresh.sh`'s `RENDER_BOARD` seam (the allowlisted writer); every other hit
+  (`render-adr-index.sh`, `render-change-links.sh`, `render-board.sh` itself) is a **comment** —
+  confirming comment-stripping is load-bearing for Guard 1's glob, not a nicety.
+
+No scope change; no work done elsewhere. One clarification folded in, not a design change: Guard 1
+prohibits *every* non-fd-dup redirect in a render-board invocation, so even a stderr-to-file form
+(`2>/dev/null`) is rejected — deliberately conservative, since the invariant is about writes and the
+correct way to route stderr here is the fd dup (`2>&2`) already in use. This is stated in the guard's
+comment so a future author meets the rule instead of discovering it.
+
+Change 0068 (`docket-command-facade`, in-progress) may add scripts under `scripts/`; Guard 1 derives
+its call-site list from a glob, so a new script is covered automatically with no edit here.
