@@ -4,6 +4,28 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-07-13 (#64, PR #75) — Adding a knob that GATES an existing operation, the plan enumerated the
+  call sites by hand — and listed the skill/reference prose while missing `scripts/docket-status.sh`,
+  the one *executable* invocation, in the headless merge sweep. That is precisely the agent the gate
+  exists to serve, so the miss would have left `terminal_publish: false` still publishing to `main`
+  on every sweep — the exact failure the change exists to prevent. Apply: never hand-list the call
+  sites of an operation you are gating — derive them from a grep of the invocation across the whole
+  repo, then sort them into prose vs executable, because only the executable ones can actually
+  violate the gate and they are the ones a docs-shaped reading of the change skips right past. Guard
+  the completeness of that list with a structural sentinel in the suite, not with review attention.
+
+- 2026-07-13 (#64, PR #75) — That structural sentinel, and the fence tests beside it, each shipped a
+  FALSE-PASS hole; both surfaced only under mutation (strip the feature, watch the test go red).
+  (a) The sentinel grepped per LINE, so a logical line carrying a gated `--id` invocation and an
+  ungated `--adr` invocation side by side — which `docket-finalize-change/SKILL.md` actually has —
+  was whitewashed by the single `--enabled` present; it now splits per invocation before filtering.
+  (b) The fence tests `eval`'d the config export without clearing the asserted variable first, and an
+  aborting run emits NOTHING, so `eval ""` silently left the previous case's value in place and the
+  assertion passed on stale state. Apply: a guard is code — mutation-test it before trusting it, or
+  it is decoration. A grep sentinel must tokenize at the unit it claims to guard (the invocation, not
+  the line). And any test that `eval`s a command's output must clear the variables it asserts on
+  first, because "emitted nothing" and "emitted the expected thing" are otherwise indistinguishable.
+
 - 2026-06-21 / 2026-07-13 (#34 PR #45; #66 PR #73 — merged, one environment family) — Twice a suite
   ran RED where the failure was NOT a regression. (a) finalize's local gate reddened on the change's
   own drift-guard test only because `DOCKET_SCRIPTS_DIR` was *exported* in the interactive shell (that
