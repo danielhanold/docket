@@ -66,6 +66,12 @@ assert "main-mode: DOCKET_MODE main"                   '[ "$DOCKET_MODE" = main 
 assert "main-mode: METADATA_WORKTREE dot"              '[ "$METADATA_WORKTREE" = . ]'
 assert "main-mode: BOOTSTRAP PROCEED"                  '[ "$BOOTSTRAP" = PROCEED ]'
 
+# plain format absolutizes METADATA_WORKTREE in main-mode too: '.' -> the repo root itself
+# (no /.docket suffix), covering the MW_EMIT="$REPO_ABS" branch in scripts/docket-config.sh.
+b_abs="$(cd "$tmp/b" && pwd -P)"
+b_plain="$(run "$tmp/b" --export --format plain)"
+assert "plain format absolutizes METADATA_WORKTREE (main-mode => repo root)" 'printf "%s\n" "$b_plain" | grep -qxF "METADATA_WORKTREE=$b_abs"'
+
 # --- (C) explicit config (main-mode to skip bootstrap): dirs, gate, surfaces, escaping
 mkrepo "$tmp/c"
 cat > "$tmp/c/.docket.yml" <<'EOF'
