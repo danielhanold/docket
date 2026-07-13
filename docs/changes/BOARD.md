@@ -1,6 +1,6 @@
 # Backlog
 
-**67 changes** — 🟢 1 in progress · 🟡 9 proposed · 🔵 2 implemented · ✅ 53 done · 🗑️ 2 killed
+**67 changes** — 🟢 1 in progress · 🟡 9 proposed · 🔵 1 implemented · ✅ 54 done · 🗑️ 2 killed
 
 ## 🟢 In progress (1)
 
@@ -22,12 +22,11 @@
 | [0062](active/0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | `low` | build-ready |
 | [0067](active/0067-learnings-promotion-destination.md) | Give the learnings ledger a promotion destination — it has no way to shrink | `medium` | needs-brainstorm |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | [#69](https://github.com/danielhanold/docket/pull/69) |
-| [0066](active/0066-auto-groom-critic-recheck-foreground.md) | Auto-groom's critic re-check must be foreground — a forked skill that yields returns a half-done run to its caller | `high` | [#73](https://github.com/danielhanold/docket/pull/73) |
 
 ```mermaid
 graph TD
@@ -41,7 +40,6 @@ graph TD
   0044
   0062
   0064
-  0066
   0067
   0001:::done
   0002:::done
@@ -96,13 +94,15 @@ graph TD
   0061:::done
   0063:::done
   0065:::done
+  0066:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (55)</summary>
+<details><summary>✅🗑️ Archive — done + killed (56)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0066](archive/2026-07-13-0066-auto-groom-critic-recheck-foreground.md) | Auto-groom's critic re-check must be foreground — a forked skill that yields returns a half-done run to its caller | 2026-07-13 |
 | [0065](archive/2026-07-13-0065-agent-model-pinning-docs.md) | Document the two invocation paths and per-agent model pinning; ADR the context:fork findings | 2026-07-13 |
 | [0063](archive/2026-07-11-0063-git-hook-coexistence.md) | Coexist with git-hook frameworks — docket bookkeeping commits skip hooks | 2026-07-11 |
 | [0061](archive/2026-07-11-0061-claude-context-fork-dispatch.md) | Claude Code skill-invocation parity — context:fork dispatch to pinned wrappers | 2026-07-11 |
