@@ -4,7 +4,7 @@
 
 **Goal:** Replace the proxy guards that police `render-board.sh`'s stdout with one that prohibits the *write* itself, so no-space, `>>`, `>|`, variable-target, and continuation-line redirects all die identically — and mutation-test every one of them.
 
-**Architecture:** Three guards, derived from a single invariant — *`render-board.sh`'s stdout reaches a file through `board-refresh.sh` and nothing else.* **Guard 1** (new, `tests/test_render_board.sh`) is a repo-wide write sentinel: a bash function that, for any script, joins backslash-continuations → drops whole-line comments → erases fd dups → tokenizes per invocation → fails on any surviving `>`. It never matches the write *target*, so it cannot be evaded by renaming it. It ships as a **function** precisely so the mutation battery calls the *same code* the real scan calls — a battery that tests a copy is decoration. **Guard 2** keeps `REDIRECT_RE` byte-identical but re-scopes it to `skills/*/SKILL.md` prose, where its narrow whitespace-bounded shape is correct, and re-derives its design comment. **Guard 3** (`tests/test_docket_status.sh`) keeps the `--format digest` flag check and inherits the continuation-joining fix.
+**Architecture:** Three guards, derived from a single invariant — *`render-board.sh`'s stdout reaches a file through `board-refresh.sh` and nothing else.* **Guard 1** (new, `tests/test_render_board.sh`) is a repo-wide write sentinel: a bash function that, for any script, joins backslash-continuations → drops whole-line **and trailing** comments → normalizes `&>`/`&>>` to a bare `>` (they are writes, and the tokenizer would otherwise split on their `&`) → erases **only true** fd dups (`>&2`, `2>&1`, `>&-` — the target must be a digit run or `-`, so a file-writing `>&"$f"` is *not* erased) → tokenizes per invocation → fails on any surviving `>`. It never matches the write *target*, so it cannot be evaded by renaming it. It catches every redirect written **on** the invocation; it cannot see a write reached **indirectly** (a pipe into `tee`, or `exec 3>"$f"` + `>&3`) — those are disclosed as accepted gaps, whose answer is the deferred filesystem-effect test. It ships as a **function** precisely so the mutation battery calls the *same code* the real scan calls — a battery that tests a copy is decoration. **Guard 2** keeps `REDIRECT_RE` byte-identical but re-scopes it to `skills/*/SKILL.md` prose, where its narrow whitespace-bounded shape is correct, and re-derives its design comment. **Guard 3** (`tests/test_docket_status.sh`) keeps the `--format digest` flag check and inherits the continuation-joining fix.
 
 **Tech Stack:** Bash (`set -uo pipefail`), `awk` (continuation joining — portable across BSD/GNU, unlike `sed`'s `N`/`\n` handling), `grep -oE`, `find`. No production code changes; no new dependencies.
 
@@ -54,7 +54,14 @@ The battery comes first *in the file* as well as first in time: it is the reason
 #     > "$mw/$rel"     (VARIABLE target — the literal string "BOARD.md" appears nowhere near the
 #                       redirect, so NO regex keyed on /BOARD\.md can reach it AT ANY WIDTH; this
 #                       is what forecloses "just widen REDIRECT_RE" as a complete answer)
-# all die identically. It does not ask WHERE you are writing; it asserts you are not writing.
+#     &> / &>> / >&f   (the merged-output forms — see stage 3; each one really does write the file)
+# all die identically. It never asks WHERE you are writing.
+#
+# WHAT IT ACTUALLY CHECKS, stated without overclaim: for each render-board.sh invocation TOKEN, is
+# there a surviving `>` after fd dups are erased. That is a SOURCE-SYNTAX property of the token,
+# not a filesystem fact — so it catches every redirect written ON the invocation, and it cannot
+# see a write reached INDIRECTLY (through a pipe, or through an fd opened elsewhere). Those are
+# named in KNOWN, ACCEPTED GAPS below rather than papered over.
 #
 # The call-site list is DERIVED FROM A find(1) SWEEP, never hand-maintained (ledger #64: never
 # hand-list the call sites of an operation you are gating). The sweep covers scripts/lib/*.sh,
@@ -67,13 +74,30 @@ The battery comes first *in the file* as well as first in time: it is the reason
 #      pass. (REDIRECT_RE survived that shape only because it flattens the file with `tr` first;
 #      that flattening was never incidental. Guard 1 subsumes the scan it replaces ONLY because
 #      it joins.)
-#   2. DROP whole-line comments — prose that merely NAMES the script is not an invocation.
-#      render-adr-index.sh, render-change-links.sh, and render-board.sh itself mention it in
-#      comments ONLY, so this step is what keeps them out of the scan, not a nicety.
-#   3. ERASE fd dups (>&2, 2>&1) BEFORE tokenizing. Subtle and mandatory: the tokenizer splits on
-#      ; & | — and the `&` of `2>&2` would CUT the token mid-redirect, leaving a dangling `>` that
-#      fires on the codebase's own CORRECT invocation. Erase first and the fd dup is gone before
-#      it can be mistaken for a write.
+#   2. DROP whole-line comments, THEN STRIP TRAILING ones — prose that merely NAMES the script is
+#      not an invocation. render-adr-index.sh, render-change-links.sh, and render-board.sh itself
+#      mention it in comments ONLY, so this step is what keeps them out of the scan, not a nicety.
+#      The trailing strip (a `#` preceded by whitespace, to end of line) is equally load-bearing:
+#      whole-line stripping alone leaves `render-board.sh ... 2>&2  # digest -> stdout only` with a
+#      bare `>` from the comment's ARROW, turning the guard RED on a legitimate call — and this
+#      codebase's comment style is full of `->` arrows, so that is a live trap, not a hypothetical.
+#      TRADE-OFF, DISCLOSED NOT HIDDEN: a `#` inside a QUOTED ARGUMENT on a render-board.sh
+#      invocation line would truncate that line early and could hide a redirect placed after it.
+#      No such invocation exists (render-board.sh's only arguments are --changes-dir, --repo, and
+#      --format, none of which take a `#`), and the strip fixes a false positive that is real
+#      today against a false negative that requires a flag this renderer does not have.
+#   3. NORMALIZE `&>`/`&>>` TO `>`, THEN ERASE ONLY TRUE fd DUPS, both BEFORE tokenizing. Subtle
+#      and mandatory, in this order:
+#        - `&>file` and `&>>file` are WRITES (stdout+stderr merged into the file). The tokenizer
+#          splits on `; & |`, so the `&` of `&>` would END the token BEFORE its `>` — the write
+#          would vanish. Rewriting `&>`/`&>>` to a bare `>` first makes them ordinary writes.
+#        - the fd-dup erasure must key on whether the TARGET IS A REAL fd, not on the operator:
+#          `>&2`, `2>&1`, `>&-` dup/close a descriptor (harmless), but `>&"$out"` and `>& file`
+#          are WRITES that share the same `>&` spelling. Hence `[0-9]*>&([0-9]+|-)` — a digit run
+#          or `-` is REQUIRED after the `&`. (A `[0-9-]*` there matches ZERO characters and so
+#          erases `>&"$out"`, laundering a real file write into nothing. That was the bug.)
+#        Erasing the true dups first also keeps the `&` of `2>&2` from CUTTING the token
+#        mid-redirect and leaving a dangling `>` that fires on the codebase's CORRECT invocation.
 #   4. TOKENIZE PER INVOCATION, not per line: a logical line carrying a clean call beside a rogue
 #      one must not be whitewashed by the clean one (ledger #64).
 #   5. ANY surviving `>` in a token is a file-directed redirect => violation. This rejects even a
@@ -81,11 +105,17 @@ The battery comes first *in the file* as well as first in time: it is the reason
 #      this renderer's stderr is the fd dup already in use (2>&2), and a guard that permits SOME
 #      writes is a guard whose next author must relitigate which.
 #
-# KNOWN, ACCEPTED GAP: a pipe into a writer (`render-board.sh ... | tee f`) is not caught — the
-# tokenizer ends the invocation at the `|`. The answer to that class is the filesystem-effect test
-# the design DEFERRED (run the orchestrator against a fixture, assert BOARD.md's bytes): it is
-# syntax-independent but path-dependent, and it earns its cost when a write path exists that a
-# source scan cannot reach. Today none does.
+# KNOWN, ACCEPTED GAPS — both are INDIRECT writes, invisible to any source scan of the invocation
+# line, and both have the SAME answer (see below). They are disclosed, not fixed:
+#   a. PIPE INTO A WRITER: `render-board.sh ... | tee f`. The tokenizer ends the invocation at the
+#      `|`, so the writer on the far side is never examined.
+#   b. fd INDIRECTION: `exec 3>"$out"` on one line, then `render-board.sh ... >&3` on another. The
+#      file IS written, and the guard stays green because `>&3` is — syntactically, locally, and
+#      correctly — an fd dup. A scan of the invocation cannot know what fd 3 was opened to; it
+#      would have to follow the descriptor across statements, which is interpretation, not grep.
+# The answer to BOTH is the filesystem-effect test the design DEFERRED (run the orchestrator
+# against a fixture, assert BOARD.md's bytes): it is syntax-independent but path-dependent, and it
+# earns its cost when a write path exists that a source scan cannot reach. Today none does.
 #
 # The battery below is the substance of this guard (ledger #64: a guard is code — mutation-test it
 # before trusting it, or it is decoration). Every evasion above is injected into a fixture and MUST
@@ -109,7 +139,9 @@ render_board_write_free(){
   done < <(
     join_continuations "$f" \
       | grep -v '^[[:space:]]*#' \
-      | sed 's/[0-9]*>&[0-9-]*//g' \
+      | sed 's/[[:space:]]#.*$//' \
+      | sed 's/&>>\{0,1\}/>/g' \
+      | sed -E 's/[0-9]*>&([0-9]+|-)//g' \
       | grep -oE '[^;&|]*/render-board\.sh[^;&|]*' \
       | grep '>' || true
   )
@@ -170,7 +202,53 @@ printf '%s\n' '#!/usr/bin/env bash' \
 assert "guard1 flags a no-space redirect on a continuation line (the union evasion)" \
   '! render_board_write_free "$mut/continuation-nospace.sh"'
 
-# (7) FALSE-POSITIVE CONTROL — the codebase's REAL invocation, copied verbatim from
+# (7)-(10) THE MERGED-OUTPUT FORMS. Every one of these REALLY WRITES THE FILE — verified by
+#     running each against a stub renderer and stat'ing the target — and every one of them slipped
+#     past the guard's first cut, for two independent reasons worth naming separately:
+#       - `&>` / `&>>`: the tokenizer's `[^;&|]*` treats the `&` as a command separator, so the
+#         token ENDED before the `>` and the write disappeared. Fixed by normalizing to a bare `>`
+#         ahead of tokenizing (pipeline stage 3).
+#       - `>& file`: the fd-dup erasure keyed on the OPERATOR `>&` rather than on whether the
+#         target is a real descriptor, and its `[0-9-]*` happily matched ZERO characters — so
+#         `>&"$out"`, a file write, was erased outright. Fixed by REQUIRING a digit run or `-`.
+#     These four rows are the reason the erasure regex may never be loosened back to `[0-9-]*`.
+
+# (7) &> — stdout+stderr merged into a FILE.
+printf '%s\n' '#!/usr/bin/env bash' \
+  '"$SCRIPTS_DIR"/render-board.sh --changes-dir "$d" &> "$out"' > "$mut/amp-redirect.sh"
+assert "guard1 flags an &> (merged stdout+stderr) redirect into a file" \
+  '! render_board_write_free "$mut/amp-redirect.sh"'
+
+# (8) &>> — the appending twin of the above.
+printf '%s\n' '#!/usr/bin/env bash' \
+  '"$SCRIPTS_DIR"/render-board.sh --changes-dir "$d" &>> "$out"' > "$mut/amp-append.sh"
+assert "guard1 flags an &>> (merged, appending) redirect into a file" \
+  '! render_board_write_free "$mut/amp-append.sh"'
+
+# (9) >& file — same merge, the other spelling. Shares its operator with the HARMLESS fd dups
+#     (>&2, >&-), which is exactly why the erasure must inspect the TARGET, not the operator.
+printf '%s\n' '#!/usr/bin/env bash' \
+  '"$SCRIPTS_DIR"/render-board.sh --changes-dir "$d" >& "$out"' > "$mut/gtamp-spaced.sh"
+assert "guard1 flags a >& FILE redirect (not an fd dup — the target is a path)" \
+  '! render_board_write_free "$mut/gtamp-spaced.sh"'
+
+# (10) >&"$out" — no space. The shape the old `[0-9-]*` erasure literally deleted: it matched the
+#      empty string after the `&`, so a file write was rewritten into nothing and passed clean.
+printf '%s\n' '#!/usr/bin/env bash' \
+  '"$SCRIPTS_DIR"/render-board.sh --changes-dir "$d" >&"$out"' > "$mut/gtamp-nospace.sh"
+assert "guard1 flags a no-space >&\"\$out\" FILE redirect (the zero-width fd-dup erasure bug)" \
+  '! render_board_write_free "$mut/gtamp-nospace.sh"'
+
+# (11) A ROGUE REDIRECT SITTING BEFORE A TRAILING COMMENT. The other half of the trailing-comment
+#      fix (see row 14): stripping trailing comments must NOT become a way to launder a real write.
+#      The strip removes only what follows the `#`; the redirect precedes it and still dies.
+printf '%s\n' '#!/usr/bin/env bash' \
+  '"$SCRIPTS_DIR"/render-board.sh --changes-dir "$d" > "$f"  # regenerate the board' \
+  > "$mut/rogue-before-comment.sh"
+assert "guard1 still flags a rogue redirect that sits BEFORE a trailing comment" \
+  '! render_board_write_free "$mut/rogue-before-comment.sh"'
+
+# (12) FALSE-POSITIVE CONTROL — the codebase's REAL invocation, copied verbatim from
 #     scripts/docket-status.sh, fd dup and all. A guard that fires on this is a guard someone
 #     disables; this row carries as much weight as every RED row above it.
 printf '%s\n' '#!/usr/bin/env bash' \
@@ -180,13 +258,33 @@ printf '%s\n' '#!/usr/bin/env bash' \
 assert "guard1 stays GREEN on the real 2>&2 --format digest invocation (false-positive control)" \
   'render_board_write_free "$mut/fddup.sh"'
 
-# (8) FALSE-POSITIVE CONTROL — a 2>&1 fd dup beside a COMMENT that spells out the old redirect.
-#     Comment-stripping is load-bearing: three scripts name render-board.sh in comments only.
+# (13) FALSE-POSITIVE CONTROL — a 2>&1 fd dup beside a COMMENT that spells out the old redirect.
+#      Comment-stripping is load-bearing: three scripts name render-board.sh in comments only.
 printf '%s\n' '#!/usr/bin/env bash' \
   '# historical (pre-0059): render-board.sh --changes-dir "$d" > "$d/BOARD.md"' \
   'out="$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$d" 2>&1)"' > "$mut/comment.sh"
 assert "guard1 stays GREEN on an fd-dup call beside a comment naming the old redirect" \
   'render_board_write_free "$mut/comment.sh"'
+
+# (14) FALSE-POSITIVE CONTROL — a legitimate call carrying a TRAILING comment whose prose contains
+#      an ARROW. Whole-line comment stripping does not touch this line, so before the trailing
+#      strip the comment's `->` left a `>` inside the token and the guard fired RED on a correct
+#      invocation. This codebase's comments are full of `->` arrows; a guard that reddens on one
+#      is a guard someone deletes. Row 11 is its mirror: the strip must not launder a real write.
+printf '%s\n' '#!/usr/bin/env bash' \
+  'out="$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$d" --format digest 2>&2)"  # digest -> stdout only' \
+  > "$mut/trailing-comment.sh"
+assert "guard1 stays GREEN on a legit call with a trailing '# ... -> ...' comment" \
+  'render_board_write_free "$mut/trailing-comment.sh"'
+
+# (15) FALSE-POSITIVE CONTROL — `>&-` closes a descriptor. It is not a write, it shares the `>&`
+#      spelling with the file-writing forms in rows 9-10, and the fix must keep telling them
+#      apart: the target here is `-`, not a path.
+printf '%s\n' '#!/usr/bin/env bash' \
+  'out="$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$d" --format digest 2>&2 >&-)"' \
+  > "$mut/fdclose.sh"
+assert "guard1 stays GREEN on a >&- fd close (a descriptor, not a file)" \
+  'render_board_write_free "$mut/fdclose.sh"'
 
 # --- the real scan: every script under scripts/ EXCEPT the one allowlisted writer ---
 guard1_violation=0
@@ -219,13 +317,13 @@ Expected: **FAIL**. Because `render_board_write_free` and `join_continuations` a
 #   render_board_write_free(){ return 0; }
 ```
 
-With the stub returning 0 (always "clean"), expected output: the six `! render_board_write_free` rows print `NOT OK - guard1 flags ...`, the two control rows print `ok - guard1 stays GREEN ...`, and the script ends `FAIL`. That is the proof the battery has teeth: a guard that never fires is caught. Restore the real function body before Step 3.
+With the stub returning 0 (always "clean"), expected output: the eleven `! render_board_write_free` rows print `NOT OK - guard1 flags ...`, the four control rows print `ok - guard1 stays GREEN ...`, and the script ends `FAIL`. That is the proof the battery has teeth: a guard that never fires is caught. Restore the real function body before Step 3.
 
 - [ ] **Step 3: Run the test to verify it passes with the real guard**
 
 Run: `cd /Users/homer/dev/docket/.worktrees/redirect-regex-board-write-guard && bash tests/test_render_board.sh 2>&1 | grep -E "guard1|write scan|allowlisted|^(PASS|FAIL)"`
 
-Expected — all ten rows `ok -`, and the file ends `PASS`:
+Expected — all nineteen rows `ok -`, and the file ends `PASS`:
 
 ```
 ok - guard1 flags a spaced redirect into BOARD.md
@@ -235,24 +333,34 @@ ok - guard1 flags a clobber-force (>|) redirect into BOARD.md
 ok - guard1 flags a redirect to a VARIABLE target (no BOARD.md near the >)
 ok - guard1 flags a redirect parked on a continuation line
 ok - guard1 flags a no-space redirect on a continuation line (the union evasion)
+ok - guard1 flags an &> (merged stdout+stderr) redirect into a file
+ok - guard1 flags an &>> (merged, appending) redirect into a file
+ok - guard1 flags a >& FILE redirect (not an fd dup — the target is a path)
+ok - guard1 flags a no-space >&"$out" FILE redirect (the zero-width fd-dup erasure bug)
+ok - guard1 still flags a rogue redirect that sits BEFORE a trailing comment
 ok - guard1 stays GREEN on the real 2>&2 --format digest invocation (false-positive control)
 ok - guard1 stays GREEN on an fd-dup call beside a comment naming the old redirect
+ok - guard1 stays GREEN on a legit call with a trailing '# ... -> ...' comment
+ok - guard1 stays GREEN on a >&- fd close (a descriptor, not a file)
 ok - no script under scripts/ (except board-refresh.sh) writes render-board.sh's stdout to a file
 ok - the write scan is not vacuous (it swept the scripts tree)
 ok - the allowlisted writer scripts/board-refresh.sh exists
 PASS
 ```
 
-If the false-positive control (row 7) is RED, the fd-dup erasure in Step 3 of the pipeline is missing or misordered — the `&` of `2>&2` is cutting the token and leaving a dangling `>`. Fix the pipeline; never relax the assertion.
+If the `2>&2` false-positive control is RED, the fd-dup erasure in stage 3 of the pipeline is missing or misordered — the `&` of `2>&2` is cutting the token and leaving a dangling `>`. If the `&>` / `>& FILE` rows are GREEN, the erasure is keying on the OPERATOR instead of the TARGET (a `[0-9-]*` that matches zero characters erases a real file write) or the `&>` normalization is missing. Fix the pipeline; never relax the assertion.
 
 - [ ] **Step 4: Prove the guard against the LIVE tree, not just fixtures**
 
 The battery proves the function works on fixtures. This proves it is wired to reality: inject the evasion into the real `scripts/docket-status.sh`, confirm the suite goes RED, then revert.
 
+The real line is `scripts/docket-status.sh:172`, and it ends with `--format digest 2>&2)"` — **ONE** closing paren (the command substitution's) before the quote. A pattern expecting `2>&2))"` matches nothing and the "mutation" is a silent no-op that proves the guard works by never testing it. Match one paren, and confirm the mutation landed before trusting the RED.
+
 ```bash
 cd /Users/homer/dev/docket/.worktrees/redirect-regex-board-write-guard
-# The evasion that today's guards CANNOT see: no-space redirect to a variable target.
-perl -0pi -e 's{(--format digest 2>&2\)\)")}{$1 >"\$mw/\$rel"}' scripts/docket-status.sh
+# The evasion the guard's FIRST cut could not see: &> merges stdout+stderr into the file, and the
+# tokenizer used to split on its `&` — so the write vanished before the `>` was ever examined.
+perl -0pi -e 's{(--format digest 2>&2)(\)")}{$1 &> "\$mw/\$rel"$2}' scripts/docket-status.sh
 grep -n 'render-board.sh' scripts/docket-status.sh | tail -1     # confirm the mutation landed
 bash tests/test_render_board.sh 2>&1 | grep -E "writes render-board|^(PASS|FAIL)"
 ```
@@ -611,12 +719,12 @@ git commit -m "test(0070): fix <the regression Step 3 surfaced>"
 | Spec requirement | Task |
 |---|---|
 | Guard 1: repo-wide write sentinel, `scripts/*.sh` minus `board-refresh.sh`, glob-derived | Task 1 (widened to a `find` sweep so `scripts/lib/*.sh` is covered) |
-| Guard 1: join continuations → strip comments → tokenize per invocation | Task 1, Step 1 (plus fd-dup erasure, which the spec's "fd dups allowed" requires and the `&`-splitting tokenizer makes mandatory) |
-| Guard 1: no file-directed redirect; fd dups allowed | Task 1, Step 1, pipeline stage 5 |
+| Guard 1: join continuations → strip comments → tokenize per invocation | Task 1, Step 1 (comment stripping covers TRAILING comments too — a `# ... -> ...` comment on a legit call otherwise leaves a `>` and reddens the guard; plus the `&>` normalization and fd-dup erasure the `&`-splitting tokenizer makes mandatory) |
+| Guard 1: no file-directed redirect; fd dups allowed | Task 1, Step 1, pipeline stages 3+5. "fd dups allowed" is keyed on the TARGET being a real descriptor (`[0-9]+` or `-`), never on the `>&` operator: `>&2`/`2>&1`/`>&-` are dups, but `&>f`, `&>>f`, and `>&f` are WRITES and die with everything else |
 | Guard 2: `REDIRECT_RE` kept unwidened, re-scoped to `skills/*/SKILL.md` | Task 2 (byte-identity asserted in Step 3) |
 | Guard 2: comment re-derived, gaining the prose-vs-shell asymmetry sentence | Task 2, Step 1 |
 | Guard 3: flag check stays, inherits continuation-joining | Task 3 |
-| Mutation battery: 6 evasions RED, `2>&2` GREEN | Task 1, Step 1 (rows 1–6b RED, rows 7–8 GREEN) + Step 4 (live-tree mutation) |
+| Mutation battery: every evasion RED, `2>&2` GREEN | Task 1, Step 1 (rows 1–11 RED — incl. `&>`, `&>>`, `>& f`, `>&"$f"`, and a rogue redirect before a trailing comment; rows 12–15 GREEN — the real `2>&2` call, a comment naming the old redirect, a legit call with a trailing `-> ` comment, and a `>&-` fd close) + Step 4 (live-tree `&>` mutation) |
 | Test-only; no production changes | Global Constraints; asserted in Task 4, Step 1 |
 
 **2. Placeholder scan.** No TBDs; every step carries the literal bytes to paste and the exact command with its expected output.
@@ -625,6 +733,8 @@ git commit -m "test(0070): fix <the regression Step 3 surfaced>"
 
 **Deviations from the spec, and why** — to disclose in the results file:
 1. **`find "$REPO/scripts" -name '*.sh'` instead of a flat `scripts/*.sh` glob.** The spec says "iterate `scripts/*.sh`"; the repo has `scripts/lib/*.sh`, which that glob does not reach. Ledger #64 is explicit that a gated operation's call-site list must be derived, not hand-shaped — a flat glob is a hand-shaped list wearing a glob's clothes.
-2. **Erasing fd dups BEFORE tokenizing** — not in the spec's three-step pipeline, but forced by it: the tokenizer splits on `; & |`, and the `&` in `2>&2` cuts the token mid-redirect, leaving a dangling `>` that would fire on the codebase's own correct invocation (the spec's designated GREEN control). Without this step the false-positive control cannot pass.
-3. **Guard 1 rejects `2>/dev/null`** (a stderr-to-file redirect). Strictly implied by "no file-directed redirect", but worth stating: routing this renderer's stderr is done with the fd dup already in use.
-4. **A known, accepted gap: `| tee`.** The tokenizer ends an invocation at `|`, so a pipe into a writer is not caught. Documented in the guard's comment; the deferred filesystem-effect test is the answer to that class, with the same trigger the spec already gave it.
+2. **Normalizing `&>`/`&>>`, then erasing fd dups, BOTH BEFORE tokenizing** — not in the spec's three-step pipeline, but forced by it. The tokenizer splits on `; & |`. That means (a) the `&` in `2>&2` cuts the token mid-redirect, leaving a dangling `>` that would fire on the codebase's own correct invocation (the spec's designated GREEN control), and (b) the `&` in `&>f` ends the token *before* its `>`, so a real file write vanishes. Erasing the true dups fixes (a); rewriting `&>`/`&>>` to a bare `>` fixes (b).
+3. **The fd-dup erasure keys on the TARGET, not the operator.** `>&2`, `2>&1`, and `>&-` are descriptor dups; `>& file` and `>&"$f"` are file WRITES with the same operator. The erasure therefore requires a digit run or `-` after the `&` (`[0-9]*>&([0-9]+|-)`). An erasure written as `[0-9]*>&[0-9-]*` matches the empty string after the `&` and silently deletes a real write — the guard passes while the file is written. Four battery rows exist solely to keep that regex from being loosened back.
+4. **Trailing comments are stripped, not just whole-line ones.** `grep -v '^[[:space:]]*#'` alone leaves `render-board.sh ... 2>&2  # digest -> stdout only` carrying the comment's arrow, whose `>` reddens the guard on a legitimate call — and this codebase's comment style is full of `->` arrows. Disclosed trade-off: a `#` inside a quoted argument on an invocation line would truncate the line early. No such invocation exists (the only args are `--changes-dir`, `--repo`, `--format`). A mutation row proves a rogue redirect placed *before* a trailing comment still dies, so the strip cannot launder a write.
+5. **Guard 1 rejects `2>/dev/null`** (a stderr-to-file redirect). Strictly implied by "no file-directed redirect", but worth stating: routing this renderer's stderr is done with the fd dup already in use.
+6. **Two known, accepted gaps — both INDIRECT writes, both disclosed in the guard's comment, neither fixed.** (a) `| tee f`: the tokenizer ends an invocation at `|`. (b) `exec 3>"$f"` then `render-board.sh ... >&3`: the file *is* written, and `>&3` is — locally and correctly — an fd dup, so no scan of the invocation line can see it without following the descriptor across statements. The deferred filesystem-effect test is the answer to **both**, with the same trigger the spec already gave it.
