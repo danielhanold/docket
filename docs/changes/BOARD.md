@@ -15,7 +15,7 @@
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0062](active/0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | `low` | needs-brainstorm |
 | [0067](active/0067-learnings-promotion-destination.md) | Give the learnings ledger a promotion destination — it has no way to shrink | `medium` | needs-brainstorm |
-| [0068](active/0068-cursor-sandbox-permissions-docs.md) | Document safe Cursor sandbox permissions for docket workflows | `medium` | needs-brainstorm |
+| [0068](active/0068-cursor-sandbox-permissions-docs.md) | Provide a stable Cursor command boundary for docket workflows | `medium` | needs-brainstorm |
 
 ## 🔵 Implemented — awaiting merge (1)
 
