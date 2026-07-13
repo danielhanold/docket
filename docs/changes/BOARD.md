@@ -1,12 +1,6 @@
 # Backlog
 
-**69 changes** — 🟢 1 in progress · 🟡 10 proposed · 🔵 1 implemented · ✅ 55 done · 🗑️ 2 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0069](active/0069-status-report-self-evidencing.md) | docket-status report is self-evidencing and board-independent — stop the board-off BOARD.md hunt | `high` | [spec](../superpowers/specs/2026-07-13-status-report-self-evidencing-design.md) | `feat/status-report-self-evidencing` |
+**69 changes** — 🟡 10 proposed · 🔵 2 implemented · ✅ 55 done · 🗑️ 2 killed
 
 ## 🟡 Proposed (10)
 
@@ -23,11 +17,12 @@
 | [0067](active/0067-learnings-promotion-destination.md) | Give the learnings ledger a promotion destination — it has no way to shrink | `medium` | needs-brainstorm |
 | [0068](active/0068-cursor-sandbox-permissions-docs.md) | Provide a stable Cursor command boundary for docket workflows | `medium` | needs-brainstorm |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | [#69](https://github.com/danielhanold/docket/pull/69) |
+| [0069](active/0069-status-report-self-evidencing.md) | docket-status report is self-evidencing and board-independent — stop the board-off BOARD.md hunt | `high` | [#77](https://github.com/danielhanold/docket/pull/77) |
 
 ```mermaid
 graph TD
