@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/status-report-self-evidencing
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -91,3 +91,43 @@ None — the design is settled in the linked spec.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-07-13 — reconciled against `origin/main` @ `97e8437`
+
+**Verdict: the design holds unchanged. No scope drop, no scope growth beyond one adjacent doc-accuracy fix.**
+
+Verified every premise of the spec against the current code rather than the snapshot it was drafted
+from:
+
+- `scripts/render-board.sh` still parses only `--changes-dir` / `--repo`; there is no `--format`
+  flag and no digest projection. It already runs `resolve_deps` + `readiness` from
+  `lib/docket-frontmatter.sh`, so the digest remains a **second projection of a pass that already
+  exists**, exactly as designed.
+- `readiness()` returns the coarse token `waiting` — the *flavor* (`not yet built` / `needs your
+  merge`) and the blocking id live in `DEP_REASON[id]` / `DEP_ON[id]`. The digest's
+  `waiting-on-<N>-unbuilt` / `waiting-on-<N>-needs-merge` tokens are therefore a **mapping** the
+  digest formatter owns (same source as the board's readiness cell), not a change to `readiness()`.
+  No caller of `readiness()` is touched.
+- `scripts/docket-status.sh` `board_pass()` still returns silently on an empty `BOARD_SURFACES`
+  (`[ -n "$surfaces" ] || return 0`); `main()` still has no completion line, no backlog channel, and
+  still `exit 0`s for `--board-only` before the sweep. The empty-stdout failure mode is live.
+- The prose promises are all still present verbatim: `skills/docket-status/SKILL.md`'s frontmatter
+  `description` ("by regenerating the BOARD.md board"), its Overview ("three jobs: render
+  `BOARD.md`…"), its Final summary ("Point the user at `BOARD.md`"), and `agents/docket-status.md`
+  (description + body "Execute docket-status to refresh the board").
+- **No sentinel pins the board-promising wording.** Grepped the whole suite: no test asserts the
+  `description` or wrapper body mentions the board, so going board-neutral breaks nothing. The
+  existing output-shape assertions in `tests/test_docket_status.sh` only assert `board inline …`
+  lines are *present* — additive `board off` / `backlog` / `change` / `pass ok` lines cannot false-RED
+  them.
+- **No collision with work in flight.** The only other non-`proposed` change is 0044 (`implemented`,
+  PR #69 open); its branch touches `docket-config.{sh,md}`, `README.md`, the convention +
+  implement-next skills and two config tests — **zero overlap** with this change's files. Nothing in
+  the recent archive (0063–0066) delivered any part of this scope.
+
+**One fold-in (disclosed, not silent):** `scripts/docket-status.md`'s step-3 prose still describes
+the inline board pass as rendering "via `render-board.sh` into a `BOARD.md.tmp` file" — that is
+pre-existing drift from change 0059, which moved the write decision into `board-refresh.sh` (the
+script's actual code calls `board-refresh.sh` and a suite sentinel already forbids it from calling
+`render-board.sh` directly). Since this change rewrites that exact section to add the backlog pass,
+the stale sentence is corrected in passing rather than left knowingly false beside new prose.
