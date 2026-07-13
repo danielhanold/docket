@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # scripts/docket-status.sh — deterministic orchestrator for the docket-status pass (change 0058).
 # Sequences the shared docket scripts in one process; emits one line-oriented report on stdout.
+# The report is self-evidencing: it always states what it did (`board off` when the board is
+# disabled, the backlog digest, `pass ok` on completion), so stdout is never empty (change 0069).
 #
 # Usage: docket-status.sh [--board-only] [--repo OWNER/REPO] [--project OWNER/NUMBER]
 #                          [--auto-create-project] [--project-owner OWNER]
@@ -59,7 +61,10 @@ ensure_and_sync_worktree(){
 
 board_pass(){
   local surfaces="${BOARD_SURFACES:-}"
-  [ -n "$surfaces" ] || return 0
+  # Change 0069: silence is not evidence. With no surfaces configured the board pass is a
+  # deliberate no-op — SAY SO, so "exit 0 + empty stdout" can never again be read as "the script
+  # silently did nothing" and send an agent hunting for a BOARD.md the config forbids.
+  [ -n "$surfaces" ] || { echo "board off"; return 0; }
   local mw
   if [ "${DOCKET_MODE:-}" = docket ]; then mw="${METADATA_WORKTREE:-.docket}"; else mw="."; fi
   local cd_dir="$mw/$CHANGES_DIR"
@@ -142,6 +147,26 @@ board_pass_github(){
   else
     echo "board github failed"
   fi
+}
+
+# backlog_pass — the backlog digest (change 0069). UNGATED: it runs regardless of
+# BOARD_SURFACES, because the digest is REPORT OUTPUT, NOT A BOARD SURFACE. It persists
+# nothing, commits nothing, pushes nothing, and never touches BOARD.md — which is exactly what
+# lets `board_surfaces: []` keep meaning "no board is rendered or committed" while backlog state
+# still reaches the report. Delegates to render-board.sh (--format digest), so readiness keeps
+# exactly one owner and this orchestrator does not reimplement resolution. Best-effort: a render
+# failure logs to stderr, emits no digest lines, and never aborts the pass.
+backlog_pass(){
+  local mw
+  if [ "${DOCKET_MODE:-}" = docket ]; then mw="${METADATA_WORKTREE:-.docket}"; else mw="."; fi
+  local cd_dir="$mw/$CHANGES_DIR"
+  local out
+  if ! out="$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$cd_dir" --format digest 2>&2)"; then
+    echo "docket-status: backlog digest failed; continuing without it" >&2
+    return 0
+  fi
+  [ -n "$out" ] && printf '%s\n' "$out"
+  return 0
 }
 
 # detect_merged — batched sweep detection (change 0058, task 4). Prints TAB-separated
@@ -378,7 +403,14 @@ main(){
   esac
   ensure_and_sync_worktree
   board_pass
-  [ "$BOARD_ONLY" = 1 ] && exit 0
+  # Change 0069: the backlog pass runs BEFORE the --board-only early exit. --board-only is the
+  # "just show me the backlog" path; in a board-off repo it used to do literally nothing and
+  # return nothing. It now reports the backlog in every configuration.
+  backlog_pass
+  if [ "$BOARD_ONLY" = 1 ]; then
+    echo "pass ok"
+    exit 0
+  fi
 
   local swept_count=0 line
   while IFS= read -r line; do
@@ -392,6 +424,10 @@ main(){
   health_checks
   emit_judgment
   [ "$swept_count" -gt 0 ] && integration_sync
+  # Change 0069: stdout is NEVER empty on a completed pass. `pass ok` means "the orchestrator ran
+  # to completion" — a hard error exits non-zero above and never reaches this line, so it stays a
+  # reliable completion signal. A thin report is the success case, not a symptom.
+  echo "pass ok"
   exit 0
 }
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then

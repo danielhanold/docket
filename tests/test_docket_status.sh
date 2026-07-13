@@ -9,16 +9,28 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 assert "script exists and is executable" '[ -x "$SCRIPT" ]'
 assert "--help exits 0 and prints usage" '"$SCRIPT" --help 2>&1 | grep -qi "usage"'
 
-# --- inline-board wiring sentinel (change 0059) ---
-# board_pass_inline must route its render through the gated board-refresh.sh primitive, never
-# call render-board.sh directly — so render-board.sh is reached ONLY via board-refresh.sh (one
-# gated inline-board write path across the whole system). board_pass already gates on the `inline`
-# token, so board_pass_inline passes --surfaces inline verbatim; the atomic/truncation-safe write
-# lives in board-refresh.sh.
-assert "docket-status routes the inline render through board-refresh.sh" \
+# --- inline-board wiring sentinel (change 0059, narrowed by change 0069) ---
+# 0059's rule: the inline BOARD.md *write* has exactly ONE gated path — board-refresh.sh — so the
+# orchestrator must never render-and-write the board itself. 0069 adds a READ-ONLY consumer of the
+# same renderer (`--format digest`, piped straight to the report, no file touched), so the guard
+# can no longer be "never mention render-board.sh." It is narrowed to what it actually protects:
+# every render-board.sh invocation in this script must be the read-only digest projection.
+# Tokenized PER INVOCATION (not per line): a line carrying a gated and an ungated call side by
+# side must not be whitewashed by the gated one. Comment lines are stripped first — prose that
+# merely names the script is not an invocation.
+assert "docket-status routes the inline board render through board-refresh.sh" \
   'grep -qF "/board-refresh.sh" "$SCRIPT"'
-assert "docket-status never calls render-board.sh directly (gated via board-refresh.sh)" \
-  '! grep -qF "/render-board.sh" "$SCRIPT"'
+
+ungated_render=0
+while IFS= read -r inv; do
+  [ -n "$inv" ] || continue
+  case "$inv" in
+    *"--format digest"*) : ;;
+    *) ungated_render=1; echo "  (ungated render-board.sh invocation: $inv)" ;;
+  esac
+done < <(grep -v '^[[:space:]]*#' "$SCRIPT" | grep -oE '[^;&|]*/render-board\.sh[^;&|]*' || true)
+assert "every render-board.sh invocation in docket-status is the read-only --format digest" \
+  '[ "$ungated_render" -eq 0 ]'
 
 # Bootstrap gate: stub docket-config.sh --export via CONFIG_EXPORT_CMD (a hermetic fixture
 # script emitting the eval-able KEY=value block), and assert the gate's exit code + remedy text.
@@ -171,7 +183,13 @@ write_board_fixture ""
 (cd "$tmp/board-case/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" "$SCRIPT" --board-only >"$tmp/board-run3.txt" 2>"$tmp/board-run3-err.txt")
 rc=$?
 assert "board_pass empty-surfaces run exits zero" '[ $rc -eq 0 ]'
-assert "board_pass empty-surfaces emits no board line" '! grep -qw "board" "$tmp/board-run3.txt"'
+# Change 0069: silence is not evidence. A board-off pass must SAY the board is off — an empty
+# stdout is indistinguishable from "the script silently did nothing", which is the exact
+# confusion that made an agent hunt for a BOARD.md its config forbids.
+assert "board_pass empty-surfaces emits a positive 'board off' line" \
+  'grep -qxF "board off" "$tmp/board-run3.txt"'
+assert "board_pass empty-surfaces emits no inline board line" \
+  '! grep -q "board inline" "$tmp/board-run3.txt"'
 
 # board_pass rebase-conflict-regenerate branch: force a push rejection whose only conflicting
 # path is BOARD.md, so the orchestrator must pull --rebase, hit a BOARD.md-only conflict,
@@ -1171,5 +1189,80 @@ SKILL="$REPO/skills/docket-status/SKILL.md"
 assert "SKILL invokes docket-status.sh" 'grep -qF "/docket-status.sh" "$SKILL"'
 assert "SKILL no longer inlines the sweep loop enumeration" \
   '! grep -qF "For each \`implemented\` change:" "$SKILL"'
+
+# --- change 0069: the report is self-evidencing and board-independent ---
+# A board-off repo (board_surfaces: []) must still get a complete, positive report: `board off`,
+# the backlog digest, and `pass ok` — and must still perform ZERO git writes and leave no BOARD.md.
+git_repo_setup "$tmp/boardoff-case"
+git clone -q "$tmp/boardoff-case/origin.git" "$tmp/boardoff-case/work" 2>/dev/null
+seed_changes_fixture "$tmp/boardoff-case/work"
+# A second change so the digest has plurality (>=2 rows) and a non-trivial rollup.
+cat > "$tmp/boardoff-case/work/docs/changes/active/0002-bravo.md" <<'EOF'
+---
+id: 2
+slug: bravo
+title: Bravo feature
+status: proposed
+priority: medium
+depends_on: []
+spec: docs/superpowers/specs/2026-06-10-bravo.md
+EOF
+git -C "$tmp/boardoff-case/work" -c user.email=t@t -c user.name=t add docs/changes
+git -C "$tmp/boardoff-case/work" -c user.email=t@t -c user.name=t commit -q -m "seed board-off fixture"
+git -C "$tmp/boardoff-case/work" push -q origin main
+boardoff_head="$(git -C "$tmp/boardoff-case/work" rev-parse HEAD)"
+
+write_board_fixture ""
+(cd "$tmp/boardoff-case/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" "$SCRIPT" --board-only >"$tmp/boardoff-out.txt" 2>"$tmp/boardoff-err.txt")
+rc=$?
+assert "board-off --board-only exits zero" '[ $rc -eq 0 ]'
+assert "board-off stdout is NEVER empty" '[ -s "$tmp/boardoff-out.txt" ]'
+assert "board-off emits 'board off'" 'grep -qxF "board off" "$tmp/boardoff-out.txt"'
+assert "board-off emits the backlog rollup" 'grep -qxF "backlog proposed 1" "$tmp/boardoff-out.txt"'
+assert "board-off emits a change line per active change" \
+  'grep -qxF "change 1 in-progress - alpha" "$tmp/boardoff-out.txt" && grep -qxF "change 2 proposed build-ready bravo" "$tmp/boardoff-out.txt"'
+assert "board-off closes with 'pass ok'" 'grep -qxF "pass ok" "$tmp/boardoff-out.txt"'
+# The 0059 gate must not regress: no BOARD.md, no commit, no dirty tree.
+assert "board-off wrote no BOARD.md" '[ ! -e "$tmp/boardoff-case/work/docs/changes/BOARD.md" ]'
+assert "board-off made no commit" \
+  '[ "$(git -C "$tmp/boardoff-case/work" rev-parse HEAD)" = "$boardoff_head" ]'
+assert "board-off left the worktree clean" \
+  '[ -z "$(git -C "$tmp/boardoff-case/work" status --porcelain)" ]'
+
+# --- change 0069: board-ON still renders AND also reports the digest + pass ok ---
+write_board_fixture inline
+(cd "$tmp/board-case/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" "$SCRIPT" --board-only >"$tmp/boardon-digest.txt" 2>/dev/null)
+rc=$?
+assert "board-on --board-only exits zero" '[ $rc -eq 0 ]'
+assert "board-on still emits an inline board line" 'grep -q "board inline" "$tmp/boardon-digest.txt"'
+assert "board-on ALSO emits the backlog digest" \
+  'grep -qxF "change 1 in-progress - alpha" "$tmp/boardon-digest.txt"'
+assert "board-on closes with 'pass ok'" 'grep -qxF "pass ok" "$tmp/boardon-digest.txt"'
+assert "board-on never emits 'board off'" '! grep -qxF "board off" "$tmp/boardon-digest.txt"'
+
+# --- change 0069: --board-only reports the backlog in BOTH configs (it is the "just show me
+# the backlog" path; in a board-off repo it used to do literally nothing) ---
+assert "--board-only reports the backlog with the board OFF" \
+  'grep -qE "^change 1 " "$tmp/boardoff-out.txt"'
+assert "--board-only reports the backlog with the board ON" \
+  'grep -qE "^change 1 " "$tmp/boardon-digest.txt"'
+
+# --- change 0069: the backlog pass is BEST-EFFORT (a failing digest never aborts the pass) ---
+# Point the SCRIPTS_DIR mock seam at a stub render-board.sh that always fails.
+mkdir -p "$tmp/stub-scripts"
+cat > "$tmp/stub-scripts/render-board.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "stub render-board: boom" >&2
+exit 1
+EOF
+chmod +x "$tmp/stub-scripts/render-board.sh"
+write_board_fixture ""
+(cd "$tmp/boardoff-case/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" SCRIPTS_DIR="$tmp/stub-scripts" "$SCRIPT" --board-only >"$tmp/degrade-out.txt" 2>"$tmp/degrade-err.txt")
+rc=$?
+assert "failing digest still exits 0 (best-effort)" '[ $rc -eq 0 ]'
+assert "failing digest emits no digest lines" '! grep -qE "^(backlog|change) " "$tmp/degrade-out.txt"'
+assert "failing digest still emits 'board off'" 'grep -qxF "board off" "$tmp/degrade-out.txt"'
+assert "failing digest still closes with 'pass ok'" 'grep -qxF "pass ok" "$tmp/degrade-out.txt"'
+assert "failing digest logs a diagnostic to stderr" '[ -s "$tmp/degrade-err.txt" ]'
 
 exit $fail
