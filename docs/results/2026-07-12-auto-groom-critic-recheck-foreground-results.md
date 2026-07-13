@@ -11,7 +11,10 @@ observational checks that prose cannot hermetically prove.
       whose critic re-check runs foreground (the designer blocks on the critic's return) rather
       than backgrounding it and yielding. There is no runtime code to exercise; watch the next
       auto-groom that hits a "wrong-but-fixable" verdict.
-- [ ] **Suite failures are pre-existing/environmental — confirm on your machine.** In the build
+- [x] **Suite failures are pre-existing/environmental — confirm on your machine.** *Confirmed at
+      close-out (2026-07-13): finalize's `local` merge gate rebased this branch onto `origin/main`
+      and ran the full suite on the dev machine — **35/35 test files green**, including all five
+      that failed in the build sandbox. The prediction below held; no regressions.* In the build
       sandbox 5 tests failed *identically on this branch and on unmodified `origin/main`*
       (byte-for-byte same failing set + exit codes), so they are environment-bound, not
       regressions from this change: `test_docket_config.sh`, `test_ensure_claude_settings.sh`,
