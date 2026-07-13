@@ -2,7 +2,7 @@
 id: 69
 slug: status-report-self-evidencing
 title: docket-status report is self-evidencing and board-independent — stop the board-off BOARD.md hunt
-status: in-progress
+status: implemented
 priority: high
 created: 2026-07-13
 updated: 2026-07-13
@@ -11,11 +11,11 @@ related: [58, 59]
 adrs: [28]
 spec: docs/superpowers/specs/2026-07-13-status-report-self-evidencing-design.md
 plan: docs/superpowers/plans/2026-07-13-status-report-self-evidencing.md
-results:
+results: docs/results/2026-07-13-status-report-self-evidencing-results.md
 trivial: false
 auto_groomable:
 branch: feat/status-report-self-evidencing
-pr:
+pr: https://github.com/danielhanold/docket/pull/77
 blocked_by:
 reconciled: true
 ---
@@ -27,6 +27,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-13-status-report-self-evidencing-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-13-status-report-self-evidencing-design.md) |
 | Plan | [2026-07-13-status-report-self-evidencing.md](https://github.com/danielhanold/docket/blob/feat/status-report-self-evidencing/docs/superpowers/plans/2026-07-13-status-report-self-evidencing.md) |
+| Results | [2026-07-13-status-report-self-evidencing-results.md](https://github.com/danielhanold/docket/blob/feat/status-report-self-evidencing/docs/results/2026-07-13-status-report-self-evidencing-results.md) |
+| PR | [#77](https://github.com/danielhanold/docket/pull/77) |
 | ADRs | [ADR-0028](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0028-report-channel-is-not-a-board-surface.md) |
 <!-- docket:artifacts:end -->
 
