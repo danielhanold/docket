@@ -1,6 +1,6 @@
 # Backlog
 
-**66 changes** — 🟢 1 in progress · 🟡 8 proposed · 🔵 3 implemented · ✅ 52 done · 🗑️ 2 killed
+**66 changes** — 🟢 1 in progress · 🟡 8 proposed · 🔵 2 implemented · ✅ 53 done · 🗑️ 2 killed
 
 ## 🟢 In progress (1)
 
@@ -21,12 +21,11 @@
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0062](active/0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | `low` | build-ready |
 
-## 🔵 Implemented — awaiting merge (3)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | [#69](https://github.com/danielhanold/docket/pull/69) |
-| [0065](active/0065-agent-model-pinning-docs.md) | Document the two invocation paths and per-agent model pinning; ADR the context:fork findings | `medium` | [#74](https://github.com/danielhanold/docket/pull/74) |
 | [0066](active/0066-auto-groom-critic-recheck-foreground.md) | Auto-groom's critic re-check must be foreground — a forked skill that yields returns a half-done run to its caller | `high` | [#73](https://github.com/danielhanold/docket/pull/73) |
 
 ```mermaid
@@ -41,7 +40,6 @@ graph TD
   0044
   0062
   0064
-  0065
   0066
   0001:::done
   0002:::done
@@ -95,13 +93,15 @@ graph TD
   0060:::done
   0061:::done
   0063:::done
+  0065:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (54)</summary>
+<details><summary>✅🗑️ Archive — done + killed (55)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0065](archive/2026-07-13-0065-agent-model-pinning-docs.md) | Document the two invocation paths and per-agent model pinning; ADR the context:fork findings | 2026-07-13 |
 | [0063](archive/2026-07-11-0063-git-hook-coexistence.md) | Coexist with git-hook frameworks — docket bookkeeping commits skip hooks | 2026-07-11 |
 | [0061](archive/2026-07-11-0061-claude-context-fork-dispatch.md) | Claude Code skill-invocation parity — context:fork dispatch to pinned wrappers | 2026-07-11 |
 | [0060](archive/2026-07-11-0060-board-render-truncation-guard.md) | board-refresh.sh must not write an empty BOARD.md — non-empty guard on the atomic write | 2026-07-11 |
