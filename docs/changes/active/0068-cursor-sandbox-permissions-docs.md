@@ -59,6 +59,9 @@ terminal approval are separate gates and need separate troubleshooting guidance.
 - Publish copyable, valid JSON for the exact config-export bootstrap and the canonical routine
   helper spellings used by docket skills. Explain Cursor's command/token-boundary prefix behavior
   and why an arbitrary `eval` or `bash` permission is not an acceptable workaround.
+- Include both docket's canonical `${DOCKET_SCRIPTS_DIR:?...}` command strings and resolved
+  absolute-path equivalents. Cursor matches the command text submitted to the terminal without
+  expanding environment variables for the allowlist, and agents may submit either spelling.
 - Classify docket's shell scripts by trust level:
   - daily workflow entry points suitable for explicit allowlisting, including the guarded archive,
     terminal-publish, feature-branch cleanup, GitHub mirror, and integration-sync helpers used by
@@ -93,8 +96,6 @@ terminal approval are separate gates and need separate troubleshooting guidance.
   self-contained README section?
 - Should a test derive the documented script inventory from skill call sites and fail when a new
   direct entry point has no permission classification?
-- Should the docs prefer canonical `${DOCKET_SCRIPTS_DIR:?...}` spellings, resolved absolute paths,
-  or list both while explaining the environment-variable trust trade-off?
 
 ## Reconcile log
 
