@@ -47,20 +47,17 @@
   is actually load-bearing — deleting it is how the guarded hole reopens.
 
 - 2026-06-21 / 2026-07-13 (#34 PR #45; #66 PR #73 — merged, one environment family) — Twice a suite
-  ran RED where the failure was NOT a regression. (a) finalize's local gate reddened on the change's
-  own drift-guard test only because `DOCKET_SCRIPTS_DIR` was *exported* in the interactive shell (that
-  very change's `install.sh` writes it to the shell profile), and the ambient export was inherited by
-  the test's sub-shells, masking its `${VAR:?}` fail-loud assertions; a clean-env re-run
-  (`env -u DOCKET_SCRIPTS_DIR`) was all-green. (b) The build sandbox failed 5 tests (`origin/HEAD`
-  unresolvable behind a proxied remote, a umask-dependent file mode, one timeout). The implementer
-  proved they were environment-bound rather than waving them through — running the identical suite on
-  unmodified `origin/main` and byte-comparing the failing set and exit codes — and said so in the
-  results file; finalize's gate on the dev machine then confirmed it (35/35 green). Apply: a RED suite
-  in a build sandbox or in a dev shell that has the feature installed is a hypothesis, not a verdict —
-  before calling it a regression OR dismissing it, re-run the identical suite against the unmodified
-  base (or under `env -u VAR`) and byte-compare the failing sets; record that differential in the
-  results file, and let the merge gate's clean-environment run be the confirmation. Also author
-  fail-loud tests to `env -u VAR` their own sub-shells so an installed dev shell never false-REDs them.
+  ran RED where the failure was NOT a regression: (a) an ambient `DOCKET_SCRIPTS_DIR` export in the
+  dev shell (written there by that very change's `install.sh`) was inherited by the test's sub-shells
+  and masked their `${VAR:?}` fail-loud assertions; (b) a build sandbox failed 5 tests on environment
+  facts (`origin/HEAD` unresolvable behind a proxied remote, a umask-dependent file mode, a timeout).
+  Both were proven environment-bound by re-running the identical suite against unmodified `origin/main`
+  and byte-comparing the failing sets. Apply: a RED suite in a build sandbox, or in a dev shell that
+  has the feature installed, is a hypothesis, not a verdict — before calling it a regression OR waving
+  it through, re-run the identical suite on the unmodified base (or under `env -u VAR`), byte-compare
+  the failing sets, record the differential in the results file, and let the merge gate's clean-env run
+  confirm. Author fail-loud tests to `env -u VAR` their own sub-shells so an installed shell can't
+  false-RED them.
 
 - 2026-07-13 (#66, PR #73) — The entire build ran under the Skill-layer `auto` fallback:
   `superpowers:writing-plans`, `subagent-driven-development`, and `requesting-code-review` were not
@@ -126,17 +123,14 @@
 
 - 2026-07-10/11 (#52 PR #61; #54 PR #66 — merged, one pattern) — A goal-scoped rewrite only examines
   the dimensions in its goal set; anything OUTSIDE it passes unaudited even when every claim it makes
-  is TRUE. (a) A README rewrite audited hard against its three named goals (accuracy, structure,
-  newcomer clarity) shipped clean — yet stayed Claude-centric for a tool that first-classes three
-  agent harnesses; the owner caught it at the merge gate. An accuracy audit verifies each claim is
-  true, which a single-harness framing can be. (b) A behavior-neutral skill slim passed its own
-  goal-scoped review, yet finalize's FULL suite caught a regression its 7 enumerated sentinels did
-  not — the slim had dropped finalize's required `render-change-links.sh` mention, reddening
-  `test_change_links_coverage`, a test outside the anticipated set. Apply: name every dimension you
-  need audited as an explicit rewrite goal (for a multi-harness tool, "neutral across the supported
-  set" is one — default narrative examples to the NEUTRAL term); and run the WHOLE suite at the
-  merge/build gate, never only the tests the spec enumerated — the sentinel list is a floor, and an
-  out-of-goal regression is exactly what the tests outside it exist to catch.
+  is TRUE. (a) A README rewrite audited hard against its three named goals shipped clean — yet stayed
+  Claude-centric for a tool that first-classes three agent harnesses (an accuracy audit verifies each
+  claim is true, which a single-harness framing can be); the owner caught it at the merge gate. (b) A
+  behavior-neutral slim passed its own goal-scoped review, yet finalize's FULL suite caught a
+  regression its 7 enumerated sentinels missed. Apply: name every dimension you need audited as an
+  explicit rewrite goal (for a multi-harness tool, "neutral across the supported set" is one); and run
+  the WHOLE suite at the merge/build gate, never only the tests the spec enumerated — the sentinel
+  list is a floor, and an out-of-goal regression is what the tests outside it exist to catch.
 
 - 2026-07-11/13 (#58 PR #65; #69 PR #77 — merged, one mock-fidelity family) — Twice a mock shaped to
   the CODE PATH rather than to the real tool made a suite pass against a fiction. (a) A `gh api
