@@ -1,8 +1,8 @@
 # Backlog
 
-**69 changes** — 🟡 10 proposed · 🔵 2 implemented · ✅ 55 done · 🗑️ 2 killed
+**70 changes** — 🟡 11 proposed · 🔵 2 implemented · ✅ 55 done · 🗑️ 2 killed
 
-## 🟡 Proposed (10)
+## 🟡 Proposed (11)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -16,6 +16,7 @@
 | [0062](active/0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | `low` | needs-brainstorm |
 | [0067](active/0067-learnings-promotion-destination.md) | Give the learnings ledger a promotion destination — it has no way to shrink | `medium` | needs-brainstorm |
 | [0068](active/0068-cursor-sandbox-permissions-docs.md) | Provide a stable Cursor command boundary for docket workflows | `medium` | needs-brainstorm |
+| [0070](active/0070-redirect-regex-board-write-guard.md) | Harden the BOARD.md write guard — REDIRECT_RE misses real redirect forms | `medium` | needs-brainstorm |
 
 ## 🔵 Implemented — awaiting merge (2)
 
@@ -38,6 +39,7 @@ graph TD
   0067
   0068
   0069
+  0070
   0001:::done
   0002:::done
   0003:::done
