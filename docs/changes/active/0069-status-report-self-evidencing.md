@@ -2,7 +2,7 @@
 id: 69
 slug: status-report-self-evidencing
 title: docket-status report is self-evidencing and board-independent — stop the board-off BOARD.md hunt
-status: proposed
+status: in-progress
 priority: high
 created: 2026-07-13
 updated: 2026-07-13
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/status-report-self-evidencing
 pr:
 blocked_by:
 reconciled: false
