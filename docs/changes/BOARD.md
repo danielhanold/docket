@@ -1,14 +1,15 @@
 # Backlog
 
-**73 changes** — 🟢 1 in progress · 🟡 13 proposed · 🔵 1 implemented · ✅ 56 done · 🗑️ 2 killed
+**73 changes** — 🟢 2 in progress · 🟡 12 proposed · 🔵 1 implemented · ✅ 56 done · 🗑️ 2 killed
 
-## 🟢 In progress (1)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Spec | Branch |
 |---|-------|----------|------|--------|
 | [0068](active/0068-docket-command-facade.md) | One executable docket facade — finite subcommands, config read from stdout, never eval'd | `high` | [spec](../superpowers/specs/2026-07-13-docket-command-facade-design.md) | `feat/docket-command-facade` |
+| [0070](active/0070-redirect-regex-board-write-guard.md) | Harden the BOARD.md write guard — REDIRECT_RE misses real redirect forms | `medium` | [spec](../superpowers/specs/2026-07-13-redirect-regex-board-write-guard-design.md) | `feat/redirect-regex-board-write-guard` |
 
-## 🟡 Proposed (13)
+## 🟡 Proposed (12)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -21,7 +22,6 @@
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0062](active/0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | `low` | needs-brainstorm |
 | [0067](active/0067-learnings-promotion-destination.md) | Give the learnings ledger a promotion destination — it has no way to shrink | `medium` | needs-brainstorm |
-| [0070](active/0070-redirect-regex-board-write-guard.md) | Harden the BOARD.md write guard — REDIRECT_RE misses real redirect forms | `medium` | build-ready |
 | [0071](active/0071-board-surfaces-unset-vs-empty.md) | An unresolved $BOARD_SURFACES is indistinguishable from a deliberately disabled board | `high` | needs-brainstorm |
 | [0072](active/0072-facade-skill-rewiring.md) | Rewire the operating skills and Step-0 to the facade — retire the eval preamble | `medium` | ⏳ waiting on #68 — not yet built |
 | [0073](active/0073-cursor-sandbox-permissions-guide.md) | Cursor sandbox & permissions guide — copyable config, trust tiers, troubleshooting | `medium` | ⏳ waiting on #68 — not yet built |
