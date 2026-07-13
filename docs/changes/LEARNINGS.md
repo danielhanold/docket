@@ -4,6 +4,33 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-06-21 / 2026-07-13 (#34 PR #45; #66 PR #73 — merged, one environment family) — Twice a suite
+  ran RED where the failure was NOT a regression. (a) finalize's local gate reddened on the change's
+  own drift-guard test only because `DOCKET_SCRIPTS_DIR` was *exported* in the interactive shell (that
+  very change's `install.sh` writes it to the shell profile), and the ambient export was inherited by
+  the test's sub-shells, masking its `${VAR:?}` fail-loud assertions; a clean-env re-run
+  (`env -u DOCKET_SCRIPTS_DIR`) was all-green. (b) The build sandbox failed 5 tests (`origin/HEAD`
+  unresolvable behind a proxied remote, a umask-dependent file mode, one timeout). The implementer
+  proved they were environment-bound rather than waving them through — running the identical suite on
+  unmodified `origin/main` and byte-comparing the failing set and exit codes — and said so in the
+  results file; finalize's gate on the dev machine then confirmed it (35/35 green). Apply: a RED suite
+  in a build sandbox or in a dev shell that has the feature installed is a hypothesis, not a verdict —
+  before calling it a regression OR dismissing it, re-run the identical suite against the unmodified
+  base (or under `env -u VAR`) and byte-compare the failing sets; record that differential in the
+  results file, and let the merge gate's clean-environment run be the confirmation. Also author
+  fail-loud tests to `env -u VAR` their own sub-shells so an installed dev shell never false-REDs them.
+
+- 2026-07-13 (#66, PR #73) — The entire build ran under the Skill-layer `auto` fallback:
+  `superpowers:writing-plans`, `subagent-driven-development`, and `requesting-code-review` were not
+  invocable inside the implementer subagent's session, so plan, build, AND review all degraded —
+  correctly per the Missing-skill rule, and disclosed in the results file and PR body. The artifacts
+  all still look right, but it means docket's own autonomous builds are not actually running the
+  SDD/TDD/review discipline their `skills:` bindings name. Apply: read a fallback warning as a
+  build-loop defect to investigate, never as boilerplate — when a role degrades, check whether the
+  skill is installed in the harness the SUBAGENT runs in (not merely the parent session), because a
+  degraded binding silently drops the discipline while every artifact it should have produced is
+  still there.
+
 - 2026-07-13 (#65, PR #74) — A doc sentinel proves a sentence still EXISTS; it can never prove the
   sentence is still TRUE. This change's README teaching prose asserted which model tier each built-in
   agent runs at, and shipped factually false on the first pass (it claimed a design pass sits at a
@@ -15,14 +42,6 @@
   coverage — either derive the assertion from that source in the test, or accept that only a review
   reading against the source can validate it; and treat prose restating a configurable value as a
   drift surface from the day it ships.
-
-- 2026-07-13 (#65, PR #74) — Two sentinels shipped double-guarded (fresh instances of the anchoring
-  family below), and in BOTH cases the implementer's own mutation test had already surfaced the
-  defect — its report then rationalized the green-on-mutation away as benign. What actually caught
-  them was the reviewer re-deriving the substring's occurrence count by hand. Apply: a mutation test
-  is only as good as the reading of its result — a mutation that leaves an assert GREEN is a defect
-  until proven otherwise, never a fact to explain away; distrust an implementer's narrative that a
-  surviving mutant is harmless, and re-derive the anchor's occurrences yourself.
 
 - 2026-07-11 (#63, PR #72) — 0063 disabled hooks on docket worktrees by relocating a conflicting
   common-config git value, and an early draft relocated `core.bare` unconditionally. Because
@@ -182,12 +201,16 @@
   version, and recognize when a same-file change that merged *after* you diverged **supersedes** your
   edit (drop yours) rather than treating it as a conflict to win.
 
-- 2026-06-17/21 (#15 PR #32; #21 PR #34; #36 PR #47; #37 PR #48 — merged, one anchoring family) —
+- 2026-06-17/21 · 2026-07-13 (#15 PR #32; #21 PR #34; #36 PR #47; #37 PR #48; #65 PR #74 — merged,
+  one anchoring family) —
   Four ways a doc sentinel passed while guarding nothing. (a) **Broad keyword OR-set:** an ordering
   assert grepping `run the suite|validate|local` latched onto an unintended EARLIER line. (b)
   **Double-guarded:** one grep satisfied by two independent clauses (a YAML config comment AND a
   prose sentence), so deleting the substantive prose left it green — while a whole-region mutation
-  test still "proved" it non-vacuous. (c) **False-RED:** a `! grep "must-not-say-X"` fired on X in a
+  test still "proved" it non-vacuous. #65 then shipped two MORE double-guarded sentinels, and in both
+  the implementer's own mutation test had already gone green-on-mutation — its report rationalized
+  that away as benign; the reviewer caught them by re-deriving the substring's occurrence count by
+  hand. (c) **False-RED:** a `! grep "must-not-say-X"` fired on X in a
   legitimately *contrastive* clause, which a blunt absence-grep can't tell from the forbidden
   *adopted* posture. (d) **False-GREEN:** a `grep -q "literal"` stayed green when a prose strip
   **relocated** the must-preserve substring into an unrelated bullet, producing a false sentence.
@@ -195,7 +218,10 @@
   one assert owns exactly ONE clause — if two independent locations satisfy it, split and
   mutation-test each in isolation; assert intent with a POSITIVE anchor on the meaningful framing;
   keep a must-preserve substring in its grammatical location (never relocate it to pass); never rely
-  on a blunt `! grep`/`grep -q` over a literal that can legitimately appear elsewhere in the doc.
+  on a blunt `! grep`/`grep -q` over a literal that can legitimately appear elsewhere in the doc. And
+  a mutation that leaves an assert GREEN is a defect until proven otherwise, never a fact to explain
+  away — re-derive the anchor's occurrence count yourself rather than trusting an implementer's
+  narrative that a surviving mutant is harmless.
 
 - 2026-06-21 (#38, PR #46) — A test grepped for a CLI flag with `grep -qE "\-\-yes\b|\b-y\b"`; the
   `\-` over-escaping silenced one trap (a bare ERE that *leads* with `--` is parsed as a grep
@@ -204,26 +230,6 @@
   the backslashes re-opens the option-parse trap. Apply: to grep for a `--flag`, declare the pattern
   with `grep -E -e "<pat>"` — POSIX `-e` makes the next arg a pattern, never an option; clean (exit 0,
   empty stderr) on **both** GNU and BSD grep. Never lead a bare ERE with `--`.
-
-- 2026-06-21 (#34, PR #45) — finalize's local merge gate ran the suite RED on the change's own
-  drift-guard test — but only because `DOCKET_SCRIPTS_DIR` was *exported* in the interactive shell
-  (this change's `install.sh` writes it to the shell profile). The test's `${VAR:?}` fail-loud
-  assertions assume the var is unset; the ambient export was inherited by the test's sub-shells and
-  masked them. A clean-env re-run (`env -u DOCKET_SCRIPTS_DIR`) was all-green — the merged result
-  was never broken. Apply: when the gate's suite tests a `${VAR:?}`/fail-loud path for a var the
-  feature itself injects into the dev shell, re-run RED tests under `env -u VAR` before trusting the
-  failure — and author such tests to `env -u VAR` their own fail-loud sub-shells so a dev shell with
-  the feature installed never false-REDs them.
-
-- 2026-06-21 (#35, PR #44) — A close-out feature that re-renders derived content *into the change
-  file* (here the `## Artifacts` block re-pointing plan/results after the feature branch is gone) was
-  wired to run terminal-publish **before** the re-render committed to `origin/docket`. Since
-  terminal-publish copies the archived change file *from `origin/docket`*, it would have published
-  the **stale** block onto the integration branch — defeating the re-point on the exact public
-  surface it targets. The `docket-status` sweep was already ordered correctly; finalize had to
-  converge to it (commit `2d74b88`). Apply: any close-out step that mutates a change file's derived
-  content must commit+push to `origin/docket` **before** terminal-publish copies from it —
-  terminal-publish publishes whatever is on `origin/docket` at copy time, never the working tree.
 
 - 2026-06-16/21 (#16 PR #30; #22 PR #35; #25 PR #36; #26 PR #38; #35 PR #44 — merged, one coverage
   family) — Five green suites that never exercised the branch they existed to cover. (a) A golden
@@ -249,20 +255,6 @@
   rest on a committed repo `.gitignore` entry, never a per-machine user-global ignore — and when a
   change *generates* such a file, add the ignore in the same change (the migrate step here) so the
   guarantee ships with the feature instead of silently depending on each dev's box.
-
-- 2026-06-19 (#26, PR #38 close-out) — One botched hand-rolled close-out, two lessons, both now
-  structurally prevented. (a) A **stale** symlinked finalize skill ran: `~/.claude/skills/*` symlink
-  into the docket clone's primary checkout, which in docket-mode is never fast-forwarded (work lives
-  in `.docket/` + worktrees), so it sat 39 commits behind `origin/main` and loaded the *pre-0025*
-  manual-archive skill — and a grep of that stale tree wrongly "proved" the rewire never landed (it
-  had). (b) The hand-rolled archive staged the `git mv` rename but DROPPED the follow-on `status: done`
-  edit: the `git add` listed the already-moved `active/` path beside the `archive/` path, the
-  non-matching pathspec aborted the whole `git add` (staging nothing), and the rename-only commit
-  (still `status: implemented`) rode terminal-publish onto `main`. Apply: (a) verify a skill's content
-  against `origin/<integration_branch>`, never the local symlinked working copy, and keep the clone
-  current (fixed by change 0029's FF at the two merge sites); (b) stage the `archive/` file alone,
-  gated on a `git diff --cached` showing `status:` actually changed — the extracted `archive-change.sh`
-  exists precisely to remove this hand-staging failure mode.
 
 - 2026-06-19 (#26, PR #38) — A `.docket.yml` reader interpolated the lookup key straight into an ERE
   (`^[[:space:]]*<key>`), so any future key carrying a regex metacharacter would match unintended
