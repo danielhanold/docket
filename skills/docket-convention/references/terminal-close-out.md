@@ -48,13 +48,14 @@ before the first read; every commit pushes immediately.
    concurrent archivers).
 
 3. **Publish the terminal record.** Reached only after the step-2 commit is on `origin/docket`.
-   **Gated by `TERMINAL_PUBLISH`** (change 0064) — pass the resolved value straight through:
+   **Gated by `TERMINAL_PUBLISH`** (change 0064) — pass `<terminal_publish>`, the resolved config's
+   `TERMINAL_PUBLISH` value from Step 0's `docket-config.sh --export`, straight through:
 
    ```
    "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/terminal-publish.sh --id <id> --outcome <done|killed> \
      --integration-branch <integration_branch> --metadata-branch docket \
      --changes-dir <changes_dir> --adrs-dir <adrs_dir> --message "<msg>" \
-     --enabled "$TERMINAL_PUBLISH"
+     --enabled <terminal_publish>
    ```
 
    Copies the archived change file + its `spec:` (if set) + the **`Accepted`** ADRs in `adrs:`

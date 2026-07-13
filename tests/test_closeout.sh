@@ -38,11 +38,23 @@ join_continuations(){
 # the CLI generically), excludes terminal-publish.sh's own usage header/--help text (not a call
 # site, and its own [--enabled true|false] sits on a separate non-continued comment line), and
 # excludes tests/ (which deliberately exercises the back-compat default-omitted-enabled path).
+#
+# Evaluated PER INVOCATION, not per line: a joined logical line can carry more than one
+# `terminal-publish.sh …` mention (e.g. a gated `--id` shape and an ungated `--adr` shape
+# documented side by side in one sentence). Splitting on each `terminal-publish.sh` occurrence
+# before filtering means an `--enabled` on one invocation can never hide a bare invocation on
+# the same line — a bug the earlier per-line grep had (whitewashing, change 0064 finding 2).
 find_ungated_terminal_publish_call_sites(){
   local f
   while IFS= read -r f; do
     join_continuations "$f" \
       | grep -n "terminal-publish\.sh" \
+      | awk '
+          {
+            n = split($0, segs, "terminal-publish\\.sh")
+            for (i = 2; i <= n; i++) print segs[1] "terminal-publish.sh" segs[i]
+          }
+        ' \
       | grep -E -- '--(id|adr)([[:space:]"]|$)' \
       | grep -v -- '--enabled' \
       | sed "s#^#$f:#"
@@ -499,10 +511,10 @@ assert "wiring(close-out ref): reconcile-kill invokes terminal-publish.sh" 'grep
 ADRSKILL="$REPO/skills/docket-adr/SKILL.md"
 assert "0064 wiring: close-out step 3 passes --enabled" \
   'grep -q -- "--enabled" "$TCO"'
-assert "0064 wiring: close-out step 3 passes the TERMINAL_PUBLISH value" \
-  'grep -q -- "--enabled \"\$TERMINAL_PUBLISH\"" "$TCO"'
+assert "0064 wiring: close-out step 3 passes the terminal_publish placeholder" \
+  'grep -q -- "--enabled <terminal_publish>" "$TCO"'
 assert "0064 wiring: docket-adr passes --enabled on BOTH --adr call sites" \
-  '[ "$(grep -c -- "--enabled \"\$TERMINAL_PUBLISH\"" "$ADRSKILL")" -eq 2 ]'
+  '[ "$(grep -c -- "--enabled <terminal_publish>" "$ADRSKILL")" -eq 2 ]'
 # The invariant: no REAL terminal-publish.sh call site may omit the gate — checked across BOTH
 # skills/ prose AND scripts/*.sh code (the earlier version only grepped skills/, and only matched
 # --id/--adr as the literal next token on the same physical line, so it was blind to

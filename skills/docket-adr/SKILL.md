@@ -54,7 +54,7 @@ The rule: **an `Accepted` ADR publishes to the integration branch** — the deci
 - **Standalone ADR** (`docket-adr` invoked directly, not tied to an in-flight change) — `docket-adr` publishes it itself: on acceptance it invokes:
 
   ```
-  "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/terminal-publish.sh --adr <NN> --integration-branch <integration_branch> --metadata-branch <metadata_branch> --changes-dir <changes_dir> --adrs-dir <adrs_dir> --enabled "$TERMINAL_PUBLISH"
+  "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/terminal-publish.sh --adr <NN> --integration-branch <integration_branch> --metadata-branch <metadata_branch> --changes-dir <changes_dir> --adrs-dir <adrs_dir> --enabled <terminal_publish>
   ```
 
   Trust the exit code. Without this, a change-less ADR would be stranded on `docket` and the integration-branch ledger would be silently incomplete.
@@ -62,7 +62,7 @@ The rule: **an `Accepted` ADR publishes to the integration branch** — the deci
 - **Status change to an already-published ADR** (`Superseded by`/`Reversed by`/`Deprecated`) — whether or not the ADR was originally change-tied, it is re-published by `docket-adr` invoking the same script (trust the exit code):
 
   ```
-  "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/terminal-publish.sh --adr <NN> --integration-branch <integration_branch> --metadata-branch <metadata_branch> --changes-dir <changes_dir> --adrs-dir <adrs_dir> --enabled "$TERMINAL_PUBLISH"
+  "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/terminal-publish.sh --adr <NN> --integration-branch <integration_branch> --metadata-branch <metadata_branch> --changes-dir <changes_dir> --adrs-dir <adrs_dir> --enabled <terminal_publish>
   ```
 
   The producing change is long since `done` and can no longer drive the re-publish; `--adr` mode publishes the ADR's current bytes (including a just-flipped `status:` line), which is exactly what the supersede/reverse and deprecate paths need.
