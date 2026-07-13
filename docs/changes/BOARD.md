@@ -16,7 +16,7 @@
 | [0062](active/0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | `low` | needs-brainstorm |
 | [0067](active/0067-learnings-promotion-destination.md) | Give the learnings ledger a promotion destination — it has no way to shrink | `medium` | needs-brainstorm |
 | [0068](active/0068-docket-command-facade.md) | One executable docket facade — finite subcommands, config read from stdout, never eval'd | `high` | build-ready |
-| [0070](active/0070-redirect-regex-board-write-guard.md) | Harden the BOARD.md write guard — REDIRECT_RE misses real redirect forms | `medium` | needs-brainstorm |
+| [0070](active/0070-redirect-regex-board-write-guard.md) | Harden the BOARD.md write guard — REDIRECT_RE misses real redirect forms | `medium` | build-ready |
 | [0071](active/0071-board-surfaces-unset-vs-empty.md) | An unresolved $BOARD_SURFACES is indistinguishable from a deliberately disabled board | `high` | needs-brainstorm |
 | [0072](active/0072-facade-skill-rewiring.md) | Rewire the operating skills and Step-0 to the facade — retire the eval preamble | `medium` | ⏳ waiting on #68 — not yet built |
 | [0073](active/0073-cursor-sandbox-permissions-guide.md) | Cursor sandbox & permissions guide — copyable config, trust tiers, troubleshooting | `medium` | ⏳ waiting on #68 — not yet built |
