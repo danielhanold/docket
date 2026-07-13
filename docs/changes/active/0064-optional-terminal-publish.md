@@ -5,7 +5,7 @@ title: Optional terminal-publish — per-repo opt-out to keep metadata on docket
 status: in-progress
 priority: medium
 created: 2026-07-12
-updated: 2026-07-12
+updated: 2026-07-13
 depends_on: []
 related: [2, 26, 40]
 adrs: [12, 19]
@@ -114,3 +114,32 @@ onto this file". 0054 and 0055 are both `done` (archived 2026-07-11) and all fou
 through the reference. Since this change edits that file's step 3 and the stale sentence directly
 concerns which callers the new gate covers, the preamble's caller-coverage claim is corrected in
 passing; no broader rewrite of the reference is in scope.
+
+### 2026-07-13 — re-reconciled on resume (docket-implement-next)
+
+The prior run crashed after the build completed but before review/PR. Per the resume-safety guard,
+reconcile re-ran because `origin/main` advanced since the 2026-07-12 pass. **Scope confirmed
+unchanged — no edit to this change or its spec.**
+
+**What moved.** `origin/main` gained exactly one change: **0065** (agent-model-pinning docs, PR #74,
+merged 2026-07-12) — docs-only (`README.md`, `skills/docket-convention/references/agent-layer.md`,
+`tests/test_skill_fork_dispatch.sh`). It is orthogonal to `terminal_publish`: it touches neither the
+publish path nor the config resolver. Verified directly — **no commit on `origin/main` since
+2026-07-11 touches any core file this change modifies** (`terminal-publish.sh`, `docket-config.sh`,
+`docket-status.sh`, `terminal-close-out.md`, `docket-adr/SKILL.md`). The feature branch was rebased
+onto `origin/main` (base `ec1846e`) and the full suite is green there, so the design holds against
+current code as built.
+
+**New ADRs since the last pass: 0025** (worktrees disable git hooks) and **0026** (fork-dispatch
+opacity) — both unrelated to the publish path. The cited ADRs (0012 script-vs-model boundary, 0019
+fence classification) are unchanged and still the governing precedents; the ADR this change produces
+is authored at review time via `docket-adr`.
+
+**Merge-order note (not a scope change).** Two changes sit `implemented` with open, unmerged PRs:
+**0044** (PR #69) and **0066** (PR #73). 0044's PR overlaps this branch's files — `README.md`,
+`scripts/docket-config.{sh,md}`, `skills/docket-convention/SKILL.md`, `tests/test_docket_config.sh`
+— so whichever merges second will need a rebase. That is a merge-time concern the finalize gate
+(rebase-onto-base + re-test) already owns; it is not a design conflict — 0044 adds a `skills:`-layer
+model knob, this change adds an orthogonal publish knob, and neither redefines the other's seam.
+0066 (auto-groom critic) does not overlap the publish path at all. New stub **0067** (learnings
+promotion) is unrelated.
