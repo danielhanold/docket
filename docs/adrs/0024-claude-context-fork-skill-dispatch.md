@@ -78,3 +78,14 @@ The general **never-yield rule** now lives in `docket-convention`'s *Composition
 (a dispatched/forked parent actively blocks, and a caller never treats a bare `completed` as
 proof nor adopts a child's uncommitted files), and is applied at `docket-auto-groom` §3's
 re-check. See #0066.
+
+## Update — 2026-07-12 — fork-dispatch verified; the composition question is closed
+
+The composition question this ADR **argued but did not test** is now verified on Claude Code
+2.1.207: `context: fork` is honored, the wrapper's model/effort pin holds inside the fork, and
+**the self-preloading cycle is safe** — an agent whose `skills:` preloads the very skill that
+forks into it neither recurses nor degrades to inline. The fork's **TUI opacity** is accepted
+as a documented trade rather than tooled around: docket names **two first-class invocation
+paths** into the same pinned wrapper — skill-invoke (forked, cheap, opaque) and agent-dispatch
+(the identical run, drillable, one dispatch turn) — and adds no observability machinery. See
+ADR-[[0026]] (change #0065).
