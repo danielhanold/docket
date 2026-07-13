@@ -1,8 +1,8 @@
 # Backlog
 
-**71 changes** — 🟡 12 proposed · 🔵 2 implemented · ✅ 55 done · 🗑️ 2 killed
+**73 changes** — 🟡 14 proposed · 🔵 1 implemented · ✅ 56 done · 🗑️ 2 killed
 
-## 🟡 Proposed (12)
+## 🟡 Proposed (14)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -15,16 +15,17 @@
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0062](active/0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | `low` | needs-brainstorm |
 | [0067](active/0067-learnings-promotion-destination.md) | Give the learnings ledger a promotion destination — it has no way to shrink | `medium` | needs-brainstorm |
-| [0068](active/0068-cursor-sandbox-permissions-docs.md) | Provide a stable Cursor command boundary for docket workflows | `medium` | needs-brainstorm |
+| [0068](active/0068-docket-command-facade.md) | One executable docket facade — finite subcommands, config read from stdout, never eval'd | `high` | build-ready |
 | [0070](active/0070-redirect-regex-board-write-guard.md) | Harden the BOARD.md write guard — REDIRECT_RE misses real redirect forms | `medium` | needs-brainstorm |
 | [0071](active/0071-board-surfaces-unset-vs-empty.md) | An unresolved $BOARD_SURFACES is indistinguishable from a deliberately disabled board | `high` | needs-brainstorm |
+| [0072](active/0072-facade-skill-rewiring.md) | Rewire the operating skills and Step-0 to the facade — retire the eval preamble | `medium` | ⏳ waiting on #68 — not yet built |
+| [0073](active/0073-cursor-sandbox-permissions-guide.md) | Cursor sandbox & permissions guide — copyable config, trust tiers, troubleshooting | `medium` | ⏳ waiting on #68 — not yet built |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | [#69](https://github.com/danielhanold/docket/pull/69) |
-| [0069](active/0069-status-report-self-evidencing.md) | docket-status report is self-evidencing and board-independent — stop the board-off BOARD.md hunt | `high` | [#77](https://github.com/danielhanold/docket/pull/77) |
 
 ```mermaid
 graph TD
@@ -39,9 +40,11 @@ graph TD
   0062
   0067
   0068
-  0069
   0070
   0071
+  0068 --> 0072
+  0068 --> 0073
+  0072 --> 0073
   0001:::done
   0002:::done
   0003:::done
@@ -97,13 +100,15 @@ graph TD
   0064:::done
   0065:::done
   0066:::done
+  0069:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (57)</summary>
+<details><summary>✅🗑️ Archive — done + killed (58)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0069](archive/2026-07-13-0069-status-report-self-evidencing.md) | docket-status report is self-evidencing and board-independent — stop the board-off BOARD.md hunt | 2026-07-13 |
 | [0066](archive/2026-07-13-0066-auto-groom-critic-recheck-foreground.md) | Auto-groom's critic re-check must be foreground — a forked skill that yields returns a half-done run to its caller | 2026-07-13 |
 | [0065](archive/2026-07-13-0065-agent-model-pinning-docs.md) | Document the two invocation paths and per-agent model pinning; ADR the context:fork findings | 2026-07-13 |
 | [0064](archive/2026-07-13-0064-optional-terminal-publish.md) | Optional terminal-publish — per-repo opt-out to keep metadata on docket | 2026-07-13 |
