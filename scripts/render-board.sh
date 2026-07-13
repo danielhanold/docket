@@ -4,18 +4,25 @@
 # byte-for-byte per docket-status's *Board -> Structure*. No git writes (the caller redirects +
 # commits), offline (no gh, no network). Same change files => identical bytes.
 #
-# Usage: render-board.sh --changes-dir DIR [--repo OWNER/REPO]
+# Usage: render-board.sh --changes-dir DIR [--repo OWNER/REPO] [--format markdown|digest]
 #   --repo builds pr: hyperlinks; defaults to deriving OWNER/REPO from the origin remote of
 #   --changes-dir. Mock seam: GIT="${GIT:-git}".
+#   --format markdown (default) emits the BOARD.md markdown; --format digest emits the
+#   line-oriented backlog digest (`backlog <status> <count>` + `change <id> <status> <readiness>
+#   <slug>`) — a second projection of the same dependency/readiness pass, consumed by
+#   docket-status.sh's report. The digest is REPORT OUTPUT, NOT a board surface: it is never
+#   persisted, committed, or written to BOARD.md.
 set -uo pipefail
 
 GIT="${GIT:-git}"
 CHANGES_DIR=""
 REPO=""
+FORMAT="markdown"
 while [ $# -gt 0 ]; do
   case "$1" in
     --changes-dir) CHANGES_DIR="$2"; shift ;;
     --repo) REPO="$2"; shift ;;
+    --format) FORMAT="$2"; shift ;;
     -h|--help) grep '^#' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) printf 'render-board: unknown argument: %s\n' "$1" >&2; exit 2 ;;
   esac
@@ -23,6 +30,10 @@ while [ $# -gt 0 ]; do
 done
 [ -n "$CHANGES_DIR" ] || { printf 'render-board: missing --changes-dir\n' >&2; exit 2; }
 [ -d "$CHANGES_DIR" ] || { printf 'render-board: changes dir not found: %s\n' "$CHANGES_DIR" >&2; exit 2; }
+case "$FORMAT" in
+  markdown|digest) : ;;
+  *) printf 'render-board: unknown --format value: %s (expected markdown|digest)\n' "$FORMAT" >&2; exit 2 ;;
+esac
 
 # shellcheck source=/dev/null
 source "$(dirname "${BASH_SOURCE[0]}")/lib/docket-frontmatter.sh"
@@ -65,6 +76,51 @@ total=$(( total + ${#ARCFILES[@]} ))
 
 declare -A ARC_COUNT  # done/killed counts (archive)
 for f in "${ARCFILES[@]}"; do st="$(field "$f" status)"; ARC_COUNT["$st"]=$(( ${ARC_COUNT[$st]:-0} + 1 )); done
+
+# --- digest projection (change 0069) --------------------------------------------------------
+# A second, line-oriented projection of the SAME dependency-resolution/readiness pass the board
+# renders from — so readiness has exactly one owner (readiness(), in lib/docket-frontmatter.sh)
+# and the digest can never disagree with the board's Readiness cell. Emitted for the report;
+# never persisted. Exits before the markdown emission, which stays byte-identical.
+digest_readiness(){ # digest_readiness FILE ID STATUS -> machine-parseable readiness token
+  local f="$1" id="$2" st="$3" tok
+  # Readiness is only meaningful for a `proposed` change (see readiness() in the shared lib);
+  # every other status reports `-` rather than a token that would not mean anything.
+  [ "$st" = proposed ] || { printf '%s' '-'; return; }
+  tok="$(readiness "$f")"
+  case "$tok" in
+    waiting)
+      # readiness() collapses both flavors to `waiting`; the flavor + blocking id live in the
+      # resolve_deps globals, exactly as the board's readiness_cell reads them.
+      case "${DEP_REASON[$id]:-}" in
+        "needs your merge") printf 'waiting-on-%s-needs-merge' "${DEP_ON[$id]}" ;;
+        *)                  printf 'waiting-on-%s-unbuilt' "${DEP_ON[$id]}" ;;
+      esac ;;
+    *) printf '%s' "$tok" ;;
+  esac
+}
+
+if [ "$FORMAT" = digest ]; then
+  for st in in-progress proposed blocked deferred implemented done killed; do
+    case "$st" in
+      done|killed) n=${ARC_COUNT[$st]:-0} ;;
+      *) n="$(count_of "$st")" ;;
+    esac
+    [ "$n" -gt 0 ] || continue
+    printf 'backlog %s %s\n' "$st" "$n"
+  done
+  while IFS=$'\t' read -r id f; do
+    [ -n "$id" ] || continue
+    st="$(field "$f" status)"
+    printf 'change %s %s %s %s\n' \
+      "$id" "$st" "$(digest_readiness "$f" "$id" "$st")" "$(field "$f" slug)"
+  done < <(
+    for st in in-progress proposed blocked deferred implemented; do
+      rows_sorted "$st"
+    done | sort -t$'\t' -k1,1n
+  )
+  exit 0
+fi
 
 printf '# Backlog\n\n'
 seg=""

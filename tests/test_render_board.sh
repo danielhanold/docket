@@ -296,5 +296,74 @@ assert "render-board skips malformed active row (title absent)"  '! printf "%s" 
 assert "render-board skips malformed archive row (title absent)" '! printf "%s" "$mout" | grep -q "Bad Archive"'
 rm -f "$tmp/active/0099-bad.md" "$tmp/archive/2026-06-01-0098-badarc.md" /tmp/render-board-stderr.$$
 
+# --- change 0069: --format digest (the line-oriented backlog projection) ---
+# The digest is a SECOND projection of the dependency/readiness pass render-board.sh already
+# runs — same source of truth as the board's Readiness cell, machine-parseable instead of prose.
+# It is report output, never a board surface: docket-status.sh pipes it through without writing.
+
+# (a) regression guard: the DEFAULT (no --format) output is byte-identical to the golden.
+#     This is the load-bearing guarantee of the whole change — the digest must not perturb the
+#     markdown path by a single byte. ("$rendered" was produced from the golden compare above.)
+defaulted="$tmp/out-default.md"
+bash "$SCRIPT" --changes-dir "$tmp" --repo o/r > "$defaulted" 2>/dev/null
+assert "default output is byte-identical to the golden after --format lands" \
+  'diff -u "$golden" "$defaulted"'
+
+# (b) an explicit --format markdown is byte-identical to the default.
+explicit="$tmp/out-markdown.md"
+bash "$SCRIPT" --changes-dir "$tmp" --repo o/r --format markdown > "$explicit" 2>/dev/null
+assert "--format markdown is byte-identical to the default" 'diff -u "$defaulted" "$explicit"'
+
+# (c) the digest's exact shape, byte-compared to a hand-authored golden. Rollups first (fixed
+#     status order, non-zero only), then one `change` line per ACTIVE change, ascending id.
+digest_golden="$tmp/digest-golden.txt"
+cat > "$digest_golden" <<'EOF'
+backlog in-progress 1
+backlog proposed 5
+backlog blocked 1
+backlog deferred 1
+backlog implemented 1
+backlog done 2
+backlog killed 1
+change 1 in-progress - alpha
+change 2 proposed build-ready bravo
+change 3 proposed needs-brainstorm charlie
+change 4 proposed auto-groom-blocked delta
+change 5 proposed waiting-on-3-unbuilt echo
+change 6 proposed waiting-on-8-needs-merge foxtrot
+change 7 blocked - golf
+change 8 implemented - hotel
+change 9 deferred - india
+EOF
+digest_out="$tmp/digest-out.txt"
+bash "$SCRIPT" --changes-dir "$tmp" --repo o/r --format digest > "$digest_out" 2>/dev/null
+drc=$?
+assert "--format digest exits 0" '[ "$drc" -eq 0 ]'
+assert "--format digest matches the digest golden byte-for-byte" 'diff -u "$digest_golden" "$digest_out"'
+
+# (d) each readiness band individually (named asserts so a break names the band it broke).
+assert "digest: build-ready token"            'grep -qxF "change 2 proposed build-ready bravo" "$digest_out"'
+assert "digest: needs-brainstorm token"       'grep -qxF "change 3 proposed needs-brainstorm charlie" "$digest_out"'
+assert "digest: auto-groom-blocked token"     'grep -qxF "change 4 proposed auto-groom-blocked delta" "$digest_out"'
+assert "digest: waiting-on-N-unbuilt token"   'grep -qxF "change 5 proposed waiting-on-3-unbuilt echo" "$digest_out"'
+assert "digest: waiting-on-N-needs-merge token" 'grep -qxF "change 6 proposed waiting-on-8-needs-merge foxtrot" "$digest_out"'
+assert "digest: readiness is - for a non-proposed change" 'grep -qxF "change 1 in-progress - alpha" "$digest_out"'
+
+# (e) the digest carries NO markdown board (it is a projection, not the board).
+assert "digest emits no board markdown" '! grep -qF "# Backlog" "$digest_out"'
+assert "digest emits no mermaid graph"  '! grep -qF "mermaid" "$digest_out"'
+
+# (f) archive rollups only — archived changes get no `change` line (the digest is the ACTIVE backlog).
+assert "digest: archived changes get no change line" '! grep -qE "^change (10|11|12) " "$digest_out"'
+
+# (g) an unknown --format value is an argument error (exit 2), like any other bad flag.
+bash "$SCRIPT" --changes-dir "$tmp" --format bogus >/dev/null 2>"$tmp/fmt-err.txt"
+frc=$?
+assert "unknown --format exits 2" '[ "$frc" -eq 2 ]'
+assert "unknown --format names the flag on stderr" 'grep -qi "format" "$tmp/fmt-err.txt"'
+
+# (h) the digest performs no git writes and needs no worktree (offline, pure).
+assert "digest run leaves the fixture dir git-free" '[ ! -d "$tmp/.git" ]'
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
