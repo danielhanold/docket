@@ -16,13 +16,13 @@ What you get:
 
 - [How it works](#how-it-works)
 - [Why docket](#why-docket)
-- [Consultant-authored brainstorm (opt-in)](#consultant-authored-brainstorm-opt-in)
 - [Install](#install)
 - [Quickstart: the daily loop](#quickstart-the-daily-loop)
 - [Configuration — `.docket.yml`, global config, and machine-local overrides](#configuration--docketyml-global-config-and-machine-local-overrides)
 - [docket-mode: where metadata lives](#docket-mode-where-metadata-lives)
 - [Tuning agent models & effort](#tuning-agent-models--effort)
 - [The eight skills](#the-eight-skills)
+- [Customization](#customization)
 - [Status](#status)
 - [Migration](#migration)
 
@@ -98,55 +98,6 @@ Two escape hatches handle the cases a rewrite can't:
 
 ---
 
-## Consultant-authored brainstorm (opt-in)
-
-By default, the `brainstorm` role (the up-front design step in `docket-new-change` and
-`docket-groom-next`) runs `superpowers:brainstorming` — the dialogue and the spec are
-both produced inline, at the session model. **`docket-brainstorm` is an opt-in
-alternative** that keeps the design conversation exactly where it is — with you, inline,
-at whatever model the session runs — but adds a pinned, high-tier design **consultant**
-that authors (or audits) the final spec once the dialogue has settled the design. You
-talk it through as usual; the consultant fires once, at the end, either handing back an
-authored spec or critique concerns that send you back to the dialogue. This is **off by
-default**: nothing changes unless you opt in.
-
-Two ways to opt in:
-
-- **Per-invocation (verbal).** Just say so when you run the interactive skill, e.g.
-  `/docket-new-change "… have a consultant write the spec"`. This wins for that one run
-  regardless of any configured default.
-- **Durable (config).** Bind the role in `.docket.yml` (or global `config.yml`):
-
-  ```yaml
-  skills:
-    brainstorm: docket-brainstorm
-  ```
-
-  Every brainstorm — `docket-new-change` and `docket-groom-next` alike — now goes
-  through the consultant, using the same `skills:` map described in
-  [Workflow roles](#configuration--docketyml-global-config-and-machine-local-overrides).
-
-If the consultant can't be dispatched on this machine (agents not synced, harness
-without dispatch support, or any other per-machine gap), `docket-brainstorm` **degrades
-to running the whole flow inline at the session model, with a prominent warning** —
-no worse than not having opted in.
-
-**Capture-then-groom: running an entire brainstorm at a chosen model.** The consultant
-path pins *authorship*; the dialogue and option generation still run at whatever model
-the session is on. If you want the *whole* brainstorm — dialogue included — pinned to a
-specific model, no new machinery is needed: capture the idea as a stub with
-`docket-new-change` in whichever session it strikes you (skip straight past
-brainstorming — the stub lands at `needs-brainstorm`), then run `docket-groom-next` from
-a session set to the model you want. That session does the full design conversation at
-its own model, and can still opt into consultant authorship on top if you like.
-
-Note: `docket-brainstorm` is its own opt-in **role** skill (bound via the `brainstorm`
-key), not one of the operating-loop stages in [The eight skills](#the-eight-skills)
-below — it's why you'll find nine directories under `skills/` even though that table
-lists eight.
-
----
-
 ## Install
 
 docket installs once per machine and then works in every repo you use it from.
@@ -182,7 +133,7 @@ The change data — `docs/changes/`, `docs/adrs/`, `docs/results/` — lives in 
 
 Once docket is installed and your repo is in [docket-mode](#docket-mode-where-metadata-lives) (planning metadata on its own branch), a day of work is a handful of skill invocations you make (by name) in an agent-harness session — Claude Code, Cursor, or Codex — opened in that repo.
 
-**1. Capture work — `docket-new-change`.** Describe an idea; docket brainstorms it with you into a build-ready change — a spec, dependencies noted — and commits the change file to the backlog. Run it whenever an idea lands; the backlog is durable, so you can capture now and implement later.
+**1. Capture work — `docket-new-change`.** Describe an idea; docket brainstorms it with you into a build-ready change — a spec, dependencies noted — and commits the change file to the backlog. Run it whenever an idea lands; the backlog is durable, so you can capture now and implement later. (A pinned, high-tier consultant can author the spec instead of your session model — see [Consultant-authored brainstorm](#consultant-authored-brainstorm-opt-in).)
 
 **2. (Optional) Groom stubs to build-ready — `docket-groom-next` / `docket-auto-groom`.** If you captured rough stubs rather than fully-designed changes, grooming turns the next `needs-brainstorm` stub into a build-ready change. `docket-groom-next` does it interactively with you; `docket-auto-groom` drains the auto-groomable stubs with no human, each design gated by an adversarial critic. (Both write markdown only — never code.)
 
@@ -487,6 +438,32 @@ The eight skills cover the full loop — create, groom, implement, finalize, rep
 | `docket-status` | Board and janitor — regenerates `BOARD.md`, sweeps merged PRs to `done`, and runs health checks for stale claims, broken links, and dependency stalls. |
 | `docket-adr` | Immutable decision ledger — records architecture decisions, handles supersessions and reversals, and maintains the ADR index. |
 | `docket-convention` | Shared contract, pure reference — single source of the docket convention (configuration, layout, manifest, lifecycle, build-readiness, bootstrap guard, branch model); every operating skill loads it as its blocking Step 0. |
+
+---
+
+## Customization
+
+Opt-in alternatives to docket's defaults. Each one is off until you turn it on, in one of the layers described in [Configuration](#configuration--docketyml-global-config-and-machine-local-overrides).
+
+### Consultant-authored brainstorm (opt-in)
+
+By default, the `brainstorm` role (the up-front design step in `docket-new-change` and `docket-groom-next`) runs `superpowers:brainstorming` — the dialogue and the spec are both produced inline, at the session model. **`docket-brainstorm` is an opt-in alternative** that keeps the design conversation exactly where it is — with you, inline, at whatever model the session runs — but adds a pinned, high-tier design **consultant** that authors (or audits) the final spec once the dialogue has settled the design. The consultant fires once, at the end, either handing back an authored spec or critique concerns that send you back to the dialogue.
+
+Two ways to opt in:
+
+- **Per-invocation (verbal).** Just say so when you run the interactive skill, e.g. `/docket-new-change "… have a consultant write the spec"`. This wins for that one run regardless of any configured default.
+- **Durable (config).** Bind the role in `.docket.yml` (or global `config.yml`), and every brainstorm — `docket-new-change` and `docket-groom-next` alike — goes through the consultant:
+
+  ```yaml
+  skills:
+    brainstorm: docket-brainstorm
+  ```
+
+If the consultant can't be dispatched on this machine (agents not synced, harness without dispatch support, or any other per-machine gap), `docket-brainstorm` **degrades to running the whole flow inline at the session model, with a prominent warning** — no worse than not having opted in.
+
+**Capture-then-groom: an entire brainstorm at a chosen model.** The consultant pins *authorship*; the dialogue and option generation still run at whatever model the session is on. To pin the *whole* brainstorm, no new machinery is needed: capture the idea as a stub with `docket-new-change` in whichever session it strikes you (skip straight past brainstorming — the stub lands at `needs-brainstorm`), then run `docket-groom-next` from a session set to the model you want. That session does the full design conversation at its own model, and can still opt into consultant authorship on top.
+
+Note: `docket-brainstorm` is its own opt-in **role** skill (bound via the `brainstorm` key), not one of the operating-loop stages in [The eight skills](#the-eight-skills) above — it's why you'll find nine directories under `skills/` even though that table lists eight.
 
 ---
 
