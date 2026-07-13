@@ -9,16 +9,28 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 assert "script exists and is executable" '[ -x "$SCRIPT" ]'
 assert "--help exits 0 and prints usage" '"$SCRIPT" --help 2>&1 | grep -qi "usage"'
 
-# --- inline-board wiring sentinel (change 0059) ---
-# board_pass_inline must route its render through the gated board-refresh.sh primitive, never
-# call render-board.sh directly — so render-board.sh is reached ONLY via board-refresh.sh (one
-# gated inline-board write path across the whole system). board_pass already gates on the `inline`
-# token, so board_pass_inline passes --surfaces inline verbatim; the atomic/truncation-safe write
-# lives in board-refresh.sh.
-assert "docket-status routes the inline render through board-refresh.sh" \
+# --- inline-board wiring sentinel (change 0059, narrowed by change 0069) ---
+# 0059's rule: the inline BOARD.md *write* has exactly ONE gated path — board-refresh.sh — so the
+# orchestrator must never render-and-write the board itself. 0069 adds a READ-ONLY consumer of the
+# same renderer (`--format digest`, piped straight to the report, no file touched), so the guard
+# can no longer be "never mention render-board.sh." It is narrowed to what it actually protects:
+# every render-board.sh invocation in this script must be the read-only digest projection.
+# Tokenized PER INVOCATION (not per line): a line carrying a gated and an ungated call side by
+# side must not be whitewashed by the gated one. Comment lines are stripped first — prose that
+# merely names the script is not an invocation.
+assert "docket-status routes the inline board render through board-refresh.sh" \
   'grep -qF "/board-refresh.sh" "$SCRIPT"'
-assert "docket-status never calls render-board.sh directly (gated via board-refresh.sh)" \
-  '! grep -qF "/render-board.sh" "$SCRIPT"'
+
+ungated_render=0
+while IFS= read -r inv; do
+  [ -n "$inv" ] || continue
+  case "$inv" in
+    *"--format digest"*) : ;;
+    *) ungated_render=1; echo "  (ungated render-board.sh invocation: $inv)" ;;
+  esac
+done < <(grep -v '^[[:space:]]*#' "$SCRIPT" | grep -oE '[^;&|]*/render-board\.sh[^;&|]*' || true)
+assert "every render-board.sh invocation in docket-status is the read-only --format digest" \
+  '[ "$ungated_render" -eq 0 ]'
 
 # Bootstrap gate: stub docket-config.sh --export via CONFIG_EXPORT_CMD (a hermetic fixture
 # script emitting the eval-able KEY=value block), and assert the gate's exit code + remedy text.
@@ -171,7 +183,13 @@ write_board_fixture ""
 (cd "$tmp/board-case/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" "$SCRIPT" --board-only >"$tmp/board-run3.txt" 2>"$tmp/board-run3-err.txt")
 rc=$?
 assert "board_pass empty-surfaces run exits zero" '[ $rc -eq 0 ]'
-assert "board_pass empty-surfaces emits no board line" '! grep -qw "board" "$tmp/board-run3.txt"'
+# Change 0069: silence is not evidence. A board-off pass must SAY the board is off — an empty
+# stdout is indistinguishable from "the script silently did nothing", which is the exact
+# confusion that made an agent hunt for a BOARD.md its config forbids.
+assert "board_pass empty-surfaces emits a positive 'board off' line" \
+  'grep -qxF "board off" "$tmp/board-run3.txt"'
+assert "board_pass empty-surfaces emits no inline board line" \
+  '! grep -q "board inline" "$tmp/board-run3.txt"'
 
 # board_pass rebase-conflict-regenerate branch: force a push rejection whose only conflicting
 # path is BOARD.md, so the orchestrator must pull --rebase, hit a BOARD.md-only conflict,
@@ -1171,5 +1189,284 @@ SKILL="$REPO/skills/docket-status/SKILL.md"
 assert "SKILL invokes docket-status.sh" 'grep -qF "/docket-status.sh" "$SKILL"'
 assert "SKILL no longer inlines the sweep loop enumeration" \
   '! grep -qF "For each \`implemented\` change:" "$SKILL"'
+
+# --- change 0069: the report is self-evidencing and board-independent ---
+# A board-off repo (board_surfaces: []) must still get a complete, positive report: `board off`,
+# the backlog digest, and `pass ok` — and must still perform ZERO git writes and leave no BOARD.md.
+git_repo_setup "$tmp/boardoff-case"
+git clone -q "$tmp/boardoff-case/origin.git" "$tmp/boardoff-case/work" 2>/dev/null
+seed_changes_fixture "$tmp/boardoff-case/work"
+# A second change so the digest has plurality (>=2 rows) and a non-trivial rollup.
+cat > "$tmp/boardoff-case/work/docs/changes/active/0002-bravo.md" <<'EOF'
+---
+id: 2
+slug: bravo
+title: Bravo feature
+status: proposed
+priority: medium
+depends_on: []
+spec: docs/superpowers/specs/2026-06-10-bravo.md
+EOF
+git -C "$tmp/boardoff-case/work" -c user.email=t@t -c user.name=t add docs/changes
+git -C "$tmp/boardoff-case/work" -c user.email=t@t -c user.name=t commit -q -m "seed board-off fixture"
+git -C "$tmp/boardoff-case/work" push -q origin main
+boardoff_head="$(git -C "$tmp/boardoff-case/work" rev-parse HEAD)"
+
+write_board_fixture ""
+(cd "$tmp/boardoff-case/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" "$SCRIPT" --board-only >"$tmp/boardoff-out.txt" 2>"$tmp/boardoff-err.txt")
+rc=$?
+assert "board-off --board-only exits zero" '[ $rc -eq 0 ]'
+assert "board-off stdout is NEVER empty" '[ -s "$tmp/boardoff-out.txt" ]'
+assert "board-off emits 'board off'" 'grep -qxF "board off" "$tmp/boardoff-out.txt"'
+assert "board-off emits the backlog rollup" 'grep -qxF "backlog proposed 1" "$tmp/boardoff-out.txt"'
+assert "board-off emits a change line per active change" \
+  'grep -qxF "change 1 in-progress - alpha" "$tmp/boardoff-out.txt" && grep -qxF "change 2 proposed build-ready bravo" "$tmp/boardoff-out.txt"'
+assert "board-off closes with 'pass ok'" 'grep -qxF "pass ok" "$tmp/boardoff-out.txt"'
+# The 0059 gate must not regress: no BOARD.md, no commit, no dirty tree.
+assert "board-off wrote no BOARD.md" '[ ! -e "$tmp/boardoff-case/work/docs/changes/BOARD.md" ]'
+assert "board-off made no commit" \
+  '[ "$(git -C "$tmp/boardoff-case/work" rev-parse HEAD)" = "$boardoff_head" ]'
+assert "board-off left the worktree clean" \
+  '[ -z "$(git -C "$tmp/boardoff-case/work" status --porcelain)" ]'
+
+# --- change 0069: board-ON still renders AND also reports the digest + pass ok ---
+write_board_fixture inline
+(cd "$tmp/board-case/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" "$SCRIPT" --board-only >"$tmp/boardon-digest.txt" 2>/dev/null)
+rc=$?
+assert "board-on --board-only exits zero" '[ $rc -eq 0 ]'
+assert "board-on still emits an inline board line" 'grep -q "board inline" "$tmp/boardon-digest.txt"'
+assert "board-on ALSO emits the backlog digest" \
+  'grep -qxF "change 1 in-progress - alpha" "$tmp/boardon-digest.txt"'
+assert "board-on closes with 'pass ok'" 'grep -qxF "pass ok" "$tmp/boardon-digest.txt"'
+assert "board-on never emits 'board off'" '! grep -qxF "board off" "$tmp/boardon-digest.txt"'
+
+# --- change 0069: --board-only reports the backlog in BOTH configs (it is the "just show me
+# the backlog" path; in a board-off repo it used to do literally nothing) ---
+assert "--board-only reports the backlog with the board OFF" \
+  'grep -qE "^change 1 " "$tmp/boardoff-out.txt"'
+assert "--board-only reports the backlog with the board ON" \
+  'grep -qE "^change 1 " "$tmp/boardon-digest.txt"'
+
+# --- change 0069: the backlog pass is BEST-EFFORT (a failing digest never aborts the pass) ---
+# Point the SCRIPTS_DIR mock seam at a stub render-board.sh that always fails.
+mkdir -p "$tmp/stub-scripts"
+cat > "$tmp/stub-scripts/render-board.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "stub render-board: boom" >&2
+exit 1
+EOF
+chmod +x "$tmp/stub-scripts/render-board.sh"
+write_board_fixture ""
+(cd "$tmp/boardoff-case/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" SCRIPTS_DIR="$tmp/stub-scripts" "$SCRIPT" --board-only >"$tmp/degrade-out.txt" 2>"$tmp/degrade-err.txt")
+rc=$?
+assert "failing digest still exits 0 (best-effort)" '[ $rc -eq 0 ]'
+assert "failing digest emits no digest lines" '! grep -qE "^(backlog|change) " "$tmp/degrade-out.txt"'
+assert "failing digest still emits 'board off'" 'grep -qxF "board off" "$tmp/degrade-out.txt"'
+assert "failing digest still closes with 'pass ok'" 'grep -qxF "pass ok" "$tmp/degrade-out.txt"'
+# Anchored on the diagnostic's own text: stderr is NEVER empty here (git pull --rebase noise and
+# the failing stub's own output land there), so `[ -s ... ]` would pass even with the diagnostic
+# deleted — a green assert for the wrong reason.
+assert "failing digest logs its diagnostic to stderr" \
+  'grep -qF "backlog digest failed" "$tmp/degrade-err.txt"'
+
+# --- change 0069: the digest on a FULL (non --board-only) pass — ungated, and POST-SWEEP ---
+# Every other full-pass fixture in this file points SCRIPTS_DIR at a mock dir that carries NO
+# render-board.sh, so the digest silently takes its best-effort failure branch there and the full
+# path's digest + `pass ok` were entirely unproven (deleting either left the suite green). This
+# fixture carries the REAL render-board.sh — plus its lib/, which it sources relative to its own
+# location — so a full pass genuinely renders the digest.
+#
+# It locks two things at once:
+#   1. UNGATED: with BOARD_SURFACES="" the full pass still emits the digest and `pass ok`.
+#   2. POST-SWEEP: backlog_pass runs AFTER the sweep, so a change swept during this very pass is
+#      reported as `done` — never as the `implemented` it was when the pass began. This is the
+#      report's self-consistency: the digest is the sole backlog channel, so a pre-sweep snapshot
+#      would have the same report say "swept 60" and "change 60 implemented" with no correction.
+mkdir -p "$tmp/mock-real/lib"
+cp "$REPO/scripts/render-board.sh" "$tmp/mock-real/render-board.sh"
+cp "$REPO"/scripts/lib/*.sh "$tmp/mock-real/lib/"
+cat > "$tmp/mock-real/board-checks.sh" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+cat > "$tmp/mock-real/archive-change.sh" <<'EOF'
+#!/usr/bin/env bash
+changes_dir="" id="" date=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --changes-dir) changes_dir="$2"; shift ;;
+    --id) id="$2"; shift ;;
+    --date) date="$2"; shift ;;
+  esac
+  shift
+done
+pad="$(printf '%04d' "$id")"
+active="$(find "$changes_dir/active" -maxdepth 1 -name "${pad}-*.md" | head -n1)"
+[ -n "$active" ] || exit 1
+base="$(basename "$active")"
+slug="${base#"${pad}"-}"; slug="${slug%.md}"
+mkdir -p "$changes_dir/archive"
+dest="$changes_dir/archive/${date}-${pad}-${slug}.md"
+root="$(git -C "$changes_dir" rev-parse --show-toplevel)"
+git -C "$root" mv "$active" "$dest"
+sed -i.bak "s/^status:.*/status: done/" "$dest" && rm -f "$dest.bak"
+git -C "$root" add -- "$dest" 2>/dev/null
+git -C "$root" -c user.email=t@t -c user.name=t commit -q -m "mock archive" >/dev/null 2>&1
+git -C "$root" push -q origin main >/dev/null 2>&1
+exit 0
+EOF
+for s in render-change-links terminal-publish cleanup-feature-branch sync-integration-branch; do
+  cat > "$tmp/mock-real/$s.sh" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+done
+chmod +x "$tmp/mock-real/"*.sh
+
+cat > "$tmp/gh-fullpass.sh" <<'EOF'
+#!/usr/bin/env bash
+if [ "$1" = api ] && [ "$2" = graphql ]; then
+  cat <<'JSON'
+{"data":{"p60":{"pullRequest":{"number":60,"mergedAt":"2026-07-11T09:00:00Z","state":"MERGED"}}}}
+JSON
+  exit 0
+fi
+echo "gh-fullpass: unexpected args: $*" >&2
+exit 1
+EOF
+chmod +x "$tmp/gh-fullpass.sh"
+
+fp_dir="$tmp/fullpass-digest-case"
+git_repo_setup "$fp_dir"
+git clone -q "$fp_dir/origin.git" "$fp_dir/work" 2>/dev/null
+mkdir -p "$fp_dir/work/docs/changes/active" "$fp_dir/work/docs/changes/archive" "$fp_dir/work/docs/adrs"
+# 0060 — implemented with a merged PR: this is the change the pass sweeps to done.
+cat > "$fp_dir/work/docs/changes/active/0060-gate-thing.md" <<'EOF'
+---
+id: 60
+slug: gate-thing
+title: Gate thing
+status: implemented
+priority: high
+depends_on: []
+branch: feat/gate-thing
+pr: 60
+EOF
+# 0061 + 0062 — survive the sweep, so the post-sweep digest has real rows (>=2: plurality).
+cat > "$fp_dir/work/docs/changes/active/0061-alfa.md" <<'EOF'
+---
+id: 61
+slug: alfa
+title: Alfa feature
+status: proposed
+priority: medium
+depends_on: []
+spec: docs/superpowers/specs/2026-07-01-alfa.md
+EOF
+cat > "$fp_dir/work/docs/changes/active/0062-bravo-two.md" <<'EOF'
+---
+id: 62
+slug: bravo-two
+title: Bravo two
+status: in-progress
+priority: low
+depends_on: []
+branch: feat/bravo-two
+EOF
+git -C "$fp_dir/work" -c user.email=t@t -c user.name=t add docs/changes
+git -C "$fp_dir/work" -c user.email=t@t -c user.name=t commit -q -m "seed full-pass digest fixture"
+git -C "$fp_dir/work" push -q origin main
+
+write_full_fixture ""
+(cd "$fp_dir/work" && \
+  CONFIG_EXPORT_CMD="bash $tmp/fixture-full.sh" GH="$tmp/gh-fullpass.sh" \
+  SCRIPTS_DIR="$tmp/mock-real" \
+  "$SCRIPT" --repo x/y >"$tmp/fullpass-out.txt" 2>"$tmp/fullpass-err.txt")
+rc=$?
+assert "full pass (real renderer) exits zero" '[ $rc -eq 0 ]'
+assert "full pass swept the merged change" 'grep -qxF "swept 60 2026-07-11" "$tmp/fullpass-out.txt"'
+# (1) ungated: the digest and `pass ok` reach the FULL path, board off and all.
+assert "full pass emits 'board off' (board_surfaces empty)" \
+  'grep -qxF "board off" "$tmp/fullpass-out.txt"'
+assert "full pass emits the backlog digest (UNGATED — not just --board-only)" \
+  'grep -qxF "change 61 proposed build-ready alfa" "$tmp/fullpass-out.txt" && grep -qxF "change 62 in-progress - bravo-two" "$tmp/fullpass-out.txt"'
+assert "full pass digest has >=2 change rows" \
+  '[ "$(grep -cE "^change [0-9]+ " "$tmp/fullpass-out.txt")" -ge 2 ]'
+assert "full pass closes with 'pass ok' as its LAST line" \
+  '[ "$(tail -n1 "$tmp/fullpass-out.txt")" = "pass ok" ]'
+# (2) post-sweep: the swept change is `done` in the digest, and is NOT reported as implemented.
+assert "full pass digest is POST-sweep: the swept change is counted done" \
+  'grep -qxF "backlog done 1" "$tmp/fullpass-out.txt"'
+assert "full pass digest never reports the swept change as implemented" \
+  '! grep -qE "^change 60 implemented " "$tmp/fullpass-out.txt"'
+assert "full pass digest gives the swept (now archived) change no change line at all" \
+  '! grep -qE "^change 60 " "$tmp/fullpass-out.txt"'
+assert "full pass digest has no implemented rollup left" \
+  '! grep -qE "^backlog implemented " "$tmp/fullpass-out.txt"'
+# (3) report order: board -> sweep -> checks/judgment -> digest -> pass ok.
+fp_swept_ln="$(grep -n "^swept 60 " "$tmp/fullpass-out.txt" | head -n1 | cut -d: -f1)"
+fp_digest_ln="$(grep -n "^backlog " "$tmp/fullpass-out.txt" | head -n1 | cut -d: -f1)"
+assert "full pass emits the digest AFTER the sweep lines" \
+  '[ -n "$fp_swept_ln" ] && [ -n "$fp_digest_ln" ] && [ "$fp_digest_ln" -gt "$fp_swept_ln" ]'
+
+# --- change 0069: prose is board-neutral and tells the agent a thin report is success ---
+SKILL_MD="$REPO/skills/docket-status/SKILL.md"
+AGENT_MD="$REPO/agents/docket-status.md"
+STATUS_CONTRACT="$REPO/scripts/docket-status.md"
+BOARD_CONTRACT="$REPO/scripts/render-board.md"
+
+# The SKILL description and the wrapper description/body are what docket-implement-next's Step-0
+# dispatch prompt paraphrases — a board promise there reaches the subagent verbatim. They must not
+# promise a board the repo may have disabled. (Scoped to the frontmatter description LINE and the
+# wrapper body: the SKILL's own reference section may still discuss BOARD.md legitimately.)
+skill_desc="$(grep -m1 '^description:' "$SKILL_MD")"
+agent_desc="$(grep -m1 '^description:' "$AGENT_MD")"
+agent_body="$(sed -n '/^---$/,/^---$/!p' "$AGENT_MD")"
+assert "SKILL description does not promise BOARD.md" '! printf "%s" "$skill_desc" | grep -qF "BOARD.md"'
+assert "agent wrapper description does not promise BOARD.md" '! printf "%s" "$agent_desc" | grep -qF "BOARD.md"'
+assert "agent wrapper body does not promise to refresh the board" \
+  '! printf "%s" "$agent_body" | grep -qiF "refresh the board"'
+
+# The thin-report rule and the never-probe prohibition — the two clauses that actually stop the
+# hunt. Anchored on the unique phrase each owns.
+assert "SKILL states a thin report is the success case" \
+  'grep -qiF "a thin report is the success case" "$SKILL_MD"'
+assert "SKILL prohibits probing BOARD.md" \
+  'grep -qiF "never probe" "$SKILL_MD"'
+
+# One assert = one clause. A bare "board off" / "digest" grep is NOT a sentinel: both words occur
+# several times across this SKILL, so the assert stays green while the clause it exists to guard is
+# deleted (or inverted back to "read from BOARD.md" — the exact posture 0069 abolishes). Each is
+# therefore anchored on the unique phrase ITS clause owns, and pinned to exactly ONE occurrence so a
+# future duplication cannot silently re-open the same hole. Held in variables (not inlined) because
+# the assert body is eval'd — a literal backtick inside the double-quoted grep pattern would be
+# command substitution.
+skill_boardoff_clause='the repo sets `board_surfaces: []` and there is deliberately **no board**'
+skill_digest_clause='read from the digest lines — never from the board file'
+assert "SKILL names the board-off report line (Read-the-report bullet, exactly once)" \
+  '[ "$(grep -cF -- "$skill_boardoff_clause" "$SKILL_MD")" -eq 1 ]'
+assert "SKILL summarizes from the digest, not the board file (Final summary, exactly once)" \
+  '[ "$(grep -cF -- "$skill_digest_clause" "$SKILL_MD")" -eq 1 ]'
+
+# The Overview is the first thing the dispatched subagent reads: it must name the backlog digest as
+# a job/channel of the pass, not just the board/sweep/checks.
+skill_overview="$(sed -n '/^## Overview$/,/^## /p' "$SKILL_MD")"
+assert "SKILL Overview names the backlog digest as a job of the pass" \
+  'printf "%s" "$skill_overview" | grep -qF "backlog digest"'
+
+# The orchestrator contract documents every new line shape.
+assert "status contract documents board off"  'grep -qF "board off" "$STATUS_CONTRACT"'
+assert "status contract documents pass ok"    'grep -qF "pass ok" "$STATUS_CONTRACT"'
+assert "status contract documents the backlog rollup line" \
+  'grep -qF "backlog <status> <count>" "$STATUS_CONTRACT"'
+assert "status contract documents the change digest line" \
+  'grep -qF "change <id> <status> <readiness> <slug>" "$STATUS_CONTRACT"'
+assert "status contract states the backlog pass is ungated" \
+  'grep -qiF "ungated" "$STATUS_CONTRACT"'
+
+# The renderer contract documents the new flag.
+assert "render-board contract documents --format" 'grep -qF -- "--format" "$BOARD_CONTRACT"'
+assert "render-board contract documents the digest projection" \
+  'grep -qF "digest" "$BOARD_CONTRACT"'
 
 exit $fail

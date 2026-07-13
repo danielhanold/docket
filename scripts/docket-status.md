@@ -19,7 +19,7 @@ docket-status.sh -h | --help
 
 | Flag | Description |
 |---|---|
-| `--board-only` | Only run steps 1–3 (config/bootstrap, worktree sync, board pass) and exit; skip sweep detection/execution, health checks, judgment emission, and integration sync. |
+| `--board-only` | Only run steps 1–4 (config/bootstrap, worktree sync, board pass, backlog pass) and exit; skip sweep detection/execution, health checks, judgment emission, and integration sync. |
 | `--repo OWNER/REPO` | GitHub repo for PR-link resolution and sweep merge detection. Defaults to deriving from the `origin` remote (see `render-board.sh`) and, for sweep detection, from `gh repo view` when unset. |
 | `--project OWNER/NUMBER` | GitHub Project to sync during the github board surface. Passed through to `github-mirror.sh`. |
 | `--auto-create-project` | Create the GitHub Project if `--project` doesn't resolve. Passed through to `github-mirror.sh`. |
@@ -35,7 +35,7 @@ of its own.
 
 ## Behavior
 
-The pass runs as a fixed 7-step sequence:
+The pass runs as a fixed 8-step sequence:
 
 **1. Config + bootstrap gate.** Runs `config_export` (normally `docket-config.sh --export`,
 overridable via the `CONFIG_EXPORT_CMD` mock seam) and `eval`s the output. A non-zero exit from
@@ -49,18 +49,20 @@ value is an unknown-verdict hard error (exit 1).
 In non-docket mode, rebase-pulls the current checkout directly. Any fetch/pull/create failure is a
 hard error (exit 1) with a diagnostic on stderr.
 
-**3. Board pass**, once per surface token in the space-separated `BOARD_SURFACES` config value
-(no surfaces configured is a silent no-op):
-- **inline** — Renders the board via `render-board.sh` into a `BOARD.md.tmp` file next to
-  `BOARD.md`. A failed render (non-zero exit or empty output) discards the tmp file, leaves the
-  existing `BOARD.md` untouched, logs to stderr, and is treated as success for sequencing
-  purposes (best-effort). If the render is byte-identical to the existing `BOARD.md`, the tmp
-  file is discarded and nothing is committed. Otherwise the tmp file replaces `BOARD.md`, is
-  `git add`ed and committed with message `docket: board refresh`, then pushed with up to 5
-  retry attempts: on push failure it rebase-pulls; if the rebase itself conflicts only on
-  `BOARD.md`, it re-renders the board fresh (discarding the conflicted merge state) and
-  continues the rebase; a rebase conflict on anything else, or a failed re-render mid-rebase,
-  aborts the rebase and stops retrying.
+**3. Board pass**, once per surface token in the space-separated `BOARD_SURFACES` config value.
+**No surfaces configured emits a positive `board off` line** (change 0069) — never silence: an
+empty stdout is indistinguishable from a script that did nothing, and that ambiguity is what sent
+an agent hunting for a `BOARD.md` the configuration forbids.
+- **inline** — Renders and writes the board through `board-refresh.sh` (change 0059), which owns
+  the surface gate and the atomic, truncation-safe replace of `BOARD.md`; this script never calls
+  `render-board.sh` to produce the board. A failed render leaves the existing `BOARD.md`
+  untouched, logs to stderr, and is treated as success for sequencing purposes (best-effort). If
+  `BOARD.md` is unchanged, nothing is committed (`board inline clean`). Otherwise it is `git
+  add`ed and committed with message `docket: board refresh`, then pushed with up to 5 retry
+  attempts: on push failure it rebase-pulls; if the rebase conflicts only on `BOARD.md`, it
+  regenerates through the same gated helper (never a raw redirect) and continues the rebase; a
+  rebase conflict on anything else, or a failed regeneration mid-rebase, aborts the rebase and
+  stops retrying.
 - **github** — Runs `github-mirror.sh` (passing through `--repo`, `--project`,
   `--auto-create-project`, `--project-owner`), best-effort. Lines it emits of the shape
   `issue-minted <id> <n>` / `project-minted <id> <n>` are translated to `minted issue <id> <n>` /
@@ -68,10 +70,33 @@ hard error (exit 1) with a diagnostic on stderr.
   reported as one final `board github ok|failed` line regardless of what was minted.
 - Any other token is an unrecognized-surface warning on stderr (non-fatal).
 
-If `--board-only` was passed, the process exits 0 here — no sweep, health checks, judgment, or
-integration sync.
+**4. Backlog pass — UNGATED, once per path.** Runs `render-board.sh --format digest` and passes
+its lines through (`backlog <status> <count>` rollups, then one `change <id> <status> <readiness>
+<slug>` line per active change). It runs **regardless of `board_surfaces`**, because **the digest
+is report output, not a board surface**: it persists nothing, commits nothing, pushes nothing, and
+never touches `BOARD.md`. That boundary is exactly what lets `board_surfaces: []` keep meaning "no
+board is rendered or committed" while backlog state still reaches the report. Best-effort: a
+digest failure logs to stderr, emits no digest lines, and never aborts the pass. Resolution is
+**not** reimplemented here — `render-board.sh` stays the single owner of readiness.
 
-**4. Batched sweep detection.** `detect_merged` scans `active/*.md` for `status: implemented`
+The digest is a snapshot of the change files **at the moment it runs**, so it is called **once per
+path** and the placement is part of the contract:
+
+- **Under `--board-only`** (no sweep runs) it fires **here**, right after the board pass: the
+  **state as-is** projection. That is what makes the "just show me the backlog" path useful in a
+  board-off repo, where it previously did nothing at all. The process then prints `pass ok` and
+  exits 0 — no sweep, health checks, judgment, or integration sync.
+- **On a full pass** it fires **after** steps 5–7, once the sweep and the check/judgment lines are
+  done: the **state after the pass** projection. **A change swept to `done` during this very pass
+  therefore appears in the digest as `done` — not as the `implemented` it was when the pass
+  began** — and is counted in `backlog done <n>`, never in `backlog implemented <n>`. A pre-sweep
+  snapshot would make the report contradict its own `swept` lines, and since the digest is the
+  sole backlog channel, that staleness would have no corrective path.
+
+Report line order on a full pass is therefore: board → sweep lines → check/judgment lines →
+backlog digest → `pass ok`.
+
+**5. Batched sweep detection.** `detect_merged` scans `active/*.md` for `status: implemented`
 changes, resolves each PR's merge state with one batched `gh api graphql` call keyed by change ID
 (for changes with a known `pr:` number) plus a per-change `gh pr list --head feat/<slug> --state
 merged` fallback for changes without one, and emits merged changes as TAB-separated
@@ -80,7 +105,7 @@ never derived from local time / `now()`). Any `gh`/network/parse failure is swal
 as `sweep-skipped <reason>` (`gh-unavailable` or `repo-unresolved`); detection never aborts the
 pass.
 
-**5. Sweep execution**, one change at a time, chaining the ADR-0035 close-out scripts in order:
+**6. Sweep execution**, one change at a time, chaining the ADR-0035 close-out scripts in order:
 rebase-pull the metadata worktree, then (skipping silently if the change is already archived or
 already `done`/`killed` — idempotent no-op) `archive-change.sh` → locate the archived file →
 `render-change-links.sh` (committing and pushing the refreshed links if the archived file
@@ -102,16 +127,17 @@ repo (it emits `sweep-failed <id> render-change-links skipped-publish`), leaving
 with a stale `## Artifacts` block on `metadata_branch` that no later sweep resumes; the follow-up
 there is a manual re-render on the metadata branch, not a publish.
 
-**6. Health checks.** Runs `board-checks.sh` over the current changes-dir and metadata/integration
+**7. Health checks.** Runs `board-checks.sh` over the current changes-dir and metadata/integration
 branches, and prefixes each of its TSV findings as `check <check-id> <change-id> <message>` on
 this script's stdout. Also emits one `judgment blocked <id> <blocked_by-text>` line per `active`
 change with `status: blocked`, leaving the actual re-examination judgment to the caller/skill.
 Both are best-effort/warn-only: a clean tree, or a `board-checks.sh` failure, produces no extra
 output and never aborts the pass.
 
-**7. Integration sync.** If step 5 swept at least one change (`swept ` line count ≥ 1), runs
+**8. Integration sync.** If step 6 swept at least one change (`swept ` line count ≥ 1), runs
 `sync-integration-branch.sh --integration-branch "$INTEGRATION_BRANCH"` once, best-effort
-(failures are swallowed). Skipped entirely when nothing was swept.
+(failures are swallowed). Skipped entirely when nothing was swept. Runs after the full-pass
+backlog digest and emits nothing on stdout, so it does not affect the report's line order.
 
 ### Failure postures (summary)
 
@@ -135,19 +161,24 @@ All report lines are stdout, one shape per line, diagnostics go to stderr:
 | `board inline changed push-failed` | `BOARD.md` changed and committed locally, but push retries were exhausted or a rebase conflict outside `BOARD.md` forced an abort. |
 | `board github ok` | `github-mirror.sh` exited 0. |
 | `board github failed` | `github-mirror.sh` exited non-zero. |
+| `board off` | `BOARD_SURFACES` is empty — the board is deliberately disabled (`board_surfaces: []`); no surface was rendered and nothing was committed. Positive evidence of a deliberate skip, never silence. |
 | `minted issue <id> <n>` | Passthrough of `github-mirror.sh`'s `issue-minted <id> <n>`. |
 | `minted project <id> <n>` | Passthrough of `github-mirror.sh`'s `project-minted <id> <n>`. |
+| `backlog <status> <count>` | One rollup per non-zero status across the active + archived change files (from the ungated backlog pass). On a full pass these are **post-sweep** counts: a change swept this pass is counted under `done`, not `implemented`. |
+| `change <id> <status> <readiness> <slug>` | One line per **active** change, as of the moment the backlog pass ran (post-sweep on a full pass, so a change swept this pass has no `change` line at all — it is archived). `<readiness>` is `build-ready`, `needs-brainstorm`, `auto-groom-blocked`, `waiting-on-<N>-unbuilt`, `waiting-on-<N>-needs-merge`, or `-` when readiness does not apply (any non-`proposed` status). |
 | `swept <id> <date>` | Change `<id>` fully closed out (archived, links refreshed, terminal record published, branch cleaned up) as of `<date>` (UTC, from merge). |
 | `harvest <id> <path>` | The archived file path for a swept change — a hook for the caller to harvest learnings. |
 | `sweep-failed <id> <step> <reason>` | Step `<step>` (`sync`, `archive`, `render-change-links`, `terminal-publish`, or `cleanup`) failed for change `<id>` with `<reason>`; that change's remaining close-out steps were abandoned. |
 | `sweep-skipped <reason>` | Batched merge detection itself was skipped (`gh-unavailable` or `repo-unresolved`); no changes were evaluated this pass. |
 | `check <check-id> <change-id> <message>` | One `board-checks.sh` finding, passed through with the `check` prefix. |
 | `judgment blocked <id> <text>` | Change `<id>` is `status: blocked`, with its `blocked_by:` text, for the caller to re-judge. |
+| `pass ok` | The orchestrator ran to completion. Always the last line of a successful pass; **stdout is never empty**. A hard error exits non-zero and never prints it, so it is a reliable completion signal. |
 
 ## Exit codes
 
-- `0` — the pass completed. Findings, `sweep-failed`, `sweep-skipped`, `board *-failed`, and
-  `judgment` lines on stdout are all normal, expected pass outcomes, not errors.
+- `0` — the pass completed (and printed `pass ok` as its last line). Findings, `sweep-failed`,
+  `sweep-skipped`, `board *-failed`, `board off`, and `judgment` lines on stdout are all normal,
+  expected pass outcomes, not errors — **a thin report is the success case.**
 - non-zero — a hard error only: config export failure, an unrecognized `BOOTSTRAP` verdict,
   `STOP_MIGRATE`/`CREATE_ORPHAN` bootstrap gate (exit 1), an unusable metadata worktree (create or
   sync failure, exit 1), or an unknown CLI argument (exit 2).

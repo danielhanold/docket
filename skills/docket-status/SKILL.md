@@ -1,6 +1,6 @@
 ---
 name: docket-status
-description: Use when you want to see or refresh the docket backlog — what is proposed, in progress, blocked, implemented, or done — by regenerating the BOARD.md board, sweeping merged changes to done, or running health checks for stale claims, broken spec/plan/results links, and dependency stalls.
+description: Use when you want to see or refresh the docket backlog — what is proposed, in progress, blocked, implemented, or done — by refreshing docket state, sweeping merged changes to done, and running health checks for stale claims, broken spec/plan/results links, and dependency stalls.
 context: fork
 agent: docket-status
 ---
@@ -9,7 +9,7 @@ agent: docket-status
 
 ## Overview
 
-`docket-status` gives you a queryable, up-to-date view of the backlog and keeps it clean. It has three jobs: render `BOARD.md` from the change files, sweep any `implemented` change whose PR merged into the archive, and run health checks that flag stale claims, broken links, and dependency stalls. The change files are the source of truth; `BOARD.md` is always generated output, never edited by hand. Since change 0058 all of this is sequenced by the deterministic orchestrator (contract: `scripts/docket-status.md`) — this skill's job is to invoke it, trust its exit code, surface its report, and apply the handful of judgment calls the script deliberately leaves in-model.
+`docket-status` gives you a queryable, up-to-date view of the backlog and keeps it clean. It has four jobs: **report the backlog digest** (the `backlog <status> <count>` and `change <id> <status> <readiness> <slug>` lines — emitted in *every* configuration, board or no board, and **the channel you write your summary from**), refresh docket state (rendering each enabled board surface — `BOARD.md` when `inline` is enabled, nothing at all when `board_surfaces` is empty), sweep any `implemented` change whose PR merged into the archive, and run health checks that flag stale claims, broken links, and dependency stalls. The change files are the source of truth; any board is always generated output, never edited by hand. Since change 0058 all of this is sequenced by the deterministic orchestrator (contract: `scripts/docket-status.md`) as one 8-step pass — this skill's job is to invoke it, trust its exit code, surface its report, and apply the handful of judgment calls the script deliberately leaves in-model.
 
 ## When to use
 
@@ -39,9 +39,22 @@ Run the convention's *Step-0 preamble*: `eval "$("${DOCKET_SCRIPTS_DIR:?run dock
 "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket-status.sh [--board-only]
 ```
 
-Trust its exit code: `0` is the pass completing (findings, `sweep-failed`, `sweep-skipped`, `board *-failed`, and `judgment` lines on stdout are normal outcomes, not errors); non-zero is a hard error (config export failure, an unusable `BOOTSTRAP` verdict, an unusable metadata worktree, or a bad CLI argument) — surface the stderr diagnostic and stop rather than improvising a fix.
+Trust its exit code: `0` is the pass completing (`board off`, `pass ok`, findings, `sweep-failed`, `sweep-skipped`, `board *-failed`, and `judgment` lines on stdout are all normal outcomes, not errors); non-zero is a hard error (config export failure, an unusable `BOOTSTRAP` verdict, an unusable metadata worktree, or a bad CLI argument) — surface the stderr diagnostic and stop rather than improvising a fix.
 
-The script owns the mechanics of what it renders, sweeps, and checks — see `scripts/docket-status.md` for the full 7-step sequence, its output-line shapes, and its failure postures. Surface its report to the user in human terms (what's on the board, what got swept, what health checks flagged) rather than pasting the raw line-oriented output. Health checks stay warn-only — do not auto-fix findings unless the user explicitly asks.
+The script owns the mechanics of what it renders, sweeps, and checks — see `scripts/docket-status.md` for the full 8-step sequence, its output-line shapes, and its failure postures. Surface its report to the user in human terms (what's on the board, what got swept, what health checks flagged) rather than pasting the raw line-oriented output. Health checks stay warn-only — do not auto-fix findings unless the user explicitly asks.
+
+## Read the report — it is the only channel you need
+
+The report is **self-evidencing**: it always states what it did, so you never have to go looking for corroboration.
+
+- **`board off`** — the repo sets `board_surfaces: []` and there is deliberately **no board**. This is a configuration, not a failure. Do not look for `BOARD.md`; it must not exist.
+- **`backlog <status> <count>` + `change <id> <status> <readiness> <slug>`** — the backlog digest, emitted in **every** configuration. **This is your backlog-state channel.** Write the summary from these lines. On a full pass the digest is taken **after** the sweep, so it already accounts for everything this pass closed out: a change on a `swept` line is counted under `backlog done` and has no `change` line of its own. Never report a swept change as still awaiting merge.
+- **`pass ok`** — the orchestrator ran to completion. It is always the last line of a successful pass.
+
+Two rules follow, and they are not optional:
+
+- **A thin report is the success case, not a symptom.** An empty sweep, no health findings, and `board off` together mean a healthy, board-less repo. The pass is complete. Do **not** re-run the orchestrator, trace it, or investigate — there is nothing to find.
+- **Never probe `BOARD.md`.** With the board off it must not exist; with the board on, summarize from the digest lines rather than opening the file. Reading, rendering, or hand-writing `BOARD.md` is never part of this skill's job — `board-refresh.sh` is its only writer.
 
 ## Judgment follow-ups (stay in-model — the script does not do these)
 
@@ -54,7 +67,7 @@ Drive these off the report lines `docket-status.sh` emits; skip a category entir
 
 ## Final summary
 
-Close with a short human-facing summary: board state (counts/highlights, not the raw file), what was swept to done (if anything), and any health-check findings or judgment flags raised above. Point the user at `BOARD.md` (or the GitHub mirror, if enabled) for the full picture rather than reproducing it inline.
+Close with a short human-facing summary: backlog state (counts/highlights, read from the digest lines — never from the board file), what was swept to done (if anything), and any health-check findings or judgment flags raised above. When the `inline` board is enabled, point the user at `BOARD.md` (or the GitHub mirror, if enabled) for the full picture rather than reproducing it inline. When the report says `board off`, there is no board to point at — the digest-derived summary **is** the deliverable, and that is the intended, complete outcome.
 
 ## Reference: what the board, sweep, and checks mean
 
@@ -64,7 +77,7 @@ The mechanics below live entirely in the orchestrator (contract: `scripts/docket
 
 Renders each surface in `board_surfaces` (config; default `[inline]`) from the same one dependency-resolution pass, computed once. Readiness cells: a dependency-waiting change shows **⏳ waiting on #N — not yet built** or **⏳ waiting on #N — needs your merge**; a `proposed` change with no spec, not `trivial: true`, and not waiting shows **needs-brainstorm** — or **auto-groom blocked — needs you** when its body carries an `## Auto-groom blocked` section.
 
-`inline` regenerates `BOARD.md` deterministically via `/render-board.sh` (contract: `scripts/render-board.md`) and commits/pushes it to `metadata_branch`. **Never hand-edit `BOARD.md`, never 3-way merge it**; on a rebase conflict, regenerate via `/render-board.sh` and continue. `BOARD.md` is the live planning view and stays on `docket` — never published to the integration branch.
+When `board_surfaces` includes `inline`, `board-refresh.sh` (contract: `scripts/board-refresh.md`) is the single gated writer of `BOARD.md`: it owns the surface gate (a no-op unless the `inline` token is present) and the atomic replace (render to a temp file, then rename onto `BOARD.md` only on a non-empty success), wrapping the pure renderer `/render-board.sh` (contract: `scripts/render-board.md`) internally so nothing else ever touches the file. The orchestrator commits and pushes the result to `metadata_branch` only when it actually changed. This skill **never hand-edits `BOARD.md`, never hand-renders it, and never 3-way merges it**; on a rebase conflict, regenerate through `board-refresh.sh` — the same gated helper, never a hand-merge — and continue. When `board_surfaces` omits `inline`, there is simply no board: `BOARD.md` is not written, and none of the above applies. Where present, `BOARD.md` is the live planning view and stays on `docket` — never published to the integration branch.
 
 `github` is the one-way Issues + Projects v2 mirror (`github-mirror.sh`, mechanics in `skills/docket-convention/github-board-mirror.md`), best-effort — runs only when `board_surfaces` includes `github`; a fresh mint prints `issue-minted`/`project-minted` lines to record back into the change file / `.docket.yml`.
 
