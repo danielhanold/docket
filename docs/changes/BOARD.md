@@ -1,12 +1,6 @@
 # Backlog
 
-**67 changes** — 🟢 1 in progress · 🟡 9 proposed · 🔵 1 implemented · ✅ 54 done · 🗑️ 2 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0064](active/0064-optional-terminal-publish.md) | Optional terminal-publish — per-repo opt-out to keep metadata on docket | `medium` | [spec](../superpowers/specs/2026-07-12-optional-terminal-publish-design.md) | `feat/optional-terminal-publish` |
+**67 changes** — 🟡 9 proposed · 🔵 2 implemented · ✅ 54 done · 🗑️ 2 killed
 
 ## 🟡 Proposed (9)
 
@@ -22,11 +16,12 @@
 | [0062](active/0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | `low` | build-ready |
 | [0067](active/0067-learnings-promotion-destination.md) | Give the learnings ledger a promotion destination — it has no way to shrink | `medium` | needs-brainstorm |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | [#69](https://github.com/danielhanold/docket/pull/69) |
+| [0064](active/0064-optional-terminal-publish.md) | Optional terminal-publish — per-repo opt-out to keep metadata on docket | `medium` | [#75](https://github.com/danielhanold/docket/pull/75) |
 
 ```mermaid
 graph TD
