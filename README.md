@@ -362,7 +362,7 @@ Git checks out one branch per folder. To write a file that lives on `docket` whi
 
 ### Finalize → selective publish
 
-On a **terminal transition** — a change reaching `done` (PR merged) or `killed` (abandoned) — the driving skill copies that change's terminal records onto the integration branch in one dedicated commit: the archived change file, its spec (if any), and the **`Accepted`** ADRs from its manifest, sourced from `origin/docket`. This is a selective **file copy**, never a branch merge, so none of the planning churn comes with it. The **live board stays on `docket`** and is never published. The result: your code history reads as code plus a clean trail of closed-out changes, while the working backlog churns entirely on `docket`.
+On a **terminal transition** — a change reaching `done` (PR merged) or `killed` (abandoned) — the driving skill by default copies that change's terminal records onto the integration branch in one dedicated commit: the archived change file, its spec (if any), and the **`Accepted`** ADRs from its manifest, sourced from `origin/docket`. This is a selective **file copy**, never a branch merge, so none of the planning churn comes with it. The **live board stays on `docket`** and is never published. The result: your code history reads as code plus a clean trail of closed-out changes, while the working backlog churns entirely on `docket`.
 
 ### Keeping metadata off the integration branch (`terminal_publish`)
 

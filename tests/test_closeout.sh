@@ -32,12 +32,14 @@ join_continuations(){
   ' "$1"
 }
 
-# Every REAL terminal-publish.sh call site (skills/ prose + scripts/*.sh code) that supplies
-# --id or --adr must also supply --enabled, regardless of flag order or line-wrapping. Scans
-# skills/ (all files) and scripts/*.sh (code only — not scripts/*.md contracts, which document
-# the CLI generically), excludes terminal-publish.sh's own usage header/--help text (not a call
-# site, and its own [--enabled true|false] sits on a separate non-continued comment line), and
-# excludes tests/ (which deliberately exercises the back-compat default-omitted-enabled path).
+# Every REAL terminal-publish.sh call site (skills/ prose + shell code) that supplies --id or
+# --adr must also supply --enabled, regardless of flag order or line-wrapping. Scans skills/
+# (all files), scripts/*.sh, and the repo-root *.sh entry points (migrate-to-docket.sh,
+# install.sh — no call sites today, but a future one must not slip through un-gated). Excludes
+# scripts/*.md contracts (they document the CLI generically), excludes terminal-publish.sh's own
+# usage header/--help text (not a call site, and its own [--enabled true|false] sits on a
+# separate non-continued comment line), and excludes tests/ (which deliberately exercises the
+# back-compat default-omitted-enabled path).
 #
 # Evaluated PER INVOCATION, not per line: a joined logical line can carry more than one
 # `terminal-publish.sh …` mention (e.g. a gated `--id` shape and an ungated `--adr` shape
@@ -58,7 +60,9 @@ find_ungated_terminal_publish_call_sites(){
       | grep -E -- '--(id|adr)([[:space:]"]|$)' \
       | grep -v -- '--enabled' \
       | sed "s#^#$f:#"
-  done < <(find "$REPO/skills" -type f; find "$REPO/scripts" -type f -name '*.sh' ! -name 'terminal-publish.sh')
+  done < <(find "$REPO/skills" -type f
+           find "$REPO/scripts" -type f -name '*.sh' ! -name 'terminal-publish.sh'
+           find "$REPO" -maxdepth 1 -type f -name '*.sh')
 }
 
 # new_repo: prints "<work> <origin>" — a fresh clone with a bare origin holding docket + main.
