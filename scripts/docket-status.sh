@@ -149,13 +149,21 @@ board_pass_github(){
   fi
 }
 
-# backlog_pass — the backlog digest (change 0069). UNGATED: it runs regardless of
+# backlog_pass — the backlog digest (change 0069). UNGATED: it runs on BOTH paths regardless of
 # BOARD_SURFACES, because the digest is REPORT OUTPUT, NOT A BOARD SURFACE. It persists
 # nothing, commits nothing, pushes nothing, and never touches BOARD.md — which is exactly what
 # lets `board_surfaces: []` keep meaning "no board is rendered or committed" while backlog state
 # still reaches the report. Delegates to render-board.sh (--format digest), so readiness keeps
 # exactly one owner and this orchestrator does not reimplement resolution. Best-effort: a render
 # failure logs to stderr, emits no digest lines, and never aborts the pass.
+#
+# It is called ONCE PER PATH, not once globally, and the placement is load-bearing: the digest is
+# a snapshot of the change files AT THE MOMENT IT RUNS. Under --board-only (no sweep) it is the
+# "state as-is" projection and runs before the early exit; on a full pass it runs AFTER the sweep,
+# so it projects the state the pass actually LEFT BEHIND. Running it before the sweep would make
+# the report contradict itself — a change swept to `done` in the same pass would still be reported
+# as `implemented`, and since the digest is the sole backlog channel that staleness has no
+# corrective path.
 backlog_pass(){
   local mw
   if [ "${DOCKET_MODE:-}" = docket ]; then mw="${METADATA_WORKTREE:-.docket}"; else mw="."; fi
@@ -403,11 +411,12 @@ main(){
   esac
   ensure_and_sync_worktree
   board_pass
-  # Change 0069: the backlog pass runs BEFORE the --board-only early exit. --board-only is the
-  # "just show me the backlog" path; in a board-off repo it used to do literally nothing and
-  # return nothing. It now reports the backlog in every configuration.
-  backlog_pass
   if [ "$BOARD_ONLY" = 1 ]; then
+    # Change 0069: --board-only is the "just show me the backlog" path, and it runs no sweep — so
+    # the digest here is the "state as-is" projection and belongs before the early exit. In a
+    # board-off repo this path used to do literally nothing and return nothing; it now reports the
+    # backlog in every configuration.
+    backlog_pass
     echo "pass ok"
     exit 0
   fi
@@ -423,6 +432,10 @@ main(){
 
   health_checks
   emit_judgment
+  # Change 0069: on the FULL path the digest runs AFTER the sweep, so it is the "state after the
+  # pass" projection — a change swept to done this pass is reported as `done`, never as the
+  # `implemented` it was when the pass began. The report must not contradict itself.
+  backlog_pass
   [ "$swept_count" -gt 0 ] && integration_sync
   # Change 0069: stdout is NEVER empty on a completed pass. `pass ok` means "the orchestrator ran
   # to completion" — a hard error exits non-zero above and never reaches this line, so it stays a

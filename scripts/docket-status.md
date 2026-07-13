@@ -70,19 +70,31 @@ an agent hunting for a `BOARD.md` the configuration forbids.
   reported as one final `board github ok|failed` line regardless of what was minted.
 - Any other token is an unrecognized-surface warning on stderr (non-fatal).
 
-**4. Backlog pass — UNGATED.** Runs `render-board.sh --format digest` and passes its lines
-through (`backlog <status> <count>` rollups, then one `change <id> <status> <readiness> <slug>`
-line per active change). It runs **regardless of `board_surfaces`**, and **before** the
-`--board-only` exit, because **the digest is report output, not a board surface**: it persists
-nothing, commits nothing, pushes nothing, and never touches `BOARD.md`. That boundary is exactly
-what lets `board_surfaces: []` keep meaning "no board is rendered or committed" while backlog
-state still reaches the report — and it makes `--board-only` (the "just show me the backlog" path)
-useful in a board-off repo, where it previously did nothing at all. Best-effort: a digest failure
-logs to stderr, emits no digest lines, and never aborts the pass. Resolution is **not**
-reimplemented here — `render-board.sh` stays the single owner of readiness.
+**4. Backlog pass — UNGATED, once per path.** Runs `render-board.sh --format digest` and passes
+its lines through (`backlog <status> <count>` rollups, then one `change <id> <status> <readiness>
+<slug>` line per active change). It runs **regardless of `board_surfaces`**, because **the digest
+is report output, not a board surface**: it persists nothing, commits nothing, pushes nothing, and
+never touches `BOARD.md`. That boundary is exactly what lets `board_surfaces: []` keep meaning "no
+board is rendered or committed" while backlog state still reaches the report. Best-effort: a
+digest failure logs to stderr, emits no digest lines, and never aborts the pass. Resolution is
+**not** reimplemented here — `render-board.sh` stays the single owner of readiness.
 
-If `--board-only` was passed, the process prints `pass ok` and exits 0 here — no sweep, health
-checks, judgment, or integration sync.
+The digest is a snapshot of the change files **at the moment it runs**, so it is called **once per
+path** and the placement is part of the contract:
+
+- **Under `--board-only`** (no sweep runs) it fires **here**, right after the board pass: the
+  **state as-is** projection. That is what makes the "just show me the backlog" path useful in a
+  board-off repo, where it previously did nothing at all. The process then prints `pass ok` and
+  exits 0 — no sweep, health checks, judgment, or integration sync.
+- **On a full pass** it fires **after** steps 5–7, once the sweep and the check/judgment lines are
+  done: the **state after the pass** projection. **A change swept to `done` during this very pass
+  therefore appears in the digest as `done` — not as the `implemented` it was when the pass
+  began** — and is counted in `backlog done <n>`, never in `backlog implemented <n>`. A pre-sweep
+  snapshot would make the report contradict its own `swept` lines, and since the digest is the
+  sole backlog channel, that staleness would have no corrective path.
+
+Report line order on a full pass is therefore: board → sweep lines → check/judgment lines →
+backlog digest → `pass ok`.
 
 **5. Batched sweep detection.** `detect_merged` scans `active/*.md` for `status: implemented`
 changes, resolves each PR's merge state with one batched `gh api graphql` call keyed by change ID
@@ -124,7 +136,8 @@ output and never aborts the pass.
 
 **8. Integration sync.** If step 6 swept at least one change (`swept ` line count ≥ 1), runs
 `sync-integration-branch.sh --integration-branch "$INTEGRATION_BRANCH"` once, best-effort
-(failures are swallowed). Skipped entirely when nothing was swept.
+(failures are swallowed). Skipped entirely when nothing was swept. Runs after the full-pass
+backlog digest and emits nothing on stdout, so it does not affect the report's line order.
 
 ### Failure postures (summary)
 
@@ -151,8 +164,8 @@ All report lines are stdout, one shape per line, diagnostics go to stderr:
 | `board off` | `BOARD_SURFACES` is empty — the board is deliberately disabled (`board_surfaces: []`); no surface was rendered and nothing was committed. Positive evidence of a deliberate skip, never silence. |
 | `minted issue <id> <n>` | Passthrough of `github-mirror.sh`'s `issue-minted <id> <n>`. |
 | `minted project <id> <n>` | Passthrough of `github-mirror.sh`'s `project-minted <id> <n>`. |
-| `backlog <status> <count>` | One rollup per non-zero status across the active + archived change files (from the ungated backlog pass). |
-| `change <id> <status> <readiness> <slug>` | One line per **active** change. `<readiness>` is `build-ready`, `needs-brainstorm`, `auto-groom-blocked`, `waiting-on-<N>-unbuilt`, `waiting-on-<N>-needs-merge`, or `-` when readiness does not apply (any non-`proposed` status). |
+| `backlog <status> <count>` | One rollup per non-zero status across the active + archived change files (from the ungated backlog pass). On a full pass these are **post-sweep** counts: a change swept this pass is counted under `done`, not `implemented`. |
+| `change <id> <status> <readiness> <slug>` | One line per **active** change, as of the moment the backlog pass ran (post-sweep on a full pass, so a change swept this pass has no `change` line at all — it is archived). `<readiness>` is `build-ready`, `needs-brainstorm`, `auto-groom-blocked`, `waiting-on-<N>-unbuilt`, `waiting-on-<N>-needs-merge`, or `-` when readiness does not apply (any non-`proposed` status). |
 | `swept <id> <date>` | Change `<id>` fully closed out (archived, links refreshed, terminal record published, branch cleaned up) as of `<date>` (UTC, from merge). |
 | `harvest <id> <path>` | The archived file path for a swept change — a hook for the caller to harvest learnings. |
 | `sweep-failed <id> <step> <reason>` | Step `<step>` (`sync`, `archive`, `render-change-links`, `terminal-publish`, or `cleanup`) failed for change `<id>` with `<reason>`; that change's remaining close-out steps were abandoned. |
