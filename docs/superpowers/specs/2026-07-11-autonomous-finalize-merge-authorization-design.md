@@ -1,7 +1,71 @@
 # Autonomous finalize merge authorization — clear the auto-mode "Merge Without Review" soft-deny
 
+> # ⛔ DISPROVEN BY ITS OWN BUILD-TIME SPIKE — DO NOT BUILD FROM THIS DOCUMENT
+>
+> **2026-07-13.** The spike this spec mandates ("Build-time spike (do first, before code)") was
+> run and it **disproved fact (3)**, on which the entire design rests. The spec's instruction for
+> this case — *"stop and reconvene"* — has been followed: change 0062 was **unlinked from this
+> spec and returned to needs-brainstorm**. It was never claimed, branched, or built.
+>
+> **What was disproven.** Fact (3) claimed the classifier reads `autoMode` from a project-level
+> `<repo>/.claude/settings.local.json`. It does not (Claude Code 2.1.207). Proven by a clean A/B:
+> identical `autoMode.hard_deny` rule, identical command (`gh pr merge 999999` — a nonexistent PR),
+> identical restart-then-fire discipline, **only the file differed**:
+>
+> | Rule placement | Result |
+> |---|---|
+> | `<repo>/.claude/settings.local.json` | Custom rule **had no effect** — the *default* `Merge Without Review` soft-deny fired instead |
+> | `~/.claude/settings.json` (user-level) | Custom rule **enforced** — `[Docket Canary Probe]`, unconditional |
+>
+> **Why that kills the design, not just a detail.** The entire safety envelope of this spec is the
+> *placement* decision — "repo-local **and** machine-only, never global, never committed, never
+> auto-spread." The only placement proven to work is `~/.claude/settings.json`, which is
+> **machine-global**: it would grant merge-without-review to agents in *every repo on the machine*.
+> That is not a tuning of the "Accepted cost" this spec already priced in; it is the inverse of the
+> property the design was built around. (The docs' scope table asserts `settings.local.json` is
+> read; runtime behavior contradicts it. Worth a `/feedback` report — if it is an upstream bug and
+> gets fixed, this design becomes buildable **exactly as written**.)
+>
+> **What survives and must be carried into any redesign** (all independently verified):
+> 1. The **premise is sound.** `Merge Without Review` genuinely blocks a solo, unprotected repo
+>    ("Block `--auto` on an unprotected repo"). And `permissions.allow` really cannot clear a
+>    `soft_deny` — `Bash(gh pr merge:*)` was present and the merge was still soft-denied.
+> 2. **Fact (2) holds.** `allow` rules override matching `soft_deny` rules as exceptions.
+> 3. **Rule (2) is needed.** `integration_branch: main` **is** the repo default branch, so
+>    terminal-publish's push *is* independently exposed — via the **ported-provenance arm (b)** of
+>    `Git Push to Default Branch` (records are copied from the `docket` metadata branch, not
+>    authored in the pushing session). Spike step 3 = **yes**.
+> 4. **`$defaults` is mandatory.** Writing `autoMode.allow = ["<rule>"]` without the `$defaults`
+>    sentinel silently drops all 16 built-in allow rules.
+> 5. **`Self-Approval` is a separate rule and survives any bypass** — as does the sensitive-content
+>    arm (a) of `Git Push to Default Branch`. A bypass can grant *merging without review*; it can
+>    neither manufacture a review nor push a secret. Materially better bound than this spec assumed.
+> 6. **This spec's "literal string the script writes" is wrong.** `ensure-claude-settings.sh` is
+>    generic (any docket-adopting repo), so the rule must be a **template** interpolating the
+>    `owner/repo` slug, `$INTEGRATION_BRANCH`, and the configured dirs.
+> 7. **terminal-publish does NOT publish `BOARD.md`.** The copy-set is the archived change manifest,
+>    its spec, and its `Accepted` ADRs. Any rule naming BOARD.md is factually wrong.
+>
+> **Redesign direction (chosen 2026-07-13, UNVERIFIED).** The docs list **`--settings <file>`** as an
+> `autoMode` scope: an autonomous finalize would be *launched* as `claude --settings <fragment> …`,
+> making the bypass **per-invocation** rather than standing — it would never leak into interactive
+> sessions, a *better* safety envelope than this spec's. **This has not been tested.** The same docs
+> table already proved wrong once here, so the redesign's first task is to verify it — do not treat
+> it as established.
+>
+> Probe-design traps that produced two false conclusions before the real one, recorded so the next
+> spike does not repeat them: the classifier **fast-paths obviously-safe commands** (a `hard_deny` on
+> `echo <token>` never fires at *any* placement — unfalsifiable, proves nothing); use **`hard_deny`,
+> not `soft_deny`**, for probes (a `soft_deny` is cleared by explicit user intent, and the human
+> asking for the test supplies exactly that); settings load at **process start**, so `claude --resume`
+> is the way to retest with fresh settings; and `claude auto-mode config`/`critique` are themselves
+> **blind to project-level settings**, so the CLI cannot be used to validate placement.
+>
+> Everything below this banner is the **original, disproven design**, preserved verbatim for the
+> redesign's benefit. Read it as history, not as instructions.
+
 - **Change:** 0062
-- **Status:** design (build-ready on approval)
+- **Status:** ⛔ DISPROVEN by build-time spike (2026-07-13) — superseded pending redesign; change returned to needs-brainstorm
 - **Date:** 2026-07-11
 - **Related:** change 0061 (context:fork parity — established the fork-exclusion principle finalize relies on)
 - **ADRs:** extends ADR-0011 (finalize consent model)
