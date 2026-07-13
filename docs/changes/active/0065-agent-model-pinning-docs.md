@@ -8,7 +8,7 @@ created: 2026-07-12
 updated: 2026-07-12
 depends_on: []
 related: [16, 45, 46, 61]
-adrs:
+adrs: [24, 26]
 spec: docs/superpowers/specs/2026-07-12-agent-model-pinning-docs-design.md
 plan: docs/superpowers/plans/2026-07-12-agent-model-pinning-docs.md
 results:
@@ -28,6 +28,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-12-agent-model-pinning-docs-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-12-agent-model-pinning-docs-design.md) |
 | Plan | [2026-07-12-agent-model-pinning-docs.md](https://github.com/danielhanold/docket/blob/feat/agent-model-pinning-docs/docs/superpowers/plans/2026-07-12-agent-model-pinning-docs.md) |
+| ADRs | [ADR-0024](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0024-claude-context-fork-skill-dispatch.md), [ADR-0026](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0026-fork-dispatch-opacity-two-invocation-paths.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
