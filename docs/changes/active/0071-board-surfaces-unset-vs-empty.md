@@ -1,15 +1,15 @@
 ---
 id: 71
 slug: board-surfaces-unset-vs-empty
-title: An unresolved $BOARD_SURFACES is indistinguishable from a deliberately disabled board
+title: Encode the disabled board positively — an empty surfaces value is a wiring bug, not a configuration
 status: proposed
-priority: high
+priority: medium
 created: 2026-07-13
 updated: 2026-07-13
-depends_on: []
-related: [59, 69, 70]
+depends_on: [72]
+related: [59, 68, 69, 70, 72]
 adrs: [28]
-spec:
+spec: docs/superpowers/specs/2026-07-13-board-surfaces-unset-vs-empty-design.md
 plan:
 results:
 trivial: false
@@ -25,39 +25,40 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Spec | [2026-07-13-board-surfaces-unset-vs-empty-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-13-board-surfaces-unset-vs-empty-design.md) |
 | ADRs | [ADR-0028](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0028-report-channel-is-not-a-board-surface.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-Every docket skill's Board pass invokes `board-refresh.sh --changes-dir … --surfaces "$BOARD_SURFACES"`. If `$BOARD_SURFACES` is not set in the shell that runs that command, the quoted expansion produces `--surfaces ""` — and `board-refresh.sh` reads an empty value as **"no surfaces configured"**: it prints `inline disabled — no-op` and exits 0. The board is not refreshed. The caller's `git status --porcelain -- BOARD.md` is then empty, which the skill prose explicitly licenses as "a genuine no-op," so the caller commits nothing and proceeds believing the board is current. It isn't. The board silently goes stale, with a success exit code the whole way down.
+`board-refresh.sh` cannot tell "this repo disabled the board" from "the caller passed me nothing" — both arrive as an empty `--surfaces` value. `docket-config.sh` maps `board_surfaces: []` to exactly `BOARD_SURFACES=""`, so at the script boundary a **disabled repo and a mis-wired caller are byte-identical**. The script prints `inline disabled — no-op` and exits 0; the caller sees an unchanged `BOARD.md`, treats it as the genuine no-op the prose licenses, commits nothing, and proceeds believing the board is current. The board goes stale with a success exit code the whole way down. This was hit live while filing change 0070.
 
-This is not the wiring bug change 0059 defended against. That one — *forgetting the flag* — is caught: `board-refresh.sh` tracks `SURFACES_SET` and exits 2 on a missing `--surfaces`, and its header comment calls out that the two cases are "tracked separately." But a *present flag carrying an unresolved variable* lands in the empty-value branch, which is the legitimate `board_surfaces: []` path. `docket-config.sh:190` maps `[]` to exactly `BOARD_SURFACES=""`, so a disabled repo and a mis-wired caller are byte-identical at the script boundary.
+Change 0059 defended the adjacent hole — a caller who *forgets the flag* exits 2, and `board-refresh.sh` tracks `SURFACES_SET` precisely so the two cases stay distinct. What it did not anticipate is a present flag carrying an unresolved value, which lands in the legitimate-empty branch. It is the same defect class ADR-0028 and change 0069 eliminated on the report channel: an exit-0 no-op indistinguishable from success.
 
-The reason this is worth a change rather than a caution is that the harness makes the mis-wiring *likely*, not exotic. Shell state does not persist between Bash tool calls: an agent that runs the Step-0 `eval "$(docket-config.sh --export)"` in one call and its Board pass in a later call has an **unset** `$BOARD_SURFACES` by the time it matters. This was hit live while filing change 0070 — the board pass no-op'd, and only an explicit check of the output caught it.
+Changes 0068 and 0072 remove the **trigger**. 0068 diagnosed the root cause independently — resolved config stored in an agent's shell, which no harness guarantees to persist across tool calls — and retires the `eval` pattern in favour of a facade that *prints* config; 0072 rewires the skills to read those values and interpolate them as literals. After 0072, prose carries `--surfaces inline` as a literal and the unresolved-variable failure cannot occur.
 
-This is the same defect class change 0069 just finished fixing on the report channel: an exit-0 no-op that is indistinguishable from success. ADR-0028 drew the line between a report channel and a board surface; this is the board surface exhibiting the very failure the report side was hardened against.
+What survives them is the reason this change exists. The **encoding is still ambiguous**, so the next mis-wiring — from any cause — is still silent rather than loud. Six duplicated Board-pass prose blocks also remain, and `board_surfaces: []` stays the sole legitimate empty, keeping the defect class permanently latent.
 
 ## What changes
 
-Make "the caller failed to resolve the config" distinguishable from "this repo has no board surfaces," so the first fails loudly and the second stays a clean no-op.
+Invert the polarity: failing to resolve config must produce a loud error, and disabling the board must require positively saying so.
 
-The two states are genuinely different and both are legitimate — the fix is to stop encoding them as the same value. Whatever ships must keep `board_surfaces: []` a silent, non-truncating no-op (that is change 0059's whole point and must not regress) while making an unresolved caller impossible to ignore.
+- **A positive sentinel.** `docket-config.sh` never emits an empty `BOARD_SURFACES`; `board_surfaces: []` resolves to the reserved token `none`. `board-refresh.sh` keeps `--surfaces` required as a flag (0059's guard intact), **exits 2 on an empty value**, and no-ops on `none` — which never creates or truncates `BOARD.md`. `none` is reserved and exclusive (`none inline` exits 2). `docket-status.sh`'s `board_pass` gains a `none` arm mapping to its existing `board off` line, so a disabled repo's output is unchanged.
+- **One Board pass.** The six duplicated Board-pass prose blocks collapse into a single facade call, `docket.sh docket-status --board-only` — the orchestrator already self-resolves config, gates, renders, commits, and pushes with retry. No surfaces value crosses the skill/script boundary anymore; the sentinel then defends only script-to-script and future callers. `docket-new-change`'s board commit splits out from its change+spec commit, aligning it with the separate-board-commit rule every other skill already follows. Must-land skills key their retry on the stdout report line (`board inline changed pushed`), not an exit code.
+- **A structural sentinel**, grep-derived and mutation-tested: no skill or reference prose may contain `$BOARD_SURFACES`, `--surfaces`, or a direct `board-refresh` invocation.
+- **One ADR**, recording the reversal of 0059's "an explicit empty value means no surfaces" and the durable rule behind it: *a deliberate off-state must be encoded positively; absence and emptiness are reserved for error.*
 
 ## Out of scope
 
-- Changing `board_surfaces: []` semantics. A repo that disables the board keeps a no-op that never truncates a prior `BOARD.md`.
-- The `github` surface and `github-mirror.sh`. Same caller pattern, but that surface is best-effort by design; scope this to the `inline` write decision.
-- Retrofitting stale boards. Any board left stale by this bug self-heals at the next Board pass that *is* correctly wired.
+- Changing `board_surfaces: []` **semantics**. A disabled repo keeps a no-op that never truncates a prior `BOARD.md`; only its encoding changes (`""` → `none`).
+- The `$SKILL_*` family — the same unresolved-variable hazard on the model-consumed side. **Change 0072 owns it** (it rewrites the Step-0 preamble to read printed values and interpolate them as literals). Deliberately not duplicated here.
+- The Step-0 preamble rewrite and the `eval` retirement — changes 0068 and 0072.
+- The `github` surface and `github-mirror.sh`. Same caller pattern, but that surface is best-effort by design; this scopes to the `inline` write decision.
+- Retrofitting stale boards. Any board left stale by this bug self-heals at the next correctly wired Board pass.
 
 ## Open questions
 
-- **Where does the fix belong — the export, the script, or the prose?** Three candidates, not exclusive:
-  - **Positive sentinel:** have `docket-config.sh` emit something like `BOARD_SURFACES=none` for `[]` instead of the empty string. Then empty is *always* a wiring bug and `board-refresh.sh` can exit 2 on it. Costs a token change every caller and test must agree on.
-  - **`${BOARD_SURFACES?}` in skill prose:** the unset-only form (not `:?`) fails loudly when the variable was never exported, but passes a deliberately-empty value straight through — which maps onto exactly the distinction we need, since a `[]` repo exports it *set-but-empty*. Cheapest fix; relies on every call site being written correctly, which is the thing that just failed.
-  - **`board-refresh.sh` re-resolves config itself** rather than trusting a caller-passed value, removing the seam entirely. Most robust, but it puts a config read inside a script the convention currently describes as taking the caller's already-resolved tokens verbatim.
-- Should the skills' Step-0 preamble state that the config `eval` must be re-run in **any** shell that invokes a docket script, or is per-call re-resolution too noisy to be followed in practice? The `DOCKET_SCRIPTS_DIR` precedent is instructive: it survives across calls only because `install.sh` injects it into the harness `env`, which is precisely why its `:?` guard never fires and `$BOARD_SURFACES`'s absence does.
-- Does the same unresolved-variable hazard exist for other exported config the skills pass into scripts by value (`$CHANGES_DIR`, `$ADRS_DIR`, `$INTEGRATION_BRANCH`)? Those tend to fail loudly (a script given an empty `--changes-dir` exits 2), but this should be checked rather than assumed — a silent-empty-default anywhere else is the same bug.
+<!-- Resolved at grooming, 2026-07-13. The design is settled in the linked spec. -->
 
 ## Reconcile log
 
