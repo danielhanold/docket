@@ -64,3 +64,28 @@ a forked subagent has **no channel to the human** (Claude Code withholds `AskUse
 This ADR is **parallel and additive** — it supersedes or reverses no ADR; it relates to
 ADR-[[0008]] (the agent layer this fork-dispatch pins into) and ADR-[[0017]] (the Cursor
 dispatch rule / full agent set that this is the Claude-Code-native counterpart to).
+
+## Update — 2026-07-12
+
+The **fork-exclusion principle**'s no-channel fact extends beyond the human: a forked/subagent
+skill also has **no channel to receive a task-notification**. A fork cannot be resumed by the
+notification it is waiting on the way a main-loop session can — awaiting one hands control back
+to the caller. So a dispatched/forked parent may **never** background a child and *yield* to
+await a notification: that returns a **half-done run the caller reads as `completed`** (observed
+live on 2026-07-12 grooming #0065 — `docket-auto-groom` backgrounded its critic re-check and
+yielded, and the parent then committed the still-live agent's uncommitted working-tree files).
+The general **never-yield rule** now lives in `docket-convention`'s *Composition* paragraph
+(a dispatched/forked parent actively blocks, and a caller never treats a bare `completed` as
+proof nor adopts a child's uncommitted files), and is applied at `docket-auto-groom` §3's
+re-check. See #0066.
+
+## Update — 2026-07-12 — fork-dispatch verified; the composition question is closed
+
+The composition question this ADR **argued but did not test** is now verified on Claude Code
+2.1.207: `context: fork` is honored, the wrapper's model/effort pin holds inside the fork, and
+**the self-preloading cycle is safe** — an agent whose `skills:` preloads the very skill that
+forks into it neither recurses nor degrades to inline. The fork's **TUI opacity** is accepted
+as a documented trade rather than tooled around: docket names **two first-class invocation
+paths** into the same pinned wrapper — skill-invoke (forked, cheap, opaque) and agent-dispatch
+(the identical run, drillable, one dispatch turn) — and adds no observability machinery. See
+ADR-[[0026]] (change #0065).
