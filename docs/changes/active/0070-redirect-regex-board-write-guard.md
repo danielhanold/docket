@@ -10,7 +10,7 @@ depends_on: []
 related: [59, 69]
 adrs: []
 spec: docs/superpowers/specs/2026-07-13-redirect-regex-board-write-guard-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-13-redirect-regex-board-write-guard-plan.md
 results:
 trivial: false
 auto_groomable:
@@ -26,6 +26,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-13-redirect-regex-board-write-guard-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-13-redirect-regex-board-write-guard-design.md) |
+| Plan | [2026-07-13-redirect-regex-board-write-guard-plan.md](https://github.com/danielhanold/docket/blob/feat/redirect-regex-board-write-guard/docs/superpowers/plans/2026-07-13-redirect-regex-board-write-guard-plan.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
