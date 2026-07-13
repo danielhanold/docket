@@ -2,7 +2,7 @@
 id: 68
 slug: docket-command-facade
 title: One executable docket facade — finite subcommands, config read from stdout, never eval'd
-status: proposed
+status: in-progress
 priority: high
 created: 2026-07-13
 updated: 2026-07-13
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/docket-command-facade
 pr:
 blocked_by:
 reconciled: false
