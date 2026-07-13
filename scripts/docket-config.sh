@@ -14,8 +14,10 @@
 # (.docket.yml) > global (${XDG_CONFIG_HOME:-$HOME/.config}/docket/config.yml) > built-in.
 # The coordination-key fence (ADR-0019) applies to both machine-scoped layers alike.
 #
-# Usage: docket-config.sh [--export] [--bootstrap] [--repo-dir DIR]
+# Usage: docket-config.sh [--export] [--format plain|shell] [--bootstrap] [--repo-dir DIR]
 #   --export        emit resolved KEY=value lines (default mode)
+#   --format FMT    shell (default) — %q-quoted, eval-able, unchanged; plain — raw KEY=value,
+#                   no quoting, no `export ` prefix, METADATA_WORKTREE absolutized (change 0068)
 #   --bootstrap     additionally perform the CREATE_ORPHAN write when the verdict is
 #                   CREATE_ORPHAN (fresh repo); a no-op in every other cell
 #   --repo-dir DIR  operate on the git repo at DIR (default: .) — the test/mock seam
@@ -29,11 +31,15 @@ SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 GIT="${GIT:-git}"
 MODE=export
+FORMAT=shell
 DO_BOOTSTRAP=0
 REPO_DIR="."
 while [ $# -gt 0 ]; do
   case "$1" in
     --export)    MODE=export ;;
+    --format)    [ $# -ge 2 ] || { printf 'docket-config: --format requires an argument\n' >&2; exit 2; }
+                 case "$2" in plain|shell) FORMAT="$2" ;; *) printf 'docket-config: --format must be plain or shell, got %s\n' "$2" >&2; exit 2 ;; esac
+                 shift ;;
     --bootstrap) DO_BOOTSTRAP=1 ;;
     --repo-dir)  [ $# -ge 2 ] || { printf 'docket-config: --repo-dir requires an argument\n' >&2; exit 2; }
                  REPO_DIR="$2"; shift ;;
@@ -45,7 +51,12 @@ done
 
 die() { printf 'docket-config: %s\n' "$*" >&2; exit 1; }
 g()   { "$GIT" -C "$REPO_DIR" "$@"; }
-emit(){ printf '%s=%q\n' "$1" "$2"; }
+emit(){   # emit KEY VALUE — presentation keyed on $FORMAT
+  case "$FORMAT" in
+    plain) printf '%s=%s\n'  "$1" "$2" ;;   # raw, model-facing (never eval'd)
+    *)     printf '%s=%q\n'  "$1" "$2" ;;   # shell-eval-able (default; unchanged)
+  esac
+}
 
 # Create an empty orphan `docket` and push to origin. Worktree-free (empty-tree root
 # commit via plumbing) and leaves NO local branch: we push the commit straight to
@@ -265,11 +276,21 @@ fi
 
 # --- emit ---
 if [ "$MODE" = export ]; then
+  # METADATA_WORKTREE: relative for shell (eval'd by code running at the repo root); absolute for
+  # plain (the model reads it as a cwd-independent literal). REPO_DIR is the resolver's repo.
+  MW_EMIT="$METADATA_WORKTREE"
+  if [ "$FORMAT" = plain ]; then
+    REPO_ABS="$(cd "$REPO_DIR" && pwd -P)"
+    case "$METADATA_WORKTREE" in
+      .)  MW_EMIT="$REPO_ABS" ;;
+      *)  MW_EMIT="$REPO_ABS/$METADATA_WORKTREE" ;;
+    esac
+  fi
   emit DOCKET_MODE "$DOCKET_MODE"
   emit DEFAULT_BRANCH "$DEFAULT_BRANCH"
   emit METADATA_BRANCH "$METADATA_BRANCH"
   emit INTEGRATION_BRANCH "$INTEGRATION_BRANCH"
-  emit METADATA_WORKTREE "$METADATA_WORKTREE"
+  emit METADATA_WORKTREE "$MW_EMIT"
   emit CHANGES_DIR "$CHANGES_DIR"
   emit ADRS_DIR "$ADRS_DIR"
   emit RESULTS_DIR "$RESULTS_DIR"

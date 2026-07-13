@@ -583,5 +583,41 @@ assert "0064 doc: sample .docket.yml carries the commented knob" \
 assert "0064 doc: config contract classifies terminal_publish as fenced" \
   'grep -q "terminal_publish" "$REPO/scripts/docket-config.md"'
 
+# ============================================================================
+# (Z) --format plain — raw model-facing presentation (change 0068)
+# ============================================================================
+mkrepo "$tmp/fmt"
+# docket branch so bootstrap verdict resolves to PROCEED (mkrepo leaves a live main surface,
+# so create the orphan docket branch the way docket-config --bootstrap would).
+git -C "$tmp/fmt" push --quiet origin "$(git -C "$tmp/fmt" commit-tree "$(git -C "$tmp/fmt" mktree </dev/null)" -m orphan):refs/heads/docket" 2>/dev/null
+git -C "$tmp/fmt" fetch --quiet origin docket 2>/dev/null
+
+# shell format (default) is UNCHANGED: %q-quoted, eval-able, empty => KEY=''
+shell_out="$(run "$tmp/fmt" --export)"
+assert "shell format still %q-quotes empty values" 'printf "%s" "$shell_out" | grep -qxF "FINALIZE_TEST_COMMAND='\'''\''"'
+assert "shell format METADATA_WORKTREE stays relative .docket" 'printf "%s" "$shell_out" | grep -qxF "METADATA_WORKTREE=.docket"'
+
+# plain format: raw KEY=value, no %q, no export prefix, empty => bare "KEY="
+plain_out="$(run "$tmp/fmt" --export --format plain)"
+assert "plain format emits raw empty value (no quotes)" 'printf "%s\n" "$plain_out" | grep -qxF "FINALIZE_TEST_COMMAND="'
+assert "plain format has no export prefix" '! printf "%s\n" "$plain_out" | grep -q "^export "'
+assert "plain format emits BOOTSTRAP" 'printf "%s\n" "$plain_out" | grep -qxF "BOOTSTRAP=PROCEED"'
+assert "plain format emits raw enum values unquoted" 'printf "%s\n" "$plain_out" | grep -qxF "DOCKET_MODE=docket"'
+# METADATA_WORKTREE absolutized in plain mode
+fmt_abs="$(cd "$tmp/fmt" && pwd -P)"
+assert "plain format absolutizes METADATA_WORKTREE (docket-mode)" 'printf "%s\n" "$plain_out" | grep -qxF "METADATA_WORKTREE=$fmt_abs/.docket"'
+assert "plain format keeps CHANGES_DIR as repo-relative subpath" 'printf "%s\n" "$plain_out" | grep -qxF "CHANGES_DIR=docs/changes"'
+
+# plain mode still fails closed on an aborting resolver: nothing on stdout, non-zero exit
+# (#64b: clear the asserted capture first so a prior value can never masquerade as success).
+plain_abort=""
+plain_abort="$(bash "$SCRIPT" --repo-dir "$tmp/does-not-exist" --export --format plain 2>/dev/null)"; abort_rc=$?
+assert "plain mode aborts non-zero on bad repo" '[ "$abort_rc" -ne 0 ]'
+assert "plain mode emits NOTHING on abort" '[ -z "$plain_abort" ]'
+
+# unknown --format value is a wiring error (exit 2)
+run "$tmp/fmt" --export --format bogus >/dev/null 2>&1; fmt_rc=$?
+assert "unknown --format exits 2" '[ "$fmt_rc" -eq 2 ]'
+
 if [ "$fail" = 0 ]; then echo PASS; else echo FAIL; fi
 exit "$fail"

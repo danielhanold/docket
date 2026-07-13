@@ -22,6 +22,12 @@ docket-config.sh --repo-dir /path/to/repo --export
 
 **Flags:**
 - `--export` — emit resolved `KEY=value` lines to stdout (default mode; always pass it)
+- `--format plain|shell` — output presentation (default `shell`). `shell` is the historical
+  `%q`-quoted, eval-able contract (`eval "$(… --export)"`) — byte-identical, unchanged. `plain`
+  is raw `KEY=value`, no quoting, no `export ` prefix, with `METADATA_WORKTREE` absolutized —
+  for the docket facade's model-facing `env`/`preflight` output (never `eval`'d). The abort
+  posture is identical in both formats: an aborting run emits nothing on stdout and exits
+  non-zero.
 - `--bootstrap` — additionally perform the `CREATE_ORPHAN` write when the verdict warrants
   it; a no-op in every other bootstrap cell
 - `--repo-dir DIR` — target a specific git repo directory (used by test fixtures)
@@ -191,8 +197,9 @@ any other file; only the `--bootstrap` orphan-create write path (above) writes.
 
 ### Emit
 
-All resolved values are printed as `KEY='value'` (shell-quoted via `printf '%s=%q'`) to
-stdout in this order:
+All resolved values are printed as `KEY=value` lines to stdout in this order (see `--format`
+above: `shell`, the default, shell-quotes each value via `printf '%s=%q'`; `plain` prints the
+raw value via `printf '%s=%s'` with `METADATA_WORKTREE` absolutized):
 
 ```
 DOCKET_MODE
