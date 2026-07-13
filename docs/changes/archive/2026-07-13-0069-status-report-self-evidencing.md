@@ -26,8 +26,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-13-status-report-self-evidencing-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-13-status-report-self-evidencing-design.md) |
-| Plan | [2026-07-13-status-report-self-evidencing.md](https://github.com/danielhanold/docket/blob/feat/status-report-self-evidencing/docs/superpowers/plans/2026-07-13-status-report-self-evidencing.md) |
-| Results | [2026-07-13-status-report-self-evidencing-results.md](https://github.com/danielhanold/docket/blob/feat/status-report-self-evidencing/docs/results/2026-07-13-status-report-self-evidencing-results.md) |
+| Plan | [2026-07-13-status-report-self-evidencing.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-13-status-report-self-evidencing.md) |
+| Results | [2026-07-13-status-report-self-evidencing-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-13-status-report-self-evidencing-results.md) |
 | PR | [#77](https://github.com/danielhanold/docket/pull/77) |
 | ADRs | [ADR-0028](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0028-report-channel-is-not-a-board-surface.md) |
 <!-- docket:artifacts:end -->
