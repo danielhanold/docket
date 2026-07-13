@@ -13,6 +13,58 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 
 git_quiet(){ git "$@" >/dev/null 2>&1; }
 
+# Joins backslash-line-continuations so a multi-line shell invocation collapses to one logical
+# line (matches real shell continuation semantics) — used by the 0064 --enabled gate sentinel
+# below so a wrapped invocation is inspected as a whole, not line-by-line. Plain awk (not a
+# GNU-sed N/branch idiom) so it behaves identically under BSD sed (macOS) and GNU sed (Linux CI).
+join_continuations(){
+  awk '
+    {
+      line = $0
+      if (sub(/\\[[:space:]]*$/, "", line)) {
+        buf = buf line " "
+        next
+      }
+      print buf line
+      buf = ""
+    }
+    END { if (buf != "") print buf }
+  ' "$1"
+}
+
+# Every REAL terminal-publish.sh call site (skills/ prose + shell code) that supplies --id or
+# --adr must also supply --enabled, regardless of flag order or line-wrapping. Scans skills/
+# (all files), scripts/*.sh, and the repo-root *.sh entry points (migrate-to-docket.sh,
+# install.sh — no call sites today, but a future one must not slip through un-gated). Excludes
+# scripts/*.md contracts (they document the CLI generically), excludes terminal-publish.sh's own
+# usage header/--help text (not a call site, and its own [--enabled true|false] sits on a
+# separate non-continued comment line), and excludes tests/ (which deliberately exercises the
+# back-compat default-omitted-enabled path).
+#
+# Evaluated PER INVOCATION, not per line: a joined logical line can carry more than one
+# `terminal-publish.sh …` mention (e.g. a gated `--id` shape and an ungated `--adr` shape
+# documented side by side in one sentence). Splitting on each `terminal-publish.sh` occurrence
+# before filtering means an `--enabled` on one invocation can never hide a bare invocation on
+# the same line — a bug the earlier per-line grep had (whitewashing, change 0064 finding 2).
+find_ungated_terminal_publish_call_sites(){
+  local f
+  while IFS= read -r f; do
+    join_continuations "$f" \
+      | grep -n "terminal-publish\.sh" \
+      | awk '
+          {
+            n = split($0, segs, "terminal-publish\\.sh")
+            for (i = 2; i <= n; i++) print segs[1] "terminal-publish.sh" segs[i]
+          }
+        ' \
+      | grep -E -- '--(id|adr)([[:space:]"]|$)' \
+      | grep -v -- '--enabled' \
+      | sed "s#^#$f:#"
+  done < <(find "$REPO/skills" -type f
+           find "$REPO/scripts" -type f -name '*.sh' ! -name 'terminal-publish.sh'
+           find "$REPO" -maxdepth 1 -type f -name '*.sh')
+}
+
 # new_repo: prints "<work> <origin>" — a fresh clone with a bare origin holding docket + main.
 # docket branch: docs/changes/active/0007-sample.md, its spec, one Accepted + one Proposed ADR.
 # main branch: a trivial baseline (the integration branch publish target).
@@ -242,6 +294,68 @@ read -r W _ < <(new_repo)
 assert "publish --adr: main-mode exits 0 (no-op)" "[ $? -eq 0 ]"
 assert "publish --adr: main-mode created no pub-adr worktree" '! git -C "$W" worktree list | grep -q "pub-adr-3"'
 
+# --- change 0064: --enabled false suppresses the publish (change shape) ---
+read -r W _ < <(new_repo)
+before="$(git -C "$W" rev-parse origin/main)"
+( cd "$W" && "$PUBLISH" --id 7 --outcome done --integration-branch main --metadata-branch docket \
+    --changes-dir docs/changes --adrs-dir docs/adrs --enabled false ) >/dev/null 2>&1
+rc=$?
+git -C "$W" fetch origin main >/dev/null 2>&1
+after="$(git -C "$W" rev-parse origin/main)"
+assert "0064 publish --enabled false: exits 0 (suppressed publish is success)" '[ "$rc" -eq 0 ]'
+assert "0064 publish --enabled false: integration branch untouched" '[ "$before" = "$after" ]'
+assert "0064 publish --enabled false: no pub worktree provisioned" '! git -C "$W" worktree list | grep -q "pub-7"'
+
+# --- change 0064: --enabled false suppresses the ADR shape too (the docket-adr path) ---
+read -r W _ < <(new_repo)
+before="$(git -C "$W" rev-parse origin/main)"
+( cd "$W" && "$PUBLISH" --adr 3 --integration-branch main --metadata-branch docket \
+    --changes-dir docs/changes --adrs-dir docs/adrs --enabled false ) >/dev/null 2>&1
+rc=$?
+git -C "$W" fetch origin main >/dev/null 2>&1
+after="$(git -C "$W" rev-parse origin/main)"
+assert "0064 publish --adr --enabled false: exits 0" '[ "$rc" -eq 0 ]'
+assert "0064 publish --adr --enabled false: no ADR file on integration branch" \
+  '! git -C "$W" ls-tree -r --name-only origin/main | grep -q "docs/adrs/0003-accepted.md"'
+assert "0064 publish --adr --enabled false: no ADR index on integration branch" \
+  '! git -C "$W" ls-tree -r --name-only origin/main | grep -q "docs/adrs/README.md"'
+assert "0064 publish --adr --enabled false: integration branch untouched" '[ "$before" = "$after" ]'
+
+# --- change 0064: back-compat — omitting --enabled still publishes (default true) ---
+read -r W _ < <(new_repo)
+( cd "$W" && "$PUBLISH" --adr 3 --integration-branch main --metadata-branch docket \
+    --changes-dir docs/changes --adrs-dir docs/adrs ) >/dev/null 2>&1
+rc=$?
+git -C "$W" fetch origin main >/dev/null 2>&1
+assert "0064 publish: omitting --enabled defaults to true (publishes)" '[ "$rc" -eq 0 ]'
+assert "0064 publish: default-true actually landed the ADR" \
+  'git -C "$W" ls-tree -r --name-only origin/main | grep -q "docs/adrs/0003-accepted.md"'
+
+# --- change 0064: an explicit --enabled true publishes exactly as today ---
+read -r W _ < <(new_repo)
+( cd "$W" && "$PUBLISH" --adr 3 --integration-branch main --metadata-branch docket \
+    --changes-dir docs/changes --adrs-dir docs/adrs --enabled true ) >/dev/null 2>&1
+rc=$?
+git -C "$W" fetch origin main >/dev/null 2>&1
+assert "0064 publish --enabled true: exits 0" '[ "$rc" -eq 0 ]'
+assert "0064 publish --enabled true: ADR landed on integration branch" \
+  'git -C "$W" ls-tree -r --name-only origin/main | grep -q "docs/adrs/0003-accepted.md"'
+
+# --- change 0064: fail-closed — an unparseable --enabled value aborts ---
+read -r W _ < <(new_repo)
+( cd "$W" && "$PUBLISH" --id 7 --outcome done --integration-branch main --metadata-branch docket \
+    --changes-dir docs/changes --adrs-dir docs/adrs --enabled maybe ) >/dev/null 2>&1
+rc=$?
+assert "0064 publish: unparseable --enabled exits non-zero (never coerced to true)" '[ "$rc" -ne 0 ]'
+
+# --- change 0064: argument validation still fires when publishing is disabled ---
+# A disabled publish must not mask a broken call site.
+read -r W _ < <(new_repo)
+( cd "$W" && "$PUBLISH" --id 7 --integration-branch main --metadata-branch docket \
+    --changes-dir docs/changes --adrs-dir docs/adrs --enabled false ) >/dev/null 2>&1
+rc=$?
+assert "0064 publish: missing --outcome still aborts even with --enabled false" '[ "$rc" -ne 0 ]'
+
 # --- terminal-publish.sh: --id and --adr are mutually exclusive; exactly one required ---
 read -r W _ < <(new_repo)
 ( cd "$W" && "$PUBLISH" --id 7 --adr 3 --outcome done --integration-branch main --metadata-branch docket --changes-dir docs/changes --adrs-dir docs/adrs ) >/dev/null 2>&1
@@ -396,5 +510,27 @@ assert "wiring(close-out ref): proposed-kill invokes terminal-publish.sh" 'grep 
 assert "wiring(close-out ref): reconcile-kill invokes archive-change.sh"     'grep -q "/archive-change.sh" "$TCO"'
 assert "wiring(close-out ref): reconcile-kill invokes cleanup-feature-branch.sh" 'grep -q "/cleanup-feature-branch.sh" "$TCO"'
 assert "wiring(close-out ref): reconcile-kill invokes terminal-publish.sh" 'grep -q "/terminal-publish.sh" "$TCO"'
+
+# --- change 0064: every documented terminal-publish call site passes --enabled ---
+ADRSKILL="$REPO/skills/docket-adr/SKILL.md"
+assert "0064 wiring: close-out step 3 passes --enabled" \
+  'grep -q -- "--enabled" "$TCO"'
+assert "0064 wiring: close-out step 3 passes the terminal_publish placeholder" \
+  'grep -q -- "--enabled <terminal_publish>" "$TCO"'
+assert "0064 wiring: docket-adr passes --enabled on BOTH --adr call sites" \
+  '[ "$(grep -c -- "--enabled <terminal_publish>" "$ADRSKILL")" -eq 2 ]'
+# The invariant: no REAL terminal-publish.sh call site may omit the gate — checked across BOTH
+# skills/ prose AND scripts/*.sh code (the earlier version only grepped skills/, and only matched
+# --id/--adr as the literal next token on the same physical line, so it was blind to
+# scripts/docket-status.sh's real sweep call site and to ordinary flag reordering).
+assert "0064 wiring: no terminal-publish.sh call site (skills/ prose or scripts/*.sh) omits --enabled" \
+  '[ -z "$(find_ungated_terminal_publish_call_sites)" ]'
+
+# The close-out contract: a SUPPRESSED publish is success, so it must not trip the skip-publish
+# guard — cleanup (step 4) and the board refresh (step 5) still run. This is the spec's
+# "close-out integration" requirement; the sequence is skill-driven prose, so it is asserted here
+# as a contract sentinel rather than an executable close-out fixture.
+assert "0064 wiring: close-out states a suppressed publish does not skip steps 4-5" \
+  'grep -qi "does NOT trip the\|not trip the skip-publish" "$TCO"'
 
 exit "$fail"

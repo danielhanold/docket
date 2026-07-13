@@ -48,13 +48,13 @@ For a non-reversing material change in context — where the decision still stan
 
 ## How an ADR reaches the integration branch
 
-The rule: **an `Accepted` ADR publishes to the integration branch** — the decision ledger is a durable record that belongs with the code. ADRs are authored on `docket`; the copy onto the integration branch goes through the shared terminal-publish procedure (contract: `scripts/terminal-publish.md`) — a `git checkout` copy from `origin/docket`, never a `git merge docket`. Three cases, all reusing that one procedure (do **not** restate its git sequence here):
+The rule: **an `Accepted` ADR publishes to the integration branch by default** — the decision ledger is a durable record that belongs with the code (a repo may suppress the copy with `terminal_publish: false`; see the gate at the end of this section). ADRs are authored on `docket`; the copy onto the integration branch goes through the shared terminal-publish procedure (contract: `scripts/terminal-publish.md`) — a `git checkout` copy from `origin/docket`, never a `git merge docket`. Three cases, all reusing that one procedure (do **not** restate its git sequence here):
 
 - **Change-tied ADR** (the common case) — it is in its change manifest's `adrs:`, so the terminal publish copies it on that change's `done` (or `killed`) transition, driven by `docket-finalize-change` / the kill origin. `docket-adr` does nothing extra; the `Accepted` gate at the copy site skips it if it is still `Proposed`/draft.
 - **Standalone ADR** (`docket-adr` invoked directly, not tied to an in-flight change) — `docket-adr` publishes it itself: on acceptance it invokes:
 
   ```
-  "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/terminal-publish.sh --adr <NN> --integration-branch <integration_branch> --metadata-branch <metadata_branch> --changes-dir <changes_dir> --adrs-dir <adrs_dir>
+  "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/terminal-publish.sh --adr <NN> --integration-branch <integration_branch> --metadata-branch <metadata_branch> --changes-dir <changes_dir> --adrs-dir <adrs_dir> --enabled <terminal_publish>
   ```
 
   Trust the exit code. Without this, a change-less ADR would be stranded on `docket` and the integration-branch ledger would be silently incomplete.
@@ -62,10 +62,12 @@ The rule: **an `Accepted` ADR publishes to the integration branch** — the deci
 - **Status change to an already-published ADR** (`Superseded by`/`Reversed by`/`Deprecated`) — whether or not the ADR was originally change-tied, it is re-published by `docket-adr` invoking the same script (trust the exit code):
 
   ```
-  "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/terminal-publish.sh --adr <NN> --integration-branch <integration_branch> --metadata-branch <metadata_branch> --changes-dir <changes_dir> --adrs-dir <adrs_dir>
+  "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/terminal-publish.sh --adr <NN> --integration-branch <integration_branch> --metadata-branch <metadata_branch> --changes-dir <changes_dir> --adrs-dir <adrs_dir> --enabled <terminal_publish>
   ```
 
   The producing change is long since `done` and can no longer drive the re-publish; `--adr` mode publishes the ADR's current bytes (including a just-flipped `status:` line), which is exactly what the supersede/reverse and deprecate paths need.
+
+All three cases are **gated by `TERMINAL_PUBLISH`** (change 0064): the same `--enabled` flag the close-out passes. In a repo that sets `terminal_publish: false`, the ADR publish is a no-op that exits 0 — the decision ledger lives on `docket` only, and the integration branch receives **no new** ADR files and no index refresh. (The knob is never retroactive: a repo that flips it off mid-life keeps whatever ADRs and index it had already published — they simply stop being added to.) Trust the exit code either way; do not branch on the knob.
 
 In `main`-mode there is no `docket` branch and no terminal-publish — the metadata working tree *is* the integration branch, so writing the ADR there is itself the publish; this whole section is a `docket`-mode-only concern.
 

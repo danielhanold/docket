@@ -50,6 +50,7 @@ assert "absent cfg: FINALIZE_GATE default local"       '[ "$FINALIZE_GATE" = loc
 assert "absent cfg: FINALIZE_TEST_COMMAND empty"       '[ -z "$FINALIZE_TEST_COMMAND" ]'
 assert "absent cfg: BOARD_SURFACES default inline"     '[ "$BOARD_SURFACES" = inline ]'
 assert "absent cfg: AUTO_GROOM default false"          '[ "$AUTO_GROOM" = false ]'
+assert "absent cfg: TERMINAL_PUBLISH default true"     '[ "$TERMINAL_PUBLISH" = true ]'
 
 # --- (B) main-mode pin -> METADATA_WORKTREE '.', BOOTSTRAP PROCEED -----------
 mkrepo "$tmp/b"
@@ -101,7 +102,7 @@ assert "board []: BOARD_SURFACES empty"                '[ -z "$BOARD_SURFACES" ]
 
 # --- (E) direct-pipe caller (LEARNINGS #22: $() hides a dropped trailing \n) -
 n="$(run "$tmp/c" --export | grep -c '=')"
-assert "direct-pipe: 18 KEY=value lines emitted"       '[ "$n" -eq 18 ]'
+assert "direct-pipe: 19 KEY=value lines emitted"       '[ "$n" -eq 19 ]'
 last="$(run "$tmp/c" --export | tail -n1)"
 assert "direct-pipe: last line is BOOTSTRAP"           'case "$last" in BOOTSTRAP=*) true;; *) false;; esac'
 
@@ -355,9 +356,9 @@ printf 'auto_groom: true\n' > "$tmp/q.home/.config/docket/config.yml"
 out="$(env -u XDG_CONFIG_HOME HOME="$tmp/q.home" bash "$SCRIPT" --repo-dir "$tmp/q" --export)"; eval "$out"
 assert "0050 Q: XDG unset -> \$HOME/.config fallback read"   '[ "$AUTO_GROOM" = true ]'
 
-# --- (E') emit-interface guard: still exactly 18 lines with a global file present ---
+# --- (E') emit-interface guard: still exactly 19 lines with a global file present ---
 n50="$(rung "$tmp/k.xdg" "$tmp/k" --export | grep -c '=')"
-assert "0050 E': still 18 KEY=value lines with global layer" '[ "$n50" -eq 18 ]'
+assert "0050 E': still 19 KEY=value lines with global layer" '[ "$n50" -eq 19 ]'
 
 # --- (M) coordination-key fence: warned-and-ignored, never honored, never fatal ---
 mkrepo "$tmp/m"
@@ -507,6 +508,80 @@ printf 'skills:\n  bogusrole: x\n' > "$tmp/l6/.docket.local.yml"
 errout="$(rung "$tmp/l6-noxdg" "$tmp/l6" --export 2>&1 >/dev/null)"; rc=$?
 assert "0051 L6: unknown local role not fatal (rc=0)" '[ "$rc" = "0" ]'
 assert "0051 L6: warns unknown role"                  'grep -qi "unknown skills role" <<<"$errout" && grep -q "bogusrole" <<<"$errout"'
+
+# ============================================================================
+# Change 0064 — terminal_publish: coordination-key fence + TERMINAL_PUBLISH emit
+# ============================================================================
+
+# --- (0064) terminal_publish: repo-committed value honored; fenced in machine layers ---
+mkrepo "$tmp/tp"
+printf 'metadata_branch: docket\nterminal_publish: false\n' > "$tmp/tp/.docket.yml"
+git -C "$tmp/tp" add .docket.yml; git -C "$tmp/tp" commit --quiet -m cfg
+git -C "$tmp/tp" push --quiet origin main
+out="$(run "$tmp/tp" --export)"; eval "$out"
+assert "0064: repo terminal_publish false is honored" '[ "$TERMINAL_PUBLISH" = false ]'
+
+# explicit true round-trips
+mkrepo "$tmp/tp2"
+printf 'metadata_branch: docket\nterminal_publish: true\n' > "$tmp/tp2/.docket.yml"
+git -C "$tmp/tp2" add .docket.yml; git -C "$tmp/tp2" commit --quiet -m cfg
+git -C "$tmp/tp2" push --quiet origin main
+out="$(run "$tmp/tp2" --export)"; eval "$out"
+assert "0064: repo terminal_publish true is honored" '[ "$TERMINAL_PUBLISH" = true ]'
+
+# fence: a GLOBAL terminal_publish is warned-and-ignored, never honored, never fatal
+mkrepo "$tmp/tp3"
+mkdir -p "$tmp/tp3.xdg/docket"
+printf 'terminal_publish: false\n' > "$tmp/tp3.xdg/docket/config.yml"
+tperr="$(rung "$tmp/tp3.xdg" "$tmp/tp3" --export 2>&1 >/dev/null)"
+# Unset before the eval that follows: a run that ABORTS emits nothing, so eval "" is a no-op —
+# without unsetting first, TERMINAL_PUBLISH would silently keep its value from an earlier block
+# in this file and the "stays true" assert below would pass vacuously on stale state instead of
+# on this run's actual (non-)output. `${TERMINAL_PUBLISH-unset}` below reads it back safely under
+# `set -u` whether the eval set it or left it unset.
+unset TERMINAL_PUBLISH
+out="$(rung "$tmp/tp3.xdg" "$tmp/tp3" --export 2>/dev/null)"; eval "$out"
+assert "0064 fence: global terminal_publish warns"        'printf "%s" "$tperr" | grep -q "terminal_publish"'
+assert "0064 fence: warning says per-repo-only"           'printf "%s" "$tperr" | grep -qi "per-repo-only"'
+assert "0064 fence: global value NOT honored (stays true)" '[ "${TERMINAL_PUBLISH-unset}" = true ]'
+assert "0064 fence: global terminal_publish is not fatal"  '[ "$(rung_rc "$tmp/tp3.xdg" "$tmp/tp3" --export)" -eq 0 ]'
+
+# fence: a MACHINE-LOCAL .docket.local.yml terminal_publish is warned-and-ignored too
+mkrepo "$tmp/tp4"
+printf 'terminal_publish: false\n' > "$tmp/tp4/.docket.local.yml"
+lerr="$(run "$tmp/tp4" --export 2>&1 >/dev/null)"; rc=$?
+# Same stale-value hazard as the global block above — unset before the eval, and read back via
+# the safe default-expansion so an abort (empty eval) is caught as "unset", not misread as a
+# leftover "true" from an earlier block.
+unset TERMINAL_PUBLISH
+out="$(run "$tmp/tp4" --export 2>/dev/null)"; eval "$out"
+assert "0064 fence: .docket.local.yml terminal_publish warns" 'printf "%s" "$lerr" | grep -q "terminal_publish"'
+assert "0064 fence: local names .docket.local.yml"            'printf "%s" "$lerr" | grep -q ".docket.local.yml"'
+assert "0064 fence: local value NOT honored (stays true)"     '[ "${TERMINAL_PUBLISH-unset}" = true ]'
+assert "0064 fence: local terminal_publish is not fatal (rc=0)" '[ "$rc" -eq 0 ]'
+
+# fail-closed: an unparseable repo value aborts (never silently coerced to true)
+mkrepo "$tmp/tp5"
+printf 'metadata_branch: docket\nterminal_publish: flase\n' > "$tmp/tp5/.docket.yml"
+git -C "$tmp/tp5" add .docket.yml; git -C "$tmp/tp5" commit --quiet -m cfg
+git -C "$tmp/tp5" push --quiet origin main
+assert "0064: unparseable terminal_publish exits non-zero" \
+  '! run "$tmp/tp5" --export >/dev/null 2>&1'
+assert "0064: unparseable terminal_publish emits nothing"  \
+  '[ -z "$(run "$tmp/tp5" --export 2>/dev/null)" ]'
+
+# --- (0064) surfacing: the knob is documented end-to-end (learning #49) ---
+CONV_SKILL="$REPO/skills/docket-convention/SKILL.md"
+assert "0064 doc: convention schema block documents terminal_publish" \
+  'grep -q "terminal_publish" "$CONV_SKILL"'
+assert "0064 doc: convention fence list includes terminal_publish" \
+  'grep -q "terminal_publish" <<<"$(grep -A2 "Coordination-key fence" "$CONV_SKILL")"'
+assert "0064 doc: README documents terminal_publish" \
+  'grep -q "terminal_publish" "$REPO/README.md"'
+assert "0064 doc: sample .docket.yml carries the commented knob" \
+  'grep -q "terminal_publish" "$REPO/.docket.yml"'
+assert "0064 doc: config contract classifies terminal_publish as fenced" \
+  'grep -q "terminal_publish" "$REPO/scripts/docket-config.md"'
 
 if [ "$fail" = 0 ]; then echo PASS; else echo FAIL; fi
 exit "$fail"

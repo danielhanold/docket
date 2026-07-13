@@ -30,7 +30,8 @@ terminal-publish.sh \
   --changes-dir REL \
   --adrs-dir REL \
   [--message MSG] \
-  [--remote R]
+  [--remote R] \
+  [--enabled true|false]
 ```
 
 **ADR-only publish** (standalone or supersession/reversal ADR from `docket-adr`):
@@ -43,12 +44,17 @@ terminal-publish.sh \
   --changes-dir REL \
   --adrs-dir REL \
   [--message MSG] \
-  [--remote R]
+  [--remote R] \
+  [--enabled true|false]
 ```
 
 `--remote` defaults to `origin`. `--message` defaults to
 `docket(<pad>): publish terminal record (<outcome>)` (change) or
 `docket(adr-<NN>): publish ADR-<NN>` (ADR-only).
+
+`--enabled` defaults to `true`. `--enabled false` (change 0064 — the per-repo `terminal_publish`
+knob, resolved by `docket-config.sh`) makes the script a no-op. An unparseable value is rejected
+before any git work, like `--id`/`--adr`.
 
 Both `--id` and `--adr` must be integers; a non-integer value is rejected immediately, before any
 git work.
@@ -65,6 +71,23 @@ When `--metadata-branch` equals `--integration-branch` (i.e., `main`-mode), the 
 no-op message and exits 0 immediately. In main-mode there is no separate metadata branch to copy
 from — the working tree is the integration branch, so the archive move is itself the terminal
 record.
+
+### Knob guard (change 0064)
+
+When `--enabled false`, the script logs a single skip line and exits 0 **before the `--id`/`--adr`
+mode dispatch** — so the guard covers **both** publish shapes: the close-out change publish and
+`docket-adr`'s standalone/status-changed ADR publish. Nothing is fetched, no worktree is
+provisioned, and no commit reaches the integration branch; the archived change file, its spec, its
+ADRs, and the integration-branch ADR index all stay on the metadata branch.
+
+A suppressed publish is **success, not failure**: it exits 0, so a caller trusting the exit code
+proceeds normally and the close-out's skip-publish guard does not fire — cleanup and the board
+refresh still run.
+
+Argument validation runs **before** this guard, so a malformed call fails loudly whether or not
+publishing is enabled — a disabled publish never masks a broken call site.
+
+The guard is inert in `main`-mode: the mode guard already exits 0 first.
 
 ### Publish shapes and copy-set assembly
 
@@ -181,10 +204,12 @@ place there.
 ## Exit codes
 
 - `0` — the full copy-set landed on `origin/<integration_branch>` and the worktree was torn down
-  cleanly. Callers should **trust the exit code**: non-zero means abort-and-report.
-- Non-zero — any failure: bad arguments, missing archived change file, missing ADR file, fetch
-  failure, worktree provision failure, copy failure, commit failure, push failure, or postcondition
-  assertion failure. The script is fail-closed and never exits 0 unless the self-verify passes.
+  cleanly; **or** the publish was suppressed (`--enabled false`, change 0064) or is a `main`-mode
+  no-op. Callers should **trust the exit code**: non-zero means abort-and-report.
+- Non-zero — any failure: bad arguments, invalid `--enabled` value, missing archived change file,
+  missing ADR file, fetch failure, worktree provision failure, copy failure, commit failure, push
+  failure, or postcondition assertion failure. The script is fail-closed and never exits 0 unless
+  the self-verify passes.
 
 ## Invariants
 
@@ -214,3 +239,10 @@ assembled is excluded, even if it was `Accepted` at claim time.
 
 **No local branch switches** — all work happens inside the transient `pub` worktree; the main
 working tree's current branch is never changed.
+
+**The knob guard covers both publish shapes** — it precedes the `--id`/`--adr` dispatch, so
+`terminal_publish: false` suppresses the close-out change publish AND `docket-adr`'s ADR publish.
+Gating only one shape would let ADRs keep landing on the integration branch, defeating the knob.
+
+**`--enabled false` is inert, not destructive** — it suppresses a *future* copy; it never removes
+records already published to the integration branch by prior runs.

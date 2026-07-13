@@ -29,8 +29,9 @@ docket-status.sh -h | --help
 Any other argument is a hard error (`docket-status: unknown argument: <arg>`, exit 2).
 
 Configuration (`DOCKET_MODE`, `METADATA_WORKTREE`, `METADATA_BRANCH`, `INTEGRATION_BRANCH`,
-`CHANGES_DIR`, `ADRS_DIR`, `BOARD_SURFACES`, `BOOTSTRAP`, …) comes entirely from `docket-config.sh
---export`, evaluated with `eval` at the top of `main`. The script defines no config of its own.
+`CHANGES_DIR`, `ADRS_DIR`, `BOARD_SURFACES`, `TERMINAL_PUBLISH`, `BOOTSTRAP`, …) comes entirely from
+`docket-config.sh --export`, evaluated with `eval` at the top of `main`. The script defines no config
+of its own.
 
 ## Behavior
 
@@ -83,7 +84,9 @@ pass.
 rebase-pull the metadata worktree, then (skipping silently if the change is already archived or
 already `done`/`killed` — idempotent no-op) `archive-change.sh` → locate the archived file →
 `render-change-links.sh` (committing and pushing the refreshed links if the archived file
-changed) → `terminal-publish.sh` → `cleanup-feature-branch.sh`. Each step's failure emits
+changed) → `terminal-publish.sh` (always passed `--enabled "${TERMINAL_PUBLISH:-true}"`, so the
+headless sweep honors the repo's publish policy; a suppressed publish is a no-op that exits 0 and is
+logged, never a failure) → `cleanup-feature-branch.sh`. Each step's failure emits
 `sweep-failed <id> <step> <reason>` and abandons the rest of that change's close-out, but the
 loop always continues to the next change; a `cleanup-feature-branch.sh` failure is the one
 exception — it still emits the terminal `swept`/`harvest` lines for that change since publish
@@ -92,7 +95,12 @@ already succeeded. Full success for a change emits `swept <id> <merged-date>` fo
 `archive`, and for a `cleanup` failure (all retry cleanly next pass) — but a `sweep-failed` at
 `render-change-links` or `terminal-publish` leaves the change **archived but its terminal record
 unpublished**, invisible to future detection (which only scans `active/*.md`), and requires a
-manual `terminal-publish.sh --id <id>` follow-up.
+manual `terminal-publish.sh --id <id> --enabled true` follow-up. The knob narrows only the
+`terminal-publish` leg: under `terminal_publish: false` that step is a no-op that cannot fail, so
+this recovery path never arises there — but the `render-change-links` leg still can fail in such a
+repo (it emits `sweep-failed <id> render-change-links skipped-publish`), leaving the archived change
+with a stale `## Artifacts` block on `metadata_branch` that no later sweep resumes; the follow-up
+there is a manual re-render on the metadata branch, not a publish.
 
 **6. Health checks.** Runs `board-checks.sh` over the current changes-dir and metadata/integration
 branches, and prefixes each of its TSV findings as `check <check-id> <change-id> <message>` on

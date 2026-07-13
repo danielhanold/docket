@@ -31,6 +31,15 @@ board_surfaces: [inline]
 # github_project: {owner: <owner>, number: <n>}  — auto-managed Projects v2 board; minted
 # (private, under the repo owner) and written back here on first `github` sync when unset.
 
+# Terminal-publish opt-out (change 0064). Default true: on a terminal transition, the archived
+# change file + its spec + its Accepted ADRs are copied from `docket` onto the integration branch
+# in a direct commit (and docket-adr publishes ADRs the same way). Set false in a repo where every
+# write to the integration branch must go through a PR — records then stay on `docket` only, and
+# the integration branch gets code/plans/results via PRs alone. Per-repo-only (coordination-key
+# fenced): a value in the global config or .docket.local.yml is warned-and-ignored. Inert in
+# main-mode. This repo publishes its terminal records, so the default stands.
+# terminal_publish: true
+
 # Which harnesses the per-repo agent pass generates files for (change 0045; generation went
 # all-local in change 0051 — see below). Default [claude] (byte-identical to before). A Cursor
 # repo would set [claude, cursor] so the agents: model config also reaches <repo>/.cursor/agents/.

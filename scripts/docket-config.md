@@ -76,6 +76,7 @@ A value may not contain a literal `#` — it is treated as the start of an inlin
 | `test_command` (finalize) | `` (empty) | yes | read from `finalize.test_command` leaf key; resolves repo-local > repo-committed > global |
 | `board_surfaces` | `inline` | yes, minus `github` | YAML list `[a, b]` stripped of brackets/commas; `[]` → empty string; a `github` token arriving from either machine-scoped layer (repo-local or global) is dropped (Stage 2c) |
 | `auto_groom` | `false` | yes | resolves repo-local > repo-committed > global |
+| `terminal_publish` | `true` | no (fenced) | `true`/`false`; `false` makes `terminal-publish.sh` a no-op for BOTH shapes — archived change files, specs, and ADRs stay on the metadata branch. Anything else aborts |
 
 `github_project` and `agents:`/`agent_harnesses` are per-repo-only / not read by this script (see
 Stage 2b/2b'/2c below and `sync-agents.sh`'s own contract, respectively) — every other key above
@@ -105,7 +106,7 @@ reader.
 - `~/.config/docket/.docket.yml` present → warned ("global config is config.yml"), never read.
 - `config.yml` exists but is not a readable regular file → warned; global layer ignored.
 - **Coordination-key fence:** `metadata_branch`, `integration_branch`, `changes_dir`,
-  `adrs_dir`, `results_dir`, `github_project` set in the global layer OR in
+  `adrs_dir`, `results_dir`, `github_project`, `terminal_publish` set in the global layer OR in
   `.docket.local.yml` → each warned "per-repo-only" (naming which file) and ignored. (Block-style
   `github_project:` with an empty value line is not detected — the fence reads the scalar value;
   nothing reads a global/local `github_project` regardless.)
@@ -206,6 +207,7 @@ FINALIZE_GATE
 FINALIZE_TEST_COMMAND
 BOARD_SURFACES
 AUTO_GROOM
+TERMINAL_PUBLISH
 SKILL_BRAINSTORM
 SKILL_PLAN
 SKILL_BUILD
@@ -214,7 +216,7 @@ SKILL_FINISH
 BOOTSTRAP
 ```
 
-18 lines total. The last line is always `BOOTSTRAP=…`. The emitted `KEY=value` set and order are
+19 lines total. The last line is always `BOOTSTRAP=…`. The emitted `KEY=value` set and order are
 **unchanged** by the machine-local layer (change 0051) — `.docket.local.yml` only adds a
 higher-precedence input to the values already resolved above; no new KEY is introduced.
 
@@ -231,6 +233,7 @@ emits no `KEY=value` output.
 | `origin/HEAD` still empty after set-head | 1 |
 | `integration_branch` ref absent/unreadable (`ls-tree` non-zero) | 1 |
 | `metadata_branch` is neither `docket` nor `main` | 1 |
+| `terminal_publish` is neither `true` nor `false` | 1 |
 | `mktree`/`commit-tree`/push failed during orphan create | 1 |
 | `--repo-dir` missing its argument | 2 |
 | Unknown argument | 2 |
@@ -252,7 +255,7 @@ emits no `KEY=value` output.
   post-write state, so the caller's `eval` sees `PROCEED` without a second invocation.
 - **`main`-mode skips the bootstrap guard entirely.** `DOCKET`/`LIVE` are not evaluated;
   `BOOTSTRAP` is always `PROCEED` in main-mode.
-- **18 `KEY=value` lines always emitted in the same order.** Skills may rely on the order
+- **19 `KEY=value` lines always emitted in the same order.** Skills may rely on the order
   for pipe consumers, but should use the variable names (via `eval`) for correctness.
 - **The global layer never aborts a run.** Every global-file problem (misplaced, malformed,
   fenced key) is a stderr warning; exit codes are unaffected.

@@ -140,7 +140,7 @@ fi
 # Coordination-key fence: a key whose effect writes SHARED state (commits on shared
 # branches, committed generated files, external GitHub objects) is per-repo-only; a global
 # value is loudly warned-and-ignored — never honored, never fatal. (ADR records the rule.)
-for _fkey in metadata_branch integration_branch changes_dir adrs_dir results_dir github_project; do
+for _fkey in metadata_branch integration_branch changes_dir adrs_dir results_dir github_project terminal_publish; do
   if [ -n "$(yaml_get "$GCFG" "$_fkey")" ]; then
     printf "docket-config: warning: global config key %s is per-repo-only — set it in the repo's committed .docket.yml; ignored\n" "$_fkey" >&2
   fi
@@ -167,6 +167,14 @@ RESULTS_DIR="$(yaml_get "$CFG" results_dir)"; RESULTS_DIR="${RESULTS_DIR:-docs/r
 FINALIZE_GATE="$(lcl gate)"; FINALIZE_GATE="${FINALIZE_GATE:-$(yaml_get "$CFG" gate)}"; FINALIZE_GATE="${FINALIZE_GATE:-$(gbl gate)}"; FINALIZE_GATE="${FINALIZE_GATE:-local}"
 FINALIZE_TEST_COMMAND="$(lcl test_command)"; FINALIZE_TEST_COMMAND="${FINALIZE_TEST_COMMAND:-$(yaml_get "$CFG" test_command)}"; FINALIZE_TEST_COMMAND="${FINALIZE_TEST_COMMAND:-$(gbl test_command)}"
 AUTO_GROOM="$(lcl auto_groom)"; AUTO_GROOM="${AUTO_GROOM:-$(yaml_get "$CFG" auto_groom)}"; AUTO_GROOM="${AUTO_GROOM:-$(gbl auto_groom)}"; AUTO_GROOM="${AUTO_GROOM:-false}"
+# change 0064: coordination-key fenced — repo-committed .docket.yml ONLY (no lcl/gbl rungs; a
+# machine-scoped value is warned-and-ignored by the Stage 2c fence above). Fail closed on garbage:
+# silently defaulting a typo to `true` would publish onto the integration branch against intent.
+TERMINAL_PUBLISH="$(yaml_get "$CFG" terminal_publish)"; TERMINAL_PUBLISH="${TERMINAL_PUBLISH:-true}"
+case "$TERMINAL_PUBLISH" in
+  true|false) ;;
+  *) die "unparseable .docket.yml: terminal_publish must be 'true' or 'false', got '$TERMINAL_PUBLISH'" ;;
+esac
 
 bs_raw="$(lcl board_surfaces)"; bs_machine=0
 [ -n "$bs_raw" ] && bs_machine=1                            # local = machine-scoped
@@ -269,6 +277,7 @@ if [ "$MODE" = export ]; then
   emit FINALIZE_TEST_COMMAND "$FINALIZE_TEST_COMMAND"
   emit BOARD_SURFACES "$BOARD_SURFACES"
   emit AUTO_GROOM "$AUTO_GROOM"
+  emit TERMINAL_PUBLISH "$TERMINAL_PUBLISH"
   emit SKILL_BRAINSTORM "$SKILL_BRAINSTORM"
   emit SKILL_PLAN "$SKILL_PLAN"
   emit SKILL_BUILD "$SKILL_BUILD"
