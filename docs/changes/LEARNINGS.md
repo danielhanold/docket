@@ -4,6 +4,18 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-07-13 (#69, PR #77) — Making a new channel the SOLE source of some state turned a previously
+  benign staleness into a self-contradiction. The digest was spec'd to emit BEFORE the merge sweep,
+  which was fine while `BOARD.md` existed as a second channel — but the same change forbade the skill
+  from ever opening the board, so a full pass now printed `change 60 implemented` and `swept 60` in
+  one report with no corrective path left. Apply: when a change removes the fallback channel for some
+  state, re-audit the surviving channel's ORDERING against every pass that MUTATES that state — a
+  snapshot taken before a mutating pass is only tolerable while something downstream can correct it.
+  (Shipped: emit once per path — before the early exit that runs no sweep, after the sweep on a full
+  pass. The spec's placement sentence described a mechanism for a single-call implementation, not a
+  boundary, so the deviation was disclosed in the results file, documented at three sites, and locked
+  by tests that redden if the call moves back — never silently "fixed".)
+
 - 2026-07-13 (#64, PR #75) — Adding a knob that GATES an existing operation, the plan enumerated the
   call sites by hand — and listed the skill/reference prose while missing `scripts/docket-status.sh`,
   the one *executable* invocation, in the headless merge sweep. That is precisely the agent the gate
@@ -14,17 +26,25 @@
   violate the gate and they are the ones a docs-shaped reading of the change skips right past. Guard
   the completeness of that list with a structural sentinel in the suite, not with review attention.
 
-- 2026-07-13 (#64, PR #75) — That structural sentinel, and the fence tests beside it, each shipped a
-  FALSE-PASS hole; both surfaced only under mutation (strip the feature, watch the test go red).
-  (a) The sentinel grepped per LINE, so a logical line carrying a gated `--id` invocation and an
+- 2026-07-13 (#64 PR #75; #69 PR #77 — merged, one sentinel-as-code family) — Structural sentinels
+  shipped FALSE-PASS holes that surfaced only under mutation (strip the feature, watch the test go
+  red). (a) A sentinel grepped per LINE, so a logical line carrying a gated `--id` invocation and an
   ungated `--adr` invocation side by side — which `docket-finalize-change/SKILL.md` actually has —
   was whitewashed by the single `--enabled` present; it now splits per invocation before filtering.
-  (b) The fence tests `eval`'d the config export without clearing the asserted variable first, and an
+  (b) Fence tests `eval`'d the config export without clearing the asserted variable first, and an
   aborting run emits NOTHING, so `eval ""` silently left the previous case's value in place and the
-  assertion passed on stale state. Apply: a guard is code — mutation-test it before trusting it, or
-  it is decoration. A grep sentinel must tokenize at the unit it claims to guard (the invocation, not
-  the line). And any test that `eval`s a command's output must clear the variables it asserts on
-  first, because "emitted nothing" and "emitted the expected thing" are otherwise indistinguishable.
+  assertion passed on stale state. (c) #69 had to NARROW an existing sentinel (0059's "never mentions
+  `render-board.sh`") rather than keep it, because the new read-only `--format digest` call
+  necessarily violates it — and one guard could not replace it: a per-invocation flag-tokenizer
+  proved (by mutation) to miss `render-board.sh --format digest > BOARD.md`, so a SECOND, independent
+  scan asserting the orchestrator never redirects the renderer into `BOARD.md` ships beside it.
+  Apply: a guard is code — mutation-test it before trusting it, or it is decoration. A grep sentinel
+  must tokenize at the unit it claims to guard (the invocation, not the line), and one guard covers
+  one hole — when a mutation slips past it, add an independent scan rather than widening the first.
+  Any test that `eval`s a command's output must clear the variables it asserts on first, because
+  "emitted nothing" and "emitted the expected thing" are otherwise indistinguishable. And when a new
+  feature legitimately violates an old absolutist sentinel, narrow the sentinel to the property that
+  is actually load-bearing — deleting it is how the guarded hole reopens.
 
 - 2026-06-21 / 2026-07-13 (#34 PR #45; #66 PR #73 — merged, one environment family) — Twice a suite
   ran RED where the failure was NOT a regression. (a) finalize's local gate reddened on the change's
@@ -98,14 +118,11 @@
   before adding a member, grep the WHOLE repo for the current number and update every copy in the
   same change.
 
-- 2026-07-11 (#55, PR #67) — A behavior-neutral skill slim (docket-implement-next + the four
-  small skills) landed all five files modestly over the spec's line-count targets
-  (implement-next 137→107 vs ≤~100, groom-next 77→75 vs ~65, adr 88→86 vs ~78); the whole-branch
-  review confirmed the residual was load-bearing/test-anchored content (selection bands, the recap
-  contract, the four ADR publish contracts, SHA-compare narration), not un-cut prose — the spec's
-  size estimates were simply optimistic. Apply: on a behavior-neutral slim, the size target is a
-  direction, not a gate — once review shows the remaining lines are load-bearing or test-anchored,
-  accept the size and stop trimming; behavior-neutrality outranks hitting the number.
+- 2026-07-11 (#55, PR #67) — A behavior-neutral skill slim landed all five files modestly over the
+  spec's line-count targets, and review confirmed the residual was load-bearing/test-anchored content,
+  not un-cut prose — the spec's size estimates were simply optimistic. Apply: on a behavior-neutral
+  slim, the size target is a direction, not a gate — once review shows the remaining lines are
+  load-bearing, accept the size and stop trimming; behavior-neutrality outranks hitting the number.
 
 - 2026-07-10/11 (#52 PR #61; #54 PR #66 — merged, one pattern) — A goal-scoped rewrite only examines
   the dimensions in its goal set; anything OUTSIDE it passes unaudited even when every claim it makes
@@ -121,12 +138,19 @@
   merge/build gate, never only the tests the spec enumerated — the sentinel list is a floor, and an
   out-of-goal regression is exactly what the tests outside it exist to catch.
 
-- 2026-07-11 (#58, PR #65) — A `gh api graphql` jq path read one level too shallow
-  (`.data.pN.mergedAt` vs `.data.pN.pullRequest.mergedAt`); the bug was masked because the test
-  mock returned a *flattened* JSON shape `gh` never actually emits, so the test passed against a
-  fiction. Apply: a tool-output mock must mirror the real tool's exact response shape (nesting and
-  all) — a mock shaped to match the code under test rather than the real tool validates nothing and
-  hides production parse bugs.
+- 2026-07-11/13 (#58 PR #65; #69 PR #77 — merged, one mock-fidelity family) — Twice a mock shaped to
+  the CODE PATH rather than to the real tool made a suite pass against a fiction. (a) A `gh api
+  graphql` jq path read one level too shallow (`.data.pN.mergedAt` vs
+  `.data.pN.pullRequest.mergedAt`); the bug hid because the mock returned a *flattened* JSON shape
+  `gh` never emits. (b) Worse, every full-pass `docket-status` fixture pointed `SCRIPTS_DIR` at a mock
+  dir containing no `render-board.sh` at all — and because the new digest call is **best-effort**, the
+  missing tool degraded silently on every full-pass test. The change's two headline claims (the
+  backlog pass is *ungated*; `main()` *always* closes with `pass ok`) therefore had ZERO real
+  coverage: deleting the full-path `pass ok`, or re-gating the pass, both left the suite green. Apply:
+  a tool-output mock must mirror the real tool's exact response shape, nesting and all — and when the
+  code under test has a best-effort/degrade branch, a mock that OMITS the tool silently routes every
+  test through that branch, so at least one fixture must carry the REAL tool (and its `lib/`) or the
+  happy path is untested while the suite reads green. Same root as the coverage family below.
 
 - 2026-07-10/11 (#51 PR #60; #57 PR #63 — merged, re-hit class) — An awk/sed **range** edit
   (`/start/,/end/`) over a marker-bounded "do-not-hand-edit" managed block is a data-loss hazard
@@ -184,13 +208,12 @@
   explicit opt-in signal (a dedicated config key), never on the mere presence of the config file — and
   add a regression test asserting the minimal adopter generates zero files and keeps `--check` a no-op.
 
-- 2026-07-08 (#46, PR #56) — Two latent bugs rode in from the plan's own awk and surfaced only at
-  task review, not at planning: `ind()` used `[^ ]` (a literal-space class) so a **tab-indented**
-  config layer was silently dropped — fixed to `[^[:space:]]` (both awk copies) with a tab-indented
-  regression test; and `printf … | section_body` SIGPIPE'd because the consumer `exit`s early
-  (the pipefail rule below), guarded with `|| true`. Apply: when a plan hands you awk/shell it
-  authored, treat whitespace character classes and any producer piped into an early-exiting consumer
-  as suspect — test tab-indented input, and guard pipes whose reader may stop reading before EOF.
+- 2026-07-08 (#46, PR #56) — A latent bug rode in from the plan's own awk and surfaced only at task
+  review, not at planning: `ind()` used `[^ ]` (a literal-space class), so a **tab-indented** config
+  layer was silently dropped — fixed to `[^[:space:]]` in both awk copies, with a tab-indented
+  regression test. (Its sibling bug, a `printf … | section_body` SIGPIPE, is folded into the pipefail
+  entry below.) Apply: when a plan hands you awk/shell it authored, treat whitespace character
+  classes as suspect and test tab-indented input.
 
 - 2026-07-08 (#47, PR #55) — A docs change whose whole job was to document an *existing* behavior
   (how `effort: auto` affects a generated agent) nearly documented the wrong thing: the neighboring
@@ -223,8 +246,8 @@
   version, and recognize when a same-file change that merged *after* you diverged **supersedes** your
   edit (drop yours) rather than treating it as a conflict to win.
 
-- 2026-06-17/21 · 2026-07-13 (#15 PR #32; #21 PR #34; #36 PR #47; #37 PR #48; #65 PR #74 — merged,
-  one anchoring family) —
+- 2026-06-17/21 · 2026-07-13 (#15 PR #32; #21 PR #34; #36 PR #47; #37 PR #48; #65 PR #74; #69 PR #77
+  — merged, one anchoring family) —
   Four ways a doc sentinel passed while guarding nothing. (a) **Broad keyword OR-set:** an ordering
   assert grepping `run the suite|validate|local` latched onto an unintended EARLIER line. (b)
   **Double-guarded:** one grep satisfied by two independent clauses (a YAML config comment AND a
@@ -232,7 +255,11 @@
   test still "proved" it non-vacuous. #65 then shipped two MORE double-guarded sentinels, and in both
   the implementer's own mutation test had already gone green-on-mutation — its report rationalized
   that away as benign; the reviewer caught them by re-deriving the substring's occurrence count by
-  hand. (c) **False-RED:** a `! grep "must-not-say-X"` fired on X in a
+  hand. #69 shipped two more still (`grep -qF "digest"` satisfied 3× over, `"board off"` 4×): the
+  reviewer rewrote the skill's Final summary to literally say *"read from `BOARD.md`"* — the exact
+  posture that change abolishes — and the assert stayed green. The fix each time is the same one this
+  family already prescribes: re-anchor to the unique phrase the clause owns and confirm `grep -c` == 1.
+  (c) **False-RED:** a `! grep "must-not-say-X"` fired on X in a
   legitimately *contrastive* clause, which a blunt absence-grep can't tell from the forbidden
   *adopted* posture. (d) **False-GREEN:** a `grep -q "literal"` stayed green when a prose strip
   **relocated** the must-preserve substring into an unrelated bullet, producing a false sentence.
@@ -331,11 +358,13 @@
   producing change's `adrs:` so terminal-publish re-copies it on merge — never a standalone
   push that races the cross-referenced ADR's own publish.
 
-- 2026-06-16 (#11 PR #11; #16 PR #30 — merged near-duplicates) — A test piped a live-producing
-  script straight into `grep -q`; grep exits on first match, the still-writing producer takes
-  SIGPIPE, and `pipefail` turned that 141 into an intermittent failure — and review later found the
-  same shape with `head`. Apply: never `producer | early-exiting-consumer` (`grep -q`, `head`,
-  `head -n1`) under `set -o pipefail` — capture into a variable first, then grep/`head <<<"$var"`.
+- 2026-06-16 / 2026-07-08 (#11 PR #11; #16 PR #30; #46 PR #56 — merged, one pipefail family) — A test
+  piped a live-producing script straight into `grep -q`; grep exits on first match, the still-writing
+  producer takes SIGPIPE, and `pipefail` turned that 141 into an intermittent failure — review later
+  found the same shape with `head`, and #46 hit it again in production code (`printf … | section_body`,
+  whose consumer `exit`s early; guarded with `|| true`). Apply: never `producer |
+  early-exiting-consumer` (`grep -q`, `head`, `head -n1`, or any reader that may stop before EOF)
+  under `set -o pipefail` — capture into a variable first, then grep/`head <<<"$var"`.
 
 - 2026-06-16 (#11, PR #11) — Two idempotency bugs in one derived-surface mirror. It keyed idempotency
   on a persisted change-file field but did no git writes itself, so a bare run (outside the
