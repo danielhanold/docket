@@ -28,6 +28,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0023](0023-configurable-sdd-build-model.md) — Configurable SDD build models — a `build:` surface of per-role direct model IDs (Accepted) ← change #44 · relates to ADR-0015, ADR-0016, ADR-0018
 - [ADR-0024](0024-claude-context-fork-skill-dispatch.md) — Claude Code uses `context: fork` frontmatter as its inline-skill dispatch mechanism; fork only human-non-interactive skills (Accepted) ← change #61 · relates to ADR-0008, ADR-0017
 - [ADR-0025](0025-docket-worktrees-disable-git-hooks.md) — docket bookkeeping commits skip shared git hooks via worktree-scoped core.hooksPath (Accepted) ← change #63 · relates to ADR-0001
+- [ADR-0026](0026-fork-dispatch-opacity-two-invocation-paths.md) — Accept fork-dispatch opacity; document two invocation paths; add no tooling (Accepted) ← change #65 · relates to ADR-0008, ADR-0017, ADR-0020, ADR-0024
 
 ## Superseded / Reversed
 
