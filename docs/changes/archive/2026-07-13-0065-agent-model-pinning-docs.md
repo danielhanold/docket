@@ -27,8 +27,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-12-agent-model-pinning-docs-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-12-agent-model-pinning-docs-design.md) |
-| Plan | [2026-07-12-agent-model-pinning-docs.md](https://github.com/danielhanold/docket/blob/feat/agent-model-pinning-docs/docs/superpowers/plans/2026-07-12-agent-model-pinning-docs.md) |
-| Results | [2026-07-12-agent-model-pinning-docs-results.md](https://github.com/danielhanold/docket/blob/feat/agent-model-pinning-docs/docs/results/2026-07-12-agent-model-pinning-docs-results.md) |
+| Plan | [2026-07-12-agent-model-pinning-docs.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-12-agent-model-pinning-docs.md) |
+| Results | [2026-07-12-agent-model-pinning-docs-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-12-agent-model-pinning-docs-results.md) |
 | PR | [#74](https://github.com/danielhanold/docket/pull/74) |
 | ADRs | [ADR-0024](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0024-claude-context-fork-skill-dispatch.md), [ADR-0026](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0026-fork-dispatch-opacity-two-invocation-paths.md) |
 <!-- docket:artifacts:end -->
