@@ -2,7 +2,7 @@
 id: 64
 slug: optional-terminal-publish
 title: Optional terminal-publish — per-repo opt-out to keep metadata on docket
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-12
 updated: 2026-07-13
@@ -11,11 +11,11 @@ related: [2, 26, 40]
 adrs: [12, 19, 27]
 spec: docs/superpowers/specs/2026-07-12-optional-terminal-publish-design.md
 plan: docs/superpowers/plans/2026-07-12-optional-terminal-publish.md
-results:
+results: docs/results/2026-07-13-optional-terminal-publish-results.md
 trivial: false
 auto_groomable:
 branch: feat/optional-terminal-publish
-pr:
+pr: https://github.com/danielhanold/docket/pull/75
 blocked_by:
 reconciled: true
 ---
@@ -27,6 +27,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-12-optional-terminal-publish-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-12-optional-terminal-publish-design.md) |
 | Plan | [2026-07-12-optional-terminal-publish.md](https://github.com/danielhanold/docket/blob/feat/optional-terminal-publish/docs/superpowers/plans/2026-07-12-optional-terminal-publish.md) |
+| Results | [2026-07-13-optional-terminal-publish-results.md](https://github.com/danielhanold/docket/blob/feat/optional-terminal-publish/docs/results/2026-07-13-optional-terminal-publish-results.md) |
+| PR | [#75](https://github.com/danielhanold/docket/pull/75) |
 | ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0019](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0019-global-config-fence-classification.md), [ADR-0027](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0027-terminal-publish-repo-scoped-script-gated.md) |
 <!-- docket:artifacts:end -->
 
