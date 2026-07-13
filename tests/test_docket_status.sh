@@ -1265,4 +1265,46 @@ assert "failing digest still emits 'board off'" 'grep -qxF "board off" "$tmp/deg
 assert "failing digest still closes with 'pass ok'" 'grep -qxF "pass ok" "$tmp/degrade-out.txt"'
 assert "failing digest logs a diagnostic to stderr" '[ -s "$tmp/degrade-err.txt" ]'
 
+# --- change 0069: prose is board-neutral and tells the agent a thin report is success ---
+SKILL_MD="$REPO/skills/docket-status/SKILL.md"
+AGENT_MD="$REPO/agents/docket-status.md"
+STATUS_CONTRACT="$REPO/scripts/docket-status.md"
+BOARD_CONTRACT="$REPO/scripts/render-board.md"
+
+# The SKILL description and the wrapper description/body are what docket-implement-next's Step-0
+# dispatch prompt paraphrases — a board promise there reaches the subagent verbatim. They must not
+# promise a board the repo may have disabled. (Scoped to the frontmatter description LINE and the
+# wrapper body: the SKILL's own reference section may still discuss BOARD.md legitimately.)
+skill_desc="$(grep -m1 '^description:' "$SKILL_MD")"
+agent_desc="$(grep -m1 '^description:' "$AGENT_MD")"
+agent_body="$(sed -n '/^---$/,/^---$/!p' "$AGENT_MD")"
+assert "SKILL description does not promise BOARD.md" '! printf "%s" "$skill_desc" | grep -qF "BOARD.md"'
+assert "agent wrapper description does not promise BOARD.md" '! printf "%s" "$agent_desc" | grep -qF "BOARD.md"'
+assert "agent wrapper body does not promise to refresh the board" \
+  '! printf "%s" "$agent_body" | grep -qiF "refresh the board"'
+
+# The thin-report rule and the never-probe prohibition — the two clauses that actually stop the
+# hunt. Anchored on the unique phrase each owns.
+assert "SKILL states a thin report is the success case" \
+  'grep -qiF "a thin report is the success case" "$SKILL_MD"'
+assert "SKILL prohibits probing BOARD.md" \
+  'grep -qiF "never probe" "$SKILL_MD"'
+assert "SKILL names the board-off report line" 'grep -qF "board off" "$SKILL_MD"'
+assert "SKILL summarizes from the digest, not the board file" 'grep -qiF "digest" "$SKILL_MD"'
+
+# The orchestrator contract documents every new line shape.
+assert "status contract documents board off"  'grep -qF "board off" "$STATUS_CONTRACT"'
+assert "status contract documents pass ok"    'grep -qF "pass ok" "$STATUS_CONTRACT"'
+assert "status contract documents the backlog rollup line" \
+  'grep -qF "backlog <status> <count>" "$STATUS_CONTRACT"'
+assert "status contract documents the change digest line" \
+  'grep -qF "change <id> <status> <readiness> <slug>" "$STATUS_CONTRACT"'
+assert "status contract states the backlog pass is ungated" \
+  'grep -qiF "ungated" "$STATUS_CONTRACT"'
+
+# The renderer contract documents the new flag.
+assert "render-board contract documents --format" 'grep -qF -- "--format" "$BOARD_CONTRACT"'
+assert "render-board contract documents the digest projection" \
+  'grep -qF "digest" "$BOARD_CONTRACT"'
+
 exit $fail
