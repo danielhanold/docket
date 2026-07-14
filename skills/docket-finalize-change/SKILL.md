@@ -52,7 +52,7 @@ The per-change steps below run for each selected change; step 5 (Board) runs onc
 
 4. **Clean up** — invoke `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh cleanup-feature-branch --slug <slug>`; trust the exit code.
 
-5. **Board** — invoke `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh board-refresh --changes-dir .docket/<changes_dir> --surfaces "$BOARD_SURFACES"`, then stage and commit + push `BOARD.md` on `metadata_branch` as a separate commit from the archive commits above — **only if BOARD.md changed** (`git status --porcelain -- <changes_dir>/BOARD.md` is non-empty; inline disabled or an unchanged board leaves nothing staged, a genuine no-op). The board is the live planning view and **is never** published to the integration branch.
+5. **Board** — invoke `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh docket-status --board-only` — the single Board-pass entry point; it renders, commits, and pushes `BOARD.md` itself on `metadata_branch`, a separate commit from the archive commits above, only if the board actually changed. **Must-land:** key on the stdout report line, not the exit code — re-invoke until it reports `board inline changed pushed`, `board inline clean`, or `board off`; on `board inline changed push-failed`, re-run `docket.sh preflight` and invoke it again. The board is the live planning view and is **never** published to the integration branch.
 
 6. **Sync the integration checkout (best-effort)** — once at the end of the run: `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh sync-integration-branch --integration-branch <integration_branch>`. FF-only, guarded, never aborts or alters the close-out; every skip is a normal exit 0.
 
