@@ -28,14 +28,34 @@ assert "new-change proposed-kill refreshes board (must-land Board pass)" \
 assert "terminal-publish keeps the 'BOARD.md is never published' guarantee" \
   'grep -qF "is **never** published" skills/docket-finalize-change/SKILL.md'
 
-# --- change 0059 Task 3: every Board-pass caller must be explicit + gated, not a bare delegation ---
-# The consistent, grep-able diff-only phrase every rewired site uses (see task-3 brief).
-DIFF_ONLY_PHRASE="only if BOARD.md changed"
-PORCELAIN_MENTION="git status --porcelain"
+# --- change 0059 Task 3, NARROWED by change 0071 -----------------------------------------------
+# 0059 asserted that every Board-pass caller named `board-refresh.sh` and hand-stated the
+# diff-only commit rule. 0071 collapses all 8 call sites into ONE facade call
+# (`docket.sh docket-status --board-only`): the orchestrator now owns the render, the diff-only
+# decision, the commit, and the push, and NO surfaces value crosses the skill/script boundary.
+# The prose clauses 0059 anchored on are therefore gone BY DESIGN.
+#
+# This guard is NARROWED, never deleted (ADR-0031: deleting a sentinel is how the guarded hole
+# reopens). The property that is still load-bearing: every status-writing skill routes its board
+# write through the deterministic gated pipeline at its Board site — never a hand-render, never a
+# raw redirect, never a bare "docket-status will get to it eventually" delegation.
+#
+# The diff-only rule 0059 asserted in PROSE is now asserted where it actually executes:
+# tests/test_docket_status.sh ("board_pass second (clean) run reports clean") proves the
+# orchestrator does not commit an unchanged board.
+BOARD_PASS_CALL="docket.sh docket-status --board-only"
 
-# E. The convention names board-refresh.sh as the gated inline entry point.
-assert "convention names board-refresh.sh (inline entry point)" \
+# E. The convention still names board-refresh.sh as the gated inline writer (a NOUN mention —
+# permitted by ADR-0030, and load-bearing: it is what documents the single write choke point).
+assert "convention names board-refresh.sh (the gated inline writer)" \
   'grep -q "board-refresh.sh" skills/docket-convention/SKILL.md'
+
+# E2. The convention defines the ONE Board-pass call, and states the report-line contract that
+# replaced the hand-rolled diff check.
+assert "convention defines the single Board-pass facade call" \
+  "grep -qF \"$BOARD_PASS_CALL\" skills/docket-convention/SKILL.md"
+assert "convention states the stdout report-line contract (not an exit code)" \
+  'grep -qF "never on the exit code" skills/docket-convention/SKILL.md'
 
 CALLERS=(
   skills/docket-new-change/SKILL.md
@@ -47,12 +67,12 @@ CALLERS=(
 
 for f in "${CALLERS[@]}"; do
   name="$(basename "$(dirname "$f")")"
-  assert "$name names the board-refresh op (via the docket.sh facade) at a Board site" \
-    "grep -q \"docket.sh board-refresh\" \"$f\""
-  assert "$name states the diff-only commit rule ($DIFF_ONLY_PHRASE)" \
-    "grep -qF \"$DIFF_ONLY_PHRASE\" \"$f\""
-  assert "$name mentions the git status --porcelain diff check" \
-    "grep -qF \"$PORCELAIN_MENTION\" \"$f\""
+  assert "$name routes its Board site through the single facade call" \
+    "grep -qF \"$BOARD_PASS_CALL\" \"$f\""
+  # The retired shapes must be GONE: a skill that still spells a surfaces value is a skill that
+  # can still send an unresolved one.
+  assert "$name no longer spells a surfaces value at its Board site" \
+    "! grep -qE '\-\-surfaces|BOARD_SURFACES' \"$f\""
 done
 
 exit $fail
