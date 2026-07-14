@@ -1,0 +1,8 @@
+{
+  "terminalAllowlist": [
+    "\"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}\"/docket.sh",
+    "\"${DOCKET_SCRIPTS_DIR:?}\"/docket.sh",
+    "\"${DOCKET_SCRIPTS_DIR:?}/docket.sh\"",
+    "/Users/$USER/dev/docket/scripts/docket.sh"
+  ]
+}
