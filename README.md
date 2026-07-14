@@ -465,6 +465,12 @@ If the consultant can't be dispatched on this machine (agents not synced, harnes
 
 Note: `docket-brainstorm` is its own opt-in **role** skill (bound via the `brainstorm` key), not one of the operating-loop stages in [The eight skills](#the-eight-skills) above — it's why you'll find nine directories under `skills/` even though that table lists eight.
 
+### Running under Cursor Auto-run
+
+Cursor users running the skills under Auto-run in Sandbox: see
+[docs/cursor/permissions.md](docs/cursor/permissions.md) for the copyable `permissions.json` and
+`sandbox.json` fragments, the trust tiers, what one allowlist entry authorizes, and troubleshooting.
+
 ---
 
 ## Status

@@ -76,4 +76,7 @@ while IFS= read -r s; do
 done <<<"$NOTEXP"
 if [ -z "$missing" ]; then ok "guide names every not-exposed script"; else no "guide missing not-exposed scripts:$missing"; fi
 
+# --- Assertion 6: README links the guide -----------------------------------------------------
+if grep -qF -- '](docs/cursor/permissions.md)' "$README"; then ok "README links the guide"; else no "README links the guide"; fi
+
 exit $fail
