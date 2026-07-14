@@ -17,7 +17,7 @@ auto_groomable: false
 branch: feat/cwd-independent-repo-root-anchor
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -90,14 +90,32 @@ fail-closed rather than half-destructive:
 
 ## Open questions
 
-- Should a script invoked from a non-primary worktree silently retarget the primary root, or warn?
-  Silent retargeting is friendlier but hides genuine caller bugs like the one that produced D2.
-  (Cleanup is settled either way: it *refuses*, per the spec.)
+- ~~Should a script invoked from a non-primary worktree silently retarget the primary root, or warn?~~
+  **Resolved at reconcile (2026-07-14): silently retarget.** Every caller already intends the primary
+  root, a warning would fire on docket's own hot path (skills routinely invoke from `.docket/`), and
+  the destructive path is guarded separately — cleanup *refuses*, which is where a genuine caller bug
+  surfaces. See the reconcile log.
 
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
 
+- 2026-07-14 (implement reconcile) — Re-verified the spec against the code at `origin/main` a6b4518
+  (0076 published as killed; 0073/0074 merged since the design). **No scope drift: every premise still
+  holds.** Confirmed live, line by line: `docket-config.sh` still defaults `REPO_DIR="."` and
+  absolutizes with `cd "$REPO_DIR" && pwd -P` (plain format only); `docket-preflight.sh:31-35` still
+  tests a relative `.docket` against CWD and calls `git worktree add` with no `-C` (D2);
+  `cleanup-feature-branch.sh:30,33` still takes `--show-toplevel` and a CWD-relative `target`, with
+  `git push --delete` reachable after the skipped removal (D1); and the `docket-status.sh` artifacts
+  block is confirmed **dead today** — `git -C "$mw" status --porcelain -- "$archived"` with both
+  prefixed by the same relative `$mw` matches nothing, so anchoring is what brings its `push-failed`
+  early-`return` alive (§5). `ensure-claude-settings.sh:24` does set its own `REPO_ROOT` and `eval`s
+  the shell export, so the plain-only emission of `REPO_ROOT` stays load-bearing.
+- 2026-07-14 (implement reconcile) — **Open question resolved** (it blocked nothing else): a script
+  invoked from a non-primary worktree **silently retargets** the primary root; it does not warn. Every
+  caller already intends the primary root (the two scripts that pre-solved this retarget silently), a
+  warning on every `.docket/`-CWD invocation would fire on docket's own hot path, and the destructive
+  path is covered by cleanup's explicit refusal — which is where a caller bug becomes visible.
 - 2026-07-14 (scope merge) — Change **0076** (`cwd-independent-repo-root-resolution`) was minted
   concurrently with this stub's auto-groom and claimed the script-level resolver fix, which made the
   boundary between the two a live human decision; `docket-auto-groom` therefore abstained at
