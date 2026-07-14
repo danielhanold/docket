@@ -16,7 +16,7 @@
 | [0062](active/0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | `low` | needs-brainstorm |
 | [0067](active/0067-learnings-promotion-destination.md) | Give the learnings ledger a promotion destination — it has no way to shrink | `medium` | needs-brainstorm |
 | [0073](active/0073-cursor-sandbox-permissions-guide.md) | Cursor sandbox & permissions guide — copyable config, trust tiers, troubleshooting | `medium` | needs-brainstorm |
-| [0074](active/0074-bootstrap-facade-verb.md) | A `bootstrap` facade verb — retire the last direct-helper carve-out in Step-0 | `medium` | needs-brainstorm |
+| [0074](active/0074-bootstrap-facade-verb.md) | A `bootstrap` facade verb — retire the last direct-helper carve-out in Step-0 | `medium` | build-ready |
 
 ## 🔵 Implemented — awaiting merge (2)
 
