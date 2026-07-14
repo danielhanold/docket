@@ -326,6 +326,34 @@ assert "board_pass none emits a positive 'board off' line" \
 assert "board_pass none emits no inline board line" \
   '! grep -q "board inline" "$tmp/board-run3n.txt"'
 
+# --- `none` is EXCLUSIVE: combined with any other surface it must fail LOUDLY (exit 2), never ---
+# silently pick a winner. The contradiction is a property of the token SET, not of order, so
+# cover both orderings. The space must be backslash-escaped (matching docket-config.sh's real
+# %q-quoted export, e.g. `inline\ none`) so it survives write_board_fixture's own eval intact as
+# ONE value — an unescaped space would eval as `BOARD_SURFACES=inline` env-prefixing a `none`
+# command, masking the guard under test with the (already-covered) empty-surfaces guard instead.
+write_board_fixture "inline\ none"
+(cd "$tmp/board-case/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" "$SCRIPT" --board-only >"$tmp/board-run3x.txt" 2>"$tmp/board-run3x-err.txt")
+rc=$?
+assert "board_pass 'inline none' exits 2 (none is exclusive)" '[ $rc -eq 2 ]'
+assert "board_pass 'inline none' names the exclusivity conflict on stderr" \
+  'grep -qF "exclusive" "$tmp/board-run3x-err.txt"'
+assert "board_pass 'inline none' NEVER reports 'board off'" \
+  '! grep -qxF "board off" "$tmp/board-run3x.txt"'
+assert "board_pass 'inline none' emits no inline board line" \
+  '! grep -q "board inline" "$tmp/board-run3x.txt"'
+
+write_board_fixture "none\ inline"
+(cd "$tmp/board-case/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" "$SCRIPT" --board-only >"$tmp/board-run3y.txt" 2>"$tmp/board-run3y-err.txt")
+rc=$?
+assert "board_pass 'none inline' exits 2 (none is exclusive)" '[ $rc -eq 2 ]'
+assert "board_pass 'none inline' names the exclusivity conflict on stderr" \
+  'grep -qF "exclusive" "$tmp/board-run3y-err.txt"'
+assert "board_pass 'none inline' NEVER reports 'board off'" \
+  '! grep -qxF "board off" "$tmp/board-run3y.txt"'
+assert "board_pass 'none inline' emits no inline board line" \
+  '! grep -q "board inline" "$tmp/board-run3y.txt"'
+
 # board_pass rebase-conflict-regenerate branch: force a push rejection whose only conflicting
 # path is BOARD.md, so the orchestrator must pull --rebase, hit a BOARD.md-only conflict,
 # regenerate via render-board.sh, and continue — never leaving BOARD.md empty/truncated.
