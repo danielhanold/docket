@@ -1881,11 +1881,18 @@ gate_setup "$a5b"
 a5_seed_stale "$a5b"
 cat > "$a5b/origin.git/hooks/pre-receive" <<'EOF'
 #!/usr/bin/env bash
-while read -r _old new ref; do
+# Checks the whole PUSHED RANGE ($old..$new), not just the tip, so a fixture edit that
+# stacks another commit on top of "refresh artifacts links" can't silently slip it past this
+# hook (0075 review finding 3). Handles the all-zeros $old branch-creation case by treating the
+# range as every ancestor of $new.
+zero=0000000000000000000000000000000000000000
+while read -r old new ref; do
   case "$ref" in
     refs/heads/docket)
-      if [ "$new" != "0000000000000000000000000000000000000000" ] \
-         && git log -1 --format=%s "$new" | grep -q "refresh artifacts links"; then
+      [ "$new" = "$zero" ] && continue
+      range="$new"
+      [ "$old" != "$zero" ] && range="$old..$new"
+      if git log $range --format=%s | grep -q "refresh artifacts links"; then
         echo "pre-receive: rejecting the artifacts-refresh push (0075 §5 test fixture)" >&2
         exit 1
       fi ;;
