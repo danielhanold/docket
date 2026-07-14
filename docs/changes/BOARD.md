@@ -1,12 +1,6 @@
 # Backlog
 
-**74 changes** — 🟢 1 in progress · 🟡 11 proposed · 🔵 1 implemented · ✅ 59 done · 🗑️ 2 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0071](active/0071-board-surfaces-unset-vs-empty.md) | Encode the disabled board positively — an empty surfaces value is a wiring bug, not a configuration | `medium` | [spec](../superpowers/specs/2026-07-13-board-surfaces-unset-vs-empty-design.md) | `feat/board-surfaces-unset-vs-empty` |
+**74 changes** — 🟡 11 proposed · 🔵 2 implemented · ✅ 59 done · 🗑️ 2 killed
 
 ## 🟡 Proposed (11)
 
@@ -24,11 +18,12 @@
 | [0073](active/0073-cursor-sandbox-permissions-guide.md) | Cursor sandbox & permissions guide — copyable config, trust tiers, troubleshooting | `medium` | needs-brainstorm |
 | [0074](active/0074-bootstrap-facade-verb.md) | A `bootstrap` facade verb — retire the last direct-helper carve-out in Step-0 | `medium` | needs-brainstorm |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | [#69](https://github.com/danielhanold/docket/pull/69) |
+| [0071](active/0071-board-surfaces-unset-vs-empty.md) | Encode the disabled board positively — an empty surfaces value is a wiring bug, not a configuration | `medium` | [#81](https://github.com/danielhanold/docket/pull/81) |
 
 ```mermaid
 graph TD
