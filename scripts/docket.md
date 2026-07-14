@@ -78,7 +78,11 @@ nothing `docket.sh` emits is meant to be `eval`'d or sourced by the caller.
 verbatim (so `--repo-dir` stays usable in fixtures); it is pure routing, not a composite (it does
 not sync the worktree or re-run `preflight`). Outside the `CREATE_ORPHAN` cell it performs no
 write and exits with the resolver's own status (`env`-like), because failing closed on a
-non-`PROCEED` verdict is `preflight`'s job, not this verb's.
+non-`PROCEED` verdict is `preflight`'s job, not this verb's. Unlike `env`/`preflight`, this verb
+does **not** pass `--format`, so its stdout is the resolver's *default* `shell`-format output
+(`%q`-quoted, eval-able) — not the raw, plain, model-facing `KEY=value` block described below. A
+caller that needs that model-facing block re-runs `preflight` afterward — exactly the Step-0
+`CREATE_ORPHAN` flow: `bootstrap` (create the orphan) then `preflight` (sync + print the block).
 
 ## `env` output
 

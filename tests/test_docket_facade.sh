@@ -79,15 +79,15 @@ git -C "$fwork" checkout --quiet -b main; : > "$fwork/README.md"
 git -C "$fwork" add README.md; git -C "$fwork" commit --quiet -m init; git -C "$fwork" push --quiet -u origin main
 boot_out="$(cd "$fwork" && XDG_CONFIG_HOME="$tmp/void" bash "$FACADE" bootstrap 2>/dev/null)"; boot_rc=$?
 assert "bootstrap exits zero in the CREATE_ORPHAN cell" '[ "$boot_rc" -eq 0 ]'
-assert "bootstrap emits BOOTSTRAP=PROCEED after the orphan create" 'printf "%s\n" "$boot_out" | grep -qxF "BOOTSTRAP=PROCEED"'
+assert "bootstrap emits BOOTSTRAP=PROCEED after the orphan create" 'printf "%s\n" "$boot_out" | grep -qxF -- "BOOTSTRAP=PROCEED"'
 assert "bootstrap created + pushed the orphan docket branch" \
   'git -C "$fbare" rev-parse --verify --quiet refs/heads/docket >/dev/null'
 assert "bootstrap seeded the managed .gitignore block" \
-  'grep -qF "# docket:start" "$fwork/.gitignore"'
+  'grep -qF -- "# docket:start" "$fwork/.gitignore"'
 # a subsequent preflight now verdicts PROCEED (the repo is migrated)
 pf_boot="$(cd "$fwork" && XDG_CONFIG_HOME="$tmp/void" bash "$FACADE" preflight 2>/dev/null)"; pf_boot_rc=$?
 assert "preflight after bootstrap exits zero" '[ "$pf_boot_rc" -eq 0 ]'
-assert "preflight after bootstrap verdicts PROCEED" 'printf "%s\n" "$pf_boot" | grep -qxF "BOOTSTRAP=PROCEED"'
+assert "preflight after bootstrap verdicts PROCEED" 'printf "%s\n" "$pf_boot" | grep -qxF -- "BOOTSTRAP=PROCEED"'
 
 # STOP_MIGRATE cell (live planning surface on main, no docket branch) → cell guard: NO write, exits 0.
 sbare="$tmp/s.git"; swork="$tmp/s"
@@ -102,7 +102,7 @@ smig_out="$(cd "$swork" && XDG_CONFIG_HOME="$tmp/void" bash "$FACADE" bootstrap 
 # fail-closed is preflight's job. The cell guard is about the WRITE, not the exit code.
 assert "bootstrap in STOP_MIGRATE cell exits zero (resolver reports the verdict)" '[ "$smig_rc" -eq 0 ]'
 assert "bootstrap in STOP_MIGRATE cell emits BOOTSTRAP=STOP_MIGRATE" \
-  'printf "%s\n" "$smig_out" | grep -qxF "BOOTSTRAP=STOP_MIGRATE"'
+  'printf "%s\n" "$smig_out" | grep -qxF -- "BOOTSTRAP=STOP_MIGRATE"'
 assert "bootstrap in STOP_MIGRATE cell writes NO docket branch" \
   '! git -C "$sbare" rev-parse --verify --quiet refs/heads/docket >/dev/null'
 assert "bootstrap in STOP_MIGRATE cell writes NO .gitignore" '[ ! -f "$swork/.gitignore" ]'
@@ -112,7 +112,7 @@ assert "bootstrap in STOP_MIGRATE cell writes NO .gitignore" '[ ! -f "$swork/.gi
 # ============================================================================
 FSH="$REPO/scripts/docket.sh"; FMD="$REPO/scripts/docket.md"
 
-# ops declared in docket.sh: the two verbs + the WRAPPED_OPS array value, tokenized.
+# ops declared in docket.sh: the three verbs + the WRAPPED_OPS array value, tokenized.
 sh_wrapped="$(sed -n 's/^WRAPPED_OPS="\(.*\)"/\1/p' "$FSH")"
 sh_ops="$(printf 'preflight\nenv\nbootstrap\n%s\n' "$sh_wrapped" | tr ' ' '\n' | sed '/^$/d' | sort -u)"
 
@@ -149,7 +149,7 @@ assert "docket.sh never calls the eval builtin" \
 # `WRAPPED_OPS` proves only "WRAPPED_OPS matches the doc", NOT "the dispatch matches the doc". A
 # `case` arm hand-added OUTSIDE the WRAPPED_OPS loop (e.g. `deploy-secret) exec ...`) would route a
 # name that is in neither `sh_ops` nor `md_ops`, so set-equality would still hold. Close that hole:
-# assert the `case "$op"` block contains ONLY the known dispatch arms (the two verbs + the three
+# assert the `case "$op"` block contains ONLY the known dispatch arms (the three verbs + the three
 # meta-arms). Any hand-added arm reddens this. Derived by grep from the actual case block.
 case_labels="$(sed -n '/^case "\$op" in/,/^esac/p' "$FSH" \
   | grep -oE '^  [^)]+\)' | sed -E 's/\)$//; s/^  //; s/[[:space:]]+$//' | sort -u)"
