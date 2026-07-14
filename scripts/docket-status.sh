@@ -50,6 +50,16 @@ board_pass(){
     echo "docket-status: BOARD_SURFACES is empty — config was never resolved (a wiring bug). The deliberate off-state is 'none'." >&2
     exit 2
   fi
+  # Change 0071 review, finding 6 — defence-in-depth: a whitespace-only value (e.g. " ") passes the
+  # `-z` check above but tokenizes to zero words below, the same "nobody resolved this" hole with a
+  # byte of padding. Not reachable from docket-config.sh today (its own `echo $bs` word-splitting
+  # already collapses whitespace to true-empty), but treat it identically on principle — the same
+  # failure shape finding 1 closes ("no line at all") must not have a second door.
+  set -- $surfaces
+  if [ $# -eq 0 ]; then
+    echo "docket-status: BOARD_SURFACES is empty — config was never resolved (a wiring bug). The deliberate off-state is 'none'." >&2
+    exit 2
+  fi
   # `none` is the reserved, EXCLUSIVE off-token: it disables every surface. Its report line is
   # byte-identical to the pre-0071 `board off` — a disabled repo's output must not change.
   local tok
@@ -70,7 +80,13 @@ board_pass(){
     case "$tok" in
       inline) board_pass_inline "$mw" "$cd_dir" ;;
       github) board_pass_github "$cd_dir" ;;
-      *) echo "docket-status: unknown board surface '$tok'" >&2 ;;
+      # Change 0071 review, finding 1 — a typo'd/unknown token used to warn on stderr only, which
+      # left the report-line channel with a silent exit-0 gap: a must-land caller keying on the
+      # stdout report line (never the exit code, per the convention) saw no line at all and had no
+      # way to distinguish "the board landed" from "this token was silently ignored". Emit a
+      # positive stdout line alongside the stderr warning so the channel stays total — closing the
+      # exact hole the report-line contract exists to prevent.
+      *) echo "docket-status: unknown board surface '$tok'" >&2; echo "board $tok unknown" ;;
     esac
   done
 }
@@ -86,6 +102,14 @@ board_pass_inline(){
   # token, so pass it verbatim; a render failure leaves the prior BOARD.md untouched.
   if ! "$SELF_DIR"/board-refresh.sh --changes-dir "$cd_dir" --surfaces inline ${REPO_FLAG:+--repo "$REPO_FLAG"} >&2 2>&2; then
     echo "docket-status: board render failed; keeping existing BOARD.md" >&2
+    # Change 0071 review, finding 1 — this used to `return 0` with nothing on stdout: exit 0, no
+    # `board …` line, no evidence at all. A must-land caller keying on the report line (never the
+    # exit code) would see silence and proceed as if the board had landed — exactly the
+    # silent-stale-board failure this whole change exists to kill, merely relocated here. The pass
+    # itself still isn't fatal (best-effort; `return 0` stands), but the LINE now carries the
+    # outcome so the report channel is never empty on this path. Terminal, not retryable — a
+    # render failure is not fixed by retrying.
+    echo "board inline failed"
     return 0
   fi
   # board-refresh.sh wrote BOARD.md in place; commit + push only if it actually changed.

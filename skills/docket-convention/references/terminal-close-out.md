@@ -85,9 +85,14 @@ before the first read; every commit pushes immediately.
    **separate commit** from the archive commits above, only if the board actually changed. Key on
    its stdout report line, never the exit code — the full report-line set is `board off`,
    `board inline clean`, `board inline changed pushed`, `board inline changed push-failed`,
-   `board github ok`, and `board github failed`; only `board inline changed push-failed` is ever
-   retryable, every other line is terminal — and follow the caller's own best-effort/must-land
-   posture (per the table below) on how to react to that line. `BOARD.md` is
+   `board github ok`, `board github failed`, `board inline failed`, and `board <token> unknown`;
+   only `board inline changed push-failed` is ever retryable, every other line is terminal. **A
+   missing `board …` line, or a non-zero exit from this call, is ALSO a failure** — never proceed
+   as if the board landed just because nothing complained. React per this sequence's two postures,
+   the same ones named in the table below for steps 1–3: **abort-and-report** callers
+   (`docket-finalize-change`; the two kill callers) stop and surface it exactly as they would a
+   failed step 1–3; **log-and-continue** callers (the `docket-status` merge sweep) log it and move
+   on to the next change, trusting the next sweep to self-heal. `BOARD.md` is
    the live planning view and is never published to the integration branch.
 
 ## main-mode degradation

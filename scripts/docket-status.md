@@ -60,7 +60,11 @@ emits an empty value and an unresolved config must never masquerade as a disable
 - **inline** — Renders and writes the board through `board-refresh.sh` (change 0059), which owns
   the surface gate and the atomic, truncation-safe replace of `BOARD.md`; this script never calls
   `render-board.sh` to produce the board. A failed render leaves the existing `BOARD.md`
-  untouched, logs to stderr, and is treated as success for sequencing purposes (best-effort). If
+  untouched, logs to stderr, and is treated as success for sequencing purposes (best-effort) — but
+  it emits the positive stdout line `board inline failed` (change 0071 review, finding 1), never
+  just the stderr diagnostic: the report-line channel must never go silent on a path that still
+  exits 0, or a must-land caller keying on the report line (never the exit code) would read the
+  silence as "the board landed". This line is terminal, not retryable. If
   `BOARD.md` is unchanged, `board inline clean` requires TWO things to hold, not just a clean
   working tree (change 0071 review, finding 3): the render produced no diff, **and** the local
   metadata branch carries no commit touching `BOARD.md` that is unpushed relative to its upstream
@@ -79,7 +83,10 @@ emits an empty value and an unresolved config must never masquerade as a disable
   `issue-minted <id> <n>` / `project-minted <id> <n>` are translated to `minted issue <id> <n>` /
   `minted project <id> <n>` on this script's stdout; the surface's own success/failure is
   reported as one final `board github ok|failed` line regardless of what was minted.
-- Any other token is an unrecognized-surface warning on stderr (non-fatal).
+- Any other token is an unrecognized-surface warning on stderr (non-fatal) — and, alongside it, a
+  positive `board <token> unknown` stdout line (change 0071 review, finding 1) so a typo can never
+  silently vanish from the report the way it used to when the warning lived on stderr alone. This
+  line is terminal, not retryable — a typo is a config problem, not a transient one.
 
 **4. Backlog pass — UNGATED, once per path.** Runs `render-board.sh --format digest` and passes
 its lines through (`backlog <status> <count>` rollups, then one `change <id> <status> <readiness>
@@ -152,9 +159,13 @@ backlog digest and emits nothing on stdout, so it does not affect the report's l
 
 ### Failure postures (summary)
 
-- **Board pass: best-effort.** A failed inline render or failed github mirror never aborts the
-  pass; it degrades to a diagnostic on stderr and (for inline) leaves the last-known-good
-  `BOARD.md` in place.
+- **Board pass: best-effort, but never silent.** A failed inline render or failed github mirror
+  never aborts the pass; it degrades to a diagnostic on stderr and (for inline) leaves the
+  last-known-good `BOARD.md` in place — but every path, including a failed render and an unknown
+  surface token, also emits a positive `board …` stdout line (`board inline failed`,
+  `board <token> unknown`), never just the stderr diagnostic (change 0071 review, finding 1). A
+  caller that sees the pass exit 0 with **no** `board …` line at all has found a bug in this
+  script, not evidence the board landed.
 - **Sweep: per-change log-and-continue.** A failed step for one change emits `sweep-failed` and
   abandons only the rest of *that* change's close-out (except cleanup failure, which still emits
   `swept`/`harvest`); the sweep loop proceeds to the next change regardless.
@@ -173,6 +184,8 @@ All report lines are stdout, one shape per line, diagnostics go to stderr:
 | `board github ok` | `github-mirror.sh` exited 0. |
 | `board github failed` | `github-mirror.sh` exited non-zero. |
 | `board off` | `BOARD_SURFACES` is the reserved token `none` — the board is deliberately disabled (`board_surfaces: []`); no surface was rendered and nothing was committed. Positive evidence of a deliberate skip, never silence. |
+| `board inline failed` | The `inline` render failed; the existing `BOARD.md` was left untouched (best-effort — the pass still continues to `pass ok`). Terminal, not retryable (change 0071 review, finding 1). |
+| `board <token> unknown` | `<token>` in `BOARD_SURFACES` matched neither `inline`, `github`, nor `none`; warned on stderr and ignored. Terminal, not retryable (change 0071 review, finding 1). |
 | `minted issue <id> <n>` | Passthrough of `github-mirror.sh`'s `issue-minted <id> <n>`. |
 | `minted project <id> <n>` | Passthrough of `github-mirror.sh`'s `project-minted <id> <n>`. |
 | `backlog <status> <count>` | One rollup per non-zero status across the active + archived change files (from the ungated backlog pass). On a full pass these are **post-sweep** counts: a change swept this pass is counted under `done`, not `implemented`. |
@@ -192,8 +205,9 @@ All report lines are stdout, one shape per line, diagnostics go to stderr:
   expected pass outcomes, not errors — **a thin report is the success case.**
 - non-zero — a hard error only: config export failure, an unrecognized `BOOTSTRAP` verdict,
   `STOP_MIGRATE`/`CREATE_ORPHAN` bootstrap gate (exit 1), an unusable metadata worktree (create or
-  sync failure, exit 1), an unknown CLI argument (exit 2), or `BOARD_SURFACES` was empty / `none`
-  was combined with another surface (a wiring bug — change 0071).
+  sync failure, exit 1), an unknown CLI argument (exit 2), or `BOARD_SURFACES` was empty (or
+  whitespace-only — defence-in-depth, change 0071 review finding 6) / `none` was combined with
+  another surface (a wiring bug — change 0071).
 
 ## Invariants
 

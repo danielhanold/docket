@@ -354,6 +354,79 @@ assert "board_pass 'none inline' NEVER reports 'board off'" \
 assert "board_pass 'none inline' emits no inline board line" \
   '! grep -q "board inline" "$tmp/board-run3y.txt"'
 
+# --- change 0071 review, finding 6 (defence-in-depth): a WHITESPACE-ONLY BOARD_SURFACES must be
+# treated identically to a truly-empty one — it passes the `-z` check but tokenizes to zero words.
+# The space must be backslash-escaped (matching docket-config.sh's real %q-quoted export) so it
+# survives write_board_fixture's own eval intact as ONE value, the same trick "inline\ none" above
+# uses — an unescaped space would eval as a bare `BOARD_SURFACES=` env-prefixing a no-op command.
+write_board_fixture "\ "
+(cd "$tmp/board-case/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" "$SCRIPT" --board-only >"$tmp/board-run3w.txt" 2>"$tmp/board-run3w-err.txt")
+rc=$?
+assert "board_pass whitespace-only surfaces exits 2 (treated identically to empty)" '[ $rc -eq 2 ]'
+assert "board_pass whitespace-only surfaces names the unresolved config on stderr" \
+  'grep -qF "BOARD_SURFACES" "$tmp/board-run3w-err.txt"'
+assert "board_pass whitespace-only surfaces NEVER reports 'board off'" \
+  '! grep -qxF "board off" "$tmp/board-run3w.txt"'
+assert "board_pass whitespace-only surfaces emits no inline board line" \
+  '! grep -q "board inline" "$tmp/board-run3w.txt"'
+
+# --- change 0071 review, finding 1: the report channel must be TOTAL, not just the success shapes.
+# Two exit-0 paths through board_pass used to emit NO `board …` line at all (stderr-only warnings):
+# an unrecognized surface token, and an inline render failure. Both now carry a positive stdout
+# line — the exact hole a must-land caller (keying on the report line, never the exit code) would
+# otherwise fall through silently.
+
+# 1a: a typo'd/unknown token ALONE — must still exit 0 (a typo never aborts a build) but the report
+# is no longer silent: a positive `board <tok> unknown` line carries the outcome on stdout.
+write_board_fixture "inlne"
+(cd "$tmp/board-case/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" "$SCRIPT" --board-only >"$tmp/board-unknown.txt" 2>"$tmp/board-unknown-err.txt")
+rc=$?
+assert "board_pass unknown-token-alone run exits zero (a typo never aborts)" '[ $rc -eq 0 ]'
+assert "board_pass unknown-token-alone emits a positive 'board inlne unknown' line" \
+  'grep -qxF "board inlne unknown" "$tmp/board-unknown.txt"'
+assert "board_pass unknown-token-alone still warns on stderr" \
+  'grep -qF "unknown board surface" "$tmp/board-unknown-err.txt"'
+assert "board_pass unknown-token-alone still closes with pass ok" \
+  'grep -qxF "pass ok" "$tmp/board-unknown.txt"'
+
+# 1b: an unknown token ALONGSIDE a working surface — the typo's line must not be swallowed by, nor
+# swallow, the working surface's own line. Both must reach the report. The space must be
+# backslash-escaped (matching docket-config.sh's real %q-quoted export, same as "inline\ none"
+# above) so it survives write_board_fixture's own eval intact as ONE value — an unescaped space
+# would eval as `BOARD_SURFACES=inline` env-prefixing an `inlne` command (which fails to execute,
+# never reaching the shell's variable table at all), silently testing nothing.
+write_board_fixture "inline\ inlne"
+(cd "$tmp/board-case/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" "$SCRIPT" --board-only >"$tmp/board-unknown2.txt" 2>"$tmp/board-unknown2-err.txt")
+rc=$?
+assert "board_pass unknown+inline run exits zero" '[ $rc -eq 0 ]'
+assert "board_pass unknown+inline still emits the inline surface's own line" \
+  'grep -q "board inline" "$tmp/board-unknown2.txt"'
+assert "board_pass unknown+inline ALSO emits the unknown-token line (neither swallows the other)" \
+  'grep -qxF "board inlne unknown" "$tmp/board-unknown2.txt"'
+
+# 1c: an inline RENDER FAILURE — best-effort (exit 0, prior BOARD.md kept), but the failure is now
+# positive evidence on stdout (`board inline failed`), not just a stderr diagnostic a caller keying
+# on the report line would never see. Force the failure via board-refresh.sh's own RENDER_BOARD
+# mock seam (env-inherited by the child process docket-status.sh execs).
+cat > "$tmp/failing-render-board.sh" <<'EOF'
+#!/usr/bin/env bash
+printf 'PARTIAL RENDER GARBAGE — must never reach BOARD.md\n'
+exit 7
+EOF
+chmod +x "$tmp/failing-render-board.sh"
+write_board_fixture inline
+(cd "$tmp/board-case/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" RENDER_BOARD="$tmp/failing-render-board.sh" "$SCRIPT" --board-only >"$tmp/board-renderfail.txt" 2>"$tmp/board-renderfail-err.txt")
+rc=$?
+assert "board_pass inline-render-failure run exits zero (best-effort)" '[ $rc -eq 0 ]'
+assert "board_pass inline-render-failure emits a positive 'board inline failed' line" \
+  'grep -qxF "board inline failed" "$tmp/board-renderfail.txt"'
+assert "board_pass inline-render-failure never reports a success shape instead" \
+  '! grep -Eq "board inline (clean|changed)" "$tmp/board-renderfail.txt"'
+assert "board_pass inline-render-failure still logs the stderr diagnostic" \
+  'grep -qF "board render failed" "$tmp/board-renderfail-err.txt"'
+assert "board_pass inline-render-failure still closes with pass ok" \
+  'grep -qxF "pass ok" "$tmp/board-renderfail.txt"'
+
 # board_pass rebase-conflict-regenerate branch: force a push rejection whose only conflicting
 # path is BOARD.md, so the orchestrator must pull --rebase, hit a BOARD.md-only conflict,
 # regenerate via render-board.sh, and continue — never leaving BOARD.md empty/truncated.
@@ -1663,6 +1736,11 @@ assert "status contract documents the change digest line" \
   'grep -qF "change <id> <status> <readiness> <slug>" "$STATUS_CONTRACT"'
 assert "status contract states the backlog pass is ungated" \
   'grep -qiF "ungated" "$STATUS_CONTRACT"'
+# Change 0071 review, finding 1: the two new report lines that close the "no line at all" hole.
+assert "status contract documents the inline-render-failure line" \
+  'grep -qF "board inline failed" "$STATUS_CONTRACT"'
+assert "status contract documents the unknown-surface-token line" \
+  'grep -qF "board <token> unknown" "$STATUS_CONTRACT"'
 
 # The renderer contract documents the new flag.
 assert "render-board contract documents --format" 'grep -qF -- "--format" "$BOARD_CONTRACT"'
