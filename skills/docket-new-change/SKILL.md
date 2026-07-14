@@ -44,7 +44,7 @@ The default path for any non-trivial new change. Five steps:
 
 ## Trivial path
 
-For a small mechanical change with no real design questions: skip the brainstorm, set `trivial: true`, write the change body directly — no spec, still build-ready. It still follows Brainstorm mode's steps 1 (Allocate), 3 (Scan related context), 4 (Draft — but omit `spec:`), and 5 (Board, commit & push) — only step 2 (Brainstorm) is skipped.
+For a small mechanical change with no real design questions: skip the brainstorm, set `trivial: true`, write the change body directly — no spec, still build-ready. It still follows Brainstorm mode's steps 1 (Allocate), 3 (Scan related context), 4 (Draft — but omit `spec:`), and 5 (Commit, push & Board pass) — only step 2 (Brainstorm) is skipped.
 
 ## Scan mode (opt-in)
 
