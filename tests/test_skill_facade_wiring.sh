@@ -19,8 +19,9 @@
 # (spec §Out-of-scope). Stripping the canonical `…/docket.sh` first is what makes the
 # `${DOCKET_SCRIPTS_DIR` assert sound (the canonical spelling contains install.sh in :?).
 #
-# This test is RED until Tasks 2-4 rewire the prose. That RED, per assert, is the
-# reverse-mutation proof that each guard bites the pre-rewiring prose.
+# This test was RED until change 0072's Tasks 2-4 rewired the prose — that per-assert RED was
+# the reverse-mutation proof that each guard bites pre-rewiring prose. Green since; change 0074
+# re-proved the flipped carve-out assert by mutation in both directions.
 #
 # HARNESS: this repo's test harness is self-contained (there is NO tests/lib/). The
 # boilerplate below mirrors tests/test_docket_facade.sh verbatim: `set -uo pipefail`,

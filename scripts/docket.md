@@ -70,8 +70,10 @@ env bootstrap <op>...` line on stderr.
 
 **No escape hatch.** The dispatch table has no `run`, `exec`, `shell`, or `eval` operation arm,
 and `docket.sh` never `eval`s `"$@"`, `"$*"`, or any positional/caller-supplied argument. The
-`env`/`preflight` verbs print raw `KEY=value` text on stdout for the model to read as literals —
-nothing `docket.sh` emits is meant to be `eval`'d or sourced by the caller.
+`env`/`preflight` verbs print raw `KEY=value` text on stdout for the model to read as literals.
+`bootstrap` is the one verb whose stdout is instead the resolver's `%q`-quoted `shell` format (a
+pure-routing artifact — see **`bootstrap`** below), but no caller is meant to `eval` or source
+that either: the Step-0 flow re-runs `preflight` for the model-facing block.
 
 **`bootstrap`.** `docket.sh bootstrap` execs `docket-config.sh --bootstrap "$@"` — the guarded
 `CREATE_ORPHAN` orphan-`docket` create (fresh repo, once, human-attended). Args are forwarded

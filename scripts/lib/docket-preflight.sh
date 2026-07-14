@@ -23,7 +23,7 @@ docket_preflight(){
   case "${BOOTSTRAP:-}" in
     PROCEED) : ;;
     STOP_MIGRATE)  echo "docket-preflight: repo not migrated — run migrate-to-docket.sh" >&2; return 1 ;;
-    CREATE_ORPHAN) echo "docket-preflight: fresh repo — bootstrap is opt-in; run docket-config.sh --bootstrap (or a docket skill) to create the docket branch" >&2; return 1 ;;
+    CREATE_ORPHAN) echo "docket-preflight: fresh repo — bootstrap is opt-in; run docket.sh bootstrap (or a docket skill) to create the docket branch" >&2; return 1 ;;
     *) echo "docket-preflight: unknown bootstrap verdict '${BOOTSTRAP:-}'" >&2; return 1 ;;
   esac
 

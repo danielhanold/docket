@@ -2,8 +2,9 @@
 # scripts/docket.sh — the one executable docket facade (change 0068). A finite table of named
 # operations; NO run/exec/shell/eval escape hatch; NEVER evaluates, sources, or executes
 # caller-supplied shell text. Config flows model-ward: `env`/`preflight` print raw KEY=value on
-# stdout for the model to read as literals — nothing here is meant to be eval'd or sourced by an
-# agent. The subcommand table below (and in scripts/docket.md) IS the permission inventory.
+# stdout for the model to read as literals; `bootstrap`'s stdout is the resolver's default %q
+# shell format, but no agent is meant to eval or source that either (re-run `preflight` for the
+# readable block). The subcommand table below (and in scripts/docket.md) IS the permission inventory.
 #
 # Usage: docket.sh <operation> [args...]
 #   preflight                 Step-0 side effects (sync the metadata worktree), then print env
