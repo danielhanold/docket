@@ -45,6 +45,22 @@ CONV="$REPO/skills/docket-convention/SKILL.md"
 # two convention reference docs. The two globs do not overlap.
 SCOPE=( "$REPO"/skills/*/SKILL.md "$REPO"/skills/docket-convention/references/*.md )
 
+# Layer 3's OWN corpus (change 0071 review, finding 2) — deliberately WIDER than SCOPE above, and
+# NEVER used to narrow, weaken, or replace Layer 1/2's SCOPE (ADR-0031: only narrow or add
+# alongside an existing guard, never widen/weaken/collapse it in place — so this is a SEPARATE
+# array, not an edit to SCOPE). SCOPE alone left a hole exactly where it matters: it never scanned
+# `skills/docket-convention/github-board-mirror.md` — a file the convention itself calls
+# "skill-reference", that `docket-status/SKILL.md` sends the agent to READ, and that already
+# describes the Board pass and `board_surfaces` — making it the single reference doc most likely
+# to acquire a 9th surfaces-spelling call site while this sentinel stayed green. It also missed the
+# `*-template.md` files (change-template.md, adr-template.md, results-template.md). `skills/*/*.md`
+# catches every markdown file one level under skills/ (every SKILL.md, both templates, and
+# github-board-mirror.md); `skills/*/references/*.md` adds the convention's reference docs
+# (terminal-close-out.md, agent-layer.md) that live one level deeper. Verified: no retired spelling
+# exists in this widened corpus today (green immediately), and it does not change
+# board_pass_files's count (none of the newly-added files carry the facade call).
+SCOPE3=( "$REPO"/skills/*/*.md "$REPO"/skills/*/references/*.md )
+
 # Op inventory: grep-derived from scripts/docket.md's Subcommand table (NEVER hand-listed;
 # same derivation the facade's own sentinel uses).
 INVENTORY="$(grep -oE '^\| `[a-z-]+` ' "$REPO/scripts/docket.md" | tr -d '|` ' | sort -u)"
@@ -118,5 +134,70 @@ assert "mid-run re-sync verb is defined once (unique anchor)" \
   '[ "$(grep -cF "push-retry CAS loops alike" "$CONV")" = "1" ]'
 assert "Step-0 instructs reading the printed block (unique anchor)" \
   '[ "$(grep -cF "read the printed \`KEY=value\` block" "$CONV")" = "1" ]'
+
+# ---- Layer 3: the board-surfaces sentinel (change 0071) ----------------------------------------
+# 0071 removed every surfaces value from skill prose: the Board pass is now the single facade call
+# `docket.sh docket-status --board-only`, and the orchestrator self-resolves its config. This
+# sentinel is what keeps it that way — the call-site list is grep-derived, so it can never
+# silently regrow (LEARNINGS: derive gated call-site lists by grep, never by hand; guard the
+# list's completeness with a sentinel, not with review attention).
+#
+# SCOPE DISCRIMINATION (ADR-0030), and why the three clauses differ:
+#   * `BOARD_SURFACES` and `--surfaces` are forbidden across the WHOLE file. Neither has any
+#     legitimate descriptive use in skill prose — the config KEY is the lowercase `board_surfaces`
+#     (a different string, deliberately untouched). Whole-file (not code-unit) scoping is the
+#     stronger guard here and costs nothing.
+#   * `docket.sh board-refresh` is forbidden as an INVOCATION, checked BOTH in code units and
+#     across the whole file (two independent asserts). The code-unit assert alone left a hole:
+#     a plain, un-backticked prose sentence naming the invocation slipped past it (caught in
+#     review). The whole-file assert closes that hole and costs nothing, because the phrase has
+#     zero legitimate use anywhere in skills/ — unlike the bare noun below. The bare noun
+#     `board-refresh.sh` is PERMITTED (the convention's "Derived-view script family" and
+#     docket-status's ownership prose both legitimately NAME it; test_board_refresh_on_transition.sh
+#     asserts the convention still does). Forbidding the noun would over-scope into prose whose job
+#     is to describe the mechanism — the exact rejected alternative in ADR-0030.
+#
+# PORTABILITY note: `--surfaces` begins with dashes, so a bare `grep -qF "$B_SURF_FLAG" "$f"` is
+# parsed by grep as an (unrecognized) OPTION, not a pattern — it errors (exit 2) regardless of the
+# file's content, and `! <that>` then reports a false "ok" on EVERY file (a silently vacuous
+# assert). Verified locally: `grep -qF "--surfaces" f` exits 2 unconditionally on both this repo's
+# shimmed grep and plain GNU grep; the `--` end-of-options marker is what makes the pattern reach
+# grep as literal text, so every grep call below carries it.
+B_SURF_VAR='BOARD_SURFACES'          # the shell variable, in any spelling ($X, "$X", ${X})
+B_SURF_FLAG='--surfaces'             # the retired flag
+B_REFRESH_CALL='docket.sh board-refresh'   # the retired direct invocation
+
+board_pass_files=0
+for f in "${SCOPE3[@]}"; do
+  rel="${f#$REPO/}"
+  units="$(extract_code_units "$f")"
+
+  assert "no BOARD_SURFACES variable survives anywhere in $rel" \
+    '! grep -qF -- "$B_SURF_VAR" "$f"'
+  assert "no --surfaces flag survives anywhere in $rel" \
+    '! grep -qF -- "$B_SURF_FLAG" "$f"'
+  assert "no direct board-refresh invocation in code units of $rel" \
+    '! printf "%s" "$units" | grep -qF -- "$B_REFRESH_CALL"'
+  assert "no direct board-refresh invocation survives anywhere in $rel" \
+    '! grep -qF -- "$B_REFRESH_CALL" "$f"'
+
+  grep -qF -- 'docket.sh docket-status --board-only' "$f" && board_pass_files=$((board_pass_files + 1))
+done
+
+# NON-VACUITY (LEARNINGS: a guard that parses nothing passes everything — assert the unit count the
+# extractor found, not just its verdict). The sweep above is only meaningful if the corpus is real
+# and the canonical Board-pass call is actually PRESENT where it belongs. Verified directly
+# (`grep -rlF 'docket.sh docket-status --board-only' skills/ | sort`) against 7 files: the 5
+# status-writing skills (docket-auto-groom, docket-finalize-change, docket-groom-next,
+# docket-implement-next, docket-new-change) + the convention SKILL.md + terminal-close-out.md;
+# docket-status/SKILL.md and docket-adr/SKILL.md have no Board site of their own. This is a
+# per-FILE count (grep -l), not a per-occurrence count — the facade string legitimately repeats
+# inside docket-new-change's SKILL.md. Widening the scan corpus to SCOPE3 (finding 2, above) adds
+# github-board-mirror.md and the three `*-template.md` files to the scan, but none of them carry
+# the facade call, so the count is unaffected.
+assert "the in-scope corpus is non-empty (the sentinel actually scanned files)" \
+  '[ "${#SCOPE3[@]}" -ge 8 ]'
+assert "the canonical Board-pass call is present in every rewired file (found $board_pass_files)" \
+  '[ "$board_pass_files" -eq 7 ]'
 
 exit $fail

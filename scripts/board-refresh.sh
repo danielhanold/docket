@@ -8,10 +8,12 @@
 #
 # Usage: board-refresh.sh --changes-dir DIR --surfaces "TOKENS" [--repo OWNER/REPO]
 #   --changes-dir DIR   required; the metadata working tree (active/, archive/, BOARD.md live here).
-#   --surfaces "TOKENS"  required AS A FLAG; its value may be the empty string. Space-separated
-#                        tokens (the caller's resolved $BOARD_SURFACES, verbatim). A missing flag
-#                        is a wiring bug (exit 2); an explicit empty value means "no surfaces"
-#                        (inline disabled, no-op exit 0) — the two are tracked separately.
+#   --surfaces "TOKENS"  required AS A FLAG, and its value must be NON-EMPTY (change 0071).
+#                        Space-separated tokens (the caller's resolved $BOARD_SURFACES, verbatim).
+#                        A missing flag is a wiring bug (exit 2). An EMPTY VALUE is also a wiring
+#                        bug (exit 2) — it means the caller never resolved its config. The
+#                        deliberate off-state is the reserved, exclusive token `none` (no-op,
+#                        exit 0, BOARD.md never created or truncated).
 #   --repo OWNER/REPO   optional; forwarded verbatim to render-board.sh.
 # Only the exact `inline` token enables a render+write. Unknown tokens (typos, `github`) warn to
 # stderr and are ignored — they never abort and never block `inline` from taking effect.
@@ -39,19 +41,48 @@ done
 [ -n "$CHANGES_DIR" ] || { printf 'board-refresh: missing --changes-dir\n' >&2; exit 2; }
 [ -d "$CHANGES_DIR" ] || { printf 'board-refresh: changes dir not found: %s\n' "$CHANGES_DIR" >&2; exit 2; }
 [ "$SURFACES_SET" -eq 1 ] || {
-  printf 'board-refresh: missing --surfaces (pass --surfaces "" for none)\n' >&2; exit 2;
+  printf 'board-refresh: missing --surfaces (pass --surfaces none to disable the board)\n' >&2; exit 2;
 }
+# Change 0071 — the positive sentinel. An empty VALUE is a wiring bug, not a configuration: it is
+# what an unresolved `$BOARD_SURFACES` degrades to, and treating it as "board disabled" is how a
+# stale board used to ship behind a success exit code. The deliberate off-state must SAY so.
+empty_surfaces_fatal() {
+  printf 'board-refresh: empty --surfaces value (unresolved config?); pass --surfaces none to disable the board\n' >&2
+  exit 2
+}
+[ -n "$SURFACES" ] || empty_surfaces_fatal
+# Change 0071 review, finding 6 — defence-in-depth: a whitespace-only value (e.g. " ") passes the
+# `-n` check above but tokenizes to zero words below, the same "nobody resolved this" hole with a
+# byte of padding. Not reachable from docket-config.sh today (its own `echo $bs` word-splitting
+# already collapses whitespace to true-empty), but treat it identically on principle.
+set -- $SURFACES
+[ $# -gt 0 ] || empty_surfaces_fatal
 
-# Tokenize --surfaces; only the exact `inline` token enables a render+write. Everything else
-# (including the empty string, and unrelated/unknown tokens) leaves inline_enabled at 0.
+# Tokenize --surfaces. `none` is the reserved, EXCLUSIVE off-token: it disables every surface and
+# may not be combined with any other token (a contradiction exits 2 rather than silently picking a
+# winner). Only the exact `inline` token enables a render+write; unknown tokens warn and are
+# ignored (a typo must never abort a build).
 inline_enabled=0
+none_seen=0
+other_seen=0
 for tok in $SURFACES; do
   case "$tok" in
-    inline) inline_enabled=1 ;;
-    github) : ;;
-    *) printf 'board-refresh: unknown surface token ignored: %s\n' "$tok" >&2 ;;
+    none)   none_seen=1 ;;
+    inline) inline_enabled=1; other_seen=1 ;;
+    github) other_seen=1 ;;
+    *) printf 'board-refresh: unknown surface token ignored: %s\n' "$tok" >&2; other_seen=1 ;;
   esac
 done
+
+if [ "$none_seen" -eq 1 ] && [ "$other_seen" -eq 1 ]; then
+  printf "board-refresh: 'none' is exclusive — it cannot be combined with other surfaces: %s\n" "$SURFACES" >&2
+  exit 2
+fi
+
+if [ "$none_seen" -eq 1 ]; then
+  printf 'board-refresh: board disabled (none) — no-op\n'
+  exit 0
+fi
 
 if [ "$inline_enabled" -eq 0 ]; then
   printf 'board-refresh: inline disabled — no-op\n'

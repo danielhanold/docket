@@ -300,17 +300,132 @@ assert "board_pass second run reports clean" 'grep -qw "clean" "$tmp/board-run2.
 assert "board_pass second run reports board line" 'grep -qw "board" "$tmp/board-run2.txt"'
 assert "board_pass second run reports inline surface" 'grep -qw "inline" "$tmp/board-run2.txt"'
 
+# Change 0071: an EMPTY BOARD_SURFACES is no longer "board off" — it is an unresolved-config
+# wiring bug, and the orchestrator that every skill's Board pass now routes through must fail
+# LOUDLY rather than silently skip the board. This is the reference implementation of the
+# polarity reversal: the guard that used to read "no surfaces => disabled" is now an assertion
+# that the resolver produced a value at all.
 write_board_fixture ""
 (cd "$tmp/board-case/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" "$SCRIPT" --board-only >"$tmp/board-run3.txt" 2>"$tmp/board-run3-err.txt")
 rc=$?
-assert "board_pass empty-surfaces run exits zero" '[ $rc -eq 0 ]'
-# Change 0069: silence is not evidence. A board-off pass must SAY the board is off — an empty
-# stdout is indistinguishable from "the script silently did nothing", which is the exact
-# confusion that made an agent hunt for a BOARD.md its config forbids.
-assert "board_pass empty-surfaces emits a positive 'board off' line" \
-  'grep -qxF "board off" "$tmp/board-run3.txt"'
+assert "board_pass empty-surfaces run exits 2 (fatal wiring bug)" '[ $rc -eq 2 ]'
+assert "board_pass empty-surfaces names the unresolved config on stderr" \
+  'grep -qF "BOARD_SURFACES" "$tmp/board-run3-err.txt"'
+assert "board_pass empty-surfaces NEVER reports 'board off'" \
+  '! grep -qxF "board off" "$tmp/board-run3.txt"'
 assert "board_pass empty-surfaces emits no inline board line" \
   '! grep -q "board inline" "$tmp/board-run3.txt"'
+
+# --- the deliberate off-state (`none`) keeps TODAY's byte-identical `board off` report ----------
+write_board_fixture none
+(cd "$tmp/board-case/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" "$SCRIPT" --board-only >"$tmp/board-run3n.txt" 2>"$tmp/board-run3n-err.txt")
+rc=$?
+assert "board_pass none run exits zero" '[ $rc -eq 0 ]'
+assert "board_pass none emits a positive 'board off' line" \
+  'grep -qxF "board off" "$tmp/board-run3n.txt"'
+assert "board_pass none emits no inline board line" \
+  '! grep -q "board inline" "$tmp/board-run3n.txt"'
+
+# --- `none` is EXCLUSIVE: combined with any other surface it must fail LOUDLY (exit 2), never ---
+# silently pick a winner. The contradiction is a property of the token SET, not of order, so
+# cover both orderings. The space must be backslash-escaped (matching docket-config.sh's real
+# %q-quoted export, e.g. `inline\ none`) so it survives write_board_fixture's own eval intact as
+# ONE value — an unescaped space would eval as `BOARD_SURFACES=inline` env-prefixing a `none`
+# command, masking the guard under test with the (already-covered) empty-surfaces guard instead.
+write_board_fixture "inline\ none"
+(cd "$tmp/board-case/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" "$SCRIPT" --board-only >"$tmp/board-run3x.txt" 2>"$tmp/board-run3x-err.txt")
+rc=$?
+assert "board_pass 'inline none' exits 2 (none is exclusive)" '[ $rc -eq 2 ]'
+assert "board_pass 'inline none' names the exclusivity conflict on stderr" \
+  'grep -qF "exclusive" "$tmp/board-run3x-err.txt"'
+assert "board_pass 'inline none' NEVER reports 'board off'" \
+  '! grep -qxF "board off" "$tmp/board-run3x.txt"'
+assert "board_pass 'inline none' emits no inline board line" \
+  '! grep -q "board inline" "$tmp/board-run3x.txt"'
+
+write_board_fixture "none\ inline"
+(cd "$tmp/board-case/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" "$SCRIPT" --board-only >"$tmp/board-run3y.txt" 2>"$tmp/board-run3y-err.txt")
+rc=$?
+assert "board_pass 'none inline' exits 2 (none is exclusive)" '[ $rc -eq 2 ]'
+assert "board_pass 'none inline' names the exclusivity conflict on stderr" \
+  'grep -qF "exclusive" "$tmp/board-run3y-err.txt"'
+assert "board_pass 'none inline' NEVER reports 'board off'" \
+  '! grep -qxF "board off" "$tmp/board-run3y.txt"'
+assert "board_pass 'none inline' emits no inline board line" \
+  '! grep -q "board inline" "$tmp/board-run3y.txt"'
+
+# --- change 0071 review, finding 6 (defence-in-depth): a WHITESPACE-ONLY BOARD_SURFACES must be
+# treated identically to a truly-empty one — it passes the `-z` check but tokenizes to zero words.
+# The space must be backslash-escaped (matching docket-config.sh's real %q-quoted export) so it
+# survives write_board_fixture's own eval intact as ONE value, the same trick "inline\ none" above
+# uses — an unescaped space would eval as a bare `BOARD_SURFACES=` env-prefixing a no-op command.
+write_board_fixture "\ "
+(cd "$tmp/board-case/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" "$SCRIPT" --board-only >"$tmp/board-run3w.txt" 2>"$tmp/board-run3w-err.txt")
+rc=$?
+assert "board_pass whitespace-only surfaces exits 2 (treated identically to empty)" '[ $rc -eq 2 ]'
+assert "board_pass whitespace-only surfaces names the unresolved config on stderr" \
+  'grep -qF "BOARD_SURFACES" "$tmp/board-run3w-err.txt"'
+assert "board_pass whitespace-only surfaces NEVER reports 'board off'" \
+  '! grep -qxF "board off" "$tmp/board-run3w.txt"'
+assert "board_pass whitespace-only surfaces emits no inline board line" \
+  '! grep -q "board inline" "$tmp/board-run3w.txt"'
+
+# --- change 0071 review, finding 1: the report channel must be TOTAL, not just the success shapes.
+# Two exit-0 paths through board_pass used to emit NO `board …` line at all (stderr-only warnings):
+# an unrecognized surface token, and an inline render failure. Both now carry a positive stdout
+# line — the exact hole a must-land caller (keying on the report line, never the exit code) would
+# otherwise fall through silently.
+
+# 1a: a typo'd/unknown token ALONE — must still exit 0 (a typo never aborts a build) but the report
+# is no longer silent: a positive `board <tok> unknown` line carries the outcome on stdout.
+write_board_fixture "inlne"
+(cd "$tmp/board-case/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" "$SCRIPT" --board-only >"$tmp/board-unknown.txt" 2>"$tmp/board-unknown-err.txt")
+rc=$?
+assert "board_pass unknown-token-alone run exits zero (a typo never aborts)" '[ $rc -eq 0 ]'
+assert "board_pass unknown-token-alone emits a positive 'board inlne unknown' line" \
+  'grep -qxF "board inlne unknown" "$tmp/board-unknown.txt"'
+assert "board_pass unknown-token-alone still warns on stderr" \
+  'grep -qF "unknown board surface" "$tmp/board-unknown-err.txt"'
+assert "board_pass unknown-token-alone still closes with pass ok" \
+  'grep -qxF "pass ok" "$tmp/board-unknown.txt"'
+
+# 1b: an unknown token ALONGSIDE a working surface — the typo's line must not be swallowed by, nor
+# swallow, the working surface's own line. Both must reach the report. The space must be
+# backslash-escaped (matching docket-config.sh's real %q-quoted export, same as "inline\ none"
+# above) so it survives write_board_fixture's own eval intact as ONE value — an unescaped space
+# would eval as `BOARD_SURFACES=inline` env-prefixing an `inlne` command (which fails to execute,
+# never reaching the shell's variable table at all), silently testing nothing.
+write_board_fixture "inline\ inlne"
+(cd "$tmp/board-case/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" "$SCRIPT" --board-only >"$tmp/board-unknown2.txt" 2>"$tmp/board-unknown2-err.txt")
+rc=$?
+assert "board_pass unknown+inline run exits zero" '[ $rc -eq 0 ]'
+assert "board_pass unknown+inline still emits the inline surface's own line" \
+  'grep -q "board inline" "$tmp/board-unknown2.txt"'
+assert "board_pass unknown+inline ALSO emits the unknown-token line (neither swallows the other)" \
+  'grep -qxF "board inlne unknown" "$tmp/board-unknown2.txt"'
+
+# 1c: an inline RENDER FAILURE — best-effort (exit 0, prior BOARD.md kept), but the failure is now
+# positive evidence on stdout (`board inline failed`), not just a stderr diagnostic a caller keying
+# on the report line would never see. Force the failure via board-refresh.sh's own RENDER_BOARD
+# mock seam (env-inherited by the child process docket-status.sh execs).
+cat > "$tmp/failing-render-board.sh" <<'EOF'
+#!/usr/bin/env bash
+printf 'PARTIAL RENDER GARBAGE — must never reach BOARD.md\n'
+exit 7
+EOF
+chmod +x "$tmp/failing-render-board.sh"
+write_board_fixture inline
+(cd "$tmp/board-case/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" RENDER_BOARD="$tmp/failing-render-board.sh" "$SCRIPT" --board-only >"$tmp/board-renderfail.txt" 2>"$tmp/board-renderfail-err.txt")
+rc=$?
+assert "board_pass inline-render-failure run exits zero (best-effort)" '[ $rc -eq 0 ]'
+assert "board_pass inline-render-failure emits a positive 'board inline failed' line" \
+  'grep -qxF "board inline failed" "$tmp/board-renderfail.txt"'
+assert "board_pass inline-render-failure never reports a success shape instead" \
+  '! grep -Eq "board inline (clean|changed)" "$tmp/board-renderfail.txt"'
+assert "board_pass inline-render-failure still logs the stderr diagnostic" \
+  'grep -qF "board render failed" "$tmp/board-renderfail-err.txt"'
+assert "board_pass inline-render-failure still closes with pass ok" \
+  'grep -qxF "pass ok" "$tmp/board-renderfail.txt"'
 
 # board_pass rebase-conflict-regenerate branch: force a push rejection whose only conflicting
 # path is BOARD.md, so the orchestrator must pull --rebase, hit a BOARD.md-only conflict,
@@ -375,6 +490,42 @@ if grep -q "board inline changed pushed" "$tmp/conflict-run.txt"; then
     'grep -q "beta" "$tmp/conflict-case/work/docs/changes/BOARD.md" && grep -q "Alpha feature v2" "$tmp/conflict-case/work/docs/changes/BOARD.md"'
   assert "conflict run pushed: remote BOARD.md matches local" \
     'git -C "$tmp/conflict-case/work" show origin/main:docs/changes/BOARD.md 2>/dev/null | cmp -s - "$tmp/conflict-case/work/docs/changes/BOARD.md"'
+fi
+
+# board_pass_inline: a clean working tree is NOT sufficient evidence the board landed on the
+# remote (change 0071 review, finding 3). Seed a repo whose BOARD.md already matches what a fresh
+# render would produce (so the post-render diff is clean) but whose local metadata branch carries
+# that exact commit UNPUSHED — origin never saw it, simulating a prior run that committed the
+# board locally then failed to push. board_pass_inline must not mistake "nothing to commit" for
+# "nothing to push": it must attempt the push and report a changed outcome, never `board inline
+# clean`.
+git_repo_setup "$tmp/unpushed-case"
+git clone -q "$tmp/unpushed-case/origin.git" "$tmp/unpushed-case/work" 2>/dev/null
+seed_changes_fixture "$tmp/unpushed-case/work"
+git -C "$tmp/unpushed-case/work" -c user.email=t@t -c user.name=t add docs/changes
+git -C "$tmp/unpushed-case/work" -c user.email=t@t -c user.name=t commit -q -m "seed changes fixture"
+git -C "$tmp/unpushed-case/work" push -q origin main
+
+# Render through the same gated primitive board_pass_inline itself uses, then commit WITHOUT
+# pushing — this is the exact local state a failed push leaves behind.
+"$REPO/scripts/board-refresh.sh" --changes-dir "$tmp/unpushed-case/work/docs/changes" --surfaces inline
+git -C "$tmp/unpushed-case/work" -c user.email=t@t -c user.name=t add docs/changes/BOARD.md
+git -C "$tmp/unpushed-case/work" -c user.email=t@t -c user.name=t commit -q -m "docket: board refresh"
+
+assert "unpushed fixture: local branch really is ahead of origin on BOARD.md before the run" \
+  '[ "$(git -C "$tmp/unpushed-case/work" rev-list --count origin/main..HEAD -- docs/changes/BOARD.md)" -gt 0 ]'
+
+write_board_fixture inline
+(cd "$tmp/unpushed-case/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" "$SCRIPT" --board-only >"$tmp/unpushed-run.txt" 2>"$tmp/unpushed-run-err.txt")
+rc=$?
+assert "unpushed board commit: run exits zero" '[ $rc -eq 0 ]'
+assert "unpushed board commit: reports changed pushed or push-failed (not vacuous: positive shape match)" \
+  'grep -Eq "board inline changed (pushed|push-failed)" "$tmp/unpushed-run.txt"'
+assert "unpushed board commit: never reports clean" \
+  '! grep -qxF "board inline clean" "$tmp/unpushed-run.txt"'
+if grep -q "board inline changed pushed" "$tmp/unpushed-run.txt"; then
+  assert "unpushed board commit pushed: remote now carries the previously-unpushed commit" \
+    'git -C "$tmp/unpushed-case/work" show origin/main:docs/changes/BOARD.md 2>/dev/null | cmp -s - "$tmp/unpushed-case/work/docs/changes/BOARD.md"'
 fi
 
 # detect_merged: batched sweep detection (task 4). Source the script (guarded so it doesn't
@@ -725,7 +876,7 @@ printf '%s\n' \
   'CHANGES_DIR=docs/changes' \
   'ADRS_DIR=docs/adrs' \
   'RESULTS_DIR=docs/results' \
-  'BOARD_SURFACES=' \
+  'BOARD_SURFACES=none' \
   'TERMINAL_PUBLISH=false'
 EOF
 
@@ -770,7 +921,7 @@ printf '%s\n' \
   'CHANGES_DIR=docs/changes' \
   'ADRS_DIR=docs/adrs' \
   'RESULTS_DIR=docs/results' \
-  'BOARD_SURFACES='
+  'BOARD_SURFACES=none'
 EOF
 
 gate_dir2="$tmp/gate-enabled-case"
@@ -856,7 +1007,7 @@ assert "emit_judgment: non-blocked change emits nothing" \
 
 # Full-run wiring: main() runs health_checks/emit_judgment always, and gates integration_sync
 # on swept_count > 0. Mock every shared script via SCRIPTS_DIR so the run is hermetic; use
-# BOARD_SURFACES="" to skip the board pass entirely (already covered above).
+# BOARD_SURFACES=none to skip the board pass entirely (already covered above).
 write_full_fixture(){
   # $1 board_surfaces (usually empty)
   cat > "$tmp/fixture-full.sh" <<EOF
@@ -873,7 +1024,7 @@ printf '%s\n' \
   'BOARD_SURFACES=$1'
 EOF
 }
-write_full_fixture ""
+write_full_fixture none
 
 mkdir -p "$tmp/mock-full"
 full_log="$tmp/full-calls.log"
@@ -1174,7 +1325,7 @@ exit 1
 EOF
 chmod +x "$tmp/gh-det.sh"
 
-write_full_fixture ""
+write_full_fixture none
 (cd "$det_dir/work" && \
   CONFIG_EXPORT_CMD="bash $tmp/fixture-full.sh" GH="$tmp/gh-det.sh" \
   SCRIPTS_DIR="$tmp/mock-det" \
@@ -1282,7 +1433,7 @@ mkdir -p "$mm2_dir/work/docs/changes/active" "$mm2_dir/work/docs/adrs"
 git -C "$mm2_dir/work" -c user.email=t@t -c user.name=t commit -q --allow-empty -m "seed mm2" 2>/dev/null || true
 git -C "$mm2_dir/work" push -q origin main 2>/dev/null || true
 
-write_full_fixture ""
+write_full_fixture none
 mkdir -p "$tmp/mock-mm2"
 cat > "$tmp/mock-mm2/board-checks.sh" <<'EOF'
 #!/usr/bin/env bash
@@ -1312,8 +1463,9 @@ assert "SKILL no longer inlines the sweep loop enumeration" \
   '! grep -qF "For each \`implemented\` change:" "$SKILL"'
 
 # --- change 0069: the report is self-evidencing and board-independent ---
-# A board-off repo (board_surfaces: []) must still get a complete, positive report: `board off`,
-# the backlog digest, and `pass ok` — and must still perform ZERO git writes and leave no BOARD.md.
+# A board-off repo (`board_surfaces: []`, resolved by docket-config.sh to `BOARD_SURFACES=none` —
+# change 0071) must still get a complete, positive report: `board off`, the backlog digest, and
+# `pass ok` — and must still perform ZERO git writes and leave no BOARD.md.
 git_repo_setup "$tmp/boardoff-case"
 git clone -q "$tmp/boardoff-case/origin.git" "$tmp/boardoff-case/work" 2>/dev/null
 seed_changes_fixture "$tmp/boardoff-case/work"
@@ -1333,7 +1485,7 @@ git -C "$tmp/boardoff-case/work" -c user.email=t@t -c user.name=t commit -q -m "
 git -C "$tmp/boardoff-case/work" push -q origin main
 boardoff_head="$(git -C "$tmp/boardoff-case/work" rev-parse HEAD)"
 
-write_board_fixture ""
+write_board_fixture none
 (cd "$tmp/boardoff-case/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" "$SCRIPT" --board-only >"$tmp/boardoff-out.txt" 2>"$tmp/boardoff-err.txt")
 rc=$?
 assert "board-off --board-only exits zero" '[ $rc -eq 0 ]'
@@ -1377,7 +1529,7 @@ echo "stub render-board: boom" >&2
 exit 1
 EOF
 chmod +x "$tmp/stub-scripts/render-board.sh"
-write_board_fixture ""
+write_board_fixture none
 (cd "$tmp/boardoff-case/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" SCRIPTS_DIR="$tmp/stub-scripts" "$SCRIPT" --board-only >"$tmp/degrade-out.txt" 2>"$tmp/degrade-err.txt")
 rc=$?
 assert "failing digest still exits 0 (best-effort)" '[ $rc -eq 0 ]'
@@ -1398,7 +1550,7 @@ assert "failing digest logs its diagnostic to stderr" \
 # location — so a full pass genuinely renders the digest.
 #
 # It locks two things at once:
-#   1. UNGATED: with BOARD_SURFACES="" the full pass still emits the digest and `pass ok`.
+#   1. UNGATED: with BOARD_SURFACES=none the full pass still emits the digest and `pass ok`.
 #   2. POST-SWEEP: backlog_pass runs AFTER the sweep, so a change swept during this very pass is
 #      reported as `done` — never as the `implemented` it was when the pass began. This is the
 #      report's self-consistency: the digest is the sole backlog channel, so a pre-sweep snapshot
@@ -1498,7 +1650,7 @@ git -C "$fp_dir/work" -c user.email=t@t -c user.name=t add docs/changes
 git -C "$fp_dir/work" -c user.email=t@t -c user.name=t commit -q -m "seed full-pass digest fixture"
 git -C "$fp_dir/work" push -q origin main
 
-write_full_fixture ""
+write_full_fixture none
 (cd "$fp_dir/work" && \
   CONFIG_EXPORT_CMD="bash $tmp/fixture-full.sh" GH="$tmp/gh-fullpass.sh" \
   SCRIPTS_DIR="$tmp/mock-real" \
@@ -1507,7 +1659,7 @@ rc=$?
 assert "full pass (real renderer) exits zero" '[ $rc -eq 0 ]'
 assert "full pass swept the merged change" 'grep -qxF "swept 60 2026-07-11" "$tmp/fullpass-out.txt"'
 # (1) ungated: the digest and `pass ok` reach the FULL path, board off and all.
-assert "full pass emits 'board off' (board_surfaces empty)" \
+assert "full pass emits 'board off' (board_surfaces none)" \
   'grep -qxF "board off" "$tmp/fullpass-out.txt"'
 assert "full pass emits the backlog digest (UNGATED — not just --board-only)" \
   'grep -qxF "change 61 proposed build-ready alfa" "$tmp/fullpass-out.txt" && grep -qxF "change 62 in-progress - bravo-two" "$tmp/fullpass-out.txt"'
@@ -1584,6 +1736,11 @@ assert "status contract documents the change digest line" \
   'grep -qF "change <id> <status> <readiness> <slug>" "$STATUS_CONTRACT"'
 assert "status contract states the backlog pass is ungated" \
   'grep -qiF "ungated" "$STATUS_CONTRACT"'
+# Change 0071 review, finding 1: the two new report lines that close the "no line at all" hole.
+assert "status contract documents the inline-render-failure line" \
+  'grep -qF "board inline failed" "$STATUS_CONTRACT"'
+assert "status contract documents the unknown-surface-token line" \
+  'grep -qF "board <token> unknown" "$STATUS_CONTRACT"'
 
 # The renderer contract documents the new flag.
 assert "render-board contract documents --format" 'grep -qF -- "--format" "$BOARD_CONTRACT"'

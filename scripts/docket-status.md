@@ -53,25 +53,40 @@ non-docket mode, rebase-pulls the current checkout directly. A non-zero return f
 hard error and this script exits 1 immediately.
 
 **3. Board pass**, once per surface token in the space-separated `BOARD_SURFACES` config value.
-**No surfaces configured emits a positive `board off` line** (change 0069) — never silence: an
-empty stdout is indistinguishable from a script that did nothing, and that ambiguity is what sent
-an agent hunting for a `BOARD.md` the configuration forbids.
+The reserved token **`none`** is the deliberate off-state and emits a positive `board off` line
+(change 0069) — never silence. An **empty** `BOARD_SURFACES` is a wiring bug, not a
+configuration: the pass exits 2 with a diagnostic (change 0071), because `docket-config.sh` never
+emits an empty value and an unresolved config must never masquerade as a disabled board.
 - **inline** — Renders and writes the board through `board-refresh.sh` (change 0059), which owns
   the surface gate and the atomic, truncation-safe replace of `BOARD.md`; this script never calls
   `render-board.sh` to produce the board. A failed render leaves the existing `BOARD.md`
-  untouched, logs to stderr, and is treated as success for sequencing purposes (best-effort). If
-  `BOARD.md` is unchanged, nothing is committed (`board inline clean`). Otherwise it is `git
-  add`ed and committed with message `docket: board refresh`, then pushed with up to 5 retry
-  attempts: on push failure it rebase-pulls; if the rebase conflicts only on `BOARD.md`, it
-  regenerates through the same gated helper (never a raw redirect) and continues the rebase; a
-  rebase conflict on anything else, or a failed regeneration mid-rebase, aborts the rebase and
-  stops retrying.
+  untouched, logs to stderr, and is treated as success for sequencing purposes (best-effort) — but
+  it emits the positive stdout line `board inline failed` (change 0071 review, finding 1), never
+  just the stderr diagnostic: the report-line channel must never go silent on a path that still
+  exits 0, or a must-land caller keying on the report line (never the exit code) would read the
+  silence as "the board landed". This line is terminal, not retryable. If
+  `BOARD.md` is unchanged, `board inline clean` requires TWO things to hold, not just a clean
+  working tree (change 0071 review, finding 3): the render produced no diff, **and** the local
+  metadata branch carries no commit touching `BOARD.md` that is unpushed relative to its upstream
+  (`@{u}..HEAD`, count > 0; no upstream at all counts as nothing-to-push, not an error). A clean
+  working tree alone is not evidence the board landed — a prior run may have committed it locally
+  and then failed to push. When the tree is clean but such an unpushed commit exists, nothing new
+  is committed; execution falls through into the same push/rebase retry loop as a changed render,
+  reporting `board inline changed pushed` / `board inline changed push-failed` from its outcome.
+  When the render actually changed `BOARD.md`, it is `git add`ed and committed with message
+  `docket: board refresh`, then pushed with up to 5 retry attempts: on push failure it
+  rebase-pulls; if the rebase conflicts only on `BOARD.md`, it regenerates through the same gated
+  helper (never a raw redirect) and continues the rebase; a rebase conflict on anything else, or a
+  failed regeneration mid-rebase, aborts the rebase and stops retrying.
 - **github** — Runs `github-mirror.sh` (passing through `--repo`, `--project`,
   `--auto-create-project`, `--project-owner`), best-effort. Lines it emits of the shape
   `issue-minted <id> <n>` / `project-minted <id> <n>` are translated to `minted issue <id> <n>` /
   `minted project <id> <n>` on this script's stdout; the surface's own success/failure is
   reported as one final `board github ok|failed` line regardless of what was minted.
-- Any other token is an unrecognized-surface warning on stderr (non-fatal).
+- Any other token is an unrecognized-surface warning on stderr (non-fatal) — and, alongside it, a
+  positive `board <token> unknown` stdout line (change 0071 review, finding 1) so a typo can never
+  silently vanish from the report the way it used to when the warning lived on stderr alone. This
+  line is terminal, not retryable — a typo is a config problem, not a transient one.
 
 **4. Backlog pass — UNGATED, once per path.** Runs `render-board.sh --format digest` and passes
 its lines through (`backlog <status> <count>` rollups, then one `change <id> <status> <readiness>
@@ -144,9 +159,13 @@ backlog digest and emits nothing on stdout, so it does not affect the report's l
 
 ### Failure postures (summary)
 
-- **Board pass: best-effort.** A failed inline render or failed github mirror never aborts the
-  pass; it degrades to a diagnostic on stderr and (for inline) leaves the last-known-good
-  `BOARD.md` in place.
+- **Board pass: best-effort, but never silent.** A failed inline render or failed github mirror
+  never aborts the pass; it degrades to a diagnostic on stderr and (for inline) leaves the
+  last-known-good `BOARD.md` in place — but every path, including a failed render and an unknown
+  surface token, also emits a positive `board …` stdout line (`board inline failed`,
+  `board <token> unknown`), never just the stderr diagnostic (change 0071 review, finding 1). A
+  caller that sees the pass exit 0 with **no** `board …` line at all has found a bug in this
+  script, not evidence the board landed.
 - **Sweep: per-change log-and-continue.** A failed step for one change emits `sweep-failed` and
   abandons only the rest of *that* change's close-out (except cleanup failure, which still emits
   `swept`/`harvest`); the sweep loop proceeds to the next change regardless.
@@ -159,12 +178,14 @@ All report lines are stdout, one shape per line, diagnostics go to stderr:
 
 | Shape | Meaning |
 |---|---|
-| `board inline clean` | Inline render matched the existing `BOARD.md`; nothing committed. |
+| `board inline clean` | Inline render matched the existing `BOARD.md` AND there is nothing unpushed touching it — no local commit on `BOARD.md` sits ahead of its upstream. Attests the board is caught up on the remote, not merely that the working tree is clean. |
 | `board inline changed pushed` | `BOARD.md` changed and the commit was pushed successfully. |
 | `board inline changed push-failed` | `BOARD.md` changed and committed locally, but push retries were exhausted or a rebase conflict outside `BOARD.md` forced an abort. |
 | `board github ok` | `github-mirror.sh` exited 0. |
 | `board github failed` | `github-mirror.sh` exited non-zero. |
-| `board off` | `BOARD_SURFACES` is empty — the board is deliberately disabled (`board_surfaces: []`); no surface was rendered and nothing was committed. Positive evidence of a deliberate skip, never silence. |
+| `board off` | `BOARD_SURFACES` is the reserved token `none` — the board is deliberately disabled (`board_surfaces: []`); no surface was rendered and nothing was committed. Positive evidence of a deliberate skip, never silence. |
+| `board inline failed` | The `inline` render failed; the existing `BOARD.md` was left untouched (best-effort — the pass still continues to `pass ok`). Terminal, not retryable (change 0071 review, finding 1). |
+| `board <token> unknown` | `<token>` in `BOARD_SURFACES` matched neither `inline`, `github`, nor `none`; warned on stderr and ignored. Terminal, not retryable (change 0071 review, finding 1). |
 | `minted issue <id> <n>` | Passthrough of `github-mirror.sh`'s `issue-minted <id> <n>`. |
 | `minted project <id> <n>` | Passthrough of `github-mirror.sh`'s `project-minted <id> <n>`. |
 | `backlog <status> <count>` | One rollup per non-zero status across the active + archived change files (from the ungated backlog pass). On a full pass these are **post-sweep** counts: a change swept this pass is counted under `done`, not `implemented`. |
@@ -184,7 +205,9 @@ All report lines are stdout, one shape per line, diagnostics go to stderr:
   expected pass outcomes, not errors — **a thin report is the success case.**
 - non-zero — a hard error only: config export failure, an unrecognized `BOOTSTRAP` verdict,
   `STOP_MIGRATE`/`CREATE_ORPHAN` bootstrap gate (exit 1), an unusable metadata worktree (create or
-  sync failure, exit 1), or an unknown CLI argument (exit 2).
+  sync failure, exit 1), an unknown CLI argument (exit 2), or `BOARD_SURFACES` was empty (or
+  whitespace-only — defence-in-depth, change 0071 review finding 6) / `none` was combined with
+  another surface (a wiring bug — change 0071).
 
 ## Invariants
 

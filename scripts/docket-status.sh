@@ -40,19 +40,53 @@ done
 
 board_pass(){
   local surfaces="${BOARD_SURFACES:-}"
-  # Change 0069: silence is not evidence. With no surfaces configured the board pass is a
-  # deliberate no-op — SAY SO, so "exit 0 + empty stdout" can never again be read as "the script
-  # silently did nothing" and send an agent hunting for a BOARD.md the config forbids.
-  [ -n "$surfaces" ] || { echo "board off"; return 0; }
+  # Change 0071 — the polarity reversal, at its reference implementation. This guard used to read
+  # `[ -n "$surfaces" ] || { echo "board off"; return 0; }` — i.e. an UNRESOLVED config produced
+  # the DISABLED behavior, silently, with a success exit code. That is the bug. docket-config.sh
+  # now never emits an empty BOARD_SURFACES (the off-state is the positive token `none`), so an
+  # empty value here means exactly one thing: nobody resolved this. Fail closed and loudly —
+  # main() runs board_pass FIRST, so a hard exit here never reaches `pass ok`.
+  if [ -z "$surfaces" ]; then
+    echo "docket-status: BOARD_SURFACES is empty — config was never resolved (a wiring bug). The deliberate off-state is 'none'." >&2
+    exit 2
+  fi
+  # Change 0071 review, finding 6 — defence-in-depth: a whitespace-only value (e.g. " ") passes the
+  # `-z` check above but tokenizes to zero words below, the same "nobody resolved this" hole with a
+  # byte of padding. Not reachable from docket-config.sh today (its own `echo $bs` word-splitting
+  # already collapses whitespace to true-empty), but treat it identically on principle — the same
+  # failure shape finding 1 closes ("no line at all") must not have a second door.
+  set -- $surfaces
+  if [ $# -eq 0 ]; then
+    echo "docket-status: BOARD_SURFACES is empty — config was never resolved (a wiring bug). The deliberate off-state is 'none'." >&2
+    exit 2
+  fi
+  # `none` is the reserved, EXCLUSIVE off-token: it disables every surface. Its report line is
+  # byte-identical to the pre-0071 `board off` — a disabled repo's output must not change.
+  local tok
+  for tok in $surfaces; do
+    if [ "$tok" = none ]; then
+      if [ "$surfaces" != none ]; then
+        echo "docket-status: 'none' is exclusive — it cannot be combined with other surfaces: $surfaces" >&2
+        exit 2
+      fi
+      echo "board off"
+      return 0
+    fi
+  done
   local mw
   if [ "${DOCKET_MODE:-}" = docket ]; then mw="${METADATA_WORKTREE:-.docket}"; else mw="."; fi
   local cd_dir="$mw/$CHANGES_DIR"
-  local tok
   for tok in $surfaces; do
     case "$tok" in
       inline) board_pass_inline "$mw" "$cd_dir" ;;
       github) board_pass_github "$cd_dir" ;;
-      *) echo "docket-status: unknown board surface '$tok'" >&2 ;;
+      # Change 0071 review, finding 1 — a typo'd/unknown token used to warn on stderr only, which
+      # left the report-line channel with a silent exit-0 gap: a must-land caller keying on the
+      # stdout report line (never the exit code, per the convention) saw no line at all and had no
+      # way to distinguish "the board landed" from "this token was silently ignored". Emit a
+      # positive stdout line alongside the stderr warning so the channel stays total — closing the
+      # exact hole the report-line contract exists to prevent.
+      *) echo "docket-status: unknown board surface '$tok'" >&2; echo "board $tok unknown" ;;
     esac
   done
 }
@@ -68,15 +102,36 @@ board_pass_inline(){
   # token, so pass it verbatim; a render failure leaves the prior BOARD.md untouched.
   if ! "$SELF_DIR"/board-refresh.sh --changes-dir "$cd_dir" --surfaces inline ${REPO_FLAG:+--repo "$REPO_FLAG"} >&2 2>&2; then
     echo "docket-status: board render failed; keeping existing BOARD.md" >&2
+    # Change 0071 review, finding 1 — this used to `return 0` with nothing on stdout: exit 0, no
+    # `board …` line, no evidence at all. A must-land caller keying on the report line (never the
+    # exit code) would see silence and proceed as if the board had landed — exactly the
+    # silent-stale-board failure this whole change exists to kill, merely relocated here. The pass
+    # itself still isn't fatal (best-effort; `return 0` stands), but the LINE now carries the
+    # outcome so the report channel is never empty on this path. Terminal, not retryable — a
+    # render failure is not fixed by retrying.
+    echo "board inline failed"
     return 0
   fi
   # board-refresh.sh wrote BOARD.md in place; commit + push only if it actually changed.
   if [ -z "$("$GIT" -C "$mw" status --porcelain -- "$rel" 2>/dev/null)" ]; then
-    echo "board inline clean"
-    return 0
+    # A clean working tree alone is NOT sufficient evidence the board landed on the remote
+    # (change 0071 review, finding 3): a prior run may have committed the board locally and then
+    # failed to push, in which case a re-invocation renders the same bytes, finds nothing to
+    # commit, and must not report success without checking the remote. Guard on whether the local
+    # branch actually carries an unpushed commit touching $rel. No upstream at all (`@{u}` fails)
+    # means there is nothing to compare against — treat that as nothing to push, not an error.
+    local unpushed
+    unpushed="$("$GIT" -C "$mw" rev-list --count '@{u}..HEAD' -- "$rel" 2>/dev/null)" || unpushed=0
+    if [ "${unpushed:-0}" -eq 0 ]; then
+      echo "board inline clean"
+      return 0
+    fi
+    # Working tree is clean (nothing to commit) but an existing commit touching $rel has never
+    # reached the remote — fall through into the push/rebase retry loop below without committing.
+  else
+    "$GIT" -C "$mw" add "$rel" >&2
+    "$GIT" -C "$mw" commit -q -m "docket: board refresh" >&2 || true
   fi
-  "$GIT" -C "$mw" add "$rel" >&2
-  "$GIT" -C "$mw" commit -q -m "docket: board refresh" >&2 || true
 
   local attempt=0 pushed=0
   while [ $attempt -lt 5 ]; do

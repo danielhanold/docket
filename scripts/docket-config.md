@@ -80,7 +80,7 @@ A value may not contain a literal `#` — it is treated as the start of an inlin
 | `results_dir` | `docs/results` | no (fenced) | |
 | `gate` (finalize) | `local` | yes | read from `finalize.gate` leaf key; resolves repo-local > repo-committed > global |
 | `test_command` (finalize) | `` (empty) | yes | read from `finalize.test_command` leaf key; resolves repo-local > repo-committed > global |
-| `board_surfaces` | `inline` | yes, minus `github` | YAML list `[a, b]` stripped of brackets/commas; `[]` → empty string; a `github` token arriving from either machine-scoped layer (repo-local or global) is dropped (Stage 2c) |
+| `board_surfaces` | `inline` | yes, minus `github` | YAML list `[a, b]` stripped of brackets/commas; **`[]` → the reserved token `none`** (change 0071 — an empty value is NEVER emitted; empty means "unresolved", a wiring bug); a `github` token arriving from either machine-scoped layer (repo-local or global) is dropped (Stage 2c), and a list left empty by that drop also resolves to `none` |
 | `auto_groom` | `false` | yes | resolves repo-local > repo-committed > global |
 | `terminal_publish` | `true` | no (fenced) | `true`/`false`; `false` makes `terminal-publish.sh` a no-op for BOTH shapes — archived change files, specs, and ADRs stay on the metadata branch. Anything else aborts |
 
@@ -269,3 +269,6 @@ emits no `KEY=value` output.
 - **The machine-local layer never aborts a run either.** A malformed `.docket.local.yml` or a
   fenced key set within it is a stderr warning (never fatal); the run falls through to the next
   layer in the chain.
+- **`BOARD_SURFACES` is never emitted empty** (change 0071). The deliberate off-state is the
+  positive token `none`; an empty value is reserved for "unresolved" and is a wiring bug every
+  consumer rejects with exit 2.
