@@ -2,7 +2,7 @@
 id: 72
 slug: facade-skill-rewiring
 title: Rewire the operating skills and Step-0 to the facade — retire the eval preamble
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-13
 updated: 2026-07-14
@@ -11,11 +11,11 @@ related: [68, 73]
 adrs: [30]
 spec: docs/superpowers/specs/2026-07-13-facade-skill-rewiring-design.md
 plan: docs/superpowers/plans/2026-07-14-facade-skill-rewiring.md
-results:
+results: docs/results/2026-07-14-facade-skill-rewiring-results.md
 trivial: false
 auto_groomable:
 branch: feat/facade-skill-rewiring
-pr:
+pr: https://github.com/danielhanold/docket/pull/79
 blocked_by:
 reconciled: true
 ---
@@ -27,6 +27,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-13-facade-skill-rewiring-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-13-facade-skill-rewiring-design.md) |
 | Plan | [2026-07-14-facade-skill-rewiring.md](https://github.com/danielhanold/docket/blob/feat/facade-skill-rewiring/docs/superpowers/plans/2026-07-14-facade-skill-rewiring.md) |
+| Results | [2026-07-14-facade-skill-rewiring-results.md](https://github.com/danielhanold/docket/blob/feat/facade-skill-rewiring/docs/results/2026-07-14-facade-skill-rewiring-results.md) |
+| PR | [#79](https://github.com/danielhanold/docket/pull/79) |
 | ADRs | [ADR-0030](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0030-facade-wiring-guard-discriminates-on-invocation-prefix.md) |
 <!-- docket:artifacts:end -->
 
