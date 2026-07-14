@@ -5,7 +5,7 @@ title: Encode the disabled board positively — an empty surfaces value is a wir
 status: proposed
 priority: medium
 created: 2026-07-13
-updated: 2026-07-13
+updated: 2026-07-14
 depends_on: [72]
 related: [59, 68, 69, 70, 72]
 adrs: [28]
