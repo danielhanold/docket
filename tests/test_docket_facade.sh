@@ -95,10 +95,17 @@ for ne in docket-config disable-worktree-hooks render-board install migrate-to-d
   assert "not-exposed '$ne' is not a docket.md op"  '! printf "%s\n" "$md_ops" | grep -qxF "$ne"'
 done
 
-# no escape-hatch op name; never evals positional args
-for hatch in run exec-op shell eval; do
-  assert "docket.sh dispatch has no '$hatch' operation arm" '! grep -qE "^\s*'"$hatch"'\)" "$FSH"'
+# no escape-hatch op name (including pipe-combined case labels); never calls eval at all
+for hatch in run exec shell eval; do
+  assert "docket.sh dispatch has no '$hatch' operation arm" \
+    '! grep -qE "(^|\|)[[:space:]]*'"$hatch"'[[:space:]]*(\)|\|)" "$FSH"'
 done
-assert "docket.sh never evals caller args" '! grep -qE "eval .*\"\$[@*]\"|eval .*\$op" "$FSH"'
+
+# docket.sh must never invoke the eval builtin, anywhere — not just on caller args, and not
+# laundered through an intermediate variable. Strip comments first (the word "eval" appears in
+# docket.sh's own header comments) before scanning for an actual eval invocation.
+code_no_comments="$(sed 's/#.*//' "$FSH")"
+assert "docket.sh never calls the eval builtin" \
+  '! printf "%s" "$code_no_comments" | grep -qE "(^|[;&|[:space:]])eval([[:space:]]|$)"'
 
 exit $fail
