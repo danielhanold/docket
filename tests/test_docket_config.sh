@@ -273,7 +273,10 @@ assert "F5 --repo-dir no arg: diagnostic mentions --repo-dir" 'printf "%s" "$err
 
 # --- skill-wiring sentinels (the SKILLs are code on the integration branch) ------
 CONV="$REPO/skills/docket-convention/SKILL.md"
-assert "convention names docket-config.sh" 'grep -qF "/docket-config.sh" "$CONV"'
+# 0074 retired the direct `…/docket-config.sh --bootstrap` invocation from Step-0; the convention
+# still NAMES the resolver descriptively (Config section: `docket-config.sh --export`), which
+# ADR-0030 permits. Key on the noun, not the retired slash-prefixed invocation form.
+assert "convention names docket-config.sh (descriptively)" 'grep -qF -- "docket-config.sh" "$CONV"'
 assert "convention defines the DOCKET_SCRIPTS_DIR resolved form" \
   'grep -qF "\${DOCKET_SCRIPTS_DIR:?run docket/install.sh}" "$CONV"'
 assert "convention documents DOCKET_ namespacing" \
