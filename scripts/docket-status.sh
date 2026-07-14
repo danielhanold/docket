@@ -74,7 +74,12 @@ board_pass(){
     fi
   done
   local mw
-  if [ "${DOCKET_MODE:-}" = docket ]; then mw="${METADATA_WORKTREE:-.docket}"; else mw="."; fi
+  # ABSOLUTE (change 0075), via the one owner of root resolution (lib/docket-root.sh, reachable
+  # because lib/docket-preflight.sh sources it). A RELATIVE mw resolves against the CALLER's CWD —
+  # which misresolves from a linked worktree, and is what left the artifacts-refresh block in
+  # sweep_execute_one dead (its `git -C "$mw"` pathspec carried the same `.docket/` prefix the -C
+  # had already entered, so it matched nothing). Every mw resolution site in this file uses this.
+  mw="$(docket_metadata_worktree)"
   local cd_dir="$mw/$CHANGES_DIR"
   for tok in $surfaces; do
     case "$tok" in
@@ -200,7 +205,7 @@ board_pass_github(){
 # corrective path.
 backlog_pass(){
   local mw
-  if [ "${DOCKET_MODE:-}" = docket ]; then mw="${METADATA_WORKTREE:-.docket}"; else mw="."; fi
+  mw="$(docket_metadata_worktree)"
   local cd_dir="$mw/$CHANGES_DIR"
   local out
   if ! out="$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$cd_dir" --format digest 2>&2)"; then
@@ -219,7 +224,7 @@ backlog_pass(){
 # any gh/network/parse failure emits "sweep-skipped <reason>" and returns 0 (never aborts the pass).
 detect_merged(){
   local mw
-  if [ "${DOCKET_MODE:-}" = docket ]; then mw="${METADATA_WORKTREE:-.docket}"; else mw="."; fi
+  mw="$(docket_metadata_worktree)"   # ABSOLUTE (change 0075) — see board_pass.
   local cd_dir="$mw/$CHANGES_DIR"
 
   local -a files
@@ -304,7 +309,9 @@ detect_merged(){
 # learnings). Idempotent: a change already done/archived is a silent no-op.
 sweep_execute(){
   local mw cd_dir
-  if [ "${DOCKET_MODE:-}" = docket ]; then mw="${METADATA_WORKTREE:-.docket}"; else mw="."; fi
+  mw="$(docket_metadata_worktree)"   # ABSOLUTE (change 0075) — see board_pass. This is the value
+                                     # sweep_execute_one receives, and the one that makes its
+                                     # artifacts-refresh pathspec match at all.
   cd_dir="$mw/$CHANGES_DIR"
 
   local id slug pr merged_date
@@ -360,12 +367,21 @@ sweep_execute_one(){
     echo "sweep-failed $id render-change-links skipped-publish"
     return 0
   fi
+  # Change 0075 §5 — this block was DEAD before $mw was anchored: its pathspec carried the same
+  # RELATIVE $mw that `git -C "$mw"` had already entered, so it matched nothing and the refreshed
+  # ## Artifacts block was silently never committed. Anchoring brings it alive — and its old
+  # `return 0` on a failed commit/push would then have ABANDONED terminal-publish AND cleanup.
+  # That trade is upside down: a stale link block is COSMETIC (the record still publishes, one
+  # table row out of date), while a skipped publish leaves the change archived-but-unpublished
+  # (invisible to every future sweep, which only scans active/) and an orphaned worktree + remote
+  # branch behind. So: report the failure on the report channel — the closed, line-oriented
+  # contract callers key on — and CONTINUE the close-out.
   if [ -n "$("$GIT" -C "$mw" status --porcelain -- "$archived" 2>/dev/null)" ]; then
-    "$GIT" -C "$mw" add "$archived" >&2
-    "$GIT" -C "$mw" commit -q -m "docket($id): refresh artifacts links" >&2
-    if ! "$GIT" -C "$mw" push >&2; then
+    if ! "$GIT" -C "$mw" add "$archived" >&2 \
+      || ! "$GIT" -C "$mw" commit -q -m "docket($id): refresh artifacts links" >&2; then
+      echo "sweep-failed $id render-change-links commit-failed"
+    elif ! "$GIT" -C "$mw" push >&2; then
       echo "sweep-failed $id render-change-links push-failed"
-      return 0
     fi
   fi
 
@@ -391,7 +407,7 @@ sweep_execute_one(){
 # Best-effort: a clean tree (or a board-checks failure) prints nothing extra; never aborts the pass.
 health_checks(){
   local mw
-  if [ "${DOCKET_MODE:-}" = docket ]; then mw="${METADATA_WORKTREE:-.docket}"; else mw="."; fi
+  mw="$(docket_metadata_worktree)"   # ABSOLUTE (change 0075) — see board_pass.
   local cd_dir="$mw/$CHANGES_DIR"
   local metadata_branch
   if [ "${DOCKET_MODE:-}" = docket ]; then metadata_branch="$METADATA_BRANCH"; else metadata_branch="$INTEGRATION_BRANCH"; fi
@@ -409,7 +425,7 @@ health_checks(){
 # $CD/active. The judgment (whether the blocking reason still holds) is left to the caller/skill.
 emit_judgment(){
   local mw
-  if [ "${DOCKET_MODE:-}" = docket ]; then mw="${METADATA_WORKTREE:-.docket}"; else mw="."; fi
+  mw="$(docket_metadata_worktree)"   # ABSOLUTE (change 0075) — see board_pass.
   local cd_dir="$mw/$CHANGES_DIR"
 
   local -a files

@@ -126,24 +126,37 @@ pass.
 **6. Sweep execution**, one change at a time, chaining the ADR-0035 close-out scripts in order:
 rebase-pull the metadata worktree, then (skipping silently if the change is already archived or
 already `done`/`killed` — idempotent no-op) `archive-change.sh` → locate the archived file →
-`render-change-links.sh` (committing and pushing the refreshed links if the archived file
-changed) → `terminal-publish.sh` (always passed `--enabled "${TERMINAL_PUBLISH:-true}"`, so the
-headless sweep honors the repo's publish policy; a suppressed publish is a no-op that exits 0 and is
-logged, never a failure) → `cleanup-feature-branch.sh`. Each step's failure emits
-`sweep-failed <id> <step> <reason>` and abandons the rest of that change's close-out, but the
-loop always continues to the next change; a `cleanup-feature-branch.sh` failure is the one
-exception — it still emits the terminal `swept`/`harvest` lines for that change since publish
-already succeeded. Full success for a change emits `swept <id> <merged-date>` followed by
-`harvest <id> <archived-path>`. Self-heal is idempotent for a failure at `sync` (rebase-pull) or
-`archive`, and for a `cleanup` failure (all retry cleanly next pass) — but a `sweep-failed` at
-`render-change-links` or `terminal-publish` leaves the change **archived but its terminal record
-unpublished**, invisible to future detection (which only scans `active/*.md`), and requires a
-manual `terminal-publish.sh --id <id> --enabled true` follow-up. The knob narrows only the
+`render-change-links.sh` → **artifacts refresh** (see below) → `terminal-publish.sh` (always
+passed `--enabled "${TERMINAL_PUBLISH:-true}"`, so the headless sweep honors the repo's publish
+policy; a suppressed publish is a no-op that exits 0 and is logged, never a failure) →
+`cleanup-feature-branch.sh`. Each step's failure emits `sweep-failed <id> <step> <reason>` and
+abandons the rest of that change's close-out, but the loop always continues to the next change;
+the **artifacts refresh** and a `cleanup-feature-branch.sh` failure are the two exceptions — both
+still emit the terminal `swept`/`harvest` lines for that change. Full success for a change emits
+`swept <id> <merged-date>` followed by `harvest <id> <archived-path>`. Self-heal is idempotent for
+a failure at `sync` (rebase-pull) or `archive`, and for a `cleanup` failure (all retry cleanly next
+pass) — but a `sweep-failed` at `render-change-links` (`skipped-publish`, i.e. the renderer itself
+exited non-zero) or at `terminal-publish` leaves the change **archived but its terminal record
+unpublished**, invisible to future detection (which only scans `active/*.md`), and requires a manual
+`terminal-publish.sh --id <id> --enabled true` follow-up. The knob narrows only the
 `terminal-publish` leg: under `terminal_publish: false` that step is a no-op that cannot fail, so
-this recovery path never arises there — but the `render-change-links` leg still can fail in such a
-repo (it emits `sweep-failed <id> render-change-links skipped-publish`), leaving the archived change
-with a stale `## Artifacts` block on `metadata_branch` that no later sweep resumes; the follow-up
-there is a manual re-render on the metadata branch, not a publish.
+this recovery path never arises there — but the renderer leg still can fail in such a repo, leaving
+the archived change with a stale `## Artifacts` block on `metadata_branch` that no later sweep
+resumes; the follow-up there is a manual re-render on the metadata branch, not a publish.
+
+**6a. The artifacts refresh (change 0075).** After `render-change-links.sh` rewrites the archived
+change's `## Artifacts` block in the metadata worktree, the sweep **commits and pushes** that file
+on `metadata_branch` (`docket(<id>): refresh artifacts links`) — but only when the render actually
+changed bytes; an unchanged file is a silent no-op. `$mw` (the metadata worktree, and therefore the
+`$archived` pathspec this step tests) is **absolute** — anchored to the repo's MAIN worktree by
+`lib/docket-root.sh`, so the step means the same thing from every CWD, including a linked worktree.
+**This step never aborts the close-out.** A failure emits `sweep-failed <id> render-change-links
+commit-failed` or `sweep-failed <id> render-change-links push-failed` on the report channel and the
+sweep **continues** to `terminal-publish.sh` and `cleanup-feature-branch.sh`. That posture is
+deliberate: a stale link block is cosmetic and self-heals on a manual re-render, whereas an aborted
+close-out leaves the change archived-but-unpublished (invisible to every future sweep) plus an
+orphaned worktree and remote branch — a strictly worse, non-self-healing state. Callers key on the
+report **line**, never on the exit code.
 
 **7. Health checks.** Runs `board-checks.sh` over the current changes-dir and metadata/integration
 branches, and prefixes each of its TSV findings as `check <check-id> <change-id> <message>` on
@@ -167,8 +180,11 @@ backlog digest and emits nothing on stdout, so it does not affect the report's l
   caller that sees the pass exit 0 with **no** `board …` line at all has found a bug in this
   script, not evidence the board landed.
 - **Sweep: per-change log-and-continue.** A failed step for one change emits `sweep-failed` and
-  abandons only the rest of *that* change's close-out (except cleanup failure, which still emits
-  `swept`/`harvest`); the sweep loop proceeds to the next change regardless.
+  abandons only the rest of *that* change's close-out (except a cleanup failure and an
+  artifacts-refresh `commit-failed`/`push-failed`, which report and continue, still emitting
+  `swept`/`harvest`); the sweep loop proceeds to the next change regardless. The close-out is never
+  abandoned for a cosmetic reason: publishing the terminal record and tearing down the branch +
+  worktree outrank a stale link block (change 0075).
 - **Health checks: warn-only.** Findings and judgments are reported, never enforced; the script
   never modifies a change file or blocks the pass because of a finding.
 
@@ -192,7 +208,8 @@ All report lines are stdout, one shape per line, diagnostics go to stderr:
 | `change <id> <status> <readiness> <slug>` | One line per **active** change, as of the moment the backlog pass ran (post-sweep on a full pass, so a change swept this pass has no `change` line at all — it is archived). `<readiness>` is `build-ready`, `needs-brainstorm`, `auto-groom-blocked`, `waiting-on-<N>-unbuilt`, `waiting-on-<N>-needs-merge`, or `-` when readiness does not apply (any non-`proposed` status). |
 | `swept <id> <date>` | Change `<id>` fully closed out (archived, links refreshed, terminal record published, branch cleaned up) as of `<date>` (UTC, from merge). |
 | `harvest <id> <path>` | The archived file path for a swept change — a hook for the caller to harvest learnings. |
-| `sweep-failed <id> <step> <reason>` | Step `<step>` (`sync`, `archive`, `render-change-links`, `terminal-publish`, or `cleanup`) failed for change `<id>` with `<reason>`; that change's remaining close-out steps were abandoned. |
+| `sweep-failed <id> <step> <reason>` | Step `<step>` (`sync`, `archive`, `render-change-links`, `terminal-publish`, or `cleanup`) failed for change `<id>` with `<reason>`; that change's remaining close-out steps were abandoned — **except** for `cleanup` and for the artifacts-refresh reasons `commit-failed` / `push-failed` (step 6a), after which the close-out continues and the change still reports `swept`/`harvest`. |
+| `sweep-failed <id> render-change-links commit-failed\|push-failed` | The refreshed `## Artifacts` block could not be committed/pushed on `metadata_branch` (step 6a). Cosmetic and non-terminal: `terminal-publish.sh` and `cleanup-feature-branch.sh` **still ran**, and the change is still reported `swept`. The archived record on `metadata_branch` keeps its previous link block until a manual re-render. |
 | `sweep-skipped <reason>` | Batched merge detection itself was skipped (`gh-unavailable` or `repo-unresolved`); no changes were evaluated this pass. |
 | `check <check-id> <change-id> <message>` | One `board-checks.sh` finding, passed through with the `check` prefix. |
 | `judgment blocked <id> <text>` | Change `<id>` is `status: blocked`, with its `blocked_by:` text, for the caller to re-judge. |

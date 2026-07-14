@@ -38,6 +38,8 @@ done
 
 # shellcheck source=/dev/null
 source "$SCRIPTDIR/lib/docket-frontmatter.sh"
+# shellcheck source=/dev/null
+source "$SCRIPTDIR/lib/docket-root.sh"
 
 # Resolve config (branches + adrs dir). Mockable via DOCKET_CONFIG.
 cfg="$("$DOCKET_CONFIG" --export 2>/dev/null)" || { printf 'render-change-links: config resolution failed\n' >&2; exit 1; }
@@ -48,7 +50,15 @@ ADRS_DIR="${ADRS_DIR:-docs/adrs}"          # repo-relative, for URLs
 METADATA_WORKTREE="${METADATA_WORKTREE:-}"
 
 if [ -z "$ADRS_DIR_LOCAL" ]; then
-  if [ -n "$METADATA_WORKTREE" ]; then ADRS_DIR_LOCAL="$METADATA_WORKTREE/$ADRS_DIR"; else ADRS_DIR_LOCAL="$ADRS_DIR"; fi
+  # change 0075: METADATA_WORKTREE arrives RELATIVE from the config export (".docket") and would
+  # otherwise resolve against the CALLER's CWD — the same defect the $mw anchor closes in
+  # docket-status.sh. Anchor it to the main worktree. (Every in-repo caller passes --adrs-dir
+  # explicitly, so this is the fallback path only; audited in the same pass.)
+  if [ -n "$METADATA_WORKTREE" ]; then
+    ADRS_DIR_LOCAL="$(docket_anchor_path "$METADATA_WORKTREE")/$ADRS_DIR"
+  else
+    ADRS_DIR_LOCAL="$ADRS_DIR"
+  fi
 fi
 
 # Derive OWNER/REPO + GitHub mode from the origin remote (render-board.sh pattern), unless --repo.

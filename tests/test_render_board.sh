@@ -986,7 +986,7 @@ assert "guard1 flags a readonly capture written via \${out} with >| to a variabl
 printf '%s\n' '#!/usr/bin/env bash' \
   'backlog_pass(){' \
   '  local mw' \
-  '  if [ "${DOCKET_MODE:-}" = docket ]; then mw="${METADATA_WORKTREE:-.docket}"; else mw="."; fi' \
+  '  mw="$(docket_metadata_worktree)"' \
   '  local cd_dir="$mw/$CHANGES_DIR"' \
   '  local out' \
   '  if ! out="$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$cd_dir" --format digest 2>&2)"; then' \
