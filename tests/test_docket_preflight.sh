@@ -92,4 +92,33 @@ assert "D2 guard: a metadata target inside a LINKED worktree is refused (non-zer
 assert "D2 guard: the refusal explains itself on stderr" 'grep -qi "inside an existing worktree" "$tmp/nested.err"'
 assert "D2 guard: nothing was created at the refused target" '[ ! -d "$work2_abs/.worktrees/feat-y/.docket" ]'
 
+# --- (G) main-mode PROCEED anchors METADATA_WORKTREE to the absolute repo root (review finding) ---
+# Sections C-F above only ever exercise DOCKET_MODE=docket; main-mode's anchor (config value "."
+# mapped by docket_anchor_path to the root) had NO test at all, so a regression that moved the
+# anchor line inside the docket-mode branch would ship undetected. Reuses $bare (already a real
+# repo with `main` tracking `origin/main`, built in section B) for a fresh clone, since main-mode's
+# `git -C "$root" pull --rebase` needs a real upstream to pull against.
+work3="$tmp/dk3"
+git clone --quiet "$bare" "$work3" 2>/dev/null
+git -C "$work3" config user.email t@t.test; git -C "$work3" config user.name Test
+work3_abs="$(cd "$work3" && pwd -P)"
+printf 'BOOTSTRAP=PROCEED\nDOCKET_MODE=main\nMETADATA_BRANCH=main\nMETADATA_WORKTREE=.\nINTEGRATION_BRANCH=main\nCHANGES_DIR=docs/changes\n' > "$tmp/main.env"
+mkexport "$tmp/main.env" "$tmp/main-export.sh"
+
+( cd "$work3" && . "$LIB" && CONFIG_EXPORT_CMD="bash $tmp/main-export.sh" docket_preflight "$SCRIPTS" ) >/dev/null 2>"$tmp/main.err"; rc=$?
+assert "main-mode PROCEED returns zero" '[ "$rc" -eq 0 ]'
+
+DOCKET_MODE=""; METADATA_WORKTREE=""
+( cd "$work3" && . "$LIB" && CONFIG_EXPORT_CMD="bash $tmp/main-export.sh" docket_preflight "$SCRIPTS" >/dev/null 2>&1 \
+  && [ "$DOCKET_MODE" = main ] && [ "$METADATA_WORKTREE" = "$work3_abs" ] ); rc=$?
+assert "main-mode PROCEED anchors METADATA_WORKTREE to the absolute repo root, not \".\" (review finding)" '[ "$rc" -eq 0 ]'
+
+# Same check from a SUBDIRECTORY of the main worktree — where a CWD-relative "." would silently
+# differ from the anchored root. This is exactly the mutation shape this guard exists to catch.
+mkdir -p "$work3/sub"
+DOCKET_MODE=""; METADATA_WORKTREE=""
+( cd "$work3/sub" && . "$LIB" && CONFIG_EXPORT_CMD="bash $tmp/main-export.sh" docket_preflight "$SCRIPTS" >/dev/null 2>&1 \
+  && [ "$DOCKET_MODE" = main ] && [ "$METADATA_WORKTREE" = "$work3_abs" ] ); rc=$?
+assert "main-mode PROCEED from a subdirectory still anchors METADATA_WORKTREE to the repo root, not the subdirectory (review finding)" '[ "$rc" -eq 0 ]'
+
 exit $fail
