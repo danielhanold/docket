@@ -10,7 +10,7 @@ depends_on: [68]
 related: [68, 73]
 adrs: []
 spec: docs/superpowers/specs/2026-07-13-facade-skill-rewiring-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-14-facade-skill-rewiring.md
 results:
 trivial: false
 auto_groomable:
@@ -26,6 +26,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-13-facade-skill-rewiring-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-13-facade-skill-rewiring-design.md) |
+| Plan | [2026-07-14-facade-skill-rewiring.md](https://github.com/danielhanold/docket/blob/feat/facade-skill-rewiring/docs/superpowers/plans/2026-07-14-facade-skill-rewiring.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
