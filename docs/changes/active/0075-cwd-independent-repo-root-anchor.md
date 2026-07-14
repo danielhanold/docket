@@ -10,7 +10,7 @@ depends_on: []
 related: [76]
 adrs: []
 spec: docs/superpowers/specs/2026-07-14-cwd-independent-repo-root-anchor-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-14-cwd-independent-repo-root-anchor.md
 results:
 trivial: false
 auto_groomable: false
@@ -26,6 +26,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-14-cwd-independent-repo-root-anchor-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-14-cwd-independent-repo-root-anchor-design.md) |
+| Plan | [2026-07-14-cwd-independent-repo-root-anchor.md](https://github.com/danielhanold/docket/blob/feat/cwd-independent-repo-root-anchor/docs/superpowers/plans/2026-07-14-cwd-independent-repo-root-anchor.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
