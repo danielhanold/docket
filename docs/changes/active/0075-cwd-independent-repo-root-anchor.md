@@ -2,7 +2,7 @@
 id: 75
 slug: cwd-independent-repo-root-anchor
 title: Anchor the repo root to the main worktree — CWD-independent scripts, a fail-closed cleanup guard, and a durable finalize posture
-status: proposed
+status: in-progress
 priority: high
 created: 2026-07-14
 updated: 2026-07-14
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable: false
-branch:
+branch: feat/cwd-independent-repo-root-anchor
 pr:
 blocked_by:
 reconciled: false
