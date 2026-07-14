@@ -8,7 +8,7 @@ created: 2026-07-13
 updated: 2026-07-14
 depends_on: [68, 72]
 related: [48, 65, 68, 72]
-adrs: [20]
+adrs: [20, 33]
 spec: docs/superpowers/specs/2026-07-14-cursor-sandbox-permissions-guide-design.md
 plan: docs/superpowers/plans/2026-07-14-cursor-sandbox-permissions-guide.md
 results:
@@ -27,7 +27,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-14-cursor-sandbox-permissions-guide-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-14-cursor-sandbox-permissions-guide-design.md) |
 | Plan | [2026-07-14-cursor-sandbox-permissions-guide.md](https://github.com/danielhanold/docket/blob/feat/cursor-sandbox-permissions-guide/docs/superpowers/plans/2026-07-14-cursor-sandbox-permissions-guide.md) |
-| ADRs | [ADR-0020](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0020-generated-agent-artifacts-machine-local.md) |
+| ADRs | [ADR-0020](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0020-generated-agent-artifacts-machine-local.md), [ADR-0033](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0033-cursor-auto-run-trust-at-facade.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
