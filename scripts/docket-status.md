@@ -53,9 +53,10 @@ non-docket mode, rebase-pulls the current checkout directly. A non-zero return f
 hard error and this script exits 1 immediately.
 
 **3. Board pass**, once per surface token in the space-separated `BOARD_SURFACES` config value.
-**No surfaces configured emits a positive `board off` line** (change 0069) — never silence: an
-empty stdout is indistinguishable from a script that did nothing, and that ambiguity is what sent
-an agent hunting for a `BOARD.md` the configuration forbids.
+The reserved token **`none`** is the deliberate off-state and emits a positive `board off` line
+(change 0069) — never silence. An **empty** `BOARD_SURFACES` is a wiring bug, not a
+configuration: the pass exits 2 with a diagnostic (change 0071), because `docket-config.sh` never
+emits an empty value and an unresolved config must never masquerade as a disabled board.
 - **inline** — Renders and writes the board through `board-refresh.sh` (change 0059), which owns
   the surface gate and the atomic, truncation-safe replace of `BOARD.md`; this script never calls
   `render-board.sh` to produce the board. A failed render leaves the existing `BOARD.md`
@@ -164,7 +165,7 @@ All report lines are stdout, one shape per line, diagnostics go to stderr:
 | `board inline changed push-failed` | `BOARD.md` changed and committed locally, but push retries were exhausted or a rebase conflict outside `BOARD.md` forced an abort. |
 | `board github ok` | `github-mirror.sh` exited 0. |
 | `board github failed` | `github-mirror.sh` exited non-zero. |
-| `board off` | `BOARD_SURFACES` is empty — the board is deliberately disabled (`board_surfaces: []`); no surface was rendered and nothing was committed. Positive evidence of a deliberate skip, never silence. |
+| `board off` | `BOARD_SURFACES` is the reserved token `none` — the board is deliberately disabled (`board_surfaces: []`); no surface was rendered and nothing was committed. Positive evidence of a deliberate skip, never silence. |
 | `minted issue <id> <n>` | Passthrough of `github-mirror.sh`'s `issue-minted <id> <n>`. |
 | `minted project <id> <n>` | Passthrough of `github-mirror.sh`'s `project-minted <id> <n>`. |
 | `backlog <status> <count>` | One rollup per non-zero status across the active + archived change files (from the ungated backlog pass). On a full pass these are **post-sweep** counts: a change swept this pass is counted under `done`, not `implemented`. |
@@ -184,7 +185,8 @@ All report lines are stdout, one shape per line, diagnostics go to stderr:
   expected pass outcomes, not errors — **a thin report is the success case.**
 - non-zero — a hard error only: config export failure, an unrecognized `BOOTSTRAP` verdict,
   `STOP_MIGRATE`/`CREATE_ORPHAN` bootstrap gate (exit 1), an unusable metadata worktree (create or
-  sync failure, exit 1), or an unknown CLI argument (exit 2).
+  sync failure, exit 1), an unknown CLI argument (exit 2), or `BOARD_SURFACES` was empty / `none`
+  was combined with another surface (a wiring bug — change 0071).
 
 ## Invariants
 

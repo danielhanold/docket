@@ -300,17 +300,31 @@ assert "board_pass second run reports clean" 'grep -qw "clean" "$tmp/board-run2.
 assert "board_pass second run reports board line" 'grep -qw "board" "$tmp/board-run2.txt"'
 assert "board_pass second run reports inline surface" 'grep -qw "inline" "$tmp/board-run2.txt"'
 
+# Change 0071: an EMPTY BOARD_SURFACES is no longer "board off" — it is an unresolved-config
+# wiring bug, and the orchestrator that every skill's Board pass now routes through must fail
+# LOUDLY rather than silently skip the board. This is the reference implementation of the
+# polarity reversal: the guard that used to read "no surfaces => disabled" is now an assertion
+# that the resolver produced a value at all.
 write_board_fixture ""
 (cd "$tmp/board-case/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" "$SCRIPT" --board-only >"$tmp/board-run3.txt" 2>"$tmp/board-run3-err.txt")
 rc=$?
-assert "board_pass empty-surfaces run exits zero" '[ $rc -eq 0 ]'
-# Change 0069: silence is not evidence. A board-off pass must SAY the board is off — an empty
-# stdout is indistinguishable from "the script silently did nothing", which is the exact
-# confusion that made an agent hunt for a BOARD.md its config forbids.
-assert "board_pass empty-surfaces emits a positive 'board off' line" \
-  'grep -qxF "board off" "$tmp/board-run3.txt"'
+assert "board_pass empty-surfaces run exits 2 (fatal wiring bug)" '[ $rc -eq 2 ]'
+assert "board_pass empty-surfaces names the unresolved config on stderr" \
+  'grep -qF "BOARD_SURFACES" "$tmp/board-run3-err.txt"'
+assert "board_pass empty-surfaces NEVER reports 'board off'" \
+  '! grep -qxF "board off" "$tmp/board-run3.txt"'
 assert "board_pass empty-surfaces emits no inline board line" \
   '! grep -q "board inline" "$tmp/board-run3.txt"'
+
+# --- the deliberate off-state (`none`) keeps TODAY's byte-identical `board off` report ----------
+write_board_fixture none
+(cd "$tmp/board-case/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" "$SCRIPT" --board-only >"$tmp/board-run3n.txt" 2>"$tmp/board-run3n-err.txt")
+rc=$?
+assert "board_pass none run exits zero" '[ $rc -eq 0 ]'
+assert "board_pass none emits a positive 'board off' line" \
+  'grep -qxF "board off" "$tmp/board-run3n.txt"'
+assert "board_pass none emits no inline board line" \
+  '! grep -q "board inline" "$tmp/board-run3n.txt"'
 
 # board_pass rebase-conflict-regenerate branch: force a push rejection whose only conflicting
 # path is BOARD.md, so the orchestrator must pull --rebase, hit a BOARD.md-only conflict,
@@ -725,7 +739,7 @@ printf '%s\n' \
   'CHANGES_DIR=docs/changes' \
   'ADRS_DIR=docs/adrs' \
   'RESULTS_DIR=docs/results' \
-  'BOARD_SURFACES=' \
+  'BOARD_SURFACES=none' \
   'TERMINAL_PUBLISH=false'
 EOF
 
@@ -770,7 +784,7 @@ printf '%s\n' \
   'CHANGES_DIR=docs/changes' \
   'ADRS_DIR=docs/adrs' \
   'RESULTS_DIR=docs/results' \
-  'BOARD_SURFACES='
+  'BOARD_SURFACES=none'
 EOF
 
 gate_dir2="$tmp/gate-enabled-case"
@@ -856,7 +870,7 @@ assert "emit_judgment: non-blocked change emits nothing" \
 
 # Full-run wiring: main() runs health_checks/emit_judgment always, and gates integration_sync
 # on swept_count > 0. Mock every shared script via SCRIPTS_DIR so the run is hermetic; use
-# BOARD_SURFACES="" to skip the board pass entirely (already covered above).
+# BOARD_SURFACES=none to skip the board pass entirely (already covered above).
 write_full_fixture(){
   # $1 board_surfaces (usually empty)
   cat > "$tmp/fixture-full.sh" <<EOF
@@ -873,7 +887,7 @@ printf '%s\n' \
   'BOARD_SURFACES=$1'
 EOF
 }
-write_full_fixture ""
+write_full_fixture none
 
 mkdir -p "$tmp/mock-full"
 full_log="$tmp/full-calls.log"
@@ -1174,7 +1188,7 @@ exit 1
 EOF
 chmod +x "$tmp/gh-det.sh"
 
-write_full_fixture ""
+write_full_fixture none
 (cd "$det_dir/work" && \
   CONFIG_EXPORT_CMD="bash $tmp/fixture-full.sh" GH="$tmp/gh-det.sh" \
   SCRIPTS_DIR="$tmp/mock-det" \
@@ -1282,7 +1296,7 @@ mkdir -p "$mm2_dir/work/docs/changes/active" "$mm2_dir/work/docs/adrs"
 git -C "$mm2_dir/work" -c user.email=t@t -c user.name=t commit -q --allow-empty -m "seed mm2" 2>/dev/null || true
 git -C "$mm2_dir/work" push -q origin main 2>/dev/null || true
 
-write_full_fixture ""
+write_full_fixture none
 mkdir -p "$tmp/mock-mm2"
 cat > "$tmp/mock-mm2/board-checks.sh" <<'EOF'
 #!/usr/bin/env bash
@@ -1312,8 +1326,9 @@ assert "SKILL no longer inlines the sweep loop enumeration" \
   '! grep -qF "For each \`implemented\` change:" "$SKILL"'
 
 # --- change 0069: the report is self-evidencing and board-independent ---
-# A board-off repo (board_surfaces: []) must still get a complete, positive report: `board off`,
-# the backlog digest, and `pass ok` — and must still perform ZERO git writes and leave no BOARD.md.
+# A board-off repo (`board_surfaces: []`, resolved by docket-config.sh to `BOARD_SURFACES=none` —
+# change 0071) must still get a complete, positive report: `board off`, the backlog digest, and
+# `pass ok` — and must still perform ZERO git writes and leave no BOARD.md.
 git_repo_setup "$tmp/boardoff-case"
 git clone -q "$tmp/boardoff-case/origin.git" "$tmp/boardoff-case/work" 2>/dev/null
 seed_changes_fixture "$tmp/boardoff-case/work"
@@ -1333,7 +1348,7 @@ git -C "$tmp/boardoff-case/work" -c user.email=t@t -c user.name=t commit -q -m "
 git -C "$tmp/boardoff-case/work" push -q origin main
 boardoff_head="$(git -C "$tmp/boardoff-case/work" rev-parse HEAD)"
 
-write_board_fixture ""
+write_board_fixture none
 (cd "$tmp/boardoff-case/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" "$SCRIPT" --board-only >"$tmp/boardoff-out.txt" 2>"$tmp/boardoff-err.txt")
 rc=$?
 assert "board-off --board-only exits zero" '[ $rc -eq 0 ]'
@@ -1377,7 +1392,7 @@ echo "stub render-board: boom" >&2
 exit 1
 EOF
 chmod +x "$tmp/stub-scripts/render-board.sh"
-write_board_fixture ""
+write_board_fixture none
 (cd "$tmp/boardoff-case/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" SCRIPTS_DIR="$tmp/stub-scripts" "$SCRIPT" --board-only >"$tmp/degrade-out.txt" 2>"$tmp/degrade-err.txt")
 rc=$?
 assert "failing digest still exits 0 (best-effort)" '[ $rc -eq 0 ]'
@@ -1398,7 +1413,7 @@ assert "failing digest logs its diagnostic to stderr" \
 # location — so a full pass genuinely renders the digest.
 #
 # It locks two things at once:
-#   1. UNGATED: with BOARD_SURFACES="" the full pass still emits the digest and `pass ok`.
+#   1. UNGATED: with BOARD_SURFACES=none the full pass still emits the digest and `pass ok`.
 #   2. POST-SWEEP: backlog_pass runs AFTER the sweep, so a change swept during this very pass is
 #      reported as `done` — never as the `implemented` it was when the pass began. This is the
 #      report's self-consistency: the digest is the sole backlog channel, so a pre-sweep snapshot
@@ -1498,7 +1513,7 @@ git -C "$fp_dir/work" -c user.email=t@t -c user.name=t add docs/changes
 git -C "$fp_dir/work" -c user.email=t@t -c user.name=t commit -q -m "seed full-pass digest fixture"
 git -C "$fp_dir/work" push -q origin main
 
-write_full_fixture ""
+write_full_fixture none
 (cd "$fp_dir/work" && \
   CONFIG_EXPORT_CMD="bash $tmp/fixture-full.sh" GH="$tmp/gh-fullpass.sh" \
   SCRIPTS_DIR="$tmp/mock-real" \
@@ -1507,7 +1522,7 @@ rc=$?
 assert "full pass (real renderer) exits zero" '[ $rc -eq 0 ]'
 assert "full pass swept the merged change" 'grep -qxF "swept 60 2026-07-11" "$tmp/fullpass-out.txt"'
 # (1) ungated: the digest and `pass ok` reach the FULL path, board off and all.
-assert "full pass emits 'board off' (board_surfaces empty)" \
+assert "full pass emits 'board off' (board_surfaces none)" \
   'grep -qxF "board off" "$tmp/fullpass-out.txt"'
 assert "full pass emits the backlog digest (UNGATED — not just --board-only)" \
   'grep -qxF "change 61 proposed build-ready alfa" "$tmp/fullpass-out.txt" && grep -qxF "change 62 in-progress - bravo-two" "$tmp/fullpass-out.txt"'

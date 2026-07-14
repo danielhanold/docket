@@ -40,14 +40,32 @@ done
 
 board_pass(){
   local surfaces="${BOARD_SURFACES:-}"
-  # Change 0069: silence is not evidence. With no surfaces configured the board pass is a
-  # deliberate no-op — SAY SO, so "exit 0 + empty stdout" can never again be read as "the script
-  # silently did nothing" and send an agent hunting for a BOARD.md the config forbids.
-  [ -n "$surfaces" ] || { echo "board off"; return 0; }
+  # Change 0071 — the polarity reversal, at its reference implementation. This guard used to read
+  # `[ -n "$surfaces" ] || { echo "board off"; return 0; }` — i.e. an UNRESOLVED config produced
+  # the DISABLED behavior, silently, with a success exit code. That is the bug. docket-config.sh
+  # now never emits an empty BOARD_SURFACES (the off-state is the positive token `none`), so an
+  # empty value here means exactly one thing: nobody resolved this. Fail closed and loudly —
+  # main() runs board_pass FIRST, so a hard exit here never reaches `pass ok`.
+  if [ -z "$surfaces" ]; then
+    echo "docket-status: BOARD_SURFACES is empty — config was never resolved (a wiring bug). The deliberate off-state is 'none'." >&2
+    exit 2
+  fi
+  # `none` is the reserved, EXCLUSIVE off-token: it disables every surface. Its report line is
+  # byte-identical to the pre-0071 `board off` — a disabled repo's output must not change.
+  local tok
+  for tok in $surfaces; do
+    if [ "$tok" = none ]; then
+      if [ "$surfaces" != none ]; then
+        echo "docket-status: 'none' is exclusive — it cannot be combined with other surfaces: $surfaces" >&2
+        exit 2
+      fi
+      echo "board off"
+      return 0
+    fi
+  done
   local mw
   if [ "${DOCKET_MODE:-}" = docket ]; then mw="${METADATA_WORKTREE:-.docket}"; else mw="."; fi
   local cd_dir="$mw/$CHANGES_DIR"
-  local tok
   for tok in $surfaces; do
     case "$tok" in
       inline) board_pass_inline "$mw" "$cd_dir" ;;
