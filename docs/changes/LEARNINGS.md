@@ -4,8 +4,8 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
-- 2026-06-17 → 2026-07-13 (#15 PR #32; #21 PR #34; #36 PR #47; #37 PR #48; #64 PR #75; #65 PR #74;
-  #69 PR #77; #68 PR #78 — merged, one guards-are-code family) — A guard is code: mutation-test it
+- 2026-06-17 → 2026-07-14 (#15 PR #32; #21 PR #34; #36 PR #47; #37 PR #48; #64 PR #75; #65 PR #74;
+  #69 PR #77; #68 PR #78; #72 PR #79 — merged, one guards-are-code family) — A guard is code: mutation-test it
   (strip the feature, watch it go red) or it is decoration. Every way one has shipped GREEN while
   guarding nothing:
   (a) **Wrong anchor** — a broad keyword OR-set (`run the suite|validate|local`) latched onto an
@@ -20,6 +20,14 @@
   ungated `--adr` invocation side by side was whitewashed by the single `--enabled` present. #68's
   escape-hatch scan anchored `^\s*NAME)` and so missed pipe-combined `case` arms (`run|shell|eval)`),
   searched for a token that was a typo of the real one, and missed input laundered through a variable.
+  #72's prose-invocation guard tokenized code units with an awk fence toggle anchored at COLUMN 0, so
+  every fenced block nested inside a numbered list (indented fences — two whole reference files' worth)
+  was silently dropped from the sweep: the guard read green over prose it had never parsed, and a
+  missed invocation would have shipped falsely green. Caught by the whole-branch review, fixed to allow
+  leading whitespace, and mutation-confirmed (reverting one indented-fence invocation now reddens; it
+  was invisible before). An order-assert built on `grep -n` LINE NUMBERS is the same error one level up
+  — it cannot order two phrases inside one paragraph, and the implementer "satisfied" it by splitting a
+  sentence mid-paragraph (#14).
   (d) **Wrong surface** — #68's inventory sentinel derived its op set from the `WRAPPED_OPS` array,
   proving "the array matches the doc" but never "the DISPATCH matches the doc": a `case` arm
   hand-added outside the loop would route while set-equality still held. A structural guard over a
@@ -35,7 +43,12 @@
   Apply: anchor to the UNIQUE phrase the target clause owns ("before any push") and confirm
   `grep -c` == 1 — never a keyword set, never a blunt `! grep`/`grep -q` over a literal that can
   legitimately appear elsewhere in the doc. Tokenize at the unit you claim to guard (the invocation,
-  not the line). One assert owns exactly ONE clause — if two locations satisfy it, split and
+  not the line) — and prove the tokenizer SEES the whole document before trusting what it reports: an
+  extractor whose anchor is stricter than the format allows (a column-0 fence in a format that indents
+  fences) silently shrinks the corpus, and a guard that parses nothing passes everything, so assert the
+  unit count it found, not just its verdict. Order-assert with byte offsets (`grep -ob`) when both
+  anchors can share a line, and read an implementer contorting the artifact to pass an assert as a
+  signal the assert itself is wrong. One assert owns exactly ONE clause — if two locations satisfy it, split and
   mutation-test each in isolation; when a mutation slips past a guard, add an INDEPENDENT scan rather
   than widening the first (#69 needed a second scan asserting the orchestrator never redirects the
   renderer into `BOARD.md`). Any test that `eval`s a command's output must clear the variables it
@@ -318,10 +331,13 @@
   or a throwaway worktree); after every push the controller SHA-compares local vs origin AND checks
   `git symbolic-ref -q HEAD` is the feature branch — never trust the push exit code alone.
 
-- 2026-06-17 (#15, PR #32) — A config enum value (`gate: off`) collides with a YAML 1.1 boolean —
-  safe under docket's grep/awk reads (it stays the literal string "off"), but it would parse as
-  `false` under a real YAML loader. Apply: a config value that is a YAML boolean keyword
-  (on/off/yes/no/true/false) must be quoted or avoided once a YAML library is in play (flagged for #0018/yq).
+- 2026-06-10 / 2026-06-17 (#5 PR #6; #15 PR #32 — merged, one YAML-scalar family) — Two ways a value
+  docket writes by hand parses differently once a real YAML loader is in play: an unquoted frontmatter
+  scalar cannot contain ": " (colon-space), and a config enum colliding with a YAML 1.1 boolean keyword
+  (`gate: off`) is safe under docket's grep/awk reads — it stays the literal string "off" — but would
+  load as `false`. Apply: quote (or reword around) any hand-authored scalar carrying a colon-space or a
+  boolean keyword (on/off/yes/no/true/false); today's reader tolerating it is not evidence the value is
+  well-formed (flagged for #0018/yq).
 
 - 2026-06-17 (#17, PR #31) — An `## Update` to an already-published, immutable ADR (0008) had to
   reach the integration branch alongside a NEW ADR (0009) it cross-references, without a premature
@@ -348,12 +364,6 @@
   pass's write-back — drive it through that pass, never bare; and when a create-and-set-state pass
   mints an id, key the state write on the EFFECTIVE id (existing OR just-minted), not the stored field.
 
-- 2026-06-12 (#14, PR #10) — A plan's order assertion compared `grep -n` line numbers, which
-  cannot order two phrases inside one paragraph; the implementer "satisfied" it by splitting a
-  sentence mid-paragraph. Apply: order-assert with byte offsets (`grep -ob`) when both anchors
-  can share a line — and treat an implementer contorting the artifact to pass a test as a signal
-  the assertion itself is wrong.
-
 - 2026-06-12 (#14, PR #10) — Two views keyed off a body section's *presence* (board cell,
   selection band), but the state transition out (re-arm) didn't remove the section — a re-armed
   stub stayed mislabeled. Apply: when state is encoded by an artifact's presence, every
@@ -370,9 +380,6 @@
 
 - 2026-06-12 (#12, PR #7) — link-skills.sh needed no edit for a new skill — it globs skills/*/.
   Apply: at reconcile, check whether plumbing auto-discovers before planning an edit to it.
-
-- 2026-06-10 (#5, PR #6) — YAML frontmatter: an unquoted scalar value cannot contain ": "
-  (colon-space). Apply: reword with an em-dash or quote the scalar in skill descriptions.
 
 - 2026-06-02–12 (#1, #2, #5, #13) — Foundational sentinel/test discipline (consolidated; richer,
   more specific restatements live in the guards-are-code and green-suite families above): sentinel
