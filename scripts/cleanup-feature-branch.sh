@@ -84,6 +84,17 @@ fi
 
 # delete local + remote feat/<slug> — anchored at the main worktree, never the caller's CWD
 $GIT -C "$root" branch -D "feat/$SLUG" >/dev/null 2>&1 || true
+
+# FAIL-CLOSED REMOTE-DELETE GUARD (review finding 2, change 0075) — never destroy the REMOTE
+# branch while the LOCAL branch still exists. If `git branch -D` above didn't actually remove it
+# (typically: still checked out in another worktree — e.g. a hand-passed --worktrees-dir that
+# doesn't match where the branch is really checked out), refuse BEFORE the remote delete: the
+# remote stays intact and the operator can re-run once the local branch is actually gone. This is
+# a separate, later ordering guard — it does not broaden the .worktrees/ provenance guard above.
+if $GIT -C "$root" rev-parse --verify -q "feat/$SLUG" >/dev/null 2>&1; then
+  die "refusing to delete remote feat/$SLUG: the local branch still exists (likely still checked out in another worktree) — resolve that first and re-run"
+fi
+
 if $GIT -C "$root" ls-remote --exit-code "$REMOTE" "feat/$SLUG" >/dev/null 2>&1; then
   $GIT -C "$root" push "$REMOTE" --delete "feat/$SLUG" >/dev/null 2>&1 || die "remote branch delete failed"
 fi
