@@ -247,6 +247,12 @@ assert "docket-mode sync created metadata worktree" '[ -d "$tmp/docket-case/work
 # board_pass: hermetic changes fixture rendered inline, committed + pushed to a bare remote.
 write_board_fixture(){
   # $1 = board_surfaces value
+  # METADATA_WORKTREE=. — main-mode's REAL export (docket-config.sh: `main) DOCKET_MODE=main;
+  # METADATA_WORKTREE=. ;;`). It used to read `.docket` here, which docket-config.sh never emits in
+  # main mode; the fixture got away with it only because docket-status.sh hard-coded `mw="."` in
+  # main mode and never read the key. Change 0075 routes every mw through docket_metadata_worktree,
+  # which honors the value it is given — so an unfaithful fixture would now test a config that
+  # cannot exist.
   cat > "$tmp/fixture-board.sh" <<EOF
 #!/usr/bin/env bash
 printf '%s\n' \
@@ -254,7 +260,7 @@ printf '%s\n' \
   'METADATA_BRANCH=main' \
   'INTEGRATION_BRANCH=main' \
   'DOCKET_MODE=main' \
-  'METADATA_WORKTREE=.docket' \
+  'METADATA_WORKTREE=.' \
   'CHANGES_DIR=docs/changes' \
   'ADRS_DIR=docs/adrs' \
   'RESULTS_DIR=docs/results' \
@@ -1015,6 +1021,7 @@ assert "emit_judgment: non-blocked change emits nothing" \
 # BOARD_SURFACES=none to skip the board pass entirely (already covered above).
 write_full_fixture(){
   # $1 board_surfaces (usually empty)
+  # METADATA_WORKTREE=. — main-mode's REAL export; see write_board_fixture above.
   cat > "$tmp/fixture-full.sh" <<EOF
 #!/usr/bin/env bash
 printf '%s\n' \
@@ -1022,7 +1029,7 @@ printf '%s\n' \
   'METADATA_BRANCH=main' \
   'INTEGRATION_BRANCH=main' \
   'DOCKET_MODE=main' \
-  'METADATA_WORKTREE=.docket' \
+  'METADATA_WORKTREE=.' \
   'CHANGES_DIR=docs/changes' \
   'ADRS_DIR=docs/adrs' \
   'RESULTS_DIR=docs/results' \
@@ -1759,5 +1766,152 @@ assert "docket-status calls docket_preflight" \
   'grep -q "docket_preflight" "$SCRIPT"'
 assert "docket-status no longer defines a private ensure_and_sync_worktree" \
   '! grep -qE "^ensure_and_sync_worktree\(\)" "$SCRIPT"'
+
+# --- change 0075 §5: the artifacts-refresh block (sweep_execute_one) ---------------------------
+# This block was DEAD pre-0075: its pathspec ($archived) carried the same RELATIVE $mw that
+# `git -C "$mw"` is already rooted at, so under `git -C .docket` the pathspec `.docket/docs/...`
+# matched NOTHING, the refreshed `## Artifacts` block was never committed, and the whole
+# commit/push/`return 0` limb never executed. Anchoring $mw brings it alive for the first time, so
+# it is tested here with the REAL render-change-links.sh — a no-op mock of that tool routes the
+# test straight through the degrade branch and proves nothing (LEARNINGS) — against a change file
+# whose `## Artifacts` block is genuinely STALE, so the file really is dirty:
+#   (i)  the refreshed ## Artifacts block is actually COMMITTED on the metadata branch
+#   (ii) a failure inside the block does NOT abandon terminal-publish or cleanup
+#
+# All eight sweep-path scripts are the REAL ones (exec'd by absolute path so their own
+# $(dirname "$0") lib resolution still finds their real files). DOCKET_CONFIG points render-change-
+# links.sh at the same fixture config, so it never shells out to the real docket-config.sh.
+mkdir -p "$tmp/mock-a5"
+for s in archive-change.sh render-change-links.sh terminal-publish.sh cleanup-feature-branch.sh \
+         board-refresh.sh render-board.sh board-checks.sh sync-integration-branch.sh; do
+  printf '#!/usr/bin/env bash\nexec %q "$@"\n' "$REPO/scripts/$s" > "$tmp/mock-a5/$s"
+  chmod +x "$tmp/mock-a5/$s"
+done
+
+cat > "$tmp/fixture-a5.sh" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' \
+  'BOOTSTRAP=PROCEED' \
+  'METADATA_BRANCH=docket' \
+  'INTEGRATION_BRANCH=main' \
+  'DOCKET_MODE=docket' \
+  'METADATA_WORKTREE=.docket' \
+  'CHANGES_DIR=docs/changes' \
+  'ADRS_DIR=docs/adrs' \
+  'RESULTS_DIR=docs/results' \
+  'BOARD_SURFACES=none' \
+  'TERMINAL_PUBLISH=true'
+EOF
+chmod +x "$tmp/fixture-a5.sh"
+
+# Re-seed gate_setup's change 0060 ON THE METADATA BRANCH (via a side clone — gate_setup does NOT
+# create the .docket worktree; preflight does, later, inside the run under test) with:
+#   * a genuinely STALE `## Artifacts` block, so the REAL render-change-links.sh has something to
+#     rewrite and the block's `status --porcelain` reports a genuinely dirty file; and
+#   * an `updated:` key, which the REAL archive-change.sh's fail-closed postcondition requires
+#     (its portable-sed set_field only rewrites keys that already exist).
+a5_seed_stale(){
+  local root="$1" c
+  git clone -q "$root/origin.git" "$root/stale-seed" 2>/dev/null
+  git -C "$root/stale-seed" checkout -q docket
+  c="$root/stale-seed/docs/changes/active/0060-gate-thing.md"
+  cat > "$c" <<'EOF'
+---
+id: 60
+slug: gate-thing
+title: Gate thing
+status: implemented
+priority: high
+depends_on: []
+branch: feat/gate-thing
+pr: 60
+updated: 2026-07-01
+---
+
+## Artifacts
+
+<!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| STALE | stale-placeholder |
+<!-- docket:artifacts:end -->
+
+Body.
+EOF
+  git -C "$root/stale-seed" add -A
+  git -C "$root/stale-seed" -c user.email=t@t -c user.name=t commit -q -m "stale artifacts block"
+  git -C "$root/stale-seed" push -q origin docket
+}
+
+a5="$tmp/a5-case"
+gate_setup "$a5"
+a5_seed_stale "$a5"
+
+(cd "$a5/work" && \
+  CONFIG_EXPORT_CMD="bash $tmp/fixture-a5.sh" DOCKET_CONFIG="$tmp/fixture-a5.sh" \
+  GH="$tmp/gh-gate.sh" SCRIPTS_DIR="$tmp/mock-a5" \
+  "$SCRIPT" --repo x/y >"$tmp/a5-out.txt" 2>"$tmp/a5-err.txt")
+rc=$?
+a5_archived="docs/changes/archive/2026-07-11-0060-gate-thing.md"
+assert "0075 §5: the sweep exits zero" '[ $rc -eq 0 ]'
+assert "0075 §5: the change is swept" 'grep -qE "^swept 60 " "$tmp/a5-out.txt"'
+assert "0075 §5: no sweep-failed line on the happy path" \
+  '! grep -q "^sweep-failed 60 " "$tmp/a5-out.txt"'
+git -C "$a5/work" fetch origin docket >/dev/null 2>&1
+assert "0075 §5: the refreshed ## Artifacts block is COMMITTED on the metadata branch (the block was DEAD pre-0075)" \
+  '! git -C "$a5/work" show "origin/docket:$a5_archived" | grep -q "stale-placeholder"'
+assert "0075 §5: the committed block is the REAL renderer's output (the PR row), not just a deletion" \
+  'git -C "$a5/work" show "origin/docket:$a5_archived" | grep -qF "| PR | 60 |"'
+assert "0075 §5: the close-out still completed — terminal-publish landed the record on main" \
+  'git -C "$a5/work" fetch origin main >/dev/null 2>&1; git -C "$a5/work" ls-tree -r --name-only origin/main | grep -q "$a5_archived"'
+assert "0075 §5: the close-out still completed — cleanup removed the feature worktree" \
+  '[ ! -e "$a5/work/.worktrees/gate-thing" ]'
+
+# (ii) THE LANDMINE: make the artifacts-refresh PUSH fail, and prove the close-out still finishes.
+# The fault is injected as a `pre-receive` hook on the bare origin that rejects ONLY the
+# artifacts-refresh commit on refs/heads/docket. It has to be that surgical: archive-change.sh's
+# own push to docket, terminal-publish.sh's push to main and cleanup-feature-branch.sh's remote
+# branch delete must all still SUCCEED, or the "did not abandon the close-out" asserts below would
+# pass (or fail) for the wrong reason. (A blanket broken push URL — the obvious recipe — is worse
+# than useless here: linked worktrees SHARE the repo config, so it would also break archive-change,
+# terminal-publish and cleanup, and archive-change's `until push; do pull --rebase; done` cas_push
+# would spin forever.)
+a5b="$tmp/a5b-case"
+gate_setup "$a5b"
+a5_seed_stale "$a5b"
+cat > "$a5b/origin.git/hooks/pre-receive" <<'EOF'
+#!/usr/bin/env bash
+while read -r _old new ref; do
+  case "$ref" in
+    refs/heads/docket)
+      if [ "$new" != "0000000000000000000000000000000000000000" ] \
+         && git log -1 --format=%s "$new" | grep -q "refresh artifacts links"; then
+        echo "pre-receive: rejecting the artifacts-refresh push (0075 §5 test fixture)" >&2
+        exit 1
+      fi ;;
+  esac
+done
+exit 0
+EOF
+chmod +x "$a5b/origin.git/hooks/pre-receive"
+
+(cd "$a5b/work" && \
+  CONFIG_EXPORT_CMD="bash $tmp/fixture-a5.sh" DOCKET_CONFIG="$tmp/fixture-a5.sh" \
+  GH="$tmp/gh-gate.sh" SCRIPTS_DIR="$tmp/mock-a5" \
+  "$SCRIPT" --repo x/y >"$tmp/a5b-out.txt" 2>"$tmp/a5b-err.txt")
+rc=$?
+assert "0075 §5(landmine): the sweep still exits zero when the artifacts push fails" '[ $rc -eq 0 ]'
+assert "0075 §5(landmine): the push failure is REPORTED on the report channel" \
+  'grep -qE "^sweep-failed 60 render-change-links push-failed$" "$tmp/a5b-out.txt"'
+assert "0075 §5(landmine): the push really was rejected — the stale block survives on the metadata branch (cosmetic)" \
+  'git -C "$a5b/work" fetch origin docket >/dev/null 2>&1; git -C "$a5b/work" show "origin/docket:$a5_archived" | grep -q "stale-placeholder"'
+assert "0075 §5(landmine): the failure does NOT abandon terminal-publish — the record still landed on main" \
+  'git -C "$a5b/work" fetch origin main >/dev/null 2>&1; git -C "$a5b/work" ls-tree -r --name-only origin/main | grep -q "$a5_archived"'
+assert "0075 §5(landmine): the failure does NOT abandon cleanup — the feature worktree is gone" \
+  '[ ! -e "$a5b/work/.worktrees/gate-thing" ]'
+assert "0075 §5(landmine): the failure does NOT abandon cleanup — the remote feat branch is gone" \
+  '! git -C "$a5b/work" ls-remote --exit-code origin feat/gate-thing >/dev/null 2>&1'
+assert "0075 §5(landmine): the sweep still reports the change as swept" \
+  'grep -qE "^swept 60 " "$tmp/a5b-out.txt"'
 
 exit $fail
