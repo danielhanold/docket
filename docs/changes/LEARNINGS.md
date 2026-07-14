@@ -5,7 +5,7 @@
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
 - 2026-06-17 → 2026-07-14 (#15 PR #32; #21 PR #34; #36 PR #47; #37 PR #48; #64 PR #75; #65 PR #74;
-  #69 PR #77; #68 PR #78; #72 PR #79; #70 PR #80 — merged, one guards-are-code family) — A guard is code: mutation-test it
+  #69 PR #77; #68 PR #78; #72 PR #79; #70 PR #80; #71 PR #81 — merged, one guards-are-code family) — A guard is code: mutation-test it
   (strip the feature, watch it go red) or it is decoration. Every way one has shipped GREEN while
   guarding nothing:
   (a) **Wrong anchor** — a broad keyword OR-set (`run the suite|validate|local`) latched onto an
@@ -40,6 +40,12 @@
   *contrastive* clause, which a blunt absence-grep can't tell from the forbidden *adopted* posture;
   and a `grep -q "literal"` stayed green when a prose strip RELOCATED the must-preserve substring into
   an unrelated bullet, producing a false sentence.
+  (h) **An assert that could never fire at all** — #71 shipped two. `! grep -qxF "BOARD_SURFACES="`
+  was asserting on a string the producer never emits (bash's `%q` renders an empty value as
+  `BOARD_SURFACES=''`, never a bare trailing `=`), and `! grep -qF "$FLAG"` with `FLAG='--surfaces'`
+  makes grep parse the *pattern* as an **option** and exit 2 — which the leading `!` then inverts into
+  a green `ok`. Neither could redden under any mutation. The second was copied VERBATIM from the plan's
+  own snippet.
   (g) **A list of spellings, not a shape** — #70's write sentinel enumerated the *spellings* of a
   tainted variable (`$out`, `${out}`) instead of describing its *shape*, so it was green on `${out:-}`
   — the guarded file's own house idiom, 14 occurrences in `docket-status.sh`, i.e. the single most
@@ -73,35 +79,68 @@
   house idiom. Mutate the REAL tree, not only fixtures: a fixture battery samples the shapes you
   already thought of, so inject the regression into the actual guarded file (its idioms are the
   adversary) before believing a green guard. And never RETIRE an existing guard on the claim that a
-  new one subsumes it — prove subsumption by mutation in BOTH directions, or keep both.
+  new one subsumes it — prove subsumption by mutation in BOTH directions, or keep both. Prove an assert
+  can FIRE before you trust that it passes: one whose pattern leads with `--` (always `grep -qF --
+  "$pat"`), or whose expected string you INVENTED rather than copied from the producer's real output
+  (`%q`-formatted, quoted, escaped), is vacuous by construction — run it against a tree where the
+  guarded thing IS present and watch it redden. And a snippet the PLAN hands you is unvetted code:
+  mutation-test it like any assert you wrote yourself.
 
-- 2026-07-13 (#69, PR #77) — Making a new channel the SOLE source of some state turned a previously
-  benign staleness into a self-contradiction. The digest was spec'd to emit BEFORE the merge sweep,
-  which was fine while `BOARD.md` existed as a second channel — but the same change forbade the skill
-  from ever opening the board, so a full pass now printed `change 60 implemented` and `swept 60` in
-  one report with no corrective path left. Apply: when a change removes the fallback channel for some
-  state, re-audit the surviving channel's ORDERING against every pass that MUTATES that state — a
-  snapshot taken before a mutating pass is only tolerable while something downstream can correct it.
-  (Shipped: emit once per path — before the early exit that runs no sweep, after the sweep on a full
-  pass. The spec's placement sentence described a mechanism for a single-call implementation, not a
-  boundary, so the deviation was disclosed in the results file, documented at three sites, and locked
-  by tests that redden if the call moves back — never silently "fixed".)
+- 2026-07-13/14 (#69 PR #77; #71 PR #81 — merged, one sole-channel family) — When a channel becomes the
+  SOLE source of some state, every property you used to get for free from the fallback has to be
+  re-proven on the survivor. Both changes shipped a hole here, in both directions.
+  (a) **Ordering** — #69's digest was spec'd to emit BEFORE the merge sweep, fine while `BOARD.md` was
+  a second channel, but the same change forbade the skill from ever opening the board: a full pass then
+  printed `change 60 implemented` and `swept 60` in one report with no corrective path left.
+  (b) **Totality** — #71 collapsed six duplicated Board-pass call sites onto a stdout report line
+  ("key on the LINE, never the exit code"), and the whole-branch review found two exit-0 paths through
+  `docket-status.sh` that emit **no `board …` line at all** (an unknown/typo'd surface token; an inline
+  render failure). A must-land caller seeing no line concludes "terminal → it landed" and proceeds on a
+  silently stale board — the very defect class the change exists to kill, relocated from the script
+  boundary into the caller contract and made QUIETER than before (a direct `board-refresh.sh` call had
+  at least surfaced a non-zero exit).
+  (c) **Terminality** — #71's first retry contract listed the three lines meaning "done" and retried on
+  everything else, so a legitimate `board_surfaces: [github]` repo (which prints only `board github ok`)
+  would have re-invoked forever.
+  Apply: when a change removes the fallback channel for some state, re-audit the survivor's ORDERING
+  against every pass that MUTATES that state (a snapshot taken before a mutating pass is only tolerable
+  while something downstream can correct it), and prove the channel is TOTAL — every path, including the
+  warn-and-ignore and failure paths, emits exactly one line — because "no line" is otherwise
+  indistinguishable from success and you have merely moved the silence somewhere quieter. Enumerate a
+  retry contract by its RETRYABLE set, never its terminal set: the terminal set is open-ended, and the
+  legitimate line you forgot becomes an infinite loop.
 
-- 2026-06-12 → 2026-07-13 (#14 PR #10; #32 PR #43; #42 PR #52; #56 PR #68; #64 PR #75 — merged, one
-  enumerated-set family) — Repeatedly, a hand-written enumeration of "everywhere X appears"
-  undercounted, and the miss landed in the surface that mattered most: 4 test assertions still
-  hardcoding old model aliases plus two un-named id-read sites (surfaced only by reconcile's
+- 2026-06-12 → 2026-07-14 (#14 PR #10; #32 PR #43; #42 PR #52; #56 PR #68; #64 PR #75; #52 PR #61;
+  #54 PR #66; #71 PR #81 — merged, one enumerated-floor family) — **Every hand-written enumeration is a
+  floor, not the set** — of sites, of audit dimensions, of tests — and the miss always lands in the
+  surface that mattered most.
+  (a) **Sites.** A hand-listed "everywhere X appears" undercounted again and again: 4 test assertions
+  still hardcoding old model aliases plus two un-named id-read sites (surfaced only by reconcile's
   exhaustive grep, not the spec); a 9th generated wrapper leaving the convention's "eight wrappers"
-  line, one `test_finalize_gate` assertion, and seven `test_sync_agents` assertions stale at once; an
-  earlier skill leaving "six skills" in README and the convention; and 0064's gating knob listing
-  every skill/reference *prose* site while missing `scripts/docket-status.sh`, the one **executable**
-  invocation, in the headless merge sweep — precisely the agent the gate exists to serve, so
-  `terminal_publish: false` would have kept publishing to `main` on every sweep. Apply: never
-  hand-list the sites of a literal, a count, or an operation you are gating — derive them from a grep
-  of the WHOLE repo, then sort them into prose vs executable, because only the executable ones can
-  actually violate a gate and they are the ones a docs-shaped reading skips right past. A spec's
-  enumerated list is a floor, not the set: let reconcile pin the full inventory before the build
-  starts, and guard the list's completeness with a structural sentinel, not with review attention.
+  line, one `test_finalize_gate` assertion and seven `test_sync_agents` assertions stale at once; an
+  earlier skill leaving "six skills" in README and the convention; and 0064's gating knob listing every
+  *prose* site while missing `scripts/docket-status.sh`, the one **executable** invocation, in the
+  headless merge sweep — precisely the agent the gate exists to serve, so `terminal_publish: false`
+  would have kept publishing to `main` on every sweep. The same undercount hits a sentinel's own
+  CORPUS: #71's structural sentinel scanned a file set that omitted
+  `skills/docket-convention/github-board-mirror.md` — the one reference doc *about* board surfaces, and
+  the likeliest place for a 9th call site to appear (widened in review to `skills/*/*.md` +
+  `skills/*/references/*.md`).
+  (b) **Audit dimensions.** A goal-scoped rewrite only examines the dimensions in its goal set; anything
+  outside it passes unaudited even when every claim it makes is TRUE — a README rewrite audited hard
+  against its three named goals shipped clean yet stayed Claude-centric for a tool that first-classes
+  three harnesses (an accuracy audit verifies each claim is true, which a single-harness framing can
+  be); the owner caught it at the merge gate.
+  (c) **Tests.** A behavior-neutral slim passed its own goal-scoped review, yet finalize's FULL suite
+  caught a regression its 7 enumerated sentinels missed.
+  Apply: never hand-list the sites of a literal, a count, or an operation you are gating — derive them
+  from a grep of the WHOLE repo, then sort them into prose vs executable, because only the executable
+  ones can violate a gate and they are the ones a docs-shaped reading skips right past. Let reconcile
+  pin the full inventory before the build starts, and guard the list's completeness with a structural
+  sentinel — whose corpus is itself an enumeration, so derive that too. Name every dimension you need
+  audited as an explicit goal (for a multi-harness tool, "neutral across the supported set" is one). And
+  run the WHOLE suite at the merge/build gate, never only the tests the spec enumerated — an
+  out-of-goal regression is exactly what the tests outside the goal set exist to catch.
 
 - 2026-06-21 / 2026-07-13 (#34 PR #45; #66 PR #73 — merged, one environment family) — Twice a suite
   ran RED where the failure was NOT a regression: (a) an ambient `DOCKET_SCRIPTS_DIR` export in the
@@ -127,17 +166,21 @@
   degraded binding silently drops the discipline while every artifact it should have produced is
   still there.
 
-- 2026-07-13 (#65, PR #74) — A doc sentinel proves a sentence still EXISTS; it can never prove the
-  sentence is still TRUE. This change's README teaching prose asserted which model tier each built-in
-  agent runs at, and shipped factually false on the first pass (it claimed a design pass sits at a
-  mid tier between build and sweep — `docket-auto-groom` actually ships at opus/xhigh, the same top
-  tier as `docket-implement-next`, and `docket-status` was called "low effort" when it ships at
-  `medium`). Every sentinel was green: they pin the framing, not the claims. The whole-branch review
-  caught it by re-deriving each tier from the shipped `agents/docket-*.md`. Apply: when prose asserts
-  a fact whose source of truth is another file (a tier, a count, a default), a grep sentinel is NOT
-  coverage — either derive the assertion from that source in the test, or accept that only a review
-  reading against the source can validate it; and treat prose restating a configurable value as a
-  drift surface from the day it ships.
+- 2026-07-08 / 2026-07-13 (#47 PR #55; #65 PR #74 — merged, one prose-is-not-a-source family) — Prose
+  restating a fact owned by another file drifts, and neither a sentinel nor a neighboring doc can catch
+  it. #65's README teaching prose asserted which model tier each built-in agent runs at and shipped
+  factually FALSE (it placed a design pass at a mid tier — `docket-auto-groom` actually ships at
+  opus/xhigh, the same top tier as `docket-implement-next` — and called `docket-status` "low effort"
+  when it ships at `medium`); every sentinel was green, because a doc sentinel proves a sentence still
+  EXISTS and can never prove it is still TRUE. #47, whose whole job was documenting existing behavior,
+  nearly copied a drifted sibling forward: the convention's "Agent layer" prose says "`effort: auto` (or
+  omitted) → omit the effort line," but `sync-agents.sh:145` omits the line only for `auto` — omitting
+  the *key* keeps the built-in effort. Apply: when prose asserts a fact whose source of truth is another
+  file (a tier, a count, a default, a behavior), write it against the CODE and cite the line — never
+  against the sibling prose that describes the same thing, which may already have drifted. A grep
+  sentinel is not coverage for such a claim: either derive the assertion from that source in the test,
+  or accept that only a review reading against the source can validate it. Treat prose restating a
+  configurable value as a drift surface from the day it ships.
 
 - 2026-07-11 (#63, PR #72) — 0063 disabled hooks on docket worktrees by relocating a conflicting
   common-config git value, and an early draft relocated `core.bare` unconditionally. Because
@@ -195,17 +238,6 @@
   slim, the size target is a direction, not a gate — once review shows the remaining lines are
   load-bearing, accept the size and stop trimming; behavior-neutrality outranks hitting the number.
 
-- 2026-07-10/11 (#52 PR #61; #54 PR #66 — merged, one pattern) — A goal-scoped rewrite only examines
-  the dimensions in its goal set; anything OUTSIDE it passes unaudited even when every claim it makes
-  is TRUE. (a) A README rewrite audited hard against its three named goals shipped clean — yet stayed
-  Claude-centric for a tool that first-classes three agent harnesses (an accuracy audit verifies each
-  claim is true, which a single-harness framing can be); the owner caught it at the merge gate. (b) A
-  behavior-neutral slim passed its own goal-scoped review, yet finalize's FULL suite caught a
-  regression its 7 enumerated sentinels missed. Apply: name every dimension you need audited as an
-  explicit rewrite goal (for a multi-harness tool, "neutral across the supported set" is one); and run
-  the WHOLE suite at the merge/build gate, never only the tests the spec enumerated — the sentinel
-  list is a floor, and an out-of-goal regression is what the tests outside it exist to catch.
-
 - 2026-07-10/11 (#51 PR #60; #57 PR #63 — merged, re-hit class) — An awk/sed **range** edit
   (`/start/,/end/`) over a marker-bounded "do-not-hand-edit" managed block is a data-loss hazard
   whenever the end marker is lost (truncation / bad merge) or the markers are out of order
@@ -224,25 +256,23 @@
   verbatim must be valid in the *exact* repo state that produced it — branch the printed text on the
   same condition that gates the underlying write, never emit one fixed command for divergent states.
 
-- 2026-07-09 (#50, PR #59) — A feature that added a write path to a shared per-user location
-  (`sync-agents.sh`'s auto-migration writes `~/.config/docket/config.yml`) upgraded every
-  non-hermetic test that reaches it from read-leak to write hazard: `tests/test_install.sh`
-  inherited `XDG_CONFIG_HOME`, so on machines exporting it (common on Linux) the suite would have
-  **rewritten the developer's real global config** as a test side effect — caught by the final
-  whole-branch review, fixed pre-merge (`585b5ae`). Apply: when a change adds a write path to a
-  shared user-level location, audit every test that can transitively reach that path and pin the
-  relevant env (XDG/HOME) hermetically — tests that merely read-leaked before the change become
-  data-loss hazards after it.
-
-- 2026-07-09 (#50, PR #59) — The new global config layer passed every unit fixture, yet in live use
-  its `agents:` values were fully shadowed in any repo opted into per-repo generation: the committed
-  full wrapper set (change 0048) resolves from `.docket.yml` + built-ins only and takes harness
-  precedence over the user-level wrappers carrying the global values. Found only by live-testing on
-  a real repo *after* the build (a loud causal warning landed as a stopgap; real semantics deferred
-  to #0051). Apply: when adding a lower-precedence config layer, enumerate every higher-precedence
-  **generated artifact** that can shadow it — not just the direct readers — and live-test the new
-  layer's effect in a repo where those artifacts exist; a value can resolve correctly and still
-  never take effect.
+- 2026-07-09 (#50, PR #59 — two hazards from one new config layer) — (a) **The write path.** Adding a
+  write to a shared per-user location (`sync-agents.sh`'s auto-migration writes
+  `~/.config/docket/config.yml`) upgraded every non-hermetic test that reaches it from read-leak to
+  write hazard: `tests/test_install.sh` inherited `XDG_CONFIG_HOME`, so on machines exporting it (common
+  on Linux) the suite would have **rewritten the developer's real global config** as a test side effect
+  — caught by the final whole-branch review, fixed pre-merge (`585b5ae`). (b) **The read path.** The new
+  layer passed every unit fixture, yet in live use its `agents:` values were fully shadowed in any repo
+  opted into per-repo generation: the committed full wrapper set (change 0048) resolves from
+  `.docket.yml` + built-ins only and takes harness precedence over the user-level wrappers carrying the
+  global values. Found only by live-testing a real repo *after* the build (a loud causal warning landed
+  as a stopgap; real semantics deferred to #0051). Apply: when a change adds a write path to a shared
+  user-level location, audit every test that can transitively reach it and pin the relevant env
+  (XDG/HOME) hermetically — tests that merely read-leaked before the change become data-loss hazards
+  after it. And when adding a LOWER-precedence config layer, enumerate every higher-precedence
+  **generated artifact** that can shadow it — not just the direct readers — then live-test the new
+  layer in a repo where those artifacts exist: a value can resolve correctly and still never take
+  effect.
 
 - 2026-07-09 (#49, PR #58) — A change that added a new user-facing config knob (the role-keyed
   `skills:` map) shipped its resolution logic and skill-body wiring but NOT its surfacing: the
@@ -262,14 +292,6 @@
   explicit opt-in signal (a dedicated config key), never on the mere presence of the config file — and
   add a regression test asserting the minimal adopter generates zero files and keeps `--check` a no-op.
 
-- 2026-07-08 (#47, PR #55) — A docs change whose whole job was to document an *existing* behavior
-  (how `effort: auto` affects a generated agent) nearly documented the wrong thing: the neighboring
-  docket-convention "Agent layer" prose says "`effort: auto` (or omitted) → omit the effort line,"
-  but `sync-agents.sh:145` omits the line only for `auto` — omitting the *key* keeps the built-in
-  effort. The README was salvaged only by writing it against the code, not the sibling prose. Apply:
-  when a change's job is to document existing behavior, treat the code (cite the line) as the source
-  of truth — sibling prose describing the same behavior may have drifted; don't copy it forward.
-
 - 2026-07-08 (#45, PR #54) — A plan that split multi-harness generation across two tasks left a
   Task-1 seam: Task 1 removed the `PROJECT_AGENT_DIR` variable, but `check_project_level` (only
   rewritten in Task 2) still referenced it, an unbound-variable crash under `set -euo pipefail` that
@@ -278,12 +300,15 @@
   as itself buildable and testable — don't assume the earlier task's leftover references are safe
   because a later task will delete them.
 
-- 2026-06-19 / 2026-06-21 / 2026-07-08 (#25 PR #36; #38 PR #46; #46 PR #56 — merged, one
-  shell-portability family) — Three portability traps in tooling the plan itself authored. (a)
+- 2026-06-19 / 2026-06-21 / 2026-07-08 / 2026-07-14 (#25 PR #36; #38 PR #46; #46 PR #56; #71 PR #81 —
+  merged, one shell-portability family) — Portability traps in tooling the plan itself authored. (a)
   **grep for a `--flag`:** a bare ERE that *leads* with `--` is parsed as a grep **option**
   (`unrecognized option`, exit 2); over-escaping to dodge that (`\-\-yes\b`) springs GNU grep's
   `stray \ before -` stderr warning, which BSD grep stays silent about — so it hides on macOS. Declare
-  the pattern with `grep -E -e "<pat>"`: POSIX `-e` makes the next arg a pattern, never an option.
+  the pattern with `grep -E -e "<pat>"` or `grep -qF -- "<pat>"`: POSIX `-e`/`--` makes the next arg a
+  pattern, never an option. #71 re-hit this inside a NEGATED assert (`! grep -qF "$FLAG"`,
+  `FLAG='--surfaces'`), where the leading `!` inverted grep's exit-2 error into a green `ok` — the trap
+  stops being a loud crash and becomes a permanently vacuous guard (guards family, (h)).
   (b) **awk whitespace class:** `ind()` used `[^ ]` (a literal-space class), so a **tab-indented**
   config layer was silently dropped — use `[^[:space:]]` and test tab-indented input. (c) **macOS path
   resolution:** `mktemp` yields `/var/…` but git reports `/private/var/…`, so stripping a worktree
@@ -367,15 +392,26 @@
   early-exiting-consumer` (`grep -q`, `head`, `head -n1`, or any reader that may stop before EOF)
   under `set -o pipefail` — capture into a variable first, then grep/`head <<<"$var"`.
 
-- 2026-06-16 (#11, PR #11) — Two idempotency bugs in one derived-surface mirror. It keyed idempotency
-  on a persisted change-file field but did no git writes itself, so a bare run (outside the
-  orchestrating pass that records the field) re-created every item — and it read the integration
-  checkout where `active/` is pruned, so it only saw archived changes. Separately, its first-sync
-  close-state keyed on the *pre-existing* id field (empty on a fresh mint), so an already-terminal
-  item was created open and closed only on a later pass. Apply: a script that reads change files must
-  read the metadata working tree (guard the pruned tree) and is idempotent only via the orchestrating
-  pass's write-back — drive it through that pass, never bare; and when a create-and-set-state pass
-  mints an id, key the state write on the EFFECTIVE id (existing OR just-minted), not the stored field.
+- 2026-06-16 / 2026-07-14 (#11 PR #11; #71 PR #81 — merged, one idempotency-keying family) — Three
+  no-op/idempotency probes, each keyed on a proxy that a PARTIAL FAILURE also satisfies. #11's
+  derived-surface mirror keyed idempotency on a persisted change-file field but did no git writes
+  itself, so a bare run (outside the orchestrating pass that records the field) re-created every item —
+  and it read the integration checkout where `active/` is pruned, so it only saw archived changes; its
+  first-sync close-state keyed on the *pre-existing* id field (empty on a fresh mint), so an
+  already-terminal item was created open and closed only on a later pass. #71 found the same shape in
+  the board orchestrator: `board inline clean` was keyed on a CLEAN WORKING TREE, but after a failed
+  push the board commit already exists locally and the tree is clean — so the must-land remedy
+  (re-invoke) re-rendered, found no diff, and reported the terminal-success line while the board had
+  never reached the remote. `board inline changed pushed` was unreachable after any push failure. Apply:
+  key a "nothing to do" probe on the state you actually PROMISED (it reached the remote), never on a
+  local proxy — clean tree, no diff, a stored field — because the proxy is precisely what a
+  half-completed run leaves behind, and the probe then certifies the failure as success. (Fixed by also
+  counting unpushed commits touching the path, `git rev-list --count @{u}..HEAD -- <path>`, degrading to
+  "nothing to push" when there is no upstream, and falling through into the existing push/rebase loop.)
+  A script that reads change files must read the metadata working tree (guard the pruned tree) and is
+  idempotent only via the orchestrating pass's write-back — drive it through that pass, never bare; and
+  when a create-and-set-state pass mints an id, key the state write on the EFFECTIVE id (existing OR
+  just-minted), not the stored field.
 
 - 2026-06-12 (#14, PR #10) — Two views keyed off a body section's *presence* (board cell,
   selection band), but the state transition out (re-arm) didn't remove the section — a re-armed
