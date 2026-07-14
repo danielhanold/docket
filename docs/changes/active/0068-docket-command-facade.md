@@ -2,7 +2,7 @@
 id: 68
 slug: docket-command-facade
 title: One executable docket facade — finite subcommands, config read from stdout, never eval'd
-status: in-progress
+status: implemented
 priority: high
 created: 2026-07-13
 updated: 2026-07-13
@@ -11,11 +11,11 @@ related: [48, 63, 65, 71, 72, 73]
 adrs: [12, 25, 27, 29]
 spec: docs/superpowers/specs/2026-07-13-docket-command-facade-design.md
 plan: docs/superpowers/plans/2026-07-13-docket-command-facade.md
-results:
+results: docs/results/2026-07-13-docket-command-facade-results.md
 trivial: false
 auto_groomable:
 branch: feat/docket-command-facade
-pr:
+pr: https://github.com/danielhanold/docket/pull/78
 blocked_by:
 reconciled: true
 ---
@@ -27,6 +27,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-13-docket-command-facade-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-13-docket-command-facade-design.md) |
 | Plan | [2026-07-13-docket-command-facade.md](https://github.com/danielhanold/docket/blob/feat/docket-command-facade/docs/superpowers/plans/2026-07-13-docket-command-facade.md) |
+| Results | [2026-07-13-docket-command-facade-results.md](https://github.com/danielhanold/docket/blob/feat/docket-command-facade/docs/results/2026-07-13-docket-command-facade-results.md) |
+| PR | [#78](https://github.com/danielhanold/docket/pull/78) |
 | ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0025](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0025-docket-worktrees-disable-git-hooks.md), [ADR-0027](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0027-terminal-publish-repo-scoped-script-gated.md), [ADR-0029](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0029-docket-facade-routing-and-config-presentation.md) |
 <!-- docket:artifacts:end -->
 
