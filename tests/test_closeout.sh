@@ -609,9 +609,38 @@ assert "D1(inside target, nested subdir): the remote branch still exists" \
   'git -C "$c4/work" ls-remote --exit-code origin feat/wid >/dev/null 2>&1'
 
 # (5) The provenance guard is UNCHANGED: an out-of-tree target is still refused.
+# The target dir itself must EXIST (mkdir -p ".../wid", not just its parent) — otherwise
+# `[ -e "$target" ]` is false, the guard block is skipped entirely, and this case would only ever
+# observe the (unrelated) postcondition's rc, never the guard firing (review finding 1: a vacuous
+# assert sitting on a live data-loss instance — the fall-through still reaches `git push --delete`
+# and destroys the remote branch). With the dir genuinely present, the guard's `case` block
+# actually evaluates the canonicalized path against `allowed_root` and dies before either
+# destructive step, so the remote survives.
 c5="$tmp/d1-prov"; d1_fixture "$c5"
-mkdir -p "$tmp/outside-wt"
+mkdir -p "$tmp/outside-wt/wid"
 ( cd "$c5/work" && bash "$CLEANUP" --slug wid --worktrees-dir "$tmp/outside-wt" ) >/dev/null 2>"$tmp/d1-prov.err"; rc=$?
 assert "D1: the .worktrees/ provenance guard is unchanged (out-of-tree target refused)" '[ $rc -ne 0 ]'
+assert "D1(out-of-tree): the remote branch still exists" \
+  'git -C "$c5/work" ls-remote --exit-code origin feat/wid >/dev/null 2>&1'
+
+# (6) review finding 2: fail-closed remote-delete guard — target does NOT exist (so the
+# .worktrees/ provenance guard block above is skipped entirely, `[ -e "$target" ]` false, exactly
+# like the pre-fix-1 vacuous fixture) but the branch is STILL checked out in a REAL worktree
+# elsewhere, reachable only via a hand-passed --worktrees-dir override that doesn't point at where
+# the branch actually lives. No production call site passes --worktrees-dir, so this shape is not
+# a live regression — but it is the D1 half-destructive signature surviving inside the very script
+# that exists to kill it: `git branch -D` falls into `|| true` (the branch is checked out
+# elsewhere), and pre-finding-2 execution still reached `git push --delete`, destroying the
+# remote. The new guard (after branch -D, before the remote delete) must refuse instead.
+c6="$tmp/d1-remote-guard"; d1_fixture "$c6"
+mkdir -p "$tmp/outside-wt2"
+( cd "$c6/work" && bash "$CLEANUP" --slug wid --worktrees-dir "$tmp/outside-wt2" ) >/dev/null 2>"$tmp/d1-remote-guard.err"; rc=$?
+assert "D1(remote-guard): cleanup refuses (non-zero) instead of deleting the remote" '[ $rc -ne 0 ]'
+assert "D1(remote-guard): the remote branch still exists (never destroyed)" \
+  'git -C "$c6/work" ls-remote --exit-code origin feat/wid >/dev/null 2>&1'
+assert "D1(remote-guard): the local branch still exists (still checked out elsewhere)" \
+  'git -C "$c6/work" rev-parse --verify -q feat/wid >/dev/null'
+assert "D1(remote-guard): refusal names the local-branch-survives reason on stderr" \
+  'grep -qi "local branch still exists" "$tmp/d1-remote-guard.err"'
 
 exit "$fail"

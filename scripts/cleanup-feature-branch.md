@@ -61,11 +61,17 @@ cleanup-feature-branch.sh \
 5. **Local branch deletion.** `git -C <root> branch -D feat/<slug>` — errors are silently
    swallowed (`|| true`); branch may already be gone or may never have been created locally.
 
-6. **Remote branch deletion.** `git -C <root> ls-remote --exit-code <remote> feat/<slug>` probes
+6. **Fail-closed remote-delete guard (review finding, change 0075).** After the local branch
+   deletion attempt, `git -C <root> rev-parse --verify -q feat/<slug>` checks whether the local
+   branch still resolves. If it does — the `branch -D` above fell into its `|| true`, typically
+   because the branch is still checked out in another worktree — the script `die`s immediately,
+   **before** the remote branch delete. See **Exit codes** below.
+
+7. **Remote branch deletion.** `git -C <root> ls-remote --exit-code <remote> feat/<slug>` probes
    for the remote branch. If found, `git -C <root> push <remote> --delete feat/<slug>` removes
    it; errors are fatal. If not found, the step is skipped.
 
-7. **Fail-closed self-verification.** Checks: `<target>` path does not exist; `git -C <root>
+8. **Fail-closed self-verification.** Checks: `<target>` path does not exist; `git -C <root>
    rev-parse --verify -q feat/<slug>` fails (local branch gone). Any postcondition failure is
    fatal.
 
@@ -91,7 +97,7 @@ with a process CWD inside the worktree being removed — it merely orphans that 
 | Code | Meaning |
 |------|---------|
 | 0 | Worktree and branch cleaned up — or already absent (idempotent no-op). |
-| 1 | Not in a git repository, **CWD refusal** (`refusing to clean up feat/<slug>: the caller's CWD is at or inside the target worktree …` — change 0075), provenance guard violation, worktree remove failed, remote branch delete failed, or postcondition check failed. |
+| 1 | Not in a git repository, **CWD refusal** (`refusing to clean up feat/<slug>: the caller's CWD is at or inside the target worktree …` — change 0075), provenance guard violation, worktree remove failed, **remote-delete guard refusal** (`refusing to delete remote feat/<slug>: the local branch still exists (likely still checked out in another worktree) — resolve that first and re-run` — change 0075 review finding), remote branch delete failed, or postcondition check failed. |
 
 Usage/flag errors (unknown flag) also exit non-zero.
 
@@ -108,9 +114,18 @@ Usage/flag errors (unknown flag) also exit non-zero.
   `<repo-root>/.worktrees/`, not to the generic worktrees list. The `.docket/` path will not match
   this prefix and is always refused.
 
-- **Local branch deletion is best-effort.** `git branch -D` failure is silenced. The branch
-  may have been deleted by a prior run or may never have been pushed/created. The postcondition
-  only checks that it is gone, not that this step did the removal.
+- **Local branch deletion is best-effort — but the remote delete is fail-closed on the outcome
+  (review finding, change 0075).** `git branch -D` failure is silenced (`|| true`): the branch may
+  have been deleted by a prior run, may never have been pushed/created, or — the case that
+  matters — may still be checked out in another worktree, which `git branch -D` refuses to
+  delete. Historically (the D1 defect, and a surviving D1-shaped path this review closed) that
+  silence let execution fall straight through to the remote delete regardless of *why* the local
+  branch survived. The invariant is now explicit and checked, not inferred from `branch -D`'s own
+  exit code: **the remote branch is never deleted while the local branch still exists.**
+  Immediately after the `branch -D` attempt, `git rev-parse --verify -q feat/<slug>` re-checks; if
+  the local branch still resolves, the script `die`s before the remote delete step runs at all.
+  This never fires on any production call site (none pass `--worktrees-dir`), but it closes the
+  shape for the one caller-supplied override that can produce it.
 
 - **Root is the main worktree, never `--show-toplevel` (change 0075).** `git rev-parse
   --show-toplevel` returns whichever *linked* worktree the caller's CWD happens to be inside —
