@@ -54,38 +54,59 @@ Two forces shape the guide beyond "write down the config":
 
 ## Cursor Run Mode mapping (product facts the guide must get right)
 
-Observed in Cursor **3.11.19** (2026-07-14) against
-[Run Modes](https://cursor.com/docs/agent/security/run-modes) and
-[permissions.json](https://cursor.com/docs/reference/permissions). The desktop UI under
-Settings → Agents → Approvals & Execution exposes four options that map onto three documented
-modes (Allowlist's optional sandbox is two rows):
+Observed in Cursor **3.11.19** (2026-07-14) against the desktop UI, the client logic in
+`workbench.*.main.js`, and the public docs
+([Run Modes](https://cursor.com/docs/agent/security/run-modes),
+[permissions.json](https://cursor.com/docs/reference/permissions)). The public docs understate a
+mode-lock interaction that the UI and client enforce.
 
-| UI label | Docs mode | Allowlist (`permissions.json` / IDE) | Sandbox (`sandbox.json`) | Auto-review classifier |
+Settings → Agents → Approvals & Execution exposes four options (Allowlist's optional sandbox is
+two rows):
+
+| UI label | Docs mode | Allowlist | Sandbox | Classifier |
 |---|---|---|---|---|
 | **Allowlist** | Allowlist | Yes | No | No |
-| **Allowlist (with Sandbox)** | Allowlist + sandbox enabled | Yes | Yes | No |
-| **Auto-review (with Sandbox)** | Auto-review (recommended) | Yes — evaluated first | Yes — for eligible shell cmds | Yes |
+| **Allowlist (with Sandbox)** | Allowlist + sandbox | Yes | Yes | No |
+| **Auto-review (with Sandbox)** | Auto-review | Yes (when mode available) | Yes | Yes |
 | **Run Everything (Unsandboxed)** | Run Everything | N/A | No | No |
 
-**Complementary, not mutually exclusive.** `permissions.json` is not an alternative to sandbox /
-Auto-review. It configures the allowlist (and optional `autoRun` classifier steering) *while* a
-Run Mode is selected. `sandbox.json` controls what a sandboxed command may reach. Docs: "permissions.json
-and sandbox.json do different jobs"; "Sandboxing is a layer on top of Run Modes for shell
-commands."
+**`permissions.json` allowlists lock the mode to Allowlist.** When `~/.cursor/permissions.json`
+(or the per-repo file) defines a non-empty `terminalAllowlist` or `mcpAllowlist`, the client sets
+`permissionsFileConstrainsUnrestrictedMode` and:
 
-**Auto-review evaluation order** (shell): (1) allowlist match → run immediately; (2) else if the
-command fits sandbox limits → run sandboxed; (3) else → classifier (`autoRun` steers this only).
-Allowlisting the facade is how docket ops that need out-of-workspace execution + network avoid
-being trapped in (2)/(3) without switching to Run Everything.
+- **Run Everything** is disabled (banner text says this).
+- **Auto-review (with Sandbox) is also non-selectable** (UI still shows the row; click does
+  nothing / `isDisabled` — tooltip copy says "disabled by your admin" even when the cause is the
+  local permissions file). Effective selectable modes: **Allowlist** and **Allowlist (with Sandbox)** only.
 
-**Guide target mode:** Auto-review (with Sandbox) + the published `terminalAllowlist` fragment +
-the published sandbox read-path fragment. The guide must not describe "sandbox auto-run" and
-"the permissions file" as an either/or — that framing matches the pre-3.5 "Run in Sandbox"
-mode, which was folded into Allowlist-with-sandbox / Auto-review.
+This is the operator-visible truth behind the common misreading "sandbox auto-run **or** the
+permissions file." Publishing a `terminalAllowlist` fragment without an escape hatch forces
+Allowlist modes; it does **not** compose with Auto-review the way the public docs imply.
 
-*This section is product-context for the guide and the verification session; it is not itself an
-ADR. The docket decision (trust at the facade) remains the ADR below. Update this table if Cursor
-renames the UI labels.*
+**Undocumented escape hatch (to confirm in verification):** `approvalMode` is parsed from
+`permissions.json` (`allowlist` | `unrestricted` | `manual`) even though it is absent from the
+public field table. Client rule:
+
+- `approvalMode: "unrestricted"` → constrain flag off → Auto-review (and Run Everything) become
+  selectable again **while keep allowlists**.
+- `approvalMode: "allowlist"` / `"manual"` → constrain on.
+- omitted + non-empty allowlists → constrain on (the case that trapped the 2026-07-14 session).
+
+**`sandbox.json` is still complementary** for filesystem/network limits of sandboxed commands.
+It does not unlock Auto-review and does not substitute for a terminal allowlist entry.
+
+**Guide target mode (pending verification of the escape hatch):**
+
+1. **Default / published recommendation:** **Allowlist (with Sandbox)** + the facade
+   `terminalAllowlist` fragment + the sandbox read-path fragment. Matches what the file alone
+   can select without undocumented keys.
+2. **If `approvalMode: "unrestricted"` is confirmed** to restore Auto-review while honoring the
+   allowlist as tier-1: document it as an optional advanced composition (allowlist → sandbox →
+   classifier), stamped with Cursor version — not as the only path.
+3. **`autoRun` instructions** only matter in Auto-review; they are inert under Allowlist modes.
+
+*Product-context for the guide and verification session — not an ADR. Correct this section from
+the verification-log appendix if Cursor changes the lock or documents `approvalMode`.*
 
 ## Provenance — how the guide earns its claims
 
