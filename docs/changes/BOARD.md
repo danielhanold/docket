@@ -1,12 +1,6 @@
 # Backlog
 
-**74 changes** — 🟢 1 in progress · 🟡 12 proposed · 🔵 1 implemented · ✅ 58 done · 🗑️ 2 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0070](active/0070-redirect-regex-board-write-guard.md) | Harden the BOARD.md write guard — REDIRECT_RE misses real redirect forms | `medium` | [spec](../superpowers/specs/2026-07-13-redirect-regex-board-write-guard-design.md) | `feat/redirect-regex-board-write-guard` |
+**74 changes** — 🟡 12 proposed · 🔵 2 implemented · ✅ 58 done · 🗑️ 2 killed
 
 ## 🟡 Proposed (12)
 
@@ -25,11 +19,12 @@
 | [0073](active/0073-cursor-sandbox-permissions-guide.md) | Cursor sandbox & permissions guide — copyable config, trust tiers, troubleshooting | `medium` | needs-brainstorm |
 | [0074](active/0074-bootstrap-facade-verb.md) | A `bootstrap` facade verb — retire the last direct-helper carve-out in Step-0 | `medium` | needs-brainstorm |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | [#69](https://github.com/danielhanold/docket/pull/69) |
+| [0070](active/0070-redirect-regex-board-write-guard.md) | Harden the BOARD.md write guard — REDIRECT_RE misses real redirect forms | `medium` | [#80](https://github.com/danielhanold/docket/pull/80) |
 
 ```mermaid
 graph TD
