@@ -10,9 +10,10 @@ executes caller-supplied shell text, and it never `eval`s positional args. Intro
 0068.
 
 The **Subcommand inventory** table below **is the permission inventory**: an operation exists if
-and only if it has a row in that table, and (except for the two verbs `preflight` and `env`) the
-operation name equals the wrapped helper's basename (`scripts/<op>.sh`). Anything not in the
-table is rejected with exit 2, whether or not a same-named script happens to exist on disk.
+and only if it has a row in that table, and (except for the three verbs `preflight`, `env`, and
+`bootstrap`) the operation name equals the wrapped helper's basename (`scripts/<op>.sh`). Anything
+not in the table is rejected with exit 2, whether or not a same-named script happens to exist on
+disk.
 `tests/test_docket_facade.sh` derives both the `docket.sh`-declared op set and the
 `docket.md`-documented op set by grep and asserts they are set-equal, so this table can never
 silently drift out of sync with the dispatcher — see Invariants.
@@ -39,6 +40,7 @@ transitively by `docket_preflight` (see `scripts/lib/docket-preflight.sh`).
 |---|---|---|
 | `preflight` | shared `docket_preflight` (`scripts/lib/docket-preflight.sh`) | Step-0 / mid-run re-sync verb; side effects then prints the `env` block |
 | `env` | `docket-config.sh --export --format plain` | read-only config resolver |
+| `bootstrap` | `docket-config.sh --bootstrap` | guarded `CREATE_ORPHAN` orphan-`docket` create (fresh repo, once, human-attended); the facade's sole write-path verb, reached only via this verb |
 | `docket-status` | `docket-status.sh` | the docket-status orchestrator |
 | `board-refresh` | `board-refresh.sh` | gated, atomic `BOARD.md` writer |
 | `archive-change` | `archive-change.sh` | move a change to `archive/` |
@@ -51,9 +53,10 @@ transitively by `docket_preflight` (see `scripts/lib/docket-preflight.sh`).
 | `adr-checks` | `adr-checks.sh` | ADR consistency checks |
 | `board-checks` | `board-checks.sh` | board consistency checks |
 
-Operation name = wrapped helper basename for every row except the two verbs `preflight` and
-`env`, whose `Wraps` column names an implementation rather than a same-named script (there is no
-`scripts/preflight.sh` or `scripts/env.sh`).
+Operation name = wrapped helper basename for every row except the three verbs `preflight`, `env`,
+and `bootstrap`, whose `Wraps` column names an implementation or a flagged resolver invocation
+rather than a same-named script (there is no `scripts/preflight.sh`, `scripts/env.sh`, or
+`scripts/bootstrap.sh`).
 
 ## Behavior
 
@@ -61,14 +64,27 @@ Operation name = wrapped helper basename for every row except the two verbs `pre
 11 wrapped ops execs `$SCRIPTS_DIR/<op>.sh "$@"` — args forwarded verbatim, the helper's exit code
 and stderr pass through unmasked (the facade uses `exec`, so the wrapped helper's process directly
 replaces `docket.sh`'s; there is no wrapper-added exit-code translation or output buffering). A
-match on `preflight` or `env` runs the verb-specific logic below instead of execing a same-named
-script. No match: `docket.sh` rejects with exit 2 and a `supported operations: preflight env
-<op>...` line on stderr.
+match on `preflight`, `env`, or `bootstrap` runs the verb-specific logic below instead of execing a
+same-named script. No match: `docket.sh` rejects with exit 2 and a `supported operations: preflight
+env bootstrap <op>...` line on stderr.
 
 **No escape hatch.** The dispatch table has no `run`, `exec`, `shell`, or `eval` operation arm,
 and `docket.sh` never `eval`s `"$@"`, `"$*"`, or any positional/caller-supplied argument. The
-`env`/`preflight` verbs print raw `KEY=value` text on stdout for the model to read as literals —
-nothing `docket.sh` emits is meant to be `eval`'d or sourced by the caller.
+`env`/`preflight` verbs print raw `KEY=value` text on stdout for the model to read as literals.
+`bootstrap` is the one verb whose stdout is instead the resolver's `%q`-quoted `shell` format (a
+pure-routing artifact — see **`bootstrap`** below), but no caller is meant to `eval` or source
+that either: the Step-0 flow re-runs `preflight` for the model-facing block.
+
+**`bootstrap`.** `docket.sh bootstrap` execs `docket-config.sh --bootstrap "$@"` — the guarded
+`CREATE_ORPHAN` orphan-`docket` create (fresh repo, once, human-attended). Args are forwarded
+verbatim (so `--repo-dir` stays usable in fixtures); it is pure routing, not a composite (it does
+not sync the worktree or re-run `preflight`). Outside the `CREATE_ORPHAN` cell it performs no
+write and exits with the resolver's own status (`env`-like), because failing closed on a
+non-`PROCEED` verdict is `preflight`'s job, not this verb's. Unlike `env`/`preflight`, this verb
+does **not** pass `--format`, so its stdout is the resolver's *default* `shell`-format output
+(`%q`-quoted, eval-able) — not the raw, plain, model-facing `KEY=value` block described below. A
+caller that needs that model-facing block re-runs `preflight` afterward — exactly the Step-0
+`CREATE_ORPHAN` flow: `bootstrap` (create the orphan) then `preflight` (sync + print the block).
 
 ## `env` output
 
@@ -107,8 +123,9 @@ The following scripts are deliberately **not** operations in this facade — inv
 `docket.sh <name>` is rejected with exit 2, and none of them has a row in the inventory table
 above:
 
-- `docket-config.sh` — reached only indirectly, through the `env` and `preflight` verbs, which
-  call it with a fixed, non-caller-controlled flag set.
+- `docket-config.sh` — reached only indirectly, through the `env`, `preflight`, and `bootstrap`
+  verbs, each of which prepends a fixed resolver flag (`--export` / `--bootstrap`); `docket-config`
+  is never itself a routable op.
 - `disable-worktree-hooks.sh` — internal to `docket_preflight`.
 - `render-board.sh` — internal to `board-refresh.sh` (see `board-refresh.md`); `board-refresh` is
   the exposed op, `render-board` is not.
@@ -122,13 +139,13 @@ above:
 |---|---|
 | 0 | Success. |
 | 2 | Unknown or missing operation — `docket.sh` lists the supported operations on stderr. |
-| *(other)* | Propagated verbatim from the wrapped helper's own exit code (for the 11 wrapped ops), or from `docket_preflight`/`docket-config.sh` failure (for `preflight`/`env`). |
+| *(other)* | Propagated verbatim from the wrapped helper's own exit code (for the 11 wrapped ops), or from `docket_preflight`/`docket-config.sh` failure (for `preflight`/`env`/`bootstrap`). |
 
 ## Invariants
 
 - **The Subcommand inventory table above is the permission inventory.** An operation is callable
   through `docket.sh` if and only if it has a row here. `tests/test_docket_facade.sh` derives the
-  `docket.sh`-side op set by grepping the `WRAPPED_OPS=` line plus the two verbs, derives the
+  `docket.sh`-side op set by grepping the `WRAPPED_OPS=` line plus the three verbs, derives the
   `docket.md`-side op set by grepping this table's leading `` | `op` `` cells, and asserts the two
   sets are exactly equal — this file and `docket.sh` cannot drift apart without turning the test
   suite red.
@@ -137,8 +154,8 @@ above:
 - **Args forwarded verbatim; exit code and stderr pass through unmasked.** `docket.sh` does not
   reinterpret, re-quote, or filter arguments, output, or exit codes for any wrapped op — it is a
   thin, transparent dispatch layer, not a translating proxy.
-- **Operation name = helper basename**, except the `preflight`/`env` verbs (documented above with
-  a non-`<op>.sh` `Wraps` value).
+- **Operation name = helper basename**, except the `preflight`/`env`/`bootstrap` verbs (documented
+  above with a non-`<op>.sh` `Wraps` value).
 - **Not-exposed scripts stay not exposed.** None of `docket-config`, `disable-worktree-hooks`,
   `render-board`, `install`, `migrate-to-docket`, `sync-agents`, `ensure-docket-env`, or
   `ensure-claude-settings` may ever gain a row in this table or a token in `docket.sh`'s

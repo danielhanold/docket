@@ -4,7 +4,11 @@
 # Guards that live agent-facing skill prose invokes docket helpers ONLY through the
 # docket.sh facade (canonical byte-exact spelling), that the retired shapes
 # (eval "$(", inline `fetch origin`, `pull --rebase`) are gone from code spans, and that
-# the Step-0 preamble + mid-run re-sync + CREATE_ORPHAN carve-out are PRESENT.
+# the Step-0 preamble + mid-run re-sync are PRESENT, and the CREATE_ORPHAN path routes
+# through the `docket.sh bootstrap` facade verb — the direct-helper carve-out is RETIRED
+# (change 0074), so a prefixed `docket-config.sh` invocation reappearing in skill prose
+# reddens via BOTH the Layer-1 sweep and the `cfg_invocations == 0` assert (two independent
+# scans).
 #
 # SOUND-GUARD READING (load-bearing): the Layer-1 sweep guards non-facade INVOCATIONS,
 # not every `.sh` token. Discriminator = the invocation prefix `${DOCKET_SCRIPTS_DIR`
@@ -15,8 +19,9 @@
 # (spec §Out-of-scope). Stripping the canonical `…/docket.sh` first is what makes the
 # `${DOCKET_SCRIPTS_DIR` assert sound (the canonical spelling contains install.sh in :?).
 #
-# This test is RED until Tasks 2-4 rewire the prose. That RED, per assert, is the
-# reverse-mutation proof that each guard bites the pre-rewiring prose.
+# This test was RED until change 0072's Tasks 2-4 rewired the prose — that per-assert RED was
+# the reverse-mutation proof that each guard bites pre-rewiring prose. Green since; change 0074
+# re-proved the flipped carve-out assert by mutation in both directions.
 #
 # HARNESS: this repo's test harness is self-contained (there is NO tests/lib/). The
 # boilerplate below mirrors tests/test_docket_facade.sh verbatim: `set -uo pipefail`,
@@ -86,12 +91,11 @@ extract_code_units() {
   ' "$1"
 }
 
-# Strip the two byte-exact canonical forms so only the haystack remains. The bootstrap form
-# is stripped BEFORE the plain facade form (docket-config.sh --bootstrap vs docket.sh differ
-# in basename, so order is not load-bearing, but keep the specific form first).
+# Strip the single byte-exact canonical facade form (`…/docket.sh`) so only the haystack
+# remains. After 0074 there is no second form: a prefixed `…/docket-config.sh --bootstrap`
+# is no longer stripped, so it survives into `$hay` and trips the Layer-1 `$P_PREFIX` sweep.
 strip_canonical() {
   sed -E \
-    -e 's#"\$\{DOCKET_SCRIPTS_DIR:\?run docket/install\.sh\}"/docket-config\.sh --bootstrap##g' \
     -e 's#"\$\{DOCKET_SCRIPTS_DIR:\?run docket/install\.sh\}"/docket\.sh##g'
 }
 
@@ -121,11 +125,15 @@ for f in "${SCOPE[@]}"; do
     '[ -z "$bad_ops" ]'
 done
 
-# Bootstrap carve-out is unique across the in-scope set (Layer 1 rule 5): the CREATE_ORPHAN
-# path is the ONLY place skill prose reaches docket-config.sh directly.
-carve="$(grep -hoF 'docket-config.sh --bootstrap' "${SCOPE[@]}" | wc -l | tr -d ' ')"
-assert "CREATE_ORPHAN carve-out (docket-config.sh --bootstrap) occurs exactly once in skill prose" \
-  '[ "$carve" = "1" ]'
+# The CREATE_ORPHAN carve-out is RETIRED (change 0074): skill prose must reach docket-config.sh
+# ZERO times as an invocation. Key on the prefixed invocation form, never the bare
+# `docket-config.sh --bootstrap` string — prose may still NAME the script/flag descriptively
+# (ADR-0030), and only the `${DOCKET_SCRIPTS_DIR`-prefixed spelling is an actual invocation.
+# `grep -F --` is mandatory: the pattern is a fixed string that must never be read as an option.
+CFG_INVOKE='"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket-config.sh'
+cfg_invocations="$(grep -hoF -- "$CFG_INVOKE" "${SCOPE[@]}" | wc -l | tr -d ' ')"
+assert "no prefixed docket-config.sh invocation survives in skill prose (carve-out retired)" \
+  '[ "$cfg_invocations" = "0" ]'
 
 # ---- Layer 2: presence anchors on the convention (grep -c == 1) ----
 assert "Step-0 preamble runs preflight as its own call (unique anchor)" \
