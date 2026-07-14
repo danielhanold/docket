@@ -106,6 +106,11 @@ configuration as raw `KEY=value` lines, one per line:
   for changes/ADRs, the feature worktree root for results. This is a deliberate, ADR-recorded
   narrowing of the general "all path-valued keys are absolute" rule — the `*_DIR` keys have no
   single correct root, since which tree they resolve against differs by consumer.
+- `REPO_ROOT` (change 0075) — the absolute path of the repo's **main worktree**, emitted in the
+  `plain` format only (which is what `preflight`/`env` print here; see `docket-config.md` for the
+  full field reference and why the `shell` format omits it). It is the cwd-independent literal a
+  skill `cd`s to (or targets with `git -C`) before any step that can remove the worktree the agent
+  is currently standing in — see `skills/docket-finalize-change/SKILL.md`'s *durable root*.
 
 ## `preflight`
 
