@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/cursor-sandbox-permissions-guide
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -85,3 +85,25 @@ abort if that appendix is removed or emptied.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-07-14 — reconcile (build claim)
+
+Verified the design is true against current `origin/main` and `docket`; no scope change, no
+obsolescence, no fundamental invalidation. Body and spec left as-is.
+
+- **Build precondition (fail-closed backstop): PASS.** The spec's `## Appendix — verification log`
+  exists and is richly non-empty (Cursor 3.11.19 / 2026-07-14 session: Run-Mode lock table, command
+  forms B1–B7, reproduced/cut failure modes, reload behavior, and the §G short-`:?}` retest). The
+  reconcile abort condition (missing/empty appendix) does not trip.
+- **Trust-tier source unchanged.** `scripts/docket.md` still carries the Subcommand inventory (the
+  declared permission inventory — 14 ops incl. the 3 verbs) and the Not-exposed section (internals
+  `docket-config.sh`/`disable-worktree-hooks.sh`/`render-board.sh` plus the human-initiated tier
+  `install.sh`/`migrate-to-docket.sh`/`sync-agents.sh`/`ensure-docket-env.sh`/`ensure-claude-settings.sh`).
+  The guide's trust tiers and test assertion 5 derive from these sections at build time — still valid.
+- **Canonical-spelling sentinel present.** `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh`
+  is enforced in the convention/tests, so the fragment's canonical form can be derived, not retyped.
+- **Cited ADRs current:** ADR-0020, ADR-0027, ADR-0029 all `Accepted`; titles match the spec's use.
+- **No collision:** `docs/cursor/` does not exist on `origin/main`; this change creates it fresh.
+- **Deps satisfied:** 0068 (facade) and 0072 (skill rewiring) are both `done` (archived).
+- **Suite shape:** tests are hermetic per-file `tests/test_*.sh` (no top-level runner); the new
+  guard file is `tests/test_cursor_permissions_docs.sh`.
