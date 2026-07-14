@@ -31,6 +31,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0027](0027-terminal-publish-repo-scoped-script-gated.md) — terminal_publish — a per-repo coordination key, gated once inside the script (Accepted) ← change #64 · relates to ADR-0012, ADR-0019
 - [ADR-0028](0028-report-channel-is-not-a-board-surface.md) — A report channel is not a board surface — the backlog digest is ungated (Accepted) ← change #69 · relates to ADR-0012, ADR-0021
 - [ADR-0029](0029-docket-facade-routing-and-config-presentation.md) — docket facade — routing-boundary dispatch and model-ward config presentation (Accepted) ← change #68 · relates to ADR-0012
+- [ADR-0030](0030-facade-wiring-guard-discriminates-on-invocation-prefix.md) — The facade-wiring guard discriminates on the invocation prefix, not the bare presence of a `.sh` token (Accepted) ← change #72 · relates to ADR-0029
 
 ## Superseded / Reversed
 
