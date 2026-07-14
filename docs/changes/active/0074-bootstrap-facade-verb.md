@@ -2,7 +2,7 @@
 id: 74
 slug: bootstrap-facade-verb
 title: A `bootstrap` facade verb — retire the last direct-helper carve-out in Step-0
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-07-14
 updated: 2026-07-14
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/bootstrap-facade-verb
 pr:
 blocked_by:
 reconciled: false
