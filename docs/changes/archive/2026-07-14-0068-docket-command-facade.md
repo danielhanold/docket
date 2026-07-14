@@ -2,10 +2,10 @@
 id: 68
 slug: docket-command-facade
 title: One executable docket facade — finite subcommands, config read from stdout, never eval'd
-status: implemented
+status: done
 priority: high
 created: 2026-07-13
-updated: 2026-07-13
+updated: 2026-07-14
 depends_on: []
 related: [48, 63, 65, 71, 72, 73]
 adrs: [12, 25, 27, 29]
