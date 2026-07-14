@@ -1,8 +1,8 @@
 # Backlog
 
-**76 changes** — 🟡 11 proposed · 🔵 1 implemented · ✅ 62 done · 🗑️ 2 killed
+**76 changes** — 🟡 10 proposed · 🔵 1 implemented · ✅ 62 done · 🗑️ 3 killed
 
-## 🟡 Proposed (11)
+## 🟡 Proposed (10)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -15,8 +15,7 @@
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0062](active/0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | `low` | needs-brainstorm |
 | [0067](active/0067-learnings-promotion-destination.md) | Give the learnings ledger a promotion destination — it has no way to shrink | `medium` | needs-brainstorm |
-| [0075](active/0075-finalize-safe-cwd-before-cleanup.md) | Finalize from a durable checkout — don't run cleanup while CWD is the feature worktree | `medium` | auto-groom blocked — needs you |
-| [0076](active/0076-cwd-independent-repo-root-resolution.md) | Resolve the repo root independently of CWD — preflight run inside `.docket` mints a nested metadata worktree | `medium` | needs-brainstorm |
+| [0075](active/0075-cwd-independent-repo-root-anchor.md) | Anchor the repo root to the main worktree — CWD-independent scripts, a fail-closed cleanup guard, and a durable finalize posture | `high` | build-ready |
 
 ## 🔵 Implemented — awaiting merge (1)
 
@@ -37,7 +36,6 @@ graph TD
   0062
   0067
   0075
-  0076
   0001:::done
   0002:::done
   0003:::done
@@ -103,10 +101,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (64)</summary>
+<details><summary>✅🗑️ Archive — done + killed (65)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0076](archive/2026-07-14-0076-cwd-independent-repo-root-resolution.md) | Resolve the repo root independently of CWD — preflight run inside `.docket` mints a nested metadata worktree | 2026-07-14 |
 | [0074](archive/2026-07-14-0074-bootstrap-facade-verb.md) | A `bootstrap` facade verb — retire the last direct-helper carve-out in Step-0 | 2026-07-14 |
 | [0073](archive/2026-07-14-0073-cursor-sandbox-permissions-guide.md) | Cursor sandbox & permissions guide — copyable config, trust tiers, troubleshooting | 2026-07-14 |
 | [0072](archive/2026-07-14-0072-facade-skill-rewiring.md) | Rewire the operating skills and Step-0 to the facade — retire the eval preamble | 2026-07-14 |
