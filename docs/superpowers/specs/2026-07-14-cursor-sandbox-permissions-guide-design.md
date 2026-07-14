@@ -83,30 +83,23 @@ This is the operator-visible truth behind the common misreading "sandbox auto-ru
 permissions file." Publishing a `terminalAllowlist` fragment without an escape hatch forces
 Allowlist modes; it does **not** compose with Auto-review the way the public docs imply.
 
-**Undocumented escape hatch (to confirm in verification):** `approvalMode` is parsed from
-`permissions.json` (`allowlist` | `unrestricted` | `manual`) even though it is absent from the
-public field table. Client rule:
-
-- `approvalMode: "unrestricted"` → constrain flag off → Auto-review (and Run Everything) become
-  selectable again **while keep allowlists**.
-- `approvalMode: "allowlist"` / `"manual"` → constrain on.
-- omitted + non-empty allowlists → constrain on (the case that trapped the 2026-07-14 session).
+**Rejected escape hatch (observed 2026-07-14, Cursor 3.11.19):** writing
+`approvalMode: "unrestricted"` into `permissions.json` (parsed by the client but absent from the
+public field table) emptied the Run Mode dropdown — **no options selectable**. Removed
+immediately; do **not** publish or recommend `approvalMode` in the guide. With the key omitted
+and non-empty allowlists present, the constrain flag stays on (Allowlist modes only).
 
 **`sandbox.json` is still complementary** for filesystem/network limits of sandboxed commands.
 It does not unlock Auto-review and does not substitute for a terminal allowlist entry.
 
-**Guide target mode (pending verification of the escape hatch):**
-
-1. **Default / published recommendation:** **Allowlist (with Sandbox)** + the facade
-   `terminalAllowlist` fragment + the sandbox read-path fragment. Matches what the file alone
-   can select without undocumented keys.
-2. **If `approvalMode: "unrestricted"` is confirmed** to restore Auto-review while honoring the
-   allowlist as tier-1: document it as an optional advanced composition (allowlist → sandbox →
-   classifier), stamped with Cursor version — not as the only path.
-3. **`autoRun` instructions** only matter in Auto-review; they are inert under Allowlist modes.
+**Guide target mode:** **Allowlist (with Sandbox)** + the facade `terminalAllowlist` fragment +
+the sandbox read-path fragment. That is the composition a published allowlist file can actually
+select. Auto-review remains available only when the permissions file does **not** define
+allowlists (IDE-managed allowlist + optional `autoRun` only) — out of scope for the published
+docket fragment. `autoRun` instructions are inert under Allowlist modes.
 
 *Product-context for the guide and verification session — not an ADR. Correct this section from
-the verification-log appendix if Cursor changes the lock or documents `approvalMode`.*
+the verification-log appendix if Cursor changes the lock.*
 
 ## Provenance — how the guide earns its claims
 
