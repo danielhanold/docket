@@ -70,3 +70,31 @@ over full code-unit extraction, with no fragile per-noun allowlist.
   so reopens the over-scope this decision rejected.
 - This narrows / extends the facade-routing decision recorded in ADR-0029 (change
   0068) onto the consuming (skill-prose) side.
+
+## Update — 2026-07-14 (change 0074): the `docket-config.sh --bootstrap` carve-out is retired
+
+Change 0074 added a `bootstrap` verb to the `docket.sh` facade and rewired the
+convention's Step-0 `CREATE_ORPHAN` clause to invoke `docket.sh bootstrap`,
+removing the last direct-helper invocation from skill prose. Consequently the
+wiring guard (`tests/test_skill_facade_wiring.sh`) changed as follows, WITHOUT
+altering this ADR's decision:
+
+- `strip_canonical` now strips only the single canonical facade form
+  `…/docket.sh <op>`; the `…/docket-config.sh --bootstrap` strip clause is
+  deleted. A prefixed `docket-config.sh` invocation reappearing in skill prose
+  therefore survives into the haystack and trips the Layer-1 `${DOCKET_SCRIPTS_DIR`
+  sweep.
+- The former "carve-out occurs exactly once" assertion is replaced by an explicit
+  `== 0` assertion that counts occurrences of the prefixed invocation form
+  `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket-config.sh` across skill
+  scope and asserts zero.
+
+The **discriminator is unchanged**: the guard still keys on the invocation
+prefix `${DOCKET_SCRIPTS_DIR`, never the bare `docket-config.sh --bootstrap`
+string — prose may still NAME `docket-config.sh`/`--bootstrap` descriptively
+(the convention's Config section and this ADR both do), and the rejected
+"forbid every `.sh` token" alternative stays rejected. The Consequences
+sentence above that lists "the one convention-only `docket-config.sh
+--bootstrap` CREATE_ORPHAN carve-out" as a permitted invocation no longer holds
+after 0074: there is no permitted direct-helper invocation left; `docket.sh
+bootstrap` is the sanctioned spelling.
