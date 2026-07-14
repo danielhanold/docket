@@ -82,6 +82,52 @@ mis-wiring — whatever its cause — fails loudly instead of no-opping. Given t
 live on `main`, the sentinel in part 1 is now load-bearing rather than defence-in-depth: it is what
 turns the surviving bug from a silent stale board into an exit 2.
 
+### Build-time reconcile (2026-07-14, `docket-implement-next` step 3)
+
+Re-derived by grep against `origin/main` @ `edb37f9` — **not** trusted from the prose above. Every
+claim in this spec re-verified; three findings the spec did not have.
+
+**Confirmed exactly as written.** 8 `--surfaces` call sites across 6 files — `docket-auto-groom`
+(1, L56), `docket-convention/references/terminal-close-out.md` (1, L82), `docket-finalize-change`
+(1, L55), `docket-groom-next` (1, L71), `docket-implement-next` (1, L86), `docket-new-change`
+(3, L43/51/59). Zero literal spellings. `docket-config.sh:198` maps unset → `inline`, `:201` maps
+`[]` → `""`. `board-refresh.sh:41-43` exits 2 on the missing flag, `:56-59` takes an empty value
+into `inline disabled — no-op` exit 0. `docket-status.sh:46` still reads
+`[ -n "$surfaces" ] || { echo "board off"; return 0; }`. The trigger survives 0072.
+
+**New — part 2 is smaller than the spec assumed.** `docket-status.sh` already parses
+`--board-only` (`scripts/docket-status.sh:31`), and `docket-status` is already a facade op
+(`scripts/docket.sh` `WRAPPED_OPS`; `scripts/docket.md` inventory row). So
+`docket.sh docket-status --board-only` is **callable today** — part 2 is a prose rewiring plus the
+must-land/best-effort report-line contract, not new script surface. Also:
+`board_pass_inline` already passes a **literal** `--surfaces inline` to `board-refresh.sh`, so the
+orchestrator is already immune to the trigger; only its `board_pass` empty-guard (part 1) is not.
+
+**New — two ADRs landed after this spec was written, and they constrain part 3.**
+- **ADR-0030** (change 0072) fixes the discrimination rule the structural sentinel must use: a guard
+  over skill prose forbids **invocations**, not nouns. Descriptive mentions of `board-refresh.sh`
+  are PERMITTED; only an instructed invocation is a violation. This is load-bearing here —
+  `docket-convention/SKILL.md:212,238` and `docket-status/SKILL.md:57,80` legitimately *describe*
+  `board-refresh.sh` and must stay green. The sentinel's third clause is therefore
+  "no `docket.sh board-refresh` invocation in prose", never "no `board-refresh` token".
+- **ADR-0031** (change 0070) forbids collapsing or deleting board-write guards, and publishes the
+  bound of source-syntax scanning. `tests/test_render_board.sh`'s `REDIRECT_RE` prose scan and its
+  write sentinel both stay; this change adds an **independent** scan rather than widening either.
+  `tests/test_skill_facade_wiring.sh` (0072) already owns the exact scope this sentinel needs —
+  `skills/*/SKILL.md` + `skills/docket-convention/references/*.md`, with code-unit extraction and
+  canonical-form stripping — so the new assertions extend that file's Layer-1 sweep in its
+  established idiom.
+
+**Test fixture surface (grep-derived, for the plan).** `tests/test_docket_config.sh:107,397`
+assert `BOARD_SURFACES` is empty for `[]` → must become `none`. `tests/test_board_refresh.sh`
+sections 2 and 5 key the disabled path and the truncation trap on `""` → re-key to `none`, and the
+empty-value case flips exit 0 → exit 2. `tests/test_docket_status.sh` drives `BOARD_SURFACES=`
+empty fixtures at ~L306-312, 728, 773, 859-873, 1315-1510 (the `board off` report contract) →
+re-key to `none`, with the `board off` stdout line unchanged.
+
+**Verdict: build as specified.** Nothing is obsolete; the design is unchanged. Scope is confirmed
+smaller in part 2 and tighter in part 3.
+
 ## Decision
 
 Three parts: a positive sentinel, a consolidated Board pass, and a structural guard.

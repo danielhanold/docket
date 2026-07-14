@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/board-surfaces-unset-vs-empty
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -35,9 +35,9 @@ reconciled: false
 
 Change 0059 defended the adjacent hole — a caller who *forgets the flag* exits 2, and `board-refresh.sh` tracks `SURFACES_SET` precisely so the two cases stay distinct. What it did not anticipate is a present flag carrying an unresolved value, which lands in the legitimate-empty branch. It is the same defect class ADR-0028 and change 0069 eliminated on the report channel: an exit-0 no-op indistinguishable from success.
 
-Changes 0068 and 0072 remove the **trigger**. 0068 diagnosed the root cause independently — resolved config stored in an agent's shell, which no harness guarantees to persist across tool calls — and retires the `eval` pattern in favour of a facade that *prints* config; 0072 rewires the skills to read those values and interpolate them as literals. After 0072, prose carries `--surfaces inline` as a literal and the unresolved-variable failure cannot occur.
+Changes 0068 and 0072 were expected to remove the **trigger**. Re-verified against merged `main` on 2026-07-14, **they did not.** 0068 diagnosed the root cause independently — resolved config stored in an agent's shell, which no harness guarantees to persist across tool calls — and retired the `eval` pattern in favour of a facade that *prints* config; 0072 rewrote the Step-0 preamble to carry those printed values forward as literals. But **the Board-pass call sites were never re-spelled**: grep on `origin/main` finds **8 sites across 6 skill/reference files still spelling `--surfaces "$BOARD_SURFACES"`, and zero literal spellings**. 0072 replaced a mechanism that *guaranteed* the variable was unset with an instruction an agent must remember to apply — against prose that still shows the variable. The failure is now less likely and no more detectable.
 
-What survives them is the reason this change exists. The **encoding is still ambiguous**, so the next mis-wiring — from any cause — is still silent rather than loud. Six duplicated Board-pass prose blocks also remain, and `board_surfaces: []` stays the sole legitimate empty, keeping the defect class permanently latent.
+So the trigger survives, and the **encoding is still ambiguous**: the next mis-wiring — from any cause — is still silent rather than loud. That makes the sentinel below load-bearing, not defence-in-depth. The duplicated Board-pass prose blocks also remain, and `board_surfaces: []` stays the sole legitimate empty, keeping the defect class permanently latent.
 
 ## What changes
 
@@ -62,4 +62,24 @@ Invert the polarity: failing to resolve config must produce a loud error, and di
 
 ## Reconcile log
 
-<!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+### 2026-07-14 — reconciled against `origin/main` @ `edb37f9`
+
+Re-derived every call-site claim by grep rather than trusting the spec. **Build as specified** — the
+design is intact, nothing obsolete.
+
+- **The trigger survives 0072, confirmed.** 8 `--surfaces "$BOARD_SURFACES"` call sites across 6
+  skill/reference files; zero literal spellings. 0072 retired the `eval` and told agents to carry
+  printed config forward as literals, but never re-spelled the Board-pass call sites — so the spec's
+  corrected reading is right, and the sentinel is load-bearing rather than defence-in-depth.
+- **Part 2 shrank.** `docket-status.sh` already parses `--board-only`, and `docket-status` is already
+  a facade op — `docket.sh docket-status --board-only` works today. Part 2 is therefore prose
+  rewiring plus the report-line contract, not new script surface. `board_pass_inline` already passes
+  a literal `--surfaces inline`, so only `board_pass`'s empty-guard needs part 1's `none` arm.
+- **Part 3 tightened by two ADRs that landed after grooming.** ADR-0030 fixes the sentinel's
+  discrimination rule (forbid **invocations**, not nouns — the convention and docket-status prose
+  legitimately *describe* `board-refresh.sh` and must stay green). ADR-0031 forbids collapsing or
+  deleting the existing board-write guards, so this adds an independent scan and extends
+  `tests/test_skill_facade_wiring.sh` in its established idiom rather than widening `REDIRECT_RE`.
+- **Dependency discharged.** 0072 is `done` (PR #79); 0068 is `done` (PR #78).
+- Scope, out-of-scope, and success criteria unchanged. `adrs:` will gain the new polarity-reversal
+  ADR at step 6.
