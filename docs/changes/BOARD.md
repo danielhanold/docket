@@ -1,12 +1,6 @@
 # Backlog
 
-**76 changes** — 🟢 1 in progress · 🟡 9 proposed · 🔵 1 implemented · ✅ 62 done · 🗑️ 3 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0075](active/0075-cwd-independent-repo-root-anchor.md) | Anchor the repo root to the main worktree — CWD-independent scripts, a fail-closed cleanup guard, and a durable finalize posture | `high` | [spec](../superpowers/specs/2026-07-14-cwd-independent-repo-root-anchor-design.md) | `feat/cwd-independent-repo-root-anchor` |
+**76 changes** — 🟡 9 proposed · 🔵 2 implemented · ✅ 62 done · 🗑️ 3 killed
 
 ## 🟡 Proposed (9)
 
@@ -22,11 +16,12 @@
 | [0062](active/0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | `low` | needs-brainstorm |
 | [0067](active/0067-learnings-promotion-destination.md) | Give the learnings ledger a promotion destination — it has no way to shrink | `medium` | needs-brainstorm |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | [#69](https://github.com/danielhanold/docket/pull/69) |
+| [0075](active/0075-cwd-independent-repo-root-anchor.md) | Anchor the repo root to the main worktree — CWD-independent scripts, a fail-closed cleanup guard, and a durable finalize posture | `high` | [#84](https://github.com/danielhanold/docket/pull/84) |
 
 ```mermaid
 graph TD
