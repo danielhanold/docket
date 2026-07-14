@@ -2,7 +2,7 @@
 id: 72
 slug: facade-skill-rewiring
 title: Rewire the operating skills and Step-0 to the facade — retire the eval preamble
-status: implemented
+status: done
 priority: medium
 created: 2026-07-13
 updated: 2026-07-14
