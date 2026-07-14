@@ -45,14 +45,17 @@ Guard 1 ships as a **function** precisely so the mutation battery calls the *sam
 ### Task 1: Guard 1 — the repo-wide write sentinel, its mutation battery, and the complementarity lock
 
 **Files:**
-- Modify: `tests/test_render_board.sh` — insert the joiner, the guard function, the battery, and the real scan immediately BEFORE the existing `REDIRECT_RE` block (the comment starting `# --- negative sentinel:`). Task 2 rewrites that block's *comment*; this task does not touch it. A **second block** (the COMPLEMENTARITY lock) goes immediately AFTER that block, because it needs `$REDIRECT_RE` in scope.
+- Modify: `tests/test_render_board.sh` — insert the joiner, the shared normalizer, the guard function (Q1 token + Q2 taint), the battery, and the real scan immediately BEFORE the existing `REDIRECT_RE` block (the comment starting `# --- negative sentinel:`). Task 2 rewrites that block's *comment*; this task does not touch it. A **second block** (the COMPLEMENTARITY lock) goes immediately AFTER that block, because it needs `$REDIRECT_RE` in scope.
 - Test: `tests/test_render_board.sh` (the battery *is* the test — the guard function is the code under test).
 
 **Interfaces:**
 - Consumes: nothing from earlier tasks.
 - Produces:
   - `join_continuations <file>` → stdout: the file with backslash-continuations folded into logical lines. Task 3 defines an identical twin in `tests/test_docket_status.sh`.
-  - `render_board_write_free <file>` → exit **0** = clean (no file-directed redirect on the invocation or the pipeline it feeds), exit **1** = violation (offending invocations echoed to stdout).
+  - `normalize_source <file>` → stdout: the file after stages 1–5 (comments out, continuations joined, `&>`/`&>>` → `>`, `|&` → `|`, `||` → `;`, true fd dups erased). Factored out so **both** halves of Guard 1 read the same normalized text; if the taint pass kept its own copy of the `&>` normalization or the fd-dup erasure, the two would drift and a shape closed on one path would silently reopen on the other.
+  - `render_board_write_free <file>` → exit **0** = clean, exit **1** = violation (offending lines echoed to stdout). It asks **two** questions of `normalize_source`'s output, and the file is clean only if both answer no:
+    - **Q1, the invocation token** (stages 6–7): does any `render-board.sh` invocation — *and the pipeline it feeds*, cut at `;`/`&`/`||` — carry a surviving `>`?
+    - **Q2, the taint** (stage 8): does any variable whose value came from a `render-board.sh` command substitution get carried into a file-directed redirect, anywhere in the same file? The taint list is **derived** (`NAME=` + optional quote + `$(` … `render-board.sh` before any `)`), which covers `out="$(…)"`, `out=$(…)`, `local`/`readonly`/`export`, the `if ! out="$(…)"` form the real script uses, and a capture *through a pipeline* (the pipeline lives inside the `$(…)`, so it needs no special case). Uses are matched **word-bounded** (`$out` / `${out}`, so `$outfile` does not inherit the taint) and re-tested with the **same** `>`-survives rule as Q1. Bounded on purpose: **one hop**, **per-file**, **scope-blind** — it does not chase a tainted value through a function parameter, a second variable, or an `eval`.
   - The COMPLEMENTARITY block, which is **Task 2's precondition**: it is what establishes that `REDIRECT_RE`'s script scan is load-bearing and must be KEPT.
 
 - [ ] **Step 1: Write the failing test — the mutation battery + the real scan**
@@ -70,8 +73,11 @@ The battery comes first *in the file* as well as first in time: it is the reason
 # OVERSIGHT.
 #   - GUARD 1 (here) is TOKEN-SCOPED and TARGET-BLIND. It prohibits the WRITE on a render-board.sh
 #     invocation and on the pipeline that invocation feeds, so it never matches a filename and
-#     cannot be evaded by renaming one — but it is STRUCTURALLY BLIND to a write that crosses a
-#     STATEMENT boundary.
+#     cannot be evaded by renaming one. It ALSO follows the renderer's stdout ONE HOP INTO A
+#     VARIABLE — the TAINT stage (stage 8), added after a LIVE-TREE PROBE found the CAPTURE-THEN-
+#     WRITE shape GREEN in the very script this guard exists to protect — and prohibits the write
+#     there too. It is still blind to a write that crosses a STATEMENT boundary WITHOUT passing
+#     through a captured variable (a brace group; a wrapper function).
 #   - REDIRECT_RE (defined further down) is WHOLE-FILE and TARGET-KEYED. It flattens the source
 #     with `tr` and spans 200 characters, so it DOES see those cross-statement shapes — but it is
 #     blind to every redirect that does not park a literal `/BOARD.md` a whitespace-bounded ` > `
@@ -92,32 +98,65 @@ The battery comes first *in the file* as well as first in time: it is the reason
 #     | cat > "$f"     (a redirect ANYWHERE IN THE PIPELINE the renderer feeds — the pipeline IS
 #     |& cat > "$f"     its stdout, so the token does NOT end at the `|`, nor at the `|&`, which is
 #                       just `2>&1 |`; see stages 4 and 5)
+#     out=$(render-board.sh …)      (CAPTURE-THEN-WRITE — the renderer's stdout parked in a VARIABLE
+#     printf '%s' "$out" > "$f"      and written out by a LATER STATEMENT. The invocation token
+#                                    carries no redirect AT ALL, so stages 6-7 are structurally
+#                                    blind to it; the TAINT stage (8) is what kills it. THIS IS THE
+#                                    SHAPE A LIVE-TREE PROBE FOUND GREEN, and it is the most
+#                                    realistic regression this codebase can grow: docket-status.sh
+#                                    ALREADY captures the digest into `out` AND ALREADY holds the
+#                                    board path in a variable (`local rel="$CHANGES_DIR/BOARD.md"`),
+#                                    so a future edit reaches this shape by adding ONE statement.)
 # It never asks WHERE you are writing.
 #
 # WHAT IT ACTUALLY CHECKS, STATED WITHOUT OVERCLAIM — this is a bounded guard, and the bound is
-# published here so nobody has to rediscover it: for each render-board.sh invocation TOKEN — the
-# invocation AND THE PIPELINE IT FEEDS, cut at a `;`, an `&`, or a `||` — is there a surviving `>`
-# once true fd dups are erased. That is a SOURCE-SYNTAX property of ONE TOKEN. It is not a
-# filesystem fact, and it is NOT a property of the file. Two consequences, both real and both
-# load-bearing:
+# published here so nobody has to rediscover it. It asks TWO source-syntax questions per file, and
+# a file is clean only if BOTH answer no:
 #
-#   * IT IS BLIND TO A WRITE THAT CROSSES A STATEMENT BOUNDARY. Every one of these really writes
-#     BOARD.md — executed against a stub renderer, the bytes arrive — and every one is GREEN here,
-#     because the renderer's own token ENDS at the `;` and the redirect belongs to a LATER
-#     statement that the token never reaches:
+#   Q1 (THE TOKEN, stages 6-7). For each render-board.sh invocation TOKEN — the invocation AND THE
+#      PIPELINE IT FEEDS, cut at a `;`, an `&`, or a `||` — is there a surviving `>` once true fd
+#      dups are erased?
+#   Q2 (THE TAINT, stage 8). For each VARIABLE whose value comes from a render-board.sh command
+#      substitution — the renderer's stdout, ONE HOP on — does ANY statement in the same file carry
+#      that variable's value into a file-directed redirect (the SAME `>`-survives test as Q1, run
+#      over the SAME normalized source, so the two answers cannot drift)?
+#
+# Both are SOURCE-SYNTAX properties. Neither is a filesystem fact. Four consequences, all real and
+# all load-bearing:
+#
+#   * Q2 IS ONE HOP, NOT A DATAFLOW ANALYSIS. It follows `$(render-board.sh …)` into a variable and
+#     stops. Pass that variable to a FUNCTION (`emit "$out"`, with the redirect inside `emit`),
+#     copy it into a SECOND variable (`b="$out"; printf '%s' "$b" > f`), or route it through `eval`,
+#     and the taint is lost. Widening Q2 to chase those means writing a bash dataflow analyzer, and
+#     the answer to them is the deferred filesystem-effect test, not a bigger grep. DISCLOSED, NOT
+#     CHASED — see gap (II)(g).
+#   * Q2 IS PER-FILE AND SCOPE-BLIND, ON PURPOSE. A variable tainted in one function and redirected
+#     in ANOTHER is a violation here, even though bash's `local` would have made them different
+#     variables. That OVER-APPROXIMATES, and the error direction is FAIL-SAFE: it can only ever add
+#     an alarm, never hide a write. Making it scope-aware means parsing function bodies — the same
+#     "rebuild a bash parser inside a test sentinel" trap that stage 1's lexer-naivety note names.
+#     The taint IS per-VARIABLE, though, not per-file: a DIFFERENT variable being redirected in a
+#     file that also captures the renderer is GREEN, and a row pins that.
+#   * IT IS STILL BLIND TO A WRITE THAT CROSSES A STATEMENT BOUNDARY WITHOUT A CAPTURED VARIABLE.
+#     Both of these really write BOARD.md — executed against a stub renderer, the bytes arrive — and
+#     both are GREEN here, because the renderer's token ENDS at the `;`, the redirect belongs to a
+#     LATER statement, and NO variable carries the bytes across for Q2 to follow:
 #         { "$SCRIPTS_DIR"/render-board.sh --changes-dir "$d"; } > "$d/BOARD.md"
-#         out=$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$d"); printf '%s' "$out" > "$d/BOARD.md"
 #         board(){ "$SCRIPTS_DIR"/render-board.sh --changes-dir "$d"; }; board > "$d/BOARD.md"
-#     WIDENING THE TOKEN IS NOT THE FIX. A token that spans statements is a whole-file scan — which
-#     is precisely what REDIRECT_RE already is, and REDIRECT_RE catches ALL THREE of these (it
+#     (The THIRD member of this class — capture-then-write — USED to be here, and a live-tree probe
+#     proved that was not acceptable: it is the shape docket-status.sh is ONE STATEMENT away from,
+#     so stage 8 now kills it. What remains are the two shapes that carry the bytes with NO variable
+#     at all, and REDIRECT_RE catches both.)
+#     WIDENING THE TOKEN IS NOT THE FIX FOR THOSE TWO. A token that spans statements is a whole-file
+#     scan — which is precisely what REDIRECT_RE already is, and REDIRECT_RE catches both (it
 #     flattens the file and spans 200 chars). Chasing them from here would just rebuild REDIRECT_RE
 #     badly, inside a function that also has to stay narrow enough not to redden on the codebase's
 #     real calls. THIS IS WHY BOTH GUARDS SHIP, and the COMPLEMENTARITY block asserts exactly this
 #     pair of directions so the next author cannot delete one and keep the invariant.
-#   * IT CANNOT SEE A WRITE THAT IS NOT SPELLED WITH A `>` ON THE TOKEN: a pipeline member that
-#     writes without a redirect (`| tee f`), an fd opened on a prior line (`exec 3>"$f"` … `>&3`),
-#     an operator that only exists at runtime (`eval`), or a `>` the scan never reached because it
-#     mis-lexed a quote. Those are the KNOWN, ACCEPTED GAPS below.
+#   * IT CANNOT SEE A WRITE THAT IS NOT SPELLED WITH A `>` ON THE TOKEN OR ON A TAINTED STATEMENT: a
+#     pipeline member that writes without a redirect (`| tee f`), an fd opened on a prior line
+#     (`exec 3>"$f"` … `>&3`), an operator that only exists at runtime (`eval`), or a `>` the scan
+#     never reached because it mis-lexed a quote. Those are the KNOWN, ACCEPTED GAPS below.
 #
 # The call-site list is DERIVED FROM A find(1) SWEEP, never hand-maintained (ledger #64: never
 # hand-list the call sites of an operation you are gating). The sweep covers scripts/lib/*.sh,
@@ -231,14 +270,50 @@ The battery comes first *in the file* as well as first in time: it is the reason
 #      stderr-to-file form (2>/dev/null) — deliberately conservative: the correct way to route
 #      this renderer's stderr is the fd dup already in use (2>&2), and a guard that permits SOME
 #      writes is a guard whose next author must relitigate which.
+#   8. TAINT — FOLLOW THE STDOUT ONE HOP INTO A VARIABLE, THEN RE-ASK STAGE 7 THERE. Stages 6-7 read
+#      the INVOCATION. But the renderer's stdout does not have to leave through the invocation: it
+#      can be CAPTURED and written by a LATER statement, and then the invocation token carries no
+#      `>` at all. A live-tree probe injected exactly that into the real scripts/docket-status.sh —
+#
+#          if ! out="$("$SCRIPTS_DIR"/render-board.sh … 2>&2)"; printf "%s" "$out" >"$mw/$rel"; then
+#
+#      — and the suite went GREEN while the board was really being written. BOTH shipped guards
+#      missed it: stages 6-7 because the token is cut at the `;`, and REDIRECT_RE because there is
+#      no whitespace-bounded ` > ` and no literal `/BOARD.md` (the target is the variable `$rel`).
+#      This is not an exotic shape. It is the shape THIS script is ONE STATEMENT away from: it
+#      already captures the digest into `out` (backlog_pass) and already holds the board path in a
+#      variable (`local rel="$CHANGES_DIR/BOARD.md"`, board_pass_inline). A guard that is green on
+#      the most realistic regression in the file it protects is decoration (ledger #64).
+#      TWO SUB-STEPS, both over the SAME normalized source stages 1-5 already produced:
+#        (a) NAME THE TAINTED VARIABLES: `NAME=` immediately followed by an optional quote and a
+#            `$(` whose contents reach `render-board.sh` before any `)`. That one pattern covers
+#            `out="$(…)"`, `out=$(…)`, `local out="$(…)"`, `readonly out=$(…)`, `export out=$(…)`,
+#            the `if ! out="$(…)"` form the real script uses, and a capture THROUGH A PIPELINE
+#            (`out="$(render-board.sh … | tail -n +2)"`) — the pipeline lives inside the `$(…)`, so
+#            it needs no special case. The variable NAME is what survives.
+#        (b) RE-ASK STAGE 7 ON EVERY STATEMENT CARRYING THAT NAME'S VALUE. Cut the normalized source
+#            into statements with the SAME `[^;&]*` tokenizer stage 6 uses, keep the ones that USE
+#            the variable (`$out` at a word boundary, or `${out}` — the boundary is what stops
+#            `$outfile` from inheriting `$out`'s taint), and apply the SAME rule: a surviving `>` is
+#            a write. Sharing the tokenizer and the `>` rule with Q1 is the point — `printf … >f`,
+#            `echo … >>f`, `>|f`, `cat <<< "$out" > f`, `&>`/`>&file` all die by the machinery that
+#            already normalizes and erases, so THE TWO PATHS CANNOT DRIFT APART.
+#      Its bound is Q2's bound, stated above: ONE HOP, PER-FILE, SCOPE-BLIND. It does not chase a
+#      tainted value through a function parameter, a second variable, or an `eval` — see (II)(g).
 #
 # KNOWN, ACCEPTED GAPS. Two kinds, and the difference matters:
 #
 # (I) NOT A GAP OF THE PAIR — Guard 1 misses it, REDIRECT_RE covers it:
-#   0. THE STATEMENT-BOUNDARY CLASS (`{ …; } > f`, capture-then-write, a wrapper function). Spelled
-#      out above. Guard 1 is GREEN on all three; REDIRECT_RE is RED on all three; the
-#      COMPLEMENTARITY block asserts both halves. It is listed here so nobody "fixes" Guard 1 by
-#      widening its token — the fix already exists, and it is the other guard.
+#   0. THE NO-VARIABLE STATEMENT-BOUNDARY CLASS: `{ …; } > f` and a wrapper function. Spelled out
+#      above. The bytes cross the statement boundary with NO variable carrying them, so stage 8's
+#      taint has nothing to follow and Guard 1 is GREEN on both; REDIRECT_RE is RED on both; the
+#      COMPLEMENTARITY block asserts both halves. Listed here so nobody "fixes" Guard 1 by widening
+#      its token — the fix already exists, and it is the other guard.
+#      (CAPTURE-THEN-WRITE WAS THE THIRD MEMBER OF THIS CLASS AND IS NO LONGER IN IT. A live-tree
+#      probe found it GREEN under BOTH guards — REDIRECT_RE only ever caught the *literal*
+#      `> "$d/BOARD.md"` spelling of it, never the variable-target one a real regression in
+#      docket-status.sh would use — and stage 8 now catches every spelling. The COMPLEMENTARITY
+#      block scores the literal spelling BOTH-RED and the variable-target one Guard-1-only.)
 #
 # (II) GENUINE GAPS OF THE PAIR — real writes that NEITHER a token scan nor a target-keyed regex
 #      reliably sees. They are disclosed, not fixed, and they share one answer (below):
@@ -263,6 +338,19 @@ The battery comes first *in the file* as well as first in time: it is the reason
 #   d. A `;`, `&`, `||` OR `#` INSIDE A QUOTED ARGUMENT, cutting the token short of a real redirect
 #      (the lexer-naivety trade-off under stage 1). Same root cause as (c): the scan reads text,
 #      not a parse tree.
+#   g. THE TAINT ESCAPING THROUGH A SECOND HOP — the bound of stage 8, named as a gap so it is not
+#      mistaken for coverage. Every one of these really writes the board and every one is GREEN:
+#          out=$(render-board.sh …); emit(){ printf '%s' "$1" > "$f"; }; emit "$out"
+#              — the value leaves through a FUNCTION PARAMETER; `$1` is not `$out`.
+#          out=$(render-board.sh …); b="$out"; printf '%s' "$b" > "$f"
+#              — the value is COPIED into an untainted second variable.
+#          out=$(render-board.sh …); eval "printf '%s' \"\$out\" > \"\$f\""
+#              — the redirect (and the use) exist only at runtime; cf. (c).
+#      Closing these means propagating taint through assignments, parameters and expansions, i.e.
+#      writing a bash dataflow analyzer inside a test sentinel. It is the same "out of all
+#      proportion" call stage 1 makes about a quote-aware lexer, and it has the same answer: the
+#      deferred filesystem-effect test. What stage 8 DOES buy is the ONE HOP a real regression
+#      actually takes — the shape the live-tree probe found, in the script the guard protects.
 #
 # (III) KNOWN FALSE POSITIVES, both FAIL-SAFE (they can only add an alarm, never hide a write), so
 #      they are disclosed rather than engineered around:
@@ -294,36 +382,77 @@ join_continuations(){
   awk '{ while (sub(/\\$/, "")) { if ((getline nxt) > 0) { $0 = $0 nxt } else { break } } print }' "$1"
 }
 
-# 0 = clean; 1 = at least one render-board.sh invocation (or the pipeline it feeds) carries a
-# file-directed redirect.
-# Stage order per the block above: comments OUT first (a comment cannot continue across a trailing
-# backslash, so joining first would let one SWALLOW a live invocation), THEN join, THEN normalize
-# `&>`, THEN normalize the `|`-compounds (`|&` is a PIPELINE and must stay in the token; `||` is a
-# NEW COMMAND and must cut it), THEN erase whole-and-only-whole fd dups, THEN tokenize per
-# invocation at a word boundary.
-# The tokenizer's `[^;&]*` cuts at `;` and `&` ONLY — NOT at a bare `|`: the pipeline a renderer
-# feeds is its stdout, so `... | cat > f` must stay INSIDE the token (see stage 6; `[^;&|]*` here
-# was a false-GREEN on a real BOARD.md write).
-# BOUNDED BY CONSTRUCTION: this sees the invocation TOKEN, so a write that crosses a STATEMENT
-# boundary (`{ ...; } > f`, capture-then-write, a wrapper function) is GREEN here and RED under
-# REDIRECT_RE's whole-file scan. Do not widen the token to chase them — see COMPLEMENTARITY below.
+# normalize_source — STAGES 1-5 of the block above, factored out so that BOTH halves of Guard 1
+# (Q1, the invocation token; Q2, the taint) read THE SAME normalized text. This is not tidiness: if
+# the taint pass kept its own copy of the `&>` normalization or the fd-dup erasure, the two would
+# drift, and a shape closed on one path would silently reopen on the other. ONE NORMALIZER, ONE
+# REDIRECT VOCABULARY, TWO QUESTIONS ASKED OF IT.
+# Order: comments OUT first (a comment cannot continue across a trailing backslash, so joining first
+# would let one SWALLOW a live invocation), THEN join continuations, THEN normalize `&>`/`&>>` to a
+# bare `>`, THEN normalize the `|`-compounds (`|&` is a PIPELINE and must stay in the token; `||` is
+# a NEW COMMAND and must cut it), THEN erase whole-and-only-whole fd dups.
+normalize_source(){
+  join_continuations <(
+    grep -v '^[[:space:]]*#' "$1" | sed 's/[[:space:]]#.*$//'
+  ) \
+    | sed 's/&>>\{0,1\}/>/g' \
+    | sed 's/|&/|/g; s/||/;/g' \
+    | sed -E 's/[0-9]*>&([0-9]+|-)($|[[:space:];&|)}"])/\2/g'
+}
+
+# 0 = clean; 1 = the renderer's stdout reaches a file — EITHER on the invocation (or the pipeline it
+# feeds), OR one hop later, out of a variable that captured it.
+# Q1, THE INVOCATION TOKEN (stages 6-7). The tokenizer's `[^;&]*` cuts at `;` and `&` ONLY — NOT at
+# a bare `|`: the pipeline a renderer feeds IS its stdout, so `... | cat > f` must stay INSIDE the
+# token (see stage 6; `[^;&|]*` here was a false-GREEN on a real BOARD.md write).
+# Q2, THE TAINT (stage 8). A capture (`out="$(render-board.sh …)"`, in any of its spellings) puts no
+# `>` on the invocation at all, so Q1 is structurally blind to it — and a LIVE-TREE PROBE proved
+# that mattered: injecting `…; printf "%s" "$out" >"$mw/$rel"; …` into the REAL
+# scripts/docket-status.sh left this suite GREEN while the board was really written. Q2 names the
+# captured variable, then re-asks Q1's "is there a surviving `>`" of every statement that USES it —
+# the same tokenizer, over the same normalized text. Word-bounded, so `$outfile` does not inherit
+# `$out`'s taint; per-file and scope-blind, which OVER-approximates in the fail-safe direction.
+# STILL BOUNDED BY CONSTRUCTION: a write that crosses a statement boundary carrying NO variable
+# (`{ ...; } > f`, a wrapper function) is GREEN here and RED under REDIRECT_RE's whole-file scan;
+# and a taint that escapes through a function parameter, a second variable or an `eval` is GREEN
+# under both. Do not widen the token to chase the first pair — see COMPLEMENTARITY below.
 # Diagnostics go to STDOUT so the real scan can name the offending script; the mutation battery
 # routes them to /dev/null, since an EXPECTED red row is not an operator-actionable violation.
 render_board_write_free(){
-  local f="$1" violation=0 inv
+  local f="$1" violation=0 inv norm var stmt
+  norm="$(normalize_source "$f")"
+
+  # Q1 — the invocation token (and the pipeline it feeds) may carry no surviving `>`.
   while IFS= read -r inv; do
     [ -n "$inv" ] || continue
     echo "  (render-board.sh invocation writes to a file in ${f##*/}: $inv)"
     violation=1
   done < <(
-    join_continuations <(
-      grep -v '^[[:space:]]*#' "$f" | sed 's/[[:space:]]#.*$//'
-    ) \
-      | sed 's/&>>\{0,1\}/>/g' \
-      | sed 's/|&/|/g; s/||/;/g' \
-      | sed -E 's/[0-9]*>&([0-9]+|-)($|[[:space:];&|)}"])/\2/g' \
+    printf '%s\n' "$norm" \
       | grep -oE '[^;&]*(^|[^-[:alnum:]])render-board\.sh[^;&]*' \
       | grep '>' || true
+  )
+
+  # Q2 — no variable that CAPTURED the renderer's stdout may carry it into a redirect. The taint
+  # list is DERIVED (`NAME=` + optional quote + `$(` … `render-board.sh` before any `)`), never
+  # hand-written; a capture through a pipeline needs no special case because the pipeline lives
+  # INSIDE the `$(…)`. The use pattern is word-bounded so `$outfile` never inherits `$out`'s taint.
+  while IFS= read -r var; do
+    [ -n "$var" ] || continue
+    while IFS= read -r stmt; do
+      [ -n "$stmt" ] || continue
+      echo "  (render-board.sh output captured in \$$var is written to a file in ${f##*/}: $stmt)"
+      violation=1
+    done < <(
+      printf '%s\n' "$norm" \
+        | grep -oE "[^;&]*[\$]([{]$var[}]|$var([^[:alnum:]_]|\$))[^;&]*" \
+        | grep '>' || true
+    )
+  done < <(
+    printf '%s\n' "$norm" \
+      | grep -oE '[A-Za-z_][A-Za-z0-9_]*=["'"'"']?\$\([^)]*render-board\.sh' \
+      | sed -E 's/=.*$//' \
+      | sort -u
   )
   return "$violation"
 }
@@ -624,6 +753,130 @@ printf '%s\n' '#!/usr/bin/env bash' \
 assert "guard1 stays GREEN on a no-space || error branch (\"...\"||echo failed > \"\$log\")" \
   'render_board_write_free "$mut/or-else-nospace.sh" >/dev/null'
 
+# (19)-(19f) THE CAPTURE-THEN-WRITE CLASS — STAGE 8's ROWS. Found by a LIVE-TREE PROBE, not by
+#      imagination: the shape in row 19 was injected into the REAL scripts/docket-status.sh, the
+#      suite said PASS, and the board was really written. BOTH shipped guards were blind — Q1
+#      because the invocation token is cut at the `;` and the write lives in the NEXT statement,
+#      REDIRECT_RE because there is no whitespace-bounded ` > ` and no literal `/BOARD.md` anywhere
+#      near the operator (the target is the variable `$rel`).
+#      This is the most realistic regression shape this codebase has, and that is not rhetoric:
+#      docket-status.sh ALREADY captures the renderer's stdout into `out` (backlog_pass) and ALREADY
+#      holds the board path in a variable (`local rel="$CHANGES_DIR/BOARD.md"`, board_pass_inline).
+#      A future edit reaches row 19 by adding ONE statement to a function that already has both
+#      halves in scope. Every row below really writes the renderer's bytes to a file — verified by
+#      executing the fixture against a stub renderer that prints known bytes and grepping the tree
+#      for them. Rows 20-20d are the controls that keep stage 8 from becoming a nuisance.
+
+# (19) THE LIVE-TREE SHAPE, verbatim. Capture in the `if` condition, write in the same condition
+#      list, one `;` over. Q1's token ends at that `;`.
+printf '%s\n' '#!/usr/bin/env bash' \
+  'if ! out="$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$cd_dir" --format digest 2>&2)"; printf "%s" "$out" >"$mw/$rel"; then' \
+  '  return 1' \
+  'fi' > "$mut/taint-live-probe.sh"
+assert "guard1 flags the LIVE-TREE capture-then-write probe (if ! out=\$(...); printf ... >\"\$mw/\$rel\")" \
+  '! render_board_write_free "$mut/taint-live-probe.sh" >/dev/null'
+
+# (19b) the same class spread over LINES, with the literal board path. `out=$(…)` unquoted capture,
+#      the write several statements later. Distance buys nothing: the taint is per-file.
+printf '%s\n' '#!/usr/bin/env bash' \
+  'out=$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$d")' \
+  'echo "rendered" >&2' \
+  'printf '"'"'%s'"'"' "$out" > "$d/BOARD.md"' > "$mut/taint-later-line.sh"
+assert "guard1 flags a capture written out on a LATER line (out=\$(...) ... printf > BOARD.md)" \
+  '! render_board_write_free "$mut/taint-later-line.sh" >/dev/null'
+
+# (19c) `local out="$(…)"` — the declaration form the real script uses — appended with `>>`. Stage
+#      8 keys on `NAME=`, so `local`, `readonly`, `export` and a bare assignment are all one case.
+printf '%s\n' '#!/usr/bin/env bash' \
+  'board_pass_inline(){' \
+  '  local out="$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$d" --format digest 2>&2)"' \
+  '  echo "$out" >> "$f"' \
+  '}' \
+  'board_pass_inline' > "$mut/taint-local-append.sh"
+assert "guard1 flags a 'local out=\$(...)' capture appended into a file (echo \"\$out\" >> \"\$f\")" \
+  '! render_board_write_free "$mut/taint-local-append.sh" >/dev/null'
+
+# (19d) CAPTURE THROUGH A PIPELINE — the renderer's stdout is filtered before it lands in the
+#      variable, and the variable is then written. The pipeline lives INSIDE the `$(…)`, so the
+#      taint pattern needs no special case for it; this row is what proves that.
+printf '%s\n' '#!/usr/bin/env bash' \
+  'out="$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$d" | tail -n +2)"' \
+  'printf '"'"'%s'"'"' "$out" > "$f"' > "$mut/taint-pipeline.sh"
+assert "guard1 flags a capture THROUGH A PIPELINE that is then written (out=\$(... | tail); printf > f)" \
+  '! render_board_write_free "$mut/taint-pipeline.sh" >/dev/null'
+
+# (19e) `cat <<< "$out" > "$f"` — a here-string writer. The `<<<` carries `<`, not `>`, so it does
+#      not confuse the redirect test; the write is the `>` that follows. Pins that stage 8 reuses
+#      the `>`-survives rule rather than pattern-matching on `printf`/`echo` — a writer allowlist
+#      would be the ledger-#64 anti-pattern (hand-listing) all over again.
+printf '%s\n' '#!/usr/bin/env bash' \
+  'out="$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$d")"' \
+  'cat <<< "$out" > "$f"' > "$mut/taint-herestring.sh"
+assert "guard1 flags a here-string write of a captured board (cat <<< \"\$out\" > \"\$f\")" \
+  '! render_board_write_free "$mut/taint-herestring.sh" >/dev/null'
+
+# (19f) `readonly out=$(…)` + `${out}` brace expansion + `>|` clobber-force + a VARIABLE target.
+#      Every axis at once, and none of it is near a literal BOARD.md — REDIRECT_RE cannot see this
+#      row AT ANY WIDTH, so it is stage 8 or nothing.
+printf '%s\n' '#!/usr/bin/env bash' \
+  'readonly out=$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$d")' \
+  'printf '"'"'%s'"'"' "${out}" >| "$mw/$rel"' > "$mut/taint-brace-clobber.sh"
+assert "guard1 flags a readonly capture written via \${out} with >| to a variable target" \
+  '! render_board_write_free "$mut/taint-brace-clobber.sh" >/dev/null'
+
+# (20) FALSE-POSITIVE CONTROL — THE CODEBASE'S REAL CAPTURE AND ITS REAL USE, copied from
+#      scripts/docket-status.sh's backlog_pass VERBATIM (not invented: an invented control proves
+#      nothing about the code that ships). The digest IS captured into `out` — so `out` is tainted —
+#      and the value is then printed to STDOUT, never redirected. This row is the whole reason stage
+#      8 tests the STATEMENTS THAT USE the variable rather than the mere existence of a capture: a
+#      guard that reddens on backlog_pass is a guard that gets deleted the same day.
+printf '%s\n' '#!/usr/bin/env bash' \
+  'backlog_pass(){' \
+  '  local mw' \
+  '  if [ "${DOCKET_MODE:-}" = docket ]; then mw="${METADATA_WORKTREE:-.docket}"; else mw="."; fi' \
+  '  local cd_dir="$mw/$CHANGES_DIR"' \
+  '  local out' \
+  '  if ! out="$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$cd_dir" --format digest 2>&2)"; then' \
+  '    echo "docket-status: backlog digest failed; continuing without it" >&2' \
+  '    return 0' \
+  '  fi' \
+  '  [ -n "$out" ] && printf '"'"'%s\n'"'"' "$out"' \
+  '  return 0' \
+  '}' > "$mut/taint-real-usage.sh"
+assert "guard1 stays GREEN on backlog_pass VERBATIM — a real capture printed to stdout, never redirected" \
+  'render_board_write_free "$mut/taint-real-usage.sh" >/dev/null'
+
+# (20b) FALSE-POSITIVE CONTROL — A DIFFERENT VARIABLE IS REDIRECTED IN THE SAME FILE. The file DOES
+#      capture the renderer (so a per-FILE taint would redden), but the redirect carries `$other`,
+#      which never touched render-board.sh. The taint is per-VARIABLE; this row is what pins that.
+printf '%s\n' '#!/usr/bin/env bash' \
+  'out="$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$d" --format digest 2>&2)"' \
+  'printf '"'"'%s\n'"'"' "$out"' \
+  'other="x"; printf "%s" "$other" > "$f"' > "$mut/taint-other-var.sh"
+assert "guard1 stays GREEN when a DIFFERENT variable is redirected beside a clean capture (per-variable taint)" \
+  'render_board_write_free "$mut/taint-other-var.sh" >/dev/null'
+
+# (20c) FALSE-POSITIVE CONTROL — a tainted variable READ in a test and a grep, with no redirect
+#      anywhere. Inspecting the digest is exactly what docket-status.sh is entitled to grow; only a
+#      `>` is a write.
+printf '%s\n' '#!/usr/bin/env bash' \
+  'out="$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$d" --format digest 2>&2)"' \
+  'if [ -n "$out" ] && printf "%s" "$out" | grep -qc "^change "; then echo yes; fi' \
+  > "$mut/taint-compare-only.sh"
+assert "guard1 stays GREEN on a tainted variable merely compared and grepped (no redirect)" \
+  'render_board_write_free "$mut/taint-compare-only.sh" >/dev/null'
+
+# (20d) FALSE-POSITIVE CONTROL — THE NAME-PREFIX TRAP. `out` is tainted; `outfile` is a DIFFERENT
+#      variable that merely starts with the same letters, and redirecting IT is innocent. Without a
+#      word boundary after the name, `$outfile` would inherit `$out`'s taint and this correct script
+#      would go red. Drop the `([^[:alnum:]_]|$)` from the taint-use pattern and this row tells you.
+printf '%s\n' '#!/usr/bin/env bash' \
+  'out="$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$d" --format digest 2>&2)"' \
+  'outfile="$d/log.txt"' \
+  'printf "%s" "$outfile" > "$f"' > "$mut/taint-prefix-var.sh"
+assert "guard1 stays GREEN when \$outfile (a name-prefix of the tainted \$out) is redirected" \
+  'render_board_write_free "$mut/taint-prefix-var.sh" >/dev/null'
+
 # --- the real scan: every script under scripts/ EXCEPT the one allowlisted writer ---
 guard1_violation=0
 scanned=0
@@ -663,12 +916,22 @@ Then append this SECOND block immediately AFTER the existing `# --- negative sen
 #      at all, and an `&>` carries no whitespace-bounded ` > `. Both really write the file. Only
 #      Guard 1 can see them, because Guard 1 never asks what the target is called.
 #
-#   B. REDIRECT_RE RED / GUARD 1 GREEN — the STATEMENT BOUNDARY. Guard 1 reads ONE INVOCATION
-#      TOKEN, and a token ends at a `;`. So a write that puts the renderer in one statement and the
-#      redirect in the NEXT is invisible to it: a brace group, a capture-then-write, a wrapper
-#      function. All three really write BOARD.md (executed against a stub renderer — the bytes
-#      arrive). REDIRECT_RE catches all three, because it flattens the whole file with `tr` and
-#      spans 200 characters across the boundary Guard 1 stops at.
+#   B. REDIRECT_RE RED / GUARD 1 GREEN — the STATEMENT BOUNDARY, WITH NO VARIABLE CARRYING THE
+#      BYTES. Guard 1's Q1 reads ONE INVOCATION TOKEN, and a token ends at a `;`. So a write that
+#      puts the renderer in one statement and the redirect in the NEXT is invisible to it — UNLESS
+#      the bytes travel between the two in a VARIABLE, which Q2's taint now follows. Two shapes
+#      carry them with no variable at all, and those are the ones that remain: a BRACE GROUP and a
+#      WRAPPER FUNCTION. Both really write BOARD.md (executed against a stub renderer — the bytes
+#      arrive). REDIRECT_RE catches both, because it flattens the whole file with `tr` and spans 200
+#      characters across the boundary Q1 stops at.
+#      WHAT USED TO BE HERE AND IS NOT ANY MORE: CAPTURE-THEN-WRITE. The paragraph below reserved
+#      the right to flip a direction-B row to RED if Guard 1 ever learned to see across a statement
+#      boundary without reddening the real calls. Stage 8 did exactly that, so the row MOVED — it is
+#      now scored in the BOTH-RED section — and it earned the move the hard way: a live-tree probe
+#      showed the pair was NOT actually covering the class. REDIRECT_RE only ever caught the LITERAL
+#      `> "$d/BOARD.md"` spelling; the spelling a real regression in docket-status.sh would use
+#      (`>"$mw/$rel"` — variable target, no space) was GREEN under BOTH guards. Direction A now
+#      carries that exact probe as a Guard-1-only row.
 #
 # WHY NOT JUST WIDEN GUARD 1 TO COVER (B)? Because a token that spans statements IS a whole-file
 # scan — it would be REDIRECT_RE, rebuilt worse, inside a function that must also stay narrow
@@ -694,36 +957,54 @@ printf '%s\n' '#!/usr/bin/env bash' \
   '"$SCRIPTS_DIR"/render-board.sh --changes-dir "$d" >"$mw/$rel"' > "$mut/comp-nospace-var.sh"
 # A2: `&>` — a merged-output write. No whitespace-bounded ` > ` anywhere for REDIRECT_RE to match.
 #     ($mut/amp-redirect.sh, row 7, reused: the battery already proves Guard 1 reds it.)
-for onlyg1 in "$mut/comp-nospace-var.sh" "$mut/amp-redirect.sh"; do
+# A3: THE LIVE-TREE PROBE (row 19) — capture-then-write to a VARIABLE target. This is the shape that
+#     was GREEN under BOTH guards until stage 8 landed, and it is here to record WHY REDIRECT_RE was
+#     never the answer to it: the target is `"$mw/$rel"`, so no `/BOARD.md` sits near the operator at
+#     ANY width, and there is no whitespace-bounded ` > ` either. Only Guard 1 can reach it.
+# A4: the `readonly` + `${out}` + `>|` + variable-target composite (row 19f) — same reasoning.
+for onlyg1 in "$mut/comp-nospace-var.sh" "$mut/amp-redirect.sh" "$mut/taint-live-probe.sh" \
+              "$mut/taint-brace-clobber.sh"; do
   assert "complementarity A: guard1 flags ${onlyg1##*/} (a REAL write)" \
     '! render_board_write_free "$onlyg1" >/dev/null'
   assert "complementarity A: REDIRECT_RE is BLIND to ${onlyg1##*/} — so guard1 may not be deleted" \
     '! tr "\n" " " < "$onlyg1" | grep -Eq "$REDIRECT_RE"'
 done
 
-# --- direction B: shapes ONLY REDIRECT_RE can see (Guard 1's token ends at the statement boundary)
-# Each of these three REALLY WRITES BOARD.md — the renderer's bytes reach the file — and each is
-# GREEN under Guard 1. That is not a bug to be fixed here; it is the bound of a token-scoped scan,
-# and it is why the whole-file scan below stays.
+# --- direction B: shapes ONLY REDIRECT_RE can see (Guard 1 carries NO variable across the boundary)
+# Each of these two REALLY WRITES BOARD.md — the renderer's bytes reach the file — and each is GREEN
+# under Guard 1: the invocation token holds no `>`, and no VARIABLE captures the stdout for stage
+# 8's taint to follow. That is not a bug to be fixed here; it is the bound of a token-scoped scan
+# with a one-hop taint, and it is why the whole-file scan below stays.
 # B1: brace group — the redirect belongs to the GROUP, not to the invocation inside it.
 printf '%s\n' '#!/usr/bin/env bash' \
   '{ "$SCRIPTS_DIR"/render-board.sh --changes-dir "$d"; } > "$d/BOARD.md"' \
   > "$mut/comp-brace-group.sh"
-# B2: capture-then-write — the renderer's stdout is parked in a variable, then written by a
-#     SECOND command. The invocation itself carries no redirect at all.
-printf '%s\n' '#!/usr/bin/env bash' \
-  'out=$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$d"); printf "%s" "$out" > "$d/BOARD.md"' \
-  > "$mut/comp-capture-write.sh"
-# B3: a wrapper function — the invocation is in the body, the redirect is on the CALL.
+# B2: a wrapper function — the invocation is in the body, the redirect is on the CALL.
 printf '%s\n' '#!/usr/bin/env bash' \
   'board(){ "$SCRIPTS_DIR"/render-board.sh --changes-dir "$d"; }; board > "$d/BOARD.md"' \
   > "$mut/comp-wrapper-fn.sh"
-for onlyre in "$mut/comp-brace-group.sh" "$mut/comp-capture-write.sh" "$mut/comp-wrapper-fn.sh"; do
+for onlyre in "$mut/comp-brace-group.sh" "$mut/comp-wrapper-fn.sh"; do
   assert "complementarity B: REDIRECT_RE flags ${onlyre##*/} — so the script scan may not be deleted" \
     'tr "\n" " " < "$onlyre" | grep -Eq "$REDIRECT_RE"'
-  assert "complementarity B: guard1 is BOUNDED — it does NOT see ${onlyre##*/} (write crosses a statement)" \
+  assert "complementarity B: guard1 is BOUNDED — it does NOT see ${onlyre##*/} (no variable crosses the statement)" \
     'render_board_write_free "$onlyre" >/dev/null'
 done
+
+# --- the OVERLAP column: CAPTURE-THEN-WRITE, now caught by BOTH. It USED to be a direction-B row
+# (REDIRECT_RE-only), and moving it is the honest bookkeeping of what stage 8 changed. It is scored
+# BOTH-RED rather than deleted for two reasons: it records that the migration really happened (a
+# future author reading this block sees the shape, not a hole in the numbering), and it keeps the
+# LITERAL spelling under REDIRECT_RE's watch even if stage 8 is ever narrowed.
+# THE OVERLAP IS ONLY ON THIS SPELLING. The VARIABLE-TARGET spelling of the very same class — the
+# live-tree probe, row A3 — is Guard 1's ALONE. So the pair is still not a subsumption in either
+# direction: A holds (4 rows, the probe among them), B holds (2 rows).
+printf '%s\n' '#!/usr/bin/env bash' \
+  'out=$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$d"); printf "%s" "$out" > "$d/BOARD.md"' \
+  > "$mut/comp-capture-write.sh"
+assert "complementarity OVERLAP: guard1 (stage 8 taint) now flags comp-capture-write.sh" \
+  '! render_board_write_free "$mut/comp-capture-write.sh" >/dev/null'
+assert "complementarity OVERLAP: REDIRECT_RE also flags comp-capture-write.sh (the literal spelling)" \
+  'tr "\n" " " < "$mut/comp-capture-write.sh" | grep -Eq "$REDIRECT_RE"'
 ```
 
 - [ ] **Step 2: Run the test to verify the battery has teeth**
@@ -744,12 +1025,14 @@ Two further mutations prove the newest pipeline stages are load-bearing rather t
 
 - **Delete the `| sed 's/|&/|/g; s/||/;/g'` stage** → exactly four rows go red: the two `|&` rows (a real write goes unseen) and the two `||` rows (a false positive on an error-handling idiom). Nothing else moves.
 - **Drop `|` from the fd-dup right-boundary class** (`($|[[:space:];&|)}"])` → `($|[[:space:];&)}"])`) → exactly **one** row goes red: `2>&1| head` (no space). Its spaced twin `2>&1 | head` stays green — which is precisely why the no-space row exists, and why the spaced row's comment must not claim to pin the `|`.
+- **Neuter stage 8 alone** — make the taint-name derivation match nothing (`[A-Za-z_][A-Za-z0-9_]*=` → `ZZNOSUCHVARZZ=`), leaving Q1 fully intact → exactly **nine** rows go red, and they are precisely the capture-then-write ones: the six stage-8 battery rows (19–19f), the two direction-A complementarity rows that use them (`taint-live-probe.sh`, `taint-brace-clobber.sh`), and the OVERLAP row. Every Q1 row stays green. This is the mutant that *proves the taint rows are earned by stage 8* and are not being caught accidentally by the token scan — without it, stage 8 could be dead code and the battery would never notice.
+- **Drop the word boundary from the taint-use pattern** (`$var([^[:alnum:]_]|$)` → `$var`) → exactly **one** row goes red, and it is a GREEN control: `$outfile` (a name-prefix of the tainted `$out`) starts inheriting `$out`'s taint and a correct script is falsely accused. This is what pins the boundary as load-bearing rather than decorative.
 
 - [ ] **Step 3: Run the test to verify it passes with the real guard**
 
 Run: `cd /Users/homer/dev/docket/.worktrees/redirect-regex-board-write-guard && bash tests/test_render_board.sh 2>&1 | grep -E "guard1|complementarity|write scan|allowlisted|^(PASS|FAIL)"`
 
-Expected — all **43** guard-1 and complementarity rows `ok -`, and the file ends `PASS`. Note that no `(render-board.sh invocation writes to a file ...)` diagnostics appear: the battery routes the guard's stdout to `/dev/null`, because an EXPECTED red row is not an operator-actionable violation and printing it makes a passing suite read like a failing one in CI. The real scan keeps its diagnostics — that is where an operator needs to know *which* script violated.
+Expected — all **57** guard-1 and complementarity rows `ok -`, and the file ends `PASS`. Note that no `(render-board.sh invocation writes to a file ...)` diagnostics appear: the battery routes the guard's stdout to `/dev/null`, because an EXPECTED red row is not an operator-actionable violation and printing it makes a passing suite read like a failing one in CI. The real scan keeps its diagnostics — that is where an operator needs to know *which* script violated.
 
 ```
 ok - guard1 flags a spaced redirect into BOARD.md
@@ -782,6 +1065,16 @@ ok - guard1 stays GREEN on a 2>&1 fd dup piped into a reader (2>&1 | head)
 ok - guard1 stays GREEN on a no-space fd dup against a pipe (2>&1| head — pins | in the boundary class)
 ok - guard1 stays GREEN on a || error branch whose redirect belongs to another command
 ok - guard1 stays GREEN on a no-space || error branch ("..."||echo failed > "$log")
+ok - guard1 flags the LIVE-TREE capture-then-write probe (if ! out=$(...); printf ... >"$mw/$rel")
+ok - guard1 flags a capture written out on a LATER line (out=$(...) ... printf > BOARD.md)
+ok - guard1 flags a 'local out=$(...)' capture appended into a file (echo "$out" >> "$f")
+ok - guard1 flags a capture THROUGH A PIPELINE that is then written (out=$(... | tail); printf > f)
+ok - guard1 flags a here-string write of a captured board (cat <<< "$out" > "$f")
+ok - guard1 flags a readonly capture written via ${out} with >| to a variable target
+ok - guard1 stays GREEN on backlog_pass VERBATIM — a real capture printed to stdout, never redirected
+ok - guard1 stays GREEN when a DIFFERENT variable is redirected beside a clean capture (per-variable taint)
+ok - guard1 stays GREEN on a tainted variable merely compared and grepped (no redirect)
+ok - guard1 stays GREEN when $outfile (a name-prefix of the tainted $out) is redirected
 ok - no script under scripts/ (except board-refresh.sh) writes render-board.sh's stdout to a file
 ok - the write scan is not vacuous (it swept the scripts tree)
 ok - the allowlisted writer scripts/board-refresh.sh exists
@@ -789,16 +1082,20 @@ ok - complementarity A: guard1 flags comp-nospace-var.sh (a REAL write)
 ok - complementarity A: REDIRECT_RE is BLIND to comp-nospace-var.sh — so guard1 may not be deleted
 ok - complementarity A: guard1 flags amp-redirect.sh (a REAL write)
 ok - complementarity A: REDIRECT_RE is BLIND to amp-redirect.sh — so guard1 may not be deleted
+ok - complementarity A: guard1 flags taint-live-probe.sh (a REAL write)
+ok - complementarity A: REDIRECT_RE is BLIND to taint-live-probe.sh — so guard1 may not be deleted
+ok - complementarity A: guard1 flags taint-brace-clobber.sh (a REAL write)
+ok - complementarity A: REDIRECT_RE is BLIND to taint-brace-clobber.sh — so guard1 may not be deleted
 ok - complementarity B: REDIRECT_RE flags comp-brace-group.sh — so the script scan may not be deleted
-ok - complementarity B: guard1 is BOUNDED — it does NOT see comp-brace-group.sh (write crosses a statement)
-ok - complementarity B: REDIRECT_RE flags comp-capture-write.sh — so the script scan may not be deleted
-ok - complementarity B: guard1 is BOUNDED — it does NOT see comp-capture-write.sh (write crosses a statement)
+ok - complementarity B: guard1 is BOUNDED — it does NOT see comp-brace-group.sh (no variable crosses the statement)
 ok - complementarity B: REDIRECT_RE flags comp-wrapper-fn.sh — so the script scan may not be deleted
-ok - complementarity B: guard1 is BOUNDED — it does NOT see comp-wrapper-fn.sh (write crosses a statement)
+ok - complementarity B: guard1 is BOUNDED — it does NOT see comp-wrapper-fn.sh (no variable crosses the statement)
+ok - complementarity OVERLAP: guard1 (stage 8 taint) now flags comp-capture-write.sh
+ok - complementarity OVERLAP: REDIRECT_RE also flags comp-capture-write.sh (the literal spelling)
 PASS
 ```
 
-If the `2>&2` false-positive control is RED, the fd-dup erasure is missing or misordered — the `&` of `2>&2` is cutting the token and leaving a dangling `>`. If the `&>` / `>& FILE` rows are GREEN, the erasure is keying on the OPERATOR instead of the TARGET (a `[0-9-]*` that matches zero characters erases a real file write) or the `&>` normalization is missing. If the `>&2board.md` row is GREEN, the erasure lost its RIGHT boundary and has degraded into a prefix match. If the comment-backslash row is GREEN, someone has "tidied" the pipeline back into the intuitive join-first order and a live write is being laundered into a dead comment. If any `| cat > …` or `|& cat > …` row is GREEN, the tokenizer is cutting the token at a `|` (or at the `&` inside a `|&`) — a pipeline IS the renderer's stdout, and those shapes really write `BOARD.md`. If a `||` control is RED, stage 4's `||` → `;` rewrite is gone and the guard is now reddening on ordinary error handling. **If a `complementarity B: REDIRECT_RE flags …` row is RED, `REDIRECT_RE` has been weakened and the statement-boundary class is now caught by NOTHING — fix the regex, do not delete the row.** Fix the pipeline; never relax an assertion.
+If the `2>&2` false-positive control is RED, the fd-dup erasure is missing or misordered — the `&` of `2>&2` is cutting the token and leaving a dangling `>`. If the `&>` / `>& FILE` rows are GREEN, the erasure is keying on the OPERATOR instead of the TARGET (a `[0-9-]*` that matches zero characters erases a real file write) or the `&>` normalization is missing. If the `>&2board.md` row is GREEN, the erasure lost its RIGHT boundary and has degraded into a prefix match. If the comment-backslash row is GREEN, someone has "tidied" the pipeline back into the intuitive join-first order and a live write is being laundered into a dead comment. If any `| cat > …` or `|& cat > …` row is GREEN, the tokenizer is cutting the token at a `|` (or at the `&` inside a `|&`) — a pipeline IS the renderer's stdout, and those shapes really write `BOARD.md`. If a `||` control is RED, stage 4's `||` → `;` rewrite is gone and the guard is now reddening on ordinary error handling. If any `guard1 flags … capture …` row (19–19f) is GREEN, stage 8's taint is broken — either the name derivation stopped matching the assignment form, or the use pattern stopped matching `$out`/`${out}`; the board can now be written by capturing it first, which is the exact regression a live-tree probe caught. If the `backlog_pass VERBATIM` control is RED, stage 8 has started firing on a capture that is merely *printed*, and the guard is about to be deleted by whoever it blocks. If the `$outfile` control is RED, the taint-use pattern lost its word boundary and is now tainting variables by name prefix. **If a `complementarity B: REDIRECT_RE flags …` row is RED, `REDIRECT_RE` has been weakened and the no-variable statement-boundary class is now caught by NOTHING — fix the regex, do not delete the row.** Fix the pipeline; never relax an assertion.
 
 - [ ] **Step 4: Prove the guard against the LIVE tree, not just fixtures**
 
@@ -806,10 +1103,17 @@ The battery proves the function works on fixtures. This proves it is wired to re
 
 The real line is `scripts/docket-status.sh:172`, and it ends with `--format digest 2>&2)"` — **ONE** closing paren (the command substitution's) before the quote. A pattern expecting `2>&2))"` matches nothing and the "mutation" is a silent no-op that proves the guard works by never testing it. Confirm the mutation landed before trusting the RED.
 
-Use **two** live mutations, in this order — the second is the one that matters most:
+Use **three** live mutations, in this order — the third is the one that matters most, and it is the one that found a real hole:
 
 1. **The comment-backslash laundering shape.** It indicts the pipeline ORDER, the part a future edit is most likely to "tidy" back into the intuitive join-first form.
-2. **The pipeline shape with a VARIABLE target** — `render-board.sh … | cat > "$rel"`. This one is the sharpest proof available, because `REDIRECT_RE` is *structurally blind* to it (no literal `BOARD.md` near the `>`), so **only Guard 1's own assertion can go red**. If you only ever mutate with a literal `BOARD.md` target, both guards fire and you have not shown that Guard 1 is wired to anything.
+2. **The pipeline shape with a VARIABLE target** — `render-board.sh … | cat > "$rel"`. Sharper than a literal-target probe, because `REDIRECT_RE` is *structurally blind* to it (no literal `BOARD.md` near the `>`), so **only Guard 1's own assertion can go red**. If you only ever mutate with a literal `BOARD.md` target, both guards fire and you have not shown that Guard 1 is wired to anything.
+3. **CAPTURE-THEN-WRITE, the shape the script is one statement away from** — append `; printf "%s" "$out" >"$mw/$rel"` to the real invocation's `if !` condition:
+
+   ```
+   if ! out="$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$cd_dir" --format digest 2>&2)"; printf "%s" "$out" >"$mw/$rel"; then
+   ```
+
+   **THIS PROBE IS WHY STAGE 8 EXISTS.** Run against the guard as first shipped, the suite said **PASS** while the board was really being written. Both guards were blind: Q1's token is cut at the `;` so the write lives in the next statement, and `REDIRECT_RE` sees no whitespace-bounded ` > ` and no literal `/BOARD.md` (the target is `$rel`). It is not an exotic construction — `backlog_pass` already captures the digest into `out`, `board_pass_inline` already holds the board path in `rel`, so a regression reaches this shape by *adding one statement to a function that already has both halves in scope*. Also probe the simpler literal spelling (`printf '%s' "$out" > "$cd_dir/BOARD.md"` on a later line) and confirm it is RED under **both** guards. A guard that is green on the most realistic regression in the file it protects is decoration (ledger #64) — which is exactly what a live-tree probe is for, and exactly what fixture-only testing will never tell you.
 
 ```bash
 cd /Users/homer/dev/docket/.worktrees/redirect-regex-board-write-guard
@@ -1194,7 +1498,8 @@ git commit -m "test(0070): fix <the regression Step 3 surfaced>"
 | Guard 2: `REDIRECT_RE` kept unwidened | Task 2 (byte-identity asserted in Step 3) |
 | Guard 2: re-scoped to `skills/*/SKILL.md` ONLY, 0069's script scan retired as subsumed | **NOT DONE — the premise is false. See Deviations (1).** The script scan is KEPT |
 | Guard 3: flag check stays, inherits continuation-joining | Task 3 |
-| Mutation battery: every evasion RED, `2>&2` GREEN | Task 1, Step 1 (21 RED rows, 9 GREEN controls, 13 complementarity rows) + Step 2 (guard-level mutations) + Step 4 (live-tree probes) |
+| Guard 1: capture-then-write (`out=$(render-board.sh …)` … `printf "$out" > f`) | **NOT IN THE SPEC — added in-scope after a live-tree probe. See Deviations (8).** Task 1, Step 1, stage 8 (the TAINT stage) |
+| Mutation battery: every evasion RED, `2>&2` GREEN | Task 1, Step 1 (27 RED rows, 13 GREEN controls, 14 complementarity/overlap rows, 3 real-scan/anti-vacuity rows — 57 in all) + Step 2 (guard-level mutations, incl. a stage-8-only mutant and a taint-boundary mutant) + Step 4 (live-tree probes) |
 | Test-only; no production changes | Global Constraints; asserted in Task 4, Step 1 |
 
 **2. Placeholder scan.** No TBDs; every step carries the literal bytes to paste and the exact command with its expected output. Task 1's two code fences are byte-identical to what ships.
@@ -1203,10 +1508,24 @@ git commit -m "test(0070): fix <the regression Step 3 surfaced>"
 
 **Deviations from the spec, and why** — to disclose in the results file:
 
-1. **THE SPEC'S SUBSUMPTION PREMISE IS FALSE; `REDIRECT_RE` KEEPS ITS SCAN OF `scripts/docket-status.sh`.** The spec said Guard 2's regex would scan *only* skills prose, because 0069's script scan would be "retired as subsumed" by the new write sentinel. Mutation testing disproved it: the write sentinel is **token-scoped** and is structurally blind to a write that crosses a **statement boundary** — `{ render-board.sh …; } > f`, `out=$(render-board.sh …); printf … > f`, and a wrapper function all really write `BOARD.md` (executed against a stub renderer; the bytes arrive) and all are GREEN under it. The flattened `REDIRECT_RE` scan catches all three. The two guards are **complementary, not nested** — neither subsumes the other, and deleting either reopens a hole. Widening the sentinel's token to cover the gap would just rebuild `REDIRECT_RE` badly, against this repo's own ledger rule (*one guard, one hole — add an independent scan rather than widening the first; deleting a sentinel is how the guarded hole reopens*). The complementarity is now **locked by tests** in both directions, against the real regex and the real function, so the claim cannot rot back into a comment.
+1. **THE SPEC'S SUBSUMPTION PREMISE IS FALSE; `REDIRECT_RE` KEEPS ITS SCAN OF `scripts/docket-status.sh`.** The spec said Guard 2's regex would scan *only* skills prose, because 0069's script scan would be "retired as subsumed" by the new write sentinel. Mutation testing disproved it: the write sentinel is **token-scoped** and is structurally blind to a write that crosses a **statement boundary** with no variable carrying the bytes — `{ render-board.sh …; } > f` and a wrapper function both really write `BOARD.md` (executed against a stub renderer; the bytes arrive) and both are GREEN under it. The flattened `REDIRECT_RE` scan catches both. The two guards are **complementary, not nested** — neither subsumes the other, and deleting either reopens a hole. Widening the sentinel's token to cover the gap would just rebuild `REDIRECT_RE` badly, against this repo's own ledger rule (*one guard, one hole — add an independent scan rather than widening the first; deleting a sentinel is how the guarded hole reopens*). The complementarity is now **locked by tests** in both directions, against the real regex and the real function, so the claim cannot rot back into a comment. *(The third member of that class — capture-then-write — was originally listed here too; Deviation (8) records why it is no longer, and what that cost.)*
 2. **`find "$REPO/scripts" -name '*.sh'` instead of a flat `scripts/*.sh` glob.** The spec says "iterate `scripts/*.sh`"; the repo has `scripts/lib/*.sh`, which that glob does not reach. Ledger #64 is explicit that a gated operation's call-site list must be derived, not hand-shaped.
 3. **Normalizing `&>`/`&>>`, then the `|`-compounds, then erasing fd dups, ALL BEFORE tokenizing** — not in the spec's three-step pipeline, but forced by it. The tokenizer splits on `;` and `&`. That means (a) the `&` in `2>&2` cuts the token mid-redirect, leaving a dangling `>` that would fire on the codebase's own correct invocation (the spec's designated GREEN control); (b) the `&` in `&>f` ends the token *before* its `>`, so a real file write vanishes; and (c) the `&` in `|&` does the same to a pipeline — while `||`, which merely *looks* like a pipe, must CUT the token, since the OR-branch's redirect belongs to a different command.
 4. **The fd-dup erasure keys on the TARGET being a WHOLE descriptor, not on the operator and not on a PREFIX.** `>&2`, `2>&1`, and `>&-` are descriptor dups; `>& file`, `>&"$f"`, and `>&2board.md` are file WRITES with the same operator. The erasure therefore requires a digit run or `-` after the `&` **and a right boundary after that**: `[0-9]*>&([0-9]+|-)($|[[:space:];&|)}"])`. The `|` in that boundary class is pinned by the no-space `2>&1| head` row (the spaced twin cannot detect its removal).
 5. **Trailing comments are stripped, not just whole-line ones.** `grep -v '^[[:space:]]*#'` alone leaves `render-board.sh … 2>&2  # digest -> stdout only` carrying the comment's arrow, whose `>` reddens the guard on a legitimate call. Disclosed trade-off: a `#`, `;`, `&` or `||` inside a quoted argument on an invocation line would truncate the token early. No such invocation exists (the only args are `--changes-dir`, `--repo`, `--format`).
 6. **Guard 1 rejects `2>/dev/null`** (a stderr-to-file redirect). Strictly implied by "no file-directed redirect", but worth stating.
-7. **Known, accepted gaps — all disclosed in the guard's comment, none fixed:** `| tee f`; a redirect opened on a prior line (`exec 3>"$f"` + `>&3`, or `exec > "$f"` + a bare invocation); an operator conjured by `eval`; and a metacharacter inside a quoted argument. Plus two **fail-safe false positives** (they can only add an alarm, never hide a write): a heredoc body quoting the anti-pattern as prose, and the join reaching across a comment bash would treat as ending the command. The deferred filesystem-effect test is the answer to the gaps.
+7. **Known, accepted gaps — all disclosed in the guard's comment, none fixed:** `| tee f`; a redirect opened on a prior line (`exec 3>"$f"` + `>&3`, or `exec > "$f"` + a bare invocation); an operator conjured by `eval`; a metacharacter inside a quoted argument; and a taint that escapes on a **second hop** (through a function parameter, a copy into another variable, or an `eval`) — the bound of stage 8. Plus two **fail-safe false positives** (they can only add an alarm, never hide a write): a heredoc body quoting the anti-pattern as prose, and the join reaching across a comment bash would treat as ending the command. The deferred filesystem-effect test is the answer to the gaps.
+
+8. **STAGE 8, THE TAINT — NOT IN THE SPEC, FOUND BY LIVE-TREE PROBING, CLOSED IN SCOPE.** The spec's three-step pipeline (strip → join → tokenize per invocation) guards the *invocation*. A live-tree probe of the shipped guard pair found the class it cannot reach, in the one script it exists to protect:
+
+   ```
+   if ! out="$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$cd_dir" --format digest 2>&2)"; printf "%s" "$out" >"$mw/$rel"; then
+   ```
+
+   The suite said **PASS**. The board was really written. **Both guards missed it** — Guard 1 because its token is cut at the `;` (the write is the *next* statement, and the invocation carries no `>` at all), `REDIRECT_RE` because there is no whitespace-bounded ` > ` and no literal `/BOARD.md` (the target is the variable `$rel`). This was not a contrived shape: `backlog_pass` **already** captures the renderer's stdout into `out`, and `board_pass_inline` **already** holds the board path in `local rel="$CHANGES_DIR/BOARD.md"` — the regression is one added statement away, which makes capture-then-write the *most realistic* shape this codebase can grow, not the least. A guard pair that is green on it is decoration (ledger #64: *a guard is code — mutation-test it or it is decoration*).
+
+   The fix is a **bounded, source-syntax extension of Guard 1**, not a new guard and not a widened token: name the variables that take a `render-board.sh` command substitution, then re-ask Guard 1's *existing* "is there a surviving `>`" question of every statement that uses one. It reuses `normalize_source` and the same `[^;&]*` tokenizer, so the two paths cannot drift. Its bound is disclosed rather than chased (one hop, per-file, scope-blind — see gap (7)).
+
+   **The complementarity block was updated honestly rather than left flattering.** Capture-then-write moved out of the "REDIRECT_RE only" column: the *literal* spelling is now scored **BOTH-RED** (the overlap section), and the *variable-target* spelling — the live probe — is a **Guard-1-only** row in direction A, because `REDIRECT_RE` never could see it at any width. Neither guard subsumes the other, still: direction A holds with 4 rows, direction B with 2 (the brace group and the wrapper function — the shapes that cross a statement boundary with **no variable** for the taint to follow). That was re-verified empirically against the real regex and the real function, not assumed.
+
+   **The general lesson, for the next author:** the previous four waves were fixture-driven and each one was green when it shipped. This hole was found only by injecting the regression into the *real* script and running the *real* suite. Fixtures test what you thought of; a live-tree probe tests what the code actually protects.
