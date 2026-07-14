@@ -9,7 +9,42 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 assert "script exists and is executable" '[ -x "$SCRIPT" ]'
 assert "--help exits 0 and prints usage" '"$SCRIPT" --help 2>&1 | grep -qi "usage"'
 
-# --- inline-board wiring sentinel (change 0059, narrowed by change 0069) ---
+# Scratch dir shared by every fixture in this file: the continuation-joining battery below, the
+# bootstrap-gate fixtures via write_fixture() (further down), and everything after it.
+tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
+
+# Folds backslash-continuations into logical lines, so the tokenizer below sees INVOCATIONS rather
+# than physical-line fragments. TWIN of tests/test_render_board.sh's join_continuations (Guard 1) —
+# defined identically here rather than shared, because this file is a standalone script with no
+# library to share (matching how every test file in this repo defines its own `assert`). Keep the
+# two in step: a broken tokenizer sitting beside a fixed one is how the next author cargo-cults the
+# broken one (ledger #64).
+# awk, not sed: BSD sed does not portably treat `\n` in an s/// LHS as a newline.
+join_continuations(){
+  awk '{ while (sub(/\\$/, "")) { if ((getline nxt) > 0) { $0 = $0 nxt } else { break } } print }' "$1"
+}
+
+# digest_tokens — render-board.sh invocation tokens, tokenized from LOGICAL lines rather than
+# physical ones. Shared by the real scan below (over "$SCRIPT") AND the mutation fixtures further
+# down, so the fix cannot be true in the battery and broken in the scan.
+# PIPELINE ORDER IS LOAD-BEARING, mirroring tests/test_render_board.sh's normalize_source: comments
+# OUT FIRST — drop whole-line ones, then strip trailing ones — and ONLY THEN join continuations.
+# The obvious order (join, then strip) is EXPLOITABLE. Bash comments are PHYSICAL-LINE scoped: a
+# trailing backslash does NOT continue a comment onto the next line. So in
+#     # regenerate the board \
+#     "$SCRIPTS_DIR"/render-board.sh --changes-dir "$d" 2>&2
+# the second line REALLY EXECUTES as a live, ungated invocation (proven in test_render_board.sh's
+# Guard 1 against a stub renderer). Joining first folds that live line INTO the comment, and the
+# comment-drop then deletes both — laundering the ungated call into silence. Stripping comments
+# first leaves the live invocation standing alone, where the tokenizer below still catches it (the
+# "comment ending in backslash, followed by a live call" row in the battery pins this ordering).
+digest_tokens(){
+  join_continuations <(
+    grep -v '^[[:space:]]*#' "$1" | sed 's/[[:space:]]#.*$//'
+  ) | grep -oE '[^;&|]*/render-board\.sh[^;&|]*' || true
+}
+
+# --- inline-board wiring sentinel (change 0059, narrowed by change 0069, tokenizer fixed 0070) ---
 # 0059's rule: the inline BOARD.md *write* has exactly ONE gated path — board-refresh.sh — so the
 # orchestrator must never render-and-write the board itself. 0069 adds a READ-ONLY consumer of the
 # same renderer (`--format digest`, piped straight to the report, no file touched), so the guard
@@ -18,24 +53,110 @@ assert "--help exits 0 and prints usage" '"$SCRIPT" --help 2>&1 | grep -qi "usag
 # Tokenized PER INVOCATION (not per line): a line carrying a gated and an ungated call side by
 # side must not be whitewashed by the gated one. Comment lines are stripped first — prose that
 # merely names the script is not an invocation.
+# Change 0070: tokenizes LOGICAL lines (continuations joined first, via digest_tokens above) — a
+# flag or a redirect parked on a continuation line is otherwise torn away from the call it belongs
+# to. See digest_tokens' comment for why comments must be stripped BEFORE the join, not after.
 assert "docket-status routes the inline board render through board-refresh.sh" \
   'grep -qF "/board-refresh.sh" "$SCRIPT"'
 
 ungated_render=0
+digest_scan_count=0
 while IFS= read -r inv; do
   [ -n "$inv" ] || continue
+  digest_scan_count=$((digest_scan_count + 1))
   case "$inv" in
     *"--format digest"*) : ;;
     *) ungated_render=1; echo "  (ungated render-board.sh invocation: $inv)" ;;
   esac
-done < <(grep -v '^[[:space:]]*#' "$SCRIPT" | grep -oE '[^;&|]*/render-board\.sh[^;&|]*' || true)
+done < <(digest_tokens "$SCRIPT")
 assert "every render-board.sh invocation in docket-status is the read-only --format digest" \
   '[ "$ungated_render" -eq 0 ]'
+# Anti-vacuity (Task 1's convention, tests/test_render_board.sh): a scan over zero invocations
+# passes for the wrong reason — deleting the renderer call from docket-status.sh entirely would
+# leave the assertion above green with nothing to check. Assert the scan actually saw one.
+assert "the digest-flag scan is not vacuous (it saw at least one render-board.sh invocation)" \
+  '[ "$digest_scan_count" -ge 1 ]'
+
+# --- change 0070: the flag check tokenizes LOGICAL lines, not physical ones -------------------
+# What this sentinel guards, and ONLY this: whether each render-board.sh invocation in
+# docket-status.sh carries --format digest (the read-only projection). It has NO redirect/write
+# visibility — digest_tokens() never greps for a `>`, before this fix or after it, and no fixture
+# below constructs one. Whether a call WRITES a file is REDIRECT_RE's and the write sentinel's job
+# (Guard 1, tests/test_render_board.sh) — that guard's own comment states the two catch different
+# holes and neither subsumes the other; nothing here changes that boundary, and nothing here
+# licenses deleting either guard as redundant with this one.
+#
+# The tokenizer above used to read one PHYSICAL line at a time, so an invocation whose --format
+# digest flag sat on a backslash-continuation was torn in half: the first-line token carried the
+# call WITHOUT the flag it actually has — a loud FALSE POSITIVE (a legitimately gated call flagged
+# as ungated; the "flag check sees a --format digest flag parked on a continuation line" row below
+# proves the join fixes it). A call genuinely missing the flag was already caught either way — the
+# flag's absence from whichever physical line matches is what the check keys on, split or not — so
+# the "flag check still catches an ungated call split across a continuation line" row below is a
+# no-regression proof, not evidence of a prior miss. The third row locks a narrower, real hazard
+# specific to a JOIN-based tokenizer: digest_tokens() strips comments BEFORE joining continuations,
+# and getting that order backwards would fold a live invocation into a preceding
+# backslash-terminated comment, deleting both when the comment is dropped (verified empirically:
+# swapping the order launders that exact fixture to zero tokens). The "ordering" row below pins
+# that the shipped order does not do that.
+digest_mut="$tmp/mut-digest"; mkdir -p "$digest_mut"
+
+# A legitimate call whose flag sits on the continuation line: exactly ONE logical invocation, and
+# it IS the digest projection. The join is what lets the tokenizer see that (no false positive).
+digest_ct="$digest_mut/continuation-call.sh"
+printf '%s\n' '#!/usr/bin/env bash' \
+  'out="$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$cd_dir" \' \
+  '  --format digest 2>&2)"' > "$digest_ct"
+digest_ct_ungated=0
+while IFS= read -r inv; do
+  [ -n "$inv" ] || continue
+  case "$inv" in
+    *"--format digest"*) : ;;
+    *) digest_ct_ungated=1 ;;
+  esac
+done < <(digest_tokens "$digest_ct")
+assert "flag check sees a --format digest flag parked on a continuation line (no false positive)" \
+  '[ "$digest_ct_ungated" -eq 0 ]'
+
+# The same shape WITHOUT the flag must still be caught — the join must not launder a rogue call.
+digest_rt="$digest_mut/continuation-rogue.sh"
+printf '%s\n' '#!/usr/bin/env bash' \
+  'out="$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$cd_dir" \' \
+  '  2>&2)"' > "$digest_rt"
+digest_rt_ungated=0
+while IFS= read -r inv; do
+  [ -n "$inv" ] || continue
+  case "$inv" in
+    *"--format digest"*) : ;;
+    *) digest_rt_ungated=1 ;;
+  esac
+done < <(digest_tokens "$digest_rt")
+assert "flag check still catches an ungated call split across a continuation line" \
+  '[ "$digest_rt_ungated" -eq 1 ]'
+
+# THE ORDERING PROOF: a comment line ending in a backslash, followed by a LIVE ungated invocation.
+# Bash comments do not continue across a trailing backslash, so the second line really executes —
+# this is the exact laundering shape a join-before-strip order would hide (see digest_tokens'
+# comment above). Comments must be stripped BEFORE continuations are joined: get the order wrong
+# and this row goes silently green, because the live invocation gets folded into the comment and
+# deleted along with it.
+digest_lc="$digest_mut/comment-then-live.sh"
+printf '%s\n' '#!/usr/bin/env bash' \
+  '# regenerate the board \' \
+  '"$SCRIPTS_DIR"/render-board.sh --changes-dir "$cd_dir" 2>&2' > "$digest_lc"
+digest_lc_ungated=0
+while IFS= read -r inv; do
+  [ -n "$inv" ] || continue
+  case "$inv" in
+    *"--format digest"*) : ;;
+    *) digest_lc_ungated=1 ;;
+  esac
+done < <(digest_tokens "$digest_lc")
+assert "flag check still catches a live invocation following a comment that ends in backslash (ordering)" \
+  '[ "$digest_lc_ungated" -eq 1 ]'
 
 # Bootstrap gate: stub docket-config.sh --export via CONFIG_EXPORT_CMD (a hermetic fixture
 # script emitting the eval-able KEY=value block), and assert the gate's exit code + remedy text.
-tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
-
 write_fixture(){
   cat > "$tmp/fixture-export.sh" <<EOF
 #!/usr/bin/env bash
