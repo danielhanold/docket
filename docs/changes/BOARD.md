@@ -1,12 +1,6 @@
 # Backlog
 
-**74 changes** — 🟢 1 in progress · 🟡 9 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 60 done · 🗑️ 2 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0074](active/0074-bootstrap-facade-verb.md) | A `bootstrap` facade verb — retire the last direct-helper carve-out in Step-0 | `medium` | [spec](../superpowers/specs/2026-07-14-bootstrap-facade-verb-design.md) | `feat/bootstrap-facade-verb` |
+**74 changes** — 🟡 9 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 60 done · 🗑️ 2 killed
 
 ## 🟡 Proposed (9)
 
@@ -28,11 +22,12 @@
 |---|-------|----------|------------|
 | [0073](active/0073-cursor-sandbox-permissions-guide.md) | Cursor sandbox & permissions guide — copyable config, trust tiers, troubleshooting | `medium` | Awaiting the live Cursor verification session — the spec's verification-log appendix must be written before the build. Flip to proposed once it lands. |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | [#69](https://github.com/danielhanold/docket/pull/69) |
+| [0074](active/0074-bootstrap-facade-verb.md) | A `bootstrap` facade verb — retire the last direct-helper carve-out in Step-0 | `medium` | [#82](https://github.com/danielhanold/docket/pull/82) |
 
 ```mermaid
 graph TD
