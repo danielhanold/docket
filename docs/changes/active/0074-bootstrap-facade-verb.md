@@ -9,7 +9,7 @@ updated: 2026-07-14
 depends_on: [68, 72]
 related: [68, 72]
 adrs: [29, 30]
-spec:
+spec: docs/superpowers/specs/2026-07-14-bootstrap-facade-verb-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Spec | [2026-07-14-bootstrap-facade-verb-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-14-bootstrap-facade-verb-design.md) |
 | ADRs | [ADR-0029](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0029-docket-facade-routing-and-config-presentation.md), [ADR-0030](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0030-facade-wiring-guard-discriminates-on-invocation-prefix.md) |
 <!-- docket:artifacts:end -->
 
@@ -65,15 +66,6 @@ gate.
 - Broadening the facade beyond this one verb, or revisiting ADR-0029's finite-subcommand posture.
 - Tightening the 0072 prose guard to forbid all `.sh` tokens — ADR-0030 explicitly rejects that
   over-scope, and it must stay rejected.
-
-## Open questions
-
-- `docket-config.sh --bootstrap` is a **write** path guarded to one 2×2 cell, while every other
-  facade verb is read-only or a bookkeeping commit. Does the facade need to surface that asymmetry
-  (a confirmation, a distinct exit code), or does the script's own cell guard suffice?
-- Does the verb belong in the same `WRAPPED_OPS` inventory as the rest, or does a write-path verb
-  need its own dispatch arm and its own inventory sentinel (see ADR-0029's "wrong surface" note in
-  the guards-are-code learnings family)?
 
 ## Reconcile log
 
