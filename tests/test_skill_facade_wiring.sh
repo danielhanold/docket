@@ -119,4 +119,61 @@ assert "mid-run re-sync verb is defined once (unique anchor)" \
 assert "Step-0 instructs reading the printed block (unique anchor)" \
   '[ "$(grep -cF "read the printed \`KEY=value\` block" "$CONV")" = "1" ]'
 
+# ---- Layer 3: the board-surfaces sentinel (change 0071) ----------------------------------------
+# 0071 removed every surfaces value from skill prose: the Board pass is now the single facade call
+# `docket.sh docket-status --board-only`, and the orchestrator self-resolves its config. This
+# sentinel is what keeps it that way — the call-site list is grep-derived, so it can never
+# silently regrow (LEARNINGS: derive gated call-site lists by grep, never by hand; guard the
+# list's completeness with a sentinel, not with review attention).
+#
+# SCOPE DISCRIMINATION (ADR-0030), and why the three clauses differ:
+#   * `BOARD_SURFACES` and `--surfaces` are forbidden across the WHOLE file. Neither has any
+#     legitimate descriptive use in skill prose — the config KEY is the lowercase `board_surfaces`
+#     (a different string, deliberately untouched). Whole-file (not code-unit) scoping is the
+#     stronger guard here and costs nothing.
+#   * `docket.sh board-refresh` is forbidden as an INVOCATION, in code units. The bare noun
+#     `board-refresh.sh` is PERMITTED (the convention's "Derived-view script family" and
+#     docket-status's ownership prose both legitimately NAME it; test_board_refresh_on_transition.sh
+#     asserts the convention still does). Forbidding the noun would over-scope into prose whose job
+#     is to describe the mechanism — the exact rejected alternative in ADR-0030.
+#
+# PORTABILITY note: `--surfaces` begins with dashes, so a bare `grep -qF "$B_SURF_FLAG" "$f"` is
+# parsed by grep as an (unrecognized) OPTION, not a pattern — it errors (exit 2) regardless of the
+# file's content, and `! <that>` then reports a false "ok" on EVERY file (a silently vacuous
+# assert). Verified locally: `grep -qF "--surfaces" f` exits 2 unconditionally on both this repo's
+# shimmed grep and plain GNU grep; the `--` end-of-options marker is what makes the pattern reach
+# grep as literal text, so every grep call below carries it.
+B_SURF_VAR='BOARD_SURFACES'          # the shell variable, in any spelling ($X, "$X", ${X})
+B_SURF_FLAG='--surfaces'             # the retired flag
+B_REFRESH_CALL='docket.sh board-refresh'   # the retired direct invocation
+
+board_pass_files=0
+for f in "${SCOPE[@]}"; do
+  rel="${f#$REPO/}"
+  units="$(extract_code_units "$f")"
+
+  assert "no BOARD_SURFACES variable survives anywhere in $rel" \
+    '! grep -qF -- "$B_SURF_VAR" "$f"'
+  assert "no --surfaces flag survives anywhere in $rel" \
+    '! grep -qF -- "$B_SURF_FLAG" "$f"'
+  assert "no direct board-refresh invocation in code units of $rel" \
+    '! printf "%s" "$units" | grep -qF -- "$B_REFRESH_CALL"'
+
+  grep -qF -- 'docket.sh docket-status --board-only' "$f" && board_pass_files=$((board_pass_files + 1))
+done
+
+# NON-VACUITY (LEARNINGS: a guard that parses nothing passes everything — assert the unit count the
+# extractor found, not just its verdict). The sweep above is only meaningful if the corpus is real
+# and the canonical Board-pass call is actually PRESENT where it belongs. Verified directly
+# (`grep -rlF 'docket.sh docket-status --board-only' skills/ | sort`) against 7 files: the 5
+# status-writing skills (docket-auto-groom, docket-finalize-change, docket-groom-next,
+# docket-implement-next, docket-new-change) + the convention SKILL.md + terminal-close-out.md;
+# docket-status/SKILL.md and docket-adr/SKILL.md have no Board site of their own. This is a
+# per-FILE count (grep -l), not a per-occurrence count — the facade string legitimately repeats
+# inside docket-new-change's SKILL.md.
+assert "the in-scope corpus is non-empty (the sentinel actually scanned files)" \
+  '[ "${#SCOPE[@]}" -ge 8 ]'
+assert "the canonical Board-pass call is present in every rewired file (found $board_pass_files)" \
+  '[ "$board_pass_files" -eq 7 ]'
+
 exit $fail
