@@ -1,8 +1,8 @@
 # Backlog
 
-**75 changes** — 🟡 10 proposed · 🔵 1 implemented · ✅ 62 done · 🗑️ 2 killed
+**76 changes** — 🟡 11 proposed · 🔵 1 implemented · ✅ 62 done · 🗑️ 2 killed
 
-## 🟡 Proposed (10)
+## 🟡 Proposed (11)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -16,6 +16,7 @@
 | [0062](active/0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | `low` | needs-brainstorm |
 | [0067](active/0067-learnings-promotion-destination.md) | Give the learnings ledger a promotion destination — it has no way to shrink | `medium` | needs-brainstorm |
 | [0075](active/0075-finalize-safe-cwd-before-cleanup.md) | Finalize from a durable checkout — don't run cleanup while CWD is the feature worktree | `medium` | needs-brainstorm |
+| [0076](active/0076-cwd-independent-repo-root-resolution.md) | Resolve the repo root independently of CWD — preflight run inside `.docket` mints a nested metadata worktree | `medium` | needs-brainstorm |
 
 ## 🔵 Implemented — awaiting merge (1)
 
@@ -36,6 +37,7 @@ graph TD
   0062
   0067
   0075
+  0076
   0001:::done
   0002:::done
   0003:::done
