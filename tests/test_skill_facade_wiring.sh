@@ -131,7 +131,11 @@ assert "Step-0 instructs reading the printed block (unique anchor)" \
 #     legitimate descriptive use in skill prose — the config KEY is the lowercase `board_surfaces`
 #     (a different string, deliberately untouched). Whole-file (not code-unit) scoping is the
 #     stronger guard here and costs nothing.
-#   * `docket.sh board-refresh` is forbidden as an INVOCATION, in code units. The bare noun
+#   * `docket.sh board-refresh` is forbidden as an INVOCATION, checked BOTH in code units and
+#     across the whole file (two independent asserts). The code-unit assert alone left a hole:
+#     a plain, un-backticked prose sentence naming the invocation slipped past it (caught in
+#     review). The whole-file assert closes that hole and costs nothing, because the phrase has
+#     zero legitimate use anywhere in skills/ — unlike the bare noun below. The bare noun
 #     `board-refresh.sh` is PERMITTED (the convention's "Derived-view script family" and
 #     docket-status's ownership prose both legitimately NAME it; test_board_refresh_on_transition.sh
 #     asserts the convention still does). Forbidding the noun would over-scope into prose whose job
@@ -158,6 +162,8 @@ for f in "${SCOPE[@]}"; do
     '! grep -qF -- "$B_SURF_FLAG" "$f"'
   assert "no direct board-refresh invocation in code units of $rel" \
     '! printf "%s" "$units" | grep -qF -- "$B_REFRESH_CALL"'
+  assert "no direct board-refresh invocation survives anywhere in $rel" \
+    '! grep -qF -- "$B_REFRESH_CALL" "$f"'
 
   grep -qF -- 'docket.sh docket-status --board-only' "$f" && board_pass_files=$((board_pass_files + 1))
 done
