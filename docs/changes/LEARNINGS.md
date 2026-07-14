@@ -5,7 +5,8 @@
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
 - 2026-06-17 → 2026-07-14 (#15 PR #32; #21 PR #34; #36 PR #47; #37 PR #48; #64 PR #75; #65 PR #74;
-  #69 PR #77; #68 PR #78; #72 PR #79; #70 PR #80; #71 PR #81 — merged, one guards-are-code family) — A guard is code: mutation-test it
+  #69 PR #77; #68 PR #78; #72 PR #79; #70 PR #80; #71 PR #81; #74 PR #82 — merged, one guards-are-code
+  family) — A guard is code: mutation-test it
   (strip the feature, watch it go red) or it is decoration. Every way one has shipped GREEN while
   guarding nothing:
   (a) **Wrong anchor** — a broad keyword OR-set (`run the suite|validate|local`) latched onto an
@@ -68,7 +69,12 @@
   renderer into `BOARD.md`). Any test that `eval`s a command's output must clear the variables it
   asserts on first — "emitted nothing" and "emitted the expected thing" are otherwise
   indistinguishable. When a new feature legitimately violates an old absolutist sentinel, NARROW it to
-  the property that is actually load-bearing; deleting it is how the guarded hole reopens. A
+  the property that is actually load-bearing; deleting it is how the guarded hole reopens — #74
+  re-hit this from the deletion side: RETIRING the last `docket-config.sh --bootstrap` invocation
+  removed the only slash-prefixed `/docket-config.sh` string in the convention and so reddened a
+  sentinel keyed on that spelling, even though the convention still NAMES the resolver descriptively
+  (exactly what ADR-0030 permits), so the fix was to narrow the pattern to `docket-config.sh`, never
+  to drop the assert. A
   call-site-pinned audit must FOLLOW the call when the code is later extracted into a shared lib
   (0063's hooks audit correctly reddened when 0068 moved the call site into `lib/docket-preflight.sh`
   — the fix is to follow the extraction, never to loosen the audit). And a mutation that leaves an
@@ -111,7 +117,7 @@
   legitimate line you forgot becomes an infinite loop.
 
 - 2026-06-12 → 2026-07-14 (#14 PR #10; #32 PR #43; #42 PR #52; #56 PR #68; #64 PR #75; #52 PR #61;
-  #54 PR #66; #71 PR #81 — merged, one enumerated-floor family) — **Every hand-written enumeration is a
+  #54 PR #66; #71 PR #81; #74 PR #82 — merged, one enumerated-floor family) — **Every hand-written enumeration is a
   floor, not the set** — of sites, of audit dimensions, of tests — and the miss always lands in the
   surface that mattered most.
   (a) **Sites.** A hand-listed "everywhere X appears" undercounted again and again: 4 test assertions
@@ -132,7 +138,10 @@
   three harnesses (an accuracy audit verifies each claim is true, which a single-harness framing can
   be); the owner caught it at the merge gate.
   (c) **Tests.** A behavior-neutral slim passed its own goal-scoped review, yet finalize's FULL suite
-  caught a regression its 7 enumerated sentinels missed.
+  caught a regression its 7 enumerated sentinels missed. #74 re-hit it from the other direction: its
+  edits reddened a *pre-existing* sentinel in `tests/test_docket_config.sh` — a file its plan never
+  enumerated, in a change whose subject was a different file entirely — and only the whole-suite run
+  saw it. The blast radius of retiring a string is every guard keyed on that string, repo-wide.
   Apply: never hand-list the sites of a literal, a count, or an operation you are gating — derive them
   from a grep of the WHOLE repo, then sort them into prose vs executable, because only the executable
   ones can violate a gate and they are the ones a docs-shaped reading skips right past. Let reconcile
@@ -141,6 +150,54 @@
   audited as an explicit goal (for a multi-harness tool, "neutral across the supported set" is one). And
   run the WHOLE suite at the merge/build gate, never only the tests the spec enumerated — an
   out-of-goal regression is exactly what the tests outside the goal set exist to catch.
+
+- 2026-06-21 / 2026-07-11 / 2026-07-14 (#37 PR #48; #59 PR #64; #60 PR #70; #74 PR #82 — merged, one
+  moving-base family) — A change is designed against a SNAPSHOT and the base moves under it.
+  (a) **Design.** 0059 was designed around what a still-`proposed` sibling (0058) would "later"
+  compose; 0058 merged first and built the same gate independently, inverting 0059's scope twice (and
+  since 0059 touched every skill file, three slim PRs merged mid-flight and re-slimmed its exact
+  target lines). Conversely 0060's spec was ~90% delivered by that same sibling, and reconcile
+  correctly folded 0060 to its one residual sub-case rather than killing it or rebuilding the overlap.
+  (b) **Coordinates.** #74's spec pinned its two edit sites by LINE NUMBER (`~78`/`~110`) in a file
+  sibling #71 reshaped before the build even began — stale on arrival; reconcile re-anchored them to
+  shape-descriptions and the edits then coexisted cleanly.
+  (c) **Conflict.** #37 was mid-build when a PR merged newer fixes into the very file it was
+  stripping; the reflexive "keep my side" would have **silently reverted** them — the branch's version
+  simply predated them.
+  Apply: reconcile against what has actually MERGED, never against what a proposed sibling will do,
+  and fold a change whose scope a sibling already shipped down to its residual (kill only if genuinely
+  covered). Anchor a spec's edit sites to STRUCTURE the reader can re-find (the clause, the shape) —
+  never to line numbers, which a sibling merge invalidates without touching your change. Rebase the
+  most conflict-prone change (the one touching many shared files) LAST, once, onto the settled base,
+  and resolve every hunk by INTENT: a same-file change that merged AFTER you diverged SUPERSEDES your
+  edit (drop yours) rather than being a conflict to win.
+
+- 2026-06-12 → 2026-07-14 (#12 PR #7; #21 PR #34; #47 PR #55; #65 PR #74; #74 PR #82 — merged, one
+  verify-the-claim family) — A document that asserts a fact about another artifact — a code review, a
+  spec, teaching prose — is not an oracle, and it has been flatly false four times. (a) A review
+  finding cited a sentence that did not exist in the reviewed file. (b) A spec's stated *rationale*
+  for a scope boundary was wrong (§3 claimed the convention's `.docket.yml` example "does not
+  enumerate `finalize:`" — it does), though the boundary itself was sound on other grounds. (c) #74's
+  spec claimed `docket.sh bootstrap` in a `STOP_MIGRATE`-shaped repo "exits non-zero and writes
+  nothing"; against the real resolver it exits **0**, emits `BOOTSTRAP=STOP_MIGRATE`, and writes
+  nothing — failing closed on a non-`PROCEED` verdict is `preflight`'s job, not the verb's — so an
+  assert written FROM the spec would have pinned fiction and gone green doing it. (d) Prose restating
+  a fact owned by another file drifts, and no sentinel can catch it: #65's README asserted which model
+  tier each built-in agent runs at and shipped factually FALSE (it placed `docket-auto-groom` at a mid
+  tier — it ships at the same top tier as `docket-implement-next` — and called `docket-status` "low
+  effort" when it ships at `medium`) with every grep green, because a doc sentinel proves a sentence
+  still EXISTS and can never prove it is still TRUE; #47 nearly copied a drifted sibling forward (the
+  convention says "`effort: auto` (or omitted) → omit the effort line," but `sync-agents.sh` omits it
+  only for `auto` — omitting the KEY keeps the built-in effort). Apply: verify a claim against the
+  artifact or the RUNNING CODE before acting on it — byte-diff a review's quoted sentence; RUN the
+  command whose behavior a spec describes before encoding that behavior in an assert; and write prose
+  asserting a tier, count, default, or behavior against the CODE (cite the line), never against the
+  sibling prose that describes the same thing and may already have drifted. Treat prose restating a
+  configurable value as a drift surface from the day it ships. When a claim is false but its
+  conclusion still defensible (here: the bootstrap cell guard does hold through the facade — no write
+  outside `CREATE_ORPHAN`), keep the conclusion, write the test to the OBSERVED behavior, and record
+  the discrepancy in the results file — never silently override a spec's scope boundary mid-build;
+  leave the re-scope to the human. Reject false positives with evidence.
 
 - 2026-06-21 / 2026-07-13 (#34 PR #45; #66 PR #73 — merged, one environment family) — Twice a suite
   ran RED where the failure was NOT a regression: (a) an ambient `DOCKET_SCRIPTS_DIR` export in the
@@ -165,22 +222,6 @@
   skill is installed in the harness the SUBAGENT runs in (not merely the parent session), because a
   degraded binding silently drops the discipline while every artifact it should have produced is
   still there.
-
-- 2026-07-08 / 2026-07-13 (#47 PR #55; #65 PR #74 — merged, one prose-is-not-a-source family) — Prose
-  restating a fact owned by another file drifts, and neither a sentinel nor a neighboring doc can catch
-  it. #65's README teaching prose asserted which model tier each built-in agent runs at and shipped
-  factually FALSE (it placed a design pass at a mid tier — `docket-auto-groom` actually ships at
-  opus/xhigh, the same top tier as `docket-implement-next` — and called `docket-status` "low effort"
-  when it ships at `medium`); every sentinel was green, because a doc sentinel proves a sentence still
-  EXISTS and can never prove it is still TRUE. #47, whose whole job was documenting existing behavior,
-  nearly copied a drifted sibling forward: the convention's "Agent layer" prose says "`effort: auto` (or
-  omitted) → omit the effort line," but `sync-agents.sh:145` omits the line only for `auto` — omitting
-  the *key* keeps the built-in effort. Apply: when prose asserts a fact whose source of truth is another
-  file (a tier, a count, a default, a behavior), write it against the CODE and cite the line — never
-  against the sibling prose that describes the same thing, which may already have drifted. A grep
-  sentinel is not coverage for such a claim: either derive the assertion from that source in the test,
-  or accept that only a review reading against the source can validate it. Treat prose restating a
-  configurable value as a drift surface from the day it ships.
 
 - 2026-07-11 (#63, PR #72) — 0063 disabled hooks on docket worktrees by relocating a conflicting
   common-config git value, and an early draft relocated `core.bare` unconditionally. Because
@@ -220,17 +261,6 @@
   before merge; to cover a conflict/CAS path the competing writer must DIVERGE the same contended path
   (mutation-confirmed); give a tool writing to BOTH a user and a project location SEPARATE dirs; keep
   fixture stderr 0-byte. Green tests ≠ the hard branch was exercised.
-
-- 2026-07-11 (#59 PR #64; #60 PR #70 — merged, two sides of one rule) — 0059 was designed around a
-  still-`proposed` sibling (0058) "later" composing its board-refresh gate, but 0058 merged first and
-  built the same gate independently, inverting 0059's scope twice; and because 0059 touched every
-  skill file, three slim PRs merged mid-flight and re-slimmed its exact target lines. Conversely,
-  0060's spec was ~90% delivered by sibling 0059, and reconcile correctly folded 0060 down to the one
-  residual sub-case rather than killing it or rebuilding the overlap. Apply: never design a change
-  around what a still-proposed sibling WILL do — reconcile against what has actually merged, not the
-  planned backlog; hold the most conflict-prone change in flight (touches many shared files) and
-  rebase it LAST, once, onto the settled base; and when a sibling ships the bulk of an unstarted
-  change's scope, reconcile down to the residual — kill only if it is genuinely covered.
 
 - 2026-07-11 (#55, PR #67) — A behavior-neutral skill slim landed all five files modestly over the
   spec's line-count targets, and review confirmed the residual was load-bearing/test-anchored content,
@@ -316,14 +346,6 @@
   hands you awk/shell it authored, treat whitespace classes, `--`-leading patterns, and symlinked
   temp paths as suspect, and test each on both GNU and BSD.
 
-- 2026-06-21 (#37, PR #48) — A change stripping prose from `docket-status/SKILL.md` was mid-build when
-  PR #47 (#36) merged into `origin/main` with newer fixes to the *same* file. Rebasing onto the new
-  base, the reflexive "keep my side" of the conflict would have **silently reverted** #36's ordering +
-  failure-posture fixes — the branch's version simply predated them. Apply: when the integration branch
-  advances mid-build into a file you're editing, resolve the rebase by *intent* against the landed
-  version, and recognize when a same-file change that merged *after* you diverged **supersedes** your
-  edit (drop yours) rather than treating it as a conflict to win.
-
 - 2026-06-19 (#27, PR #39) — A change promised its locally-written file (`.claude/settings.local.json`)
   would "never be committed onto collaborators," but on the build machine that guarantee only held
   because a *user-global* excludesfile (`~/.config/git/ignore`) ignored it — the repo `.gitignore` did
@@ -344,14 +366,6 @@
   a live risk for docket's own change/ADR files (which discuss those field names). Apply: anchor a
   frontmatter-field edit to the first `---…---` block, never a bare line match — and lock it with a
   test where a body `status:` line survives verbatim while the frontmatter field is set.
-
-- 2026-06-19 (#21, PR #34) — A spec's stated *rationale* for a scope boundary was factually wrong
-  (§3 claimed the convention's `.docket.yml` example "does not enumerate `finalize:`" — it does),
-  yet the boundary it justified (keep the new knob's doc in finalize's own SKILL, not the convention)
-  was still sound on other grounds (the gate/test_command doc-ownership precedent). Apply: when a
-  build finds a spec's reason false but its conclusion defensible, record the discrepancy in the
-  results file — do NOT silently "fix" (override) an explicit spec scope boundary mid-build; leave
-  the re-scope to the human.
 
 - 2026-06-17 (#20, PR #33) — Invoking a skill presents only its `SKILL.md`; sibling files are NOT
   auto-loaded, so a section moved out for progressive disclosure leaves every consumer's context
@@ -377,12 +391,17 @@
   boolean keyword (on/off/yes/no/true/false); today's reader tolerating it is not evidence the value is
   well-formed (flagged for #0018/yq).
 
-- 2026-06-17 (#17, PR #31) — An `## Update` to an already-published, immutable ADR (0008) had to
-  reach the integration branch alongside a NEW ADR (0009) it cross-references, without a premature
-  direct-to-`main` push (which would dangle the `[[0009]]` link until the new ADR merged). Apply:
-  to deliver an ADR body update onto the integration branch atomically, list that ADR id in the
-  producing change's `adrs:` so terminal-publish re-copies it on merge — never a standalone
-  push that races the cross-referenced ADR's own publish.
+- 2026-06-17 / 2026-07-14 (#17 PR #31; #74 PR #82 — merged, one ADR-update-delivery family) — An
+  `## Update` to an already-published, immutable ADR (0008) had to reach the integration branch
+  alongside a NEW ADR (0009) it cross-references, without a premature direct-to-`main` push (which
+  would dangle the `[[0009]]` link until the new ADR merged). #74 hit the same shape without the
+  cross-reference: narrowing the facade wiring guard dated a *supporting detail* of ADR-0030's
+  Decision (the carve-out it named is gone) while leaving the decision itself — the invocation-prefix
+  discriminator — intact. Apply: to deliver an ADR body update onto the integration branch atomically,
+  list that ADR id in the producing change's `adrs:` so terminal-publish re-copies it on merge — never
+  a standalone push that races the cross-referenced ADR's own publish. An Accepted ADR is immutable
+  except its `status:` line, so a detail the world has since dated is appended to as a dated
+  `## Update`, never rewritten as a Decision edit.
 
 - 2026-06-16 / 2026-07-08 (#11 PR #11; #16 PR #30; #46 PR #56 — merged, one pipefail family) — A test
   piped a live-producing script straight into `grep -q`; grep exits on first match, the still-writing
@@ -422,10 +441,6 @@
   but the suite runs against the integration-branch checkout where that file never lives. Apply:
   when specifying tests for metadata-branch artifacts, verify them at build time and record in
   the results file instead — repo tests can only see the integration branch.
-
-- 2026-06-12 (#12, PR #7) — A code-review finding cited a sentence that did not exist in the
-  reviewed file. Apply: verify review claims against the artifact (byte-diff against canonical
-  content) before implementing fixes; reject false positives with evidence.
 
 - 2026-06-12 (#12, PR #7) — link-skills.sh needed no edit for a new skill — it globs skills/*/.
   Apply: at reconcile, check whether plumbing auto-discovers before planning an edit to it.
