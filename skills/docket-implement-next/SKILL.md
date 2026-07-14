@@ -24,7 +24,7 @@ Before anything else in this skill, invoke the `docket-convention` skill via the
 
 ### Step 0 — Sync & sweep
 
-Run the convention's **Step-0 preamble** (load the convention, resolve config + `BOOTSTRAP` via the literal `eval "$("${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket-config.sh --export)"`, ensure + sync the metadata working tree) — all bookkeeping in this skill (claim, reconcile, `status`, `pr:`, `plan:`, `adrs:`) lands there on `metadata_branch`, pushed immediately; only the plan + results + code land on the feature branch, on `origin/docket` in `docket`-mode.
+Run the convention's **Step-0 preamble** (load the convention, then run `docket.sh preflight` as its own Bash call and read the printed `KEY=value` block off stdout — it resolves config, enforces the bootstrap verdict fail-closed, and ensures + syncs the metadata working tree) — all bookkeeping in this skill (claim, reconcile, `status`, `pr:`, `plan:`, `adrs:`) lands there on `metadata_branch`, pushed immediately; only the plan + results + code land on the feature branch, on `origin/docket` in `docket`-mode.
 
 Then, before selection, **dispatch the `docket-status` subagent** (foreground — the parent suspends until it returns; run at the model/effort its wrapper resolves), whose merge-sweep pass archives any `implemented` change whose PR has merged — the self-cleaning safety net for changes not closed via `docket-finalize-change`. The dispatch is **unconditional** and its effects are commits on `origin/docket`; the preamble's metadata re-sync (already run above, before selection) then surfaces the swept state — the contract is **git state, not an in-context return**.
 
@@ -34,7 +34,7 @@ Among `active/` changes, select per the convention's **Build-readiness & selecti
 
 ### Step 2 — Claim (compare-and-swap)
 
-Re-read the manifest after the sync, in the **metadata working tree**; if still `proposed`, set `status: in-progress` + `branch: feat/<slug>` + `updated: <UTC today>`; commit and push on `metadata_branch` (in `docket`-mode, `origin/docket` via `.docket/`). On a non-fast-forward rejection: DISCARD the pending local claim commit (it edits the same `status:`/`branch:` lines and would conflict on replay), re-sync (`git pull --rebase`, or `git -C .docket pull --rebase origin docket`), RE-READ (mandatory); if still `proposed`, re-claim and push — LOOP until the push lands (it can be rejected repeatedly under load). The arbiter is the re-read (abort if no longer `proposed`), not that any single push succeeds. No worktree yet.
+Re-read the manifest after the sync, in the **metadata working tree**; if still `proposed`, set `status: in-progress` + `branch: feat/<slug>` + `updated: <UTC today>`; commit and push on `metadata_branch` (in `docket`-mode, `origin/docket` via `.docket/`). On a non-fast-forward rejection: DISCARD the pending local claim commit (it edits the same `status:`/`branch:` lines and would conflict on replay), re-sync (re-run `docket.sh preflight`), RE-READ (mandatory); if still `proposed`, re-claim and push — LOOP until the push lands (it can be rejected repeatedly under load). The arbiter is the re-read (abort if no longer `proposed`), not that any single push succeeds. No worktree yet.
 
 Then run the Board pass (best-effort — see *Best-effort board refresh*) as a separate commit, so the board reflects the change as `in-progress` rather than build-ready.
 
@@ -51,10 +51,9 @@ Two escape hatches:
 
 ### Step 4 — Worktree + plan
 
-CONFIRM the step-3 reconcile push has landed on the **metadata branch** before continuing — by **SHA-compare**, not "the push exited 0": after a fetch, the local metadata tip must equal the remote tip. In `docket`-mode: `git -C .docket fetch origin docket` then assert `git -C .docket rev-parse @ == git rev-parse origin/docket`; in `main`-mode: `git fetch origin` then assert the primary tree's tip equals `origin/<integration_branch>`. If they differ (push was rejected by a concurrent writer): re-sync (`pull --rebase`), re-push, re-fetch — loop until the SHAs match BEFORE continuing, so the build never reads bytes older than origin. Then cut the feature branch — **ALWAYS from `origin/<integration_branch>`**, in both modes (fetch it first for freshness):
+CONFIRM the step-3 reconcile push has landed on the **metadata branch** before continuing — by **SHA-compare**, not "the push exited 0": after a re-sync, the local metadata tip must equal the remote tip. In `docket`-mode: re-run `docket.sh preflight`, then assert `git -C .docket rev-parse @ == git rev-parse origin/docket`; in `main`-mode: re-run `docket.sh preflight`, then assert the primary tree's tip equals `origin/<integration_branch>`. If they differ (push was rejected by a concurrent writer): re-sync (re-run `docket.sh preflight`), re-push — loop until the SHAs match BEFORE continuing, so the build never reads bytes older than origin. Then cut the feature branch — **ALWAYS from `origin/<integration_branch>`**, in both modes. First run a direct `git fetch` for `<integration_branch>` from `origin` for freshness (plain git plumbing on the feature line — NOT the metadata tree that `preflight` syncs), then:
 
 ```
-git fetch origin <integration_branch>
 git worktree add .worktrees/<slug> -b feat/<slug> origin/<integration_branch>
 ```
 
@@ -84,7 +83,7 @@ Then, BACK IN THE **METADATA WORKING TREE** (in `docket`-mode, `.docket/`), set 
 
 ### Best-effort board refresh
 
-The Board pass this skill runs after its own status writes (claim, reconcile-kill, `implemented`) is **best-effort**: invoke `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/board-refresh.sh --changes-dir .docket/<changes_dir> --surfaces "$BOARD_SURFACES"`, stage `BOARD.md`, and — only if BOARD.md changed (`git status --porcelain -- <changes_dir>/BOARD.md` is non-empty) — commit + push it with bounded retries, then **log and continue** — never abort the build for it. When `inline` is disabled or the render didn't change, `board-refresh.sh` leaves the file untouched, so there is nothing staged and this step is a clean no-op. The build's correctness rests on the change-file CAS, not the board; any residual staleness self-heals at the next must-land Board pass (the next change's Step 0 `docket-status`, a manual `docket-status`, or finalize). The board is always a **separate commit** from the `status:` write (keeping the claim CAS byte-identical across concurrent agents).
+The Board pass this skill runs after its own status writes (claim, reconcile-kill, `implemented`) is **best-effort**: invoke `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh board-refresh --changes-dir .docket/<changes_dir> --surfaces "$BOARD_SURFACES"`, stage `BOARD.md`, and — only if BOARD.md changed (`git status --porcelain -- <changes_dir>/BOARD.md` is non-empty) — commit + push it with bounded retries, then **log and continue** — never abort the build for it. When `inline` is disabled or the render didn't change, `board-refresh.sh` leaves the file untouched, so there is nothing staged and this step is a clean no-op. The build's correctness rests on the change-file CAS, not the board; any residual staleness self-heals at the next must-land Board pass (the next change's Step 0 `docket-status`, a manual `docket-status`, or finalize). The board is always a **separate commit** from the `status:` write (keeping the claim CAS byte-identical across concurrent agents).
 
 ## The reconcile pass and the `reconciled` flag
 
@@ -98,7 +97,7 @@ A change is drafted against a *snapshot* of the codebase, ADRs, and other in-fli
 
 ### The field-write rule
 
-Every change-file field write this skill makes (claim's `status:`/`branch:`, reconcile, `status: implemented`, `plan:`, `adrs:`, `pr:`, `results:`) is a **metadata commit in the metadata working tree on `metadata_branch`** — never in the feature worktree — pushed to its remote immediately. A write to a **link-bearing field** (`spec:`/`plan:`/`adrs:`/`pr:`/`results:`) additionally regenerates the `## Artifacts` block IN THE SAME COMMIT: `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/render-change-links.sh --change-file .docket/<changes_dir>/active/<id>-<slug>.md --adrs-dir .docket/<adrs_dir>` (the renderer is the sole writer of the block). Scope note: the **claim** (step 2) writes `status:`/`branch:` only — metadata discipline applies, but Artifacts regen does NOT (neither field is link-bearing).
+Every change-file field write this skill makes (claim's `status:`/`branch:`, reconcile, `status: implemented`, `plan:`, `adrs:`, `pr:`, `results:`) is a **metadata commit in the metadata working tree on `metadata_branch`** — never in the feature worktree — pushed to its remote immediately. A write to a **link-bearing field** (`spec:`/`plan:`/`adrs:`/`pr:`/`results:`) additionally regenerates the `## Artifacts` block IN THE SAME COMMIT: `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh render-change-links --change-file .docket/<changes_dir>/active/<id>-<slug>.md --adrs-dir .docket/<adrs_dir>` (the renderer is the sole writer of the block). Scope note: the **claim** (step 2) writes `status:`/`branch:` only — metadata discipline applies, but Artifacts regen does NOT (neither field is link-bearing).
 
 ### Feature branch invariants
 

@@ -317,8 +317,8 @@ out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$work/docs/changes" --metada
 assert "board malformed-id flagged on non-integer change id 'abc'" 'has_finding "$out" malformed-id abc'
 
 # ============================ docket-status wiring sentinels (SKILL is code on main) ============================
-assert "docket-status Health checks invoke board-checks.sh" \
-  'grep -qF "/board-checks.sh" "$SKILL"'
+assert "docket-status Health checks invoke board-checks (via the docket.sh facade)" \
+  'grep -qF "docket.sh board-checks" "$SKILL"'
 # The five mechanical checks are now delegated — their old standalone bullets are gone as bullets,
 # but the SKILL still names them so a reader knows what the script covers. Assert the surviving
 # model-driven signals, each anchored to a phrase it owns: the blocked_by re-examination

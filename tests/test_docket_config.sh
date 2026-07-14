@@ -254,7 +254,7 @@ assert "convention documents the auto sentinel + degrade rule" \
 for s in docket-implement-next docket-status docket-new-change docket-groom-next \
          docket-finalize-change docket-adr docket-auto-groom; do
   f="$REPO/skills/$s/SKILL.md"
-  assert "$s Step 0 invokes docket-config.sh" 'grep -qF "/docket-config.sh" "$f"'
+  assert "$s Step 0 runs docket.sh preflight (config resolution via the facade)" 'grep -qF "docket.sh preflight" "$f"'
 done
 assert "new-change brainstorm uses SKILL_BRAINSTORM" \
   'grep -qF "SKILL_BRAINSTORM" "$REPO/skills/docket-new-change/SKILL.md"'

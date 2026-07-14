@@ -24,7 +24,7 @@ Before anything else in this skill, invoke the `docket-convention` skill via the
 
 ## Step 0
 
-Run the convention's *Step-0 preamble*: load the convention, resolve config + the bootstrap verdict (`eval "$("${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket-config.sh --export)"`, fail-closed; act on `BOOTSTRAP`), then ensure + sync the metadata working tree. All reads and writes land in that tree on `metadata_branch`, pushed to its remote immediately — `.docket/` on `origin/docket` in `docket`-mode; the primary working tree on `origin/<integration_branch>` in `main`-mode.
+Run the convention's *Step-0 preamble*: load the convention, then run `docket.sh preflight` as its own Bash call and read the printed `KEY=value` block off stdout (it resolves config, enforces the bootstrap verdict fail-closed, and ensures + syncs the metadata working tree). All reads and writes land in that tree on `metadata_branch`, pushed to its remote immediately — `.docket/` on `origin/docket` in `docket`-mode; the primary working tree on `origin/<integration_branch>` in `main`-mode.
 
 ## Procedure — the drain loop
 
@@ -45,7 +45,7 @@ Dispatch the dedicated **`docket-auto-groom-critic`** subagent (foreground, at t
 
 ### Step 4 — Exit (one of three)
 
-1. **Spec** — every assumption survived: set `spec:`, refresh the body to the settled design (proposal altitude), resolve `## Open questions`, set `updated: <UTC today>`. After writing `spec:`, regenerate the change's `## Artifacts` block: `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/render-change-links.sh --change-file .docket/<changes_dir>/active/<id>-<slug>.md --adrs-dir .docket/<adrs_dir>` (the block edit rides with the spec-write commit; the renderer is the sole writer of the block). Build-ready.
+1. **Spec** — every assumption survived: set `spec:`, refresh the body to the settled design (proposal altitude), resolve `## Open questions`, set `updated: <UTC today>`. After writing `spec:`, regenerate the change's `## Artifacts` block: `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh render-change-links --change-file .docket/<changes_dir>/active/<id>-<slug>.md --adrs-dir .docket/<adrs_dir>` (the block edit rides with the spec-write commit; the renderer is the sole writer of the block). Build-ready.
 2. **Trivial** — the critic confirmed no hidden design decisions: set `trivial: true`, tighten the body, log the reasoning in the body, set `updated:`. Build-ready, no spec.
 3. **Abstain** — any needs-human-context verdict: emit NO spec; flip `auto_groomable: false` and append a dated `## Auto-groom blocked` section (the undecidable decision(s), what context is missing, what a human should supply, and any recommendation — including "this should probably be killed/deferred because …"). The stub stays needs-brainstorm, first in `docket-groom-next`'s queue.
 
@@ -53,7 +53,7 @@ Dispatch the dedicated **`docket-auto-groom-critic`** subagent (foreground, at t
 
 ### Step 5 — Commit, push, board
 
-Commit the stub's outcome (change-file edit + spec when emitted) in the metadata working tree; push `origin/docket`. On a non-fast-forward rejection: `pull --rebase`, and if the rebase brought in commits touching this stub's file, RE-READ it — no longer autonomous-eligible (groomed, killed, claimed, or opted out elsewhere) ⇒ DISCARD this iteration's writes for it (`git -C .docket restore -- <changed paths>` for the change-file edit, and delete the just-drafted spec file — it is this iteration's own uncommitted artifact) and loop. Then invoke `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/board-refresh.sh --changes-dir .docket/<changes_dir> --surfaces "$BOARD_SURFACES"` and, only if BOARD.md changed (`git status --porcelain -- <changes_dir>/BOARD.md` is non-empty), stage, commit, and push `BOARD.md` as a separate, must-land commit. Loop to step 1.
+Commit the stub's outcome (change-file edit + spec when emitted) in the metadata working tree; push `origin/docket`. On a non-fast-forward rejection: re-run `docket.sh preflight`, and if the rebase brought in commits touching this stub's file, RE-READ it — no longer autonomous-eligible (groomed, killed, claimed, or opted out elsewhere) ⇒ DISCARD this iteration's writes for it (`git -C .docket restore -- <changed paths>` for the change-file edit, and delete the just-drafted spec file — it is this iteration's own uncommitted artifact) and loop. Then invoke `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh board-refresh --changes-dir .docket/<changes_dir> --surfaces "$BOARD_SURFACES"` and, only if BOARD.md changed (`git status --porcelain -- <changes_dir>/BOARD.md` is non-empty), stage, commit, and push `BOARD.md` as a separate, must-land commit. Loop to step 1.
 
 ### Step 6 — Report
 
