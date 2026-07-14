@@ -157,4 +157,22 @@ assert "convention keeps 'five skills get a wrapper' exact" 'grep -qi "five .*sk
 assert "status notes the rebase-retest gate is finalize-only" \
   'grep -Eqi "finalize-only|the sweep[^.]*never merges|only archives already-merged" "$STAT"'
 
+# --- change 0075: finalize's durable-root posture ----------------------------------------------
+# D3 is irreducibly skill-side: `git worktree remove --force` succeeds with the agent's CWD inside
+# the target, but its NEXT command cannot start. No script can fix that (a child cannot change its
+# parent's CWD), so the SKILL must run its close-out from the durable root.
+assert "0075: finalize names the REPO_ROOT literal as its durable root" \
+  'grep -qF "REPO_ROOT" "$FIN"'
+assert "0075: finalize instructs the close-out to run from the durable root" \
+  '[ "$(grep -ciE "durable root" "$FIN")" -ge 1 ]'
+# The anti-pattern the convention forbids: deriving the root from the metadata worktree. In
+# main-mode METADATA_WORKTREE *is* the repo root, so dirname would yield the repo's PARENT.
+assert "0075: finalize does NOT derive the root as dirname of the metadata worktree" \
+  '! grep -qE "dirname .*METADATA_WORKTREE" "$FIN"'
+# The gate's suite run legitimately stays in the feature worktree — only the close-out moves.
+# (Tightened from the brief's draft: `A|B` where B is a substring of every match of A is a
+# vacuous alternation — B alone is the whole load-bearing anchor.)
+assert "0075: finalize still runs the merge-gate suite in the feature worktree" \
+  'grep -qiE "in the feature worktree" "$FIN"'
+
 exit $fail

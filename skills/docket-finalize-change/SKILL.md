@@ -20,6 +20,29 @@ description: Use when a change's PR is approved or merged and you want to close 
 
 Invoke `docket-convention` first (unless already loaded this session) and follow its **Step-0 preamble (every operating skill)**: load the convention, then run `docket.sh preflight` as its own Bash call and read the printed `KEY=value` block off stdout (it resolves config, enforces the bootstrap verdict fail-closed, and syncs the metadata working tree). Everything below uses its vocabulary without redefinition.
 
+### The durable root (change 0075)
+
+Every step of this skill **after** the merge gate's suite run — the merge, the metadata writes,
+the archive, `terminal-publish`, `cleanup-feature-branch.sh`, and the Board pass — runs from the
+durable root: the absolute main-worktree path the Step-0 `preflight` block prints as `REPO_ROOT=`.
+Prefix those Bash calls with `cd <that path>` (or target them with `git -C <that path>`).
+
+This is not hygiene, it is a correctness requirement: cleanup removes `.worktrees/<slug>`, and
+`git worktree remove --force` **succeeds** while the agent's own CWD is inside that directory —
+the process merely orphans its CWD, and the agent's **next** Bash call then cannot start (`cd: no
+such file or directory`), stranding the run after the destructive step has already landed. A child
+process cannot change its parent's CWD, so no script can fix this; only the skill can. The
+script-side guard is the backstop: `cleanup-feature-branch.sh` now refuses (before any destructive
+step) when the caller's CWD is at or inside the target.
+
+Two derivations look plausible and are both wrong: never as `dirname` of `METADATA_WORKTREE` (in
+`main`-mode `METADATA_WORKTREE` *is* the repo root, so `dirname` yields the repo's **parent**),
+and never from `git rev-parse --show-toplevel` (from a linked worktree that returns the linked
+worktree, not the main one).
+
+**The merge gate's suite run is the exception** — it happens in the feature worktree, which is
+where it belongs. Only the close-out steps below move to the durable root.
+
 ## Selection
 
 Given an explicit change id, OR auto-detect.
@@ -42,7 +65,7 @@ The per-change steps below run for each selected change; step 5 (Board) runs onc
 
 ## Per-change steps
 
-1. **Check the PR** (`gh`). Already merged → straight to step 2. Approved + mergeable but not merged → merge it into `<integration_branch>` (resolved from `.docket.yml`; not hard-coded `main`). An explicit id IS the merge decision (and overrides `require_pr_approval`); under auto-detect, follow the Selection matrix. **Before the merge lands, run *The rebase-retest merge gate* below** (unless `finalize.gate` is `off`).
+1. **Check the PR** (`gh`). Already merged → straight to step 2. Approved + mergeable but not merged → merge it into `<integration_branch>` (resolved from `.docket.yml`; not hard-coded `main`). An explicit id IS the merge decision (and overrides `require_pr_approval`); under auto-detect, follow the Selection matrix. **Before the merge lands, run *The rebase-retest merge gate* below** (unless `finalize.gate` is `off`). The merge itself, and every step after it through the close-out, works from the repo's main worktree (see above).
 
 2. **Verify the merge landed** on the integration branch. If the change carries a `results:` file, this is the moment to append interactive-verification outcomes and any late findings to it, post-merge.
 
@@ -50,7 +73,7 @@ The per-change steps below run for each selected change; step 5 (Board) runs onc
 
 3. **Archive → re-render → publish.** This is the shared terminal close-out sequence — **the single source is `skills/docket-convention/references/terminal-close-out.md`; follow it exactly, steps 1–3.** Finalize-only facts the reference doesn't carry: compute the merge date in **UTC** via `gh`'s `mergedAt` (never `now()`); pass `--results <path>` to `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh archive-change` when a results file arrived via the merge; the sequence's re-render step is `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh render-change-links` (sole writer of the archived file's `## Artifacts` block, committed as a follow-on and pushed before publish reads it); this skill's posture on any non-zero exit is **abort-and-report** (stop this change's close-out, surface the failure — see the reference's *Failure posture* table).
 
-4. **Clean up** — invoke `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh cleanup-feature-branch --slug <slug>`; trust the exit code.
+4. **Clean up** — from the repo's main worktree (see above): invoke `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh cleanup-feature-branch --slug <slug>`; trust the exit code.
 
 5. **Board** — invoke `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh docket-status --board-only` — the single Board-pass entry point; it renders, commits, and pushes `BOARD.md` itself on `metadata_branch`, a separate commit from the archive commits above, only if the board actually changed. **Must-land:** key on the stdout report line, never the exit code — `board inline changed push-failed` is the only retryable line; every other report line (`board inline changed pushed`, `board inline clean`, `board off`, `board github ok`, `board github failed`) is terminal. On `board inline changed push-failed`, re-run `docket.sh preflight` and invoke it again, bounded to 3 attempts total; if it still reports `board inline changed push-failed`, STOP and surface the failure. The board is the live planning view and is **never** published to the integration branch.
 
