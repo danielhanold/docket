@@ -34,6 +34,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0030](0030-facade-wiring-guard-discriminates-on-invocation-prefix.md) — The facade-wiring guard discriminates on the invocation prefix, not the bare presence of a `.sh` token (Accepted) ← change #72 · relates to ADR-0029
 - [ADR-0031](0031-complementary-board-write-guards-and-the-bound-of-source-scanning.md) — Two complementary board-write guards, and the bound of source-syntax scanning (Accepted) ← change #70
 - [ADR-0032](0032-positive-off-state-empty-is-a-wiring-bug.md) — A deliberate off-state is encoded positively — absence and emptiness are reserved for error (Accepted) ← change #71 · relates to ADR-0028, ADR-0030, ADR-0031
+- [ADR-0033](0033-cursor-auto-run-trust-at-facade.md) — Cursor auto-run trust is granted at the facade, not per operation (Accepted) ← change #73 · relates to ADR-0029, ADR-0020, ADR-0027
 
 ## Superseded / Reversed
 
