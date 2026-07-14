@@ -2,21 +2,21 @@
 id: 73
 slug: cursor-sandbox-permissions-guide
 title: Cursor sandbox & permissions guide — copyable config, trust tiers, troubleshooting
-status: proposed
+status: blocked
 priority: medium
 created: 2026-07-13
-updated: 2026-07-13
+updated: 2026-07-14
 depends_on: [68, 72]
 related: [48, 65, 68, 72]
 adrs: [20]
-spec:
+spec: docs/superpowers/specs/2026-07-14-cursor-sandbox-permissions-guide-design.md
 plan:
 results:
 trivial: false
 auto_groomable:
 branch:
 pr:
-blocked_by:
+blocked_by: Awaiting the live Cursor verification session — the spec's verification-log appendix must be written before the build. Flip to proposed once it lands.
 reconciled: false
 ---
 
@@ -25,6 +25,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Spec | [2026-07-14-cursor-sandbox-permissions-guide-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-14-cursor-sandbox-permissions-guide-design.md) |
 | ADRs | [ADR-0020](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0020-generated-agent-artifacts-machine-local.md) |
 <!-- docket:artifacts:end -->
 
@@ -37,29 +38,43 @@ possible, and the guide that explains it worth writing.
 
 ## What changes
 
-- A Cursor-focused permissions guide: `~/.cursor/permissions.json`, `~/.cursor/sandbox.json`,
-  reload behavior, and the distinction between command approval, filesystem access, and network
-  access (the sandbox filesystem config is not a substitute for terminal permissions).
-- A copyable, JSON-validated permission fragment trusting only the canonical and
-  resolved-absolute facade invocations; documentation tests compare it against the canonical
-  command forms.
-- The trust-tier classification of docket's shell surface: daily operations behind the facade;
-  one-time machine setup / harness generation / migration tools requiring direct human
-  initiation; internal libraries and tests the facade must not expose.
-- The security consequences, stated plainly: allowlisting `docket-status` trusts its guarded
-  sweep (archives merged changes, publishes terminal records, cleans feature branches); the
-  daily-lifecycle entries intentionally authorize shared-history writes, external GitHub board
-  updates, and provenance-guarded branch cleanup.
-- Why arbitrary `eval`, `bash`, a bootstrap-command prefix, or a generic command-runner
-  subcommand is not an acceptable workaround for prefix/leaf classification.
-- Troubleshooting the observed failure modes — invalid JSON silently disabling the whole file,
-  spelling mismatches in guarded expansions, one unmatched leaf demoting a compound program,
-  protected `.git` writes, network fetches still blocked by `sandbox.json` — each recorded
-  **with provenance** (Cursor version + observation date), since the guide's claims rest on
-  observed classifier behavior.
-- Scope statement: the facade stabilizes docket's own metadata/lifecycle operations;
-  build-time commands (feature-branch git, test suites, `gh`) remain the consuming repo's
-  permission surface and are documented as such, not hidden.
+Three published artifacts plus a README pointer — user-facing docs, built on a feature branch like
+any code. Design detail lives in the spec.
+
+- **`docs/cursor/permissions.md`** — the guide: the three independent gates (command approval,
+  filesystem, network) and reload behavior; why docket's operations must be allowlisted to run
+  **outside** the sandbox (an out-of-workspace program plus network), so no `sandbox.json` entry
+  can substitute for a terminal permission; the trust tiers; the security consequences; why the
+  `eval`/`bash`/generic-runner workarounds are not acceptable; and a scope statement that a
+  consuming repo's build-time commands (feature-branch git, test suites, `gh`) remain that repo's
+  own permission surface.
+- **`docs/cursor/permissions.example.json`** — the copyable fragment. It allowlists **one entry:
+  the canonical `docket.sh` invocation** (both the guarded-expansion spelling and the
+  resolved-absolute form). The facade is the trust boundary; per-operation entries were rejected.
+- **`docs/cursor/sandbox.example.json`** — the copyable sandbox fragment granting a read path to
+  the docket clone, which lives outside the workspace.
+- **Trust tiers**, derived from `scripts/docket.md` (already the declared permission inventory),
+  never hand-copied: daily operations behind the facade; the human-initiated setup/migration tier
+  (`install.sh`, `migrate-to-docket.sh`, `sync-agents.sh`, `ensure-*.sh`) that is never
+  allowlisted; and the internals the facade must not expose.
+- **The security consequences, stated plainly**: the one allowlist entry authorizes, unprompted,
+  `docket-status`'s guarded sweep (archives changes, publishes terminal records onto the
+  integration branch, deletes merged feature branches and worktrees), `terminal-publish`'s direct
+  push, `github-mirror`'s external GitHub writes, and `cleanup-feature-branch`'s deletions.
+- **Troubleshooting with provenance** — each observed failure mode stamped with the Cursor version
+  and observation date, transcribed from the spec's verification-log appendix. Nothing is asserted
+  that the appendix does not record; a mode that does not reproduce is cut, not softened.
+- **An ADR** recording why trust is granted at the facade rather than per operation.
+
+## Build precondition — live Cursor verification
+
+The guide's claims rest on **observed** classifier behavior, which the autonomous implementer (a
+Claude Code subagent) cannot observe: it cannot drive Cursor's UI, answer an Auto-run prompt, or
+read a sandbox denial. So the human runs a live Cursor session first and appends
+`## Appendix — verification log` to the spec (Cursor version, date, each command form submitted,
+what the classifier actually did). This change is therefore **`blocked` until that appendix
+exists**; the human flips it to `proposed` once it lands. Reconcile aborts if the appendix is still
+missing, so a premature flip fails closed rather than inventing observations.
 
 ## Out of scope
 
@@ -67,11 +82,6 @@ possible, and the guide that explains it worth writing.
   generated agent artifacts stay machine-local and human-applied).
 - Equivalent permission formats for every supported harness; this change documents Cursor.
 - Any change to scripts or skills (0068/0072 own those).
-
-## Open questions
-
-- Pin down each classifier observation with Cursor version + session date before publishing.
-- Whether the fragment should also cover the read-only sandbox path for the docket clone.
 
 ## Reconcile log
 
