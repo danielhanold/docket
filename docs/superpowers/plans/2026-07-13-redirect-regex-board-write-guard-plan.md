@@ -1308,88 +1308,51 @@ anti-vacuity checks the skills and docket-status.sh scans lacked."
 ### Task 3: Guard 3 — continuation-joining for the `--format digest` flag check
 
 **Files:**
-- Modify: `tests/test_docket_status.sh:12-33` — the inline-board wiring sentinel: add `join_continuations` and pipe the script through it before the comment filter and tokenizer.
+- Modify: `tests/test_docket_status.sh` — the inline-board wiring sentinel: add `join_continuations` + `digest_tokens` and rewire the tokenizer through them; move `tmp="$(mktemp -d)"` ahead of the sentinel block so the new mutation battery has a scratch dir.
 
 **Interfaces:**
 - Consumes: the `join_continuations` contract defined in Task 1 (identical twin, defined locally — this file is a standalone script and shares no library with `tests/test_render_board.sh`, matching how every test file in this repo defines its own `assert`).
 - Produces: nothing consumed downstream.
 
-- [ ] **Step 1: Write the failing test — a continuation-line mutation of the flag check**
-
-The existing tokenizer reads one physical line at a time, so a legitimate invocation whose `--format digest` flag sits on a continuation line is a **false positive** (loud, not silent) — and a rogue one hiding behind a continuation is a false negative. Both die with the join.
-
-Append this block immediately after the existing `assert "every render-board.sh invocation in docket-status is the read-only --format digest"` assertion in `tests/test_docket_status.sh` (this is the test; Step 3 adds the function it calls and rewires the scan):
-
-```bash
-# --- change 0070: the flag check tokenizes LOGICAL lines, not physical ones -------------------
-# The tokenizer below reads one PHYSICAL line at a time, so an invocation split across a
-# backslash-continuation is torn in half: the first-line token carries the call WITHOUT its
-# --format digest flag (false positive — loud), and any redirect parked on the continuation is
-# invisible (false negative — silent). Mutation-test both directions on fixtures, using the SAME
-# function the real scan uses, so the fix cannot be true here and broken there.
-# TWIN: join_continuations is defined identically in tests/test_render_board.sh (Guard 1). Keep
-# the two in step — a broken tokenizer sitting beside a fixed one is how the next author
-# cargo-cults the broken one (ledger #64).
-digest_tokens(){
-  join_continuations "$1" \
-    | grep -v '^[[:space:]]*#' \
-    | grep -oE '[^;&|]*/render-board\.sh[^;&|]*' || true
-}
-
-# A legitimate call whose flag sits on the continuation line: exactly ONE logical invocation, and
-# it IS the digest projection. The join is what lets the tokenizer see that.
-ct="$tmp/continuation-call.sh"
-printf '%s\n' '#!/usr/bin/env bash' \
-  'out="$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$cd_dir" \' \
-  '  --format digest 2>&2)"' > "$ct"
-ct_ungated=0
-while IFS= read -r inv; do
-  [ -n "$inv" ] || continue
-  case "$inv" in
-    *"--format digest"*) : ;;
-    *) ct_ungated=1 ;;
-  esac
-done < <(digest_tokens "$ct")
-assert "flag check sees a --format digest flag parked on a continuation line (no false positive)" \
-  '[ "$ct_ungated" -eq 0 ]'
-
-# The same shape WITHOUT the flag must still be caught — the join must not launder a rogue call.
-rt="$tmp/continuation-rogue.sh"
-printf '%s\n' '#!/usr/bin/env bash' \
-  'out="$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$cd_dir" \' \
-  '  2>&2)"' > "$rt"
-rt_ungated=0
-while IFS= read -r inv; do
-  [ -n "$inv" ] || continue
-  case "$inv" in
-    *"--format digest"*) : ;;
-    *) rt_ungated=1 ;;
-  esac
-done < <(digest_tokens "$rt")
-assert "flag check still catches an ungated call split across a continuation line" \
-  '[ "$rt_ungated" -eq 1 ]'
+**CORRECTED ORDERING (supersedes an earlier draft of this task).** An earlier draft of `digest_tokens` joined continuations *then* stripped comments (`join_continuations "$1" | grep -v '^[[:space:]]*#' | ...`). That order is exploitable by the exact shape Task 1 already documents for Guard 1: bash comments are PHYSICAL-LINE scoped, so a trailing backslash does NOT continue a comment onto the next line. In
 ```
+# regenerate the board \
+"$SCRIPTS_DIR"/render-board.sh --changes-dir "$d" 2>&2
+```
+the second line REALLY EXECUTES as a live, ungated invocation. Joining first folds it INTO the comment, and the comment-drop then deletes both — laundering the ungated call into silence. The shipped implementation strips comments FIRST (whole-line, then trailing), and only THEN joins continuations — mirroring `tests/test_render_board.sh`'s `normalize_source` stage order exactly. A battery row (the "ordering proof") pins this: a comment ending in `\` followed by a live ungated call must still be flagged.
 
-- [ ] **Step 2: Run to verify it fails**
+- [ ] **Step 1: Add `join_continuations` and `digest_tokens`, and move `tmp` ahead of the sentinel**
 
-Run: `cd /Users/homer/dev/docket/.worktrees/redirect-regex-board-write-guard && bash tests/test_docket_status.sh 2>&1 | grep -E "continuation|^(PASS|FAIL)"`
-
-Expected: FAIL — `bash: join_continuations: command not found` from `digest_tokens`, so both new assertions report `NOT OK`.
-
-- [ ] **Step 3: Add `join_continuations` and rewire the real scan through it**
-
-In `tests/test_docket_status.sh`, add the function directly above the existing sentinel block (before the `# --- inline-board wiring sentinel` comment):
+Move `tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT` (previously declared just above the bootstrap-gate fixtures) up to immediately after the `--help` assertion, since the new mutation battery below needs `$tmp` before the bootstrap-gate block does. Then add, directly above the `# --- inline-board wiring sentinel` comment:
 
 ```bash
 # Folds backslash-continuations into logical lines, so the tokenizer below sees INVOCATIONS rather
-# than physical lines. Identical twin in tests/test_render_board.sh (Guard 1) — keep in step.
+# than physical-line fragments. TWIN of tests/test_render_board.sh's join_continuations (Guard 1) —
+# defined identically here rather than shared, because this file is a standalone script with no
+# library to share (matching how every test file in this repo defines its own `assert`). Keep the
+# two in step: a broken tokenizer sitting beside a fixed one is how the next author cargo-cults the
+# broken one (ledger #64).
 # awk, not sed: BSD sed does not portably treat `\n` in an s/// LHS as a newline.
 join_continuations(){
   awk '{ while (sub(/\\$/, "")) { if ((getline nxt) > 0) { $0 = $0 nxt } else { break } } print }' "$1"
 }
+
+# digest_tokens — render-board.sh invocation tokens, tokenized from LOGICAL lines rather than
+# physical ones. Shared by the real scan below (over "$SCRIPT") AND the mutation fixtures further
+# down, so the fix cannot be true in the battery and broken in the scan.
+# PIPELINE ORDER IS LOAD-BEARING, mirroring tests/test_render_board.sh's normalize_source: comments
+# OUT FIRST — drop whole-line ones, then strip trailing ones — and ONLY THEN join continuations.
+# The obvious order (join, then strip) is EXPLOITABLE — see this task's ordering note above.
+digest_tokens(){
+  join_continuations <(
+    grep -v '^[[:space:]]*#' "$1" | sed 's/[[:space:]]#.*$//'
+  ) | grep -oE '[^;&|]*/render-board\.sh[^;&|]*' || true
+}
 ```
 
-Then change the real scan's input from the line-oriented pipeline to the joined one. Replace:
+- [ ] **Step 2: Rewire the real scan through `digest_tokens`**
+
+Replace:
 
 ```bash
 done < <(grep -v '^[[:space:]]*#' "$SCRIPT" | grep -oE '[^;&|]*/render-board\.sh[^;&|]*' || true)
@@ -1401,16 +1364,77 @@ with:
 done < <(digest_tokens "$SCRIPT")
 ```
 
-and move the `digest_tokens` definition from Step 1's block up beside `join_continuations`, so the real scan and the mutation fixtures run the SAME tokenizer (a battery that tests a copy is decoration). Extend the sentinel's existing comment with one line:
+Extend the sentinel's existing comment with:
 
 ```bash
-# Change 0070: tokenizes LOGICAL lines (continuations joined first) — a flag or a redirect parked
-# on a continuation line is otherwise torn away from the call it belongs to.
+# Change 0070: tokenizes LOGICAL lines (continuations joined first, via digest_tokens above) — a
+# flag or a redirect parked on a continuation line is otherwise torn away from the call it belongs
+# to. See digest_tokens' comment for why comments must be stripped BEFORE the join, not after.
+```
+
+- [ ] **Step 3: Add the mutation battery, proving both directions plus the ordering**
+
+Append immediately after the existing `assert "every render-board.sh invocation in docket-status is the read-only --format digest"` assertion:
+
+```bash
+# --- change 0070: the flag check tokenizes LOGICAL lines, not physical ones -------------------
+digest_mut="$tmp/mut-digest"; mkdir -p "$digest_mut"
+
+# A legitimate call whose flag sits on the continuation line: exactly ONE logical invocation, and
+# it IS the digest projection. The join is what lets the tokenizer see that (no false positive).
+digest_ct="$digest_mut/continuation-call.sh"
+printf '%s\n' '#!/usr/bin/env bash' \
+  'out="$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$cd_dir" \' \
+  '  --format digest 2>&2)"' > "$digest_ct"
+digest_ct_ungated=0
+while IFS= read -r inv; do
+  [ -n "$inv" ] || continue
+  case "$inv" in
+    *"--format digest"*) : ;;
+    *) digest_ct_ungated=1 ;;
+  esac
+done < <(digest_tokens "$digest_ct")
+assert "flag check sees a --format digest flag parked on a continuation line (no false positive)" \
+  '[ "$digest_ct_ungated" -eq 0 ]'
+
+# The same shape WITHOUT the flag must still be caught — the join must not launder a rogue call.
+digest_rt="$digest_mut/continuation-rogue.sh"
+printf '%s\n' '#!/usr/bin/env bash' \
+  'out="$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$cd_dir" \' \
+  '  2>&2)"' > "$digest_rt"
+digest_rt_ungated=0
+while IFS= read -r inv; do
+  [ -n "$inv" ] || continue
+  case "$inv" in
+    *"--format digest"*) : ;;
+    *) digest_rt_ungated=1 ;;
+  esac
+done < <(digest_tokens "$digest_rt")
+assert "flag check still catches an ungated call split across a continuation line" \
+  '[ "$digest_rt_ungated" -eq 1 ]'
+
+# THE ORDERING PROOF: a comment line ending in a backslash, followed by a LIVE ungated invocation.
+# Comments must be stripped BEFORE continuations are joined: get the order wrong and this row goes
+# silently green, because the live invocation gets folded into the comment and deleted along with it.
+digest_lc="$digest_mut/comment-then-live.sh"
+printf '%s\n' '#!/usr/bin/env bash' \
+  '# regenerate the board \' \
+  '"$SCRIPTS_DIR"/render-board.sh --changes-dir "$cd_dir" 2>&2' > "$digest_lc"
+digest_lc_ungated=0
+while IFS= read -r inv; do
+  [ -n "$inv" ] || continue
+  case "$inv" in
+    *"--format digest"*) : ;;
+    *) digest_lc_ungated=1 ;;
+  esac
+done < <(digest_tokens "$digest_lc")
+assert "flag check still catches a live invocation following a comment that ends in backslash (ordering)" \
+  '[ "$digest_lc_ungated" -eq 1 ]'
 ```
 
 - [ ] **Step 4: Run to verify it passes**
 
-Run: `cd /Users/homer/dev/docket/.worktrees/redirect-regex-board-write-guard && bash tests/test_docket_status.sh 2>&1 | grep -E "continuation|read-only --format digest|routes the inline|^(PASS|FAIL)"`
+Run: `cd /Users/homer/dev/docket/.worktrees/redirect-regex-board-write-guard && bash tests/test_docket_status.sh 2>&1 | grep -E "continuation|read-only --format digest|routes the inline|ordering"`
 
 Expected:
 ```
@@ -1418,10 +1442,13 @@ ok - docket-status routes the inline board render through board-refresh.sh
 ok - every render-board.sh invocation in docket-status is the read-only --format digest
 ok - flag check sees a --format digest flag parked on a continuation line (no false positive)
 ok - flag check still catches an ungated call split across a continuation line
-PASS
+ok - flag check still catches a live invocation following a comment that ends in backslash (ordering)
 ```
+and `bash tests/test_docket_status.sh` exits 0.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Mutation-prove the guard against the live script (trap-guarded), then commit**
+
+Temporarily rewrite `scripts/docket-status.sh`'s `render-board.sh --format digest` invocation so the flag sits on a continuation line — the suite must STAY GREEN (no false positive). Then remove `--format digest` entirely — the suite must go NOT OK / FAIL. Revert both times (`git checkout -- scripts/docket-status.sh`) and confirm `git status --porcelain scripts/` is empty before committing — this change is test-only.
 
 ```bash
 cd /Users/homer/dev/docket/.worktrees/redirect-regex-board-write-guard
@@ -1431,9 +1458,11 @@ git commit -m "test(0070): join continuations before tokenizing the digest flag 
 The flag sentinel read one physical line at a time, so an invocation
 split across a backslash-continuation was torn in half — the flag (false
 positive, loud) or a redirect (false negative, silent) fell off the token.
-Joins logical lines first, through the same digest_tokens() the mutation
-fixtures use, so the fix cannot be true in the battery and broken in the
-scan."
+Comments are stripped BEFORE continuations are joined (not after — a
+join-first order launders a live invocation trailing a backslash-
+terminated comment into the comment it sits beside). Joins logical lines
+first, through the same digest_tokens() the mutation fixtures use, so the
+fix cannot be true in the battery and broken in the scan."
 ```
 
 ---
