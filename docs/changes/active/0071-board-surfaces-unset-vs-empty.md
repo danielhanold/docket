@@ -2,7 +2,7 @@
 id: 71
 slug: board-surfaces-unset-vs-empty
 title: Encode the disabled board positively — an empty surfaces value is a wiring bug, not a configuration
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-07-13
 updated: 2026-07-14
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/board-surfaces-unset-vs-empty
 pr:
 blocked_by:
 reconciled: false
