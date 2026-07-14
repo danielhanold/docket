@@ -46,10 +46,50 @@ assert "metadata worktree absent before preflight" '[ ! -d "$work/.docket" ]'
 assert "docket-mode PROCEED returns zero" '[ "$rc" -eq 0 ]'
 assert "docket-mode PROCEED created the metadata worktree" '[ -d "$work/.docket" ]'
 
-# --- (C) PROCEED sets config vars in the caller's scope ---------------------
+# --- (C) PROCEED sets config vars in the caller's scope, METADATA_WORKTREE ABSOLUTE (0075) ------
+work_abs="$(cd "$work" && pwd -P)"
 DOCKET_MODE=""; METADATA_WORKTREE=""
 ( cd "$work" && . "$LIB" && CONFIG_EXPORT_CMD="bash $tmp/ok-export.sh" docket_preflight "$SCRIPTS" >/dev/null 2>&1 \
-  && [ "$DOCKET_MODE" = docket ] && [ "$METADATA_WORKTREE" = .docket ] ); rc=$?
-assert "PROCEED exposes resolved config vars to the caller" '[ "$rc" -eq 0 ]'
+  && [ "$DOCKET_MODE" = docket ] && [ "$METADATA_WORKTREE" = "$work_abs/.docket" ] ); rc=$?
+assert "PROCEED exposes resolved config vars, with METADATA_WORKTREE anchored ABSOLUTE (0075)" '[ "$rc" -eq 0 ]'
+
+# --- (D) change 0075 / defect D2: preflight from INSIDE the metadata worktree -------------------
+# Pre-0075 this created a real <repo>/.docket/.docket worktree and still exited 0. The metadata
+# worktree path must be built from the MAIN worktree, so running preflight from a linked worktree
+# is a no-op with respect to the worktree set.
+before="$(git -C "$work" worktree list --porcelain | grep -c '^worktree ')"
+( cd "$work/.docket" && . "$LIB" && CONFIG_EXPORT_CMD="bash $tmp/ok-export.sh" docket_preflight "$SCRIPTS" ) >/dev/null 2>"$tmp/d2.err"; rc=$?
+after="$(git -C "$work" worktree list --porcelain | grep -c '^worktree ')"
+assert "D2: preflight from inside .docket/ returns zero" '[ "$rc" -eq 0 ]'
+assert "D2: preflight from inside .docket/ creates NO second worktree" '[ "$before" = "$after" ]'
+assert "D2: no nested <repo>/.docket/.docket directory was minted" '[ ! -d "$work/.docket/.docket" ]'
+assert "D2: the worktree list contains no nested .docket/.docket entry" \
+  '! git -C "$work" worktree list --porcelain | grep -q "^worktree .*/\.docket/\.docket$"'
+
+# --- (E) D2, the harder shape: the target does not yet exist under the caller's CWD -------------
+# A fresh clone whose .docket/ has NOT been created yet, with the caller standing in a linked
+# feature worktree. The relative ".docket" would resolve under THAT worktree.
+work2="$tmp/dk2"
+git clone --quiet "$bare" "$work2" 2>/dev/null
+git -C "$work2" config user.email t@t.test; git -C "$work2" config user.name Test
+git -C "$work2" fetch --quiet origin docket
+git -C "$work2" branch --quiet feat/y
+git -C "$work2" worktree add --quiet "$work2/.worktrees/feat-y" feat/y >/dev/null 2>&1
+work2_abs="$(cd "$work2" && pwd -P)"
+( cd "$work2/.worktrees/feat-y" && . "$LIB" && CONFIG_EXPORT_CMD="bash $tmp/ok-export.sh" docket_preflight "$SCRIPTS" ) >/dev/null 2>"$tmp/d2b.err"; rc=$?
+assert "D2b: preflight from a feature worktree returns zero" '[ "$rc" -eq 0 ]'
+assert "D2b: the metadata worktree was created at the MAIN root" '[ -d "$work2_abs/.docket" ]'
+assert "D2b: NOT under the feature worktree" '[ ! -d "$work2/.worktrees/feat-y/.docket" ]'
+
+# --- (F) the nested-target guard refuses rather than creating debris ----------------------------
+# Force the pathological target directly: a metadata worktree path INSIDE an existing LINKED
+# worktree is never legitimate, so preflight must refuse (non-zero) and create nothing.
+printf 'BOOTSTRAP=PROCEED\nDOCKET_MODE=docket\nMETADATA_BRANCH=docket\nMETADATA_WORKTREE=%s\nINTEGRATION_BRANCH=main\nCHANGES_DIR=docs/changes\n' \
+  "$work2_abs/.worktrees/feat-y/.docket" > "$tmp/nested.env"
+mkexport "$tmp/nested.env" "$tmp/nested-export.sh"
+( cd "$work2" && . "$LIB" && CONFIG_EXPORT_CMD="bash $tmp/nested-export.sh" docket_preflight "$SCRIPTS" ) >/dev/null 2>"$tmp/nested.err"; rc=$?
+assert "D2 guard: a metadata target inside a LINKED worktree is refused (non-zero)" '[ "$rc" -ne 0 ]'
+assert "D2 guard: the refusal explains itself on stderr" 'grep -qi "inside an existing worktree" "$tmp/nested.err"'
+assert "D2 guard: nothing was created at the refused target" '[ ! -d "$work2_abs/.worktrees/feat-y/.docket" ]'
 
 exit $fail
