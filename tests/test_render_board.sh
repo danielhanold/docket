@@ -246,319 +246,291 @@ assert "docket-status inline surface names render-board.sh" \
 assert "docket-status keeps the regenerate-don't-3-way-merge rule" \
   'grep -qiF "never 3-way merge" "$SKILL"'
 
-# --- Guard 1: the repo-wide render-board.sh WRITE sentinel (change 0070) ----------------------
-# THE INVARIANT, stated once: render-board.sh's stdout reaches a file through board-refresh.sh
-# and NOTHING else.
-#
-# TWO GUARDS DEFEND THAT INVARIANT AND NEITHER SUBSUMES THE OTHER — THAT IS THE DESIGN, NOT AN
-# OVERSIGHT.
-#   - GUARD 1 (here) is TOKEN-SCOPED and TARGET-BLIND. It prohibits the WRITE on a render-board.sh
-#     invocation and on the pipeline that invocation feeds, so it never matches a filename and
-#     cannot be evaded by renaming one. It ALSO follows the renderer's stdout ONE HOP INTO A
-#     VARIABLE — the TAINT stage (stage 8), added after a LIVE-TREE PROBE found the CAPTURE-THEN-
-#     WRITE shape GREEN in the very script this guard exists to protect — and prohibits the write
-#     there too. It is still blind to a write that crosses a STATEMENT boundary WITHOUT passing
-#     through a captured variable (a brace group; a wrapper function).
-#   - REDIRECT_RE (defined further down) is WHOLE-FILE and TARGET-KEYED. It flattens the source
-#     with `tr` and spans 200 characters, so it DOES see those cross-statement shapes — but it is
-#     blind to every redirect that does not park a literal `/BOARD.md` a whitespace-bounded ` > `
-#     away (no-space, `>>`, `>|`, `&>`, a variable target: all invisible to it AT ANY WIDTH).
-# Each guard catches shapes the other misses. That is not a claim resting on this comment: the
-# COMPLEMENTARITY block (below the REDIRECT_RE definition) PROVES it by mutation, in BOTH
-# directions, against the real regex and the real function. DELETING EITHER GUARD, OR "SIMPLIFYING"
-# ONE INTO THE OTHER, REOPENS A HOLE — and turns that block red on the way out.
-#
-# Guard 1 prohibits the WRITE instead of recognizing the write TARGET, so all of these die
-# identically and none of them is a filename match:
-#     >"$d/BOARD.md"   (no space — the IDIOMATIC shell form, which REDIRECT_RE cannot see)
-#     >> / >|          (append and clobber-force)
-#     > "$mw/$rel"     (VARIABLE target — the literal string "BOARD.md" appears nowhere near the
-#                       redirect, so NO regex keyed on /BOARD\.md can reach it AT ANY WIDTH; this
-#                       is what forecloses "just widen REDIRECT_RE" as a complete answer)
-#     &> / &>> / >&f   (the merged-output forms — see stage 3; each one really does write the file)
-#     | cat > "$f"     (a redirect ANYWHERE IN THE PIPELINE the renderer feeds — the pipeline IS
-#     |& cat > "$f"     its stdout, so the token does NOT end at the `|`, nor at the `|&`, which is
-#                       just `2>&1 |`; see stages 4 and 5)
-#     out=$(render-board.sh …)      (CAPTURE-THEN-WRITE — the renderer's stdout parked in a VARIABLE
-#     printf '%s' "$out" > "$f"      and written out by a LATER STATEMENT. The invocation token
-#                                    carries no redirect AT ALL, so stages 6-7 are structurally
-#                                    blind to it; the TAINT stage (8) is what kills it. THIS IS THE
-#                                    SHAPE A LIVE-TREE PROBE FOUND GREEN, and it is the most
-#                                    realistic regression this codebase can grow: docket-status.sh
-#                                    ALREADY captures the digest into `out` AND ALREADY holds the
-#                                    board path in a variable (`local rel="$CHANGES_DIR/BOARD.md"`),
-#                                    so a future edit reaches this shape by adding ONE statement.)
-# It never asks WHERE you are writing.
-#
-# WHAT IT ACTUALLY CHECKS, STATED WITHOUT OVERCLAIM — this is a bounded guard, and the bound is
-# published here so nobody has to rediscover it. It asks TWO source-syntax questions per file, and
-# a file is clean only if BOTH answer no:
-#
-#   Q1 (THE TOKEN, stages 6-7). For each render-board.sh invocation TOKEN — the invocation AND THE
-#      PIPELINE IT FEEDS, cut at a `;`, an `&`, or a `||` — is there a surviving `>` once true fd
-#      dups are erased?
-#   Q2 (THE TAINT, stage 8). For each VARIABLE whose value comes from a render-board.sh command
-#      substitution — the renderer's stdout, ONE HOP on — does ANY statement in the same file carry
-#      that variable's value into a file-directed redirect (the SAME `>`-survives test as Q1, run
-#      over the SAME normalized source, so the two answers cannot drift)?
-#
-# Both are SOURCE-SYNTAX properties. Neither is a filesystem fact. Four consequences, all real and
-# all load-bearing:
-#
-#   * Q2 IS ONE HOP, NOT A DATAFLOW ANALYSIS. It follows `$(render-board.sh …)` into a variable and
-#     stops. Pass that variable to a FUNCTION (`emit "$out"`, with the redirect inside `emit`),
-#     copy it into a SECOND variable (`b="$out"; printf '%s' "$b" > f`), or route it through `eval`,
-#     and the taint is lost. Widening Q2 to chase those means writing a bash dataflow analyzer, and
-#     the answer to them is the deferred filesystem-effect test, not a bigger grep. DISCLOSED, NOT
-#     CHASED — see gap (II)(g).
-#   * Q2 IS PER-FILE AND SCOPE-BLIND, ON PURPOSE. A variable tainted in one function and redirected
-#     in ANOTHER is a violation here, even though bash's `local` would have made them different
-#     variables. That OVER-APPROXIMATES, and the error direction is FAIL-SAFE: it can only ever add
-#     an alarm, never hide a write. Making it scope-aware means parsing function bodies — the same
-#     "rebuild a bash parser inside a test sentinel" trap that stage 1's lexer-naivety note names.
-#     The taint IS per-VARIABLE, though, not per-file: a DIFFERENT variable being redirected in a
-#     file that also captures the renderer is GREEN, and a row pins that.
-#   * IT IS STILL BLIND TO A WRITE THAT CROSSES A STATEMENT BOUNDARY WITHOUT A CAPTURED VARIABLE.
-#     Both of these really write BOARD.md — executed against a stub renderer, the bytes arrive — and
-#     both are GREEN here, because the renderer's token ENDS at the `;`, the redirect belongs to a
-#     LATER statement, and NO variable carries the bytes across for Q2 to follow:
-#         { "$SCRIPTS_DIR"/render-board.sh --changes-dir "$d"; } > "$d/BOARD.md"
-#         board(){ "$SCRIPTS_DIR"/render-board.sh --changes-dir "$d"; }; board > "$d/BOARD.md"
-#     (The THIRD member of this class — capture-then-write — USED to be here, and a live-tree probe
-#     proved that was not acceptable: it is the shape docket-status.sh is ONE STATEMENT away from,
-#     so stage 8 now kills it. What remains are the two shapes that carry the bytes with NO variable
-#     at all, and REDIRECT_RE catches both.)
-#     WIDENING THE TOKEN IS NOT THE FIX FOR THOSE TWO. A token that spans statements is a whole-file
-#     scan — which is precisely what REDIRECT_RE already is, and REDIRECT_RE catches both (it
-#     flattens the file and spans 200 chars). Chasing them from here would just rebuild REDIRECT_RE
-#     badly, inside a function that also has to stay narrow enough not to redden on the codebase's
-#     real calls. THIS IS WHY BOTH GUARDS SHIP, and the COMPLEMENTARITY block asserts exactly this
-#     pair of directions so the next author cannot delete one and keep the invariant.
-#   * IT CANNOT SEE A WRITE THAT IS NOT SPELLED WITH A `>` ON THE TOKEN OR ON A TAINTED STATEMENT: a
-#     pipeline member that writes without a redirect (`| tee f`), an fd opened on a prior line
-#     (`exec 3>"$f"` … `>&3`), an operator that only exists at runtime (`eval`), or a `>` the scan
-#     never reached because it mis-lexed a quote. Those are the KNOWN, ACCEPTED GAPS below.
-#
-# The call-site list is DERIVED FROM A find(1) SWEEP, never hand-maintained (ledger #64: never
-# hand-list the call sites of an operation you are gating). The sweep covers scripts/lib/*.sh,
-# which a flat scripts/*.sh glob would silently miss. board-refresh.sh — the one gated writer
+# --- Guard 1: the render-board.sh WRITE sentinel (change 0070) --------------------------------
+# THE INVARIANT: render-board.sh's stdout reaches a file through board-refresh.sh and NOTHING else.
+# SCOPE — exactly what the sweep below covers, no more: EVERY *.sh under scripts/ (recursively, so
+# scripts/lib/ is included) AND every root-level *.sh (install.sh, link-skills.sh,
+# migrate-to-docket.sh, sync-agents.sh). None of the root four invokes the renderer TODAY — which is
+# why the list is DERIVED FROM A find(1) SWEEP and never hand-maintained (ledger #64: never
+# hand-list the call sites of an operation you are gating). tests/ is deliberately NOT swept: this
+# battery's own fixtures are full of the anti-pattern. board-refresh.sh — the one gated writer
 # (change 0059: render to temp -> chmod -> rename) — is the ONLY allowlisted script.
 #
+# WHY TWO GUARDS: Guard 1 is TOKEN-SCOPED and TARGET-BLIND; REDIRECT_RE (further down) is WHOLE-FILE
+# and TARGET-KEYED; neither subsumes the other. The COMPLEMENTARITY block below REDIRECT_RE's
+# definition is the CANONICAL statement of that split and PROVES it by mutation in both directions,
+# against the real regex and the real function. It is not restated here.
+#
+# Guard 1 prohibits the WRITE instead of recognizing the write TARGET — it never asks WHERE you are
+# writing — so all of these die identically and none is a filename match (each one's mechanism is in
+# the stage named beside it; every one really writes the file, stub-renderer verified):
+#     >"$d/BOARD.md"                 no space — the IDIOMATIC shell form REDIRECT_RE cannot see
+#     >> / >|                        append and clobber-force
+#     > "$mw/$rel"                   VARIABLE target: the literal "BOARD.md" sits nowhere near the
+#                                    redirect, so NO regex keyed on /BOARD\.md reaches it AT ANY
+#                                    WIDTH — this is what forecloses "just widen REDIRECT_RE"
+#     &> / &>> / >&f                 the merged-output forms (stage 3)
+#     | cat > "$f" / |& cat > "$f"   a redirect anywhere in the PIPELINE the renderer feeds: the
+#                                    pipeline IS its stdout (stages 4, 6)
+#     out=$(render-board.sh …)       CAPTURE-THEN-WRITE: stdout parked in a VARIABLE and written by a
+#     printf '%s' "${out:-}" > "$f"  LATER statement, so the invocation token carries no redirect at
+#                                    all (stage 8 — the shape TWO live-tree probes found GREEN in the
+#                                    very script this guard protects, and the most realistic
+#                                    regression here: docket-status.sh ALREADY captures the digest
+#                                    into `out` and ALREADY holds the board path in a variable)
+#
+# WHAT IT CHECKS, WITHOUT OVERCLAIM. Two source-syntax questions per file; clean only if both say no:
+#   Q1 (THE TOKEN, stages 6-7). For each render-board.sh invocation TOKEN — the invocation AND THE
+#      PIPELINE IT FEEDS, cut at `;`, `&` or `||` — is there a surviving `>` once true fd dups are
+#      erased?
+#   Q2 (THE TAINT, stage 8). For each VARIABLE whose value comes from a render-board.sh command
+#      substitution — the stdout, ONE HOP on — does ANY statement in the file carry that variable's
+#      value into a file-directed redirect (the SAME `>`-survives test as Q1, over the SAME
+#      normalized source, so the two cannot drift)?
+# Both are SOURCE-SYNTAX properties, not filesystem facts. Three consequences, all load-bearing:
+#   * Q2 IS ONE HOP, NOT A DATAFLOW ANALYSIS. It follows a capture into a variable and stops: a
+#     function parameter, a second variable or an `eval` loses the taint. DISCLOSED, NOT CHASED —
+#     (II)(g) states the residual bound exactly.
+#   * Q2 IS PER-FILE AND SCOPE-BLIND ON PURPOSE — a variable tainted in one function and redirected in
+#     another is a violation here, though `local` would have made them different variables. That
+#     OVER-approximates in the FAIL-SAFE direction; scope-awareness means parsing function bodies, the
+#     same "rebuild a bash parser inside a test sentinel" trap stage 1 names. It IS per-VARIABLE: a
+#     DIFFERENT variable redirected in a file that also captures the renderer is GREEN (rows 20b, 20e).
+#   * IT IS BLIND TO A WRITE CROSSING A STATEMENT BOUNDARY WITH NO VARIABLE CARRYING THE BYTES — a
+#     brace group, a wrapper function. Both really write BOARD.md and both are GREEN here; REDIRECT_RE
+#     catches them. DO NOT WIDEN THE TOKEN TO CHASE THEM — see gap (I)(0), which spells out the shapes
+#     and the reason.
+#
 # PIPELINE ORDER IS LOAD-BEARING:
-#   1. STRIP COMMENTS FIRST — drop whole-line ones, THEN strip trailing ones. Prose that merely
-#      NAMES the script is not an invocation. render-adr-index.sh, render-change-links.sh, and
-#      render-board.sh itself mention it in comments ONLY, so this step is what keeps them out of
-#      the scan, not a nicety. The trailing strip (a `#` preceded by whitespace, to end of line) is
-#      equally load-bearing: whole-line stripping alone leaves
-#      `render-board.sh ... 2>&2  # digest -> stdout only` with a bare `>` from the comment's
-#      ARROW, turning the guard RED on a legitimate call — and this codebase's comment style is
-#      full of `->` arrows, so that is a live trap, not a hypothetical.
-#      TRADE-OFF, DISCLOSED NOT HIDDEN — THE SCAN IS LEXER-NAIVE ABOUT QUOTES. It honours `#`, `;`,
-#      `&` and `||` as shell metacharacters WHEREVER they appear, including inside a QUOTED
-#      ARGUMENT, where bash treats them as inert text. Each therefore truncates the token early and
-#      can hide a redirect placed after it — these really write the file and all of them stay GREEN
-#      (verified against a stub renderer):
+#   1. STRIP COMMENTS FIRST — whole-line ones, THEN trailing ones. Prose that merely NAMES the script
+#      is not an invocation: render-adr-index.sh, render-change-links.sh and render-board.sh itself
+#      mention it in comments ONLY, so this is what keeps them out of the scan. The trailing strip (a
+#      `#` preceded by whitespace, to end of line) is equally load-bearing: without it,
+#      `render-board.sh ... 2>&2  # digest -> stdout only` keeps a bare `>` from the comment's ARROW
+#      and the guard reddens on a LEGITIMATE call — and this codebase's comments are full of `->`.
+#      TRADE-OFF, DISCLOSED: THE SCAN IS LEXER-NAIVE ABOUT QUOTES. It honours `#`, `;`, `&` and `||`
+#      as metacharacters wherever they appear, including inside a QUOTED ARGUMENT where bash treats
+#      them as inert text; each truncates the token early and can hide a redirect after it. These
+#      really write the file and all stay GREEN (stub-renderer verified):
 #          render-board.sh --repo "a #b" > "$out"   (this strip eats from the ` #` to end of line)
 #          render-board.sh --repo "a;b"  > "$out"   (stage 6 cuts the token at the `;`)
 #          render-board.sh --repo "a&b"  > "$out"   (stage 6 cuts the token at the `&`)
-#          render-board.sh --repo "a||b" > "$out"   (stage 4 rewrites the `||` to a `;`, then 6 cuts)
-#      The fix would be a quote-aware lexer — a bash parser, out of all proportion to a test
-#      sentinel — and the exposure is narrow: render-board.sh's only arguments are --changes-dir,
-#      --repo and --format, none of which takes a value containing `#`, `;`, `&` or `|`. The strip,
-#      in exchange, fixes a false positive that is REAL TODAY (the `->` arrow trap above). That is
-#      the trade. The honest answer to all of it is the deferred filesystem-effect test (gaps below).
-#   2. ONLY THEN JOIN backslash-continuations into logical lines. The tokenizer is line-oriented,
-#      so a redirect parked on a continuation line hands it a first-line token with no `>` — a
-#      clean pass. (REDIRECT_RE survives that shape for a different reason: it flattens the file
-#      with `tr` first. Same shape, two independent mechanisms — which is the pair working as
-#      intended, not one being redundant.)
-#      WHY COMMENTS MUST BE STRIPPED BEFORE THE JOIN, NOT AFTER — this ordering is a FIX, and the
-#      obvious order (join, then strip) is EXPLOITABLE. Bash comments are PHYSICAL-LINE scoped: a
-#      trailing backslash does NOT continue a comment onto the next line. So in
+#          render-board.sh --repo "a||b" > "$out"   (stage 4 rewrites `||` to `;`, then 6 cuts)
+#      The fix is a quote-aware lexer — a bash parser, out of all proportion to a test sentinel — and
+#      the exposure is narrow: render-board.sh takes only --changes-dir, --repo and --format, none of
+#      which carries `#`, `;`, `&` or `|` in its value; the strip, in exchange, fixes a false positive
+#      that is REAL TODAY. The honest answer to all of it is the deferred filesystem-effect test.
+#   2. ONLY THEN JOIN backslash-continuations. The tokenizer is line-oriented, so a redirect parked on
+#      a continuation line hands it a first-line token with no `>` — a clean pass. (REDIRECT_RE
+#      survives that shape by a different mechanism: it flattens the file with `tr`.)
+#      COMMENTS MUST BE STRIPPED BEFORE THE JOIN — the obvious order is EXPLOITABLE. Bash comments are
+#      PHYSICAL-LINE scoped, so a trailing backslash continues NOTHING. In
 #          # regenerate the board \
 #          "$SCRIPTS_DIR"/render-board.sh --changes-dir "$d" > "$out"
-#      the second line REALLY EXECUTES and REALLY WRITES THE FILE (proven against a stub renderer).
-#      Join-first folds it INTO the comment, and the comment drop then deletes BOTH lines — the
-#      write is laundered and the guard passes clean. Stripping first deletes only the comment,
-#      leaving the live invocation (and its `>`) standing alone. The continuation rows below still
-#      go RED under this order because NEITHER of their lines is a comment: the join still happens,
-#      it just no longer runs on text that a comment can swallow.
-#      A FAIL-SAFE SIDE EFFECT OF THIS ORDER, so the next author is not surprised: dropping the
-#      comments first lets the join reach ACROSS one. In
+#      line 2 REALLY EXECUTES and REALLY WRITES (stub-renderer verified). Join-first folds it INTO the
+#      comment and the comment drop deletes BOTH — the write is laundered, the guard passes clean.
+#      Strip-first deletes only the comment and leaves the live invocation standing (row 11b pins it).
+#      FAIL-SAFE SIDE EFFECT of this order: dropping comments first lets the join reach ACROSS one, so
 #          "$SCRIPTS_DIR"/render-board.sh --changes-dir "$d" \
 #          # not actually a continuation
 #            > "$out"
-#      bash removes the `\`-newline, then reads `#` as starting a comment that runs to end of line,
-#      so the command ENDS there and the `> "$out"` line is a separate statement that never
-#      receives the renderer's output. The guard deletes the comment, joins the two survivors and
-#      calls it RED — a FALSE POSITIVE. The error direction of this order is therefore FAIL-SAFE:
-#      it can only ever ADD a false alarm, never hide a write. That is why it is disclosed and
-#      accepted rather than engineered around.
-#   3. NORMALIZE `&>`/`&>>` TO `>`, BEFORE tokenizing. `&>file` and `&>>file` are WRITES (stdout+
-#      stderr merged into the file). The tokenizer cuts on `;` and `&` (stage 6), so the `&` of
-#      `&>` would END the token BEFORE its `>` — the write would vanish. Rewriting them to a bare
-#      `>` first makes them ordinary writes.
-#   4. NORMALIZE THE TWO `|`-COMPOUND OPERATORS, because the tokenizer's separators are `;` and `&`
-#      and these two spellings smuggle an `&` (or an extra `|`) into a position that means the
-#      OPPOSITE of what a raw scan would infer:
-#        - `|&` IS A PIPELINE (`2>&1 |`), so it must STAY INSIDE the token: rewrite it to `|`.
-#          Left alone, its `&` ENDS the token at stage 6 and every redirect downstream of it
-#          vanishes — `render-board.sh ... |& cat > "$d/BOARD.md"` really writes the board, and it
-#          was GREEN until this stage existed (verified against a stub renderer).
-#        - `||` STARTS A NEW COMMAND, so the token must be CUT there: rewrite it to `;`. Left
-#          alone, `|` does not cut (stage 5) and the OR-branch's redirect is read as the renderer's
-#          — `out="$(render-board.sh ... 2>&2)" || echo failed > "$log"` writes nothing of the
-#          renderer's, yet went RED. A guard that reddens on that is a guard someone deletes.
-#      Both rewrites are pinned by battery rows; the `|&` one must precede nothing in particular,
-#      but it must come BEFORE the tokenizer, and its position relative to the fd-dup erasure is
-#      immaterial (checked both ways — the erasure preserves its right boundary).
-#   5. ERASE ONLY TRUE fd DUPS, still before tokenizing. The erasure must key on the TARGET BEING A
-#      WHOLE, REAL fd — not on the operator, and not merely on the target's PREFIX. `>&2`, `2>&1`,
-#      `>&-` dup/close a descriptor (harmless), but `>&"$out"` and `>& file` are WRITES that share
-#      the same `>&` spelling. So the erasure requires a digit run or `-` after the `&` AND A RIGHT
-#      BOUNDARY after that: `[0-9]*>&([0-9]+|-)($|[[:space:];&|)}"])`. Both halves are bugs already
-#      paid for:
-#        * without the digit/`-` requirement (`[0-9-]*`), the class matches ZERO characters and
-#          erases `>&"$out"` outright, laundering a file write into nothing.
-#        * without the RIGHT BOUNDARY, the erasure is a PREFIX match: bash reads `>&word` with a
-#          word that is not a valid fd as a merged WRITE, so `>&2board.md` really creates the file
-#          `2board.md` — yet an unanchored `>&([0-9]+|-)` eats the `>&2` and leaves a bare
-#          `board.md` with no `>` left to find (proven against a stub renderer). The boundary makes
-#          the erasure fire only when the descriptor ENDS there. `|` is IN that boundary class, so
-#          `2>&1| head` (no space) is still erased whole — a row pins it.
-#      Erasing the true dups also keeps the `&` of `2>&2` from CUTTING the token mid-redirect and
-#      leaving a dangling `>` that fires on the codebase's CORRECT invocation.
-#   6. TOKENIZE PER INVOCATION, CUTTING AT `;` AND `&` — NEVER AT A BARE `|`. Two points, both
-#      load-bearing:
-#        - PER INVOCATION, not per line: a logical line carrying a clean call beside a rogue one
-#          must not be whitewashed by the clean one (ledger #64). `;` and `&` begin genuinely NEW
-#          commands, so they end the token — and so does a `||`, which stage 4 has already
-#          rewritten INTO a `;` for exactly that reason.
-#        - A BARE `|` DOES NOT END THE TOKEN, because A PIPELINE *IS* THE RENDERER'S STDOUT —
-#          everything downstream of the `|` is where those bytes go, so a redirect anywhere in the
-#          pipeline is a redirect OF the renderer. An earlier cut of this guard tokenized on
-#          `[^;&|]*` and so read
+#      — where bash ends the command AT the comment, so the `> "$out"` line never receives the
+#      renderer's output — is called RED. A FALSE POSITIVE (gap III(f)); the error direction of the
+#      ordering is thus fail-safe: it can only ADD an alarm, never hide a write.
+#   3. NORMALIZE `&>`/`&>>` TO `>` BEFORE tokenizing. Both are WRITES (stdout+stderr merged into the
+#      file), but the tokenizer cuts on `&` (stage 6), so the `&` of `&>` would END the token before
+#      its `>` and the write would vanish.
+#   4. NORMALIZE THE TWO `|`-COMPOUNDS — each smuggles an `&` (or an extra `|`) into a position that
+#      means the OPPOSITE of what a raw scan infers:
+#        - `|&` IS A PIPELINE (`2>&1 |`) and must STAY INSIDE the token: rewrite to `|`. Left alone
+#          its `&` ends the token at stage 6 and every redirect downstream vanishes —
+#          `render-board.sh ... |& cat > "$d/BOARD.md"` really writes the board and was GREEN until
+#          this stage existed (stub-renderer verified).
+#        - `||` STARTS A NEW COMMAND and must CUT the token: rewrite to `;`. Left alone, `|` does not
+#          cut (stage 6) and the OR-branch's redirect is read as the renderer's —
+#          `out="$(render-board.sh ... 2>&2)" || echo failed > "$log"` writes nothing of the
+#          renderer's yet went RED, and a guard that reddens on an error-handling idiom gets deleted.
+#      Both are pinned by battery rows. Each must precede the tokenizer; the `|&` rewrite's position
+#      relative to the fd-dup erasure is immaterial (checked both ways — the erasure preserves its
+#      right boundary).
+#   5. ERASE ONLY TRUE fd DUPS, still before tokenizing, keyed on THE TARGET BEING A WHOLE, REAL fd —
+#      not on the operator, and not on the target's PREFIX. `>&2`, `2>&1`, `>&-` dup/close a
+#      descriptor (harmless); `>&"$out"` and `>& file` are WRITES sharing the same `>&` spelling. So
+#      the erasure demands a digit run or `-` after the `&` AND A RIGHT BOUNDARY:
+#      `[0-9]*>&([0-9]+|-)($|[[:space:];&|)}"])`. Both halves are bugs already paid for:
+#        * without the digit/`-` requirement (`[0-9-]*`), the class matches ZERO characters and erases
+#          `>&"$out"` outright, laundering a file write into nothing.
+#        * without the RIGHT BOUNDARY it is a PREFIX match: bash reads `>&word` with a word that is
+#          not a valid fd as a merged WRITE, so `>&2board.md` really creates the file `2board.md` —
+#          yet an unanchored `>&([0-9]+|-)` eats the `>&2` and leaves a bare `board.md` with no `>`
+#          left to find (stub-renderer verified). `|` is IN the boundary class, so `2>&1| head` (no
+#          space) is still erased whole — row 17b pins it.
+#      Erasing true dups also keeps the `&` of `2>&2` from CUTTING the token mid-redirect and leaving
+#      a dangling `>` that fires on the codebase's CORRECT invocation.
+#   6. TOKENIZE PER INVOCATION, CUTTING AT `;` AND `&` — NEVER AT A BARE `|`:
+#        - PER INVOCATION, not per line: a logical line carrying a clean call beside a rogue one must
+#          not be whitewashed by the clean one (ledger #64). `;` and `&` begin genuinely NEW commands,
+#          and so does `||`, which stage 4 has already rewritten INTO a `;`.
+#        - A BARE `|` DOES NOT END THE TOKEN, because A PIPELINE *IS* THE RENDERER'S STDOUT: whatever
+#          is downstream is where the bytes go, so a redirect anywhere in it is a redirect OF the
+#          renderer. An earlier cut tokenized on `[^;&|]*` and read
 #              "$SCRIPTS_DIR"/render-board.sh --changes-dir "$d" | cat > "$d/BOARD.md"
-#          as an invocation that ENDED at the `|`, with no `>` left in it — GREEN, on a line that
-#          really writes BOARD.md (verified against a stub renderer). That is the pre-0059 anti-
-#          pattern wearing a `| cat`.
-#      The invocation is recognized at a WORD BOUNDARY — `(^|[^-[:alnum:]])render-board\.sh` — not
-#      at a leading `/`: a PATH-resolved `render-board.sh ... > "$out"` (no directory part) writes
-#      the file just as surely as `"$SCRIPTS_DIR"/render-board.sh` does, and keying on the slash
-#      would miss it. The boundary still excludes a merely SIMILAR name (`my-render-board.sh` is
-#      not this script).
+#          as an invocation ENDING at the `|`, with no `>` left — GREEN, on a line that really writes
+#          BOARD.md. That is the pre-0059 anti-pattern wearing a `| cat`.
+#      The invocation is recognized at a WORD BOUNDARY — `(^|[^-[:alnum:]])render-board\.sh` — not at
+#      a leading `/`: a PATH-resolved `render-board.sh ... > "$out"` writes the file just as surely,
+#      and keying on the slash would miss it. The boundary still excludes a merely similar name
+#      (`my-render-board.sh` is not this script).
 #   7. ANY surviving `>` in a token is a file-directed redirect => violation. This rejects even a
-#      stderr-to-file form (2>/dev/null) — deliberately conservative: the correct way to route
-#      this renderer's stderr is the fd dup already in use (2>&2), and a guard that permits SOME
-#      writes is a guard whose next author must relitigate which.
+#      stderr-to-file form (`2>/dev/null`) — deliberately conservative: the right way to route this
+#      renderer's stderr is the fd dup already in use (`2>&2`), and a guard that permits SOME writes
+#      is a guard whose next author must relitigate which. THE SAME RULE AND THE SAME CONSERVATISM
+#      APPLY TO Q2's STATEMENTS; gap (III)(h) discloses the identical false positive on the taint
+#      side, rather than exempting `>/dev/null` on one half of the guard and not the other.
 #   8. TAINT — FOLLOW THE STDOUT ONE HOP INTO A VARIABLE, THEN RE-ASK STAGE 7 THERE. Stages 6-7 read
-#      the INVOCATION. But the renderer's stdout does not have to leave through the invocation: it
-#      can be CAPTURED and written by a LATER statement, and then the invocation token carries no
-#      `>` at all. A live-tree probe injected exactly that into the real scripts/docket-status.sh —
-#
+#      the INVOCATION, but the stdout need not leave through it: it can be CAPTURED and written by a
+#      LATER statement, and then the invocation token carries no `>` at all. TWO LIVE-TREE PROBES, not
+#      imagination, shaped this stage. The first injected
 #          if ! out="$("$SCRIPTS_DIR"/render-board.sh … 2>&2)"; printf "%s" "$out" >"$mw/$rel"; then
-#
-#      — and the suite went GREEN while the board was really being written. BOTH shipped guards
-#      missed it: stages 6-7 because the token is cut at the `;`, and REDIRECT_RE because there is
-#      no whitespace-bounded ` > ` and no literal `/BOARD.md` (the target is the variable `$rel`).
-#      This is not an exotic shape. It is the shape THIS script is ONE STATEMENT away from: it
-#      already captures the digest into `out` (backlog_pass) and already holds the board path in a
-#      variable (`local rel="$CHANGES_DIR/BOARD.md"`, board_pass_inline). A guard that is green on
-#      the most realistic regression in the file it protects is decoration (ledger #64).
-#      TWO SUB-STEPS, both over the SAME normalized source stages 1-5 already produced:
-#        (a) NAME THE TAINTED VARIABLES: `NAME=` immediately followed by an optional quote and a
-#            `$(` whose contents reach `render-board.sh` before any `)`. That one pattern covers
-#            `out="$(…)"`, `out=$(…)`, `local out="$(…)"`, `readonly out=$(…)`, `export out=$(…)`,
-#            the `if ! out="$(…)"` form the real script uses, and a capture THROUGH A PIPELINE
-#            (`out="$(render-board.sh … | tail -n +2)"`) — the pipeline lives inside the `$(…)`, so
-#            it needs no special case. The variable NAME is what survives.
+#      into the real scripts/docket-status.sh: the suite went GREEN while the board was really being
+#      written. BOTH shipped guards missed it — stages 6-7 because the token is cut at the `;`,
+#      REDIRECT_RE because there is no whitespace-bounded ` > ` and no literal `/BOARD.md` (the target
+#      is the variable `$rel`). The SECOND probe was run against THE FIRST CUT OF THIS STAGE and came
+#      back GREEN TOO: one character of the write changed —
+#          printf "%s" "${out:-}" >"$mw/$rel"      # ${out:-}, not $out
+#      — walks past a use pattern that only matched bare `$out` and `${out}`. That spelling is not
+#      exotic: `${var:-}` IS THE HOUSE IDIOM OF THE VERY FILE THIS GUARD PROTECTS (14 uses in
+#      scripts/docket-status.sh). A guard that is green on the most realistic regression in the file
+#      it protects, written in that file's own idiom, is decoration (ledger #64). Hence BOTH patterns
+#      below are keyed on the SHAPE of the syntax, never on a list of spellings someone thought of.
+#      TWO SUB-STEPS, over the SAME normalized source stages 1-5 produced:
+#        (a) NAME THE TAINTED VARIABLES: `NAME=` or `NAME+=`, an optional `(` (array capture), an
+#            optional quote, then a COMMAND SUBSTITUTION — `$(`… or a BACKTICK… — reaching
+#            `render-board.sh` before it closes. That covers `out="$(…)"`, `out=$(…)`, ``out=`…` ``,
+#            `out=($(…))`, `out+=$(…)`, the `local`/`readonly`/`export` forms (they carry `NAME=`
+#            inside them), the `if ! out="$(…)"` form the real script uses, and a capture THROUGH A
+#            PIPELINE (`out="$(render-board.sh … | tail -n +2)"` — the pipeline is inside the
+#            substitution, so it needs no special case). Rows 19-19l pin every one. The honest bound
+#            is "a capture spelled `NAME=`/`NAME+=` with the substitution FIRST in the value", NOT
+#            "every spelling" — see (II)(g) for what escapes.
 #        (b) RE-ASK STAGE 7 ON EVERY STATEMENT CARRYING THAT NAME'S VALUE. Cut the normalized source
-#            into statements with the SAME `[^;&]*` tokenizer stage 6 uses, keep the ones that USE
-#            the variable (`$out` at a word boundary, or `${out}` — the boundary is what stops
-#            `$outfile` from inheriting `$out`'s taint), and apply the SAME rule: a surviving `>` is
-#            a write. Sharing the tokenizer and the `>` rule with Q1 is the point — `printf … >f`,
-#            `echo … >>f`, `>|f`, `cat <<< "$out" > f`, `&>`/`>&file` all die by the machinery that
-#            already normalizes and erases, so THE TWO PATHS CANNOT DRIFT APART.
-#      Its bound is Q2's bound, stated above: ONE HOP, PER-FILE, SCOPE-BLIND. It does not chase a
-#      tainted value through a function parameter, a second variable, or an `eval` — see (II)(g).
+#            into statements with the SAME `[^;&]*` tokenizer stage 6 uses, keep the ones that USE the
+#            variable, apply the SAME rule: a surviving `>` is a write. The use pattern is
+#            `[$][{]?NAME` followed by a NON-IDENTIFIER character (or end of line) — the name after an
+#            optional brace, required to END there. Being shape-based, it catches EVERY parameter
+#            expansion of the tainted name in one stroke: `$out`, `${out}`, `${out:-}`,
+#            `${out:-default}`, `${out//x/y}`, `${out:0:99}`, `${out[@]}`, `${out^^}`, `${out%.md}` —
+#            in each, the operator following the name IS the non-identifier character the pattern
+#            demands. The name-END requirement is what stops `$outfile`/`${outfile}` inheriting
+#            `$out`'s taint (row 20d). NOT covered, by design: `${!out}` indirection, and `${#out}`
+#            (a LENGTH — it carries no board bytes, so covering it would be a false positive).
+#            Sharing the tokenizer and the `>` rule with Q1 is the point: `printf … >f`, `echo … >>f`,
+#            `>|f`, `cat <<< "$out" > f`, `&>`/`>&file` all die by machinery that already normalizes
+#            and erases, so THE TWO PATHS CANNOT DRIFT APART.
+#      Its bound is Q2's bound: ONE HOP, PER-FILE, SCOPE-BLIND — (II)(g).
 #
 # KNOWN, ACCEPTED GAPS. Two kinds, and the difference matters:
 #
 # (I) NOT A GAP OF THE PAIR — Guard 1 misses it, REDIRECT_RE covers it:
-#   0. THE NO-VARIABLE STATEMENT-BOUNDARY CLASS: `{ …; } > f` and a wrapper function. Spelled out
-#      above. The bytes cross the statement boundary with NO variable carrying them, so stage 8's
-#      taint has nothing to follow and Guard 1 is GREEN on both; REDIRECT_RE is RED on both; the
-#      COMPLEMENTARITY block asserts both halves. Listed here so nobody "fixes" Guard 1 by widening
-#      its token — the fix already exists, and it is the other guard.
-#      (CAPTURE-THEN-WRITE WAS THE THIRD MEMBER OF THIS CLASS AND IS NO LONGER IN IT. A live-tree
-#      probe found it GREEN under BOTH guards — REDIRECT_RE only ever caught the *literal*
-#      `> "$d/BOARD.md"` spelling of it, never the variable-target one a real regression in
-#      docket-status.sh would use — and stage 8 now catches every spelling. The COMPLEMENTARITY
-#      block scores the literal spelling BOTH-RED and the variable-target one Guard-1-only.)
+#   0. THE NO-VARIABLE STATEMENT-BOUNDARY CLASS. Both really write BOARD.md (stub-renderer verified):
+#          { "$SCRIPTS_DIR"/render-board.sh --changes-dir "$d"; } > "$d/BOARD.md"
+#          board(){ "$SCRIPTS_DIR"/render-board.sh --changes-dir "$d"; }; board > "$d/BOARD.md"
+#      The bytes cross the statement boundary with NO variable carrying them, so Q1's token ends at
+#      the `;` and stage 8's taint has nothing to follow: Guard 1 is GREEN on both, REDIRECT_RE is RED
+#      on both, and the COMPLEMENTARITY block asserts both halves. Widening Q1's token to chase them
+#      would make it a whole-file scan — REDIRECT_RE rebuilt worse, inside a function that must also
+#      stay narrow enough not to redden on the codebase's real calls. Listed here so nobody "fixes"
+#      Guard 1 that way: the fix already exists, and it is the other guard.
+#      (CAPTURE-THEN-WRITE WAS THE THIRD MEMBER AND IS NO LONGER IN IT. A live-tree probe found it
+#      GREEN under BOTH guards — REDIRECT_RE only ever caught the *literal* `> "$d/BOARD.md"`
+#      spelling, never the variable-target one a real regression in docket-status.sh would use. Stage
+#      8 now catches it in every parameter-expansion spelling of the USE and every `NAME=`/`NAME+=`
+#      spelling of the CAPTURE — that is the bound stated in 8(a)-(b) and (II)(g), NOT a claim of
+#      totality. The COMPLEMENTARITY block scores the literal spelling BOTH-RED and the
+#      variable-target one Guard-1-only.)
 #
-# (II) GENUINE GAPS OF THE PAIR — real writes that NEITHER a token scan nor a target-keyed regex
-#      reliably sees. They are disclosed, not fixed, and they share one answer (below):
+# (II) GENUINE GAPS OF THE PAIR — real writes NEITHER a token scan nor a target-keyed regex reliably
+#      sees. Disclosed, not fixed; they share one answer (below):
 #   a. A PIPELINE MEMBER THAT WRITES WITHOUT A `>`: `render-board.sh ... | tee f`. The pipeline is
-#      INSIDE the token (stage 6), so any redirect in it dies — but `tee` needs no redirect to
-#      write. Catching it would mean knowing WHICH COMMANDS WRITE, i.e. hand-maintaining a list of
-#      writers, which is the same anti-pattern (ledger #64) as hand-listing call sites. Out of
-#      reach for this scan on purpose.
-#   b. fd INDIRECTION — a redirect OPENED ON A PRIOR LINE, in either of two shapes:
-#        - `exec 3>"$out"`, then `render-board.sh ... >&3`. The file IS written, and the guard
-#          stays green because `>&3` is — syntactically, locally, and correctly — an fd dup.
-#        - `exec > "$out"`, then a BARE `render-board.sh ...` with NO redirect on it at all. Here
-#          the invocation token carries no `>` whatsoever, so there is nothing for ANY tightening
-#          of stages 3-7 to catch: the write lives entirely on the earlier `exec` line.
-#      A scan of the invocation cannot know what an fd was opened to, or that stdout was rebound
-#      out from under it; it would have to follow descriptors across statements, which is
-#      interpretation, not grep.
+#      INSIDE the token, so any redirect in it dies — but `tee` needs no redirect. Catching it means
+#      knowing WHICH COMMANDS WRITE, i.e. hand-maintaining a list of writers: the same anti-pattern
+#      (ledger #64) as hand-listing call sites. Out of reach on purpose.
+#   b. fd INDIRECTION — a redirect OPENED ON A PRIOR LINE, in two shapes:
+#        - `exec 3>"$out"`, then `render-board.sh ... >&3`: the file IS written, and the guard stays
+#          green because `>&3` is — syntactically, locally, correctly — an fd dup.
+#        - `exec > "$out"`, then a BARE `render-board.sh ...`: the token carries no `>` whatsoever, so
+#          no tightening of stages 3-7 could catch it; the write lives on the earlier `exec` line.
+#      A scan of the invocation cannot know what an fd was opened to, or that stdout was rebound out
+#      from under it: interpretation, not grep.
 #   c. THE REDIRECT OPERATOR ARRIVING BY EXPANSION OR eval:
 #          r='>'; eval "\"\$SCRIPTS_DIR\"/render-board.sh --changes-dir \"\$d\" $r \"\$out\""
-#      writes the file, and the source text carries no `>` on the invocation to find. Unreachable
-#      by construction: the redirect does not exist as syntax until runtime.
+#      writes the file, and no `>` exists on the invocation to find. Unreachable by construction: the
+#      redirect is not syntax until runtime.
 #   d. A `;`, `&`, `||` OR `#` INSIDE A QUOTED ARGUMENT, cutting the token short of a real redirect
-#      (the lexer-naivety trade-off under stage 1). Same root cause as (c): the scan reads text,
-#      not a parse tree.
-#   g. THE TAINT ESCAPING THROUGH A SECOND HOP — the bound of stage 8, named as a gap so it is not
-#      mistaken for coverage. Every one of these really writes the board and every one is GREEN:
+#      (stage 1's lexer-naivety trade-off). Same root cause as (c): the scan reads text, not a parse
+#      tree.
+#   g. STAGE 8's RESIDUAL BOUND, stated exactly so it is not mistaken for coverage. The taint now
+#      follows the stdout through EVERY parameter-expansion spelling of a tainted variable's USE and
+#      every `NAME=`/`NAME+=` spelling of its CAPTURE. What it still cannot follow is a SECOND HOP,
+#      plus two captures that are not assignments at all. Every one below really writes the board;
+#      every one is GREEN:
 #          out=$(render-board.sh …); emit(){ printf '%s' "$1" > "$f"; }; emit "$out"
 #              — the value leaves through a FUNCTION PARAMETER; `$1` is not `$out`.
 #          out=$(render-board.sh …); b="$out"; printf '%s' "$b" > "$f"
-#              — the value is COPIED into an untainted second variable.
+#              — COPIED into an untainted second variable.
 #          out=$(render-board.sh …); eval "printf '%s' \"\$out\" > \"\$f\""
-#              — the redirect (and the use) exist only at runtime; cf. (c).
-#      Closing these means propagating taint through assignments, parameters and expansions, i.e.
-#      writing a bash dataflow analyzer inside a test sentinel. It is the same "out of all
-#      proportion" call stage 1 makes about a quote-aware lexer, and it has the same answer: the
-#      deferred filesystem-effect test. What stage 8 DOES buy is the ONE HOP a real regression
-#      actually takes — the shape the live-tree probe found, in the script the guard protects.
+#              — the use and the redirect exist only at runtime; cf. (c).
+#          mapfile -t out < <(render-board.sh …)   /   read -r out < <(render-board.sh …)
+#              — the capture is a COMMAND'S SIDE EFFECT, not an assignment: there is no `NAME=` for
+#                8(a) to name, so the variable is never tainted at all.
+#          out="prefix$(render-board.sh …)"
+#              — the substitution is not FIRST in the value, so 8(a)'s `NAME=`-anchored pattern does
+#                not reach it. (Anchoring "anywhere in the value" would let the pattern run across an
+#                unrelated assignment sharing the logical line — a false positive traded for a shape
+#                nothing in this codebase writes.)
+#      Closing these means propagating taint through assignments, parameters, expansions and command
+#      side effects: a bash dataflow analyzer inside a test sentinel — the same "out of all
+#      proportion" call stage 1 makes about a quote-aware lexer, with the same answer (below). What
+#      stage 8 DOES buy is the ONE HOP a real regression actually takes — the shape TWO live-tree
+#      probes found, in the script the guard protects.
 #
-# (III) KNOWN FALSE POSITIVES, both FAIL-SAFE (they can only add an alarm, never hide a write), so
-#      they are disclosed rather than engineered around:
-#   e. A HEREDOC BODY that quotes the anti-pattern as PROSE. `cat > "$f" <<EOS` … a line reading
-#      `render-board.sh ... > "$d/BOARD.md"` … `EOS` writes nothing of the renderer's, but neither
-#      guard knows what a heredoc is: Guard 1 reads the body as source and goes RED (so does
-#      REDIRECT_RE). No such heredoc exists in scripts/ today; if one is ever added, quote it so it
-#      does not read as an invocation, or move the example into a comment.
+# (III) KNOWN FALSE POSITIVES, all FAIL-SAFE (they can only add an alarm, never hide a write), so they
+#      are disclosed rather than engineered around:
+#   e. A HEREDOC BODY quoting the anti-pattern as PROSE: `cat > "$f" <<EOS` … `render-board.sh ... >
+#      "$d/BOARD.md"` … `EOS` writes nothing of the renderer's, but neither guard knows what a heredoc
+#      is — Guard 1 reads the body as source and goes RED (so does REDIRECT_RE). No such heredoc
+#      exists in the swept scripts today; if one is added, quote it so it does not read as an
+#      invocation, or move the example into a comment.
 #   f. The join reaching ACROSS a comment that bash would treat as ending the command (stage 2).
+#   h. A TAINTED VARIABLE'S STATEMENT CARRYING A NON-FILE `>` — the Q2 twin of stage 7's disclosed
+#      conservatism, named so the two halves are treated alike. `printf '%s\n' "$out" | grep -c
+#      "^change " 2>/dev/null` writes NONE of the renderer's bytes to a file, yet the `>` of
+#      `2>/dev/null` survives the fd-dup erasure (it is no dup — the target is a path) and Q2 reddens,
+#      exactly as Q1 reddens on `render-board.sh … 2>/dev/null`. Exempting `>/dev/null` was rejected
+#      for the reason stage 7 gives: `/dev/null` is a path like any other, and a guard that permits
+#      SOME writes is a guard whose next author must relitigate which. Route the renderer's stderr
+#      with the fd dup the codebase already uses (`2>&2`) and neither half fires. (Row 20c is the
+#      GREEN counterpart: a tainted variable merely piped into `grep -qc`, with NO redirect at all,
+#      is clean — it is the `2>/dev/null` that reddens, not the inspection.)
 #
-# The answer to the (II) gaps is the filesystem-effect test the design DEFERRED (run the
-# orchestrator against a fixture and assert BOARD.md's bytes): it is syntax-independent but
-# path-dependent, and it is the ONLY thing that can see a `| tee`, an fd opened elsewhere, a
-# redirect conjured by eval, or a quote the scan mis-lexed. THAT IS WHY THE DEFERRED TEST STILL HAS
-# A JOB with both guards in place.
+# The answer to the (II) gaps is the filesystem-effect test the design DEFERRED (run the orchestrator
+# against a fixture and assert BOARD.md's bytes): syntax-independent but path-dependent, and the ONLY
+# thing that can see a `| tee`, an fd opened elsewhere, a redirect conjured by eval, a SECOND taint
+# hop, or a quote the scan mis-lexed. THAT IS WHY THE DEFERRED TEST STILL HAS A JOB with both guards
+# in place.
 #
 # The battery below is the substance of this guard (ledger #64: a guard is code — mutation-test it
 # before trusting it, or it is decoration). Every evasion above is injected into a fixture and MUST
-# turn the guard RED; the controls — the codebase's real invocation among them — MUST keep it
-# GREEN. Every row's verdict has been compared against FILESYSTEM TRUTH: each fixture was executed
-# against a stub renderer and the target inspected for the renderer's bytes.
+# turn the guard RED; the controls — the codebase's real invocation among them — MUST keep it GREEN.
+# Every row's verdict has been compared against FILESYSTEM TRUTH: each fixture was executed against a
+# stub renderer and the target inspected for the renderer's bytes.
 
 # Folds backslash-continuations into logical lines. awk, not sed: BSD sed does not portably treat
 # `\n` in an s/// LHS as a newline, so the classic `:a; /\\$/N; s/\\\n//; ta` is a GNU-ism here.
-# PLANNED TWIN: tests/test_docket_status.sh's flag sentinel tokenizes the same unit and needs the
-# same fix (Guard 3 of change 0070). It does not exist yet — when it lands, the two copies must be
-# kept in step.
+# TWIN (SHIPPED): tests/test_docket_status.sh defines a BYTE-IDENTICAL join_continuations for its flag
+# sentinel (Guard 3 of change 0070), which tokenizes the same unit and needed the same fix. The two
+# copies are deliberate duplication — each test file is standalone and shares no library, the way each
+# defines its own `assert` — so an edit to either must be mirrored in the other.
 join_continuations(){
   awk '{ while (sub(/\\$/, "")) { if ((getline nxt) > 0) { $0 = $0 nxt } else { break } } print }' "$1"
 }
@@ -626,13 +598,13 @@ render_board_write_free(){
       violation=1
     done < <(
       printf '%s\n' "$norm" \
-        | grep -oE "[^;&]*[\$]([{]$var[}]|$var([^[:alnum:]_]|\$))[^;&]*" \
+        | grep -oE "[^;&]*[\$][{]?$var([^[:alnum:]_]|\$)[^;&]*" \
         | grep '>' || true
     )
   done < <(
     printf '%s\n' "$norm" \
-      | grep -oE '[A-Za-z_][A-Za-z0-9_]*=["'"'"']?\$\([^)]*render-board\.sh' \
-      | sed -E 's/=.*$//' \
+      | grep -oE '[A-Za-z_][A-Za-z0-9_]*\+?=\(?["'"'"']?(\$\([^)]*|`[^`]*)render-board\.sh' \
+      | sed -E 's/\+?=.*$//' \
       | sort -u
   )
   return "$violation"
@@ -1058,21 +1030,110 @@ printf '%s\n' '#!/usr/bin/env bash' \
 assert "guard1 stays GREEN when \$outfile (a name-prefix of the tainted \$out) is redirected" \
   'render_board_write_free "$mut/taint-prefix-var.sh" >/dev/null'
 
-# --- the real scan: every script under scripts/ EXCEPT the one allowlisted writer ---
+# (19g)-(19l) THE SPELLING BATTERY FOR STAGE 8 — THE SECOND LIVE-TREE PROBE'S ROWS. The first cut of
+#      stage 8 matched only a bare `$out` / `${out}` USE and only a `$(…)` CAPTURE, so it was a list
+#      of spellings, not a rule about shape — and SIX one-hop spellings walked straight past it while
+#      really writing the board. Each row below was executed against a stub renderer printing known
+#      bytes, and those bytes were found in a file afterwards; each was GREEN under the first cut.
+#      They are the reason the patterns are keyed on syntax SHAPE (`[$][{]?NAME` + name-END for the
+#      use; `NAME=`/`NAME+=` + optional `(` + optional quote + `$(`-or-backtick for the capture).
+
+# (19g) `${out:-}` — THE DEFAULT-EXPANSION WRITE, AND THE ROW THAT MATTERS MOST: `${var:-}` IS THE
+#      HOUSE IDIOM OF THE VERY FILE THIS GUARD PROTECTS. scripts/docket-status.sh spells parameter
+#      expansions `${VAR:-}` FOURTEEN times (`grep -c '\${[A-Za-z_][A-Za-z0-9_]*:-'`), so this is not
+#      an exotic evasion — it is what a docket-status regression would look like written IN THE
+#      FILE'S OWN STYLE. A live-tree probe proved it: the guard's own probe shape, with `$out` changed
+#      to `${out:-}` (ONE character), left the suite GREEN while the board was really written.
+printf '%s\n' '#!/usr/bin/env bash' \
+  'out="$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$d" --format digest 2>&2)"' \
+  'printf "%s" "${out:-}" >"$mw/$rel"' > "$mut/taint-default-expansion.sh"
+assert "guard1 flags a \${out:-} default-expansion write (the guarded file's OWN \${var:-} idiom)" \
+  '! render_board_write_free "$mut/taint-default-expansion.sh" >/dev/null'
+
+# (19h) BACKTICK CAPTURE. The older command-substitution spelling; bash still honours it, and a
+#      `$(`-only capture pattern never sees it.
+printf '%s\n' '#!/usr/bin/env bash' \
+  'out=`"$SCRIPTS_DIR"/render-board.sh --changes-dir "$d"`' \
+  'printf '"'"'%s'"'"' "$out" > "$f"' > "$mut/taint-backtick.sh"
+assert "guard1 flags a BACKTICK capture that is then written (out=\`render-board.sh …\`)" \
+  '! render_board_write_free "$mut/taint-backtick.sh" >/dev/null'
+
+# (19i) ARRAY CAPTURE — `out=($(…))`, written back out with `"${out[@]}"`. Evades a capture pattern
+#      that demands the `$(` sit immediately after the `=`, AND a use pattern that demands the name be
+#      followed by `}` (here it is followed by `[`).
+printf '%s\n' '#!/usr/bin/env bash' \
+  'out=($("$SCRIPTS_DIR"/render-board.sh --changes-dir "$d"))' \
+  'printf '"'"'%s\n'"'"' "${out[@]}" > "$f"' > "$mut/taint-array.sh"
+assert "guard1 flags an ARRAY capture written via \${out[@]} (out=(\$(…)))" \
+  '! render_board_write_free "$mut/taint-array.sh" >/dev/null'
+
+# (19j) `out+=$(…)` — APPEND-ASSIGNMENT capture. `NAME=` alone does not match `NAME+=`.
+printf '%s\n' '#!/usr/bin/env bash' \
+  'out=""' \
+  'out+=$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$d")' \
+  'printf '"'"'%s'"'"' "$out" > "$f"' > "$mut/taint-append-assign.sh"
+assert "guard1 flags an append-assignment capture (out+=\$(…)) that is then written" \
+  '! render_board_write_free "$mut/taint-append-assign.sh" >/dev/null'
+
+# (19k) `${out//x/y}` — SUBSTITUTION EXPANSION. The bytes are still the renderer's; only some of them
+#      are rewritten on the way to the file.
+printf '%s\n' '#!/usr/bin/env bash' \
+  'out="$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$d")"' \
+  'printf '"'"'%s'"'"' "${out//proposed/done}" > "$f"' > "$mut/taint-substitution.sh"
+assert "guard1 flags a \${out//x/y} substitution-expansion write" \
+  '! render_board_write_free "$mut/taint-substitution.sh" >/dev/null'
+
+# (19l) `${out:0:99}` — SLICE EXPANSION, with `>|` to a variable target for good measure. A truncated
+#      board is still a written board.
+printf '%s\n' '#!/usr/bin/env bash' \
+  'out="$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$d")"' \
+  'printf '"'"'%s'"'"' "${out:0:99}" >| "$mw/$rel"' > "$mut/taint-slice.sh"
+assert "guard1 flags a \${out:0:99} slice write (>| to a variable target)" \
+  '! render_board_write_free "$mut/taint-slice.sh" >/dev/null'
+
+# (20e) FALSE-POSITIVE CONTROL — THE SAME EXPANSION STYLE, A DIFFERENT VARIABLE. Row 20b pins the
+#      per-variable taint for a bare `$other`; this one pins it for the `${other:-}` spelling that
+#      row 19g made the guard sensitive to. Widening the USE pattern must not turn "any `${…:-}`
+#      redirected in a file that captures the renderer" into a violation: the bytes here never touched
+#      render-board.sh (verified — the stub's bytes reach no file).
+printf '%s\n' '#!/usr/bin/env bash' \
+  'out="$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$d" --format digest 2>&2)"' \
+  'printf '"'"'%s\n'"'"' "$out"' \
+  'other="x"; printf "%s" "${other:-}" > "$f"' > "$mut/taint-other-var-default.sh"
+assert "guard1 stays GREEN when a DIFFERENT variable is written in the \${other:-} style (per-variable taint)" \
+  'render_board_write_free "$mut/taint-other-var-default.sh" >/dev/null'
+
+# (20f) FALSE-POSITIVE CONTROL — THE NAME-PREFIX TRAP, BRACED. Row 20d pins `$outfile`; the use
+#      pattern now accepts an optional `{` before the name, so `${outfile}` is the spelling that
+#      widening could plausibly have broken. The name must still END at the match.
+printf '%s\n' '#!/usr/bin/env bash' \
+  'out="$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$d" --format digest 2>&2)"' \
+  'outfile="$d/log.txt"' \
+  'printf "%s" "${outfile}" > "$f"' > "$mut/taint-prefix-var-braced.sh"
+assert "guard1 stays GREEN when \${outfile} (BRACED name-prefix of the tainted \$out) is redirected" \
+  'render_board_write_free "$mut/taint-prefix-var-braced.sh" >/dev/null'
+
+# --- the real scan: every *.sh under scripts/ AND every root-level *.sh, EXCEPT the one allowlisted
+#     writer. The root four (install.sh, link-skills.sh, migrate-to-docket.sh, sync-agents.sh) do not
+#     invoke the renderer today — they are swept anyway, because the point of a DERIVED sweep is that
+#     it keeps holding when that changes. tests/ is NOT swept: this battery's fixtures live there and
+#     every one of them is the anti-pattern.
 guard1_violation=0
 scanned=0
 while IFS= read -r s; do
   [ "${s##*/}" = "board-refresh.sh" ] && continue
   scanned=$((scanned + 1))
   render_board_write_free "$s" || guard1_violation=1
-done < <(find "$REPO/scripts" -name '*.sh' -type f | sort)
-assert "no script under scripts/ (except board-refresh.sh) writes render-board.sh's stdout to a file" \
+done < <( { find "$REPO/scripts" -name '*.sh' -type f; find "$REPO" -maxdepth 1 -name '*.sh' -type f; } | sort )
+assert "no script under scripts/ or the repo root (except board-refresh.sh) writes render-board.sh's stdout to a file" \
   '[ "$guard1_violation" -eq 0 ]'
 
 # Anti-vacuity: a scan over zero files passes for the wrong reason. Assert the sweep actually saw
 # the tree, and that the allowlisted writer it skips really exists (a rename must not silently
 # turn the allowlist into a no-op that hides the real writer).
 assert "the write scan is not vacuous (it swept the scripts tree)" '[ "$scanned" -ge 10 ]'
+assert "the sweep reaches the ROOT-LEVEL scripts too (not just scripts/)" \
+  '[ -f "$REPO/install.sh" ] && [ -f "$REPO/sync-agents.sh" ] && [ "$scanned" -ge 20 ]'
 assert "the allowlisted writer scripts/board-refresh.sh exists" \
   '[ -f "$REPO/scripts/board-refresh.sh" ]'
 
