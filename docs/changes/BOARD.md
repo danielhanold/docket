@@ -1,6 +1,6 @@
 # Backlog
 
-**73 changes** — 🟢 1 in progress · 🟡 11 proposed · 🔵 1 implemented · ✅ 58 done · 🗑️ 2 killed
+**74 changes** — 🟢 1 in progress · 🟡 12 proposed · 🔵 1 implemented · ✅ 58 done · 🗑️ 2 killed
 
 ## 🟢 In progress (1)
 
@@ -8,7 +8,7 @@
 |---|-------|----------|------|--------|
 | [0070](active/0070-redirect-regex-board-write-guard.md) | Harden the BOARD.md write guard — REDIRECT_RE misses real redirect forms | `medium` | [spec](../superpowers/specs/2026-07-13-redirect-regex-board-write-guard-design.md) | `feat/redirect-regex-board-write-guard` |
 
-## 🟡 Proposed (11)
+## 🟡 Proposed (12)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -23,6 +23,7 @@
 | [0067](active/0067-learnings-promotion-destination.md) | Give the learnings ledger a promotion destination — it has no way to shrink | `medium` | needs-brainstorm |
 | [0071](active/0071-board-surfaces-unset-vs-empty.md) | Encode the disabled board positively — an empty surfaces value is a wiring bug, not a configuration | `medium` | build-ready |
 | [0073](active/0073-cursor-sandbox-permissions-guide.md) | Cursor sandbox & permissions guide — copyable config, trust tiers, troubleshooting | `medium` | needs-brainstorm |
+| [0074](active/0074-bootstrap-facade-verb.md) | A `bootstrap` facade verb — retire the last direct-helper carve-out in Step-0 | `medium` | needs-brainstorm |
 
 ## 🔵 Implemented — awaiting merge (1)
 
@@ -46,6 +47,8 @@ graph TD
   0072 --> 0071
   0068 --> 0073
   0072 --> 0073
+  0068 --> 0074
+  0072 --> 0074
   0001:::done
   0002:::done
   0003:::done
