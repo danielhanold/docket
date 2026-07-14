@@ -1,5 +1,5 @@
 # Facade skill rewiring — retire the eval preamble — results
-Change: #0072 · Branch: feat/facade-skill-rewiring · PR: <set at PR open> · Plan: docs/superpowers/plans/2026-07-14-facade-skill-rewiring.md · ADRs: none
+Change: #0072 · Branch: feat/facade-skill-rewiring · PR: <set at PR open> · Plan: docs/superpowers/plans/2026-07-14-facade-skill-rewiring.md · ADRs: 30
 
 ## Verify (human)
 
