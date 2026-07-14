@@ -1,12 +1,11 @@
 # Backlog
 
-**73 changes** — 🟢 2 in progress · 🟡 12 proposed · 🔵 1 implemented · ✅ 56 done · 🗑️ 2 killed
+**73 changes** — 🟢 1 in progress · 🟡 12 proposed · 🔵 2 implemented · ✅ 56 done · 🗑️ 2 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Spec | Branch |
 |---|-------|----------|------|--------|
-| [0068](active/0068-docket-command-facade.md) | One executable docket facade — finite subcommands, config read from stdout, never eval'd | `high` | [spec](../superpowers/specs/2026-07-13-docket-command-facade-design.md) | `feat/docket-command-facade` |
 | [0070](active/0070-redirect-regex-board-write-guard.md) | Harden the BOARD.md write guard — REDIRECT_RE misses real redirect forms | `medium` | [spec](../superpowers/specs/2026-07-13-redirect-regex-board-write-guard-design.md) | `feat/redirect-regex-board-write-guard` |
 
 ## 🟡 Proposed (12)
@@ -23,14 +22,15 @@
 | [0062](active/0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | `low` | needs-brainstorm |
 | [0067](active/0067-learnings-promotion-destination.md) | Give the learnings ledger a promotion destination — it has no way to shrink | `medium` | needs-brainstorm |
 | [0071](active/0071-board-surfaces-unset-vs-empty.md) | Encode the disabled board positively — an empty surfaces value is a wiring bug, not a configuration | `medium` | ⏳ waiting on #72 — not yet built |
-| [0072](active/0072-facade-skill-rewiring.md) | Rewire the operating skills and Step-0 to the facade — retire the eval preamble | `medium` | ⏳ waiting on #68 — not yet built |
-| [0073](active/0073-cursor-sandbox-permissions-guide.md) | Cursor sandbox & permissions guide — copyable config, trust tiers, troubleshooting | `medium` | ⏳ waiting on #68 — not yet built |
+| [0072](active/0072-facade-skill-rewiring.md) | Rewire the operating skills and Step-0 to the facade — retire the eval preamble | `medium` | ⏳ waiting on #68 — needs your merge |
+| [0073](active/0073-cursor-sandbox-permissions-guide.md) | Cursor sandbox & permissions guide — copyable config, trust tiers, troubleshooting | `medium` | ⏳ waiting on #68 — needs your merge |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | [#69](https://github.com/danielhanold/docket/pull/69) |
+| [0068](active/0068-docket-command-facade.md) | One executable docket facade — finite subcommands, config read from stdout, never eval'd | `high` | [#78](https://github.com/danielhanold/docket/pull/78) |
 
 ```mermaid
 graph TD
