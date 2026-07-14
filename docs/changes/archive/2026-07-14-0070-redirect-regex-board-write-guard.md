@@ -2,7 +2,7 @@
 id: 70
 slug: redirect-regex-board-write-guard
 title: Harden the BOARD.md write guard — REDIRECT_RE misses real redirect forms
-status: implemented
+status: done
 priority: medium
 created: 2026-07-13
 updated: 2026-07-14
