@@ -26,8 +26,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-14-cursor-sandbox-permissions-guide-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-14-cursor-sandbox-permissions-guide-design.md) |
-| Plan | [2026-07-14-cursor-sandbox-permissions-guide.md](https://github.com/danielhanold/docket/blob/feat/cursor-sandbox-permissions-guide/docs/superpowers/plans/2026-07-14-cursor-sandbox-permissions-guide.md) |
-| Results | [2026-07-14-cursor-sandbox-permissions-guide-results.md](https://github.com/danielhanold/docket/blob/feat/cursor-sandbox-permissions-guide/docs/results/2026-07-14-cursor-sandbox-permissions-guide-results.md) |
+| Plan | [2026-07-14-cursor-sandbox-permissions-guide.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-14-cursor-sandbox-permissions-guide.md) |
+| Results | [2026-07-14-cursor-sandbox-permissions-guide-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-14-cursor-sandbox-permissions-guide-results.md) |
 | PR | [#83](https://github.com/danielhanold/docket/pull/83) |
 | ADRs | [ADR-0020](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0020-generated-agent-artifacts-machine-local.md), [ADR-0033](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0033-cursor-auto-run-trust-at-facade.md) |
 <!-- docket:artifacts:end -->
