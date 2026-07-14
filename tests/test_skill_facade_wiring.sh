@@ -58,7 +58,7 @@ P_REBASE='pull --rebase'          # retired inline rebase
 # Emit code UNITS for a file: fenced-block bodies (verbatim lines) + inline code spans.
 extract_code_units() {
   awk '
-    /^```/ { infence = !infence; next }
+    /^[[:space:]]*```/ { infence = !infence; next }   # indented fences (list-item code blocks) toggle too
     infence { print; next }
     {
       line = $0
