@@ -37,17 +37,55 @@ Two forces shape the guide beyond "write down the config":
    **Recorded as an ADR** (see *ADR* below).
 2. **Both fragments ship.** A `permissions.json` fragment (command approval) and a `sandbox.json`
    fragment (a read path to the docket clone, which lives outside the workspace). They are not
-   substitutes for one another — see decision 3.
+   substitutes for one another — see decision 3 and *Cursor Run Mode mapping* below.
 3. **The load-bearing claim: docket ops must run OUTSIDE the sandbox.** Docket's runtime needs an
    out-of-workspace program (`$DOCKET_SCRIPTS_DIR/docket.sh`) and the network (`preflight` fetches
    and rebases; skills push). A sandbox denies both. No `sandbox.json` filesystem entry can
    substitute for a terminal permission — the guide says this explicitly, because the natural
    assumption ("I granted filesystem access, why is it still failing") is the failure mode.
+   The recommended operator mode is **Auto-review (with Sandbox)** with a
+   `permissions.json` `terminalAllowlist` entry for the facade — not "sandbox mode" as an
+   alternative to the permissions file (a common misreading of the pre-3.5/3.6 UI).
 4. **Nothing is asserted that the verification log does not record.** The troubleshooting section is
    a transcription of the appendix, not a reconstruction from docket's code or from Cursor's docs. A
    failure mode that does not reproduce in the session is **cut**, not softened.
 5. **docket never edits the user's Cursor configuration.** Copy-paste, human-applied — the ADR-0020
    posture for generated agent artifacts, applied to permission config.
+
+## Cursor Run Mode mapping (product facts the guide must get right)
+
+Observed in Cursor **3.11.19** (2026-07-14) against
+[Run Modes](https://cursor.com/docs/agent/security/run-modes) and
+[permissions.json](https://cursor.com/docs/reference/permissions). The desktop UI under
+Settings → Agents → Approvals & Execution exposes four options that map onto three documented
+modes (Allowlist's optional sandbox is two rows):
+
+| UI label | Docs mode | Allowlist (`permissions.json` / IDE) | Sandbox (`sandbox.json`) | Auto-review classifier |
+|---|---|---|---|---|
+| **Allowlist** | Allowlist | Yes | No | No |
+| **Allowlist (with Sandbox)** | Allowlist + sandbox enabled | Yes | Yes | No |
+| **Auto-review (with Sandbox)** | Auto-review (recommended) | Yes — evaluated first | Yes — for eligible shell cmds | Yes |
+| **Run Everything (Unsandboxed)** | Run Everything | N/A | No | No |
+
+**Complementary, not mutually exclusive.** `permissions.json` is not an alternative to sandbox /
+Auto-review. It configures the allowlist (and optional `autoRun` classifier steering) *while* a
+Run Mode is selected. `sandbox.json` controls what a sandboxed command may reach. Docs: "permissions.json
+and sandbox.json do different jobs"; "Sandboxing is a layer on top of Run Modes for shell
+commands."
+
+**Auto-review evaluation order** (shell): (1) allowlist match → run immediately; (2) else if the
+command fits sandbox limits → run sandboxed; (3) else → classifier (`autoRun` steers this only).
+Allowlisting the facade is how docket ops that need out-of-workspace execution + network avoid
+being trapped in (2)/(3) without switching to Run Everything.
+
+**Guide target mode:** Auto-review (with Sandbox) + the published `terminalAllowlist` fragment +
+the published sandbox read-path fragment. The guide must not describe "sandbox auto-run" and
+"the permissions file" as an either/or — that framing matches the pre-3.5 "Run in Sandbox"
+mode, which was folded into Allowlist-with-sandbox / Auto-review.
+
+*This section is product-context for the guide and the verification session; it is not itself an
+ADR. The docket decision (trust at the facade) remains the ADR below. Update this table if Cursor
+renames the UI labels.*
 
 ## Provenance — how the guide earns its claims
 
