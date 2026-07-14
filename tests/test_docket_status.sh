@@ -469,7 +469,12 @@ cat > "$tmp/git-race.sh" <<EOF
 # Wraps real git; races work2's push in once, right after \$work's startup sync pull, so
 # the orchestrator's own board_pass push collides deterministically without real timing.
 raced="$tmp/conflict-case/.raced"
-if [ "\$1" = pull ] && [ ! -f "\$raced" ]; then
+# change 0075: main-mode preflight now anchors its sync with \`git -C <root> pull --rebase\`
+# (D2 parity — the sync must target the MAIN worktree, not the caller's CWD), so the pull
+# subcommand may sit at \$3 behind a leading -C DIR rather than always at \$1.
+sub="\$1"
+[ "\$sub" = "-C" ] && sub="\$3"
+if [ "\$sub" = pull ] && [ ! -f "\$raced" ]; then
   git "\$@"; rc=\$?
   touch "\$raced"
   git -C "$tmp/conflict-case/work2" push -q origin main
