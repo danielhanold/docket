@@ -30,12 +30,34 @@ docket-config.sh --repo-dir /path/to/repo --export
   non-zero.
 - `--bootstrap` — additionally perform the `CREATE_ORPHAN` write when the verdict warrants
   it; a no-op in every other bootstrap cell
-- `--repo-dir DIR` — target a specific git repo directory (used by test fixtures)
+- `--repo-dir DIR` — repo to resolve against. **Default (change 0075): the MAIN worktree of
+  the repo containing CWD**, not CWD itself, so a call from `.docket/`, `.worktrees/<slug>`,
+  or a subdirectory resolves the same primary root. Falls back to CWD when CWD is not inside
+  a git repo (the existing not-a-repo error then fires). Still overrides verbatim when passed
+  explicitly (the test/mock seam).
 - `-h`, `--help` — print the script's usage header
 
 **Mock seam:** `GIT="${GIT:-git}"` — override `GIT` in tests to inject a stub.
 
 ## Behavior
+
+### §1: the repo anchor (change 0075)
+
+Before Stage 1 runs, the script resolves `$REPO_DIR` (unless `--repo-dir` was passed, which
+overrides verbatim): it calls `docket_main_worktree` (`scripts/lib/docket-root.sh`) to find the
+**main worktree** of the repo containing CWD, and uses that as `$REPO_DIR` for the rest of the
+run — never CWD itself. When CWD is not inside a git repo, `docket_main_worktree` returns empty
+and `$REPO_DIR` falls back to `.`, so the existing `git rev-parse --is-inside-work-tree` gate in
+Stage 1 still fires its standard "not a git repo" error unchanged.
+
+**Behavior change (pinned by change 0075):** invoked from `<repo>/sub/` (a plain
+subdirectory), the resolver now reads `<repo>/.docket.local.yml` (Stage 2b') and targets
+`<repo>/.docket` as the metadata worktree — previously it would have read
+`<repo>/sub/.docket.local.yml` and targeted `<repo>/sub/.docket`, since `$REPO_DIR` defaulted to
+CWD (`.`). The same applies to a call from the `.docket/` metadata worktree itself or a
+`.worktrees/<slug>` feature worktree: every caller in the worktree set resolves the SAME primary
+root. `--bootstrap`'s `.gitignore`-seeding write (below) is anchored the same way — it now always
+seeds `<repo>/.gitignore`, never `<sub>/.gitignore` or a linked worktree's own `.gitignore`.
 
 ### Stage 1: repair `origin/HEAD` and resolve the default branch
 
@@ -207,6 +229,7 @@ DEFAULT_BRANCH
 METADATA_BRANCH
 INTEGRATION_BRANCH
 METADATA_WORKTREE
+REPO_ROOT            (plain format only — see below)
 CHANGES_DIR
 ADRS_DIR
 RESULTS_DIR
@@ -223,7 +246,19 @@ SKILL_FINISH
 BOOTSTRAP
 ```
 
-19 lines total. The last line is always `BOOTSTRAP=…`. The emitted `KEY=value` set and order are
+19 lines in `shell` format (unchanged); 20 in `plain` format, with `REPO_ROOT` inserted directly
+after `METADATA_WORKTREE`. The last line is always `BOOTSTRAP=…`.
+
+**`REPO_ROOT` (change 0075) — plain format only.** The absolute path of the main worktree (the
+same value `$REPO_DIR` resolved to, per the §1 repo anchor above) — the literal `docket.sh
+preflight`/`env` print and a skill reads for a cwd-independent `cd`. Deliberately **absent from
+the `shell` format**: `scripts/ensure-claude-settings.sh:24` sets its own `REPO_ROOT` variable
+and `eval`s the shell export at `:33`, reading it back at `:38` and `:74` — emitting a
+shell-format `REPO_ROOT` here would silently capture that unrelated variable name and corrupt
+its behavior. `plain` output is model-facing and never `eval`'d, so the same collision risk does
+not apply there.
+
+The emitted `KEY=value` set and order are
 **unchanged** by the machine-local layer (change 0051) — `.docket.local.yml` only adds a
 higher-precedence input to the values already resolved above; no new KEY is introduced.
 
@@ -262,7 +297,8 @@ emits no `KEY=value` output.
   post-write state, so the caller's `eval` sees `PROCEED` without a second invocation.
 - **`main`-mode skips the bootstrap guard entirely.** `DOCKET`/`LIVE` are not evaluated;
   `BOOTSTRAP` is always `PROCEED` in main-mode.
-- **19 `KEY=value` lines always emitted in the same order.** Skills may rely on the order
+- **19 `KEY=value` lines always emitted in the same order in `shell` format (20 in `plain`,
+  `REPO_ROOT` inserted after `METADATA_WORKTREE` — change 0075).** Skills may rely on the order
   for pipe consumers, but should use the variable names (via `eval`) for correctness.
 - **The global layer never aborts a run.** Every global-file problem (misplaced, malformed,
   fenced key) is a stderr warning; exit codes are unaffected.

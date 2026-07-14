@@ -20,7 +20,8 @@
 #                   no quoting, no `export ` prefix, METADATA_WORKTREE absolutized (change 0068)
 #   --bootstrap     additionally perform the CREATE_ORPHAN write when the verdict is
 #                   CREATE_ORPHAN (fresh repo); a no-op in every other cell
-#   --repo-dir DIR  operate on the git repo at DIR (default: .) — the test/mock seam
+#   --repo-dir DIR  operate on the git repo at DIR (default, change 0075: the MAIN worktree of
+#                   the repo containing CWD, not CWD itself) — the test/mock seam
 #   -h, --help      print this header
 # Mock seam: GIT="${GIT:-git}".
 set -uo pipefail
@@ -28,12 +29,14 @@ set -uo pipefail
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
 . "$SELF_DIR/lib/docket-gitignore-block.sh"
+# shellcheck source=/dev/null
+. "$SELF_DIR/lib/docket-root.sh"
 
 GIT="${GIT:-git}"
 MODE=export
 FORMAT=shell
 DO_BOOTSTRAP=0
-REPO_DIR="."
+REPO_DIR=""   # empty => the MAIN worktree of the repo containing CWD (resolved after arg parsing)
 while [ $# -gt 0 ]; do
   case "$1" in
     --export)    MODE=export ;;
@@ -48,6 +51,18 @@ while [ $# -gt 0 ]; do
   esac
   shift
 done
+
+# --- repo anchor (change 0075) -----------------------------------------------
+# The default repo is the MAIN worktree of the repo containing CWD — never CWD itself. A script
+# invoked from the .docket/ metadata worktree, a .worktrees/<slug> feature worktree, or any
+# subdirectory must resolve the SAME primary root as one invoked from the top; `cd "$REPO_DIR" &&
+# pwd -P` (below) would otherwise absolutize the LINKED worktree, which is what mints a nested
+# <repo>/.docket/.docket (D2). `--repo-dir` still overrides verbatim. Not a git repo => fall back
+# to CWD so the is-inside-work-tree gate below emits its standard "not a git repo" error.
+if [ -z "$REPO_DIR" ]; then
+  REPO_DIR="$(docket_main_worktree)"
+  [ -n "$REPO_DIR" ] || REPO_DIR="."
+fi
 
 die() { printf 'docket-config: %s\n' "$*" >&2; exit 1; }
 g()   { "$GIT" -C "$REPO_DIR" "$@"; }
@@ -298,6 +313,14 @@ if [ "$MODE" = export ]; then
   emit METADATA_BRANCH "$METADATA_BRANCH"
   emit INTEGRATION_BRANCH "$INTEGRATION_BRANCH"
   emit METADATA_WORKTREE "$MW_EMIT"
+  # REPO_ROOT — PLAIN FORMAT ONLY (change 0075). The absolute main-worktree path; the literal
+  # skills read from the `docket.sh preflight` block for a cwd-independent `cd`. It is deliberately
+  # absent from the SHELL format: ensure-claude-settings.sh:24 sets its own REPO_ROOT and eval's
+  # the shell export at :33, reading it at :38/:74 — emitting it there would silently capture that
+  # name. (REPO_ABS is computed above, in the plain branch.)
+  if [ "$FORMAT" = plain ]; then
+    emit REPO_ROOT "$REPO_ABS"
+  fi
   emit CHANGES_DIR "$CHANGES_DIR"
   emit ADRS_DIR "$ADRS_DIR"
   emit RESULTS_DIR "$RESULTS_DIR"

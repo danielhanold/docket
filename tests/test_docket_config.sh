@@ -662,5 +662,60 @@ assert "plain mode emits NOTHING on abort" '[ -z "$plain_abort" ]'
 run "$tmp/fmt" --export --format bogus >/dev/null 2>&1; fmt_rc=$?
 assert "unknown --format exits 2" '[ "$fmt_rc" -eq 2 ]'
 
+# --- (Z) change 0075: the repo anchor + REPO_ROOT ----------------------------
+# The resolver must resolve the SAME primary root no matter which worktree/subdir the caller
+# stands in. Every OTHER test in this file passes --repo-dir explicitly, so this section is the
+# only coverage of the DEFAULT resolution — which is exactly the thing 0075 changes.
+mkrepo "$tmp/z"
+z_abs="$(cd "$tmp/z" && pwd -P)"
+git -C "$tmp/z" branch --quiet docket
+git -C "$tmp/z" worktree add --quiet "$tmp/z/.docket" docket >/dev/null 2>&1
+mkdir -p "$tmp/z/sub"
+
+# plain format from the MAIN ROOT: REPO_ROOT present and absolute.
+z_root_plain="$(cd "$tmp/z" && bash "$SCRIPT" --export --format plain)"
+assert "0075 plain: REPO_ROOT emitted, absolute, = the main worktree" \
+  'printf "%s\n" "$z_root_plain" | grep -qxF "REPO_ROOT=$z_abs"'
+
+# plain format from the .docket/ LINKED WORKTREE: byte-identical REPO_ROOT and METADATA_WORKTREE.
+# Pre-0075 this yielded REPO_ROOT=<repo>/.docket and METADATA_WORKTREE=<repo>/.docket/.docket.
+z_dk_plain="$(cd "$tmp/z/.docket" && bash "$SCRIPT" --export --format plain)"
+assert "0075 plain: REPO_ROOT from the .docket/ worktree is the MAIN root, not .docket" \
+  'printf "%s\n" "$z_dk_plain" | grep -qxF "REPO_ROOT=$z_abs"'
+assert "0075 plain: METADATA_WORKTREE from .docket/ is <root>/.docket, NOT <root>/.docket/.docket" \
+  'printf "%s\n" "$z_dk_plain" | grep -qxF "METADATA_WORKTREE=$z_abs/.docket"'
+
+# plain format from a SUBDIRECTORY: the spec's stated behavior CHANGE (§1) — pinned deliberately.
+z_sub_plain="$(cd "$tmp/z/sub" && bash "$SCRIPT" --export --format plain)"
+assert "0075 plain: REPO_ROOT from <repo>/sub is the repo root (§1 behavior change, pinned)" \
+  'printf "%s\n" "$z_sub_plain" | grep -qxF "REPO_ROOT=$z_abs"'
+assert "0075 plain: METADATA_WORKTREE from <repo>/sub is <root>/.docket, not <sub>/.docket" \
+  'printf "%s\n" "$z_sub_plain" | grep -qxF "METADATA_WORKTREE=$z_abs/.docket"'
+
+# The machine-local layer is read from the REPO ROOT even when invoked from a subdirectory
+# (§1: LCFG="$REPO_DIR/.docket.local.yml"). auto_groom is a global-able (non-fenced) key.
+printf 'auto_groom: true\n' > "$tmp/z/.docket.local.yml"
+z_sub_shell="$(cd "$tmp/z/sub" && bash "$SCRIPT" --export)"
+AUTO_GROOM=""; eval "$z_sub_shell"
+assert "0075: <repo>/.docket.local.yml is read when invoked from <repo>/sub (§1 behavior change)" \
+  '[ "$AUTO_GROOM" = true ]'
+rm -f "$tmp/z/.docket.local.yml"
+
+# REPO_ROOT is PLAIN-ONLY: ensure-claude-settings.sh sets its own REPO_ROOT and eval's the SHELL
+# export, so a shell-format REPO_ROOT would silently capture that name. Assert BOTH directions so
+# the guard is provably able to fire (a bare `! grep` that can never match proves nothing).
+z_shell="$(cd "$tmp/z" && bash "$SCRIPT" --export)"
+assert "0075 shell: REPO_ROOT is NOT emitted (would capture ensure-claude-settings.sh's own var)" \
+  '! printf "%s\n" "$z_shell" | grep -q "^REPO_ROOT="'
+assert "0075 control: the plain export DOES carry REPO_ROOT (proves the absence-assert can fire)" \
+  'printf "%s\n" "$z_root_plain" | grep -q "^REPO_ROOT="'
+
+# --repo-dir still overrides verbatim, from anywhere (the whole existing suite depends on it).
+mkrepo "$tmp/z2"
+z2_abs="$(cd "$tmp/z2" && pwd -P)"
+z2_plain="$(cd "$tmp/z/.docket" && bash "$SCRIPT" --repo-dir "$tmp/z2" --export --format plain)"
+assert "0075: --repo-dir still overrides the anchor verbatim" \
+  'printf "%s\n" "$z2_plain" | grep -qxF "REPO_ROOT=$z2_abs"'
+
 if [ "$fail" = 0 ]; then echo PASS; else echo FAIL; fi
 exit "$fail"
