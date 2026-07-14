@@ -46,10 +46,17 @@ done
 # Change 0071 — the positive sentinel. An empty VALUE is a wiring bug, not a configuration: it is
 # what an unresolved `$BOARD_SURFACES` degrades to, and treating it as "board disabled" is how a
 # stale board used to ship behind a success exit code. The deliberate off-state must SAY so.
-[ -n "$SURFACES" ] || {
+empty_surfaces_fatal() {
   printf 'board-refresh: empty --surfaces value (unresolved config?); pass --surfaces none to disable the board\n' >&2
   exit 2
 }
+[ -n "$SURFACES" ] || empty_surfaces_fatal
+# Change 0071 review, finding 6 — defence-in-depth: a whitespace-only value (e.g. " ") passes the
+# `-n` check above but tokenizes to zero words below, the same "nobody resolved this" hole with a
+# byte of padding. Not reachable from docket-config.sh today (its own `echo $bs` word-splitting
+# already collapses whitespace to true-empty), but treat it identically on principle.
+set -- $SURFACES
+[ $# -gt 0 ] || empty_surfaces_fatal
 
 # Tokenize --surfaces. `none` is the reserved, EXCLUSIVE off-token: it disables every surface and
 # may not be combined with any other token (a contradiction exits 2 rather than silently picking a

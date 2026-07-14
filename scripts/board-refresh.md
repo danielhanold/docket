@@ -41,9 +41,10 @@ exact token `inline`:
 | `"none inline"` (any mix) | **Exit 2** — `none` is exclusive; a contradiction is never resolved silently. |
 | `""` (empty) | **Exit 2** — a wiring bug (unresolved config), never a configuration. |
 
-Any token other than `inline` or `github` is treated as unknown: it is reported on stderr
-(`board-refresh: unknown surface token ignored: <token>`) and otherwise ignored. Unknown tokens
-never cause a non-zero exit and never prevent `inline` (if also present) from taking effect.
+Any token other than `inline`, `github`, or the reserved `none` is treated as unknown: it is
+reported on stderr (`board-refresh: unknown surface token ignored: <token>`) and otherwise
+ignored. Unknown tokens never cause a non-zero exit and never prevent `inline` (if also present)
+from taking effect.
 
 **Rendering.** When `inline` is present, invokes `render-board.sh --changes-dir DIR [--repo
 OWNER/REPO]` exactly as documented in `render-board.md` — this script does not reimplement or

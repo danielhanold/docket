@@ -72,6 +72,17 @@ assert "empty surfaces: points at the positive off-token on stderr" \
   'grep -qF "none" "$work/err2"'
 assert "empty surfaces: no leftover temp files in changes dir" '[ "$(count_files)" -eq 0 ]'
 
+# --- 1c: --surfaces " " (whitespace-only) -> exit 2, same as truly empty (change 0071 review, ----
+# finding 6, defence-in-depth): it passes the `-n "$SURFACES"` check but tokenizes to zero words,
+# the same "nobody resolved this" hole with a byte of padding.
+rm -f "$tmp/BOARD.md"
+"$SCRIPT" --changes-dir "$tmp" --surfaces " " >"$work/out1c" 2>"$work/err1c"; rc1c=$?
+assert "whitespace-only surfaces: exit 2 (treated identically to empty)" '[ "$rc1c" -eq 2 ]'
+assert "whitespace-only surfaces: BOARD.md not created" '[ ! -e "$tmp/BOARD.md" ]'
+assert "whitespace-only surfaces: names the unresolved-config cause on stderr" \
+  'grep -qF "empty --surfaces value" "$work/err1c"'
+assert "whitespace-only surfaces: no leftover temp files in changes dir" '[ "$(count_files)" -eq 0 ]'
+
 # --- 2b: --surfaces "none" -> the deliberate off-state: no-op, exit 0 --------------------------
 rm -f "$tmp/BOARD.md"
 "$SCRIPT" --changes-dir "$tmp" --surfaces "none" >"$work/out2b" 2>"$work/err2b"; rc2b=$?
@@ -92,6 +103,22 @@ rm -f "$tmp/BOARD.md"
 "$SCRIPT" --changes-dir "$tmp" --surfaces "inline none" >"$work/out2d" 2>"$work/err2d"; rc2d=$?
 assert "inline+none (reversed order): exit 2" '[ "$rc2d" -eq 2 ]'
 assert "inline+none (reversed order): BOARD.md not written" '[ ! -e "$tmp/BOARD.md" ]'
+
+# --- 2e/2f: change 0071 review, finding 5 — `other_seen=1` is set by the `inline)`, `github)`,
+# AND `*)` arms alike, so `none` combined with `github` or an unrecognized token must ALSO exit 2,
+# not just `none`+`inline`. Nothing above exercised the `github)` or `*)` arms' `other_seen=1` —
+# deleting either would silently turn these into a no-op exit 0 with the suite green.
+rm -f "$tmp/BOARD.md"
+"$SCRIPT" --changes-dir "$tmp" --surfaces "none github" >"$work/out2e" 2>"$work/err2e"; rc2e=$?
+assert "none+github: exit 2 (none is exclusive)" '[ "$rc2e" -eq 2 ]'
+assert "none+github: BOARD.md not written" '[ ! -e "$tmp/BOARD.md" ]'
+assert "none+github: says none is exclusive on stderr" 'grep -qF "exclusive" "$work/err2e"'
+
+rm -f "$tmp/BOARD.md"
+"$SCRIPT" --changes-dir "$tmp" --surfaces "none bogus" >"$work/out2f" 2>"$work/err2f"; rc2f=$?
+assert "none+bogus: exit 2 (none is exclusive)" '[ "$rc2f" -eq 2 ]'
+assert "none+bogus: BOARD.md not written" '[ ! -e "$tmp/BOARD.md" ]'
+assert "none+bogus: says none is exclusive on stderr" 'grep -qF "exclusive" "$work/err2f"'
 
 # --- 3: --surfaces "github" (inline absent) -> BOARD.md not written ----------------------------
 rm -f "$tmp/BOARD.md"
