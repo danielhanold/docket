@@ -140,3 +140,27 @@ groom.
 - Tightening the wiring guard to forbid all `.sh` tokens (ADR-0030's rejected alternative stays
   rejected).
 - Editing change 0073's stub.
+
+## Addendum (2026-07-14, post-build — PR #82)
+
+Appended after the build; the groomed sections above are left as written.
+
+**§5 correction (empirical, recorded in the results file).** The guarded-cell bullet above is
+wrong: in a `STOP_MIGRATE`-shaped repo `docket.sh bootstrap` exits **0**, emits
+`BOOTSTRAP=STOP_MIGRATE`, and writes nothing. The resolver *reports* the verdict; failing closed
+on a non-`PROCEED` verdict is `preflight`'s job, not the verb's. The functional test asserts the
+true behavior; the cell-guard conclusion (no write outside `CREATE_ORPHAN`) stands.
+
+**Deferred-minors sweep (same PR, post-review).** Three Minors deferred at the merge gate were
+fixed on the feature branch rather than left behind:
+
+- `scripts/docket.md` "No escape hatch" (and the twin sentence in `scripts/docket.sh`'s header):
+  the blanket "nothing `docket.sh` emits is meant to be `eval`'d" claim now names `bootstrap`'s
+  `%q`-quoted `shell`-format stdout explicitly — still not meant to be eval'd/sourced; the Step-0
+  flow re-runs `preflight` for the model-facing block.
+- `scripts/lib/docket-preflight.sh` `CREATE_ORPHAN` diagnostic now points a human at
+  `docket.sh bootstrap` instead of the retired direct-helper spelling (facade-consistency; the
+  results file's "optional consistency nicety" follow-up is hereby done).
+- `tests/test_skill_facade_wiring.sh` header: the pre-0072 "This test is RED until Tasks 2-4"
+  note is rewritten in the past tense (green since 0072; 0074 re-proved the flipped carve-out
+  assert by mutation).
