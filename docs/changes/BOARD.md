@@ -1,12 +1,6 @@
 # Backlog
 
-**74 changes** — 🟢 1 in progress · 🟡 9 proposed · 🔵 1 implemented · ✅ 61 done · 🗑️ 2 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0073](active/0073-cursor-sandbox-permissions-guide.md) | Cursor sandbox & permissions guide — copyable config, trust tiers, troubleshooting | `medium` | [spec](../superpowers/specs/2026-07-14-cursor-sandbox-permissions-guide-design.md) | `feat/cursor-sandbox-permissions-guide` |
+**74 changes** — 🟡 9 proposed · 🔵 2 implemented · ✅ 61 done · 🗑️ 2 killed
 
 ## 🟡 Proposed (9)
 
@@ -22,11 +16,12 @@
 | [0062](active/0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | `low` | needs-brainstorm |
 | [0067](active/0067-learnings-promotion-destination.md) | Give the learnings ledger a promotion destination — it has no way to shrink | `medium` | needs-brainstorm |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | [#69](https://github.com/danielhanold/docket/pull/69) |
+| [0073](active/0073-cursor-sandbox-permissions-guide.md) | Cursor sandbox & permissions guide — copyable config, trust tiers, troubleshooting | `medium` | [#83](https://github.com/danielhanold/docket/pull/83) |
 
 ```mermaid
 graph TD
