@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/facade-skill-rewiring
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -66,3 +66,13 @@ the permission surface is unchanged.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-07-14 — reconcile (docket-implement-next)
+
+Verified against current `origin/main` + `origin/docket`; no scope change, spec unchanged. Findings:
+
+- **Dependency 0068 is `done`** (archived `2026-07-14-0068-docket-command-facade.md`; facade PR #78 merged). The facade shipped exactly as the spec assumes: `scripts/docket.sh` with 13 operations (11 wrapped + `preflight`/`env` verbs), the inventory table in `scripts/docket.md` IS the permission inventory, `docket.sh env`/`preflight` emit raw plain `KEY=value` (19 keys) with `METADATA_WORKTREE` absolutized and `*_DIR` kept repo-relative.
+- **Scope floor confirmed against live prose:** the `eval "$(…docket-config.sh --export)"` spelling is present in exactly 8 files (the 7 operating skills' `SKILL.md` + `docket-convention/SKILL.md`); `docket-config.sh --export` is referenced in 9 files (those 8 + `references/terminal-close-out.md`); 36 direct `"${DOCKET_SCRIPTS_DIR…}"/<helper>.sh` invocation sites across the same 9 files. `docket-brainstorm/SKILL.md` carries no Step-0 preamble (correctly out of scope). Build must re-derive the exact site set by whole-repo grep — these are a floor.
+- **ADR-0029 (Accepted, change 68)** pins the two contracts this change consumes: metadata paths compose as `$METADATA_WORKTREE/$CHANGES_DIR` (absolute root + relative subpath), `RESULTS_DIR` composes against the feature worktree; `--format plain` backs `env`/`preflight` while `--format shell` stays byte-unchanged for the sole `docket-config.sh --bootstrap` CREATE_ORPHAN carve-out.
+- **Related 0073 (Cursor guide) is still `proposed`** — a downstream consumer of this change's command surface, no coupling into this build.
+- **No config value read by skill prose is missing from the `env`/`preflight` block** (19 keys present incl. `BOARD_SURFACES` + all five `SKILL_*`); `GITHUB_PROJECT`/`AGENT_HARNESSES` are not read by skill prose (their consumers self-resolve). Build re-verifies by grep.
