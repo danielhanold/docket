@@ -1,8 +1,14 @@
 # Backlog
 
-**74 changes** — 🟡 10 proposed · 🔵 1 implemented · ✅ 61 done · 🗑️ 2 killed
+**74 changes** — 🟢 1 in progress · 🟡 9 proposed · 🔵 1 implemented · ✅ 61 done · 🗑️ 2 killed
 
-## 🟡 Proposed (10)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Spec | Branch |
+|---|-------|----------|------|--------|
+| [0073](active/0073-cursor-sandbox-permissions-guide.md) | Cursor sandbox & permissions guide — copyable config, trust tiers, troubleshooting | `medium` | [spec](../superpowers/specs/2026-07-14-cursor-sandbox-permissions-guide-design.md) | `feat/cursor-sandbox-permissions-guide` |
+
+## 🟡 Proposed (9)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -15,7 +21,6 @@
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0062](active/0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | `low` | needs-brainstorm |
 | [0067](active/0067-learnings-promotion-destination.md) | Give the learnings ledger a promotion destination — it has no way to shrink | `medium` | needs-brainstorm |
-| [0073](active/0073-cursor-sandbox-permissions-guide.md) | Cursor sandbox & permissions guide — copyable config, trust tiers, troubleshooting | `medium` | build-ready |
 
 ## 🔵 Implemented — awaiting merge (1)
 
