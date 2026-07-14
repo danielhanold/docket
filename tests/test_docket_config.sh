@@ -104,13 +104,26 @@ assert "explicit: FINALIZE_TEST_COMMAND w/ spaces"     '[ "$FINALIZE_TEST_COMMAN
 # off-state is encoded POSITIVELY as `none`. Asserted on the EMITTED LINE, not on an eval'd
 # variable: `eval "$out"` after a run that emitted nothing leaves the PREVIOUS case's value in
 # place, so a variable assert cannot tell "emitted nothing" from "emitted the right thing".
+#
+# The never-empty invariant must be checked per FORMAT: the default `shell` format's emit()
+# uses printf '%s=%q\n', and bash's %q renders an empty string as `BOARD_SURFACES=''` — never
+# as a bare `BOARD_SURFACES=`. Grepping shell-format output for a bare `BOARD_SURFACES=` is
+# vacuous — it would still pass even with the `none` normalizer removed, since that regression
+# emits `BOARD_SURFACES=''` there, not a bare line. So: check the bare-empty-never-happens shape
+# against `--format plain` (where a regression genuinely renders bare, since plain's emit() does
+# no quoting), and check the quoted-empty-never-happens shape against the default shell format
+# (the shape a regression actually emits there).
 mkrepo "$tmp/d"
 printf 'metadata_branch: main\nboard_surfaces: []\n' > "$tmp/d/.docket.yml"
 git -C "$tmp/d" add .docket.yml; git -C "$tmp/d" commit --quiet -m cfg
 git -C "$tmp/d" push --quiet origin main
 out="$(run "$tmp/d" --export)"
+out_plain="$(run "$tmp/d" --export --format plain)"
 assert "board []: emits BOARD_SURFACES=none"           'printf "%s\n" "$out" | grep -qxF "BOARD_SURFACES=none"'
-assert "board []: never emits an empty BOARD_SURFACES" '! printf "%s\n" "$out" | grep -qxF "BOARD_SURFACES="'
+assert "board []: plain format never emits an empty BOARD_SURFACES" \
+  '! printf "%s\n" "$out_plain" | grep -qxF "BOARD_SURFACES="'
+assert "board []: shell format never emits quoted-empty BOARD_SURFACES" \
+  '! printf "%s\n" "$out" | grep -qxF "BOARD_SURFACES='\'''\''"'
 eval "$out"
 assert "board []: BOARD_SURFACES is the none token"     '[ "$BOARD_SURFACES" = none ]'
 
