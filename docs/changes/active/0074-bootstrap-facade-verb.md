@@ -2,7 +2,7 @@
 id: 74
 slug: bootstrap-facade-verb
 title: A `bootstrap` facade verb — retire the last direct-helper carve-out in Step-0
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-14
 updated: 2026-07-14
@@ -11,11 +11,11 @@ related: [68, 72]
 adrs: [29, 30]
 spec: docs/superpowers/specs/2026-07-14-bootstrap-facade-verb-design.md
 plan: docs/superpowers/plans/2026-07-14-bootstrap-facade-verb.md
-results:
+results: docs/results/2026-07-14-bootstrap-facade-verb-results.md
 trivial: false
 auto_groomable:
 branch: feat/bootstrap-facade-verb
-pr:
+pr: https://github.com/danielhanold/docket/pull/82
 blocked_by:
 reconciled: true
 ---
@@ -27,6 +27,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-14-bootstrap-facade-verb-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-14-bootstrap-facade-verb-design.md) |
 | Plan | [2026-07-14-bootstrap-facade-verb.md](https://github.com/danielhanold/docket/blob/feat/bootstrap-facade-verb/docs/superpowers/plans/2026-07-14-bootstrap-facade-verb.md) |
+| Results | [2026-07-14-bootstrap-facade-verb-results.md](https://github.com/danielhanold/docket/blob/feat/bootstrap-facade-verb/docs/results/2026-07-14-bootstrap-facade-verb-results.md) |
+| PR | [#82](https://github.com/danielhanold/docket/pull/82) |
 | ADRs | [ADR-0029](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0029-docket-facade-routing-and-config-presentation.md), [ADR-0030](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0030-facade-wiring-guard-discriminates-on-invocation-prefix.md) |
 <!-- docket:artifacts:end -->
 
