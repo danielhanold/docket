@@ -1308,7 +1308,7 @@ anti-vacuity checks the skills and docket-status.sh scans lacked."
 ### Task 3: Guard 3 — continuation-joining for the `--format digest` flag check
 
 **Files:**
-- Modify: `tests/test_docket_status.sh` — the inline-board wiring sentinel: add `join_continuations` + `digest_tokens` and rewire the tokenizer through them; move `tmp="$(mktemp -d)"` ahead of the sentinel block so the new mutation battery has a scratch dir.
+- Modify: `tests/test_docket_status.sh` — the inline-board wiring sentinel: add `join_continuations` + `digest_tokens` and rewire the tokenizer through them; move `tmp="$(mktemp -d)"` ahead of the sentinel block so the new mutation battery has a scratch dir; add an anti-vacuity assertion to the real scan (a scan over zero invocations must not pass silently); keep the pre-existing "Bootstrap gate: ..." header comment WITH the code it describes (`write_fixture()`) rather than orphaning it above the relocated `tmp=` line.
 
 **Interfaces:**
 - Consumes: the `join_continuations` contract defined in Task 1 (identical twin, defined locally — this file is a standalone script and shares no library with `tests/test_render_board.sh`, matching how every test file in this repo defines its own `assert`).
@@ -1323,7 +1323,23 @@ the second line REALLY EXECUTES as a live, ungated invocation. Joining first fol
 
 - [ ] **Step 1: Add `join_continuations` and `digest_tokens`, and move `tmp` ahead of the sentinel**
 
-Move `tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT` (previously declared just above the bootstrap-gate fixtures) up to immediately after the `--help` assertion, since the new mutation battery below needs `$tmp` before the bootstrap-gate block does. Then add, directly above the `# --- inline-board wiring sentinel` comment:
+Move `tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT` (previously declared just above the bootstrap-gate fixtures, captioned by a "Bootstrap gate: ..." header) up to immediately after the `--help` assertion, since the new mutation battery below needs `$tmp` before the bootstrap-gate block does. The relocated line now serves three consumers — the continuation-joining battery, `write_fixture()`'s bootstrap-gate fixtures, and everything after — so give it its own brief caption instead of dragging the old header along:
+
+```bash
+# Scratch dir shared by every fixture in this file: the continuation-joining battery below, the
+# bootstrap-gate fixtures via write_fixture() (further down), and everything after it.
+tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
+```
+
+Put the original two-line "Bootstrap gate: ..." header back where it actually applies — directly above `write_fixture(){`, further down in the file:
+
+```bash
+# Bootstrap gate: stub docket-config.sh --export via CONFIG_EXPORT_CMD (a hermetic fixture
+# script emitting the eval-able KEY=value block), and assert the gate's exit code + remedy text.
+write_fixture(){
+```
+
+Then add, directly above the `# --- inline-board wiring sentinel` comment:
 
 ```bash
 # Folds backslash-continuations into logical lines, so the tokenizer below sees INVOCATIONS rather
@@ -1372,12 +1388,57 @@ Extend the sentinel's existing comment with:
 # to. See digest_tokens' comment for why comments must be stripped BEFORE the join, not after.
 ```
 
+Then, immediately after the `assert "every render-board.sh invocation in docket-status is the read-only --format digest"` assertion, add an anti-vacuity check on the scan loop itself (mirroring Task 1's `scanned` counter in `tests/test_render_board.sh`): a scan that visits zero invocations passes that assertion for the wrong reason — deleting the digest call from `scripts/docket-status.sh` entirely would leave it green with nothing to check. Add a counter to the loop and assert it:
+
+```bash
+ungated_render=0
+digest_scan_count=0
+while IFS= read -r inv; do
+  [ -n "$inv" ] || continue
+  digest_scan_count=$((digest_scan_count + 1))
+  case "$inv" in
+    *"--format digest"*) : ;;
+    *) ungated_render=1; echo "  (ungated render-board.sh invocation: $inv)" ;;
+  esac
+done < <(digest_tokens "$SCRIPT")
+assert "every render-board.sh invocation in docket-status is the read-only --format digest" \
+  '[ "$ungated_render" -eq 0 ]'
+# Anti-vacuity (Task 1's convention, tests/test_render_board.sh): a scan over zero invocations
+# passes for the wrong reason — deleting the renderer call from docket-status.sh entirely would
+# leave the assertion above green with nothing to check. Assert the scan actually saw one.
+assert "the digest-flag scan is not vacuous (it saw at least one render-board.sh invocation)" \
+  '[ "$digest_scan_count" -ge 1 ]'
+```
+
 - [ ] **Step 3: Add the mutation battery, proving both directions plus the ordering**
 
 Append immediately after the existing `assert "every render-board.sh invocation in docket-status is the read-only --format digest"` assertion:
 
+**CORRECTED COMMENT (supersedes an earlier draft of this task).** An earlier draft's comment here claimed the join fixes two failure modes — a flag torn off the token (a false positive) AND "any redirect parked on the continuation was invisible (false negative — silent)". The second half is FALSE: `digest_tokens()` never greps for a `>` at all, before this fix or after it, and no fixture in this battery constructs a redirect — this sentinel has no write/redirect visibility, full stop. That job belongs entirely to `REDIRECT_RE` and the write sentinel in `tests/test_render_board.sh` (Guard 1), whose own comment states the two guards catch different holes and neither subsumes the other. The shipped comment says only what the battery actually proves — the false positive fixed, the no-regression case, and the ordering hazard — and points at Guard 1 for the redirect direction instead of claiming it here:
+
 ```bash
 # --- change 0070: the flag check tokenizes LOGICAL lines, not physical ones -------------------
+# What this sentinel guards, and ONLY this: whether each render-board.sh invocation in
+# docket-status.sh carries --format digest (the read-only projection). It has NO redirect/write
+# visibility — digest_tokens() never greps for a `>`, before this fix or after it, and no fixture
+# below constructs one. Whether a call WRITES a file is REDIRECT_RE's and the write sentinel's job
+# (Guard 1, tests/test_render_board.sh) — that guard's own comment states the two catch different
+# holes and neither subsumes the other; nothing here changes that boundary, and nothing here
+# licenses deleting either guard as redundant with this one.
+#
+# The tokenizer above used to read one PHYSICAL line at a time, so an invocation whose --format
+# digest flag sat on a backslash-continuation was torn in half: the first-line token carried the
+# call WITHOUT the flag it actually has — a loud FALSE POSITIVE (a legitimately gated call flagged
+# as ungated; the "flag check sees a --format digest flag parked on a continuation line" row below
+# proves the join fixes it). A call genuinely missing the flag was already caught either way — the
+# flag's absence from whichever physical line matches is what the check keys on, split or not — so
+# the "flag check still catches an ungated call split across a continuation line" row below is a
+# no-regression proof, not evidence of a prior miss. The third row locks a narrower, real hazard
+# specific to a JOIN-based tokenizer: digest_tokens() strips comments BEFORE joining continuations,
+# and getting that order backwards would fold a live invocation into a preceding
+# backslash-terminated comment, deleting both when the comment is dropped (verified empirically:
+# swapping the order launders that exact fixture to zero tokens). The "ordering" row below pins
+# that the shipped order does not do that.
 digest_mut="$tmp/mut-digest"; mkdir -p "$digest_mut"
 
 # A legitimate call whose flag sits on the continuation line: exactly ONE logical invocation, and
@@ -1434,12 +1495,13 @@ assert "flag check still catches a live invocation following a comment that ends
 
 - [ ] **Step 4: Run to verify it passes**
 
-Run: `cd /Users/homer/dev/docket/.worktrees/redirect-regex-board-write-guard && bash tests/test_docket_status.sh 2>&1 | grep -E "continuation|read-only --format digest|routes the inline|ordering"`
+Run: `cd /Users/homer/dev/docket/.worktrees/redirect-regex-board-write-guard && bash tests/test_docket_status.sh 2>&1 | grep -E "continuation|read-only --format digest|routes the inline|ordering|vacuous"`
 
 Expected:
 ```
 ok - docket-status routes the inline board render through board-refresh.sh
 ok - every render-board.sh invocation in docket-status is the read-only --format digest
+ok - the digest-flag scan is not vacuous (it saw at least one render-board.sh invocation)
 ok - flag check sees a --format digest flag parked on a continuation line (no false positive)
 ok - flag check still catches an ungated call split across a continuation line
 ok - flag check still catches a live invocation following a comment that ends in backslash (ordering)
@@ -1448,7 +1510,7 @@ and `bash tests/test_docket_status.sh` exits 0.
 
 - [ ] **Step 5: Mutation-prove the guard against the live script (trap-guarded), then commit**
 
-Temporarily rewrite `scripts/docket-status.sh`'s `render-board.sh --format digest` invocation so the flag sits on a continuation line — the suite must STAY GREEN (no false positive). Then remove `--format digest` entirely — the suite must go NOT OK / FAIL. Revert both times (`git checkout -- scripts/docket-status.sh`) and confirm `git status --porcelain scripts/` is empty before committing — this change is test-only.
+Temporarily rewrite `scripts/docket-status.sh`'s `render-board.sh --format digest` invocation so the flag sits on a continuation line — the suite must STAY GREEN (no false positive). Then remove `--format digest` entirely — the suite must go NOT OK / FAIL, specifically on the "every render-board.sh invocation..." assertion. Also prove the anti-vacuity assertion earns its place: on a COPY of `scripts/docket-status.sh` (not the live tree — this assertion only needs `digest_tokens()` + the counting loop, not a full suite run), delete the digest invocation entirely and confirm `digest_scan_count` goes to 0 while `ungated_render` stays vacuously 0 — i.e., confirm the anti-vacuity assertion is the ONLY one of the two that catches it. Revert every live-tree mutation (`git checkout -- scripts/docket-status.sh`) and confirm `git status --porcelain scripts/` is empty before committing — this change is test-only.
 
 ```bash
 cd /Users/homer/dev/docket/.worktrees/redirect-regex-board-write-guard
@@ -1456,13 +1518,18 @@ git add tests/test_docket_status.sh
 git commit -m "test(0070): join continuations before tokenizing the digest flag check
 
 The flag sentinel read one physical line at a time, so an invocation
-split across a backslash-continuation was torn in half — the flag (false
-positive, loud) or a redirect (false negative, silent) fell off the token.
-Comments are stripped BEFORE continuations are joined (not after — a
-join-first order launders a live invocation trailing a backslash-
-terminated comment into the comment it sits beside). Joins logical lines
-first, through the same digest_tokens() the mutation fixtures use, so the
-fix cannot be true in the battery and broken in the scan."
+whose --format digest flag sat on a backslash-continuation was torn in
+half: the first-line token carried the call WITHOUT the flag it actually
+has — a loud false positive. Comments are stripped BEFORE continuations
+are joined (not after — a join-first order launders a live invocation
+trailing a backslash-terminated comment into the comment it sits beside).
+Joins logical lines first, through the same digest_tokens() the mutation
+fixtures use, so the fix cannot be true in the battery and broken in the
+scan. Also adds an anti-vacuity assertion (Task 1's convention): the real
+scan must actually see at least one invocation, so deleting the digest
+call from docket-status.sh entirely cannot pass silently. This sentinel
+has no redirect/write visibility before or after this fix — that remains
+Guard 1's job (tests/test_render_board.sh)."
 ```
 
 ---

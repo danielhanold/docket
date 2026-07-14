@@ -9,10 +9,8 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 assert "script exists and is executable" '[ -x "$SCRIPT" ]'
 assert "--help exits 0 and prints usage" '"$SCRIPT" --help 2>&1 | grep -qi "usage"'
 
-# Bootstrap gate: stub docket-config.sh --export via CONFIG_EXPORT_CMD (a hermetic fixture
-# script emitting the eval-able KEY=value block), and assert the gate's exit code + remedy text.
-# Created here (ahead of the sentinel block below) because that block's mutation battery needs a
-# scratch dir for its fixtures too.
+# Scratch dir shared by every fixture in this file: the continuation-joining battery below, the
+# bootstrap-gate fixtures via write_fixture() (further down), and everything after it.
 tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
 
 # Folds backslash-continuations into logical lines, so the tokenizer below sees INVOCATIONS rather
@@ -62,8 +60,10 @@ assert "docket-status routes the inline board render through board-refresh.sh" \
   'grep -qF "/board-refresh.sh" "$SCRIPT"'
 
 ungated_render=0
+digest_scan_count=0
 while IFS= read -r inv; do
   [ -n "$inv" ] || continue
+  digest_scan_count=$((digest_scan_count + 1))
   case "$inv" in
     *"--format digest"*) : ;;
     *) ungated_render=1; echo "  (ungated render-board.sh invocation: $inv)" ;;
@@ -71,13 +71,34 @@ while IFS= read -r inv; do
 done < <(digest_tokens "$SCRIPT")
 assert "every render-board.sh invocation in docket-status is the read-only --format digest" \
   '[ "$ungated_render" -eq 0 ]'
+# Anti-vacuity (Task 1's convention, tests/test_render_board.sh): a scan over zero invocations
+# passes for the wrong reason — deleting the renderer call from docket-status.sh entirely would
+# leave the assertion above green with nothing to check. Assert the scan actually saw one.
+assert "the digest-flag scan is not vacuous (it saw at least one render-board.sh invocation)" \
+  '[ "$digest_scan_count" -ge 1 ]'
 
 # --- change 0070: the flag check tokenizes LOGICAL lines, not physical ones -------------------
-# The tokenizer above used to read one PHYSICAL line at a time, so an invocation split across a
-# backslash-continuation was torn in half: the first-line token carried the call WITHOUT its
-# --format digest flag (false positive — loud), and any redirect parked on the continuation was
-# invisible (false negative — silent). Mutation-test both directions on fixtures, using the SAME
-# digest_tokens() the real scan above uses, so the fix cannot be true here and broken there.
+# What this sentinel guards, and ONLY this: whether each render-board.sh invocation in
+# docket-status.sh carries --format digest (the read-only projection). It has NO redirect/write
+# visibility — digest_tokens() never greps for a `>`, before this fix or after it, and no fixture
+# below constructs one. Whether a call WRITES a file is REDIRECT_RE's and the write sentinel's job
+# (Guard 1, tests/test_render_board.sh) — that guard's own comment states the two catch different
+# holes and neither subsumes the other; nothing here changes that boundary, and nothing here
+# licenses deleting either guard as redundant with this one.
+#
+# The tokenizer above used to read one PHYSICAL line at a time, so an invocation whose --format
+# digest flag sat on a backslash-continuation was torn in half: the first-line token carried the
+# call WITHOUT the flag it actually has — a loud FALSE POSITIVE (a legitimately gated call flagged
+# as ungated; the "flag check sees a --format digest flag parked on a continuation line" row below
+# proves the join fixes it). A call genuinely missing the flag was already caught either way — the
+# flag's absence from whichever physical line matches is what the check keys on, split or not — so
+# the "flag check still catches an ungated call split across a continuation line" row below is a
+# no-regression proof, not evidence of a prior miss. The third row locks a narrower, real hazard
+# specific to a JOIN-based tokenizer: digest_tokens() strips comments BEFORE joining continuations,
+# and getting that order backwards would fold a live invocation into a preceding
+# backslash-terminated comment, deleting both when the comment is dropped (verified empirically:
+# swapping the order launders that exact fixture to zero tokens). The "ordering" row below pins
+# that the shipped order does not do that.
 digest_mut="$tmp/mut-digest"; mkdir -p "$digest_mut"
 
 # A legitimate call whose flag sits on the continuation line: exactly ONE logical invocation, and
@@ -134,6 +155,8 @@ done < <(digest_tokens "$digest_lc")
 assert "flag check still catches a live invocation following a comment that ends in backslash (ordering)" \
   '[ "$digest_lc_ungated" -eq 1 ]'
 
+# Bootstrap gate: stub docket-config.sh --export via CONFIG_EXPORT_CMD (a hermetic fixture
+# script emitting the eval-able KEY=value block), and assert the gate's exit code + remedy text.
 write_fixture(){
   cat > "$tmp/fixture-export.sh" <<EOF
 #!/usr/bin/env bash
