@@ -2,7 +2,7 @@
 id: 73
 slug: cursor-sandbox-permissions-guide
 title: Cursor sandbox & permissions guide — copyable config, trust tiers, troubleshooting
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-07-13
 updated: 2026-07-14
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/cursor-sandbox-permissions-guide
 pr:
 blocked_by:
 reconciled: false
