@@ -7,6 +7,7 @@
 #
 # Usage: docket.sh <operation> [args...]
 #   preflight                 Step-0 side effects (sync the metadata worktree), then print env
+#   bootstrap                 guarded CREATE_ORPHAN orphan-`docket` create (fresh repo, once, human-attended)
 #   env                       print resolved KEY=value config (read-only)
 #   docket-status [args]      the docket-status orchestrator
 #   board-refresh [args]      gated BOARD.md writer
@@ -33,7 +34,7 @@ GIT="${GIT:-git}"
 WRAPPED_OPS="docket-status board-refresh archive-change terminal-publish cleanup-feature-branch github-mirror sync-integration-branch render-change-links render-adr-index adr-checks board-checks"
 
 usage(){ sed -n '/^# Usage:/,/^# Contract:/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
-reject(){ printf 'docket: unknown operation: %s\n' "${1:-<none>}" >&2; printf 'supported operations: preflight env %s\n' "$WRAPPED_OPS" >&2; exit 2; }
+reject(){ printf 'docket: unknown operation: %s\n' "${1:-<none>}" >&2; printf 'supported operations: preflight env bootstrap %s\n' "$WRAPPED_OPS" >&2; exit 2; }
 
 op="${1:-}"; [ $# -gt 0 ] && shift
 case "$op" in
@@ -44,6 +45,8 @@ case "$op" in
   preflight)
     docket_preflight "$SELF_DIR" || exit 1
     exec "$SCRIPTS_DIR"/docket-config.sh --export --format plain ;;
+  bootstrap)
+    exec "$SCRIPTS_DIR"/docket-config.sh --bootstrap "$@" ;;
   *)
     for _o in $WRAPPED_OPS; do
       if [ "$op" = "$_o" ]; then exec "$SCRIPTS_DIR"/"$op".sh "$@"; fi

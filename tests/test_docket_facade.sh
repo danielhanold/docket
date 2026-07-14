@@ -70,6 +70,43 @@ assert "preflight exits zero on a migrated repo" '[ "$pf_rc" -eq 0 ]'
 assert "preflight created the metadata worktree" '[ -d "$work/.docket" ]'
 assert "preflight prints the env block (BOOTSTRAP present)" 'printf "%s\n" "$pf_out" | grep -qxF "BOOTSTRAP=PROCEED"'
 
+# --- (F) bootstrap verb: routes to docket-config.sh --bootstrap; the cell guard holds ---------
+# CREATE_ORPHAN cell (fresh: no docket branch, no live planning surface on main) → creates the orphan.
+fbare="$tmp/f.git"; fwork="$tmp/f"
+git init --quiet --bare "$fbare"; git clone --quiet "$fbare" "$fwork" 2>/dev/null
+git -C "$fwork" config user.email t@t.test; git -C "$fwork" config user.name Test
+git -C "$fwork" checkout --quiet -b main; : > "$fwork/README.md"
+git -C "$fwork" add README.md; git -C "$fwork" commit --quiet -m init; git -C "$fwork" push --quiet -u origin main
+boot_out="$(cd "$fwork" && XDG_CONFIG_HOME="$tmp/void" bash "$FACADE" bootstrap 2>/dev/null)"; boot_rc=$?
+assert "bootstrap exits zero in the CREATE_ORPHAN cell" '[ "$boot_rc" -eq 0 ]'
+assert "bootstrap emits BOOTSTRAP=PROCEED after the orphan create" 'printf "%s\n" "$boot_out" | grep -qxF "BOOTSTRAP=PROCEED"'
+assert "bootstrap created + pushed the orphan docket branch" \
+  'git -C "$fbare" rev-parse --verify --quiet refs/heads/docket >/dev/null'
+assert "bootstrap seeded the managed .gitignore block" \
+  'grep -qF "# docket:start" "$fwork/.gitignore"'
+# a subsequent preflight now verdicts PROCEED (the repo is migrated)
+pf_boot="$(cd "$fwork" && XDG_CONFIG_HOME="$tmp/void" bash "$FACADE" preflight 2>/dev/null)"; pf_boot_rc=$?
+assert "preflight after bootstrap exits zero" '[ "$pf_boot_rc" -eq 0 ]'
+assert "preflight after bootstrap verdicts PROCEED" 'printf "%s\n" "$pf_boot" | grep -qxF "BOOTSTRAP=PROCEED"'
+
+# STOP_MIGRATE cell (live planning surface on main, no docket branch) → cell guard: NO write, exits 0.
+sbare="$tmp/s.git"; swork="$tmp/s"
+git init --quiet --bare "$sbare"; git clone --quiet "$sbare" "$swork" 2>/dev/null
+git -C "$swork" config user.email t@t.test; git -C "$swork" config user.name Test
+git -C "$swork" checkout --quiet -b main; : > "$swork/README.md"
+mkdir -p "$swork/docs/changes/active"; echo x > "$swork/docs/changes/active/0001-x.md"
+git -C "$swork" add README.md docs/changes/active/0001-x.md
+git -C "$swork" commit --quiet -m init; git -C "$swork" push --quiet -u origin main
+smig_out="$(cd "$swork" && XDG_CONFIG_HOME="$tmp/void" bash "$FACADE" bootstrap 2>/dev/null)"; smig_rc=$?
+# NOTE (spec §5 correction, verified 2026-07-14): the resolver reports the verdict and exits 0;
+# fail-closed is preflight's job. The cell guard is about the WRITE, not the exit code.
+assert "bootstrap in STOP_MIGRATE cell exits zero (resolver reports the verdict)" '[ "$smig_rc" -eq 0 ]'
+assert "bootstrap in STOP_MIGRATE cell emits BOOTSTRAP=STOP_MIGRATE" \
+  'printf "%s\n" "$smig_out" | grep -qxF "BOOTSTRAP=STOP_MIGRATE"'
+assert "bootstrap in STOP_MIGRATE cell writes NO docket branch" \
+  '! git -C "$sbare" rev-parse --verify --quiet refs/heads/docket >/dev/null'
+assert "bootstrap in STOP_MIGRATE cell writes NO .gitignore" '[ ! -f "$swork/.gitignore" ]'
+
 # ============================================================================
 # Inventory sentinel (change 0068) — derive both sides by grep; never hand-list.
 # ============================================================================
@@ -77,7 +114,7 @@ FSH="$REPO/scripts/docket.sh"; FMD="$REPO/scripts/docket.md"
 
 # ops declared in docket.sh: the two verbs + the WRAPPED_OPS array value, tokenized.
 sh_wrapped="$(sed -n 's/^WRAPPED_OPS="\(.*\)"/\1/p' "$FSH")"
-sh_ops="$(printf 'preflight\nenv\n%s\n' "$sh_wrapped" | tr ' ' '\n' | sed '/^$/d' | sort -u)"
+sh_ops="$(printf 'preflight\nenv\nbootstrap\n%s\n' "$sh_wrapped" | tr ' ' '\n' | sed '/^$/d' | sort -u)"
 
 # ops documented in docket.md: the leading `| \`op\` |` cell of each inventory-table row.
 md_ops="$(grep -oE '^\| `[a-z-]+` ' "$FMD" | tr -d '`|' | tr -d ' ' | sort -u)"
@@ -116,7 +153,7 @@ assert "docket.sh never calls the eval builtin" \
 # meta-arms). Any hand-added arm reddens this. Derived by grep from the actual case block.
 case_labels="$(sed -n '/^case "\$op" in/,/^esac/p' "$FSH" \
   | grep -oE '^  [^)]+\)' | sed -E 's/\)$//; s/^  //; s/[[:space:]]+$//' | sort -u)"
-expected_labels="$(printf '%s\n' '-h|--help' '""' 'env' 'preflight' '*' | sort -u)"
+expected_labels="$(printf '%s\n' '-h|--help' '""' 'env' 'preflight' 'bootstrap' '*' | sort -u)"
 assert "docket.sh dispatch case has ONLY the known arms (a hand-added op arm reddens)" \
   '[ "$case_labels" = "$expected_labels" ] || { echo "case=[$case_labels] expected=[$expected_labels]" >&2; false; }'
 
