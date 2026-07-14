@@ -26,7 +26,7 @@ Before anything else in this skill, invoke the `docket-convention` skill via the
 
 ## Step 0 — config
 
-Run the convention's *Step-0 preamble*: `eval "$("${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket-config.sh --export)"`. `docket-status.sh` re-derives and re-checks this itself (bootstrap gate, metadata-worktree sync), but the eval here gives you `$DOCKET_SCRIPTS_DIR` and the other exported vars for the rest of this skill.
+Run the convention's *Step-0 preamble*: run `docket.sh preflight` as its own Bash call and read the printed `KEY=value` block off stdout. `docket.sh docket-status` re-derives and re-checks the bootstrap gate + metadata-worktree sync itself, but the Step-0 `preflight` block gives you `$DOCKET_SCRIPTS_DIR` and the other exported values for the rest of this skill.
 
 ## Mode choice
 
@@ -36,7 +36,7 @@ Run the convention's *Step-0 preamble*: `eval "$("${DOCKET_SCRIPTS_DIR:?run dock
 ## Run the orchestrator
 
 ```
-"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket-status.sh [--board-only]
+"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh docket-status [--board-only]
 ```
 
 Trust its exit code: `0` is the pass completing (`board off`, `pass ok`, findings, `sweep-failed`, `sweep-skipped`, `board *-failed`, and `judgment` lines on stdout are all normal outcomes, not errors); non-zero is a hard error (config export failure, an unusable `BOOTSTRAP` verdict, an unusable metadata worktree, or a bad CLI argument) — surface the stderr diagnostic and stop rather than improvising a fix.
@@ -58,11 +58,11 @@ Two rules follow, and they are not optional:
 
 ## Judgment follow-ups (stay in-model — the script does not do these)
 
-Drive these off the report lines `docket-status.sh` emits; skip a category entirely if no matching line appeared.
+Drive these off the report lines `docket.sh docket-status` emits; skip a category entirely if no matching line appeared.
 
 - **`harvest <id> <path>` lines** — for each, run the harvest-learnings procedure (the *Harvest learnings* step in `docket-finalize-change`'s SKILL.md is its single source — invoke it by reference, do not reimplement it here). Best-effort: log and continue on failure, never abort the rest of the pass for it.
 - **`judgment blocked <id> <text>` lines** — re-examine that change's `blocked_by:` free text; flag to the user if the referenced issue/PR/event appears resolved. This is judgment, not a git probe — never scripted.
-- **`minted issue <id> <n>` / `minted project <owner> <n>` lines** — write the value back into the change file (`issue:`) or `.docket.yml` (`github_project: {owner, number}`) on `metadata_branch`, following normal push discipline (pull --rebase, commit, push).
+- **`minted issue <id> <n>` / `minted project <owner> <n>` lines** — write the value back into the change file (`issue:`) or `.docket.yml` (`github_project: {owner, number}`) on `metadata_branch`, following normal push discipline (re-run `docket.sh preflight`, commit, push).
 - **`github` mirror reachability** — only when `board_surfaces` includes `github`: warn on a change carrying an `issue:` whose mirror looks unreachable. Best-effort visibility flag, like the other checks — never auto-fix.
 
 ## Final summary
@@ -87,14 +87,14 @@ The bulk safety net: every `implemented` change whose PR has merged gets archive
 
 The rebase-onto-base + re-run-tests gate lives in `docket-finalize-change`'s merge step and is **finalize-only** — the sweep only archives PRs that are already merged, it never merges, so the gate has nothing to act on here.
 
-**Sweep posture:** per-change failures **log the error, abandon the remainder of this change's close-out, and continue to the next change**; the next sweep self-heals idempotently **only for a failure before the archive step** (`sync pull-failed` or `archive script-error`) or a `cleanup` failure — those retry cleanly next pass. A `sweep-failed` at `render-change-links` or `terminal-publish` leaves the change **archived but its terminal record unpublished**, and no later sweep resumes it (detection only scans `active/*.md`); it needs a manual `terminal-publish.sh --id <id> --enabled true` follow-up. The knob narrows only the `terminal-publish` leg — under `terminal_publish: false` that step is a no-op that cannot fail — but `render-change-links` can still fail in such a repo, leaving a stale `## Artifacts` block on `metadata_branch`; the follow-up there is a manual re-render, not a publish. This is **deliberately divergent from `docket-finalize-change`'s** abort-and-report posture — the sequence is shared, the failure posture is not. A failed `/render-change-links.sh` follow-on skips publish (a stale `## Artifacts` block is never published).
+**Sweep posture:** per-change failures **log the error, abandon the remainder of this change's close-out, and continue to the next change**; the next sweep self-heals idempotently **only for a failure before the archive step** (`sync pull-failed` or `archive script-error`) or a `cleanup` failure — those retry cleanly next pass. A `sweep-failed` at `render-change-links` or `terminal-publish` leaves the change **archived but its terminal record unpublished**, and no later sweep resumes it (detection only scans `active/*.md`); it needs a manual `docket.sh terminal-publish --id <id> --enabled true` follow-up. The knob narrows only the `terminal-publish` leg — under `terminal_publish: false` that step is a no-op that cannot fail — but `render-change-links` can still fail in such a repo, leaving a stale `## Artifacts` block on `metadata_branch`; the follow-up there is a manual re-render, not a publish. This is **deliberately divergent from `docket-finalize-change`'s** abort-and-report posture — the sequence is shared, the failure posture is not. A failed `docket.sh render-change-links` follow-on skips publish (a stale `## Artifacts` block is never published).
 
 ### Health checks
 
-Flag the following (do not auto-fix unless asked). Five mechanical, git-only, warn-only checks run via `/board-checks.sh` against the shared dependency-resolution pass:
+Flag the following (do not auto-fix unless asked). Five mechanical, git-only, warn-only checks run via `docket.sh board-checks` against the shared dependency-resolution pass:
 
 ```
-"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/board-checks.sh --changes-dir <metadata working tree>/<changes_dir> \
+"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh board-checks --changes-dir <metadata working tree>/<changes_dir> \
   --metadata-branch <metadata_branch> --integration-branch origin/<integration_branch>
 ```
 

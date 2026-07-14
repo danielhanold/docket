@@ -47,8 +47,8 @@ CALLERS=(
 
 for f in "${CALLERS[@]}"; do
   name="$(basename "$(dirname "$f")")"
-  assert "$name names board-refresh.sh at a Board site" \
-    "grep -q \"board-refresh.sh\" \"$f\""
+  assert "$name names the board-refresh op (via the docket.sh facade) at a Board site" \
+    "grep -q \"docket.sh board-refresh\" \"$f\""
   assert "$name states the diff-only commit rule ($DIFF_ONLY_PHRASE)" \
     "grep -qF \"$DIFF_ONLY_PHRASE\" \"$f\""
   assert "$name mentions the git status --porcelain diff check" \

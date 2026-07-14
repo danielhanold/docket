@@ -471,14 +471,14 @@ assert "cleanup: refused branch feat/evil still present (guard fired before dele
 
 # --- finalize wiring sentinels: docket-finalize-change invokes the scripts (single source) ---
 FINALIZE="$REPO/skills/docket-finalize-change/SKILL.md"
-assert "wiring(finalize): invokes archive-change.sh" 'grep -q "/archive-change.sh" "$FINALIZE"'
-assert "wiring(finalize): invokes terminal-publish.sh" 'grep -q "/terminal-publish.sh" "$FINALIZE"'
-assert "wiring(finalize): invokes cleanup-feature-branch.sh" 'grep -q "/cleanup-feature-branch.sh" "$FINALIZE"'
+assert "wiring(finalize): invokes archive-change (via the docket.sh facade)" 'grep -q "docket.sh archive-change" "$FINALIZE"'
+assert "wiring(finalize): invokes terminal-publish (via the docket.sh facade)" 'grep -q "docket.sh terminal-publish" "$FINALIZE"'
+assert "wiring(finalize): invokes cleanup-feature-branch (via the docket.sh facade)" 'grep -q "docket.sh cleanup-feature-branch" "$FINALIZE"'
 assert "wiring(finalize): Terminal publish section heading preserved (cross-ref anchor)" 'grep -qF "## Terminal publish (docket-mode)" "$FINALIZE"'
 assert "wiring(finalize): Accepted gate still documented" 'grep -qiE "whose ADR is .?Accepted|Accepted. gate|status: is .?Accepted|status.? is \*\*Accepted" "$FINALIZE"'
 assert "wiring(finalize): ADR-only publish path preserved" 'grep -qiE "adr-<NN>|ADR-only" "$FINALIZE"'
 assert "wiring(finalize): no leftover raw archive bash (git mv active/)" '! grep -qE "git mv .*active/" "$FINALIZE"'
-assert "wiring(finalize): ADR-only publish names terminal-publish.sh --adr" 'grep -qE "terminal-publish\.sh --adr" "$FINALIZE"'
+assert "wiring(finalize): ADR-only publish names docket.sh terminal-publish --adr" 'grep -qE "docket\.sh terminal-publish --adr" "$FINALIZE"'
 assert "wiring(finalize): no leftover by-hand pub-adr git block" '! grep -qE "git worktree add -B .?pub-adr" "$FINALIZE"'
 
 # --- call-site wiring sentinels: status sweep + two kill paths invoke the scripts ---
@@ -487,9 +487,9 @@ TCO="$REPO/skills/docket-convention/references/terminal-close-out.md"
 assert "wiring(status): sweep points at the terminal-close-out reference" 'grep -qF "terminal-close-out.md" "$STATUS"'
 NEWCHG="$REPO/skills/docket-new-change/SKILL.md"
 IMPL="$REPO/skills/docket-implement-next/SKILL.md"
-assert "wiring(close-out ref): sweep invokes archive-change.sh"   'grep -q "/archive-change.sh" "$TCO"'
-assert "wiring(close-out ref): sweep invokes terminal-publish.sh" 'grep -q "/terminal-publish.sh" "$TCO"'
-assert "wiring(close-out ref): sweep invokes cleanup-feature-branch.sh" 'grep -q "/cleanup-feature-branch.sh" "$TCO"'
+assert "wiring(close-out ref): sweep invokes archive-change (via the docket.sh facade)"   'grep -q "docket.sh archive-change" "$TCO"'
+assert "wiring(close-out ref): sweep invokes terminal-publish (via the docket.sh facade)" 'grep -q "docket.sh terminal-publish" "$TCO"'
+assert "wiring(close-out ref): sweep invokes cleanup-feature-branch (via the docket.sh facade)" 'grep -q "docket.sh cleanup-feature-branch" "$TCO"'
 # --- change 0036: the sweep delegates archiving to archive-change.sh (no manual double-archive) ---
 # The sweep's per-change archive must NOT hand-roll the move any more (mirrors the finalize sentinel).
 assert "wiring(status): sweep has no leftover raw archive bash (git mv active/)" \
@@ -497,19 +497,19 @@ assert "wiring(status): sweep has no leftover raw archive bash (git mv active/)"
 # The renderer re-render must be ordered AFTER archive-change.sh and BEFORE terminal-publish
 # (LEARNINGS #0035 — anchor to the unique "before … terminal-publish" phrasing, assert order not presence).
 assert "wiring(close-out ref): sweep re-renders the Artifacts block before terminal-publish" \
-  'awk "/render-change-links\\.sh/{r=NR} /terminal-publish\\.sh/{if(r && r<NR){print \"ok\"; exit}}" "$TCO" | grep -q ok'
-assert "wiring(status): sweep names render-change-links.sh in the delegated archive flow" \
-  'grep -q "render-change-links.sh" "$STATUS"'
+  'awk "/docket\\.sh render-change-links/{r=NR} /docket\\.sh terminal-publish/{if(r && r<NR){print \"ok\"; exit}}" "$TCO" | grep -q ok'
+assert "wiring(status): sweep names render-change-links (via the docket.sh facade) in the delegated archive flow" \
+  'grep -q "docket.sh render-change-links" "$STATUS"'
 # The sweep's failure posture is log-and-continue (its own unique phrasing), NOT abort-and-report.
 assert "wiring(status): sweep failure posture is log-and-continue (abandon the remainder of this change)" \
   'grep -qiE "abandon the remainder of (this|THIS) change" "$STATUS"'
 assert "wiring(status): sweep documents abort-and-report as a deliberate divergence, not its own posture" \
   'grep -qiE "deliberately divergent from .?docket-finalize-change" "$STATUS"'
-assert "wiring(close-out ref): proposed-kill invokes archive-change.sh"   'grep -q "/archive-change.sh" "$TCO"'
-assert "wiring(close-out ref): proposed-kill invokes terminal-publish.sh" 'grep -q "/terminal-publish.sh" "$TCO"'
-assert "wiring(close-out ref): reconcile-kill invokes archive-change.sh"     'grep -q "/archive-change.sh" "$TCO"'
-assert "wiring(close-out ref): reconcile-kill invokes cleanup-feature-branch.sh" 'grep -q "/cleanup-feature-branch.sh" "$TCO"'
-assert "wiring(close-out ref): reconcile-kill invokes terminal-publish.sh" 'grep -q "/terminal-publish.sh" "$TCO"'
+assert "wiring(close-out ref): proposed-kill invokes archive-change (via the docket.sh facade)"   'grep -q "docket.sh archive-change" "$TCO"'
+assert "wiring(close-out ref): proposed-kill invokes terminal-publish (via the docket.sh facade)" 'grep -q "docket.sh terminal-publish" "$TCO"'
+assert "wiring(close-out ref): reconcile-kill invokes archive-change (via the docket.sh facade)"     'grep -q "docket.sh archive-change" "$TCO"'
+assert "wiring(close-out ref): reconcile-kill invokes cleanup-feature-branch (via the docket.sh facade)" 'grep -q "docket.sh cleanup-feature-branch" "$TCO"'
+assert "wiring(close-out ref): reconcile-kill invokes terminal-publish (via the docket.sh facade)" 'grep -q "docket.sh terminal-publish" "$TCO"'
 
 # --- change 0064: every documented terminal-publish call site passes --enabled ---
 ADRSKILL="$REPO/skills/docket-adr/SKILL.md"

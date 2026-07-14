@@ -22,7 +22,7 @@ before the first read; every commit pushes immediately.
    `--results <path>` when a `results:` file arrived via the merge, `--reason "<why>"` on a kill:
 
    ```
-   "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/archive-change.sh --changes-dir .docket/<changes_dir> \
+   "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh archive-change --changes-dir .docket/<changes_dir> \
      --id <id> --outcome <done|killed> --date <UTC-date> [--results <path>] [--reason "<why>"] --message "<msg>"
    ```
 
@@ -36,7 +36,7 @@ before the first read; every commit pushes immediately.
    terminal state; the renderer is the block's sole writer):
 
    ```
-   "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/render-change-links.sh \
+   "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh render-change-links \
      --change-file .docket/<changes_dir>/archive/<UTC-date>-<id>-<slug>.md --adrs-dir .docket/<adrs_dir>
    ```
 
@@ -49,10 +49,10 @@ before the first read; every commit pushes immediately.
 
 3. **Publish the terminal record.** Reached only after the step-2 commit is on `origin/docket`.
    **Gated by `TERMINAL_PUBLISH`** (change 0064) — pass `<terminal_publish>`, the resolved config's
-   `TERMINAL_PUBLISH` value from Step 0's `docket-config.sh --export`, straight through:
+   `TERMINAL_PUBLISH` value from Step 0's `preflight`/`env` block, straight through:
 
    ```
-   "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/terminal-publish.sh --id <id> --outcome <done|killed> \
+   "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh terminal-publish --id <id> --outcome <done|killed> \
      --integration-branch <integration_branch> --metadata-branch docket \
      --changes-dir <changes_dir> --adrs-dir <adrs_dir> --message "<msg>" \
      --enabled <terminal_publish>
@@ -71,7 +71,7 @@ before the first read; every commit pushes immediately.
 4. **Clean up the feature branch + worktree.**
 
    ```
-   "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/cleanup-feature-branch.sh --slug <slug>
+   "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh cleanup-feature-branch --slug <slug>
    ```
 
    Trust the exit code. The provenance guard lives in the script: only worktrees resolving under
@@ -79,7 +79,7 @@ before the first read; every commit pushes immediately.
    path.
 
 5. **Board refresh.** Regenerate each enabled board surface (the Board pass): for `inline`, invoke
-   `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/board-refresh.sh --changes-dir .docket/<changes_dir> --surfaces "$BOARD_SURFACES"`,
+   `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh board-refresh --changes-dir .docket/<changes_dir> --surfaces "$BOARD_SURFACES"`,
    then stage `BOARD.md` and commit + push it on `metadata_branch` — only if BOARD.md changed
    (`git status --porcelain -- <changes_dir>/BOARD.md` is non-empty) — always a **separate commit**
    from the archive commits above; when `inline` is disabled or the render is unchanged, this step
@@ -119,6 +119,7 @@ board self-heals on the next pass); other callers keep their own posture (e.g.
 ## Determinism invariant
 
 Two agents both driving the same terminal transition produce a byte-identical step-1 commit
-(change-file-only, UTC terminal date, no `now()`); the loser's `pull --rebase` resolves cleanly.
+(change-file-only, UTC terminal date, no `now()`); the loser re-runs `docket.sh preflight` and the
+rebase resolves cleanly.
 Everything else (re-render, board) is regenerated deterministically from the change files — on a
 rebase conflict in generated content, **regenerate, never 3-way merge**.

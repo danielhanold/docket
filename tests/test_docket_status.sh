@@ -1186,7 +1186,7 @@ assert "main-mode full run: no .docket metadata worktree created" '[ ! -d "$mm2_
 # skill-body wiring: the docket-status SKILL invokes the orchestrator script and no longer
 # inlines the full per-change sweep loop prose it now delegates to docket-status.sh.
 SKILL="$REPO/skills/docket-status/SKILL.md"
-assert "SKILL invokes docket-status.sh" 'grep -qF "/docket-status.sh" "$SKILL"'
+assert "SKILL invokes the orchestrator (docket.sh docket-status)" 'grep -qF "docket.sh docket-status" "$SKILL"'
 assert "SKILL no longer inlines the sweep loop enumeration" \
   '! grep -qF "For each \`implemented\` change:" "$SKILL"'
 
