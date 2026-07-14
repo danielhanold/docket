@@ -45,6 +45,22 @@ CONV="$REPO/skills/docket-convention/SKILL.md"
 # two convention reference docs. The two globs do not overlap.
 SCOPE=( "$REPO"/skills/*/SKILL.md "$REPO"/skills/docket-convention/references/*.md )
 
+# Layer 3's OWN corpus (change 0071 review, finding 2) — deliberately WIDER than SCOPE above, and
+# NEVER used to narrow, weaken, or replace Layer 1/2's SCOPE (ADR-0031: only narrow or add
+# alongside an existing guard, never widen/weaken/collapse it in place — so this is a SEPARATE
+# array, not an edit to SCOPE). SCOPE alone left a hole exactly where it matters: it never scanned
+# `skills/docket-convention/github-board-mirror.md` — a file the convention itself calls
+# "skill-reference", that `docket-status/SKILL.md` sends the agent to READ, and that already
+# describes the Board pass and `board_surfaces` — making it the single reference doc most likely
+# to acquire a 9th surfaces-spelling call site while this sentinel stayed green. It also missed the
+# `*-template.md` files (change-template.md, adr-template.md, results-template.md). `skills/*/*.md`
+# catches every markdown file one level under skills/ (every SKILL.md, both templates, and
+# github-board-mirror.md); `skills/*/references/*.md` adds the convention's reference docs
+# (terminal-close-out.md, agent-layer.md) that live one level deeper. Verified: no retired spelling
+# exists in this widened corpus today (green immediately), and it does not change
+# board_pass_files's count (none of the newly-added files carry the facade call).
+SCOPE3=( "$REPO"/skills/*/*.md "$REPO"/skills/*/references/*.md )
+
 # Op inventory: grep-derived from scripts/docket.md's Subcommand table (NEVER hand-listed;
 # same derivation the facade's own sentinel uses).
 INVENTORY="$(grep -oE '^\| `[a-z-]+` ' "$REPO/scripts/docket.md" | tr -d '|` ' | sort -u)"
@@ -152,7 +168,7 @@ B_SURF_FLAG='--surfaces'             # the retired flag
 B_REFRESH_CALL='docket.sh board-refresh'   # the retired direct invocation
 
 board_pass_files=0
-for f in "${SCOPE[@]}"; do
+for f in "${SCOPE3[@]}"; do
   rel="${f#$REPO/}"
   units="$(extract_code_units "$f")"
 
@@ -176,9 +192,11 @@ done
 # docket-implement-next, docket-new-change) + the convention SKILL.md + terminal-close-out.md;
 # docket-status/SKILL.md and docket-adr/SKILL.md have no Board site of their own. This is a
 # per-FILE count (grep -l), not a per-occurrence count — the facade string legitimately repeats
-# inside docket-new-change's SKILL.md.
+# inside docket-new-change's SKILL.md. Widening the scan corpus to SCOPE3 (finding 2, above) adds
+# github-board-mirror.md and the three `*-template.md` files to the scan, but none of them carry
+# the facade call, so the count is unaffected.
 assert "the in-scope corpus is non-empty (the sentinel actually scanned files)" \
-  '[ "${#SCOPE[@]}" -ge 8 ]'
+  '[ "${#SCOPE3[@]}" -ge 8 ]'
 assert "the canonical Board-pass call is present in every rewired file (found $board_pass_files)" \
   '[ "$board_pass_files" -eq 7 ]'
 
