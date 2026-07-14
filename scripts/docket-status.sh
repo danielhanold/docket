@@ -21,6 +21,8 @@ GH="${GH:-gh}"
 SCRIPTS_DIR="${SCRIPTS_DIR:-$SELF_DIR}"
 # shellcheck source=lib/docket-frontmatter.sh
 . "$SELF_DIR"/lib/docket-frontmatter.sh
+# shellcheck source=lib/docket-preflight.sh
+. "$SELF_DIR"/lib/docket-preflight.sh
 
 BOARD_ONLY=0 REPO_FLAG="" PROJECT_FLAG="" AUTO_CREATE_PROJECT=0 PROJECT_OWNER=""
 usage(){ sed -n '2,12p' "${BASH_SOURCE[0]}"; }
@@ -35,29 +37,6 @@ while [ $# -gt 0 ]; do
     *) echo "docket-status: unknown argument: $1" >&2; exit 2 ;;
   esac; shift
 done
-
-# Config export mock seam: CONFIG_EXPORT_CMD lets tests inject a stub export.
-config_export(){ ${CONFIG_EXPORT_CMD:-"$SELF_DIR"/docket-config.sh --export}; }
-
-ensure_and_sync_worktree(){
-  if [ "${DOCKET_MODE:-}" = docket ]; then
-    local wt="${METADATA_WORKTREE:-.docket}"
-    if [ ! -d "$wt" ]; then
-      "$GIT" worktree add "$wt" "$METADATA_BRANCH" >&2 2>/dev/null \
-        || "$GIT" worktree add "$wt" "origin/$METADATA_BRANCH" >&2 \
-        || { echo "docket-status: cannot create metadata worktree $wt" >&2; exit 1; }
-    fi
-    # Change 0063: skip the repo's shared git hooks on the metadata worktree (idempotent; self-heals
-    # existing installs). Best-effort — a failure here must not block the status pass.
-    "$SELF_DIR"/disable-worktree-hooks.sh --worktree "$wt" >&2 \
-      || echo "docket-status: warning — could not disable hooks on $wt (continuing)" >&2
-    "$GIT" -C "$wt" fetch origin "$METADATA_BRANCH" >&2 \
-      && "$GIT" -C "$wt" pull --rebase origin "$METADATA_BRANCH" >&2 \
-      || { echo "docket-status: metadata worktree sync failed" >&2; exit 1; }
-  else
-    "$GIT" pull --rebase >&2 || { echo "docket-status: metadata sync failed" >&2; exit 1; }
-  fi
-}
 
 board_pass(){
   local surfaces="${BOARD_SURFACES:-}"
@@ -401,15 +380,7 @@ integration_sync(){
 }
 
 main(){
-  local cfg; cfg="$(config_export)" || { echo "docket-status: config export failed" >&2; exit 1; }
-  eval "$cfg"
-  case "${BOOTSTRAP:-}" in
-    PROCEED) : ;;
-    STOP_MIGRATE) echo "docket-status: repo not migrated — run migrate-to-docket.sh" >&2; exit 1 ;;
-    CREATE_ORPHAN) echo "docket-status: fresh repo — bootstrap is opt-in; run a docket skill to create the docket branch" >&2; exit 1 ;;
-    *) echo "docket-status: unknown bootstrap verdict '${BOOTSTRAP:-}'" >&2; exit 1 ;;
-  esac
-  ensure_and_sync_worktree
+  docket_preflight "$SCRIPTS_DIR" || exit 1
   board_pass
   if [ "$BOARD_ONLY" = 1 ]; then
     # Change 0069: --board-only is the "just show me the backlog" path, and it runs no sweep — so

@@ -1469,4 +1469,12 @@ assert "render-board contract documents --format" 'grep -qF -- "--format" "$BOAR
 assert "render-board contract documents the digest projection" \
   'grep -qF "digest" "$BOARD_CONTRACT"'
 
+# --- (0068) docket-status shares the preflight impl; no private sync copy -----
+assert "docket-status sources the shared preflight lib" \
+  'grep -q "lib/docket-preflight.sh" "$SCRIPT"'
+assert "docket-status calls docket_preflight" \
+  'grep -q "docket_preflight" "$SCRIPT"'
+assert "docket-status no longer defines a private ensure_and_sync_worktree" \
+  '! grep -qE "^ensure_and_sync_worktree\(\)" "$SCRIPT"'
+
 exit $fail

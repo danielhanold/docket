@@ -7,8 +7,15 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 fail=0
 assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
 
-assert "docket-status ensure calls the helper" \
-  "grep -q 'disable-worktree-hooks.sh' \"$REPO/scripts/docket-status.sh\""
+# Change 0068: the docket-status ensure path was extracted into the shared preflight lib
+# (scripts/lib/docket-preflight.sh); the hook-disable now lives THERE, and both docket-status.sh and
+# the docket.sh facade reach it by sourcing that lib — so the audit follows the call into the lib.
+assert "shared preflight lib calls the helper" \
+  "grep -q 'disable-worktree-hooks.sh' \"$REPO/scripts/lib/docket-preflight.sh\""
+assert "docket-status ensure reaches the helper via the shared preflight lib" \
+  "grep -q 'lib/docket-preflight.sh' \"$REPO/scripts/docket-status.sh\""
+assert "docket.sh facade reaches the helper via the shared preflight lib" \
+  "grep -q 'lib/docket-preflight.sh' \"$REPO/scripts/docket.sh\""
 assert "migrate calls the helper" \
   "grep -q 'disable-worktree-hooks.sh' \"$REPO/migrate-to-docket.sh\""
 assert "terminal-publish calls the helper" \
