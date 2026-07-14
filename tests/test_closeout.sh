@@ -533,4 +533,85 @@ assert "0064 wiring: no terminal-publish.sh call site (skills/ prose or scripts/
 assert "0064 wiring: close-out states a suppressed publish does not skip steps 4-5" \
   'grep -qi "does NOT trip the\|not trip the skip-publish" "$TCO"'
 
+# --- change 0075 / defect D1: cleanup must be CWD-independent and fail-closed -------------------
+# The whole class was untested: every pre-0075 cleanup test invoked from the main root, the ONE
+# CWD where the relative target happened to resolve. From any linked worktree, `target` never
+# existed => the worktree removal was skipped, `git branch -D` failed into `|| true`, and execution
+# still REACHED `git push --delete`, which SUCCEEDED — partial, irreversible data loss reported as
+# a failure. These three cases pin all three CWD classes.
+# DEVIATION from the brief: it says "test_closeout.sh already defines REPO, tmp, assert, and
+# fail; reuse them" — but this file never defines a shared `tmp` (unlike test_docket_status.sh,
+# which does). Defining it here minimally, scoped to this section, with its own cleanup trap.
+tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
+CLEANUP="$REPO/scripts/cleanup-feature-branch.sh"
+
+# d1_fixture <dir> : a clone with a bare origin, a .docket/ metadata worktree, and a feature
+# worktree at .worktrees/wid with branch feat/wid pushed to origin.
+d1_fixture(){
+  local d="$1" bare="$1/origin.git" work="$1/work"
+  mkdir -p "$d"
+  git init --quiet --bare "$bare"
+  git clone --quiet "$bare" "$work" 2>/dev/null
+  git -C "$work" config user.email t@t.test
+  git -C "$work" config user.name  Test
+  git -C "$work" checkout --quiet -b main
+  : > "$work/README.md"
+  git -C "$work" add README.md
+  git -C "$work" commit --quiet -m init
+  git -C "$work" push --quiet -u origin main
+  git -C "$work" branch --quiet docket
+  git -C "$work" worktree add --quiet "$work/.docket" docket >/dev/null 2>&1
+  git -C "$work" branch --quiet feat/wid
+  git -C "$work" push --quiet origin feat/wid
+  git -C "$work" worktree add --quiet "$work/.worktrees/wid" feat/wid >/dev/null 2>&1
+}
+
+# (1) MAIN ROOT — the unchanged happy path.
+c1="$tmp/d1-main"; d1_fixture "$c1"
+( cd "$c1/work" && bash "$CLEANUP" --slug wid ) >/dev/null 2>&1; rc=$?
+assert "D1(main root): cleanup exits zero" '[ $rc -eq 0 ]'
+assert "D1(main root): the worktree is removed" '[ ! -e "$c1/work/.worktrees/wid" ]'
+assert "D1(main root): the local branch is deleted" \
+  '! git -C "$c1/work" rev-parse --verify -q feat/wid >/dev/null'
+assert "D1(main root): the remote branch is deleted" \
+  '! git -C "$c1/work" ls-remote --exit-code origin feat/wid >/dev/null 2>&1'
+
+# (2) FROM .docket/ — pre-0075 this deleted the REMOTE branch and exited 1, leaving the worktree
+#     and the local branch behind. It must now be the same happy path as (1).
+c2="$tmp/d1-docket"; d1_fixture "$c2"
+( cd "$c2/work/.docket" && bash "$CLEANUP" --slug wid ) >/dev/null 2>&1; rc=$?
+assert "D1(.docket/): cleanup exits zero (was 1 — the defect)" '[ $rc -eq 0 ]'
+assert "D1(.docket/): the worktree is removed (was: survived)" '[ ! -e "$c2/work/.worktrees/wid" ]'
+assert "D1(.docket/): the local branch is deleted (was: survived)" \
+  '! git -C "$c2/work" rev-parse --verify -q feat/wid >/dev/null'
+assert "D1(.docket/): the remote branch is deleted" \
+  '! git -C "$c2/work" ls-remote --exit-code origin feat/wid >/dev/null 2>&1'
+
+# (3) FROM INSIDE THE TARGET — the refusal. THIS is the assertion that would have caught the data
+#     loss: the remote branch MUST still exist after a refusal. Nothing destructive may run.
+c3="$tmp/d1-inside"; d1_fixture "$c3"
+( cd "$c3/work/.worktrees/wid" && bash "$CLEANUP" --slug wid ) >/dev/null 2>"$tmp/d1-inside.err"; rc=$?
+assert "D1(inside target): cleanup REFUSES (non-zero)" '[ $rc -ne 0 ]'
+assert "D1(inside target): THE REMOTE BRANCH STILL EXISTS (no partial destruction)" \
+  'git -C "$c3/work" ls-remote --exit-code origin feat/wid >/dev/null 2>&1'
+assert "D1(inside target): the local branch still exists" \
+  'git -C "$c3/work" rev-parse --verify -q feat/wid >/dev/null'
+assert "D1(inside target): the worktree still exists" '[ -d "$c3/work/.worktrees/wid" ]'
+assert "D1(inside target): the refusal names the CWD problem on stderr" \
+  'grep -qi "cwd" "$tmp/d1-inside.err"'
+
+# (4) FROM A SUBDIRECTORY OF THE TARGET — the guard is about containment, not equality.
+c4="$tmp/d1-inside-sub"; d1_fixture "$c4"
+mkdir -p "$c4/work/.worktrees/wid/deep/er"
+( cd "$c4/work/.worktrees/wid/deep/er" && bash "$CLEANUP" --slug wid ) >/dev/null 2>&1; rc=$?
+assert "D1(inside target, nested subdir): cleanup REFUSES" '[ $rc -ne 0 ]'
+assert "D1(inside target, nested subdir): the remote branch still exists" \
+  'git -C "$c4/work" ls-remote --exit-code origin feat/wid >/dev/null 2>&1'
+
+# (5) The provenance guard is UNCHANGED: an out-of-tree target is still refused.
+c5="$tmp/d1-prov"; d1_fixture "$c5"
+mkdir -p "$tmp/outside-wt"
+( cd "$c5/work" && bash "$CLEANUP" --slug wid --worktrees-dir "$tmp/outside-wt" ) >/dev/null 2>"$tmp/d1-prov.err"; rc=$?
+assert "D1: the .worktrees/ provenance guard is unchanged (out-of-tree target refused)" '[ $rc -ne 0 ]'
+
 exit "$fail"
