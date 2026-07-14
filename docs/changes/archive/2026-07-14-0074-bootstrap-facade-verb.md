@@ -26,8 +26,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-14-bootstrap-facade-verb-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-14-bootstrap-facade-verb-design.md) |
-| Plan | [2026-07-14-bootstrap-facade-verb.md](https://github.com/danielhanold/docket/blob/feat/bootstrap-facade-verb/docs/superpowers/plans/2026-07-14-bootstrap-facade-verb.md) |
-| Results | [2026-07-14-bootstrap-facade-verb-results.md](https://github.com/danielhanold/docket/blob/feat/bootstrap-facade-verb/docs/results/2026-07-14-bootstrap-facade-verb-results.md) |
+| Plan | [2026-07-14-bootstrap-facade-verb.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-14-bootstrap-facade-verb.md) |
+| Results | [2026-07-14-bootstrap-facade-verb-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-14-bootstrap-facade-verb-results.md) |
 | PR | [#82](https://github.com/danielhanold/docket/pull/82) |
 | ADRs | [ADR-0029](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0029-docket-facade-routing-and-config-presentation.md), [ADR-0030](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0030-facade-wiring-guard-discriminates-on-invocation-prefix.md) |
 <!-- docket:artifacts:end -->
