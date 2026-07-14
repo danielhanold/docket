@@ -1,8 +1,14 @@
 # Backlog
 
-**76 changes** — 🟡 10 proposed · 🔵 1 implemented · ✅ 62 done · 🗑️ 3 killed
+**76 changes** — 🟢 1 in progress · 🟡 9 proposed · 🔵 1 implemented · ✅ 62 done · 🗑️ 3 killed
 
-## 🟡 Proposed (10)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Spec | Branch |
+|---|-------|----------|------|--------|
+| [0075](active/0075-cwd-independent-repo-root-anchor.md) | Anchor the repo root to the main worktree — CWD-independent scripts, a fail-closed cleanup guard, and a durable finalize posture | `high` | [spec](../superpowers/specs/2026-07-14-cwd-independent-repo-root-anchor-design.md) | `feat/cwd-independent-repo-root-anchor` |
+
+## 🟡 Proposed (9)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -15,7 +21,6 @@
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0062](active/0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | `low` | needs-brainstorm |
 | [0067](active/0067-learnings-promotion-destination.md) | Give the learnings ledger a promotion destination — it has no way to shrink | `medium` | needs-brainstorm |
-| [0075](active/0075-cwd-independent-repo-root-anchor.md) | Anchor the repo root to the main worktree — CWD-independent scripts, a fail-closed cleanup guard, and a durable finalize posture | `high` | build-ready |
 
 ## 🔵 Implemented — awaiting merge (1)
 
