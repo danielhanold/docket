@@ -58,13 +58,40 @@ assert "inline+repo: exit 0" '[ "$rc1b" -eq 0 ]'
 assert "inline+repo: BOARD.md byte-identical to render-board.sh --repo output" \
   'diff -u "$work/expected-repo.md" "$tmp/BOARD.md"'
 
-# --- 2: --surfaces "" (empty, but explicitly supplied) -> BOARD.md not created -----------------
+# --- 2: --surfaces "" (empty value) -> exit 2 (change 0071: the polarity reversal) -------------
+# Was: a no-op exit 0, byte-identical to a deliberately disabled repo. That ambiguity is the whole
+# bug — an agent whose $BOARD_SURFACES never resolved sent "" and got a SILENT stale board with a
+# success exit code. Empty now means exactly one thing: nobody resolved this.
 rm -f "$tmp/BOARD.md"
 "$SCRIPT" --changes-dir "$tmp" --surfaces "" >"$work/out2" 2>"$work/err2"; rc2=$?
-assert "empty surfaces: exit 0" '[ "$rc2" -eq 0 ]'
+assert "empty surfaces: exit 2 (wiring bug, not a configuration)" '[ "$rc2" -eq 2 ]'
 assert "empty surfaces: BOARD.md not created" '[ ! -e "$tmp/BOARD.md" ]'
-assert "empty surfaces: announces no-op on stdout" 'grep -qF "board-refresh: inline disabled" "$work/out2"'
+assert "empty surfaces: names the unresolved-config cause on stderr" \
+  'grep -qF "empty --surfaces value" "$work/err2"'
+assert "empty surfaces: points at the positive off-token on stderr" \
+  'grep -qF "none" "$work/err2"'
 assert "empty surfaces: no leftover temp files in changes dir" '[ "$(count_files)" -eq 0 ]'
+
+# --- 2b: --surfaces "none" -> the deliberate off-state: no-op, exit 0 --------------------------
+rm -f "$tmp/BOARD.md"
+"$SCRIPT" --changes-dir "$tmp" --surfaces "none" >"$work/out2b" 2>"$work/err2b"; rc2b=$?
+assert "none: exit 0" '[ "$rc2b" -eq 0 ]'
+assert "none: BOARD.md not created" '[ ! -e "$tmp/BOARD.md" ]'
+assert "none: announces the deliberate no-op on stdout" \
+  'grep -qF "board-refresh: board disabled (none)" "$work/out2b"'
+assert "none: no leftover temp files in changes dir" '[ "$(count_files)" -eq 0 ]'
+
+# --- 2c: `none` is RESERVED and EXCLUSIVE — a contradiction exits 2, never picks a winner ------
+rm -f "$tmp/BOARD.md"
+"$SCRIPT" --changes-dir "$tmp" --surfaces "none inline" >"$work/out2c" 2>"$work/err2c"; rc2c=$?
+assert "none+inline: exit 2 (contradiction)" '[ "$rc2c" -eq 2 ]'
+assert "none+inline: BOARD.md not written" '[ ! -e "$tmp/BOARD.md" ]'
+assert "none+inline: says none is exclusive on stderr" 'grep -qF "exclusive" "$work/err2c"'
+# order-independent: the contradiction is a property of the token SET, not of token order
+rm -f "$tmp/BOARD.md"
+"$SCRIPT" --changes-dir "$tmp" --surfaces "inline none" >"$work/out2d" 2>"$work/err2d"; rc2d=$?
+assert "inline+none (reversed order): exit 2" '[ "$rc2d" -eq 2 ]'
+assert "inline+none (reversed order): BOARD.md not written" '[ ! -e "$tmp/BOARD.md" ]'
 
 # --- 3: --surfaces "github" (inline absent) -> BOARD.md not written ----------------------------
 rm -f "$tmp/BOARD.md"
@@ -80,14 +107,27 @@ assert "inline+github: exit 0" '[ "$rc4" -eq 0 ]'
 assert "inline+github: BOARD.md written" '[ -f "$tmp/BOARD.md" ]'
 assert "inline+github: content matches render-board.sh" 'diff -u "$work/expected.md" "$tmp/BOARD.md"'
 
-# --- 5: truncation-trap regression — a pre-existing BOARD.md survives a disabled run byte-for-byte
+# --- 5: truncation-trap regression — a pre-existing BOARD.md survives a DISABLED run byte-for-byte
+# Change 0059's entire point, carried over unchanged except for the encoding (`""` -> `none`).
+# Non-negotiable: disabling the board must never create, truncate, or delete a prior BOARD.md.
 rm -f "$tmp/BOARD.md"
 printf '# Stale Board\n\nDo not touch.\n' > "$tmp/BOARD.md"
 cp "$tmp/BOARD.md" "$work/known-board.md"
-"$SCRIPT" --changes-dir "$tmp" --surfaces "" >"$work/out5" 2>"$work/err5"; rc5=$?
-assert "truncation trap: exit 0" '[ "$rc5" -eq 0 ]'
-assert "truncation trap: pre-existing BOARD.md untouched (byte-identical)" \
+"$SCRIPT" --changes-dir "$tmp" --surfaces "none" >"$work/out5" 2>"$work/err5"; rc5=$?
+assert "truncation trap (none): exit 0" '[ "$rc5" -eq 0 ]'
+assert "truncation trap (none): pre-existing BOARD.md untouched (byte-identical)" \
   'diff -u "$work/known-board.md" "$tmp/BOARD.md"'
+
+# --- 5b: the exit-2 paths must ALSO leave a pre-existing BOARD.md byte-identical ---------------
+# A loud failure that truncates the board on its way out would trade a silent stale board for a
+# loud destroyed one. Both rejection paths (empty value, exclusivity violation) are asserted.
+"$SCRIPT" --changes-dir "$tmp" --surfaces "" >"$work/out5b" 2>"$work/err5b"; rc5b=$?
+assert "empty surfaces: exit 2 leaves a pre-existing BOARD.md byte-identical" \
+  '[ "$rc5b" -eq 2 ] && diff -u "$work/known-board.md" "$tmp/BOARD.md"'
+"$SCRIPT" --changes-dir "$tmp" --surfaces "none inline" >"$work/out5c" 2>"$work/err5c"; rc5c=$?
+assert "none+inline: exit 2 leaves a pre-existing BOARD.md byte-identical" \
+  '[ "$rc5c" -eq 2 ] && diff -u "$work/known-board.md" "$tmp/BOARD.md"'
+rm -f "$tmp/BOARD.md"
 
 # --- 6: unknown token warns, does not enable inline, does not write ----------------------------
 rm -f "$tmp/BOARD.md"

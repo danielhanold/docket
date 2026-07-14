@@ -18,7 +18,7 @@ board-refresh.sh --changes-dir DIR --surfaces "TOKENS" [--repo OWNER/REPO]
 | Flag | Required | Description |
 |---|---|---|
 | `--changes-dir DIR` | yes | Path to the changes directory (`active/`, `archive/`, and `BOARD.md` are children). Forwarded to `render-board.sh` unchanged. |
-| `--surfaces "TOKENS"` | **yes, as a flag** — its *value* may be the empty string | The caller's already-resolved `$BOARD_SURFACES`, verbatim: space-separated tokens (e.g. `"inline"`, `"inline github"`, `"github"`, or `""`). The flag being **absent** is a wiring bug (exit 2); the flag present with an **empty value** is a valid "no surfaces configured" (no-op, exit 0). These two cases are tracked separately — never conflate "not supplied" with "supplied empty". |
+| `--surfaces "TOKENS"` | **yes, as a flag, with a NON-EMPTY value** | The caller's already-resolved `$BOARD_SURFACES`, verbatim: space-separated tokens (e.g. `"inline"`, `"inline github"`, `"github"`, or `"none"`). The flag being **absent** is a wiring bug (exit 2). An **empty value** is ALSO a wiring bug (exit 2, change 0071) — it is what an unresolved config variable degrades to. The deliberate off-state is the reserved token **`none`** (no-op, exit 0), which is **exclusive**: combining it with any other token exits 2. |
 | `--repo OWNER/REPO` | no | Forwarded verbatim to `render-board.sh` (builds `pr:` hyperlinks; see `render-board.md`). |
 
 `-h` / `--help` prints this script's leading comment block.
@@ -32,14 +32,14 @@ inject a stub renderer (mirrors `render-board.sh`'s `GIT="${GIT:-git}"` seam). D
 **Token gate.** `--surfaces` is split on whitespace. The write decision keys **only** on the
 exact token `inline`:
 
-| Tokens (example) | `inline` present? | Action |
-|---|---|---|
-| `"inline"` | yes | Render via `render-board.sh` and replace `BOARD.md`. |
-| `"inline github"` | yes | Same as above — `github` is irrelevant to this script. |
-| `"github"` | no | No-op: `BOARD.md` is left completely untouched. |
-| `""` (empty) | no | No-op: `BOARD.md` is left completely untouched. |
-| `"bogus"` (unknown token) | no | Warns on stderr; still a no-op (not an inline token, not an abort). |
-| `"inline bogus"` | yes | Warns on stderr for `bogus`, but still renders — a typo never blocks or aborts the `inline` write. |
+| Tokens (example) | Action |
+|---|---|
+| `"inline"` | Render via `render-board.sh` and replace `BOARD.md`. |
+| `"inline github"` | Same as above — `github` is irrelevant to this script. |
+| `"github"` | No-op: `BOARD.md` is left completely untouched. |
+| `"none"` | Deliberate off-state: no-op, exit 0. `BOARD.md` is never created, written, truncated, or deleted. |
+| `"none inline"` (any mix) | **Exit 2** — `none` is exclusive; a contradiction is never resolved silently. |
+| `""` (empty) | **Exit 2** — a wiring bug (unresolved config), never a configuration. |
 
 Any token other than `inline` or `github` is treated as unknown: it is reported on stderr
 (`board-refresh: unknown surface token ignored: <token>`) and otherwise ignored. Unknown tokens
@@ -68,16 +68,18 @@ even ran.
 | `render-board.sh` exits 0 but produces empty output | stderr | `board-refresh: render produced empty output; BOARD.md left untouched` |
 | Missing `--changes-dir` | stderr | `board-refresh: missing --changes-dir` |
 | Invalid `--changes-dir` | stderr | `board-refresh: changes dir not found: <dir>` |
-| Missing `--surfaces` flag | stderr | `board-refresh: missing --surfaces (pass --surfaces "" for none)` |
+| Missing `--surfaces` flag | stderr | `board-refresh: missing --surfaces (pass --surfaces none to disable the board)` |
+| Empty `--surfaces` value | stderr | `board-refresh: empty --surfaces value (unresolved config?); pass --surfaces none to disable the board` |
+| `none` combined with another token | stderr | `board-refresh: 'none' is exclusive — it cannot be combined with other surfaces: <tokens>` |
 | Unknown CLI argument | stderr | `board-refresh: unknown argument: <arg>` |
 
 ## Exit codes
 
 | Code | Meaning |
 |---|---|
-| 0 | Either `BOARD.md` was rendered and written (`inline` present), or the run was a deliberate no-op (`inline` absent) — both are success. |
+| 0 | Either `BOARD.md` was rendered and written (`inline` present), or the run was a deliberate no-op (`none`, or `inline` simply absent) — both are success. |
 | 1 | The inline render exited 0 but produced empty output; `BOARD.md` is left untouched. Distinct from a propagated renderer failure below. |
-| 2 | Argument/wiring error: `--changes-dir` missing or not a directory, `--surfaces` flag absent entirely, or an unrecognized flag. |
+| 2 | Argument/wiring error: `--changes-dir` missing or not a directory, `--surfaces` flag absent, `--surfaces` value **empty**, `none` combined with another token, or an unrecognized flag. |
 | *(other)* | Propagated verbatim from `render-board.sh` when the inline render fails (non-zero exit); `BOARD.md` is left untouched in this case. |
 
 ## Invariants
@@ -105,3 +107,6 @@ even ran.
 - **Disabled means untouched, not deleted.** "Inline disabled" is a true no-op: an existing
   `BOARD.md` from a prior run (or from a since-changed surface configuration) is left exactly as
   it was — never truncated, rewritten, or removed.
+- **A rejection never writes.** Every exit-2 path (missing flag, empty value, `none` contradiction)
+  leaves a pre-existing `BOARD.md` byte-identical — a loud failure must not trade a stale board for
+  a destroyed one.
