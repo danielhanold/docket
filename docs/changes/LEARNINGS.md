@@ -5,7 +5,7 @@
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
 - 2026-06-17 → 2026-07-14 (#15 PR #32; #21 PR #34; #36 PR #47; #37 PR #48; #64 PR #75; #65 PR #74;
-  #69 PR #77; #68 PR #78; #72 PR #79 — merged, one guards-are-code family) — A guard is code: mutation-test it
+  #69 PR #77; #68 PR #78; #72 PR #79; #70 PR #80 — merged, one guards-are-code family) — A guard is code: mutation-test it
   (strip the feature, watch it go red) or it is decoration. Every way one has shipped GREEN while
   guarding nothing:
   (a) **Wrong anchor** — a broad keyword OR-set (`run the suite|validate|local`) latched onto an
@@ -40,6 +40,14 @@
   *contrastive* clause, which a blunt absence-grep can't tell from the forbidden *adopted* posture;
   and a `grep -q "literal"` stayed green when a prose strip RELOCATED the must-preserve substring into
   an unrelated bullet, producing a false sentence.
+  (g) **A list of spellings, not a shape** — #70's write sentinel enumerated the *spellings* of a
+  tainted variable (`$out`, `${out}`) instead of describing its *shape*, so it was green on `${out:-}`
+  — the guarded file's own house idiom, 14 occurrences in `docket-status.sh`, i.e. the single most
+  likely real regression. Four rounds of fixture-driven hardening all shipped green; round five found
+  the hole in minutes by injecting the regression into the REAL script. #70 also disproved its own
+  spec's premise that the new sentinel SUBSUMED the older `REDIRECT_RE` scan — mutation testing showed
+  the two are complementary (the token-scoped sentinel is structurally blind to a write crossing a
+  statement boundary carrying the bytes in no variable), so neither may be deleted (ADR-0031).
   Apply: anchor to the UNIQUE phrase the target clause owns ("before any push") and confirm
   `grep -c` == 1 — never a keyword set, never a blunt `! grep`/`grep -q` over a literal that can
   legitimately appear elsewhere in the doc. Tokenize at the unit you claim to guard (the invocation,
@@ -60,7 +68,12 @@
   — the fix is to follow the extraction, never to loosen the audit). And a mutation that leaves an
   assert GREEN is a defect until proven otherwise, never a fact to explain away — re-derive the
   anchor's occurrence count yourself rather than trusting an implementer's narrative that a surviving
-  mutant is harmless.
+  mutant is harmless. Key a guard on SYNTACTIC SHAPE, never on an enumerated list of spellings — a
+  spelling list is always one spelling short, and the spelling it misses is the target file's own
+  house idiom. Mutate the REAL tree, not only fixtures: a fixture battery samples the shapes you
+  already thought of, so inject the regression into the actual guarded file (its idioms are the
+  adversary) before believing a green guard. And never RETIRE an existing guard on the claim that a
+  new one subsumes it — prove subsumption by mutation in BOTH directions, or keep both.
 
 - 2026-07-13 (#69, PR #77) — Making a new channel the SOLE source of some state turned a previously
   benign staleness into a self-contradiction. The digest was spec'd to emit BEFORE the merge sweep,
