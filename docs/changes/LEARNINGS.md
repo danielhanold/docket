@@ -4,6 +4,51 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-06-17 → 2026-07-13 (#15 PR #32; #21 PR #34; #36 PR #47; #37 PR #48; #64 PR #75; #65 PR #74;
+  #69 PR #77; #68 PR #78 — merged, one guards-are-code family) — A guard is code: mutation-test it
+  (strip the feature, watch it go red) or it is decoration. Every way one has shipped GREEN while
+  guarding nothing:
+  (a) **Wrong anchor** — a broad keyword OR-set (`run the suite|validate|local`) latched onto an
+  unintended EARLIER line.
+  (b) **Double-guarded** — one grep satisfied by two independent clauses (a YAML config comment AND a
+  prose sentence), so deleting the substantive prose left it green. #65 shipped two more, and in both
+  the implementer's own mutation test had already gone green — its report rationalized that away as
+  benign. #69 shipped two more still (`grep -qF "digest"` satisfied 3× over, `"board off"` 4×): the
+  reviewer rewrote the skill's Final summary to literally say *"read from `BOARD.md`"* — the exact
+  posture that change abolishes — and the assert stayed green.
+  (c) **Wrong unit** — a sentinel grepped per LINE, so a logical line carrying a gated `--id` and an
+  ungated `--adr` invocation side by side was whitewashed by the single `--enabled` present. #68's
+  escape-hatch scan anchored `^\s*NAME)` and so missed pipe-combined `case` arms (`run|shell|eval)`),
+  searched for a token that was a typo of the real one, and missed input laundered through a variable.
+  (d) **Wrong surface** — #68's inventory sentinel derived its op set from the `WRAPPED_OPS` array,
+  proving "the array matches the doc" but never "the DISPATCH matches the doc": a `case` arm
+  hand-added outside the loop would route while set-equality still held. A structural guard over a
+  single-source list does not guard the surface that CONSUMES that list — assert the consuming
+  surface directly.
+  (e) **Stale state** — fence tests `eval`'d the config export without clearing the asserted variable
+  first, and an aborting run emits NOTHING, so `eval ""` silently left the previous case's value in
+  place and the assertion passed.
+  (f) **False-RED / False-GREEN** — a `! grep "must-not-say-X"` fired on X in a legitimately
+  *contrastive* clause, which a blunt absence-grep can't tell from the forbidden *adopted* posture;
+  and a `grep -q "literal"` stayed green when a prose strip RELOCATED the must-preserve substring into
+  an unrelated bullet, producing a false sentence.
+  Apply: anchor to the UNIQUE phrase the target clause owns ("before any push") and confirm
+  `grep -c` == 1 — never a keyword set, never a blunt `! grep`/`grep -q` over a literal that can
+  legitimately appear elsewhere in the doc. Tokenize at the unit you claim to guard (the invocation,
+  not the line). One assert owns exactly ONE clause — if two locations satisfy it, split and
+  mutation-test each in isolation; when a mutation slips past a guard, add an INDEPENDENT scan rather
+  than widening the first (#69 needed a second scan asserting the orchestrator never redirects the
+  renderer into `BOARD.md`). Any test that `eval`s a command's output must clear the variables it
+  asserts on first — "emitted nothing" and "emitted the expected thing" are otherwise
+  indistinguishable. When a new feature legitimately violates an old absolutist sentinel, NARROW it to
+  the property that is actually load-bearing; deleting it is how the guarded hole reopens. A
+  call-site-pinned audit must FOLLOW the call when the code is later extracted into a shared lib
+  (0063's hooks audit correctly reddened when 0068 moved the call site into `lib/docket-preflight.sh`
+  — the fix is to follow the extraction, never to loosen the audit). And a mutation that leaves an
+  assert GREEN is a defect until proven otherwise, never a fact to explain away — re-derive the
+  anchor's occurrence count yourself rather than trusting an implementer's narrative that a surviving
+  mutant is harmless.
+
 - 2026-07-13 (#69, PR #77) — Making a new channel the SOLE source of some state turned a previously
   benign staleness into a self-contradiction. The digest was spec'd to emit BEFORE the merge sweep,
   which was fine while `BOARD.md` existed as a second channel — but the same change forbade the skill
@@ -16,35 +61,21 @@
   boundary, so the deviation was disclosed in the results file, documented at three sites, and locked
   by tests that redden if the call moves back — never silently "fixed".)
 
-- 2026-07-13 (#64, PR #75) — Adding a knob that GATES an existing operation, the plan enumerated the
-  call sites by hand — and listed the skill/reference prose while missing `scripts/docket-status.sh`,
-  the one *executable* invocation, in the headless merge sweep. That is precisely the agent the gate
-  exists to serve, so the miss would have left `terminal_publish: false` still publishing to `main`
-  on every sweep — the exact failure the change exists to prevent. Apply: never hand-list the call
-  sites of an operation you are gating — derive them from a grep of the invocation across the whole
-  repo, then sort them into prose vs executable, because only the executable ones can actually
-  violate the gate and they are the ones a docs-shaped reading of the change skips right past. Guard
-  the completeness of that list with a structural sentinel in the suite, not with review attention.
-
-- 2026-07-13 (#64 PR #75; #69 PR #77 — merged, one sentinel-as-code family) — Structural sentinels
-  shipped FALSE-PASS holes that surfaced only under mutation (strip the feature, watch the test go
-  red). (a) A sentinel grepped per LINE, so a logical line carrying a gated `--id` invocation and an
-  ungated `--adr` invocation side by side — which `docket-finalize-change/SKILL.md` actually has —
-  was whitewashed by the single `--enabled` present; it now splits per invocation before filtering.
-  (b) Fence tests `eval`'d the config export without clearing the asserted variable first, and an
-  aborting run emits NOTHING, so `eval ""` silently left the previous case's value in place and the
-  assertion passed on stale state. (c) #69 had to NARROW an existing sentinel (0059's "never mentions
-  `render-board.sh`") rather than keep it, because the new read-only `--format digest` call
-  necessarily violates it — and one guard could not replace it: a per-invocation flag-tokenizer
-  proved (by mutation) to miss `render-board.sh --format digest > BOARD.md`, so a SECOND, independent
-  scan asserting the orchestrator never redirects the renderer into `BOARD.md` ships beside it.
-  Apply: a guard is code — mutation-test it before trusting it, or it is decoration. A grep sentinel
-  must tokenize at the unit it claims to guard (the invocation, not the line), and one guard covers
-  one hole — when a mutation slips past it, add an independent scan rather than widening the first.
-  Any test that `eval`s a command's output must clear the variables it asserts on first, because
-  "emitted nothing" and "emitted the expected thing" are otherwise indistinguishable. And when a new
-  feature legitimately violates an old absolutist sentinel, narrow the sentinel to the property that
-  is actually load-bearing — deleting it is how the guarded hole reopens.
+- 2026-06-12 → 2026-07-13 (#14 PR #10; #32 PR #43; #42 PR #52; #56 PR #68; #64 PR #75 — merged, one
+  enumerated-set family) — Repeatedly, a hand-written enumeration of "everywhere X appears"
+  undercounted, and the miss landed in the surface that mattered most: 4 test assertions still
+  hardcoding old model aliases plus two un-named id-read sites (surfaced only by reconcile's
+  exhaustive grep, not the spec); a 9th generated wrapper leaving the convention's "eight wrappers"
+  line, one `test_finalize_gate` assertion, and seven `test_sync_agents` assertions stale at once; an
+  earlier skill leaving "six skills" in README and the convention; and 0064's gating knob listing
+  every skill/reference *prose* site while missing `scripts/docket-status.sh`, the one **executable**
+  invocation, in the headless merge sweep — precisely the agent the gate exists to serve, so
+  `terminal_publish: false` would have kept publishing to `main` on every sweep. Apply: never
+  hand-list the sites of a literal, a count, or an operation you are gating — derive them from a grep
+  of the WHOLE repo, then sort them into prose vs executable, because only the executable ones can
+  actually violate a gate and they are the ones a docs-shaped reading skips right past. A spec's
+  enumerated list is a floor, not the set: let reconcile pin the full inventory before the build
+  starts, and guard the list's completeness with a structural sentinel, not with review attention.
 
 - 2026-06-21 / 2026-07-13 (#34 PR #45; #66 PR #73 — merged, one environment family) — Twice a suite
   ran RED where the failure was NOT a regression: (a) an ambient `DOCKET_SCRIPTS_DIR` export in the
@@ -94,6 +125,33 @@
   write and roll back on a failed follow-on write, so the extension is never left on with a value
   stranded — fail-closed ordering for multi-step config changes.
 
+- 2026-07-11/13 (#58 PR #65; #69 PR #77; #16 PR #30; #22 PR #35; #25 PR #36; #26 PR #38; #35 PR #44
+  — merged, one green-suite-untested-branch family) — Seven green suites that never exercised the
+  branch they existed to cover. **Mock fidelity:** (a) a `gh api graphql` jq path read one level too
+  shallow (`.data.pN.mergedAt` vs `.data.pN.pullRequest.mergedAt`), and the bug hid because the mock
+  returned a *flattened* JSON shape `gh` never emits; (b) worse, every full-pass `docket-status`
+  fixture pointed `SCRIPTS_DIR` at a mock dir containing **no `render-board.sh` at all** — and because
+  the new digest call is best-effort, the missing tool degraded silently on every full-pass test, so
+  the change's two headline claims (the backlog pass is ungated; `main()` always closes with `pass ok`)
+  had ZERO real coverage: deleting the full-path `pass ok`, or re-gating the pass, both left the suite
+  green. **Fixture realism:** (c) a golden fixture used `pr: 142` where real changes store a full URL
+  and had a single `done` change, so neither the URL-format path nor the multi-id concatenation bug was
+  hit; (d) a generator test set `DOCKET_HARNESS_ROOT` to the repo root, so the user-level and
+  project-level passes wrote ONE dir and an "unlisted skill gets no project file" assertion passed
+  vacuously; (e) a CAS conflict-retry branch shipped uncovered because the competing-writer test
+  touched an *unrelated* file, hitting only the clean if-branch; (f) a renderer branching on
+  git-remote resolution was smoked in a `/tmp` fixture with no origin, so only the degraded bare-path
+  fallback ran; (g) fixtures cloning a fresh `init --bare` origin emit `warning: You appear to have
+  cloned an empty repository`, leaving noisy stderr and no meaningful "0-byte stderr" assertion.
+  Apply: a tool-output mock must mirror the real tool's response shape, nesting and all — and when the
+  code under test has a best-effort/degrade branch, a mock that OMITS the tool silently routes every
+  test through that branch, so at least one fixture must carry the REAL tool (and its `lib/`) or the
+  happy path is untested while the suite reads green. Fixtures need real-SHAPED field values and
+  PLURALITY (≥2 of every kind rendered as a list); smoke against real data inside a real worktree
+  before merge; to cover a conflict/CAS path the competing writer must DIVERGE the same contended path
+  (mutation-confirmed); give a tool writing to BOTH a user and a project location SEPARATE dirs; keep
+  fixture stderr 0-byte. Green tests ≠ the hard branch was exercised.
+
 - 2026-07-11 (#59 PR #64; #60 PR #70 — merged, two sides of one rule) — 0059 was designed around a
   still-`proposed` sibling (0058) "later" composing its board-refresh gate, but 0058 merged first and
   built the same gate independently, inverting 0059's scope twice; and because 0059 touched every
@@ -104,16 +162,6 @@
   planned backlog; hold the most conflict-prone change in flight (touches many shared files) and
   rebase it LAST, once, onto the settled base; and when a sibling ships the bulk of an unstarted
   change's scope, reconcile down to the residual — kill only if it is genuinely covered.
-
-- 2026-06-12 / 2026-07-11 (#14 PR #10; #56 PR #68 — merged, same lesson) — Adding a member to an
-  enumerated set left stale literal counts across prose AND tests: the 9th generated wrapper turned
-  the convention's "eight wrappers / three no-skill" line, one `test_finalize_gate` assertion, and
-  seven "8 built-in wrappers" assertions in `test_sync_agents` stale at once (the full suite, not the
-  change's own sentinels, proved none were missed); earlier, a new skill left "six skills" in README
-  and "six operating skills" in the convention. Apply: a literal count of an enumerated set
-  (wrappers, states, skills) repeated across prose and test assertions is a cross-cutting invariant —
-  before adding a member, grep the WHOLE repo for the current number and update every copy in the
-  same change.
 
 - 2026-07-11 (#55, PR #67) — A behavior-neutral skill slim landed all five files modestly over the
   spec's line-count targets, and review confirmed the residual was load-bearing/test-anchored content,
@@ -131,20 +179,6 @@
   explicit rewrite goal (for a multi-harness tool, "neutral across the supported set" is one); and run
   the WHOLE suite at the merge/build gate, never only the tests the spec enumerated — the sentinel
   list is a floor, and an out-of-goal regression is what the tests outside it exist to catch.
-
-- 2026-07-11/13 (#58 PR #65; #69 PR #77 — merged, one mock-fidelity family) — Twice a mock shaped to
-  the CODE PATH rather than to the real tool made a suite pass against a fiction. (a) A `gh api
-  graphql` jq path read one level too shallow (`.data.pN.mergedAt` vs
-  `.data.pN.pullRequest.mergedAt`); the bug hid because the mock returned a *flattened* JSON shape
-  `gh` never emits. (b) Worse, every full-pass `docket-status` fixture pointed `SCRIPTS_DIR` at a mock
-  dir containing no `render-board.sh` at all — and because the new digest call is **best-effort**, the
-  missing tool degraded silently on every full-pass test. The change's two headline claims (the
-  backlog pass is *ungated*; `main()` *always* closes with `pass ok`) therefore had ZERO real
-  coverage: deleting the full-path `pass ok`, or re-gating the pass, both left the suite green. Apply:
-  a tool-output mock must mirror the real tool's exact response shape, nesting and all — and when the
-  code under test has a best-effort/degrade branch, a mock that OMITS the tool silently routes every
-  test through that branch, so at least one fixture must carry the REAL tool (and its `lib/`) or the
-  happy path is untested while the suite reads green. Same root as the coverage family below.
 
 - 2026-07-10/11 (#51 PR #60; #57 PR #63 — merged, re-hit class) — An awk/sed **range** edit
   (`/start/,/end/`) over a marker-bounded "do-not-hand-edit" managed block is a data-loss hazard
@@ -202,13 +236,6 @@
   explicit opt-in signal (a dedicated config key), never on the mere presence of the config file — and
   add a regression test asserting the minimal adopter generates zero files and keeps `--check` a no-op.
 
-- 2026-07-08 (#46, PR #56) — A latent bug rode in from the plan's own awk and surfaced only at task
-  review, not at planning: `ind()` used `[^ ]` (a literal-space class), so a **tab-indented** config
-  layer was silently dropped — fixed to `[^[:space:]]` in both awk copies, with a tab-indented
-  regression test. (Its sibling bug, a `printf … | section_body` SIGPIPE, is folded into the pipefail
-  entry below.) Apply: when a plan hands you awk/shell it authored, treat whitespace character
-  classes as suspect and test tab-indented input.
-
 - 2026-07-08 (#47, PR #55) — A docs change whose whole job was to document an *existing* behavior
   (how `effort: auto` affects a generated agent) nearly documented the wrong thing: the neighboring
   docket-convention "Agent layer" prose says "`effort: auto` (or omitted) → omit the effort line,"
@@ -225,12 +252,18 @@
   as itself buildable and testable — don't assume the earlier task's leftover references are safe
   because a later task will delete them.
 
-- 2026-07-08 (#42, PR #52; also #32, PR #43 — merged near-duplicates) — Twice, a spec's enumerated
-  touch-point/call-site list **undercounted**: 4 extra test assertions hardcoding the old model
-  aliases, and two un-named id-read sites, all surfaced only by the reconcile pass's exhaustive grep,
-  not the spec's enumeration. Apply: a spec's enumerated list is a floor, not the complete set — grep
-  the whole repo/suite for every occurrence of the old literal or pattern before a codebase-wide
-  swap, and let reconcile pin the full inventory in the change before the build starts.
+- 2026-06-19 / 2026-06-21 / 2026-07-08 (#25 PR #36; #38 PR #46; #46 PR #56 — merged, one
+  shell-portability family) — Three portability traps in tooling the plan itself authored. (a)
+  **grep for a `--flag`:** a bare ERE that *leads* with `--` is parsed as a grep **option**
+  (`unrecognized option`, exit 2); over-escaping to dodge that (`\-\-yes\b`) springs GNU grep's
+  `stray \ before -` stderr warning, which BSD grep stays silent about — so it hides on macOS. Declare
+  the pattern with `grep -E -e "<pat>"`: POSIX `-e` makes the next arg a pattern, never an option.
+  (b) **awk whitespace class:** `ind()` used `[^ ]` (a literal-space class), so a **tab-indented**
+  config layer was silently dropped — use `[^[:space:]]` and test tab-indented input. (c) **macOS path
+  resolution:** `mktemp` yields `/var/…` but git reports `/private/var/…`, so stripping a worktree
+  prefix matched nothing — `pwd -P` both the path and the prefix before stripping. Apply: when a plan
+  hands you awk/shell it authored, treat whitespace classes, `--`-leading patterns, and symlinked
+  temp paths as suspect, and test each on both GNU and BSD.
 
 - 2026-06-21 (#37, PR #48) — A change stripping prose from `docket-status/SKILL.md` was mid-build when
   PR #47 (#36) merged into `origin/main` with newer fixes to the *same* file. Rebasing onto the new
@@ -239,56 +272,6 @@
   advances mid-build into a file you're editing, resolve the rebase by *intent* against the landed
   version, and recognize when a same-file change that merged *after* you diverged **supersedes** your
   edit (drop yours) rather than treating it as a conflict to win.
-
-- 2026-06-17/21 · 2026-07-13 (#15 PR #32; #21 PR #34; #36 PR #47; #37 PR #48; #65 PR #74; #69 PR #77
-  — merged, one anchoring family) —
-  Four ways a doc sentinel passed while guarding nothing. (a) **Broad keyword OR-set:** an ordering
-  assert grepping `run the suite|validate|local` latched onto an unintended EARLIER line. (b)
-  **Double-guarded:** one grep satisfied by two independent clauses (a YAML config comment AND a
-  prose sentence), so deleting the substantive prose left it green — while a whole-region mutation
-  test still "proved" it non-vacuous. #65 then shipped two MORE double-guarded sentinels, and in both
-  the implementer's own mutation test had already gone green-on-mutation — its report rationalized
-  that away as benign; the reviewer caught them by re-deriving the substring's occurrence count by
-  hand. #69 shipped two more still (`grep -qF "digest"` satisfied 3× over, `"board off"` 4×): the
-  reviewer rewrote the skill's Final summary to literally say *"read from `BOARD.md`"* — the exact
-  posture that change abolishes — and the assert stayed green. The fix each time is the same one this
-  family already prescribes: re-anchor to the unique phrase the clause owns and confirm `grep -c` == 1.
-  (c) **False-RED:** a `! grep "must-not-say-X"` fired on X in a
-  legitimately *contrastive* clause, which a blunt absence-grep can't tell from the forbidden
-  *adopted* posture. (d) **False-GREEN:** a `grep -q "literal"` stayed green when a prose strip
-  **relocated** the must-preserve substring into an unrelated bullet, producing a false sentence.
-  Apply: anchor to the UNIQUE phrase the target clause owns ("before any push"), never a keyword set;
-  one assert owns exactly ONE clause — if two independent locations satisfy it, split and
-  mutation-test each in isolation; assert intent with a POSITIVE anchor on the meaningful framing;
-  keep a must-preserve substring in its grammatical location (never relocate it to pass); never rely
-  on a blunt `! grep`/`grep -q` over a literal that can legitimately appear elsewhere in the doc. And
-  a mutation that leaves an assert GREEN is a defect until proven otherwise, never a fact to explain
-  away — re-derive the anchor's occurrence count yourself rather than trusting an implementer's
-  narrative that a surviving mutant is harmless.
-
-- 2026-06-21 (#38, PR #46) — A test grepped for a CLI flag with `grep -qE "\-\-yes\b|\b-y\b"`; the
-  `\-` over-escaping silenced one trap (a bare ERE that *leads* with `--` is parsed as a grep
-  **option**, not a pattern — `unrecognized option`, exit 2) only by springing another (GNU grep's
-  `stray \ before -` stderr warning; BSD grep stays silent, so it hides on macOS). Naively dropping
-  the backslashes re-opens the option-parse trap. Apply: to grep for a `--flag`, declare the pattern
-  with `grep -E -e "<pat>"` — POSIX `-e` makes the next arg a pattern, never an option; clean (exit 0,
-  empty stderr) on **both** GNU and BSD grep. Never lead a bare ERE with `--`.
-
-- 2026-06-16/21 (#16 PR #30; #22 PR #35; #25 PR #36; #26 PR #38; #35 PR #44 — merged, one coverage
-  family) — Five green suites that never exercised the branch they existed to cover. (a) A golden
-  fixture used `pr: 142` where real changes store a full URL, and had a single `done` change — so
-  neither the URL-format path nor the multi-id concatenation bug was hit. (b) A generator test set
-  `DOCKET_HARNESS_ROOT` to the repo root, so the user-level and project-level passes wrote ONE dir and
-  an "unlisted skill gets no project file" assertion passed vacuously. (c) A CAS conflict-retry branch
-  shipped uncovered because the competing-writer test touched an *unrelated* file, hitting only the
-  clean if-branch. (d) A renderer branching on git-remote resolution was smoked in a `/tmp` fixture,
-  which has no origin — only the degraded bare-path fallback ran. (e) Fixtures cloning a fresh
-  `init --bare` origin emit `warning: You appear to have cloned an empty repository`, leaving noisy
-  stderr and no meaningful "0-byte stderr" assertion. Apply: fixtures need real-SHAPED field values
-  and PLURALITY (≥2 of every kind rendered as a list); smoke against real data, inside a real
-  worktree, before merge; to cover a conflict/CAS path the competing writer must DIVERGE the same
-  contended path (mutation-confirmed); give a tool writing to BOTH a user and a project location
-  SEPARATE dirs; keep fixture stderr 0-byte. Green tests ≠ the hard branch was exercised.
 
 - 2026-06-19 (#27, PR #39) — A change promised its locally-written file (`.claude/settings.local.json`)
   would "never be committed onto collaborators," but on the build machine that guarantee only held
@@ -310,11 +293,6 @@
   a live risk for docket's own change/ADR files (which discuss those field names). Apply: anchor a
   frontmatter-field edit to the first `---…---` block, never a bare line match — and lock it with a
   test where a body `status:` line survives verbatim while the frontmatter field is set.
-
-- 2026-06-19 (#25, PR #36) — A script resolving a worktree-relative path built from `mktemp` matched
-  nothing on macOS: `mktemp` yields `/var/…` but git reports `/private/var/…`, so stripping the
-  worktree prefix failed. Apply: `pwd -P` (resolve symlinks) on both the path and the prefix before
-  stripping a git-worktree prefix — the same discipline the `cleanup` provenance guard needs.
 
 - 2026-06-19 (#21, PR #34) — A spec's stated *rationale* for a scope boundary was factually wrong
   (§3 claimed the convention's `.docket.yml` example "does not enumerate `finalize:`" — it does),
@@ -397,8 +375,8 @@
   (colon-space). Apply: reword with an em-dash or quote the scalar in skill descriptions.
 
 - 2026-06-02–12 (#1, #2, #5, #13) — Foundational sentinel/test discipline (consolidated; richer,
-  more specific restatements live in the anchoring and coverage families above): sentinel greps are
-  sampling, not parsing — pair them with a whole-branch review that reads for meaning; prove each
-  assertion non-vacuous (deleting the clause it guards must flip the test to NOT OK); when order is
-  part of the contract, assert it explicitly rather than inferring it from presence; and build inline
-  when tasks share one artifact, fanning out only for genuinely independent work.
+  more specific restatements live in the guards-are-code and green-suite families above): sentinel
+  greps are sampling, not parsing — pair them with a whole-branch review that reads for meaning; prove
+  each assertion non-vacuous (deleting the clause it guards must flip the test to NOT OK); when order
+  is part of the contract, assert it explicitly rather than inferring it from presence; and build
+  inline when tasks share one artifact, fanning out only for genuinely independent work.
