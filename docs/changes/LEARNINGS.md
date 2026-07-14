@@ -5,8 +5,8 @@
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
 - 2026-06-17 → 2026-07-14 (#15 PR #32; #21 PR #34; #36 PR #47; #37 PR #48; #64 PR #75; #65 PR #74;
-  #69 PR #77; #68 PR #78; #72 PR #79; #70 PR #80; #71 PR #81; #74 PR #82 — merged, one guards-are-code
-  family) — A guard is code: mutation-test it
+  #69 PR #77; #68 PR #78; #72 PR #79; #70 PR #80; #71 PR #81; #74 PR #82; #73 PR #83 — merged, one
+  guards-are-code family) — A guard is code: mutation-test it
   (strip the feature, watch it go red) or it is decoration. Every way one has shipped GREEN while
   guarding nothing:
   (a) **Wrong anchor** — a broad keyword OR-set (`run the suite|validate|local`) latched onto an
@@ -55,6 +55,15 @@
   spec's premise that the new sentinel SUBSUMED the older `REDIRECT_RE` scan — mutation testing showed
   the two are complementary (the token-scoped sentinel is structurally blind to a write crossing a
   statement boundary carrying the bytes in no variable), so neither may be deleted (ADR-0031).
+  (i) **A proper SUBSTRING of the thing you claim to guard** — #73's canonical-spelling assert anchored
+  only the inner `${DOCKET_SCRIPTS_DIR:?…}` token, leaving the surrounding decoration
+  (`"…"/docket.sh`) unguarded, so a mangle coordinated across the JSON fragment AND the guide's fence
+  shipped green. The guarded string was a substring of the load-bearing one; the bytes that carry the
+  meaning (the quotes and the `/docket.sh` suffix) were never asserted. Fixed to assert the full
+  decorated spelling, CONSTRUCTED from the derived token rather than retyped, and mutation-confirmed.
+  #73 also re-hit (h)'s plan-authored-test-code hazard from the byte side: the plan's own search
+  literals for two short-form spellings omitted the JSON-escaped `\"`, so they could never byte-match
+  the fragment they searched — a guard that would have passed only by never matching anything.
   Apply: anchor to the UNIQUE phrase the target clause owns ("before any push") and confirm
   `grep -c` == 1 — never a keyword set, never a blunt `! grep`/`grep -q` over a literal that can
   legitimately appear elsewhere in the doc. Tokenize at the unit you claim to guard (the invocation,
@@ -90,7 +99,10 @@
   "$pat"`), or whose expected string you INVENTED rather than copied from the producer's real output
   (`%q`-formatted, quoted, escaped), is vacuous by construction — run it against a tree where the
   guarded thing IS present and watch it redden. And a snippet the PLAN hands you is unvetted code:
-  mutation-test it like any assert you wrote yourself.
+  mutation-test it like any assert you wrote yourself. When the load-bearing thing is a compound
+  spelling, assert ALL of its bytes — a recognizable substring is not the string, and the decoration
+  you leave out is exactly what a coordinated edit is free to break; DERIVE the full literal from the
+  token you already hold rather than retyping it, so the assert cannot drift from the artifact.
 
 - 2026-07-13/14 (#69 PR #77; #71 PR #81 — merged, one sole-channel family) — When a channel becomes the
   SOLE source of some state, every property you used to get for free from the fallback has to be
