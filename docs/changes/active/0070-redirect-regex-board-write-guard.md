@@ -2,20 +2,20 @@
 id: 70
 slug: redirect-regex-board-write-guard
 title: Harden the BOARD.md write guard — REDIRECT_RE misses real redirect forms
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-13
-updated: 2026-07-13
+updated: 2026-07-14
 depends_on: []
 related: [59, 69]
 adrs: [31]
 spec: docs/superpowers/specs/2026-07-13-redirect-regex-board-write-guard-design.md
 plan: docs/superpowers/plans/2026-07-13-redirect-regex-board-write-guard-plan.md
-results:
+results: docs/results/2026-07-14-redirect-regex-board-write-guard-results.md
 trivial: false
 auto_groomable:
 branch: feat/redirect-regex-board-write-guard
-pr:
+pr: https://github.com/danielhanold/docket/pull/80
 blocked_by:
 reconciled: true
 ---
@@ -27,6 +27,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-13-redirect-regex-board-write-guard-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-13-redirect-regex-board-write-guard-design.md) |
 | Plan | [2026-07-13-redirect-regex-board-write-guard-plan.md](https://github.com/danielhanold/docket/blob/feat/redirect-regex-board-write-guard/docs/superpowers/plans/2026-07-13-redirect-regex-board-write-guard-plan.md) |
+| Results | [2026-07-14-redirect-regex-board-write-guard-results.md](https://github.com/danielhanold/docket/blob/feat/redirect-regex-board-write-guard/docs/results/2026-07-14-redirect-regex-board-write-guard-results.md) |
+| PR | [#80](https://github.com/danielhanold/docket/pull/80) |
 | ADRs | [ADR-0031](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0031-complementary-board-write-guards-and-the-bound-of-source-scanning.md) |
 <!-- docket:artifacts:end -->
 
