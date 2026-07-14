@@ -63,6 +63,7 @@ even ran.
 |---|---|---|
 | Inline render succeeds | stdout | `board-refresh: inline rendered <changes-dir>/BOARD.md` |
 | Inline disabled (no-op) | stdout | `board-refresh: inline disabled — no-op` |
+| Board disabled (none) | stdout | `board-refresh: board disabled (none) — no-op` |
 | Unknown surface token | stderr | `board-refresh: unknown surface token ignored: <token>` |
 | `render-board.sh` fails | stderr | `board-refresh: render-board.sh failed (exit N); BOARD.md left untouched` |
 | `render-board.sh` exits 0 but produces empty output | stderr | `board-refresh: render produced empty output; BOARD.md left untouched` |
