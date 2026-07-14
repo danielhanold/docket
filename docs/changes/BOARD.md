@@ -22,7 +22,7 @@
 | [0062](active/0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | `low` | needs-brainstorm |
 | [0067](active/0067-learnings-promotion-destination.md) | Give the learnings ledger a promotion destination — it has no way to shrink | `medium` | needs-brainstorm |
 | [0071](active/0071-board-surfaces-unset-vs-empty.md) | Encode the disabled board positively — an empty surfaces value is a wiring bug, not a configuration | `medium` | ⏳ waiting on #72 — not yet built |
-| [0072](active/0072-facade-skill-rewiring.md) | Rewire the operating skills and Step-0 to the facade — retire the eval preamble | `medium` | needs-brainstorm |
+| [0072](active/0072-facade-skill-rewiring.md) | Rewire the operating skills and Step-0 to the facade — retire the eval preamble | `medium` | build-ready |
 | [0073](active/0073-cursor-sandbox-permissions-guide.md) | Cursor sandbox & permissions guide — copyable config, trust tiers, troubleshooting | `medium` | ⏳ waiting on #72 — not yet built |
 
 ## 🔵 Implemented — awaiting merge (1)
