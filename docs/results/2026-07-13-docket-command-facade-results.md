@@ -11,10 +11,14 @@ Change: #68 · Branch: feat/docket-command-facade · Plan: docs/superpowers/plan
       `docket.sh` before you (or Cursor) allowlist it. The grep-derived, mutation-tested sentinel
       keeps `docket.sh` ↔ `docket.md` in sync, but the *contents* of that allowlist are a human
       trust decision.
-- [ ] Sanity-run against this clone at the merge gate: `scripts/docket.sh env` prints raw
+- [x] Sanity-run against this clone at the merge gate: `scripts/docket.sh env` prints raw
       `KEY=value` with an absolute `METADATA_WORKTREE`; `scripts/docket.sh definitely-not-an-op`
       exits 2 and lists the supported operations; `scripts/docket.sh preflight` re-syncs `.docket`
       and prints the env block.
+      **Run post-merge on `main` (f5a4e54), all three as specified:** `env` printed 20 raw
+      `KEY=value` lines with `METADATA_WORKTREE=/Users/homer/dev/docket/.docket` and
+      `BOOTSTRAP=PROCEED`; the unknown op exited 2 listing the 13 supported operations;
+      `preflight` re-synced `.docket` and printed the env block (exit 0).
 
 ## Findings
 
