@@ -26,8 +26,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-13-facade-skill-rewiring-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-13-facade-skill-rewiring-design.md) |
-| Plan | [2026-07-14-facade-skill-rewiring.md](https://github.com/danielhanold/docket/blob/feat/facade-skill-rewiring/docs/superpowers/plans/2026-07-14-facade-skill-rewiring.md) |
-| Results | [2026-07-14-facade-skill-rewiring-results.md](https://github.com/danielhanold/docket/blob/feat/facade-skill-rewiring/docs/results/2026-07-14-facade-skill-rewiring-results.md) |
+| Plan | [2026-07-14-facade-skill-rewiring.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-14-facade-skill-rewiring.md) |
+| Results | [2026-07-14-facade-skill-rewiring-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-14-facade-skill-rewiring-results.md) |
 | PR | [#79](https://github.com/danielhanold/docket/pull/79) |
 | ADRs | [ADR-0030](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0030-facade-wiring-guard-discriminates-on-invocation-prefix.md) |
 <!-- docket:artifacts:end -->
