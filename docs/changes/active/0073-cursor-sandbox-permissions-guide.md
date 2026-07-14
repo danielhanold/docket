@@ -2,7 +2,7 @@
 id: 73
 slug: cursor-sandbox-permissions-guide
 title: Cursor sandbox & permissions guide — copyable config, trust tiers, troubleshooting
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-13
 updated: 2026-07-14
@@ -11,11 +11,11 @@ related: [48, 65, 68, 72]
 adrs: [20, 33]
 spec: docs/superpowers/specs/2026-07-14-cursor-sandbox-permissions-guide-design.md
 plan: docs/superpowers/plans/2026-07-14-cursor-sandbox-permissions-guide.md
-results:
+results: docs/results/2026-07-14-cursor-sandbox-permissions-guide-results.md
 trivial: false
 auto_groomable:
 branch: feat/cursor-sandbox-permissions-guide
-pr:
+pr: https://github.com/danielhanold/docket/pull/83
 blocked_by:
 reconciled: true
 ---
@@ -27,6 +27,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-14-cursor-sandbox-permissions-guide-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-14-cursor-sandbox-permissions-guide-design.md) |
 | Plan | [2026-07-14-cursor-sandbox-permissions-guide.md](https://github.com/danielhanold/docket/blob/feat/cursor-sandbox-permissions-guide/docs/superpowers/plans/2026-07-14-cursor-sandbox-permissions-guide.md) |
+| Results | [2026-07-14-cursor-sandbox-permissions-guide-results.md](https://github.com/danielhanold/docket/blob/feat/cursor-sandbox-permissions-guide/docs/results/2026-07-14-cursor-sandbox-permissions-guide-results.md) |
+| PR | [#83](https://github.com/danielhanold/docket/pull/83) |
 | ADRs | [ADR-0020](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0020-generated-agent-artifacts-machine-local.md), [ADR-0033](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0033-cursor-auto-run-trust-at-facade.md) |
 <!-- docket:artifacts:end -->
 
