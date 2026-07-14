@@ -15,7 +15,7 @@
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0062](active/0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | `low` | needs-brainstorm |
 | [0067](active/0067-learnings-promotion-destination.md) | Give the learnings ledger a promotion destination — it has no way to shrink | `medium` | needs-brainstorm |
-| [0075](active/0075-finalize-safe-cwd-before-cleanup.md) | Finalize from a durable checkout — don't run cleanup while CWD is the feature worktree | `medium` | needs-brainstorm |
+| [0075](active/0075-finalize-safe-cwd-before-cleanup.md) | Finalize from a durable checkout — don't run cleanup while CWD is the feature worktree | `medium` | auto-groom blocked — needs you |
 | [0076](active/0076-cwd-independent-repo-root-resolution.md) | Resolve the repo root independently of CWD — preflight run inside `.docket` mints a nested metadata worktree | `medium` | needs-brainstorm |
 
 ## 🔵 Implemented — awaiting merge (1)
