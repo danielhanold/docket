@@ -7,7 +7,7 @@ priority: medium
 created: 2026-07-14
 updated: 2026-07-14
 depends_on: []
-related: []
+related: [76]
 adrs: []
 spec:
 plan:
