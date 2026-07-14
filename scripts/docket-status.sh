@@ -90,11 +90,24 @@ board_pass_inline(){
   fi
   # board-refresh.sh wrote BOARD.md in place; commit + push only if it actually changed.
   if [ -z "$("$GIT" -C "$mw" status --porcelain -- "$rel" 2>/dev/null)" ]; then
-    echo "board inline clean"
-    return 0
+    # A clean working tree alone is NOT sufficient evidence the board landed on the remote
+    # (change 0071 review, finding 3): a prior run may have committed the board locally and then
+    # failed to push, in which case a re-invocation renders the same bytes, finds nothing to
+    # commit, and must not report success without checking the remote. Guard on whether the local
+    # branch actually carries an unpushed commit touching $rel. No upstream at all (`@{u}` fails)
+    # means there is nothing to compare against — treat that as nothing to push, not an error.
+    local unpushed
+    unpushed="$("$GIT" -C "$mw" rev-list --count '@{u}..HEAD' -- "$rel" 2>/dev/null)" || unpushed=0
+    if [ "${unpushed:-0}" -eq 0 ]; then
+      echo "board inline clean"
+      return 0
+    fi
+    # Working tree is clean (nothing to commit) but an existing commit touching $rel has never
+    # reached the remote — fall through into the push/rebase retry loop below without committing.
+  else
+    "$GIT" -C "$mw" add "$rel" >&2
+    "$GIT" -C "$mw" commit -q -m "docket: board refresh" >&2 || true
   fi
-  "$GIT" -C "$mw" add "$rel" >&2
-  "$GIT" -C "$mw" commit -q -m "docket: board refresh" >&2 || true
 
   local attempt=0 pushed=0
   while [ $attempt -lt 5 ]; do

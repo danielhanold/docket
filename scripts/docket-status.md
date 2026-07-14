@@ -61,12 +61,19 @@ emits an empty value and an unresolved config must never masquerade as a disable
   the surface gate and the atomic, truncation-safe replace of `BOARD.md`; this script never calls
   `render-board.sh` to produce the board. A failed render leaves the existing `BOARD.md`
   untouched, logs to stderr, and is treated as success for sequencing purposes (best-effort). If
-  `BOARD.md` is unchanged, nothing is committed (`board inline clean`). Otherwise it is `git
-  add`ed and committed with message `docket: board refresh`, then pushed with up to 5 retry
-  attempts: on push failure it rebase-pulls; if the rebase conflicts only on `BOARD.md`, it
-  regenerates through the same gated helper (never a raw redirect) and continues the rebase; a
-  rebase conflict on anything else, or a failed regeneration mid-rebase, aborts the rebase and
-  stops retrying.
+  `BOARD.md` is unchanged, `board inline clean` requires TWO things to hold, not just a clean
+  working tree (change 0071 review, finding 3): the render produced no diff, **and** the local
+  metadata branch carries no commit touching `BOARD.md` that is unpushed relative to its upstream
+  (`@{u}..HEAD`, count > 0; no upstream at all counts as nothing-to-push, not an error). A clean
+  working tree alone is not evidence the board landed — a prior run may have committed it locally
+  and then failed to push. When the tree is clean but such an unpushed commit exists, nothing new
+  is committed; execution falls through into the same push/rebase retry loop as a changed render,
+  reporting `board inline changed pushed` / `board inline changed push-failed` from its outcome.
+  When the render actually changed `BOARD.md`, it is `git add`ed and committed with message
+  `docket: board refresh`, then pushed with up to 5 retry attempts: on push failure it
+  rebase-pulls; if the rebase conflicts only on `BOARD.md`, it regenerates through the same gated
+  helper (never a raw redirect) and continues the rebase; a rebase conflict on anything else, or a
+  failed regeneration mid-rebase, aborts the rebase and stops retrying.
 - **github** — Runs `github-mirror.sh` (passing through `--repo`, `--project`,
   `--auto-create-project`, `--project-owner`), best-effort. Lines it emits of the shape
   `issue-minted <id> <n>` / `project-minted <id> <n>` are translated to `minted issue <id> <n>` /
@@ -160,7 +167,7 @@ All report lines are stdout, one shape per line, diagnostics go to stderr:
 
 | Shape | Meaning |
 |---|---|
-| `board inline clean` | Inline render matched the existing `BOARD.md`; nothing committed. |
+| `board inline clean` | Inline render matched the existing `BOARD.md` AND there is nothing unpushed touching it — no local commit on `BOARD.md` sits ahead of its upstream. Attests the board is caught up on the remote, not merely that the working tree is clean. |
 | `board inline changed pushed` | `BOARD.md` changed and the commit was pushed successfully. |
 | `board inline changed push-failed` | `BOARD.md` changed and committed locally, but push retries were exhausted or a rebase conflict outside `BOARD.md` forced an abort. |
 | `board github ok` | `github-mirror.sh` exited 0. |

@@ -419,6 +419,42 @@ if grep -q "board inline changed pushed" "$tmp/conflict-run.txt"; then
     'git -C "$tmp/conflict-case/work" show origin/main:docs/changes/BOARD.md 2>/dev/null | cmp -s - "$tmp/conflict-case/work/docs/changes/BOARD.md"'
 fi
 
+# board_pass_inline: a clean working tree is NOT sufficient evidence the board landed on the
+# remote (change 0071 review, finding 3). Seed a repo whose BOARD.md already matches what a fresh
+# render would produce (so the post-render diff is clean) but whose local metadata branch carries
+# that exact commit UNPUSHED — origin never saw it, simulating a prior run that committed the
+# board locally then failed to push. board_pass_inline must not mistake "nothing to commit" for
+# "nothing to push": it must attempt the push and report a changed outcome, never `board inline
+# clean`.
+git_repo_setup "$tmp/unpushed-case"
+git clone -q "$tmp/unpushed-case/origin.git" "$tmp/unpushed-case/work" 2>/dev/null
+seed_changes_fixture "$tmp/unpushed-case/work"
+git -C "$tmp/unpushed-case/work" -c user.email=t@t -c user.name=t add docs/changes
+git -C "$tmp/unpushed-case/work" -c user.email=t@t -c user.name=t commit -q -m "seed changes fixture"
+git -C "$tmp/unpushed-case/work" push -q origin main
+
+# Render through the same gated primitive board_pass_inline itself uses, then commit WITHOUT
+# pushing — this is the exact local state a failed push leaves behind.
+"$REPO/scripts/board-refresh.sh" --changes-dir "$tmp/unpushed-case/work/docs/changes" --surfaces inline
+git -C "$tmp/unpushed-case/work" -c user.email=t@t -c user.name=t add docs/changes/BOARD.md
+git -C "$tmp/unpushed-case/work" -c user.email=t@t -c user.name=t commit -q -m "docket: board refresh"
+
+assert "unpushed fixture: local branch really is ahead of origin on BOARD.md before the run" \
+  '[ "$(git -C "$tmp/unpushed-case/work" rev-list --count origin/main..HEAD -- docs/changes/BOARD.md)" -gt 0 ]'
+
+write_board_fixture inline
+(cd "$tmp/unpushed-case/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" "$SCRIPT" --board-only >"$tmp/unpushed-run.txt" 2>"$tmp/unpushed-run-err.txt")
+rc=$?
+assert "unpushed board commit: run exits zero" '[ $rc -eq 0 ]'
+assert "unpushed board commit: reports changed pushed or push-failed (not vacuous: positive shape match)" \
+  'grep -Eq "board inline changed (pushed|push-failed)" "$tmp/unpushed-run.txt"'
+assert "unpushed board commit: never reports clean" \
+  '! grep -qxF "board inline clean" "$tmp/unpushed-run.txt"'
+if grep -q "board inline changed pushed" "$tmp/unpushed-run.txt"; then
+  assert "unpushed board commit pushed: remote now carries the previously-unpushed commit" \
+    'git -C "$tmp/unpushed-case/work" show origin/main:docs/changes/BOARD.md 2>/dev/null | cmp -s - "$tmp/unpushed-case/work/docs/changes/BOARD.md"'
+fi
+
 # detect_merged: batched sweep detection (task 4). Source the script (guarded so it doesn't
 # auto-run main), seed a hermetic changes tree with two `implemented` changes — one whose GH
 # mock reports a merged PR, one open — and a GH stub serving canned graphql JSON.
