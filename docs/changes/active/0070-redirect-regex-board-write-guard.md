@@ -8,7 +8,7 @@ created: 2026-07-13
 updated: 2026-07-13
 depends_on: []
 related: [59, 69]
-adrs: []
+adrs: [31]
 spec: docs/superpowers/specs/2026-07-13-redirect-regex-board-write-guard-design.md
 plan: docs/superpowers/plans/2026-07-13-redirect-regex-board-write-guard-plan.md
 results:
@@ -27,6 +27,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-13-redirect-regex-board-write-guard-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-13-redirect-regex-board-write-guard-design.md) |
 | Plan | [2026-07-13-redirect-regex-board-write-guard-plan.md](https://github.com/danielhanold/docket/blob/feat/redirect-regex-board-write-guard/docs/superpowers/plans/2026-07-13-redirect-regex-board-write-guard-plan.md) |
+| ADRs | [ADR-0031](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0031-complementary-board-write-guards-and-the-bound-of-source-scanning.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
