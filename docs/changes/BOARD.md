@@ -1,8 +1,8 @@
 # Backlog
 
-**74 changes** — 🟡 9 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 61 done · 🗑️ 2 killed
+**74 changes** — 🟡 10 proposed · 🔵 1 implemented · ✅ 61 done · 🗑️ 2 killed
 
-## 🟡 Proposed (9)
+## 🟡 Proposed (10)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -15,12 +15,7 @@
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0062](active/0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | `low` | needs-brainstorm |
 | [0067](active/0067-learnings-promotion-destination.md) | Give the learnings ledger a promotion destination — it has no way to shrink | `medium` | needs-brainstorm |
-
-## 🔴 Blocked (1)
-
-| # | Title | Priority | Blocked by |
-|---|-------|----------|------------|
-| [0073](active/0073-cursor-sandbox-permissions-guide.md) | Cursor sandbox & permissions guide — copyable config, trust tiers, troubleshooting | `medium` | Awaiting the live Cursor verification session — the spec's verification-log appendix must be written before the build. Flip to proposed once it lands. |
+| [0073](active/0073-cursor-sandbox-permissions-guide.md) | Cursor sandbox & permissions guide — copyable config, trust tiers, troubleshooting | `medium` | build-ready |
 
 ## 🔵 Implemented — awaiting merge (1)
 
