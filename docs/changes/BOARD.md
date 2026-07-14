@@ -1,6 +1,6 @@
 # Backlog
 
-**74 changes** — 🟡 11 proposed · 🔵 2 implemented · ✅ 59 done · 🗑️ 2 killed
+**74 changes** — 🟡 11 proposed · 🔵 1 implemented · ✅ 60 done · 🗑️ 2 killed
 
 ## 🟡 Proposed (11)
 
@@ -18,12 +18,11 @@
 | [0073](active/0073-cursor-sandbox-permissions-guide.md) | Cursor sandbox & permissions guide — copyable config, trust tiers, troubleshooting | `medium` | needs-brainstorm |
 | [0074](active/0074-bootstrap-facade-verb.md) | A `bootstrap` facade verb — retire the last direct-helper carve-out in Step-0 | `medium` | build-ready |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | [#69](https://github.com/danielhanold/docket/pull/69) |
-| [0071](active/0071-board-surfaces-unset-vs-empty.md) | Encode the disabled board positively — an empty surfaces value is a wiring bug, not a configuration | `medium` | [#81](https://github.com/danielhanold/docket/pull/81) |
 
 ```mermaid
 graph TD
@@ -37,7 +36,6 @@ graph TD
   0044
   0062
   0067
-  0072 --> 0071
   0068 --> 0073
   0072 --> 0073
   0068 --> 0074
@@ -100,15 +98,17 @@ graph TD
   0068:::done
   0069:::done
   0070:::done
+  0071:::done
   0072:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (61)</summary>
+<details><summary>✅🗑️ Archive — done + killed (62)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0072](archive/2026-07-14-0072-facade-skill-rewiring.md) | Rewire the operating skills and Step-0 to the facade — retire the eval preamble | 2026-07-14 |
+| [0071](archive/2026-07-14-0071-board-surfaces-unset-vs-empty.md) | Encode the disabled board positively — an empty surfaces value is a wiring bug, not a configuration | 2026-07-14 |
 | [0070](archive/2026-07-14-0070-redirect-regex-board-write-guard.md) | Harden the BOARD.md write guard — REDIRECT_RE misses real redirect forms | 2026-07-14 |
 | [0068](archive/2026-07-14-0068-docket-command-facade.md) | One executable docket facade — finite subcommands, config read from stdout, never eval'd | 2026-07-14 |
 | [0069](archive/2026-07-13-0069-status-report-self-evidencing.md) | docket-status report is self-evidencing and board-independent — stop the board-off BOARD.md hunt | 2026-07-13 |
