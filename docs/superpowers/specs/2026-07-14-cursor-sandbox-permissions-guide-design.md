@@ -244,8 +244,71 @@ human-applied — docket never writes the user's Cursor config), ADR-0027 (termi
 
 ## Appendix — verification log
 
-> **BUILD PRECONDITION — not yet written.** The human runs the live Cursor verification session and
-> replaces this block with the session record (Cursor version, observation date, each command form
-> submitted, the classifier's actual behavior, and which failure modes did and did not reproduce).
-> Until then change 0073 stays `blocked`. Reconcile MUST abort if this section is still absent or
-> empty.
+- **Cursor version:** 3.11.19 (`bf249e6efb5b097f23d7e21d7283429f0760b740`, arm64)
+- **Observation date:** 2026-07-14
+- **Operator mode during successful facade tests:** **Allowlist (with Sandbox)**
+- **Machine:** `DOCKET_SCRIPTS_DIR=/Users/$USER/dev/docket/scripts`; sandbox.json already granted
+  `additionalReadonlyPaths: ["/Users/$USER/dev/docket"]` and `github.com` in network allow.
+
+Harness observation channel: agent Shell tool footers reporting either
+"ran outside the sandbox (… matched the user's command allowlist)" or sandboxed execution with
+network/filesystem limits. No separate human approval prompt was required for allowlisted facade
+calls under Allowlist (with Sandbox).
+
+### A. Run Mode × `permissions.json` lock (product facts)
+
+| Configuration | Selectable Run Modes | Notes |
+|---|---|---|
+| Non-empty `terminalAllowlist` and/or `mcpAllowlist` in `~/.cursor/permissions.json` | **Allowlist**, **Allowlist (with Sandbox)** only | **Auto-review (with Sandbox)** appears in the menu but is **not selectable**. Banner text only mentions Run Everything being disabled. Client sets `permissionsFileConstrainsUnrestrictedMode` when allowlists are non-empty. |
+| `autoRun` only (allowlists removed) | Auto-review becomes selectable again | Confirmed. |
+| `approvalMode: "unrestricted"` added alongside allowlists | **Broke Run Mode UI** — no options shown | **Rejected.** Removed immediately. Do not publish. |
+
+**Guide implication:** publish for **Allowlist (with Sandbox)** + facade `terminalAllowlist`. Do not
+claim Auto-review + file allowlists compose; that contradicts observed 3.11.19 behavior (and the
+public docs). Treat the Auto-review lock as a Cursor bug/docs mismatch to cite, not to work around
+with undocumented keys.
+
+### B. Command forms submitted
+
+| # | Form | Config | Where it ran | Result |
+|---|---|---|---|---|
+| B1 | `/Users/$USER/dev/docket/scripts/docket.sh env` | facade (+ day-to-day) allowlist | **Outside** sandbox (allowlist) | Success; env printed; `BOOTSTRAP=PROCEED` |
+| B2 | `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh env` | same | **Outside** sandbox | Success |
+| B3 | `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh preflight` | same | **Outside** sandbox | Success; fetched `origin/docket`; `BOOTSTRAP=PROCEED` |
+| B4 | Same as B1–B3 | **`autoRun` only** (no allowlists); Auto-review available | **Inside** sandbox | `docket-config: cannot reach origin (git fetch failed)`; preflight exit 1 |
+| B5 | B1–B3 again after restoring allowlists | Allowlist (with Sandbox) | **Outside** sandbox | Success (contrast with B4) |
+| B6 | B1–B3 with **facade-only** docket entries (legacy per-helper `DOCKET_SCRIPTS_DIR/*` lines removed; only the two `docket.sh` spellings remain among docket entries) | Allowlist (with Sandbox) | **Outside** sandbox | Success — published fragment shape is sufficient |
+
+### C. Failure modes — reproduced
+
+| Mode | How tested | Observed |
+|---|---|---|
+| **Sandbox ≠ terminal permission** | B4: `autoRun` only under Auto-review | Commands auto-ran but stayed sandboxed; network/`git fetch` to origin failed. `sandbox.json` read path + network allowlist did **not** substitute for a terminal allowlist entry that runs the facade outside the sandbox. |
+| **Spelling mismatch** | `"${DOCKET_SCRIPTS_DIR:?run docket/instal.sh}"/docket.sh env` (typo `instal`) | Demoted to sandbox; origin fetch failed (exit 1). |
+| **Compound demotion (matched + unmatched leaf)** | `"…"/docket.sh env; eval true` | **Whole program** sandboxed despite the facade leaf being allowlisted. |
+| **Unreachable unmatched leaf still demotes** | `if false; then eval true; fi; "…"/docket.sh env` | Whole program sandboxed. |
+| **Direct helper bypass** | `"…"/docket-config.sh --export --format plain` after removing per-helper allowlist rows | Sandboxed; origin fetch failed (exit 1). Not covered by facade-only allowlist. |
+| **Invalid JSON silently disables allowlist** | Truncated trailing `}` in `permissions.json` | Absolute `docket.sh env` demoted to sandbox (allowlist ignored). Restoring valid JSON restored outside-sandbox allowlist match within ~2s (file watcher; no IDE restart). |
+
+### D. Failure modes — cut / not separately reproduced
+
+| Candidate from stub | Verdict |
+|---|---|
+| Protected `.git` writes under sandbox | **Not separately exercised** this session. Do not assert a dedicated troubleshooting entry unless a later session stamps it. (Sandbox path already implies restricted `.git` / out-of-workspace writes.) |
+| Network blocked by `sandbox.json` while command is allowlisted | **Does not apply as stated** when the allowlist match runs **outside** the sandbox (B1–B3/B5–B6 had working `git fetch`). Network denial was observed only for **sandboxed** demotions (B4, C rows). Guide should say: allowlisted facade runs unsandboxed; sandboxed demotions still hit network/filesystem limits. |
+
+### E. Reload behavior
+
+Edits to `~/.cursor/permissions.json` were picked up without restarting Cursor (allowlist strip/restore,
+invalid JSON / restore) within a short sleep (~1–2s) before the next Shell call. Settings UI reflected
+file-controlled allowlist (read-only Command Allowlist sourced from the file).
+
+### F. Session conclusion for the build
+
+1. Ship the guide targeting **Allowlist (with Sandbox)** + the two facade spellings in
+   `terminalAllowlist` + sandbox read-path fragment.
+2. State plainly that a `permissions.json` allowlist currently precludes selecting Auto-review
+   (Cursor 3.11.19) — cite this appendix.
+3. Troubleshooting entries to include (all stamped 3.11.19 / 2026-07-14): sandbox≠terminal;
+   spelling mismatch; compound / unreachable-leaf demotion; invalid JSON; helper bypass.
+4. Do not document `approvalMode` as a workaround.

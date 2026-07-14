@@ -2,7 +2,7 @@
 id: 73
 slug: cursor-sandbox-permissions-guide
 title: Cursor sandbox & permissions guide — copyable config, trust tiers, troubleshooting
-status: blocked
+status: proposed
 priority: medium
 created: 2026-07-13
 updated: 2026-07-14
@@ -16,7 +16,7 @@ trivial: false
 auto_groomable:
 branch:
 pr:
-blocked_by: Awaiting the live Cursor verification session — the spec's verification-log appendix must be written before the build. Flip to proposed once it lands.
+blocked_by:
 reconciled: false
 ---
 
@@ -68,13 +68,10 @@ any code. Design detail lives in the spec.
 
 ## Build precondition — live Cursor verification
 
-The guide's claims rest on **observed** classifier behavior, which the autonomous implementer (a
-Claude Code subagent) cannot observe: it cannot drive Cursor's UI, answer an Auto-run prompt, or
-read a sandbox denial. So the human runs a live Cursor session first and appends
-`## Appendix — verification log` to the spec (Cursor version, date, each command form submitted,
-what the classifier actually did). This change is therefore **`blocked` until that appendix
-exists**; the human flips it to `proposed` once it lands. Reconcile aborts if the appendix is still
-missing, so a premature flip fails closed rather than inventing observations.
+**Fulfilled 2026-07-14.** The spec's `## Appendix — verification log` records the live Cursor
+3.11.19 session (Allowlist with Sandbox; facade allowlist; autoRun-only contrast; demotion /
+invalid-JSON / mode-lock observations). Reconcile must still abort if that appendix is removed or
+emptied.
 
 ## Out of scope
 
