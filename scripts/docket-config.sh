@@ -214,6 +214,13 @@ else
     BOARD_SURFACES="$(echo $_filtered)"
   fi
 fi
+# Change 0071 — the positive sentinel. BOARD_SURFACES is NEVER emitted empty. `board_surfaces: []`
+# (and any layer combination whose tokens all get filtered out, e.g. a global `[github]` dropped by
+# the machine-scope fence) resolves to the reserved token `none`. Empty therefore has exactly one
+# meaning left downstream: *nobody resolved this* — a wiring bug, which board-refresh.sh and
+# docket-status.sh now reject loudly instead of silently treating as "board disabled". `none` is
+# reserved and exclusive; no real surface may ever be named `none`.
+[ -n "$BOARD_SURFACES" ] || BOARD_SURFACES="none"
 
 # --- skills: role-keyed pluggable workflow skills (change 0049 + 0050 global layer) ---
 # Nested block; each leaf read within the block only. Per-key precedence:

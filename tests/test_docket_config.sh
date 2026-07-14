@@ -98,13 +98,32 @@ assert "explicit: FINALIZE_GATE ci"                    '[ "$FINALIZE_GATE" = ci 
 assert "explicit: BOARD_SURFACES two (plurality)"      '[ "$BOARD_SURFACES" = "inline github" ]'
 assert "explicit: FINALIZE_TEST_COMMAND w/ spaces"     '[ "$FINALIZE_TEST_COMMAND" = "go test ./... -count=1" ]'
 
-# --- (D) board_surfaces: [] -> disabled (empty), distinct from unset ---------
+# --- (D) board_surfaces: [] -> the reserved `none` token, distinct from unset (change 0071) ----
+# 0071 inverts the polarity: an EMPTY BOARD_SURFACES no longer means "board disabled" — it means
+# "nobody resolved this", and every consumer now treats it as a wiring bug. The deliberate
+# off-state is encoded POSITIVELY as `none`. Asserted on the EMITTED LINE, not on an eval'd
+# variable: `eval "$out"` after a run that emitted nothing leaves the PREVIOUS case's value in
+# place, so a variable assert cannot tell "emitted nothing" from "emitted the right thing".
 mkrepo "$tmp/d"
 printf 'metadata_branch: main\nboard_surfaces: []\n' > "$tmp/d/.docket.yml"
 git -C "$tmp/d" add .docket.yml; git -C "$tmp/d" commit --quiet -m cfg
 git -C "$tmp/d" push --quiet origin main
-out="$(run "$tmp/d" --export)"; eval "$out"
-assert "board []: BOARD_SURFACES empty"                '[ -z "$BOARD_SURFACES" ]'
+out="$(run "$tmp/d" --export)"
+assert "board []: emits BOARD_SURFACES=none"           'printf "%s\n" "$out" | grep -qxF "BOARD_SURFACES=none"'
+assert "board []: never emits an empty BOARD_SURFACES" '! printf "%s\n" "$out" | grep -qxF "BOARD_SURFACES="'
+eval "$out"
+assert "board []: BOARD_SURFACES is the none token"     '[ "$BOARD_SURFACES" = none ]'
+
+# --- (D2) the never-empty invariant holds across layers (change 0071) --------------------------
+# A global layer whose ONLY token is `github` is machine-fenced (0050) and filtered to nothing.
+# That filtered-to-empty path is a second way the resolver used to emit "" — it must also land
+# on `none`, or the sentinel has a hole exactly where the fence bites.
+mkrepo "$tmp/d2"
+mkdir -p "$tmp/d2.xdg/docket"
+printf 'board_surfaces: [github]\n' > "$tmp/d2.xdg/docket/config.yml"
+out="$(rung "$tmp/d2.xdg" "$tmp/d2" --export 2>/dev/null)"
+assert "board fenced-to-empty: emits BOARD_SURFACES=none" \
+  'printf "%s\n" "$out" | grep -qxF "BOARD_SURFACES=none"'
 
 # --- (E) direct-pipe caller (LEARNINGS #22: $() hides a dropped trailing \n) -
 n="$(run "$tmp/c" --export | grep -c '=')"
@@ -393,8 +412,10 @@ out="$(rung "$tmp/n.xdg" "$tmp/n" --export 2>/dev/null)"; eval "$out"
 assert "0050 N: global github token warned"         'printf "%s" "$nerr" | grep -q "github"'
 assert "0050 N: global github token dropped"        '[ "$BOARD_SURFACES" = inline ]'
 printf 'board_surfaces: []\n' > "$tmp/n.xdg/docket/config.yml"
-out="$(rung "$tmp/n.xdg" "$tmp/n" --export 2>/dev/null)"; eval "$out"
-assert "0050 N: global [] honored (board disabled)"  '[ -z "$BOARD_SURFACES" ]'
+out="$(rung "$tmp/n.xdg" "$tmp/n" --export 2>/dev/null)"
+assert "0050 N: global [] honored (board disabled, encoded as none)" \
+  'printf "%s\n" "$out" | grep -qxF "BOARD_SURFACES=none"'
+eval "$out"
 # per-repo github is untouched by the fence:
 mkrepo "$tmp/n2"
 printf 'metadata_branch: main\nboard_surfaces: [inline, github]\n' > "$tmp/n2/.docket.yml"
