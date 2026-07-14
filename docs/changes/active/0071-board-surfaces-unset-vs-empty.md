@@ -8,7 +8,7 @@ created: 2026-07-13
 updated: 2026-07-14
 depends_on: [72]
 related: [59, 68, 69, 70, 72]
-adrs: [28]
+adrs: [28, 32]
 spec: docs/superpowers/specs/2026-07-13-board-surfaces-unset-vs-empty-design.md
 plan: docs/superpowers/plans/2026-07-14-board-surfaces-unset-vs-empty.md
 results:
@@ -27,7 +27,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-13-board-surfaces-unset-vs-empty-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-13-board-surfaces-unset-vs-empty-design.md) |
 | Plan | [2026-07-14-board-surfaces-unset-vs-empty.md](https://github.com/danielhanold/docket/blob/feat/board-surfaces-unset-vs-empty/docs/superpowers/plans/2026-07-14-board-surfaces-unset-vs-empty.md) |
-| ADRs | [ADR-0028](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0028-report-channel-is-not-a-board-surface.md) |
+| ADRs | [ADR-0028](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0028-report-channel-is-not-a-board-surface.md), [ADR-0032](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0032-positive-off-state-empty-is-a-wiring-bug.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
