@@ -1076,27 +1076,42 @@ assert "the write scan is not vacuous (it swept the scripts tree)" '[ "$scanned"
 assert "the allowlisted writer scripts/board-refresh.sh exists" \
   '[ -f "$REPO/scripts/board-refresh.sh" ]'
 
-# --- negative sentinel: no skill body may redirect render-board.sh stdout straight into
-# BOARD.md (the pre-0059 anti-pattern this task removes). Whitespace-normalize per file first
-# since the old redirect could span physical lines. The guard regex:
-#   render-board\.sh.{0,200}[[:space:]]>[[:space:]].{0,200}/BOARD\.md
-# Design (each element defends a specific real shape in this codebase's prose):
-#   - `.{0,200}` bounded any-char gaps (NOT `[^>]*`): the historical redirect's destination is
-#     a bracket placeholder `<metadata working tree>/<changes_dir>/BOARD.md` whose `>` characters
+# --- Guard 2: REDIRECT_RE — the WHOLE-FILE, TARGET-KEYED sentinel (re-derived by change 0070) --
+# It scans TWO domains and it is load-bearing in BOTH — do not narrow it to one:
+#   1. skills/*/SKILL.md PROSE — no skill body may show the pre-0059 anti-pattern
+#      `render-board.sh ... > .../BOARD.md`.
+#   2. scripts/docket-status.sh SHELL — kept from change 0069, and NOT retired by 0070. Guard 1
+#      (the write sentinel above) is TOKEN-SCOPED: it reads one invocation and the pipeline it
+#      feeds, so it is STRUCTURALLY BLIND to a write that crosses a STATEMENT boundary —
+#      `{ render-board.sh ...; } > f`, `out=$(render-board.sh ...); printf ... > f`, or a wrapper
+#      function. Each really writes the board. THIS regex catches them, because it flattens the
+#      file with `tr` and spans 200 characters across the boundary Guard 1 stops at. The
+#      COMPLEMENTARITY block below PROVES both directions by mutation. Neither guard subsumes the
+#      other; deleting either reopens a hole. ONE GUARD, ONE HOLE.
+#
+# The regex:  render-board\.sh.{0,200}[[:space:]]>[[:space:]].{0,200}/BOARD\.md
+# Each element defends a specific real shape in this codebase:
+#   - `.{0,200}` bounded any-char gaps (NOT `[^>]*`): the historical redirect's destination is a
+#     bracket placeholder `<metadata working tree>/<changes_dir>/BOARD.md`, whose `>` characters
 #     and internal spaces a `[^>]*` class could never cross — so `[^>]*` was BLIND to the exact
 #     reintroduction shape this sentinel exists to catch. `.` crosses placeholder `>`s freely.
-#   - `[[:space:]]>[[:space:]]` a whitespace-bounded redirect operator: a real ` > ` redirect has
-#     a space on both sides, whereas a placeholder's closing bracket is `tree>` / `dir>/` (letter
-#     before `>`, or no space after) — so the porcelain guard line and every `<...>` placeholder
-#     are structurally excluded.
-#   - `/BOARD\.md` (slash required, not bare `BOARD.md`): a real redirect target is a PATH ending
-#     in `/BOARD.md`; this rejects a flattened markdown blockquote (`\n> ` -> ` > `) that lands a
-#     bare "BOARD.md" prose word within the window — blockquotes genuinely appear in
-#     docket-status and docket-implement-next, so this is a live false-positive class, not
-#     hypothetical.
-# All five requirements + the blockquote case are verified empirically below and by the
-# positive-control assertion. THE SAME REGEX is used for both the positive control and the
-# across-skills scan, so weakening it (e.g. back to `[^>]*`) trips the positive control loudly.
+#   - `[[:space:]]>[[:space:]]` whitespace-bounded operator: a real ` > ` redirect in PROSE has a
+#     space on both sides, whereas a placeholder's closing bracket is `tree>` / `dir>/` (letter
+#     before `>`, or no space after) — so every `<...>` placeholder is structurally excluded.
+#   - `/BOARD\.md` (slash required, not bare `BOARD.md`): rejects a flattened markdown blockquote
+#     (`\n> ` -> ` > `) that lands a bare "BOARD.md" prose word inside the window. Blockquotes
+#     genuinely appear in docket-status and docket-implement-next: a LIVE false-positive class,
+#     asserted below rather than merely asserted in a comment.
+#
+# WHY IT STAYS NARROW: the shapes that force it to be narrow (spaces around `>`, a literal target)
+# are prose hazards, and the shapes a bash script has (`>"$f"`, `>>`, `>|`, `&>`, a VARIABLE
+# target) are ones it can never see AT ANY WIDTH. That is Guard 1's job, and Guard 1 does it for
+# EVERY script rather than the one that happened to be named. DO NOT widen this regex to chase
+# shell forms, and DO NOT delete it as redundant — it is the only net under the statement-boundary
+# class.
+#
+# THE SAME REGEX serves the positive control and both scans, so weakening it (e.g. back to
+# `[^>]*`) trips the positive control loudly rather than silently hollowing out a scan.
 REDIRECT_RE='render-board\.sh.{0,200}[[:space:]]>[[:space:]].{0,200}/BOARD\.md'
 
 # Positive control ("test the test"): the historical bracket-placeholder redirect that WAS in
@@ -1105,6 +1120,13 @@ REDIRECT_RE='render-board\.sh.{0,200}[[:space:]]>[[:space:]].{0,200}/BOARD\.md'
 HISTORICAL_REDIRECT='"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/render-board.sh --changes-dir <metadata working tree>/<changes_dir> > <metadata working tree>/<changes_dir>/BOARD.md'
 assert "guard regex flags the historical bracket-placeholder redirect (positive control)" \
   'printf "%s" "$HISTORICAL_REDIRECT" | tr "\n" " " | grep -Eq "$REDIRECT_RE"'
+
+# Negative control (change 0070): a flattened markdown blockquote must NOT trip the regex. This is
+# the false-positive class that keeps it narrow — assert it, don't just describe it. The
+# `/BOARD\.md` slash requirement is what saves this string: the prose word is a bare "BOARD.md".
+BLOCKQUOTE_PROSE='Run render-board.sh to regenerate the board. > Never hand-edit BOARD.md — it is generated.'
+assert "guard regex does NOT flag a flattened markdown blockquote (false-positive control)" \
+  '! printf "%s" "$BLOCKQUOTE_PROSE" | tr "\n" " " | grep -Eq "$REDIRECT_RE"'
 
 # Negative scan: no CURRENT skill body redirects render-board.sh stdout into BOARD.md.
 redirect_found=0
@@ -1116,6 +1138,10 @@ for f in "$REPO"/skills/*/SKILL.md; do
 done
 assert "no skills/*/SKILL.md redirects render-board.sh stdout directly into BOARD.md" \
   '[ "$redirect_found" -eq 0 ]'
+
+# Anti-vacuity: the skills glob must be non-empty, or the scan above passes for the wrong reason.
+assert "the skills/*/SKILL.md scan is not vacuous" \
+  '[ "$(ls "$REPO"/skills/*/SKILL.md | wc -l)" -ge 5 ]'
 
 # Same regex, now also over scripts/docket-status.sh (change 0069). That script gained a LEGITIMATE
 # render-board.sh call (`--format digest`, read-only, piped into its report), and the sentinel in
@@ -1130,6 +1156,12 @@ if tr '\n' ' ' < "$REPO/scripts/docket-status.sh" | grep -Eq "$REDIRECT_RE"; the
 fi
 assert "scripts/docket-status.sh never redirects render-board.sh stdout into BOARD.md" \
   '[ "$status_redirect" -eq 0 ]'
+
+# Anti-vacuity: the scanned path must exist, or the scan above passes for the wrong reason (a
+# missing file makes `tr`'s redirection fail, grep sees no input, and status_redirect never gets
+# set — a silent, wrong-reason PASS rather than a real result).
+assert "scripts/docket-status.sh exists (the scan above is not vacuous)" \
+  '[ -f "$REPO/scripts/docket-status.sh" ]'
 
 # --- COMPLEMENTARITY: neither guard subsumes the other. PROVEN, not asserted (change 0070) -----
 # THIS BLOCK IS THE DECISION RECORD FOR WHY TWO GUARDS SHIP, and it is written as executable

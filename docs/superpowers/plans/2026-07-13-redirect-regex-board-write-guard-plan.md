@@ -1175,7 +1175,7 @@ git commit -m "test(0070): repo-wide render-board.sh write sentinel + mutation b
 ### Task 2: Guard 2 — re-derive `REDIRECT_RE`'s comment; KEEP both of its scans
 
 **Files:**
-- Modify: `tests/test_render_board.sh` — the `# --- negative sentinel:` comment block, and *only* the comment. `REDIRECT_RE`, `HISTORICAL_REDIRECT`, the positive control, the `skills/*/SKILL.md` scan and the `scripts/docket-status.sh` scan all stay **byte-identical**. Two assertions are ADDED.
+- Modify: `tests/test_render_board.sh` — the `# --- negative sentinel:` comment block, and *only* the comment. `REDIRECT_RE`, `HISTORICAL_REDIRECT`, the positive control, the `skills/*/SKILL.md` scan and the `scripts/docket-status.sh` scan all stay **byte-identical**. Three assertions are ADDED (as-built: the blockquote false-positive control, the skills-glob anti-vacuity check, and a `scripts/docket-status.sh` path-exists anti-vacuity check — the fixed-path scan has the same silent-vacuity failure mode as an empty glob: a missing file makes `tr`'s redirection fail, `grep` sees no input, and the guard passes for the wrong reason).
 
 **THE SPEC SAID TO DELETE THE `scripts/docket-status.sh` SCAN. DO NOT.** The spec's Guard-2 design rested on Guard 1 *subsuming* it. Task 1's mutation testing **disproved that premise**: Guard 1 is token-scoped and is structurally blind to a write that crosses a statement boundary (`{ …; } > f`, capture-then-write, a wrapper function), and `REDIRECT_RE`'s flattened whole-file scan is the only thing in the suite that catches those in a *script*. Deleting it would reopen exactly the hole the change exists to close. The COMPLEMENTARITY block asserts this; if you delete the scan, three of its rows lose their point and the next author has no way to know why the regex is shaped as it is.
 
@@ -1211,8 +1211,7 @@ Replace the comment block above `REDIRECT_RE` (from `# --- negative sentinel: no
 #     space on both sides, whereas a placeholder's closing bracket is `tree>` / `dir>/` (letter
 #     before `>`, or no space after) — so every `<...>` placeholder is structurally excluded.
 #   - `/BOARD\.md` (slash required, not bare `BOARD.md`): rejects a flattened markdown blockquote
-#     (`
-> ` -> ` > `) that lands a bare "BOARD.md" prose word inside the window. Blockquotes
+#     (`\n> ` -> ` > `) that lands a bare "BOARD.md" prose word inside the window. Blockquotes
 #     genuinely appear in docket-status and docket-implement-next: a LIVE false-positive class,
 #     asserted below rather than merely asserted in a comment.
 #
@@ -1246,9 +1245,19 @@ assert "the skills/*/SKILL.md scan is not vacuous" \
   '[ "$(ls "$REPO"/skills/*/SKILL.md | wc -l)" -ge 5 ]'
 ```
 
+And immediately after the `scripts/docket-status.sh` scan's assertion, ADD its anti-vacuity check too (as-built: the plan above only named the skills-glob check, but the fixed-path scan has the same failure mode — a missing file makes `tr`'s redirection fail, `grep` sees no input, and `status_redirect` never gets set, so the assertion passes for the wrong reason):
+
+```bash
+# Anti-vacuity: the scanned path must exist, or the scan above passes for the wrong reason (a
+# missing file makes `tr`'s redirection fail, grep sees no input, and status_redirect never gets
+# set — a silent, wrong-reason PASS rather than a real result).
+assert "scripts/docket-status.sh exists (the scan above is not vacuous)" \
+  '[ -f "$REPO/scripts/docket-status.sh" ]'
+```
+
 - [ ] **Step 2: Run the test to verify it passes**
 
-Run: `cd /Users/homer/dev/docket/.worktrees/redirect-regex-board-write-guard && bash tests/test_render_board.sh 2>&1 | grep -E "guard regex|skills/|vacuous|docket-status.sh never|^(PASS|FAIL)"`
+Run: `cd /Users/homer/dev/docket/.worktrees/redirect-regex-board-write-guard && bash tests/test_render_board.sh 2>&1 | grep -E "guard regex|skills/|vacuous|docket-status.sh never|docket-status.sh exists|^(PASS|FAIL)"`
 
 Expected:
 ```
@@ -1257,6 +1266,7 @@ ok - guard regex does NOT flag a flattened markdown blockquote (false-positive c
 ok - no skills/*/SKILL.md redirects render-board.sh stdout directly into BOARD.md
 ok - the skills/*/SKILL.md scan is not vacuous
 ok - scripts/docket-status.sh never redirects render-board.sh stdout into BOARD.md
+ok - scripts/docket-status.sh exists (the scan above is not vacuous)
 PASS
 ```
 
@@ -1285,8 +1295,8 @@ subsumes this regex's scan of scripts/docket-status.sh. The sentinel is
 token-scoped and cannot see a write that crosses a statement boundary;
 this flattened whole-file scan can, and is the only thing that does. The
 scan stays, the regex is unchanged byte-for-byte, and the complementarity
-is locked by tests. Adds the blockquote false-positive control and an
-anti-vacuity check the skills scan lacked."
+is locked by tests. Adds the blockquote false-positive control and
+anti-vacuity checks the skills and docket-status.sh scans lacked."
 ```
 
 ---
