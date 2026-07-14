@@ -1,6 +1,6 @@
 # Backlog
 
-**74 changes** — 🟡 12 proposed · 🔵 2 implemented · ✅ 58 done · 🗑️ 2 killed
+**74 changes** — 🟡 12 proposed · 🔵 1 implemented · ✅ 59 done · 🗑️ 2 killed
 
 ## 🟡 Proposed (12)
 
@@ -19,12 +19,11 @@
 | [0073](active/0073-cursor-sandbox-permissions-guide.md) | Cursor sandbox & permissions guide — copyable config, trust tiers, troubleshooting | `medium` | needs-brainstorm |
 | [0074](active/0074-bootstrap-facade-verb.md) | A `bootstrap` facade verb — retire the last direct-helper carve-out in Step-0 | `medium` | needs-brainstorm |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | [#69](https://github.com/danielhanold/docket/pull/69) |
-| [0070](active/0070-redirect-regex-board-write-guard.md) | Harden the BOARD.md write guard — REDIRECT_RE misses real redirect forms | `medium` | [#80](https://github.com/danielhanold/docket/pull/80) |
 
 ```mermaid
 graph TD
@@ -38,7 +37,6 @@ graph TD
   0044
   0062
   0067
-  0070
   0072 --> 0071
   0068 --> 0073
   0072 --> 0073
@@ -101,15 +99,17 @@ graph TD
   0066:::done
   0068:::done
   0069:::done
+  0070:::done
   0072:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (60)</summary>
+<details><summary>✅🗑️ Archive — done + killed (61)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0072](archive/2026-07-14-0072-facade-skill-rewiring.md) | Rewire the operating skills and Step-0 to the facade — retire the eval preamble | 2026-07-14 |
+| [0070](archive/2026-07-14-0070-redirect-regex-board-write-guard.md) | Harden the BOARD.md write guard — REDIRECT_RE misses real redirect forms | 2026-07-14 |
 | [0068](archive/2026-07-14-0068-docket-command-facade.md) | One executable docket facade — finite subcommands, config read from stdout, never eval'd | 2026-07-14 |
 | [0069](archive/2026-07-13-0069-status-report-self-evidencing.md) | docket-status report is self-evidencing and board-independent — stop the board-off BOARD.md hunt | 2026-07-13 |
 | [0066](archive/2026-07-13-0066-auto-groom-critic-recheck-foreground.md) | Auto-groom's critic re-check must be foreground — a forked skill that yields returns a half-done run to its caller | 2026-07-13 |
