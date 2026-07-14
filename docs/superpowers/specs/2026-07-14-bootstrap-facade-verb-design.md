@@ -11,9 +11,17 @@ change 0072 rewired the seven operating skills and the convention's Step-0 pream
 are done. Exactly one direct-helper invocation survives in skill prose: the `CREATE_ORPHAN` path in
 the convention's Step-0 still instructs `"${DOCKET_SCRIPTS_DIR:?…}"/docket-config.sh --bootstrap`
 directly, because the facade has no verb for it. The 0072 wiring guard
-(`tests/test_skill_facade_wiring.sh`) tolerates it via a byte-exact strip (line ~78) plus a
-"carve-out occurs exactly once" assertion (line ~110). This change routes bootstrap through the
-facade, rewires Step-0, and flips the guard from tolerating the carve-out to forbidding it.
+(`tests/test_skill_facade_wiring.sh`) tolerates it via a byte-exact strip (the
+`s#…/docket-config\.sh --bootstrap##g` sed clause in `strip_canonical`) plus a "carve-out occurs
+exactly once" assertion (the `carve == 1` check). This change routes bootstrap through the facade,
+rewires Step-0, and flips the guard from tolerating the carve-out to forbidding it.
+
+> Reconcile note (2026-07-14): change #71 (PR #81) merged after this spec was groomed and
+> reshaped `tests/test_skill_facade_wiring.sh` by adding a Layer-3 board-surfaces sentinel — so
+> the two edit sites moved (the bootstrap strip clause and the `carve == 1` assert are now lower
+> in the file than when this spec was drafted). The edits below are keyed by *shape*, not line
+> number, and are independent of Layer 3; build-time grep locates them (the enumerated-set
+> learning: the spec's site list is a floor).
 
 This is a routing/surface change only. What bootstrap *does* — the `¬DOCKET ∧ ¬LIVE` cell guard,
 the orphan-`docket` create + push, the `.gitignore` block seed — is untouched.
