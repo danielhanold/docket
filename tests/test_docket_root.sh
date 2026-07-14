@@ -62,6 +62,8 @@ assert "anchor: nested relative path joins the main worktree" \
   '[ "$( cd "$work/.worktrees/feat-x" && docket_anchor_path .worktrees/feat-x )" = "$work/.worktrees/feat-x" ]'
 assert "anchor: '.' resolves to the main worktree itself (main-mode shape)" \
   '[ "$( cd "$work/sub" && docket_anchor_path . )" = "$work" ]'
+assert "anchor: empty string resolves to the main worktree from a linked worktree" \
+  '[ "$( cd "$work/.docket" && docket_anchor_path "" )" = "$work" ]'
 assert "anchor: './x' does not produce a doubled slash-dot" \
   '[ "$( cd "$work/sub" && docket_anchor_path ./docs )" = "$work/docs" ]'
 assert "anchor: an ABSOLUTE path passes through untouched" \
