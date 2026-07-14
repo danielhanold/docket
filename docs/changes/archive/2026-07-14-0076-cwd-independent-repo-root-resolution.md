@@ -2,7 +2,7 @@
 id: 76
 slug: cwd-independent-repo-root-resolution
 title: Resolve the repo root independently of CWD — preflight run inside `.docket` mints a nested metadata worktree
-status: proposed
+status: killed
 priority: medium
 created: 2026-07-14
 updated: 2026-07-14
@@ -83,3 +83,11 @@ inside it is precisely what triggers this bug.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+## Why killed
+
+Folded into #75 (`cwd-independent-repo-root-anchor`).
+
+This change was minted while #75's auto-groom was running, and claimed the script-level resolver fix — which made the boundary between the two a live human decision, and is why the drain abstained rather than re-scope autonomously. The human resolved the overlap by **merging** rather than splitting: #75 now carries the whole root-anchor fix, including everything this change declared — the CWD-independent resolver, the metadata-worktree ensure step's CWD-idempotency and nested-target guard, and the preflight-from-`.docket` regression test.
+
+Nothing is lost. This change's framing and its live 0073 sighting (the nested `<repo>/.docket/.docket` worktree and the empty BOARD.md) are folded into #75's Why as D2, and its open questions survive in #75 and its spec. Killed as folded-in, not as obsolete or wrong.
