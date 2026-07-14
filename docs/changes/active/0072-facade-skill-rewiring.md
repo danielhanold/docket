@@ -8,7 +8,7 @@ created: 2026-07-13
 updated: 2026-07-14
 depends_on: [68]
 related: [68, 73]
-adrs: []
+adrs: [30]
 spec: docs/superpowers/specs/2026-07-13-facade-skill-rewiring-design.md
 plan: docs/superpowers/plans/2026-07-14-facade-skill-rewiring.md
 results:
@@ -27,6 +27,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-13-facade-skill-rewiring-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-13-facade-skill-rewiring-design.md) |
 | Plan | [2026-07-14-facade-skill-rewiring.md](https://github.com/danielhanold/docket/blob/feat/facade-skill-rewiring/docs/superpowers/plans/2026-07-14-facade-skill-rewiring.md) |
+| ADRs | [ADR-0030](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0030-facade-wiring-guard-discriminates-on-invocation-prefix.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
