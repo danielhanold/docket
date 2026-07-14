@@ -48,9 +48,11 @@ any code. Design detail lives in the spec.
   `eval`/`bash`/generic-runner workarounds are not acceptable; and a scope statement that a
   consuming repo's build-time commands (feature-branch git, test suites, `gh`) remain that repo's
   own permission surface.
-- **`docs/cursor/permissions.example.json`** — the copyable fragment. It allowlists **one entry:
-  the canonical `docket.sh` invocation** (both the guarded-expansion spelling and the
-  resolved-absolute form). The facade is the trust boundary; per-operation entries were rejected.
+- **`docs/cursor/permissions.example.json`** — the copyable fragment. It allowlists the facade
+  `docket.sh` spellings observed in the verification log: canonical
+  `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh`, both short `:?}` quote styles, and the
+  resolved-absolute path. The facade is the trust boundary; per-operation helper entries were
+  rejected.
 - **`docs/cursor/sandbox.example.json`** — the copyable sandbox fragment granting a read path to
   the docket clone, which lives outside the workspace.
 - **Trust tiers**, derived from `scripts/docket.md` (already the declared permission inventory),
@@ -69,9 +71,9 @@ any code. Design detail lives in the spec.
 ## Build precondition — live Cursor verification
 
 **Fulfilled 2026-07-14.** The spec's `## Appendix — verification log` records the live Cursor
-3.11.19 session (Allowlist with Sandbox; facade allowlist; autoRun-only contrast; demotion /
-invalid-JSON / mode-lock observations). Reconcile must still abort if that appendix is removed or
-emptied.
+3.11.19 session (Allowlist with Sandbox; four facade spellings including short `:?}` forms;
+autoRun-only contrast; demotion / invalid-JSON / mode-lock; compound retest). Reconcile must still
+abort if that appendix is removed or emptied.
 
 ## Out of scope
 

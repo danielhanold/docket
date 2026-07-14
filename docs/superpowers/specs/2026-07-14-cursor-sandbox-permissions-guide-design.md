@@ -28,13 +28,13 @@ Two forces shape the guide beyond "write down the config":
 
 ## Core decisions
 
-1. **Trust is granted at the facade, not per operation.** The published fragment allowlists the one
-   canonical `docket.sh` invocation; every operation runs unprompted. The facade *is* the trust
-   boundary (0068's central argument, ADR-0029) — re-litigating that boundary as 13 per-op entries
-   would produce a fragment that drifts with every new operation and buys control the facade was
-   designed to make unnecessary. The price is that the entry authorizes destructive operations
-   unprompted; the guide states that price loudly rather than hiding behind granularity.
-   **Recorded as an ADR** (see *ADR* below).
+1. **Trust is granted at the facade, not per operation.** The published fragment allowlists
+   `docket.sh` invocation spellings (canonical + observed agent variants — see appendix §G), not
+   per-operation helpers. The facade *is* the trust boundary (0068's central argument, ADR-0029) —
+   re-litigating that boundary as 13 per-op entries would produce a fragment that drifts with every
+   new operation and buys control the facade was designed to make unnecessary. The price is that
+   the entry authorizes destructive operations unprompted; the guide states that price loudly rather
+   than hiding behind granularity. **Recorded as an ADR** (see *ADR* below).
 2. **Both fragments ship.** A `permissions.json` fragment (command approval) and a `sandbox.json`
    fragment (a read path to the docket clone, which lives outside the workspace). They are not
    substitutes for one another — see decision 3 and *Cursor Run Mode mapping* below.
@@ -43,9 +43,10 @@ Two forces shape the guide beyond "write down the config":
    and rebases; skills push). A sandbox denies both. No `sandbox.json` filesystem entry can
    substitute for a terminal permission — the guide says this explicitly, because the natural
    assumption ("I granted filesystem access, why is it still failing") is the failure mode.
-   The recommended operator mode is **Auto-review (with Sandbox)** with a
-   `permissions.json` `terminalAllowlist` entry for the facade — not "sandbox mode" as an
-   alternative to the permissions file (a common misreading of the pre-3.5/3.6 UI).
+   The recommended operator mode is **Allowlist (with Sandbox)** with a `permissions.json`
+   `terminalAllowlist` for the facade — not Auto-review (locked out when the file defines
+   allowlists; see *Cursor Run Mode mapping*), and not "sandbox mode" as an alternative to the
+   permissions file.
 4. **Nothing is asserted that the verification log does not record.** The troubleshooting section is
    a transcription of the appendix, not a reconstruction from docket's code or from Cursor's docs. A
    failure mode that does not reproduce in the session is **cut**, not softened.
@@ -126,6 +127,8 @@ time, so no autonomous loop can select and build it while the appendix is missin
 is done and the appendix is committed, the human flips `status: blocked` → `proposed`, making the
 change build-ready.
 
+**Username / path placeholders.** Verification logs must never record real usernames or home directory names — use `$USER` / `$HOME` placeholders only (e.g. `/Users/$USER/dev/docket/...`). Prefer `$DOCKET_SCRIPTS_DIR` in command forms; when an absolute path is required, publish it as `/Users/$USER/dev/docket/...`, never a resolved home directory.
+
 **The fail-closed backstop.** The reconcile pass MUST abort (abort-and-report, per the autonomous
 wrapper rule) if this spec has no `## Appendix — verification log` heading, or the section is empty.
 A premature status flip must fail, never invent observations.
@@ -138,7 +141,7 @@ feature branch like any code:
 | Path | What it is |
 |---|---|
 | `docs/cursor/permissions.md` | The guide. |
-| `docs/cursor/permissions.example.json` | Copyable `permissions.json` fragment: the canonical guarded-expansion spelling **and** the resolved-absolute form (a template — the clone path is machine-specific). |
+| `docs/cursor/permissions.example.json` | Copyable `permissions.json` fragment: the **four** observed `docket.sh` spellings (canonical guarded-expansion with `:?run docket/install.sh`, resolved-absolute path, and the two short `:?}` quote styles agents emit — see appendix §G). Absolute path uses the `/Users/$USER/dev/docket/...` template (never a real username). |
 | `docs/cursor/sandbox.example.json` | Copyable `sandbox.json` fragment: read path to the docket clone. |
 | `README.md` | A pointer to the guide (a knob nobody can find is not shipped — LEARNINGS 2026-07-09 #49). |
 
@@ -189,9 +192,10 @@ watch it redden) before it is trusted; a guard that has not been mutation-tested
 1. **Both example JSON files parse.** Invalid JSON silently disabling the entire permissions file is
    itself one of the failure modes the guide warns about — shipping a malformed fragment would be
    self-refuting.
-2. **The fragment carries the canonical facade spelling**, derived from the same source the facade's
-   own tests enforce (`scripts/docket.md` / the canonical-spelling sentinel), never retyped into the
-   test. Both published forms — guarded-expansion and resolved-absolute — are checked.
+2. **The fragment carries the facade spellings**, including the canonical form derived from the
+   same source the facade's own tests enforce (`scripts/docket.md` / the canonical-spelling
+   sentinel), never retyped into the test. All published forms from appendix §G — canonical
+   guarded-expansion, both short `:?}` quote styles, and resolved-absolute — are checked.
 3. **The guide's fenced JSON blocks are byte-identical to the example files**, so the copyable text a
    reader pastes and the file the parser validates cannot drift apart.
 4. **Every troubleshooting entry carries a provenance stamp** — assert the entry count equals the
@@ -212,11 +216,12 @@ states this so the review is not skipped on the strength of a green suite.
 
 **Cursor auto-run trust is granted at the facade, not per operation.** Recorded at build time via
 `docket-adr`. Context: the classifier demotes a whole program on one unmatched leaf, and the facade
-was built (0068) precisely to make the permission surface finite. Decision: allowlist the single
-canonical `docket.sh` invocation rather than 13 per-operation entries. Consequences: the fragment
-stays one stable line as operations come and go, and the trust boundary matches the one the code
-already draws — at the cost of authorizing `docket-status`'s sweep, `terminal-publish`, `github-mirror`,
-and `cleanup-feature-branch` unprompted, which the guide must state plainly. Relates to ADR-0029
+was built (0068) precisely to make the permission surface finite. Decision: allowlist the observed
+`docket.sh` invocation spellings (canonical + short `:?}` variants + absolute — appendix §G) rather
+than 13 per-operation helper entries. Consequences: the fragment stays a small stable set as
+operations come and go, and the trust boundary matches the one the code already draws — at the cost
+of authorizing `docket-status`'s sweep, `terminal-publish`, `github-mirror`, and
+`cleanup-feature-branch` unprompted, which the guide must state plainly. Relates to ADR-0029
 (facade routing and config presentation), ADR-0020 (generated agent artifacts stay machine-local and
 human-applied — docket never writes the user's Cursor config), ADR-0027 (terminal-publish gating).
 
@@ -277,14 +282,16 @@ with undocumented keys.
 | B3 | `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh preflight` | same | **Outside** sandbox | Success; fetched `origin/docket`; `BOOTSTRAP=PROCEED` |
 | B4 | Same as B1–B3 | **`autoRun` only** (no allowlists); Auto-review available | **Inside** sandbox | `docket-config: cannot reach origin (git fetch failed)`; preflight exit 1 |
 | B5 | B1–B3 again after restoring allowlists | Allowlist (with Sandbox) | **Outside** sandbox | Success (contrast with B4) |
-| B6 | B1–B3 with **facade-only** docket entries (legacy per-helper `DOCKET_SCRIPTS_DIR/*` lines removed; only the two `docket.sh` spellings remain among docket entries) | Allowlist (with Sandbox) | **Outside** sandbox | Success — published fragment shape is sufficient |
+| B6 | B1–B3 with **facade-only** docket entries (legacy per-helper `DOCKET_SCRIPTS_DIR/*` lines removed; only the two `docket.sh` spellings remain among docket entries) | Allowlist (with Sandbox) | **Outside** sandbox | Success for canonical + absolute |
+| B7 | Short forms (see §G) after adding them to the allowlist | Allowlist (with Sandbox) | **Outside** sandbox | Success — required; canonical-only was insufficient for agent-emitted compounds |
 
 ### C. Failure modes — reproduced
 
 | Mode | How tested | Observed |
 |---|---|---|
 | **Sandbox ≠ terminal permission** | B4: `autoRun` only under Auto-review | Commands auto-ran but stayed sandboxed; network/`git fetch` to origin failed. `sandbox.json` read path + network allowlist did **not** substitute for a terminal allowlist entry that runs the facade outside the sandbox. |
-| **Spelling mismatch** | `"${DOCKET_SCRIPTS_DIR:?run docket/instal.sh}"/docket.sh env` (typo `instal`) | Demoted to sandbox; origin fetch failed (exit 1). |
+| **Spelling mismatch (typo in guard message)** | `"${DOCKET_SCRIPTS_DIR:?run docket/instal.sh}"/docket.sh env` (typo `instal`) | Demoted to sandbox; origin fetch failed (exit 1). |
+| **Spelling mismatch (short `:?}` vs canonical)** | Agent compound used `"${DOCKET_SCRIPTS_DIR:?}/docket.sh"` while allowlist had only `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh` | Required approval / demotion until the short forms were added (§G). Cursor prefix-matches the literal string; the short guard is **not** a prefix of the canonical one. |
 | **Compound demotion (matched + unmatched leaf)** | `"…"/docket.sh env; eval true` | **Whole program** sandboxed despite the facade leaf being allowlisted. |
 | **Unreachable unmatched leaf still demotes** | `if false; then eval true; fi; "…"/docket.sh env` | Whole program sandboxed. |
 | **Direct helper bypass** | `"…"/docket-config.sh --export --format plain` after removing per-helper allowlist rows | Sandboxed; origin fetch failed (exit 1). Not covered by facade-only allowlist. |
@@ -305,10 +312,59 @@ file-controlled allowlist (read-only Command Allowlist sourced from the file).
 
 ### F. Session conclusion for the build
 
-1. Ship the guide targeting **Allowlist (with Sandbox)** + the two facade spellings in
-   `terminalAllowlist` + sandbox read-path fragment.
+1. Ship the guide targeting **Allowlist (with Sandbox)** + the **four** facade spellings in
+   `terminalAllowlist` (§G) + sandbox read-path fragment.
 2. State plainly that a `permissions.json` allowlist currently precludes selecting Auto-review
    (Cursor 3.11.19) — cite this appendix.
 3. Troubleshooting entries to include (all stamped 3.11.19 / 2026-07-14): sandbox≠terminal;
-   spelling mismatch; compound / unreachable-leaf demotion; invalid JSON; helper bypass.
+   spelling mismatch (typo **and** short-vs-canonical); compound / unreachable-leaf demotion;
+   invalid JSON; helper bypass.
 4. Do not document `approvalMode` as a workaround.
+5. Skills/agents should still prefer the canonical `:?run docket/install.sh` form as a standalone
+   Bash call; the short forms are published because agents emit them in practice.
+
+### G. Short `:?}` spellings + retest (same day, after first appendix)
+
+**Problem.** With only canonical + absolute allowlisted, a real agent compound still required
+approval:
+
+```bash
+cd /Users/$USER/dev/docket && "${DOCKET_SCRIPTS_DIR:?}/docket.sh" board-refresh && \
+  cd /Users/$USER/dev/docket/.docket && git status --short && \
+  git diff --stat BOARD.md 2>/dev/null; \
+  grep -n -A2 -E '0073|cursor-sandbox' BOARD.md | head -40
+```
+
+**Causes (both required):** (1) `"${DOCKET_SCRIPTS_DIR:?}/docket.sh"` ≠ canonical
+`"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh` spelling; (2) `git status` was missing
+from the day-to-day allowlist (compound demotion). `git status` is **not** part of the published
+docket fragment — consuming-repo / operator surface.
+
+**Allowlist additions that fixed the facade leaf** (kept in machine `permissions.json` for the
+retest; to be mirrored in `permissions.example.json`):
+
+```text
+"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh
+"${DOCKET_SCRIPTS_DIR:?}"/docket.sh
+"${DOCKET_SCRIPTS_DIR:?}/docket.sh"
+/Users/$USER/dev/docket/scripts/docket.sh
+```
+
+Note the two short forms differ by whether `/docket.sh` is inside or outside the closing quote —
+both were observed; both must be listed (neither is a prefix of the other).
+
+**Retest (2026-07-14, after additions):**
+
+| # | Form / program | Where | Result |
+|---|---|---|---|
+| G1 | Absolute `docket.sh env` | Outside | OK |
+| G2 | Canonical guarded `docket.sh env` | Outside | OK |
+| G3 | `"${DOCKET_SCRIPTS_DIR:?}"/docket.sh env` | Outside | OK |
+| G4 | `"${DOCKET_SCRIPTS_DIR:?}/docket.sh" env` | Outside | OK |
+| G5 | Canonical `preflight` | Outside | OK |
+| G6 | Typo / `eval` compounds / `docket-config.sh` bypass | Sandboxed | Demotion still holds |
+| G7 | User compound above (short form + `git status` now allowlisted) | **Outside** | No longer demoted for permissions. (`board-refresh` itself returned `missing --changes-dir` — CLI args, not sandbox.) |
+| G8 | Canonical `docket.sh board-refresh` alone | Outside | Allowlisted; same CLI `missing --changes-dir` (exit 2) |
+
+**Guide/fragment implication:** publish all four spellings. Document short-vs-canonical as a
+first-class troubleshooting entry. Do not claim “two spellings” only.
