@@ -31,6 +31,9 @@ CANON="$(grep -oE '\$\{DOCKET_SCRIPTS_DIR:\?run docket/install\.sh\}' "$CONV")"
 CANON="${CANON%%$'\n'*}"   # first match; no pipe-to-head (pipefail-safe)
 if [ -n "$CANON" ]; then ok "canonical guard token derivable from convention"; else no "canonical guard token derivable from convention"; fi
 if [ -n "$CANON" ] && grep -qF -- "$CANON" "$PERMS_JSON"; then ok "fragment carries canonical guarded spelling"; else no "fragment carries canonical guarded spelling"; fi
+# Full decorated canonical form (JSON-escaped quotes) — built from the derived token, not retyped.
+CANON_FULL='\"'"$CANON"'\"/docket.sh'
+if [ -n "$CANON" ] && grep -qF -- "$CANON_FULL" "$PERMS_JSON"; then ok "fragment carries full canonical decorated spelling"; else no "fragment carries full canonical decorated spelling"; fi
 # The three remaining observed forms (short x2, absolute) have no feature-branch source of truth
 # but the fragment itself — they are empirical observations from appendix §G. Assert each is present
 # (mutation: drop one from the fragment -> reddens). $USER placeholder kept verbatim.
