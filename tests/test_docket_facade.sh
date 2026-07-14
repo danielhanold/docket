@@ -108,4 +108,16 @@ code_no_comments="$(sed 's/#.*//' "$FSH")"
 assert "docket.sh never calls the eval builtin" \
   '! printf "%s" "$code_no_comments" | grep -qE "(^|[;&|[:space:]])eval([[:space:]]|$)"'
 
+# The dispatch `case` itself is the routable surface — the op set the other assertions derive from
+# `WRAPPED_OPS` proves only "WRAPPED_OPS matches the doc", NOT "the dispatch matches the doc". A
+# `case` arm hand-added OUTSIDE the WRAPPED_OPS loop (e.g. `deploy-secret) exec ...`) would route a
+# name that is in neither `sh_ops` nor `md_ops`, so set-equality would still hold. Close that hole:
+# assert the `case "$op"` block contains ONLY the known dispatch arms (the two verbs + the three
+# meta-arms). Any hand-added arm reddens this. Derived by grep from the actual case block.
+case_labels="$(sed -n '/^case "\$op" in/,/^esac/p' "$FSH" \
+  | grep -oE '^  [^)]+\)' | sed -E 's/\)$//; s/^  //; s/[[:space:]]+$//' | sort -u)"
+expected_labels="$(printf '%s\n' '-h|--help' '""' 'env' 'preflight' '*' | sort -u)"
+assert "docket.sh dispatch case has ONLY the known arms (a hand-added op arm reddens)" \
+  '[ "$case_labels" = "$expected_labels" ] || { echo "case=[$case_labels] expected=[$expected_labels]" >&2; false; }'
+
 exit $fail
