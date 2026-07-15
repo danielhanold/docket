@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/codex-runner-delegation
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -80,11 +80,35 @@ to a child harness's non-interactive exec primitive, activated by explicit confi
 
 ## Open questions
 
-- Exact `codex exec` final-message capture flag on the installed version.
+- ~~Exact `codex exec` final-message capture flag on the installed version.~~ RESOLVED at
+  reconcile: codex-cli 0.144.4 has `--output-last-message <FILE>` (plus `-m/--model`,
+  `-s/--sandbox`, `-C/--cd`, `-c key=value` for `model_reasoning_effort` and
+  `sandbox_workspace_write.network_access`).
 - Whether #0077's TOML agents (`.codex/agents/docket-*.toml`) let a delegated orchestrator's
-  Codex-side children resolve model pins, softening the accepted pin-loss limitation (verify at
-  build).
+  Codex-side children resolve model pins, softening the accepted pin-loss limitation —
+  unverifiable until #0077 merges; the accepted limitation stands.
 - Whether delegating `docket-finalize-change` to Codex sidesteps the merge-without-review
   classifier — interacts with #0062; policy question, must not become a silent bypass.
 
 ## Reconcile log
+
+- 2026-07-15 — Reconciled against current code + related records before planning. Findings:
+  - **Design valid, no scope drift.** `origin/main` tip is 3dd283f (0075 merged): `docket.sh`
+    facade, `REPO_ROOT` export, and `link-skills.sh` (repo root) all match the spec's assumed
+    starting state. Skill availability on codex verified on this machine: `~/.codex/skills`
+    carries the docket-* links.
+  - **#0077 is concurrently `in-progress`** — its feature branch is fully built locally
+    (results receipt at tip) but unpushed, no PR. Its spec guarantees a byte-identical
+    non-codex (markdown) emitter path, so this change's claude-wrapper shim work overlaps it
+    only structurally in `sync-agents.sh` (both add registry scaffolding + tests). The spec's
+    "parallel in shape to #0077's emitter registry" is descriptive, not a dependency —
+    `depends_on` stays `[]`; expect a mechanical rebase in whichever change merges second.
+  - **Open question 1 resolved** (see above): `--output-last-message` pinned on the installed
+    codex-cli 0.144.4.
+  - **Prerequisite gap on this machine:** `[features] multi_agent` is NOT set in
+    `~/.codex/config.toml`. It gates only a delegated orchestrator's child-native fan-out —
+    not the build's single-agent live smoke dispatch (status) — so the build proceeds;
+    documented as a README prerequisite and flagged to the human.
+  - **0075 constraint folded in:** `runner-dispatch.sh` and the codex adapter must anchor to
+    the durable `REPO_ROOT` (ADR-0034 cwd-independence), passing it as the child's working
+    directory (`codex exec -C`).
