@@ -2,7 +2,7 @@
 id: 79
 slug: codex-runner-delegation
 title: Cross-harness runner delegation framework (first runner — OpenAI Codex)
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-15
 updated: 2026-07-15
@@ -11,11 +11,11 @@ related: [16, 44, 45, 46, 61, 62, 77, 78]
 adrs: [15, 37, 38]
 spec: docs/superpowers/specs/2026-07-15-codex-runner-delegation-design.md
 plan: docs/superpowers/plans/2026-07-15-codex-runner-delegation.md
-results:
+results: docs/results/2026-07-15-codex-runner-delegation-results.md
 trivial: false
 auto_groomable:
 branch: feat/codex-runner-delegation
-pr:
+pr: https://github.com/danielhanold/docket/pull/86
 blocked_by:
 reconciled: true
 ---
@@ -27,6 +27,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-15-codex-runner-delegation-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-15-codex-runner-delegation-design.md) |
 | Plan | [2026-07-15-codex-runner-delegation.md](https://github.com/danielhanold/docket/blob/feat/codex-runner-delegation/docs/superpowers/plans/2026-07-15-codex-runner-delegation.md) |
+| Results | [2026-07-15-codex-runner-delegation-results.md](https://github.com/danielhanold/docket/blob/feat/codex-runner-delegation/docs/results/2026-07-15-codex-runner-delegation-results.md) |
+| PR | [#86](https://github.com/danielhanold/docket/pull/86) |
 | ADRs | [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md), [ADR-0037](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0037-runner-delegation-explicit-runner-field.md), [ADR-0038](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0038-runner-shim-wrapper-single-dispatch-chokepoint.md) |
 <!-- docket:artifacts:end -->
 
