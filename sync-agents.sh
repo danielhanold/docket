@@ -328,6 +328,65 @@ emit() {  # $1=src file  $2=model  $3=effort
     }' "$1"
 }
 
+# --- per-harness emitter registry (change 0077) ------------------------------
+# Map a harness token to the on-disk extension docket generates for it.
+harness_ext(){ case "$1" in codex) printf 'toml';; *) printf 'md';; esac; }
+
+# Dispatch to the harness-appropriate emitter. MODEL/EFFORT are resolved OVERRIDES
+# (empty => keep the built-in), identical in meaning to emit()'s args.
+emit_for_harness(){  # $1=src md  $2=harness  $3=model  $4=effort
+  case "$2" in
+    codex) emit_codex_toml "$1" "$3" "$4";;
+    *)     emit "$1" "$3" "$4";;
+  esac
+}
+
+# Escape a value for a TOML basic (double-quoted) string: backslash then double-quote.
+toml_escape_basic(){ printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'; }
+
+# Transform a built-in markdown wrapper into a Codex TOML agent document on stdout.
+# Field mapping (ADR-0015 verbatim passthrough for model/effort):
+#   frontmatter name:        -> name
+#   frontmatter description: -> description
+#   effective model          -> model                  (override||built-in; omit if empty/inherit)
+#   effective effort         -> model_reasoning_effort  (override||built-in; omit if empty/auto)
+#   skills: preload + body   -> developer_instructions  (multi-line basic string)
+emit_codex_toml(){  # $1=src md  $2=model_override  $3=effort_override
+  local src="$1" mo="$2" eo="$3"
+  local name desc bi_model bi_effort model effort skills_csv body dev esc
+  name="$(sed -n '/^name:/{s/^name:[[:space:]]*//;p;q;}' "$src")"
+  [ -n "$name" ] || name="docket-$(short_name "$src")"
+  desc="$(agent_description "$src")"
+  bi_model="$(sed -n '/^model:/{s/^model:[[:space:]]*//;p;q;}' "$src")"
+  bi_effort="$(sed -n '/^effort:/{s/^effort:[[:space:]]*//;p;q;}' "$src")"
+  model="${mo:-$bi_model}"
+  effort="${eo:-$bi_effort}"
+  skills_csv="$(sed -n '/^skills:/{s/^skills:[[:space:]]*//;p;q;}' "$src" | sed -e 's/^\[//' -e 's/\][[:space:]]*$//' -e 's/[[:space:]]*$//')"
+  # body = everything after the frontmatter closing --- , leading blank lines trimmed.
+  body="$(awk '/^---[[:space:]]*$/{d++; next} d>=2{print}' "$src" | awk 'NF{p=1} p{print}')"
+  # developer_instructions text: skills-preload preamble (if any) + the wrapper body.
+  if [ -n "$skills_csv" ]; then
+    dev="Before acting, load these docket skills from your linked Codex skills directory: ${skills_csv}.
+
+${body}"
+  else
+    dev="$body"
+  fi
+  # Emit TOML.
+  printf 'name = "%s"\n' "$(toml_escape_basic "$name")"
+  printf 'description = "%s"\n' "$(toml_escape_basic "$desc")"
+  if [ -n "$model" ] && [ "$model" != "inherit" ]; then
+    printf 'model = "%s"\n' "$(toml_escape_basic "$model")"
+  fi
+  if [ -n "$effort" ] && [ "$effort" != "auto" ]; then
+    printf 'model_reasoning_effort = "%s"\n' "$(toml_escape_basic "$effort")"
+  fi
+  # Multi-line basic string. Escape backslashes; defend against a literal """ terminator
+  # (built-in bodies have neither, but keep the emitter robust). Closing """ on its own line.
+  esc="$(printf '%s' "$dev" | sed -e 's/\\/\\\\/g' -e 's/"""/""\\"/g')"
+  printf 'developer_instructions = """\n%s\n"""\n' "$esc"
+}
+
 # Assemble the Cursor dispatch rule to stdout: static head + one subsection per built-in agent
 # (glob order). A built-in agent with a fragment uses it verbatim; one without gets a minimal
 # auto-block derived from its description + a warning (a new agent is never silently un-dispatched).
@@ -444,7 +503,7 @@ user_level_pass() {  # built-in ⊕ global -> each user-level target harness, re
       resolve_agent_layers "$harness" "$name" "$GLOBAL_CFG"
       warn_fallback_model "$harness" "$name"
       mkdir -p "$dir"
-      emit "$src" "$RES_MODEL" "$RES_EFFORT" > "$dir/$(basename "$src")"
+      emit_for_harness "$src" "$harness" "$RES_MODEL" "$RES_EFFORT" > "$dir/docket-$name.$(harness_ext "$harness")"
     done
   done
   # Cursor-only dispatch rule, user-level, for each targeted dispatch-rule harness.
@@ -484,7 +543,7 @@ project_level_pass() {  # built-in ⊕ local ⊕ committed ⊕ global -> <repo>/
       warn_fallback_model "$harness" "$name"
       dir="$REPO/.$harness/agents"
       mkdir -p "$dir"
-      emit "$src" "$RES_MODEL" "$RES_EFFORT" > "$dir/docket-$name.md"
+      emit_for_harness "$src" "$harness" "$RES_MODEL" "$RES_EFFORT" > "$dir/docket-$name.$(harness_ext "$harness")"
     done
   done
   # Cursor-only dispatch rule, per-repo (committed) when cursor is a targeted harness.
