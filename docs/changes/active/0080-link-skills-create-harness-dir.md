@@ -2,7 +2,7 @@
 id: 80
 slug: link-skills-create-harness-dir
 title: link-skills.sh creates a missing skills subdir when the harness is present
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-15
 updated: 2026-07-15
@@ -11,11 +11,11 @@ related: [45]
 adrs: []
 spec:
 plan: docs/superpowers/plans/2026-07-15-link-skills-create-harness-dir.md
-results:
+results: docs/results/2026-07-15-link-skills-create-harness-dir-results.md
 trivial: true
 auto_groomable:
 branch: feat/link-skills-create-harness-dir
-pr:
+pr: https://github.com/danielhanold/docket/pull/87
 blocked_by:
 reconciled: true
 ---
@@ -26,6 +26,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Plan | [2026-07-15-link-skills-create-harness-dir.md](https://github.com/danielhanold/docket/blob/feat/link-skills-create-harness-dir/docs/superpowers/plans/2026-07-15-link-skills-create-harness-dir.md) |
+| Results | [2026-07-15-link-skills-create-harness-dir-results.md](https://github.com/danielhanold/docket/blob/feat/link-skills-create-harness-dir/docs/results/2026-07-15-link-skills-create-harness-dir-results.md) |
+| PR | [#87](https://github.com/danielhanold/docket/pull/87) |
 <!-- docket:artifacts:end -->
 
 ## Why
