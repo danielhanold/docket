@@ -2,7 +2,7 @@
 id: 81
 slug: first-run-setup-config-example
 title: First-run setup — committed starter config + install.sh scaffolding + README Install restructure
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-07-15
 updated: 2026-07-15
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/first-run-setup-config-example
 pr:
 blocked_by:
 reconciled: false
