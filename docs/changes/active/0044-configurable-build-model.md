@@ -2,12 +2,12 @@
 id: 44
 slug: configurable-build-model
 title: Configurable SDD build models for docket-implement-next
-status: implemented
+status: blocked
 priority: low
 created: 2026-07-07
-updated: 2026-07-11
+updated: 2026-07-15
 depends_on: []
-related: [16, 42]
+related: [16, 42, 79]
 adrs: [23]
 spec: docs/superpowers/specs/2026-07-07-configurable-build-model-design.md
 plan: docs/superpowers/plans/2026-07-11-configurable-build-model.md
@@ -16,7 +16,7 @@ trivial: false
 auto_groomable:
 branch: feat/configurable-build-model
 pr: https://github.com/danielhanold/docket/pull/69
-blocked_by:
+blocked_by: PR #69 is stale (predates the 0068/0072 facade rework and later agent-layer changes) and #0079 (runner delegation) reshapes the design — the build roles should grow a runner field (build.<role>.runner codex, the mixed topology 0079 deferred). Needs a rebase plus redesign pass before merge.
 reconciled: true
 ---
 
@@ -60,6 +60,16 @@ Add a **`build:` config surface** with two per-role **model IDs**, plus a behavi
 A set role is a blunt, deliberate override of SDD's per-complexity adaptivity — trading it for a
 predictable cost/quality policy. Likely warrants a small ADR — decided at build.
 
+**Folded in from #0079 (2026-07-15):** #0079 adds whole-run delegation of docket agents to OpenAI
+Codex via an explicit `runner: codex` key on `agents:` entries (model IDs stay ADR-0015 opaque
+passthrough; a shim wrapper calls `codex exec` foreground). Its deferred **mixed topology** —
+orchestration stays on Claude Code while only the token-heavy SDD leaves run on Codex — lands
+naturally on THIS change's `build:` surface: the build roles should accept the same optional
+runner key (**`build.implementer.runner: codex`** / **`build.reviewer.runner: codex`**), routing
+those SDD dispatches through #0079's `codex-dispatch.sh` + `runner_codex:` sandbox config instead
+of a native subagent. The redesign pass should align `build:`'s shape with the `agents:` entry
+shape (`model` / `effort` / `runner`) so the two surfaces read identically.
+
 ## Out of scope
 
 - Redesigning or forking SDD — this only supplies the `model:` value SDD already requires.
@@ -77,6 +87,11 @@ predictable cost/quality policy. Likely warrants a small ADR — decided at buil
 - Exact SDD override point — confirm against the SDD version in use at build.
 - Whether the target harness (Cursor, in the motivating case) honors the `model:` field on SDD's
   subagent dispatches the way it honors it on docket's agent wrappers — verify at build.
+- How a `runner: codex` build role interleaves with SDD's dispatch loop — a per-task `codex exec`
+  call replaces a Task-dispatched implementer/reviewer; prompt marshalling and result relay reuse
+  #0079's dispatch script (whether as-is or with a leaf-mode flag, decide at redesign).
+- Whether #0044 should now `depends_on: [79]` (the runner mechanics ship there) or build the
+  shared pieces itself if it lands first — decide at the redesign pass.
 
 ## Reconcile log
 

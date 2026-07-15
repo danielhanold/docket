@@ -33,8 +33,9 @@ Two candidate bridges were researched:
    (`[features] multi_agent = true` in `~/.codex/config.toml` — a documented prerequisite).
    A *mixed* topology (Claude Code orchestrator routing individual SDD build leaves to
    `codex exec`, i.e. a Codex-backed `build.implementer`/`build.reviewer` from #0044) is
-   **deferred** to a possible follow-up change — it is a second mechanism with its own prompt
-   marshalling, and whole-run delegation subsumes its main win.
+   **deferred to #0044's redesign pass** (folded there 2026-07-15; #0044 is blocked pending it) —
+   it is a second mechanism with its own prompt marshalling, and whole-run delegation subsumes its
+   main win.
 2. **Activation: explicit `runner:` field, never model-ID sniffing.** Model-prefix detection
    (`gpt-*` ⇒ delegate) was considered and rejected: ADR-0015 makes agent `model:` values opaque
    passthrough strings docket never validates or interprets, and a prefix list misfires both ways
@@ -135,7 +136,19 @@ Deterministic mechanics, in order:
   carry into Codex — Codex-side children run at Codex's own defaults. Accepted for this change;
   revisit only if it bites.
 
-### 6. Failure posture & testing
+### 6. Documentation
+
+- README: a new **`### Codex runner delegation`** subsection under **`## Customization`** —
+  what `runner: codex` does (whole-run delegation via `codex exec`), the `runner_codex:` sandbox
+  block, prerequisites (Codex CLI + auth, superpowers in Codex, `multi_agent = true`), and the
+  eligibility rule (autonomous wrappers only).
+- README: **`## Tuning agent models & effort`** gains a short pointer + link to that subsection
+  (the `runner:` key appears in the same `agents:` entries that section documents, so readers
+  tuning models discover delegation there).
+- The convention's *Agent layer* reference (`references/agent-layer.md`) documents the `runner:`
+  key alongside `model:`/`effort:` resolution.
+
+### 7. Failure posture & testing
 
 - Every failure is abort-and-report (autonomous context, no human to prompt).
 - **Hermetic tests:** a fake `codex` binary on PATH asserting assembled flags and prompt,
@@ -151,7 +164,8 @@ Deterministic mechanics, in order:
 ## Out of scope
 
 - The mixed topology: routing individual SDD `build.implementer`/`build.reviewer` dispatches from a
-  Claude Code-hosted orchestrator to `codex exec` (possible follow-up change).
+  Claude Code-hosted orchestrator to `codex exec` — folded into #0044's redesign
+  (`build.<role>.runner: codex`).
 - Runners other than Codex (`gemini-cli`, …) — the `runner:` enum is deliberately extensible but
   only `codex` is implemented.
 - `runner:` support under non-`claude` harness keys (Cursor etc.) — warned-and-ignored.
