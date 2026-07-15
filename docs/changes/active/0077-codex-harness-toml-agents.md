@@ -8,7 +8,7 @@ created: 2026-07-15
 updated: 2026-07-15
 depends_on: []
 related: [45, 46, 51, 57]
-adrs: [15]
+adrs: [15, 36]
 spec: docs/superpowers/specs/2026-07-15-codex-harness-toml-agents-design.md
 plan: docs/superpowers/plans/2026-07-15-codex-harness-toml-agents.md
 results:
@@ -27,7 +27,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-15-codex-harness-toml-agents-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-15-codex-harness-toml-agents-design.md) |
 | Plan | [2026-07-15-codex-harness-toml-agents.md](https://github.com/danielhanold/docket/blob/feat/codex-harness-toml-agents/docs/superpowers/plans/2026-07-15-codex-harness-toml-agents.md) |
-| ADRs | [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md) |
+| ADRs | [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md), [ADR-0036](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0036-codex-agents-md-dispatch-block-committed-machine-neutral.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
