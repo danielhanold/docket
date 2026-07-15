@@ -34,7 +34,8 @@ Environment:
 
 ## Exit codes
 
-- `0` — always (wrote, left-untouched, or source-missing skip). Idempotent.
+- `0` — on success (wrote, left-untouched, or source-missing skip). Idempotent. A genuine
+  write failure (e.g. an unwritable config dir) propagates a non-zero exit under `set -e`.
 
 ## Invariants
 
