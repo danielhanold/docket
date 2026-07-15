@@ -72,4 +72,9 @@ assert "uncommented: a cursor wrapper was generated" '[ -f "$SB2/.cursor/agents/
 assert "uncommented: cursor status model came from the example block" \
   '[ "$(fm "$SB2/.cursor/agents/docket-status.md" model)" = "grok-4.5-fast-medium" ]'
 
+# README wires the new setup step (Deliverable 3).
+README="$REPO/README.md"
+assert "README has the step-2 global-config heading" 'grep -qF "### 2. Set up your global config" "$README"'
+assert "README step-2 names config.yml.example" 'grep -qF "config.yml.example" "$README"'
+
 exit $fail
