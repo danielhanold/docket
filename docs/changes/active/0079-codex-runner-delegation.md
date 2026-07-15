@@ -10,7 +10,7 @@ depends_on: []
 related: [16, 44, 45, 46, 61, 62, 77, 78]
 adrs: [15]
 spec: docs/superpowers/specs/2026-07-15-codex-runner-delegation-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-15-codex-runner-delegation.md
 results:
 trivial: false
 auto_groomable:
@@ -26,6 +26,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-15-codex-runner-delegation-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-15-codex-runner-delegation-design.md) |
+| Plan | [2026-07-15-codex-runner-delegation.md](https://github.com/danielhanold/docket/blob/feat/codex-runner-delegation/docs/superpowers/plans/2026-07-15-codex-runner-delegation.md) |
 | ADRs | [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md) |
 <!-- docket:artifacts:end -->
 
