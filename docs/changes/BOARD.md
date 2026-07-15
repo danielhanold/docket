@@ -1,12 +1,6 @@
 # Backlog
 
-**79 changes** — 🟢 1 in progress · 🟡 10 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 63 done · 🗑️ 3 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0079](active/0079-codex-runner-delegation.md) | Cross-harness runner delegation framework (first runner — OpenAI Codex) | `medium` | [spec](../superpowers/specs/2026-07-15-codex-runner-delegation-design.md) | `feat/codex-runner-delegation` |
+**79 changes** — 🟡 10 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 63 done · 🗑️ 3 killed
 
 ## 🟡 Proposed (10)
 
@@ -29,11 +23,12 @@
 |---|-------|----------|------------|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | PR #69 is stale (predates the 0068/0072 facade rework and later agent-layer changes) and #0079 (runner delegation) reshapes the design — the build roles should grow a runner field (build.<role>.runner codex, the mixed topology 0079 deferred). Needs a rebase plus redesign pass before merge. |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
 | [0077](active/0077-codex-harness-toml-agents.md) | Codex harness — TOML agent generation + AGENTS.md dispatch block | `high` | [#85](https://github.com/danielhanold/docket/pull/85) |
+| [0079](active/0079-codex-runner-delegation.md) | Cross-harness runner delegation framework (first runner — OpenAI Codex) | `medium` | [#86](https://github.com/danielhanold/docket/pull/86) |
 
 ```mermaid
 graph TD
