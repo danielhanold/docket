@@ -1,8 +1,14 @@
 # Backlog
 
-**81 changes** — 🟡 11 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 64 done · 🗑️ 3 killed
+**81 changes** — 🟢 1 in progress · 🟡 10 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 64 done · 🗑️ 3 killed
 
-## 🟡 Proposed (11)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Spec | Branch |
+|---|-------|----------|------|--------|
+| [0081](active/0081-first-run-setup-config-example.md) | First-run setup — committed starter config + install.sh scaffolding + README Install restructure | `medium` | [spec](../superpowers/specs/2026-07-15-first-run-setup-config-example-design.md) | `feat/first-run-setup-config-example` |
+
+## 🟡 Proposed (10)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -16,7 +22,6 @@
 | [0062](active/0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | `low` | needs-brainstorm |
 | [0067](active/0067-learnings-promotion-destination.md) | Give the learnings ledger a promotion destination — it has no way to shrink | `medium` | needs-brainstorm |
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | ⏳ waiting on #77 — needs your merge |
-| [0081](active/0081-first-run-setup-config-example.md) | First-run setup — committed starter config + install.sh scaffolding + README Install restructure | `medium` | build-ready |
 
 ## 🔴 Blocked (1)
 
