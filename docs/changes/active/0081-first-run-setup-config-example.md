@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/first-run-setup-config-example
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -83,3 +83,28 @@ verification cases.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-07-15 — reconcile (docket-implement-next)
+
+Verified the spec against current `origin/main`; the design holds unchanged.
+
+- **Nine wrapper defaults match.** All nine `agents/docket-*.md` frontmatter values on
+  `origin/main` equal the spec's `agents.claude` mirror (1b): status haiku-4-5/medium; adr
+  sonnet-5/medium; brainstorm-consultant, auto-groom, auto-groom-critic, implement-next,
+  rebase-resolver, integration-repair all opus-4-8/xhigh; finalize-change sonnet-5/medium.
+- **Nothing done elsewhere.** `config.yml.example` and `scripts/ensure-global-config.sh` are
+  both absent on `origin/main` — full scope remains to build.
+- **`install.sh` structure accurate.** It runs three primitives (link-skills → sync-agents →
+  ensure-docket-env); the plan adds `ensure-global-config.sh` before sync-agents (fourth step)
+  and updates the header's "runs N primitives" list. Confirmed accurate.
+- **README structure accurate.** `## Install` → `### Prerequisites` → `### The one-line
+  install`; the Deliverable-3 restructure (rename to step 1, add step 2) matches.
+- **ADR-0039 Accepted.** Records the documented-mirror coupling (wrappers are source of truth);
+  the build-time equality check enforces it. No automated drift guard in scope.
+- **Related changes done.** 0050 (global config layer) and 0080 (link-skills harness dir) both
+  `done` — the `~/.config/docket/config.yml` layer and dir-creation behavior this builds on are
+  present.
+- **In-flight codex work (0077/0079) unmerged, no impact.** The `codex`/`cursor` blocks ship
+  commented as unvalidated examples; no dependency on those changes.
+
+No scope drift, no obsolescence, design not invalidated. Proceeding to plan + build.
