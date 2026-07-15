@@ -22,8 +22,19 @@ assert "install.sh injected DOCKET_SCRIPTS_DIR into the shell profile" \
 assert "install.sh injected env.DOCKET_SCRIPTS_DIR into settings.json" \
   'jq -e --arg v "$REPO/scripts" ".env.DOCKET_SCRIPTS_DIR == \$v" "$tmp/.claude/settings.json" >/dev/null'
 
+# install.sh scaffolds the global config (ensure-global-config.sh), before sync-agents reads it.
+assert "install.sh scaffolded the global config" '[ -f "$tmp/.config/docket/config.yml" ]'
+assert "install.sh global config is the committed starter" 'cmp -s "$REPO/config.yml.example" "$tmp/.config/docket/config.yml"'
+
 # Idempotent: a second run still succeeds.
 out2="$(cd "$tmp" && HOME="$tmp" DOCKET_HARNESS_ROOT="$tmp" DOCKET_TARGET_SHELL=zsh bash "$REPO/install.sh" 2>&1)"; rc2=$?
 assert "install.sh idempotent (second run exits 0)" '[ "$rc2" = "0" ]'
+
+# A user-edited global config is NOT overwritten by a re-run.
+printf '# user edit\nagent_harnesses: [claude]\n' > "$tmp/.config/docket/config.yml"
+out3="$(cd "$tmp" && HOME="$tmp" DOCKET_HARNESS_ROOT="$tmp" DOCKET_TARGET_SHELL=zsh bash "$REPO/install.sh" 2>&1)"; rc3=$?
+assert "install.sh re-run exits 0 with an edited global config" '[ "$rc3" = "0" ]'
+assert "install.sh re-run left the user-edited global config untouched" \
+  'grep -qF "# user edit" "$tmp/.config/docket/config.yml"'
 
 exit $fail
