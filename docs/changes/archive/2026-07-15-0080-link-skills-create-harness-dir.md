@@ -2,7 +2,7 @@
 id: 80
 slug: link-skills-create-harness-dir
 title: link-skills.sh creates a missing skills subdir when the harness is present
-status: implemented
+status: done
 priority: medium
 created: 2026-07-15
 updated: 2026-07-15
