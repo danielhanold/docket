@@ -25,8 +25,8 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Plan | [2026-07-15-link-skills-create-harness-dir.md](https://github.com/danielhanold/docket/blob/feat/link-skills-create-harness-dir/docs/superpowers/plans/2026-07-15-link-skills-create-harness-dir.md) |
-| Results | [2026-07-15-link-skills-create-harness-dir-results.md](https://github.com/danielhanold/docket/blob/feat/link-skills-create-harness-dir/docs/results/2026-07-15-link-skills-create-harness-dir-results.md) |
+| Plan | [2026-07-15-link-skills-create-harness-dir.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-15-link-skills-create-harness-dir.md) |
+| Results | [2026-07-15-link-skills-create-harness-dir-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-15-link-skills-create-harness-dir-results.md) |
 | PR | [#87](https://github.com/danielhanold/docket/pull/87) |
 <!-- docket:artifacts:end -->
 
