@@ -2,7 +2,7 @@
 id: 77
 slug: codex-harness-toml-agents
 title: Codex harness — TOML agent generation + AGENTS.md dispatch block
-status: proposed
+status: in-progress
 priority: high
 created: 2026-07-15
 updated: 2026-07-15
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/codex-harness-toml-agents
 pr:
 blocked_by:
 reconciled: false
