@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 # install.sh — set up docket on this machine, in one command.
 #
-# Runs the three install primitives in order:
+# Runs the four install primitives in order:
 #   1. link-skills.sh  — symlink the skills into each present harness's skill dir (live; edit-once)
-#   2. sync-agents.sh  — generate the model/effort-pinned agent wrappers into each present harness
+#   2. ensure-global-config.sh — scaffold ~/.config/docket/config.yml from config.yml.example on
+#                                first run (non-destructive), so the defaults are discoverable and
+#                                the generator (step 3) reads it
+#   3. sync-agents.sh  — generate the model/effort-pinned agent wrappers into each present harness
 #                        (generated copies; re-run after editing a config layer)
-#   3. ensure-docket-env.sh — export DOCKET_SCRIPTS_DIR so the skills can reach scripts/ from any
+#   4. ensure-docket-env.sh — export DOCKET_SCRIPTS_DIR so the skills can reach scripts/ from any
 #                             consuming repo (re-run back-fills already-migrated clones)
 # All are idempotent, so install.sh is safe to re-run any time (e.g. after adding a harness or
 # editing ~/.config/docket/config.yml).
@@ -20,6 +23,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "==> link-skills.sh (install skills)"
 bash "$SCRIPT_DIR/link-skills.sh"
+
+echo "==> ensure-global-config.sh (scaffold global config)"
+bash "$SCRIPT_DIR/scripts/ensure-global-config.sh"
 
 echo "==> sync-agents.sh (generate agent wrappers)"
 bash "$SCRIPT_DIR/sync-agents.sh"
