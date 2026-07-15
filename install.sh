@@ -16,7 +16,7 @@
 # NOT part of install: migrate-to-docket.sh — that migrates an existing repo to docket-mode and is
 # run from INSIDE the repo you are migrating, not as machine setup.
 #
-# Test seam: DOCKET_HARNESS_ROOT is passed through to both sub-scripts (overrides $HOME).
+# Test seam: DOCKET_HARNESS_ROOT is passed through to all four sub-scripts (overrides $HOME).
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
