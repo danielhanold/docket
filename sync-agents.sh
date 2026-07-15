@@ -442,7 +442,7 @@ tracked_docket_files() {  # tracked generated agent/rule paths, one per line (em
   local tok
   {
     for tok in $VALID_HARNESS_TOKENS; do
-      git -C "$REPO" ls-files -- ".$tok/agents/docket-*.md" 2>/dev/null
+      git -C "$REPO" ls-files -- ".$tok/agents/docket-*.$(harness_ext "$tok")" 2>/dev/null
     done
     for tok in $HARNESS_HAS_DISPATCH_RULES; do
       git -C "$REPO" ls-files -- ".$tok/rules/docket-dispatch.mdc" 2>/dev/null
@@ -587,13 +587,14 @@ check_project_level() {  # three legs: (a) gitignore block current [CI-meaningfu
     name="$(short_name "$src")"
     for harness in $HARNESSES; do
       resolve_agent_layers "$harness" "$name" "$LOCAL_CFG" "$DOCKET_YML" "$GLOBAL_CFG"
-      emit "$src" "$RES_MODEL" "$RES_EFFORT" > "$tmp/docket-$name.md"
-      got="$REPO/.$harness/agents/docket-$name.md"
+      local ext; ext="$(harness_ext "$harness")"
+      emit_for_harness "$src" "$harness" "$RES_MODEL" "$RES_EFFORT" > "$tmp/docket-$name.$ext"
+      got="$REPO/.$harness/agents/docket-$name.$ext"
       if [ ! -f "$got" ]; then
-        log "advisory: .$harness/agents/docket-$name.md not generated on this machine (run: bash sync-agents.sh)"; continue
+        log "advisory: .$harness/agents/docket-$name.$ext not generated on this machine (run: bash sync-agents.sh)"; continue
       fi
-      d="$(diff -u "$got" "$tmp/docket-$name.md" || true)"
-      if [ -n "$d" ]; then log "advisory: drift in .$harness/agents/docket-$name.md:"; printf '%s\n' "$d" >&2; fi
+      d="$(diff -u "$got" "$tmp/docket-$name.$ext" || true)"
+      if [ -n "$d" ]; then log "advisory: drift in .$harness/agents/docket-$name.$ext:"; printf '%s\n' "$d" >&2; fi
     done
   done
   rm -rf "$tmp"
@@ -653,9 +654,11 @@ prune_orphans() {  # $1 = scope (all|per-repo)
   if [ ${#scan_dirs[@]} -gt 0 ]; then
     for dir in "${scan_dirs[@]}"; do
       [ -d "$dir" ] || continue
-      for f in "$dir"/docket-*.md; do
+      local dtok dext
+      dtok="$(harness_of_dir "$dir")"; dext="$(harness_ext "$dtok")"
+      for f in "$dir"/docket-*."$dext"; do
         [ -e "$f" ] || continue
-        name="$(short_name "$f")"
+        name="$(basename "$f")"; name="${name#docket-}"; name="${name%.*}"
         [ -f "$AGENTS_SRC/docket-$name.md" ] || handle_orphan "$f"
       done
     done
@@ -667,7 +670,7 @@ prune_orphans() {  # $1 = scope (all|per-repo)
     for tok in $VALID_HARNESS_TOKENS; do
       case " $HARNESSES " in *" $tok "*) continue;; esac      # still listed -> not de-listed
       pruned_agents=0; pruned_rule=0
-      for f in "$REPO/.$tok/agents"/docket-*.md; do
+      for f in "$REPO/.$tok/agents"/docket-*."$(harness_ext "$tok")"; do
         [ -e "$f" ] || continue
         handle_orphan "$f"; pruned_agents=1
       done
@@ -690,7 +693,7 @@ prune_orphans() {  # $1 = scope (all|per-repo)
   for tok in $VALID_HARNESS_TOKENS; do
     case " ${USER_TARGETS:-} " in *" $tok "*) continue;; esac
     pruned_agents=0; pruned_rule=0
-    for f in "$HARNESS_ROOT/.$tok/agents"/docket-*.md; do
+    for f in "$HARNESS_ROOT/.$tok/agents"/docket-*."$(harness_ext "$tok")"; do
       [ -e "$f" ] || continue
       handle_orphan "$f"; pruned_agents=1
     done

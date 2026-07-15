@@ -63,4 +63,33 @@ assert "codex TOML: body text above the divider preserved"    'printf "%s\n" "$D
 assert "codex TOML: body text below the divider preserved"    'printf "%s\n" "$DIVOUT" | grep -qF "Below the rule."'
 rm -rf "$DIVDIR"
 
+# --- orphan prune: a removed built-in drops its codex .toml wrapper ---
+mk_codex_repo
+cp "$REPO/agents/docket-status.md" "$SBX/.codex/agents/docket-ghost.toml"   # simulate a stale wrapper
+touch "$SBX/.codex/agents/docket-ghost.toml"
+# regenerate: docket-ghost has no built-in source -> must be pruned
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
+assert "prune: orphan .toml wrapper removed" '[ ! -e "$SBX/.codex/agents/docket-ghost.toml" ]'
+assert "prune: real .toml wrapper kept"      '[ -f "$SBX/.codex/agents/docket-status.toml" ]'
+rm -rf "$SBX"
+
+# --- de-list codex: its .toml wrappers are pruned ---
+mk_codex_repo
+assert "pre: codex wrappers exist" '[ -f "$SBX/.codex/agents/docket-status.toml" ]'
+printf 'agent_harnesses: [claude]\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
+assert "delist: codex .toml wrappers pruned" '[ ! -e "$SBX/.codex/agents/docket-status.toml" ]'
+assert "delist: claude wrappers remain"      '[ -f "$SBX/.claude/agents/docket-status.md" ]'
+rm -rf "$SBX"
+
+# --- --check leg (b): a TRACKED codex .toml is CI-meaningful (exit non-zero) ---
+mk_codex_repo
+git -C "$SBX" add -f .codex/agents/docket-status.toml
+if ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check >/dev/null 2>&1 ); then
+  echo "NOT OK - check: tracked .toml wrapper fails --check"; fail=1
+else
+  echo "ok - check: tracked .toml wrapper fails --check"
+fi
+rm -rf "$SBX"
+
 echo "---"; [ "$fail" = "0" ] && echo "ALL PASS" || echo "FAILURES"; exit $fail
