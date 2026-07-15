@@ -1,7 +1,7 @@
 # Codex runner delegation — design
 
 **Date:** 2026-07-15
-**Change:** #0077
+**Change:** #0079
 **Status:** Approved (brainstormed with Daniel; whole-run topology, explicit `runner:` field, shim-wrapper mechanism)
 
 ## Problem
@@ -48,10 +48,12 @@ Two candidate bridges were researched:
    them inherit delegation unchanged and unknowingly. Mechanics live in a script with a co-located
    contract (ADR-0012 script-vs-model boundary). Skill-body branching at every dispatch site was
    rejected (prose duplication across seven skills, drift risk, breaks "wrappers own the pin").
-4. **Skill availability: `link-skills.sh` grows a codex leg.** Docket's skills get linked into
-   Codex's skill-discovery location at install time (mirroring how superpowers installs there), so
-   the dispatch prompt can just say "invoke skill `docket-<x>`". Inline prompt injection of skill
-   bodies was rejected (huge prompts; on-demand `references/*.md` reads would break).
+4. **Skill availability: already in place.** `link-skills.sh` already links docket's skills into
+   `~/.codex/skills` (established by change #0077, codex-harness-toml-agents), so the dispatch
+   prompt can just say "invoke skill `docket-<x>`". This change only verifies discovery works from
+   a `codex exec` run. Inline prompt injection of skill bodies was rejected during brainstorm
+   (huge prompts; on-demand `references/*.md` reads would break); a brainstormed "grow a codex leg"
+   work item was dropped when #0077 turned out to already provide it.
 5. **Sandbox: configurable, default safe.** Default posture `--sandbox workspace-write` with
    network access enabled and approvals `never` (git push and `gh` must work); overridable via a
    new `runner_codex:` config block per repo or machine. `danger-full-access` is available as an
@@ -110,10 +112,11 @@ Deterministic mechanics, in order:
    (`--output-last-message` / JSON mode — exact flag pinned at build against the installed Codex
    version) and relay it on stdout; exit nonzero with stderr diagnostics on any Codex failure.
 
-### 4. Skill availability in Codex (`link-skills.sh` codex leg)
+### 4. Skill availability in Codex
 
-- Link docket's skills (including `docket-convention` and its references) into Codex's
-  skill-discovery location; exact path verified at build against the superpowers-for-Codex install.
+- Docket's skills (including `docket-convention` and its references) are already linked into
+  `~/.codex/skills` by `link-skills.sh` (change #0077); verify at build that a `codex exec` run
+  discovers them.
 - **Documented prerequisites (not automated):** Codex CLI installed and authenticated; superpowers
   installed in Codex; `[features] multi_agent = true` (required so a delegated orchestrator's SDD
   fan-out works). `codex-dispatch.sh`'s preflight checks what it cheaply can; the rest is README.
@@ -158,11 +161,12 @@ Deterministic mechanics, in order:
 
 ## Open questions (resolve at build)
 
-1. Exact Codex skill-discovery path for the `link-skills.sh` codex leg.
-2. Exact final-message capture flag on the installed Codex version.
-3. Whether delegating `docket-finalize-change` to Codex sidesteps Claude Code's merge-without-review
+1. Exact final-message capture flag on the installed Codex version.
+2. Whether delegating `docket-finalize-change` to Codex sidesteps Claude Code's merge-without-review
    classifier — interacts with #0062's authorization design; **policy question, flagged not
    decided** (delegation must not become a classifier bypass without an explicit authorization
    story).
-4. Whether model aliases like `spark` need mapping (lean: no — pure passthrough; the user writes
+3. Whether model aliases like `spark` need mapping (lean: no — pure passthrough; the user writes
    the real ID).
+4. Whether #0077's TOML agents (`.codex/agents/docket-*.toml`) give a delegated orchestrator's
+   Codex-side children resolvable model pins, softening the accepted pin-loss limitation in §5.

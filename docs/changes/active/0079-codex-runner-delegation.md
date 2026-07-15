@@ -1,5 +1,5 @@
 ---
-id: 77
+id: 79
 slug: codex-runner-delegation
 title: Delegate docket agent runs to OpenAI Codex via an explicit runner field
 status: proposed
@@ -7,7 +7,7 @@ priority: medium
 created: 2026-07-15
 updated: 2026-07-15
 depends_on: []
-related: [16, 44, 45, 46, 61, 62]
+related: [16, 44, 45, 46, 61, 62, 77, 78]
 adrs: [15]
 spec: docs/superpowers/specs/2026-07-15-codex-runner-delegation-design.md
 plan:
@@ -52,8 +52,9 @@ Whole-run delegation of autonomous docket agents to `codex exec`, activated by e
   one foreground call to a new deterministic `codex-dispatch.sh` (preflight, prompt assembly,
   flags, foreground `codex exec`, final-message relay). All invocation paths (fork, `@`-dispatch,
   composition) inherit delegation unchanged.
-- **`link-skills.sh` codex leg** — docket skills linked into Codex's skill-discovery location so
-  the dispatch prompt can invoke them by name.
+- **Skill availability** — already in place: `link-skills.sh` links docket skills into
+  `~/.codex/skills` (per #0077); this change only verifies the dispatch prompt can invoke them
+  by name.
 - A delegated orchestrator's sub-dispatches run Codex-natively (`spawn_agent`, via superpowers'
   Codex adaptation); only autonomous wrappers are delegatable — interactive skills stay inline.
 
@@ -67,8 +68,10 @@ Whole-run delegation of autonomous docket agents to `codex exec`, activated by e
 
 ## Open questions
 
-- Exact Codex skill-discovery path for the `link-skills.sh` leg (verify at build).
 - Exact `codex exec` final-message capture flag on the installed version.
+- Whether #0077's TOML agents (`.codex/agents/docket-*.toml`) let a delegated orchestrator's
+  Codex-side children resolve model pins, softening the accepted pin-loss limitation (verify at
+  build).
 - Whether delegating `docket-finalize-change` to Codex sidesteps the merge-without-review
   classifier — interacts with #0062; policy question, must not become a silent bypass.
 
