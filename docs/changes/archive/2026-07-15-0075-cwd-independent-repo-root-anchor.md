@@ -26,8 +26,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-14-cwd-independent-repo-root-anchor-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-14-cwd-independent-repo-root-anchor-design.md) |
-| Plan | [2026-07-14-cwd-independent-repo-root-anchor.md](https://github.com/danielhanold/docket/blob/feat/cwd-independent-repo-root-anchor/docs/superpowers/plans/2026-07-14-cwd-independent-repo-root-anchor.md) |
-| Results | [2026-07-14-cwd-independent-repo-root-anchor-results.md](https://github.com/danielhanold/docket/blob/feat/cwd-independent-repo-root-anchor/docs/results/2026-07-14-cwd-independent-repo-root-anchor-results.md) |
+| Plan | [2026-07-14-cwd-independent-repo-root-anchor.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-14-cwd-independent-repo-root-anchor.md) |
+| Results | [2026-07-14-cwd-independent-repo-root-anchor-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-14-cwd-independent-repo-root-anchor-results.md) |
 | PR | [#84](https://github.com/danielhanold/docket/pull/84) |
 | ADRs | [ADR-0034](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0034-repo-root-anchored-to-main-worktree.md), [ADR-0035](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0035-cleanup-teardown-fail-closed.md) |
 <!-- docket:artifacts:end -->
