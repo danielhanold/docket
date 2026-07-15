@@ -7,7 +7,7 @@ fail=0
 assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
 
 tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
-# A present harness root. link-skills.sh leaf-checks <root>/.claude/skills (so create it);
+# A present harness root. link-skills.sh parent-checks <root>/.claude and creates skills/ itself;
 # sync-agents.sh parent-checks <root>/.claude and creates agents/ itself.
 mkdir -p "$tmp/.claude/skills"
 

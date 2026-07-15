@@ -36,7 +36,7 @@ for skill_path in "$SKILLS_DIR"/*/; do
   target="$SKILLS_DIR/$name"            # absolute
   for dir in "${HARNESS_SKILL_DIRS[@]}"; do
     [ -d "$(dirname "$dir")" ] || continue   # only into harnesses the user actually uses (parent present)
-    [ -d "$dir" ] || mkdir -p "$dir"         # harness present but skills/ subdir missing → create it
+    [ -d "$dir" ] || mkdir -p "$dir" || continue   # present harness, skills/ subdir missing → create it; skip if the path can't be made a dir
     link="$dir/$name"
     if [ -e "$link" ] || [ -L "$link" ]; then
       skipped=$((skipped + 1))
