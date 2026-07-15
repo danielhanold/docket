@@ -1,12 +1,11 @@
 # Backlog
 
-**79 changes** — 🟢 2 in progress · 🟡 10 proposed · 🔴 1 blocked · ✅ 63 done · 🗑️ 3 killed
+**79 changes** — 🟢 1 in progress · 🟡 10 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 63 done · 🗑️ 3 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Spec | Branch |
 |---|-------|----------|------|--------|
-| [0077](active/0077-codex-harness-toml-agents.md) | Codex harness — TOML agent generation + AGENTS.md dispatch block | `high` | [spec](../superpowers/specs/2026-07-15-codex-harness-toml-agents-design.md) | `feat/codex-harness-toml-agents` |
 | [0079](active/0079-codex-runner-delegation.md) | Cross-harness runner delegation framework (first runner — OpenAI Codex) | `medium` | [spec](../superpowers/specs/2026-07-15-codex-runner-delegation-design.md) | `feat/codex-runner-delegation` |
 
 ## 🟡 Proposed (10)
@@ -22,13 +21,19 @@
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0062](active/0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | `low` | needs-brainstorm |
 | [0067](active/0067-learnings-promotion-destination.md) | Give the learnings ledger a promotion destination — it has no way to shrink | `medium` | needs-brainstorm |
-| [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | ⏳ waiting on #77 — not yet built |
+| [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | ⏳ waiting on #77 — needs your merge |
 
 ## 🔴 Blocked (1)
 
 | # | Title | Priority | Blocked by |
 |---|-------|----------|------------|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | PR #69 is stale (predates the 0068/0072 facade rework and later agent-layer changes) and #0079 (runner delegation) reshapes the design — the build roles should grow a runner field (build.<role>.runner codex, the mixed topology 0079 deferred). Needs a rebase plus redesign pass before merge. |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | PR |
+|---|-------|----------|----|
+| [0077](active/0077-codex-harness-toml-agents.md) | Codex harness — TOML agent generation + AGENTS.md dispatch block | `high` | [#85](https://github.com/danielhanold/docket/pull/85) |
 
 ```mermaid
 graph TD
