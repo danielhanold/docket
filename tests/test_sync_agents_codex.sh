@@ -41,4 +41,26 @@ assert "codex TOML: dev_instructions name the skills to load" 'grep -qi "docket-
 assert "claude side still .md, byte-identical to source" 'diff -q "$REPO/agents/docket-status.md" "$SBX/.claude/agents/docket-status.md" >/dev/null'
 rm -rf "$SBX"
 
+# --- regression: emit_codex_toml preserves a --- thematic break inside the body ---
+DIVDIR="$(mktemp -d)"
+cat > "$DIVDIR/docket-divfixture.md" <<'FIX'
+---
+name: docket-divfixture
+description: Fixture with a divider in its body.
+model: claude-x
+effort: medium
+skills: [docket-divfixture, docket-convention]
+---
+Above the rule.
+
+---
+
+Below the rule.
+FIX
+DIVOUT="$( . "$REPO/sync-agents.sh"; set +e +u; emit_codex_toml "$DIVDIR/docket-divfixture.md" "" "" )"
+assert "codex TOML: --- divider line inside body is preserved" 'printf "%s\n" "$DIVOUT" | grep -qxF -- "---"'
+assert "codex TOML: body text above the divider preserved"    'printf "%s\n" "$DIVOUT" | grep -qF "Above the rule."'
+assert "codex TOML: body text below the divider preserved"    'printf "%s\n" "$DIVOUT" | grep -qF "Below the rule."'
+rm -rf "$DIVDIR"
+
 echo "---"; [ "$fail" = "0" ] && echo "ALL PASS" || echo "FAILURES"; exit $fail

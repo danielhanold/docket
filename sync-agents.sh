@@ -363,7 +363,7 @@ emit_codex_toml(){  # $1=src md  $2=model_override  $3=effort_override
   effort="${eo:-$bi_effort}"
   skills_csv="$(sed -n '/^skills:/{s/^skills:[[:space:]]*//;p;q;}' "$src" | sed -e 's/^\[//' -e 's/\][[:space:]]*$//' -e 's/[[:space:]]*$//')"
   # body = everything after the frontmatter closing --- , leading blank lines trimmed.
-  body="$(awk '/^---[[:space:]]*$/{d++; next} d>=2{print}' "$src" | awk 'NF{p=1} p{print}')"
+  body="$(awk '/^---[[:space:]]*$/ && d<2 {d++; next} d>=2 {print}' "$src" | awk 'NF{p=1} p{print}')"
   # developer_instructions text: skills-preload preamble (if any) + the wrapper body.
   if [ -n "$skills_csv" ]; then
     dev="Before acting, load these docket skills from your linked Codex skills directory: ${skills_csv}.
@@ -702,17 +702,19 @@ prune_orphans() {  # $1 = scope (all|per-repo)
   done
 }
 
-resolve_agent_harnesses
+if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
+  resolve_agent_harnesses
 
-if [ "$CHECK" = "1" ]; then
-  if check_project_level; then exit 0; else exit 1; fi
+  if [ "$CHECK" = "1" ]; then
+    if check_project_level; then exit 0; else exit 1; fi
+  fi
+
+  migrate_legacy_global
+  resolve_global_agent_harnesses
+  user_level_pass
+  migrate_tracked_wrappers
+  if gitignore_block_wanted; then ensure_docket_gitignore_block "$REPO"; fi
+  project_level_pass
+  prune_orphans all
+  log "done"
 fi
-
-migrate_legacy_global
-resolve_global_agent_harnesses
-user_level_pass
-migrate_tracked_wrappers
-if gitignore_block_wanted; then ensure_docket_gitignore_block "$REPO"; fi
-project_level_pass
-prune_orphans all
-log "done"
