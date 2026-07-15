@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/codex-harness-toml-agents
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -68,3 +68,24 @@ have first-class subagent support; Codex is the confirmed gap.
   re-verify against the live documentation at plan time before coding.
 
 ## Reconcile log
+
+- 2026-07-15 — Reconciled against current code + related records before planning. Findings:
+  - **Design still valid, no scope drift.** `sync-agents.sh`, `scripts/lib/docket-gitignore-block.sh`,
+    and the current committed `.gitignore` block match the spec's described starting state exactly.
+    `codex` is already in `DOCKET_GI_HARNESS_TOKENS`; the block currently emits
+    `.codex/agents/docket-*.md` (to become `+ .toml`); there is no root `AGENTS.md` yet (created).
+  - **Related changes 45/46/51/57 are all archived (done)** — no in-flight overlap. Change 78
+    (validation runbook) depends on this and is correctly out of scope.
+  - **Confirmed the exact harness-extension touchpoints** the emitter registry must reach, all
+    hardcode `.md` today: both generation passes (`user_level_pass`/`project_level_pass` write
+    `docket-$name.md`), `tracked_docket_files()` (--check leg b glob), `prune_orphans` (orphan glob),
+    and `check_project_level` leg (c) content-staleness diff. TOML must flow through each.
+  - **Committed AGENTS.md block vs. gitignored wrappers** is a deliberate departure from ADR-0020's
+    machine-local generated-artifact regime: the block is machine-neutral (agent names + delegation
+    only, no model IDs) and is modeled on the committed managed `.gitignore` block, not on the
+    gitignored wrappers/Cursor rule. Internally consistent, but non-obvious — record an ADR at step 6.
+  - **Build-side note:** changing `emit_docket_gitignore_block` to add the `.toml` line makes docket's
+    OWN committed `.gitignore` stale vs. the constant; the build must regenerate/commit it (a code
+    file on the feature branch, not docket metadata) or `sync-agents.sh --check` leg (a) fails in CI.
+  - **Open question stands** — the live-Codex-doc field-name/path/extension re-verification is carried
+    into the plan as a first, gating task before any emitter code is written.
