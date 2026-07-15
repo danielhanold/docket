@@ -1,6 +1,6 @@
 # Backlog
 
-**76 changes** — 🟡 9 proposed · 🔵 2 implemented · ✅ 62 done · 🗑️ 3 killed
+**76 changes** — 🟡 9 proposed · 🔵 1 implemented · ✅ 63 done · 🗑️ 3 killed
 
 ## 🟡 Proposed (9)
 
@@ -16,12 +16,11 @@
 | [0062](active/0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | `low` | needs-brainstorm |
 | [0067](active/0067-learnings-promotion-destination.md) | Give the learnings ledger a promotion destination — it has no way to shrink | `medium` | needs-brainstorm |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | [#69](https://github.com/danielhanold/docket/pull/69) |
-| [0075](active/0075-cwd-independent-repo-root-anchor.md) | Anchor the repo root to the main worktree — CWD-independent scripts, a fail-closed cleanup guard, and a durable finalize posture | `high` | [#84](https://github.com/danielhanold/docket/pull/84) |
 
 ```mermaid
 graph TD
@@ -35,7 +34,6 @@ graph TD
   0044
   0062
   0067
-  0075
   0001:::done
   0002:::done
   0003:::done
@@ -98,13 +96,15 @@ graph TD
   0072:::done
   0073:::done
   0074:::done
+  0075:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (65)</summary>
+<details><summary>✅🗑️ Archive — done + killed (66)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0075](archive/2026-07-15-0075-cwd-independent-repo-root-anchor.md) | Anchor the repo root to the main worktree — CWD-independent scripts, a fail-closed cleanup guard, and a durable finalize posture | 2026-07-15 |
 | [0076](archive/2026-07-14-0076-cwd-independent-repo-root-resolution.md) | Resolve the repo root independently of CWD — preflight run inside `.docket` mints a nested metadata worktree | 2026-07-14 |
 | [0074](archive/2026-07-14-0074-bootstrap-facade-verb.md) | A `bootstrap` facade verb — retire the last direct-helper carve-out in Step-0 | 2026-07-14 |
 | [0073](archive/2026-07-14-0073-cursor-sandbox-permissions-guide.md) | Cursor sandbox & permissions guide — copyable config, trust tiers, troubleshooting | 2026-07-14 |
