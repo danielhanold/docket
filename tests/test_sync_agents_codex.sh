@@ -92,4 +92,45 @@ else
 fi
 rm -rf "$SBX"
 
+# --- AGENTS.md dispatch block: created, machine-neutral, committed-style ---
+mk_codex_repo
+A="$SBX/AGENTS.md"
+assert "agentsmd: block created" '[ -f "$A" ] && grep -qF "docket:dispatch:start" "$A"'
+assert "agentsmd: has closing marker" 'grep -qF "docket:dispatch:end" "$A"'
+assert "agentsmd: names an agent to delegate to" 'grep -qi "docket-implement-next" "$A"'
+assert "agentsmd: carries NO model id (machine-neutral)" '! grep -qE "claude-|gpt-|model_reasoning_effort|model[[:space:]]*=" "$A"'
+
+# idempotent second run: byte-identical
+before="$(cat "$A")"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
+assert "agentsmd: idempotent second run byte-identical" '[ "$before" = "$(cat "$A")" ]'
+rm -rf "$SBX"
+
+# --- outside bytes preserved; hand-written AGENTS.md content survives ---
+mk_codex_repo   # remove then recreate with pre-existing content
+rm -f "$SBX/AGENTS.md"
+printf '# Our project agents\n\nHand-written guidance here.\n' > "$SBX/AGENTS.md"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
+assert "agentsmd: pre-existing heading preserved" 'grep -qxF "# Our project agents" "$SBX/AGENTS.md"'
+assert "agentsmd: pre-existing prose preserved"   'grep -qxF "Hand-written guidance here." "$SBX/AGENTS.md"'
+assert "agentsmd: block appended below user content" 'grep -qF "docket:dispatch:start" "$SBX/AGENTS.md"'
+rm -rf "$SBX"
+
+# --- malformed markers: refuse, touch nothing ---
+mk_codex_repo
+rm -f "$SBX/AGENTS.md"
+printf 'keepme\n<!-- docket:dispatch:start (managed by docket — do not hand-edit) -->\ndangling\n' > "$SBX/AGENTS.md"
+before="$(cat "$SBX/AGENTS.md")"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
+assert "agentsmd: malformed markers left untouched" '[ "$before" = "$(cat "$SBX/AGENTS.md")" ]'
+rm -rf "$SBX"
+
+# --- de-list codex: dispatch block stripped (but user content kept) ---
+mk_codex_repo
+printf '# keep me\n' >> "$SBX/AGENTS.md"   # note: block is above; add trailing user line to prove strip keeps it
+printf 'agent_harnesses: [claude]\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
+assert "agentsmd delist: block removed" '! grep -qF "docket:dispatch:start" "$SBX/AGENTS.md"'
+rm -rf "$SBX"
+
 echo "---"; [ "$fail" = "0" ] && echo "ALL PASS" || echo "FAILURES"; exit $fail
