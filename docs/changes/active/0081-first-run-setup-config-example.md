@@ -10,7 +10,7 @@ depends_on: []
 related: [50, 80]
 adrs: [39]
 spec: docs/superpowers/specs/2026-07-15-first-run-setup-config-example-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-15-first-run-setup-config-example.md
 results:
 trivial: false
 auto_groomable:
@@ -26,6 +26,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-15-first-run-setup-config-example-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-15-first-run-setup-config-example-design.md) |
+| Plan | [2026-07-15-first-run-setup-config-example.md](https://github.com/danielhanold/docket/blob/feat/first-run-setup-config-example/docs/superpowers/plans/2026-07-15-first-run-setup-config-example.md) |
 | ADRs | [ADR-0039](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0039-config-example-mirrors-wrapper-defaults.md) |
 <!-- docket:artifacts:end -->
 
