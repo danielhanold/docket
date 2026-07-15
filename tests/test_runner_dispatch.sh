@@ -120,4 +120,45 @@ assert "codex missing (CODEX_BIN seam) aborts nonzero" '[ "$rc" != "0" ]'
 assert "missing-binary abort names the install remedy" 'grep -qi "install" <<<"$err"'
 rm -rf "$SBX"
 
+# ---- facade: validation ---------------------------------------------------------
+make_fixture
+err="$( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --agent status 2>&1 >/dev/null )"; rc=$?
+assert "facade: missing --runner rejected" '[ "$rc" != "0" ]'
+err="$( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex 2>&1 >/dev/null )"; rc=$?
+assert "facade: missing --agent rejected" '[ "$rc" != "0" ]'
+err="$( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner gemini-cli --agent status 2>&1 >/dev/null )"; rc=$?
+assert "facade: unknown runner rejected nonzero" '[ "$rc" != "0" ]'
+assert "facade: unknown-runner message names it" 'grep -qF "gemini-cli" <<<"$err"'
+rm -rf "$SBX"
+
+# ---- facade: repo-root anchor + adapter handoff -----------------------------------
+make_fixture
+out="$( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent status --model m1 2>/dev/null )"
+argv="$(cat "$LOG")"
+assert "facade: handoff reaches codex exec" 'grep -qxF -- "m1" <<<"$argv"'
+assert "facade: repo root anchored to the main worktree" 'grep -qxF -- "$SBX" <<<"$argv"'
+assert "facade: relays the adapter's stdout" '[ "$out" = "$MSG" ]'
+# cwd-independence (ADR-0034): invoke from a subdir; -C must still be the repo root
+: > "$LOG"
+mkdir -p "$SBX/sub/dir"
+( cd "$SBX/sub/dir" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent status >/dev/null 2>&1 )
+argv="$(cat "$LOG")"
+assert "facade: -C is the main worktree even from a subdir" 'grep -qxF -- "$SBX" <<<"$argv"'
+rm -rf "$SBX"
+
+# ---- facade: runners.<name> config resolution across layers ------------------------
+make_fixture
+printf 'runners:\n  codex:\n    sandbox: danger-full-access\n    network: false\n' > "$SBX/.docket.yml"
+( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent status >/dev/null 2>&1 )
+argv="$(cat "$LOG")"
+assert "facade: committed runners.codex.sandbox honored" 'grep -qxF -- "danger-full-access" <<<"$argv"'
+assert "facade: committed runners.codex.network=false honored" '! grep -qF "network_access" <<<"$argv"'
+: > "$LOG"
+printf 'runners:\n  codex:\n    sandbox: workspace-write\n' > "$SBX/.docket.local.yml"
+( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent status >/dev/null 2>&1 )
+argv="$(cat "$LOG")"
+assert "facade: local layer beats committed per key" 'grep -qxF -- "workspace-write" <<<"$argv"'
+assert "facade: unset-in-local key falls to committed (network still false)" '! grep -qF "network_access" <<<"$argv"'
+rm -rf "$SBX"
+
 exit $fail
