@@ -1,6 +1,6 @@
 # Backlog
 
-**79 changes** — 🟢 1 in progress · 🟡 11 proposed · 🔵 1 implemented · ✅ 63 done · 🗑️ 3 killed
+**79 changes** — 🟢 1 in progress · 🟡 11 proposed · 🔴 1 blocked · ✅ 63 done · 🗑️ 3 killed
 
 ## 🟢 In progress (1)
 
@@ -24,11 +24,11 @@
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | ⏳ waiting on #77 — not yet built |
 | [0079](active/0079-codex-runner-delegation.md) | Delegate docket agent runs to OpenAI Codex via an explicit runner field | `medium` | build-ready |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔴 Blocked (1)
 
-| # | Title | Priority | PR |
-|---|-------|----------|----|
-| [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | [#69](https://github.com/danielhanold/docket/pull/69) |
+| # | Title | Priority | Blocked by |
+|---|-------|----------|------------|
+| [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | PR #69 is stale (predates the 0068/0072 facade rework and later agent-layer changes) and #0079 (runner delegation) reshapes the design — the build roles should grow a runner field (build.<role>.runner codex, the mixed topology 0079 deferred). Needs a rebase plus redesign pass before merge. |
 
 ```mermaid
 graph TD
