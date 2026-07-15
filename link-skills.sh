@@ -3,9 +3,10 @@
 #
 # Absolute symlinks point back to this repo's skills/<name>, so the source of truth stays
 # in this clone (default ~/dev/docket): edit once, picked up everywhere, no copying.
-# Idempotent: only creates MISSING links, and only into harness dirs that ALREADY EXIST
-# (we never create a harness you don't use). Verify each harness's exact skills dir if
-# this list drifts.
+# Idempotent: only creates MISSING links, and only into harnesses that ALREADY EXIST —
+# the parent harness dir must be present (we never create a harness you don't use); a
+# present harness whose skills/ subdir is absent gets that subdir created. Verify each
+# harness's exact skills dir if this list drifts.
 #
 # Usage: bash link-skills.sh
 # Test seam: set DOCKET_HARNESS_ROOT to override $HOME (used by tests/test_link_skills.sh).
@@ -34,7 +35,8 @@ for skill_path in "$SKILLS_DIR"/*/; do
   name="$(basename "$skill_path")"
   target="$SKILLS_DIR/$name"            # absolute
   for dir in "${HARNESS_SKILL_DIRS[@]}"; do
-    [ -d "$dir" ] || continue           # only link into harnesses that exist
+    [ -d "$(dirname "$dir")" ] || continue   # only into harnesses the user actually uses (parent present)
+    [ -d "$dir" ] || mkdir -p "$dir"         # harness present but skills/ subdir missing → create it
     link="$dir/$name"
     if [ -e "$link" ] || [ -L "$link" ]; then
       skipped=$((skipped + 1))
