@@ -77,6 +77,11 @@ unset _tok
 
 VALID_HARNESS_TOKENS="$DOCKET_GI_HARNESS_TOKENS"
 
+# Registered runner names (change 0079) — a runner: value must name one of these; each token
+# has a matching scripts/runners/<name>.sh adapter (tests assert parity in both directions).
+REGISTERED_RUNNERS="codex"
+is_registered_runner(){ case " $REGISTERED_RUNNERS " in *" $1 "*) return 0;; *) return 1;; esac; }
+
 CHECK=0
 [ "${1:-}" = "--check" ] && CHECK=1
 
@@ -269,16 +274,19 @@ harness_agent_line() {  # $1=file  $2=harness  $3=agent  $4=under_agents(0|1)
 # first (each read under a top-level agents: wrapper). Within a layer the harness line
 # beats the default line; across layers the first layer supplying a field wins; the
 # built-in floor is handled by emit(). RES_MODEL_FROM_HARNESS=1 iff the model came from
-# a harness-specific line in ANY layer (drives warn_fallback_model).
+# a harness-specific line in ANY layer (drives warn_fallback_model). RES_RUNNER (change
+# 0079) resolves the same way; the pre-0079 early break is gone — runner rarely fills,
+# and the loop spans at most three small files.
 resolve_agent_layers() {  # $1=harness  $2=agent  $3..=layer files (precedence order)
-  local harness="$1" agent="$2" f hline dline hm he dm de
+  local harness="$1" agent="$2" f hline dline hm he dm de hr dr
   shift 2
-  RES_MODEL=""; RES_EFFORT=""; RES_MODEL_FROM_HARNESS=0
+  RES_MODEL=""; RES_EFFORT=""; RES_RUNNER=""; RES_MODEL_FROM_HARNESS=0
   for f in "$@"; do
     hline="$(harness_agent_line "$f" "$harness" "$agent" 1)"
     dline="$(harness_agent_line "$f" default "$agent" 1)"
     hm="$(field_of "$hline" model)";  he="$(field_of "$hline" effort)"
     dm="$(field_of "$dline" model)";  de="$(field_of "$dline" effort)"
+    hr="$(field_of "$hline" runner)"; dr="$(field_of "$dline" runner)"
     if [ -z "$RES_MODEL" ]; then
       if   [ -n "$hm" ]; then RES_MODEL="$hm"; RES_MODEL_FROM_HARNESS=1
       elif [ -n "$dm" ]; then RES_MODEL="$dm"; fi
@@ -287,7 +295,10 @@ resolve_agent_layers() {  # $1=harness  $2=agent  $3..=layer files (precedence o
       if   [ -n "$he" ]; then RES_EFFORT="$he"
       elif [ -n "$de" ]; then RES_EFFORT="$de"; fi
     fi
-    if [ -n "$RES_MODEL" ] && [ -n "$RES_EFFORT" ]; then break; fi
+    if [ -z "$RES_RUNNER" ]; then
+      if   [ -n "$hr" ]; then RES_RUNNER="$hr"
+      elif [ -n "$dr" ]; then RES_RUNNER="$dr"; fi
+    fi
   done
   return 0
 }
@@ -398,6 +409,51 @@ ${body}"
   # (built-in bodies have neither, but keep the emitter robust). Closing """ on its own line.
   esc="$(printf '%s' "$dev" | sed -e 's/\\/\\\\/g' -e 's/"""/""\\"/g')"
   printf 'developer_instructions = """\n%s\n"""\n' "$esc"
+}
+
+# Emit either the native wrapper (via emit_for_harness — harness-aware, change 0077) or,
+# when a runner resolved for the claude harness, the runner-delegation shim body under the
+# native frontmatter (change 0079). Non-claude harness + runner => warn (reserved) and emit
+# native. Unregistered runner under claude => loud generation-time error (explicit config
+# is never silently ignored).
+emit_wrapper(){  # $1=src $2=model $3=effort $4=runner $5=harness $6=agent-name  (stdout)
+  local runner="$4"
+  if [ -z "$runner" ]; then emit_for_harness "$1" "$5" "$2" "$3"; return 0; fi
+  if [ "$5" != "claude" ]; then
+    log "WARN $5/docket-$6: runner: $runner is reserved for the claude parent — ignored (native dispatch)"
+    emit_for_harness "$1" "$5" "$2" "$3"; return 0
+  fi
+  if ! is_registered_runner "$runner"; then
+    log "ERROR docket-$6: runner '$runner' is not a registered runner (registered: $REGISTERED_RUNNERS)"
+    exit 1
+  fi
+  emit_shim "$1" "$2" "$3" "$runner" "$6"
+}
+
+# The shim: native frontmatter (model line kept for bookkeeping — the effective pin is
+# the baked --model argument), body = one foreground facade call + relay + verify rules.
+# An empty model/effort override bakes NO flag (the child harness's own default applies).
+emit_shim(){  # $1=src $2=model $3=effort $4=runner $5=agent-name  (stdout)
+  emit "$1" "$2" "$3" | awk '/^---[[:space:]]*$/{d++; print; next} d<2{print}'
+  local flags="--runner $4 --agent $5"
+  [ -n "$2" ] && flags="$flags --model $2"
+  [ -n "$3" ] && [ "$3" != "auto" ] && flags="$flags --effort $3"
+  cat <<SHIM
+This agent is DELEGATED to the \`$4\` runner (cross-harness runner delegation, change 0079).
+Do NOT execute the skill inline and do NOT load its skills yourself.
+
+Make exactly ONE foreground Bash call, with the maximum timeout (600000):
+
+    "\${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh runner-dispatch $flags [-- <caller args>]
+
+appending any caller-supplied task arguments after \`--\` (drop the brackets; omit entirely
+when there are none). Block until it completes — never background it, never poll. Then relay
+its stdout (the child's final message) as your result, and verify the child's contract
+exactly as a native caller would: git state on origin/docket for state-contract agents
+(status, adr); the relayed report for in-context-report agents. If the dispatch exits
+non-zero, abort-and-report its stderr diagnostic — never retry silently, and
+never run the skill inline on this harness as a fallback.
+SHIM
 }
 
 # Assemble the Cursor dispatch rule to stdout: static head + one subsection per built-in agent
@@ -560,7 +616,7 @@ user_level_pass() {  # built-in ⊕ global -> each user-level target harness, re
       resolve_agent_layers "$harness" "$name" "$GLOBAL_CFG"
       warn_fallback_model "$harness" "$name"
       mkdir -p "$dir"
-      emit_for_harness "$src" "$harness" "$RES_MODEL" "$RES_EFFORT" > "$dir/docket-$name.$(harness_ext "$harness")"
+      emit_wrapper "$src" "$RES_MODEL" "$RES_EFFORT" "$RES_RUNNER" "$harness" "$name" > "$dir/docket-$name.$(harness_ext "$harness")"
     done
   done
   # Cursor-only dispatch rule, user-level, for each targeted dispatch-rule harness.
@@ -600,7 +656,7 @@ project_level_pass() {  # built-in ⊕ local ⊕ committed ⊕ global -> <repo>/
       warn_fallback_model "$harness" "$name"
       dir="$REPO/.$harness/agents"
       mkdir -p "$dir"
-      emit_for_harness "$src" "$harness" "$RES_MODEL" "$RES_EFFORT" > "$dir/docket-$name.$(harness_ext "$harness")"
+      emit_wrapper "$src" "$RES_MODEL" "$RES_EFFORT" "$RES_RUNNER" "$harness" "$name" > "$dir/docket-$name.$(harness_ext "$harness")"
     done
   done
   # Cursor-only dispatch rule, per-repo (committed) when cursor is a targeted harness.
@@ -664,7 +720,7 @@ check_project_level() {  # three legs: (a) gitignore block current [CI-meaningfu
     for harness in $HARNESSES; do
       resolve_agent_layers "$harness" "$name" "$LOCAL_CFG" "$DOCKET_YML" "$GLOBAL_CFG"
       local ext; ext="$(harness_ext "$harness")"
-      emit_for_harness "$src" "$harness" "$RES_MODEL" "$RES_EFFORT" > "$tmp/docket-$name.$ext"
+      emit_wrapper "$src" "$RES_MODEL" "$RES_EFFORT" "$RES_RUNNER" "$harness" "$name" > "$tmp/docket-$name.$ext"
       got="$REPO/.$harness/agents/docket-$name.$ext"
       if [ ! -f "$got" ]; then
         log "advisory: .$harness/agents/docket-$name.$ext not generated on this machine (run: bash sync-agents.sh)"; continue

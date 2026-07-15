@@ -1160,4 +1160,71 @@ chk_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTCD" bash "$SYNC" --check 2>&1
 assert "0051 chk-d: fresh migrated clone --check green (rc=0)" '[ "$chk_rc" = "0" ]'
 rm -rf "$SBX" "$HROOTCD"
 
+# ---- change 0079: runner delegation shims -----------------------------------------
+# registry <-> adapters parity, BOTH directions (consuming-surface guard, LEARNINGS (d))
+REGISTRY_LINE="$(grep -E '^REGISTERED_RUNNERS=' "$SYNC")"
+REGISTRY_LINE="$(head -n1 <<<"$REGISTRY_LINE")"
+assert "0079: sync-agents declares REGISTERED_RUNNERS" '[ -n "$REGISTRY_LINE" ]'
+runners_from_registry="$(sed -E 's/^REGISTERED_RUNNERS="([^"]*)".*/\1/' <<<"$REGISTRY_LINE")"
+for r in $runners_from_registry; do
+  assert "0079: registry token '$r' has an adapter script" '[ -f "$REPO/scripts/runners/'"$r"'.sh" ]'
+done
+for a in "$REPO"/scripts/runners/*.sh; do
+  [ -e "$a" ] || continue
+  tok="$(basename "$a" .sh)"
+  assert "0079: adapter '$tok' is in REGISTERED_RUNNERS" 'case " $runners_from_registry " in *" '"$tok"' "*) true;; *) false;; esac'
+done
+
+# shim generation: agents.claude.<agent>.runner: codex swaps the BODY for the shim
+mkgitrepo
+mkdir -p "$SBX/.claude"
+printf 'agents:\n  claude:\n    status: { model: gpt-5.1-codex, effort: high, runner: codex }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
+G="$SBX/.claude/agents/docket-status.md"
+assert "0079: shim keeps frontmatter model (bookkeeping)" '[ "$(fm "$G" model)" = "gpt-5.1-codex" ]'
+assert "0079: shim body invokes docket.sh runner-dispatch" 'grep -qF "docket.sh runner-dispatch" "$G"'
+assert "0079: shim body pins --runner codex" 'grep -qF -- "--runner codex" "$G"'
+assert "0079: shim body pins --agent status" 'grep -qF -- "--agent status" "$G"'
+assert "0079: shim body bakes the resolved model" 'grep -qF -- "--model gpt-5.1-codex" "$G"'
+assert "0079: shim body bakes the resolved effort" 'grep -qF -- "--effort high" "$G"'
+assert "0079: shim body demands ONE foreground call" 'grep -qi "one foreground" "$G"'
+assert "0079: shim body forbids the inline fallback" 'grep -qiE "never.*inline" "$G"'
+assert "0079: shim replaced the native body" '! grep -qF "Execute docket-status to refresh docket state" "$G"'
+assert "0079: exactly one dispatch invocation in the shim" '[ "$(grep -cF "docket.sh runner-dispatch" "$G")" = "1" ]'
+# unlisted agent stays native in the same repo
+assert "0079: agent without runner: stays native" 'grep -qF "abort-and-report" "$SBX/.claude/agents/docket-adr.md" && ! grep -qF "runner-dispatch" "$SBX/.claude/agents/docket-adr.md"'
+# effort auto + runner => no --effort flag in the shim
+printf 'agents:\n  claude:\n    status: { model: gpt-5.1-codex, effort: auto, runner: codex }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
+assert "0079: effort auto omits --effort from the shim" '! grep -qF -- "--effort" "$G"'
+# --check leg (c): a hand-reverted shim is advisory drift (proves leg c shares emission)
+printf '%s\n' '---' 'name: docket-status' '---' 'native body' > "$G"
+chk="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check 2>&1 )"
+assert "0079: --check flags a de-shimmed wrapper as drift" 'grep -qF "drift in .claude/agents/docket-status.md" <<<"$chk"'
+rm -rf "$SBX"
+
+# runner under a NON-claude harness key: warned-and-ignored (reserved), file stays native
+mkgitrepo
+mkdir -p "$SBX/.claude" "$SBX/.cursor"
+printf 'agent_harnesses: [claude, cursor]\nagents:\n  cursor:\n    status: { model: gpt-5.5-medium-fast, runner: codex }\n' > "$SBX/.docket.yml"
+warn="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" 2>&1 >/dev/null )"
+assert "0079: non-claude runner warns (reserved)" 'grep -qiE "runner.*reserved" <<<"$warn"'
+assert "0079: non-claude wrapper stays native" '! grep -qF "runner-dispatch" "$SBX/.cursor/agents/docket-status.md"'
+rm -rf "$SBX"
+
+# unregistered runner under claude: loud generation-time ERROR (nonzero)
+mkgitrepo
+mkdir -p "$SBX/.claude"
+printf 'agents:\n  claude:\n    status: { runner: gemini-cli }\n' > "$SBX/.docket.yml"
+err="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" 2>&1 >/dev/null )"; rc=$?
+assert "0079: unregistered runner fails generation nonzero" '[ "$rc" != "0" ]'
+assert "0079: unregistered-runner error names it" 'grep -qF "gemini-cli" <<<"$err"'
+rm -rf "$SBX"
+
+# no runner config anywhere: byte-identical native output (regression fence)
+make_sandbox
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
+assert "0079: no-runner repo output stays byte-identical to built-in" 'diff -q "$REPO/agents/docket-status.md" "$SBX/.claude/agents/docket-status.md" >/dev/null'
+rm -rf "$SBX"
+
 exit $fail
