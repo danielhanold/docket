@@ -4,6 +4,15 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-07-15 (#75, PR #84) — A spec that frames code as "dead/dormant today, comes alive only once
+  this change lands" can already be LIVE mid-branch, because an earlier task in the same branch
+  flipped its precondition. Here Task 3 made `METADATA_WORKTREE` absolute, so `docket-status.sh`'s
+  artifacts-refresh block (which just reads `mw="${METADATA_WORKTREE:-.docket}"`) was live from
+  commit `c42ae5b` onward — and its `return 0` on a failed push had been silently abandoning
+  `terminal-publish` AND `cleanup` the whole time, not merely from the final commit. Apply: when a
+  premise is "X is dead today," re-probe X's liveness at the task that flips its precondition, not
+  against the pre-branch tree; a `return`/early-exit in a block you're activating is abandoning
+  every close-out step downstream of it until proven otherwise.
 - 2026-06-17 → 2026-07-14 (#15 PR #32; #21 PR #34; #36 PR #47; #37 PR #48; #64 PR #75; #65 PR #74;
   #69 PR #77; #68 PR #78; #72 PR #79; #70 PR #80; #71 PR #81; #74 PR #82; #73 PR #83 — merged, one
   guards-are-code family) — A guard is code: mutation-test it
