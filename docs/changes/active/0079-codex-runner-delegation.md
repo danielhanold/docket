@@ -1,7 +1,7 @@
 ---
 id: 79
 slug: codex-runner-delegation
-title: Delegate docket agent runs to OpenAI Codex via an explicit runner field
+title: Cross-harness runner delegation framework (first runner — OpenAI Codex)
 status: proposed
 priority: medium
 created: 2026-07-15
@@ -31,40 +31,52 @@ reconciled: false
 
 ## Why
 
-Under the Claude Code harness every docket agent dispatch runs as a Claude Code subagent — billed
-to the Claude subscription, limited to Claude models. Daniel also holds an OpenAI Codex
-subscription with its own capacity, and Codex CLI is a working agentic harness (superpowers
-installed, native multi-agent support). There is currently no way to say "run this docket agent on
-Codex," so that capacity and model diversity are unusable for backlog work. OpenAI's own
-`codex-plugin-cc` doesn't close the gap: it is a human-facing slash-command layer over
-background jobs, not a skill-aware dispatch bridge (researched during brainstorm; see spec).
+A docket agent dispatch always runs on the harness hosting the session — under Claude Code, as a
+Claude Code subagent, billed to the Claude subscription and limited to Claude models. Daniel also
+holds an OpenAI Codex subscription with its own capacity, and Codex CLI is a working agentic
+harness (superpowers installed, native multi-agent support). The general gap: a **parent harness**
+cannot delegate an agent's whole run to a **child harness** with its own subscription, models, and
+skills. Codex-from-Claude-Code is the motivating pair, but the mechanism should be a framework
+that admits future pairs (other children like `gemini-cli`, other parents like Cursor) without
+redesign. OpenAI's own `codex-plugin-cc` doesn't close the gap: it is a human-facing slash-command
+layer over background jobs, not a skill-aware dispatch bridge (researched during brainstorm; see
+spec).
 
 ## What changes
 
-Whole-run delegation of autonomous docket agents to `codex exec`, activated by explicit config
-(full design in the linked spec):
+A **cross-harness runner delegation framework** — whole-run delegation of autonomous docket agents
+to a child harness's non-interactive exec primitive, activated by explicit config — shipping with
+**one implemented pair: parent `claude`, child `codex`** (full design in the linked spec):
 
-- **`runner: codex`** — a new optional per-agent key in the `agents:` block (claude harness only;
-  default `native`). `model:` stays ADR-0015 opaque passthrough, handed verbatim to
-  `codex exec --model`; `effort:` maps to Codex reasoning effort. New optional `runner_codex:`
-  block for sandbox posture (default workspace-write + network, approvals never).
-- **Shim wrappers** — `sync-agents.sh` generates the normal wrapper file whose body is a shim:
-  one foreground call to a new deterministic `codex-dispatch.sh` (preflight, prompt assembly,
-  flags, foreground `codex exec`, final-message relay). All invocation paths (fork, `@`-dispatch,
-  composition) inherit delegation unchanged.
-- **Skill availability** — already in place: `link-skills.sh` links docket skills into
-  `~/.codex/skills` (per #0077); this change only verifies the dispatch prompt can invoke them
-  by name.
-- A delegated orchestrator's sub-dispatches run Codex-natively (`spawn_agent`, via superpowers'
-  Codex adaptation); only autonomous wrappers are delegatable — interactive skills stay inline.
+- **`runner: <name>`** — a new optional per-agent key in the `agents:` block naming a registered
+  runner (this change registers `codex`; default native). The harness key it sits under is the
+  parent; only the `claude` parent is implemented here. `model:` stays ADR-0015 opaque
+  passthrough; `effort:` maps through the adapter. A per-runner **`runners.<name>:`** config block
+  holds child-specific knobs (for codex: sandbox posture, default workspace-write + network,
+  approvals never).
+- **Shim wrappers via a runner registry** — `sync-agents.sh` generates the normal wrapper file
+  whose body is a runner-parameterized shim: one foreground call to the dispatch facade. All
+  invocation paths (fork, `@`-dispatch, composition) inherit delegation unchanged.
+- **Dispatch facade + per-runner adapters** — a runner-neutral `runner-dispatch.sh` hands off to
+  `scripts/runners/<name>.sh`; each adapter owns preflight, prompt assembly, flag mapping, and
+  foreground execution with final-message relay. `runners/codex.sh` (wrapping `codex exec`) is the
+  first adapter.
+- **Skill availability** — already in place for codex: `link-skills.sh` links docket skills into
+  `~/.codex/skills` (per #0077); this change only verifies the dispatch prompt can invoke them by
+  name. Future adapters document their own story.
+- A delegated orchestrator's sub-dispatches run child-natively (for codex: `spawn_agent`, via
+  superpowers' Codex adaptation); only autonomous wrappers are delegatable — interactive skills
+  stay inline (framework rule).
 
 ## Out of scope
 
-- Mixed topology (Claude Code orchestrator routing individual SDD build leaves to `codex exec`) —
-  possible follow-up change.
-- Runners other than Codex; `runner:` under non-claude harness keys (warned-and-ignored).
+- Mixed topology (parent-hosted orchestrator routing individual SDD build leaves to a child
+  harness) — folded into #0044's redesign (`build.<role>.runner: codex`).
+- Additional runner adapters (`gemini-cli`, …) and additional parents (Cursor, …) — the seams
+  ship; only claude→codex is implemented and verified. `runner:` under non-claude harness keys is
+  warned-and-ignored (reserved, not an error).
 - Automating Codex install/auth/superpowers setup — documented prerequisites.
-- Carrying per-child model pins into Codex-side sub-dispatches (accepted limitation).
+- Carrying per-child model pins into child-harness sub-dispatches (accepted limitation).
 
 ## Open questions
 
