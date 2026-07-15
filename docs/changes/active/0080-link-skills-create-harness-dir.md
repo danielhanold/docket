@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/link-skills-create-harness-dir
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -66,3 +66,14 @@ Update `tests/test_link_skills.sh` to cover the new contract:
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+- 2026-07-15 — Reconciled against current `origin/main`. Verified the described bug is live and
+  unchanged: `link-skills.sh` guard `[ -d "$dir" ] || continue` sits at **line 37**, gating on the
+  `skills` subdir rather than the parent harness dir; `HARNESS_SKILL_DIRS` lists exactly the six
+  harnesses named (`.claude .codex .cursor .agents .kiro .windsurf`). `tests/test_link_skills.sh`
+  currently leaves `.cursor/.codex/.kiro/.windsurf` **fully absent** (no parent) and asserts "does
+  NOT create an absent harness dir" — that invariant survives the new contract (parent-absent still
+  `continue`s), and the new "parent present, skills subdir missing → create + link" case must be
+  added. Related change 45 (`sync-agents.sh` per-repo wrapper generation) is out of scope and does
+  not touch this installer — no overlap. No recent commit has pre-empted the fix. Scope unchanged;
+  trivial (no spec). Build-ready as written.
