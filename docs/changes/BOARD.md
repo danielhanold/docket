@@ -1,8 +1,14 @@
 # Backlog
 
-**78 changes** — 🟡 11 proposed · 🔵 1 implemented · ✅ 63 done · 🗑️ 3 killed
+**78 changes** — 🟢 1 in progress · 🟡 10 proposed · 🔵 1 implemented · ✅ 63 done · 🗑️ 3 killed
 
-## 🟡 Proposed (11)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Spec | Branch |
+|---|-------|----------|------|--------|
+| [0077](active/0077-codex-harness-toml-agents.md) | Codex harness — TOML agent generation + AGENTS.md dispatch block | `high` | [spec](../superpowers/specs/2026-07-15-codex-harness-toml-agents-design.md) | `feat/codex-harness-toml-agents` |
+
+## 🟡 Proposed (10)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -15,7 +21,6 @@
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0062](active/0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | `low` | needs-brainstorm |
 | [0067](active/0067-learnings-promotion-destination.md) | Give the learnings ledger a promotion destination — it has no way to shrink | `medium` | needs-brainstorm |
-| [0077](active/0077-codex-harness-toml-agents.md) | Codex harness — TOML agent generation + AGENTS.md dispatch block | `high` | build-ready |
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | ⏳ waiting on #77 — not yet built |
 
 ## 🔵 Implemented — awaiting merge (1)
