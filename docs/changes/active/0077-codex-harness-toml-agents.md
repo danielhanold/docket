@@ -10,7 +10,7 @@ depends_on: []
 related: [45, 46, 51, 57]
 adrs: [15]
 spec: docs/superpowers/specs/2026-07-15-codex-harness-toml-agents-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-15-codex-harness-toml-agents.md
 results:
 trivial: false
 auto_groomable:
@@ -26,6 +26,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-15-codex-harness-toml-agents-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-15-codex-harness-toml-agents-design.md) |
+| Plan | [2026-07-15-codex-harness-toml-agents.md](https://github.com/danielhanold/docket/blob/feat/codex-harness-toml-agents/docs/superpowers/plans/2026-07-15-codex-harness-toml-agents.md) |
 | ADRs | [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md) |
 <!-- docket:artifacts:end -->
 
