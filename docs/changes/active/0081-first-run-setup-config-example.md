@@ -2,7 +2,7 @@
 id: 81
 slug: first-run-setup-config-example
 title: First-run setup — committed starter config + install.sh scaffolding + README Install restructure
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-15
 updated: 2026-07-15
@@ -15,7 +15,7 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/first-run-setup-config-example
-pr:
+pr: https://github.com/danielhanold/docket/pull/88
 blocked_by:
 reconciled: true
 ---
@@ -27,6 +27,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-15-first-run-setup-config-example-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-15-first-run-setup-config-example-design.md) |
 | Plan | [2026-07-15-first-run-setup-config-example.md](https://github.com/danielhanold/docket/blob/feat/first-run-setup-config-example/docs/superpowers/plans/2026-07-15-first-run-setup-config-example.md) |
+| PR | [#88](https://github.com/danielhanold/docket/pull/88) |
 | ADRs | [ADR-0039](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0039-config-example-mirrors-wrapper-defaults.md) |
 <!-- docket:artifacts:end -->
 
