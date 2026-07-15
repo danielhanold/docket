@@ -28,6 +28,7 @@ emit_docket_gitignore_block(){
   for e in $DOCKET_GI_CORE_ENTRIES; do printf '%s\n' "$e"; done
   printf '.docket.local.yml\n'
   for tok in $DOCKET_GI_HARNESS_TOKENS;   do printf '.%s/agents/docket-*.md\n' "$tok"; done
+  printf '.codex/agents/docket-*.toml\n'
   for tok in $DOCKET_GI_DISPATCH_HARNESSES; do printf '.%s/rules/docket-dispatch.mdc\n' "$tok"; done
   printf '%s\n' "$DOCKET_GI_END"
 }

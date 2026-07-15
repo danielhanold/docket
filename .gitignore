@@ -12,5 +12,6 @@
 .agents/agents/docket-*.md
 .kiro/agents/docket-*.md
 .windsurf/agents/docket-*.md
+.codex/agents/docket-*.toml
 .cursor/rules/docket-dispatch.mdc
 # docket:end

@@ -20,6 +20,8 @@ assert "emit: core settings.local.json"    'printf "%s\n" "$BLK" | grep -qxF ".c
 assert "emit: .docket.local.yml"           'printf "%s\n" "$BLK" | grep -qxF ".docket.local.yml"'
 assert "emit: claude agents pattern"       'printf "%s\n" "$BLK" | grep -qxF ".claude/agents/docket-*.md"'
 assert "emit: windsurf agents pattern"     'printf "%s\n" "$BLK" | grep -qxF ".windsurf/agents/docket-*.md"'
+assert "emit: codex TOML wrapper pattern"   'printf "%s\n" "$BLK" | grep -qxF ".codex/agents/docket-*.toml"'
+assert "emit: codex .md pattern still present (constant, all tokens)" 'printf "%s\n" "$BLK" | grep -qxF ".codex/agents/docket-*.md"'
 assert "emit: cursor dispatch rule"        'printf "%s\n" "$BLK" | grep -qxF ".cursor/rules/docket-dispatch.mdc"'
 assert "emit: every non-marker line is docket-scoped (starts with . )" \
   '! printf "%s\n" "$BLK" | grep -v "^#" | grep -qvE "^\."'
