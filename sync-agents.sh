@@ -219,6 +219,14 @@ harness_has_dispatch_rule(){ case " $HARNESS_HAS_DISPATCH_RULES " in *" $1 "*) r
 
 # Codex reads a committed AGENTS.md; only codex gets the AGENTS.md dispatch block (change 0077).
 AGENTS_MD_DISPATCH_HARNESSES="codex"
+# True if harness $1 is one that reads a committed AGENTS.md dispatch block.
+harness_gets_agents_md(){ case " $AGENTS_MD_DISPATCH_HARNESSES " in *" $1 "*) return 0;; *) return 1;; esac; }
+# True if the repo targets any AGENTS.md-dispatch harness (drives write-vs-strip + the --check leg).
+repo_wants_agents_md_dispatch(){
+  local h
+  for h in $HARNESSES; do harness_gets_agents_md "$h" && return 0; done
+  return 1
+}
 DISPATCH_START='<!-- docket:dispatch:start (managed by docket — do not hand-edit) -->'
 DISPATCH_END='<!-- docket:dispatch:end -->'
 
@@ -437,6 +445,8 @@ HEAD
   local src name desc
   for src in "$AGENTS_SRC"/docket-*.md; do
     [ -e "$src" ] || continue
+    printf '%s\n' "$src"
+  done | LC_ALL=C sort | while IFS= read -r src; do
     name="$(short_name "$src")"
     desc="$(agent_description "$src")"
     printf -- '- **docket-%s** — %s Delegate to the `docket-%s` agent.\n' "$name" "$desc" "$name"
@@ -448,22 +458,19 @@ HEAD
 # codex is de-listed (within an opted-in repo). Logs a one-time commit notice on write/remove.
 sync_codex_agents_md_dispatch(){
   local f="$REPO/AGENTS.md" status
-  case " $HARNESSES " in
-    *" codex "*)
-      status="$(ensure_managed_block "$f" "$DISPATCH_START" "$DISPATCH_END" "$(assemble_agents_md_dispatch)")"
-      case "$status" in
-        wrote)   log "wrote/updated the docket dispatch block in $f — COMMIT THIS (machine-neutral; no model IDs).";;
-        refused) log "WARN $f has a malformed docket:dispatch block — refusing to rewrite; repair the markers by hand and re-run.";;
-      esac
-      ;;
-    *)
-      status="$(remove_managed_block "$f" "$DISPATCH_START" "$DISPATCH_END")"
-      case "$status" in
-        removed) log "removed the docket dispatch block from $f (codex de-listed) — COMMIT THIS.";;
-        refused) log "WARN $f has a malformed docket:dispatch block — refusing to strip; repair the markers by hand.";;
-      esac
-      ;;
-  esac
+  if repo_wants_agents_md_dispatch; then
+    status="$(ensure_managed_block "$f" "$DISPATCH_START" "$DISPATCH_END" "$(assemble_agents_md_dispatch)")"
+    case "$status" in
+      wrote)   log "wrote/updated the docket dispatch block in $f — COMMIT THIS (machine-neutral; no model IDs).";;
+      refused) log "WARN $f has a malformed docket:dispatch block — refusing to rewrite; repair the markers by hand and re-run.";;
+    esac
+  else
+    status="$(remove_managed_block "$f" "$DISPATCH_START" "$DISPATCH_END")"
+    case "$status" in
+      removed) log "removed the docket dispatch block from $f (codex de-listed) — COMMIT THIS.";;
+      refused) log "WARN $f has a malformed docket:dispatch block — refusing to strip; repair the markers by hand.";;
+    esac
+  fi
 }
 
 # --- managed .gitignore block (change 0051; mechanics moved into scripts/lib/docket-gitignore-block.sh
@@ -631,20 +638,17 @@ check_project_level() {  # three legs: (a) gitignore block current [CI-meaningfu
   local am_want am_have
   am_want="$(assemble_agents_md_dispatch)"
   am_have="$(_docket_gi_current_block "$REPO/AGENTS.md" "$DISPATCH_START" "$DISPATCH_END")"
-  case " $HARNESSES " in
-    *" codex "*)
-      if [ "$am_want" != "$am_have" ]; then
-        log "check: AGENTS.md docket dispatch block missing or stale — run: bash sync-agents.sh and commit AGENTS.md"
-        rc=1
-      fi
-      ;;
-    *)
-      if [ -n "$am_have" ]; then
-        log "check: AGENTS.md carries a docket dispatch block but codex is not in agent_harnesses — run: bash sync-agents.sh and commit AGENTS.md"
-        rc=1
-      fi
-      ;;
-  esac
+  if repo_wants_agents_md_dispatch; then
+    if [ "$am_want" != "$am_have" ]; then
+      log "check: AGENTS.md docket dispatch block missing or stale — run: bash sync-agents.sh and commit AGENTS.md"
+      rc=1
+    fi
+  else
+    if [ -n "$am_have" ]; then
+      log "check: AGENTS.md carries a docket dispatch block but codex is not in agent_harnesses — run: bash sync-agents.sh and commit AGENTS.md"
+      rc=1
+    fi
+  fi
   # committed-config shape (the committed .docket.yml is CI-visible): legacy bare agent keys.
   legacy="$(legacy_agent_keys "$DOCKET_YML" 1)"
   if [ -n "$legacy" ]; then
