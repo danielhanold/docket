@@ -15,7 +15,7 @@ change: 81
 Change 0081 adds `config.yml.example` — a committed starter for the global
 user-level config (`${XDG_CONFIG_HOME:-~/.config}/docket/config.yml`). To let a
 first-time user *see* the otherwise-invisible per-skill model/effort defaults,
-its `agents.default` block restates docket's nine claude built-in per-skill
+its `agents.claude` block restates docket's nine claude built-in per-skill
 defaults. Those same values already ship in the `agents/docket-*.md` wrapper
 frontmatter, which is what `sync-agents.sh` reads to generate the machine-local
 wrappers. So `config.yml.example` duplicates authored values that live in the
@@ -25,7 +25,7 @@ wrappers: a discoverability win bought with a second copy that can drift.
 
 Accept the duplication for discoverability. `agents/docket-*.md` wrapper
 frontmatter is the **single source of truth** for the per-skill model/effort
-defaults; `config.yml.example`'s `agents.default` block is a **documented
+defaults; `config.yml.example`'s `agents.claude` block is a **documented
 mirror** of those values, present only so a first user can see the defaults
 without reading nine wrapper files.
 
