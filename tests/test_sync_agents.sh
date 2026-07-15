@@ -1197,8 +1197,16 @@ assert "0079: agent without runner: stays native" 'grep -qF "abort-and-report" "
 printf 'agents:\n  claude:\n    status: { model: gpt-5.1-codex, effort: auto, runner: codex }\n' > "$SBX/.docket.yml"
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
 assert "0079: effort auto omits --effort from the shim" '! grep -qF -- "--effort" "$G"'
-# --check leg (c): a hand-reverted shim is advisory drift (proves leg c shares emission)
-printf '%s\n' '---' 'name: docket-status' '---' 'native body' > "$G"
+# --check leg (c): a de-shimmed wrapper is advisory drift (proves leg c shares emit_wrapper).
+# The de-shim uses the EXACT bytes bare emit would produce (same model, no runner) — junk
+# bytes would drift under either emission path and let a leg-(c)-bypasses-shim mutant survive.
+printf 'agents:\n  claude:\n    status: { model: gpt-5.1-codex }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
+cp "$G" "$SBX/native-status.md"
+printf 'agents:\n  claude:\n    status: { model: gpt-5.1-codex, runner: codex }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
+assert "0079: fixture sanity — shim and native differ" '! diff -q "$G" "$SBX/native-status.md" >/dev/null'
+cp "$SBX/native-status.md" "$G"
 chk="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check 2>&1 )"
 assert "0079: --check flags a de-shimmed wrapper as drift" 'grep -qF "drift in .claude/agents/docket-status.md" <<<"$chk"'
 rm -rf "$SBX"
