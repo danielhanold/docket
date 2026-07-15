@@ -26,4 +26,18 @@ for md in "$ROOT"/scripts/*.md; do
   if [ -f "$ROOT/scripts/$base.sh" ]; then ok "script present for $base.md"; else no "orphaned scripts/$base.md (no $base.sh)"; fi
 done
 
+# (3) every scripts/runners/<name>.sh has a co-located scripts/runners/<name>.md (change 0079)
+for sh in "$ROOT"/scripts/runners/*.sh; do
+  [ -e "$sh" ] || continue
+  base="$(basename "$sh" .sh)"
+  if [ -f "$ROOT/scripts/runners/$base.md" ]; then ok "contract present for runners/$base.sh"; else no "missing scripts/runners/$base.md for runners/$base.sh"; fi
+done
+
+# (4) every scripts/runners/<name>.md has a live scripts/runners/<name>.sh (no orphaned contract)
+for md in "$ROOT"/scripts/runners/*.md; do
+  [ -e "$md" ] || continue
+  base="$(basename "$md" .md)"
+  if [ -f "$ROOT/scripts/runners/$base.sh" ]; then ok "script present for runners/$base.md"; else no "orphaned scripts/runners/$base.md (no runners/$base.sh)"; fi
+done
+
 exit $fail
