@@ -7,16 +7,19 @@ fail=0
 assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
 
 tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
-# Fake harness root: SOME dirs present, some absent on purpose.
-mkdir -p "$tmp/.claude/skills" "$tmp/.agents/skills"   # present
-# .cursor/.codex/.kiro/.windsurf intentionally absent
+# Fake harness root: three states on purpose.
+mkdir -p "$tmp/.claude/skills" "$tmp/.agents/skills"   # present WITH skills subdir
+mkdir -p "$tmp/.cursor"                                 # harness present, skills subdir ABSENT
+# .codex/.kiro/.windsurf fully absent (no parent dir at all)
 
 DOCKET_HARNESS_ROOT="$tmp" bash "$REPO/link-skills.sh" >/dev/null
 
 assert "links into present .claude/skills"  '[ -L "$tmp/.claude/skills/docket-status" ]'
 assert "links into present .agents/skills"  '[ -L "$tmp/.agents/skills/docket-status" ]'
 assert "symlink target is absolute repo path" '[ "$(readlink "$tmp/.claude/skills/docket-status")" = "$REPO/skills/docket-status" ]'
-assert "does NOT create an absent harness dir" '[ ! -d "$tmp/.cursor/skills" ]'
+assert "creates missing skills subdir under a present harness" '[ -d "$tmp/.cursor/skills" ]'
+assert "links into the created .cursor/skills"                 '[ -L "$tmp/.cursor/skills/docket-status" ]'
+assert "does NOT create a fully-absent harness dir" '[ ! -e "$tmp/.codex" ] && [ ! -e "$tmp/.codex/skills" ]'
 assert "all skills linked" '[ "$(find "$tmp/.claude/skills" -maxdepth 1 -type l | wc -l | tr -d " ")" = "$expected_skills" ]'
 
 # Idempotency: a second run creates nothing new.
