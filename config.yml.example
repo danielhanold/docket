@@ -1,0 +1,56 @@
+# ~/.config/docket/config.yml — docket's global (per-machine) configuration.
+#
+# This starter was scaffolded from docket's config.yml.example on your first `install.sh`.
+# It accepts the FULL .docket.yml schema; every key resolves per-field, four layers deep:
+# repo-local (.docket.local.yml) > repo-committed (.docket.yml) > this global file > built-in.
+# Only the two harness/model keys are shown here — see README -> Configuration for every
+# other key, and for the coordination-key fence (repo-only keys that are ignored here).
+#
+# Claude-only users can leave this file untouched: the values below already match docket's
+# shipped defaults, so an unedited file behaves exactly as if it were absent.
+
+# Which agent harnesses get generated wrapper files. To enable `cursor` or `codex`, add it
+# here AND uncomment that harness's block under `agents:` below, then re-run `install.sh`.
+# The two are orthogonal: this list decides which harness dirs get files; the block sets
+# the model/effort those files carry.
+agent_harnesses: [claude]
+
+# Per-skill model + effort for each docket subagent, keyed by harness.
+#
+# The `claude:` block below MIRRORS docket's shipped built-in defaults (the values in each
+# agents/docket-*.md wrapper), shown so the otherwise-invisible defaults are visible and
+# tunable. Deleting any line falls back to the SAME built-in. Per ADR-0039 the wrappers are
+# the single source of truth; if a shipped default changes, update this mirror to match.
+agents:
+  claude:
+    status:                { model: claude-haiku-4-5-20251001, effort: medium }
+    adr:                   { model: claude-sonnet-5,           effort: medium }
+    brainstorm-consultant: { model: claude-opus-4-8,           effort: xhigh }
+    auto-groom:            { model: claude-opus-4-8,           effort: xhigh }
+    auto-groom-critic:     { model: claude-opus-4-8,           effort: xhigh }
+    implement-next:        { model: claude-opus-4-8,           effort: xhigh }
+    rebase-resolver:       { model: claude-opus-4-8,           effort: xhigh }
+    integration-repair:    { model: claude-opus-4-8,           effort: xhigh }
+    finalize-change:       { model: claude-sonnet-5,           effort: medium }
+
+  # To enable a block below: verify the example IDs against your harness's current models, uncomment the block, and add the harness to `agent_harnesses` above. The IDs here are UNVALIDATED examples.
+  # codex:
+  #   status:                { model: gpt-5.6-luna, effort: xhigh }
+  #   adr:                   { model: gpt-5.6-terra, effort: xhigh }
+  #   brainstorm-consultant: { model: gpt-5.6-sol, effort: medium }
+  #   auto-groom:            { model: gpt-5.6-sol, effort: low }
+  #   auto-groom-critic:     { model: gpt-5.6-sol, effort: medium }
+  #   implement-next:        { model: gpt-5.6-sol, effort: medium }
+  #   rebase-resolver:       { model: gpt-5.6-sol, effort: high }
+  #   integration-repair:    { model: gpt-5.6-sol, effort: high }
+  #   finalize-change:       { model: gpt-5.6-terra, effort: high }
+  # cursor:
+  #   status:                { model: grok-4.5-fast-medium, effort: auto }
+  #   adr:                   { model: grok-4.5-xhigh, effort: auto }
+  #   brainstorm-consultant: { model: grok-4.5-xhigh, effort: auto }
+  #   auto-groom:            { model: grok-4.5-high, effort: auto }
+  #   auto-groom-critic:     { model: grok-4.5-xhigh, effort: auto }
+  #   implement-next:        { model: grok-4.5-xhigh, effort: auto }
+  #   rebase-resolver:       { model: grok-4.5-xhigh, effort: auto }
+  #   integration-repair:    { model: grok-4.5-xhigh, effort: auto }
+  #   finalize-change:       { model: grok-4.5-fast-high, effort: auto }
