@@ -131,6 +131,7 @@ printf '# keep me\n' >> "$SBX/AGENTS.md"   # note: block is above; add trailing 
 printf 'agent_harnesses: [claude]\n' > "$SBX/.docket.yml"
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
 assert "agentsmd delist: block removed" '! grep -qF "docket:dispatch:start" "$SBX/AGENTS.md"'
+assert "agentsmd delist: trailing user line preserved" 'grep -qxF "# keep me" "$SBX/AGENTS.md"'
 rm -rf "$SBX"
 
 # --- --check: codex enabled + block present & current => pass ---
@@ -159,6 +160,17 @@ if ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check >/dev/null 2>&
   echo "NOT OK - check: missing AGENTS.md block fails --check"; fail=1
 else
   echo "ok - check: missing AGENTS.md block fails --check"
+fi
+rm -rf "$SBX"
+
+# --- --check: codex de-listed but AGENTS.md block still present => CI-meaningful failure ---
+mk_codex_repo
+git -C "$SBX" add -A >/dev/null 2>&1
+printf 'agent_harnesses: [claude]\n' > "$SBX/.docket.yml"   # de-list codex, do NOT re-run sync (block left behind)
+if ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check >/dev/null 2>&1 ); then
+  echo "NOT OK - check: leftover AGENTS.md block with codex de-listed fails --check"; fail=1
+else
+  echo "ok - check: leftover AGENTS.md block with codex de-listed fails --check"
 fi
 rm -rf "$SBX"
 
