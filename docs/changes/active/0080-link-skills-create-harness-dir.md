@@ -10,7 +10,7 @@ depends_on: []
 related: [45]
 adrs: []
 spec:
-plan:
+plan: docs/superpowers/plans/2026-07-15-link-skills-create-harness-dir.md
 results:
 trivial: true
 auto_groomable:
@@ -23,6 +23,9 @@ reconciled: true
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Plan | [2026-07-15-link-skills-create-harness-dir.md](https://github.com/danielhanold/docket/blob/feat/link-skills-create-harness-dir/docs/superpowers/plans/2026-07-15-link-skills-create-harness-dir.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
