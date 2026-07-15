@@ -1,8 +1,14 @@
 # Backlog
 
-**80 changes** — 🟡 11 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 63 done · 🗑️ 3 killed
+**80 changes** — 🟢 1 in progress · 🟡 10 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 63 done · 🗑️ 3 killed
 
-## 🟡 Proposed (11)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Spec | Branch |
+|---|-------|----------|------|--------|
+| [0080](active/0080-link-skills-create-harness-dir.md) | link-skills.sh creates a missing skills subdir when the harness is present | `medium` | [spec](../) | `feat/link-skills-create-harness-dir` |
+
+## 🟡 Proposed (10)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -16,7 +22,6 @@
 | [0062](active/0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | `low` | needs-brainstorm |
 | [0067](active/0067-learnings-promotion-destination.md) | Give the learnings ledger a promotion destination — it has no way to shrink | `medium` | needs-brainstorm |
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | ⏳ waiting on #77 — needs your merge |
-| [0080](active/0080-link-skills-create-harness-dir.md) | link-skills.sh creates a missing skills subdir when the harness is present | `medium` | build-ready |
 
 ## 🔴 Blocked (1)
 
