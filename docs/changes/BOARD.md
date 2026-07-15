@@ -1,6 +1,6 @@
 # Backlog
 
-**78 changes** — 🟢 1 in progress · 🟡 10 proposed · 🔵 1 implemented · ✅ 63 done · 🗑️ 3 killed
+**79 changes** — 🟢 1 in progress · 🟡 11 proposed · 🔵 1 implemented · ✅ 63 done · 🗑️ 3 killed
 
 ## 🟢 In progress (1)
 
@@ -8,7 +8,7 @@
 |---|-------|----------|------|--------|
 | [0077](active/0077-codex-harness-toml-agents.md) | Codex harness — TOML agent generation + AGENTS.md dispatch block | `high` | [spec](../superpowers/specs/2026-07-15-codex-harness-toml-agents-design.md) | `feat/codex-harness-toml-agents` |
 
-## 🟡 Proposed (10)
+## 🟡 Proposed (11)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -21,6 +21,7 @@
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0062](active/0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | `low` | needs-brainstorm |
 | [0067](active/0067-learnings-promotion-destination.md) | Give the learnings ledger a promotion destination — it has no way to shrink | `medium` | needs-brainstorm |
+| [0077](active/0077-codex-runner-delegation.md) | Delegate docket agent runs to OpenAI Codex via an explicit runner field | `medium` | build-ready |
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | ⏳ waiting on #77 — not yet built |
 
 ## 🔵 Implemented — awaiting merge (1)
@@ -41,6 +42,7 @@ graph TD
   0044
   0062
   0067
+  0077
   0077
   0077 --> 0078
   0001:::done
