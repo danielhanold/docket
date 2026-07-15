@@ -217,6 +217,11 @@ agent_description(){ sed -n '/^description:/{s/^description:[[:space:]]*//;p;q;}
 HARNESS_HAS_DISPATCH_RULES="$DOCKET_GI_DISPATCH_HARNESSES"
 harness_has_dispatch_rule(){ case " $HARNESS_HAS_DISPATCH_RULES " in *" $1 "*) return 0;; *) return 1;; esac; }
 
+# Codex reads a committed AGENTS.md; only codex gets the AGENTS.md dispatch block (change 0077).
+AGENTS_MD_DISPATCH_HARNESSES="codex"
+DISPATCH_START='<!-- docket:dispatch:start (managed by docket — do not hand-edit) -->'
+DISPATCH_END='<!-- docket:dispatch:end -->'
+
 # --- config helpers ----------------------------------------------------------
 # Print the body nested under the first bare `<key>:` header from stdin, DEDENTED to column 0
 # at the block's base indent (so a nested doc's harness keys land at column 0 regardless of the
@@ -416,6 +421,51 @@ write_dispatch_rule() {  # $1 = <root>/.<harness> base path
   assemble_dispatch_rule > "$1/rules/docket-dispatch.mdc"
 }
 
+# Assemble the committed AGENTS.md docket dispatch block (markers included) to stdout.
+# Machine-neutral: agent names + delegation prose only, NO model IDs (pins live in the .toml).
+assemble_agents_md_dispatch(){
+  printf '%s\n' "$DISPATCH_START"
+  cat <<'HEAD'
+## Docket agents — dispatch, don't run inline
+
+Docket ships model/effort-pinned agent definitions in `.codex/agents/docket-*.toml`. When you are
+asked to run one of the docket skills below, run the matching **agent** (its pinned model and
+reasoning effort are the whole point) instead of executing the skill inline at the session model.
+Pass the request through unchanged, including any change or ADR id.
+HEAD
+  printf '\n'
+  local src name desc
+  for src in "$AGENTS_SRC"/docket-*.md; do
+    [ -e "$src" ] || continue
+    name="$(short_name "$src")"
+    desc="$(agent_description "$src")"
+    printf -- '- **docket-%s** — %s Delegate to the `docket-%s` agent.\n' "$name" "$desc" "$name"
+  done
+  printf '%s\n' "$DISPATCH_END"
+}
+
+# Write the AGENTS.md dispatch block when codex is a targeted per-repo harness; strip it when
+# codex is de-listed (within an opted-in repo). Logs a one-time commit notice on write/remove.
+sync_codex_agents_md_dispatch(){
+  local f="$REPO/AGENTS.md" status
+  case " $HARNESSES " in
+    *" codex "*)
+      status="$(ensure_managed_block "$f" "$DISPATCH_START" "$DISPATCH_END" "$(assemble_agents_md_dispatch)")"
+      case "$status" in
+        wrote)   log "wrote/updated the docket dispatch block in $f — COMMIT THIS (machine-neutral; no model IDs).";;
+        refused) log "WARN $f has a malformed docket:dispatch block — refusing to rewrite; repair the markers by hand and re-run.";;
+      esac
+      ;;
+    *)
+      status="$(remove_managed_block "$f" "$DISPATCH_START" "$DISPATCH_END")"
+      case "$status" in
+        removed) log "removed the docket dispatch block from $f (codex de-listed) — COMMIT THIS.";;
+        refused) log "WARN $f has a malformed docket:dispatch block — refusing to strip; repair the markers by hand.";;
+      esac
+      ;;
+  esac
+}
+
 # --- managed .gitignore block (change 0051; mechanics moved into scripts/lib/docket-gitignore-block.sh
 # in change 0057, which sync-agents.sh sources — that lib is the single home for ALL docket-owned
 # ignores and is shared by all three writers: migrate-to-docket.sh, docket-config.sh --bootstrap, and
@@ -552,6 +602,8 @@ project_level_pass() {  # built-in ⊕ local ⊕ committed ⊕ global -> <repo>/
     harness_has_dispatch_rule "$h" || continue
     write_dispatch_rule "$REPO/.$h"
   done
+  # Codex-only committed AGENTS.md dispatch block (change 0077).
+  sync_codex_agents_md_dispatch
 }
 
 check_project_level() {  # three legs: (a) gitignore block current [CI-meaningful], (b) nothing

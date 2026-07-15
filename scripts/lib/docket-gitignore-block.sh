@@ -117,3 +117,29 @@ ensure_docket_gitignore_block(){  # $1=repo-root
   _docket_gi_dedup_advisory "$rest"
   return 0
 }
+
+# --- generic managed block (change 0077) -------------------------------------
+# Reuse the marker-parameterized primitives above. WANT must include both markers.
+# ensure_managed_block: create/update the block, preserving bytes outside it. Prints a status
+# word to stdout: refused (malformed markers) | unchanged | wrote. Never touches the file on refuse.
+ensure_managed_block(){  # $1=file $2=start $3=end $4=want(full block incl markers)
+  local f="$1" start="$2" end="$3" want="$4" have rest
+  if _docket_gi_malformed "$f" "$start" "$end"; then printf 'refused\n'; return 0; fi
+  rest=""
+  [ -f "$f" ] && rest="$(_docket_gi_strip_block "$f" "$start" "$end")"
+  have="$(_docket_gi_current_block "$f" "$start" "$end")"
+  if [ "$want" = "$have" ]; then printf 'unchanged\n'; return 0; fi
+  { if [ -n "$rest" ]; then printf '%s\n\n' "$rest"; fi; printf '%s\n' "$want"; } > "$f"
+  printf 'wrote\n'
+}
+# remove_managed_block: strip the block if present, preserving outside bytes. Prints:
+# refused (malformed) | absent (no file or no block) | removed.
+remove_managed_block(){  # $1=file $2=start $3=end
+  local f="$1" start="$2" end="$3" rest
+  [ -f "$f" ] || { printf 'absent\n'; return 0; }
+  if _docket_gi_malformed "$f" "$start" "$end"; then printf 'refused\n'; return 0; fi
+  if [ -z "$(_docket_gi_current_block "$f" "$start" "$end")" ]; then printf 'absent\n'; return 0; fi
+  rest="$(_docket_gi_strip_block "$f" "$start" "$end")"
+  printf '%s\n' "$rest" > "$f"
+  printf 'removed\n'
+}
