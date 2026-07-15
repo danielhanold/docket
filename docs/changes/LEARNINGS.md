@@ -4,6 +4,13 @@
      the entry here. Newest first. Soft cap ~300 lines; the first harvest past the cap also
      distills (compression, not destruction — git history keeps whatever is dropped). -->
 
+- 2026-07-15 (#80, PR #87) — Under `set -euo pipefail`, `[ -d "$dir" ] || mkdir -p "$dir"` inside a
+  loop does not just skip a bad target — a pre-existing NON-directory at `$dir` (stray file or
+  dangling symlink) makes `mkdir -p` fail, and `set -e` aborts the ENTIRE script, leaving a partial
+  install across every remaining harness. Whole-branch review reproduced both triggers empirically.
+  Apply: a conditional `mkdir` in a per-item loop needs a `|| continue` (fail one item, not the run),
+  and the regression test must assert a LATER item still processes and the run exits 0 — not just
+  that the bad item is skipped.
 - 2026-07-15 (#75, PR #84) — A spec that frames code as "dead/dormant today, comes alive only once
   this change lands" can already be LIVE mid-branch, because an earlier task in the same branch
   flipped its precondition. Here Task 3 made `METADATA_WORKTREE` absolute, so `docket-status.sh`'s
