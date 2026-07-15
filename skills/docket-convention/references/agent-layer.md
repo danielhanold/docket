@@ -35,6 +35,8 @@ agents:                                 # harness-first: reserved `default:` + h
   cursor:                               # per-harness override — only what differs
     implement-next: { model: gpt-5.1, effort: high }
     status:         { model: gpt-5.5-medium-fast }
+  claude:                               # runner: delegates the whole run to a child harness
+    status: { model: gpt-5.1-codex, runner: codex }   # (change 0079; see below)
   # Resolution is field-by-field, first non-empty wins: agents.<harness>.<agent> -> agents.default.<agent> -> shipped built-in (agents/docket-*.md).
   # effort: auto explicitly drops the effort line (inherit the model default); omitting the
   # effort: key instead keeps the built-in effort — auto and omitted are NOT equivalent.
@@ -58,6 +60,17 @@ into the next. Claude Code applies **project-over-user precedence natively**, so
 project-level file's own resolved value is **repo-local > repo-committed > global > built-in**, without the
 generator hand-merging the two directories onto the same file. An agent with no entry in any layer defaults to
 `model: inherit` with no `effort`.
+
+**`runner:` — cross-harness delegation (change 0079).** An agent entry may carry `runner: <name>`
+naming a registered runner (shipped: `codex`); the generated wrapper body then becomes a shim that
+makes one foreground `docket.sh runner-dispatch` call, delegating the whole run to that child
+harness. `runner` resolves per-field through the same four layers and is global-able (a machine
+preference, like `model`/`effort` — it writes no shared state). It is honored under the `claude`
+harness key (or `default:` when generating claude's files); under any other harness key it is
+reserved and warned-and-ignored. An unregistered name is a loud generation-time error. Per-runner
+knobs live in a top-level `runners.<name>:` block (any layer); the codex knobs and prerequisites
+are in `scripts/runners/codex.md`, and the user-facing walkthrough is README's *Runner delegation*
+subsection under *Customization*.
 
 ## Generation scope: agent_harnesses
 
