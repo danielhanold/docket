@@ -22,7 +22,7 @@
 | [0062](active/0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | `low` | needs-brainstorm |
 | [0067](active/0067-learnings-promotion-destination.md) | Give the learnings ledger a promotion destination — it has no way to shrink | `medium` | needs-brainstorm |
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | ⏳ waiting on #77 — not yet built |
-| [0079](active/0079-codex-runner-delegation.md) | Delegate docket agent runs to OpenAI Codex via an explicit runner field | `medium` | build-ready |
+| [0079](active/0079-codex-runner-delegation.md) | Cross-harness runner delegation framework (first runner — OpenAI Codex) | `medium` | build-ready |
 
 ## 🔴 Blocked (1)
 
