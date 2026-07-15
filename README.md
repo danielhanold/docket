@@ -194,7 +194,9 @@ finalize:                    # merge gate: rebase onto base + re-test before doc
   # test_command:            # unset => finalize auto-detects the suite
   # require_pr_approval: false  # true => the no-arg finalize refuses to merge an unapproved PR
 # agent_harnesses: [claude]  # harnesses the per-repo agent pass generates machine-local files for
-# agents:                    # per-skill subagent model/effort (see "Agent layer" in docket-convention)
+# agents:                    # per-skill subagent model/effort — and runner: to delegate an agent's
+#                            # whole run to another harness (see "Runner delegation" below)
+# runners:                   # per-runner knobs for runner delegation (e.g. runners.codex.sandbox)
 # skills:                    # rebind the five workflow roles — brainstorm/plan/build/review/finish — to
 #                            # any skill name or `auto` (see "Skill layer" in docket-convention)
 ```
@@ -433,6 +435,11 @@ Reach for **agent-dispatch when you want to watch a long run** — a build you i
 
 **The clone-identical guarantee is retired.** Before this change, committing the generated per-repo files meant an autonomous change built on the exact same model on every clone, by construction. Generation is now all-local, so that guarantee is gone — a deliberate trade, not an oversight: never having to reconcile a machine-generated file in a PR diff, at the cost of no CI-enforced pinning of the generated copies. Team defaults for a repo still live in its committed `.docket.yml` `agents:` block, by convention.
 
+The same `agents:` entries can also carry a `runner:` key, which delegates that agent's whole
+run to a *different* harness (e.g. OpenAI Codex) with its own subscription and models — see
+[Runner delegation](#runner-delegation--running-docket-agents-on-another-harness) under
+Customization.
+
 ---
 
 ## The eight skills
@@ -475,6 +482,48 @@ If the consultant can't be dispatched on this machine (agents not synced, harnes
 **Capture-then-groom: an entire brainstorm at a chosen model.** The consultant pins *authorship*; the dialogue and option generation still run at whatever model the session is on. To pin the *whole* brainstorm, no new machinery is needed: capture the idea as a stub with `docket-new-change` in whichever session it strikes you (skip straight past brainstorming — the stub lands at `needs-brainstorm`), then run `docket-groom-next` from a session set to the model you want. That session does the full design conversation at its own model, and can still opt into consultant authorship on top.
 
 Note: `docket-brainstorm` is its own opt-in **role** skill (bound via the `brainstorm` key), not one of the operating-loop stages in [The eight skills](#the-eight-skills) above — it's why you'll find nine directories under `skills/` even though that table lists eight.
+
+### Runner delegation — running docket agents on another harness
+
+Docket agents normally run on the harness hosting your session. **Runner delegation** hands an
+agent's *whole run* to a child harness with its own subscription, models, and skills — activated
+per agent by an explicit `runner:` key, never inferred from model IDs. One pair ships today:
+parent `claude` (Claude Code) → child `codex` (OpenAI Codex CLI).
+
+```yaml
+# .docket.yml (or the global ~/.config/docket/config.yml — runner is a machine preference)
+agents:
+  claude:                       # the PARENT harness: when Claude Code hosts the session…
+    status: { model: gpt-5.1-codex, effort: medium, runner: codex }   # …run docket-status on Codex
+runners:
+  codex:
+    sandbox: workspace-write    # workspace-write (default) | danger-full-access
+    network: true               # default true — git push and gh need it
+```
+
+How it works: `sync-agents.sh` generates that agent's wrapper with a **shim body** — one
+foreground call to `docket.sh runner-dispatch`, which resolves the `runners.codex` knobs and
+runs `codex exec` (blocking, sandboxed, final-message relay via `--output-last-message`). Every
+invocation path (skill fork, `@docket-status`, composition from another skill) inherits the
+delegation unchanged. `model:` is passed to the child verbatim (ADR-0015); `effort:` maps to
+Codex's `model_reasoning_effort` (docket's `max` → codex `xhigh`).
+
+Rules and limits:
+
+- **Only autonomous wrappers are delegatable** (the nine generated agents). Interactive skills
+  stay inline — an exec primitive has no human channel.
+- A delegated *orchestrator*'s own sub-dispatches run child-natively (for Codex:
+  `spawn_agent`, via superpowers' Codex support). Per-agent model pins do **not** carry into
+  those child-side dispatches (accepted limitation).
+- `runner:` under a non-`claude` harness key is reserved and warned-and-ignored; an
+  unregistered runner name fails generation loudly.
+- Delegation is never a policy bypass: do not delegate `docket-finalize-change` to sidestep
+  merge-approval gates (see change 0062).
+
+**Prerequisites (codex):** Codex CLI installed and authenticated (`codex login`); superpowers
+installed in Codex; docket skills linked (`link-skills.sh`, automatic on install); and
+`[features] multi_agent = true` in `~/.codex/config.toml` if you delegate an orchestrator
+(SDD fan-out) rather than a leaf agent. Full adapter contract: `scripts/runners/codex.md`.
 
 ### Running under Cursor Auto-run
 
