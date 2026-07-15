@@ -133,4 +133,33 @@ printf 'agent_harnesses: [claude]\n' > "$SBX/.docket.yml"
 assert "agentsmd delist: block removed" '! grep -qF "docket:dispatch:start" "$SBX/AGENTS.md"'
 rm -rf "$SBX"
 
+# --- --check: codex enabled + block present & current => pass ---
+mk_codex_repo
+git -C "$SBX" add -A >/dev/null 2>&1
+if ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check >/dev/null 2>&1 ); then
+  echo "ok - check: codex enabled, block current => passes"
+else
+  echo "NOT OK - check: codex enabled, block current => passes"; fail=1
+fi
+
+# --- --check: codex enabled + block STALE => CI-meaningful failure ---
+# mutate the committed block so it no longer matches the emitter
+perl -0pi -e 's/(docket:dispatch:start[^\n]*\n)/$1STALE-EXTRA-LINE\n/' "$SBX/AGENTS.md"
+if ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check >/dev/null 2>&1 ); then
+  echo "NOT OK - check: stale AGENTS.md block fails --check"; fail=1
+else
+  echo "ok - check: stale AGENTS.md block fails --check"
+fi
+rm -rf "$SBX"
+
+# --- --check: codex enabled + block MISSING => CI-meaningful failure ---
+mk_codex_repo
+rm -f "$SBX/AGENTS.md"
+if ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check >/dev/null 2>&1 ); then
+  echo "NOT OK - check: missing AGENTS.md block fails --check"; fail=1
+else
+  echo "ok - check: missing AGENTS.md block fails --check"
+fi
+rm -rf "$SBX"
+
 echo "---"; [ "$fail" = "0" ] && echo "ALL PASS" || echo "FAILURES"; exit $fail

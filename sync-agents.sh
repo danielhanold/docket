@@ -625,6 +625,26 @@ check_project_level() {  # three legs: (a) gitignore block current [CI-meaningfu
     log "check: .gitignore docket block missing or stale (a legacy docket:generated block upgrades on the next run) — run: bash sync-agents.sh and commit .gitignore"
     rc=1
   fi
+  # AGENTS.md dispatch block currency (change 0077) — CI-meaningful, symmetric with the
+  # .gitignore leg. The block is committed (exempt from the tracked-file leg); assert it
+  # is present & current when codex is targeted, and absent when codex is not.
+  local am_want am_have
+  am_want="$(assemble_agents_md_dispatch)"
+  am_have="$(_docket_gi_current_block "$REPO/AGENTS.md" "$DISPATCH_START" "$DISPATCH_END")"
+  case " $HARNESSES " in
+    *" codex "*)
+      if [ "$am_want" != "$am_have" ]; then
+        log "check: AGENTS.md docket dispatch block missing or stale — run: bash sync-agents.sh and commit AGENTS.md"
+        rc=1
+      fi
+      ;;
+    *)
+      if [ -n "$am_have" ]; then
+        log "check: AGENTS.md carries a docket dispatch block but codex is not in agent_harnesses — run: bash sync-agents.sh and commit AGENTS.md"
+        rc=1
+      fi
+      ;;
+  esac
   # committed-config shape (the committed .docket.yml is CI-visible): legacy bare agent keys.
   legacy="$(legacy_agent_keys "$DOCKET_YML" 1)"
   if [ -n "$legacy" ]; then
