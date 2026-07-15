@@ -129,6 +129,9 @@ assert "facade: missing --agent rejected" '[ "$rc" != "0" ]'
 err="$( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner gemini-cli --agent status 2>&1 >/dev/null )"; rc=$?
 assert "facade: unknown runner rejected nonzero" '[ "$rc" != "0" ]'
 assert "facade: unknown-runner message names it" 'grep -qF "gemini-cli" <<<"$err"'
+err="$( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner ../codex --agent status 2>&1 >/dev/null )"; rc=$?
+assert "facade: path-traversal runner name rejected" '[ "$rc" != "0" ]'
+assert "facade: traversal rejection says invalid" 'grep -qiF "invalid runner name" <<<"$err"'
 rm -rf "$SBX"
 
 # ---- facade: repo-root anchor + adapter handoff -----------------------------------

@@ -27,6 +27,11 @@ while [ $# -gt 0 ]; do
 done
 [ -n "$RUNNER" ] || die "--runner is required"
 [ -n "$AGENT" ]  || die "--agent is required"
+# The runner name becomes a path component below — reject anything that could traverse out
+# of RUNNERS_DIR (the facade family is a finite table, never an escape hatch).
+case "$RUNNER" in
+  *[!A-Za-z0-9._-]*|*..*) die "invalid runner name '$RUNNER'" ;;
+esac
 ADAPTER="$RUNNERS_DIR/$RUNNER.sh"
 if [ ! -f "$ADAPTER" ]; then
   registered="$(ls "$RUNNERS_DIR" 2>/dev/null | sed -n 's/\.sh$//p' | tr '\n' ' ')"
