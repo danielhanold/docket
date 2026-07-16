@@ -10,7 +10,7 @@ depends_on: []
 related: [62, 64, 83]
 adrs: [27]
 spec: docs/superpowers/specs/2026-07-16-terminal-publish-opt-in-default-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-16-terminal-publish-opt-in-default.md
 results:
 trivial: false
 auto_groomable:
@@ -26,6 +26,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-16-terminal-publish-opt-in-default-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-16-terminal-publish-opt-in-default-design.md) |
+| Plan | [2026-07-16-terminal-publish-opt-in-default.md](https://github.com/danielhanold/docket/blob/feat/terminal-publish-opt-in-default/docs/superpowers/plans/2026-07-16-terminal-publish-opt-in-default.md) |
 | ADRs | [ADR-0027](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0027-terminal-publish-repo-scoped-script-gated.md) |
 <!-- docket:artifacts:end -->
 
