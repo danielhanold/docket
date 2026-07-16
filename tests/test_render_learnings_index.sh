@@ -198,6 +198,7 @@ mkraw dq-single-quoted        "'It''s a single-quoted rule.'"
 mkraw dq-unquoted-with-quotes 'He said "hi" and meant it.'
 mkraw dq-unterminated         '"unterminated'
 mkraw dq-escaped-final-quote  '"foo\"'
+mkraw dq-bare-quote-after-escaped-pair '"path C:\\" and more"'
 
 qout="$("$R" --learnings-dir "$DQ")"
 
@@ -213,6 +214,11 @@ exp_unquoted=$'He said "hi" and meant it.'
 exp_unterminated=$'"unterminated'
 exp_escaped_final_quote=$'"foo\\"'         # last char IS a quote, but it's escaped (odd backslash
                                             # run before it) — no real closing delimiter exists
+exp_bare_quote_after_escaped_pair=$'path C:\\" and more'   # single-pass: `\\` pair consumed as one
+                                                             # unit, the following bare `"` untouched
+exp_bare_quote_two_pass_bug=$'path C:" and more'            # naive two-pass's wrong answer: the
+                                                             # leftover backslash gets swept up by
+                                                             # the second (`\"`->`"`) pass and lost
 
 row="$(grep -F -- "dq-escaped-quote.md" <<<"$qout")"
 assert "escaped inner double-quotes render as real quotes" \
@@ -226,10 +232,13 @@ assert "escaped backslash renders as a single backslash" \
 assert "escaped backslash does not render doubled" \
   '! grep -qF -- "$bs2" <<<"$row"'
 
-# The adjacency case: a literal backslash immediately before the CLOSING quote. A naive two-pass
-# unescape (a global \" -> " pass composed with a separate global \\ -> \ pass, rather than one
-# left-to-right pass) can regroup this wrong, either dropping the backslash or leaving a stray
-# quote byte behind.
+# NOTE: this fixture does NOT discriminate the single left-to-right pass from a naive two-pass
+# replace — by the time _dq_unescape_dquote runs, its caller has already stripped the closing
+# quote (`${v:1:n-2}`), so there is no delimiter left at this boundary for a trailing backslash to
+# re-pair with; a two-pass mutation computes the identical correct answer here. It still earns its
+# place: it guards ordinary backslash-escape handling at the end of the scalar's content. The
+# actual single-vs-two-pass discriminator is fixture dq-bare-quote-after-escaped-pair below, which
+# places a bare, unescaped quote INSIDE the scalar, adjacent to an escaped-backslash pair.
 row="$(grep -F -- "dq-trailing-backslash.md" <<<"$qout")"
 assert "backslash-then-close-quote renders exactly one trailing backslash" \
   'grep -qF -- "$exp_trailing_backslash" <<<"$row"'
@@ -253,6 +262,22 @@ assert "unterminated leading quote is not stripped" \
 row="$(grep -F -- "dq-escaped-final-quote.md" <<<"$qout")"
 assert "an escaped (non-delimiting) final quote is not treated as a matched pair" \
   'grep -qF -- "$exp_escaped_final_quote" <<<"$row"'
+
+# THE single-vs-two-pass discriminator. `hook: "path C:\\" and more"` — a bare, unescaped `"` sits
+# right after an escaped-backslash pair, INSIDE the scalar (not at the closing boundary, which
+# stays well-formed here: the outer pair still matches). A naive two-pass replace (`\\`->`\` first,
+# then `\"`->`"`) collapses the `\\` pair to one backslash in pass one, then that leftover
+# backslash sits directly before the bare `"` and gets swept up by pass two as if the source had
+# written `\"` — dropping the backslash and corrupting `path C:\" and more` to `path C:" and more`.
+# The correct single left-to-right pass consumes the `\\` pair as one atomic unit and leaves the
+# following bare `"` untouched. This is malformed-YAML input (a real YAML parser would reject the
+# unescaped `"` outright); the single pass is chosen because it degrades predictably here, not
+# because well-formed input needs it (see the corrected comment on _dq_unescape_dquote).
+row="$(grep -F -- "dq-bare-quote-after-escaped-pair.md" <<<"$qout")"
+assert "bare quote after an escaped-backslash pair keeps the backslash (single-pass result)" \
+  'grep -qF -- "$exp_bare_quote_after_escaped_pair" <<<"$row"'
+assert "bare quote after an escaped-backslash pair does not drop the backslash (naive two-pass bug)" \
+  '! grep -qF -- "$exp_bare_quote_two_pass_bug" <<<"$row"'
 
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
