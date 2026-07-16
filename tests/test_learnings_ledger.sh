@@ -45,7 +45,7 @@ assert "groom-next reads the ledger in scan-context" \
   'grep -qF "LEARNINGS.md" "$REPO/skills/docket-groom-next/SKILL.md"'
 
 # (d) anti-restatement sentinels — contract phrases live ONLY in the convention
-for s in "build-loop memory" "compression, not destruction"; do
+for s in "build-loop memory" "will the agent know to search for this?"; do
   assert "convention contains sentinel: $s" 'grep -qF "$s" "$CONV"'
   for sk in "${OPERATING[@]}"; do
     f="$REPO/skills/$sk/SKILL.md"
