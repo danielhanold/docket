@@ -140,7 +140,7 @@ assert "board fenced-to-empty: emits BOARD_SURFACES=none" \
 
 # --- (E) direct-pipe caller (LEARNINGS #22: $() hides a dropped trailing \n) -
 n="$(run "$tmp/c" --export | grep -c '=')"
-assert "direct-pipe: 19 KEY=value lines emitted"       '[ "$n" -eq 19 ]'
+assert "direct-pipe: 21 KEY=value lines emitted"       '[ "$n" -eq 21 ]'
 last="$(run "$tmp/c" --export | tail -n1)"
 assert "direct-pipe: last line is BOOTSTRAP"           'case "$last" in BOOTSTRAP=*) true;; *) false;; esac'
 
@@ -399,7 +399,7 @@ assert "0050 Q: XDG unset -> \$HOME/.config fallback read"   '[ "$AUTO_GROOM" = 
 
 # --- (E') emit-interface guard: still exactly 19 lines with a global file present ---
 n50="$(rung "$tmp/k.xdg" "$tmp/k" --export | grep -c '=')"
-assert "0050 E': still 19 KEY=value lines with global layer" '[ "$n50" -eq 19 ]'
+assert "0050 E': still 21 KEY=value lines with global layer" '[ "$n50" -eq 21 ]'
 
 # --- (M) coordination-key fence: warned-and-ignored, never honored, never fatal ---
 mkrepo "$tmp/m"
@@ -721,6 +721,107 @@ z2_abs="$(cd "$tmp/z2" && pwd -P)"
 z2_plain="$(cd "$tmp/z/.docket" && bash "$SCRIPT" --repo-dir "$tmp/z2" --export --format plain)"
 assert "0075: --repo-dir still overrides the anchor verbatim" \
   'printf "%s\n" "$z2_plain" | grep -qxF "REPO_ROOT=$z2_abs"'
+
+# ============================================================================
+# Change 0067 — the learnings: block (LEARNINGS_ENABLED, LEARNINGS_CAP)
+# NOTE (guards-are-code (e)): clear the asserted vars BEFORE each eval — an aborting run emits
+# NOTHING, and eval "" would silently leave the previous case's value in place; the assert would
+# then pass vacuously on stale state instead of on this run's actual (non-)output.
+# ============================================================================
+
+# --- (LRN-a) defaults when no layer sets the block ----------------------------
+unset LEARNINGS_ENABLED LEARNINGS_CAP
+mkrepo "$tmp/lrn-a"
+out="$(run "$tmp/lrn-a" --export)"; eval "$out"
+assert "learnings.enabled defaults to true"  '[ "$LEARNINGS_ENABLED" = "true" ]'
+assert "learnings.cap defaults to 300"       '[ "$LEARNINGS_CAP" = "300" ]'
+
+# --- (LRN-b) repo-committed block is honored -----------------------------------
+unset LEARNINGS_ENABLED LEARNINGS_CAP
+mkrepo "$tmp/lrn-b"
+cat > "$tmp/lrn-b/.docket.yml" <<'EOF'
+metadata_branch: main
+learnings:
+  enabled: false
+  cap: 120
+EOF
+git -C "$tmp/lrn-b" add .docket.yml; git -C "$tmp/lrn-b" commit --quiet -m cfg
+git -C "$tmp/lrn-b" push --quiet origin main
+out="$(run "$tmp/lrn-b" --export)"; eval "$out"
+assert "repo learnings.enabled honored" '[ "$LEARNINGS_ENABLED" = "false" ]'
+assert "repo learnings.cap honored"     '[ "$LEARNINGS_CAP" = "120" ]'
+
+# --- (LRN-c) BOTH keys are global-able (ADR-0019 — NOT fenced) -----------------
+unset LEARNINGS_ENABLED LEARNINGS_CAP
+mkrepo "$tmp/lrn-c"
+mkdir -p "$tmp/lrn-c.xdg/docket"
+cat > "$tmp/lrn-c.xdg/docket/config.yml" <<'EOF'
+learnings:
+  enabled: false
+  cap: 42
+EOF
+lrn_c_err="$(rung "$tmp/lrn-c.xdg" "$tmp/lrn-c" --export 2>&1 >/dev/null)"
+out="$(rung "$tmp/lrn-c.xdg" "$tmp/lrn-c" --export 2>/dev/null)"; eval "$out"
+assert "learnings.enabled is global-able (not fenced)" '[ "$LEARNINGS_ENABLED" = "false" ]'
+assert "learnings.cap is global-able (not fenced)"     '[ "$LEARNINGS_CAP" = "42" ]'
+assert "no fence warning for learnings keys" '! printf "%s" "$lrn_c_err" | grep -qi "learnings.*per-repo-only"'
+
+# --- (LRN-d) repo-local layer wins over repo-committed -------------------------
+unset LEARNINGS_ENABLED LEARNINGS_CAP
+mkrepo "$tmp/lrn-d"
+cat > "$tmp/lrn-d/.docket.yml" <<'EOF'
+metadata_branch: main
+learnings:
+  cap: 120
+EOF
+git -C "$tmp/lrn-d" add .docket.yml; git -C "$tmp/lrn-d" commit --quiet -m cfg
+git -C "$tmp/lrn-d" push --quiet origin main
+printf 'learnings:\n  cap: 7\n' > "$tmp/lrn-d/.docket.local.yml"
+out="$(run "$tmp/lrn-d" --export)"; eval "$out"
+assert "local layer beats repo-committed for cap" '[ "$LEARNINGS_CAP" = "7" ]'
+
+# --- (LRN-e) SHADOW GUARD — a bare enabled:/cap: OUTSIDE the learnings: block ---
+# must not leak in. This is the whole reason the block is read via yaml_block_body.
+unset LEARNINGS_ENABLED LEARNINGS_CAP
+mkrepo "$tmp/lrn-e"
+cat > "$tmp/lrn-e/.docket.yml" <<'EOF'
+metadata_branch: main
+some_future_block:
+  enabled: false
+  cap: 9
+EOF
+git -C "$tmp/lrn-e" add .docket.yml; git -C "$tmp/lrn-e" commit --quiet -m cfg
+git -C "$tmp/lrn-e" push --quiet origin main
+out="$(run "$tmp/lrn-e" --export)"; eval "$out"
+assert "a foreign block's enabled: does not shadow learnings.enabled" '[ "$LEARNINGS_ENABLED" = "true" ]'
+assert "a foreign block's cap: does not shadow learnings.cap"         '[ "$LEARNINGS_CAP" = "300" ]'
+
+# --- (LRN-f) fail closed on garbage (the terminal_publish precedent) ----------
+mkrepo "$tmp/lrn-f1"
+cat > "$tmp/lrn-f1/.docket.yml" <<'EOF'
+metadata_branch: main
+learnings:
+  enabled: yes
+EOF
+git -C "$tmp/lrn-f1" add .docket.yml; git -C "$tmp/lrn-f1" commit --quiet -m cfg
+git -C "$tmp/lrn-f1" push --quiet origin main
+lrn_f1_err="$(bash "$SCRIPT" --repo-dir "$tmp/lrn-f1" --export 2>&1 >/dev/null)"
+assert "unparseable learnings.enabled: nonzero exit" '[ "$(run_rc "$tmp/lrn-f1" --export)" -ne 0 ]'
+assert "unparseable learnings.enabled: mentions learnings.enabled" \
+  'printf "%s" "$lrn_f1_err" | grep -qF "learnings.enabled"'
+
+mkrepo "$tmp/lrn-f2"
+cat > "$tmp/lrn-f2/.docket.yml" <<'EOF'
+metadata_branch: main
+learnings:
+  cap: lots
+EOF
+git -C "$tmp/lrn-f2" add .docket.yml; git -C "$tmp/lrn-f2" commit --quiet -m cfg
+git -C "$tmp/lrn-f2" push --quiet origin main
+lrn_f2_err="$(bash "$SCRIPT" --repo-dir "$tmp/lrn-f2" --export 2>&1 >/dev/null)"
+assert "non-integer learnings.cap: nonzero exit" '[ "$(run_rc "$tmp/lrn-f2" --export)" -ne 0 ]'
+assert "non-integer learnings.cap: mentions learnings.cap" \
+  'printf "%s" "$lrn_f2_err" | grep -qF "learnings.cap"'
 
 if [ "$fail" = 0 ]; then echo PASS; else echo FAIL; fi
 exit "$fail"
