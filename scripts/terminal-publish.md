@@ -210,8 +210,10 @@ place there.
 ## Exit codes
 
 - `0` — the full copy-set landed on `origin/<integration_branch>` and the worktree was torn down
-  cleanly; **or** the publish was suppressed (`--enabled false`, change 0064) or is a `main`-mode
-  no-op. Callers should **trust the exit code**: non-zero means abort-and-report.
+  cleanly; **or** the publish was suppressed (`--enabled false`, change 0064); **or** `--enabled`
+  was omitted, which is treated as disabled and no-ops the same way, but prints a prominent
+  `WARNING` to stderr, since a caller that forgot the flag is a bug rather than a decision; **or**
+  it is a `main`-mode no-op. Callers should **trust the exit code**: non-zero means abort-and-report.
 - Non-zero — any failure: bad arguments, invalid `--enabled` value, missing archived change file,
   missing ADR file, fetch failure, worktree provision failure, copy failure, commit failure, push
   failure, or postcondition assertion failure. The script is fail-closed and never exits 0 unless
