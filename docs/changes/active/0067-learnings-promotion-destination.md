@@ -142,7 +142,12 @@ Remaining unknowns are tracked as risks in the spec's §7, not here.
     - **#0018** (yq YAML parsing) is `proposed`, `low`, no spec — an *evaluation* stub. 0067
       deliberately parses via the existing frontmatter lib, so it is unblocked; if 0018 ever adopts yq,
       the finding-file frontmatter simply becomes another consumer. Noted, no action.
-    - **#0084** (`terminal_publish` opt-in default) is `implemented`, PR open, unmerged. It is a
-      separate concern; the only interaction is possible textual overlap if both edit convention/README
-      prose. Kept additive to stay rebase-resolvable (the 2026-07-16 #79 learning).
+    - **#0084** (`terminal_publish` opt-in default) — **merged mid-reconcile**: PR #90 landed at
+      2026-07-16T15:43Z, ~10 min *after* this run's Step-0 sweep read it as unmerged (a concurrent
+      session's merge, not a sweep bug). Corrected here because reconcile is an audit signal. Net
+      effect is favorable: `feat/learnings-promotion-destination` is cut from an `origin/main` that
+      **already contains** 0084's prose, so the textual-overlap risk is gone rather than merely
+      managed. Its default flip does not reach 0067 — this repo pins `terminal_publish: true`.
+      Housekeeping (not this change's work): 0084 is still `implemented` on `origin/docket` and awaits
+      the next sweep to reach `done`.
   - **Verdict: build as specced.** Not obsolete, not invalidated; scope unchanged.
