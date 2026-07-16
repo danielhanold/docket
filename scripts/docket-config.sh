@@ -196,7 +196,9 @@ AUTO_GROOM="$(lcl auto_groom)"; AUTO_GROOM="${AUTO_GROOM:-$(yaml_get "$CFG" auto
 # change 0064: coordination-key fenced — repo-committed .docket.yml ONLY (no lcl/gbl rungs; a
 # machine-scoped value is warned-and-ignored by the Stage 2c fence above). Fail closed on garbage:
 # silently defaulting a typo to `true` would publish onto the integration branch against intent.
-TERMINAL_PUBLISH="$(yaml_get "$CFG" terminal_publish)"; TERMINAL_PUBLISH="${TERMINAL_PUBLISH:-true}"
+# change 0084: the default is `false` — publishing onto the integration branch is opt-in. A repo
+# that never set the key must never get direct machine commits on its code line.
+TERMINAL_PUBLISH="$(yaml_get "$CFG" terminal_publish)"; TERMINAL_PUBLISH="${TERMINAL_PUBLISH:-false}"
 case "$TERMINAL_PUBLISH" in
   true|false) ;;
   *) die "unparseable .docket.yml: terminal_publish must be 'true' or 'false', got '$TERMINAL_PUBLISH'" ;;
