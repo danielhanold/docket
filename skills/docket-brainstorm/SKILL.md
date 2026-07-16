@@ -44,7 +44,7 @@ that). Hand it:
 - the settled design from Step 1's dialogue;
 - the stub/idea being groomed;
 - neighbouring changes (`related:`/`depends_on:`) and relevant ADRs;
-- relevant `LEARNINGS.md` excerpts;
+- relevant learnings findings, drawn from the learnings index;
 - the compact brief: the spec path and expected format, the PM-altitude boundary
   (design detail belongs in the spec; intent and scope stay in the change), and the
   requirement for an explicit `## Assumptions` section.

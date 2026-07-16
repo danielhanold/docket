@@ -65,6 +65,27 @@ for sk in docket-implement-next docket-groom-next; do
     '! grep -qEi "read .*LEARNINGS\.md" "$REPO/skills/$sk/SKILL.md"'
 done
 
+# (c') change 0067 plan-gap fix: the two sites Task 7's enumeration missed —
+# docket-auto-groom's self-brainstorm scan and docket-brainstorm's consultant payload.
+assert "auto-groom reads the learnings index before its self-brainstorm" \
+  'grep -qF "learnings/README.md" "$REPO/skills/docket-auto-groom/SKILL.md"'
+assert "auto-groom gates its learnings read on learnings.enabled" \
+  'grep -qF "learnings.enabled" "$REPO/skills/docket-auto-groom/SKILL.md"'
+assert "brainstorm's consultant payload references learnings findings/index, not the retired ledger" \
+  'grep -qEi "learnings (findings|index)" "$REPO/skills/docket-brainstorm/SKILL.md"'
+assert "convention's Readers line names docket-auto-groom" \
+  'grep -E "^\*\*Readers:\*\*.*docket-auto-groom" "$CONV" >/dev/null'
+
+# Completeness guard — SHAPE, not a hand-listed corpus. A hand-listed file set (like the
+# `for sk in ...` loop above) is exactly the floor-not-the-set defect that let auto-groom
+# and docket-brainstorm slip past Task 7's enumeration. Glob every live skill instead: any
+# SKILL.md mentioning LEARNINGS.md WITHOUT qualifying it as the retired pointer stub is
+# treated as a live read target and fails. docket-convention's directory-layout line and its
+# "remains as a pointer stub" sentence are the only legitimate mentions, and both carry the
+# phrase "pointer stub" on the same line — that phrase is the exemption, not a filename.
+assert "no live skill still names LEARNINGS.md as a read target (glob corpus; convention's pointer-stub mentions exempt)" \
+  '[ -z "$(grep -F "LEARNINGS.md" "$REPO"/skills/*/SKILL.md 2>/dev/null | grep -Fvi "pointer stub")" ]'
+
 # (d) anti-restatement sentinels — contract phrases live ONLY in the convention
 for s in "build-loop memory" "will the agent know to search for this?"; do
   assert "convention contains sentinel: $s" 'grep -qF "$s" "$CONV"'
