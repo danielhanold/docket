@@ -274,8 +274,7 @@ about the answer being yes.
 Phase 1 established the pin and confirmed it reached the `.toml` on disk. This phase asks the
 one question that file cannot answer: **does the pin reach the running agent?**
 
-- [ ] 1. Re-confirm the on-disk baseline, then restart Codex and dispatch the agent, asking it to
-  report its own model identity:
+- [ ] 1. Re-confirm the on-disk baseline (cwd = fixture):
   ```sh
   cd /path/to/fixture
   grep -E 'model|model_reasoning_effort' .codex/agents/docket-status.toml
