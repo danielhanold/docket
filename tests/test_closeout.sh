@@ -321,16 +321,6 @@ assert "0064 publish --adr --enabled false: no ADR index on integration branch" 
   '! git -C "$W" ls-tree -r --name-only origin/main | grep -q "docs/adrs/README.md"'
 assert "0064 publish --adr --enabled false: integration branch untouched" '[ "$before" = "$after" ]'
 
-# --- change 0064: back-compat — omitting --enabled still publishes (default true) ---
-read -r W _ < <(new_repo)
-( cd "$W" && "$PUBLISH" --adr 3 --integration-branch main --metadata-branch docket \
-    --changes-dir docs/changes --adrs-dir docs/adrs --enabled true ) >/dev/null 2>&1
-rc=$?
-git -C "$W" fetch origin main >/dev/null 2>&1
-assert "0064 publish: omitting --enabled defaults to true (publishes)" '[ "$rc" -eq 0 ]'
-assert "0064 publish: default-true actually landed the ADR" \
-  'git -C "$W" ls-tree -r --name-only origin/main | grep -q "docs/adrs/0003-accepted.md"'
-
 # --- change 0064: an explicit --enabled true publishes exactly as today ---
 read -r W _ < <(new_repo)
 ( cd "$W" && "$PUBLISH" --adr 3 --integration-branch main --metadata-branch docket \
