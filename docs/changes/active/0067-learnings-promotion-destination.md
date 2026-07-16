@@ -8,7 +8,7 @@ created: 2026-07-13
 updated: 2026-07-16
 depends_on: []
 related: [6, 65]
-adrs: [5]
+adrs: [5, 41]
 spec: docs/superpowers/specs/2026-07-16-learnings-promotion-destination-design.md
 plan: docs/superpowers/plans/2026-07-16-learnings-promotion-destination.md
 results:
@@ -27,7 +27,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-16-learnings-promotion-destination-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-16-learnings-promotion-destination-design.md) |
 | Plan | [2026-07-16-learnings-promotion-destination.md](https://github.com/danielhanold/docket/blob/feat/learnings-promotion-destination/docs/superpowers/plans/2026-07-16-learnings-promotion-destination.md) |
-| ADRs | [ADR-0005](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0005-close-out-only-harvest.md) |
+| ADRs | [ADR-0005](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0005-close-out-only-harvest.md), [ADR-0041](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0041-learnings-findings-directory-and-promotion-valve.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
