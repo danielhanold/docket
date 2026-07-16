@@ -496,12 +496,22 @@ rc=$?
 assert "conflict run exits zero" '[ $rc -eq 0 ]'
 assert "conflict run reports inline changed pushed or push-failed" 'grep -Eq "board inline changed (pushed|push-failed)" "$tmp/conflict-run.txt"'
 assert "conflict run: BOARD.md non-empty after run" '[ -s "$tmp/conflict-case/work/docs/changes/BOARD.md" ]'
-if grep -q "board inline changed pushed" "$tmp/conflict-run.txt"; then
-  assert "conflict run pushed: local BOARD.md carries both merged changes" \
-    'grep -q "beta" "$tmp/conflict-case/work/docs/changes/BOARD.md" && grep -q "Alpha feature v2" "$tmp/conflict-case/work/docs/changes/BOARD.md"'
-  assert "conflict run pushed: remote BOARD.md matches local" \
-    'git -C "$tmp/conflict-case/work" show origin/main:docs/changes/BOARD.md 2>/dev/null | cmp -s - "$tmp/conflict-case/work/docs/changes/BOARD.md"'
-fi
+# The outcome of THIS fixture is deterministic, not merely "one of two acceptable shapes": the
+# race is built so the only conflict is on BOARD.md, the regen callback always resolves it, and
+# the retry loop's push then always succeeds. Change 0067 review, finding 2 — the two strong
+# asserts below used to sit inside `if grep -q "board inline changed pushed" ...; then ... fi`,
+# which self-disables the moment the branch degrades: break the regen callback so the outcome
+# drops to push-failed, and the guard goes false, so the two strong asserts below simply never
+# run — the suite stays GREEN with the asserts silently vanished rather than failing (proven: 234
+# ok -> 232 ok, 0 NOT OK). Asserting the expected outcome directly and UNCONDITIONALLY (no `if`)
+# converts a broken regen callback into a hard NOT OK right here, and the two strong asserts below
+# now always execute rather than being gated on the very thing they exist to catch a regression in.
+assert "conflict run reports the deterministic pushed outcome (not vacuously satisfied by push-failed)" \
+  'grep -qxF "board inline changed pushed" "$tmp/conflict-run.txt"'
+assert "conflict run pushed: local BOARD.md carries both merged changes" \
+  'grep -q "beta" "$tmp/conflict-case/work/docs/changes/BOARD.md" && grep -q "Alpha feature v2" "$tmp/conflict-case/work/docs/changes/BOARD.md"'
+assert "conflict run pushed: remote BOARD.md matches local" \
+  'git -C "$tmp/conflict-case/work" show origin/main:docs/changes/BOARD.md 2>/dev/null | cmp -s - "$tmp/conflict-case/work/docs/changes/BOARD.md"'
 
 # board_pass_inline: a clean working tree is NOT sufficient evidence the board landed on the
 # remote (change 0071 review, finding 3). Seed a repo whose BOARD.md already matches what a fresh
@@ -2163,6 +2173,48 @@ assert "promoted findings do not count toward the cap" \
   '! printf "%s" "$out_promoted_over" | grep -qF "over-cap"'
 assert "learnings(e): the fixture really seeded 3 promoted + 1 retained finding (anti-vacuity)" \
   '[ "$(find "$learn_e_dir/work/docs/changes/learnings" -maxdepth 1 -name "*.md" ! -name README.md | wc -l)" -eq 4 ]'
+
+# (f) change 0067 review, finding 3: the two needs-you advisories are computed from the finding
+# FILES, not from the render outcome — a broken renderer must not also mute the escalation
+# channels precisely when something is already wrong. Force the render to fail (a deliberately
+# broken render-learnings-index.sh, never the real renderer) while seeding REAL, valid finding
+# files that would otherwise trip both advisories, and assert both still fire.
+mkdir -p "$tmp/mock-learn-fail"
+cat > "$tmp/mock-learn-fail/render-learnings-index.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "render-learnings-index-fail: deliberately broken for the F3 regression test" >&2
+exit 1
+EOF
+chmod +x "$tmp/mock-learn-fail/render-learnings-index.sh"
+cat > "$tmp/mock-learn-fail/board-checks.sh" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+chmod +x "$tmp/mock-learn-fail/board-checks.sh"
+
+learn_f_dir="$tmp/learn-renderfail-case"
+git_repo_setup "$learn_f_dir"
+git clone -q "$learn_f_dir/origin.git" "$learn_f_dir/work" 2>/dev/null
+mkfinding_learn "$learn_f_dir/work" finding-one retained
+mkfinding_learn "$learn_f_dir/work" finding-two retained
+mkfinding_learn "$learn_f_dir/work" needs-promo candidate
+git -C "$learn_f_dir/work" -c user.email=t@t -c user.name=t add docs/changes
+git -C "$learn_f_dir/work" -c user.email=t@t -c user.name=t commit -q -m "seed renderfail fixture"
+git -C "$learn_f_dir/work" push -q origin main
+
+write_learn_fixture true 1
+(cd "$learn_f_dir/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-learn.sh" SCRIPTS_DIR="$tmp/mock-learn-fail" \
+  "$SCRIPT" >"$tmp/learn-f-out.txt" 2>"$tmp/learn-f-err.txt")
+rc=$?
+assert "learnings(f): pass exits zero (a broken render is best-effort, not fatal)" '[ $rc -eq 0 ]'
+assert "learnings(f): reports the render failure" \
+  'grep -qxF "learnings index failed" "$tmp/learn-f-out.txt"'
+assert "learnings(f): F3 — over-cap advisory STILL fires despite the broken render" \
+  'grep -qxF "learnings over-cap — needs curation (3 active, cap 1)" "$tmp/learn-f-out.txt"'
+assert "learnings(f): F3 — promotion-pending advisory STILL fires despite the broken render" \
+  'grep -qxF "learnings promotion-pending 1 — needs you" "$tmp/learn-f-out.txt"'
+assert "learnings(f): the failed render wrote no README.md" \
+  '[ ! -e "$learn_f_dir/work/docs/changes/learnings/README.md" ]'
 
 # --- wiring: the learnings pass runs on the FULL path only, never under --board-only -----------
 learn_wire_dir="$tmp/learn-wiring-case"
