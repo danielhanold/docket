@@ -56,6 +56,14 @@ while IFS= read -r p; do
   [ -e "$REPO/$p" ] || badpaths="$badpaths $p"
 done <<<"$CITED"
 if [ -z "$badpaths" ]; then ok "every cited repo path exists"; else no "runbook cites nonexistent paths:$badpaths"; fi
+# The count-only check above has zero margin (exactly 5 cited paths against this >=4 floor) and
+# stays FULLY GREEN even with a required citation deleted (proven: dropping either
+# `scripts/runners/codex.sh` or `docs/cursor/permissions.md` alone left the suite green). Task 1
+# Step 3 named these four paths explicitly, so assert each by IDENTITY — the same pattern
+# Assertion 4 below uses for root scripts — rather than trusting the count alone.
+for p in docs/codex/setup.md docs/cursor/permissions.md scripts/runners/codex.sh docs/results/; do
+  if grep -qF -- "\`$p\`" "$RUNBOOK"; then ok "runbook cites required path: $p"; else no "runbook cites required path: $p"; fi
+done
 
 # --- Assertion 4: root-level scripts the runbook drives are named at their REAL location -------
 # The repo-root scripts have no `scripts/` prefix; assert each is cited and each exists.
@@ -72,11 +80,19 @@ if grep -qF -- 'scripts/sync-agents.sh' "$RUNBOOK"; then no "runbook cites fabri
 CANON="$(grep -oE '\$\{DOCKET_SCRIPTS_DIR:\?run docket/install\.sh\}' "$CONV")"
 CANON="${CANON%%$'\n'*}"   # first match; no pipe-to-head (pipefail-safe)
 if [ -n "$CANON" ]; then ok "canonical facade token derivable from convention"; else no "canonical facade token derivable from convention"; fi
-if [ -n "$CANON" ] && grep -qF -- "$CANON" "$RUNBOOK"; then ok "runbook carries canonical facade spelling"; else no "runbook carries canonical facade spelling"; fi
+if [ -n "$CANON" ] && grep -qF -- "$CANON" "$RUNBOOK"; then ok "runbook carries canonical facade token"; else no "runbook carries canonical facade token"; fi
+# Full decorated canonical form (quotes around the expansion, `/docket.sh` outside them) — built
+# from the derived token, not retyped, so a coordinated mangle (e.g. the surrounding quotes
+# dropped) cannot pass by satisfying only the inner-token check above. This is the exact bug
+# change 0073 found and fixed once already (commit bb4a792) in the sibling Cursor guard; guarding
+# only the inner token here left `.../TOTALLY-WRONG.sh` fully green under mutation.
+CANON_FULL='"'"$CANON"'"/docket.sh'
+if [ -n "$CANON" ] && grep -qF -- "$CANON_FULL" "$RUNBOOK"; then ok "runbook carries full canonical decorated spelling"; else no "runbook carries full canonical decorated spelling"; fi
 
-# --- Assertion 6: no hardcoded Codex model slug presented as fact ------------------------------
+# --- Assertion 6: the runbook teaches deriving Codex model slugs, not just naming one ----------
 # config.yml.example labels its codex IDs "UNVALIDATED examples"; setup.md points at the live
-# source. The runbook must teach derivation, not pin a slug.
+# source. This only checks that `codex debug models` is PRESENT (derivation is taught) — it does
+# NOT check that no slug is ALSO hardcoded elsewhere as fact; no such violation exists today.
 if grep -qF -- 'codex debug models' "$RUNBOOK"; then ok "runbook derives model slugs via codex debug models"; else no "runbook derives model slugs via codex debug models"; fi
 
 # --- Assertion 7: the native/runner-delegation boundary is stated ------------------------------

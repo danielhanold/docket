@@ -29,6 +29,12 @@ to a specific build.
 This phase runs in an ordinary shell, not inside Codex — it prepares a disposable fixture repo
 that Phase 2 onward will open in Codex CLI.
 
+All four scripts this phase drives — `sync-agents.sh`, `link-skills.sh`, `install.sh`, and
+`migrate-to-docket.sh` — live at the **repo root** of the docket clone. There is **no**
+`scripts/` prefix. Citing them at a fabricated `scripts/`-prefixed path is the exact error this
+change's own spec shipped; every command below invokes them as `/path/to/docket/<script>.sh`,
+not `/path/to/docket/scripts/<script>.sh`.
+
 - [ ] 1. Create a fixture repo with an origin, then install docket into it:
   ```sh
   bash /path/to/docket/install.sh
@@ -86,7 +92,7 @@ This is where you first open the fixture in an actual Codex CLI session.
 
 - [ ] 2. Ask Codex to run `docket-status`.
   Expected: the skill's convention step loads, and its bash reaches the helper scripts through
-  the facade — `${DOCKET_SCRIPTS_DIR:?run docket/install.sh}/docket.sh preflight` — executing
+  the facade — `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh preflight` — executing
   under **Codex's own sandbox** (not Claude Code's). This is the bash-compatibility smoke test:
   Cursor needed a dedicated sandbox/permissions guide at exactly this step — see
   `docs/cursor/permissions.md` for the shape that guide took there.
@@ -141,9 +147,17 @@ about the answer being yes.
   codex debug models | jq -r '.models[] | .slug'
   ```
 
-- [ ] 2. Pin one agent to a distinctive slug + effort in the fixture's `.docket.local.yml`
-  (agent keys are bare and un-prefixed, nested under the harness):
+- [ ] 2. Pin one agent to a distinctive slug + effort by ADDING an `agents:` block to the
+  fixture's `.docket.local.yml` — **do not overwrite the file**, and do not drop the
+  `agent_harnesses:` line written in Phase 1 step 2. An `agents:` block alone already counts as
+  per-repo opt-in for config purposes, but `resolve_agent_harnesses` reads `agent_harnesses:`
+  *separately* to decide which harnesses to target; losing that line untargets codex, and the
+  next regenerate treats `.codex/agents/docket-status.toml` as an orphan and deletes it — which
+  would manufacture a false "the pin did not reach the wrapper" result in step 3 below. The
+  fixture's `.docket.local.yml` should read, in full (agent keys are bare and un-prefixed,
+  nested under the harness):
   ```yaml
+  agent_harnesses: [claude, codex]
   agents:
     codex:
       status: { model: <slug-from-codex-debug-models>, effort: xhigh }
