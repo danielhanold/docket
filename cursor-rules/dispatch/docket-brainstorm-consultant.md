@@ -6,7 +6,8 @@ handed a settled design and returning exactly one of an authored spec or critiqu
 concerns. Dispatch it rather than reviewing inline.
 
 Dispatch prompt must include the stub/idea, neighbouring changes, relevant ADRs, and
-LEARNINGS excerpts the consultant needs to author or critique.
+relevant learnings findings, drawn from the learnings index, the consultant needs to
+author or critique.
 
 It performs zero docket operations — no git, no file writes, no board updates — and
 returns prose in-context only.

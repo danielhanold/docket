@@ -64,14 +64,17 @@ _dq_dquote_closer_is_real(){
   [ $((run % 2)) -eq 0 ]
 }
 
-# _dq_unescape_dquote STR -> single left-to-right pass over a double-quoted scalar's INNER content
-# (outer quotes already confirmed matched and stripped): `\"` -> `"`, `\\` -> `\`; any other
-# backslash is copied through literally (not consumed, not paired with what follows). Single pass,
-# not two sequential global replaces: composing an isolated `\\`->`\` pass with a separate `\"`->`"`
-# pass can regroup characters the first pass already resolved. The case this guards: a literal
-# backslash immediately before the closing quote (`...\\"` — an escaped backslash, THEN the real
-# delimiter) must consume as one `\\` pair; a naive two-pass replace can instead let the backslash
-# left over from that pair re-pair with the quote as if it were `\"`, corrupting or dropping bytes.
+# _dq_unescape_dquote STR -> single left-to-right pass over a double-quoted scalar's INNER
+# content. The caller already stripped BOTH outer quotes (`${v:1:n-2}`), so this function never
+# sees the closing delimiter: `\"` -> `"`, `\\` -> `\`; any other backslash is copied through
+# literally (not consumed, not paired with what follows). For well-formed YAML, a naive two-pass
+# replace (an isolated `\\`->`\` pass composed with a separate `\"`->`"` pass) computes the SAME
+# result as this single pass at this call site — with the closing quote already gone, there is no
+# delimiter left for a leftover backslash to re-pair with. The single pass earns its keep on
+# MALFORMED input instead: a bare, unescaped `"` right after an escaped-backslash pair inside the
+# scalar (`hook: "path C:\\" and more"`) single-pass renders as `path C:\" and more` (backslash
+# kept); a naive two-pass silently drops the backslash, corrupting it to `path C:" and more`. See
+# tests/test_render_learnings_index.sh section (k), fixture dq-bare-quote-after-escaped-pair.
 _dq_unescape_dquote(){
   local s="$1"
   local n=${#s}

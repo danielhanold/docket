@@ -86,6 +86,20 @@ assert "convention's Readers line names docket-auto-groom" \
 assert "no live skill still names LEARNINGS.md as a read target (glob corpus; convention's pointer-stub mentions exempt)" \
   '[ -z "$(grep -F "LEARNINGS.md" "$REPO"/skills/*/SKILL.md 2>/dev/null | grep -Fvi "pointer stub")" ]'
 
+# Completeness guard #2 (ADDED alongside, never narrowing the guard above — a widened/collapsed
+# guard in place is the retired-vocabulary equivalent of ADR-0031's "never weaken in place" rule).
+# skills/*/SKILL.md alone is a floor, not the set: docket-brainstorm-consultant.md's built-in
+# agent wrapper (agents/) and its Cursor dispatch-fragment twin (cursor-rules/dispatch/) both carry
+# the same "handed a settled design" payload prose as skills/docket-brainstorm/SKILL.md, and both
+# went stale on the retired "LEARNINGS excerpts" wording when that SKILL.md was updated to
+# "relevant learnings findings, drawn from the learnings index" — exactly the class of miss a
+# hand-scoped corpus lets through. This corpus is wide from the start.
+LEARN_VOCAB_CORPUS=( "$REPO"/skills/*/SKILL.md "$REPO"/agents/docket-*.md "$REPO"/cursor-rules/dispatch/*.md )
+assert "the retired-vocabulary corpus is non-empty (the guard actually scanned files)" \
+  '[ "${#LEARN_VOCAB_CORPUS[@]}" -ge 20 ]'
+assert "no live surface still says LEARNINGS excerpts (glob corpus: skills/, agents/, cursor-rules/dispatch/)" \
+  '[ -z "$(grep -lF "LEARNINGS excerpts" "${LEARN_VOCAB_CORPUS[@]}" 2>/dev/null)" ]'
+
 # (d) anti-restatement sentinels — contract phrases live ONLY in the convention
 for s in "build-loop memory" "will the agent know to search for this?"; do
   assert "convention contains sentinel: $s" 'grep -qF "$s" "$CONV"'

@@ -7,8 +7,9 @@ a human promotes it here and flips its finding to `promotion_state: promoted`. E
 pulled by relevance, not loaded here.
 
 Promotion is human-gated by construction: the harvest proposes (`candidate`), a human disposes. See
-the docket-convention skill's *Learnings ledger* section for the mechanics — this file deliberately
-does not restate them.
+the docket-convention skill's *Learnings ledger* section for the full promotion mechanics — beyond
+the tiering criterion above (named here only because it defines what "graduation destination"
+means), this file does not restate them.
 
 ## Shell
 
