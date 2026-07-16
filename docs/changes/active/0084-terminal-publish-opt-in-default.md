@@ -8,7 +8,7 @@ created: 2026-07-16
 updated: 2026-07-16
 depends_on: []
 related: [62, 64, 83]
-adrs: [27]
+adrs: [27, 40]
 spec: docs/superpowers/specs/2026-07-16-terminal-publish-opt-in-default-design.md
 plan: docs/superpowers/plans/2026-07-16-terminal-publish-opt-in-default.md
 results:
@@ -27,7 +27,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-16-terminal-publish-opt-in-default-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-16-terminal-publish-opt-in-default-design.md) |
 | Plan | [2026-07-16-terminal-publish-opt-in-default.md](https://github.com/danielhanold/docket/blob/feat/terminal-publish-opt-in-default/docs/superpowers/plans/2026-07-16-terminal-publish-opt-in-default.md) |
-| ADRs | [ADR-0027](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0027-terminal-publish-repo-scoped-script-gated.md) |
+| ADRs | [ADR-0027](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0027-terminal-publish-repo-scoped-script-gated.md), [ADR-0040](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0040-terminal-publish-default-opt-in.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -121,3 +121,28 @@ scope dropped.** Findings:
   spec anticipates; it gets uncommented and the comment reworded to an explicit opt-in.
 - ADR-0027 confirmed `Accepted` and correctly left alone (it decided the fence + gate
   location, not the default). Next free ADR number is 0040.
+
+### 2026-07-16 — correction (appended at build close-out)
+
+**The "Verified as needing NO change" bullet above was WRONG about `scripts/docket-status.md`,
+and the enumerated-floor lesson beat this reconcile too.** Recording it here because the bullet
+would otherwise mislead the next reader.
+
+- `scripts/docket-status.md:130` quoted the literal `--enabled "${TERMINAL_PUBLISH:-true}"` —
+  an expression this change deletes — and its `swept` report-line definition (L209) claimed the
+  record is "published", which the branch's own Case B test disproves for an opted-out repo.
+  Both were fixed during the build.
+- **How I missed it:** the inventory grep used `--include="*.sh"` for the `TERMINAL_PUBLISH:-`
+  pattern, and a case-sensitive lowercase `terminal_publish` for the `.md` files. An *uppercase*
+  `${TERMINAL_PUBLISH:-true}` inside a `.md` file fell through both filters. The spec had in
+  fact listed the finalize/status skills; I overrode it on the strength of a bad grep.
+- **The real defect shape** (found by the final whole-branch review, not by any grep): prose
+  naming **`main`-mode as the SOLE no-op exception** to publishing. That was exhaustive *before*
+  this change — the mode guard genuinely was the only unconditional no-op — and is exactly half
+  the gate after it. Such lines contain neither "default" nor "true", so every keyword search was
+  structurally blind to them. Nine live sites carried it, including one instruction
+  (`docket-convention/SKILL.md:84`) that would have made a parent agent read a healthy opted-out
+  run as a failure.
+- Net: 4 executable sites (correctly inventoried) + ~10 prose sites (badly inventoried). The
+  code inventory held; the prose inventory was a floor, not the set — the fourth recurrence of
+  that lesson in this repo.
