@@ -2,7 +2,7 @@
 id: 67
 slug: learnings-promotion-destination
 title: Give the learnings ledger a promotion destination — it has no way to shrink
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-13
 updated: 2026-07-16
@@ -11,11 +11,11 @@ related: [6, 65]
 adrs: [5, 41]
 spec: docs/superpowers/specs/2026-07-16-learnings-promotion-destination-design.md
 plan: docs/superpowers/plans/2026-07-16-learnings-promotion-destination.md
-results:
+results: docs/results/2026-07-16-learnings-promotion-destination-results.md
 trivial: false
 auto_groomable:
 branch: feat/learnings-promotion-destination
-pr:
+pr: https://github.com/danielhanold/docket/pull/91
 blocked_by:
 reconciled: true
 ---
@@ -27,6 +27,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-16-learnings-promotion-destination-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-16-learnings-promotion-destination-design.md) |
 | Plan | [2026-07-16-learnings-promotion-destination.md](https://github.com/danielhanold/docket/blob/feat/learnings-promotion-destination/docs/superpowers/plans/2026-07-16-learnings-promotion-destination.md) |
+| Results | [2026-07-16-learnings-promotion-destination-results.md](https://github.com/danielhanold/docket/blob/feat/learnings-promotion-destination/docs/results/2026-07-16-learnings-promotion-destination-results.md) |
+| PR | [#91](https://github.com/danielhanold/docket/pull/91) |
 | ADRs | [ADR-0005](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0005-close-out-only-harvest.md), [ADR-0041](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0041-learnings-findings-directory-and-promotion-valve.md) |
 <!-- docket:artifacts:end -->
 
