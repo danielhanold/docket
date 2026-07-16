@@ -13,11 +13,22 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 CONV="$REPO/skills/docket-convention/SKILL.md"
 OPERATING=(docket-new-change docket-groom-next docket-implement-next docket-status docket-finalize-change docket-adr)
 
-# (a) the convention contract
+# (a) the convention contract — single source
 assert "convention has the Learnings ledger section" 'grep -qF "### Learnings ledger" "$CONV"'
-assert "convention names the ledger path" 'grep -qF "LEARNINGS.md" "$CONV"'
-assert "convention states the ~300-line soft cap" 'grep -qF "~300 lines" "$CONV"'
-assert "directory layout lists LEARNINGS.md" 'grep -qF "LEARNINGS.md            # curated" "$CONV"'
+assert "convention names the findings directory" 'grep -qF "<changes_dir>/learnings/" "$CONV"'
+assert "convention names the generated index as derived" \
+  'grep -qF "is a **derived view**" "$CONV"'
+assert "convention states the tiering criterion" \
+  'grep -qF "will the agent know to search for this?" "$CONV"'
+assert "convention states the cap counts active findings" \
+  'grep -qF "counts **active findings**" "$CONV"'
+assert "convention states the off switch is a gate, not a purge" \
+  'grep -qF "a no-op **read/write gate, never a" "$CONV"'
+assert "convention pins the promotion_state enum" \
+  'grep -qF "retained | candidate | promoted" "$CONV"'
+assert "directory layout lists the learnings dir" \
+  'grep -qE "^  learnings/ +# curated build-loop findings" "$CONV"'
+assert "convention keeps the LEARNINGS.md stub pointer" 'grep -qF "remains as a pointer stub" "$CONV"'
 
 # (b) the harvest procedure: single-sourced in finalize, referenced by status
 assert "finalize carries the harvest step" \
