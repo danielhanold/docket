@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/terminal-publish-opt-in-default
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -57,6 +57,10 @@ opt-in, not a fail-open default.
   fencing and gating, not the default value).
 - The four affected test suites are updated; fixtures that relied on the implicit default
   pin `true` so the publish path stays covered, plus new coverage that unset ⇒ no publish.
+  The coordination-key **fence** fixtures additionally invert their probe value
+  (`false` → `true`): once the default is `false`, an ignored machine-scoped `false` is
+  indistinguishable from the default, so the assertion would pass vacuously — see the
+  reconcile log.
 
 ## Out of scope
 
@@ -71,3 +75,39 @@ opt-in, not a fail-open default.
 None — design settled in the linked spec (brainstormed 2026-07-16).
 
 ## Reconcile log
+
+### 2026-07-16 — reconciled at claim (implementer)
+
+Verified the spec against current `origin/main` + `origin/docket`. **The design holds; no
+scope dropped.** Findings:
+
+- **All three code sites match the spec exactly**, including the cited line number:
+  `docket-config.sh:199` (`${TERMINAL_PUBLISH:-true}`), `terminal-publish.sh:30`
+  (`ENABLED="true"`), `docket-status.sh:389` (`--enabled "${TERMINAL_PUBLISH:-true}"`).
+  Nothing was done elsewhere; change 0079's runner-delegation rework (ADRs 37/38) does not
+  touch this surface.
+- **Refinement — the fence tests would go vacuous.** `tests/test_docket_config.sh:578,594`
+  probe the coordination-key fence by writing `terminal_publish: false` into the global /
+  `.docket.local.yml` layer and asserting the resolved value "stays true". Once the default
+  is `false`, the *ignored* value and the *default* coincide, so the assertion can no longer
+  distinguish "fence ignored it" from "fence honored it". The fixtures must invert their
+  probe to `terminal_publish: true` and assert the value stays `false`. The spec's "fence
+  warnings unchanged" understates this — folded into *What changes*.
+- **One extra site the spec omits:** `tests/test_closeout.sh:41-42` excludes `tests/` from
+  its 0064 call-site sentinel because tests "deliberately exercise the back-compat
+  default-omitted-enabled path". That framing dies with the flip (omitted ⇒ loud no-op, not
+  publish); the comment needs rewording. Small, folded in.
+- **Verified as needing NO change** (so the spec's omission is correct, not an oversight):
+  `scripts/docket-status.md` mentions the knob only conditionally ("under
+  `terminal_publish: false` that step is a no-op") and already spells `--enabled true`
+  explicitly — it encodes no default. `config.yml.example` correctly omits the key (it is
+  per-repo fenced), so `tests/test_config_example.sh` is unaffected.
+- **The loud-warning path is a safety net, not a caller path:** `test_closeout.sh`'s 0064
+  sentinel already forces every real call site (skills + scripts) to pass `--enabled`
+  explicitly, and the skills pass the resolved `TERMINAL_PUBLISH` through. So the flip
+  cannot silently change any in-repo caller's behavior — only hand invocations.
+- `.docket.yml` carries the key commented out (`# terminal_publish: true`) with the comment
+  "This repo publishes its terminal records, so the default stands" — exactly the state the
+  spec anticipates; it gets uncommented and the comment reworded to an explicit opt-in.
+- ADR-0027 confirmed `Accepted` and correctly left alone (it decided the fence + gate
+  location, not the default). Next free ADR number is 0040.

@@ -92,12 +92,22 @@ Update the four suites that assert the current default; add coverage for the new
 
 - **`tests/test_docket_config.sh`** — unset key resolves `TERMINAL_PUBLISH=false`; explicit
   `true`/`false` honored; invalid value still dies; fence warnings unchanged.
+  **Fence fixtures must invert their probe value** (reconcile 2026-07-16): the global and
+  `.docket.local.yml` fence blocks currently write `terminal_publish: false` and assert the
+  resolved value "stays true". With the default at `false`, the ignored value and the default
+  coincide — the assertion would pass vacuously whether or not the fence works. Write
+  `terminal_publish: true` into the machine layer instead and assert the value stays `false`,
+  which fails loudly if the fence ever regresses.
 - **`tests/test_terminal_publish.sh`** — omitted `--enabled`: no-op, exit 0, warning on
   stderr; explicit `false`: silent no-op; explicit `true`: publishes.
 - **`tests/test_closeout.sh`** / **`tests/test_docket_status.sh`** — fixtures that relied on
   the implicit default now pass/pin `--enabled true` (or set the key in the fixture's
   `.docket.yml`) so they keep testing the publish path; add/keep one case proving the
-  unset-key sweep does NOT publish.
+  unset-key sweep does NOT publish. `test_closeout.sh`'s 0064 call-site sentinel is
+  **unchanged in behavior** — it already forces every real call site to pass `--enabled`, so
+  no in-repo caller's behavior can shift silently — but its `tests/`-exclusion comment
+  (~L41-42) says tests "deliberately exercise the back-compat default-omitted-enabled path";
+  that framing dies with the flip (omitted ⇒ loud no-op) and needs rewording.
 
 ## Out of scope
 
