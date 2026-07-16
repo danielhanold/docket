@@ -36,7 +36,7 @@ Run the convention's *Step-0 preamble*: load the convention, then run `docket.sh
 3. **Commit the new ADR file only** in `.docket/` and push `origin/docket`. The `README.md` index is regenerated in a separate commit (see Index / validate) — like `BOARD.md`, so two concurrent creates never conflict on the shared index.
 4. **On a lost compare-and-swap push** to `origin/docket` (someone minted the same id first): re-read max id, rename the file to the new `NNNN` and update the `id:` field in the new ADR's frontmatter, re-push.
 5. **Return the number** so the caller (e.g. `docket-implement-next` step 6) can cite it in the change's `adrs:` field.
-6. **Publish on acceptance** — an `Accepted` ADR belongs with the code, so it is copied to the integration branch (see *How an ADR reaches the integration branch* below). A **change-tied** ADR (the common case — invoked by `docket-implement-next` and carrying a `change:` back-link) rides its change's terminal publish and needs no publish here; a **standalone** ADR (this skill invoked directly, no in-flight change) is published by this skill's own ADR-only terminal-publish invocation.
+6. **Publish on acceptance (opt-in)** — an `Accepted` ADR belongs with the code, so a repo that opts in with `terminal_publish: true` gets it copied to the integration branch (see *How an ADR reaches the integration branch* below); the default is to leave it on `docket`. A **change-tied** ADR (the common case — invoked by `docket-implement-next` and carrying a `change:` back-link) rides its change's terminal publish and needs no publish here; a **standalone** ADR (this skill invoked directly, no in-flight change) is published by this skill's own ADR-only terminal-publish invocation.
 
 ### Supersede / reverse
 

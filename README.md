@@ -152,7 +152,7 @@ Once docket is installed and your repo is in [docket-mode](#docket-mode-where-me
 
 **4. Review and merge.** Read the PR it opened. This is your one required checkpoint — merge it yourself, or let `docket-finalize-change` merge it once you have approved it.
 
-**5. Close out — `docket-finalize-change`.** After the PR is approved or merged, this archives the change to `done`, publishes its terminal records, cleans up the branch and worktree, and refreshes the board. (A periodic `docket-status` run also sweeps already-merged PRs to `done` and regenerates `BOARD.md`, so close-out still happens on its own if you skip this step.)
+**5. Close out — `docket-finalize-change`.** After the PR is approved or merged, this archives the change to `done`, publishes its terminal records if the repo has opted in, cleans up the branch and worktree, and refreshes the board. (A periodic `docket-status` run also sweeps already-merged PRs to `done` and regenerates `BOARD.md`, so close-out still happens on its own if you skip this step.)
 
 In short: **you** create and merge; **docket** grooms, implements, and closes out. `docket-status` keeps the board honest in between.
 
@@ -286,7 +286,7 @@ docket needs a durable, queryable source of truth for planning state — changes
 Two branches divide the work:
 
 - An orphan **`docket`** branch is the authoritative working surface for **all planning metadata**: change files (active + archive), `BOARD.md`, ADRs, and specs. It is a true orphan — sharing no history with your code, carrying no code — the same well-trodden pattern `gh-pages` uses. (There is no `git checkout --orphan` in the flow: `migrate-to-docket.sh` creates the branch with `git worktree add --orphan`, and a fresh repo's bootstrap builds it straight from git plumbing — `git mktree` + `git commit-tree` — with no working-tree checkout at all.) It is **always pushed**, so the whole backlog, board, specs, and ADRs are browsable and reviewable on the remote (GitHub) at all times. All planning churn — `proposed → in-progress → implemented`, board refreshes, reconcile edits, ADR writes — lands here and never touches your code history.
-- Your **integration branch** (`main`, or `develop` under GitFlow) stays code-only, except for **published terminal records** (see below). It holds code, the build artifacts that arrive with each PR (plan + results), and a copy of the archived change + spec + accepted ADRs once a change closes out.
+- Your **integration branch** (`main`, or `develop` under GitFlow) stays code-only, except for **published terminal records** in a repo that opts in (see below). It holds code, the build artifacts that arrive with each PR (plan + results), and — only when `terminal_publish: true` — a copy of the archived change + spec + accepted ADRs once a change closes out.
 
 A change's `feat/<slug>` branch is always cut from `origin/<integration_branch>`, carries only plan + results + code, and never modifies docket metadata.
 
@@ -294,16 +294,16 @@ A change's `feat/<slug>` branch is always cut from `origin/<integration_branch>`
 
 | Artifact | Lives on | How it reaches the integration branch | On integration after a terminal change? |
 |---|---|---|---|
-| Change file (manifest + body) | `docket` | Terminal-publish copy (on `done` or `killed`) | Yes (archived) |
-| Spec (`docs/superpowers/specs/…`) | `docket` | Terminal-publish copy | Yes |
-| ADR (`docs/adrs/…`) | `docket` | Terminal-publish copy, gated on `Accepted` | Yes (the `Accepted` ADRs) |
+| Change file (manifest + body) | `docket` | Terminal-publish copy (on `done` or `killed`) | Only if `terminal_publish: true` (Yes, archived) |
+| Spec (`docs/superpowers/specs/…`) | `docket` | Terminal-publish copy | Only if `terminal_publish: true` (Yes) |
+| ADR (`docs/adrs/…`) | `docket` | Terminal-publish copy, gated on `Accepted` | Only if `terminal_publish: true` (Yes, the `Accepted` ADRs) |
 | `BOARD.md` | `docket` | **Never** — it is the live planning view | No — view it on `docket` |
 | Plan (`docs/superpowers/plans/…`) | feature branch | The PR merge | Yes (`done` only) |
 | Results (`docs/results/…`, i.e. `results_dir`) | feature branch | The PR merge | Yes (`done` only) |
 | Code | feature branch | The PR merge | Yes (`done` only) |
 | `.docket.yml` | **default branch** (`origin/HEAD`) | n/a — lives on the default branch | Only if the default branch *is* the integration branch (trunk mode); under GitFlow it stays on `main`, not `develop` |
 
-The integration branch ends up with all five artifacts plus code — they simply arrive by **two paths**. Plan and results are build artifacts that live on the feature branch and ride in through the **PR merge**. The change file, spec, and accepted ADRs live on `docket` and would otherwise be stranded there, so a terminal transition **copies** them across (it does not branch-merge `docket`, which would drag all the planning churn onto your code line). `BOARD.md` is the one artifact that never leaves `docket`.
+A repo that opts in with `terminal_publish: true` ends up with all five artifacts plus code on the integration branch — they simply arrive by **two paths**. Plan and results are build artifacts that live on the feature branch and ride in through the **PR merge**, regardless of the knob. The change file, spec, and accepted ADRs live on `docket`; in an opted-in repo, a terminal transition **copies** them across (it does not branch-merge `docket`, which would drag all the planning churn onto your code line), while in the default (opted-out) repo they simply stay on `docket`. `BOARD.md` is the one artifact that never leaves `docket`, opt-in or not.
 
 ### `integration_branch` and GitFlow
 
@@ -546,7 +546,7 @@ Cursor users running the skills under Auto-run in Sandbox: see
 
 ## Status
 
-**docket-mode is the supported default.** Planning metadata lives on the orphan `docket` branch via the `.docket/` worktree; terminal records are selectively published onto the integration branch; trunk-based and GitFlow layouts are both supported. Existing single-branch repos move over with `migrate-to-docket.sh`, and the bootstrap guard refuses to run against an un-migrated repo rather than touching your data.
+**docket-mode is the supported default.** Planning metadata lives on the orphan `docket` branch via the `.docket/` worktree; terminal records stay there too unless the repo opts in to publishing them onto the integration branch; trunk-based and GitFlow layouts are both supported. Existing single-branch repos move over with `migrate-to-docket.sh`, and the bootstrap guard refuses to run against an un-migrated repo rather than touching your data.
 
 `main`-mode remains a simple, fully-supported opt-out: pin `metadata_branch: main` (and `integration_branch: main`) to keep everything on one branch with exactly the original single-branch behavior.
 
@@ -567,7 +567,7 @@ bash /path/to/docket/migrate-to-docket.sh
 
 It prints the resolved target repo and prompts for confirmation before changing anything; pass `--yes` (or `-y`) to skip the prompt in automation. It then creates the orphan `docket` branch seeded from your current planning directories, prunes the live planning surface (`active/` changes, the changes `README.md`, `BOARD.md`) off the integration branch while keeping terminal records and build artifacts there, and adds `.docket/` + `.worktrees/` to `.gitignore`. Re-running it converges from any partial state.
 
-Migration also grants one **local, per-repo** Claude Code permission: an allow-rule for docket's terminal-publish push to the integration branch (written to `.claude/settings.local.json`, which migration adds to `.gitignore`). This pre-authorizes the one push the permission classifier guards on every close-out, narrowly and only in this repo — force-pushes and pushes to other branches stay guarded. Because `settings.local.json` is gitignored and per-user, anyone who later **clones** an already-migrated repo can grant themselves the same rule by running the helper standalone:
+Migration also grants one **local, per-repo** Claude Code permission: an allow-rule for docket's terminal-publish push to the integration branch (written to `.claude/settings.local.json`, which migration adds to `.gitignore`). This pre-authorizes the push the permission classifier guards on close-out — granted unconditionally by migration, but only exercised when the repo opts in with `terminal_publish: true`; narrowly and only in this repo — force-pushes and pushes to other branches stay guarded. Because `settings.local.json` is gitignored and per-user, anyone who later **clones** an already-migrated repo can grant themselves the same rule by running the helper standalone:
 
 ```bash
 bash /path/to/docket/scripts/ensure-claude-settings.sh
