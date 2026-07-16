@@ -43,3 +43,13 @@ exactly the design and build moments: `docket-groom-next` before a brainstorm,
   board already has.
 - If mid-build appends ever prove necessary, that is a new ADR superseding this one — the
   single-writer probe logic is the part that would need redesign.
+
+## Update — 2026-07-16
+
+This decision stands unchanged: harvest only at close-out, single writer, single moment, ledger
+unpublished, idempotency probe. What failed is the founding consequence named above — "the ledger
+stays short enough to actually be read." By change 0067 the ledger had grown to 485 lines / 34
+top-level entries with no working promotion lever (`CLAUDE.md`/`AGENTS.md` never existed on
+`main`), so distillation could only merge, not shrink. Change 0067 restructures the ledger into a
+findings directory plus a rendered, derived index, with a human-gated promotion valve to
+`AGENTS.md`/`CLAUDE.md` — see ADR-0041, which `relates_to` this ADR rather than superseding it.
