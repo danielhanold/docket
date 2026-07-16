@@ -33,7 +33,15 @@ reconciled: false
 Change **#0043**'s terminal record never reached `main`. It was killed on 2026-07-08
 (`0ea9fd2`), archived correctly on `docket`, and the board was refreshed — but neither
 the change file nor its `spec:` was ever published onto the integration branch. Nothing
-noticed, and nothing has healed it in the eight days since.
+noticed, and nothing healed it for the eight days until it was found by hand.
+
+> **Symptom repaired 2026-07-16, cause still unknown.** #0043's record (change file +
+> spec) was backfilled onto `main` with human approval (`c0d6c04`), and the archive sets
+> now match at 71/71. The repair does **not** close this change: it removes the *symptom*
+> that made the gap visible while leaving the *mechanism* that produced it untouched and
+> unexplained. Evidence is preserved in git history — the kill commit `0ea9fd2` on
+> `docket` has no accompanying publish commit on `main` from 2026-07-08, which is the
+> artifact the investigation reads.
 
 It surfaced only incidentally, while killing #0033 on 2026-07-16: comparing the archive
 sets across branches showed `main` at 69 records and `docket` at 71. The two-record gap
@@ -59,9 +67,9 @@ no notion of "archived here, never published there."
 
 Two parts, in order:
 
-1. **Root-cause #0043 specifically** — and repair its record if the answer is "it should
-   have published." This is not yet established (see Open questions); the investigation
-   is the point, not a foregone conclusion.
+1. **Root-cause #0043 specifically.** Its record is already repaired (see the note in
+   *Why*), so this is now purely an investigation — why did the publish never run? The
+   answer decides part 2; it is not a foregone conclusion (see Open questions).
 2. **Decide whether the gap warrants tooling** — a detector (a `docket-status` health
    check comparing the archived set on `metadata_branch` against the published set on
    `integration_branch`), a healer (re-publish what is missing), both, or neither if the
