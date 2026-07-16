@@ -1,6 +1,6 @@
 # Backlog
 
-**81 changes** — 🟡 10 proposed · 🔴 1 blocked · 🔵 3 implemented · ✅ 64 done · 🗑️ 3 killed
+**81 changes** — 🟡 10 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 65 done · 🗑️ 3 killed
 
 ## 🟡 Proposed (10)
 
@@ -23,13 +23,12 @@
 |---|-------|----------|------------|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | PR #69 is stale (predates the 0068/0072 facade rework and later agent-layer changes) and #0079 (runner delegation) reshapes the design — the build roles should grow a runner field (build.<role>.runner codex, the mixed topology 0079 deferred). Needs a rebase plus redesign pass before merge. |
 
-## 🔵 Implemented — awaiting merge (3)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
 | [0077](active/0077-codex-harness-toml-agents.md) | Codex harness — TOML agent generation + AGENTS.md dispatch block | `high` | [#85](https://github.com/danielhanold/docket/pull/85) |
 | [0079](active/0079-codex-runner-delegation.md) | Cross-harness runner delegation framework (first runner — OpenAI Codex) | `medium` | [#86](https://github.com/danielhanold/docket/pull/86) |
-| [0081](active/0081-first-run-setup-config-example.md) | First-run setup — committed starter config + install.sh scaffolding + README Install restructure | `medium` | [#88](https://github.com/danielhanold/docket/pull/88) |
 
 ```mermaid
 graph TD
@@ -46,7 +45,6 @@ graph TD
   0077
   0077 --> 0078
   0079
-  0081
   0001:::done
   0002:::done
   0003:::done
@@ -111,13 +109,15 @@ graph TD
   0074:::done
   0075:::done
   0080:::done
+  0081:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (67)</summary>
+<details><summary>✅🗑️ Archive — done + killed (68)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0081](archive/2026-07-16-0081-first-run-setup-config-example.md) | First-run setup — committed starter config + install.sh scaffolding + README Install restructure | 2026-07-16 |
 | [0080](archive/2026-07-15-0080-link-skills-create-harness-dir.md) | link-skills.sh creates a missing skills subdir when the harness is present | 2026-07-15 |
 | [0075](archive/2026-07-15-0075-cwd-independent-repo-root-anchor.md) | Anchor the repo root to the main worktree — CWD-independent scripts, a fail-closed cleanup guard, and a durable finalize posture | 2026-07-15 |
 | [0076](archive/2026-07-14-0076-cwd-independent-repo-root-resolution.md) | Resolve the repo root independently of CWD — preflight run inside `.docket` mints a nested metadata worktree | 2026-07-14 |
