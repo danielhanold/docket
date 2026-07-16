@@ -51,6 +51,7 @@ assert "absent cfg: FINALIZE_TEST_COMMAND empty"       '[ -z "$FINALIZE_TEST_COM
 assert "absent cfg: BOARD_SURFACES default inline"     '[ "$BOARD_SURFACES" = inline ]'
 assert "absent cfg: AUTO_GROOM default false"          '[ "$AUTO_GROOM" = false ]'
 assert "absent cfg: TERMINAL_PUBLISH default false"    '[ "$TERMINAL_PUBLISH" = false ]'
+assert "absent cfg: FINALIZE_AUTO_APPROVE default false" '[ "$FINALIZE_AUTO_APPROVE" = false ]'
 
 # --- (B) main-mode pin -> METADATA_WORKTREE '.', BOOTSTRAP PROCEED -----------
 mkrepo "$tmp/b"
@@ -140,7 +141,7 @@ assert "board fenced-to-empty: emits BOARD_SURFACES=none" \
 
 # --- (E) direct-pipe caller (LEARNINGS #22: $() hides a dropped trailing \n) -
 n="$(run "$tmp/c" --export | grep -c '=')"
-assert "direct-pipe: 21 KEY=value lines emitted"       '[ "$n" -eq 21 ]'
+assert "direct-pipe: 22 KEY=value lines emitted"       '[ "$n" -eq 22 ]'
 last="$(run "$tmp/c" --export | tail -n1)"
 assert "direct-pipe: last line is BOOTSTRAP"           'case "$last" in BOOTSTRAP=*) true;; *) false;; esac'
 
@@ -397,9 +398,9 @@ printf 'auto_groom: true\n' > "$tmp/q.home/.config/docket/config.yml"
 out="$(env -u XDG_CONFIG_HOME HOME="$tmp/q.home" bash "$SCRIPT" --repo-dir "$tmp/q" --export)"; eval "$out"
 assert "0050 Q: XDG unset -> \$HOME/.config fallback read"   '[ "$AUTO_GROOM" = true ]'
 
-# --- (E') emit-interface guard: still exactly 21 lines with a global file present ---
+# --- (E') emit-interface guard: still exactly 22 lines with a global file present ---
 n50="$(rung "$tmp/k.xdg" "$tmp/k" --export | grep -c '=')"
-assert "0050 E': still 21 KEY=value lines with global layer" '[ "$n50" -eq 21 ]'
+assert "0050 E': still 22 KEY=value lines with global layer" '[ "$n50" -eq 22 ]'
 
 # --- (M) coordination-key fence: warned-and-ignored, never honored, never fatal ---
 mkrepo "$tmp/m"
@@ -630,6 +631,33 @@ assert "0064 doc: sample .docket.yml carries the commented knob" \
   'grep -q "terminal_publish" "$REPO/.docket.yml"'
 assert "0064 doc: config contract classifies terminal_publish as fenced" \
   'grep -q "terminal_publish" "$REPO/scripts/docket-config.md"'
+
+# ============================================================================
+# Change 0062 — finalize.auto_approve: coordination-key fenced, repo-committed only
+# ============================================================================
+
+# --- finalize.auto_approve (change 0062) — coordination-key fenced, repo-committed only ---
+# explicit true in the repo-committed .docket.yml is honored
+mkrepo "$tmp/aa"
+printf 'finalize:\n  auto_approve: true\n' > "$tmp/aa/.docket.yml"
+git -C "$tmp/aa" add .docket.yml; git -C "$tmp/aa" commit --quiet -m aa; git -C "$tmp/aa" push --quiet origin main
+out="$(run "$tmp/aa" --export)"; eval "$out"
+assert "repo cfg: finalize.auto_approve true honored" '[ "$FINALIZE_AUTO_APPROVE" = true ]'
+
+# garbage value fails closed (non-zero exit)
+mkrepo "$tmp/aabad"
+printf 'finalize:\n  auto_approve: yes\n' > "$tmp/aabad/.docket.yml"
+git -C "$tmp/aabad" add .docket.yml; git -C "$tmp/aabad" commit --quiet -m bad; git -C "$tmp/aabad" push --quiet origin main
+assert "repo cfg: finalize.auto_approve garbage exits non-zero" '[ "$(rung_rc "$tmp/xdg-void" "$tmp/aabad" --export)" -ne 0 ]'
+
+# machine-scoped value is FENCED (warned + ignored): a global config auto_approve: true does NOT flip it
+mkrepo "$tmp/aafence"
+gx="$tmp/aa-xdg"; mkdir -p "$gx/docket"
+printf 'finalize:\n  auto_approve: true\n' > "$gx/docket/config.yml"
+out="$(rung "$gx" "$tmp/aafence" --export 2>/dev/null)"; eval "$out"
+assert "fence: global finalize.auto_approve ignored (stays false)" '[ "$FINALIZE_AUTO_APPROVE" = false ]'
+assert "fence: global finalize.auto_approve warns on stderr" \
+  'rung "$gx" "$tmp/aafence" --export 2>&1 >/dev/null | grep -qi "auto_approve.*per-repo-only"'
 
 # ============================================================================
 # (Z) --format plain — raw model-facing presentation (change 0068)

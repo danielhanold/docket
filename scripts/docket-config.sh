@@ -166,7 +166,7 @@ fi
 # Coordination-key fence: a key whose effect writes SHARED state (commits on shared
 # branches, committed generated files, external GitHub objects) is per-repo-only; a global
 # value is loudly warned-and-ignored — never honored, never fatal. (ADR records the rule.)
-for _fkey in metadata_branch integration_branch changes_dir adrs_dir results_dir github_project terminal_publish; do
+for _fkey in metadata_branch integration_branch changes_dir adrs_dir results_dir github_project terminal_publish auto_approve; do
   if [ -n "$(yaml_get "$GCFG" "$_fkey")" ]; then
     printf "docket-config: warning: global config key %s is per-repo-only — set it in the repo's committed .docket.yml; ignored\n" "$_fkey" >&2
   fi
@@ -192,6 +192,17 @@ ADRS_DIR="$(yaml_get "$CFG" adrs_dir)";       ADRS_DIR="${ADRS_DIR:-docs/adrs}"
 RESULTS_DIR="$(yaml_get "$CFG" results_dir)"; RESULTS_DIR="${RESULTS_DIR:-docs/results}"
 FINALIZE_GATE="$(lcl gate)"; FINALIZE_GATE="${FINALIZE_GATE:-$(yaml_get "$CFG" gate)}"; FINALIZE_GATE="${FINALIZE_GATE:-$(gbl gate)}"; FINALIZE_GATE="${FINALIZE_GATE:-local}"
 FINALIZE_TEST_COMMAND="$(lcl test_command)"; FINALIZE_TEST_COMMAND="${FINALIZE_TEST_COMMAND:-$(yaml_get "$CFG" test_command)}"; FINALIZE_TEST_COMMAND="${FINALIZE_TEST_COMMAND:-$(gbl test_command)}"
+# change 0062: finalize.auto_approve — coordination-key fenced (ADR-0019), like terminal_publish.
+# It grants standing permission to APPROVE + MERGE unreviewed code — shared, non-re-derivable
+# GitHub state — so it is repo-committed ONLY (no lcl/gbl rungs; a machine-scoped value is
+# warned-and-ignored by the Stage 2c fence below). Read as a bare leaf (safe like gate/
+# test_command: `auto_approve` appears only under finalize:). Fail closed on garbage: silently
+# defaulting a typo to `true` would auto-merge unreviewed code against intent.
+FINALIZE_AUTO_APPROVE="$(yaml_get "$CFG" auto_approve)"; FINALIZE_AUTO_APPROVE="${FINALIZE_AUTO_APPROVE:-false}"
+case "$FINALIZE_AUTO_APPROVE" in
+  true|false) ;;
+  *) die "unparseable .docket.yml: finalize.auto_approve must be 'true' or 'false', got '$FINALIZE_AUTO_APPROVE'" ;;
+esac
 AUTO_GROOM="$(lcl auto_groom)"; AUTO_GROOM="${AUTO_GROOM:-$(yaml_get "$CFG" auto_groom)}"; AUTO_GROOM="${AUTO_GROOM:-$(gbl auto_groom)}"; AUTO_GROOM="${AUTO_GROOM:-false}"
 # change 0064: coordination-key fenced — repo-committed .docket.yml ONLY (no lcl/gbl rungs; a
 # machine-scoped value is warned-and-ignored by the Stage 2c fence above). Fail closed on garbage:
@@ -365,6 +376,7 @@ if [ "$MODE" = export ]; then
   emit RESULTS_DIR "$RESULTS_DIR"
   emit FINALIZE_GATE "$FINALIZE_GATE"
   emit FINALIZE_TEST_COMMAND "$FINALIZE_TEST_COMMAND"
+  emit FINALIZE_AUTO_APPROVE "$FINALIZE_AUTO_APPROVE"
   emit LEARNINGS_ENABLED "$LEARNINGS_ENABLED"
   emit LEARNINGS_CAP "$LEARNINGS_CAP"
   emit BOARD_SURFACES "$BOARD_SURFACES"

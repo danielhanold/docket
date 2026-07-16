@@ -105,6 +105,7 @@ A value may not contain a literal `#` — it is treated as the start of an inlin
 | `board_surfaces` | `inline` | yes, minus `github` | YAML list `[a, b]` stripped of brackets/commas; **`[]` → the reserved token `none`** (change 0071 — an empty value is NEVER emitted; empty means "unresolved", a wiring bug); a `github` token arriving from either machine-scoped layer (repo-local or global) is dropped (Stage 2c), and a list left empty by that drop also resolves to `none` |
 | `auto_groom` | `false` | yes | resolves repo-local > repo-committed > global |
 | `terminal_publish` | `false` | no (fenced) | `true`/`false`; the default `false` makes `terminal-publish.sh` a no-op for BOTH shapes — archived change files, specs, and ADRs stay on the metadata branch. `true` opts in to the direct-commit publish onto the integration branch. Anything else aborts |
+| `auto_approve` (finalize) | `false` | **no (per-repo-only)** | read from `finalize.auto_approve` leaf key; repo-committed `.docket.yml` ONLY — coordination-key fenced (writes shared GitHub state); `true`/`false`, fails closed |
 | `learnings.enabled` | `true` | yes | read from the nested `learnings:` block; resolves repo-local > repo-committed > global |
 | `learnings.cap` | `300` | yes | read from the nested `learnings:` block; resolves repo-local > repo-committed > global |
 
@@ -150,10 +151,10 @@ reader.
 - `~/.config/docket/.docket.yml` present → warned ("global config is config.yml"), never read.
 - `config.yml` exists but is not a readable regular file → warned; global layer ignored.
 - **Coordination-key fence:** `metadata_branch`, `integration_branch`, `changes_dir`,
-  `adrs_dir`, `results_dir`, `github_project`, `terminal_publish` set in the global layer OR in
-  `.docket.local.yml` → each warned "per-repo-only" (naming which file) and ignored. (Block-style
-  `github_project:` with an empty value line is not detected — the fence reads the scalar value;
-  nothing reads a global/local `github_project` regardless.)
+  `adrs_dir`, `results_dir`, `github_project`, `terminal_publish`, `finalize.auto_approve` set in
+  the global layer OR in `.docket.local.yml` → each warned "per-repo-only" (naming which file) and
+  ignored. (Block-style `github_project:` with an empty value line is not detected — the fence
+  reads the scalar value; nothing reads a global/local `github_project` regardless.)
 - `board_surfaces` **from either machine-scoped layer** (`.docket.local.yml` or the global
   `config.yml`) drops a `github` token with a warning (external objects stay repo opt-in); a
   per-repo `github` is honored as before. The machine-layer fallback happens on the RAW value, so
@@ -251,6 +252,7 @@ ADRS_DIR
 RESULTS_DIR
 FINALIZE_GATE
 FINALIZE_TEST_COMMAND
+FINALIZE_AUTO_APPROVE
 LEARNINGS_ENABLED
 LEARNINGS_CAP
 BOARD_SURFACES
@@ -264,7 +266,7 @@ SKILL_FINISH
 BOOTSTRAP
 ```
 
-21 lines in `shell` format; 22 in `plain` format, with `REPO_ROOT` inserted directly
+22 lines in `shell` format; 23 in `plain` format, with `REPO_ROOT` inserted directly
 after `METADATA_WORKTREE`. The last line is always `BOOTSTRAP=…`.
 
 **`REPO_ROOT` (change 0075) — plain format only.** The absolute path of the main worktree (the
@@ -294,6 +296,7 @@ emits no `KEY=value` output.
 | `integration_branch` ref absent/unreadable (`ls-tree` non-zero) | 1 |
 | `metadata_branch` is neither `docket` nor `main` | 1 |
 | `terminal_publish` is neither `true` nor `false` | 1 |
+| `finalize.auto_approve` is neither `true` nor `false` | 1 |
 | `mktree`/`commit-tree`/push failed during orphan create | 1 |
 | `--repo-dir` missing its argument | 2 |
 | Unknown argument | 2 |
@@ -315,7 +318,7 @@ emits no `KEY=value` output.
   post-write state, so the caller's `eval` sees `PROCEED` without a second invocation.
 - **`main`-mode skips the bootstrap guard entirely.** `DOCKET`/`LIVE` are not evaluated;
   `BOOTSTRAP` is always `PROCEED` in main-mode.
-- **21 `KEY=value` lines always emitted in the same order in `shell` format (22 in `plain`,
+- **22 `KEY=value` lines always emitted in the same order in `shell` format (23 in `plain`,
   `REPO_ROOT` inserted after `METADATA_WORKTREE` — change 0075).** Skills may rely on the order
   for pipe consumers, but should use the variable names (via `eval`) for correctness.
 - **The global layer never aborts a run.** Every global-file problem (misplaced, malformed,
