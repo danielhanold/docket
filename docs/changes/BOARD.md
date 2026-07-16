@@ -1,12 +1,11 @@
 # Backlog
 
-**84 changes** — 🟢 2 in progress · 🟡 10 proposed · 🔴 1 blocked · ✅ 67 done · 🗑️ 4 killed
+**84 changes** — 🟢 1 in progress · 🟡 10 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 67 done · 🗑️ 4 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Spec | Branch |
 |---|-------|----------|------|--------|
-| [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | [spec](../superpowers/specs/2026-07-15-codex-cli-validation-runbook-design.md) | `feat/codex-cli-validation-runbook` |
 | [0084](active/0084-terminal-publish-opt-in-default.md) | Flip terminal_publish default to false — publishing to the integration branch becomes opt-in | `medium` | [spec](../superpowers/specs/2026-07-16-terminal-publish-opt-in-default-design.md) | `feat/terminal-publish-opt-in-default` |
 
 ## 🟡 Proposed (10)
@@ -29,6 +28,12 @@
 | # | Title | Priority | Blocked by |
 |---|-------|----------|------------|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | PR #69 is stale (predates the 0068/0072 facade rework and later agent-layer changes) and #0079 (runner delegation) reshapes the design — the build roles should grow a runner field (build.<role>.runner codex, the mixed topology 0079 deferred). Needs a rebase plus redesign pass before merge. |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | PR |
+|---|-------|----------|----|
+| [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | [#89](https://github.com/danielhanold/docket/pull/89) |
 
 ```mermaid
 graph TD
