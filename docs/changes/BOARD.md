@@ -1,14 +1,15 @@
 # Backlog
 
-**84 changes** — 🟢 1 in progress · 🟡 11 proposed · 🔴 1 blocked · ✅ 67 done · 🗑️ 4 killed
+**84 changes** — 🟢 2 in progress · 🟡 10 proposed · 🔴 1 blocked · ✅ 67 done · 🗑️ 4 killed
 
-## 🟢 In progress (1)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Spec | Branch |
 |---|-------|----------|------|--------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | [spec](../superpowers/specs/2026-07-15-codex-cli-validation-runbook-design.md) | `feat/codex-cli-validation-runbook` |
+| [0084](active/0084-terminal-publish-opt-in-default.md) | Flip terminal_publish default to false — publishing to the integration branch becomes opt-in | `medium` | [spec](../superpowers/specs/2026-07-16-terminal-publish-opt-in-default-design.md) | `feat/terminal-publish-opt-in-default` |
 
-## 🟡 Proposed (11)
+## 🟡 Proposed (10)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -22,7 +23,6 @@
 | [0067](active/0067-learnings-promotion-destination.md) | Give the learnings ledger a promotion destination — it has no way to shrink | `medium` | build-ready |
 | [0082](active/0082-global-harnesses-per-repo-generation.md) | Global agent_harnesses doesn't reach per-repo generation — silent no-op | `low` | needs-brainstorm |
 | [0083](active/0083-terminal-publish-gap-detection.md) | A terminal record can silently never reach the integration branch — investigate #0043's gap and decide on detection | `medium` | auto-groom blocked — needs you |
-| [0084](active/0084-terminal-publish-opt-in-default.md) | Flip terminal_publish default to false — publishing to the integration branch becomes opt-in | `medium` | build-ready |
 
 ## 🔴 Blocked (1)
 
