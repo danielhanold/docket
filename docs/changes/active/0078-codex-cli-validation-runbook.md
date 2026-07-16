@@ -2,7 +2,7 @@
 id: 78
 slug: codex-cli-validation-runbook
 title: Codex CLI live-validation runbook — prove docket works end-to-end under Codex
-status: in-progress
+status: implemented
 priority: high
 created: 2026-07-15
 updated: 2026-07-16
@@ -11,11 +11,11 @@ related: [45]
 adrs: []
 spec: docs/superpowers/specs/2026-07-15-codex-cli-validation-runbook-design.md
 plan: docs/superpowers/plans/2026-07-16-codex-cli-validation-runbook.md
-results:
+results: docs/results/2026-07-16-codex-cli-validation-runbook-results.md
 trivial: false
 auto_groomable:
 branch: feat/codex-cli-validation-runbook
-pr:
+pr: https://github.com/danielhanold/docket/pull/89
 blocked_by:
 reconciled: true
 ---
@@ -27,6 +27,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-15-codex-cli-validation-runbook-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-15-codex-cli-validation-runbook-design.md) |
 | Plan | [2026-07-16-codex-cli-validation-runbook.md](https://github.com/danielhanold/docket/blob/feat/codex-cli-validation-runbook/docs/superpowers/plans/2026-07-16-codex-cli-validation-runbook.md) |
+| Results | [2026-07-16-codex-cli-validation-runbook-results.md](https://github.com/danielhanold/docket/blob/feat/codex-cli-validation-runbook/docs/results/2026-07-16-codex-cli-validation-runbook-results.md) |
+| PR | [#89](https://github.com/danielhanold/docket/pull/89) |
 <!-- docket:artifacts:end -->
 
 ## Why
