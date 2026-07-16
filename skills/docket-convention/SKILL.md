@@ -31,6 +31,9 @@ terminal_publish: false      # false (default) = terminal records (change file, 
 finalize:                    # merge gate: rebase onto base + re-test before merge
   gate: local                # local (default, on) | ci | both | off  — off = pre-0015 (trust the PR's CI)
   test_command:              # OPTIONAL; unset => finalize auto-detects the suite
+learnings:                   # the build-loop memory subsystem (change 0067)
+  enabled: true              # default. false = whole subsystem off (read/write gate, never a purge)
+  cap: 300                   # default. active-finding count past which the harvest flags "needs curation"
 github_project:              # {owner, number} of the auto-managed Projects v2 board; unset ⇒ auto-create on first github sync
 agent_harnesses: [claude]    # harnesses the per-repo agent pass generates machine-local wrapper
                              # files; default [claude]. e.g. [claude, cursor]
@@ -110,7 +113,10 @@ docket's five workflow steps are **pluggable roles**: the optional `skills:` map
   archive/                # the two terminal outcomes:    <YYYY-MM-DD>-<id>-<slug>.md
   BOARD.md                # generated board (NEVER hand-edited); spans active + archive
   README.md               # small static blurb linking to BOARD.md (NOT generated)
-  LEARNINGS.md            # curated build-loop lessons; harvested at close-out (see "Learnings ledger")
+  LEARNINGS.md            # pointer stub → learnings/ (the pre-0067 single-file ledger)
+  learnings/              # curated build-loop findings; harvested at close-out (see "Learnings ledger")
+    <slug>.md             # one finding per lesson/family — living files, extended on re-hit
+    README.md             # GENERATED index (render-learnings-index.sh); never hand-edited
 <adrs_dir>/               # default docs/adrs/  — flat; ADRs are NEVER archived
   <NNNN>-<slug>.md        # immutable once Accepted (only its status: line ever changes)
   README.md               # generated ADR index
@@ -227,9 +233,68 @@ A stub is **autonomous-eligible** — selectable by `docket-auto-groom` — when
 
 ### Learnings ledger
 
-`<changes_dir>/LEARNINGS.md` — the project's **build-loop memory**: curated, hand-edited lessons, on `metadata_branch` only (never published to the integration branch; unlike the board it is prose, never regenerated). Flat dated entries, **newest first**, one to three lines with provenance: `- 2026-06-12 (#12, PR #7) — <what happened>. Apply: <the rule>.`
+`<changes_dir>/learnings/` — the project's **build-loop memory**: one curated finding per file, on
+`metadata_branch` only (never published to the integration branch). A **finding** is one lesson or one
+consolidated family. `LEARNINGS.md` remains as a pointer stub to the pre-0067 single-file ledger.
 
-**Writing:** only the harvest at close-out appends (single source: the *Harvest learnings* step in `docket-finalize-change`; `docket-status`'s sweep invokes it by reference). Zero entries is normal; kills are not harvested. **Reading:** `docket-implement-next` at plan time and review; `docket-groom-next` before a brainstorm. **Distilling:** append-only until ~300 lines; the next harvest past the cap also distills — merge near-duplicates, drop entries promoted to CLAUDE.md or this convention. Distillation is **compression, not destruction** (git history keeps everything); durable conventions belong in CLAUDE.md, and promotion removes the entry here.
+**Structure — index + detail.** The finding *files* are curated prose, written only by the harvest and
+by human curation — **never regenerated**. The *index* (`learnings/README.md`) is a **derived view**,
+rendered by `render-learnings-index.sh` (its sole writer, ADR-0012), which joins the derived-view script
+family. That split is the whole design: readers pay for a small hint surface, not for history.
+
+**Finding-file frontmatter:**
+
+```yaml
+---
+slug: guards-are-code
+hook: "A guard is code — mutation-test it or it is decoration."   # QUOTED (carries a colon-space)
+topics: [testing, sentinels]        # first tag is the PRIMARY grouping topic
+changes: [14, 15, 21]               # provenance + the harvest's idempotency key
+created: 2026-06-17
+updated: 2026-07-16
+promotion_state: retained           # retained | candidate | promoted  (default retained, ADR-0032)
+promoted_to:                        # set only when promoted: the agent-instructions file it graduated into
+---
+
+## Apply
+<the distilled, actionable rule>
+
+## War story
+- 2026-07-14 (#72, PR #79) — <what happened>. …
+```
+
+**Read contract — pay per relevance.** Gated on `learnings.enabled`; when `false`, readers perform
+**zero** learnings reads:
+1. Load `learnings/README.md` (the index) always — a small, grouped hint surface.
+2. Read only the finding files whose index line (hook + topics) bears on the change at hand.
+
+**Readers:** `docket-implement-next` at plan time and at review; `docket-groom-next` before a brainstorm.
+
+**Writing:** only the harvest at close-out appends (single source: the *Harvest learnings* step in
+`docket-finalize-change`; `docket-status`'s sweep invokes it by reference). The harvest **creates** a
+new finding or **extends** an existing one (append a dated `## War story` entry, add the change id to
+`changes:`, bump `updated:`) — it **never merges two distinct findings**, which is human-gated curation.
+Zero findings is normal; kills are not harvested.
+
+**Promotion — the shrink valve.** Tiering criterion: *"will the agent know to search for this?"* A rule
+that must fire **unprompted** graduates; a war story stays in retrieval. The harvest sets
+`promotion_state: candidate` on `metadata_branch` and **never touches the integration branch**
+(ADR-0005). A human lands the graduation in the integration-branch agent-instructions file
+(`AGENTS.md`/`CLAUDE.md`, symlink-aware; `AGENTS.md` is the neutral spelling when neither exists) and
+flips `promoted` + `promoted_to:`. A promoted finding leaves the topic groups for a compressed
+`## Promoted` appendix and **stops counting against the cap** — but its file is **kept**, never deleted:
+it is the graduated rule's receipt, the harvest's dedup memory against re-minting a duplicate, and a
+one-line-reversible demotion path.
+
+**Capacity.** `learnings.cap` (default 300) counts **active findings** (`retained` + `candidate`) — not
+raw lines, and not promoted ones. Past the cap the loop **flags** `learnings over-cap — needs curation`
+through the digest's needs-you channel; it **never auto-merges its own memory**. Consolidation and
+promotion are human acts.
+
+**Off switch.** `learnings.enabled: false` makes the whole subsystem a no-op **read/write gate, never a
+purge**: readers skip, the harvest no-ops with a one-line note, `docket-status` skips the advisories and
+the index self-heal, and `render-learnings-index.sh` is never invoked. Existing `learnings/` files are
+left byte-untouched, and re-enabling resumes from them.
 
 ### GitHub board mirror (shared definition)
 
