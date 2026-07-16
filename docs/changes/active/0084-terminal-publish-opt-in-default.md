@@ -2,7 +2,7 @@
 id: 84
 slug: terminal-publish-opt-in-default
 title: Flip terminal_publish default to false — publishing to the integration branch becomes opt-in
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-16
 updated: 2026-07-16
@@ -11,11 +11,11 @@ related: [62, 64, 83]
 adrs: [27, 40]
 spec: docs/superpowers/specs/2026-07-16-terminal-publish-opt-in-default-design.md
 plan: docs/superpowers/plans/2026-07-16-terminal-publish-opt-in-default.md
-results:
+results: docs/results/2026-07-16-terminal-publish-opt-in-default-results.md
 trivial: false
 auto_groomable:
 branch: feat/terminal-publish-opt-in-default
-pr:
+pr: https://github.com/danielhanold/docket/pull/90
 blocked_by:
 reconciled: true
 ---
@@ -27,6 +27,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-16-terminal-publish-opt-in-default-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-16-terminal-publish-opt-in-default-design.md) |
 | Plan | [2026-07-16-terminal-publish-opt-in-default.md](https://github.com/danielhanold/docket/blob/feat/terminal-publish-opt-in-default/docs/superpowers/plans/2026-07-16-terminal-publish-opt-in-default.md) |
+| Results | [2026-07-16-terminal-publish-opt-in-default-results.md](https://github.com/danielhanold/docket/blob/feat/terminal-publish-opt-in-default/docs/results/2026-07-16-terminal-publish-opt-in-default-results.md) |
+| PR | [#90](https://github.com/danielhanold/docket/pull/90) |
 | ADRs | [ADR-0027](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0027-terminal-publish-repo-scoped-script-gated.md), [ADR-0040](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0040-terminal-publish-default-opt-in.md) |
 <!-- docket:artifacts:end -->
 
