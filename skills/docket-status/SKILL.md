@@ -83,7 +83,7 @@ When `board_surfaces` includes `inline`, `board-refresh.sh` (contract: `scripts/
 
 ### Merge sweep
 
-The bulk safety net: every `implemented` change whose PR has merged gets archived on `metadata_branch`, its terminal record published (via `terminal-publish` onto the `integration_branch` in `docket`-mode), and its branch cleaned up, chaining the same close-out sequence (`terminal-close-out.md`) `docket-finalize-change` uses. Runs automatically at `docket-implement-next` step 0 and on any explicit non-`--board-only` `docket-status` invocation.
+The bulk safety net: every `implemented` change whose PR has merged gets archived on `metadata_branch`, its terminal record published only if the repo has opted in (via `terminal-publish` onto the `integration_branch` in `docket`-mode), and its branch cleaned up, chaining the same close-out sequence (`terminal-close-out.md`) `docket-finalize-change` uses. Runs automatically at `docket-implement-next` step 0 and on any explicit non-`--board-only` `docket-status` invocation.
 
 The rebase-onto-base + re-run-tests gate lives in `docket-finalize-change`'s merge step and is **finalize-only** — the sweep only archives PRs that are already merged, it never merges, so the gate has nothing to act on here.
 
