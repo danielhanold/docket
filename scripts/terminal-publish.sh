@@ -15,10 +15,12 @@
 #                       --changes-dir REL --adrs-dir REL [--message MSG] [--remote R]
 #                       [--enabled true|false]
 #
-# --enabled false (change 0064: the per-repo `terminal_publish` knob) makes this script a no-op:
-# the record stays on the metadata branch and nothing is committed onto the integration branch.
-# Default true — omitting the flag behaves exactly as before the knob existed. The guard sits
-# BEFORE the --id/--adr mode dispatch, so one guard covers BOTH publish shapes.
+# --enabled gates the publish (change 0064: the per-repo `terminal_publish` knob; opt-in by default
+# since change 0084). --enabled false makes this script a no-op: the record stays on the metadata
+# branch and nothing is committed onto the integration branch. There is NO default — an omitted flag
+# no-ops too, but LOUDLY (a stderr WARNING), since a caller that forgot it is a bug rather than a
+# decision. Pass the resolved TERMINAL_PUBLISH straight through. The guard sits BEFORE the
+# --id/--adr mode dispatch, so one guard covers BOTH publish shapes.
 #
 # Mock seam: GIT="${GIT:-git}".
 set -uo pipefail
@@ -27,7 +29,11 @@ set -uo pipefail
 
 GIT="${GIT:-git}"
 ID="" ADR="" OUTCOME="" INT_BRANCH="" META_BRANCH="" CHANGES_DIR="" ADRS_DIR="" MESSAGE="" REMOTE="origin"
-ENABLED="true"   # change 0064: default true == today's behavior
+# change 0084: NO default — publish is opt-in. ENABLED_PASSED distinguishes "flag omitted" (a
+# caller bug: loud no-op) from an explicit `--enabled false` (a decision: silent no-op). Tracking
+# it separately, rather than sniffing an empty ENABLED, keeps an explicit `--enabled ""` failing
+# closed instead of silently downgrading to the warn-and-continue path.
+ENABLED="" ENABLED_PASSED=false
 
 die(){ printf '%s\n' "terminal-publish: $*" >&2; exit 1; }
 log(){ printf '%s\n' "terminal-publish: $*" >&2; }
@@ -43,7 +49,7 @@ while [ $# -gt 0 ]; do
     --adrs-dir) ADRS_DIR="$2"; shift ;;
     --message) MESSAGE="$2"; shift ;;
     --remote) REMOTE="$2"; shift ;;
-    --enabled) ENABLED="$2"; shift ;;
+    --enabled) ENABLED="$2"; ENABLED_PASSED=true; shift ;;
     -h|--help) grep '^#' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) die "unknown argument: $1" ;;
   esac
@@ -62,6 +68,14 @@ if [ -n "$ID" ]; then
 fi
 [ -n "$INT_BRANCH" ] && [ -n "$META_BRANCH" ] || die "missing --integration-branch/--metadata-branch"
 [ -n "$CHANGES_DIR" ] && [ -n "$ADRS_DIR" ]   || die "missing --changes-dir/--adrs-dir"
+# change 0084: an OMITTED --enabled defaults to DISABLED and says so LOUDLY. A caller that forgot
+# the flag is a bug, not a decision — but exit 0 is deliberate (callers trust the exit code, and a
+# missing flag must not abort a close-out), so the stderr WARNING is what keeps the skipped publish
+# from going unnoticed the way #0043's did. An explicit `--enabled false` stays silent below.
+if [ "$ENABLED_PASSED" = false ]; then
+  log "WARNING: --enabled not passed — defaulting to DISABLED; NOTHING was published. Pass --enabled true (from the resolved TERMINAL_PUBLISH) to publish."
+  ENABLED=false
+fi
 # change 0064: fail closed on an unparseable value — never silently coerce to true, which would
 # publish onto the integration branch against the repo's stated intent.
 case "$ENABLED" in true|false) ;; *) die "invalid --enabled: '$ENABLED' (expected true|false)" ;; esac
