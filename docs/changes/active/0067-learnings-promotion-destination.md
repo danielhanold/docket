@@ -5,11 +5,11 @@ title: Give the learnings ledger a promotion destination — it has no way to sh
 status: proposed
 priority: medium
 created: 2026-07-13
-updated: 2026-07-13
+updated: 2026-07-16
 depends_on: []
 related: [6, 65]
 adrs: [5]
-spec:
+spec: docs/superpowers/specs/2026-07-16-learnings-promotion-destination-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Spec | [2026-07-16-learnings-promotion-destination-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-16-learnings-promotion-destination-design.md) |
 | ADRs | [ADR-0005](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0005-close-out-only-harvest.md) |
 <!-- docket:artifacts:end -->
 
