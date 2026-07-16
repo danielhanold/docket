@@ -719,7 +719,7 @@ The existing assert this task breaks: `finalize has the idempotency probe` → `
 Replace the whole `2.5 **Harvest learnings.**` paragraph with:
 
 ```markdown
-2.5 **Harvest learnings.** Gated on `learnings.enabled` (from the Step-0 config export): when `false`, print exactly one line — `learnings disabled — harvest skipped` — and go to step 3 (never silently; a reader must be able to tell "harvested zero" from "skipped because disabled"). When enabled: distill this change's close-out signals — PR review comments, merge-gate feedback, `results:` findings — into zero or more **findings** under `<changes_dir>/learnings/` (shape per the convention's *Learnings ledger*). For each lesson, either **create** `learnings/<slug>.md` or **extend** the existing family finding whose slug already covers the class — append a dated `## War story` entry with `(#<id>, PR #<n>)` provenance, add this change's id to `changes:`, bump `updated:`. Never merge two existing distinct findings — that is human-gated curation. Set `promotion_state: candidate` on any finding whose rule must fire **unprompted** (*"will the agent know to search for this?"*). Zero findings is normal. **Idempotency probe:** skip if some finding file's `changes:` list already contains this change's id — read via `lib/docket-frontmatter.sh`'s `list_field`, never a bare numeric grep (a bare id can match a PR number or a date). Then re-render the index — `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh render-learnings-index --learnings-dir .docket/<changes_dir>/learnings > .docket/<changes_dir>/learnings/README.md` — and commit the finding file(s) + index together as **its own commit** on `metadata_branch` (never bundled with the archive commit), only if the render actually changed bytes, and push. Kills are not harvested. This step is the harvest procedure's single source; `docket-status`'s sweep invokes it by reference.
+2.5 **Harvest learnings.** Gated on `learnings.enabled` (from the Step-0 config export): when `false`, print exactly one line — `learnings disabled — harvest skipped` — and go to step 3 (never silently; a reader must be able to tell "harvested zero" from "skipped because disabled"). When enabled: distill this change's close-out signals — PR review comments, merge-gate feedback, `results:` findings — into zero or more **findings** under `<changes_dir>/learnings/` (shape per the convention's *Learnings ledger*). For each lesson, either **create** `learnings/<slug>.md` or **extend** the existing family finding whose slug already covers the class — append a dated `## War story` entry with `(#<id>, PR #<n>)` provenance, add this change's id to `changes:`, bump `updated:`. Never merge two existing distinct findings — that is human-gated curation. Set `promotion_state: candidate` on any finding whose rule must fire **unprompted** — the tiering criterion is the convention's to state, not this step's to restate. Zero findings is normal. **Idempotency probe:** skip if some finding file's `changes:` list already contains this change's id — read via `lib/docket-frontmatter.sh`'s `list_field`, never a bare numeric grep (a bare id can match a PR number or a date). Then re-render the index — `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh render-learnings-index --learnings-dir .docket/<changes_dir>/learnings > .docket/<changes_dir>/learnings/README.md` — and commit the finding file(s) + index together as **its own commit** on `metadata_branch` (never bundled with the archive commit), only if the render actually changed bytes, and push. Kills are not harvested. This step is the harvest procedure's single source; `docket-status`'s sweep invokes it by reference.
 ```
 
 - [ ] **Step 2: Update the guard**
@@ -1180,10 +1180,11 @@ for s in "build-loop memory" "will the agent know to search for this?"; do
 done
 ```
 
-**Careful:** Task 5's harvest step quotes the tiering criterion. If it does, that is a genuine
-restatement — either drop it from finalize's prose (preferred: reference the convention) or exclude
-finalize from that sentinel's loop with an explicit comment saying why. Decide by reading, not
-guessing; do **not** loosen the sentinel silently.
+**Pre-resolved (pre-flight scan):** Task 5's harvest prose deliberately does NOT quote the tiering
+criterion — it says "must fire **unprompted**" and leaves the criterion to the convention, exactly so
+this sentinel stays valid and singular. If any operating skill's `SKILL.md` carries the phrase, that is
+a genuine restatement to remove from the skill — **never** loosen or delete the sentinel. `AGENTS.md`
+carries the phrase legitimately; it is not in `OPERATING` and is not scanned by this loop.
 
 - [ ] **Step 2: Run the WHOLE suite (one foreground run)**
 
