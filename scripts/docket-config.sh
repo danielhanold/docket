@@ -268,6 +268,43 @@ for _blk in "$LSKILLS_BLK" "$SKILLS_BLK" "$GSKILLS_BLK"; do
 done
 rm -f "$SKILLS_BLK" "$GSKILLS_BLK" "$LSKILLS_BLK"
 
+# --- learnings: the findings ledger subsystem (change 0067) --------------------
+# Nested block, mirroring finalize:'s SHAPE but the skills: block's PARSING. Each leaf is read
+# WITHIN the block via yaml_block_body — never as a bare top-level key. finalize.gate gets away
+# with a bare leaf read because `gate`/`test_command` are unusual words; `enabled` and `cap` are
+# generic, so a bare read would let ANY block's (or a future top-level) `enabled:` shadow this one.
+# Per-key precedence: repo-local > repo-committed > global > built-in.
+# ADR-0019 fence: BOTH keys are global-able. A machine-local disable only OMITS an enrichment
+# write — it never writes conflicting state, so there is no "which ledger is authoritative"
+# question, and the index self-heals on any enabled render.
+LEARN_BLK="$(mktemp)";  yaml_block_body "$CFG"  learnings >"$LEARN_BLK"
+GLEARN_BLK="$(mktemp)"; yaml_block_body "$GCFG" learnings >"$GLEARN_BLK"
+LLEARN_BLK="$(mktemp)"; yaml_block_body "$LCFG" learnings >"$LLEARN_BLK"
+# Re-issue the EXIT trap now that all four temp files are defined, so a die() below (or any
+# later in the script) cleans up LEARN_BLK/GLEARN_BLK/LLEARN_BLK too — unlike the skills: block
+# (which never dies), this block's own fail-closed guards can exit before an end-of-block
+# explicit rm would run, so cleanup has to live in the trap, not after the last use.
+trap 'rm -f "$CFG" "$LEARN_BLK" "$GLEARN_BLK" "$LLEARN_BLK"' EXIT
+learn_key(){  # learn_key <leaf> <default> -> resolved value on stdout
+  local v; v="$(yaml_get "$LLEARN_BLK" "$1")"
+  [ -n "$v" ] || v="$(yaml_get "$LEARN_BLK" "$1")"
+  [ -n "$v" ] || v="$(yaml_get "$GLEARN_BLK" "$1")"
+  printf '%s' "${v:-$2}"
+}
+LEARNINGS_ENABLED="$(learn_key enabled true)"
+LEARNINGS_CAP="$(learn_key cap 300)"
+# Fail closed on garbage (the terminal_publish precedent): silently defaulting a typo would
+# either tax every read or silently disable the subsystem — both against intent. `yes`/`no` are
+# rejected deliberately (YAML-scalar family: they are boolean keywords under a real loader but
+# arrive here as literal strings).
+case "$LEARNINGS_ENABLED" in
+  true|false) ;;
+  *) die "unparseable config: learnings.enabled must be 'true' or 'false', got '$LEARNINGS_ENABLED'" ;;
+esac
+case "$LEARNINGS_CAP" in
+  ''|*[!0-9]*) die "unparseable config: learnings.cap must be a non-negative integer, got '$LEARNINGS_CAP'" ;;
+esac
+
 # --- Stage 3: bootstrap guard — evaluate the DOCKET/LIVE 2×2 (docket-mode only) ---
 BOOTSTRAP=PROCEED
 if [ "$DOCKET_MODE" = docket ]; then
@@ -328,6 +365,8 @@ if [ "$MODE" = export ]; then
   emit RESULTS_DIR "$RESULTS_DIR"
   emit FINALIZE_GATE "$FINALIZE_GATE"
   emit FINALIZE_TEST_COMMAND "$FINALIZE_TEST_COMMAND"
+  emit LEARNINGS_ENABLED "$LEARNINGS_ENABLED"
+  emit LEARNINGS_CAP "$LEARNINGS_CAP"
   emit BOARD_SURFACES "$BOARD_SURFACES"
   emit AUTO_GROOM "$AUTO_GROOM"
   emit TERMINAL_PUBLISH "$TERMINAL_PUBLISH"
