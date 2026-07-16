@@ -1,6 +1,6 @@
 # Backlog
 
-**84 changes** — 🟡 9 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 68 done · 🗑️ 4 killed
+**84 changes** — 🟡 9 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 69 done · 🗑️ 4 killed
 
 ## 🟡 Proposed (9)
 
@@ -22,11 +22,10 @@
 |---|-------|----------|------------|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | PR #69 is stale (predates the 0068/0072 facade rework and later agent-layer changes) and #0079 (runner delegation) reshapes the design — the build roles should grow a runner field (build.<role>.runner codex, the mixed topology 0079 deferred). Needs a rebase plus redesign pass before merge. |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
-| [0067](active/0067-learnings-promotion-destination.md) | Give the learnings ledger a promotion destination — it has no way to shrink | `medium` | [#91](https://github.com/danielhanold/docket/pull/91) |
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | [#89](https://github.com/danielhanold/docket/pull/89) |
 
 ```mermaid
@@ -39,7 +38,6 @@ graph TD
   0015 --> 0019
   0044
   0062
-  0067
   0077 --> 0078
   0082
   0083
@@ -98,6 +96,7 @@ graph TD
   0064:::done
   0065:::done
   0066:::done
+  0067:::done
   0068:::done
   0069:::done
   0070:::done
@@ -114,7 +113,7 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (72)</summary>
+<details><summary>✅🗑️ Archive — done + killed (73)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
@@ -122,6 +121,7 @@ graph TD
 | [0081](archive/2026-07-16-0081-first-run-setup-config-example.md) | First-run setup — committed starter config + install.sh scaffolding + README Install restructure | 2026-07-16 |
 | [0079](archive/2026-07-16-0079-codex-runner-delegation.md) | Cross-harness runner delegation framework (first runner — OpenAI Codex) | 2026-07-16 |
 | [0077](archive/2026-07-16-0077-codex-harness-toml-agents.md) | Codex harness — TOML agent generation + AGENTS.md dispatch block | 2026-07-16 |
+| [0067](archive/2026-07-16-0067-learnings-promotion-destination.md) | Give the learnings ledger a promotion destination — it has no way to shrink | 2026-07-16 |
 | [0033](archive/2026-07-16-0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | 2026-07-16 |
 | [0080](archive/2026-07-15-0080-link-skills-create-harness-dir.md) | link-skills.sh creates a missing skills subdir when the harness is present | 2026-07-15 |
 | [0075](archive/2026-07-15-0075-cwd-independent-repo-root-anchor.md) | Anchor the repo root to the main worktree — CWD-independent scripts, a fail-closed cleanup guard, and a durable finalize posture | 2026-07-15 |
