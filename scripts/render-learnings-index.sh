@@ -28,7 +28,74 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib/docket-frontmatter.sh"
 
 # `field` returns the RAW scalar — quotes intact. `hook` is REQUIRED to be quoted (it carries a
 # colon-space; YAML-scalar family), so it must be dequoted here or the index ships quote bytes.
-dequote(){ local v="$1"; v="${v#\"}"; v="${v%\"}"; v="${v#\'}"; v="${v%\'}"; printf '%s' "$v"; }
+# A double-quoted scalar may carry YAML's own backslash escapes (e.g. a hook that itself discusses
+# quoting: `hook: "Never \"fix\" a guard by widening it."`), so dequoting it is a real left-to-right
+# unescape (`\"` -> `"`, `\\` -> `\`), not just outer-char stripping — a single-quoted scalar's only
+# escape is `''` -> `'`. Only a MATCHED outer pair is stripped: an unquoted scalar (even one
+# containing quote characters) or an unterminated/mismatched quote passes through unchanged.
+dequote(){
+  local v="$1"
+  local n=${#v}
+  if [ "$n" -ge 2 ] && [ "${v:0:1}" = '"' ] && [ "${v: -1}" = '"' ] && _dq_dquote_closer_is_real "$v"; then
+    _dq_unescape_dquote "${v:1:n-2}"
+    return
+  fi
+  if [ "$n" -ge 2 ] && [ "${v:0:1}" = "'" ] && [ "${v: -1}" = "'" ]; then
+    local inner="${v:1:n-2}"
+    printf '%s' "${inner//\'\'/\'}"
+    return
+  fi
+  printf '%s' "$v"
+}
+
+# _dq_dquote_closer_is_real STR -> true iff STR's last character (already confirmed to be a ")
+# is an unescaped closing quote rather than the second half of a `\"` escape: count the run of
+# backslashes immediately before it — an escaped quote always sits behind an ODD-length run, a
+# real delimiter behind an EVEN-length run (0 included). Guards the unterminated/mismatched case:
+# a value like `"foo\"` (no real closing quote at all) must NOT be treated as a matched pair.
+_dq_dquote_closer_is_real(){
+  local s="$1"
+  local i=$(( ${#s} - 2 ))
+  local run=0
+  while [ "$i" -ge 0 ] && [ "${s:i:1}" = '\' ]; do
+    run=$((run + 1))
+    i=$((i - 1))
+  done
+  [ $((run % 2)) -eq 0 ]
+}
+
+# _dq_unescape_dquote STR -> single left-to-right pass over a double-quoted scalar's INNER content
+# (outer quotes already confirmed matched and stripped): `\"` -> `"`, `\\` -> `\`; any other
+# backslash is copied through literally (not consumed, not paired with what follows). Single pass,
+# not two sequential global replaces: composing an isolated `\\`->`\` pass with a separate `\"`->`"`
+# pass can regroup characters the first pass already resolved. The case this guards: a literal
+# backslash immediately before the closing quote (`...\\"` — an escaped backslash, THEN the real
+# delimiter) must consume as one `\\` pair; a naive two-pass replace can instead let the backslash
+# left over from that pair re-pair with the quote as if it were `\"`, corrupting or dropping bytes.
+_dq_unescape_dquote(){
+  local s="$1"
+  local n=${#s}
+  local out=""
+  local i=0
+  local c nc
+  while [ "$i" -lt "$n" ]; do
+    c="${s:i:1}"
+    if [ "$c" = '\' ] && [ $((i + 1)) -lt "$n" ]; then
+      nc="${s:i+1:1}"
+      if [ "$nc" = '"' ] || [ "$nc" = '\' ]; then
+        out+="$nc"
+        i=$((i + 2))
+      else
+        out+="$c"
+        i=$((i + 1))
+      fi
+    else
+      out+="$c"
+      i=$((i + 1))
+    fi
+  done
+  printf '%s' "$out"
+}
 
 declare -A F_HOOK F_TOPICS F_STATE F_TO
 SLUGS=""
