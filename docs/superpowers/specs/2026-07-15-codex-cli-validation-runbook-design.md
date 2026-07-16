@@ -15,6 +15,47 @@ sandbox/permissions guide), and it surfaced real gaps each time. This change pro
 exec` automation (brittle to assert subagent behavior from outside; burns API credits per
 run) — with findings recorded and gaps turned into follow-up stubs.
 
+## Reconcile update (2026-07-16, at build time)
+
+The design holds; these current-reality corrections were folded in after change 0077 (the
+dependency) and change 0079 (runner delegation) both merged. The build must honor them when
+finalizing exact commands.
+
+- **Script paths.** `sync-agents.sh` and `link-skills.sh` live at the **repo root**, not
+  `scripts/`. Neither has a co-located `.md` contract; the Codex-facing doc is
+  **`docs/codex/setup.md`** (new, on `main`), whose "Verifying it works" + "Restart after
+  (re)generating" sections this runbook is the **live-execution counterpart** to — the
+  runbook should reference and extend setup.md, not duplicate it.
+- **The repo currently opts OUT.** `.docket.yml` has `agent_harnesses` commented out and no
+  `.docket.local.yml` exists, so no `.codex/agents/*.toml` and no `AGENTS.md` are on disk
+  today. Phase 1's first step must be the opt-in: write `.docket.local.yml` with
+  `agent_harnesses: [claude, codex]` (keeps committed config clean), THEN run `sync-agents.sh`.
+  The generated artifacts (9-agent `.codex/agents/docket-*.toml` set, committed `AGENTS.md`
+  dispatch block) only appear after that. `sync-agents.sh --check` is a vacuous exit-0 while
+  opted out, so Phase 1 asserts artifact presence directly, not just a green `--check`.
+- **Native path vs. 0079 runner delegation — do not conflate.** This runbook validates docket
+  running **natively inside Codex CLI**: skills load, and their bash reaches scripts via the
+  **`docket.sh` facade** (`"${DOCKET_SCRIPTS_DIR:?…}"/docket.sh <op>`, change 0068) under
+  **Codex's own sandbox**. Change 0079's `runner-dispatch` / `scripts/runners/codex.sh` is the
+  **opposite direction** (a Claude-Code *parent* offloading a whole agent run onto `codex exec`
+  as a *child*) and is **explicitly out of scope** here — Phase 2's "scripts run under Codex's
+  sandbox" is the native facade path, not `runner-dispatch`.
+- **Phase 4 must feed the ADR-0036 deferral.** ADR-0036 deliberately deferred the **user-level
+  `~/.codex/AGENTS.md` dispatch** decision (only the project-level `<repo>/AGENTS.md` block
+  exists today) to this change's live validation. Phase 4 must record the definitive evidence:
+  does Codex honor the project-level `AGENTS.md` dispatch block (automatic / prompted / refused),
+  and is a user-level `~/.codex/AGENTS.md` needed for globally-scoped agents? A "user-level
+  dispatch is needed" finding becomes a follow-up stub — it does **not** turn this change into an
+  implementation change.
+- **Phase 5 needs real Codex model slugs.** The built-in wrappers carry **Claude** model IDs
+  (`sync-agents.sh` even warns they may be invalid for `codex`). To genuinely prove a honored
+  pin, set a real Codex slug under `agents.codex.<agent>.model` (e.g. `gpt-5.1-codex`; discover
+  slugs via `codex debug models`, per setup.md) plus an `effort:` — which the TOML emitter writes
+  verbatim as `model_reasoning_effort` (no `max→xhigh` remap at this layer; that remap lives only
+  in the runner adapter).
+- **Restart after regenerating.** Codex registers agents at process start; Phases 3–5 require
+  restarting the Codex session after each `sync-agents.sh` run (already documented in setup.md).
+
 ## Deliverables
 
 1. **The runbook** — the polished, executable checklist (this spec defines its phases

@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/codex-cli-validation-runbook
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -51,6 +51,10 @@ doc; every gap becomes a follow-up stub. Passes when phases 1–3 and 6 are gree
 
 - Fixing what the runbook finds (follow-up changes).
 - `codex exec` / CI automation of the runbook.
+- Change 0079's runner delegation (a Claude *parent* offloading onto a `codex exec` *child*)
+  — the opposite direction from the native-Codex execution this runbook validates.
+- Implementing user-level `~/.codex/AGENTS.md` dispatch — Phase 4 only produces the evidence
+  for ADR-0036's deferred decision; acting on it is a follow-up.
 - Other unvalidated harness tokens (kiro, windsurf) and autonomous-loop soak testing.
 
 ## Open questions
@@ -59,3 +63,30 @@ doc; every gap becomes a follow-up stub. Passes when phases 1–3 and 6 are gree
   exact commands).
 
 ## Reconcile log
+
+### 2026-07-16 — reconciled at claim (build time)
+
+Design holds; no re-brainstorm needed. Dependency 0077 is `done` (PR #85), so the generated
+Codex artifacts the runbook targets now exist as a *capability*. Folded current reality into
+the spec as a "Reconcile update" section:
+
+- **Path corrections** — `sync-agents.sh`/`link-skills.sh` are repo-root, not `scripts/`; the
+  new `docs/codex/setup.md` (on `main`) is the static setup doc this runbook is the
+  live-execution counterpart to (extend, don't duplicate).
+- **Opt-in first** — this repo currently opts out (`agent_harnesses` commented out, no
+  `.docket.local.yml`), so no `.codex/agents/*.toml` or `AGENTS.md` are on disk; Phase 1 must
+  opt in then `sync-agents.sh`, and assert artifacts directly (`--check` is a vacuous exit-0
+  while opted out).
+- **Scope sharpened against 0079** — 0079 (runner delegation, merged) is the *opposite*
+  direction (Claude parent → `codex exec` child); this runbook validates the *native* path
+  where Codex runs skills whose bash reaches scripts through the `docket.sh` facade (0068)
+  under Codex's own sandbox. Recorded as out of scope.
+- **Phase 4 feeds ADR-0036** — that ADR deferred the user-level `~/.codex/AGENTS.md` dispatch
+  decision to this validation; Phase 4 must record definitive evidence (automatic / prompted /
+  refused, and whether user-level dispatch is needed). Acting on it stays a follow-up.
+- **Phase 5 needs real Codex slugs** — built-ins carry Claude model IDs (sync-agents warns);
+  proving a honored pin requires `agents.codex.<agent>.model` set to a real slug (e.g.
+  `gpt-5.1-codex`, via `codex debug models`) with `effort:` emitted verbatim as
+  `model_reasoning_effort`.
+- **Restart note** — Codex registers agents at process start; Phases 3–5 restart the session
+  after each `sync-agents.sh`.
