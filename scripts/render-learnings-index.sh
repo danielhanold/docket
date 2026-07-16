@@ -32,6 +32,9 @@ dequote(){ local v="$1"; v="${v#\"}"; v="${v%\"}"; v="${v#\'}"; v="${v%\'}"; pri
 
 declare -A F_HOOK F_TOPICS F_STATE F_TO
 SLUGS=""
+# This `sort` is defense-in-depth, not the determinism source: scan order is fully
+# re-canonicalized downstream by TOPICS_SORTED (sort -u), the per-topic row loop (sort), and
+# PROMOTED_SORTED (sort) — those three are what byte-identical output actually depends on.
 mapfile -t FILES < <(find "$LEARNINGS_DIR" -maxdepth 1 -name '*.md' ! -name 'README.md' 2>/dev/null | sort)
 for f in "${FILES[@]}"; do
   slug="$(field "$f" slug)"; [ -n "$slug" ] || continue
