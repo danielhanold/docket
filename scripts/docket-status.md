@@ -127,8 +127,9 @@ pass.
 rebase-pull the metadata worktree, then (skipping silently if the change is already archived or
 already `done`/`killed` — idempotent no-op) `archive-change.sh` → locate the archived file →
 `render-change-links.sh` → **artifacts refresh** (see below) → `terminal-publish.sh` (always
-passed `--enabled "${TERMINAL_PUBLISH:-true}"`, so the headless sweep honors the repo's publish
-policy; a suppressed publish is a no-op that exits 0 and is logged, never a failure) →
+passed `--enabled "${TERMINAL_PUBLISH:-false}"`, so the headless sweep honors the repo's publish
+policy — unset defaults to no publish since change 0084; a suppressed publish is a no-op that
+exits 0 and is logged, never a failure) →
 `cleanup-feature-branch.sh`. Each step's failure emits `sweep-failed <id> <step> <reason>` and
 abandons the rest of that change's close-out, but the loop always continues to the next change;
 the **artifacts refresh** and a `cleanup-feature-branch.sh` failure are the two exceptions — both
@@ -206,7 +207,7 @@ All report lines are stdout, one shape per line, diagnostics go to stderr:
 | `minted project <id> <n>` | Passthrough of `github-mirror.sh`'s `project-minted <id> <n>`. |
 | `backlog <status> <count>` | One rollup per non-zero status across the active + archived change files (from the ungated backlog pass). On a full pass these are **post-sweep** counts: a change swept this pass is counted under `done`, not `implemented`. |
 | `change <id> <status> <readiness> <slug>` | One line per **active** change, as of the moment the backlog pass ran (post-sweep on a full pass, so a change swept this pass has no `change` line at all — it is archived). `<readiness>` is `build-ready`, `needs-brainstorm`, `auto-groom-blocked`, `waiting-on-<N>-unbuilt`, `waiting-on-<N>-needs-merge`, or `-` when readiness does not apply (any non-`proposed` status). |
-| `swept <id> <date>` | Change `<id>` fully closed out (archived, links refreshed, terminal record published, branch cleaned up) as of `<date>` (UTC, from merge). |
+| `swept <id> <date>` | Change `<id>` fully closed out (archived, links refreshed, terminal record published only if the repo opted in with `terminal_publish: true`, branch cleaned up) as of `<date>` (UTC, from merge). |
 | `harvest <id> <path>` | The archived file path for a swept change — a hook for the caller to harvest learnings. `<path>` is absolute (since change 0075, anchored to the main worktree via `lib/docket-root.sh`) — previously relative to the process CWD. |
 | `sweep-failed <id> <step> <reason>` | Step `<step>` (`sync`, `archive`, `render-change-links`, `terminal-publish`, or `cleanup`) failed for change `<id>` with `<reason>`; that change's remaining close-out steps were abandoned — **except** for `cleanup` and for the artifacts-refresh reasons `commit-failed` / `push-failed` (step 6a), after which the close-out continues and the change still reports `swept`/`harvest`. |
 | `sweep-failed <id> render-change-links commit-failed\|push-failed` | The refreshed `## Artifacts` block could not be committed/pushed on `metadata_branch` (step 6a). Cosmetic and non-terminal: `terminal-publish.sh` and `cleanup-feature-branch.sh` **still ran**, and the change is still reported `swept`. The archived record on `metadata_branch` keeps its previous link block until a manual re-render. |

@@ -7,7 +7,7 @@ description: Use when a change's PR is approved or merged and you want to close 
 
 ## Overview
 
-`docket-finalize-change` is the human's deliberate close-out for a change that has reached the merge gate: merging the approved PR into the integration branch, then driving the **`done`** terminal transition — harvesting learnings, archiving, publishing terminal records onto the integration branch (`docket`-mode), cleaning up the branch and worktree, and refreshing the board. It reuses the same idempotent archive-and-publish flow as `docket-status`'s safety-net sweep, so it is safe to run even if the sweep already ran.
+`docket-finalize-change` is the human's deliberate close-out for a change that has reached the merge gate: merging the approved PR into the integration branch, then driving the **`done`** terminal transition — harvesting learnings, archiving, publishing terminal records onto the integration branch if the repo has opted in (`docket`-mode), cleaning up the branch and worktree, and refreshing the board. It reuses the same idempotent archive-and-publish flow as `docket-status`'s safety-net sweep, so it is safe to run even if the sweep already ran.
 
 ## When to use
 
@@ -132,6 +132,6 @@ When a human is present, the resolved finish skill — `$SKILL_FINISH` (default 
 
 The shared procedure — documented in `skills/docket-convention/references/terminal-close-out.md` — that copies a change's terminal records from `origin/docket` onto the integration branch. It runs on every terminal transition (`done`, driven by step 3 above and `docket-status`'s sweep; or `killed`, driven by the killing skill), distinguished by a publish token `T` (`<id>` for a change publish, `adr-<NN>` for a standalone/status-changed ADR).
 
-**Skipped entirely in `main`-mode** (guarded on `metadata_branch == docket`); there the archive move is itself the terminal record.
+**Skipped entirely in `main`-mode** (guarded on `metadata_branch == docket`) — there the archive move is itself the terminal record — **and skipped whenever `terminal_publish` is `false`** (the default since change 0084; opt in per-repo with `terminal_publish: true`).
 
 The copy-set: the archived change file, its `spec:` if set, and each `adrs:` entry whose ADR is `Accepted` (`Proposed`/draft ADRs are skipped). `BOARD.md` is **never** published. Mechanics — `checkout origin/docket -- <copy-set>`, the CAS push, self-verify, teardown — are owned by `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh terminal-publish --id <id> --enabled <terminal_publish>` (or `docket.sh terminal-publish --adr <NN> --enabled <terminal_publish>` for the ADR-only path — `<terminal_publish>` is the resolved config's `TERMINAL_PUBLISH` value from the Step-0 `preflight` block); see `scripts/terminal-publish.md`.
