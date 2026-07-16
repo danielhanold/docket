@@ -63,8 +63,9 @@ before the first read; every commit pushes immediately.
    metadata onto the code line. Trust the exit code; its reuse-existing-file idempotency makes two
    drivers racing on the same change a safe no-op.
 
-   When the repo sets `terminal_publish: false`, the script is a **no-op that exits 0** — the
-   record stays on `docket`, and a suppressed publish is *success*: it does NOT trip the
+   When `terminal_publish` is `false` — **the default** since change 0084; publishing is opt-in —
+   the script is a **no-op that exits 0** — the record stays on `docket`, and a suppressed publish
+   is *success*: it does NOT trip the
    skip-publish guard, so steps 4–5 still run. Callers pass the flag and keep trusting the exit
    code; no caller branches on the knob itself.
 

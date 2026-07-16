@@ -104,7 +104,7 @@ A value may not contain a literal `#` — it is treated as the start of an inlin
 | `test_command` (finalize) | `` (empty) | yes | read from `finalize.test_command` leaf key; resolves repo-local > repo-committed > global |
 | `board_surfaces` | `inline` | yes, minus `github` | YAML list `[a, b]` stripped of brackets/commas; **`[]` → the reserved token `none`** (change 0071 — an empty value is NEVER emitted; empty means "unresolved", a wiring bug); a `github` token arriving from either machine-scoped layer (repo-local or global) is dropped (Stage 2c), and a list left empty by that drop also resolves to `none` |
 | `auto_groom` | `false` | yes | resolves repo-local > repo-committed > global |
-| `terminal_publish` | `true` | no (fenced) | `true`/`false`; `false` makes `terminal-publish.sh` a no-op for BOTH shapes — archived change files, specs, and ADRs stay on the metadata branch. Anything else aborts |
+| `terminal_publish` | `false` | no (fenced) | `true`/`false`; the default `false` makes `terminal-publish.sh` a no-op for BOTH shapes — archived change files, specs, and ADRs stay on the metadata branch. `true` opts in to the direct-commit publish onto the integration branch. Anything else aborts |
 
 `github_project` and `agents:`/`agent_harnesses` are per-repo-only / not read by this script (see
 Stage 2b/2b'/2c below and `sync-agents.sh`'s own contract, respectively) — every other key above

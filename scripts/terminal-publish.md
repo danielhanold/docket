@@ -52,9 +52,15 @@ terminal-publish.sh \
 `docket(<pad>): publish terminal record (<outcome>)` (change) or
 `docket(adr-<NN>): publish ADR-<NN>` (ADR-only).
 
-`--enabled` defaults to `true`. `--enabled false` (change 0064 — the per-repo `terminal_publish`
-knob, resolved by `docket-config.sh`) makes the script a no-op. An unparseable value is rejected
-before any git work, like `--id`/`--adr`.
+`--enabled` has **no default** (change 0084 — publishing is opt-in): pass the resolved
+`TERMINAL_PUBLISH` value straight through. `--enabled true` publishes; `--enabled false` (change
+0064 — the per-repo `terminal_publish` knob, resolved by `docket-config.sh`) makes the script a
+silent no-op that exits 0. **Omitting the flag** is treated as disabled — the script no-ops and
+exits 0, but prints a prominent `WARNING` to stderr naming that nothing was published, because a
+caller that forgot the flag is a bug rather than a decision. Exit 0 on that path is deliberate:
+callers trust the exit code and a missing flag must not abort a close-out, so the warning is what
+keeps the skipped publish visible. An unparseable value — including an explicit empty one — is
+rejected before any git work, like `--id`/`--adr`.
 
 Both `--id` and `--adr` must be integers; a non-integer value is rejected immediately, before any
 git work.
