@@ -19,6 +19,7 @@
 #   sync-integration-branch   fast-forward the local integration branch
 #   render-change-links       per-change Artifacts link block (pure renderer)
 #   render-adr-index          ADR index (pure renderer)
+#   render-learnings-index    learnings index (pure renderer)
 #   adr-checks [args]         ADR consistency checks
 #   board-checks [args]       board consistency checks
 #   runner-dispatch [args]    delegate one agent run to a child harness (runner adapter)
@@ -33,7 +34,7 @@ GIT="${GIT:-git}"
 
 # The exposed wrapped-helper operations (op name == helper basename). Single source of the
 # dispatch allowlist; the sentinel test greps THIS array and the docket.md table.
-WRAPPED_OPS="docket-status board-refresh archive-change terminal-publish cleanup-feature-branch github-mirror sync-integration-branch render-change-links render-adr-index adr-checks board-checks runner-dispatch"
+WRAPPED_OPS="docket-status board-refresh archive-change terminal-publish cleanup-feature-branch github-mirror sync-integration-branch render-change-links render-adr-index render-learnings-index adr-checks board-checks runner-dispatch"
 
 usage(){ sed -n '/^# Usage:/,/^# Contract:/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 reject(){ printf 'docket: unknown operation: %s\n' "${1:-<none>}" >&2; printf 'supported operations: preflight env bootstrap %s\n' "$WRAPPED_OPS" >&2; exit 2; }
