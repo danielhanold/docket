@@ -69,9 +69,11 @@ for f in "$REPO_ROOT/.docket.local.yml" "$REPO_ROOT/.docket.yml" "$GLOBAL_CFG"; 
     k="$(sed -nE 's/^[[:space:]]*([A-Za-z0-9._-]+)[[:space:]]*:.*/\1/p' <<<"$line")"
     [ -n "$k" ] || continue
     case "$seen_keys" in *" $k "*) continue ;; esac   # first (highest-precedence) layer wins per key
+    seen_keys="$seen_keys$k "                          # claim the key for THIS layer before parsing its
+                                                       # value, so a malformed high-precedence value still
+                                                       # masks lower layers (precedence is per-key, not per-value)
     v="$(sed -nE 's/^[[:space:]]*[A-Za-z0-9._-]+[[:space:]]*:[[:space:]]*([A-Za-z0-9._-]+).*/\1/p' <<<"$line")"
     [ -n "$v" ] || continue
-    seen_keys="$seen_keys$k "
     uk="$(tr '[:lower:]' '[:upper:]' <<<"$k" | tr '.-' '__')"
     export "DOCKET_RUNNER_CFG_$uk=$v"
   done <<<"$blk"
