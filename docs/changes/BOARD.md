@@ -1,6 +1,6 @@
 # Backlog
 
-**84 changes** — 🟢 1 in progress · 🟡 9 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 67 done · 🗑️ 4 killed
+**84 changes** — 🟢 1 in progress · 🟡 9 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 68 done · 🗑️ 4 killed
 
 ## 🟢 In progress (1)
 
@@ -28,12 +28,11 @@
 |---|-------|----------|------------|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | PR #69 is stale (predates the 0068/0072 facade rework and later agent-layer changes) and #0079 (runner delegation) reshapes the design — the build roles should grow a runner field (build.<role>.runner codex, the mixed topology 0079 deferred). Needs a rebase plus redesign pass before merge. |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | [#89](https://github.com/danielhanold/docket/pull/89) |
-| [0084](active/0084-terminal-publish-opt-in-default.md) | Flip terminal_publish default to false — publishing to the integration branch becomes opt-in | `medium` | [#90](https://github.com/danielhanold/docket/pull/90) |
 
 ```mermaid
 graph TD
@@ -49,7 +48,6 @@ graph TD
   0077 --> 0078
   0082
   0083
-  0084
   0001:::done
   0002:::done
   0003:::done
@@ -117,13 +115,15 @@ graph TD
   0079:::done
   0080:::done
   0081:::done
+  0084:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (71)</summary>
+<details><summary>✅🗑️ Archive — done + killed (72)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0084](archive/2026-07-16-0084-terminal-publish-opt-in-default.md) | Flip terminal_publish default to false — publishing to the integration branch becomes opt-in | 2026-07-16 |
 | [0081](archive/2026-07-16-0081-first-run-setup-config-example.md) | First-run setup — committed starter config + install.sh scaffolding + README Install restructure | 2026-07-16 |
 | [0079](archive/2026-07-16-0079-codex-runner-delegation.md) | Cross-harness runner delegation framework (first runner — OpenAI Codex) | 2026-07-16 |
 | [0077](archive/2026-07-16-0077-codex-harness-toml-agents.md) | Codex harness — TOML agent generation + AGENTS.md dispatch block | 2026-07-16 |
