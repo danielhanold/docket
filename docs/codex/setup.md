@@ -74,6 +74,12 @@ After opting a repo in and running `sync-agents.sh`:
 from the tracked-file leg — the block is *meant* to be committed) and flags a stale or missing
 block for CI.
 
+Those three checks are the static ones. To validate the whole loop live — skills loading, docket's
+scripts running under Codex's sandbox, agents listing, dispatch and the model pin actually being
+honored, and metadata writes landing on `origin/docket` — work through the
+[Codex live-validation runbook](validation-runbook.md), which drives each of these end to end in a
+fixture repo and records the observed outcome.
+
 ## Restart after (re)generating
 
 Codex registers its agents at process start. After `sync-agents.sh` writes new wrappers, restart

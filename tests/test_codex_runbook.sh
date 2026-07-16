@@ -100,4 +100,11 @@ if grep -qF -- 'codex debug models' "$RUNBOOK"; then ok "runbook derives model s
 # single likeliest misreading of this runbook.
 if grep -qF -- 'runner-dispatch' "$RUNBOOK"; then ok "runbook states the runner-dispatch boundary"; else no "runbook states the runner-dispatch boundary"; fi
 
+# --- Assertion 8: the runbook is discoverable -------------------------------------------------
+SETUP="$REPO/docs/codex/setup.md"
+README="$REPO/README.md"
+# setup.md is the runbook's sibling; link it relatively from the section it deepens.
+if grep -qF -- '](validation-runbook.md)' "$SETUP"; then ok "setup.md links the runbook"; else no "setup.md links the runbook"; fi
+if grep -qF -- '](docs/codex/validation-runbook.md)' "$README"; then ok "README links the runbook"; else no "README links the runbook"; fi
+
 exit $fail
