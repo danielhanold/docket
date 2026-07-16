@@ -2,7 +2,7 @@
 id: 62
 slug: autonomous-finalize-merge-authorization
 title: Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny
-status: proposed
+status: in-progress
 priority: low
 created: 2026-07-11
 updated: 2026-07-16
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable: false
-branch:
+branch: feat/autonomous-finalize-merge-authorization
 pr:
 blocked_by:
 reconciled: false
