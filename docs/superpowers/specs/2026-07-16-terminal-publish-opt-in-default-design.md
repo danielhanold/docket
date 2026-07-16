@@ -48,8 +48,20 @@ something a repo gets because it never set a key.
      Exit 0 is deliberate: skill callers trust the exit code, and an omitted flag must not
      abort a close-out — but the warning makes the skipped publish impossible to miss in run
      output (the silent-gap failure mode of #0083).
-3. **`scripts/docket-status.sh`** (sweep, ~line 389) — `${TERMINAL_PUBLISH:-true}` →
-   `${TERMINAL_PUBLISH:-false}`.
+3. **`scripts/docket-status.sh`** (sweep, line 389 — verified exact at reconcile) —
+   `${TERMINAL_PUBLISH:-true}` → `${TERMINAL_PUBLISH:-false}`. The `:-` expansion itself must
+   **stay** (not become a bare `$TERMINAL_PUBLISH`): `sweep_execute_one` runs under `set -u`,
+   so the fallback is also the unbound-variable guard for a stale/mocked config export that
+   omits the key. Only the fallback *value* flips.
+
+**Full inventory, derived by whole-repo grep at reconcile** (per the enumerated-floor LEARNING
+— 0064 itself shipped having hand-listed prose sites and missed the one executable sweep
+site). Exactly **four** sites encode the default; the first three are the code sites above, the
+fourth is a test assertion:
+`docket-config.sh:199` · `terminal-publish.sh:30` · `docket-status.sh:389` ·
+`tests/test_docket_status.sh:919-950` (Case B, see Tests). Every other repo hit either merely
+*mentions* the script/knob without encoding a default, or is a historical artifact
+(archives/plans/results/old specs) that stays untouched.
 
 ## Documentation changes
 
@@ -103,7 +115,16 @@ Update the four suites that assert the current default; add coverage for the new
 - **`tests/test_closeout.sh`** / **`tests/test_docket_status.sh`** — fixtures that relied on
   the implicit default now pass/pin `--enabled true` (or set the key in the fixture's
   `.docket.yml`) so they keep testing the publish path; add/keep one case proving the
-  unset-key sweep does NOT publish. `test_closeout.sh`'s 0064 call-site sentinel is
+  unset-key sweep does NOT publish. **That "unset ⇒ no publish" case already exists and must
+  be INVERTED, not written from scratch or deleted** (reconcile 2026-07-16):
+  `tests/test_docket_status.sh` Case B (~L919-950) mocks a config export that omits the key
+  and today asserts *"defaults to enabled — archived record DOES reach the integration
+  branch"* (L949). Flip that one assertion to prove the record does **not** reach `main`, and
+  **keep** the block's other two asserts (`sweep exits zero (no unbound-variable crash)`,
+  `sweep emits swept`) exactly as they are — Case B's reason for existing is the `set -u`
+  unbound-variable guard, which the `:-false` fallback still provides. Deleting it would drop
+  live coverage of a real crash hazard.
+  `test_closeout.sh`'s 0064 call-site sentinel is
   **unchanged in behavior** — it already forces every real call site to pass `--enabled`, so
   no in-repo caller's behavior can shift silently — but its `tests/`-exclusion comment
   (~L41-42) says tests "deliberately exercise the back-compat default-omitted-enabled path";

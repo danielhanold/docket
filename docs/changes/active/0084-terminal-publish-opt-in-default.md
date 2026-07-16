@@ -86,6 +86,15 @@ scope dropped.** Findings:
   (`ENABLED="true"`), `docket-status.sh:389` (`--enabled "${TERMINAL_PUBLISH:-true}"`).
   Nothing was done elsewhere; change 0079's runner-delegation rework (ADRs 37/38) does not
   touch this surface.
+- **A FOURTH default-encoding site the spec's code section missed** — found only by the
+  whole-repo grep the LEARNINGS ledger mandates (0064 itself hand-listed prose sites and
+  missed the executable sweep site, so `terminal_publish: false` would have kept publishing
+  on every sweep). `tests/test_docket_status.sh` Case B (~L919-950) mocks a config export
+  that omits the key and asserts *"defaults to enabled — archived record DOES reach the
+  integration branch"*. It must be **inverted, not deleted**: the block exists to guard a
+  real `set -u` unbound-variable crash in `sweep_execute_one`, which `${TERMINAL_PUBLISH:-false}`
+  still guards. Its other two asserts stay verbatim. Full inventory is now pinned in the spec:
+  exactly **four** sites encode the default.
 - **Refinement — the fence tests would go vacuous.** `tests/test_docket_config.sh:578,594`
   probe the coordination-key fence by writing `terminal_publish: false` into the global /
   `.docket.local.yml` layer and asserting the resolved value "stays true". Once the default
