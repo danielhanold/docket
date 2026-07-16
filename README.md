@@ -474,8 +474,7 @@ The eight skills cover the full loop — create, groom, implement, finalize, rep
 ## Learnings — the loop's memory
 
 The repo gets smarter as changes ship. Every change that reaches `done` distills its close-out
-signals — PR review comments, merge-gate feedback, results findings — into a curated **finding**
-(zero is normal, and kills are never harvested).
+lessons into a curated **finding** (zero is normal, and kills are never harvested).
 
 - **Findings + a rendered index.** One file per lesson or consolidated family under
   `docs/changes/learnings/` on the metadata branch, plus a generated `README.md` index.
@@ -489,8 +488,9 @@ signals — PR review comments, merge-gate feedback, results findings — into a
 - **Controls.** `learnings.enabled` turns the subsystem off wholesale (a read/write gate, never a
   purge); `learnings.cap` sets the active-finding count past which docket flags "needs curation".
 
-Mechanics — the finding schema, the harvest's write moments, the promotion states — live in the
-`docket-convention` skill's *Learnings ledger* section, which is their single source.
+Mechanics — the finding schema and the promotion states — live in the `docket-convention` skill's
+*Learnings ledger* section, which is their single source; the harvest procedure itself is
+`docket-finalize-change`'s Step 2.5.
 
 ---
 
