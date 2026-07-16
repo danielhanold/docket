@@ -185,9 +185,9 @@ adrs_dir: docs/adrs          # default
 results_dir: docs/results    # default
 auto_groom: false            # repo default for autonomous grooming; per-change auto_groomable overrides
 board_surfaces: [inline]     # derived board views: inline (BOARD.md) and/or github; [] disables the board
-terminal_publish: true       # default: copy a closed change's record (change file, spec, Accepted ADRs)
-                             # onto the integration branch. false = keep it all on the metadata branch,
-                             # for repos where every write to the integration branch must go via a PR
+terminal_publish: false      # default: a closed change's record (change file, spec, Accepted ADRs)
+                             # stays on the metadata branch. true = ALSO copy it onto the integration
+                             # branch in a direct commit — opt in only if direct pushes suit your workflow
 # github_project: {owner: <o>, number: <n>}  # Projects v2 board; minted + written back on first github sync
 finalize:                    # merge gate: rebase onto base + re-test before docket merges
   gate: local                # local (default) | ci | both | off
@@ -326,27 +326,38 @@ Git checks out one branch per folder. To write a file that lives on `docket` whi
 
 ### Finalize → selective publish
 
-On a **terminal transition** — a change reaching `done` (PR merged) or `killed` (abandoned) — the driving skill by default copies that change's terminal records onto the integration branch in one dedicated commit: the archived change file, its spec (if any), and the **`Accepted`** ADRs from its manifest, sourced from `origin/docket`. This is a selective **file copy**, never a branch merge, so none of the planning churn comes with it. The **live board stays on `docket`** and is never published. The result: your code history reads as code plus a clean trail of closed-out changes, while the working backlog churns entirely on `docket`.
+On a **terminal transition** — a change reaching `done` (PR merged) or `killed` (abandoned) — the driving skill archives that change on `docket`. A repo that opts in with `terminal_publish: true` (see below) *also* copies the change's terminal records onto the integration branch in one dedicated commit: the archived change file, its spec (if any), and the **`Accepted`** ADRs from its manifest, sourced from `origin/docket`. That copy is selective — a **file copy**, never a branch merge — so none of the planning churn comes with it, and the **live board stays on `docket`** and is never published. The result for a repo that opts in: your code history reads as code plus a clean trail of closed-out changes, while the working backlog churns entirely on `docket`.
 
-### Keeping metadata off the integration branch (`terminal_publish`)
+### Publishing terminal records to the integration branch (`terminal_publish`, opt-in)
 
-By default, when a change reaches a terminal state docket copies its record — the archived change
-file, its spec, and its `Accepted` ADRs — from the `docket` branch onto the integration branch in a
-direct commit. In a repo where **every** write to the integration branch is expected to go through a
-pull request, that direct commit fights the workflow.
+By default docket keeps **all** metadata on the `docket` branch. When a change reaches a terminal
+state its record — the archived change file, its spec, and its `Accepted` ADRs — stays there, and
+the integration branch accumulates **only** code, plans, and results, every one of them through a
+pull request.
 
-Set `terminal_publish: false` in the repo's committed `.docket.yml` to suppress it:
+Opt in by setting `terminal_publish: true` in the repo's committed `.docket.yml`:
 
 ```yaml
-terminal_publish: false   # keep change files, specs, and ADRs on the docket branch
+terminal_publish: true   # ALSO copy closed change files, specs, and ADRs onto the integration branch
 ```
 
-Then the integration branch accumulates **only** code, plans, and results — all through PRs — while
-change files, specs, and ADRs live on `docket`, fully browsable there. The knob gates both publish
-shapes: the change close-out *and* `docket-adr`'s ADR publish. It is **per-repo-only** (a
-machine-scoped value is warned-and-ignored), because the headless `docket-status` merge sweep must
-see the same policy as every other agent. It is inert in `main`-mode, and it never retroactively
-removes records already published.
+Each terminal transition then adds one direct commit to the integration branch carrying that
+change's record, and `docket-adr` publishes `Accepted` ADRs the same way — so the code history
+reads as code plus a clean trail of closed-out changes and decisions, browsable without switching
+branches.
+
+**Opt in deliberately — `true` writes to your code line.** It pushes machine commits **directly**
+to the integration branch, bypassing PRs: that fights branch protection on a protected or PR-only
+branch, and an autonomous agent's push can be denied mid-run by a permission classifier. A publish
+that fails can also gap **silently** — the record simply never arrives, with nothing flagging its
+absence. Leave the key unset unless direct commits on the integration branch genuinely suit your
+workflow.
+
+The knob gates both publish shapes: the change close-out *and* `docket-adr`'s ADR publish. It is
+**per-repo-only** (a machine-scoped value is warned-and-ignored), because the headless
+`docket-status` merge sweep must see the same policy as every other agent. It is inert in
+`main`-mode, and it is never retroactive — it neither removes records already published nor
+back-fills ones it skipped.
 
 ### `main`-mode: the single-branch opt-out
 
