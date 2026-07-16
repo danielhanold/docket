@@ -39,7 +39,8 @@ command -v "$CODEX_BIN" >/dev/null 2>&1 || die "codex CLI not on PATH — instal
 # first-line capture kept variable-side to stay pipefail-safe — LEARNINGS)
 skills_line="$(sed -n 's/^skills:[[:space:]]*\[\(.*\)\].*/\1/p' "$SRC")"
 skills_line="$(head -n1 <<<"$skills_line" | tr ',' ' ')"
-skills_line="$(echo $skills_line)"
+# collapse whitespace + trim WITHOUT word-splitting/globbing (a bare `echo $x` would glob-expand)
+skills_line="$(printf '%s' "$skills_line" | tr -s '[:space:]' ' ' | sed 's/^ *//; s/ *$//')"
 # body = everything after the second frontmatter fence
 body="$(awk '/^---[[:space:]]*$/{d++; next} d>=2{print}' "$SRC")"
 prompt=""
@@ -64,6 +65,9 @@ fi
 # --- flag mapping -----------------------------------------------------------------
 SANDBOX="${DOCKET_RUNNER_CFG_SANDBOX:-workspace-write}"
 NETWORK="${DOCKET_RUNNER_CFG_NETWORK:-true}"
+# network is a boolean gate below; a non-boolean value must fail loud, never silently
+# disable network (explicit config is never silently ignored — same posture as the facade).
+case "$NETWORK" in true|false) ;; *) die "runners.codex.network must be 'true' or 'false' (got '$NETWORK')" ;; esac
 case "$EFFORT" in max) EFFORT="xhigh" ;; esac   # codex's reasoning-effort vocabulary tops out at xhigh
 
 cmd=( "$CODEX_BIN" exec -C "$DOCKET_REPO_ROOT" --sandbox "$SANDBOX" --color never )
