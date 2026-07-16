@@ -33,8 +33,12 @@ assert "convention keeps the LEARNINGS.md stub pointer" 'grep -qF "remains as a 
 # (b) the harvest procedure: single-sourced in finalize, referenced by status
 assert "finalize carries the harvest step" \
   'grep -qF "Harvest learnings" "$REPO/skills/docket-finalize-change/SKILL.md"'
-assert "finalize has the idempotency probe" \
-  'grep -qF "already cites" "$REPO/skills/docket-finalize-change/SKILL.md"'
+assert "finalize's idempotency probe keys on the changes: list" \
+  'grep -qF "already contains this change" "$REPO/skills/docket-finalize-change/SKILL.md"'
+assert "finalize gates the harvest on learnings.enabled" \
+  'grep -qF "learnings disabled — harvest skipped" "$REPO/skills/docket-finalize-change/SKILL.md"'
+assert "finalize re-renders the index through the facade" \
+  'grep -qF "docket.sh render-learnings-index" "$REPO/skills/docket-finalize-change/SKILL.md"'
 assert "status sweep invokes the harvest by reference" \
   'grep -qF "Harvest learnings" "$REPO/skills/docket-status/SKILL.md" && grep -qF "docket-finalize-change" "$REPO/skills/docket-status/SKILL.md"'
 
