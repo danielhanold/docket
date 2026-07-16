@@ -22,6 +22,7 @@ What you get:
 - [docket-mode: where metadata lives](#docket-mode-where-metadata-lives)
 - [Tuning agent models & effort](#tuning-agent-models--effort)
 - [The eight skills](#the-eight-skills)
+- [Learnings — the loop's memory](#learnings--the-loops-memory)
 - [Customization](#customization)
 - [Status](#status)
 - [Migration](#migration)
@@ -467,6 +468,29 @@ The eight skills cover the full loop — create, groom, implement, finalize, rep
 | `docket-status` | Board and janitor — regenerates `BOARD.md`, sweeps merged PRs to `done`, and runs health checks for stale claims, broken links, and dependency stalls. |
 | `docket-adr` | Immutable decision ledger — records architecture decisions, handles supersessions and reversals, and maintains the ADR index. |
 | `docket-convention` | Shared contract, pure reference — single source of the docket convention (configuration, layout, manifest, lifecycle, build-readiness, bootstrap guard, branch model); every operating skill loads it as its blocking Step 0. |
+
+---
+
+## Learnings — the loop's memory
+
+The repo gets smarter as changes ship. Every change that reaches `done` distills its close-out
+signals — PR review comments, merge-gate feedback, results findings — into a curated **finding**
+(zero is normal, and kills are never harvested).
+
+- **Findings + a rendered index.** One file per lesson or consolidated family under
+  `docs/changes/learnings/` on the metadata branch, plus a generated `README.md` index.
+- **Pay per relevance.** Groom, plan, and review load the index — a small hint surface — and pull
+  only the findings that bear on the change at hand, instead of paying for the whole history on
+  every run.
+- **Human-gated promotion.** A rule that must fire unprompted graduates into `AGENTS.md`/`CLAUDE.md`,
+  where it is always in context; the finding then stops taxing the retrieval surface. docket
+  proposes the candidate — it never edits your always-in-context file, and never auto-merges its
+  own memory.
+- **Controls.** `learnings.enabled` turns the subsystem off wholesale (a read/write gate, never a
+  purge); `learnings.cap` sets the active-finding count past which docket flags "needs curation".
+
+Mechanics — the finding schema, the harvest's write moments, the promotion states — live in the
+`docket-convention` skill's *Learnings ledger* section, which is their single source.
 
 ---
 

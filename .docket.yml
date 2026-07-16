@@ -23,6 +23,23 @@ finalize:
   #                             #   unapproved PR (reviewDecision != APPROVED), surfacing it instead.
   #                             #   An explicit `docket-finalize-change <id>` always overrides this.
 
+# The learnings subsystem (change 0067) — the build loop's memory. Findings live in
+# <changes_dir>/learnings/ (one curated finding per file) with a GENERATED README.md index;
+# groom/plan/review load the index and pull only relevant findings. Both keys are global-able
+# (settable in ~/.config/docket/config.yml or .docket.local.yml).
+#   enabled: false turns the WHOLE subsystem off — readers skip (zero token cost), the harvest
+#     no-ops with a one-line note, and the index is never rendered. It is a read/write GATE, never
+#     a purge: existing learnings/ files are left untouched and re-enabling resumes from them.
+#     Note: because the harvest is one-shot at close-out, a change that closes on a disabled
+#     machine is permanently un-harvested — a deliberate, bounded cost.
+#   cap: the ACTIVE-finding count (retained + candidate; promoted ones don't count) past which
+#     docket flags "needs curation". docket never auto-merges its own memory — you curate.
+# This repo runs the defaults, so the block stays commented out.
+#
+# learnings:
+#   enabled: true
+#   cap: 300
+
 # Which derived board view(s) to render. A list; [] disables the board entirely.
 #   inline  → BOARD.md on the metadata branch (offline-safe, committed)
 #   github  → one-way GitHub Issues + Projects v2 mirror (scripts/github-mirror.sh)

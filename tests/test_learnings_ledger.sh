@@ -95,5 +95,17 @@ for s in "build-loop memory" "will the agent know to search for this?"; do
   done
 done
 
+# (e) end-to-end surfacing — LEARNINGS #49: a knob is not done when it merely works
+assert "the sample .docket.yml carries the learnings block" \
+  'grep -qE "^# learnings:$" "$REPO/.docket.yml"'
+assert "the sample documents both keys" \
+  'grep -qE "^#   enabled: true$" "$REPO/.docket.yml" && grep -qE "^#   cap: 300$" "$REPO/.docket.yml"'
+assert "README presents learnings as a feature" 'grep -qF "## Learnings — the loop" "$REPO/README.md"'
+assert "README points at the convention rather than restating mechanics" \
+  'grep -qF "single source" "$REPO/README.md"'
+assert "AGENTS.md exists as the promotion destination" '[ -f "$REPO/AGENTS.md" ]'
+assert "AGENTS.md states the tiering criterion" \
+  'grep -qF "will the agent know to search for this?" "$REPO/AGENTS.md"'
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
