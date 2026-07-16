@@ -1,6 +1,6 @@
 # Backlog
 
-**82 changes** — 🟢 1 in progress · 🟡 9 proposed · 🔴 1 blocked · ✅ 67 done · 🗑️ 4 killed
+**83 changes** — 🟢 1 in progress · 🟡 10 proposed · 🔴 1 blocked · ✅ 67 done · 🗑️ 4 killed
 
 ## 🟢 In progress (1)
 
@@ -8,7 +8,7 @@
 |---|-------|----------|------|--------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | [spec](../superpowers/specs/2026-07-15-codex-cli-validation-runbook-design.md) | `feat/codex-cli-validation-runbook` |
 
-## 🟡 Proposed (9)
+## 🟡 Proposed (10)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -21,6 +21,7 @@
 | [0062](active/0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | `low` | needs-brainstorm |
 | [0067](active/0067-learnings-promotion-destination.md) | Give the learnings ledger a promotion destination — it has no way to shrink | `medium` | needs-brainstorm |
 | [0082](active/0082-global-harnesses-per-repo-generation.md) | Global agent_harnesses doesn't reach per-repo generation — silent no-op | `low` | needs-brainstorm |
+| [0083](active/0083-terminal-publish-gap-detection.md) | A terminal record can silently never reach the integration branch — investigate #0043's gap and decide on detection | `medium` | auto-groom blocked — needs you |
 
 ## 🔴 Blocked (1)
 
@@ -41,6 +42,7 @@ graph TD
   0067
   0077 --> 0078
   0082
+  0083
   0001:::done
   0002:::done
   0003:::done
