@@ -42,7 +42,7 @@ No claim is taken — see *Concurrency — no claim* below.
 
 ### Step 2 — Scan related context
 
-Read the neighbouring `active/` changes, recently archived changes, the ADR index, and `<changes_dir>/LEARNINGS.md` BEFORE the brainstorm, so the conversation is informed by adjacent work and past lessons. Record the resulting `related:`/`depends_on:`/`adrs:` updates after the design settles.
+Read the neighbouring `active/` changes, recently archived changes, and the ADR index BEFORE the brainstorm, so the conversation is informed by adjacent work. Read the learnings index `<changes_dir>/learnings/README.md` BEFORE the brainstorm and pull any findings whose hook bears on the stub, so the conversation is informed by adjacent work and past lessons (skipped entirely when `learnings.enabled` is `false`). Record the resulting `related:`/`depends_on:`/`adrs:` updates after the design settles.
 
 ### Step 3 — Recap, then groom with the human
 

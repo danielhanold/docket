@@ -50,11 +50,20 @@ assert "status documents the index self-heal as a derived view" \
 assert "status documents both needs-you advisories" \
   'grep -qF "over-cap" "$REPO/skills/docket-status/SKILL.md" && grep -qF "promotion-pending" "$REPO/skills/docket-status/SKILL.md"'
 
-# (c) the readers
-assert "implement-next reads the ledger at plan time and review" \
-  '[ "$(grep -cF "LEARNINGS.md" "$REPO/skills/docket-implement-next/SKILL.md")" -ge 2 ]'
-assert "groom-next reads the ledger in scan-context" \
-  'grep -qF "LEARNINGS.md" "$REPO/skills/docket-groom-next/SKILL.md"'
+# (c) the readers — the two-step index-first read contract, at all three hot moments
+assert "implement-next reads the index at plan time AND review" \
+  '[ "$(grep -cF "learnings/README.md" "$REPO/skills/docket-implement-next/SKILL.md")" -ge 2 ]'
+assert "implement-next gates its reads on learnings.enabled" \
+  '[ "$(grep -cF "learnings.enabled" "$REPO/skills/docket-implement-next/SKILL.md")" -ge 2 ]'
+assert "groom-next reads the index before the brainstorm" \
+  'grep -qF "learnings/README.md" "$REPO/skills/docket-groom-next/SKILL.md"'
+assert "groom-next gates its read on learnings.enabled" \
+  'grep -qF "learnings.enabled" "$REPO/skills/docket-groom-next/SKILL.md"'
+# No reader may still point at the retired single-file ledger as a READ target.
+for sk in docket-implement-next docket-groom-next; do
+  assert "$sk no longer reads the retired LEARNINGS.md" \
+    '! grep -qEi "read .*LEARNINGS\.md" "$REPO/skills/$sk/SKILL.md"'
+done
 
 # (d) anti-restatement sentinels — contract phrases live ONLY in the convention
 for s in "build-loop memory" "will the agent know to search for this?"; do
