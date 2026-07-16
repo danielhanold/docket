@@ -2,10 +2,10 @@
 id: 79
 slug: codex-runner-delegation
 title: Cross-harness runner delegation framework (first runner — OpenAI Codex)
-status: implemented
+status: done
 priority: medium
 created: 2026-07-15
-updated: 2026-07-15
+updated: 2026-07-16
 depends_on: []
 related: [16, 44, 45, 46, 61, 62, 77, 78]
 adrs: [15, 37, 38]
