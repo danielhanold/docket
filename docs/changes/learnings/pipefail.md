@@ -4,9 +4,9 @@ hook: "Never producer | early-exiting-consumer under set -o pipefail — capture
 topics: [shell, pipefail, testing]
 changes: [11, 16, 46]
 created: 2026-06-16
-updated: 2026-07-08
-promotion_state: candidate
-promoted_to:
+updated: 2026-07-16
+promotion_state: promoted
+promoted_to: AGENTS.md
 ---
 
 ## Apply

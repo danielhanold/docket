@@ -4,9 +4,9 @@ hook: "Before rewriting a marker-delimited managed block, validate marker order 
 topics: [shell, markers, dataloss]
 changes: [51, 57]
 created: 2026-07-10
-updated: 2026-07-11
-promotion_state: candidate
-promoted_to:
+updated: 2026-07-16
+promotion_state: promoted
+promoted_to: AGENTS.md
 ---
 
 ## Apply

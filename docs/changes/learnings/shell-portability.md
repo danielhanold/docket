@@ -4,9 +4,9 @@ hook: "Treat awk whitespace classes, --leading grep patterns, and symlinked temp
 topics: [shell, grep, awk]
 changes: [25, 38, 46, 71]
 created: 2026-06-19
-updated: 2026-07-14
-promotion_state: candidate
-promoted_to:
+updated: 2026-07-16
+promotion_state: promoted
+promoted_to: AGENTS.md
 ---
 
 ## Apply

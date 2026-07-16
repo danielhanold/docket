@@ -5,8 +5,8 @@ topics: [testing, sentinels, mutation]
 changes: [14, 15, 21, 36, 37, 64, 65, 67, 68, 69, 70, 71, 72, 73, 74, 84]
 created: 2026-06-17
 updated: 2026-07-16
-promotion_state: candidate
-promoted_to:
+promotion_state: promoted
+promoted_to: AGENTS.md
 ---
 
 ## Apply

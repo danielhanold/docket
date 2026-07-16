@@ -4,9 +4,9 @@ hook: "Quote any hand-authored scalar carrying a colon-space or a boolean keywor
 topics: [yaml, frontmatter, config]
 changes: [5, 15]
 created: 2026-06-10
-updated: 2026-06-17
-promotion_state: candidate
-promoted_to:
+updated: 2026-07-16
+promotion_state: promoted
+promoted_to: AGENTS.md
 ---
 
 ## Apply
