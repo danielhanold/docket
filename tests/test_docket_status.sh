@@ -916,11 +916,12 @@ assert "0064 gate(disabled): the sweep still cleaned up the feature worktree" \
 assert "0064 gate(disabled): the sweep still deleted the remote feature branch" \
   '! git -C "$gate_dir/work" ls-remote --exit-code origin feat/gate-thing >/dev/null 2>&1'
 
-# Case B: TERMINAL_PUBLISH entirely UNSET by the config mock (not merely "true") — reproduces the
+# Case B: TERMINAL_PUBLISH entirely UNSET by the config mock (not merely "false") — reproduces the
 # exact hazard the fix guards against: sweep_execute_one runs under `set -u`, so a bare
 # $TERMINAL_PUBLISH would abort the sweep with an unbound-variable error under a stale/mocked
-# config export that doesn't emit the key. "${TERMINAL_PUBLISH:-true}" must default to enabled
-# instead, matching pre-0064 behavior.
+# config export that doesn't emit the key. "${TERMINAL_PUBLISH:-false}" must keep guarding that
+# crash (the `:-` expansion is the guard) while defaulting to DISABLED — change 0084: a repo that
+# never set the key must never get a direct machine commit on its integration branch.
 cat > "$tmp/fixture-gate-unset.sh" <<'EOF'
 #!/usr/bin/env bash
 printf '%s\n' \
@@ -946,8 +947,8 @@ assert "0064 gate(TERMINAL_PUBLISH unset): sweep exits zero (no unbound-variable
 assert "0064 gate(TERMINAL_PUBLISH unset): sweep emits swept" \
   'grep -qE "^swept 60 2026-07-11$" "$tmp/gate-enabled-out.txt"'
 git -C "$gate_dir2/work" fetch origin main >/dev/null 2>&1
-assert "0064 gate(TERMINAL_PUBLISH unset): defaults to enabled — archived record DOES reach the integration branch" \
-  'git -C "$gate_dir2/work" ls-tree -r --name-only origin/main | grep -q "docs/changes/archive/2026-07-11-0060-gate-thing.md"'
+assert "0084 gate(TERMINAL_PUBLISH unset): defaults to DISABLED — archived record does NOT reach the integration branch" \
+  '! git -C "$gate_dir2/work" ls-tree -r --name-only origin/main | grep -q "docs/changes/archive/2026-07-11-0060-gate-thing.md"'
 
 # health_checks: prefixes board-checks.sh's TSV findings as "check <id> <change-id> <message>".
 # Mock board-checks.sh via SCRIPTS_DIR — this is a pure formatting/plumbing test, not a
