@@ -63,6 +63,33 @@ env_abort="$(cd "$tmp" && bash "$FACADE" env 2>/dev/null)"; ea_rc=$?   # $tmp is
 assert "env aborts non-zero outside a repo" '[ "$ea_rc" -ne 0 ]'
 assert "env emits nothing on abort" '[ -z "$env_abort" ]'
 
+# --- (D.5) render-learnings-index: pure renderer, facade dispatch to the script ---
+LD="$tmp/learnings"; mkdir -p "$LD"
+# Seed with a minimal valid finding file
+cat > "$LD/example-finding.md" <<'FINDING'
+---
+slug: example-finding
+hook: "A one-line rule."
+topics: [testing]
+changes: [1]
+created: 2026-06-17
+updated: 2026-07-16
+promotion_state: retained
+promoted_to:
+---
+
+## Apply
+The rule.
+
+## War story
+- 2026-07-14 (#72, PR #79) — something happened.
+FINDING
+learning_out="$("$REPO/scripts/docket.sh" render-learnings-index --learnings-dir "$LD" 2>/dev/null)"
+assert "facade dispatches render-learnings-index" 'printf "%s" "$learning_out" | grep -qF "# Learnings"'
+rejection_out="$("$REPO/scripts/docket.sh" bogus-op 2>&1)"
+assert "render-learnings-index is listed in the rejection help text" \
+  'grep -qF "render-learnings-index" <<<"$rejection_out"'
+
 # --- (E) preflight: side effects (worktree) THEN prints the env block -------
 rm -rf "$work/.docket"
 pf_out="$(cd "$work" && XDG_CONFIG_HOME="$tmp/void" bash "$FACADE" preflight 2>/dev/null)"; pf_rc=$?
