@@ -13,7 +13,7 @@ tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
 stub="$tmp/stub-scripts"; mkdir -p "$stub"
 for h in docket-status board-refresh archive-change terminal-publish cleanup-feature-branch \
          github-mirror sync-integration-branch render-change-links render-adr-index \
-         adr-checks board-checks docket-config; do
+         adr-checks board-checks docket-config setup-auto-approve; do
   printf '#!/usr/bin/env bash\necho "CALLED %s $*"\nexit 0\n' "$h" > "$stub/$h.sh"; chmod +x "$stub/$h.sh"
 done
 # a helper that exits with a chosen code to prove exit-code passthrough
@@ -27,6 +27,9 @@ assert "board-refresh routes to board-refresh.sh with args verbatim" \
   '[ "$out" = "CALLED board-refresh --changes-dir /x --surfaces inline github" ]'
 out="$(SCRIPTS_DIR="$stub" bash "$FACADE" archive-change --id 7 --slug foo 2>/dev/null)"
 assert "archive-change routes with args" '[ "$out" = "CALLED archive-change --id 7 --slug foo" ]'
+out="$(SCRIPTS_DIR="$stub" bash "$FACADE" setup-auto-approve --integration-branch main 2>/dev/null)"
+assert "setup-auto-approve routes to its helper with args" \
+  '[ "$out" = "CALLED setup-auto-approve --integration-branch main" ]'
 
 # --- (B) exit-code passthrough (unmasked) -----------------------------------
 SCRIPTS_DIR="$stub" bash "$FACADE" board-checks >/dev/null 2>&1; assert "helper exit code passes through" '[ $? -eq 7 ]'
