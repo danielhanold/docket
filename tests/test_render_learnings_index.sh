@@ -164,5 +164,95 @@ assert "Promoted appendix entries appear in sorted slug order" \
 assert "promoted-order assert is not vacuous (>=5 promoted findings seeded)" \
   '[ "$(grep -c . <<<"$promoted_rows")" -ge 5 ]'
 
+# (k) DEQUOTE ESCAPES — a double-quoted hook may itself contain YAML's own escapes (`\"`, `\\`);
+# a single-quoted hook may contain YAML's `''`; an unquoted or malformed value must pass through
+# unchanged, with no stray characters stripped. Own sandbox dir (not LD) so these fixtures don't
+# perturb the ORDER-ASSERT corpus above. Expected substrings are built with $'...' (interpreted
+# at define-time, not inside the eval'd assert string) to keep the escaping legible — grep
+# patterns embedded directly in an eval'd string would need a second layer of backslash-doubling
+# that is easy to get subtly wrong, which is exactly the class of bug this section guards against.
+DQ="$SB/dequote"; mkdir -p "$DQ"
+
+mkraw(){ # mkraw SLUG HOOK_LINE — HOOK_LINE is written VERBATIM after "hook:" (caller controls quoting)
+  cat >"$DQ/$1.md" <<EOF
+---
+slug: $1
+hook: $2
+topics: [misc]
+changes: [1]
+created: 2026-06-17
+updated: 2026-07-16
+promotion_state: retained
+promoted_to:
+---
+
+## Apply
+n/a
+EOF
+}
+
+mkraw dq-escaped-quote        '"Never \"fix\" a guard by widening it."'
+mkraw dq-escaped-backslash    '"A backslash: \\ in the middle of text."'
+mkraw dq-trailing-backslash   '"Trailing backslash before the close: \\"'
+mkraw dq-single-quoted        "'It''s a single-quoted rule.'"
+mkraw dq-unquoted-with-quotes 'He said "hi" and meant it.'
+mkraw dq-unterminated         '"unterminated'
+mkraw dq-escaped-final-quote  '"foo\"'
+
+qout="$("$R" --learnings-dir "$DQ")"
+
+bs=$'\\'                       # one literal backslash byte
+bs2=$'\\\\'                    # two literal backslash bytes (the "doubled" defect)
+bsq=$'\\"'                     # backslash immediately followed by a quote — a stray,
+                                # still-escaped byte sequence that must never survive dequoting
+exp_escaped_quote=$'Never "fix" a guard by widening it.'
+exp_escaped_backslash=$'A backslash: \\ in the middle of text.'
+exp_trailing_backslash=$'the close: \\'
+exp_single_quoted="It's a single-quoted rule."
+exp_unquoted=$'He said "hi" and meant it.'
+exp_unterminated=$'"unterminated'
+exp_escaped_final_quote=$'"foo\\"'         # last char IS a quote, but it's escaped (odd backslash
+                                            # run before it) — no real closing delimiter exists
+
+row="$(grep -F -- "dq-escaped-quote.md" <<<"$qout")"
+assert "escaped inner double-quotes render as real quotes" \
+  'grep -qF -- "$exp_escaped_quote" <<<"$row"'
+assert "escaped inner double-quotes leave no backslash byte" \
+  '! grep -qF -- "$bs" <<<"$row"'
+
+row="$(grep -F -- "dq-escaped-backslash.md" <<<"$qout")"
+assert "escaped backslash renders as a single backslash" \
+  'grep -qF -- "$exp_escaped_backslash" <<<"$row"'
+assert "escaped backslash does not render doubled" \
+  '! grep -qF -- "$bs2" <<<"$row"'
+
+# The adjacency case: a literal backslash immediately before the CLOSING quote. A naive two-pass
+# unescape (a global \" -> " pass composed with a separate global \\ -> \ pass, rather than one
+# left-to-right pass) can regroup this wrong, either dropping the backslash or leaving a stray
+# quote byte behind.
+row="$(grep -F -- "dq-trailing-backslash.md" <<<"$qout")"
+assert "backslash-then-close-quote renders exactly one trailing backslash" \
+  'grep -qF -- "$exp_trailing_backslash" <<<"$row"'
+assert "backslash-then-close-quote does not render doubled" \
+  '! grep -qF -- "$bs2" <<<"$row"'
+assert "backslash-then-close-quote leaves no stray escaped-quote byte" \
+  '! grep -qF -- "$bsq" <<<"$row"'
+
+row="$(grep -F -- "dq-single-quoted.md" <<<"$qout")"
+assert "single-quoted '' escape renders as a real apostrophe" \
+  'grep -qF -- "$exp_single_quoted" <<<"$row"'
+
+row="$(grep -F -- "dq-unquoted-with-quotes.md" <<<"$qout")"
+assert "unquoted hook containing literal quotes is unchanged" \
+  'grep -qF -- "$exp_unquoted" <<<"$row"'
+
+row="$(grep -F -- "dq-unterminated.md" <<<"$qout")"
+assert "unterminated leading quote is not stripped" \
+  'grep -qF -- "$exp_unterminated" <<<"$row"'
+
+row="$(grep -F -- "dq-escaped-final-quote.md" <<<"$qout")"
+assert "an escaped (non-delimiting) final quote is not treated as a matched pair" \
+  'grep -qF -- "$exp_escaped_final_quote" <<<"$row"'
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"

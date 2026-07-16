@@ -41,7 +41,15 @@ Reached from a consuming repo as:
 **Dequoting.** `field()` returns the raw scalar with surrounding quotes intact. `hook:` is required
 to be quoted (it carries a colon-space, putting it in the YAML-scalar-that-must-be-quoted family),
 so the renderer strips the surrounding `"..."` or `'...'` before emitting it — otherwise the index
-would ship literal quote characters.
+would ship literal quote characters. Only a MATCHED outer pair is stripped: an unquoted value (even
+one that itself contains quote characters) or an unterminated/mismatched quote passes through
+unchanged, with no stray characters removed. A double-quoted scalar is also unescaped — a hook may
+itself discuss quoting (`hook: "Never \"fix\" a guard by widening it."`) — via one left-to-right
+pass recognizing YAML's `\"` -> `"` and `\\` -> `\`; a single-quoted scalar's only escape, `''` ->
+`'`, is likewise resolved. The unescape is a single pass, not two independent global substitutions,
+so that a literal backslash sitting immediately before the closing quote (`...\\"`) resolves as one
+escaped-backslash pair followed by the real delimiter, rather than letting a leftover backslash
+mis-pair with the quote.
 
 **Grouping.** Findings are partitioned by `promotion_state:`:
 
