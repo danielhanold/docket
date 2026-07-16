@@ -105,6 +105,8 @@ A value may not contain a literal `#` — it is treated as the start of an inlin
 | `board_surfaces` | `inline` | yes, minus `github` | YAML list `[a, b]` stripped of brackets/commas; **`[]` → the reserved token `none`** (change 0071 — an empty value is NEVER emitted; empty means "unresolved", a wiring bug); a `github` token arriving from either machine-scoped layer (repo-local or global) is dropped (Stage 2c), and a list left empty by that drop also resolves to `none` |
 | `auto_groom` | `false` | yes | resolves repo-local > repo-committed > global |
 | `terminal_publish` | `false` | no (fenced) | `true`/`false`; the default `false` makes `terminal-publish.sh` a no-op for BOTH shapes — archived change files, specs, and ADRs stay on the metadata branch. `true` opts in to the direct-commit publish onto the integration branch. Anything else aborts |
+| `learnings.enabled` | `true` | yes | read from the nested `learnings:` block; resolves repo-local > repo-committed > global |
+| `learnings.cap` | `300` | yes | read from the nested `learnings:` block; resolves repo-local > repo-committed > global |
 
 `github_project` and `agents:`/`agent_harnesses` are per-repo-only / not read by this script (see
 Stage 2b/2b'/2c below and `sync-agents.sh`'s own contract, respectively) — every other key above
@@ -121,6 +123,20 @@ built-in superpowers skill (`superpowers:brainstorming`, `superpowers:writing-pl
 sentinel `auto`). Leaves are read *within the block* (never as bare top-level keys). An unknown
 role key under `skills:`, in any of the three layers, is warned on stderr and ignored — never
 fatal.
+
+**`learnings:` (change 0067).** Reads the optional nested `learnings:` block and emits
+`LEARNINGS_ENABLED` and `LEARNINGS_CAP`. It is a nested block, and each leaf (`enabled`, `cap`)
+is read WITHIN the block via `yaml_block_body` — never as a bare top-level key. This is
+deliberate and unlike `finalize:`'s bare-leaf-key reads (`gate`, `test_command`), which are safe
+only because those leaf names are unusual; `enabled` and `cap` are generic words that any other
+present or future top-level block could shadow, so a bare read would risk picking up the wrong
+block's value. Per-field precedence is the same four-layer chain as everywhere else: repo-local
+> repo-committed > global > built-in (`true` / `300`). Both keys are global-able per ADR-0019 —
+unlike `terminal_publish`, they carry **no** coordination-key fence entry, since a machine-local
+disable only omits an enrichment write rather than producing conflicting shared state. Both
+fail closed on garbage: `enabled` must be exactly `true` or `false` (`yes`/`no` are rejected,
+since this repo has no YAML loader to interpret them as booleans); `cap` must be a non-negative
+integer. Either violation aborts the run with a diagnostic naming the dotted key.
 
 ### Stage 2b: global config layer (change 0050)
 
@@ -235,6 +251,8 @@ ADRS_DIR
 RESULTS_DIR
 FINALIZE_GATE
 FINALIZE_TEST_COMMAND
+LEARNINGS_ENABLED
+LEARNINGS_CAP
 BOARD_SURFACES
 AUTO_GROOM
 TERMINAL_PUBLISH
@@ -246,7 +264,7 @@ SKILL_FINISH
 BOOTSTRAP
 ```
 
-19 lines in `shell` format (unchanged); 20 in `plain` format, with `REPO_ROOT` inserted directly
+21 lines in `shell` format; 22 in `plain` format, with `REPO_ROOT` inserted directly
 after `METADATA_WORKTREE`. The last line is always `BOOTSTRAP=…`.
 
 **`REPO_ROOT` (change 0075) — plain format only.** The absolute path of the main worktree (the
@@ -297,7 +315,7 @@ emits no `KEY=value` output.
   post-write state, so the caller's `eval` sees `PROCEED` without a second invocation.
 - **`main`-mode skips the bootstrap guard entirely.** `DOCKET`/`LIVE` are not evaluated;
   `BOOTSTRAP` is always `PROCEED` in main-mode.
-- **19 `KEY=value` lines always emitted in the same order in `shell` format (20 in `plain`,
+- **21 `KEY=value` lines always emitted in the same order in `shell` format (22 in `plain`,
   `REPO_ROOT` inserted after `METADATA_WORKTREE` — change 0075).** Skills may rely on the order
   for pipe consumers, but should use the variable names (via `eval`) for correctness.
 - **The global layer never aborts a run.** Every global-file problem (misplaced, malformed,

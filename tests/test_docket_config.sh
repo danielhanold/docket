@@ -397,7 +397,7 @@ printf 'auto_groom: true\n' > "$tmp/q.home/.config/docket/config.yml"
 out="$(env -u XDG_CONFIG_HOME HOME="$tmp/q.home" bash "$SCRIPT" --repo-dir "$tmp/q" --export)"; eval "$out"
 assert "0050 Q: XDG unset -> \$HOME/.config fallback read"   '[ "$AUTO_GROOM" = true ]'
 
-# --- (E') emit-interface guard: still exactly 19 lines with a global file present ---
+# --- (E') emit-interface guard: still exactly 21 lines with a global file present ---
 n50="$(rung "$tmp/k.xdg" "$tmp/k" --export | grep -c '=')"
 assert "0050 E': still 21 KEY=value lines with global layer" '[ "$n50" -eq 21 ]'
 
