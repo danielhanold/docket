@@ -2,10 +2,10 @@
 id: 33
 slug: adr-index-main-maintenance
 title: Decide how the ADR index is maintained on the integration branch
-status: proposed
+status: killed
 priority: medium
 created: 2026-06-20
-updated: 2026-06-20
+updated: 2026-07-16
 depends_on: [30]
 related: [30, 22]
 adrs: [1, 13]
@@ -137,3 +137,13 @@ section.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+## Why killed
+
+Obsoleted by change 0040 (done 2026-06-23, PR #50), which resolved this stub's open question and its stale-index symptom together.
+
+0040 chose option (b) — maintain the ADR index on the integration branch — and implemented the correct main-side variant this stub's auto-groom abstain called for: `terminal-publish.sh` re-renders `docs/adrs/README.md` from the *published branch's own* ADR set (`refresh_adr_index`, terminal-publish.sh:159) rather than copying docket's index verbatim, so no row can link to an ADR file that has not yet been published. It also re-renders deterministically on conflict instead of 3-way-merging, and asserts the index landed as a fail-closed postcondition.
+
+Verified 2026-07-16: `origin/main`'s index is current through ADR-0039. The sole diff against `origin/docket` is an ADR-0023 row, correctly absent from main because change 0044 is still `blocked` and the ADR file is not on main — the anti-dangling-link design working as intended.
+
+The stub's follow-on question (record the resulting convention as an ADR relating to ADR-0001/0013) was decided against by the owner on 2026-07-16: the index-maintenance model is a tooling fix, not an architecture decision.
