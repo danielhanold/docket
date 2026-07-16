@@ -2,7 +2,7 @@
 slug: enumerated-floor
 hook: "Every hand-written enumeration is a floor, not the set — derive the sites from a whole-repo grep, then treat that grep as a floor too."
 topics: [process, inventory, review]
-changes: [14, 32, 42, 52, 54, 56, 64, 71, 74, 84]
+changes: [14, 32, 42, 52, 54, 56, 64, 67, 71, 74, 84]
 created: 2026-06-12
 updated: 2026-07-16
 promotion_state: candidate
@@ -24,7 +24,7 @@ enumerated.
 
 ## War story
 - 2026-06-12 → 2026-07-16 (#14 PR #10; #32 PR #43; #42 PR #52; #56 PR #68; #64 PR #75; #52 PR #61;
-  #54 PR #66; #71 PR #81; #74 PR #82; #84 PR #90 — merged, one enumerated-floor family) — **Every
+  #54 PR #66; #71 PR #81; #74 PR #82; #84 PR #90; #67 PR #91 — merged, one enumerated-floor family) — **Every
   hand-written enumeration is a floor, not the set** — of sites, of audit dimensions, of tests — and
   the miss always lands in the surface that mattered most.
   (a) **Sites.** A hand-listed "everywhere X appears" undercounted again and again: 4 test assertions
@@ -35,7 +35,15 @@ enumerated.
   the one **executable** invocation, in the headless merge sweep — precisely the agent the gate exists
   to serve. The same undercount hits a sentinel's own CORPUS: #71's structural sentinel scanned a file
   set that omitted `skills/docket-convention/github-board-mirror.md` — the one reference doc *about*
-  board surfaces (widened in review to `skills/*/*.md` + `skills/*/references/*.md`).
+  board surfaces (widened in review to `skills/*/*.md` + `skills/*/references/*.md`). #67 hit the same
+  shape **three times in one plan**, which is the useful part — the miss is not rare, it is the
+  default: the plan listed **3** learnings-reader sites and a whole-repo grep found **5**
+  (`docket-auto-groom` and `docket-brainstorm` would have been left silently reading a ledger that had
+  become a pointer stub — a dead read, shipped green); it listed **12** finding families for the
+  migration where the real derivation found **14**; and it listed **no** co-located script contracts
+  when **three** (`docket-config.md`, `docket.md`, `docket-status.md`) were stale and needed fixing.
+  A plan's enumeration is a floor even when the plan is fresh, specific, and written by someone who
+  just read the code.
   (b) **The grep that derives the inventory is itself a floor.** #84 inverted 0064's shape: its four
   EXECUTABLE default sites were derived by whole-repo grep and held exactly, while ~10 PROSE sites
   went unfixed — because the inventory grep used `--include="*.sh"` for the `TERMINAL_PUBLISH:-`

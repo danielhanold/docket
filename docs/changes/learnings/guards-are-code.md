@@ -2,7 +2,7 @@
 slug: guards-are-code
 hook: "A guard is code — mutation-test it (strip the feature, watch it go red) or it is decoration."
 topics: [testing, sentinels, mutation]
-changes: [14, 15, 21, 36, 37, 64, 65, 68, 69, 70, 71, 72, 73, 74, 84]
+changes: [14, 15, 21, 36, 37, 64, 65, 67, 68, 69, 70, 71, 72, 73, 74, 84]
 created: 2026-06-17
 updated: 2026-07-16
 promotion_state: candidate
@@ -18,7 +18,11 @@ rather than widening the first. Tokenize at the unit you claim to guard (the inv
 line), prove the tokenizer SEES the whole document before trusting it (assert the unit COUNT it
 found — a guard that parses nothing passes everything), and order-assert with byte offsets
 (`grep -ob`) when both anchors can share a line. Prove an assert can FIRE before trusting that it
-passes: run it against a tree where the guarded thing IS present. Three ways it is vacuous by
+passes: run it against a tree where the guarded thing IS present. Never fence an assert behind a
+condition DERIVED from the thing under test (`if grep -q "<the success line>"; then …`) — that fence
+goes false exactly when the branch degrades, so the mutation makes the assert VANISH rather than
+fail; assert unconditionally, and read the ok COUNT as part of the contract, because a mutation that
+lowers it while producing 0 NOT OK is a vacuous guard announcing itself. Three ways it is vacuous by
 construction — a pattern leading with `--` (always `grep -qF -- "$pat"`); an expected string you
 INVENTED rather than copied from the producer's real output (`%q`-formatted, quoted, escaped); and
 a probe value that COINCIDES with the default, so a fence/ignore test must always probe with the
@@ -39,8 +43,8 @@ lib. A snippet the PLAN hands you is unvetted code: mutation-test it like any as
 
 ## War story
 - 2026-06-17 → 2026-07-16 (#15 PR #32; #21 PR #34; #36 PR #47; #37 PR #48; #64 PR #75; #65 PR #74;
-  #69 PR #77; #68 PR #78; #72 PR #79; #70 PR #80; #71 PR #81; #74 PR #82; #73 PR #83; #84 PR #90 —
-  merged, one guards-are-code family) — A guard is code: mutation-test it (strip the feature, watch it
+  #69 PR #77; #68 PR #78; #72 PR #79; #70 PR #80; #71 PR #81; #74 PR #82; #73 PR #83; #84 PR #90;
+  #67 PR #91 — merged, one guards-are-code family) — A guard is code: mutation-test it (strip the feature, watch it
   go red) or it is decoration. Every way one has shipped GREEN while guarding nothing:
   (a) **Wrong anchor** — a broad keyword OR-set (`run the suite|validate|local`) latched onto an
   unintended EARLIER line.
@@ -96,3 +100,12 @@ lib. A snippet the PLAN hands you is unvetted code: mutation-test it like any as
   That change flipped the default to `false`, so the *ignored* value and the *default* coincided: the
   assert would then pass whether or not the fence worked. The fixtures now probe with `true`, and a
   reviewer mutation-test confirmed they redden when the fence is defeated.
+  (k) **Self-disabling fence — the asserts VANISH instead of failing** — #67 found a pre-existing test
+  whose strong asserts sat inside `if grep -q "board inline changed pushed"; then …`. That fence is
+  derived from the very branch under test, so it goes false *exactly* when the branch degrades:
+  breaking the regen callback yielded **234 ok → 232 ok with 0 NOT OK**. The guard did not fail, it
+  ceased to exist, and a pass/fail-only reading of the suite called that green. Two defenses, both
+  cheap: assert UNCONDITIONALLY (the fixed test now yields 3 real reddens and also catches a sibling
+  conflict-path mutation), and treat the **ok COUNT** as part of the contract — a mutation that lowers
+  it without producing a NOT OK is a vacuous guard announcing itself. Never fence an assert behind a
+  precondition the mutation you are testing can falsify.

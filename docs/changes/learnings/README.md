@@ -37,6 +37,7 @@ One curated finding per file; this index is the hint surface. Load it, then read
 
 ## shell
 
+- [atomic-generated-write](atomic-generated-write.md) — Never redirect a renderer straight into the file it generates — > truncates on open, so a failed render destroys the last-good file before its exit code is even read. · also: dataloss, generated ⟨needs promotion⟩
 - [conditional-mkdir-in-loop-aborts-run](conditional-mkdir-in-loop-aborts-run.md) — A conditional mkdir in a per-item loop needs || continue — under set -e a bad target aborts the ENTIRE run, not just that item. · also: errexit, loops
 - [escape-ere-metacharacters-in-key](escape-ere-metacharacters-in-key.md) — Escape ERE metacharacters in a key before building a grep -E match from it — and note the un-fixed twin of a duplicated helper. · also: grep, regex
 - [marker-block-range-edit](marker-block-range-edit.md) — Before rewriting a marker-delimited managed block, validate marker order and balance — presence alone lets the range consume to EOF. · also: markers, dataloss ⟨needs promotion⟩
