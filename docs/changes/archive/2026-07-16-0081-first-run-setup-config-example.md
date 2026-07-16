@@ -2,10 +2,10 @@
 id: 81
 slug: first-run-setup-config-example
 title: First-run setup — committed starter config + install.sh scaffolding + README Install restructure
-status: implemented
+status: done
 priority: medium
 created: 2026-07-15
-updated: 2026-07-15
+updated: 2026-07-16
 depends_on: []
 related: [50, 80]
 adrs: [39]
