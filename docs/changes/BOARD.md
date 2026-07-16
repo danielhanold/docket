@@ -1,6 +1,6 @@
 # Backlog
 
-**82 changes** — 🟢 1 in progress · 🟡 10 proposed · 🔴 1 blocked · ✅ 67 done · 🗑️ 3 killed
+**82 changes** — 🟢 1 in progress · 🟡 9 proposed · 🔴 1 blocked · ✅ 67 done · 🗑️ 4 killed
 
 ## 🟢 In progress (1)
 
@@ -8,7 +8,7 @@
 |---|-------|----------|------|--------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | [spec](../superpowers/specs/2026-07-15-codex-cli-validation-runbook-design.md) | `feat/codex-cli-validation-runbook` |
 
-## 🟡 Proposed (10)
+## 🟡 Proposed (9)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -18,7 +18,6 @@
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | needs-brainstorm |
 | [0018](active/0018-yq-yaml-parsing.md) | Evaluate adopting yq for YAML parsing across docket scripts | `low` | needs-brainstorm |
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
-| [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0062](active/0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | `low` | needs-brainstorm |
 | [0067](active/0067-learnings-promotion-destination.md) | Give the learnings ledger a promotion destination — it has no way to shrink | `medium` | needs-brainstorm |
 | [0082](active/0082-global-harnesses-per-repo-generation.md) | Global agent_harnesses doesn't reach per-repo generation — silent no-op | `low` | needs-brainstorm |
@@ -37,7 +36,6 @@ graph TD
   0010
   0016 --> 0018
   0015 --> 0019
-  0030 --> 0033
   0044
   0062
   0067
@@ -113,13 +111,14 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (70)</summary>
+<details><summary>✅🗑️ Archive — done + killed (71)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0081](archive/2026-07-16-0081-first-run-setup-config-example.md) | First-run setup — committed starter config + install.sh scaffolding + README Install restructure | 2026-07-16 |
 | [0079](archive/2026-07-16-0079-codex-runner-delegation.md) | Cross-harness runner delegation framework (first runner — OpenAI Codex) | 2026-07-16 |
 | [0077](archive/2026-07-16-0077-codex-harness-toml-agents.md) | Codex harness — TOML agent generation + AGENTS.md dispatch block | 2026-07-16 |
+| [0033](archive/2026-07-16-0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | 2026-07-16 |
 | [0080](archive/2026-07-15-0080-link-skills-create-harness-dir.md) | link-skills.sh creates a missing skills subdir when the harness is present | 2026-07-15 |
 | [0075](archive/2026-07-15-0075-cwd-independent-repo-root-anchor.md) | Anchor the repo root to the main worktree — CWD-independent scripts, a fail-closed cleanup guard, and a durable finalize posture | 2026-07-15 |
 | [0076](archive/2026-07-14-0076-cwd-independent-repo-root-resolution.md) | Resolve the repo root independently of CWD — preflight run inside `.docket` mints a nested metadata worktree | 2026-07-14 |
