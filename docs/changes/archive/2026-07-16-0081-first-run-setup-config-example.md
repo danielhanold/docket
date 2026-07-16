@@ -26,7 +26,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-15-first-run-setup-config-example-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-15-first-run-setup-config-example-design.md) |
-| Plan | [2026-07-15-first-run-setup-config-example.md](https://github.com/danielhanold/docket/blob/feat/first-run-setup-config-example/docs/superpowers/plans/2026-07-15-first-run-setup-config-example.md) |
+| Plan | [2026-07-15-first-run-setup-config-example.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-15-first-run-setup-config-example.md) |
 | PR | [#88](https://github.com/danielhanold/docket/pull/88) |
 | ADRs | [ADR-0039](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0039-config-example-mirrors-wrapper-defaults.md) |
 <!-- docket:artifacts:end -->
