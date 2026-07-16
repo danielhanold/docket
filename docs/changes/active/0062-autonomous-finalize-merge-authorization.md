@@ -46,6 +46,7 @@ Design: [2026-07-16 spec](../../superpowers/specs/2026-07-16-autonomous-finalize
 3. **`setup-auto-approve.sh`** (human-attended, one-time, via the `docket.sh` facade) — installs the workflow onto the integration branch and flips the repo's "Allow Actions to create and approve pull requests" setting via `gh api`.
 4. **`finalize.auto_approve` knob** (default `false`; coordination-key fenced, per-repo-only) — when `true`, finalize dispatches the workflow *after* the rebase-retest gate's force-push (so the approval covers the merged SHA), polls, verifies `reviewDecision: APPROVED`, merges **without** `--admin`; any failure is abort-and-report, never an `--admin` fallback. On `terminal_publish: true` repos a headless publish denial degrades to a surfaced manual follow-up, never a failed run.
 5. **ADR** (relates to ADR-0011): under `auto_approve`, approval proves "docket's pipeline signed off," not human review — `require_pr_approval: true` is incompatible-in-spirit; `Self-Approval` and the sensitive-content push arm survive untouched.
+6. **Setup guide** in the repo-global `docs/` directory, linked from the root `README.md` — prerequisites (token scopes, repo setting), the one-time setup run, the knob, and the documented limitations.
 
 `auto_groomable: false` was deliberate: granting standing permission to merge unreviewed code is a safety-policy decision — this stub was groomed by a human (2026-07-16).
 

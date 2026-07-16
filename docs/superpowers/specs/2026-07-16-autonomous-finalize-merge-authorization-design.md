@@ -77,6 +77,15 @@ One new ADR (`relates_to: [11]`, `change: 62`) recording:
 - What survives untouched: Claude Code's `Self-Approval` classifier and the sensitive-content arm (a) of `Git Push to Default Branch` — the Action can grant a review, it can neither manufacture human judgment nor push a secret.
 - The spike outcome (all three arms), so the next design that touches this area starts from verified ground.
 
+## Task 6 — setup documentation (spike-gated, like all product work)
+
+A detailed setup guide in the repo-global `docs/` directory (integration branch, ships with the feature PR — e.g. `docs/auto-approve-setup.md`), **linked from the repo-global `README.md`**, covering:
+
+- Prerequisites: repo admin, a classic `repo`-scoped token (fine-grained equivalents noted), the SSH-vs-HTTPS `workflow`-scope caveat, and the "Allow Actions to create and approve pull requests" setting the script flips.
+- The one-time `docket.sh setup-auto-approve` run — what it changes, how to verify it (the `gh api` read-back), and that it is idempotent.
+- Enabling `finalize.auto_approve: true` in `.docket.yml` and what finalize then does differently at merge time.
+- Limitations, honestly: CODEOWNERS repos unsupported, org Actions policy can override the repo setting, `require_pr_approval: true` becomes bot-satisfiable (link the Task 5 ADR), and the `terminal_publish: true` headless degradation.
+
 ## Out of scope
 
 - The autonomous **driver/loop** that invokes finalize headless (this change enables; the driver is separate work — the old "may pull the dispatcher back into scope" concern dissolved with the launch-flag route).
