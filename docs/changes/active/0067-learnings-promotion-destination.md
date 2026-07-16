@@ -2,7 +2,7 @@
 id: 67
 slug: learnings-promotion-destination
 title: Give the learnings ledger a promotion destination — it has no way to shrink
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-07-13
 updated: 2026-07-16
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/learnings-promotion-destination
 pr:
 blocked_by:
 reconciled: false
