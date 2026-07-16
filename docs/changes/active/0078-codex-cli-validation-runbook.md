@@ -10,7 +10,7 @@ depends_on: [77]
 related: [45]
 adrs: []
 spec: docs/superpowers/specs/2026-07-15-codex-cli-validation-runbook-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-16-codex-cli-validation-runbook.md
 results:
 trivial: false
 auto_groomable:
@@ -26,6 +26,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-15-codex-cli-validation-runbook-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-15-codex-cli-validation-runbook-design.md) |
+| Plan | [2026-07-16-codex-cli-validation-runbook.md](https://github.com/danielhanold/docket/blob/feat/codex-cli-validation-runbook/docs/superpowers/plans/2026-07-16-codex-cli-validation-runbook.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
