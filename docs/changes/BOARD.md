@@ -1,12 +1,6 @@
 # Backlog
 
-**84 changes** — 🟢 1 in progress · 🟡 9 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 68 done · 🗑️ 4 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0067](active/0067-learnings-promotion-destination.md) | Give the learnings ledger a promotion destination — it has no way to shrink | `medium` | [spec](../superpowers/specs/2026-07-16-learnings-promotion-destination-design.md) | `feat/learnings-promotion-destination` |
+**84 changes** — 🟡 9 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 68 done · 🗑️ 4 killed
 
 ## 🟡 Proposed (9)
 
@@ -28,10 +22,11 @@
 |---|-------|----------|------------|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | PR #69 is stale (predates the 0068/0072 facade rework and later agent-layer changes) and #0079 (runner delegation) reshapes the design — the build roles should grow a runner field (build.<role>.runner codex, the mixed topology 0079 deferred). Needs a rebase plus redesign pass before merge. |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
+| [0067](active/0067-learnings-promotion-destination.md) | Give the learnings ledger a promotion destination — it has no way to shrink | `medium` | [#91](https://github.com/danielhanold/docket/pull/91) |
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | [#89](https://github.com/danielhanold/docket/pull/89) |
 
 ```mermaid
