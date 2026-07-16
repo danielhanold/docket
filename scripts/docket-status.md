@@ -5,9 +5,10 @@
 One-invocation, deterministic orchestrator for the docket-status pass. It sequences the shared
 docket scripts (`docket-config.sh`, `render-board.sh`, `github-mirror.sh`, `archive-change.sh`,
 `render-change-links.sh`, `terminal-publish.sh`, `cleanup-feature-branch.sh`, `board-checks.sh`,
-`sync-integration-branch.sh`) inside one process and emits a single line-oriented report on
-stdout. It performs no mechanics of its own beyond sequencing and thin glue — each shared script
-still owns its own contract. Change 0058.
+`sync-integration-branch.sh`, `render-learnings-index.sh`) inside one process and emits a single
+line-oriented report on stdout. It performs no mechanics of its own beyond sequencing and thin
+glue — each shared script still owns its own contract. Change 0058; the learnings pass is change
+0067.
 
 ## Usage
 
@@ -36,7 +37,7 @@ config of its own.
 
 ## Behavior
 
-The pass runs as a fixed 8-step sequence:
+The pass runs as a fixed 9-step sequence:
 
 **1–2. Config, bootstrap gate, and metadata worktree ensure + sync — delegated.** Step-0 sync is
 delegated to the shared `scripts/lib/docket-preflight.sh` (`docket_preflight`), the single sync
@@ -104,15 +105,16 @@ path** and the placement is part of the contract:
   **state as-is** projection. That is what makes the "just show me the backlog" path useful in a
   board-off repo, where it previously did nothing at all. The process then prints `pass ok` and
   exits 0 — no sweep, health checks, judgment, or integration sync.
-- **On a full pass** it fires **after** steps 5–7, once the sweep and the check/judgment lines are
-  done: the **state after the pass** projection. **A change swept to `done` during this very pass
-  therefore appears in the digest as `done` — not as the `implemented` it was when the pass
-  began** — and is counted in `backlog done <n>`, never in `backlog implemented <n>`. A pre-sweep
-  snapshot would make the report contradict its own `swept` lines, and since the digest is the
-  sole backlog channel, that staleness would have no corrective path.
+- **On a full pass** it fires **after** steps 5–8, once the sweep, the check/judgment lines, and
+  the learnings pass are done: the **state after the pass** projection. **A change swept to
+  `done` during this very pass therefore appears in the digest as `done` — not as the
+  `implemented` it was when the pass began** — and is counted in `backlog done <n>`, never in
+  `backlog implemented <n>`. A pre-sweep snapshot would make the report contradict its own `swept`
+  lines, and since the digest is the sole backlog channel, that staleness would have no corrective
+  path.
 
 Report line order on a full pass is therefore: board → sweep lines → check/judgment lines →
-backlog digest → `pass ok`.
+learnings lines → backlog digest → `pass ok`.
 
 **5. Batched sweep detection.** `detect_merged` scans `active/*.md` for `status: implemented`
 changes, resolves each PR's merge state with one batched `gh api graphql` call keyed by change ID
@@ -166,7 +168,52 @@ change with `status: blocked`, leaving the actual re-examination judgment to the
 Both are best-effort/warn-only: a clean tree, or a `board-checks.sh` failure, produces no extra
 output and never aborts the pass.
 
-**8. Integration sync.** If step 6 swept at least one change (`swept ` line count ≥ 1), runs
+**8. Learnings pass (change 0067).** Runs `learnings_pass` — the learnings-index self-heal +
+two needs-you advisories — **only on the full path, never under `--board-only`** (the board's own
+dedicated entry point; adding unrelated learnings work to it would be wrong). It runs after step 7
+(health checks/judgment) and before the full-pass backlog digest (step 4's post-sweep firing), so
+report line order on a full pass is board → sweep lines → check/judgment lines → **learnings
+lines** → backlog digest → `pass ok`.
+
+- **Gate, checked FIRST, before anything else in this step:** `learnings.enabled` (`LEARNINGS_ENABLED`,
+  from `docket-config.sh`). When not `true`, the pass emits the single positive line `learnings
+  disabled` and returns — **the renderer is never invoked**, `learnings/` is never read or
+  written, and no advisories are computed. Deliberate positive evidence, not silence (the same
+  ADR-0028 lesson as `board off`/the backlog digest).
+- **No learnings directory.** When enabled but `<changes-dir>/learnings` does not exist, emits
+  `learnings index skipped (no learnings dir)` and returns — there are no finding files to render
+  or advise on, so skipping advisories here too is correct (this is the one early-return where
+  that's true).
+- **Index self-heal render.** Otherwise renders `<learnings-dir>/README.md` in place via
+  `render-learnings-index.sh` through the same atomic-write discipline as `board-refresh.sh`
+  (temp file on the same filesystem, non-empty check, `chmod 644`, rename) — the last-known-good
+  index is never truncated by a failed render. A render failure emits `learnings index failed`
+  and does **not** abort the pass. On success, commit + push uses the **same shared write-decision
+  helper as the board pass** (`commit_and_push_generated`, factored out in change 0067): commit
+  only if the render actually changed bytes, then push with the same bounded rebase-retry loop,
+  regenerating through `render-learnings-index.sh` (never a raw redirect or hand-merge) if a
+  rebase conflict touches the index. Reports one of `learnings index clean` / `learnings index
+  changed pushed` / `learnings index changed push-failed`, with the identical "clean tree is not
+  evidence of a push" discipline as `board inline clean` (change 0071 review, finding 3): a prior
+  run's locally-committed-but-unpushed index still falls through into the push/retry loop rather
+  than being reported clean.
+- **Advisories — fire independently of the render outcome (change 0067 review, finding 3).**
+  After the render step (success **or** failure — everywhere except the "no learnings dir" and
+  "disabled" returns above), `learnings_advisories` scans every `<learnings-dir>/*.md` file
+  (excluding `README.md`) and reads each one's `promotion_state` through the frontmatter lib
+  (never a bare grep, which cannot distinguish a `promotion_state: candidate` line from war-story
+  prose that happens to contain the word). A finding with no `promotion_state` defaults to
+  `retained`. **Cap counts ACTIVE findings only** — `retained` + `candidate`, never `promoted` (a
+  promoted finding is exactly what the shrink valve removes from the count):
+  - `learnings over-cap — needs curation (<n> active, cap <n>)` when active count exceeds
+    `LEARNINGS_CAP`.
+  - `learnings promotion-pending <n> — needs you` when at least one active finding has
+    `promotion_state: candidate`.
+  A broken renderer must not also mute these two needs-you channels — that would silence the
+  escalation precisely when something is already wrong — so they are computed from the finding
+  files, not gated on the render's own success.
+
+**9. Integration sync.** If step 6 swept at least one change (`swept ` line count ≥ 1), runs
 `sync-integration-branch.sh --integration-branch "$INTEGRATION_BRANCH"` once, best-effort
 (failures are swallowed). Skipped entirely when nothing was swept. Runs after the full-pass
 backlog digest and emits nothing on stdout, so it does not affect the report's line order.
@@ -188,6 +235,16 @@ backlog digest and emits nothing on stdout, so it does not affect the report's l
   worktree outrank a stale link block (change 0075).
 - **Health checks: warn-only.** Findings and judgments are reported, never enforced; the script
   never modifies a change file or blocks the pass because of a finding.
+- **Learnings pass: best-effort, but never silent, and never blind to a broken renderer.** Gated
+  FIRST on `learnings.enabled` — disabled emits exactly one `learnings disabled` line and touches
+  nothing. Enabled, a failed index render emits `learnings index failed` and never aborts the pass
+  (the last-known-good `README.md`, if any, is left untouched) — but the two needs-you advisories
+  (`learnings over-cap`, `learnings promotion-pending`) still fire on that path, since they are
+  computed from the finding files, not from the render outcome (change 0067 review, finding 3): a
+  broken renderer must not also mute the escalation channels precisely when something is already
+  wrong. Only the `disabled` and `no learnings dir` returns skip the advisories — the former
+  because the gate short-circuits everything, the latter because there are no finding files to
+  advise on.
 
 ## Output contract
 
@@ -214,6 +271,14 @@ All report lines are stdout, one shape per line, diagnostics go to stderr:
 | `sweep-skipped <reason>` | Batched merge detection itself was skipped (`gh-unavailable` or `repo-unresolved`); no changes were evaluated this pass. |
 | `check <check-id> <change-id> <message>` | One `board-checks.sh` finding, passed through with the `check` prefix. |
 | `judgment blocked <id> <text>` | Change `<id>` is `status: blocked`, with its `blocked_by:` text, for the caller to re-judge. |
+| `learnings disabled` | `learnings.enabled` resolved `false` — the pass is a total no-op: no render, no advisories, no read or write of `learnings/` at all. |
+| `learnings index skipped (no learnings dir)` | Learnings enabled, but `<changes-dir>/learnings` does not exist — nothing to render and no finding files to advise on. |
+| `learnings index failed` | The learnings index render failed; the existing `README.md` (if any) was left untouched (best-effort — the pass still continues). The two advisory lines below still fire on this path (change 0067 review, finding 3). |
+| `learnings index clean` | The rendered index matched the existing `README.md` AND there is nothing unpushed touching it — the same two-part attestation as `board inline clean`. |
+| `learnings index changed pushed` | The learnings index changed and the commit was pushed successfully. |
+| `learnings index changed push-failed` | The learnings index changed and committed locally, but push retries were exhausted or a rebase conflict outside the index forced an abort. |
+| `learnings over-cap — needs curation (<n> active, cap <n>)` | Active findings (`retained` + `candidate`, `promoted` excluded) exceed `learnings.cap` — needs human curation. Emitted whenever the render succeeded, failed, or was clean — never gated on the render outcome. |
+| `learnings promotion-pending <n> — needs you` | `<n>` active findings carry `promotion_state: candidate` — needs a human promotion decision. Same independence from the render outcome as the over-cap line above. |
 | `pass ok` | The orchestrator ran to completion. Always the last line of a successful pass; **stdout is never empty**. A hard error exits non-zero and never prints it, so it is a reliable completion signal. |
 
 ## Exit codes
@@ -238,10 +303,10 @@ All report lines are stdout, one shape per line, diagnostics go to stderr:
 - **No duplication of shared-script internals.** This script only sequences the shared scripts and
   translates/prefixes their output lines; it does not reimplement rendering, archiving, health
   checks, or publishing logic that already lives in `render-board.sh`, `archive-change.sh`,
-  `render-change-links.sh`, `terminal-publish.sh`, `cleanup-feature-branch.sh`, or
-  `board-checks.sh`.
+  `render-change-links.sh`, `terminal-publish.sh`, `cleanup-feature-branch.sh`,
+  `board-checks.sh`, or `render-learnings-index.sh`.
 - **Surface-specific failure postures.** See Failure postures above: board best-effort, sweep
-  per-change log-and-continue, health checks warn-only. No single surface's failure aborts another
+  per-change log-and-continue, health checks warn-only, learnings best-effort. No single surface's failure aborts another
   surface's work within the same pass.
 - **Mock seams.** `GIT="${GIT:-git}"`, `GH="${GH:-gh}"`, `SCRIPTS_DIR="${SCRIPTS_DIR:-$SELF_DIR}"`
   (where the chained scripts are looked up), and `CONFIG_EXPORT_CMD` (overrides the

@@ -540,7 +540,10 @@ learnings_advisories(){
 # indistinguishable from success" lesson change 0069/ADR-0028 already forced onto the backlog
 # digest, applied here. Same write decision as the board pass, via the SAME shared helper
 # (commit_and_push_generated): render in place, diff, commit only if changed, push with the
-# bounded rebase-retry loop.
+# bounded rebase-retry loop. The two needs-you advisories (learnings_advisories) fire on EVERY
+# path that has finding files to look at — including a failed render — because they are computed
+# from the finding files themselves, not from the render outcome; only the "enabled" gate and the
+# "no learnings dir" (nothing to advise on) cases skip them (change 0067 review, finding 3).
 learnings_pass(){
   if [ "${LEARNINGS_ENABLED:-true}" != "true" ]; then
     printf 'learnings disabled\n'
@@ -553,6 +556,12 @@ learnings_pass(){
 
   if ! learnings_regen_index "$ldir"; then
     printf 'learnings index failed\n'
+    # F3 (change 0067 review) — the two needs-you advisories below are computed from the finding
+    # FILES, independent of whether the index render succeeded; a broken renderer must not also
+    # mute the escalation channels precisely when something is already wrong. The "no learnings
+    # dir" branch above is different in kind (there are no finding files to advise on, so no
+    # advisories there is correct) — this is the one early-return that must still advise.
+    learnings_advisories "$ldir"
     return 0
   fi
 
