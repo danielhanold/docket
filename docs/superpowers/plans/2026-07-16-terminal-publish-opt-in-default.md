@@ -305,7 +305,7 @@ value still fails closed."
 **Files:**
 - Modify: `scripts/docket-status.sh:389`
 - Test: `tests/test_docket_status.sh:919-950` (Case B)
-- Modify: `tests/test_closeout.sh:41-42` (comment only)
+- Test: `tests/test_closeout.sh` — the ungated `$PUBLISH` fixture invocations (see Step 5), plus the exclusion comment at lines 41-42
 
 **Interfaces:**
 - Consumes: Task 2's `--enabled` contract (this call site always passes the flag explicitly, so it never exercises the omitted path).
@@ -313,7 +313,9 @@ value still fails closed."
 
 **Context you need — do NOT delete Case B.** It exists to guard a real crash: `sweep_execute_one` runs under `set -u`, so a bare `$TERMINAL_PUBLISH` would abort the whole sweep with an unbound-variable error whenever a stale or mocked config export omits the key. The `:-` fallback *is* that guard. Keep the expansion, flip only its value; keep the block's `exits zero (no unbound-variable crash)` and `emits swept` assertions verbatim, and invert only the direction assertion at line 949.
 
-`tests/test_closeout.sh` needs **no behavioral change**: its 0064 sentinel already requires every real call site (all of `skills/`, `scripts/*.sh`, root `*.sh`) to pass `--enabled`, which is exactly why no in-repo caller's behavior can shift silently under this flip. Only its `tests/`-exclusion comment describes the old semantics and needs rewording.
+**Correction (surfaced by Task 2's review — supersedes this plan's earlier claim that `test_closeout.sh` needs "no behavioral change"):** that claim was wrong, and the spec always said otherwise ("fixtures that relied on the implicit default now pass/pin `--enabled true` … so they keep testing the publish path"). After Task 2, **19 of `test_closeout.sh`'s 134 assertions are red**: its own `$PUBLISH` fixture invocations omit `--enabled`, so they now no-op instead of publishing. Step 5 repairs them; the spec governs over the plan's earlier text.
+
+What *is* still true: the suite's **0064 sentinel** — which requires every real call site (`skills/`, `scripts/*.sh`, root `*.sh`) to pass `--enabled` — needs no change and must stay green. It excludes `tests/`, which is exactly why the fixtures could drift ungated, and it remains the evidence that no in-repo *caller* shifts behavior under this flip.
 
 - [ ] **Step 1: Invert Case B's direction assertion and its comment (it should now fail)**
 
@@ -382,7 +384,21 @@ Run: `bash tests/test_docket_status.sh 2>&1 | tail -3`
 
 Expected: `PASS`. Case A (`0064 gate(disabled): …`, lines ~910-917) must stay green untouched.
 
-- [ ] **Step 5: Reword the closeout sentinel's exclusion comment**
+- [ ] **Step 5: Re-gate `test_closeout.sh`'s publish-path fixtures**
+
+Confirm the damage first — run `bash tests/test_closeout.sh 2>&1 | grep -c "NOT OK"`; expect `19`.
+
+Every `$PUBLISH` invocation in this suite that is meant to **actually publish** must now pass `--enabled true` explicitly, since the implicit default is gone. Add `--enabled true` to each such invocation, preserving its existing flags and line-wrapping.
+
+Three groups need care — do not blanket-add the flag:
+
+1. **Publish-path fixtures** (the `--id 7 …` and `--adr 3|5 …` invocations that assert a record lands on the integration branch, that a re-run is idempotent, that the ADR index refreshes, that a CAS conflict retries, …) — **add `--enabled true`**. These are the 19 red assertions.
+2. **Main-mode fixtures** (`--metadata-branch main`, e.g. lines ~257 and ~293, asserting the mode guard no-ops) — **add `--enabled true`**. They pass either way, but with the flag they assert something strictly stronger and truer to their name: main-mode no-ops *even when publishing is enabled*. Without it they would pass for the wrong reason (the omitted-flag no-op firing first).
+3. **Pure arg-validation fixtures** (e.g. `--id 7` with no `--outcome`; `--id 7 --adr 3` mutual exclusion; the bare invocation with neither `--id` nor `--adr`, around lines ~354-363) — **leave them alone**. They die during arg validation *before* the omitted-flag branch is reached, so they are green already and adding the flag would only obscure what they test.
+
+The suite's 0064 sentinel assertions (`0064 wiring: …`) must stay green and untouched throughout — they scan `skills/`/`scripts/`/root, never `tests/`.
+
+- [ ] **Step 5b: Reword the closeout sentinel's exclusion comment**
 
 In `tests/test_closeout.sh`, replace lines 41-42:
 
@@ -398,11 +414,13 @@ with:
 # omitted-`--enabled` loud no-op path — change 0084).
 ```
 
-- [ ] **Step 6: Run the closeout suite to verify it still passes**
+- [ ] **Step 6: Run the closeout suite to verify it is fully green**
 
 Run: `bash tests/test_closeout.sh 2>&1 | tail -3`
 
-Expected: `PASS`. This is a comment-only edit; the sentinel's behavior is unchanged and every real call site still passes `--enabled`.
+Expected: `PASS`, with zero `NOT OK` lines (down from 19).
+
+Sanity-check that you fixed the fixtures rather than the assertions: `git diff tests/test_closeout.sh` should show `--enabled true` additions to `$PUBLISH` invocations plus the one comment reword — and **no** changes to any `assert` line. If you find yourself editing an assertion to match the new behavior, stop: the publish path is supposed to still publish, and an assertion that stopped holding means the fixture, not the expectation, is wrong.
 
 - [ ] **Step 7: Commit**
 
@@ -412,7 +430,11 @@ git commit -m "feat(0084): merge sweep defaults terminal_publish to false
 
 Case B is inverted, not deleted: it guards a real set -u unbound-variable
 crash in sweep_execute_one, and the :- expansion is that guard — only the
-fallback value flips. Its no-crash and emits-swept assertions stay verbatim."
+fallback value flips. Its no-crash and emits-swept assertions stay verbatim.
+
+test_closeout.sh's publish-path fixtures now pass --enabled true explicitly
+(the implicit default is gone), keeping the publish path under test; its
+arg-validation fixtures are untouched, and its call-site sentinel stays green."
 ```
 
 ---
