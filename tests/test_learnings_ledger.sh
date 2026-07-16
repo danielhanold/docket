@@ -42,6 +42,14 @@ assert "finalize re-renders the index through the facade" \
 assert "status sweep invokes the harvest by reference" \
   'grep -qF "Harvest learnings" "$REPO/skills/docket-status/SKILL.md" && grep -qF "docket-finalize-change" "$REPO/skills/docket-status/SKILL.md"'
 
+# (b') change 0067 task 6: docket-status documents its own learnings pass (self-heal + advisories)
+assert "status documents the learnings enable gate" \
+  'grep -qF "learnings disabled" "$REPO/skills/docket-status/SKILL.md"'
+assert "status documents the index self-heal as a derived view" \
+  'grep -qF "render-learnings-index" "$REPO/skills/docket-status/SKILL.md"'
+assert "status documents both needs-you advisories" \
+  'grep -qF "over-cap" "$REPO/skills/docket-status/SKILL.md" && grep -qF "promotion-pending" "$REPO/skills/docket-status/SKILL.md"'
+
 # (c) the readers
 assert "implement-next reads the ledger at plan time and review" \
   '[ "$(grep -cF "LEARNINGS.md" "$REPO/skills/docket-implement-next/SKILL.md")" -ge 2 ]'

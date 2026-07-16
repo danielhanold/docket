@@ -96,46 +96,42 @@ board_pass(){
   done
 }
 
-board_pass_inline(){
-  local mw="$1" cd_dir="$2"
-  # $rel is BOARD.md's path RELATIVE TO $mw (the metadata worktree) — the form git -C "$mw"
-  # accepts (verified: a full "$mw/.../BOARD.md" pathspec fatals under git -C "$mw").
-  local rel="$CHANGES_DIR/BOARD.md"
-  # Render through the single gated inline-board primitive (board-refresh.sh, change 0059): it
-  # owns the atomic, truncation-safe write of BOARD.md (render to temp -> chmod 644 -> rename),
-  # so render-board.sh is reached ONLY via this helper. board_pass already gated on the `inline`
-  # token, so pass it verbatim; a render failure leaves the prior BOARD.md untouched.
-  if ! "$SELF_DIR"/board-refresh.sh --changes-dir "$cd_dir" --surfaces inline ${REPO_FLAG:+--repo "$REPO_FLAG"} >&2 2>&2; then
-    echo "docket-status: board render failed; keeping existing BOARD.md" >&2
-    # Change 0071 review, finding 1 — this used to `return 0` with nothing on stdout: exit 0, no
-    # `board …` line, no evidence at all. A must-land caller keying on the report line (never the
-    # exit code) would see silence and proceed as if the board had landed — exactly the
-    # silent-stale-board failure this whole change exists to kill, merely relocated here. The pass
-    # itself still isn't fatal (best-effort; `return 0` stands), but the LINE now carries the
-    # outcome so the report channel is never empty on this path. Terminal, not retryable — a
-    # render failure is not fixed by retrying.
-    echo "board inline failed"
-    return 0
-  fi
-  # board-refresh.sh wrote BOARD.md in place; commit + push only if it actually changed.
+# commit_and_push_generated MW REL COMMIT_MSG REGEN_FN REGEN_ARG — the shared write-decision
+# helper (change 0067), lifted out of board_pass_inline's own commit+push so a second generated
+# artifact (the learnings index, learnings_pass below) reuses the EXACT same discipline rather
+# than a second, parallel commit path: commit-only-if-changed, then push with a bounded
+# rebase-retry loop that regenerates REL in place (never hand-merges) on a conflict touching it.
+#
+# Carries forward the hard-won subtlety from change 0071 review, finding 3: a clean working tree
+# alone is NOT sufficient evidence REL reached the remote — a prior run may have committed REL
+# locally and then failed to push, in which case a re-invocation renders the same bytes, finds
+# nothing to commit, and must not report success without checking the remote. The no-op probe is
+# therefore keyed on unpushed commits touching REL (`@{u}..HEAD`, count > 0; no upstream at all
+# counts as nothing-to-push, not an error) — never on tree cleanliness alone.
+#
+# REL is MW-RELATIVE (the git -C "$mw" form the caller already resolved). The caller has ALREADY
+# rendered REL's new bytes in place before calling this. REGEN_FN is the name of a function this
+# file defines, taking REGEN_ARG as its sole positional argument, that re-renders REL in place —
+# byte-identically to the caller's own initial render — invoked ONLY when a rebase conflict
+# actually touches REL, so a conflict is regenerated through the same gated renderer rather than a
+# hand 3-way-merge.
+#
+# Echoes exactly one of: clean | changed-pushed | changed-push-failed
+commit_and_push_generated(){
+  local mw="$1" rel="$2" commit_msg="$3" regen_fn="$4" regen_arg="$5"
+
   if [ -z "$("$GIT" -C "$mw" status --porcelain -- "$rel" 2>/dev/null)" ]; then
-    # A clean working tree alone is NOT sufficient evidence the board landed on the remote
-    # (change 0071 review, finding 3): a prior run may have committed the board locally and then
-    # failed to push, in which case a re-invocation renders the same bytes, finds nothing to
-    # commit, and must not report success without checking the remote. Guard on whether the local
-    # branch actually carries an unpushed commit touching $rel. No upstream at all (`@{u}` fails)
-    # means there is nothing to compare against — treat that as nothing to push, not an error.
     local unpushed
     unpushed="$("$GIT" -C "$mw" rev-list --count '@{u}..HEAD' -- "$rel" 2>/dev/null)" || unpushed=0
     if [ "${unpushed:-0}" -eq 0 ]; then
-      echo "board inline clean"
+      printf 'clean\n'
       return 0
     fi
     # Working tree is clean (nothing to commit) but an existing commit touching $rel has never
     # reached the remote — fall through into the push/rebase retry loop below without committing.
   else
     "$GIT" -C "$mw" add "$rel" >&2
-    "$GIT" -C "$mw" commit -q -m "docket: board refresh" >&2 || true
+    "$GIT" -C "$mw" commit -q -m "$commit_msg" >&2 || true
   fi
 
   local attempt=0 pushed=0
@@ -146,11 +142,16 @@ board_pass_inline(){
       break
     fi
     if ! "$GIT" -C "$mw" pull --rebase >&2 2>&1; then
-      if "$GIT" -C "$mw" status --porcelain 2>/dev/null | grep -q "BOARD.md"; then
+      # Capture into a variable before grep -qF (never producer | early-exiting-consumer under
+      # `set -o pipefail` — grep -q can exit before git finishes writing, and pipefail would then
+      # surface git's SIGPIPE exit status instead of the match result).
+      local porcelain
+      porcelain="$("$GIT" -C "$mw" status --porcelain 2>/dev/null)"
+      if grep -qF -- "$rel" <<<"$porcelain"; then
         # Regenerate through the same gated primitive (never a raw redirect) so a rebase never
-        # leaves conflict markers or an empty/truncated board.
-        if ! "$SELF_DIR"/board-refresh.sh --changes-dir "$cd_dir" --surfaces inline ${REPO_FLAG:+--repo "$REPO_FLAG"} >&2 2>&2; then
-          echo "docket-status: board regeneration during rebase failed; aborting rebase" >&2
+        # leaves conflict markers or an empty/truncated file.
+        if ! "$regen_fn" "$regen_arg"; then
+          echo "docket-status: regeneration during rebase failed for $rel; aborting rebase" >&2
           "$GIT" -C "$mw" rebase --abort >&2 2>/dev/null || true
           pushed=-1
           break
@@ -164,10 +165,51 @@ board_pass_inline(){
     fi
   done
   if [ $pushed -eq 1 ]; then
-    echo "board inline changed pushed"
+    printf 'changed-pushed\n'
   else
-    echo "board inline changed push-failed"
+    printf 'changed-push-failed\n'
   fi
+}
+
+# board_regen_inline CD_DIR — re-renders BOARD.md in place through the single gated inline-board
+# primitive (board-refresh.sh, change 0059): it owns the atomic, truncation-safe write of
+# BOARD.md (render to temp -> chmod 644 -> rename), so render-board.sh is reached ONLY via this
+# helper. Used both for board_pass_inline's initial render and as commit_and_push_generated's
+# REGEN_FN callback on a rebase conflict — one render path, not two.
+board_regen_inline(){
+  local cd_dir="$1"
+  "$SELF_DIR"/board-refresh.sh --changes-dir "$cd_dir" --surfaces inline ${REPO_FLAG:+--repo "$REPO_FLAG"} >&2 2>&2
+}
+
+board_pass_inline(){
+  local mw="$1" cd_dir="$2"
+  # $rel is BOARD.md's path RELATIVE TO $mw (the metadata worktree) — the form git -C "$mw"
+  # accepts (verified: a full "$mw/.../BOARD.md" pathspec fatals under git -C "$mw").
+  local rel="$CHANGES_DIR/BOARD.md"
+  # board_pass already gated on the `inline` token; a render failure leaves the prior BOARD.md
+  # untouched.
+  if ! board_regen_inline "$cd_dir"; then
+    echo "docket-status: board render failed; keeping existing BOARD.md" >&2
+    # Change 0071 review, finding 1 — this used to `return 0` with nothing on stdout: exit 0, no
+    # `board …` line, no evidence at all. A must-land caller keying on the report line (never the
+    # exit code) would see silence and proceed as if the board had landed — exactly the
+    # silent-stale-board failure this whole change exists to kill, merely relocated here. The pass
+    # itself still isn't fatal (best-effort; `return 0` stands), but the LINE now carries the
+    # outcome so the report channel is never empty on this path. Terminal, not retryable — a
+    # render failure is not fixed by retrying.
+    echo "board inline failed"
+    return 0
+  fi
+  # board-refresh.sh wrote BOARD.md in place; commit + push only if it actually changed — via the
+  # shared write-decision helper (change 0067) so a second generated artifact (the learnings
+  # index) reuses the identical discipline rather than a parallel commit path.
+  local result
+  result="$(commit_and_push_generated "$mw" "$rel" "docket: board refresh" board_regen_inline "$cd_dir")"
+  case "$result" in
+    clean)          echo "board inline clean" ;;
+    changed-pushed) echo "board inline changed pushed" ;;
+    *)               echo "board inline changed push-failed" ;;
+  esac
 }
 
 board_pass_github(){
@@ -443,6 +485,89 @@ emit_judgment(){
   return 0
 }
 
+# learnings_regen_index LDIR — re-renders <ldir>/README.md atomically: temp file on the same
+# filesystem, non-empty check, chmod 644, then rename — mirroring board-refresh.sh's own
+# atomic-write discipline for BOARD.md (the pure renderer, render-learnings-index.sh, only ever
+# writes to stdout; this is the gated primitive that turns that stdout into an in-place file, so a
+# render failure never truncates/corrupts the last-good index). Used both for learnings_pass's
+# initial render and as commit_and_push_generated's REGEN_FN callback on a rebase conflict — one
+# render path, not two.
+learnings_regen_index(){
+  local ldir="$1" tmp
+  tmp="$(mktemp "$ldir/.learnings-index.XXXXXX")" || return 1
+  if ! "$SCRIPTS_DIR"/render-learnings-index.sh --learnings-dir "$ldir" >"$tmp" 2>/dev/null; then
+    rm -f "$tmp"
+    return 1
+  fi
+  if [ ! -s "$tmp" ]; then
+    rm -f "$tmp"
+    return 1
+  fi
+  chmod 644 "$tmp"
+  mv "$tmp" "$ldir/README.md"
+}
+
+# learnings_advisories LDIR — the two needs-you channels (ADR-0028's digest-is-a-report-channel
+# pattern, applied to the learnings subsystem): over-cap and promotion-pending. The cap counts
+# ACTIVE findings only — `retained` + `candidate`, never `promoted` — because a promoted finding
+# is precisely what the shrink valve removes from the count (convention, "Capacity"). Read
+# promotion_state through the frontmatter lib, keyed on shape — never a bare grep, which cannot
+# tell a `promotion_state: candidate` line from a war-story sentence that happens to contain the
+# same word.
+learnings_advisories(){
+  local ldir="$1" f state active=0 candidates=0
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    state="$(field "$f" promotion_state)"
+    state="${state:-retained}"
+    [ "$state" = "promoted" ] && continue
+    active=$((active + 1))
+    [ "$state" = "candidate" ] && candidates=$((candidates + 1))
+  done < <(find "$ldir" -maxdepth 1 -name '*.md' ! -name 'README.md' 2>/dev/null | sort)
+
+  if [ "$active" -gt "${LEARNINGS_CAP:-300}" ]; then
+    printf 'learnings over-cap — needs curation (%d active, cap %d)\n' "$active" "${LEARNINGS_CAP:-300}"
+  fi
+  [ "$candidates" -gt 0 ] && printf 'learnings promotion-pending %d — needs you\n' "$candidates"
+  return 0
+}
+
+# learnings_pass — the learnings-index self-heal + advisories (change 0067). Gated FIRST on
+# learnings.enabled — the gate short-circuits BEFORE cap is ever consulted, and the renderer is
+# NEVER invoked when disabled: a repo that turned learnings off gets zero reads and zero writes of
+# learnings/, and existing finding files are left byte-untouched (a read/write gate, never a
+# purge). The disabled note is deliberate positive evidence, not silence — the same "no line is
+# indistinguishable from success" lesson change 0069/ADR-0028 already forced onto the backlog
+# digest, applied here. Same write decision as the board pass, via the SAME shared helper
+# (commit_and_push_generated): render in place, diff, commit only if changed, push with the
+# bounded rebase-retry loop.
+learnings_pass(){
+  if [ "${LEARNINGS_ENABLED:-true}" != "true" ]; then
+    printf 'learnings disabled\n'
+    return 0
+  fi
+  local mw
+  mw="$(docket_metadata_worktree)"   # ABSOLUTE (change 0075) — see board_pass.
+  local ldir="$mw/$CHANGES_DIR/learnings"
+  [ -d "$ldir" ] || { printf 'learnings index skipped (no learnings dir)\n'; return 0; }
+
+  if ! learnings_regen_index "$ldir"; then
+    printf 'learnings index failed\n'
+    return 0
+  fi
+
+  local rel="$CHANGES_DIR/learnings/README.md"
+  local result
+  result="$(commit_and_push_generated "$mw" "$rel" "docket: learnings index refresh" learnings_regen_index "$ldir")"
+  case "$result" in
+    clean)          printf 'learnings index clean\n' ;;
+    changed-pushed) printf 'learnings index changed pushed\n' ;;
+    *)               printf 'learnings index changed push-failed\n' ;;
+  esac
+
+  learnings_advisories "$ldir"
+}
+
 # integration_sync — best-effort FF-only sync of the invoking repo's integration-branch
 # checkout, run once at the end of a pass that swept at least one change.
 integration_sync(){
@@ -474,6 +599,10 @@ main(){
 
   health_checks
   emit_judgment
+  # Change 0067: the learnings pass runs on the FULL path only — never under --board-only, which
+  # is the board's own dedicated entry point and is invoked by many callers as a must-land board
+  # write; adding unrelated learnings work to it would be wrong.
+  learnings_pass
   # Change 0069: on the FULL path the digest runs AFTER the sweep, so it is the "state after the
   # pass" projection — a change swept to done this pass is reported as `done`, never as the
   # `implemented` it was when the pass began. The report must not contradict itself.

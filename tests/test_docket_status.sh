@@ -1922,4 +1922,272 @@ assert "0075 §5(landmine): the failure does NOT abandon cleanup — the remote 
 assert "0075 §5(landmine): the sweep still reports the change as swept" \
   'grep -qE "^swept 60 " "$tmp/a5b-out.txt"'
 
+# --- change 0067: the learnings index self-heal + two needs-you advisories ---------------------
+# Fixture realism (this project's #1 test-defect class, per a prior finding on this very file — a
+# docket-status fixture once pointed SCRIPTS_DIR at a mock dir with no render-board.sh at all,
+# giving that change's headline claims ZERO real coverage): SCRIPTS_DIR here carries the REAL
+# render-learnings-index.sh AND its lib/, never a bare stub. The wrapper below traces every
+# invocation (via LEARN_TRACE, when set) and then DELEGATES to the real, co-located renderer — so
+# the disabled-path tests can prove non-invocation while every enabled-path test still exercises
+# genuine renderer behavior, not a best-effort degrade branch.
+mkdir -p "$tmp/mock-learn/lib"
+cp "$REPO/scripts/render-learnings-index.sh" "$tmp/mock-learn/render-learnings-index.sh.real"
+cp "$REPO"/scripts/lib/*.sh "$tmp/mock-learn/lib/"
+chmod +x "$tmp/mock-learn/render-learnings-index.sh.real"
+cat > "$tmp/mock-learn/render-learnings-index.sh" <<'EOF'
+#!/usr/bin/env bash
+[ -n "${LEARN_TRACE:-}" ] && printf 'render-learnings-index %s\n' "$*" >> "$LEARN_TRACE"
+exec "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/render-learnings-index.sh.real" "$@"
+EOF
+chmod +x "$tmp/mock-learn/render-learnings-index.sh"
+cat > "$tmp/mock-learn/board-checks.sh" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+chmod +x "$tmp/mock-learn/board-checks.sh"
+
+# write_learn_fixture ENABLED CAP — main-mode (METADATA_WORKTREE=.), board off (these tests are
+# about the learnings pass, not the board), so BOARD_SURFACES=none keeps every fixture minimal.
+write_learn_fixture(){
+  cat > "$tmp/fixture-learn.sh" <<EOF
+#!/usr/bin/env bash
+printf '%s\n' \
+  'BOOTSTRAP=PROCEED' \
+  'METADATA_BRANCH=main' \
+  'INTEGRATION_BRANCH=main' \
+  'DOCKET_MODE=main' \
+  'METADATA_WORKTREE=.' \
+  'CHANGES_DIR=docs/changes' \
+  'ADRS_DIR=docs/adrs' \
+  'RESULTS_DIR=docs/results' \
+  'BOARD_SURFACES=none' \
+  'LEARNINGS_ENABLED=$1' \
+  'LEARNINGS_CAP=$2'
+EOF
+}
+
+# mkfinding_learn ROOT SLUG STATE — a minimal, real finding file (Task 1's frontmatter shape,
+# tests/test_render_learnings_index.sh's mkfinding).
+mkfinding_learn(){
+  local root="$1" slug="$2" state="$3"
+  mkdir -p "$root/docs/changes/learnings"
+  cat > "$root/docs/changes/learnings/$slug.md" <<EOF
+---
+slug: $slug
+hook: "Finding for $slug."
+topics: [testing]
+changes: [1]
+created: 2026-06-17
+updated: 2026-07-16
+promotion_state: $state
+promoted_to:
+---
+
+## Apply
+The rule for $slug.
+
+## War story
+- 2026-07-14 (#1, PR #1) — something happened.
+EOF
+}
+
+# (a) enabled: a stale index is re-rendered, committed, AND reaches origin — never keyed on a
+# local proxy (the board pass's own hard-won lesson, change 0071 review finding 3: a clean
+# working tree is not evidence a write landed on the remote).
+learn_a_dir="$tmp/learn-stale-case"
+git_repo_setup "$learn_a_dir"
+git clone -q "$learn_a_dir/origin.git" "$learn_a_dir/work" 2>/dev/null
+mkfinding_learn "$learn_a_dir/work" guards-are-code retained
+printf 'STALE INDEX — must be re-rendered by the pass.\n' > "$learn_a_dir/work/docs/changes/learnings/README.md"
+git -C "$learn_a_dir/work" -c user.email=t@t -c user.name=t add docs/changes
+git -C "$learn_a_dir/work" -c user.email=t@t -c user.name=t commit -q -m "seed stale learnings index"
+git -C "$learn_a_dir/work" push -q origin main
+
+write_learn_fixture true 300
+(cd "$learn_a_dir/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-learn.sh" SCRIPTS_DIR="$tmp/mock-learn" \
+  "$SCRIPT" >"$tmp/learn-a-out.txt" 2>"$tmp/learn-a-err.txt")
+rc=$?
+out="$(cat "$tmp/learn-a-out.txt")"
+assert "learnings(a): pass exits zero" '[ $rc -eq 0 ]'
+assert "status re-renders a stale learnings index" \
+  'printf "%s" "$out" | grep -qE "^learnings index (clean|changed)"'
+# Strengthens the assert above (which alone is satisfiable by either half of an OR — deleting the
+# "changed" branch would still pass it via "clean"): pin to the exact positive shape a genuinely
+# stale index must produce.
+assert "learnings(a): the stale index really changed (not a false-positive clean)" \
+  'grep -qxF "learnings index changed pushed" "$tmp/learn-a-out.txt"'
+assert "learnings(a): the render reached origin, not just the local tree (change 0071 finding-3 discipline)" \
+  'git -C "$learn_a_dir/work" fetch origin main >/dev/null 2>&1 \
+   && git -C "$learn_a_dir/work" show origin/main:docs/changes/learnings/README.md 2>/dev/null | grep -qF "guards-are-code"'
+assert "under-cap emits no over-cap advisory" \
+  '! printf "%s" "$out" | grep -qF "over-cap"'
+
+# Idempotence: a second run over the now-fresh index reports clean, not changed — the commit path
+# never fires twice for the same bytes.
+(cd "$learn_a_dir/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-learn.sh" SCRIPTS_DIR="$tmp/mock-learn" \
+  "$SCRIPT" >"$tmp/learn-a2-out.txt" 2>"$tmp/learn-a2-err.txt")
+rc=$?
+assert "learnings(a) second run: exits zero" '[ $rc -eq 0 ]'
+assert "learnings(a) second run: reports clean (no re-commit of an unchanged index)" \
+  'grep -qxF "learnings index clean" "$tmp/learn-a2-out.txt"'
+
+# (a') unpushed precedent (mirrors board_pass_inline's own change-0071-finding-3 test verbatim):
+# a repo whose learnings/README.md already matches a fresh render (clean diff) but whose local
+# metadata branch carries that exact commit UNPUSHED — the state a prior failed push leaves
+# behind. The pass must not mistake "nothing to commit" for "nothing to push".
+learn_u_dir="$tmp/learn-unpushed-case"
+git_repo_setup "$learn_u_dir"
+git clone -q "$learn_u_dir/origin.git" "$learn_u_dir/work" 2>/dev/null
+mkfinding_learn "$learn_u_dir/work" guards-are-code retained
+git -C "$learn_u_dir/work" -c user.email=t@t -c user.name=t add docs/changes
+git -C "$learn_u_dir/work" -c user.email=t@t -c user.name=t commit -q -m "seed unpushed fixture"
+git -C "$learn_u_dir/work" push -q origin main
+
+# Render through the REAL renderer directly (the exact bytes the pass would itself produce),
+# commit, but do NOT push — this is the exact local state a failed push leaves behind.
+"$REPO/scripts/render-learnings-index.sh" --learnings-dir "$learn_u_dir/work/docs/changes/learnings" \
+  > "$learn_u_dir/work/docs/changes/learnings/README.md"
+git -C "$learn_u_dir/work" -c user.email=t@t -c user.name=t add docs/changes/learnings/README.md
+git -C "$learn_u_dir/work" -c user.email=t@t -c user.name=t commit -q -m "docket: learnings index refresh"
+
+assert "learnings(unpushed): local branch really is ahead of origin on the index before the run" \
+  '[ "$(git -C "$learn_u_dir/work" rev-list --count origin/main..HEAD -- docs/changes/learnings/README.md)" -gt 0 ]'
+
+write_learn_fixture true 300
+(cd "$learn_u_dir/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-learn.sh" SCRIPTS_DIR="$tmp/mock-learn" \
+  "$SCRIPT" >"$tmp/learn-u-out.txt" 2>"$tmp/learn-u-err.txt")
+rc=$?
+assert "learnings(unpushed): run exits zero" '[ $rc -eq 0 ]'
+assert "learnings(unpushed): reports changed pushed or push-failed (not vacuous: positive shape match)" \
+  'grep -Eq "learnings index changed (pushed|push-failed)" "$tmp/learn-u-out.txt"'
+assert "learnings(unpushed): never reports clean" \
+  '! grep -qxF "learnings index clean" "$tmp/learn-u-out.txt"'
+if grep -q "learnings index changed pushed" "$tmp/learn-u-out.txt"; then
+  assert "learnings(unpushed) pushed: remote now carries the previously-unpushed commit" \
+    'git -C "$learn_u_dir/work" show origin/main:docs/changes/learnings/README.md 2>/dev/null | cmp -s - "$learn_u_dir/work/docs/changes/learnings/README.md"'
+fi
+
+# (b) disabled: exactly one note, the renderer is NEVER invoked, and an existing finding file is
+# left byte-untouched (the gate is a read/write gate, never a purge).
+learn_b_dir="$tmp/learn-disabled-case"
+git_repo_setup "$learn_b_dir"
+git clone -q "$learn_b_dir/origin.git" "$learn_b_dir/work" 2>/dev/null
+mkfinding_learn "$learn_b_dir/work" seeded retained
+SEEDED_BYTES="$(cat "$learn_b_dir/work/docs/changes/learnings/seeded.md")"
+git -C "$learn_b_dir/work" -c user.email=t@t -c user.name=t add docs/changes
+git -C "$learn_b_dir/work" -c user.email=t@t -c user.name=t commit -q -m "seed disabled fixture"
+git -C "$learn_b_dir/work" push -q origin main
+
+write_learn_fixture false 300
+learn_trace="$tmp/learn-trace-disabled.log"; rm -f "$learn_trace"
+(cd "$learn_b_dir/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-learn.sh" SCRIPTS_DIR="$tmp/mock-learn" \
+  LEARN_TRACE="$learn_trace" \
+  "$SCRIPT" >"$tmp/learn-b-out.txt" 2>"$tmp/learn-b-err.txt")
+rc=$?
+out_disabled="$(cat "$tmp/learn-b-out.txt")"
+trace_disabled="$(cat "$learn_trace" 2>/dev/null)"
+LD="$learn_b_dir/work/docs/changes/learnings"
+assert "learnings(b): pass exits zero" '[ $rc -eq 0 ]'
+assert "disabled emits exactly one learnings-disabled note" \
+  '[ "$(printf "%s" "$out_disabled" | grep -cF "learnings disabled")" = "1" ]'
+assert "disabled never invokes the renderer" \
+  '! printf "%s" "$trace_disabled" | grep -qF "render-learnings-index"'
+assert "disabled leaves an existing finding file byte-untouched" \
+  '[ "$(cat "$LD/seeded.md")" = "$SEEDED_BYTES" ]'
+assert "learnings(b): disabled emits no advisories" \
+  '! printf "%s" "$out_disabled" | grep -qE "over-cap|promotion-pending"'
+assert "learnings(b): disabled never creates the index (no self-heal render at all)" \
+  '[ ! -e "$LD/README.md" ]'
+
+# (c) over-cap advisory (needs-you channel, ADR-0028's pattern applied to learnings)
+learn_c_dir="$tmp/learn-overcap-case"
+git_repo_setup "$learn_c_dir"
+git clone -q "$learn_c_dir/origin.git" "$learn_c_dir/work" 2>/dev/null
+mkfinding_learn "$learn_c_dir/work" finding-one retained
+mkfinding_learn "$learn_c_dir/work" finding-two retained
+git -C "$learn_c_dir/work" -c user.email=t@t -c user.name=t add docs/changes
+git -C "$learn_c_dir/work" -c user.email=t@t -c user.name=t commit -q -m "seed overcap fixture"
+git -C "$learn_c_dir/work" push -q origin main
+
+write_learn_fixture true 1
+(cd "$learn_c_dir/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-learn.sh" SCRIPTS_DIR="$tmp/mock-learn" \
+  "$SCRIPT" >"$tmp/learn-c-out.txt" 2>"$tmp/learn-c-err.txt")
+rc=$?
+out_overcap="$(cat "$tmp/learn-c-out.txt")"
+assert "learnings(c): pass exits zero" '[ $rc -eq 0 ]'
+assert "over-cap surfaces the needs-you advisory" \
+  'printf "%s" "$out_overcap" | grep -qF "learnings over-cap — needs curation"'
+assert "learnings(c): the over-cap line names the real counts (2 active, cap 1)" \
+  'grep -qxF "learnings over-cap — needs curation (2 active, cap 1)" "$tmp/learn-c-out.txt"'
+
+# (d) promotion-pending advisory
+learn_d_dir="$tmp/learn-candidate-case"
+git_repo_setup "$learn_d_dir"
+git clone -q "$learn_d_dir/origin.git" "$learn_d_dir/work" 2>/dev/null
+mkfinding_learn "$learn_d_dir/work" needs-promo candidate
+git -C "$learn_d_dir/work" -c user.email=t@t -c user.name=t add docs/changes
+git -C "$learn_d_dir/work" -c user.email=t@t -c user.name=t commit -q -m "seed candidate fixture"
+git -C "$learn_d_dir/work" push -q origin main
+
+write_learn_fixture true 300
+(cd "$learn_d_dir/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-learn.sh" SCRIPTS_DIR="$tmp/mock-learn" \
+  "$SCRIPT" >"$tmp/learn-d-out.txt" 2>"$tmp/learn-d-err.txt")
+rc=$?
+out_candidate="$(cat "$tmp/learn-d-out.txt")"
+assert "learnings(d): pass exits zero" '[ $rc -eq 0 ]'
+assert "a candidate finding surfaces promotion-pending 1" \
+  'printf "%s" "$out_candidate" | grep -qF "learnings promotion-pending 1"'
+assert "learnings(d): no over-cap advisory (well under cap)" \
+  '! printf "%s" "$out_candidate" | grep -qF "over-cap"'
+
+# (e) the cap counts ACTIVE findings — a promoted finding must not count. 3 promoted + 1 retained,
+# cap 2: if promoted findings counted, active=4 > cap(2) would (wrongly) fire over-cap.
+learn_e_dir="$tmp/learn-promoted-case"
+git_repo_setup "$learn_e_dir"
+git clone -q "$learn_e_dir/origin.git" "$learn_e_dir/work" 2>/dev/null
+mkfinding_learn "$learn_e_dir/work" promoted-one promoted
+mkfinding_learn "$learn_e_dir/work" promoted-two promoted
+mkfinding_learn "$learn_e_dir/work" promoted-three promoted
+mkfinding_learn "$learn_e_dir/work" still-retained retained
+git -C "$learn_e_dir/work" -c user.email=t@t -c user.name=t add docs/changes
+git -C "$learn_e_dir/work" -c user.email=t@t -c user.name=t commit -q -m "seed promoted-over fixture"
+git -C "$learn_e_dir/work" push -q origin main
+
+write_learn_fixture true 2
+(cd "$learn_e_dir/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-learn.sh" SCRIPTS_DIR="$tmp/mock-learn" \
+  "$SCRIPT" >"$tmp/learn-e-out.txt" 2>"$tmp/learn-e-err.txt")
+rc=$?
+out_promoted_over="$(cat "$tmp/learn-e-out.txt")"
+assert "learnings(e): pass exits zero" '[ $rc -eq 0 ]'
+assert "promoted findings do not count toward the cap" \
+  '! printf "%s" "$out_promoted_over" | grep -qF "over-cap"'
+assert "learnings(e): the fixture really seeded 3 promoted + 1 retained finding (anti-vacuity)" \
+  '[ "$(find "$learn_e_dir/work/docs/changes/learnings" -maxdepth 1 -name "*.md" ! -name README.md | wc -l)" -eq 4 ]'
+
+# --- wiring: the learnings pass runs on the FULL path only, never under --board-only -----------
+learn_wire_dir="$tmp/learn-wiring-case"
+git_repo_setup "$learn_wire_dir"
+git clone -q "$learn_wire_dir/origin.git" "$learn_wire_dir/work" 2>/dev/null
+mkfinding_learn "$learn_wire_dir/work" guards-are-code retained
+git -C "$learn_wire_dir/work" -c user.email=t@t -c user.name=t add docs/changes
+git -C "$learn_wire_dir/work" -c user.email=t@t -c user.name=t commit -q -m "seed wiring fixture"
+git -C "$learn_wire_dir/work" push -q origin main
+
+write_learn_fixture true 300
+(cd "$learn_wire_dir/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-learn.sh" SCRIPTS_DIR="$tmp/mock-learn" \
+  "$SCRIPT" --board-only >"$tmp/learn-bo-out.txt" 2>"$tmp/learn-bo-err.txt")
+rc=$?
+assert "learnings wiring: --board-only exits zero" '[ $rc -eq 0 ]'
+assert "learnings wiring: --board-only emits NO learnings line at all" \
+  '! grep -q "^learnings" "$tmp/learn-bo-out.txt"'
+assert "learnings wiring: --board-only never creates the index" \
+  '[ ! -e "$learn_wire_dir/work/docs/changes/learnings/README.md" ]'
+
+(cd "$learn_wire_dir/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-learn.sh" SCRIPTS_DIR="$tmp/mock-learn" \
+  "$SCRIPT" >"$tmp/learn-full-out.txt" 2>"$tmp/learn-full-err.txt")
+rc=$?
+assert "learnings wiring: the full pass exits zero" '[ $rc -eq 0 ]'
+assert "learnings wiring: the full pass DOES emit a learnings line" \
+  'grep -q "^learnings" "$tmp/learn-full-out.txt"'
+
 exit $fail
