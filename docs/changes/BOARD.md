@@ -1,6 +1,6 @@
 # Backlog
 
-**82 changes** — 🟡 11 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 65 done · 🗑️ 3 killed
+**82 changes** — 🟡 11 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 66 done · 🗑️ 3 killed
 
 ## 🟡 Proposed (11)
 
@@ -15,7 +15,7 @@
 | [0033](active/0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | `medium` | auto-groom blocked — needs you |
 | [0062](active/0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | `low` | needs-brainstorm |
 | [0067](active/0067-learnings-promotion-destination.md) | Give the learnings ledger a promotion destination — it has no way to shrink | `medium` | needs-brainstorm |
-| [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | ⏳ waiting on #77 — needs your merge |
+| [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | build-ready |
 | [0082](active/0082-global-harnesses-per-repo-generation.md) | Global agent_harnesses doesn't reach per-repo generation — silent no-op | `low` | needs-brainstorm |
 
 ## 🔴 Blocked (1)
@@ -24,11 +24,10 @@
 |---|-------|----------|------------|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | PR #69 is stale (predates the 0068/0072 facade rework and later agent-layer changes) and #0079 (runner delegation) reshapes the design — the build roles should grow a runner field (build.<role>.runner codex, the mixed topology 0079 deferred). Needs a rebase plus redesign pass before merge. |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
-| [0077](active/0077-codex-harness-toml-agents.md) | Codex harness — TOML agent generation + AGENTS.md dispatch block | `high` | [#85](https://github.com/danielhanold/docket/pull/85) |
 | [0079](active/0079-codex-runner-delegation.md) | Cross-harness runner delegation framework (first runner — OpenAI Codex) | `medium` | [#86](https://github.com/danielhanold/docket/pull/86) |
 
 ```mermaid
@@ -43,7 +42,6 @@ graph TD
   0044
   0062
   0067
-  0077
   0077 --> 0078
   0079
   0082
@@ -110,16 +108,18 @@ graph TD
   0073:::done
   0074:::done
   0075:::done
+  0077:::done
   0080:::done
   0081:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (68)</summary>
+<details><summary>✅🗑️ Archive — done + killed (69)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0081](archive/2026-07-16-0081-first-run-setup-config-example.md) | First-run setup — committed starter config + install.sh scaffolding + README Install restructure | 2026-07-16 |
+| [0077](archive/2026-07-16-0077-codex-harness-toml-agents.md) | Codex harness — TOML agent generation + AGENTS.md dispatch block | 2026-07-16 |
 | [0080](archive/2026-07-15-0080-link-skills-create-harness-dir.md) | link-skills.sh creates a missing skills subdir when the harness is present | 2026-07-15 |
 | [0075](archive/2026-07-15-0075-cwd-independent-repo-root-anchor.md) | Anchor the repo root to the main worktree — CWD-independent scripts, a fail-closed cleanup guard, and a durable finalize posture | 2026-07-15 |
 | [0076](archive/2026-07-14-0076-cwd-independent-repo-root-resolution.md) | Resolve the repo root independently of CWD — preflight run inside `.docket` mints a nested metadata worktree | 2026-07-14 |
