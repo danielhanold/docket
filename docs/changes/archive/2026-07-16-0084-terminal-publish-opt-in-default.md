@@ -2,7 +2,7 @@
 id: 84
 slug: terminal-publish-opt-in-default
 title: Flip terminal_publish default to false — publishing to the integration branch becomes opt-in
-status: implemented
+status: done
 priority: medium
 created: 2026-07-16
 updated: 2026-07-16
