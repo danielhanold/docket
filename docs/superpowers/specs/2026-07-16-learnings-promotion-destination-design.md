@@ -1,6 +1,8 @@
 # Design: learnings promotion destination — the ledger gets a shape that can shrink
 
-**Status:** design (groomed 2026-07-16 via `docket-brainstorm`)
+**Status:** design (groomed 2026-07-16 via `docket-brainstorm`; reconciled 2026-07-16 at claim — every
+factual claim re-verified against current reality and holding; ledger measures 490 lines / 33 top-level
+entries, next free ADR id is 0041)
 **Change:** 0067
 **Related:** change 0006 (the original ledger — this reshapes what it built), change 0065 (the harvest that surfaced the 491-line wall), ADR-0005 (close-out-only harvest — extended, not superseded), ADR-0012/0022/0030/0031 (script-vs-model boundary and the derived-view family this joins), ADR-0019 (config-fence classification for the new `learnings.cap`/`learnings.enabled` keys), ADR-0028 (the ungated report channel the escalations ride), ADR-0032 (positive off-state — the `promotion_state` default and the disable-note discipline)
 

@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/learnings-promotion-destination
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -65,24 +65,30 @@ of it into a doc the agent reads anyway.
 
 ## What changes
 
-Design the ledger's missing exit path. The likely shape — to be settled at grooming, not here:
+The exit path is now **designed** — the spec (groomed 2026-07-16) settles the shape, and it went
+further than "add a promotion destination": the single capped file becomes an **index + detail**
+structure with a real shrink valve. PM-altitude summary; mechanics live in the spec:
 
-- **A promotion destination.** Create the repo's `CLAUDE.md` (or decide, deliberately, that a different
-  file is the right home) and define what belongs there: the durable, always-true project conventions,
-  as distinct from the dated, provenance-carrying build-loop lessons that stay in the ledger.
-- **Promote the graduating entries.** Several current entries read as settled convention rather than
-  war story — e.g. "never `producer | early-exiting-consumer` under `pipefail`", "anchor a
-  frontmatter-field edit to the first `---…---` block", "grep for a `--flag` with `grep -E -e`". Those
-  are rules, not memories; they belong where they are always in context.
-- **Make the promotion lever real in the harvest procedure.** `docket-finalize-change`'s step 2.5 and
-  the convention's *Learnings ledger* both name promotion as a distill lever. Whatever this change
-  decides, those two prose sources must end up describing something that actually exists.
-- **Possibly revisit the cap itself.** ~300 lines was picked before anyone had watched the ledger
-  behave. If the real steady state with a working promotion valve is 200, or 400, say so.
+- **The ledger becomes a findings directory.** `<changes_dir>/learnings/` — one curated finding file
+  per lesson/family (`<slug>.md`, bare slug, no ordinal), plus a **generated** `README.md` index
+  rendered by a new `render-learnings-index.sh` joining the derived-view family.
+- **Reads become pay-per-relevance.** The three hot readers load the small index and pull only the
+  findings that bear on the change at hand, instead of paying for 490 lines of history every run.
+- **Promotion becomes real, and human-gated.** The harvest marks a must-fire-unprompted rule
+  `candidate`; a human graduates it to the integration-branch agent-instructions file and flips
+  `promoted`. Promoted findings leave the paid surface and the cap's view — the actual shrink valve.
+  Target is `AGENTS.md`/`CLAUDE.md`; neither exists on `main` today, so the design recommends
+  creating `AGENTS.md`.
+- **A wholesale off switch + a cap that flags.** New `learnings:` config block — `enabled` (default
+  `true`; a read/write gate, never a purge) and `cap` (default 300, now counting **active findings**,
+  not raw lines). Past the cap the loop flags `needs you`; it never auto-merges its own memory.
+- **Migration is the acceptance proof.** The current 490-line ledger is converted into finding files
+  + index; `LEARNINGS.md` is left as a pointer stub.
 
 `ADR-0005` (close-out-only harvest) owns the surrounding policy — one writer, one moment, ledger never
-published to the integration branch. This change should not disturb any of that; if it does, that is an
-ADR-worthy decision and should be recorded as one.
+published to the integration branch. The design preserves all of it in substance: only ADR-0005's
+founding *consequence* ("short enough to actually be read") is what failed. The restructure is recorded
+as one new ADR that `relates_to` ADR-0005 rather than superseding it.
 
 ## Out of scope
 
@@ -96,16 +102,47 @@ ADR-worthy decision and should be recorded as one.
 
 ## Open questions
 
-- **Is `CLAUDE.md` actually the right destination?** The convention names it, but docket's own durable
-  rules arguably belong in `docket-convention` (which the convention text also names as a promotion
-  target). CLAUDE.md is read by any agent in the repo; the convention is read by docket skills. Those
-  are different audiences and the split may matter.
-- **What is the promotion test?** What distinguishes "a lesson with a date and a PR number" from "a rule
-  that is simply true"? Without a crisp test, promotion becomes another judgment call that gets deferred
-  every harvest — and the valve stays shut in practice even once it exists.
-- **Who runs the promotion — the harvest, or a human?** The harvest is autonomous-capable and runs at
-  close-out. Promotion rewrites a doc that governs every agent in the repo. That may want a human gate.
-- **Does the ~300 cap survive?** And is a line count even the right trigger, versus something like
-  "entries older than N changes that no longer earn their context."
+All four are **resolved by the spec** (2026-07-16); recorded here as the answers, not the questions:
+
+- **Is `CLAUDE.md` the right destination?** → The target is the repo's always-in-context
+  agent-instructions file at the integration-branch root — `AGENTS.md` **or** `CLAUDE.md`,
+  harness-agnostic and symlink-aware. Neither exists on `main`, so the design recommends creating
+  `AGENTS.md` (the neutral spelling) — a human decision the loop surfaces, never takes.
+- **What is the promotion test?** → *"Will the agent know to search for this?"* A rule that must fire
+  **unprompted** graduates; a war story stays in retrieval.
+- **Who runs the promotion?** → **Human-gated.** The harvest proposes (`promotion_state: candidate`)
+  and never touches the integration branch; a human lands the edit and flips `promoted`.
+- **Does the ~300 cap survive?** → Yes, but re-based: it now counts **active findings**
+  (`retained` + `candidate`), not raw lines, and is configurable via `learnings.cap`. Promoted
+  findings stop counting, which is precisely what makes the valve work.
+
+Remaining unknowns are tracked as risks in the spec's §7, not here.
 
 ## Reconcile log
+
+- **2026-07-16** — Reconciled at claim time by `docket-implement-next`. The spec was groomed the same
+  day, so this pass is a verification rather than a refresh; every load-bearing factual claim was
+  re-checked against current reality and holds:
+  - Ledger is **490 lines** across **33** top-level entries (spec says 491 — a trailing-newline
+    off-by-one, not drift). The cap-breach premise stands.
+  - **Neither `AGENTS.md` nor `CLAUDE.md` exists on `origin/main`** (verified via `git ls-tree`) — the
+    "promotion destination does not exist" premise, which is the whole motivation, is still true.
+  - Cited ADRs **0005, 0012, 0019, 0028, 0030, 0031, 0032 all exist and are `Accepted`**. ADR-0005 is
+    unchanged, so the `relates_to`-not-supersedes decision holds. Highest ADR id is **0040** ⇒ the new
+    ADR lands at **0041** (assigned by `docket-adr`, not hard-coded).
+  - The stated analogs exist: `scripts/render-adr-index.sh` (+ contract) for the renderer,
+    `scripts/lib/docket-frontmatter.sh` for the no-YAML-loader parse, `board-refresh.sh`/`render-board.sh`
+    for the gated-writer-wraps-pure-renderer split. Skills live in-repo under `skills/`, so the prose
+    edits are integration-branch product code as §4.8 states.
+  - **Body refreshed**: `## What changes` still read as pre-grooming ("to be settled at grooming, not
+    here") and understated the change — grooming reshaped it from "add a promotion destination" into an
+    index+detail restructure. Rewritten to the settled shape at PM altitude. `## Open questions` folded
+    to their resolved answers.
+  - **In-flight scan** — two active changes mention learnings, neither conflicts:
+    - **#0018** (yq YAML parsing) is `proposed`, `low`, no spec — an *evaluation* stub. 0067
+      deliberately parses via the existing frontmatter lib, so it is unblocked; if 0018 ever adopts yq,
+      the finding-file frontmatter simply becomes another consumer. Noted, no action.
+    - **#0084** (`terminal_publish` opt-in default) is `implemented`, PR open, unmerged. It is a
+      separate concern; the only interaction is possible textual overlap if both edit convention/README
+      prose. Kept additive to stay rebase-resolvable (the 2026-07-16 #79 learning).
+  - **Verdict: build as specced.** Not obsolete, not invalidated; scope unchanged.
