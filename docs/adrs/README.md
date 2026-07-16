@@ -42,6 +42,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0037](0037-runner-delegation-explicit-runner-field.md) — Cross-harness runner delegation is switched by an explicit runner field, never model-ID sniffing (Accepted) ← change #79 · relates to ADR-0015, ADR-0012
 - [ADR-0038](0038-runner-shim-wrapper-single-dispatch-chokepoint.md) — Runner delegation rides a generated shim wrapper body, not per-skill dispatch branching (Accepted) ← change #79 · relates to ADR-0012, ADR-0015, ADR-0020, ADR-0024, ADR-0037
 - [ADR-0039](0039-config-example-mirrors-wrapper-defaults.md) — config.yml.example is a documented mirror of the shipped wrapper defaults (Accepted) ← change #81
+- [ADR-0040](0040-terminal-publish-default-opt-in.md) — terminal_publish defaults to false — publishing is opt-in (Accepted) ← change #84 · relates to ADR-0027
 
 ## Superseded / Reversed
 
