@@ -102,7 +102,7 @@ assert "the sample documents both keys" \
   'grep -qE "^#   enabled: true$" "$REPO/.docket.yml" && grep -qE "^#   cap: 300$" "$REPO/.docket.yml"'
 assert "README presents learnings as a feature" 'grep -qF "## Learnings — the loop" "$REPO/README.md"'
 assert "README points at the convention rather than restating mechanics" \
-  'grep -qF "single source" "$REPO/README.md"'
+  'grep -qF "Learnings ledger" "$REPO/README.md"'
 assert "AGENTS.md exists as the promotion destination" '[ -f "$REPO/AGENTS.md" ]'
 assert "AGENTS.md states the tiering criterion" \
   'grep -qF "will the agent know to search for this?" "$REPO/AGENTS.md"'
