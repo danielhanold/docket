@@ -5,8 +5,8 @@ topics: [process, inventory, review]
 changes: [14, 32, 42, 52, 54, 56, 64, 67, 71, 74, 84]
 created: 2026-06-12
 updated: 2026-07-16
-promotion_state: candidate
-promoted_to:
+promotion_state: promoted
+promoted_to: AGENTS.md
 ---
 
 ## Apply

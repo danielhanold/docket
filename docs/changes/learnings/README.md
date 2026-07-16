@@ -29,7 +29,6 @@ One curated finding per file; this index is the hint surface. Load it, then read
 
 - [check-plumbing-auto-discovery](check-plumbing-auto-discovery.md) — At reconcile, check whether plumbing auto-discovers before planning an edit to it. · also: reconcile, plan
 - [dormant-code-live-mid-branch](dormant-code-live-mid-branch.md) — When a premise is 'X is dead today', re-probe X's liveness at the task that flips its precondition, not against the pre-branch tree. · also: spec, reconcile
-- [enumerated-floor](enumerated-floor.md) — Every hand-written enumeration is a floor, not the set — derive the sites from a whole-repo grep, then treat that grep as a floor too. · also: inventory, review ⟨needs promotion⟩
 - [intermediate-task-state-buildable](intermediate-task-state-buildable.md) — When a plan splits one function's rewrite across sequential tasks, treat the intermediate state as itself buildable and testable. · also: plan, tasks
 - [moving-base](moving-base.md) — A change is designed against a SNAPSHOT and the base moves under it — reconcile against what has actually MERGED. · also: reconcile, rebase
 - [size-target-is-direction](size-target-is-direction.md) — On a behavior-neutral slim the size target is a direction, not a gate — behavior-neutrality outranks hitting the number. · also: refactoring, review
@@ -40,9 +39,6 @@ One curated finding per file; this index is the hint surface. Load it, then read
 - [atomic-generated-write](atomic-generated-write.md) — Never redirect a renderer straight into the file it generates — > truncates on open, so a failed render destroys the last-good file before its exit code is even read. · also: dataloss, generated ⟨needs promotion⟩
 - [conditional-mkdir-in-loop-aborts-run](conditional-mkdir-in-loop-aborts-run.md) — A conditional mkdir in a per-item loop needs || continue — under set -e a bad target aborts the ENTIRE run, not just that item. · also: errexit, loops
 - [escape-ere-metacharacters-in-key](escape-ere-metacharacters-in-key.md) — Escape ERE metacharacters in a key before building a grep -E match from it — and note the un-fixed twin of a duplicated helper. · also: grep, regex
-- [marker-block-range-edit](marker-block-range-edit.md) — Before rewriting a marker-delimited managed block, validate marker order and balance — presence alone lets the range consume to EOF. · also: markers, dataloss ⟨needs promotion⟩
-- [pipefail](pipefail.md) — Never producer | early-exiting-consumer under set -o pipefail — capture into a variable first. · also: pipefail, testing ⟨needs promotion⟩
-- [shell-portability](shell-portability.md) — Treat awk whitespace classes, --leading grep patterns, and symlinked temp paths as suspect — and test each on both GNU and BSD. · also: grep, awk ⟨needs promotion⟩
 
 ## skills
 
@@ -54,7 +50,6 @@ One curated finding per file; this index is the hint surface. Load it, then read
 - [environment](environment.md) — A RED suite in a build sandbox or an installed dev shell is a hypothesis, not a verdict — re-run it on the unmodified base. · also: environment, ci
 - [foundational-test-discipline](foundational-test-discipline.md) — Sentinel greps are sampling, not parsing — pair them with a whole-branch review that reads for meaning. · also: sentinels, review
 - [green-suite-untested-branch](green-suite-untested-branch.md) — Green tests are not proof the hard branch was exercised — a mock that omits the tool routes every test through the degrade path. · also: fixtures, mocks
-- [guards-are-code](guards-are-code.md) — A guard is code — mutation-test it (strip the feature, watch it go red) or it is decoration. · also: sentinels, mutation ⟨needs promotion⟩
 - [metadata-branch-invisible-to-suite](metadata-branch-invisible-to-suite.md) — Repo tests can only see the integration branch — verify metadata-branch artifacts at build time and record it in the results file. · also: metadata-branch, docket
 - [test-premise-deleted-not-regated](test-premise-deleted-not-regated.md) — When a change invalidates a test's premise, ask what the block GUARDS, not what it asserts. · also: guards, refactoring
 
@@ -62,7 +57,14 @@ One curated finding per file; this index is the hint surface. Load it, then read
 
 - [printed-remedy-state-validity](printed-remedy-state-validity.md) — A remedy command you print for a user to run verbatim must be valid in the exact repo state that produced it. · also: remedies, migration
 
-## yaml
+## Promoted
 
-- [frontmatter-edit-anchor](frontmatter-edit-anchor.md) — Anchor a frontmatter-field edit to the first ---…--- block, never a bare column-0 line match. · also: frontmatter, sed ⟨needs promotion⟩
-- [yaml-scalar](yaml-scalar.md) — Quote any hand-authored scalar carrying a colon-space or a boolean keyword — today's grep/awk reader tolerating it is not evidence it is well-formed. · also: frontmatter, config ⟨needs promotion⟩
+Graduated to an always-in-context agent-instructions file. Kept as the rule's receipt, the harvest's dedup memory, and a one-line-reversible demotion path — they no longer count against the cap.
+
+- [enumerated-floor](enumerated-floor.md) → AGENTS.md
+- [frontmatter-edit-anchor](frontmatter-edit-anchor.md) → AGENTS.md
+- [guards-are-code](guards-are-code.md) → AGENTS.md
+- [marker-block-range-edit](marker-block-range-edit.md) → AGENTS.md
+- [pipefail](pipefail.md) → AGENTS.md
+- [shell-portability](shell-portability.md) → AGENTS.md
+- [yaml-scalar](yaml-scalar.md) → AGENTS.md

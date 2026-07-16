@@ -4,9 +4,9 @@ hook: "Anchor a frontmatter-field edit to the first ---…--- block, never a bar
 topics: [yaml, frontmatter, sed]
 changes: [25]
 created: 2026-06-19
-updated: 2026-06-19
-promotion_state: candidate
-promoted_to:
+updated: 2026-07-16
+promotion_state: promoted
+promoted_to: AGENTS.md
 ---
 
 ## Apply
