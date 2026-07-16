@@ -386,7 +386,7 @@ sweep_execute_one(){
   fi
 
   if ! "$SCRIPTS_DIR"/terminal-publish.sh \
-        --id "$id" --outcome done --enabled "${TERMINAL_PUBLISH:-true}" \
+        --id "$id" --outcome done --enabled "${TERMINAL_PUBLISH:-false}" \
         --integration-branch "$INTEGRATION_BRANCH" --metadata-branch "$METADATA_BRANCH" \
         --changes-dir "$CHANGES_DIR" --adrs-dir "$ADRS_DIR" \
         --message "docket($id): publish terminal record (done)" >&2; then
