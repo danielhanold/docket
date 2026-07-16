@@ -44,8 +44,8 @@ assert "auto-groom: rejects the simulated-human auto-answerer" \
   'grep -qiF "not invoke \`superpowers:brainstorming\`" "$AG"'
 assert "auto-groom: designer records an Assumptions block" \
   'grep -qF "## Assumptions" "$AG"'
-assert "auto-groom: designer reads the learnings ledger" \
-  'grep -qF "LEARNINGS.md" "$AG"'
+assert "auto-groom: designer reads the learnings index, gated on learnings.enabled" \
+  'grep -qF "learnings/README.md" "$AG" && grep -qF "learnings.enabled" "$AG"'
 assert "auto-groom: critic is a fresh subagent, not the designer" \
   'grep -qF "fresh subagent" "$AG"'
 assert "auto-groom: step 3 dispatches the named docket-auto-groom-critic subagent" \

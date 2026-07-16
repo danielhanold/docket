@@ -268,7 +268,7 @@ promoted_to:                        # set only when promoted: the agent-instruct
 1. Load `learnings/README.md` (the index) always — a small, grouped hint surface.
 2. Read only the finding files whose index line (hook + topics) bears on the change at hand.
 
-**Readers:** `docket-implement-next` at plan time and at review; `docket-groom-next` before a brainstorm.
+**Readers:** `docket-implement-next` at plan time and at review; `docket-groom-next` before a brainstorm; `docket-auto-groom` before its self-brainstorm.
 
 **Writing:** only the harvest at close-out appends (single source: the *Harvest learnings* step in
 `docket-finalize-change`; `docket-status`'s sweep invokes it by reference). The harvest **creates** a
