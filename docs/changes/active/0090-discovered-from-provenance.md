@@ -17,7 +17,7 @@ auto_groomable: true
 branch: feat/discovered-from-provenance
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -82,3 +82,23 @@ Resolved at groom (2026-07-17); rationale in the linked spec's `## Assumptions`:
   consumer being groomed concurrently). The fold-in remains a human decision, not foreclosed here.
 
 ## Reconcile log
+
+### 2026-07-17 — docket-implement-next
+
+Reconciled against `origin/main` at `250ff7c` and current `origin/docket`. The design (spec authored
+today by docket-auto-groom) holds with **no scope change**:
+
+- All three named touchpoints exist on the integration branch with the described structure:
+  `skills/docket-convention/SKILL.md` (manifest block, `related:` at line ~142),
+  `skills/docket-new-change/change-template.md` (frontmatter with `related: []`), and
+  `skills/docket-new-change/SKILL.md` (step 3 "Scan related context" records
+  `related`/`depends_on`/`adrs`).
+- `list_field()` in `scripts/lib/docket-frontmatter.sh` already parses `[a, b]` → `a b`, so no
+  parser change is needed and `discovered_from` is read for free by any future consumer.
+- No existing `discovered_from` reference anywhere in the tree (grep clean); frontmatter is parsed
+  field-by-field with no schema/allowlist, so the addition is backward-compatible.
+- Size-budget headroom confirmed for all three files (`tests/test_skill_size_budgets.sh`):
+  convention 288/4640 vs 317/5104, new-change SKILL 55/1209 vs 61/1330, change-template 46/184 vs
+  51/203 — a one-line + comment addition fits each without raising a budget row.
+- Related state: #0035 (Artifacts block) is `done`; #0091 (auto-create discovered stubs) is
+  `proposed` and being groomed concurrently — #0090 lands standalone and does not wait on it.
