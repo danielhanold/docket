@@ -139,5 +139,15 @@ assert "readiness auto-groom-blocked (no spec + blocked section)" '[ "$(readines
 assert "readiness waiting takes precedence over missing spec" '[ "$(readiness "$tmp/active/0005-echo.md")" = "waiting" ]'
 assert "readiness waiting (needs-your-merge dep) returns waiting" '[ "$(readiness "$tmp/active/0006-foxtrot.md")" = "waiting" ]'
 
+# --- iso_to_epoch: portable UTC ISO-8601 -> epoch ---
+# Derive the oracle from the host's own date (GNU or BSD) so the test is host-portable —
+# compare iso_to_epoch against that, never against a hardcoded epoch constant.
+known="2026-07-17T12:00:00Z"
+oracle="$(TZ=UTC date -u -d "$known" +%s 2>/dev/null || date -u -j -f '%Y-%m-%dT%H:%M:%SZ' "$known" +%s 2>/dev/null)"
+got="$(iso_to_epoch "$known")"
+assert "iso_to_epoch parses a UTC ISO-8601 timestamp" '[ -n "$got" ] && [ "$got" = "$oracle" ]'
+assert "iso_to_epoch returns nonzero + empty on garbage" '! iso_to_epoch "not-a-timestamp" >/dev/null 2>&1'
+assert "iso_to_epoch returns empty string on garbage" '[ -z "$(iso_to_epoch "not-a-timestamp" 2>/dev/null)" ]'
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"

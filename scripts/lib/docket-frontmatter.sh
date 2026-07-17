@@ -36,6 +36,17 @@ int_field(){
 }
 has_section(){ grep -qF "$2" "$1"; }
 
+# iso_to_epoch ISO — convert a UTC ISO-8601 second-precision timestamp (YYYY-MM-DDTHH:MM:SSZ) to
+# epoch seconds on stdout. Tries GNU date first, then BSD/macOS date. Returns 1 (empty stdout) on
+# a parse failure — callers treat "no epoch" as "no positive evidence" (never as expired). Single
+# source: both board-checks.sh and reclaim-claims.sh use it (do NOT duplicate — escape-ere twin rule).
+iso_to_epoch(){
+  local iso="$1" e
+  e="$(date -u -d "$iso" +%s 2>/dev/null)"                         && { printf '%s' "$e"; return 0; }
+  e="$(date -u -j -f '%Y-%m-%dT%H:%M:%SZ' "$iso" +%s 2>/dev/null)" && { printf '%s' "$e"; return 0; }
+  return 1
+}
+
 # --- dependency resolution ----------------------------------------------------
 declare -gA STATUS_OF DEP_STATE DEP_REASON DEP_ON
 
