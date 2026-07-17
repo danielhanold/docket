@@ -2,7 +2,7 @@
 id: 90
 slug: discovered-from-provenance
 title: discovered-from provenance links — record which change's build surfaced a new stub
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-17
 updated: 2026-07-17
@@ -15,7 +15,7 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/discovered-from-provenance
-pr:
+pr: https://github.com/danielhanold/docket/pull/97
 blocked_by:
 reconciled: true
 ---
@@ -27,6 +27,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-17-discovered-from-provenance-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-17-discovered-from-provenance-design.md) |
 | Plan | [2026-07-17-discovered-from-provenance.md](https://github.com/danielhanold/docket/blob/feat/discovered-from-provenance/docs/superpowers/plans/2026-07-17-discovered-from-provenance.md) |
+| PR | [#97](https://github.com/danielhanold/docket/pull/97) |
 <!-- docket:artifacts:end -->
 
 ## Why
