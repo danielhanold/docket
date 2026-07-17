@@ -4,10 +4,9 @@
 > archive → re-render `## Artifacts` → terminal-publish → cleanup → board. All four drivers route
 > through this file: `docket-finalize-change`'s per-change close-out and `docket-status`'s merge
 > sweep (the two `done` drivers), plus the kill callers — `docket-implement-next`'s reconcile-kill
-> and `docket-new-change`'s proposed-kill (rewired onto this file by changes 0054/0055). The
-> sequence is one; only the failure posture differs per caller (table below). This file owns
-> ordering and posture; each script's mechanics live in its co-located contract
-> (`scripts/<name>.md`).
+> and `docket-new-change`'s proposed-kill (changes 0054/0055). The sequence is one; only the
+> failure posture differs per caller (table below). This file owns ordering and posture; each
+> script's mechanics live in its co-located contract (`scripts/<name>.md`).
 
 Contents: [The sequence](#the-sequence-docket-mode) · [main-mode degradation](#main-mode-degradation) · [Failure posture](#failure-posture--per-caller) · [Determinism invariant](#determinism-invariant)
 
@@ -63,11 +62,10 @@ before the first read; every commit pushes immediately.
    metadata onto the code line. Trust the exit code; its reuse-existing-file idempotency makes two
    drivers racing on the same change a safe no-op.
 
-   When `terminal_publish` is `false` — **the default** since change 0084; publishing is opt-in —
-   the script is a **no-op that exits 0** — the record stays on `docket`, and a suppressed publish
-   is *success*: it does NOT trip the
-   skip-publish guard, so steps 4–5 still run. Callers pass the flag and keep trusting the exit
-   code; no caller branches on the knob itself.
+   When `terminal_publish` is `false` — **the default** since change 0084 — the script is a
+   **no-op that exits 0**: the record stays on `docket`, and a suppressed publish is *success* —
+   it does NOT trip the skip-publish guard, so steps 4–5 still run. Callers pass the flag and
+   keep trusting the exit code; no caller branches on the knob itself.
 
 4. **Clean up the feature branch + worktree.**
 
@@ -88,12 +86,13 @@ before the first read; every commit pushes immediately.
    the report-line vocabulary, retry classification, and (for `--must-land`) the bounded retry and
    exit-code mapping live in the script contract (`scripts/docket-status.md`); a missing `board …`
    line, or a non-zero exit from this call, is ALSO a failure — never proceed as if the board
-   landed just because nothing complained. React per this sequence's two postures, the same ones
-   named in the table below for steps 1–3: **abort-and-report** callers (`docket-finalize-change`;
-   the two kill callers) stop and surface it exactly as they would a failed step 1–3;
-   **log-and-continue** callers (the `docket-status` merge sweep) log it and move on to the next
-   change, trusting the next sweep to self-heal. `BOARD.md` is the live planning view and is never
-   published to the integration branch.
+   landed just because nothing complained. React per the caller's own Board posture (its skill
+   body is authoritative — the step 1–3 table below does not govern step 5): **must-land /
+   abort-and-report** callers (`docket-finalize-change`; `docket-new-change`'s proposed-kill)
+   stop and surface it; **best-effort / log-and-continue** callers (the `docket-status` merge
+   sweep; `docket-implement-next`'s reconcile-kill) log it and move on, trusting a later pass to
+   self-heal. `BOARD.md` is the live planning view and is never published to the integration
+   branch.
 
 ## main-mode degradation
 
