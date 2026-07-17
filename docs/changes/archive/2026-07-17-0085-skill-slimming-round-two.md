@@ -26,8 +26,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-16-skill-slimming-round-two-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-16-skill-slimming-round-two-design.md) |
-| Plan | [2026-07-16-skill-slimming-round-two.md](https://github.com/danielhanold/docket/blob/feat/skill-slimming-round-two/docs/superpowers/plans/2026-07-16-skill-slimming-round-two.md) |
-| Results | [2026-07-17-skill-slimming-round-two-results.md](https://github.com/danielhanold/docket/blob/feat/skill-slimming-round-two/docs/results/2026-07-17-skill-slimming-round-two-results.md) |
+| Plan | [2026-07-16-skill-slimming-round-two.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-16-skill-slimming-round-two.md) |
+| Results | [2026-07-17-skill-slimming-round-two-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-17-skill-slimming-round-two-results.md) |
 | PR | [#95](https://github.com/danielhanold/docket/pull/95) |
 | ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md) |
 <!-- docket:artifacts:end -->
