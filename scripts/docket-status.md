@@ -192,8 +192,11 @@ least one `[reclaimable]` finding exists **and** `reclaim.auto` (`RECLAIM_AUTO`)
   in-progress changes back to build-ready `proposed`, commits, and **pushes to origin**) and passes
   each of its report lines through prefixed `reclaim `. The metadata worktree is resolved by the
   **same** `docket_metadata_worktree` helper the health checks use, so reclaim runs against exactly
-  the worktree the findings came from; its no-branch orphan guard reads local remote-tracking refs,
-  which `docket_preflight` already freshened at the top of the pass (no redundant fetch here).
+  the worktree the findings came from; single-clone safety comes from the guard's LOCAL
+  `refs/heads/feat/<slug>` arm (always present in this clone) — `docket_preflight` fetches only
+  `origin/<metadata_branch>`, never `origin/feat/*`. The genuine cross-machine unfetched-remote-ref
+  case is the documented §7-H residual (`reclaim-claims.md`), contained by lease expiry plus
+  `reclaim.auto`'s default-off.
 - **`reclaim.auto: false` (the default)** — prints **one** state-valid remedy line,
   `reclaim: <n> expired-lease change(s) can self-heal — run: docket.sh reclaim-claims`, where `<n>`
   is the `[reclaimable]` finding count. **printed-remedy-state-validity:** the remedy is keyed on the
