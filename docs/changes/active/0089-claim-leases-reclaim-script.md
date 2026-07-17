@@ -2,7 +2,7 @@
 id: 89
 slug: claim-leases-reclaim-script
 title: Claim leases + reclaim script — expired in-progress claims self-heal back to proposed
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-17
 updated: 2026-07-17
@@ -11,11 +11,11 @@ related: [23, 88]
 adrs: [1, 12]
 spec: docs/superpowers/specs/2026-07-17-claim-leases-reclaim-script-design.md
 plan: docs/superpowers/plans/2026-07-17-claim-leases-reclaim-script.md
-results:
+results: docs/results/2026-07-17-claim-leases-reclaim-script-results.md
 trivial: false
 auto_groomable: true
 branch: feat/claim-leases-reclaim-script
-pr:
+pr: https://github.com/danielhanold/docket/pull/99
 blocked_by:
 reconciled: true
 ---
@@ -27,6 +27,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-17-claim-leases-reclaim-script-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-17-claim-leases-reclaim-script-design.md) |
 | Plan | [2026-07-17-claim-leases-reclaim-script.md](https://github.com/danielhanold/docket/blob/feat/claim-leases-reclaim-script/docs/superpowers/plans/2026-07-17-claim-leases-reclaim-script.md) |
+| Results | [2026-07-17-claim-leases-reclaim-script-results.md](https://github.com/danielhanold/docket/blob/feat/claim-leases-reclaim-script/docs/results/2026-07-17-claim-leases-reclaim-script-results.md) |
+| PR | [#99](https://github.com/danielhanold/docket/pull/99) |
 | ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md), [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md) |
 <!-- docket:artifacts:end -->
 
