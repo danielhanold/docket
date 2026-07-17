@@ -69,9 +69,12 @@ and `--repo` is set, constructs `https://github.com/OWNER/REPO/pull/N`. Otherwis
 
 **Dependency graph (Mermaid).** After the active sections, emits a fenced `mermaid` block with a
 `graph TD`. Each active change is a node (ID padded to four digits). Changes with `depends_on:`
-emit `PARENT --> CHILD` edges; standalone changes emit a bare node. Done changes from archive are
-listed with `:::done` and a `classDef done fill:#d3f9d8;` rule. Killed archive entries are omitted
-from the graph.
+emit `PARENT --> CHILD` edges; standalone changes emit a bare node. A done change from the archive
+is styled `:::done` **only when an active change's `depends_on` references it** (so it already
+appears as an edge parent); unreferenced done ids — floating, edgeless nodes — are dropped. The
+`classDef done fill:#d3f9d8;` rule is emitted only when at least one `:::done` node remains. Killed
+archive entries are omitted from the graph. This pruning is universal: it changes every board that
+has an unreferenced done id, not only large archives.
 
 **Archive section.** If `archive/` contains any `*.md` files, emits a collapsible `<details>` block
 with a `| # | Title | Merged |` table. Rows are sorted by merged date descending, then by ID
