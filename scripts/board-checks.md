@@ -2,8 +2,9 @@
 
 ## Purpose
 
-Performs the five deterministic git-only health checks over the change files
-(`active/` and `archive/`) and emits one TAB-separated finding per line on stdout.
+Performs the deterministic git-only health checks over the change files
+(`active/` and `archive/`) and cross-references integration-branch commit subjects against them
+and emits one TAB-separated finding per line on stdout.
 It is the sole mechanical checker; the caller (`docket-status`) surfaces the findings
 and owns human-facing display. The one judgment-bearing check — `blocked_by:` re-examination
 — stays model-driven in the skill and is NOT performed here. Introduced in change 0023.
@@ -54,6 +55,27 @@ exists locally (`git rev-parse --verify --quiet`), and its newest commit is olde
 `trivial: true`) and `resolve_deps` determined it is blocked because its worst-unmet
 dependency is stuck at `implemented` (needs your merge). The finding message names the
 blocking dependency ID.
+
+**`merged-orphan`** — A change id is referenced by a commit *subject* on `--integration-branch`
+while the change is still non-terminal (a file under `active/`, not yet archived). This is the
+classic orphan: work merged, but the docket record was never closed out. It is a git-history
+signal that complements the PR-status sweep — it catches orphans the sweep structurally cannot
+(squash-merge under a differently-named branch, an unrecorded `pr:`, or a sweep that never ran).
+The message names the evidence commit (short sha + subject). Warn-only; a legitimately
+just-merged change has already been archived by the time health checks run (they run after the
+sweep), and a transient orphan from a skipped sweep self-clears next pass.
+
+**`unknown-commit-ref`** — A change id is referenced by an `--integration-branch` commit subject
+but no change file with that id exists under `active/` or `archive/` (a typo'd or deleted id).
+The change-id column is the referenced id; the message names the evidence commit.
+
+**Id-extraction grammar (both checks).** Ids are parsed from commit *subject* lines only, in
+exactly two docket-convention forms: a numeric conventional-commit scope `<type>(<id>):`
+(e.g. `docket(0085):`, `results(0085):`) and a trailing `(change <id>)` (e.g. `… (change 0085)`).
+Zero-padding is tolerated and normalized to the integer value. Bare `#NNNN` and body text are
+deliberately excluded — `#NNNN` collides with PR numbers, and subject-only parsing drops free-text
+mentions. The full integration-branch history is scanned on every run (stateless; no `--since`
+window, no persisted cursor).
 
 **`dep-cycle`** — A depth-first search (DFS) over `depends_on:` edges marks every node that
 lies on a cycle (including both members of a mutual `A→B→A` loop and self-loops `C→C`).
