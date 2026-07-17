@@ -2,7 +2,7 @@
 id: 92
 slug: orphan-detection-script
 title: Orphan detection script — cross-reference change ids in merged commits against archive state
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-17
 updated: 2026-07-17
@@ -11,11 +11,11 @@ related: [23, 83]
 adrs: [1, 12]
 spec: docs/superpowers/specs/2026-07-17-orphan-detection-script-design.md
 plan: docs/superpowers/plans/2026-07-17-orphan-detection-script.md
-results:
+results: docs/results/2026-07-17-orphan-detection-script-results.md
 trivial: false
 auto_groomable: true
 branch: feat/orphan-detection-script
-pr:
+pr: https://github.com/danielhanold/docket/pull/98
 blocked_by:
 reconciled: true
 ---
@@ -27,6 +27,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-17-orphan-detection-script-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-17-orphan-detection-script-design.md) |
 | Plan | [2026-07-17-orphan-detection-script.md](https://github.com/danielhanold/docket/blob/feat/orphan-detection-script/docs/superpowers/plans/2026-07-17-orphan-detection-script.md) |
+| Results | [2026-07-17-orphan-detection-script-results.md](https://github.com/danielhanold/docket/blob/feat/orphan-detection-script/docs/results/2026-07-17-orphan-detection-script-results.md) |
+| PR | [#98](https://github.com/danielhanold/docket/pull/98) |
 | ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md), [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md) |
 <!-- docket:artifacts:end -->
 
