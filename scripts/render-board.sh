@@ -15,6 +15,12 @@
 set -uo pipefail
 
 GIT="${GIT:-git}"
+
+# Count-based recency window over the archive: the archive table lists every killed entry plus the
+# ARCHIVE_RECENT most-recent `done` entries verbatim; older `done` entries collapse into a per-month digest.
+# Count-based (not time-based) keeps the renderer deterministic — same change files, identical bytes.
+ARCHIVE_RECENT=15
+
 CHANGES_DIR=""
 REPO=""
 FORMAT="markdown"
@@ -244,15 +250,38 @@ if [ $(( ndone + nkilled )) -gt 0 ]; then
   [ "$nkilled" -gt 0 ] && { em+="🗑️"; [ -n "$lbl" ] && lbl="$lbl + killed" || lbl="killed"; }
   printf '\n<details><summary>%s Archive — %s (%d)</summary>\n\n' "$em" "$lbl" "$(( ndone + nkilled ))"
   printf '| # | Title | Merged |\n|---|-------|--------|\n'
-  # sort archive rows: date desc, then id desc. Key = "<date>\t<id>\t<file>".
-  while IFS=$'\t' read -r date id f; do
+  # Partition the date-desc / id-desc sorted rows: the verbatim window = every killed row (any age)
+  # plus the first ARCHIVE_RECENT done rows in sort order (killed and recent done interleave by
+  # date, unchanged shape); the collapsed set = older done rows, tallied into a per-YYYY-MM digest.
+  # Killed never collapses. The status is carried in the sort tuple so the loop can partition
+  # without re-reading the file. Sort keys (date field 1 desc, id field 2 num desc) are unchanged.
+  # (change 0093)
+  done_seen=0
+  declare -A MONTH_DONE; month_order=()
+  while IFS=$'\t' read -r date id st f; do
     [ -n "$id" ] || continue
+    if [ "$st" = "done" ]; then
+      done_seen=$(( done_seen + 1 ))
+      if [ "$done_seen" -gt "$ARCHIVE_RECENT" ]; then
+        ym="${date:0:7}"
+        [ -n "${MONTH_DONE[$ym]:-}" ] || month_order+=("$ym")
+        MONTH_DONE["$ym"]=$(( ${MONTH_DONE[$ym]:-0} + 1 ))
+        continue
+      fi
+    fi
     printf '| [%s](archive/%s) | %s | %s |\n' "$(pad "$id")" "$(basename "$f")" "$(field "$f" title)" "$date"
   done < <(
     for f in "${ARCFILES[@]}"; do
-      base="$(basename "$f")"; d="${base:0:10}"; id="$(int_field "$f" id)"
-      printf '%s\t%s\t%s\n' "$d" "$id" "$f"
+      base="$(basename "$f")"; d="${base:0:10}"; id="$(int_field "$f" id)"; st="$(field "$f" status)"
+      printf '%s\t%s\t%s\t%s\n' "$d" "$id" "$st" "$f"
     done | sort -t$'\t' -k1,1r -k2,2nr
   )
+  if [ "${#month_order[@]}" -gt 0 ]; then
+    printf '\n**Older done (collapsed)**\n\n'
+    printf '| Month | Done |\n|-------|------|\n'
+    for ym in "${month_order[@]}"; do
+      printf '| [%s](archive/) | %d done |\n' "$ym" "${MONTH_DONE[$ym]}"
+    done
+  fi
   printf '\n</details>\n'
 fi

@@ -76,10 +76,19 @@ appears as an edge parent); unreferenced done ids — floating, edgeless nodes �
 archive entries are omitted from the graph. This pruning is universal: it changes every board that
 has an unreferenced done id, not only large archives.
 
-**Archive section.** If `archive/` contains any `*.md` files, emits a collapsible `<details>` block
-with a `| # | Title | Merged |` table. Rows are sorted by merged date descending, then by ID
-descending. The `#` cell links to `archive/<filename>`. The merged date is the first ten characters
-of the archive filename (the `YYYY-MM-DD` prefix).
+**Archive section.** If `archive/` contains any `*.md` files, emits a collapsible `<details>`
+block. The `| # | Title | Merged |` table lists a **verbatim window** — every `killed` entry (any
+age) plus the `ARCHIVE_RECENT` (default 15) most-recent `done` entries — sorted by merged date
+descending, then by ID descending; the `#` cell links to `archive/<filename>` and the merged date
+is the first ten characters of the filename (the `YYYY-MM-DD` prefix). `done` entries older than
+the window are **not** listed individually: they collapse into an "Older done (collapsed)"
+`| Month | Done |` digest, one row per `YYYY-MM` bucket (newest first, each linking to the
+`archive/` directory), keeping the always-loaded board flat as the archive grows. `killed` never
+collapses. When the archive's `done` count is at or below `ARCHIVE_RECENT`, no digest is emitted
+and the **archive table is byte-identical to the pre-window renderer** — the window is inert until
+it is needed. (The mermaid pruning above is separate and universal, not inert.) The window is
+count-based, not time-based, so the renderer stays deterministic — same change files, identical
+bytes.
 
 **Digest projection (`--format digest`).** A second projection of the **same**
 dependency-resolution/readiness pass the board renders from — so `readiness()` keeps exactly one
