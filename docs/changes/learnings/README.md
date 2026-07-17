@@ -29,6 +29,7 @@ One curated finding per file; this index is the hint surface. Load it, then read
 
 - [check-plumbing-auto-discovery](check-plumbing-auto-discovery.md) — At reconcile, check whether plumbing auto-discovers before planning an edit to it. · also: reconcile, plan
 - [dormant-code-live-mid-branch](dormant-code-live-mid-branch.md) — When a premise is 'X is dead today', re-probe X's liveness at the task that flips its precondition, not against the pre-branch tree. · also: spec, reconcile
+- [harness-behavior-is-mode-and-version-scoped](harness-behavior-is-mode-and-version-scoped.md) — An observation about a harness guard is scoped to the mode and version it was seen in — re-probe in the exact mode you will run before designing against it. · also: spike, environment ⟨needs promotion⟩
 - [intermediate-task-state-buildable](intermediate-task-state-buildable.md) — When a plan splits one function's rewrite across sequential tasks, treat the intermediate state as itself buildable and testable. · also: plan, tasks
 - [moving-base](moving-base.md) — A change is designed against a SNAPSHOT and the base moves under it — reconcile against what has actually MERGED. · also: reconcile, rebase
 - [size-target-is-direction](size-target-is-direction.md) — On a behavior-neutral slim the size target is a direction, not a gate — behavior-neutrality outranks hitting the number. · also: refactoring, review
@@ -39,6 +40,7 @@ One curated finding per file; this index is the hint surface. Load it, then read
 - [atomic-generated-write](atomic-generated-write.md) — Never redirect a renderer straight into the file it generates — > truncates on open, so a failed render destroys the last-good file before its exit code is even read. · also: dataloss, generated ⟨needs promotion⟩
 - [conditional-mkdir-in-loop-aborts-run](conditional-mkdir-in-loop-aborts-run.md) — A conditional mkdir in a per-item loop needs || continue — under set -e a bad target aborts the ENTIRE run, not just that item. · also: errexit, loops
 - [escape-ere-metacharacters-in-key](escape-ere-metacharacters-in-key.md) — Escape ERE metacharacters in a key before building a grep -E match from it — and note the un-fixed twin of a duplicated helper. · also: grep, regex
+- [transient-resource-lifecycle](transient-resource-lifecycle.md) — A fixed-name scratch resource must self-heal from an interrupted run's leftover, and teardown must not eat the diagnostics the failure path still has to read. · also: scripts, cleanup
 
 ## skills
 
