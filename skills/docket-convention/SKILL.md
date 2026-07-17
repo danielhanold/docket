@@ -140,6 +140,7 @@ created: 2026-05-30
 updated: 2026-05-30
 depends_on: [4]           # change ids that must reach `done` (PR merged) first
 related: [4, 6]           # cross-links the reconcile pass reads
+discovered_from: [62]     # change id(s) whose work surfaced this one; informational like related:, never a readiness gate
 adrs: [24]                # ADRs this change cites or produces
 spec:                     # superpowers design doc path; set at brainstorm (propose) time, on metadata_branch
 plan:                     # plan FILE lives on the feature branch; this FIELD is set in the main tree at build time

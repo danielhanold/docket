@@ -8,6 +8,7 @@ created:                  # YYYY-MM-DD (UTC)
 updated:                  # YYYY-MM-DD (UTC)
 depends_on: []
 related: []
+discovered_from: []       # change id(s) whose work surfaced this; empty for deliberately planned work
 adrs: []
 spec:                     # path under docs/superpowers/specs/ once brainstormed (omit if trivial)
 plan:                     # left empty; set by docket-implement-next at build time
