@@ -17,7 +17,7 @@ auto_groomable: true
 branch: feat/archive-decay-digest
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -88,3 +88,17 @@ Resolved at groom (2026-07-17); the rationale + rejected alternatives are the sp
 - GitHub board surface — **exempt**, no decay.
 
 ## Reconcile log
+
+2026-07-17 — Reconciled at claim, before planning. Verified the spec's code assumptions against
+`origin/main` (tip `250ff7c`): `render-board.sh` (243 lines) still emits a `NNNN:::done` node for
+**every** archived done id (the `DONE_IDS` mermaid loop) and lists **all** archive rows verbatim in
+the `| # | Title | Merged |` table — no `ARCHIVE_RECENT` constant exists yet. Last substantive
+render-board change was #0069 (digest projection, already in tree); nothing has touched the
+archive/mermaid rendering since, so the spec's L-references (structure, not exact lines) hold. The
+golden fixture (`tests/test_render_board.sh`) has 3 archive entries (done 0010/0012, killed 0011)
+with active #0002 `depends_on: [10]` — confirming the spec's stated golden delta: mermaid pruning
+drops `0012:::done` (unreferenced), keeps `0010:::done` (referenced), and the 3-entry archive table
+stays byte-identical (well under the window). Related state: #0010 (board-analytics) still
+`proposed`/unbuilt — no analytics sharing to fold in; #0067 (learnings promotion valve) now `done` —
+the learnings-side compaction lever cited in Assumptions #8 exists as designed. No scope drift, no
+obsolescence, design fully valid. Scope, defaults, and out-of-scope boundaries unchanged.
