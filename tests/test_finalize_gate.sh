@@ -175,4 +175,18 @@ assert "0075: finalize does NOT derive the root as dirname of the metadata workt
 assert "0075: finalize still runs the merge-gate suite in the feature worktree" \
   'grep -qiE "in the feature worktree" "$FIN"'
 
+# --- auto_approve merge path (change 0062) ---
+assert "finalize documents finalize.auto_approve knob" \
+  'grep -q "auto_approve" "$FIN"'
+assert "auto_approve dispatches the approve workflow after the gate's push, before merge" \
+  'grep -Eqi "docket-approve|gh workflow run" "$FIN"'
+assert "auto_approve merges WITHOUT --admin" \
+  'grep -Eqi "without .*--admin|no .*--admin|not .*--admin" "$FIN"'
+assert "auto_approve re-checks reviewDecision == APPROVED" \
+  'grep -q "reviewDecision" "$FIN" && grep -q "APPROVED" "$FIN"'
+assert "auto_approve failure is abort-and-report, never an --admin fallback" \
+  'grep -Eqi "never .*--admin|no --admin fallback|abort-and-report" "$FIN"'
+assert "publish degradation: terminal_publish headless push denial degrades, not fails" \
+  'grep -qi "terminal_publish" "$FIN" && grep -Eqi "degrad|surface.*manual|run .*terminal-publish" "$FIN"'
+
 exit $fail
