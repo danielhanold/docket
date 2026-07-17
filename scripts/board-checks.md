@@ -34,7 +34,7 @@ for hermetic staleness checks and git injection.
 
 The script walks every `*.md` file under `active/` and `archive/` (sorted), sources
 `lib/docket-frontmatter.sh`, and calls `resolve_deps` once to populate the dependency
-state maps. Then it runs five named checks:
+state maps. Then it runs the following named checks:
 
 **`broken-spec`** — The change has a non-empty `spec:` field, `trivial: false` is not set,
 and the spec path is absent on `--metadata-branch` (checked via
@@ -82,7 +82,7 @@ lies on a cycle (including both members of a mutual `A→B→A` loop and self-lo
 Only edges to known change IDs (present in the file set) are followed; dangling references
 to unknown IDs are silently skipped. Every node on a cycle is emitted as a separate finding.
 
-**`malformed-id`** — Guard/carve-out, not counted among the five named checks. A change file
+**`malformed-id`** — Guard/carve-out, not counted among the named checks above. A change file
 whose `id:` field is non-empty but non-integer emits a `malformed-id` finding (using the raw
 string as the change-id column). The file is then skipped for all other checks.
 
