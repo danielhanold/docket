@@ -1433,7 +1433,7 @@ slug: mainline
 title: Mainline
 status: in-progress
 priority: high
-depends_on: [60]
+depends_on: [40]
 spec: docs/superpowers/specs/2026-07-01-mainline.md
 branch: feat/mainline
 EOF
@@ -1468,9 +1468,9 @@ assert "big: a collapsed done (0040) has NO verbatim archive row" '! grep -qF --
 assert "big: exactly one per-month digest row (only April collapses)" '[ "$(grep -cE "\(archive/\) \| [0-9]+ done \|" "$big_out")" -eq 1 ]'
 
 # (c) mermaid — :::done only for the referenced done id (0060); every other done dropped.
-assert "big: referenced done 0060 is styled :::done" 'grep -qxF -- "  0060:::done" "$big_out"'
+assert "big: a referenced done that is ALSO collapsed (0040, April) is still styled :::done" 'grep -qxF -- "  0040:::done" "$big_out"'
 assert "big: unreferenced verbatim done 0071 NOT in the mermaid" '! grep -qxF -- "  0071:::done" "$big_out"'
-assert "big: unreferenced collapsed done 0040 NOT in the mermaid" '! grep -qxF -- "  0040:::done" "$big_out"'
+assert "big: an unreferenced collapsed done (0041, April) is NOT in the mermaid" '! grep -qxF -- "  0041:::done" "$big_out"'
 assert "big: exactly one :::done node in the graph" '[ "$(grep -cF -- ":::done" "$big_out")" -eq 1 ]'
 
 # (d) determinism — a second render is byte-identical.
