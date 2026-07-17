@@ -2,20 +2,20 @@
 id: 85
 slug: skill-slimming-round-two
 title: Second-round skill slimming — re-slim regrown skills + regrowth guard
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-16
-updated: 2026-07-16
+updated: 2026-07-17
 depends_on: []
 related: [53, 54, 55]
 adrs: [12]
 spec: docs/superpowers/specs/2026-07-16-skill-slimming-round-two-design.md
 plan: docs/superpowers/plans/2026-07-16-skill-slimming-round-two.md
-results:
+results: docs/results/2026-07-17-skill-slimming-round-two-results.md
 trivial: false
 auto_groomable:
 branch: feat/skill-slimming-round-two
-pr:
+pr: https://github.com/danielhanold/docket/pull/95
 blocked_by:
 reconciled: true
 ---
@@ -27,6 +27,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-16-skill-slimming-round-two-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-16-skill-slimming-round-two-design.md) |
 | Plan | [2026-07-16-skill-slimming-round-two.md](https://github.com/danielhanold/docket/blob/feat/skill-slimming-round-two/docs/superpowers/plans/2026-07-16-skill-slimming-round-two.md) |
+| Results | [2026-07-17-skill-slimming-round-two-results.md](https://github.com/danielhanold/docket/blob/feat/skill-slimming-round-two/docs/results/2026-07-17-skill-slimming-round-two-results.md) |
+| PR | [#95](https://github.com/danielhanold/docket/pull/95) |
 | ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md) |
 <!-- docket:artifacts:end -->
 
