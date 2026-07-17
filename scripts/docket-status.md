@@ -13,7 +13,7 @@ glue — each shared script still owns its own contract. Change 0058; the learni
 ## Usage
 
 ```
-docket-status.sh [--board-only] [--repo OWNER/REPO] [--project OWNER/NUMBER]
+docket-status.sh [--board-only] [--must-land] [--repo OWNER/REPO] [--project OWNER/NUMBER]
                   [--auto-create-project] [--project-owner OWNER]
 docket-status.sh -h | --help
 ```
@@ -21,6 +21,7 @@ docket-status.sh -h | --help
 | Flag | Description |
 |---|---|
 | `--board-only` | Only run steps 1–4 (config/bootstrap, worktree sync, board pass, backlog pass) and exit; skip sweep detection/execution, health checks, judgment emission, and integration sync. |
+| `--must-land` | With `--board-only`: run the board pass with an in-script bounded retry (3 attempts) on the sole retryable outcome `board inline changed push-failed`, re-syncing the metadata worktree between attempts, and map the result to the exit code. Exit 0 iff every board line is a terminal success (`board inline changed pushed`/`clean`, `board off`, `board github ok`); any other terminal line or retry exhaustion exits non-zero. Report-line vocabulary and flagless behavior are unchanged; `board_pass`'s fail-closed exit 2 propagates. |
 | `--repo OWNER/REPO` | GitHub repo for PR-link resolution and sweep merge detection. Defaults to deriving from the `origin` remote (see `render-board.sh`) and, for sweep detection, from `gh repo view` when unset. |
 | `--project OWNER/NUMBER` | GitHub Project to sync during the github board surface. Passed through to `github-mirror.sh`. |
 | `--auto-create-project` | Create the GitHub Project if `--project` doesn't resolve. Passed through to `github-mirror.sh`. |
@@ -88,6 +89,16 @@ emits an empty value and an unresolved config must never masquerade as a disable
   positive `board <token> unknown` stdout line (change 0071 review, finding 1) so a typo can never
   silently vanish from the report the way it used to when the warning lived on stderr alone. This
   line is terminal, not retryable — a typo is a config problem, not a transient one.
+
+**`--must-land` (change 0085).** With `--board-only`, `--must-land` wraps this step in
+`board_pass_must_land` instead of calling `board_pass` directly: it classifies the board pass's own
+report lines (`board_classify`) into `success` / `retryable` / `failed`, and on the sole retryable
+outcome (`board inline changed push-failed`) re-syncs the metadata worktree (`git pull --rebase`)
+and re-runs the board pass, up to 3 attempts total. Every attempt's report line(s) still reach
+stdout — the vocabulary above is unchanged — and the wrapper only adds the retry and an exit-code
+mapping on top. `board_pass`'s own fail-closed `exit 2` (unresolved `BOARD_SURFACES`) propagates
+verbatim, uninvolved with the retry loop. Flagless callers (no `--must-land`) never reach this
+wrapper — `main()` calls `board_pass` directly, byte for byte as before change 0085.
 
 **4. Backlog pass — UNGATED, once per path.** Runs `render-board.sh --format digest` and passes
 its lines through (`backlog <status> <count>` rollups, then one `change <id> <status> <readiness>
@@ -291,6 +302,8 @@ All report lines are stdout, one shape per line, diagnostics go to stderr:
   sync failure, exit 1), an unknown CLI argument (exit 2), or `BOARD_SURFACES` was empty (or
   whitespace-only — defence-in-depth, change 0071 review finding 6) / `none` was combined with
   another surface (a wiring bug — change 0071).
+- non-zero — under `--must-land`, the board pass ended on a non-success terminal line or exhausted
+  its 3 retries.
 
 ## Invariants
 

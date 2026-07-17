@@ -549,6 +549,88 @@ if grep -q "board inline changed pushed" "$tmp/unpushed-run.txt"; then
     'git -C "$tmp/unpushed-case/work" show origin/main:docs/changes/BOARD.md 2>/dev/null | cmp -s - "$tmp/unpushed-case/work/docs/changes/BOARD.md"'
 fi
 
+# ============================================================================
+# --must-land (change 0085): the board-pass retry loop + exit-code mapping move
+# into the script. Vocabulary unchanged; flagless behavior byte-identical.
+# ============================================================================
+
+# Fresh hermetic fixture: a clone with an unpushed board change so a push is attempted.
+git_repo_setup "$tmp/mustland-case"
+git clone -q "$tmp/mustland-case/origin.git" "$tmp/mustland-case/work" 2>/dev/null
+seed_changes_fixture "$tmp/mustland-case/work"
+git -C "$tmp/mustland-case/work" -c user.email=t@t -c user.name=t add docs/changes
+git -C "$tmp/mustland-case/work" -c user.email=t@t -c user.name=t commit -q -m "seed changes fixture"
+git -C "$tmp/mustland-case/work" push -q origin main
+
+# A: must-land success — a normal render pushes; exit 0, pass ok present.
+write_board_fixture inline
+(cd "$tmp/mustland-case/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" "$SCRIPT" --board-only --must-land >"$tmp/ml-ok.txt" 2>"$tmp/ml-ok-err.txt")
+rc=$?
+assert "must-land success exits zero" '[ $rc -eq 0 ]'
+assert "must-land success reports a terminal-success board line" \
+  'grep -Eq "board inline (changed pushed|clean)" "$tmp/ml-ok.txt"'
+assert "must-land success still closes with pass ok" 'grep -qxF "pass ok" "$tmp/ml-ok.txt"'
+
+# B: must-land board-off (none) — a deliberate off-state is success; exit 0.
+write_board_fixture none
+(cd "$tmp/mustland-case/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" "$SCRIPT" --board-only --must-land >"$tmp/ml-off.txt" 2>"$tmp/ml-off-err.txt")
+rc=$?
+assert "must-land board-off exits zero (deliberate off-state is success)" '[ $rc -eq 0 ]'
+assert "must-land board-off emits a positive board off line" 'grep -qxF "board off" "$tmp/ml-off.txt"'
+
+# C: must-land fail-closed (empty surfaces) — exit 2 PROPAGATES unchanged.
+write_board_fixture ""
+(cd "$tmp/mustland-case/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" "$SCRIPT" --board-only --must-land >"$tmp/ml-empty.txt" 2>"$tmp/ml-empty-err.txt")
+rc=$?
+assert "must-land empty-surfaces exits 2 (fail-closed propagates)" '[ $rc -eq 2 ]'
+assert "must-land empty-surfaces names the unresolved config on stderr" \
+  'grep -qF "BOARD_SURFACES" "$tmp/ml-empty-err.txt"'
+
+# D: must-land unknown token — a non-retryable failure line; exit non-zero, NO retry.
+write_board_fixture "inlne"
+(cd "$tmp/mustland-case/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" "$SCRIPT" --board-only --must-land >"$tmp/ml-unknown.txt" 2>"$tmp/ml-unknown-err.txt")
+rc=$?
+assert "must-land unknown-token exits non-zero (unknown is a failure, not success)" '[ $rc -ne 0 ]'
+assert "must-land unknown-token emits the unknown line exactly once (no retry on a non-retryable line)" \
+  '[ "$(grep -cxF "board inlne unknown" "$tmp/ml-unknown.txt")" -eq 1 ]'
+assert "must-land unknown-token never prints pass ok" '! grep -qxF "pass ok" "$tmp/ml-unknown.txt"'
+
+# E: must-land persistent push-failure — retries EXACTLY 3× then exits non-zero.
+# GIT mock: real git for everything except `push`, which always fails. `push` is always the
+# 3rd token (git -C "$mw" push); pull --rebase (the re-sync) still succeeds against the bare origin.
+cat > "$tmp/git-nopush.sh" <<'EOF'
+#!/usr/bin/env bash
+sub="$1"; [ "$sub" = "-C" ] && sub="$3"
+if [ "$sub" = push ]; then echo "git-nopush: push rejected" >&2; exit 1; fi
+exec git "$@"
+EOF
+chmod +x "$tmp/git-nopush.sh"
+# Give board_pass something to render+commit+push: mutate a change so BOARD.md changes. Commit
+# the mutation itself first (matching the conflict-case fixture's own pattern above) — main-mode
+# preflight runs `git pull --rebase` on this same working tree before board_pass ever executes,
+# and that fails outright on an uncommitted change, never reaching the retry loop under test.
+sed -i.bak 's/Alpha feature/Alpha feature v3/' "$tmp/mustland-case/work/docs/changes/active/0001-alpha.md"
+rm -f "$tmp/mustland-case/work/docs/changes/active/0001-alpha.md.bak"
+git -C "$tmp/mustland-case/work" -c user.email=t@t -c user.name=t add docs/changes
+git -C "$tmp/mustland-case/work" -c user.email=t@t -c user.name=t commit -q -m "alpha v3 (local, unpushed)"
+write_board_fixture inline
+(cd "$tmp/mustland-case/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" GIT="$tmp/git-nopush.sh" "$SCRIPT" --board-only --must-land >"$tmp/ml-pf.txt" 2>"$tmp/ml-pf-err.txt")
+rc=$?
+assert "must-land persistent push-failure exits non-zero (retry exhausted)" '[ $rc -ne 0 ]'
+assert "must-land persistent push-failure retries exactly 3 times (push-failed line ×3)" \
+  '[ "$(grep -cxF "board inline changed push-failed" "$tmp/ml-pf.txt")" -eq 3 ]'
+assert "must-land persistent push-failure never prints pass ok" '! grep -qxF "pass ok" "$tmp/ml-pf.txt"'
+
+# F: FLAGLESS NEUTRALITY — the same push-failure WITHOUT --must-land is best-effort: exit 0,
+# the push-failed line appears exactly once (no retry), pass ok present. Proves flagless is
+# byte-identical to pre-0085.
+(cd "$tmp/mustland-case/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" GIT="$tmp/git-nopush.sh" "$SCRIPT" --board-only >"$tmp/ml-flagless.txt" 2>"$tmp/ml-flagless-err.txt")
+rc=$?
+assert "flagless push-failure exits zero (best-effort, unchanged)" '[ $rc -eq 0 ]'
+assert "flagless push-failure emits the push-failed line exactly once (no retry)" \
+  '[ "$(grep -cxF "board inline changed push-failed" "$tmp/ml-flagless.txt")" -eq 1 ]'
+assert "flagless push-failure still closes with pass ok" 'grep -qxF "pass ok" "$tmp/ml-flagless.txt"'
+
 # detect_merged: batched sweep detection (task 4). Source the script (guarded so it doesn't
 # auto-run main), seed a hermetic changes tree with two `implemented` changes — one whose GH
 # mock reports a merged PR, one open — and a GH stub serving canned graphql JSON.
