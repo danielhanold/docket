@@ -342,6 +342,7 @@ title: $slug
 status: in-progress
 priority: medium
 depends_on: []
+---
 EOF
 done
 cat > "$O/docs/changes/archive/2026-07-01-0053-published.md" <<'EOF'
@@ -352,6 +353,7 @@ title: Terminal, published
 status: done
 priority: medium
 depends_on: []
+---
 EOF
 oout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$O/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
 # merged-orphan: active id referenced by a merged subject (both grammar forms)

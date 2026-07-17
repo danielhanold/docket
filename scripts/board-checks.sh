@@ -130,8 +130,9 @@ done
 
 # --- merged-orphan / unknown-commit-ref: cross-reference integration-branch commit subjects
 #     against the active/archive change set. Git-only, subjects only, conservative grammar
-#     (numeric conventional-commit scope + trailing "(change N)"); bare #N and bodies excluded
-#     to bound PR-number false positives. Zero-padding tolerated (10# strips it). Full history.
+#     (numeric conventional-commit scope + a "(change N)" tag (conventionally trailing;
+#     matched anywhere in the subject)); bare #N and bodies excluded to bound PR-number
+#     false positives. Zero-padding tolerated (10# strips it). Full history.
 declare -A REF_EVIDENCE                       # id -> "<short-sha> <subject>" (first commit seen)
 re_scope='^[a-zA-Z]+\(0*([0-9]{1,4})\):'      # docket(0085): … / results(0085): …
 re_trailing='\(change 0*([0-9]{1,4})\)'       # … (change 0085)
