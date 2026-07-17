@@ -17,7 +17,7 @@ auto_groomable: true
 branch: feat/orphan-detection-script
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -98,3 +98,29 @@ Resolved at brainstorm 2026-07-17 — see the spec's `## Assumptions`. Summary:
   undecided call. The two compose additively as sibling `board-checks.sh` check-ids.
 
 ## Reconcile log
+
+### 2026-07-17 — reconcile (docket-implement-next, pre-plan)
+
+Re-read the change + spec against `related` (#0023, #0083), cited ADRs (0001, 0012), and the
+current integration-branch code. Design holds unchanged — no scope adjustment, no fold-in, no
+drop. Confirmations:
+
+- **#0083 still `proposed` / auto-groom-blocked (needs human).** The class-2 (terminal-publish
+  gap, #0043 case) detection question remains a human's undecided call. The scope boundary stands:
+  0092 ships classes 1 (`merged-orphan`) & 3 (`unknown-commit-ref`) only; class 2 stays #0083's.
+- **`scripts/board-checks.sh` matches the spec's described shape** (origin/main @ 250ff7c): shared
+  `FINDINGS` accumulator + `emit`, sources `lib/docket-frontmatter.sh`, walks `active/`+`archive/`,
+  `GIT="${GIT:-git}"` mock seam, sorts findings by `(check-id asc, change-id numeric asc)`,
+  `--strict` exits 1 on any finding. The two new checks slot into these rails purely additively.
+- **`lib/docket-frontmatter.sh` supplies the reuse surface** — `int_field`/`field`/`list_field`
+  and the `active/`+`archive/` file walk already tell the checks which ids exist and their terminal
+  state; only one `git log --format=%s` pass over the integration ref is new.
+- **Zero `docket-status.sh` edit, verified against running code.** `health_checks()` invokes
+  `board-checks.sh … --integration-branch "origin/$INTEGRATION_BRANCH"` and pipes *whatever* TSV it
+  emits as `check <check-id> <change-id> <message>`. New check-ids surface with no wiring change —
+  the extraction `git log` reads `origin/main` subjects (real merged history), resolvable from the
+  changes-dir repo via the shared object store.
+- Doc/test touchpoints unchanged from the spec: `board-checks.md` (check enumeration + grammar),
+  `docket-status.md` (extend the `check` vocabulary note), `tests/test_board_checks.sh` (hermetic
+  cases through the existing `GIT` mock + bare-origin `new_repo` harness, incl. the load-bearing
+  negatives: bare `#NNNN`, body-only mention, terminal-publish subject of an archived change).
