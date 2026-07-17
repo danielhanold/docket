@@ -1,6 +1,6 @@
 # Backlog
 
-**87 changes** — 🟡 10 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 70 done · 🗑️ 4 killed
+**87 changes** — 🟡 10 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 71 done · 🗑️ 4 killed
 
 ## 🟡 Proposed (10)
 
@@ -23,12 +23,11 @@
 |---|-------|----------|------------|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | PR #69 is stale (predates the 0068/0072 facade rework and later agent-layer changes) and #0079 (runner delegation) reshapes the design — the build roles should grow a runner field (build.<role>.runner codex, the mixed topology 0079 deferred). Needs a rebase plus redesign pass before merge. |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | [#89](https://github.com/danielhanold/docket/pull/89) |
-| [0085](active/0085-skill-slimming-round-two.md) | Second-round skill slimming — re-slim regrown skills + regrowth guard | `medium` | [#95](https://github.com/danielhanold/docket/pull/95) |
 
 ```mermaid
 graph TD
@@ -42,7 +41,6 @@ graph TD
   0077 --> 0078
   0082
   0083
-  0085
   0086
   0087
   0001:::done
@@ -115,13 +113,15 @@ graph TD
   0080:::done
   0081:::done
   0084:::done
+  0085:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (74)</summary>
+<details><summary>✅🗑️ Archive — done + killed (75)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0085](archive/2026-07-17-0085-skill-slimming-round-two.md) | Second-round skill slimming — re-slim regrown skills + regrowth guard | 2026-07-17 |
 | [0062](archive/2026-07-17-0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | 2026-07-17 |
 | [0084](archive/2026-07-16-0084-terminal-publish-opt-in-default.md) | Flip terminal_publish default to false — publishing to the integration branch becomes opt-in | 2026-07-16 |
 | [0081](archive/2026-07-16-0081-first-run-setup-config-example.md) | First-run setup — committed starter config + install.sh scaffolding + README Install restructure | 2026-07-16 |
