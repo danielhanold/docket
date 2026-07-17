@@ -140,7 +140,7 @@ assert "board fenced-to-empty: emits BOARD_SURFACES=none" \
 
 # --- (E) direct-pipe caller (LEARNINGS #22: $() hides a dropped trailing \n) -
 n="$(run "$tmp/c" --export | grep -c '=')"
-assert "direct-pipe: 21 KEY=value lines emitted"       '[ "$n" -eq 21 ]'
+assert "direct-pipe: 23 KEY=value lines emitted"       '[ "$n" -eq 23 ]'
 last="$(run "$tmp/c" --export | tail -n1)"
 assert "direct-pipe: last line is BOOTSTRAP"           'case "$last" in BOOTSTRAP=*) true;; *) false;; esac'
 
@@ -397,9 +397,9 @@ printf 'auto_groom: true\n' > "$tmp/q.home/.config/docket/config.yml"
 out="$(env -u XDG_CONFIG_HOME HOME="$tmp/q.home" bash "$SCRIPT" --repo-dir "$tmp/q" --export)"; eval "$out"
 assert "0050 Q: XDG unset -> \$HOME/.config fallback read"   '[ "$AUTO_GROOM" = true ]'
 
-# --- (E') emit-interface guard: still exactly 21 lines with a global file present ---
+# --- (E') emit-interface guard: still exactly 23 lines with a global file present ---
 n50="$(rung "$tmp/k.xdg" "$tmp/k" --export | grep -c '=')"
-assert "0050 E': still 21 KEY=value lines with global layer" '[ "$n50" -eq 21 ]'
+assert "0050 E': still 23 KEY=value lines with global layer" '[ "$n50" -eq 23 ]'
 
 # --- (M) coordination-key fence: warned-and-ignored, never honored, never fatal ---
 mkrepo "$tmp/m"
@@ -822,6 +822,105 @@ lrn_f2_err="$(bash "$SCRIPT" --repo-dir "$tmp/lrn-f2" --export 2>&1 >/dev/null)"
 assert "non-integer learnings.cap: nonzero exit" '[ "$(run_rc "$tmp/lrn-f2" --export)" -ne 0 ]'
 assert "non-integer learnings.cap: mentions learnings.cap" \
   'printf "%s" "$lrn_f2_err" | grep -qF "learnings.cap"'
+
+# ============================================================================
+# Change 0089 — the reclaim: block (RECLAIM_LEASE_TTL, RECLAIM_AUTO)
+# NOTE (guards-are-code (e)): clear the asserted vars BEFORE each eval — an aborting run emits
+# NOTHING, and eval "" would silently leave the previous case's value in place; the assert would
+# then pass vacuously on stale state instead of on this run's actual (non-)output.
+# ============================================================================
+
+# run_resolver_with <yaml-fragment> : commit a fresh repo whose .docket.yml is
+# "metadata_branch: main\n" + <yaml-fragment>, run the resolver against it, echo stdout.
+# (Mirrors run/mkrepo above; used for the fail-closed garbage-path asserts, which only care
+# about the resolver's exit code / lack of output, not its resolved values.)
+run_resolver_with(){
+  local frag="$1" d="$tmp/reclaim-garbage-$RANDOM"
+  mkrepo "$d"
+  printf 'metadata_branch: main\n%b' "$frag" > "$d/.docket.yml"
+  git -C "$d" add .docket.yml; git -C "$d" commit --quiet -m cfg
+  git -C "$d" push --quiet origin main
+  run "$d" --export
+}
+
+# --- (RCL-a) defaults when no layer sets the block ----------------------------
+unset RECLAIM_LEASE_TTL RECLAIM_AUTO
+mkrepo "$tmp/rcl-a"
+out="$(run "$tmp/rcl-a" --export)"; eval "$out"
+assert "RECLAIM_LEASE_TTL defaults to 72" 'echo "$out" | grep -qxF "RECLAIM_LEASE_TTL=72"'
+assert "RECLAIM_AUTO defaults to false"   'echo "$out" | grep -qxF "RECLAIM_AUTO=false"'
+
+# --- (RCL-b) repo-committed block is honored -----------------------------------
+unset RECLAIM_LEASE_TTL RECLAIM_AUTO
+mkrepo "$tmp/rcl-b"
+cat > "$tmp/rcl-b/.docket.yml" <<'EOF'
+metadata_branch: main
+reclaim:
+  lease_ttl: 12
+  auto: true
+EOF
+git -C "$tmp/rcl-b" add .docket.yml; git -C "$tmp/rcl-b" commit --quiet -m cfg
+git -C "$tmp/rcl-b" push --quiet origin main
+out2="$(run "$tmp/rcl-b" --export)"; eval "$out2"
+assert "RECLAIM_LEASE_TTL reads the block" 'echo "$out2" | grep -qxF "RECLAIM_LEASE_TTL=12"'
+assert "RECLAIM_AUTO reads the block"      'echo "$out2" | grep -qxF "RECLAIM_AUTO=true"'
+
+# --- (RCL-c) BOTH keys are global-able (ADR-0019 — NOT fenced) -----------------
+unset RECLAIM_LEASE_TTL RECLAIM_AUTO
+mkrepo "$tmp/rcl-c"
+mkdir -p "$tmp/rcl-c.xdg/docket"
+cat > "$tmp/rcl-c.xdg/docket/config.yml" <<'EOF'
+reclaim:
+  lease_ttl: 6
+  auto: true
+EOF
+rcl_c_err="$(rung "$tmp/rcl-c.xdg" "$tmp/rcl-c" --export 2>&1 >/dev/null)"
+out="$(rung "$tmp/rcl-c.xdg" "$tmp/rcl-c" --export 2>/dev/null)"; eval "$out"
+assert "reclaim.lease_ttl is global-able (not fenced)" '[ "$RECLAIM_LEASE_TTL" = "6" ]'
+assert "reclaim.auto is global-able (not fenced)"      '[ "$RECLAIM_AUTO" = "true" ]'
+assert "no fence warning for reclaim keys" '! printf "%s" "$rcl_c_err" | grep -qi "reclaim.*per-repo-only"'
+
+# --- (RCL-d) repo-local layer wins over repo-committed -------------------------
+unset RECLAIM_LEASE_TTL RECLAIM_AUTO
+mkrepo "$tmp/rcl-d"
+cat > "$tmp/rcl-d/.docket.yml" <<'EOF'
+metadata_branch: main
+reclaim:
+  lease_ttl: 12
+EOF
+git -C "$tmp/rcl-d" add .docket.yml; git -C "$tmp/rcl-d" commit --quiet -m cfg
+git -C "$tmp/rcl-d" push --quiet origin main
+printf 'reclaim:\n  lease_ttl: 3\n' > "$tmp/rcl-d/.docket.local.yml"
+out="$(run "$tmp/rcl-d" --export)"; eval "$out"
+assert "local layer beats repo-committed for lease_ttl" '[ "$RECLAIM_LEASE_TTL" = "3" ]'
+
+# --- (RCL-e) SHADOW GUARD — a bare lease_ttl:/auto: OUTSIDE the reclaim: block ---
+# must not leak in. This is the whole reason the block is read via yaml_block_body — `auto` in
+# particular is a generic word a future top-level block could otherwise shadow.
+unset RECLAIM_LEASE_TTL RECLAIM_AUTO
+mkrepo "$tmp/rcl-e"
+cat > "$tmp/rcl-e/.docket.yml" <<'EOF'
+metadata_branch: main
+some_future_block:
+  lease_ttl: 9
+  auto: true
+EOF
+git -C "$tmp/rcl-e" add .docket.yml; git -C "$tmp/rcl-e" commit --quiet -m cfg
+git -C "$tmp/rcl-e" push --quiet origin main
+out="$(run "$tmp/rcl-e" --export)"; eval "$out"
+assert "a foreign block's lease_ttl: does not shadow reclaim.lease_ttl" '[ "$RECLAIM_LEASE_TTL" = "72" ]'
+assert "a foreign block's auto: does not shadow reclaim.auto"           '[ "$RECLAIM_AUTO" = "false" ]'
+
+# --- (RCL-f) fail closed on garbage --------------------------------------------
+assert "non-integer lease_ttl aborts nonzero" '! run_resolver_with "reclaim:\n  lease_ttl: soon\n" >/dev/null 2>&1'
+assert "non-bool auto aborts nonzero"         '! run_resolver_with "reclaim:\n  auto: maybe\n" >/dev/null 2>&1'
+
+rcl_f1_err="$(run_resolver_with "reclaim:\n  lease_ttl: soon\n" 2>&1 >/dev/null)"
+assert "unparseable reclaim.lease_ttl: mentions reclaim.lease_ttl" \
+  'printf "%s" "$rcl_f1_err" | grep -qF "reclaim.lease_ttl"'
+rcl_f2_err="$(run_resolver_with "reclaim:\n  auto: maybe\n" 2>&1 >/dev/null)"
+assert "unparseable reclaim.auto: mentions reclaim.auto" \
+  'printf "%s" "$rcl_f2_err" | grep -qF "reclaim.auto"'
 
 if [ "$fail" = 0 ]; then echo PASS; else echo FAIL; fi
 exit "$fail"
