@@ -6,7 +6,9 @@
 # Provides:
 #   field FILE KEY        — first top-level frontmatter scalar for KEY, trimmed.
 #   list_field FILE KEY   — `[a, b]` -> space-separated `a b` (empty for `[]` / unset).
+#   int_field FILE KEY    — like field(), but empty unless the value is a well-formed non-negative integer.
 #   has_section FILE STR  — exit 0 iff the body contains the literal line STR.
+#   iso_to_epoch ISO      — UTC ISO-8601 timestamp -> epoch seconds; empty on parse failure.
 #   resolve_deps DIR      — scan DIR/active + DIR/archive once; populate the globals below.
 #   readiness FILE        — build-ready | needs-brainstorm | auto-groom-blocked | waiting.
 #

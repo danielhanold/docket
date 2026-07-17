@@ -532,8 +532,11 @@ health_checks(){
 # SIGPIPE rule): a grep -q that exits on its first match would, in a pipeline, leave the producer's
 # SIGPIPE exit status to surface under `set -o pipefail` and mislabel a match as no-match. A
 # here-string has no producer process, so no SIGPIPE. docket_metadata_worktree is the SAME resolver
-# health_checks uses, so reclaim runs against the same metadata worktree the findings came from; its
-# no-branch orphan guard reads local remote-tracking refs, which docket_preflight already freshened.
+# health_checks uses, so reclaim runs against the same metadata worktree the findings came from;
+# single-clone safety comes from the guard's LOCAL refs/heads/feat/<slug> arm (always present in
+# this clone) — docket_preflight fetches only origin/<metadata_branch>, never origin/feat/*. The
+# genuine cross-machine unfetched-remote-ref case is the documented §7-H residual, contained by
+# lease expiry plus reclaim.auto's default-off (see reclaim-claims.md).
 reclaim_pass(){
   local health_out="$1" mw cd_dir line
   grep -qF "[reclaimable]" <<<"$health_out" || return 0

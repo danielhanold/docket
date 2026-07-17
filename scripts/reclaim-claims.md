@@ -13,8 +13,11 @@ change 0089. ADR-0012: a deterministic script, never model prose. ADR-0021: auth
 mechanical commit.
 
 Mutation is the caller's choice: `docket-status` runs it only under `reclaim.auto`, and a
-human runs `docket.sh reclaim-claims` explicitly. The lease TTL is supplied by the caller
-(resolved from `reclaim.lease_ttl_hours`; see `ensure-docket-env.sh`).
+human runs `docket.sh reclaim-claims` explicitly. The lease TTL comes from the config key
+`reclaim.lease_ttl` (integer hours — the `_hours` suffix belongs only to this script's
+`--lease-ttl-hours` flag), resolved by `scripts/docket-config.sh` (exported as
+`RECLAIM_LEASE_TTL`) and forwarded here as `--lease-ttl-hours` by `docket-status.sh`, or
+passed directly by a human.
 
 ## Usage
 
