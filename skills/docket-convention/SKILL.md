@@ -148,6 +148,7 @@ results:                  # results FILE on the feature branch; this FIELD set i
 trivial: false            # true = no spec needed (small mechanical change); still build-ready
 auto_groomable:           # tri-state: unset ⇒ inherit the repo's auto_groom; true/false ⇒ explicit override
 branch:                   # planned feat/<slug> name, set on claim; branch itself created at build (step 4)
+claimed_at:               # UTC ISO-8601 claim lease (YYYY-MM-DDTHH:MM:SSZ); stamped at claim, refreshed at phase boundaries, cleared on leaving in-progress
 pr:                       # set when the PR is opened
 issue:                    # GitHub mirror issue number; minted on first `github` sync (one-way), shape of pr:
 blocked_by:               # free text; set only when status: blocked
@@ -163,6 +164,7 @@ reconciled: false         # set true after the just-in-time reconcile pass
 - `## Out of scope` — explicit non-goals.
 - `## Open questions` — unknowns to resolve during reconcile/design.
 - `## Reconcile log` — dated entries appended by the implementer's reconcile pass.
+- `## Reclaim log` — dated entries appended by `reclaim-claims.sh` when an expired-lease, no-branch claim self-heals back to `proposed`.
 - `## Auto-groom blocked` — dated abstain record appended by `docket-auto-groom`; contents and lifecycle (including removal on re-arm) are defined by the *Autonomous grooming* shared definition below.
 - `## Why deferred` / `## Why killed` — added when entering those states.
 
@@ -198,7 +200,8 @@ An `Accepted` ADR is immutable except its `status:` line; a non-reversing contex
                          ▼                                          │
   proposed ──claim──▶ in-progress ──PR open──▶ implemented ──merge+sweep──▶ done
      │                    │                                                  (archive/)
-     │                    └──blocker──▶ blocked ──clears──▶ in-progress
+     │                    ├──blocker──▶ blocked ──clears──▶ in-progress
+     │                    └──lease expired, no branch (reclaim)──▶ proposed
      │
      └──── killed (obsolete — from proposed, or from in-progress via reconcile; → archive/) ────▶
 ```
@@ -214,6 +217,8 @@ An `Accepted` ADR is immutable except its `status:` line; a non-reversing contex
 | `killed` | abandoned — obsolete or never shipped (sad terminal) | `archive/` |
 
 **Rules.** `active/` holds every non-terminal status; `archive/` holds the two terminal outcomes. The single physical move (`active/ → archive/`, date-prefixed) happens once on the terminal transition and is **idempotent**: re-pull, re-read `status` on `metadata_branch`, no-op if already terminal. `deferred` may be entered from `proposed` or `in-progress` (add `## Why deferred`) and revived to `proposed`; clearing a blocker or reviving is a one-line frontmatter edit, no move. A change whose `depends_on` is unsatisfied is *implicitly* blocked — the selector skips it (no status change) and the board shows it **waiting on #N**. A dependency is **satisfied when it reaches `done`**. If `#N` is still `implemented` (PR open, unmerged), the dependent is gated on a human merge — the board flags **waiting on #N — needs your merge**, distinct from **waiting on #N — not yet built**. Reserve explicit `blocked` for external blockers the system can't infer.
+
+**Reclaim edge (`in-progress → proposed`).** An `in-progress` change whose claim lease (`claimed_at:` + `reclaim.lease_ttl`) has expired AND that has no feature branch is flipped back to `proposed` by `reclaim-claims.sh` (opt-in via `reclaim.auto` or an explicit `docket.sh reclaim-claims`), clearing `branch:`/`claimed_at:` and resetting `reconciled: false` so a fresh reconcile runs on re-claim. The has-branch case is never auto-reclaimed (it may carry real work) — it stays flagged for a human.
 
 **Board refresh on status writes.** Any skill that writes a change's `status:` refreshes the board immediately after — the **Board pass** — by invoking the one facade call `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh docket-status --board-only`. That orchestrator owns the whole decision: it resolves config itself (fail-closed), gates on the enabled surfaces, renders the `inline` surface through the gated `board-refresh.sh` writer, runs the `github` mirror upsert (best-effort), and commits + pushes `BOARD.md` on `metadata_branch` **only if it actually changed** — a separate commit from the `status:` write, with its own rebase-retry. **No surfaces value is ever passed by a skill**: the caller never resolves, spells, or forwards one, which is what makes an unresolved config impossible to mistake for a disabled board. The pass reports its outcome on a single stdout report line, and **callers key on that line, never on the exit code** — the full report-line vocabulary and retry classification live in the script contract (`scripts/docket-status.md`). A must-land caller passes `--must-land`; the bounded retry and the exit-code mapping live in that same script contract. A must-land caller STOPs and surfaces that failure (abort-and-report — these are autonomous skills with no human to prompt); a best-effort caller logs it and continues to its own next step. A repo with `board_surfaces: []` renders and commits nothing, and a pre-existing `BOARD.md` is left untouched rather than truncated. The board is a derived view and must never trail the change files.
 
