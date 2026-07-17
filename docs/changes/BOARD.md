@@ -1,12 +1,6 @@
 # Backlog
 
-**85 changes** — 🟢 1 in progress · 🟡 8 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 70 done · 🗑️ 4 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0085](active/0085-skill-slimming-round-two.md) | Second-round skill slimming — re-slim regrown skills + regrowth guard | `medium` | [spec](../superpowers/specs/2026-07-16-skill-slimming-round-two-design.md) | `feat/skill-slimming-round-two` |
+**85 changes** — 🟡 8 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 70 done · 🗑️ 4 killed
 
 ## 🟡 Proposed (8)
 
@@ -27,11 +21,12 @@
 |---|-------|----------|------------|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | PR #69 is stale (predates the 0068/0072 facade rework and later agent-layer changes) and #0079 (runner delegation) reshapes the design — the build roles should grow a runner field (build.<role>.runner codex, the mixed topology 0079 deferred). Needs a rebase plus redesign pass before merge. |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | [#89](https://github.com/danielhanold/docket/pull/89) |
+| [0085](active/0085-skill-slimming-round-two.md) | Second-round skill slimming — re-slim regrown skills + regrowth guard | `medium` | [#95](https://github.com/danielhanold/docket/pull/95) |
 
 ```mermaid
 graph TD
