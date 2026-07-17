@@ -201,12 +201,19 @@ print_section implemented " — awaiting merge"
 
 # --- mermaid ---
 printf '\n```mermaid\ngraph TD\n'
-# emit all active changes in ascending numeric id order
+# Emit all active changes in ascending numeric id order; record every id referenced by an active
+# change's depends_on (padded form as the key) so done nodes can be pruned to referenced-only
+# below. A DONE dependency is *satisfied* in resolve_deps and skipped there, so the referenced set
+# must be collected here, in the loop that already reads every depends_on value. (change 0093)
+declare -A REFERENCED
 while IFS=$'\t' read -r id f; do
   [ -n "$id" ] || continue
   local_deps="$(list_field "$f" depends_on)"
   if [ -n "$local_deps" ]; then
-    for dep in $local_deps; do printf '  %s --> %s\n' "$(pad "$dep")" "$(pad "$id")"; done
+    for dep in $local_deps; do
+      REFERENCED["$(pad "$dep")"]=1
+      printf '  %s --> %s\n' "$(pad "$dep")" "$(pad "$id")"
+    done
   else
     printf '  %s\n' "$(pad "$id")"
   fi
@@ -215,11 +222,19 @@ done < <(
     rows_sorted "$st"
   done | sort -t$'\t' -k1,1n
 )
-# done nodes (ascending id); killed omitted
+# Done nodes (ascending id): style :::done ONLY for a done id an active change depends on;
+# unreferenced done ids carry no edge and are dropped. Killed omitted entirely. Emit the classDef
+# line only when at least one :::done node remains (no dangling def). (change 0093)
 mapfile -t DONE_IDS < <(for f in "${ARCFILES[@]}"; do
   [ "$(field "$f" status)" = "done" ] && { v="$(int_field "$f" id)"; [ -n "$v" ] && printf '%s\n' "$v"; }; done | sort -n)
-for id in "${DONE_IDS[@]}"; do [ -n "$id" ] && printf '  %s:::done\n' "$(pad "$id")"; done
-printf '  classDef done fill:#d3f9d8;\n```\n'
+done_shown=0
+for id in "${DONE_IDS[@]}"; do
+  [ -n "$id" ] || continue
+  [ -n "${REFERENCED["$(pad "$id")"]:-}" ] || continue
+  printf '  %s:::done\n' "$(pad "$id")"; done_shown=1
+done
+[ "$done_shown" -eq 1 ] && printf '  classDef done fill:#d3f9d8;\n'
+printf '```\n'
 
 # --- archive ---
 ndone=${ARC_COUNT[done]:-0}; nkilled=${ARC_COUNT[killed]:-0}
