@@ -98,6 +98,7 @@ $GIT -C "$WT" mv "$src_rel" "$dest_rel" || die "git mv failed"
 dest="$WT/$dest_rel"
 set_field "$dest" status "$OUTCOME"
 set_field "$dest" updated "$DATE"
+set_field "$dest" claimed_at ""   # presence-encoded-state: drop the lease on the terminal transition
 if [ "$OUTCOME" = done ] && [ -n "$RESULTS" ]; then
   set_field "$dest" results "$RESULTS"
 fi
@@ -116,6 +117,7 @@ cas_push "$branch"
 [ -e "$dest" ]                                            || die "postcondition: archive file missing"
 [ "$(field "$dest" status)"  = "$OUTCOME" ]              || die "postcondition: status not $OUTCOME"
 [ "$(field "$dest" updated)" = "$DATE" ]                 || die "postcondition: updated not $DATE"
+[ -z "$(field "$dest" claimed_at)" ]                     || die "postcondition: claimed_at not cleared"
 if [ "$OUTCOME" = done ] && [ -n "$RESULTS" ]; then
   [ "$(field "$dest" results)" = "$RESULTS" ] || die "postcondition: results not set to $RESULTS"
 fi

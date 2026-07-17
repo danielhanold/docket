@@ -145,6 +145,18 @@ assert "done: results link written" '[ "$(. "$REPO/scripts/lib/docket-frontmatte
 assert "done: pushed (origin docket == local)" '[ "$(git -C "$W" rev-parse @)" = "$(git -C "$W" rev-parse origin/docket)" ]'
 assert "done: commit touched ONLY the change file (nothing else)" 'other="$(git -C "$W" show --name-only --format= HEAD | grep -v "^$" | grep -v "0007-sample.md" || true)"; [ -z "$other" ] && git -C "$W" show --name-only --format= HEAD | grep -q "0007-sample.md"'
 
+# --- archive-change.sh: presence-encoded-state — claimed_at cleared on terminal archive (0089) ---
+# A leased-and-still-claimed change reaching a terminal transition must drop the lease: every field
+# encoding "claimed" is removed once the change leaves in-progress. Seed the active file with a
+# claimed_at line (pre-migration changes simply lack the field — field() reads empty either way).
+read -r W _ < <(new_repo)
+claimed_active="$W/docs/changes/active/0007-sample.md"
+awk '/^updated: 2026-06-01$/{print; print "claimed_at: 2026-07-17T10:00:00Z"; next} {print}' \
+  "$claimed_active" > "$claimed_active.tmp" && mv "$claimed_active.tmp" "$claimed_active"
+"$ARCHIVE" --changes-dir "$W/docs/changes" --id 7 --outcome done --date 2026-06-18 >/dev/null 2>&1
+claimed_archived="$W/docs/changes/archive/2026-06-18-0007-sample.md"
+assert "archive clears claimed_at" '[ -z "$(. "$REPO/scripts/lib/docket-frontmatter.sh"; field "'"$claimed_archived"'" claimed_at)" ]'
+
 # --- archive-change.sh: set_field does NOT rewrite a body-level status: line ---
 read -r W _ < <(new_repo)
 printf '\nstatus: this-is-body-prose-not-frontmatter\n' >> "$W/docs/changes/active/0007-sample.md"
