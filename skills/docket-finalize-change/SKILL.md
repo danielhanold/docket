@@ -97,7 +97,7 @@ finalize:
 
 `gate` defaults to **`local`**; `ci` validates GitHub checks; `both` requires local **and** CI green; **`off`** is the documented opt-out — merge trusting the PR's own CI, with no rebase and no re-test (today's pre-gate behavior).
 
-`require_pr_approval` validates *human sign-off* (`gate` validates *correctness*); it governs only the auto-detect path — an explicit id always overrides it. Under `auto_approve: true`, a passing check of `reviewDecision == APPROVED` proves *docket's own pipeline signed off* — the review step plus this rebase-retest gate — not that a human read the diff. So `require_pr_approval: true` combined with `auto_approve: true` is satisfiable by the bot's own approval; a repo that wants a human in the loop must leave `auto_approve` at its default `false`. See the auto-approve consent ADR (recorded at review time) for the reasoning behind treating that bot approval as sufficient authorization to merge.
+`require_pr_approval` validates *human sign-off* (`gate` validates *correctness*); it governs only the auto-detect path — an explicit id always overrides it. Under `auto_approve: true`, a passing check of `reviewDecision == APPROVED` proves *docket's own pipeline signed off* — the review step plus this rebase-retest gate — not that a human read the diff. So `require_pr_approval: true` combined with `auto_approve: true` is satisfiable by the bot's own approval; a repo that wants a human in the loop must leave `auto_approve` at its default `false`. See ADR-0042 (auto-approve consent model) for the reasoning behind treating that bot approval as sufficient authorization to merge.
 
 **Flow** (runs before `gh pr merge`):
 

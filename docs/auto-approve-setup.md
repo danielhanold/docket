@@ -125,9 +125,8 @@ config or a machine-local `.docket.local.yml` — set it only in the repo's comm
   once `auto_approve` is also `true`.** `finalize.require_pr_approval` was designed to prove a
   human authorized the merge; under `auto_approve`, the review it checks for can be the workflow's
   own approval, so the combination is legal but no longer proves what `require_pr_approval` was
-  built to prove. Consult the ADR recording this feature's consent model (`docs/adrs/`, filed
-  alongside change 0062, relating to ADR-0011's finalize consent model) for the full reasoning
-  before combining the two knobs. A repo that wants a real human in the loop should leave
+  built to prove. Consult ADR-0042 (auto-approve consent model, relating to ADR-0011's finalize
+  consent model) for the full reasoning before combining the two knobs. A repo that wants a real human in the loop should leave
   `auto_approve` at its default `false`.
 - **The `terminal_publish: true` headless degradation still applies, independently.** Auto-approve
   only changes the *merge* step; it does nothing to finalize's separate direct-push-to-integration
