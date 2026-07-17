@@ -57,11 +57,6 @@ any_branch_ref(){ # 0 iff ANY given branch name resolves to a local OR remote-tr
   done
   return 1
 }
-cas_push(){ # push cur_branch to REMOTE, rebasing on a non-fast-forward until it converges.
-  until $GIT -C "$WT" push "$REMOTE" "$cur_branch"; do
-    $GIT -C "$WT" pull --rebase "$REMOTE" "$cur_branch" || die "rebase during push failed for $cur_branch"
-  done
-}
 
 # eligible FILE — prints "<age_hours>" and returns 0 iff FILE is reclaimable; returns 1 otherwise.
 # Pure (no writes); safe to re-run against the post-rebase reality after a CAS non-fast-forward.
@@ -106,22 +101,32 @@ for f in "$WT/$REL/active/"*.md; do
   base="$(basename "$f")"; slug="${base%.md}"; slug="${slug#*-}"
 
   reclaim_file "$f" "$id" "$slug" "$age"
-  if $GIT -C "$WT" push "$REMOTE" "$cur_branch" 2>/dev/null; then
-    printf 'reclaimed %s %s (lease %sh, no branch)\n' "$id" "$slug" "$age"
-    continue
-  fi
-  # Non-fast-forward: a concurrent writer advanced origin. Drop our now-stale commit and resync the
-  # working tree to origin, then RE-READ eligibility against that concurrent reality (NOT the working
-  # tree we just wrote — that would always read back our own flip). If the change no longer qualifies
-  # (claim refreshed, branch pushed, archived, or already reclaimed) skip it; otherwise redo + push.
-  $GIT -C "$WT" fetch "$REMOTE" >/dev/null 2>&1 || die "fetch during CAS failed for $id"
-  if ! $GIT -C "$WT" reset --hard "$REMOTE/$cur_branch" >/dev/null 2>&1; then
-    printf 'skipped %s raced\n' "$id"; continue
-  fi
-  age="$(eligible "$f")" || { printf 'skipped %s raced\n' "$id"; continue; }
-  reclaim_file "$f" "$id" "$slug" "$age"
-  cas_push
-  printf 'reclaimed %s %s (lease %sh, no branch)\n' "$id" "$slug" "$age"
+  # Bounded CAS retry (single loop): EVERY non-fast-forward — not just the first — fetches, resets
+  # --hard to the fresh remote tip, and RE-READS eligibility against that concurrent reality (NOT the
+  # working tree we just wrote — that would always read back our own flip) before retrying the push.
+  # Safe under immediate push-per-item: the local branch never carries more than this one item's single
+  # unpushed commit, so `reset --hard` only ever discards that one commit. A real fetch/reset failure is
+  # a hard git error, not a race — it dies with a diagnostic rather than being mislabeled "skipped raced".
+  result=exhausted
+  for attempt in 1 2 3 4 5; do
+    if $GIT -C "$WT" push "$REMOTE" "$cur_branch" 2>/dev/null; then
+      printf 'reclaimed %s %s (lease %sh, no branch)\n' "$id" "$slug" "$age"
+      result=pushed
+      break
+    fi
+    # Non-fast-forward: a concurrent writer advanced origin. If no longer eligible (claim refreshed,
+    # branch pushed, archived, or already reclaimed), skip it; otherwise redo the flip and retry.
+    $GIT -C "$WT" fetch "$REMOTE" >/dev/null 2>&1 || die "fetch during CAS failed for $id (attempt $attempt)"
+    $GIT -C "$WT" reset --hard "$REMOTE/$cur_branch" >/dev/null 2>&1 \
+      || die "reset --hard during CAS failed for $id (attempt $attempt, remote $REMOTE/$cur_branch unreachable or missing)"
+    age="$(eligible "$f")" || { printf 'skipped %s raced\n' "$id"; result=raced; break; }
+    reclaim_file "$f" "$id" "$slug" "$age"
+  done
+  case "$result" in
+    pushed) : ;;
+    raced) continue ;;
+    *) die "push did not converge for $id after 5 attempts" ;;
+  esac
 done
 shopt -u nullglob
 exit 0

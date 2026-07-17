@@ -63,16 +63,34 @@ mkchange(){
 
 assert "script exists and is executable" '[ -x "$SCRIPT" ]'
 
-# ======================= the reclaim sweep: CASES A–F =======================
+# ======================= the reclaim sweep: CASES A–I =======================
 W="$(new_repo)"
-mkchange "$W" 0001-a.md in-progress feat/a "$EXPIRED"   # A: expired, no branch ref     => reclaimed
-mkchange "$W" 0002-b.md in-progress feat/b "$EXPIRED"   # B: expired, branch REF EXISTS  => untouched (orphan guard)
-mkchange "$W" 0003-c.md in-progress feat/c "$FRESH"     # C: fresh lease                 => untouched
-mkchange "$W" 0004-d.md in-progress feat/d ""           # D: NO claimed_at               => untouched (no evidence)
-mkchange "$W" 0005-e.md proposed    ""      ""          # E: already proposed            => ignored
-mkchange "$W" 0006-f.md in-progress feat/f "$EXPIRED"   # F: expired, no branch, sorts AFTER the skips => reclaimed
+mkchange "$W" 0001-a.md in-progress feat/a       "$EXPIRED"   # A: expired, no branch ref     => reclaimed
+mkchange "$W" 0002-b.md in-progress feat/b       "$EXPIRED"   # B: expired, branch REF EXISTS  => untouched (orphan guard)
+mkchange "$W" 0003-c.md in-progress feat/c       "$FRESH"     # C: fresh lease                 => untouched
+mkchange "$W" 0004-d.md in-progress feat/d       ""           # D: NO claimed_at               => untouched (no evidence)
+mkchange "$W" 0005-e.md proposed    ""            ""          # E: already proposed            => ignored
+mkchange "$W" 0006-f.md in-progress feat/f       "$EXPIRED"   # F: expired, no branch, sorts AFTER the skips => reclaimed
+# G/H/I widen coverage of the orphan guard's two probes (recorded branch: field vs. convention
+# name feat/<slug>) crossed with both ref namespaces (local refs/heads vs. remote-tracking) — the
+# prior suite only ever exercised a LOCAL ref under the CONVENTION name (case B).
+mkchange "$W" 0007-g.md in-progress legacy-name  "$EXPIRED"   # G: branch: field DIVERGES from convention; only the
+                                                               #    RECORDED name resolves (local ref) => guard still
+                                                               #    catches via the recorded-name arm
+mkchange "$W" 0008-h.md in-progress bogus-field  "$EXPIRED"   # H: branch: field DIVERGES and does not resolve at all;
+                                                               #    only the CONVENTION name feat/h resolves (local
+                                                               #    ref) => guard still catches via the convention arm
+mkchange "$W" 0009-i.md in-progress feat/i       "$EXPIRED"   # I: branch: field matches convention; ref exists ONLY
+                                                               #    as a REMOTE-TRACKING ref (no local ref) => guard
+                                                               #    still catches via the REMOTE arm
 git_quiet -C "$W" branch feat/b docket                  # ONLY feat/b resolves to a ref
+git_quiet -C "$W" branch legacy-name docket             # G: recorded-name-only ref (not the convention name)
+git_quiet -C "$W" branch feat/h docket                  # H: convention-name-only ref (recorded field is bogus)
+git_quiet -C "$W" branch feat/i docket                  # I: created locally, then pushed + deleted below
 git -C "$W" add -A; git_quiet -C "$W" commit -m "fixtures"; git_quiet -C "$W" push origin docket
+git_quiet -C "$W" push origin feat/i                    # I: land the ref on origin...
+git_quiet -C "$W" branch -D feat/i                      # ...delete the LOCAL ref...
+git_quiet -C "$W" fetch origin                          # ...so only refs/remotes/origin/feat/i remains locally
 
 out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$W/docs/changes" --lease-ttl-hours "$TTL" 2>/dev/null)"; rc=$?
 
@@ -117,6 +135,28 @@ assert "E a proposed change is ignored" \
 assert "F reclaimed after earlier skips (|| continue keeps the loop alive)" \
   '[ "$(field "$W/docs/changes/active/0006-f.md" status)" = proposed ]'
 assert "F reclaim reported on stdout" 'printf "%s" "$out" | grep -qE "^reclaimed 6 f \(lease 100h, no branch\)$"'
+
+# --- CASE G: branch: field diverges from convention feat/g; only the RECORDED name ("legacy-name")
+#     resolves as a LOCAL ref => guard still catches via the recorded-name arm ---
+assert "G recorded-name-only ref (diverging from convention) still blocks reclaim" \
+  '[ "$(field "$W/docs/changes/active/0007-g.md" status)" = in-progress ]'
+assert "G is not reported" '! printf "%s" "$out" | grep -qE "^reclaimed 7 "'
+
+# --- CASE H: branch: field diverges and does not resolve at all; only the CONVENTION name
+#     (feat/h) resolves as a LOCAL ref => guard still catches via the convention-name arm ---
+assert "H convention-name-only ref (recorded field bogus) still blocks reclaim" \
+  '[ "$(field "$W/docs/changes/active/0008-h.md" status)" = in-progress ]'
+assert "H is not reported" '! printf "%s" "$out" | grep -qE "^reclaimed 8 "'
+
+# --- CASE I: branch: field matches convention (feat/i); the ref exists ONLY as a
+#     REMOTE-TRACKING ref (no local ref) => guard still catches via the REMOTE arm ---
+assert "I fixture has no local ref (remote-tracking only, by construction)" \
+  '! git -C "$W" show-ref --verify --quiet refs/heads/feat/i'
+assert "I fixture has a remote-tracking ref (by construction)" \
+  'git -C "$W" show-ref --verify --quiet refs/remotes/origin/feat/i'
+assert "I remote-tracking-only ref still blocks reclaim" \
+  '[ "$(field "$W/docs/changes/active/0009-i.md" status)" = in-progress ]'
+assert "I is not reported" '! printf "%s" "$out" | grep -qE "^reclaimed 9 "'
 
 # --- clean-sweep exit code + idempotency ---
 assert "clean sweep exits 0" '[ "$rc" = 0 ]'

@@ -36,6 +36,27 @@ nothing. A sweep with zero reclaims produces no output.
 **Mock seams:** `GIT="${GIT:-git}"` and `NOW="${NOW:-$(date +%s)}"` — override in tests for a
 hermetic clock and git injection.
 
+## Preconditions
+
+**The caller must ensure remote-tracking refs are current before invoking this script.** The
+no-branch orphan guard's REMOTE arm (`refs/remotes/<remote>/<b>`, inside `any_branch_ref`)
+reads whatever is already in the local object store — it does **not** `git fetch`. If a
+`feat/<slug>` branch was pushed to origin from another clone but this clone has not yet
+fetched, that remote-tracking ref is stale/absent here, and the guard sees "no branch" even
+though real work exists on origin: a **false negative** on the highest-value safety property,
+against a change that carries real remote work. Run `git fetch` (or a docket preflight sync)
+against `--changes-dir`'s worktree immediately before invoking `reclaim-claims.sh` — do not
+rely on refs left over from an earlier point in the session.
+
+This is the spec's documented **§7-H cross-machine residual**
+(`docs/superpowers/specs/2026-07-17-claim-leases-reclaim-script-design.md`): a build on one
+machine has a feature-branch ref another machine's local object store cannot see until it
+fetches. It is *contained*, not eliminated, by three things together — the lease must also be
+expired (a fresh claim is never touched regardless of ref visibility), `reclaim.auto` defaults
+off (so this only bites an explicit opt-in), and callers are expected to sync remote-tracking
+refs first. It is not a bug in the guard's logic; it is a property of reading local refs
+without a network round-trip, and is the documented, accepted cost of staying git-only/offline.
+
 ## Behavior
 
 The script sources `lib/docket-frontmatter.sh` (`field`, `int_field`, `iso_to_epoch`) and
@@ -66,13 +87,23 @@ On a reclaim (no-branch case only), for the single change file:
 
 ### CAS discipline (concurrent-writer safety)
 
-The commit touches exactly the one change file. The script pushes; on a non-fast-forward
-(a concurrent writer advanced the metadata branch), it **fetches, drops its own stale commit
-by resetting the working tree to the remote tip, then re-reads eligibility against that
-concurrent reality** — deliberately not against the working tree it just wrote, which would
-always read back its own flip. If the change no longer qualifies (claim refreshed, a branch
-appeared, it was archived, or it was already reclaimed) it emits `skipped <id> raced` and
-moves on; otherwise it redoes the reclaim on the fresh base and pushes to convergence.
+The commit touches exactly the one change file. The push runs inside a single bounded retry
+loop (up to 5 attempts). On **every** non-fast-forward — not just the first — the script
+**fetches, drops its own stale commit by resetting the working tree to the remote tip, then
+re-reads eligibility against that concurrent reality** — deliberately not against the working
+tree it just wrote, which would always read back its own flip. If the change no longer
+qualifies (claim refreshed, a branch appeared, it was archived, or it was already reclaimed) it
+emits `skipped <id> raced` and moves on to the next change; otherwise it redoes the reclaim on
+the fresh base and retries the push. This re-check applies uniformly to every retry in the
+loop, not only the first, so a second (or later) concurrent writer can never ride an unchecked
+retry onto origin. A genuine `fetch`/`reset --hard` failure (network, unreachable remote, a
+missing ref) is a hard git error, not a race — it `die`s with a diagnostic rather than being
+mislabeled `skipped … raced`. If the loop exhausts its 5 attempts without a clean push (the
+remote keeps advancing faster than this sweep converges), it also `die`s.
+
+Immediate push-per-item is what keeps `reset --hard` safe: the local branch never carries more
+than the current item's one unpushed commit, so `reset --hard <remote>/<branch>` only ever
+discards that single commit — never another item's already-pushed work.
 
 ### Sweep hygiene
 
@@ -85,7 +116,7 @@ still process.
 | Code | Meaning |
 |---|---|
 | 0 | Clean sweep (including zero reclaims, and including per-change `skipped … raced`). |
-| 1 | Missing/invalid argument, a non-worktree `--changes-dir`, or an unrecoverable git failure (fetch/commit/rebase). Diagnostic on stderr. |
+| 1 | Missing/invalid argument, a non-worktree `--changes-dir`, or an unrecoverable git failure (`add`/`commit`/`fetch`/`reset --hard`, or the CAS retry loop exhausting its 5 attempts without a clean push). Diagnostic on stderr. |
 
 ## Invariants
 
