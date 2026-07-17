@@ -2,7 +2,7 @@
 id: 92
 slug: orphan-detection-script
 title: Orphan detection script — cross-reference change ids in merged commits against archive state
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-07-17
 updated: 2026-07-17
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch:
+branch: feat/orphan-detection-script
 pr:
 blocked_by:
 reconciled: false
