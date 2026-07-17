@@ -13,7 +13,7 @@ spec:
 plan:
 results:
 trivial: false
-auto_groomable: true
+auto_groomable: false
 branch:
 pr:
 blocked_by:
@@ -72,3 +72,57 @@ fan-out) is missing.
 - Relationship to #0008: subsume its loser-picks-next bullet, or depend on / be absorbed by it?
 
 ## Reconcile log
+
+## Auto-groom blocked
+
+**2026-07-17 — docket-auto-groom abstained (adversarial critic verdict: sound).**
+
+The change's titular, primary value is **continue-after-PR** (bullet 2 — "chains into the next
+ready change instead of stopping"); loser-picks-next (bullet 1) is a race-loser corner case, not the
+headline. A build-ready spec cannot be emitted without settling the continuation **architecture**,
+and that decision cannot be safely defaulted by an autonomous groomer.
+
+**The undecidable decision — continuation architecture (stub Open question 1).** Both horns are
+blocked:
+
+- **In-context loop** (the running fork loops Step 7 → Step 1 in one context). This is what the
+  stub's own `## Out of scope` mandates ("this change only makes the implement stage
+  self-continuing"; no cross-skill orchestrator). But it accumulates N heavyweight builds
+  (reconcile + plan + SDD + review each) in a single forked-subagent context — an **unprobed
+  harness/context-limit assumption**. Per learning `harness-behavior-is-mode-and-version-scoped`
+  (2026-07-17), a design must not rest on unprobed harness behavior; it must be spiked in the exact
+  mode first. The groomer writes markdown only and cannot spike it. A bounded cap (e.g. N=3) does
+  not remove the assumption — even the second in-context build is unprobed — and "gracefully abort
+  on context exhaustion" is not implementable (context overflow kills a fork; it is not a catchable
+  clean stop). (Note: loser-picks-next is in-context-safe because the race loser aborts *before*
+  building, so nothing accumulates — the two loops are not the same.)
+- **Thin external driver** (re-dispatch a fresh implement-next per iteration). This is the very
+  loop/driver/orchestrator primitive that two human-reserved siblings already charter:
+  **#0008** (parallel-backlog-drain — the "drain entry point ... new docket-drain skill or a mode",
+  effective `auto_groomable: false`) and **#0087** (headless-finalize-driver — HIGH priority,
+  `auto_groomable: false`, whose lead open question is "Trigger surface — the real design question;
+  everything else follows from it"). #8, #87, #88 all circle one primitive; choosing the
+  implement-side driver shape in isolation front-runs a cross-change, high-priority decision. Per
+  `moving-base`, nothing has merged, so there is no settled base to reconcile the partition against.
+
+Stub Open question 3 (trigger/entry surface) collapses into this decision — it is only a separate
+question on the external-driver horn.
+
+**What a human should supply.** (1) The **partition of the shared loop/driver/continuation
+primitive across #0008 / #0087 / #0088** — a backlog-composition call reserved to a human (which
+change owns the loop, whether the three share one driver pattern). (2) For the in-context horn, an
+explicit **authorization plus a harness spike** of an N-build fork-context loop in the mode
+implement-next actually runs (`context: fork`), before any design rests on it.
+
+**Recommendations (a human decides — kill/defer/subsume are never autonomous):**
+
+- The **loser-picks-next** slice (bullet 1) is small, in-context-safe, and independently
+  designable. It is identical to a bullet #0008 owns; per `moving-base` #0008 would fold its copy to
+  residual (it still owns concurrent fan-out, the independence guard, and the concurrency cap — not
+  "genuinely covered"). Consider grooming this slice on its own, or folding it into #0008, rather
+  than carrying it inside the blocked continuation change.
+- Groom #0087 (HIGH) first: it is the same driver question one level up. Its resolution likely
+  dictates whether #0088's continuation is a shared driver pattern or a distinct mechanism, and may
+  subsume or reshape #0088 entirely.
+- Do **not** narrow #0088's spec to only loser-picks-next and ship it as-is: that would drive the
+  change to `done` reading "loop continuation shipped" while the actual continuation never landed.
