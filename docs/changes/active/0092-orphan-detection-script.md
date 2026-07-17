@@ -10,7 +10,7 @@ depends_on: []
 related: [23, 83]
 adrs: [1, 12]
 spec: docs/superpowers/specs/2026-07-17-orphan-detection-script-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-17-orphan-detection-script.md
 results:
 trivial: false
 auto_groomable: true
@@ -26,6 +26,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-17-orphan-detection-script-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-17-orphan-detection-script-design.md) |
+| Plan | [2026-07-17-orphan-detection-script.md](https://github.com/danielhanold/docket/blob/feat/orphan-detection-script/docs/superpowers/plans/2026-07-17-orphan-detection-script.md) |
 | ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md), [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md) |
 <!-- docket:artifacts:end -->
 
