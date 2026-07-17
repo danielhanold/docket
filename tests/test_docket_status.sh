@@ -2324,4 +2324,200 @@ assert "learnings wiring: the full pass exits zero" '[ $rc -eq 0 ]'
 assert "learnings wiring: the full pass DOES emit a learnings line" \
   'grep -q "^learnings" "$tmp/learn-full-out.txt"'
 
+# ============================================================================
+# Task 6 (change 0089): docket-status reclaim wiring — health_checks forwards the
+# lease TTL to board-checks; on the FULL path only, reclaim_pass prints a
+# state-valid remedy (reclaim.auto off) OR runs the mutating reclaim sweep
+# (reclaim.auto on). Never on --board-only. The mutation is gated behind BOTH a
+# [reclaimable] finding AND reclaim.auto=true.
+# ============================================================================
+
+# (i) health_checks forwards --lease-ttl-hours (the resolved RECLAIM_LEASE_TTL, not a hardcode).
+mkdir -p "$tmp/mock-reclaim-ttl"
+cat > "$tmp/mock-reclaim-ttl/board-checks.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "board-checks $*" >> "$HEALTH_LOG"
+exit 0
+EOF
+chmod +x "$tmp/mock-reclaim-ttl/board-checks.sh"
+ttl_log="$tmp/reclaim-ttl-calls.log"; : > "$ttl_log"
+( cd "$health_dir" && \
+  DOCKET_MODE=main CHANGES_DIR=docs/changes INTEGRATION_BRANCH=main METADATA_BRANCH=main \
+  RECLAIM_LEASE_TTL=48 SCRIPTS_DIR="$tmp/mock-reclaim-ttl" HEALTH_LOG="$ttl_log" \
+  bash -c '. "'"$SCRIPT"'"; health_checks' >/dev/null )
+assert "reclaim(ttl): health_checks forwards --lease-ttl-hours to board-checks" \
+  'grep -q -- "--lease-ttl-hours" "$ttl_log"'
+assert "reclaim(ttl): the forwarded value is the resolved RECLAIM_LEASE_TTL (48, not hardcoded)" \
+  'grep -q -- "--lease-ttl-hours 48" "$ttl_log"'
+
+# Shared fixture for the full-run reclaim cases: a main-mode repo with an in-progress change (so
+# detect_merged finds no `implemented` change and never touches gh), board_surfaces=none, learnings
+# off — minimal output, so the only source of the word "reclaim" is reclaim_pass itself.
+reclaim_dir="$tmp/reclaim-wire-case"
+git_repo_setup "$reclaim_dir"
+git clone -q "$reclaim_dir/origin.git" "$reclaim_dir/work" 2>/dev/null
+mkdir -p "$reclaim_dir/work/docs/changes/active" "$reclaim_dir/work/docs/adrs"
+cat > "$reclaim_dir/work/docs/changes/active/0023-expirednobranch.md" <<'EOF'
+---
+id: 23
+slug: expirednobranch
+title: Expired lease no branch
+status: in-progress
+priority: medium
+depends_on: []
+claimed_at: 2026-01-01T00:00:00Z
+EOF
+git -C "$reclaim_dir/work" -c user.email=t@t -c user.name=t add docs/changes
+git -C "$reclaim_dir/work" -c user.email=t@t -c user.name=t commit -q -m "seed reclaim-wire fixture"
+git -C "$reclaim_dir/work" push -q origin main
+
+mkdir -p "$tmp/mock-reclaim"
+# board-checks: always emits TWO stale-in-progress findings carrying the [reclaimable] marker. The
+# message deliberately does NOT contain "docket.sh reclaim-claims", so the remedy line's own
+# "docket.sh reclaim-claims" is unambiguous evidence reclaim_pass printed it — not the finding text.
+# Two findings also make the remedy's count meaningful (2, not a hardcoded 1).
+cat > "$tmp/mock-reclaim/board-checks.sh" <<'EOF'
+#!/usr/bin/env bash
+printf 'stale-in-progress\t23\tclaim lease expired 100h ago; no feature branch [reclaimable]\n'
+printf 'stale-in-progress\t27\tclaim lease expired 90h ago; no feature branch [reclaimable]\n'
+exit 0
+EOF
+# reclaim-claims: records that it ran (marker + call log) and emits one report line for reclaim_pass
+# to prefix. A stub — it does not actually mutate; this section tests the wiring/gating, not the
+# reclaim sweep itself (that is tests/test_reclaim_claims.sh's job).
+cat > "$tmp/mock-reclaim/reclaim-claims.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "reclaim-claims $*" >> "$RECLAIM_LOG"
+touch "$RECLAIM_MARKER"
+printf 'reclaimed 23 expirednobranch (lease 100h, no branch)\n'
+exit 0
+EOF
+# render-board stub so the ungated backlog pass stays quiet (no digest lines, no stderr noise).
+cat > "$tmp/mock-reclaim/render-board.sh" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+chmod +x "$tmp/mock-reclaim/"*.sh
+
+cat > "$tmp/gh-reclaim.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "gh-reclaim: should not be invoked (no implemented changes to detect): $*" >&2
+exit 1
+EOF
+chmod +x "$tmp/gh-reclaim.sh"
+
+# write_reclaim_fixture AUTO — main-mode config export carrying RECLAIM_AUTO / RECLAIM_LEASE_TTL.
+write_reclaim_fixture(){
+  cat > "$tmp/fixture-reclaim.sh" <<EOF
+#!/usr/bin/env bash
+printf '%s\n' \
+  'BOOTSTRAP=PROCEED' \
+  'METADATA_BRANCH=main' \
+  'INTEGRATION_BRANCH=main' \
+  'DOCKET_MODE=main' \
+  'METADATA_WORKTREE=.' \
+  'CHANGES_DIR=docs/changes' \
+  'ADRS_DIR=docs/adrs' \
+  'RESULTS_DIR=docs/results' \
+  'BOARD_SURFACES=none' \
+  'LEARNINGS_ENABLED=false' \
+  'RECLAIM_LEASE_TTL=72' \
+  'RECLAIM_AUTO=$1'
+EOF
+}
+
+# (ii) reclaim.auto OFF + a [reclaimable] finding => state-valid remedy printed, NO mutation.
+write_reclaim_fixture false
+reclaim_marker_off="$tmp/.reclaim-marker-off"; rm -f "$reclaim_marker_off"
+reclaim_log_off="$tmp/reclaim-off-calls.log"; : > "$reclaim_log_off"
+(cd "$reclaim_dir/work" && \
+  CONFIG_EXPORT_CMD="bash $tmp/fixture-reclaim.sh" GH="$tmp/gh-reclaim.sh" \
+  SCRIPTS_DIR="$tmp/mock-reclaim" RECLAIM_MARKER="$reclaim_marker_off" RECLAIM_LOG="$reclaim_log_off" \
+  "$SCRIPT" >"$tmp/reclaim-off-out.txt" 2>"$tmp/reclaim-off-err.txt")
+rc=$?
+assert "reclaim(auto off): full pass exits zero" '[ $rc -eq 0 ]'
+assert "reclaim(auto off): the [reclaimable] findings reached the report" \
+  'grep -qF "[reclaimable]" "$tmp/reclaim-off-out.txt"'
+assert "reclaim(auto off): prints the state-valid remedy naming docket.sh reclaim-claims" \
+  'printf "%s\n" "$(cat "$tmp/reclaim-off-out.txt")" | grep -qF "docket.sh reclaim-claims"'
+assert "reclaim(auto off): the remedy names the reclaimable count (2)" \
+  'grep -qF "reclaim: 2 expired-lease change(s) can self-heal" "$tmp/reclaim-off-out.txt"'
+assert "reclaim(auto off): does NOT invoke reclaim-claims (no mutation)" \
+  '[ ! -f "$reclaim_marker_off" ]'
+assert "reclaim(auto off): reclaim-claims call log is empty (never executed)" \
+  '[ ! -s "$reclaim_log_off" ]'
+
+# (iii) reclaim.auto ON => reclaim-claims invoked (mutating), report surfaced, remedy NOT printed.
+write_reclaim_fixture true
+reclaim_marker_on="$tmp/.reclaim-marker-on"; rm -f "$reclaim_marker_on"
+reclaim_log_on="$tmp/reclaim-on-calls.log"; : > "$reclaim_log_on"
+(cd "$reclaim_dir/work" && \
+  CONFIG_EXPORT_CMD="bash $tmp/fixture-reclaim.sh" GH="$tmp/gh-reclaim.sh" \
+  SCRIPTS_DIR="$tmp/mock-reclaim" RECLAIM_MARKER="$reclaim_marker_on" RECLAIM_LOG="$reclaim_log_on" \
+  "$SCRIPT" >"$tmp/reclaim-on-out.txt" 2>"$tmp/reclaim-on-err.txt")
+rc=$?
+assert "reclaim(auto on): full pass exits zero" '[ $rc -eq 0 ]'
+assert "reclaim(auto on): invokes reclaim-claims (mutation ran)" \
+  '[ -f "$reclaim_marker_on" ]'
+assert "reclaim(auto on): forwards --lease-ttl-hours (72) to reclaim-claims" \
+  'grep -q -- "--lease-ttl-hours 72" "$reclaim_log_on"'
+assert "reclaim(auto on): passes the metadata changes-dir to reclaim-claims" \
+  'grep -q -- "--changes-dir" "$reclaim_log_on" && grep -qF "docs/changes" "$reclaim_log_on"'
+assert "reclaim(auto on): surfaces the reclaim report prefixed with 'reclaim '" \
+  'grep -qF "reclaim reclaimed 23 expirednobranch" "$tmp/reclaim-on-out.txt"'
+assert "reclaim(auto on): does NOT print the state-valid remedy (reclaim already ran)" \
+  '! grep -qF "docket.sh reclaim-claims" "$tmp/reclaim-on-out.txt"'
+assert "reclaim(auto on): prints no 'can self-heal' remedy line" \
+  '! grep -qF "can self-heal" "$tmp/reclaim-on-out.txt"'
+
+# (iv) --board-only triggers NEITHER the remedy NOR the mutation, even with reclaim.auto=true —
+# board-checks never runs on this path, so there is no [reclaimable] finding to key on.
+write_reclaim_fixture true
+reclaim_marker_bo="$tmp/.reclaim-marker-bo"; rm -f "$reclaim_marker_bo"
+reclaim_log_bo="$tmp/reclaim-bo-calls.log"; : > "$reclaim_log_bo"
+(cd "$reclaim_dir/work" && \
+  CONFIG_EXPORT_CMD="bash $tmp/fixture-reclaim.sh" GH="$tmp/gh-reclaim.sh" \
+  SCRIPTS_DIR="$tmp/mock-reclaim" RECLAIM_MARKER="$reclaim_marker_bo" RECLAIM_LOG="$reclaim_log_bo" \
+  "$SCRIPT" --board-only >"$tmp/reclaim-bo-out.txt" 2>"$tmp/reclaim-bo-err.txt")
+rc=$?
+assert "reclaim(--board-only): exits zero" '[ $rc -eq 0 ]'
+assert "reclaim(--board-only): no [reclaimable] finding (board-checks never runs)" \
+  '! grep -qF "[reclaimable]" "$tmp/reclaim-bo-out.txt"'
+assert "reclaim(--board-only): emits no reclaim line at all (neither remedy nor report)" \
+  '! grep -qF "reclaim" "$tmp/reclaim-bo-out.txt"'
+assert "reclaim(--board-only): never invokes reclaim-claims even with reclaim.auto=true" \
+  '[ ! -f "$reclaim_marker_bo" ]'
+
+# (v) THE MARKER GATE, independent of reclaim.auto: a finding WITHOUT the [reclaimable] marker (e.g.
+# an expired lease WITH a live branch — needs-review, not auto-reclaimable) must trigger NEITHER the
+# mutation NOR a remedy, even under reclaim.auto=true. Proves the write is gated on the [reclaimable]
+# marker itself, not merely on the auto knob — a gate-removal regression fires here.
+mkdir -p "$tmp/mock-reclaim-noflag"
+cat > "$tmp/mock-reclaim-noflag/board-checks.sh" <<'EOF'
+#!/usr/bin/env bash
+printf 'stale-in-progress\t24\tclaim lease expired 100h ago; branch feat/x exists — needs your review (not auto-reclaimable)\n'
+exit 0
+EOF
+cp "$tmp/mock-reclaim/reclaim-claims.sh" "$tmp/mock-reclaim-noflag/reclaim-claims.sh"
+cp "$tmp/mock-reclaim/render-board.sh" "$tmp/mock-reclaim-noflag/render-board.sh"
+chmod +x "$tmp/mock-reclaim-noflag/"*.sh
+
+write_reclaim_fixture true
+reclaim_marker_nf="$tmp/.reclaim-marker-noflag"; rm -f "$reclaim_marker_nf"
+reclaim_log_nf="$tmp/reclaim-noflag-calls.log"; : > "$reclaim_log_nf"
+(cd "$reclaim_dir/work" && \
+  CONFIG_EXPORT_CMD="bash $tmp/fixture-reclaim.sh" GH="$tmp/gh-reclaim.sh" \
+  SCRIPTS_DIR="$tmp/mock-reclaim-noflag" RECLAIM_MARKER="$reclaim_marker_nf" RECLAIM_LOG="$reclaim_log_nf" \
+  "$SCRIPT" >"$tmp/reclaim-nf-out.txt" 2>"$tmp/reclaim-nf-err.txt")
+rc=$?
+assert "reclaim(no-marker): full pass exits zero" '[ $rc -eq 0 ]'
+assert "reclaim(no-marker): the non-reclaimable finding still reaches the report" \
+  'grep -qF "not auto-reclaimable" "$tmp/reclaim-nf-out.txt"'
+assert "reclaim(no-marker): reclaim.auto=true but NO [reclaimable] marker ⇒ reclaim-claims NOT invoked" \
+  '[ ! -f "$reclaim_marker_nf" ]'
+assert "reclaim(no-marker): no remedy line printed (nothing to self-heal)" \
+  '! grep -qF "can self-heal" "$tmp/reclaim-nf-out.txt"'
+assert "reclaim(no-marker): no reclaim-report line printed" \
+  '! grep -qF "docket.sh reclaim-claims" "$tmp/reclaim-nf-out.txt"'
+
 exit $fail

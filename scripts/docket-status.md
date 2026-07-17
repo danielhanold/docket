@@ -5,7 +5,7 @@
 One-invocation, deterministic orchestrator for the docket-status pass. It sequences the shared
 docket scripts (`docket-config.sh`, `render-board.sh`, `github-mirror.sh`, `archive-change.sh`,
 `render-change-links.sh`, `terminal-publish.sh`, `cleanup-feature-branch.sh`, `board-checks.sh`,
-`sync-integration-branch.sh`, `render-learnings-index.sh`) inside one process and emits a single
+`reclaim-claims.sh`, `sync-integration-branch.sh`, `render-learnings-index.sh`) inside one process and emits a single
 line-oriented report on stdout. It performs no mechanics of its own beyond sequencing and thin
 glue — each shared script still owns its own contract. Change 0058; the learnings pass is change
 0067.
@@ -31,7 +31,8 @@ docket-status.sh -h | --help
 Any other argument is a hard error (`docket-status: unknown argument: <arg>`, exit 2).
 
 Configuration (`DOCKET_MODE`, `METADATA_WORKTREE`, `METADATA_BRANCH`, `INTEGRATION_BRANCH`,
-`CHANGES_DIR`, `ADRS_DIR`, `BOARD_SURFACES`, `TERMINAL_PUBLISH`, `BOOTSTRAP`, …) comes entirely from
+`CHANGES_DIR`, `ADRS_DIR`, `BOARD_SURFACES`, `TERMINAL_PUBLISH`, `RECLAIM_LEASE_TTL`, `RECLAIM_AUTO`,
+`BOOTSTRAP`, …) comes entirely from
 `docket-config.sh --export`, evaluated with `eval` into `main()`'s scope by the shared
 `docket_preflight` call at the top of `main` (see Behavior, steps 1–2). The script defines no
 config of its own.
@@ -124,8 +125,8 @@ path** and the placement is part of the contract:
   lines, and since the digest is the sole backlog channel, that staleness would have no corrective
   path.
 
-Report line order on a full pass is therefore: board → sweep lines → check/judgment lines →
-learnings lines → backlog digest → `pass ok`.
+Report line order on a full pass is therefore: board → sweep lines → check lines → reclaim lines
+(step 7a) → judgment lines → learnings lines → backlog digest → `pass ok`.
 
 **5. Batched sweep detection.** `detect_merged` scans `active/*.md` for `status: implemented`
 changes, resolves each PR's merge state with one batched `gh api graphql` call keyed by change ID
@@ -173,18 +174,43 @@ orphaned worktree and remote branch — a strictly worse, non-self-healing state
 report **line**, never on the exit code.
 
 **7. Health checks.** Runs `board-checks.sh` over the current changes-dir and metadata/integration
-branches, and prefixes each of its TSV findings as `check <check-id> <change-id> <message>` on
-this script's stdout. Also emits one `judgment blocked <id> <blocked_by-text>` line per `active`
-change with `status: blocked`, leaving the actual re-examination judgment to the caller/skill.
-Both are best-effort/warn-only: a clean tree, or a `board-checks.sh` failure, produces no extra
-output and never aborts the pass.
+branches — forwarding `--lease-ttl-hours "${RECLAIM_LEASE_TTL:-72}"` (change 0089) so the
+claim-lease staleness signal keys on the repo's configured `reclaim.lease_ttl` — and prefixes each
+of its TSV findings as `check <check-id> <change-id> <message>` on this script's stdout. Also emits
+one `judgment blocked <id> <blocked_by-text>` line per `active` change with `status: blocked`,
+leaving the actual re-examination judgment to the caller/skill. Both are best-effort/warn-only: a
+clean tree, or a `board-checks.sh` failure, produces no extra output and never aborts the pass.
+
+**7a. Reclaim pass — opt-in mutation OR a state-valid remedy (change 0089). Full path only.** After
+the health-check lines are captured and printed, `reclaim_pass` keys on the stable `[reclaimable]`
+marker `board-checks.sh` stamps on the expired-lease-**and**-no-branch finding — the one case
+reclaim is provably collision- and orphan-free. The **mutation is gated behind BOTH conditions**: at
+least one `[reclaimable]` finding exists **and** `reclaim.auto` (`RECLAIM_AUTO`) is `true`. If no
+`[reclaimable]` finding is present, this pass is a total no-op regardless of `reclaim.auto`.
+- **`reclaim.auto: true`** — invokes `reclaim-claims.sh --changes-dir <metadata-worktree>/<changes-dir>
+  --lease-ttl-hours "${RECLAIM_LEASE_TTL:-72}"` (the mutating sweep: it flips expired, branch-less
+  in-progress changes back to build-ready `proposed`, commits, and **pushes to origin**) and passes
+  each of its report lines through prefixed `reclaim `. The metadata worktree is resolved by the
+  **same** `docket_metadata_worktree` helper the health checks use, so reclaim runs against exactly
+  the worktree the findings came from; its no-branch orphan guard reads local remote-tracking refs,
+  which `docket_preflight` already freshened at the top of the pass (no redundant fetch here).
+- **`reclaim.auto: false` (the default)** — prints **one** state-valid remedy line,
+  `reclaim: <n> expired-lease change(s) can self-heal — run: docket.sh reclaim-claims`, where `<n>`
+  is the `[reclaimable]` finding count. **printed-remedy-state-validity:** the remedy is keyed on the
+  SAME condition that gates the write, so the command it names is valid in exactly the state that
+  produced it; it is **never** printed under `reclaim.auto: true` (reclaim just ran).
+
+Neither the mutation nor the remedy can fire under `--board-only`: that path early-exits after the
+board and backlog passes (step 4), long before health checks or `reclaim_pass` are ever reached.
+The `[reclaimable]` test is a capture-then-grep on a here-string (never `health_checks | grep -q`),
+honoring the no-pipefail-SIGPIPE rule.
 
 **8. Learnings pass (change 0067).** Runs `learnings_pass` — the learnings-index self-heal +
 two needs-you advisories — **only on the full path, never under `--board-only`** (the board's own
 dedicated entry point; adding unrelated learnings work to it would be wrong). It runs after step 7
 (health checks/judgment) and before the full-pass backlog digest (step 4's post-sweep firing), so
-report line order on a full pass is board → sweep lines → check/judgment lines → **learnings
-lines** → backlog digest → `pass ok`.
+report line order on a full pass is board → sweep lines → check lines → reclaim lines → judgment
+lines → **learnings lines** → backlog digest → `pass ok`.
 
 - **Gate, checked FIRST, before anything else in this step:** `learnings.enabled` (`LEARNINGS_ENABLED`,
   from `docket-config.sh`). When not `true`, the pass emits the single positive line `learnings
@@ -246,6 +272,12 @@ backlog digest and emits nothing on stdout, so it does not affect the report's l
   worktree outrank a stale link block (change 0075).
 - **Health checks: warn-only.** Findings and judgments are reported, never enforced; the script
   never modifies a change file or blocks the pass because of a finding.
+- **Reclaim pass (step 7a): opt-in and doubly-gated.** The only step that mutates a change file and
+  pushes to origin on a health finding — and it does so **only** when both a `[reclaimable]` finding
+  exists **and** `reclaim.auto: true`. With `reclaim.auto: false` (the default) it prints a
+  remedy and touches nothing; with no `[reclaimable]` finding it is a total no-op regardless of the
+  knob; and it never runs under `--board-only`. `reclaim-claims.sh` owns the actual reclaim
+  mechanics (eligibility, the CAS push loop) — this script only gates and forwards.
 - **Learnings pass: best-effort, but never silent, and never blind to a broken renderer.** Gated
   FIRST on `learnings.enabled` — disabled emits exactly one `learnings disabled` line and touches
   nothing. Enabled, a failed index render emits `learnings index failed` and never aborts the pass
@@ -282,6 +314,8 @@ All report lines are stdout, one shape per line, diagnostics go to stderr:
 | `sweep-skipped <reason>` | Batched merge detection itself was skipped (`gh-unavailable` or `repo-unresolved`); no changes were evaluated this pass. |
 | `check <check-id> <change-id> <message>` | One `board-checks.sh` finding, passed through with the `check` prefix. `<check-id>` ∈ {broken-spec, broken-plan-results, dep-cycle, stale-in-progress, merge-gate-stall, merged-orphan, unknown-commit-ref, malformed-id}. |
 | `judgment blocked <id> <text>` | Change `<id>` is `status: blocked`, with its `blocked_by:` text, for the caller to re-judge. |
+| `reclaim: <n> expired-lease change(s) can self-heal — run: docket.sh reclaim-claims` | Step 7a, `reclaim.auto: false`: `<n>` `[reclaimable]` findings (expired lease, no branch) can be reclaimed. A state-valid remedy — printed only when at least one such finding exists, never under `reclaim.auto: true`, never under `--board-only`. |
+| `reclaim <line>` | Step 7a, `reclaim.auto: true`: a passthrough of one `reclaim-claims.sh` report line (`reclaimed <id> <slug> …` / `skipped <id> raced`) after the mutating reclaim sweep ran and **pushed to origin**. Emitted only on the full path when a `[reclaimable]` finding exists. |
 | `learnings disabled` | `learnings.enabled` resolved `false` — the pass is a total no-op: no render, no advisories, no read or write of `learnings/` at all. |
 | `learnings index skipped (no learnings dir)` | Learnings enabled, but `<changes-dir>/learnings` does not exist — nothing to render and no finding files to advise on. |
 | `learnings index failed` | The learnings index render failed; the existing `README.md` (if any) was left untouched (best-effort — the pass still continues). The two advisory lines below still fire on this path (change 0067 review, finding 3). |
@@ -315,9 +349,9 @@ All report lines are stdout, one shape per line, diagnostics go to stderr:
   make repeated sweeps safe.
 - **No duplication of shared-script internals.** This script only sequences the shared scripts and
   translates/prefixes their output lines; it does not reimplement rendering, archiving, health
-  checks, or publishing logic that already lives in `render-board.sh`, `archive-change.sh`,
+  checks, reclaim, or publishing logic that already lives in `render-board.sh`, `archive-change.sh`,
   `render-change-links.sh`, `terminal-publish.sh`, `cleanup-feature-branch.sh`,
-  `board-checks.sh`, or `render-learnings-index.sh`.
+  `board-checks.sh`, `reclaim-claims.sh`, or `render-learnings-index.sh`.
 - **Surface-specific failure postures.** See Failure postures above: board best-effort, sweep
   per-change log-and-continue, health checks warn-only, learnings best-effort. No single surface's failure aborts another
   surface's work within the same pass.

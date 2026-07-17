@@ -509,12 +509,44 @@ health_checks(){
   if [ "${DOCKET_MODE:-}" = docket ]; then metadata_branch="$METADATA_BRANCH"; else metadata_branch="$INTEGRATION_BRANCH"; fi
   "$SCRIPTS_DIR"/board-checks.sh \
     --changes-dir "$cd_dir" --metadata-branch "$metadata_branch" \
-    --integration-branch "origin/$INTEGRATION_BRANCH" 2>&2 | \
+    --integration-branch "origin/$INTEGRATION_BRANCH" \
+    --lease-ttl-hours "${RECLAIM_LEASE_TTL:-72}" 2>&2 | \
   while IFS=$'\t' read -r check_id change_id message; do
     [ -n "$check_id" ] || continue
     echo "check $check_id $change_id $message"
   done
   return 0
+}
+
+# reclaim_pass HEALTH_OUT — opt-in claim-lease reclaim OR a state-valid remedy line (change 0089).
+# FULL PATH ONLY (main() never calls this under --board-only). Keys on the [reclaimable] marker
+# board-checks (change 0089) stamps on the expired-lease-AND-no-branch finding — the one case reclaim
+# is provably collision- and orphan-free. The MUTATION is gated behind BOTH a [reclaimable] finding
+# AND reclaim.auto=true; when auto is off, it prints ONE remedy line instead and touches nothing.
+#
+# printed-remedy-state-validity: the remedy is keyed on the SAME condition that gates the write (a
+# [reclaimable] finding exists), so the command it names is valid in exactly the state that produced
+# it, and it is NEVER printed under reclaim.auto=true (reclaim just ran).
+#
+# Capture-then-grep on a HERE-STRING — never `health_checks | grep -q` (change 0067's no-pipefail-
+# SIGPIPE rule): a grep -q that exits on its first match would, in a pipeline, leave the producer's
+# SIGPIPE exit status to surface under `set -o pipefail` and mislabel a match as no-match. A
+# here-string has no producer process, so no SIGPIPE. docket_metadata_worktree is the SAME resolver
+# health_checks uses, so reclaim runs against the same metadata worktree the findings came from; its
+# no-branch orphan guard reads local remote-tracking refs, which docket_preflight already freshened.
+reclaim_pass(){
+  local health_out="$1" mw cd_dir line
+  grep -qF "[reclaimable]" <<<"$health_out" || return 0
+  if [ "${RECLAIM_AUTO:-false}" = true ]; then
+    mw="$(docket_metadata_worktree)"   # ABSOLUTE (change 0075) — see board_pass.
+    cd_dir="$mw/$CHANGES_DIR"
+    while IFS= read -r line; do
+      [ -n "$line" ] && printf 'reclaim %s\n' "$line"
+    done < <("$SCRIPTS_DIR"/reclaim-claims.sh --changes-dir "$cd_dir" --lease-ttl-hours "${RECLAIM_LEASE_TTL:-72}")
+  else
+    printf 'reclaim: %s expired-lease change(s) can self-heal — run: docket.sh reclaim-claims\n' \
+      "$(grep -cF "[reclaimable]" <<<"$health_out")"
+  fi
 }
 
 # emit_judgment — one "judgment blocked <id> <blocked_by text>" line per `blocked` change under
@@ -664,7 +696,13 @@ main(){
     esac
   done < <(detect_merged | sweep_execute)
 
-  health_checks
+  # Change 0089: capture health output (never `health_checks | grep` — pipefail SIGPIPE rule), print
+  # it, then let reclaim_pass key its opt-in mutation / state-valid remedy on the same [reclaimable]
+  # findings. FULL PATH ONLY — reclaim_pass is never reached under --board-only (that early-exits above).
+  local health_out
+  health_out="$(health_checks)"
+  [ -n "$health_out" ] && printf '%s\n' "$health_out"
+  reclaim_pass "$health_out"
   emit_judgment
   # Change 0067: the learnings pass runs on the FULL path only — never under --board-only, which
   # is the board's own dedicated entry point and is invoked by many callers as a must-land board
