@@ -13,7 +13,7 @@ tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
 stub="$tmp/stub-scripts"; mkdir -p "$stub"
 for h in docket-status board-refresh archive-change terminal-publish cleanup-feature-branch \
          github-mirror sync-integration-branch render-change-links render-adr-index \
-         adr-checks board-checks docket-config; do
+         adr-checks board-checks reclaim-claims docket-config; do
   printf '#!/usr/bin/env bash\necho "CALLED %s $*"\nexit 0\n' "$h" > "$stub/$h.sh"; chmod +x "$stub/$h.sh"
 done
 # a helper that exits with a chosen code to prove exit-code passthrough

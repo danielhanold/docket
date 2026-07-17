@@ -53,6 +53,7 @@ transitively by `docket_preflight` (see `scripts/lib/docket-preflight.sh`).
 | `render-learnings-index` | `render-learnings-index.sh` | learnings index (pure renderer) |
 | `adr-checks` | `adr-checks.sh` | ADR consistency checks |
 | `board-checks` | `board-checks.sh` | board consistency checks |
+| `reclaim-claims` | `reclaim-claims.sh` | reclaim expired-lease, no-branch in-progress claims back to `proposed` |
 | `runner-dispatch` | `runner-dispatch.sh` | delegate one agent run to a child harness via a registered runner adapter (change 0079) |
 
 Operation name = wrapped helper basename for every row except the three verbs `preflight`, `env`,
@@ -63,7 +64,7 @@ rather than a same-named script (there is no `scripts/preflight.sh`, `scripts/en
 ## Behavior
 
 **Dispatch.** `docket.sh <op> [args...]` looks `<op>` up in the table above. A match on one of the
-13 wrapped ops execs `$SCRIPTS_DIR/<op>.sh "$@"` — args forwarded verbatim, the helper's exit code
+14 wrapped ops execs `$SCRIPTS_DIR/<op>.sh "$@"` — args forwarded verbatim, the helper's exit code
 and stderr pass through unmasked (the facade uses `exec`, so the wrapped helper's process directly
 replaces `docket.sh`'s; there is no wrapper-added exit-code translation or output buffering). A
 match on `preflight`, `env`, or `bootstrap` runs the verb-specific logic below instead of execing a
@@ -146,7 +147,7 @@ above:
 |---|---|
 | 0 | Success. |
 | 2 | Unknown or missing operation — `docket.sh` lists the supported operations on stderr. |
-| *(other)* | Propagated verbatim from the wrapped helper's own exit code (for the 13 wrapped ops), or from `docket_preflight`/`docket-config.sh` failure (for `preflight`/`env`/`bootstrap`). |
+| *(other)* | Propagated verbatim from the wrapped helper's own exit code (for the 14 wrapped ops), or from `docket_preflight`/`docket-config.sh` failure (for `preflight`/`env`/`bootstrap`). |
 
 ## Invariants
 
