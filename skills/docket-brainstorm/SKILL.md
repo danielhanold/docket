@@ -17,13 +17,11 @@ follow-up agent turns anywhere — a single fresh dispatch, fully portable.
 
 ## Convention (load first — blocking)
 
-Before anything else in this skill, invoke the `docket-convention` skill via the Skill
-tool — unless it was already invoked earlier in this session and its content is in
-context. `docket-brainstorm` is only ever invoked from `docket-new-change` or
-`docket-groom-next`, whose own blocking Step 0 already loads `docket-convention`, so in
-the normal case this is a no-op check, not a reload. Everything below uses convention
-vocabulary (build-ready, the spec path, the metadata working tree, …) without
-redefinition.
+Invoke the `docket-convention` skill via the Skill tool first — unless already invoked
+this session. `docket-brainstorm` is only ever invoked from `docket-new-change` or
+`docket-groom-next`, whose own blocking Step 0 already loads it, so in the normal case
+this is a no-op check, not a reload. Everything below uses convention vocabulary
+without redefinition.
 
 ## Step 1 — Dialogue (inline, real)
 

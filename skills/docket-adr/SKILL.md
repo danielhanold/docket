@@ -13,19 +13,13 @@ agent: docket-adr
 
 ## When to use
 
-- `docket-implement-next` calls this at step 6 whenever a non-obvious technical decision is made during implementation.
-- A human recognizes a decision that should be captured but hasn't been.
+- `docket-implement-next` calls this at step 6 whenever a non-obvious technical decision is made during implementation; a human calls it directly for any uncaptured decision.
 - You need to supersede or reverse an existing ADR (a new decision replaces an old one).
-- The ADR index (`docs/adrs/README.md`) is stale, missing, or needs validation.
-- You want to audit the ledger for gaps, dangling links, or status inconsistencies.
+- The ADR index (`docs/adrs/README.md`) is stale or needs validation, or you want to audit the ledger for gaps, dangling links, or status inconsistencies.
 
 ## Convention (load first — blocking)
 
-Before anything else in this skill, invoke the `docket-convention` skill via the Skill tool — unless it was already invoked earlier in this session and its content is in context. Everything below uses its vocabulary (build-ready, metadata working tree, terminal-publish, the `DOCKET`/`LIVE` bootstrap probes, …) without redefinition; no step below is executable without the convention loaded.
-
-## Step 0
-
-Run the convention's *Step-0 preamble*: load the convention, then run `docket.sh preflight` as its own Bash call and read the printed `KEY=value` block off stdout (it resolves config, enforces the bootstrap verdict fail-closed, and ensures + syncs the metadata working tree). All ADR reads and writes land in that tree on `metadata_branch`, pushed to its remote immediately — ADR files and the regenerated index in `.docket/docs/adrs/…` on `origin/docket` in `docket`-mode; the primary working tree on `origin/<integration_branch>` in `main`-mode.
+Invoke the `docket-convention` skill via the Skill tool first — unless already invoked this session — and run its *Step-0 preamble* (load the convention; `docket.sh preflight` as its own Bash call; read the printed `KEY=value` block; act on the verdict). Everything below uses its vocabulary without redefinition. All ADR reads and writes land in the metadata working tree on `metadata_branch`, pushed to its remote immediately.
 
 ## Actions
 
@@ -59,15 +53,9 @@ The rule: **an `Accepted` ADR publishes to the integration branch only when the 
 
   Trust the exit code. Without this, a change-less ADR would be stranded on `docket` and the integration-branch ledger would be silently incomplete.
 
-- **Status change to an already-published ADR** (`Superseded by`/`Reversed by`/`Deprecated`) — whether or not the ADR was originally change-tied, it is re-published by `docket-adr` invoking the same script (trust the exit code):
+- **Status change to an already-published ADR** (`Superseded by`/`Reversed by`/`Deprecated`) — whether or not the ADR was originally change-tied, it is re-published by `docket-adr` invoking the same ADR-only call as the standalone case — `docket.sh terminal-publish --adr <NN> … --enabled <terminal_publish>` — trusting the exit code. The producing change is long since `done` and can no longer drive the re-publish; `--adr` mode publishes the ADR's current bytes (including a just-flipped `status:` line).
 
-  ```
-  "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh terminal-publish --adr <NN> --integration-branch <integration_branch> --metadata-branch <metadata_branch> --changes-dir <changes_dir> --adrs-dir <adrs_dir> --enabled <terminal_publish>
-  ```
-
-  The producing change is long since `done` and can no longer drive the re-publish; `--adr` mode publishes the ADR's current bytes (including a just-flipped `status:` line), which is exactly what the supersede/reverse and deprecate paths need.
-
-All three cases are **gated by `TERMINAL_PUBLISH`** (change 0064): the same `--enabled` flag the close-out passes. In a repo where `terminal_publish` is `false` (**the default** since change 0084), the ADR publish is a no-op that exits 0 — the decision ledger lives on `docket` only, and the integration branch receives **no new** ADR files and no index refresh. (The knob is never retroactive: a repo that flips it off mid-life keeps whatever ADRs and index it had already published — they simply stop being added to.) Trust the exit code either way; do not branch on the knob.
+All three cases are **gated by `TERMINAL_PUBLISH`** (changes 0064/0084): the same `--enabled` flag the close-out passes. Under the default `terminal_publish: false` the ADR publish is a no-op that exits 0 — the ledger lives on `docket` only (never retroactive: flipping the knob off keeps what was already published; it simply stops being added to). Trust the exit code either way; do not branch on the knob.
 
 In `main`-mode there is no `docket` branch and no terminal-publish — the metadata working tree *is* the integration branch, so writing the ADR there is itself the publish; this whole section is a `docket`-mode-only concern.
 

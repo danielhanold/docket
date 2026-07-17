@@ -7,12 +7,11 @@ description: Use when stubs are sitting at needs-brainstorm on the docket board 
 
 ## Overview
 
-`docket-groom-next` drains the needs-brainstorm queue. `docket-new-change`'s scan mode captures ideas on the go as lightweight stubs; this skill is the later brainstorm pass that turns them build-ready. It mirrors `docket-implement-next`'s shape — a "next" skill over a queue — but the queue is needs-brainstorm stubs, the work is an interactive design conversation with the human, and the exit is a build-ready `proposed` change, not an open PR. One stub per invocation; loop by re-invoking. It writes markdown only: the change file, a spec, and a refreshed `BOARD.md` — never branches, worktrees, or code.
+`docket-groom-next` drains the needs-brainstorm queue: `docket-new-change`'s scan mode captures ideas as lightweight stubs; this skill is the later brainstorm pass that turns them build-ready through an interactive design conversation with the human. One stub per invocation; loop by re-invoking. It writes markdown only: the change file, a spec, and a refreshed `BOARD.md` — never branches, worktrees, or code.
 
 ## When to use
 
-- Stubs show as needs-brainstorm on the board and you want to design the next one.
-- You want to groom a specific stub now (pass its id explicitly to skip selection).
+- Stubs show as needs-brainstorm on the board and you want to design the next one, or a specific one (pass its id explicitly to skip selection).
 - Do NOT use to capture a brand-new idea — that is `docket-new-change`'s job; this skill never mints ids.
 - Do NOT use to re-groom a change that already has a spec — drift against current reality is the reconcile pass's job in `docket-implement-next`. A human who wants to redo a design can clear `spec:` by hand first.
 
@@ -22,11 +21,7 @@ This skill grooms interactively with a human, so it cannot be a fire-and-forget 
 
 ## Convention (load first — blocking)
 
-Before anything else in this skill, invoke the `docket-convention` skill via the Skill tool — unless it was already invoked earlier in this session and its content is in context. Everything below uses its vocabulary (needs-brainstorm, build-ready, metadata working tree, the bootstrap probes, …) without redefinition; no step below is executable without the convention loaded.
-
-## Step 0
-
-Run the convention's *Step-0 preamble*: load the convention, then run `docket.sh preflight` as its own Bash call and read the printed `KEY=value` block off stdout (it resolves config, enforces the bootstrap verdict fail-closed, and ensures + syncs the metadata working tree). All reads and writes land in that tree on `metadata_branch`, pushed to its remote immediately so the backlog stays reviewable on GitHub and visible to the autonomous implementer — `.docket/` on `origin/docket` in `docket`-mode; the primary working tree on `origin/<integration_branch>` in `main`-mode.
+Invoke the `docket-convention` skill via the Skill tool first — unless already invoked this session — and run its *Step-0 preamble* (load the convention; `docket.sh preflight` as its own Bash call; read the printed `KEY=value` block; act on the verdict). Everything below uses its vocabulary without redefinition. All reads and writes land in the metadata working tree on `metadata_branch`, pushed to its remote immediately so the backlog stays reviewable on GitHub and visible to the autonomous implementer; grooming never touches `origin/<integration_branch>` — markdown only, no branches or code.
 
 ## Procedure
 
@@ -42,7 +37,7 @@ No claim is taken — see *Concurrency — no claim* below.
 
 ### Step 2 — Scan related context
 
-Read the neighbouring `active/` changes, recently archived changes, and the ADR index BEFORE the brainstorm, so the conversation is informed by adjacent work. Read the learnings index `<changes_dir>/learnings/README.md` BEFORE the brainstorm and pull any findings whose hook bears on the stub, so the conversation is informed by adjacent work and past lessons (skipped entirely when `learnings.enabled` is `false`). Record the resulting `related:`/`depends_on:`/`adrs:` updates after the design settles.
+BEFORE the brainstorm, read the neighbouring `active/` changes, recently archived changes, and the ADR index, plus the learnings index `<changes_dir>/learnings/README.md` and any findings whose hook bears on the stub (skipped entirely when `learnings.enabled` is `false`) — so the conversation is informed by adjacent work and past lessons. Record the resulting `related:`/`depends_on:`/`adrs:` updates after the design settles.
 
 ### Step 3 — Recap, then groom with the human
 
