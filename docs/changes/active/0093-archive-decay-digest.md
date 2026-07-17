@@ -10,7 +10,7 @@ depends_on: []
 related: [10, 67]
 adrs: []
 spec: docs/superpowers/specs/2026-07-17-archive-decay-digest-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-17-archive-decay-digest.md
 results:
 trivial: false
 auto_groomable: true
@@ -26,6 +26,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-17-archive-decay-digest-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-17-archive-decay-digest-design.md) |
+| Plan | [2026-07-17-archive-decay-digest.md](https://github.com/danielhanold/docket/blob/feat/archive-decay-digest/docs/superpowers/plans/2026-07-17-archive-decay-digest.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
