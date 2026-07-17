@@ -13,7 +13,8 @@
 #   Clean tree ⇒ no output, exit 0. --strict ⇒ exit 1 if any finding (for a future CI gate).
 #   Branch args are passed to `git cat-file -e <ref>:<path>` verbatim; in main-mode the two refs
 #   coincide and both link checks resolve on the same branch with no special-casing.
-#   --lease-ttl-hours N defaults to 72 when absent (standalone use stays sane). It sets the
+#   --lease-ttl-hours N defaults to 72 when absent (standalone use stays sane); a non-numeric or
+#   negative N is rejected up front (exit 2), never crashed into the staleness arithmetic. It sets the
 #   claim-lease TTL for stale-in-progress (change 0089): claimed_at + TTL expiry, on top of the
 #   pre-existing branch-idle >3d signal. See that check's block below for the two trigger messages.
 #   Mock seams: GIT="${GIT:-git}"  (the only external dependency); NOW="${NOW:-$(date +%s)}" (staleness clock).
@@ -35,6 +36,12 @@ while [ $# -gt 0 ]; do
   shift
 done
 LEASE_TTL_HOURS="${LEASE_TTL_HOURS:-72}"   # default when --lease-ttl-hours is absent (standalone use)
+# Validate the resolved TTL UNCONDITIONALLY (mirrors reclaim-claims.sh's own guard). A non-numeric or
+# negative value must fail here, cleanly — not crash the staleness arithmetic (`$(( LEASE_TTL_HOURS *
+# 3600 ))`) unbound, which would otherwise only surface on repos that carry an in-progress change.
+case "$LEASE_TTL_HOURS" in
+  ''|*[!0-9]*) printf 'board-checks: invalid --lease-ttl-hours: %s (must be a non-negative integer, hours)\n' "$LEASE_TTL_HOURS" >&2; exit 2 ;;
+esac
 [ -n "$CHANGES_DIR" ]        || { printf 'board-checks: missing --changes-dir\n' >&2; exit 2; }
 [ -d "$CHANGES_DIR" ]        || { printf 'board-checks: changes dir not found: %s\n' "$CHANGES_DIR" >&2; exit 2; }
 [ -n "$METADATA_BRANCH" ]    || { printf 'board-checks: missing --metadata-branch\n' >&2; exit 2; }

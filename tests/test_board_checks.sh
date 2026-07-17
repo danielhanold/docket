@@ -126,6 +126,23 @@ assert "finding present without --strict ⇒ exit 0" '[ "$rc" = 0 ]'
 bash "$SCRIPT" --metadata-branch docket --integration-branch main >/dev/null 2>&1; rc=$?
 assert "missing --changes-dir ⇒ exit 2" '[ "$rc" = 2 ]'
 
+# --lease-ttl-hours input validation (change 0089, Task 5 review carry-over): a non-numeric or
+# negative value must `die` cleanly rather than crash the staleness arithmetic unbound. Mirrors
+# reclaim-claims.sh's own `case "$TTL_HOURS" in ''|*[!0-9]*) die ...` guard. Fired UNCONDITIONALLY
+# (before the change walk), so a clean repo with no in-progress change still rejects a bad value —
+# the crash it prevents (`$(( abc * 3600 ))`) would otherwise only surface on repos that happen to
+# carry an in-progress change, i.e. exactly when it is least expected.
+bash "$SCRIPT" --changes-dir "$C/docs/changes" --metadata-branch docket --integration-branch main --lease-ttl-hours abc >/dev/null 2>&1; rc=$?
+assert "non-numeric --lease-ttl-hours ⇒ exit 2" '[ "$rc" = 2 ]'
+bash "$SCRIPT" --changes-dir "$C/docs/changes" --metadata-branch docket --integration-branch main --lease-ttl-hours -5 >/dev/null 2>&1; rc=$?
+assert "negative --lease-ttl-hours ⇒ exit 2" '[ "$rc" = 2 ]'
+bad_ttl_err="$(bash "$SCRIPT" --changes-dir "$C/docs/changes" --metadata-branch docket --integration-branch main --lease-ttl-hours abc 2>&1 >/dev/null)"
+assert "invalid --lease-ttl-hours names the offending value on stderr" \
+  'printf "%s" "$bad_ttl_err" | grep -qiF "lease-ttl-hours"'
+# A valid integer still passes (no regression): the clean repo stays exit 0.
+NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$C/docs/changes" --metadata-branch docket --integration-branch main --lease-ttl-hours 72 >/dev/null 2>&1; rc=$?
+assert "valid integer --lease-ttl-hours ⇒ exit 0 (no regression)" '[ "$rc" = 0 ]'
+
 # ============================ broken-plan-results ============================
 # A 'done' change whose results: path is absent on the integration branch ⇒ one finding.
 # The SAME missing field on an 'implemented' change ⇒ silent (carve-out). Present links ⇒ silent.
