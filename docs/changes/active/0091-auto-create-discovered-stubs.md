@@ -6,10 +6,10 @@ status: proposed
 priority: medium
 created: 2026-07-17
 updated: 2026-07-17
-depends_on: []
+depends_on: [90]
 related: [90]
 adrs: [19]
-spec:
+spec: docs/superpowers/specs/2026-07-17-auto-create-discovered-stubs-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Spec | [2026-07-17-auto-create-discovered-stubs-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-17-auto-create-discovered-stubs-design.md) |
 | ADRs | [ADR-0019](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0019-global-config-fence-classification.md) |
 <!-- docket:artifacts:end -->
 
@@ -45,31 +46,46 @@ gates everything at groom time, so auto-creation adds no autonomy risk, only cap
 
 ## What changes
 
-- A new config knob (name settled in brainstorm, e.g. `auto_capture: true|false`, default
-  `false`) — **configurable in all layers**: repo `.docket.yml`, user-level global config, and
-  `.docket.local.yml`. It gates behavior only and creates re-derivable markdown, so per the
-  ADR-0019 fence classification it should be global-able — brainstorm confirms.
-- When enabled, the autonomous skills (implement-next, auto-groom, finalize/harvest) create
-  `proposed` needs-brainstorm stubs for discovered work via the normal id-allocation CAS path,
-  with `discovered_from:` populated; when disabled, today's ask-or-mention behavior stays.
-- Guardrails against noise: a materiality bar for what deserves a stub (vs a reconcile-log or
-  learnings note), and a per-run cap — brainstorm decides both.
-- Stub minting mid-run must not disturb the run's own claim/branch state (metadata-worktree
-  writes only, same as any new-change allocation).
+- A new **boolean** config knob `auto_capture: true | false`, default `false` — **global-able**
+  across all layers (repo `.docket.yml`, user-level global config, `.docket.local.yml`), classified
+  by direct analogy to `auto_groom` under ADR-0019 (gates a local-run behavior producing ordinary
+  backlog commits, never coordination state). Resolved with the same layered read as `auto_groom`
+  and recorded in the authoritative fence table in `scripts/docket-config.md`.
+- When enabled, the **autonomous single-change** skills — `docket-implement-next` (reconcile/review
+  discoveries) and the `docket-finalize-change` / `docket-status` harvest (close-out findings) —
+  mint `proposed` needs-brainstorm stubs for discovered work with `discovered_from:` populated (per
+  #0090), instead of asking or mentioning. When disabled, today's ask-or-mention behavior is
+  unchanged. `docket-auto-groom` is deliberately **not** a mint site (it would break its own
+  provable-termination invariant and create an `auto_groom` × `auto_capture` growth loop);
+  interactive skills already mint with a human present.
+- The mint reuses `docket-new-change`'s id-allocation + CAS routine via a deterministic helper: the
+  model decides *what* is material (a stub = distinct follow-up work that would be its own PR; not a
+  learnings lesson, not current-change drift), the helper does the mechanical mint (ADR-0012).
+- Guardrails against noise: the materiality bar above, a cheap active-slug dedup check, and a small
+  hardcoded per-invocation cap (overflow surfaced in the run report, not dropped).
+- Minting is a metadata-worktree write only — it never disturbs the running change's own
+  claim/branch/PR state.
+- Shipped end-to-end: the knob in `config.yml.example` + the `.docket.yml` schema block, README, and
+  the relaxed convention prose.
 
 ## Out of scope
 
 - Auto-grooming or auto-implementing the created stubs (existing `auto_groom` machinery already
   governs what happens next).
-- The provenance field itself (#0090; this change consumes it — likely `depends_on` or a merge,
-  decided at groom time).
+- The provenance field itself (#0090; this change consumes it via `depends_on: [90]`, kept a
+  separate change — not merged).
 - Deduplication beyond a cheap check against existing active titles/slugs.
+- Making the per-invocation cap configurable (deferred follow-up).
 
 ## Open questions
 
-- Combine with #0090 into one change, or keep field (90) and behavior (91) separate?
-- Per-skill granularity (allow implement-next but not auto-groom to mint?) or one global switch?
-- Does an auto-created stub get flagged on the board (e.g. "discovered — unreviewed") so humans
-  can sweep new arrivals?
+Resolved at grooming (2026-07-17; rationale + rejected alternatives in the spec's `## Assumptions`):
+
+- **Combine with #0090 or keep separate?** → Keep separate; #0091 consumes #0090's field via
+  `depends_on: [90]`. (A cross-change *merge* was out of scope for this groom.)
+- **Per-skill granularity or one switch?** → One global boolean `auto_capture`; granularity is a
+  reversible follow-up if a need appears.
+- **New board flag for auto-created stubs?** → No new board state; they surface as ordinary
+  needs-brainstorm and provenance rendering is #0090's territory.
 
 ## Reconcile log
