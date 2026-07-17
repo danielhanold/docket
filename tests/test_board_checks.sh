@@ -316,6 +316,68 @@ printf -- '---\nid: abc\nslug: bad\ntitle: Bad\nstatus: proposed\npriority: low\
 out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$work/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
 assert "board malformed-id flagged on non-integer change id 'abc'" 'has_finding "$out" malformed-id abc'
 
+# ============================ merged-orphan / unknown-commit-ref ============================
+# Cross-reference change ids in integration-branch (main) commit *subjects* against active/archive.
+# All fixtures use --allow-empty commits (subjects only). Each negative is discriminating: it pairs
+# a real change file with a real commit, so the excluded grammar (bare #, body text) or the
+# active/archive carve-out is what keeps the finding from firing.
+read -r O _ < <(new_repo)
+# --- craft integration-branch (main) history: subjects only, via empty commits ---
+git -C "$O" checkout main >/dev/null 2>&1
+git_quiet -C "$O" commit --allow-empty -m "docket(0050): merged-orphan via conventional scope"
+git_quiet -C "$O" commit --allow-empty -m "feat: add a thing (change 0054)"      # trailing form
+git_quiet -C "$O" commit --allow-empty -m "Fix a thing #51"                       # bare # only (excluded)
+git_quiet -C "$O" commit --allow-empty -m "unrelated subject" -m "body mentions (change 52)"  # body only (excluded)
+git_quiet -C "$O" commit --allow-empty -m "docket(0053): terminal record — done" # id 53 is archived
+git_quiet -C "$O" commit --allow-empty -m "docket(0099): mystery id with no file" # unknown ref
+git -C "$O" checkout docket >/dev/null 2>&1
+# --- change files: 50/51/52/54 active, 53 archived (done), 99 absent ---
+for pair in 50:orphan 51:barehash 52:bodyonly 54:trailing; do
+  id="${pair%%:*}"; slug="${pair##*:}"
+  cat > "$O/docs/changes/active/00$id-$slug.md" <<EOF
+---
+id: $id
+slug: $slug
+title: $slug
+status: in-progress
+priority: medium
+depends_on: []
+EOF
+done
+cat > "$O/docs/changes/archive/2026-07-01-0053-published.md" <<'EOF'
+---
+id: 53
+slug: published
+title: Terminal, published
+status: done
+priority: medium
+depends_on: []
+EOF
+oout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$O/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+# merged-orphan: active id referenced by a merged subject (both grammar forms)
+assert "merged-orphan fires for an active id in a conventional scope docket(0050) (id 50)" \
+  'has_finding "$oout" merged-orphan 50'
+assert "merged-orphan fires for an active id in the trailing (change 0054) form (id 54)" \
+  'has_finding "$oout" merged-orphan 54'
+# negatives — each discriminating (the id HAS an active file; only the excluded grammar keeps it quiet)
+assert "merged-orphan silent for a bare #51 reference (grammar excludes bare #, id 51)" \
+  '! has_finding "$oout" merged-orphan 51'
+assert "merged-orphan silent for a body-only (change 52) mention (subjects only, id 52)" \
+  '! has_finding "$oout" merged-orphan 52'
+assert "merged-orphan silent for a docket(0053) subject of an ARCHIVED change (carve-out, id 53)" \
+  '! has_finding "$oout" merged-orphan 53'
+# unknown-commit-ref: referenced id with no change file at all
+assert "unknown-commit-ref fires for docket(0099) with no change file (id 99)" \
+  'has_finding "$oout" unknown-commit-ref 99'
+# unknown-commit-ref must NOT fire for ids that DO have a file (active or archived)
+assert "unknown-commit-ref silent for a known active id (id 50)" \
+  '! has_finding "$oout" unknown-commit-ref 50'
+assert "unknown-commit-ref silent for a known archived id (id 53)" \
+  '! has_finding "$oout" unknown-commit-ref 53'
+# evidence: the merged-orphan message names the evidence commit subject
+assert "merged-orphan names the evidence commit for id 50" \
+  'printf "%s" "$oout" | grep -E "$(printf "^merged-orphan\t50\t")" | grep -qF "docket(0050)"'
+
 # ============================ docket-status wiring sentinels (SKILL is code on main) ============================
 assert "docket-status Health checks invoke board-checks (via the docket.sh facade)" \
   'grep -qF "docket.sh board-checks" "$SKILL"'
