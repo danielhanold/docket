@@ -8,7 +8,7 @@ created: 2026-07-11
 updated: 2026-07-16
 depends_on: []
 related: [61]
-adrs: [11]
+adrs: [11, 42]
 spec: docs/superpowers/specs/2026-07-16-autonomous-finalize-merge-authorization-design.md
 plan: docs/superpowers/plans/2026-07-16-autonomous-finalize-merge-authorization.md
 results:
@@ -27,7 +27,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-16-autonomous-finalize-merge-authorization-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-16-autonomous-finalize-merge-authorization-design.md) |
 | Plan | [2026-07-16-autonomous-finalize-merge-authorization.md](https://github.com/danielhanold/docket/blob/feat/autonomous-finalize-merge-authorization/docs/superpowers/plans/2026-07-16-autonomous-finalize-merge-authorization.md) |
-| ADRs | [ADR-0011](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0011-finalize-consent-model.md) |
+| ADRs | [ADR-0011](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0011-finalize-consent-model.md), [ADR-0042](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0042-auto-approve-consent-model.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
