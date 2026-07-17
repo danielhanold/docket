@@ -566,6 +566,18 @@ Cursor users running the skills under Auto-run in Sandbox: see
 [docs/cursor/permissions.md](docs/cursor/permissions.md) for the copyable `permissions.json` and
 `sandbox.json` fragments, the trust tiers, what one allowlist entry authorizes, and troubleshooting.
 
+### Headless / autonomous finalize merge auto-approve (opt-in)
+
+`docket-finalize-change` cannot merge a PR headless without `--admin`, because a solo maintainer's
+own PR is structurally unapprovable on GitHub. `finalize.auto_approve` closes that gap: a
+repo-controlled GitHub Actions workflow approves the PR for real (the same pattern GitHub's own
+Dependabot auto-merge uses) after finalize's rebase-retest gate re-validates it, so the merge that
+follows is no longer "unreviewed" and no longer needs `--admin`. It is opt-in, per repo, gated by a
+one-time human-attended setup step. See
+[docs/auto-approve-setup.md](docs/auto-approve-setup.md) for prerequisites, the
+`docket.sh setup-auto-approve` run, enabling the knob, and honest limitations (CODEOWNERS repos are
+unsupported; org Actions policy can override the repo setting).
+
 ---
 
 ## Status

@@ -22,6 +22,10 @@ finalize:
   # require_pr_approval: false  # default. true => the auto-detect (no-arg) path refuses to merge an
   #                             #   unapproved PR (reviewDecision != APPROVED), surfacing it instead.
   #                             #   An explicit `docket-finalize-change <id>` always overrides this.
+  # auto_approve: false  # true => headless finalize dispatches .github/workflows/docket-approve.yml
+  #                      #   (install once via `docket.sh setup-auto-approve`) to approve the PR, then
+  #                      #   merges WITHOUT --admin. Coordination-key fenced (per-repo-only). See
+  #                      #   docs/auto-approve-setup.md.
 
 # The learnings subsystem (change 0067) — the build loop's memory. Findings live in
 # <changes_dir>/learnings/ (one curated finding per file) with a GENERATED README.md index;
