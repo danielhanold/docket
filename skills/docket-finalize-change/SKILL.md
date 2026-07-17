@@ -7,14 +7,12 @@ description: Use when a change's PR is approved or merged and you want to close 
 
 ## Overview
 
-`docket-finalize-change` is the human's deliberate close-out for a change that has reached the merge gate: merging the approved PR into the integration branch, then driving the **`done`** terminal transition — harvesting learnings, archiving, publishing terminal records onto the integration branch if the repo has opted in (`docket`-mode), cleaning up the branch and worktree, and refreshing the board. It reuses the same idempotent archive-and-publish flow as `docket-status`'s safety-net sweep, so it is safe to run even if the sweep already ran.
+`docket-finalize-change` is the human's deliberate close-out for a change at the merge gate: merge the approved PR, then drive the **`done`** terminal transition — harvest learnings, archive, publish terminal records if the repo opted in, clean up the branch and worktree, refresh the board. It reuses the same idempotent archive-and-publish flow as `docket-status`'s safety-net sweep, so it is safe to run even if the sweep already ran.
 
 ## When to use
 
-- A PR was approved and you want to merge it and close the change in one step.
-- A PR was merged via the GitHub button and you want to archive the change immediately rather than waiting for the next `docket-status` or `docket-implement-next` sweep.
-- You want to clean up the feature branch and worktree after a merge and refresh the board in one pass.
-- You are closing out multiple merged changes at once after a sprint or review cycle.
+- A PR was approved (merge + close out in one step), or was merged via the GitHub button and you want it archived now rather than at the next sweep.
+- You are closing out one or several merged changes and want branch/worktree cleanup + a board refresh in one pass.
 
 ## Convention (load first — blocking)
 
@@ -25,23 +23,15 @@ Invoke `docket-convention` first (unless already loaded this session) and follow
 Every step of this skill **after** the merge gate's suite run — the merge, the metadata writes,
 the archive, `terminal-publish`, `cleanup-feature-branch.sh`, and the Board pass — runs from the
 durable root: the absolute main-worktree path the Step-0 `preflight` block prints as `REPO_ROOT=`.
-Prefix those Bash calls with `cd <that path>` (or target them with `git -C <that path>`).
-
-This is not hygiene, it is a correctness requirement: cleanup removes `.worktrees/<slug>`, and
-`git worktree remove --force` **succeeds** while the agent's own CWD is inside that directory —
-the process merely orphans its CWD, and the agent's **next** Bash call then cannot start (`cd: no
-such file or directory`), stranding the run after the destructive step has already landed. A child
-process cannot change its parent's CWD, so no script can fix this; only the skill can. The
-script-side guard is the backstop: `cleanup-feature-branch.sh` now refuses (before any destructive
-step) when the caller's CWD is at or inside the target.
-
-Two derivations look plausible and are both wrong: never as `dirname` of `METADATA_WORKTREE` (in
-`main`-mode `METADATA_WORKTREE` *is* the repo root, so `dirname` yields the repo's **parent**),
-and never from `git rev-parse --show-toplevel` (from a linked worktree that returns the linked
-worktree, not the main one).
-
+Prefix those Bash calls with `cd <that path>` (or target them with `git -C <that path>`). A
+correctness requirement, not hygiene: cleanup removes `.worktrees/<slug>`, and a CWD inside it is
+orphaned — the agent's **next** Bash call cannot start, stranding the run after the destructive
+step landed (`cleanup-feature-branch.sh` refuses when the caller's CWD is at or inside the target,
+as the backstop). Two plausible derivations are both wrong: never as `dirname` of
+`METADATA_WORKTREE` (in `main`-mode that *is* the repo root, so `dirname` yields its **parent**),
+and never `git rev-parse --show-toplevel` (a linked worktree returns itself, not the main one).
 **The merge gate's suite run is the exception** — it happens in the feature worktree, which is
-where it belongs. Only the close-out steps below move to the durable root.
+where it belongs; only the close-out steps move to the durable root.
 
 ## Selection
 
@@ -69,7 +59,7 @@ The per-change steps below run for each selected change; step 5 (Board) runs onc
 
 2. **Verify the merge landed** on the integration branch. If the change carries a `results:` file, this is the moment to append interactive-verification outcomes and any late findings to it, post-merge.
 
-2.5 **Harvest learnings.** Gated on `learnings.enabled` (from the Step-0 config export): when `false`, print exactly one line — `learnings disabled — harvest skipped` — and go to step 3 (never silently; a reader must be able to tell "harvested zero" from "skipped because disabled"). When enabled: distill this change's close-out signals — PR review comments, merge-gate feedback, `results:` findings — into zero or more **findings** under `<changes_dir>/learnings/` (shape per the convention's *Learnings ledger*). For each lesson, either **create** `learnings/<slug>.md` or **extend** the existing family finding whose slug already covers the class — append a dated `## War story` entry with `(#<id>, PR #<n>)` provenance, add this change's id to `changes:`, bump `updated:`. Never merge two existing distinct findings — that is human-gated curation. Set `promotion_state: candidate` on any finding whose rule must fire **unprompted** — the tiering criterion is the convention's to state, not this step's to restate. Zero findings is normal. **Idempotency probe:** skip if some finding file's `changes:` list already contains this change's id — read via `lib/docket-frontmatter.sh`'s `list_field`, never a bare numeric grep (a bare id can match a PR number or a date). Then re-render the index — direct `>` truncates on open, so a failed render would empty the index before its exit code is even checked, and an emptied index is a byte change that then looks committable; render to a same-directory temp file first and only replace the index once the render has actually succeeded: `tmp=$(mktemp .docket/<changes_dir>/learnings/.render-index.XXXXXX) && "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh render-learnings-index --learnings-dir .docket/<changes_dir>/learnings > "$tmp" && [ -s "$tmp" ] && mv "$tmp" .docket/<changes_dir>/learnings/README.md || rm -f "$tmp"` — the same atomic-write discipline `docket-status.sh`'s own `learnings_regen_index` uses for the sweep's re-render, so a render failure here never truncates or corrupts the last-good index. On success, commit the finding file(s) + index together as **its own commit** on `metadata_branch` (never bundled with the archive commit), only if the render actually changed bytes, and push. On a render failure (the `mv` did not happen), commit the finding file(s) alone — the last-good index survives untouched and `docket-status`'s own sweep will refresh it next pass — and surface the render failure rather than reporting the harvest as clean. Kills are not harvested. This step is the harvest procedure's single source; `docket-status`'s sweep invokes it by reference.
+2.5 **Harvest learnings.** Gated on `learnings.enabled` (from the Step-0 config export): when `false`, print exactly one line — `learnings disabled — harvest skipped` — and go to step 3 (never silently; "harvested zero" must be distinguishable from "skipped because disabled"). When enabled: distill this change's close-out signals — PR review comments, merge-gate feedback, `results:` findings — into zero or more **findings** under `<changes_dir>/learnings/` (shape per the convention's *Learnings ledger* and its reference). **Create** `learnings/<slug>.md` or **extend** the existing family finding (a dated `## War story` entry with `(#<id>, PR #<n>)` provenance, this change's id added to `changes:`, `updated:` bumped) — never merge two existing distinct findings. Set `promotion_state: candidate` on any finding whose rule must fire **unprompted**. Zero findings is normal; kills are not harvested. **Idempotency probe:** skip if some finding file's `changes:` list already contains this change's id — read via `lib/docket-frontmatter.sh`'s `list_field`, never a bare numeric grep (a bare id can match a PR number or a date). Then re-render the index atomically — a failed render must never truncate the last-good index (direct `>` truncates on open), so render to a same-directory temp file and replace only on success: `tmp=$(mktemp .docket/<changes_dir>/learnings/.render-index.XXXXXX) && "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh render-learnings-index --learnings-dir .docket/<changes_dir>/learnings > "$tmp" && [ -s "$tmp" ] && mv "$tmp" .docket/<changes_dir>/learnings/README.md || rm -f "$tmp"`. On success, commit the finding file(s) + index together as **its own commit** on `metadata_branch` (never bundled with the archive commit), only if the render changed bytes, and push. On a render failure (no `mv`), commit the finding file(s) alone — the sweep refreshes the index next pass — and surface the failure rather than reporting the harvest as clean. This step is the harvest procedure's single source; `docket-status`'s sweep invokes it by reference.
 
 3. **Archive → re-render → publish.** This is the shared terminal close-out sequence — **the single source is `skills/docket-convention/references/terminal-close-out.md`; follow it exactly, steps 1–3.** Finalize-only facts the reference doesn't carry: compute the merge date in **UTC** via `gh`'s `mergedAt` (never `now()`); pass `--results <path>` to `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh archive-change` when a results file arrived via the merge; the sequence's re-render step is `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh render-change-links` (sole writer of the archived file's `## Artifacts` block, committed as a follow-on and pushed before publish reads it); this skill's posture on any non-zero exit is **abort-and-report** (stop this change's close-out, surface the failure — see the reference's *Failure posture* table).
 
@@ -144,14 +134,12 @@ Each leaves the **PR open** and the change **`implemented`**: an ambiguous rebas
 
 ## Where finishing-a-development-branch fits
 
-When a human is present, the resolved finish skill — `$SKILL_FINISH` (default `superpowers:finishing-a-development-branch`) — can drive a non-standard close-out (keep, discard, or merge locally without a PR); its chooser fits at step 4. finalize's core rebase-retest gate is independent of it and still governs any actual merge. docket also borrows its worktree provenance-guard: only auto-remove a worktree under `.worktrees/<slug>`.
+When a human is present, the resolved finish skill — `$SKILL_FINISH` (default `superpowers:finishing-a-development-branch`) — can drive a non-standard close-out (keep, discard, or merge locally without a PR); its chooser fits at step 4. The rebase-retest gate is independent of it and still governs any actual merge; docket also borrows its provenance-guard (only auto-remove a worktree under `.worktrees/<slug>`).
 
 ## Terminal publish (docket-mode)
 
-The shared procedure — documented in `skills/docket-convention/references/terminal-close-out.md` — that copies a change's terminal records from `origin/docket` onto the integration branch. It runs on every terminal transition (`done`, driven by step 3 above and `docket-status`'s sweep; or `killed`, driven by the killing skill), distinguished by a publish token `T` (`<id>` for a change publish, `adr-<NN>` for a standalone/status-changed ADR).
+The shared procedure — documented in `skills/docket-convention/references/terminal-close-out.md` — that copies a change's terminal records from `origin/docket` onto the integration branch. It runs on every terminal transition (`done`, driven by step 3 above and `docket-status`'s sweep; or `killed`, driven by the killing skill), distinguished by a publish token (`<id>` for a change publish, `adr-<NN>` for a standalone/status-changed ADR). **Skipped entirely in `main`-mode** — there the archive move is itself the terminal record — **and skipped whenever `terminal_publish` is `false`** (the default; change 0084).
 
-**Skipped entirely in `main`-mode** (guarded on `metadata_branch == docket`) — there the archive move is itself the terminal record — **and skipped whenever `terminal_publish` is `false`** (the default since change 0084; opt in per-repo with `terminal_publish: true`).
+The copy-set: the archived change file, its `spec:` if set, and each `adrs:` entry whose ADR is `Accepted` (`Proposed`/draft ADRs are skipped). `BOARD.md` is **never** published. Mechanics — `checkout origin/docket -- <copy-set>`, the CAS push, self-verify, teardown — are owned by `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh terminal-publish --id <id> --enabled <terminal_publish>` (or `docket.sh terminal-publish --adr <NN> --enabled <terminal_publish>` for the ADR-only path — `<terminal_publish>` is the resolved `TERMINAL_PUBLISH` from the Step-0 `preflight` block); see `scripts/terminal-publish.md`.
 
-The copy-set: the archived change file, its `spec:` if set, and each `adrs:` entry whose ADR is `Accepted` (`Proposed`/draft ADRs are skipped). `BOARD.md` is **never** published. Mechanics — `checkout origin/docket -- <copy-set>`, the CAS push, self-verify, teardown — are owned by `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh terminal-publish --id <id> --enabled <terminal_publish>` (or `docket.sh terminal-publish --adr <NN> --enabled <terminal_publish>` for the ADR-only path — `<terminal_publish>` is the resolved config's `TERMINAL_PUBLISH` value from the Step-0 `preflight` block); see `scripts/terminal-publish.md`.
-
-**Headless publish degradation.** On a **headless** run with `terminal_publish: true`, the records-push above can be denied by an agent permission classifier even though everything up to that point ran unattended. That denial does **not** fail the run: finalize has already completed archive + cleanup + board by the time the publish step runs, so it lets those stand, does **not** retry the push itself, and surfaces one line in its report — `terminal-publish blocked (auto-mode push denial) — run docket.sh terminal-publish --id <id> (and --adr <NN> for any published ADR) manually` — so a human clears the publish afterward with the named command. **Attended** runs are unaffected: a human's conversational intent clears the same push exactly as it does today. This is version-defense, not a currently-observed failure: the 2026-07-16 spike (Claude Code 2.1.211) found the push arm did **not** get denied headless, but the classifier's behavior is not a docket-owned contract, so the degradation path stays documented and ready.
+**Headless publish degradation.** On a **headless** run with `terminal_publish: true`, the records-push can be denied by an agent permission classifier. The denial does **not** fail the run: archive + cleanup + board already landed and stand; finalize does not retry the push and surfaces one line — `terminal-publish blocked (auto-mode push denial) — run docket.sh terminal-publish --id <id> (and --adr <NN> for any published ADR) manually`. **Attended** runs are unaffected. Version-defense (change 0062's spike observed no headless denial, but the classifier is not a docket-owned contract).

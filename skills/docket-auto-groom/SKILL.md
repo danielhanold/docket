@@ -20,11 +20,7 @@ agent: docket-auto-groom
 
 ## Convention (load first — blocking)
 
-Before anything else in this skill, invoke the `docket-convention` skill via the Skill tool — unless it was already invoked earlier in this session and its content is in context. Everything below uses its vocabulary (needs-brainstorm, **effective auto-groomable**, **autonomous-eligible**, the abstain rule, metadata working tree, …) without redefinition; no step below is executable without the convention loaded.
-
-## Step 0
-
-Run the convention's *Step-0 preamble*: load the convention, then run `docket.sh preflight` as its own Bash call and read the printed `KEY=value` block off stdout (it resolves config, enforces the bootstrap verdict fail-closed, and ensures + syncs the metadata working tree). All reads and writes land in that tree on `metadata_branch`, pushed to its remote immediately — `.docket/` on `origin/docket` in `docket`-mode; the primary working tree on `origin/<integration_branch>` in `main`-mode.
+Invoke the `docket-convention` skill via the Skill tool first — unless already invoked this session — and run its *Step-0 preamble* (load the convention; `docket.sh preflight` as its own Bash call; read the printed `KEY=value` block; act on the verdict). Everything below uses its vocabulary (needs-brainstorm, effective auto-groomable, autonomous-eligible, the abstain rule, …) without redefinition. All reads and writes land in the metadata working tree on `metadata_branch`, pushed to its remote immediately.
 
 ## Procedure — the drain loop
 
