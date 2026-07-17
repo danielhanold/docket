@@ -77,23 +77,16 @@ subsection under *Customization*.
 `agent_harnesses` does **not** gate which harness keys any block may carry; it gates only which
 harness *directories* get generated files. The repo's own `agent_harnesses` — read from **either**
 `.docket.local.yml` or `.docket.yml`, whichever declares the key first (local wins outright, not a
-merge) — gates the **per-repo** generation pass (which `<repo>/.<H>/agents/` directories get
-generated files). The user-level pass writes every harness `agents/` directory **present on disk**
-— unless the global `config.yml` sets `agent_harnesses:`, which then governs the user-level target
-list: creating listed dirs, skipping unlisted ones, and pruning docket-owned files from any
-de-listed known harness (never rmdir'ing the harness root itself — it is the user's own config
-directory, not a docket artifact; change 0050). The per-repo generation pass is governed solely by
-the repo's own (local-then-committed) `agent_harnesses`, never the global value.
-
-The per-repo generation fans out over the repo's
-`agent_harnesses:` list (read from `.docket.local.yml` or `.docket.yml` — change 0051) —
-**default `[claude]`** (byte-identical to before) — so each listed harness `H` gets generated
-`<repo>/.<H>/agents/docket-*.md`; a Cursor repo sets `agent_harnesses: [claude, cursor]`. Explicit
-over present-directory auto-detection, so a stray
-`.cursor/` never silently mints generated files; an unknown harness token is warned-and-ignored. The
-`sync-agents.sh --check` drift gate spans every generated per-harness file. (The user-level pass's
-scope rule is stated once, above.) `agent_harnesses` is
-read by a direct parse in `sync-agents.sh` (not `docket-config.sh`).
+merge; a direct parse in `sync-agents.sh`, not `docket-config.sh`) — solely governs the
+**per-repo** pass, never the global value: each listed harness `H` gets generated
+`<repo>/.<H>/agents/docket-*.md`; **default `[claude]`**; a Cursor repo sets
+`agent_harnesses: [claude, cursor]`. Explicit over present-directory auto-detection, so a stray
+`.cursor/` never silently mints generated files; an unknown token is warned-and-ignored. The
+user-level pass instead writes every harness `agents/` directory **present on disk** — unless the
+global `config.yml` sets `agent_harnesses:`, which then governs the user-level target list:
+creating listed dirs, skipping unlisted ones, and pruning docket-owned files from any de-listed
+known harness (never rmdir'ing the harness root itself; change 0050). The `sync-agents.sh --check`
+drift gate spans every generated per-harness file.
 
 ## Harness-portable model IDs
 
@@ -104,41 +97,35 @@ lets docket drive non-Claude harnesses.
 
 ## Always-full-set generation + the Cursor dispatch rule
 
-**Always-full-set generation, now machine-local, + the Cursor dispatch rule.** The **per-repo pass writes the full built-in agent set** for every harness in
-`agent_harnesses` — the `agents:` block is **override-only** (it tunes a model/effort; it never
-decides *which* agents exist, since the agents compose and a harness needs all of them). An
-`agents:` entry naming no built-in is a typo warning. Per-repo generation is **opt-in**: a repo
-opts in by declaring an `agents:` block or a top-level `agent_harnesses:` key, in **either** its
-committed `.docket.yml` or its `.docket.local.yml`; a repo with neither key set in either file
-generates no per-repo wrappers and its `--check` stays a no-op — pre-0048 behavior for
-tracking-only repos. The generated files themselves are **gitignored, never committed** —
-`<repo>/.<H>/agents/docket-*.md` (and the dispatch rule below) are regenerated from each machine's
-own resolved config, not shared through git. `sync-agents.sh` maintains the marker-bounded
-`# docket:start` / `# docket:end` block in the repo's `.gitignore`, covering every docket-owned
-path, including every pattern it can generate for every harness (plus `.docket.local.yml` itself);
-it writes or repairs that block the moment a repo
-opts in, or merely carries a `.docket.local.yml`, and prints a one-time notice to commit the block.
-A repo that predates this (0048-era committed copies) gets a one-time migration on the next run:
-the tracked copies are deleted from the working tree, the local set is regenerated fresh, and the
-single remedy commit (`git rm -r --cached … && git add .gitignore && git commit …`) is printed.
-Additionally, the `cursor` harness gets a generated **`docket-dispatch.mdc`** rule
-(`~/.cursor/rules/` user-level; `<repo>/.cursor/rules/` per-repo, also gitignored) that forces a
-Task dispatch to the matching `subagent_type` — Cursor otherwise runs a directly-invoked skill
-inline at the current model, defeating the pin. Claude Code hits the same inline quirk but fixes it
-natively rather than through a generated rule: the four headless-safe autonomous skills
-(`docket-status`, `docket-adr`, `docket-implement-next`, `docket-auto-groom`) carry `context: fork`
-+ `agent: docket-<name>` frontmatter directly in their `SKILL.md`, which forks a directly-invoked
-skill into the same pinned wrapper — no generated file to sync, and inert (ignored) in every other
-harness. **Fork-exclusion principle:** only skills that never need the human mid-run are forked,
-since a forked subagent has no channel back to the human (Claude Code withholds `AskUserQuestion`
-and similar); the two interactive skills stay inline for that reason, and `docket-finalize-change`
-stays unforked too — not because it needs the human, but because its headless merge is blocked by
-Claude Code's Merge-Without-Review classifier, a separate decision tracked as change 0062. Because
-the per-repo pass generates that same full set into the harness, the Cursor rule's dispatch targets
-resolve by construction. `sync-agents.sh` prunes
-orphaned `docket-*` files (a removed built-in drops its wrapper; a de-listed harness drops its
-wrappers and its dispatch rule) and `sync-agents.sh --check` spans the `.gitignore` block, the
-tracked-file check, and (advisory) content staleness for both the agents and the dispatch rule.
+**Always-full-set generation, machine-local, + the Cursor dispatch rule.** The **per-repo pass
+writes the full built-in agent set** for every harness in `agent_harnesses` — the `agents:` block
+is **override-only** (it tunes a model/effort; it never decides *which* agents exist, since the
+agents compose and a harness needs all of them; an entry naming no built-in is a typo warning).
+Per-repo generation is **opt-in**: a repo opts in by declaring an `agents:` block or a top-level
+`agent_harnesses:` key in **either** its committed `.docket.yml` or its `.docket.local.yml`; with
+neither, no per-repo wrappers are generated and `--check` stays a no-op. The generated files are
+**gitignored, never committed** — regenerated from each machine's own resolved config, not shared
+through git. `sync-agents.sh` maintains the marker-bounded `# docket:start` / `# docket:end` block
+in the repo's `.gitignore` covering every docket-owned path (plus `.docket.local.yml` itself),
+writing or repairing it the moment a repo opts in (or merely carries a `.docket.local.yml`) and
+printing a one-time notice to commit the block; a repo with 0048-era committed copies gets a
+one-time migration on the next run (tracked copies deleted, local set regenerated fresh, the
+single remedy commit printed). The `cursor` harness additionally gets a generated
+**`docket-dispatch.mdc`** rule (`~/.cursor/rules/` user-level; `<repo>/.cursor/rules/` per-repo,
+also gitignored) that forces a Task dispatch to the matching `subagent_type` — Cursor otherwise
+runs a directly-invoked skill inline at the current model, defeating the pin. Claude Code fixes
+the same inline quirk natively: the four headless-safe autonomous skills (`docket-status`,
+`docket-adr`, `docket-implement-next`, `docket-auto-groom`) carry `context: fork` +
+`agent: docket-<name>` frontmatter directly in their `SKILL.md`, forking a directly-invoked skill
+into the same pinned wrapper — no generated file to sync, inert in every other harness.
+**Fork-exclusion principle:** only skills that never need the human mid-run are forked, since a
+forked subagent has no channel back to the human (Claude Code withholds `AskUserQuestion` and
+similar); the two interactive skills stay inline, and `docket-finalize-change` stays unforked —
+its headless merge is gated by a permission classifier, a separate decision (change 0062). The
+per-repo pass generates that same full set into the harness, so the Cursor rule's dispatch targets
+resolve by construction. `sync-agents.sh` prunes orphaned `docket-*` files (a removed built-in
+drops its wrapper; a de-listed harness drops its wrappers and dispatch rule), and `--check` spans
+the `.gitignore` block, the tracked-file check, and (advisory) content staleness for both.
 
 **Both invocation paths land on the same pinned wrapper.** A forked skill-invoke (`/docket-status`)
 and an explicit agent dispatch (`@docket-status`, or a `Task` naming the wrapper) resolve to the
