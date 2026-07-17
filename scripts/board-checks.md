@@ -71,7 +71,8 @@ The change-id column is the referenced id; the message names the evidence commit
 
 **Id-extraction grammar (both checks).** Ids are parsed from commit *subject* lines only, in
 exactly two docket-convention forms: a numeric conventional-commit scope `<type>(<id>):`
-(e.g. `docket(0085):`, `results(0085):`) and a trailing `(change <id>)` (e.g. `… (change 0085)`).
+(e.g. `docket(0085):`, `results(0085):`) and a `(change <id>)` tag (conventionally trailing,
+matched anywhere in the subject; e.g. `… (change 0085)`).
 Zero-padding is tolerated and normalized to the integer value. Bare `#NNNN` and body text are
 deliberately excluded — `#NNNN` collides with PR numbers, and subject-only parsing drops free-text
 mentions. The full integration-branch history is scanned on every run (stateless; no `--since`
