@@ -205,9 +205,15 @@ assert "dep-cycle silent for a dangling depends_on (id 6 → missing 99)" '! has
 # ============================ stale-in-progress ============================
 # in-progress + branch with last commit 4 days old ⇒ finding. branch with a commit today ⇒ silent.
 # in-progress + branch: set but branch absent ⇒ silent (carve-out).
+# Change 0089 widens the signal: claimed_at + --lease-ttl-hours (default 72) also flags a change,
+# catching the crashed-BEFORE-branch case the branch-age signal misses. At most one finding per change.
 read -r S _ < <(new_repo)
 STALE_EPOCH=$(( NOW_EPOCH - 4*86400 ))
 FRESH_EPOCH=$(( NOW_EPOCH - 3600 ))
+# iso EPOCH -> UTC ISO-8601 second-precision (BSD date first, then GNU) — builds claimed_at relative to NOW.
+iso(){ date -u -r "$1" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d "@$1" +%Y-%m-%dT%H:%M:%SZ; }
+LEASE_EXPIRED="$(iso $(( NOW_EPOCH - 100*3600 )))"   # 100h old  > default 72h TTL  => expired
+LEASE_FRESH="$(iso   $(( NOW_EPOCH -   1*3600 )))"   #   1h old  < default 72h TTL  => fresh
 # feat/stale — aged commit
 git -C "$S" checkout -b feat/stale >/dev/null 2>&1
 echo x > "$S/x"; git -C "$S" add x
@@ -247,13 +253,90 @@ priority: medium
 depends_on: []
 branch: feat/justclaimed
 EOF
+# id 23: expired lease (100h), NO branch ref resolves ⇒ reclaimable (the crashed-BEFORE-branch case).
+cat > "$S/docs/changes/active/0023-expirednobranch.md" <<EOF
+---
+id: 23
+slug: expirednobranch
+title: Expired lease, no branch
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/expirednobranch
+claimed_at: $LEASE_EXPIRED
+EOF
+# id 24: expired lease (100h), branch ref EXISTS (feat/fresh, recent commit ⇒ not idle) ⇒ flagged,
+# but NOT reclaimable (a live implementer may hold it — needs human review).
+cat > "$S/docs/changes/active/0024-expiredwithbranch.md" <<EOF
+---
+id: 24
+slug: expiredwithbranch
+title: Expired lease, branch exists
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/fresh
+claimed_at: $LEASE_EXPIRED
+EOF
+# id 25: fresh lease (1h), no branch ⇒ silent (no expiry, no idle branch).
+cat > "$S/docs/changes/active/0025-freshnobranch.md" <<EOF
+---
+id: 25
+slug: freshnobranch
+title: Fresh lease, no branch
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/freshnobranch
+claimed_at: $LEASE_FRESH
+EOF
+# id 26: branch idle >3d (feat/stale) AND lease expired ⇒ exactly ONE finding (the preserved
+# branch-idle message wins priority over the expired-with-branch message).
+cat > "$S/docs/changes/active/0026-idleandexpired.md" <<EOF
+---
+id: 26
+slug: idleandexpired
+title: Branch idle AND lease expired
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/stale
+claimed_at: $LEASE_EXPIRED
+EOF
 sout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$S/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
 assert "stale-in-progress fires for a branch idle >3 days (id 20)" \
   'has_finding "$sout" stale-in-progress 20'
+assert "id 20 branch-idle message text is unchanged (regression)" \
+  'printf "%s" "$sout" | grep -E "$(printf "^stale-in-progress\t20\t")" | grep -qF "branch feat/stale idle >3 days"'
 assert "stale-in-progress silent for a branch with a recent commit (id 21)" \
   '! has_finding "$sout" stale-in-progress 21'
 assert "stale-in-progress silent when branch: set but branch absent (id 22, carve-out)" \
   '! has_finding "$sout" stale-in-progress 22'
+assert "stale-in-progress fires for expired lease + no branch (id 23)" \
+  'has_finding "$sout" stale-in-progress 23'
+assert "id 23 finding carries the [reclaimable] marker" \
+  'printf "%s" "$sout" | grep -E "$(printf "^stale-in-progress\t23\t")" | grep -qF "[reclaimable]"'
+assert "id 23 message reports age in hours (100h)" \
+  'printf "%s" "$sout" | grep -E "$(printf "^stale-in-progress\t23\t")" | grep -qF "100h ago"'
+assert "stale-in-progress fires for expired lease + branch ref exists (id 24)" \
+  'has_finding "$sout" stale-in-progress 24'
+assert "id 24 finding does NOT carry [reclaimable] (branch exists ⇒ needs review, not auto-reclaimable)" \
+  '! (printf "%s" "$sout" | grep -E "$(printf "^stale-in-progress\t24\t")" | grep -qF "[reclaimable]")'
+assert "id 24 message names the branch and says not auto-reclaimable" \
+  'printf "%s" "$sout" | grep -E "$(printf "^stale-in-progress\t24\t")" | grep -qF "branch feat/fresh" \
+   && printf "%s" "$sout" | grep -E "$(printf "^stale-in-progress\t24\t")" | grep -qF "not auto-reclaimable"'
+assert "stale-in-progress silent for a fresh lease with no branch (id 25)" \
+  '! has_finding "$sout" stale-in-progress 25'
+assert "stale-in-progress emits exactly one finding when both branch-idle and lease-expired apply (id 26)" \
+  '[ "$(printf "%s" "$sout" | grep -cE "$(printf "^stale-in-progress\t26\t")")" = 1 ]'
+assert "id 26 finding is the branch-idle message, not the reclaimable/expired one (priority: branch-idle wins)" \
+  'printf "%s" "$sout" | grep -E "$(printf "^stale-in-progress\t26\t")" | grep -qF "idle >3 days" \
+   && ! (printf "%s" "$sout" | grep -E "$(printf "^stale-in-progress\t26\t")" | grep -qF "[reclaimable]")'
+# --lease-ttl-hours override: id 25's 1h-old lease is silent under the default 72h TTL (asserted
+# above) but IS flagged under an explicit --lease-ttl-hours 0 — proves the flag is actually wired.
+touts="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$S/docs/changes" --metadata-branch docket --integration-branch main --lease-ttl-hours 0 2>/dev/null)"
+assert "--lease-ttl-hours overrides the default: a 1h-old lease is flagged under TTL=0 (id 25)" \
+  'has_finding "$touts" stale-in-progress 25'
 
 # ============================ merge-gate-stall ============================
 # A build-ready change depends_on a change at 'implemented' ⇒ finding naming that dep.
