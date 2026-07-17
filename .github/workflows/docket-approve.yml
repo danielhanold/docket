@@ -1,0 +1,49 @@
+# docket-approve.yml — installed by `docket.sh setup-auto-approve` (docket change 0062).
+# Approves a docket feature PR with the built-in GITHUB_TOKEN so branch protection's required
+# review is satisfied WITHOUT --admin, and the merge is no longer "without review". A github-
+# actions[bot] review counts toward required approvals (it does NOT satisfy CODEOWNERS).
+# STATIC TEMPLATE: keep byte-identical across installs so re-running setup updates it cleanly.
+# Guards below fail LOUD so a denial is diagnosable from the run log.
+name: docket-approve
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: "PR number to approve"
+        required: true
+        type: string
+
+permissions:
+  pull-requests: write
+
+jobs:
+  approve:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Guard eligibility and approve
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ inputs.pr }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          data="$(gh pr view "$PR" --repo "$REPO" \
+            --json state,isDraft,isCrossRepository,headRefName)"
+          state="$(printf '%s' "$data" | jq -r '.state')"
+          draft="$(printf '%s' "$data" | jq -r '.isDraft')"
+          cross="$(printf '%s' "$data" | jq -r '.isCrossRepository')"
+          head="$(printf '%s' "$data" | jq -r '.headRefName')"
+          # Guard 1: PR must be OPEN.
+          [ "$state" = "OPEN" ]  || { echo "::error::PR #$PR is not open (state=$state)"; exit 1; }
+          # Guard 2: not a draft.
+          [ "$draft" = "false" ] || { echo "::error::PR #$PR is a draft"; exit 1; }
+          # Guard 3: head repo == base repo (never bot-approve a fork PR).
+          [ "$cross" = "false" ] || { echo "::error::PR #$PR is from a fork"; exit 1; }
+          # Guard 4: head branch matches docket's feat/* shape.
+          case "$head" in
+            feat/*) : ;;
+            *) echo "::error::PR #$PR head '$head' is not a docket feat/* branch"; exit 1 ;;
+          esac
+          gh pr review "$PR" --repo "$REPO" --approve \
+            --body "docket auto-approve: rebase-retest gate passed (workflow_dispatch)"
