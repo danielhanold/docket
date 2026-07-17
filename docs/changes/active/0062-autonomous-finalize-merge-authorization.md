@@ -2,7 +2,7 @@
 id: 62
 slug: autonomous-finalize-merge-authorization
 title: Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny
-status: in-progress
+status: implemented
 priority: low
 created: 2026-07-11
 updated: 2026-07-16
@@ -11,11 +11,11 @@ related: [61]
 adrs: [11, 42]
 spec: docs/superpowers/specs/2026-07-16-autonomous-finalize-merge-authorization-design.md
 plan: docs/superpowers/plans/2026-07-16-autonomous-finalize-merge-authorization.md
-results:
+results: docs/results/2026-07-16-autonomous-finalize-merge-authorization-results.md
 trivial: false
 auto_groomable: false
 branch: feat/autonomous-finalize-merge-authorization
-pr:
+pr: https://github.com/danielhanold/docket/pull/94
 blocked_by:
 reconciled: true
 ---
@@ -27,6 +27,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-16-autonomous-finalize-merge-authorization-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-16-autonomous-finalize-merge-authorization-design.md) |
 | Plan | [2026-07-16-autonomous-finalize-merge-authorization.md](https://github.com/danielhanold/docket/blob/feat/autonomous-finalize-merge-authorization/docs/superpowers/plans/2026-07-16-autonomous-finalize-merge-authorization.md) |
+| Results | [2026-07-16-autonomous-finalize-merge-authorization-results.md](https://github.com/danielhanold/docket/blob/feat/autonomous-finalize-merge-authorization/docs/results/2026-07-16-autonomous-finalize-merge-authorization-results.md) |
+| PR | [#94](https://github.com/danielhanold/docket/pull/94) |
 | ADRs | [ADR-0011](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0011-finalize-consent-model.md), [ADR-0042](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0042-auto-approve-consent-model.md) |
 <!-- docket:artifacts:end -->
 
