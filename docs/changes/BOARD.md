@@ -1,8 +1,8 @@
 # Backlog
 
-**87 changes** — 🟡 10 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 71 done · 🗑️ 4 killed
+**94 changes** — 🟡 17 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 71 done · 🗑️ 4 killed
 
-## 🟡 Proposed (10)
+## 🟡 Proposed (17)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -16,6 +16,13 @@
 | [0083](active/0083-terminal-publish-gap-detection.md) | A terminal record can silently never reach the integration branch — investigate #0043's gap and decide on detection | `medium` | auto-groom blocked — needs you |
 | [0086](active/0086-attended-finalize-merge-path.md) | Attended finalize has no merge path under auto_approve — scope the --admin ban to autonomous runs | `high` | needs-brainstorm |
 | [0087](active/0087-headless-finalize-driver.md) | Ship the headless finalize driver — 0062's capability has no consumer | `high` | needs-brainstorm |
+| [0088](active/0088-implement-next-loop-continuation.md) | Loop continuation — implement-next chains into the next ready change instead of stopping | `medium` | needs-brainstorm |
+| [0089](active/0089-claim-leases-reclaim-script.md) | Claim leases + reclaim script — expired in-progress claims self-heal back to proposed | `medium` | needs-brainstorm |
+| [0090](active/0090-discovered-from-provenance.md) | discovered-from provenance links — record which change's build surfaced a new stub | `medium` | needs-brainstorm |
+| [0091](active/0091-auto-create-discovered-stubs.md) | Auto-create discovered stubs — a config flag that turns mid-run findings into proposed changes | `medium` | needs-brainstorm |
+| [0092](active/0092-orphan-detection-script.md) | Orphan detection script — cross-reference change ids in merged commits against archive state | `medium` | needs-brainstorm |
+| [0093](active/0093-archive-decay-digest.md) | Archive decay — a rolling one-line digest so board and context cost stay flat as the archive grows | `medium` | needs-brainstorm |
+| [0094](active/0094-docket-prime-context-digest.md) | docket-prime — a token-budgeted context digest skills load instead of walking docs/changes | `medium` | needs-brainstorm |
 
 ## 🔴 Blocked (1)
 
@@ -43,6 +50,13 @@ graph TD
   0083
   0086
   0087
+  0088
+  0089
+  0090
+  0091
+  0092
+  0093
+  0094
   0001:::done
   0002:::done
   0003:::done
