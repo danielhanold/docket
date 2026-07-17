@@ -43,8 +43,11 @@ Mock seams: `GIT="${GIT:-git}"`, `GH="${GH:-gh}"`.
 
 1. Fetches `<remote>/<integration-branch>`.
 2. Provisions a transient worktree at `<repo-root>/.setup-approve-wt` on a throwaway branch
-   `setup-approve`, checked out from `<remote>/<integration-branch>` (`git worktree add -B`, so a
-   leaked worktree/branch from a prior interrupted run is adopted and reset, not fought).
+   `setup-approve`, checked out from `<remote>/<integration-branch>`. Immediately before
+   `git worktree add -B`, any leftover `setup-approve` worktree/branch from a prior interrupted
+   run is force-removed (`git worktree remove --force`, `git branch -D`) so the fixed
+   path/branch name never wedges a later run — `git worktree prune` alone cannot clear a
+   still-present directory.
 3. Best-effort disables the team's shared git hooks inside that worktree
    (`disable-worktree-hooks.sh --worktree`) — this is docket's own asset commit, not the team's
    code, so their hooks should not fire on it.
@@ -108,9 +111,9 @@ that file), plus the `gh api` command to verify the flipped setting.
 - **Never edits committed config.** The script does not write `.docket.yml`; it only prints a
   reminder naming the `finalize.auto_approve: true` knob the human must set themselves.
 - **No leftover worktree.** The transient `.setup-approve-wt` worktree and its `setup-approve`
-  branch are torn down on every exit path that reaches the teardown call; a crash before that point
-  is recoverable on the next run because `git worktree add -B` adopts/resets a leaked
-  worktree/branch rather than erroring on it.
+  branch are torn down on every exit path that reaches the teardown call; a crash before that
+  point is recoverable on the next run because the leftover worktree/branch is force-removed
+  immediately before `git worktree add -B` runs again, rather than erroring on it.
 - **The workflow-scope failure is diagnosable, not a bare git error.** A push rejected because the
   token lacks the `workflow` OAuth scope surfaces a specific remediation hint instead of the raw
   git stderr.

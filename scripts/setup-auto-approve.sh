@@ -48,6 +48,11 @@ teardown(){
   $GIT branch -D setup-approve >/dev/null 2>&1 || true
 }
 $GIT worktree prune
+# Force-clear any leftover worktree/branch from a prior interrupted run: `worktree add -B` fails
+# 128 if the fixed path/branch is still present, and `worktree prune` alone does not clear a
+# still-present directory — wedging every future run. Idempotent self-heal, not adoption.
+$GIT worktree remove --force "$pub" >/dev/null 2>&1 || true
+$GIT branch -D setup-approve >/dev/null 2>&1 || true
 $GIT worktree add -B setup-approve "$pub" "$REMOTE/$INT_BRANCH" >/dev/null 2>&1 \
   || die "could not provision setup-approve worktree"
 # Skip the team's shared hooks on docket's own asset commit (best-effort).
@@ -55,7 +60,7 @@ $GIT worktree add -B setup-approve "$pub" "$REMOTE/$INT_BRANCH" >/dev/null 2>&1 
 
 mkdir -p "$pub/.github/workflows" || { teardown; die "mkdir .github/workflows failed"; }
 cp "$TEMPLATE" "$pub/.github/workflows/docket-approve.yml" || { teardown; die "copy template failed"; }
-$GIT -C "$pub" add .github/workflows/docket-approve.yml
+$GIT -C "$pub" add .github/workflows/docket-approve.yml || { teardown; die "git add failed"; }
 
 if $GIT -C "$pub" diff --cached --quiet; then
   echo "setup-auto-approve: workflow already up to date on $INT_BRANCH (no commit needed)"
@@ -68,7 +73,8 @@ else
       teardown
       die "push rejected — pushing .github/workflows/ over HTTPS needs the 'workflow' OAuth scope; re-auth with that scope (gh auth refresh -s workflow) or use an SSH remote, then re-run"
     fi
-    teardown; die "push to $REMOTE/$INT_BRANCH failed: $(cat "$pub/.push.err")"
+    perr="$(cat "$pub/.push.err" 2>/dev/null)"
+    teardown; die "push to $REMOTE/$INT_BRANCH failed: $perr"
   fi
   echo "setup-auto-approve: installed .github/workflows/docket-approve.yml on $INT_BRANCH"
 fi
@@ -76,8 +82,8 @@ teardown
 $GIT worktree prune
 
 # --- (2) flip the repo Actions setting (read-modify-write) ------------------------------------
-slug="$($GH repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || $GH repo view 2>/dev/null | head -n1)"
-[ -n "$slug" ] || die "could not resolve owner/repo via gh"
+slug="$($GH repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null)"
+[ -n "$slug" ] || die "could not resolve owner/repo via gh (need gh auth + repo access)"
 cur="$($GH api "repos/$slug/actions/permissions/workflow" 2>/dev/null)" \
   || die "could not read Actions permissions (need repo admin + a token with 'repo' scope)"
 dwp="$(printf '%s' "$cur" | sed -n 's/.*"default_workflow_permissions":"\([^"]*\)".*/\1/p')"
