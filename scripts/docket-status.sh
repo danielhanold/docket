@@ -4,9 +4,11 @@
 # The report is self-evidencing: it always states what it did (`board off` when the board is
 # disabled, the backlog digest, `pass ok` on completion), so stdout is never empty (change 0069).
 #
-# Usage: docket-status.sh [--board-only] [--repo OWNER/REPO] [--project OWNER/NUMBER]
+# Usage: docket-status.sh [--board-only] [--must-land] [--repo OWNER/REPO] [--project OWNER/NUMBER]
 #                          [--auto-create-project] [--project-owner OWNER]
 #   --board-only           only regenerate the board surfaces; skip sweep/health passes
+#   --must-land            (with --board-only) retry a push-failed board write in-script and
+#                          map the outcome to the exit code (0 = board landed); see docket-status.md
 #   --repo OWNER/REPO      GitHub repo for PR-link resolution (defaults to origin remote)
 #   --project OWNER/NUMBER GitHub Project to sync (later task)
 #   --auto-create-project  create the GitHub Project if --project doesn't resolve (later task)
@@ -24,11 +26,12 @@ SCRIPTS_DIR="${SCRIPTS_DIR:-$SELF_DIR}"
 # shellcheck source=lib/docket-preflight.sh
 . "$SELF_DIR"/lib/docket-preflight.sh
 
-BOARD_ONLY=0 REPO_FLAG="" PROJECT_FLAG="" AUTO_CREATE_PROJECT=0 PROJECT_OWNER=""
-usage(){ sed -n '2,12p' "${BASH_SOURCE[0]}"; }
+BOARD_ONLY=0 MUST_LAND=0 REPO_FLAG="" PROJECT_FLAG="" AUTO_CREATE_PROJECT=0 PROJECT_OWNER=""
+usage(){ sed -n '2,15p' "${BASH_SOURCE[0]}"; }
 while [ $# -gt 0 ]; do
   case "$1" in
     --board-only) BOARD_ONLY=1 ;;
+    --must-land) MUST_LAND=1 ;;
     --repo) REPO_FLAG="$2"; shift ;;
     --project) PROJECT_FLAG="$2"; shift ;;
     --auto-create-project) AUTO_CREATE_PROJECT=1 ;;
@@ -92,6 +95,57 @@ board_pass(){
       # positive stdout line alongside the stderr warning so the channel stays total — closing the
       # exact hole the report-line contract exists to prevent.
       *) echo "docket-status: unknown board surface '$tok'" >&2; echo "board $tok unknown" ;;
+    esac
+  done
+}
+
+# board_classify BOARD_OUT — reduces captured board-pass stdout to one verdict (change 0085):
+#   failed    — any non-retryable board failure line, or NO board line at all (sole-channel:
+#               "no line" is never success)
+#   retryable — at least one `board inline changed push-failed` and no non-retryable failure
+#   success   — every `board …` line is a terminal success line
+# Precedence: failed > retryable > success. Non-`board ` lines (minted …, digest) are ignored.
+board_classify(){
+  local out="$1" line has_retryable=0 has_failed=0 has_board=0
+  while IFS= read -r line; do
+    case "$line" in
+      "board "*) has_board=1 ;;
+      *) continue ;;
+    esac
+    case "$line" in
+      "board inline changed pushed"|"board inline clean"|"board off"|"board github ok") ;;
+      "board inline changed push-failed") has_retryable=1 ;;
+      *) has_failed=1 ;;   # board inline failed | board github failed | board <tok> unknown | anything else
+    esac
+  done <<<"$out"
+  if [ "$has_board" -eq 0 ] || [ "$has_failed" -eq 1 ]; then echo failed
+  elif [ "$has_retryable" -eq 1 ]; then echo retryable
+  else echo success; fi
+}
+
+# board_pass_must_land — the --must-land wrapper (change 0085). Runs board_pass; on the SOLE
+# retryable outcome (`board inline changed push-failed`) re-syncs the metadata worktree and
+# re-renders, up to 3 attempts total. Returns 0 iff every emitted `board …` line is a terminal
+# success line; prints the report line(s) each attempt and returns non-zero on any other terminal
+# line or on retry exhaustion. board_pass's fail-closed `exit 2` (unresolved config) is captured
+# via the command substitution's exit status and propagated verbatim. Flagless callers never reach
+# this — main() invokes board_pass directly, byte for byte as before.
+board_pass_must_land(){
+  local mw board_out rc attempt=0 verdict
+  mw="$(docket_metadata_worktree)"
+  while :; do
+    attempt=$((attempt + 1))
+    board_out="$(board_pass)"; rc=$?
+    [ -n "$board_out" ] && printf '%s\n' "$board_out"
+    [ "$rc" -ne 0 ] && exit "$rc"   # board_pass hard-failed (fail-closed) — propagate verbatim
+    verdict="$(board_classify "$board_out")"
+    case "$verdict" in
+      success) return 0 ;;
+      failed)  return 1 ;;
+      retryable)
+        [ "$attempt" -ge 3 ] && return 1   # exhausted — the push-failed line is already printed
+        "$GIT" -C "$mw" pull --rebase >&2 2>&1 || true
+        ;;
     esac
   done
 }
@@ -586,7 +640,11 @@ integration_sync(){
 
 main(){
   docket_preflight "$SCRIPTS_DIR" || exit 1
-  board_pass
+  if [ "$MUST_LAND" = 1 ]; then
+    board_pass_must_land || exit 1
+  else
+    board_pass
+  fi
   if [ "$BOARD_ONLY" = 1 ]; then
     # Change 0069: --board-only is the "just show me the backlog" path, and it runs no sweep — so
     # the digest here is the "state as-is" projection and belongs before the early exit. In a
