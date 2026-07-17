@@ -1,17 +1,16 @@
 # Backlog
 
-**94 changes** — 🟢 4 in progress · 🟡 13 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 71 done · 🗑️ 4 killed
+**94 changes** — 🟢 3 in progress · 🟡 12 proposed · 🔴 1 blocked · ⚪ 1 deferred · 🔵 2 implemented · ✅ 71 done · 🗑️ 4 killed
 
-## 🟢 In progress (4)
+## 🟢 In progress (3)
 
 | # | Title | Priority | Spec | Branch |
 |---|-------|----------|------|--------|
 | [0089](active/0089-claim-leases-reclaim-script.md) | Claim leases + reclaim script — expired in-progress claims self-heal back to proposed | `medium` | [spec](../superpowers/specs/2026-07-17-claim-leases-reclaim-script-design.md) | `feat/claim-leases-reclaim-script` |
 | [0090](active/0090-discovered-from-provenance.md) | discovered-from provenance links — record which change's build surfaced a new stub | `medium` | [spec](../superpowers/specs/2026-07-17-discovered-from-provenance-design.md) | `feat/discovered-from-provenance` |
 | [0092](active/0092-orphan-detection-script.md) | Orphan detection script — cross-reference change ids in merged commits against archive state | `medium` | [spec](../superpowers/specs/2026-07-17-orphan-detection-script-design.md) | `feat/orphan-detection-script` |
-| [0093](active/0093-archive-decay-digest.md) | Archive decay — a rolling one-line digest so board and context cost stay flat as the archive grows | `medium` | [spec](../superpowers/specs/2026-07-17-archive-decay-digest-design.md) | `feat/archive-decay-digest` |
 
-## 🟡 Proposed (13)
+## 🟡 Proposed (12)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -27,7 +26,6 @@
 | [0087](active/0087-headless-finalize-driver.md) | Ship the headless finalize driver — 0062's capability has no consumer | `high` | needs-brainstorm |
 | [0088](active/0088-implement-next-loop-continuation.md) | Loop continuation — implement-next chains into the next ready change instead of stopping | `medium` | auto-groom blocked — needs you |
 | [0091](active/0091-auto-create-discovered-stubs.md) | Auto-create discovered stubs — a config flag that turns mid-run findings into proposed changes | `medium` | ⏳ waiting on #90 — not yet built |
-| [0094](active/0094-docket-prime-context-digest.md) | docket-prime — a token-budgeted context digest skills load instead of walking docs/changes | `medium` | auto-groom blocked — needs you |
 
 ## 🔴 Blocked (1)
 
@@ -35,11 +33,18 @@
 |---|-------|----------|------------|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | PR #69 is stale (predates the 0068/0072 facade rework and later agent-layer changes) and #0079 (runner delegation) reshapes the design — the build roles should grow a runner field (build.<role>.runner codex, the mixed topology 0079 deferred). Needs a rebase plus redesign pass before merge. |
 
-## 🔵 Implemented — awaiting merge (1)
+## ⚪ Deferred (1)
+
+| # | Title | Priority |
+|---|-------|----------|
+| [0094](active/0094-docket-prime-context-digest.md) | docket-prime — a token-budgeted context digest skills load instead of walking docs/changes | `medium` |
+
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | [#89](https://github.com/danielhanold/docket/pull/89) |
+| [0093](active/0093-archive-decay-digest.md) | Archive decay — a rolling one-line digest so board and context cost stay flat as the archive grows | `medium` | [#96](https://github.com/danielhanold/docket/pull/96) |
 
 ```mermaid
 graph TD
