@@ -10,7 +10,7 @@ depends_on: []
 related: [53, 54, 55]
 adrs: [12]
 spec: docs/superpowers/specs/2026-07-16-skill-slimming-round-two-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-16-skill-slimming-round-two.md
 results:
 trivial: false
 auto_groomable:
@@ -26,6 +26,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-16-skill-slimming-round-two-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-16-skill-slimming-round-two-design.md) |
+| Plan | [2026-07-16-skill-slimming-round-two.md](https://github.com/danielhanold/docket/blob/feat/skill-slimming-round-two/docs/superpowers/plans/2026-07-16-skill-slimming-round-two.md) |
 | ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md) |
 <!-- docket:artifacts:end -->
 
