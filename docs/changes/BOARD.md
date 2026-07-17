@@ -1,14 +1,15 @@
 # Backlog
 
-**94 changes** — 🟢 1 in progress · 🟡 16 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 71 done · 🗑️ 4 killed
+**94 changes** — 🟢 2 in progress · 🟡 15 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 71 done · 🗑️ 4 killed
 
-## 🟢 In progress (1)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Spec | Branch |
 |---|-------|----------|------|--------|
 | [0089](active/0089-claim-leases-reclaim-script.md) | Claim leases + reclaim script — expired in-progress claims self-heal back to proposed | `medium` | [spec](../superpowers/specs/2026-07-17-claim-leases-reclaim-script-design.md) | `feat/claim-leases-reclaim-script` |
+| [0090](active/0090-discovered-from-provenance.md) | discovered-from provenance links — record which change's build surfaced a new stub | `medium` | [spec](../superpowers/specs/2026-07-17-discovered-from-provenance-design.md) | `feat/discovered-from-provenance` |
 
-## 🟡 Proposed (16)
+## 🟡 Proposed (15)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -23,7 +24,6 @@
 | [0086](active/0086-attended-finalize-merge-path.md) | Attended finalize has no merge path under auto_approve — scope the --admin ban to autonomous runs | `high` | needs-brainstorm |
 | [0087](active/0087-headless-finalize-driver.md) | Ship the headless finalize driver — 0062's capability has no consumer | `high` | needs-brainstorm |
 | [0088](active/0088-implement-next-loop-continuation.md) | Loop continuation — implement-next chains into the next ready change instead of stopping | `medium` | auto-groom blocked — needs you |
-| [0090](active/0090-discovered-from-provenance.md) | discovered-from provenance links — record which change's build surfaced a new stub | `medium` | build-ready |
 | [0091](active/0091-auto-create-discovered-stubs.md) | Auto-create discovered stubs — a config flag that turns mid-run findings into proposed changes | `medium` | ⏳ waiting on #90 — not yet built |
 | [0092](active/0092-orphan-detection-script.md) | Orphan detection script — cross-reference change ids in merged commits against archive state | `medium` | build-ready |
 | [0093](active/0093-archive-decay-digest.md) | Archive decay — a rolling one-line digest so board and context cost stay flat as the archive grows | `medium` | build-ready |
