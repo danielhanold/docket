@@ -2,7 +2,7 @@
 id: 85
 slug: skill-slimming-round-two
 title: Second-round skill slimming — re-slim regrown skills + regrowth guard
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-07-16
 updated: 2026-07-16
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/skill-slimming-round-two
 pr:
 blocked_by:
 reconciled: false
