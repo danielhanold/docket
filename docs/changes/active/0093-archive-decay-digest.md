@@ -2,7 +2,7 @@
 id: 93
 slug: archive-decay-digest
 title: Archive decay — a rolling one-line digest so board and context cost stay flat as the archive grows
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-07-17
 updated: 2026-07-17
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch:
+branch: feat/archive-decay-digest
 pr:
 blocked_by:
 reconciled: false
