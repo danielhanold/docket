@@ -7,7 +7,8 @@
 #
 # Usage: board-checks.sh --changes-dir DIR --metadata-branch BR --integration-branch BR [--strict]
 #   Findings: TAB-separated  <check-id>\t<change-id>\t<message>  on stdout, sorted by (check-id, change-id).
-#     check-id ∈ {broken-spec, broken-plan-results, dep-cycle, stale-in-progress, merge-gate-stall}
+#     check-id ∈ {broken-spec, broken-plan-results, dep-cycle, stale-in-progress, merge-gate-stall,
+#                 merged-orphan, unknown-commit-ref}
 #   Clean tree ⇒ no output, exit 0. --strict ⇒ exit 1 if any finding (for a future CI gate).
 #   Branch args are passed to `git cat-file -e <ref>:<path>` verbatim; in main-mode the two refs
 #   coincide and both link checks resolve on the same branch with no special-casing.
@@ -41,7 +42,7 @@ resolve_deps "$CHANGES_DIR"            # populates STATUS_OF / DEP_STATE / DEP_R
 # git_has REF PATH — exit 0 iff REF:PATH resolves in the changes-dir's repo (no network).
 git_has(){ "$GIT" -C "$CHANGES_DIR" cat-file -e "$1:$2" 2>/dev/null; }
 
-declare -A ID_ACTIVE ID_ARCHIVED ID_EXISTS   # id -> 1; populated in the FILES walk below
+declare -A ID_ACTIVE ID_EXISTS                # id -> 1; populated in the FILES walk below
 FINDINGS=""                            # accumulate "<check>\t<id>\t<msg>\n"; sorted + printed at the end
 emit(){ FINDINGS+="$1"$'\t'"$2"$'\t'"$3"$'\n'; }
 
@@ -56,7 +57,6 @@ for f in "${FILES[@]}"; do
   ID_EXISTS["$id"]=1
   case "$f" in
     */active/*)  ID_ACTIVE["$id"]=1 ;;
-    */archive/*) ID_ARCHIVED["$id"]=1 ;;
   esac
   status="$(field "$f" status)"
   spec="$(field "$f" spec)"; trivial="$(field "$f" trivial)"
