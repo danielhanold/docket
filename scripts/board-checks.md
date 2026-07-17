@@ -13,6 +13,7 @@ and owns human-facing display. The one judgment-bearing check — `blocked_by:` 
 
 ```
 board-checks.sh --changes-dir DIR --metadata-branch BR --integration-branch BR [--strict]
+                 [--lease-ttl-hours N]
 ```
 
 | Flag | Required | Description |
@@ -21,6 +22,7 @@ board-checks.sh --changes-dir DIR --metadata-branch BR --integration-branch BR [
 | `--metadata-branch BR` | yes | The branch (e.g. `docket` or `main`) against which spec paths are resolved via `git cat-file -e`. |
 | `--integration-branch BR` | yes | The branch against which `plan:` / `results:` paths for `done` changes are resolved. |
 | `--strict` | no | Exit 1 if any finding is emitted (a CI gate). Default: exit 0 regardless of findings. |
+| `--lease-ttl-hours N` | no | Claim-lease TTL (hours) for the `stale-in-progress` check's `claimed_at:` signal. Default `72` when absent, so standalone use stays sane. |
 
 **Output format:** every finding is `<check-id>\t<change-id>\t<message>` on stdout, sorted
 by `(check-id asc, change-id numeric asc)`. A clean tree produces no output.
@@ -46,10 +48,28 @@ if they carry an unresolvable spec path (carve-out).
 implemented` are never flagged — their build artifacts still live on the unmerged feature
 branch and are not yet on the integration branch.
 
-**`stale-in-progress`** — The change has `status: in-progress`, `branch:` is set, the branch
-exists locally (`git rev-parse --verify --quiet`), and its newest commit is older than 3 days
-(compared against `$NOW`). Carve-out: if `branch:` is set but the branch does not exist
-(just-claimed, branch not yet pushed), the change is not flagged.
+**`stale-in-progress`** — The change has `status: in-progress`. Two independent signals feed
+this check (change 0089); at most one finding is emitted per change:
+
+- **Branch idle >3 days.** `branch:` is set and a `feat/<slug>` ref resolves (`refs/heads/<branch>`
+  or `refs/remotes/origin/<branch>`), and its newest commit is older than 3 days (compared against
+  `$NOW`). Message: `branch <branch> idle >3 days (last commit <N>d ago)` — unchanged from before
+  0089.
+- **Claim lease expired.** `claimed_at:` is set, parses via `iso_to_epoch`, and
+  `NOW - claimed_at > --lease-ttl-hours * 3600`. This is the signal that catches the
+  **crashed-before-branch** blind spot the branch-age signal misses (a claim can expire before any
+  branch is ever pushed). Its message depends on whether a branch ref exists:
+  - **No branch ref** (the reclaimable case): `claim lease expired <N>h ago; no feature branch —
+    self-heal with docket.sh reclaim-claims [reclaimable]`. The trailing **`[reclaimable]`** token
+    is a **stable, machine-readable suffix** — `docket-status` keys on its literal presence to
+    decide whether to print a reclaim-sweep remedy. Do not reword or relocate it.
+  - **Branch ref exists**: `claim lease expired <N>h ago; branch <branch> exists — needs your
+    review (not auto-reclaimable)`. A live branch means a human should look before anything
+    auto-reclaims, so this case never carries `[reclaimable]`.
+
+Priority when both signals fire on the same change (branch exists, idle >3 days, AND the lease is
+separately expired): the branch-idle message wins and is the only finding emitted — idle-branch
+evidence is the older, more specific signal and is preserved unchanged.
 
 **`merge-gate-stall`** — The change is build-ready (`status: proposed` with a spec or
 `trivial: true`) and `resolve_deps` determined it is blocked because its worst-unmet

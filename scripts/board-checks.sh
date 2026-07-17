@@ -6,12 +6,16 @@
 # stays model-driven in the skill — it is NOT here.
 #
 # Usage: board-checks.sh --changes-dir DIR --metadata-branch BR --integration-branch BR [--strict]
+#                         [--lease-ttl-hours N]
 #   Findings: TAB-separated  <check-id>\t<change-id>\t<message>  on stdout, sorted by (check-id, change-id).
 #     check-id ∈ {broken-spec, broken-plan-results, dep-cycle, stale-in-progress, merge-gate-stall,
 #                 merged-orphan, unknown-commit-ref}
 #   Clean tree ⇒ no output, exit 0. --strict ⇒ exit 1 if any finding (for a future CI gate).
 #   Branch args are passed to `git cat-file -e <ref>:<path>` verbatim; in main-mode the two refs
 #   coincide and both link checks resolve on the same branch with no special-casing.
+#   --lease-ttl-hours N defaults to 72 when absent (standalone use stays sane). It sets the
+#   claim-lease TTL for stale-in-progress (change 0089): claimed_at + TTL expiry, on top of the
+#   pre-existing branch-idle >3d signal. See that check's block below for the two trigger messages.
 #   Mock seams: GIT="${GIT:-git}"  (the only external dependency); NOW="${NOW:-$(date +%s)}" (staleness clock).
 set -uo pipefail
 
@@ -24,11 +28,13 @@ while [ $# -gt 0 ]; do
     --metadata-branch) METADATA_BRANCH="$2"; shift ;;
     --integration-branch) INTEGRATION_BRANCH="$2"; shift ;;
     --strict) STRICT=1 ;;
+    --lease-ttl-hours) LEASE_TTL_HOURS="$2"; shift ;;
     -h|--help) grep '^#' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) printf 'board-checks: unknown argument: %s\n' "$1" >&2; exit 2 ;;
   esac
   shift
 done
+LEASE_TTL_HOURS="${LEASE_TTL_HOURS:-72}"   # default when --lease-ttl-hours is absent (standalone use)
 [ -n "$CHANGES_DIR" ]        || { printf 'board-checks: missing --changes-dir\n' >&2; exit 2; }
 [ -d "$CHANGES_DIR" ]        || { printf 'board-checks: changes dir not found: %s\n' "$CHANGES_DIR" >&2; exit 2; }
 [ -n "$METADATA_BRANCH" ]    || { printf 'board-checks: missing --metadata-branch\n' >&2; exit 2; }
@@ -76,15 +82,37 @@ for f in "${FILES[@]}"; do
     done
   fi
 
-  # --- stale-in-progress: in-progress, branch exists, newest commit older than 3 days ---
-  # Carve-out: branch: set but the branch does not exist ⇒ not stale (just-claimed / indistinguishable).
+  # --- stale-in-progress: lease expired (claimed_at+TTL) OR branch idle >3 days ---
+  # Complements the branch-age signal with a claimed_at signal that catches the crashed-BEFORE-branch
+  # blind spot (branch ref absent). The reclaimable subset (expired AND no branch ref) carries the
+  # trailing [reclaimable] marker — the machine contract docket-status keys on for its remedy print.
   if [ "$status" = "in-progress" ]; then
     branch="$(field "$f" branch)"
-    if [ -n "$branch" ] && "$GIT" -C "$CHANGES_DIR" rev-parse --verify --quiet "$branch" >/dev/null 2>&1; then
+    claimed="$(field "$f" claimed_at)"
+    has_branch=0
+    if [ -n "$branch" ]; then
+      if "$GIT" -C "$CHANGES_DIR" show-ref --verify --quiet "refs/heads/$branch" \
+         || "$GIT" -C "$CHANGES_DIR" show-ref --verify --quiet "refs/remotes/origin/$branch"; then
+        has_branch=1
+      fi
+    fi
+    lease_secs="$(( LEASE_TTL_HOURS * 3600 ))"
+    expired=0; age_h=""
+    if [ -n "$claimed" ]; then
+      cepoch="$(iso_to_epoch "$claimed")" || cepoch=""
+      if [ -n "$cepoch" ] && [ "$(( NOW - cepoch ))" -gt "$lease_secs" ]; then
+        expired=1; age_h="$(( (NOW - cepoch) / 3600 ))"
+      fi
+    fi
+    if [ "$has_branch" = 1 ]; then
       ts="$("$GIT" -C "$CHANGES_DIR" log -1 --format=%ct "$branch" 2>/dev/null)"
       if [ -n "$ts" ] && [ "$(( NOW - ts ))" -gt "$(( 3*86400 ))" ]; then
         emit stale-in-progress "$id" "branch $branch idle >3 days (last commit $(( (NOW - ts) / 86400 ))d ago)"
+      elif [ "$expired" = 1 ]; then
+        emit stale-in-progress "$id" "claim lease expired ${age_h}h ago; branch $branch exists — needs your review (not auto-reclaimable)"
       fi
+    elif [ "$expired" = 1 ]; then
+      emit stale-in-progress "$id" "claim lease expired ${age_h}h ago; no feature branch — self-heal with docket.sh reclaim-claims [reclaimable]"
     fi
   fi
 
