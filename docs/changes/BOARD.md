@@ -1,8 +1,14 @@
 # Backlog
 
-**85 changes** — 🟡 9 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 70 done · 🗑️ 4 killed
+**85 changes** — 🟢 1 in progress · 🟡 8 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 70 done · 🗑️ 4 killed
 
-## 🟡 Proposed (9)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Spec | Branch |
+|---|-------|----------|------|--------|
+| [0085](active/0085-skill-slimming-round-two.md) | Second-round skill slimming — re-slim regrown skills + regrowth guard | `medium` | [spec](../superpowers/specs/2026-07-16-skill-slimming-round-two-design.md) | `feat/skill-slimming-round-two` |
+
+## 🟡 Proposed (8)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -14,7 +20,6 @@
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0082](active/0082-global-harnesses-per-repo-generation.md) | Global agent_harnesses doesn't reach per-repo generation — silent no-op | `low` | needs-brainstorm |
 | [0083](active/0083-terminal-publish-gap-detection.md) | A terminal record can silently never reach the integration branch — investigate #0043's gap and decide on detection | `medium` | auto-groom blocked — needs you |
-| [0085](active/0085-skill-slimming-round-two.md) | Second-round skill slimming — re-slim regrown skills + regrowth guard | `medium` | build-ready |
 
 ## 🔴 Blocked (1)
 
