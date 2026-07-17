@@ -305,6 +305,32 @@ case "$LEARNINGS_CAP" in
   ''|*[!0-9]*) die "unparseable config: learnings.cap must be a non-negative integer, got '$LEARNINGS_CAP'" ;;
 esac
 
+# --- reclaim: the claim-lease self-heal subsystem (change 0089) ----------------
+# Nested block parsed exactly like learnings: — each leaf read WITHIN the block via yaml_block_body
+# (never a bare top-level key: `auto` is a generic word a future block could shadow). BOTH keys are
+# behavioral, NOT coordination-fenced (spec §7-H): they resolve through the full per-field layering
+# repo-local > repo-committed > global > built-in, like learnings.* / auto_groom. lease_ttl is an
+# integer number of HOURS (converted to seconds by the consumers); auto gates the ONLY mutating path.
+RECLAIM_BLK="$(mktemp)";  yaml_block_body "$CFG"  reclaim >"$RECLAIM_BLK"
+GRECLAIM_BLK="$(mktemp)"; yaml_block_body "$GCFG" reclaim >"$GRECLAIM_BLK"
+LRECLAIM_BLK="$(mktemp)"; yaml_block_body "$LCFG" reclaim >"$LRECLAIM_BLK"
+trap 'rm -f "$CFG" "$LEARN_BLK" "$GLEARN_BLK" "$LLEARN_BLK" "$RECLAIM_BLK" "$GRECLAIM_BLK" "$LRECLAIM_BLK"' EXIT
+reclaim_key(){  # reclaim_key <leaf> <default> -> resolved value on stdout
+  local v; v="$(yaml_get "$LRECLAIM_BLK" "$1")"
+  [ -n "$v" ] || v="$(yaml_get "$RECLAIM_BLK" "$1")"
+  [ -n "$v" ] || v="$(yaml_get "$GRECLAIM_BLK" "$1")"
+  printf '%s' "${v:-$2}"
+}
+RECLAIM_LEASE_TTL="$(reclaim_key lease_ttl 72)"
+RECLAIM_AUTO="$(reclaim_key auto false)"
+case "$RECLAIM_LEASE_TTL" in
+  ''|*[!0-9]*) die "unparseable config: reclaim.lease_ttl must be a non-negative integer (hours), got '$RECLAIM_LEASE_TTL'" ;;
+esac
+case "$RECLAIM_AUTO" in
+  true|false) ;;
+  *) die "unparseable config: reclaim.auto must be 'true' or 'false', got '$RECLAIM_AUTO'" ;;
+esac
+
 # --- Stage 3: bootstrap guard — evaluate the DOCKET/LIVE 2×2 (docket-mode only) ---
 BOOTSTRAP=PROCEED
 if [ "$DOCKET_MODE" = docket ]; then
@@ -370,6 +396,8 @@ if [ "$MODE" = export ]; then
   emit BOARD_SURFACES "$BOARD_SURFACES"
   emit AUTO_GROOM "$AUTO_GROOM"
   emit TERMINAL_PUBLISH "$TERMINAL_PUBLISH"
+  emit RECLAIM_LEASE_TTL "$RECLAIM_LEASE_TTL"
+  emit RECLAIM_AUTO "$RECLAIM_AUTO"
   emit SKILL_BRAINSTORM "$SKILL_BRAINSTORM"
   emit SKILL_PLAN "$SKILL_PLAN"
   emit SKILL_BUILD "$SKILL_BUILD"

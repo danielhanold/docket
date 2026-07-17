@@ -107,6 +107,8 @@ A value may not contain a literal `#` — it is treated as the start of an inlin
 | `terminal_publish` | `false` | no (fenced) | `true`/`false`; the default `false` makes `terminal-publish.sh` a no-op for BOTH shapes — archived change files, specs, and ADRs stay on the metadata branch. `true` opts in to the direct-commit publish onto the integration branch. Anything else aborts |
 | `learnings.enabled` | `true` | yes | read from the nested `learnings:` block; resolves repo-local > repo-committed > global |
 | `learnings.cap` | `300` | yes | read from the nested `learnings:` block; resolves repo-local > repo-committed > global |
+| `reclaim.lease_ttl` | `72` | yes | read from the nested `reclaim:` block; integer number of **hours** (consumers convert to seconds); resolves repo-local > repo-committed > global; behavioral, not coordination-fenced |
+| `reclaim.auto` | `false` | yes | read from the nested `reclaim:` block; `true`/`false`; resolves repo-local > repo-committed > global; behavioral, not coordination-fenced — gates the ONLY mutating path of the claim-lease reclaim script |
 
 `github_project` and `agents:`/`agent_harnesses` are per-repo-only / not read by this script (see
 Stage 2b/2b'/2c below and `sync-agents.sh`'s own contract, respectively) — every other key above
@@ -137,6 +139,19 @@ disable only omits an enrichment write rather than producing conflicting shared 
 fail closed on garbage: `enabled` must be exactly `true` or `false` (`yes`/`no` are rejected,
 since this repo has no YAML loader to interpret them as booleans); `cap` must be a non-negative
 integer. Either violation aborts the run with a diagnostic naming the dotted key.
+
+**`reclaim:` (change 0089).** Reads the optional nested `reclaim:` block and emits
+`RECLAIM_LEASE_TTL` and `RECLAIM_AUTO`, mirroring `learnings:`'s block parse + per-field
+precedence + fail-closed validation exactly. Each leaf (`lease_ttl`, `auto`) is read WITHIN the
+block via `yaml_block_body` — never as a bare top-level key; `auto` in particular is a generic
+word a future top-level block could otherwise shadow. Per-field precedence is the same
+four-layer chain: repo-local > repo-committed > global > built-in (`72` / `false`). Both keys
+are **behavioral, not coordination-fenced** (like `learnings.*` and `auto_groom`) — a machine
+value never produces conflicting shared state, so both resolve through the full layering with no
+ADR-0019 fence entry. `lease_ttl` is an integer number of **hours** (the consuming reclaim script
+converts it to seconds); `auto` gates the ONLY mutating path of that script. Both fail closed on
+garbage: `lease_ttl` must be a non-negative integer; `auto` must be exactly `true` or `false`.
+Either violation aborts the run with a diagnostic naming the dotted key.
 
 ### Stage 2b: global config layer (change 0050)
 
@@ -256,6 +271,8 @@ LEARNINGS_CAP
 BOARD_SURFACES
 AUTO_GROOM
 TERMINAL_PUBLISH
+RECLAIM_LEASE_TTL
+RECLAIM_AUTO
 SKILL_BRAINSTORM
 SKILL_PLAN
 SKILL_BUILD
@@ -264,7 +281,7 @@ SKILL_FINISH
 BOOTSTRAP
 ```
 
-22 lines in `shell` format; 23 in `plain` format, with `REPO_ROOT` inserted directly
+23 lines in `shell` format; 24 in `plain` format, with `REPO_ROOT` inserted directly
 after `METADATA_WORKTREE`. The last line is always `BOOTSTRAP=…`.
 
 **`REPO_ROOT` (change 0075) — plain format only.** The absolute path of the main worktree (the
@@ -315,7 +332,7 @@ emits no `KEY=value` output.
   post-write state, so the caller's `eval` sees `PROCEED` without a second invocation.
 - **`main`-mode skips the bootstrap guard entirely.** `DOCKET`/`LIVE` are not evaluated;
   `BOOTSTRAP` is always `PROCEED` in main-mode.
-- **22 `KEY=value` lines always emitted in the same order in `shell` format (23 in `plain`,
+- **23 `KEY=value` lines always emitted in the same order in `shell` format (24 in `plain`,
   `REPO_ROOT` inserted after `METADATA_WORKTREE` — change 0075).** Skills may rely on the order
   for pipe consumers, but should use the variable names (via `eval`) for correctness.
 - **The global layer never aborts a run.** Every global-file problem (misplaced, malformed,
