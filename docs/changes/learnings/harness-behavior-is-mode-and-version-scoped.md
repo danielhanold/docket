@@ -2,7 +2,7 @@
 slug: harness-behavior-is-mode-and-version-scoped
 hook: "An observation about a harness guard is scoped to the mode and version it was seen in — re-probe in the exact mode you will run before designing against it."
 topics: [process, spike, environment]
-changes: [62]
+changes: [62, 85]
 created: 2026-07-17
 updated: 2026-07-17
 promotion_state: candidate
@@ -25,6 +25,12 @@ fires in one and not the other, on the same day, on the same repo. An observatio
 session predicts nothing about a headless run. Spike the exact mode, cheaply, BEFORE the design
 rests on it, and design so the spike re-opens cheaply when the version moves.
 
+**Scope the RULE to the mode you validated, not just the observation.** The mode-scoping error
+recurs one level up: a design validated in one mode writes an *unscoped prohibition*, and strands
+the mode it never tested. Before writing "never do X," ask which mode the reasoning came from and
+whether the other mode has a path left. A rule whose rationale is "silently" does not apply where a
+human is watching — say so in the rule, or the next reader applies it everywhere.
+
 Corollary: prefer changing the **real state** of the external system over reasoning about whether a
 guard will fire on it. A genuinely approved PR gives a "merge without review" classifier nothing to
 fire on, in any mode, at any version — that is durable in a way "we verified it does not deny us"
@@ -46,3 +52,17 @@ oracle.
   design survived only because it changes real GitHub state (an Actions-bot review satisfies branch
   protection) instead of arguing with the guard — the one arm that holds across both modes and any
   version. ADR-0042 pins the CC version for exactly this reason.
+- 2026-07-17 (#85, PR #95) — The bill for (c) came due the same day, at the very next finalize. An
+  **attended** `docket-finalize-change` on a repo with `auto_approve: true` ran its rebase-retest
+  gate green (49/49) and then had **no legal way to merge**: the interactive classifier soft-denied
+  the `gh workflow run docket-approve.yml` dispatch (twice — conversational-intent retry did not
+  clear it, and per ADR-0042's own Context an allow-rule cannot clear a soft-deny), while ADR-0042
+  Decision #2's "any auto-approve failure is abort-and-report; **NEVER** `--admin`" closed the
+  pre-0062 attended path. 0062 validated headless and wrote its prohibition unscoped, so the mode it
+  never tested lost the working path it already had — a regression, not a gap. Decision #2's own
+  rationale is that a fallback would **silently** reinstate the bypass; with a human present
+  explicitly authorizing, nothing is silent and the rationale does not bite. Filed as #86 (scope the
+  ban to autonomous runs) and #87 (ship the driver, whose absence means the capability has no
+  consumer and the mode-scoped rule protects nothing yet). Note the diagnostic trap: the denial
+  looks like proof the mechanism failed, and is not — the spike ran that exact dispatch clean
+  headless. Same command, same repo, same day, different mode.
