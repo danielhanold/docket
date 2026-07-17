@@ -2,7 +2,7 @@
 id: 90
 slug: discovered-from-provenance
 title: discovered-from provenance links — record which change's build surfaced a new stub
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-07-17
 updated: 2026-07-17
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch:
+branch: feat/discovered-from-provenance
 pr:
 blocked_by:
 reconciled: false
