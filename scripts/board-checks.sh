@@ -41,6 +41,7 @@ resolve_deps "$CHANGES_DIR"            # populates STATUS_OF / DEP_STATE / DEP_R
 # git_has REF PATH — exit 0 iff REF:PATH resolves in the changes-dir's repo (no network).
 git_has(){ "$GIT" -C "$CHANGES_DIR" cat-file -e "$1:$2" 2>/dev/null; }
 
+declare -A ID_ACTIVE ID_ARCHIVED ID_EXISTS   # id -> 1; populated in the FILES walk below
 FINDINGS=""                            # accumulate "<check>\t<id>\t<msg>\n"; sorted + printed at the end
 emit(){ FINDINGS+="$1"$'\t'"$2"$'\t'"$3"$'\n'; }
 
@@ -52,6 +53,11 @@ for f in "${FILES[@]}"; do
     [ -n "$raw" ] && emit malformed-id "$raw" "non-integer id '$raw' in $(basename "$f")"
     continue
   fi
+  ID_EXISTS["$id"]=1
+  case "$f" in
+    */active/*)  ID_ACTIVE["$id"]=1 ;;
+    */archive/*) ID_ARCHIVED["$id"]=1 ;;
+  esac
   status="$(field "$f" status)"
   spec="$(field "$f" spec)"; trivial="$(field "$f" trivial)"
 
@@ -120,6 +126,33 @@ for node in "${!ADJ[@]}"; do
 done
 for node in "${!ONCYCLE[@]}"; do
   emit dep-cycle "$node" "participates in a depends_on cycle"
+done
+
+# --- merged-orphan / unknown-commit-ref: cross-reference integration-branch commit subjects
+#     against the active/archive change set. Git-only, subjects only, conservative grammar
+#     (numeric conventional-commit scope + trailing "(change N)"); bare #N and bodies excluded
+#     to bound PR-number false positives. Zero-padding tolerated (10# strips it). Full history.
+declare -A REF_EVIDENCE                       # id -> "<short-sha> <subject>" (first commit seen)
+re_scope='^[a-zA-Z]+\(0*([0-9]{1,4})\):'      # docket(0085): … / results(0085): …
+re_trailing='\(change 0*([0-9]{1,4})\)'       # … (change 0085)
+while IFS=$'\t' read -r ev_sha ev_subject; do
+  [ -n "$ev_subject" ] || continue
+  refs=""
+  [[ "$ev_subject" =~ $re_scope ]]    && refs+=" $(( 10#${BASH_REMATCH[1]} ))"
+  [[ "$ev_subject" =~ $re_trailing ]] && refs+=" $(( 10#${BASH_REMATCH[1]} ))"
+  for rid in $refs; do
+    [ -n "${REF_EVIDENCE[$rid]:-}" ] || REF_EVIDENCE["$rid"]="$ev_sha $ev_subject"
+  done
+done < <("$GIT" -C "$CHANGES_DIR" log --format='%h%x09%s' "$INTEGRATION_BRANCH" 2>/dev/null)
+
+for rid in "${!REF_EVIDENCE[@]}"; do
+  ev="${REF_EVIDENCE[$rid]}"
+  if [ -n "${ID_ACTIVE[$rid]:-}" ]; then
+    emit merged-orphan "$rid" "merged on $INTEGRATION_BRANCH ($ev) but still active (not archived)"
+  elif [ -z "${ID_EXISTS[$rid]:-}" ]; then
+    emit unknown-commit-ref "$rid" "referenced by $INTEGRATION_BRANCH commit ($ev) but no change file exists"
+  fi
+  # archived (terminal) ⇒ properly closed out ⇒ no finding
 done
 
 # Emit findings sorted by (check-id asc, change-id numeric asc) for determinism.
