@@ -1421,5 +1421,62 @@ assert "unknown --format names the flag on stderr" 'grep -qi "format" "$tmp/fmt-
 assert "digest run writes no BOARD.md into the changes dir" '[ ! -e "$tmp/BOARD.md" ]'
 assert "digest run leaves the fixture dir git-free" '[ ! -d "$tmp/.git" ]'
 
+# ── large-archive fixture: recency window + per-month done digest (change 0093) ───────────────
+# 18 done across three months + 2 killed; one active change depends on a done id (0060).
+# Window is 15, so the 12 June + 3 May done render verbatim and the 3 April done collapse.
+big="$tmp/big"; mkdir -p "$big/active" "$big/archive"
+
+cat > "$big/active/0100-mainline.md" <<'EOF'
+---
+id: 100
+slug: mainline
+title: Mainline
+status: in-progress
+priority: high
+depends_on: [60]
+spec: docs/superpowers/specs/2026-07-01-mainline.md
+branch: feat/mainline
+EOF
+
+mkarc(){ # mkarc DATE ID STATUS  -> writes $big/archive/<DATE>-<PADID>-c<ID>.md
+  local d="$1" id="$2" st="$3"
+  printf -- '---\nid: %s\nslug: c%s\ntitle: Change %s\nstatus: %s\npriority: medium\ndepends_on: []\n---\n' \
+    "$id" "$id" "$id" "$st" > "$big/archive/${d}-$(printf '%04d' "$id")-c${id}.md"
+}
+
+d=1; for id in $(seq 60 71); do mkarc "$(printf '2026-06-%02d' "$d")" "$id" done; d=$((d+1)); done
+mkarc 2026-05-01 50 done; mkarc 2026-05-02 51 done; mkarc 2026-05-03 52 done
+mkarc 2026-04-01 40 done; mkarc 2026-04-02 41 done; mkarc 2026-04-03 42 done
+mkarc 2026-06-20 90 killed   # newest row overall — verbatim, never collapses
+mkarc 2026-03-15 30 killed   # oldest row overall — verbatim, never collapses
+
+big_out="$tmp/big-out.md"
+bash "$SCRIPT" --changes-dir "$big" --repo o/r > "$big_out" 2>/dev/null
+brc=$?
+assert "big: large-archive render exits 0" '[ "$brc" -eq 0 ]'
+
+# (a) verbatim window — every killed row (any age) + the 15 most-recent done, listed individually.
+assert "big: newest killed (0090) verbatim" 'grep -qF -- "| [0090](archive/2026-06-20-0090-c90.md) | Change 90 | 2026-06-20 |" "$big_out"'
+assert "big: oldest killed (0030) verbatim" 'grep -qF -- "| [0030](archive/2026-03-15-0030-c30.md) | Change 30 | 2026-03-15 |" "$big_out"'
+assert "big: a recent done (0071) verbatim" 'grep -qF -- "| [0071](archive/2026-06-12-0071-c71.md) | Change 71 | 2026-06-12 |" "$big_out"'
+assert "big: the 15th-newest done (0050) still verbatim" 'grep -qF -- "| [0050](archive/2026-05-01-0050-c50.md) | Change 50 | 2026-05-01 |" "$big_out"'
+
+# (b) collapsed set — older done appear ONLY as a per-month digest row; killed never collapses.
+assert "big: April done collapsed to a per-month digest row (3 done)" 'grep -qF -- "| [2026-04](archive/) | 3 done |" "$big_out"'
+assert "big: the Older-done sub-block header is present" 'grep -qF -- "**Older done (collapsed)**" "$big_out"'
+assert "big: a collapsed done (0040) has NO verbatim archive row" '! grep -qF -- "archive/2026-04-01-0040-c40.md" "$big_out"'
+assert "big: exactly one per-month digest row (only April collapses)" '[ "$(grep -cE "\(archive/\) \| [0-9]+ done \|" "$big_out")" -eq 1 ]'
+
+# (c) mermaid — :::done only for the referenced done id (0060); every other done dropped.
+assert "big: referenced done 0060 is styled :::done" 'grep -qxF -- "  0060:::done" "$big_out"'
+assert "big: unreferenced verbatim done 0071 NOT in the mermaid" '! grep -qxF -- "  0071:::done" "$big_out"'
+assert "big: unreferenced collapsed done 0040 NOT in the mermaid" '! grep -qxF -- "  0040:::done" "$big_out"'
+assert "big: exactly one :::done node in the graph" '[ "$(grep -cF -- ":::done" "$big_out")" -eq 1 ]'
+
+# (d) determinism — a second render is byte-identical.
+big_out2="$tmp/big-out2.md"
+bash "$SCRIPT" --changes-dir "$big" --repo o/r > "$big_out2" 2>/dev/null
+assert "big: re-render is byte-identical (determinism)" 'diff -u "$big_out" "$big_out2"'
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
