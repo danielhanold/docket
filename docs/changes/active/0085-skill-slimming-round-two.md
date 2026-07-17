@@ -17,7 +17,7 @@ auto_groomable:
 branch: feat/skill-slimming-round-two
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -73,3 +73,28 @@ One change re-applies the proven 0053 recipe to the measured regrowth, plus two 
 - Exact per-file budget numbers — fixed at build time from post-slim actuals + ~10%.
 
 ## Reconcile log
+
+### 2026-07-16 — reconciled at claim (in-progress)
+
+Verified the spec against current `origin/main`; the design holds unchanged, no scope
+adjustment needed:
+
+- **Size table exact.** Every measured file matches the spec's table byte-for-byte on
+  `origin/main` — docket-convention 329 L / 5,453 w, finalize 157 L / 2,821 w, status
+  114 L / 2,434 w, implement-next 108 L / 2,491 w, adr 90 L, groom-next 75 L,
+  new-change 59 L, auto-groom 64 L, brainstorm 78 L, agent-layer 165 L,
+  terminal-close-out 135 L. `references/learnings.md` is absent (this change creates it).
+- **Board-litany duplication real and unchanged.** `docket-new-change` carries 3
+  `--board-only` sites; convention, terminal-close-out.md, auto-groom, groom-next,
+  implement-next, and finalize each carry one; the `push-failed` report-line litany
+  appears across 7 skill files. The `--must-land` collapse target is intact.
+- **Infrastructure as assumed.** `scripts/docket-status.sh` has `--board-only` and the
+  report-line channel but no `--must-land` flag yet; `scripts/docket-status.md` contract
+  exists; `tests/` is populated (incl. `test_convention_extraction.sh`, the 0053 sentinel
+  test) and `tests/test_skill_size_budgets.sh` is absent as expected.
+- **No conflicting constraints.** Recent ADRs (through 0042) and recently archived changes
+  (0084 terminal-publish-opt-in, 0062 autonomous-finalize, 0079/0081/0077) introduce
+  nothing that reshapes this refactor; no competing skill-slimming work is in flight
+  (backlog: 7/8/9/10/18/19/82/83 needs-brainstorm, 44 blocked, 78 implemented — none
+  touch skill bodies). Cited ADR-0012 (script-vs-model boundary) still governs the
+  render-* sole-writer rule this change preserves.
