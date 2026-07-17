@@ -10,7 +10,7 @@ depends_on: []
 related: [35, 91]
 adrs: []
 spec: docs/superpowers/specs/2026-07-17-discovered-from-provenance-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-17-discovered-from-provenance.md
 results:
 trivial: false
 auto_groomable: true
@@ -26,6 +26,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-17-discovered-from-provenance-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-17-discovered-from-provenance-design.md) |
+| Plan | [2026-07-17-discovered-from-provenance.md](https://github.com/danielhanold/docket/blob/feat/discovered-from-provenance/docs/superpowers/plans/2026-07-17-discovered-from-provenance.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
