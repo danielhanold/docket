@@ -52,6 +52,8 @@ proposed  →  in-progress  →  implemented  →  done
 
 with three off-ramps: `blocked` (an external blocker is recorded), `deferred` (consciously shelved, may revive), and `killed` (abandoned — kept in the archive as a record). A `proposed` change that has not yet been designed enough to build (no spec, not marked trivial) sits in a **needs-brainstorm** state until it is groomed.
 
+There is also one edge running backward: `in-progress → proposed`. A claim carries a lease, and a change whose lease has expired with no feature branch to show for it — the crashed-before-push case — self-heals back to `proposed` rather than sitting stuck; see [Reclaiming stale claims](#reclaiming-stale-claims-reclaim).
+
 The **board** — a generated `BOARD.md` — is the at-a-glance view of every change grouped by status; you regenerate it with `docket-status`.
 
 One honest caveat: dependency chains serialize on the merge gate. A change that depends on another cannot start until that dependency's PR is merged; the board surfaces this as "waiting on #N — needs your merge." Unrelated changes drain freely in parallel around it.
@@ -95,7 +97,7 @@ Two escape hatches handle the cases a rewrite can't:
 - If the change is now **entirely obsolete**, it is killed and the implementer loops back to select the next one.
 - If the design is **fundamentally invalidated** — it needs re-thinking, not just scope-trimming — the implementer stops and escalates to you. Re-brainstorming needs a human and `docket-new-change`; the autonomous implementer will not do it alone.
 
-**The stance: plans rot. Refresh them just-in-time; never trust a stale backlog.** The `reconciled` flag is the visible proof that a change was freshened against reality before implementation began. If an `in-progress` change resumes after a crash or interruption with `reconciled` still `false`, the full reconcile pass runs again before any work continues.
+**The stance: plans rot. Refresh them just-in-time; never trust a stale backlog.** The `reconciled` flag is the visible proof that a change was freshened against reality before implementation began. If an `in-progress` change resumes after a crash or interruption with `reconciled` still `false`, the full reconcile pass runs again before any work continues. And if it never resumes at all — the implementer crashed before it even pushed a branch — that isn't a dead end either: see [Reclaiming stale claims](#reclaiming-stale-claims-reclaim).
 
 ---
 
@@ -205,6 +207,9 @@ finalize:                    # merge gate: rebase onto base + re-test before doc
   gate: local                # local (default) | ci | both | off
   # test_command:            # unset => finalize auto-detects the suite
   # require_pr_approval: false  # true => the no-arg finalize refuses to merge an unapproved PR
+# reclaim:                   # claim-lease self-heal for a crashed in-progress change (default off)
+#   lease_ttl: 72             # hours; >= docket-status's 3-day stale-in-progress window
+#   auto: false               # true => docket-status also reclaims (no-branch case) each pass
 # agent_harnesses: [claude]  # harnesses the per-repo agent pass generates machine-local files for
 # agents:                    # per-skill subagent model/effort — and runner: to delegate an agent's
 #                            # whole run to another harness (see "Runner delegation" below)
@@ -214,6 +219,21 @@ finalize:                    # merge gate: rebase onto base + re-test before doc
 ```
 
 With no `.docket.yml` at all, docket runs in its default **docket-mode** (`metadata_branch: docket`, `integration_branch: auto`). See [docket-mode](#docket-mode-where-metadata-lives) for what that means and how to opt out.
+
+### Reclaiming stale claims (`reclaim`)
+
+A `docket-implement-next` run that crashes or is killed before it ever pushes a branch leaves its change stuck at `in-progress` — but that particular case doesn't need a human to notice and fix it by hand. `reclaim` closes it automatically, for the one situation it can close *safely*: an **expired claim lease with no feature branch**. Every claim stamps `claimed_at:`; once `NOW - claimed_at` exceeds `reclaim.lease_ttl` (hours, default `72` — comfortably longer than `docket-status`'s 3-day stale-in-progress window) *and* no `feat/<slug>` branch exists anywhere `docket-status` can see, the change is eligible to flip back to `proposed` — the new `in-progress → proposed` edge in the lifecycle.
+
+- **Detection is always on.** `docket-status` flags every eligible change on each run, regardless of `reclaim.auto`.
+- **Mutation is opt-in.** `reclaim.auto: false` (the default) — `docket-status` only recommends: `reclaim: <n> expired-lease change(s) can self-heal — run: docket.sh reclaim-claims`. `reclaim.auto: true` — `docket-status` reclaims eligible changes itself on every pass.
+- **Run it by hand anytime** with `docket.sh reclaim-claims`, whether or not `reclaim.auto` is set.
+- **A change with a branch is left to a human.** It might carry real, unpushed work, so reclaim never touches it — it stays flagged instead.
+
+```yaml
+reclaim:
+  lease_ttl: 72   # hours; >= docket-status's 3-day stale-in-progress window
+  auto: false     # true => docket-status self-heals eligible claims each pass
+```
 
 ### Workflow roles — the `skills:` map
 

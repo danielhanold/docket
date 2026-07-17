@@ -40,6 +40,19 @@ finalize:
 #   enabled: true
 #   cap: 300
 
+# The reclaim subsystem (change 0089) — expired in-progress claims self-heal back to proposed.
+# A crashed docket-implement-next leaves a change stuck at in-progress; a claim lease (claimed_at:,
+# stamped at claim) + this TTL let a deterministic reclaim pass flip an EXPIRED, NO-BRANCH claim
+# back to build-ready proposed. Detection is always on (docket-status flags + recommends);
+# MUTATION is opt-in.
+#   lease_ttl: generous hours, >= the 3-day stale-in-progress window (default 72).
+#   auto:      false (default) => flag + recommend only. true => docket-status self-heals each pass.
+# This repo runs the defaults, so the block stays commented out.
+#
+# reclaim:
+#   lease_ttl: 72
+#   auto: false
+
 # Which derived board view(s) to render. A list; [] disables the board entirely.
 #   inline  → BOARD.md on the metadata branch (offline-safe, committed)
 #   github  → one-way GitHub Issues + Projects v2 mirror (scripts/github-mirror.sh)
