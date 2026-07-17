@@ -1,6 +1,6 @@
 # Backlog
 
-**84 changes** — 🟡 8 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 69 done · 🗑️ 4 killed
+**84 changes** — 🟡 8 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 70 done · 🗑️ 4 killed
 
 ## 🟡 Proposed (8)
 
@@ -21,11 +21,10 @@
 |---|-------|----------|------------|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | PR #69 is stale (predates the 0068/0072 facade rework and later agent-layer changes) and #0079 (runner delegation) reshapes the design — the build roles should grow a runner field (build.<role>.runner codex, the mixed topology 0079 deferred). Needs a rebase plus redesign pass before merge. |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
-| [0062](active/0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | `low` | [#94](https://github.com/danielhanold/docket/pull/94) |
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | [#89](https://github.com/danielhanold/docket/pull/89) |
 
 ```mermaid
@@ -37,7 +36,6 @@ graph TD
   0016 --> 0018
   0015 --> 0019
   0044
-  0062
   0077 --> 0078
   0082
   0083
@@ -92,6 +90,7 @@ graph TD
   0059:::done
   0060:::done
   0061:::done
+  0062:::done
   0063:::done
   0064:::done
   0065:::done
@@ -113,10 +112,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (73)</summary>
+<details><summary>✅🗑️ Archive — done + killed (74)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0062](archive/2026-07-17-0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | 2026-07-17 |
 | [0084](archive/2026-07-16-0084-terminal-publish-opt-in-default.md) | Flip terminal_publish default to false — publishing to the integration branch becomes opt-in | 2026-07-16 |
 | [0081](archive/2026-07-16-0081-first-run-setup-config-example.md) | First-run setup — committed starter config + install.sh scaffolding + README Install restructure | 2026-07-16 |
 | [0079](archive/2026-07-16-0079-codex-runner-delegation.md) | Cross-harness runner delegation framework (first runner — OpenAI Codex) | 2026-07-16 |
