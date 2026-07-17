@@ -2,7 +2,7 @@
 id: 93
 slug: archive-decay-digest
 title: Archive decay — a rolling one-line digest so board and context cost stay flat as the archive grows
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-17
 updated: 2026-07-17
@@ -15,7 +15,7 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/archive-decay-digest
-pr:
+pr: https://github.com/danielhanold/docket/pull/96
 blocked_by:
 reconciled: true
 ---
@@ -27,6 +27,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-17-archive-decay-digest-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-17-archive-decay-digest-design.md) |
 | Plan | [2026-07-17-archive-decay-digest.md](https://github.com/danielhanold/docket/blob/feat/archive-decay-digest/docs/superpowers/plans/2026-07-17-archive-decay-digest.md) |
+| PR | [#96](https://github.com/danielhanold/docket/pull/96) |
 <!-- docket:artifacts:end -->
 
 ## Why
