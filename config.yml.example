@@ -15,6 +15,19 @@
 # the model/effort those files carry.
 agent_harnesses: [claude]
 
+# The reclaim subsystem (change 0089) — expired in-progress claims self-heal back to proposed.
+# A crashed docket-implement-next leaves a change stuck at in-progress; a claim lease (claimed_at:,
+# stamped at claim) + this TTL let a deterministic reclaim pass flip an EXPIRED, NO-BRANCH claim
+# back to build-ready proposed. Detection is always on (docket-status flags + recommends);
+# MUTATION is opt-in. Both keys are global-able, so this is a legitimate place to set them.
+#   lease_ttl: generous hours, >= the 3-day stale-in-progress window (default 72).
+#   auto:      false (default) => flag + recommend only. true => docket-status self-heals each pass.
+# Leave commented to keep docket's shipped defaults.
+#
+# reclaim:
+#   lease_ttl: 72
+#   auto: false
+
 # Per-skill model + effort for each docket subagent, keyed by harness.
 #
 # The `claude:` block below MIRRORS docket's shipped built-in defaults (the values in each
