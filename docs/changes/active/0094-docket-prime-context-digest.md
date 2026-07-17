@@ -2,12 +2,12 @@
 id: 94
 slug: docket-prime-context-digest
 title: docket-prime — a token-budgeted context digest skills load instead of walking docs/changes
-status: proposed
+status: deferred
 priority: medium
 created: 2026-07-17
 updated: 2026-07-17
 depends_on: []
-related: [69, 85]
+related: [69, 85, 88, 93]
 adrs: [12]
 spec:
 plan:
@@ -76,54 +76,36 @@ skill loads in one read.
 
 ## Reconcile log
 
-## Auto-groom blocked
+## Why deferred
 
-### 2026-07-17 — docket-auto-groom abstained (critic: needs human context)
+Deferred 2026-07-17 after a human groom (a design conversation, not the autonomous groomer — which
+had abstained on this stub; git history keeps that abstain record).
 
-A default-biased self-brainstorm was drafted and gated by the adversarial critic
-(`docket-auto-groom-critic`). Two decisions could not be safely auto-committed, so no spec was
-emitted and `auto_groomable` was flipped to `false`. The stub stays needs-brainstorm and is now
-first in the interactive `docket-groom-next` queue.
+**The premise is materially stale, and the caching question is already settled by shipped work.**
+#0069 (merged 2026-07-13) already ships `render-board.sh --format digest`: a stdout-only, read-only,
+deterministic, always-fresh backlog/readiness digest (`backlog <status> <count>` rollups + one
+`change <id> <status> <readiness> <slug>` per active change) that `docket-status.sh` runs in every
+mode. So "docket's skills assemble the backlog picture by hand" is stale for the backlog/readiness
+half. It is also the answer to "are these stats generated once per change, or per skill?" — the
+stats are backlog-*global* and skills share no runtime, so the digest is regenerated per invocation
+**by design**; a persisted "generate once" cache of live backlog state would drift (see the
+`sole-channel` / `presence-encoded-state` learnings). There is no once-per-change artifact to build.
 
-**Blocker 1 — the stub's premise is partly stale versus already-shipped #0069.** #0069 (merged
-2026-07-13) already shipped `render-board.sh --format digest` — a single-read, stdout-only,
-read-only, line-oriented backlog digest (`backlog <status> <count>` rollups + one `change <id>
-<status> <readiness> <slug>` per active change) that `docket-status.sh` runs as an **ungated
-backlog pass** in every mode (board on or off). So "docket's skills assemble the same picture by
-hand" (Why) is materially stale for the backlog/readiness portion — that channel already exists.
-The genuine net-new surface is narrow: build-ready queue in **selection order** (today's digest is
-id-ascending), in-progress **claim staleness**, **ADR index titles**, and **learnings index
-hooks**. *What a human must decide:* whether #0094 is (a) re-scoped to "extend the existing
-`--format digest` with those four additions + adopt it in `implement-next`'s selection" (a much
-smaller change), (b) built as a parallel `prime` verb anyway, or (c) largely subsumed by #0069 and
-killed/merged into a #0069 follow-up. Reconciling stub intent with shipped reality is the stub
-author's call, and options (a)/(c) are re-scope/kill decisions that are **never autonomous**.
+**What is genuinely net-new over #0069 is narrow, and the token-cost guarantee splits it.** The
+guiding constraint from grooming: any build must *just extend the existing script* and not add
+materially to per-digest token cost.
+- **In scope if/when built** — pure, deterministic, zero-new-read additions to
+  `render-board.sh --format digest`: (1) a build-ready queue in **selection order**
+  (priority → age → id, the order `implement-next` selects by; today's digest is id-ascending),
+  and (2) the in-progress `updated:` date as a **claim-age** signal (the raw date, not a computed
+  "N days stale" — a wall-clock would break render-board's determinism / golden byte-compare).
+- **Dropped** — ADR index titles and learnings-index hooks: they require reading sources
+  `render-board` must not own (ADR-0012) and would *add* per-digest tokens, contradicting the
+  change's own token-reduction purpose. Not a separate verb, not an orchestrator, no skill rewiring.
 
-**Blocker 2 — the rewire scope is a value fork with no safe default.** The stub's core value is
-"skills rewire their Step-0 to consume the digest in one read." Both horns are unsafe to
-auto-commit: *shipping the verb with no adopter* delivers dead infrastructure that saves zero
-tokens (the change's whole reason to exist); *rewiring the operating-skill family* makes the digest
-the **sole** Step-0 orientation channel — exactly the `sole-channel` learning whose war story is
-**this repo's own #0069** (a digest made the sole channel; ordering versus the mutating merge sweep
-and report totality both broke, caught only at whole-branch review). Auto-committing a build-ready
-spec down either branch is out of bounds. *What a human must decide:* whether this change rewires
-skills at all, and if so which skills first and in what order — with the `sole-channel` ordering /
-totality re-proof designed in deliberately, not defaulted.
-
-**Bounded fixes to fold in once the human resolves the above (from available context, no human
-input needed):**
-- The digest must be an **orchestrator** (the `docket-status.sh` shape) that composes
-  `render-board.sh --format digest` (sole owner of readiness resolution, per ADR-0012's
-  no-duplication invariant) with an ADR-index read and a learnings-index read — `render-board.sh`
-  reads only change files and must not grow ADR/learnings ownership.
-- **stdout-only, never a committed or cached surface** (binding constraint; matches `sole-channel`
-  / `presence-encoded-state`). Token budget is a stated **direction**, not a gate
-  (`size-target-is-direction`). Archive rendered as **counts only**, so prime is cheap **before**
-  #0093's decay rules exist — record the #0093 relation (currently in prose only; consider adding
-  #0093 to `related:`), do not depend on its decisions.
-- prime stays a **separate verb** that consumes but does not subsume/replace the Step-0 `preflight`
-  KEY=value config block; the `docket-config.sh` / `docket.sh preflight` contract is untouched
-  (open question 3).
-
-**Re-arm:** a human supplies the missing scope decisions, flips `auto_groomable` back to `true`,
-and DELETES this `## Auto-groom blocked` section (git history keeps it).
+**Why deferred rather than built now.** The selection-order queue's only concrete adopter is
+**#0088** (loop continuation — `implement-next` re-runs selection over the remaining build-ready
+set). Building the queue ahead of #0088 ships it with no consumer. **Revive once #0088 is figured
+out** — specifically once its continuation loop's design settles whether and how it consumes a
+selection-order digest. At that point #0094 is a small `render-board.sh --format digest` extension
+(items 1–2 above), or is folded into #0088 directly.
