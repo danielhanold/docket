@@ -75,7 +75,7 @@ Four pieces, each defaulted in §7:
    `stale-in-progress` health check is upgraded to *also* key on `claimed_at:`+TTL expiry (catching
    the crashed-before-branch case), and `docket-status` prints a state-valid recommended reclaim
    command (`printed-remedy-state-validity` learning). **Mutation** runs only when the repo opts in
-   (`reclaim.auto: true`) or a human runs `docket.sh reclaim` explicitly — the default
+   (`reclaim.auto: true`) or a human runs `docket.sh reclaim-claims` explicitly — the default
    `docket-status` pass stays warn-only / non-mutating, preserving ADR-0012 ("scripts never mutate
    state autonomously") and `board-checks.sh`'s "warn-only, never auto-fixes" invariant.
 
@@ -127,7 +127,7 @@ change from that state.
 - `reclaim:` block in `docket-config.sh` (+ `--export` of `RECLAIM_LEASE_TTL` / `RECLAIM_AUTO`),
   the commented sample `.docket.yml`, and README.
 - `scripts/reclaim-claims.sh` (eligibility = expired lease **AND** no existing feature branch) +
-  `scripts/reclaim-claims.md` + `docket.sh reclaim` facade routing.
+  `scripts/reclaim-claims.md` + `docket.sh reclaim-claims` facade routing.
 - `stale-in-progress` upgraded (claimed_at+TTL) in `board-checks.sh`; `docket-status` prints the
   recommended reclaim command; `docket-status` invokes reclaim mutation only under `reclaim.auto`.
 - `tests/test_reclaim_claims.sh` (hermetic, via the `NOW`/`GIT` seams), matching
@@ -190,7 +190,7 @@ as the safety argument.
 
 **E. Auto-reclaim posture — OFF by default; flag + recommend by default, mutate only on opt-in.**
 Chosen: default `docket-status` detects + recommends (warn-only, unchanged posture); actual
-mutation runs only under `reclaim.auto: true` or an explicit `docket.sh reclaim`. Rejected:
+mutation runs only under `reclaim.auto: true` or an explicit `docket.sh reclaim-claims`. Rejected:
 unconditional auto-reclaim inside every `docket-status` sweep. Why: ADR-0012 mandates scripts
 "never mutate state autonomously" and `board-checks.sh` is "warn-only, never auto-fixes"; defaulting
 mutation ON would be a posture reversal needing human blessing, whereas defaulting OFF is strictly
@@ -250,3 +250,24 @@ auto-commit as build-ready.
 The stub's three open questions are settled here: TTL default/unit → §7-D + §3; refresh at phase
 boundaries → §3(1) + §7-D; reclaim-to-`proposed` vs marker → §7-B; runs unconditionally vs
 gated → §7-E. None remain blocking.
+
+## 10. Reconcile note (2026-07-17, `docket-implement-next`)
+
+Verified every §1 premise against current `main`: `board-checks.sh` lines 73–83 carry the exact
+crashed-before-push blind spot (branch set but ref absent ⇒ not stale); the `learnings:` block in
+`docket-config.sh` (lines 291–317) is the parsing/validation precedent to mirror for `reclaim:`;
+`archive-change.sh`'s `set_field` (line 69) is the terminal `claimed_at`-clear seam;
+`docket-status.sh` `health_checks` (line 504) surfaces `board-checks.sh` findings and `main()`
+(lines 641–683) is where the recommended-command print + `reclaim.auto` invocation wire in. Related
+#88 is still `proposed` (this change stays independent, `depends_on: []`); ADR-0001/0012 both
+Accepted. No duplicate reclaim work exists in `scripts/` or `archive/`. Two refinements folded in
+(design intact, not invalidated):
+
+- **Facade op = `reclaim-claims`, not `reclaim`.** The `docket.sh` facade enforces a hard
+  op-name == script-basename invariant (sentinel `tests/test_docket_facade.sh` lines 154–157: "every
+  wrapped op maps to `scripts/<op>.sh`"). The script is `reclaim-claims.sh`, so the routed op is
+  `reclaim-claims`. All prose corrected from `docket.sh reclaim` → `docket.sh reclaim-claims`.
+- **`reclaim.lease_ttl` is an integer number of hours (default `72`).** Represented like
+  `learnings.cap` — a bare non-negative integer scalar, config-layered, fail-closed on garbage —
+  and converted to seconds (×3600) inside `reclaim-claims.sh` and the upgraded `stale-in-progress`
+  check. Avoids a duration-string parser; "72h" in §7-D denotes 72 hours.

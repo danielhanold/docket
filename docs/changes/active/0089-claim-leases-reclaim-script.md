@@ -17,7 +17,7 @@ auto_groomable: true
 branch: feat/claim-leases-reclaim-script
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -58,7 +58,7 @@ Design settled at auto-groom (2026-07-17) — see the linked spec for the full r
   `finalize:` / `learnings:` and shipped end-to-end (sample `.docket.yml` + README).
 - **A deterministic reclaim script** `scripts/reclaim-claims.sh` (the binding capture constraint:
   a script per the ADR-0012 script-vs-model boundary, never model prose), reached via
-  `docket.sh reclaim`. It reclaims an `in-progress` change **only when its lease is expired AND it
+  `docket.sh reclaim-claims`. It reclaims an `in-progress` change **only when its lease is expired AND it
   has no existing feature branch** (the crashed-before-push blind spot the current check misses —
   the one case that is provably collision-free and orphan-free): appends a dated `## Reclaim log`
   entry, flips `status:` back to `proposed`, clears `branch:`/`claimed_at:`, resets
@@ -67,7 +67,7 @@ Design settled at auto-groom (2026-07-17) — see the linked spec for the full r
   the no-branch case), and `docket-status` prints a state-valid recommended reclaim command.
   **Mutation is opt-in**: the default `docket-status` sweep stays warn-only (ADR-0012 "scripts
   never mutate autonomously"); reclaim runs only under `reclaim.auto: true` or an explicit
-  `docket.sh reclaim`.
+  `docket.sh reclaim-claims`.
 - A sanctioned `in-progress → proposed` reverse edge added to the convention's seven-state
   lifecycle, plus the new `## Reclaim log` body section.
 
@@ -96,3 +96,19 @@ Resolved at auto-groom (2026-07-17); detail in the linked spec's §7 Assumptions
   pass stays warn-only (spec §7-E).
 
 ## Reconcile log
+
+### 2026-07-17 — reconciled by `docket-implement-next`
+
+Design confirmed build-ready and coherent against current `main`; no obsolescence, no fundamental
+invalidation. Every §1 premise re-verified in code (see the spec's new §10 for the file/line map):
+`board-checks.sh` still carries the crashed-before-push blind spot the change targets; the
+`learnings:` config block is the precedent for the new `reclaim:` block; `archive-change.sh`,
+`docket-status.sh`, and the `docket.sh`/`docket.md` facade sentinel are all as the spec assumes.
+Related #88 remains `proposed`, so this change stays independent (`depends_on: []`); ADR-0001 and
+ADR-0012 are both still Accepted; no duplicate reclaim work exists.
+
+Two refinements folded into the body + spec (both scope-adjustments, not redesign):
+- Facade op is **`reclaim-claims`** (op-name == script-basename is a hard facade invariant enforced
+  by `tests/test_docket_facade.sh`), replacing the spec's prose `docket.sh reclaim`.
+- **`reclaim.lease_ttl` is an integer count of hours (default `72`)**, mirroring `learnings.cap`'s
+  bare-integer + fail-closed pattern; converted to seconds internally.
