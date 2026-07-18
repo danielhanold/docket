@@ -1,8 +1,14 @@
 # Backlog
 
-**96 changes** — 🟡 11 proposed · 🔴 1 blocked · ⚪ 1 deferred · 🔵 2 implemented · ✅ 76 done · 🗑️ 5 killed
+**96 changes** — 🟢 1 in progress · 🟡 10 proposed · 🔴 1 blocked · ⚪ 1 deferred · 🔵 2 implemented · ✅ 76 done · 🗑️ 5 killed
 
-## 🟡 Proposed (11)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Spec | Branch |
+|---|-------|----------|------|--------|
+| [0091](active/0091-auto-create-discovered-stubs.md) | Auto-create discovered stubs — a config flag that turns mid-run findings into proposed changes | `medium` | [spec](../superpowers/specs/2026-07-17-auto-create-discovered-stubs-design.md) | `feat/auto-create-discovered-stubs` |
+
+## 🟡 Proposed (10)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -15,7 +21,6 @@
 | [0082](active/0082-global-harnesses-per-repo-generation.md) | Global agent_harnesses doesn't reach per-repo generation — silent no-op | `low` | needs-brainstorm |
 | [0083](active/0083-terminal-publish-gap-detection.md) | A terminal record can silently never reach the integration branch — investigate #0043's gap and decide on detection | `medium` | auto-groom blocked — needs you |
 | [0087](active/0087-headless-finalize-driver.md) | Headless finalize — the finalize-side disposition contract, mirroring 0088 | `high` | build-ready |
-| [0091](active/0091-auto-create-discovered-stubs.md) | Auto-create discovered stubs — a config flag that turns mid-run findings into proposed changes | `medium` | build-ready |
 | [0096](active/0096-suppress-plan-skill-execution-handoff.md) | An autonomous run can be halted by a sub-skill's interactive hand-off — neutralize writing-plans' execution choice | `high` | needs-brainstorm |
 
 ## 🔴 Blocked (1)
