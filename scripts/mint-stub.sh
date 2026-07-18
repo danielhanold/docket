@@ -48,6 +48,19 @@ done
 case "$FROM"   in ''|*[!0-9]*) die "missing/invalid --discovered-from (want a change id)" ;; esac
 case "$MINTED" in ''|*[!0-9]*) die "invalid --minted" ;; esac
 case "$CAP"    in ''|*[!0-9]*) die "invalid --cap" ;; esac
+# --title and an explicit --slug are the only caller-supplied values that land verbatim in
+# frontmatter via set_field's ENVIRON write (NEW-1). set_field's awk prints "key: <value>" for
+# whatever the value contains; if that value carries an embedded newline, the print emits it as a
+# literal line break, splitting one frontmatter scalar into a bogus mangled line PLUS a fresh line
+# of the caller's choosing — e.g. `--title "$(printf 'Line one\ntrivial: true')"` lands a real
+# `trivial: true` line ahead of the template's own, and field() (first-match) reads that one back,
+# silently flipping an ungroomed stub to build-ready. The same newline also breaks the minted
+# filename and the documented one-line stdout report. Gated on the [[:cntrl:]] class rather than
+# enumerating just newline (AGENTS.md: key a guard on syntactic shape, never a spelling list), so a
+# stray tab or carriage return in model-authored prose is refused too, before anything is written;
+# there is no legitimate title or slug that carries a control character.
+case "$TITLE" in *[[:cntrl:]]*) die "--title must not contain control characters (e.g. a newline)" ;; esac
+case "$SLUG"  in *[[:cntrl:]]*) die "--slug must not contain control characters (e.g. a newline)" ;; esac
 # The body is the model's prose; pin only its entry shape so a malformed stub can never land.
 head1="$(head -n1 "$BODY_FILE")"
 case "$head1" in "## Why"*) ;; *) die "body file must start with '## Why'" ;; esac
@@ -178,16 +191,21 @@ id="$(next_id)"
 write_stub "$id" >/dev/null
 
 # safe_reset_hard LABEL — reset --hard to the fresh remote tip, but REFUSE (and die) when the
-# worktree carries uncommitted changes this run did not just create itself (B3). This script shares
-# its metadata worktree with other autonomous agents; the tree is clean-by-construction immediately
-# after write_stub's own commit (git add/commit above are pathspec-scoped to the one file), so ANY
-# `git status --porcelain` output at this point can only belong to another writer. Resetting over
-# that would silently discard someone else's work while this script still reports success. The
-# guarantee this preserves: reset --hard only ever discards THIS run's own last commit — never
-# anything it didn't write itself.
+# worktree carries uncommitted changes to a TRACKED file that this run did not just create itself
+# (B3). This script shares its metadata worktree with other autonomous agents; the tree's tracked
+# state is clean-by-construction immediately after write_stub's own commit (git add/commit above
+# are pathspec-scoped to the one file), so any staged or unstaged change to a tracked file at this
+# point can only belong to another writer, and resetting over it would silently discard that work
+# while this script still reports success. Untracked files are deliberately EXCLUDED from the gate
+# (NEW-2, `--untracked-files=no`): `reset --hard` resets the index and tracked working-tree files
+# to HEAD but never removes anything untracked, so a stray `.DS_Store`, an editor swap file, or
+# another agent's scratch file sitting in the shared worktree is not at risk — gating on it anyway
+# only hard-fails a normal contended mint for no safety benefit. The guarantee this preserves:
+# reset --hard only ever discards THIS run's own last commit — never a tracked change anything else
+# wrote.
 safe_reset_hard(){
   local label="$1" dirty
-  dirty="$($GIT -C "$WT" status --porcelain)"
+  dirty="$($GIT -C "$WT" status --porcelain --untracked-files=no)"
   [ -z "$dirty" ] \
     || die "refusing reset --hard ($label): worktree has uncommitted changes from another writer: $dirty"
   $GIT -C "$WT" reset --hard "$REMOTE/$cur_branch" >/dev/null 2>&1 \

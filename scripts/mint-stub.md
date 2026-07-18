@@ -36,6 +36,11 @@ Reached from a skill through the facade: `docket.sh mint-stub …`.
 ## Behavior
 
 1. **Validate** every argument; a malformed body (no leading `## Why`) is rejected before any write.
+   `--title` and an explicit `--slug` are also rejected if they contain a control character
+   (newline, CR, tab, ...): both land verbatim in frontmatter, and an embedded newline is the way
+   either value could split into a second, caller-chosen `key: value` frontmatter line (see
+   Invariants); the check is not narrowed to newline alone so no control character can corrupt a
+   rendered frontmatter line, the minted filename, or the one-line stdout report.
 2. **Cap check** — `--minted >= --cap` refuses immediately (exit 4), before touching repo state.
 3. **Dedup** — case-insensitive slugified match of the proposed slug against every **active** change's
    `slug:` and `title:`. Archived changes are deliberately NOT scanned: archived work is history, not
@@ -63,8 +68,8 @@ Reached from a skill through the facade: `docket.sh mint-stub …`.
    the captured git diagnostic instead of retrying. Either way — an immediate real-failure die, or
    exhausting all 5 retries without converging — the local branch is reset back to the fresh remote
    tip before the script exits, so it never leaves a dangling unpushed commit behind. That cleanup
-   reset (like every `reset --hard` in this script) is itself gated by a clean-tree precondition: see
-   Invariants.
+   reset (like every `reset --hard` in this script) is itself gated by a clean-tracked-tree
+   precondition: see Invariants.
 
 Exactly one report line goes to stdout; the caller surfaces it.
 
@@ -79,9 +84,10 @@ Exactly one report line goes to stdout; the caller surfaces it.
 
 Exit 1 covers several distinct git-level failures, all diagnosed on stderr: a non-race push failure,
 retry exhaustion (5 lost races that never converged), and a refused CAS reset because the worktree
-carried uncommitted changes this run did not itself create (see Invariants). In the first two cases
-the local branch is left matching the remote before the script exits; in the third, the refusal
-means the reset never ran, so nothing beyond this run's own (still-local, unpushed) commit changes.
+carried uncommitted changes to a tracked file this run did not itself create (see Invariants). In
+the first two cases the local branch is left matching the remote before the script exits; in the
+third, the refusal means the reset never ran, so nothing beyond this run's own (still-local,
+unpushed) commit changes.
 
 ## Invariants
 
@@ -92,17 +98,23 @@ means the reset never ran, so nothing beyond this run's own (still-local, unpush
 - **No `gh`, no network beyond the git remote.** Offline-safe apart from the push.
 - **The commit is formulaic** (`docket(<id>): auto-capture stub discovered from #<n>`) and touches a
   single path, keeping it trivially reviewable in history.
-- **`reset --hard` never discards uncommitted work it did not itself create.** The script shares its
-  metadata worktree with other autonomous agents. Immediately after this script's own commit the
-  tree is clean by construction, so ANY `git status --porcelain` output right before a `reset --hard`
-  can only be another writer's uncommitted work; every `reset --hard` in this script (mid-retry, on a
-  non-race push failure, and on retry exhaustion) is preceded by this check and refused (exit 1) if
-  the tree is dirty. This is what keeps the CAS's core promise intact: a reset only ever discards
-  THIS run's own last commit, never anything it didn't write.
+- **`reset --hard` never discards uncommitted work to a TRACKED file that it did not itself create.**
+  The script shares its metadata worktree with other autonomous agents. Immediately after this
+  script's own commit the tree's tracked state is clean by construction (git add/commit above are
+  pathspec-scoped to the one file it just wrote), so any `git status --porcelain --untracked-files=no`
+  output right before a `reset --hard` can only be another writer's staged or unstaged change to a
+  tracked file; every `reset --hard` in this script (mid-retry, on a non-race push failure, and on
+  retry exhaustion) is preceded by this check and refused (exit 1) if a tracked change is present.
+  Untracked files (a stray `.DS_Store`, an editor swap file, another agent's scratch file dropped in
+  the shared worktree) are deliberately excluded from the check: `reset --hard` never touches
+  anything untracked, so gating on its mere presence would refuse resets that put nothing at risk —
+  precisely the availability regression a normal contended mint must not hit. This is what keeps the
+  CAS's core promise intact: a reset only ever discards THIS run's own last commit, never a tracked
+  change anything else wrote.
 - **No unpushed commit is left behind on error**, except in the rare compound case where the
-  clean-tree precondition above refuses the cleanup reset itself — that failure mode is surfaced on
-  stderr rather than silently resolved, since silently discarding the other writer's work is exactly
-  what the precondition exists to prevent.
+  clean-tracked-tree precondition above refuses the cleanup reset itself — that failure mode is
+  surfaced on stderr rather than silently resolved, since silently discarding the other writer's
+  work is exactly what the precondition exists to prevent.
 
 ## Mock seams
 

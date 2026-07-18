@@ -236,4 +236,73 @@ assert "J: exit 0 for a long title"     '[ "$rcJ" -eq 0 ]'
 assert "J: slug has no trailing hyphen" '[ "$outJ" = "minted 1 $EXPECT_SLUG" ]'
 assert "J: file uses the trimmed slug"  '[ -f "$WJ/docs/changes/active/0001-$EXPECT_SLUG.md" ]'
 
+# --- (K0) NEW-1: a plain multi-line --title (no injection payload) is rejected too ---------------
+# The guard fires on the control character itself, not on recognizing an injection payload.
+WK0="$(new_repo)"
+BEFORE_K0="$(git -C "$WK0" rev-parse HEAD)"
+BK0="$(body 'plain newline guard')"
+PLAIN_MULTI_TITLE="$(printf 'Line one\nLine two')"
+outK0="$(run_mint "$WK0" --title "$PLAIN_MULTI_TITLE" --body-file "$BK0" --discovered-from 91 2>&1)"; rcK0=$?
+assert "K0: exit nonzero on a plain multi-line --title" '[ "$rcK0" -ne 0 ]'
+assert "K0: nothing written to active/"         '[ "$(ls "$WK0/docs/changes/active" | grep -c .)" -eq 0 ]'
+assert "K0: no commit created (HEAD unchanged)" '[ "$(git -C "$WK0" rev-parse HEAD)" = "$BEFORE_K0" ]'
+
+# --- (K) NEW-1: a --title newline carrying a `trivial: true` payload is rejected before any write -
+# A newline in --title would otherwise let set_field's ENVIRON write inject an arbitrary extra
+# frontmatter line (e.g. `trivial: true`) ahead of the template's real fields — field() returns the
+# FIRST match, so the injected line would win and readiness() would treat an ungroomed stub as
+# build-ready. Reject before any write.
+WK="$(new_repo)"
+BEFORE_K="$(git -C "$WK" rev-parse HEAD)"
+BK="$(body 'newline injection guard')"
+MULTI_TITLE="$(printf 'Line one\ntrivial: true')"
+outK="$(run_mint "$WK" --title "$MULTI_TITLE" --body-file "$BK" --discovered-from 91 2>&1)"; rcK=$?
+assert "K: exit nonzero on multi-line --title" '[ "$rcK" -ne 0 ]'
+assert "K: exactly one diagnostic line"        '[ "$(printf "%s" "$outK" | grep -c .)" -eq 1 ]'
+assert "K: diagnostic mentions newline"        'case "$outK" in *newline*) true ;; *) false ;; esac'
+assert "K: no 'minted' line printed"           'case "$outK" in *"minted "*) false ;; *) true ;; esac'
+assert "K: nothing written to active/"         '[ "$(ls "$WK/docs/changes/active" | grep -c .)" -eq 0 ]'
+assert "K: no commit created (HEAD unchanged)" '[ "$(git -C "$WK" rev-parse HEAD)" = "$BEFORE_K" ]'
+assert "K: nothing pushed (origin unchanged)"  '[ "$(git -C "$WK" rev-parse origin/docket)" = "$BEFORE_K" ]'
+assert "K: working tree clean"                 '[ -z "$(git -C "$WK" status --porcelain)" ]'
+assert "K: the injected trivial:true never lands in any stub" \
+  '! grep -rq "^trivial: true$" "$WK/docs/changes/active" "$WK/docs/changes/archive" 2>/dev/null'
+
+# --- (K2) NEW-1: an explicit multi-line --slug is rejected the same way -------------------------
+WK2="$(new_repo)"
+BEFORE_K2="$(git -C "$WK2" rev-parse HEAD)"
+BK2="$(body 'slug newline guard')"
+MULTI_SLUG="$(printf 'line-one\ntrivial: true')"
+outK2="$(run_mint "$WK2" --title "Fine title" --slug "$MULTI_SLUG" --body-file "$BK2" --discovered-from 91 2>&1)"; rcK2=$?
+assert "K2: exit nonzero on multi-line --slug" '[ "$rcK2" -ne 0 ]'
+assert "K2: exactly one diagnostic line"       '[ "$(printf "%s" "$outK2" | grep -c .)" -eq 1 ]'
+assert "K2: diagnostic mentions newline"       'case "$outK2" in *newline*) true ;; *) false ;; esac'
+assert "K2: nothing written to active/"        '[ "$(ls "$WK2/docs/changes/active" | grep -c .)" -eq 0 ]'
+assert "K2: no commit created (HEAD unchanged)" '[ "$(git -C "$WK2" rev-parse HEAD)" = "$BEFORE_K2" ]'
+assert "K2: nothing pushed (origin unchanged)"  '[ "$(git -C "$WK2" rev-parse origin/docket)" = "$BEFORE_K2" ]'
+
+# --- (L) NEW-2: a contended race with a stray UNTRACKED file present still mints (availability) --
+# reset --hard never removes untracked files, so their mere presence must not block the CAS retry.
+# Companion negative control already lives at (I): a dirty TRACKED file still refuses and preserves
+# the edit — that safety property must be unchanged by this fix.
+WL="$(new_repo)"
+mkchange "$WL" active 0007-alpha.md 7 alpha "Alpha"
+git -C "$WL" add -A; git_quiet -C "$WL" commit -m seed; git_quiet -C "$WL" push origin docket
+OTHERL="$(mktemp -d)/otherl"; git_quiet clone "$(git -C "$WL" remote get-url origin)" "$OTHERL"
+git -C "$OTHERL" config user.email o@o; git -C "$OTHERL" config user.name o
+git_quiet -C "$OTHERL" checkout docket
+mkchange "$OTHERL" active 0008-competitor.md 8 competitor "Competitor"
+git -C "$OTHERL" add -A; git_quiet -C "$OTHERL" commit -m "competing mint"; git_quiet -C "$OTHERL" push origin docket
+# a stray untracked file (e.g. another agent's scratch note, or an editor swap file) sitting in the
+# shared metadata worktree — present BEFORE mint-stub ever runs, same shape as fixture I's dirty
+# tracked file, but untracked.
+printf 'scratch\n' > "$WL/docs/changes/notes.tmp"
+BL="$(body 'untracked file must not block reset --hard')"
+outL="$(run_mint "$WL" --title "Untracked race" --body-file "$BL" --discovered-from 91 2>&1)"; rcL=$?
+assert "L: exit 0 despite a stray untracked file"    '[ "$rcL" -eq 0 ]'
+assert "L: re-allocated to 9, not 8"                 '[ "$outL" = "minted 9 untracked-race" ]'
+assert "L: file is 0009-untracked-race"              '[ -f "$WL/docs/changes/active/0009-untracked-race.md" ]'
+assert "L: untracked scratch file survives the reset" '[ -f "$WL/docs/changes/notes.tmp" ]'
+assert "L: converged with origin"                    '[ "$(git -C "$WL" rev-parse HEAD)" = "$(git -C "$WL" rev-parse origin/docket)" ]'
+
 exit $fail
