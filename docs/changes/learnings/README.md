@@ -20,6 +20,7 @@ One curated finding per file; this index is the hint surface. Load it, then read
 
 ## git
 
+- [cas-re-read-fresh-origin](cas-re-read-fresh-origin.md) — A CAS retry must re-derive eligibility from FRESH ORIGIN state — re-reading the working tree you just wrote always reads back your own write and mislabels every real race as a no-op. · also: concurrency, scripts ⟨needs promotion⟩
 - [concurrent-edits-compose-at-rebase](concurrent-edits-compose-at-rebase.md) — When two open changes touch one function, keep each additive and funnel through a shared chokepoint; at rebase reconcile by INTENT — compose, don't choose. · also: rebase, concurrency
 - [gitignore-guarantee-must-be-committed](gitignore-guarantee-must-be-committed.md) — An 'every clone / never committed' guarantee must rest on a committed repo .gitignore entry, never a per-machine user-global ignore. · also: gitignore, guarantees
 - [no-checkout-in-shared-worktree](no-checkout-in-shared-worktree.md) — Review subagents must NOT git checkout in a shared worktree — and after every push, SHA-compare local vs origin. · also: worktrees, subagents
