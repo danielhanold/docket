@@ -1,6 +1,6 @@
 # Backlog
 
-**96 changes** — 🟡 11 proposed · 🔴 1 blocked · ⚪ 1 deferred · 🔵 5 implemented · ✅ 73 done · 🗑️ 5 killed
+**96 changes** — 🟡 11 proposed · 🔴 1 blocked · ⚪ 1 deferred · 🔵 4 implemented · ✅ 74 done · 🗑️ 5 killed
 
 ## 🟡 Proposed (11)
 
@@ -15,7 +15,7 @@
 | [0082](active/0082-global-harnesses-per-repo-generation.md) | Global agent_harnesses doesn't reach per-repo generation — silent no-op | `low` | needs-brainstorm |
 | [0083](active/0083-terminal-publish-gap-detection.md) | A terminal record can silently never reach the integration branch — investigate #0043's gap and decide on detection | `medium` | auto-groom blocked — needs you |
 | [0087](active/0087-headless-finalize-driver.md) | Headless finalize — the finalize-side disposition contract, mirroring 0088 | `high` | build-ready |
-| [0091](active/0091-auto-create-discovered-stubs.md) | Auto-create discovered stubs — a config flag that turns mid-run findings into proposed changes | `medium` | ⏳ waiting on #90 — needs your merge |
+| [0091](active/0091-auto-create-discovered-stubs.md) | Auto-create discovered stubs — a config flag that turns mid-run findings into proposed changes | `medium` | build-ready |
 | [0096](active/0096-suppress-plan-skill-execution-handoff.md) | An autonomous run can be halted by a sub-skill's interactive hand-off — neutralize writing-plans' execution choice | `high` | needs-brainstorm |
 
 ## 🔴 Blocked (1)
@@ -30,13 +30,12 @@
 |---|-------|----------|
 | [0094](active/0094-docket-prime-context-digest.md) | docket-prime — a token-budgeted context digest skills load instead of walking docs/changes | `medium` |
 
-## 🔵 Implemented — awaiting merge (5)
+## 🔵 Implemented — awaiting merge (4)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | [#89](https://github.com/danielhanold/docket/pull/89) |
 | [0089](active/0089-claim-leases-reclaim-script.md) | Claim leases + reclaim script — expired in-progress claims self-heal back to proposed | `medium` | [#99](https://github.com/danielhanold/docket/pull/99) |
-| [0090](active/0090-discovered-from-provenance.md) | discovered-from provenance links — record which change's build surfaced a new stub | `medium` | [#97](https://github.com/danielhanold/docket/pull/97) |
 | [0092](active/0092-orphan-detection-script.md) | Orphan detection script — cross-reference change ids in merged commits against archive state | `medium` | [#98](https://github.com/danielhanold/docket/pull/98) |
 | [0093](active/0093-archive-decay-digest.md) | Archive decay — a rolling one-line digest so board and context cost stay flat as the archive grows | `medium` | [#96](https://github.com/danielhanold/docket/pull/96) |
 
@@ -54,7 +53,6 @@ graph TD
   0083
   0087
   0089
-  0090
   0090 --> 0091
   0092
   0093
@@ -132,15 +130,17 @@ graph TD
   0084:::done
   0085:::done
   0088:::done
+  0090:::done
   0095:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (78)</summary>
+<details><summary>✅🗑️ Archive — done + killed (79)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0095](archive/2026-07-18-0095-retire-auto-approve-workflow.md) | Retire the auto-approve workflow — document the classifier and the single-maintainer branch-protection solution | 2026-07-18 |
+| [0090](archive/2026-07-18-0090-discovered-from-provenance.md) | discovered-from provenance links — record which change's build surfaced a new stub | 2026-07-18 |
 | [0088](archive/2026-07-18-0088-implement-next-loop-continuation.md) | Loop continuation — implement-next chains into the next ready change instead of stopping | 2026-07-18 |
 | [0086](archive/2026-07-18-0086-attended-finalize-merge-path.md) | Attended finalize has no merge path under auto_approve — scope the --admin ban to autonomous runs | 2026-07-18 |
 | [0085](archive/2026-07-17-0085-skill-slimming-round-two.md) | Second-round skill slimming — re-slim regrown skills + regrowth guard | 2026-07-17 |
