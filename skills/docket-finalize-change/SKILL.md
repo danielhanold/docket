@@ -164,7 +164,7 @@ A gate failure is recorded as a `## Finalize blocked` body section on the change
 
 ## Where finishing-a-development-branch fits
 
-When a human is present — the **one** exception to the *Skill layer*'s autonomy-precedence rule, and conditional on exactly that — the resolved finish skill — `$SKILL_FINISH` (default `superpowers:finishing-a-development-branch`) — can drive a non-standard close-out (keep, discard, or merge locally without a PR); its chooser fits at step 4. On the autonomous path there is no chooser: finalize pre-specifies its outcome exactly as `docket-implement-next` §7 does. The rebase-retest gate is independent of it and still governs any actual merge; docket also borrows its provenance-guard (only auto-remove a worktree under `.worktrees/<slug>`).
+When a human is present — the **one** exception to the *Skill layer*'s autonomy-precedence rule, and conditional on exactly that — the resolved finish skill — `$SKILL_FINISH` (default `superpowers:finishing-a-development-branch`) — can drive a non-standard close-out (keep, discard, or merge locally without a PR); its chooser fits at step 4. On the autonomous path the finish skill is **not invoked at all** — docket's own steps 1–6 drive the close-out and the rebase-retest gate governs the merge — so there is no chooser to meet and nothing to pre-specify. The gate is independent of the skill either way; docket also borrows its provenance-guard (only auto-remove a worktree under `.worktrees/<slug>`).
 
 ## Terminal publish (docket-mode)
 
