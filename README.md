@@ -179,6 +179,8 @@ Budget and iteration caps are `/loop`'s own mechanism; docket does not reimpleme
 
 Unlike the implementer, **this driver does merge** — that is the whole point of it, and it is the one place docket itself merges. Every merge still passes the rebase-retest gate, so `finalize.gate` remains your correctness control; set it to `off` only if you trust each PR's own CI.
 
+**Prerequisite:** an unattended merge only lands if your branch protection permits it — see [Hands-off finalize — what blocks it, and the recipe that works](#hands-off-finalize--what-blocks-it-and-the-recipe-that-works) for the require-a-PR-with-zero-approvals setting this depends on. Without it the drain stops at `halted` on the first merge.
+
 Selection is ordered by *mergeability* rather than priority — `depends_on` order first (a hard constraint), then GitHub's `mergeable`, then the smallest diff, with priority → age → id as the tiebreak — so each drain lands as many changes as it can before anything stops it. A change whose gate fails is marked with a `## Finalize blocked` section (dated in its body), shows on the board as **finalize blocked — needs you**, and is skipped by later *unscoped* runs until a successful finalize clears it automatically — **name its id to retry it**. As with the implementer, confirm `/loop` composes cleanly in your own harness before relying on it unattended.
 
 ---

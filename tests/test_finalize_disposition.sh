@@ -173,6 +173,34 @@ assert "README states the finalize driver DOES merge" \
 assert "README's implement-side never-merges clause points at the finalize drain" \
   'grep -Eqi "never merges\*\*[^|]{0,200}finalize drain.{0,80}#closing-out-hands-free-with-loop" "$README"'
 
+# The unattended merge depends on a branch-protection setting documented ~430 lines below; a drain
+# subsection that omits the prerequisite reads as "this just works" and halts on the first merge.
+assert "README's drain subsection cross-links the branch-protection prerequisite" \
+  'grep -Eqi "prerequisite.{0,200}hands-off-finalize" "$README"'
+
+# --- The marker WRITE must be reachable from the procedure, not only from its own definition. ---
+# Without this the whole marker/skip/clear apparatus is inert: every other marker assertion below
+# passes on the *definition* alone, so nothing else catches "no code path ever writes it".
+assert "SKILL wires the marker write into the abort-and-report surfacing step" \
+  'grep -Eqi "where the reason surfaces.{0,600}appends the .{0,4}## Finalize blocked" "$FIN"'
+# A retry that fails again must not accrete a second heading — the marker is state, not a log.
+assert "SKILL states a re-mark REPLACES the section rather than appending a second heading" \
+  'grep -Eqi "re-mark.{0,60}replaces.{0,120}never appends a second heading" "$FIN"'
+# The transition-out gap: a human-merged PR carrying a stale marker must still be archived.
+assert "SKILL states an already-merged PR is archived regardless of the marker" \
+  'grep -Eqi "already-merged PR is archived regardless" "$FIN"'
+# The skip is scoped to UNMERGED changes; an unscoped "skips any change carrying it" strands them.
+assert "SKILL scopes the auto-detect marker skip to unmerged changes" \
+  'grep -Eqi "selection skips\*\* any \*\*unmerged\*\*" "$FIN"'
+# The drained/halted boundary must be decidable, not inferred — same backlog, same disposition.
+assert "SKILL resolves the drained boundary: in-scope-but-human-requiring counts as halted" \
+  'grep -Eqi "counts toward the non-empty set and yields .{0,4}halted" "$FIN"'
+assert "SKILL states drained requires nothing in scope at all" \
+  'grep -Eqi "drained.{0,40}requires that no .{0,4}implemented.{0,4} change was in scope" "$FIN"'
+# A classifier/harness denial of the merge is on the critical path and mapped nowhere otherwise.
+assert "SKILL maps a harness/classifier merge denial into the abort-and-report set" \
+  'grep -Eqi "classifier denying the merge" "$FIN"'
+
 # --- Non-vacuity / mutation proof: the code-formatted disposition grep actually bites. ---
 probe="$(mktemp)"; printf 'plain advanced word, no code formatting\n' > "$probe"
 assert "the code-formatted disposition grep is non-vacuous" '! grep -qF "\`advanced\`" "$probe"'
