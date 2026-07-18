@@ -2,7 +2,7 @@
 id: 87
 slug: headless-finalize-driver
 title: Headless finalize — the finalize-side disposition contract, mirroring 0088
-status: in-progress
+status: implemented
 priority: high
 created: 2026-07-17
 updated: 2026-07-18
@@ -11,12 +11,12 @@ related: [8, 88, 95]
 adrs: [43]
 spec: docs/superpowers/specs/2026-07-18-headless-finalize-driver-design.md
 plan: docs/superpowers/plans/2026-07-18-headless-finalize-driver-plan.md
-results:
+results: docs/results/2026-07-18-headless-finalize-driver-results.md
 trivial: false
 auto_groomable: false
 branch: feat/headless-finalize-driver
-claimed_at: 2026-07-18T20:04:32Z
-pr:
+claimed_at: 2026-07-18T23:13:15Z
+pr: 103
 blocked_by:
 reconciled: true
 ---
@@ -28,6 +28,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-18-headless-finalize-driver-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-18-headless-finalize-driver-design.md) |
 | Plan | [2026-07-18-headless-finalize-driver-plan.md](https://github.com/danielhanold/docket/blob/feat/headless-finalize-driver/docs/superpowers/plans/2026-07-18-headless-finalize-driver-plan.md) |
+| Results | [2026-07-18-headless-finalize-driver-results.md](https://github.com/danielhanold/docket/blob/feat/headless-finalize-driver/docs/results/2026-07-18-headless-finalize-driver-results.md) |
+| PR | 103 |
 | ADRs | [ADR-0043](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0043-retire-bot-auto-approval-zero-approvals-branch-protection.md) |
 <!-- docket:artifacts:end -->
 
