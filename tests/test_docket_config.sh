@@ -976,10 +976,13 @@ assert "unparseable auto_capture: names auto_capture" \
 
 # (AC-f) emit ORDER is pinned: AUTO_CAPTURE immediately follows AUTO_GROOM (the contract in
 # scripts/docket-config.md lists them adjacently; a reordering there is a silent contract break).
-ac_f="$(run "$tmp/ac-a" --export 2>/dev/null | grep -n '^AUTO_' | cut -d: -f1 | tr '\n' ' ')"
-ac_g_line="$(printf '%s' "$ac_f" | awk '{print $1}')"
-ac_c_line="$(printf '%s' "$ac_f" | awk '{print $2}')"
-assert "AUTO_CAPTURE is emitted directly after AUTO_GROOM" '[ "$ac_c_line" -eq "$(( ac_g_line + 1 ))" ]'
+# Identity, not just adjacency: look up each variable's OWN line number by name, so a swap of the
+# two (still adjacent, but AUTO_CAPTURE before AUTO_GROOM) is caught rather than passing vacuously.
+ac_f_out="$(run "$tmp/ac-a" --export 2>/dev/null)"
+ac_g_line="$(printf '%s\n' "$ac_f_out" | grep -n '^AUTO_GROOM=' | cut -d: -f1)"
+ac_c_line="$(printf '%s\n' "$ac_f_out" | grep -n '^AUTO_CAPTURE=' | cut -d: -f1)"
+assert "AUTO_CAPTURE is emitted directly after AUTO_GROOM" \
+  '[ -n "$ac_g_line" ] && [ -n "$ac_c_line" ] && [ "$ac_c_line" -eq "$(( ac_g_line + 1 ))" ]'
 
 if [ "$fail" = 0 ]; then echo PASS; else echo FAIL; fi
 exit "$fail"

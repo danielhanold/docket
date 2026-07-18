@@ -17,6 +17,7 @@ formulaic commit.
 ```
 mint-stub.sh --changes-dir DIR --title TITLE --body-file FILE --discovered-from ID
              [--slug SLUG] [--minted N] [--cap N] [--remote R] [--template PATH]
+             [--metadata-branch NAME]
 ```
 
 Reached from a skill through the facade: `docket.sh mint-stub …`.
@@ -32,23 +33,30 @@ Reached from a skill through the facade: `docket.sh mint-stub …`.
 | `--cap` | no | per-invocation cap (default `3`) |
 | `--remote` | no | default `origin` |
 | `--template` | no | default `../skills/docket-new-change/change-template.md` |
+| `--metadata-branch` | no | when given, refuse (exit 1) unless `--changes-dir`'s worktree is on this branch; guards a mis-pointed `--changes-dir` from committing onto the wrong branch |
 
 ## Behavior
 
-1. **Validate** every argument; a malformed body (no leading `## Why`) is rejected before any write.
-   `--title` and an explicit `--slug` are also rejected if they contain a control character
-   (newline, CR, tab, ...): both land verbatim in frontmatter, and an embedded newline is the way
-   either value could split into a second, caller-chosen `key: value` frontmatter line (see
-   Invariants); the check is not narrowed to newline alone so no control character can corrupt a
-   rendered frontmatter line, the minted filename, or the one-line stdout report.
+1. **Validate** every argument; a malformed body (no leading `## Why`) is rejected before any write,
+   and a recognized flag given as the final argument with no following value is rejected by name
+   (`<flag> requires a value`) rather than crashing on an unset positional. `--title` and an explicit
+   `--slug` are also rejected if they contain a control character (newline, CR, tab, ...): both land
+   verbatim in frontmatter, and an embedded newline is the way either value could split into a
+   second, caller-chosen `key: value` frontmatter line (see Invariants); the check is not narrowed to
+   newline alone so no control character can corrupt a rendered frontmatter line, the minted
+   filename, or the one-line stdout report.
 2. **Cap check** — `--minted >= --cap` refuses immediately (exit 4), before touching repo state.
-3. **Dedup** — case-insensitive slugified match of the proposed slug against every **active** change's
+3. **Branch guard** — once `--changes-dir`'s worktree is resolved, refuse (exit 1) a detached HEAD
+   outright, and — when `--metadata-branch` was given — refuse (exit 1) if the worktree's current
+   branch doesn't match it. Protects against a mis-pointed `--changes-dir` committing and pushing a
+   stub onto whatever branch that worktree happens to have checked out (e.g. a feature branch).
+4. **Dedup** — case-insensitive slugified match of the proposed slug against every **active** change's
    `slug:` and `title:`. Archived changes are deliberately NOT scanned: archived work is history, not
    a live duplicate. On a match: exit 3, nothing written. Slugification is idempotent (trims trailing
    `-` both before AND after the 60-char cap), so a previously truncated slug and a freshly truncated
    one always compare equal.
-4. **Allocate** — id = max `id:` across `active/` + `archive/`, plus one.
-5. **Write** — recreates `active/` (`mkdir -p`) if a prior CAS reset pruned it, then renders the stub
+5. **Allocate** — id = max `id:` across `active/` + `archive/`, plus one.
+6. **Write** — recreates `active/` (`mkdir -p`) if a prior CAS reset pruned it, then renders the stub
    from the change template: the template's instructional `# comment` scaffolding is stripped from
    the frontmatter block, then frontmatter scalars are rewritten inside the first `---…---` block
    only, an empty `## Artifacts` marker block follows (the block's sole writer remains
@@ -59,7 +67,7 @@ Reached from a skill through the facade: `docket.sh mint-stub …`.
    `trivial: false`, `auto_groomable` left **unset** so it inherits the repo default — exactly like a
    scan-mode stub. Any failure in this step (a bad field write, a directory that still can't be
    created, the render itself) aborts before anything is staged or committed.
-6. **Commit + CAS push** — stages and commits the ONE new change file, then pushes with a bounded
+7. **Commit + CAS push** — stages and commits the ONE new change file, then pushes with a bounded
    5-attempt retry. On every **lost race** (push rejected as non-fast-forward) it fetches, resets
    `--hard` to the fresh remote tip, and **re-derives both the dedup verdict and the next id from
    that origin state** — never from the working tree it just wrote. A concurrent writer that minted

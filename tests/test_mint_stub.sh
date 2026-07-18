@@ -305,4 +305,48 @@ assert "L: file is 0009-untracked-race"              '[ -f "$WL/docs/changes/act
 assert "L: untracked scratch file survives the reset" '[ -f "$WL/docs/changes/notes.tmp" ]'
 assert "L: converged with origin"                    '[ "$(git -C "$WL" rev-parse HEAD)" = "$(git -C "$WL" rev-parse origin/docket)" ]'
 
+# --- (M) --metadata-branch guard: a mismatched branch refuses before any write (data safety) ----
+# A mis-pointed --changes-dir must not silently commit+push a stub onto the wrong branch.
+WM="$(new_repo)"
+BEFORE_M="$(git -C "$WM" rev-parse HEAD)"
+BM="$(body 'metadata branch guard mismatch')"
+outM="$(run_mint "$WM" --title "Guarded thing" --body-file "$BM" --discovered-from 91 \
+  --metadata-branch not-docket 2>&1)"; rcM=$?
+assert "M: exit nonzero on metadata-branch mismatch"    '[ "$rcM" -ne 0 ]'
+assert "M: diagnostic names actual and expected branch" \
+  'case "$outM" in *"docket"*"not-docket"*) true ;; *) false ;; esac'
+assert "M: nothing written to active/"          '[ "$(ls "$WM/docs/changes/active" | grep -c .)" -eq 0 ]'
+assert "M: no commit created (HEAD unchanged)"  '[ "$(git -C "$WM" rev-parse HEAD)" = "$BEFORE_M" ]'
+assert "M: nothing pushed (origin unchanged)"   '[ "$(git -C "$WM" rev-parse origin/docket)" = "$BEFORE_M" ]'
+
+# --- (M2) --metadata-branch positive control: a MATCHING branch still mints normally -------------
+WM2="$(new_repo)"
+BM2="$(body 'metadata branch guard match')"
+outM2="$(run_mint "$WM2" --title "Allowed thing" --body-file "$BM2" --discovered-from 91 \
+  --metadata-branch docket 2>&1)"; rcM2=$?
+assert "M2: exit 0 when --metadata-branch matches" '[ "$rcM2" -eq 0 ]'
+assert "M2: minted normally"                       '[ "$outM2" = "minted 1 allowed-thing" ]'
+
+# --- (N) a detached HEAD refuses regardless of --metadata-branch (data safety) -------------------
+WN="$(new_repo)"
+git_quiet -C "$WN" checkout --detach HEAD
+BEFORE_N="$(git -C "$WN" rev-parse HEAD)"
+BN="$(body 'detached head guard')"
+outN="$(run_mint "$WN" --title "Detached thing" --body-file "$BN" --discovered-from 91 2>&1)"; rcN=$?
+assert "N: exit nonzero on detached HEAD"       '[ "$rcN" -ne 0 ]'
+assert "N: diagnostic mentions detached"        'case "$outN" in *detached*) true ;; *) false ;; esac'
+assert "N: nothing written to active/"          '[ "$(ls "$WN/docs/changes/active" | grep -c .)" -eq 0 ]'
+assert "N: HEAD unchanged"                      '[ "$(git -C "$WN" rev-parse HEAD)" = "$BEFORE_N" ]'
+
+# --- (O) a flag as the FINAL argument with no value dies cleanly through `die`, never a raw bash
+# "unbound variable" trace -------------------------------------------------------------------------
+WO="$(new_repo)"
+outO="$(run_mint "$WO" --title 2>&1)"; rcO=$?
+assert "O: exit nonzero on a trailing flag with no value" '[ "$rcO" -ne 0 ]'
+assert "O: diagnostic names the flag" \
+  'case "$outO" in *"--title requires a value"*) true ;; *) false ;; esac'
+assert "O: not a raw bash unbound-variable trace" \
+  'case "$outO" in *"unbound variable"*) false ;; *) true ;; esac'
+assert "O: nothing written to active/" '[ "$(ls "$WO/docs/changes/active" | grep -c .)" -eq 0 ]'
+
 exit $fail
