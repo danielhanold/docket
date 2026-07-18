@@ -564,7 +564,7 @@ Rules and limits:
 - `runner:` under a non-`claude` harness key is reserved and warned-and-ignored; an
   unregistered runner name fails generation loudly.
 - Delegation is never a policy bypass: do not delegate `docket-finalize-change` to sidestep
-  merge-approval gates (see change 0062).
+  merge-approval gates (see ADR-0043).
 
 **Prerequisites (codex):** Codex CLI installed and authenticated (`codex login`); superpowers
 installed in Codex; docket skills linked (`link-skills.sh`, automatic on install); and
