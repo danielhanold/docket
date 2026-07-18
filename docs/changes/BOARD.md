@@ -1,12 +1,11 @@
 # Backlog
 
-**96 changes** — 🟢 2 in progress · 🟡 8 proposed · 🔴 1 blocked · ⚪ 1 deferred · 🔵 2 implemented · ✅ 77 done · 🗑️ 5 killed
+**96 changes** — 🟢 1 in progress · 🟡 8 proposed · 🔴 1 blocked · ⚪ 1 deferred · 🔵 3 implemented · ✅ 77 done · 🗑️ 5 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Spec | Branch |
 |---|-------|----------|------|--------|
-| [0087](active/0087-headless-finalize-driver.md) | Headless finalize — the finalize-side disposition contract, mirroring 0088 | `high` | [spec](../superpowers/specs/2026-07-18-headless-finalize-driver-design.md) | `feat/headless-finalize-driver` |
 | [0091](active/0091-auto-create-discovered-stubs.md) | Auto-create discovered stubs — a config flag that turns mid-run findings into proposed changes | `medium` | [spec](../superpowers/specs/2026-07-17-auto-create-discovered-stubs-design.md) | `feat/auto-create-discovered-stubs` |
 
 ## 🟡 Proposed (8)
@@ -34,11 +33,12 @@
 |---|-------|----------|
 | [0094](active/0094-docket-prime-context-digest.md) | docket-prime — a token-budgeted context digest skills load instead of walking docs/changes | `medium` |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (3)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | [#89](https://github.com/danielhanold/docket/pull/89) |
+| [0087](active/0087-headless-finalize-driver.md) | Headless finalize — the finalize-side disposition contract, mirroring 0088 | `high` | [#103](https://github.com/danielhanold/docket/pull/103) |
 | [0096](active/0096-suppress-plan-skill-execution-handoff.md) | An autonomous run can be halted by a sub-skill's interactive hand-off — pre-specify the outcome at every autonomous call site | `high` | [#102](https://github.com/danielhanold/docket/pull/102) |
 
 ```mermaid
