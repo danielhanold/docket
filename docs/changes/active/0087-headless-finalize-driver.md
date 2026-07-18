@@ -9,7 +9,7 @@ updated: 2026-07-18
 depends_on: []
 related: [8, 88, 95]
 adrs: [43]
-spec:
+spec: docs/superpowers/specs/2026-07-18-headless-finalize-driver-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Spec | [2026-07-18-headless-finalize-driver-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-18-headless-finalize-driver-design.md) |
 | ADRs | [ADR-0043](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0043-retire-bot-auto-approval-zero-approvals-branch-protection.md) |
 <!-- docket:artifacts:end -->
 
@@ -77,7 +78,7 @@ all," and per `harness-behavior-is-mode-and-version-scoped` the observation is s
   | `advanced` | Merged one change → closed out. | continue |
   | `contended` | Another writer got there first (the `docket-status` sweep archived it between selection and close-out); the archive is an idempotent no-op, **nothing merged**. | continue — re-select next |
   | `drained` | No eligible `implemented` change in scope. | **stop** |
-  | `halted` | Any abort-and-report point. | **stop + surface** |
+  | `halted` | Any abort-and-report point, **or** an eligible set in which every member needs a human. | **stop + surface** |
 
   **Decision (2026-07-18): adopt `contended` verbatim** rather than folding the race into
   `advanced` or shipping only three dispositions. There is no claim CAS here, so the *mechanism*
@@ -94,9 +95,25 @@ all," and per `harness-behavior-is-mode-and-version-scoped` the observation is s
   "best next" against the **current** `origin/<integration_branch>`, so no precomputed order can
   go stale. This is the direct answer to the moving-base problem: every merge moves the base, and
   a plan authored before the first merge is a prediction about a base that no longer exists by the
-  third. Selection order: **`depends_on` order first** (a dependency is satisfied only at `done`,
-  so a dependent can never merge ahead of it), then docket's existing deterministic order —
-  priority → age (`created`) → lowest id.
+  third.
+
+- **Order by *mergeability*, not priority — decided 2026-07-18.** The goal is to close out as many
+  changes as possible per drain, so selection maximizes each attempt's chance of success:
+
+  1. **`depends_on` order** — a hard correctness constraint, not a preference (a dependency is
+     satisfied only at `done`).
+  2. **GitHub's `mergeable` field** — `CONFLICTING` is excluded from selection and marked for a
+     human instead.
+  3. **Smallest diff first** (`changedFiles`, then `additions + deletions`) — cheaper to re-test,
+     less likely to redden the suite after rebase, and lands the most changes before any halt.
+  4. **priority → age → lowest id** as the final tiebreak — priority is *demoted*, not deleted; it
+     still encodes human intent and guarantees a total, reproducible order.
+
+  Measured on the real backlog 2026-07-18: `mergeable` is directly available from `gh` (though it
+  resolves lazily — the first query returns `UNKNOWN` and only triggers computation, so the probe
+  must poll). The tempting elaboration — pairwise file-overlap ranking — was measured and
+  **discriminates nothing here**: the four mergeable PRs have completely disjoint file sets. The
+  spec says don't build it.
 
 - **Id-set scoping** — generalize finalize's existing explicit-id argument to an allowlist
   (`docket-finalize-change 90,92,94`): the set bounds *which changes are eligible*, and the run
@@ -109,6 +126,19 @@ all," and per `harness-behavior-is-mode-and-version-scoped` the observation is s
   green in ≤2 attempts, red/absent CI, a rejected `--force-with-lease`, and any auto-authored
   repair under an autonomous run). These are already the right stop-and-surface semantics; this
   change names them as `halted` rather than adding new behavior.
+- **A dated `## Finalize blocked` body section — the one piece of genuinely new surface.** Decided
+  2026-07-18: a gate failure is marked with a section mirroring the proven `## Auto-groom blocked`
+  pattern, **not** an eighth status and not a reuse of `blocked`. Presence drives a distinct board
+  cell (`finalize blocked — needs you`), and the reason travels in prose. Rejected: an eighth
+  status would erase true information (the change really is `implemented` with an open PR) and
+  flatten six distinct abort reasons into one label, while forcing changes to the lifecycle
+  diagram, the board renderer, the GitHub mirror's seven-state mapping, and the health checks.
+
+  Two consequences the spec draws out: selection **skips** changes already carrying the section
+  (otherwise a re-run re-selects the same known-bad change forever), and — unlike auto-groom's
+  human-only re-arm — a **successful finalize clears the section automatically**, since the
+  condition is machine-verifiable.
+
 - **Wire the stop reason somewhere a human reads.** Finalize already records abort reasons as a PR
   comment; confirm that channel covers the headless case, where nobody is tailing a log.
 - **Document the drain pattern** alongside 0088's README section, framed the same way —
@@ -128,42 +158,17 @@ all," and per `harness-behavior-is-mode-and-version-scoped` the observation is s
 
 ## Open questions
 
-**Settled 2026-07-18** (maintainer decision, recorded above): single-merge-per-invocation, not a
-drain · `contended` adopted verbatim for vocabulary parity · ordering by re-selection, not a
-precomputed sequence · `/loop` composition confirmed live (see *Why*), so 0088's deferred §6 spike
-needs no follow-up change for this change to proceed.
+_Resolved during the 2026-07-18 in-session grooming — see the linked spec §5._ Settled: single
+merge per invocation (not a drain) · `contended` adopted verbatim for vocabulary parity · ordering
+by mergeability with priority demoted to a tiebreak · gate failures marked with a dated
+`## Finalize blocked` section rather than an eighth status · docket owns the contract, not the
+driver · no new ADR anticipated. `/loop` composition is confirmed live at CC 2.1.214, so 0088's
+deferred §6 spike is not a blocker.
 
-- **How is a gate-failed change marked so a human sees it?** The open question, and the one piece
-  of new surface this change may need. Today a gate abort leaves the change `implemented` with the
-  PR open and surfaces only in the run report + a PR comment — correct state, but **invisible on
-  the board**, so a `/loop` drain that halts on #92 leaves nothing on the planning view saying so.
-
-  **Recommended shape: a dated `## Finalize blocked` body section, NOT a new status.** It mirrors
-  the proven `## Auto-groom blocked` pattern exactly — presence drives a distinct board cell
-  (`auto-groom blocked — needs you`), the reason lives in prose, a human deletes it on re-arm —
-  and it costs no lifecycle change, no GitHub-mirror status remap, and no health-check rework.
-
-  Two arguments against reusing `blocked` or minting an eighth status: (1) it would **erase true
-  information** — the change really is `implemented` with an open PR, while `blocked` sits in the
-  `in-progress` neighborhood of the lifecycle; (2) **"needs its PR refreshed" is only one of six
-  abort reasons** (ambiguous rebase conflict · no detectable suite · repair stuck after ≤2
-  attempts · red/absent CI · rejected `--force-with-lease` · autonomous repair sign-off), so a
-  single status flattens six situations into one label and drops the part a human needs. The
-  reason must travel with the marker.
-
-  Left to settle: the exact section name and board cell wording; whether the six abort reasons
-  need distinguishing on the board or only in the section body; and whether a re-run of finalize
-  clears the section automatically (unlike auto-groom's human-only re-arm) once the gate passes.
-
-- **Does the driver re-verify classifier posture per run?** Still live, and the pin needs a **new
-  home**: CC 2.1.211 was pinned in ADR-0042, which ADR-0043 reversed. Exposure is much smaller now
-  — no dispatch to deny, only `gh pr merge` itself, against protection requiring zero approvals —
-  but the `harness-behavior-is-mode-and-version-scoped` learning is explicit that a headless
-  observation is version-scoped. Detect and degrade, or just `halted`?
-
-- **Should the contract be docket-owned at all, or the consuming repo's job?** 0088's answer for
-  the implement side was *docket owns the contract, not the driver*; almost certainly the same
-  here — confirm rather than assume.
+Two items deliberately left for the build to settle (spec §5, §6): whether the six abort reasons
+need distinguishing on the **board** or only in the section body; and whether the driver
+re-verifies harness/classifier posture per run or simply `halted`s on denial — the CC 2.1.211 pin
+lived in ADR-0042, which ADR-0043 reversed, so a retained pin needs a new home.
 
 ## Reconcile log
 
