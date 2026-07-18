@@ -1,8 +1,14 @@
 # Backlog
 
-**94 changes** — 🟡 12 proposed · 🔴 1 blocked · ⚪ 1 deferred · 🔵 5 implemented · ✅ 71 done · 🗑️ 4 killed
+**94 changes** — 🟢 1 in progress · 🟡 11 proposed · 🔴 1 blocked · ⚪ 1 deferred · 🔵 5 implemented · ✅ 71 done · 🗑️ 4 killed
 
-## 🟡 Proposed (12)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Spec | Branch |
+|---|-------|----------|------|--------|
+| [0088](active/0088-implement-next-loop-continuation.md) | Loop continuation — implement-next chains into the next ready change instead of stopping | `medium` | [spec](../superpowers/specs/2026-07-17-implement-next-loop-continuation-design.md) | `feat/implement-next-loop-continuation` |
+
+## 🟡 Proposed (11)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -16,7 +22,6 @@
 | [0083](active/0083-terminal-publish-gap-detection.md) | A terminal record can silently never reach the integration branch — investigate #0043's gap and decide on detection | `medium` | auto-groom blocked — needs you |
 | [0086](active/0086-attended-finalize-merge-path.md) | Attended finalize has no merge path under auto_approve — scope the --admin ban to autonomous runs | `high` | needs-brainstorm |
 | [0087](active/0087-headless-finalize-driver.md) | Ship the headless finalize driver — 0062's capability has no consumer | `high` | needs-brainstorm |
-| [0088](active/0088-implement-next-loop-continuation.md) | Loop continuation — implement-next chains into the next ready change instead of stopping | `medium` | build-ready |
 | [0091](active/0091-auto-create-discovered-stubs.md) | Auto-create discovered stubs — a config flag that turns mid-run findings into proposed changes | `medium` | ⏳ waiting on #90 — needs your merge |
 
 ## 🔴 Blocked (1)
