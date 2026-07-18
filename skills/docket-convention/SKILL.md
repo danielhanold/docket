@@ -23,6 +23,7 @@ changes_dir: docs/changes    # default
 adrs_dir: docs/adrs          # default
 results_dir: docs/results    # default  — close-out 'results' artifacts (build-time files, like plans)
 auto_groom: false            # repo default for autonomous grooming; per-change auto_groomable overrides
+auto_capture: false          # autonomous mid-run capture of discovered follow-up work into stubs
 board_surfaces: [inline]     # which derived board view(s) to render: inline (BOARD.md) and/or github; [] = none
 terminal_publish: false      # false (default) = terminal records (change file, spec, Accepted ADRs)
                              # stay on the metadata branch. true = ALSO copy them onto the
@@ -237,6 +238,32 @@ A stub is **autonomous-eligible** — selectable by `docket-auto-groom` — when
 **Abstain rule.** When autonomous grooming cannot safely default a decision, it emits NO spec; it flips `auto_groomable: false` and appends a dated `## Auto-groom blocked` body section. The stub stays needs-brainstorm — out of the autonomous queue, still in the interactive one. Re-arm = a human supplies the missing context, flips the flag back to `true`, and DELETES the `## Auto-groom blocked` section (git history keeps it) — the section's presence is what drives the board's needs-you cell and `docket-groom-next`'s first band, so a stale section would mislabel a re-armed stub. Kill and defer are never autonomous: they surface inside the blocked section as recommendations.
 
 **Interactive selection bands.** `docket-groom-next` still sees every needs-brainstorm stub, but its default order prefers stubs that need a human: (1) abstained (`## Auto-groom blocked` present), (2) effective `auto_groomable: false`, (3) effective auto-groomable — flagged "docket-auto-groom will handle it unless you want it now." Within each band, the deterministic selection order applies. The board renders abstained stubs as **auto-groom blocked — needs you**, distinct from plain needs-brainstorm.
+
+### Auto-capture (shared definition)
+
+`auto_capture` (default `false`, global-able) governs what an **autonomous** skill does with genuine
+follow-up work it discovers mid-run. Disabled, the model reports it in prose and moves on. Enabled,
+the model mints it as an ordinary `proposed` needs-brainstorm stub with `discovered_from:` set —
+capture fidelity, **not** autonomy: every minted stub still waits at the human's groom gate.
+
+**Mint sites** are the autonomous *single-change* skills: `docket-implement-next` (reconcile and
+review discoveries) and the `docket-finalize-change` / `docket-status` harvest (close-out findings).
+**`docket-auto-groom` is never a mint site** — a minted stub is itself autonomous-eligible, so
+minting would break its provable-termination invariant and make `auto_groom` × `auto_capture` a
+backlog-growth loop. Interactive skills already mint with a human present.
+
+**Materiality bar** — mint only for *actionable follow-up work that would be its own change / PR*
+("would a human file this as a `docket-new-change`?"). A lesson about how to build → the **learnings**
+harvest. Drift inside the current change → the **reconcile log** or the current work. A bare
+observation → the run report only.
+
+**The mint itself is deterministic** (ADR-0012 — the model judges *what*, the script does the mint):
+`"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh mint-stub --changes-dir .docket/<changes_dir>
+--title <title> --body-file <file> --discovered-from <this change's id> --minted <n so far>` — one
+stub per call, contract in `scripts/mint-stub.md`. It owns dedup, id allocation, the template write,
+and the CAS push; **exit 3** = duplicate skipped, **exit 4** = per-invocation cap (3) reached. Every
+skip and every capped overflow is **surfaced in the run report, never silently dropped**. Minting is
+a metadata-worktree write only — it never touches the running change's own claim/branch/PR state.
 
 ### Learnings ledger
 

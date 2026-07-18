@@ -15,7 +15,7 @@ skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
 skills/docket-auto-groom/SKILL.md                           66 1237
 skills/docket-brainstorm/SKILL.md                           84  692
-skills/docket-convention/SKILL.md                          317 5104
+skills/docket-convention/SKILL.md                          354 5104
 skills/docket-convention/github-board-mirror.md             19  462
 skills/docket-convention/references/agent-layer.md         168 1839
 skills/docket-convention/references/learnings.md            84  580
