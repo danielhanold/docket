@@ -191,7 +191,7 @@ assert "0095: an approved PR merges without --admin" \
 # physical lines in the source, and grep does not match across lines by default.
 admin_flat="$(tr '\n' ' ' < "$FIN")"
 assert "0095: --admin survives only as the explicit-id / attended escape hatch (adjacent)" \
-  'printf "%s" "$admin_flat" | grep -Eqi -- "admin.{0,60}(explicit[- ]id|attended)"'
+  'grep -Eqi -- "admin.{0,60}(explicit[- ]id|attended)" <<<"$admin_flat"'
 assert "publish degradation: terminal_publish headless push denial degrades, not fails" \
   'grep -qi "terminal_publish" "$FIN" && grep -Eqi "degrad|surface.*manual|run .*terminal-publish" "$FIN"'
 
