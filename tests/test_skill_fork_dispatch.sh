@@ -19,7 +19,7 @@ fmval(){ frontmatter "$1" | sed -n "s/^$2:[[:space:]]*//p" | head -n1 | sed 's/[
 # The four headless-safe autonomous skills that MUST fork into their pinned wrapper.
 FORKED="docket-status docket-adr docket-implement-next docket-auto-groom"
 # The three interactive/excluded skills that MUST NOT fork (no channel to the human, or a
-# merge blocked by the auto-mode classifier — see change 0062).
+# merge blocked by the auto-mode classifier — see ADR-0043).
 EXCLUDED="docket-finalize-change docket-new-change docket-groom-next"
 
 for s in $FORKED; do
