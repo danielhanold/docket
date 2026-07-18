@@ -160,6 +160,11 @@ changed files, merge the least-entangling first — was measured against this re
 **completely disjoint** file sets, so the ranking is a no-op at O(n) extra `gh` calls per
 invocation, O(n²) across a drain. Revisit only on evidence.
 
+*Reconcile note (2026-07-18):* that measurement's **backlog** is now stale — #96/#97/#98 merged and
+only #89 and #69 remain open — but its **conclusion** is unaffected and stays binding. A two-PR
+backlog would discriminate even less, so "revisit only on evidence" is retained rather than
+re-measured.
+
 Note the limit of the signal: file-disjointness proves only the absence of a **textual** conflict.
 #96 (`render-board.sh`) and #98 (`board-checks.sh`, `docket-status.md`) are file-disjoint but
 semantically adjacent — merging one can still redden the other's suite. Catching that is exactly
@@ -201,13 +206,20 @@ recommended, confirm-in-your-harness — so both halves read as one system.
 
 ## 6. Risk & build-time reconcile item
 
-**Collision risk on the board renderer — check at reconcile.** §3.4's board cell touches the
-render path, and two open PRs are in that neighborhood right now: **#96** (change 0093,
-archive-decay-digest) modifies `scripts/render-board.sh` + `tests/test_render_board.sh`, and
-**#98** (change 0092, orphan-detection-script) modifies `scripts/board-checks.sh` +
-`scripts/docket-status.md`. Whichever lands first moves this change's base. Reconcile against
-whatever is on the integration branch at build time and compose rather than choose (learning:
-`concurrent-edits-compose-at-rebase`).
+**Collision risk on the board renderer — RESOLVED at reconcile (2026-07-18, `origin/main` @
+`e0fbf89`).** §3.4's board cell touches the render path, and this section previously flagged two
+open PRs in that neighborhood: **#96** (change 0093, archive-decay-digest → `scripts/render-board.sh`
++ `tests/test_render_board.sh`) and **#98** (change 0092, orphan-detection-script →
+`scripts/board-checks.sh` + `scripts/docket-status.md`). **Both have merged**, along with #97. The
+base is settled; the build composes against the post-0093 renderer rather than racing it.
+
+**Where the cell actually goes (confirmed in current code).** `readiness()` in
+`scripts/lib/docket-frontmatter.sh` is by contract meaningful only for a `proposed` change, and
+`render-board.sh`'s `readiness_cell` is reached only from the `proposed` branch of `print_section`.
+The `## Finalize blocked` marker applies to an **`implemented`** change, whose section renders
+`| # | Title | Priority | PR |`. So the cell is a **new render path in the `implemented` table** —
+do not bolt it onto `readiness()`. Reuse the existing `has_section` helper, which is exactly the
+primitive the `auto-groom-blocked` token already uses.
 
 **`mergeable` is advisory, not a guarantee.** It reflects textual mergeability against the base at
 query time; the base moves after every merge, and semantic breakage is invisible to it. The gate
@@ -221,7 +233,9 @@ denial, is a build-time call.
 
 **Skill size budget.** `tests/test_skill_size_budgets.sh` carries a row for
 `skills/docket-finalize-change/SKILL.md`; §3.1/§3.2 prose will likely exceed it. The guard
-explicitly permits an in-diff raise — raise it in the same diff, as 0088 did.
+explicitly permits an in-diff raise — raise it in the same diff, as 0088 did. *Measured at
+reconcile:* the row caps **160 lines / 2699 words**; the file sits at **132 / 2266**. Headroom
+exists, but the new prose will likely consume most of it.
 
 ## 7. Testing / verification
 

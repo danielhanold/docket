@@ -18,7 +18,7 @@ branch: feat/headless-finalize-driver
 claimed_at: 2026-07-18T20:04:32Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -174,3 +174,38 @@ lived in ADR-0042, which ADR-0043 reversed, so a retained pin needs a new home.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-07-18 — reconciled against `origin/main` @ `e0fbf89`
+
+**Design holds in full. No scope change; three facts refreshed.**
+
+1. **Spec §6's collision risk is RESOLVED, not pending.** All three PRs it flagged as in-flight
+   have merged: **#96** (change 0093, archive-decay-digest → `scripts/render-board.sh`,
+   `tests/test_render_board.sh`), **#97**, and **#98** (change 0092, orphan-detection →
+   `scripts/board-checks.sh`, `scripts/docket-status.md`). The base is stable at `e0fbf89`; this
+   build composes against a settled renderer rather than racing it. Only **#89** (change 0078) and
+   **#69** (change 0044) remain open.
+
+2. **The mergeability measurement is stale in its particulars; its decisions stand.** §3.5 measured
+   "four mergeable PRs with completely disjoint file sets" over a five-PR backlog that no longer
+   exists (two PRs open now). The conclusions it supported are unaffected and remain binding:
+   `mergeable` resolves lazily so the probe must poll bounded and treat still-`UNKNOWN` as
+   "attempt it," and **pairwise file-overlap ranking is not built**. Re-measuring on a two-PR
+   backlog would discriminate even less, so the "revisit only on evidence" posture is retained
+   as-is.
+
+3. **Board cell lands on the `implemented` section, not `readiness()`.** Confirmed in current code:
+   `readiness()` (`scripts/lib/docket-frontmatter.sh`) is by contract meaningful only for a
+   `proposed` change, and `render-board.sh`'s `readiness_cell` is reached only from the `proposed`
+   branch of `print_section`. The `implemented` section renders `| # | Title | Priority | PR |`.
+   So §3.4's `finalize blocked — needs you` cell is a **new** render path in the `implemented`
+   table — it must not be bolted onto `readiness()`. The existing `has_section` helper is the
+   right primitive (it is exactly what the `auto-groom-blocked` token already uses).
+
+**Size budget, confirmed live:** `tests/test_skill_size_budgets.sh` caps
+`skills/docket-finalize-change/SKILL.md` at **160 lines / 2699 words**; it currently sits at
+**132 / 2266**. Headroom exists but §3.1 + §3.2 prose will likely consume most of it — raise the
+row in the same diff if it does, as change 0088 did.
+
+**Verified absent:** the finalize skill carries zero disposition vocabulary today (0 matches for
+all four words), so this is net-new prose, not an edit to an existing contract.
