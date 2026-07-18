@@ -2,9 +2,9 @@
 slug: green-suite-untested-branch
 hook: "Green tests are not proof the hard branch was exercised — a mock that omits the tool routes every test through the degrade path."
 topics: [testing, fixtures, mocks]
-changes: [16, 22, 25, 26, 35, 58, 62, 69]
+changes: [16, 22, 25, 26, 35, 58, 62, 69, 93]
 created: 2026-07-11
-updated: 2026-07-17
+updated: 2026-07-18
 promotion_state: retained
 promoted_to:
 ---
@@ -19,8 +19,10 @@ writer must DIVERGE the same contended path (mutation-confirmed); give a tool wr
 and a project location SEPARATE dirs; keep fixture stderr 0-byte. A fixture pinning a
 *read-modify-write* guarantee must carry a value that DIFFERS from the default the code would
 otherwise write — when the stub value equals the fallback, the assertion passes identically against
-the blind-set implementation the guarantee exists to forbid. Green tests ≠ the hard branch was
-exercised.
+the blind-set implementation the guarantee exists to forbid. When one change adds TWO independent
+filters over the same data, a fixture that keeps them agreeing tests neither's independence — build
+the crossed case where one filter's decision contradicts the other's. Green tests ≠ the hard branch
+was exercised.
 
 ## War story
 - 2026-07-11/13 (#58 PR #65; #69 PR #77; #16 PR #30; #22 PR #35; #25 PR #36; #26 PR #38; #35 PR #44
@@ -47,3 +49,12 @@ exercised.
   decoration and its test could not tell the two implementations apart. The fixture now stubs a
   non-default `write` and asserts it survives the round-trip. The discriminating input is the whole
   test: when the fixture value and the default coincide, there is no experiment.
+- 2026-07-18 (#93, PR #96) — One change gave `render-board.sh` two independent output filters over the
+  same archived-`done` set: a count-based recency window that COLLAPSES old dones out of the archive
+  table, and a mermaid pruning rule that KEEPS a done node styled `:::done` when an active change's
+  `depends_on` still references it. Each filter had its own assertions and the suite was green, but
+  the large-archive fixture pointed its active dependency at a done id that was *inside* the verbatim
+  window — so the two filters never disagreed, and the state that actually proves they are independent
+  (a done collapsed out of the table yet still styled in the graph) was verified only by reading the
+  code. Review caught it as Minor; the fixture now aims the dependency at a collapsed month. Two
+  filters that always agree in the fixture are, as far as the suite knows, one filter.
