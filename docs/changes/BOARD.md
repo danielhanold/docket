@@ -14,7 +14,7 @@
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0082](active/0082-global-harnesses-per-repo-generation.md) | Global agent_harnesses doesn't reach per-repo generation — silent no-op | `low` | needs-brainstorm |
 | [0083](active/0083-terminal-publish-gap-detection.md) | A terminal record can silently never reach the integration branch — investigate #0043's gap and decide on detection | `medium` | auto-groom blocked — needs you |
-| [0087](active/0087-headless-finalize-driver.md) | Ship the headless finalize driver — 0062's capability has no consumer | `high` | needs-brainstorm |
+| [0087](active/0087-headless-finalize-driver.md) | Headless finalize — the finalize-side disposition contract, mirroring 0088 | `high` | needs-brainstorm |
 | [0091](active/0091-auto-create-discovered-stubs.md) | Auto-create discovered stubs — a config flag that turns mid-run findings into proposed changes | `medium` | ⏳ waiting on #90 — needs your merge |
 | [0096](active/0096-suppress-plan-skill-execution-handoff.md) | An autonomous run can be halted by a sub-skill's interactive hand-off — neutralize writing-plans' execution choice | `high` | needs-brainstorm |
 
