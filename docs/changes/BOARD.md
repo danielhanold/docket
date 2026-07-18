@@ -1,6 +1,6 @@
 # Backlog
 
-**96 changes** — 🟡 11 proposed · 🔴 1 blocked · ⚪ 1 deferred · 🔵 4 implemented · ✅ 74 done · 🗑️ 5 killed
+**96 changes** — 🟡 11 proposed · 🔴 1 blocked · ⚪ 1 deferred · 🔵 3 implemented · ✅ 75 done · 🗑️ 5 killed
 
 ## 🟡 Proposed (11)
 
@@ -30,13 +30,12 @@
 |---|-------|----------|
 | [0094](active/0094-docket-prime-context-digest.md) | docket-prime — a token-budgeted context digest skills load instead of walking docs/changes | `medium` |
 
-## 🔵 Implemented — awaiting merge (4)
+## 🔵 Implemented — awaiting merge (3)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | [#89](https://github.com/danielhanold/docket/pull/89) |
 | [0089](active/0089-claim-leases-reclaim-script.md) | Claim leases + reclaim script — expired in-progress claims self-heal back to proposed | `medium` | [#99](https://github.com/danielhanold/docket/pull/99) |
-| [0092](active/0092-orphan-detection-script.md) | Orphan detection script — cross-reference change ids in merged commits against archive state | `medium` | [#98](https://github.com/danielhanold/docket/pull/98) |
 | [0093](active/0093-archive-decay-digest.md) | Archive decay — a rolling one-line digest so board and context cost stay flat as the archive grows | `medium` | [#96](https://github.com/danielhanold/docket/pull/96) |
 
 ```mermaid
@@ -54,7 +53,6 @@ graph TD
   0087
   0089
   0090 --> 0091
-  0092
   0093
   0094
   0096
@@ -131,15 +129,17 @@ graph TD
   0085:::done
   0088:::done
   0090:::done
+  0092:::done
   0095:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (79)</summary>
+<details><summary>✅🗑️ Archive — done + killed (80)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0095](archive/2026-07-18-0095-retire-auto-approve-workflow.md) | Retire the auto-approve workflow — document the classifier and the single-maintainer branch-protection solution | 2026-07-18 |
+| [0092](archive/2026-07-18-0092-orphan-detection-script.md) | Orphan detection script — cross-reference change ids in merged commits against archive state | 2026-07-18 |
 | [0090](archive/2026-07-18-0090-discovered-from-provenance.md) | discovered-from provenance links — record which change's build surfaced a new stub | 2026-07-18 |
 | [0088](archive/2026-07-18-0088-implement-next-loop-continuation.md) | Loop continuation — implement-next chains into the next ready change instead of stopping | 2026-07-18 |
 | [0086](archive/2026-07-18-0086-attended-finalize-merge-path.md) | Attended finalize has no merge path under auto_approve — scope the --admin ban to autonomous runs | 2026-07-18 |
