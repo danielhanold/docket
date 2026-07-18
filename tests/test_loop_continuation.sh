@@ -32,6 +32,14 @@ assert "SKILL documents an id allowlist" 'grep -Eqi "allowlist" "$IMPL"'
 assert "SKILL shows the comma-separated id-set form" 'grep -Eq "docket-implement-next 90,92,94" "$IMPL"'
 assert "SKILL states the allowlist is not a dependency override" 'grep -Eqi "never a dependency override" "$IMPL"'
 
+README="$REPO/README.md"
+
+# --- README: the /loop drain-pattern doc ---
+assert "README documents the /loop whole-backlog drain" 'grep -Eq "/loop docket-implement-next$|/loop docket-implement-next[^0-9]" "$README"'
+assert "README documents the /loop id-set drain" 'grep -Eq "/loop docket-implement-next 90,92,94" "$README"'
+assert "README states the driver never merges" 'grep -Eqi "never merges" "$README"'
+assert "README names all four dispositions" 'for d in advanced contended drained halted; do grep -qiF "$d" "$README" || exit 1; done'
+
 # --- Non-vacuity / mutation proof: the code-formatted disposition grep actually bites. ---
 probe="$(mktemp)"; printf 'plain advanced word, no code formatting\n' > "$probe"
 assert "the code-formatted disposition grep is non-vacuous" '! grep -qF "\`advanced\`" "$probe"'

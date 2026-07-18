@@ -157,6 +157,17 @@ Once docket is installed and your repo is in [docket-mode](#docket-mode-where-me
 
 In short: **you** create and merge; **docket** grooms, implements, and closes out. `docket-status` keeps the board honest in between.
 
+### Draining hands-free with `/loop`
+
+`docket-implement-next` ends every run by declaring one of four **dispositions** — `advanced` (built a change → PR), `contended` (lost a claim race, nothing built), `drained` (nothing build-ready in scope), or `halted` (needs a human). A driver keys on these: **continue on `advanced`/`contended`, stop on `drained`/`halted`.** The contract is driver-agnostic — a human re-typing the command works as well as any loop runner.
+
+The recommended driver is the built-in **`/loop`**, which forks a fresh implementer each iteration so the heavy build stays in the fork and the loop context stays small:
+
+- `/loop docket-implement-next` — self-paced; drains the whole build-ready backlog, stopping on `drained`.
+- `/loop docket-implement-next 90,92,94` — drains only that id set (deterministic order within it); a scoped change that is not build-ready — needs-brainstorm, already in progress, or waiting on an unmerged dependency — is skipped with its reason.
+
+Budget and iteration caps are `/loop`'s own mechanism; docket does not reimplement them. The driver **never merges** — the human merge gate is untouched, so a dependency only clears between drains via a human merge; a scoped change waiting on an unmerged dependency is skipped this drain, not waited on. Confirm `/loop` composes cleanly with the forked skill in your own harness before relying on it unattended — harness behavior is version- and mode-scoped.
+
 ---
 
 ## Configuration — `.docket.yml`, global config, and machine-local overrides
