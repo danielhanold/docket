@@ -26,7 +26,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-17-archive-decay-digest-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-17-archive-decay-digest-design.md) |
-| Plan | [2026-07-17-archive-decay-digest.md](https://github.com/danielhanold/docket/blob/feat/archive-decay-digest/docs/superpowers/plans/2026-07-17-archive-decay-digest.md) |
+| Plan | [2026-07-17-archive-decay-digest.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-17-archive-decay-digest.md) |
 | PR | [#96](https://github.com/danielhanold/docket/pull/96) |
 <!-- docket:artifacts:end -->
 
