@@ -32,6 +32,7 @@ One curated finding per file; this index is the hint surface. Load it, then read
 - [harness-behavior-is-mode-and-version-scoped](harness-behavior-is-mode-and-version-scoped.md) — An observation about a harness guard is scoped to the mode and version it was seen in — re-probe in the exact mode you will run before designing against it. · also: spike, environment ⟨needs promotion⟩
 - [intermediate-task-state-buildable](intermediate-task-state-buildable.md) — When a plan splits one function's rewrite across sequential tasks, treat the intermediate state as itself buildable and testable. · also: plan, tasks
 - [moving-base](moving-base.md) — A change is designed against a SNAPSHOT and the base moves under it — reconcile against what has actually MERGED. · also: reconcile, rebase
+- [relax-the-policy-before-building-the-workaround](relax-the-policy-before-building-the-workaround.md) — Before building machinery to route around a blocking wall, ask who controls the wall — a policy the maintainer can relax beats any amount of in-repo automation. · also: design, automation ⟨needs promotion⟩
 - [size-target-is-direction](size-target-is-direction.md) — On a behavior-neutral slim the size target is a direction, not a gate — behavior-neutrality outranks hitting the number. · also: refactoring, review
 - [verify-the-claim](verify-the-claim.md) — A document asserting a fact about another artifact is not an oracle — verify it against the artifact or the RUNNING CODE before acting on it. · also: review, spec
 

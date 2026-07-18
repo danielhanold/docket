@@ -2,9 +2,9 @@
 slug: harness-behavior-is-mode-and-version-scoped
 hook: "An observation about a harness guard is scoped to the mode and version it was seen in — re-probe in the exact mode you will run before designing against it."
 topics: [process, spike, environment]
-changes: [62, 85]
+changes: [62, 85, 95]
 created: 2026-07-17
-updated: 2026-07-17
+updated: 2026-07-18
 promotion_state: candidate
 promoted_to:
 ---
@@ -66,3 +66,15 @@ oracle.
   consumer and the mode-scoped rule protects nothing yet). Note the diagnostic trap: the denial
   looks like proof the mechanism failed, and is not — the spike ran that exact dispatch clean
   headless. Same command, same repo, same day, different mode.
+- 2026-07-18 (#95, PR #101) — **The verdict, one day later: the whole subsystem was retired.** The
+  0085 entry above filed #86/#87 to scope the prohibition and ship the driver — i.e. to keep
+  building on the mechanism. Instead the mechanism was deleted. What settled it was the corollary
+  in *Apply*, applied one level further out: rather than change the real state of GitHub *via a
+  bot*, change the real state of the **policy** — branch protection set to require a PR with zero
+  approvals. A plain `gh pr merge --rebase` then needs no approval to satisfy, so there is nothing
+  for any classifier, in any mode, at any version, to deny. ADR-0042 was reversed by ADR-0043 and
+  −732 lines came out. Read this as the load-bearing lesson of the whole family: a design resting
+  on "we verified the guard does not fire on us" was fragile enough that it never once ran green
+  attended, and its replacement is a setting. When a finding says harness behavior is
+  mode-and-version-scoped, the strongest response is not a better probe — it is to stop needing
+  the probe. See [[relax-the-policy-before-building-the-workaround]], minted from this change.
