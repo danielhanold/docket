@@ -29,7 +29,7 @@ assert "SKILL ties every abort-and-report point to halted" \
 assert "SKILL states a blocked-but-non-empty set is halted, not drained" \
   'grep -Eqi "halted.{0,30}(never|not).{0,10}\`?drained" "$FIN"'
 assert "SKILL states one merge per invocation" \
-  'grep -Eqi "exactly one|one merge per invocation" "$FIN"'
+  'grep -Eqi "run merges.{0,20}exactly one.{0,20}change" "$FIN"'
 assert "SKILL states it never batches" 'grep -Eqi "never batch" "$FIN"'
 
 # --- SKILL.md: id-set scoping ---
@@ -38,7 +38,7 @@ assert "SKILL shows the comma-separated id-set form" 'grep -Eq "docket-finalize-
 assert "SKILL states naming the ids IS the authorization" \
   'grep -Eqi "naming the ids.{0,30}authorization" "$FIN"'
 assert "SKILL ties the allowlist to the require_pr_approval override" \
-  'grep -q "require_pr_approval" "$FIN"'
+  'grep -Eqi "allowlist never prompts.{0,60}require_pr_approval" "$FIN"'
 
 # --- SKILL.md: mergeability ordering, asserted IN ORDER (order is part of the contract) ---
 # NOTE: never `grep … | head` under `set -o pipefail` (AGENTS.md) — the producer takes SIGPIPE and
