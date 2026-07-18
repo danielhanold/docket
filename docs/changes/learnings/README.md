@@ -57,7 +57,7 @@ One curated finding per file; this index is the hint surface. Load it, then read
 - [environment](environment.md) — A RED suite in a build sandbox or an installed dev shell is a hypothesis, not a verdict — re-run it on the unmodified base. · also: environment, ci
 - [foundational-test-discipline](foundational-test-discipline.md) — Sentinel greps are sampling, not parsing — pair them with a whole-branch review that reads for meaning. · also: sentinels, review
 - [green-suite-untested-branch](green-suite-untested-branch.md) — Green tests are not proof the hard branch was exercised — a mock that omits the tool routes every test through the degrade path. · also: fixtures, mocks
-- [metadata-branch-invisible-to-suite](metadata-branch-invisible-to-suite.md) — Repo tests can only see the integration branch — verify metadata-branch artifacts at build time and record it in the results file. · also: metadata-branch, docket
+- [metadata-branch-invisible-to-suite](metadata-branch-invisible-to-suite.md) — A hermetic suite sees only its fixtures and the integration-branch checkout — verify metadata-branch artifacts and real-history behavior at build time, and record it in the results file. · also: metadata-branch, docket
 - [test-premise-deleted-not-regated](test-premise-deleted-not-regated.md) — When a change invalidates a test's premise, ask what the block GUARDS, not what it asserts. · also: guards, refactoring
 
 ## ux
