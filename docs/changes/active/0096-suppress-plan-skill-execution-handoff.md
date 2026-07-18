@@ -2,7 +2,7 @@
 id: 96
 slug: suppress-plan-skill-execution-handoff
 title: An autonomous run can be halted by a sub-skill's interactive hand-off — pre-specify the outcome at every autonomous call site
-status: proposed
+status: in-progress
 priority: high
 created: 2026-07-18
 updated: 2026-07-18
@@ -14,7 +14,8 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/suppress-plan-skill-execution-handoff
+claimed_at: 2026-07-18T21:23:38Z
 pr:
 blocked_by:
 reconciled: false
