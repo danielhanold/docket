@@ -39,7 +39,7 @@ Given an explicit change id or an **id allowlist**, OR auto-detect.
 
 **Explicit id** (`docket-finalize-change <id>`) — never prompts (an explicit id is unambiguous). The rebase-retest correctness gate still runs. The explicit id is itself the human authorization, so **an explicit id overrides `require_pr_approval`**: it merges even an unapproved PR. The approval policy governs only the auto-detect path.
 
-**Id allowlist** (`docket-finalize-change 90,92,94`) — generalizes the explicit-id form; a single id is the degenerate case. The set bounds *which changes are eligible*; the run still merges only the best-ordered one of them (see *Ordering* below). **Naming the ids IS the authorization** the multi-candidate prompt would otherwise have collected, so an allowlist never prompts and overrides `require_pr_approval` exactly as a single explicit id does. A scoped id that is not eligible is **skipped with its reason**, never force-merged, and never aborts the run. Unset ⇒ every eligible `implemented` change is a candidate.
+**Id allowlist** (`docket-finalize-change 90,92,94`) — generalizes the explicit-id form; a single id is the degenerate case. The set bounds *which changes are eligible*; the run still merges only the best-ordered one of them (see *Ordering* below). **Naming the ids IS the authorization** the *attended* multi-candidate prompt would otherwise have collected, so an allowlist never prompts and overrides `require_pr_approval` exactly as a single explicit id does. (No driver-run path prompts — see the matrix; what naming the ids adds is the approval override and the *Finalize blocked* override below.) A scoped id that is not eligible is **skipped with its reason**, never force-merged, and never aborts the run. Unset ⇒ every eligible `implemented` change is a candidate.
 
 **Auto-detect** — already-merged PRs are archived silently (idempotent, unchanged). For the
 rest, classify every `implemented` candidate and act per this matrix:
@@ -49,14 +49,14 @@ rest, classify every `implemented` candidate and act per this matrix:
 | Not git-mergeable (`CLOSED`, `DRAFT`, or a GitHub-reported conflict the gate can't act on) | **Surface, do not merge** |
 | `require_pr_approval: true` AND unapproved (`reviewDecision != APPROVED`) | **Surface, do not merge** — the policy gate |
 | **Exactly one eligible** candidate | **Run the full flow — gate + merge + finalize — with NO prompt** |
-| **More than one eligible** candidate | **Prompt**: list them and confirm the batch (the blast-radius guard) |
+| **More than one eligible** candidate | **Driver/autonomous run: NO prompt** — take the *Ordering* head. **Attended run** closing out several at once: **Prompt** — list them and confirm the batch (the blast-radius guard) |
 
-"Eligible" = git-mergeable AND (`require_pr_approval: false` OR approved). The ambiguity count is over *eligible* candidates only: an unapproved PR under `require_pr_approval: true` is surfaced-not-merged and does **not** count toward the prompt. Git-conflict *resolution* is delegated to the rebase-retest gate below; selection's "surface, do not merge" covers only states the gate can't act on.
+"Eligible" = git-mergeable AND (`require_pr_approval: false` OR approved). The ambiguity count is over *eligible* candidates only: an unapproved PR under `require_pr_approval: true` is surfaced-not-merged and does **not** count toward the prompt. Git-conflict *resolution* is delegated to the rebase-retest gate below; selection's "surface, do not merge" covers only states the gate can't act on. **The multi-candidate prompt is an interactive-*batch* guard, superseded by *One merge per invocation* below** — a single merge is never a batch — so it governs only an attended run closing out several changes at once; a driver or autonomous run selects by *Ordering* and never prompts.
 
 **Ordering — by mergeability, not priority.** The goal is to close out as many changes as possible per drain, so selection maximizes each attempt's chance of success. Among eligible candidates, take the head of:
 
 1. **`depends_on` order** — a hard correctness constraint, not a preference: a dependency is satisfied only at `done`, so a dependent never merges ahead of its dependency however mergeable it looks.
-2. **GitHub's `mergeable` field** — `CONFLICTING` is excluded from selection entirely and marked per *Finalize blocked* below.
+2. **GitHub's `mergeable` field** — `MERGEABLE` first: `CONFLICTING` **deprioritizes, never excludes**. It sorts *last* among eligible candidates (a conflicted PR is the most expensive to close out, which is exactly what mergeability ordering is for), and resolution stays delegated to the gate's `docket-rebase-resolver`. Only a conflict the **gate** can't act on — the resolver reporting it ambiguous — marks *Finalize blocked*, via the abort-and-report set it already belongs to.
 3. **Smallest diff first** — `changedFiles`, then `additions + deletions`: cheaper to re-test, less likely to redden the suite after rebase, and lands the most changes before any halt.
 4. **`priority` → `created` → lowest id** — the final tiebreak. Priority is *demoted*, not deleted: it still encodes human intent and guarantees a total, reproducible order.
 
@@ -72,20 +72,20 @@ Every run ends by declaring exactly **one** of four dispositions — the **same 
 
 | Disposition | Meaning | Driver action |
 |---|---|---|
-| `advanced` | Merged one change → closed out (the per-change steps ran to completion). | continue |
-| `contended` | Another writer got there first — the `docket-status` sweep archived it between selection and close-out; the archive is an idempotent no-op, so **nothing merged**. | continue — re-select next |
+| `advanced` | **A close-out advanced** — this run merged a change and closed it out, **or** it archived an already-merged PR (the human clicked Merge; real close-out work ran, just no merge by this run). Either way the per-change steps ran to completion. | continue |
+| `contended` | Another writer got there first — the `docket-status` sweep archived it between selection and close-out; the archive is an idempotent no-op, so **nothing merged**. Qualifier: if *this* run performed the merge, it is `advanced` regardless of who archived it — the no-op archive alone is not the signal. | continue — re-select next |
 | `drained` | No eligible `implemented` change in scope. | **stop** |
 | `halted` | Any abort-and-report point fired, **or** every member of a non-empty eligible set needs a human. | **stop + surface** |
 
 The driver's decision is binary: **continue on `advanced`/`contended`, stop on `drained`/`halted`.** The contract is **driver-agnostic** — `/loop`, cron, a scheduled agent, or a human re-typing the command are all equally valid; docket owns the contract, never the driver.
 
-**One merge per invocation.** A run merges **exactly one** change and exits `advanced`; it **never batches**. Consecutive close-outs come from the driver re-invoking, not from an in-run loop — which is also what keeps the blast-radius posture the multi-candidate prompt was protecting.
+**One merge per invocation.** A run merges **exactly one** change and exits `advanced`; it **never batches**. Consecutive close-outs come from the driver re-invoking, not from an in-run loop — which is also what keeps the blast-radius posture the multi-candidate prompt was protecting, and why that prompt is superseded on the driver path. Archiving several **already-merged** changes in one run does not violate this rule: no merge occurred, so there is no blast radius to bound.
 
 **Every abort-and-report point maps to `halted`.** The set enumerated in *abort-and-report points (the full set)* below is unchanged — this **names** existing behavior and adds none.
 
 **A blocked-but-non-empty set is `halted`, never `drained`.** There *is* work; it just needs a human. `drained` must keep meaning "genuinely nothing to do," or the driver's stop signal loses its meaning.
 
-The final report **enumerates** the change merged (if any), each change **skipped with its reason** (outside the id allowlist / not git-mergeable / unapproved under `require_pr_approval` / already carrying `## Finalize blocked` / waiting on an unmerged `depends_on`), and which disposition ended the run.
+The final report **enumerates** the change merged (if any), each change **skipped with its reason** (outside the id allowlist / not git-mergeable / unapproved under `require_pr_approval` / already carrying `## Finalize blocked` **on the auto-detect path only — a named id overrides that skip** / waiting on an unmerged `depends_on`), and which disposition ended the run.
 
 ## Per-change steps
 
@@ -157,8 +157,8 @@ Each leaves the **PR open** and the change **`implemented`**: an ambiguous rebas
 
 A gate failure is recorded as a `## Finalize blocked` body section on the change file — a **metadata write** on `metadata_branch` like any other field write, appended in the metadata working tree and pushed immediately. The heading itself is **bare**, never dated (`has_section` is a whole-line match, so `## Finalize blocked — 2026-07-18` would not be detected); the date lives inside the section body instead, exactly as the live `## Auto-groom blocked` instances already do. It is deliberately **not a new status** and **not a reuse of `blocked`**: the change really *is* `implemented` with an open PR, and an eighth status would flatten the six distinct abort reasons into one label while forcing changes to the lifecycle diagram, the board renderer, the GitHub mirror's seven-state mapping, and the health checks. Shape mirrors the proven `## Auto-groom blocked`: a dated entry naming **which** reason fired and what the human must do.
 
-- **Selection skips** any change already carrying the section — without this a re-run re-selects the same known-bad change forever and the drain never progresses past it.
-- **A `CONFLICTING` PR met during selection is marked too** — a cheap, idempotent metadata write — so the board surfaces every change needing attention, not only the one this run touched.
+- **Auto-detect selection skips** any change already carrying the section — without this a re-run re-selects the same known-bad change forever and the drain never progresses past it. **An explicitly named id or allowlist member overrides the skip**: naming the id is the human's "I looked at it, retry" signal, exactly as the explicit id is itself the human authorization everywhere else in this file. Without the override the marker would deadlock — a skipped change can never be finalized, so the clearing rule below could never fire.
+- **A `CONFLICTING` PR is NOT marked at selection time** — the gate's `docket-rebase-resolver` usually resolves it, so marking it up front would strand a fixable PR as human-blocked. Marking happens only where every other abort-and-report reason does: at the gate.
 - **A successful finalize removes the section.** Unlike auto-groom's human-only re-arm, the condition is machine-verifiable (the gate passed), so requiring a human to delete it would strand stale markers on changes that are fine. State encoded by an artifact's presence must be cleared by every transition out of that state.
 - The board renders a change carrying it as **`finalize blocked — needs you`**, parallel to `auto-groom blocked — needs you`.
 
