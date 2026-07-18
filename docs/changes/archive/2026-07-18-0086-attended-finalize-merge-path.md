@@ -2,10 +2,10 @@
 id: 86
 slug: attended-finalize-merge-path
 title: Attended finalize has no merge path under auto_approve — scope the --admin ban to autonomous runs
-status: proposed
+status: killed
 priority: high
 created: 2026-07-17
-updated: 2026-07-17
+updated: 2026-07-18
 depends_on: []
 related: [62, 87]
 adrs: [42, 11]
@@ -86,3 +86,32 @@ does not bite when a human is present and explicitly authorizing the merge in-se
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+## Why killed
+
+Obsolete — the premise was retired by change 0095 (PR #101, ADR-0043) on 2026-07-18.
+
+0086 existed because a repo with `finalize.auto_approve: true` had no legal attended merge
+path: ADR-0042 Decision #2 banned `--admin` on any auto-approve failure, while the Claude Code
+auto-mode classifier soft-denied the `gh workflow run docket-approve.yml` dispatch that would
+have satisfied branch protection. Both halves of that trap are gone:
+
+- **ADR-0042 is `Reversed by ADR-0043`** — Decision #2 no longer binds anything.
+- **The `auto_approve` subsystem was deleted in full** by 0095 — the knob, the resolver field,
+  the workflow and its template, the setup script, and the finalize gate's step 6. There is no
+  dispatch left to be denied.
+- **Branch protection now requires a PR with zero approvals**, so a plain `gh pr merge --rebase`
+  lands attended with no `--admin` and nothing for a classifier to fire on.
+
+All four of 0086's work items are moot, and the one that was real work is already shipped: the
+finalize gate's step 6 on `main` now states the attended path explicitly — "`--admin` remains
+available only on the pre-existing explicit-id / attended paths, where a sole maintainer chooses
+to force past an otherwise-unsatisfiable required review."
+
+Live proof: the 2026-07-18 attended, explicit-id finalize of change 0095 itself merged with no
+`--admin`, no dispatch, and no wall — the exact scenario 0086 was filed to unblock.
+
+Not carried forward: open question 2 (whether attended `--admin` needs fresh per-merge
+authorization). ADR-0011 already answers it — an explicit id IS the merge decision — and with
+0-approvals protection `--admin` is a near-never path. Reviewed and accepted by the maintainer
+2026-07-18. #87 (headless finalize driver) is unaffected and stands.
