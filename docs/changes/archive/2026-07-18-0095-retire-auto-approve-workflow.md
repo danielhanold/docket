@@ -26,7 +26,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-18-retire-auto-approve-workflow-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-18-retire-auto-approve-workflow-design.md) |
-| Plan | [2026-07-18-retire-auto-approve-workflow-plan.md](https://github.com/danielhanold/docket/blob/feat/retire-auto-approve-workflow/docs/superpowers/plans/2026-07-18-retire-auto-approve-workflow-plan.md) |
+| Plan | [2026-07-18-retire-auto-approve-workflow-plan.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-18-retire-auto-approve-workflow-plan.md) |
 | PR | 101 |
 | ADRs | [ADR-0042](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0042-auto-approve-consent-model.md), [ADR-0043](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0043-retire-bot-auto-approval-zero-approvals-branch-protection.md) |
 <!-- docket:artifacts:end -->
