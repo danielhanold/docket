@@ -26,8 +26,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-17-orphan-detection-script-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-17-orphan-detection-script-design.md) |
-| Plan | [2026-07-17-orphan-detection-script.md](https://github.com/danielhanold/docket/blob/feat/orphan-detection-script/docs/superpowers/plans/2026-07-17-orphan-detection-script.md) |
-| Results | [2026-07-17-orphan-detection-script-results.md](https://github.com/danielhanold/docket/blob/feat/orphan-detection-script/docs/results/2026-07-17-orphan-detection-script-results.md) |
+| Plan | [2026-07-17-orphan-detection-script.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-17-orphan-detection-script.md) |
+| Results | [2026-07-17-orphan-detection-script-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-17-orphan-detection-script-results.md) |
 | PR | [#98](https://github.com/danielhanold/docket/pull/98) |
 | ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md), [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md) |
 <!-- docket:artifacts:end -->
