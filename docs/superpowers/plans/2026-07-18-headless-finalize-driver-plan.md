@@ -710,6 +710,12 @@ git commit -m "docs(0087): README drain pattern for /loop docket-finalize-change
 
 ## Deviations from the spec, recorded deliberately
 
+> **Four further reversals were made during the build** — `CONFLICTING` deprioritizing rather than
+> excluding, `CONFLICTING` not marked at selection time, `advanced` widened to cover archiving an
+> already-merged PR, and the multi-candidate prompt superseded on the driver path (with a named id
+> overriding the marker skip). They are recorded with their reasoning in
+> `docs/results/2026-07-18-headless-finalize-driver-results.md` § *Deviations from the spec*.
+
 **§7's "fixture-driven test over synthetic candidates" for selection ordering is not buildable as written.** Selection and ordering are executed by the agent reading skill prose — D5 and §3.1 explicitly ship "prose on the skill, no scripts." There is no function to drive with fixtures. The honest analogue, built in Task 1, is a sentinel that extracts the line numbers of the four ordering keys and asserts they appear **in contract order** (`depends_on` < `mergeable` < diff size < priority tiebreak) — order is part of the contract, so it is asserted explicitly rather than inferred from presence. Record this in the results file.
 
 **§7's board-cell test is buildable and is built** (Task 3), because the board cell *is* code.
