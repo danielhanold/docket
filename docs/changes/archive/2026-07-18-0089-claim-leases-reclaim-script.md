@@ -2,10 +2,10 @@
 id: 89
 slug: claim-leases-reclaim-script
 title: Claim leases + reclaim script — expired in-progress claims self-heal back to proposed
-status: implemented
+status: done
 priority: medium
 created: 2026-07-17
-updated: 2026-07-17
+updated: 2026-07-18
 depends_on: []
 related: [23, 88]
 adrs: [1, 12]
