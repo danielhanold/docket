@@ -22,7 +22,7 @@ skills/docket-convention/references/learnings.md            84  580
 skills/docket-convention/references/terminal-close-out.md  147 1238
 skills/docket-finalize-change/SKILL.md                     160 2699
 skills/docket-groom-next/SKILL.md                           77 1484
-skills/docket-implement-next/SKILL.md                      119 2451
+skills/docket-implement-next/SKILL.md                      140 2845
 skills/docket-implement-next/results-template.md            24  172
 skills/docket-new-change/SKILL.md                           61 1330
 skills/docket-new-change/change-template.md                 51  203

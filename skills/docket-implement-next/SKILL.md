@@ -30,11 +30,15 @@ Then, before selection, **dispatch the `docket-status` subagent** (foreground, a
 
 ### Step 1 — Select
 
-Among `active/` changes, select per the convention's **Build-readiness & selection** definition: build-ready `proposed` changes only, ranked by its deterministic order — whose final tie-break is LOWEST `id`, so two implementers (if ever run concurrently) converge on the same winner and never claim the same change. Pick the top, or accept an explicit id passed by the caller. Skip `in-progress`, `blocked`, `deferred`, and not-build-ready stubs.
+Among `active/` changes, select per the convention's **Build-readiness & selection** definition: build-ready `proposed` changes only, ranked by its deterministic order — whose final tie-break is LOWEST `id`, so two implementers (if ever run concurrently) converge on the same winner and never claim the same change. Skip `in-progress`, `blocked`, `deferred`, and not-build-ready stubs.
+
+**Scope (id allowlist).** With no argument the candidate set is the whole build-ready backlog (byte-identical to today). A caller may pass an **id allowlist** — `docket-implement-next 90,92,94` (a single id `90` is the degenerate case) — and selection is then **restricted to that set**, with the same deterministic order applied *within* it. The allowlist is a filter, **never a dependency override**: a scoped id that is not currently build-ready+claimable — needs-brainstorm, already `in-progress`, or waiting on an unmerged `depends_on` — is **skipped with its reason**, never force-built, and never aborts the run.
+
+**Empty queue → `drained`.** If no candidate in scope is build-ready+claimable, build nothing and end the run with the **`drained`** disposition (see *Terminal disposition*) — the driver's stop signal.
 
 ### Step 2 — Claim (compare-and-swap)
 
-Re-read the manifest after the sync, in the **metadata working tree**; if still `proposed`, set `status: in-progress` + `branch: feat/<slug>` + `updated: <UTC today>`; commit and push on `metadata_branch` (in `docket`-mode, `origin/docket` via `.docket/`). On a non-fast-forward rejection: DISCARD the pending local claim commit (it edits the same `status:`/`branch:` lines and would conflict on replay), re-sync (re-run `docket.sh preflight`), RE-READ (mandatory); if still `proposed`, re-claim and push — LOOP until the push lands (it can be rejected repeatedly under load). The arbiter is the re-read (abort if no longer `proposed`), not that any single push succeeds. No worktree yet.
+Re-read the manifest after the sync, in the **metadata working tree**; if still `proposed`, set `status: in-progress` + `branch: feat/<slug>` + `updated: <UTC today>`; commit and push on `metadata_branch` (in `docket`-mode, `origin/docket` via `.docket/`). On a non-fast-forward rejection: DISCARD the pending local claim commit (it edits the same `status:`/`branch:` lines and would conflict on replay), re-sync (re-run `docket.sh preflight`), RE-READ (mandatory); if still `proposed`, re-claim and push — LOOP until the push lands (it can be rejected repeatedly under load). The arbiter is the re-read (abort if no longer `proposed`), not that any single push succeeds — and that abort is the **`contended`** disposition (see *Terminal disposition*): a lost claim CAS race is a normal, continue-able outcome a driver re-selects past, **never `halted`**. No worktree yet.
 
 Then run the Board pass (best-effort — see *Best-effort board refresh*) as a separate commit, so the board reflects the change as `in-progress` rather than build-ready.
 
@@ -47,7 +51,7 @@ In the **metadata working tree** (re-synced to its remote), re-read the change +
 Two escape hatches:
 
 - Change now **OBSOLETE** → kill it via the convention's terminal close-out (**read `../docket-convention/references/terminal-close-out.md` now — blocking**) with `--outcome killed` and the UTC kill date — the reference owns invocations, ordering, and the `main`-mode degradation; this skill's posture is CALLER-side only: trust each exit code, a failure aborts the kill and is surfaced. The reference's cleanup step prunes any feature worktree/branch already created; its publish step is `terminal-publish` (a no-op in `main`-mode, or without the `terminal_publish: true` opt-in). After the kill is archived, run the Board pass (best-effort — see *Best-effort board refresh*) as a separate commit so the board drops the killed change, then loop back to Step 1.
-- Design **FUNDAMENTALLY invalidated** (not just scope-adjustable) → STOP and escalate to the human. This skill cannot re-brainstorm alone; re-brainstorming is a human act handled by `superpowers:brainstorming` + `docket-new-change`.
+- Design **FUNDAMENTALLY invalidated** (not just scope-adjustable) → STOP and escalate to the human — end the run with the **`halted`** disposition (see *Terminal disposition*), the driver's stop-and-surface signal. Any hard error that prevents reaching a PR is likewise `halted`. This skill cannot re-brainstorm alone; re-brainstorming is a human act handled by `superpowers:brainstorming` + `docket-new-change`.
 
 ### Step 4 — Worktree + plan
 
@@ -80,6 +84,21 @@ Invoke the **resolved finish skill** — `$SKILL_FINISH` from the Step-0 config 
 Then, BACK IN THE **METADATA WORKING TREE** (in `docket`-mode, `.docket/`), set `status: implemented` + `pr:` (and `results:` if a results file was written in step 6.5) per the **field-write rule** — this is also what lets the sweep read `pr:`. Then run the Board pass (best-effort — see *Best-effort board refresh*) as a separate commit, so the board shows the change as `implemented` — needs your merge.
 
 **STOP.** The change stays in `active/` as `implemented` until a human merges it, or approves `docket-finalize-change` to merge it.
+
+### Terminal disposition (driver contract)
+
+Every run ends by declaring exactly **one** of four dispositions, so any driver — a human re-typing the command, the built-in `/loop`, a cron/scheduled agent, or #0008's fan-out — keys on the outcome instead of parsing prose:
+
+| Disposition | Meaning | Driver action |
+|---|---|---|
+| `advanced` | Built a change → PR opened (Step 7 reached). | continue |
+| `contended` | Selected a change but lost the claim CAS (Step 2); **nothing built**. | continue — re-select next |
+| `drained` | No build-ready+claimable change in scope (Step 1's empty queue). | **stop** |
+| `halted` | Stopped needing a human — fundamentally-invalidated design (Step 3) or a hard error. | **stop + surface** |
+
+The driver's decision is binary: **continue on `advanced`/`contended`, stop on `drained`/`halted`.** The contract is **driver-agnostic** — it names run outcomes, not any one driver's mechanics; `/loop` is *recommended*, not required (see the README drain-pattern doc).
+
+The final report **enumerates** what happened: the change built (if any), each change **skipped with its reason** (needs-brainstorm / already `in-progress` / waiting on an unmerged `depends_on` / outside the id allowlist), and which disposition ended the run.
 
 ### Best-effort board refresh
 
