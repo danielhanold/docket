@@ -2,7 +2,7 @@
 id: 96
 slug: suppress-plan-skill-execution-handoff
 title: An autonomous run can be halted by a sub-skill's interactive hand-off — pre-specify the outcome at every autonomous call site
-status: in-progress
+status: implemented
 priority: high
 created: 2026-07-18
 updated: 2026-07-18
@@ -11,12 +11,12 @@ related: [16, 44, 49, 61, 95]
 adrs: [24, 44]
 spec: docs/superpowers/specs/2026-07-18-autonomous-skill-handoff-precedence-design.md
 plan: docs/superpowers/plans/2026-07-18-autonomous-skill-handoff-precedence.md
-results:
+results: docs/results/2026-07-18-suppress-plan-skill-execution-handoff-results.md
 trivial: false
 auto_groomable:
 branch: feat/suppress-plan-skill-execution-handoff
-claimed_at: 2026-07-18T23:02:30Z
-pr:
+claimed_at: 2026-07-18T23:04:40Z
+pr: https://github.com/danielhanold/docket/pull/102
 blocked_by:
 reconciled: true
 ---
@@ -28,6 +28,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-18-autonomous-skill-handoff-precedence-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-18-autonomous-skill-handoff-precedence-design.md) |
 | Plan | [2026-07-18-autonomous-skill-handoff-precedence.md](https://github.com/danielhanold/docket/blob/feat/suppress-plan-skill-execution-handoff/docs/superpowers/plans/2026-07-18-autonomous-skill-handoff-precedence.md) |
+| Results | [2026-07-18-suppress-plan-skill-execution-handoff-results.md](https://github.com/danielhanold/docket/blob/feat/suppress-plan-skill-execution-handoff/docs/results/2026-07-18-suppress-plan-skill-execution-handoff-results.md) |
+| PR | [#102](https://github.com/danielhanold/docket/pull/102) |
 | ADRs | [ADR-0024](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0024-claude-context-fork-skill-dispatch.md), [ADR-0044](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0044-autonomy-precedence-call-site-pre-specification.md) |
 <!-- docket:artifacts:end -->
 
