@@ -1,8 +1,8 @@
 # Backlog
 
-**96 changes** — 🟡 12 proposed · 🔴 1 blocked · ⚪ 1 deferred · 🔵 5 implemented · ✅ 73 done · 🗑️ 4 killed
+**96 changes** — 🟡 11 proposed · 🔴 1 blocked · ⚪ 1 deferred · 🔵 5 implemented · ✅ 73 done · 🗑️ 5 killed
 
-## 🟡 Proposed (12)
+## 🟡 Proposed (11)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -14,7 +14,6 @@
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0082](active/0082-global-harnesses-per-repo-generation.md) | Global agent_harnesses doesn't reach per-repo generation — silent no-op | `low` | needs-brainstorm |
 | [0083](active/0083-terminal-publish-gap-detection.md) | A terminal record can silently never reach the integration branch — investigate #0043's gap and decide on detection | `medium` | auto-groom blocked — needs you |
-| [0086](active/0086-attended-finalize-merge-path.md) | Attended finalize has no merge path under auto_approve — scope the --admin ban to autonomous runs | `high` | needs-brainstorm |
 | [0087](active/0087-headless-finalize-driver.md) | Ship the headless finalize driver — 0062's capability has no consumer | `high` | needs-brainstorm |
 | [0091](active/0091-auto-create-discovered-stubs.md) | Auto-create discovered stubs — a config flag that turns mid-run findings into proposed changes | `medium` | ⏳ waiting on #90 — needs your merge |
 | [0096](active/0096-suppress-plan-skill-execution-handoff.md) | An autonomous run can be halted by a sub-skill's interactive hand-off — neutralize writing-plans' execution choice | `high` | needs-brainstorm |
@@ -53,7 +52,6 @@ graph TD
   0077 --> 0078
   0082
   0083
-  0086
   0087
   0089
   0090
@@ -138,12 +136,13 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (77)</summary>
+<details><summary>✅🗑️ Archive — done + killed (78)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0095](archive/2026-07-18-0095-retire-auto-approve-workflow.md) | Retire the auto-approve workflow — document the classifier and the single-maintainer branch-protection solution | 2026-07-18 |
 | [0088](archive/2026-07-18-0088-implement-next-loop-continuation.md) | Loop continuation — implement-next chains into the next ready change instead of stopping | 2026-07-18 |
+| [0086](archive/2026-07-18-0086-attended-finalize-merge-path.md) | Attended finalize has no merge path under auto_approve — scope the --admin ban to autonomous runs | 2026-07-18 |
 | [0085](archive/2026-07-17-0085-skill-slimming-round-two.md) | Second-round skill slimming — re-slim regrown skills + regrowth guard | 2026-07-17 |
 | [0062](archive/2026-07-17-0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | 2026-07-17 |
 | [0084](archive/2026-07-16-0084-terminal-publish-opt-in-default.md) | Flip terminal_publish default to false — publishing to the integration branch becomes opt-in | 2026-07-16 |
