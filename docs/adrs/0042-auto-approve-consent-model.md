@@ -2,7 +2,7 @@
 id: 42
 slug: auto-approve-consent-model
 title: Auto-approve consent model — a bot approval proves docket's pipeline signed off, not human review
-status: Accepted
+status: Reversed by ADR-0043
 date: 2026-07-16
 supersedes: []
 reverses: []
