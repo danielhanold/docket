@@ -54,7 +54,7 @@ with at least one change appear.
 | proposed | `# · Title · Priority · Readiness` |
 | blocked | `# · Title · Priority · Blocked by` |
 | deferred | `# · Title · Priority` |
-| implemented | `# · Title · Priority · PR` |
+| implemented | `# · Title · Priority · PR · Readiness` |
 
 The `#` cell links to the change file (`active/<filename>`). IDs are zero-padded to four digits.
 Sections are emitted in the fixed order: in-progress → proposed → blocked → deferred →
@@ -66,6 +66,12 @@ needs you`; `needs-brainstorm` → `needs-brainstorm`; `build-ready` → `build-
 
 **PR cell (implemented).** If `pr:` is a full URL, renders `[#N](url)`. If it is a bare number
 and `--repo` is set, constructs `https://github.com/OWNER/REPO/pull/N`. Otherwise renders `#N`.
+
+**Readiness cell (implemented).** The `implemented` table carries a `Readiness` column: a change
+whose body has a `## Finalize blocked` section (written by `docket-finalize-change` when a gate
+failure needs a human) renders `finalize blocked — needs you`; every other implemented change
+renders an empty cell. The `digest` format reports the same state as the token `finalize-blocked`
+(or `-`), so the two projections cannot disagree.
 
 **Dependency graph (Mermaid).** After the active sections, emits a fenced `mermaid` block with a
 `graph TD`. Each active change is a node (ID padded to four digits). Changes with `depends_on:`
@@ -96,9 +102,11 @@ owner and the digest can never disagree with the board's Readiness cell. Emits, 
 `backlog <status> <count>` line per non-zero status (fixed order: in-progress, proposed, blocked,
 deferred, implemented, done, killed; `done`/`killed` counted from `archive/`), then one
 `change <id> <status> <readiness> <slug>` line per **active** change, ascending by id. `<readiness>`
-is `build-ready`, `needs-brainstorm`, `auto-groom-blocked`, `waiting-on-<N>-unbuilt`,
-`waiting-on-<N>-needs-merge`, or `-` for any non-`proposed` status (where readiness does not apply).
-No markdown, no mermaid graph, no archive table.
+is `build-ready`, `needs-brainstorm`, `auto-groom-blocked`, `waiting-on-<N>-unbuilt`, or
+`waiting-on-<N>-needs-merge` for a `proposed` change; `finalize-blocked` for an `implemented`
+change carrying the `## Finalize blocked` section; and `-` for every other status (where readiness
+does not apply). Readiness has exactly one owner per status, so the digest and the board cannot
+disagree. No markdown, no mermaid graph, no archive table.
 
 The digest is **report output, not a board surface**: `docket-status.sh` pipes it straight to its
 report and never persists it. It is therefore emitted regardless of `board_surfaces` — which is

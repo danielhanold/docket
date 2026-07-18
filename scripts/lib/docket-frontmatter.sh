@@ -11,6 +11,7 @@
 #   iso_to_epoch ISO      — UTC ISO-8601 timestamp -> epoch seconds; empty on parse failure.
 #   resolve_deps DIR      — scan DIR/active + DIR/archive once; populate the globals below.
 #   readiness FILE        — build-ready | needs-brainstorm | auto-groom-blocked | waiting.
+#   finalize_blocked FILE — exit 0 iff the body carries `## Finalize blocked` (implemented only).
 #
 # resolve_deps globals (keyed by integer id):
 #   STATUS_OF[id]   the change's own status
@@ -96,4 +97,11 @@ readiness(){ # readiness FILE  (only meaningful for a proposed change)
     return
   fi
   printf 'build-ready'
+}
+
+finalize_blocked(){ # finalize_blocked FILE  (only meaningful for an implemented change)
+  # `## Finalize blocked` is presence-encoded state written by docket-finalize-change when a gate
+  # failure leaves a change needing a human. Deliberately NOT part of readiness(), which is by
+  # contract meaningful only for a `proposed` change.
+  has_section "$1" "## Finalize blocked"
 }

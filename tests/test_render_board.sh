@@ -110,6 +110,21 @@ status: deferred
 priority: low
 depends_on: []
 EOF
+cat > "$tmp/active/0013-mike.md" <<'EOF'
+---
+id: 13
+slug: mike
+title: Mike feature
+status: implemented
+priority: high
+depends_on: []
+pr: https://github.com/o/r/pull/151
+---
+
+## Finalize blocked
+
+2026-07-18 — ambiguous rebase conflict; resolve by hand and re-run.
+EOF
 cat > "$tmp/archive/2026-06-15-0010-juliet.md" <<'EOF'
 ---
 id: 10
@@ -143,7 +158,7 @@ golden="$tmp/golden.md"
 cat > "$golden" <<'EOF'
 # Backlog
 
-**12 changes** — 🟢 1 in progress · 🟡 5 proposed · 🔴 1 blocked · ⚪ 1 deferred · 🔵 1 implemented · ✅ 2 done · 🗑️ 1 killed
+**13 changes** — 🟢 1 in progress · 🟡 5 proposed · 🔴 1 blocked · ⚪ 1 deferred · 🔵 2 implemented · ✅ 2 done · 🗑️ 1 killed
 
 ## 🟢 In progress (1)
 
@@ -173,11 +188,12 @@ cat > "$golden" <<'EOF'
 |---|-------|----------|
 | [0009](active/0009-india.md) | India feature | `low` |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
-| # | Title | Priority | PR |
-|---|-------|----------|----|
-| [0008](active/0008-hotel.md) | Hotel feature | `high` | [#142](https://github.com/o/r/pull/142) |
+| # | Title | Priority | PR | Readiness |
+|---|-------|----------|----|-----------|
+| [0008](active/0008-hotel.md) | Hotel feature | `high` | [#142](https://github.com/o/r/pull/142) |  |
+| [0013](active/0013-mike.md) | Mike feature | `high` | [#151](https://github.com/o/r/pull/151) | finalize blocked — needs you |
 
 ```mermaid
 graph TD
@@ -190,6 +206,7 @@ graph TD
   0007
   0008
   0009
+  0013
   0010:::done
   classDef done fill:#d3f9d8;
 ```
@@ -233,6 +250,33 @@ assert "pr: full URL renders [#N](url) without double-wrapping (Hotel #8 in the 
 assert "pr: bare number falls back to [#N](built-url) via --repo" \
   'printf "%s" "$bareout" | grep -qF "[#77](https://github.com/o/r/pull/77)"'
 rm -rf "$bare"
+
+# --- change 0087: the `## Finalize blocked` cell on the implemented table -----------------------
+# Positive and negative in one render: 0013 carries the section, 0008 does not. The golden already
+# byte-checks both; these focused asserts name the invariant so a golden re-blessing cannot quietly
+# drop it (learnings: guards-are-code).
+assert "a marked implemented change renders the finalize-blocked cell" \
+  'grep -qF "| finalize blocked — needs you |" "$rendered"'
+assert "an unmarked implemented change renders an empty readiness cell" \
+  'grep -qF "| [#142](https://github.com/o/r/pull/142) |  |" "$rendered"'
+assert "the implemented table carries the Readiness column" \
+  'grep -qF "| # | Title | Priority | PR | Readiness |" "$rendered"'
+
+# Digest parity (change 0069's invariant: the digest can never disagree with the board).
+digest="$(bash "$SCRIPT" --changes-dir "$tmp" --format digest 2>/dev/null)"
+assert "digest reports finalize-blocked for the marked change" \
+  'grep -qF "change 13 implemented finalize-blocked mike" <<<"$digest"'
+assert "digest reports - for the unmarked implemented change" \
+  'grep -qF "change 8 implemented - hotel" <<<"$digest"'
+
+# Non-vacuity: the marker predicate must key on the section, not on status alone. A copy of the
+# marked fixture with the section stripped must render the EMPTY cell.
+nomark="$(mktemp -d)"; mkdir -p "$nomark/active" "$nomark/archive"
+sed '/## Finalize blocked/,$d' "$tmp/active/0013-mike.md" > "$nomark/active/0013-mike.md"
+nomarkout="$(bash "$SCRIPT" --changes-dir "$nomark" --repo o/r 2>/dev/null)"
+assert "stripping the section drops the cell (predicate is non-vacuous)" \
+  '! grep -qF "finalize blocked — needs you" <<<"$nomarkout"'
+rm -rf "$nomark"
 
 # --- docket-status inline-surface wiring sentinels (the SKILL is code on main) ---
 # Since change 0058 the docket-status Board pass lives in scripts/docket-status.sh, not this
@@ -1374,7 +1418,7 @@ backlog in-progress 1
 backlog proposed 5
 backlog blocked 1
 backlog deferred 1
-backlog implemented 1
+backlog implemented 2
 backlog done 2
 backlog killed 1
 change 1 in-progress - alpha
@@ -1386,6 +1430,7 @@ change 6 proposed waiting-on-8-needs-merge foxtrot
 change 7 blocked - golf
 change 8 implemented - hotel
 change 9 deferred - india
+change 13 implemented finalize-blocked mike
 EOF
 digest_out="$tmp/digest-out.txt"
 bash "$SCRIPT" --changes-dir "$tmp" --repo o/r --format digest > "$digest_out" 2>/dev/null
