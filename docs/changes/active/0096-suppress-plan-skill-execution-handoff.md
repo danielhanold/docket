@@ -10,7 +10,7 @@ depends_on: []
 related: [16, 44, 49, 61, 95]
 adrs: [24]
 spec: docs/superpowers/specs/2026-07-18-autonomous-skill-handoff-precedence-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-18-autonomous-skill-handoff-precedence.md
 results:
 trivial: false
 auto_groomable:
@@ -27,6 +27,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-18-autonomous-skill-handoff-precedence-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-18-autonomous-skill-handoff-precedence-design.md) |
+| Plan | [2026-07-18-autonomous-skill-handoff-precedence.md](https://github.com/danielhanold/docket/blob/feat/suppress-plan-skill-execution-handoff/docs/superpowers/plans/2026-07-18-autonomous-skill-handoff-precedence.md) |
 | ADRs | [ADR-0024](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0024-claude-context-fork-skill-dispatch.md) |
 <!-- docket:artifacts:end -->
 
