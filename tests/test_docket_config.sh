@@ -140,7 +140,7 @@ assert "board fenced-to-empty: emits BOARD_SURFACES=none" \
 
 # --- (E) direct-pipe caller (LEARNINGS #22: $() hides a dropped trailing \n) -
 n="$(run "$tmp/c" --export | grep -c '=')"
-assert "direct-pipe: 23 KEY=value lines emitted"       '[ "$n" -eq 23 ]'
+assert "direct-pipe: 24 KEY=value lines emitted"       '[ "$n" -eq 24 ]'
 last="$(run "$tmp/c" --export | tail -n1)"
 assert "direct-pipe: last line is BOOTSTRAP"           'case "$last" in BOOTSTRAP=*) true;; *) false;; esac'
 
@@ -397,9 +397,9 @@ printf 'auto_groom: true\n' > "$tmp/q.home/.config/docket/config.yml"
 out="$(env -u XDG_CONFIG_HOME HOME="$tmp/q.home" bash "$SCRIPT" --repo-dir "$tmp/q" --export)"; eval "$out"
 assert "0050 Q: XDG unset -> \$HOME/.config fallback read"   '[ "$AUTO_GROOM" = true ]'
 
-# --- (E') emit-interface guard: still exactly 23 lines with a global file present ---
+# --- (E') emit-interface guard: still exactly 24 lines with a global file present ---
 n50="$(rung "$tmp/k.xdg" "$tmp/k" --export | grep -c '=')"
-assert "0050 E': still 23 KEY=value lines with global layer" '[ "$n50" -eq 23 ]'
+assert "0050 E': still 24 KEY=value lines with global layer" '[ "$n50" -eq 24 ]'
 
 # --- (M) coordination-key fence: warned-and-ignored, never honored, never fatal ---
 mkrepo "$tmp/m"
@@ -921,6 +921,65 @@ assert "unparseable reclaim.lease_ttl: mentions reclaim.lease_ttl" \
 rcl_f2_err="$(run_resolver_with "reclaim:\n  auto: maybe\n" 2>&1 >/dev/null)"
 assert "unparseable reclaim.auto: mentions reclaim.auto" \
   'printf "%s" "$rcl_f2_err" | grep -qF "reclaim.auto"'
+
+# --- Change 0091 — auto_capture (global-able boolean, default false) ---------------------------
+# Mirrors auto_groom's four-layer resolution, but fails CLOSED on a non-boolean (the reclaim.auto /
+# learnings.enabled / terminal_publish precedent): silently defaulting a typo to `false` would make
+# an opted-in repo quietly stop capturing, which is invisible rather than loud.
+
+# (AC-a) default
+mkrepo "$tmp/ac-a"
+out_ac="$(run "$tmp/ac-a" --export 2>/dev/null)"
+assert "AUTO_CAPTURE defaults to false" 'echo "$out_ac" | grep -qxF "AUTO_CAPTURE=false"'
+
+# (AC-b) repo-committed .docket.yml wins over the built-in
+mkrepo "$tmp/ac-b"
+printf 'auto_capture: true\n' > "$tmp/ac-b/.docket.yml"
+git -C "$tmp/ac-b" add .docket.yml >/dev/null 2>&1
+git -C "$tmp/ac-b" commit -qm "cfg" >/dev/null 2>&1
+git -C "$tmp/ac-b" push -q origin HEAD:main >/dev/null 2>&1
+out_ac_b="$(run "$tmp/ac-b" --export 2>/dev/null)"
+assert "AUTO_CAPTURE reads repo .docket.yml" 'echo "$out_ac_b" | grep -qxF "AUTO_CAPTURE=true"'
+
+# (AC-c) global layer is honored (NOT fenced) and emits no per-repo-only warning
+mkrepo "$tmp/ac-c"
+mkdir -p "$tmp/ac-c.xdg/docket"
+printf 'auto_capture: true\n' > "$tmp/ac-c.xdg/docket/config.yml"
+ac_c_out="$(rung "$tmp/ac-c.xdg" "$tmp/ac-c" --export 2>/dev/null)"
+ac_c_err="$(rung "$tmp/ac-c.xdg" "$tmp/ac-c" --export 2>&1 >/dev/null)"
+assert "auto_capture is global-able (not fenced)" 'echo "$ac_c_out" | grep -qxF "AUTO_CAPTURE=true"'
+assert "no fence warning for auto_capture" '! printf "%s" "$ac_c_err" | grep -qi "auto_capture.*per-repo-only"'
+
+# (AC-d) repo-local .docket.local.yml outranks repo-committed AND global
+mkrepo "$tmp/ac-d"
+mkdir -p "$tmp/ac-d.xdg/docket"
+printf 'auto_capture: false\n' > "$tmp/ac-d.xdg/docket/config.yml"
+printf 'auto_capture: false\n' > "$tmp/ac-d/.docket.yml"
+git -C "$tmp/ac-d" add .docket.yml >/dev/null 2>&1
+git -C "$tmp/ac-d" commit -qm "cfg" >/dev/null 2>&1
+git -C "$tmp/ac-d" push -q origin HEAD:main >/dev/null 2>&1
+printf 'auto_capture: true\n' > "$tmp/ac-d/.docket.local.yml"
+ac_d_out="$(rung "$tmp/ac-d.xdg" "$tmp/ac-d" --export 2>/dev/null)"
+assert "repo-local auto_capture outranks repo-committed and global" \
+  'echo "$ac_d_out" | grep -qxF "AUTO_CAPTURE=true"'
+
+# (AC-e) fail closed on garbage, and the diagnostic names the key
+mkrepo "$tmp/ac-e"
+printf 'auto_capture: maybe\n' > "$tmp/ac-e/.docket.yml"
+git -C "$tmp/ac-e" add .docket.yml >/dev/null 2>&1
+git -C "$tmp/ac-e" commit -qm "cfg" >/dev/null 2>&1
+git -C "$tmp/ac-e" push -q origin HEAD:main >/dev/null 2>&1
+assert "non-bool auto_capture aborts nonzero" '! run "$tmp/ac-e" --export >/dev/null 2>&1'
+ac_e_err="$(run "$tmp/ac-e" --export 2>&1 >/dev/null)"
+assert "unparseable auto_capture: names auto_capture" \
+  'printf "%s" "$ac_e_err" | grep -qF "auto_capture"'
+
+# (AC-f) emit ORDER is pinned: AUTO_CAPTURE immediately follows AUTO_GROOM (the contract in
+# scripts/docket-config.md lists them adjacently; a reordering there is a silent contract break).
+ac_f="$(run "$tmp/ac-a" --export 2>/dev/null | grep -n '^AUTO_' | cut -d: -f1 | tr '\n' ' ')"
+ac_g_line="$(printf '%s' "$ac_f" | awk '{print $1}')"
+ac_c_line="$(printf '%s' "$ac_f" | awk '{print $2}')"
+assert "AUTO_CAPTURE is emitted directly after AUTO_GROOM" '[ "$ac_c_line" -eq "$(( ac_g_line + 1 ))" ]'
 
 if [ "$fail" = 0 ]; then echo PASS; else echo FAIL; fi
 exit "$fail"

@@ -104,6 +104,7 @@ A value may not contain a literal `#` — it is treated as the start of an inlin
 | `test_command` (finalize) | `` (empty) | yes | read from `finalize.test_command` leaf key; resolves repo-local > repo-committed > global |
 | `board_surfaces` | `inline` | yes, minus `github` | YAML list `[a, b]` stripped of brackets/commas; **`[]` → the reserved token `none`** (change 0071 — an empty value is NEVER emitted; empty means "unresolved", a wiring bug); a `github` token arriving from either machine-scoped layer (repo-local or global) is dropped (Stage 2c), and a list left empty by that drop also resolves to `none` |
 | `auto_groom` | `false` | yes | resolves repo-local > repo-committed > global |
+| `auto_capture` | `false` | yes | resolves repo-local > repo-committed > global; fails closed on a non-boolean (change 0091) |
 | `terminal_publish` | `false` | no (fenced) | `true`/`false`; the default `false` makes `terminal-publish.sh` a no-op for BOTH shapes — archived change files, specs, and ADRs stay on the metadata branch. `true` opts in to the direct-commit publish onto the integration branch. Anything else aborts |
 | `learnings.enabled` | `true` | yes | read from the nested `learnings:` block; resolves repo-local > repo-committed > global |
 | `learnings.cap` | `300` | yes | read from the nested `learnings:` block; resolves repo-local > repo-committed > global |
@@ -184,7 +185,7 @@ applies to it verbatim, same as the global layer.
 
 Precedence per field is the four-layer chain (the `.env` pattern): **repo-local >
 repo-committed > global > built-in.** This applies uniformly to `finalize.gate`,
-`finalize.test_command`, `auto_groom`, `board_surfaces`, and each `skills:` leaf.
+`finalize.test_command`, `auto_groom`, `auto_capture`, `board_surfaces`, and each `skills:` leaf.
 
 **Guards, both warn-and-ignore, never fatal:**
 - `.docket.local.yml` exists but is not a readable regular file (e.g. a directory) → warned,
@@ -270,6 +271,7 @@ LEARNINGS_ENABLED
 LEARNINGS_CAP
 BOARD_SURFACES
 AUTO_GROOM
+AUTO_CAPTURE
 TERMINAL_PUBLISH
 RECLAIM_LEASE_TTL
 RECLAIM_AUTO
@@ -281,7 +283,7 @@ SKILL_FINISH
 BOOTSTRAP
 ```
 
-23 lines in `shell` format; 24 in `plain` format, with `REPO_ROOT` inserted directly
+24 lines in `shell` format; 25 in `plain` format, with `REPO_ROOT` inserted directly
 after `METADATA_WORKTREE`. The last line is always `BOOTSTRAP=…`.
 
 **`REPO_ROOT` (change 0075) — plain format only.** The absolute path of the main worktree (the
@@ -332,7 +334,7 @@ emits no `KEY=value` output.
   post-write state, so the caller's `eval` sees `PROCEED` without a second invocation.
 - **`main`-mode skips the bootstrap guard entirely.** `DOCKET`/`LIVE` are not evaluated;
   `BOOTSTRAP` is always `PROCEED` in main-mode.
-- **23 `KEY=value` lines always emitted in the same order in `shell` format (24 in `plain`,
+- **24 `KEY=value` lines always emitted in the same order in `shell` format (25 in `plain`,
   `REPO_ROOT` inserted after `METADATA_WORKTREE` — change 0075).** Skills may rely on the order
   for pipe consumers, but should use the variable names (via `eval`) for correctness.
 - **The global layer never aborts a run.** Every global-file problem (misplaced, malformed,
