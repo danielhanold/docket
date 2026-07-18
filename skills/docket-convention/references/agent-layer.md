@@ -121,7 +121,7 @@ into the same pinned wrapper — no generated file to sync, inert in every other
 **Fork-exclusion principle:** only skills that never need the human mid-run are forked, since a
 forked subagent has no channel back to the human (Claude Code withholds `AskUserQuestion` and
 similar); the two interactive skills stay inline, and `docket-finalize-change` stays unforked —
-its headless merge is gated by a permission classifier, a separate decision (change 0062). The
+its headless merge is gated by a permission classifier, a separate decision (see ADR-0043). The
 per-repo pass generates that same full set into the harness, so the Cursor rule's dispatch targets
 resolve by construction. `sync-agents.sh` prunes orphaned `docket-*` files (a removed built-in
 drops its wrapper; a de-listed harness drops its wrappers and dispatch rule), and `--check` spans
