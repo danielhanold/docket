@@ -2,7 +2,7 @@
 id: 88
 slug: implement-next-loop-continuation
 title: Loop continuation — implement-next chains into the next ready change instead of stopping
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-17
 updated: 2026-07-18
@@ -11,11 +11,11 @@ related: [8, 87]
 adrs: [1]
 spec: docs/superpowers/specs/2026-07-17-implement-next-loop-continuation-design.md
 plan: docs/superpowers/plans/2026-07-18-implement-next-loop-continuation.md
-results:
+results: docs/results/2026-07-18-implement-next-loop-continuation-results.md
 trivial: false
 auto_groomable: false
 branch: feat/implement-next-loop-continuation
-pr:
+pr: https://github.com/danielhanold/docket/pull/100
 blocked_by:
 reconciled: true
 ---
@@ -27,6 +27,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-17-implement-next-loop-continuation-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-17-implement-next-loop-continuation-design.md) |
 | Plan | [2026-07-18-implement-next-loop-continuation.md](https://github.com/danielhanold/docket/blob/feat/implement-next-loop-continuation/docs/superpowers/plans/2026-07-18-implement-next-loop-continuation.md) |
+| Results | [2026-07-18-implement-next-loop-continuation-results.md](https://github.com/danielhanold/docket/blob/feat/implement-next-loop-continuation/docs/results/2026-07-18-implement-next-loop-continuation-results.md) |
+| PR | [#100](https://github.com/danielhanold/docket/pull/100) |
 | ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md) |
 <!-- docket:artifacts:end -->
 
