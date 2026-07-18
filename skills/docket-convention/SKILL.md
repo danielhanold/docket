@@ -250,7 +250,9 @@ capture fidelity, **not** autonomy: every minted stub still waits at the human's
 review discoveries) and the `docket-finalize-change` / `docket-status` harvest (close-out findings).
 **`docket-auto-groom` is never a mint site** — a minted stub is itself autonomous-eligible, so
 minting would break its provable-termination invariant and make `auto_groom` × `auto_capture` a
-backlog-growth loop. Interactive skills already mint with a human present.
+backlog-growth loop. **Interactive skills need no auto-capture path** — a human is present to decide
+what gets filed, whether the skill mints ids itself (`docket-new-change`'s scan mode) or never does
+(`docket-groom-next`).
 
 **Materiality bar** — mint only for *actionable follow-up work that would be its own change / PR*
 ("would a human file this as a `docket-new-change`?"). A lesson about how to build → the **learnings**
@@ -259,11 +261,19 @@ observation → the run report only.
 
 **The mint itself is deterministic** (ADR-0012 — the model judges *what*, the script does the mint):
 `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh mint-stub --changes-dir .docket/<changes_dir>
---title <title> --body-file <file> --discovered-from <this change's id> --minted <n so far>` — one
-stub per call, contract in `scripts/mint-stub.md`. It owns dedup, id allocation, the template write,
-and the CAS push; **exit 3** = duplicate skipped, **exit 4** = per-invocation cap (3) reached. Every
-skip and every capped overflow is **surfaced in the run report, never silently dropped**. Minting is
-a metadata-worktree write only — it never touches the running change's own claim/branch/PR state.
+--title <title> --body-file <file> --discovered-from <this change's id> --minted <n so far>` (in
+`docket`-mode; in `main`-mode, `--changes-dir <changes_dir>` — the metadata worktree IS the primary
+tree) — one stub per call, `--body-file` **must start with `## Why`**, contract in
+`scripts/mint-stub.md`. **`<n so far>` is the running count across the whole run on a single
+change, never reset per mint site** — a skill with more than one mint site (`docket-implement-next`'s
+reconcile and review) carries the total forward from the first call into the second. (`docket-status`'s
+sweep scopes it per swept change — see its SKILL.md.) It owns dedup, id allocation, the template
+write, and the CAS push; **exit 3** = duplicate skipped, **exit 4** = per-invocation cap (3) reached,
+**exit 1** = a real error (push failure, malformed body, or retry exhaustion). Every skip, capped
+overflow, and exit-1 failure is **surfaced in the run report, never silently dropped** — but none of
+them is fatal to the build: **auto-capture is best-effort and must never abort the change being
+built**, because capture is a courtesy while the change is the job. Minting is a metadata-worktree
+write only — it never touches the running change's own claim/branch/PR state.
 
 ### Learnings ledger
 
