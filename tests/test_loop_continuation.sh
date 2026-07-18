@@ -7,7 +7,7 @@
 set -uo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 fail=0
-assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
+assert(){ if ( eval "$2" ); then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
 
 IMPL="$REPO/skills/docket-implement-next/SKILL.md"
 
@@ -33,11 +33,12 @@ assert "SKILL shows the comma-separated id-set form" 'grep -Eq "docket-implement
 assert "SKILL states the allowlist is not a dependency override" 'grep -Eqi "never a dependency override" "$IMPL"'
 
 README="$REPO/README.md"
+wb='`/loop docket-implement-next`'
 
 # --- README: the /loop drain-pattern doc ---
-assert "README documents the /loop whole-backlog drain" 'grep -Eq "/loop docket-implement-next$|/loop docket-implement-next[^0-9]" "$README"'
+assert "README documents the /loop whole-backlog drain" 'grep -qF "$wb" "$README"'
 assert "README documents the /loop id-set drain" 'grep -Eq "/loop docket-implement-next 90,92,94" "$README"'
-assert "README states the driver never merges" 'grep -Eqi "never merges" "$README"'
+assert "README states the driver never merges" 'grep -qiF "never merges** — the human merge gate is untouched" "$README"'
 assert "README names all four dispositions" 'for d in advanced contended drained halted; do grep -qiF "$d" "$README" || exit 1; done'
 
 # --- Non-vacuity / mutation proof: the code-formatted disposition grep actually bites. ---
