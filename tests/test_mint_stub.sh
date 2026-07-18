@@ -145,4 +145,95 @@ assert "E: body not starting with ## Why fails" \
   '! run_mint "$W5" --title T --body-file "$BAD" --discovered-from 91 >/dev/null 2>&1'
 assert "E: a rejected run writes nothing" '[ "$(ls "$W5/docs/changes/active" | grep -c .)" -eq 0 ]'
 
+# --- (F) titles containing sed/awk metacharacters round-trip verbatim (B1) ---------------------
+# set_field must never re-interpret '|', '&', or '\' in a model-authored title. Same repo across
+# F1-F3 (each a fresh sequential mint), mirroring fixture C's chaining pattern.
+WF="$(new_repo)"
+BF1="$(body meta1)"
+outF1="$(run_mint "$WF" --title 'Fix the thing | and the other' --body-file "$BF1" --discovered-from 91 2>&1)"; rcF1=$?
+NEWF1="$WF/docs/changes/active/0001-fix-the-thing-and-the-other.md"
+assert "F1: exit 0 with a pipe in the title"      '[ "$rcF1" -eq 0 ]'
+assert "F1: minted line reports"                  '[ "$outF1" = "minted 1 fix-the-thing-and-the-other" ]'
+assert "F1: title field exact (pipe)"             '[ "$(field "$NEWF1" title)" = "Fix the thing | and the other" ]'
+
+BF2="$(body meta2)"
+outF2="$(run_mint "$WF" --title 'Tabs & spaces' --body-file "$BF2" --discovered-from 91 2>&1)"; rcF2=$?
+NEWF2="$WF/docs/changes/active/0002-tabs-spaces.md"
+assert "F2: exit 0 with an ampersand in the title" '[ "$rcF2" -eq 0 ]'
+assert "F2: minted line reports"                   '[ "$outF2" = "minted 2 tabs-spaces" ]'
+assert "F2: title field exact (ampersand)"         '[ "$(field "$NEWF2" title)" = "Tabs & spaces" ]'
+
+BF3="$(body meta3)"
+outF3="$(run_mint "$WF" --title 'Handle back\slash paths' --body-file "$BF3" --discovered-from 91 2>&1)"; rcF3=$?
+NEWF3="$WF/docs/changes/active/0003-handle-back-slash-paths.md"
+assert "F3: exit 0 with a backslash in the title"  '[ "$rcF3" -eq 0 ]'
+assert "F3: minted line reports"                   '[ "$outF3" = "minted 3 handle-back-slash-paths" ]'
+assert "F3: title field exact (backslash)"         '[ "$(field "$NEWF3" title)" = "Handle back\slash paths" ]'
+
+# --- (G) an EMPTY active/ plus a forced CAS retry must recreate the dir, not die (B2) -----------
+# active/ starts with ZERO tracked files (git tracks no empty dirs); the competitor pushes only to
+# archive/, so origin's tip still has no active/ file when our retry's reset --hard lands — pruning
+# our own just-written stub's directory along with it, exactly like the reviewer's live repro.
+WG="$(new_repo)"
+OTHERG="$(mktemp -d)/otherg"; git_quiet clone "$(git -C "$WG" remote get-url origin)" "$OTHERG"
+git -C "$OTHERG" config user.email o@o; git -C "$OTHERG" config user.name o
+git_quiet -C "$OTHERG" checkout docket
+mkdir -p "$OTHERG/docs/changes/archive"
+mkchange "$OTHERG" archive 2026-01-01-0001-other.md 1 other-thing "Other thing"
+git -C "$OTHERG" add -A; git_quiet -C "$OTHERG" commit -m "competing archive add"; git_quiet -C "$OTHERG" push origin docket
+BG="$(body 'empty active dir race')"
+outG="$(run_mint "$WG" --title "Empty dir race" --body-file "$BG" --discovered-from 91 2>&1)"; rcG=$?
+assert "G: exit 0 despite active/ being pruned mid-retry" '[ "$rcG" -eq 0 ]'
+assert "G: minted with re-derived id"                     '[ "$outG" = "minted 2 empty-dir-race" ]'
+assert "G: stub file present after mkdir-recovery" \
+  '[ -f "$WG/docs/changes/active/0002-empty-dir-race.md" ]'
+assert "G: converged with origin" \
+  '[ "$(git -C "$WG" rev-parse HEAD)" = "$(git -C "$WG" rev-parse origin/docket)" ]'
+
+# --- (H) a real (non-race) push failure dies immediately, no unpushed commit left (B4) ----------
+WH="$(new_repo)"
+git -C "$WH" remote set-url origin /nonexistent/path/does-not-exist.git
+BH="$(body 'real failure not a race')"
+outH="$(run_mint "$WH" --title "Real failure" --body-file "$BH" --discovered-from 91 2>&1)"; rcH=$?
+assert "H: exits nonzero on a real push failure" '[ "$rcH" -ne 0 ]'
+assert "H: diagnosed as not-a-race, not exhaustion" \
+  'case "$outH" in *"not a lost race"*) true ;; *) false ;; esac'
+assert "H: no unpushed commit left behind (HEAD == origin/docket)" \
+  '[ "$(git -C "$WH" rev-parse HEAD)" = "$(git -C "$WH" rev-parse origin/docket)" ]'
+assert "H: working tree clean after the failed mint" '[ -z "$(git -C "$WH" status --porcelain)" ]'
+
+# --- (I) unrelated uncommitted work blocks the CAS reset instead of being wiped (B3) ------------
+WI="$(new_repo)"
+mkchange "$WI" active 0005-other.md 5 other-thing "Other thing"
+git -C "$WI" add -A; git_quiet -C "$WI" commit -m seed; git_quiet -C "$WI" push origin docket
+OTHERI="$(mktemp -d)/otheri"; git_quiet clone "$(git -C "$WI" remote get-url origin)" "$OTHERI"
+git -C "$OTHERI" config user.email o@o; git -C "$OTHERI" config user.name o
+git_quiet -C "$OTHERI" checkout docket
+mkchange "$OTHERI" active 0006-competitor.md 6 competitor-i "Competitor I"
+git -C "$OTHERI" add -A; git_quiet -C "$OTHERI" commit -m "competing mint"; git_quiet -C "$OTHERI" push origin docket
+# simulate another agent mid-write in the SAME shared worktree: an uncommitted edit to an
+# unrelated change file, present before mint-stub ever runs.
+printf '\nextra uncommitted line\n' >> "$WI/docs/changes/active/0005-other.md"
+BI="$(body 'dirty tree race')"
+outI="$(run_mint "$WI" --title "Dirty tree race" --body-file "$BI" --discovered-from 91 2>&1)"; rcI=$?
+assert "I: refuses rather than silently succeeding" '[ "$rcI" -ne 0 ]'
+assert "I: diagnosed as a dirty-worktree refusal" \
+  'case "$outI" in *"uncommitted changes from another writer"*) true ;; *) false ;; esac'
+assert "I: unrelated uncommitted edit survives" \
+  'grep -qF "extra uncommitted line" "$WI/docs/changes/active/0005-other.md"'
+assert "I: unrelated file still shows as modified (not wiped)" \
+  '[ -n "$(git -C "$WI" status --porcelain -- docs/changes/active/0005-other.md)" ]'
+
+# --- (J) a long title's slug never ends in a trailing hyphen after truncation (B5) ---------------
+# 12x "abcd-" is exactly 60 chars ending in '-'; a 13th word ("efgh") follows so the FULL
+# (untruncated) slug does not end in '-' — only cut -c1-60 introduces the trailing hyphen.
+WJ="$(new_repo)"
+BJ="$(body 'long title truncation')"
+LONGTITLE="Abcd Abcd Abcd Abcd Abcd Abcd Abcd Abcd Abcd Abcd Abcd Abcd Efgh"
+outJ="$(run_mint "$WJ" --title "$LONGTITLE" --body-file "$BJ" --discovered-from 91 2>&1)"; rcJ=$?
+EXPECT_SLUG="abcd-abcd-abcd-abcd-abcd-abcd-abcd-abcd-abcd-abcd-abcd-abcd"
+assert "J: exit 0 for a long title"     '[ "$rcJ" -eq 0 ]'
+assert "J: slug has no trailing hyphen" '[ "$outJ" = "minted 1 $EXPECT_SLUG" ]'
+assert "J: file uses the trimmed slug"  '[ -f "$WJ/docs/changes/active/0001-$EXPECT_SLUG.md" ]'
+
 exit $fail
