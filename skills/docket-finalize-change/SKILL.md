@@ -79,15 +79,11 @@ finalize:
   test_command:               # OPTIONAL override; unset => the agent auto-detects the suite
   require_pr_approval: false  # default false. true => the auto-detect path refuses to merge
                               #   an unapproved PR (reviewDecision != APPROVED), surfacing instead.
-  auto_approve: false         # default false. true => headless finalize dispatches docket-approve.yml
-                              #   after the rebase-retest gate's push, verifies reviewDecision:APPROVED,
-                              #   and merges WITHOUT --admin. Requires `docket.sh setup-auto-approve`.
-                              #   Coordination-key fenced (per-repo-only). Any failure aborts; never --admin.
 ```
 
 `gate` defaults to **`local`**; `ci` validates GitHub checks; `both` requires local **and** CI green; **`off`** is the documented opt-out — merge trusting the PR's own CI, with no rebase and no re-test (today's pre-gate behavior).
 
-`require_pr_approval` validates *human sign-off* (`gate` validates *correctness*); it governs only the auto-detect path — an explicit id always overrides it. Under `auto_approve: true`, a passing check of `reviewDecision == APPROVED` proves *docket's own pipeline signed off* — the review step plus this rebase-retest gate — not that a human read the diff. So `require_pr_approval: true` combined with `auto_approve: true` is satisfiable by the bot's own approval; a repo that wants a human in the loop must leave `auto_approve` at its default `false`. See ADR-0042 (auto-approve consent model) for the reasoning behind treating that bot approval as sufficient authorization to merge.
+`require_pr_approval` validates *human sign-off* (`gate` validates *correctness*); it governs only the auto-detect path — an explicit id always overrides it. `true` ⇒ the auto-detect path refuses to merge a PR whose `reviewDecision` is not `APPROVED`, surfacing it instead. The approval must come from a **human** reviewer: a co-maintainer, or the maintainer running finalize if they are an eligible reviewer on someone else's PR. See ADR-0011 for the consent model, and ADR-0043 for why the bot-approval mechanism that once satisfied this gate was retired.
 
 **Flow** (runs before `gh pr merge`):
 
@@ -99,21 +95,12 @@ finalize:
    - `ci` pushes `--force-with-lease` then polls `gh pr checks`; `both` does both.
    - On **red**, dispatch `docket-integration-repair` (foreground, at the model/effort its wrapper resolves) — it root-causes and writes a minimal fix in at most two attempts. Green → apply the sign-off rule below. Stuck / cannot reach green → **abort-and-report**. Red or absent CI checks under `ci`/`both` also **abort-and-report**.
 5. **Push** `--force-with-lease` if rebased and not already pushed; a lease rejected by a concurrent push → **abort-and-report**.
-6. **Approve, if `finalize.auto_approve` is `true` and the PR is not already `APPROVED`.** After
-   the gate's push (step 5), so the approval covers the exact rebased SHA:
-   1. `gh workflow run docket-approve.yml --ref <integration_branch> -f pr=<N>`.
-   2. Poll the dispatched run to completion (bounded; identify it by workflow name + `--ref`
-      branch + recency — `gh run list` returns no id from `workflow run`).
-   3. Re-check `reviewDecision == APPROVED` (bounded retries — the bot review lands a beat after
-      the run finishes).
-   Any failure above (dispatch rejected, run failed/timed out, approval never materialized) is
-   **abort-and-report**: leave the PR open, surface the reason (and record it as a PR comment), and
-   **never** fall back to `--admin` — that would silently reintroduce the bypass this retires. When
-   `auto_approve` is `false` (default), or the PR is already approved, this step is a no-op.
-7. `gh pr merge` — **without** `--admin` whenever step 6 supplied (or found) the approval;
-   `--admin` remains available only on the pre-existing explicit-id / attended paths, and is never
-   used under `auto_approve` → the existing close-out (harvest → archive → terminal-publish →
-   cleanup → board).
+6. `gh pr merge` — **without** `--admin` whenever the PR is already `APPROVED`, or the integration
+   branch's protection requires a pull request but **zero** approvals (docket's single-maintainer
+   default — see the README's finalize/merge section). `--admin` remains available only on the
+   pre-existing explicit-id / attended paths, where a sole maintainer chooses to force past an
+   otherwise-unsatisfiable required review → the existing close-out (harvest → archive →
+   terminal-publish → cleanup → board).
 
 ### The two agents (split at rebase-completion)
 
@@ -128,7 +115,7 @@ A repair is code the human's approval predated, so it never merges unseen:
 
 ### abort-and-report points (the full set)
 
-Each leaves the **PR open** and the change **`implemented`**: an ambiguous rebase conflict · `local`/`both` with no detectable suite and no `test_command` override · repair cannot reach green in ≤2 attempts · `ci`/`both` with red or absent CI checks · a `--force-with-lease` rejected by a concurrent push · any repair under **autonomous** finalize (sign-off) · under `auto_approve`, a rejected dispatch, a failed/timed-out run, or an approval that never materializes (never an `--admin` fallback).
+Each leaves the **PR open** and the change **`implemented`**: an ambiguous rebase conflict · `local`/`both` with no detectable suite and no `test_command` override · repair cannot reach green in ≤2 attempts · `ci`/`both` with red or absent CI checks · a `--force-with-lease` rejected by a concurrent push · any repair under **autonomous** finalize (sign-off).
 
 **Where the reason surfaces.** The subagent returns its diagnosis in-context; finalize relays it to the human (interactive) or the dispatching caller (autonomous), and also records it durably as a **comment on the PR** (`gh pr comment`) — a human returning later reads exactly why the auto-merge stopped.
 
