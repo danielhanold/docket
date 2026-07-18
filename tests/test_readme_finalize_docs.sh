@@ -14,17 +14,17 @@ assert "README exists" '[ -f "$RM" ]'
 
 # (a) the classifier behavior — named, and tied to what it blocks
 assert "documents the auto-mode classifier" \
-  'grep -qi "classifier" "$RM"'
+  'grep -qi "auto-mode classifier" "$RM"'
 assert "names the soft-deny the classifier applies" \
   'grep -qi "soft.deny\|soft deny" "$RM"'
 assert "states an allow-rule cannot clear a soft-deny" \
-  'grep -Eqi "permissions.allow|allow.rule" "$RM"'
+  'grep -qi "permissions.allow" "$RM" && grep -Eqi "cannot.*clear" "$RM"'
 assert "scopes the observation to mode and version" \
-  'grep -Eqi "version.*(scoped|specific)|mode.*(scoped|specific)|headless" "$RM"'
+  'grep -qi "scoped to the harness" "$RM" && grep -q "\*\*version\*\*" "$RM"'
 
 # (b) the single-maintainer branch-protection recipe
 assert "documents the branch-protection recipe" \
-  'grep -qi "branch protection" "$RM"'
+  'grep -qi "configure branch protection" "$RM"'
 assert "names the zero-approvals recipe" \
   'grep -Eq "required_approving_review_count: 0|zero[^a-zA-Z]*approvals|0 approvals" "$RM"'
 assert "states the merge needs no --admin" \
