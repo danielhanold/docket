@@ -44,6 +44,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0040](0040-terminal-publish-default-opt-in.md) — terminal_publish defaults to false — publishing is opt-in (Accepted) ← change #84 · relates to ADR-0027
 - [ADR-0041](0041-learnings-findings-directory-and-promotion-valve.md) — Learnings ledger restructure — findings directory + derived index + human-gated promotion valve (Accepted) ← change #67 · relates to ADR-0005, ADR-0012, ADR-0019, ADR-0028, ADR-0030, ADR-0031, ADR-0032, ADR-0039
 - [ADR-0042](0042-auto-approve-consent-model.md) — Auto-approve consent model — a bot approval proves docket's pipeline signed off, not human review (Accepted) ← change #62 · relates to ADR-0011
+- [ADR-0043](0043-retire-bot-auto-approval-zero-approvals-branch-protection.md) — Retire bot auto-approval — branch protection with zero required approvals is the single-maintainer merge path (Accepted) ← change #95 → reverses ADR-0042 · relates to ADR-0011
 
 ## Superseded / Reversed
 
