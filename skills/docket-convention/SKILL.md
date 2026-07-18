@@ -166,6 +166,7 @@ reconciled: false         # set true after the just-in-time reconcile pass
 - `## Reconcile log` — dated entries appended by the implementer's reconcile pass.
 - `## Reclaim log` — dated entries appended by `reclaim-claims.sh` when an expired-lease, no-branch claim self-heals back to `proposed`.
 - `## Auto-groom blocked` — dated abstain record appended by `docket-auto-groom`; contents and lifecycle (including removal on re-arm) are defined by the *Autonomous grooming* shared definition below.
+- `## Finalize blocked` — dated record appended by `docket-finalize-change` when a gate failure leaves a change needing a human; presence drives the board's `finalize blocked — needs you` cell and makes later finalize runs skip the change. Cleared automatically by a successful finalize (not a human re-arm).
 - `## Why deferred` / `## Why killed` — added when entering those states.
 
 The change body is a **PM-altitude proposal** (intent + scope). Detailed design lives in the linked superpowers spec; the task breakdown in the linked superpowers plan. Different zoom levels, no duplication.
