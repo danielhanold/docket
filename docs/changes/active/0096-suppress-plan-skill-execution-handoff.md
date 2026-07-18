@@ -15,10 +15,10 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/suppress-plan-skill-execution-handoff
-claimed_at: 2026-07-18T21:23:38Z
+claimed_at: 2026-07-18T21:25:10Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -107,3 +107,26 @@ None — all three were resolved at grooming (see the spec).
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-07-18 — reconciled, scope unchanged
+
+Verified every premise against `origin/main` at reconcile time; all three call sites read exactly as
+the spec describes, so the design stands with no scope adjustment.
+
+- **§4 is still the open-ended site.** `skills/docket-implement-next/SKILL.md:64` invokes
+  `$SKILL_PLAN` with no outcome pre-specified — the defect is live, unchanged since grooming.
+- **§7 still pre-specifies** (`:80`, "DIRECTED to: push the feature branch and open a PR — do NOT
+  merge — then stop"), and `skills/docket-finalize-change/SKILL.md:124` still opens with "When a
+  human is present". Both remain valid as the reference shape and the permitted exception.
+- **Related changes clear.** #0095 reached `done` (archived 2026-07-18) and its ADR-0043 retires the
+  bot-approve subsystem — no overlap with this change's surface. #0044 is still `blocked`, so SDD
+  per-dispatch model selection stays out of scope as written.
+
+**One constraint folded in that the spec predates naming:** `tests/test_skill_size_budgets.sh`
+(change 0085) budgets every `skills/**/*.md` by lines and words, and this change adds prose to three
+of them. Current headroom is adequate but not generous — convention 294/317 lines and 4769/5104
+words, implement-next 127/140 and 2641/2845, finalize-change 132/160 and 2266/2699. The build keeps
+the additions inside those budgets rather than raising the table rows; the precedence paragraph in
+particular must earn its ~13 lines. If a budget must rise, the row is edited in the same diff, per
+that test's own instruction. The new `tests/test_skill_handoff_precedence.sh` needs no registration
+— the suite is discovered by glob.
