@@ -1,6 +1,6 @@
 # Backlog
 
-**94 changes** — 🟡 11 proposed · 🔴 1 blocked · ⚪ 1 deferred · 🔵 6 implemented · ✅ 71 done · 🗑️ 4 killed
+**94 changes** — 🟡 11 proposed · 🔴 1 blocked · ⚪ 1 deferred · 🔵 5 implemented · ✅ 72 done · 🗑️ 4 killed
 
 ## 🟡 Proposed (11)
 
@@ -30,12 +30,11 @@
 |---|-------|----------|
 | [0094](active/0094-docket-prime-context-digest.md) | docket-prime — a token-budgeted context digest skills load instead of walking docs/changes | `medium` |
 
-## 🔵 Implemented — awaiting merge (6)
+## 🔵 Implemented — awaiting merge (5)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | [#89](https://github.com/danielhanold/docket/pull/89) |
-| [0088](active/0088-implement-next-loop-continuation.md) | Loop continuation — implement-next chains into the next ready change instead of stopping | `medium` | [#100](https://github.com/danielhanold/docket/pull/100) |
 | [0089](active/0089-claim-leases-reclaim-script.md) | Claim leases + reclaim script — expired in-progress claims self-heal back to proposed | `medium` | [#99](https://github.com/danielhanold/docket/pull/99) |
 | [0090](active/0090-discovered-from-provenance.md) | discovered-from provenance links — record which change's build surfaced a new stub | `medium` | [#97](https://github.com/danielhanold/docket/pull/97) |
 | [0092](active/0092-orphan-detection-script.md) | Orphan detection script — cross-reference change ids in merged commits against archive state | `medium` | [#98](https://github.com/danielhanold/docket/pull/98) |
@@ -55,7 +54,6 @@ graph TD
   0083
   0086
   0087
-  0088
   0089
   0090
   0090 --> 0091
@@ -133,13 +131,15 @@ graph TD
   0081:::done
   0084:::done
   0085:::done
+  0088:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (75)</summary>
+<details><summary>✅🗑️ Archive — done + killed (76)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0088](archive/2026-07-18-0088-implement-next-loop-continuation.md) | Loop continuation — implement-next chains into the next ready change instead of stopping | 2026-07-18 |
 | [0085](archive/2026-07-17-0085-skill-slimming-round-two.md) | Second-round skill slimming — re-slim regrown skills + regrowth guard | 2026-07-17 |
 | [0062](archive/2026-07-17-0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | 2026-07-17 |
 | [0084](archive/2026-07-16-0084-terminal-publish-opt-in-default.md) | Flip terminal_publish default to false — publishing to the integration branch becomes opt-in | 2026-07-16 |
