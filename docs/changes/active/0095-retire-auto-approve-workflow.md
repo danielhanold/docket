@@ -17,7 +17,7 @@ auto_groomable: false
 branch: feat/retire-auto-approve-workflow
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -91,3 +91,40 @@ behavior (spec §6.3)._
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-07-18 — reconciled against `origin/main` @ 0bd8c2f
+
+**Verdict: no scope change.** The spec (2026-07-18) was written hours before this pass and
+survives verification intact. Nothing in the removal work-list has been done elsewhere.
+
+Verified against current code:
+
+- **The 0062 footprint is fully live.** `git grep` over `origin/main` confirms every item in
+  spec §4 still present: `.github/workflows/docket-approve.yml` +
+  `scripts/templates/docket-approve.yml`, `scripts/setup-auto-approve.sh`/`.md`,
+  `docs/auto-approve-setup.md`, the `setup-auto-approve` facade op (dispatch comment +
+  `WRAPPED_OPS` + `scripts/docket.md` contract row), `FINALIZE_AUTO_APPROVE` in
+  `scripts/docket-config.sh`/`.md`, and the finalize skill's step 6.
+- **This repo's own `.docket.yml` carries `auto_approve: true`** (line 25, with its comment
+  block) — the removal must drop the key here too, not just from the documented example.
+- **`README.md` already has an `auto_approve` section** at §"Headless / autonomous finalize
+  merge auto-approve (opt-in)" (~line 580) pointing at `docs/auto-approve-setup.md`. That
+  section is *replaced* by the spec §6 content, not merely appended to — the deleted
+  setup doc must not be left as a dangling link.
+- **ADR-0042 is still `Accepted`** (`relates_to: [11]`, `change: 62`); the index row in
+  `docs/adrs/README.md` renders it Accepted. The highest ADR id on `metadata_branch` is
+  0042, so the new reversing ADR mints as **ADR-0043**.
+- **Test footprint matches** spec §4: delete `test_auto_approve_docs.sh`,
+  `test_docket_approve_template.sh`, `test_setup_auto_approve.sh`; prune
+  `test_docket_config.sh` (12 refs), `test_finalize_gate.sh` (8), `test_docket_facade.sh` (4).
+- **Branch-protection premise confirmed.** main now requires a PR with **0** required
+  approvals; the 2026-07-18 finalize of change 0088 merged PR #100 via plain
+  `gh pr merge --rebase` with no `--admin` and no bot — the empirical basis for the reversal.
+- **No collision with related work.** #0086 (attended finalize-merge-path) and #0087
+  (headless finalize driver) are both still `proposed` needs-brainstorm stubs — nothing
+  built against the surfaces this change edits.
+
+Folded in (build-time, beyond the spec's explicit list): `docs/adrs/README.md` must be
+re-rendered for the reversed status, and the `.docket.yml` key removal should be checked
+against `tests/test_config_example.sh` (ADR-0039 config-example-mirrors-defaults guard),
+which does not reference `auto_approve` today but does validate the example's shape.
