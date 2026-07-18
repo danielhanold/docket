@@ -2,10 +2,10 @@
 id: 91
 slug: auto-create-discovered-stubs
 title: Auto-create discovered stubs — a config flag that turns mid-run findings into proposed changes
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-07-17
-updated: 2026-07-17
+updated: 2026-07-18
 depends_on: [90]
 related: [90]
 adrs: [19]
@@ -14,7 +14,8 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch:
+branch: feat/auto-create-discovered-stubs
+claimed_at: 2026-07-18T19:58:05Z
 pr:
 blocked_by:
 reconciled: false
