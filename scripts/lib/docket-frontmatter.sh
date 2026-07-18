@@ -7,7 +7,8 @@
 #   field FILE KEY        — first top-level frontmatter scalar for KEY, trimmed.
 #   list_field FILE KEY   — `[a, b]` -> space-separated `a b` (empty for `[]` / unset).
 #   int_field FILE KEY    — like field(), but empty unless the value is a well-formed non-negative integer.
-#   has_section FILE STR  — exit 0 iff the body contains the literal line STR.
+#   has_section FILE STR  — exit 0 iff the body contains the literal line STR (whole-line match:
+#                           a prose mention of the marker is NOT the section).
 #   iso_to_epoch ISO      — UTC ISO-8601 timestamp -> epoch seconds; empty on parse failure.
 #   resolve_deps DIR      — scan DIR/active + DIR/archive once; populate the globals below.
 #   readiness FILE        — build-ready | needs-brainstorm | auto-groom-blocked | waiting.
@@ -37,7 +38,11 @@ int_field(){
   local v; v="$(field "$1" "$2")"
   case "$v" in (''|*[!0-9]*) printf '' ;; (*) printf '%s' "$v" ;; esac
 }
-has_section(){ grep -qF "$2" "$1"; }
+# has_section FILE STR — exit 0 iff some line of FILE is EXACTLY STR. `-x` is load-bearing, not a
+# nicety: these markers are presence-encoded state, and change files routinely *mention* them in
+# prose (`… a dated `## Finalize blocked` body section …`). An unanchored substring match turns any
+# such mention into a false "this change is blocked" cell on the board. Whole-line only.
+has_section(){ grep -qxF "$2" "$1"; }
 
 # iso_to_epoch ISO — convert a UTC ISO-8601 second-precision timestamp (YYYY-MM-DDTHH:MM:SSZ) to
 # epoch seconds on stdout. Tries GNU date first, then BSD/macOS date. Returns 1 (empty stdout) on

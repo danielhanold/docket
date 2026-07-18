@@ -104,9 +104,11 @@ deferred, implemented, done, killed; `done`/`killed` counted from `archive/`), t
 `change <id> <status> <readiness> <slug>` line per **active** change, ascending by id. `<readiness>`
 is `build-ready`, `needs-brainstorm`, `auto-groom-blocked`, `waiting-on-<N>-unbuilt`, or
 `waiting-on-<N>-needs-merge` for a `proposed` change; `finalize-blocked` for an `implemented`
-change carrying the `## Finalize blocked` section; and `-` for every other status (where readiness
-does not apply). Readiness has exactly one owner per status, so the digest and the board cannot
-disagree. No markdown, no mermaid graph, no archive table.
+change carrying the `## Finalize blocked` section; and `-` for everything else — an `implemented`
+change *without* the marker, plus every change in any other status (where readiness does not
+apply). Readiness has exactly one owner per status, so the digest and the board cannot
+disagree. The marker is detected by `has_section`, a **whole-line** match: a change file that
+merely mentions `## Finalize blocked` inline in prose does not carry the section. No markdown, no mermaid graph, no archive table.
 
 The digest is **report output, not a board surface**: `docket-status.sh` pipes it straight to its
 report and never persists it. It is therefore emitted regardless of `board_surfaces` — which is

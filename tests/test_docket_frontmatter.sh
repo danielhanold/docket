@@ -113,6 +113,56 @@ spec:
 
 2026-06-12 — abstained: needs a human call on scope.
 EOF
+# 14: proposed, no spec, and it only *talks about* the marker in prose — must NOT be blocked.
+cat > "$tmp/active/0014-november.md" <<'EOF'
+---
+id: 14
+slug: november
+title: November feature
+status: proposed
+priority: low
+depends_on: []
+spec:
+---
+
+## Design
+
+- A stub the groomer abstains on gets a dated `## Auto-groom blocked` body section
+  (see change 0014) so the abstention is self-describing at the change.
+EOF
+# 13: implemented and genuinely carrying the finalize-blocked section (the true positive).
+cat > "$tmp/active/0013-mike.md" <<'EOF'
+---
+id: 13
+slug: mike
+title: Mike feature
+status: implemented
+priority: high
+depends_on: []
+pr: https://github.com/o/r/pull/151
+---
+
+## Finalize blocked
+
+2026-07-18 — ambiguous rebase conflict; resolve by hand and re-run.
+EOF
+# 15: implemented, and it only *talks about* the marker in prose — must NOT be blocked.
+cat > "$tmp/active/0015-papa.md" <<'EOF'
+---
+id: 15
+slug: papa
+title: Papa feature
+status: implemented
+priority: low
+depends_on: []
+pr: https://github.com/o/r/pull/153
+---
+
+## Design
+
+- A gate failure is marked with a dated `## Finalize blocked` section mirroring the
+  proven `## Auto-groom blocked` marker — presence-encoded, cleared by hand.
+EOF
 
 # --- accessors ---
 assert "field reads a scalar" '[ "$(field "$tmp/active/0008-hotel.md" status)" = "implemented" ]'
@@ -121,6 +171,15 @@ assert "list_field expands a flow list" '[ "$(list_field "$tmp/active/0002-bravo
 assert "list_field empty for []" '[ -z "$(list_field "$tmp/active/0008-hotel.md" depends_on)" ]'
 assert "has_section finds a body line" 'has_section "$tmp/active/0004-delta.md" "## Auto-groom blocked"'
 assert "has_section absent returns nonzero" '! has_section "$tmp/active/0003-charlie.md" "## Auto-groom blocked"'
+# has_section is a WHOLE-LINE match. These markers are presence-encoded state, and change files
+# routinely mention them inline in prose; an unanchored substring match (`grep -qF`) turned every
+# such mention into a false "blocked" cell on the board. Both marker strings, both directions.
+assert "has_section ignores an inline prose mention (auto-groom)" \
+  '! has_section "$tmp/active/0014-november.md" "## Auto-groom blocked"'
+assert "has_section ignores an inline prose mention (finalize)" \
+  '! has_section "$tmp/active/0015-papa.md" "## Finalize blocked"'
+assert "has_section still matches the real section it was pointed at" \
+  'has_section "$tmp/active/0004-delta.md" "## Auto-groom blocked"'
 
 # --- resolve_deps ---
 resolve_deps "$tmp"
@@ -138,6 +197,13 @@ assert "readiness needs-brainstorm (no spec, not trivial)" '[ "$(readiness "$tmp
 assert "readiness auto-groom-blocked (no spec + blocked section)" '[ "$(readiness "$tmp/active/0004-delta.md")" = "auto-groom-blocked" ]'
 assert "readiness waiting takes precedence over missing spec" '[ "$(readiness "$tmp/active/0005-echo.md")" = "waiting" ]'
 assert "readiness waiting (needs-your-merge dep) returns waiting" '[ "$(readiness "$tmp/active/0006-foxtrot.md")" = "waiting" ]'
+assert "readiness needs-brainstorm when the marker is only a prose mention" \
+  '[ "$(readiness "$tmp/active/0014-november.md")" = "needs-brainstorm" ]'
+
+# --- finalize_blocked (change 0087) ---
+assert "finalize_blocked true for a real section" 'finalize_blocked "$tmp/active/0013-mike.md"'
+assert "finalize_blocked false for a prose mention" '! finalize_blocked "$tmp/active/0015-papa.md"'
+assert "finalize_blocked false when the section is absent" '! finalize_blocked "$tmp/active/0008-hotel.md"'
 
 # --- iso_to_epoch: portable UTC ISO-8601 -> epoch ---
 # Derive the oracle from the host's own date (GNU or BSD) so the test is host-portable —
