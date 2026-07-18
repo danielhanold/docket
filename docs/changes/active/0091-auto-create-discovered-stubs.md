@@ -10,7 +10,7 @@ depends_on: [90]
 related: [90]
 adrs: [19]
 spec: docs/superpowers/specs/2026-07-17-auto-create-discovered-stubs-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-18-auto-create-discovered-stubs.md
 results:
 trivial: false
 auto_groomable: true
@@ -27,6 +27,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-17-auto-create-discovered-stubs-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-17-auto-create-discovered-stubs-design.md) |
+| Plan | [2026-07-18-auto-create-discovered-stubs.md](https://github.com/danielhanold/docket/blob/feat/auto-create-discovered-stubs/docs/superpowers/plans/2026-07-18-auto-create-discovered-stubs.md) |
 | ADRs | [ADR-0019](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0019-global-config-fence-classification.md) |
 <!-- docket:artifacts:end -->
 
