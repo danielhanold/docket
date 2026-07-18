@@ -10,7 +10,7 @@ depends_on: []
 related: [8, 88, 95]
 adrs: [43]
 spec: docs/superpowers/specs/2026-07-18-headless-finalize-driver-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-18-headless-finalize-driver-plan.md
 results:
 trivial: false
 auto_groomable: false
@@ -27,6 +27,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-18-headless-finalize-driver-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-18-headless-finalize-driver-design.md) |
+| Plan | [2026-07-18-headless-finalize-driver-plan.md](https://github.com/danielhanold/docket/blob/feat/headless-finalize-driver/docs/superpowers/plans/2026-07-18-headless-finalize-driver-plan.md) |
 | ADRs | [ADR-0043](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0043-retire-bot-auto-approval-zero-approvals-branch-protection.md) |
 <!-- docket:artifacts:end -->
 
