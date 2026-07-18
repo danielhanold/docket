@@ -25,8 +25,8 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| Spec | `docs/superpowers/specs/2026-07-18-terminal-publish-gap-detection-design.md` |
-| ADRs | `docs/adrs/0001-docket-metadata-branch-model.md` |
+| Spec | [2026-07-18-terminal-publish-gap-detection-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-18-terminal-publish-gap-detection-design.md) |
+| ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
