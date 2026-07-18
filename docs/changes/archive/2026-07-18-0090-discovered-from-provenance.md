@@ -2,10 +2,10 @@
 id: 90
 slug: discovered-from-provenance
 title: discovered-from provenance links — record which change's build surfaced a new stub
-status: implemented
+status: done
 priority: medium
 created: 2026-07-17
-updated: 2026-07-17
+updated: 2026-07-18
 depends_on: []
 related: [35, 91]
 adrs: []
