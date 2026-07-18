@@ -13,7 +13,7 @@ agent: docket-implement-next
 
 ## When to use
 
-- You want the backlog drained autonomously — pick the highest-priority build-ready change and ship it to a PR without human steering, or hand it an explicit change id to skip selection.
+- You want the backlog drained autonomously — pick the highest-priority build-ready change and ship it to a PR without human steering, or hand it an id set (`90,92,94`; a single id is the degenerate case) to scope the run to those changes.
 - Do NOT use if you want to interact during brainstorm or design — that is `docket-new-change`'s job. This skill re-brainstorms nothing; the escape hatch for a fundamentally invalidated design is to STOP and hand back to the human.
 
 ## Convention (load first — blocking)
