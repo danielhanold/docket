@@ -67,6 +67,32 @@ assert "SKILL documents the lazy-mergeable poll" \
 assert "SKILL forbids pairwise file-overlap ranking" \
   'grep -Eqi "(not|never|do not|don.t) build pairwise|pairwise file-overlap" "$FIN"'
 
+# --- SKILL.md: the `## Finalize blocked` marker (D4) ---
+# NOTE: the three assertions below are anchored tighter than a bare substring grep for
+# "## Finalize blocked" / "CONFLICTING…mark" / "metadata write" — Task 1 already left forward
+# references containing those exact substrings (the ordering block's "*Finalize blocked* below",
+# the skipped-with-reason list's "already carrying `## Finalize blocked`", and the durable-root
+# paragraph's "the metadata writes"), so a bare version of each would pass before Task 2 adds
+# anything. Anchoring on the actual heading / bullet phrasing keeps them non-vacuous.
+assert "SKILL has the Finalize blocked marker subsection heading" \
+  'grep -qF "### \`## Finalize blocked\` — marking a change that needs a human" "$FIN"'
+assert "SKILL states it is NOT a new status" \
+  'grep -Eqi "not (a new|an eighth) status|never an eighth status" "$FIN"'
+assert "SKILL states it is not a reuse of blocked" \
+  'grep -Eqi "(not|never) a reuse of .{0,3}\`?blocked" "$FIN"'
+assert "SKILL states selection SKIPS a marked change" \
+  'grep -Eqi "skip.{0,40}(carrying|marked|section)" "$FIN"'
+assert "SKILL states a CONFLICTING PR met during selection is marked too" \
+  'grep -Eqi "CONFLICTING.{0,10}PR met during selection is marked too" "$FIN"'
+assert "SKILL states a successful finalize CLEARS the section" \
+  'grep -Eqi "(remove|clear)s?.{0,40}section|section.{0,40}(removed|cleared)" "$FIN"'
+assert "SKILL names the board cell wording" 'grep -qF "finalize blocked — needs you" "$FIN"'
+assert "SKILL says the marker is a metadata write" \
+  'grep -qF "**metadata write**" "$FIN"'
+
+CONV="$REPO/skills/docket-convention/SKILL.md"
+assert "convention lists the Finalize blocked body section" 'grep -qF "## Finalize blocked" "$CONV"'
+
 # --- Non-vacuity / mutation proof: the code-formatted disposition grep actually bites. ---
 probe="$(mktemp)"; printf 'plain advanced word, no code formatting\n' > "$probe"
 assert "the code-formatted disposition grep is non-vacuous" '! grep -qF "\`advanced\`" "$probe"'

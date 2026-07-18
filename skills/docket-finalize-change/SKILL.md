@@ -153,6 +153,15 @@ Each leaves the **PR open** and the change **`implemented`**: an ambiguous rebas
 
 **Where the reason surfaces.** The subagent returns its diagnosis in-context; finalize relays it to the human (interactive) or the dispatching caller (autonomous), and also records it durably as a **comment on the PR** (`gh pr comment`) — a human returning later reads exactly why the auto-merge stopped.
 
+### `## Finalize blocked` — marking a change that needs a human
+
+A gate failure is recorded as a dated `## Finalize blocked` body section on the change file — a **metadata write** on `metadata_branch` like any other field write, appended in the metadata working tree and pushed immediately. It is deliberately **not a new status** and **not a reuse of `blocked`**: the change really *is* `implemented` with an open PR, and an eighth status would flatten the six distinct abort reasons into one label while forcing changes to the lifecycle diagram, the board renderer, the GitHub mirror's seven-state mapping, and the health checks. Shape mirrors the proven `## Auto-groom blocked`: a dated entry naming **which** reason fired and what the human must do.
+
+- **Selection skips** any change already carrying the section — without this a re-run re-selects the same known-bad change forever and the drain never progresses past it.
+- **A `CONFLICTING` PR met during selection is marked too** — a cheap, idempotent metadata write — so the board surfaces every change needing attention, not only the one this run touched.
+- **A successful finalize removes the section.** Unlike auto-groom's human-only re-arm, the condition is machine-verifiable (the gate passed), so requiring a human to delete it would strand stale markers on changes that are fine. State encoded by an artifact's presence must be cleared by every transition out of that state.
+- The board renders a change carrying it as **`finalize blocked — needs you`**, parallel to `auto-groom blocked — needs you`.
+
 ## Where finishing-a-development-branch fits
 
 When a human is present, the resolved finish skill — `$SKILL_FINISH` (default `superpowers:finishing-a-development-branch`) — can drive a non-standard close-out (keep, discard, or merge locally without a PR); its chooser fits at step 4. The rebase-retest gate is independent of it and still governs any actual merge; docket also borrows its provenance-guard (only auto-remove a worktree under `.worktrees/<slug>`).
