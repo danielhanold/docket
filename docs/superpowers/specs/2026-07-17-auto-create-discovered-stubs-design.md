@@ -32,8 +32,8 @@ not autonomy** — nothing is groomed, built, or merged without the existing hum
   default-off majority). When `true`, the autonomous mint behavior below activates.
 - Resolved by `docket-config.sh --export` using the **same layered read as `auto_groom`**
   (`.docket.local.yml` > repo `.docket.yml` > global `config.yml` > built-in `false`; see
-  `docket-config.sh:206`), emitted as `AUTO_CAPTURE`. Skill bodies read the exported variable;
-  they never re-parse YAML.
+  the `AUTO_GROOM` resolution line in `docket-config.sh`), emitted as `AUTO_CAPTURE`. Skill bodies
+  read the exported variable; they never re-parse YAML.
 - **Fence classification: global-able** (may be set in the user-level global config and
   `.docket.local.yml`, not only per-repo). Justification under ADR-0019: the fence protects
   *coordination* keys whose per-machine divergence would split or corrupt the shared substrate

@@ -15,10 +15,10 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/auto-create-discovered-stubs
-claimed_at: 2026-07-18T19:58:05Z
+claimed_at: 2026-07-18T20:00:07Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -90,3 +90,52 @@ Resolved at grooming (2026-07-17; rationale + rejected alternatives in the spec'
   needs-brainstorm and provenance rendering is #0090's territory.
 
 ## Reconcile log
+
+### 2026-07-18 — reconcile at claim (docket-implement-next)
+
+Design **holds unchanged**; no scope drop, no fundamental invalidation. Verified against current
+`origin/main` (`df4c6ec`), the archived #0090, and the ADR ledger.
+
+**Dependency verified satisfied.** #0090 is `done` (PR #97, archived 2026-07-18) and landed all
+three surfaces this change consumes: `discovered_from:` in the convention manifest block
+(`skills/docket-convention/SKILL.md`), seeded empty in `skills/docket-new-change/change-template.md`,
+and populated by `docket-new-change`'s step-3 scan. The mint contract can populate the field with no
+folding-in of #0090 work.
+
+**Design assumptions re-validated against current code.**
+
+- The `auto_groom` resolution line in `scripts/docket-config.sh` is the exact four-layer shape
+  `auto_capture` copies (repo-local > repo-committed > global > built-in `false`); the spec's stale
+  `docket-config.sh:206` line-number citation was corrected to a symbolic reference.
+- The ADR-0019 fence table in `scripts/docket-config.md` is still the authoritative per-key
+  classification surface the spec's §8 requires the new row to land in.
+- `docket-new-change`'s **step 1 (Allocate)** still carries the scan-max-id + CAS-on-rejection
+  routine verbatim as the spec describes — the routine `mint-stub.sh` factors out is intact and
+  unmoved.
+- No `mint-stub.sh` (or equivalent) exists yet; `scripts/` has no auto-capture surface. Greenfield.
+
+**Constraints folded in that post-date grooming (2026-07-17).** These are build-time obligations the
+spec could not have known; none change the design, all shape the plan:
+
+- **Skill size budgets** (`tests/test_skill_size_budgets.sh`, change 0085) now gate every
+  `skills/**/*.md`. Current headroom for the files this change must edit: implement-next 127/140
+  lines, 2641/2845 words; finalize-change 132/160, 2266/2699; status 107/118, 2175/2393; convention
+  294/317, 4769/5104. The prose additions must fit, or **raise the budget row in the same diff** (the
+  test explicitly sanctions that, and forbids silent regrowth).
+- **Script-contract coverage** (`tests/test_script_contracts_coverage.sh`) requires a co-located
+  `scripts/mint-stub.md` contract for any new `scripts/mint-stub.sh`.
+- **Facade wiring** — a new op must be added to `WRAPPED_OPS` in `scripts/docket.sh` *and* its
+  header op list (`tests/test_docket_facade.sh`, `tests/test_skill_facade_wiring.sh`).
+- **Export-interface count** — adding `AUTO_CAPTURE` moves the emit interface from 23→24 lines
+  (shell) / 24→25 (plain). Two assertions in `tests/test_docket_config.sh` (the direct-pipe count
+  and the 0050 E' global-layer count) plus the counts in `scripts/docket-config.md` must move
+  together.
+- **Change 0089's `reclaim:` block** is the freshest end-to-end precedent for shipping a config knob
+  (example-file prose, fence-table row, export, validation, tests) — `auto_capture` follows it, but
+  as a **top-level boolean** like `auto_groom`, not a nested block.
+- **Change 0088's terminal-disposition contract** is now where `docket-implement-next`'s "run
+  report" lives. The spec's cap-overflow and dedup-skip reporting (§5/§6) should ride in that
+  existing enumerated final report rather than invent a parallel reporting surface.
+
+**Open questions:** none reopened. The three resolved at grooming remain resolved, and the
+per-invocation cap stays a hardcoded constant per §6.
