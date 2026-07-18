@@ -10,7 +10,7 @@ depends_on: []
 related: [8, 87]
 adrs: [1]
 spec: docs/superpowers/specs/2026-07-17-implement-next-loop-continuation-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-18-implement-next-loop-continuation.md
 results:
 trivial: false
 auto_groomable: false
@@ -26,6 +26,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-17-implement-next-loop-continuation-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-17-implement-next-loop-continuation-design.md) |
+| Plan | [2026-07-18-implement-next-loop-continuation.md](https://github.com/danielhanold/docket/blob/feat/implement-next-loop-continuation/docs/superpowers/plans/2026-07-18-implement-next-loop-continuation.md) |
 | ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md) |
 <!-- docket:artifacts:end -->
 
