@@ -31,6 +31,22 @@ assert "SKILL states a blocked-but-non-empty set is halted, not drained" \
 assert "SKILL states one merge per invocation" \
   'grep -Eqi "run merges.{0,20}exactly one.{0,20}change" "$FIN"'
 assert "SKILL states it never batches" 'grep -Eqi "never batch" "$FIN"'
+# The multi-candidate prompt is an interactive-BATCH guard; one-merge-per-invocation supersedes it,
+# so the unscoped drain selects by Ordering instead of halting on an impossible prompt.
+assert "SKILL states the multi-candidate prompt is superseded on the driver path" \
+  'grep -Eqi "multi-candidate prompt is an interactive.{0,10}\*?batch\*? guard.{0,60}supersed" "$FIN"'
+assert "SKILL states a driver/autonomous run never prompts and takes the Ordering head" \
+  'grep -Eqi "(driver|autonomous) run selects by .{0,15}Ordering.{0,15} and never prompts" "$FIN"'
+assert "the selection matrix scopes the multi-candidate prompt to attended runs" \
+  'grep -Eqi "More than one eligible.{0,120}NO prompt.{0,140}Attended run" "$FIN"'
+# Already-merged close-out is `advanced`, not `drained` — real work ran, so the driver must continue.
+assert "SKILL maps an already-merged close-out to advanced" \
+  'grep -Eqi "archived an already-merged PR" "$FIN"'
+assert "SKILL exempts already-merged archiving from one-merge-per-invocation" \
+  'grep -Eqi "already-merged.{0,40}changes in one run does not violate" "$FIN"'
+# `contended` must not swallow a raced success this run actually merged.
+assert "SKILL qualifies contended against a raced success" \
+  'grep -Eqi "if .{0,5}this.{0,5} run performed the merge, it is .\`?advanced" "$FIN"'
 
 # --- SKILL.md: id-set scoping ---
 assert "SKILL documents an id allowlist" 'grep -Eqi "allowlist" "$FIN"'
@@ -61,7 +77,16 @@ assert "ordering key 4 is the priority tiebreak" '[ -n "$p_tie" ]'
 assert "the four ordering keys appear in contract order" \
   '[ -n "$p_dep" ] && [ -n "$p_mrg" ] && [ -n "$p_dif" ] && [ -n "$p_tie" ] &&
    [ "$p_dep" -lt "$p_mrg" ] && [ "$p_mrg" -lt "$p_dif" ] && [ "$p_dif" -lt "$p_tie" ]'
-assert "SKILL excludes CONFLICTING from selection" 'grep -q "CONFLICTING" "$FIN"'
+# CONFLICTING DEPRIORITIZES, it is not excluded — line 54's delegation to the rebase-retest gate
+# is preserved, so `docket-rebase-resolver` still owns resolution. A bare grep for "CONFLICTING"
+# would be decorative (the word predates this change), so anchor on the deprioritize/never-exclude
+# shape and on the delegation surviving.
+assert "SKILL deprioritizes CONFLICTING rather than excluding it" \
+  'grep -Eqi "CONFLICTING.{0,40}(deprioritize|sorts? last).{0,40}never excludes?|CONFLICTING[^.]{0,60}never excludes?" "$FIN"'
+assert "SKILL keeps conflict resolution delegated to the rebase-resolver" \
+  'grep -Eqi "(resolution|resolving).{0,60}delegated.{0,60}docket-rebase-resolver|delegated to the gate.{0,20}.?s .docket-rebase-resolver" "$FIN"'
+assert "SKILL marks Finalize blocked only for a conflict the GATE can not act on" \
+  'grep -Eqi "only a conflict the .{0,10}gate.{0,10}(can.t|cannot|can not) act on" "$FIN"'
 assert "SKILL documents the lazy-mergeable poll" \
   'grep -q "UNKNOWN" "$FIN" && grep -Eqi "poll" "$FIN"'
 assert "SKILL forbids pairwise file-overlap ranking" \
@@ -82,8 +107,16 @@ assert "SKILL states it is not a reuse of blocked" \
   'grep -Eqi "(not|never) a reuse of .{0,3}\`?blocked" "$FIN"'
 assert "SKILL states selection SKIPS a marked change" \
   'grep -Eqi "skip.{0,40}(carrying|marked|section)" "$FIN"'
-assert "SKILL states a CONFLICTING PR met during selection is marked too" \
-  'grep -Eqi "CONFLICTING.{0,10}PR met during selection is marked too" "$FIN"'
+# The skip must be scoped to auto-detect and overridable by a named id, or the marker deadlocks:
+# a permanently-skipped change can never be finalized, so the clearing rule below can never fire.
+assert "SKILL scopes the marker skip to the auto-detect path" \
+  'grep -Eqi "auto-detect selection skips" "$FIN"'
+assert "SKILL states a named id or allowlist member OVERRIDES the marker skip" \
+  'grep -Eqi "(explicitly named id|named id).{0,60}overrides the skip|overrides the skip.{0,60}named id" "$FIN"'
+assert "the skipped-with-reason list scopes the marker skip to auto-detect" \
+  'grep -Eqi "already carrying .\`?## Finalize blocked.{0,80}(auto-detect|named id)" "$FIN"'
+assert "SKILL states a CONFLICTING PR is NOT marked at selection time" \
+  'grep -Eqi "CONFLICTING.{0,10}PR is .{0,4}NOT marked at selection time" "$FIN"'
 assert "SKILL states a successful finalize CLEARS the section" \
   'grep -Eqi "(remove|clear)s?.{0,40}section|section.{0,40}(removed|cleared)" "$FIN"'
 assert "SKILL names the board cell wording" 'grep -qF "finalize blocked — needs you" "$FIN"'
@@ -92,6 +125,12 @@ assert "SKILL says the marker is a metadata write" \
 
 CONV="$REPO/skills/docket-convention/SKILL.md"
 assert "convention lists the Finalize blocked body section" 'grep -qF "## Finalize blocked" "$CONV"'
+# The convention entry must not foreclose a human retry (it used to say "not a human re-arm",
+# which combined with an unconditional skip made a marked change permanently unfinalizable).
+assert "convention scopes the marker skip to auto-detect runs" \
+  'grep -Eqi "later .{0,4}\*{0,2}auto-detect\*{0,2}.{0,4} finalize runs skip" "$CONV"'
+assert "convention says naming the id is how a human retries a marked change" \
+  'grep -Eqi "retries a marked change by .{0,4}\*{0,2}naming its id" "$CONV"'
 
 # --- README: the /loop finalize drain-pattern doc ---
 README="$REPO/README.md"
@@ -99,8 +138,22 @@ fb='`/loop docket-finalize-change`'
 assert "README documents the /loop finalize drain" 'grep -qF "$fb" "$README"'
 assert "README documents the /loop finalize id-set drain" \
   'grep -Eq "/loop docket-finalize-change 90,92,94" "$README"'
-assert "README names all four dispositions for finalize" \
-  'for d in advanced contended drained halted; do grep -qiF "$d" "$README" || exit 1; done'
+# Retargeted (learnings: sentinel-passed-on-pre-existing-text): grepping the WHOLE README for the
+# four words passes on the base revision — the implement-side /loop section already contains all
+# four. Anchor to THIS section's own lead-in line, the way the neighbour assert below does, so
+# deleting a disposition from the finalize paragraph reddens it.
+# Anchoring on the LINE is still too loose: its trailing "continue on `advanced`/`contended`, stop
+# on `drained`/`halted`" clause supplies all four tokens on its own, so deleting them from the
+# ENUMERATION stayed green. Cut the line at that clause and assert over the enumeration alone.
+fin_lead="$(grep -F 'same four dispositions' "$README" || true)"
+fin_enum="${fin_lead%%so a single driver*}"
+assert "README has the finalize four-disposition lead-in" '[ -n "$fin_lead" ]'
+assert "the finalize enumeration is separable from the binary-rule clause" \
+  '[ -n "$fin_enum" ] && [ "$fin_enum" != "$fin_lead" ]'
+for d in advanced contended drained halted; do
+  tok="\`$d\`"
+  assert "README finalize enumeration names $d (code-formatted)" 'grep -qF "$tok" <<<"$fin_enum"'
+done
 # Retargeted (learnings: sentinel-passed-on-pre-existing-text): the bare continue/stop phrasing is
 # byte-identical to the implement-side section by design (same four-disposition contract), so an
 # unanchored grep for it is decorative here — it already passes on the pre-Task-4 README. Anchor to
@@ -115,6 +168,10 @@ assert "README names the finalize-blocked board cell" \
 # reader carries the wrong mental model across the two subsections.
 assert "README states the finalize driver DOES merge" \
   'grep -Eqi "this driver (does|merges)|unlike the implementer" "$README"'
+# The two /loop sections must reconcile: the implement-side "never merges" guarantee stands, but a
+# dependency can now also clear via a finalize drain, so that clause points at this section.
+assert "README's implement-side never-merges clause points at the finalize drain" \
+  'grep -Eqi "never merges\*\*[^|]{0,200}finalize drain.{0,80}#closing-out-hands-free-with-loop" "$README"'
 
 # --- Non-vacuity / mutation proof: the code-formatted disposition grep actually bites. ---
 probe="$(mktemp)"; printf 'plain advanced word, no code formatting\n' > "$probe"
