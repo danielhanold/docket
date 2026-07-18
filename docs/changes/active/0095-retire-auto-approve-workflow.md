@@ -8,7 +8,7 @@ created: 2026-07-18
 updated: 2026-07-18
 depends_on: []
 related: [15, 21, 62, 86]
-adrs: [42]
+adrs: [42, 43]
 spec: docs/superpowers/specs/2026-07-18-retire-auto-approve-workflow-design.md
 plan:
 results:
@@ -26,7 +26,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-18-retire-auto-approve-workflow-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-18-retire-auto-approve-workflow-design.md) |
-| ADRs | [ADR-0042](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0042-auto-approve-consent-model.md) |
+| ADRs | [ADR-0042](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0042-auto-approve-consent-model.md), [ADR-0043](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0043-retire-bot-auto-approval-zero-approvals-branch-protection.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
