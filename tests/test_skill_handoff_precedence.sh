@@ -5,9 +5,15 @@
 #   (1) docket-convention's *Skill layer* states the precedence rule and names the call-site marker.
 #   (2) COVERAGE — every autonomous invocation of a resolved role skill pre-specifies its outcome
 #       (`DIRECTED to:`), with docket-finalize-change's human-present close-out the one exception.
-# Group (2) is the load-bearing one: a presence-only check would test the durability prose (which
-# demonstrably does not win at the moment of invocation) while leaving the mechanism unguarded.
+# Group (2) is the load-bearing one: a presence-only check would guard the durability prose while
+# leaving the mechanism unguarded — and what demonstrably lost at the moment of invocation (run 40)
+# was exactly that shape of standing instruction: the wrapper's abort-and-report rule and §5's
+# resolved-build statement were both already in context, and the sub-skill's prompt still won.
 # Sites are DERIVED from a whole-repo grep, never hand-listed (AGENTS.md: enumerated floor).
+# Two known limits of a token-presence check, accepted deliberately: the marker satisfies a line from
+# any position (a parenthetical mention would pass), and `checked` counts matching LINES, so a future
+# paragraph invoking two role skills on one line is covered by a single marker. Both need contrived
+# prose to hit; the realistic drift — a direction deleted or reflowed away — is caught.
 # Run: bash tests/test_skill_handoff_precedence.sh
 set -uo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
@@ -29,10 +35,14 @@ assert "Skill layer names pre-specification as the mechanism" 'grep -qi "pre-spe
 assert "Skill layer names the call-site marker" 'grep -qF -- "$MARKER" <<<"$LAYER"'
 
 # --- group 2: coverage over every autonomous role invocation ------------------------------------
-# A skill is AUTONOMOUS iff sync-agents.sh generates a wrapper for it (agents/<skill>.md) — the same
-# wrapper that carries the abort-and-report rule. Interactive skills have no wrapper and are skipped
-# by construction, never by name: their prompts are the product.
-SITES="$(grep -rn -e '\$SKILL_[A-Z]\{4,\}' "$REPO/skills" 2>/dev/null)"
+# A skill is AUTONOMOUS iff a wrapper exists for it at agents/<skill>.md — the committed source
+# sync-agents.sh installs into each harness, and the same wrapper that carries the abort-and-report
+# rule. Interactive skills have no wrapper and are skipped by construction, never by name: their
+# prompts are the product.
+# Match both `$SKILL_X` and `${SKILL_X}` — keying on the bare-sigil spelling alone would let a
+# braced rewrite slip a site past discovery (AGENTS.md: shape, never a spelling).
+SITE_RE='\$[{]\?SKILL_[A-Z]\{4,\}'
+SITES="$(grep -rn -e "$SITE_RE" "$REPO/skills" 2>/dev/null)"
 assert "role-skill invocation sites were discovered" '[ -n "$SITES" ]'
 
 checked=0
@@ -68,6 +78,11 @@ assert "the marker check is non-vacuous (an unmarked invocation is caught)" \
 # The exception classifier must not match an ordinary invocation line.
 assert "the exception classifier is non-vacuous (a plain line is not an exception)" \
   '! grep -qi "human is present" <<<"$UNMARKED"'
+# Site discovery must catch a braced rewrite; keying on the bare sigil alone left a silent bypass
+# that only the checked>=5 floor caught — and a floor stops protecting the moment a 6th site lands.
+BRACED='Run the **resolved plan skill** — `${SKILL_PLAN}` from the Step-0 config export.'
+assert "site discovery matches the braced spelling too" 'grep -q -e "$SITE_RE" <<<"$BRACED"'
+assert "site discovery matches the bare spelling too" 'grep -q -e "$SITE_RE" <<<"$UNMARKED"'
 
 [ "$fail" -eq 0 ] && echo "ALL OK" || echo "FAILURES"
 exit "$fail"
