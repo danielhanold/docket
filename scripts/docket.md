@@ -63,7 +63,7 @@ rather than a same-named script (there is no `scripts/preflight.sh`, `scripts/en
 ## Behavior
 
 **Dispatch.** `docket.sh <op> [args...]` looks `<op>` up in the table above. A match on one of the
-14 wrapped ops execs `$SCRIPTS_DIR/<op>.sh "$@"` — args forwarded verbatim, the helper's exit code
+13 wrapped ops execs `$SCRIPTS_DIR/<op>.sh "$@"` — args forwarded verbatim, the helper's exit code
 and stderr pass through unmasked (the facade uses `exec`, so the wrapped helper's process directly
 replaces `docket.sh`'s; there is no wrapper-added exit-code translation or output buffering). A
 match on `preflight`, `env`, or `bootstrap` runs the verb-specific logic below instead of execing a
@@ -146,7 +146,7 @@ above:
 |---|---|
 | 0 | Success. |
 | 2 | Unknown or missing operation — `docket.sh` lists the supported operations on stderr. |
-| *(other)* | Propagated verbatim from the wrapped helper's own exit code (for the 14 wrapped ops), or from `docket_preflight`/`docket-config.sh` failure (for `preflight`/`env`/`bootstrap`). |
+| *(other)* | Propagated verbatim from the wrapped helper's own exit code (for the 13 wrapped ops), or from `docket_preflight`/`docket-config.sh` failure (for `preflight`/`env`/`bootstrap`). |
 
 ## Invariants
 
