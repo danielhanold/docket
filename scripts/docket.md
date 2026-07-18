@@ -54,7 +54,6 @@ transitively by `docket_preflight` (see `scripts/lib/docket-preflight.sh`).
 | `adr-checks` | `adr-checks.sh` | ADR consistency checks |
 | `board-checks` | `board-checks.sh` | board consistency checks |
 | `runner-dispatch` | `runner-dispatch.sh` | delegate one agent run to a child harness via a registered runner adapter (change 0079) |
-| `setup-auto-approve` | `setup-auto-approve.sh` | one-time, human-attended install of the auto-approve workflow onto the integration branch + the repo Actions setting (change 0062) |
 
 Operation name = wrapped helper basename for every row except the three verbs `preflight`, `env`,
 and `bootstrap`, whose `Wraps` column names an implementation or a flagged resolver invocation
