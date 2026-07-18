@@ -2,7 +2,7 @@
 id: 91
 slug: auto-create-discovered-stubs
 title: Auto-create discovered stubs — a config flag that turns mid-run findings into proposed changes
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-17
 updated: 2026-07-18
@@ -11,12 +11,12 @@ related: [90]
 adrs: [19, 45, 46]
 spec: docs/superpowers/specs/2026-07-17-auto-create-discovered-stubs-design.md
 plan: docs/superpowers/plans/2026-07-18-auto-create-discovered-stubs.md
-results:
+results: docs/results/2026-07-18-auto-create-discovered-stubs-results.md
 trivial: false
 auto_groomable: true
 branch: feat/auto-create-discovered-stubs
-claimed_at: 2026-07-18T23:12:39Z
-pr:
+claimed_at: 2026-07-18T23:20:33Z
+pr: https://github.com/danielhanold/docket/pull/104
 blocked_by:
 reconciled: true
 ---
@@ -28,6 +28,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-17-auto-create-discovered-stubs-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-17-auto-create-discovered-stubs-design.md) |
 | Plan | [2026-07-18-auto-create-discovered-stubs.md](https://github.com/danielhanold/docket/blob/feat/auto-create-discovered-stubs/docs/superpowers/plans/2026-07-18-auto-create-discovered-stubs.md) |
+| Results | [2026-07-18-auto-create-discovered-stubs-results.md](https://github.com/danielhanold/docket/blob/feat/auto-create-discovered-stubs/docs/results/2026-07-18-auto-create-discovered-stubs-results.md) |
+| PR | [#104](https://github.com/danielhanold/docket/pull/104) |
 | ADRs | [ADR-0019](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0019-global-config-fence-classification.md), [ADR-0045](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0045-auto-capture-is-best-effort.md), [ADR-0046](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0046-cas-reset-hard-shared-worktree-tracked-clean-tree-precondition.md) |
 <!-- docket:artifacts:end -->
 
