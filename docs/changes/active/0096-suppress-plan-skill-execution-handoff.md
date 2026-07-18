@@ -1,7 +1,7 @@
 ---
 id: 96
 slug: suppress-plan-skill-execution-handoff
-title: An autonomous run can be halted by a sub-skill's interactive hand-off — neutralize writing-plans' execution choice
+title: An autonomous run can be halted by a sub-skill's interactive hand-off — pre-specify the outcome at every autonomous call site
 status: proposed
 priority: high
 created: 2026-07-18
@@ -9,7 +9,7 @@ updated: 2026-07-18
 depends_on: []
 related: [16, 44, 49, 61, 95]
 adrs: [24]
-spec:
+spec: docs/superpowers/specs/2026-07-18-autonomous-skill-handoff-precedence-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Spec | [2026-07-18-autonomous-skill-handoff-precedence-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-18-autonomous-skill-handoff-precedence-design.md) |
 | ADRs | [ADR-0024](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0024-claude-context-fork-skill-dispatch.md) |
 <!-- docket:artifacts:end -->
 
@@ -57,19 +58,33 @@ ambiguity that had simply always landed the same way.
 The cost is not correctness — 0095 completed and was fully reviewed — it is the autonomy contract
 and context isolation, failing unpredictably at roughly 1-in-40 with no signal that it will.
 
+**Grooming sized it and found the fix already half-built.** Two of the four default role skills
+carry a hand-off, not one: `writing-plans` (plan) and `finishing-a-development-branch` (finish);
+`subagent-driven-development` and `requesting-code-review` do not. And the finish skill — the more
+prescriptive of the two, with two option menus and a destructive option behind a typed confirmation
+— was invoked in all 40 runs and never derailed one, because §7 already pre-specifies its outcome
+at the point of invocation. §4 does not. That difference is the whole defect, and the remedy is a
+technique this repo has already proven against a harder case.
+
 ## What changes
 
-- **Neutralize the plan role's hand-off** in `docket-implement-next` §4: after `$SKILL_PLAN`
-  returns, the build proceeds via `$SKILL_BUILD` with no prompt. Any execution-mode question the
-  plan skill poses is answered internally from the already-resolved config, never surfaced.
-- **Decide the general rule.** The same shape can occur wherever a resolved sub-skill ends with a
-  human hand-off — the `plan`, `review`, and `finish` roles all invoke third-party skills from
-  inside autonomous wrappers. Either state the precedence once (an autonomous wrapper's
-  no-prompt rule outranks any invoked skill's interactive step) in `docket-convention`'s *Skill
-  layer*, or patch each role. The convention already owns the missing-skill and `auto`-fallback
-  rules for this layer, so it is the natural home.
-- **Guard it.** A sentinel asserting the precedence survives in the skill/convention prose, so a
-  future re-slim cannot quietly drop it.
+- **Pre-specify the outcome at each autonomous call site** — the load-bearing fix. §4 invokes
+  `$SKILL_PLAN` directed to write the plan and stop, then proceeds via `$SKILL_BUILD` with no
+  prompt, answering any choice internally from resolved config. §7 stands and cites the rule.
+  `docket-finalize-change:124` keeps its interactive close-out, with the human-present condition
+  made explicit as the one exception. Directions are phrased by shape, never by citing a vendored
+  heading, so a superpowers upgrade cannot silently stale them.
+- **State the precedence once** in `docket-convention`'s *Skill layer*: an invoked skill's
+  interactive step never outranks an autonomous caller's no-prompt rule, and pre-specification is
+  the mechanism. This is durability for future bindings, **not** the fix — two general
+  "don't prompt" instructions already existed and both lost at run 40. The spec records why, so a
+  re-slim cannot keep the tidy paragraph and drop the call-site directions.
+- **Trace conditionally** — one run-output line naming the role and skill, only when a hand-off was
+  actually met and suppressed. Not the PR body; not every run (#0066's unconditional warning decayed
+  into boilerplate).
+- **Guard by coverage, not presence** — assert every autonomous role invocation carries a
+  pre-specified outcome, with finalize's human-present condition permitted. Fails against today's
+  §4 on arrival.
 
 ## Out of scope
 
@@ -80,17 +95,13 @@ and context isolation, failing unpredictably at roughly 1-in-40 with no signal t
   already resolves correctly (#0049). This change makes the run honor it without asking.
 - SDD's per-dispatch model selection (#0044, blocked) and the interactive skills
   (`docket-new-change`, `docket-groom-next`), which are *supposed* to prompt.
+- **Behavioral testing** — asserting no prompt surfaces in a real run. The failure is model
+  judgment at ~1-in-40 inside a fork; not deterministically reproducible. A bounded decision, not
+  an oversight.
 
 ## Open questions
 
-- **One-off or general?** Patch §4 alone, or state the precedence once in the *Skill layer* so
-  every role inherits it? The general rule is more durable but touches the convention, which every
-  skill loads — a wider blast radius for a 1-in-40 defect.
-- **Is silent suppression right?** Answering internally hides that an invoked skill tried to stop.
-  A one-line note in the run output ("plan skill offered an execution choice; resolved from
-  `skills.build`") would leave a trace, at the cost of noise on every run.
-- Do the `review` and `finish` roles' default skills contain a comparable interactive step, or is
-  `writing-plans` the only one? A read of all four resolved defaults would size the problem.
+None — all three were resolved at grooming (see the spec).
 
 ## Reconcile log
 
