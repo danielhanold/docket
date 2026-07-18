@@ -35,9 +35,11 @@ where it belongs; only the close-out steps move to the durable root.
 
 ## Selection
 
-Given an explicit change id, OR auto-detect.
+Given an explicit change id or an **id allowlist**, OR auto-detect.
 
 **Explicit id** (`docket-finalize-change <id>`) — never prompts (an explicit id is unambiguous). The rebase-retest correctness gate still runs. The explicit id is itself the human authorization, so **an explicit id overrides `require_pr_approval`**: it merges even an unapproved PR. The approval policy governs only the auto-detect path.
+
+**Id allowlist** (`docket-finalize-change 90,92,94`) — generalizes the explicit-id form; a single id is the degenerate case. The set bounds *which changes are eligible*; the run still merges only the best-ordered one of them (see *Ordering* below). **Naming the ids IS the authorization** the multi-candidate prompt would otherwise have collected, so an allowlist never prompts and overrides `require_pr_approval` exactly as a single explicit id does. A scoped id that is not eligible is **skipped with its reason**, never force-merged, and never aborts the run. Unset ⇒ every eligible `implemented` change is a candidate.
 
 **Auto-detect** — already-merged PRs are archived silently (idempotent, unchanged). For the
 rest, classify every `implemented` candidate and act per this matrix:
@@ -51,7 +53,39 @@ rest, classify every `implemented` candidate and act per this matrix:
 
 "Eligible" = git-mergeable AND (`require_pr_approval: false` OR approved). The ambiguity count is over *eligible* candidates only: an unapproved PR under `require_pr_approval: true` is surfaced-not-merged and does **not** count toward the prompt. Git-conflict *resolution* is delegated to the rebase-retest gate below; selection's "surface, do not merge" covers only states the gate can't act on.
 
+**Ordering — by mergeability, not priority.** The goal is to close out as many changes as possible per drain, so selection maximizes each attempt's chance of success. Among eligible candidates, take the head of:
+
+1. **`depends_on` order** — a hard correctness constraint, not a preference: a dependency is satisfied only at `done`, so a dependent never merges ahead of its dependency however mergeable it looks.
+2. **GitHub's `mergeable` field** — `CONFLICTING` is excluded from selection entirely and marked per *Finalize blocked* below.
+3. **Smallest diff first** — `changedFiles`, then `additions + deletions`: cheaper to re-test, less likely to redden the suite after rebase, and lands the most changes before any halt.
+4. **`priority` → `created` → lowest id** — the final tiebreak. Priority is *demoted*, not deleted: it still encodes human intent and guarantees a total, reproducible order.
+
+Probe with `gh pr view <n> --json mergeable,mergeStateStatus,changedFiles,additions,deletions`. **GitHub computes `mergeable` lazily** — the first query returns `UNKNOWN` and only *triggers* the computation — so poll, bounded, and treat a still-`UNKNOWN` result as "attempt it": the rebase-retest gate is the real arbiter, and a wrong guess costs one gate run, not correctness. Do **not** build pairwise file-overlap ranking — measured against this repo's real backlog on 2026-07-18, it discriminates nothing and costs O(n) extra `gh` calls per invocation. Revisit only on evidence.
+
+**Re-selection replaces sequencing.** Each invocation re-derives "best next" against the **current** `origin/<integration_branch>`, so no precomputed order can go stale — the direct answer to the moving base, since every merge moves it and an order authored before the first merge is a prediction about a base that no longer exists by the third.
+
 The per-change steps below run for each selected change; step 5 (Board) runs once at the end.
+
+## Terminal disposition (driver contract)
+
+Every run ends by declaring exactly **one** of four dispositions — the **same four words** `docket-implement-next` uses, so one driver keys on both skills without knowing which it is driving:
+
+| Disposition | Meaning | Driver action |
+|---|---|---|
+| `advanced` | Merged one change → closed out (the per-change steps ran to completion). | continue |
+| `contended` | Another writer got there first — the `docket-status` sweep archived it between selection and close-out; the archive is an idempotent no-op, so **nothing merged**. | continue — re-select next |
+| `drained` | No eligible `implemented` change in scope. | **stop** |
+| `halted` | Any abort-and-report point fired, **or** every member of a non-empty eligible set needs a human. | **stop + surface** |
+
+The driver's decision is binary: **continue on `advanced`/`contended`, stop on `drained`/`halted`.** The contract is **driver-agnostic** — `/loop`, cron, a scheduled agent, or a human re-typing the command are all equally valid; docket owns the contract, never the driver.
+
+**One merge per invocation.** A run merges **exactly one** change and exits `advanced`; it **never batches**. Consecutive close-outs come from the driver re-invoking, not from an in-run loop — which is also what keeps the blast-radius posture the multi-candidate prompt was protecting.
+
+**Every abort-and-report point maps to `halted`.** The set enumerated in *abort-and-report points (the full set)* below is unchanged — this **names** existing behavior and adds none.
+
+**A blocked-but-non-empty set is `halted`, never `drained`.** There *is* work; it just needs a human. `drained` must keep meaning "genuinely nothing to do," or the driver's stop signal loses its meaning.
+
+The final report **enumerates** the change merged (if any), each change **skipped with its reason** (outside the id allowlist / not git-mergeable / unapproved under `require_pr_approval` / already carrying `## Finalize blocked` / waiting on an unmerged `depends_on`), and which disposition ended the run.
 
 ## Per-change steps
 
