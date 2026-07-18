@@ -1,8 +1,8 @@
 # Backlog
 
-**94 changes** — 🟡 11 proposed · 🔴 1 blocked · ⚪ 1 deferred · 🔵 5 implemented · ✅ 72 done · 🗑️ 4 killed
+**95 changes** — 🟡 12 proposed · 🔴 1 blocked · ⚪ 1 deferred · 🔵 5 implemented · ✅ 72 done · 🗑️ 4 killed
 
-## 🟡 Proposed (11)
+## 🟡 Proposed (12)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -17,6 +17,7 @@
 | [0086](active/0086-attended-finalize-merge-path.md) | Attended finalize has no merge path under auto_approve — scope the --admin ban to autonomous runs | `high` | needs-brainstorm |
 | [0087](active/0087-headless-finalize-driver.md) | Ship the headless finalize driver — 0062's capability has no consumer | `high` | needs-brainstorm |
 | [0091](active/0091-auto-create-discovered-stubs.md) | Auto-create discovered stubs — a config flag that turns mid-run findings into proposed changes | `medium` | ⏳ waiting on #90 — needs your merge |
+| [0095](active/0095-retire-auto-approve-workflow.md) | Retire the auto-approve workflow — document the classifier and the single-maintainer branch-protection solution | `high` | build-ready |
 
 ## 🔴 Blocked (1)
 
@@ -60,6 +61,7 @@ graph TD
   0092
   0093
   0094
+  0095
   0001:::done
   0002:::done
   0003:::done
