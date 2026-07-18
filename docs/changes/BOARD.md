@@ -1,6 +1,6 @@
 # Backlog
 
-**96 changes** — 🟢 1 in progress · 🟡 10 proposed · 🔴 1 blocked · ⚪ 1 deferred · 🔵 2 implemented · ✅ 76 done · 🗑️ 5 killed
+**96 changes** — 🟢 1 in progress · 🟡 10 proposed · 🔴 1 blocked · ⚪ 1 deferred · 🔵 1 implemented · ✅ 77 done · 🗑️ 5 killed
 
 ## 🟢 In progress (1)
 
@@ -35,12 +35,11 @@
 |---|-------|----------|
 | [0094](active/0094-docket-prime-context-digest.md) | docket-prime — a token-budgeted context digest skills load instead of walking docs/changes | `medium` |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | [#89](https://github.com/danielhanold/docket/pull/89) |
-| [0093](active/0093-archive-decay-digest.md) | Archive decay — a rolling one-line digest so board and context cost stay flat as the archive grows | `medium` | [#96](https://github.com/danielhanold/docket/pull/96) |
 
 ```mermaid
 graph TD
@@ -56,7 +55,6 @@ graph TD
   0083
   0087
   0090 --> 0091
-  0093
   0094
   0096
   0001:::done
@@ -134,15 +132,17 @@ graph TD
   0089:::done
   0090:::done
   0092:::done
+  0093:::done
   0095:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (81)</summary>
+<details><summary>✅🗑️ Archive — done + killed (82)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0095](archive/2026-07-18-0095-retire-auto-approve-workflow.md) | Retire the auto-approve workflow — document the classifier and the single-maintainer branch-protection solution | 2026-07-18 |
+| [0093](archive/2026-07-18-0093-archive-decay-digest.md) | Archive decay — a rolling one-line digest so board and context cost stay flat as the archive grows | 2026-07-18 |
 | [0092](archive/2026-07-18-0092-orphan-detection-script.md) | Orphan detection script — cross-reference change ids in merged commits against archive state | 2026-07-18 |
 | [0090](archive/2026-07-18-0090-discovered-from-provenance.md) | discovered-from provenance links — record which change's build surfaced a new stub | 2026-07-18 |
 | [0089](archive/2026-07-18-0089-claim-leases-reclaim-script.md) | Claim leases + reclaim script — expired in-progress claims self-heal back to proposed | 2026-07-18 |
