@@ -17,7 +17,7 @@ auto_groomable: false
 branch: feat/implement-next-loop-continuation
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -82,3 +82,32 @@ build-time harness spike confirming `/loop` cleanly drives the forked skill and 
 (spec §6); it degrades gracefully and is recorded here at build, not a groom-time blocker._
 
 ## Reconcile log
+
+### 2026-07-18 — build-time reconcile (docket-implement-next)
+
+Freshened against current reality before planning. Findings:
+
+- **Related changes hold.** #0008 (parallel backlog drain) and #0087 (headless finalize driver) are
+  both still `proposed`. The spec's three-way partition — #0088 = serial self-continuation, #0008 =
+  concurrent fan-out, #0087 = single headless finalize — stands unchanged; no scope overlap to fold
+  in. ADR-0001 (metadata-branch / CAS-claim model) remains the relevant citation.
+- **Size-budget guard is live and binding.** Change 0085 shipped `tests/test_skill_size_budgets.sh`;
+  the row for `skills/docket-implement-next/SKILL.md` is 119 lines / 2451 words, and the file is
+  currently 108 / 2228. The disposition-report + id-set-scoping prose will exceed the line budget, so
+  the build RAISES that budget row **in the same diff** (the guard explicitly permits an in-diff
+  raise). Spec §7 already anticipated the size-budget guard.
+- **§6 `/loop` spike degraded (spec-authorized).** The live harness spike — confirming `/loop`
+  forks implement-next per iteration and continues on `advanced`/`contended`, stops on
+  `drained`/`halted` — cannot be run inside this autonomous forked build: driving `/loop
+  docket-implement-next` live would uncontrolledly claim and build real backlog changes, and a forked
+  subagent has no TUI to drive `/loop` or observe its per-iteration disposition handling. Per the
+  spec's own §6 degrade path, the build ships the **driver-agnostic contract** (which stands
+  regardless of driver) and documents `/loop` as the **recommended** drain pattern, framed as a
+  recommended pattern rather than a hard verified-supported guarantee, with a follow-up filed for the
+  live spike. Recorded in the results file.
+- **Self-referential build.** This change edits the very skill (`docket-implement-next`) executing
+  the build. Safe: edits land on the feature branch's repo source; the running installed copy is
+  untouched mid-run, and the feature branch never touches docket metadata.
+
+No obsolescence, no fundamental invalidation — the design is intact; only the §6 driver-verification
+scope degrades, exactly as the spec pre-authorized. Proceeding to plan.
