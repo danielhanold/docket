@@ -182,8 +182,16 @@ assert "0095: require_pr_approval still gates the auto-detect path on APPROVED" 
   'grep -q "require_pr_approval" "$FIN" && grep -q "reviewDecision" "$FIN" && grep -q "APPROVED" "$FIN"'
 assert "0095: an approved PR merges without --admin" \
   'grep -Eqi "without.*--admin|no .*--admin|not .*--admin" "$FIN"'
-assert "0095: --admin survives only as the explicit-id / attended escape hatch" \
-  'grep -Eqi "explicit[- ]id|attended" "$FIN" && grep -q -- "--admin" "$FIN"'
+
+# Adjacency, not mere co-occurrence: two independent existence checks are vacuous here —
+# `explicit id` is independently satisfied by the Selection section (lines ~40, 58, 86) and
+# `--admin` by the flow's step 6 opener, so deleting the actual escape-hatch clause left both
+# conjuncts green (mutation-proven). Flatten newlines first — the real clause ("`--admin`
+# remains available only on the pre-existing explicit-id / attended paths...") wraps across two
+# physical lines in the source, and grep does not match across lines by default.
+admin_flat="$(tr '\n' ' ' < "$FIN")"
+assert "0095: --admin survives only as the explicit-id / attended escape hatch (adjacent)" \
+  'printf "%s" "$admin_flat" | grep -Eqi -- "admin.{0,60}(explicit[- ]id|attended)"'
 assert "publish degradation: terminal_publish headless push denial degrades, not fails" \
   'grep -qi "terminal_publish" "$FIN" && grep -Eqi "degrad|surface.*manual|run .*terminal-publish" "$FIN"'
 

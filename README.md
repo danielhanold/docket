@@ -582,10 +582,12 @@ Cursor users running the skills under Auto-run in Sandbox: see
 **The Claude Code auto-mode classifier.** In interactive auto-mode, Claude Code's permission
 classifier *soft-denies* capability-granting and merge-adjacent `gh` actions — notably
 `gh workflow run`, and `gh pr merge` on an unreviewed PR (occasionally even a post-merge
-`gh pr view`). A soft-deny is a model-side judgment, not a permission lookup: a
-`permissions.allow` entry **cannot** clear it. The behavior is scoped to the harness **mode**
-and **version** it was observed in — headless and interactive diverge, on the same repo, on the
-same day — so treat any statement about it as an observation with an expiry date, not a fact.
+`gh pr view`). A soft-deny is a model-side judgment, not a permission lookup: for the `gh`
+actions named above, a `permissions.allow` entry **cannot** clear it — a claim scoped to those
+actions as observed here, not a general property of every allow-rule. The behavior is also
+scoped to the harness **mode** and **version** it was observed in — headless and interactive
+diverge, on the same repo, on the same day — so treat any statement about it as an observation
+with an expiry date, not a fact.
 
 This is precisely why docket's earlier bot-approval design (change 0062, ADR-0042) failed: its
 very first step was a `gh workflow run` dispatch, which is exactly what gets denied. That
