@@ -34,6 +34,15 @@ assert "states the merge needs no --admin" \
 assert "documents the human-approval path for approval-required repos" \
   'grep -q "require_pr_approval" "$RM" && grep -q "APPROVED" "$RM"'
 
+# (d) the fork-exclusion reason for docket-finalize-change (change 0087). ADR-0043 is what
+# UNBLOCKED headless merge, so citing it as the reason merge is blocked inverts it. The real
+# reason the skill stays unforked is that it retains prompts a fork has no channel for.
+assert "ties the finalize fork-exclusion to its interactive prompts" \
+  'grep -q "Fork-exclusion principle" "$RM" &&
+   grep -Eqi "docket-finalize-change.{0,120}(batch confirmation.{0,80}sign-off|sign-off.{0,80}batch confirmation)" "$RM"'
+assert "no stale claim that finalize's headless merge is classifier-blocked" \
+  '! grep -Eqi "Merge-Without-Review|headless merge is blocked" "$RM"'
+
 # negative: the retired subsystem must not come back as live documentation
 assert "no live auto-approve subsystem reference" \
   '! grep -Eqi "auto_approve|setup-auto-approve|auto-approve-setup.md|docket-approve.yml" "$RM"'
