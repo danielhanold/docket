@@ -28,6 +28,17 @@ agent_harnesses: [claude]
 #   lease_ttl: 72
 #   auto: false
 
+# Auto-capture (change 0091) — mid-run discovered work becomes a proposed stub instead of prose.
+# When an AUTONOMOUS run surfaces genuine follow-up work (implement-next's reconcile/review, a
+# close-out finding), there is no human to ask. With auto_capture: true the skill mints a
+# needs-brainstorm stub with discovered_from: provenance; you still gate it at groom time, so this
+# buys capture fidelity, not autonomy. Bounded: a cheap active-slug dedup check and a hardcoded cap
+# of 3 stubs per invocation, with any overflow reported rather than dropped. docket-auto-groom is
+# deliberately never a mint site. Global-able, so this is a legitimate place to set it.
+# Leave commented to keep docket's shipped default (false).
+#
+# auto_capture: true
+
 # Per-skill model + effort for each docket subagent, keyed by harness.
 #
 # The `claude:` block below MIRRORS docket's shipped built-in defaults (the values in each

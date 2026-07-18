@@ -211,6 +211,7 @@ changes_dir: docs/changes    # default
 adrs_dir: docs/adrs          # default
 results_dir: docs/results    # default
 auto_groom: false            # repo default for autonomous grooming; per-change auto_groomable overrides
+auto_capture: false          # autonomous capture of discovered follow-up work into proposed stubs
 board_surfaces: [inline]     # derived board views: inline (BOARD.md) and/or github; [] disables the board
 terminal_publish: false      # default: a closed change's record (change file, spec, Accepted ADRs)
                              # stays on the metadata branch. true = ALSO copy it onto the integration
@@ -248,6 +249,37 @@ reclaim:
   auto: false     # true => docket-status self-heals eligible claims each pass
 ```
 
+### Capturing discovered work (`auto_capture`)
+
+Agents constantly surface follow-up work mid-task: a reconcile pass notices an adjacent gap, a build
+uncovers a latent bug, a close-out finding implies a next step. With a human in the room the model
+asks. In an unattended run there is nobody to ask, so that work is mentioned in prose that scrolls
+away — and lost.
+
+`auto_capture: true` closes that gap. An autonomous skill that identifies genuine follow-up work
+mints it as an ordinary `proposed` needs-brainstorm stub, with `discovered_from:` recording which
+change surfaced it. Nothing is designed, built, or merged — you still gate every stub at groom time.
+It buys **capture fidelity, not autonomy**.
+
+- **Off by default.** With `auto_capture` unset or `false`, behavior is exactly as before.
+- **Where it fires.** `docket-implement-next` (reconcile and review) and the
+  `docket-finalize-change` / `docket-status` close-out harvest. `docket-auto-groom` deliberately
+  never mints — a stub it created would be its own next input, so grooming could grow the queue it
+  exists to drain.
+- **What gets minted.** Only work that would be its own change/PR. Build-loop lessons go to
+  [learnings](#learnings--the-loops-memory); drift inside the current change goes to its reconcile
+  log.
+- **Bounded.** A cheap dedup check against active changes, plus a cap of 3 stubs per invocation.
+  Overflow is reported in the run output, never silently dropped.
+- **Global-able.** Set it per-repo, in your global config, or in `.docket.local.yml`.
+
+```yaml
+auto_capture: true
+```
+
+Minted stubs appear on the board as ordinary `needs-brainstorm` work and flow into
+`docket-groom-next`'s queue like anything else you filed by hand.
+
 ### Workflow roles — the `skills:` map
 
 docket is a lifecycle wrapper around a workflow engine, and superpowers is the default engine. Each of the **five workflow invocation points is a pluggable role**: an optional `skills:` map in any config layer rebinds a role to a different skill (the name is passed to the Skill tool verbatim) or to the sentinel `auto` (no skill — the running agent performs the step inline at its own model).
@@ -275,6 +307,7 @@ agents:                      # agent model/effort defaults (same agents: shape a
   default:
     implement-next: { model: claude-opus-4-8, effort: xhigh }
 auto_groom: false
+auto_capture: false
 finalize:
   gate: local
 board_surfaces: [inline]     # the github token is per-repo-only and ignored here (see below)
@@ -302,6 +335,7 @@ agent_harnesses: [claude]     # can opt a tracking-only repo into per-repo agent
 finalize:
   gate: local
 auto_groom: false
+auto_capture: false
 board_surfaces: [inline]      # the github token is fenced here too — per-repo-only
 ```
 
