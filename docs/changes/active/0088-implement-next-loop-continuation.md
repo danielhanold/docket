@@ -2,10 +2,10 @@
 id: 88
 slug: implement-next-loop-continuation
 title: Loop continuation — implement-next chains into the next ready change instead of stopping
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-07-17
-updated: 2026-07-17
+updated: 2026-07-18
 depends_on: []
 related: [8, 87]
 adrs: [1]
@@ -14,7 +14,7 @@ plan:
 results:
 trivial: false
 auto_groomable: false
-branch:
+branch: feat/implement-next-loop-continuation
 pr:
 blocked_by:
 reconciled: false
