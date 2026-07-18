@@ -48,6 +48,8 @@ Then run the Board pass (best-effort — see *Best-effort board refresh*) as a s
 
 In the **metadata working tree** (re-synced to its remote), re-read the change + its spec against `related` + recently-archived changes, cited + recent ADRs, and CURRENT code; refresh the change body and spec to what is true NOW (drop work done elsewhere, adjust scope, fold in new constraints), NON-INTERACTIVELY. The spec lives alongside the change on `metadata_branch` (in `docket`-mode, `.docket/docs/superpowers/specs/…`). A trivial change has no spec — refresh the body only. Append a dated `## Reconcile log` entry; set `reconciled: true`; commit and push on `metadata_branch` (in `docket`-mode, `origin/docket`).
 
+When `AUTO_CAPTURE` is `true` (Step-0 export), adjacent follow-up work this pass surfaces is minted per the convention's *Auto-capture* shared definition instead of only being noted.
+
 Two escape hatches:
 
 - Change now **OBSOLETE** → kill it via the convention's terminal close-out (**read `../docket-convention/references/terminal-close-out.md` now — blocking**) with `--outcome killed` and the UTC kill date — the reference owns invocations, ordering, and the `main`-mode degradation; this skill's posture is CALLER-side only: trust each exit code, a failure aborts the kill and is surfaced. The reference's cleanup step prunes any feature worktree/branch already created; its publish step is `terminal-publish` (a no-op in `main`-mode, or without the `terminal_publish: true` opt-in). After the kill is archived, run the Board pass (best-effort — see *Best-effort board refresh*) as a separate commit so the board drops the killed change, then loop back to Step 1.
@@ -69,7 +71,7 @@ The **resolved build skill** — `$SKILL_BUILD` from the Step-0 config export (d
 
 ### Step 6 — Review + ADRs
 
-The **resolved review skill** — `$SKILL_REVIEW` from the Step-0 config export (default `superpowers:requesting-code-review`) — is invoked **DIRECTED to:** review the whole branch and return its findings, then stop, answering any choice it poses from resolved config and never surfacing one — log one line naming the role and skill if you suppressed a hand-off; on `auto` or unavailability, apply the review auto-fallback per the convention's *Skill layer* (a whole-branch review before the PR opens, warning prominently). Re-read the learnings index `<changes_dir>/learnings/README.md` first and pull the findings relevant to what this change touched (skipped entirely when `learnings.enabled` is `false`). For any non-obvious decision made during implementation, **dispatch the `docket-adr` subagent** (foreground, at the model/effort its wrapper resolves) — once per decision; it assigns the number, updates the index, commits the ADR on `origin/docket`, publishes it onto the integration branch on acceptance if the repo has opted in, and **returns the number**. After re-syncing `.docket/`, append that number to the change's `adrs:` per the **field-write rule**.
+The **resolved review skill** — `$SKILL_REVIEW` from the Step-0 config export (default `superpowers:requesting-code-review`) — is invoked **DIRECTED to:** review the whole branch and return its findings, then stop, answering any choice it poses from resolved config and never surfacing one — log one line naming the role and skill if you suppressed a hand-off; on `auto` or unavailability, apply the review auto-fallback per the convention's *Skill layer* (a whole-branch review before the PR opens, warning prominently). Re-read the learnings index `<changes_dir>/learnings/README.md` first and pull the findings relevant to what this change touched (skipped entirely when `learnings.enabled` is `false`). For any non-obvious decision made during implementation, **dispatch the `docket-adr` subagent** (foreground, at the model/effort its wrapper resolves) — once per decision; it assigns the number, updates the index, commits the ADR on `origin/docket`, publishes it onto the integration branch on acceptance if the repo has opted in, and **returns the number**. After re-syncing `.docket/`, append that number to the change's `adrs:` per the **field-write rule**. Review findings that are distinct follow-up work — not this change's own fixes — are likewise minted per *Auto-capture* when enabled.
 
 ### Step 6.5 — Results close-out (optional)
 
@@ -98,7 +100,7 @@ Every run ends by declaring exactly **one** of four dispositions, so any driver 
 
 The driver's decision is binary: **continue on `advanced`/`contended`, stop on `drained`/`halted`.** The contract is **driver-agnostic** — it names run outcomes, not any one driver's mechanics; `/loop` is *recommended*, not required (see the README drain-pattern doc).
 
-The final report **enumerates** what happened: the change built (if any), each change **skipped with its reason** (needs-brainstorm / already `in-progress` / waiting on an unmerged `depends_on` / outside the id allowlist), and which disposition ended the run.
+The final report **enumerates** what happened: the change built (if any), each change **skipped with its reason** (needs-brainstorm / already `in-progress` / waiting on an unmerged `depends_on` / outside the id allowlist), any stubs **auto-captured** (plus every dedup skip and any cap overflow), and which disposition ended the run.
 
 ### Best-effort board refresh
 
