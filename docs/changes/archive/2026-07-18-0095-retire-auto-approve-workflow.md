@@ -2,7 +2,7 @@
 id: 95
 slug: retire-auto-approve-workflow
 title: Retire the auto-approve workflow — document the classifier and the single-maintainer branch-protection solution
-status: implemented
+status: done
 priority: high
 created: 2026-07-18
 updated: 2026-07-18
