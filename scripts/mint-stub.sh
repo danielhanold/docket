@@ -8,8 +8,12 @@
 #
 # Usage: mint-stub.sh --changes-dir DIR --title TITLE --body-file FILE --discovered-from ID
 #                     [--slug SLUG] [--minted N] [--cap N] [--remote R] [--template PATH]
+#                     [--metadata-branch NAME]
 #   Mints exactly ONE stub per invocation. --minted is how many stubs THIS skill invocation has
 #   already minted; at --cap (default 3) the mint is refused so the caller can surface the overflow.
+#   --metadata-branch, when given, refuses (exit 1) unless --changes-dir's worktree is on that
+#   branch; a detached HEAD is always refused. Guards against a mis-pointed --changes-dir landing
+#   a stub on the wrong branch.
 #   Report (exactly one line, stdout):
 #     minted <id> <slug>
 #     skipped duplicate <slug> (matches #<id>)
@@ -21,9 +25,16 @@ GIT="${GIT:-git}"
 TODAY="${TODAY:-$(date -u +%Y-%m-%d)}"
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CHANGES_DIR=""; TITLE=""; BODY_FILE=""; FROM=""; SLUG=""; MINTED=0; CAP=3; REMOTE="origin"
+META_BRANCH=""
 TEMPLATE="$SELF_DIR/../skills/docket-new-change/change-template.md"
 die(){ printf '%s\n' "mint-stub: $*" >&2; exit 1; }
 while [ $# -gt 0 ]; do
+  # A recognized flag with no following value would otherwise dereference an unset $2 under `set -u`
+  # (a raw "$2: unbound variable" instead of a diagnosed exit 1) when it lands as the final argument.
+  case "$1" in
+    --changes-dir|--title|--body-file|--discovered-from|--slug|--minted|--cap|--remote|--template|--metadata-branch)
+      [ $# -ge 2 ] || die "$1 requires a value" ;;
+  esac
   case "$1" in
     --changes-dir) CHANGES_DIR="$2"; shift ;;
     --title) TITLE="$2"; shift ;;
@@ -34,6 +45,7 @@ while [ $# -gt 0 ]; do
     --cap) CAP="$2"; shift ;;
     --remote) REMOTE="$2"; shift ;;
     --template) TEMPLATE="$2"; shift ;;
+    --metadata-branch) META_BRANCH="$2"; shift ;;
     -h|--help) grep '^#' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) die "unknown argument: $1" ;;
   esac
@@ -89,6 +101,13 @@ fi
 WT="$($GIT -C "$CHANGES_DIR" rev-parse --show-toplevel)" || die "not a git worktree: $CHANGES_DIR"
 REL_ABS="$(cd "$CHANGES_DIR" && pwd -P)"; REL="${REL_ABS#"$WT"/}"
 cur_branch="$($GIT -C "$WT" rev-parse --abbrev-ref HEAD)"
+# A mis-pointed --changes-dir would otherwise mint AND push a stub onto whatever branch that
+# worktree happens to have checked out (e.g. a feature branch). Refuse a detached HEAD outright
+# (there is no branch to push to), and — when the caller tells us which branch metadata belongs
+# on — refuse a mismatch too, before anything is written.
+[ "$cur_branch" != "HEAD" ] || die "refusing: $WT is in detached HEAD state (no branch to push to)"
+[ -z "$META_BRANCH" ] || [ "$cur_branch" = "$META_BRANCH" ] \
+  || die "refusing: $WT is on branch '$cur_branch', expected metadata branch '$META_BRANCH' (--metadata-branch)"
 
 # set_field FILE KEY VALUE — replace a scalar in the first ---…--- block only (AGENTS.md
 # frontmatter-anchor rule). VALUE is model-authored English prose (a title), never a script
