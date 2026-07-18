@@ -193,6 +193,17 @@ RESULTS_DIR="$(yaml_get "$CFG" results_dir)"; RESULTS_DIR="${RESULTS_DIR:-docs/r
 FINALIZE_GATE="$(lcl gate)"; FINALIZE_GATE="${FINALIZE_GATE:-$(yaml_get "$CFG" gate)}"; FINALIZE_GATE="${FINALIZE_GATE:-$(gbl gate)}"; FINALIZE_GATE="${FINALIZE_GATE:-local}"
 FINALIZE_TEST_COMMAND="$(lcl test_command)"; FINALIZE_TEST_COMMAND="${FINALIZE_TEST_COMMAND:-$(yaml_get "$CFG" test_command)}"; FINALIZE_TEST_COMMAND="${FINALIZE_TEST_COMMAND:-$(gbl test_command)}"
 AUTO_GROOM="$(lcl auto_groom)"; AUTO_GROOM="${AUTO_GROOM:-$(yaml_get "$CFG" auto_groom)}"; AUTO_GROOM="${AUTO_GROOM:-$(gbl auto_groom)}"; AUTO_GROOM="${AUTO_GROOM:-false}"
+# change 0091: auto_capture — gates autonomous mid-run capture of discovered follow-up work into
+# proposed needs-brainstorm stubs. Global-able (ADR-0019): like auto_groom it gates a LOCAL-RUN
+# behavior producing ordinary backlog commits, never coordination state, so per-machine divergence
+# is the benign "machine A captures, machine B does not" — never a split backlog. Unlike auto_groom
+# it fails CLOSED on a non-boolean (the reclaim.auto / learnings.enabled precedent): defaulting a
+# typo to `false` would silently stop capture in a repo that opted in, an invisible failure.
+AUTO_CAPTURE="$(lcl auto_capture)"; AUTO_CAPTURE="${AUTO_CAPTURE:-$(yaml_get "$CFG" auto_capture)}"; AUTO_CAPTURE="${AUTO_CAPTURE:-$(gbl auto_capture)}"; AUTO_CAPTURE="${AUTO_CAPTURE:-false}"
+case "$AUTO_CAPTURE" in
+  true|false) ;;
+  *) die "unparseable config: auto_capture must be 'true' or 'false', got '$AUTO_CAPTURE'" ;;
+esac
 # change 0064: coordination-key fenced — repo-committed .docket.yml ONLY (no lcl/gbl rungs; a
 # machine-scoped value is warned-and-ignored by the Stage 2c fence above). Fail closed on garbage:
 # silently defaulting a typo to `true` would publish onto the integration branch against intent.
@@ -395,6 +406,7 @@ if [ "$MODE" = export ]; then
   emit LEARNINGS_CAP "$LEARNINGS_CAP"
   emit BOARD_SURFACES "$BOARD_SURFACES"
   emit AUTO_GROOM "$AUTO_GROOM"
+  emit AUTO_CAPTURE "$AUTO_CAPTURE"
   emit TERMINAL_PUBLISH "$TERMINAL_PUBLISH"
   emit RECLAIM_LEASE_TTL "$RECLAIM_LEASE_TTL"
   emit RECLAIM_AUTO "$RECLAIM_AUTO"
