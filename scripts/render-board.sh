@@ -90,8 +90,14 @@ for f in "${ARCFILES[@]}"; do st="$(field "$f" status)"; ARC_COUNT["$st"]=$(( ${
 # never persisted. Exits before the markdown emission, which stays byte-identical.
 digest_readiness(){ # digest_readiness FILE ID STATUS -> machine-parseable readiness token
   local f="$1" id="$2" st="$3" tok
-  # Readiness is only meaningful for a `proposed` change (see readiness() in the shared lib);
-  # every other status reports `-` rather than a token that would not mean anything.
+  # readiness() (in the shared lib) is meaningful only for a `proposed` change; `implemented`
+  # carries its own presence-encoded readiness via finalize_blocked() (change 0087). Every other
+  # status has none and reports `-` rather than a token that would not mean anything. Readiness
+  # still has exactly one owner per status, so the digest can never disagree with the board.
+  if [ "$st" = implemented ]; then
+    if finalize_blocked "$f"; then printf 'finalize-blocked'; else printf '%s' '-'; fi
+    return
+  fi
   [ "$st" = proposed ] || { printf '%s' '-'; return; }
   tok="$(readiness "$f")"
   case "$tok" in
@@ -155,6 +161,9 @@ readiness_cell(){ # readiness_cell FILE ID  (proposed)
     build-ready) printf 'build-ready' ;;
   esac
 }
+implemented_cell(){ # implemented_cell FILE  (implemented)
+  if finalize_blocked "$1"; then printf 'finalize blocked — needs you'; fi
+}
 pr_cell(){ local f="$1" pr num; pr="$(field "$f" pr)"
   [ -n "$pr" ] || { printf ''; return; }
   num="${pr##*/}"                                   # trailing PR number, whether pr: is a full URL or bare
@@ -174,7 +183,7 @@ print_section(){ # print_section STATUS HEADER_SUFFIX
     proposed)    printf '| # | Title | Priority | Readiness |\n|---|-------|----------|-----------|\n' ;;
     blocked)     printf '| # | Title | Priority | Blocked by |\n|---|-------|----------|------------|\n' ;;
     deferred)    printf '| # | Title | Priority |\n|---|-------|----------|\n' ;;
-    implemented) printf '| # | Title | Priority | PR |\n|---|-------|----------|----|\n' ;;
+    implemented) printf '| # | Title | Priority | PR | Readiness |\n|---|-------|----------|----|-----------|\n' ;;
   esac
   while IFS=$'\t' read -r id f; do
     [ -n "$id" ] || continue
@@ -193,8 +202,8 @@ print_section(){ # print_section STATUS HEADER_SUFFIX
       deferred)
         printf '| [%s](active/%s) | %s | `%s` |\n' "$(pad "$id")" "$base" "$title" "$priority" ;;
       implemented)
-        printf '| [%s](active/%s) | %s | `%s` | %s |\n' \
-          "$(pad "$id")" "$base" "$title" "$priority" "$(pr_cell "$f")" ;;
+        printf '| [%s](active/%s) | %s | `%s` | %s | %s |\n' \
+          "$(pad "$id")" "$base" "$title" "$priority" "$(pr_cell "$f")" "$(implemented_cell "$f")" ;;
     esac
   done < <(rows_sorted "$st")
 }
