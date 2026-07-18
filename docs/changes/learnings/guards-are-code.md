@@ -2,9 +2,9 @@
 slug: guards-are-code
 hook: "A guard is code — mutation-test it (strip the feature, watch it go red) or it is decoration."
 topics: [testing, sentinels, mutation]
-changes: [14, 15, 21, 36, 37, 64, 65, 67, 68, 69, 70, 71, 72, 73, 74, 84]
+changes: [14, 15, 21, 36, 37, 64, 65, 67, 68, 69, 70, 71, 72, 73, 74, 84, 88]
 created: 2026-06-17
-updated: 2026-07-16
+updated: 2026-07-18
 promotion_state: promoted
 promoted_to: AGENTS.md
 ---
@@ -31,7 +31,10 @@ it just made ambient). Key a guard on SYNTACTIC SHAPE, never an enumerated spell
 spelling it misses is the target file's own house idiom; when the load-bearing thing is a compound
 spelling, assert ALL its bytes and DERIVE the literal from the token you already hold. Mutate the
 REAL tree, not only fixtures — a fixture battery samples the shapes you already thought of. Any test
-that `eval`s a command's output must clear the variables it asserts on first. Treat a surviving
+that `eval`s a command's output must clear the variables it asserts on first. An assert helper that
+`eval`s the assertion BODY must run it in a SUBSHELL (`( eval "$2" )`) — a body carrying its own
+control flow (`exit`, `for … || exit 1`) run in the current shell aborts the whole harness on first
+failure instead of recording one NOT OK and continuing, hiding every later assert. Treat a surviving
 mutant as a defect until proven otherwise (re-derive the anchor's count yourself, never trust an
 implementer's narrative), and read an implementer contorting the artifact to pass an assert as a
 signal the assert itself is wrong. Never RETIRE a guard on the claim that a new one subsumes it —
@@ -109,3 +112,13 @@ lib. A snippet the PLAN hands you is unvetted code: mutation-test it like any as
   conflict-path mutation), and treat the **ok COUNT** as part of the contract — a mutation that lowers
   it without producing a NOT OK is a vacuous guard announcing itself. Never fence an assert behind a
   precondition the mutation you are testing can falsify.
+- 2026-07-18 (#88, PR #100) — Two sentinel-harness defects caught in task review before merge, one
+  per class this finding names. (a) **Harness could abort mid-run** — the `assert()` helper ran
+  `eval "$2"` in the *current* shell, so an assert body containing `for … || exit 1` terminated the
+  whole test on first failure instead of recording one NOT OK and continuing; fixed by isolating the
+  eval in a subshell `( eval "$2" )` (`fail=1` still propagates from the parent-scope else branch).
+  (b) **Wrong anchor** (class (a)) — the whole-backlog `/loop docket-implement-next` drain assert
+  regex `…next$|…next[^0-9]` also matched the id-set bullet (the space after `next` is a non-digit),
+  so it gave no independent regression protection over the pre-existing line — retargeted to a fixed
+  string requiring the trailing backtick immediately after `next`. A Minor "never merges" assert that
+  matched a pre-existing Quickstart sentence was likewise scoped to the new subsection's phrasing.
