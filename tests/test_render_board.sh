@@ -278,6 +278,62 @@ assert "stripping the section drops the cell (predicate is non-vacuous)" \
   '! grep -qF "finalize blocked — needs you" <<<"$nomarkout"'
 rm -rf "$nomark"
 
+# --- A PROSE MENTION IS NOT A SECTION (review finding, change 0087) ---------------------------
+# `has_section` was `grep -qF` — an unanchored substring match over the whole file — while its
+# docblock promised a whole-line match. Change files routinely *mention* these markers inline in
+# prose (change 0087's own file mentions both), so every such change false-positived as "blocked".
+# Both markers, at the board AND digest level, in one render: 0021 is a `proposed` change with no
+# spec that only talks about `## Auto-groom blocked` (must read `needs-brainstorm`), 0022 is an
+# `implemented` change that only talks about `## Finalize blocked` (must read as an empty cell).
+prose="$(mktemp -d)"; mkdir -p "$prose/active" "$prose/archive"
+cat > "$prose/active/0021-quebec.md" <<'EOF'
+---
+id: 21
+slug: quebec
+title: Quebec feature
+status: proposed
+priority: medium
+depends_on: []
+spec:
+---
+
+## Design
+
+- A stub the groomer abstains on gets a dated `## Auto-groom blocked` body section so the
+  abstention is self-describing at the change.
+EOF
+cat > "$prose/active/0022-romeo.md" <<'EOF'
+---
+id: 22
+slug: romeo
+title: Romeo feature
+status: implemented
+priority: medium
+depends_on: []
+pr: https://github.com/o/r/pull/161
+---
+
+## Design
+
+- A gate failure is marked with a dated `## Finalize blocked` section mirroring the proven
+  `## Auto-groom blocked` marker — presence-encoded, never an eighth status.
+EOF
+proseout="$(bash "$SCRIPT" --changes-dir "$prose" --repo o/r 2>/dev/null)"
+prosedigest="$(bash "$SCRIPT" --changes-dir "$prose" --format digest 2>/dev/null)"
+assert "a prose mention of ## Auto-groom blocked does not render the blocked cell" \
+  '! grep -qF "auto-groom blocked — needs you" <<<"$proseout"'
+assert "the prose-mentioning proposed change still reads needs-brainstorm" \
+  'grep -qF "| [0021](active/0021-quebec.md) | Quebec feature | \`medium\` | needs-brainstorm |" <<<"$proseout"'
+assert "a prose mention of ## Finalize blocked does not render the blocked cell" \
+  '! grep -qF "finalize blocked — needs you" <<<"$proseout"'
+assert "the prose-mentioning implemented change renders an empty readiness cell" \
+  'grep -qF "| [#161](https://github.com/o/r/pull/161) |  |" <<<"$proseout"'
+assert "digest agrees: prose mention is needs-brainstorm, not auto-groom-blocked" \
+  'grep -qF "change 21 proposed needs-brainstorm quebec" <<<"$prosedigest"'
+assert "digest agrees: prose mention is -, not finalize-blocked" \
+  'grep -qF "change 22 implemented - romeo" <<<"$prosedigest"'
+rm -rf "$prose"
+
 # --- docket-status inline-surface wiring sentinels (the SKILL is code on main) ---
 # Since change 0058 the docket-status Board pass lives in scripts/docket-status.sh, not this
 # SKILL — the SKILL only *describes* the inline surface (naming render-board.sh) and delegates to
