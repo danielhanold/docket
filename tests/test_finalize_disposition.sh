@@ -93,6 +93,29 @@ assert "SKILL says the marker is a metadata write" \
 CONV="$REPO/skills/docket-convention/SKILL.md"
 assert "convention lists the Finalize blocked body section" 'grep -qF "## Finalize blocked" "$CONV"'
 
+# --- README: the /loop finalize drain-pattern doc ---
+README="$REPO/README.md"
+fb='`/loop docket-finalize-change`'
+assert "README documents the /loop finalize drain" 'grep -qF "$fb" "$README"'
+assert "README documents the /loop finalize id-set drain" \
+  'grep -Eq "/loop docket-finalize-change 90,92,94" "$README"'
+assert "README names all four dispositions for finalize" \
+  'for d in advanced contended drained halted; do grep -qiF "$d" "$README" || exit 1; done'
+# Retargeted (learnings: sentinel-passed-on-pre-existing-text): the bare continue/stop phrasing is
+# byte-identical to the implement-side section by design (same four-disposition contract), so an
+# unanchored grep for it is decorative here — it already passes on the pre-Task-4 README. Anchor to
+# this section's own unique lead-in so the assertion actually depends on this prose landing.
+assert "README states the binary continue/stop rule (finalize)" \
+  'grep -Eqi "keys on both halves of the loop.{0,150}continue on .{0,4}advanced.{0,80}stop on .{0,4}drained" "$README"'
+assert "README states naming the ids is the authorization" \
+  'grep -Eqi "naming the ids.{0,40}authorization" "$README"'
+assert "README names the finalize-blocked board cell" \
+  'grep -qF "finalize blocked — needs you" "$README"'
+# The implement-side driver never merges; THIS one does. The distinction must be explicit, or a
+# reader carries the wrong mental model across the two subsections.
+assert "README states the finalize driver DOES merge" \
+  'grep -Eqi "this driver (does|merges)|unlike the implementer" "$README"'
+
 # --- Non-vacuity / mutation proof: the code-formatted disposition grep actually bites. ---
 probe="$(mktemp)"; printf 'plain advanced word, no code formatting\n' > "$probe"
 assert "the code-formatted disposition grep is non-vacuous" '! grep -qF "\`advanced\`" "$probe"'

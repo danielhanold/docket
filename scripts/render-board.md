@@ -108,7 +108,8 @@ change carrying the `## Finalize blocked` section; and `-` for everything else â
 change *without* the marker, plus every change in any other status (where readiness does not
 apply). Readiness has exactly one owner per status, so the digest and the board cannot
 disagree. The marker is detected by `has_section`, a **whole-line** match: a change file that
-merely mentions `## Finalize blocked` inline in prose does not carry the section. No markdown, no mermaid graph, no archive table.
+merely mentions `## Finalize blocked` inline in prose does not carry the section. No
+markdown, no mermaid graph, no archive table.
 
 The digest is **report output, not a board surface**: `docket-status.sh` pipes it straight to its
 report and never persists it. It is therefore emitted regardless of `board_surfaces` â€” which is
