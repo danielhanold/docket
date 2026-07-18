@@ -1,12 +1,6 @@
 # Backlog
 
-**95 changes** — 🟢 1 in progress · 🟡 11 proposed · 🔴 1 blocked · ⚪ 1 deferred · 🔵 5 implemented · ✅ 72 done · 🗑️ 4 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0095](active/0095-retire-auto-approve-workflow.md) | Retire the auto-approve workflow — document the classifier and the single-maintainer branch-protection solution | `high` | [spec](../superpowers/specs/2026-07-18-retire-auto-approve-workflow-design.md) | `feat/retire-auto-approve-workflow` |
+**95 changes** — 🟡 11 proposed · 🔴 1 blocked · ⚪ 1 deferred · 🔵 6 implemented · ✅ 72 done · 🗑️ 4 killed
 
 ## 🟡 Proposed (11)
 
@@ -36,7 +30,7 @@
 |---|-------|----------|
 | [0094](active/0094-docket-prime-context-digest.md) | docket-prime — a token-budgeted context digest skills load instead of walking docs/changes | `medium` |
 
-## 🔵 Implemented — awaiting merge (5)
+## 🔵 Implemented — awaiting merge (6)
 
 | # | Title | Priority | PR |
 |---|-------|----------|----|
@@ -45,6 +39,7 @@
 | [0090](active/0090-discovered-from-provenance.md) | discovered-from provenance links — record which change's build surfaced a new stub | `medium` | [#97](https://github.com/danielhanold/docket/pull/97) |
 | [0092](active/0092-orphan-detection-script.md) | Orphan detection script — cross-reference change ids in merged commits against archive state | `medium` | [#98](https://github.com/danielhanold/docket/pull/98) |
 | [0093](active/0093-archive-decay-digest.md) | Archive decay — a rolling one-line digest so board and context cost stay flat as the archive grows | `medium` | [#96](https://github.com/danielhanold/docket/pull/96) |
+| [0095](active/0095-retire-auto-approve-workflow.md) | Retire the auto-approve workflow — document the classifier and the single-maintainer branch-protection solution | `high` | [#101](https://github.com/danielhanold/docket/pull/101) |
 
 ```mermaid
 graph TD

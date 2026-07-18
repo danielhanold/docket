@@ -2,7 +2,7 @@
 id: 95
 slug: retire-auto-approve-workflow
 title: Retire the auto-approve workflow — document the classifier and the single-maintainer branch-protection solution
-status: in-progress
+status: implemented
 priority: high
 created: 2026-07-18
 updated: 2026-07-18
@@ -10,12 +10,12 @@ depends_on: []
 related: [15, 21, 62, 86]
 adrs: [42, 43]
 spec: docs/superpowers/specs/2026-07-18-retire-auto-approve-workflow-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-18-retire-auto-approve-workflow-plan.md
 results:
 trivial: false
 auto_groomable: false
 branch: feat/retire-auto-approve-workflow
-pr:
+pr: 101
 blocked_by:
 reconciled: true
 ---
@@ -26,6 +26,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-18-retire-auto-approve-workflow-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-18-retire-auto-approve-workflow-design.md) |
+| Plan | [2026-07-18-retire-auto-approve-workflow-plan.md](https://github.com/danielhanold/docket/blob/feat/retire-auto-approve-workflow/docs/superpowers/plans/2026-07-18-retire-auto-approve-workflow-plan.md) |
+| PR | 101 |
 | ADRs | [ADR-0042](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0042-auto-approve-consent-model.md), [ADR-0043](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0043-retire-bot-auto-approval-zero-approvals-branch-protection.md) |
 <!-- docket:artifacts:end -->
 
