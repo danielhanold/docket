@@ -119,17 +119,26 @@ blob(){ # blob BRANCH PATH
 }
 
 # --- readiness label (maps the shared readiness token to the docket: label) ---
+# Readiness mirrors the board/digest OWNER one-for-one (render-board.sh's digest_readiness,
+# change 0087): `proposed` carries the four readiness() tokens; `implemented` carries
+# finalize_blocked(); every other status has none. Any future readiness value is added to the
+# owner (render-board.sh) FIRST, and this follows the same status->owner shape — so the three
+# projections (board, digest, mirror) cannot drift at the next value. (change 0097)
 readiness_label(){
   local f="$1" status="$2" id tok
-  [ "$status" = "proposed" ] || return 0
-  id="$(field "$f" id)"; tok="$(readiness "$f")"
-  case "$tok" in
-    waiting)
-      local r="${DEP_REASON[$id]:-not yet built}"
-      printf 'docket:waiting/%s' "${r// /-}" ;;     # "needs your merge" -> needs-your-merge
-    auto-groom-blocked) printf 'docket:readiness/auto-groom-blocked' ;;
-    needs-brainstorm)   printf 'docket:readiness/needs-brainstorm' ;;
-    build-ready)        printf 'docket:readiness/build-ready' ;;
+  case "$status" in
+    proposed)
+      id="$(field "$f" id)"; tok="$(readiness "$f")"
+      case "$tok" in
+        waiting)
+          local r="${DEP_REASON[$id]:-not yet built}"
+          printf 'docket:waiting/%s' "${r// /-}" ;; # "needs your merge" -> needs-your-merge
+        auto-groom-blocked) printf 'docket:readiness/auto-groom-blocked' ;;
+        needs-brainstorm)   printf 'docket:readiness/needs-brainstorm' ;;
+        build-ready)        printf 'docket:readiness/build-ready' ;;
+      esac ;;
+    implemented)
+      if finalize_blocked "$f"; then printf 'docket:readiness/finalize-blocked'; fi ;;
   esac
 }
 
