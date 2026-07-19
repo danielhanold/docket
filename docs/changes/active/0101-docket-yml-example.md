@@ -9,14 +9,14 @@ updated: 2026-07-19
 depends_on: []
 related: [81]
 discovered_from: []
-adrs: [19, 39]
+adrs: [19, 39, 48]
 spec: docs/superpowers/specs/2026-07-19-docket-yml-example-design.md
 plan: docs/superpowers/plans/2026-07-19-docket-yml-example.md
 results:
 trivial: false
 auto_groomable:
 branch: feat/docket-yml-example
-claimed_at: 2026-07-19T17:05:00Z
+claimed_at: 2026-07-19T22:09:29Z
 pr:
 blocked_by:
 reconciled: true
@@ -29,7 +29,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-19-docket-yml-example-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-19-docket-yml-example-design.md) |
 | Plan | [2026-07-19-docket-yml-example.md](https://github.com/danielhanold/docket/blob/feat/docket-yml-example/docs/superpowers/plans/2026-07-19-docket-yml-example.md) |
-| ADRs | [ADR-0019](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0019-global-config-fence-classification.md), [ADR-0039](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0039-config-example-mirrors-wrapper-defaults.md) |
+| ADRs | [ADR-0019](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0019-global-config-fence-classification.md), [ADR-0039](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0039-config-example-mirrors-wrapper-defaults.md), [ADR-0048](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0048-docket-yml-example-invariants.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
