@@ -58,7 +58,9 @@ documentation — no docket tooling ever reads it (the resolver reads `.docket.y
 
 ### Body
 
-Every key the resolver knows, grouped as today (branches/dirs, finalize, learnings, reclaim,
+Every key the resolver knows, grouped as today (branches/dirs, finalize — **including
+`finalize.require_pr_approval`**, a model-read key implemented only in
+`skills/docket-finalize-change/SKILL.md` and easy to miss — learnings, reclaim,
 board, terminal_publish, auto_groom, auto_capture, harnesses/agents, skills), each with:
 
 - full documentation (change/ADR back-references preserved from the absorbed prose),
@@ -93,6 +95,14 @@ Consumers must not see the sentinel leak: the export surface stays byte-identica
 unset case (that is what the fidelity test asserts). `scripts/docket-config.md` documents the
 sentinel for both keys; `github-mirror.sh`'s contract is re-checked so the write-back path
 overwrites a literal `auto` rather than treating it as a minted value.
+
+**Reconcile amendment (2026-07-19).** The two keys are NOT symmetric.
+`finalize.test_command` **is** exported (`FINALIZE_TEST_COMMAND`), so the fidelity
+export-diff proves its sentinel exactly as written above. `github_project` is **not
+exported at all** — `docket-config.sh` only coordination-fences it (`:169`); the value is
+consumed by `github-mirror.sh` via the Board pass's `--project` flag and written back on
+`project-minted`. So its sentinel must be implemented at the consumption/write-back site,
+and proven by a **dedicated assertion**, never by the export-diff (which is blind to it).
 
 ## Consolidation edits
 
@@ -129,6 +139,12 @@ New `tests/test_docket_yml_example.sh`:
    entry fails the test, forcing the example (and the mapping) to be updated in the same PR —
    the enforcement half of the must-update rule. Presence-sensitive keys are matched in their
    commented form.
+
+   **Reconcile amendment (2026-07-19):** export keys alone under-cover the schema. Four keys
+   have **no export key** and need a second, explicit list in the test: `github_project`,
+   `agents:`, `agent_harnesses:` (consumed by `sync-agents.sh` / the mirror), and
+   `finalize.require_pr_approval` (read only by `skills/docket-finalize-change/SKILL.md`).
+   Without this list the "canonical" reference ships missing real keys on day one.
 3. **Mirror equality (relocated ADR-0039 check):** the commented `agents.claude` block's nine
    model/effort values equal `agents/docket-*.md` wrapper frontmatter (comment-stripped parse,
    same field regex as `sync-agents.sh`).
