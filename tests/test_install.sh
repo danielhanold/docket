@@ -22,6 +22,38 @@ assert "install.sh injected DOCKET_SCRIPTS_DIR into the shell profile" \
 assert "install.sh injected env.DOCKET_SCRIPTS_DIR into settings.json" \
   'jq -e --arg v "$REPO/scripts" ".env.DOCKET_SCRIPTS_DIR == \$v" "$tmp/.claude/settings.json" >/dev/null'
 
+# --- the skill and the scripts it invokes must resolve to ONE clone (change 0094) -------------
+# docket-implement-next Step 1 runs `"$DOCKET_SCRIPTS_DIR"/docket.sh docket-status --digest-only`.
+# The prose naming that flag and the script implementing it ship in the same repo, but are reached
+# at runtime through two INDEPENDENT install channels: an absolute symlink into <harness>/skills/,
+# and the DOCKET_SCRIPTS_DIR env var. If those ever resolved to different clones, a rewired skill
+# could invoke a --digest-only the resolved scripts/ does not implement — a version-skew window in
+# which Step 1 hard-errors (non-zero exit) on every run and the whole drain loop halts. Change
+# 0094 argued this window cannot open, but verified it by INSPECTION only; these asserts mechanize
+# it. The `-L` assert above proves only that SOME link exists, never where it points, so it cannot
+# catch skew on its own.
+impl_link="$tmp/.claude/skills/docket-implement-next"
+assert "install.sh symlinked docket-implement-next" '[ -L "$impl_link" ]'
+impl_target="$(readlink "$impl_link")"   # link-skills.sh writes ABSOLUTE targets, so no -f needed
+assert "the docket-implement-next symlink points into THIS clone" \
+  '[ "$impl_target" = "$REPO/skills/docket-implement-next" ]'
+# Resolve a repo root from each channel INDEPENDENTLY, then require the two to agree. Deriving
+# both from $REPO would assume the very thing under test, so read the scripts dir back out of the
+# installed settings.json — the value a live harness actually consumes.
+skill_root="$(cd "$(dirname "$impl_target")/.." && pwd -P)"
+scripts_dir="$(jq -r '.env.DOCKET_SCRIPTS_DIR' "$tmp/.claude/settings.json")"
+scripts_root="$(cd "$scripts_dir/.." && pwd -P)"
+assert "the installed skill and DOCKET_SCRIPTS_DIR resolve to the SAME clone (no mixed-state window)" \
+  '[ "$skill_root" = "$scripts_root" ]'
+# Payoff: walk BOTH install channels end to end and confirm the flag the installed skill NAMES is
+# implemented by the scripts/ that DOCKET_SCRIPTS_DIR actually RESOLVES to. In-repo coupling is
+# already pinned by tests/test_skill_facade_wiring.sh; what this adds is that the coupling survives
+# installation — the reachability claim itself, rather than a proxy for it.
+assert "the installed skill names the --digest-only invocation" \
+  'grep -q -- "docket-status --digest-only" "$impl_link/SKILL.md"'
+assert "the scripts/ reached via DOCKET_SCRIPTS_DIR implements --digest-only" \
+  'grep -q -- "--digest-only) DIGEST_ONLY=1" "$scripts_dir/docket-status.sh"'
+
 # install.sh scaffolds the global config (ensure-global-config.sh), before sync-agents reads it.
 assert "install.sh scaffolded the global config" '[ -f "$tmp/.config/docket/config.yml" ]'
 assert "install.sh global config is the committed starter" 'cmp -s "$REPO/config.yml.example" "$tmp/.config/docket/config.yml"'
