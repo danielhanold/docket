@@ -2,7 +2,7 @@
 id: 97
 slug: mirror-readiness-label-parity
 title: GitHub mirror readiness parity — readiness labels stop at `proposed`
-status: in-progress
+status: implemented
 priority: low
 created: 2026-07-19
 updated: 2026-07-19
@@ -16,8 +16,8 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/mirror-readiness-label-parity
-claimed_at: 2026-07-19T11:47:03Z
-pr:
+claimed_at: 2026-07-19T12:16:15Z
+pr: https://github.com/danielhanold/docket/pull/105
 blocked_by:
 reconciled: true
 ---
@@ -29,6 +29,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-19-mirror-readiness-label-parity-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-19-mirror-readiness-label-parity-design.md) |
 | Plan | [2026-07-19-mirror-readiness-label-parity.md](https://github.com/danielhanold/docket/blob/feat/mirror-readiness-label-parity/docs/superpowers/plans/2026-07-19-mirror-readiness-label-parity.md) |
+| PR | [#105](https://github.com/danielhanold/docket/pull/105) |
 <!-- docket:artifacts:end -->
 
 ## Why
