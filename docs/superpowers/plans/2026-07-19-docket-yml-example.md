@@ -368,6 +368,8 @@ The complete key inventory — nothing may be omitted:
 | `auto_groom` | `false` | any layer |
 | `auto_capture` | `false` | any layer |
 | `github_project` | `auto` | repo-only |
+| `runners.codex.sandbox` | `workspace-write` | any layer |
+| `runners.codex.network` | `true` | any layer |
 | `agent_harnesses` | `[claude]` — **COMMENTED** | any layer |
 | `agents` | the nine-line `claude:` mirror + commented `codex:`/`cursor:` — **COMMENTED** | any layer |
 | `skills.brainstorm` | `superpowers:brainstorming` | any layer |
@@ -375,6 +377,23 @@ The complete key inventory — nothing may be omitted:
 | `skills.build` | `superpowers:subagent-driven-development` | any layer |
 | `skills.review` | `superpowers:requesting-code-review` | any layer |
 | `skills.finish` | `superpowers:finishing-a-development-branch` | any layer |
+
+**`runners:` — added mid-build (Task 2 discovery).** A third key the original inventory missed, found by the Task 2 implementer and verified against the code: `scripts/runner-dispatch.sh` resolves a top-level `runners.<name>:` block across all layers, and `scripts/runners/codex.sh:66,70` reads `runners.codex.sandbox` (default `workspace-write`) and `runners.codex.network` (default `true`). README documents both at lines 228–230 and 603–614 (change 0079, runner delegation). Like `require_pr_approval`, it has no export key — so it joins the non-exported list in Task 3. Ships **active**; `docket-config.sh` never reads `runners`, so it is fidelity-safe, and with `agents:` commented no agent carries a `runner:` field, so no shim wrapper is generated. Prose to write:
+
+```yaml
+# runners — per-runner knobs for RUNNER DELEGATION (change 0079): handing an agent's whole run to
+# a child harness with its own subscription, models, and skills. Activated per agent by an explicit
+# `runner:` key inside an `agents:` entry — never inferred from model IDs. One pair ships today:
+# parent `claude` (Claude Code) -> child `codex` (OpenAI Codex CLI). With no agent carrying a
+# `runner:` key, this block is inert.
+# scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
+runners:
+  codex:
+    sandbox: workspace-write   # workspace-write (default) | danger-full-access
+    network: true              # default true — git push and gh need it
+```
+
+The `agents:` block's prose must also name the `runner:` field as a third per-entry key alongside `model:`/`effort:`.
 
 Two keys need documentation the old surfaces never carried:
 
@@ -509,6 +528,7 @@ done
 #   github_project                — fenced by the resolver, never emitted; consumed by github-mirror.sh
 #   agents / agent_harnesses      — consumed by sync-agents.sh; ship COMMENTED (presence-sensitive)
 #   finalize.require_pr_approval  — MODEL-READ: skills/docket-finalize-change/SKILL.md only
+#   runners.codex.sandbox/network — consumed by scripts/runner-dispatch.sh + scripts/runners/codex.sh
 assert "completeness: github_project present (auto sentinel)" \
   'grep -Eq "^github_project:[[:space:]]*auto" "$EX"'
 assert "completeness: agent_harnesses present (commented)" \
@@ -517,6 +537,17 @@ assert "completeness: agents present (commented)" \
   'grep -Eq "^#[[:space:]]*agents:" "$EX"'
 assert "completeness: finalize.require_pr_approval present" \
   'grep -Eq "^[[:space:]]+require_pr_approval:[[:space:]]*false" "$EX"'
+assert "completeness: runners.codex.sandbox present" \
+  'grep -Eq "^[[:space:]]+sandbox:[[:space:]]*workspace-write" "$EX"'
+assert "completeness: runners.codex.network present" \
+  'grep -Eq "^[[:space:]]+network:[[:space:]]*true" "$EX"'
+assert "completeness: runners block header present" 'grep -Eq "^runners:" "$EX"'
+
+# runners.* is consumed by the runner-dispatch script family, not the resolver. Anchor on the
+# PRODUCER so the example and its consumer cannot silently diverge (same shape as the
+# require_pr_approval producer assert above).
+assert "runners.codex.sandbox is still read by the codex adapter" \
+  'grep -q "DOCKET_RUNNER_CFG_SANDBOX" "$REPO/scripts/runners/codex.sh"'
 
 # require_pr_approval is model-read, so nothing but this assert couples the example to the skill
 # that consumes it. Anchor on the PRODUCER (the skill body) so the pair cannot silently diverge.
