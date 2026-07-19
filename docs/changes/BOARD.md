@@ -1,6 +1,6 @@
 # Backlog
 
-**96 changes** — 🟡 8 proposed · 🔴 1 blocked · ⚪ 1 deferred · 🔵 4 implemented · ✅ 77 done · 🗑️ 5 killed
+**96 changes** — 🟡 8 proposed · 🔴 1 blocked · ⚪ 1 deferred · 🔵 3 implemented · ✅ 78 done · 🗑️ 5 killed
 
 ## 🟡 Proposed (8)
 
@@ -27,14 +27,13 @@
 |---|-------|----------|
 | [0094](active/0094-docket-prime-context-digest.md) | docket-prime — a token-budgeted context digest skills load instead of walking docs/changes | `medium` |
 
-## 🔵 Implemented — awaiting merge (4)
+## 🔵 Implemented — awaiting merge (3)
 
-| # | Title | Priority | PR |
-|---|-------|----------|----|
-| [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | [#89](https://github.com/danielhanold/docket/pull/89) |
-| [0087](active/0087-headless-finalize-driver.md) | Headless finalize — the finalize-side disposition contract, mirroring 0088 | `high` | [#103](https://github.com/danielhanold/docket/pull/103) |
-| [0091](active/0091-auto-create-discovered-stubs.md) | Auto-create discovered stubs — a config flag that turns mid-run findings into proposed changes | `medium` | [#104](https://github.com/danielhanold/docket/pull/104) |
-| [0096](active/0096-suppress-plan-skill-execution-handoff.md) | An autonomous run can be halted by a sub-skill's interactive hand-off — pre-specify the outcome at every autonomous call site | `high` | [#102](https://github.com/danielhanold/docket/pull/102) |
+| # | Title | Priority | PR | Readiness |
+|---|-------|----------|----|-----------|
+| [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
+| [0091](active/0091-auto-create-discovered-stubs.md) | Auto-create discovered stubs — a config flag that turns mid-run findings into proposed changes | `medium` | [#104](https://github.com/danielhanold/docket/pull/104) |  |
+| [0096](active/0096-suppress-plan-skill-execution-handoff.md) | An autonomous run can be halted by a sub-skill's interactive hand-off — pre-specify the outcome at every autonomous call site | `high` | [#102](https://github.com/danielhanold/docket/pull/102) |  |
 
 ```mermaid
 graph TD
@@ -48,7 +47,6 @@ graph TD
   0077 --> 0078
   0082
   0083
-  0087
   0090 --> 0091
   0094
   0096
@@ -59,10 +57,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (82)</summary>
+<details><summary>✅🗑️ Archive — done + killed (83)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0087](archive/2026-07-19-0087-headless-finalize-driver.md) | Headless finalize — the finalize-side disposition contract, mirroring 0088 | 2026-07-19 |
 | [0095](archive/2026-07-18-0095-retire-auto-approve-workflow.md) | Retire the auto-approve workflow — document the classifier and the single-maintainer branch-protection solution | 2026-07-18 |
 | [0093](archive/2026-07-18-0093-archive-decay-digest.md) | Archive decay — a rolling one-line digest so board and context cost stay flat as the archive grows | 2026-07-18 |
 | [0092](archive/2026-07-18-0092-orphan-detection-script.md) | Orphan detection script — cross-reference change ids in merged commits against archive state | 2026-07-18 |
@@ -79,7 +78,6 @@ graph TD
 | [0067](archive/2026-07-16-0067-learnings-promotion-destination.md) | Give the learnings ledger a promotion destination — it has no way to shrink | 2026-07-16 |
 | [0033](archive/2026-07-16-0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | 2026-07-16 |
 | [0080](archive/2026-07-15-0080-link-skills-create-harness-dir.md) | link-skills.sh creates a missing skills subdir when the harness is present | 2026-07-15 |
-| [0075](archive/2026-07-15-0075-cwd-independent-repo-root-anchor.md) | Anchor the repo root to the main worktree — CWD-independent scripts, a fail-closed cleanup guard, and a durable finalize posture | 2026-07-15 |
 | [0076](archive/2026-07-14-0076-cwd-independent-repo-root-resolution.md) | Resolve the repo root independently of CWD — preflight run inside `.docket` mints a nested metadata worktree | 2026-07-14 |
 | [0043](archive/2026-07-08-0043-agent-model-tiers.md) | Model-tier indirection for agent model selection + config-driven advisories | 2026-07-08 |
 | [0028](archive/2026-06-20-0028-wire-closeout-call-sites.md) | Wire the close-out call sites to the extracted scripts | 2026-06-20 |
@@ -88,7 +86,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-07](archive/) | 30 done |
+| [2026-07](archive/) | 31 done |
 | [2026-06](archive/) | 32 done |
 
 </details>
