@@ -13,20 +13,21 @@ glue — each shared script still owns its own contract. Change 0058; the learni
 ## Usage
 
 ```
-docket-status.sh [--board-only] [--must-land] [--repo OWNER/REPO] [--project OWNER/NUMBER]
-                  [--auto-create-project] [--project-owner OWNER]
+docket-status.sh [--board-only] [--digest-only] [--must-land] [--repo OWNER/REPO]
+                  [--project OWNER/NUMBER] [--auto-create-project] [--project-owner OWNER]
 docket-status.sh -h | --help
 ```
 
 | Flag | Description |
 |---|---|
 | `--board-only` | Only run steps 1–4 (config/bootstrap, worktree sync, board pass, backlog pass) and exit; skip sweep detection/execution, health checks, judgment emission, and integration sync. |
+| `--digest-only` | **Write-free read** (change 0094). Resolve config, enforce the bootstrap verdict fail-closed, emit the backlog digest — `backlog` rollups, `change` lines, and the trailing `ready` queue line — and exit 0. Runs **no** metadata-worktree sync (it does not call `docket_preflight`), no sweep, no health checks, no learnings pass, no board render, no commit and no push, and emits **no `board …` line** and no `pass ok`. Mutually exclusive with `--board-only` (exit 2, in either order): a selection read must not be a write. This is the entry point `docket-implement-next` Step 1 uses to acquire its ordered candidate set. |
 | `--must-land` | With `--board-only`: run the board pass with an in-script bounded retry (3 attempts) on the sole retryable outcome `board inline changed push-failed`, re-syncing the metadata worktree between attempts, and map the result to the exit code. Exit 0 iff every board line is a terminal success (`board inline changed pushed`/`clean`, `board off`, `board github ok`); any other terminal line or retry exhaustion exits non-zero. Report-line vocabulary and flagless behavior are unchanged; `board_pass`'s fail-closed exit 2 propagates. |
 | `--repo OWNER/REPO` | GitHub repo for PR-link resolution and sweep merge detection. Defaults to deriving from the `origin` remote (see `render-board.sh`) and, for sweep detection, from `gh repo view` when unset. |
 | `--project OWNER/NUMBER` | GitHub Project to sync during the github board surface. Passed through to `github-mirror.sh`. |
 | `--auto-create-project` | Create the GitHub Project if `--project` doesn't resolve. Passed through to `github-mirror.sh`. |
 | `--project-owner OWNER` | Owner to create the project under when auto-creating. Passed through to `github-mirror.sh`. |
-| `-h`, `--help` | Print the usage synopsis (script header lines 2–12) and exit 0. |
+| `-h`, `--help` | Print the usage synopsis (script header lines 2–19) and exit 0. |
 
 Any other argument is a hard error (`docket-status: unknown argument: <arg>`, exit 2).
 
@@ -127,6 +128,18 @@ path** and the placement is part of the contract:
 
 Report line order on a full pass is therefore: board → sweep lines → check lines → reclaim lines
 (step 7a) → judgment lines → learnings lines → backlog digest → `pass ok`.
+
+**4a. Digest-only path (`--digest-only`, change 0094).** A separate, write-free entry point that
+runs `digest_only_pass` and exits before anything else — including `docket_preflight`. It resolves
+config, enforces the bootstrap verdict fail-closed, and runs the same step-4 backlog pass. It is
+deliberately **not** built on `--board-only`: that flag commits and pushes `BOARD.md`, and a
+selection read must not be a write.
+
+Skipping the preflight sync is what makes the read strict — preflight fetches and rebases the
+metadata worktree, which can move `HEAD`. Nothing is lost: `docket-implement-next` runs this
+**after** its own Step-0 preflight, so the tree is already synced. The digest is a snapshot of the
+change files as of the moment it runs; taking it before Step 0's sweep would list already-merged
+changes, which is why Step 1 orders it after.
 
 **5. Batched sweep detection.** `detect_merged` scans `active/*.md` for `status: implemented`
 changes, resolves each PR's merge state with one batched `gh api graphql` call keyed by change ID
@@ -310,6 +323,7 @@ All report lines are stdout, one shape per line, diagnostics go to stderr:
 | `minted project <id> <n>` | Passthrough of `github-mirror.sh`'s `project-minted <id> <n>`. |
 | `backlog <status> <count>` | One rollup per non-zero status across the active + archived change files (from the ungated backlog pass). On a full pass these are **post-sweep** counts: a change swept this pass is counted under `done`, not `implemented`. |
 | `change <id> <status> <readiness> <slug>` | One line per **active** change, as of the moment the backlog pass ran (post-sweep on a full pass, so a change swept this pass has no `change` line at all — it is archived). `<readiness>` is `build-ready`, `needs-brainstorm`, `auto-groom-blocked`, `waiting-on-<N>-unbuilt`, or `waiting-on-<N>-needs-merge` for a `proposed` change; `finalize-blocked` for an `implemented` change carrying the `## Finalize blocked` section (this pass pipes render-board's digest through unmodified, so the token reaches the report); and `-` for everything else — an `implemented` change *without* the marker, plus every change in any other status (where readiness does not apply). |
+| `ready [<id> …]` | The **build-ready queue in selection order** (`priority` → `created` → `id`), from `render-board.sh`'s digest (change 0094). Emitted on every path that runs the backlog pass — the full report, `--board-only`, and `--digest-only`. **Always present**, bare when nothing is build-ready; its absence means no queue was produced (an older `render-board.sh`, or a failed render), never "nothing is ready". Membership always equals the `change` lines reporting `proposed build-ready`. |
 | `swept <id> <date>` | Change `<id>` fully closed out (archived, links refreshed, terminal record published only if the repo opted in with `terminal_publish: true`, branch cleaned up) as of `<date>` (UTC, from merge). |
 | `harvest <id> <path>` | The archived file path for a swept change — a hook for the caller to harvest learnings. `<path>` is absolute (since change 0075, anchored to the main worktree via `lib/docket-root.sh`) — previously relative to the process CWD. |
 | `sweep-failed <id> <step> <reason>` | Step `<step>` (`sync`, `archive`, `render-change-links`, `terminal-publish`, or `cleanup`) failed for change `<id>` with `<reason>`; that change's remaining close-out steps were abandoned — **except** for `cleanup` and for the artifacts-refresh reasons `commit-failed` / `push-failed` (step 6a), after which the close-out continues and the change still reports `swept`/`harvest`. |
@@ -333,7 +347,9 @@ All report lines are stdout, one shape per line, diagnostics go to stderr:
 
 - `0` — the pass completed (and printed `pass ok` as its last line). Findings, `sweep-failed`,
   `sweep-skipped`, `board *-failed`, `board off`, and `judgment` lines on stdout are all normal,
-  expected pass outcomes, not errors — **a thin report is the success case.**
+  expected pass outcomes, not errors — **a thin report is the success case.** Exception:
+  `--digest-only` (change 0094) exits 0 on the digest reaching stdout and prints **no** `pass ok` —
+  it is a read, not a pass, so that completion marker does not apply to it.
 - non-zero — a hard error only: config export failure, an unrecognized `BOOTSTRAP` verdict,
   `STOP_MIGRATE`/`CREATE_ORPHAN` bootstrap gate (exit 1), an unusable metadata worktree (create or
   sync failure, exit 1), an unknown CLI argument (exit 2), or `BOARD_SURFACES` was empty (or
