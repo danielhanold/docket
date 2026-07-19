@@ -11,7 +11,7 @@ related: [87]
 discovered_from: [87]
 adrs: []
 spec: docs/superpowers/specs/2026-07-19-stale-finalize-marker-health-check-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-19-stale-finalize-marker-health-check.md
 results:
 trivial: false
 auto_groomable:
@@ -28,6 +28,7 @@ claimed_at: 2026-07-19T12:21:40Z
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-19-stale-finalize-marker-health-check-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-19-stale-finalize-marker-health-check-design.md) |
+| Plan | [2026-07-19-stale-finalize-marker-health-check.md](https://github.com/danielhanold/docket/blob/feat/stale-finalize-marker-health-check/docs/superpowers/plans/2026-07-19-stale-finalize-marker-health-check.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
