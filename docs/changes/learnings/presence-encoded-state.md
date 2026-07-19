@@ -2,7 +2,7 @@
 slug: presence-encoded-state
 hook: "When state is encoded by an artifact's presence, every transition out of that state must remove the artifact."
 topics: [design, state, views]
-changes: [14, 87]
+changes: [14, 87, 99]
 created: 2026-06-12
 updated: 2026-07-19
 promotion_state: candidate
@@ -29,3 +29,18 @@ artifact.
   time, so it needs to fire unprompted whenever a marker's *presence* carries state. The
   enumeration to run at design time is: what **re-**enters this state, what leaves it by a path the
   system doesn't drive (a human acting out of band), and what merely *reads* it.
+- 2026-07-19 (#99, PR #107) — **The rule's third clause is the one that discharges it.** Applied
+  literally, the hook demands stripping `## Finalize blocked` on the way to `done`, which nothing
+  does — `archive-change.sh` moves the file and sets scalars, so on an out-of-band human merge the
+  section rides verbatim into `archive/`. That reads as a violation only if removal is taken as the
+  *end*. It is the usual *means*; the end is that **no reader is left misinformed**. Here every
+  reader is scoped to a pre-`done` change (the board's `implemented`-only cell, the auto-detect
+  skip on unmerged candidates, the `implemented`-only `stale-finalize-blocked` check, and the
+  GitHub mirror's readiness label — whose `case "$status"` has no `done` arm even though it is the
+  one reader that scans `archive/` at all), so archiving retires the marker's meaning and the rule
+  is **discharged, not violated**. The finding was deliberately left as written rather than
+  weakened: its own design-time enumeration already ends at "what merely *reads* it," and that
+  clause is what decides the case. When this rule seems to demand redundant cleanup, enumerate the
+  readers first — if none can still observe the artifact in a state where it would mislead, you are
+  done. But make the discharge *explicit in the prose that owns the rule*, or the next reader
+  re-derives it as a defect and implements the redundant strip.

@@ -2,7 +2,7 @@
 slug: enumerated-floor
 hook: "Every hand-written enumeration is a floor, not the set — derive the sites from a whole-repo grep, then treat that grep as a floor too."
 topics: [process, inventory, review]
-changes: [14, 32, 42, 52, 54, 56, 64, 67, 71, 74, 84, 96, 98]
+changes: [14, 32, 42, 52, 54, 56, 64, 67, 71, 74, 84, 96, 98, 99]
 created: 2026-06-12
 updated: 2026-07-19
 promotion_state: promoted
@@ -87,3 +87,15 @@ enumerated.
   only for the members' names — a stale count carries none of the new member's keywords. Caught only
   because the whole-branch review read the neighboring skill file; filed as a follow-up rather than
   fixed in-change (out of the change's file set).
+- 2026-07-19 (#99, PR #107) — **When a roster goes stale three times inside one change, stop
+  resting the claim on the roster.** The stub's premise counted **two** readers of
+  `## Finalize blocked`; the reconcile pass found change 0098 had added a **third** the same day
+  the spec was authored; the whole-branch review found a **fourth** (`scripts/github-mirror.sh:141`,
+  live since 0097) — and that fourth was the *strongest evidence for the change's own thesis*,
+  being the only reader that scans `archive/` at all. Three counts across one change's lifetime,
+  each derived carefully, each already stale. The remedy here was not a better grep: the shipped
+  text asserts the **scoping property** ("every reader is scoped to a pre-`done` change") and marks
+  the parenthetical roster `today:`, so a fifth reader added tomorrow makes the prose incomplete
+  rather than **false**. When an enumeration keeps drifting under you, ask whether the claim needs
+  the enumeration at all — a stated invariant with an explicitly-dated example list degrades
+  gracefully where a bare count degrades into a lie.
