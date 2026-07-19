@@ -21,8 +21,8 @@ docket-status.sh -h | --help
 | Flag | Description |
 |---|---|
 | `--board-only` | Only run steps 1–4 (config/bootstrap, worktree sync, board pass, backlog pass) and exit; skip sweep detection/execution, health checks, judgment emission, and integration sync. |
-| `--digest-only` | **Write-free read** (change 0094). Resolve config, enforce the bootstrap verdict fail-closed, emit the backlog digest — `backlog` rollups, `change` lines, and the trailing `ready` queue line — and exit 0. Runs **no** metadata-worktree sync (it does not call `docket_preflight`), no sweep, no health checks, no learnings pass, no board render, no commit and no push, and emits **no `board …` line** and no `pass ok`. Mutually exclusive with `--board-only` (exit 2, in either order): a selection read must not be a write. This is the entry point `docket-implement-next` Step 1 uses to acquire its ordered candidate set. |
-| `--must-land` | With `--board-only`: run the board pass with an in-script bounded retry (3 attempts) on the sole retryable outcome `board inline changed push-failed`, re-syncing the metadata worktree between attempts, and map the result to the exit code. Exit 0 iff every board line is a terminal success (`board inline changed pushed`/`clean`, `board off`, `board github ok`); any other terminal line or retry exhaustion exits non-zero. Report-line vocabulary and flagless behavior are unchanged; `board_pass`'s fail-closed exit 2 propagates. |
+| `--digest-only` | **Write-free read** (change 0094). Resolve config, enforce the bootstrap verdict fail-closed, confirm the metadata worktree's changes dir actually exists, and (only once all three succeed) emit the backlog digest — `backlog` rollups, `change` lines, and the trailing `ready` queue line — and exit 0. Runs **no** metadata-worktree sync (it does not call `docket_preflight`), no sweep, no health checks, no learnings pass, no board render, no commit and no push, and emits **no `board …` line** and no `pass ok`. Fails closed (exit 1, diagnostic on stderr) rather than emitting an empty-but-successful digest when config export fails, the bootstrap verdict is non-`PROCEED`, or the resolved changes dir does not exist as a directory — see Exit codes. Mutually exclusive with `--board-only` and with `--must-land` (exit 2, in either order for each pair): a selection read must not be a write, and `--must-land` has nothing to retry without a board pass. This is the entry point `docket-implement-next` Step 1 uses to acquire its ordered candidate set. |
+| `--must-land` | With `--board-only`: run the board pass with an in-script bounded retry (3 attempts) on the sole retryable outcome `board inline changed push-failed`, re-syncing the metadata worktree between attempts, and map the result to the exit code. Exit 0 iff every board line is a terminal success (`board inline changed pushed`/`clean`, `board off`, `board github ok`); any other terminal line or retry exhaustion exits non-zero. Report-line vocabulary and flagless behavior are unchanged; `board_pass`'s fail-closed exit 2 propagates. Meaningless (and rejected) with `--digest-only`, which never runs a board pass. |
 | `--repo OWNER/REPO` | GitHub repo for PR-link resolution and sweep merge detection. Defaults to deriving from the `origin` remote (see `render-board.sh`) and, for sweep detection, from `gh repo view` when unset. |
 | `--project OWNER/NUMBER` | GitHub Project to sync during the github board surface. Passed through to `github-mirror.sh`. |
 | `--auto-create-project` | Create the GitHub Project if `--project` doesn't resolve. Passed through to `github-mirror.sh`. |
@@ -140,6 +140,17 @@ metadata worktree, which can move `HEAD`. Nothing is lost: `docket-implement-nex
 **after** its own Step-0 preflight, so the tree is already synced. The digest is a snapshot of the
 change files as of the moment it runs; taking it before Step 0's sweep would list already-merged
 changes, which is why Step 1 orders it after.
+
+Skipping preflight also means nothing else guarantees the metadata worktree exists — on every
+other path, `docket_preflight` creates it if it's missing, but this path never calls it. So
+`digest_only_pass` resolves the changes dir itself (`docket_metadata_worktree` + `$CHANGES_DIR`,
+the same resolution `backlog_pass` uses) and checks it exists **before** calling `backlog_pass`.
+A fresh clone of an already-migrated repo is the reachable failure shape: `origin/docket` exists
+(`BOOTSTRAP=PROCEED`), but `.docket/` is gitignored and was never materialized in this clone.
+Without the check, `backlog_pass`'s underlying `render-board.sh` call would fail, log to stderr,
+and best-effort `return 0` — exit 0 with an empty digest and no `ready` line, indistinguishable
+from "nothing is ready" to a caller keying on the exit code. The check instead fails the pass
+closed (exit 1, naming the resolved path and pointing at `docket.sh preflight`) — see Exit codes.
 
 **5. Batched sweep detection.** `detect_merged` scans `active/*.md` for `status: implemented`
 changes, resolves each PR's merge state with one batched `gh api graphql` call keyed by change ID
@@ -323,7 +334,7 @@ All report lines are stdout, one shape per line, diagnostics go to stderr:
 | `minted project <id> <n>` | Passthrough of `github-mirror.sh`'s `project-minted <id> <n>`. |
 | `backlog <status> <count>` | One rollup per non-zero status across the active + archived change files (from the ungated backlog pass). On a full pass these are **post-sweep** counts: a change swept this pass is counted under `done`, not `implemented`. |
 | `change <id> <status> <readiness> <slug>` | One line per **active** change, as of the moment the backlog pass ran (post-sweep on a full pass, so a change swept this pass has no `change` line at all — it is archived). `<readiness>` is `build-ready`, `needs-brainstorm`, `auto-groom-blocked`, `waiting-on-<N>-unbuilt`, or `waiting-on-<N>-needs-merge` for a `proposed` change; `finalize-blocked` for an `implemented` change carrying the `## Finalize blocked` section (this pass pipes render-board's digest through unmodified, so the token reaches the report); and `-` for everything else — an `implemented` change *without* the marker, plus every change in any other status (where readiness does not apply). |
-| `ready [<id> …]` | The **build-ready queue in selection order** (`priority` → `created` → `id`), from `render-board.sh`'s digest (change 0094). Emitted on every path that runs the backlog pass — the full report, `--board-only`, and `--digest-only`. **Always present**, bare when nothing is build-ready; its absence means no queue was produced (an older `render-board.sh`, or a failed render), never "nothing is ready". Membership always equals the `change` lines reporting `proposed build-ready`. |
+| `ready [<id> …]` | The **build-ready queue in selection order** (`priority` → `created` → `id`), from `render-board.sh`'s digest (change 0094). Emitted on every path that runs the backlog pass — the full report, `--board-only`, and `--digest-only` — **when that pass succeeds**. Present and bare when nothing is build-ready; its absence means the pass did not reach the backlog digest at all (config export failure, a fail-closed bootstrap/changes-dir gate, an older `render-board.sh`, or a failed render), never "nothing is ready". A caller must check the exit code before treating a missing `ready` line as "no candidates" — see Exit codes. Membership always equals the `change` lines reporting `proposed build-ready`. |
 | `swept <id> <date>` | Change `<id>` fully closed out (archived, links refreshed, terminal record published only if the repo opted in with `terminal_publish: true`, branch cleaned up) as of `<date>` (UTC, from merge). |
 | `harvest <id> <path>` | The archived file path for a swept change — a hook for the caller to harvest learnings. `<path>` is absolute (since change 0075, anchored to the main worktree via `lib/docket-root.sh`) — previously relative to the process CWD. |
 | `sweep-failed <id> <step> <reason>` | Step `<step>` (`sync`, `archive`, `render-change-links`, `terminal-publish`, or `cleanup`) failed for change `<id>` with `<reason>`; that change's remaining close-out steps were abandoned — **except** for `cleanup` and for the artifacts-refresh reasons `commit-failed` / `push-failed` (step 6a), after which the close-out continues and the change still reports `swept`/`harvest`. |
@@ -348,13 +359,19 @@ All report lines are stdout, one shape per line, diagnostics go to stderr:
 - `0` — the pass completed (and printed `pass ok` as its last line). Findings, `sweep-failed`,
   `sweep-skipped`, `board *-failed`, `board off`, and `judgment` lines on stdout are all normal,
   expected pass outcomes, not errors — **a thin report is the success case.** Exception:
-  `--digest-only` (change 0094) exits 0 on the digest reaching stdout and prints **no** `pass ok` —
-  it is a read, not a pass, so that completion marker does not apply to it.
+  `--digest-only` (change 0094) exits 0 **only when the digest actually reaches stdout**, and
+  prints **no** `pass ok` even then — it is a read, not a pass, so that completion marker does not
+  apply to it.
 - non-zero — a hard error only: config export failure, an unrecognized `BOOTSTRAP` verdict,
   `STOP_MIGRATE`/`CREATE_ORPHAN` bootstrap gate (exit 1), an unusable metadata worktree (create or
   sync failure, exit 1), an unknown CLI argument (exit 2), or `BOARD_SURFACES` was empty (or
   whitespace-only — defence-in-depth, change 0071 review finding 6) / `none` was combined with
-  another surface (a wiring bug — change 0071).
+  another surface (a wiring bug — change 0071). Under `--digest-only` specifically (exit 1, no
+  digest on stdout, diagnostic on stderr): config export failure, a non-`PROCEED` bootstrap
+  verdict, or a metadata worktree whose changes dir does not exist (the fresh-clone gap — nothing
+  else on this path guarantees the worktree was ever materialized, since it skips
+  `docket_preflight`); also exit 2 (before any of the above run) when combined with `--board-only`
+  or with `--must-land`, in either order.
 - non-zero — under `--must-land`, the board pass ended on a non-success terminal line or exhausted
   its 3 retries.
 

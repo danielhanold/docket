@@ -51,6 +51,16 @@ if [ "$DIGEST_ONLY" = 1 ] && [ "$BOARD_ONLY" = 1 ]; then
   echo "docket-status: --digest-only and --board-only are mutually exclusive (a write-free read vs. a committing board write)" >&2
   exit 2
 fi
+# --must-land is meaningful only alongside --board-only: it retries/maps the exit code of the
+# board pass, which --digest-only never runs. main() short-circuits --digest-only BEFORE
+# MUST_LAND is ever read, so without this gate `--digest-only --must-land` would silently drop
+# --must-land and exit 0 with the digest — the same silent-flag-drop shape the gate above exists
+# to prevent for --board-only. Extend the SAME gate rather than inventing a second mechanism;
+# both orders, matching the discipline above.
+if [ "$DIGEST_ONLY" = 1 ] && [ "$MUST_LAND" = 1 ]; then
+  echo "docket-status: --digest-only and --must-land are mutually exclusive (--must-land only applies to --board-only; --digest-only is a write-free read)" >&2
+  exit 2
+fi
 
 board_pass(){
   local surfaces="${BOARD_SURFACES:-}"
@@ -348,6 +358,23 @@ digest_only_pass(){
     CREATE_ORPHAN) echo "docket-status: fresh repo — run docket.sh bootstrap to create the docket branch" >&2; return 1 ;;
     *) echo "docket-status: unknown bootstrap verdict '${BOOTSTRAP:-}'" >&2; return 1 ;;
   esac
+  # Fail-closed existence check (review fix, still change 0094) — needed ONLY on this path. The
+  # full pass and --board-only both run docket_preflight first, which CREATES the metadata
+  # worktree when it's missing, so every OTHER caller of backlog_pass gets that guarantee for
+  # free. --digest-only deliberately skips preflight (see the header comment above), so nothing
+  # else guarantees .docket/ exists here. Reachable scenario: a fresh clone of an
+  # already-migrated repo — origin/docket exists (BOOTSTRAP=PROCEED), but .docket/ is gitignored
+  # and was never materialized locally. Without this check, backlog_pass's render-board.sh call
+  # fails, logs to stderr, and best-effort `return 0`s — exit 0 with empty stdout, the exact
+  # two-cases-one-signal collapse the always-emitted `ready` line exists to prevent. Resolve the
+  # changes dir the SAME way backlog_pass does, so the two can never diverge.
+  local mw cd_dir
+  mw="$(docket_metadata_worktree)"
+  cd_dir="$mw/$CHANGES_DIR"
+  if [ ! -d "$cd_dir" ]; then
+    echo "docket-status: metadata worktree not found at $cd_dir — run docket.sh preflight (or a docket skill) to materialize it" >&2
+    return 1
+  fi
   backlog_pass
 }
 
