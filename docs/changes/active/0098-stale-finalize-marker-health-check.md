@@ -2,7 +2,7 @@
 id: 98
 slug: stale-finalize-marker-health-check
 title: Health check for a stale `## Finalize blocked` marker
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-19
 updated: 2026-07-19
@@ -12,14 +12,14 @@ discovered_from: [87]
 adrs: []
 spec: docs/superpowers/specs/2026-07-19-stale-finalize-marker-health-check-design.md
 plan: docs/superpowers/plans/2026-07-19-stale-finalize-marker-health-check.md
-results:
+results: docs/results/2026-07-19-stale-finalize-marker-health-check-results.md
 trivial: false
 auto_groomable:
 branch: feat/stale-finalize-marker-health-check
-pr:
+pr: https://github.com/danielhanold/docket/pull/106
 blocked_by:
 reconciled: true
-claimed_at: 2026-07-19T12:21:40Z
+claimed_at: 2026-07-19T12:55:52Z
 ---
 
 ## Artifacts
@@ -29,6 +29,8 @@ claimed_at: 2026-07-19T12:21:40Z
 |---|---|
 | Spec | [2026-07-19-stale-finalize-marker-health-check-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-19-stale-finalize-marker-health-check-design.md) |
 | Plan | [2026-07-19-stale-finalize-marker-health-check.md](https://github.com/danielhanold/docket/blob/feat/stale-finalize-marker-health-check/docs/superpowers/plans/2026-07-19-stale-finalize-marker-health-check.md) |
+| Results | [2026-07-19-stale-finalize-marker-health-check-results.md](https://github.com/danielhanold/docket/blob/feat/stale-finalize-marker-health-check/docs/results/2026-07-19-stale-finalize-marker-health-check-results.md) |
+| PR | [#106](https://github.com/danielhanold/docket/pull/106) |
 <!-- docket:artifacts:end -->
 
 ## Why
