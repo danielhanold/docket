@@ -15,7 +15,7 @@ One curated finding per file; this index is the hint surface. Load it, then read
 ## design
 
 - [idempotency-keying](idempotency-keying.md) — Key a nothing-to-do probe on the state you PROMISED (it reached the remote), never on a local proxy a half-completed run also leaves behind. · also: idempotency, git
-- [presence-encoded-state](presence-encoded-state.md) — When state is encoded by an artifact's presence, every transition out of that state must remove the artifact. · also: state, views
+- [presence-encoded-state](presence-encoded-state.md) — When state is encoded by an artifact's presence, every transition out of that state must remove the artifact. · also: state, views ⟨needs promotion⟩
 - [sole-channel](sole-channel.md) — When a channel becomes the SOLE source of some state, re-prove on the survivor every property the fallback used to give you free. · also: contracts, retries
 
 ## git
@@ -59,6 +59,7 @@ One curated finding per file; this index is the hint surface. Load it, then read
 - [foundational-test-discipline](foundational-test-discipline.md) — Sentinel greps are sampling, not parsing — pair them with a whole-branch review that reads for meaning. · also: sentinels, review
 - [green-suite-untested-branch](green-suite-untested-branch.md) — Green tests are not proof the hard branch was exercised — a mock that omits the tool routes every test through the degrade path. · also: fixtures, mocks
 - [metadata-branch-invisible-to-suite](metadata-branch-invisible-to-suite.md) — A hermetic suite sees only its fixtures and the integration-branch checkout — verify metadata-branch artifacts and real-history behavior at build time, and record it in the results file. · also: metadata-branch, docket
+- [specified-but-unreachable](specified-but-unreachable.md) — Sentinels over prose assert a claim is PRESENT, never that it is REACHABLE — where a contract has a producer and a consumer, anchor one assert on the producer. · also: sentinels, review ⟨needs promotion⟩
 - [test-premise-deleted-not-regated](test-premise-deleted-not-regated.md) — When a change invalidates a test's premise, ask what the block GUARDS, not what it asserts. · also: guards, refactoring
 
 ## ux
