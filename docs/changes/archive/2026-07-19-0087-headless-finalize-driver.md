@@ -2,10 +2,10 @@
 id: 87
 slug: headless-finalize-driver
 title: Headless finalize — the finalize-side disposition contract, mirroring 0088
-status: implemented
+status: done
 priority: high
 created: 2026-07-17
-updated: 2026-07-18
+updated: 2026-07-19
 depends_on: []
 related: [8, 88, 95]
 adrs: [43]
@@ -15,7 +15,7 @@ results: docs/results/2026-07-18-headless-finalize-driver-results.md
 trivial: false
 auto_groomable: false
 branch: feat/headless-finalize-driver
-claimed_at: 2026-07-18T23:13:15Z
+claimed_at: 
 pr: 103
 blocked_by:
 reconciled: true
