@@ -2,7 +2,7 @@
 slug: specified-but-unreachable
 hook: "Sentinels over prose assert a claim is PRESENT, never that it is REACHABLE — where a contract has a producer and a consumer, anchor one assert on the producer."
 topics: [testing, sentinels, review]
-changes: [87]
+changes: [87, 94]
 created: 2026-07-19
 updated: 2026-07-19
 promotion_state: candidate
@@ -32,3 +32,13 @@ this?* If the answer is only "the section that describes it," the feature is dec
   anchored on **that paragraph** — the pre-existing consumer assert ("selection SKIPS a marked
   change") passes whether or not anything writes the marker, which is exactly how the gap survived
   to review.
+- 2026-07-19 (#94, PR #108) — The same trap one layer down, in the *range expression* of a producer
+  assert. A sentinel scoped itself with `awk "/^main\(\)/,/docket_preflight/"` to prove that
+  `--digest-only` short-circuits **before** the preflight call. The range closed on the explanatory
+  **comment** that merely contains the string `docket_preflight`, so the window never reached the
+  code it was meant to cover — the assert was anchored on the producer by name and still never read
+  it. It presented as a false BLOCKED (the implementer correctly stopped rather than proceeding past
+  an apparently-regressed producer assert). Fixed by replacing the text range with a line-number
+  **order** comparison anchored on the executable line `docket_preflight "$SCRIPTS_DIR"`. Lesson:
+  a sentinel that names the producer is not yet a sentinel that *reaches* it — when the anchor
+  string also occurs in prose, the region is bounded by the comment, not the code.

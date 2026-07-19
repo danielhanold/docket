@@ -14,9 +14,11 @@ One curated finding per file; this index is the hint surface. Load it, then read
 
 ## design
 
+- [best-effort-helper-on-a-sole-deliverable-path](best-effort-helper-on-a-sole-deliverable-path.md) — Reusing a deliberately best-effort helper on a path where its output IS the deliverable converts a soft failure into a silent exit 0. · also: shell, contracts
 - [idempotency-keying](idempotency-keying.md) — Key a nothing-to-do probe on the state you PROMISED (it reached the remote), never on a local proxy a half-completed run also leaves behind. · also: idempotency, git
 - [presence-encoded-state](presence-encoded-state.md) — When state is encoded by an artifact's presence, every transition out of that state must remove the artifact. · also: state, views ⟨needs promotion⟩
 - [sole-channel](sole-channel.md) — When a channel becomes the SOLE source of some state, re-prove on the survivor every property the fallback used to give you free. · also: contracts, retries
+- [unset-sort-key-check-your-own-template](unset-sort-key-check-your-own-template.md) — Decide a sort key's unset case explicitly — then check whether your own template makes unset the COMMON case rather than the rare one. · also: sorting, templates
 
 ## git
 
@@ -60,6 +62,7 @@ One curated finding per file; this index is the hint surface. Load it, then read
 - [foundational-test-discipline](foundational-test-discipline.md) — Sentinel greps are sampling, not parsing — pair them with a whole-branch review that reads for meaning. · also: sentinels, review
 - [green-suite-untested-branch](green-suite-untested-branch.md) — Green tests are not proof the hard branch was exercised — a mock that omits the tool routes every test through the degrade path. · also: fixtures, mocks
 - [metadata-branch-invisible-to-suite](metadata-branch-invisible-to-suite.md) — A hermetic suite sees only its fixtures and the integration-branch checkout — verify metadata-branch artifacts and real-history behavior at build time, and record it in the results file. · also: metadata-branch, docket
+- [plan-supplied-test-code-is-unverified](plan-supplied-test-code-is-unverified.md) — Test code a plan hands you is unverified code, not an oracle — prove the assert CAN pass, and mutation-test its own key. · also: plan, guards ⟨needs promotion⟩
 - [specified-but-unreachable](specified-but-unreachable.md) — Sentinels over prose assert a claim is PRESENT, never that it is REACHABLE — where a contract has a producer and a consumer, anchor one assert on the producer. · also: sentinels, review ⟨needs promotion⟩
 - [test-premise-deleted-not-regated](test-premise-deleted-not-regated.md) — When a change invalidates a test's premise, ask what the block GUARDS, not what it asserts. · also: guards, refactoring
 
