@@ -2,7 +2,7 @@
 slug: enumerated-floor
 hook: "Every hand-written enumeration is a floor, not the set — derive the sites from a whole-repo grep, then treat that grep as a floor too."
 topics: [process, inventory, review]
-changes: [14, 32, 42, 52, 54, 56, 64, 67, 71, 74, 84, 96]
+changes: [14, 32, 42, 52, 54, 56, 64, 67, 71, 74, 84, 96, 98]
 created: 2026-06-12
 updated: 2026-07-19
 promotion_state: promoted
@@ -76,3 +76,14 @@ enumerated.
   a spelling-keyed discovery bypass (see [[guards-are-code]]). Once the spelling half was fixed
   properly, the floor went back to being a floor — and must now track the real site count to stay
   meaningful, since a stale floor silently under-protects the moment a legitimate site is added.
+- 2026-07-19 (#98, PR #106) — **A prose COUNT of a script's checks is an enumeration nothing tests,
+  so it drifts silently and compounds.** Adding the `stale-finalize-blocked` check to
+  `scripts/board-checks.sh` left `skills/docket-status/SKILL.md` still saying "Five mechanical …
+  checks" and listing five — a count that was *already* stale by two (`merged-orphan`,
+  `unknown-commit-ref` were never reflected) and is now stale by three. The drift survived because
+  the count lives in a *different* file from the script, in prose, with no sentinel keyed on it:
+  every reader of the skill trusts a number that no build gate has ever checked. When a change adds
+  a member to a set, grep the whole repo for the set's CARDINALITY ("five", "5", "N checks"), not
+  only for the members' names — a stale count carries none of the new member's keywords. Caught only
+  because the whole-branch review read the neighboring skill file; filed as a follow-up rather than
+  fixed in-change (out of the change's file set).
