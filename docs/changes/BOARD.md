@@ -1,6 +1,6 @@
 # Backlog
 
-**99 changes** — 🟡 11 proposed · 🔴 1 blocked · ⚪ 1 deferred · 🔵 3 implemented · ✅ 78 done · 🗑️ 5 killed
+**99 changes** — 🟡 11 proposed · 🔴 1 blocked · ⚪ 1 deferred · 🔵 2 implemented · ✅ 79 done · 🗑️ 5 killed
 
 ## 🟡 Proposed (11)
 
@@ -30,13 +30,12 @@
 |---|-------|----------|
 | [0094](active/0094-docket-prime-context-digest.md) | docket-prime — a token-budgeted context digest skills load instead of walking docs/changes | `medium` |
 
-## 🔵 Implemented — awaiting merge (3)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | PR | Readiness |
 |---|-------|----------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
 | [0091](active/0091-auto-create-discovered-stubs.md) | Auto-create discovered stubs — a config flag that turns mid-run findings into proposed changes | `medium` | [#104](https://github.com/danielhanold/docket/pull/104) |  |
-| [0096](active/0096-suppress-plan-skill-execution-handoff.md) | An autonomous run can be halted by a sub-skill's interactive hand-off — pre-specify the outcome at every autonomous call site | `high` | [#102](https://github.com/danielhanold/docket/pull/102) |  |
 
 ```mermaid
 graph TD
@@ -52,7 +51,6 @@ graph TD
   0083
   0090 --> 0091
   0094
-  0096
   0097
   0098
   0099
@@ -63,10 +61,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (83)</summary>
+<details><summary>✅🗑️ Archive — done + killed (84)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0096](archive/2026-07-19-0096-suppress-plan-skill-execution-handoff.md) | An autonomous run can be halted by a sub-skill's interactive hand-off — pre-specify the outcome at every autonomous call site | 2026-07-19 |
 | [0087](archive/2026-07-19-0087-headless-finalize-driver.md) | Headless finalize — the finalize-side disposition contract, mirroring 0088 | 2026-07-19 |
 | [0095](archive/2026-07-18-0095-retire-auto-approve-workflow.md) | Retire the auto-approve workflow — document the classifier and the single-maintainer branch-protection solution | 2026-07-18 |
 | [0093](archive/2026-07-18-0093-archive-decay-digest.md) | Archive decay — a rolling one-line digest so board and context cost stay flat as the archive grows | 2026-07-18 |
@@ -83,7 +82,6 @@ graph TD
 | [0077](archive/2026-07-16-0077-codex-harness-toml-agents.md) | Codex harness — TOML agent generation + AGENTS.md dispatch block | 2026-07-16 |
 | [0067](archive/2026-07-16-0067-learnings-promotion-destination.md) | Give the learnings ledger a promotion destination — it has no way to shrink | 2026-07-16 |
 | [0033](archive/2026-07-16-0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | 2026-07-16 |
-| [0080](archive/2026-07-15-0080-link-skills-create-harness-dir.md) | link-skills.sh creates a missing skills subdir when the harness is present | 2026-07-15 |
 | [0076](archive/2026-07-14-0076-cwd-independent-repo-root-resolution.md) | Resolve the repo root independently of CWD — preflight run inside `.docket` mints a nested metadata worktree | 2026-07-14 |
 | [0043](archive/2026-07-08-0043-agent-model-tiers.md) | Model-tier indirection for agent model selection + config-driven advisories | 2026-07-08 |
 | [0028](archive/2026-06-20-0028-wire-closeout-call-sites.md) | Wire the close-out call sites to the extracted scripts | 2026-06-20 |
@@ -92,7 +90,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-07](archive/) | 31 done |
+| [2026-07](archive/) | 32 done |
 | [2026-06](archive/) | 32 done |
 
 </details>
