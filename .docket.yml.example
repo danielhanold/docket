@@ -11,13 +11,21 @@
 #   2. repo-committed <repo>/.docket.yml                          (every clone — committed on origin/HEAD)
 #   3. global        ${XDG_CONFIG_HOME:-~/.config}/docket/config.yml  (this machine, every repo)
 #   4. built-in      docket's defaults — the values in this file
-# Map-valued keys (`skills:`, `agents:`) merge FIELD BY FIELD with the same precedence.
+# Every nested block — `skills:`, `agents:`, `learnings:`, `reclaim:`, `runners:` — merges LEAF BY
+# LEAF with the same precedence, never whole-block. Setting one leaf in a higher layer leaves the
+# block's other leaves resolving from the layers below.
 #
 # ── How to use this file ───────────────────────────────────────────────────────────────────
 # Copy the keys you want to CHANGE into the layer you want them in. Do not copy the whole file
-# unless you mean to — though an unedited full copy behaves identically to no file at all, since
-# every active value here IS the shipped default. The two PRESENCE-SENSITIVE keys are the
-# exception: they ship commented because uncommenting them changes behavior at default values.
+# unless you mean to. An unedited full copy behaves identically to no file at all ONLY in the
+# repo-committed `.docket.yml`, since every active value here IS the shipped default. Two
+# exceptions:
+#   - The PRESENCE-SENSITIVE keys ship commented because uncommenting them changes behavior even
+#     at their default values.
+#   - In the two MACHINE-SCOPED layers (`.docket.local.yml`, global `config.yml`), a full copy
+#     makes the seven `scope: repo-only` keys warn on EVERY docket invocation — they are
+#     coordination-fenced and warned-and-ignored there. Copy only `scope: any layer` keys into
+#     those two files.
 #
 # ── Scope tags ─────────────────────────────────────────────────────────────────────────────
 # Every key carries one:
@@ -49,8 +57,9 @@ metadata_branch: docket
 
 # integration_branch — the branch code lands on, i.e. where PRs merge. `auto` (the default)
 # resolves to the repo's default branch, origin/HEAD; name a branch explicitly (`main`,
-# `develop`) to point docket at a different code line. The named ref must exist on origin, or
-# startup fails closed rather than guessing.
+# `develop`) to point docket at a different code line. In DOCKET-MODE the named ref must exist on
+# origin, or startup fails closed rather than guessing (the bootstrap guard's ls-tree probe reads
+# it, docket-config.sh:353-363); in main-mode the resolver does not validate the ref.
 # scope: repo-only (coordination-fenced, ADR-0019)
 integration_branch: auto
 
@@ -143,12 +152,20 @@ reclaim:
 #   dropped while the rest of the list is honored.
 board_surfaces: [inline]
 
-# github_project — the auto-managed GitHub Projects v2 board backing the `github` board surface.
-# `auto` (default) means UNMINTED: the first `github` sync creates the board (private, under the
-# repo owner) and writes the resolved {owner, number} back over this value. Consulted only when
-# board_surfaces includes `github`. Set it explicitly to point at an existing board:
+# github_project — the GitHub Projects v2 board intended to back the `github` board surface.
+# `auto` (default) means UNMINTED, i.e. no board configured — identical in effect to omitting the
+# key. The intended shape of an explicit value is:
 #   github_project: {owner: my-org, number: 7}
-# scope: repo-only (coordination-fenced, ADR-0019)
+#
+#   ⚠ NOT WIRED TODAY — setting this key has NO effect in ANY layer. No script reads
+#   github_project from config: github-mirror.sh resolves its board only from --project /
+#   --auto-create-project, and docket-status.sh populates those only from its own CLI flags,
+#   which no skill passes. The key's sole live effect is the coordination-key fence
+#   (docket-config.sh:169), which warns-and-ignores it in the machine-scoped layers. Enabling
+#   `github` in board_surfaces therefore mirrors ISSUES only; no Projects v2 board is created or
+#   synced, and nothing is written back over `auto`. The scope tag below records where the key
+#   WILL be settable once the read is wired — it is not a claim that it works now.
+# scope: repo-only (coordination-fenced, ADR-0019) — enforced by the fence; read by nothing yet
 github_project: auto
 
 

@@ -473,7 +473,7 @@ resolver export is byte-identical to the no-config case."
 - Consumes: `EX`, `assert`, `mkrepo`, `tmp` from Task 2.
 - Produces: the enforcement half of the standing rule — a new config key with no entry in the example (or no entry in the test's mapping) fails the suite.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `tests/test_docket_yml_example.sh`, before `exit $fail`:
 
@@ -565,23 +565,23 @@ assert "scope tag: repo-only form present"  'grep -qF "scope: repo-only (coordin
 assert "scope tag: any-layer form present"  'grep -qF "scope: any layer" "$EX"'
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `bash tests/test_docket_yml_example.sh 2>&1 | grep 'NOT OK'`
 
 Expected: any key you omitted or mis-valued in Task 2 now names itself. If Task 2's example was complete, this section passes immediately — in that case **prove non-vacuity** by deleting the `require_pr_approval` line from the example, re-running (assert flips to `NOT OK`), and restoring it.
 
-- [ ] **Step 3: Fix the example until green**
+- [x] **Step 3: Fix the example until green**
 
 Add whatever the failures name. The mapping regexes are the contract for *how* each key must be spelled in the example; adjust indentation in the example to match, not the regex to match a typo.
 
-- [ ] **Step 4: Run the full test to verify it passes**
+- [x] **Step 4: Run the full test to verify it passes**
 
 Run: `bash tests/test_docket_yml_example.sh; echo "EXIT=$?"`
 
 Expected: every line `ok -`, `EXIT=0`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tests/test_docket_yml_example.sh .docket.yml.example
@@ -604,7 +604,7 @@ finalize.require_pr_approval."
 - Consumes: `EX`, `assert`, `REPO`, `tmp` from Task 2.
 - Produces: the relocated ADR-0039 coupling (example's commented `agents.claude` block == `agents/docket-*.md` frontmatter) and the guarantee that the commented blocks are valid YAML that resolves once uncommented. Task 5 deletes `tests/test_config_example.sh`, which is where these assertions live today — they must be green here **before** that deletion.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `tests/test_docket_yml_example.sh`, before `exit $fail`:
 
@@ -668,13 +668,13 @@ assert "round-trip: cursor status model came from the example block" \
 rm -rf "$_sbs"
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `bash tests/test_docket_yml_example.sh 2>&1 | grep -E 'NOT OK|round-trip'`
 
 Expected: the round-trip asserts fail first — the `sed` uncomment pipeline is the fragile part and almost certainly needs adjusting to the exact comment indentation Task 2 wrote.
 
-- [ ] **Step 3: Fix the uncomment pipeline against the real file**
+- [x] **Step 3: Fix the uncomment pipeline against the real file**
 
 Debug it directly rather than guessing:
 
@@ -684,7 +684,7 @@ sed -E 's/^#[[:space:]]?(agents:)/\1/; s/^#[[:space:]]?(  )/\1/' .docket.yml.exa
 
 Expected: a well-formed `agents:` block with `  claude:` and nine 4-space-indented agent lines. Adjust the `sed` expressions until it is. If the example's comment style makes a robust one-liner impossible, change the **example's** comment indentation to a uniform `# ` prefix — a file meant to be uncommented by hand should be uncommentable by machine too.
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `bash tests/test_docket_yml_example.sh; echo "EXIT=$?"`
 
@@ -692,7 +692,7 @@ Expected: every assert `ok -`, `EXIT=0`.
 
 Then prove non-vacuity on the mirror coupling: temporarily change one model value in the example's commented `claude:` block, re-run, confirm that agent's `model mirrors wrapper` assert flips to `NOT OK`, and restore.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tests/test_docket_yml_example.sh .docket.yml.example
@@ -720,7 +720,7 @@ regression guard for change 0048's tracking-only-repo break."
 - Consumes: Task 4's migrated assertions (they must be green here before the old test file is deleted).
 - Produces: `ensure-global-config.sh` writing a pointer-only global config with **zero active keys**.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `tests/test_docket_yml_example.sh`, before `exit $fail`:
 
@@ -757,13 +757,13 @@ assert "no stale config.yml.example reference in ensure-global-config.sh" \
   '! grep -qF "config.yml.example" "$REPO/scripts/ensure-global-config.sh"'
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `bash tests/test_docket_yml_example.sh 2>&1 | grep 'NOT OK'`
 
 Expected: `scaffold: contains NO active keys`, `config.yml.example is gone`, `tests/test_config_example.sh is gone`, and both stale-reference asserts all fail.
 
-- [ ] **Step 3: Rewrite the scaffold**
+- [x] **Step 3: Rewrite the scaffold**
 
 Replace the body of `scripts/ensure-global-config.sh` after the `HARNESS_ROOT`/`DEST` resolution. Remove the `SRC` variable and its existence check entirely; write a heredoc instead of copying:
 
@@ -822,7 +822,7 @@ echo "docket: wrote $DEST (empty pointer config — see .docket.yml.example for 
 exit 0
 ```
 
-- [ ] **Step 4: Update the two contracts and delete the old surfaces**
+- [x] **Step 4: Update the two contracts and delete the old surfaces**
 
 In `install.sh`, line 6, replace:
 
@@ -844,7 +844,7 @@ Then delete both old surfaces:
 git rm config.yml.example tests/test_config_example.sh
 ```
 
-- [ ] **Step 5: Audit every test that reaches the scaffold**
+- [x] **Step 5: Audit every test that reaches the scaffold**
 
 This is the `config-layer-write-and-read-hazards` guard — the scaffold writes to a shared per-user location, so any test reaching it without a pinned `XDG_CONFIG_HOME`/`DOCKET_HARNESS_ROOT` can rewrite a developer's real global config.
 
@@ -852,13 +852,13 @@ Run: `grep -rn 'ensure-global-config\|XDG_CONFIG_HOME\|DOCKET_HARNESS_ROOT' test
 
 Confirm every invocation pins both env vars to a temp dir. `tests/test_ensure_global_config.sh` additionally asserts the *old* copy-from-source behavior — update its assertions to the pointer-only shape (no source file, no active keys), and confirm it does not assert `config.yml.example` exists.
 
-- [ ] **Step 6: Run the affected tests to verify they pass**
+- [x] **Step 6: Run the affected tests to verify they pass**
 
 Run: `for t in test_docket_yml_example test_ensure_global_config test_install; do echo "== $t"; bash "tests/$t.sh" 2>&1 | grep -E 'NOT OK' || echo "all ok"; done`
 
 Expected: `all ok` for all three.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add -A
@@ -884,7 +884,7 @@ tests/test_docket_yml_example.sh in the previous task."
 - Consumes: `.docket.yml.example` from Task 2 (the file the README and `.docket.yml` now point at).
 - Produces: the final state — no surviving reference to `config.yml.example` anywhere in the repo.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `tests/test_docket_yml_example.sh`, before `exit $fail`:
 
@@ -905,13 +905,13 @@ assert "repo .docket.yml keeps its set values" \
   'grep -Eq "^metadata_branch:[[:space:]]*docket" "$DY" && grep -Eq "^terminal_publish:[[:space:]]*true" "$DY"'
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `bash tests/test_docket_yml_example.sh 2>&1 | grep 'NOT OK'`
 
 Expected: `README step-2 names .docket.yml.example`, `README no longer names config.yml.example`, `repo .docket.yml points at the example`, and `repo .docket.yml is slim` all fail (`.docket.yml` is currently 130 lines).
 
-- [ ] **Step 3: Slim `.docket.yml`**
+- [x] **Step 3: Slim `.docket.yml`**
 
 Replace the whole file with only the values this repo actually sets, one-line comments, and a header pointer:
 
@@ -950,7 +950,7 @@ git diff .docket.yml | grep '^-' | grep -vE '^-[[:space:]]*#' | grep -vE '^--- '
 
 Expected: only the reformatted lines for keys that remain set (`metadata_branch`, `integration_branch`, the three dirs, `finalize`/`gate`, `board_surfaces`, `terminal_publish`) — **no line for a key that disappears entirely**. If any other active key shows up, put it back.
 
-- [ ] **Step 4: Retarget the README**
+- [x] **Step 4: Retarget the README**
 
 In `README.md` line 126, replace the `ensure-global-config.sh` bullet:
 
@@ -974,7 +974,7 @@ The canonical reference for every key is [`.docket.yml.example`](.docket.yml.exa
 See [Configuration](#configuration--docketyml-global-config-and-machine-local-overrides) for the layer model.
 ```
 
-- [ ] **Step 5: Run the full suite to verify everything passes**
+- [x] **Step 5: Run the full suite to verify everything passes**
 
 Run the whole repo suite in ONE foreground call — several tests read `.docket.yml` and the README, so a targeted run can miss a break:
 
@@ -991,7 +991,7 @@ Expected: `SUITE SWEEP DONE` with no `=== FAIL:` lines.
 
 Pay particular attention to `tests/test_readme_finalize_docs.sh`, `tests/test_script_contracts_coverage.sh`, and `tests/test_docket_root.sh` — all three read repo-root files this task changed.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add .docket.yml README.md tests/test_docket_yml_example.sh

@@ -111,10 +111,17 @@ mirrored regardless of Projects status. The Board pass likewise never fails beca
   the default branch. The script does no git writes.
 - Neither set — skips Projects silently (Issues still mirrored).
 
-**`github_project: auto` (change 0101).** The literal lowercase `auto` is the explicit spelling of
-"unminted" — identical in effect to an absent key. The write-back path treats it as a value to
-**overwrite**, never as a minted project reference. This lets `.docket.yml.example` ship the key
-active at its default instead of as a commented-out note.
+**`github_project: auto` (change 0101) — documentation-only today.** The literal lowercase `auto`
+is the explicit spelling of "unminted", identical in effect to an absent key, so that
+`.docket.yml.example` can ship the key active at its default instead of as a commented-out note.
+It changes no behavior, because **nothing currently reads `github_project` from config at all**:
+this script resolves its board solely from `--project` / `--auto-create-project`, and
+`docket-status.sh` populates those only from its own CLI flags (`docket-status.sh:272`), which no
+skill passes. The key's only live effect anywhere is the coordination-key fence in
+`docket-config.sh:169`, which warns-and-ignores it in the two machine-scoped layers. When the
+config read is eventually wired, `auto` must resolve to the same "no board configured" state as an
+absent key, and the `project-minted` write-back must **overwrite** a literal `auto` rather than
+mistake it for a minted board reference.
 
 **Item sync.** For every change in `ISSUE_NUM` (seeded above, including freshly minted issues):
 adds the issue as a board item via `gh project item-add`, then sets its `Docket Status` option via
