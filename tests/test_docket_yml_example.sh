@@ -348,4 +348,19 @@ assert "no stale config.yml.example reference in install.sh" \
 assert "no stale config.yml.example reference in ensure-global-config.sh" \
   '! grep -qF "config.yml.example" "$REPO/scripts/ensure-global-config.sh"'
 
+# --- (7) README + dogfooding -------------------------------------------------
+README="$REPO/README.md"
+assert "README has the step-2 global-config heading" 'grep -qF "### 2. Set up your global config" "$README"'
+assert "README step-2 names .docket.yml.example"     'grep -qF ".docket.yml.example" "$README"'
+assert "README no longer names config.yml.example"   '! grep -qF "config.yml.example" "$README"'
+
+# Dogfooding: this repo's own .docket.yml carries ONLY the values it actually sets, plus a
+# pointer to the example. It is the copy-out workflow's worked demonstration, so it must not
+# regress into a second all-keys surface — that drift is exactly what change 0101 ended.
+DY="$REPO/.docket.yml"
+assert "repo .docket.yml points at the example" 'grep -qF ".docket.yml.example" "$DY"'
+assert "repo .docket.yml is slim (<= 40 lines)"  '[ "$(wc -l < "$DY")" -le 40 ]'
+assert "repo .docket.yml keeps its set values" \
+  'grep -Eq "^metadata_branch:[[:space:]]*docket" "$DY" && grep -Eq "^terminal_publish:[[:space:]]*true" "$DY"'
+
 exit $fail

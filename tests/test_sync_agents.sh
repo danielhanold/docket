@@ -846,8 +846,10 @@ assert "0051 doc: agent-layer ref states all-local generation (gitignored, never
 assert "0057 doc: agent-layer ref documents the managed docket block (new marker)" 'grep -qF "# docket:start" "$AGL" || grep -qi "managed docket .gitignore block" "$AGL"'
 assert "0057 doc: agent-layer ref documents the check via the managed block" 'grep -qi "advisory" "$AGL"'
 assert "0057 doc: agent-layer ref no longer names docket:generated" '! grep -qF "docket:generated" "$AGL"'
-assert "0051 doc: sample .docket.yml agents comment states machine-local generation" 'grep -qi "machine-local" "$REPO/.docket.yml"'
-assert "0051 doc: sample .docket.yml drops the stale agents.yaml global reference" '! grep -q "agents.yaml" "$REPO/.docket.yml"'
+# Change 0101: the agents: documentation moved from this repo's .docket.yml (now values-only)
+# to .docket.yml.example, the canonical reference. Both asserts follow it.
+assert "0051 doc: example agents comment states machine-local generation" 'grep -qi "machine-local" "$REPO/.docket.yml.example"'
+assert "0051 doc: example drops the stale agents.yaml global reference" '! grep -q "agents.yaml" "$REPO/.docket.yml.example"'
 
 # ============================================================================
 # Change 0051 — four-layer per-field agents: resolution; all-local generation.

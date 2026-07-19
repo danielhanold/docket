@@ -123,7 +123,7 @@ bash ~/dev/docket/install.sh
 That is the whole install. `install.sh` runs four primitives in order and is idempotent — re-run it any time (after adding a harness, or after editing `~/.config/docket/config.yml`):
 
 - **`link-skills.sh`** creates absolute symlinks from each present harness's global skill directory back to `~/dev/docket/skills/<name>`. It links into harnesses that already exist on your machine, creating the `skills/` subdirectory when the harness itself is present but that subdirectory is missing, and never creates a harness you don't use. Because skills are symlinks, editing one in the repo takes effect everywhere immediately.
-- **`ensure-global-config.sh`** drops a starter `~/.config/docket/config.yml` into place from the committed `config.yml.example` the first time you install — non-destructively (an existing config is left untouched). This is where docket's per-skill model defaults become visible and editable (see step 2). It runs before `sync-agents.sh` so the generator reads the just-written config.
+- **`ensure-global-config.sh`** drops a minimal starter `~/.config/docket/config.yml` into place the first time you install — non-destructively (an existing config is left untouched). It contains no active keys: it is a header plus a pointer to [`.docket.yml.example`](.docket.yml.example), docket's canonical reference for every key and its default (see step 2). It runs before `sync-agents.sh` so the generator reads the just-written config.
 - **`sync-agents.sh`** generates docket's model/effort-pinned subagent wrappers from layered config (built-in defaults ⊕ global `config.yml` ⊕ a repo's committed `.docket.yml` ⊕ that repo's `.docket.local.yml`) into each present harness's `agents/` directory. For any repo that opts in (via an `agents:` block or an `agent_harnesses:` key, in either file), it also writes the full per-repo agent set as **machine-local**, gitignored files — **never committed**. Unlike the skill symlinks, these are generated **copies** (they bake in the resolved model and effort), so re-run it after editing any config layer — `install.sh` does this for you, or call `sync-agents.sh` directly. Run `sync-agents.sh --check` in CI to catch a missing or stale `.gitignore` block, or an accidentally-tracked generated file.
 - **`ensure-docket-env.sh`** exports `DOCKET_SCRIPTS_DIR` — the absolute path to docket's `scripts/` directory — into your shell profile (and, for the Claude Code harness, its user-level `settings.json` `env`), so every docket skill can reach its deterministic helper scripts from *any* repo, not just this clone. Re-running `install.sh` back-fills already-migrated repos. Without it, the skills fail loud with a `run docket/install.sh` remedy rather than silently hand-working each operation.
 
@@ -131,13 +131,15 @@ That is the whole install. `install.sh` runs four primitives in order and is ide
 
 ### 2. Set up your global config
 
-`install.sh` writes a starter `~/.config/docket/config.yml` from `config.yml.example` the first time it runs (and leaves an existing one untouched). That starter is where docket's otherwise-invisible defaults become visible and editable:
+`install.sh` writes a minimal `~/.config/docket/config.yml` the first time it runs (and leaves an existing one untouched). It ships with **no active keys** — docket's defaults already apply, so most users never edit it.
 
-- It shows docket's built-in **per-skill model and effort** for every subagent — the `agents.claude` block mirrors the shipped defaults, so you can see and tune them in one place instead of reading nine wrapper files.
-- **Claude-only users can skip editing entirely** — the defaults already apply, so an unedited file behaves exactly as no file at all.
-- **To enable another harness (Cursor, Codex):** add it to `agent_harnesses` **and** uncomment that harness's block under `agents:`, then re-run `install.sh` so `sync-agents.sh` regenerates the wrappers.
+The canonical reference for every key is [`.docket.yml.example`](.docket.yml.example) in this repo: every config key, active at its shipped default, with full documentation and a scope tag saying which layers may set it. Copy the keys you want to change into the layer you want them in.
 
-See [Configuration](#configuration--docketyml-global-config-and-machine-local-overrides) for the full schema and every other key.
+- **To see docket's built-in per-skill model and effort:** the example's commented `agents.claude` block mirrors the shipped defaults for all nine subagents, so you can read and tune them in one place instead of opening nine wrapper files.
+- **Claude-only users can skip this entirely** — the defaults already apply.
+- **To enable another harness (Cursor, Codex):** uncomment `agent_harnesses` and add the harness, **and** uncomment that harness's block under `agents:`, then re-run `install.sh` so `sync-agents.sh` regenerates the wrappers. Both keys are **presence-sensitive** — uncommenting either opts the repo into per-repo wrapper generation even at default values.
+
+See [Configuration](#configuration--docketyml-global-config-and-machine-local-overrides) for the layer model.
 
 The change data — `docs/changes/`, `docs/adrs/`, `docs/results/` — lives in each consuming project, not in the docket repo itself. To adopt docket in an *existing* repo, run `migrate-to-docket.sh` from inside that repo — a separate step from this machine install (see [Migration](#migration)).
 

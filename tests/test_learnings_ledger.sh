@@ -110,10 +110,18 @@ for s in "build-loop memory" "will the agent know to search for this?"; do
 done
 
 # (e) end-to-end surfacing — LEARNINGS #49: a knob is not done when it merely works
-assert "the sample .docket.yml carries the learnings block" \
-  'grep -qE "^# learnings:$" "$REPO/.docket.yml"'
-assert "the sample documents both keys" \
-  'grep -qE "^#   enabled: true$" "$REPO/.docket.yml" && grep -qE "^#   cap: 300$" "$REPO/.docket.yml"'
+# Change 0101 relocated the user-facing config surface to .docket.yml.example, where every key
+# ships ACTIVE at its shipped default (this repo's .docket.yml is now values-only). The knob must
+# still be discoverable to a user reading the canonical reference — that is what (e) is for.
+assert "the canonical example carries the learnings block" \
+  'grep -qE "^learnings:$" "$REPO/.docket.yml.example"'
+# Block-scoped: an unanchored grep for `enabled: true` / `cap: 300` would match those values
+# under ANY block in the example, so it would still pass if the learnings block were removed.
+learnings_block(){  # echoes the active lines nested under `learnings:`
+  awk '/^learnings:[[:space:]]*$/{f=1;next} f&&/^[^[:space:]#]/{f=0} f' "$REPO/.docket.yml.example"
+}
+assert "the example documents both keys at their defaults" \
+  'learnings_block | grep -qE "^[[:space:]]+enabled: true$" && learnings_block | grep -qE "^[[:space:]]+cap: 300$"'
 assert "README presents learnings as a feature" 'grep -qF "## Learnings — the loop" "$REPO/README.md"'
 assert "README points at the convention rather than restating mechanics" \
   'grep -qF "Learnings ledger" "$REPO/README.md"'

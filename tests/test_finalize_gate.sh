@@ -12,6 +12,7 @@ FIN="$REPO/skills/docket-finalize-change/SKILL.md"
 CONV="$REPO/skills/docket-convention/SKILL.md"
 STAT="$REPO/skills/docket-status/SKILL.md"
 DYML="$REPO/.docket.yml"
+EXAMPLE="$REPO/.docket.yml.example"   # change 0101: the canonical all-keys config reference
 
 # ---- Config parse: the nested finalize.gate key, four modes + default ----------
 # Block-scoped awk (the sync-agents.sh idiom), SIGPIPE-safe (capture, no producer|grep).
@@ -78,11 +79,20 @@ assert "finalize prose explains require_pr_approval as the human-sign-off gate" 
 assert "finalize ties require_pr_approval to the auto-detect path + unapproved PR" \
   'grep -q "reviewDecision != APPROVED" "$FIN"'
 
-# ---- repo .docket.yml carries the knob (commented) at its default -------------
-assert "repo .docket.yml mentions require_pr_approval (discoverability)" \
-  'grep -q "require_pr_approval" "$DYML"'
-assert "repo .docket.yml leaves require_pr_approval at default false" \
-  '[ "$(rpa_of "$DYML")" = "false" ]'
+# ---- the canonical example carries the knob, active, at its default ----------
+# Change 0101 moved the user-facing config documentation out of this repo's own .docket.yml
+# (now values-only) and into .docket.yml.example, where every key ships ACTIVE at its default.
+# So the discoverability assert follows the documentation, and the value assert gets stronger:
+# rpa_of now parses a live key rather than a commented one.
+assert "the example mentions require_pr_approval (discoverability)" \
+  'grep -q "require_pr_approval" "$EXAMPLE"'
+# The key must be present and ACTIVE, not merely mentioned in prose: rpa_of returns the
+# documented default "false" for an ABSENT key, so the value assert below cannot by itself
+# distinguish "ships at false" from "missing entirely". This anchors it.
+assert "the example ships require_pr_approval as an active key" \
+  'grep -qE "^[[:space:]]+require_pr_approval[[:space:]]*:" "$EXAMPLE"'
+assert "the example leaves require_pr_approval at default false" \
+  '[ "$(rpa_of "$EXAMPLE")" = "false" ]'
 
 # ---- Selection: ambiguity-only prompting (the §4.1 matrix) --------------------
 # Anchor each assert to the UNIQUE phrase its matrix row owns (LEARNINGS #15) — not a
