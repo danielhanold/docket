@@ -2,7 +2,7 @@
 id: 101
 slug: docket-yml-example
 title: .docket.yml.example — the canonical all-comprehensive config reference
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-07-19
 updated: 2026-07-19
@@ -15,7 +15,8 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/docket-yml-example
+claimed_at: 2026-07-19T16:59:21Z
 pr:
 blocked_by:
 reconciled: false
