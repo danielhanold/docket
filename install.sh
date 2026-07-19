@@ -3,7 +3,7 @@
 #
 # Runs the four install primitives in order:
 #   1. link-skills.sh  — symlink the skills into each present harness's skill dir (live; edit-once)
-#   2. ensure-global-config.sh — scaffold ~/.config/docket/config.yml from config.yml.example on
+#   2. ensure-global-config.sh — scaffold a minimal pointer-only ~/.config/docket/config.yml on
 #                                first run (non-destructive), so the defaults are discoverable and
 #                                the generator (step 3) reads it
 #   3. sync-agents.sh  — generate the model/effort-pinned agent wrappers into each present harness
