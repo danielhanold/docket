@@ -11,7 +11,7 @@ related: [87, 98]
 discovered_from: [87]
 adrs: []
 spec: docs/superpowers/specs/2026-07-19-finalize-marker-clearing-rule-wording-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-19-finalize-marker-clearing-rule-wording.md
 results:
 trivial: false
 auto_groomable: false
@@ -28,6 +28,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-19-finalize-marker-clearing-rule-wording-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-19-finalize-marker-clearing-rule-wording-design.md) |
+| Plan | [2026-07-19-finalize-marker-clearing-rule-wording.md](https://github.com/danielhanold/docket/blob/feat/finalize-marker-clearing-rule-wording/docs/superpowers/plans/2026-07-19-finalize-marker-clearing-rule-wording.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
