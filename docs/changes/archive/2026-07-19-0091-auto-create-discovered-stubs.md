@@ -27,8 +27,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-17-auto-create-discovered-stubs-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-17-auto-create-discovered-stubs-design.md) |
-| Plan | [2026-07-18-auto-create-discovered-stubs.md](https://github.com/danielhanold/docket/blob/feat/auto-create-discovered-stubs/docs/superpowers/plans/2026-07-18-auto-create-discovered-stubs.md) |
-| Results | [2026-07-18-auto-create-discovered-stubs-results.md](https://github.com/danielhanold/docket/blob/feat/auto-create-discovered-stubs/docs/results/2026-07-18-auto-create-discovered-stubs-results.md) |
+| Plan | [2026-07-18-auto-create-discovered-stubs.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-18-auto-create-discovered-stubs.md) |
+| Results | [2026-07-18-auto-create-discovered-stubs-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-18-auto-create-discovered-stubs-results.md) |
 | PR | [#104](https://github.com/danielhanold/docket/pull/104) |
 | ADRs | [ADR-0019](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0019-global-config-fence-classification.md), [ADR-0045](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0045-auto-capture-is-best-effort.md), [ADR-0046](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0046-cas-reset-hard-shared-worktree-tracked-clean-tree-precondition.md) |
 <!-- docket:artifacts:end -->
