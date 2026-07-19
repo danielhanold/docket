@@ -46,8 +46,12 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib/docket-frontmatter.sh"
 
 # Derive OWNER/REPO from the origin remote when --repo is unset (best-effort, offline). Skipped
 # entirely for --format digest (change 0094): REPO is consumed only by the markdown renderer's
-# pr: hyperlinks (below), never by the digest projection, and the digest's write-free-read
-# contract (docket-status.sh's --digest-only) means this path must not invoke git at all.
+# pr: hyperlinks (below), never by the digest projection — the digest needs no remote, so THIS
+# RENDERER derives none. Scoped deliberately to a claim about render-board.sh alone: its caller,
+# docket-status.sh's --digest-only, still invokes git elsewhere (docket_metadata_worktree's
+# read-only `worktree list` anchor call) — see tests/test_docket_status.sh's --digest-only fixture
+# comment for that half. "No remote derivation here" and "the --digest-only pass makes no git call
+# at all" are different claims; only the first is true, and this comment no longer overstates it.
 if [ -z "$REPO" ] && [ "$FORMAT" != digest ]; then
   url="$("$GIT" -C "$CHANGES_DIR" remote get-url origin 2>/dev/null || true)"
   if [ -n "$url" ]; then

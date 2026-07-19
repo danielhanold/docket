@@ -1667,6 +1667,55 @@ mal_band_38="$(sed -n "s/^ready //p" "$ord_out3" | tr ' ' '\n' | grep -E '^(30|3
 assert "ordering: a created: value collating below '0' (-) sorts LAST in its priority band, not first" \
   '[ "$(printf "%s" "$mal_band_38" | awk "{print \$NF}")" = "38" ]'
 
+# --- digit-width-crossing tie (review fix 2, 0094 whole-branch review) ------------------------
+# The ready-line sort ends `-k3,3n` — the numeric lowest-id tie-break. Deleting that key currently
+# produces ZERO test failures anywhere in this file: every id in the ordering fixture above ($ord,
+# $ord2) is two digits, so `sort`'s last-resort whole-line lexicographic compare coincidentally
+# AGREES with numeric id order there (same-width digit strings compare identically either way).
+# Cross a digit-width boundary to tell them apart: ids 9 and 10, identical priority AND identical
+# created (an exact tie on both prior keys), so the THIRD key is the only thing that can order them.
+# Numerically 9 < 10. Lexicographically (whole-line, `sort`'s fallback without -k3,3n) "10" < "9" —
+# '1' collates below '9' — so a deleted key would swap this pair's order specifically.
+tie="$tmp/tie-digit-width"; mkdir -p "$tie/active" "$tie/archive"
+cat > "$tie/active/0009-victor.md" <<'EOF'
+---
+id: 9
+slug: victor
+title: victor
+status: proposed
+priority: medium
+created: 2026-01-01
+updated: 2026-01-01
+depends_on: []
+spec: docs/superpowers/specs/x.md
+trivial: false
+---
+
+## Why
+x
+EOF
+cat > "$tie/active/0010-whiskey3.md" <<'EOF'
+---
+id: 10
+slug: whiskey3
+title: whiskey3
+status: proposed
+priority: medium
+created: 2026-01-01
+updated: 2026-01-01
+depends_on: []
+spec: docs/superpowers/specs/x.md
+trivial: false
+---
+
+## Why
+x
+EOF
+tie_out="$tmp/tie-digit-width-digest.txt"
+bash "$SCRIPT" --changes-dir "$tie" --format digest > "$tie_out" 2>/dev/null
+assert "ordering: a digit-width-crossing tie (9 vs 10, same priority+created) sorts the lower id first" \
+  '[ "$(sed -n "s/^ready //p" "$tie_out")" = "9 10" ]'
+
 # (iv) TOTALITY — the empty queue emits a BARE `ready`, never no line (sole-channel lesson: a
 #      missing line must mean "no queue was produced", never "nothing is ready").
 mt="$tmp/empty-ready"; mkdir -p "$mt/active" "$mt/archive"
@@ -1724,6 +1773,44 @@ assert "unknown --format names the flag on stderr" 'grep -qi "format" "$tmp/fmt-
 #     would stay green even if the digest branch wrote the board.
 assert "digest run writes no BOARD.md into the changes dir" '[ ! -e "$tmp/BOARD.md" ]'
 assert "digest run leaves the fixture dir git-free" '[ ! -d "$tmp/.git" ]'
+
+# --- Minor 6 (0094 whole-branch review): the digest git-derivation skip was UNTESTED -----------
+# `[ "$FORMAT" != digest ]` gates the origin-remote REPO derivation above. Deleting that clause
+# leaves the whole suite green — nothing above proves git is ever actually invoked (the "git-free"
+# assert just above only proves no git REPO exists here, not that the script never shells out to
+# git). Prove it with a GIT mock-seam spy: --format digest must make NO git call; --format markdown
+# (the only consumer of the derived REPO) must make exactly the origin-remote one.
+mkdir -p "$tmp/gitspy/active" "$tmp/gitspy/archive"
+cat > "$tmp/gitspy/active/0001-alpha.md" <<'EOF'
+---
+id: 1
+slug: alpha
+title: Alpha
+status: proposed
+priority: medium
+depends_on: []
+spec:
+EOF
+
+gitspy_log="$tmp/git-spy-calls.txt"
+cat > "$tmp/git-spy.sh" <<EOF
+#!/usr/bin/env bash
+printf '%s\n' "\$*" >> "$gitspy_log"
+exit 1
+EOF
+chmod +x "$tmp/git-spy.sh"
+
+: > "$gitspy_log"
+GIT="$tmp/git-spy.sh" bash "$SCRIPT" --changes-dir "$tmp/gitspy" --format digest >/dev/null 2>&1
+assert "--format digest makes NO git calls (the digest needs no remote, so it derives none)" \
+  '[ ! -s "$gitspy_log" ]'
+
+: > "$gitspy_log"
+GIT="$tmp/git-spy.sh" bash "$SCRIPT" --changes-dir "$tmp/gitspy" --format markdown >/dev/null 2>&1
+assert "--format markdown DOES invoke git (positive control: the origin-remote derivation)" \
+  '[ -s "$gitspy_log" ]'
+assert "--format markdown's git call is the origin-remote lookup" \
+  'grep -qF "remote get-url origin" "$gitspy_log"'
 
 # ── large-archive fixture: recency window + per-month done digest (change 0093) ───────────────
 # 18 done across three months + 2 killed; one active change depends on a done id (0060).
