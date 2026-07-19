@@ -133,11 +133,16 @@ if [ "$FORMAT" = digest ]; then
   )
   # --- the `ready` line (change 0094) -------------------------------------------------------
   # The build-ready QUEUE, in the convention's deterministic selection order: priority
-  # (critical > high > medium > low) -> created (ascending) -> id (ascending). Membership is
-  # exactly the set digest_readiness() already reported as `build-ready`, so this line can never
-  # disagree with the `change` lines above; what it adds is ORDER, which those id-ascending lines
-  # deliberately do not carry. Both sort keys are STATIC frontmatter — no wall-clock read — so the
-  # renderer stays deterministic and the golden byte-compare holds.
+  # (critical > high > medium > low) -> created (ascending) -> id (ascending). An unset or
+  # unrecognized priority defaults to medium; an unset or empty created: sorts LAST within its
+  # priority band, never first — an unstamped change must never preempt dated work. Membership is
+  # exactly the set digest_readiness() already reported as `build-ready`: this is a SECOND call to
+  # that same pure function with identical arguments (not a reuse of the earlier loop's result), so
+  # this line can never disagree with the `change` lines above — parity rests on digest_readiness
+  # being pure and the DEP_* globals staying unmutated between the two loops. What it adds is
+  # ORDER, which those id-ascending lines deliberately do not carry. Both sort keys are STATIC
+  # frontmatter — no wall-clock read — so the renderer stays deterministic and the golden
+  # byte-compare holds.
   #
   # ALWAYS EMITTED, bare when the queue is empty: absence of this line means NO QUEUE WAS PRODUCED
   # (an older render-board, or a render failure), never "nothing is ready". A consumer that cannot
@@ -157,7 +162,12 @@ if [ "$FORMAT" = digest ]; then
         low)      prank=3 ;;
         *)        prank=2 ;;
       esac
-      printf '%s\t%s\t%s\n' "$prank" "$(field "$f" created)" "$id"
+      # An unset or unrecognized `created:` sorts LAST within its priority band, never first:
+      # `field` returns empty when the key is absent, and nothing validates `created:`, so this is
+      # reachable — an unstamped change must never preempt dated work by sorting before it on an
+      # empty string. Substitute a sentinel date after every real YYYY-MM-DD.
+      cr="$(field "$f" created)"
+      printf '%s\t%s\t%s\n' "$prank" "${cr:-9999-99-99}" "$id"
     done < <(rows_sorted proposed) | sort -t$'\t' -k1,1n -k2,2 -k3,3n | cut -f3
   )
   printf 'ready%s\n' "$ready_ids"
