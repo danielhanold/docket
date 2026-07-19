@@ -146,6 +146,26 @@ assert "completeness: runners.codex.network present" \
   'grep -Eq "^[[:space:]]+network:[[:space:]]*true[[:space:]]*(#.*)?$" "$EX"'
 assert "completeness: runners block header present" 'grep -Eq "^runners:" "$EX"'
 
+# (2c) The INVERSE direction. (2a)/(2b) prove every key the code reads is documented; neither
+# proves the converse, so without this the example can accrete keys NOTHING reads — a phantom key
+# passes (2a) (the loop iterates export keys, not example keys), passes the fidelity diff (the
+# resolver simply ignores it), and passes the scope-tag awk (satisfied by a neighbor's comment
+# window). A key REMOVED from the resolver would likewise keep its documentation forever.
+# Anchored on the CONSUMERS, not a hand-maintained allowlist, so it cannot drift on its own: every
+# active top-level key in the example must appear in the resolver or one of the three non-resolver
+# consumers. (Word-boundary grep — it proves the key name is KNOWN to a consumer, not that the read
+# is correctly wired; github_project is the live proof of that gap and is annotated as such in the
+# example itself.)
+consumers="$CFGSCRIPT $REPO/scripts/sync-agents.sh $REPO/scripts/runner-dispatch.sh"
+consumers="$consumers $REPO/skills/docket-finalize-change/SKILL.md"
+orphan_keys=""
+for k in $(sed -nE 's/^([A-Za-z_][A-Za-z0-9_]*):.*/\1/p' "$EX"); do
+  # shellcheck disable=SC2086
+  grep -qlE "\\b$k\\b" $consumers >/dev/null 2>&1 || orphan_keys="$orphan_keys $k"
+done
+assert "no orphan keys: every active top-level key is read by a consumer (${orphan_keys:-none})" \
+  '[ -z "$orphan_keys" ]'
+
 # runners.* is consumed by the runner-dispatch script family, not the resolver. Anchor on the
 # PRODUCER so the example and its consumer cannot silently diverge (same shape as the
 # require_pr_approval producer assert above).

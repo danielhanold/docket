@@ -204,35 +204,21 @@ Map-valued keys (`skills:`, `agents:`) merge field-by-field with the same preced
 
 Add a `.docket.yml` to override defaults for one repo. It is committed on your repo's **default branch** (`origin/HEAD`), because every clone, agent, and device needs the same coordination values, and the default branch is the one place a skill can find the file with zero prior config. It is committed (not gitignored) for that reason.
 
+Every key is optional; unset means the shipped default. Set only what you want to change:
+
 ```yaml
 # .docket.yml — committed on the repo's default branch; read by every docket skill at startup.
-# Every key is optional; unset = the default shown. Commented keys are opt-in.
 metadata_branch: docket      # docket (default) | main  — where planning commits land
 integration_branch: auto     # auto (default → origin/HEAD) | main | develop — where code lands
-changes_dir: docs/changes    # default
-adrs_dir: docs/adrs          # default
-results_dir: docs/results    # default
-auto_groom: false            # repo default for autonomous grooming; per-change auto_groomable overrides
-auto_capture: false          # autonomous capture of discovered follow-up work into proposed stubs
 board_surfaces: [inline]     # derived board views: inline (BOARD.md) and/or github; [] disables the board
-terminal_publish: false      # default: a closed change's record (change file, spec, Accepted ADRs)
-                             # stays on the metadata branch. true = ALSO copy it onto the integration
-                             # branch in a direct commit — opt in only if direct pushes suit your workflow
-# github_project: {owner: <o>, number: <n>}  # Projects v2 board; minted + written back on first github sync
 finalize:                    # merge gate: rebase onto base + re-test before docket merges
   gate: local                # local (default) | ci | both | off
-  # test_command:            # unset => finalize auto-detects the suite
-  # require_pr_approval: false  # true => the no-arg finalize refuses to merge an unapproved PR
-# reclaim:                   # claim-lease self-heal for a crashed in-progress change (default off)
-#   lease_ttl: 72             # hours; >= docket-status's 3-day stale-in-progress window
-#   auto: false               # true => docket-status also reclaims (no-branch case) each pass
-# agent_harnesses: [claude]  # harnesses the per-repo agent pass generates machine-local files for
-# agents:                    # per-skill subagent model/effort — and runner: to delegate an agent's
-#                            # whole run to another harness (see "Runner delegation" below)
-# runners:                   # per-runner knobs for runner delegation (e.g. runners.codex.sandbox)
-# skills:                    # rebind the five workflow roles — brainstorm/plan/build/review/finish — to
-#                            # any skill name or `auto` (see "Skill layer" in docket-convention)
 ```
+
+**[`.docket.yml.example`](.docket.yml.example) is the canonical reference for every key** — each one
+shipped active at its default, with full documentation and the layers it may be set in. Copy from
+there rather than from this snippet; it is the surface the test suite keeps honest against the
+resolver, and it is deliberately the only place that enumerates all of them.
 
 With no `.docket.yml` at all, docket runs in its default **docket-mode** (`metadata_branch: docket`, `integration_branch: auto`). See [docket-mode](#docket-mode-where-metadata-lives) for what that means and how to opt out.
 

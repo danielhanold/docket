@@ -193,8 +193,9 @@ RESULTS_DIR="$(yaml_get "$CFG" results_dir)"; RESULTS_DIR="${RESULTS_DIR:-docs/r
 FINALIZE_GATE="$(lcl gate)"; FINALIZE_GATE="${FINALIZE_GATE:-$(yaml_get "$CFG" gate)}"; FINALIZE_GATE="${FINALIZE_GATE:-$(gbl gate)}"; FINALIZE_GATE="${FINALIZE_GATE:-local}"
 FINALIZE_TEST_COMMAND="$(lcl test_command)"; FINALIZE_TEST_COMMAND="${FINALIZE_TEST_COMMAND:-$(yaml_get "$CFG" test_command)}"; FINALIZE_TEST_COMMAND="${FINALIZE_TEST_COMMAND:-$(gbl test_command)}"
 # change 0101: `auto` ≡ unset — the sentinel that lets .docket.yml.example ship this default as an
-# ACTIVE value instead of a commented "normally unset" note. Applied AFTER layer resolution, so a
-# lower layer's `auto` cannot resurrect a higher layer's real command (both resolve to auto-detect).
+# ACTIVE value instead of a commented "normally unset" note. Applied AFTER layer resolution, which
+# is what makes a HIGHER layer's `auto` mask a LOWER layer's real command: converting per-layer
+# would blank the higher value and let the `:-` chain fall through to the lower one instead.
 # Literal lowercase only, matching the integration_branch precedent. Consumers must never see the
 # sentinel: finalize would try to RUN `auto` as a shell command.
 [ "$FINALIZE_TEST_COMMAND" = auto ] && FINALIZE_TEST_COMMAND=""

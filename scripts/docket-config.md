@@ -114,9 +114,12 @@ A value may not contain a literal `#` — it is treated as the start of an inlin
 `github_project` and `agents:`/`agent_harnesses` are per-repo-only / not read by this script (see
 Stage 2b/2b'/2c below and `sync-agents.sh`'s own contract, respectively) — every other key above
 not marked "Global-able" is per-repo-only. **`github_project: auto` ≡ unset** (change 0101): the
-sentinel marks the board as unminted, so the first `github` sync mints and writes back over it.
-This script only *fences* `github_project`; it never resolves or emits it, so the sentinel is inert
-here by construction — see `scripts/github-mirror.md` for the consuming contract.
+sentinel is the explicit spelling of "no board configured", so `.docket.yml.example` can ship the
+key active at its default. It is **documentation-only today** — this script only *fences*
+`github_project` (never resolves or emits it), and no other script reads it from config either:
+`github-mirror.sh` takes its board solely from `--project` / `--auto-create-project`. See
+`scripts/github-mirror.md` for the (currently unwired) consuming contract and what `auto` must mean
+once the read lands.
 
 **`skills:` (change 0049).** Reads the optional nested `skills:` block and emits
 `SKILL_BRAINSTORM`, `SKILL_PLAN`, `SKILL_BUILD`, `SKILL_REVIEW`, `SKILL_FINISH`. Each leaf
