@@ -45,6 +45,8 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0041](0041-learnings-findings-directory-and-promotion-valve.md) — Learnings ledger restructure — findings directory + derived index + human-gated promotion valve (Accepted) ← change #67 · relates to ADR-0005, ADR-0012, ADR-0019, ADR-0028, ADR-0030, ADR-0031, ADR-0032, ADR-0039
 - [ADR-0043](0043-retire-bot-auto-approval-zero-approvals-branch-protection.md) — Retire bot auto-approval — branch protection with zero required approvals is the single-maintainer merge path (Accepted) ← change #95 → reverses ADR-0042 · relates to ADR-0011
 - [ADR-0044](0044-autonomy-precedence-call-site-pre-specification.md) — Autonomy precedence is enforced by pre-specification at the call site (Accepted) ← change #96 · relates to ADR-0018, ADR-0008, ADR-0024
+- [ADR-0045](0045-auto-capture-is-best-effort.md) — Auto-capture is best-effort — a failed stub mint never aborts the change being built (Accepted) ← change #91 · relates to ADR-0012
+- [ADR-0046](0046-cas-reset-hard-shared-worktree-tracked-clean-tree-precondition.md) — A compare-and-swap reset --hard in a shared metadata worktree requires a tracked-files-only clean-tree precondition (Accepted) ← change #91 · relates to ADR-0004, ADR-0012
 
 ## Superseded / Reversed
 
