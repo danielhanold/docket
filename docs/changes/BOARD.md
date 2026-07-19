@@ -1,14 +1,15 @@
 # Backlog
 
-**101 changes** — 🟢 1 in progress · 🟡 10 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 82 done · 🗑️ 5 killed
+**101 changes** — 🟢 2 in progress · 🟡 9 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 82 done · 🗑️ 5 killed
 
-## 🟢 In progress (1)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Spec | Branch |
 |---|-------|----------|------|--------|
 | [0094](active/0094-selection-order-digest.md) | Selection-order backlog digest — implement-next selects from a digest instead of walking active/ | `medium` | [spec](../superpowers/specs/2026-07-19-selection-order-digest-design.md) | `feat/selection-order-digest` |
+| [0101](active/0101-docket-yml-example.md) | .docket.yml.example — the canonical all-comprehensive config reference | `medium` | [spec](../superpowers/specs/2026-07-19-docket-yml-example-design.md) | `feat/docket-yml-example` |
 
-## 🟡 Proposed (10)
+## 🟡 Proposed (9)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -21,7 +22,6 @@
 | [0082](active/0082-global-harnesses-per-repo-generation.md) | Global agent_harnesses doesn't reach per-repo generation — silent no-op | `low` | needs-brainstorm |
 | [0083](active/0083-terminal-publish-gap-detection.md) | A terminal record can silently never reach the integration branch — mark deferred publishes, stop the checker lying | `medium` | build-ready |
 | [0100](active/0100-force-push-lease-classifier-denial.md) | Force-push-with-lease denied by the auto-mode classifier — unblock finalize's merge gate | `medium` | needs-brainstorm |
-| [0101](active/0101-docket-yml-example.md) | .docket.yml.example — the canonical all-comprehensive config reference | `medium` | build-ready |
 
 ## 🔴 Blocked (1)
 
