@@ -134,15 +134,15 @@ if [ "$FORMAT" = digest ]; then
   # --- the `ready` line (change 0094) -------------------------------------------------------
   # The build-ready QUEUE, in the convention's deterministic selection order: priority
   # (critical > high > medium > low) -> created (ascending) -> id (ascending). An unset or
-  # unrecognized priority defaults to medium; an unset or empty created: sorts LAST within its
-  # priority band, never first — an unstamped change must never preempt dated work. Membership is
-  # exactly the set digest_readiness() already reported as `build-ready`: this is a SECOND call to
-  # that same pure function with identical arguments (not a reuse of the earlier loop's result), so
-  # this line can never disagree with the `change` lines above — parity rests on digest_readiness
-  # being pure and the DEP_* globals staying unmutated between the two loops. What it adds is
-  # ORDER, which those id-ascending lines deliberately do not carry. Both sort keys are STATIC
-  # frontmatter — no wall-clock read — so the renderer stays deterministic and the golden
-  # byte-compare holds.
+  # unrecognized priority defaults to medium; an unset, empty, or malformed created: sorts LAST
+  # within its priority band, never first — an unstamped or unparseable change must never preempt
+  # dated work. Membership is exactly the set digest_readiness() already reported as `build-ready`:
+  # this is a SECOND call to that same pure function with identical arguments (not a reuse of the
+  # earlier loop's result), so this line can never disagree with the `change` lines above — parity
+  # rests on digest_readiness being pure and the DEP_* globals staying unmutated between the two
+  # loops. What it adds is ORDER, which those id-ascending lines deliberately do not carry. Both
+  # sort keys are STATIC frontmatter — no wall-clock read — so the renderer stays deterministic
+  # and the golden byte-compare holds.
   #
   # ALWAYS EMITTED, bare when the queue is empty: absence of this line means NO QUEUE WAS PRODUCED
   # (an older render-board, or a render failure), never "nothing is ready". A consumer that cannot
@@ -162,12 +162,19 @@ if [ "$FORMAT" = digest ]; then
         low)      prank=3 ;;
         *)        prank=2 ;;
       esac
-      # An unset or unrecognized `created:` sorts LAST within its priority band, never first:
-      # `field` returns empty when the key is absent, and nothing validates `created:`, so this is
-      # reachable — an unstamped change must never preempt dated work by sorting before it on an
-      # empty string. Substitute a sentinel date after every real YYYY-MM-DD.
+      # An unset, empty, or malformed `created:` sorts LAST within its priority band, never first.
+      # `field` returns empty when the key is absent, and nothing else validates `created:` — a
+      # non-empty but non-date value (e.g. the docket-new-change template's unfilled
+      # `created:                  # YYYY-MM-DD (UTC)` line, or any value collating below '0')
+      # would otherwise pass through verbatim and sort BEFORE every real date, since `#`/`-`
+      # collate below every digit. Anything that isn't a well-formed YYYY-MM-DD is unknown age, so
+      # substitute the sentinel date whenever the shape check fails — not only when it's empty.
       cr="$(field "$f" created)"
-      printf '%s\t%s\t%s\n' "$prank" "${cr:-9999-99-99}" "$id"
+      case "$cr" in
+        [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) : ;;
+        *) cr="9999-99-99" ;;   # unknown age -> last within the band
+      esac
+      printf '%s\t%s\t%s\n' "$prank" "$cr" "$id"
     done < <(rows_sorted proposed) | sort -t$'\t' -k1,1n -k2,2 -k3,3n | cut -f3
   )
   printf 'ready%s\n' "$ready_ids"

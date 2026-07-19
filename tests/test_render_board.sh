@@ -1599,13 +1599,73 @@ assert "ordering: an absent priority: defaults to medium (35 sits in the medium 
 assert "ordering: exact tie (same priority+created) falls to the LOWEST id" \
   '[ "$(sed -n "s/^ready //p" "$ord_out" | cut -d" " -f3,4)" = "30 35" ]'
 # An unset created: is a DECIDED RULE, not an accident: unknown age sorts LAST within its priority
-# band, so an unstamped change never preempts dated work. Isolate the medium band's three dated ids
-# (30, 35, 31) plus the unstamped 36 in their EMITTED order (not a fixed expected string) and assert
+# band, so an unstamped change never preempts dated work. Isolate two of the medium band's dated ids
+# (30, 31) plus the unstamped 36 in their EMITTED order (not a fixed expected string) and assert
 # 36 is last among them — this fails under the old behavior, where an empty `created:` sorts before
 # every real date and 36 would jump to the FRONT of the band instead.
 med_band="$(sed -n "s/^ready //p" "$ord_out" | tr ' ' '\n' | grep -E '^(30|31|36)$' | tr '\n' ' ')"
 assert "ordering: a change with no created: line sorts LAST within its priority band" \
   '[ "$(printf "%s" "$med_band" | awk "{print \$NF}")" = "36" ]'
+
+# --- malformed created: (not just absent) must ALSO sort last -------------------------------
+# `created:` can be non-empty yet not a well-formed `YYYY-MM-DD` date. The docket-new-change
+# template ships the line `created:                  # YYYY-MM-DD (UTC)` unfilled, and `field()`
+# returns that trailing comment verbatim — reachable, not theoretical. `#` and `-` both collate
+# BELOW every digit, so an empty-only default (`${cr:-9999-99-99}`) does nothing for either value:
+# it passes through unchanged and, under the old behavior, sorts FIRST in its priority band —
+# preempting every dated peer. Add two more medium-band ids: 37 carries the exact template
+# placeholder shape, 38 carries a value (`-`) that collates below '0'. Both must land LAST in the
+# band, after every real date and after the already-absent 36 (ties broken by ascending id).
+# A COPY of the ordering fixture ($ord2, not $ord itself) hosts these two extra ids: the
+# byte-identical-across-runs assert further below re-renders $ord verbatim, so mutating $ord in
+# place here would make that later assert compare two different fixture states instead of proving
+# determinism.
+ord2="$tmp/ord2"; cp -r "$ord" "$ord2"
+cat > "$ord2/active/0037-tango.md" <<'EOF'
+---
+id: 37
+slug: tango
+title: tango
+status: proposed
+priority: medium
+created: # YYYY-MM-DD (UTC)
+updated: # YYYY-MM-DD (UTC)
+depends_on: []
+spec: docs/superpowers/specs/x.md
+trivial: false
+---
+
+## Why
+x
+EOF
+cat > "$ord2/active/0038-uniform.md" <<'EOF'
+---
+id: 38
+slug: uniform
+title: uniform
+status: proposed
+priority: medium
+created: -
+updated: -
+depends_on: []
+spec: docs/superpowers/specs/x.md
+trivial: false
+---
+
+## Why
+x
+EOF
+
+ord_out3="$tmp/ord-digest-malformed.txt"
+bash "$SCRIPT" --changes-dir "$ord2" --format digest > "$ord_out3" 2>/dev/null
+assert "ordering fixture: exact selection order including malformed created: values" \
+  '[ "$(sed -n "s/^ready //p" "$ord_out3")" = "32 33 30 35 31 36 37 38 34" ]'
+mal_band_37="$(sed -n "s/^ready //p" "$ord_out3" | tr ' ' '\n' | grep -E '^(30|31|35|36|37)$' | tr '\n' ' ')"
+assert "ordering: a template-placeholder created: (# YYYY-MM-DD (UTC)) sorts LAST in its priority band, not first" \
+  '[ "$(printf "%s" "$mal_band_37" | awk "{print \$NF}")" = "37" ]'
+mal_band_38="$(sed -n "s/^ready //p" "$ord_out3" | tr ' ' '\n' | grep -E '^(30|31|35|36|38)$' | tr '\n' ' ')"
+assert "ordering: a created: value collating below '0' (-) sorts LAST in its priority band, not first" \
+  '[ "$(printf "%s" "$mal_band_38" | awk "{print \$NF}")" = "38" ]'
 
 # (iv) TOTALITY — the empty queue emits a BARE `ready`, never no line (sole-channel lesson: a
 #      missing line must mean "no queue was produced", never "nothing is ready").

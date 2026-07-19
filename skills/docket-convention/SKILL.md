@@ -227,7 +227,7 @@ An `Accepted` ADR is immutable except its `status:` line; a non-reversing contex
 
 ### Build-readiness & selection (shared definition)
 
-A change is **build-ready** — eligible for `docket-implement-next` — only when it is `proposed`, has a `spec:` **or** `trivial: true`, and all `depends_on` are satisfied (`done`). A `proposed` change with neither a spec nor `trivial: true` is **needs-brainstorm** (not build-ready). The implementer's deterministic selection order is `priority` (`critical` > `high` > `medium` > `low`) → age (`created`) → **lowest `id`**.
+A change is **build-ready** — eligible for `docket-implement-next` — only when it is `proposed`, has a `spec:` **or** `trivial: true`, and all `depends_on` are satisfied (`done`). A `proposed` change with neither a spec nor `trivial: true` is **needs-brainstorm** (not build-ready). The implementer's deterministic selection order is `priority` (`critical` > `high` > `medium` > `low`) → age (`created`) → **lowest `id`**. A `created:` that is missing or malformed (not a well-formed `YYYY-MM-DD`) sorts last within its priority band — unknown age never preempts dated work.
 
 ### Autonomous grooming (shared definition)
 
