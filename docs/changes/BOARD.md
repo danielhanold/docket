@@ -1,13 +1,12 @@
 # Backlog
 
-**101 changes** — 🟢 2 in progress · 🟡 10 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 82 done · 🗑️ 5 killed
+**101 changes** — 🟢 1 in progress · 🟡 10 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 82 done · 🗑️ 5 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Spec | Branch |
 |---|-------|----------|------|--------|
 | [0094](active/0094-selection-order-digest.md) | Selection-order backlog digest — implement-next selects from a digest instead of walking active/ | `medium` | [spec](../superpowers/specs/2026-07-19-selection-order-digest-design.md) | `feat/selection-order-digest` |
-| [0099](active/0099-finalize-marker-clearing-rule-wording.md) | Re-phrase the `## Finalize blocked` clearing rule around what it actually guards | `low` | [spec](../superpowers/specs/2026-07-19-finalize-marker-clearing-rule-wording-design.md) | `feat/finalize-marker-clearing-rule-wording` |
 
 ## 🟡 Proposed (10)
 
@@ -30,11 +29,12 @@
 |---|-------|----------|------------|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | PR #69 is stale (predates the 0068/0072 facade rework and later agent-layer changes) and #0079 (runner delegation) reshapes the design — the build roles should grow a runner field (build.<role>.runner codex, the mixed topology 0079 deferred). Needs a rebase plus redesign pass before merge. |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | PR | Readiness |
 |---|-------|----------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
+| [0099](active/0099-finalize-marker-clearing-rule-wording.md) | Re-phrase the `## Finalize blocked` clearing rule around what it actually guards | `low` | [#107](https://github.com/danielhanold/docket/pull/107) |  |
 
 ```mermaid
 graph TD
