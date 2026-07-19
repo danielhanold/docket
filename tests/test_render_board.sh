@@ -1487,6 +1487,7 @@ change 7 blocked - golf
 change 8 implemented - hotel
 change 9 deferred - india
 change 13 implemented finalize-blocked mike
+ready 2
 EOF
 digest_out="$tmp/digest-out.txt"
 bash "$SCRIPT" --changes-dir "$tmp" --repo o/r --format digest > "$digest_out" 2>/dev/null
@@ -1508,6 +1509,116 @@ assert "digest emits no mermaid graph"  '! grep -qF "mermaid" "$digest_out"'
 
 # (f) archive rollups only — archived changes get no `change` line (the digest is the ACTIVE backlog).
 assert "digest: archived changes get no change line" '! grep -qE "^change (10|11|12) " "$digest_out"'
+
+# --- change 0094: the `ready` line (build-ready ids in selection order) ---
+# The `ready` line is a SECOND consumer of the same readiness pass: its membership is exactly the
+# set of `change … proposed build-ready …` lines, so it can never disagree with them. What it adds
+# is ORDER — priority > created > id — which the id-ascending `change` lines deliberately do not
+# carry.
+
+# (i) position + shape: `ready` is the LAST line, and it lists exactly the build-ready ids.
+assert "ready is the final digest line" \
+  '[ "$(tail -n 1 "$digest_out")" = "ready 2" ]'
+assert "ready line matches the ready grammar" \
+  'grep -qE "^ready( [0-9]+)*$" "$digest_out"'
+assert "exactly one ready line is emitted" \
+  '[ "$(grep -c "^ready" "$digest_out")" -eq 1 ]'
+
+# (ii) membership parity with the change lines — the anti-disagreement invariant. Derive the
+#      expected set from the `change` lines themselves rather than restating it, so a readiness
+#      change that moves a `change` line moves this assert with it.
+exp_ready="$(awk '$3=="proposed" && $4=="build-ready" {print $2}' <(grep "^change " "$digest_out") | sort -n | tr '\n' ' ')"
+got_ready="$(sed -n 's/^ready //p' "$digest_out" | tr -s ' ' | sed 's/ *$//' | tr ' ' '\n' | sort -n | tr '\n' ' ')"
+assert "ready membership equals the build-ready change lines" '[ "$exp_ready" = "$got_ready" ]'
+
+# (iii) ORDERING, on a dedicated fixture. Three bands prove the three sort keys independently.
+ord="$tmp/ord"; mkdir -p "$ord/active" "$ord/archive"
+# id 30: medium, oldest  -> age beats id (before 31)
+# id 31: medium, newest  -> loses on age
+# id 32: critical, newest -> priority beats age AND id (first overall)
+# id 33: high, newest     -> second overall
+# id 34: low, oldest      -> last, despite being the oldest (priority outranks age)
+# id 35: (no priority:)   -> defaults to medium; same created as 30 -> tie falls to LOWEST id (30 < 35)
+write_ord(){ # write_ord ID PRIORITY CREATED SLUG
+  local pri_line="priority: $2"
+  [ -n "$2" ] || pri_line=""
+  cat > "$ord/active/00$1-$4.md" <<EOF
+---
+id: $1
+slug: $4
+title: $4
+status: proposed
+$pri_line
+created: $3
+updated: $3
+depends_on: []
+spec: docs/superpowers/specs/x.md
+trivial: false
+---
+
+## Why
+x
+EOF
+}
+write_ord 30 medium   2026-01-01 mike
+write_ord 31 medium   2026-06-01 november
+write_ord 32 critical 2026-06-01 oscar
+write_ord 33 high     2026-06-01 papa
+write_ord 34 low      2026-01-01 quebec
+write_ord 35 ""       2026-01-01 romeo
+
+ord_out="$tmp/ord-digest.txt"
+bash "$SCRIPT" --changes-dir "$ord" --format digest > "$ord_out" 2>/dev/null
+assert "ordering fixture: exact selection order (priority > created > id)" \
+  '[ "$(sed -n "s/^ready //p" "$ord_out")" = "32 33 30 35 31 34" ]'
+assert "ordering: critical outranks an older medium"  '[ "$(sed -n "s/^ready //p" "$ord_out" | cut -d" " -f1)" = "32" ]'
+assert "ordering: low sorts last despite being oldest" '[ "$(sed -n "s/^ready //p" "$ord_out" | awk "{print \$NF}")" = "34" ]'
+assert "ordering: an absent priority: defaults to medium (35 sits in the medium band)" \
+  '[ "$(sed -n "s/^ready //p" "$ord_out" | cut -d" " -f4)" = "35" ]'
+assert "ordering: exact tie (same priority+created) falls to the LOWEST id" \
+  '[ "$(sed -n "s/^ready //p" "$ord_out" | cut -d" " -f3,4)" = "30 35" ]'
+
+# (iv) TOTALITY — the empty queue emits a BARE `ready`, never no line (sole-channel lesson: a
+#      missing line must mean "no queue was produced", never "nothing is ready").
+mt="$tmp/empty-ready"; mkdir -p "$mt/active" "$mt/archive"
+cat > "$mt/active/0040-sierra.md" <<'EOF'
+---
+id: 40
+slug: sierra
+title: sierra
+status: proposed
+priority: medium
+created: 2026-01-01
+updated: 2026-01-01
+depends_on: []
+trivial: false
+---
+
+## Why
+no spec, not trivial -> needs-brainstorm, so the ready queue is EMPTY
+EOF
+mt_out="$tmp/empty-ready-digest.txt"
+bash "$SCRIPT" --changes-dir "$mt" --format digest > "$mt_out" 2>/dev/null
+assert "empty build-ready set still emits a ready line" 'grep -q "^ready$" "$mt_out"'
+assert "the empty ready line is bare (no trailing space)" '[ "$(grep "^ready" "$mt_out")" = "ready" ]'
+assert "empty-queue digest still reports the change line" \
+  'grep -qxF "change 40 proposed needs-brainstorm sierra" "$mt_out"'
+
+# (v) a wholly empty backlog still emits the ready line (stdout is never empty — change 0069).
+none="$tmp/no-changes"; mkdir -p "$none/active" "$none/archive"
+none_out="$tmp/no-changes-digest.txt"
+bash "$SCRIPT" --changes-dir "$none" --format digest > "$none_out" 2>/dev/null
+assert "wholly empty backlog still emits a bare ready line" '[ "$(cat "$none_out")" = "ready" ]'
+
+# (vi) determinism — the digest (ready line included) is byte-stable across runs.
+ord_out2="$tmp/ord-digest2.txt"
+bash "$SCRIPT" --changes-dir "$ord" --format digest > "$ord_out2" 2>/dev/null
+assert "digest with a ready line is byte-identical across runs" 'diff -u "$ord_out" "$ord_out2"'
+
+# (vii) the ready line does NOT leak into the markdown projection.
+ord_md="$tmp/ord-board.md"
+bash "$SCRIPT" --changes-dir "$ord" --format markdown > "$ord_md" 2>/dev/null
+assert "markdown projection carries no ready line" '! grep -q "^ready" "$ord_md"'
 
 # (g) an unknown --format value is an argument error (exit 2), like any other bad flag.
 bash "$SCRIPT" --changes-dir "$tmp" --format bogus >/dev/null 2>"$tmp/fmt-err.txt"
