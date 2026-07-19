@@ -10,7 +10,7 @@ depends_on: []
 related: [69, 85, 88, 93]
 adrs: [12]
 spec: docs/superpowers/specs/2026-07-19-selection-order-digest-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-19-selection-order-digest-plan.md
 results:
 trivial: false
 auto_groomable: false
@@ -27,6 +27,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-19-selection-order-digest-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-19-selection-order-digest-design.md) |
+| Plan | [2026-07-19-selection-order-digest-plan.md](https://github.com/danielhanold/docket/blob/feat/selection-order-digest/docs/superpowers/plans/2026-07-19-selection-order-digest-plan.md) |
 | ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md) |
 <!-- docket:artifacts:end -->
 
