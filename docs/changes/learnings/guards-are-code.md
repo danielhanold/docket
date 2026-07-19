@@ -2,9 +2,9 @@
 slug: guards-are-code
 hook: "A guard is code — mutation-test it (strip the feature, watch it go red) or it is decoration."
 topics: [testing, sentinels, mutation]
-changes: [14, 15, 21, 36, 37, 64, 65, 67, 68, 69, 70, 71, 72, 73, 74, 84, 88]
+changes: [14, 15, 21, 36, 37, 64, 65, 67, 68, 69, 70, 71, 72, 73, 74, 84, 88, 96]
 created: 2026-06-17
-updated: 2026-07-18
+updated: 2026-07-19
 promotion_state: promoted
 promoted_to: AGENTS.md
 ---
@@ -122,3 +122,17 @@ lib. A snippet the PLAN hands you is unvetted code: mutation-test it like any as
   so it gave no independent regression protection over the pre-existing line — retargeted to a fixed
   string requiring the trailing backtick immediately after `next`. A Minor "never merges" assert that
   matched a pre-existing Quickstart sentence was likewise scoped to the new subsection's phrasing.
+- 2026-07-19 (#96, PR #102) — **A guard keyed on a SPELLING silently stops discovering sites, and
+  nothing reddens.** The call-site guard found its sites by grepping the bare `$SKILL_X` sigil, so
+  rewriting one site to the equally-valid `${SKILL_X}` dropped it from discovery entirely — no assert
+  failed, because a site that is never discovered is never asserted against. The only thing that
+  noticed was the `checked >= 5` vacuity floor, which is the weakest possible detector: it protects
+  only while the real site count stays at 5, and stops the moment a legitimate 6th site lands. Two
+  rules. (a) `AGENTS.md` already carried this exact class — *"key a guard on shape, never a
+  spelling"* — and it still slipped through, so a promoted rule is not self-enforcing; the mutation
+  test is what enforces it. (b) The mutation to run on a *discovery* guard is not "strip the feature"
+  but **"rewrite a site into an equivalent spelling and watch `checked` drop"** — for any guard that
+  finds its own inputs, site-count is part of the contract and a silent decrease is the failure mode.
+  Fixed by widening the pattern to both spellings with asserts pinning each. Documented in the same
+  pass, unfixed: a token-presence marker is satisfied from any position (a parenthetical would pass),
+  and `checked` counts matching *lines*, so one line invoking two role skills passes on one marker.

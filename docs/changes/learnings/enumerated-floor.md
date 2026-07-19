@@ -2,9 +2,9 @@
 slug: enumerated-floor
 hook: "Every hand-written enumeration is a floor, not the set — derive the sites from a whole-repo grep, then treat that grep as a floor too."
 topics: [process, inventory, review]
-changes: [14, 32, 42, 52, 54, 56, 64, 67, 71, 74, 84]
+changes: [14, 32, 42, 52, 54, 56, 64, 67, 71, 74, 84, 96]
 created: 2026-06-12
-updated: 2026-07-16
+updated: 2026-07-19
 promotion_state: promoted
 promoted_to: AGENTS.md
 ---
@@ -65,3 +65,14 @@ enumerated.
   edits reddened a *pre-existing* sentinel in a file its plan never enumerated, in a change whose
   subject was a different file entirely. The blast radius of retiring a string is every guard keyed on
   that string, repo-wide.
+- 2026-07-19 (#96, PR #102) — **A PLAN's self-review is an enumeration, and it dropped a spec
+  deliverable.** The plan's *Self-review notes* §"Spec coverage" walked the spec's numbered sections
+  §1–§4 and pronounced coverage complete — but the spec also carried an unnumbered `## Expected ADR`
+  section requiring an ADR, which no task produced. The numbering was the enumeration, and everything
+  outside it was structurally invisible: coverage-check a plan against **every section of its spec**,
+  not only the ones that happen to be numbered. Caught by the whole-branch review, not by the plan
+  that reviewed itself. (e) **A floor doing double duty stops being a floor.** The same change's
+  `checked >= 5` assert was written as a vacuity floor but was accidentally also the only detector of
+  a spelling-keyed discovery bypass (see [[guards-are-code]]). Once the spelling half was fixed
+  properly, the floor went back to being a floor — and must now track the real site count to stay
+  meaningful, since a stale floor silently under-protects the moment a legitimate site is added.

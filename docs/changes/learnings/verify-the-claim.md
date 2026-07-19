@@ -2,9 +2,9 @@
 slug: verify-the-claim
 hook: "A document asserting a fact about another artifact is not an oracle — verify it against the artifact or the RUNNING CODE before acting on it."
 topics: [process, review, spec]
-changes: [12, 21, 47, 65, 67, 74]
+changes: [12, 21, 47, 65, 67, 74, 96]
 created: 2026-06-12
-updated: 2026-07-16
+updated: 2026-07-19
 promotion_state: retained
 promoted_to:
 ---
@@ -43,3 +43,17 @@ mid-build; leave the re-scope to the human. Reject false positives with evidence
   bare unescaped quote inside a double-quoted scalar) and correcting the comment. Treat a comment
   explaining why code is correct as an unverified claim: find the input that distinguishes it from the
   alternative it rejects, or delete the claim.
+- 2026-07-19 (#96, PR #102) — **A FALSE PARALLEL is the shape this family takes in prose, and the
+  guard structurally cannot catch it.** The change shipping the autonomy-precedence rule wrote, in
+  `docket-finalize-change`, that on the autonomous path finalize "pre-specifies its outcome exactly as
+  `docket-implement-next` §7 does". It does not — autonomous finalize never invokes `$SKILL_FINISH` at
+  all; it merges via `gh` and runs its own steps 1–6. The sentence invited the exact inverse drift it
+  meant to prevent (a future autonomous finalize concluding it *should* invoke the finish skill with a
+  directed outcome). Two compounding lessons. (a) The claim was about a SIBLING SKILL's control flow,
+  the drift surface this finding already names — an "exactly as X does" analogy is an assertion about
+  X, verifiable only by reading X's actual path. (b) **The guard could not see it**, and not by
+  accident: that line already satisfied the token check through the human-present exception branch, so
+  a prose sentinel keyed on presence is blind to a line that carries the token and lies anyway. The
+  repo's own documented false-prose mode reappeared *inside the change that ships the rule against
+  it* — a claim's provenance ("we just wrote the rule") is not evidence. Recorded as a follow-up:
+  requiring the exception line to also carry a shape assertion would close the blind spot.
