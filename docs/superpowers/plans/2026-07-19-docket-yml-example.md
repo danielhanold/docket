@@ -83,7 +83,7 @@ Pulled from `docs/changes/learnings/` at plan time; each is a known failure mode
 - Consumes: nothing (first task).
 - Produces: the guarantee that `finalize.test_command: auto` resolves to `FINALIZE_TEST_COMMAND=` (empty). Task 2's fidelity test depends on this — without it, shipping `test_command: auto` in the example breaks the byte-identical export assertion.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `tests/test_docket_config.sh`, immediately before the final `exit $fail`:
 
@@ -132,13 +132,13 @@ out="$(run "$tmp/s3" --export)"; eval "$out"
 assert "test_command AUTO is NOT the sentinel (case-sensitive)" '[ "$FINALIZE_TEST_COMMAND" = "AUTO" ]'
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `bash tests/test_docket_config.sh 2>&1 | grep -E 'test_command auto|NOT OK'`
 
 Expected: `NOT OK - test_command auto: FINALIZE_TEST_COMMAND empty` (the resolver currently passes `auto` through verbatim). The other two asserts already pass — that is correct and expected; they are the regression guards proving Step 3 does not over-reach.
 
-- [ ] **Step 3: Write the minimal implementation**
+- [x] **Step 3: Write the minimal implementation**
 
 In `scripts/docket-config.sh`, replace line 194:
 
@@ -160,7 +160,7 @@ FINALIZE_TEST_COMMAND="$(lcl test_command)"; FINALIZE_TEST_COMMAND="${FINALIZE_T
 
 Note: `[ ... ] && ...` as the last statement of a `set -e` script would abort on a false test — but `docket-config.sh` runs under `set -uo pipefail` without `-e`, and this line is mid-script. Verify with Step 4; if the script is later hardened to `set -e`, use the `if` form instead.
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `bash tests/test_docket_config.sh 2>&1 | tail -20; echo "EXIT=$?"`
 
@@ -168,7 +168,7 @@ Expected: all three new asserts `ok -`, and the whole file exits `0`.
 
 Then prove non-vacuity — delete the new sentinel line, re-run, confirm the first assert flips to `NOT OK`, and restore it.
 
-- [ ] **Step 5: Document both sentinels in the contracts**
+- [x] **Step 5: Document both sentinels in the contracts**
 
 In `scripts/docket-config.md`, replace the `test_command` row (line 104):
 
@@ -196,7 +196,7 @@ In `scripts/github-mirror.md`, at the section documenting the `project-minted` w
 active at its default instead of as a commented-out note.
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add scripts/docket-config.sh scripts/docket-config.md scripts/github-mirror.md tests/test_docket_config.sh
@@ -220,7 +220,7 @@ documented at its consuming contract — the resolver only fences that key."
 - Consumes: Task 1's `auto` sentinel (without it the fidelity assert cannot pass with `test_command: auto` active).
 - Produces: `.docket.yml.example` at the repo root, and `tests/test_docket_yml_example.sh` exposing two shell helpers that Tasks 3–6 extend — `EX` (path to the example) and `assert <name> <expr>` (the house harness, identical to `tests/test_config_example.sh`'s).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/test_docket_yml_example.sh`:
 
@@ -291,13 +291,13 @@ fi
 exit $fail
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `bash tests/test_docket_yml_example.sh`
 
 Expected: `NOT OK - .docket.yml.example exists at repo root`, then the fidelity asserts also fail (the `cp` errors, leaving no `.docket.yml`). This is the correct starting state.
 
-- [ ] **Step 3: Write the example file**
+- [x] **Step 3: Write the example file**
 
 Create `.docket.yml.example` at the repo root. **Every key below ships ACTIVE at the exact value shown, except the two marked PRESENCE-SENSITIVE which ship commented.** Each key gets its scope tag line plus its documentation prose.
 
@@ -437,7 +437,7 @@ The presence-sensitive pair, with the exact marker:
 
 ...and the `agents:` block likewise commented, carrying the nine-line `claude:` mirror copied **verbatim** from `config.yml.example:50-58`, the ADR-0039 mirror note (rewritten to name this file rather than `config.yml.example`), the same `PRESENCE-SENSITIVE` marker line, and the commented `codex:`/`cursor:` example blocks copied verbatim from `config.yml.example:60-80` — including the "IDs here are UNVALIDATED examples" warning.
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `bash tests/test_docket_yml_example.sh`
 
@@ -445,13 +445,13 @@ Expected: `ok - .docket.yml.example exists at repo root`, `ok - fidelity: export
 
 If the fidelity assert fails, the test prints the diff. Read it literally — each differing line names a key whose active value is **not** the shipped default, or a key whose name collides with the resolver's flat leaf-key reader (`yaml_get` matches `^[[:space:]]*<key>[[:space:]]*:`, so an indented nested key can be picked up as a top-level one). Fix the example, not the test.
 
-- [ ] **Step 5: Prove the fidelity assert is non-vacuous**
+- [x] **Step 5: Prove the fidelity assert is non-vacuous**
 
 Temporarily change one active value in the example to a non-default (e.g. `auto_groom: true`), re-run, and confirm the assert flips to `NOT OK` with a diff naming `AUTO_GROOM`. Restore the file.
 
 This step matters: a fidelity test that passes because both sides failed identically would be worthless. The non-empty guard covers that case, but confirm the diff path works too.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add .docket.yml.example tests/test_docket_yml_example.sh
