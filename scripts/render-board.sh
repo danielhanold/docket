@@ -9,9 +9,9 @@
 #   --changes-dir. Mock seam: GIT="${GIT:-git}".
 #   --format markdown (default) emits the BOARD.md markdown; --format digest emits the
 #   line-oriented backlog digest (`backlog <status> <count>` + `change <id> <status> <readiness>
-#   <slug>`) — a second projection of the same dependency/readiness pass, consumed by
-#   docket-status.sh's report. The digest is REPORT OUTPUT, NOT a board surface: it is never
-#   persisted, committed, or written to BOARD.md.
+#   <slug>` + a final `ready <id> …` queue line, change 0094) — a second projection of the same
+#   dependency/readiness pass, consumed by docket-status.sh's report. The digest is REPORT OUTPUT,
+#   NOT a board surface: it is never persisted, committed, or written to BOARD.md.
 set -uo pipefail
 
 GIT="${GIT:-git}"
@@ -131,6 +131,36 @@ if [ "$FORMAT" = digest ]; then
       rows_sorted "$st"
     done | sort -t$'\t' -k1,1n
   )
+  # --- the `ready` line (change 0094) -------------------------------------------------------
+  # The build-ready QUEUE, in the convention's deterministic selection order: priority
+  # (critical > high > medium > low) -> created (ascending) -> id (ascending). Membership is
+  # exactly the set digest_readiness() already reported as `build-ready`, so this line can never
+  # disagree with the `change` lines above; what it adds is ORDER, which those id-ascending lines
+  # deliberately do not carry. Both sort keys are STATIC frontmatter — no wall-clock read — so the
+  # renderer stays deterministic and the golden byte-compare holds.
+  #
+  # ALWAYS EMITTED, bare when the queue is empty: absence of this line means NO QUEUE WAS PRODUCED
+  # (an older render-board, or a render failure), never "nothing is ready". A consumer that cannot
+  # tell those apart has merely moved the silence somewhere quieter.
+  ready_ids=""
+  while IFS=$'\t' read -r rid; do
+    [ -n "$rid" ] || continue
+    ready_ids="$ready_ids $rid"
+  done < <(
+    while IFS=$'\t' read -r id f; do
+      [ -n "$id" ] || continue
+      [ "$(digest_readiness "$f" "$id" proposed)" = build-ready ] || continue
+      # An unset or unrecognized priority is `medium` — the convention's documented default.
+      case "$(field "$f" priority)" in
+        critical) prank=0 ;;
+        high)     prank=1 ;;
+        low)      prank=3 ;;
+        *)        prank=2 ;;
+      esac
+      printf '%s\t%s\t%s\n' "$prank" "$(field "$f" created)" "$id"
+    done < <(rows_sorted proposed) | sort -t$'\t' -k1,1n -k2,2 -k3,3n | cut -f3
+  )
+  printf 'ready%s\n' "$ready_ids"
   exit 0
 fi
 

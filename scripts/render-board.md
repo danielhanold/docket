@@ -27,7 +27,7 @@ render-board.sh --changes-dir DIR [--repo OWNER/REPO] [--format markdown|digest]
 |---|---|---|
 | `--changes-dir DIR` | yes | Path to the changes directory (`active/` and `archive/` are children of this dir). |
 | `--repo OWNER/REPO` | no | Used to build `pr:` hyperlinks in the **Implemented** column. Defaults to deriving `OWNER/REPO` from the `origin` remote of `--changes-dir` (best-effort, offline). Absent or non-GitHub remote: PR numbers render as bare `#N`. |
-| `--format markdown\|digest` | no | Output projection. `markdown` (default) emits the board. `digest` emits the line-oriented backlog digest (change 0069). Any other value is an argument error (exit 2). |
+| `--format markdown\|digest` | no | Output projection. `markdown` (default) emits the board. `digest` emits the line-oriented backlog digest (change 0069) plus its trailing `ready` queue line (change 0094). Any other value is an argument error (exit 2). |
 
 Mock seam: `GIT="${GIT:-git}"` — override in tests.
 
@@ -110,6 +110,23 @@ apply). Readiness has exactly one owner per status, so the digest and the board 
 disagree. The marker is detected by `has_section`, a **whole-line** match: a change file that
 merely mentions `## Finalize blocked` inline in prose does not carry the section. No
 markdown, no mermaid graph, no archive table.
+
+**The `ready` line (change 0094).** The digest's final line is always `ready [<id> …]` — the
+**build-ready queue in selection order**: `priority` (`critical` > `high` > `medium` > `low`) →
+`created` (ascending) → `id` (ascending), the convention's *Build-readiness & selection* order. An
+unset or unrecognized `priority` is treated as `medium`.
+
+Its membership is exactly the set of changes the `change` lines report as `proposed build-ready`,
+because it is computed from the same `digest_readiness()` call — the line can never disagree with
+them. What it adds is **order**, which the id-ascending `change` lines deliberately do not carry.
+Both sort keys are static frontmatter, so the renderer performs no wall-clock read and stays
+deterministic.
+
+The line is **always emitted**, bare (`ready`, no ids) when nothing is build-ready. Absence of a
+`ready` line therefore means **no queue was produced** — an older `render-board.sh`, or a failed
+render — and never "nothing is ready". Consumers must treat the two cases differently:
+`docket-implement-next` Step 1 falls back to walking `active/` on absence, but reports `drained` on
+a bare line.
 
 The digest is **report output, not a board surface**: `docket-status.sh` pipes it straight to its
 report and never persists it. It is therefore emitted regardless of `board_surfaces` — which is
