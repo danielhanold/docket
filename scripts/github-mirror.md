@@ -111,6 +111,11 @@ mirrored regardless of Projects status. The Board pass likewise never fails beca
   the default branch. The script does no git writes.
 - Neither set — skips Projects silently (Issues still mirrored).
 
+**`github_project: auto` (change 0101).** The literal lowercase `auto` is the explicit spelling of
+"unminted" — identical in effect to an absent key. The write-back path treats it as a value to
+**overwrite**, never as a minted project reference. This lets `.docket.yml.example` ship the key
+active at its default instead of as a commented-out note.
+
 **Item sync.** For every change in `ISSUE_NUM` (seeded above, including freshly minted issues):
 adds the issue as a board item via `gh project item-add`, then sets its `Docket Status` option via
 `gh project item-edit --single-select-option-id`. Terminal changes (`done`, `killed`) and changes
