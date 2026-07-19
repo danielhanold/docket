@@ -2563,17 +2563,23 @@ EOF
 
 cat > "$tmp/fixture-digest.sh" <<'EOF'
 #!/usr/bin/env bash
-# METADATA_WORKTREE is ABSOLUTE ($(pwd), resolved at fixture-script run time — i.e. per invocation
-# CWD, so this one file is reusable across every digest-only fixture directory below), matching
-# how the REAL docket-config.sh --export always absolutizes it (change 0068). A relative value
-# here would force docket_metadata_worktree's anchor helper to shell out to `git worktree list`
-# just to resolve it — a spurious git invocation this write-free read must never make.
+# METADATA_WORKTREE is RELATIVE (`.docket`) — matching what the REAL docket-config.sh --export
+# actually emits on this path. FORMAT=shell is the default (--export alone never selects `plain`),
+# and docket-config.sh's absolutization block is INSIDE `if [ "$FORMAT" = plain ]` — its own
+# comment says "relative for shell ...; absolute for plain". So production --digest-only always
+# receives a RELATIVE METADATA_WORKTREE, and docket_metadata_worktree's anchor helper shells out
+# to `git worktree list --porcelain` (a READ-ONLY call) to resolve it — exactly as it does on
+# every other docket-status.sh path. That read-only anchoring call is expected and fine; what the
+# write-free contract actually forbids is MUTATION (fetch/pull/push/commit/worktree add/checkout)
+# and moving HEAD — see the git-call-log assert below, which checks for that property directly
+# rather than "no git call at all" (which no real invocation of this path ever satisfies: even
+# `docket-config.sh --export` itself runs an unconditional `git fetch` + `git remote set-head`).
 printf '%s\n' \
   'BOOTSTRAP=PROCEED' \
   'METADATA_BRANCH=docket' \
   'INTEGRATION_BRANCH=main' \
   'DOCKET_MODE=docket' \
-  "METADATA_WORKTREE=$(pwd)/.docket" \
+  'METADATA_WORKTREE=.docket' \
   'CHANGES_DIR=docs/changes' \
   'ADRS_DIR=docs/adrs' \
   'RESULTS_DIR=docs/results' \
@@ -2602,11 +2608,18 @@ assert "--digest-only emits backlog rollups"   'grep -q "^backlog proposed 2" "$
 assert "--digest-only ready order is critical-first (51 before 50)" \
   '[ "$(sed -n "s/^ready //p" "$dg_out")" = "51 50" ]'
 
-# The load-bearing half: it is a READ.
+# The load-bearing half: it is a READ. A read-only `worktree list` call (anchoring the relative
+# METADATA_WORKTREE, same as every other docket-status.sh path) is expected and fine — what the
+# write-free contract forbids is a MUTATING git call or moving HEAD, so the assert checks the
+# git-call log for exactly that property rather than "zero git calls" (a bar this path was never
+# actually able to meet: see the fixture comment above).
 assert "--digest-only emits NO board line" '! grep -q "^board " "$dg_out"'
 assert "--digest-only writes no BOARD.md" '[ ! -e "$dg/work/.docket/docs/changes/BOARD.md" ]'
-assert "--digest-only never invokes git at all (no fetch/pull/commit/push)" \
-  '[ ! -s "$tmp/git-calls.txt" ]'
+assert "--digest-only makes no mutating git call (no fetch/pull/push/commit/worktree add/checkout)" \
+  '! grep -Eq "(^| )(fetch|pull|push|commit|checkout)( |$)" "$tmp/git-calls.txt" \
+   && ! grep -qF "worktree add" "$tmp/git-calls.txt"'
+assert "the git-call log is not vacuous (the read-only anchoring call was actually made)" \
+  '[ -s "$tmp/git-calls.txt" ] && grep -qF "worktree list" "$tmp/git-calls.txt"'
 assert "--digest-only emits no pass ok (it is not a pass)" '! grep -q "^pass ok" "$dg_out"'
 assert "--digest-only stdout is non-empty" '[ -s "$dg_out" ]'
 
@@ -2626,6 +2639,23 @@ assert "the mutual-exclusion error names both flags" \
 revrc=$?
 assert "--board-only with --digest-only also exits 2 (order-independent)" '[ "$revrc" -eq 2 ]'
 
+# ── review fix 4: --must-land is silently ignored under --digest-only ────────────────────────
+# --must-land is documented as meaningful only "(with --board-only)" — it retries/maps the exit
+# code of the board pass. main() short-circuits --digest-only BEFORE MUST_LAND is ever read, so
+# without a gate, `--digest-only --must-land` exits 0 and prints the digest with no diagnostic at
+# all — the flag is silently dropped. Extend the existing --digest-only/--board-only gate rather
+# than inventing a separate mechanism (both orders, matching that gate's own discipline).
+(cd "$dg/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-digest.sh" GIT="$tmp/spy-git.sh" \
+  "$SCRIPT" --digest-only --must-land >/dev/null 2>"$tmp/dg-ml-err.txt")
+dgmlrc=$?
+assert "--digest-only with --must-land exits 2 (silently-ignored flag combo)" '[ "$dgmlrc" -eq 2 ]'
+assert "the --digest-only/--must-land error names both flags" \
+  'grep -q -- "--digest-only" "$tmp/dg-ml-err.txt" && grep -q -- "--must-land" "$tmp/dg-ml-err.txt"'
+(cd "$dg/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-digest.sh" GIT="$tmp/spy-git.sh" \
+  "$SCRIPT" --must-land --digest-only >/dev/null 2>/dev/null)
+mldgrc=$?
+assert "--must-land with --digest-only also exits 2 (order-independent)" '[ "$mldgrc" -eq 2 ]'
+
 # Totality on an EMPTY backlog: stdout is still non-empty and the ready line is still there.
 dge="$tmp/digest-empty"; mkdir -p "$dge/work/.docket/docs/changes/active" "$dge/work/.docket/docs/changes/archive"
 dge_out="$tmp/digest-empty-out.txt"
@@ -2635,7 +2665,12 @@ assert "--digest-only on an empty backlog still emits a bare ready line" \
   '[ "$(cat "$dge_out")" = "ready" ]'
 
 # Bootstrap stays fail-closed on this path too — a read must not silently report an empty backlog
-# for a repo that was never migrated.
+# for a repo that was never migrated. METADATA_WORKTREE is relative here too (`.docket`),
+# consistent with fixture-digest.sh above — both fixtures model the SAME real shell-format export
+# (change 0068's absolutization applies only to `--format plain`, never to this file's `.sh`
+# `--export` shape). This BOOTSTRAP verdict is checked before METADATA_WORKTREE is ever resolved,
+# so the value never actually matters for this fixture — kept relative anyway so a reader
+# skimming the two side by side sees one convention, not two.
 cat > "$tmp/fixture-digest-stop.sh" <<'EOF'
 #!/usr/bin/env bash
 printf '%s\n' \
@@ -2655,6 +2690,47 @@ stoprc=$?
 assert "--digest-only is fail-closed on a non-PROCEED bootstrap verdict" '[ "$stoprc" -ne 0 ]'
 assert "--digest-only emits no ready line when the bootstrap gate rejects" \
   '! grep -q "^ready" "$tmp/dg-stop-out.txt"'
+
+# ── review fix 1: --digest-only is fail-OPEN when the metadata worktree is missing ───────────
+# Reachable scenario: a fresh clone of an already-migrated repo. origin/docket exists, so
+# BOOTSTRAP=PROCEED — but .docket/ is gitignored and no `worktree add` has ever run in THIS
+# clone. digest_only_pass deliberately skips docket_preflight (the one thing that would create
+# it), and backlog_pass is best-effort (a render-board.sh failure logs to stderr and `return 0`s).
+# Today that means: exit 0, empty stdout, no `ready` line at all — a selector keying on `rc==0`
+# gets success-plus-nothing, the exact two-cases-one-signal collapse the always-emitted `ready`
+# line exists to prevent. A real (not stubbed) git repo, so docket_metadata_worktree's anchor
+# helper resolves an ACTUAL absolute root the way it would in production.
+dgnw="$tmp/digest-noworktree"
+git_repo_setup "$dgnw/case"
+git clone -q "$dgnw/case/origin.git" "$dgnw/work" 2>/dev/null
+cat > "$tmp/fixture-digest-noworktree.sh" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' \
+  'BOOTSTRAP=PROCEED' \
+  'METADATA_BRANCH=docket' \
+  'INTEGRATION_BRANCH=main' \
+  'DOCKET_MODE=docket' \
+  'METADATA_WORKTREE=.docket' \
+  'CHANGES_DIR=docs/changes' \
+  'ADRS_DIR=docs/adrs' \
+  'RESULTS_DIR=docs/results' \
+  'BOARD_SURFACES=inline'
+EOF
+assert "fresh-clone fixture: metadata worktree genuinely absent before the run" \
+  '[ ! -d "$dgnw/work/.docket" ]'
+(cd "$dgnw/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-digest-noworktree.sh" \
+  "$SCRIPT" --digest-only >"$tmp/dg-nw-out.txt" 2>"$tmp/dg-nw-err.txt")
+dgnwrc=$?
+assert "--digest-only fails closed when the metadata worktree does not exist (fresh clone)" \
+  '[ "$dgnwrc" -ne 0 ]'
+assert "--digest-only emits no ready line when the metadata worktree is missing" \
+  '! grep -q "^ready" "$tmp/dg-nw-out.txt"'
+assert "--digest-only stdout is empty when the metadata worktree is missing (no digest emitted)" \
+  '[ ! -s "$tmp/dg-nw-out.txt" ]'
+assert "--digest-only names the resolved changes-dir path on stderr" \
+  'grep -qF ".docket/docs/changes" "$tmp/dg-nw-err.txt"'
+assert "--digest-only points the caller at docket.sh preflight" \
+  'grep -qi "preflight" "$tmp/dg-nw-err.txt"'
 
 # --help documents the flag (the skill's author has to be able to find it).
 assert "--help mentions --digest-only" '"$SCRIPT" --help 2>&1 | grep -q -- "--digest-only"'
