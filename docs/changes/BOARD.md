@@ -1,15 +1,14 @@
 # Backlog
 
-**101 changes** — 🟢 2 in progress · 🟡 9 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 83 done · 🗑️ 5 killed
+**102 changes** — 🟢 1 in progress · 🟡 10 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 83 done · 🗑️ 5 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Spec | Branch |
 |---|-------|----------|------|--------|
-| [0094](active/0094-selection-order-digest.md) | Selection-order backlog digest — implement-next selects from a digest instead of walking active/ | `medium` | [spec](../superpowers/specs/2026-07-19-selection-order-digest-design.md) | `feat/selection-order-digest` |
 | [0101](active/0101-docket-yml-example.md) | .docket.yml.example — the canonical all-comprehensive config reference | `medium` | [spec](../superpowers/specs/2026-07-19-docket-yml-example-design.md) | `feat/docket-yml-example` |
 
-## 🟡 Proposed (9)
+## 🟡 Proposed (10)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -22,6 +21,7 @@
 | [0082](active/0082-global-harnesses-per-repo-generation.md) | Global agent_harnesses doesn't reach per-repo generation — silent no-op | `low` | needs-brainstorm |
 | [0083](active/0083-terminal-publish-gap-detection.md) | A terminal record can silently never reach the integration branch — mark deferred publishes, stop the checker lying | `medium` | build-ready |
 | [0100](active/0100-force-push-lease-classifier-denial.md) | Force-push-with-lease denied by the auto-mode classifier — unblock finalize's merge gate | `medium` | needs-brainstorm |
+| [0102](active/0102-finalize-require-pr-approval-has-no-layer-resolution.md) | finalize.require_pr_approval has no layer resolution | `medium` | needs-brainstorm |
 
 ## 🔴 Blocked (1)
 
@@ -29,11 +29,12 @@
 |---|-------|----------|------------|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | PR #69 is stale (predates the 0068/0072 facade rework and later agent-layer changes) and #0079 (runner delegation) reshapes the design — the build roles should grow a runner field (build.<role>.runner codex, the mixed topology 0079 deferred). Needs a rebase plus redesign pass before merge. |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | PR | Readiness |
 |---|-------|----------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
+| [0094](active/0094-selection-order-digest.md) | Selection-order backlog digest — implement-next selects from a digest instead of walking active/ | `medium` | [#108](https://github.com/danielhanold/docket/pull/108) |  |
 
 ```mermaid
 graph TD
@@ -50,6 +51,7 @@ graph TD
   0094
   0100
   0101
+  0102
   0015:::done
   0016:::done
   0077:::done
