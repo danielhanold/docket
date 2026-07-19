@@ -2,7 +2,7 @@
 id: 97
 slug: mirror-readiness-label-parity
 title: GitHub mirror readiness parity — readiness labels stop at `proposed`
-status: proposed
+status: in-progress
 priority: low
 created: 2026-07-19
 updated: 2026-07-19
@@ -15,7 +15,8 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/mirror-readiness-label-parity
+claimed_at: 2026-07-19T11:45:13Z
 pr:
 blocked_by:
 reconciled: false
