@@ -2,10 +2,10 @@
 id: 91
 slug: auto-create-discovered-stubs
 title: Auto-create discovered stubs — a config flag that turns mid-run findings into proposed changes
-status: implemented
+status: done
 priority: medium
 created: 2026-07-17
-updated: 2026-07-18
+updated: 2026-07-19
 depends_on: [90]
 related: [90]
 adrs: [19, 45, 46]
@@ -15,7 +15,7 @@ results: docs/results/2026-07-18-auto-create-discovered-stubs-results.md
 trivial: false
 auto_groomable: true
 branch: feat/auto-create-discovered-stubs
-claimed_at: 2026-07-18T23:20:33Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/104
 blocked_by:
 reconciled: true
