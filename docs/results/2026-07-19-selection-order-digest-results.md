@@ -1,0 +1,33 @@
+# Selection-order backlog digest — results
+Change: #0094 · Branch: feat/selection-order-digest · PR: (opened at close-out) · Plan: docs/superpowers/plans/2026-07-19-selection-order-digest-plan.md · ADRs: 47
+
+## Verify (human)
+
+- [ ] **The `ready` line goes live only at merge.** `DOCKET_SCRIPTS_DIR` points at the primary worktree's `scripts/` (on `main`), and `~/.claude/skills/docket-implement-next` is a symlink to that same primary worktree's `skills/`. So the rewired Step 1 prose and the `--digest-only` flag flip over **together** at merge — there is no window where the skill asks for a flag the script lacks. Verified by inspection, not by test. After merging, run `docket.sh docket-status --digest-only` once and confirm it prints a `ready` line.
+- [ ] **Confirm the sorting rule reads right to you.** An unset, empty, or malformed `created:` now sorts **last** within its priority band (an unstamped change must not preempt dated work). This was a build-time decision, not a groom-time one — see Findings #2. The opposite convention (unknown age = oldest) was defensible; if you prefer it, it is a one-line change plus its tests.
+
+## Findings
+
+**1. `--digest-only` is a read tier that skips `docket_preflight` — recorded as ADR-0047.**
+Every other path in `docket-status.sh` opens with `docket_preflight`, which fetches and `pull --rebase`s the metadata worktree — a mutation that can move `HEAD`. A selection read must not be a write, so `--digest-only` short-circuits before it and resolves config only. Because it skips preflight it cannot inherit preflight's guarantee that the metadata worktree exists, so it carries **its own fail-closed gates**, and **exit status became the disambiguation channel**: non-zero ⇒ hard error ⇒ `halted`; exit 0 + bare `ready` ⇒ genuinely empty ⇒ `drained`; exit 0 + no `ready` line ⇒ an older `render-board` ⇒ degrade to walking `active/`. Full reasoning in ADR-0047.
+
+**2. Two selection-order rules were underspecified by the spec and had to be decided at build time.**
+- *Unknown age.* The spec fixed the order as `priority → created → id` but said nothing about a missing `created:`. Empty sorts before every date, so an unstamped change silently preempted its whole priority band. **Reachable, not theoretical:** `skills/docket-new-change/change-template.md` ships `created:                  # YYYY-MM-DD (UTC)`, and the frontmatter reader returns that literal comment as the value — `#` collates below every digit. Decided: unset, empty, **or malformed** sorts last. Mechanized in `render-board.sh`, documented in `scripts/render-board.md`, and written into the convention's *Build-readiness & selection* shared definition so the in-model rankers (`docket-groom-next`, `docket-auto-groom`) rank the same way.
+- *Priority default.* An unset or unrecognized `priority` is treated as `medium`, matching the convention's documented default.
+
+**3. Three defects in the plan's own supplied test code were caught during the build** — worth recording because they are the class the plan author cannot see:
+- The membership-parity assert used awk field indices off by one against `change <id> <status> <readiness> <slug>`, making `exp_ready` unconditionally empty and the assert **unsatisfiable by any correct implementation**.
+- A producer sentinel used `awk "/^main\(\)/,/docket_preflight/"`, whose range **closed on the explanatory comment** that contains the string `docket_preflight`, so it never reached the code. Replaced with a line-number **order** comparison anchored on `docket_preflight "$SCRIPTS_DIR"`. This one presented as a false BLOCKED — the implementer correctly stopped rather than proceeding past an apparently-regressed producer assert.
+- The lowest-`id` tie-break assert could not detect deletion of its own `-k3,3n` sort key: every fixture id was two digits, so `sort`'s lexicographic fallback happened to agree. Fixed with a tie crossing a digit-width boundary (ids 9/10) and confirmed red under mutation.
+
+**4. Two fail-open holes were closed, both found by review rather than by tests.**
+`--digest-only` originally exited **0 with zero stdout** when the metadata worktree was missing (a fresh clone of a migrated repo) and, separately, when the render itself failed — because it delegated to the deliberately best-effort `backlog_pass`. Both now exit non-zero with a diagnostic. `backlog_pass` stays best-effort for the report paths, where a failed digest must never abort a board write or a sweep; the digest-only path has nothing else to deliver, so an empty digest *is* the failure there.
+
+**5. Concurrent writers touched this feature worktree during the build.** A fix subagent reported the working tree changing under it, and after the final green suite an **unreviewed uncommitted edit** to `skills/docket-implement-next/SKILL.md` appeared (it dropped the non-`proposed` skip-reason clause). It was **discarded**, not adopted — the committed state is the reviewed and tested one — and the tree was then confirmed clean and stable. This is the known `.docket/` concurrent-writer hazard appearing on a **feature** worktree, which is new. Nothing foreign is in the branch; see Follow-ups.
+
+## Follow-ups
+
+- **Feature-worktree concurrency guard.** The existing hazard note covers the shared `.docket/` metadata worktree. This build saw the same shape on a slug-named feature worktree, including one silent overwrite of an in-flight edit. Worth a change to detect or prevent a second agent operating in a feature worktree whose change is already claimed `in-progress` by another run. *(Not auto-captured: `auto_capture` is `false` in this repo.)*
+- **A tab inside `created:` would corrupt the `ready` line.** The sort rows are TAB-joined, so a tab in that value shifts the field split and can emit a non-numeric token, violating the documented `^ready( [0-9]+)*$` grammar. Pre-existing exposure — the `change`-line loop has the same shape via `slug` — so it was left alone here, but the `ready` line is now machine-parsed, which raises the stakes.
+- **`DOCKET_MODE=main` is unfixtured for `--digest-only`.** The resolution path is shared with `backlog_pass` so it is likely fine, but no test pins it.
+- **`docket-status --digest-only` performs a read-only `git fetch`.** `docket-config.sh --export` runs `git fetch --quiet origin` and `git remote set-head` on every invocation, so the path is not network-free. It moves neither `HEAD` nor the working tree, so the write-free contract holds — but a caller wanting a strictly offline read does not have one.
