@@ -10,7 +10,7 @@ depends_on: []
 related: [87]
 discovered_from: [87]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-07-19-mirror-readiness-label-parity-design.md
 plan:
 results:
 trivial: false
@@ -24,6 +24,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-07-19-mirror-readiness-label-parity-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-19-mirror-readiness-label-parity-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -40,23 +43,30 @@ Projects board sees nothing while the inline board says `finalize blocked — ne
 
 ## What changes
 
-Decide whether the mirror should carry readiness for non-`proposed` changes at all, and if so,
-extend `readiness_label` past its `proposed` early-return so `finalize-blocked` maps to a label.
-The real question is scope: only `finalize-blocked`, or every readiness state the board can render
-for a non-`proposed` change.
+Extend `readiness_label` in `scripts/github-mirror.sh` past its `proposed` early-return so an
+`implemented` change carrying the `## Finalize blocked` marker maps to a
+`docket:readiness/finalize-blocked` label, restoring parity with the inline board
+(`finalize blocked — needs you`) and the digest (`finalize-blocked`).
 
-Whatever is decided, the outcome should be a stated rule about which projections owe readiness —
-not a one-off patch for a single state, or this recurs at the next readiness value.
+**The stated rule (the scope question, settled):** the mirror does not invent its own readiness
+policy — it mirrors the board/digest ownership `render-board.sh` already declares as the single
+source. Readiness is owed for `proposed` (its four tokens) and for `implemented` (finalize-blocked);
+no other status has a readiness notion. Any future readiness value is added to the owner
+(`render-board.sh`) first, and the mirror follows the same status→owner shape — so the three
+projections cannot drift again at the next value. `finalize_blocked` is already in scope
+(`github-mirror.sh` sources the lib that defines it) and the new label self-provisions via the
+existing idempotent `gh label create --force` path.
+
+Design settled in the linked spec; see its `## Assumptions` for why a label (not a bespoke surface)
+is the right form and why label pruning under the additive `--add-label` reconcile is a pre-existing
+mirror-wide concern (affecting status labels too) left out of scope here.
 
 ## Out of scope
 
 - Making the mirror two-way, or reading anything back from GitHub.
 - Changing the inline board or digest readiness rendering (both already correct).
-
-## Open questions
-
-- Should the mirror mirror *all* readiness states for non-`proposed` changes, or is `proposed`-only
-  a deliberate design that `finalize-blocked` should respect instead?
-- Is a label the right surface for a state that is inherently transient?
+- Label pruning: the mirror's additive `--add-label` never removes a stale readiness label when a
+  change leaves the state — identical to every existing derived label (status, priority, the four
+  proposed-readiness tokens); a mirror-wide concern, not introduced here.
 
 ## Reconcile log
