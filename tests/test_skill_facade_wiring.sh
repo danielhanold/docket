@@ -208,4 +208,47 @@ assert "the in-scope corpus is non-empty (the sentinel actually scanned files)" 
 assert "the canonical Board-pass call is present in every rewired file (found $board_pass_files)" \
   '[ "$board_pass_files" -eq 7 ]'
 
+# ── change 0094: Step 1 acquires its candidate set from the digest's `ready` line ─────────────
+# specified-but-unreachable: a contract with a PRODUCER and a CONSUMER needs at least one assert
+# anchored on the producer. Here the producer is render-board.sh's ready line and the write-free
+# reader is docket-status.sh --digest-only; asserting only that the SKILL mentions a ready line
+# would pass identically in a world where nothing ever emits one. So: pin both ends.
+impl="$REPO/skills/docket-implement-next/SKILL.md"
+
+# PRODUCER end — the line really is emitted, and the read path really is write-free.
+assert "producer: render-board.sh emits a ready line" \
+  'grep -q "printf .ready" "$REPO/scripts/render-board.sh"'
+assert "producer: docket-status.sh implements --digest-only" \
+  'grep -q -- "--digest-only) DIGEST_ONLY=1" "$REPO/scripts/docket-status.sh"'
+# The digest-only short-circuit must run BEFORE docket_preflight (which syncs the metadata
+# worktree). Compare line-number ORDER rather than using an awk range: a range terminated on the
+# bare string `docket_preflight` closes on the explanatory COMMENT above the call and never reaches
+# the code. Anchoring on the call's `"$SCRIPTS_DIR"` argument avoids that collision entirely.
+ds="$REPO/scripts/docket-status.sh"
+mainln=$(grep -n '^main()' "$ds" | cut -d: -f1)
+dgln=$(awk -v s="$mainln" 'NR>s && /digest_only_pass/ {print NR; exit}' "$ds")
+pfln=$(awk -v s="$mainln" 'NR>s && /docket_preflight "\$SCRIPTS_DIR"/ {print NR; exit}' "$ds")
+assert "producer: the digest-only path short-circuits before docket_preflight" \
+  '[ -n "$dgln" ] && [ -n "$pfln" ] && [ "$dgln" -lt "$pfln" ]'
+
+# CONSUMER end — Step 1 names the exact invocation a reader must run.
+assert "skill Step 1 names the --digest-only invocation" \
+  'grep -q -- "docket-status --digest-only" "$impl"'
+assert "skill Step 1 names the ready line as its candidate source" \
+  'grep -q "\`ready\`" "$impl"'
+assert "skill Step 1 keeps the change files authoritative (accelerator, not sole channel)" \
+  'grep -qi "accelerator" "$impl"'
+assert "skill Step 1 documents the no-ready-line fallback to walking active/" \
+  'grep -qi "fall back" "$impl"'
+
+# POSTURE — the two things spec section 4 says must not be lost in the rewrite.
+assert "skill Step 1 still defers the DEFINITION to the convention" \
+  'grep -q "Build-readiness & selection" "$impl"'
+assert "skill allowlist is still a filter, never a dependency override" \
+  'grep -q "never a dependency override" "$impl"'
+assert "skill allowlist still skips with a reason and never aborts" \
+  'grep -q "skipped with its reason" "$impl" && grep -q "never aborts the run" "$impl"'
+assert "skill Step 1 still routes an empty queue to drained" \
+  'grep -q "drained" "$impl"'
+
 exit $fail
