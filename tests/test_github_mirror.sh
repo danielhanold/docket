@@ -91,6 +91,24 @@ spec:
 issue: 201
 EOF
 
+cat > "$tmp/active/0014-finalize-blocked.md" <<'EOF'
+---
+id: 14
+slug: finalize-blocked
+title: Implemented change flagged finalize-blocked
+status: implemented
+priority: medium
+depends_on: []
+adrs: []
+issue: 202
+---
+
+## Finalize blocked
+
+### 2026-07-19 — gate failure
+Rebased suite went red; a human must intervene.
+EOF
+
 # --- mock gh: records argv and fakes `issue create` returning a URL ---
 mock="$tmp/bin"; mkdir -p "$mock"
 cat > "$mock/gh" <<'EOF'
@@ -133,6 +151,18 @@ assert "proposed change waiting on an implemented dep emits the needs-your-merge
   'echo "$out" | grep -qF "docket:waiting/needs-your-merge"'
 assert "every mirror label is docket:-namespaced" \
   '! echo "$out" | grep -oE -- "--(add-label|label) [^ ]+" | grep -vqE "docket:|--(add-label|label)$"'
+
+# readiness parity (change 0097): the mirror carries readiness for the two statuses the
+# board/digest owner (render-board.sh) declares — proposed (four tokens) and implemented
+# (finalize-blocked) — and for no other status.
+assert "implemented change WITH ## Finalize blocked self-provisions the finalize-blocked label" \
+  'echo "$out" | grep -qF "label create docket:readiness/finalize-blocked"'
+assert "implemented change WITH ## Finalize blocked attaches the finalize-blocked label" \
+  'echo "$out" | grep -qF -- "--add-label docket:readiness/finalize-blocked"'
+assert "exactly one change carries the finalize-blocked readiness label (only the marked implemented one)" \
+  '[ "$(echo "$out" | grep -cF "label create docket:readiness/finalize-blocked")" -eq 1 ]'
+assert "only proposed(needs-brainstorm) + implemented(finalize-blocked) carry ANY docket:readiness/ label — implemented-without-marker and every non-owning status carry none" \
+  '[ "$(echo "$out" | grep -cF "label create docket:readiness/")" -eq 2 ]'
 
 # body content
 assert "issue body carries the one-way banner" \
