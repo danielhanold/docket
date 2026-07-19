@@ -2,9 +2,9 @@
 slug: green-suite-untested-branch
 hook: "Green tests are not proof the hard branch was exercised — a mock that omits the tool routes every test through the degrade path."
 topics: [testing, fixtures, mocks]
-changes: [16, 22, 25, 26, 35, 58, 62, 69, 93]
+changes: [16, 22, 25, 26, 35, 58, 62, 69, 91, 93]
 created: 2026-07-11
-updated: 2026-07-18
+updated: 2026-07-19
 promotion_state: retained
 promoted_to:
 ---
@@ -58,3 +58,11 @@ was exercised.
   (a done collapsed out of the table yet still styled in the graph) was verified only by reading the
   code. Review caught it as Minor; the fixture now aims the dependency at a collapsed month. Two
   filters that always agree in the fixture are, as far as the suite knows, one filter.
+- 2026-07-19 (#91, PR #104) — **A green suite hid two shipping-blockers because every fixture used
+  tidy inputs.** `mint-stub.sh` mangled any title containing `&` and let a multi-line title inject
+  frontmatter that bypassed the grooming gate ([[model-authored-values-are-untrusted-input]]) — both
+  invisible because no fixture ever passed a title with punctuation. A third gap needed a *combined*
+  state no fixture built: an empty `active/` together with a forced retry. The lesson is about
+  fixture *input* realism rather than mock shape — when the value under test is free text a model
+  writes, the fixture must carry the punctuation, the multi-line case, and the shell metacharacters
+  that real prose carries. Tidy fixtures test the happy path you imagined, not the input you ship.

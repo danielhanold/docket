@@ -46,6 +46,7 @@ One curated finding per file; this index is the hint surface. Load it, then read
 - [atomic-generated-write](atomic-generated-write.md) — Never redirect a renderer straight into the file it generates — > truncates on open, so a failed render destroys the last-good file before its exit code is even read. · also: dataloss, generated ⟨needs promotion⟩
 - [conditional-mkdir-in-loop-aborts-run](conditional-mkdir-in-loop-aborts-run.md) — A conditional mkdir in a per-item loop needs || continue — under set -e a bad target aborts the ENTIRE run, not just that item. · also: errexit, loops
 - [escape-ere-metacharacters-in-key](escape-ere-metacharacters-in-key.md) — Escape ERE metacharacters in a key before building a grep -E match from it — and note the un-fixed twin of a duplicated helper. · also: grep, regex
+- [model-authored-values-are-untrusted-input](model-authored-values-are-untrusted-input.md) — A value a model wrote is untrusted input to a script — and a helper copied from a sibling inherits that sibling's assumption that its values were generated constants. · also: scripts, injection, sed ⟨needs promotion⟩
 - [transient-resource-lifecycle](transient-resource-lifecycle.md) — A fixed-name scratch resource must self-heal from an interrupted run's leftover, and teardown must not eat the diagnostics the failure path still has to read. · also: scripts, cleanup
 
 ## skills

@@ -2,7 +2,7 @@
 slug: guards-are-code
 hook: "A guard is code — mutation-test it (strip the feature, watch it go red) or it is decoration."
 topics: [testing, sentinels, mutation]
-changes: [14, 15, 21, 36, 37, 64, 65, 67, 68, 69, 70, 71, 72, 73, 74, 84, 88, 96]
+changes: [14, 15, 21, 36, 37, 64, 65, 67, 68, 69, 70, 71, 72, 73, 74, 84, 88, 91, 96]
 created: 2026-06-17
 updated: 2026-07-19
 promotion_state: promoted
@@ -136,3 +136,12 @@ lib. A snippet the PLAN hands you is unvetted code: mutation-test it like any as
   Fixed by widening the pattern to both spellings with asserts pinning each. Documented in the same
   pass, unfixed: a token-presence marker is satisfied from any position (a parenthetical would pass),
   and `checked` counts matching *lines*, so one line invoking two role skills passes on one marker.
+- 2026-07-19 (#91, PR #104) — **A gate whose over-correction is also a bug needs a TWO-SIDED proof.**
+  `mint-stub.sh`'s clean-tree precondition guards a `reset --hard` in the shared `.docket` worktree.
+  Both directions are real defects: no gate wipes another agent's uncommitted work (reproduced, with
+  the script still exiting 0), and an over-broad gate keyed on plain `git status --porcelain` counts
+  untracked files, so a stray `.DS_Store` hard-fails the mint on exactly the contended path the
+  feature exists for (also reproduced). A one-sided test — assert dirty fails, or assert clean passes
+  — blesses whichever error it does not probe. The rule generalizes past clean-tree checks: whenever
+  a guard can fail by being too *loose* AND by being too *tight*, mutation-test both directions, and
+  read "the assert passes" as evidence about one side only.
