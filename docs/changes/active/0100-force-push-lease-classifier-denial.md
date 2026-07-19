@@ -1,6 +1,6 @@
 ---
 id: 100
-slug: force-push-with-lease-denied-by-the-auto-mode-classifier-unb
+slug: force-push-lease-classifier-denial
 title: Force-push-with-lease denied by the auto-mode classifier — unblock finalize's merge gate
 status: proposed
 priority: medium
