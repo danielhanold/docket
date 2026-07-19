@@ -2,7 +2,7 @@
 id: 94
 slug: selection-order-digest
 title: Selection-order backlog digest — implement-next selects from a digest instead of walking active/
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-17
 updated: 2026-07-19
@@ -11,12 +11,12 @@ related: [69, 85, 88, 93]
 adrs: [12, 47]
 spec: docs/superpowers/specs/2026-07-19-selection-order-digest-design.md
 plan: docs/superpowers/plans/2026-07-19-selection-order-digest-plan.md
-results:
+results: docs/results/2026-07-19-selection-order-digest-results.md
 trivial: false
 auto_groomable: false
 branch: feat/selection-order-digest
-claimed_at: 2026-07-19T18:44:48Z
-pr:
+claimed_at: 2026-07-19T21:09:34Z
+pr: 108
 blocked_by:
 reconciled: true
 ---
@@ -28,6 +28,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-19-selection-order-digest-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-19-selection-order-digest-design.md) |
 | Plan | [2026-07-19-selection-order-digest-plan.md](https://github.com/danielhanold/docket/blob/feat/selection-order-digest/docs/superpowers/plans/2026-07-19-selection-order-digest-plan.md) |
+| Results | [2026-07-19-selection-order-digest-results.md](https://github.com/danielhanold/docket/blob/feat/selection-order-digest/docs/results/2026-07-19-selection-order-digest-results.md) |
+| PR | 108 |
 | ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0047](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0047-digest-only-read-tier-skips-preflight.md) |
 <!-- docket:artifacts:end -->
 
