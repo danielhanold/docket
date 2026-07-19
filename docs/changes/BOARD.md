@@ -1,12 +1,6 @@
 # Backlog
 
-**100 changes** — 🟢 1 in progress · 🟡 11 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 80 done · 🗑️ 5 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0098](active/0098-stale-finalize-marker-health-check.md) | Health check for a stale `## Finalize blocked` marker | `medium` | [spec](../superpowers/specs/2026-07-19-stale-finalize-marker-health-check-design.md) | `feat/stale-finalize-marker-health-check` |
+**100 changes** — 🟡 11 proposed · 🔴 1 blocked · 🔵 3 implemented · ✅ 80 done · 🗑️ 5 killed
 
 ## 🟡 Proposed (11)
 
@@ -30,12 +24,13 @@
 |---|-------|----------|------------|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | PR #69 is stale (predates the 0068/0072 facade rework and later agent-layer changes) and #0079 (runner delegation) reshapes the design — the build roles should grow a runner field (build.<role>.runner codex, the mixed topology 0079 deferred). Needs a rebase plus redesign pass before merge. |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (3)
 
 | # | Title | Priority | PR | Readiness |
 |---|-------|----------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
 | [0097](active/0097-mirror-readiness-label-parity.md) | GitHub mirror readiness parity — readiness labels stop at `proposed` | `low` | [#105](https://github.com/danielhanold/docket/pull/105) |  |
+| [0098](active/0098-stale-finalize-marker-health-check.md) | Health check for a stale `## Finalize blocked` marker | `medium` | [#106](https://github.com/danielhanold/docket/pull/106) |  |
 
 ```mermaid
 graph TD
