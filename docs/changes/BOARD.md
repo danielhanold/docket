@@ -1,6 +1,6 @@
 # Backlog
 
-**100 changes** — 🟢 1 in progress · 🟡 11 proposed · 🔴 1 blocked · ⚪ 1 deferred · 🔵 1 implemented · ✅ 80 done · 🗑️ 5 killed
+**100 changes** — 🟢 1 in progress · 🟡 12 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 80 done · 🗑️ 5 killed
 
 ## 🟢 In progress (1)
 
@@ -8,7 +8,7 @@
 |---|-------|----------|------|--------|
 | [0097](active/0097-mirror-readiness-label-parity.md) | GitHub mirror readiness parity — readiness labels stop at `proposed` | `low` | [spec](../superpowers/specs/2026-07-19-mirror-readiness-label-parity-design.md) | `feat/mirror-readiness-label-parity` |
 
-## 🟡 Proposed (11)
+## 🟡 Proposed (12)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -20,6 +20,7 @@
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0082](active/0082-global-harnesses-per-repo-generation.md) | Global agent_harnesses doesn't reach per-repo generation — silent no-op | `low` | needs-brainstorm |
 | [0083](active/0083-terminal-publish-gap-detection.md) | A terminal record can silently never reach the integration branch — mark deferred publishes, stop the checker lying | `medium` | build-ready |
+| [0094](active/0094-selection-order-digest.md) | Selection-order backlog digest — implement-next selects from a digest instead of walking active/ | `medium` | needs-brainstorm |
 | [0098](active/0098-stale-finalize-marker-health-check.md) | Health check for a stale `## Finalize blocked` marker | `medium` | build-ready |
 | [0099](active/0099-finalize-marker-clearing-rule-wording.md) | Re-phrase the `## Finalize blocked` clearing rule around what it actually guards | `low` | auto-groom blocked — needs you |
 | [0100](active/0100-force-push-lease-classifier-denial.md) | Force-push-with-lease denied by the auto-mode classifier — unblock finalize's merge gate | `medium` | needs-brainstorm |
@@ -29,12 +30,6 @@
 | # | Title | Priority | Blocked by |
 |---|-------|----------|------------|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | PR #69 is stale (predates the 0068/0072 facade rework and later agent-layer changes) and #0079 (runner delegation) reshapes the design — the build roles should grow a runner field (build.<role>.runner codex, the mixed topology 0079 deferred). Needs a rebase plus redesign pass before merge. |
-
-## ⚪ Deferred (1)
-
-| # | Title | Priority |
-|---|-------|----------|
-| [0094](active/0094-docket-prime-context-digest.md) | docket-prime — a token-budgeted context digest skills load instead of walking docs/changes | `medium` |
 
 ## 🔵 Implemented — awaiting merge (1)
 
