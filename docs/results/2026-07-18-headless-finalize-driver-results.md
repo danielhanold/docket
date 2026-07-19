@@ -10,9 +10,12 @@ sentinel greps, which sample rather than parse. These checks are what the suite 
 - [ ] **Read the new contract end-to-end for executability** — `skills/docket-finalize-change/SKILL.md`,
       the *Selection* matrix + *Terminal disposition* + *`## Finalize blocked`* sections. The question
       is not "is it true" but "could an agent execute it without a second interpretation."
-- [ ] **Confirm the branch-protection prerequisite still holds on this repo** — the drain assumes
+- [x] **Confirm the branch-protection prerequisite still holds on this repo** — the drain assumes
       require-a-PR-with-zero-approvals (README §*Hands-off finalize*). If you re-tighten to require a
       review, every drain stops at `halted` on the first merge, by design.
+      **Verified at this change's own close-out (2026-07-19 UTC):** PR #103 merged via a plain
+      `gh pr merge 103 --rebase` — no `--admin`, and `reviewDecision` empty (no approval on the
+      PR). The prerequisite holds.
 - [ ] **Exercise one real drain before relying on it unattended** — `/loop docket-finalize-change <id>`
       against a single known-good change. `/loop` composition is confirmed on the *implement* side at
       CC 2.1.214; the finalize side has not been driven live, and `contended`/`halted` remain
