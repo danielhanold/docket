@@ -8,14 +8,14 @@ created: 2026-07-17
 updated: 2026-07-19
 depends_on: []
 related: [69, 85, 88, 93]
-adrs: [12]
+adrs: [12, 47]
 spec: docs/superpowers/specs/2026-07-19-selection-order-digest-design.md
 plan: docs/superpowers/plans/2026-07-19-selection-order-digest-plan.md
 results:
 trivial: false
 auto_groomable: false
 branch: feat/selection-order-digest
-claimed_at: 2026-07-19T16:03:37Z
+claimed_at: 2026-07-19T18:44:48Z
 pr:
 blocked_by:
 reconciled: true
@@ -28,7 +28,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-19-selection-order-digest-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-19-selection-order-digest-design.md) |
 | Plan | [2026-07-19-selection-order-digest-plan.md](https://github.com/danielhanold/docket/blob/feat/selection-order-digest/docs/superpowers/plans/2026-07-19-selection-order-digest-plan.md) |
-| ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md) |
+| ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0047](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0047-digest-only-read-tier-skips-preflight.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
