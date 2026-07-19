@@ -207,6 +207,9 @@ auto_capture: false
 # accidentally-tracked generated file (content drift itself is advisory only — every clone
 # regenerates its own copy). A `cursor` harness additionally gets a generated
 # .cursor/rules/docket-dispatch.mdc dispatch rule; sync-agents.sh prunes orphaned docket-* files.
+# An entry may also carry a `runner:` key (e.g. `runner: codex`) alongside `model:`/`effort:` to
+# delegate that agent's whole run to a child harness with its own subscription, models, and
+# skills — see the `runners:` block below.
 #
 # The `claude:` block below MIRRORS docket's shipped built-in defaults (the values in each
 # agents/docket-*.md wrapper), shown so the otherwise-invisible defaults are visible and
@@ -248,6 +251,17 @@ auto_capture: false
 #   #   rebase-resolver:       { model: grok-4.5-xhigh, effort: auto }
 #   #   integration-repair:    { model: grok-4.5-xhigh, effort: auto }
 #   #   finalize-change:       { model: grok-4.5-fast-high, effort: auto }
+
+# runners — per-runner knobs for RUNNER DELEGATION (change 0079): handing an agent's whole run to
+# a child harness with its own subscription, models, and skills. Activated per agent by an explicit
+# `runner:` key inside an `agents:` entry — never inferred from model IDs. One pair ships today:
+# parent `claude` (Claude Code) -> child `codex` (OpenAI Codex CLI). With no agent carrying a
+# `runner:` key, this block is inert.
+# scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
+runners:
+  codex:
+    sandbox: workspace-write   # workspace-write (default) | danger-full-access
+    network: true              # default true — git push and gh need it
 
 
 # ═══ Pluggable workflow skills ═════════════════════════════════════════════════════════════
