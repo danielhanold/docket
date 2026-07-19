@@ -2,7 +2,7 @@
 id: 99
 slug: finalize-marker-clearing-rule-wording
 title: Re-phrase the `## Finalize blocked` clearing rule around what it actually guards
-status: proposed
+status: in-progress
 priority: low
 created: 2026-07-19
 updated: 2026-07-19
@@ -15,7 +15,8 @@ plan:
 results:
 trivial: false
 auto_groomable: false
-branch:
+branch: feat/finalize-marker-clearing-rule-wording
+claimed_at: 2026-07-19T15:56:35Z
 pr:
 blocked_by:
 reconciled: false
