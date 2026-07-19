@@ -27,8 +27,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-18-autonomous-skill-handoff-precedence-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-18-autonomous-skill-handoff-precedence-design.md) |
-| Plan | [2026-07-18-autonomous-skill-handoff-precedence.md](https://github.com/danielhanold/docket/blob/feat/suppress-plan-skill-execution-handoff/docs/superpowers/plans/2026-07-18-autonomous-skill-handoff-precedence.md) |
-| Results | [2026-07-18-suppress-plan-skill-execution-handoff-results.md](https://github.com/danielhanold/docket/blob/feat/suppress-plan-skill-execution-handoff/docs/results/2026-07-18-suppress-plan-skill-execution-handoff-results.md) |
+| Plan | [2026-07-18-autonomous-skill-handoff-precedence.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-18-autonomous-skill-handoff-precedence.md) |
+| Results | [2026-07-18-suppress-plan-skill-execution-handoff-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-18-suppress-plan-skill-execution-handoff-results.md) |
 | PR | [#102](https://github.com/danielhanold/docket/pull/102) |
 | ADRs | [ADR-0024](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0024-claude-context-fork-skill-dispatch.md), [ADR-0044](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0044-autonomy-precedence-call-site-pre-specification.md) |
 <!-- docket:artifacts:end -->
