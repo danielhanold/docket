@@ -11,7 +11,7 @@ related: [87]
 discovered_from: [87]
 adrs: []
 spec: docs/superpowers/specs/2026-07-19-mirror-readiness-label-parity-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-19-mirror-readiness-label-parity.md
 results:
 trivial: false
 auto_groomable:
@@ -28,6 +28,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-19-mirror-readiness-label-parity-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-19-mirror-readiness-label-parity-design.md) |
+| Plan | [2026-07-19-mirror-readiness-label-parity.md](https://github.com/danielhanold/docket/blob/feat/mirror-readiness-label-parity/docs/superpowers/plans/2026-07-19-mirror-readiness-label-parity.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
