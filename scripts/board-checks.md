@@ -76,6 +76,18 @@ evidence is the older, more specific signal and is preserved unchanged.
 dependency is stuck at `implemented` (needs your merge). The finding message names the
 blocking dependency ID.
 
+**`stale-finalize-blocked`** — The change has `status: implemented` and carries the
+`## Finalize blocked` body section (`finalize_blocked`), and that marker has outlived a fixed
+staleness horizon (`FINALIZE_BLOCKED_STALE_SECS`, hardcoded 72 h). Marker age is the change file's
+last-commit timestamp (`git log -1 --format=%ct -- <file>`) — the marker heading is deliberately
+undated and its in-body date is model-authored, so git's clock is the tamper-proof signal. The
+finding names the age in hours and advises re-running finalize with the id. Git-only and warn-only:
+it cannot probe whether the underlying cause still holds (that needs `gh`/network, forbidden here),
+so it fires on **any** marker past the horizon — a still-blocked marker that old is itself worth a
+human glance. It never mutates the change file or auto-clears the marker; that stays
+`docket-finalize-change`'s job. The horizon is a hardcoded constant (mirroring `stale-in-progress`'s
+own `3*86400` branch-idle horizon), not a config knob.
+
 **`merged-orphan`** — A change id is referenced by a commit *subject* on `--integration-branch`
 while the change is still non-terminal (a file under `active/`, not yet archived). This is the
 classic orphan: work merged, but the docket record was never closed out. It is a git-history

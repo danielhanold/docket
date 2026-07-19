@@ -480,6 +480,106 @@ assert "unknown-commit-ref silent for a known archived id (id 53)" \
 assert "merged-orphan names the evidence commit for id 50" \
   'printf "%s" "$oout" | grep -E "$(printf "^merged-orphan\t50\t")" | grep -qF "docket(0050)"'
 
+# ============================ stale-finalize-blocked ============================
+# An 'implemented' change carrying `## Finalize blocked` whose change-file's last commit is older
+# than the hardcoded 72h horizon ⇒ one stale-finalize-blocked finding. A recent last commit ⇒
+# silent. No marker ⇒ silent. A non-implemented status carrying a stray marker ⇒ silent (the
+# status==implemented gate). Marker age is the change file's git commit timestamp (the
+# GIT_AUTHOR/COMMITTER_DATE seams below), never a model-authored in-body date. Hermetic: NOW pinned.
+read -r FB _ < <(new_repo)
+FB_STALE_EPOCH=$(( NOW_EPOCH - 100*3600 ))   # 100h old  > 72h horizon => stale
+FB_FRESH_EPOCH=$(( NOW_EPOCH -   1*3600 ))   #   1h old  < 72h horizon => fresh
+# id 40: implemented + marker, file committed 100h ago ⇒ fires.
+cat > "$FB/docs/changes/active/0040-staleblocked.md" <<'EOF'
+---
+id: 40
+slug: staleblocked
+title: Implemented, finalize-blocked, stale marker
+status: implemented
+priority: medium
+depends_on: []
+pr: https://github.com/o/r/pull/40
+---
+
+## Finalize blocked
+
+### 2026-01-01 — gate failure
+Rebase onto main hit a conflict; a human must resolve.
+EOF
+# id 41: implemented + marker, file committed 1h ago ⇒ silent.
+cat > "$FB/docs/changes/active/0041-freshblocked.md" <<'EOF'
+---
+id: 41
+slug: freshblocked
+title: Implemented, finalize-blocked, fresh marker
+status: implemented
+priority: medium
+depends_on: []
+pr: https://github.com/o/r/pull/41
+---
+
+## Finalize blocked
+
+### 2026-07-19 — gate failure
+Rebase onto main hit a conflict; just marked.
+EOF
+# id 42: implemented, NO marker ⇒ silent (even though committed 100h ago).
+cat > "$FB/docs/changes/active/0042-nomarker.md" <<'EOF'
+---
+id: 42
+slug: nomarker
+title: Implemented, no finalize-blocked marker
+status: implemented
+priority: medium
+depends_on: []
+pr: https://github.com/o/r/pull/42
+---
+
+## Why
+Nothing blocked here.
+EOF
+# id 43: in-progress carrying a STRAY marker, file committed 100h ago ⇒ silent (status gate).
+cat > "$FB/docs/changes/active/0043-wrongstatus.md" <<'EOF'
+---
+id: 43
+slug: wrongstatus
+title: In-progress with a stray finalize-blocked marker
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/wrongstatus
+---
+
+## Finalize blocked
+
+### 2026-01-01 — stray
+Should not fire — status is not implemented.
+EOF
+# Commit the stale-dated fixtures (40/42/43) at 100h-old, then the fresh fixture (41) at 1h-old.
+# `git log -1 --format=%ct -- <file>` resolves each file's own last-touching commit, so the two
+# commits' dates attach per-file regardless of global commit ordering.
+git -C "$FB" add docs/changes/active/0040-staleblocked.md \
+                 docs/changes/active/0042-nomarker.md \
+                 docs/changes/active/0043-wrongstatus.md
+GIT_AUTHOR_DATE="@$FB_STALE_EPOCH +0000" GIT_COMMITTER_DATE="@$FB_STALE_EPOCH +0000" \
+  git_quiet -C "$FB" commit -m "fb: stale fixtures"
+git -C "$FB" add docs/changes/active/0041-freshblocked.md
+GIT_AUTHOR_DATE="@$FB_FRESH_EPOCH +0000" GIT_COMMITTER_DATE="@$FB_FRESH_EPOCH +0000" \
+  git_quiet -C "$FB" commit -m "fb: fresh fixture"
+fbout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$FB/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "stale-finalize-blocked fires for an implemented change with a stale marker (id 40)" \
+  'has_finding "$fbout" stale-finalize-blocked 40'
+assert "stale-finalize-blocked message reports the marker age in hours (100h)" \
+  'printf "%s" "$fbout" | grep -E "$(printf "^stale-finalize-blocked\t40\t")" | grep -qF "100h"'
+assert "stale-finalize-blocked message names re-run finalize with the id (id 40)" \
+  'printf "%s" "$fbout" | grep -E "$(printf "^stale-finalize-blocked\t40\t")" | grep -qF "finalize 40"'
+assert "stale-finalize-blocked silent for a recent marker (id 41)" \
+  '! has_finding "$fbout" stale-finalize-blocked 41'
+assert "stale-finalize-blocked silent for an implemented change without the marker (id 42)" \
+  '! has_finding "$fbout" stale-finalize-blocked 42'
+assert "stale-finalize-blocked silent for a non-implemented change carrying a stray marker (id 43, status gate)" \
+  '! has_finding "$fbout" stale-finalize-blocked 43'
+
 # ============================ docket-status wiring sentinels (SKILL is code on main) ============================
 assert "docket-status Health checks invoke board-checks (via the docket.sh facade)" \
   'grep -qF "docket.sh board-checks" "$SKILL"'

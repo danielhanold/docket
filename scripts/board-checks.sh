@@ -9,7 +9,7 @@
 #                         [--lease-ttl-hours N]
 #   Findings: TAB-separated  <check-id>\t<change-id>\t<message>  on stdout, sorted by (check-id, change-id).
 #     check-id ∈ {broken-spec, broken-plan-results, dep-cycle, stale-in-progress, merge-gate-stall,
-#                 merged-orphan, unknown-commit-ref}
+#                 stale-finalize-blocked, merged-orphan, unknown-commit-ref}
 #   Clean tree ⇒ no output, exit 0. --strict ⇒ exit 1 if any finding (for a future CI gate).
 #   Branch args are passed to `git cat-file -e <ref>:<path>` verbatim; in main-mode the two refs
 #   coincide and both link checks resolve on the same branch with no special-casing.
@@ -58,6 +58,13 @@ git_has(){ "$GIT" -C "$CHANGES_DIR" cat-file -e "$1:$2" 2>/dev/null; }
 declare -A ID_ACTIVE ID_EXISTS                # id -> 1; populated in the FILES walk below
 FINDINGS=""                            # accumulate "<check>\t<id>\t<msg>\n"; sorted + printed at the end
 emit(){ FINDINGS+="$1"$'\t'"$2"$'\t'"$3"$'\n'; }
+
+# Staleness horizon for the stale-finalize-blocked check (change 0098): an 'implemented' change's
+# `## Finalize blocked` marker older than this fires the advisory. Hardcoded, no config knob —
+# mirrors stale-in-progress's own hardcoded 3*86400 branch-idle horizon; 72h matches the lease-TTL
+# default's sense of "a few days is normal, longer is suspicious". Promote to a flag only if
+# independent tuning is ever wanted.
+FINALIZE_BLOCKED_STALE_SECS=$(( 72 * 3600 ))
 
 # Walk every change file (active + archive); per-check filters apply inside.
 mapfile -t FILES < <(find "$CHANGES_DIR/active" "$CHANGES_DIR/archive" -maxdepth 1 -name '*.md' 2>/dev/null | sort)
@@ -127,6 +134,22 @@ for f in "${FILES[@]}"; do
   if [ "$status" = "proposed" ] && { [ -n "$spec" ] || [ "$trivial" = "true" ]; }; then
     if [ "${DEP_REASON[$id]:-}" = "needs your merge" ]; then
       emit merge-gate-stall "$id" "build-ready but waiting on #${DEP_ON[$id]} — needs your merge"
+    fi
+  fi
+
+  # --- stale-finalize-blocked: an 'implemented' change carrying the `## Finalize blocked` marker
+  # whose marker has outlived FINALIZE_BLOCKED_STALE_SECS (change 0098). The marker's only clearing
+  # path is a docket-finalize-change run; when a human resolves the underlying cause out of band
+  # (without re-running finalize with the id named) the marker sits on the board indefinitely. This
+  # is a git-only, time-based advisory: it cannot know whether the cause still holds (that needs a
+  # network probe this script forbids), so it fires on ANY marker past the horizon — a marker still
+  # genuinely blocked that long is itself worth a human glance. Marker age = the change file's
+  # last-commit timestamp (git ct is tamper-proof; the in-body date is model-authored prose). Never
+  # mutates the file / auto-clears the marker — that stays docket-finalize-change's job.
+  if [ "$status" = "implemented" ] && finalize_blocked "$f"; then
+    fbts="$("$GIT" -C "$CHANGES_DIR" log -1 --format=%ct -- "$f" 2>/dev/null)"
+    if [ -n "$fbts" ] && [ "$(( NOW - fbts ))" -gt "$FINALIZE_BLOCKED_STALE_SECS" ]; then
+      emit stale-finalize-blocked "$id" "## Finalize blocked marker set $(( (NOW - fbts) / 3600 ))h ago — resolve the cause and re-run finalize $id, or it will sit on the board"
     fi
   fi
 done
