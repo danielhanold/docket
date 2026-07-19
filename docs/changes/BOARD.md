@@ -1,14 +1,8 @@
 # Backlog
 
-**102 changes** — 🟢 1 in progress · 🟡 10 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 83 done · 🗑️ 5 killed
+**105 changes** — 🟡 13 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 84 done · 🗑️ 5 killed
 
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0101](active/0101-docket-yml-example.md) | .docket.yml.example — the canonical all-comprehensive config reference | `medium` | [spec](../superpowers/specs/2026-07-19-docket-yml-example-design.md) | `feat/docket-yml-example` |
-
-## 🟡 Proposed (10)
+## 🟡 Proposed (13)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -22,6 +16,9 @@
 | [0083](active/0083-terminal-publish-gap-detection.md) | A terminal record can silently never reach the integration branch — mark deferred publishes, stop the checker lying | `medium` | build-ready |
 | [0100](active/0100-force-push-lease-classifier-denial.md) | Force-push-with-lease denied by the auto-mode classifier — unblock finalize's merge gate | `medium` | needs-brainstorm |
 | [0102](active/0102-finalize-require-pr-approval-has-no-layer-resolution.md) | finalize.require_pr_approval has no layer resolution | `medium` | needs-brainstorm |
+| [0103](active/0103-wire-the-github-project-config-read-documented-but-unwired-k.md) | Wire the github_project config read (documented-but-unwired key) | `medium` | needs-brainstorm |
+| [0104](active/0104-guard-tab-in-frontmatter-values-feeding-the-digest-s-tab-joi.md) | Guard TAB in frontmatter values feeding the digest's TAB-joined sort rows | `medium` | needs-brainstorm |
+| [0105](active/0105-pin-docket-mode-main-coverage-for-docket-status-digest-only.md) | Pin DOCKET_MODE=main coverage for docket-status --digest-only | `medium` | needs-brainstorm |
 
 ## 🔴 Blocked (1)
 
@@ -34,7 +31,7 @@
 | # | Title | Priority | PR | Readiness |
 |---|-------|----------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
-| [0094](active/0094-selection-order-digest.md) | Selection-order backlog digest — implement-next selects from a digest instead of walking active/ | `medium` | [#108](https://github.com/danielhanold/docket/pull/108) |  |
+| [0101](active/0101-docket-yml-example.md) | .docket.yml.example — the canonical all-comprehensive config reference | `medium` | [#109](https://github.com/danielhanold/docket/pull/109) |  |
 
 ```mermaid
 graph TD
@@ -48,17 +45,19 @@ graph TD
   0077 --> 0078
   0082
   0083
-  0094
   0100
   0101
   0102
+  0103
+  0104
+  0105
   0015:::done
   0016:::done
   0077:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (88)</summary>
+<details><summary>✅🗑️ Archive — done + killed (89)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
@@ -66,6 +65,7 @@ graph TD
 | [0098](archive/2026-07-19-0098-stale-finalize-marker-health-check.md) | Health check for a stale `## Finalize blocked` marker | 2026-07-19 |
 | [0097](archive/2026-07-19-0097-mirror-readiness-label-parity.md) | GitHub mirror readiness parity — readiness labels stop at `proposed` | 2026-07-19 |
 | [0096](archive/2026-07-19-0096-suppress-plan-skill-execution-handoff.md) | An autonomous run can be halted by a sub-skill's interactive hand-off — pre-specify the outcome at every autonomous call site | 2026-07-19 |
+| [0094](archive/2026-07-19-0094-selection-order-digest.md) | Selection-order backlog digest — implement-next selects from a digest instead of walking active/ | 2026-07-19 |
 | [0091](archive/2026-07-19-0091-auto-create-discovered-stubs.md) | Auto-create discovered stubs — a config flag that turns mid-run findings into proposed changes | 2026-07-19 |
 | [0087](archive/2026-07-19-0087-headless-finalize-driver.md) | Headless finalize — the finalize-side disposition contract, mirroring 0088 | 2026-07-19 |
 | [0095](archive/2026-07-18-0095-retire-auto-approve-workflow.md) | Retire the auto-approve workflow — document the classifier and the single-maintainer branch-protection solution | 2026-07-18 |
@@ -77,7 +77,6 @@ graph TD
 | [0086](archive/2026-07-18-0086-attended-finalize-merge-path.md) | Attended finalize has no merge path under auto_approve — scope the --admin ban to autonomous runs | 2026-07-18 |
 | [0085](archive/2026-07-17-0085-skill-slimming-round-two.md) | Second-round skill slimming — re-slim regrown skills + regrowth guard | 2026-07-17 |
 | [0062](archive/2026-07-17-0062-autonomous-finalize-merge-authorization.md) | Autonomous finalize merge — clear the auto-mode Merge-Without-Review soft-deny | 2026-07-17 |
-| [0084](archive/2026-07-16-0084-terminal-publish-opt-in-default.md) | Flip terminal_publish default to false — publishing to the integration branch becomes opt-in | 2026-07-16 |
 | [0033](archive/2026-07-16-0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | 2026-07-16 |
 | [0076](archive/2026-07-14-0076-cwd-independent-repo-root-resolution.md) | Resolve the repo root independently of CWD — preflight run inside `.docket` mints a nested metadata worktree | 2026-07-14 |
 | [0043](archive/2026-07-08-0043-agent-model-tiers.md) | Model-tier indirection for agent model selection + config-driven advisories | 2026-07-08 |
@@ -87,7 +86,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-07](archive/) | 36 done |
+| [2026-07](archive/) | 37 done |
 | [2026-06](archive/) | 32 done |
 
 </details>
