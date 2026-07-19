@@ -78,7 +78,12 @@ fi
 # enforcement; the header prose is only its statement.
 #
 # Format: "EXPORT_KEY:yaml_regex". A leading '#' in the regex matches the commented form.
-# Export keys that are DERIVED (not settable config) are listed in the skip set below.
+# Export keys that are DERIVED (not settable config) are skipped here so the loop below never
+# asserts they're "mapped" to an example line. REPO_ROOT and METADATA_WORKTREE are ALSO already
+# stripped out of $exp_none by norm() (above) before this loop ever sees them; they're listed
+# here too as belt-and-braces in case norm() ever changes, distinct from DOCKET_MODE /
+# DEFAULT_BRANCH / BOOTSTRAP, which are the genuinely derived-and-skipped keys this list exists
+# for.
 exported_skip="DOCKET_MODE DEFAULT_BRANCH METADATA_WORKTREE REPO_ROOT BOOTSTRAP"
 map_for(){ # map_for <EXPORT_KEY> -> ERE matching the example's line, or empty if unmapped
   case "$1" in
@@ -120,18 +125,25 @@ done
 #   agents / agent_harnesses      — consumed by sync-agents.sh; ship COMMENTED (presence-sensitive)
 #   finalize.require_pr_approval  — MODEL-READ: skills/docket-finalize-change/SKILL.md only
 #   runners.codex.sandbox/network — consumed by scripts/runner-dispatch.sh + scripts/runners/codex.sh
+# These six end-anchor their value: unlike the exported keys in (2a), a wrong value here is
+# caught by NOTHING else in this suite — the fidelity check in (1) is structurally blind to
+# non-exported keys (see the header above (2b)), so an unanchored regex would let a typo'd value
+# that merely has the right value as a PREFIX (e.g. "auto" matching "automanaged", "true" matching
+# "truthy") pass silently. sandbox/network carry a trailing inline `# ...` comment in the example,
+# so their anchors allow one optionally; github_project/require_pr_approval/agent_harnesses/agents
+# carry none.
 assert "completeness: github_project present (auto sentinel)" \
-  'grep -Eq "^github_project:[[:space:]]*auto" "$EX"'
+  'grep -Eq "^github_project:[[:space:]]*auto[[:space:]]*$" "$EX"'
 assert "completeness: agent_harnesses present (commented)" \
-  'grep -Eq "^#[[:space:]]*agent_harnesses:[[:space:]]*\[[[:space:]]*claude[[:space:]]*\]" "$EX"'
+  'grep -Eq "^#[[:space:]]*agent_harnesses:[[:space:]]*\[[[:space:]]*claude[[:space:]]*\][[:space:]]*$" "$EX"'
 assert "completeness: agents present (commented)" \
-  'grep -Eq "^#[[:space:]]*agents:" "$EX"'
+  'grep -Eq "^#[[:space:]]*agents:[[:space:]]*$" "$EX"'
 assert "completeness: finalize.require_pr_approval present" \
-  'grep -Eq "^[[:space:]]+require_pr_approval:[[:space:]]*false" "$EX"'
+  'grep -Eq "^[[:space:]]+require_pr_approval:[[:space:]]*false[[:space:]]*$" "$EX"'
 assert "completeness: runners.codex.sandbox present" \
-  'grep -Eq "^[[:space:]]+sandbox:[[:space:]]*workspace-write" "$EX"'
+  'grep -Eq "^[[:space:]]+sandbox:[[:space:]]*workspace-write[[:space:]]*(#.*)?$" "$EX"'
 assert "completeness: runners.codex.network present" \
-  'grep -Eq "^[[:space:]]+network:[[:space:]]*true" "$EX"'
+  'grep -Eq "^[[:space:]]+network:[[:space:]]*true[[:space:]]*(#.*)?$" "$EX"'
 assert "completeness: runners block header present" 'grep -Eq "^runners:" "$EX"'
 
 # runners.* is consumed by the runner-dispatch script family, not the resolver. Anchor on the
@@ -148,11 +160,161 @@ assert "require_pr_approval is still read by the finalize skill body" \
 # The standing rule is STATED in the header (and enforced by the loop above).
 assert "example header states the must-update rule" \
   'grep -Eqi "every new config flag lands in" "$EX"'
+# Checks all four layers the header's numbered list names (repo-local, repo-committed, global,
+# built-in), not just two of them — each anchor is the list marker itself ("N. <layer-name>"),
+# unique to that one line, so dropping any single layer from the header flips this NOT OK.
 assert "example documents the four layers" \
-  'grep -qF ".docket.local.yml" "$EX" && grep -qF "config.yml" "$EX"'
+  'grep -qF "1. repo-local" "$EX" && grep -qF "2. repo-committed" "$EX" && grep -qF "3. global" "$EX" && grep -qF "4. built-in" "$EX"'
 
-# Scope tags: both forms present, and every ACTIVE top-level key is tagged.
+# Scope tags: both forms present, and every ACTIVE top-level key is individually tagged — a real
+# per-key check, not just "the phrase occurs somewhere in the file" (which the two asserts below
+# alone would only prove). The awk pass finds each active (uncommented) top-level key's own
+# preceding comment "window" bounded by the nearest neighbor on either side among: a section
+# banner (# ═══...), another active top-level key, or a commented pseudo-key (# agent_harnesses:
+# / # agents:). A header key (a mapping-opener like `finalize:`, with nothing after the colon)
+# extends its window forward through its nested body, since its scope lives on its children, not
+# on the header line itself. A scalar key whose window comes up empty (no comment lines of its
+# own, immediately adjacent to the previous active key with zero lines between) inherits that
+# key's tag coverage — this is the changes_dir / adrs_dir / results_dir group, one shared comment
+# block above all three.
 assert "scope tag: repo-only form present"  'grep -qF "scope: repo-only (coordination-fenced, ADR-0019)" "$EX"'
 assert "scope tag: any-layer form present"  'grep -qF "scope: any layer" "$EX"'
+untagged_keys="$(awk '
+  {
+    content[NR] = $0
+    is_active = ($0 ~ /^[A-Za-z_][A-Za-z0-9_]*:/)
+    is_pseudo = ($0 ~ /^# (agent_harnesses|agents):/)
+    is_banner = ($0 ~ /^#[[:space:]]*═══/)
+    if (is_active || is_pseudo || is_banner) { nb++; bnd[nb] = NR }
+    if (is_active) {
+      nk++
+      keyline[nk] = NR
+      keytype[nk] = ($0 ~ /^[A-Za-z_][A-Za-z0-9_]*:[[:space:]]*$/) ? "H" : "S"
+      bndidx[nk] = nb
+    }
+  }
+  END {
+    maxNR = NR
+    for (k = 1; k <= nk; k++) {
+      idx = bndidx[k]
+      prevB = (idx > 1) ? bnd[idx-1] : 0
+      winStart = prevB + 1
+      if (keytype[k] == "H") {
+        nextB = (idx < nb) ? bnd[idx+1] : (maxNR + 1)
+        winEnd = nextB - 1
+      } else {
+        winEnd = keyline[k]
+      }
+      tagged = 0
+      for (l = winStart; l <= winEnd; l++) {
+        if (content[l] ~ /scope: repo-only \(coordination-fenced, ADR-0019\)/) tagged = 1
+        if (content[l] ~ /scope: any layer/) tagged = 1
+      }
+      if (!tagged && k > 1 && winStart == keyline[k] && prevB == keyline[k-1]) {
+        tagged = taggedEff[k-1]
+      }
+      taggedEff[k] = tagged
+      if (!tagged) {
+        name = content[keyline[k]]
+        sub(/:.*/, "", name)
+        print name
+      }
+    }
+  }
+' "$EX")"
+assert "scope tag: every ACTIVE top-level key is individually tagged" '[ -z "$untagged_keys" ]'
+if [ -n "$untagged_keys" ]; then
+  echo "--- untagged top-level keys ---"
+  printf '%s\n' "$untagged_keys"
+  echo "---"
+fi
+
+# --- (3) PRESENCE-SENSITIVE keys ship COMMENTED ------------------------------
+# Regression guard for a real break (change 0048): gating per-repo generation on file PRESENCE
+# littered wrappers into change-tracking-only repos and flipped their --check from a no-op to
+# failing. An ACTIVE agents:/agent_harnesses: header in this example would re-arm that hazard
+# for anyone who copies the file wholesale. See the opt-in-signal-not-file-presence learning.
+assert "no ACTIVE agents: header"          '! grep -Eq "^agents:[[:space:]]*$" "$EX"'
+assert "no ACTIVE agent_harnesses: header" '! grep -Eq "^agent_harnesses:" "$EX"'
+# Scoped to the commented agents: excerpt (through the real, ACTIVE runners: header that follows
+# it): the whole-file pattern also matches runners.codex: (change 0079), which IS meant to ship
+# active — a real false positive caught while writing this guard.
+assert "no ACTIVE codex: header under agents:" \
+  '! sed -n "/^# agents:$/,/^runners:$/p" "$EX" | grep -Eq "^[[:space:]]*codex:[[:space:]]*$"'
+assert "no ACTIVE cursor: header under agents:" \
+  '! sed -n "/^# agents:$/,/^runners:$/p" "$EX" | grep -Eq "^[[:space:]]*cursor:[[:space:]]*$"'
+assert "PRESENCE-SENSITIVE marker present (agents + agent_harnesses)" \
+  '[ "$(grep -cF "PRESENCE-SENSITIVE: uncommenting this key changes behavior" "$EX")" -ge 2 ]'
+# ...but the commented examples ARE present, so a user can find and enable them. codex/cursor
+# sit under a DOUBLY-commented example block (disabled-within-disabled), so the pattern allows
+# one optional extra '#' layer.
+assert "commented codex example present"  'grep -Eq "^#[[:space:]]*#?[[:space:]]*codex:" "$EX"'
+assert "commented cursor example present" 'grep -Eq "^#[[:space:]]*#?[[:space:]]*cursor:" "$EX"'
+
+# --- (4) MIRROR EQUALITY: relocated ADR-0039 ---------------------------------
+# The commented agents.claude block mirrors agents/docket-*.md wrapper frontmatter VALUE FOR
+# VALUE. The wrappers LEAD; this file mirrors. Same field regex as sync-agents.sh's field_of(),
+# so the test cannot accept a shape the real resolver would reject.
+fm(){ sed -n "s/^$2:[[:space:]]*//p" "$1" | head -n1 | sed 's/[[:space:]]*$//'; }
+# The example's agent lines are COMMENTED, so strip a leading '# ' before matching.
+ex_field(){ # $1=agent  $2=field(model|effort)
+  local line
+  line="$(sed -E 's/^[[:space:]]*#[[:space:]]?//' "$EX" | grep -E "^    $1:[[:space:]]" | head -n1)"
+  printf '%s' "$line" | sed -nE "s/.*[{,[:space:]]$2[[:space:]]*:[[:space:]]*([A-Za-z0-9._-]+).*/\1/p" | head -n1
+}
+for a in status adr brainstorm-consultant auto-groom auto-groom-critic \
+         implement-next rebase-resolver integration-repair finalize-change; do
+  w="$REPO/agents/docket-$a.md"
+  assert "$a: wrapper exists" '[ -f "$w" ]'
+  assert "$a: model mirrors wrapper" '[ -n "$(ex_field "$a" model)" ] && [ "$(ex_field "$a" model)" = "$(fm "$w" model)" ]'
+  assert "$a: effort mirrors wrapper" '[ -n "$(ex_field "$a" effort)" ] && [ "$(ex_field "$a" effort)" = "$(fm "$w" effort)" ]'
+done
+
+# --- (5) RESOLVER ROUND-TRIP (retained from tests/test_config_example.sh) ----
+# Uncomment the agents: block + the cursor block and enable cursor — the example IDs must resolve
+# through the REAL resolver (sync-agents.sh) into a cursor wrapper. Proves the commented blocks
+# are valid YAML, not decorative prose.
+#
+# The naive "strip a leading # from every line" approach corrupts the file: dozens of unrelated
+# prose paragraphs elsewhere also start with "#" + indentation and would get uncommented into
+# garbage right along with the agents: block. So this ISOLATES the exact commented region first
+# (unique start/end anchors, verified against this file) and transforms ONLY that slice.
+#
+# Within the slice, codex:/cursor: are DOUBLY commented (disabled inside the disabled agents:
+# block — an extra opt-in step past enabling agents: itself). Stage 1 strips one '# ' layer,
+# which uncomments agents:/claude:/its nine children and demotes codex:/cursor: from doubly- to
+# singly-commented (still inert). Stage 2 then strips cursor:'s own remaining layer — ONLY
+# cursor's, leaving codex commented. The two stage-2 substitutions must run children-line-first:
+# both are gated by the same `/^  # cursor:/,$` range address, and once the header substitution
+# fires it consumes the '#' that the range address matches on — reordering it first would freeze
+# the range before the children ever get touched (found by testing against the real file).
+agents_block="$(sed -n '/^# agents:$/,/finalize-change:.*grok-4\.5-fast-high/p' "$EX")"
+stage1="$(printf '%s\n' "$agents_block" | sed -E 's/^#[[:space:]]?//')"
+stage2="$(printf '%s\n' "$stage1" | sed -E \
+  -e '/^  # cursor:/,$ s/^  #   /    /' \
+  -e '/^  # cursor:/,$ s/^  # ?(cursor:)/  \1/')"
+# Derive the harness list from the REAL commented agent_harnesses: line (proving IT is valid too)
+# rather than hand-writing an unrelated literal, then extend it to enable cursor.
+harnesses_line="$(sed -n 's/^#[[:space:]]*\(agent_harnesses:.*\)/\1/p' "$EX" | head -n1)"
+harnesses_line="$(printf '%s' "$harnesses_line" | sed -E 's/\[claude\]/[claude, cursor]/')"
+
+SB="$(mktemp -d)"; _sbs="$SB"
+mkdir -p "$SB/.claude/agents" "$SB/.cursor/agents" "$SB/.config/docket"
+{
+  printf '%s\n' "$harnesses_line"
+  printf '%s\n' "$stage2"
+} > "$SB/.config/docket/config.yml"
+err="$(cd "$SB" && HOME="$SB" XDG_CONFIG_HOME="$SB/.config" DOCKET_HARNESS_ROOT="$SB" \
+       bash "$REPO/sync-agents.sh" 2>&1 >/dev/null)"; rc=$?
+assert "round-trip: sync-agents resolves the uncommented example (exit 0)" '[ "$rc" = "0" ]'
+assert "round-trip: no unknown-harness-token warning" \
+  '! printf "%s" "$err" | grep -qiE "unknown agent_harnesses token"'
+assert "round-trip: a claude wrapper was generated" '[ -f "$SB/.claude/agents/docket-status.md" ]'
+assert "round-trip: claude status model mirrors the built-in" \
+  '[ "$(fm "$SB/.claude/agents/docket-status.md" model)" = "$(fm "$REPO/agents/docket-status.md" model)" ]'
+assert "round-trip: a cursor wrapper was generated" '[ -f "$SB/.cursor/agents/docket-status.md" ]'
+assert "round-trip: cursor status model came from the example block" \
+  '[ "$(fm "$SB/.cursor/agents/docket-status.md" model)" = "grok-4.5-fast-medium" ]'
+rm -rf "$_sbs"
 
 exit $fail
