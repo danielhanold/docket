@@ -1,0 +1,269 @@
+# .docket.yml.example — docket's canonical, all-comprehensive configuration reference.
+#
+# THIS FILE IS DOCUMENTATION. No docket tooling ever reads it: the resolver reads `.docket.yml`
+# from your repo's default branch (origin/HEAD). This file exists so that every key, its shipped
+# default, its meaning, and the layers it may be set in are visible in ONE place. Tests keep it
+# honest (tests/test_docket_yml_example.sh).
+#
+# ── The four layers ────────────────────────────────────────────────────────────────────────
+# Configuration resolves PER KEY, with precedence:
+#   1. repo-local    <repo>/.docket.local.yml                     (this machine, this repo; gitignored)
+#   2. repo-committed <repo>/.docket.yml                          (every clone — committed on origin/HEAD)
+#   3. global        ${XDG_CONFIG_HOME:-~/.config}/docket/config.yml  (this machine, every repo)
+#   4. built-in      docket's defaults — the values in this file
+# Map-valued keys (`skills:`, `agents:`) merge FIELD BY FIELD with the same precedence.
+#
+# ── How to use this file ───────────────────────────────────────────────────────────────────
+# Copy the keys you want to CHANGE into the layer you want them in. Do not copy the whole file
+# unless you mean to — though an unedited full copy behaves identically to no file at all, since
+# every active value here IS the shipped default. The two PRESENCE-SENSITIVE keys are the
+# exception: they ship commented because uncommenting them changes behavior at default values.
+#
+# ── Scope tags ─────────────────────────────────────────────────────────────────────────────
+# Every key carries one:
+#   # scope: repo-only (coordination-fenced, ADR-0019)
+#       Writes shared, non-re-derivable state. Settable ONLY in the repo's committed .docket.yml;
+#       a value in .docket.local.yml or the global config is loudly warned-and-ignored.
+#   # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
+#       Behavioral only. Per-machine divergence is benign.
+# The authoritative classification lives in scripts/docket-config.md; this file mirrors it.
+#
+# ── THE STANDING RULE ──────────────────────────────────────────────────────────────────────
+# EVERY new config flag lands in THIS FILE — its value AND its documentation — in the SAME PR
+# that introduces it. tests/test_docket_yml_example.sh enforces it: a new key with no entry here
+# fails the suite. This rule is why the file is worth having; without it the file drifts and
+# becomes the fourth stale surface it was created to replace.
+
+
+# ═══ Branch model & layout ═════════════════════════════════════════════════════════════════
+
+# metadata_branch — where planning metadata lives. `docket` (the default) puts the repo in
+# DOCKET-MODE (migrate an existing repo with migrate-to-docket.sh — change 0002): changes, the
+# board, ADRs, and specs are the live surface on the `docket` branch, checked out into a
+# <repo>/.docket worktree, while the integration branch keeps code, build artifacts, and
+# published terminal records. `main` opts out to single-branch mode, where planning metadata
+# sits beside the code on the integration branch and no .docket worktree is used. Only those
+# two values parse — anything else is a hard startup error.
+# scope: repo-only (coordination-fenced, ADR-0019)
+metadata_branch: docket
+
+# integration_branch — the branch code lands on, i.e. where PRs merge. `auto` (the default)
+# resolves to the repo's default branch, origin/HEAD; name a branch explicitly (`main`,
+# `develop`) to point docket at a different code line. The named ref must exist on origin, or
+# startup fails closed rather than guessing.
+# scope: repo-only (coordination-fenced, ADR-0019)
+integration_branch: auto
+
+# changes_dir / adrs_dir / results_dir — where docket's three markdown ledgers live, relative to
+# the repo root on the metadata branch: change files plus the derived board; the immutable ADR
+# ledger; and published results records.
+# scope: repo-only (coordination-fenced, ADR-0019)
+changes_dir: docs/changes
+adrs_dir: docs/adrs
+results_dir: docs/results
+
+
+# ═══ finalize — the merge gate ═════════════════════════════════════════════════════════════
+
+# The finalize merge gate (change 0015): rebase the feature branch onto the integration branch
+# and re-validate the merged result before docket merges, so a behind-base PR can't land a
+# semantically-broken integration branch.
+finalize:
+  # gate — local (default, on) | ci | both | off. `off` restores pre-0015 behavior: merge
+  # trusting the PR's own CI, with no local rebase-and-retest.
+  # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
+  gate: local
+
+  # test_command — the suite the gate runs. `auto` (default) is the explicit spelling of UNSET:
+  # finalize auto-detects the suite. Set a real command only to override a wrong guess. The
+  # sentinel is resolved away before any consumer sees it — finalize would otherwise try to RUN
+  # `auto` as a shell command.
+  # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
+  test_command: auto
+
+  # require_pr_approval — governs the AUTO-DETECT finalize path only. false (default): docket
+  # merges an eligible implemented change without requiring a GitHub approval. true: the no-arg
+  # path REFUSES to merge a PR whose reviewDecision != APPROVED, surfacing it instead.
+  # An explicit `docket-finalize-change <id>` (or an id allowlist) always OVERRIDES this —
+  # naming the id IS the authorization. Read by the finalize skill body, not by any script.
+  # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
+  require_pr_approval: false
+
+
+# ═══ learnings — the build loop's memory ═══════════════════════════════════════════════════
+
+# The learnings subsystem (change 0067). Findings live in <changes_dir>/learnings/ (one curated
+# finding per file) with a GENERATED README.md index; groom/plan/review load the index and pull
+# only relevant findings.
+learnings:
+  # enabled — false turns the WHOLE subsystem off: readers skip (zero token cost), the harvest
+  # no-ops with a one-line note, and the index is never rendered. It is a read/write GATE, never
+  # a purge: existing learnings/ files are left untouched and re-enabling resumes from them.
+  # Note: because the harvest is one-shot at close-out, a change that closes on a disabled
+  # machine is permanently un-harvested — a deliberate, bounded cost.
+  # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
+  enabled: true
+
+  # cap — the ACTIVE-finding count (retained + candidate; promoted ones don't count) past which
+  # docket flags "needs curation". docket never auto-merges its own memory — you curate.
+  # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
+  cap: 300
+
+
+# ═══ reclaim — self-healing stale claims ═══════════════════════════════════════════════════
+
+# The reclaim subsystem (change 0089) — expired in-progress claims self-heal back to proposed.
+# A crashed docket-implement-next leaves a change stuck at in-progress; a claim lease (claimed_at:,
+# stamped at claim) + this TTL let a deterministic reclaim pass flip an EXPIRED, NO-BRANCH claim
+# back to build-ready proposed. Detection is always on (docket-status flags + recommends);
+# MUTATION is opt-in.
+reclaim:
+  # lease_ttl — generous hours, >= the 3-day stale-in-progress window.
+  # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
+  lease_ttl: 72
+
+  # auto — false (default) => flag + recommend only. true => docket-status self-heals each pass.
+  # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
+  auto: false
+
+
+# ═══ Board surfaces ════════════════════════════════════════════════════════════════════════
+
+# board_surfaces — which derived board view(s) to render. A list; [] disables the board entirely
+# (it resolves to the reserved token `none` — change 0071; an empty value is never emitted,
+# because empty means "nobody resolved this", a wiring bug).
+#   inline  → BOARD.md on the metadata branch (offline-safe, committed)
+#   github  → one-way GitHub Issues + Projects v2 mirror (scripts/github-mirror.sh)
+# Default [inline] (github is strictly opt-in). [inline, github] = both; [github] = GitHub-only.
+# scope: any layer (.docket.yml, .docket.local.yml, or global config.yml) — EXCEPT the `github`
+#   token, which is repo-only (coordination-fenced, ADR-0019) because it mints external GitHub
+#   objects: a `github` arriving from .docket.local.yml or the global config is warned-and-
+#   dropped while the rest of the list is honored.
+board_surfaces: [inline]
+
+# github_project — the auto-managed GitHub Projects v2 board backing the `github` board surface.
+# `auto` (default) means UNMINTED: the first `github` sync creates the board (private, under the
+# repo owner) and writes the resolved {owner, number} back over this value. Consulted only when
+# board_surfaces includes `github`. Set it explicitly to point at an existing board:
+#   github_project: {owner: my-org, number: 7}
+# scope: repo-only (coordination-fenced, ADR-0019)
+github_project: auto
+
+
+# ═══ Publishing & autonomy ═════════════════════════════════════════════════════════════════
+
+# terminal_publish — the terminal-record publish opt-in (changes 0064/0084). Default FALSE:
+# terminal records stay on the metadata branch only, and the integration branch gets code, plans,
+# and results via PRs alone. Set true to ALSO copy the archived change file + its spec + its
+# Accepted ADRs from the metadata branch onto the integration branch in a direct commit at
+# close-out (and to let docket-adr publish ADRs the same way). That is a direct push to the code
+# line: it bypasses PRs, can trip branch protection, and can be denied mid-run by an agent
+# permission classifier — so opt in deliberately. Inert in main-mode.
+# scope: repo-only (coordination-fenced, ADR-0019)
+terminal_publish: false
+
+# auto_groom — the repo-wide default for autonomous grooming (docket-auto-groom). false
+# (default) keeps every needs-brainstorm stub in the interactive queue. A per-change
+# `auto_groomable:` field overrides this either way; unset on a change means "inherit this knob".
+# scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
+auto_groom: false
+
+# auto_capture — (change 0091) mid-run discovered work becomes a proposed stub instead of prose.
+# When an AUTONOMOUS run surfaces genuine follow-up work (implement-next's reconcile/review, a
+# close-out finding), there is no human to ask. With auto_capture: true the skill mints a
+# needs-brainstorm stub with discovered_from: provenance; you still gate it at groom time, so this
+# buys capture fidelity, not autonomy. Bounded: a cheap active-slug dedup check and a hardcoded cap
+# of 3 stubs per invocation, with any overflow reported rather than dropped. docket-auto-groom is
+# deliberately never a mint site. Fails closed on a non-boolean.
+# scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
+auto_capture: false
+
+
+# ═══ Agent harnesses & per-skill models ════════════════════════════════════════════════════
+
+# agent_harnesses — which harnesses the PER-REPO agent pass generates wrapper files for.
+# Value default is [claude]. But PRESENCE in a repo file is itself the opt-in to per-repo wrapper
+# generation: a repo that adopts docket for change-tracking only, with neither this key nor
+# `agents:` set anywhere, generates no wrappers and keeps `sync-agents.sh --check` a no-op.
+# To enable another harness: add it here AND uncomment that harness's block under `agents:`,
+# then re-run install.sh. Model IDs pass through verbatim; unknown tokens are warned + dropped.
+# PRESENCE-SENSITIVE: uncommenting this key changes behavior even at these default values.
+# scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
+# agent_harnesses: [claude]
+
+# agents — per-skill subagent model/effort (change 0016), harness-first (change 0046). Generated
+# into agent wrappers by sync-agents.sh. Keys are skill SHORT names nested under a reserved
+# `default:` (the harness-neutral fallback) and, optionally, per-harness override keys (e.g.
+# `cursor:`) that only need to list the fields that differ; resolution is field-by-field:
+# agents.<harness>.<agent> -> agents.default.<agent> -> shipped built-in (agents/docket-*.md).
+# `effort: auto` explicitly drops the effort line (inherit the model default); omitting the
+# `effort:` key instead keeps the built-in effort — auto and omitted are NOT equivalent. Only the
+# 5 autonomous skills have wrappers; new-change/groom-next are advisory-only and ignore this block.
+# Configuring a skill here overrides its model/effort in the generated, machine-local
+# .<harness>/agents/docket-<skill>.md — which is regenerated for every built-in regardless (full
+# set; this block is OVERRIDE-ONLY, tuning model/effort and never deciding which agents exist),
+# gitignored via a managed .gitignore block, and never committed. Run `sync-agents.sh` after
+# editing, and `sync-agents.sh --check` in CI to catch a missing/stale .gitignore block or an
+# accidentally-tracked generated file (content drift itself is advisory only — every clone
+# regenerates its own copy). A `cursor` harness additionally gets a generated
+# .cursor/rules/docket-dispatch.mdc dispatch rule; sync-agents.sh prunes orphaned docket-* files.
+#
+# The `claude:` block below MIRRORS docket's shipped built-in defaults (the values in each
+# agents/docket-*.md wrapper), shown so the otherwise-invisible defaults are visible and
+# tunable. Deleting any line falls back to the SAME built-in. Per ADR-0039 the wrappers are
+# the single source of truth; if a shipped default changes, update this mirror to match.
+#
+# PRESENCE-SENSITIVE: uncommenting this key changes behavior even at these default values.
+# scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
+# agents:
+#   claude:
+#     status:                { model: claude-haiku-4-5-20251001, effort: medium }
+#     adr:                   { model: claude-sonnet-5,           effort: medium }
+#     brainstorm-consultant: { model: claude-opus-4-8,           effort: xhigh }
+#     auto-groom:            { model: claude-opus-4-8,           effort: xhigh }
+#     auto-groom-critic:     { model: claude-opus-4-8,           effort: xhigh }
+#     implement-next:        { model: claude-opus-4-8,           effort: xhigh }
+#     rebase-resolver:       { model: claude-opus-4-8,           effort: xhigh }
+#     integration-repair:    { model: claude-opus-4-8,           effort: xhigh }
+#     finalize-change:       { model: claude-sonnet-5,           effort: medium }
+#
+#   # To enable a block below: verify the example IDs against your harness's current models, uncomment the block, and add the harness to `agent_harnesses` above. The IDs here are UNVALIDATED examples.
+#   # codex:
+#   #   status:                { model: gpt-5.6-luna, effort: xhigh }
+#   #   adr:                   { model: gpt-5.6-terra, effort: xhigh }
+#   #   brainstorm-consultant: { model: gpt-5.6-sol, effort: medium }
+#   #   auto-groom:            { model: gpt-5.6-sol, effort: low }
+#   #   auto-groom-critic:     { model: gpt-5.6-sol, effort: medium }
+#   #   implement-next:        { model: gpt-5.6-sol, effort: medium }
+#   #   rebase-resolver:       { model: gpt-5.6-sol, effort: high }
+#   #   integration-repair:    { model: gpt-5.6-sol, effort: high }
+#   #   finalize-change:       { model: gpt-5.6-terra, effort: high }
+#   # cursor:
+#   #   status:                { model: grok-4.5-fast-medium, effort: auto }
+#   #   adr:                   { model: grok-4.5-xhigh, effort: auto }
+#   #   brainstorm-consultant: { model: grok-4.5-xhigh, effort: auto }
+#   #   auto-groom:            { model: grok-4.5-high, effort: auto }
+#   #   auto-groom-critic:     { model: grok-4.5-xhigh, effort: auto }
+#   #   implement-next:        { model: grok-4.5-xhigh, effort: auto }
+#   #   rebase-resolver:       { model: grok-4.5-xhigh, effort: auto }
+#   #   integration-repair:    { model: grok-4.5-xhigh, effort: auto }
+#   #   finalize-change:       { model: grok-4.5-fast-high, effort: auto }
+
+
+# ═══ Pluggable workflow skills ═════════════════════════════════════════════════════════════
+
+# skills — (change 0049) rebinds any of the five workflow invocation points — brainstorm / plan /
+# build / review / finish — to a different skill (the name passes to the Skill tool verbatim,
+# unvalidated) or to `auto` (no skill; the running agent performs the step inline at its own
+# model — e.g. `build: auto` to build without SDD fan-out). Unset keys default to the superpowers
+# skills shown, so an absent block is byte-identical to superpowers-everywhere; a
+# resolved-but-unavailable skill degrades to that role's `auto` fallback with a prominent warning.
+# Unknown role keys are warned + ignored. Shape and per-role fallback artifacts: docket-convention
+# "Skill layer".
+# scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
+skills:
+  brainstorm: superpowers:brainstorming
+  plan:       superpowers:writing-plans
+  build:      superpowers:subagent-driven-development
+  review:     superpowers:requesting-code-review
+  finish:     superpowers:finishing-a-development-branch
