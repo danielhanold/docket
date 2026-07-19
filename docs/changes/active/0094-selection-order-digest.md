@@ -15,10 +15,10 @@ results:
 trivial: false
 auto_groomable: false
 branch: feat/selection-order-digest
-claimed_at: 2026-07-19T16:00:57Z
+claimed_at: 2026-07-19T16:03:37Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -100,3 +100,37 @@ an in-place reorder; the digest is an accelerator, so the convention's selection
 authoritative in Step 1's prose; claim-age is dropped for want of a consumer._
 
 ## Reconcile log
+
+### 2026-07-19 — build claim (docket-implement-next)
+
+Reconciled against `origin/main` @ `a75995f`. **Scope unchanged; design holds in full.** Every
+premise the spec rests on was re-verified in current code rather than taken on trust:
+
+- **`render-board.sh --format digest` ships as described** — the digest block emits `backlog …`
+  rollups then one `change <id> <status> <readiness> <slug>` per active change, id-ascending, and
+  `exit 0`s before the markdown path. `digest_readiness()` delegates to `readiness()` in
+  `lib/docket-frontmatter.sh`, which returns the `build-ready` token. Confirmed: the `ready` line
+  needs **no new readiness logic and no new file reads** (spec §2.2).
+- **Both blockers are still real.** `docket.sh`'s `WRAPPED_OPS` still has no `render-board`, and
+  `docket-status.sh --board-only` still commits + pushes `BOARD.md`. The `--digest-only` entry
+  point (§2.4) remains the necessary plumbing, not an optional nicety.
+- **No classifier change needed.** `board_classify()` keys only on lines matching `board `; its
+  own comment names the digest as ignored. A `ready` line cannot be mistaken for a board verdict.
+- **Related work is all landed** — 0069 (digest projection), 0085 (board classify/must-land), 0088
+  (loop continuation), 0093 (archive decay) are archived `done`; ADR-0012 (script-vs-model
+  boundary) is still `Accepted` and still governs: the script owns the ordering, the model does
+  not re-derive it.
+- **The budget raise is confirmed, not contingent.** `tests/test_skill_size_budgets.sh` carries
+  `skills/docket-implement-next/SKILL.md 140 2845`; the file is at **129 lines / 2833 words** —
+  11 lines and 12 words of headroom. The Step 1 rewrite will need an in-diff raise of that row.
+
+**One implementation constraint surfaced that the spec does not state.** `docket-status.sh`'s
+`main()` opens with `docket_preflight`, which **fetches and `pull --rebase`s the metadata
+worktree**. That is a working-tree mutation and can move `HEAD`, which would contradict §5's
+`--digest-only` test ("`BOARD.md` byte-unchanged, working tree clean, `HEAD` unmoved"). So
+`--digest-only` must resolve config **without** the full preflight sync — config export only. This
+is consistent rather than a compromise: §3 already orders the digest read *after* Step 0's
+preflight, so the tree is freshly synced and a second sync would be redundant. Recorded here
+because it is the one place the build could silently satisfy the prose and fail the posture.
+
+**Escape hatches: neither fired.** The change is not obsolete and the design is not invalidated.

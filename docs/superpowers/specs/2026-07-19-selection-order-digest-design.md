@@ -84,6 +84,13 @@ A dedicated new script was rejected as a contract file's worth of ceremony for o
   classifier already ignores non-`board` lines (`docket-status.sh:107`), so `ready` needs no
   classifier change.
 - `--digest-only` with `--board-only` is an argument error (exit 2) — opposite postures.
+- **It must NOT run the full `docket_preflight`** (added at the 2026-07-19 build reconcile).
+  `docket-status.sh`'s `main()` opens with `docket_preflight`, which fetches and `pull --rebase`s the
+  metadata worktree — a working-tree mutation that can move `HEAD` and would contradict §5's
+  "writes nothing / `HEAD` unmoved" test. `--digest-only` resolves config **only** (the config
+  export), and takes the change files as it finds them. This costs nothing: §3 already orders the
+  digest read *after* Step 0's preflight, so the tree is freshly synced and a second sync would be
+  redundant. This is the one place the build could satisfy the prose and still fail the posture.
 
 ### 2.5 Claim-age is out
 
