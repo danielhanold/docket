@@ -2,10 +2,10 @@
 
 ## Purpose
 
-Scaffold the global docket config on first run: drop the committed `config.yml.example`
-into place as the user's global `~/.config/docket/config.yml`, so the otherwise-invisible
-per-skill defaults are discoverable and the file exists for editing — without ever
-clobbering a config the user has already written.
+Scaffold the global docket config on first run: write a minimal, pointer-only
+`~/.config/docket/config.yml` — a header comment naming `.docket.yml.example` as the canonical
+reference, and zero active keys — so the file exists for editing without ever pinning a shipped
+default, and without ever clobbering a config the user has already written.
 
 ## Usage
 
@@ -24,21 +24,21 @@ Environment:
 ## Behavior
 
 - Destination: `${XDG_CONFIG_HOME:-${DOCKET_HARNESS_ROOT:-$HOME}/.config}/docket/config.yml`.
-- If the destination does NOT exist: create the parent dir as needed, copy
-  `config.yml.example` (from the repo root) to it, and log
-  `docket: wrote <dest> from config.yml.example (edit to enable harnesses / tune models)`.
+- If the destination does NOT exist: create the parent dir as needed, write a fixed heredoc
+  (header comment + layer-precedence list + pointer to `.docket.yml.example`, zero active
+  keys), and log
+  `docket: wrote <dest> (empty pointer config — see .docket.yml.example for every key)`.
 - If the destination already exists: do nothing to it, log
   `docket: <dest> already exists — left untouched`.
-- If `config.yml.example` is missing: log a skip to stderr and exit 0 (never fatal).
 - Never overwrites, merges, or edits an existing file.
 
 ## Exit codes
 
-- `0` — on success (wrote, left-untouched, or source-missing skip). Idempotent. A genuine
-  write failure (e.g. an unwritable config dir) propagates a non-zero exit under `set -e`.
+- `0` — on success (wrote or left-untouched). Idempotent. A genuine write failure (e.g. an
+  unwritable config dir) propagates a non-zero exit under `set -e`.
 
 ## Invariants
 
 - An existing global config is never modified.
-- The written copy is byte-identical to `config.yml.example`.
+- The scaffolded file contains no active keys, so it can never pin a shipped default.
 - The destination path equals the path `sync-agents.sh` reads as the global config.

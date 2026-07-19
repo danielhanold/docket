@@ -317,4 +317,35 @@ assert "round-trip: cursor status model came from the example block" \
   '[ "$(fm "$SB/.cursor/agents/docket-status.md" model)" = "grok-4.5-fast-medium" ]'
 rm -rf "$_sbs"
 
+# --- (6) SCAFFOLD SHAPE: install writes a POINTER, never pinned values -------
+# Why this guard exists: the old scaffold COPIED config.yml.example, so a user installed once and
+# then carried a frozen snapshot of that day's defaults forever — every later default change was
+# silently pinned by their stale copy. The scaffold must therefore write NO active keys at all.
+SC="$(mktemp -d)"; _scs="$SC"
+out="$(HOME="$SC" DOCKET_HARNESS_ROOT="$SC" XDG_CONFIG_HOME="$SC/.config" \
+       bash "$REPO/scripts/ensure-global-config.sh" 2>&1)"; scrc=$?
+GC="$SC/.config/docket/config.yml"
+assert "scaffold: exits 0"            '[ "$scrc" = "0" ]'
+assert "scaffold: wrote the file"     '[ -f "$GC" ]'
+# "No active keys" = every non-blank line is a comment.
+assert "scaffold: contains NO active keys (comment/blank lines only)" \
+  '[ -z "$(grep -vE "^[[:space:]]*(#.*)?$" "$GC" 2>/dev/null)" ]'
+assert "scaffold: points at .docket.yml.example" 'grep -qF ".docket.yml.example" "$GC"'
+assert "scaffold: names the layer precedence"    'grep -qiE "repo-local|precedence" "$GC"'
+# Idempotent + non-destructive: a second run leaves an existing file byte-untouched.
+printf '# user edited\nauto_capture: true\n' > "$GC"
+before="$(cat "$GC")"
+HOME="$SC" DOCKET_HARNESS_ROOT="$SC" XDG_CONFIG_HOME="$SC/.config" \
+  bash "$REPO/scripts/ensure-global-config.sh" >/dev/null 2>&1
+assert "scaffold: existing user config left byte-untouched" '[ "$(cat "$GC")" = "$before" ]'
+rm -rf "$_scs"
+
+# The deleted surfaces stay deleted.
+assert "config.yml.example is gone"          '[ ! -f "$REPO/config.yml.example" ]'
+assert "tests/test_config_example.sh is gone" '[ ! -f "$REPO/tests/test_config_example.sh" ]'
+assert "no stale config.yml.example reference in install.sh" \
+  '! grep -qF "config.yml.example" "$REPO/install.sh"'
+assert "no stale config.yml.example reference in ensure-global-config.sh" \
+  '! grep -qF "config.yml.example" "$REPO/scripts/ensure-global-config.sh"'
+
 exit $fail
