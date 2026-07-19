@@ -1,8 +1,8 @@
 # Backlog
 
-**99 changes** — 🟡 11 proposed · 🔴 1 blocked · ⚪ 1 deferred · 🔵 1 implemented · ✅ 80 done · 🗑️ 5 killed
+**100 changes** — 🟡 12 proposed · 🔴 1 blocked · ⚪ 1 deferred · 🔵 1 implemented · ✅ 80 done · 🗑️ 5 killed
 
-## 🟡 Proposed (11)
+## 🟡 Proposed (12)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -17,6 +17,7 @@
 | [0097](active/0097-mirror-readiness-label-parity.md) | GitHub mirror readiness parity — readiness labels stop at `proposed` | `low` | needs-brainstorm |
 | [0098](active/0098-stale-finalize-marker-health-check.md) | Health check for a stale `## Finalize blocked` marker | `medium` | needs-brainstorm |
 | [0099](active/0099-finalize-marker-clearing-rule-wording.md) | Re-phrase the `## Finalize blocked` clearing rule around what it actually guards | `low` | needs-brainstorm |
+| [0100](active/0100-force-push-lease-classifier-denial.md) | Force-push-with-lease denied by the auto-mode classifier — unblock finalize's merge gate | `medium` | needs-brainstorm |
 
 ## 🔴 Blocked (1)
 
@@ -52,6 +53,7 @@ graph TD
   0097
   0098
   0099
+  0100
   0015:::done
   0016:::done
   0077:::done
