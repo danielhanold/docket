@@ -4,9 +4,13 @@
 # The report is self-evidencing: it always states what it did (`board off` when the board is
 # disabled, the backlog digest, `pass ok` on completion), so stdout is never empty (change 0069).
 #
-# Usage: docket-status.sh [--board-only] [--must-land] [--repo OWNER/REPO] [--project OWNER/NUMBER]
-#                          [--auto-create-project] [--project-owner OWNER]
+# Usage: docket-status.sh [--board-only] [--digest-only] [--must-land] [--repo OWNER/REPO]
+#                          [--project OWNER/NUMBER] [--auto-create-project] [--project-owner OWNER]
 #   --board-only           only regenerate the board surfaces; skip sweep/health passes
+#   --digest-only          WRITE-FREE READ (change 0094): resolve config, emit the backlog digest
+#                          (rollups + `change` lines + the `ready` queue line) and exit. No worktree
+#                          sync, no sweep, no health checks, no board render, no commit, no push,
+#                          and no `board …` line. Mutually exclusive with --board-only.
 #   --must-land            (with --board-only) retry a push-failed board write in-script and
 #                          map the outcome to the exit code (0 = board landed); see docket-status.md
 #   --repo OWNER/REPO      GitHub repo for PR-link resolution (defaults to origin remote)
@@ -26,11 +30,12 @@ SCRIPTS_DIR="${SCRIPTS_DIR:-$SELF_DIR}"
 # shellcheck source=lib/docket-preflight.sh
 . "$SELF_DIR"/lib/docket-preflight.sh
 
-BOARD_ONLY=0 MUST_LAND=0 REPO_FLAG="" PROJECT_FLAG="" AUTO_CREATE_PROJECT=0 PROJECT_OWNER=""
-usage(){ sed -n '2,15p' "${BASH_SOURCE[0]}"; }
+BOARD_ONLY=0 DIGEST_ONLY=0 MUST_LAND=0 REPO_FLAG="" PROJECT_FLAG="" AUTO_CREATE_PROJECT=0 PROJECT_OWNER=""
+usage(){ sed -n '2,19p' "${BASH_SOURCE[0]}"; }
 while [ $# -gt 0 ]; do
   case "$1" in
     --board-only) BOARD_ONLY=1 ;;
+    --digest-only) DIGEST_ONLY=1 ;;
     --must-land) MUST_LAND=1 ;;
     --repo) REPO_FLAG="$2"; shift ;;
     --project) PROJECT_FLAG="$2"; shift ;;
@@ -40,6 +45,12 @@ while [ $# -gt 0 ]; do
     *) echo "docket-status: unknown argument: $1" >&2; exit 2 ;;
   esac; shift
 done
+# Opposite postures: --digest-only is a write-free READ, --board-only commits and pushes BOARD.md.
+# Rejected in BOTH orders — a gate that only closes one way is not a gate.
+if [ "$DIGEST_ONLY" = 1 ] && [ "$BOARD_ONLY" = 1 ]; then
+  echo "docket-status: --digest-only and --board-only are mutually exclusive (a write-free read vs. a committing board write)" >&2
+  exit 2
+fi
 
 board_pass(){
   local surfaces="${BOARD_SURFACES:-}"
@@ -310,6 +321,34 @@ backlog_pass(){
   fi
   [ -n "$out" ] && printf '%s\n' "$out"
   return 0
+}
+
+# digest_only_pass — the write-free selection read (change 0094). docket-implement-next Step 1
+# acquires its ordered candidate set here, so this path must be a READ in the strict sense: it
+# resolves config and runs the backlog pass, and does nothing else.
+#
+# It deliberately does NOT call docket_preflight. Preflight FETCHES AND `pull --rebase`s the
+# metadata worktree — a working-tree mutation that can move HEAD, which would make a "read" a
+# write. That costs nothing here: the calling skill runs this AFTER its own Step-0 preflight, so
+# the tree is already freshly synced and a second sync would be pure redundancy. The digest is a
+# snapshot of the change files as it finds them, which is exactly the contract Step 1 wants.
+#
+# The bootstrap verdict is still enforced FAIL-CLOSED. A repo that was never migrated has no
+# metadata worktree, and reporting a cheerful empty backlog for it would hand the selector a
+# `ready` line meaning "nothing is ready" when the truth is "this repo is not set up" — the exact
+# two-cases-one-signal collapse the always-emitted ready line exists to prevent.
+digest_only_pass(){
+  local cfg
+  cfg="$(${CONFIG_EXPORT_CMD:-"$SCRIPTS_DIR"/docket-config.sh --export})" \
+    || { echo "docket-status: config export failed" >&2; return 1; }
+  eval "$cfg"
+  case "${BOOTSTRAP:-}" in
+    PROCEED) : ;;
+    STOP_MIGRATE)  echo "docket-status: repo not migrated — run migrate-to-docket.sh" >&2; return 1 ;;
+    CREATE_ORPHAN) echo "docket-status: fresh repo — run docket.sh bootstrap to create the docket branch" >&2; return 1 ;;
+    *) echo "docket-status: unknown bootstrap verdict '${BOOTSTRAP:-}'" >&2; return 1 ;;
+  esac
+  backlog_pass
 }
 
 # detect_merged — batched sweep detection (change 0058, task 4). Prints TAB-separated
@@ -674,6 +713,11 @@ integration_sync(){
 }
 
 main(){
+  # change 0094: the write-free read short-circuits BEFORE docket_preflight (which syncs).
+  if [ "$DIGEST_ONLY" = 1 ]; then
+    digest_only_pass || exit 1
+    exit 0
+  fi
   docket_preflight "$SCRIPTS_DIR" || exit 1
   if [ "$MUST_LAND" = 1 ]; then
     board_pass_must_land || exit 1

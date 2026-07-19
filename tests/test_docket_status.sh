@@ -2520,4 +2520,143 @@ assert "reclaim(no-marker): no remedy line printed (nothing to self-heal)" \
 assert "reclaim(no-marker): no reclaim-report line printed" \
   '! grep -qF "docket.sh reclaim-claims" "$tmp/reclaim-nf-out.txt"'
 
+# ── change 0094: --digest-only, the write-free selection read ────────────────────────────────
+# The digest is how docket-implement-next Step 1 acquires its ordered candidate set. It is a READ:
+# it must not sync, commit, push, render the board, or move HEAD. --board-only was not reusable —
+# it commits and pushes BOARD.md, and a selection read must not be a write.
+
+dg="$tmp/digest-only"; mkdir -p "$dg/work/.docket/docs/changes/active" "$dg/work/.docket/docs/changes/archive"
+cat > "$dg/work/.docket/docs/changes/active/0050-tango.md" <<'EOF'
+---
+id: 50
+slug: tango
+title: tango
+status: proposed
+priority: high
+created: 2026-02-01
+updated: 2026-02-01
+depends_on: []
+spec: docs/superpowers/specs/t.md
+trivial: false
+---
+
+## Why
+x
+EOF
+cat > "$dg/work/.docket/docs/changes/active/0051-uniform.md" <<'EOF'
+---
+id: 51
+slug: uniform
+title: uniform
+status: proposed
+priority: critical
+created: 2026-03-01
+updated: 2026-03-01
+depends_on: []
+spec: docs/superpowers/specs/u.md
+trivial: false
+---
+
+## Why
+x
+EOF
+
+cat > "$tmp/fixture-digest.sh" <<'EOF'
+#!/usr/bin/env bash
+# METADATA_WORKTREE is ABSOLUTE ($(pwd), resolved at fixture-script run time — i.e. per invocation
+# CWD, so this one file is reusable across every digest-only fixture directory below), matching
+# how the REAL docket-config.sh --export always absolutizes it (change 0068). A relative value
+# here would force docket_metadata_worktree's anchor helper to shell out to `git worktree list`
+# just to resolve it — a spurious git invocation this write-free read must never make.
+printf '%s\n' \
+  'BOOTSTRAP=PROCEED' \
+  'METADATA_BRANCH=docket' \
+  'INTEGRATION_BRANCH=main' \
+  'DOCKET_MODE=docket' \
+  "METADATA_WORKTREE=$(pwd)/.docket" \
+  'CHANGES_DIR=docs/changes' \
+  'ADRS_DIR=docs/adrs' \
+  'RESULTS_DIR=docs/results' \
+  'BOARD_SURFACES=inline'
+EOF
+
+# A git stub that RECORDS every invocation, so "it never synced" is proven by evidence rather than
+# by the absence of a visible symptom.
+cat > "$tmp/spy-git.sh" <<EOF
+#!/usr/bin/env bash
+printf '%s\n' "\$*" >> "$tmp/git-calls.txt"
+exit 0
+EOF
+chmod +x "$tmp/spy-git.sh"
+: > "$tmp/git-calls.txt"
+
+dg_out="$tmp/digest-only-out.txt"
+(cd "$dg/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-digest.sh" GIT="$tmp/spy-git.sh" \
+  "$SCRIPT" --digest-only >"$dg_out" 2>"$tmp/digest-only-err.txt")
+dgrc=$?
+
+assert "--digest-only exits 0" '[ "$dgrc" -eq 0 ]'
+assert "--digest-only emits the ready line"    'grep -qE "^ready( [0-9]+)*$" "$dg_out"'
+assert "--digest-only emits change lines"      'grep -q "^change 50 proposed build-ready tango" "$dg_out"'
+assert "--digest-only emits backlog rollups"   'grep -q "^backlog proposed 2" "$dg_out"'
+assert "--digest-only ready order is critical-first (51 before 50)" \
+  '[ "$(sed -n "s/^ready //p" "$dg_out")" = "51 50" ]'
+
+# The load-bearing half: it is a READ.
+assert "--digest-only emits NO board line" '! grep -q "^board " "$dg_out"'
+assert "--digest-only writes no BOARD.md" '[ ! -e "$dg/work/.docket/docs/changes/BOARD.md" ]'
+assert "--digest-only never invokes git at all (no fetch/pull/commit/push)" \
+  '[ ! -s "$tmp/git-calls.txt" ]'
+assert "--digest-only emits no pass ok (it is not a pass)" '! grep -q "^pass ok" "$dg_out"'
+assert "--digest-only stdout is non-empty" '[ -s "$dg_out" ]'
+
+# Mutual exclusion: the two flags are opposite postures (a read vs. a committing write).
+(cd "$dg/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-digest.sh" GIT="$tmp/spy-git.sh" \
+  "$SCRIPT" --digest-only --board-only >/dev/null 2>"$tmp/dg-both-err.txt")
+bothrc=$?
+assert "--digest-only with --board-only exits 2" '[ "$bothrc" -eq 2 ]'
+assert "the mutual-exclusion error names both flags" \
+  'grep -q -- "--digest-only" "$tmp/dg-both-err.txt" && grep -q -- "--board-only" "$tmp/dg-both-err.txt"'
+# Order-independence: a flag pair that only rejects in one order is a half-closed gate.
+# NB: capture the status into a NAMED variable. `assert ... '[ "$?" -eq 2 ]'` would evaluate `$?`
+# inside assert's own eval, where it reports the previous command in THAT scope — the assert would
+# be measuring itself and would pass for the wrong reason.
+(cd "$dg/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-digest.sh" GIT="$tmp/spy-git.sh" \
+  "$SCRIPT" --board-only --digest-only >/dev/null 2>/dev/null)
+revrc=$?
+assert "--board-only with --digest-only also exits 2 (order-independent)" '[ "$revrc" -eq 2 ]'
+
+# Totality on an EMPTY backlog: stdout is still non-empty and the ready line is still there.
+dge="$tmp/digest-empty"; mkdir -p "$dge/work/.docket/docs/changes/active" "$dge/work/.docket/docs/changes/archive"
+dge_out="$tmp/digest-empty-out.txt"
+(cd "$dge/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-digest.sh" GIT="$tmp/spy-git.sh" \
+  "$SCRIPT" --digest-only >"$dge_out" 2>/dev/null)
+assert "--digest-only on an empty backlog still emits a bare ready line" \
+  '[ "$(cat "$dge_out")" = "ready" ]'
+
+# Bootstrap stays fail-closed on this path too — a read must not silently report an empty backlog
+# for a repo that was never migrated.
+cat > "$tmp/fixture-digest-stop.sh" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' \
+  'BOOTSTRAP=STOP_MIGRATE' \
+  'METADATA_BRANCH=docket' \
+  'INTEGRATION_BRANCH=main' \
+  'DOCKET_MODE=docket' \
+  'METADATA_WORKTREE=.docket' \
+  'CHANGES_DIR=docs/changes' \
+  'ADRS_DIR=docs/adrs' \
+  'RESULTS_DIR=docs/results' \
+  'BOARD_SURFACES=inline'
+EOF
+(cd "$dg/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-digest-stop.sh" GIT="$tmp/spy-git.sh" \
+  "$SCRIPT" --digest-only >"$tmp/dg-stop-out.txt" 2>"$tmp/dg-stop-err.txt")
+stoprc=$?
+assert "--digest-only is fail-closed on a non-PROCEED bootstrap verdict" '[ "$stoprc" -ne 0 ]'
+assert "--digest-only emits no ready line when the bootstrap gate rejects" \
+  '! grep -q "^ready" "$tmp/dg-stop-out.txt"'
+
+# --help documents the flag (the skill's author has to be able to find it).
+assert "--help mentions --digest-only" '"$SCRIPT" --help 2>&1 | grep -q -- "--digest-only"'
+
 exit $fail

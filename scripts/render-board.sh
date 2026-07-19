@@ -44,8 +44,11 @@ esac
 # shellcheck source=/dev/null
 source "$(dirname "${BASH_SOURCE[0]}")/lib/docket-frontmatter.sh"
 
-# Derive OWNER/REPO from the origin remote when --repo is unset (best-effort, offline).
-if [ -z "$REPO" ]; then
+# Derive OWNER/REPO from the origin remote when --repo is unset (best-effort, offline). Skipped
+# entirely for --format digest (change 0094): REPO is consumed only by the markdown renderer's
+# pr: hyperlinks (below), never by the digest projection, and the digest's write-free-read
+# contract (docket-status.sh's --digest-only) means this path must not invoke git at all.
+if [ -z "$REPO" ] && [ "$FORMAT" != digest ]; then
   url="$("$GIT" -C "$CHANGES_DIR" remote get-url origin 2>/dev/null || true)"
   if [ -n "$url" ]; then
     REPO="${url%.git}"; REPO="${REPO#git@github.com:}"; REPO="${REPO#https://github.com/}"
