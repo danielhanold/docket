@@ -28,8 +28,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-19-finalize-marker-clearing-rule-wording-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-19-finalize-marker-clearing-rule-wording-design.md) |
-| Plan | [2026-07-19-finalize-marker-clearing-rule-wording.md](https://github.com/danielhanold/docket/blob/feat/finalize-marker-clearing-rule-wording/docs/superpowers/plans/2026-07-19-finalize-marker-clearing-rule-wording.md) |
-| Results | [2026-07-19-finalize-marker-clearing-rule-wording-results.md](https://github.com/danielhanold/docket/blob/feat/finalize-marker-clearing-rule-wording/docs/results/2026-07-19-finalize-marker-clearing-rule-wording-results.md) |
+| Plan | [2026-07-19-finalize-marker-clearing-rule-wording.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-19-finalize-marker-clearing-rule-wording.md) |
+| Results | [2026-07-19-finalize-marker-clearing-rule-wording-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-19-finalize-marker-clearing-rule-wording-results.md) |
 | PR | [#107](https://github.com/danielhanold/docket/pull/107) |
 <!-- docket:artifacts:end -->
 
