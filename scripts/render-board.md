@@ -114,13 +114,15 @@ markdown, no mermaid graph, no archive table.
 **The `ready` line (change 0094).** The digest's final line is always `ready [<id> …]` — the
 **build-ready queue in selection order**: `priority` (`critical` > `high` > `medium` > `low`) →
 `created` (ascending) → `id` (ascending), the convention's *Build-readiness & selection* order. An
-unset or unrecognized `priority` is treated as `medium`.
+unset or unrecognized `priority` is treated as `medium`; an unset or empty `created:` sorts
+**last** within its priority band, never first — an unstamped change must never preempt dated work.
 
-Its membership is exactly the set of changes the `change` lines report as `proposed build-ready`,
-because it is computed from the same `digest_readiness()` call — the line can never disagree with
-them. What it adds is **order**, which the id-ascending `change` lines deliberately do not carry.
-Both sort keys are static frontmatter, so the renderer performs no wall-clock read and stays
-deterministic.
+Its membership is exactly the set of changes the `change` lines report as `proposed build-ready`:
+it is a **second call** to the same pure `digest_readiness()` function with identical arguments, so
+the line can never disagree with them — the parity rests on `digest_readiness` being pure and the
+`DEP_*` globals staying unmutated between the two loops. What it adds is **order**, which the
+id-ascending `change` lines deliberately do not carry. Both sort keys are static frontmatter, so the
+renderer performs no wall-clock read and stays deterministic.
 
 The line is **always emitted**, bare (`ready`, no ids) when nothing is build-ready. Absence of a
 `ready` line therefore means **no queue was produced** — an older `render-board.sh`, or a failed

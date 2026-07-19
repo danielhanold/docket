@@ -1534,11 +1534,13 @@ assert "ready membership equals the build-ready change lines" '[ "$exp_ready" = 
 # (iii) ORDERING, on a dedicated fixture. Three bands prove the three sort keys independently.
 ord="$tmp/ord"; mkdir -p "$ord/active" "$ord/archive"
 # id 30: medium, oldest  -> age beats id (before 31)
-# id 31: medium, newest  -> loses on age
+# id 31: medium, newest  -> loses on age to 30, but still beats an unstamped peer (36)
 # id 32: critical, newest -> priority beats age AND id (first overall)
 # id 33: high, newest     -> second overall
 # id 34: low, oldest      -> last, despite being the oldest (priority outranks age)
 # id 35: (no priority:)   -> defaults to medium; same created as 30 -> tie falls to LOWEST id (30 < 35)
+# id 36: medium, NO created: line at all -> unknown age sorts LAST within its priority band, after
+#         every dated medium peer (30, 35, 31) — an unstamped change must never preempt dated work.
 write_ord(){ # write_ord ID PRIORITY CREATED SLUG
   local pri_line="priority: $2"
   [ -n "$2" ] || pri_line=""
@@ -1567,16 +1569,43 @@ write_ord 33 high     2026-06-01 papa
 write_ord 34 low      2026-01-01 quebec
 write_ord 35 ""       2026-01-01 romeo
 
+# id 36 deliberately omits `created:` (and `updated:`) entirely — write_ord always emits a
+# (possibly-empty-valued) created: line, so this fixture is written by hand to get the true
+# absent-field case `field()` returns empty for.
+cat > "$ord/active/0036-sierra2.md" <<'EOF'
+---
+id: 36
+slug: sierra2
+title: sierra2
+status: proposed
+priority: medium
+depends_on: []
+spec: docs/superpowers/specs/x.md
+trivial: false
+---
+
+## Why
+x
+EOF
+
 ord_out="$tmp/ord-digest.txt"
 bash "$SCRIPT" --changes-dir "$ord" --format digest > "$ord_out" 2>/dev/null
 assert "ordering fixture: exact selection order (priority > created > id)" \
-  '[ "$(sed -n "s/^ready //p" "$ord_out")" = "32 33 30 35 31 34" ]'
+  '[ "$(sed -n "s/^ready //p" "$ord_out")" = "32 33 30 35 31 36 34" ]'
 assert "ordering: critical outranks an older medium"  '[ "$(sed -n "s/^ready //p" "$ord_out" | cut -d" " -f1)" = "32" ]'
 assert "ordering: low sorts last despite being oldest" '[ "$(sed -n "s/^ready //p" "$ord_out" | awk "{print \$NF}")" = "34" ]'
 assert "ordering: an absent priority: defaults to medium (35 sits in the medium band)" \
   '[ "$(sed -n "s/^ready //p" "$ord_out" | cut -d" " -f4)" = "35" ]'
 assert "ordering: exact tie (same priority+created) falls to the LOWEST id" \
   '[ "$(sed -n "s/^ready //p" "$ord_out" | cut -d" " -f3,4)" = "30 35" ]'
+# An unset created: is a DECIDED RULE, not an accident: unknown age sorts LAST within its priority
+# band, so an unstamped change never preempts dated work. Isolate the medium band's three dated ids
+# (30, 35, 31) plus the unstamped 36 in their EMITTED order (not a fixed expected string) and assert
+# 36 is last among them — this fails under the old behavior, where an empty `created:` sorts before
+# every real date and 36 would jump to the FRONT of the band instead.
+med_band="$(sed -n "s/^ready //p" "$ord_out" | tr ' ' '\n' | grep -E '^(30|31|36)$' | tr '\n' ' ')"
+assert "ordering: a change with no created: line sorts LAST within its priority band" \
+  '[ "$(printf "%s" "$med_band" | awk "{print \$NF}")" = "36" ]'
 
 # (iv) TOTALITY — the empty queue emits a BARE `ready`, never no line (sole-channel lesson: a
 #      missing line must mean "no queue was produced", never "nothing is ready").
@@ -1618,6 +1647,9 @@ assert "digest with a ready line is byte-identical across runs" 'diff -u "$ord_o
 # (vii) the ready line does NOT leak into the markdown projection.
 ord_md="$tmp/ord-board.md"
 bash "$SCRIPT" --changes-dir "$ord" --format markdown > "$ord_md" 2>/dev/null
+# Positive control: prove $ord_md is really a rendered board before trusting the negative assert
+# below — an empty file from a failed render would ALSO pass "no ready line" for the wrong reason.
+assert "the markdown render actually produced a board" 'grep -q "^# Backlog" "$ord_md"'
 assert "markdown projection carries no ready line" '! grep -q "^ready" "$ord_md"'
 
 # (g) an unknown --format value is an argument error (exit 2), like any other bad flag.
