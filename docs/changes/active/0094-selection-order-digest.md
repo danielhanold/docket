@@ -2,7 +2,7 @@
 id: 94
 slug: selection-order-digest
 title: Selection-order backlog digest — implement-next selects from a digest instead of walking active/
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-07-17
 updated: 2026-07-19
@@ -14,7 +14,8 @@ plan:
 results:
 trivial: false
 auto_groomable: false
-branch:
+branch: feat/selection-order-digest
+claimed_at: 2026-07-19T16:00:57Z
 pr:
 blocked_by:
 reconciled: false
