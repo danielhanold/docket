@@ -43,10 +43,16 @@ clearing logic." Sentences one and two are true and stay.
 ### The edit
 
 Keep: **"A successful finalize removes the section."** plus its machine-verifiable-condition
-rationale. Replace the over-broad closing universal with the scoped truth — that the marker's two
-readers (the board's `implemented`-only cell, and the auto-detect selection skip on unmerged
-candidates) both stop applying once the change reaches `done`, so the archive/status transition
-retires the marker's meaning on its own, whether or not the section is physically present.
+rationale. Replace the over-broad closing universal with the scoped truth — that **every** reader of
+the marker is scoped to a pre-`done` change, so the archive/status transition retires the marker's
+meaning on its own, whether or not the section is physically present.
+
+**Phrase the property, not a roster** (reconcile, 2026-07-19). The replacement sentence must not
+hard-code a count or list of readers. At authoring time there were two (the board's
+`implemented`-only cell; the auto-detect selection skip on unmerged candidates); change 0098 landed
+a third the same day — `stale-finalize-blocked` in `scripts/board-checks.sh`, also `implemented`-only
+— which is exactly the staleness a roster invites. Readers may be named parenthetically as
+illustration; the load-bearing claim is the scoping property they share.
 
 The finalize-path removal is therefore a **real cleanup on the live path** (an `implemented` change
 that stays `implemented` must not keep a stale needs-you cell), **not** a guarantee about archived
@@ -89,7 +95,9 @@ path the system doesn't drive, and what merely **reads** it."* Running it here:
 - **Leaves by a path the system doesn't drive:** the out-of-band human merge. Handled at the
   *reader* — the selection skip is scoped to unmerged candidates, so a hand-merged change is no
   longer stranded.
-- **Merely reads it:** the board cell (`implemented`-only) and the selection skip (unmerged-only).
+- **Merely reads it:** the board cell (`implemented`-only), the selection skip (unmerged-only), and
+  — since change 0098 — the `stale-finalize-blocked` health check (`implemented`-only). Every reader
+  added since has independently landed on the same pre-`done` scoping.
 
 The third leg is the resolution: **the rule's purpose is that no reader is left misinformed, and
 removal is the usual means, not the end.** Where every reader has already stopped consulting the

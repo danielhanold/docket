@@ -16,10 +16,10 @@ results:
 trivial: false
 auto_groomable: false
 branch: feat/finalize-marker-clearing-rule-wording
-claimed_at: 2026-07-19T15:56:35Z
+claimed_at: 2026-07-19T15:58:37Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -40,9 +40,10 @@ merge the section rides verbatim into `archive/`.
 
 The rule's first two sentences are true and load-bearing; the closing universal is what invites a
 reader to implement redundant clearing logic, or to conclude the rule is dead and drop it. What is
-actually true is narrower: the marker's only readers — the board's `implemented`-only cell and the
-auto-detect selection skip on unmerged candidates — both stop applying at `done`, so archiving
-retires the marker's meaning whether or not the section is physically present.
+actually true is narrower: **every** reader of the marker is scoped to a pre-`done` change — the
+board's `implemented`-only cell, the auto-detect selection skip on unmerged candidates, and the
+`stale-finalize-blocked` health check (also `implemented`-only) — so archiving retires the marker's
+meaning whether or not the section is physically present.
 
 ## What changes
 
@@ -70,3 +71,32 @@ before touching this.
 _Both resolved during grooming — see the spec's `## Open questions — resolved`._
 
 ## Reconcile log
+
+### 2026-07-19 — reconcile at claim
+
+Re-read against `origin/main` at `a75995f`, the linked spec, related #87/#98, and the current code.
+
+- **Design intact.** The three target texts are byte-for-byte as the spec quotes them:
+  `skills/docket-finalize-change/SKILL.md` clearing bullet (now line 162 within the
+  `### ## Finalize blocked` subsection), `skills/docket-convention/SKILL.md:171`, and the sole
+  anchored sentinel `tests/test_finalize_disposition.sh:120`. No re-brainstorm needed.
+- **New constraint folded in — a THIRD reader.** Change 0098 merged today (PR #106) and added
+  `stale-finalize-blocked` to `scripts/board-checks.sh:140-158`, which reads the marker via
+  `finalize_blocked()`. The spec's decision text enumerates "the marker's **two** readers"; that
+  count is now stale. The check is gated on `[ "$status" = "implemented" ]`, so the *scoped truth*
+  the change turns on is unchanged — it is strengthened, since a third independent reader also
+  stops applying at `done`.
+- **Consequent scope adjustment.** The replacement sentence must **not** hard-code an enumeration
+  of readers, which 0098 has just demonstrated goes stale within a day. Phrase it as the property
+  ("every reader is scoped to a pre-`done` change") rather than a list. Naming readers
+  parenthetically is acceptable only as illustration, never as the load-bearing claim.
+- **No other site needs the edit.** `README.md:184` already states the clearing rule in the
+  narrow, correct form ("skipped by later *unscoped* runs until a successful finalize clears it
+  automatically") and carries no over-broad universal — out of scope, unchanged.
+  `scripts/lib/docket-frontmatter.sh:108` describes the marker as presence-encoded state without
+  asserting a clearing obligation — correct as-is.
+- **Out-of-scope confirmations re-verified against current code.** `scripts/archive-change.sh`
+  still never removes a body section, so the out-of-band-merge path still carries the section into
+  `archive/` verbatim — the premise of the whole change survives.
+- No auto-capture (`auto_capture: false` for this repo): the third-reader drift is folded into
+  this change's own scope above, not minted as follow-up work.
