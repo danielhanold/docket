@@ -69,4 +69,90 @@ if [ "$exp_none" != "$exp_full" ]; then
   echo "---"
 fi
 
+# --- (2) COMPLETENESS: every schema key appears in the example ---------------
+# Two sources, because export keys alone UNDER-COVER the schema (change 0101 reconcile).
+#
+# (2a) Exported keys: every KEY= the resolver emits maps to a YAML path in the example.
+# The mapping lives here on purpose — a new export key with no entry fails this test, forcing
+# the example AND this mapping to be updated in the same PR. That is the must-update rule's
+# enforcement; the header prose is only its statement.
+#
+# Format: "EXPORT_KEY:yaml_regex". A leading '#' in the regex matches the commented form.
+# Export keys that are DERIVED (not settable config) are listed in the skip set below.
+exported_skip="DOCKET_MODE DEFAULT_BRANCH METADATA_WORKTREE REPO_ROOT BOOTSTRAP"
+map_for(){ # map_for <EXPORT_KEY> -> ERE matching the example's line, or empty if unmapped
+  case "$1" in
+    METADATA_BRANCH)       echo '^metadata_branch:[[:space:]]*docket' ;;
+    INTEGRATION_BRANCH)    echo '^integration_branch:[[:space:]]*auto' ;;
+    CHANGES_DIR)           echo '^changes_dir:[[:space:]]*docs/changes' ;;
+    ADRS_DIR)              echo '^adrs_dir:[[:space:]]*docs/adrs' ;;
+    RESULTS_DIR)           echo '^results_dir:[[:space:]]*docs/results' ;;
+    FINALIZE_GATE)         echo '^[[:space:]]+gate:[[:space:]]*local' ;;
+    FINALIZE_TEST_COMMAND) echo '^[[:space:]]+test_command:[[:space:]]*auto' ;;
+    LEARNINGS_ENABLED)     echo '^[[:space:]]+enabled:[[:space:]]*true' ;;
+    LEARNINGS_CAP)         echo '^[[:space:]]+cap:[[:space:]]*300' ;;
+    BOARD_SURFACES)        echo '^board_surfaces:[[:space:]]*\[[[:space:]]*inline[[:space:]]*\]' ;;
+    AUTO_GROOM)            echo '^auto_groom:[[:space:]]*false' ;;
+    AUTO_CAPTURE)          echo '^auto_capture:[[:space:]]*false' ;;
+    TERMINAL_PUBLISH)      echo '^terminal_publish:[[:space:]]*false' ;;
+    RECLAIM_LEASE_TTL)     echo '^[[:space:]]+lease_ttl:[[:space:]]*72' ;;
+    RECLAIM_AUTO)          echo '^[[:space:]]+auto:[[:space:]]*false' ;;
+    SKILL_BRAINSTORM)      echo '^[[:space:]]+brainstorm:[[:space:]]*superpowers:brainstorming' ;;
+    SKILL_PLAN)            echo '^[[:space:]]+plan:[[:space:]]*superpowers:writing-plans' ;;
+    SKILL_BUILD)           echo '^[[:space:]]+build:[[:space:]]*superpowers:subagent-driven-development' ;;
+    SKILL_REVIEW)          echo '^[[:space:]]+review:[[:space:]]*superpowers:requesting-code-review' ;;
+    SKILL_FINISH)          echo '^[[:space:]]+finish:[[:space:]]*superpowers:finishing-a-development-branch' ;;
+    *) echo '' ;;
+  esac
+}
+
+# Drive the loop off the resolver's ACTUAL export surface, never a hand-copied list.
+for k in $(printf '%s\n' "$exp_none" | sed -n 's/^\([A-Z_][A-Z_0-9]*\)=.*/\1/p'); do
+  case " $exported_skip " in *" $k "*) continue ;; esac
+  re="$(map_for "$k")"
+  assert "completeness: export key $k is mapped" '[ -n "$re" ]'
+  [ -n "$re" ] && assert "completeness: $k present in example" 'grep -Eq "$re" "$EX"'
+done
+
+# (2b) NON-EXPORTED schema keys. These have NO export key, so (2a) is structurally blind to
+# them; without this explicit list the "canonical" reference silently ships incomplete.
+#   github_project                — fenced by the resolver, never emitted; consumed by github-mirror.sh
+#   agents / agent_harnesses      — consumed by sync-agents.sh; ship COMMENTED (presence-sensitive)
+#   finalize.require_pr_approval  — MODEL-READ: skills/docket-finalize-change/SKILL.md only
+#   runners.codex.sandbox/network — consumed by scripts/runner-dispatch.sh + scripts/runners/codex.sh
+assert "completeness: github_project present (auto sentinel)" \
+  'grep -Eq "^github_project:[[:space:]]*auto" "$EX"'
+assert "completeness: agent_harnesses present (commented)" \
+  'grep -Eq "^#[[:space:]]*agent_harnesses:[[:space:]]*\[[[:space:]]*claude[[:space:]]*\]" "$EX"'
+assert "completeness: agents present (commented)" \
+  'grep -Eq "^#[[:space:]]*agents:" "$EX"'
+assert "completeness: finalize.require_pr_approval present" \
+  'grep -Eq "^[[:space:]]+require_pr_approval:[[:space:]]*false" "$EX"'
+assert "completeness: runners.codex.sandbox present" \
+  'grep -Eq "^[[:space:]]+sandbox:[[:space:]]*workspace-write" "$EX"'
+assert "completeness: runners.codex.network present" \
+  'grep -Eq "^[[:space:]]+network:[[:space:]]*true" "$EX"'
+assert "completeness: runners block header present" 'grep -Eq "^runners:" "$EX"'
+
+# runners.* is consumed by the runner-dispatch script family, not the resolver. Anchor on the
+# PRODUCER so the example and its consumer cannot silently diverge (same shape as the
+# require_pr_approval producer assert above).
+assert "runners.codex.sandbox is still read by the codex adapter" \
+  'grep -q "DOCKET_RUNNER_CFG_SANDBOX" "$REPO/scripts/runners/codex.sh"'
+
+# require_pr_approval is model-read, so nothing but this assert couples the example to the skill
+# that consumes it. Anchor on the PRODUCER (the skill body) so the pair cannot silently diverge.
+assert "require_pr_approval is still read by the finalize skill body" \
+  'grep -q "require_pr_approval" "$REPO/skills/docket-finalize-change/SKILL.md"'
+
+# The standing rule is STATED in the header (and enforced by the loop above).
+assert "example header states the must-update rule" \
+  'grep -Eqi "every new config flag lands in" "$EX"'
+assert "example documents the four layers" \
+  'grep -qF ".docket.local.yml" "$EX" && grep -qF "config.yml" "$EX"'
+
+# Scope tags: both forms present, and every ACTIVE top-level key is tagged.
+assert "scope tag: repo-only form present"  'grep -qF "scope: repo-only (coordination-fenced, ADR-0019)" "$EX"'
+assert "scope tag: any-layer form present"  'grep -qF "scope: any layer" "$EX"'
+
 exit $fail
