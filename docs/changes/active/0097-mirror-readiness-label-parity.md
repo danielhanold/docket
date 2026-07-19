@@ -16,10 +16,10 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/mirror-readiness-label-parity
-claimed_at: 2026-07-19T11:45:13Z
+claimed_at: 2026-07-19T11:47:03Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -71,3 +71,26 @@ mirror-wide concern (affecting status labels too) left out of scope here.
   proposed-readiness tokens); a mirror-wide concern, not introduced here.
 
 ## Reconcile log
+
+### 2026-07-19 — reconcile (implement-next claim)
+
+Verified against current `origin/main` (tip `92131be`):
+
+- **Spec accurate, code unchanged.** `scripts/github-mirror.sh:124` still carries the
+  `[ "$status" = "proposed" ] || return 0` early-return the spec cites; the `readiness_label`
+  `case "$tok"` block (lines 126–133) is exactly as the spec quotes. `labels_for` (line 177) already
+  calls `readiness_label "$f" "$status"` and emits non-empty output — no caller change needed.
+- **Owner + lib confirmed.** `render-board.sh`'s `digest_readiness` (lines 91–98) declares the
+  status→owner rule the spec adopts (`proposed` via `readiness()`, `implemented` via
+  `finalize_blocked()`, every other status `-`); both `readiness()` and `finalize_blocked()` live in
+  `lib/docket-frontmatter.sh` (lines 94, 107), which `github-mirror.sh` already sources (line 80). The
+  `docket:readiness/finalize-blocked` label self-provisions via the existing idempotent
+  `gh label create --force` path.
+- **Test seam present.** `tests/test_github_mirror.sh` uses a `--dry-run` + mock-`gh` fixture and
+  already builds an `implemented` change (`0013-target.md`) with no `## Finalize blocked` marker —
+  ready to serve as the "no readiness label" regression case; a new marker-bearing `implemented`
+  fixture covers the positive case.
+- **Dependencies / relations.** `depends_on: []`; `related`/`discovered_from: [87]` — #0087
+  (`headless-finalize-driver`) is `done`, archived 2026-07-19. No design-ahead gating.
+
+No scope change, no obsolescence, no fundamental invalidation. Build proceeds on the spec as written.
