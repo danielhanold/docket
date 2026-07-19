@@ -984,5 +984,48 @@ ac_c_line="$(printf '%s\n' "$ac_f_out" | grep -n '^AUTO_CAPTURE=' | cut -d: -f1)
 assert "AUTO_CAPTURE is emitted directly after AUTO_GROOM" \
   '[ -n "$ac_g_line" ] && [ -n "$ac_c_line" ] && [ "$ac_c_line" -eq "$(( ac_g_line + 1 ))" ]'
 
+# --- (S) finalize.test_command: auto  ==  unset (change 0101 sentinel) -------
+# `auto` is the example file's way of shipping the default EXPLICITLY. It must resolve
+# byte-identically to an absent key, or the sentinel leaks into finalize as a command to run.
+mkrepo "$tmp/s"
+cat > "$tmp/s/.docket.yml" <<'EOF'
+metadata_branch: main
+integration_branch: main
+finalize:
+  gate: local
+  test_command: auto
+EOF
+git -C "$tmp/s" add .docket.yml; git -C "$tmp/s" commit --quiet -m cfg
+git -C "$tmp/s" push --quiet origin main
+out="$(run "$tmp/s" --export)"; eval "$out"
+assert "test_command auto: FINALIZE_TEST_COMMAND empty" '[ -z "$FINALIZE_TEST_COMMAND" ]'
+assert "test_command auto: FINALIZE_GATE still local"   '[ "$FINALIZE_GATE" = local ]'
+
+# An explicit non-sentinel value is still honored verbatim (the sentinel is not a blanket clear).
+mkrepo "$tmp/s2"
+cat > "$tmp/s2/.docket.yml" <<'EOF'
+metadata_branch: main
+integration_branch: main
+finalize:
+  test_command: make test
+EOF
+git -C "$tmp/s2" add .docket.yml; git -C "$tmp/s2" commit --quiet -m cfg
+git -C "$tmp/s2" push --quiet origin main
+out="$(run "$tmp/s2" --export)"; eval "$out"
+assert "explicit test_command honored verbatim" '[ "$FINALIZE_TEST_COMMAND" = "make test" ]'
+
+# Case-sensitivity: only the literal lowercase `auto` is the sentinel (integration_branch precedent).
+mkrepo "$tmp/s3"
+cat > "$tmp/s3/.docket.yml" <<'EOF'
+metadata_branch: main
+integration_branch: main
+finalize:
+  test_command: AUTO
+EOF
+git -C "$tmp/s3" add .docket.yml; git -C "$tmp/s3" commit --quiet -m cfg
+git -C "$tmp/s3" push --quiet origin main
+out="$(run "$tmp/s3" --export)"; eval "$out"
+assert "test_command AUTO is NOT the sentinel (case-sensitive)" '[ "$FINALIZE_TEST_COMMAND" = "AUTO" ]'
+
 if [ "$fail" = 0 ]; then echo PASS; else echo FAIL; fi
 exit "$fail"
