@@ -18,8 +18,8 @@ auto_groomable:
 branch: feat/stale-finalize-marker-health-check
 pr:
 blocked_by:
-reconciled: false
-claimed_at: 2026-07-19T12:19:14Z
+reconciled: true
+claimed_at: 2026-07-19T12:21:40Z
 ---
 
 ## Artifacts
@@ -66,3 +66,24 @@ time signal, and why a still-blocked-but-old marker firing the advisory is accep
 - Mirror readiness parity (change #0097).
 
 ## Reconcile log
+
+### 2026-07-19 — reconcile (implement-next)
+
+Verified the design against current `main`/`docket`:
+
+- `scripts/board-checks.sh` is structurally as the spec assumes — the per-file `FILES` walk over
+  `active/` + `archive/`, the `emit`/`FINDINGS` accumulator, the `GIT`/`NOW` mock seams, and the
+  `merge-gate-stall` / `stale-in-progress` precedents (the latter hardcodes its `3*86400` branch-idle
+  horizon, the exact model A4 mirrors). No drift.
+- `scripts/lib/docket-frontmatter.sh` provides `finalize_blocked FILE` (whole-line `has_section`
+  match) and `iso_to_epoch`, both as the spec relies on.
+- Related #0087 (headless-finalize-driver — introduced the `## Finalize blocked` marker) is `done`
+  (archived 2026-07-19); the board cell `finalize blocked — needs you` is live in `render-board.sh`
+  (via `finalize_blocked()`). `depends_on: []` satisfied; no design-ahead gating.
+- Marker-age signal: change file's last-commit timestamp via
+  `git -C "$CHANGES_DIR" log -1 --format=%ct -- "$f"`. `$CHANGES_DIR` is always an absolute path in
+  real callers (docket-status) and in the test harness, so the absolute `$f` pathspec resolves.
+- Scope confirmed unchanged: add check-id `stale-finalize-blocked` to `board-checks.sh` + document it
+  in `scripts/board-checks.md`; extend `tests/test_board_checks.sh`. No `.docket.yml` knob (A4). The
+  docket-status SKILL enumeration is a curated subset (already omits merged-orphan/unknown-commit-ref),
+  so per precedent it is not extended.
