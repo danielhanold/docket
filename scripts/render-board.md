@@ -114,8 +114,9 @@ markdown, no mermaid graph, no archive table.
 **The `ready` line (change 0094).** The digest's final line is always `ready [<id> …]` — the
 **build-ready queue in selection order**: `priority` (`critical` > `high` > `medium` > `low`) →
 `created` (ascending) → `id` (ascending), the convention's *Build-readiness & selection* order. An
-unset or unrecognized `priority` is treated as `medium`; an unset or empty `created:` sorts
-**last** within its priority band, never first — an unstamped change must never preempt dated work.
+unset or unrecognized `priority` is treated as `medium`; a `created:` that is unset, empty, or
+malformed (not a well-formed `YYYY-MM-DD`) sorts **last** within its priority band, never first —
+an unstamped or unparseable change must never preempt dated work.
 
 Its membership is exactly the set of changes the `change` lines report as `proposed build-ready`:
 it is a **second call** to the same pure `digest_readiness()` function with identical arguments, so
