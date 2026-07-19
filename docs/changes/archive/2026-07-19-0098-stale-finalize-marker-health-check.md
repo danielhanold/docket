@@ -28,8 +28,8 @@ claimed_at:
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-19-stale-finalize-marker-health-check-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-19-stale-finalize-marker-health-check-design.md) |
-| Plan | [2026-07-19-stale-finalize-marker-health-check.md](https://github.com/danielhanold/docket/blob/feat/stale-finalize-marker-health-check/docs/superpowers/plans/2026-07-19-stale-finalize-marker-health-check.md) |
-| Results | [2026-07-19-stale-finalize-marker-health-check-results.md](https://github.com/danielhanold/docket/blob/feat/stale-finalize-marker-health-check/docs/results/2026-07-19-stale-finalize-marker-health-check-results.md) |
+| Plan | [2026-07-19-stale-finalize-marker-health-check.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-19-stale-finalize-marker-health-check.md) |
+| Results | [2026-07-19-stale-finalize-marker-health-check-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-19-stale-finalize-marker-health-check-results.md) |
 | PR | [#106](https://github.com/danielhanold/docket/pull/106) |
 <!-- docket:artifacts:end -->
 
