@@ -10,7 +10,7 @@ depends_on: []
 related: [87]
 discovered_from: [87]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-07-19-stale-finalize-marker-health-check-design.md
 plan:
 results:
 trivial: false
@@ -24,6 +24,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-07-19-stale-finalize-marker-health-check-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-19-stale-finalize-marker-health-check-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -39,23 +42,26 @@ suspicious once it persists), same surface.
 
 ## What changes
 
-Add a health check that flags a `## Finalize blocked` marker which has outlived its plausible
-lifetime, and surface it through the same needs-you channel `merge-gate-stall` uses.
+Add a new health check — check-id `stale-finalize-blocked` — to `scripts/board-checks.sh` that
+flags an `implemented` change carrying the `## Finalize blocked` section whose marker has outlived a
+fixed staleness horizon, surfaced through the same `docket-status` needs-you finding channel
+`merge-gate-stall` uses. It advises only — it never mutates the change file and never auto-clears the
+marker.
 
-The design question is what "stale" means here. `merge-gate-stall` keys on elapsed time, but a
-marker has a stronger signal available: whether the condition that produced it still holds (the PR
-is still unmerged, still unapproved, still conflicting). A check that re-probes the cause would be
-precise where a timer is only a heuristic — at the cost of doing real work per marked change.
+The check is **git-only and time-based**, honoring `board-checks.sh`'s core no-`gh`/no-network
+invariant: marker age is the change file's last-commit timestamp (the bare heading is undated and its
+in-body date is model-authored, so git's clock is the tamper-proof signal), and the horizon is a
+hardcoded 72 h constant mirroring `stale-in-progress`'s own hardcoded branch-idle horizon — no new
+config knob. Design settled in the linked spec; see its `## Assumptions` block for why the
+cause-re-probing alternative (which would need a network probe) is rejected in favor of a pure
+time signal, and why a still-blocked-but-old marker firing the advisory is acceptable.
 
 ## Out of scope
 
 - Auto-clearing the marker. A health check advises; it does not mutate change files.
-- Revisiting the clearing rule itself (tracked separately as the wording follow-up).
-
-## Open questions
-
-- Time-based (mirroring `merge-gate-stall`) or cause-re-probing? If time-based, what threshold?
-- Should the check distinguish "cause resolved, marker stale" from "cause still holds, genuinely
-  blocked"? The second is not stale and should probably stay quiet.
+- Distinguishing "cause resolved, marker stale" from "cause still holds, genuinely blocked" — a
+  git-only check structurally cannot probe live PR state; see the spec.
+- Revisiting the clearing rule itself (tracked separately as change #0099).
+- Mirror readiness parity (change #0097).
 
 ## Reconcile log
