@@ -2,7 +2,7 @@
 id: 98
 slug: stale-finalize-marker-health-check
 title: Health check for a stale `## Finalize blocked` marker
-status: implemented
+status: done
 priority: medium
 created: 2026-07-19
 updated: 2026-07-19
@@ -19,7 +19,7 @@ branch: feat/stale-finalize-marker-health-check
 pr: https://github.com/danielhanold/docket/pull/106
 blocked_by:
 reconciled: true
-claimed_at: 2026-07-19T12:55:52Z
+claimed_at: 
 ---
 
 ## Artifacts
