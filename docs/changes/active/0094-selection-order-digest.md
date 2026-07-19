@@ -9,7 +9,7 @@ updated: 2026-07-19
 depends_on: []
 related: [69, 85, 88, 93]
 adrs: [12]
-spec:
+spec: docs/superpowers/specs/2026-07-19-selection-order-digest-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Spec | [2026-07-19-selection-order-digest-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-19-selection-order-digest-design.md) |
 | ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md) |
 <!-- docket:artifacts:end -->
 
@@ -58,22 +59,23 @@ Without addressing those, a selection-order queue ships with no way to reach it.
 
 ## What changes
 
-1. **Selection-order build-ready queue** in `render-board.sh --format digest` — the build-ready set
-   emitted in the order `implement-next` selects by (priority → created → id), where today's digest
-   is id-ascending. Static frontmatter fields only, so determinism and the golden byte-compare hold.
-2. **Claim-age signal** — the in-progress `updated:` / `claimed_at:` value carried in the digest as
-   the **raw date**, never a computed "N days stale" (a wall-clock read would break `render-board`'s
-   determinism).
-3. **A read-only entry point** so a skill can obtain the digest without a write: either expose
-   `render-board` in the `docket.sh` facade, or a `docket-status` flag that emits the digest and
-   skips the board write. Shape settled in brainstorm.
-4. **Rewire `docket-implement-next` Step 1** to select from the queue instead of walking `active/`,
-   with the change files staying authoritative for the change it actually operates on (digest for
-   orientation, file reads for action). This is the entire payoff — items 1–3 have no consumer
-   without it.
+1. **One `ready` line** in `render-board.sh --format digest` — build-ready ids in selection order
+   (priority → created → id), emitted after the existing `change …` lines, which stay untouched and
+   id-ascending. One line regardless of backlog size. **Always emitted**, bare when the queue is
+   empty, so absence means *no queue was produced* rather than *nothing is ready*.
+2. **`docket-status.sh --digest-only`** — a write-free read: config, rollups, `change` lines, `ready`
+   line, exit. No sweep, no board render, no commit, no push, and no `board …` report line.
+3. **Rewire `docket-implement-next` Step 1** to take its ordered candidate set from the `ready` line
+   and confirm build-readiness by reading that one change file before claiming. The digest is an
+   **accelerator, not the sole channel** — the change files stay authoritative, so a stale digest
+   costs a re-pick, never a bad build. No `ready` line at all → fall back to walking `active/` and
+   report the degradation.
 
-Net token cost of items 1–2 must stay at or near zero per digest: the queue reorders and annotates
-lines the digest already emits rather than adding a new section.
+The claim-age date from the original scope is **dropped** — no named consumer, and `board-checks.sh`
+plus `reclaim-claims.sh` already own the claim-lease signal.
+
+Full design, the rejected alternatives, and the prose-posture guardrails for the Step 1 rewrite are
+in the linked spec.
 
 ## Out of scope
 
@@ -83,21 +85,17 @@ lines the digest already emits rather than adding a new section.
 - Replacing `BOARD.md` (the human-facing board stays; this is the agent-facing projection).
 - A new committed or cached surface — the digest stays stdout-only and always-fresh.
 - Semantic/embedding relevance ranking of anything.
-- Rewiring skills other than `docket-implement-next`; whether the interactive skills or
-  `docket-status`'s own report adopt the queue is a follow-up, not this change.
+- Rewiring any skill other than `docket-implement-next`. The full `docket-status` report picks the
+  `ready` line up automatically (same projection, no new call site) — a free readability win, but no
+  other skill's selection path changes here.
 - Changing *what* any skill does with the state — only how it acquires it.
 
 ## Open questions
 
-- Item 3's shape: expose `render-board` through the `docket.sh` facade, or add a write-free flag to
-  `docket-status`? The facade route is thinner but widens the supported-operations surface; the
-  flag route keeps one entry point but adds a mode to an already multi-mode script.
-- Does the queue reorder the existing `change …` lines in place, or ride as a distinct
-  `ready <n> <id> …` line set? In-place keeps the line count flat but changes an existing contract
-  #0069's consumers may depend on.
-- How much of Step 1's prose survives — does the skill still describe the ranking (as the
-  authoritative definition the script implements), or defer entirely to the digest's order?
-- Does the claim-age date belong in this change at all, or is it a separable nicety with no named
-  consumer yet? (Same "ships with no adopter" trap that deferred the original.)
+_All four resolved at the 2026-07-19 groom — see the linked spec §2. The entry point is a write-free
+`docket-status --digest-only`, not a facade exposure of `render-board` (which would re-open the
+`> BOARD.md` gate-bypass); the queue is one always-emitted `ready` line, not per-entry lines and not
+an in-place reorder; the digest is an accelerator, so the convention's selection definition stays
+authoritative in Step 1's prose; claim-age is dropped for want of a consumer._
 
 ## Reconcile log
