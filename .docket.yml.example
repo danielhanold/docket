@@ -86,7 +86,9 @@ finalize:
   # path REFUSES to merge a PR whose reviewDecision != APPROVED, surfacing it instead.
   # An explicit `docket-finalize-change <id>` (or an id allowlist) always OVERRIDES this —
   # naming the id IS the authorization. Read by the finalize skill body, not by any script.
-  # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
+  # scope: repo-committed .docket.yml only — read by the finalize SKILL BODY, not by the config
+  #        resolver, so a value in .docket.local.yml or the global config is silently ignored
+  #        (no warning, unlike a coordination-fenced key).
   require_pr_approval: false
 
 
@@ -187,6 +189,10 @@ auto_capture: false
 # `agents:` set anywhere, generates no wrappers and keeps `sync-agents.sh --check` a no-op.
 # To enable another harness: add it here AND uncomment that harness's block under `agents:`,
 # then re-run install.sh. Model IDs pass through verbatim; unknown tokens are warned + dropped.
+# A GLOBAL value (~/.config/docket/config.yml) means something different: it scopes
+# sync-agents.sh's USER-LEVEL pass only (which harnesses get ~/.claude/agents/docket-*.md, etc.)
+# and never opts any repo into the per-repo generation pass above — that opt-in is presence in a
+# REPO file (this key or `agents:`, in .docket.yml or .docket.local.yml) and only that.
 # PRESENCE-SENSITIVE: uncommenting this key changes behavior even at these default values.
 # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
 # agent_harnesses: [claude]
@@ -197,8 +203,12 @@ auto_capture: false
 # `cursor:`) that only need to list the fields that differ; resolution is field-by-field:
 # agents.<harness>.<agent> -> agents.default.<agent> -> shipped built-in (agents/docket-*.md).
 # `effort: auto` explicitly drops the effort line (inherit the model default); omitting the
-# `effort:` key instead keeps the built-in effort — auto and omitted are NOT equivalent. Only the
-# 5 autonomous skills have wrappers; new-change/groom-next are advisory-only and ignore this block.
+# `effort:` key instead keeps the built-in effort — auto and omitted are NOT equivalent. 9 wrapper
+# files ship (agents/docket-*.md, mirrored below): 5 wrap one of the 5 autonomous skills (adr,
+# auto-groom, finalize-change, implement-next, status); the other 4 (auto-groom-critic,
+# brainstorm-consultant, integration-repair, rebase-resolver) are standalone agents those skills
+# dispatch and wrap no skill of their own. new-change/groom-next are advisory-only skills with no
+# wrapper and ignore this block.
 # Configuring a skill here overrides its model/effort in the generated, machine-local
 # .<harness>/agents/docket-<skill>.md — which is regenerated for every built-in regardless (full
 # set; this block is OVERRIDE-ONLY, tuning model/effort and never deciding which agents exist),

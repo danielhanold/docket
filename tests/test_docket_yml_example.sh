@@ -45,6 +45,14 @@ git -C "$tmp/full" add .docket.yml
 git -C "$tmp/full" commit --quiet -m cfg
 git -C "$tmp/full" push --quiet origin main
 
+# Guard against the fidelity asserts passing VACUOUSLY: the fixture setup above (cp/add/commit/
+# push) is unchecked and this suite runs with no -e, so if any one of those four commands silently
+# failed, $tmp/full's origin/main would carry no .docket.yml, both sides would resolve as
+# no-config, and the byte-identity assert below would go green while proving nothing. Prove the
+# example actually reached the fixture's origin/main BEFORE trusting the comparison.
+assert "fidelity fixture: example reached the fixture's origin/main" \
+  'git -C "$tmp/full" show origin/main:.docket.yml 2>/dev/null | grep -q "^metadata_branch:"'
+
 # --repo-dir differs between the two fixtures, and plain format emits absolute REPO_ROOT /
 # METADATA_WORKTREE paths — normalize those two lines out before diffing.
 norm(){ grep -vE '^(REPO_ROOT|METADATA_WORKTREE)=' ; }
