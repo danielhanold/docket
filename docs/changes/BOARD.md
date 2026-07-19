@@ -1,8 +1,8 @@
 # Backlog
 
-**96 changes** — 🟡 8 proposed · 🔴 1 blocked · ⚪ 1 deferred · 🔵 3 implemented · ✅ 78 done · 🗑️ 5 killed
+**99 changes** — 🟡 11 proposed · 🔴 1 blocked · ⚪ 1 deferred · 🔵 3 implemented · ✅ 78 done · 🗑️ 5 killed
 
-## 🟡 Proposed (8)
+## 🟡 Proposed (11)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -14,6 +14,9 @@
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | needs-brainstorm |
 | [0082](active/0082-global-harnesses-per-repo-generation.md) | Global agent_harnesses doesn't reach per-repo generation — silent no-op | `low` | needs-brainstorm |
 | [0083](active/0083-terminal-publish-gap-detection.md) | A terminal record can silently never reach the integration branch — mark deferred publishes, stop the checker lying | `medium` | build-ready |
+| [0097](active/0097-mirror-readiness-label-parity.md) | GitHub mirror readiness parity — readiness labels stop at `proposed` | `low` | needs-brainstorm |
+| [0098](active/0098-stale-finalize-marker-health-check.md) | Health check for a stale `## Finalize blocked` marker | `medium` | needs-brainstorm |
+| [0099](active/0099-finalize-marker-clearing-rule-wording.md) | Re-phrase the `## Finalize blocked` clearing rule around what it actually guards | `low` | needs-brainstorm |
 
 ## 🔴 Blocked (1)
 
@@ -50,6 +53,9 @@ graph TD
   0090 --> 0091
   0094
   0096
+  0097
+  0098
+  0099
   0015:::done
   0016:::done
   0077:::done
