@@ -2,7 +2,7 @@
 id: 98
 slug: stale-finalize-marker-health-check
 title: Health check for a stale `## Finalize blocked` marker
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-07-19
 updated: 2026-07-19
@@ -15,10 +15,11 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/stale-finalize-marker-health-check
 pr:
 blocked_by:
 reconciled: false
+claimed_at: 2026-07-19T12:19:14Z
 ---
 
 ## Artifacts
