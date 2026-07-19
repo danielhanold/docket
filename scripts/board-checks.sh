@@ -147,6 +147,11 @@ for f in "${FILES[@]}"; do
   # last-commit timestamp (git ct is tamper-proof; the in-body date is model-authored prose). Never
   # mutates the file / auto-clears the marker — that stays docket-finalize-change's job.
   if [ "$status" = "implemented" ] && finalize_blocked "$f"; then
+    # "$f" is a pathspec here (unlike the ref args elsewhere in this script). It comes from
+    # `find "$CHANGES_DIR/..."`, so it is absolute whenever --changes-dir is absolute — which the
+    # real docket-status invocation and the tests always are, and git resolves an absolute pathspec
+    # against the worktree root regardless of the -C cwd. A RELATIVE --changes-dir would make this
+    # resolve against the changed cwd and return empty (→ silently never fires); pass an absolute dir.
     fbts="$("$GIT" -C "$CHANGES_DIR" log -1 --format=%ct -- "$f" 2>/dev/null)"
     if [ -n "$fbts" ] && [ "$(( NOW - fbts ))" -gt "$FINALIZE_BLOCKED_STALE_SECS" ]; then
       emit stale-finalize-blocked "$id" "## Finalize blocked marker set $(( (NOW - fbts) / 3600 ))h ago — resolve the cause and re-run finalize $id, or it will sit on the board"
