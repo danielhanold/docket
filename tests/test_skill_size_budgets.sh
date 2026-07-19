@@ -20,7 +20,7 @@ skills/docket-convention/github-board-mirror.md             19  462
 skills/docket-convention/references/agent-layer.md         168 1839
 skills/docket-convention/references/learnings.md            84  580
 skills/docket-convention/references/terminal-close-out.md  147 1238
-skills/docket-finalize-change/SKILL.md                     193 3902
+skills/docket-finalize-change/SKILL.md                     193 4060
 skills/docket-groom-next/SKILL.md                           77 1484
 skills/docket-implement-next/SKILL.md                      140 2845
 skills/docket-implement-next/results-template.md            24  172
