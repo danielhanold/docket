@@ -1846,6 +1846,10 @@ assert "status contract documents the inline-render-failure line" \
   'grep -qF "board inline failed" "$STATUS_CONTRACT"'
 assert "status contract documents the unknown-surface-token line" \
   'grep -qF "board <token> unknown" "$STATUS_CONTRACT"'
+# Minor 4 (0094 whole-branch review): the contract-coverage guard above enumerates every OTHER
+# report-line shape but was never extended for this branch's own new one — the `ready` queue line.
+assert "status contract documents the ready queue line" \
+  'grep -qF "ready [<id> …]" "$STATUS_CONTRACT"'
 
 # The renderer contract documents the new flag.
 assert "render-board contract documents --format" 'grep -qF -- "--format" "$BOARD_CONTRACT"'
@@ -2596,6 +2600,14 @@ EOF
 chmod +x "$tmp/spy-git.sh"
 : > "$tmp/git-calls.txt"
 
+# Minor 5 (0094 whole-branch review): pre-write BOARD.md with KNOWN bytes before the run. The old
+# assert `[ ! -e BOARD.md ]` was already true before the run even started (this fixture never
+# creates one) — it proved "not created", not the spec's "byte-unchanged". Writing a sentinel file
+# first and cmp'ing it after is the only way to actually exercise the "left untouched" claim.
+printf 'SENTINEL — pre-existing BOARD.md bytes; --digest-only must never touch this file\n' \
+  > "$dg/work/.docket/docs/changes/BOARD.md"
+cp "$dg/work/.docket/docs/changes/BOARD.md" "$tmp/dg-board-before.md"
+
 dg_out="$tmp/digest-only-out.txt"
 (cd "$dg/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-digest.sh" GIT="$tmp/spy-git.sh" \
   "$SCRIPT" --digest-only >"$dg_out" 2>"$tmp/digest-only-err.txt")
@@ -2610,18 +2622,111 @@ assert "--digest-only ready order is critical-first (51 before 50)" \
 
 # The load-bearing half: it is a READ. A read-only `worktree list` call (anchoring the relative
 # METADATA_WORKTREE, same as every other docket-status.sh path) is expected and fine — what the
-# write-free contract forbids is a MUTATING git call or moving HEAD, so the assert checks the
-# git-call log for exactly that property rather than "zero git calls" (a bar this path was never
-# actually able to meet: see the fixture comment above).
+# write-free contract forbids is a call that MUTATES the working tree or moves refs/HEAD (pull,
+# push, commit, worktree add, checkout), not every git invocation whatsoever. Review fix 4 (0094
+# whole-branch review): the assert below used to also list "fetch" among the forbidden calls, which
+# overstates what this path actually guarantees — the REAL docket-config.sh --export (bypassed here
+# by CONFIG_EXPORT_CMD's stub) runs an unconditional, read-only `git fetch --quiet origin` +
+# `git remote set-head origin -a` on every invocation, production included. That is fine: neither
+# call moves HEAD or touches the working tree, so the design intent (no mutation) still holds —
+# but a name claiming "no fetch" would describe a property this path's production invocation does
+# not actually have. Renamed/scoped to the narrower, true claim.
 assert "--digest-only emits NO board line" '! grep -q "^board " "$dg_out"'
-assert "--digest-only writes no BOARD.md" '[ ! -e "$dg/work/.docket/docs/changes/BOARD.md" ]'
-assert "--digest-only makes no mutating git call (no fetch/pull/push/commit/worktree add/checkout)" \
-  '! grep -Eq "(^| )(fetch|pull|push|commit|checkout)( |$)" "$tmp/git-calls.txt" \
+assert "--digest-only leaves BOARD.md byte-unchanged (not merely 'not created')" \
+  'cmp -s "$tmp/dg-board-before.md" "$dg/work/.docket/docs/changes/BOARD.md"'
+assert "--digest-only makes no working-tree- or ref-mutating git call (no pull/push/commit/worktree add/checkout — fetch/set-head are permitted, read-only)" \
+  '! grep -Eq "(^| )(pull|push|commit|checkout)( |$)" "$tmp/git-calls.txt" \
    && ! grep -qF "worktree add" "$tmp/git-calls.txt"'
 assert "the git-call log is not vacuous (the read-only anchoring call was actually made)" \
   '[ -s "$tmp/git-calls.txt" ] && grep -qF "worktree list" "$tmp/git-calls.txt"'
 assert "--digest-only emits no pass ok (it is not a pass)" '! grep -q "^pass ok" "$dg_out"'
 assert "--digest-only stdout is non-empty" '[ -s "$dg_out" ]'
+
+# Minor 5 continued: the spec also promises "working tree clean, HEAD unmoved" — properties the
+# spy-git stub above cannot attest to (it isn't real git). Prove them with a REAL git repo: seed
+# one change, commit + push a known-bytes BOARD.md, capture HEAD, run --digest-only against it with
+# the real `git` (no GIT= override), and assert both invariants plus the same byte-unchanged check.
+dgb="$tmp/digest-only-realgit"
+git_repo_setup "$dgb/case"
+git clone -q "$dgb/case/origin.git" "$dgb/work" 2>/dev/null
+mkdir -p "$dgb/work/docs/changes/active" "$dgb/work/docs/changes/archive"
+cat > "$dgb/work/docs/changes/active/0060-victor.md" <<'EOF'
+---
+id: 60
+slug: victor
+title: victor
+status: proposed
+priority: medium
+created: 2026-04-01
+updated: 2026-04-01
+depends_on: []
+spec: docs/superpowers/specs/v.md
+trivial: false
+---
+
+## Why
+x
+EOF
+printf 'SENTINEL — pre-existing BOARD.md bytes (real-git fixture); must survive untouched\n' \
+  > "$dgb/work/docs/changes/BOARD.md"
+git -C "$dgb/work" -c user.email=t@t -c user.name=t add docs/changes
+git -C "$dgb/work" -c user.email=t@t -c user.name=t commit -q -m "seed digest-only real-git fixture"
+git -C "$dgb/work" push -q origin main
+cp "$dgb/work/docs/changes/BOARD.md" "$tmp/dgb-board-before.md"
+dgb_head_before="$(git -C "$dgb/work" rev-parse HEAD)"
+
+cat > "$tmp/fixture-digest-realgit.sh" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' \
+  'BOOTSTRAP=PROCEED' \
+  'METADATA_BRANCH=main' \
+  'INTEGRATION_BRANCH=main' \
+  'DOCKET_MODE=main' \
+  'METADATA_WORKTREE=.' \
+  'CHANGES_DIR=docs/changes' \
+  'ADRS_DIR=docs/adrs' \
+  'RESULTS_DIR=docs/results' \
+  'BOARD_SURFACES=inline'
+EOF
+
+(cd "$dgb/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-digest-realgit.sh" \
+  "$SCRIPT" --digest-only >"$tmp/dg-realgit-out.txt" 2>"$tmp/dg-realgit-err.txt")
+dgbrc=$?
+assert "--digest-only (real-git fixture) exits 0" '[ "$dgbrc" -eq 0 ]'
+assert "--digest-only (real-git fixture) emits the ready line" \
+  'grep -qF "change 60 proposed build-ready victor" "$tmp/dg-realgit-out.txt"'
+assert "--digest-only (real-git fixture) leaves BOARD.md byte-unchanged" \
+  'cmp -s "$tmp/dgb-board-before.md" "$dgb/work/docs/changes/BOARD.md"'
+assert "--digest-only (real-git fixture) leaves the working tree clean" \
+  '[ -z "$(git -C "$dgb/work" status --porcelain)" ]'
+assert "--digest-only (real-git fixture) leaves HEAD unmoved" \
+  '[ "$(git -C "$dgb/work" rev-parse HEAD)" = "$dgb_head_before" ]'
+
+# ── review fix 3 (0094 whole-branch review): the happy-path battery never exercises real path
+# anchoring from a SUBDIRECTORY ───────────────────────────────────────────────────────────────
+# Every fixture above (the spy-git battery AND the real-git fixture just above) invokes
+# docket-status.sh from the fixture's OWN work dir. With the spy-git stub, docket_main_worktree's
+# `worktree list` call returns nothing (the stub isn't a real repo), so docket_anchor_path takes
+# its soft "not a repo" fallback and METADATA_WORKTREE stays relative (`.docket`) — those asserts
+# pass only because CWD happens to equal the relative base; the SAME fixture run from a
+# subdirectory would resolve `.docket/docs/changes` against the wrong root and fail with "metadata
+# worktree not found", rc=1. --digest-only is the one path that deliberately skips
+# docket_preflight's own anchoring (see the header comment on digest_only_pass), so it is the path
+# that most needs a REAL anchoring check. Reuse the real-git fixture above ($dgb, real `git`, no
+# GIT= override, METADATA_WORKTREE=.) but invoke --digest-only from a directory nested several
+# levels under the work tree — proving `git worktree list --porcelain` (docket_main_worktree's
+# resolution call) finds the repo root regardless of CWD, not merely when CWD happens to equal the
+# relative base.
+mkdir -p "$dgb/work/nested/deeper/cwd-probe"
+(cd "$dgb/work/nested/deeper/cwd-probe" && CONFIG_EXPORT_CMD="bash $tmp/fixture-digest-realgit.sh" \
+  "$SCRIPT" --digest-only >"$tmp/dg-subdir-out.txt" 2>"$tmp/dg-subdir-err.txt")
+dgsubrc=$?
+assert "--digest-only resolves from a subdirectory of the work tree (real git anchoring)" \
+  '[ "$dgsubrc" -eq 0 ]'
+assert "--digest-only from a subdirectory still emits the ready line" \
+  'grep -qF "change 60 proposed build-ready victor" "$tmp/dg-subdir-out.txt"'
+assert "--digest-only from a subdirectory leaves BOARD.md byte-unchanged" \
+  'cmp -s "$tmp/dgb-board-before.md" "$dgb/work/docs/changes/BOARD.md"'
 
 # Mutual exclusion: the two flags are opposite postures (a read vs. a committing write).
 (cd "$dg/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-digest.sh" GIT="$tmp/spy-git.sh" \
@@ -2655,6 +2760,41 @@ assert "the --digest-only/--must-land error names both flags" \
   "$SCRIPT" --must-land --digest-only >/dev/null 2>/dev/null)
 mldgrc=$?
 assert "--must-land with --digest-only also exits 2 (order-independent)" '[ "$mldgrc" -eq 2 ]'
+
+# ── review fix 5 (0094 whole-branch review): --repo/--project/--auto-create-project/
+# --project-owner are silently dropped under --digest-only, same shape as --must-land above ──────
+# --must-land got a hard exit-2 gate precisely because a silently-dropped flag is a defect shape;
+# --repo, --project, --auto-create-project, and --project-owner are dropped by the SAME
+# short-circuit (main() never reaches board_pass/github-mirror.sh under --digest-only) and nothing
+# on the digest path consumes any of them. Extend the existing gate so each one exits 2 and names
+# itself on stderr, rather than silently vanishing.
+(cd "$dg/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-digest.sh" GIT="$tmp/spy-git.sh" \
+  "$SCRIPT" --digest-only --repo owner/repo >/dev/null 2>"$tmp/dg-repo-err.txt")
+dgrepork=$?
+assert "--digest-only with --repo exits 2 (silently-ignored flag combo)" '[ "$dgrepork" -eq 2 ]'
+assert "the --digest-only/--repo error names both flags" \
+  'grep -q -- "--digest-only" "$tmp/dg-repo-err.txt" && grep -q -- "--repo" "$tmp/dg-repo-err.txt"'
+
+(cd "$dg/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-digest.sh" GIT="$tmp/spy-git.sh" \
+  "$SCRIPT" --digest-only --project owner/1 >/dev/null 2>"$tmp/dg-project-err.txt")
+dgprojrc=$?
+assert "--digest-only with --project exits 2 (silently-ignored flag combo)" '[ "$dgprojrc" -eq 2 ]'
+assert "the --digest-only/--project error names both flags" \
+  'grep -q -- "--digest-only" "$tmp/dg-project-err.txt" && grep -q -- "--project" "$tmp/dg-project-err.txt"'
+
+(cd "$dg/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-digest.sh" GIT="$tmp/spy-git.sh" \
+  "$SCRIPT" --digest-only --auto-create-project >/dev/null 2>"$tmp/dg-acp-err.txt")
+dgacprc=$?
+assert "--digest-only with --auto-create-project exits 2 (silently-ignored flag combo)" '[ "$dgacprc" -eq 2 ]'
+assert "the --digest-only/--auto-create-project error names both flags" \
+  'grep -q -- "--digest-only" "$tmp/dg-acp-err.txt" && grep -q -- "--auto-create-project" "$tmp/dg-acp-err.txt"'
+
+(cd "$dg/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-digest.sh" GIT="$tmp/spy-git.sh" \
+  "$SCRIPT" --digest-only --project-owner acme >/dev/null 2>"$tmp/dg-po-err.txt")
+dgpork=$?
+assert "--digest-only with --project-owner exits 2 (silently-ignored flag combo)" '[ "$dgpork" -eq 2 ]'
+assert "the --digest-only/--project-owner error names both flags" \
+  'grep -q -- "--digest-only" "$tmp/dg-po-err.txt" && grep -q -- "--project-owner" "$tmp/dg-po-err.txt"'
 
 # Totality on an EMPTY backlog: stdout is still non-empty and the ready line is still there.
 dge="$tmp/digest-empty"; mkdir -p "$dge/work/.docket/docs/changes/active" "$dge/work/.docket/docs/changes/archive"
@@ -2731,6 +2871,54 @@ assert "--digest-only names the resolved changes-dir path on stderr" \
   'grep -qF ".docket/docs/changes" "$tmp/dg-nw-err.txt"'
 assert "--digest-only points the caller at docket.sh preflight" \
   'grep -qi "preflight" "$tmp/dg-nw-err.txt"'
+
+# ── Important 1 (0094 whole-branch review): --digest-only was fail-OPEN on a render failure ────
+# digest_only_pass's existence check guards ONLY the missing-changes-dir case; the call it then
+# makes, backlog_pass, is best-effort BY DESIGN (a render failure logs to stderr and `return 0`s).
+# So every OTHER render failure — a partially-installed or non-executable render-board.sh — still
+# produced exit 0 with COMPLETELY EMPTY stdout on this path: no `ready` line, no diagnostic reaching
+# the caller via the exit code, the exact "two-cases-one-signal collapse" digest_only_pass's own
+# header comment claims to prevent. Reproduce with a stub SCRIPTS_DIR/render-board.sh that exits 1 —
+# mirroring the --board-only stub-render fixture above (the "failing digest still exits 0" block).
+dgrf="$tmp/digest-only-renderfail"
+mkdir -p "$dgrf/work/.docket/docs/changes/active" "$dgrf/work/.docket/docs/changes/archive"
+cat > "$dgrf/work/.docket/docs/changes/active/0070-whiskey.md" <<'EOF'
+---
+id: 70
+slug: whiskey
+title: whiskey
+status: proposed
+priority: medium
+created: 2026-05-01
+updated: 2026-05-01
+depends_on: []
+spec: docs/superpowers/specs/w.md
+trivial: false
+---
+
+## Why
+x
+EOF
+mkdir -p "$tmp/stub-scripts-digest-renderfail"
+cat > "$tmp/stub-scripts-digest-renderfail/render-board.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "stub render-board: boom" >&2
+exit 1
+EOF
+chmod +x "$tmp/stub-scripts-digest-renderfail/render-board.sh"
+
+(cd "$dgrf/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-digest.sh" GIT="$tmp/spy-git.sh" \
+  SCRIPTS_DIR="$tmp/stub-scripts-digest-renderfail" \
+  "$SCRIPT" --digest-only >"$tmp/dg-renderfail-out.txt" 2>"$tmp/dg-renderfail-err.txt")
+dgrfrc=$?
+assert "--digest-only fails closed when the digest render itself fails (Important 1)" \
+  '[ "$dgrfrc" -ne 0 ]'
+assert "--digest-only emits no ready line on a render failure" \
+  '! grep -q "^ready" "$tmp/dg-renderfail-out.txt"'
+assert "--digest-only stdout is empty on a render failure (no partial/garbled digest)" \
+  '[ ! -s "$tmp/dg-renderfail-out.txt" ]'
+assert "--digest-only emits a diagnostic on stderr for a render failure" \
+  'grep -qi "digest" "$tmp/dg-renderfail-err.txt"'
 
 # --help documents the flag (the skill's author has to be able to find it).
 assert "--help mentions --digest-only" '"$SCRIPT" --help 2>&1 | grep -q -- "--digest-only"'

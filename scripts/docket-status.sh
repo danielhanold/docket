@@ -10,7 +10,9 @@
 #   --digest-only          WRITE-FREE READ (change 0094): resolve config, emit the backlog digest
 #                          (rollups + `change` lines + the `ready` queue line) and exit. No worktree
 #                          sync, no sweep, no health checks, no board render, no commit, no push,
-#                          and no `board …` line. Mutually exclusive with --board-only.
+#                          and no `board …` line. Mutually exclusive with --board-only AND with
+#                          --must-land (which has nothing to retry without a board pass) — both
+#                          gates reject in either flag order; see docket-status.md.
 #   --must-land            (with --board-only) retry a push-failed board write in-script and
 #                          map the outcome to the exit code (0 = board landed); see docket-status.md
 #   --repo OWNER/REPO      GitHub repo for PR-link resolution (defaults to origin remote)
@@ -31,7 +33,7 @@ SCRIPTS_DIR="${SCRIPTS_DIR:-$SELF_DIR}"
 . "$SELF_DIR"/lib/docket-preflight.sh
 
 BOARD_ONLY=0 DIGEST_ONLY=0 MUST_LAND=0 REPO_FLAG="" PROJECT_FLAG="" AUTO_CREATE_PROJECT=0 PROJECT_OWNER=""
-usage(){ sed -n '2,19p' "${BASH_SOURCE[0]}"; }
+usage(){ sed -n '2,21p' "${BASH_SOURCE[0]}"; }
 while [ $# -gt 0 ]; do
   case "$1" in
     --board-only) BOARD_ONLY=1 ;;
@@ -60,6 +62,29 @@ fi
 if [ "$DIGEST_ONLY" = 1 ] && [ "$MUST_LAND" = 1 ]; then
   echo "docket-status: --digest-only and --must-land are mutually exclusive (--must-land only applies to --board-only; --digest-only is a write-free read)" >&2
   exit 2
+fi
+# --repo/--project/--auto-create-project/--project-owner are consumed only by board_pass and
+# github-mirror.sh — machinery --digest-only never reaches (it short-circuits in main() before
+# either runs). Passing any of them alongside --digest-only is the same silently-dropped-flag shape
+# --must-land's gate above exists to prevent; extend the SAME gate, one check per flag, so the
+# error names the actual offending flag rather than a generic complaint.
+if [ "$DIGEST_ONLY" = 1 ]; then
+  if [ -n "$REPO_FLAG" ]; then
+    echo "docket-status: --digest-only and --repo are mutually exclusive (--repo only resolves PR links in a board pass; --digest-only never runs one)" >&2
+    exit 2
+  fi
+  if [ -n "$PROJECT_FLAG" ]; then
+    echo "docket-status: --digest-only and --project are mutually exclusive (--project only drives the GitHub Project sync; --digest-only never runs one)" >&2
+    exit 2
+  fi
+  if [ "$AUTO_CREATE_PROJECT" = 1 ]; then
+    echo "docket-status: --digest-only and --auto-create-project are mutually exclusive (--auto-create-project only drives the GitHub Project sync; --digest-only never runs one)" >&2
+    exit 2
+  fi
+  if [ -n "$PROJECT_OWNER" ]; then
+    echo "docket-status: --digest-only and --project-owner are mutually exclusive (--project-owner only drives the GitHub Project sync; --digest-only never runs one)" >&2
+    exit 2
+  fi
 fi
 
 board_pass(){
@@ -335,7 +360,13 @@ backlog_pass(){
 
 # digest_only_pass — the write-free selection read (change 0094). docket-implement-next Step 1
 # acquires its ordered candidate set here, so this path must be a READ in the strict sense: it
-# resolves config and runs the backlog pass, and does nothing else.
+# resolves config and runs the backlog pass, and does nothing else. Unlike every other caller of
+# backlog_pass (the full pass, --board-only), this path treats the digest as NON-BEST-EFFORT: it
+# captures backlog_pass's output and fails closed (non-zero exit, diagnostic on stderr, nothing on
+# stdout) when that output is empty — for ANY reason, not only the missing-changes-dir case gated
+# below. That is deliberate and narrow to this path alone: the digest is the entire deliverable
+# here, so there is nothing else in the pass for a caller to fall back to, unlike the full pass or
+# --board-only where a digest failure is one line among many and must not abort the rest.
 #
 # It deliberately does NOT call docket_preflight. Preflight FETCHES AND `pull --rebase`s the
 # metadata worktree — a working-tree mutation that can move HEAD, which would make a "read" a
@@ -375,7 +406,23 @@ digest_only_pass(){
     echo "docket-status: metadata worktree not found at $cd_dir — run docket.sh preflight (or a docket skill) to materialize it" >&2
     return 1
   fi
-  backlog_pass
+  # Review fix (still change 0094) — backlog_pass is BEST-EFFORT BY DESIGN (a render failure logs
+  # to stderr and `return 0`s), which is the right posture for the full pass and --board-only: a
+  # digest failure there must never abort the board/sweep/health work around it. But on THIS path
+  # the digest IS the entire deliverable — there is nothing else in the pass for a caller to fall
+  # back to — so best-effort here reopens exactly the "exit 0, empty stdout" collapse the
+  # existence check above exists to prevent, just one call later: a partially-installed or
+  # non-executable render-board.sh (any render failure other than the missing-changes-dir case
+  # already gated above) would otherwise still reach `exit 0` with nothing on stdout. Capture
+  # backlog_pass's output and require it non-empty — never call it for its side effect (echoing to
+  # stdout) and trust the return code, since a best-effort function's return code says nothing.
+  local out
+  out="$(backlog_pass)"
+  if [ -z "$out" ]; then
+    echo "docket-status: digest render produced no output — the selection queue is unavailable" >&2
+    return 1
+  fi
+  printf '%s\n' "$out"
 }
 
 # detect_merged — batched sweep detection (change 0058, task 4). Prints TAB-separated

@@ -104,7 +104,8 @@ wrapper — `main()` calls `board_pass` directly, byte for byte as before change
 
 **4. Backlog pass — UNGATED, once per path.** Runs `render-board.sh --format digest` and passes
 its lines through (`backlog <status> <count>` rollups, then one `change <id> <status> <readiness>
-<slug>` line per active change). It runs **regardless of `board_surfaces`**, because **the digest
+<slug>` line per active change, then the trailing `ready <id> …` build-ready-queue line). It runs
+**regardless of `board_surfaces`**, because **the digest
 is report output, not a board surface**: it persists nothing, commits nothing, pushes nothing, and
 never touches `BOARD.md`. That boundary is exactly what lets `board_surfaces: []` keep meaning "no
 board is rendered or committed" while backlog state still reaches the report. Best-effort: a

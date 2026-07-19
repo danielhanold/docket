@@ -240,6 +240,18 @@ assert "skill Step 1 keeps the change files authoritative (accelerator, not sole
   'grep -qi "accelerator" "$impl"'
 assert "skill Step 1 documents the no-ready-line fallback to walking active/" \
   'grep -qi "fall back" "$impl"'
+# Important 2 (0094 whole-branch review): the ORIGINAL fallback paragraph treated a missing ready
+# line as ONE cause ("an older render-board, a failed render") with ONE response (fall back to
+# active/) — but --digest-only now has non-zero-exit, zero-stdout hard-error paths of its own
+# (config export failure, a non-PROCEED bootstrap, a missing metadata worktree, a failed render
+# after Important 1's fix). Walking active/ on those silently converts a hard fail-closed error
+# into `drained` in an autonomous drain loop. The exit status must govern: non-zero => halted,
+# never the fallback, never drained; only exit-0-with-no-ready-line falls back.
+assert "skill Step 1 treats a non-zero --digest-only exit as a hard error" \
+  'grep -qi "is a hard error" "$impl"'
+assert "skill Step 1 maps a --digest-only hard error to halted, never the active/ fallback or drained" \
+  'grep -qi "never fall back to \`active/\` for a hard error" "$impl" \
+   && grep -qi "never report \`drained\` for one" "$impl"'
 
 # POSTURE — the two things spec section 4 says must not be lost in the rewrite.
 assert "skill Step 1 still defers the DEFINITION to the convention" \
