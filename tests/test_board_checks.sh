@@ -11,9 +11,33 @@ fail=0
 assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
 git_quiet(){ git "$@" >/dev/null 2>&1; }
 
-# has_finding OUTPUT CHECK-ID CHANGE-ID — exit 0 iff OUTPUT has a "<check>\t<id>\t…" line.
-# Builds a literal-TAB ERE pattern via printf (portable: avoids grep -P, which BSD grep lacks).
-has_finding(){ printf '%s' "$1" | grep -qE "$(printf '^%s\t%s\t' "$2" "$3")"; }
+# has_finding OUTPUT CHECK-ID CHANGE-ID — exit 0 iff OUTPUT has a line beginning with the
+# LITERAL "<check-id><TAB><change-id><TAB>" prefix.
+#
+# Matches literally, not as a regex. An earlier version built an ERE via
+# `grep -qE "$(printf '^%s\t%s\t' "$2" "$3")"`, which let any ERE metacharacter in CHANGE-ID be
+# reinterpreted as a pattern — most treacherously "?" (matches its preceding atom 0-or-1 times),
+# which collapses `^check\t?\t` to effectively `^check\t`, i.e. TRUE for any change-id at all. And
+# CHANGE-ID can legitimately BE the literal "?": it's the change-id column's fallback value when a
+# filename yields no derivable id (see padded_id_from_file in scripts/board-checks.sh). A test
+# author calling `has_finding "$out" some-check "?"` would silently get a vacuous, permanently-green
+# assert with no signal it had happened. Matching via `case`/glob with the prefix double-quoted
+# sidesteps this entirely: quoting a variable inside a case pattern makes its contents literal, so
+# no argument value — "?", "*", "[", etc. — is ever reinterpreted as a pattern metacharacter.
+#
+# Also avoids piping a producer into an early-exiting consumer (this file runs under
+# `set -uo pipefail`, so `printf ... | grep -q` is a real hazard, not just style): OUTPUT is
+# consumed from a here-string, not a pipe, so an early `return` on match never races printf.
+has_finding(){
+  local out="$1" prefix line
+  prefix="$2"$'\t'"$3"$'\t'
+  while IFS= read -r line; do
+    case "$line" in
+      "$prefix"*) return 0 ;;
+    esac
+  done <<<"$out"
+  return 1
+}
 
 # A fixed reference "now"; tests age commits relative to it and pass NOW=$NOW_EPOCH to the script
 # so staleness never depends on wall-clock. (2026-06-15T13:20:00Z-ish; the exact value is irrelevant.)
@@ -447,17 +471,14 @@ aout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$work3/docs/changes" --meta
 assert "archive filenames yield their padded id for the change-id column" 'has_finding "$aout" malformed-id 0012'
 
 # A filename with no derivable id falls back to `?` rather than emitting an empty column.
-# NOTE: this is checked via IFS field-extraction, not has_finding — has_finding builds an
-# unescaped ERE from its args, and "?" is an ERE quantifier metacharacter (matches its preceding
-# atom 0-or-1 times), so `has_finding "$wout" malformed-id "?"` is vacuously true for ANY
-# malformed-id line regardless of the actual column value (verified: it stays green even when the
-# implementation emits the raw frontmatter value instead of the "?" fallback). Read the finding
-# back exactly the way docket-status.sh does instead, matching the TAB-injection case above.
+# has_finding now matches the change-id column literally (see its definition above), so passing
+# the literal "?" here is safe and no longer needs the IFS-extraction workaround this assert used
+# to require: "?" cannot be reinterpreted as a pattern, and this is genuinely discriminating —
+# it fails if the implementation ever emits anything other than the "?" fallback.
 read -r work4 _ <<<"$(new_repo)"
 printf -- '---\nid: nope\nslug: weird\ntitle: Weird\nstatus: proposed\npriority: low\ndepends_on: []\n---\n' > "$work4/docs/changes/active/no-leading-id.md"
 wout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$work4/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
-IFS=$'\t' read -r w_check w_id w_msg <<<"$(printf '%s' "$wout" | grep '^malformed-id')"
-assert "an id-less filename falls back to '?' in the change-id column" '[ "$w_id" = "?" ]'
+assert "an id-less filename falls back to '?' in the change-id column" 'has_finding "$wout" malformed-id "?"'
 
 # ============================ merged-orphan / unknown-commit-ref ============================
 # Cross-reference change ids in integration-branch (main) commit *subjects* against active/archive.
