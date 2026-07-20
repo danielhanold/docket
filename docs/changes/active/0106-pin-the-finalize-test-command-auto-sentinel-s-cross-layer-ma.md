@@ -2,7 +2,7 @@
 id: 106
 slug: pin-the-finalize-test-command-auto-sentinel-s-cross-layer-ma
 title: Pin the finalize.test_command auto sentinel's cross-layer masking with a two-layer fixture
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-20
 updated: 2026-07-20
@@ -12,12 +12,12 @@ discovered_from: [101]
 adrs: []
 spec: docs/superpowers/specs/2026-07-20-auto-sentinel-cross-layer-masking-design.md
 plan: docs/superpowers/plans/2026-07-20-auto-sentinel-cross-layer-masking.md
-results:
+results: docs/results/2026-07-20-pin-the-finalize-test-command-auto-sentinel-s-cross-layer-ma-results.md
 trivial: false
 auto_groomable:
 branch: feat/pin-the-finalize-test-command-auto-sentinel-s-cross-layer-ma
-claimed_at: 2026-07-20T13:35:50Z
-pr:
+claimed_at: 2026-07-20T14:19:31Z
+pr: https://github.com/danielhanold/docket/pull/111
 blocked_by:
 reconciled: true
 ---
@@ -29,6 +29,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-20-auto-sentinel-cross-layer-masking-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-20-auto-sentinel-cross-layer-masking-design.md) |
 | Plan | [2026-07-20-auto-sentinel-cross-layer-masking.md](https://github.com/danielhanold/docket/blob/feat/pin-the-finalize-test-command-auto-sentinel-s-cross-layer-ma/docs/superpowers/plans/2026-07-20-auto-sentinel-cross-layer-masking.md) |
+| Results | [2026-07-20-pin-the-finalize-test-command-auto-sentinel-s-cross-layer-ma-results.md](https://github.com/danielhanold/docket/blob/feat/pin-the-finalize-test-command-auto-sentinel-s-cross-layer-ma/docs/results/2026-07-20-pin-the-finalize-test-command-auto-sentinel-s-cross-layer-ma-results.md) |
+| PR | [#111](https://github.com/danielhanold/docket/pull/111) |
 <!-- docket:artifacts:end -->
 
 ## Why
