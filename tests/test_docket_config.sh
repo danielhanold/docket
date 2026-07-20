@@ -1027,5 +1027,62 @@ git -C "$tmp/s3" push --quiet origin main
 out="$(run "$tmp/s3" --export)"; eval "$out"
 assert "test_command AUTO is NOT the sentinel (case-sensitive)" '[ "$FINALIZE_TEST_COMMAND" = "AUTO" ]'
 
+# --- (S4/S5/S6) change 0106: the sentinel's CROSS-LAYER masking -------------
+# The collapse at scripts/docket-config.sh:201 runs AFTER the :194 resolution chain. That
+# placement is the whole point: a HIGHER layer writing `test_command: auto` MASKS a LOWER
+# layer's real command, which is the correct reading of an explicit re-statement of the
+# default. Collapse per-layer instead and the behavior silently INVERTS — the higher `auto`
+# becomes empty, the `:-` chain falls through, and the lower command resurfaces.
+# Sections s/s2/s3 above are all single-layer, so none of them can see this. These do.
+#
+# s4 and s5 assert an EMPTY value, which is also what an ABSENT key yields — so each first
+# asserts its lower rung really does resolve (the control), then adds the masking layer.
+# Each eval is preceded by a poison value: an aborted run emits nothing, and a bare
+# `eval ""` would otherwise leave the previous fixture's value standing.
+
+# (s4) FORWARD, lcl() path: .docket.local.yml `auto` over a committed real command.
+mkrepo "$tmp/s4"
+mkdir -p "$tmp/s4.xdg/docket"
+cat > "$tmp/s4/.docket.yml" <<'EOF'
+metadata_branch: main
+integration_branch: main
+finalize:
+  test_command: make test
+EOF
+git -C "$tmp/s4" add .docket.yml; git -C "$tmp/s4" commit --quiet -m cfg
+git -C "$tmp/s4" push --quiet origin main
+FINALIZE_TEST_COMMAND=__poison__
+out="$(rung "$tmp/s4.xdg" "$tmp/s4" --export)"; eval "$out"
+assert "0106 s4 control: committed real command resolves before masking" '[ "$FINALIZE_TEST_COMMAND" = "make test" ]'
+printf 'finalize:\n  test_command: auto\n' > "$tmp/s4/.docket.local.yml"
+FINALIZE_TEST_COMMAND=__poison__
+out="$(rung "$tmp/s4.xdg" "$tmp/s4" --export)"; eval "$out"
+assert "0106 s4: local auto masks committed real command" '[ -z "$FINALIZE_TEST_COMMAND" ]'
+
+# (s5) FORWARD, gbl() path: committed `auto` over a global real command.
+mkrepo "$tmp/s5"
+mkdir -p "$tmp/s5.xdg/docket"
+printf 'finalize:\n  test_command: make global\n' > "$tmp/s5.xdg/docket/config.yml"
+cat > "$tmp/s5/.docket.yml" <<'EOF'
+metadata_branch: main
+integration_branch: main
+EOF
+git -C "$tmp/s5" add .docket.yml; git -C "$tmp/s5" commit --quiet -m cfg
+git -C "$tmp/s5" push --quiet origin main
+FINALIZE_TEST_COMMAND=__poison__
+out="$(rung "$tmp/s5.xdg" "$tmp/s5" --export)"; eval "$out"
+assert "0106 s5 control: global real command resolves before masking" '[ "$FINALIZE_TEST_COMMAND" = "make global" ]'
+cat > "$tmp/s5/.docket.yml" <<'EOF'
+metadata_branch: main
+integration_branch: main
+finalize:
+  test_command: auto
+EOF
+git -C "$tmp/s5" add .docket.yml; git -C "$tmp/s5" commit --quiet -m cfg2
+git -C "$tmp/s5" push --quiet origin main
+FINALIZE_TEST_COMMAND=__poison__
+out="$(rung "$tmp/s5.xdg" "$tmp/s5" --export)"; eval "$out"
+assert "0106 s5: committed auto masks global real command" '[ -z "$FINALIZE_TEST_COMMAND" ]'
+
 if [ "$fail" = 0 ]; then echo PASS; else echo FAIL; fi
 exit "$fail"
