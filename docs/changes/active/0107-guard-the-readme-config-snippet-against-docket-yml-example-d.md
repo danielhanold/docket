@@ -16,10 +16,10 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/guard-the-readme-config-snippet-against-docket-yml-example-d
-claimed_at: 2026-07-20T12:14:15Z
+claimed_at: 2026-07-20T12:16:51Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -70,3 +70,42 @@ with an empty loop.
 - Auditing the rest of the README's prose claims against the code — a broader problem than this
   snippet, and unguardable by grep (see the `verify-the-claim` finding).
 - Any reverse/completeness direction over the example's keys.
+
+## Reconcile log
+
+### 2026-07-20 — reconcile at claim
+
+Verified the spec's premises against `origin/main` at the moment of claim. Everything it was
+designed against still holds; **no scope change**.
+
+- `tests/test_docket_yml_example.sh` exists and still ends at numbered section **`(7) README +
+  dogfooding`**, so the new section lands as `(8)` exactly as specified. `(7)` already asserts
+  README facts (the step-2 heading, the example reference, the absence of `config.yml.example`),
+  so the precedent for guarding the README from this file is intact.
+- The README still carries the five-key snippet under `### `.docket.yml` — per-repo settings`,
+  fenced as `yaml`, with `finalize:` → `gate:` as its one nested key. Flattening yields exactly
+  the five paths the spec predicted: `metadata_branch`, `integration_branch`, `board_surfaces`,
+  `finalize`, `finalize.gate`.
+- All five values agree with `.docket.yml.example` today (`metadata_branch: docket`,
+  `integration_branch: auto`, `board_surfaces: [inline]`, `finalize:` header, `gate: local`), so
+  the guard goes green on first run — it is a fresh guard over a currently-honest pair, not a
+  latent red.
+- The canonical-reference pointer in that section links to `.docket.yml.example`, which exists at
+  the repo root. Note for implementation: the README names `.docket.yml.example` in several other
+  places (the tooling list, the layered-config prose), so the pointer assert must be **scoped to
+  the section**, not a whole-file grep — an unscoped match would stay green if the section's own
+  link rotted.
+
+Cross-checked the two open PRs for base drift (the `moving-base` learning):
+
+- **PR #89** (change 0078) touches `README.md` only around line ~418 (the sync-agents prose) — no
+  overlap with the config snippet or the test file.
+- **PR #69** (change 0044, `blocked`, flagged stale by `docket-status`) touches `README.md` in a
+  `finalize:` snippet region under the pre-refactor line numbering. It adds config-snippet keys.
+  This is not a conflict for our base, and it needs no scope change here — if that PR ever rebases
+  and lands a new key in the README snippet, the guard this change adds is precisely what forces
+  the same key into `.docket.yml.example`. The guard working on it is the intended outcome.
+
+No change to `## What changes` or `## Out of scope`. The `no ADR` call in the spec still stands:
+the forward-only direction is a test-design decision scoped to one guard, recorded in the spec and
+(per the spec) required to be written into the test as a comment.
