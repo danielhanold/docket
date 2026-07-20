@@ -1,13 +1,12 @@
 # Backlog
 
-**112 changes** — 🟢 2 in progress · 🟡 15 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 86 done · 🗑️ 6 killed
+**112 changes** — 🟢 1 in progress · 🟡 15 proposed · 🔴 1 blocked · 🔵 3 implemented · ✅ 86 done · 🗑️ 6 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Spec | Branch |
 |---|-------|----------|------|--------|
 | [0104](active/0104-guard-frontmatter-field-domain-violations-that-silently-drop.md) | Guard frontmatter field-domain violations that silently drop board rows | `high` | [spec](../superpowers/specs/2026-07-20-frontmatter-field-domain-guard-design.md) | `feat/guard-frontmatter-field-domain-violations-that-silently-drop` |
-| [0109](active/0109-rename-docket-yml-example-to-docket-example-yml.md) | Rename .docket.yml.example to .docket.example.yml so editors syntax-highlight it | `medium` | [spec](../) | `feat/rename-docket-yml-example-to-docket-example-yml` |
 
 ## 🟡 Proposed (15)
 
@@ -35,12 +34,13 @@
 |---|-------|----------|------------|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | PR #69 is stale (predates the 0068/0072 facade rework and later agent-layer changes) and #0079 (runner delegation) reshapes the design — the build roles should grow a runner field (build.<role>.runner codex, the mixed topology 0079 deferred). Needs a rebase plus redesign pass before merge. |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (3)
 
 | # | Title | Priority | PR | Readiness |
 |---|-------|----------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
 | [0106](active/0106-pin-the-finalize-test-command-auto-sentinel-s-cross-layer-ma.md) | Pin the finalize.test_command auto sentinel's cross-layer masking with a two-layer fixture | `medium` | [#111](https://github.com/danielhanold/docket/pull/111) |  |
+| [0109](active/0109-rename-docket-yml-example-to-docket-example-yml.md) | Rename .docket.yml.example to .docket.example.yml so editors syntax-highlight it | `medium` | [#112](https://github.com/danielhanold/docket/pull/112) |  |
 
 ```mermaid
 graph TD
