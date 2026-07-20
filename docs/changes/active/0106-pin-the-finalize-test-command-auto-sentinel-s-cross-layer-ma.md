@@ -2,7 +2,7 @@
 id: 106
 slug: pin-the-finalize-test-command-auto-sentinel-s-cross-layer-ma
 title: Pin the finalize.test_command auto sentinel's cross-layer masking with a two-layer fixture
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-07-20
 updated: 2026-07-20
@@ -15,7 +15,8 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/pin-the-finalize-test-command-auto-sentinel-s-cross-layer-ma
+claimed_at: 2026-07-20T13:34:04Z
 pr:
 blocked_by:
 reconciled: false
