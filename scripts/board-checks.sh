@@ -91,6 +91,31 @@ padded_id_from_file(){
 # independent tuning is ever wanted.
 FINALIZE_BLOCKED_STALE_SECS=$(( 72 * 3600 ))
 
+# renders_row ID STATUS — exit 0 iff render-board.sh would emit a table row for an `active/` file
+# carrying this (int_field-validated) ID and this raw STATUS. This is the COMPUTED half of the
+# board-row-dropped invariant (change 0104): it mirrors the renderer's own bucketing rather than
+# re-enumerating the conditions the other checks already name, so a drop path ADDED TO THE RENDERER
+# is noticed here without anyone editing this script. Two clauses, each anchored to a renderer line:
+#   1. render-board.sh:76  `id="$(int_field "$f" id)"; [ -n "$id" ] || continue`
+#      — a file with no usable integer id never enters SECTION at all.
+#   2. render-board.sh:265-269 calls print_section for exactly the DOCKET_STATUSES_ACTIVE members,
+#      and :78 buckets on the RAW `status:` read — so a status outside that set lands in a SECTION
+#      key nothing iterates. Membership is read from the SAME array the renderer's own section
+#      iteration uses (lib/docket-frontmatter.sh), never a list restated here: the five-name active
+#      set and the seven-name full vocabulary are DIFFERENT sets, and the difference is exactly the
+#      live drop path a `DOCKET_STATUSES` test would miss — a terminal status (`done`/`killed`)
+#      sitting in `active/`, which is a legal status in an illegal directory (the state
+#      docket-status's `sweep-failed <id> archive <reason>` leaves behind: status flipped, archive
+#      move failed). :86 still counts the file in `total`, so the count line and the tables disagree.
+renders_row(){
+  local rr_id="$1" rr_st="$2" rr_s
+  [ -n "$rr_id" ] || return 1
+  for rr_s in "${DOCKET_STATUSES_ACTIVE[@]}"; do
+    [ "$rr_st" = "$rr_s" ] && return 0
+  done
+  return 1
+}
+
 # Walk every change file (active + archive); per-check filters apply inside.
 mapfile -t FILES < <(find "$CHANGES_DIR/active" "$CHANGES_DIR/archive" -maxdepth 1 -name '*.md' 2>/dev/null | sort)
 for f in "${FILES[@]}"; do
@@ -100,20 +125,27 @@ for f in "${FILES[@]}"; do
   # there is one, else the filename-derived padded id. NEVER the raw frontmatter value.
   cid="${id:-$pid}"
   fd_active=0; case "$f" in */active/*) fd_active=1 ;; esac
+  status="$(field "$f" status)"
+
+  # --- board-row-dropped, computed (change 0104). THE ONLY site that populates DROPPED: the
+  # invariant is evaluated once, from renders_row's mirror of the renderer, for every active file —
+  # never re-derived per drop CAUSE at the checks that happen to name one. `archive/` is exempt (the
+  # archive table renders from its own pass, :297+, and is not subject to this invariant).
+  if [ "$fd_active" = 1 ] && ! renders_row "$id" "$status"; then DROPPED["$cid"]=1; fi
+
   if [ -z "$id" ]; then
     if [ -n "$raw" ]; then
       emit malformed-id "$cid" "non-integer id '$raw' in $(basename "$f")"
+      # EXPLAINED: a non-integer id is a genuine drop CAUSE (render-board.sh:76 skips the row), so
+      # this finding accounts for the DROPPED entry above and the backstop stays quiet.
       EXPLAINED["$cid"]=1
     fi
-    # No usable id ⇒ render-board.sh:76 skips the row while :86 still counts the file.
-    [ "$fd_active" = 1 ] && DROPPED["$cid"]=1
     continue
   fi
   ID_EXISTS["$id"]=1
   case "$f" in
     */active/*)  ID_ACTIVE["$id"]=1 ;;
   esac
-  status="$(field "$f" status)"
   spec="$(field "$f" spec)"; trivial="$(field "$f" trivial)"
 
   # --- field-domain: a value that is well-formed TEXT but outside its field's DOMAIN (change 0104).
@@ -124,6 +156,13 @@ for f in "${FILES[@]}"; do
   # build queue while the board still reports a healthy count. One finding per violated field.
   # Every domain is a SHAPE or MEMBERSHIP test — never an enumeration of bad values.
   # `id` is deliberately absent: malformed-id already covers it (no double-reporting).
+  #
+  # EXPLAINED (the board-row-dropped suppressor) is marked by the `status` arm ONLY. Suppression
+  # means "a finding already accounts for this row's DISAPPEARANCE", and only status can make a row
+  # disappear: `slug` is not read by the markdown renderer at all, `priority` renders raw into its
+  # own cell, and a piped `title` INJECTS columns into a row that is still emitted. Marking those
+  # arms would mean an unrelated pipe in a change's title silences the backstop on a row that
+  # genuinely vanished for some other reason — the false-suppression failure the design warns about.
   fd_slug="$(field "$f" slug)"; fd_priority="$(field "$f" priority)"; fd_title="$(field "$f" title)"
 
   status_ok=0
@@ -132,25 +171,25 @@ for f in "${FILES[@]}"; do
   done
   if [ "$status_ok" != 1 ]; then
     emit field-domain "$cid" "status '$status' is not one of: ${DOCKET_STATUSES[*]}"
+    # A status outside the seven-name vocabulary is outside the five-name ACTIVE set too, so on an
+    # `active/` file renders_row has already recorded the drop; this finding names its cause.
     EXPLAINED["$cid"]=1
-    # An unrecognized status buckets into a SECTION key no renderer iterates.
-    [ "$fd_active" = 1 ] && DROPPED["$cid"]=1
   fi
 
   # slugify's own alphabet (mint-stub.sh:88-91). Empty fails — slug has no documented default.
   case "$fd_slug" in
-    ''|*[!a-z0-9-]*) emit field-domain "$cid" "slug '$fd_slug' is not ^[a-z0-9-]+\$"; EXPLAINED["$cid"]=1 ;;
+    ''|*[!a-z0-9-]*) emit field-domain "$cid" "slug '$fd_slug' is not ^[a-z0-9-]+\$" ;;
   esac
 
   # Empty priority is LEGAL: the convention documents `medium` as the default and render-board.sh's
   # sort already implements it. Flagging it here would make the guard the noise source.
   case "$fd_priority" in
     ''|low|medium|high|critical) ;;
-    *) emit field-domain "$cid" "priority '$fd_priority' is not one of: low medium high critical (empty = medium)"; EXPLAINED["$cid"]=1 ;;
+    *) emit field-domain "$cid" "priority '$fd_priority' is not one of: low medium high critical (empty = medium)" ;;
   esac
 
   case "$fd_title" in
-    *'|'*) emit field-domain "$cid" "title contains '|', which injects columns into the board row: $fd_title"; EXPLAINED["$cid"]=1 ;;
+    *'|'*) emit field-domain "$cid" "title contains '|', which injects columns into the board row: $fd_title" ;;
   esac
 
   # --- broken-spec: spec set, not trivial, path absent on the metadata branch ---
@@ -232,17 +271,27 @@ for f in "${FILES[@]}"; do
 done
 
 # --- board-row-dropped: an ACTIVE file counted in the board's total but rendered in no section ---
-# render-board.sh counts every active *.md in `total` (:86) but buckets rows on the raw `status:`
-# read (:78) and skips files whose id is not an integer (:76) — so such a file is counted and never
-# emitted, and the board's count line disagrees with its tables. SUPPRESSED when a field-domain or
-# malformed-id finding already explains that id: a backstop that fires alongside every domain
-# finding trains the reader to ignore it. Suppressed, it says exactly one thing — a row vanished and
-# nothing enumerated explains why. Its live trigger today is a file with NO `id:` field at all
-# (malformed-id needs a non-empty raw value); with the domain checks in place, its remaining trigger
-# is a future renderer-added drop path, which is what a backstop is for.
+# The membership test is renders_row() (above), computed from the renderer's own bucketing — NOT a
+# restatement of the causes the enumerated checks name. SUPPRESSED when a finding already accounts
+# for the drop: `malformed-id` (non-integer id) or a `field-domain` **status** finding. Those are the
+# only two arms that mark EXPLAINED, because they are the only two that describe a row DISAPPEARING;
+# a bad slug/priority/title deliberately does not suppress (see the field-domain block).
+# Unsuppressed, this finding says exactly one thing: a row vanished and nothing enumerated explains
+# why. Two live triggers today —
+#   (a) a file with NO `id:` field at all (malformed-id needs a non-empty raw value to fire), and
+#   (b) an `active/` file carrying a TERMINAL status (`done`/`killed`): a legal status in the wrong
+#       directory, so every enumerated check is correctly silent and only the computed invariant
+#       sees it (the `sweep-failed <id> archive <reason>` state — status flipped, archive move failed).
+# Beyond those, its remaining trigger is a future renderer-added drop path: because renders_row reads
+# DOCKET_STATUSES_ACTIVE — the array render-board.sh's own section iteration uses — a status the
+# renderer stops rendering starts reporting here with no edit to this script.
 for drop_id in "${!DROPPED[@]}"; do
   [ -n "${EXPLAINED[$drop_id]:-}" ] && continue
-  emit board-row-dropped "$drop_id" "counted in the board total but rendered in no section, and no field-domain or malformed-id finding explains it"
+  # The message names the two SUPPRESSING arms specifically, not "field-domain" wholesale: a change
+  # can legitimately carry a field-domain finding (a piped title, say) AND this one, because that
+  # finding does not account for a dropped row. Saying "no field-domain finding explains it" next to
+  # a visible field-domain finding on the same id would read as a contradiction.
+  emit board-row-dropped "$drop_id" "counted in the board total but rendered in no section; no malformed-id or field-domain status finding accounts for the drop"
 done
 
 # --- dep-cycle: DFS over depends_on; mark every node that lies on a cycle ---

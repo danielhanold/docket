@@ -539,8 +539,10 @@ assert "field-domain silent for a terminal status in archive/ (id 60)" '! has_fi
 
 # ======================= board-row-dropped (change 0104, spec part 2) =======================
 # The invariant: an ACTIVE file counted in render-board.sh's `total` but rendered in no section.
-# SUPPRESSED when field-domain or malformed-id already explains that id — a backstop that fires
-# alongside every domain finding trains the reader to ignore it.
+# The trigger is COMPUTED (renders_row mirrors the renderer's bucketing), not enumerated per drop
+# cause — case (f) below is the case no enumerated check can see. SUPPRESSED only by a finding that
+# genuinely explains the DISAPPEARANCE (malformed-id, or field-domain on `status`); a bad
+# slug/priority/title must NOT suppress, which case (g) pins.
 read -r D _ < <(new_repo)
 # (a) the live un-suppressed trigger: NO id: field at all. malformed-id needs a non-empty raw
 #     value, so nothing explains this drop.
@@ -556,6 +558,10 @@ printf -- '---\nid: 71\nslug: poison\ntitle: Poisoned\nstatus: proposed  # await
   > "$E/docs/changes/active/0071-poison.md"
 eout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$E/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
 n71="$(printf '%s' "$eout" | grep -c .)"
+# A REAL suppression decision, not a self-cancelling pair: the DROPPED entry for 71 is written by the
+# computed predicate (renders_row — an unrecognized status is outside DOCKET_STATUSES_ACTIVE), while
+# EXPLAINED is marked by the field-domain `status` arm. They are populated at independent sites, so
+# deleting the arm's `EXPLAINED[...]=1` reddens this assert with a second (board-row-dropped) finding.
 assert "a poisoned status yields exactly ONE finding, not two (suppression works)" '[ "$n71" = 1 ]'
 assert "and that one finding is field-domain, not board-row-dropped" 'has_finding "$eout" field-domain 71'
 assert "board-row-dropped is suppressed when field-domain explains the drop" \
@@ -584,6 +590,60 @@ printf -- '---\nid: 74\nslug: fine\ntitle: Fine\nstatus: proposed\npriority: med
   > "$J/docs/changes/active/0074-fine.md"
 jout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$J/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
 assert "clean active tree emits no board-row-dropped finding" '! printf "%s" "$jout" | grep -q "^board-row-dropped"'
+
+# (f) THE COMPUTED-PREDICATE CASE: an active/ file carrying a TERMINAL status (`done`). Every
+# ENUMERATED check is correctly silent — `done` is in DOCKET_STATUSES so field-domain passes it, and
+# the id is a well-formed integer so malformed-id passes it — yet render-board.sh counts the file in
+# `total` (:86) and calls print_section only for the five ACTIVE statuses (:265-269), so the row is
+# rendered nowhere and the board's count line disagrees with its tables. Only an invariant computed
+# from DOCKET_STATUSES_ACTIVE sees this; a predicate written against DOCKET_STATUSES cannot.
+# Reachable in practice: docket-status's `sweep-failed <id> archive <reason>` is exactly this state
+# (status flipped to done, archive move failed).
+read -r K _ < <(new_repo)
+printf -- '---\nid: 75\nslug: fine\ntitle: Fine\nstatus: proposed\npriority: medium\ndepends_on: []\n---\n' \
+  > "$K/docs/changes/active/0075-fine.md"
+printf -- '---\nid: 76\nslug: stuck\ntitle: Stuck in active\nstatus: done\npriority: medium\ndepends_on: []\n---\n' \
+  > "$K/docs/changes/active/0076-stuck.md"
+kout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$K/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "board-row-dropped fires for an active/ file with a TERMINAL status (76)" \
+  'has_finding "$kout" board-row-dropped 76'
+# NOT suppressed — and the reason matters: there is no field-domain finding to suppress it with.
+# `done` is a legal status; it is merely legal in the wrong directory.
+assert "the terminal-in-active drop is NOT explained by field-domain (done is a legal status)" \
+  '! has_finding "$kout" field-domain 76'
+assert "the terminal-in-active drop is NOT explained by malformed-id (76 is a valid id)" \
+  '! has_finding "$kout" malformed-id 76'
+assert "the healthy sibling (75) draws no board-row-dropped finding" \
+  '! has_finding "$kout" board-row-dropped 75'
+# The same terminal status in archive/ — where it belongs — stays silent (the archive renders from
+# its own pass). Keeps the predicate from degenerating into "done is always wrong".
+read -r L _ < <(new_repo)
+printf -- '---\nid: 77\nslug: archived\ntitle: Archived\nstatus: done\npriority: medium\ndepends_on: []\n---\n' \
+  > "$L/docs/changes/archive/2026-06-16-0077-archived.md"
+lout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$L/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "the same terminal status in archive/ draws NO board-row-dropped finding (77)" \
+  '! has_finding "$lout" board-row-dropped 77'
+
+# (g) FALSE-SUPPRESSION GUARD: a violation that does NOT explain a drop must not silence the
+# backstop. This file both drops (terminal status in active/) and carries a piped title — a piped
+# title INJECTS columns into a row that is still emitted, so it explains nothing about the row's
+# disappearance. Marking EXPLAINED from the slug/priority/title arms reddens this pair.
+read -r M _ < <(new_repo)
+printf -- '---\nid: 78\nslug: both\ntitle: Dropped | and | piped\nstatus: done\npriority: medium\ndepends_on: []\n---\n' \
+  > "$M/docs/changes/active/0078-both.md"
+mout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$M/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "a piped title fires field-domain (78)" 'has_finding "$mout" field-domain 78'
+assert "a piped title does NOT suppress board-row-dropped on a row that really dropped (78)" \
+  'has_finding "$mout" board-row-dropped 78'
+# Same shape for the other two non-explaining arms, so no single arm can regress unnoticed.
+read -r N _ < <(new_repo)
+printf -- '---\nid: 79\nslug: Bad Slug\ntitle: Bad slug and dropped\nstatus: killed\npriority: urgent\ndepends_on: []\n---\n' \
+  > "$N/docs/changes/active/0079-badslug.md"
+nout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$N/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "a bad slug + bad priority do NOT suppress board-row-dropped on a dropped row (79)" \
+  'has_finding "$nout" board-row-dropped 79'
+assert "field-domain still reports the slug/priority violations alongside it (79)" \
+  'has_finding "$nout" field-domain 79'
 
 # ============================ merged-orphan / unknown-commit-ref ============================
 # Cross-reference change ids in integration-branch (main) commit *subjects* against active/archive.
