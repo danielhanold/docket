@@ -8,8 +8,9 @@
 # Usage: board-checks.sh --changes-dir DIR --metadata-branch BR --integration-branch BR [--strict]
 #                         [--lease-ttl-hours N]
 #   Findings: TAB-separated  <check-id>\t<change-id>\t<message>  on stdout, sorted by (check-id, change-id).
-#     check-id ∈ {broken-spec, broken-plan-results, dep-cycle, stale-in-progress, merge-gate-stall,
-#                 stale-finalize-blocked, merged-orphan, unknown-commit-ref}
+#     check-id ∈ {broken-spec, broken-plan-results, dep-cycle, field-domain, stale-in-progress,
+#                 merge-gate-stall, stale-finalize-blocked, merged-orphan, unknown-commit-ref,
+#                 malformed-id}
 #   Clean tree ⇒ no output, exit 0. --strict ⇒ exit 1 if any finding (for a future CI gate).
 #   Branch args are passed to `git cat-file -e <ref>:<path>` verbatim; in main-mode the two refs
 #   coincide and both link checks resolve on the same branch with no special-casing.
@@ -107,6 +108,40 @@ for f in "${FILES[@]}"; do
   esac
   status="$(field "$f" status)"
   spec="$(field "$f" spec)"; trivial="$(field "$f" trivial)"
+
+  # --- field-domain: a value that is well-formed TEXT but outside its field's DOMAIN (change 0104).
+  # These four fields are what the board renderers consume. A value outside the domain does not
+  # error — it silently drops the row from every surface (status, slug) or injects columns into it
+  # (title), and since change 0094 the digest's `ready` line is the machine-parsed selection channel
+  # for docket-implement-next, so a stray inline comment can remove a change from the autonomous
+  # build queue while the board still reports a healthy count. One finding per violated field.
+  # Every domain is a SHAPE or MEMBERSHIP test — never an enumeration of bad values.
+  # `id` is deliberately absent: malformed-id already covers it (no double-reporting).
+  fd_slug="$(field "$f" slug)"; fd_priority="$(field "$f" priority)"; fd_title="$(field "$f" title)"
+
+  status_ok=0
+  for fd_s in "${DOCKET_STATUSES[@]}"; do
+    if [ "$status" = "$fd_s" ]; then status_ok=1; break; fi
+  done
+  if [ "$status_ok" != 1 ]; then
+    emit field-domain "$cid" "status '$status' is not one of: ${DOCKET_STATUSES[*]}"
+  fi
+
+  # slugify's own alphabet (mint-stub.sh:88-91). Empty fails — slug has no documented default.
+  case "$fd_slug" in
+    ''|*[!a-z0-9-]*) emit field-domain "$cid" "slug '$fd_slug' is not ^[a-z0-9-]+\$" ;;
+  esac
+
+  # Empty priority is LEGAL: the convention documents `medium` as the default and render-board.sh's
+  # sort already implements it. Flagging it here would make the guard the noise source.
+  case "$fd_priority" in
+    ''|low|medium|high|critical) ;;
+    *) emit field-domain "$cid" "priority '$fd_priority' is not one of: low medium high critical (empty = medium)" ;;
+  esac
+
+  case "$fd_title" in
+    *'|'*) emit field-domain "$cid" "title contains '|', which injects columns into the board row: $fd_title" ;;
+  esac
 
   # --- broken-spec: spec set, not trivial, path absent on the metadata branch ---
   if [ -n "$spec" ] && [ "$trivial" != "true" ]; then

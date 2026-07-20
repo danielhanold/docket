@@ -480,6 +480,63 @@ printf -- '---\nid: nope\nslug: weird\ntitle: Weird\nstatus: proposed\npriority:
 wout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$work4/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
 assert "an id-less filename falls back to '?' in the change-id column" 'has_finding "$wout" malformed-id "?"'
 
+# ============================ field-domain (change 0104, spec part 1) ============================
+# A value that is well-formed TEXT but outside its field's DOMAIN. Validated by shape/membership,
+# never by enumerating bad strings — the spelling you enumerate is never the one that arrives.
+read -r F _ < <(new_repo)
+mk_fd(){ # mk_fd FILE-BASENAME ID SLUG TITLE STATUS PRIORITY
+  printf -- '---\nid: %s\nslug: %s\ntitle: %s\nstatus: %s\npriority: %s\ndepends_on: []\n---\n' \
+    "$2" "$3" "$4" "$5" "$6" > "$F/docs/changes/active/$1"
+}
+mk_fd 0040-clean.md    40 clean    "Clean change"  proposed            medium
+mk_fd 0041-poison.md   41 poison   "Poisoned"      "proposed  # awaiting X" medium
+mk_fd 0042-badslug.md  42 "bad slug" "Bad slug"    proposed            medium
+mk_fd 0043-badprio.md  43 badprio  "Bad priority"  proposed            urgent
+mk_fd 0044-pipe.md     44 pipe     "T5 | injected | row" proposed      medium
+mk_fd 0045-emptyprio.md 45 emptyprio "Empty priority" proposed         ""
+printf -- '---\nid: 46\nslug: nostatus\ntitle: No status\nstatus:\npriority: medium\ndepends_on: []\n---\n' \
+  > "$F/docs/changes/active/0046-nostatus.md"
+fout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$F/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+
+assert "field-domain silent for a wholly clean change (id 40)"      '! has_finding "$fout" field-domain 40'
+assert "field-domain fires for a status carrying an inline comment (id 41)" 'has_finding "$fout" field-domain 41'
+assert "field-domain fires for a slug with a space (id 42)"          'has_finding "$fout" field-domain 42'
+assert "field-domain fires for an unrecognized priority (id 43)"     'has_finding "$fout" field-domain 43'
+assert "field-domain fires for a title containing a pipe (id 44)"    'has_finding "$fout" field-domain 44'
+# The documented default: an EMPTY priority is LEGAL (convention says medium; the sort implements
+# it). This assert is what keeps the domain check from becoming over-eager.
+assert "field-domain SILENT for an empty priority (id 45, documented default)" \
+  '! has_finding "$fout" field-domain 45'
+assert "field-domain fires for an EMPTY status (id 46, no documented default)" \
+  'has_finding "$fout" field-domain 46'
+
+# Messages name the field and quote the offending value, so a reader can act without opening the file.
+assert "the status finding names the field and the offending value" \
+  'printf "%s" "$fout" | grep -qF "status '"'"'proposed  # awaiting X'"'"'"'
+assert "the title finding names the pipe as the board-row hazard" \
+  'printf "%s" "$fout" | grep -E "$(printf "^field-domain\t44\t")" | grep -qF "title"'
+
+# Shape, not spelling: a slug with a TAB and a slug with an uppercase letter both fire, though
+# neither is an enumerated bad value.
+mk_fd 0047-tabslug.md 47 "$(printf 'tab\tslug')" "Tab slug" proposed medium
+mk_fd 0048-upper.md   48 UpperSlug "Upper slug"   proposed medium
+sout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$F/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "field-domain fires for a slug containing a TAB (shape check, id 47)"  'has_finding "$sout" field-domain 47'
+assert "field-domain fires for an uppercase slug (shape check, id 48)"        'has_finding "$sout" field-domain 48'
+assert "a TAB inside a slug value cannot shift the findings line's columns (id 47)" \
+  'printf "%s" "$sout" | grep -E "$(printf "^field-domain\t47\t")" | grep -qF "\\t"'
+
+# Warn-only posture is preserved: findings present, exit still 0 without --strict.
+NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$F/docs/changes" --metadata-branch docket --integration-branch main >/dev/null 2>&1
+assert "field-domain findings do not change the default exit status (warn-only)" '[ "$?" = 0 ]'
+
+# The archive is walked too — a terminal status is in the vocabulary and must stay silent.
+read -r G _ < <(new_repo)
+printf -- '---\nid: 60\nslug: archived\ntitle: Archived\nstatus: done\npriority: medium\ndepends_on: []\n---\n' \
+  > "$G/docs/changes/archive/2026-06-16-0060-archived.md"
+gout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$G/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "field-domain silent for a terminal status in archive/ (id 60)" '! has_finding "$gout" field-domain 60'
+
 # ============================ merged-orphan / unknown-commit-ref ============================
 # Cross-reference change ids in integration-branch (main) commit *subjects* against active/archive.
 # All fixtures use --allow-empty commits (subjects only). Each negative is discriminating: it pairs
