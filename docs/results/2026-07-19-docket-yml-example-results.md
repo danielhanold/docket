@@ -6,10 +6,15 @@ Change: #101 · Branch: feat/docket-yml-example · PR: <pending> · Plan: docs/s
 <!-- The suite is hermetic and cannot see the metadata branch or a real global-config layer.
      These are the checks only a human on a real machine can make. -->
 
-- [ ] **Copy-paste safety, the file's core promise.** In a scratch repo, copy `.docket.yml.example`
+- [x] **Copy-paste safety, the file's core promise.** In a scratch repo, copy `.docket.yml.example`
       verbatim to `.docket.yml`, commit on the default branch, run
       `"$DOCKET_SCRIPTS_DIR"/docket.sh env` and confirm the export block is byte-identical to the
       no-config run. The suite proves this against a fixture; confirm it on a real repo once.
+      **VERIFIED at close-out (2026-07-20)** — real repo (scratch init + bare-repo origin, so
+      `origin/HEAD` resolves): the 25-line export block is byte-identical with and without the
+      copied file, and stderr carries zero warnings. Incidental confirmation: with no reachable
+      `origin` the resolver fails closed (`cannot reach origin … check the remote/network`, exit 1)
+      rather than treating the config as absent — the convention's stated rule, observed.
 - [ ] **The machine-scoped warning path.** Copy the same file to `~/.config/docket/config.yml` and
       confirm you get exactly seven `per-repo-only … ignored` warnings (metadata_branch,
       integration_branch, changes_dir, adrs_dir, results_dir, github_project, terminal_publish) and
@@ -18,10 +23,39 @@ Change: #101 · Branch: feat/docket-yml-example · PR: <pending> · Plan: docs/s
       scaffold in `scripts/ensure-global-config.sh` does not clobber your real
       `~/.config/docket/config.yml`. Pinned byte-exactly in two tests, but this one is worth seeing
       on your own machine given the recorded near-miss (config-layer-write-and-read-hazards).
-- [ ] **ADR-0039 status flip publishes.** At merge, confirm terminal-publish carried BOTH ADR-0048
+- [x] **ADR-0039 status flip publishes.** At merge, confirm terminal-publish carried BOTH ADR-0048
       and ADR-0039's `status: Superseded by ADR-48` line onto `main`. The manifest lists
       `adrs: [19, 39, 48]` specifically so this lands atomically — the known superseded-ADR
       Accepted-gate hazard silently skips a non-Accepted ADR otherwise.
+      **VERIFIED at close-out (2026-07-20), and the hazard FIRED as predicted.** Listing 39 in
+      `adrs:` was necessary but NOT sufficient: the change publish printed
+      `terminal-publish: adr 39: not Accepted; skipped by gate` and carried 4 records
+      (change file, spec, ADR-0019, ADR-0048). Because the manifest listed it, the skip was
+      *visible* rather than silent — but the atomic landing the note hoped for is not something
+      `adrs:` can buy, since the copy-set gate keys on `Accepted` and this ADR is precisely not
+      that. Closed with a second, explicit publish —
+      `docket.sh terminal-publish --adr 39 --enabled true` — after which `main` shows ADR-0039
+      `Superseded by ADR-48` and ADR-0048 `Accepted`. Net: the documented two-step remedy is
+      still required for every supersession; `adrs:` membership only makes the gap observable.
+
+**Items 2 and 3 deliberately left for a human.** Both write to the real
+`~/.config/docket/config.yml` — the machine-scoped warning path copies over it, and the
+`install.sh` check exists precisely to prove it is not clobbered. Running them from the close-out
+would put the artifact under test at risk of the exact data loss it is being tested for
+(`config-layer-write-and-read-hazards`). They stay unchecked until run by hand against a backed-up
+config.
+
+## Close-out (2026-07-20, PR #109 merged)
+
+Merged via the `finalize.gate: local` rebase-retest gate. Rebased 13 commits onto `origin/main`
+(the "rebase deferred to the merge gate" follow-up below — it had grown from 5 commits behind to
+17, and the rebase was still conflict-free as predicted); full suite green, 0 failing files; no
+`docket-integration-repair` dispatch, so no repair sign-off was in play. Merged `--rebase` without
+`--admin`. Harvested three learnings findings — one new
+(`correspondence-guard-runs-one-way`, candidate for promotion) plus war stories on
+`verify-the-claim` and `guards-are-code`. Auto-capture minted #0106 (two-layer fixture for the
+`auto` sentinel's cross-layer masking) and #0107 (guard the README snippet against the example),
+which close the two unguarded residuals recorded below.
 
 ## Findings
 
