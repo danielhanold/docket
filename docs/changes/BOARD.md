@@ -1,6 +1,6 @@
 # Backlog
 
-**113 changes** — 🟢 1 in progress · 🟡 16 proposed · 🔴 1 blocked · 🔵 3 implemented · ✅ 86 done · 🗑️ 6 killed
+**113 changes** — 🟢 1 in progress · 🟡 16 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 87 done · 🗑️ 6 killed
 
 ## 🟢 In progress (1)
 
@@ -35,13 +35,12 @@
 |---|-------|----------|------------|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | PR #69 is stale (predates the 0068/0072 facade rework and later agent-layer changes) and #0079 (runner delegation) reshapes the design — the build roles should grow a runner field (build.<role>.runner codex, the mixed topology 0079 deferred). Needs a rebase plus redesign pass before merge. |
 
-## 🔵 Implemented — awaiting merge (3)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | PR | Readiness |
 |---|-------|----------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
 | [0106](active/0106-pin-the-finalize-test-command-auto-sentinel-s-cross-layer-ma.md) | Pin the finalize.test_command auto sentinel's cross-layer masking with a two-layer fixture | `medium` | [#111](https://github.com/danielhanold/docket/pull/111) |  |
-| [0109](active/0109-rename-docket-yml-example-to-docket-example-yml.md) | Rename .docket.yml.example to .docket.example.yml so editors syntax-highlight it | `medium` | [#112](https://github.com/danielhanold/docket/pull/112) |  |
 
 ```mermaid
 graph TD
@@ -61,7 +60,6 @@ graph TD
   0104
   0106
   0108
-  0107 --> 0109
   0110
   0111
   0112
@@ -69,14 +67,14 @@ graph TD
   0015:::done
   0016:::done
   0077:::done
-  0107:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (92)</summary>
+<details><summary>✅🗑️ Archive — done + killed (93)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0109](archive/2026-07-20-0109-rename-docket-yml-example-to-docket-example-yml.md) | Rename .docket.yml.example to .docket.example.yml so editors syntax-highlight it | 2026-07-20 |
 | [0107](archive/2026-07-20-0107-guard-the-readme-config-snippet-against-docket-yml-example-d.md) | Guard the README config snippet against .docket.yml.example drift | 2026-07-20 |
 | [0105](archive/2026-07-20-0105-pin-docket-mode-main-coverage-for-docket-status-digest-only.md) | Pin DOCKET_MODE=main coverage for docket-status --digest-only | 2026-07-20 |
 | [0101](archive/2026-07-20-0101-docket-yml-example.md) | .docket.yml.example — the canonical all-comprehensive config reference | 2026-07-20 |
@@ -92,7 +90,6 @@ graph TD
 | [0092](archive/2026-07-18-0092-orphan-detection-script.md) | Orphan detection script — cross-reference change ids in merged commits against archive state | 2026-07-18 |
 | [0090](archive/2026-07-18-0090-discovered-from-provenance.md) | discovered-from provenance links — record which change's build surfaced a new stub | 2026-07-18 |
 | [0089](archive/2026-07-18-0089-claim-leases-reclaim-script.md) | Claim leases + reclaim script — expired in-progress claims self-heal back to proposed | 2026-07-18 |
-| [0088](archive/2026-07-18-0088-implement-next-loop-continuation.md) | Loop continuation — implement-next chains into the next ready change instead of stopping | 2026-07-18 |
 | [0086](archive/2026-07-18-0086-attended-finalize-merge-path.md) | Attended finalize has no merge path under auto_approve — scope the --admin ban to autonomous runs | 2026-07-18 |
 | [0033](archive/2026-07-16-0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | 2026-07-16 |
 | [0076](archive/2026-07-14-0076-cwd-independent-repo-root-resolution.md) | Resolve the repo root independently of CWD — preflight run inside `.docket` mints a nested metadata worktree | 2026-07-14 |
@@ -103,7 +100,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-07](archive/) | 39 done |
+| [2026-07](archive/) | 40 done |
 | [2026-06](archive/) | 32 done |
 
 </details>
