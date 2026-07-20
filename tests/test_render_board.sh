@@ -1869,5 +1869,58 @@ big_out2="$tmp/big-out2.md"
 bash "$SCRIPT" --changes-dir "$big" --repo o/r > "$big_out2" 2>/dev/null
 assert "big: re-render is byte-identical (determinism)" 'diff -u "$big_out" "$big_out2"'
 
+# ============ status vocabulary is single-sourced (change 0104, spec part 4) ============
+# The seven-name list used to be written out at four sites in this script, in two shapes. It now
+# lives in lib/docket-frontmatter.sh. Two guard families:
+#   (a) PRODUCER-anchored: the four iteration sites actually reference the arrays, and no
+#       hand-written status list survives anywhere in the renderer.
+#   (b) MIRROR correspondence: emoji_for / label_for_title are a PARALLEL representation of the
+#       same vocabulary that the array cannot unify (a case statement is the right shape for a
+#       mapping). They fail by printing NOTHING for an unknown status — the same silent-emptiness
+#       class this change exists to kill. Set EQUALITY pins both directions at once: a name added
+#       to the array without a case arm reddens, AND a phantom case arm for a retired status
+#       reddens. Anything weaker is one-directional. See learnings: correspondence-guard-runs-one-way.
+LIB="$REPO/scripts/lib/docket-frontmatter.sh"
+# shellcheck source=/dev/null
+source "$LIB"
+
+# (a) producer-anchored substitution completeness
+n_all="$(grep -cF 'for st in "${DOCKET_STATUSES[@]}"' "$SCRIPT")"
+n_active="$(grep -cF 'for st in "${DOCKET_STATUSES_ACTIVE[@]}"' "$SCRIPT")"
+n_literal="$(grep -cE '^[[:space:]]*for st in [a-z]' "$SCRIPT")"
+assert "render-board.sh iterates DOCKET_STATUSES at both full-vocabulary sites" '[ "$n_all" = 2 ]'
+assert "render-board.sh iterates DOCKET_STATUSES_ACTIVE at both active-only sites" '[ "$n_active" = 2 ]'
+assert "no hand-written status list survives in render-board.sh" '[ "$n_literal" = 0 ]'
+
+# (b) the arrays themselves: composition and order (the golden compares bytes, this names the rule)
+assert "DOCKET_STATUSES is ACTIVE ++ TERMINAL, in that order" \
+  '[ "${DOCKET_STATUSES[*]}" = "${DOCKET_STATUSES_ACTIVE[*]} ${DOCKET_STATUSES_TERMINAL[*]}" ]'
+assert "DOCKET_STATUSES holds the convention's seven lifecycle statuses" '[ "${#DOCKET_STATUSES[@]}" = 7 ]'
+assert "DOCKET_STATUSES_ACTIVE holds the five non-terminal statuses" '[ "${#DOCKET_STATUSES_ACTIVE[@]}" = 5 ]'
+
+# case_labels FUNC — the case arms of a one-line-header case statement in render-board.sh, sorted.
+# The `exit` on esac bounds the range to this function's own body.
+case_labels(){
+  awk -v fn="$1" '
+    $0 ~ "^" fn "\\(\\)\\{ case" { inb = 1 }
+    inb { print }
+    inb && /esac/ { exit }
+  ' "$SCRIPT" | grep -oE '[a-z][a-z-]*\)' | tr -d ')' | sort -u
+}
+emoji_labels="$(case_labels emoji_for)"
+title_labels="$(case_labels label_for_title)"
+# Non-vacuity: a tokenizer that parses nothing passes everything. Assert the COUNT it found before
+# trusting the comparison below (learnings: guards-are-code).
+assert "case_labels extracted all 7 emoji_for arms (tokenizer sees the function)" \
+  '[ "$(printf "%s\n" "$emoji_labels" | grep -c .)" = 7 ]'
+assert "case_labels extracted all 5 label_for_title arms (tokenizer sees the function)" \
+  '[ "$(printf "%s\n" "$title_labels" | grep -c .)" = 5 ]'
+exp_all="$(printf '%s\n' "${DOCKET_STATUSES[@]}" | sort -u)"
+exp_active="$(printf '%s\n' "${DOCKET_STATUSES_ACTIVE[@]}" | sort -u)"
+assert "emoji_for's case arms are EXACTLY DOCKET_STATUSES (both directions)" \
+  '[ "$emoji_labels" = "$exp_all" ]'
+assert "label_for_title's case arms are EXACTLY DOCKET_STATUSES_ACTIVE (both directions)" \
+  '[ "$title_labels" = "$exp_active" ]'
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"

@@ -110,3 +110,19 @@ finalize_blocked(){ # finalize_blocked FILE  (only meaningful for an implemented
   # contract meaningful only for a `proposed` change.
   has_section "$1" "## Finalize blocked"
 }
+
+# --- status vocabulary (change 0104) ----------------------------------------------------------
+# The seven lifecycle statuses, authored as the convention's two semantic groups: `active/` holds
+# every non-terminal status, `archive/` holds the two terminal outcomes. DOCKET_STATUSES is the
+# concatenation, in the renderer's display order — the order IS the contract (BOARD.md's section
+# order and the digest's `backlog` rollup order both come from iterating it), so never reorder
+# these without re-blessing tests/test_render_board.sh's golden.
+#
+# Single source for render-board.sh's section iteration AND board-checks.sh's `status` field-domain
+# check. Duplicating the list makes the checker and the renderer drift in two directions and only
+# one of them is detectable: a status added to the renderer but not the checker makes field-domain
+# fire a FALSE finding on every file carrying it (and suppresses the board-row-dropped backstop,
+# which would otherwise be the thing that noticed), while the reverse direction is caught.
+DOCKET_STATUSES_ACTIVE=(in-progress proposed blocked deferred implemented)
+DOCKET_STATUSES_TERMINAL=(done killed)
+DOCKET_STATUSES=("${DOCKET_STATUSES_ACTIVE[@]}" "${DOCKET_STATUSES_TERMINAL[@]}")
