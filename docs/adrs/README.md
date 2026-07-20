@@ -48,6 +48,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0045](0045-auto-capture-is-best-effort.md) — Auto-capture is best-effort — a failed stub mint never aborts the change being built (Accepted) ← change #91 · relates to ADR-0012
 - [ADR-0046](0046-cas-reset-hard-shared-worktree-tracked-clean-tree-precondition.md) — A compare-and-swap reset --hard in a shared metadata worktree requires a tracked-files-only clean-tree precondition (Accepted) ← change #91 · relates to ADR-0004, ADR-0012
 - [ADR-0047](0047-digest-only-read-tier-skips-preflight.md) — docket-status --digest-only is a read tier that deliberately skips docket_preflight (Accepted) ← change #94 · relates to ADR-0012
+- [ADR-0048](0048-docket-yml-example-invariants.md) — .docket.yml.example is a tested canonical config reference — mirror, fidelity, must-update (Accepted) ← change #101 → supersedes ADR-0039 · relates to ADR-0019
 
 ## Superseded / Reversed
 
