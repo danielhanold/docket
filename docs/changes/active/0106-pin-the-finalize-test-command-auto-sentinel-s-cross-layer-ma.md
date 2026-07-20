@@ -11,7 +11,7 @@ related: [103]
 discovered_from: [101]
 adrs: []
 spec: docs/superpowers/specs/2026-07-20-auto-sentinel-cross-layer-masking-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-20-auto-sentinel-cross-layer-masking.md
 results:
 trivial: false
 auto_groomable:
@@ -28,6 +28,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-20-auto-sentinel-cross-layer-masking-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-20-auto-sentinel-cross-layer-masking-design.md) |
+| Plan | [2026-07-20-auto-sentinel-cross-layer-masking.md](https://github.com/danielhanold/docket/blob/feat/pin-the-finalize-test-command-auto-sentinel-s-cross-layer-ma/docs/superpowers/plans/2026-07-20-auto-sentinel-cross-layer-masking.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
