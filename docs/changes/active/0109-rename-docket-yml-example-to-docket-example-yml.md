@@ -16,10 +16,10 @@ results:
 trivial: true
 auto_groomable:
 branch: feat/rename-docket-yml-example-to-docket-example-yml
-claimed_at: 2026-07-20T14:05:21Z
+claimed_at: 2026-07-20T14:09:40Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -77,3 +77,48 @@ drift guard pinned to the old filename — landing the rename first would collid
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-07-20 — reconciled against `origin/main` @ 2748ed9
+
+Scope holds: this is still a rename plus a reference sweep, and nothing about ADR-0048's three
+invariants or the file's contents changes. Five refinements, all additive:
+
+1. **`depends_on: [107]` is discharged.** Change 0107 is `done` (archived
+   `2026-07-20-0107-guard-the-readme-config-snippet-against-docket-yml-example-d.md`); PR #110
+   landed. The sequencing rationale in *Open questions* is satisfied — this change now lands the
+   rename *after* the drift guard, exactly as intended, and absorbs the guard's pinned filename as
+   part of the sweep.
+
+2. **0107's guard needs no new file — but it does enlarge one.** The README-snippet drift guard
+   landed *inside* `tests/test_docket_yml_example.sh` as a new numbered section `(8)`, not as a
+   separate test. Its old-name references (comments plus `assert` description strings, around
+   lines 469–543) are swept along with the rest of that file. The *What changes* file list is
+   therefore still complete as written.
+
+3. **New reference site: the example file points at its own guard.** `.docket.yml.example` names
+   `tests/test_docket_yml_example.sh` at lines 6 and 41. Because the test file is renamed too,
+   those two in-file pointers must be updated in the same pass — they were not called out when
+   this change was drafted.
+
+4. **The grep-clean exclusion set has grown.** *Out of scope* names change 0101's artifacts and
+   ADR-0048's body. Four of 0107's artifacts now exist on the integration branch and are equally
+   historical, so they join the exclusion set:
+   `docs/changes/archive/2026-07-20-0107-guard-the-readme-config-snippet-against-docket-yml-example-d.md`,
+   `docs/superpowers/specs/2026-07-20-readme-snippet-drift-guard-design.md`,
+   `docs/superpowers/plans/2026-07-20-readme-snippet-drift-guard-plan.md`, and
+   `docs/results/2026-07-20-readme-snippet-drift-guard-results.md`.
+   So does **`docs/adrs/README.md`** (line 51), which carries the old filename only because it is
+   *rendered* from ADR-0048's immutable title — `render-adr-index.sh` is its sole writer, so there
+   is nothing to hand-edit there and the stale-looking name is correct output.
+
+5. **The ADR `## Update` note is a metadata write, not a feature-branch edit.** ADR-0048 lives on
+   `docket` (and, under this repo's `terminal_publish: true`, is mirrored onto `main`). Feature
+   branches never modify docket metadata, so the dated `## Update` note is recorded via the
+   `docket-adr` dispatch in step 6 — which also owns republication onto the integration branch.
+
+Also verified: test discovery is glob-based — no runner, test, or CI file enumerates
+`tests/test_docket_yml_example.sh` by name — so renaming it cannot silently drop it from the suite.
+
+Not folded in (deliberately): active stubs 0102, 0103, 0106, 0108 and two learnings files name the
+old filename on the metadata branch. That is metadata, not the code line; each stub's own reconcile
+pass picks up the new name at build time. 0106 is `in-progress` under another agent — untouched.
