@@ -73,3 +73,24 @@ invariants, enforced together by `tests/test_docket_yml_example.sh`:
   NOT-WIRED / layer-resolution-broken annotations rather than a standard scope tag, because both
   are real gaps in the implementation (the former tracked as change 0102) — the example's job is
   to describe what IS, including what is broken, not to launder a gap into looking resolved.
+
+## Update — 2026-07-20
+
+Change 0109 renamed the artifact this ADR governs:
+
+- `.docket.yml.example` → `.docket.example.yml`
+- its guard `tests/test_docket_yml_example.sh` → `tests/test_docket_example_yml.sh`
+
+Reason: the `.example` suffix landed after `.yml`, so neither editors nor GitHub recognized the
+file as YAML — both rendered the one file whose entire job is to be read as plain text, with no
+syntax highlighting, folding, or structural cues. `.docket.example.yml` keeps the "this is an
+example" signal while ending in `.yml`, so every YAML-aware tool highlights it.
+
+The decision above is unchanged: all three invariants stand exactly as written, and the file's
+contents, key set, ordering, structure, and scope tags are untouched. This was a rename plus a
+reference sweep across 14 live files, nothing more. Every reference above to
+`.docket.yml.example` and `tests/test_docket_yml_example.sh` should now be read as naming
+`.docket.example.yml` and `tests/test_docket_example_yml.sh` respectively.
+
+This ADR's own body above, the generated `docs/adrs/README.md` index, and change 0101's and
+0107's archived artifacts deliberately retain the old name as historical records.
