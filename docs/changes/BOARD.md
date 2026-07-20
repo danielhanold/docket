@@ -24,7 +24,7 @@
 | [0102](active/0102-finalize-require-pr-approval-has-no-layer-resolution.md) | finalize.require_pr_approval has no layer resolution | `medium` | needs-brainstorm |
 | [0103](active/0103-wire-the-github-project-config-read-documented-but-unwired-k.md) | Wire the github_project config read (documented-but-unwired key) | `medium` | needs-brainstorm |
 | [0104](active/0104-guard-frontmatter-field-domain-violations-that-silently-drop.md) | Guard frontmatter field-domain violations that silently drop board rows | `high` | needs-brainstorm |
-| [0106](active/0106-pin-the-finalize-test-command-auto-sentinel-s-cross-layer-ma.md) | Pin the finalize.test_command auto sentinel's cross-layer masking with a two-layer fixture | `medium` | needs-brainstorm |
+| [0106](active/0106-pin-the-finalize-test-command-auto-sentinel-s-cross-layer-ma.md) | Pin the finalize.test_command auto sentinel's cross-layer masking with a two-layer fixture | `medium` | build-ready |
 
 ## 🔴 Blocked (1)
 
