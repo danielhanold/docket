@@ -2,7 +2,7 @@
 id: 104
 slug: guard-frontmatter-field-domain-violations-that-silently-drop
 title: Guard frontmatter field-domain violations that silently drop board rows
-status: implemented
+status: done
 priority: high
 created: 2026-07-19
 updated: 2026-07-20
@@ -16,7 +16,7 @@ results: docs/results/2026-07-20-guard-frontmatter-field-domain-violations-that-
 trivial: false
 auto_groomable: false
 branch: feat/guard-frontmatter-field-domain-violations-that-silently-drop
-claimed_at: 2026-07-20T17:49:33Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/113
 blocked_by:
 reconciled: true
