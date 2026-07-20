@@ -1,16 +1,15 @@
 # Backlog
 
-**111 changes** — 🟢 3 in progress · 🟡 14 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 86 done · 🗑️ 6 killed
+**112 changes** — 🟢 2 in progress · 🟡 15 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 86 done · 🗑️ 6 killed
 
-## 🟢 In progress (3)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Spec | Branch |
 |---|-------|----------|------|--------|
 | [0104](active/0104-guard-frontmatter-field-domain-violations-that-silently-drop.md) | Guard frontmatter field-domain violations that silently drop board rows | `high` | [spec](../superpowers/specs/2026-07-20-frontmatter-field-domain-guard-design.md) | `feat/guard-frontmatter-field-domain-violations-that-silently-drop` |
-| [0106](active/0106-pin-the-finalize-test-command-auto-sentinel-s-cross-layer-ma.md) | Pin the finalize.test_command auto sentinel's cross-layer masking with a two-layer fixture | `medium` | [spec](../superpowers/specs/2026-07-20-auto-sentinel-cross-layer-masking-design.md) | `feat/pin-the-finalize-test-command-auto-sentinel-s-cross-layer-ma` |
 | [0109](active/0109-rename-docket-yml-example-to-docket-example-yml.md) | Rename .docket.yml.example to .docket.example.yml so editors syntax-highlight it | `medium` | [spec](../) | `feat/rename-docket-yml-example-to-docket-example-yml` |
 
-## 🟡 Proposed (14)
+## 🟡 Proposed (15)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -28,6 +27,7 @@
 | [0108](active/0108-guard-the-readme-s-remaining-config-fences-against-key-drift.md) | Guard the README's remaining config fences against key drift | `medium` | needs-brainstorm |
 | [0110](active/0110-shared-metadata-worktree-contention.md) | Concurrent agents collide on the shared .docket worktree's dirty-tree window | `high` | needs-brainstorm |
 | [0111](active/0111-guard-the-board-checks-check-id-enumerations-against-drift.md) | Guard the board-checks check-id enumerations against drift | `medium` | needs-brainstorm |
+| [0112](active/0112-pin-the-reverse-cross-layer-masking-for-the-committed-over-l.md) | Pin the reverse cross-layer masking for the committed-over-local rung pair | `medium` | needs-brainstorm |
 
 ## 🔴 Blocked (1)
 
@@ -35,11 +35,12 @@
 |---|-------|----------|------------|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | PR #69 is stale (predates the 0068/0072 facade rework and later agent-layer changes) and #0079 (runner delegation) reshapes the design — the build roles should grow a runner field (build.<role>.runner codex, the mixed topology 0079 deferred). Needs a rebase plus redesign pass before merge. |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | PR | Readiness |
 |---|-------|----------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
+| [0106](active/0106-pin-the-finalize-test-command-auto-sentinel-s-cross-layer-ma.md) | Pin the finalize.test_command auto sentinel's cross-layer masking with a two-layer fixture | `medium` | [#111](https://github.com/danielhanold/docket/pull/111) |  |
 
 ```mermaid
 graph TD
@@ -62,6 +63,7 @@ graph TD
   0107 --> 0109
   0110
   0111
+  0112
   0015:::done
   0016:::done
   0077:::done
