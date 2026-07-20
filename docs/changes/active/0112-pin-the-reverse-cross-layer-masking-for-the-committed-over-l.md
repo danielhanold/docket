@@ -1,7 +1,7 @@
 ---
 id: 112
 slug: pin-the-reverse-cross-layer-masking-for-the-committed-over-l
-title: Pin the reverse cross-layer masking for the committed-over-local rung pair
+title: Complete the finalize.test_command cross-layer masking matrix (reverse committed-over-local + both skip-rung pairs)
 status: proposed
 priority: medium
 created: 2026-07-20
@@ -10,7 +10,7 @@ depends_on: []
 related: []
 discovered_from: [106]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-07-20-reverse-cross-layer-masking-matrix-design.md
 plan:
 results:
 trivial: false
@@ -24,6 +24,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-07-20-reverse-cross-layer-masking-matrix-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-20-reverse-cross-layer-masking-matrix-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -57,26 +60,36 @@ Yet a real repo with `.docket.local.yml` setting `test_command: make local-test`
 auto-detection with the whole suite green. That is exactly the class 0106 exists to prevent, one
 rung over.
 
-Note that 0106's spec explicitly declined a *forward* case on the grounds that it "reuses the two
-helpers `s4` and `s5` already cover and adds no distinct code path" — a claim about **helpers**.
-That rationale does not reach this gap, which is about **precedence**, not helper coverage.
+Note that 0106's spec explicitly declined a *forward* skip-rung case on the grounds that it "reuses
+the two helpers `s4` and `s5` already cover and adds no distinct code path" — a claim about
+**helpers**. That rationale does not reach *this* gap, which is about **precedence**: the mutation
+above slips past all five existing asserts. It does, however, still hold for the skip-rung case
+itself, and grooming confirmed it by mutation — see the spec.
 
 ## What changes
 
-Add one fixture to section S of `tests/test_docket_config.sh`, alongside `s4`/`s5`/`s6`, following
-their established shape (per-fixture `$tmp/s7.xdg` root, a control assert, and the
-`FINALIZE_TEST_COMMAND=__poison__` prelude before each `eval`):
+Complete the masking matrix. Three fixtures join `s4`/`s5`/`s6` in section S of
+`tests/test_docket_config.sh`, following their established shape (per-fixture repo and `.xdg` root
+via the `rung` helper, the `FINALIZE_TEST_COMMAND=__poison__` prelude before each `eval`):
 
-- **`s7`** — committed `.docket.yml` sets `test_command: auto`; `.docket.local.yml` sets
-  `test_command: make local-test`; assert the resolved export is `make local-test` (the higher
-  layer's real command survives a lower layer's sentinel).
+- **`s7`** — reverse, committed `auto` under a local real command. Assert `make local-test`
+  survives. This is the fixture the change exists for; it is the only one the
+  committed-rung-specific clear reddens.
+- **`s8`** — reverse, skip-rung: global `auto` under a local real command, committed key absent.
+- **`s9`** — forward, skip-rung: local `auto` over a global real command, committed key absent.
+  Expects an empty export, so it carries a control assert first.
 
-Mutation-test it with the committed-rung-specific clear shown above: `s7` must redden while all
-five of 0106's asserts stay green. Read the `ok` count as part of the contract, per the repo's
-`guards-are-code` rule.
+Test-only, plus the section's comment header. Three mutation runs gate it — per-layer collapse,
+blanket any-rung scan, and the committed-rung-specific clear — with a predicted redden/green cell
+for every fixture, and the `ok` count read as part of the contract per the repo's
+`guards-are-code` rule. `s7` is earned on unique discriminating power; `s8`/`s9` are
+matrix-completeness witnesses that share the two mutations 0106 already used. The spec carries the
+full table and the reasoning for each.
 
 ## Out of scope
 
 - Any change to the sentinel's semantics or the placement of the collapse — like 0106, this pins
   current behavior.
-- Re-running 0106's own two mutations; they are already recorded in that change's results file.
+- Re-running 0106's own two mutations as recorded in its results file; they are re-pointed at the
+  new asserts only.
+- A table-driven rewrite of section S, and any edit to 0106's archived record.
