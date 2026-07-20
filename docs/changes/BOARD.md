@@ -17,14 +17,14 @@
 | [0100](active/0100-force-push-lease-classifier-denial.md) | Force-push-with-lease denied by the auto-mode classifier — unblock finalize's merge gate | `medium` | needs-brainstorm |
 | [0102](active/0102-finalize-require-pr-approval-has-no-layer-resolution.md) | finalize.require_pr_approval has no layer resolution | `medium` | build-ready |
 | [0103](active/0103-wire-the-github-project-config-read-documented-but-unwired-k.md) | Wire the github_project config read (documented-but-unwired key) | `low` | needs-brainstorm |
-| [0108](active/0108-guard-the-readme-s-remaining-config-fences-against-key-drift.md) | Guard the README's remaining config fences against key drift | `medium` | needs-brainstorm |
+| [0108](active/0108-guard-the-readme-s-remaining-config-fences-against-key-drift.md) | Guard the README's remaining config fences against key drift | `medium` | build-ready |
 | [0110](active/0110-shared-metadata-worktree-contention.md) | Concurrent agents collide on the shared .docket worktree's dirty-tree window | `high` | needs-brainstorm |
-| [0111](active/0111-guard-the-board-checks-check-id-enumerations-against-drift.md) | Guard the board-checks check-id enumerations against drift | `medium` | needs-brainstorm |
-| [0112](active/0112-pin-the-reverse-cross-layer-masking-for-the-committed-over-l.md) | Pin the reverse cross-layer masking for the committed-over-local rung pair | `medium` | needs-brainstorm |
+| [0111](active/0111-guard-the-board-checks-check-id-enumerations-against-drift.md) | Guard the board-checks check-id enumerations against drift | `medium` | build-ready |
+| [0112](active/0112-pin-the-reverse-cross-layer-masking-for-the-committed-over-l.md) | Complete the finalize.test_command cross-layer masking matrix (reverse committed-over-local + both skip-rung pairs) | `medium` | build-ready |
 | [0113](active/0113-suppressed-handoff-silently-ends-autonomous-run.md) | A suppressed hand-off can silently end an autonomous run — make step completion verifiable, not narrated | `high` | needs-brainstorm |
-| [0114](active/0114-decide-the-repo-s-posture-on-line-number-comment-anchors.md) | Decide the repo's posture on line-number comment anchors | `medium` | needs-brainstorm |
-| [0115](active/0115-extend-the-board-row-dropped-invariant-to-archive-files.md) | Extend the board-row-dropped invariant to archive/ files | `medium` | needs-brainstorm |
-| [0116](active/0116-single-source-the-remaining-duplicated-board-vocabularies.md) | Single-source the remaining duplicated board vocabularies | `medium` | needs-brainstorm |
+| [0114](active/0114-decide-the-repo-s-posture-on-line-number-comment-anchors.md) | Decide the repo's posture on line-number comment anchors | `medium` | build-ready |
+| [0115](active/0115-extend-the-board-row-dropped-invariant-to-archive-files.md) | Extend the board-row-dropped invariant to archive/ files | `medium` | build-ready |
+| [0116](active/0116-single-source-the-remaining-duplicated-board-vocabularies.md) | Single-source the remaining duplicated board vocabularies | `medium` | build-ready |
 
 ## 🔴 Blocked (1)
 
