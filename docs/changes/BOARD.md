@@ -1,6 +1,6 @@
 # Backlog
 
-**109 changes** — 🟢 1 in progress · 🟡 14 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 85 done · 🗑️ 6 killed
+**109 changes** — 🟢 1 in progress · 🟡 14 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 86 done · 🗑️ 6 killed
 
 ## 🟢 In progress (1)
 
@@ -25,7 +25,7 @@
 | [0103](active/0103-wire-the-github-project-config-read-documented-but-unwired-k.md) | Wire the github_project config read (documented-but-unwired key) | `medium` | needs-brainstorm |
 | [0104](active/0104-guard-frontmatter-field-domain-violations-that-silently-drop.md) | Guard frontmatter field-domain violations that silently drop board rows | `high` | build-ready |
 | [0108](active/0108-guard-the-readme-s-remaining-config-fences-against-key-drift.md) | Guard the README's remaining config fences against key drift | `medium` | needs-brainstorm |
-| [0109](active/0109-rename-docket-yml-example-to-docket-example-yml.md) | Rename .docket.yml.example to .docket.example.yml so editors syntax-highlight it | `medium` | ⏳ waiting on #107 — needs your merge |
+| [0109](active/0109-rename-docket-yml-example-to-docket-example-yml.md) | Rename .docket.yml.example to .docket.example.yml so editors syntax-highlight it | `medium` | build-ready |
 
 ## 🔴 Blocked (1)
 
@@ -33,12 +33,11 @@
 |---|-------|----------|------------|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | PR #69 is stale (predates the 0068/0072 facade rework and later agent-layer changes) and #0079 (runner delegation) reshapes the design — the build roles should grow a runner field (build.<role>.runner codex, the mixed topology 0079 deferred). Needs a rebase plus redesign pass before merge. |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | PR | Readiness |
 |---|-------|----------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
-| [0107](active/0107-guard-the-readme-config-snippet-against-docket-yml-example-d.md) | Guard the README config snippet against .docket.yml.example drift | `medium` | [#110](https://github.com/danielhanold/docket/pull/110) |  |
 
 ```mermaid
 graph TD
@@ -57,19 +56,20 @@ graph TD
   0103
   0104
   0106
-  0107
   0108
   0107 --> 0109
   0015:::done
   0016:::done
   0077:::done
+  0107:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (91)</summary>
+<details><summary>✅🗑️ Archive — done + killed (92)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0107](archive/2026-07-20-0107-guard-the-readme-config-snippet-against-docket-yml-example-d.md) | Guard the README config snippet against .docket.yml.example drift | 2026-07-20 |
 | [0105](archive/2026-07-20-0105-pin-docket-mode-main-coverage-for-docket-status-digest-only.md) | Pin DOCKET_MODE=main coverage for docket-status --digest-only | 2026-07-20 |
 | [0101](archive/2026-07-20-0101-docket-yml-example.md) | .docket.yml.example — the canonical all-comprehensive config reference | 2026-07-20 |
 | [0099](archive/2026-07-19-0099-finalize-marker-clearing-rule-wording.md) | Re-phrase the `## Finalize blocked` clearing rule around what it actually guards | 2026-07-19 |
@@ -86,7 +86,6 @@ graph TD
 | [0089](archive/2026-07-18-0089-claim-leases-reclaim-script.md) | Claim leases + reclaim script — expired in-progress claims self-heal back to proposed | 2026-07-18 |
 | [0088](archive/2026-07-18-0088-implement-next-loop-continuation.md) | Loop continuation — implement-next chains into the next ready change instead of stopping | 2026-07-18 |
 | [0086](archive/2026-07-18-0086-attended-finalize-merge-path.md) | Attended finalize has no merge path under auto_approve — scope the --admin ban to autonomous runs | 2026-07-18 |
-| [0085](archive/2026-07-17-0085-skill-slimming-round-two.md) | Second-round skill slimming — re-slim regrown skills + regrowth guard | 2026-07-17 |
 | [0033](archive/2026-07-16-0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | 2026-07-16 |
 | [0076](archive/2026-07-14-0076-cwd-independent-repo-root-resolution.md) | Resolve the repo root independently of CWD — preflight run inside `.docket` mints a nested metadata worktree | 2026-07-14 |
 | [0043](archive/2026-07-08-0043-agent-model-tiers.md) | Model-tier indirection for agent model selection + config-driven advisories | 2026-07-08 |
@@ -96,7 +95,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-07](archive/) | 38 done |
+| [2026-07](archive/) | 39 done |
 | [2026-06](archive/) | 32 done |
 
 </details>
