@@ -5,12 +5,12 @@ title: finalize.require_pr_approval has no layer resolution
 status: proposed
 priority: medium
 created: 2026-07-19
-updated: 2026-07-19
+updated: 2026-07-20
 depends_on: []
-related: []
+related: [101]
 discovered_from: [101]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-07-20-require-pr-approval-layer-resolution-design.md
 plan:
 results:
 trivial: false
@@ -24,6 +24,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-07-20-require-pr-approval-layer-resolution-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-20-require-pr-approval-layer-resolution-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -47,27 +50,32 @@ Discovered while building change 0101, which had to annotate the key's scope hon
 
 ## What changes
 
-Pick one of two coherent end-states and make the docs match:
+**Wire the key through the resolver as a genuinely global-able key**, delivering the `any layer`
+scope the docs already promise:
 
-1. **Wire it through the resolver** — add the layer-resolution chain in `scripts/docket-config.sh`,
-   export it (e.g. `FINALIZE_REQUIRE_PR_APPROVAL`), add the `scripts/docket-config.md` table row,
-   and change `docket-finalize-change` to read the exported value instead of parsing `.docket.yml`.
-   This delivers the `any layer` scope the docs already promise.
-2. **Fence it as per-repo-only** — add it to the coordination-key fence loop so machine-scoped
-   values are loudly warned-and-ignored, and retag it `repo-only` in `.docket.yml.example`,
-   `scripts/docket-config.md`, and the README.
+- Add the layer-resolution chain in `scripts/docket-config.sh` alongside its two `finalize.*`
+  siblings, and export `FINALIZE_REQUIRE_PR_APPROVAL`. Fail closed on a non-boolean — the house
+  rule for every key added since 0064, and the right posture here, since defaulting a typo to
+  `false` disarms a gate the user believes is armed. Deliberately **not** coordination-fenced.
+- Add the `scripts/docket-config.md` table row and export-list entry.
+- Change `docket-finalize-change` to read the exported value as its **sole channel**; delete its
+  direct `.docket.yml` read. No fallback — a fallback sees only `.docket.yml`, so it would honor a
+  machine-scoped value on one path and ignore it on the other, making this bug intermittent.
+- Collapse the bespoke `scope:` annotation change 0101 added to `.docket.example.yml` back to the
+  standard `any layer` tag, and correct any README claim that the key is repo-only or skill-read.
 
-Option 1 matches what is already documented; option 2 is the smaller change. Either way the
-`.docket.yml.example` annotation added by change 0101 collapses back to a standard scope tag.
+**Plus a drift guard**, because the underlying gap is that nothing connects "documented in
+`.docket.example.yml`" to "resolved by `docket-config.sh`". A manifest test classifies every key in
+the example file as either `resolved:<EXPORT_NAME>` (asserted to actually be emitted) or
+`elsewhere:<consumer>` (a named non-resolver reader). An unclassified key fails. This fits ADR-0048's
+existing charter for the example file and turns a class of bug into a red test.
+
+One ADR records the rule: a documented config key resolves through `docket-config.sh`; a model-read
+of `.docket.yml` is not a supported shape, with the `elsewhere:` allowlist as the named exception.
 
 ## Out of scope
 
-- Changing what `require_pr_approval` *does* at the merge gate.
-- Any other unexported/model-read key (`agents:`, `agent_harnesses:`, `github_project`,
-  `runners.*`) — those have working consumers; this one has none.
-
-## Open questions
-
-- Which end-state does Daniel want — resolver-wired (`any layer`) or fenced (`repo-only`)?
-- If wired: does the finalize skill read the export directly, or keep its own read with the
-  resolver as the fallback?
+- Changing what `require_pr_approval` *does* at the merge gate — this is resolution wiring only.
+- Converting any other non-resolver key (`agents:`, `agent_harnesses:`, `github_project`,
+  `runners.*`) — those have working consumers; this change classifies them, it does not move them.
+- Reworking `yaml_get` or the flat-scalar reader.
