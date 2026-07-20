@@ -57,7 +57,30 @@ git_has(){ "$GIT" -C "$CHANGES_DIR" cat-file -e "$1:$2" 2>/dev/null; }
 
 declare -A ID_ACTIVE ID_EXISTS                # id -> 1; populated in the FILES walk below
 FINDINGS=""                            # accumulate "<check>\t<id>\t<msg>\n"; sorted + printed at the end
-emit(){ FINDINGS+="$1"$'\t'"$2"$'\t'"$3"$'\n'; }
+
+# sanitize VALUE — render TAB and CR as the visible two-character escapes \t and \r (change 0104).
+# Findings are TAB-separated and the caller splits them with `IFS=$'\t' read -r check_id change_id
+# message` (docket-status.sh:627), so an interior TAB in ANY embedded value shifts every later
+# field. field() truncates at the first newline and strips trailing whitespace, but an interior TAB
+# survives it — these values are untrusted frontmatter, not program constants. Pure bash parameter
+# expansion: BSD sed does not interpret \t in a pattern, so a sed form would be silently wrong.
+sanitize(){ local v="$1"; v="${v//$'\t'/\\t}"; v="${v//$'\r'/\\r}"; printf '%s' "$v"; }
+
+emit(){ FINDINGS+="$1"$'\t'"$(sanitize "$2")"$'\t'"$(sanitize "$3")"$'\n'; }
+
+# padded_id_from_file FILE — the zero-padded id encoded in the BASENAME (`0104-slug.md`, or
+# `2026-07-20-0104-slug.md` in archive/), or `?` when the filename yields none. Used for the
+# change-id column whenever the frontmatter id is unusable: that column is what the caller splits
+# on, so it must never carry a raw frontmatter value. A validated int_field id is ^[0-9]+$ and
+# cannot shift a field, so checks that have one keep emitting it verbatim (unpadded, as before).
+padded_id_from_file(){
+  local b; b="$(basename "$1")"
+  b="${b#[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-}"   # strip an archive/ date prefix, if any
+  case "$b" in
+    [0-9][0-9][0-9][0-9]-*) printf '%s' "${b%%-*}" ;;
+    *) printf '?' ;;
+  esac
+}
 
 # Staleness horizon for the stale-finalize-blocked check (change 0098): an 'implemented' change's
 # `## Finalize blocked` marker older than this fires the advisory. Hardcoded, no config knob —
@@ -70,8 +93,12 @@ FINALIZE_BLOCKED_STALE_SECS=$(( 72 * 3600 ))
 mapfile -t FILES < <(find "$CHANGES_DIR/active" "$CHANGES_DIR/archive" -maxdepth 1 -name '*.md' 2>/dev/null | sort)
 for f in "${FILES[@]}"; do
   raw="$(field "$f" id)"; id="$(int_field "$f" id)"
+  pid="$(padded_id_from_file "$f")"
+  # cid — the change-id column for every finding about this file: the validated integer id when
+  # there is one, else the filename-derived padded id. NEVER the raw frontmatter value.
+  cid="${id:-$pid}"
   if [ -z "$id" ]; then
-    [ -n "$raw" ] && emit malformed-id "$raw" "non-integer id '$raw' in $(basename "$f")"
+    [ -n "$raw" ] && emit malformed-id "$cid" "non-integer id '$raw' in $(basename "$f")"
     continue
   fi
   ID_EXISTS["$id"]=1

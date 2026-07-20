@@ -410,11 +410,54 @@ assert "merge-gate-stall names the blocking dep #30" \
 assert "merge-gate-stall silent for a change waiting on a not-yet-built dep (id 33)" \
   '! has_finding "$mout" merge-gate-stall 33'
 
-# ============================ malformed-id: a non-integer change id is flagged ============================
+# ============ malformed-id + findings-channel sanitization (change 0104, spec part 3) ============
+# The change-id column is the field docket-status.sh splits on
+# (`IFS=$'\t' read -r check_id change_id message`). It must NEVER carry a raw frontmatter value.
+# Pre-0104 the malformed-id emit put `$raw` there verbatim, so a TAB in `id:` shifted the message
+# into the wrong field — the guard's own channel injectable by the input class it exists to catch.
 read -r work origin <<<"$(new_repo)"
 printf -- '---\nid: abc\nslug: bad\ntitle: Bad\nstatus: proposed\npriority: low\ndepends_on: []\n---\n' > "$work/docs/changes/active/0001-bad.md"
 out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$work/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
-assert "board malformed-id flagged on non-integer change id 'abc'" 'has_finding "$out" malformed-id abc'
+# The check still fires — but keyed on the FILENAME-derived id, not the raw value. (This assert
+# replaces the pre-0104 `has_finding "$out" malformed-id abc`: what the block GUARDS is "a
+# non-integer id is flagged", and that is preserved; only the column the raw value lands in moved.)
+assert "malformed-id fires on a non-integer id, keyed on the filename-derived id" \
+  'has_finding "$out" malformed-id 0001'
+assert "malformed-id no longer keys the change-id column on the raw frontmatter value" \
+  '! has_finding "$out" malformed-id abc'
+assert "the raw value survives in the MESSAGE column (diagnosis is not lost)" \
+  'printf "%s" "$out" | grep -qF "non-integer id '"'"'abc'"'"'"'
+
+# TAB injection: an interior TAB in id: must not shift the message into the change-id field.
+read -r work2 _ <<<"$(new_repo)"
+printf -- '---\nid: 4\tEVIL\nslug: tabby\ntitle: Tabby\nstatus: proposed\npriority: low\ndepends_on: []\n---\n' > "$work2/docs/changes/active/0002-tabby.md"
+tout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$work2/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+# Read the finding back exactly the way docket-status.sh does; all three columns must survive.
+IFS=$'\t' read -r t_check t_id t_msg <<<"$(printf '%s' "$tout" | grep '^malformed-id')"
+assert "TAB-in-id: check_id column survives the caller's IFS split" '[ "$t_check" = "malformed-id" ]'
+assert "TAB-in-id: change-id column is the filename id, not a fragment of the raw value" '[ "$t_id" = "0002" ]'
+assert "TAB-in-id: the message column is non-empty (not shifted into the id field)" '[ -n "$t_msg" ]'
+assert "TAB-in-id: the embedded TAB is escaped to a visible \\t, not passed through raw" \
+  'printf "%s" "$t_msg" | grep -qF "4\\tEVIL"'
+
+# An archive filename (<date>-<id>-<slug>.md) still yields its id.
+read -r work3 _ <<<"$(new_repo)"
+printf -- '---\nid: xyz\nslug: arch\ntitle: Arch\nstatus: done\npriority: low\ndepends_on: []\n---\n' > "$work3/docs/changes/archive/2026-06-16-0012-arch.md"
+aout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$work3/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "archive filenames yield their padded id for the change-id column" 'has_finding "$aout" malformed-id 0012'
+
+# A filename with no derivable id falls back to `?` rather than emitting an empty column.
+# NOTE: this is checked via IFS field-extraction, not has_finding — has_finding builds an
+# unescaped ERE from its args, and "?" is an ERE quantifier metacharacter (matches its preceding
+# atom 0-or-1 times), so `has_finding "$wout" malformed-id "?"` is vacuously true for ANY
+# malformed-id line regardless of the actual column value (verified: it stays green even when the
+# implementation emits the raw frontmatter value instead of the "?" fallback). Read the finding
+# back exactly the way docket-status.sh does instead, matching the TAB-injection case above.
+read -r work4 _ <<<"$(new_repo)"
+printf -- '---\nid: nope\nslug: weird\ntitle: Weird\nstatus: proposed\npriority: low\ndepends_on: []\n---\n' > "$work4/docs/changes/active/no-leading-id.md"
+wout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$work4/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+IFS=$'\t' read -r w_check w_id w_msg <<<"$(printf '%s' "$wout" | grep '^malformed-id')"
+assert "an id-less filename falls back to '?' in the change-id column" '[ "$w_id" = "?" ]'
 
 # ============================ merged-orphan / unknown-commit-ref ============================
 # Cross-reference change ids in integration-branch (main) commit *subjects* against active/archive.
