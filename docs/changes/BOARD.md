@@ -1,6 +1,6 @@
 # Backlog
 
-**112 changes** — 🟢 1 in progress · 🟡 15 proposed · 🔴 1 blocked · 🔵 3 implemented · ✅ 86 done · 🗑️ 6 killed
+**113 changes** — 🟢 1 in progress · 🟡 16 proposed · 🔴 1 blocked · 🔵 3 implemented · ✅ 86 done · 🗑️ 6 killed
 
 ## 🟢 In progress (1)
 
@@ -8,7 +8,7 @@
 |---|-------|----------|------|--------|
 | [0104](active/0104-guard-frontmatter-field-domain-violations-that-silently-drop.md) | Guard frontmatter field-domain violations that silently drop board rows | `high` | [spec](../superpowers/specs/2026-07-20-frontmatter-field-domain-guard-design.md) | `feat/guard-frontmatter-field-domain-violations-that-silently-drop` |
 
-## 🟡 Proposed (15)
+## 🟡 Proposed (16)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -27,6 +27,7 @@
 | [0110](active/0110-shared-metadata-worktree-contention.md) | Concurrent agents collide on the shared .docket worktree's dirty-tree window | `high` | needs-brainstorm |
 | [0111](active/0111-guard-the-board-checks-check-id-enumerations-against-drift.md) | Guard the board-checks check-id enumerations against drift | `medium` | needs-brainstorm |
 | [0112](active/0112-pin-the-reverse-cross-layer-masking-for-the-committed-over-l.md) | Pin the reverse cross-layer masking for the committed-over-local rung pair | `medium` | needs-brainstorm |
+| [0113](active/0113-suppressed-handoff-silently-ends-autonomous-run.md) | A suppressed hand-off can silently end an autonomous run — make step completion verifiable, not narrated | `high` | needs-brainstorm |
 
 ## 🔴 Blocked (1)
 
@@ -64,6 +65,7 @@ graph TD
   0110
   0111
   0112
+  0113
   0015:::done
   0016:::done
   0077:::done
