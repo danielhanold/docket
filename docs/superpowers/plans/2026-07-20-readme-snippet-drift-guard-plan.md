@@ -381,11 +381,13 @@ ok - (8) canonical-reference link target exists (.docket.yml.example)
 
 Section `(8)` reuses `$README` and appends after `(7)`; confirm nothing earlier regressed and no sibling suite reads this file.
 
+`tests/run_all.sh` does not exist in this repo. Use the inline loop over `tests/test_*.sh` instead:
+
 ```bash
-bash tests/run_all.sh 2>&1 | tail -25
+for t in tests/test_*.sh; do echo "== $t"; bash "$t" >/dev/null 2>&1 || echo "FAILED $t"; done
 ```
 
-Expected: the same pass/fail profile as `origin/main` — no NEW failures. If `tests/run_all.sh` does not exist, run `for t in tests/test_*.sh; do echo "== $t"; bash "$t" >/dev/null 2>&1 || echo "FAILED $t"; done` and compare against the same loop run on a clean `origin/main` checkout.
+Expected: the same pass/fail profile as `origin/main` — no NEW failures, compared against the same loop run on a clean `origin/main` checkout.
 
 - [ ] **Step 5: Commit**
 
@@ -414,8 +416,24 @@ git commit -m "test(0107): assert the README section's canonical-reference point
 | Mutation bar: snippet key absent from example reddens | 2, Step 2 Mutation B |
 | Mutation bar: broken heading/fence reddens | 1, Step 2 Mutations A and B |
 | Mutation bar: bad pointer path reddens | 3, Step 2 Mutation A |
-| Mutation bar: consistent nested key stays green / flattener generic | 1, Step 4 |
+| Flattener generic, not hardcoded to one nested path | 1, Step 4 |
 | No codegen, no reverse direction, no broader README audit | out of scope — not planned |
+
+**Correction (post-implementation, change 0107 code review):** the row above originally read
+"Mutation bar: consistent nested key stays green / flattener generic → 1, Step 4." That
+conflated two different claims. Task 1 Step 4 only appends a probe key to
+`.docket.yml.example` and greps an inlined copy of `flatten_yaml`, in isolation — it proves the
+flattener is generic (dots to arbitrary depth), but the guard's asserts are never run
+end-to-end, so it does not touch the spec's actual mutation bar. That bar reads: "add a nested
+key two levels deep to BOTH files consistently → everything stays green." Run for real, that
+bar does NOT hold: the exact-count floor (`sn_count = 5`, asserted literally) means ANY
+snippet addition — including one made consistently in both files with matching values —
+reddens the count assert. Verified directly: adding `learnings:` / `cap: 300` to the README
+snippet (with the same key added to `.docket.yml.example`) yields `got 7`, not green. This is a
+genuine conflict between the spec's "stays green" bar and the spec's own exact-count
+requirement, not an implementation bug — the exact count is the binding constraint (see the
+count assert's own comment in `tests/test_docket_yml_example.sh`, which documents the bump
+remedy: update the literal count in the same commit as any intentional snippet addition).
 
 **Placeholder scan.** Every step carries literal shell, a literal command, and its expected output. No TBDs, no "add error handling", no "similar to Task N".
 
