@@ -393,7 +393,9 @@ Note: `scripts/docket-config.sh` must NOT appear in this commit. Verify with `gi
 
 ## Verification checklist (run before declaring the plan complete)
 
-- [ ] `git log --oneline origin/main..HEAD` shows exactly two commits, both `test(0106):`.
+- [ ] `git log --oneline $(git merge-base origin/main HEAD)..HEAD` shows exactly three commits: the
+      `docs(0106):` plan commit plus the two `test(0106):` task commits. (Use the merge-base form —
+      `origin/main..HEAD` alone also reports commits that landed on `main` after this branch was cut.)
 - [ ] `git diff --stat origin/main..HEAD` lists **only** `tests/test_docket_config.sh` (plus this
       plan file). `scripts/docket-config.sh` must not appear — the change pins behavior, it does
       not alter it.
