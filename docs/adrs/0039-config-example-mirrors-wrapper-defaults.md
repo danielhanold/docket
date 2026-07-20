@@ -2,7 +2,7 @@
 id: 39
 slug: config-example-mirrors-wrapper-defaults
 title: config.yml.example is a documented mirror of the shipped wrapper defaults
-status: Accepted
+status: Superseded by ADR-48
 date: 2026-07-15
 supersedes: []
 reverses: []
