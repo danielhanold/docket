@@ -2,7 +2,7 @@
 id: 109
 slug: rename-docket-yml-example-to-docket-example-yml
 title: Rename .docket.yml.example to .docket.example.yml so editors syntax-highlight it
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-07-20
 updated: 2026-07-20
@@ -15,7 +15,8 @@ plan:
 results:
 trivial: true
 auto_groomable:
-branch:
+branch: feat/rename-docket-yml-example-to-docket-example-yml
+claimed_at: 2026-07-20T14:05:21Z
 pr:
 blocked_by:
 reconciled: false
