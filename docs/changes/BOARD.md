@@ -1,8 +1,8 @@
 # Backlog
 
-**107 changes** — 🟡 15 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 85 done · 🗑️ 5 killed
+**107 changes** — 🟡 14 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 85 done · 🗑️ 6 killed
 
-## 🟡 Proposed (15)
+## 🟡 Proposed (14)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -18,7 +18,6 @@
 | [0102](active/0102-finalize-require-pr-approval-has-no-layer-resolution.md) | finalize.require_pr_approval has no layer resolution | `medium` | needs-brainstorm |
 | [0103](active/0103-wire-the-github-project-config-read-documented-but-unwired-k.md) | Wire the github_project config read (documented-but-unwired key) | `medium` | needs-brainstorm |
 | [0104](active/0104-guard-tab-in-frontmatter-values-feeding-the-digest-s-tab-joi.md) | Guard TAB in frontmatter values feeding the digest's TAB-joined sort rows | `medium` | auto-groom blocked — needs you |
-| [0105](active/0105-pin-docket-mode-main-coverage-for-docket-status-digest-only.md) | Pin DOCKET_MODE=main coverage for docket-status --digest-only | `medium` | auto-groom blocked — needs you |
 | [0106](active/0106-pin-the-finalize-test-command-auto-sentinel-s-cross-layer-ma.md) | Pin the finalize.test_command auto sentinel's cross-layer masking with a two-layer fixture | `medium` | needs-brainstorm |
 | [0107](active/0107-guard-the-readme-config-snippet-against-docket-yml-example-d.md) | Guard the README config snippet against .docket.yml.example drift | `medium` | needs-brainstorm |
 
@@ -50,7 +49,6 @@ graph TD
   0102
   0103
   0104
-  0105
   0106
   0107
   0015:::done
@@ -59,10 +57,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (90)</summary>
+<details><summary>✅🗑️ Archive — done + killed (91)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0105](archive/2026-07-20-0105-pin-docket-mode-main-coverage-for-docket-status-digest-only.md) | Pin DOCKET_MODE=main coverage for docket-status --digest-only | 2026-07-20 |
 | [0101](archive/2026-07-20-0101-docket-yml-example.md) | .docket.yml.example — the canonical all-comprehensive config reference | 2026-07-20 |
 | [0099](archive/2026-07-19-0099-finalize-marker-clearing-rule-wording.md) | Re-phrase the `## Finalize blocked` clearing rule around what it actually guards | 2026-07-19 |
 | [0098](archive/2026-07-19-0098-stale-finalize-marker-health-check.md) | Health check for a stale `## Finalize blocked` marker | 2026-07-19 |
