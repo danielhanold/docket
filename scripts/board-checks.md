@@ -115,6 +115,22 @@ lies on a cycle (including both members of a mutual `A→B→A` loop and self-lo
 Only edges to known change IDs (present in the file set) are followed; dangling references
 to unknown IDs are silently skipped. Every node on a cycle is emitted as a separate finding.
 
+**`field-domain`** — A frontmatter value that is well-formed *text* but outside its field's
+*domain*. These are the four fields the board renderers consume; a value outside the domain does
+not error, it silently drops the change's row from every board surface (`status`, `slug`) or
+injects columns into it (`title`). One finding per violated field, per change.
+
+| Field | Domain | Empty | Failure mode without the check |
+|---|---|---|---|
+| `status` | one of the seven lifecycle statuses (`DOCKET_STATUSES` in `lib/docket-frontmatter.sh`) | **fails** | The row is bucketed under an unrecognized key and never emitted, while the file is still counted in the board's total — the count line and the tables disagree. The change also vanishes from the digest's `ready` queue. |
+| `slug` | `^[a-z0-9-]+$` — `slugify`'s own alphabet | **fails** | Leaks raw into the digest's space-joined `change` line. |
+| `priority` | one of `low`, `medium`, `high`, `critical` | **legal** (`medium`) | Sorts as `medium` in the `ready` queue while rendering raw in the Priority cell. |
+| `title` | contains no `|` | legal | Injects extra columns into the `BOARD.md` table row. |
+
+`id` is deliberately **not** covered here — `malformed-id` already detects a non-integer id, and a
+second overlapping check would double-report the same file. Every domain is a shape or membership
+test; none enumerates bad values.
+
 **`malformed-id`** — Guard/carve-out, not counted among the named checks above. A change file
 whose `id:` field is non-empty but non-integer emits a `malformed-id` finding (using the raw
 string as the change-id column). The file is then skipped for all other checks.
