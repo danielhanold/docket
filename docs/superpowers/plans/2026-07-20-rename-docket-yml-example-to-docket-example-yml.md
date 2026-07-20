@@ -28,7 +28,7 @@
   - `docs/superpowers/specs/2026-07-20-readme-snippet-drift-guard-design.md`
 - **ADR-0048's `## Update` note is NOT part of this branch.** ADR-0048 is docket metadata living on the `docket` branch; feature branches never modify docket metadata. The dated `## Update` note recording the rename is written by the `docket-adr` dispatch in the implementer's step 6, and reaches `main` via terminal-publish because this change already carries `adrs: [48]`. **Do not create or edit any file under `docs/adrs/` in this worktree.**
 - **Do not touch the README section heading** `### \`.docket.yml\` — per-repo settings`. It names `.docket.yml` (the real config file), not the example, and `tests/…/snippet_section()` anchors on it verbatim. Renaming it would silently empty the entire `(8)` guard.
-- **Portable shell.** This repo is developed on macOS (BSD sed) and must stay GNU-compatible: **never** use bare `sed -i`. Write through a temp file and `mv` (this also avoids truncating a file on a failed render).
+- **Portable shell.** This repo is developed on macOS (BSD sed) and must stay GNU-compatible: **never** use bare `sed -i`. Write through a temp file and `mv` (this also avoids truncating a file on a failed render). **Caveat (hit during this build):** `mktemp` output is non-executable and `mv` replaces the inode wholesale, so this idiom silently drops the executable bit on any target that was `+x` — it turned `scripts/docket-config.sh` and `scripts/ensure-global-config.sh` from `100755` to `100644`, which surfaced only as unrelated-looking whole-suite failures. When the target may be executable, preserve mode first — `cp -p "$f" "$tmp"` before writing, or `chmod --reference="$f" "$tmp"` (GNU) / an explicit `chmod` restore (macOS) — and confirm with `git diff --summary` that no mode change appears.
 - **Run the whole suite at the build gate**, never only the tests this plan enumerates (AGENTS.md:45).
 - **A guard is code: mutation-test it** — strip the thing it guards and watch it redden (AGENTS.md:38). Task 3 does this for the renamed guard.
 
@@ -185,6 +185,8 @@ echo "sweep done"
 ```
 
 Expected: `sweep done`, no `MISSING` lines.
+
+**Caveat (hit during this build):** `for f in $FILES; do` over an unquoted multi-line scalar does not word-split under zsh the way it does under bash — the loop can silently iterate zero times while still printing `sweep done`. Run this loop under bash explicitly (e.g. save it to a script and `bash script.sh`), never pasted into a zsh-backed shell, and don't take `sweep done` as proof the sweep happened — verify with `git status --porcelain` or a re-grep of the patterns.
 
 - [ ] **Step 4: Replace the escaped-ERE form that Step 3 provably cannot reach**
 
