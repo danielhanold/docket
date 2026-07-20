@@ -1,6 +1,6 @@
 # Backlog
 
-**116 changes** — 🟡 19 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 88 done · 🗑️ 6 killed
+**116 changes** — 🟡 19 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 89 done · 🗑️ 6 killed
 
 ## 🟡 Proposed (19)
 
@@ -32,12 +32,11 @@
 |---|-------|----------|------------|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | PR #69 is stale (predates the 0068/0072 facade rework and later agent-layer changes) and #0079 (runner delegation) reshapes the design — the build roles should grow a runner field (build.<role>.runner codex, the mixed topology 0079 deferred). Needs a rebase plus redesign pass before merge. |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | PR | Readiness |
 |---|-------|----------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
-| [0104](active/0104-guard-frontmatter-field-domain-violations-that-silently-drop.md) | Guard frontmatter field-domain violations that silently drop board rows | `high` | [#113](https://github.com/danielhanold/docket/pull/113) |  |
 
 ```mermaid
 graph TD
@@ -54,7 +53,6 @@ graph TD
   0100
   0102
   0103
-  0104
   0108
   0110
   0111
@@ -69,7 +67,7 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (94)</summary>
+<details><summary>✅🗑️ Archive — done + killed (95)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
@@ -77,6 +75,7 @@ graph TD
 | [0107](archive/2026-07-20-0107-guard-the-readme-config-snippet-against-docket-yml-example-d.md) | Guard the README config snippet against .docket.yml.example drift | 2026-07-20 |
 | [0106](archive/2026-07-20-0106-pin-the-finalize-test-command-auto-sentinel-s-cross-layer-ma.md) | Pin the finalize.test_command auto sentinel's cross-layer masking with a two-layer fixture | 2026-07-20 |
 | [0105](archive/2026-07-20-0105-pin-docket-mode-main-coverage-for-docket-status-digest-only.md) | Pin DOCKET_MODE=main coverage for docket-status --digest-only | 2026-07-20 |
+| [0104](archive/2026-07-20-0104-guard-frontmatter-field-domain-violations-that-silently-drop.md) | Guard frontmatter field-domain violations that silently drop board rows | 2026-07-20 |
 | [0101](archive/2026-07-20-0101-docket-yml-example.md) | .docket.yml.example — the canonical all-comprehensive config reference | 2026-07-20 |
 | [0099](archive/2026-07-19-0099-finalize-marker-clearing-rule-wording.md) | Re-phrase the `## Finalize blocked` clearing rule around what it actually guards | 2026-07-19 |
 | [0098](archive/2026-07-19-0098-stale-finalize-marker-health-check.md) | Health check for a stale `## Finalize blocked` marker | 2026-07-19 |
@@ -88,7 +87,6 @@ graph TD
 | [0095](archive/2026-07-18-0095-retire-auto-approve-workflow.md) | Retire the auto-approve workflow — document the classifier and the single-maintainer branch-protection solution | 2026-07-18 |
 | [0093](archive/2026-07-18-0093-archive-decay-digest.md) | Archive decay — a rolling one-line digest so board and context cost stay flat as the archive grows | 2026-07-18 |
 | [0092](archive/2026-07-18-0092-orphan-detection-script.md) | Orphan detection script — cross-reference change ids in merged commits against archive state | 2026-07-18 |
-| [0090](archive/2026-07-18-0090-discovered-from-provenance.md) | discovered-from provenance links — record which change's build surfaced a new stub | 2026-07-18 |
 | [0086](archive/2026-07-18-0086-attended-finalize-merge-path.md) | Attended finalize has no merge path under auto_approve — scope the --admin ban to autonomous runs | 2026-07-18 |
 | [0033](archive/2026-07-16-0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | 2026-07-16 |
 | [0076](archive/2026-07-14-0076-cwd-independent-repo-root-resolution.md) | Resolve the repo root independently of CWD — preflight run inside `.docket` mints a nested metadata worktree | 2026-07-14 |
@@ -99,7 +97,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-07](archive/) | 41 done |
+| [2026-07](archive/) | 42 done |
 | [2026-06](archive/) | 32 done |
 
 </details>
