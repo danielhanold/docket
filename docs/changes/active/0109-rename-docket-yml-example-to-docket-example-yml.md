@@ -2,7 +2,7 @@
 id: 109
 slug: rename-docket-yml-example-to-docket-example-yml
 title: Rename .docket.yml.example to .docket.example.yml so editors syntax-highlight it
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-20
 updated: 2026-07-20
@@ -12,12 +12,12 @@ discovered_from: [101]
 adrs: [48]
 spec:
 plan: docs/superpowers/plans/2026-07-20-rename-docket-yml-example-to-docket-example-yml.md
-results:
+results: docs/results/2026-07-20-rename-docket-yml-example-to-docket-example-yml-results.md
 trivial: true
 auto_groomable:
 branch: feat/rename-docket-yml-example-to-docket-example-yml
-claimed_at: 2026-07-20T14:27:36Z
-pr:
+claimed_at: 2026-07-20T15:36:42Z
+pr: https://github.com/danielhanold/docket/pull/112
 blocked_by:
 reconciled: true
 ---
@@ -28,6 +28,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Plan | [2026-07-20-rename-docket-yml-example-to-docket-example-yml.md](https://github.com/danielhanold/docket/blob/feat/rename-docket-yml-example-to-docket-example-yml/docs/superpowers/plans/2026-07-20-rename-docket-yml-example-to-docket-example-yml.md) |
+| Results | [2026-07-20-rename-docket-yml-example-to-docket-example-yml-results.md](https://github.com/danielhanold/docket/blob/feat/rename-docket-yml-example-to-docket-example-yml/docs/results/2026-07-20-rename-docket-yml-example-to-docket-example-yml-results.md) |
+| PR | [#112](https://github.com/danielhanold/docket/pull/112) |
 | ADRs | [ADR-0048](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0048-docket-yml-example-invariants.md) |
 <!-- docket:artifacts:end -->
 
