@@ -2,10 +2,10 @@
 id: 105
 slug: pin-docket-mode-main-coverage-for-docket-status-digest-only
 title: Pin DOCKET_MODE=main coverage for docket-status --digest-only
-status: proposed
+status: killed
 priority: medium
 created: 2026-07-19
-updated: 2026-07-19
+updated: 2026-07-20
 depends_on: []
 related: []
 discovered_from: [94]
@@ -111,3 +111,7 @@ Kill is never autonomous, so it stays here for you.
    inert there too); the only genuinely mode-discriminating assert in that file is 79-80, the
    docket-mode default, and **no main-mode counterpart exists**. Adding one is a real option, but it
    is a different change from this one.
+
+## Why killed
+
+Premise falsified: the DOCKET_MODE=main path for --digest-only is already fixtured at tests/test_docket_status.sh:2645-2705 against a real git repo, and DOCKET_MODE is mutation-proved inert on this path, so mode-specific coverage is not buildable. Residual was two mislabelled assert descriptions.
