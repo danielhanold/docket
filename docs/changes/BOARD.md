@@ -1,14 +1,8 @@
 # Backlog
 
-**114 changes** — 🟢 1 in progress · 🟡 17 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 88 done · 🗑️ 6 killed
+**116 changes** — 🟡 19 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 88 done · 🗑️ 6 killed
 
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0104](active/0104-guard-frontmatter-field-domain-violations-that-silently-drop.md) | Guard frontmatter field-domain violations that silently drop board rows | `high` | [spec](../superpowers/specs/2026-07-20-frontmatter-field-domain-guard-design.md) | `feat/guard-frontmatter-field-domain-violations-that-silently-drop` |
-
-## 🟡 Proposed (17)
+## 🟡 Proposed (19)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -29,6 +23,8 @@
 | [0112](active/0112-pin-the-reverse-cross-layer-masking-for-the-committed-over-l.md) | Pin the reverse cross-layer masking for the committed-over-local rung pair | `medium` | needs-brainstorm |
 | [0113](active/0113-suppressed-handoff-silently-ends-autonomous-run.md) | A suppressed hand-off can silently end an autonomous run — make step completion verifiable, not narrated | `high` | needs-brainstorm |
 | [0114](active/0114-decide-the-repo-s-posture-on-line-number-comment-anchors.md) | Decide the repo's posture on line-number comment anchors | `medium` | needs-brainstorm |
+| [0115](active/0115-extend-the-board-row-dropped-invariant-to-archive-files.md) | Extend the board-row-dropped invariant to archive/ files | `medium` | needs-brainstorm |
+| [0116](active/0116-single-source-the-remaining-duplicated-board-vocabularies.md) | Single-source the remaining duplicated board vocabularies | `medium` | needs-brainstorm |
 
 ## 🔴 Blocked (1)
 
@@ -36,11 +32,12 @@
 |---|-------|----------|------------|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | PR #69 is stale (predates the 0068/0072 facade rework and later agent-layer changes) and #0079 (runner delegation) reshapes the design — the build roles should grow a runner field (build.<role>.runner codex, the mixed topology 0079 deferred). Needs a rebase plus redesign pass before merge. |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | PR | Readiness |
 |---|-------|----------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
+| [0104](active/0104-guard-frontmatter-field-domain-violations-that-silently-drop.md) | Guard frontmatter field-domain violations that silently drop board rows | `high` | [#113](https://github.com/danielhanold/docket/pull/113) |  |
 
 ```mermaid
 graph TD
@@ -64,6 +61,8 @@ graph TD
   0112
   0113
   0114
+  0115
+  0116
   0015:::done
   0016:::done
   0077:::done
