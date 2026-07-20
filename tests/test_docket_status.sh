@@ -2524,6 +2524,76 @@ assert "reclaim(no-marker): no remedy line printed (nothing to self-heal)" \
 assert "reclaim(no-marker): no reclaim-report line printed" \
   '! grep -qF "docket.sh reclaim-claims" "$tmp/reclaim-nf-out.txt"'
 
+# (vi) FORGED MARKER (change 0104 review). [reclaimable] is a machine contract between board-checks
+# and this MUTATING gate, but findings echo untrusted frontmatter verbatim by design — a
+# `field-domain` message quotes free-form `title` prose. So a change file titled
+# `Sneaky | thing [reclaimable]` puts the marker into the findings blob without board-checks ever
+# having decided anything is reclaimable. An unscoped substring search of the blob accepts it; the
+# gate must anchor on the check-id COLUMN (`^check stale-in-progress `) instead.
+#
+# (vi-a) forged marker ALONE, under reclaim.auto=true: neither the mutation nor a remedy.
+mkdir -p "$tmp/mock-reclaim-forged"
+cat > "$tmp/mock-reclaim-forged/board-checks.sh" <<'EOF'
+#!/usr/bin/env bash
+printf 'field-domain\t44\ttitle contains '"'"'|'"'"', which injects columns into the board row: Sneaky | thing [reclaimable]\n'
+exit 0
+EOF
+cp "$tmp/mock-reclaim/reclaim-claims.sh" "$tmp/mock-reclaim-forged/reclaim-claims.sh"
+cp "$tmp/mock-reclaim/render-board.sh"   "$tmp/mock-reclaim-forged/render-board.sh"
+chmod +x "$tmp/mock-reclaim-forged/"*.sh
+
+write_reclaim_fixture true
+reclaim_marker_fg="$tmp/.reclaim-marker-forged"; rm -f "$reclaim_marker_fg"
+reclaim_log_fg="$tmp/reclaim-forged-calls.log"; : > "$reclaim_log_fg"
+(cd "$reclaim_dir/work" && \
+  CONFIG_EXPORT_CMD="bash $tmp/fixture-reclaim.sh" GH="$tmp/gh-reclaim.sh" \
+  SCRIPTS_DIR="$tmp/mock-reclaim-forged" RECLAIM_MARKER="$reclaim_marker_fg" RECLAIM_LOG="$reclaim_log_fg" \
+  "$SCRIPT" >"$tmp/reclaim-fg-out.txt" 2>"$tmp/reclaim-fg-err.txt")
+rc=$?
+assert "reclaim(forged): full pass exits zero" '[ $rc -eq 0 ]'
+# NON-VACUITY: the forged marker really did reach reclaim_pass's input. Without this, the two
+# asserts below would pass just as well against a mock that emitted nothing at all.
+assert "reclaim(forged): the forged [reclaimable] text IS present in the findings blob" \
+  'grep -qF "[reclaimable]" "$tmp/reclaim-fg-out.txt"'
+assert "reclaim(forged): and it sits on a field-domain line, not a stale-in-progress one" \
+  'grep -qF "check field-domain 44" "$tmp/reclaim-fg-out.txt"'
+assert "reclaim(forged): a marker forged through a field-domain message does NOT invoke reclaim-claims" \
+  '[ ! -f "$reclaim_marker_fg" ]'
+assert "reclaim(forged): reclaim-claims call log stays empty (no mutation)" \
+  '[ ! -s "$reclaim_log_fg" ]'
+assert "reclaim(forged): no false remedy line printed" \
+  '! grep -qF "can self-heal" "$tmp/reclaim-fg-out.txt"'
+
+# (vi-b) COUNT INTEGRITY: one REAL reclaimable finding + one forged one, reclaim.auto=false. The
+# remedy must name 1, not 2 — the count and the gate come from the same scoped evaluation, so
+# untrusted prose cannot inflate the number the human is shown.
+mkdir -p "$tmp/mock-reclaim-mixed"
+cat > "$tmp/mock-reclaim-mixed/board-checks.sh" <<'EOF'
+#!/usr/bin/env bash
+printf 'field-domain\t44\ttitle contains a forged marker: Sneaky | thing [reclaimable]\n'
+printf 'stale-in-progress\t23\tclaim lease expired 100h ago; no feature branch [reclaimable]\n'
+exit 0
+EOF
+cp "$tmp/mock-reclaim/reclaim-claims.sh" "$tmp/mock-reclaim-mixed/reclaim-claims.sh"
+cp "$tmp/mock-reclaim/render-board.sh"   "$tmp/mock-reclaim-mixed/render-board.sh"
+chmod +x "$tmp/mock-reclaim-mixed/"*.sh
+
+write_reclaim_fixture false
+reclaim_marker_mx="$tmp/.reclaim-marker-mixed"; rm -f "$reclaim_marker_mx"
+reclaim_log_mx="$tmp/reclaim-mixed-calls.log"; : > "$reclaim_log_mx"
+(cd "$reclaim_dir/work" && \
+  CONFIG_EXPORT_CMD="bash $tmp/fixture-reclaim.sh" GH="$tmp/gh-reclaim.sh" \
+  SCRIPTS_DIR="$tmp/mock-reclaim-mixed" RECLAIM_MARKER="$reclaim_marker_mx" RECLAIM_LOG="$reclaim_log_mx" \
+  "$SCRIPT" >"$tmp/reclaim-mx-out.txt" 2>"$tmp/reclaim-mx-err.txt")
+rc=$?
+assert "reclaim(mixed): full pass exits zero" '[ $rc -eq 0 ]'
+assert "reclaim(mixed): the genuine finding still triggers the remedy" \
+  'grep -qF "can self-heal" "$tmp/reclaim-mx-out.txt"'
+assert "reclaim(mixed): the forged marker does NOT inflate the count (1, not 2)" \
+  'grep -qF "reclaim: 1 expired-lease change(s) can self-heal" "$tmp/reclaim-mx-out.txt"'
+assert "reclaim(mixed): the forged line reached the report (non-vacuity)" \
+  'grep -qF "check field-domain 44" "$tmp/reclaim-mx-out.txt"'
+
 # ── change 0094: --digest-only, the write-free selection read ────────────────────────────────
 # The digest is how docket-implement-next Step 1 acquires its ordered candidate set. It is a READ:
 # it must not sync, commit, push, render the board, or move HEAD. --board-only was not reusable —

@@ -1890,7 +1890,12 @@ n_active="$(grep -cF 'for st in "${DOCKET_STATUSES_ACTIVE[@]}"' "$SCRIPT")"
 n_literal="$(grep -cE '^[[:space:]]*for st in [a-z]' "$SCRIPT")"
 assert "render-board.sh iterates DOCKET_STATUSES at both full-vocabulary sites" '[ "$n_all" = 2 ]'
 assert "render-board.sh iterates DOCKET_STATUSES_ACTIVE at both active-only sites" '[ "$n_active" = 2 ]'
-assert "no hand-written status list survives in render-board.sh" '[ "$n_literal" = 0 ]'
+# Scoped to what the pattern actually proves: `^\s*for st in [a-z]` sees ITERATION HEADERS only.
+# Hand-written status lists demonstrably survive elsewhere in the renderer (the `done|killed` count
+# arms, label_for_title, the per-status table-header and row-format `case`s, and the print_section
+# call list). Widening this check to cover those sites is deliberately DEFERRED follow-up work —
+# do not silently broaden the assert name to imply coverage it does not have.
+assert "no hand-written \`for st in\` status list survives in render-board.sh" '[ "$n_literal" = 0 ]'
 
 # (b) the arrays themselves: composition and order (the golden compares bytes, this names the rule)
 assert "DOCKET_STATUSES is ACTIVE ++ TERMINAL, in that order" \

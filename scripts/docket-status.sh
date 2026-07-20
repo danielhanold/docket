@@ -650,9 +650,24 @@ health_checks(){
 # this clone) — docket_preflight fetches only origin/<metadata_branch>, never origin/feat/*. The
 # genuine cross-machine unfetched-remote-ref case is the documented §7-H residual, contained by
 # lease expiry plus reclaim.auto's default-off (see reclaim-claims.md).
+#
+# SCOPED to stale-in-progress lines (change 0104 review). The marker is a MACHINE CONTRACT between
+# board-checks and this gate, and this gate is mutating — so it must never be keyed on an unscoped
+# substring search of the whole findings blob. Findings echo untrusted frontmatter verbatim by
+# design (`field-domain` quotes `status`, `slug` and free-form `title` prose), so a change file
+# carrying `title: Sneaky | thing [reclaimable]` would otherwise FORGE the marker: under
+# reclaim.auto=true that triggers the reclaim sweep, and with auto off it prints a false remedy line
+# and inflates the count. health_checks renders each finding as `check <check-id> <change-id>
+# <message>`, so anchoring at ^ pins the check-id COLUMN — a marker appearing inside some other
+# check's message can never satisfy it, because that line begins with that other check's id. The
+# marker is additionally required at end-of-line, which is where board-checks stamps it.
+RECLAIMABLE_LINE_RE='^check stale-in-progress [^ ]+ .*\[reclaimable\]$'
 reclaim_pass(){
-  local health_out="$1" mw cd_dir line
-  grep -qF "[reclaimable]" <<<"$health_out" || return 0
+  local health_out="$1" mw cd_dir line n
+  # grep -c prints 0 and exits 1 on no-match; capture it, then TEST — the count and the gate come
+  # from ONE evaluation, so the remedy can never name a number the gate did not agree with.
+  n="$(grep -cE "$RECLAIMABLE_LINE_RE" <<<"$health_out")" || n=0
+  [ "${n:-0}" -gt 0 ] || return 0
   if [ "${RECLAIM_AUTO:-false}" = true ]; then
     mw="$(docket_metadata_worktree)"   # ABSOLUTE (change 0075) — see board_pass.
     cd_dir="$mw/$CHANGES_DIR"
@@ -660,8 +675,7 @@ reclaim_pass(){
       [ -n "$line" ] && printf 'reclaim %s\n' "$line"
     done < <("$SCRIPTS_DIR"/reclaim-claims.sh --changes-dir "$cd_dir" --lease-ttl-hours "${RECLAIM_LEASE_TTL:-72}")
   else
-    printf 'reclaim: %s expired-lease change(s) can self-heal — run: docket.sh reclaim-claims\n' \
-      "$(grep -cF "[reclaimable]" <<<"$health_out")"
+    printf 'reclaim: %s expired-lease change(s) can self-heal — run: docket.sh reclaim-claims\n' "$n"
   fi
 }
 

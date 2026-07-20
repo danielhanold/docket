@@ -131,17 +131,40 @@ injects columns into it (`title`). One finding per violated field, per change.
 second overlapping check would double-report the same file. Every domain is a shape or membership
 test; none enumerates bad values.
 
-**`board-row-dropped`** — Backstop for the count-vs-rows invariant. An `active/` change file that
-`render-board.sh` counts in the board's total but renders in no section: its `id:` is not a
-well-formed integer, or its `status:` is outside `DOCKET_STATUSES`. Emitted **only when no
-`field-domain` or `malformed-id` finding already exists for that change id** — a backstop that fired
-alongside every domain finding would train the reader to ignore it. Suppressed, it means exactly one
-thing: *a row vanished and nothing enumerated explains why.*
+**`board-row-dropped`** — Backstop for the count-vs-rows invariant, and the only check whose trigger
+is **computed rather than enumerated**. An `active/` change file is *rendered* iff `int_field id`
+yields a non-empty integer **and** its `status:` is one of the five statuses `render-board.sh`
+actually calls `print_section` for (`DOCKET_STATUSES_ACTIVE`). Anything else in `active/` is counted
+in the board's `total` and rendered nowhere — the count line and the tables disagree. The predicate
+(`renders_row` in the script) reads the *same array the renderer's own section iteration uses*, so
+it is a mirror of the renderer's bucketing, not a restatement of the causes the other checks name:
+a drop path added to the renderer starts reporting here with **no edit to `board-checks.sh`**.
 
-Its live trigger is a change file with **no `id:` field at all** — `malformed-id` requires a
-non-empty (if non-integer) value, so nothing else reports it. Beyond that, its remaining trigger is
-a future renderer-added drop path. `archive/` files are exempt: the archive table renders from its
-own pass and is not subject to this invariant.
+Emitted **only when no finding already accounts for the drop**. Exactly two arms suppress it, and
+both describe a row *disappearing*:
+
+| Suppressing finding | Why it explains the drop |
+|---|---|
+| `malformed-id` | A non-integer `id:` — `render-board.sh` skips the row outright. |
+| `field-domain` on **`status`** | A status outside the seven-name vocabulary is outside the five-name active set too, so the row buckets under a key nothing iterates. |
+
+A `field-domain` finding on `slug`, `priority` or `title` does **not** suppress: none of them drops
+a row (a piped `title` injects columns into a row that is still emitted; `priority` renders raw;
+`slug` is not read by the markdown renderer at all). Were they to suppress, an unrelated pipe in a
+change's title would silence the backstop on a row that vanished for a different reason.
+
+Two live triggers today:
+
+- A change file with **no `id:` field at all** — `malformed-id` requires a non-empty (if
+  non-integer) value, so nothing else reports it.
+- An `active/` file carrying a **terminal status** (`done` / `killed`) — a *legal* status in the
+  *wrong directory*. `field-domain` is correctly silent (`done` is in `DOCKET_STATUSES`) and the id
+  is valid, so the computed invariant is the only thing that sees it. This state is reachable and
+  documented: `docket-status`'s `sweep-failed <id> archive <reason>` is exactly "status flipped to
+  `done`, archive move failed".
+
+Beyond those, its remaining trigger is a future renderer-added drop path. `archive/` files are
+exempt: the archive table renders from its own pass and is not subject to this invariant.
 
 **`malformed-id`** — Guard/carve-out, not counted among the named checks above. A change file
 whose `id:` field is non-empty but non-integer emits a `malformed-id` finding. The change-id column
@@ -178,7 +201,15 @@ were emitted; otherwise it always exits 0.
 - **`blocked_by:` re-examination is model-driven.** The skill, not this script, evaluates
   whether a `blocked` change's blocking reason still holds. That judgment is intentionally
   outside the mechanical checker.
-- **The findings channel is not injectable.** `emit` escapes TAB and CR to visible `\t` / `\r` in
-  both embedded columns, and the change-id column never carries a raw frontmatter value. The caller
-  splits findings with `IFS=$'\t' read -r check_id change_id message`, so an un-escaped TAB in an
-  untrusted value would shift every later field.
+- **The findings channel's COLUMNS are not forgeable.** `emit` escapes TAB and CR to visible
+  `\t` / `\r` in both embedded columns, and the change-id column never carries a raw frontmatter
+  value. The caller splits findings with `IFS=$'\t' read -r check_id change_id message`, so an
+  un-escaped TAB in an untrusted value would shift every later field.
+- **Message TEXT is untrusted; consumers must anchor on the check-id column.** The guarantee above
+  is about column integrity, *not* content: `field-domain` messages quote raw frontmatter —
+  including free-form `title` prose — verbatim by design, so any token a consumer keys on
+  (`[reclaimable]`, say) can appear inside some *other* check's message. A consumer that
+  substring-scans the whole findings blob is forgeable by anyone who can write a change file. Key on
+  the check-id column: `docket-status.sh`'s `reclaim_pass` anchors its mutating gate at `^check
+  stale-in-progress ` and requires the marker at end-of-line, so a marker inside a `field-domain`
+  message can never satisfy it — that line begins with a different check-id.
