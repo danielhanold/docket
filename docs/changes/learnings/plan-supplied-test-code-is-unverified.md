@@ -2,9 +2,9 @@
 slug: plan-supplied-test-code-is-unverified
 hook: "Test code a plan hands you is unverified code, not an oracle — prove the assert CAN pass, and mutation-test its own key."
 topics: [testing, plan, guards]
-changes: [94]
+changes: [94, 104]
 created: 2026-07-19
-updated: 2026-07-19
+updated: 2026-07-20
 promotion_state: candidate
 promoted_to:
 ---
@@ -41,3 +41,18 @@ implementer. It is not a reason to distrust plans — it is a reason to run the 
     order. Fixed with a tie crossing a digit-width boundary (ids 9/10), then confirmed red under
     mutation — the fixture, not the assert, was what had been hiding the hole. (See
     [[guards-are-code]].)
+- 2026-07-20 (#104, PR #113) — Three more, in one plan, caught by running the supplied tests as code:
+  - `has_finding "$out" malformed-id "?"` was **vacuous**: the helper built an unescaped ERE and `?`
+    is a quantifier, collapsing the pattern to `^malformed-id\t` and matching any line of that
+    check-id. It was green even against the **pre-implementation baseline**. Fixed at the helper's
+    *definition* (literal `case` match + here-string, which also removed a `printf | grep -q`
+    pipefail hazard) rather than at the call site — `cid` can legitimately be `?`, so a call-site
+    patch would have been re-hit by later tasks. **Fix a shared helper's hazard where it is
+    defined; a call-site fix leaves the trap armed for every other caller.** (See
+    [[escape-ere-metacharacters-in-key]].)
+  - Two asserts used a literal `\t` inside `grep -E`, which **BSD grep does not interpret** —
+    rewritten to the repo's portable `grep -E "$(printf '^x\ty\t')"` idiom.
+  - The plan's own Step-2 *verification command* was broken: anchored to line start, it missed
+    `emit` calls following `||` guards and found only 9 of 11 check-ids. A plan's verification
+    commands are unverified code too — an under-counting verifier reports a gap that does not exist
+    (or, reversed, misses one that does). A corrected unanchored derivation confirmed zero gaps.

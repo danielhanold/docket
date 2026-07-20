@@ -2,9 +2,9 @@
 slug: model-authored-values-are-untrusted-input
 hook: "A value a model wrote is untrusted input to a script — and a helper copied from a sibling inherits that sibling's assumption that its values were generated constants."
 topics: [shell, scripts, injection, sed]
-changes: [91]
+changes: [91, 104]
 created: 2026-07-19
-updated: 2026-07-19
+updated: 2026-07-20
 promotion_state: candidate
 promoted_to:
 ---
@@ -45,3 +45,15 @@ helper, so it does not travel with the copy — restate it or replace the mechan
   Neither was visible to a fully green suite: no fixture used a title with punctuation. See
   [[green-suite-untested-branch]], [[escape-ere-metacharacters-in-key]] (the pattern-side twin), and
   [[guards-are-code]].
+- 2026-07-20 (#104, PR #113) — The **consumer-side** dimension: a report channel that echoes
+  untrusted values by design is only as safe as the way its readers parse it. Hardening the field
+  *separator* (part 3) left `docket-status.sh`'s `reclaim_pass` keying a **mutating** code path on an
+  unscoped `grep -qF "[reclaimable]"` over the whole findings blob — so `title: Sneaky | thing
+  [reclaimable]` forged the marker, verified live. Pre-0104 only `malformed-id`'s `id:` echo could
+  reach this; the change widened the echo surface to `status`, `slug`, and free-form `title`. Fixed
+  by scoping the consumer to the **check-id column** with the marker anchored at end-of-line, for
+  both the gate and its count. **Rule: consume a structured channel by column, never by substring —
+  and when you widen what a channel echoes, re-audit every existing reader, because the readers were
+  written against the narrower surface.** The contract's blanket "the findings channel is not
+  injectable" invariant was correspondingly split into *columns are not forgeable* vs *message text
+  is untrusted* — the original sentence was simply false.

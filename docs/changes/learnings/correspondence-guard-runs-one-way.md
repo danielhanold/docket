@@ -2,7 +2,7 @@
 slug: correspondence-guard-runs-one-way
 hook: "A guard over a correspondence between two sets proves only the direction it iterates — write the reverse loop too, and anchor it on the consuming code, not an allowlist."
 topics: [testing, coverage, sentinels]
-changes: [101, 107]
+changes: [101, 107, 104]
 created: 2026-07-20
 updated: 2026-07-20
 promotion_state: candidate
@@ -59,3 +59,12 @@ change existed to end ([[verify-the-claim]]).
   message), and the departure must be written **into the test as a comment**, or a later reader
   "fixes" the missing reverse loop and re-creates the surface. Recorded here rather than only in the
   spec because a rule this finding states absolutely will otherwise be applied absolutely.
+- 2026-07-20 (#104, PR #113) — The zero-way case. `board-checks.sh`'s emitted check-id set has
+  **three** registration surfaces (the script header, `scripts/docket-status.md`'s enumeration, the
+  test file) and *nothing* binds any of them to the emitted set — not one direction, let alone two.
+  Drift was found in **both** directions in one change: the spec knew the script header omitted
+  `malformed-id`, and reconcile found the converse — the `docket-status.md` enumeration omitted
+  `stale-finalize-blocked`, which change **0098 shipped without ever registering**. Both repaired,
+  but the structural gap recurs on the next check-id added; tracked as change **#111**. The tell
+  worth reusing: when a set has three hand-maintained mirrors and no guard, assume drift in every
+  direction and *derive* the true set from the emitting code before trusting any mirror.
