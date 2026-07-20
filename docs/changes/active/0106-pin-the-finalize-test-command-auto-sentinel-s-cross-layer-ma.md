@@ -7,10 +7,10 @@ priority: medium
 created: 2026-07-20
 updated: 2026-07-20
 depends_on: []
-related: []
+related: [103]
 discovered_from: [101]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-07-20-auto-sentinel-cross-layer-masking-design.md
 plan:
 results:
 trivial: false
@@ -24,6 +24,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-07-20-auto-sentinel-cross-layer-masking-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-20-auto-sentinel-cross-layer-masking-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -35,34 +38,39 @@ during it. That placement is what buys the actually-useful property — a **high
 `test_command: auto` masks a **lower** layer's real command, exactly as an explicit re-statement of
 the default should.
 
-`tests/test_docket_config.sh` section S covers the committed layer in isolation, and
-`scripts/docket-config.sh:197` carries a corrected comment describing the cross-layer behavior. No
-fixture pins it. So the one property the placement decision was made *for* is asserted by a comment
-only — and a comment is a claim, not a guard (the repo's `verify-the-claim` and `guards-are-code`
-findings both name this shape). A future refactor that collapses the sentinel earlier — during the
-per-field merge instead of after it — would silently invert the masking behavior with the whole
-suite green.
+`tests/test_docket_config.sh` section S covers the sentinel in three single-layer fixtures — each
+writes only a committed `.docket.yml`, so no fixture ever has two rungs populated at once. The
+cross-layer property is asserted by the comment at `scripts/docket-config.sh:195-199` and nowhere
+else. A comment is a claim, not a guard (the repo's `verify-the-claim` and `guards-are-code`
+findings both name this shape), and this particular comment has already been wrong once: `a9da1e2`
+shipped it describing the property backwards, and only the 0101 review caught it (`dab12b0`). A
+future refactor that collapses the sentinel per-layer instead of after the chain would silently
+invert the masking behavior with the whole suite green.
 
 ## What changes
 
-Add a two-layer fixture to `tests/test_docket_config.sh` that pins the masking property directly:
-a lower layer (repo-committed `.docket.yml`) setting a real `finalize.test_command`, a higher layer
-(`.docket.local.yml` or the global config) setting `test_command: auto`, and an assert that the
-resolved export is the **unset default**, not the lower layer's command. Mutation-test it by
-collapsing the sentinel before resolution and confirming the new assert reddens.
+Add three fixtures to section S of `tests/test_docket_config.sh`, using the existing `mkrepo` and
+`rung` helpers (`rung` roots the global layer at a per-fixture temp dir, so every case stays
+hermetic):
 
-Worth checking in the same pass whether the reverse direction deserves a companion assert (a lower
-layer's `auto` must NOT mask a higher layer's real command).
+- **Forward, `lcl()` path** — committed `.docket.yml` sets a real command, `.docket.local.yml` sets
+  `auto`; assert the resolved export is empty.
+- **Forward, `gbl()` path** — global `config.yml` sets a real command, committed `.docket.yml` sets
+  `auto`; assert the resolved export is empty.
+- **Reverse** — committed `.docket.yml` sets a real command, global `config.yml` sets `auto`; assert
+  the real command survives.
+
+Each direction gets its own mutation run against the real `scripts/docket-config.sh`: collapsing the
+sentinel per-layer must redden the two forward cases, and a blanket "any layer says `auto` ⇒ unset"
+scan must redden the reverse case. The reverse case does not redden under the forward mutation,
+which is why it needs its own — see the spec.
+
+Also fix this change's own citation: the load-bearing anchors are `docket-config.sh:194` (the
+resolution chain) and `:201` (the collapse), not `:197`, which lands mid-comment.
 
 ## Out of scope
 
 - Any change to the sentinel's semantics or its resolution placement — this pins current behavior.
-- Extending the `auto` sentinel to `github_project`, which is unwired end to end (see the separate
-  follow-up change on that key).
-
-## Open questions
-
-- Which higher layer makes the sharper fixture: `.docket.local.yml` or the global config? The global
-  layer exercises one more hop, but `.docket.local.yml` keeps the fixture hermetic without touching
-  a real `~/.config` path — a hazard this repo has already been bitten by
-  (`config-layer-write-and-read-hazards`).
+- Extending the `auto` sentinel to `github_project`, which is unwired end to end (change 0103).
+- The third layer ordering (local `auto` over global real) — it reuses the two helpers the forward
+  cases already cover and adds no distinct code path.
