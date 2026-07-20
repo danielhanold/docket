@@ -10,7 +10,7 @@ depends_on: []
 related: []
 discovered_from: [94]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-07-20-frontmatter-field-domain-guard-design.md
 plan:
 results:
 trivial: false
@@ -24,6 +24,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-07-20-frontmatter-field-domain-guard-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-20-frontmatter-field-domain-guard-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -50,25 +53,34 @@ healthy-looking count.
 
 ## What changes
 
-Detect field-domain violations and surface them, without letting one bad file take the board out:
+Detect field-domain violations and surface them, without letting one bad file take the board out.
+Guard site is `scripts/board-checks.sh` — the existing warn-only frontmatter-validation channel,
+whose findings `docket-status` surfaces through a generic passthrough (`docket-status.sh:623-630`),
+so a new check-id needs zero extra wiring. Posture is warn-only throughout: `render-board.sh` sits
+on the must-land Board pass and must never exit non-zero.
 
-- **Guard site:** `scripts/board-checks.sh`, the existing warn-only frontmatter-validation channel.
-  Findings are `<check-id>\t<change-id>\t<message>`, surfaced by `docket-status` through a generic
-  passthrough (`docket-status.sh:623-630`), so a new check-id needs **zero** extra wiring.
-- **Posture:** warn-only. `render-board.sh` must never exit non-zero — it sits on the must-land
-  Board pass.
-- **Cover the count/rows disagreement** (A and B): a file counted in `total` but rendered in no
-  section is itself a detectable invariant violation, and a cheaper key than enumerating field
-  domains one by one.
-- **Surface the already-detected half** (B) rather than adding a second overlapping check.
+Four parts, designed in the linked spec:
 
-Folded in from this change's original scope — a **TAB or SPACE in `slug:`** is emitted raw into the
-space-joined `change` line (`change 4 proposed build-ready delta<TAB>EVIL`). Key it on a *positive*
-slug grammar matching `slugify`'s own alphabet (`[a-z0-9-]`, `mint-stub.sh:88-91`), apply the
-identical check to any filename-derived fallback, and terminate on the padded id.
+- **`field-domain`** — a new check-id enumerating the domains the renderers actually consume:
+  `status`, `slug` (a positive `[a-z0-9-]` grammar), `priority`, and `title` (no pipe). `id` stays
+  with the existing `malformed-id`; no second overlapping check.
+- **`board-row-dropped`** — the count-vs-rows invariant as a backstop, **suppressed** when a
+  `field-domain` or `malformed-id` finding already explains that id, so it means exactly one thing:
+  a row vanished and nothing enumerated explains why.
+- **Sanitize the findings channel** — `emit` puts an untrusted frontmatter value in the
+  TAB-separated change-id column, so a TAB in `id:` shifts the message into the wrong field when
+  `docket-status.sh` reads it back. The guard's own reporting channel is injectable by the input
+  class this change exists to catch.
+- **Single-source the status vocabulary** — the seven-name list is written out at four sites in
+  `render-board.sh`. Duplication makes the checker and the renderer drift in two directions and only
+  one is caught; sharing one ordered array (authored as its active/terminal groups) eliminates both
+  and is what makes the drift test load-bearing rather than a duplicate asserted against a duplicate.
+
+`docket-implement-next` **reports, never gates** — a warn-only channel that halts autonomy would
+turn one malformed file into a total backlog stall.
 
 **Registration points a builder must not miss:** the `board-checks.sh` header block,
-`scripts/board-checks.md`, and the closed check-id enumeration at `scripts/docket-status.md:344`.
+`scripts/board-checks.md`, and the closed check-id enumeration in `scripts/docket-status.md`.
 The header block at `board-checks.sh:11-12` is already stale — it omits `malformed-id`.
 
 ## Out of scope
@@ -76,13 +88,8 @@ The header block at `board-checks.sh:11-12` is already stale — it omits `malfo
 - Rejecting or rewriting the offending change files. This change makes the failure **visible**; it
   does not decide what a malformed file's canonical value should be.
 - Broader frontmatter schema validation beyond what board rendering actually consumes.
-
-## Open questions
-
-- Does the count-vs-rows invariant subsume the per-field domain checks, or is it a backstop
-  alongside them?
-- Where does a warn-only finding need to be loud enough to stop an autonomous build — does
-  `docket-implement-next` gate on it, or only report it?
+- Restructuring `render-board.sh`'s `emoji_for` / `label_for_title` case statements into data — they
+  are a parallel representation of the same vocabulary, pinned by test rather than unified.
 
 ## History
 
@@ -100,3 +107,13 @@ verified findings and the settled guard-site design attached to the work they in
 Rejected guard sites, recorded so they are not re-litigated: changing `field()` (66 call sites
 across 13 scripts inherit the contract) and renderer-stderr warnings (outside the closed report-line
 vocabulary callers key on — nothing would ever parse them).
+
+**2026-07-20 — groomed.** One premise from the re-scope did not reproduce: there is no
+filename-derived slug fallback in the board path (`render-board.sh:135` reads `field "$f" slug`
+bare), so the slug check is frontmatter-only. `reclaim-claims.sh:71,101` and `archive-change.sh:88-89`
+do derive a slug from the basename, but they are not board consumers and stay out of scope.
+Grooming also surfaced the findings-channel injection (part 3) and the case-statement residual
+(part 4), neither of which was in the stub. Rejected during grooming: gating
+`docket-implement-next` only on selection-affecting findings — it requires knowing whether the
+poisoned file *would* have been `proposed`, which is exactly unknowable when the poisoned field
+**is** `status`.
