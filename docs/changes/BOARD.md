@@ -17,7 +17,7 @@
 | [0100](active/0100-force-push-lease-classifier-denial.md) | Force-push-with-lease denied by the auto-mode classifier — unblock finalize's merge gate | `medium` | needs-brainstorm |
 | [0102](active/0102-finalize-require-pr-approval-has-no-layer-resolution.md) | finalize.require_pr_approval has no layer resolution | `medium` | needs-brainstorm |
 | [0103](active/0103-wire-the-github-project-config-read-documented-but-unwired-k.md) | Wire the github_project config read (documented-but-unwired key) | `medium` | needs-brainstorm |
-| [0104](active/0104-guard-tab-in-frontmatter-values-feeding-the-digest-s-tab-joi.md) | Guard TAB in frontmatter values feeding the digest's TAB-joined sort rows | `medium` | needs-brainstorm |
+| [0104](active/0104-guard-tab-in-frontmatter-values-feeding-the-digest-s-tab-joi.md) | Guard TAB in frontmatter values feeding the digest's TAB-joined sort rows | `medium` | auto-groom blocked — needs you |
 | [0105](active/0105-pin-docket-mode-main-coverage-for-docket-status-digest-only.md) | Pin DOCKET_MODE=main coverage for docket-status --digest-only | `medium` | needs-brainstorm |
 | [0106](active/0106-pin-the-finalize-test-command-auto-sentinel-s-cross-layer-ma.md) | Pin the finalize.test_command auto sentinel's cross-layer masking with a two-layer fixture | `medium` | needs-brainstorm |
 | [0107](active/0107-guard-the-readme-config-snippet-against-docket-yml-example-d.md) | Guard the README config snippet against .docket.yml.example drift | `medium` | needs-brainstorm |
