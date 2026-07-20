@@ -11,7 +11,7 @@ related: []
 discovered_from: [101]
 adrs: []
 spec: docs/superpowers/specs/2026-07-20-readme-snippet-drift-guard-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-20-readme-snippet-drift-guard-plan.md
 results:
 trivial: false
 auto_groomable:
@@ -28,6 +28,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-20-readme-snippet-drift-guard-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-20-readme-snippet-drift-guard-design.md) |
+| Plan | [2026-07-20-readme-snippet-drift-guard-plan.md](https://github.com/danielhanold/docket/blob/feat/guard-the-readme-config-snippet-against-docket-yml-example-d/docs/superpowers/plans/2026-07-20-readme-snippet-drift-guard-plan.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
