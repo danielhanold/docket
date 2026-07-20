@@ -2,7 +2,7 @@
 slug: guards-are-code
 hook: "A guard is code — mutation-test it (strip the feature, watch it go red) or it is decoration."
 topics: [testing, sentinels, mutation]
-changes: [14, 15, 21, 36, 37, 64, 65, 67, 68, 69, 70, 71, 72, 73, 74, 84, 88, 91, 96, 101, 107]
+changes: [14, 15, 21, 36, 37, 64, 65, 67, 68, 69, 70, 71, 72, 73, 74, 84, 88, 91, 96, 101, 106, 107]
 created: 2026-06-17
 updated: 2026-07-20
 promotion_state: promoted
@@ -177,3 +177,19 @@ lib. A snippet the PLAN hands you is unvetted code: mutation-test it like any as
   off inside fenced blocks. General rule: before trusting a guard that extracts its input, prove the
   extraction is UNIQUE, prove its boundaries close on what you aimed at, and count the corpus at
   every stage it is narrowed.
+- 2026-07-20 (#106, PR #111) — **One mutation does not prove a SET of asserts. Record which ones
+  redden, and derive from the code's own structure which mutation each assert can even respond
+  to.** Five asserts pin the `finalize.test_command` `auto` sentinel's cross-layer masking.
+  Mutation 1 — collapse the sentinel per-layer instead of after the precedence chain — reddened
+  `s4`/`s5` and left `s6` GREEN. Not decoration: precedence is `local > committed > global`,
+  first non-empty wins, so `s6`'s sentinel sits *below* the winning rung and `:-` short-circuits
+  before it is ever consulted. `s6` is structurally IMMUNE to that mutation and needed its own
+  (Mutation 2, blanket "any layer says `auto` ⇒ unset"), under which `s6` alone reddens and all
+  four `s4`/`s5` asserts stay green. Reading the run as "the mutation went red, the guard works"
+  would have shipped one of the two properties unproven — the asymmetry is forced by precedence,
+  so it is derivable up front rather than discoverable by luck. Two practices made it legible and
+  belong in any mutation record: **assert-total conservation** (219+2 = 221; 220+1 = 221 — proving
+  no assert VANISHED rather than failed, class (k)) and naming WHICH asserts redden per mutation
+  instead of only the count. The change existed at all because a *comment* was the sole assertion
+  of this property and had already shipped it backwards once (`a9da1e2`, caught only at review) —
+  a comment is a claim, not a guard (see [[verify-the-claim]]).
