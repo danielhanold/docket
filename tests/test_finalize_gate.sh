@@ -12,7 +12,7 @@ FIN="$REPO/skills/docket-finalize-change/SKILL.md"
 CONV="$REPO/skills/docket-convention/SKILL.md"
 STAT="$REPO/skills/docket-status/SKILL.md"
 DYML="$REPO/.docket.yml"
-EXAMPLE="$REPO/.docket.yml.example"   # change 0101: the canonical all-keys config reference
+EXAMPLE="$REPO/.docket.example.yml"   # change 0101: the canonical all-keys config reference
 
 # ---- Config parse: the nested finalize.gate key, four modes + default ----------
 # Block-scoped awk (the sync-agents.sh idiom), SIGPIPE-safe (capture, no producer|grep).
@@ -81,7 +81,7 @@ assert "finalize ties require_pr_approval to the auto-detect path + unapproved P
 
 # ---- the canonical example carries the knob, active, at its default ----------
 # Change 0101 moved the user-facing config documentation out of this repo's own .docket.yml
-# (now values-only) and into .docket.yml.example, where every key ships ACTIVE at its default.
+# (now values-only) and into .docket.example.yml, where every key ships ACTIVE at its default.
 # So the discoverability assert follows the documentation, and the value assert gets stronger:
 # rpa_of now parses a live key rather than a commented one.
 assert "the example mentions require_pr_approval (discoverability)" \

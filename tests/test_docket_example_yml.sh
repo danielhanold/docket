@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# tests/test_docket_yml_example.sh — run: bash tests/test_docket_yml_example.sh
-# Guards .docket.yml.example, docket's canonical all-comprehensive config reference (change 0101).
+# tests/test_docket_example_yml.sh — run: bash tests/test_docket_example_yml.sh
+# Guards .docket.example.yml, docket's canonical all-comprehensive config reference (change 0101).
 # The example is PURE DOCUMENTATION — no docket tooling reads it — so these tests are the only
 # thing keeping it honest. Replaces tests/test_config_example.sh.
 set -uo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
-EX="$REPO/.docket.yml.example"
+EX="$REPO/.docket.example.yml"
 CFGSCRIPT="$REPO/scripts/docket-config.sh"
 fail=0
 assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
@@ -31,7 +31,7 @@ mkrepo(){
   git -C "$dir" remote set-head origin -a >/dev/null 2>&1
 }
 
-assert ".docket.yml.example exists at repo root" '[ -f "$EX" ]'
+assert ".docket.example.yml exists at repo root" '[ -f "$EX" ]'
 
 # --- (1) FIDELITY: example == shipped defaults -------------------------------
 # Copy the example in as .docket.yml on a fixture's default branch; the resolver's export must be
@@ -350,7 +350,7 @@ assert "scaffold: wrote the file"     '[ -f "$GC" ]'
 # "No active keys" = every non-blank line is a comment.
 assert "scaffold: contains NO active keys (comment/blank lines only)" \
   '[ -z "$(grep -vE "^[[:space:]]*(#.*)?$" "$GC" 2>/dev/null)" ]'
-assert "scaffold: points at .docket.yml.example" 'grep -qF ".docket.yml.example" "$GC"'
+assert "scaffold: points at .docket.example.yml" 'grep -qF ".docket.example.yml" "$GC"'
 assert "scaffold: names the layer precedence"    'grep -qiE "repo-local|precedence" "$GC"'
 # Idempotent + non-destructive: a second run leaves an existing file byte-untouched.
 printf '# user edited\nauto_capture: true\n' > "$GC"
@@ -371,14 +371,14 @@ assert "no stale config.yml.example reference in ensure-global-config.sh" \
 # --- (7) README + dogfooding -------------------------------------------------
 README="$REPO/README.md"
 assert "README has the step-2 global-config heading" 'grep -qF "### 2. Set up your global config" "$README"'
-assert "README step-2 names .docket.yml.example"     'grep -qF ".docket.yml.example" "$README"'
+assert "README step-2 names .docket.example.yml"     'grep -qF ".docket.example.yml" "$README"'
 assert "README no longer names config.yml.example"   '! grep -qF "config.yml.example" "$README"'
 
 # Dogfooding: this repo's own .docket.yml carries ONLY the values it actually sets, plus a
 # pointer to the example. It is the copy-out workflow's worked demonstration, so it must not
 # regress into a second all-keys surface — that drift is exactly what change 0101 ended.
 DY="$REPO/.docket.yml"
-assert "repo .docket.yml points at the example" 'grep -qF ".docket.yml.example" "$DY"'
+assert "repo .docket.yml points at the example" 'grep -qF ".docket.example.yml" "$DY"'
 assert "repo .docket.yml is slim (<= 40 lines)"  '[ "$(wc -l < "$DY")" -le 40 ]'
 assert "repo .docket.yml keeps its set values" \
   'grep -Eq "^metadata_branch:[[:space:]]*docket" "$DY" && grep -Eq "^terminal_publish:[[:space:]]*true" "$DY"'
@@ -466,9 +466,9 @@ ex_flat="$(flatten_yaml < "$EX")"
 # toward being the all-keys mirror change 0101 deleted. Both directions are real signal, and the
 # remedy for a genuine, intentional addition is inline in the message below (not just in this
 # comment), so it survives into CI output: bump the literal 5 AND add the key to
-# .docket.yml.example, in the same commit.
+# .docket.example.yml, in the same commit.
 sn_count="$(printf '%s\n' "$sn_flat" | grep -c .)"
-assert "(8) snippet flattened key count is exactly 5 (floor against extraction going silently empty, ceiling against undocumented growth; if intentional, bump this literal 5 and add the key to .docket.yml.example; got $sn_count)" \
+assert "(8) snippet flattened key count is exactly 5 (floor against extraction going silently empty, ceiling against undocumented growth; if intentional, bump this literal 5 and add the key to .docket.example.yml; got $sn_count)" \
   '[ "$sn_count" = "5" ]'
 ex_count="$(printf '%s\n' "$ex_flat" | grep -c .)"
 assert "(8) example flattened non-empty (guard against a silently empty comparison side; got $ex_count)" \
@@ -492,7 +492,7 @@ assert "(8) snippet flattener drops no key-shaped line (raw content lines vs. fl
 # The correspondence-guard-runs-one-way learning (harvested from change 0101) says: name the
 # direction you iterate, then write the other one. That rule assumes the two sets stand in a
 # CORRESPONDENCE. These two do not. The README snippet is a deliberate PROPER SUBSET — a small
-# illustrative taste — while .docket.yml.example is the canonical all-keys reference. So the
+# illustrative taste — while .docket.example.yml is the canonical all-keys reference. So the
 # reverse loop here would assert "every key in the example appears in the README", which is a
 # completeness check that re-creates the fourth all-keys surface change 0101 existed to delete.
 # Writing it would undo the change that motivated this guard.
@@ -535,13 +535,13 @@ assert "(8) every README snippet value equals the example's (${sn_mismatched:-no
 
 # POINTER: the section's link to the canonical reference must resolve to a real file. Scoped to
 # this section's body via snippet_section() (defined above), NOT a whole-file grep — the README
-# names .docket.yml.example in several other places (the tooling list, the layered-config prose),
+# names .docket.example.yml in several other places (the tooling list, the layered-config prose),
 # so an unscoped match would stay green even after THIS section's own link rotted.
 #
 # Matches on the link TARGET, not the link text: the target is what must resolve, so a correct,
 # non-rotted link whose anchor text is reworded (e.g. `[the canonical reference]
-# (.docket.yml.example)`) must stay green rather than reddening on wording alone.
-sn_ptr="$(snippet_section | sed -nE 's/.*\[[^]]*\]\(([^)]*\.docket\.yml\.example)\).*/\1/p' | head -n1)"
+# (.docket.example.yml)`) must stay green rather than reddening on wording alone.
+sn_ptr="$(snippet_section | sed -nE 's/.*\[[^]]*\]\(([^)]*\.docket\.example\.yml)\).*/\1/p' | head -n1)"
 assert "(8) the section links to the canonical reference" '[ -n "$sn_ptr" ]'
 assert "(8) canonical-reference link target exists (${sn_ptr:-<no link>})" \
   '[ -n "$sn_ptr" ] && [ -f "$REPO/$sn_ptr" ]'

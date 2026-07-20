@@ -101,7 +101,7 @@ A value may not contain a literal `#` — it is treated as the start of an inlin
 | `adrs_dir` | `docs/adrs` | no (fenced) | |
 | `results_dir` | `docs/results` | no (fenced) | |
 | `gate` (finalize) | `local` | yes | read from `finalize.gate` leaf key; resolves repo-local > repo-committed > global |
-| `test_command` (finalize) | `` (empty) | yes | read from `finalize.test_command` leaf key; resolves repo-local > repo-committed > global. **`auto` ≡ unset** (change 0101): the literal lowercase `auto` resolves to the empty string so finalize auto-detects the suite, letting `.docket.yml.example` ship this default as an active value. Applied after layer resolution; any other value (including `AUTO`) is honored verbatim |
+| `test_command` (finalize) | `` (empty) | yes | read from `finalize.test_command` leaf key; resolves repo-local > repo-committed > global. **`auto` ≡ unset** (change 0101): the literal lowercase `auto` resolves to the empty string so finalize auto-detects the suite, letting `.docket.example.yml` ship this default as an active value. Applied after layer resolution; any other value (including `AUTO`) is honored verbatim |
 | `board_surfaces` | `inline` | yes, minus `github` | YAML list `[a, b]` stripped of brackets/commas; **`[]` → the reserved token `none`** (change 0071 — an empty value is NEVER emitted; empty means "unresolved", a wiring bug); a `github` token arriving from either machine-scoped layer (repo-local or global) is dropped (Stage 2c), and a list left empty by that drop also resolves to `none` |
 | `auto_groom` | `false` | yes | resolves repo-local > repo-committed > global |
 | `auto_capture` | `false` | yes | resolves repo-local > repo-committed > global; fails closed on a non-boolean (change 0091) |
@@ -114,7 +114,7 @@ A value may not contain a literal `#` — it is treated as the start of an inlin
 `github_project` and `agents:`/`agent_harnesses` are per-repo-only / not read by this script (see
 Stage 2b/2b'/2c below and `sync-agents.sh`'s own contract, respectively) — every other key above
 not marked "Global-able" is per-repo-only. **`github_project: auto` ≡ unset** (change 0101): the
-sentinel is the explicit spelling of "no board configured", so `.docket.yml.example` can ship the
+sentinel is the explicit spelling of "no board configured", so `.docket.example.yml` can ship the
 key active at its default. It is **documentation-only today** — this script only *fences*
 `github_project` (never resolves or emits it), and no other script reads it from config either:
 `github-mirror.sh` takes its board solely from `--project` / `--auto-create-project`. See

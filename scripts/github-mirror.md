@@ -113,7 +113,7 @@ mirrored regardless of Projects status. The Board pass likewise never fails beca
 
 **`github_project: auto` (change 0101) — documentation-only today.** The literal lowercase `auto`
 is the explicit spelling of "unminted", identical in effect to an absent key, so that
-`.docket.yml.example` can ship the key active at its default instead of as a commented-out note.
+`.docket.example.yml` can ship the key active at its default instead of as a commented-out note.
 It changes no behavior, because **nothing currently reads `github_project` from config at all**:
 this script resolves its board solely from `--project` / `--auto-create-project`, and
 `docket-status.sh` populates those only from its own CLI flags (`docket-status.sh:272`), which no

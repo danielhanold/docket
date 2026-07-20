@@ -123,7 +123,7 @@ bash ~/dev/docket/install.sh
 That is the whole install. `install.sh` runs four primitives in order and is idempotent — re-run it any time (after adding a harness, or after editing `~/.config/docket/config.yml`):
 
 - **`link-skills.sh`** creates absolute symlinks from each present harness's global skill directory back to `~/dev/docket/skills/<name>`. It links into harnesses that already exist on your machine, creating the `skills/` subdirectory when the harness itself is present but that subdirectory is missing, and never creates a harness you don't use. Because skills are symlinks, editing one in the repo takes effect everywhere immediately.
-- **`ensure-global-config.sh`** drops a minimal starter `~/.config/docket/config.yml` into place the first time you install — non-destructively (an existing config is left untouched). It contains no active keys: it is a header plus a pointer to [`.docket.yml.example`](.docket.yml.example), docket's canonical reference for every key and its default (see step 2). It runs before `sync-agents.sh` so the generator reads the just-written config.
+- **`ensure-global-config.sh`** drops a minimal starter `~/.config/docket/config.yml` into place the first time you install — non-destructively (an existing config is left untouched). It contains no active keys: it is a header plus a pointer to [`.docket.example.yml`](.docket.example.yml), docket's canonical reference for every key and its default (see step 2). It runs before `sync-agents.sh` so the generator reads the just-written config.
 - **`sync-agents.sh`** generates docket's model/effort-pinned subagent wrappers from layered config (built-in defaults ⊕ global `config.yml` ⊕ a repo's committed `.docket.yml` ⊕ that repo's `.docket.local.yml`) into each present harness's `agents/` directory. For any repo that opts in (via an `agents:` block or an `agent_harnesses:` key, in either file), it also writes the full per-repo agent set as **machine-local**, gitignored files — **never committed**. Unlike the skill symlinks, these are generated **copies** (they bake in the resolved model and effort), so re-run it after editing any config layer — `install.sh` does this for you, or call `sync-agents.sh` directly. Run `sync-agents.sh --check` in CI to catch a missing or stale `.gitignore` block, or an accidentally-tracked generated file.
 - **`ensure-docket-env.sh`** exports `DOCKET_SCRIPTS_DIR` — the absolute path to docket's `scripts/` directory — into your shell profile (and, for the Claude Code harness, its user-level `settings.json` `env`), so every docket skill can reach its deterministic helper scripts from *any* repo, not just this clone. Re-running `install.sh` back-fills already-migrated repos. Without it, the skills fail loud with a `run docket/install.sh` remedy rather than silently hand-working each operation.
 
@@ -133,7 +133,7 @@ That is the whole install. `install.sh` runs four primitives in order and is ide
 
 `install.sh` writes a minimal `~/.config/docket/config.yml` the first time it runs (and leaves an existing one untouched). It ships with **no active keys** — docket's defaults already apply, so most users never edit it.
 
-The canonical reference for every key is [`.docket.yml.example`](.docket.yml.example) in this repo: every config key, active at its shipped default, with full documentation and a scope tag saying which layers may set it. Copy the keys you want to change into the layer you want them in.
+The canonical reference for every key is [`.docket.example.yml`](.docket.example.yml) in this repo: every config key, active at its shipped default, with full documentation and a scope tag saying which layers may set it. Copy the keys you want to change into the layer you want them in.
 
 - **To see docket's built-in per-skill model and effort:** the example's commented `agents.claude` block mirrors the shipped defaults for all nine subagents, so you can read and tune them in one place instead of opening nine wrapper files.
 - **Claude-only users can skip this entirely** — the defaults already apply.
@@ -215,7 +215,7 @@ finalize:                    # merge gate: rebase onto base + re-test before doc
   gate: local                # local (default) | ci | both | off
 ```
 
-**[`.docket.yml.example`](.docket.yml.example) is the canonical reference for every key** — each one
+**[`.docket.example.yml`](.docket.example.yml) is the canonical reference for every key** — each one
 shipped active at its default, with full documentation and the layers it may be set in. Copy from
 there rather than from this snippet; it is the surface the test suite keeps honest against the
 resolver, and it is deliberately the only place that enumerates all of them.

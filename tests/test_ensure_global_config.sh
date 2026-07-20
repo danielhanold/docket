@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # tests/test_ensure_global_config.sh — run: bash tests/test_ensure_global_config.sh
 # Unit-tests the ensure-global-config.sh primitive: fresh (writes a pointer-only file with ZERO
-# active keys, naming .docket.yml.example as the reference + logs "wrote"), existing (untouched +
+# active keys, naming .docket.example.yml as the reference + logs "wrote"), existing (untouched +
 # logs "left untouched"), idempotent, exit 0 both, XDG_CONFIG_HOME honored.
 set -uo pipefail
 unset XDG_CONFIG_HOME
@@ -21,7 +21,7 @@ assert "fresh: creates the global config" '[ -f "$DEST" ]'
 # shipped default (change 0101).
 assert "fresh: contains NO active keys (comment/blank lines only)" \
   '[ -z "$(grep -vE "^[[:space:]]*(#.*)?$" "$DEST" 2>/dev/null)" ]'
-assert "fresh: points at .docket.yml.example" 'grep -qF ".docket.yml.example" "$DEST"'
+assert "fresh: points at .docket.example.yml" 'grep -qF ".docket.example.yml" "$DEST"'
 assert "fresh: names the layer precedence" 'grep -qiE "repo-local|precedence" "$DEST"'
 assert "fresh: logs a wrote line naming the dest" 'printf "%s" "$out" | grep -qF "wrote $DEST"'
 

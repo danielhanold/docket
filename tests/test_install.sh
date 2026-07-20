@@ -57,13 +57,13 @@ assert "the scripts/ reached via DOCKET_SCRIPTS_DIR implements --digest-only" \
 # install.sh scaffolds the global config (ensure-global-config.sh), before sync-agents reads it.
 assert "install.sh scaffolded the global config" '[ -f "$tmp/.config/docket/config.yml" ]'
 # Pointer-only (change 0101): the scaffolded file has ZERO active keys and points at
-# .docket.yml.example, so it can never pin a shipped default. See test_ensure_global_config.sh
+# .docket.example.yml, so it can never pin a shipped default. See test_ensure_global_config.sh
 # for the exhaustive unit coverage of ensure-global-config.sh itself; this just checks install.sh
 # actually invokes it and produces the same shape.
 assert "install.sh global config has NO active keys (comment/blank lines only)" \
   '[ -z "$(grep -vE "^[[:space:]]*(#.*)?$" "$tmp/.config/docket/config.yml" 2>/dev/null)" ]'
-assert "install.sh global config points at .docket.yml.example" \
-  'grep -qF ".docket.yml.example" "$tmp/.config/docket/config.yml"'
+assert "install.sh global config points at .docket.example.yml" \
+  'grep -qF ".docket.example.yml" "$tmp/.config/docket/config.yml"'
 
 # Idempotent: a second run still succeeds.
 out2="$(cd "$tmp" && HOME="$tmp" DOCKET_HARNESS_ROOT="$tmp" DOCKET_TARGET_SHELL=zsh bash "$REPO/install.sh" 2>&1)"; rc2=$?
