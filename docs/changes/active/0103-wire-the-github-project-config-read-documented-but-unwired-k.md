@@ -3,7 +3,7 @@ id: 103
 slug: wire-the-github-project-config-read-documented-but-unwired-k
 title: Wire the github_project config read (documented-but-unwired key)
 status: proposed
-priority: medium
+priority: low
 created: 2026-07-19
 updated: 2026-07-19
 depends_on: []
