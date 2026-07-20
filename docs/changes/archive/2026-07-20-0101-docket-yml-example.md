@@ -2,10 +2,10 @@
 id: 101
 slug: docket-yml-example
 title: .docket.yml.example — the canonical all-comprehensive config reference
-status: implemented
+status: done
 priority: medium
 created: 2026-07-19
-updated: 2026-07-19
+updated: 2026-07-20
 depends_on: []
 related: [81]
 discovered_from: []
@@ -16,7 +16,7 @@ results: docs/results/2026-07-19-docket-yml-example-results.md
 trivial: false
 auto_groomable:
 branch: feat/docket-yml-example
-claimed_at: 2026-07-19T22:18:54Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/109
 blocked_by:
 reconciled: true
