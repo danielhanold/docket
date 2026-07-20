@@ -390,23 +390,53 @@ assert "repo .docket.yml keeps its set values" \
 #
 # $README is already set by (7) above.
 
-# Extract the fenced YAML block under the per-repo-settings heading. Scoped to that ONE heading:
-# a whole-file grep would happily match some other snippet if this section were renamed or moved.
-readme_snippet(){
+# Extract the section body ONCE. readme_snippet() (the fence filter, below) and the pointer
+# check (at the bottom of this section) both consume this single function, so the heading
+# literal lives in exactly one place in this file — a rename is a one-line fix, not a
+# hunt-for-both-copies. Bounded by ANY heading level 1-3 (`^#{1,3} `), not just `### `: a
+# following heading that gets promoted or demoted still stops the scan at the true next
+# heading instead of reading past it into whatever comes after.
+#
+# The heading check is gated off while inside a fenced code block (toggled by any ``` line).
+# Without that gate, `^#{1,3} ` also matches the yaml sample's own leading comment line
+# ("# .docket.yml — committed..." — one `#` + space is both valid YAML-comment syntax and valid
+# markdown-H1 syntax), which would truncate the section before the fence even closes.
+snippet_section(){
   awk '
     /^### `\.docket\.yml` — per-repo settings$/ { inseg=1; next }
-    inseg && /^### / { exit }
-    inseg && /^```yaml$/ && !seen { infence=1; seen=1; next }
-    infence && /^```$/ { exit }
-    infence { print }
+    inseg && /^```/ { fence = !fence }
+    inseg && !fence && /^#{1,3} / { exit }
+    inseg { print }
   ' "$README"
 }
+
+# Extract the FIRST fenced yaml block within the section. First-fence-only is a deliberate,
+# narrow choice, not an oversight: this section's convention is exactly one worked example.
+# The fence-count assert directly below is what makes that choice safe — without it, a second
+# fence added later in the section would be silently invisible to readme_snippet() (and to
+# every assert fed by it), which is exactly the half-guarded hole this pair closes.
+readme_snippet(){
+  snippet_section | awk '
+    /^```yaml$/ && !s { f=1; s=1; next }
+    f && /^```$/ { exit }
+    f { print }
+  '
+}
+
+sn_fence_count="$(snippet_section | grep -c '^```yaml$')"
+assert "(8) section has exactly one yaml fence (readme_snippet reads only the first; a second would be silently unguarded; got $sn_fence_count)" \
+  '[ "$sn_fence_count" = "1" ]'
 
 # Flatten block-mapping YAML to "path<TAB>value" lines, dotting by INDENTATION rather than
 # hardcoding the one nested path we happen to know about (finalize.gate). An indent stack, so
 # depth is generic: it resolves the example's three-level runners.codex.sandbox correctly.
 # Deliberately NOT a general YAML parser — it covers exactly the block-mapping subset these two
 # files use (scalar and inline-list values, full-line and trailing comments). Do not grow it.
+#
+# ind is measured with the SAME character class ([^[:space:]]) as the key-shape test just below
+# ([[:space:]]*): measuring indent in literal spaces only (as this used to) undercounts a
+# tab-indented line — the tab isn't a space, so its indent reads as 0 and a tab-indented nested
+# key gets flattened to top level instead of nested under its parent.
 flatten_yaml(){
   awk '
     { line = $0
@@ -415,7 +445,7 @@ flatten_yaml(){
       sub(/[[:space:]]+#.*$/, "", line)
       sub(/[[:space:]]+$/, "", line)
       if (line !~ /^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*:/) next
-      ind = match(line, /[^ ]/) - 1
+      ind = match(line, /[^[:space:]]/) - 1
       key = line; sub(/^[[:space:]]*/, "", key); sub(/:.*$/, "", key)
       val = line; sub(/^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*:[[:space:]]*/, "", val)
       while (depth > 0 && indents[depth] >= ind) depth--
@@ -429,17 +459,31 @@ flatten_yaml(){
 sn_flat="$(readme_snippet | flatten_yaml)"
 ex_flat="$(flatten_yaml < "$EX")"
 
-# NON-VACUITY FLOOR. The forward loop below iterates the snippet's keys, so its real failure mode
-# is iterating an EMPTY set: rename the heading, retitle the fence, or move the section, and
-# extraction yields nothing while every assert sails through proving nothing. An EXACT count (not
-# ">= 1") is the right bar — it also reddens if the snippet quietly grows back toward being the
-# all-keys mirror change 0101 deleted. If you intentionally added a snippet key, bump this number
-# in the same commit AND add the key to .docket.yml.example.
+# NON-VACUITY FLOOR / GROWTH CEILING. The forward loop below iterates the snippet's keys, so its
+# real failure mode is iterating an EMPTY set: rename the heading, retitle the fence, or move the
+# section, and extraction yields nothing while every assert sails through proving nothing. An
+# EXACT count (not ">= 1") also covers the OPPOSITE direction: the snippet quietly growing back
+# toward being the all-keys mirror change 0101 deleted. Both directions are real signal, and the
+# remedy for a genuine, intentional addition is inline in the message below (not just in this
+# comment), so it survives into CI output: bump the literal 5 AND add the key to
+# .docket.yml.example, in the same commit.
 sn_count="$(printf '%s\n' "$sn_flat" | grep -c .)"
-assert "(8) snippet extraction found exactly 5 keys (non-vacuity floor; got $sn_count)" \
+assert "(8) snippet flattened key count is exactly 5 (floor against extraction going silently empty, ceiling against undocumented growth; if intentional, bump this literal 5 and add the key to .docket.yml.example; got $sn_count)" \
   '[ "$sn_count" = "5" ]'
-assert "(8) example flattened non-empty (guard against a silently empty comparison side)" \
-  '[ "$(printf "%s\n" "$ex_flat" | grep -c .)" -ge 20 ]'
+ex_count="$(printf '%s\n' "$ex_flat" | grep -c .)"
+assert "(8) example flattened non-empty (guard against a silently empty comparison side; got $ex_count)" \
+  '[ "$ex_count" -ge 20 ]'
+
+# SAFETY NET for the flattener's deliberately narrow key regex ([A-Za-z_][A-Za-z0-9_]*:): a key
+# spelled with any other character (e.g. `some-new-key: yes`) is silently REJECTED by
+# flatten_yaml rather than flagged, and since sn_count above counts POST-filter output, a
+# dropped line is invisible to both the count floor and the forward loop below — an undocumented
+# snippet key would sail past this entire section undetected. Cross-check structurally instead:
+# every non-blank, non-full-line-comment line inside the fence must survive flattening into
+# exactly one output line; anything the flattener drops shows up as a mismatch here.
+sn_raw_count="$(readme_snippet | grep -vE '^[[:space:]]*$' | grep -vcE '^[[:space:]]*#')"
+assert "(8) snippet flattener drops no key-shaped line (raw content lines vs. flattened; got raw=$sn_raw_count flattened=$sn_count)" \
+  '[ "$sn_raw_count" = "$sn_count" ]'
 
 # DIRECTION: this loop iterates the SNIPPET's keys and proves snippet ⊆ example, values equal.
 # It deliberately does NOT iterate the example's keys, and the missing reverse loop is NOT an
@@ -457,6 +501,13 @@ assert "(8) example flattened non-empty (guard against a silently empty comparis
 # still covered here: a snippet key absent from the example fails the existence assert below.
 # The asymmetry is safe BECAUSE of the subset relation, which was not true of 0101's
 # export-keys-vs-example guards.
+#
+# CAVEAT: value equality below is sound only because THIS ONE FENCE shows shipped defaults. The
+# README's other config fences deliberately show NON-default values to illustrate opting in —
+# e.g. `auto_capture: true` (~README:264), `terminal_publish: true` (~README:407),
+# `metadata_branch: main` (~README:433) — so do not generalize this value-equality guard to
+# another fence; against one of those it would go spuriously RED for correctly demonstrating a
+# non-default setting.
 #
 # Fed by a HEREDOC, never a pipe: a pipe runs the loop in a subshell and both accumulator
 # variables come back empty, so every mismatch would silently pass.
@@ -483,17 +534,14 @@ assert "(8) every README snippet value equals the example's (${sn_mismatched:-no
   '[ -z "$sn_mismatched" ]'
 
 # POINTER: the section's link to the canonical reference must resolve to a real file. Scoped to
-# this section's body, NOT a whole-file grep — the README names .docket.yml.example in several
-# other places (the tooling list, the layered-config prose), so an unscoped match would stay green
-# even after THIS section's own link rotted.
-snippet_section(){
-  awk '
-    /^### `\.docket\.yml` — per-repo settings$/ { inseg=1; next }
-    inseg && /^### / { exit }
-    inseg { print }
-  ' "$README"
-}
-sn_ptr="$(snippet_section | sed -nE 's/.*\[`?\.docket\.yml\.example`?\]\(([^)]+)\).*/\1/p' | head -n1)"
+# this section's body via snippet_section() (defined above), NOT a whole-file grep — the README
+# names .docket.yml.example in several other places (the tooling list, the layered-config prose),
+# so an unscoped match would stay green even after THIS section's own link rotted.
+#
+# Matches on the link TARGET, not the link text: the target is what must resolve, so a correct,
+# non-rotted link whose anchor text is reworded (e.g. `[the canonical reference]
+# (.docket.yml.example)`) must stay green rather than reddening on wording alone.
+sn_ptr="$(snippet_section | sed -nE 's/.*\[[^]]*\]\(([^)]*\.docket\.yml\.example)\).*/\1/p' | head -n1)"
 assert "(8) the section links to the canonical reference" '[ -n "$sn_ptr" ]'
 assert "(8) canonical-reference link target exists (${sn_ptr:-<no link>})" \
   '[ -n "$sn_ptr" ] && [ -f "$REPO/$sn_ptr" ]'
