@@ -1,14 +1,15 @@
 # Backlog
 
-**109 changes** — 🟢 1 in progress · 🟡 14 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 86 done · 🗑️ 6 killed
+**109 changes** — 🟢 2 in progress · 🟡 13 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 86 done · 🗑️ 6 killed
 
-## 🟢 In progress (1)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Spec | Branch |
 |---|-------|----------|------|--------|
+| [0104](active/0104-guard-frontmatter-field-domain-violations-that-silently-drop.md) | Guard frontmatter field-domain violations that silently drop board rows | `high` | [spec](../superpowers/specs/2026-07-20-frontmatter-field-domain-guard-design.md) | `feat/guard-frontmatter-field-domain-violations-that-silently-drop` |
 | [0106](active/0106-pin-the-finalize-test-command-auto-sentinel-s-cross-layer-ma.md) | Pin the finalize.test_command auto sentinel's cross-layer masking with a two-layer fixture | `medium` | [spec](../superpowers/specs/2026-07-20-auto-sentinel-cross-layer-masking-design.md) | `feat/pin-the-finalize-test-command-auto-sentinel-s-cross-layer-ma` |
 
-## 🟡 Proposed (14)
+## 🟡 Proposed (13)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -23,7 +24,6 @@
 | [0100](active/0100-force-push-lease-classifier-denial.md) | Force-push-with-lease denied by the auto-mode classifier — unblock finalize's merge gate | `medium` | needs-brainstorm |
 | [0102](active/0102-finalize-require-pr-approval-has-no-layer-resolution.md) | finalize.require_pr_approval has no layer resolution | `medium` | needs-brainstorm |
 | [0103](active/0103-wire-the-github-project-config-read-documented-but-unwired-k.md) | Wire the github_project config read (documented-but-unwired key) | `medium` | needs-brainstorm |
-| [0104](active/0104-guard-frontmatter-field-domain-violations-that-silently-drop.md) | Guard frontmatter field-domain violations that silently drop board rows | `high` | build-ready |
 | [0108](active/0108-guard-the-readme-s-remaining-config-fences-against-key-drift.md) | Guard the README's remaining config fences against key drift | `medium` | needs-brainstorm |
 | [0109](active/0109-rename-docket-yml-example-to-docket-example-yml.md) | Rename .docket.yml.example to .docket.example.yml so editors syntax-highlight it | `medium` | build-ready |
 
