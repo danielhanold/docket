@@ -10,7 +10,7 @@ depends_on: []
 related: []
 discovered_from: [101]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-07-20-readme-snippet-drift-guard-design.md
 plan:
 results:
 trivial: false
@@ -24,6 +24,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-07-20-readme-snippet-drift-guard-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-20-readme-snippet-drift-guard-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -42,15 +45,22 @@ an accepted, unguarded residual.
 
 ## What changes
 
-Add a guard — most likely in `tests/test_docket_yml_example.sh`, which already owns the
-example's invariants — asserting that the README's illustrative snippet stays consistent with
-`.docket.yml.example`: every key the snippet shows exists in the example, and each shown value
-matches the example's value for that key. Plus an assert that the README's pointer resolves to the
-example's real path.
+Add one new numbered section to `tests/test_docket_yml_example.sh` — the file that already owns
+every example-mirroring invariant, which is where ADR-0048's must-update rule points. It extracts
+the README snippet's keys, flattens them to dotted paths generically (the snippet already nests
+under `finalize:`, and more nesting is expected), and asserts each shown key exists in
+`.docket.yml.example` with a matching value — plus that the README's pointer to the example
+resolves to a real path.
 
-Keep the snippet's *purpose* intact — it is deliberately a small taste, not a mirror, so the guard
-must check the keys it shows and never demand completeness (a completeness assert here would
-recreate the fourth all-keys surface the change deleted).
+The guard runs **one direction only**, by design: it iterates the snippet's keys, never the
+example's. The reverse loop would be a completeness assert, which is precisely the fourth all-keys
+surface change 0101 deleted — the snippet is a deliberate proper subset, not a mirror. That
+departure from the `correspondence-guard-runs-one-way` learning is reasoned out in the spec and must
+be written into the test as a comment, so a later reader does not "fix" the absent reverse loop.
+
+Guarding the forward direction alone makes vacuity the live risk, so the section also carries an
+exact-count assert on the extracted keys — a broken heading or fence must redden rather than pass
+with an empty loop.
 
 ## Out of scope
 
@@ -58,11 +68,4 @@ recreate the fourth all-keys surface the change deleted).
   itself in ADR-0048; the same hand-maintained-mirror trade-off applies).
 - Auditing the rest of the README's prose claims against the code — a broader problem than this
   snippet, and unguardable by grep (see the `verify-the-claim` finding).
-
-## Open questions
-
-- Should the guard live with the example's invariants (`test_docket_yml_example.sh`) or with the
-  README's own doc tests? The former keeps every example-mirroring rule in one file, which is what
-  ADR-0048's must-update rule points at.
-- Is the direction-of-truth assert worth adding both ways here, given change 0101's finding that a
-  correspondence guard proves only the direction it iterates?
+- Any reverse/completeness direction over the example's keys.
