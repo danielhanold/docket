@@ -2,7 +2,7 @@
 id: 107
 slug: guard-the-readme-config-snippet-against-docket-yml-example-d
 title: Guard the README config snippet against .docket.yml.example drift
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-07-20
 updated: 2026-07-20
@@ -15,7 +15,8 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/guard-the-readme-config-snippet-against-docket-yml-example-d
+claimed_at: 2026-07-20T12:14:15Z
 pr:
 blocked_by:
 reconciled: false
