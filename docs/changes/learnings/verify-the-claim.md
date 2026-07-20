@@ -2,7 +2,7 @@
 slug: verify-the-claim
 hook: "A document asserting a fact about another artifact is not an oracle — verify it against the artifact or the RUNNING CODE before acting on it."
 topics: [process, review, spec]
-changes: [12, 21, 47, 65, 67, 74, 96, 101]
+changes: [12, 21, 47, 65, 67, 74, 96, 101, 109]
 created: 2026-06-12
 updated: 2026-07-20
 promotion_state: retained
@@ -70,3 +70,12 @@ mid-build; leave the re-scope to the human. Reject false positives with evidence
   artifacts being replaced are the *least* trustworthy input available, and your own plan's
   established findings outrank them. Second consecutive change (after #96) in which this family
   reappeared inside the change built to end it.
+- 2026-07-20 (#109, PR #112) — **The family's mirror image: a plan's RISK claim, wrong in the safe
+  direction.** The plan warned that a missed escaped-ERE replacement would leave the `(8)` guard
+  "silently vacuous while still reporting ok". Review mutation-tested exactly that — regressed the ERE
+  to the old form — and both `(8)` pointer asserts reddened with `<no link>`: the guard's existing
+  `[ -n "$sn_ptr" ]` floor already covered the hazard. The hazard was real, the *consequence* was not.
+  Worth recording because a plan's risk claims get a pass that its factual claims do not (over-caution
+  costs nothing, so nobody checks), and an unchecked one silently sets the bar for how much guarding
+  the change ships. Mutation-testing the claim is what separated "the guard needs work" from "the
+  guard already holds" — and it is the same move whether the claim turns out too generous or too dire.

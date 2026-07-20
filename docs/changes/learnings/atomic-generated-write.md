@@ -2,9 +2,9 @@
 slug: atomic-generated-write
 hook: "Never redirect a renderer straight into the file it generates — > truncates on open, so a failed render destroys the last-good file before its exit code is even read."
 topics: [shell, dataloss, generated]
-changes: [67]
+changes: [67, 109]
 created: 2026-07-16
-updated: 2026-07-16
+updated: 2026-07-20
 promotion_state: candidate
 promoted_to:
 ---
@@ -19,6 +19,13 @@ The non-emptiness test (`-s`) is part of the check, not a nicety — a renderer 
 written nothing is precisely the case an exit code cannot catch. On a render failure, commit the
 substantive files anyway, leave the last-good generated file untouched, and SURFACE the failure —
 never report the run as clean.
+
+**The caveat this prescription owes you: `mv` replaces the inode, so the temp file's mode wins.**
+`mktemp` output is non-executable, so the same temp+`mv` idiom applied to an executable file silently
+demotes `100755` to `100644`. Whenever the target might be executable — any in-place rewrite of a
+script, as opposed to a renderer emitting a data file — carry the mode across explicitly: `cp -p "$f"
+"$tmp"` before writing, `chmod --reference="$f" "$tmp"`, or a literal `chmod 755` after the `mv`. Then
+prove it: `git diff --summary` shows a `mode change` line, and `git ls-tree` shows the bit.
 
 Two structural corollaries. A primitive that exists precisely to prevent this hazard protects nobody
 while it stays PRIVATE to one caller — the hazard simply recurs at the next call site, which
@@ -41,3 +48,13 @@ state most needs.
   muted both needs-you signals at the exact moment something was already wrong. Both fixed;
   `learnings-refresh.sh` (a single gated writer, the `board-refresh.sh` shape) is filed as a follow-up
   because nothing structurally stops the next caller from reintroducing the redirect.
+- 2026-07-20 (#109, PR #112) — The mode-loss face, hit by a rename sweep that adopted this very
+  temp+`mv` prescription for BSD/GNU portability. It silently turned `scripts/docket-config.sh` and
+  `scripts/ensure-global-config.sh` from `100755` into `100644`. Note *where* it surfaced: every check
+  the plan enumerated per-file passed, and the breakage appeared only as three unrelated-looking
+  failures in the **whole-suite** run — the concrete receipt for AGENTS.md's "run the whole suite at
+  the build gate, never only the tests the plan enumerates" rule. Fixed with an explicit `chmod 755`
+  and verified via `git ls-tree` + `git diff --summary`. Not a live bug in docket's own scripts: every
+  in-repo temp+`mv` target is a non-executable data or doc file, and the two scripts that rewrite a
+  tracked artifact through a temp file already handle mode deliberately (`board-refresh.sh` normalizes
+  to 644 with a comment; `ensure-docket-env.sh` captures and restores the prior mode).

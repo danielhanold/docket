@@ -45,6 +45,7 @@ One curated finding per file; this index is the hint surface. Load it, then read
 
 ## shell
 
+- [agent-shell-noop-reads-as-success](agent-shell-noop-reads-as-success.md) — The agent's interactive shell is not bash and its grep may not be grep — a sweep can iterate zero items, a verification grep can match nothing, and both still print success. · also: verification, environment ⟨needs promotion⟩
 - [atomic-generated-write](atomic-generated-write.md) — Never redirect a renderer straight into the file it generates — > truncates on open, so a failed render destroys the last-good file before its exit code is even read. · also: dataloss, generated ⟨needs promotion⟩
 - [conditional-mkdir-in-loop-aborts-run](conditional-mkdir-in-loop-aborts-run.md) — A conditional mkdir in a per-item loop needs || continue — under set -e a bad target aborts the ENTIRE run, not just that item. · also: errexit, loops
 - [escape-ere-metacharacters-in-key](escape-ere-metacharacters-in-key.md) — Escape ERE metacharacters in a key before building a grep -E match from it — and note the un-fixed twin of a duplicated helper. · also: grep, regex
