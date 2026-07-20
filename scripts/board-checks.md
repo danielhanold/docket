@@ -163,8 +163,15 @@ Two live triggers today:
   documented: `docket-status`'s `sweep-failed <id> archive <reason>` is exactly "status flipped to
   `done`, archive move failed".
 
-Beyond those, its remaining trigger is a future renderer-added drop path. `archive/` files are
-exempt: the archive table renders from its own pass and is not subject to this invariant.
+Beyond those, its remaining trigger is a future renderer-added drop path.
+
+**Scope: the check covers `active/` only.** This is a deliberate bound, not a claim that `archive/`
+is safe. The symmetric archive-side violation is real and currently undetected: an `archive/` file
+carrying a **non-terminal** status is counted in `total` and rendered nowhere (the archive block is
+gated on `ndone + nkilled > 0` and its summary count comes from `ARC_COUNT`, which such a file does
+not join). It arises from the same interrupted operation as the active-side case — `archive-change.sh`
+does its `git mv` before the status flip and the commit, so a failure between them leaves the file
+moved but not re-statused. Extending the invariant to `archive/` is tracked as follow-up work.
 
 **`malformed-id`** — Guard/carve-out, not counted among the named checks above. A change file
 whose `id:` field is non-empty but non-integer emits a `malformed-id` finding. The change-id column
