@@ -383,4 +383,62 @@ assert "repo .docket.yml is slim (<= 40 lines)"  '[ "$(wc -l < "$DY")" -le 40 ]'
 assert "repo .docket.yml keeps its set values" \
   'grep -Eq "^metadata_branch:[[:space:]]*docket" "$DY" && grep -Eq "^terminal_publish:[[:space:]]*true" "$DY"'
 
+# --- (8) README SNIPPET CORRESPONDENCE ---------------------------------------
+# The README carries a small illustrative .docket.yml snippet (change 0101 cut it down from a
+# full all-keys sample). Nothing tested it against the canonical example, so its values could
+# drift silently and its pointer could rot. This section closes that (change 0107).
+#
+# $README is already set by (7) above.
+
+# Extract the fenced YAML block under the per-repo-settings heading. Scoped to that ONE heading:
+# a whole-file grep would happily match some other snippet if this section were renamed or moved.
+readme_snippet(){
+  awk '
+    /^### `\.docket\.yml` — per-repo settings$/ { inseg=1; next }
+    inseg && /^### / { exit }
+    inseg && /^```yaml$/ && !seen { infence=1; seen=1; next }
+    infence && /^```$/ { exit }
+    infence { print }
+  ' "$README"
+}
+
+# Flatten block-mapping YAML to "path<TAB>value" lines, dotting by INDENTATION rather than
+# hardcoding the one nested path we happen to know about (finalize.gate). An indent stack, so
+# depth is generic: it resolves the example's three-level runners.codex.sandbox correctly.
+# Deliberately NOT a general YAML parser — it covers exactly the block-mapping subset these two
+# files use (scalar and inline-list values, full-line and trailing comments). Do not grow it.
+flatten_yaml(){
+  awk '
+    { line = $0
+      if (line ~ /^[[:space:]]*$/) next
+      if (line ~ /^[[:space:]]*#/) next
+      sub(/[[:space:]]+#.*$/, "", line)
+      sub(/[[:space:]]+$/, "", line)
+      if (line !~ /^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*:/) next
+      ind = match(line, /[^ ]/) - 1
+      key = line; sub(/^[[:space:]]*/, "", key); sub(/:.*$/, "", key)
+      val = line; sub(/^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*:[[:space:]]*/, "", val)
+      while (depth > 0 && indents[depth] >= ind) depth--
+      depth++; indents[depth] = ind; keys[depth] = key
+      path = keys[1]
+      for (i = 2; i <= depth; i++) path = path "." keys[i]
+      printf "%s\t%s\n", path, val
+    }'
+}
+
+sn_flat="$(readme_snippet | flatten_yaml)"
+ex_flat="$(flatten_yaml < "$EX")"
+
+# NON-VACUITY FLOOR. The forward loop below iterates the snippet's keys, so its real failure mode
+# is iterating an EMPTY set: rename the heading, retitle the fence, or move the section, and
+# extraction yields nothing while every assert sails through proving nothing. An EXACT count (not
+# ">= 1") is the right bar — it also reddens if the snippet quietly grows back toward being the
+# all-keys mirror change 0101 deleted. If you intentionally added a snippet key, bump this number
+# in the same commit AND add the key to .docket.yml.example.
+sn_count="$(printf '%s\n' "$sn_flat" | grep -c .)"
+assert "(8) snippet extraction found exactly 5 keys (non-vacuity floor; got $sn_count)" \
+  '[ "$sn_count" = "5" ]'
+assert "(8) example flattened non-empty (guard against a silently empty comparison side)" \
+  '[ "$(printf "%s\n" "$ex_flat" | grep -c .)" -ge 20 ]'
+
 exit $fail
