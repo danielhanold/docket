@@ -2,7 +2,7 @@
 slug: guards-are-code
 hook: "A guard is code — mutation-test it (strip the feature, watch it go red) or it is decoration."
 topics: [testing, sentinels, mutation]
-changes: [14, 15, 21, 36, 37, 64, 65, 67, 68, 69, 70, 71, 72, 73, 74, 84, 88, 91, 96, 101]
+changes: [14, 15, 21, 36, 37, 64, 65, 67, 68, 69, 70, 71, 72, 73, 74, 84, 88, 91, 96, 101, 107]
 created: 2026-06-17
 updated: 2026-07-20
 promotion_state: promoted
@@ -156,3 +156,24 @@ lib. A snippet the PLAN hands you is unvetted code: mutation-test it like any as
   block-scoped awk; the review independently re-derived and mutation-confirmed all four. The rule:
   a retargeted assert inherits none of its passing history, because the new target has different
   absent-key defaults and different surrounding bytes — re-run the mutation against the NEW file.
+- 2026-07-20 (#107, PR #110) — **The EXTRACTOR is part of the guard, and it fails by silently
+  narrowing the corpus rather than by erroring.** A README-vs-example correspondence guard fed six
+  asserts from a helper that took the FIRST ```` ```yaml ```` fence in a section, with nothing
+  asserting the section held only one. A reviewer added a second fence carrying
+  `metadata_branch: BOGUS` and a `nonexistent_key` — **all six asserts stayed green**, because the
+  bogus content was never in the corpus the guard parsed. This is class (c) *wrong unit* arriving
+  through selection rather than tokenization: the fix is an explicit **occurrence-count assert on
+  the extraction site itself** (`section has exactly one yaml fence … got 2`), not a wider pattern.
+  Two neighbours of the same shape in the same guard: (a) the flattener's key regex rejected
+  anything outside `[A-Za-z_][A-Za-z0-9_]*`, and the vacuity floor counted its POST-filter output —
+  so `some-new-key: yes` was dropped by the filter and invisible to both the floor and the loop
+  (closed by a raw-vs-flattened line-count cross-check: **whenever a count is taken downstream of a
+  filter, also assert filtered-vs-raw, or the filter's own misses are unobservable**); and (b) the
+  section boundary was bounded on `^### ` only, so a compound edit let a LATER section's content
+  satisfy both pointer asserts — a sentinel satisfied by a neighbour's window, which the guard's own
+  comment claimed to defend against. Widening that boundary to `^#{1,3} ` then broke on the YAML
+  sample's own leading `# .docket.yml — …` comment line, simultaneously valid YAML-comment and
+  valid markdown-H1, truncating the section to **zero** keys until the heading-exit check was gated
+  off inside fenced blocks. General rule: before trusting a guard that extracts its input, prove the
+  extraction is UNIQUE, prove its boundaries close on what you aimed at, and count the corpus at
+  every stage it is narrowed.

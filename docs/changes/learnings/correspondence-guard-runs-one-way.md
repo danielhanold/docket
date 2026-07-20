@@ -2,7 +2,7 @@
 slug: correspondence-guard-runs-one-way
 hook: "A guard over a correspondence between two sets proves only the direction it iterates — write the reverse loop too, and anchor it on the consuming code, not an allowlist."
 topics: [testing, coverage, sentinels]
-changes: [101]
+changes: [101, 107]
 created: 2026-07-20
 updated: 2026-07-20
 promotion_state: candidate
@@ -43,3 +43,19 @@ change existed to end ([[verify-the-claim]]).
   on the consuming scripts rather than on the `(2b)` allowlist — deliberately not "extend the
   allowlist", since the allowlist is the enumerated floor that made the gap. Mutation-verified in
   both directions.
+- 2026-07-20 (#107, PR #110) — **The exception that scopes this rule: when the two sets are
+  deliberately in a SUBSET relation, the reverse loop is the defect.** The README's five-key
+  illustrative snippet is guarded against `.docket.yml.example` forward-only — iterate the snippet's
+  keys, assert each exists in the example with a matching value, never iterate the example's keys.
+  Writing the reverse loop here would assert the README shows every key, which is exactly the
+  fourth all-keys surface #101 existed to delete. So ask first **whether the correspondence is a
+  mirror or a proper subset**; this rule's "write the other direction too" binds only on mirrors.
+  The obligation does not vanish, it changes shape: with no reverse loop, **vacuity becomes the live
+  risk**, so the subset direction must carry its own corpus asserts — here an exact-count assert on
+  the extracted keys (a broken heading or fence must redden rather than pass with an empty loop) and
+  a filtered-vs-raw cross-check ([[guards-are-code]]). Two costs to accept deliberately: the exact
+  count reddens on any legitimate addition to the snippet (chosen over `>= 1` precisely so the
+  snippet cannot creep back toward being a mirror — the remedy is inlined in the assert's failure
+  message), and the departure must be written **into the test as a comment**, or a later reader
+  "fixes" the missing reverse loop and re-creates the surface. Recorded here rather than only in the
+  spec because a rule this finding states absolutely will otherwise be applied absolutely.
