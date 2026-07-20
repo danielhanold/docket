@@ -11,12 +11,12 @@ related: [101, 107, 108]
 discovered_from: [101]
 adrs: [48]
 spec:
-plan:
+plan: docs/superpowers/plans/2026-07-20-rename-docket-yml-example-to-docket-example-yml.md
 results:
 trivial: true
 auto_groomable:
 branch: feat/rename-docket-yml-example-to-docket-example-yml
-claimed_at: 2026-07-20T14:09:40Z
+claimed_at: 2026-07-20T14:27:36Z
 pr:
 blocked_by:
 reconciled: true
@@ -27,6 +27,7 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Plan | [2026-07-20-rename-docket-yml-example-to-docket-example-yml.md](https://github.com/danielhanold/docket/blob/feat/rename-docket-yml-example-to-docket-example-yml/docs/superpowers/plans/2026-07-20-rename-docket-yml-example-to-docket-example-yml.md) |
 | ADRs | [ADR-0048](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0048-docket-yml-example-invariants.md) |
 <!-- docket:artifacts:end -->
 
