@@ -1,9 +1,9 @@
-# .docket.yml.example — docket's canonical, all-comprehensive configuration reference.
+# .docket.example.yml — docket's canonical, all-comprehensive configuration reference.
 #
 # THIS FILE IS DOCUMENTATION. No docket tooling ever reads it: the resolver reads `.docket.yml`
 # from your repo's default branch (origin/HEAD). This file exists so that every key, its shipped
 # default, its meaning, and the layers it may be set in are visible in ONE place. Tests keep it
-# honest (tests/test_docket_yml_example.sh).
+# honest (tests/test_docket_example_yml.sh).
 #
 # ── The four layers ────────────────────────────────────────────────────────────────────────
 # Configuration resolves PER KEY, with precedence:
@@ -38,7 +38,7 @@
 #
 # ── THE STANDING RULE ──────────────────────────────────────────────────────────────────────
 # EVERY new config flag lands in THIS FILE — its value AND its documentation — in the SAME PR
-# that introduces it. tests/test_docket_yml_example.sh enforces it: a new key with no entry here
+# that introduces it. tests/test_docket_example_yml.sh enforces it: a new key with no entry here
 # fails the suite. This rule is why the file is worth having; without it the file drifts and
 # becomes the fourth stale surface it was created to replace.
 

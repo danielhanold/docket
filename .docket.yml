@@ -1,7 +1,7 @@
 # .docket.yml — committed on the repo's default branch; read by every docket skill at startup.
 #
 # This file carries ONLY the values docket's own repo overrides. For EVERY key, its default, its
-# documentation, and which layers may set it, see .docket.yml.example — the canonical reference.
+# documentation, and which layers may set it, see .docket.example.yml — the canonical reference.
 # Copy the keys you want from there; anything not set here runs docket's shipped default.
 #
 # This repo runs in DOCKET-MODE (migrated 2026-06-04 via migrate-to-docket.sh — the dogfood of
@@ -20,5 +20,5 @@ finalize:
 board_surfaces: [inline]       # BOARD.md only; the GitHub mirror stays off
 
 # This repo mirrors its terminal records (archived change files, specs, Accepted ADRs) onto main,
-# so it opts in to the direct-commit publish explicitly. See .docket.yml.example for the caveats.
+# so it opts in to the direct-commit publish explicitly. See .docket.example.yml for the caveats.
 terminal_publish: true

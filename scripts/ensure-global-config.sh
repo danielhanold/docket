@@ -2,7 +2,7 @@
 # ensure-global-config.sh — scaffold the global docket config on first run.
 #
 # Writes a MINIMAL, pointer-only ${XDG_CONFIG_HOME:-$HOME/.config}/docket/config.yml — a header
-# comment naming .docket.yml.example as the reference, and ZERO active keys — but ONLY if that
+# comment naming .docket.example.yml as the reference, and ZERO active keys — but ONLY if that
 # file does not already exist. Never overwrites, never merges, never edits an existing file.
 # Idempotent: safe to re-run any number of times. Run by install.sh BEFORE sync-agents.sh.
 #
@@ -38,7 +38,7 @@ cat > "$DEST" <<'EOF'
 #   4. built-in       docket's defaults
 #
 # FOR EVERY KEY, ITS DEFAULT, AND WHICH LAYERS MAY SET IT, SEE:
-#   .docket.yml.example  in the docket repo — the canonical, all-comprehensive reference.
+#   .docket.example.yml  in the docket repo — the canonical, all-comprehensive reference.
 #
 # Keys tagged "scope: repo-only (coordination-fenced, ADR-0019)" there are NOT settable here:
 # a value for one of those in this file is loudly warned-and-ignored. Everything else is fair game.
@@ -49,5 +49,5 @@ cat > "$DEST" <<'EOF'
 #   auto_capture: true                  # mint discovered follow-up work as stubs
 #   reclaim: {auto: true}               # let expired claims self-heal
 EOF
-echo "docket: wrote $DEST (empty pointer config — see .docket.yml.example for every key)"
+echo "docket: wrote $DEST (empty pointer config — see .docket.example.yml for every key)"
 exit 0

@@ -3,7 +3,7 @@
 ## Purpose
 
 Scaffold the global docket config on first run: write a minimal, pointer-only
-`~/.config/docket/config.yml` — a header comment naming `.docket.yml.example` as the canonical
+`~/.config/docket/config.yml` — a header comment naming `.docket.example.yml` as the canonical
 reference, and zero active keys — so the file exists for editing without ever pinning a shipped
 default, and without ever clobbering a config the user has already written.
 
@@ -25,9 +25,9 @@ Environment:
 
 - Destination: `${XDG_CONFIG_HOME:-${DOCKET_HARNESS_ROOT:-$HOME}/.config}/docket/config.yml`.
 - If the destination does NOT exist: create the parent dir as needed, write a fixed heredoc
-  (header comment + layer-precedence list + pointer to `.docket.yml.example`, zero active
+  (header comment + layer-precedence list + pointer to `.docket.example.yml`, zero active
   keys), and log
-  `docket: wrote <dest> (empty pointer config — see .docket.yml.example for every key)`.
+  `docket: wrote <dest> (empty pointer config — see .docket.example.yml for every key)`.
 - If the destination already exists: do nothing to it, log
   `docket: <dest> already exists — left untouched`.
 - Never overwrites, merges, or edits an existing file.
