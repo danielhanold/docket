@@ -2,9 +2,9 @@
 slug: verify-the-claim
 hook: "A document asserting a fact about another artifact is not an oracle — verify it against the artifact or the RUNNING CODE before acting on it."
 topics: [process, review, spec]
-changes: [12, 21, 47, 65, 67, 74, 96]
+changes: [12, 21, 47, 65, 67, 74, 96, 101]
 created: 2026-06-12
-updated: 2026-07-19
+updated: 2026-07-20
 promotion_state: retained
 promoted_to:
 ---
@@ -57,3 +57,16 @@ mid-build; leave the re-scope to the human. Reject false positives with evidence
   repo's own documented false-prose mode reappeared *inside the change that ships the rule against
   it* — a claim's provenance ("we just wrote the rule") is not evidence. Recorded as a follow-up:
   requiring the exception line to also carry a shape assertion would close the blind spot.
+- 2026-07-20 (#101, PR #109) — **A CONSOLIDATION copies from the surfaces it is replacing, and those
+  are the drifted ones.** The change whose entire deliverable was a canonical config reference shipped
+  two Critical-severity false claims, both the same one: that the first `github` sync mints a Projects
+  v2 board and writes the resolved `{owner, number}` back over `auto`. Nothing reads `github_project`
+  from config at all — `github-mirror.sh` resolves its board only from `--project` /
+  `--auto-create-project`, and `docket-status.sh` populates those only from CLI flags no skill passes.
+  The correct fact was already written down **in this change's own plan** ("documented-but-unwired key
+  … the `auto` sentinel is documentation-only"); the prose was then written against the *old*
+  `.docket.yml`'s claim instead. So: when consolidating N drifting surfaces into one canonical one,
+  every sentence carried over is an unverified claim inherited from a known-drifted source — the
+  artifacts being replaced are the *least* trustworthy input available, and your own plan's
+  established findings outrank them. Second consecutive change (after #96) in which this family
+  reappeared inside the change built to end it.

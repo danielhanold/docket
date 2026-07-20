@@ -58,6 +58,7 @@ One curated finding per file; this index is the hint surface. Load it, then read
 
 ## testing
 
+- [correspondence-guard-runs-one-way](correspondence-guard-runs-one-way.md) — A guard over a correspondence between two sets proves only the direction it iterates — write the reverse loop too, and anchor it on the consuming code, not an allowlist. · also: coverage, sentinels ⟨needs promotion⟩
 - [environment](environment.md) — A RED suite in a build sandbox or an installed dev shell is a hypothesis, not a verdict — re-run it on the unmodified base. · also: environment, ci
 - [foundational-test-discipline](foundational-test-discipline.md) — Sentinel greps are sampling, not parsing — pair them with a whole-branch review that reads for meaning. · also: sentinels, review
 - [green-suite-untested-branch](green-suite-untested-branch.md) — Green tests are not proof the hard branch was exercised — a mock that omits the tool routes every test through the degrade path. · also: fixtures, mocks

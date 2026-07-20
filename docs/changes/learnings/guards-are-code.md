@@ -2,9 +2,9 @@
 slug: guards-are-code
 hook: "A guard is code — mutation-test it (strip the feature, watch it go red) or it is decoration."
 topics: [testing, sentinels, mutation]
-changes: [14, 15, 21, 36, 37, 64, 65, 67, 68, 69, 70, 71, 72, 73, 74, 84, 88, 91, 96]
+changes: [14, 15, 21, 36, 37, 64, 65, 67, 68, 69, 70, 71, 72, 73, 74, 84, 88, 91, 96, 101]
 created: 2026-06-17
-updated: 2026-07-19
+updated: 2026-07-20
 promotion_state: promoted
 promoted_to: AGENTS.md
 ---
@@ -145,3 +145,14 @@ lib. A snippet the PLAN hands you is unvetted code: mutation-test it like any as
   — blesses whichever error it does not probe. The rule generalizes past clean-tree checks: whenever
   a guard can fail by being too *loose* AND by being too *tight*, mutation-test both directions, and
   read "the assert passes" as evidence about one side only.
+- 2026-07-20 (#101, PR #109) — **RETARGETING an assert to a new file makes it a new, unproven assert —
+  and re-opens two vacuity modes this finding already names.** Four asserts were moved off this repo's
+  `.docket.yml` onto `.docket.yml.example` when the former stopped being the user-facing documentation
+  surface. Two went vacuous the moment they landed: one asserted `finalize.require_pr_approval` was
+  `"false"`, but the reader returns the DEFAULT `"false"` for an ABSENT key — the
+  probe-coincides-with-the-default trap, re-entered through a *move* rather than a fresh write; the
+  other two matched the `learnings` `enabled`/`cap` values with UNANCHORED regexes that hit anywhere in
+  a file whose content had entirely changed. Fixed with an explicit active-key assert and a
+  block-scoped awk; the review independently re-derived and mutation-confirmed all four. The rule:
+  a retargeted assert inherits none of its passing history, because the new target has different
+  absent-key defaults and different surrounding bytes — re-run the mutation against the NEW file.
