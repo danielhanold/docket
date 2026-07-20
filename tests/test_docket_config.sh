@@ -1084,5 +1084,25 @@ FINALIZE_TEST_COMMAND=__poison__
 out="$(rung "$tmp/s5.xdg" "$tmp/s5" --export)"; eval "$out"
 assert "0106 s5: committed auto masks global real command" '[ -z "$FINALIZE_TEST_COMMAND" ]'
 
+# (s6) REVERSE: a LOWER layer's `auto` must NOT wipe a HIGHER layer's real command.
+# Required by the two-sided-proof rule: the forward cases above prove the collapse is not too
+# LOOSE; this proves it is not too TIGHT. A blanket "any layer says auto => unset" scan would
+# pass every forward case and fail only here. s6 deliberately does NOT redden under the
+# per-layer mutation that reddens s4/s5 — which is exactly why it needs its own mutation.
+mkrepo "$tmp/s6"
+mkdir -p "$tmp/s6.xdg/docket"
+printf 'finalize:\n  test_command: auto\n' > "$tmp/s6.xdg/docket/config.yml"
+cat > "$tmp/s6/.docket.yml" <<'EOF'
+metadata_branch: main
+integration_branch: main
+finalize:
+  test_command: make test
+EOF
+git -C "$tmp/s6" add .docket.yml; git -C "$tmp/s6" commit --quiet -m cfg
+git -C "$tmp/s6" push --quiet origin main
+FINALIZE_TEST_COMMAND=__poison__
+out="$(rung "$tmp/s6.xdg" "$tmp/s6" --export)"; eval "$out"
+assert "0106 s6: global auto does NOT wipe committed real command" '[ "$FINALIZE_TEST_COMMAND" = "make test" ]'
+
 if [ "$fail" = 0 ]; then echo PASS; else echo FAIL; fi
 exit "$fail"
