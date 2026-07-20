@@ -2,7 +2,7 @@
 id: 107
 slug: guard-the-readme-config-snippet-against-docket-yml-example-d
 title: Guard the README config snippet against .docket.yml.example drift
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-20
 updated: 2026-07-20
@@ -12,12 +12,12 @@ discovered_from: [101]
 adrs: []
 spec: docs/superpowers/specs/2026-07-20-readme-snippet-drift-guard-design.md
 plan: docs/superpowers/plans/2026-07-20-readme-snippet-drift-guard-plan.md
-results:
+results: docs/results/2026-07-20-readme-snippet-drift-guard-results.md
 trivial: false
 auto_groomable:
 branch: feat/guard-the-readme-config-snippet-against-docket-yml-example-d
-claimed_at: 2026-07-20T12:16:51Z
-pr:
+claimed_at: 2026-07-20T13:36:50Z
+pr: https://github.com/danielhanold/docket/pull/110
 blocked_by:
 reconciled: true
 ---
@@ -29,6 +29,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-20-readme-snippet-drift-guard-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-20-readme-snippet-drift-guard-design.md) |
 | Plan | [2026-07-20-readme-snippet-drift-guard-plan.md](https://github.com/danielhanold/docket/blob/feat/guard-the-readme-config-snippet-against-docket-yml-example-d/docs/superpowers/plans/2026-07-20-readme-snippet-drift-guard-plan.md) |
+| Results | [2026-07-20-readme-snippet-drift-guard-results.md](https://github.com/danielhanold/docket/blob/feat/guard-the-readme-config-snippet-against-docket-yml-example-d/docs/results/2026-07-20-readme-snippet-drift-guard-results.md) |
+| PR | [#110](https://github.com/danielhanold/docket/pull/110) |
 <!-- docket:artifacts:end -->
 
 ## Why
