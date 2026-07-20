@@ -10,7 +10,7 @@ depends_on: []
 related: []
 discovered_from: [104]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-07-20-archive-side-row-dropped-invariant-design.md
 plan:
 results:
 trivial: false
@@ -24,6 +24,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-07-20-archive-side-row-dropped-invariant-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-20-archive-side-row-dropped-invariant-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -42,6 +45,12 @@ count-vs-tables disagreement change 0104 exists to eliminate.
 A second flavor: when a real `done` file coexists, the misfiled row *does* print, but under a
 `<summary>` whose count excludes it. Count and tables still disagree.
 
+Grooming read the renderer and found a **second, distinct archive-side drop the stub did not
+describe**: `ARC_COUNT` is keyed on status alone, with no id filter, while the archive table skips any
+file whose `int_field id` is empty. So a *terminal* archive file with no usable id **is** counted in
+the summary and its row never renders — the summary promises a row that does not exist. That case is
+not a directory/status mismatch at all, which is what settles the design below.
+
 **This is reachable by the same interrupted operation as the active-side case.** `archive-change.sh`
 performs its `git mv` (step 2) *before* the status flip (step 3) and the commit (step 4), and each
 of those can `die`. A failure in between leaves the file moved but not re-statused — precisely this
@@ -50,20 +59,20 @@ state. It is the mirror image of the `sweep-failed <id> archive <reason>` path t
 
 ## What changes
 
-Extend the drop invariant to `archive/`, or generalize it so both directories are covered by one
-predicate rather than two.
+**Widen `board-row-dropped` to cover both directories with one generalized predicate. No new
+check-id.** `renders_row` takes the directory and selects the status set the renderer actually
+iterates for it — `DOCKET_STATUSES_ACTIVE` for `active/`, `DOCKET_STATUSES_TERMINAL` for `archive/` —
+above a hoisted, shared "id must be a usable integer" clause. The population site drops its
+active-only guard. Suppression needs no new code: `malformed-id` and the `field-domain` `status` arm
+already run over `archive/` files and are both genuine archive drop causes, so the two unsuppressed
+archive triggers end up being exactly the two nothing enumerates — a legal status in the wrong
+directory, and a file with no `id:` field at all.
 
-The natural shape mirrors what 0104 already built: `renders_row` currently answers "does
-`render-board.sh` emit a row for this `active/` file", derived from the renderer's real bucketing
-(`int_field id` non-empty AND status ∈ `DOCKET_STATUSES_ACTIVE`). The archive side needs the
-corresponding predicate over the archive pass — status ∈ `DOCKET_STATUSES_TERMINAL` and whatever
-`ARC_COUNT`/the archive table actually gate on. Read the renderer and derive it; do not infer the
-predicate from this stub.
+Also in scope: a correspondence assert pinning the renderer's hard-coded `done|killed` literals to
+`DOCKET_STATUSES_TERMINAL`, and the `board-checks.md` contract edit replacing its "covers `active/`
+only" paragraph — which currently documents this very gap as follow-up work.
 
-Open design question worth settling first: is this one check reporting a directory/status mismatch
-in either direction, or two checks? A single "this file is in the wrong directory for its status"
-finding may be the more useful diagnostic than a drop-shaped one, since the remedy is the same —
-finish the interrupted archive move.
+Full derivation, truth table, test plan, and the mutation set are in the spec.
 
 ## Out of scope
 
@@ -76,8 +85,18 @@ finish the interrupted archive move.
 
 ## Open questions
 
-- Does the archive table have any *other* gate (the `ARCHIVE_RECENT` recency window, the per-month
-  digest collapse) that legitimately drops a well-formed row, and would a naive predicate produce
-  false positives on it?
-- Should this fold into `board-row-dropped` as a widened scope, or land as its own check-id? A
-  widened scope keeps one concept; a separate id keeps 0104's finding meaning exactly one thing.
+Both settled at grooming; see the spec for the derivation.
+
+- ~~Does the `ARCHIVE_RECENT` window or the per-month digest collapse legitimately drop a well-formed
+  row, producing false positives?~~ **No — by construction.** Collapse *redirects* a row: a collapsed
+  `done` file is still in the summary count and still represented in the "Older done (collapsed)"
+  table. The predicate is written against *accounting*, not against verbatim row emission, so collapse
+  is invisible to it. A regression test pins this so the cheaper row-emission formulation cannot creep
+  back in.
+- ~~Fold into `board-row-dropped` as a widened scope, or a new check-id?~~ **Widened scope.** The
+  invariant is singular — one `total`, one set of tables — so splitting by directory yields two
+  half-invariants and duplicates the suppression machinery; directionality lives in the message
+  instead. It also adds no id to the two check-id enumerations change 0111 is concurrently hardening.
+  The stub's "wrong directory for its status" framing is rejected as the *trigger*: the no-usable-id
+  archive case is in the *correct* directory for its status, so that predicate would have missed it —
+  the same blind-spot shape ADR-0050 was written about. It survives as the message's remedy hint.
