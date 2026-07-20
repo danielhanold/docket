@@ -28,8 +28,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-20-frontmatter-field-domain-guard-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-20-frontmatter-field-domain-guard-design.md) |
-| Plan | [2026-07-20-frontmatter-field-domain-guard-plan.md](https://github.com/danielhanold/docket/blob/feat/guard-frontmatter-field-domain-violations-that-silently-drop/docs/superpowers/plans/2026-07-20-frontmatter-field-domain-guard-plan.md) |
-| Results | [2026-07-20-guard-frontmatter-field-domain-violations-that-silently-drop-results.md](https://github.com/danielhanold/docket/blob/feat/guard-frontmatter-field-domain-violations-that-silently-drop/docs/results/2026-07-20-guard-frontmatter-field-domain-violations-that-silently-drop-results.md) |
+| Plan | [2026-07-20-frontmatter-field-domain-guard-plan.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-20-frontmatter-field-domain-guard-plan.md) |
+| Results | [2026-07-20-guard-frontmatter-field-domain-violations-that-silently-drop-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-20-guard-frontmatter-field-domain-violations-that-silently-drop-results.md) |
 | PR | [#113](https://github.com/danielhanold/docket/pull/113) |
 | ADRs | [ADR-0049](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0049-board-checks-findings-channel-structural-columns-only-validated-values.md), [ADR-0050](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0050-backstop-checks-must-compute-not-reenumerate.md) |
 <!-- docket:artifacts:end -->
