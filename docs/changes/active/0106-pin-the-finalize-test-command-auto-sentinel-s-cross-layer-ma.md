@@ -16,10 +16,10 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/pin-the-finalize-test-command-auto-sentinel-s-cross-layer-ma
-claimed_at: 2026-07-20T13:34:04Z
+claimed_at: 2026-07-20T13:35:50Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -75,3 +75,28 @@ resolution chain) and `:201` (the collapse), not `:197`, which lands mid-comment
 - Extending the `auto` sentinel to `github_project`, which is unwired end to end (change 0103).
 - The third layer ordering (local `auto` over global real) — it reuses the two helpers the forward
   cases already cover and adds no distinct code path.
+
+## Reconcile log
+
+### 2026-07-20 — reconciled against `origin/main`, no scope change
+
+Every load-bearing anchor in the change and its spec was re-verified against current
+`origin/main`; all matched exactly, so the design stands as written and the scope is unchanged.
+
+- **`scripts/docket-config.sh`** — `:194` is still the three-rung `lcl` → committed → `gbl`
+  resolution chain for `finalize.test_command`; `:201` is still the post-chain collapse
+  `[ "$FINALIZE_TEST_COMMAND" = auto ] && FINALIZE_TEST_COMMAND=""`; `:195-199` is still the
+  comment that carries the cross-layer masking claim. The stub's `:197` citation does indeed land
+  mid-comment — the correction stands.
+- **`tests/test_docket_config.sh`** — section S still ends the file with exactly three fixtures
+  (`$tmp/s`, `s2`, `s3`), each writing only a committed `.docket.yml`. Confirmed: no existing
+  fixture populates two rungs for this key, so the cross-layer property is untested today.
+- **Helpers** — `mkrepo` (`:13`) and `rung` (`:34`) are present as the spec describes, and the
+  suite still pins `XDG_CONFIG_HOME` at a void (`:31`), so the new fixtures are hermetic. The
+  global-layer write pattern (`mkdir -p "$tmp/<n>.xdg/docket"` + `config.yml`) and the
+  machine-local pattern (`.docket.local.yml`) both have working precedents in sections K/L and
+  0051-L2 respectively — L2 already resolves `finalize.test_command` from the local layer, so the
+  new `s4` reuses a proven read path.
+
+No work has been done elsewhere that overlaps this change; nothing was dropped or added. Related
+change 0103 (`github_project` unwired) remains correctly out of scope.
