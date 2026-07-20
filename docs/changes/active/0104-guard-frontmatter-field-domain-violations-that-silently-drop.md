@@ -16,10 +16,10 @@ results:
 trivial: false
 auto_groomable: false
 branch: feat/guard-frontmatter-field-domain-violations-that-silently-drop
-claimed_at: 2026-07-20T13:57:05Z
+claimed_at: 2026-07-20T14:00:38Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -82,7 +82,11 @@ turn one malformed file into a total backlog stall.
 
 **Registration points a builder must not miss:** the `board-checks.sh` header block,
 `scripts/board-checks.md`, and the closed check-id enumeration in `scripts/docket-status.md`.
-The header block at `board-checks.sh:11-12` is already stale — it omits `malformed-id`.
+**Both enumerations are already stale, in opposite directions** — `board-checks.sh:11-12` omits
+`malformed-id`; `scripts/docket-status.md:344` omits `stale-finalize-blocked` (change 0098's
+check-id was never registered there). Reconciling both is in scope: this change edits those exact
+lines anyway, and a guard against silent drift that ships alongside two drifted enumerations of its
+own check-ids would be self-refuting.
 
 ## Out of scope
 
@@ -118,3 +122,46 @@ Grooming also surfaced the findings-channel injection (part 3) and the case-stat
 `docket-implement-next` only on selection-affecting findings — it requires knowing whether the
 poisoned file *would* have been `proposed`, which is exactly unknowable when the poisoned field
 **is** `status`.
+
+## Reconcile log
+
+**2026-07-20 — reconciled at claim.** Every load-bearing claim in the change body and the linked
+spec was re-verified against `origin/main` at `2748ed9`. All of it holds, line numbers included:
+
+- `render-board.sh` buckets on the raw read (`SECTION["$st"]`, `:78`) and counts the file in `total`
+  (`:86`) regardless — the count-vs-rows disagreement is real.
+- The seven-name status list is written out at exactly the four sites the spec names: `:123` and
+  `:193` (full seven), `:137` and `:290` (active five). Substitution targets confirmed.
+- `emit malformed-id "$raw" …` (`board-checks.sh:74`) does place an untrusted frontmatter value in
+  the TAB-separated change-id column that `docket-status.sh:627` reads back with
+  `IFS=$'\t' read -r check_id change_id message`. The injection hole is live.
+- `emoji_for` (`:63-66`, seven arms) and `label_for_title` (`:205-208`, five arms) carry no
+  catch-all; `label_for` (`:67`) does. Matches the spec's residual analysis.
+- `docket-status.sh`'s findings passthrough (`health_checks`, `:623-630`) is fully generic — a new
+  check-id needs zero wiring there.
+- The slug alphabet `^[a-z0-9-]+$` is exactly `slugify`'s output alphabet (`mint-stub.sh:88-91`).
+
+**New finding — the registration drift runs both ways.** The spec flagged `board-checks.sh:11-12`
+as stale (omits `malformed-id`). Reconcile found the *other* enumeration stale too:
+`scripts/docket-status.md:344` lists eight check-ids and omits `stale-finalize-blocked`, which
+change 0098 shipped without registering. Folded into scope rather than minted as a follow-up — it
+is drift on the very lines this change already has to edit, and shipping a drift guard with two
+drifted copies of its own check-id list would undercut the change's own premise.
+
+**Spec's deferred reconcile question, answered.** The spec asked whether `docket-implement-next`
+already echoes step-0 `check` lines generically before planning an edit to it. It does not, and no
+edit is warranted: implement-next dispatches `docket-status` as a subagent whose contract is git
+state, not an in-context return, so check lines surface through `docket-status`'s own report
+(SKILL.md:66 summarizes health-check findings generically) rather than through implement-next.
+Adding a bespoke echo path to implement-next for a warn-only channel would buy nothing and edge
+toward the gating posture the spec explicitly rejects. **No skill-file edits in this change** — the
+"reports, never gates" posture is agent behavior at run time, satisfied by the existing generic
+passthrough at both layers.
+
+**No collision with in-flight work.** Change 0106 (`in-progress`) touches
+`tests/test_docket_config.sh` only — disjoint from `board-checks.sh`, `render-board.sh`,
+`lib/docket-frontmatter.sh`, and their tests. Nothing in the recently-archived set (0107, 0105,
+0101) or in ADRs 0044-0048 alters this change's design.
+
+**Scope unchanged otherwise.** All four parts stand as specified; no work has been done elsewhere,
+and no new constraint narrows or widens the design.
