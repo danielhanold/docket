@@ -1,8 +1,14 @@
 # Backlog
 
-**107 changes** — 🟡 14 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 85 done · 🗑️ 6 killed
+**107 changes** — 🟢 1 in progress · 🟡 13 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 85 done · 🗑️ 6 killed
 
-## 🟡 Proposed (14)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Spec | Branch |
+|---|-------|----------|------|--------|
+| [0107](active/0107-guard-the-readme-config-snippet-against-docket-yml-example-d.md) | Guard the README config snippet against .docket.yml.example drift | `medium` | [spec](../superpowers/specs/2026-07-20-readme-snippet-drift-guard-design.md) | `feat/guard-the-readme-config-snippet-against-docket-yml-example-d` |
+
+## 🟡 Proposed (13)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -19,7 +25,6 @@
 | [0103](active/0103-wire-the-github-project-config-read-documented-but-unwired-k.md) | Wire the github_project config read (documented-but-unwired key) | `medium` | needs-brainstorm |
 | [0104](active/0104-guard-frontmatter-field-domain-violations-that-silently-drop.md) | Guard frontmatter field-domain violations that silently drop board rows | `high` | needs-brainstorm |
 | [0106](active/0106-pin-the-finalize-test-command-auto-sentinel-s-cross-layer-ma.md) | Pin the finalize.test_command auto sentinel's cross-layer masking with a two-layer fixture | `medium` | needs-brainstorm |
-| [0107](active/0107-guard-the-readme-config-snippet-against-docket-yml-example-d.md) | Guard the README config snippet against .docket.yml.example drift | `medium` | build-ready |
 
 ## 🔴 Blocked (1)
 
