@@ -482,4 +482,20 @@ assert "(8) every README snippet key exists in the example (${sn_missing:-none m
 assert "(8) every README snippet value equals the example's (${sn_mismatched:-none mismatched})" \
   '[ -z "$sn_mismatched" ]'
 
+# POINTER: the section's link to the canonical reference must resolve to a real file. Scoped to
+# this section's body, NOT a whole-file grep — the README names .docket.yml.example in several
+# other places (the tooling list, the layered-config prose), so an unscoped match would stay green
+# even after THIS section's own link rotted.
+snippet_section(){
+  awk '
+    /^### `\.docket\.yml` — per-repo settings$/ { inseg=1; next }
+    inseg && /^### / { exit }
+    inseg { print }
+  ' "$README"
+}
+sn_ptr="$(snippet_section | sed -nE 's/.*\[`?\.docket\.yml\.example`?\]\(([^)]+)\).*/\1/p' | head -n1)"
+assert "(8) the section links to the canonical reference" '[ -n "$sn_ptr" ]'
+assert "(8) canonical-reference link target exists (${sn_ptr:-<no link>})" \
+  '[ -n "$sn_ptr" ] && [ -f "$REPO/$sn_ptr" ]'
+
 exit $fail
