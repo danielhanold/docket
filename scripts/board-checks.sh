@@ -8,9 +8,9 @@
 # Usage: board-checks.sh --changes-dir DIR --metadata-branch BR --integration-branch BR [--strict]
 #                         [--lease-ttl-hours N]
 #   Findings: TAB-separated  <check-id>\t<change-id>\t<message>  on stdout, sorted by (check-id, change-id).
-#     check-id ∈ {broken-spec, broken-plan-results, dep-cycle, field-domain, stale-in-progress,
-#                 merge-gate-stall, stale-finalize-blocked, merged-orphan, unknown-commit-ref,
-#                 malformed-id}
+#     check-id ∈ {board-row-dropped, broken-spec, broken-plan-results, dep-cycle, field-domain,
+#                 stale-in-progress, merge-gate-stall, stale-finalize-blocked, merged-orphan,
+#                 unknown-commit-ref, malformed-id}
 #   Clean tree ⇒ no output, exit 0. --strict ⇒ exit 1 if any finding (for a future CI gate).
 #   Branch args are passed to `git cat-file -e <ref>:<path>` verbatim; in main-mode the two refs
 #   coincide and both link checks resolve on the same branch with no special-casing.
@@ -57,6 +57,7 @@ resolve_deps "$CHANGES_DIR"            # populates STATUS_OF / DEP_STATE / DEP_R
 git_has(){ "$GIT" -C "$CHANGES_DIR" cat-file -e "$1:$2" 2>/dev/null; }
 
 declare -A ID_ACTIVE ID_EXISTS                # id -> 1; populated in the FILES walk below
+declare -A EXPLAINED DROPPED                  # change-id -> 1; drive board-row-dropped (change 0104)
 FINDINGS=""                            # accumulate "<check>\t<id>\t<msg>\n"; sorted + printed at the end
 
 # sanitize VALUE — render TAB and CR as the visible two-character escapes \t and \r (change 0104).
@@ -98,8 +99,14 @@ for f in "${FILES[@]}"; do
   # cid — the change-id column for every finding about this file: the validated integer id when
   # there is one, else the filename-derived padded id. NEVER the raw frontmatter value.
   cid="${id:-$pid}"
+  fd_active=0; case "$f" in */active/*) fd_active=1 ;; esac
   if [ -z "$id" ]; then
-    [ -n "$raw" ] && emit malformed-id "$cid" "non-integer id '$raw' in $(basename "$f")"
+    if [ -n "$raw" ]; then
+      emit malformed-id "$cid" "non-integer id '$raw' in $(basename "$f")"
+      EXPLAINED["$cid"]=1
+    fi
+    # No usable id ⇒ render-board.sh:76 skips the row while :86 still counts the file.
+    [ "$fd_active" = 1 ] && DROPPED["$cid"]=1
     continue
   fi
   ID_EXISTS["$id"]=1
@@ -125,22 +132,25 @@ for f in "${FILES[@]}"; do
   done
   if [ "$status_ok" != 1 ]; then
     emit field-domain "$cid" "status '$status' is not one of: ${DOCKET_STATUSES[*]}"
+    EXPLAINED["$cid"]=1
+    # An unrecognized status buckets into a SECTION key no renderer iterates.
+    [ "$fd_active" = 1 ] && DROPPED["$cid"]=1
   fi
 
   # slugify's own alphabet (mint-stub.sh:88-91). Empty fails — slug has no documented default.
   case "$fd_slug" in
-    ''|*[!a-z0-9-]*) emit field-domain "$cid" "slug '$fd_slug' is not ^[a-z0-9-]+\$" ;;
+    ''|*[!a-z0-9-]*) emit field-domain "$cid" "slug '$fd_slug' is not ^[a-z0-9-]+\$"; EXPLAINED["$cid"]=1 ;;
   esac
 
   # Empty priority is LEGAL: the convention documents `medium` as the default and render-board.sh's
   # sort already implements it. Flagging it here would make the guard the noise source.
   case "$fd_priority" in
     ''|low|medium|high|critical) ;;
-    *) emit field-domain "$cid" "priority '$fd_priority' is not one of: low medium high critical (empty = medium)" ;;
+    *) emit field-domain "$cid" "priority '$fd_priority' is not one of: low medium high critical (empty = medium)"; EXPLAINED["$cid"]=1 ;;
   esac
 
   case "$fd_title" in
-    *'|'*) emit field-domain "$cid" "title contains '|', which injects columns into the board row: $fd_title" ;;
+    *'|'*) emit field-domain "$cid" "title contains '|', which injects columns into the board row: $fd_title"; EXPLAINED["$cid"]=1 ;;
   esac
 
   # --- broken-spec: spec set, not trivial, path absent on the metadata branch ---
@@ -219,6 +229,20 @@ for f in "${FILES[@]}"; do
       emit stale-finalize-blocked "$id" "## Finalize blocked marker set $(( (NOW - fbts) / 3600 ))h ago — resolve the cause and re-run finalize $id, or it will sit on the board"
     fi
   fi
+done
+
+# --- board-row-dropped: an ACTIVE file counted in the board's total but rendered in no section ---
+# render-board.sh counts every active *.md in `total` (:86) but buckets rows on the raw `status:`
+# read (:78) and skips files whose id is not an integer (:76) — so such a file is counted and never
+# emitted, and the board's count line disagrees with its tables. SUPPRESSED when a field-domain or
+# malformed-id finding already explains that id: a backstop that fires alongside every domain
+# finding trains the reader to ignore it. Suppressed, it says exactly one thing — a row vanished and
+# nothing enumerated explains why. Its live trigger today is a file with NO `id:` field at all
+# (malformed-id needs a non-empty raw value); with the domain checks in place, its remaining trigger
+# is a future renderer-added drop path, which is what a backstop is for.
+for drop_id in "${!DROPPED[@]}"; do
+  [ -n "${EXPLAINED[$drop_id]:-}" ] && continue
+  emit board-row-dropped "$drop_id" "counted in the board total but rendered in no section, and no field-domain or malformed-id finding explains it"
 done
 
 # --- dep-cycle: DFS over depends_on; mark every node that lies on a cycle ---

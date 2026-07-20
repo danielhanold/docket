@@ -537,6 +537,54 @@ printf -- '---\nid: 60\nslug: archived\ntitle: Archived\nstatus: done\npriority:
 gout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$G/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
 assert "field-domain silent for a terminal status in archive/ (id 60)" '! has_finding "$gout" field-domain 60'
 
+# ======================= board-row-dropped (change 0104, spec part 2) =======================
+# The invariant: an ACTIVE file counted in render-board.sh's `total` but rendered in no section.
+# SUPPRESSED when field-domain or malformed-id already explains that id — a backstop that fires
+# alongside every domain finding trains the reader to ignore it.
+read -r D _ < <(new_repo)
+# (a) the live un-suppressed trigger: NO id: field at all. malformed-id needs a non-empty raw
+#     value, so nothing explains this drop.
+printf -- '---\nslug: noid\ntitle: No id\nstatus: proposed\npriority: medium\ndepends_on: []\n---\n' \
+  > "$D/docs/changes/active/0070-noid.md"
+dout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$D/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "board-row-dropped fires for an active file with no id: field (0070)" \
+  'has_finding "$dout" board-row-dropped 0070'
+
+# (b) suppression by field-domain: a poisoned status yields EXACTLY ONE finding for that id.
+read -r E _ < <(new_repo)
+printf -- '---\nid: 71\nslug: poison\ntitle: Poisoned\nstatus: proposed  # awaiting X\npriority: medium\ndepends_on: []\n---\n' \
+  > "$E/docs/changes/active/0071-poison.md"
+eout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$E/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+n71="$(printf '%s' "$eout" | grep -c .)"
+assert "a poisoned status yields exactly ONE finding, not two (suppression works)" '[ "$n71" = 1 ]'
+assert "and that one finding is field-domain, not board-row-dropped" 'has_finding "$eout" field-domain 71'
+assert "board-row-dropped is suppressed when field-domain explains the drop" \
+  '! has_finding "$eout" board-row-dropped 71'
+
+# (c) suppression by malformed-id.
+read -r H _ < <(new_repo)
+printf -- '---\nid: abc\nslug: badid\ntitle: Bad id\nstatus: proposed\npriority: medium\ndepends_on: []\n---\n' \
+  > "$H/docs/changes/active/0072-badid.md"
+hout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$H/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "board-row-dropped is suppressed when malformed-id explains the drop (0072)" \
+  '! has_finding "$hout" board-row-dropped 0072'
+assert "malformed-id still fires for that file (0072)" 'has_finding "$hout" malformed-id 0072'
+
+# (d) archive/ is NOT subject to the invariant — the archive table renders from its own pass.
+read -r I _ < <(new_repo)
+printf -- '---\nslug: archnoid\ntitle: Arch no id\nstatus: done\npriority: medium\ndepends_on: []\n---\n' \
+  > "$I/docs/changes/archive/2026-06-16-0073-archnoid.md"
+iout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$I/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "board-row-dropped does not fire for an archive/ file (0073)" \
+  '! has_finding "$iout" board-row-dropped 0073'
+
+# (e) a wholly clean tree stays silent — the backstop must not fire on healthy repos.
+read -r J _ < <(new_repo)
+printf -- '---\nid: 74\nslug: fine\ntitle: Fine\nstatus: proposed\npriority: medium\ndepends_on: []\n---\n' \
+  > "$J/docs/changes/active/0074-fine.md"
+jout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$J/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "clean active tree emits no board-row-dropped finding" '! printf "%s" "$jout" | grep -q "^board-row-dropped"'
+
 # ============================ merged-orphan / unknown-commit-ref ============================
 # Cross-reference change ids in integration-branch (main) commit *subjects* against active/archive.
 # All fixtures use --allow-empty commits (subjects only). Each negative is discriminating: it pairs
