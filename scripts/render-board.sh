@@ -120,7 +120,7 @@ digest_readiness(){ # digest_readiness FILE ID STATUS -> machine-parseable readi
 }
 
 if [ "$FORMAT" = digest ]; then
-  for st in in-progress proposed blocked deferred implemented done killed; do
+  for st in "${DOCKET_STATUSES[@]}"; do
     case "$st" in
       done|killed) n=${ARC_COUNT[$st]:-0} ;;
       *) n="$(count_of "$st")" ;;
@@ -134,7 +134,7 @@ if [ "$FORMAT" = digest ]; then
     printf 'change %s %s %s %s\n' \
       "$id" "$st" "$(digest_readiness "$f" "$id" "$st")" "$(field "$f" slug)"
   done < <(
-    for st in in-progress proposed blocked deferred implemented; do
+    for st in "${DOCKET_STATUSES_ACTIVE[@]}"; do
       rows_sorted "$st"
     done | sort -t$'\t' -k1,1n
   )
@@ -190,7 +190,7 @@ fi
 
 printf '# Backlog\n\n'
 seg=""
-for st in in-progress proposed blocked deferred implemented done killed; do
+for st in "${DOCKET_STATUSES[@]}"; do
   case "$st" in
     done|killed) n=${ARC_COUNT[$st]:-0} ;;
     *) n="$(count_of "$st")" ;;
@@ -287,7 +287,7 @@ while IFS=$'\t' read -r id f; do
     printf '  %s\n' "$(pad "$id")"
   fi
 done < <(
-  for st in in-progress proposed blocked deferred implemented; do
+  for st in "${DOCKET_STATUSES_ACTIVE[@]}"; do
     rows_sorted "$st"
   done | sort -t$'\t' -k1,1n
 )
