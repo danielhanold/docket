@@ -441,4 +441,45 @@ assert "(8) snippet extraction found exactly 5 keys (non-vacuity floor; got $sn_
 assert "(8) example flattened non-empty (guard against a silently empty comparison side)" \
   '[ "$(printf "%s\n" "$ex_flat" | grep -c .)" -ge 20 ]'
 
+# DIRECTION: this loop iterates the SNIPPET's keys and proves snippet ⊆ example, values equal.
+# It deliberately does NOT iterate the example's keys, and the missing reverse loop is NOT an
+# oversight — do not "fix" it.
+#
+# The correspondence-guard-runs-one-way learning (harvested from change 0101) says: name the
+# direction you iterate, then write the other one. That rule assumes the two sets stand in a
+# CORRESPONDENCE. These two do not. The README snippet is a deliberate PROPER SUBSET — a small
+# illustrative taste — while .docket.yml.example is the canonical all-keys reference. So the
+# reverse loop here would assert "every key in the example appears in the README", which is a
+# completeness check that re-creates the fourth all-keys surface change 0101 existed to delete.
+# Writing it would undo the change that motivated this guard.
+#
+# The orphan direction that actually bit 0101 — a documented key no real surface carries — is
+# still covered here: a snippet key absent from the example fails the existence assert below.
+# The asymmetry is safe BECAUSE of the subset relation, which was not true of 0101's
+# export-keys-vs-example guards.
+#
+# Fed by a HEREDOC, never a pipe: a pipe runs the loop in a subshell and both accumulator
+# variables come back empty, so every mismatch would silently pass.
+sn_missing=""
+sn_mismatched=""
+while IFS="$(printf '\t')" read -r sn_path sn_val; do
+  [ -n "$sn_path" ] || continue
+  ex_hit="$(printf '%s\n' "$ex_flat" | awk -F'\t' -v p="$sn_path" '$1==p{print "1"; exit}')"
+  if [ -z "$ex_hit" ]; then
+    sn_missing="$sn_missing $sn_path"
+    continue
+  fi
+  ex_val="$(printf '%s\n' "$ex_flat" | awk -F'\t' -v p="$sn_path" '$1==p{print $2; exit}')"
+  if [ "$ex_val" != "$sn_val" ]; then
+    sn_mismatched="$sn_mismatched $sn_path(README='$sn_val'!=example='$ex_val')"
+  fi
+done <<SNIPPET_KEYS
+$sn_flat
+SNIPPET_KEYS
+
+assert "(8) every README snippet key exists in the example (${sn_missing:-none missing})" \
+  '[ -z "$sn_missing" ]'
+assert "(8) every README snippet value equals the example's (${sn_mismatched:-none mismatched})" \
+  '[ -z "$sn_mismatched" ]'
+
 exit $fail
