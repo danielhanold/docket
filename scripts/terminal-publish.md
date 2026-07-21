@@ -31,7 +31,8 @@ terminal-publish.sh \
   --adrs-dir REL \
   [--message MSG] \
   [--remote R] \
-  [--enabled true|false]
+  [--enabled true|false] \
+  [--metadata-worktree PATH]
 ```
 
 **ADR-only publish** (standalone or supersession/reversal ADR from `docket-adr`):
@@ -61,6 +62,11 @@ caller that forgot the flag is a bug rather than a decision. Exit 0 on that path
 callers trust the exit code and a missing flag must not abort a close-out, so the warning is what
 keeps the skipped publish visible. An unparseable value — including an explicit empty one — is
 rejected before any git work, like `--id`/`--adr`.
+
+`--metadata-worktree PATH` (change 0083, **change mode only**) points at the metadata working tree
+— docket-mode: `<repo>/.docket` — whose archived change file carries any `## Publish deferred`
+marker to clear. Optional: when omitted it resolves from `lib/docket-root.sh`'s main-worktree
+anchor plus `/.docket`, never from the caller's CWD. Ignored in `--adr` mode.
 
 Both `--id` and `--adr` must be integers; a non-integer value is rejected immediately, before any
 git work.
@@ -94,6 +100,32 @@ Argument validation runs **before** this guard, so a malformed call fails loudly
 publishing is enabled — a disabled publish never masks a broken call site.
 
 The guard is inert in `main`-mode: the mode guard already exits 0 first.
+
+### Clearing the `## Publish deferred` marker (change 0083)
+
+In **change mode**, past both no-op guards, the script clears any `## Publish deferred` marker on
+the archived change file in the metadata working tree — invoking `mark-publish-deferred.sh --mode
+remove`, committing change-file-only on `metadata_branch`, CAS-pushing (bounded retry, 5
+attempts), and re-fetching so the copy-set is read from the marker-free tip.
+
+**The ordering is load-bearing.** The copy-set is read *from* `origin/<metadata-branch>`, so a
+removal done after the push would publish a record still carrying a "publish not completed"
+marker onto the integration branch, with nothing there to correct it. Removing first makes both
+branches agree.
+
+**Never under suppression.** The block sits past the mode guard and the `--enabled` knob guard, so
+`--enabled false` and `main`-mode clear nothing: a suppressed publish is legitimate *success*, not
+a completed deferral, and the marker must survive it.
+
+**On a later publish failure** the marker has already been cleared; the script exits non-zero and
+the driver's defer path re-marks (`--mode add` replaces rather than appends). A rollback re-add
+inside this script was considered and declined — a failure path inside a failure path, for a
+window the documented re-mark already covers.
+
+`--metadata-worktree PATH` locates that working tree; when omitted it resolves from
+`lib/docket-root.sh`'s main-worktree anchor plus `/.docket`, never from the caller's CWD. Ignored
+in `--adr` mode: an ADR has no change file to mark (see change 0083's spec §5 — deferred
+ADR-publish visibility is deliberately a follow-on, tracked as change #0117).
 
 ### Publish shapes and copy-set assembly
 

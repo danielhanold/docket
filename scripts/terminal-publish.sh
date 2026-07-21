@@ -15,6 +15,11 @@
 #                       --changes-dir REL --adrs-dir REL [--message MSG] [--remote R]
 #                       [--enabled true|false]
 #
+# --metadata-worktree PATH points at the metadata working tree (docket-mode: <repo>/.docket) whose
+# archived change file carries any `## Publish deferred` marker to clear. Optional: when omitted it
+# is resolved from lib/docket-root.sh's main-worktree anchor + "/.docket", never from the caller's
+# CWD. Change mode only; ignored in --adr mode (an ADR has no change file to mark).
+#
 # --enabled gates the publish (change 0064: the per-repo `terminal_publish` knob; opt-in by default
 # since change 0084). --enabled false makes this script a no-op: the record stays on the metadata
 # branch and nothing is committed onto the integration branch. There is NO default — an omitted flag
@@ -26,9 +31,13 @@
 set -uo pipefail
 
 . "$(dirname "$0")/lib/docket-frontmatter.sh"
+. "$(dirname "$0")/lib/docket-root.sh"
 
 GIT="${GIT:-git}"
 ID="" ADR="" OUTCOME="" INT_BRANCH="" META_BRANCH="" CHANGES_DIR="" ADRS_DIR="" MESSAGE="" REMOTE="origin"
+# change 0083: the metadata working tree whose archived change file carries any `## Publish
+# deferred` marker to clear. Optional — resolved from the main-worktree anchor when omitted.
+META_WORKTREE=""
 # change 0084: NO default — publish is opt-in. ENABLED_PASSED distinguishes "flag omitted" (a
 # caller bug: loud no-op) from an explicit `--enabled false` (a decision: silent no-op). Tracking
 # it separately, rather than sniffing an empty ENABLED, keeps an explicit `--enabled ""` failing
@@ -50,6 +59,7 @@ while [ $# -gt 0 ]; do
     --message) MESSAGE="$2"; shift ;;
     --remote) REMOTE="$2"; shift ;;
     --enabled) ENABLED="$2"; ENABLED_PASSED=true; shift ;;
+    --metadata-worktree) META_WORKTREE="$2"; shift ;;
     -h|--help) grep '^#' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) die "unknown argument: $1" ;;
   esac
@@ -125,6 +135,46 @@ else
   change_path="$(printf '%s\n' "$tree" | grep -E "/[0-9]{4}-[0-9]{2}-[0-9]{2}-$pad-[^/]*\.md$")"
   change_path="${change_path%%$'\n'*}"
   [ -n "$change_path" ] || die "no archived change file for id $ID on $metaref"
+  # --- change 0083: clear a `## Publish deferred` marker BEFORE the copy-set is read ------------
+  # Ordering is load-bearing. The copy-set is read FROM $metaref, so a removal done after the push
+  # would publish a record still carrying a "publish not completed" marker onto the integration
+  # branch, with nothing to correct it there. Removing on the metadata branch first — then
+  # re-fetching — makes both branches agree.
+  #
+  # Reached only past BOTH no-op guards above, so a suppressed publish (`--enabled false`) and
+  # main-mode never clear a marker: a suppressed publish is legitimate success, not a completed
+  # deferral, and the marker must survive it.
+  #
+  # If the publish below then FAILS, the marker has already been cleared; the script exits
+  # non-zero and the driver's defer path re-marks (mark-publish-deferred.sh's `add` replaces
+  # rather than appends, so the re-mark is clean). A rollback re-add here was declined: it puts a
+  # failure path inside a failure path for a window the documented re-mark already covers.
+  #
+  # The failure paths below predate the `pub` worktree, so they call die() directly: the
+  # `trap 'rm -rf "$tmpd"' EXIT` above already removes the only thing provisioned so far, and
+  # teardown() would tear down a worktree that does not exist yet.
+  [ -n "$META_WORKTREE" ] || META_WORKTREE="$(docket_main_worktree)/.docket"
+  mark_file="$META_WORKTREE/$change_path"
+  if [ -f "$mark_file" ] && grep -qxF -- '## Publish deferred' "$mark_file"; then
+    log "clearing the ## Publish deferred marker on $META_BRANCH before publishing"
+    "$(dirname "$0")/mark-publish-deferred.sh" --mode remove --change-file "$mark_file" \
+      || die "could not clear the publish-deferred marker"
+    $GIT -C "$META_WORKTREE" add -- "$change_path" \
+      || die "git add failed for the marker removal"
+    $GIT -C "$META_WORKTREE" commit -q -m "docket($pad): clear publish-deferred marker (publish completing)" -- "$change_path" \
+      || die "commit failed for the marker removal"
+    # CAS: a concurrent metadata writer must not lose this removal. Bounded retry against a fresh
+    # origin tip; the removal is idempotent, so a replay after a rebase is safe.
+    mark_tries=0
+    until $GIT -C "$META_WORKTREE" push "$REMOTE" "HEAD:$META_BRANCH" >/dev/null 2>&1; do
+      mark_tries=$(( mark_tries + 1 ))
+      [ "$mark_tries" -le 5 ] || die "could not push the marker removal after $mark_tries attempts"
+      $GIT -C "$META_WORKTREE" pull --rebase "$REMOTE" "$META_BRANCH" >/dev/null 2>&1 \
+        || die "rebase failed while pushing the marker removal"
+    done
+    # Re-fetch so the copy-set below is built from the marker-free tip.
+    $GIT fetch "$REMOTE" "$META_BRANCH" >/dev/null 2>&1 || die "re-fetch after marker removal failed"
+  fi
   $GIT show "$metaref:$change_path" > "$tmpd/change.md" || die "cannot read $change_path"
   spec_path="$(field "$tmpd/change.md" spec)"
   adr_ids="$(list_field "$tmpd/change.md" adrs)"
