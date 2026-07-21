@@ -1023,7 +1023,7 @@ ex9_paths="$(printf '%s\n' "$ex_flat" | cut -f1)"
 # Takes the path as an argument (not the $README global) so the marker tests in Task 5 can scan a
 # temporary fixture instead of mutating the real README.
 scan_fences(){
-  local md="$1" line ind body flatout flat raw p pv top marker token
+  local md="$1" line ind body flatout flat raw p pv top marker token exval
   while IFS="$TAB9" read -r line ind; do
     [ -n "$line" ] || continue
     marker="$(fence_marker "$md" "$line" "$ind")"
@@ -1044,7 +1044,12 @@ scan_fences(){
       [ -n "$p" ] || continue
       top="${p%%.*}"
       if grep -Fxq "$top" <<<"$ex9_paths"; then
-        grep -Fxq "$p" <<<"$ex9_paths" || echo "miss $line $p"
+        if ! grep -Fxq "$p" <<<"$ex9_paths"; then
+          echo "miss $line $p"
+        elif [ "$token" = "values" ]; then
+          exval="$(awk -F"$TAB9" -v k="$p" '$1==k{print $2; exit}' <<<"$ex_flat")"
+          [ "$pv" = "$exval" ] || echo "value $line $p readme=$pv example=$exval"
+        fi
       elif is_pseudo_key "$top"; then :
       else echo "miss $line $p"; fi
     done <<FLAT
@@ -1078,6 +1083,17 @@ assert "(9) the flattener drops no key-shaped line in any fence (raw content lin
 f9_marker="$(printf '%s\n' "$findings9" | grep '^marker ' | sed 's/^marker //' | tr '\n' ' ')"
 assert "(9) every docket:config-fence marker parses (fence-line + reason; ${f9_marker:-none malformed})" \
   '[ -z "$f9_marker" ]'
+
+# VALUE EQUALITY IS OPT-IN, and it is not lost where it is SOUND. Section (8) keeps it on fence
+# 209 (the per-repo snippet, which documents shipped defaults); this marker adds it to the
+# reclaim: fence, whose lease_ttl: 72 / auto: false are also shipped defaults and SHOULD redden if
+# the defaults move. The other seven fences stay existence-only, because they deliberately
+# illustrate non-default values. Fence 209 is therefore double-covered by (8) (existence + values)
+# and (9) (existence only); that overlap is accepted rather than special-cased — (8)'s fence is
+# simply left unmarked, and since no unmarked fence gets a value assert, no special-casing exists.
+f9_value="$(printf '%s\n' "$findings9" | grep '^value ' | sed 's/^value //' | tr '\n' ' ')"
+assert "(9) values-marked fences match the example exactly (${f9_value:-none mismatched})" \
+  '[ -z "$f9_value" ]'
 
 # The ignore path has ZERO exercise in the README — all nine fences today are config fences — so
 # without a fixture it would ship with its only branch untested. Assert it POSITIVELY on a
