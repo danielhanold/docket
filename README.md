@@ -230,7 +230,7 @@ A `docket-implement-next` run that crashes or is killed before it ever pushes a 
 - **Mutation is opt-in.** `reclaim.auto: false` (the default) — `docket-status` only recommends: `reclaim: <n> expired-lease change(s) can self-heal — run: docket.sh reclaim-claims`. `reclaim.auto: true` — `docket-status` reclaims eligible changes itself on every pass.
 - **Run it by hand anytime** with `docket.sh reclaim-claims`, whether or not `reclaim.auto` is set.
 - **A change with a branch is left to a human.** It might carry real, unpushed work, so reclaim never touches it — it stays flagged instead.
-
+<!-- docket:config-fence: values -->
 ```yaml
 reclaim:
   lease_ttl: 72   # hours; >= docket-status's 3-day stale-in-progress window
