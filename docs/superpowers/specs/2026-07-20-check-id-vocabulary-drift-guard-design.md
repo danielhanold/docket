@@ -2,6 +2,8 @@
 
 Change: 0111 · `guard-the-board-checks-check-id-enumerations-against-drift`
 Date: 2026-07-20 · Groomed autonomously (`docket-auto-groom`; revised once after the critic pass)
+**Reconciled 2026-07-21** at build claim — see `## Reconcile amendments` at the foot of this file,
+which is normative where it contradicts the body above it.
 
 ## Problem
 
@@ -230,3 +232,75 @@ readiness gate; nothing here blocks on it.
    non-vacuity asserts, 1 call-site-count assert, 1 no-dynamic-check-id lint.
 6. Results file recording the both-directions mutation matrix, including the two extractor-integrity
    mutants of §3.
+
+## Reconcile amendments (2026-07-21)
+
+Verified against `origin/main` at `c660535`. **Normative where it contradicts anything above.**
+
+### R1 — Change 0104 already shipped a partial guard; this design now completes it
+
+`tests/test_board_checks.sh:941-999` exists at `HEAD` and its comment names this change. It already
+implements, in substance:
+
+| Spec set | Status at `HEAD` |
+|---|---|
+| `S4` (emit call sites) | **SHIPPED** as `emitted`, via a *shape*-anchored extractor (see R2) |
+| `S1` (script header span) | **SHIPPED** as `header_ids` (3-line span join, as designed) |
+| `S1 == S4` | **SHIPPED** as a `comm -3` set equality — both directions |
+| non-vacuity | **SHIPPED**, as an independent cross-check rather than a magic floor |
+| `S2`, `S3` (the two docs) | **subset-only** — every *emitted* id must appear in each; the converse is unguarded |
+| `S0` (`BOARD_CHECK_IDS`) | **absent** |
+| no-dynamic lint | **absent** |
+
+§2's framing ("guarded **zero**-way") is therefore stale. The residual design is: add `S0`, lift
+`S2`/`S3` from subset to **set equality**, and add the no-dynamic lint. The work **extends 0104's
+block in place** — a second block beside it would mean two derivations of one set.
+
+### R2 — A1 amended: 0104's extractor supersedes the widened anchor set
+
+0104 derives the emitted set with:
+
+```sh
+grep -oE 'emit [a-z][a-z-]*[[:space:]]+"' "$BCSH" | awk '{print $2}' | sort -u
+```
+
+This anchors on the call's **syntactic shape** — identifier plus a quoted change-id argument —
+rather than on the set of tokens that may precede `emit` on a line. It is strictly more durable than
+A1's widened alternation: it needs no anchor list, catches the `cond || emit …` idiom by
+construction, and excludes both the `emit(){` definition and the English "emit a table row" prose
+comment. **Keep it. Do not substitute the alternation from §2's fenced block.**
+
+Consequence for the non-vacuity asserts: the spec's separate **call-site count** (`= 16`) was
+load-bearing *only* against a position-anchored extractor, where an unregistered `case`-arm site
+could hide. A shape-anchored extractor cannot miss such a site, so that assert loses its rationale
+and is **dropped**. The distinct-id arity assert on `BOARD_CHECK_IDS` (`= 12`) is retained on the
+`test_render_board.sh:1903` precedent. 0104's cross-check style — deriving an independent count and
+asserting agreement — is preferred over any hardcoded floor wherever a second count is wanted.
+
+### R3 — Baseline moved: **12 distinct check-ids, 17 call sites**
+
+Change 0083's `publish-deferred` check merged to `main` on 2026-07-20, after this spec's baseline was
+taken (verified: 11 distinct ids at `73895a7`, the pre-0083 tip — the spec was correct when written).
+0083 registered its id on all three surfaces, so all four sets agree at 12 today.
+
+`BOARD_CHECK_IDS` therefore carries **12** members:
+
+```sh
+BOARD_CHECK_IDS=(board-row-dropped broken-plan-results broken-spec dep-cycle field-domain
+                 malformed-id merge-gate-stall merged-orphan publish-deferred
+                 stale-finalize-blocked stale-in-progress unknown-commit-ref)
+```
+
+Every `11` in the body above reads `12`; every `16` reads `17`.
+
+### R4 — Line references repaired
+
+`docket-status.md`'s `check` row is at **:352** (spec said 344). The header brace span is
+**:11-13**. The precedent `source "$LIB"` block is `test_render_board.sh:**1883-1885**` (spec said
+1881); its arity assert is **:1903**. Prefer the anchors over the numbers — 0104 moved them once
+already.
+
+### R5 — Change 0116 is not in flight
+
+A7 and A2 describe 0116 as "in flight". It is `proposed`, unclaimed, no branch. The collision
+caution stands as future-facing only.
