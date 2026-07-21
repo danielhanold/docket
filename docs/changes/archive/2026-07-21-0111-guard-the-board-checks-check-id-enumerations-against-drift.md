@@ -2,7 +2,7 @@
 id: 111
 slug: guard-the-board-checks-check-id-enumerations-against-drift
 title: Guard the board-checks check-id enumerations against drift
-status: implemented
+status: done
 priority: medium
 created: 2026-07-20
 updated: 2026-07-21
@@ -16,7 +16,7 @@ results: docs/results/2026-07-21-guard-the-board-checks-check-id-enumerations-ag
 trivial: false
 auto_groomable: true
 branch: feat/guard-the-board-checks-check-id-enumerations-against-drift
-claimed_at: 2026-07-21T22:07:15Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/117
 blocked_by:
 reconciled: true
