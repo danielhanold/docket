@@ -779,10 +779,10 @@ flatten_yaml(){
       if (line ~ /^[[:space:]]*#/) next
       sub(/[[:space:]]+#.*$/, "", line)
       sub(/[[:space:]]+$/, "", line)
-      if (line !~ /^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*:/) next
+      if (line !~ /^[[:space:]]*[A-Za-z_][A-Za-z0-9_-]*:/) next
       ind = match(line, /[^[:space:]]/) - 1
       key = line; sub(/^[[:space:]]*/, "", key); sub(/:.*$/, "", key)
-      val = line; sub(/^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*:[[:space:]]*/, "", val)
+      val = line; sub(/^[[:space:]]*[A-Za-z_][A-Za-z0-9_-]*:[[:space:]]*/, "", val)
       while (depth > 0 && indents[depth] >= ind) depth--
       depth++; indents[depth] = ind; keys[depth] = key
       path = keys[1]
@@ -809,7 +809,7 @@ ex_count="$(printf '%s\n' "$ex_flat" | grep -c .)"
 assert "(8) example flattened non-empty (guard against a silently empty comparison side; got $ex_count)" \
   '[ "$ex_count" -ge 20 ]'
 
-# SAFETY NET for the flattener's deliberately narrow key regex ([A-Za-z_][A-Za-z0-9_]*:): a key
+# SAFETY NET for the flattener's deliberately narrow key regex ([A-Za-z_][A-Za-z0-9_-]*:): a key
 # spelled with any other character (e.g. `some-new-key: yes`) is silently REJECTED by
 # flatten_yaml rather than flagged, and since sn_count above counts POST-filter output, a
 # dropped line is invisible to both the count floor and the forward loop below — an undocumented
@@ -880,5 +880,24 @@ sn_ptr="$(snippet_section | sed -nE 's/.*\[[^]]*\]\(([^)]*\.docket\.example\.yml
 assert "(8) the section links to the canonical reference" '[ -n "$sn_ptr" ]'
 assert "(8) canonical-reference link target exists (${sn_ptr:-<no link>})" \
   '[ -n "$sn_ptr" ] && [ -f "$REPO/$sn_ptr" ]'
+
+# --- (9) README CONFIG FENCE KEY CORRESPONDENCE -------------------------------
+TAB9="$(printf '\t')"
+
+# PREREQUISITE GUARD (change 0108, Task 1). flatten_yaml's key class must admit HYPHENS, because
+# README fences 289/310 carry `implement-next:` under agents.default. The class appears TWICE in
+# flatten_yaml — the shape test and the value strip — and widening only the shape test is a
+# half-fix that NOTHING ELSE IN THIS FILE CATCHES: the path count is identical either way
+# (3 paths on the fixture below, 11 on fences 289/310), so every count-based floor passes. The
+# half-fix is visible ONLY in the extracted VALUE, which comes back as the whole raw line. That
+# is why this asserts the value and not just the path.
+hyph_fix="$(printf 'agents:\n  default:\n    implement-next: { model: x, effort: y }\n')"
+hyph_out="$(printf '%s\n' "$hyph_fix" | flatten_yaml)"
+hyph_paths="$(printf '%s\n' "$hyph_out" | grep -c .)"
+hyph_val="$(printf '%s\n' "$hyph_out" | awk -F"$TAB9" '$1=="agents.default.implement-next"{print $2}')"
+assert "(9) flatten_yaml keeps a HYPHENATED key as its own path (got $hyph_paths paths, want 3)" \
+  '[ "$hyph_paths" = "3" ]'
+assert "(9) flatten_yaml STRIPS a hyphenated key from its value — half-fix guard; widening only the shape test leaves the whole raw line here and no count-based floor can see it (got [$hyph_val])" \
+  '[ "$hyph_val" = "{ model: x, effort: y }" ]'
 
 exit $fail
