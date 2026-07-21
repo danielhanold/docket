@@ -1,16 +1,16 @@
 ---
 id: 117
 slug: deferred-adr-publish-visibility-decide-whether-docket-adr-s
-title: Deferred ADR-publish visibility — decide whether docket-adr's publish path needs the Publish deferred marker
+title: Deferred ADR-publish visibility — detect an unpublished ADR with a computed board-checks finding
 status: proposed
 priority: medium
 created: 2026-07-21
 updated: 2026-07-21
 depends_on: []
-related: []
+related: [83, 118]
 discovered_from: [83]
-adrs: []
-spec:
+adrs: [51]
+spec: docs/superpowers/specs/2026-07-21-unpublished-adr-check-design.md
 plan:
 results:
 trivial: false
@@ -24,6 +24,10 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-07-21-unpublished-adr-check-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-21-unpublished-adr-check-design.md) |
+| ADRs | [ADR-0051](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0051-publish-deferred-marker-not-branch-diff-detector.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -47,29 +51,44 @@ it is the kind of gap that is cheap to close deliberately and expensive to redis
 
 ## What changes
 
-To be designed. The shape is genuinely open, and at least one honest outcome is "decline":
+**Detect, don't mark.** Add one computed health check — `adr-unpublished` — to
+`scripts/board-checks.sh`, which runs on every `docket-status` pass. It compares the ADR set on
+the metadata branch against the integration branch and reports what should have been published
+but was not. No marker, no writer, no removal path.
 
-- ADRs have **no archive seam** — an ADR file is never moved, so there is no obvious per-record
-  place to hang presence-encoded state the way an archived change file offers one.
-- An ADR's frontmatter is **immutable once `Accepted`** except its `status:` line, which rules
-  out a frontmatter field and makes a body marker awkward against that immutability rule.
-- Candidate shapes to weigh: a body marker on the ADR (tension with immutability); the marker
-  living on the **change** that produced the ADR (`change:` back-link) rather than the ADR
-  itself; an `adr-checks.sh` finding computed some other way; or deciding the ADR case is rare
-  enough that the change-record marker plus the existing loud `terminal-publish.sh` warning
-  suffices.
+- **Due rule.** An ADR is expected on the integration branch once its publish trigger has fired:
+  a standalone `Accepted` ADR immediately; a change-tied ADR when its change reaches `done` or
+  `killed`; and any ADR already present there must keep matching bytes, whatever its status.
+- **Two arms**, both `git cat-file` against local branch refs — no network: **missing** (due but
+  absent) and **stale** (present on both, bytes differ). One check-id, two messages, per the
+  `stale-in-progress` precedent.
+- **Gated** on `terminal_publish: true` AND docket-mode; `board-checks.sh` gains `--adrs-dir` and
+  `--terminal-publish`, passed through by `docket-status.sh`.
+- **Registered** in the four-site closed check-id vocabulary that `tests/test_board_checks.sh`
+  pins.
+
+The marker shape (extending `mark-publish-deferred.sh` to the ADR body) was considered and
+rejected: it fires only if the failing run noticed it failed, it has no seam to hang on (ADRs are
+never moved and are immutable once `Accepted`), and it cannot catch stale bytes from an
+un-re-published status flip. Design rationale and the ADR-0051 boundary are in the spec.
 
 ## Out of scope
 
-- Re-opening #0083's declined branch-diff detector/healer, or the `terminal_publish` knob's
-  semantics.
-- The classifier / branch-protection / `--admin` policy itself — not docket's to change.
+- A set-diff or audit over **change** records — #0083's decline stands; #0118 owns the adjacent
+  skip-publish question.
+- Any healer, re-publisher, or auto-fix. Report only.
+- Publishing ADR-0023 (the one ADR absent from `main`) — its change #0044 is `blocked`, so under
+  the due rule it is correctly absent and the check stays silent about it.
+- Wiring `adr-checks.sh` into the `docket-status` health pass. Its three existing checks are
+  invisible for the same caller reason, which is a real defect — but independent of this change.
+- The `terminal_publish` knob's semantics, and the classifier / branch-protection / `--admin`
+  policy — not docket's to change.
 
 ## Open questions
 
-- Is a deferred ADR publish actually reachable in practice, given `terminal-publish.sh`'s ADR
-  mode is driven by `docket-adr` rather than an interactive close-out where a human defers?
-- Does the ADR immutability rule permit a generated body marker, or does that force the marker
-  onto the producing change file?
-- Is the honest answer "decline and document", mirroring #0083's own refusal to build machinery
-  around a maintainer-owned wall?
+<!-- Resolved during grooming (2026-07-21). Reachability is settled: the ADR-only publish path
+     is live and has failed twice. The immutability question is moot — the design writes no
+     marker. "Decline and document" was weighed and rejected. One build-time call remains, in
+     spec §5: which value the finding's <change-id> column carries for a standalone ADR, under
+     ADR-0049's validated-values rule. -->
+
