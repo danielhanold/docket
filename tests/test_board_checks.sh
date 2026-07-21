@@ -998,5 +998,21 @@ for c in $emitted; do
 done
 assert "every EMITTED check-id is registered in both documentation surfaces (whole-word)" '[ "$reg_ok" -eq 1 ]'
 
+# --- S0: the DECLARED vocabulary, sourced as a real runtime array (change 0111) -----------------
+# board-checks.sh is NOT sourceable (it parses argv and runs the whole walk on source), so the
+# vocabulary is declared in the lib that board-checks.sh already sources at :52. That lets this
+# guard read the REAL array rather than parsing source text for it — the same mechanism
+# tests/test_render_board.sh:1883-1885 uses for DOCKET_STATUSES, and it deletes a whole class of
+# tokenizer fragility instead of relocating it.
+LIB="$REPO/scripts/lib/docket-frontmatter.sh"
+# shellcheck source=/dev/null
+source "$LIB"
+
+assert "BOARD_CHECK_IDS holds the 12 check-ids board-checks.sh emits" \
+  '[ "${#BOARD_CHECK_IDS[@]}" = 12 ]'
+assert "BOARD_CHECK_IDS SET == the set board-checks.sh actually emits (edit scripts/lib/docket-frontmatter.sh)" \
+  '[ -z "$(comm -3 <(printf "%s\n" "${BOARD_CHECK_IDS[*]}" | tr " " "\n" | sort -u) <(printf "%s\n" "$emitted"))" ] \
+   || { comm -3 <(printf "%s\n" "${BOARD_CHECK_IDS[*]}" | tr " " "\n" | sort -u) <(printf "%s\n" "$emitted") >&2; false; }'
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"

@@ -135,3 +135,21 @@ publish_deferred(){ # publish_deferred FILE  (meaningful on any change file, act
 DOCKET_STATUSES_ACTIVE=(in-progress proposed blocked deferred implemented)
 DOCKET_STATUSES_TERMINAL=(done killed)
 DOCKET_STATUSES=("${DOCKET_STATUSES_ACTIVE[@]}" "${DOCKET_STATUSES_TERMINAL[@]}")
+
+# --- board-checks check-id vocabulary (change 0111) --------------------------------------------
+# The CLOSED check-id vocabulary board-checks.sh emits. Declared HERE, beside DOCKET_STATUSES,
+# rather than in board-checks.sh itself, because board-checks.sh is not sourceable — a guard
+# wanting the set would have to parse its source text, manufacturing exactly the tokenizer that
+# can drift from what bash actually assigns. This lib IS sourceable (board-checks.sh sources it at
+# :52, well before emit() at :71), so tests/test_board_checks.sh reads the real runtime array.
+#
+# Accepted impurity: this lib's name says "frontmatter" and a check-id is not a frontmatter field.
+# Noted deliberately; rationalising the lib's naming is change 0116's charter.
+#
+# Every entry is pinned in BOTH directions against the set board-checks.sh emits, against the
+# script's own --help header enumeration, against scripts/board-checks.md's per-check sections, and
+# against scripts/docket-status.md's `check` report-line row. Adding a check-id means editing all
+# four surfaces; the guard's failure messages name them.
+BOARD_CHECK_IDS=(board-row-dropped broken-plan-results broken-spec dep-cycle field-domain
+                 malformed-id merge-gate-stall merged-orphan publish-deferred
+                 stale-finalize-blocked stale-in-progress unknown-commit-ref)
