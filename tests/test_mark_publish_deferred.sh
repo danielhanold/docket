@@ -58,7 +58,10 @@ assert "add writes a dated sub-heading"       'grep -qF -- "### 2026-07-08" "$f"
 assert "add names the integration branch"     'grep -q "terminal-publish to .main. not completed" "$f"'
 assert "add carries the reason prefix"        'grep -qF -- "**deferred**" "$f"'
 assert "add carries the free-text detail"     'grep -qF -- "pending human approval" "$f"'
-assert "add names the re-arm command"         'grep -qF -- "terminal-publish" "$f"'
+# NB: must assert on the "**Re-arm:**" marker itself, not just "terminal-publish" — that substring
+# is already satisfied by the `### <date> — terminal-publish to ...` sub-heading above, so a grep
+# for it alone would stay green even if the whole **Re-arm:** paragraph were deleted.
+assert "add names the re-arm command"         'grep -qF -- "**Re-arm:**" "$f"'
 assert "add preserves pre-existing body"      'grep -qxF -- "## Why killed" "$f"'
 assert "add preserves frontmatter"            'grep -qxF -- "id: 43" "$f"'
 
@@ -71,7 +74,9 @@ assert "re-mark exits zero"                             '[ "$rc" -eq 0 ]'
 assert "re-mark leaves EXACTLY ONE marker heading"      '[ "$n" -eq 1 ]'
 assert "re-mark replaced the old reason"                '! grep -qF -- "pending human approval" "$f"'
 assert "re-mark carries the new reason"                 'grep -qF -- "direct push to protected main" "$f"'
-assert "re-mark still preserves the trailing section"   'grep -qxF -- "## Why killed" "$f"'
+# NB: `## Why killed` PRECEDES the marker here — mkfile's fixture always appends the marker LAST,
+# so this only exercises a section that comes BEFORE the marker, never a genuine trailing one.
+assert "re-mark still preserves the preceding section"  'grep -qxF -- "## Why killed" "$f"'
 
 # --- remove ------------------------------------------------------------------------------------
 out="$(bash "$SCRIPT" --mode remove --change-file "$f" 2>&1)"; rc=$?
@@ -79,15 +84,51 @@ body="$(cat "$f")"
 assert "remove exits zero"                          '[ "$rc" -eq 0 ]'
 assert "remove strips the marker heading"           '! grep -qxF -- "$MARKER" "$f"'
 assert "remove strips the marker body"              '! grep -qF -- "direct push to protected main" "$f"'
-assert "remove PRESERVES the following section"     'grep -qxF -- "## Why killed" "$f"'
-assert "remove preserves the preceding section"     'grep -qxF -- "## Why" "$f"'
+# NB: both of these are sections that PRECEDE the marker (mkfile always appends the marker LAST) —
+# renamed from "remove PRESERVES the following section" / "remove preserves the preceding section",
+# which mis-described the fixture: neither ever exercised a section genuinely AFTER the marker.
+assert "remove preserves the immediately-preceding section" 'grep -qxF -- "## Why killed" "$f"'
+assert "remove preserves an earlier preceding section"      'grep -qxF -- "## Why" "$f"'
 assert "remove preserves frontmatter"               'grep -qxF -- "id: 43" "$f"'
 
-# remove on a file with NO marker is an idempotent no-op
-before="$(cat "$f")"
+# --- a genuine TRAILING section (marker in the MIDDLE of the file) must survive removal ----------
+# mkfile + `--mode add` always appends the marker LAST, so every assert above only ever covered a
+# section that precedes the marker. This is the actual scenario the section-terminator guard (the
+# next column-0 `## ` heading ends the section) exists for: append a real `## ` section AFTER the
+# marker directly to the file (never through the script, which cannot produce this layout), then
+# confirm `--mode remove` strips the marker while leaving the trailing section intact.
+f6="$(mkfile)"
+bash "$SCRIPT" --mode add --change-file "$f6" --reason deferred --detail "d" \
+     --date 2026-07-08 --integration-branch main --id 43 >/dev/null 2>&1
+printf '\n## Something Else\n\nTrailing content that must survive.\n' >> "$f6"
+bash "$SCRIPT" --mode remove --change-file "$f6" >/dev/null 2>&1
+assert "remove with marker in the MIDDLE strips the marker"        '! grep -qxF -- "$MARKER" "$f6"'
+# The marker's OWN `### <date> …` sub-heading must not leak either — this is the actual guard a
+# broadened terminator (e.g. `/^#/` instead of `/^## /`) would break: it would treat that
+# sub-heading as the section end, printing it and everything after (including the marker's own
+# reason line) verbatim instead of skipping through to the real trailing section.
+assert "remove with marker in the MIDDLE strips the marker's dated sub-heading" \
+       '! grep -q "terminal-publish to .main. not completed" "$f6"'
+assert "remove with marker in the MIDDLE strips the marker's reason line" \
+       '! grep -qF -- "**deferred** — d" "$f6"'
+assert "remove with marker in the MIDDLE preserves the trailing section heading" \
+       'grep -qxF -- "## Something Else" "$f6"'
+assert "remove with marker in the MIDDLE preserves the trailing section body" \
+       'grep -qF -- "Trailing content that must survive." "$f6"'
+
+# remove on a file with NO marker must be a TRUE no-op: byte-identical, not just line-identical.
+# `$(cat "$f")` (command substitution) strips trailing newlines, so comparing that way would stay
+# green even if `remove` silently rewrote the file and dropped trailing blank lines — exactly the
+# CRITICAL regression this guards: give the file trailing blank lines first, then compare raw
+# bytes with `cmp`, never through a variable.
+printf '\n\n' >> "$f"
+before_copy="$(mktemp)"
+cp "$f" "$before_copy"
 out="$(bash "$SCRIPT" --mode remove --change-file "$f" 2>&1)"; rc=$?
-assert "remove with no marker exits zero"      '[ "$rc" -eq 0 ]'
-assert "remove with no marker changes nothing" '[ "$before" = "$(cat "$f")" ]'
+assert "remove with no marker exits zero" '[ "$rc" -eq 0 ]'
+assert "remove with no marker leaves the file BYTE-IDENTICAL (trailing blank lines untouched)" \
+       'cmp -s "$before_copy" "$f"'
+rm -f "$before_copy"
 
 # --- marker LAST in the file: removal must not eat the file, nor leave a dangling tail ----------
 f2="$(mkfile)"

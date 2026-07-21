@@ -19,7 +19,8 @@
 #   --mode add     Write the marker. IDEMPOTENT BY REPLACEMENT: an existing section is removed
 #                  first, so a re-mark never appends a second heading (the presence-encoded-state
 #                  failure re-hit on `## Finalize blocked`). The section is appended LAST.
-#   --mode remove  Strip the marker. A file without one is a no-op that exits 0.
+#   --mode remove  Strip the marker. A file without one is a no-op that exits 0, leaving the file
+#                  byte-untouched (no write at all — the trailing-blank-line trim below never runs).
 #   --reason       Fixed prefix: `deferred` (a human gate that was never answered) or `blocked`
 #                  (a wall the run could not pass, e.g. a protected-branch push denial).
 #   --detail       Short free text after the prefix. MODEL-AUTHORED ⇒ UNTRUSTED: rejected at
@@ -91,7 +92,15 @@ trap cleanup EXIT
 
 if [ "$MODE" = remove ]; then
   strip_marker "$CHANGE_FILE" > "$tmp" || die "strip failed"
-  # Trim any trailing blank lines the strip left, then restore a single terminating newline.
+  if cmp -s "$tmp" "$CHANGE_FILE"; then
+    # strip_marker found no `## Publish deferred` line to skip, so its output is byte-identical to
+    # the input: no marker was present. A true no-op must leave the file byte-untouched — do NOT
+    # fall through to the trailing-blank-line trim below, which would rewrite (and strip blank
+    # lines from) a file that never had a marker in the first place.
+    exit 0
+  fi
+  # A marker WAS present and just got stripped: trim any trailing blank lines that left behind,
+  # then restore a single terminating newline.
   awk 'BEGIN{n=0} {lines[++n]=$0} END{ last=n; while (last>0 && lines[last]=="") last--; for(i=1;i<=last;i++) print lines[i] }' "$tmp" > "$tmp.2" || die "trim failed"
   mv "$tmp.2" "$CHANGE_FILE" || die "write failed"
   exit 0

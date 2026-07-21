@@ -23,7 +23,7 @@ mark-publish-deferred.sh --mode remove --change-file PATH
 | Flag | Meaning |
 |---|---|
 | `--mode add` | Write the marker. **Idempotent by replacement** — an existing section is stripped first, so a re-mark never appends a second heading. Appended last in the file. |
-| `--mode remove` | Strip the marker. A file carrying none is a no-op that exits 0. |
+| `--mode remove` | Strip the marker. A file carrying none is a no-op that exits 0 and writes nothing — the file is left byte-untouched, not merely line-equivalent. |
 | `--change-file` | Path to the change file **in the metadata working tree**. Required; must exist and be writable. |
 | `--reason` | Fixed prefix, `add` only: `deferred` (a human gate never answered) or `blocked` (a wall the run could not pass). |
 | `--detail` | Short single-line free text after the prefix. Optional. |
@@ -37,7 +37,10 @@ mark-publish-deferred.sh --mode remove --change-file PATH
 `### <date> — terminal-publish to \`<branch>\` not completed` sub-heading; a
 `**<reason>** — <detail>` line; the standing prose naming what did not run and where the record
 lives; and a `**Re-arm:**` line. `remove` deletes from the heading through the line before the
-next column-0 `## ` heading (or EOF), then trims trailing blank lines.
+next column-0 `## ` heading (or EOF), then trims trailing blank lines — but only when a marker was
+actually found and stripped. If the file carries no marker, `remove` performs no write at all (not
+even a no-op rewrite): the trailing-blank-line trim never runs, so pre-existing trailing blank
+lines in a markerless file are preserved exactly.
 
 ## Exit codes
 
