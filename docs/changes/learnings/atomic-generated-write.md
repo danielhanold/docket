@@ -2,9 +2,9 @@
 slug: atomic-generated-write
 hook: "Never redirect a renderer straight into the file it generates — > truncates on open, so a failed render destroys the last-good file before its exit code is even read."
 topics: [shell, dataloss, generated]
-changes: [67, 109]
+changes: [67, 109, 83]
 created: 2026-07-16
-updated: 2026-07-20
+updated: 2026-07-21
 promotion_state: candidate
 promoted_to:
 ---
@@ -58,3 +58,16 @@ state most needs.
   in-repo temp+`mv` target is a non-executable data or doc file, and the two scripts that rewrite a
   tracked artifact through a temp file already handle mode deliberately (`board-refresh.sh` normalizes
   to 644 with a comment; `ensure-docket-env.sh` captures and restores the prior mode).
+- 2026-07-21 (#83, PR #114) — **temp+`mv` is only half the protection: a COMPOUND render block
+  reports the exit status of its LAST command, so a failed base copy passes the `|| die` and the
+  `mv` publishes the fragment.** `mark-publish-deferred.sh` rendered with
+  `{ cat "$tmp.2"; printf …; } > "$tmp.3" || die`. The idiom looks right — same-directory temp, `mv`
+  at the end, exit code checked — and it still loses the whole record: an ENOSPC/EIO on the `cat`
+  leaves `$tmp.3` holding only the marker section, the `printf` succeeds, the block's status is 0,
+  the `die` never fires, and the `mv` writes a body-less file over the archived change record at
+  exit 0. The prescription this finding already carries (`[ -s "$tmp" ]`) does not catch it either:
+  the fragment is non-empty. Fixed by splitting the block so each write is checked separately, plus
+  a size postcondition — documented in code and contract as a **gross-truncation check, not a proof
+  of fidelity**, because no cheap size assertion can distinguish a legitimately shrinking render
+  from a partial one. The general rule: `-s` proves *something* was written, never that *everything*
+  was; when a render concatenates independent sources, check each source, not just the block.

@@ -2,9 +2,9 @@
 slug: guards-are-code
 hook: "A guard is code — mutation-test it (strip the feature, watch it go red) or it is decoration."
 topics: [testing, sentinels, mutation]
-changes: [14, 15, 21, 36, 37, 64, 65, 67, 68, 69, 70, 71, 72, 73, 74, 84, 88, 91, 96, 101, 106, 107]
+changes: [14, 15, 21, 36, 37, 64, 65, 67, 68, 69, 70, 71, 72, 73, 74, 83, 84, 88, 91, 96, 101, 106, 107]
 created: 2026-06-17
-updated: 2026-07-20
+updated: 2026-07-21
 promotion_state: promoted
 promoted_to: AGENTS.md
 ---
@@ -193,3 +193,25 @@ lib. A snippet the PLAN hands you is unvetted code: mutation-test it like any as
   instead of only the count. The change existed at all because a *comment* was the sole assertion
   of this property and had already shipped it backwards once (`a9da1e2`, caught only at review) —
   a comment is a claim, not a guard (see [[verify-the-claim]]).
+- 2026-07-21 (#83, PR #114) — **A guard derived BY grepping the file it guards can be tautological,
+  and a COUNT comparison is blind to a rename.** The check-id registration guard — written
+  specifically so #98's unregistered check-id could not recur — had teeth for only **10 of 12** ids.
+  Three independent holes, each of a class this finding names, stacked in one guard:
+  (a) **Wrong anchor, again at line position** (class (a)/(c)) — it derived the emitted set with
+  `grep -oE '^[[:space:]]*emit [a-z-]+'`, so the `cond || emit …` idiom used twice in
+  `board-checks.sh` was invisible. The reviewer proved it by deleting `broken-spec` from the
+  enumeration and watching the guard stay **green**. #104 hit this same anchor bug in a *plan's
+  verification command*; here it shipped inside the guard itself.
+  (b) **Tautological arm** — `grep -qF -- "$c" "$BCSH"` can never fail, because `$emitted` was
+  itself derived by grepping `$BCSH`. A guard that checks its own input against its own source
+  proves the identity, not the contract. Whenever a guard derives one side of a comparison from
+  the artifact it is asserting about, the other side must come from somewhere else entirely.
+  (c) **A count where a SET was meant** — `12 = 12` passes under a rename, because renaming an id
+  removes one and adds one. Proven by misspelling an id in the header only. Now an exact `comm -3`
+  set compare, matching `test_docket_facade.sh`'s idiom for the same class.
+  And the pass that FIXED all this shipped two decoration guards of its own: the HEAD-on-branch
+  guard and the fail-closed postcondition could each be deleted outright with the suite green,
+  while the fix report asserted "every guard added in this pass is load-bearing." **A fix round
+  applying this rule is not exempt from it** — the report's claim was false, and only a mutation
+  run caught that. Both are now driven into their `die` branch by dedicated fixtures (`MHEAD=5`,
+  `MPOST=4`).
