@@ -10,7 +10,7 @@ depends_on: []
 related: [33, 43, 64, 95]
 adrs: [1]
 spec: docs/superpowers/specs/2026-07-18-terminal-publish-gap-detection-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-21-terminal-publish-gap-detection.md
 results:
 trivial: false
 auto_groomable: false
@@ -27,6 +27,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-18-terminal-publish-gap-detection-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-18-terminal-publish-gap-detection-design.md) |
+| Plan | [2026-07-21-terminal-publish-gap-detection.md](https://github.com/danielhanold/docket/blob/feat/terminal-publish-gap-detection/docs/superpowers/plans/2026-07-21-terminal-publish-gap-detection.md) |
 | ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md) |
 <!-- docket:artifacts:end -->
 
