@@ -94,10 +94,8 @@ finalize:
   # merges an eligible implemented change without requiring a GitHub approval. true: the no-arg
   # path REFUSES to merge a PR whose reviewDecision != APPROVED, surfacing it instead.
   # An explicit `docket-finalize-change <id>` (or an id allowlist) always OVERRIDES this —
-  # naming the id IS the authorization. Read by the finalize skill body, not by any script.
-  # scope: repo-committed .docket.yml only — read by the finalize SKILL BODY, not by the config
-  #        resolver, so a value in .docket.local.yml or the global config is silently ignored
-  #        (no warning, unlike a coordination-fenced key).
+  # naming the id IS the authorization.
+  # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
   require_pr_approval: false
 
 
