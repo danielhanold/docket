@@ -943,10 +943,34 @@ assert "board-checks still exits 0 with publish-deferred findings (warn-only)" \
 # EMIT must appear in the script's own header set, in board-checks.md, and in docket-status.md's
 # closed enumeration. Anchored on the emitting code so a new check-id added without registering
 # reddens here (change 0104's three-mirror drift; tracked structurally as change 0111).
+#
+# The derivation keys on the call's SYNTACTIC SHAPE (`emit <id> "`), never on line position. An
+# earlier version anchored `^[[:space:]]*emit`, requiring `emit` to be the first token on its
+# line; it silently missed every `cond || emit ...` call (board-checks.sh:197 and :206 — the
+# broken-spec / broken-plan-results idiom), so the guard was decoration for 2 of the 12 real
+# check-ids, and for any future check-id written with that idiom. `emit <id> "` doesn't care what
+# precedes it on the line, and does NOT match the English "emit a table row" prose comment on :94
+# — a real call is always `emit` + identifier + a quoted change-id argument; prose never quotes
+# like that.
 BCSH="$REPO/scripts/board-checks.sh"; BCMD="$REPO/scripts/board-checks.md"; DSMD="$REPO/scripts/docket-status.md"
-emitted="$(grep -oE '^[[:space:]]*emit [a-z-]+' "$BCSH" | awk '{print $2}' | sort -u)"
-assert "emitted check-id set is non-empty (the grep itself is not vacuous)" \
-  '[ "$(printf "%s\n" "$emitted" | grep -c .)" -ge 8 ]'
+emitted="$(grep -oE 'emit [a-z][a-z-]*[[:space:]]+"' "$BCSH" | awk '{print $2}' | sort -u)"
+
+# Non-vacuity, CROSS-CHECKED rather than a hand-picked floor: a magic number like the old `-ge 8`
+# sits below the true count by construction, so it can never catch an under-derivation — it didn't
+# catch this file's own bug (10 cleared an `-ge 8` floor while the real count was 12). Instead
+# derive an INDEPENDENT count from the script's own header comment (`check-id ∈ {...}`, see
+# board-checks.sh:11-13 — the set spans three comment lines, so the extraction joins them before
+# parsing) and assert the two counts agree. An under-derivation now disagrees with the header
+# instead of merely clearing a floor both the buggy and correct counts satisfy.
+header_ids="$(sed -n '/check-id ∈ {/,/}/p' "$BCSH" | sed -E 's/^#[[:space:]]*//' | tr '\n' ' ' \
+  | sed -E 's/.*\{([^}]*)\}.*/\1/' | tr ',' '\n' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//' \
+  | grep -v '^$' | sort -u)"
+emitted_count="$(printf '%s\n' "$emitted" | grep -c .)"
+header_count="$(printf '%s\n' "$header_ids" | grep -c .)"
+assert "the header's own check-id enumeration is non-empty (the cross-check itself is not vacuous)" \
+  '[ "$header_count" -ge 1 ]'
+assert "emitted check-id count matches the header's own check-id ∈ {...} enumeration (an under- or over-derivation would disagree)" \
+  '[ "$emitted_count" -eq "$header_count" ]'
 assert "publish-deferred is among the emitted check-ids" \
   'printf "%s\n" "$emitted" | grep -qxF "publish-deferred"'
 reg_ok=1
