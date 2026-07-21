@@ -1132,6 +1132,24 @@ FINALIZE_TEST_COMMAND=__poison__
 out="$(rung "$tmp/s7.xdg" "$tmp/s7" --export)"; eval "$out"
 assert "0112 s7: committed auto does NOT wipe local real command" '[ "$FINALIZE_TEST_COMMAND" = "make local-test" ]'
 
+# (s8) REVERSE, skip-rung: a global `auto` must NOT wipe a LOCAL real command.
+# Committed rung leaves the KEY absent -- .docket.yml still exists and still pins main-mode,
+# matching s5's first phase. (Dropping the file entirely also resolves correctly; it would just
+# route this fixture through BOOTSTRAP=CREATE_ORPHAN, which is why the file is kept.)
+mkrepo "$tmp/s8"
+mkdir -p "$tmp/s8.xdg/docket"
+printf 'finalize:\n  test_command: auto\n' > "$tmp/s8.xdg/docket/config.yml"
+cat > "$tmp/s8/.docket.yml" <<'EOF'
+metadata_branch: main
+integration_branch: main
+EOF
+git -C "$tmp/s8" add .docket.yml; git -C "$tmp/s8" commit --quiet -m cfg
+git -C "$tmp/s8" push --quiet origin main
+printf 'finalize:\n  test_command: make local-test\n' > "$tmp/s8/.docket.local.yml"
+FINALIZE_TEST_COMMAND=__poison__
+out="$(rung "$tmp/s8.xdg" "$tmp/s8" --export)"; eval "$out"
+assert "0112 s8: global auto does NOT wipe local real command (committed key absent)" '[ "$FINALIZE_TEST_COMMAND" = "make local-test" ]'
+
 # ============================================================================
 # Change 0102 — finalize.require_pr_approval layer resolution
 # ============================================================================
