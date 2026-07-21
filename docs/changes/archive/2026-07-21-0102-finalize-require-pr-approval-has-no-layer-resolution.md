@@ -2,7 +2,7 @@
 id: 102
 slug: finalize-require-pr-approval-has-no-layer-resolution
 title: finalize.require_pr_approval has no layer resolution
-status: implemented
+status: done
 priority: medium
 created: 2026-07-19
 updated: 2026-07-21
@@ -16,7 +16,7 @@ results: docs/results/2026-07-21-finalize-require-pr-approval-has-no-layer-resol
 trivial: false
 auto_groomable:
 branch: feat/finalize-require-pr-approval-has-no-layer-resolution
-claimed_at: 2026-07-21T15:25:12Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/115
 blocked_by:
 reconciled: true
