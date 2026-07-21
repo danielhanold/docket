@@ -928,6 +928,42 @@ fence_body(){
   ' "$1"
 }
 
+# MARKER GRAMMAR. Two markers attach to a fence:
+#   <!-- docket:config-fence: ignore -->   not .docket.yml schema — skip this fence entirely
+#   <!-- docket:config-fence: values -->   also assert value equality against the example
+#
+# ATTACHMENT is the NEAREST PRECEDING NON-BLANK line, not strictly the line above. Fence 576
+# forces this: it is a list-item continuation preceded by a blank line, and a column-0 HTML
+# comment there would terminate the enclosing list. So the marker may carry leading whitespace,
+# and must sit at AT LEAST its fence's own indent.
+#
+# AN UNKNOWN OR MALFORMED TOKEN IS A HARD FAIL, never warned-and-ignored, because the two mistake
+# directions are ASYMMETRIC: a typo'd `ignore` fails safe (the fence is still checked and
+# reddens, loudly), but a typo'd `values`, a typo'd marker name, or a bare
+# `<!-- docket:config-fence -->` fails OPEN AND SILENT — value coverage evaporates with no signal,
+# which is precisely the drift class this change exists to end. Any line matching
+# docket:config-fence that does not match the exact grammar reddens.
+#
+# AT MOST ONE MARKER PER FENCE; a second reddens rather than one silently winning.
+fence_marker(){
+  awk -v s="$2" -v find="$3" '
+    NR >= s { exit }
+    $0 !~ /^[[:space:]]*$/ { prev2 = prev1; prev1 = $0 }
+    END {
+      if (prev1 !~ /docket:config-fence/) { print "NONE"; exit }
+      if (prev2 ~ /docket:config-fence/)  { print "BAD duplicate-marker"; exit }
+      mind = match(prev1, /[^[:space:]]/) - 1
+      if (mind < find) { print "BAD marker-indent-below-fence"; exit }
+      if (prev1 ~ /^[[:space:]]*<!--[[:space:]]+docket:config-fence:[[:space:]]+(ignore|values)[[:space:]]+-->[[:space:]]*$/) {
+        t = prev1
+        sub(/^.*docket:config-fence:[[:space:]]*/, "", t)
+        sub(/[[:space:]]*-->.*$/, "", t)
+        print "TOKEN " t
+      } else { print "BAD malformed-marker" }
+    }
+  ' "$1"
+}
+
 # NON-VACUITY FLOOR 1 — the population itself. (9) iterates a DISCOVERED set, so its real failure
 # mode is discovering ZERO fences and sailing through green. An EXACT count also catches the
 # opposite direction (an undocumented fence added without keys in the example). The remedy is
@@ -987,9 +1023,17 @@ ex9_paths="$(printf '%s\n' "$ex_flat" | cut -f1)"
 # Takes the path as an argument (not the $README global) so the marker tests in Task 5 can scan a
 # temporary fixture instead of mutating the real README.
 scan_fences(){
-  local md="$1" line ind body flatout flat raw p pv top
+  local md="$1" line ind body flatout flat raw p pv top marker token
   while IFS="$TAB9" read -r line ind; do
     [ -n "$line" ] || continue
+    marker="$(fence_marker "$md" "$line" "$ind")"
+    case "$marker" in
+      NONE)      token="" ;;
+      "TOKEN "*) token="${marker#TOKEN }" ;;
+      "BAD "*)   echo "marker $line ${marker#BAD }"; continue ;;
+      *)         echo "marker $line unparseable"; continue ;;
+    esac
+    [ "$token" = "ignore" ] && continue
     body="$(fence_body "$md" "$line" "$ind")"
     flatout="$(printf '%s\n' "$body" | flatten_yaml)"
     flat="$(printf '%s\n' "$flatout" | grep -c .)"
@@ -1030,5 +1074,31 @@ assert "(9) every config fence flattens to at least one key (fence lines listed;
 f9_drop="$(printf '%s\n' "$findings9" | grep '^drop ' | sed 's/^drop //' | tr '\n' ' ')"
 assert "(9) the flattener drops no key-shaped line in any fence (raw content lines vs flattened, per fence; ${f9_drop:-none dropped})" \
   '[ -z "$f9_drop" ]'
+
+f9_marker="$(printf '%s\n' "$findings9" | grep '^marker ' | sed 's/^marker //' | tr '\n' ' ')"
+assert "(9) every docket:config-fence marker parses (fence-line + reason; ${f9_marker:-none malformed})" \
+  '[ -z "$f9_marker" ]'
+
+# The ignore path has ZERO exercise in the README — all nine fences today are config fences — so
+# without a fixture it would ship with its only branch untested. Assert it POSITIVELY on a
+# temporary fixture rather than by adding a real ignored fence to the README. This is why the
+# helpers above take a markdown path as an ARGUMENT instead of reading $README.
+fx9="$tmp/fence-fixture.md"
+printf '# Fixture\n\n<!-- docket:config-fence: ignore -->\n```yaml\nnot_a_docket_key: true\n```\n' > "$fx9"
+fx9_count="$(fence_openers "$fx9" | grep -c .)"
+assert "(9) fixture scaffold is valid — one discoverable fence (got $fx9_count)" '[ "$fx9_count" = "1" ]'
+fx9_marker="$(fence_marker "$fx9" 4 0)"
+assert "(9) an ignore marker parses to its token (got $fx9_marker)" '[ "$fx9_marker" = "TOKEN ignore" ]'
+fx9_findings="$(scan_fences "$fx9")"
+assert "(9) an ignore-marked fence is skipped entirely — its non-schema key raises nothing (got [${fx9_findings}])" \
+  '[ -z "$fx9_findings" ]'
+
+# ...and the SAME fixture without the marker must report the key, so the assert above is proven to
+# be the marker working rather than the fixture being invisible to the scanner.
+fx9b="$tmp/fence-fixture-unmarked.md"
+printf '# Fixture\n\n```yaml\nnot_a_docket_key: true\n```\n' > "$fx9b"
+fx9b_findings="$(scan_fences "$fx9b")"
+assert "(9) the same fence WITHOUT the ignore marker does report its key — proves the skip is the marker, not an invisible fixture (got [${fx9b_findings}])" \
+  '[ "$fx9b_findings" = "miss 3 not_a_docket_key" ]'
 
 exit $fail
