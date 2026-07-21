@@ -41,33 +41,6 @@ assert "config-parse: gate off (opt-out)"    '[ "$(gate_of "$TMPC/off.yml")"   =
 assert "config-parse: absent block => local" '[ "$(gate_of "$TMPC/absent.yml")" = "local" ]'
 rm -rf "$TMPC"
 
-# ---- Config parse: the nested finalize.require_pr_approval key (default false) -
-# Same block-scoped awk idiom as gate_of; SIGPIPE-safe (capture, no producer|grep).
-rpa_of(){  # $1 = path to a .docket.yml ; echoes true|false (default false)
-  local v
-  v="$(awk '
-    /^finalize:[[:space:]]*$/{f=1;next}
-    f&&/^[^[:space:]#]/{f=0}
-    f&&/^[[:space:]]+require_pr_approval[[:space:]]*:/{
-      line=$0; sub(/#.*/,"",line); sub(/.*require_pr_approval[[:space:]]*:[[:space:]]*/,"",line);
-      gsub(/[[:space:]]/,"",line); print line; exit
-    }' "$1" 2>/dev/null)"
-  printf '%s' "${v:-false}"
-}
-TMPR="$(mktemp -d)"
-printf 'finalize:\n  require_pr_approval: true\n'  > "$TMPR/true.yml"
-printf 'finalize:\n  require_pr_approval: false\n' > "$TMPR/false.yml"
-printf 'finalize:\n  gate: local\n'                > "$TMPR/nokey.yml"   # finalize block, no rpa key
-printf 'metadata_branch: docket\n'                 > "$TMPR/absent.yml"  # no finalize block
-assert "rpa-parse: require_pr_approval true"            '[ "$(rpa_of "$TMPR/true.yml")"   = "true" ]'
-assert "rpa-parse: require_pr_approval false"           '[ "$(rpa_of "$TMPR/false.yml")"  = "false" ]'
-assert "rpa-parse: key absent in finalize => false"     '[ "$(rpa_of "$TMPR/nokey.yml")"  = "false" ]'
-assert "rpa-parse: no finalize block => false"          '[ "$(rpa_of "$TMPR/absent.yml")" = "false" ]'
-# A commented knob must parse as the default (commented line is not a key):
-printf 'finalize:\n  # require_pr_approval: false\n'    > "$TMPR/commented.yml"
-assert "rpa-parse: commented knob => default false"     '[ "$(rpa_of "$TMPR/commented.yml")" = "false" ]'
-rm -rf "$TMPR"
-
 # ---- finalize SKILL documents require_pr_approval with default false ----------
 # Two sharp anchors (not one broad "require_pr_approval.*default.*false" that the YAML
 # comment AND the prose both satisfy — dropping the substantive prose would leave it green):
@@ -82,17 +55,23 @@ assert "finalize ties require_pr_approval to the auto-detect path + unapproved P
 # ---- the canonical example carries the knob, active, at its default ----------
 # Change 0101 moved the user-facing config documentation out of this repo's own .docket.yml
 # (now values-only) and into .docket.example.yml, where every key ships ACTIVE at its default.
-# So the discoverability assert follows the documentation, and the value assert gets stronger:
-# rpa_of now parses a live key rather than a commented one.
+# So the discoverability assert follows the documentation.
+#
+# task-3 review (finding 4): this section used to route its default-value check through an
+# rpa_of() awk YAML parser mirroring gate_of()'s idiom. rpa_of is now removed — it was dead
+# weight, not real coverage: require_pr_approval is resolver-read in product code
+# (scripts/docket-config.sh, layer-tested in tests/test_docket_config.sh), .docket.example.yml is
+# pure documentation no docket tooling reads (see test_docket_example_yml.sh's header), and
+# rpa_of's only call sites were self-built fixtures round-tripping through rpa_of itself plus this
+# one documentation-only file — no product code path was ever exercised by it. The value check
+# below now greps the example directly, same shape as its neighboring active-key check.
 assert "the example mentions require_pr_approval (discoverability)" \
   'grep -q "require_pr_approval" "$EXAMPLE"'
-# The key must be present and ACTIVE, not merely mentioned in prose: rpa_of returns the
-# documented default "false" for an ABSENT key, so the value assert below cannot by itself
-# distinguish "ships at false" from "missing entirely". This anchors it.
+# The key must be present and ACTIVE, not merely mentioned in prose.
 assert "the example ships require_pr_approval as an active key" \
   'grep -qE "^[[:space:]]+require_pr_approval[[:space:]]*:" "$EXAMPLE"'
 assert "the example leaves require_pr_approval at default false" \
-  '[ "$(rpa_of "$EXAMPLE")" = "false" ]'
+  'grep -Eq "^[[:space:]]+require_pr_approval[[:space:]]*:[[:space:]]*false([[:space:]]|$)" "$EXAMPLE"'
 
 # ---- Selection: ambiguity-only prompting (the §4.1 matrix) --------------------
 # Anchor each assert to the UNIQUE phrase its matrix row owns (LEARNINGS #15) — not a

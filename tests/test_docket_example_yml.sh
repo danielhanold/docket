@@ -184,15 +184,32 @@ assert "runners.codex.sandbox is still read by the codex adapter" \
 
 # change 0102: require_pr_approval is now RESOLVER-read. The skill still NAMES the policy (that is
 # what the (2c) consumer grep anchors on), but it must obtain the VALUE from the Step-0 export
-# block — never by parsing .docket.yml itself. The second assert is the sole-channel proof: a
-# reintroduced direct read would make a machine-scoped value honored on one path and ignored on
-# the other, which is precisely the bug 0102 closed, returning as an intermittent one.
+# block — never by parsing .docket.yml itself. The next two asserts are the sole-channel proof.
+# Reviewed and replaced (task-3 review, finding 1): the original single "does not parse .docket.yml"
+# assert required the key name and the framing string on the SAME line, which no line in this file
+# has ever satisfied — it was vacuous on day one and stayed green under both a revert of SKILL.md:108
+# and a bolted-on fallback sentence (mutation-tested; see task-3-report.md). Replaced with two
+# assertions anchored on the real positive/negative shape of the sole-channel contract:
 assert "require_pr_approval is still named by the finalize skill body" \
   'grep -q "require_pr_approval" "$REPO/skills/docket-finalize-change/SKILL.md"'
-assert "0102: the finalize skill reads the EXPORTED value" \
-  'grep -q "FINALIZE_REQUIRE_PR_APPROVAL" "$REPO/skills/docket-finalize-change/SKILL.md"'
-assert "0102: the finalize skill does not parse .docket.yml for the key" \
-  '! grep -nE "require_pr_approval" "$REPO/skills/docket-finalize-change/SKILL.md" | grep -q "Configured by .\?\.docket\.yml"'
+# (finding 2) Anchored on the PROVENANCE clause at SKILL.md:120 — the sentence that actually tells
+# the agent where the value comes from — not a bare "does FINALIZE_REQUIRE_PR_APPROVAL appear
+# anywhere" check. FINALIZE_REQUIRE_PR_APPROVAL also appears at SKILL.md:108's config-block framing
+# sentence, so an existence-anywhere grep stays green even if this :120 clause is deleted outright;
+# this requires the full provenance phrase (mutation-tested against deleting the clause).
+assert "0102: the finalize skill's provenance clause (SKILL.md:120) ties FINALIZE_REQUIRE_PR_APPROVAL to the Step-0 export block as the sole channel" \
+  'grep -Eq "reads its resolved value as.{0,20}FINALIZE_REQUIRE_PR_APPROVAL.{0,30}Step-0 export block.{0,20}sole channel" "$REPO/skills/docket-finalize-change/SKILL.md"'
+# (finding 1a) Positive framing: SKILL.md:108 states the sole-channel rule as "never by parsing
+# .docket.yml", tied to the exported keys it names. Reverting :108 back to its pre-0102 framing
+# ("Configured by `.docket.yml`:") removes this phrase entirely, reddening this assert.
+assert "0102: the finalize skill states its sole channel positively (never by parsing .docket.yml, SKILL.md:108)" \
+  'grep -Eq "FINALIZE_REQUIRE_PR_APPROVAL.{0,20}never by parsing.{0,15}\.docket\.yml" "$REPO/skills/docket-finalize-change/SKILL.md"'
+# (finding 1b) Negative guard: no bolted-on fallback sentence ("...fall back to reading
+# require_pr_approval from .docket.yml") — the explicit no-fallback-by-design contract. The
+# positive assert above cannot catch an ADDED fallback sentence (it would leave "never by parsing"
+# untouched), so this is the second, independent mutation target.
+assert "0102: the finalize skill documents no .docket.yml fallback for the key" \
+  '! grep -niE "fall(s|ing)?[ -]?back" "$REPO/skills/docket-finalize-change/SKILL.md" | grep -qiE "\.docket\.yml|require_pr_approval"'
 
 # The standing rule is STATED in the header (and enforced by the loop above).
 assert "example header states the must-update rule" \
