@@ -1027,13 +1027,22 @@ git -C "$tmp/s3" push --quiet origin main
 out="$(run "$tmp/s3" --export)"; eval "$out"
 assert "test_command AUTO is NOT the sentinel (case-sensitive)" '[ "$FINALIZE_TEST_COMMAND" = "AUTO" ]'
 
-# --- (S4/S5/S6) change 0106: the sentinel's CROSS-LAYER masking -------------
+# --- (S4-S9) changes 0106 + 0112: the sentinel's CROSS-LAYER masking --------
 # The collapse at scripts/docket-config.sh:202 runs AFTER the :195 resolution chain. That
 # placement is the whole point: a HIGHER layer writing `test_command: auto` MASKS a LOWER
 # layer's real command, which is the correct reading of an explicit re-statement of the
 # default. Collapse per-layer instead and the behavior silently INVERTS — the higher `auto`
 # becomes empty, the `:-` chain falls through, and the lower command resurfaces.
 # Sections s/s2/s3 above are all single-layer, so none of them can see this. These do.
+#
+# 0106 pinned three of the six ordered rung pairs; 0112 completes the matrix with s7/s8/s9.
+# Writing each pair as (rung holding `auto` -> rung holding the real command):
+#   forward (higher `auto` masks lower real):  local->committed s4 | committed->global s5 | local->global s9
+#   reverse (lower `auto` must NOT wipe higher real): global->committed s6 | committed->local s7 | global->local s8
+# s7 is the one earned on unique discriminating power: a committed-rung-specific clear appended
+# after the collapse leaves all five of 0106's asserts green and reddens s7 alone. s8 and s9 are
+# matrix-completeness witnesses that share s6's and s4/s5's mutations respectively -- no claim of
+# a unique witness is made for them.
 #
 # s4 and s5 assert an EMPTY value, which is also what an ABSENT key yields — so each first
 # asserts its lower rung really does resolve (the control), then adds the masking layer.
@@ -1103,6 +1112,25 @@ git -C "$tmp/s6" push --quiet origin main
 FINALIZE_TEST_COMMAND=__poison__
 out="$(rung "$tmp/s6.xdg" "$tmp/s6" --export)"; eval "$out"
 assert "0106 s6: global auto does NOT wipe committed real command" '[ "$FINALIZE_TEST_COMMAND" = "make test" ]'
+
+# (s7) REVERSE, lcl() path: a committed `auto` must NOT wipe a LOCAL real command.
+# The dangerous cell, and the reason this change exists. A real repo whose .docket.local.yml
+# sets a command over a committed `test_command: auto` must keep its local command; the
+# committed-rung-specific clear that would silently drop it passes every 0106 assert.
+mkrepo "$tmp/s7"
+mkdir -p "$tmp/s7.xdg/docket"
+cat > "$tmp/s7/.docket.yml" <<'EOF'
+metadata_branch: main
+integration_branch: main
+finalize:
+  test_command: auto
+EOF
+git -C "$tmp/s7" add .docket.yml; git -C "$tmp/s7" commit --quiet -m cfg
+git -C "$tmp/s7" push --quiet origin main
+printf 'finalize:\n  test_command: make local-test\n' > "$tmp/s7/.docket.local.yml"
+FINALIZE_TEST_COMMAND=__poison__
+out="$(rung "$tmp/s7.xdg" "$tmp/s7" --export)"; eval "$out"
+assert "0112 s7: committed auto does NOT wipe local real command" '[ "$FINALIZE_TEST_COMMAND" = "make local-test" ]'
 
 # ============================================================================
 # Change 0102 — finalize.require_pr_approval layer resolution
