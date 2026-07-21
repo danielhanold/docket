@@ -88,6 +88,19 @@ human glance. It never mutates the change file or auto-clears the marker; that s
 `docket-finalize-change`'s job. The horizon is a hardcoded constant (mirroring `stale-in-progress`'s
 own `3*86400` branch-idle horizon), not a config knob.
 
+**`publish-deferred`** — The change carries the `## Publish deferred` body section
+(`publish_deferred`), written by `mark-publish-deferred.sh` when a terminal close-out's publish
+step was **expected** (`terminal_publish: true`, docket-mode) but consciously deferred or blocked.
+The finding names the integration branch the record never reached and the metadata branch it is
+still confined to. **No status gate and no directory gate:** the marker is written on the
+*archived* file, so gating on a lifecycle status would make it unreadable exactly where it is
+written; presence is the entire state, and `terminal-publish.sh` removes the marker on a
+successful publish (so a marker in the tree always means a pending deferral). It reads the marker
+in the change file, **never** a `git cat-file -e origin/<integration>:<path>` set-diff — a
+branch-set diff would reintroduce the standing detector change 0083 deliberately declined, fire
+forever under `terminal_publish: false`, and break this script's git-only/offline invariant.
+Warn-only; it never mutates the change file.
+
 **`merged-orphan`** — A change id is referenced by a commit *subject* on `--integration-branch`
 while the change is still non-terminal (a file under `active/`, not yet archived). This is the
 classic orphan: work merged, but the docket record was never closed out. It is a git-history
