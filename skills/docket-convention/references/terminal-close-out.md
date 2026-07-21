@@ -67,6 +67,30 @@ before the first read; every commit pushes immediately.
    it does NOT trip the skip-publish guard, so steps 4–5 still run. Callers pass the flag and
    keep trusting the exit code; no caller branches on the knob itself.
 
+   **When the publish is expected but does NOT complete — mark it (change 0083).** If
+   `terminal_publish` is `true` and this is docket-mode, but the publish is consciously deferred
+   (a human gate) or blocked (a wall the run cannot pass, e.g. a protected-branch push denial),
+   the driver appends the durable `## Publish deferred` marker before reporting:
+
+   ```
+   "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh mark-publish-deferred --mode add \
+     --change-file .docket/<changes_dir>/archive/<UTC-date>-<id>-<slug>.md \
+     --reason <deferred|blocked> --detail "<short single-line why>" \
+     --date <UTC-date> --integration-branch <integration_branch> --id <id>
+   ```
+
+   Commit and push it on `metadata_branch` like any other metadata write. Autonomous callers
+   still abort-and-report — the marker makes that abort **durable and self-describing** instead
+   of living only in a chat thread, which is precisely how #0043's record went missing for eight
+   days with every health check reporting clean. `mark-publish-deferred.sh` **replaces** an
+   existing section rather than appending a second, so re-marking is safe.
+
+   **Never mark under suppression.** When `terminal_publish` is `false`, or in `main`-mode, the
+   publish is legitimately a no-op that exits 0 — that is *success*, not a deferral, and no
+   marker is written. **Never mark on a successful publish**, and never remove the marker by
+   hand: `terminal-publish.sh` clears it itself on the success path, so the state stays
+   presence-encoded.
+
 4. **Clean up the feature branch + worktree.**
 
    ```
