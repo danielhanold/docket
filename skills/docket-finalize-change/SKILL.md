@@ -47,7 +47,7 @@ rest, classify every `implemented` candidate and act per this matrix:
 | Candidate | Behavior |
 |---|---|
 | Not git-mergeable (`CLOSED`, `DRAFT`, or a conflict the gate's resolver reported **ambiguous** — `mergeable: CONFLICTING` alone is *not* this; it deprioritizes, see *Ordering*) | **Surface, do not merge** |
-| `FINALIZE_REQUIRE_PR_APPROVAL` is `true` AND unapproved (`reviewDecision != APPROVED`) | **Surface, do not merge** — the policy gate |
+| `FINALIZE_REQUIRE_PR_APPROVAL` is `true` AND unapproved (`reviewDecision != APPROVED`) | **Surface, do not merge** |
 | **Exactly one eligible** candidate | **Run the full flow — gate + merge + finalize — with NO prompt** |
 | **More than one eligible** candidate | **Driver/autonomous run: NO prompt** — take the *Ordering* head. **Attended run** closing out several at once: **Prompt** — list them and confirm the batch (the blast-radius guard) |
 
@@ -105,7 +105,7 @@ The final report **enumerates** the change merged (if any), each change **skippe
 
 ## The rebase-retest merge gate
 
-Guards step 1's merge — the **only** place docket itself merges. Configured by the resolved config — every value below is read from the Step-0 `preflight` export block (`FINALIZE_GATE`, `FINALIZE_TEST_COMMAND`, `FINALIZE_REQUIRE_PR_APPROVAL`), never by parsing `.docket.yml`; the block below documents what each key MEANS and where a user sets it:
+Guards step 1's merge — the **only** place docket itself merges. Every value below is read from the Step-0 `preflight` export block (`FINALIZE_GATE`, `FINALIZE_TEST_COMMAND`, `FINALIZE_REQUIRE_PR_APPROVAL`), never by parsing `.docket.yml`; the block documents what each key means and where it's set:
 
 ```yaml
 finalize:
@@ -117,7 +117,7 @@ finalize:
 
 `gate` defaults to **`local`**; `ci` validates GitHub checks; `both` requires local **and** CI green; **`off`** is the documented opt-out — merge trusting the PR's own CI, with no rebase and no re-test (today's pre-gate behavior).
 
-`require_pr_approval` validates *human sign-off* (`gate` validates *correctness*); the skill reads its resolved value as **`FINALIZE_REQUIRE_PR_APPROVAL`** from the Step-0 export block — the sole channel, resolving repo-local > repo-committed > global > the built-in `false` (change 0102) — and it governs only the auto-detect path — an explicit id always overrides it. `true` ⇒ the auto-detect path refuses to merge a PR whose `reviewDecision` is not `APPROVED`, surfacing it instead. The approval must come from a **human** reviewer: a co-maintainer, or the maintainer running finalize if they are an eligible reviewer on someone else's PR. See ADR-0011 for the consent model, and ADR-0043 for why the bot-approval mechanism that once satisfied this gate was retired.
+`require_pr_approval` validates *human sign-off* (`gate` validates *correctness*); the skill reads its resolved value as **`FINALIZE_REQUIRE_PR_APPROVAL`** from the Step-0 export block — the sole channel, resolving repo-local > repo-committed > global > built-in `false` (change 0102) — governing only auto-detect; an explicit id always overrides it. `true` ⇒ refuses to merge a PR not `APPROVED`, surfacing it instead. Approval must come from a **human** reviewer — a co-maintainer, or the maintainer if eligible on someone else's PR. See ADR-0011 (consent model) and ADR-0043 (why bot-approval was retired).
 
 **Flow** (runs before `gh pr merge`):
 
@@ -164,12 +164,12 @@ A gate failure is recorded as a `## Finalize blocked` body section on the change
 
 ## Where finishing-a-development-branch fits
 
-When a human is present — the **one** exception to the *Skill layer*'s autonomy-precedence rule, and conditional on exactly that — the resolved finish skill — `$SKILL_FINISH` (default `superpowers:finishing-a-development-branch`) — can drive a non-standard close-out (keep, discard, or merge locally without a PR); its chooser fits at step 4. On the autonomous path the finish skill is **not invoked at all** — docket's own steps 1–6 drive the close-out and the rebase-retest gate governs the merge — so there is no chooser to meet and nothing to pre-specify. The gate is independent of the skill either way; docket also borrows its provenance-guard (only auto-remove a worktree under `.worktrees/<slug>`).
+When a human is present — the **one** exception to the *Skill layer*'s autonomy-precedence rule — the resolved finish skill (`$SKILL_FINISH`, default `superpowers:finishing-a-development-branch`) can drive a non-standard close-out (keep, discard, or merge locally without a PR); its chooser fits at step 4. On the autonomous path the finish skill is **not invoked at all**: docket's own steps 1–6 drive the close-out and the rebase-retest gate governs the merge, so there is no chooser to meet. The gate is independent of the skill either way; docket also borrows its provenance-guard (only auto-remove a worktree under `.worktrees/<slug>`).
 
 ## Terminal publish (docket-mode)
 
-The shared procedure — documented in `skills/docket-convention/references/terminal-close-out.md` — that copies a change's terminal records from `origin/docket` onto the integration branch. It runs on every terminal transition (`done`, driven by step 3 above and `docket-status`'s sweep; or `killed`, driven by the killing skill), distinguished by a publish token (`<id>` for a change publish, `adr-<NN>` for a standalone/status-changed ADR). **Skipped entirely in `main`-mode** — there the archive move is itself the terminal record — **and skipped whenever `terminal_publish` is `false`** (the default; change 0084).
+The shared procedure — documented in `skills/docket-convention/references/terminal-close-out.md` — copies a change's terminal records from `origin/docket` onto the integration branch. It runs on every terminal transition (`done`, via step 3 and `docket-status`'s sweep; or `killed`, via the killing skill), distinguished by a publish token (`<id>` for a change, `adr-<NN>` for a standalone/status-changed ADR). **Skipped entirely in `main`-mode** — the archive move is itself the terminal record there — **and skipped whenever `terminal_publish` is `false`** (default; change 0084).
 
 The copy-set: the archived change file, its `spec:` if set, and each `adrs:` entry whose ADR is `Accepted` (`Proposed`/draft ADRs are skipped). `BOARD.md` is **never** published. Mechanics — `checkout origin/docket -- <copy-set>`, the CAS push, self-verify, teardown — are owned by `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh terminal-publish --id <id> --enabled <terminal_publish>` (or `docket.sh terminal-publish --adr <NN> --enabled <terminal_publish>` for the ADR-only path — `<terminal_publish>` is the resolved `TERMINAL_PUBLISH` from the Step-0 `preflight` block); see `scripts/terminal-publish.md`.
 
-**Headless publish degradation.** On a **headless** run with `terminal_publish: true`, the records-push can be denied by an agent permission classifier. The denial does **not** fail the run: archive + cleanup + board already landed and stand; finalize does not retry the push and surfaces one line — `terminal-publish blocked (auto-mode push denial) — run docket.sh terminal-publish --id <id> (and --adr <NN> for any published ADR) manually`. Do not stop at that line: apply the close-out reference's mark step (`--mode add --reason blocked`) to the archived change file too — a chat-only deferral is the #0043 failure mode. **Attended** runs are unaffected. Version-defense (change 0062's spike observed no headless denial, but the classifier is not a docket-owned contract).
+**Headless publish degradation.** On a **headless** run with `terminal_publish: true`, an agent permission classifier can deny the records-push. The denial does **not** fail the run: archive + cleanup + board already landed; finalize skips retrying the push and surfaces one line — `terminal-publish blocked (auto-mode push denial) — run docket.sh terminal-publish --id <id> (and --adr <NN> for any published ADR) manually`. Do not stop there: apply the close-out reference's mark step (`--mode add --reason blocked`) to the archived change file too — a chat-only deferral is the #0043 failure mode. **Attended** runs are unaffected. Version-defense (change 0062's spike observed no headless denial, but the classifier is not a docket-owned contract).
