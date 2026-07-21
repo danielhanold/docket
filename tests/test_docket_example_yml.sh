@@ -936,4 +936,80 @@ fence_count="$(fence_openers "$README" | grep -c .)"
 assert "(9) README yaml fence count is exactly 9 — floor against discovery going silently empty, ceiling against an unguarded new fence; if you ADDED a config fence, bump this literal AND ensure its keys are in .docket.example.yml in the same commit; if this dropped to 8, check that the fence regex is still whitespace-tolerant (fence 576 is indented) before touching the literal (got $fence_count)" \
   '[ "$fence_count" = "9" ]'
 
+# ANCHOR: .docket.example.yml, ONE HOP. Sections (2a)/(2b)/(2c) already bind the example to the
+# resolver in BOTH directions and prove it a faithful superset of everything the code reads, so
+# going through the example inherits resolver coverage transitively and keeps a single anchor
+# per artifact instead of two competing ones.
+#
+# ASSERT: EXISTENCE-ONLY by default. This is what makes one check applicable to all nine fences.
+# Most of them deliberately show NON-DEFAULT values to illustrate opting in (auto_capture: true,
+# terminal_publish: true, metadata_branch: main, and the two layered-config samples), so a
+# value-equality assert would go spuriously RED against correct prose. Value equality is opt-in
+# per fence — see the values marker in Task 6.
+#
+# DIRECTION (correspondence-guard-runs-one-way): this iterates the README's fence keys and proves
+# fence ⊆ example. The reverse loop is deliberately ABSENT and is NOT an oversight — "every
+# example key appears in the README" is the fourth all-keys surface change 0101 deleted. Do not
+# add it.
+#
+# KEY RESOLUTION — QUERY-BY-KEY, not build-a-set. Two README fences use agents: and
+# agent_harnesses: actively, but section (3) requires those keys to ship COMMENTED in the
+# example, so a naive `path IN flatten_yaml(example)` reddens against correct prose. Resolution:
+#   - top-level segment ACTIVE in the example  => the FULL dotted path must match;
+#   - top-level segment only a COMMENTED pseudo-key => acceptance stops at the top-level segment,
+#     because a commented key has no nested body to match against.
+# Building a pseudo-key SET by regex is rejected: `^#[[:space:]]*[A-Za-z_]+:` also matches the
+# example's prose comments (`# exceptions:` :22, `# scope: any layer` in many places, `# line:`
+# :179), which would silently accept anything.
+#
+# is_pseudo_key matches the key LITERALLY via index()==1 rather than interpolating it into an
+# ERE. That is strictly stronger than escaping it (escape-ere-metacharacters-in-key): there is no
+# regex for a metacharacter to leak into at all.
+#
+# RESIDUAL HOLE, documented rather than closed: a future fence key whose NAME collides with a
+# prose-comment word would be silently accepted (`scope:` would match `# scope: any layer`, and
+# anchoring is no defense since that comment starts at column 0). No collision exists among
+# today's 12 top-level fence keys. It is not closed because the only tight closure is an explicit
+# two-key allowlist, which is exactly the enumerated floor this change exists to avoid.
+is_pseudo_key(){
+  awk -v k="$1" '
+    { line=$0
+      if (line !~ /^#/) next
+      sub(/^#[[:space:]]*/, "", line)
+      if (index(line, k ":") == 1) { found=1; exit } }
+    END { exit(found?0:1) }
+  ' "$EX"
+}
+
+ex9_paths="$(printf '%s\n' "$ex_flat" | cut -f1)"
+
+# scan_fences <markdown-path> — emits one finding per line; EMPTY OUTPUT MEANS CLEAN.
+# Takes the path as an argument (not the $README global) so the marker tests in Task 5 can scan a
+# temporary fixture instead of mutating the real README.
+scan_fences(){
+  local md="$1" line ind body flatout p pv top
+  while IFS="$TAB9" read -r line ind; do
+    [ -n "$line" ] || continue
+    body="$(fence_body "$md" "$line" "$ind")"
+    flatout="$(printf '%s\n' "$body" | flatten_yaml)"
+    while IFS="$TAB9" read -r p pv; do
+      [ -n "$p" ] || continue
+      top="${p%%.*}"
+      if printf '%s\n' "$ex9_paths" | grep -Fxq "$top"; then
+        printf '%s\n' "$ex9_paths" | grep -Fxq "$p" || echo "miss $line $p"
+      elif is_pseudo_key "$top"; then :
+      else echo "miss $line $p"; fi
+    done <<FLAT
+$flatout
+FLAT
+  done <<OPENERS
+$(fence_openers "$md")
+OPENERS
+}
+
+findings9="$(scan_fences "$README")"
+f9_miss="$(printf '%s\n' "$findings9" | grep '^miss ' | sed 's/^miss //' | tr '\n' ' ')"
+assert "(9) every README config-fence key exists in .docket.example.yml (fence-line + key path shown; ${f9_miss:-none missing})" \
+  '[ -z "$f9_miss" ]'
+
 exit $fail
