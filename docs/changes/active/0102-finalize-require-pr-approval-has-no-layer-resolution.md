@@ -2,7 +2,7 @@
 id: 102
 slug: finalize-require-pr-approval-has-no-layer-resolution
 title: finalize.require_pr_approval has no layer resolution
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-19
 updated: 2026-07-21
@@ -12,12 +12,12 @@ discovered_from: [101]
 adrs: [52]
 spec: docs/superpowers/specs/2026-07-20-require-pr-approval-layer-resolution-design.md
 plan: docs/superpowers/plans/2026-07-21-require-pr-approval-layer-resolution.md
-results:
+results: docs/results/2026-07-21-finalize-require-pr-approval-has-no-layer-resolution-results.md
 trivial: false
 auto_groomable:
 branch: feat/finalize-require-pr-approval-has-no-layer-resolution
-claimed_at: 2026-07-21T15:21:47Z
-pr:
+claimed_at: 2026-07-21T15:25:12Z
+pr: https://github.com/danielhanold/docket/pull/115
 blocked_by:
 reconciled: true
 ---
@@ -29,6 +29,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-20-require-pr-approval-layer-resolution-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-20-require-pr-approval-layer-resolution-design.md) |
 | Plan | [2026-07-21-require-pr-approval-layer-resolution.md](https://github.com/danielhanold/docket/blob/feat/finalize-require-pr-approval-has-no-layer-resolution/docs/superpowers/plans/2026-07-21-require-pr-approval-layer-resolution.md) |
+| Results | [2026-07-21-finalize-require-pr-approval-has-no-layer-resolution-results.md](https://github.com/danielhanold/docket/blob/feat/finalize-require-pr-approval-has-no-layer-resolution/docs/results/2026-07-21-finalize-require-pr-approval-has-no-layer-resolution-results.md) |
+| PR | [#115](https://github.com/danielhanold/docket/pull/115) |
 | ADRs | [ADR-0052](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0052-config-key-resolution-boundary.md) |
 <!-- docket:artifacts:end -->
 
