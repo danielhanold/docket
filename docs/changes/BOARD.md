@@ -1,8 +1,14 @@
 # Backlog
 
-**123 changes** — 🟡 24 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 91 done · 🗑️ 6 killed
+**123 changes** — 🟢 1 in progress · 🟡 23 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 91 done · 🗑️ 6 killed
 
-## 🟡 Proposed (24)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Spec | Branch |
+|---|-------|----------|------|--------|
+| [0108](active/0108-guard-the-readme-s-remaining-config-fences-against-key-drift.md) | Guard the README's remaining config fences against key drift | `medium` | [spec](../superpowers/specs/2026-07-20-readme-config-fence-key-drift-guard-design.md) | `feat/guard-the-readme-s-remaining-config-fences-against-key-drift` |
+
+## 🟡 Proposed (23)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -15,7 +21,6 @@
 | [0082](active/0082-global-harnesses-per-repo-generation.md) | Global agent_harnesses doesn't reach per-repo generation — silent no-op | `low` | needs-brainstorm |
 | [0100](active/0100-force-push-lease-classifier-denial.md) | Force-push-with-lease denied by the auto-mode classifier — unblock finalize's merge gate | `medium` | needs-brainstorm |
 | [0103](active/0103-wire-the-github-project-config-read-documented-but-unwired-k.md) | Wire the github_project config read (documented-but-unwired key) | `low` | needs-brainstorm |
-| [0108](active/0108-guard-the-readme-s-remaining-config-fences-against-key-drift.md) | Guard the README's remaining config fences against key drift | `medium` | build-ready |
 | [0110](active/0110-shared-metadata-worktree-contention.md) | Concurrent agents collide on the shared .docket worktree's dirty-tree window | `high` | needs-brainstorm |
 | [0111](active/0111-guard-the-board-checks-check-id-enumerations-against-drift.md) | Guard the board-checks check-id enumerations against drift | `medium` | build-ready |
 | [0112](active/0112-pin-the-reverse-cross-layer-masking-for-the-committed-over-l.md) | Complete the finalize.test_command cross-layer masking matrix (reverse committed-over-local + both skip-rung pairs) | `medium` | build-ready |
