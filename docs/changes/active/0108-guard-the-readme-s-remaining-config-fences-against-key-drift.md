@@ -16,10 +16,10 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/guard-the-readme-s-remaining-config-fences-against-key-drift
-claimed_at: 2026-07-21T16:29:36Z
+claimed_at: 2026-07-21T16:33:21Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -95,3 +95,51 @@ Section `(8)` is left byte-untouched.
   example's keys — that is the all-keys surface change 0101 deleted.
 - Auditing the README's non-config prose claims (see the `verify-the-claim` finding).
 - Any change to `.docket.example.yml`'s content, or to sections `(1)`–`(8)`.
+
+## Reconcile log
+
+### 2026-07-21 — reconciled against `main` at `5ed3d8c`
+
+The spec was written against `main` at `6cb6be6`; since then changes 0102 (`require_pr_approval`
+layer resolution) and 0083 (terminal-publish gap detection) merged. Every substantive claim in the
+spec was re-verified empirically against the current tree and **all of them hold**. One class of
+drift found, and it is cosmetic:
+
+- **Test-file line numbers moved; the code did not.** The spec cites `flatten_yaml`'s key class at
+  `:447` (shape test) and `:450` (value strip). Change 0102 grew `tests/test_docket_example_yml.sh`
+  from ~500 to **884** lines by adding the `(2b)` classification manifest, so those two lines are now
+  **`:782` and `:785`**. The substance is unchanged: `flatten_yaml` is defined at `:775–792` and
+  still carries the hyphen-free key class at exactly **two** occurrences — the shape test
+  (`if (line !~ /^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*:/) next`) and the value strip
+  (`sub(/^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*:[[:space:]]*/, "", val)`). §5's two-line widening stands
+  exactly as written; the builder must locate the two occurrences **by their code**, not by the
+  spec's stale line numbers.
+
+Re-verified as still exactly true on `5ed3d8c`:
+
+- **README fence ground truth — 9 fences at 209, 234, 264, 289, 310, 407, 433, 576, 594**, with 576
+  indented two spaces. A whitespace-tolerant regex finds **9**; the column-0 regex finds **8**. §6
+  floor 1's literal `9` and §1's whitespace-tolerant opener remain a matched pair.
+- **Section `(8)`'s README span is 203–224**, terminated by the `### Reclaiming stale claims` heading
+  at **225**. The `reclaim:` fence is at **234** and line **233** is blank, so the `values` marker
+  lands outside `(8)`'s span and `snippet_section()` stays unperturbed.
+- **`flatten_yaml` widening is behavior-neutral for `(1)`–`(8)`.** `.docket.example.yml` still
+  contains **no** hyphenated active key, and `ex_flat` is **30 paths, byte-identical** before and
+  after the widening.
+- **§5's blocking prerequisite is real and still live.** On fences 289 and 310: raw = **11**,
+  hyphen-free flatten = **10** — floor 3 would ship RED on correct prose exactly as predicted.
+- **The half-fix trap reproduces exactly.** Widening only the shape test yields `flat=11` (floor 3
+  passes, existence passes, `ex_flat` unchanged — nothing reddens) while
+  `agents.default.implement-next` comes back carrying **the entire raw line**
+  (`    implement-next: { model: claude-opus-4-8, effort: xhigh }`) as its value; the full widening
+  yields the correct `{ model: claude-opus-4-8, effort: xhigh }`. The spec's instruction to assert
+  the extracted **value**, not only the path count, is what catches this — it is not optional.
+
+One builder note sharpened: §6's fixture-fence note says `(8)` "already parameterizes this way
+(`snippet_section()` reads `$README`)". `snippet_section()` in fact reads the **global** `$README`
+rather than taking a parameter. The instruction is unaffected — the new fence-scan helper must take
+its markdown path as an **argument** so the `ignore`-path fixture fence can be scanned — but the
+builder should not expect to find an existing parameterized helper to copy.
+
+No scope change, no obsolescence, no invalidation. `depends_on: []` still holds (A10). Builds against
+`main` at `5ed3d8c`.

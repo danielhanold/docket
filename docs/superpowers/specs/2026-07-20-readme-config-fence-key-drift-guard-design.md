@@ -163,10 +163,10 @@ the top-level segment and passes. It is the non-vacuity floor that reddens.
 Fix: widen the key class to `[A-Za-z_][A-Za-z0-9_-]*` in `flatten_yaml`. **This is a TWO-line edit,
 not one** — `flatten_yaml` carries the key class **twice**:
 
-- the **shape test** (`if (line !~ /^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*:/) next`, :447), and
-- the **value strip** (`sub(/^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*:[[:space:]]*/, "", val)`, :450).
+- the **shape test** (`if (line !~ /^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*:/) next`, :782 — was :447 when this spec was written), and
+- the **value strip** (`sub(/^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*:[[:space:]]*/, "", val)`, :785 — was :450). Locate BOTH by their code, not by line number: change 0102 grew the file to 884 lines after this spec was drafted, and it will move again.
 
-**Widening only :447 is a half-fix that this design's own floors cannot catch.** With :450 left
+**Widening only the shape test is a half-fix that this design's own floors cannot catch.** With the value strip left
 hyphen-free the line passes the shape test, gets its path, and then fails the value strip — so
 `agents.default.implement-next` comes back carrying **the entire raw line** as its value. Verified:
 half-widened and fully-widened both yield `flat=11` on fences 289/310, so floor 3 passes either way,
@@ -227,10 +227,10 @@ passes vacuously:
 | A4 | Value equality | **Opt-in** per fence via `<!-- docket:config-fence: values -->`; applied to `reclaim:` | Drop value checking entirely | `reclaim:`'s `72`/`false` are shipped defaults; losing that is real signal lost. One marker, only where the claim is true. |
 | A5 | Non-config fences | **Default-in + `ignore` marker**; grammar, attachment rule, and unknown-token **hard fail** all specified in §1 | Default-out; auto-skip fences whose keys look unknown; warn-and-ignore on a bad token | Auto-skip is self-defeating — a typo'd key would make its own fence invisible, which is the drift being guarded. Warn-and-ignore fails **open and silent** on a typo'd `values`. Attachment is nearest-preceding-non-blank (not strictly the line above) because fence 576 is an indented list continuation. |
 | A6 | Commented pseudo-keys | **Query-by-key** against the example | Build a pseudo-key set by regex | The set-building regex also matches the example's prose comments (`# exceptions:`, `# scope:`, `# line:`), silently accepting anything. |
-| A7 | Nested resolution | Full path when the top-level key is **active**; top-level only when it is a **commented pseudo-key**. **Blocking prerequisite: widen `flatten_yaml`'s key class to `[A-Za-z_][A-Za-z0-9_-]*` at BOTH occurrences — the shape test (:447) and the value strip (:450)** | Top-level-only everywhere; leaving the flattener alone; scoping floor 3's filter to exclude hyphenated keys | Top-level-only misses `finalize.gaet`-class typos. The hyphen-free key class drops `implement-next:` (README:296, :320), so floor 3 would ship RED on correct prose — widening is verified behavior-neutral for `(1)`–`(8)` (no hyphenated active key in the example), whereas narrowing the floor would hide the class of drift the floor exists to catch. |
+| A7 | Nested resolution | Full path when the top-level key is **active**; top-level only when it is a **commented pseudo-key**. **Blocking prerequisite: widen `flatten_yaml`'s key class to `[A-Za-z_][A-Za-z0-9_-]*` at BOTH occurrences — the shape test and the value strip, located by their code (:782/:785 as of `5ed3d8c`; :447/:450 when drafted)** | Top-level-only everywhere; leaving the flattener alone; scoping floor 3's filter to exclude hyphenated keys | Top-level-only misses `finalize.gaet`-class typos. The hyphen-free key class drops `implement-next:` (README:296, :320), so floor 3 would ship RED on correct prose — widening is verified behavior-neutral for `(1)`–`(8)` (no hyphenated active key in the example), whereas narrowing the floor would hide the class of drift the floor exists to catch. |
 | A8 | Placement | **New section `(9)`**; `(8)` untouched | Rewrite `(8)` into one general mechanism | `(8)` carries fence-1-specific guards earned by review (exact-count ceiling against regrowth, pointer target check, raw-vs-flattened). Rewriting risks regressing them for no coverage gain. |
 | A9 | Reverse loop (example → README) | **Not written** | Assert every example key appears in the README | Restating the stub's out-of-scope: that is the fourth all-keys surface change 0101 deleted. The correspondence is a deliberate proper subset, not a mirror — the exception `correspondence-guard-runs-one-way` already records. |
-| A10 | Dependency state | None — `depends_on: []`, no unsatisfied deps | — | Touches one test file, `README.md` markers, and nothing else. Builds against `main` at `6cb6be6` as-is. |
+| A10 | Dependency state | None — `depends_on: []`, no unsatisfied deps | — | Touches one test file, `README.md` markers, and nothing else. Builds against `main` at `5ed3d8c` as-is (re-verified at reconcile, 2026-07-21). |
 
 ## Learnings applied
 
