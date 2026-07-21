@@ -50,6 +50,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0048](0048-docket-yml-example-invariants.md) — .docket.yml.example is a tested canonical config reference — mirror, fidelity, must-update (Accepted) ← change #101 → supersedes ADR-0039 · relates to ADR-0019
 - [ADR-0049](0049-board-checks-findings-channel-structural-columns-only-validated-values.md) — board-checks.sh findings channel — structural columns carry only script-derived or shape-validated values (Accepted) ← change #104 · relates to ADR-0012
 - [ADR-0050](0050-backstop-checks-must-compute-not-reenumerate.md) — A backstop check must compute the invariant it guards, never re-enumerate the causes it backs up (Accepted) ← change #104 · relates to ADR-0049
+- [ADR-0051](0051-publish-deferred-marker-not-branch-diff-detector.md) — Make a deferred terminal publish visible with a presence-encoded marker, not a branch-diff detector (Accepted) ← change #83 · relates to ADR-0001
 
 ## Superseded / Reversed
 
