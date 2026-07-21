@@ -126,13 +126,16 @@ done
 #   resolved:<EXPORT_NAME>   the resolver reads it; the test asserts that export is ACTUALLY
 #                            emitted, so a manifest entry cannot claim an export that does not
 #                            exist (nor survive one being removed).
-#   elsewhere:<consumer>     deliberately not resolver-read, with its REAL consumer named; the
-#                            test greps that named file for the key. Naming the consumer is what
-#                            keeps this from decaying into an allowlist — per the
+#   elsewhere:<consumer>     deliberately not resolver-read, with a consumer named that mentions
+#                            the key; the test greps that named file for it. Naming the consumer
+#                            is what keeps this from decaying into an allowlist — per the
 #                            correspondence-guard-runs-one-way learning, an allowlist answers
 #                            "is this expected?" and never "does this exist?", which is the
 #                            enumerated floor that let require_pr_approval ship documented-but-
-#                            unwired in the first place.
+#                            unwired in the first place. One entry (github_project, below) is the
+#                            documented exception: its named file only FENCES the key rather than
+#                            reading it, so for that entry alone the anchor proves less than the
+#                            others — see the inline note on that arm.
 #
 # An UNCLASSIFIED key fails, naming itself as documented-but-unclassified. That is the direction
 # that catches this bug class: a key added to the example with no resolution and no named reader.
@@ -167,6 +170,12 @@ classify_key(){ # classify_key <example-key-name> -> "resolved:EXPORT" | "elsewh
     # Block headers carry no value of their own; their children are classified above.
     finalize|learnings|reclaim|skills|runners|codex) echo 'elsewhere:HEADER' ;;
     # Genuinely non-resolver-read keys, each with its real consumer named.
+    #
+    # github_project is the one exception to "real consumer": .docket.example.yml itself says
+    # NOT WIRED TODAY — no script reads this key. docket-config.sh's only match is its
+    # coordination-key FENCE list (warns-and-ignores the key in machine-scoped layers), not a
+    # reader. This entry is accurate (the key really is unread) but the anchor is
+    # documentation-only, unlike every other elsewhere: entry below.
     github_project)       echo 'elsewhere:scripts/docket-config.sh' ;;
     agents)               echo 'elsewhere:sync-agents.sh' ;;
     agent_harnesses)      echo 'elsewhere:sync-agents.sh' ;;
@@ -182,6 +191,7 @@ classify_key(){ # classify_key <example-key-name> -> "resolved:EXPORT" | "elsewh
 manifest_unclassified=""
 manifest_bad_export=""
 manifest_bad_consumer=""
+manifest_bad_header=""
 example_keys="$(
   { sed -nE 's/^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*):.*/\1/p' "$EX"
     sed -nE 's/^#[[:space:]]*(agents|agent_harnesses):.*/\1/p' "$EX"
@@ -196,11 +206,20 @@ for k in $example_keys; do
     resolved:*)
       exp_name="${cls#resolved:}"
       # The export must ACTUALLY be emitted — a manifest entry cannot claim a phantom export.
-      printf '%s\n' "$exp_none" | grep -q "^$exp_name=" \
+      grep -q "^$exp_name=" <<<"$exp_none" \
         || manifest_bad_export="$manifest_bad_export $k($exp_name)"
       ;;
     elsewhere:HEADER)
-      : # a mapping opener; its children carry the real classification
+      # A mapping opener carries no value of its own; its children carry the real
+      # classification. But nothing else here verifies the key IS actually a bare block
+      # opener — the HEADER label is otherwise an unverified escape hatch: appending a new,
+      # unwired key to the case arm above would silence "documented key is classified" for it
+      # with zero further checking. So require the shape a real header has: a line of the
+      # form "<key>:" with nothing after the colon (mutation-tested: relabeling
+      # require_pr_approval's arm 'elsewhere:HEADER' reddens here, since its line is
+      # "require_pr_approval: false").
+      grep -Eq "^[[:space:]]*$k:[[:space:]]*$" "$EX" \
+        || manifest_bad_header="$manifest_bad_header $k"
       ;;
     elsewhere:*)
       consumer="${cls#elsewhere:}"
@@ -218,10 +237,21 @@ assert "manifest: every resolved: entry names a REAL export (${manifest_bad_expo
   '[ -z "$manifest_bad_export" ]'
 assert "manifest: every elsewhere: entry's named consumer mentions the key (${manifest_bad_consumer:-none bad})" \
   '[ -z "$manifest_bad_consumer" ]'
-# NON-VACUITY: the loop above must actually iterate. An extraction that silently yields nothing
-# would make all three asserts pass while proving nothing.
+assert "manifest: every elsewhere:HEADER entry is a real bare block opener (${manifest_bad_header:-none bad})" \
+  '[ -z "$manifest_bad_header" ]'
+# NON-VACUITY, EXACT COUNT not a floor: the loop above must actually iterate, AND classify_key
+# has exactly 32 arms (one per documented key) so an extraction that drops keys must redden too.
+# A loose floor (formerly -ge 20) does not do this: the dominant breakage (dropping the
+# [[:space:]]* from the first sed, so nested keys vanish) yields 15 and IS caught, but losing
+# just the second sed — the one picking up the commented agents:/agent_harnesses: pseudo-keys —
+# yields 30 and passed the old floor SILENTLY. Those two keys are precisely the ones whose
+# consumer anchor (elsewhere:sync-agents.sh) is otherwise untested, so that silent pass was a
+# real hole, not a hypothetical one (mutation-tested: deleting the second sed reddens this exact
+# assert). If you add a new documented key, bump this literal 32 in the same commit as
+# classify_key's new arm — that is the intentional-growth remedy this count is guarding.
 mf_count="$(printf '%s\n' "$example_keys" | grep -c .)"
-assert "manifest: key extraction is non-empty (got $mf_count)" '[ "$mf_count" -ge 20 ]'
+assert "manifest: key extraction count is exactly 32 (got $mf_count; if intentional, bump this literal and add the key's classify_key arm in the same commit)" \
+  '[ "$mf_count" = "32" ]'
 
 # The value-anchored asserts for the non-exported keys are retained from the pre-0102 (2b): the
 # fidelity check in (1) is structurally blind to keys the resolver never emits, so without these
@@ -259,7 +289,7 @@ assert "0102: the stale repo-committed-only note is gone" \
 # consumers. (Word-boundary grep — it proves the key name is KNOWN to a consumer, not that the read
 # is correctly wired; github_project is the live proof of that gap and is annotated as such in the
 # example itself.)
-consumers="$CFGSCRIPT $REPO/scripts/sync-agents.sh $REPO/scripts/runner-dispatch.sh"
+consumers="$CFGSCRIPT $REPO/sync-agents.sh $REPO/scripts/runner-dispatch.sh"
 consumers="$consumers $REPO/skills/docket-finalize-change/SKILL.md"
 orphan_keys=""
 for k in $(sed -nE 's/^([A-Za-z_][A-Za-z0-9_]*):.*/\1/p' "$EX"); do
