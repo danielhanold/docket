@@ -6,9 +6,9 @@ Date: 2026-07-20 · Author: `docket-auto-groom` (autonomous; assumptions gated b
 ## Problem
 
 `scripts/docket-config.sh` resolves `finalize.test_command` through a flat three-rung `:-` chain
-(`:194`) — local `.docket.local.yml` → committed `.docket.yml` → global
+(`:195`) — local `.docket.local.yml` → committed `.docket.yml` → global
 `${XDG_CONFIG_HOME}/docket/config.yml` — and collapses the `auto` sentinel to `""` **after** the
-chain (`:201`). That placement is the behavior: a **higher** rung's `auto` masks a **lower** rung's
+chain (`:202`). That placement is the behavior: a **higher** rung's `auto` masks a **lower** rung's
 real command, while a **lower** rung's `auto` must never wipe a **higher** rung's real command.
 
 Change 0106 pinned three of the six ordered rung pairs. Writing each pair as *(rung holding `auto`
@@ -147,8 +147,16 @@ stop, because the correct fix is a behavior change needing its own review.
 
 **A8 — Dependency state.** `depends_on` is empty and `discovered_from: [106]`, which is `done` and
 merged, so section S is present on `origin/main` in the shape this design assumes. The implementer's
-reconcile pass re-verifies the `:194`/`:201` anchors and the `s4`–`s6` fixtures before building —
+reconcile pass re-verifies the `:195`/`:202` anchors and the `s4`–`s6` fixtures before building —
 concurrent work on this file is the only realistic drift.
+
+*Reconcile (2026-07-21):* that drift materialized and was absorbed. Change 0102 landed after this
+spec was authored, inserting `require_pr_approval` resolution into `scripts/docket-config.sh` and
+shifting both anchors down one line — the chain is now `:195`, the collapse `:202` (this section
+and the Problem statement above are corrected accordingly). Section S itself and the `s4`–`s6`
+fixtures are byte-unchanged in the assumed shape, and 0102's own `43b1aca` already re-anchored the
+section-S header comment to `:202`/`:195`, so the header the implementer edits is already correct
+and must not be "fixed" back.
 
 ## Out of scope
 

@@ -16,10 +16,10 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/pin-the-reverse-cross-layer-masking-for-the-committed-over-l
-claimed_at: 2026-07-21T23:11:54Z
+claimed_at: 2026-07-21T23:14:05Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -51,7 +51,7 @@ resolution chain, e.g.
 Traced against all five of 0106's asserts, every one stays **green**:
 
 - `s4` — the chain yields `auto` from the local rung; the committed rung holds `make test`, so the
-  extra clear does not fire; `:201` collapses as normal. Green.
+  extra clear does not fire; `:202` collapses as normal. Green.
 - `s5` — the committed rung holds `auto`, so the extra clear fires on a value that is already `""`.
   Green.
 - `s6` — the committed rung holds `make test`, so the extra clear does not fire. Green.
@@ -94,3 +94,38 @@ full table and the reasoning for each.
 - Re-running 0106's own two mutations as recorded in its results file; they are re-pointed at the
   new asserts only.
 - A table-driven rewrite of section S, and any edit to 0106's archived record.
+
+## Reconcile log
+
+### 2026-07-21 — reconciled against `origin/main` @ `62a881b`
+
+Scope holds unchanged: three test-only fixtures (`s7`/`s8`/`s9`) plus the section-S comment header.
+Verified against current code rather than the design-time snapshot.
+
+**Confirmed.** Section S of `tests/test_docket_config.sh` is present in exactly the shape the spec
+assumes — `s4` (`:1043`), `s5` (`:1062`), `s6` (`:1087`), all six asserts intact, and the
+`FINALIZE_TEST_COMMAND=__poison__` prelude before every `eval`. The helpers the design depends on
+(`assert`, `mkrepo`, `run`, `rung`) are unchanged, and `assert` still emits `ok - <name>`, which is
+what makes the `ok`-count read in the mutation protocol executable. The resolver still resolves
+through a flat three-rung `:-` chain with the `auto` collapse applied *after* it — the behavior
+being pinned is unchanged, so A7's test-only posture stands.
+
+**Drift absorbed — the anchors moved.** A8 predicted concurrent work on the resolver as the only
+realistic drift, and it happened: change 0102 (`finalize.require_pr_approval` layer resolution)
+merged on 2026-07-21, after this spec was authored, inserting its resolution above the collapse.
+The chain moved `:194 → :195` and the collapse `:201 → :202`. The spec has been corrected in both
+places. Note for the build: 0102's follow-up commit `43b1aca` **already** re-anchored the section-S
+header comment to the new numbers, so the header in the working tree is correct as it stands — the
+edit here retitles it from `(S4/S5/S6)` to span `S4`–`S9` and must leave the `:202`/`:195`
+citations alone rather than "restoring" the spec's old values.
+
+**Adjacent, deliberately not folded in.** Change 0114 (`proposed`, build-ready) is the repo's
+open question on whether line-number comment anchors are a supportable convention at all — this
+reconcile is a live instance of exactly the fragility it exists to weigh, but 0114 is undecided,
+so this change follows the established convention (cite the line numbers, as `s4`–`s6` already do)
+and does not preempt it. ADR-0052 (Accepted, from 0102) was read and reinforces rather than
+disturbs the premise: `finalize.test_command` is a `resolved:FINALIZE_TEST_COMMAND` key whose
+cross-layer behavior is precisely what these fixtures pin.
+
+No scope dropped, no new constraints folded in, nothing minted — the one gap found was internal
+drift, which belongs in this log rather than in a new stub.
