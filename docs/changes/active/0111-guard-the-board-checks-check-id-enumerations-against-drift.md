@@ -2,7 +2,7 @@
 id: 111
 slug: guard-the-board-checks-check-id-enumerations-against-drift
 title: Guard the board-checks check-id enumerations against drift
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-20
 updated: 2026-07-21
@@ -12,12 +12,12 @@ discovered_from: [104]
 adrs: []
 spec: docs/superpowers/specs/2026-07-20-check-id-vocabulary-drift-guard-design.md
 plan: docs/superpowers/plans/2026-07-21-check-id-vocabulary-drift-guard.md
-results:
+results: docs/results/2026-07-21-guard-the-board-checks-check-id-enumerations-against-drift-results.md
 trivial: false
 auto_groomable: true
 branch: feat/guard-the-board-checks-check-id-enumerations-against-drift
-claimed_at: 2026-07-21T20:52:00Z
-pr:
+claimed_at: 2026-07-21T22:07:15Z
+pr: https://github.com/danielhanold/docket/pull/117
 blocked_by:
 reconciled: true
 ---
@@ -29,6 +29,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-20-check-id-vocabulary-drift-guard-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-20-check-id-vocabulary-drift-guard-design.md) |
 | Plan | [2026-07-21-check-id-vocabulary-drift-guard.md](https://github.com/danielhanold/docket/blob/feat/guard-the-board-checks-check-id-enumerations-against-drift/docs/superpowers/plans/2026-07-21-check-id-vocabulary-drift-guard.md) |
+| Results | [2026-07-21-guard-the-board-checks-check-id-enumerations-against-drift-results.md](https://github.com/danielhanold/docket/blob/feat/guard-the-board-checks-check-id-enumerations-against-drift/docs/results/2026-07-21-guard-the-board-checks-check-id-enumerations-against-drift-results.md) |
+| PR | [#117](https://github.com/danielhanold/docket/pull/117) |
 <!-- docket:artifacts:end -->
 
 ## Why
