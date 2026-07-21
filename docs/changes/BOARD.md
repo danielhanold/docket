@@ -1,14 +1,8 @@
 # Backlog
 
-**119 changes** — 🟢 1 in progress · 🟡 20 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 90 done · 🗑️ 6 killed
+**122 changes** — 🟡 23 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 90 done · 🗑️ 6 killed
 
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0102](active/0102-finalize-require-pr-approval-has-no-layer-resolution.md) | finalize.require_pr_approval has no layer resolution | `medium` | [spec](../superpowers/specs/2026-07-20-require-pr-approval-layer-resolution-design.md) | `feat/finalize-require-pr-approval-has-no-layer-resolution` |
-
-## 🟡 Proposed (20)
+## 🟡 Proposed (23)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -32,6 +26,9 @@
 | [0117](active/0117-deferred-adr-publish-visibility-decide-whether-docket-adr-s.md) | Deferred ADR-publish visibility — decide whether docket-adr's publish path needs the Publish deferred marker | `medium` | needs-brainstorm |
 | [0118](active/0118-decide-whether-the-sweep-s-skip-publish-path-should-also-mar.md) | Decide whether the sweep's skip-publish path should also mark an unpublished terminal record | `medium` | needs-brainstorm |
 | [0119](active/0119-scope-the-metadata-worktree-git-commit-calls-to-the-paths-th.md) | Scope the metadata-worktree git commit calls to the paths they own | `medium` | needs-brainstorm |
+| [0120](active/0120-docket-finalize-change-claims-integration-branch-is-read-fro.md) | docket-finalize-change claims integration_branch is read from .docket.yml, but it is an exported resolver key | `medium` | needs-brainstorm |
+| [0121](active/0121-the-manifest-s-elsewhere-check-proves-a-word-occurrence-not.md) | The manifest's elsewhere: check proves a word occurrence, not a real config read | `medium` | needs-brainstorm |
+| [0122](active/0122-nested-keys-scope-tags-in-docket-example-yml-are-unguarded.md) | Nested keys' scope tags in .docket.example.yml are unguarded | `medium` | needs-brainstorm |
 
 ## 🔴 Blocked (1)
 
@@ -39,11 +36,12 @@
 |---|-------|----------|------------|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | PR #69 is stale (predates the 0068/0072 facade rework and later agent-layer changes) and #0079 (runner delegation) reshapes the design — the build roles should grow a runner field (build.<role>.runner codex, the mixed topology 0079 deferred). Needs a rebase plus redesign pass before merge. |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | PR | Readiness |
 |---|-------|----------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
+| [0102](active/0102-finalize-require-pr-approval-has-no-layer-resolution.md) | finalize.require_pr_approval has no layer resolution | `medium` | [#115](https://github.com/danielhanold/docket/pull/115) |  |
 
 ```mermaid
 graph TD
@@ -70,6 +68,9 @@ graph TD
   0117
   0118
   0119
+  0120
+  0121
+  0122
   0015:::done
   0016:::done
   0077:::done
