@@ -243,4 +243,5 @@ were emitted; otherwise it always exits 0.
   section there, and every section there names a check-id it can emit. The set is declared as
   `BOARD_CHECK_IDS` in `lib/docket-frontmatter.sh` and pinned — in both directions — against the
   emitting code, this file, `board-checks.sh`'s `--help` header, and `docket-status.md`'s `check`
-  report-line row by `tests/test_board_checks.sh`. Adding a check-id means editing all four.
+  report-line row by `tests/test_board_checks.sh`. Adding a check-id means editing the array plus
+  the four surfaces it is pinned against.

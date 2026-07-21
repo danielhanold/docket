@@ -998,7 +998,7 @@ assert "publish-deferred is among the emitted check-ids" \
 doc_ids="$(grep -oE '^\*\*`[a-z-]+`\*\*' "$BCMD" | sed -E 's/\*\*//g; s/`//g' | sort -u)"
 ds_row_count="$(grep -cE '^\| `check <check-id>' "$DSMD")"
 ds_ids="$(grep -E '^\| `check <check-id>' "$DSMD" \
-  | sed -E 's/.*\{([^}]*)\}.*/\1/' | tr ',' '\n' \
+  | sed -E 's/.*∈ \{([^}]*)\}.*/\1/' | tr ',' '\n' \
   | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//' | grep -v '^$' | sort -u)"
 
 # Anchor integrity BEFORE the set compares: `grep -E ... | sed` yields an EMPTY set just as
@@ -1048,6 +1048,12 @@ assert "BOARD_CHECK_IDS SET == the set board-checks.sh actually emits (edit scri
 # Comments are stripped first so the header's prose (`emit a table row`, :94) is out of scope; it
 # would not match the literal shape anyway, but stripping makes the two counts comparable over the
 # same text. `emit(){` is excluded for free by requiring the space after `emit`.
+#
+# Both counters are LINE-oriented, and `grep -vE '^[[:space:]]*#'` strips only FULL-LINE comments.
+# Two legitimate shapes can therefore make the two counts disagree: an `emit` call split across a
+# backslash line continuation, and an inline trailing `# ...` comment following `emit` on a code
+# line. Either would redden this assert — never pass silently — so this is a known fail-loud gap,
+# not a logic bug; rewrite the offending line rather than "fixing" the regex.
 bcsh_code="$(grep -vE '^[[:space:]]*#' "$BCSH")"
 emit_sites="$(grep -oE '\bemit [^;|&)]*' <<<"$bcsh_code" | grep -c .)"
 emit_literal_sites="$(grep -oE '\bemit [a-z][a-z-]*[[:space:]]+"' <<<"$bcsh_code" | grep -c .)"
