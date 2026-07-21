@@ -987,11 +987,15 @@ ex9_paths="$(printf '%s\n' "$ex_flat" | cut -f1)"
 # Takes the path as an argument (not the $README global) so the marker tests in Task 5 can scan a
 # temporary fixture instead of mutating the real README.
 scan_fences(){
-  local md="$1" line ind body flatout p pv top
+  local md="$1" line ind body flatout flat raw p pv top
   while IFS="$TAB9" read -r line ind; do
     [ -n "$line" ] || continue
     body="$(fence_body "$md" "$line" "$ind")"
     flatout="$(printf '%s\n' "$body" | flatten_yaml)"
+    flat="$(printf '%s\n' "$flatout" | grep -c .)"
+    if [ "$flat" -eq 0 ]; then echo "empty $line"; continue; fi
+    raw="$(printf '%s\n' "$body" | grep -vE '^[[:space:]]*$' | grep -vcE '^[[:space:]]*#')"
+    [ "$raw" = "$flat" ] || echo "drop $line raw=$raw flat=$flat"
     while IFS="$TAB9" read -r p pv; do
       [ -n "$p" ] || continue
       top="${p%%.*}"
@@ -1011,5 +1015,20 @@ findings9="$(scan_fences "$README")"
 f9_miss="$(printf '%s\n' "$findings9" | grep '^miss ' | sed 's/^miss //' | tr '\n' ' ')"
 assert "(9) every README config-fence key exists in .docket.example.yml (fence-line + key path shown; ${f9_miss:-none missing})" \
   '[ -z "$f9_miss" ]'
+
+# NON-VACUITY FLOOR 2 — a fence that flattens to ZERO paths contributes nothing to the existence
+# loop above, so it would be silently unguarded rather than reported.
+f9_empty="$(printf '%s\n' "$findings9" | grep '^empty ' | sed 's/^empty //' | tr '\n' ' ')"
+assert "(9) every config fence flattens to at least one key (fence lines listed; ${f9_empty:-none empty})" \
+  '[ -z "$f9_empty" ]'
+
+# NON-VACUITY FLOOR 3 — SAFETY NET for flatten_yaml's deliberately narrow key class. A key spelled
+# outside [A-Za-z_][A-Za-z0-9_-]* is silently REJECTED by the flattener rather than flagged, and
+# because the existence loop iterates POST-filter output, a dropped line is invisible to it. Cross-
+# check structurally: every non-blank, non-full-line-comment line in a fence must survive
+# flattening into exactly one path.
+f9_drop="$(printf '%s\n' "$findings9" | grep '^drop ' | sed 's/^drop //' | tr '\n' ' ')"
+assert "(9) the flattener drops no key-shaped line in any fence (raw content lines vs flattened, per fence; ${f9_drop:-none dropped})" \
+  '[ -z "$f9_drop" ]'
 
 exit $fail
