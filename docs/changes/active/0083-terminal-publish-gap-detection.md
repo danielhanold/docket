@@ -2,21 +2,21 @@
 id: 83
 slug: terminal-publish-gap-detection
 title: A terminal record can silently never reach the integration branch — mark deferred publishes, stop the checker lying
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-16
 updated: 2026-07-21
 depends_on: []
 related: [33, 43, 64, 95]
-adrs: [1]
+adrs: [1, 51]
 spec: docs/superpowers/specs/2026-07-18-terminal-publish-gap-detection-design.md
 plan: docs/superpowers/plans/2026-07-21-terminal-publish-gap-detection.md
-results:
+results: docs/results/2026-07-21-terminal-publish-gap-detection-results.md
 trivial: false
 auto_groomable: false
 branch: feat/terminal-publish-gap-detection
-claimed_at: 2026-07-21T01:14:05Z
-pr:
+claimed_at: 2026-07-21T06:03:07Z
+pr: https://github.com/danielhanold/docket/pull/114
 blocked_by:
 reconciled: true
 ---
@@ -28,7 +28,9 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-18-terminal-publish-gap-detection-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-18-terminal-publish-gap-detection-design.md) |
 | Plan | [2026-07-21-terminal-publish-gap-detection.md](https://github.com/danielhanold/docket/blob/feat/terminal-publish-gap-detection/docs/superpowers/plans/2026-07-21-terminal-publish-gap-detection.md) |
-| ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md) |
+| Results | [2026-07-21-terminal-publish-gap-detection-results.md](https://github.com/danielhanold/docket/blob/feat/terminal-publish-gap-detection/docs/results/2026-07-21-terminal-publish-gap-detection-results.md) |
+| PR | [#114](https://github.com/danielhanold/docket/pull/114) |
+| ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md), [ADR-0051](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0051-publish-deferred-marker-not-branch-diff-detector.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
