@@ -2,7 +2,7 @@
 slug: guards-are-code
 hook: "A guard is code — mutation-test it (strip the feature, watch it go red) or it is decoration."
 topics: [testing, sentinels, mutation]
-changes: [14, 15, 21, 36, 37, 64, 65, 67, 68, 69, 70, 71, 72, 73, 74, 83, 84, 88, 91, 96, 101, 102, 106, 107]
+changes: [14, 15, 21, 36, 37, 64, 65, 67, 68, 69, 70, 71, 72, 73, 74, 83, 84, 88, 91, 96, 101, 102, 106, 107, 111]
 created: 2026-06-17
 updated: 2026-07-21
 promotion_state: promoted
@@ -232,3 +232,25 @@ lib. A snippet the PLAN hands you is unvetted code: mutation-test it like any as
   alone. The meta-lesson the change itself records: **every one of the five was found by review,
   never by the suite** — five green suites over five live instances of the bug. When the guard IS
   the deliverable, budget for the guard, not the feature.
+- 2026-07-21 (#111, PR #117) — **#96's discovery-guard rule, confirmed by mutation and then
+  answered with a lint rather than a wider pattern.** #96 established that for a guard which finds
+  its own inputs, site-count is part of the contract and a silent decrease is the failure mode.
+  This change proved the sharp version: `board-checks.sh`'s whole check-id guard matches a
+  **literal** id, so rewriting one site to `emit "$var"` makes that site vanish from the guard's
+  view. Because `field-domain` is emitted at other sites too, the distinct emitted set stayed at
+  **12** and every set compare stayed green; only the call-site count moved, 17 → 16. Two things
+  worth copying. (a) The countermeasure shipped is a **no-dynamic-check-id lint** — forbid the shape
+  that defeats the extractor, rather than widening the extractor to chase it. Widening is a race you
+  lose; a lint converts an invisible miss into a loud one. (b) The change **dropped** an assert the
+  spec mandated (an `emit` call-site count of 16) after establishing its rationale no longer held:
+  it was load-bearing only against a *position*-anchored extractor, and the inherited extractor is
+  *shape*-anchored, which cannot miss a `case`-arm site by construction. Retiring an assert is
+  normally forbidden by this finding ("never RETIRE a guard on the claim that a new one subsumes
+  it") — the discipline that makes this instance legitimate is that the replacement covers a
+  strictly harder case, the reasoning is recorded as a normative spec amendment rather than a commit
+  message, and the reviewer's nine-mutant matrix confirmed each surviving assert fires **alone**
+  where that is its claim. Also caught here: a **duplicate** entry in `BOARD_CHECK_IDS` leaves the
+  set unchanged at 12, so set equality cannot see it — arity is a separate assert, and it reddened
+  alone. And the change's own remedy prose had drifted on first write (it said "all four" surfaces
+  after adding a fifth), which is the by-now-familiar pattern of a drift guard drifting inside the
+  change that ships it (see [[verify-the-claim]]).

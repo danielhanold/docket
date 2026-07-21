@@ -2,7 +2,7 @@
 slug: correspondence-guard-runs-one-way
 hook: "A guard over a correspondence between two sets proves only the direction it iterates — write the reverse loop too, and anchor it on the consuming code, not an allowlist."
 topics: [testing, coverage, sentinels]
-changes: [101, 107, 104, 102]
+changes: [101, 107, 104, 102, 111]
 created: 2026-07-20
 updated: 2026-07-21
 promotion_state: candidate
@@ -89,3 +89,22 @@ change existed to end ([[verify-the-claim]]).
   already-classified one was invisible — `learnings.gate` colliding with the flat-read
   `finalize.gate` passed green, which is also a live mis-resolution hazard for `yaml_get`'s
   `head -n1`. Whenever a guard de-duplicates, ask what real distinctions the de-dup key erases.
+- 2026-07-21 (#111, PR #117) — **The follow-through: #104's own gap, closed, and the mirror/subset
+  question answered explicitly rather than by default.** #104 (recorded above as "the zero-way case")
+  shipped the forward direction for `board-checks.sh`'s check-id set — every emitted id must appear
+  in `board-checks.md` and `docket-status.md`. Nothing asserted the converse, so an id **retired from
+  the code and left behind in either document**, or a typo'd extra entry, passed green. The
+  determining question is the one #107 added to this finding: is the correspondence a mirror or a
+  proper subset? Both documents claim a **closed enumeration**, so it is a mirror and the reverse
+  loop is mandatory — this is *not* #107's subset exception, and saying so in the results is what
+  keeps a later reader from re-litigating it. Both surfaces are now compared as sets, and the
+  reviewer's mutation matrix pinned the phantom direction specifically: a phantom section head in
+  `board-checks.md` and a phantom entry in `docket-status.md`'s enumeration each redden their own
+  assert alone. Two neighbouring lessons from the same matrix. (a) **Set equality does not catch a
+  duplicate** — a repeated entry in `BOARD_CHECK_IDS` leaves the *set* at 12 while the array is
+  wrong, so an arity assert is a separate obligation from the set compare, and it reddened alone.
+  (b) **The extractor's own blind spot needs its own assert**: the whole guard matches a *literal*
+  check-id, so a site rewritten `emit "$var"` matches nothing and simply leaves the guard's view.
+  Mutating one site to a variable kept every set compare green at 12 (the id is emitted elsewhere
+  too) and was visible only in the call-site count, 17 → 16. That is one assert in the file that can
+  see it — see [[guards-are-code]] on discovery guards, where site-count is part of the contract.
