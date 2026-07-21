@@ -2,10 +2,10 @@
 id: 112
 slug: pin-the-reverse-cross-layer-masking-for-the-committed-over-l
 title: Complete the finalize.test_command cross-layer masking matrix (reverse committed-over-local + both skip-rung pairs)
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-07-20
-updated: 2026-07-20
+updated: 2026-07-21
 depends_on: []
 related: []
 discovered_from: [106]
@@ -15,7 +15,8 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch:
+branch: feat/pin-the-reverse-cross-layer-masking-for-the-committed-over-l
+claimed_at: 2026-07-21T23:11:54Z
 pr:
 blocked_by:
 reconciled: false
