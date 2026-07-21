@@ -10,9 +10,14 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 
 MARKER='## Publish deferred'
 
+# Every fixture is minted UNDER one root, removed by an EXIT trap: the per-fixture `mktemp -d`
+# calls used to leak a directory apiece into $TMPDIR on every run.
+MPD_ROOT="$(mktemp -d)"
+trap 'rm -rf "$MPD_ROOT"' EXIT
+
 # mkfile — writes a minimal archived change file, prints its path.
 mkfile(){
-  local d; d="$(mktemp -d)"
+  local d; d="$(mktemp -d "$MPD_ROOT/fixture.XXXXXX")"
   cat > "$d/2026-07-08-0043-sample.md" <<'EOF'
 ---
 id: 43
@@ -122,7 +127,7 @@ assert "remove with marker in the MIDDLE preserves the trailing section body" \
 # CRITICAL regression this guards: give the file trailing blank lines first, then compare raw
 # bytes with `cmp`, never through a variable.
 printf '\n\n' >> "$f"
-before_copy="$(mktemp)"
+before_copy="$(mktemp "$MPD_ROOT/before.XXXXXX")"
 cp "$f" "$before_copy"
 out="$(bash "$SCRIPT" --mode remove --change-file "$f" 2>&1)"; rc=$?
 assert "remove with no marker exits zero" '[ "$rc" -eq 0 ]'
@@ -158,6 +163,94 @@ f5="$(mkfile)"
 bash "$SCRIPT" --mode add --change-file "$f5" --reason deferred --detail "approval & sign-off pending" \
      --date 2026-07-08 --integration-branch main --id 43 >/dev/null 2>&1
 assert "an '&' in --detail survives verbatim" 'grep -qF -- "approval & sign-off pending" "$f5"'
+
+# --- a file with NO TRAILING NEWLINE is a genuine no-op on remove (change 0083 review, minor 6) ---
+# The old gate stripped the marker into a temp file and `cmp -s`'d it against the input. awk always
+# terminates its last output line, so for a file that does not end in `\n` the stripped copy
+# differed by exactly that byte: `cmp` said "changed", the no-op path was skipped, and the file was
+# rewritten WITH a newline appended — falsifying this script's documented "byte-untouched, not
+# merely line-equivalent" claim. The precondition grep decides it now, before any temp file exists.
+nonl_dir="$(mktemp -d "$MPD_ROOT/nonl.XXXXXX")"
+nonl="$nonl_dir/nonl.md"
+printf -- '---\nid: 9\n---\n\n## Why\n\nBecause.' > "$nonl"   # deliberately NO trailing newline
+cp "$nonl" "$nonl_dir/before"
+assert "fixture precondition: the no-trailing-newline file really lacks one" \
+  '[ "$(tail -c 1 "$nonl")" != "" ]'
+out="$(bash "$SCRIPT" --mode remove --change-file "$nonl" 2>&1)"; rc=$?
+assert "remove on a markerless file with NO trailing newline exits zero" '[ "$rc" -eq 0 ]'
+assert "remove on a markerless file with NO trailing newline appends nothing (BYTE-identical)" \
+  'cmp -s "$nonl_dir/before" "$nonl"'
+
+# ...and the precondition must not have broken the real removal on such a file.
+nonl2="$nonl_dir/nonl2.md"
+printf -- '---\nid: 9\n---\n\n## Why\n\nBecause.\n\n## Publish deferred\n\nstill blocked.' > "$nonl2"
+bash "$SCRIPT" --mode remove --change-file "$nonl2" >/dev/null 2>&1
+assert "remove still strips the marker from a file with no trailing newline" \
+  '! grep -qxF -- "$MARKER" "$nonl2"'
+assert "remove keeps that file's body"      'grep -qxF -- "## Why" "$nonl2"'
+assert "remove keeps that file's frontmatter" 'grep -qxF -- "id: 9" "$nonl2"'
+
+# --- a failed body read must never yield a TRUNCATED record (change 0083 review, finding 2) -------
+# `{ cat "$tmp.2"; printf …; } > "$tmp.3" || die` read only the LAST command's status, so a failed
+# `cat` (ENOSPC/EIO) left $tmp.3 holding the marker section ALONE, `die` never fired, and the `mv`
+# replaced the archived record with it — the whole body destroyed, exit 0, by the sole writer of a
+# durable record. `cat` is invoked unqualified, so a PATH stub reproduces the I/O failure exactly.
+stub_fail="$MPD_ROOT/stub-cat-fail"; mkdir -p "$stub_fail"
+printf '#!/usr/bin/env bash\nexit 1\n' > "$stub_fail/cat"; chmod +x "$stub_fail/cat"
+f7="$(mkfile)"; cp "$f7" "$MPD_ROOT/before7"
+err="$(PATH="$stub_fail:$PATH" bash "$SCRIPT" --mode add --change-file "$f7" --reason blocked \
+        --date 2026-07-08 --integration-branch main --id 43 2>&1)"; rc=$?
+assert "a failed body read exits NON-ZERO (the group's status no longer hides it)" '[ "$rc" -ne 0 ]'
+assert "a failed body read leaves the record BYTE-untouched"       'cmp -s "$MPD_ROOT/before7" "$f7"'
+assert "a failed body read never produces a marker-only record"    'grep -qxF -- "## Why killed" "$f7"'
+
+# A read that TRUNCATES but still reports success slips past every `|| die`; the size postcondition
+# is what catches it. Needs a body far larger than the ~500-byte marker section — with the tiny
+# fixture the marker section alone outweighs the loss and the check legitimately cannot see it.
+stub_trunc="$MPD_ROOT/stub-cat-trunc"; mkdir -p "$stub_trunc"
+printf '#!/usr/bin/env bash\nhead -n 1 -- "$1"\nexit 0\n' > "$stub_trunc/cat"; chmod +x "$stub_trunc/cat"
+f8="$(mkfile)"
+for _ in $(seq 1 120); do printf 'Filler line that makes the body substantially larger than the marker section.\n' >> "$f8"; done
+cp "$f8" "$MPD_ROOT/before8"
+err="$(PATH="$stub_trunc:$PATH" bash "$SCRIPT" --mode add --change-file "$f8" --reason blocked \
+        --date 2026-07-08 --integration-branch main --id 43 2>&1)"; rc=$?
+assert "a silently-truncating body read exits NON-ZERO (size postcondition)" '[ "$rc" -ne 0 ]'
+assert "a silently-truncating body read leaves the record BYTE-untouched" 'cmp -s "$MPD_ROOT/before8" "$f8"'
+assert "the size postcondition says what it refused"  'grep -qiE -- "postcondition|smaller" <<<"$err"'
+
+# --- --id and --integration-branch are untrusted too (change 0083 review, finding 3) --------------
+# Unvalidated, they were worse than --detail: a newline injects lines INTO the marker section, and
+# a column-0 `## ` heading among them TERMINATES the section for the strip pass — so `--mode remove`
+# stops at the injected heading and strands the tail in the record permanently, while
+# terminal-publish.sh (which only checks the marker heading is gone) publishes it with exit 0.
+f9="$(mkfile)"; cp "$f9" "$MPD_ROOT/before9"
+err="$(bash "$SCRIPT" --mode add --change-file "$f9" --reason blocked --date 2026-07-08 \
+        --id "$(printf '43\n\n## Fake heading\n\ninjected')" 2>&1)"; rc=$?
+assert "a multi-line --id is REJECTED"                     '[ "$rc" -ne 0 ]'
+assert "a rejected --id names the offending flag"          'grep -qiE -- "\-\-id|integer" <<<"$err"'
+assert "a rejected --id leaves the file BYTE-untouched"    'cmp -s "$MPD_ROOT/before9" "$f9"'
+assert "a rejected --id injects no column-0 heading"       '! grep -qxF -- "## Fake heading" "$f9"'
+
+err="$(bash "$SCRIPT" --mode add --change-file "$f9" --reason blocked --date 2026-07-08 --id abc 2>&1)"; rc=$?
+assert "a non-numeric --id is REJECTED"                    '[ "$rc" -ne 0 ]'
+assert "the non-numeric --id rejection touches nothing"    'cmp -s "$MPD_ROOT/before9" "$f9"'
+
+# Its OWN fixture, deliberately: sharing $f9 made a mutation that disables the --id guard corrupt
+# the file and redden these asserts as collateral, blurring which guard each mutation proves.
+f10="$(mkfile)"; cp "$f10" "$MPD_ROOT/before10"
+err="$(bash "$SCRIPT" --mode add --change-file "$f10" --reason blocked --date 2026-07-08 --id 43 \
+        --integration-branch "$(printf 'main\n\n## Fake heading\n\ninjected')" 2>&1)"; rc=$?
+assert "a multi-line --integration-branch is REJECTED"              '[ "$rc" -ne 0 ]'
+assert "the rejection names control characters"                     'grep -qiE -- "control|integration-branch" <<<"$err"'
+assert "a rejected --integration-branch leaves the file BYTE-untouched" 'cmp -s "$MPD_ROOT/before10" "$f10"'
+assert "a rejected --integration-branch injects no column-0 heading" '! grep -qxF -- "## Fake heading" "$f10"'
+
+# The valid shapes still pass — the guards reject, they do not block ordinary use.
+f11="$(mkfile)"
+bash "$SCRIPT" --mode add --change-file "$f11" --reason blocked --date 2026-07-08 --id 43 \
+     --integration-branch feature/int-2 >/dev/null 2>&1; rc=$?
+assert "a numeric --id and an ordinary branch name are still ACCEPTED" '[ "$rc" -eq 0 ]'
+assert "the accepted run wrote the marker" 'grep -qxF -- "$MARKER" "$f11"'
 
 # --- arg validation ------------------------------------------------------------------------------
 err="$(bash "$SCRIPT" --mode add --change-file /nonexistent/nope.md --reason deferred 2>&1)"; rc=$?

@@ -314,20 +314,27 @@ until $GIT -C "$pub" push "$REMOTE" "HEAD:$INT_BRANCH"; do
 done
 
 # --- fail-closed: re-fetch and assert the full copy-set landed on origin/<integration> ---
+# HERE-STRINGS, never `printf … | grep -q …` (change 0083 review, finding 4). Under `set -o
+# pipefail` a `grep -q` that exits on its first match SIGPIPEs the producer, and the 141 becomes
+# the pipeline's status: `$landed` is the FULL `ls-tree -r` of the integration branch, so in a
+# consuming repo with a few thousand tracked files it crosses the pipe-buffer threshold and the
+# postcondition below starts reporting an intermittent, entirely false "missing on origin/main".
+# The worktree-survival guard fails the other way — a SIGPIPE 141 makes its `&& die` not fire,
+# silently skipping the guard. A here-string has no producer process, so neither can happen.
 $GIT fetch "$REMOTE" "$INT_BRANCH" >/dev/null 2>&1 || { teardown; die "post-push fetch failed"; }
 landed="$($GIT ls-tree -r --name-only "$REMOTE/$INT_BRANCH")"
 for p in "${copyset[@]}"; do
-  printf '%s\n' "$landed" | grep -qxF "$p" || { teardown; die "postcondition: $p missing on $REMOTE/$INT_BRANCH"; }
+  grep -qxF -- "$p" <<<"$landed" || { teardown; die "postcondition: $p missing on $REMOTE/$INT_BRANCH"; }
 done
 # change 0040: the rendered ADR index is not in the copy-set, so assert it separately (fail-closed).
 if [ "$adr_published" = true ]; then
-  printf '%s\n' "$landed" | grep -qxF "$ADRS_DIR/README.md" \
+  grep -qxF -- "$ADRS_DIR/README.md" <<<"$landed" \
     || { teardown; die "postcondition: $ADRS_DIR/README.md missing on $REMOTE/$INT_BRANCH"; }
 fi
 
 teardown
 # teardown removed the worktree; assert it is gone (registration pruned)
 wt_list="$($GIT worktree list)"
-printf '%s\n' "$wt_list" | grep -q "pub-$T" && die "postcondition: pub-$T worktree survived"
+grep -q -- "pub-$T" <<<"$wt_list" && die "postcondition: pub-$T worktree survived"
 log "published ${#copyset[@]} record(s) for $T onto $INT_BRANCH"
 exit 0

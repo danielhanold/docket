@@ -99,7 +99,10 @@ successful publish (so a marker in the tree always means a pending deferral). It
 in the change file, **never** a `git cat-file -e origin/<integration>:<path>` set-diff — a
 branch-set diff would reintroduce the standing detector change 0083 deliberately declined, fire
 forever under `terminal_publish: false`, and break this script's git-only/offline invariant.
-Warn-only; it never mutates the change file.
+**Residual, stated plainly:** this check reads a marker that only a *compliant driver* writes, so a
+deferral nobody marked stays as invisible as it was before change 0083 — the check raises the floor
+for drivers that follow the rule, it does not detect the gap independently. Warn-only; it never
+mutates the change file.
 
 **`merged-orphan`** — A change id is referenced by a commit *subject* on `--integration-branch`
 while the change is still non-terminal (a file under `active/`, not yet archived). This is the

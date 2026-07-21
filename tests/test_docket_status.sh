@@ -741,6 +741,13 @@ EOF
 seed_sweep_change 20 clean-thing implemented
 seed_sweep_change 21 broken-render implemented
 seed_sweep_change 23 cleanup-broken implemented
+seed_sweep_change 24 publish-broken implemented
+seed_sweep_change 25 publish-mark-broken implemented
+# The sweep commits on this clone itself (the artifacts refresh, and change 0083's deferral mark),
+# without passing `-c user.*`. Configure an identity locally so the fixture does not silently
+# depend on the developer's global git config.
+git -C "$sweep_dir/work" config user.email t@t
+git -C "$sweep_dir/work" config user.name t
 git -C "$sweep_dir/work" -c user.email=t@t -c user.name=t add docs/changes
 git -C "$sweep_dir/work" -c user.email=t@t -c user.name=t commit -q -m "seed sweep changes"
 git -C "$sweep_dir/work" push -q origin main
@@ -787,6 +794,26 @@ EOF
 cat > "$tmp/mock-scripts/terminal-publish.sh" <<'EOF'
 #!/usr/bin/env bash
 echo "terminal-publish $*" >> "$SWEEP_LOG"
+# change 0083: ids 24 and 25 drive the publish-FAILURE branch — the one the sweep must now mark
+# on the archived change file before emitting its `sweep-failed … terminal-publish` line.
+case "$*" in *"--id 24 "*|*"--id 25 "*) exit 1 ;; esac
+exit 0
+EOF
+
+# change 0083: the sweep's own deferral mark. The mock ACTUALLY appends a marker heading, so the
+# commit+push leg after it is exercised for real rather than short-circuiting on an empty diff.
+cat > "$tmp/mock-scripts/mark-publish-deferred.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "mark-publish-deferred $*" >> "$SWEEP_LOG"
+args="$*"
+cf=""
+while [ $# -gt 0 ]; do
+  case "$1" in --change-file) cf="$2"; shift ;; esac
+  shift
+done
+# id 25 models a mark that FAILS and writes nothing: the sweep must be wholly indifferent to it.
+case "$args" in *"--id 25"*) exit 1 ;; esac
+printf '\n## Publish deferred\n\nmocked marker\n' >> "$cf"
 exit 0
 EOF
 
@@ -799,7 +826,9 @@ EOF
 chmod +x "$tmp/mock-scripts/"*.sh
 
 sweep_input="$tmp/sweep-input.tsv"
-printf '20\tclean-thing\t20\t2026-07-08\n21\tbroken-render\t21\t2026-07-09\n22\talready-done\t22\t2026-07-05\n23\tcleanup-broken\t23\t2026-07-10\n' > "$sweep_input"
+# 24 and 25 (the change-0083 publish-failure cases) sit BEFORE 23, so `23` is processed after them
+# and a loop-continuation assert keyed on it is real rather than order-trivial.
+printf '20\tclean-thing\t20\t2026-07-08\n21\tbroken-render\t21\t2026-07-09\n22\talready-done\t22\t2026-07-05\n24\tpublish-broken\t24\t2026-07-11\n25\tpublish-mark-broken\t25\t2026-07-12\n23\tcleanup-broken\t23\t2026-07-10\n' > "$sweep_input"
 
 # NOTE: docket-status.sh's own top-level flag parser consumes "$@" at source time, so no
 # positional args can be passed through `bash -c '. script; ...' _ <args>` here — feed the
@@ -859,6 +888,58 @@ assert "sweep_execute: cleanup failure emits sweep-failed before swept/harvest (
    && [ "$failed_line" -lt "$swept_line" ] && [ "$swept_line" -lt "$harvest_line" ]'
 assert "sweep_execute: cleanup failure does not block clean-thing (loop continues)" \
   'printf "%s\n" "$sweep_out" | grep -qE "^swept 20 2026-07-08$"'
+
+# --- change 0083: a failed terminal-publish MARKS ITSELF on the archived change file -------------
+# This is the highest-volume automated path on which a publish does not complete. Before change
+# 0083 it emitted one report line and nothing else: the change was archived-but-unpublished, no
+# later sweep resumed it (the sweep only scans active/), and board-checks' `publish-deferred` check
+# read a marker that nothing had written. Now the sweep marks the archived file itself, and commits
+# it — an UNCOMMITTED marker would dirty the shared metadata worktree and fail the next pass's
+# `pull --rebase` for every change, which is strictly worse than the gap it records.
+assert "0083: a failed terminal-publish still emits sweep-failed terminal-publish script-error" \
+  'printf "%s\n" "$sweep_out" | grep -qE "^sweep-failed 24 terminal-publish script-error$"'
+assert "0083: the failed publish invokes mark-publish-deferred on the ARCHIVED change file" \
+  'mk="$(grep -m1 "^mark-publish-deferred .*publish-broken" "$sweep_log")"; \
+   [ -n "$mk" ] && grep -q -- "--change-file .*archive/2026-07-11-0024-publish-broken.md" <<<"$mk"'
+assert "0083: the mark is --mode add --reason blocked" \
+  'mk="$(grep -m1 "^mark-publish-deferred .*publish-broken" "$sweep_log")"; \
+   [ -n "$mk" ] && grep -q -- "--mode add" <<<"$mk" && grep -q -- "--reason blocked" <<<"$mk"'
+assert "0083: the mark carries the change id and the integration branch" \
+  'mk="$(grep -m1 "^mark-publish-deferred .*publish-broken" "$sweep_log")"; \
+   [ -n "$mk" ] && grep -q -- "--id 24" <<<"$mk" && grep -q -- "--integration-branch main" <<<"$mk"'
+assert "0083: the mark runs AFTER terminal-publish failed, not before it ran" \
+  'pub_line=$(grep -n "^terminal-publish .*--id 24 " "$sweep_log" | head -n1 | cut -d: -f1); \
+   mark_line=$(grep -n "^mark-publish-deferred .*publish-broken" "$sweep_log" | head -n1 | cut -d: -f1); \
+   [ -n "$pub_line" ] && [ -n "$mark_line" ] && [ "$pub_line" -lt "$mark_line" ]'
+assert "0083: a SUCCESSFUL publish is never marked" \
+  '! grep -q "^mark-publish-deferred .*clean-thing" "$sweep_log"'
+assert "0083: a change that never reached the publish step is never marked" \
+  '! grep -q "^mark-publish-deferred .*broken-render" "$sweep_log"'
+assert "0083: the publish failure still abandons the rest of the close-out (no cleanup)" \
+  '! grep -q "^cleanup-feature-branch .*--slug publish-broken" "$sweep_log"'
+assert "0083: the publish failure emits neither swept nor harvest" \
+  '! printf "%s\n" "$sweep_out" | grep -qE "^(swept|harvest) 24 "'
+# The mark must be COMMITTED, not left in the working tree.
+assert "0083: the marker reached the metadata branch as a commit" \
+  'git -C "$sweep_dir/work" show "HEAD:docs/changes/archive/2026-07-11-0024-publish-broken.md" \
+     | grep -qxF -- "## Publish deferred"'
+assert "0083: the sweep left the shared metadata worktree CLEAN" \
+  '[ -z "$(git -C "$sweep_dir/work" status --porcelain)" ]'
+
+# A mark that FAILS must be invisible: identical report lines, identical control flow. `-c` on the
+# whole output, not a presence grep — an extra or duplicated line would pass a presence check.
+assert "0083: a FAILED mark still emits exactly the one sweep-failed line for that change" \
+  '[ "$(printf "%s\n" "$sweep_out" | grep -c "^sweep-failed 25 ")" -eq 1 ]'
+assert "0083: a FAILED mark leaves the reason unchanged (terminal-publish script-error)" \
+  'printf "%s\n" "$sweep_out" | grep -qE "^sweep-failed 25 terminal-publish script-error$"'
+assert "0083: a FAILED mark does not add swept/harvest" \
+  '! printf "%s\n" "$sweep_out" | grep -qE "^(swept|harvest) 25 "'
+assert "0083: a FAILED mark does not resume the close-out (still no cleanup)" \
+  '! grep -q "^cleanup-feature-branch .*--slug publish-mark-broken" "$sweep_log"'
+# Keyed on 23, which the input orders AFTER 24/25 — so this is genuine loop continuation past both
+# publish failures, not a change that had already been processed before them.
+assert "0083: a FAILED mark does not stop the loop (the change processed AFTER it still sweeps)" \
+  'printf "%s\n" "$sweep_out" | grep -qE "^swept 23 2026-07-10$"'
 
 # --- change 0064 (Finding 1): TERMINAL_PUBLISH gates the REAL sweep's terminal-publish.sh call ---
 # A behavioral test (not just wiring): drives docket-status.sh's actual merge-sweep pipeline in a

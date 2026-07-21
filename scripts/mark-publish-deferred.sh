@@ -20,7 +20,13 @@
 #                  first, so a re-mark never appends a second heading (the presence-encoded-state
 #                  failure re-hit on `## Finalize blocked`). The section is appended LAST.
 #   --mode remove  Strip the marker. A file without one is a no-op that exits 0, leaving the file
-#                  byte-untouched (no write at all — the trailing-blank-line trim below never runs).
+#                  byte-untouched (no write at all — decided by a PRECONDITION grep before any temp
+#                  file exists, so the trailing-blank-line trim below never runs).
+#   --id / --integration-branch
+#                  Interpolated into the rendered body, therefore as untrusted as --detail: an id
+#                  must be a non-negative integer, a branch name must carry no control character.
+#                  A smuggled column-0 `## ` heading would terminate the marker section, making
+#                  `--mode remove` strand everything after it in the record permanently.
 #   --reason       Fixed prefix: `deferred` (a human gate that was never answered) or `blocked`
 #                  (a wall the run could not pass, e.g. a protected-branch push denial).
 #   --detail       Short free text after the prefix. MODEL-AUTHORED ⇒ UNTRUSTED: rejected at
@@ -29,7 +35,9 @@
 #                  ordinary English survive verbatim.
 #
 # Exit codes: 0 = the file now matches the requested state. 1 = a real error (bad args, missing
-# or unreadable file, rejected --detail). The file is left BYTE-UNTOUCHED on every exit-1 path.
+# or unreadable file, a rejected --detail/--id/--integration-branch, or a failed render). The file
+# is left BYTE-UNTOUCHED on every exit-1 path — the render writes to a temp file, and every step
+# of it is checked individually so a partial render can never reach the mv.
 #
 # Invariants:
 #   - The heading is matched WHOLE-LINE (`$0 == "## Publish deferred"`), never as a substring:
@@ -91,14 +99,17 @@ cleanup(){ rm -f "$tmp" "$tmp.2" "$tmp.3"; }
 trap cleanup EXIT
 
 if [ "$MODE" = remove ]; then
+  # PRECONDITION, not a post-hoc byte comparison (change 0083 review, minor 6). A file with no
+  # whole-line `## Publish deferred` heading is a TRUE no-op: no temp file is even written, so the
+  # file cannot be touched. The old test — strip, then `cmp -s` the stripped output against the
+  # input — was WRONG for a file that does not end in a newline: awk terminates its last output
+  # line regardless, so the stripped copy differed by exactly the appended `\n`, `cmp` reported
+  # "changed", and the no-op path fell through and rewrote the file. That silently falsified this
+  # script's own documented "byte-untouched, not merely line-equivalent" claim. The `-x` whole-line
+  # match is the same rule the removal itself uses, so gate and action agree by construction: an
+  # inline PROSE MENTION of the marker is not a heading and does not arm the write.
+  grep -qxF -- "$MARKER" "$CHANGE_FILE" || exit 0
   strip_marker "$CHANGE_FILE" > "$tmp" || die "strip failed"
-  if cmp -s "$tmp" "$CHANGE_FILE"; then
-    # strip_marker found no `## Publish deferred` line to skip, so its output is byte-identical to
-    # the input: no marker was present. A true no-op must leave the file byte-untouched — do NOT
-    # fall through to the trailing-blank-line trim below, which would rewrite (and strip blank
-    # lines from) a file that never had a marker in the first place.
-    exit 0
-  fi
   # A marker WAS present and just got stripped: trim any trailing blank lines that left behind,
   # then restore a single terminating newline.
   awk 'BEGIN{n=0} {lines[++n]=$0} END{ last=n; while (last>0 && lines[last]=="") last--; for(i=1;i<=last;i++) print lines[i] }' "$tmp" > "$tmp.2" || die "trim failed"
@@ -114,6 +125,22 @@ case "$REASON" in deferred|blocked) ;; *) die "invalid --reason: '$REASON' (expe
 case "$DETAIL" in
   *[[:cntrl:]]*) die "--detail must be a single line with no control characters (newline/CR/TAB)" ;;
 esac
+# `--id` and `--integration-branch` are interpolated into the rendered body exactly like --detail,
+# so they are exactly as untrusted (change 0083 review, finding 3). Unvalidated, they were WORSE
+# than --detail: a newline in either injects arbitrary lines INTO the marker section, and a
+# column-0 `## ` heading among them TERMINATES the section for `strip_marker`. `--mode remove`
+# then stops at the injected heading and leaves the tail behind permanently — corruption the sole
+# writer of this marker cannot undo — and `terminal-publish.sh`, which only checks that the marker
+# heading is gone, publishes the corrupted record with exit 0. Shape checks, at intake, next to
+# --detail's: an id is a number, a branch name has no control characters (git forbids them too).
+if [ -n "$ID" ]; then
+  case "$ID" in
+    *[!0-9]*) die "invalid --id: '$ID' (expected a non-negative integer)" ;;
+  esac
+fi
+case "$INT_BRANCH" in
+  *[[:cntrl:]]*) die "--integration-branch must carry no control characters (newline/CR/TAB)" ;;
+esac
 [ -n "$DATE" ] || DATE="$(date -u +%Y-%m-%d)"
 case "$DATE" in
   [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;;
@@ -127,8 +154,15 @@ awk 'BEGIN{n=0} {lines[++n]=$0} END{ last=n; while (last>0 && lines[last]=="") l
 id_hint=""
 [ -n "$ID" ] && id_hint=" --id $ID"
 
+# The base copy is SPLIT OUT of the group below (change 0083 review, finding 2). A command
+# group's exit status is its LAST command's, so `{ cat "$tmp.2"; printf …; } > "$tmp.3" || die`
+# read the status of the final printf and NEVER of the cat. A failed `cat` (ENOSPC, EIO) therefore
+# left `$tmp.3` holding only the marker section, `die` did not fire, and the `mv` below replaced
+# the archived record with it: the whole body destroyed, exit 0, by the sole writer of a durable
+# record. Demonstrated: `{ cat /nonexistent; printf 'TAIL\n'; } > out || echo die` writes TAIL and
+# never echoes. Now the failure-prone read stands alone with its own `|| die`.
+cat "$tmp.2" > "$tmp.3" || die "render failed: could not copy the change file body"
 {
-  cat "$tmp.2"
   printf '\n%s\n\n' "$MARKER"
   printf '### %s — terminal-publish to `%s` not completed\n\n' "$DATE" "$INT_BRANCH"
   # ENVIRON, not interpolation: `&` and `\1` are ordinary English and must survive verbatim.
@@ -142,7 +176,18 @@ id_hint=""
   printf 'ADRs onto `%s`) did **not** run. The record is on the metadata branch only.\n\n' "$INT_BRANCH"
   printf '**Re-arm:** complete the publish (`docket.sh terminal-publish%s …`), or record a decision\n' "$id_hint"
   printf 'not to. A successful publish removes this section automatically.\n'
-} > "$tmp.3" || die "render failed"
+} >> "$tmp.3" || die "render failed: could not append the marker section"
+
+# Size postcondition — a SECOND, independent backstop against a truncated render reaching the
+# `mv`. `add` only ever APPENDS to the stripped base, so the rendered file can never be smaller
+# than that base; a shorter one means the body was lost somewhere above. This catches the case
+# `|| die` structurally cannot: a read that truncates and still reports success. It is a
+# gross-truncation check, not a proof of fidelity — a loss smaller than the marker section it
+# appends would slip through — so it backs the per-step `|| die`s up, it does not replace them.
+base_bytes="$(wc -c < "$tmp.2")" || die "render postcondition: cannot size the change file body"
+out_bytes="$(wc -c < "$tmp.3")" || die "render postcondition: cannot size the rendered file"
+[ "$out_bytes" -ge "$base_bytes" ] \
+  || die "render postcondition: rendered file ($out_bytes bytes) is smaller than the body it was built from ($base_bytes bytes) — refusing to overwrite $CHANGE_FILE"
 
 mv "$tmp.3" "$CHANGE_FILE" || die "write failed"
 exit 0

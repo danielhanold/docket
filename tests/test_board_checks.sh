@@ -965,21 +965,38 @@ emitted="$(grep -oE 'emit [a-z][a-z-]*[[:space:]]+"' "$BCSH" | awk '{print $2}' 
 header_ids="$(sed -n '/check-id ∈ {/,/}/p' "$BCSH" | sed -E 's/^#[[:space:]]*//' | tr '\n' ' ' \
   | sed -E 's/.*\{([^}]*)\}.*/\1/' | tr ',' '\n' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//' \
   | grep -v '^$' | sort -u)"
-emitted_count="$(printf '%s\n' "$emitted" | grep -c .)"
-header_count="$(printf '%s\n' "$header_ids" | grep -c .)"
+emitted_count="$(grep -c . <<<"$emitted")"
+header_count="$(grep -c . <<<"$header_ids")"
 assert "the header's own check-id enumeration is non-empty (the cross-check itself is not vacuous)" \
   '[ "$header_count" -ge 1 ]'
-assert "emitted check-id count matches the header's own check-id ∈ {...} enumeration (an under- or over-derivation would disagree)" \
-  '[ "$emitted_count" -eq "$header_count" ]'
+assert "the emitted check-id derivation is non-empty (a broken regex must not vacuously satisfy the set compare)" \
+  '[ "$emitted_count" -ge 1 ]'
+# SET equality, not count equality (change 0083 review, minor 5). Counts are blind to a RENAME:
+# misspelling `publish-deferred` in the header alone kept both sides at 12 and the suite printed
+# PASS. `comm -3` prints the lines unique to either side, so any disagreement — under-derivation,
+# over-derivation, or a one-for-one rename — leaves output and reddens. Both sides are already
+# `sort -u`'d, which comm requires. Matches tests/test_docket_facade.sh:148's exact-set idiom for
+# this same class of guard. The `|| { … >&2; false; }` tail reports WHICH ids disagree.
+assert "emitted check-id SET == the header's own check-id ∈ {...} enumeration (a rename disagrees; a count compare would not)" \
+  '[ -z "$(comm -3 <(printf "%s\n" "$emitted") <(printf "%s\n" "$header_ids"))" ] \
+   || { comm -3 <(printf "%s\n" "$emitted") <(printf "%s\n" "$header_ids") >&2; false; }'
 assert "publish-deferred is among the emitted check-ids" \
-  'printf "%s\n" "$emitted" | grep -qxF "publish-deferred"'
+  'grep -qxF -- "publish-deferred" <<<"$emitted"'
+# The `$BCSH` arm this loop used to carry was TAUTOLOGICAL — `$emitted` is derived BY grepping
+# `$BCSH`, so grepping `$BCSH` for what it just yielded can never fail. The header enumeration is
+# the real board-checks.sh surface, and the set compare above now covers it. Dropped, not moved.
+#
+# WORD-BOUNDARY, not substring (change 0083 review, minor 7). `grep -qF -- "$c"` passed a future
+# id that is a substring of an existing one (e.g. `dep-cycle` vs a hypothetical `dep-cycle-hard`)
+# on the STRONGER id's registration. No current id is a substring of another, so this is latent —
+# fixed while the guard is open rather than left as a trap. Ids are `[a-z-]+`, so a boundary is
+# simply "no adjacent id character"; backticks, spaces and punctuation in the docs all qualify.
 reg_ok=1
 for c in $emitted; do
-  grep -qF -- "$c" "$BCSH" || { echo "check-id $c missing from board-checks.sh header" >&2; reg_ok=0; }
-  grep -qF -- "$c" "$BCMD" || { echo "check-id $c missing from board-checks.md" >&2; reg_ok=0; }
-  grep -qF -- "$c" "$DSMD" || { echo "check-id $c missing from docket-status.md" >&2; reg_ok=0; }
+  grep -qE -- "(^|[^a-z-])$c([^a-z-]|$)" "$BCMD" || { echo "check-id $c missing from board-checks.md" >&2; reg_ok=0; }
+  grep -qE -- "(^|[^a-z-])$c([^a-z-]|$)" "$DSMD" || { echo "check-id $c missing from docket-status.md" >&2; reg_ok=0; }
 done
-assert "every EMITTED check-id is registered in all three documentation surfaces" '[ "$reg_ok" -eq 1 ]'
+assert "every EMITTED check-id is registered in both documentation surfaces (whole-word)" '[ "$reg_ok" -eq 1 ]'
 
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"

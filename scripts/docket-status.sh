@@ -599,6 +599,27 @@ sweep_execute_one(){
         --integration-branch "$INTEGRATION_BRANCH" --metadata-branch "$METADATA_BRANCH" \
         --changes-dir "$CHANGES_DIR" --adrs-dir "$ADRS_DIR" --metadata-worktree "$mw" \
         --message "docket($id): publish terminal record (done)" >&2; then
+    # Change 0083: this is the HIGHEST-VOLUME path on which a publish does not complete, so it
+    # marks itself rather than relying on a driver to notice a report line. Without the marker the
+    # change is archived-but-unpublished and invisible — no later sweep resumes it (the sweep only
+    # scans active/) and board-checks' `publish-deferred` reads a marker nothing wrote. This branch
+    # only fires when terminal-publish.sh EXITS NON-ZERO, and neither main-mode nor `--enabled
+    # false` can reach it (both are no-ops that exit 0), so the never-mark-under-suppression rule
+    # holds without a second gate here.
+    #
+    # STRICTLY BEST-EFFORT: every step is muted and `|| true`-guarded, and no step's outcome is
+    # read. A failed mark must not add, remove, or reorder a single report line — the caller's
+    # contract for this branch is exactly `sweep-failed <id> terminal-publish script-error`, and
+    # this block must be invisible to it. The commit+push is part of the best-effort: leaving the
+    # marker uncommitted would dirty the SHARED metadata worktree and fail the NEXT pass's
+    # `pull --rebase` for every change, which is a far worse failure than an unmarked deferral.
+    if "$SCRIPTS_DIR"/mark-publish-deferred.sh --mode add --change-file "$archived" \
+         --reason blocked --detail "sweep: the publish step exited non-zero" \
+         --integration-branch "$INTEGRATION_BRANCH" --id "$id" >/dev/null 2>&1; then
+      "$GIT" -C "$mw" add -- "$archived" >/dev/null 2>&1 \
+        && "$GIT" -C "$mw" commit -q -m "docket($id): mark terminal publish deferred (blocked)" >/dev/null 2>&1 \
+        && "$GIT" -C "$mw" push >/dev/null 2>&1
+    fi
     echo "sweep-failed $id terminal-publish script-error"
     return 0
   fi

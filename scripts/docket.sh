@@ -24,7 +24,7 @@
 #   board-checks [args]       board consistency checks
 #   reclaim-claims [args]     reclaim expired-lease, no-branch in-progress claims back to proposed
 #   mint-stub [args]          mint one discovered-work stub (auto-capture; CAS-correct)
-#   mark-publish-deferred     add/remove the `## Publish deferred` marker on a change file
+#   mark-publish-deferred [args]  add/remove the `## Publish deferred` marker on a change file
 #   runner-dispatch [args]    delegate one agent run to a child harness (runner adapter)
 #
 # Contract: scripts/docket.md. Mock seams: SCRIPTS_DIR (helper dir), GIT, CONFIG_EXPORT_CMD.
