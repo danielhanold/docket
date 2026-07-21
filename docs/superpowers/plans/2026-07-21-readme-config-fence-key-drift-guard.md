@@ -332,8 +332,8 @@ scan_fences(){
     while IFS="$TAB9" read -r p pv; do
       [ -n "$p" ] || continue
       top="${p%%.*}"
-      if printf '%s\n' "$ex9_paths" | grep -Fxq "$top"; then
-        printf '%s\n' "$ex9_paths" | grep -Fxq "$p" || echo "miss $line $p"
+      if grep -Fxq "$top" <<<"$ex9_paths"; then
+        grep -Fxq "$p" <<<"$ex9_paths" || echo "miss $line $p"
       elif is_pseudo_key "$top"; then :
       else echo "miss $line $p"; fi
     done <<FLAT
@@ -669,18 +669,18 @@ skip is the marker rather than an invisible fixture."
 In `scan_fences`, extend the active-key branch of the path loop. Replace:
 
 ```bash
-      if printf '%s\n' "$ex9_paths" | grep -Fxq "$top"; then
-        printf '%s\n' "$ex9_paths" | grep -Fxq "$p" || echo "miss $line $p"
+      if grep -Fxq "$top" <<<"$ex9_paths"; then
+        grep -Fxq "$p" <<<"$ex9_paths" || echo "miss $line $p"
 ```
 
 with:
 
 ```bash
-      if printf '%s\n' "$ex9_paths" | grep -Fxq "$top"; then
-        if ! printf '%s\n' "$ex9_paths" | grep -Fxq "$p"; then
+      if grep -Fxq "$top" <<<"$ex9_paths"; then
+        if ! grep -Fxq "$p" <<<"$ex9_paths"; then
           echo "miss $line $p"
         elif [ "$token" = "values" ]; then
-          exval="$(printf '%s\n' "$ex_flat" | awk -F"$TAB9" -v k="$p" '$1==k{print $2; exit}')"
+          exval="$(awk -F"$TAB9" -v k="$p" '$1==k{print $2; exit}' <<<"$ex_flat")"
           [ "$pv" = "$exval" ] || echo "value $line $p readme=$pv example=$exval"
         fi
 ```
@@ -826,3 +826,8 @@ snippet_section() is unperturbed."
 **Type/name consistency:** `fence_openers`, `fence_body`, `fence_marker`, `is_pseudo_key`, `scan_fences`, `TAB9`, `ex9_paths`, `findings9`, and the finding prefixes `miss`/`empty`/`drop`/`marker`/`value` are spelled identically in every task. `scan_fences`'s `local` list grows across Tasks 3→4→5→6 and its final form is `md line ind body flatout flat raw p pv top marker token exval`.
 
 **Verification status:** every helper in this plan was prototyped and run against the real `README.md` and `.docket.example.yml` before the plan was written. The clean run reports 9 fences and zero findings; mutations 1–4, the duplicate-marker case, the `values` drift cases, and the `ignore` fixture all produce the expected findings. The plan's asserts are therefore known-satisfiable, not drafts (`plan-supplied-test-code-is-unverified`).
+
+## Corrections applied during execution
+
+- **Task 3 Step 1's piped `grep -Fxq` form was corrected mid-branch by commit `7b32c2b`, and Task 6 Step 1's code blocks above have been updated to match.** `ex9_paths` is a captured variable, and `grep -Fxq` exits as soon as it matches; feeding it via `printf '%s\n' "$ex9_paths" | grep -Fxq ...` under this file's `set -uo pipefail` is exactly the producer-piped-into-early-exiting-consumer hazard AGENTS.md's Shell section forbids — the still-writing `printf` can take SIGPIPE (141), and under `pipefail` that 141 can replace `grep`'s real exit status on the pipeline. The shipped code has used the here-string form (`grep -Fxq "$x" <<<"$var"`) since that commit, which landed right after Task 3 and before Tasks 4–6 were built on top of it; this plan document itself was never reconciled until this correction, so it kept showing the pre-fix piped form as if it were still current. Recorded here so a future reader trusts the *why* (a real pipefail hazard, not a style preference), not just the corrected spelling.
+- **The `values` marker's population floors (NON-VACUITY FLOOR 4 and FLOOR 5 in the shipped `(9)` section) were added after this change's whole-branch review, not as part of the original Task 6 design above.** The review proved that deleting the `values` marker line from README, or moving it one non-blank line earlier (still well-formed, but no longer attached to the `reclaim:` fence), left `f9_value` fully green with no floor to catch it — green for a reason other than the property it claims, the exact fail-open-and-silent mode this whole section exists to end. The fix: `scan_fences` now emits a `seen <fence-line> <token>` record for every fence it reaches, before any marker-driven `continue`, giving (a) an exact count of fences visited and (b) a floor that at least one fence carries the `values` token; a further reconciliation assert compares the whole README's `docket:config-fence` line count against how many fences actually consumed a marker, catching an orphaned marker (one separated from its fence by other content) that `fence_marker` silently returns `NONE` for. All four scenarios were mutation-tested in a scratch copy outside the worktree and confirmed to redden.

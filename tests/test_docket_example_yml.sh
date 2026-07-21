@@ -881,7 +881,7 @@ assert "(8) the section links to the canonical reference" '[ -n "$sn_ptr" ]'
 assert "(8) canonical-reference link target exists (${sn_ptr:-<no link>})" \
   '[ -n "$sn_ptr" ] && [ -f "$REPO/$sn_ptr" ]'
 
-# --- (9) README CONFIG FENCE KEY CORRESPONDENCE -------------------------------
+# --- (9) README CONFIG FENCE KEY CORRESPONDENCE ------------------------------
 TAB9="$(printf '\t')"
 
 # PREREQUISITE GUARD (change 0108, Task 1). flatten_yaml's key class must admit HYPHENS, because
@@ -909,7 +909,16 @@ assert "(9) flatten_yaml STRIPS a hyphenated key from its value — half-fix gua
 # The opener regex is WHITESPACE-TOLERANT and the closer is matched at the SAME indent, because
 # fence 576 (skills: / brainstorm:) is a list-item continuation indented two spaces. A
 # column-0-anchored regex structurally cannot see it — that is not hypothetical, it is the bug
-# this change's own design draft shipped, which is why mutation-testing it is Step 5 below.
+# this change's own design draft shipped, which is why mutation-testing it is the fence-count
+# assert below (fence 576 is one of the 9 it counts; a regression back to column-0 anchoring
+# drops the count to 8).
+#
+# LATENT HOLE: a ```yaml fence nested inside a wider (four-backtick) fence would be discovered as
+# a config fence in its own right — opener/closer matching is purely syntactic and does not track
+# an enclosing fence type. Not exercised today (the README has no such nesting), and the right
+# failure order is preserved if one is added: the fence-count floor below trips FIRST (an extra
+# discovered fence with no keys in the example), forcing a conscious update rather than a silent
+# miscount.
 fence_openers(){
   awk '
     /^[[:space:]]*```yaml[[:space:]]*$/ && !inf { inf=1; ind=match($0,/[^[:space:]]/)-1; start=NR; next }
@@ -944,7 +953,10 @@ fence_body(){
 # which is precisely the drift class this change exists to end. Any line matching
 # docket:config-fence that does not match the exact grammar reddens.
 #
-# AT MOST ONE MARKER PER FENCE; a second reddens rather than one silently winning.
+# TWO ADJACENT MARKERS REDDEN as a duplicate — duplicate detection compares the two nearest
+# non-blank lines above the fence. A marker separated from the fence by other content (a prose
+# line, say) is NOT a duplicate case at all: it is simply not attached (see NONE below), and that
+# silent-orphan case is caught separately by the whole-file marker reconciliation assert.
 fence_marker(){
   awk -v s="$2" -v find="$3" '
     NR >= s { exit }
@@ -981,7 +993,7 @@ assert "(9) README yaml fence count is exactly 9 — floor against discovery goi
 # Most of them deliberately show NON-DEFAULT values to illustrate opting in (auto_capture: true,
 # terminal_publish: true, metadata_branch: main, and the two layered-config samples), so a
 # value-equality assert would go spuriously RED against correct prose. Value equality is opt-in
-# per fence — see the values marker in Task 6.
+# per fence — see the `values` marker on the reclaim: fence at README:233.
 #
 # DIRECTION (correspondence-guard-runs-one-way): this iterates the README's fence keys and proves
 # fence ⊆ example. The reverse loop is deliberately ABSENT and is NOT an oversight — "every
@@ -1023,16 +1035,25 @@ ex9_paths="$(printf '%s\n' "$ex_flat" | cut -f1)"
 # Takes the path as an argument (not the $README global) so the marker tests in Task 5 can scan a
 # temporary fixture instead of mutating the real README.
 scan_fences(){
-  local md="$1" line ind body flatout flat raw p pv top marker token exval
+  local md="$1" line ind body flatout flat raw p pv top marker token seen_token exval
   while IFS="$TAB9" read -r line ind; do
     [ -n "$line" ] || continue
     marker="$(fence_marker "$md" "$line" "$ind")"
+    # "seen" is emitted for EVERY fence this loop reaches, BEFORE any marker-driven `continue` —
+    # including the malformed-marker and ignore-marked cases below. It is the true population
+    # floor (see NON-VACUITY FLOOR 4): every other finding kind is produced deeper in this
+    # function, so a bug that short-circuits the loop body (or a marker change that routes every
+    # fence through a `continue`) would leave those floors green for a reason unrelated to the
+    # property they claim. `seen_token` is "none" for an unmarked fence and "bad" for a malformed
+    # one, so grepping for the exact token `values` (rather than merely non-empty) can never match
+    # an unmarked or malformed fence.
     case "$marker" in
-      NONE)      token="" ;;
-      "TOKEN "*) token="${marker#TOKEN }" ;;
-      "BAD "*)   echo "marker $line ${marker#BAD }"; continue ;;
-      *)         echo "marker $line unparseable"; continue ;;
+      NONE)      token=""; seen_token="none" ;;
+      "TOKEN "*) token="${marker#TOKEN }"; seen_token="$token" ;;
+      "BAD "*)   echo "seen $line bad"; echo "marker $line ${marker#BAD }"; continue ;;
+      *)         echo "seen $line bad"; echo "marker $line unparseable"; continue ;;
     esac
+    echo "seen $line $seen_token"
     [ "$token" = "ignore" ] && continue
     body="$(fence_body "$md" "$line" "$ind")"
     flatout="$(printf '%s\n' "$body" | flatten_yaml)"
@@ -1047,6 +1068,12 @@ scan_fences(){
         if ! grep -Fxq "$p" <<<"$ex9_paths"; then
           echo "miss $line $p"
         elif [ "$token" = "values" ]; then
+          # NOT EXERCISED TODAY: this value check is reached only inside the "top is ACTIVE" arm
+          # above. A future values-marked fence whose top-level key is merely a COMMENTED
+          # pseudo-key falls into the `elif is_pseudo_key` arm below instead, which has no value
+          # check at all — silently inert, since every values-marked fence so far has an active
+          # top-level key. Not a bug to close now; a future author should not assume marking a
+          # pseudo-keyed fence `values` opts it into anything.
           exval="$(awk -F"$TAB9" -v k="$p" '$1==k{print $2; exit}' <<<"$ex_flat")"
           [ "$pv" = "$exval" ] || echo "value $line $p readme=$pv example=$exval"
         fi
@@ -1061,13 +1088,13 @@ OPENERS
 }
 
 findings9="$(scan_fences "$README")"
-f9_miss="$(printf '%s\n' "$findings9" | grep '^miss ' | sed 's/^miss //' | tr '\n' ' ')"
+f9_miss="$(printf '%s\n' "$findings9" | grep '^miss ' | sed 's/^miss //' | tr '\n' ' ' | sed 's/ *$//')"
 assert "(9) every README config-fence key exists in .docket.example.yml (fence-line + key path shown; ${f9_miss:-none missing})" \
   '[ -z "$f9_miss" ]'
 
 # NON-VACUITY FLOOR 2 — a fence that flattens to ZERO paths contributes nothing to the existence
 # loop above, so it would be silently unguarded rather than reported.
-f9_empty="$(printf '%s\n' "$findings9" | grep '^empty ' | sed 's/^empty //' | tr '\n' ' ')"
+f9_empty="$(printf '%s\n' "$findings9" | grep '^empty ' | sed 's/^empty //' | tr '\n' ' ' | sed 's/ *$//')"
 assert "(9) every config fence flattens to at least one key (fence lines listed; ${f9_empty:-none empty})" \
   '[ -z "$f9_empty" ]'
 
@@ -1075,14 +1102,46 @@ assert "(9) every config fence flattens to at least one key (fence lines listed;
 # outside [A-Za-z_][A-Za-z0-9_-]* is silently REJECTED by the flattener rather than flagged, and
 # because the existence loop iterates POST-filter output, a dropped line is invisible to it. Cross-
 # check structurally: every non-blank, non-full-line-comment line in a fence must survive
-# flattening into exactly one path.
-f9_drop="$(printf '%s\n' "$findings9" | grep '^drop ' | sed 's/^drop //' | tr '\n' ' ')"
+# flattening into exactly one path. This is also why README config fences must use inline-list
+# syntax (`board_surfaces: [inline]`), never a YAML block sequence: a fence with `board_surfaces:`
+# followed by `  - inline` on its own line yields `drop <line> raw=2 flat=1` here — that is a
+# syntax-convention violation in the fence, not a flattener defect, so don't go hunting for a key
+# spelling problem when this floor names it.
+f9_drop="$(printf '%s\n' "$findings9" | grep '^drop ' | sed 's/^drop //' | tr '\n' ' ' | sed 's/ *$//')"
 assert "(9) the flattener drops no key-shaped line in any fence (raw content lines vs flattened, per fence; ${f9_drop:-none dropped})" \
   '[ -z "$f9_drop" ]'
 
-f9_marker="$(printf '%s\n' "$findings9" | grep '^marker ' | sed 's/^marker //' | tr '\n' ' ')"
+f9_marker="$(printf '%s\n' "$findings9" | grep '^marker ' | sed 's/^marker //' | tr '\n' ' ' | sed 's/ *$//')"
 assert "(9) every docket:config-fence marker parses (fence-line + reason; ${f9_marker:-none malformed})" \
   '[ -z "$f9_marker" ]'
+
+# NON-VACUITY FLOOR 4 — SCAN_FENCES'S OWN POPULATION, and specifically the `values` marker's
+# continued existence. The reviewer proved that deleting the `values` marker line from README, or
+# moving it one non-blank line earlier (still well-formed, but no longer the nearest non-blank
+# line above the reclaim: fence), leaves fence_marker returning NONE for that fence and f9_value
+# (below) silently green — green for a reason OTHER than "no drift", which is the exact
+# fail-open-and-silent mode this whole section exists to end. `seen` (added above, emitted for
+# every fence BEFORE any skip) gives two floors against it: an exact count of fences reached, and
+# a floor that at least one of them is values-marked.
+f9_seen="$(printf '%s\n' "$findings9" | grep -c '^seen ')"
+assert "(9) scan_fences visited all 9 fences (got $f9_seen)" '[ "$f9_seen" = "9" ]'
+f9_vmarked="$(printf '%s\n' "$findings9" | grep -c '^seen .* values$')"
+assert "(9) at least one fence is values-marked — floor against the marker being deleted or displaced (got $f9_vmarked)" \
+  '[ "$f9_vmarked" -ge 1 ]'
+
+# NON-VACUITY FLOOR 5 — ORPHAN MARKER DETECTION. fence_marker only ever looks at the two nearest
+# non-blank lines above ONE GIVEN fence, so a well-formed docket:config-fence line that sits
+# outside the attachment position for every fence (separated from its intended fence by a prose
+# line, for instance) returns NONE there and is never examined by the grammar at all — a marker
+# reduced to decoration with no signal. Reconcile the whole file against what the scan actually
+# consumed: every docket:config-fence line in the README must be the attached marker of some
+# fence (`seen`'s token is "none" only when no marker attached; anything else, including a
+# malformed one, means a marker WAS attached and examined, just possibly badly — that half is
+# already covered by the marker-parse floor above).
+md_markers="$(grep -c 'docket:config-fence' "$README")"
+f9_marked="$(printf '%s\n' "$findings9" | grep '^seen ' | grep -vc ' none$')"
+assert "(9) every docket:config-fence line in the README is attached to a fence (file has $md_markers, fences consumed $f9_marked)" \
+  '[ "$md_markers" = "$f9_marked" ]'
 
 # VALUE EQUALITY IS OPT-IN, and it is not lost where it is SOUND. Section (8) keeps it on fence
 # 209 (the per-repo snippet, which documents shipped defaults); this marker adds it to the
@@ -1091,7 +1150,7 @@ assert "(9) every docket:config-fence marker parses (fence-line + reason; ${f9_m
 # illustrate non-default values. Fence 209 is therefore double-covered by (8) (existence + values)
 # and (9) (existence only); that overlap is accepted rather than special-cased — (8)'s fence is
 # simply left unmarked, and since no unmarked fence gets a value assert, no special-casing exists.
-f9_value="$(printf '%s\n' "$findings9" | grep '^value ' | sed 's/^value //' | tr '\n' ' ')"
+f9_value="$(printf '%s\n' "$findings9" | grep '^value ' | sed 's/^value //' | tr '\n' ' ' | sed 's/ *$//')"
 assert "(9) values-marked fences match the example exactly (${f9_value:-none mismatched})" \
   '[ -z "$f9_value" ]'
 
@@ -1106,15 +1165,42 @@ assert "(9) fixture scaffold is valid — one discoverable fence (got $fx9_count
 fx9_marker="$(fence_marker "$fx9" 4 0)"
 assert "(9) an ignore marker parses to its token (got $fx9_marker)" '[ "$fx9_marker" = "TOKEN ignore" ]'
 fx9_findings="$(scan_fences "$fx9")"
-assert "(9) an ignore-marked fence is skipped entirely — its non-schema key raises nothing (got [${fx9_findings}])" \
-  '[ -z "$fx9_findings" ]'
+# scan_fences now also emits a "seen" record for this fence (NON-VACUITY FLOOR 4 above) — filter
+# it out before checking for CLEAN, or this assert would redden on the ignore path working
+# correctly. Checked separately, and POSITIVELY, right below: the ignore fixture's own seen
+# record must carry the ignore token, so the ignore branch is proven exercised rather than the
+# fixture being invisible to the scanner in a different way than before.
+fx9_non_seen="$(printf '%s\n' "$fx9_findings" | grep -v '^seen ')"
+assert "(9) an ignore-marked fence is skipped entirely — its non-schema key raises nothing (got [${fx9_non_seen}])" \
+  '[ -z "$fx9_non_seen" ]'
+fx9_seen_ignore="$(printf '%s\n' "$fx9_findings" | grep '^seen .* ignore$')"
+assert "(9) the ignore fixture's fence is recorded as ignore-marked in its seen record (got [${fx9_seen_ignore}])" \
+  '[ -n "$fx9_seen_ignore" ]'
 
 # ...and the SAME fixture without the marker must report the key, so the assert above is proven to
 # be the marker working rather than the fixture being invisible to the scanner.
 fx9b="$tmp/fence-fixture-unmarked.md"
 printf '# Fixture\n\n```yaml\nnot_a_docket_key: true\n```\n' > "$fx9b"
 fx9b_findings="$(scan_fences "$fx9b")"
-assert "(9) the same fence WITHOUT the ignore marker does report its key — proves the skip is the marker, not an invisible fixture (got [${fx9b_findings}])" \
-  '[ "$fx9b_findings" = "miss 3 not_a_docket_key" ]'
+fx9b_non_seen="$(printf '%s\n' "$fx9b_findings" | grep -v '^seen ')"
+assert "(9) the same fence WITHOUT the ignore marker does report its key — proves the skip is the marker, not an invisible fixture (got [${fx9b_non_seen}])" \
+  '[ "$fx9b_non_seen" = "miss 3 not_a_docket_key" ]'
+
+# NON-VACUITY FLOOR 2's "empty" branch and the marker grammar's BAD path are both demonstrably
+# reachable but shipped with no fixture, unlike the ignore branch above. A comment-only fence body
+# exercises the former; a malformed (but attached) token exercises the latter.
+fx9c="$tmp/fence-fixture-empty.md"
+printf '# Fixture\n\n```yaml\n# just a comment, no keys here\n```\n' > "$fx9c"
+fx9c_findings="$(scan_fences "$fx9c")"
+fx9c_empty="$(printf '%s\n' "$fx9c_findings" | grep '^empty ')"
+assert "(9) a comment-only fence body trips NON-VACUITY FLOOR 2 (got [${fx9c_findings}])" \
+  '[ -n "$fx9c_empty" ]'
+
+fx9d="$tmp/fence-fixture-badmarker.md"
+printf '# Fixture\n\n<!-- docket:config-fence: bogus -->\n```yaml\nsome_key: true\n```\n' > "$fx9d"
+fx9d_findings="$(scan_fences "$fx9d")"
+fx9d_marker="$(printf '%s\n' "$fx9d_findings" | grep '^marker ')"
+assert "(9) an unknown docket:config-fence token hard-fails via the marker branch (got [${fx9d_findings}])" \
+  '[ -n "$fx9d_marker" ]'
 
 exit $fail
