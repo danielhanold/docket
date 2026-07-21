@@ -147,6 +147,15 @@ assert "completeness: runners.codex.network present" \
   'grep -Eq "^[[:space:]]+network:[[:space:]]*true[[:space:]]*(#.*)?$" "$EX"'
 assert "completeness: runners block header present" 'grep -Eq "^runners:" "$EX"'
 
+# change 0102: require_pr_approval is now RESOLVER-read and global-able, so it carries the
+# standard any-layer tag like its two finalize siblings. The pre-0102 example carried a bespoke
+# three-line note asserting the opposite (repo-committed only, silently ignored elsewhere) —
+# that text described a state that no longer exists, and this pair keeps it from coming back.
+assert "0102: require_pr_approval carries the any-layer scope tag" \
+  'awk "/^  # require_pr_approval/,/^  require_pr_approval:/" "$EX" | grep -qF "scope: any layer"'
+assert "0102: the stale repo-committed-only note is gone" \
+  '! grep -qF "read by the finalize SKILL BODY, not by the config" "$EX"'
+
 # (2c) The INVERSE direction. (2a)/(2b) prove every key the code reads is documented; neither
 # proves the converse, so without this the example can accrete keys NOTHING reads — a phantom key
 # passes (2a) (the loop iterates export keys, not example keys), passes the fidelity diff (the
