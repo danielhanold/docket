@@ -2,7 +2,7 @@
 id: 108
 slug: guard-the-readme-s-remaining-config-fences-against-key-drift
 title: Guard the README's remaining config fences against key drift
-status: implemented
+status: done
 priority: medium
 created: 2026-07-20
 updated: 2026-07-21
@@ -16,7 +16,7 @@ results: docs/results/2026-07-21-guard-the-readme-s-remaining-config-fences-agai
 trivial: false
 auto_groomable: true
 branch: feat/guard-the-readme-s-remaining-config-fences-against-key-drift
-claimed_at: 2026-07-21T19:40:28Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/116
 blocked_by:
 reconciled: true
