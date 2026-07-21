@@ -16,10 +16,10 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/finalize-require-pr-approval-has-no-layer-resolution
-claimed_at: 2026-07-21T08:28:07Z
+claimed_at: 2026-07-21T08:30:07Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -80,3 +80,33 @@ of `.docket.yml` is not a supported shape, with the `elsewhere:` allowlist as th
 - Converting any other non-resolver key (`agents:`, `agent_harnesses:`, `github_project`,
   `runners.*`) — those have working consumers; this change classifies them, it does not move them.
 - Reworking `yaml_get` or the flat-scalar reader.
+
+## Reconcile log
+
+- **2026-07-21 (build claim)** — Claimed via `docket-implement-next`; reconciled the change and its
+  spec against `origin/main` at `f4ca3af` (change 0083's publish). **The design holds unchanged — no
+  scope drift.** Every integration point the spec cites was re-verified and still matches, including
+  the literal line anchors: `scripts/docket-config.sh:93` (the `yaml_get` leaf-read comment naming
+  the finalize keys), `:169` (the coordination-key fence loop — `require_pr_approval` is still
+  absent, which is correct and stays that way), `:193-194` (the `finalize.gate` /
+  `finalize.test_command` chains the new chain mirrors), and `:410-411` (the `emit` lines).
+  `require_pr_approval` still appears **nowhere** in `docket-config.sh` — the premise of the change
+  is intact. `scripts/docket-config.md` still claims 24 shell / 25 plain export lines and
+  `--export` still emits exactly 24, so §2's count corrections (24→25, 25→26) apply as written.
+- **Two refinements folded in, neither altering the design:**
+  1. **The §5 manifest EXTENDS existing machinery rather than adding a parallel structure.**
+     `tests/test_docket_example_yml.sh` already carries a `(2b) NON-EXPORTED schema keys` block
+     enumerating exactly the spec's intended `elsewhere:` population (`github_project`,
+     `agents`/`agent_harnesses`, `finalize.require_pr_approval`, `runners.codex.*`) plus an
+     `orphan_keys` check asserting every active top-level key has a consumer. The manifest should
+     absorb and generalize that block — `require_pr_approval` MOVES from the `(2b)` list to a
+     `resolved:FINALIZE_REQUIRE_PR_APPROVAL` entry — not sit beside it. Two overlapping
+     classifications of the same keys would be the drift the guard exists to prevent.
+  2. **Filename is `.docket.example.yml`.** The spec alternates between `.docket.example.yml` and
+     `.docket.yml.example`; only the former exists. Implementation uses `.docket.example.yml`.
+- **Live-relevant:** this repo runs `finalize.gate: local` and does **not** set
+  `require_pr_approval`, so the built-in `false` default is what its own resolver will emit —
+  the merge gate's behavior here is unchanged by this change, as intended.
+- Related #101 is `done` and published (`docs/changes/archive/2026-07-20-0101-docket-yml-example.md`);
+  its bespoke five-line `scope:` annotation on the key is present at `.docket.example.yml:98-100`
+  and is the exact text §4 collapses. Nothing done elsewhere overlaps or narrows scope.
