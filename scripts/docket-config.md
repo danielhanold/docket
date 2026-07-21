@@ -102,6 +102,7 @@ A value may not contain a literal `#` — it is treated as the start of an inlin
 | `results_dir` | `docs/results` | no (fenced) | |
 | `gate` (finalize) | `local` | yes | read from `finalize.gate` leaf key; resolves repo-local > repo-committed > global |
 | `test_command` (finalize) | `` (empty) | yes | read from `finalize.test_command` leaf key; resolves repo-local > repo-committed > global. **`auto` ≡ unset** (change 0101): the literal lowercase `auto` resolves to the empty string so finalize auto-detects the suite, letting `.docket.example.yml` ship this default as an active value. Applied after layer resolution; any other value (including `AUTO`) is honored verbatim |
+| `require_pr_approval` (finalize) | `false` | yes | read from `finalize.require_pr_approval` leaf key; resolves repo-local > repo-committed > global; `true`/`false`, anything else aborts. Deliberately **not** coordination-fenced — `finalize.gate` is the precedent: both halves of one merge gate share a scope class (change 0102) |
 | `board_surfaces` | `inline` | yes, minus `github` | YAML list `[a, b]` stripped of brackets/commas; **`[]` → the reserved token `none`** (change 0071 — an empty value is NEVER emitted; empty means "unresolved", a wiring bug); a `github` token arriving from either machine-scoped layer (repo-local or global) is dropped (Stage 2c), and a list left empty by that drop also resolves to `none` |
 | `auto_groom` | `false` | yes | resolves repo-local > repo-committed > global |
 | `auto_capture` | `false` | yes | resolves repo-local > repo-committed > global; fails closed on a non-boolean (change 0091) |
@@ -273,6 +274,7 @@ ADRS_DIR
 RESULTS_DIR
 FINALIZE_GATE
 FINALIZE_TEST_COMMAND
+FINALIZE_REQUIRE_PR_APPROVAL
 LEARNINGS_ENABLED
 LEARNINGS_CAP
 BOARD_SURFACES
@@ -289,7 +291,7 @@ SKILL_FINISH
 BOOTSTRAP
 ```
 
-24 lines in `shell` format; 25 in `plain` format, with `REPO_ROOT` inserted directly
+25 lines in `shell` format; 26 in `plain` format, with `REPO_ROOT` inserted directly
 after `METADATA_WORKTREE`. The last line is always `BOOTSTRAP=…`.
 
 **`REPO_ROOT` (change 0075) — plain format only.** The absolute path of the main worktree (the
@@ -340,7 +342,7 @@ emits no `KEY=value` output.
   post-write state, so the caller's `eval` sees `PROCEED` without a second invocation.
 - **`main`-mode skips the bootstrap guard entirely.** `DOCKET`/`LIVE` are not evaluated;
   `BOOTSTRAP` is always `PROCEED` in main-mode.
-- **24 `KEY=value` lines always emitted in the same order in `shell` format (25 in `plain`,
+- **25 `KEY=value` lines always emitted in the same order in `shell` format (26 in `plain`,
   `REPO_ROOT` inserted after `METADATA_WORKTREE` — change 0075).** Skills may rely on the order
   for pipe consumers, but should use the variable names (via `eval`) for correctness.
 - **The global layer never aborts a run.** Every global-file problem (misplaced, malformed,

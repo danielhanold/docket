@@ -94,6 +94,7 @@ map_for(){ # map_for <EXPORT_KEY> -> ERE matching the example's line, or empty i
     RESULTS_DIR)           echo '^results_dir:[[:space:]]*docs/results' ;;
     FINALIZE_GATE)         echo '^[[:space:]]+gate:[[:space:]]*local' ;;
     FINALIZE_TEST_COMMAND) echo '^[[:space:]]+test_command:[[:space:]]*auto' ;;
+    FINALIZE_REQUIRE_PR_APPROVAL) echo '^[[:space:]]+require_pr_approval:[[:space:]]*false[[:space:]]*$' ;;
     LEARNINGS_ENABLED)     echo '^[[:space:]]+enabled:[[:space:]]*true' ;;
     LEARNINGS_CAP)         echo '^[[:space:]]+cap:[[:space:]]*300' ;;
     BOARD_SURFACES)        echo '^board_surfaces:[[:space:]]*\[[[:space:]]*inline[[:space:]]*\]' ;;

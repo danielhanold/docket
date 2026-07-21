@@ -90,9 +90,10 @@ create_orphan() {
 # Adapted from migrate-to-docket.sh's reader (.docket.yml is intentionally a flat scalar file,
 # no yq); migrate's identical copy is out of this change's scope and left as-is. The key is
 # escaped before it enters the regex so a metacharacter in any future key can't match
-# unintended lines. Nested finalize.gate / finalize.test_command are read by their unique
-# leaf-key name. NOTE: a value may not contain a literal '#' — it is treated as the start of an
-# inline comment and truncated (fine for the current enum / path / empty values).
+# unintended lines. Nested finalize.gate / finalize.test_command / finalize.require_pr_approval
+# are read by their unique leaf-key name. NOTE: a value may not contain a literal '#' — it is
+# treated as the start of an inline comment and truncated (fine for the current enum / path /
+# empty values).
 yaml_get() {  # yaml_get <file> <key>  -> value on stdout (empty if key absent)
   [ -f "$1" ] || return 1
   local key_re
@@ -199,6 +200,22 @@ FINALIZE_TEST_COMMAND="$(lcl test_command)"; FINALIZE_TEST_COMMAND="${FINALIZE_T
 # Literal lowercase only, matching the integration_branch precedent. Consumers must never see the
 # sentinel: finalize would try to RUN `auto` as a shell command.
 [ "$FINALIZE_TEST_COMMAND" = auto ] && FINALIZE_TEST_COMMAND=""
+# change 0102: require_pr_approval — the human-sign-off half of the merge gate (ADR-0011).
+# Global-able, deliberately NOT coordination-fenced: `finalize.gate` — already global-able and
+# gating the very same merge — is the governing precedent, and splitting the two halves of one
+# merge gate across opposite scope classes would be the harder thing to explain. Per-machine
+# divergence here is a policy the maintainer chose per machine, never a split backlog.
+# Fails CLOSED on a non-boolean (the auto_capture / terminal_publish precedent): defaulting a
+# typo to `false` would DISARM a gate the user believes is armed — the exact failure this change
+# exists to eliminate.
+FINALIZE_REQUIRE_PR_APPROVAL="$(lcl require_pr_approval)"
+FINALIZE_REQUIRE_PR_APPROVAL="${FINALIZE_REQUIRE_PR_APPROVAL:-$(yaml_get "$CFG" require_pr_approval)}"
+FINALIZE_REQUIRE_PR_APPROVAL="${FINALIZE_REQUIRE_PR_APPROVAL:-$(gbl require_pr_approval)}"
+FINALIZE_REQUIRE_PR_APPROVAL="${FINALIZE_REQUIRE_PR_APPROVAL:-false}"
+case "$FINALIZE_REQUIRE_PR_APPROVAL" in
+  true|false) ;;
+  *) die "unparseable config: finalize.require_pr_approval must be 'true' or 'false', got '$FINALIZE_REQUIRE_PR_APPROVAL'" ;;
+esac
 AUTO_GROOM="$(lcl auto_groom)"; AUTO_GROOM="${AUTO_GROOM:-$(yaml_get "$CFG" auto_groom)}"; AUTO_GROOM="${AUTO_GROOM:-$(gbl auto_groom)}"; AUTO_GROOM="${AUTO_GROOM:-false}"
 # change 0091: auto_capture — gates autonomous mid-run capture of discovered follow-up work into
 # proposed needs-brainstorm stubs. Global-able (ADR-0019): like auto_groom it gates a LOCAL-RUN
@@ -409,6 +426,7 @@ if [ "$MODE" = export ]; then
   emit RESULTS_DIR "$RESULTS_DIR"
   emit FINALIZE_GATE "$FINALIZE_GATE"
   emit FINALIZE_TEST_COMMAND "$FINALIZE_TEST_COMMAND"
+  emit FINALIZE_REQUIRE_PR_APPROVAL "$FINALIZE_REQUIRE_PR_APPROVAL"
   emit LEARNINGS_ENABLED "$LEARNINGS_ENABLED"
   emit LEARNINGS_CAP "$LEARNINGS_CAP"
   emit BOARD_SURFACES "$BOARD_SURFACES"
