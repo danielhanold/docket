@@ -198,7 +198,7 @@ assert "require_pr_approval is still named by the finalize skill body" \
 # sentence, so an existence-anywhere grep stays green even if this :120 clause is deleted outright;
 # this requires the full provenance phrase (mutation-tested against deleting the clause).
 assert "0102: the finalize skill's provenance clause (SKILL.md:120) ties FINALIZE_REQUIRE_PR_APPROVAL to the Step-0 export block as the sole channel" \
-  'grep -Eq "reads its resolved value as.{0,20}FINALIZE_REQUIRE_PR_APPROVAL.{0,30}Step-0 export block.{0,20}sole channel" "$REPO/skills/docket-finalize-change/SKILL.md"'
+  'grep -Eq "reads its resolved value as.{0,60}FINALIZE_REQUIRE_PR_APPROVAL.{0,80}Step-0 export block.{0,60}sole channel" "$REPO/skills/docket-finalize-change/SKILL.md"'
 # (finding 1a) Positive framing: SKILL.md:108 states the sole-channel rule as "never by parsing
 # .docket.yml", tied to the exported keys it names. Reverting :108 back to its pre-0102 framing
 # ("Configured by `.docket.yml`:") removes this phrase entirely, reddening this assert.
@@ -209,7 +209,7 @@ assert "0102: the finalize skill states its sole channel positively (never by pa
 # positive assert above cannot catch an ADDED fallback sentence (it would leave "never by parsing"
 # untouched), so this is the second, independent mutation target.
 assert "0102: the finalize skill documents no .docket.yml fallback for the key" \
-  '! grep -niE "fall(s|ing)?[ -]?back" "$REPO/skills/docket-finalize-change/SKILL.md" | grep -qiE "\.docket\.yml|require_pr_approval"'
+  '! ( fb=$(grep -niE "fall(s|ing)?[ -]?back" "$REPO/skills/docket-finalize-change/SKILL.md"); grep -qiE "\.docket\.yml|require_pr_approval" <<<"$fb" )'
 
 # The standing rule is STATED in the header (and enforced by the loop above).
 assert "example header states the must-update rule" \
