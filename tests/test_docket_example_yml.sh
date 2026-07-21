@@ -1124,10 +1124,27 @@ assert "(9) every docket:config-fence marker parses (fence-line + reason; ${f9_m
 # every fence BEFORE any skip) gives two floors against it: an exact count of fences reached, and
 # a floor that at least one of them is values-marked.
 f9_seen="$(printf '%s\n' "$findings9" | grep -c '^seen ')"
-assert "(9) scan_fences visited all 9 fences (got $f9_seen)" '[ "$f9_seen" = "9" ]'
+assert "(9) scan_fences visited all 9 fences — same literal as NON-VACUITY FLOOR 1's fence-count assert above; if you added a fence, see that assert's message for the remedy (got $f9_seen)" '[ "$f9_seen" = "9" ]'
 f9_vmarked="$(printf '%s\n' "$findings9" | grep -c '^seen .* values$')"
-assert "(9) at least one fence is values-marked — floor against the marker being deleted or displaced (got $f9_vmarked)" \
+assert "(9) at least one fence is values-marked — floor against the marker being deleted entirely; it does NOT prove the marker sits on the RIGHT fence (see the positive control immediately below for that) (got $f9_vmarked)" \
   '[ "$f9_vmarked" -ge 1 ]'
+
+# NON-VACUITY FLOOR 4b — POSITIVE CONTROL FOR *WHICH* FENCE, not merely whether some fence has a
+# values marker. f9_vmarked above is a count and cannot distinguish "marker present, right fence"
+# from "marker present, wrong fence": relocating the `values` marker from the reclaim: fence to
+# fence 209 (section (8)'s per-repo snippet, which ALSO documents shipped defaults) leaves
+# f9_vmarked >= 1 (fence 209 absorbs it) and f9_value below fully green too (fence 209's own values
+# still equal the example), while reclaim.lease_ttl drifting 72 -> 99 goes completely undetected —
+# the whole suite stays green for a reason unrelated to the property it claims, the exact defect
+# class this section exists to end. The only assert that reddens under that relocation is this one:
+# drift reclaim.lease_ttl in a throwaway fixture copy (never the real README — see this section's
+# constraint) and demand scan_fences report a "value" finding NAMING reclaim.lease_ttl specifically,
+# regardless of which fence currently carries the marker.
+fx9e="$tmp/README-value-control.md"
+sed 's/^  lease_ttl: 72/  lease_ttl: 99/' "$README" > "$fx9e"
+fx9e_findings="$(scan_fences "$fx9e")"
+fx9e_value="$(printf '%s\n' "$fx9e_findings" | grep '^value .*reclaim\.lease_ttl ')"
+assert "(9) the reclaim: fence's value coverage is live — pins that lease_ttl drift is caught even if the values marker moved elsewhere (got [${fx9e_value}])" '[ -n "$fx9e_value" ]'
 
 # NON-VACUITY FLOOR 5 — ORPHAN MARKER DETECTION. fence_marker only ever looks at the two nearest
 # non-blank lines above ONE GIVEN fence, so a well-formed docket:config-fence line that sits
@@ -1138,6 +1155,27 @@ assert "(9) at least one fence is values-marked — floor against the marker bei
 # fence (`seen`'s token is "none" only when no marker attached; anything else, including a
 # malformed one, means a marker WAS attached and examined, just possibly badly — that half is
 # already covered by the marker-parse floor above).
+#
+# TWO ADJACENT MARKERS are the one case "anything else … means a marker WAS attached" glosses
+# over: a duplicate pair collapses into a SINGLE `seen … bad` record (the nearer marker, flagged via
+# the duplicate-marker branch), so f9_marked only advances by one while md_markers counts BOTH
+# literal lines. This assert therefore ALSO fires alongside the duplicate-marker finding above,
+# with a mismatch that reads exactly like an orphan ("file has N, fences consumed N-1") even though
+# the real cause is the duplicate, not an orphan. Harmless in practice — the marker-parse floor's
+# own message already names "duplicate-marker" right next to this one, so a maintainer reading both
+# together is not misled for long — but don't trust THIS message's wording to tell you which of the
+# two it is.
+#
+# md_markers COUNTS THE LITERAL STRING, not marker semantics, so it also fires if the README ever
+# gains PROSE that mentions "docket:config-fence" — documenting the marker convention itself in a
+# sentence, say, rather than as an attached comment. That occurrence has no fence to attach to, so
+# md_markers grows while f9_marked does not, and this floor reddens with no hint that the cause is
+# documentation rather than a real orphaned marker. This is intentional — a shape-based count, not a
+# cleverer one, is the right call here — and is not a bug to fix by teaching the grep to tell prose
+# apart from a real marker. If you hit this after adding such prose: the redness is real signal that
+# the literal-count invariant no longer holds, so either phrase the prose without the exact
+# substring `docket:config-fence`, or document the marker grammar in this test file instead (see the
+# MARKER GRAMMAR comment above, where it already lives) rather than in the README.
 md_markers="$(grep -c 'docket:config-fence' "$README")"
 f9_marked="$(printf '%s\n' "$findings9" | grep '^seen ' | grep -vc ' none$')"
 assert "(9) every docket:config-fence line in the README is attached to a fence (file has $md_markers, fences consumed $f9_marked)" \
@@ -1193,14 +1231,14 @@ fx9c="$tmp/fence-fixture-empty.md"
 printf '# Fixture\n\n```yaml\n# just a comment, no keys here\n```\n' > "$fx9c"
 fx9c_findings="$(scan_fences "$fx9c")"
 fx9c_empty="$(printf '%s\n' "$fx9c_findings" | grep '^empty ')"
-assert "(9) a comment-only fence body trips NON-VACUITY FLOOR 2 (got [${fx9c_findings}])" \
-  '[ -n "$fx9c_empty" ]'
+assert "(9) a comment-only fence body trips NON-VACUITY FLOOR 2 with the exact empty finding (got [${fx9c_empty}])" \
+  '[ "$fx9c_empty" = "empty 3" ]'
 
 fx9d="$tmp/fence-fixture-badmarker.md"
 printf '# Fixture\n\n<!-- docket:config-fence: bogus -->\n```yaml\nsome_key: true\n```\n' > "$fx9d"
 fx9d_findings="$(scan_fences "$fx9d")"
 fx9d_marker="$(printf '%s\n' "$fx9d_findings" | grep '^marker ')"
-assert "(9) an unknown docket:config-fence token hard-fails via the marker branch (got [${fx9d_findings}])" \
-  '[ -n "$fx9d_marker" ]'
+assert "(9) an unknown docket:config-fence token hard-fails via the marker branch with the exact malformed-marker finding (got [${fx9d_marker}])" \
+  '[ "$fx9d_marker" = "marker 4 malformed-marker" ]'
 
 exit $fail
