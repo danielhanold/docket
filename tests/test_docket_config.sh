@@ -140,7 +140,7 @@ assert "board fenced-to-empty: emits BOARD_SURFACES=none" \
 
 # --- (E) direct-pipe caller (LEARNINGS #22: $() hides a dropped trailing \n) -
 n="$(run "$tmp/c" --export | grep -c '=')"
-assert "direct-pipe: 24 KEY=value lines emitted"       '[ "$n" -eq 24 ]'
+assert "direct-pipe: 25 KEY=value lines emitted"       '[ "$n" -eq 25 ]'
 last="$(run "$tmp/c" --export | tail -n1)"
 assert "direct-pipe: last line is BOOTSTRAP"           'case "$last" in BOOTSTRAP=*) true;; *) false;; esac'
 
@@ -397,9 +397,9 @@ printf 'auto_groom: true\n' > "$tmp/q.home/.config/docket/config.yml"
 out="$(env -u XDG_CONFIG_HOME HOME="$tmp/q.home" bash "$SCRIPT" --repo-dir "$tmp/q" --export)"; eval "$out"
 assert "0050 Q: XDG unset -> \$HOME/.config fallback read"   '[ "$AUTO_GROOM" = true ]'
 
-# --- (E') emit-interface guard: still exactly 24 lines with a global file present ---
+# --- (E') emit-interface guard: still exactly 25 lines with a global file present ---
 n50="$(rung "$tmp/k.xdg" "$tmp/k" --export | grep -c '=')"
-assert "0050 E': still 24 KEY=value lines with global layer" '[ "$n50" -eq 24 ]'
+assert "0050 E': still 25 KEY=value lines with global layer" '[ "$n50" -eq 25 ]'
 
 # --- (M) coordination-key fence: warned-and-ignored, never honored, never fatal ---
 mkrepo "$tmp/m"
@@ -1103,6 +1103,90 @@ git -C "$tmp/s6" push --quiet origin main
 FINALIZE_TEST_COMMAND=__poison__
 out="$(rung "$tmp/s6.xdg" "$tmp/s6" --export)"; eval "$out"
 assert "0106 s6: global auto does NOT wipe committed real command" '[ "$FINALIZE_TEST_COMMAND" = "make test" ]'
+
+# ============================================================================
+# Change 0102 — finalize.require_pr_approval layer resolution
+# ============================================================================
+# The key was documented (README, .docket.example.yml, the finalize SKILL) but resolved NOWHERE:
+# a value in .docket.local.yml or the global config was neither honored nor warned-and-ignored.
+# It is deliberately NOT coordination-fenced — global-able is the point (see (R4) below).
+
+# --- (R1) built-in default when unset in every layer -------------------------
+mkrepo "$tmp/r1"
+out="$(rung "$tmp/r1.xdg" "$tmp/r1" --export)"; eval "$out"
+assert "0102 R1: unset everywhere -> built-in false" \
+  '[ "$FINALIZE_REQUIRE_PR_APPROVAL" = false ]'
+
+# --- (R2) each layer honored, and the precedence between them ----------------
+# Global only.
+mkrepo "$tmp/r2"
+mkdir -p "$tmp/r2.xdg/docket"
+printf 'finalize:\n  require_pr_approval: true\n' > "$tmp/r2.xdg/docket/config.yml"
+out="$(rung "$tmp/r2.xdg" "$tmp/r2" --export)"; eval "$out"
+assert "0102 R2: global finalize.require_pr_approval honored" \
+  '[ "$FINALIZE_REQUIRE_PR_APPROVAL" = true ]'
+
+# Repo-committed beats global.
+mkrepo "$tmp/r3"
+printf 'metadata_branch: main\nfinalize:\n  require_pr_approval: false\n' > "$tmp/r3/.docket.yml"
+git -C "$tmp/r3" add .docket.yml; git -C "$tmp/r3" commit --quiet -m cfg
+git -C "$tmp/r3" push --quiet origin main
+mkdir -p "$tmp/r3.xdg/docket"
+printf 'finalize:\n  require_pr_approval: true\n' > "$tmp/r3.xdg/docket/config.yml"
+out="$(rung "$tmp/r3.xdg" "$tmp/r3" --export)"; eval "$out"
+assert "0102 R3: repo-committed false beats global true" \
+  '[ "$FINALIZE_REQUIRE_PR_APPROVAL" = false ]'
+
+# Repo-local beats repo-committed (and global).
+mkrepo "$tmp/r4"
+printf 'metadata_branch: main\nfinalize:\n  require_pr_approval: false\n' > "$tmp/r4/.docket.yml"
+git -C "$tmp/r4" add .docket.yml; git -C "$tmp/r4" commit --quiet -m cfg
+git -C "$tmp/r4" push --quiet origin main
+printf 'finalize:\n  require_pr_approval: true\n' > "$tmp/r4/.docket.local.yml"
+out="$(rung "$tmp/r4.xdg" "$tmp/r4" --export)"; eval "$out"
+assert "0102 R4: repo-local true beats repo-committed false" \
+  '[ "$FINALIZE_REQUIRE_PR_APPROVAL" = true ]'
+
+# --- (R5) NOT coordination-fenced: machine layers are HONORED and UNWARNED ---
+# The direct inverse of the fenced-key assertions at (0051 L3). This is the assert that would
+# have caught the original bug, and the one that reddens if someone "helpfully" adds the key to
+# the fence loop at scripts/docket-config.sh:169.
+errout="$(XDG_CONFIG_HOME="$tmp/r4.xdg" bash "$SCRIPT" --repo-dir "$tmp/r4" --export 2>&1 >/dev/null)"
+assert "0102 R5: no per-repo-only warning for require_pr_approval" \
+  '! grep -q "require_pr_approval" <<<"$errout"'
+assert "0102 R5: the key is absent from the coordination-key fence loop" \
+  '! sed -n "/^for _fkey in /p" "$SCRIPT" | grep -q "require_pr_approval"'
+
+# --- (R6) fail closed on a non-boolean --------------------------------------
+mkrepo "$tmp/r6"
+printf 'metadata_branch: main\nfinalize:\n  require_pr_approval: yes\n' > "$tmp/r6/.docket.yml"
+git -C "$tmp/r6" add .docket.yml; git -C "$tmp/r6" commit --quiet -m cfg
+git -C "$tmp/r6" push --quiet origin main
+rc6="$(rung_rc "$tmp/r6.xdg" "$tmp/r6" --export)"
+err6="$(XDG_CONFIG_HOME="$tmp/r6.xdg" bash "$SCRIPT" --repo-dir "$tmp/r6" --export 2>&1 >/dev/null)"
+assert "0102 R6: non-boolean aborts (non-zero exit)"        '[ "$rc6" != "0" ]'
+assert "0102 R6: diagnostic names the key"                  'grep -q "require_pr_approval" <<<"$err6"'
+assert "0102 R6: diagnostic shows the offending value"      'grep -q "yes" <<<"$err6"'
+assert "0102 R6: no KEY=value block on the abort path" \
+  '[ -z "$(XDG_CONFIG_HOME="$tmp/r6.xdg" bash "$SCRIPT" --repo-dir "$tmp/r6" --export 2>/dev/null)" ]'
+
+# --- (R7) export presence and POSITION --------------------------------------
+# Position matters: scripts/docket-config.md documents the order as a contract, and pipe
+# consumers may rely on it. Anchor on the neighbour rather than a bare "is present".
+out7="$(rung "$tmp/r1.xdg" "$tmp/r1" --export)"
+assert "0102 R7: FINALIZE_REQUIRE_PR_APPROVAL is emitted" \
+  'grep -q "^FINALIZE_REQUIRE_PR_APPROVAL=" <<<"$out7"'
+assert "0102 R7: emitted directly after FINALIZE_TEST_COMMAND" \
+  '[ "$(grep -n "^FINALIZE_REQUIRE_PR_APPROVAL=" <<<"$out7" | cut -d: -f1)" \
+     = "$(( $(grep -n "^FINALIZE_TEST_COMMAND=" <<<"$out7" | cut -d: -f1) + 1 ))" ]'
+assert "0102 R7: present in plain format too" \
+  'rung "$tmp/r1.xdg" "$tmp/r1" --export --format plain | grep -q "^FINALIZE_REQUIRE_PR_APPROVAL="'
+
+# --- (R8) the contract doc documents it -------------------------------------
+assert "0102 R8: docket-config.md has a require_pr_approval table row" \
+  'grep -q "require_pr_approval" "$REPO/scripts/docket-config.md"'
+assert "0102 R8: docket-config.md lists the export name" \
+  'grep -q "^FINALIZE_REQUIRE_PR_APPROVAL$" "$REPO/scripts/docket-config.md"'
 
 if [ "$fail" = 0 ]; then echo PASS; else echo FAIL; fi
 exit "$fail"
