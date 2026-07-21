@@ -2,7 +2,7 @@
 slug: guards-are-code
 hook: "A guard is code — mutation-test it (strip the feature, watch it go red) or it is decoration."
 topics: [testing, sentinels, mutation]
-changes: [14, 15, 21, 36, 37, 64, 65, 67, 68, 69, 70, 71, 72, 73, 74, 83, 84, 88, 91, 96, 101, 106, 107]
+changes: [14, 15, 21, 36, 37, 64, 65, 67, 68, 69, 70, 71, 72, 73, 74, 83, 84, 88, 91, 96, 101, 102, 106, 107]
 created: 2026-06-17
 updated: 2026-07-21
 promotion_state: promoted
@@ -215,3 +215,20 @@ lib. A snippet the PLAN hands you is unvetted code: mutation-test it like any as
   applying this rule is not exempt from it** — the report's claim was false, and only a mutation
   run caught that. Both are now driven into their `die` branch by dedicated fixtures (`MHEAD=5`,
   `MPOST=4`).
+- 2026-07-21 (#102, PR #115) — **FIVE successive review rounds, each landing the exact bug the guard
+  forbids with a fully green suite.** The wiring this change existed to add took almost no time; the
+  whole build went into making its drift guard credible, and each round's fix looked like a working
+  guard until the next round broke it. Rounds 2–5 are recorded in
+  [[correspondence-guard-runs-one-way]] (unverified escape hatch, unconstrained anchor target,
+  `sort -u` swallowing leaf collisions, and the pairing hole). Round 1 belongs here as an inverted
+  class (b) *double-guarded*: the sole-channel assert required a **single line** to contain both the
+  key name and the framing string `Configured by .docket.yml`, and **no line ever did** — before or
+  after the change. It was not merely satisfiable elsewhere; it was unsatisfiable everywhere, so it
+  stayed green under both mutations it existed to catch (reverting the framing sentence, and bolting
+  on an explicit fallback). An assert whose two halves are each present in the file but never
+  *co-located* is the same defect as one that can never fire (class (h)) — and it reads as the most
+  convincing kind of guard, because every token it names really is in the file. Replaced with a
+  positive anchor on `never by parsing` plus a negative fallback guard, each mutation-verified
+  alone. The meta-lesson the change itself records: **every one of the five was found by review,
+  never by the suite** — five green suites over five live instances of the bug. When the guard IS
+  the deliverable, budget for the guard, not the feature.

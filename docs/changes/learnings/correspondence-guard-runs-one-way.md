@@ -2,9 +2,9 @@
 slug: correspondence-guard-runs-one-way
 hook: "A guard over a correspondence between two sets proves only the direction it iterates — write the reverse loop too, and anchor it on the consuming code, not an allowlist."
 topics: [testing, coverage, sentinels]
-changes: [101, 107, 104]
+changes: [101, 107, 104, 102]
 created: 2026-07-20
-updated: 2026-07-20
+updated: 2026-07-21
 promotion_state: candidate
 promoted_to:
 ---
@@ -68,3 +68,24 @@ change existed to end ([[verify-the-claim]]).
   but the structural gap recurs on the next check-id added; tracked as change **#111**. The tell
   worth reusing: when a set has three hand-maintained mirrors and no guard, assume drift in every
   direction and *derive* the true set from the emitting code before trusting any mirror.
+- 2026-07-21 (#102, PR #115) — **Both directions can be live and the guard still passes, because the
+  PAIRING was never asserted.** The documented-but-unwired-key guard iterated correctly in both
+  directions and was still defeated by renaming `finalize.require_pr_approval` →
+  `finalize.require_approval` in the example and copy-pasting the classify arm: the assert checked
+  that a `resolved:`-classified key had *an export*, never that the export was **that key's**. The
+  old export still emitted, so the rename reproduced the original documented-but-unwired bug
+  verbatim, green. A correspondence guard needs three things, not two — forward, reverse, **and the
+  binding between paired elements**; set-membership on each side proves neither element is missing
+  while saying nothing about whether they are matched to each other. Closed by tying the export name
+  back to its leaf key inside the resolver, and mutation-verified at HEAD rather than reported.
+  Three more escapes in the same guard, each an anchor that made the assert unconditionally true:
+  (a) `elsewhere:HEADER` was an **unverified escape hatch** — nothing checked a HEADER-classified
+  key was a real block opener, so relabeling one key re-opened the whole bug class in a one-word
+  edit (now requires a bare opener *with* a more-indented child); (b) `elsewhere:` targets were
+  **unconstrained**, so a key could anchor on `.docket.example.yml` — the very file documenting it —
+  making the correspondence self-satisfying (targets now constrained to a declared consumer
+  allowlist, the one place an allowlist is right: it bounds the *anchor surface*, not the *key set*);
+  and (c) `sort -u` **absorbed leaf-name collisions**, so a new key whose leaf matched an
+  already-classified one was invisible — `learnings.gate` colliding with the flat-read
+  `finalize.gate` passed green, which is also a live mis-resolution hazard for `yaml_get`'s
+  `head -n1`. Whenever a guard de-duplicates, ask what real distinctions the de-dup key erases.

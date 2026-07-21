@@ -2,9 +2,9 @@
 slug: verify-the-claim
 hook: "A document asserting a fact about another artifact is not an oracle — verify it against the artifact or the RUNNING CODE before acting on it."
 topics: [process, review, spec]
-changes: [12, 21, 47, 65, 67, 74, 96, 101, 109]
+changes: [12, 21, 47, 65, 67, 74, 96, 101, 102, 109]
 created: 2026-06-12
-updated: 2026-07-20
+updated: 2026-07-21
 promotion_state: retained
 promoted_to:
 ---
@@ -79,3 +79,16 @@ mid-build; leave the re-scope to the human. Reject false positives with evidence
   costs nothing, so nobody checks), and an unchecked one silently sets the bar for how much guarding
   the change ships. Mutation-testing the claim is what separated "the guard needs work" from "the
   guard already holds" — and it is the same move whether the claim turns out too generous or too dire.
+- 2026-07-21 (#102, PR #115) — **A contract's stated INVARIANT was already false before the change
+  touched it, and the change was about to inherit it.** `scripts/docket-config.md` asserted, in both
+  the global-layer and machine-local-layer bullets, that layer problems "never abort" — warned and
+  ignored. Untrue at the time it was written: a malformed value for any fail-closed boolean
+  (`auto_capture` then, `require_pr_approval` now) aborts every docket command on that machine. The
+  new key would have quietly become the second counterexample to a rule the doc still claimed was
+  absolute. Two things worth reusing. (a) **A doc's *invariants* deserve the same suspicion as its
+  *facts*** — a sentence saying "X never happens" is a claim about every code path, which is the
+  hardest kind to keep true and the least likely to be re-checked when a path is added. (b) The
+  audit that found it also found two table rows (`learnings.enabled`, `reclaim.auto`) that failed to
+  document their own abort behavior at all — so the drift was systemic, not a one-off. When adding
+  an entry to a table whose other rows make a behavioral claim, verify the claim for the *existing*
+  rows before matching their format; copying the format silently copies the assertion.
