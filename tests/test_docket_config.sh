@@ -1184,9 +1184,28 @@ assert "0102 R7: present in plain format too" \
 
 # --- (R8) the contract doc documents it -------------------------------------
 assert "0102 R8: docket-config.md has a require_pr_approval table row" \
-  'grep -q "require_pr_approval" "$REPO/scripts/docket-config.md"'
+  'grep -qE "^\| \`require_pr_approval\` \(finalize\) \| \`false\` \| yes \|" "$REPO/scripts/docket-config.md"'
 assert "0102 R8: docket-config.md lists the export name" \
   'grep -q "^FINALIZE_REQUIRE_PR_APPROVAL$" "$REPO/scripts/docket-config.md"'
+
+# --- (R9) machine-local vs global, with repo-committed never setting the key -
+# R2 and R4 already pit global-alone and repo-local-vs-repo-committed; this is the missing
+# fixture that pits repo-local directly against global with .docket.yml never touching the key.
+# repo-local's winning value (false) here is also the built-in default, so the assert below on
+# its own would pass even if the global fixture below were silently never written/read. Guard
+# against that vacuity the way (R3) does: first prove the global layer is genuinely being read
+# in THIS fixture (global alone -> true, a non-default value) before adding repo-local and
+# checking precedence.
+mkrepo "$tmp/r9"
+mkdir -p "$tmp/r9.xdg/docket"
+printf 'finalize:\n  require_pr_approval: true\n' > "$tmp/r9.xdg/docket/config.yml"
+out="$(rung "$tmp/r9.xdg" "$tmp/r9" --export)"; eval "$out"
+assert "0102 R9: global alone is honored here (guards against vacuity below)" \
+  '[ "$FINALIZE_REQUIRE_PR_APPROVAL" = true ]'
+printf 'finalize:\n  require_pr_approval: false\n' > "$tmp/r9/.docket.local.yml"
+out="$(rung "$tmp/r9.xdg" "$tmp/r9" --export)"; eval "$out"
+assert "0102 R9: repo-local false beats global true (repo-committed unset)" \
+  '[ "$FINALIZE_REQUIRE_PR_APPROVAL" = false ]'
 
 if [ "$fail" = 0 ]; then echo PASS; else echo FAIL; fi
 exit "$fail"
