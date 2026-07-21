@@ -345,11 +345,17 @@ emits no `KEY=value` output.
 - **25 `KEY=value` lines always emitted in the same order in `shell` format (26 in `plain`,
   `REPO_ROOT` inserted after `METADATA_WORKTREE` — change 0075).** Skills may rely on the order
   for pipe consumers, but should use the variable names (via `eval`) for correctness.
-- **The global layer never aborts a run.** Every global-file problem (misplaced, malformed,
-  fenced key) is a stderr warning; exit codes are unaffected.
-- **The machine-local layer never aborts a run either.** A malformed `.docket.local.yml` or a
-  fenced key set within it is a stderr warning (never fatal); the run falls through to the next
-  layer in the chain.
+- **The global layer never aborts a run — except on a malformed value for a fail-closed
+  boolean.** Every global-file *layer* problem (misplaced, unreadable file, fenced key) is a
+  stderr warning; exit codes are unaffected for those. The exception is the *value* itself: for
+  the subset of global-able keys in the resolved-values table above that fail closed on a
+  non-boolean, a value parsing to neither `true` nor `false` aborts the run from whichever layer
+  supplied it, the global layer included.
+- **The machine-local layer never aborts a run either — same exception.** A malformed
+  `.docket.local.yml` or a fenced key set within it is a stderr warning (never fatal); the run
+  falls through to the next layer in the chain. A bad value for one of those same fail-closed,
+  global-able boolean keys (resolved-values table above) aborts from this layer exactly as it
+  would from any other.
 - **`BOARD_SURFACES` is never emitted empty** (change 0071). The deliberate off-state is the
   positive token `none`; an empty value is reserved for "unresolved" and is a wiring bug every
   consumer rejects with exit 2.
