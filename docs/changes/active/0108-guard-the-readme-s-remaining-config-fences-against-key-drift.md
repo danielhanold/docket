@@ -2,7 +2,7 @@
 id: 108
 slug: guard-the-readme-s-remaining-config-fences-against-key-drift
 title: Guard the README's remaining config fences against key drift
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-20
 updated: 2026-07-21
@@ -12,12 +12,12 @@ discovered_from: [107]
 adrs: [53]
 spec: docs/superpowers/specs/2026-07-20-readme-config-fence-key-drift-guard-design.md
 plan: docs/superpowers/plans/2026-07-21-readme-config-fence-key-drift-guard.md
-results:
+results: docs/results/2026-07-21-guard-the-readme-s-remaining-config-fences-against-key-drift-results.md
 trivial: false
 auto_groomable: true
 branch: feat/guard-the-readme-s-remaining-config-fences-against-key-drift
-claimed_at: 2026-07-21T16:33:21Z
-pr:
+claimed_at: 2026-07-21T19:40:28Z
+pr: https://github.com/danielhanold/docket/pull/116
 blocked_by:
 reconciled: true
 ---
@@ -29,6 +29,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-20-readme-config-fence-key-drift-guard-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-20-readme-config-fence-key-drift-guard-design.md) |
 | Plan | [2026-07-21-readme-config-fence-key-drift-guard.md](https://github.com/danielhanold/docket/blob/feat/guard-the-readme-s-remaining-config-fences-against-key-drift/docs/superpowers/plans/2026-07-21-readme-config-fence-key-drift-guard.md) |
+| Results | [2026-07-21-guard-the-readme-s-remaining-config-fences-against-key-drift-results.md](https://github.com/danielhanold/docket/blob/feat/guard-the-readme-s-remaining-config-fences-against-key-drift/docs/results/2026-07-21-guard-the-readme-s-remaining-config-fences-against-key-drift-results.md) |
+| PR | [#116](https://github.com/danielhanold/docket/pull/116) |
 | ADRs | [ADR-0053](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0053-readme-yaml-fences-guarded-by-default-opt-out-marker-grammar.md) |
 <!-- docket:artifacts:end -->
 
