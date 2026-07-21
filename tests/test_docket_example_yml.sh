@@ -144,6 +144,15 @@ done
 # (gate -> FINALIZE_GATE, enabled -> LEARNINGS_ENABLED, auto -> RECLAIM_AUTO,
 # brainstorm -> SKILL_BRAINSTORM); any derivation would need this same table, hidden inside a
 # transform instead of stated plainly.
+#
+# CORRESPONDENCE EXEMPTIONS (change 0102 whole-branch review, IMPORTANT 1): resolved: proves the
+# named export is emitted SOMEWHERE, never that it belongs to THIS key — see the correspondence
+# check below, which closes that gap for every entry except the ones named here.
+#   BOARD_SURFACES — its value is built entirely through intermediate variables (bs_raw / bs /
+#   _filtered; docket-config.sh:242-266). No `BOARD_SURFACES=` assignment line ever contains the
+#   literal leaf key "board_surfaces" — the mechanical same-line check below would false-red this
+#   one legitimate entry, so it is exempted here, explicitly, rather than the check being loosened.
+correspondence_exempt="BOARD_SURFACES"
 classify_key(){ # classify_key <example-key-name> -> "resolved:EXPORT" | "elsewhere:path" | ""
   case "$1" in
     metadata_branch)      echo 'resolved:METADATA_BRANCH' ;;
@@ -223,25 +232,58 @@ is_header_key(){
 
 # PRESENCE-SENSITIVE pseudo-keys: keys that ship COMMENTED because merely uncommenting them
 # (even at their default values) changes behavior — see (3) below, which asserts their marker
-# comment count. Named ONCE, here, as the single source both the extractor regex directly below
-# and (3)'s exact-count assert read, so a third such key shipping commented forces BOTH to be
-# updated in the same commit — adding only a marker comment (with no name here) or only a name
-# here (with no marker comment) leaves the two counts mismatched, which reddens (3) instead of
-# silently passing.
+# comment count. Named ONCE, here, as the single source (3)'s exact-count assert reads, so a
+# third such key shipping commented forces (3) to be updated in the same commit — a marker
+# comment with no name here (or vice versa) leaves the two counts mismatched, which reddens (3)
+# instead of silently passing.
 presence_sensitive_keys="agents agent_harnesses"
-presence_sensitive_re="$(printf '%s' "$presence_sensitive_keys" | tr ' ' '|')"
 
-# Collect every key the example documents: active keys at any nesting depth, PLUS the
-# presence-sensitive keys above, which ship commented but are documented schema all the same.
+# COMMENTED CONFIG KEYS (change 0102 whole-branch review, IMPORTANT 2): this file ships
+# documented-but-disabled keys in commented form — agents:/agent_harnesses: today, potentially
+# others tomorrow — and a hardcoded name list here is blind to a NEW one: nothing forces its name
+# into a list, so it needs no classify arm, no count bump, and trips nothing. Generalize instead
+# of enumerating: every real commented key in this file is the line IMMEDIATELY following its own
+# "# scope: repo-only ..." / "# scope: any layer ..." tag — the SAME tag every ACTIVE key carries
+# (the file's own standing rule: "every key carries one" [scope tag]). A commented PROSE line that
+# happens to end in "word:" (e.g. "# exceptions:", a sentence wrapped mid-line, or "# generation:",
+# likewise) is never preceded by a scope tag, so it is not a false positive; neither is a nested
+# commented sub-key inside the agents: example block (e.g. "#   claude:", "#     status: {...}")
+# — none of those sit directly under a scope tag either, only agents:/agent_harnesses: do.
+# Verified against the whole real file (task report has the audit): extracts exactly
+# {agent_harnesses, agents}, nothing else.
+commented_config_keys(){  # commented_config_keys <file> -> one key name per line on stdout
+  awk '
+    /^[[:space:]]*#[[:space:]]*scope:[[:space:]]*(repo-only|any layer)/ { prev_scope=1; next }
+    {
+      if (prev_scope && match($0, /^[[:space:]]*#[[:space:]]*[A-Za-z_][A-Za-z0-9_]*:/)) {
+        line = $0
+        sub(/^[[:space:]]*#[[:space:]]*/, "", line)
+        sub(/:.*/, "", line)
+        print line
+      }
+      prev_scope = 0
+    }
+  ' "$1"
+}
+
+# Collect every key the example documents: active keys at any nesting depth, PLUS the commented
+# keys the discriminator above finds. Captured ONCE, raw (undeduped) — change 0102 whole-branch
+# review, MINOR 3: the manifest loop below and the duplicate-leaf check further down are two
+# DIFFERENT consumers of this same extraction; a duplicated pipeline let one copy drift (or go
+# empty) with nothing catching it, since the old floor guarded only the line-240 copy. Both are
+# now derived from this one variable, and its own non-vacuity floor (below, by expected_key_count)
+# guards them both at once.
 manifest_unclassified=""
 manifest_bad_export=""
+manifest_bad_correspondence=""
 manifest_bad_consumer=""
 manifest_bad_header=""
-example_keys="$(
+example_keys_raw="$(
   { sed -nE 's/^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*):.*/\1/p' "$EX"
-    sed -nE "s/^#[[:space:]]*($presence_sensitive_re):.*/\1/p" "$EX"
-  } | sort -u
+    commented_config_keys "$EX"
+  }
 )"
+example_keys="$(printf '%s\n' "$example_keys_raw" | sort -u)"
 
 # Declared consumer allowlist for elsewhere: targets (change 0102 whole-branch review, IMPORTANT
 # 1). Reused verbatim by (2c)'s orphan-key check below — same list, defined once. Anchoring an
@@ -264,6 +306,24 @@ for k in $example_keys; do
       # The export must ACTUALLY be emitted — a manifest entry cannot claim a phantom export.
       grep -q "^$exp_name=" <<<"$exp_none" \
         || manifest_bad_export="$manifest_bad_export $k($exp_name)"
+      # CORRESPONDENCE: the check above proves $exp_name is emitted, but nothing yet ties it back
+      # to THIS key — a manifest entry could claim a REAL but UNRELATED export (e.g.
+      # `finalize.notify_slack` classified as `resolved:METADATA_BRANCH`) and stay green, which is
+      # the require_pr_approval bug reproduced verbatim: rename a key, copy-paste a resolved: arm
+      # pointing at an existing export, touch nothing in docket-config.sh. Close it by requiring
+      # docket-config.sh to assign $exp_name on a line that ALSO names the leaf key $k — the shape
+      # every real entry has (e.g. FINALIZE_REQUIRE_PR_APPROVAL="$(lcl require_pr_approval)").
+      # Anchored on lines that are themselves an assignment TO $exp_name (`^$exp_name=`), never a
+      # whole-file grep for $exp_name — that would be satisfiable by a comment or an unrelated
+      # mention nowhere near the real assignment. See correspondence_exempt (above) for the one
+      # entry this mechanical check cannot reach.
+      case " $correspondence_exempt " in
+        *" $exp_name "*) ;;
+        *)
+          grep -qE "^$exp_name=.*\\b$k\\b" "$CFGSCRIPT" \
+            || manifest_bad_correspondence="$manifest_bad_correspondence $k($exp_name not tied to $k in docket-config.sh)"
+          ;;
+      esac
       ;;
     elsewhere:HEADER)
       # A mapping opener carries no value of its own; its children carry the real
@@ -281,14 +341,21 @@ for k in $example_keys; do
       # The target itself must be a DECLARED consumer — never an arbitrary path. Without this,
       # the mention-grep below is satisfiable by pointing at ANY file that happens to mention the
       # key (see the rationale on $consumers above); this is what actually forbids that escape.
+      allowlisted=1
       case " $consumers " in
         *" $REPO/$consumer "*) ;;
-        *) manifest_bad_consumer="$manifest_bad_consumer $k(target $consumer is not a declared consumer)" ;;
+        *) allowlisted=0
+           manifest_bad_consumer="$manifest_bad_consumer $k(target $consumer is not a declared consumer)" ;;
       esac
       # The NAMED consumer must actually mention the key — this is what keeps the entry anchored
-      # on consuming code instead of decaying into a bare allowlist.
-      grep -qE "\\b$k\\b" "$REPO/$consumer" \
-        || manifest_bad_consumer="$manifest_bad_consumer $k(not in $consumer)"
+      # on consuming code instead of decaying into a bare allowlist. Skipped when the allowlist
+      # check above already failed (change 0102 whole-branch review, MINOR 4): the target is then
+      # often not even a real path, so grepping it here only prints an unsuppressed "No such file
+      # or directory" and adds a second, redundant failure entry for the same root cause.
+      if [ "$allowlisted" -eq 1 ]; then
+        grep -qE "\\b$k\\b" "$REPO/$consumer" \
+          || manifest_bad_consumer="$manifest_bad_consumer $k(not in $consumer)"
+      fi
       ;;
   esac
 done
@@ -297,6 +364,8 @@ assert "manifest: every documented key is classified (${manifest_unclassified:-n
   '[ -z "$manifest_unclassified" ]'
 assert "manifest: every resolved: entry names a REAL export (${manifest_bad_export:-none bad})" \
   '[ -z "$manifest_bad_export" ]'
+assert "manifest: every resolved: entry's export is tied back to its key (${manifest_bad_correspondence:-none bad})" \
+  '[ -z "$manifest_bad_correspondence" ]'
 assert "manifest: every elsewhere: entry's named consumer mentions the key (${manifest_bad_consumer:-none bad})" \
   '[ -z "$manifest_bad_consumer" ]'
 assert "manifest: every elsewhere:HEADER entry is a real bare block opener (${manifest_bad_header:-none bad})" \
@@ -307,32 +376,42 @@ assert "manifest: every elsewhere:HEADER entry is a real bare block opener (${ma
 # (finalize|learnings|reclaim|skills|runners|codex) carries six — so an extraction that drops
 # keys must redden too. A loose floor (formerly -ge 20) does not do this: the dominant breakage
 # (dropping the [[:space:]]* from the first sed, so nested keys vanish) yields 15 and IS caught,
-# but losing just the second sed — the one picking up the commented agents:/agent_harnesses:
-# pseudo-keys — yields 30 and passed the old floor SILENTLY. Those two keys are precisely the
-# ones whose consumer anchor (elsewhere:sync-agents.sh) is otherwise untested, so that silent
-# pass was a real hole, not a hypothetical one (mutation-tested: deleting the second sed reddens
-# this exact assert). If you add a new documented key, bump expected_key_count in the same commit
-# as classify_key's new arm — that is the intentional-growth remedy this count is guarding. This
-# is the single source for that count: the condition and the failure message below both read it,
-# so bumping it in one place updates both instead of leaving one stale.
+# but losing the commented-key extraction entirely — the one picking up agents:/agent_harnesses:
+# — yields 30 and passed the old floor SILENTLY. Those two keys are precisely the ones whose
+# consumer anchor (elsewhere:sync-agents.sh) is otherwise untested, so that silent pass was a real
+# hole, not a hypothetical one (mutation-tested: dropping commented_config_keys from the pipeline
+# reddens this exact assert, via the raw floor directly below it). If you add a new documented
+# key, bump expected_key_count in the same commit as classify_key's new arm — that is the
+# intentional-growth remedy this count is guarding. This is the single source for that count: the
+# condition and the failure message below both read it, so bumping it in one place updates both
+# instead of leaving one stale.
 expected_key_count=32
+# RAW FLOOR (change 0102 whole-branch review, MINOR 3): example_keys_raw feeds BOTH this section's
+# manifest loop (via example_keys, deduped) and the duplicate-leaf check directly below (also
+# fed from example_keys_raw, undeduped). Without this assert, an edit that makes the raw pipeline
+# emit nothing would silently starve the duplicate-leaf check (`uniq -d` on empty input is empty,
+# which reads as "no duplicates" — green forever) even though mf_count's OWN assert below would
+# already have caught the manifest-loop side. Asserted against the same expected_key_count rather
+# than a second magic number: the raw list is always >= the deduped one.
+raw_count="$(printf '%s\n' "$example_keys_raw" | grep -c .)"
+assert "manifest: raw key extraction is non-vacuous (>= $expected_key_count; got $raw_count)" \
+  '[ "$raw_count" -ge "$expected_key_count" ]'
 mf_count="$(printf '%s\n' "$example_keys" | grep -c .)"
 assert "manifest: key extraction count is exactly $expected_key_count (got $mf_count; if intentional, bump expected_key_count and add the key's classify_key arm in the same commit)" \
   '[ "$mf_count" = "$expected_key_count" ]'
-# DUPLICATE LEAF NAMES: the sort -u above dedups by leaf name across the WHOLE file, so a newly
-# documented key whose leaf name COLLIDES with an already-classified key is invisible to this
-# entire (2b) section — classify_key answers for the OTHER key, mf_count never moves, nothing
-# fires. Plausible drift, not contrived: `enabled` is the obvious name for any future subsystem
-# toggle, and learnings.enabled already set that precedent. This also independently protects
-# yaml_get's flat, leaf-name-only reader — finalize.gate / learnings.enabled / reclaim.auto are
-# all read as bare leaf keys, never scoped within their block, so a genuine name collision here is
-# a real MIS-RESOLUTION hazard, not just a documentation one: yaml_get's `head -n1` would pick
-# whichever line happens to appear first in the file.
-dup_leaf_keys="$(
-  { sed -nE 's/^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*):.*/\1/p' "$EX"
-    sed -nE "s/^#[[:space:]]*($presence_sensitive_re):.*/\1/p" "$EX"
-  } | sort | uniq -d
-)"
+# DUPLICATE LEAF NAMES: derived from the SAME example_keys_raw captured above (change 0102
+# whole-branch review, MINOR 3 — previously a second, independently-maintained copy of the same
+# two extraction commands, guarded by nothing of its own). sort -u (in example_keys, above) dedups
+# by leaf name across the WHOLE file, so a newly documented key whose leaf name COLLIDES with an
+# already-classified key is invisible to this entire (2b) section — classify_key answers for the
+# OTHER key, mf_count never moves, nothing fires. Plausible drift, not contrived: `enabled` is the
+# obvious name for any future subsystem toggle, and learnings.enabled already set that precedent.
+# This also independently protects yaml_get's flat, leaf-name-only reader — finalize.gate /
+# learnings.enabled / reclaim.auto are all read as bare leaf keys, never scoped within their
+# block, so a genuine name collision here is a real MIS-RESOLUTION hazard, not just a
+# documentation one: yaml_get's `head -n1` would pick whichever line happens to appear first in
+# the file.
+dup_leaf_keys="$(printf '%s\n' "$example_keys_raw" | sort | uniq -d)"
 assert "no duplicate leaf key names in the example (${dup_leaf_keys:-none}; a new key must not reuse an existing leaf name — classify_key and yaml_get cannot tell them apart)" \
   '[ -z "$dup_leaf_keys" ]'
 
