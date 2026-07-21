@@ -2,7 +2,7 @@
 id: 83
 slug: terminal-publish-gap-detection
 title: A terminal record can silently never reach the integration branch — mark deferred publishes, stop the checker lying
-status: implemented
+status: done
 priority: medium
 created: 2026-07-16
 updated: 2026-07-21
@@ -15,7 +15,7 @@ results: docs/results/2026-07-21-terminal-publish-gap-detection-results.md
 trivial: false
 auto_groomable: false
 branch: feat/terminal-publish-gap-detection
-claimed_at: 2026-07-21T06:03:07Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/114
 blocked_by:
 reconciled: true
