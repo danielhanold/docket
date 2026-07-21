@@ -1,14 +1,8 @@
 # Backlog
 
-**116 changes** — 🟢 1 in progress · 🟡 18 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 89 done · 🗑️ 6 killed
+**118 changes** — 🟡 20 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 89 done · 🗑️ 6 killed
 
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0083](active/0083-terminal-publish-gap-detection.md) | A terminal record can silently never reach the integration branch — mark deferred publishes, stop the checker lying | `medium` | [spec](../superpowers/specs/2026-07-18-terminal-publish-gap-detection-design.md) | `feat/terminal-publish-gap-detection` |
-
-## 🟡 Proposed (18)
+## 🟡 Proposed (20)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -30,6 +24,8 @@
 | [0114](active/0114-decide-the-repo-s-posture-on-line-number-comment-anchors.md) | Decide the repo's posture on line-number comment anchors | `medium` | build-ready |
 | [0115](active/0115-extend-the-board-row-dropped-invariant-to-archive-files.md) | Extend the board-row-dropped invariant to archive/ files | `medium` | build-ready |
 | [0116](active/0116-single-source-the-remaining-duplicated-board-vocabularies.md) | Single-source the remaining duplicated board vocabularies | `medium` | build-ready |
+| [0117](active/0117-deferred-adr-publish-visibility-decide-whether-docket-adr-s.md) | Deferred ADR-publish visibility — decide whether docket-adr's publish path needs the Publish deferred marker | `medium` | needs-brainstorm |
+| [0118](active/0118-decide-whether-the-sweep-s-skip-publish-path-should-also-mar.md) | Decide whether the sweep's skip-publish path should also mark an unpublished terminal record | `medium` | needs-brainstorm |
 
 ## 🔴 Blocked (1)
 
@@ -37,11 +33,12 @@
 |---|-------|----------|------------|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | PR #69 is stale (predates the 0068/0072 facade rework and later agent-layer changes) and #0079 (runner delegation) reshapes the design — the build roles should grow a runner field (build.<role>.runner codex, the mixed topology 0079 deferred). Needs a rebase plus redesign pass before merge. |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | PR | Readiness |
 |---|-------|----------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
+| [0083](active/0083-terminal-publish-gap-detection.md) | A terminal record can silently never reach the integration branch — mark deferred publishes, stop the checker lying | `medium` | [#114](https://github.com/danielhanold/docket/pull/114) |  |
 
 ```mermaid
 graph TD
@@ -66,6 +63,8 @@ graph TD
   0114
   0115
   0116
+  0117
+  0118
   0015:::done
   0016:::done
   0077:::done
