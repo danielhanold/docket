@@ -182,10 +182,17 @@ assert "no orphan keys: every active top-level key is read by a consumer (${orph
 assert "runners.codex.sandbox is still read by the codex adapter" \
   'grep -q "DOCKET_RUNNER_CFG_SANDBOX" "$REPO/scripts/runners/codex.sh"'
 
-# require_pr_approval is model-read, so nothing but this assert couples the example to the skill
-# that consumes it. Anchor on the PRODUCER (the skill body) so the pair cannot silently diverge.
-assert "require_pr_approval is still read by the finalize skill body" \
+# change 0102: require_pr_approval is now RESOLVER-read. The skill still NAMES the policy (that is
+# what the (2c) consumer grep anchors on), but it must obtain the VALUE from the Step-0 export
+# block — never by parsing .docket.yml itself. The second assert is the sole-channel proof: a
+# reintroduced direct read would make a machine-scoped value honored on one path and ignored on
+# the other, which is precisely the bug 0102 closed, returning as an intermittent one.
+assert "require_pr_approval is still named by the finalize skill body" \
   'grep -q "require_pr_approval" "$REPO/skills/docket-finalize-change/SKILL.md"'
+assert "0102: the finalize skill reads the EXPORTED value" \
+  'grep -q "FINALIZE_REQUIRE_PR_APPROVAL" "$REPO/skills/docket-finalize-change/SKILL.md"'
+assert "0102: the finalize skill does not parse .docket.yml for the key" \
+  '! grep -nE "require_pr_approval" "$REPO/skills/docket-finalize-change/SKILL.md" | grep -q "Configured by .\?\.docket\.yml"'
 
 # The standing rule is STATED in the header (and enforced by the loop above).
 assert "example header states the must-update rule" \
