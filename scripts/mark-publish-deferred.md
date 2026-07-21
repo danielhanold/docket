@@ -78,4 +78,6 @@ the "no-op" rewrote the file, appending a newline).
   follow — a command group reports only its *last* command's status, so a grouped render would
   have swallowed a failed body copy and moved a marker-only file over the record. A size
   postcondition (rendered ≥ body) backs that up before the `mv`, catching a truncating read that
-  still reports success.
+  still reports success. This is a gross-truncation check, not a proof of fidelity — a loss
+  smaller than the marker section it appends would slip through — so it backs the per-step
+  `|| die`s up rather than replacing them.
