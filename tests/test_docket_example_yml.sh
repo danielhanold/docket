@@ -900,4 +900,40 @@ assert "(9) flatten_yaml keeps a HYPHENATED key as its own path (got $hyph_paths
 assert "(9) flatten_yaml STRIPS a hyphenated key from its value — half-fix guard; widening only the shape test leaves the whole raw line here and no count-based floor can see it (got [$hyph_val])" \
   '[ "$hyph_val" = "{ model: x, effort: y }" ]'
 
+# FENCE DISCOVERY — DERIVED, NEVER ENUMERATED. The stub that proposed this change listed the
+# unguarded fences by line number and its list was ALREADY WRONG on arrival (it omitted the
+# reclaim: fence). A hand-written fence list is an enumerated floor that ages directly into the
+# gap it was written to close, so the set is scanned out of the README instead: every yaml fence
+# is in scope BY DEFAULT, and a new config fence is guarded the day it is written.
+#
+# The opener regex is WHITESPACE-TOLERANT and the closer is matched at the SAME indent, because
+# fence 576 (skills: / brainstorm:) is a list-item continuation indented two spaces. A
+# column-0-anchored regex structurally cannot see it — that is not hypothetical, it is the bug
+# this change's own design draft shipped, which is why mutation-testing it is Step 5 below.
+fence_openers(){
+  awk '
+    /^[[:space:]]*```yaml[[:space:]]*$/ && !inf { inf=1; ind=match($0,/[^[:space:]]/)-1; start=NR; next }
+    inf && /^[[:space:]]*```[[:space:]]*$/ && match($0,/[^[:space:]]/)-1==ind { printf "%d\t%d\n", start, ind; inf=0 }
+  ' "$1"
+}
+
+# Body of the fence opening at line $2 with indent $3, with that base indent stripped so nested
+# keys keep their RELATIVE indent (flatten_yaml dots by indentation). substr() rather than an
+# awk interval expression: {0,n} is not portable across awk implementations.
+fence_body(){
+  awk -v s="$2" -v ind="$3" '
+    NR <= s { next }
+    $0 ~ /^[[:space:]]*```[[:space:]]*$/ && match($0,/[^[:space:]]/)-1==ind { exit }
+    { print substr($0, ind+1) }
+  ' "$1"
+}
+
+# NON-VACUITY FLOOR 1 — the population itself. (9) iterates a DISCOVERED set, so its real failure
+# mode is discovering ZERO fences and sailing through green. An EXACT count also catches the
+# opposite direction (an undocumented fence added without keys in the example). The remedy is
+# inline in the message so it survives into CI output.
+fence_count="$(fence_openers "$README" | grep -c .)"
+assert "(9) README yaml fence count is exactly 9 — floor against discovery going silently empty, ceiling against an unguarded new fence; if you ADDED a config fence, bump this literal AND ensure its keys are in .docket.example.yml in the same commit; if this dropped to 8, check that the fence regex is still whitespace-tolerant (fence 576 is indented) before touching the literal (got $fence_count)" \
+  '[ "$fence_count" = "9" ]'
+
 exit $fail
