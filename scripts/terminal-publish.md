@@ -131,10 +131,17 @@ local file is still what the removal is performed *on*, so a remote/local disagr
 would rebase and push an unrelated line of history onto the metadata branch. The script checks
 `symbolic-ref HEAD` first and dies naming what it found.
 
-**A failed rebase leaves the worktree clean.** `metadata_worktree` is the real, shared `.docket`
-every later docket operation runs in — not a throwaway like `pub` — so the CAS retry loop runs
-`git rebase --abort` before dying on a rebase failure. The abort is muted and best-effort: it can
-neither fail the run on its own nor displace the rebase failure's diagnostic.
+**A failed rebase leaves the worktree clean — but only when this invocation's own `pull --rebase`
+started it.** `metadata_worktree` is the real, shared `.docket` every later docket operation runs
+in — not a throwaway like `pub` — so an unconditional `rebase --abort` is not safe: `.docket` is
+explicitly shared with concurrent autonomous loops, and another loop can already be mid-rebase
+there when this script arrives. Before each retry's own `pull --rebase`, the loop snapshots
+whether a rebase is already in progress (`rebase-merge`/`rebase-apply` present in the worktree's
+git dir). If that `pull --rebase` then fails, the script runs `git rebase --abort` only when no
+rebase pre-existed — i.e. only a rebase this invocation itself started; if one was already
+in-flight on arrival, it leaves it untouched (aborting someone else's rebase would destroy their
+state) and just dies with the pull error. The abort, when it does run, is muted and best-effort: it
+can neither fail the run on its own nor displace the rebase failure's diagnostic.
 
 **The ordering is load-bearing.** The copy-set is read *from* `origin/<metadata-branch>`, so a
 removal done after the push would publish a record still carrying a "publish not completed"

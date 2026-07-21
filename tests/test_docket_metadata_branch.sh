@@ -113,4 +113,18 @@ assert "migrate has a --yes/-y confirmation bypass" \
 assert "migrate prompts for confirmation (reads /dev/tty)" \
   'grep -q "/dev/tty" migrate-to-docket.sh'
 
+# --- change 0083: the `## Publish deferred` marker is registered in the convention -------------
+CONV="$REPO/skills/docket-convention/SKILL.md"
+TCO="$REPO/skills/docket-convention/references/terminal-close-out.md"
+conv_lines="$(grep -F -- "## Publish deferred" "$CONV")"
+tco_lines="$(grep -iE "publish deferred|marker" "$TCO")"
+assert "convention's body-section list documents ## Publish deferred" \
+  '[ -n "$conv_lines" ]'
+assert "convention names the marker's REMOVAL on a successful publish" \
+  'grep -qiE "remov|clear" <<<"$conv_lines"'
+assert "close-out step 3 documents the write-marker-on-defer rule" \
+  'grep -qF -- "## Publish deferred" "$TCO"'
+assert "close-out states the marker is NEVER written under suppression" \
+  'grep -qiE "never|not written|suppress" <<<"$tco_lines"'
+
 exit $fail
