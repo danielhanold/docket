@@ -28,8 +28,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-20-check-id-vocabulary-drift-guard-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-20-check-id-vocabulary-drift-guard-design.md) |
-| Plan | [2026-07-21-check-id-vocabulary-drift-guard.md](https://github.com/danielhanold/docket/blob/feat/guard-the-board-checks-check-id-enumerations-against-drift/docs/superpowers/plans/2026-07-21-check-id-vocabulary-drift-guard.md) |
-| Results | [2026-07-21-guard-the-board-checks-check-id-enumerations-against-drift-results.md](https://github.com/danielhanold/docket/blob/feat/guard-the-board-checks-check-id-enumerations-against-drift/docs/results/2026-07-21-guard-the-board-checks-check-id-enumerations-against-drift-results.md) |
+| Plan | [2026-07-21-check-id-vocabulary-drift-guard.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-21-check-id-vocabulary-drift-guard.md) |
+| Results | [2026-07-21-guard-the-board-checks-check-id-enumerations-against-drift-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-21-guard-the-board-checks-check-id-enumerations-against-drift-results.md) |
 | PR | [#117](https://github.com/danielhanold/docket/pull/117) |
 <!-- docket:artifacts:end -->
 
