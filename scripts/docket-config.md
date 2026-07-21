@@ -107,10 +107,10 @@ A value may not contain a literal `#` — it is treated as the start of an inlin
 | `auto_groom` | `false` | yes | resolves repo-local > repo-committed > global |
 | `auto_capture` | `false` | yes | resolves repo-local > repo-committed > global; fails closed on a non-boolean (change 0091) |
 | `terminal_publish` | `false` | no (fenced) | `true`/`false`; the default `false` makes `terminal-publish.sh` a no-op for BOTH shapes — archived change files, specs, and ADRs stay on the metadata branch. `true` opts in to the direct-commit publish onto the integration branch. Anything else aborts |
-| `learnings.enabled` | `true` | yes | read from the nested `learnings:` block; resolves repo-local > repo-committed > global |
+| `learnings.enabled` | `true` | yes | read from the nested `learnings:` block; resolves repo-local > repo-committed > global; `true`/`false`, anything else aborts |
 | `learnings.cap` | `300` | yes | read from the nested `learnings:` block; resolves repo-local > repo-committed > global |
 | `reclaim.lease_ttl` | `72` | yes | read from the nested `reclaim:` block; integer number of **hours** (consumers convert to seconds); resolves repo-local > repo-committed > global; behavioral, not coordination-fenced |
-| `reclaim.auto` | `false` | yes | read from the nested `reclaim:` block; `true`/`false`; resolves repo-local > repo-committed > global; behavioral, not coordination-fenced — gates the ONLY mutating path of the claim-lease reclaim script |
+| `reclaim.auto` | `false` | yes | read from the nested `reclaim:` block; `true`/`false`, anything else aborts; resolves repo-local > repo-committed > global; behavioral, not coordination-fenced — gates the ONLY mutating path of the claim-lease reclaim script |
 
 `github_project` and `agents:`/`agent_harnesses` are per-repo-only / not read by this script (see
 Stage 2b/2b'/2c below and `sync-agents.sh`'s own contract, respectively) — every other key above

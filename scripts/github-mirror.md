@@ -118,7 +118,7 @@ It changes no behavior, because **nothing currently reads `github_project` from 
 this script resolves its board solely from `--project` / `--auto-create-project`, and
 `docket-status.sh` populates those only from its own CLI flags (`docket-status.sh:272`), which no
 skill passes. The key's only live effect anywhere is the coordination-key fence in
-`docket-config.sh:169`, which warns-and-ignores it in the two machine-scoped layers. When the
+`docket-config.sh:170`, which warns-and-ignores it in the two machine-scoped layers. When the
 config read is eventually wired, `auto` must resolve to the same "no board configured" state as an
 absent key, and the `project-minted` write-back must **overwrite** a literal `auto` rather than
 mistake it for a minted board reference.
