@@ -177,8 +177,16 @@ still emit the terminal `swept`/`harvest` lines for that change. Full success fo
 a failure at `sync` (rebase-pull) or `archive`, and for a `cleanup` failure (all retry cleanly next
 pass) — but a `sweep-failed` at `render-change-links` (`skipped-publish`, i.e. the renderer itself
 exited non-zero) or at `terminal-publish` leaves the change **archived but its terminal record
-unpublished**, invisible to future detection (which only scans `active/*.md`), and requires a manual
-`terminal-publish.sh --id <id> --enabled true` follow-up. The knob narrows only the
+unpublished**, which no later sweep resumes (the sweep only scans `active/*.md`), and requires a
+manual `terminal-publish.sh --id <id> --enabled true` follow-up. The `terminal-publish` case is no
+longer *invisible*, though: before emitting its `sweep-failed` line the sweep calls
+`mark-publish-deferred.sh --mode add --reason blocked` on the archived file and commits+pushes it
+on `metadata_branch`, so `board-checks`' `publish-deferred` check surfaces the gap on every later
+pass until the publish completes (change 0083). That mark is **strictly best-effort** — muted, its
+outcome never read — so a failure to mark changes neither the control flow nor the report lines
+above; the residual is an unmarked deferral, which is still invisible. The `render-change-links`
+case is not marked at all: nothing published means nothing was deferred *yet*, and the close-out
+never reached the publish step. The knob narrows only the
 `terminal-publish` leg: under `terminal_publish: false` that step is a no-op that cannot fail, so
 this recovery path never arises there — but the renderer leg still can fail in such a repo, leaving
 the archived change with a stale `## Artifacts` block on `metadata_branch` that no later sweep
