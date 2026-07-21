@@ -43,6 +43,7 @@ META_WORKTREE=""
 # it separately, rather than sniffing an empty ENABLED, keeps an explicit `--enabled ""` failing
 # closed instead of silently downgrading to the warn-and-continue path.
 ENABLED="" ENABLED_PASSED=false
+MARKER='## Publish deferred'
 
 die(){ printf '%s\n' "terminal-publish: $*" >&2; exit 1; }
 log(){ printf '%s\n' "terminal-publish: $*" >&2; }
@@ -155,8 +156,33 @@ else
   # teardown() would tear down a worktree that does not exist yet.
   [ -n "$META_WORKTREE" ] || META_WORKTREE="$(docket_main_worktree)/.docket"
   mark_file="$META_WORKTREE/$change_path"
-  if [ -f "$mark_file" ] && grep -qxF -- '## Publish deferred' "$mark_file"; then
-    log "clearing the ## Publish deferred marker on $META_BRANCH before publishing"
+  # The GATE reads the REMOTE copy — `$metaref:$change_path`, the copy the copy-set below is built
+  # from and the one that actually reaches the integration branch — not the local working-tree file
+  # alone. Gating on the local file was a silent-skip gap: a metadata worktree that is behind
+  # origin, lacks the file, or was mis-resolved made the whole block vanish with NO diagnostic, and
+  # the script published a record still carrying the marker and exited 0 — the exact failure this
+  # change exists to close. The local file is still consulted, because it is what the removal is
+  # performed ON; a remote/local disagreement is an ERROR below, never a skip.
+  remote_body="$($GIT show "$metaref:$change_path" 2>/dev/null)" \
+    || die "cannot read $change_path on $metaref"
+  remote_marked=false
+  grep -qxF -- "$MARKER" <<<"$remote_body" && remote_marked=true
+  local_marked=false
+  [ -f "$mark_file" ] && grep -qxF -- "$MARKER" "$mark_file" && local_marked=true
+  if [ "$remote_marked" = true ] || [ "$local_marked" = true ]; then
+    log "clearing the $MARKER marker on $META_BRANCH before publishing"
+    # Fail closed when the removal CANNOT be performed. Every `die` here is a path that previously
+    # fell through to a marker-carrying publish with exit 0.
+    [ -f "$mark_file" ] \
+      || die "$metaref carries the '$MARKER' marker but the metadata worktree has no $change_path (looked in '$META_WORKTREE') — cannot clear it; pass the right --metadata-worktree PATH"
+    [ "$local_marked" = true ] \
+      || die "$metaref carries the '$MARKER' marker but $mark_file does not — the metadata worktree is out of sync with $REMOTE/$META_BRANCH (it may hold an unpushed removal); push $META_BRANCH or sync the worktree, then re-run"
+    # The push/pull below act on whatever $META_WORKTREE has CHECKED OUT, not on $META_BRANCH by
+    # name. On a detached or wrong-branch worktree that would rebase and push an unrelated line of
+    # history onto the metadata branch, so refuse before touching anything.
+    mw_head="$($GIT -C "$META_WORKTREE" symbolic-ref --quiet --short HEAD 2>/dev/null)"
+    [ "$mw_head" = "$META_BRANCH" ] \
+      || die "metadata worktree '$META_WORKTREE' has ${mw_head:-a detached HEAD} checked out, not $META_BRANCH — refusing to push/rebase the marker removal there"
     "$(dirname "$0")/mark-publish-deferred.sh" --mode remove --change-file "$mark_file" \
       || die "could not clear the publish-deferred marker"
     $GIT -C "$META_WORKTREE" add -- "$change_path" \
@@ -164,16 +190,30 @@ else
     $GIT -C "$META_WORKTREE" commit -q -m "docket($pad): clear publish-deferred marker (publish completing)" -- "$change_path" \
       || die "commit failed for the marker removal"
     # CAS: a concurrent metadata writer must not lose this removal. Bounded retry against a fresh
-    # origin tip; the removal is idempotent, so a replay after a rebase is safe.
+    # origin tip; the removal is idempotent, so a replay after a rebase is safe. Budget: the
+    # initial push plus up to 5 rebase-and-retry attempts (6 pushes maximum).
     mark_tries=0
     until $GIT -C "$META_WORKTREE" push "$REMOTE" "HEAD:$META_BRANCH" >/dev/null 2>&1; do
       mark_tries=$(( mark_tries + 1 ))
       [ "$mark_tries" -le 5 ] || die "could not push the marker removal after $mark_tries attempts"
-      $GIT -C "$META_WORKTREE" pull --rebase "$REMOTE" "$META_BRANCH" >/dev/null 2>&1 \
-        || die "rebase failed while pushing the marker removal"
+      $GIT -C "$META_WORKTREE" pull --rebase "$REMOTE" "$META_BRANCH" >/dev/null 2>&1 || {
+        # $META_WORKTREE is the REAL, SHARED metadata worktree (docket-mode: <repo>/.docket) that
+        # every subsequent docket operation runs in — unlike `pub` below, which is a throwaway we
+        # can simply delete. Dying mid-rebase left it with a detached HEAD and conflicted paths
+        # until a human ran `git rebase --abort`. Abort it ourselves, then report. The abort is
+        # fully muted and `|| true`-guarded so it can neither fail the script on its own nor
+        # displace the diagnostic for the rebase failure that actually stopped us.
+        $GIT -C "$META_WORKTREE" rebase --abort >/dev/null 2>&1 || true
+        die "rebase failed while pushing the marker removal"
+      }
     done
     # Re-fetch so the copy-set below is built from the marker-free tip.
     $GIT fetch "$REMOTE" "$META_BRANCH" >/dev/null 2>&1 || die "re-fetch after marker removal failed"
+    # Fail closed: the tip the copy-set is about to be read from must actually be marker-free now.
+    post_body="$($GIT show "$metaref:$change_path" 2>/dev/null)" \
+      || die "cannot re-read $change_path on $metaref after the marker removal"
+    ! grep -qxF -- "$MARKER" <<<"$post_body" \
+      || die "the '$MARKER' marker survives on $metaref after the removal push — refusing to publish a marker-carrying record onto $INT_BRANCH"
   fi
   $GIT show "$metaref:$change_path" > "$tmpd/change.md" || die "cannot read $change_path"
   spec_path="$(field "$tmpd/change.md" spec)"

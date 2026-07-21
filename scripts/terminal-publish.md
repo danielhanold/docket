@@ -105,8 +105,36 @@ The guard is inert in `main`-mode: the mode guard already exits 0 first.
 
 In **change mode**, past both no-op guards, the script clears any `## Publish deferred` marker on
 the archived change file in the metadata working tree — invoking `mark-publish-deferred.sh --mode
-remove`, committing change-file-only on `metadata_branch`, CAS-pushing (bounded retry, 5
-attempts), and re-fetching so the copy-set is read from the marker-free tip.
+remove`, committing change-file-only on `metadata_branch`, CAS-pushing (bounded retry: the initial
+push plus up to **5** rebase-and-retry attempts, so **6** pushes at most), and re-fetching so the
+copy-set is read from the marker-free tip. After the re-fetch it re-reads
+`origin/<metadata-branch>:<change-file>` and **dies** if the marker survives there: a
+marker-carrying record must never reach the integration branch with exit 0.
+
+**The gate reads the remote copy.** Whether a removal is needed is decided from
+`origin/<metadata-branch>:<change-file>` — the copy the copy-set is built from and the one that
+actually gets published — not from the local working-tree file alone. Gating on the local file was
+a silent-skip hole: a metadata worktree behind origin, missing the file, or resolved to the wrong
+path made the whole block vanish with no diagnostic and published a marker-carrying record. The
+local file is still what the removal is performed *on*, so a remote/local disagreement is an
+**error**, never a skip:
+
+| remote marked | local file | outcome |
+| --- | --- | --- |
+| no | no marker | no removal needed — proceed (the idempotent re-run path) |
+| yes or no | marked | remove, commit, CAS-push, re-fetch, verify |
+| yes | absent | **die** — name the path looked at; pass the right `--metadata-worktree` |
+| yes | present, unmarked | **die** — worktree out of sync (possibly an unpushed removal); push `metadata_branch` or sync, then re-run |
+
+**The metadata worktree must be on `metadata_branch`.** `push HEAD:<metadata-branch>` and `pull
+--rebase` act on whatever that worktree has checked out, so a detached or wrong-branch worktree
+would rebase and push an unrelated line of history onto the metadata branch. The script checks
+`symbolic-ref HEAD` first and dies naming what it found.
+
+**A failed rebase leaves the worktree clean.** `metadata_worktree` is the real, shared `.docket`
+every later docket operation runs in — not a throwaway like `pub` — so the CAS retry loop runs
+`git rebase --abort` before dying on a rebase failure. The abort is muted and best-effort: it can
+neither fail the run on its own nor displace the rebase failure's diagnostic.
 
 **The ordering is load-bearing.** The copy-set is read *from* `origin/<metadata-branch>`, so a
 removal done after the push would publish a record still carrying a "publish not completed"
@@ -117,10 +145,18 @@ branches agree.
 `--enabled false` and `main`-mode clear nothing: a suppressed publish is legitimate *success*, not
 a completed deferral, and the marker must survive it.
 
-**On a later publish failure** the marker has already been cleared; the script exits non-zero and
-the driver's defer path re-marks (`--mode add` replaces rather than appends). A rollback re-add
-inside this script was considered and declined — a failure path inside a failure path, for a
-window the documented re-mark already covers.
+**On a later publish failure** the marker has already been cleared *on `origin/<metadata-branch>`*;
+the script exits non-zero and the driver's defer path re-marks (`--mode add` replaces rather than
+appends). A rollback re-add inside this script was considered and declined — a failure path inside
+a failure path, for a window the documented re-mark already covers.
+
+**If the removal push itself never succeeds** (a permanently denied push — protected branch, lost
+credentials — exhausting the retry budget), the cleared state exists **only locally**: the metadata
+worktree is left with a committed-but-unpushed marker-free commit while `origin` still carries the
+marker. "The marker has already been cleared" is true of the working tree and false of the remote.
+Nothing is published (the script dies before provisioning `pub`), so the two ends are inconsistent
+rather than wrong: the board's `publish-deferred` check still reads the deferral from origin, and
+a re-run refuses with the out-of-sync diagnostic above until that local commit is pushed.
 
 `--metadata-worktree PATH` locates that working tree; when omitted it resolves from
 `lib/docket-root.sh`'s main-worktree anchor plus `/.docket`, never from the caller's CWD. Ignored
