@@ -11,6 +11,8 @@
 #     check-id ∈ {board-row-dropped, broken-spec, broken-plan-results, dep-cycle, field-domain,
 #                 publish-deferred, stale-in-progress, merge-gate-stall, stale-finalize-blocked,
 #                 merged-orphan, unknown-commit-ref, malformed-id}
+#     The set above is declared in lib/docket-frontmatter.sh as BOARD_CHECK_IDS and pinned to it,
+#     to board-checks.md, and to docket-status.md by tests/test_board_checks.sh — edit all four.
 #   Clean tree ⇒ no output, exit 0. --strict ⇒ exit 1 if any finding (for a future CI gate).
 #   Branch args are passed to `git cat-file -e <ref>:<path>` verbatim; in main-mode the two refs
 #   coincide and both link checks resolve on the same branch with no special-casing.
