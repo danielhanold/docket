@@ -2,10 +2,10 @@
 id: 102
 slug: finalize-require-pr-approval-has-no-layer-resolution
 title: finalize.require_pr_approval has no layer resolution
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-07-19
-updated: 2026-07-20
+updated: 2026-07-21
 depends_on: []
 related: [101]
 discovered_from: [101]
@@ -15,7 +15,8 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/finalize-require-pr-approval-has-no-layer-resolution
+claimed_at: 2026-07-21T08:28:07Z
 pr:
 blocked_by:
 reconciled: false
