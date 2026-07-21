@@ -120,27 +120,120 @@ for k in $(printf '%s\n' "$exp_none" | sed -n 's/^\([A-Z_][A-Z_0-9]*\)=.*/\1/p')
   [ -n "$re" ] && assert "completeness: $k present in example" 'grep -Eq "$re" "$EX"'
 done
 
-# (2b) NON-EXPORTED schema keys. These have NO export key, so (2a) is structurally blind to
-# them; without this explicit list the "canonical" reference silently ships incomplete.
-#   github_project                — fenced by the resolver, never emitted; consumed by github-mirror.sh
-#   agents / agent_harnesses      — consumed by sync-agents.sh; ship COMMENTED (presence-sensitive)
-#   finalize.require_pr_approval  — MODEL-READ: skills/docket-finalize-change/SKILL.md only
-#   runners.codex.sandbox/network — consumed by scripts/runner-dispatch.sh + scripts/runners/codex.sh
-# These six end-anchor their value: unlike the exported keys in (2a), a wrong value here is
-# caught by NOTHING else in this suite — the fidelity check in (1) is structurally blind to
-# non-exported keys (see the header above (2b)), so an unanchored regex would let a typo'd value
-# that merely has the right value as a PREFIX (e.g. "auto" matching "automanaged", "true" matching
-# "truthy") pass silently. sandbox/network carry a trailing inline `# ...` comment in the example,
-# so their anchors allow one optionally; github_project/require_pr_approval/agent_harnesses/agents
-# carry none.
+# (2b) THE CLASSIFICATION MANIFEST (change 0102).
+# Every key documented in the example is classified in exactly one of two ways:
+#
+#   resolved:<EXPORT_NAME>   the resolver reads it; the test asserts that export is ACTUALLY
+#                            emitted, so a manifest entry cannot claim an export that does not
+#                            exist (nor survive one being removed).
+#   elsewhere:<consumer>     deliberately not resolver-read, with its REAL consumer named; the
+#                            test greps that named file for the key. Naming the consumer is what
+#                            keeps this from decaying into an allowlist — per the
+#                            correspondence-guard-runs-one-way learning, an allowlist answers
+#                            "is this expected?" and never "does this exist?", which is the
+#                            enumerated floor that let require_pr_approval ship documented-but-
+#                            unwired in the first place.
+#
+# An UNCLASSIFIED key fails, naming itself as documented-but-unclassified. That is the direction
+# that catches this bug class: a key added to the example with no resolution and no named reader.
+#
+# The mapping is explicit rather than derived because key -> export name is not 1:1
+# (gate -> FINALIZE_GATE, enabled -> LEARNINGS_ENABLED, auto -> RECLAIM_AUTO,
+# brainstorm -> SKILL_BRAINSTORM); any derivation would need this same table, hidden inside a
+# transform instead of stated plainly.
+classify_key(){ # classify_key <example-key-name> -> "resolved:EXPORT" | "elsewhere:path" | ""
+  case "$1" in
+    metadata_branch)      echo 'resolved:METADATA_BRANCH' ;;
+    integration_branch)   echo 'resolved:INTEGRATION_BRANCH' ;;
+    changes_dir)          echo 'resolved:CHANGES_DIR' ;;
+    adrs_dir)             echo 'resolved:ADRS_DIR' ;;
+    results_dir)          echo 'resolved:RESULTS_DIR' ;;
+    gate)                 echo 'resolved:FINALIZE_GATE' ;;
+    test_command)         echo 'resolved:FINALIZE_TEST_COMMAND' ;;
+    require_pr_approval)  echo 'resolved:FINALIZE_REQUIRE_PR_APPROVAL' ;;
+    enabled)              echo 'resolved:LEARNINGS_ENABLED' ;;
+    cap)                  echo 'resolved:LEARNINGS_CAP' ;;
+    board_surfaces)       echo 'resolved:BOARD_SURFACES' ;;
+    auto_groom)           echo 'resolved:AUTO_GROOM' ;;
+    auto_capture)         echo 'resolved:AUTO_CAPTURE' ;;
+    terminal_publish)     echo 'resolved:TERMINAL_PUBLISH' ;;
+    lease_ttl)            echo 'resolved:RECLAIM_LEASE_TTL' ;;
+    auto)                 echo 'resolved:RECLAIM_AUTO' ;;
+    brainstorm)           echo 'resolved:SKILL_BRAINSTORM' ;;
+    plan)                 echo 'resolved:SKILL_PLAN' ;;
+    build)                echo 'resolved:SKILL_BUILD' ;;
+    review)               echo 'resolved:SKILL_REVIEW' ;;
+    finish)               echo 'resolved:SKILL_FINISH' ;;
+    # Block headers carry no value of their own; their children are classified above.
+    finalize|learnings|reclaim|skills|runners|codex) echo 'elsewhere:HEADER' ;;
+    # Genuinely non-resolver-read keys, each with its real consumer named.
+    github_project)       echo 'elsewhere:scripts/docket-config.sh' ;;
+    agents)               echo 'elsewhere:sync-agents.sh' ;;
+    agent_harnesses)      echo 'elsewhere:sync-agents.sh' ;;
+    sandbox)              echo 'elsewhere:scripts/runners/codex.sh' ;;
+    network)              echo 'elsewhere:scripts/runners/codex.sh' ;;
+    *) echo '' ;;
+  esac
+}
+
+# Collect every key the example documents: active keys at any nesting depth, PLUS the two
+# presence-sensitive keys that ship commented (agents / agent_harnesses), which are documented
+# schema all the same.
+manifest_unclassified=""
+manifest_bad_export=""
+manifest_bad_consumer=""
+example_keys="$(
+  { sed -nE 's/^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*):.*/\1/p' "$EX"
+    sed -nE 's/^#[[:space:]]*(agents|agent_harnesses):.*/\1/p' "$EX"
+  } | sort -u
+)"
+for k in $example_keys; do
+  cls="$(classify_key "$k")"
+  case "$cls" in
+    '')
+      manifest_unclassified="$manifest_unclassified $k"
+      ;;
+    resolved:*)
+      exp_name="${cls#resolved:}"
+      # The export must ACTUALLY be emitted — a manifest entry cannot claim a phantom export.
+      printf '%s\n' "$exp_none" | grep -q "^$exp_name=" \
+        || manifest_bad_export="$manifest_bad_export $k($exp_name)"
+      ;;
+    elsewhere:HEADER)
+      : # a mapping opener; its children carry the real classification
+      ;;
+    elsewhere:*)
+      consumer="${cls#elsewhere:}"
+      # The NAMED consumer must actually mention the key — this is what keeps the entry anchored
+      # on consuming code instead of decaying into a bare allowlist.
+      grep -qE "\\b$k\\b" "$REPO/$consumer" \
+        || manifest_bad_consumer="$manifest_bad_consumer $k(not in $consumer)"
+      ;;
+  esac
+done
+
+assert "manifest: every documented key is classified (${manifest_unclassified:-none unclassified})" \
+  '[ -z "$manifest_unclassified" ]'
+assert "manifest: every resolved: entry names a REAL export (${manifest_bad_export:-none bad})" \
+  '[ -z "$manifest_bad_export" ]'
+assert "manifest: every elsewhere: entry's named consumer mentions the key (${manifest_bad_consumer:-none bad})" \
+  '[ -z "$manifest_bad_consumer" ]'
+# NON-VACUITY: the loop above must actually iterate. An extraction that silently yields nothing
+# would make all three asserts pass while proving nothing.
+mf_count="$(printf '%s\n' "$example_keys" | grep -c .)"
+assert "manifest: key extraction is non-empty (got $mf_count)" '[ "$mf_count" -ge 20 ]'
+
+# The value-anchored asserts for the non-exported keys are retained from the pre-0102 (2b): the
+# fidelity check in (1) is structurally blind to keys the resolver never emits, so without these
+# a typo'd value that merely has the right value as a PREFIX ("auto" matching "automanaged",
+# "true" matching "truthy") would pass silently. sandbox/network carry a trailing inline comment
+# in the example, so their anchors allow one optionally.
 assert "completeness: github_project present (auto sentinel)" \
   'grep -Eq "^github_project:[[:space:]]*auto[[:space:]]*$" "$EX"'
 assert "completeness: agent_harnesses present (commented)" \
   'grep -Eq "^#[[:space:]]*agent_harnesses:[[:space:]]*\[[[:space:]]*claude[[:space:]]*\][[:space:]]*$" "$EX"'
 assert "completeness: agents present (commented)" \
   'grep -Eq "^#[[:space:]]*agents:[[:space:]]*$" "$EX"'
-assert "completeness: finalize.require_pr_approval present" \
-  'grep -Eq "^[[:space:]]+require_pr_approval:[[:space:]]*false[[:space:]]*$" "$EX"'
 assert "completeness: runners.codex.sandbox present" \
   'grep -Eq "^[[:space:]]+sandbox:[[:space:]]*workspace-write[[:space:]]*(#.*)?$" "$EX"'
 assert "completeness: runners.codex.network present" \
