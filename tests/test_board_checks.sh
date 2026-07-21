@@ -982,21 +982,44 @@ assert "emitted check-id SET == the header's own check-id ∈ {...} enumeration 
    || { comm -3 <(printf "%s\n" "$emitted") <(printf "%s\n" "$header_ids") >&2; false; }'
 assert "publish-deferred is among the emitted check-ids" \
   'grep -qxF -- "publish-deferred" <<<"$emitted"'
-# The `$BCSH` arm this loop used to carry was TAUTOLOGICAL — `$emitted` is derived BY grepping
-# `$BCSH`, so grepping `$BCSH` for what it just yielded can never fail. The header enumeration is
-# the real board-checks.sh surface, and the set compare above now covers it. Dropped, not moved.
+# --- the two DOCUMENTATION surfaces, pinned in BOTH directions (change 0111) -------------------
+# 0104 shipped this as a one-way membership loop: every EMITTED id must appear in each document.
+# (Its `$BCSH` arm was dropped as tautological — `$emitted` is derived BY grepping `$BCSH` — and
+# the header set-compare above is board-checks.sh's real surface.) That direction alone cannot see
+# a PHANTOM: a check-id retired from the code but left behind in either document, or a typo'd
+# extra entry, passed green. Both documents assert their enumeration is CLOSED — docket-status.md
+# with `∈ {...}`, board-checks.md with its `### Check enumeration` heading — and a closed set that
+# can silently over-claim is exactly the failure `correspondence-guard-runs-one-way` names. So each
+# document is compared as a SET now, which pins both directions at once.
 #
-# WORD-BOUNDARY, not substring (change 0083 review, minor 7). `grep -qF -- "$c"` passed a future
-# id that is a substring of an existing one (e.g. `dep-cycle` vs a hypothetical `dep-cycle-hard`)
-# on the STRONGER id's registration. No current id is a substring of another, so this is latent —
-# fixed while the guard is open rather than left as a trap. Ids are `[a-z-]+`, so a boundary is
-# simply "no adjacent id character"; backticks, spaces and punctuation in the docs all qualify.
-reg_ok=1
-for c in $emitted; do
-  grep -qE -- "(^|[^a-z-])$c([^a-z-]|$)" "$BCMD" || { echo "check-id $c missing from board-checks.md" >&2; reg_ok=0; }
-  grep -qE -- "(^|[^a-z-])$c([^a-z-]|$)" "$DSMD" || { echo "check-id $c missing from docket-status.md" >&2; reg_ok=0; }
-done
-assert "every EMITTED check-id is registered in both documentation surfaces (whole-word)" '[ "$reg_ok" -eq 1 ]'
+# Each extractor anchors on that document's own structural shape, never a hand-kept list:
+#   board-checks.md  — per-check section heads, `**`<id>`**` at line start
+#   docket-status.md — the single `check <check-id> ...` report-line row's `{...}` span
+doc_ids="$(grep -oE '^\*\*`[a-z-]+`\*\*' "$BCMD" | sed -E 's/\*\*//g; s/`//g' | sort -u)"
+ds_row_count="$(grep -cE '^\| `check <check-id>' "$DSMD")"
+ds_ids="$(grep -E '^\| `check <check-id>' "$DSMD" \
+  | sed -E 's/.*\{([^}]*)\}.*/\1/' | tr ',' '\n' \
+  | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//' | grep -v '^$' | sort -u)"
+
+# Anchor integrity BEFORE the set compares: `grep -E ... | sed` yields an EMPTY set just as
+# happily when the row was retitled as when the enumeration was emptied, and an empty set would
+# make the compare fail loudly here but could pass vacuously in a future refactor of this block.
+# Pinning the row count at exactly 1 distinguishes "the doc changed shape" from "the doc drifted".
+assert "docket-status.md has exactly ONE 'check <check-id>' report-line row for the extractor to anchor on" \
+  '[ "$ds_row_count" = 1 ]'
+assert "the board-checks.md check-id extraction is non-empty (a retitled section head must redden, not pass vacuously)" \
+  '[ "$(grep -c . <<<"$doc_ids")" -ge 1 ]'
+assert "the docket-status.md check-id extraction is non-empty (a reflowed table row must redden, not pass vacuously)" \
+  '[ "$(grep -c . <<<"$ds_ids")" -ge 1 ]'
+
+assert "emitted check-id SET == scripts/board-checks.md's per-check sections (add or remove a '**\`<id>\`**' section there)" \
+  '[ -z "$(comm -3 <(printf "%s\n" "$emitted") <(printf "%s\n" "$doc_ids"))" ] \
+   || { echo "board-checks.md drift (left=emitted only, right=documented only):" >&2; \
+        comm -3 <(printf "%s\n" "$emitted") <(printf "%s\n" "$doc_ids") >&2; false; }'
+assert "emitted check-id SET == scripts/docket-status.md's 'check <check-id>' enumeration (edit that row's {...} set)" \
+  '[ -z "$(comm -3 <(printf "%s\n" "$emitted") <(printf "%s\n" "$ds_ids"))" ] \
+   || { echo "docket-status.md drift (left=emitted only, right=documented only):" >&2; \
+        comm -3 <(printf "%s\n" "$emitted") <(printf "%s\n" "$ds_ids") >&2; false; }'
 
 # --- S0: the DECLARED vocabulary, sourced as a real runtime array (change 0111) -----------------
 # board-checks.sh is NOT sourceable (it parses argv and runs the whole walk on source), so the
