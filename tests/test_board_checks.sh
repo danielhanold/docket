@@ -1037,5 +1037,26 @@ assert "BOARD_CHECK_IDS SET == the set board-checks.sh actually emits (edit scri
   '[ -z "$(comm -3 <(printf "%s\n" "${BOARD_CHECK_IDS[*]}" | tr " " "\n" | sort -u) <(printf "%s\n" "$emitted"))" ] \
    || { comm -3 <(printf "%s\n" "${BOARD_CHECK_IDS[*]}" | tr " " "\n" | sort -u) <(printf "%s\n" "$emitted") >&2; false; }'
 
+# --- extractor integrity: every emit site uses a LITERAL check-id (change 0111) ----------------
+# Everything above derives the emitted set with `emit <id> "` — a literal check-id followed by the
+# quoted change-id argument. A site written `emit "$var" ...` matches none of it and is therefore
+# invisible to every assert in this section, WITHOUT reddening any of them: the distinct-id set is
+# unchanged whenever the dynamic site's id is also emitted somewhere else. Verified, not assumed —
+# mutating board-checks.sh:181's `emit field-domain` to `emit "$dyn"` holds the set at 12 and
+# drops the call-site count from 17 to 16. So the count is the only thing that can see it.
+#
+# Comments are stripped first so the header's prose (`emit a table row`, :94) is out of scope; it
+# would not match the literal shape anyway, but stripping makes the two counts comparable over the
+# same text. `emit(){` is excluded for free by requiring the space after `emit`.
+bcsh_code="$(grep -vE '^[[:space:]]*#' "$BCSH")"
+emit_sites="$(grep -oE '\bemit [^;|&)]*' <<<"$bcsh_code" | grep -c .)"
+emit_literal_sites="$(grep -oE '\bemit [a-z][a-z-]*[[:space:]]+"' <<<"$bcsh_code" | grep -c .)"
+
+assert "board-checks.sh has emit call sites for the lint to inspect (17 at the 0111 baseline)" \
+  '[ "$emit_sites" -ge 1 ]'
+assert "every board-checks.sh emit call site names a LITERAL check-id (an 'emit \$var' site is invisible to this whole guard)" \
+  '[ "$emit_sites" = "$emit_literal_sites" ] \
+   || { echo "emit sites: $emit_sites, literal-id sites: $emit_literal_sites — a dynamic check-id would escape the set compares above" >&2; false; }'
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
