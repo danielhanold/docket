@@ -189,8 +189,10 @@ not join). It arises from the same interrupted operation as the active-side case
 does its `git mv` before the status flip and the commit, so a failure between them leaves the file
 moved but not re-statused. Extending the invariant to `archive/` is tracked as follow-up work.
 
-**`malformed-id`** — Guard/carve-out, not counted among the named checks above. A change file
-whose `id:` field is non-empty but non-integer emits a `malformed-id` finding. The change-id column
+**`malformed-id`** — Guard/carve-out — it reports a malformed *file* rather than an unhealthy
+*change* — but a first-class emitted check-id like the rest, and a full member of the closed
+enumeration below. A change file whose `id:` field is non-empty but non-integer emits a
+`malformed-id` finding. The change-id column
 carries the **filename-derived** padded id (`?` when the filename yields none) — never the raw
 frontmatter value, which is untrusted input and would shift the caller's TAB-separated fields; the
 raw value appears in the message instead. The file is then skipped for all other checks.
@@ -236,3 +238,9 @@ were emitted; otherwise it always exits 0.
   the check-id column: `docket-status.sh`'s `reclaim_pass` anchors its mutating gate at `^check
   stale-in-progress ` and requires the marker at end-of-line, so a marker inside a `field-domain`
   message can never satisfy it — that line begins with a different check-id.
+- **The check-id vocabulary is closed, and guarded both ways.** `## Behavior`'s `### Check
+  enumeration` is this file's completeness claim: every check-id `board-checks.sh` can emit has a
+  section there, and every section there names a check-id it can emit. The set is declared as
+  `BOARD_CHECK_IDS` in `lib/docket-frontmatter.sh` and pinned — in both directions — against the
+  emitting code, this file, `board-checks.sh`'s `--help` header, and `docket-status.md`'s `check`
+  report-line row by `tests/test_board_checks.sh`. Adding a check-id means editing all four.
