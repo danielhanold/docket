@@ -1,6 +1,6 @@
 # Backlog
 
-**123 changes** — 🟡 23 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 91 done · 🗑️ 6 killed
+**123 changes** — 🟡 23 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 92 done · 🗑️ 6 killed
 
 ## 🟡 Proposed (23)
 
@@ -36,12 +36,11 @@
 |---|-------|----------|------------|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | PR #69 is stale (predates the 0068/0072 facade rework and later agent-layer changes) and #0079 (runner delegation) reshapes the design — the build roles should grow a runner field (build.<role>.runner codex, the mixed topology 0079 deferred). Needs a rebase plus redesign pass before merge. |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | PR | Readiness |
 |---|-------|----------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
-| [0108](active/0108-guard-the-readme-s-remaining-config-fences-against-key-drift.md) | Guard the README's remaining config fences against key drift | `medium` | [#116](https://github.com/danielhanold/docket/pull/116) |  |
 
 ```mermaid
 graph TD
@@ -56,7 +55,6 @@ graph TD
   0082
   0100
   0103
-  0108
   0110
   0111
   0112
@@ -77,10 +75,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (97)</summary>
+<details><summary>✅🗑️ Archive — done + killed (98)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0108](archive/2026-07-21-0108-guard-the-readme-s-remaining-config-fences-against-key-drift.md) | Guard the README's remaining config fences against key drift | 2026-07-21 |
 | [0102](archive/2026-07-21-0102-finalize-require-pr-approval-has-no-layer-resolution.md) | finalize.require_pr_approval has no layer resolution | 2026-07-21 |
 | [0083](archive/2026-07-21-0083-terminal-publish-gap-detection.md) | A terminal record can silently never reach the integration branch — mark deferred publishes, stop the checker lying | 2026-07-21 |
 | [0109](archive/2026-07-20-0109-rename-docket-yml-example-to-docket-example-yml.md) | Rename .docket.yml.example to .docket.example.yml so editors syntax-highlight it | 2026-07-20 |
@@ -96,7 +95,6 @@ graph TD
 | [0094](archive/2026-07-19-0094-selection-order-digest.md) | Selection-order backlog digest — implement-next selects from a digest instead of walking active/ | 2026-07-19 |
 | [0091](archive/2026-07-19-0091-auto-create-discovered-stubs.md) | Auto-create discovered stubs — a config flag that turns mid-run findings into proposed changes | 2026-07-19 |
 | [0087](archive/2026-07-19-0087-headless-finalize-driver.md) | Headless finalize — the finalize-side disposition contract, mirroring 0088 | 2026-07-19 |
-| [0095](archive/2026-07-18-0095-retire-auto-approve-workflow.md) | Retire the auto-approve workflow — document the classifier and the single-maintainer branch-protection solution | 2026-07-18 |
 | [0086](archive/2026-07-18-0086-attended-finalize-merge-path.md) | Attended finalize has no merge path under auto_approve — scope the --admin ban to autonomous runs | 2026-07-18 |
 | [0033](archive/2026-07-16-0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | 2026-07-16 |
 | [0076](archive/2026-07-14-0076-cwd-independent-repo-root-resolution.md) | Resolve the repo root independently of CWD — preflight run inside `.docket` mints a nested metadata worktree | 2026-07-14 |
@@ -107,7 +105,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-07](archive/) | 44 done |
+| [2026-07](archive/) | 45 done |
 | [2026-06](archive/) | 32 done |
 
 </details>
