@@ -27,8 +27,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-18-terminal-publish-gap-detection-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-18-terminal-publish-gap-detection-design.md) |
-| Plan | [2026-07-21-terminal-publish-gap-detection.md](https://github.com/danielhanold/docket/blob/feat/terminal-publish-gap-detection/docs/superpowers/plans/2026-07-21-terminal-publish-gap-detection.md) |
-| Results | [2026-07-21-terminal-publish-gap-detection-results.md](https://github.com/danielhanold/docket/blob/feat/terminal-publish-gap-detection/docs/results/2026-07-21-terminal-publish-gap-detection-results.md) |
+| Plan | [2026-07-21-terminal-publish-gap-detection.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-21-terminal-publish-gap-detection.md) |
+| Results | [2026-07-21-terminal-publish-gap-detection-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-21-terminal-publish-gap-detection-results.md) |
 | PR | [#114](https://github.com/danielhanold/docket/pull/114) |
 | ADRs | [ADR-0001](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0001-docket-metadata-branch-model.md), [ADR-0051](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0051-publish-deferred-marker-not-branch-diff-detector.md) |
 <!-- docket:artifacts:end -->
