@@ -995,8 +995,8 @@ scan_fences(){
     while IFS="$TAB9" read -r p pv; do
       [ -n "$p" ] || continue
       top="${p%%.*}"
-      if printf '%s\n' "$ex9_paths" | grep -Fxq "$top"; then
-        printf '%s\n' "$ex9_paths" | grep -Fxq "$p" || echo "miss $line $p"
+      if grep -Fxq "$top" <<<"$ex9_paths"; then
+        grep -Fxq "$p" <<<"$ex9_paths" || echo "miss $line $p"
       elif is_pseudo_key "$top"; then :
       else echo "miss $line $p"; fi
     done <<FLAT
