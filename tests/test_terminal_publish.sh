@@ -56,6 +56,13 @@ assert "empty --enabled does NOT warn"                           '! printf "%s" 
 MARKER='## Publish deferred'
 git_quiet(){ git "$@" >/dev/null 2>&1; }
 
+# Every fixture below lives under ONE root that is removed on exit. Each fixture used to mint its
+# own `mktemp -d` and leak it (six per run). tp_repo runs inside a process substitution — a
+# SUBSHELL — so a "register the dir in an array" scheme could not work: the append would be lost.
+# Minting under $TP_ROOT survives the subshell because the parenthood is in the path, not in state.
+TP_ROOT="$(mktemp -d)"
+trap 'rm -rf "$TP_ROOT"' EXIT
+
 # tp_repo: prints "<work> <origin>" — bare origin holding main + docket; docket carries an
 # archived change file (id 60) that CARRIES the marker, plus its spec.
 #
@@ -66,7 +73,7 @@ git_quiet(){ git "$@" >/dev/null 2>&1; }
 # removal block instead of dying earlier on a missing archive.
 tp_repo(){
   local root work origin
-  root="$(mktemp -d)"; origin="$root/origin.git"; work="$root/work"
+  root="$(mktemp -d "$TP_ROOT/repo.XXXXXX")"; origin="$root/origin.git"; work="$root/work"
   git_quiet init --bare "$origin"
   git_quiet clone "$origin" "$work"
   git -C "$work" config user.email t@t; git -C "$work" config user.name t
@@ -122,7 +129,7 @@ assert "publish suppressed (--enabled false) leaves the marker in place" \
 # docket-checked-out $TW instead would be an incoherent fixture, and the HEAD-on-metadata-branch
 # guard would then stop the run for that reason — masking the suppression mutation (mode guard
 # relocated below the removal block), which must keep reddening the assert below.
-TWM="$(mktemp -d)/mainwt"
+TWM="$TP_ROOT/mainwt"
 git_quiet clone "$TO" "$TWM"
 git -C "$TWM" config user.email t@t; git -C "$TWM" config user.name t
 git_quiet -C "$TWM" checkout main
@@ -171,7 +178,7 @@ assert "re-publish with no marker exits zero (idempotent)" '[ "$tprc2" -eq 0 ]'
 # record onto the integration branch and exited 0. That is the whole gap this change closes, so it
 # gets a test whose central claim is "NOT exit 0".
 CHANGE_REL=docs/changes/archive/2026-07-08-0060-sample.md
-read -r TW2 TO2 < <(tp_repo)
+read -r TW2 _ < <(tp_repo)
 bad_args=(--id 60 --outcome killed --integration-branch main --metadata-branch docket
           --changes-dir docs/changes --adrs-dir docs/adrs)
 
@@ -190,7 +197,7 @@ assert "the refused run left the marker intact on origin/docket" 'grep -qxF -- "
 # Its OWN fixture: (d1) shares nothing with it, and a mutation that lets (d1) get as far as
 # provisioning `pub-60` would otherwise leave that worktree registered and (d2) would die on the
 # leftover instead of on the guard under test.
-read -r TW4 TO4 < <(tp_repo)
+read -r TW4 _ < <(tp_repo)
 "$REPO/scripts/mark-publish-deferred.sh" --mode remove --change-file "$TW4/$CHANGE_REL" >/dev/null 2>&1
 out="$( cd "$TW4" && bash "$SCRIPT" "${bad_args[@]}" --metadata-worktree "$TW4" \
         --enabled true 2>&1 )"; badrc2=$?
@@ -204,7 +211,7 @@ assert "the out-of-sync diagnostic names the metadata branch" 'grep -q "origin/d
 # left it detached with conflicted paths until a human ran `git rebase --abort`.
 read -r TW3 TO3 < <(tp_repo)
 # a concurrent writer diverges the very lines the marker removal deletes => guaranteed conflict
-CW="$(mktemp -d)/cw"
+CW="$TP_ROOT/cw"
 git_quiet clone "$TO3" "$CW"
 git -C "$CW" config user.email t@t; git -C "$CW" config user.name t
 git_quiet -C "$CW" checkout docket
@@ -224,6 +231,122 @@ assert "the shared metadata worktree is NOT left mid-rebase" \
   '[ ! -d "$TW3_GITDIR/rebase-merge" ] && [ ! -d "$TW3_GITDIR/rebase-apply" ]'
 assert "the shared metadata worktree HEAD is NOT left detached" '[ "$tw3_head" = "docket" ]'
 assert "the shared metadata worktree has NO conflicted paths"  '[ -z "$tw3_unmerged" ]'
+# ...and the report must carry GIT'S OWN diagnostic. Muting `pull --rebase` collapsed conflict,
+# dirty tree, already-rebasing and network failure into one opaque line, which is four different
+# operator actions behind one message.
+assert "the rebase report carries git's own diagnostic, not just ours" \
+  'grep -qiE "conflict|could not apply|error:" <<<"$out"'
+
+# (e2) the abort must be CONDITIONAL. `.docket` is shared with concurrent autonomous loops, so
+# `pull --rebase` can fail *because someone else's* rebase is already in flight — and an
+# unconditional `rebase --abort` then destroys THAT operation's state, not ours. Driven through the
+# advertised GIT mock seam: the stand-in fails the marker-removal push and, in the same breath,
+# wedges the metadata worktree into a rebase this script did not start (the race, made
+# deterministic). The pre-existing rebase must survive.
+read -r TW8 TO8 < <(tp_repo)
+CW8="$TP_ROOT/cw8"
+git_quiet clone "$TO8" "$CW8"
+git -C "$CW8" config user.email t@t; git -C "$CW8" config user.name t
+git_quiet -C "$CW8" checkout docket
+sed -i.bak 's/pending human approval/CONCURRENT EDIT on the same lines/' "$CW8/$CHANGE_REL"
+rm -f "$CW8/$CHANGE_REL.bak"
+git -C "$CW8" add -A; git_quiet -C "$CW8" commit -m "concurrent metadata write"; git_quiet -C "$CW8" push origin docket
+
+GITWRAP="$TP_ROOT/git-wrap.sh"
+cat > "$GITWRAP" <<'WRAP'
+#!/usr/bin/env bash
+# passthrough git, except: the first `git -C <mw> push …` fails AND leaves <mw> mid-rebase, as if a
+# concurrent docket loop had started one between the HEAD guard and the pull. Matched on the
+# METADATA worktree specifically — the publish's own `git -C <pub> push` must run untouched, or the
+# ordering mutation (which reorders the two) would drag this fixture into its signature.
+if [ "${1:-}" = "-C" ] && [ "${2:-}" = "$WEDGE_MW" ] && [ "${3:-}" = "push" ] && [ ! -e "$WEDGE_FLAG" ]; then
+  : > "$WEDGE_FLAG"
+  git -C "$WEDGE_MW" rebase origin/docket >/dev/null 2>&1
+  exit 1
+fi
+exec git "$@"
+WRAP
+chmod +x "$GITWRAP"
+out="$( cd "$TW8" && GIT="$GITWRAP" WEDGE_MW="$TW8" WEDGE_FLAG="$TP_ROOT/wedged" \
+        bash "$SCRIPT" "${bad_args[@]}" --metadata-worktree "$TW8" --enabled true 2>&1 )"; prerc=$?
+TW8_GITDIR="$(cd "$TW8" && git rev-parse --absolute-git-dir)"
+assert "a pre-existing rebase still fails the publish"      '[ "$prerc" -ne 0 ]'
+assert "the pre-existing-rebase failure is reported"        'grep -q "rebase failed" <<<"$out"'
+assert "a rebase this script did NOT start is left alone" \
+  '[ -d "$TW8_GITDIR/rebase-merge" ] || [ -d "$TW8_GITDIR/rebase-apply" ]'
+
+# (f) the HEAD-on-$META_BRANCH guard. The removal is committed and pushed with `HEAD:$META_BRANCH`,
+# i.e. it publishes whatever the metadata worktree has CHECKED OUT — not the branch named by
+# --metadata-branch. On a DETACHED worktree that pushes an unrelated line of history onto the
+# metadata branch and then publishes from it. Previously the guard was reached twice per run but
+# never driven into its `die`, so deleting it changed no test: it was decoration. This fixture is
+# what makes it code.
+read -r TW5 _ < <(tp_repo)
+git_quiet -C "$TW5" checkout --detach
+out="$( cd "$TW5" && bash "$SCRIPT" "${bad_args[@]}" --metadata-worktree "$TW5" \
+        --enabled true 2>&1 )"; detrc=$?
+assert "a DETACHED metadata worktree does NOT publish-and-exit-0"  '[ "$detrc" -ne 0 ]'
+assert "the detached-worktree diagnostic says 'detached HEAD'"     'grep -q "detached HEAD" <<<"$out"'
+assert "the detached-worktree run never reports a publish"         '! grep -q "record(s)" <<<"$out"'
+# Keyed on origin/DOCKET, not origin/main: deleting the guard lets the removal be committed on the
+# detached HEAD and pushed with `HEAD:docket`, so the marker vanishes from the metadata tip — the
+# specific damage this guard prevents. Keying it on origin/main instead would ALSO redden under the
+# ordering mutation (M1), blurring that mutation's deliberately single-assert signature.
+git_quiet -C "$TW5" fetch origin docket
+det_meta="$(git -C "$TW5" show "origin/docket:$CHANGE_REL" 2>/dev/null)"
+assert "the detached-worktree run left the marker intact on origin/docket" \
+  'grep -qxF -- "$MARKER" <<<"$det_meta"'
+
+# (f2) `symbolic-ref` is EMPTY for two distinct faults: a detached HEAD, and "not a git worktree at
+# all". A mis-resolved --metadata-worktree that merely happens to hold the change file was reported
+# as a detached HEAD, sending the reader after a rebase that never existed. The two must read
+# differently. $PLAIN sits under $TP_ROOT (mktemp territory, outside any repo) so `rev-parse
+# --git-dir` genuinely fails there.
+read -r TW6 _ < <(tp_repo)
+PLAIN="$TP_ROOT/plain-not-a-worktree"
+mkdir -p "$PLAIN/docs/changes/archive"
+tp_change_file > "$PLAIN/$CHANGE_REL"
+out="$( cd "$TW6" && bash "$SCRIPT" "${bad_args[@]}" --metadata-worktree "$PLAIN" \
+        --enabled true 2>&1 )"; plainrc=$?
+assert "a non-repo --metadata-worktree does NOT publish-and-exit-0" '[ "$plainrc" -ne 0 ]'
+assert "a non-repo --metadata-worktree is NOT misreported as detached" \
+  '! grep -q "detached HEAD" <<<"$out"'
+assert "the non-repo diagnostic says it is not a git worktree" \
+  'grep -q "not a git worktree" <<<"$out"'
+
+# (g) the fail-closed postcondition. It is what backs the claim "there is no path on which a
+# marker-carrying record reaches the integration branch with exit 0" — and until now that claim was
+# asserted, never proven: nothing made the removal silently not-happen. A stand-in
+# mark-publish-deferred.sh does. It reports SUCCESS and touches the file (so the `git commit -- <path>`
+# below still has something to record, which a pure no-op would not) while LEAVING the marker in
+# place. $0-relative dispatch means the stand-in has to live in a copied scripts dir, not on PATH.
+read -r TW7 _ < <(tp_repo)
+FAKE_SCRIPTS="$TP_ROOT/fake-scripts"
+cp -R "$REPO/scripts" "$FAKE_SCRIPTS"
+cat > "$FAKE_SCRIPTS/mark-publish-deferred.sh" <<'STUB'
+#!/usr/bin/env bash
+# stand-in: reports success WITHOUT removing the marker (a silently-failed removal)
+f=""
+while [ $# -gt 0 ]; do case "$1" in --change-file) f="$2"; shift ;; esac; shift; done
+[ -n "$f" ] && printf '\n<!-- stand-in touched this file but removed nothing -->\n' >> "$f"
+exit 0
+STUB
+chmod +x "$FAKE_SCRIPTS/mark-publish-deferred.sh"
+out="$( cd "$TW7" && bash "$FAKE_SCRIPTS/terminal-publish.sh" "${bad_args[@]}" \
+        --metadata-worktree "$TW7" --enabled true 2>&1 )"; postrc=$?
+assert "a silently-failed removal does NOT publish-and-exit-0"   '[ "$postrc" -ne 0 ]'
+assert "the surviving-marker diagnostic names the metadata tip"  'grep -q "survives on origin/docket" <<<"$out"'
+assert "the surviving-marker run never reports a publish"        '! grep -q "record(s)" <<<"$out"'
+# The direct proof of the advertised guarantee — "no path on which a marker-carrying record reaches
+# the integration branch with exit 0". Keyed on the stand-in's SENTINEL rather than on the marker or
+# the spec: origin/main was seeded with a marker-carrying record at baseline (so a marker assert
+# here is vacuous), and a spec assert would also redden under the ordering mutation (M1), which must
+# keep its single-assert signature. The sentinel appears on the metadata tip only once the
+# silently-failed removal has run, so it lands on main only if the postcondition let it through.
+git_quiet -C "$TW7" fetch origin main
+post_int="$(git -C "$TW7" show "origin/main:$CHANGE_REL" 2>/dev/null)"
+assert "the silently-unremoved record never reached origin/main" \
+  '! grep -q "stand-in touched" <<<"$post_int"'
 
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"

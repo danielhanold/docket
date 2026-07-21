@@ -170,9 +170,11 @@ else
   local_marked=false
   [ -f "$mark_file" ] && grep -qxF -- "$MARKER" "$mark_file" && local_marked=true
   if [ "$remote_marked" = true ] || [ "$local_marked" = true ]; then
-    log "clearing the $MARKER marker on $META_BRANCH before publishing"
     # Fail closed when the removal CANNOT be performed. Every `die` here is a path that previously
-    # fell through to a marker-carrying publish with exit 0.
+    # fell through to a marker-carrying publish with exit 0. The "clearing …" log deliberately sits
+    # BELOW all three refusals: emitted above them it announced work that the very next line then
+    # refused to do, so real output read "clearing the marker" immediately followed by "cannot clear
+    # it". It now claims only what actually happens.
     [ -f "$mark_file" ] \
       || die "$metaref carries the '$MARKER' marker but the metadata worktree has no $change_path (looked in '$META_WORKTREE') — cannot clear it; pass the right --metadata-worktree PATH"
     [ "$local_marked" = true ] \
@@ -180,9 +182,23 @@ else
     # The push/pull below act on whatever $META_WORKTREE has CHECKED OUT, not on $META_BRANCH by
     # name. On a detached or wrong-branch worktree that would rebase and push an unrelated line of
     # history onto the metadata branch, so refuse before touching anything.
+    #
+    # `symbolic-ref` returns EMPTY for two different faults — a detached HEAD, and "$META_WORKTREE
+    # is not a git worktree at all" (a mis-resolved or plain directory that merely happens to hold
+    # the change file). Reporting the second as "has a detached HEAD checked out" sends the reader
+    # hunting a rebase that never happened, so the two are distinguished below.
     mw_head="$($GIT -C "$META_WORKTREE" symbolic-ref --quiet --short HEAD 2>/dev/null)"
-    [ "$mw_head" = "$META_BRANCH" ] \
-      || die "metadata worktree '$META_WORKTREE' has ${mw_head:-a detached HEAD} checked out, not $META_BRANCH — refusing to push/rebase the marker removal there"
+    if [ "$mw_head" != "$META_BRANCH" ]; then
+      if [ -n "$mw_head" ]; then
+        mw_why="has branch '$mw_head' checked out, not $META_BRANCH"
+      elif $GIT -C "$META_WORKTREE" rev-parse --git-dir >/dev/null 2>&1; then
+        mw_why="has a detached HEAD checked out, not $META_BRANCH"
+      else
+        mw_why="is not a git worktree at all (no git repository there)"
+      fi
+      die "metadata worktree '$META_WORKTREE' $mw_why — refusing to push/rebase the marker removal there"
+    fi
+    log "clearing the $MARKER marker on $META_BRANCH before publishing"
     "$(dirname "$0")/mark-publish-deferred.sh" --mode remove --change-file "$mark_file" \
       || die "could not clear the publish-deferred marker"
     $GIT -C "$META_WORKTREE" add -- "$change_path" \
@@ -196,15 +212,28 @@ else
     until $GIT -C "$META_WORKTREE" push "$REMOTE" "HEAD:$META_BRANCH" >/dev/null 2>&1; do
       mark_tries=$(( mark_tries + 1 ))
       [ "$mark_tries" -le 5 ] || die "could not push the marker removal after $mark_tries attempts"
-      $GIT -C "$META_WORKTREE" pull --rebase "$REMOTE" "$META_BRANCH" >/dev/null 2>&1 || {
+      # Snapshot whether a rebase was ALREADY in progress before our own pull. `.docket` is
+      # explicitly shared with concurrent autonomous loops, so `pull --rebase` can fail *because*
+      # someone else's rebase is mid-flight — and an unconditional `rebase --abort` would then
+      # destroy that operation's state rather than our own. Abort only what we started.
+      rebase_pre=false
+      mw_gitdir="$($GIT -C "$META_WORKTREE" rev-parse --absolute-git-dir 2>/dev/null)"
+      if [ -n "$mw_gitdir" ] \
+         && { [ -d "$mw_gitdir/rebase-merge" ] || [ -d "$mw_gitdir/rebase-apply" ]; }; then
+        rebase_pre=true
+      fi
+      # Capture git's real diagnostic instead of muting it: conflict, dirty tree, already-rebasing
+      # and network failure are four different operator actions, and >/dev/null collapsed them into
+      # one opaque line. `2>&1 >/dev/null` keeps stderr (into the substitution) and drops stdout.
+      pull_err="$($GIT -C "$META_WORKTREE" pull --rebase "$REMOTE" "$META_BRANCH" 2>&1 >/dev/null)" || {
         # $META_WORKTREE is the REAL, SHARED metadata worktree (docket-mode: <repo>/.docket) that
         # every subsequent docket operation runs in — unlike `pub` below, which is a throwaway we
         # can simply delete. Dying mid-rebase left it with a detached HEAD and conflicted paths
         # until a human ran `git rebase --abort`. Abort it ourselves, then report. The abort is
         # fully muted and `|| true`-guarded so it can neither fail the script on its own nor
         # displace the diagnostic for the rebase failure that actually stopped us.
-        $GIT -C "$META_WORKTREE" rebase --abort >/dev/null 2>&1 || true
-        die "rebase failed while pushing the marker removal"
+        [ "$rebase_pre" = true ] || $GIT -C "$META_WORKTREE" rebase --abort >/dev/null 2>&1 || true
+        die "rebase failed while pushing the marker removal: ${pull_err:-<git emitted no diagnostic>}"
       }
     done
     # Re-fetch so the copy-set below is built from the marker-free tip.

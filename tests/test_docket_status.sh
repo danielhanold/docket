@@ -817,6 +817,14 @@ assert "sweep_execute: clean change emits harvest with archived path" \
 assert "sweep_execute: clean change calls all four stubs" \
   'grep -q -- "--id 20 " "$sweep_log" && grep -q "clean-thing" "$sweep_log" \
    && grep -q "^terminal-publish" "$sweep_log" && grep -q "^cleanup-feature-branch" "$sweep_log"'
+# change 0083: the sweep must hand terminal-publish.sh an EXPLICIT --metadata-worktree. Without it
+# the publish resolves the metadata tree from the main-worktree anchor, which is right only by
+# coincidence — and the flag was silently dropped once already. Asserted on the recorded invocation
+# (the mock logs "$*"), so the wiring cannot regress unnoticed. Mirrors test_closeout.sh's
+# every-call-site-supplies---enabled check, one layer down: this one is behavioral.
+assert "sweep_execute: terminal-publish invocation supplies --metadata-worktree" \
+  'tp_call="$(grep -m1 "^terminal-publish .*--id 20 " "$sweep_log")"; \
+   [ -n "$tp_call" ] && grep -q -- "--metadata-worktree /" <<<"$tp_call"'
 assert "sweep_execute: broken-render change emits sweep-failed render-change-links" \
   'printf "%s\n" "$sweep_out" | grep -qE "^sweep-failed 21 render-change-links "'
 assert "sweep_execute: broken-render change does NOT call terminal-publish" \
