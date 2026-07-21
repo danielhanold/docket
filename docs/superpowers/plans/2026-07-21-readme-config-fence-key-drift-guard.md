@@ -48,7 +48,7 @@
 **Interfaces:**
 - Produces: `flatten_yaml` accepting keys matching `[A-Za-z_][A-Za-z0-9_-]*`, emitting `path<TAB>value` with the value correctly stripped for hyphenated keys. Every later task consumes this.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to the very end of `tests/test_docket_example_yml.sh`, **immediately before** the final `exit $fail` line:
 
@@ -73,13 +73,13 @@ assert "(9) flatten_yaml STRIPS a hyphenated key from its value — half-fix gua
   '[ "$hyph_val" = "{ model: x, effort: y }" ]'
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `bash tests/test_docket_example_yml.sh 2>&1 | grep -E '^NOT OK'`
 
 Expected: **2** failures — the path assert reports `got 2 paths, want 3` and the value assert reports `got []`. (Un-widened, `implement-next:` fails the shape test entirely, so the path never exists.)
 
-- [ ] **Step 3: Widen both occurrences**
+- [x] **Step 3: Widen both occurrences**
 
 In `flatten_yaml`, change the **shape test** from:
 
@@ -107,7 +107,7 @@ to:
 
 Then update `(8)`'s standing comment about the narrow key regex so it no longer contradicts the code. Change the comment text `([A-Za-z_][A-Za-z0-9_]*:)` in the "SAFETY NET for the flattener's deliberately narrow key regex" block to `([A-Za-z_][A-Za-z0-9_-]*:)`. **This is a comment-only edit inside `(8)`** — the sole permitted touch to that section, because leaving it stale would document a hazard the code no longer has.
 
-- [ ] **Step 4: Run tests to verify they pass and the widening is behavior-neutral**
+- [x] **Step 4: Run tests to verify they pass and the widening is behavior-neutral**
 
 Run: `bash tests/test_docket_example_yml.sh; echo "EXIT=$?"`
 
@@ -121,7 +121,7 @@ bash tests/test_docket_example_yml.sh | grep -E '^ok - \(8\)'
 
 Expected: `(8)` reports `snippet flattened key count is exactly 5` and `raw=5 flattened=5` — unchanged from baseline. The example still flattens to 30 paths (no hyphenated active key exists in it), so `(8)`'s `>= 20` floor and exact-5 count are untouched.
 
-- [ ] **Step 5: Verify the mutation is load-bearing (half-fix must redden)**
+- [x] **Step 5: Verify the mutation is load-bearing (half-fix must redden)**
 
 Temporarily revert **only the value strip** to the hyphen-free form, leaving the shape test widened, then run:
 
@@ -131,7 +131,7 @@ bash tests/test_docket_example_yml.sh 2>&1 | grep -E '^NOT OK'
 
 Expected: exactly **one** failure — the value assert, reporting `got [    implement-next: { model: x, effort: y }]`. The path assert stays green, proving the value assert is the only guard for this defect. **Restore the widening** and re-run to green before committing.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add tests/test_docket_example_yml.sh
@@ -157,7 +157,7 @@ active key, so ex_flat stays at 30 paths."
 **Interfaces:**
 - Produces: `fence_openers <markdown-path>` → one `startline<TAB>indent` line per yaml fence; `fence_body <markdown-path> <startline> <indent>` → the fence's body with its base indent stripped. Both take the markdown path as an **argument** (Task 5's fixture depends on this).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to section `(9)`, after Task 1's asserts:
 
@@ -199,13 +199,13 @@ assert "(9) README yaml fence count is exactly 9 — floor against discovery goi
   '[ "$fence_count" = "9" ]'
 ```
 
-- [ ] **Step 2: Run test to verify it passes**
+- [x] **Step 2: Run test to verify it passes**
 
 Run: `bash tests/test_docket_example_yml.sh 2>&1 | grep -E 'fence count'`
 
 Expected: `ok - (9) README yaml fence count is exactly 9 ... (got 9)`
 
-- [ ] **Step 3: Verify discovery finds the right fences**
+- [x] **Step 3: Verify discovery finds the right fences**
 
 Run:
 
@@ -232,7 +232,7 @@ Expected exactly:
 
 Note fence **576 has indent 2** — that is the one a column-0 regex misses.
 
-- [ ] **Step 4: Mutation test — regress the regex to column-0**
+- [x] **Step 4: Mutation test — regress the regex to column-0**
 
 Temporarily change the `fence_openers` opener pattern from `/^[[:space:]]*```yaml[[:space:]]*$/` to `/^```yaml[[:space:]]*$/`, then run:
 
@@ -244,7 +244,7 @@ Expected: `NOT OK - (9) README yaml fence count is exactly 9 ... (got 8)`.
 
 This is the design draft's own bug pinned as a test. **Restore the whitespace-tolerant regex** and re-run to green.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tests/test_docket_example_yml.sh
@@ -268,7 +268,7 @@ finds only 8 and the count floor reddens on it."
 - Consumes: `fence_openers`, `fence_body` (Task 2); `flatten_yaml`, `ex_flat` (Task 1 / section `(8)`).
 - Produces: `is_pseudo_key <key>` → exit 0 if the example carries that key as a *commented* pseudo-key; `scan_fences <markdown-path>` → one finding line per problem, `miss <fence-line> <path>` in this task. Later tasks extend `scan_fences` with more finding kinds.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to section `(9)`, after Task 2:
 
@@ -350,7 +350,7 @@ assert "(9) every README config-fence key exists in .docket.example.yml (fence-l
   '[ -z "$f9_miss" ]'
 ```
 
-- [ ] **Step 2: Run test to verify it passes on correct prose**
+- [x] **Step 2: Run test to verify it passes on correct prose**
 
 Run: `bash tests/test_docket_example_yml.sh 2>&1 | grep -E 'every README config-fence key'`
 
@@ -358,7 +358,7 @@ Expected: `ok - (9) every README config-fence key exists in .docket.example.yml 
 
 This is the load-bearing green: all 9 fences resolve — 24 distinct paths, 18 via active keys (full dotted path) and 6 via the `agents`/`agent_harnesses` pseudo-key path.
 
-- [ ] **Step 3: Mutation test — plant a phantom key**
+- [x] **Step 3: Mutation test — plant a phantom key**
 
 Insert a bogus key into the `auto_capture` fence (line 264). Run:
 
@@ -371,7 +371,7 @@ Expected: `NOT OK - (9) every README config-fence key exists ... (264 phantom_ke
 
 Confirm `README.md` is restored: `git diff --stat README.md` must be empty.
 
-- [ ] **Step 4: Verify the pseudo-key branch is genuinely exercised**
+- [x] **Step 4: Verify the pseudo-key branch is genuinely exercised**
 
 The `elif is_pseudo_key` branch must not be dead code. Run:
 
@@ -381,7 +381,7 @@ bash -c 'awk "/^# agents:\$/{print \"agents pseudo-key present\"} /^# agent_harn
 
 Expected: both lines print. These are what `agents.default.implement-next`, `agents.claude.status` and `agent_harnesses` resolve through — without that branch the existence assert would report 6 spurious misses.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tests/test_docket_example_yml.sh
@@ -408,7 +408,7 @@ ERE, so no metacharacter can leak into the pattern."
 - Consumes: `scan_fences` (Task 3).
 - Produces: `empty <fence-line>` and `drop <fence-line> raw=N flat=M` findings.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 In `scan_fences`, insert the two floors **between** the `flatout=` assignment and the `while IFS="$TAB9" read -r p pv` loop:
 
@@ -444,13 +444,13 @@ assert "(9) the flattener drops no key-shaped line in any fence (raw content lin
   '[ -z "$f9_drop" ]'
 ```
 
-- [ ] **Step 2: Run tests to verify they pass**
+- [x] **Step 2: Run tests to verify they pass**
 
 Run: `bash tests/test_docket_example_yml.sh 2>&1 | grep -E 'flattens to at least|drops no key-shaped'`
 
 Expected: both `ok -`, reporting `none empty` and `none dropped`.
 
-- [ ] **Step 3: Mutation test — regress `flatten_yaml`'s key class**
+- [x] **Step 3: Mutation test — regress `flatten_yaml`'s key class**
 
 Temporarily revert **both** occurrences of `[A-Za-z0-9_-]*:` in `flatten_yaml` to `[A-Za-z0-9_]*:`, then run:
 
@@ -462,7 +462,7 @@ Expected: floor 3 reddens with **`289 raw=11 flat=10 310 raw=11 flat=10`**, alon
 
 **Restore the widening** and re-run to green.
 
-- [ ] **Step 4: Verify floor 2 can fire**
+- [x] **Step 4: Verify floor 2 can fire**
 
 Floor 2 has no natural trigger in the README, so prove it is reachable rather than dead:
 
@@ -472,7 +472,7 @@ bash -c 'printf "# Fixture\n\n\`\`\`yaml\n# only a comment\n\`\`\`\n" > /tmp/emp
 
 Confirm by reasoning against the code: the body is a single full-line comment, `flatten_yaml` skips `^[[:space:]]*#`, so `flat=0` and the `empty` finding fires before the `raw` comparison. The `continue` is what stops a zero-key fence from also reporting a spurious `drop`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tests/test_docket_example_yml.sh
@@ -499,7 +499,7 @@ fences 289/310 report raw=11 flat=10."
 - Consumes: `fence_openers`, `scan_fences`.
 - Produces: `fence_marker <markdown-path> <startline> <fence-indent>` → `NONE` | `TOKEN <ignore|values>` | `BAD <reason>`; `marker <fence-line> <reason>` findings; `ignore`-marked fences skipped entirely.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add `fence_marker` immediately after `fence_body` in section `(9)`:
 
@@ -590,13 +590,13 @@ assert "(9) the same fence WITHOUT the ignore marker does report its key — pro
   '[ "$fx9b_findings" = "miss 3 not_a_docket_key" ]'
 ```
 
-- [ ] **Step 2: Run tests to verify they pass**
+- [x] **Step 2: Run tests to verify they pass**
 
 Run: `bash tests/test_docket_example_yml.sh 2>&1 | grep -E '^(ok|NOT OK) - \(9\)'`
 
 Expected: all `(9)` asserts `ok -`, including `an ignore-marked fence is skipped entirely (got [])` and the unmarked control reporting `miss 3 not_a_docket_key`.
 
-- [ ] **Step 3: Mutation test — malformed marker tokens**
+- [x] **Step 3: Mutation test — malformed marker tokens**
 
 Run each of these against a temporary README copy and confirm the marker assert reddens:
 
@@ -628,13 +628,13 @@ Expected: `NOT OK ... (266 duplicate-marker)`
 
 Confirm `git diff --stat README.md` is empty afterward.
 
-- [ ] **Step 4: Run the full suite**
+- [x] **Step 4: Run the full suite**
 
 Run: `bash tests/test_docket_example_yml.sh; echo "EXIT=$?"`
 
 Expected: `EXIT=0`, 0 `NOT OK`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tests/test_docket_example_yml.sh
@@ -664,7 +664,7 @@ skip is the marker rather than an invisible fixture."
 - Consumes: `fence_marker`'s `values` token, `ex_flat`.
 - Produces: `value <fence-line> <path> readme=X example=Y` findings.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 In `scan_fences`, extend the active-key branch of the path loop. Replace:
 
@@ -706,13 +706,13 @@ assert "(9) values-marked fences match the example exactly (${f9_value:-none mis
   '[ -z "$f9_value" ]'
 ```
 
-- [ ] **Step 2: Run test to verify it passes trivially (no marker in the README yet)**
+- [x] **Step 2: Run test to verify it passes trivially (no marker in the README yet)**
 
 Run: `bash tests/test_docket_example_yml.sh 2>&1 | grep -E 'values-marked'`
 
 Expected: `ok - (9) values-marked fences match the example exactly (none mismatched)` — vacuously true, because no fence carries the marker yet. Step 3 gives it a population.
 
-- [ ] **Step 3: Add the marker to the `reclaim:` fence in `README.md`**
+- [x] **Step 3: Add the marker to the `reclaim:` fence in `README.md`**
 
 `README.md` line 233 is currently blank, sitting between the last bullet (232) and the fence opener (234). Replace that blank line with the marker:
 
@@ -741,13 +741,13 @@ reclaim:
 
 **Critical:** the marker must land at line 233, **outside** section `(8)`'s span (203–224, terminated by the `### Reclaiming stale claims` heading at 225), so `snippet_section()` is unperturbed.
 
-- [ ] **Step 4: Run the full suite**
+- [x] **Step 4: Run the full suite**
 
 Run: `bash tests/test_docket_example_yml.sh; echo "EXIT=$?"`
 
 Expected: `EXIT=0`, 0 `NOT OK`. In particular `(8)`'s asserts must be unchanged (`snippet flattened key count is exactly 5`, `raw=5 flattened=5`) — proof the marker did not leak into `(8)`'s section span.
 
-- [ ] **Step 5: Mutation test — drift a shipped default, and prove the marker is what catches it**
+- [x] **Step 5: Mutation test — drift a shipped default, and prove the marker is what catches it**
 
 Drift each `reclaim` default in turn and confirm the value assert reddens:
 
@@ -777,7 +777,7 @@ Expected: `ok - (9) values-marked fences match the example exactly (none mismatc
 
 Confirm `git diff --stat README.md` shows only the single added marker line.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add tests/test_docket_example_yml.sh README.md
