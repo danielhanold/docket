@@ -11,7 +11,7 @@ related: []
 discovered_from: [107]
 adrs: []
 spec: docs/superpowers/specs/2026-07-20-readme-config-fence-key-drift-guard-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-21-readme-config-fence-key-drift-guard.md
 results:
 trivial: false
 auto_groomable: true
@@ -28,6 +28,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-20-readme-config-fence-key-drift-guard-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-20-readme-config-fence-key-drift-guard-design.md) |
+| Plan | [2026-07-21-readme-config-fence-key-drift-guard.md](https://github.com/danielhanold/docket/blob/feat/guard-the-readme-s-remaining-config-fences-against-key-drift/docs/superpowers/plans/2026-07-21-readme-config-fence-key-drift-guard.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
