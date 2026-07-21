@@ -10,6 +10,9 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 
 # BUDGETS: one row per tracked file — "<relpath> <maxLines> <maxWords>". Set from 0085 post-slim
 # actuals + ~10% (ceil). To raise a budget, edit the number here in the same diff that grows the file.
+# docket-finalize-change/SKILL.md's word budget was raised 4060 -> 4200 by change 0102, which grew
+# the file to 4059/4060 words (1 word of headroom) while wiring finalize.require_pr_approval
+# through the resolver — the next edit to that file would have reddened CI on arrival.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -20,7 +23,7 @@ skills/docket-convention/github-board-mirror.md             19  462
 skills/docket-convention/references/agent-layer.md         168 1839
 skills/docket-convention/references/learnings.md            84  580
 skills/docket-convention/references/terminal-close-out.md  173 1458
-skills/docket-finalize-change/SKILL.md                     193 4060
+skills/docket-finalize-change/SKILL.md                     193 4200
 skills/docket-groom-next/SKILL.md                           77 1484
 skills/docket-implement-next/SKILL.md                      147 3315
 skills/docket-implement-next/results-template.md            24  172

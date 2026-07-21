@@ -1028,7 +1028,7 @@ out="$(run "$tmp/s3" --export)"; eval "$out"
 assert "test_command AUTO is NOT the sentinel (case-sensitive)" '[ "$FINALIZE_TEST_COMMAND" = "AUTO" ]'
 
 # --- (S4/S5/S6) change 0106: the sentinel's CROSS-LAYER masking -------------
-# The collapse at scripts/docket-config.sh:201 runs AFTER the :194 resolution chain. That
+# The collapse at scripts/docket-config.sh:202 runs AFTER the :195 resolution chain. That
 # placement is the whole point: a HIGHER layer writing `test_command: auto` MASKS a LOWER
 # layer's real command, which is the correct reading of an explicit re-statement of the
 # default. Collapse per-layer instead and the behavior silently INVERTS — the higher `auto`
@@ -1150,12 +1150,12 @@ assert "0102 R4: repo-local true beats repo-committed false" \
 # --- (R5) NOT coordination-fenced: machine layers are HONORED and UNWARNED ---
 # The direct inverse of the fenced-key assertions at (0051 L3). This is the assert that would
 # have caught the original bug, and the one that reddens if someone "helpfully" adds the key to
-# the fence loop at scripts/docket-config.sh:169.
+# the fence loop at scripts/docket-config.sh:170.
 errout="$(XDG_CONFIG_HOME="$tmp/r4.xdg" bash "$SCRIPT" --repo-dir "$tmp/r4" --export 2>&1 >/dev/null)"
 assert "0102 R5: no per-repo-only warning for require_pr_approval" \
   '! grep -q "require_pr_approval" <<<"$errout"'
 assert "0102 R5: the key is absent from the coordination-key fence loop" \
-  '! sed -n "/^for _fkey in /p" "$SCRIPT" | grep -q "require_pr_approval"'
+  '! grep -q "require_pr_approval" <<<"$(sed -n "/^for _fkey in /p" "$SCRIPT")"'
 
 # --- (R6) fail closed on a non-boolean --------------------------------------
 mkrepo "$tmp/r6"
@@ -1169,6 +1169,29 @@ assert "0102 R6: diagnostic names the key"                  'grep -q "require_pr
 assert "0102 R6: diagnostic shows the offending value"      'grep -q "yes" <<<"$err6"'
 assert "0102 R6: no KEY=value block on the abort path" \
   '[ -z "$(XDG_CONFIG_HOME="$tmp/r6.xdg" bash "$SCRIPT" --repo-dir "$tmp/r6" --export 2>/dev/null)" ]'
+
+# --- (R6b) fail closed on a non-boolean from the GLOBAL layer ---------------
+# R6 (above) proves the repo-committed layer aborts. docket-config.md's rewritten invariant
+# bullets claim the SAME abort fires from the global layer and from .docket.local.yml too — true
+# (every rung feeds FINALIZE_REQUIRE_PR_APPROVAL into the one `case` at
+# scripts/docket-config.sh:215-218 before Stage 3 ever runs) but, before this pair, unproven.
+mkrepo "$tmp/r6b"
+mkdir -p "$tmp/r6b.xdg/docket"
+printf 'finalize:\n  require_pr_approval: yes\n' > "$tmp/r6b.xdg/docket/config.yml"
+rc6b="$(rung_rc "$tmp/r6b.xdg" "$tmp/r6b" --export)"
+err6b="$(XDG_CONFIG_HOME="$tmp/r6b.xdg" bash "$SCRIPT" --repo-dir "$tmp/r6b" --export 2>&1 >/dev/null)"
+assert "0102 R6b: non-boolean in the GLOBAL layer aborts (non-zero exit)" '[ "$rc6b" != "0" ]'
+assert "0102 R6b: diagnostic names the key"             'grep -q "require_pr_approval" <<<"$err6b"'
+assert "0102 R6b: diagnostic shows the offending value" 'grep -q "yes" <<<"$err6b"'
+
+# --- (R6c) fail closed on a non-boolean from .docket.local.yml --------------
+mkrepo "$tmp/r6c"
+printf 'finalize:\n  require_pr_approval: yes\n' > "$tmp/r6c/.docket.local.yml"
+rc6c="$(rung_rc "$tmp/r6c.xdg" "$tmp/r6c" --export)"
+err6c="$(XDG_CONFIG_HOME="$tmp/r6c.xdg" bash "$SCRIPT" --repo-dir "$tmp/r6c" --export 2>&1 >/dev/null)"
+assert "0102 R6c: non-boolean in .docket.local.yml aborts (non-zero exit)" '[ "$rc6c" != "0" ]'
+assert "0102 R6c: diagnostic names the key"             'grep -q "require_pr_approval" <<<"$err6c"'
+assert "0102 R6c: diagnostic shows the offending value" 'grep -q "yes" <<<"$err6c"'
 
 # --- (R7) export presence and POSITION --------------------------------------
 # Position matters: scripts/docket-config.md documents the order as a contract, and pipe

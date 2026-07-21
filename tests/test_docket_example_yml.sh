@@ -221,18 +221,38 @@ is_header_key(){
   ' "$2"
 }
 
-# Collect every key the example documents: active keys at any nesting depth, PLUS the two
-# presence-sensitive keys that ship commented (agents / agent_harnesses), which are documented
-# schema all the same.
+# PRESENCE-SENSITIVE pseudo-keys: keys that ship COMMENTED because merely uncommenting them
+# (even at their default values) changes behavior — see (3) below, which asserts their marker
+# comment count. Named ONCE, here, as the single source both the extractor regex directly below
+# and (3)'s exact-count assert read, so a third such key shipping commented forces BOTH to be
+# updated in the same commit — adding only a marker comment (with no name here) or only a name
+# here (with no marker comment) leaves the two counts mismatched, which reddens (3) instead of
+# silently passing.
+presence_sensitive_keys="agents agent_harnesses"
+presence_sensitive_re="$(printf '%s' "$presence_sensitive_keys" | tr ' ' '|')"
+
+# Collect every key the example documents: active keys at any nesting depth, PLUS the
+# presence-sensitive keys above, which ship commented but are documented schema all the same.
 manifest_unclassified=""
 manifest_bad_export=""
 manifest_bad_consumer=""
 manifest_bad_header=""
 example_keys="$(
   { sed -nE 's/^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*):.*/\1/p' "$EX"
-    sed -nE 's/^#[[:space:]]*(agents|agent_harnesses):.*/\1/p' "$EX"
+    sed -nE "s/^#[[:space:]]*($presence_sensitive_re):.*/\1/p" "$EX"
   } | sort -u
 )"
+
+# Declared consumer allowlist for elsewhere: targets (change 0102 whole-branch review, IMPORTANT
+# 1). Reused verbatim by (2c)'s orphan-key check below — same list, defined once. Anchoring an
+# elsewhere: entry on a NAMED file only proves that file mentions the key; without a floor on
+# WHICH files are legal targets, that anchor is satisfiable by ANY file that happens to mention
+# the key — including .docket.example.yml itself (which documents every key by definition),
+# README.md, or this test file's own case arms — collapsing "elsewhere:" into exactly the bare
+# allowlist it exists to forbid (per the correspondence-guard-runs-one-way learning: an allowlist
+# answers "is this expected?", never "does this exist?").
+consumers="$CFGSCRIPT $REPO/sync-agents.sh $REPO/scripts/runner-dispatch.sh"
+consumers="$consumers $REPO/skills/docket-finalize-change/SKILL.md $REPO/scripts/runners/codex.sh"
 for k in $example_keys; do
   cls="$(classify_key "$k")"
   case "$cls" in
@@ -258,6 +278,13 @@ for k in $example_keys; do
       ;;
     elsewhere:*)
       consumer="${cls#elsewhere:}"
+      # The target itself must be a DECLARED consumer — never an arbitrary path. Without this,
+      # the mention-grep below is satisfiable by pointing at ANY file that happens to mention the
+      # key (see the rationale on $consumers above); this is what actually forbids that escape.
+      case " $consumers " in
+        *" $REPO/$consumer "*) ;;
+        *) manifest_bad_consumer="$manifest_bad_consumer $k(target $consumer is not a declared consumer)" ;;
+      esac
       # The NAMED consumer must actually mention the key — this is what keeps the entry anchored
       # on consuming code instead of decaying into a bare allowlist.
       grep -qE "\\b$k\\b" "$REPO/$consumer" \
@@ -292,6 +319,22 @@ expected_key_count=32
 mf_count="$(printf '%s\n' "$example_keys" | grep -c .)"
 assert "manifest: key extraction count is exactly $expected_key_count (got $mf_count; if intentional, bump expected_key_count and add the key's classify_key arm in the same commit)" \
   '[ "$mf_count" = "$expected_key_count" ]'
+# DUPLICATE LEAF NAMES: the sort -u above dedups by leaf name across the WHOLE file, so a newly
+# documented key whose leaf name COLLIDES with an already-classified key is invisible to this
+# entire (2b) section — classify_key answers for the OTHER key, mf_count never moves, nothing
+# fires. Plausible drift, not contrived: `enabled` is the obvious name for any future subsystem
+# toggle, and learnings.enabled already set that precedent. This also independently protects
+# yaml_get's flat, leaf-name-only reader — finalize.gate / learnings.enabled / reclaim.auto are
+# all read as bare leaf keys, never scoped within their block, so a genuine name collision here is
+# a real MIS-RESOLUTION hazard, not just a documentation one: yaml_get's `head -n1` would pick
+# whichever line happens to appear first in the file.
+dup_leaf_keys="$(
+  { sed -nE 's/^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*):.*/\1/p' "$EX"
+    sed -nE "s/^#[[:space:]]*($presence_sensitive_re):.*/\1/p" "$EX"
+  } | sort | uniq -d
+)"
+assert "no duplicate leaf key names in the example (${dup_leaf_keys:-none}; a new key must not reuse an existing leaf name — classify_key and yaml_get cannot tell them apart)" \
+  '[ -z "$dup_leaf_keys" ]'
 
 # The value-anchored asserts for the non-exported keys are retained from the pre-0102 (2b): the
 # fidelity check in (1) is structurally blind to keys the resolver never emits, so without these
@@ -325,12 +368,11 @@ assert "0102: the stale repo-committed-only note is gone" \
 # resolver simply ignores it), and passes the scope-tag awk (satisfied by a neighbor's comment
 # window). A key REMOVED from the resolver would likewise keep its documentation forever.
 # Anchored on the CONSUMERS, not a hand-maintained allowlist, so it cannot drift on its own: every
-# active top-level key in the example must appear in the resolver or one of the three non-resolver
+# active top-level key in the example must appear in the resolver or one of the four non-resolver
 # consumers. (Word-boundary grep — it proves the key name is KNOWN to a consumer, not that the read
 # is correctly wired; github_project is the live proof of that gap and is annotated as such in the
-# example itself.)
-consumers="$CFGSCRIPT $REPO/sync-agents.sh $REPO/scripts/runner-dispatch.sh"
-consumers="$consumers $REPO/skills/docket-finalize-change/SKILL.md"
+# example itself.) $consumers is declared once, above in (2b) — the elsewhere: allowlist check
+# there needs the identical list, so it is defined there and reused here verbatim.
 
 # GUARD THE GUARD: a wrong path in $consumers below doesn't fail loudly — grep -qlE on a
 # nonexistent file just errors into 2>/dev/null and the loop leans on whichever remaining
@@ -475,8 +517,10 @@ assert "no ACTIVE codex: header under agents:" \
   '! sed -n "/^# agents:$/,/^runners:$/p" "$EX" | grep -Eq "^[[:space:]]*codex:[[:space:]]*$"'
 assert "no ACTIVE cursor: header under agents:" \
   '! sed -n "/^# agents:$/,/^runners:$/p" "$EX" | grep -Eq "^[[:space:]]*cursor:[[:space:]]*$"'
-assert "PRESENCE-SENSITIVE marker present (agents + agent_harnesses)" \
-  '[ "$(grep -cF "PRESENCE-SENSITIVE: uncommenting this key changes behavior" "$EX")" -ge 2 ]'
+presence_sensitive_marker_count="$(grep -cF "PRESENCE-SENSITIVE: uncommenting this key changes behavior" "$EX")"
+presence_sensitive_expected="$(printf '%s\n' $presence_sensitive_keys | grep -c .)"
+assert "PRESENCE-SENSITIVE marker count is exactly $presence_sensitive_expected, matching presence_sensitive_keys ($presence_sensitive_keys; got $presence_sensitive_marker_count; a new commented PRESENCE-SENSITIVE key must add its name to presence_sensitive_keys near the top of (2b), in the same commit as its marker comment)" \
+  '[ "$presence_sensitive_marker_count" = "$presence_sensitive_expected" ]'
 # ...but the commented examples ARE present, so a user can find and enable them. codex/cursor
 # sit under a DOUBLY-commented example block (disabled-within-disabled), so the pattern allows
 # one optional extra '#' layer.
