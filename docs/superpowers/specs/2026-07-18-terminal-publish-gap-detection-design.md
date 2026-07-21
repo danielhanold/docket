@@ -210,10 +210,35 @@ later wants belt-and-suspenders coverage, it is a *separate* change — noted, n
   seam); if the maintainer wants deferred-ADR-publish visibility too, that is a follow-on.
   Called out so the omission is deliberate, not forgotten.
 
-## 6. Open questions (for the build's reconcile pass)
+## 6. Open questions — **settled by the 2026-07-21 reconcile**
 
-- Final marker section name: `## Publish deferred` (recommended) vs `## Terminal-publish blocked`.
-- Writer boundary: dedicated `mark-publish-deferred.sh` (recommended) vs a mode on
-  `terminal-publish.sh`.
-- Whether the marker's reason line should be a fixed enum (`deferred` | `blocked`) or free
-  text — recommend a short fixed prefix plus free text, matching `## Auto-groom blocked`.
+All three resolved to the recommended option; the change file's `## Reconcile log` carries the
+reasoning.
+
+- **Marker section name:** `## Publish deferred` (not `## Terminal-publish blocked`).
+- **Writer boundary:** shape 1 — a dedicated `scripts/mark-publish-deferred.sh` (+ `.md`) with
+  add/remove modes and a `docket.sh` facade verb; `terminal-publish.sh`'s success path calls the
+  remove.
+- **Reason line:** a short fixed prefix (`deferred` | `blocked`) plus free text, matching
+  `## Auto-groom blocked`.
+
+## 7. Reconcile deltas (2026-07-21) — what changed under this spec
+
+- **Change #0104 (landed `main` 2026-07-20) reshaped `scripts/board-checks.sh`.** Findings now
+  route through a sanitizing `emit()`; a `cid` convention governs the change-id column; the
+  check-id vocabulary gained `field-domain` and `board-row-dropped`. The new check adopts all
+  three. §3.3's design is unaffected — only the surrounding surface grew.
+- **Registration is three sites, not one** (0104's close-out repaired pre-existing drift across
+  them): `board-checks.sh`'s header set, `board-checks.md`'s *Check enumeration*, and
+  `docket-status.md:344`'s closed `check <check-id>` set.
+- **`publish-deferred` is orthogonal to 0104's `DROPPED`/`EXPLAINED` suppression** — a body
+  section cannot drop a board row, so the check neither marks `EXPLAINED` nor feeds
+  `board-row-dropped`.
+- **The repo now runs `terminal_publish: true`**, so the marker path is live rather than latent;
+  the suppression carve-outs (`--enabled false`, `main`-mode) are tested, not assumed unreachable.
+- **Do not apply change #0099's `## Finalize blocked` no-strip-at-archive reasoning by analogy.**
+  That rested on every reader being scoped short of `done`; this marker is written *onto the
+  archived file* and its reader is *archive-scoped*, so removal-on-successful-publish (§3.2) is
+  load-bearing.
+- **`has_section` / `finalize_blocked()` in `lib/docket-frontmatter.sh`** are the closest existing
+  precedent for the detection half — a `publish_deferred()` twin belongs beside them.

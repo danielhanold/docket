@@ -15,10 +15,10 @@ results:
 trivial: false
 auto_groomable: false
 branch: feat/terminal-publish-gap-detection
-claimed_at: 2026-07-21T01:12:06Z
+claimed_at: 2026-07-21T01:14:05Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -93,9 +93,72 @@ honest fix is to make the deferral *visible*, not to automate around the wall.
 
 ## Open questions
 
-<!-- Resolved during grooming; remaining build-time calls live in the spec's §6 (marker
-     section name, writer-script boundary, reason-line format). -->
+<!-- Resolved during grooming; the spec's §6 build-time calls (marker section name,
+     writer-script boundary, reason-line format) are settled in the reconcile log below. -->
 
 ## Reconcile log
 
-<!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+### 2026-07-21 — reconciled against current `main`; spec §6 calls settled
+
+**Verdict: build as designed.** Nothing in the design is invalidated. The gap is still real and
+still unbuilt — `## Publish deferred`, `publish-deferred`, and `mark-publish-deferred` appear
+nowhere in `scripts/`, `skills/`, or `tests/`. All five touch points named in spec §4 exist and
+are unchanged in intent.
+
+**What moved under the change since the spec (2026-07-18).** Change **#0104** landed on `main`
+on 2026-07-20 and materially reshaped `scripts/board-checks.sh` — the file this change edits:
+
+- Findings now go through `emit()`, which **sanitizes** TAB/CR in the change-id and message
+  columns; the new check must use `emit`, never hand-built `FINDINGS+=`.
+- A `cid` convention now governs the change-id column (validated integer id, else the
+  filename-derived padded id) — the new check adopts it rather than emitting `$id` raw.
+- The check-id vocabulary grew by two (`field-domain`, `board-row-dropped`), and 0104's own
+  close-out **repaired pre-existing drift** across the enumeration sites. `publish-deferred` is
+  therefore registered in *three* places, not one: `scripts/board-checks.sh`'s header set,
+  `scripts/board-checks.md`'s *Check enumeration*, and `scripts/docket-status.md:344`'s closed
+  `check <check-id>` set. Missing any one reproduces exactly the drift 0104 had to repair.
+- 0104 also introduced the `DROPPED`/`EXPLAINED` suppression machinery. The new check is
+  **orthogonal** to it: `## Publish deferred` is a body section, not a frontmatter field, and it
+  cannot drop a board row — so the check neither marks `EXPLAINED` nor participates in
+  `board-row-dropped`.
+
+**Spec §6 open questions — settled (no scope change):**
+
+1. **Section name: `## Publish deferred`** (the spec's own recommendation). Adopted.
+2. **Writer boundary: shape 1** — a dedicated `scripts/mark-publish-deferred.sh` (+ `.md`
+   contract) with add/remove modes and a `docket.sh` facade verb; `terminal-publish.sh`'s success
+   path calls the remove. Adopted over folding a "don't publish, just mark" mode into
+   `terminal-publish.sh`. Reinforced by current code: `docket.sh`'s `WRAPPED_OPS` allowlist is
+   the permission inventory and takes a new op cleanly, whereas `terminal-publish.sh` already
+   carries two no-op guards, two publish modes, and a CAS loop.
+3. **Reason line: a short fixed prefix (`deferred` | `blocked`) plus free text**, matching
+   `## Auto-groom blocked`.
+
+**Two constraints the spec could not have known, folded in:**
+
+- **This repo now runs `terminal_publish: true`** (resolved config at claim time; the spec was
+  written when `false` was the live value). The marker path is therefore *live* here, not
+  latent — the suppression carve-outs (`--enabled false`, `main`-mode) must be tested rather
+  than assumed unreachable.
+- **The `## Finalize blocked` precedent (change #0099) must NOT be applied by analogy.** 0099
+  settled that a marker need not be stripped at archive *because every automated reader is scoped
+  to a change short of `done`*. `## Publish deferred` inverts both halves: it is written **onto
+  the archived file**, and its reader (the new check) is **archive-scoped**. So
+  removal-on-successful-publish is genuinely load-bearing here — it is the presence-encoded-state
+  rule discharged by its usual *means*, not waived. The build must not "simplify" it away citing
+  0099.
+
+**Detection pattern confirmed available.** `lib/docket-frontmatter.sh` already exposes
+`has_section` (whole-line `grep -qxF`, deliberately anchored so prose *mentions* of a marker do
+not read as state) and the `finalize_blocked()` helper built on it. A `publish_deferred()` twin
+belongs beside it — a closer precedent than the `## Auto-groom blocked` parallel the spec cites.
+
+**Noted, not a dependency.** Change **#0111** (*guard the board-checks check-id enumerations
+against drift*, build-ready, unbuilt) is the standing guard for precisely the three-site
+registration this change performs by hand. No `depends_on` added — 0083 does not need it, and
+gating on it would stall a no-regret correctness win — but 0111's eventual guard should cover
+`publish-deferred` for free, since it enumerates rather than hardcodes.
+
+**Auto-capture.** One stub minted from spec §5's deliberately-called-out omission (deferred
+**ADR**-publish visibility, `docket-adr`'s publish path behind the same protected-`main` wall) —
+see the run report.
