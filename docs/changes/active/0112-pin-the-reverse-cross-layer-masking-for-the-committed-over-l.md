@@ -11,12 +11,12 @@ related: []
 discovered_from: [106]
 adrs: []
 spec: docs/superpowers/specs/2026-07-20-reverse-cross-layer-masking-matrix-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-21-reverse-cross-layer-masking-matrix.md
 results:
 trivial: false
 auto_groomable: true
 branch: feat/pin-the-reverse-cross-layer-masking-for-the-committed-over-l
-claimed_at: 2026-07-21T23:14:05Z
+claimed_at: 2026-07-21T23:20:32Z
 pr:
 blocked_by:
 reconciled: true
@@ -28,6 +28,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-20-reverse-cross-layer-masking-matrix-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-20-reverse-cross-layer-masking-matrix-design.md) |
+| Plan | [2026-07-21-reverse-cross-layer-masking-matrix.md](https://github.com/danielhanold/docket/blob/feat/pin-the-reverse-cross-layer-masking-for-the-committed-over-l/docs/superpowers/plans/2026-07-21-reverse-cross-layer-masking-matrix.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
