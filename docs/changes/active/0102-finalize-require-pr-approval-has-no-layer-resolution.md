@@ -9,14 +9,14 @@ updated: 2026-07-21
 depends_on: []
 related: [101]
 discovered_from: [101]
-adrs: []
+adrs: [52]
 spec: docs/superpowers/specs/2026-07-20-require-pr-approval-layer-resolution-design.md
 plan: docs/superpowers/plans/2026-07-21-require-pr-approval-layer-resolution.md
 results:
 trivial: false
 auto_groomable:
 branch: feat/finalize-require-pr-approval-has-no-layer-resolution
-claimed_at: 2026-07-21T08:30:07Z
+claimed_at: 2026-07-21T15:21:47Z
 pr:
 blocked_by:
 reconciled: true
@@ -29,6 +29,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-20-require-pr-approval-layer-resolution-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-20-require-pr-approval-layer-resolution-design.md) |
 | Plan | [2026-07-21-require-pr-approval-layer-resolution.md](https://github.com/danielhanold/docket/blob/feat/finalize-require-pr-approval-has-no-layer-resolution/docs/superpowers/plans/2026-07-21-require-pr-approval-layer-resolution.md) |
+| ADRs | [ADR-0052](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0052-config-key-resolution-boundary.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
