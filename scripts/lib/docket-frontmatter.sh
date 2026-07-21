@@ -111,6 +111,15 @@ finalize_blocked(){ # finalize_blocked FILE  (only meaningful for an implemented
   has_section "$1" "## Finalize blocked"
 }
 
+publish_deferred(){ # publish_deferred FILE  (meaningful on any change file, active or archived)
+  # `## Publish deferred` is presence-encoded state written by mark-publish-deferred.sh when a
+  # terminal close-out's publish step was EXPECTED but deferred or blocked (change 0083). Unlike
+  # finalize_blocked(), this has NO status gate: the marker is written on the ARCHIVED file, at
+  # which point the change is terminal, so gating on a lifecycle status would make it unreadable
+  # exactly where it is written. Presence is the whole state.
+  has_section "$1" "## Publish deferred"
+}
+
 # --- status vocabulary (change 0104) ----------------------------------------------------------
 # The seven lifecycle statuses, authored as the convention's two semantic groups: `active/` holds
 # every non-terminal status, `archive/` holds the two terminal outcomes. DOCKET_STATUSES is the

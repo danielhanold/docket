@@ -829,5 +829,133 @@ assert "the board-checks invocation passes --changes-dir" 'grep -qF -- "--change
 assert "the board-checks invocation passes --metadata-branch and --integration-branch" \
   'grep -qF -- "--metadata-branch" "$SKILL" && grep -qF -- "--integration-branch" "$SKILL"'
 
+# ============================ publish-deferred ============================
+# A change carrying the `## Publish deferred` marker emits exactly one publish-deferred finding —
+# in archive/ (where the marker is actually written) and in active/ (harmlessly, per spec §3.3).
+# NO status gate and NO directory gate: the marker's PRESENCE is the state, so a marker anywhere
+# in the change set is a pending deferral. A change without the marker is silent, and an inline
+# PROSE MENTION of the marker name is not state (has_section's whole-line rule).
+read -r PD _ < <(new_repo)
+# id 50: ARCHIVED + marker ⇒ fires (the real shape — the marker is written on the archived file).
+cat > "$PD/docs/changes/archive/2026-07-08-0050-deferredkill.md" <<'EOF'
+---
+id: 50
+slug: deferredkill
+title: Killed proposal whose publish was deferred
+status: killed
+priority: medium
+depends_on: []
+---
+
+## Why killed
+
+Obsolete.
+
+## Publish deferred
+
+### 2026-07-08 — terminal-publish to `main` not completed
+
+**deferred** — pending human approval
+
+The record is on the metadata branch only.
+EOF
+# id 51: ARCHIVED, no marker ⇒ silent.
+cat > "$PD/docs/changes/archive/2026-07-08-0051-cleankill.md" <<'EOF'
+---
+id: 51
+slug: cleankill
+title: Killed proposal published cleanly
+status: killed
+priority: medium
+depends_on: []
+---
+
+## Why killed
+
+Obsolete.
+EOF
+# id 52: ACTIVE + marker ⇒ fires too (no directory gate).
+cat > "$PD/docs/changes/active/0052-activemarker.md" <<'EOF'
+---
+id: 52
+slug: activemarker
+title: Active change carrying the marker
+status: proposed
+priority: medium
+depends_on: []
+trivial: true
+---
+
+## Publish deferred
+
+### 2026-07-08 — terminal-publish to `main` not completed
+
+**blocked** — direct push to protected main
+EOF
+# id 53: a PROSE MENTION of the marker name, not a section ⇒ silent.
+cat > "$PD/docs/changes/active/0053-prosemention.md" <<'EOF'
+---
+id: 53
+slug: prosemention
+title: Change whose body merely mentions the marker
+status: proposed
+priority: medium
+depends_on: []
+trivial: true
+---
+
+## What changes
+
+Append a dated `## Publish deferred` section when the publish is deferred.
+EOF
+git -C "$PD" add docs/changes; git_quiet -C "$PD" commit -m "pd fixtures"
+pdout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$PD/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+
+assert "publish-deferred fires for an ARCHIVED change carrying the marker (id 50)" \
+  'has_finding "$pdout" publish-deferred 50'
+# Isolate the id-50 line into a variable FIRST, then match it. Never `producer | grep -q` under
+# `set -o pipefail` (AGENTS.md): grep exits early, the producer takes SIGPIPE, and the 141 shows
+# up as an intermittent failure. `grep -c`/`grep` without -q are safe producers to pipe from.
+pd50="$(grep -E "$(printf '^publish-deferred\t50\t')" <<<"$pdout")"
+assert "publish-deferred message names the integration branch" \
+  'grep -qF -- "main" <<<"$pd50"'
+assert "publish-deferred message says the record is on the metadata branch only" \
+  'grep -qF -- "docket" <<<"$pd50"'
+assert "publish-deferred silent for an archived change with no marker (id 51)" \
+  '! has_finding "$pdout" publish-deferred 51'
+assert "publish-deferred fires for an ACTIVE change carrying the marker (id 52, no directory gate)" \
+  'has_finding "$pdout" publish-deferred 52'
+assert "publish-deferred silent for a PROSE MENTION of the marker (id 53)" \
+  '! has_finding "$pdout" publish-deferred 53'
+# Exactly one finding per marked change — not one per line of the section.
+assert "publish-deferred emits exactly ONE finding for id 50" \
+  '[ "$(grep -cE "$(printf "^publish-deferred\t50\t")" <<<"$pdout")" -eq 1 ]'
+# The marker must NOT suppress board-row-dropped, and must not itself drop a row: id 52 is a
+# legal active change, so it renders and no board-row-dropped fires for it.
+assert "a marked ACTIVE change does not trip board-row-dropped (id 52)" \
+  '! has_finding "$pdout" board-row-dropped 52'
+# warn-only: findings alone never change the exit status
+assert "board-checks still exits 0 with publish-deferred findings (warn-only)" \
+  'NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$PD/docs/changes" --metadata-branch docket --integration-branch main >/dev/null 2>&1'
+
+# --- registration: the check-id is documented everywhere it must be (correspondence guard) ------
+# Derived by grep from the emitting script, never hand-listed: every check-id board-checks.sh can
+# EMIT must appear in the script's own header set, in board-checks.md, and in docket-status.md's
+# closed enumeration. Anchored on the emitting code so a new check-id added without registering
+# reddens here (change 0104's three-mirror drift; tracked structurally as change 0111).
+BCSH="$REPO/scripts/board-checks.sh"; BCMD="$REPO/scripts/board-checks.md"; DSMD="$REPO/scripts/docket-status.md"
+emitted="$(grep -oE '^[[:space:]]*emit [a-z-]+' "$BCSH" | awk '{print $2}' | sort -u)"
+assert "emitted check-id set is non-empty (the grep itself is not vacuous)" \
+  '[ "$(printf "%s\n" "$emitted" | grep -c .)" -ge 8 ]'
+assert "publish-deferred is among the emitted check-ids" \
+  'printf "%s\n" "$emitted" | grep -qxF "publish-deferred"'
+reg_ok=1
+for c in $emitted; do
+  grep -qF -- "$c" "$BCSH" || { echo "check-id $c missing from board-checks.sh header" >&2; reg_ok=0; }
+  grep -qF -- "$c" "$BCMD" || { echo "check-id $c missing from board-checks.md" >&2; reg_ok=0; }
+  grep -qF -- "$c" "$DSMD" || { echo "check-id $c missing from docket-status.md" >&2; reg_ok=0; }
+done
+assert "every EMITTED check-id is registered in all three documentation surfaces" '[ "$reg_ok" -eq 1 ]'
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"

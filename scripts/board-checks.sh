@@ -9,8 +9,8 @@
 #                         [--lease-ttl-hours N]
 #   Findings: TAB-separated  <check-id>\t<change-id>\t<message>  on stdout, sorted by (check-id, change-id).
 #     check-id ∈ {board-row-dropped, broken-spec, broken-plan-results, dep-cycle, field-domain,
-#                 stale-in-progress, merge-gate-stall, stale-finalize-blocked, merged-orphan,
-#                 unknown-commit-ref, malformed-id}
+#                 publish-deferred, stale-in-progress, merge-gate-stall, stale-finalize-blocked,
+#                 merged-orphan, unknown-commit-ref, malformed-id}
 #   Clean tree ⇒ no output, exit 0. --strict ⇒ exit 1 if any finding (for a future CI gate).
 #   Branch args are passed to `git cat-file -e <ref>:<path>` verbatim; in main-mode the two refs
 #   coincide and both link checks resolve on the same branch with no special-casing.
@@ -267,6 +267,28 @@ for f in "${FILES[@]}"; do
     if [ -n "$fbts" ] && [ "$(( NOW - fbts ))" -gt "$FINALIZE_BLOCKED_STALE_SECS" ]; then
       emit stale-finalize-blocked "$id" "## Finalize blocked marker set $(( (NOW - fbts) / 3600 ))h ago — resolve the cause and re-run finalize $id, or it will sit on the board"
     fi
+  fi
+
+  # --- publish-deferred: the change carries the `## Publish deferred` marker (change 0083).
+  # A terminal close-out's publish step was EXPECTED (terminal_publish: true, docket-mode) but
+  # deferred or blocked, so the archived record never reached the integration branch. Before this
+  # check, board-checks.sh had NO terminal-record check at all and certified exactly this gap
+  # clean for eight days (#0043).
+  #
+  # NO status gate and NO directory gate, both deliberate: the marker is written on the ARCHIVED
+  # file (terminal status), and a status gate would make it unreadable where it is written. The
+  # marker's PRESENCE is the entire state — mark-publish-deferred.sh writes it only on the defer
+  # path and terminal-publish.sh removes it on success, so a marker in the tree always means a
+  # pending deferral. An `active/` file carrying one (a close-out interrupted before archiving)
+  # reports the same way, harmlessly.
+  #
+  # Reads the marker in the change file — NOT a `git cat-file -e origin/<integration>:<path>`
+  # set-diff. That would reintroduce the detector this change deliberately declined (spec §1a),
+  # fire forever under `terminal_publish: false`, and break the script's git-only/offline
+  # invariant. This check neither marks EXPLAINED nor feeds board-row-dropped: a body section
+  # cannot drop a board row.
+  if publish_deferred "$f"; then
+    emit publish-deferred "$cid" "terminal-publish to $INTEGRATION_BRANCH not completed — record on $METADATA_BRANCH only; complete the publish or record a decision not to"
   fi
 done
 
