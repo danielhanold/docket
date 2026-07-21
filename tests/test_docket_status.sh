@@ -897,7 +897,7 @@ assert "sweep_execute: cleanup failure does not block clean-thing (loop continue
 # it — an UNCOMMITTED marker would dirty the shared metadata worktree and fail the next pass's
 # `pull --rebase` for every change, which is strictly worse than the gap it records.
 assert "0083: a failed terminal-publish still emits sweep-failed terminal-publish script-error" \
-  'printf "%s\n" "$sweep_out" | grep -qE "^sweep-failed 24 terminal-publish script-error$"'
+  'grep -qE "^sweep-failed 24 terminal-publish script-error$" <<<"$sweep_out"'
 assert "0083: the failed publish invokes mark-publish-deferred on the ARCHIVED change file" \
   'mk="$(grep -m1 "^mark-publish-deferred .*publish-broken" "$sweep_log")"; \
    [ -n "$mk" ] && grep -q -- "--change-file .*archive/2026-07-11-0024-publish-broken.md" <<<"$mk"'
@@ -918,11 +918,11 @@ assert "0083: a change that never reached the publish step is never marked" \
 assert "0083: the publish failure still abandons the rest of the close-out (no cleanup)" \
   '! grep -q "^cleanup-feature-branch .*--slug publish-broken" "$sweep_log"'
 assert "0083: the publish failure emits neither swept nor harvest" \
-  '! printf "%s\n" "$sweep_out" | grep -qE "^(swept|harvest) 24 "'
+  '! grep -qE "^(swept|harvest) 24 " <<<"$sweep_out"'
 # The mark must be COMMITTED, not left in the working tree.
 assert "0083: the marker reached the metadata branch as a commit" \
-  'git -C "$sweep_dir/work" show "HEAD:docs/changes/archive/2026-07-11-0024-publish-broken.md" \
-     | grep -qxF -- "## Publish deferred"'
+  'archived_body="$(git -C "$sweep_dir/work" show "HEAD:docs/changes/archive/2026-07-11-0024-publish-broken.md")"; \
+   grep -qxF -- "## Publish deferred" <<<"$archived_body"'
 assert "0083: the sweep left the shared metadata worktree CLEAN" \
   '[ -z "$(git -C "$sweep_dir/work" status --porcelain)" ]'
 
@@ -931,15 +931,15 @@ assert "0083: the sweep left the shared metadata worktree CLEAN" \
 assert "0083: a FAILED mark still emits exactly the one sweep-failed line for that change" \
   '[ "$(printf "%s\n" "$sweep_out" | grep -c "^sweep-failed 25 ")" -eq 1 ]'
 assert "0083: a FAILED mark leaves the reason unchanged (terminal-publish script-error)" \
-  'printf "%s\n" "$sweep_out" | grep -qE "^sweep-failed 25 terminal-publish script-error$"'
+  'grep -qE "^sweep-failed 25 terminal-publish script-error$" <<<"$sweep_out"'
 assert "0083: a FAILED mark does not add swept/harvest" \
-  '! printf "%s\n" "$sweep_out" | grep -qE "^(swept|harvest) 25 "'
+  '! grep -qE "^(swept|harvest) 25 " <<<"$sweep_out"'
 assert "0083: a FAILED mark does not resume the close-out (still no cleanup)" \
   '! grep -q "^cleanup-feature-branch .*--slug publish-mark-broken" "$sweep_log"'
 # Keyed on 23, which the input orders AFTER 24/25 — so this is genuine loop continuation past both
 # publish failures, not a change that had already been processed before them.
 assert "0083: a FAILED mark does not stop the loop (the change processed AFTER it still sweeps)" \
-  'printf "%s\n" "$sweep_out" | grep -qE "^swept 23 2026-07-10$"'
+  'grep -qE "^swept 23 2026-07-10$" <<<"$sweep_out"'
 
 # --- change 0064 (Finding 1): TERMINAL_PUBLISH gates the REAL sweep's terminal-publish.sh call ---
 # A behavioral test (not just wiring): drives docket-status.sh's actual merge-sweep pipeline in a

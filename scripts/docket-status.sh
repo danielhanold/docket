@@ -613,11 +613,15 @@ sweep_execute_one(){
     # this block must be invisible to it. The commit+push is part of the best-effort: leaving the
     # marker uncommitted would dirty the SHARED metadata worktree and fail the NEXT pass's
     # `pull --rebase` for every change, which is a far worse failure than an unmarked deferral.
+    # --detail must never spell out the literal `terminal-publish.sh`: this whole backslash-joined
+    # invocation already carries `--id` without `--enabled`, and tests/test_closeout.sh's
+    # find_ungated_terminal_publish_call_sites scans joined logical lines for that literal
+    # regardless of quoting — putting it in this string would trip the scanner on this call site.
     if "$SCRIPTS_DIR"/mark-publish-deferred.sh --mode add --change-file "$archived" \
          --reason blocked --detail "sweep: the publish step exited non-zero" \
          --integration-branch "$INTEGRATION_BRANCH" --id "$id" >/dev/null 2>&1; then
       "$GIT" -C "$mw" add -- "$archived" >/dev/null 2>&1 \
-        && "$GIT" -C "$mw" commit -q -m "docket($id): mark terminal publish deferred (blocked)" >/dev/null 2>&1 \
+        && "$GIT" -C "$mw" commit -q -m "docket($id): mark terminal publish deferred (blocked)" -- "$archived" >/dev/null 2>&1 \
         && "$GIT" -C "$mw" push >/dev/null 2>&1
     fi
     echo "sweep-failed $id terminal-publish script-error"
