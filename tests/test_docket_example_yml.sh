@@ -185,6 +185,42 @@ classify_key(){ # classify_key <example-key-name> -> "resolved:EXPORT" | "elsewh
   esac
 }
 
+# is_header_key <key> <file> -> prints "1" iff the file contains a bare "<key>:" line (no value)
+# that is ITSELF followed by a more-indented line — i.e. a genuine YAML block opener, not merely
+# a valueless line occurring somewhere in the file. Backs the elsewhere:HEADER arm below and
+# closes two escapes found in review: (a) DECOY DEFEAT — a stray bare "<key>:" line elsewhere in
+# the file (this file already reuses short nested names like auto/plan/build/review/finish
+# across blocks, so a same-named valueless line elsewhere is plausible) used to satisfy a
+# whole-file grep regardless of WHICH occurrence matched; now the matching occurrence itself must
+# open a block. (b) CHILDLESS ESCAPE — a genuinely childless bare key (nothing nested under it)
+# used to pass as a "header" with zero consumer anchor, invisible to (2c)'s orphan check since
+# that only walks unindented keys. Blank lines between a header and its first real child are
+# skipped rather than read as "no child" (no real header in this file has one, but the scan
+# tolerates it); indent is measured with the same [^[:space:]] idiom as flatten_yaml (below), so
+# tabs are handled identically. Mutation-tested (task-4-report.md): all six real headers
+# (codex/finalize/learnings/reclaim/runners/skills) still pass; relabeling require_pr_approval to
+# elsewhere:HEADER still reddens; a bare childless "newsub:" injected under finalize: reddens too.
+is_header_key(){
+  awk -v k="$1" '
+    { line[NR] = $0 }
+    END {
+      pat = "^[[:space:]]*" k ":[[:space:]]*$"
+      found = 0
+      for (i = 1; i <= NR && !found; i++) {
+        if (line[i] !~ pat) continue
+        ind = match(line[i], /[^[:space:]]/) - 1
+        for (j = i + 1; j <= NR; j++) {
+          if (line[j] ~ /^[[:space:]]*$/) continue
+          cind = match(line[j], /[^[:space:]]/) - 1
+          if (cind > ind) found = 1
+          break
+        }
+      }
+      if (found) print "1"
+    }
+  ' "$2"
+}
+
 # Collect every key the example documents: active keys at any nesting depth, PLUS the two
 # presence-sensitive keys that ship commented (agents / agent_harnesses), which are documented
 # schema all the same.
@@ -214,11 +250,10 @@ for k in $example_keys; do
       # classification. But nothing else here verifies the key IS actually a bare block
       # opener — the HEADER label is otherwise an unverified escape hatch: appending a new,
       # unwired key to the case arm above would silence "documented key is classified" for it
-      # with zero further checking. So require the shape a real header has: a line of the
-      # form "<key>:" with nothing after the colon (mutation-tested: relabeling
-      # require_pr_approval's arm 'elsewhere:HEADER' reddens here, since its line is
-      # "require_pr_approval: false").
-      grep -Eq "^[[:space:]]*$k:[[:space:]]*$" "$EX" \
+      # with zero further checking. So require the shape a real header has: a bare "<key>:"
+      # occurrence that is itself followed by a more-indented child line (see is_header_key
+      # above for why a bare line alone is not enough).
+      [ "$(is_header_key "$k" "$EX")" = "1" ] \
         || manifest_bad_header="$manifest_bad_header $k"
       ;;
     elsewhere:*)
@@ -240,18 +275,23 @@ assert "manifest: every elsewhere: entry's named consumer mentions the key (${ma
 assert "manifest: every elsewhere:HEADER entry is a real bare block opener (${manifest_bad_header:-none bad})" \
   '[ -z "$manifest_bad_header" ]'
 # NON-VACUITY, EXACT COUNT not a floor: the loop above must actually iterate, AND classify_key
-# has exactly 32 arms (one per documented key) so an extraction that drops keys must redden too.
-# A loose floor (formerly -ge 20) does not do this: the dominant breakage (dropping the
-# [[:space:]]* from the first sed, so nested keys vanish) yields 15 and IS caught, but losing
-# just the second sed — the one picking up the commented agents:/agent_harnesses: pseudo-keys —
-# yields 30 and passed the old floor SILENTLY. Those two keys are precisely the ones whose
-# consumer anchor (elsewhere:sync-agents.sh) is otherwise untested, so that silent pass was a
-# real hole, not a hypothetical one (mutation-tested: deleting the second sed reddens this exact
-# assert). If you add a new documented key, bump this literal 32 in the same commit as
-# classify_key's new arm — that is the intentional-growth remedy this count is guarding.
+# carries exactly expected_key_count key TOKENS — not "expected_key_count arms": it is 27 case
+# arms carrying 32 key tokens, because the header arm alone
+# (finalize|learnings|reclaim|skills|runners|codex) carries six — so an extraction that drops
+# keys must redden too. A loose floor (formerly -ge 20) does not do this: the dominant breakage
+# (dropping the [[:space:]]* from the first sed, so nested keys vanish) yields 15 and IS caught,
+# but losing just the second sed — the one picking up the commented agents:/agent_harnesses:
+# pseudo-keys — yields 30 and passed the old floor SILENTLY. Those two keys are precisely the
+# ones whose consumer anchor (elsewhere:sync-agents.sh) is otherwise untested, so that silent
+# pass was a real hole, not a hypothetical one (mutation-tested: deleting the second sed reddens
+# this exact assert). If you add a new documented key, bump expected_key_count in the same commit
+# as classify_key's new arm — that is the intentional-growth remedy this count is guarding. This
+# is the single source for that count: the condition and the failure message below both read it,
+# so bumping it in one place updates both instead of leaving one stale.
+expected_key_count=32
 mf_count="$(printf '%s\n' "$example_keys" | grep -c .)"
-assert "manifest: key extraction count is exactly 32 (got $mf_count; if intentional, bump this literal and add the key's classify_key arm in the same commit)" \
-  '[ "$mf_count" = "32" ]'
+assert "manifest: key extraction count is exactly $expected_key_count (got $mf_count; if intentional, bump expected_key_count and add the key's classify_key arm in the same commit)" \
+  '[ "$mf_count" = "$expected_key_count" ]'
 
 # The value-anchored asserts for the non-exported keys are retained from the pre-0102 (2b): the
 # fidelity check in (1) is structurally blind to keys the resolver never emits, so without these
@@ -291,6 +331,21 @@ assert "0102: the stale repo-committed-only note is gone" \
 # example itself.)
 consumers="$CFGSCRIPT $REPO/sync-agents.sh $REPO/scripts/runner-dispatch.sh"
 consumers="$consumers $REPO/skills/docket-finalize-change/SKILL.md"
+
+# GUARD THE GUARD: a wrong path in $consumers below doesn't fail loudly — grep -qlE on a
+# nonexistent file just errors into 2>/dev/null and the loop leans on whichever remaining
+# files still happen to mention the key, so the orphan-keys assert can stay green while one
+# whole consumer is silently absent from the check. Demonstrated: reverting one path to a
+# known-wrong value left the suite green; a previous fix corrected exactly such a typo'd path,
+# found by hand, not by this suite. Assert every listed path is a real file BEFORE trusting the
+# loop below.
+consumers_missing=""
+for c in $consumers; do
+  [ -f "$c" ] || consumers_missing="$consumers_missing $c"
+done
+assert "(2c) every consumer path exists (${consumers_missing:-none missing})" \
+  '[ -z "$consumers_missing" ]'
+
 orphan_keys=""
 for k in $(sed -nE 's/^([A-Za-z_][A-Za-z0-9_]*):.*/\1/p' "$EX"); do
   # shellcheck disable=SC2086
