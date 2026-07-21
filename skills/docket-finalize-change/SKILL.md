@@ -47,11 +47,11 @@ rest, classify every `implemented` candidate and act per this matrix:
 | Candidate | Behavior |
 |---|---|
 | Not git-mergeable (`CLOSED`, `DRAFT`, or a conflict the gate's resolver reported **ambiguous** — `mergeable: CONFLICTING` alone is *not* this; it deprioritizes, see *Ordering*) | **Surface, do not merge** |
-| `require_pr_approval: true` AND unapproved (`reviewDecision != APPROVED`) | **Surface, do not merge** — the policy gate |
+| `FINALIZE_REQUIRE_PR_APPROVAL` is `true` AND unapproved (`reviewDecision != APPROVED`) | **Surface, do not merge** — the policy gate |
 | **Exactly one eligible** candidate | **Run the full flow — gate + merge + finalize — with NO prompt** |
 | **More than one eligible** candidate | **Driver/autonomous run: NO prompt** — take the *Ordering* head. **Attended run** closing out several at once: **Prompt** — list them and confirm the batch (the blast-radius guard) |
 
-"Eligible" = git-mergeable AND (`require_pr_approval: false` OR approved). The ambiguity count is over *eligible* candidates only: an unapproved PR under `require_pr_approval: true` is surfaced-not-merged and does **not** count toward the prompt. Git-conflict *resolution* is delegated to the rebase-retest gate below; selection's "surface, do not merge" covers only states the gate can't act on. **The multi-candidate prompt is an interactive-*batch* guard, superseded by *One merge per invocation* below** — a single merge is never a batch — so it governs only an attended run closing out several changes at once; a driver or autonomous run selects by *Ordering* and never prompts.
+"Eligible" = git-mergeable AND (`FINALIZE_REQUIRE_PR_APPROVAL` is `false` OR approved). The ambiguity count is over *eligible* candidates only: an unapproved PR under `require_pr_approval: true` is surfaced-not-merged and does **not** count toward the prompt. Git-conflict *resolution* is delegated to the rebase-retest gate below; selection's "surface, do not merge" covers only states the gate can't act on. **The multi-candidate prompt is an interactive-*batch* guard, superseded by *One merge per invocation* below** — a single merge is never a batch — so it governs only an attended run closing out several changes at once; a driver or autonomous run selects by *Ordering* and never prompts.
 
 **Ordering — by mergeability, not priority.** The goal is to close out as many changes as possible per drain, so selection maximizes each attempt's chance of success. Among eligible candidates, take the head of:
 
@@ -105,7 +105,7 @@ The final report **enumerates** the change merged (if any), each change **skippe
 
 ## The rebase-retest merge gate
 
-Guards step 1's merge — the **only** place docket itself merges. Configured by `.docket.yml`:
+Guards step 1's merge — the **only** place docket itself merges. Configured by the resolved config — every value below is read from the Step-0 `preflight` export block (`FINALIZE_GATE`, `FINALIZE_TEST_COMMAND`, `FINALIZE_REQUIRE_PR_APPROVAL`), never by parsing `.docket.yml`; the block below documents what each key MEANS and where a user sets it:
 
 ```yaml
 finalize:
@@ -117,7 +117,7 @@ finalize:
 
 `gate` defaults to **`local`**; `ci` validates GitHub checks; `both` requires local **and** CI green; **`off`** is the documented opt-out — merge trusting the PR's own CI, with no rebase and no re-test (today's pre-gate behavior).
 
-`require_pr_approval` validates *human sign-off* (`gate` validates *correctness*); it governs only the auto-detect path — an explicit id always overrides it. `true` ⇒ the auto-detect path refuses to merge a PR whose `reviewDecision` is not `APPROVED`, surfacing it instead. The approval must come from a **human** reviewer: a co-maintainer, or the maintainer running finalize if they are an eligible reviewer on someone else's PR. See ADR-0011 for the consent model, and ADR-0043 for why the bot-approval mechanism that once satisfied this gate was retired.
+`require_pr_approval` validates *human sign-off* (`gate` validates *correctness*); the skill reads its resolved value as **`FINALIZE_REQUIRE_PR_APPROVAL`** from the Step-0 export block — the sole channel, resolving repo-local > repo-committed > global > the built-in `false` (change 0102) — and it governs only the auto-detect path — an explicit id always overrides it. `true` ⇒ the auto-detect path refuses to merge a PR whose `reviewDecision` is not `APPROVED`, surfacing it instead. The approval must come from a **human** reviewer: a co-maintainer, or the maintainer running finalize if they are an eligible reviewer on someone else's PR. See ADR-0011 for the consent model, and ADR-0043 for why the bot-approval mechanism that once satisfied this gate was retired.
 
 **Flow** (runs before `gh pr merge`):
 
