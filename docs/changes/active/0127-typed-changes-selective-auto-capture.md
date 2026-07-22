@@ -12,12 +12,12 @@ related: [90, 91, 94, 124]
 discovered_from: []
 adrs: [12, 19, 45, 52]
 spec: docs/superpowers/specs/2026-07-22-typed-changes-selective-auto-capture-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-22-typed-changes-selective-auto-capture.md
 results:
 trivial: false
 auto_groomable:
 branch: feat/typed-changes-selective-auto-capture
-claimed_at: 2026-07-22T20:28:56Z
+claimed_at: 2026-07-22T20:38:14Z
 pr:
 blocked_by:
 reconciled: true
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-22-typed-changes-selective-auto-capture-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-22-typed-changes-selective-auto-capture-design.md) |
+| Plan | [2026-07-22-typed-changes-selective-auto-capture.md](https://github.com/danielhanold/docket/blob/feat/typed-changes-selective-auto-capture/docs/superpowers/plans/2026-07-22-typed-changes-selective-auto-capture.md) |
 | ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0019](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0019-global-config-fence-classification.md), [ADR-0045](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0045-auto-capture-is-best-effort.md), [ADR-0052](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0052-config-key-resolution-boundary.md) |
 <!-- docket:artifacts:end -->
 
