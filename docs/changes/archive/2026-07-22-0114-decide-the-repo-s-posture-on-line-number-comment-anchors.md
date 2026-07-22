@@ -28,8 +28,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-20-line-number-comment-anchors-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-20-line-number-comment-anchors-design.md) |
-| Plan | [2026-07-22-line-number-comment-anchors.md](https://github.com/danielhanold/docket/blob/feat/decide-the-repo-s-posture-on-line-number-comment-anchors/docs/superpowers/plans/2026-07-22-line-number-comment-anchors.md) |
-| Results | [2026-07-22-decide-the-repo-s-posture-on-line-number-comment-anchors-results.md](https://github.com/danielhanold/docket/blob/feat/decide-the-repo-s-posture-on-line-number-comment-anchors/docs/results/2026-07-22-decide-the-repo-s-posture-on-line-number-comment-anchors-results.md) |
+| Plan | [2026-07-22-line-number-comment-anchors.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-22-line-number-comment-anchors.md) |
+| Results | [2026-07-22-decide-the-repo-s-posture-on-line-number-comment-anchors-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-22-decide-the-repo-s-posture-on-line-number-comment-anchors-results.md) |
 | PR | [#119](https://github.com/danielhanold/docket/pull/119) |
 | ADRs | [ADR-0054](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0054-cross-reference-anchor-style.md) |
 <!-- docket:artifacts:end -->
