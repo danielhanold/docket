@@ -2,10 +2,10 @@
 id: 114
 slug: decide-the-repo-s-posture-on-line-number-comment-anchors
 title: Decide the repo's posture on line-number comment anchors
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-07-20
-updated: 2026-07-20
+updated: 2026-07-22
 depends_on: []
 related: []
 discovered_from: [106]
@@ -15,7 +15,8 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch:
+branch: feat/decide-the-repo-s-posture-on-line-number-comment-anchors
+claimed_at: 2026-07-22T01:25:32Z
 pr:
 blocked_by:
 reconciled: false
