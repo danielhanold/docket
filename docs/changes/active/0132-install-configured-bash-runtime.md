@@ -11,7 +11,7 @@ related: [34, 68, 128, 131]
 discovered_from: [128]
 adrs: [14, 19, 29]
 spec: docs/superpowers/specs/2026-07-22-install-configured-bash-runtime-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-22-install-configured-bash-runtime.md
 results:
 trivial: false
 auto_groomable:
@@ -19,7 +19,7 @@ branch: feat/install-configured-bash-runtime
 pr:
 blocked_by:
 reconciled: true
-claimed_at: 2026-07-22T15:50:08Z
+claimed_at: 2026-07-22T15:53:10Z
 ---
 
 ## Artifacts
@@ -28,6 +28,7 @@ claimed_at: 2026-07-22T15:50:08Z
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-22-install-configured-bash-runtime-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-22-install-configured-bash-runtime-design.md) |
+| Plan | [2026-07-22-install-configured-bash-runtime.md](https://github.com/danielhanold/docket/blob/feat/install-configured-bash-runtime/docs/superpowers/plans/2026-07-22-install-configured-bash-runtime.md) |
 | ADRs | [ADR-0014](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0014-consuming-repo-script-resolution.md), [ADR-0019](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0019-global-config-fence-classification.md), [ADR-0029](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0029-docket-facade-routing-and-config-presentation.md) |
 <!-- docket:artifacts:end -->
 
