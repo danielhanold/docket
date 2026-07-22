@@ -2,9 +2,9 @@
 slug: plan-supplied-test-code-is-unverified
 hook: "Test code a plan hands you is unverified code, not an oracle — prove the assert CAN pass, and mutation-test its own key."
 topics: [testing, plan, guards]
-changes: [94, 104]
+changes: [94, 104, 112]
 created: 2026-07-19
-updated: 2026-07-20
+updated: 2026-07-22
 promotion_state: candidate
 promoted_to:
 ---
@@ -56,3 +56,24 @@ implementer. It is not a reason to distrust plans — it is a reason to run the 
     `emit` calls following `||` guards and found only 9 of 11 check-ids. A plan's verification
     commands are unverified code too — an under-counting verifier reports a gap that does not exist
     (or, reversed, misses one that does). A corrected unanchored derivation confirmed zero gaps.
+- 2026-07-22 (#112, PR #118) — **The control case: what it looks like when this rule is paid up
+  front.** All three per-task reviews and the whole-branch review came back with zero Critical or
+  Important findings — an outlier in this backlog, and the change's own results file explains it
+  rather than celebrating it. Two things were done before any subagent was dispatched: the fixtures
+  were **fully specified in the plan**, and **the plan's own values were checked against the running
+  code**. The consequence is a shift in where the effort lands — verification went into *proving the
+  guards fire* (an 18-cell mutation matrix, every cell matching prediction) instead of into
+  repairing asserts mid-build. The three preceding changes in this family each spent multiple review
+  rounds discovering that supplied test code was wrong; this one spent that budget on mutation
+  evidence and shipped clean.
+  Two smaller instances of the same discipline in the same change. (a) A **forward claim** in Task
+  1's header asserted how `s8`/`s9` would behave under mutations — a claim about fixtures that did
+  not yet exist — and it was checked against the completed matrix at Task 3 rather than left
+  standing. (b) A **fixture comment's stated reason** was verified both ways: the comment says
+  `.docket.yml` is kept (key absent) for main-mode shape consistency, *not* because omitting it
+  breaks resolution, so the reviewer built the fixture both ways and ran the resolver to confirm
+  both halves. A comment encoding a false reason is what [[verify-the-claim]] exists to stop, and
+  the cheap version of that check is running the alternative once.
+  The generalizable claim is narrow but real: this family's defects are **front-loadable**. The cost
+  of checking a plan's asserts against running code before dispatch is bounded and paid once; the
+  cost of discovering them at review is a round per defect, and #102 shows that reaching five.

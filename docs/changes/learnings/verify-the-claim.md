@@ -2,9 +2,9 @@
 slug: verify-the-claim
 hook: "A document asserting a fact about another artifact is not an oracle — verify it against the artifact or the RUNNING CODE before acting on it."
 topics: [process, review, spec]
-changes: [12, 21, 47, 65, 67, 74, 96, 101, 102, 109]
+changes: [12, 21, 47, 65, 67, 74, 96, 101, 102, 109, 112]
 created: 2026-06-12
-updated: 2026-07-21
+updated: 2026-07-22
 promotion_state: retained
 promoted_to:
 ---
@@ -92,3 +92,17 @@ mid-build; leave the re-scope to the human. Reject false positives with evidence
   document their own abort behavior at all — so the drift was systemic, not a one-off. When adding
   an entry to a table whose other rows make a behavioral claim, verify the claim for the *existing*
   rows before matching their format; copying the format silently copies the assertion.
+- 2026-07-22 (#112, PR #118) — **Re-derive an ACCURATE report too — you cannot know it was accurate
+  until you have.** The whole-branch reviewer did not read the implementer's 18-cell mutation matrix
+  and check it for internal consistency; it copied the resolver and test file into an isolated tree,
+  re-applied all three mutations by content-anchoring, and re-ran every state, confirming the deltas
+  suite-wide rather than only inside the section under test. The report turned out to be entirely
+  correct. That is the point worth recording: the verification's value did not depend on finding an
+  error, and a reviewer who reads a plausible matrix and agrees has produced no evidence at all.
+  This is `guards-are-code`'s "never trust an implementer's narrative" applied where the narrative
+  happened to be true — the only condition under which you learn whether the discipline is real.
+  Also here, a **near-collision ruled out explicitly rather than assumed away**: the new `s7` assert
+  looks like a re-pin of the pre-existing `L2` fixture (both resolve `make local-test` from the
+  local rung), and the reviewer distinguished them by running the mutation — `L2` has the committed
+  key *absent* rather than set to `auto`, so M3 leaves it untouched while `s7` reddens. "This is
+  probably already covered" is a claim about another test's behavior, verifiable only by running it.
