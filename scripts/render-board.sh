@@ -75,7 +75,7 @@ fi
 digest_admits(){
   local t p
   if [ "$FILTER_TYPE" != all ]; then
-    t="$(field "$1" type)"; t="${t:-untyped}"
+    t="$(fm_field "$1" type)"; t="${t:-untyped}"
     [ "$t" = "$FILTER_TYPE" ] || return 1
   fi
   if [ "$FILTER_PRIORITY" != all ]; then
@@ -90,7 +90,7 @@ digest_admits(){
 # shared history, so a type this machine does not configure still renders. Row visibility never
 # depends on the type — a type problem must not drop a row (change 0127).
 type_cell(){
-  local t; t="$(field "$1" type)"
+  local t; t="$(fm_field "$1" type)"
   printf '%s' "${t:-untyped}"
 }
 
