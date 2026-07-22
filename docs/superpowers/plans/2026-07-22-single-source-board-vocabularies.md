@@ -29,7 +29,7 @@
 - Consumes: existing `DOCKET_STATUSES_ACTIVE`, `DOCKET_STATUSES_TERMINAL`, `DOCKET_STATUSES`, and `BOARD_CHECK_IDS`.
 - Produces: `DOCKET_PRIORITIES`, `DOCKET_PRIORITY_DEFAULT`, `docket_status_is_active`, `docket_status_is_terminal`, `docket_priority_is_member`, and `docket_priority_rank`.
 
-- [ ] **Step 1: Add failing vocabulary and helper tests**
+- [x] **Step 1: Add failing vocabulary and helper tests**
 
 Append assertions that source the real library and exercise membership, strict empty handling, default rank, unknown-value rank, order, cardinality, and default membership:
 
@@ -54,13 +54,13 @@ assert "priority rank defaults empty to medium's index" '[ "$(docket_priority_ra
 assert "priority rank defaults unknown to medium's index" '[ "$(docket_priority_rank urgent)" = 2 ]'
 ```
 
-- [ ] **Step 2: Run the helper test and verify it fails for missing symbols**
+- [x] **Step 2: Run the helper test and verify it fails for missing symbols**
 
 Run: `bash tests/test_docket_frontmatter.sh`
 
 Expected: `NOT OK` assertions naming `DOCKET_PRIORITIES` and the four undefined helper functions, followed by `FAIL`.
 
-- [ ] **Step 3: Add the priority vocabulary and pure helper implementations**
+- [x] **Step 3: Add the priority vocabulary and pure helper implementations**
 
 Update the library header to call the file a shared frontmatter, dependency-resolution, and vocabulary helper. Extend the existing vocabulary block without moving or rewriting `BOARD_CHECK_IDS`:
 
@@ -93,7 +93,7 @@ docket_priority_rank(){
 }
 ```
 
-- [ ] **Step 4: Run focused tests and mutation-check both helper directions**
+- [x] **Step 4: Run focused tests and mutation-check both helper directions**
 
 Run: `bash tests/test_docket_frontmatter.sh`
 
@@ -101,7 +101,7 @@ Expected: `PASS`.
 
 Temporarily remove `killed` from `DOCKET_STATUSES_TERMINAL`; rerun and confirm the terminal-helper assertion fails. Restore it. Temporarily append `urgent` to `DOCKET_PRIORITIES`; rerun and confirm the exact-order/cardinality assertions fail. Restore it and rerun to `PASS`.
 
-- [ ] **Step 5: Commit the shared vocabulary**
+- [x] **Step 5: Commit the shared vocabulary**
 
 ```bash
 git add scripts/lib/docket-frontmatter.sh tests/test_docket_frontmatter.sh
