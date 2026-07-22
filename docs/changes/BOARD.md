@@ -46,7 +46,7 @@
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
 | [0114](active/0114-decide-the-repo-s-posture-on-line-number-comment-anchors.md) | Decide the repo's posture on line-number comment anchors | `medium` | [#119](https://github.com/danielhanold/docket/pull/119) |  |
 | [0116](active/0116-single-source-the-remaining-duplicated-board-vocabularies.md) | Single-source the remaining duplicated board vocabularies | `medium` | [#120](https://github.com/danielhanold/docket/pull/120) |  |
-| [0128](active/0128-truthful-git-errors-harness-neutral-escalation-retry.md) | Truthful Git failures and harness-neutral sandbox escalation retry | `high` | [#121](https://github.com/danielhanold/docket/pull/121) |  |
+| [0128](active/0128-truthful-git-errors-harness-neutral-escalation-retry.md) | Truthful Git failures and harness-neutral sandbox escalation retry | `high` | [#121](https://github.com/danielhanold/docket/pull/121) | finalize blocked — needs you |
 
 ```mermaid
 graph TD
