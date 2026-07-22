@@ -683,27 +683,42 @@ assert "round-trip: cursor status model came from the example block" \
   '[ "$(fm "$SB/.cursor/agents/docket-status.md" model)" = "grok-4.5-fast-medium" ]'
 rm -rf "$_sbs"
 
-# --- (6) SCAFFOLD SHAPE: install writes a POINTER, never pinned values -------
+# --- (6) SCAFFOLD SHAPE: install writes runtime + pointer, never policy values
 # Why this guard exists: the old scaffold COPIED config.yml.example, so a user installed once and
 # then carried a frozen snapshot of that day's defaults forever — every later default change was
-# silently pinned by their stale copy. The scaffold must therefore write NO active keys at all.
+# silently pinned by their stale copy. The scaffold must therefore write only the installer-owned,
+# machine-local runtime block; every policy value remains commented/unset.
 SC="$(mktemp -d)"; _scs="$SC"
 out="$(HOME="$SC" DOCKET_HARNESS_ROOT="$SC" XDG_CONFIG_HOME="$SC/.config" \
        bash "$REPO/scripts/ensure-global-config.sh" 2>&1)"; scrc=$?
 GC="$SC/.config/docket/config.yml"
 assert "scaffold: exits 0"            '[ "$scrc" = "0" ]'
 assert "scaffold: wrote the file"     '[ -f "$GC" ]'
-# "No active keys" = every non-blank line is a comment.
-assert "scaffold: contains NO active keys (comment/blank lines only)" \
-  '[ -z "$(grep -vE "^[[:space:]]*(#.*)?$" "$GC" 2>/dev/null)" ]'
+# Validate the managed block before trusting a range extraction: exactly one ordered marker pair,
+# then pin the only active YAML shape without enumerating the discovered path spelling.
+runtime_open_line="$(grep -nF '# >>> docket (runtime.bash) >>>' "$GC" | cut -d: -f1)"
+runtime_close_line="$(grep -nF '# <<< docket (runtime.bash) <<<' "$GC" | cut -d: -f1)"
+assert "scaffold: has one ordered installer-managed runtime block" \
+  '[ "$(grep -cF "# >>> docket (runtime.bash) >>>" "$GC")" = "1" ] &&
+   [ "$(grep -cF "# <<< docket (runtime.bash) <<<" "$GC")" = "1" ] &&
+   [ "$runtime_open_line" -lt "$runtime_close_line" ]'
+active_scaffold="$(grep -vE '^[[:space:]]*(#.*)?$' "$GC" 2>/dev/null)"
+assert "scaffold: only active keys are runtime.bash with an absolute path" \
+  '[ "$(printf "%s\n" "$active_scaffold" | wc -l | tr -d " ")" = "2" ] &&
+   printf "%s\n" "$active_scaffold" | sed -n "1p" | grep -Eq "^runtime:[[:space:]]*$" &&
+   printf "%s\n" "$active_scaffold" | sed -n "2p" | grep -Eq "^[[:space:]]+bash:[[:space:]]+/[^[:space:]]+[[:space:]]*$"'
 assert "scaffold: points at .docket.example.yml" 'grep -qF ".docket.example.yml" "$GC"'
 assert "scaffold: names the layer precedence"    'grep -qiE "repo-local|precedence" "$GC"'
-# Idempotent + non-destructive: a second run leaves an existing file byte-untouched.
-printf '# user edited\nauto_capture: true\n' > "$GC"
-before="$(cat "$GC")"
+# Non-destructive: when the block must be inserted, unrelated user bytes remain an exact suffix,
+# including a missing final newline.
+user_config="$SC/user-config.expected"
+printf '# user edited\nauto_capture: true' > "$user_config"
+cp "$user_config" "$GC"
 HOME="$SC" DOCKET_HARNESS_ROOT="$SC" XDG_CONFIG_HOME="$SC/.config" \
   bash "$REPO/scripts/ensure-global-config.sh" >/dev/null 2>&1
-assert "scaffold: existing user config left byte-untouched" '[ "$(cat "$GC")" = "$before" ]'
+user_bytes="$(wc -c < "$user_config" | tr -d ' ')"
+assert "scaffold: unrelated user config bytes survive runtime insertion" \
+  'tail -c "$user_bytes" "$GC" | cmp -s - "$user_config"'
 rm -rf "$_scs"
 
 # The deleted surfaces stay deleted.
