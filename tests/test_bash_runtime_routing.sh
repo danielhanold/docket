@@ -15,9 +15,10 @@ for candidate in "$REAL_BASH" /opt/homebrew/bin/bash /usr/local/bin/bash; do
 done
 CONFIGURED_LOG="$tmp/configured.log"
 PATH_LOG="$tmp/path.log"
-export REAL_BASH CONFIGURED_LOG PATH_LOG
+LEGACY_LOG="$tmp/legacy.log"
+export REAL_BASH CONFIGURED_LOG PATH_LOG LEGACY_LOG
 
-mkdir -p "$tmp/configured" "$tmp/path-bin" "$tmp/stub-scripts" "$tmp/runners"
+mkdir -p "$tmp/configured" "$tmp/legacy" "$tmp/path-bin" "$tmp/stub-scripts" "$tmp/runners"
 cat > "$tmp/configured/bash" <<'SH'
 #!/bin/sh
 printf 'configured:' >> "$CONFIGURED_LOG"
@@ -32,8 +33,20 @@ printf ' <%s>' "$@" >> "$PATH_LOG"
 printf '\n' >> "$PATH_LOG"
 exec "$REAL_BASH" "$@"
 SH
-chmod +x "$tmp/configured/bash" "$tmp/path-bin/bash"
+cat > "$tmp/legacy/bash" <<'SH'
+#!/bin/sh
+if [ "${1:-}" = --version ]; then
+  printf '%s\n' 'GNU bash, version 3.2.57(1)-release (fake-legacy)'
+  exit 0
+fi
+printf 'unexpected delegation:' >> "$LEGACY_LOG"
+printf ' <%s>' "$@" >> "$LEGACY_LOG"
+printf '\n' >> "$LEGACY_LOG"
+exec "$REAL_BASH" "$@"
+SH
+chmod +x "$tmp/configured/bash" "$tmp/legacy/bash" "$tmp/path-bin/bash"
 RUNTIME="$tmp/configured/bash"
+LEGACY_RUNTIME="$tmp/legacy/bash"
 
 cat > "$tmp/stub-scripts/board-refresh.sh" <<'SH'
 #!/usr/bin/env bash
@@ -107,5 +120,14 @@ invalid_out="$(DOCKET_BASH_PATH="$missing" "$FACADE" env 2>&1)"; invalid_rc=$?
 assert "unsupported configured Bash path fails before facade work" '[ "$invalid_rc" -ne 0 ]'
 assert "unsupported path gives the same install remediation" \
   'grep -qF "run docket/install.sh after installing Bash 4+ (on macOS: brew install bash)" <<<"$invalid_out"'
+
+: > "$LEGACY_LOG"
+legacy_out="$(DOCKET_BASH_PATH="$LEGACY_RUNTIME" SCRIPTS_DIR="$tmp/stub-scripts" "$FACADE" env 2>&1)"; legacy_rc=$?
+assert "executable GNU Bash 3 runtime is rejected nonzero" '[ "$legacy_rc" -ne 0 ]'
+assert "legacy runtime gets the version-specific diagnosis" \
+  'grep -qF "runtime.bash must be Bash 4 or newer, got '\''GNU bash, version 3.2.57(1)-release (fake-legacy)'\'' from $LEGACY_RUNTIME" <<<"$legacy_out"'
+assert "legacy runtime gets the actionable install remediation" \
+  'grep -qF "run docket/install.sh after installing Bash 4+ (on macOS: brew install bash)" <<<"$legacy_out"'
+assert "legacy runtime is rejected before facade implementation work" '[ ! -s "$LEGACY_LOG" ]'
 
 exit "$fail"
