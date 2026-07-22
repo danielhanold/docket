@@ -15,7 +15,7 @@ tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
 # config-layer-write-and-read-hazards learning — this suite reaches ensure-global-config.sh.
 export XDG_CONFIG_HOME="$tmp/xdg-void"
 mkdir -p "$XDG_CONFIG_HOME/docket"
-printf '#!/bin/sh\nprintf "5.2.0\\n"\n' >"$tmp/fake-bash"
+printf '#!/bin/sh\nprintf "GNU bash, version 5.2.0(1)-release\\n"\n' >"$tmp/fake-bash"
 chmod +x "$tmp/fake-bash"
 printf 'runtime:\n  bash: %s\n' "$tmp/fake-bash" >"$XDG_CONFIG_HOME/docket/config.yml"
 

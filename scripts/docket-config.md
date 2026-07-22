@@ -119,13 +119,14 @@ A value may not contain a literal `#` — it is treated as the start of an inlin
 **`runtime.bash` (change 0132).** This is machine identity, not repo policy. Its only valid homes
 are global `config.yml` (normal) and a repo's gitignored `.docket.local.yml` (override), with
 repo-local winning. A value committed in `.docket.yml` is diagnosed and ignored before global
-fallback. The resolver requires a non-empty absolute path, executable permission, and a numeric
-major version of at least 4, obtained by invoking the candidate with `--version`; it never accepts
-a bare `bash` token or searches `PATH`. Missing and invalid settings fail closed with the
-`docket/install.sh` / `brew install bash` remedy. Installation discovers the value in deterministic
-order (Homebrew, standard Homebrew locations, then an absolute PATH result), persists it globally,
-and exports it to the environment. Resolution emits `DOCKET_BASH_PATH` in both output formats for
-every Docket-owned shell launcher.
+fallback. The resolver requires a non-empty absolute path, executable permission, the canonical
+`GNU bash, version …` identity banner under the C locale, and a numeric major of at least 4,
+obtained by invoking the candidate with `--version`; it never accepts a bare `bash` token, a
+numeric-version impostor, or a PATH search. Missing and invalid settings fail closed with the
+`docket/install.sh` / `brew install bash` remedy. The forthcoming installer slice will discover
+the value in deterministic order (Homebrew, standard Homebrew locations, then an absolute PATH
+result), persist it globally, and export it to the environment. Resolution emits
+`DOCKET_BASH_PATH` in both output formats for every Docket-owned shell launcher.
 
 `github_project` and `agents:`/`agent_harnesses` are per-repo-only / not read by this script (see
 Stage 2b/2b'/2c below and `sync-agents.sh`'s own contract, respectively) — every other key above

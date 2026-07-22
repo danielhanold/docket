@@ -203,10 +203,14 @@ _runtime_remedy='run docket/install.sh after installing Bash 4+ (on macOS: brew 
   || die "runtime.bash must be an absolute path, got '$DOCKET_BASH_PATH' — $_runtime_remedy"
 [[ -x "$DOCKET_BASH_PATH" ]] \
   || die "runtime.bash is not an executable file: $DOCKET_BASH_PATH — $_runtime_remedy"
-_runtime_version="$("$DOCKET_BASH_PATH" --version 2>/dev/null)" \
+_runtime_version="$(LC_ALL=C "$DOCKET_BASH_PATH" --version 2>/dev/null)" \
   || die "runtime.bash could not report its version: $DOCKET_BASH_PATH — $_runtime_remedy"
 _runtime_first_line="${_runtime_version%%$'\n'*}"
-_runtime_major="$(sed -nE 's/^[^0-9]*([0-9]+)\..*/\1/p' <<<"$_runtime_first_line")"
+case "$_runtime_first_line" in
+  'GNU bash, version '*) ;;
+  *) die "runtime.bash did not identify itself as GNU Bash: $DOCKET_BASH_PATH reported '${_runtime_first_line:-no version}' — $_runtime_remedy" ;;
+esac
+_runtime_major="$(sed -nE 's/^GNU bash, version ([0-9]+)\..*/\1/p' <<<"$_runtime_first_line")"
 [[ "$_runtime_major" =~ ^[0-9]+$ ]] && [ "$_runtime_major" -ge 4 ] \
   || die "runtime.bash must be Bash 4 or newer, got '${_runtime_first_line:-unknown version}' from $DOCKET_BASH_PATH — $_runtime_remedy"
 

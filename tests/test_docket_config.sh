@@ -35,7 +35,7 @@ fake_bash(){ # fake_bash <path> <version> [executable]
   [ "$executable" = yes ] && chmod +x "$path"
 }
 mkdir -p "$tmp/runtime-bin"
-fake_bash "$tmp/runtime-bin/default-bash" 5.2.0
+fake_bash "$tmp/runtime-bin/default-bash" 'GNU bash, version 5.2.0(1)-release'
 
 # Existing resolver fixtures predate the required runtime. Seed one into a writable machine-local
 # layer unless a fixture already supplies an explicit runtime block (including an invalid one).
@@ -1327,9 +1327,9 @@ assert "0102 R9: repo-local false beats global true (repo-committed unset)" \
 # Change 0132 — machine-local Bash runtime
 # ============================================================================
 
-fake_bash "$tmp/runtime-bin/global-bash" 5.2.0
-fake_bash "$tmp/runtime-bin/local-bash" 5.2.0
-fake_bash "$tmp/runtime-bin/committed-bash" 5.2.0
+fake_bash "$tmp/runtime-bin/global-bash" 'GNU bash, version 5.2.0(1)-release'
+fake_bash "$tmp/runtime-bin/local-bash" 'GNU bash, version 5.2.0(1)-release'
+fake_bash "$tmp/runtime-bin/committed-bash" 'GNU bash, version 5.2.0(1)-release'
 
 # Global runtime resolves when the repo-local layer is absent.
 mkrepo "$tmp/runtime-global"
@@ -1380,23 +1380,30 @@ assert "0132 runtime fence: committed runtime is not emitted" \
 # Invalid explicit machine-local values fail closed and emit no captured runtime.
 mkrepo "$tmp/runtime-invalid"
 mkdir -p "$tmp/runtime-invalid.xdg/docket"
-fake_bash "$tmp/runtime-bin/not-executable" 5.2.0 no
-fake_bash "$tmp/runtime-bin/legacy-bash" 3.2.57
-for runtime_case in relative missing nonexec legacy; do
+fake_bash "$tmp/runtime-bin/not-executable" 'GNU bash, version 5.2.0(1)-release' no
+fake_bash "$tmp/runtime-bin/legacy-bash" 'GNU bash, version 3.2.57(1)-release'
+fake_bash "$tmp/runtime-bin/not-bash" 5.2.0
+for runtime_case in relative missing nonexec legacy notbash; do
   case "$runtime_case" in
     relative) runtime_value='bash' ;;
     missing)  runtime_value="$tmp/runtime-bin/does-not-exist" ;;
     nonexec)  runtime_value="$tmp/runtime-bin/not-executable" ;;
     legacy)   runtime_value="$tmp/runtime-bin/legacy-bash" ;;
+    notbash)  runtime_value="$tmp/runtime-bin/not-bash" ;;
   esac
   printf 'runtime:\n  bash: %s\n' "$runtime_value" \
     >"$tmp/runtime-invalid.xdg/docket/config.yml"
   DOCKET_BASH_PATH=""
   runtime_invalid_out="$(rung "$tmp/runtime-invalid.xdg" "$tmp/runtime-invalid" --export 2>/dev/null)"
   runtime_invalid_rc="$(rung_rc "$tmp/runtime-invalid.xdg" "$tmp/runtime-invalid" --export)"
+  runtime_invalid_err="$(XDG_CONFIG_HOME="$tmp/runtime-invalid.xdg" bash "$SCRIPT" --repo-dir "$tmp/runtime-invalid" --export 2>&1 >/dev/null)"
   assert "0132 runtime invalid $runtime_case: resolver aborts" '[ "$runtime_invalid_rc" != 0 ]'
   assert "0132 runtime invalid $runtime_case: export is empty" '[ -z "$runtime_invalid_out" ]'
   assert "0132 runtime invalid $runtime_case: captured value remains clear" '[ -z "$DOCKET_BASH_PATH" ]'
+  assert "0132 runtime invalid $runtime_case: diagnostic names runtime.bash" \
+    'grep -qF "runtime.bash" <<<"$runtime_invalid_err"'
+  assert "0132 runtime invalid $runtime_case: diagnostic gives install/upgrade remedy" \
+    'grep -Eq "docket/install.sh|brew install bash" <<<"$runtime_invalid_err"'
 done
 
 # Absence is distinct from a configured path that names a missing file: both fail closed, but the
@@ -1405,9 +1412,14 @@ mkrepo "$tmp/runtime-absent"
 DOCKET_BASH_PATH=""
 runtime_absent_out="$(XDG_CONFIG_HOME="$tmp/runtime-absent.xdg" bash "$SCRIPT" --repo-dir "$tmp/runtime-absent" --export 2>/dev/null)"
 runtime_absent_rc=$?
+runtime_absent_err="$(XDG_CONFIG_HOME="$tmp/runtime-absent.xdg" bash "$SCRIPT" --repo-dir "$tmp/runtime-absent" --export 2>&1 >/dev/null)"
 assert "0132 runtime absent: resolver aborts" '[ "$runtime_absent_rc" != 0 ]'
 assert "0132 runtime absent: export is empty" '[ -z "$runtime_absent_out" ]'
 assert "0132 runtime absent: captured value remains clear" '[ -z "$DOCKET_BASH_PATH" ]'
+assert "0132 runtime absent: diagnostic names runtime.bash" \
+  'grep -qF "runtime.bash" <<<"$runtime_absent_err"'
+assert "0132 runtime absent: diagnostic gives install/upgrade remedy" \
+  'grep -Eq "docket/install.sh|brew install bash" <<<"$runtime_absent_err"'
 
 if [ "$fail" = 0 ]; then echo PASS; else echo FAIL; fi
 exit "$fail"

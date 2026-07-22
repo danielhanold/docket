@@ -120,25 +120,25 @@ Place the docket repo at `~/dev/docket` (the source of truth the symlinks point 
 bash ~/dev/docket/install.sh
 ```
 
-That is the whole install. Before running Docket's Bash-specific helpers, `install.sh` discovers an
-absolute Bash 4+ interpreter (Homebrew first, then standard Homebrew locations, then an absolute
-PATH result), validates it with `--version`, and persists it as `runtime.bash`. If none qualifies,
-installation fails with the `brew install bash` remedy. It then runs four primitives in order and
-is idempotent — re-run it any time (after adding a harness, or after editing
-`~/.config/docket/config.yml`):
+That is the whole current install. The next installer slice will discover an absolute Bash 4+
+interpreter (Homebrew first, then standard Homebrew locations, then an absolute PATH result),
+validate it with `--version`, and persist it as `runtime.bash`; until that lands, set the value
+manually as shown below. `install.sh` currently runs four primitives in order and is idempotent —
+re-run it any time (after adding a harness, or after editing `~/.config/docket/config.yml`):
 
 - **`link-skills.sh`** creates absolute symlinks from each present harness's global skill directory back to `~/dev/docket/skills/<name>`. It links into harnesses that already exist on your machine, creating the `skills/` subdirectory when the harness itself is present but that subdirectory is missing, and never creates a harness you don't use. Because skills are symlinks, editing one in the repo takes effect everywhere immediately.
-- **`ensure-global-config.sh`** drops a minimal starter `~/.config/docket/config.yml` into place the first time you install — non-destructively preserving user content — and manages the discovered `runtime.bash` binding. Its remaining content is a header plus a pointer to [`.docket.example.yml`](.docket.example.yml), docket's canonical reference for every key and its default (see step 2). It runs before `sync-agents.sh` so later helpers read the validated runtime.
+- **`ensure-global-config.sh`** drops a minimal starter `~/.config/docket/config.yml` into place the first time you install — non-destructively (an existing config is left untouched). It currently contains no active keys: it is a header plus a pointer to [`.docket.example.yml`](.docket.example.yml), docket's canonical reference for every key and its default (see step 2). The forthcoming installer slice will manage `runtime.bash` here while preserving unrelated user content.
 - **`sync-agents.sh`** generates docket's model/effort-pinned subagent wrappers from layered config (built-in defaults ⊕ global `config.yml` ⊕ a repo's committed `.docket.yml` ⊕ that repo's `.docket.local.yml`) into each present harness's `agents/` directory. For any repo that opts in (via an `agents:` block or an `agent_harnesses:` key, in either file), it also writes the full per-repo agent set as **machine-local**, gitignored files — **never committed**. Unlike the skill symlinks, these are generated **copies** (they bake in the resolved model and effort), so re-run it after editing any config layer — `install.sh` does this for you, or call `sync-agents.sh` directly. Run `sync-agents.sh --check` in CI to catch a missing or stale `.gitignore` block, or an accidentally-tracked generated file.
-- **`ensure-docket-env.sh`** exports `DOCKET_SCRIPTS_DIR` and the validated `DOCKET_BASH_PATH` into your shell profile (and, for the Claude Code harness, its user-level `settings.json` `env`), so every docket skill can reach its deterministic helpers and the same Bash 4+ interpreter from *any* repo. Re-running `install.sh` back-fills already-migrated repos. Without either binding, the skills fail loud with a `run docket/install.sh` remedy rather than guessing from PATH.
+- **`ensure-docket-env.sh`** exports `DOCKET_SCRIPTS_DIR` into your shell profile (and, for the Claude Code harness, its user-level `settings.json` `env`) so every docket skill can reach its helpers from *any* repo. The forthcoming installer slice will add the validated `DOCKET_BASH_PATH` binding alongside it. Re-running `install.sh` back-fills already-migrated repos.
 
 (You can still run any primitive on its own — `install.sh` just saves you from remembering all four.)
 
 ### 2. Set up your global config
 
-`install.sh` writes a minimal `~/.config/docket/config.yml` the first time it runs and preserves
-existing user content. Its only managed active value is the discovered `runtime.bash`; Docket's
-ordinary behavior defaults already apply, so most users never edit anything else.
+`install.sh` currently writes a minimal `~/.config/docket/config.yml` the first time it runs and
+leaves existing files untouched. The forthcoming installer slice will non-destructively add its
+only managed active value, the discovered `runtime.bash`; Docket's ordinary behavior defaults
+already apply.
 
 The canonical reference for every key is [`.docket.example.yml`](.docket.example.yml) in this repo: every config key, active at its shipped default, with full documentation and a scope tag saying which layers may set it. Copy the keys you want to change into the layer you want them in.
 
@@ -300,7 +300,7 @@ Cross-repo defaults live in one optional user-level file: `${XDG_CONFIG_HOME:-~/
 # ~/.config/docket/config.yml — optional; applies to every repo on this machine.
 # Same schema as .docket.yml; committed values normally win (runtime.bash is local-only).
 runtime:
-  bash: /opt/homebrew/bin/bash # install.sh discovers and validates this absolute Bash 4+ path
+  bash: /opt/homebrew/bin/bash # set manually until the installer discovery slice lands
 skills:                      # rebind workflow roles for all your repos
   build: auto
 agents:                      # agent model/effort defaults (same agents: shape as .docket.yml)
