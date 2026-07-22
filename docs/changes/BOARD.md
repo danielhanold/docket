@@ -1,12 +1,6 @@
 # Backlog
 
-**132 changes** — 🟢 1 in progress · 🟡 26 proposed · 🔴 1 blocked · 🔵 4 implemented · ✅ 94 done · 🗑️ 6 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0132](active/0132-install-configured-bash-runtime.md) | Install and use a configured Bash 4+ runtime | `high` | [spec](../superpowers/specs/2026-07-22-install-configured-bash-runtime-design.md) | `feat/install-configured-bash-runtime` |
+**132 changes** — 🟡 26 proposed · 🔴 1 blocked · 🔵 5 implemented · ✅ 94 done · 🗑️ 6 killed
 
 ## 🟡 Proposed (26)
 
@@ -45,7 +39,7 @@
 |---|-------|----------|------------|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | PR #69 is stale (predates the 0068/0072 facade rework and later agent-layer changes) and #0079 (runner delegation) reshapes the design — the build roles should grow a runner field (build.<role>.runner codex, the mixed topology 0079 deferred). Needs a rebase plus redesign pass before merge. |
 
-## 🔵 Implemented — awaiting merge (4)
+## 🔵 Implemented — awaiting merge (5)
 
 | # | Title | Priority | PR | Readiness |
 |---|-------|----------|----|-----------|
@@ -53,6 +47,7 @@
 | [0114](active/0114-decide-the-repo-s-posture-on-line-number-comment-anchors.md) | Decide the repo's posture on line-number comment anchors | `medium` | [#119](https://github.com/danielhanold/docket/pull/119) |  |
 | [0116](active/0116-single-source-the-remaining-duplicated-board-vocabularies.md) | Single-source the remaining duplicated board vocabularies | `medium` | [#120](https://github.com/danielhanold/docket/pull/120) |  |
 | [0128](active/0128-truthful-git-errors-harness-neutral-escalation-retry.md) | Truthful Git failures and harness-neutral sandbox escalation retry | `high` | [#121](https://github.com/danielhanold/docket/pull/121) | finalize blocked — needs you |
+| [0132](active/0132-install-configured-bash-runtime.md) | Install and use a configured Bash 4+ runtime | `high` | [#122](https://github.com/danielhanold/docket/pull/122) |  |
 
 ```mermaid
 graph TD
