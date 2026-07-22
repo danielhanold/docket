@@ -2,7 +2,7 @@
 id: 127
 slug: typed-changes-selective-auto-capture
 title: Typed changes — configurable taxonomy, selective auto-capture, and backlog filters
-status: proposed
+status: in-progress
 priority: high
 type: feat
 created: 2026-07-22
@@ -16,7 +16,8 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/typed-changes-selective-auto-capture
+claimed_at: 2026-07-22T20:26:14Z
 pr:
 blocked_by:
 reconciled: false
