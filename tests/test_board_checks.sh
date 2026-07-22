@@ -502,6 +502,10 @@ assert "field-domain silent for a wholly clean change (id 40)"      '! has_findi
 assert "field-domain fires for a status carrying an inline comment (id 41)" 'has_finding "$fout" field-domain 41'
 assert "field-domain fires for a slug with a space (id 42)"          'has_finding "$fout" field-domain 42'
 assert "field-domain fires for an unrecognized priority (id 43)"     'has_finding "$fout" field-domain 43'
+assert "invalid-priority finding lists the shared rank order and default" \
+  'grep -qF -- "priority '\''urgent'\'' is not one of: critical high medium low (empty = medium)" <<<"$fout"'
+assert "priority validation calls the shared membership helper" \
+  'grep -qF -- '\''docket_priority_is_member "$fd_priority"'\'' "$SCRIPT"'
 assert "field-domain fires for a title containing a pipe (id 44)"    'has_finding "$fout" field-domain 44'
 # The documented default: an EMPTY priority is LEGAL (convention says medium; the sort implements
 # it). This assert is what keeps the domain check from becoming over-eager.

@@ -1889,7 +1889,7 @@ n_all="$(grep -cF 'for st in "${DOCKET_STATUSES[@]}"' "$SCRIPT")"
 n_active="$(grep -cF 'for st in "${DOCKET_STATUSES_ACTIVE[@]}"' "$SCRIPT")"
 n_literal="$(grep -cE '^[[:space:]]*for st in [a-z]' "$SCRIPT")"
 assert "render-board.sh iterates DOCKET_STATUSES at both full-vocabulary sites" '[ "$n_all" = 2 ]'
-assert "render-board.sh iterates DOCKET_STATUSES_ACTIVE at both active-only sites" '[ "$n_active" = 2 ]'
+assert "render-board.sh iterates DOCKET_STATUSES_ACTIVE at all three active-only sites" '[ "$n_active" = 3 ]'
 # Scoped to what the pattern actually proves: `^\s*for st in [a-z]` sees ITERATION HEADERS only.
 # Hand-written status lists demonstrably survive elsewhere in the renderer (the `done|killed` count
 # arms, label_for_title, the per-status table-header and row-format `case`s, and the print_section
@@ -1926,6 +1926,17 @@ assert "emoji_for's case arms are EXACTLY DOCKET_STATUSES (both directions)" \
   '[ "$emoji_labels" = "$exp_all" ]'
 assert "label_for_title's case arms are EXACTLY DOCKET_STATUSES_ACTIVE (both directions)" \
   '[ "$title_labels" = "$exp_active" ]'
+
+# Every exact terminal-set branch is now derived from the shared helper. Capture before testing:
+# a live producer piped to an early-exiting grep under pipefail turns success into SIGPIPE 141.
+terminal_pair_sites="$(grep -nE '(^|[[:space:]])done\|killed\)' "$REPO"/scripts/*.sh 2>/dev/null || true)"
+assert "no executable done|killed case pair survives in scripts" '[ -z "$terminal_pair_sites" ]'
+assert "ready priority rank comes from the shared vocabulary helper" \
+  'grep -qF -- '\''prank="$(docket_priority_rank "$(field "$f" priority)")"'\'' "$SCRIPT"'
+assert "active board sections iterate the shared active-status array" \
+  '[ "$(grep -cF '\''print_section "$st" "$(suffix_for "$st")"'\'' "$SCRIPT")" = 1 ]'
+archive_literal_sites="$(grep -nE 'ARC_COUNT\[(done|killed)\]' "$SCRIPT" || true)"
+assert "archive summary count and labels do not spell terminal members" '[ -z "$archive_literal_sites" ]'
 
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"

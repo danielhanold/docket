@@ -128,7 +128,7 @@ git commit -m "feat(0116): add shared board vocabulary helpers"
 - Consumes: Task 1's arrays and helper functions.
 - Produces: no hand-written executable terminal-status pair, a priority rank derived from array order, active-section iteration driven by `DOCKET_STATUSES_ACTIVE`, and archive summary composition driven by `DOCKET_STATUSES_TERMINAL`.
 
-- [ ] **Step 1: Add failing consumer assertions before changing production code**
+- [x] **Step 1: Add failing consumer assertions before changing production code**
 
 Add producer-anchored assertions to the appropriate test files:
 
@@ -150,7 +150,7 @@ assert "Project status options follow active board order" \
   'grep -qF -- "--single-select-options in-progress,proposed,blocked,deferred,implemented" "$gh_log"'
 ```
 
-- [ ] **Step 2: Run the consumer tests and verify the new assertions fail**
+- [x] **Step 2: Run the consumer tests and verify the new assertions fail**
 
 Run:
 
@@ -165,7 +165,7 @@ bash tests/test_docket_status.sh
 
 Expected: the new producer/ordering assertions fail on the hand-written ladders and pairs; existing behavior tests remain green.
 
-- [ ] **Step 3: Convert renderer counts, ranking, sections, and archive composition**
+- [x] **Step 3: Convert renderer counts, ranking, sections, and archive composition**
 
 In both backlog-count loops use the terminal helper:
 
@@ -207,7 +207,7 @@ if [ "$archive_count" -gt 0 ]; then
 
 Keep the archive row's `[ "$st" = done ]` collapse predicate explicit because it is a single-status behavior, not a vocabulary enumeration.
 
-- [ ] **Step 4: Convert checker, mirror, archive, publish, and sweep consumers**
+- [x] **Step 4: Convert checker, mirror, archive, publish, and sweep consumers**
 
 In `board-checks.sh`, replace `renders_row`'s loop with `docket_status_is_active "$rr_st"`, and replace priority validation with:
 
@@ -236,13 +236,13 @@ Replace each terminal outcome/idempotence validator in `archive-change.sh`, `ter
 docket_status_is_terminal "$OUTCOME" || die "missing/invalid --outcome (done|killed)"
 ```
 
-- [ ] **Step 5: Run focused suites and compare behavior**
+- [x] **Step 5: Run focused suites and compare behavior**
 
 Run the six commands from Step 2 plus `bash tests/test_docket_frontmatter.sh`.
 
 Expected: all seven scripts print `PASS`; golden output changes are limited to Project option order and priority diagnostic order. Verify `git diff -- tests` contains no unrelated golden re-blessing.
 
-- [ ] **Step 6: Commit the derived consumers**
+- [x] **Step 6: Commit the derived consumers**
 
 ```bash
 git add scripts/render-board.sh scripts/board-checks.sh scripts/github-mirror.sh scripts/archive-change.sh scripts/terminal-publish.sh scripts/docket-status.sh tests/test_render_board.sh tests/test_board_checks.sh tests/test_github_mirror.sh tests/test_closeout.sh tests/test_terminal_publish.sh tests/test_docket_status.sh

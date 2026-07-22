@@ -87,7 +87,7 @@ total=${#AFILES[@]}
 mapfile -t ARCFILES < <(find "$CHANGES_DIR/archive" -maxdepth 1 -name '*.md' 2>/dev/null | sort)
 total=$(( total + ${#ARCFILES[@]} ))
 
-declare -A ARC_COUNT  # done/killed counts (archive)
+declare -A ARC_COUNT  # terminal-status counts (archive)
 for f in "${ARCFILES[@]}"; do st="$(field "$f" status)"; ARC_COUNT["$st"]=$(( ${ARC_COUNT[$st]:-0} + 1 )); done
 
 # --- digest projection (change 0069) --------------------------------------------------------
@@ -121,10 +121,9 @@ digest_readiness(){ # digest_readiness FILE ID STATUS -> machine-parseable readi
 
 if [ "$FORMAT" = digest ]; then
   for st in "${DOCKET_STATUSES[@]}"; do
-    case "$st" in
-      done|killed) n=${ARC_COUNT[$st]:-0} ;;
-      *) n="$(count_of "$st")" ;;
-    esac
+    if docket_status_is_terminal "$st"; then n=${ARC_COUNT[$st]:-0}
+    else n="$(count_of "$st")"
+    fi
     [ "$n" -gt 0 ] || continue
     printf 'backlog %s %s\n' "$st" "$n"
   done
@@ -163,12 +162,7 @@ if [ "$FORMAT" = digest ]; then
       [ -n "$id" ] || continue
       [ "$(digest_readiness "$f" "$id" proposed)" = build-ready ] || continue
       # An unset or unrecognized priority is `medium` — the convention's documented default.
-      case "$(field "$f" priority)" in
-        critical) prank=0 ;;
-        high)     prank=1 ;;
-        low)      prank=3 ;;
-        *)        prank=2 ;;
-      esac
+      prank="$(docket_priority_rank "$(field "$f" priority)")"
       # An unset, empty, or malformed `created:` sorts LAST within its priority band, never first.
       # `field` returns empty when the key is absent, and nothing else validates `created:` — a
       # non-empty but non-date value (e.g. the docket-new-change template's unfilled
@@ -191,10 +185,9 @@ fi
 printf '# Backlog\n\n'
 seg=""
 for st in "${DOCKET_STATUSES[@]}"; do
-  case "$st" in
-    done|killed) n=${ARC_COUNT[$st]:-0} ;;
-    *) n="$(count_of "$st")" ;;
-  esac
+  if docket_status_is_terminal "$st"; then n=${ARC_COUNT[$st]:-0}
+  else n="$(count_of "$st")"
+  fi
   [ "$n" -gt 0 ] || continue
   seg+="$(emoji_for "$st") $n $(label_for "$st") · "
 done
@@ -262,11 +255,10 @@ print_section(){ # print_section STATUS HEADER_SUFFIX
   done < <(rows_sorted "$st")
 }
 
-print_section in-progress ""
-print_section proposed ""
-print_section blocked ""
-print_section deferred ""
-print_section implemented " — awaiting merge"
+suffix_for(){ case "$1" in implemented) printf ' — awaiting merge' ;; esac; }
+for st in "${DOCKET_STATUSES_ACTIVE[@]}"; do
+  print_section "$st" "$(suffix_for "$st")"
+done
 
 # --- mermaid ---
 printf '\n```mermaid\ngraph TD\n'
@@ -306,12 +298,16 @@ done
 printf '```\n'
 
 # --- archive ---
-ndone=${ARC_COUNT[done]:-0}; nkilled=${ARC_COUNT[killed]:-0}
-if [ $(( ndone + nkilled )) -gt 0 ]; then
-  em=""; lbl=""
-  [ "$ndone" -gt 0 ] && { em+="✅"; lbl="done"; }
-  [ "$nkilled" -gt 0 ] && { em+="🗑️"; [ -n "$lbl" ] && lbl="$lbl + killed" || lbl="killed"; }
-  printf '\n<details><summary>%s Archive — %s (%d)</summary>\n\n' "$em" "$lbl" "$(( ndone + nkilled ))"
+archive_count=0; em=""; lbl=""
+for st in "${DOCKET_STATUSES_TERMINAL[@]}"; do
+  n=${ARC_COUNT[$st]:-0}
+  archive_count=$(( archive_count + n ))
+  [ "$n" -gt 0 ] || continue
+  em+="$(emoji_for "$st")"
+  [ -n "$lbl" ] && lbl+=" + $st" || lbl="$st"
+done
+if [ "$archive_count" -gt 0 ]; then
+  printf '\n<details><summary>%s Archive — %s (%d)</summary>\n\n' "$em" "$lbl" "$archive_count"
   printf '| # | Title | Merged |\n|---|-------|--------|\n'
   # Partition the date-desc / id-desc sorted rows: the verbatim window = every killed row (any age)
   # plus the first ARCHIVE_RECENT done rows in sort order (killed and recent done interleave by

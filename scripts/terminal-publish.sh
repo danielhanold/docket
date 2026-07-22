@@ -75,7 +75,7 @@ case "$ID"  in (''|*[!0-9]*) [ -z "$ID" ]  || die "non-integer --id: '$ID'"  ;; 
 case "$ADR" in (''|*[!0-9]*) [ -z "$ADR" ] || die "non-integer --adr: '$ADR'" ;; esac
 # --outcome is required (and validated) only in change (--id) mode
 if [ -n "$ID" ]; then
-  case "$OUTCOME" in done|killed) ;; *) die "missing/invalid --outcome" ;; esac
+  docket_status_is_terminal "$OUTCOME" || die "missing/invalid --outcome"
 fi
 [ -n "$INT_BRANCH" ] && [ -n "$META_BRANCH" ] || die "missing --integration-branch/--metadata-branch"
 [ -n "$CHANGES_DIR" ] && [ -n "$ADRS_DIR" ]   || die "missing --changes-dir/--adrs-dir"

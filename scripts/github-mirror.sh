@@ -47,11 +47,6 @@ PROJECT=""
 AUTOCREATE=0                 # --auto-create-project: mint a board when PROJECT is unset
 PROJECT_OWNER=""             # --project-owner: override the auto-create owner (default: REPO owner)
 PROJECT_TITLE="docket backlog"
-# Distinct from the ProjectV2 default "Status" field so auto-create never collides with it —
-# same namespacing instinct as the docket: label set. Options are the five non-terminal statuses
-# (terminal done/killed are expressed by closing the issue, not a column).
-STATUS_FIELD_NAME="Docket Status"
-STATUS_OPTIONS="proposed,in-progress,blocked,deferred,implemented"
 
 log(){ printf '%s\n' "github-mirror: $*" >&2; }
 
@@ -78,6 +73,12 @@ done
 
 # shellcheck source=/dev/null
 source "$(dirname "${BASH_SOURCE[0]}")/lib/docket-frontmatter.sh"
+
+# Distinct from the ProjectV2 default "Status" field so auto-create never collides with it —
+# same namespacing instinct as the docket: label set. Options are the active statuses; terminal
+# statuses are expressed by closing the issue, not a column. Assignment must follow the source.
+STATUS_FIELD_NAME="Docket Status"
+STATUS_OPTIONS="$(IFS=,; printf '%s' "${DOCKET_STATUSES_ACTIVE[*]}")"
 
 # Wrong-tree guard (best-effort, never aborts): an empty active/ next to a populated archive/ is
 # the signature of the pruned integration-branch checkout — the live backlog lives only on the
@@ -313,7 +314,8 @@ sync_projects(){
     url="https://github.com/$REPO/issues/$num"
     ij="$(run_gh project item-add "$number" --owner "$owner" --url "$url" --format json)" || continue
     st="${STATUS_OF[$id]:-}"
-    case "$st" in done|killed|"") continue ;; esac
+    [ -n "$st" ] || continue
+    docket_status_is_terminal "$st" && continue
     [ -n "$pid" ] && [ -n "$fid" ] || continue
     if [ "$DRY" = 1 ]; then itemid="DRYITEM"
     else itemid="$(printf '%s' "$ij" | grep -oE '"id":"[^"]+"' | head -n1 | sed 's/.*:"//;s/"$//')"; fi

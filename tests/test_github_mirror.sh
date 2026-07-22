@@ -208,7 +208,13 @@ autoout="$(bash "$SCRIPT" --dry-run --changes-dir "$tmp" --repo o/r --auto-creat
 assert "auto-create mints a board under the repo owner" \
   'echo "$autoout" | grep -qE "project create --owner o"'
 assert "auto-create seeds a SINGLE_SELECT Status field with the five active statuses" \
-  'echo "$autoout" | grep -qE "project field-create .*--data-type SINGLE_SELECT" && echo "$autoout" | grep -qF "proposed,in-progress,blocked,deferred,implemented"'
+  'grep -qE "project field-create .*--data-type SINGLE_SELECT" <<<"$autoout" && grep -qF "in-progress,proposed,blocked,deferred,implemented" <<<"$autoout"'
+status_options_line="$(grep -nF 'STATUS_OPTIONS=' "$SCRIPT" | cut -d: -f1)"
+library_source_line="$(grep -nF 'source "$(dirname "${BASH_SOURCE[0]}")/lib/docket-frontmatter.sh"' "$SCRIPT" | cut -d: -f1)"
+assert "Project status options derive from the active-status array" \
+  'grep -qE '\''^STATUS_OPTIONS=.*DOCKET_STATUSES_ACTIVE'\'' "$SCRIPT"'
+assert "Project status options are assigned after the vocabulary library is sourced" \
+  '[ "$status_options_line" -gt "$library_source_line" ]'
 assert "auto-create emits a machine-readable project-minted line for write-back" \
   'echo "$autoout" | grep -qE "project-minted o( |$)"'
 assert "auto-create then links the mirrored issues as items" \
