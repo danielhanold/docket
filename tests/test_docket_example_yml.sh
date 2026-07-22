@@ -168,24 +168,24 @@ classify_key(){ # classify_key <example-key-name> -> "resolved:EXPORT" | "elsewh
     changes_dir)          echo 'resolved:CHANGES_DIR' ;;
     adrs_dir)             echo 'resolved:ADRS_DIR' ;;
     results_dir)          echo 'resolved:RESULTS_DIR' ;;
-    gate)                 echo 'resolved:FINALIZE_GATE' ;;
-    test_command)         echo 'resolved:FINALIZE_TEST_COMMAND' ;;
-    require_pr_approval)  echo 'resolved:FINALIZE_REQUIRE_PR_APPROVAL' ;;
-    enabled)              echo 'resolved:LEARNINGS_ENABLED' ;;
-    cap)                  echo 'resolved:LEARNINGS_CAP' ;;
+    finalize.gate)                echo 'resolved:FINALIZE_GATE' ;;
+    finalize.test_command)        echo 'resolved:FINALIZE_TEST_COMMAND' ;;
+    finalize.require_pr_approval) echo 'resolved:FINALIZE_REQUIRE_PR_APPROVAL' ;;
+    learnings.enabled)            echo 'resolved:LEARNINGS_ENABLED' ;;
+    learnings.cap)                echo 'resolved:LEARNINGS_CAP' ;;
     board_surfaces)       echo 'resolved:BOARD_SURFACES' ;;
     auto_groom)           echo 'resolved:AUTO_GROOM' ;;
     auto_capture)         echo 'resolved:AUTO_CAPTURE' ;;
     terminal_publish)     echo 'resolved:TERMINAL_PUBLISH' ;;
-    lease_ttl)            echo 'resolved:RECLAIM_LEASE_TTL' ;;
-    auto)                 echo 'resolved:RECLAIM_AUTO' ;;
-    brainstorm)           echo 'resolved:SKILL_BRAINSTORM' ;;
-    plan)                 echo 'resolved:SKILL_PLAN' ;;
-    build)                echo 'resolved:SKILL_BUILD' ;;
-    review)               echo 'resolved:SKILL_REVIEW' ;;
-    finish)               echo 'resolved:SKILL_FINISH' ;;
+    reclaim.lease_ttl)            echo 'resolved:RECLAIM_LEASE_TTL' ;;
+    reclaim.auto)                 echo 'resolved:RECLAIM_AUTO' ;;
+    skills.brainstorm)            echo 'resolved:SKILL_BRAINSTORM' ;;
+    skills.plan)                  echo 'resolved:SKILL_PLAN' ;;
+    skills.build)                 echo 'resolved:SKILL_BUILD' ;;
+    skills.review)                echo 'resolved:SKILL_REVIEW' ;;
+    skills.finish)                echo 'resolved:SKILL_FINISH' ;;
     # Block headers carry no value of their own; their children are classified above.
-    finalize|learnings|reclaim|skills|runners|codex) echo 'elsewhere:HEADER' ;;
+    finalize|learnings|reclaim|skills|runners|runners.codex) echo 'elsewhere:HEADER' ;;
     # Genuinely non-resolver-read keys, each with its real consumer named.
     #
     # github_project is the one exception to "real consumer": .docket.example.yml itself says
@@ -196,8 +196,8 @@ classify_key(){ # classify_key <example-key-name> -> "resolved:EXPORT" | "elsewh
     github_project)       echo 'elsewhere:scripts/docket-config.sh' ;;
     agents)               echo 'elsewhere:sync-agents.sh' ;;
     agent_harnesses)      echo 'elsewhere:sync-agents.sh' ;;
-    sandbox)              echo 'elsewhere:scripts/runners/codex.sh' ;;
-    network)              echo 'elsewhere:scripts/runners/codex.sh' ;;
+    runners.codex.sandbox) echo 'elsewhere:scripts/runners/codex.sh' ;;
+    runners.codex.network) echo 'elsewhere:scripts/runners/codex.sh' ;;
     *) echo '' ;;
   esac
 }
@@ -286,8 +286,29 @@ manifest_bad_export=""
 manifest_bad_correspondence=""
 manifest_bad_consumer=""
 manifest_bad_header=""
+# QUALIFIED extraction (change 0127). A key emits its FULL ancestor path (`learnings.enabled`,
+# `runners.codex.sandbox`); a top-level key stays bare. Ancestry is tracked with an indent stack
+# rather than "nearest column-0 key", so a doubly-nested leaf is qualified by both its parents
+# instead of skipping a level. Indent classes are [[:space:]] / [^[:space:]] throughout, never a
+# literal-space class, so a tab-indented block is not silently dropped (AGENTS.md).
+# Commented keys stay bare — commented_config_keys only ever yields top-level keys.
 example_keys_raw="$(
-  { sed -nE 's/^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*):.*/\1/p' "$EX"
+  { awk '
+      { line = $0; sub(/[[:space:]]*#.*/, "", line) }
+      line ~ /^[[:space:]]*$/ { next }
+      line !~ /^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*[[:space:]]*:/ { next }
+      {
+        match(line, /^[[:space:]]*/); ind = RLENGTH
+        key = line
+        sub(/^[[:space:]]*/, "", key)
+        sub(/[[:space:]]*:.*/, "", key)
+        while (top > 0 && indent[top] >= ind) top--
+        path = key
+        for (i = top; i >= 1; i--) path = names[i] "." path
+        print path
+        top++; indent[top] = ind; names[top] = key
+      }
+    ' "$EX"
     commented_config_keys "$EX"
   }
 )"
@@ -304,6 +325,11 @@ example_keys="$(printf '%s\n' "$example_keys_raw" | sort -u)"
 consumers="$CFGSCRIPT $REPO/sync-agents.sh $REPO/scripts/runner-dispatch.sh"
 consumers="$consumers $REPO/skills/docket-finalize-change/SKILL.md $REPO/scripts/runners/codex.sh"
 for k in $example_keys; do
+  # LEAF of a qualified key (change 0127): the manifest is keyed by the full path
+  # (`learnings.enabled`), but the resolver assigns from, and a consumer script mentions, the BARE
+  # leaf (`yaml_get "$LEARN_BLK" enabled`). The greps below therefore anchor on the leaf while the
+  # manifest arm, the reporting, and the duplicate checks all stay qualified.
+  leaf_k="${k##*.}"
   cls="$(classify_key "$k")"
   case "$cls" in
     '')
@@ -328,7 +354,7 @@ for k in $example_keys; do
       case " $correspondence_exempt " in
         *" $exp_name "*) ;;
         *)
-          grep -qE "^$exp_name=.*\\b$k\\b" "$CFGSCRIPT" \
+          grep -qE "^$exp_name=.*\\b$leaf_k\\b" "$CFGSCRIPT" \
             || manifest_bad_correspondence="$manifest_bad_correspondence $k($exp_name not tied to $k in docket-config.sh)"
           ;;
       esac
@@ -341,7 +367,7 @@ for k in $example_keys; do
       # with zero further checking. So require the shape a real header has: a bare "<key>:"
       # occurrence that is itself followed by a more-indented child line (see is_header_key
       # above for why a bare line alone is not enough).
-      [ "$(is_header_key "$k" "$EX")" = "1" ] \
+      [ "$(is_header_key "$leaf_k" "$EX")" = "1" ] \
         || manifest_bad_header="$manifest_bad_header $k"
       ;;
     elsewhere:*)
@@ -361,7 +387,7 @@ for k in $example_keys; do
       # often not even a real path, so grepping it here only prints an unsuppressed "No such file
       # or directory" and adds a second, redundant failure entry for the same root cause.
       if [ "$allowlisted" -eq 1 ]; then
-        grep -qE "\\b$k\\b" "$REPO/$consumer" \
+        grep -qE "\\b$leaf_k\\b" "$REPO/$consumer" \
           || manifest_bad_consumer="$manifest_bad_consumer $k(not in $consumer)"
       fi
       ;;
@@ -420,8 +446,40 @@ assert "manifest: key extraction count is exactly $expected_key_count (got $mf_c
 # documentation one: yaml_get's `head -n1` would pick whichever line happens to appear first in
 # the file.
 dup_leaf_keys="$(printf '%s\n' "$example_keys_raw" | sort | uniq -d)"
-assert "no duplicate leaf key names in the example (${dup_leaf_keys:-none}; a new key must not reuse an existing leaf name — classify_key and yaml_get cannot tell them apart)" \
+assert "no duplicate QUALIFIED key names in the example (${dup_leaf_keys:-none}; two identical paths are a real ambiguity)" \
   '[ -z "$dup_leaf_keys" ]'
+
+# (2b-i) QUALIFIED-KEY EXTRACTION (change 0127).
+# A bare leaf name is only ambiguous when the RESOLVER READS IT FLAT — `yaml_get` over the whole
+# file, whose `head -n1` picks whichever line comes first (finalize.gate arrives as `lcl gate`).
+# Block-scoped leaves are read inside their own `yaml_block_body`, so `learnings.enabled` and
+# `auto_capture.enabled` are genuinely distinct to the resolver and must be distinct here too.
+# Qualifying by the full ancestor path is what lets change 0127 document auto_capture.enabled at
+# all: the previous bare-leaf check rejected it outright because learnings.enabled owned `enabled`.
+assert "qualified extraction: a nested leaf carries its parent" \
+  'grep -qx "learnings.enabled" <<<"$example_keys_raw"'
+assert "qualified extraction: a top-level key stays bare" \
+  'grep -qx "board_surfaces" <<<"$example_keys_raw"'
+assert "qualified extraction: the finalize block is qualified too" \
+  'grep -qx "finalize.gate" <<<"$example_keys_raw"'
+assert "qualified extraction: a doubly-nested leaf carries its FULL path" \
+  'grep -qx "runners.codex.sandbox" <<<"$example_keys_raw"'
+assert "qualified extraction: a commented top-level key stays bare" \
+  'grep -qx "agent_harnesses" <<<"$example_keys_raw"'
+
+# FLAT-READ COLLISION FLOOR — the duplicate check that actually protects `yaml_get`. Its
+# population is derived from the resolver's READ SHAPE, not from an allowlist of names: every
+# top-level key (read as a bare key by definition) plus the `finalize.*` leaves, which are the one
+# nested block still read flat (`lcl gate` / `yaml_get "$CFG" gate`, never block-scoped). If a
+# future block joins the flat-read family, add its prefix to the sed below in the same commit.
+flat_read_keys="$(printf '%s\n' "$example_keys_raw" \
+  | sed -nE 's/^(finalize\.)?([A-Za-z_][A-Za-z0-9_]*)$/\2/p')"
+dup_flat_keys="$(printf '%s\n' "$flat_read_keys" | sort | uniq -d | tr '\n' ' ')"
+assert "no duplicate FLAT-READ leaf names (${dup_flat_keys:-none}; yaml_get's head -n1 would mis-resolve these)" \
+  '[ -z "${dup_flat_keys// /}" ]'
+flat_count="$(grep -c . <<<"$flat_read_keys")"
+assert "flat-read floor is non-vacuous (>= 10 keys; got $flat_count)" \
+  '[ "$flat_count" -ge 10 ]'
 
 # The value-anchored asserts for the non-exported keys are retained from the pre-0102 (2b): the
 # fidelity check in (1) is structurally blind to keys the resolver never emits, so without these
