@@ -64,7 +64,7 @@ FINDINGS=""                            # accumulate "<check>\t<id>\t<msg>\n"; so
 
 # sanitize VALUE — render TAB and CR as the visible two-character escapes \t and \r (change 0104).
 # Findings are TAB-separated and the caller splits them with `IFS=$'\t' read -r check_id change_id
-# message` (docket-status.sh's `sweep_execute_one`), so an interior TAB in ANY embedded value
+# message` (docket-status.sh's `health_checks`), so an interior TAB in ANY embedded value
 # shifts every later
 # field. field() truncates at the first newline and strips trailing whitespace, but an interior TAB
 # survives it — these values are untrusted frontmatter, not program constants. Pure bash parameter

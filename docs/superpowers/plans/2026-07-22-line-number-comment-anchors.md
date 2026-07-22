@@ -129,7 +129,7 @@ Replace:
 with:
 
 ```
-# message` (docket-status.sh's `sweep_execute_one`), so an interior TAB in ANY embedded value
+# message` (docket-status.sh's `health_checks`), so an interior TAB in ANY embedded value
 # shifts every later
 ```
 
@@ -289,7 +289,7 @@ Replace:
 with:
 
 ```
-| `-h`, `--help` | Print the usage synopsis (the script's leading `# docket-status.sh —` header comment block) and exit 0. |
+| `-h`, `--help` | Print the usage synopsis (the script's leading `# scripts/docket-status.sh —` header comment block) and exit 0. |
 ```
 
 - [ ] **Step 9: Verify this task's surface is clean and nothing executable moved**
