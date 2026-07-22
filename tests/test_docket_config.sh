@@ -1087,7 +1087,8 @@ out="$(run "$tmp/s3" --export)"; eval "$out"
 assert "test_command AUTO is NOT the sentinel (case-sensitive)" '[ "$FINALIZE_TEST_COMMAND" = "AUTO" ]'
 
 # --- (S4-S9) changes 0106 + 0112: the sentinel's CROSS-LAYER masking --------
-# The collapse at scripts/docket-config.sh:202 runs AFTER the :195 resolution chain. That
+# The collapse (`[ "$FINALIZE_TEST_COMMAND" = auto ] && FINALIZE_TEST_COMMAND=""`) runs AFTER the
+# three-rung `lcl` → committed → `gbl` resolution chain for finalize.test_command. That
 # placement is the whole point: a HIGHER layer writing `test_command: auto` MASKS a LOWER
 # layer's real command, which is the correct reading of an explicit re-statement of the
 # default. Collapse per-layer instead and the behavior silently INVERTS — the higher `auto`
@@ -1275,7 +1276,7 @@ assert "0102 R4: repo-local true beats repo-committed false" \
 # --- (R5) NOT coordination-fenced: machine layers are HONORED and UNWARNED ---
 # The direct inverse of the fenced-key assertions at (0051 L3). This is the assert that would
 # have caught the original bug, and the one that reddens if someone "helpfully" adds the key to
-# the fence loop at scripts/docket-config.sh:170.
+# the coordination-key fence loop, `for _fkey in metadata_branch integration_branch …`.
 errout="$(XDG_CONFIG_HOME="$tmp/r4.xdg" bash "$SCRIPT" --repo-dir "$tmp/r4" --export 2>&1 >/dev/null)"
 assert "0102 R5: no per-repo-only warning for require_pr_approval" \
   '! grep -q "require_pr_approval" <<<"$errout"'
@@ -1299,7 +1300,8 @@ assert "0102 R6: no KEY=value block on the abort path" \
 # R6 (above) proves the repo-committed layer aborts. docket-config.md's rewritten invariant
 # bullets claim the SAME abort fires from the global layer and from .docket.local.yml too — true
 # (every rung feeds FINALIZE_REQUIRE_PR_APPROVAL into the one `case` at
-# scripts/docket-config.sh:215-218 before Stage 3 ever runs) but, before this pair, unproven.
+# scripts/docket-config.sh's `finalize.require_pr_approval must be 'true' or 'false'` validation,
+# before Stage 3 ever runs) but, before this pair, unproven.
 mkrepo "$tmp/r6b"
 mkdir -p "$tmp/r6b.xdg/docket"
 printf 'finalize:\n  require_pr_approval: yes\n' > "$tmp/r6b.xdg/docket/config.yml"
