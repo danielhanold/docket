@@ -35,7 +35,7 @@ non-zero and tells the user to run `brew install bash`.
 
 A valid hand-authored `runtime.bash` is authoritative and leaves the complete file byte-untouched.
 An invalid hand-authored value stops installation and is never silently replaced. Otherwise the
-script writes this owned block while preserving all unrelated content:
+script writes this owned block before the user-owned bytes:
 
 ```yaml
 # >>> docket (runtime.bash) >>>
@@ -47,7 +47,8 @@ runtime:
 Before replacing an existing owned block it validates marker order, balance, and uniqueness.
 Malformed markers cause a non-zero exit with no write. Successful changes are rendered to a
 same-directory temporary file, retain the destination's permission bits, and are atomically
-renamed into place.
+renamed into place. User-owned bytes remain exact even when their final line has no newline, on
+both first install and re-run.
 
 ## Exit codes
 

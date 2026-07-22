@@ -115,16 +115,25 @@ assert "explicit invalid: install stops" '[ "$rc" -ne 0 ]'
 assert "explicit invalid: config remains byte-identical" 'cmp -s "$CASE/before" "$CONFIG"'
 assert "explicit invalid: diagnostic names runtime.bash" 'grep -qF "runtime.bash" "$CASE/out"'
 
-# Appending the managed block preserves all unrelated bytes exactly.
+# The managed block preserves all unrelated bytes exactly, including a missing EOF newline.
+# Compare the recovered user-owned byte tail directly; record-oriented tools and command
+# substitution would normalize the very boundary under test.
 new_case
 fake_bash "$BIN/bash" 5
 mkdir -p "$(dirname "$CONFIG")"
-printf '# first\nagent_harnesses: [claude]\n\n# final user line\n' > "$CONFIG"
+printf '# first\nagent_harnesses: [claude]\n\n# final user line' > "$CONFIG"
 cp "$CONFIG" "$CASE/before"
+before_size="$(wc -c < "$CASE/before" | tr -d '[:space:]')"
 run_ensure; rc=$?
-awk '/^# >>> docket \(runtime\.bash\) >>>$/ { exit } { print }' "$CONFIG" > "$CASE/unmanaged"
+tail -c "$before_size" "$CONFIG" > "$CASE/unmanaged"
 assert "preservation: unrelated existing config bytes survive" \
   '[ "$rc" -eq 0 ] && cmp -s "$CASE/before" "$CASE/unmanaged"'
+assert "preservation: managed block remains structurally separate from unterminated user content" \
+  'grep -qF "# final user line" "$CONFIG" && grep -qF "# >>> docket (runtime.bash) >>>" "$CONFIG"'
+run_ensure; rerun_rc=$?
+tail -c "$before_size" "$CONFIG" > "$CASE/unmanaged-rerun"
+assert "preservation: re-run keeps unterminated user config byte-identical" \
+  '[ "$rerun_rc" -eq 0 ] && cmp -s "$CASE/before" "$CASE/unmanaged-rerun"'
 
 # Corrupt managed markers are refused before any rewrite.
 new_case
@@ -134,5 +143,23 @@ printf 'keep: yes\n# >>> docket (runtime.bash) >>>\nruntime:\n  bash: /old/bash\
 cp "$CONFIG" "$CASE/before"
 run_ensure; rc=$?
 assert "markers: dangling block is rejected" '[ "$rc" -ne 0 ] && cmp -s "$CASE/before" "$CONFIG"'
+
+new_case
+fake_bash "$BIN/bash" 5
+mkdir -p "$(dirname "$CONFIG")"
+printf '# >>> docket (runtime.bash) >>>\nruntime:\n  bash: /one\n# <<< docket (runtime.bash) <<<\n# >>> docket (runtime.bash) >>>\nruntime:\n  bash: /two\n# <<< docket (runtime.bash) <<<\n' > "$CONFIG"
+cp "$CONFIG" "$CASE/before"
+run_ensure; rc=$?
+assert "markers: duplicate config blocks are rejected byte-safely" \
+  '[ "$rc" -ne 0 ] && cmp -s "$CASE/before" "$CONFIG"'
+
+new_case
+fake_bash "$BIN/bash" 5
+mkdir -p "$(dirname "$CONFIG")"
+printf '# <<< docket (runtime.bash) <<<\nkeep: yes\n# >>> docket (runtime.bash) >>>\n# <<< docket (runtime.bash) <<<\n' > "$CONFIG"
+cp "$CONFIG" "$CASE/before"
+run_ensure; rc=$?
+assert "markers: config close-before-open is rejected byte-safely" \
+  '[ "$rc" -ne 0 ] && cmp -s "$CASE/before" "$CONFIG"'
 
 exit $fail

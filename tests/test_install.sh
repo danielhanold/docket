@@ -78,4 +78,18 @@ assert "install.sh re-run exits 0 with an edited global config" '[ "$rc3" = "0" 
 assert "install.sh re-run left the user-edited global config untouched" \
   'grep -qF "# user edit" "$tmp/.config/docket/config.yml"'
 
+# A quoted explicit runtime with an inline comment must pass through install's config read with the
+# same normalization as the resolver/ensure primitive, then reach profile/settings successfully.
+quoted_tmp="$(mktemp -d)"
+mkdir -p "$quoted_tmp/.claude/skills" "$quoted_tmp/.config/docket"
+installed_runtime="$(jq -r '.env.DOCKET_BASH_PATH' "$tmp/.claude/settings.json")"
+printf 'runtime:\n  bash: "%s" # hand-authored explicit runtime\n' "$installed_runtime" > "$quoted_tmp/.config/docket/config.yml"
+quoted_out="$(cd "$quoted_tmp" && HOME="$quoted_tmp" DOCKET_HARNESS_ROOT="$quoted_tmp" DOCKET_TARGET_SHELL=zsh /bin/bash "$REPO/install.sh" 2>&1)"; quoted_rc=$?
+assert "install.sh accepts a quoted explicit runtime with an inline comment" '[ "$quoted_rc" -eq 0 ]'
+assert "install.sh normalizes the quoted runtime before profile binding" \
+  'grep -qF "export DOCKET_BASH_PATH=\"$installed_runtime\"" "$quoted_tmp/.zshenv"'
+assert "install.sh normalizes the quoted runtime before settings binding" \
+  'jq -e --arg v "$installed_runtime" ".env.DOCKET_BASH_PATH == \$v" "$quoted_tmp/.claude/settings.json" >/dev/null'
+rm -rf "$quoted_tmp"
+
 exit $fail

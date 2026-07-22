@@ -87,6 +87,36 @@ printf '# >>> docket (DOCKET_SCRIPTS_DIR) >>>\nold\n# trailing user data\n' > "$
 HOME="$H" DOCKET_HARNESS_ROOT="$H" DOCKET_TARGET_SHELL=zsh DOCKET_BASH_PATH="$RUNTIME" bash "$SCRIPT" >/dev/null 2>&1; marker_rc=$?
 assert "markers: dangling profile block is rejected" '[ "$marker_rc" -ne 0 ] && cmp -s "$H/before" "$H/.zshenv"'
 
+H="$(mktemp -d)"; _tmpdirs+=("$H")
+printf '# >>> docket (DOCKET_SCRIPTS_DIR) >>>\none\n# <<< docket (DOCKET_SCRIPTS_DIR) <<<\n# >>> docket (DOCKET_SCRIPTS_DIR) >>>\ntwo\n# <<< docket (DOCKET_SCRIPTS_DIR) <<<\n' > "$H/.zshenv"; cp "$H/.zshenv" "$H/before"
+HOME="$H" DOCKET_HARNESS_ROOT="$H" DOCKET_TARGET_SHELL=zsh DOCKET_BASH_PATH="$RUNTIME" bash "$SCRIPT" >/dev/null 2>&1; marker_rc=$?
+assert "markers: duplicate profile blocks are rejected byte-safely" \
+  '[ "$marker_rc" -ne 0 ] && cmp -s "$H/before" "$H/.zshenv"'
+
+H="$(mktemp -d)"; _tmpdirs+=("$H")
+printf '# <<< docket (DOCKET_SCRIPTS_DIR) <<<\nkeep\n# >>> docket (DOCKET_SCRIPTS_DIR) >>>\n# <<< docket (DOCKET_SCRIPTS_DIR) <<<\n' > "$H/.zshenv"; cp "$H/.zshenv" "$H/before"
+HOME="$H" DOCKET_HARNESS_ROOT="$H" DOCKET_TARGET_SHELL=zsh DOCKET_BASH_PATH="$RUNTIME" bash "$SCRIPT" >/dev/null 2>&1; marker_rc=$?
+assert "markers: profile close-before-open is rejected byte-safely" \
+  '[ "$marker_rc" -ne 0 ] && cmp -s "$H/before" "$H/.zshenv"'
+
+# Persistence failures in Claude settings are hard failures and never print the success line.
+REAL_MV="$(command -v mv)"; REAL_CHMOD="$(command -v chmod)"
+for fail_command in mv chmod; do
+  H="$(mktemp -d)"; _tmpdirs+=("$H"); FAIL_BIN="$(mktemp -d)"; _tmpdirs+=("$FAIL_BIN")
+  mkdir -p "$H/.claude"; printf '{"keep":true}\n' > "$H/.claude/settings.json"; cp "$H/.claude/settings.json" "$H/settings.before"
+  real_command="$REAL_MV"; [ "$fail_command" = chmod ] && real_command="$REAL_CHMOD"
+  cat > "$FAIL_BIN/$fail_command" <<EOF
+#!/bin/sh
+case "\$*" in *'.settings.json.tmp.'*) exit 73 ;; esac
+exec "$real_command" "\$@"
+EOF
+  chmod +x "$FAIL_BIN/$fail_command"
+  failure_out="$(HOME="$H" DOCKET_HARNESS_ROOT="$H" DOCKET_TARGET_SHELL=zsh DOCKET_BASH_PATH="$RUNTIME" PATH="$FAIL_BIN:$PATH" bash "$SCRIPT" 2>&1)"; failure_rc=$?
+  assert "settings $fail_command failure: script exits non-zero" '[ "$failure_rc" -ne 0 ]'
+  assert "settings $fail_command failure: destination remains byte-identical" 'cmp -s "$H/settings.before" "$H/.claude/settings.json"'
+  assert "settings $fail_command failure: no false success line" '! grep -qF "set env.DOCKET_SCRIPTS_DIR and env.DOCKET_BASH_PATH" <<<"$failure_out"'
+done
+
 # migrate-to-docket.sh points the user at install.sh for script reachability (DOCKET_SCRIPTS_DIR)
 MIG="$REPO/migrate-to-docket.sh"
 assert "migrate next-steps names DOCKET_SCRIPTS_DIR"  'grep -qF "DOCKET_SCRIPTS_DIR" "$MIG"'

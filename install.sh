@@ -25,10 +25,14 @@ bash "$SCRIPT_DIR/scripts/ensure-global-config.sh"
 
 CONFIG_ROOT="${XDG_CONFIG_HOME:-${DOCKET_HARNESS_ROOT:-$HOME}/.config}"
 DOCKET_BASH_PATH="$(awk '
-  /^runtime:[[:space:]]*$/ { in_runtime=1; next }
-  in_runtime && /^[^[:space:]]/ { in_runtime=0 }
-  in_runtime && /^[[:space:]]+bash:[[:space:]]*/ {
-    sub(/^[[:space:]]+bash:[[:space:]]*/, ""); print; exit
+  { line=$0; sub(/[[:space:]]*#.*/, "", line) }
+  line ~ /^runtime[[:space:]]*:[[:space:]]*$/ { in_runtime=1; next }
+  in_runtime && line ~ /^[^[:space:]]/ { in_runtime=0 }
+  in_runtime && line ~ /^[[:space:]]+bash[[:space:]]*:/ {
+    sub(/^[[:space:]]+bash[[:space:]]*:[[:space:]]*/, "", line)
+    sub(/[[:space:]]+$/, "", line)
+    if (line ~ /^".*"$/ || line ~ /^'\''.*'\''$/) line=substr(line,2,length(line)-2)
+    print line; exit
   }
 ' "$CONFIG_ROOT/docket/config.yml")"
 export DOCKET_BASH_PATH

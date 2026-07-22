@@ -97,6 +97,28 @@ write_pointer(){
 EOF
 }
 
+write_runtime_block(){
+  printf '%s\nruntime:\n  bash: %s\n%s\n' "$MARK_OPEN" "$DISCOVERED_RUNTIME" "$MARK_CLOSE"
+}
+
+strip_runtime_block(){
+  _sr_inside=0
+  while :; do
+    _sr_line=
+    if IFS= read -r _sr_line; then _sr_rc=0; else _sr_rc=$?; fi
+    [ "$_sr_rc" -eq 0 ] || [ -n "$_sr_line" ] || break
+    if [ "$_sr_line" = "$MARK_OPEN" ]; then
+      _sr_inside=1
+    elif [ "$_sr_line" = "$MARK_CLOSE" ]; then
+      _sr_inside=0
+    elif [ "$_sr_inside" -eq 0 ]; then
+      printf '%s' "$_sr_line"
+      [ "$_sr_rc" -ne 0 ] || printf '\n'
+    fi
+    [ "$_sr_rc" -eq 0 ] || break
+  done < "$1"
+}
+
 markers_valid "$DEST" || die "$DEST has malformed $MARK_OPEN / $MARK_CLOSE markers — left unchanged"
 _explicit="$(explicit_runtime "$DEST")"
 if [ -n "$_explicit" ]; then
@@ -112,19 +134,21 @@ _tmp="$(mktemp "$DEST_DIR/.config.yml.tmp.XXXXXX")" || die "cannot create tempor
 trap 'rm -f "$_tmp"' EXIT HUP INT TERM
 if [ -f "$DEST" ]; then
   _dest_mode="$(file_mode "$DEST")"
-  awk -v o="$MARK_OPEN" -v c="$MARK_CLOSE" '
-    $0==o { skip=1; next }
-    $0==c { skip=0; next }
-    !skip { print }
-  ' "$DEST" > "$_tmp" || die "cannot preserve $DEST"
+  # Keep the owned block first. The remainder retains whether its final record had a newline, so
+  # all user-owned bytes survive both first install and every re-run.
+  write_runtime_block > "$_tmp" || die "cannot write runtime.bash to temporary config"
+  if grep -qF -- "$MARK_OPEN" "$DEST"; then
+    strip_runtime_block "$DEST" >> "$_tmp" || die "cannot preserve $DEST"
+  else
+    cat "$DEST" >> "$_tmp" || die "cannot preserve $DEST"
+  fi
   printf 'docket: updating managed runtime.bash in %s\n' "$DEST"
 else
   _dest_mode=644
-  write_pointer > "$_tmp" || die "cannot scaffold $DEST"
+  write_runtime_block > "$_tmp" || die "cannot write runtime.bash to temporary config"
+  write_pointer >> "$_tmp" || die "cannot scaffold $DEST"
   printf 'docket: wrote %s (pointer config plus managed runtime.bash)\n' "$DEST"
 fi
-printf '%s\nruntime:\n  bash: %s\n%s\n' "$MARK_OPEN" "$DISCOVERED_RUNTIME" "$MARK_CLOSE" >> "$_tmp" \
-  || die "cannot write runtime.bash to temporary config"
 chmod "$_dest_mode" "$_tmp" || die "cannot preserve config permissions"
 mv "$_tmp" "$DEST" || die "cannot atomically replace $DEST"
 trap - EXIT HUP INT TERM

@@ -65,7 +65,16 @@ if command -v jq >/dev/null 2>&1; then
     t="$(mktemp "$(dirname "$settings")/.settings.json.tmp.XXXXXX")" || die "cannot create settings temporary file"
     if jq --arg scripts "$SCRIPTS_VALUE" --arg bash "$BASH_VALUE" \
       '.env //= {} | .env.DOCKET_SCRIPTS_DIR = $scripts | .env.DOCKET_BASH_PATH = $bash' "$_settings_source" > "$t"; then
-      chmod "$_settings_mode" "$t" && mv "$t" "$settings"
+      if ! chmod "$_settings_mode" "$t"; then
+        rm -f "$t"
+        [ -z "$_seed" ] || rm -f "$_seed"
+        die "cannot preserve settings permissions — $settings left unchanged"
+      fi
+      if ! mv "$t" "$settings"; then
+        rm -f "$t"
+        [ -z "$_seed" ] || rm -f "$_seed"
+        die "cannot atomically replace $settings"
+      fi
       say "set env.DOCKET_SCRIPTS_DIR and env.DOCKET_BASH_PATH -> ${settings#"$HARNESS_ROOT"/}"
     else rm -f "$t"; say "warning: could not update $settings"; fi
   else say "warning: $settings is not valid JSON — left unchanged"; fi

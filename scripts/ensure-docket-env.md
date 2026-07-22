@@ -82,8 +82,9 @@ the same key with the same value.
 
 ## Exit codes
 
-Invalid runtime input or malformed profile markers exit non-zero before writes. Soft failures
-(jq absent or invalid JSON) are warnings and do not undo the already-completed profile update.
+Invalid runtime input, malformed profile markers, or settings permission/rename failures exit
+non-zero. A missing `jq` or pre-existing invalid JSON remains a warning and does not undo the
+already-completed profile update.
 
 ## Invariants
 
