@@ -28,8 +28,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-20-reverse-cross-layer-masking-matrix-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-20-reverse-cross-layer-masking-matrix-design.md) |
-| Plan | [2026-07-21-reverse-cross-layer-masking-matrix.md](https://github.com/danielhanold/docket/blob/feat/pin-the-reverse-cross-layer-masking-for-the-committed-over-l/docs/superpowers/plans/2026-07-21-reverse-cross-layer-masking-matrix.md) |
-| Results | [2026-07-21-pin-the-reverse-cross-layer-masking-for-the-committed-over-l-results.md](https://github.com/danielhanold/docket/blob/feat/pin-the-reverse-cross-layer-masking-for-the-committed-over-l/docs/results/2026-07-21-pin-the-reverse-cross-layer-masking-for-the-committed-over-l-results.md) |
+| Plan | [2026-07-21-reverse-cross-layer-masking-matrix.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-21-reverse-cross-layer-masking-matrix.md) |
+| Results | [2026-07-21-pin-the-reverse-cross-layer-masking-for-the-committed-over-l-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-21-pin-the-reverse-cross-layer-masking-for-the-committed-over-l-results.md) |
 | PR | [#118](https://github.com/danielhanold/docket/pull/118) |
 <!-- docket:artifacts:end -->
 
