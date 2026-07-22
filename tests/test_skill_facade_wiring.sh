@@ -143,6 +143,24 @@ assert "mid-run re-sync verb is defined once (unique anchor)" \
 assert "Step-0 instructs reading the printed block (unique anchor)" \
   '[ "$(grep -cF "read the printed \`KEY=value\` block" "$CONV")" = "1" ]'
 
+# The harness-native recovery rule is shared convention, not a collection of per-skill
+# paraphrases. Extract only its named subsection so these assertions cannot be satisfied by
+# unrelated prose elsewhere in the convention or a hand-maintained operating-skill inventory.
+RECOVERY_HEADING='### Harness-native recovery after sandbox or permission denial'
+recovery_heading_count="$(grep -cF "$RECOVERY_HEADING" "$CONV")"
+recovery="$(awk -v start="$RECOVERY_HEADING" '
+  $0 == start { in_section = 1; next }
+  in_section && /^### / { exit }
+  in_section { print }
+' "$CONV")"
+assert "shared recovery section exists exactly once" '[ "$recovery_heading_count" = "1" ]'
+assert "shared recovery section is nonempty" '[ -n "$recovery" ]'
+assert "recovery rule requires sandbox or permission evidence" 'grep -qiE "sandbox|permission" <<<"$recovery"'
+assert "recovery rule retries the exact command" 'grep -qi "exact command" <<<"$recovery"'
+assert "recovery rule uses the harness-native approval boundary" 'grep -qiE "harness.*(native|approval)|native.*approval" <<<"$recovery"'
+assert "recovery rule limits the retry to one attempt" 'grep -qiE "once|one.*attempt" <<<"$recovery"'
+assert "recovery rule falls back to the caller posture" 'grep -qi "existing failure posture" <<<"$recovery"'
+
 # ---- Layer 3: the board-surfaces sentinel (change 0071) ----------------------------------------
 # 0071 removed every surfaces value from skill prose: the Board pass is now the single facade call
 # `docket.sh docket-status --board-only`, and the orchestrator self-resolves its config. This

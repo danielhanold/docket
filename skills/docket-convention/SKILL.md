@@ -78,6 +78,10 @@ Every operating skill starts identically; skill bodies compress to a pointer her
 
 All metadata reads and writes happen in the metadata working tree on `metadata_branch`, pushed to its remote immediately. Every mid-run metadata re-sync — pre-read syncs and **push-retry CAS loops alike** — is a fresh `docket.sh preflight` run (for a CAS loop: re-run `docket.sh preflight`, then retry the push); plain git plumbing (`git add`/`commit`/`push`, `git -C` forms) stays direct.
 
+### Harness-native recovery after sandbox or permission denial
+
+When a required `docket.sh` facade command or direct Git command fails with evidence of a host **sandbox** or **permission** denial, retry the **exact command** once through the host harness's native approval/escalation mechanism. Do not change its arguments, use `sudo`, or broaden the session sandbox. If native approval is unavailable or denied, or the one attempt retry fails, preserve the diagnostic and follow the caller's **existing failure posture**. An ordinary Git failure does not qualify for this recovery. In Step 0, retry the outer `docket.sh preflight` command, never a private inner fetch.
+
 ### Agent layer — model/effort-pinned subagents (change 0016)
 
 Each **autonomous** docket skill can run as a model/effort-pinned **subagent** instead of inline at the session model. Five skills get a wrapper — `docket-implement-next`, `docket-auto-groom`, `docket-finalize-change`, `docket-status`, `docket-adr`; the two **interactive** skills (`docket-new-change`, `docket-groom-next`) stay inline and only surface an **advisory** recommended model/effort at startup (a skill cannot force the session model). `docket-convention` is not an agent — it is injected into every wrapper via `skills:`.

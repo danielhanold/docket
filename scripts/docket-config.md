@@ -63,12 +63,13 @@ seeds `<repo>/.gitignore`, never `<sub>/.gitignore` or a linked worktree's own `
 
 1. Assert the repo is a git working tree (`git rev-parse --is-inside-work-tree`); exit
    non-zero if not.
-2. `git fetch --quiet origin` — abort with a diagnostic on non-zero return code
-   (unreachable origin).
+2. `git fetch --quiet origin` — on a non-zero return code, report `git fetch origin failed`,
+   preserve Git stderr verbatim after the resolver's neutral wrapper, emit no config output, and
+   abort before cached references are read.
 3. `git remote set-head origin -a` — abort with a diagnostic on non-zero return code
    (unresolvable `origin/HEAD`). The abort keys on the `set-head`/fetch return code,
    **never on `git show`** — a cached `origin/HEAD` lets `git show` succeed with stale bytes
-   even after the remote is unreachable.
+   after a failed fetch.
 4. `git symbolic-ref --quiet --short refs/remotes/origin/HEAD` — strip the `origin/` prefix
    to yield `DEFAULT_BRANCH`.
 
@@ -83,7 +84,7 @@ is written to a temp file and cleaned up on exit.
 - If `origin/HEAD` resolves but `.docket.yml` is genuinely absent → `git show` exits
   non-zero; the temp file is left empty; ordinary defaults apply. This is not itself an error,
   though the separately required machine-local `runtime.bash` must still resolve.
-- If `origin/HEAD` is unresolvable or `origin` is unreachable → the script already aborted
+- If `origin/HEAD` is unresolvable or `git fetch origin` failed → the script already aborted
   in Stage 1 (keyed on fetch/set-head return codes). `git show` is never the abort signal.
 
 **YAML reader:** a minimal scalar reader (`yaml_get`) handles `key: value` lines.
@@ -341,7 +342,7 @@ emits no `KEY=value` output.
 | Condition | Exit |
 |---|---|
 | Normal completion | 0 |
-| `origin` unreachable (`git fetch` failed) | 1 |
+| `git fetch origin` failed | 1 |
 | `origin/HEAD` unresolvable (`git remote set-head` failed) | 1 |
 | `origin/HEAD` still empty after set-head | 1 |
 | `integration_branch` ref absent/unreadable (`ls-tree` non-zero) | 1 |
@@ -357,11 +358,12 @@ emits no `KEY=value` output.
 - **Read-only by default.** The only writes (`create_orphan`, and seeding the managed
   `.gitignore` block) are opt-in via `--bootstrap` and guarded to `¬DOCKET ∧ ¬LIVE`. Fetch
   and `remote set-head` are the sole side effects of a plain `--export` call.
-- **Abort keys on fetch/set-head return code, never on `git show`.** A cached `origin/HEAD`
-  would let `git show` succeed with stale bytes even after the remote is destroyed. All
-  abort decisions precede the `git show` call.
+- **Fetch failure is fail-closed before cached references are read.** A non-zero `git fetch
+  origin` reports `git fetch origin failed`, preserves Git stderr verbatim after the neutral
+  wrapper, and emits no config output. The fetch/set-head return codes, never `git show`, key
+  all abort decisions; a cached `origin/HEAD` therefore cannot make a failed fetch look usable.
 - **File absent ≠ ref unresolvable.** A missing `.docket.yml` on a reachable origin yields
-  defaults; an unreachable origin aborts. These two states are never conflated.
+  defaults; a failed fetch aborts. These two states are never conflated.
 - **No local `docket` branch is created by `--bootstrap`.** The orphan commit is pushed
   directly to `refs/heads/docket` on origin, then fetched to populate
   `refs/remotes/origin/docket`. Only the remote ref exists after the write.
