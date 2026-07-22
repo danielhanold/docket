@@ -2,7 +2,7 @@
 id: 128
 slug: truthful-git-errors-harness-neutral-escalation-retry
 title: Truthful Git failures and harness-neutral sandbox escalation retry
-status: implemented
+status: done
 priority: high
 created: 2026-07-22
 updated: 2026-07-22
@@ -16,7 +16,7 @@ results: docs/results/2026-07-22-truthful-git-errors-harness-neutral-escalation-
 trivial: false
 auto_groomable:
 branch: feat/truthful-git-errors-harness-neutral-escalation-retry
-claimed_at: 2026-07-22T14:11:07Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/121
 blocked_by:
 reconciled: true
