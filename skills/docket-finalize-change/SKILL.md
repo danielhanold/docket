@@ -124,6 +124,20 @@ finalize:
 1. `gate == off` → merge trusting the PR's own CI; skip the rest of the gate.
 2. **Rebase** `feat/<slug>` onto `origin/<integration_branch>`. On conflict, dispatch the `docket-rebase-resolver` subagent (foreground, at the model/effort its wrapper resolves) to reconcile every hunk until the rebase completes; an **ambiguous conflict** it can't resolve aborts the rebase and the gate **abort-and-reports**.
 3. **Determine the suite:** `test_command` override, else auto-detect. Under `local`/`both` with no detectable suite and no `test_command`, **abort-and-report** — this fires only when the suite is *undetectable*; a detected suite that runs clean (even one with zero tests) is green and proceeds.
+   For the detected Bash-suite shape (`tests/test_*.sh`), run every test with the configured runtime. An explicit `FINALIZE_TEST_COMMAND` is user-authored shell text: execute that text unchanged, without prefixing or rewriting it, while leaving the exported `DOCKET_BASH_PATH` available to the command's environment. This is the command boundary:
+
+<!-- configured-bash-finalize:start -->
+```bash
+if [ -n "${FINALIZE_TEST_COMMAND:-}" ]; then
+  eval "$FINALIZE_TEST_COMMAND"
+else
+  for test in tests/test_*.sh; do
+    "$DOCKET_BASH_PATH" "$test"
+  done
+fi
+```
+<!-- configured-bash-finalize:end -->
+
 4. **Validate per `gate`:**
    - `local` runs the suite in the worktree **before any push**.
    - `ci` pushes `--force-with-lease` then polls `gh pr checks`; `both` does both.
