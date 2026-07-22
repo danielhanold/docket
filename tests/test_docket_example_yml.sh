@@ -706,7 +706,7 @@ active_scaffold="$(grep -vE '^[[:space:]]*(#.*)?$' "$GC" 2>/dev/null)"
 assert "scaffold: only active keys are runtime.bash with an absolute path" \
   '[ "$(printf "%s\n" "$active_scaffold" | wc -l | tr -d " ")" = "2" ] &&
    printf "%s\n" "$active_scaffold" | sed -n "1p" | grep -Eq "^runtime:[[:space:]]*$" &&
-   printf "%s\n" "$active_scaffold" | sed -n "2p" | grep -Eq "^[[:space:]]+bash:[[:space:]]+/[^[:space:]]+[[:space:]]*$"'
+   printf "%s\n" "$active_scaffold" | sed -n "2p" | grep -Eq "^[[:space:]]+bash:[[:space:]]+'\''/[^'\'']+'\''[[:space:]]*$"'
 assert "scaffold: points at .docket.example.yml" 'grep -qF ".docket.example.yml" "$GC"'
 assert "scaffold: names the layer precedence"    'grep -qiE "repo-local|precedence" "$GC"'
 # Non-destructive: when the block must be inserted, unrelated user bytes remain an exact suffix,

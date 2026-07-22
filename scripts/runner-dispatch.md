@@ -39,7 +39,7 @@ Mock seams: `RUNNERS_DIR` (adapter directory), `GIT` (through `lib/docket-root.s
    names — each adapter defines and defaults its own (see its contract). `runners:` is **not**
    coordination-fenced: it is a machine preference in the same class as `model`/`effort`
    (it writes no shared state), so all three layers are honored.
-4. **Handoff** — `exec bash scripts/runners/<name>.sh --agent <agent> [--model m] [--effort e]
+4. **Handoff** — `exec "$DOCKET_BASH_PATH" scripts/runners/<name>.sh --agent <agent> [--model m] [--effort e]
    -- <args…>`, foreground. The facade's stdout/stderr/exit code are the adapter's.
 
 ## Exit codes

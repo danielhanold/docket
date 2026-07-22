@@ -26,6 +26,14 @@ validate_runtime(){
   [ "$_vr_major" -ge 4 ]
 }
 
+validate_serializable_path(){
+  # One literal grammar shared by YAML single-quoted scalars and sh/zsh/bash/fish single quotes.
+  # Quotes, backslashes, and record separators need grammar-specific escaping; reject them rather
+  # than ever handing a path to eval or emitting ambiguous configuration.
+  case "$1" in *"'"*|*'\'*|*$'\n'*|*$'\r'*) return 1 ;; esac
+  return 0
+}
+
 markers_valid(){
   [ -f "$1" ] || return 0
   awk -v o="$MARK_OPEN" -v c="$MARK_CLOSE" '
@@ -40,18 +48,37 @@ explicit_runtime(){
   awk -v o="$MARK_OPEN" -v c="$MARK_CLOSE" '
     $0==o { managed=1; next }
     $0==c { managed=0; next }
-    !managed { print }
-  ' "$1" | awk '
+    managed { next }
+    { raw=$0; structural=$0; sub(/[[:space:]]*#.*/, "", structural) }
+    structural ~ /^runtime[[:space:]]*:[[:space:]]*$/ { in_runtime=1; next }
+    in_runtime && structural ~ /^[^[:space:]]/ { in_runtime=0 }
+    in_runtime && structural ~ /^[[:space:]]+bash[[:space:]]*:/ {
+      value=raw; sub(/^[[:space:]]+bash[[:space:]]*:[[:space:]]*/, "", value)
+      if (value ~ /^'\''[^'\'']*'\''[[:space:]]*(#.*)?$/) {
+        sub(/^'\''/, "", value); sub(/'\''[[:space:]]*(#.*)?$/, "", value)
+      } else if (value ~ /^"[^"]*"[[:space:]]*(#.*)?$/) {
+        sub(/^"/, "", value); sub(/"[[:space:]]*(#.*)?$/, "", value)
+      } else {
+        sub(/[[:space:]]*#.*/, "", value); sub(/[[:space:]]+$/, "", value)
+      }
+      print value; exit
+    }
+  ' "$1"
+}
+
+
+explicit_runtime_count(){
+  [ -f "$1" ] || { printf '0\n'; return; }
+  awk -v o="$MARK_OPEN" -v c="$MARK_CLOSE" '
+    $0==o { managed=1; next }
+    $0==c { managed=0; next }
+    managed { next }
     { line=$0; sub(/[[:space:]]*#.*/, "", line) }
     line ~ /^runtime[[:space:]]*:[[:space:]]*$/ { in_runtime=1; next }
     in_runtime && line ~ /^[^[:space:]]/ { in_runtime=0 }
-    in_runtime && line ~ /^[[:space:]]+bash[[:space:]]*:/ {
-      sub(/^[[:space:]]+bash[[:space:]]*:[[:space:]]*/, "", line)
-      sub(/[[:space:]]+$/, "", line)
-      if (line ~ /^".*"$/ || line ~ /^'\''.*'\''$/) line=substr(line,2,length(line)-2)
-      print line; exit
-    }
-  '
+    in_runtime && line ~ /^[[:space:]]+bash[[:space:]]*:/ { count++ }
+    END { print count+0 }
+  ' "$1"
 }
 
 consider_candidate(){
@@ -98,7 +125,9 @@ EOF
 }
 
 write_runtime_block(){
-  printf '%s\nruntime:\n  bash: %s\n%s\n' "$MARK_OPEN" "$DISCOVERED_RUNTIME" "$MARK_CLOSE"
+  validate_serializable_path "$DISCOVERED_RUNTIME" \
+    || die "runtime.bash path contains unsupported quote, backslash, or line-break characters"
+  printf "%s\nruntime:\n  bash: '%s'\n%s\n" "$MARK_OPEN" "$DISCOVERED_RUNTIME" "$MARK_CLOSE"
 }
 
 strip_runtime_block(){
@@ -121,7 +150,15 @@ strip_runtime_block(){
 
 markers_valid "$DEST" || die "$DEST has malformed $MARK_OPEN / $MARK_CLOSE markers — left unchanged"
 _explicit="$(explicit_runtime "$DEST")"
+_explicit_count="$(explicit_runtime_count "$DEST")"
+[ "$_explicit_count" -le 1 ] \
+  || die "$DEST contains multiple explicit runtime.bash declarations; keep exactly one — left unchanged"
+if [ "$_explicit_count" -eq 1 ] && grep -qF -- "$MARK_OPEN" "$DEST"; then
+  die "$DEST contains both managed and explicit runtime.bash declarations; remove one so exactly one runtime is authoritative — left unchanged"
+fi
 if [ -n "$_explicit" ]; then
+  validate_serializable_path "$_explicit" \
+    || die "configured runtime.bash contains unsupported quote, backslash, or line-break characters — $REMEDY"
   validate_runtime "$_explicit" \
     || die "configured runtime.bash is not an absolute executable GNU Bash 4+: $_explicit — $REMEDY"
   printf 'docket: %s already has a valid explicit runtime.bash — left untouched\n' "$DEST"

@@ -110,6 +110,46 @@ assert "runner adapter launches through configured Bash" \
   'grep -qF "<$tmp/runners/probe.sh> <--agent> <alpha> <--model> <beta> <--> <payload>" "$CONFIGURED_LOG"'
 assert "runner launcher never selects bash from PATH" '[ ! -s "$PATH_LOG" ]'
 
+# A real nested launcher must carry the configured runtime across the second hop. Copy the
+# production board-refresh orchestrator beside a renderer fixture so the renderer's env shebang
+# would hit hostile PATH if board-refresh launched it directly.
+mkdir -p "$tmp/nested-scripts" "$tmp/changes/active" "$tmp/changes/archive"
+cp "$REPO/scripts/board-refresh.sh" "$tmp/nested-scripts/board-refresh.sh"
+cat > "$tmp/nested-scripts/render-board.sh" <<'SH'
+#!/usr/bin/env bash
+printf '# Board\n'
+SH
+chmod +x "$tmp/nested-scripts/"*.sh
+: > "$CONFIGURED_LOG"; : > "$PATH_LOG"
+nested_out="$(PATH="$tmp/path-bin:/usr/bin:/bin" DOCKET_BASH_PATH="$RUNTIME" \
+  SCRIPTS_DIR="$tmp/nested-scripts" "$FACADE" board-refresh \
+  --changes-dir "$tmp/changes" --surfaces inline 2>&1)"; nested_rc=$?
+assert "nested renderer succeeds through configured Bash under hostile PATH" \
+  '[ "$nested_rc" -eq 0 ] && grep -qF "# Board" "$tmp/changes/BOARD.md"'
+assert "nested renderer launch is recorded by configured Bash" \
+  'grep -qF "<$tmp/nested-scripts/render-board.sh> <--changes-dir> <$tmp/changes>" "$CONFIGURED_LOG"'
+assert "nested renderer never selects bash from PATH" '[ ! -s "$PATH_LOG" ]'
+
+# Whole-repo executable-shape inventory. Derive candidates from every production shell file,
+# classify comments/sources/assignments and the pre-runtime installer bootstrap, and require every
+# remaining Docket-owned child-script launch to carry the configured runtime on that same command.
+inventory="$tmp/launch-inventory"
+rg -n --glob '*.sh' --glob '!tests/**' --glob '!docs/**' --glob '!.superpowers/**' \
+  '(^|[[:space:]<(;])("?\$[A-Z_][A-Z0-9_]*"?/[^[:space:]]*\.sh|bash[[:space:]]+[^[:space:]]*\.sh)' \
+  "$REPO" > "$inventory" || true
+unrouted="$tmp/unrouted"
+awk '
+  /^[^:]+:[0-9]+:[[:space:]]*#/ { next }
+  /[[:space:]][.#]?[[:space:]]*"?\$[^ ]+\.sh/ && /(^|:)[[:space:]]*(\.|source)[[:space:]]/ { next }
+  /DOCKET_BOOTSTRAP_LAUNCH/ { next }
+  /DOCKET_BASH_PATH/ { next }
+  /CONFIG_EXPORT_CMD|RENDER_BOARD_EXPLICIT|DOCKET_CONFIG_EXPLICIT/ { next }
+  /(^|[[:space:]])(die|say|log)[[:space:]]+"/ { next }
+  { print }
+' "$inventory" > "$unrouted"
+assert "inventory: every Docket-owned nested script launch names DOCKET_BASH_PATH" \
+  '[ ! -s "$unrouted" ]'
+
 unset_out="$(env -u DOCKET_BASH_PATH "$FACADE" env 2>&1)"; unset_rc=$?
 assert "missing configured Bash fails before facade work" '[ "$unset_rc" -ne 0 ]'
 assert "missing configured Bash gives install remediation" \

@@ -249,7 +249,7 @@ if ! local_branch_exists docket; then
   say "  Local 'docket' branch absent — creating orphan and seeding from $INTEGRATION_REF."
   git worktree prune 2>/dev/null || true
   git worktree add --orphan -b docket "$DOCKET_WT" >/dev/null
-  "$MIGRATE_DIR/scripts/disable-worktree-hooks.sh" --worktree "$DOCKET_WT" >/dev/null 2>&1 || true
+  "${DOCKET_BASH_PATH:?run docket/install.sh}" "$MIGRATE_DIR/scripts/disable-worktree-hooks.sh" --worktree "$DOCKET_WT" >/dev/null 2>&1 || true
   # The orphan starts empty; populate its index+tree from the integration ref.
   git -C "$DOCKET_WT" checkout "$INTEGRATION_REF" -- "${seed_paths[@]}"
   git -C "$DOCKET_WT" commit --quiet -m "docket: seed metadata branch from $INTEGRATION_BRANCH (migrate-to-docket.sh)"
@@ -259,7 +259,7 @@ else
   say "  Local 'docket' branch exists — verifying seed paths (top up only what is missing)."
   git worktree prune 2>/dev/null || true
   git worktree add "$DOCKET_WT" docket >/dev/null
-  "$MIGRATE_DIR/scripts/disable-worktree-hooks.sh" --worktree "$DOCKET_WT" >/dev/null 2>&1 || true
+  "${DOCKET_BASH_PATH:?run docket/install.sh}" "$MIGRATE_DIR/scripts/disable-worktree-hooks.sh" --worktree "$DOCKET_WT" >/dev/null 2>&1 || true
   missing=()
   for p in "${seed_paths[@]}"; do
     if ! tree_has refs/heads/docket -- "$p"; then
@@ -305,7 +305,7 @@ PRUNE_PATHS=("$CHANGES_DIR/active" "$CHANGES_README" "$BOARD")
 PRUNE_WT="$TMP_ROOT/prune"
 git worktree prune 2>/dev/null || true
 git worktree add -B "migrate-prune-$INTEGRATION_BRANCH" "$PRUNE_WT" "$INTEGRATION_REF" >/dev/null
-"$MIGRATE_DIR/scripts/disable-worktree-hooks.sh" --worktree "$PRUNE_WT" >/dev/null 2>&1 || true
+"${DOCKET_BASH_PATH:?run docket/install.sh}" "$MIGRATE_DIR/scripts/disable-worktree-hooks.sh" --worktree "$PRUNE_WT" >/dev/null 2>&1 || true
 
 # Probe the LOCAL (worktree) tree: only paths still present there need removing. Probing origin
 # would re-`rm` an already-pushed-but-locally-pruned path on re-run (a hard error) — hence local.
@@ -376,7 +376,7 @@ PRUNE_WT=""
 #     and is recoverable by running scripts/ensure-claude-settings.sh standalone).
 # ---------------------------------------------------------------------------
 step "Granting docket's integration-branch push permission (local Claude settings)"
-if DOCKET_INTEGRATION_BRANCH="$INTEGRATION_BRANCH" bash "$MIGRATE_DIR/scripts/ensure-claude-settings.sh"; then
+if DOCKET_INTEGRATION_BRANCH="$INTEGRATION_BRANCH" "${DOCKET_BASH_PATH:?run docket/install.sh}" "$MIGRATE_DIR/scripts/ensure-claude-settings.sh"; then
   :
 else
   say "  (warning: could not write the local grant; run 'bash $MIGRATE_DIR/scripts/ensure-claude-settings.sh' from this repo later.)"
@@ -402,12 +402,12 @@ cat <<EOF
       partial state.
     - Make docket's helper scripts reachable from THIS repo: run docket's installer once on this
       machine —
-          bash $MIGRATE_DIR/install.sh
+          "$DOCKET_BASH_PATH" $MIGRATE_DIR/install.sh
       It exports DOCKET_SCRIPTS_DIR (the path to docket's scripts/) into your shell profile and
       Claude Code settings, so the skills can run their deterministic helpers here. Re-running it
       is safe and back-fills any already-migrated clone.
     - A Claude Code allow-rule for docket's terminal-publish push to $INTEGRATION_BRANCH has been
       written to .claude/settings.local.json (gitignored, per-user). Anyone who later CLONES this
       repo can grant themselves the same rule by running:
-          bash /path/to/docket/scripts/ensure-claude-settings.sh
+          "$DOCKET_BASH_PATH" /path/to/docket/scripts/ensure-claude-settings.sh
 EOF

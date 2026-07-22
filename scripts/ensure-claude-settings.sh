@@ -28,7 +28,7 @@ REPO_ROOT="$("$GIT" rev-parse --show-toplevel 2>/dev/null)" \
 if [ -n "${DOCKET_INTEGRATION_BRANCH:-}" ]; then
   INTEGRATION_BRANCH="$DOCKET_INTEGRATION_BRANCH"
 else
-  cfg="$("$HERE/docket-config.sh" --export --repo-dir "$REPO_ROOT")" \
+  cfg="$("${DOCKET_BASH_PATH:?run docket/install.sh}" "$HERE/docket-config.sh" --export --repo-dir "$REPO_ROOT")" \
     || die "could not resolve config via docket-config.sh (is origin reachable?)"
   eval "$cfg"
   [ -n "${INTEGRATION_BRANCH:-}" ] || die "docket-config.sh did not report INTEGRATION_BRANCH"

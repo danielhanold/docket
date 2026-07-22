@@ -49,8 +49,8 @@
 # ═══ Runtime ═══════════════════════════════════════════════════════════════════════════════
 
 # runtime.bash — the absolute executable path to Bash 4 or newer used for Docket-owned shell
-# execution. The forthcoming installer slice will discover a qualifying interpreter, validate
-# its major version, and write this machine-specific value to global config. Override it for one clone in
+# execution. install.sh discovers a qualifying interpreter, validates its major version, and
+# writes this machine-specific value to global config. Override it for one clone in
 # .docket.local.yml. Missing, relative, non-executable, or Bash <4 values fail closed with the
 # install/upgrade remedy; a committed runtime is warned-and-ignored.
 # scope: local-only (.docket.local.yml or global config.yml; never committed)

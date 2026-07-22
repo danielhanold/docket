@@ -1377,6 +1377,19 @@ assert "0132 runtime fence: global runtime wins over committed runtime" \
 assert "0132 runtime fence: committed runtime is not emitted" \
   '! grep -qF "$tmp/runtime-bin/committed-bash" <<<"$runtime_committed_out"'
 
+# Duplicate runtime authorities in one machine-local layer fail closed. This catches files left by
+# an older installer where a stale managed block coexists with a valid hand-authored declaration.
+mkrepo "$tmp/runtime-ambiguous"
+mkdir -p "$tmp/runtime-ambiguous.xdg/docket"
+printf '# >>> docket (runtime.bash) >>>\nruntime:\n  bash: %s\n# <<< docket (runtime.bash) <<<\nruntime:\n  bash: %s\n' \
+  "$tmp/runtime-bin/committed-bash" "$tmp/runtime-bin/global-bash" \
+  > "$tmp/runtime-ambiguous.xdg/docket/config.yml"
+runtime_ambiguous_out="$(XDG_CONFIG_HOME="$tmp/runtime-ambiguous.xdg" bash "$SCRIPT" --repo-dir "$tmp/runtime-ambiguous" --export 2>"$tmp/runtime-ambiguous.err")"; runtime_ambiguous_rc=$?
+assert "0132 runtime authority: duplicate global declarations abort" '[ "$runtime_ambiguous_rc" -ne 0 ]'
+assert "0132 runtime authority: ambiguous export is empty" '[ -z "$runtime_ambiguous_out" ]'
+assert "0132 runtime authority: diagnostic asks for one declaration" \
+  'grep -Eqi "multiple|exactly one|one runtime" "$tmp/runtime-ambiguous.err"'
+
 # Invalid explicit machine-local values fail closed and emit no captured runtime.
 mkrepo "$tmp/runtime-invalid"
 mkdir -p "$tmp/runtime-invalid.xdg/docket"

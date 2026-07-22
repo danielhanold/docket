@@ -123,9 +123,9 @@ fallback. The resolver requires a non-empty absolute path, executable permission
 `GNU bash, version …` identity banner under the C locale, and a numeric major of at least 4,
 obtained by invoking the candidate with `--version`; it never accepts a bare `bash` token, a
 numeric-version impostor, or a PATH search. Missing and invalid settings fail closed with the
-`docket/install.sh` / `brew install bash` remedy. The forthcoming installer slice will discover
-the value in deterministic order (Homebrew, standard Homebrew locations, then an absolute PATH
-result), persist it globally, and export it to the environment. Resolution emits
+`docket/install.sh` / `brew install bash` remedy. The installer discovers the value in
+deterministic order (Homebrew, standard Homebrew locations, then an absolute PATH result),
+persists it globally, and exports it to the environment. Resolution emits
 `DOCKET_BASH_PATH` in both output formats for every Docket-owned shell launcher.
 
 `github_project` and `agents:`/`agent_harnesses` are per-repo-only / not read by this script (see

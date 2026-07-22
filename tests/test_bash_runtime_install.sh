@@ -37,7 +37,9 @@ runtime_value(){
     /^runtime:[[:space:]]*$/ { in_runtime=1; next }
     in_runtime && /^[^[:space:]]/ { in_runtime=0 }
     in_runtime && /^[[:space:]]+bash:[[:space:]]*/ {
-      sub(/^[[:space:]]+bash:[[:space:]]*/, ""); print; exit
+      sub(/^[[:space:]]+bash:[[:space:]]*/, "")
+      if ($0 ~ /^'\''.*'\''$/ || $0 ~ /^".*"$/) $0=substr($0,2,length($0)-2)
+      print; exit
     }
   ' "$CONFIG"
 }
@@ -114,6 +116,33 @@ run_ensure; rc=$?
 assert "explicit invalid: install stops" '[ "$rc" -ne 0 ]'
 assert "explicit invalid: config remains byte-identical" 'cmp -s "$CASE/before" "$CONFIG"'
 assert "explicit invalid: diagnostic names runtime.bash" 'grep -qF "runtime.bash" "$CASE/out"'
+
+# A managed declaration and a hand-authored declaration must never compete. In particular, a
+# valid explicit value must not make install bless a stale managed value that the resolver reads
+# first. Refuse the ambiguous file byte-safely with an actionable diagnosis.
+new_case
+fake_bash "$CASE/explicit/bash" 5
+mkdir -p "$(dirname "$CONFIG")"
+printf '# >>> docket (runtime.bash) >>>\nruntime:\n  bash: /stale/managed/bash\n# <<< docket (runtime.bash) <<<\nruntime:\n  bash: %s\n' "$CASE/explicit/bash" > "$CONFIG"
+cp "$CONFIG" "$CASE/before"
+run_ensure; rc=$?
+assert "authority: stale managed plus valid explicit runtime is rejected" '[ "$rc" -ne 0 ]'
+assert "authority: ambiguous config remains byte-identical" 'cmp -s "$CASE/before" "$CONFIG"'
+assert "authority: diagnosis tells the user to keep one runtime declaration" \
+  'grep -Eqi "both managed and explicit|one runtime\\.bash|remove.*managed" "$CASE/out"'
+
+# The managed YAML scalar must remain literal even when the executable path contains shell/YAML
+# metacharacters. The fixture would create $CASE/pwned if either persistence or later parsing
+# evaluated command substitution.
+new_case
+WEIRD_ROOT="$CASE/root \$(touch $CASE/pwned); # colon: value"
+fake_bash "$WEIRD_ROOT/opt/homebrew/bin/bash" 5
+HOME="$HOME_DIR" DOCKET_HARNESS_ROOT="$HOME_DIR" DOCKET_BASH_STANDARD_ROOT="$WEIRD_ROOT" \
+  PATH="$BIN:/usr/bin:/bin" /bin/bash "$SCRIPT" >"$CASE/out" 2>&1; rc=$?
+assert "serialization: metacharacter runtime is installed literally" \
+  '[ "$rc" -eq 0 ] && [ ! -e "$CASE/pwned" ]'
+assert "serialization: managed YAML quotes the entire runtime scalar" \
+  'grep -qF "  bash: '\''$WEIRD_ROOT/opt/homebrew/bin/bash'\''" "$CONFIG"'
 
 # The managed block preserves all unrelated bytes exactly, including a missing EOF newline.
 # Compare the recovered user-owned byte tail directly; record-oriented tools and command

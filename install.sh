@@ -21,17 +21,22 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "==> ensure-global-config.sh (configure Bash runtime)"
-bash "$SCRIPT_DIR/scripts/ensure-global-config.sh"
+DOCKET_BOOTSTRAP_LAUNCH=1 bash "$SCRIPT_DIR/scripts/ensure-global-config.sh"
 
 CONFIG_ROOT="${XDG_CONFIG_HOME:-${DOCKET_HARNESS_ROOT:-$HOME}/.config}"
 DOCKET_BASH_PATH="$(awk '
-  { line=$0; sub(/[[:space:]]*#.*/, "", line) }
-  line ~ /^runtime[[:space:]]*:[[:space:]]*$/ { in_runtime=1; next }
-  in_runtime && line ~ /^[^[:space:]]/ { in_runtime=0 }
-  in_runtime && line ~ /^[[:space:]]+bash[[:space:]]*:/ {
-    sub(/^[[:space:]]+bash[[:space:]]*:[[:space:]]*/, "", line)
-    sub(/[[:space:]]+$/, "", line)
-    if (line ~ /^".*"$/ || line ~ /^'\''.*'\''$/) line=substr(line,2,length(line)-2)
+  { raw=$0; structural=$0; sub(/[[:space:]]*#.*/, "", structural) }
+  structural ~ /^runtime[[:space:]]*:[[:space:]]*$/ { in_runtime=1; next }
+  in_runtime && structural ~ /^[^[:space:]]/ { in_runtime=0 }
+  in_runtime && structural ~ /^[[:space:]]+bash[[:space:]]*:/ {
+    line=raw; sub(/^[[:space:]]+bash[[:space:]]*:[[:space:]]*/, "", line)
+    if (line ~ /^'\''[^'\'']*'\''[[:space:]]*(#.*)?$/) {
+      sub(/^'\''/, "", line); sub(/'\''[[:space:]]*(#.*)?$/, "", line)
+    } else if (line ~ /^"[^"]*"[[:space:]]*(#.*)?$/) {
+      sub(/^"/, "", line); sub(/"[[:space:]]*(#.*)?$/, "", line)
+    } else {
+      sub(/[[:space:]]*#.*/, "", line); sub(/[[:space:]]+$/, "", line)
+    }
     print line; exit
   }
 ' "$CONFIG_ROOT/docket/config.yml")"

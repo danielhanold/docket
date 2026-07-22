@@ -63,7 +63,7 @@ assert "install.sh scaffolded the global config" '[ -f "$tmp/.config/docket/conf
 # The scaffold pins no policy default: its only active value is the machine-local runtime, and it
 # still points at .docket.example.yml. The unit test covers the exhaustive shape.
 assert "install.sh global config contains the managed runtime block" \
-  'grep -qF "# >>> docket (runtime.bash) >>>" "$tmp/.config/docket/config.yml" && grep -qE "^[[:space:]]+bash: /" "$tmp/.config/docket/config.yml"'
+  'grep -qF "# >>> docket (runtime.bash) >>>" "$tmp/.config/docket/config.yml" && grep -qE "^[[:space:]]+bash: '\''/[^'\'']+'\''$" "$tmp/.config/docket/config.yml"'
 assert "install.sh global config points at .docket.example.yml" \
   'grep -qF ".docket.example.yml" "$tmp/.config/docket/config.yml"'
 
@@ -91,5 +91,19 @@ assert "install.sh normalizes the quoted runtime before profile binding" \
 assert "install.sh normalizes the quoted runtime before settings binding" \
   'jq -e --arg v "$installed_runtime" ".env.DOCKET_BASH_PATH == \$v" "$quoted_tmp/.claude/settings.json" >/dev/null'
 rm -rf "$quoted_tmp"
+
+# Installer round-trip for the managed scalar grammar: a quoted executable path may carry shell
+# and YAML metacharacters without truncation or evaluation at either the config-reader or profile
+# boundary.
+meta_tmp="$(mktemp -d)"
+mkdir -p "$meta_tmp/.claude/skills" "$meta_tmp/.config/docket"
+meta_dir="$meta_tmp/runtime \$(touch $meta_tmp/pwned); # colon: value"
+mkdir -p "$meta_dir"; meta_runtime="$meta_dir/bash"; ln -s "$installed_runtime" "$meta_runtime"
+printf "runtime:\n  bash: '%s'\n" "$meta_runtime" > "$meta_tmp/.config/docket/config.yml"
+meta_out="$(cd "$meta_tmp" && HOME="$meta_tmp" DOCKET_HARNESS_ROOT="$meta_tmp" DOCKET_TARGET_SHELL=zsh /bin/bash "$REPO/install.sh" 2>&1)"; meta_rc=$?
+assert "install.sh round-trips a metacharacter runtime literally" \
+  '[ "$meta_rc" -eq 0 ] && jq -e --arg v "$meta_runtime" ".env.DOCKET_BASH_PATH == \$v" "$meta_tmp/.claude/settings.json" >/dev/null'
+assert "install.sh does not evaluate runtime metacharacters" '[ ! -e "$meta_tmp/pwned" ]'
+rm -rf "$meta_tmp"
 
 exit $fail

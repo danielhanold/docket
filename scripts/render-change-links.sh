@@ -18,7 +18,7 @@ END_MARKER='<!-- docket:artifacts:end -->'
 
 GIT="${GIT:-git}"
 SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DOCKET_CONFIG="${DOCKET_CONFIG:-$SCRIPTDIR/docket-config.sh}"
+if [ -n "${DOCKET_CONFIG:-}" ]; then DOCKET_CONFIG_EXPLICIT=1; else DOCKET_CONFIG_EXPLICIT=0; DOCKET_CONFIG="$SCRIPTDIR/docket-config.sh"; fi
 CHANGE_FILE=""
 REPO=""
 ADRS_DIR_LOCAL=""
@@ -42,7 +42,11 @@ source "$SCRIPTDIR/lib/docket-frontmatter.sh"
 source "$SCRIPTDIR/lib/docket-root.sh"
 
 # Resolve config (branches + adrs dir). Mockable via DOCKET_CONFIG.
-cfg="$("$DOCKET_CONFIG" --export 2>/dev/null)" || { printf 'render-change-links: config resolution failed\n' >&2; exit 1; }
+if [ "$DOCKET_CONFIG_EXPLICIT" -eq 1 ]; then
+  cfg="$("$DOCKET_CONFIG" --export 2>/dev/null)" || { printf 'render-change-links: config resolution failed\n' >&2; exit 1; }
+else
+  cfg="$("${DOCKET_BASH_PATH:?run docket/install.sh}" "$DOCKET_CONFIG" --export 2>/dev/null)" || { printf 'render-change-links: config resolution failed\n' >&2; exit 1; }
+fi
 eval "$cfg"
 METADATA_BRANCH="${METADATA_BRANCH:-docket}"
 INTEGRATION_BRANCH="${INTEGRATION_BRANCH:-main}"

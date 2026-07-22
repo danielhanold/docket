@@ -31,7 +31,7 @@ assert "fresh: exits 0" '[ "$rc" = "0" ]'
 assert "fresh: creates the global config" '[ -f "$DEST" ]'
 # Only the machine-local runtime is active; the scaffold still pins no policy defaults.
 assert "fresh: contains the managed runtime.bash and no policy keys" \
-  'grep -qF "# >>> docket (runtime.bash) >>>" "$DEST" && grep -qF "  bash: $RUNTIME_ROOT/opt/homebrew/bin/bash" "$DEST" && ! grep -qF "agent_harnesses:" "$DEST"'
+  'grep -qF "# >>> docket (runtime.bash) >>>" "$DEST" && grep -qF "  bash: '\''$RUNTIME_ROOT/opt/homebrew/bin/bash'\''" "$DEST" && ! grep -qF "agent_harnesses:" "$DEST"'
 assert "fresh: points at .docket.example.yml" 'grep -qF ".docket.example.yml" "$DEST"'
 assert "fresh: names the layer precedence" 'grep -qiE "repo-local|precedence" "$DEST"'
 assert "fresh: logs a wrote line naming the dest" 'printf "%s" "$out" | grep -qF "wrote $DEST"'
@@ -43,7 +43,7 @@ mkdir -p "$(dirname "$DEST2")"; printf 'sentinel: do-not-overwrite\n' > "$DEST2"
 out2="$(HOME="$SB2" DOCKET_HARNESS_ROOT="$SB2" bash "$SCRIPT" 2>&1)"; rc2=$?
 assert "existing: exits 0" '[ "$rc2" = "0" ]'
 assert "existing: unrelated content is preserved" 'grep -qxF "sentinel: do-not-overwrite" "$DEST2"'
-assert "existing: receives the managed runtime" 'grep -qF "  bash: $RUNTIME_ROOT/opt/homebrew/bin/bash" "$DEST2"'
+assert "existing: receives the managed runtime" 'grep -qF "  bash: '\''$RUNTIME_ROOT/opt/homebrew/bin/bash'\''" "$DEST2"'
 assert "existing: logs a managed-runtime update" 'printf "%s" "$out2" | grep -qF "updating managed runtime.bash"'
 
 # Idempotent: a second fresh-run over the just-written file leaves it untouched (now existing).

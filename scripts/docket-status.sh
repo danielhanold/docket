@@ -278,7 +278,7 @@ commit_and_push_generated(){
 # REGEN_FN callback on a rebase conflict — one render path, not two.
 board_regen_inline(){
   local cd_dir="$1"
-  "$SELF_DIR"/board-refresh.sh --changes-dir "$cd_dir" --surfaces inline ${REPO_FLAG:+--repo "$REPO_FLAG"} >&2 2>&2
+  "$DOCKET_BASH_PATH" "$SELF_DIR"/board-refresh.sh --changes-dir "$cd_dir" --surfaces inline ${REPO_FLAG:+--repo "$REPO_FLAG"} >&2 2>&2
 }
 
 board_pass_inline(){
@@ -315,7 +315,7 @@ board_pass_inline(){
 board_pass_github(){
   local cd_dir="$1"
   local out rc
-  out="$("$SELF_DIR"/github-mirror.sh --changes-dir "$cd_dir" ${REPO_FLAG:+--repo "$REPO_FLAG"} ${PROJECT_FLAG:+--project "$PROJECT_FLAG"} $([ "$AUTO_CREATE_PROJECT" = 1 ] && echo --auto-create-project) ${PROJECT_OWNER:+--project-owner "$PROJECT_OWNER"} 2>&2)"
+  out="$("$DOCKET_BASH_PATH" "$SELF_DIR"/github-mirror.sh --changes-dir "$cd_dir" ${REPO_FLAG:+--repo "$REPO_FLAG"} ${PROJECT_FLAG:+--project "$PROJECT_FLAG"} $([ "$AUTO_CREATE_PROJECT" = 1 ] && echo --auto-create-project) ${PROJECT_OWNER:+--project-owner "$PROJECT_OWNER"} 2>&2)"
   rc=$?
   echo "$out" | while IFS= read -r line; do
     case "$line" in
@@ -350,7 +350,7 @@ backlog_pass(){
   mw="$(docket_metadata_worktree)"
   local cd_dir="$mw/$CHANGES_DIR"
   local out
-  if ! out="$("$SCRIPTS_DIR"/render-board.sh --changes-dir "$cd_dir" --format digest 2>&2)"; then
+  if ! out="$("$DOCKET_BASH_PATH" "$SCRIPTS_DIR"/render-board.sh --changes-dir "$cd_dir" --format digest 2>&2)"; then
     echo "docket-status: backlog digest failed; continuing without it" >&2
     return 0
   fi
@@ -380,9 +380,14 @@ backlog_pass(){
 # two-cases-one-signal collapse the always-emitted ready line exists to prevent.
 digest_only_pass(){
   local cfg
-  cfg="$(${CONFIG_EXPORT_CMD:-"$SCRIPTS_DIR"/docket-config.sh --export})" \
-    || { echo "docket-status: config export failed" >&2; return 1; }
+  if [ -n "${CONFIG_EXPORT_CMD:-}" ]; then
+    cfg="$($CONFIG_EXPORT_CMD)" || { echo "docket-status: config export failed" >&2; return 1; }
+  else
+    cfg="$("${DOCKET_BASH_PATH:?run docket/install.sh}" "$SCRIPTS_DIR"/docket-config.sh --export)" \
+      || { echo "docket-status: config export failed" >&2; return 1; }
+  fi
   eval "$cfg"
+  export DOCKET_BASH_PATH
   case "${BOOTSTRAP:-}" in
     PROCEED) : ;;
     STOP_MIGRATE)  echo "docket-status: repo not migrated — run migrate-to-docket.sh" >&2; return 1 ;;
@@ -557,7 +562,7 @@ sweep_execute_one(){
     done|killed) return 0 ;;   # already terminal — idempotent no-op
   esac
 
-  if ! "$SCRIPTS_DIR"/archive-change.sh \
+  if ! "$DOCKET_BASH_PATH" "$SCRIPTS_DIR"/archive-change.sh \
         --changes-dir "$cd_dir" --id "$id" --outcome done --date "$merged_date" \
         --message "docket($id): done — archived (status done, $merged_date)" >&2; then
     echo "sweep-failed $id archive script-error"
@@ -571,7 +576,7 @@ sweep_execute_one(){
     return 0
   fi
 
-  if ! "$SCRIPTS_DIR"/render-change-links.sh \
+  if ! "$DOCKET_BASH_PATH" "$SCRIPTS_DIR"/render-change-links.sh \
         --change-file "$archived" --adrs-dir "$mw/$ADRS_DIR" >&2; then
     echo "sweep-failed $id render-change-links skipped-publish"
     return 0
@@ -594,7 +599,7 @@ sweep_execute_one(){
     fi
   fi
 
-  if ! "$SCRIPTS_DIR"/terminal-publish.sh \
+  if ! "$DOCKET_BASH_PATH" "$SCRIPTS_DIR"/terminal-publish.sh \
         --id "$id" --outcome done --enabled "${TERMINAL_PUBLISH:-false}" \
         --integration-branch "$INTEGRATION_BRANCH" --metadata-branch "$METADATA_BRANCH" \
         --changes-dir "$CHANGES_DIR" --adrs-dir "$ADRS_DIR" --metadata-worktree "$mw" \
@@ -617,7 +622,7 @@ sweep_execute_one(){
     # invocation already carries `--id` without `--enabled`, and tests/test_closeout.sh's
     # find_ungated_terminal_publish_call_sites scans joined logical lines for that literal
     # regardless of quoting — putting it in this string would trip the scanner on this call site.
-    if "$SCRIPTS_DIR"/mark-publish-deferred.sh --mode add --change-file "$archived" \
+    if "$DOCKET_BASH_PATH" "$SCRIPTS_DIR"/mark-publish-deferred.sh --mode add --change-file "$archived" \
          --reason blocked --detail "sweep: the publish step exited non-zero" \
          --integration-branch "$INTEGRATION_BRANCH" --id "$id" >/dev/null 2>&1; then
       "$GIT" -C "$mw" add -- "$archived" >/dev/null 2>&1 \
@@ -628,7 +633,7 @@ sweep_execute_one(){
     return 0
   fi
 
-  if ! "$SCRIPTS_DIR"/cleanup-feature-branch.sh --slug "$slug" >&2; then
+  if ! "$DOCKET_BASH_PATH" "$SCRIPTS_DIR"/cleanup-feature-branch.sh --slug "$slug" >&2; then
     echo "sweep-failed $id cleanup script-error"
   fi
 
@@ -645,7 +650,7 @@ health_checks(){
   local cd_dir="$mw/$CHANGES_DIR"
   local metadata_branch
   if [ "${DOCKET_MODE:-}" = docket ]; then metadata_branch="$METADATA_BRANCH"; else metadata_branch="$INTEGRATION_BRANCH"; fi
-  "$SCRIPTS_DIR"/board-checks.sh \
+  "$DOCKET_BASH_PATH" "$SCRIPTS_DIR"/board-checks.sh \
     --changes-dir "$cd_dir" --metadata-branch "$metadata_branch" \
     --integration-branch "origin/$INTEGRATION_BRANCH" \
     --lease-ttl-hours "${RECLAIM_LEASE_TTL:-72}" 2>&2 | \
@@ -698,7 +703,7 @@ reclaim_pass(){
     cd_dir="$mw/$CHANGES_DIR"
     while IFS= read -r line; do
       [ -n "$line" ] && printf 'reclaim %s\n' "$line"
-    done < <("$SCRIPTS_DIR"/reclaim-claims.sh --changes-dir "$cd_dir" --lease-ttl-hours "${RECLAIM_LEASE_TTL:-72}")
+    done < <("$DOCKET_BASH_PATH" "$SCRIPTS_DIR"/reclaim-claims.sh --changes-dir "$cd_dir" --lease-ttl-hours "${RECLAIM_LEASE_TTL:-72}")
   else
     printf 'reclaim: %s expired-lease change(s) can self-heal — run: docket.sh reclaim-claims\n' "$n"
   fi
@@ -736,7 +741,7 @@ emit_judgment(){
 learnings_regen_index(){
   local ldir="$1" tmp
   tmp="$(mktemp "$ldir/.learnings-index.XXXXXX")" || return 1
-  if ! "$SCRIPTS_DIR"/render-learnings-index.sh --learnings-dir "$ldir" >"$tmp" 2>/dev/null; then
+  if ! "$DOCKET_BASH_PATH" "$SCRIPTS_DIR"/render-learnings-index.sh --learnings-dir "$ldir" >"$tmp" 2>/dev/null; then
     rm -f "$tmp"
     return 1
   fi
@@ -821,7 +826,7 @@ learnings_pass(){
 # integration_sync — best-effort FF-only sync of the invoking repo's integration-branch
 # checkout, run once at the end of a pass that swept at least one change.
 integration_sync(){
-  "$SCRIPTS_DIR"/sync-integration-branch.sh --integration-branch "$INTEGRATION_BRANCH" >&2 2>&1 || true
+  "$DOCKET_BASH_PATH" "$SCRIPTS_DIR"/sync-integration-branch.sh --integration-branch "$INTEGRATION_BRANCH" >&2 2>&1 || true
   return 0
 }
 

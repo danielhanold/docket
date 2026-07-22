@@ -46,6 +46,28 @@ run ksh
 assert "other: POSIX export to ~/.profile" 'grep -qF "export DOCKET_SCRIPTS_DIR=\"$EXPECTED\"" "$H/.profile"'
 assert "other: runtime export to ~/.profile" 'grep -qF "export DOCKET_BASH_PATH=\"$RUNTIME\"" "$H/.profile"'
 
+# Paths are data, never shell text. Exercise both persisted values with command substitution,
+# semicolon, hash, colon-space, and whitespace, then source the POSIX profile to prove it neither
+# executes the payload nor changes either value.
+META_BASE="$(mktemp -d)/clone \$(touch injected); # colon: value"
+mkdir -p "$META_BASE/scripts"; cp "$SCRIPT" "$META_BASE/scripts/ensure-docket-env.sh"
+META_SCRIPTS_RESOLVED="$(cd "$META_BASE/scripts" && pwd -P)"
+META_RUNTIME_DIR="$(mktemp -d)/runtime \$(touch injected-runtime); # colon: value"
+mkdir -p "$META_RUNTIME_DIR"; META_RUNTIME="$META_RUNTIME_DIR/bash"
+cp "$RUNTIME" "$META_RUNTIME"; chmod +x "$META_RUNTIME"
+H="$(mktemp -d)"; _tmpdirs+=("$H" "${META_BASE%%/clone *}" "${META_RUNTIME_DIR%%/runtime *}")
+HOME="$H" DOCKET_HARNESS_ROOT="$H" DOCKET_TARGET_SHELL=ksh DOCKET_BASH_PATH="$META_RUNTIME" \
+  bash "$META_BASE/scripts/ensure-docket-env.sh" >/dev/null 2>&1; meta_rc=$?
+assert "serialization: metacharacter clone/runtime values persist" '[ "$meta_rc" -eq 0 ]'
+( cd "$H" && unset DOCKET_SCRIPTS_DIR DOCKET_BASH_PATH && . "$H/.profile" && \
+  printf '%s\n%s\n' "$DOCKET_SCRIPTS_DIR" "$DOCKET_BASH_PATH" > "$H/loaded" )
+assert "serialization: POSIX profile reloads both values literally" \
+  '[ "$(sed -n "1p" "$H/loaded")" = "$META_SCRIPTS_RESOLVED" ] && [ "$(sed -n "2p" "$H/loaded")" = "$META_RUNTIME" ]'
+assert "serialization: profile evaluation executes no embedded command" \
+  '[ ! -e "$H/injected" ] && [ ! -e "$H/injected-runtime" ]'
+assert "serialization: fish bindings use literal single-quoted values" \
+  'HOME="$H" DOCKET_HARNESS_ROOT="$H" DOCKET_TARGET_SHELL=fish DOCKET_BASH_PATH="$META_RUNTIME" bash "$META_BASE/scripts/ensure-docket-env.sh" >/dev/null 2>&1 && grep -qF "set -gx DOCKET_SCRIPTS_DIR '\''$META_SCRIPTS_RESOLVED'\''" "$H/.config/fish/config.fish" && grep -qF "set -gx DOCKET_BASH_PATH '\''$META_RUNTIME'\''" "$H/.config/fish/config.fish"'
+
 # settings.json env (jq), preserving an existing key
 H="$(mktemp -d)"; _tmpdirs+=("$H"); mkdir -p "$H/.claude"
 printf '{"permissions":{"allow":["keep"]}}\n' > "$H/.claude/settings.json"

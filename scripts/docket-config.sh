@@ -118,6 +118,31 @@ yaml_block_body() {  # yaml_block_body <file> <top-level-key>  -> child lines on
   ' "$1"
 }
 
+# Read one scalar from one top-level block without treating `#` inside a quoted value as a
+# comment. Duplicate leaves (including two separate runtime blocks) are an ambiguity, not
+# precedence: callers require exactly one authority per layer.
+runtime_get() { # runtime_get <file>
+  [ -f "$1" ] || return 0
+  awk '
+    { raw=$0; structural=$0; sub(/[[:space:]]*#.*/, "", structural) }
+    structural ~ /^runtime[[:space:]]*:[[:space:]]*$/ { in_runtime=1; next }
+    in_runtime && structural ~ /^[^[:space:]]/ { in_runtime=0 }
+    in_runtime && structural ~ /^[[:space:]]+bash[[:space:]]*:/ {
+      count++
+      value=raw; sub(/^[[:space:]]+bash[[:space:]]*:[[:space:]]*/, "", value)
+      if (value ~ /^'\''[^'\'']*'\''[[:space:]]*(#.*)?$/) {
+        sub(/^'\''/, "", value); sub(/'\''[[:space:]]*(#.*)?$/, "", value)
+      } else if (value ~ /^"[^"]*"[[:space:]]*(#.*)?$/) {
+        sub(/^"/, "", value); sub(/"[[:space:]]*(#.*)?$/, "", value)
+      } else {
+        sub(/[[:space:]]*#.*/, "", value); sub(/[[:space:]]+$/, "", value)
+      }
+      found=value
+    }
+    END { if (count > 1) exit 2; if (count == 1) print found }
+  ' "$1"
+}
+
 # --- Stage 1: resolve origin/HEAD + default branch (keyed on fetch/set-head rc) ---
 g rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "not a git repo: $REPO_DIR"
 g fetch --quiet origin 2>/dev/null || die "cannot reach origin (git fetch failed) — check the remote/network"
@@ -169,13 +194,12 @@ fi
 # runtime.bash is machine-local by definition: repo-local > global, while a committed value is
 # loudly ignored. Read every `bash:` leaf WITHIN its `runtime:` block so an unrelated bare leaf
 # cannot shadow it. The temporary block bodies are removed before validation can die.
-RUNTIME_BLK="$(mktemp)";  yaml_block_body "$CFG"  runtime >"$RUNTIME_BLK"
-GRUNTIME_BLK="$(mktemp)"; yaml_block_body "$GCFG" runtime >"$GRUNTIME_BLK"
-LRUNTIME_BLK="$(mktemp)"; yaml_block_body "$LCFG" runtime >"$LRUNTIME_BLK"
-_runtime_local="$(yaml_get "$LRUNTIME_BLK" bash)"
-_runtime_committed="$(yaml_get "$RUNTIME_BLK" bash)"
-_runtime_global="$(yaml_get "$GRUNTIME_BLK" bash)"
-rm -f "$RUNTIME_BLK" "$GRUNTIME_BLK" "$LRUNTIME_BLK"
+_runtime_local="$(runtime_get "$LCFG")" \
+  || die ".docket.local.yml contains multiple runtime.bash declarations; keep exactly one"
+_runtime_committed="$(runtime_get "$CFG")" \
+  || die "committed .docket.yml contains multiple runtime.bash declarations; keep exactly one"
+_runtime_global="$(runtime_get "$GCFG")" \
+  || die "global config.yml contains multiple runtime.bash declarations; keep exactly one"
 
 if [ -n "$_runtime_committed" ]; then
   printf 'docket-config: warning: committed config key runtime.bash is machine-local — set it in .docket.local.yml or global config.yml; ignored\n' >&2
