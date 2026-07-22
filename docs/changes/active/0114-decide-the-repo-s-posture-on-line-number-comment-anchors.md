@@ -2,7 +2,7 @@
 id: 114
 slug: decide-the-repo-s-posture-on-line-number-comment-anchors
 title: Decide the repo's posture on line-number comment anchors
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-20
 updated: 2026-07-22
@@ -12,12 +12,12 @@ discovered_from: [106]
 adrs: [54]
 spec: docs/superpowers/specs/2026-07-20-line-number-comment-anchors-design.md
 plan: docs/superpowers/plans/2026-07-22-line-number-comment-anchors.md
-results:
+results: docs/results/2026-07-22-decide-the-repo-s-posture-on-line-number-comment-anchors-results.md
 trivial: false
 auto_groomable: true
 branch: feat/decide-the-repo-s-posture-on-line-number-comment-anchors
-claimed_at: 2026-07-22T01:30:03Z
-pr:
+claimed_at: 2026-07-22T03:44:13Z
+pr: https://github.com/danielhanold/docket/pull/119
 blocked_by:
 reconciled: true
 ---
@@ -29,6 +29,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-20-line-number-comment-anchors-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-20-line-number-comment-anchors-design.md) |
 | Plan | [2026-07-22-line-number-comment-anchors.md](https://github.com/danielhanold/docket/blob/feat/decide-the-repo-s-posture-on-line-number-comment-anchors/docs/superpowers/plans/2026-07-22-line-number-comment-anchors.md) |
+| Results | [2026-07-22-decide-the-repo-s-posture-on-line-number-comment-anchors-results.md](https://github.com/danielhanold/docket/blob/feat/decide-the-repo-s-posture-on-line-number-comment-anchors/docs/results/2026-07-22-decide-the-repo-s-posture-on-line-number-comment-anchors-results.md) |
+| PR | [#119](https://github.com/danielhanold/docket/pull/119) |
 | ADRs | [ADR-0054](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0054-cross-reference-anchor-style.md) |
 <!-- docket:artifacts:end -->
 
