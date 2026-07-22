@@ -1,8 +1,14 @@
 # Backlog
 
-**126 changes** — 🟡 24 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 94 done · 🗑️ 6 killed
+**126 changes** — 🟢 1 in progress · 🟡 23 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 94 done · 🗑️ 6 killed
 
-## 🟡 Proposed (24)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Spec | Branch |
+|---|-------|----------|------|--------|
+| [0114](active/0114-decide-the-repo-s-posture-on-line-number-comment-anchors.md) | Decide the repo's posture on line-number comment anchors | `medium` | [spec](../superpowers/specs/2026-07-20-line-number-comment-anchors-design.md) | `feat/decide-the-repo-s-posture-on-line-number-comment-anchors` |
+
+## 🟡 Proposed (23)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -17,7 +23,6 @@
 | [0103](active/0103-wire-the-github-project-config-read-documented-but-unwired-k.md) | Wire the github_project config read (documented-but-unwired key) | `low` | needs-brainstorm |
 | [0110](active/0110-shared-metadata-worktree-contention.md) | Concurrent agents collide on the shared .docket worktree's dirty-tree window | `high` | needs-brainstorm |
 | [0113](active/0113-suppressed-handoff-silently-ends-autonomous-run.md) | A suppressed hand-off can silently end an autonomous run — make step completion verifiable, not narrated | `high` | needs-brainstorm |
-| [0114](active/0114-decide-the-repo-s-posture-on-line-number-comment-anchors.md) | Decide the repo's posture on line-number comment anchors | `medium` | build-ready |
 | [0115](active/0115-extend-the-board-row-dropped-invariant-to-archive-files.md) | Extend the board-row-dropped invariant to archive/ files | `medium` | build-ready |
 | [0116](active/0116-single-source-the-remaining-duplicated-board-vocabularies.md) | Single-source the remaining duplicated board vocabularies | `medium` | build-ready |
 | [0117](active/0117-deferred-adr-publish-visibility-decide-whether-docket-adr-s.md) | Deferred ADR-publish visibility — detect an unpublished ADR with a computed board-checks finding | `medium` | build-ready |
