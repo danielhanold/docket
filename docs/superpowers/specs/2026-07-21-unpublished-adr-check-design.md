@@ -125,9 +125,16 @@ The check lands in `scripts/board-checks.sh`, for two reasons that both point th
 
 `board-checks.sh` gains one new argument, `--adrs-dir`, and one gate flag, `--terminal-publish`.
 
-**Noted, deliberately out of scope:** `adr-checks.sh`'s three existing checks (numbering gaps,
-dangling links, status inconsistencies) are effectively invisible for the same caller reason. That
-is a real defect, but it is independent of this change and should be captured as its own stub.
+**Considered and declined (2026-07-21, do not re-raise without new evidence):** wiring
+`adr-checks.sh` itself into the `docket-status` health pass, so its three existing checks
+(numbering gaps, dangling links, status inconsistencies) run on every pass rather than only under
+`docket-adr`. Declined because `adr-checks.sh` runs as part of `docket-adr`'s Index/validate step
+— i.e. on every ADR create and supersede, which is precisely when those three checks could newly
+break. What it misses is drift introduced by some *other* path (a hand-edit, or a change touching
+an ADR outside `docket-adr`), which is rare and cosmetic when it happens; a dangling `relates_to:`
+does not compound. The visibility argument that decides *this* check's placement is specific to a
+publish gap, where being told promptly is the whole point, and does not generalize to
+ledger-hygiene checks. No stub was minted for it — this paragraph is the durable record.
 
 ### 4.2 The due rule
 
@@ -222,5 +229,6 @@ validated-values rule to make the new check convenient.
   adjacent skip-publish question.
 - Any healer, re-publisher, or auto-fix. Report only.
 - Publishing `ADR-0023`. Under the due rule it is correctly absent.
-- Wiring `adr-checks.sh` into the `docket-status` health pass (§4.1) — real, but its own change.
+- Wiring `adr-checks.sh` into the `docket-status` health pass — considered and **declined**, not
+  deferred; see §4.1 for the reasoning.
 - The classifier / branch-protection / `--admin` policy. Not docket's to change.

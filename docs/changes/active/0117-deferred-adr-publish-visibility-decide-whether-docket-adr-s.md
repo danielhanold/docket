@@ -79,8 +79,9 @@ un-re-published status flip. Design rationale and the ADR-0051 boundary are in t
 - Any healer, re-publisher, or auto-fix. Report only.
 - Publishing ADR-0023 (the one ADR absent from `main`) — its change #0044 is `blocked`, so under
   the due rule it is correctly absent and the check stays silent about it.
-- Wiring `adr-checks.sh` into the `docket-status` health pass. Its three existing checks are
-  invisible for the same caller reason, which is a real defect — but independent of this change.
+- Wiring `adr-checks.sh` into the `docket-status` health pass — considered and **declined**, not
+  deferred (spec §4.1). It already runs under `docket-adr` on every ADR create and supersede,
+  which is when its three checks could newly break. No stub minted.
 - The `terminal_publish` knob's semantics, and the classifier / branch-protection / `--admin`
   policy — not docket's to change.
 
