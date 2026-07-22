@@ -56,6 +56,8 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0053](0053-readme-yaml-fences-guarded-by-default-opt-out-marker-grammar.md) — README yaml fences are guarded by default, with an opt-out marker grammar (Accepted) ← change #108 · relates to ADR-0048
 - [ADR-0054](0054-cross-reference-anchor-style.md) — Cross-references in maintained source anchor on symbols or quoted clauses, never line numbers — and the guard is deliberately partial (Accepted) ← change #114 · relates to ADR-0031, ADR-0050
 - [ADR-0055](0055-exhaustive-vocabulary-mappings-require-array-pinned-set-equality.md) — Exhaustive vocabulary mappings require array-pinned set equality (Accepted) ← change #116 · relates to ADR-0049, ADR-0050
+- [ADR-0056](0056-config-manifest-key-scoping-follows-resolver-read-shape.md) — Config-manifest keys are qualified by their ancestor path; the duplicate-name floor is derived from the resolver's read shape (Accepted) ← change #127
+- [ADR-0057](0057-frontmatter-read-must-be-anchored-when-key-may-be-absent.md) — A frontmatter read must be anchored when the key may be absent (Accepted) ← change #127
 
 ## Superseded / Reversed
 
