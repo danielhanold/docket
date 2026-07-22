@@ -1,14 +1,8 @@
 # Backlog
 
-**133 changes** — 🟢 1 in progress · 🟡 26 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 98 done · 🗑️ 6 killed
+**134 changes** — 🟡 27 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 98 done · 🗑️ 6 killed
 
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0127](active/0127-typed-changes-selective-auto-capture.md) | Typed changes — configurable taxonomy, selective auto-capture, and backlog filters | `high` | [spec](../superpowers/specs/2026-07-22-typed-changes-selective-auto-capture-design.md) | `feat/typed-changes-selective-auto-capture` |
-
-## 🟡 Proposed (26)
+## 🟡 Proposed (27)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -38,6 +32,7 @@
 | [0130](active/0130-make-the-finalize-marker-reachability-guard-portable-to-bsd.md) | Make the finalize marker reachability guard portable to BSD grep | `medium` | needs-brainstorm |
 | [0131](active/0131-make-board-conflict-rebase-continuation-noninteractive.md) | Make board-conflict rebase continuation noninteractive | `medium` | needs-brainstorm |
 | [0133](active/0133-centralize-runtime-config-helpers.md) | Centralize shared Bash runtime configuration helpers | `medium` | build-ready |
+| [0134](active/0134-audit-field-call-sites-for-frontmatter-anchored-reads.md) | Audit field() call sites for frontmatter-anchored reads | `medium` | needs-brainstorm |
 
 ## 🔴 Blocked (1)
 
@@ -45,11 +40,12 @@
 |---|-------|----------|------------|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | PR #69 is stale (predates the 0068/0072 facade rework and later agent-layer changes) and #0079 (runner delegation) reshapes the design — the build roles should grow a runner field (build.<role>.runner codex, the mixed topology 0079 deferred). Needs a rebase plus redesign pass before merge. |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | PR | Readiness |
 |---|-------|----------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
+| [0127](active/0127-typed-changes-selective-auto-capture.md) | Typed changes — configurable taxonomy, selective auto-capture, and backlog filters | `high` | [#123](https://github.com/danielhanold/docket/pull/123) |  |
 
 ```mermaid
 graph TD
@@ -82,6 +78,7 @@ graph TD
   0130
   0131
   0133
+  0134
   0015:::done
   0016:::done
   0077:::done
