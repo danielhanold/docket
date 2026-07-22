@@ -81,7 +81,7 @@ change_types: [chore, docs, feat, fix, refactor, perf]
 
 auto_capture:
   enabled: false
-  types: [feat, fix]
+  types: all
 ```
 
 `auto_capture` becomes a map. This is an intentional breaking change: the old scalar
@@ -91,7 +91,7 @@ migration-oriented diagnostic. Omitting the entire map is equivalent to:
 ```yaml
 auto_capture:
   enabled: false
-  # types omitted = all effective change_types
+  types: all
 ```
 
 Map leaves resolve independently, so a high-precedence layer can override `enabled` while
@@ -99,19 +99,21 @@ inheriting `types`. List values never merge: a higher-layer `change_types` or
 `auto_capture.types` replaces the complete lower-layer list. That replacement rule is required so
 a user can remove a built-in value instead of only adding values forever.
 
-`auto_capture.types`, when present, is a duplicate-free list drawn from the effective
-`change_types`. Omitting it means every effective change type is eligible. `enabled: false`
-suppresses all minting regardless of the list.
+`auto_capture.types` is either the scalar `all` or a duplicate-free list drawn from the effective
+`change_types`. Its built-in default is explicitly `all`, meaning every effective change type is
+eligible. A higher-layer list such as `[feat, fix]` replaces `all` and narrows admission;
+`enabled: false` suppresses all minting regardless of the selector.
 
 The resolver removes `AUTO_CAPTURE` and emits three explicit values for downstream consumers:
 `CHANGE_TYPES`, `AUTO_CAPTURE_ENABLED`, and `AUTO_CAPTURE_TYPES`. Their shell-safe serialization is
-a plan-time detail, but it must preserve configured order and distinguish omitted/all from a
-literal list. Every skill consumes only resolver exports and never reparses YAML (ADR-0052).
+a plan-time detail, but it must preserve configured order and distinguish the literal `all` from a
+list. Every skill consumes only resolver exports and never reparses YAML (ADR-0052).
 
 Because higher layers may deliberately differ between machines, a consumer must still render and
 filter a type already stored in a change file even when that value is not in its current effective
 `change_types`. Configuration governs creation on this run; it cannot make shared historical data
-unreadable. Stored `all` and `untyped` are forbidden because those names belong to the query layer.
+unreadable. Manifest values `all` and `untyped` are forbidden: `all` is a configuration selector
+and query pseudo-value, while `untyped` is only a query/migration pseudo-value.
 
 ### 3. Selective auto-capture
 
@@ -198,7 +200,13 @@ The helper:
 This repository's rollout includes a human-approved assignment for every active change present at
 the migration point, including #0127. Other repositories receive the same inventory → proposal →
 approval → deterministic-apply workflow when they adopt the release. Archived records stay
-byte-identical.
+byte-identical. Its scalar `auto_capture: true` configuration migrates without a policy change to:
+
+```yaml
+auto_capture:
+  enabled: true
+  types: all
+```
 
 ### 6. Validation and failure behavior
 
@@ -207,8 +215,8 @@ Configuration fails closed when:
 - `change_types` is empty, not a list, contains duplicates, or contains a malformed token;
 - `auto_capture` is not a map;
 - `auto_capture.enabled` is not boolean;
-- `auto_capture.types` is not a list, contains duplicates, or names a type absent from the
-  effective `change_types`; or
+- `auto_capture.types` is neither the scalar `all` nor a list, contains duplicates, or names a type
+  absent from the effective `change_types`; or
 - either list has a malformed YAML shape at any layer.
 
 The diagnostic names the offending layer and key. A legacy scalar `auto_capture` diagnostic shows
@@ -244,6 +252,8 @@ The GitHub board mirror and GitHub Projects remain out of scope. A later change 
 - Cross-layer fixtures prove repo-local > repo-committed > global > built-in.
 - Nested-map fixtures prove per-leaf fallback; list fixtures prove whole-list replacement rather
   than concatenation.
+- Default and explicit `all` fixtures prove that every effective change type is admitted, while a
+  higher-layer list replaces `all` and narrows admission.
 - Legacy scalar booleans fail with the migration diagnostic.
 - Malformed, duplicate, empty, and out-of-taxonomy values fail closed.
 - Export ordering and documentation are guarded against drift.

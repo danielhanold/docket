@@ -47,8 +47,9 @@ practical without changing Docket's lifecycle or replacing its portable Markdown
 - Add a configurable `type:` field with default types `chore`, `docs`, `feat`, `fix`, `refactor`,
   and `perf`; every new-change and mint path classifies new work.
 - Replace scalar `auto_capture` with an intentionally breaking nested configuration containing
-  `enabled` and an optional whole-list-replacing `types` allowlist. All new settings resolve through
-  built-in, user/global, repo-committed, and repo-local layers.
+  `enabled` and a `types` selector that defaults explicitly to `all` or accepts a
+  whole-list-replacing allowlist. All new settings resolve through built-in, user/global,
+  repo-committed, and repo-local layers.
 - Gate best-effort auto-capture by the discovered work's type and report excluded candidates.
 - Add Type to active board tables and add report-only `docket-status --type` and `--priority`
   filters. Filters never narrow lifecycle work or canonical board generation.
