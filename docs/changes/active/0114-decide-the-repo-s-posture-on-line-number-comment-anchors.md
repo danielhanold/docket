@@ -16,10 +16,10 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/decide-the-repo-s-posture-on-line-number-comment-anchors
-claimed_at: 2026-07-22T01:25:32Z
+claimed_at: 2026-07-22T01:30:03Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -50,6 +50,12 @@ repo-wide version left open: "worth revisiting repo-wide rather than in this one
 in the surfaces this change actually touches, 26 refs across 9 files with 3 already stale (11.5%).
 Every stale anchor but one points into a top-four-churn file (`docket-finalize-change/SKILL.md` at
 54 commits/90d, `docket-status.sh` 27, `docket-config.sh` 23, `render-board.sh` 13).
+
+**Re-measured at reconcile (2026-07-22): the guarded form's population has doubled, 13 → 26 lines
+across 8 files**, as changes 0102/0104/0111/0112 landed. The rot argument is unchanged and the
+verdict holds a fortiori — the idiom accretes faster than it rots, which is the case for the guard
+rather than against it. Current counts and the re-verified stale list are in the spec's
+*Reconcile — re-measured 2026-07-22* section.
 
 Three things follow:
 
@@ -92,3 +98,37 @@ partly because line-number anchoring "matches house style throughout the repo." 
 anchors sit in `docs/superpowers/specs/` alone. That claim is correct and is not the reason to act.
 The reason to act is narrower and better evidenced: in *maintained source*, these anchors measurably
 rot, fastest where the code moves fastest.
+
+## Reconcile log
+
+### 2026-07-22 — reconciled against current `origin/main`
+
+Design **intact**; scope **grew**. Re-measured every quantitative claim the spec rests on.
+
+1. **Guarded (explicit-file) population doubled: 13 → 26 lines, 8 files.** By file now:
+   `tests/test_docket_example_yml.sh` 7, `tests/test_board_checks.sh` 5, `scripts/board-checks.sh` 5,
+   `tests/test_docket_config.sh` 3, `scripts/github-mirror.md` 2, `.docket.example.yml` 2,
+   `scripts/docket-config.sh` 1, `scripts/docket-config.md` 1. `test_docket_example_yml.sh` did not
+   appear in the original survey at all — it arrived with 0102 and grew since. Still measured
+   **false-positive-free**, so A3's clean-predicate claim survives on the larger population.
+2. **Unguarded forms unchanged.** The prose form still measures 5 matches / 2 true (60% FP) exactly
+   as specced, including the three `line 2` fixture references in `tests/test_render_board.sh` and
+   the en-dash `lines 2–19` in `scripts/docket-status.md:30`. No re-derivation needed.
+3. **All three in-scope stale anchors re-verified STILL stale, and the spec's repoint targets still
+   hold**: #2 `github-mirror.md` → the real sites remain the arg-parse and the
+   `${PROJECT_FLAG:+--project ...}` invocation; #3 `test_finalize_disposition.sh` → the delegation
+   assert; #4 the bare `:297+` → the archive section, which `render-board.sh:297` still is not.
+   Note #4's *referring* line drifted 133 → 135 under 0111 — the anchors moved while the change sat.
+4. **A7's premise is corrected; its conclusion survives.** 0111 is not an ungroomed stub — it
+   **merged** (archived 2026-07-21) and edited `scripts/board-checks.sh`, repointing its header at
+   `BOARD_CHECK_IDS`. 0115/0116 are now groomed (specs set) but remain `proposed` with empty
+   `branch:` — nothing in flight in any file this change touches. 0114 still lands first cleanly.
+5. **New build trap.** `git grep -E` does **not** support `\b`; a `\b`-anchored pattern returns
+   silently empty and reads as "zero violations." Encountered live during this reconcile. The guard
+   must not use `\b`, and the spec's population assert is exactly what catches this class.
+6. ADR ledger is at **0053**, so the new ADR mints as 0054. `relates_to` targets ADR-0031 and
+   ADR-0050 both confirmed present and `Accepted`.
+7. `tests/test_comment_anchor_style.sh` confirmed absent — unbuilt, as expected.
+
+No scope dropped, nothing folded in from elsewhere. The conversion workload roughly doubles; the
+guard, the ADR, and the `AGENTS.md` rule are unaffected in shape.

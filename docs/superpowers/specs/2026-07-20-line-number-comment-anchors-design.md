@@ -7,6 +7,52 @@ Change: 0114 · discovered_from 0106 · 2026-07-20
 > below; the sweep-not-kill verdict survives on the corrected evidence, re-grounded on rot rate and
 > churn alone.
 
+## Reconcile — re-measured 2026-07-22
+
+> Read this before the survey below. The survey's *evidence and reasoning* stand; its *counts* are
+> as of 2026-07-20 and the tree has moved. Where the two disagree, this section wins.
+
+**The guarded (Pattern 1) population doubled: 13 → 26 lines across 8 files**, as changes
+0102/0104/0111/0112 landed. Current distribution:
+
+| File | Pattern-1 lines |
+|---|---|
+| `tests/test_docket_example_yml.sh` | 7 |
+| `tests/test_board_checks.sh` | 5 |
+| `scripts/board-checks.sh` | 5 |
+| `tests/test_docket_config.sh` | 3 |
+| `scripts/github-mirror.md` | 2 |
+| `.docket.example.yml` | 2 |
+| `scripts/docket-config.sh` | 1 |
+| `scripts/docket-config.md` | 1 |
+
+`tests/test_docket_example_yml.sh` is new to the survey entirely (arrived with 0102). Note several
+of its anchors sit inside **live `assert` description strings**, not comments — converting those
+edits assertion text, which is in scope and expected, but is not a comment-only edit.
+
+**Still false-positive-free** on the larger population, so A3's clean-predicate claim survives.
+
+**Unguarded forms unchanged**: prose still measures 5 matches / 2 true (60% FP), including the three
+`line 2` fixture refs in `tests/test_render_board.sh` and the en-dash `lines 2–19` in
+`scripts/docket-status.md`.
+
+**The three in-scope stale anchors are all still stale**, and the repoint targets named in this spec
+still hold. The `board-checks.sh` bare-anchor *referring* line drifted 133 → 135 under 0111 — the
+anchors moved while the change sat, which is the thesis demonstrating itself.
+
+**A7 corrected.** 0111 did not stay an ungroomed stub: it **merged** (2026-07-21) and edited
+`scripts/board-checks.sh`. 0115/0116 are groomed but still `proposed` with empty `branch:`. Nothing
+is in flight in any file this change touches; **0114 still lands first cleanly** and A7's conclusion
+is unaffected.
+
+**Build trap 4 (new) — `git grep -E` does not support `\b`.** A `\b`-anchored pattern returns
+silently empty and reads as "zero violations." This was hit live during reconcile. The guard must
+not use `\b`; the population assert required below is precisely what catches this class of
+false-green ([[agent-shell-noop-reads-as-success]]).
+
+**ADR-0054** is the number the new ADR will take (ledger at 0053). `relates_to` ADR-0031 and
+ADR-0050, both confirmed `Accepted`.
+
 ## Verdict
 
 **Not a no-op.** The stub set its own bar — "a survey of one or two argues for closing this; dozens
