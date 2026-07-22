@@ -2,7 +2,7 @@
 id: 132
 slug: install-configured-bash-runtime
 title: Install and use a configured Bash 4+ runtime
-status: proposed
+status: in-progress
 priority: high
 created: 2026-07-22
 updated: 2026-07-22
@@ -15,10 +15,11 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/install-configured-bash-runtime
 pr:
 blocked_by:
 reconciled: false
+claimed_at: 2026-07-22T15:48:57Z
 ---
 
 ## Artifacts
