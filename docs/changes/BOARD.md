@@ -1,8 +1,14 @@
 # Backlog
 
-**132 changes** — 🟡 27 proposed · 🔴 1 blocked · 🔵 4 implemented · ✅ 94 done · 🗑️ 6 killed
+**132 changes** — 🟢 1 in progress · 🟡 26 proposed · 🔴 1 blocked · 🔵 4 implemented · ✅ 94 done · 🗑️ 6 killed
 
-## 🟡 Proposed (27)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Spec | Branch |
+|---|-------|----------|------|--------|
+| [0132](active/0132-install-configured-bash-runtime.md) | Install and use a configured Bash 4+ runtime | `high` | [spec](../superpowers/specs/2026-07-22-install-configured-bash-runtime-design.md) | `feat/install-configured-bash-runtime` |
+
+## 🟡 Proposed (26)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -32,7 +38,6 @@
 | [0129](active/0129-fix-the-pipefail-unsafe-plain-format-config-assertion.md) | Fix the pipefail-unsafe plain-format config assertion | `medium` | needs-brainstorm |
 | [0130](active/0130-make-the-finalize-marker-reachability-guard-portable-to-bsd.md) | Make the finalize marker reachability guard portable to BSD grep | `medium` | needs-brainstorm |
 | [0131](active/0131-make-board-conflict-rebase-continuation-noninteractive.md) | Make board-conflict rebase continuation noninteractive | `medium` | needs-brainstorm |
-| [0132](active/0132-install-configured-bash-runtime.md) | Install and use a configured Bash 4+ runtime | `high` | build-ready |
 
 ## 🔴 Blocked (1)
 
