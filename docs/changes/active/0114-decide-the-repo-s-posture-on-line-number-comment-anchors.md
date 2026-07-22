@@ -11,7 +11,7 @@ related: []
 discovered_from: [106]
 adrs: []
 spec: docs/superpowers/specs/2026-07-20-line-number-comment-anchors-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-22-line-number-comment-anchors.md
 results:
 trivial: false
 auto_groomable: true
@@ -28,6 +28,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-20-line-number-comment-anchors-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-20-line-number-comment-anchors-design.md) |
+| Plan | [2026-07-22-line-number-comment-anchors.md](https://github.com/danielhanold/docket/blob/feat/decide-the-repo-s-posture-on-line-number-comment-anchors/docs/superpowers/plans/2026-07-22-line-number-comment-anchors.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
