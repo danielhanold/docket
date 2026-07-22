@@ -2,7 +2,7 @@
 id: 132
 slug: install-configured-bash-runtime
 title: Install and use a configured Bash 4+ runtime
-status: in-progress
+status: implemented
 priority: high
 created: 2026-07-22
 updated: 2026-07-22
@@ -16,10 +16,10 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/install-configured-bash-runtime
-pr:
+pr: https://github.com/danielhanold/docket/pull/122
 blocked_by:
 reconciled: true
-claimed_at: 2026-07-22T15:53:10Z
+claimed_at: 2026-07-22T19:13:29Z
 ---
 
 ## Artifacts
@@ -29,6 +29,7 @@ claimed_at: 2026-07-22T15:53:10Z
 |---|---|
 | Spec | [2026-07-22-install-configured-bash-runtime-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-22-install-configured-bash-runtime-design.md) |
 | Plan | [2026-07-22-install-configured-bash-runtime.md](https://github.com/danielhanold/docket/blob/feat/install-configured-bash-runtime/docs/superpowers/plans/2026-07-22-install-configured-bash-runtime.md) |
+| PR | [#122](https://github.com/danielhanold/docket/pull/122) |
 | ADRs | [ADR-0014](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0014-consuming-repo-script-resolution.md), [ADR-0019](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0019-global-config-fence-classification.md), [ADR-0029](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0029-docket-facade-routing-and-config-presentation.md) |
 <!-- docket:artifacts:end -->
 
