@@ -45,7 +45,7 @@ done
 
 [ -n "$CHANGES_DIR" ] || die "missing --changes-dir"
 [ -n "$ID" ]          || die "missing --id"
-case "$OUTCOME" in done|killed) ;; *) die "missing/invalid --outcome (done|killed)" ;; esac
+docket_status_is_terminal "$OUTCOME" || die "missing/invalid --outcome (done|killed)"
 [ -n "$DATE" ]        || die "missing --date"
 [ -d "$CHANGES_DIR" ] || die "changes dir not found: $CHANGES_DIR"
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# scripts/lib/docket-frontmatter.sh — shared frontmatter + dependency-resolution helper for
+# scripts/lib/docket-frontmatter.sh — shared frontmatter, dependency-resolution, and vocabulary
+# helper for
 # docket's deterministic board/mirror scripts (change 0022). SOURCE this; it has no side effects
 # on source beyond declaring functions and the dependency-resolution globals. No git, no network.
 #
@@ -13,6 +14,10 @@
 #   resolve_deps DIR      — scan DIR/active + DIR/archive once; populate the globals below.
 #   readiness FILE        — build-ready | needs-brainstorm | auto-groom-blocked | waiting.
 #   finalize_blocked FILE — exit 0 iff the body carries `## Finalize blocked` (implemented only).
+#   docket_status_is_active STATUS   — exit 0 iff STATUS is a non-terminal lifecycle status.
+#   docket_status_is_terminal STATUS — exit 0 iff STATUS is a terminal lifecycle status.
+#   docket_priority_is_member VALUE  — exit 0 iff VALUE is a declared priority (empty is false).
+#   docket_priority_rank VALUE       — print the rank index; empty/unknown uses the default rank.
 #
 # resolve_deps globals (keyed by integer id):
 #   STATUS_OF[id]   the change's own status
@@ -135,6 +140,33 @@ publish_deferred(){ # publish_deferred FILE  (meaningful on any change file, act
 DOCKET_STATUSES_ACTIVE=(in-progress proposed blocked deferred implemented)
 DOCKET_STATUSES_TERMINAL=(done killed)
 DOCKET_STATUSES=("${DOCKET_STATUSES_ACTIVE[@]}" "${DOCKET_STATUSES_TERMINAL[@]}")
+
+# --- priority vocabulary (change 0116) --------------------------------------------------------
+# Ordered by rank, descending. The order IS the convention's deterministic selection semantics:
+# critical > high > medium > low. The array index is the ready-queue sort rank.
+DOCKET_PRIORITIES=(critical high medium low)
+# The default is an independent documented fact, not a positional consequence of the array.
+DOCKET_PRIORITY_DEFAULT=medium
+
+_docket_array_has(){
+  local needle="$1"; shift
+  local value
+  [ -n "$needle" ] || return 1
+  for value in "$@"; do [ "$needle" = "$value" ] && return 0; done
+  return 1
+}
+docket_status_is_active(){ _docket_array_has "$1" "${DOCKET_STATUSES_ACTIVE[@]}"; }
+docket_status_is_terminal(){ _docket_array_has "$1" "${DOCKET_STATUSES_TERMINAL[@]}"; }
+docket_priority_is_member(){ _docket_array_has "$1" "${DOCKET_PRIORITIES[@]}"; }
+docket_priority_rank(){
+  local wanted="$1" value i=0
+  docket_priority_is_member "$wanted" || wanted="$DOCKET_PRIORITY_DEFAULT"
+  for value in "${DOCKET_PRIORITIES[@]}"; do
+    [ "$wanted" = "$value" ] && { printf '%s' "$i"; return 0; }
+    i=$(( i + 1 ))
+  done
+  return 1
+}
 
 # --- board-checks check-id vocabulary (change 0111) --------------------------------------------
 # The CLOSED check-id vocabulary board-checks.sh emits. Declared HERE, beside DOCKET_STATUSES,

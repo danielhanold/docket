@@ -208,7 +208,13 @@ autoout="$(bash "$SCRIPT" --dry-run --changes-dir "$tmp" --repo o/r --auto-creat
 assert "auto-create mints a board under the repo owner" \
   'echo "$autoout" | grep -qE "project create --owner o"'
 assert "auto-create seeds a SINGLE_SELECT Status field with the five active statuses" \
-  'echo "$autoout" | grep -qE "project field-create .*--data-type SINGLE_SELECT" && echo "$autoout" | grep -qF "proposed,in-progress,blocked,deferred,implemented"'
+  'grep -qE "project field-create .*--data-type SINGLE_SELECT" <<<"$autoout" && grep -qF "in-progress,proposed,blocked,deferred,implemented" <<<"$autoout"'
+status_options_line="$(grep -nF 'STATUS_OPTIONS=' "$SCRIPT" | cut -d: -f1)"
+library_source_line="$(grep -nF 'source "$(dirname "${BASH_SOURCE[0]}")/lib/docket-frontmatter.sh"' "$SCRIPT" | cut -d: -f1)"
+assert "Project status options derive from the active-status array" \
+  'grep -qE '\''^STATUS_OPTIONS=.*DOCKET_STATUSES_ACTIVE'\'' "$SCRIPT"'
+assert "Project status options are assigned after the vocabulary library is sourced" \
+  '[ "$status_options_line" -gt "$library_source_line" ]'
 assert "auto-create emits a machine-readable project-minted line for write-back" \
   'echo "$autoout" | grep -qE "project-minted o( |$)"'
 assert "auto-create then links the mirrored issues as items" \
@@ -262,6 +268,28 @@ GH_LOG="$fresh/gh.log" GH="$mock/gh" bash "$SCRIPT" --changes-dir "$fresh" --rep
 assert "a freshly-minted done change is created AND closed-completed in the same pass" \
   'grep -qE "MOCKGH issue create" "$fresh/gh.log" && grep -qE "MOCKGH issue close 4242 .*--reason completed" "$fresh/gh.log"'
 rm -rf "$fresh"
+
+# Exhaustive mappings stay as cases, but their arm sets are pinned to the declared vocabulary.
+# Sparse mappings such as readiness_label are intentionally not pinned: syntax cannot decide
+# exhaustiveness. A vocabulary with no array gets one first (the BOARD_CHECK_IDS precedent).
+LIB="$REPO/scripts/lib/docket-frontmatter.sh"
+# shellcheck source=/dev/null
+source "$LIB"
+close_reason_labels="$({
+  awk '
+    /# terminal_close_reason_mapping$/ { inb=1; next }
+    inb {
+      line=$0; sub(/^[[:space:]]*/, "", line)
+      if (line ~ /^[a-z][a-z-]*\)/) { sub(/\).*/, "", line); print line }
+    }
+    inb && /esac/ { exit }
+  ' "$SCRIPT"
+} | sort -u)"
+expected_terminal="$(printf '%s\n' "${DOCKET_STATUSES_TERMINAL[@]}" | sort -u)"
+assert "close-reason extractor found exactly 2 mapping arms" \
+  '[ "$(printf "%s\n" "$close_reason_labels" | grep -c .)" = 2 ]'
+assert "issue close-reason case arms are EXACTLY DOCKET_STATUSES_TERMINAL" \
+  '[ "$close_reason_labels" = "$expected_terminal" ]'
 
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"

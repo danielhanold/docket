@@ -558,9 +558,7 @@ sweep_execute_one(){
     return 0   # already archived — idempotent no-op
   fi
   status="$(field "$active" status)"
-  case "$status" in
-    done|killed) return 0 ;;   # already terminal — idempotent no-op
-  esac
+  docket_status_is_terminal "$status" && return 0   # already terminal — idempotent no-op
 
   if ! "$DOCKET_BASH_PATH" "$SCRIPTS_DIR"/archive-change.sh \
         --changes-dir "$cd_dir" --id "$id" --outcome done --date "$merged_date" \

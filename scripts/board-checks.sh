@@ -100,22 +100,19 @@ FINALIZE_BLOCKED_STALE_SECS=$(( 72 * 3600 ))
 # is noticed here without anyone editing this script. Two clauses, each anchored to a renderer line:
 #   1. render-board.sh:76  `id="$(int_field "$f" id)"; [ -n "$id" ] || continue`
 #      — a file with no usable integer id never enters SECTION at all.
-#   2. render-board.sh:265-269 calls print_section for exactly the DOCKET_STATUSES_ACTIVE members,
-#      and :78 buckets on the RAW `status:` read — so a status outside that set lands in a SECTION
-#      key nothing iterates. Membership is read from the SAME array the renderer's own section
-#      iteration uses (lib/docket-frontmatter.sh), never a list restated here: the five-name active
+#   2. render-board.sh iterates DOCKET_STATUSES_ACTIVE when calling print_section, and buckets on
+#      the RAW `status:` read — so a status outside that set lands in a SECTION key nothing
+#      iterates. Membership is read from the SAME array via docket_status_is_active, never a list
+#      restated here: the five-name active
 #      set and the seven-name full vocabulary are DIFFERENT sets, and the difference is exactly the
 #      live drop path a `DOCKET_STATUSES` test would miss — a terminal status (`done`/`killed`)
 #      sitting in `active/`, which is a legal status in an illegal directory (the state
 #      docket-status's `sweep-failed <id> archive <reason>` leaves behind: status flipped, archive
 #      move failed). :86 still counts the file in `total`, so the count line and the tables disagree.
 renders_row(){
-  local rr_id="$1" rr_st="$2" rr_s
+  local rr_id="$1" rr_st="$2"
   [ -n "$rr_id" ] || return 1
-  for rr_s in "${DOCKET_STATUSES_ACTIVE[@]}"; do
-    [ "$rr_st" = "$rr_s" ] && return 0
-  done
-  return 1
+  docket_status_is_active "$rr_st"
 }
 
 # Walk every change file (active + archive); per-check filters apply inside.
@@ -185,10 +182,9 @@ for f in "${FILES[@]}"; do
 
   # Empty priority is LEGAL: the convention documents `medium` as the default and render-board.sh's
   # sort already implements it. Flagging it here would make the guard the noise source.
-  case "$fd_priority" in
-    ''|low|medium|high|critical) ;;
-    *) emit field-domain "$cid" "priority '$fd_priority' is not one of: low medium high critical (empty = medium)" ;;
-  esac
+  if [ -n "$fd_priority" ] && ! docket_priority_is_member "$fd_priority"; then
+    emit field-domain "$cid" "priority '$fd_priority' is not one of: ${DOCKET_PRIORITIES[*]} (empty = $DOCKET_PRIORITY_DEFAULT)"
+  fi
 
   case "$fd_title" in
     *'|'*) emit field-domain "$cid" "title contains '|', which injects columns into the board row: $fd_title" ;;

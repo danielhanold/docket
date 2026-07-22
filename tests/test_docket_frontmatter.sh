@@ -215,5 +215,29 @@ assert "iso_to_epoch parses a UTC ISO-8601 timestamp" '[ -n "$got" ] && [ "$got"
 assert "iso_to_epoch returns nonzero + empty on garbage" '! iso_to_epoch "not-a-timestamp" >/dev/null 2>&1'
 assert "iso_to_epoch returns empty string on garbage" '[ -z "$(iso_to_epoch "not-a-timestamp" 2>/dev/null)" ]'
 
+# --- shared board vocabularies (change 0116) ---
+assert "DOCKET_PRIORITIES is rank-ordered critical > high > medium > low" \
+  '[ "${DOCKET_PRIORITIES[*]:-}" = "critical high medium low" ]'
+assert "DOCKET_PRIORITIES has exactly four members" '[ "${#DOCKET_PRIORITIES[@]}" = 4 ]' 2>/dev/null
+assert "active-status helper is defined" 'declare -F docket_status_is_active >/dev/null'
+assert "terminal-status helper is defined" 'declare -F docket_status_is_terminal >/dev/null'
+assert "priority-membership helper is defined" 'declare -F docket_priority_is_member >/dev/null'
+assert "priority-rank helper is defined" 'declare -F docket_priority_rank >/dev/null'
+assert "DOCKET_PRIORITY_DEFAULT is a declared priority" \
+  'docket_priority_is_member "${DOCKET_PRIORITY_DEFAULT:-}"'
+assert "active helper accepts proposed" 'docket_status_is_active proposed'
+assert "active helper rejects terminal done" '! docket_status_is_active done'
+assert "active helper rejects empty" '! docket_status_is_active ""'
+assert "terminal helper accepts killed" 'docket_status_is_terminal killed'
+assert "terminal helper rejects active implemented" '! docket_status_is_terminal implemented'
+assert "terminal helper rejects empty" '! docket_status_is_terminal ""'
+assert "priority membership accepts high" 'docket_priority_is_member high'
+assert "priority membership rejects empty" '! docket_priority_is_member ""'
+assert "priority membership rejects unknown" '! docket_priority_is_member urgent'
+assert "priority rank derives critical as zero" '[ "$(docket_priority_rank critical)" = 0 ]'
+assert "priority rank derives low as three" '[ "$(docket_priority_rank low)" = 3 ]'
+assert "priority rank defaults empty to medium's index" '[ "$(docket_priority_rank "")" = 2 ]'
+assert "priority rank defaults unknown to medium's index" '[ "$(docket_priority_rank urgent)" = 2 ]'
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
