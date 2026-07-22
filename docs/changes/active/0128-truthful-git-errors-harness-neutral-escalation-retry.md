@@ -99,3 +99,14 @@ mislabels it as a network failure.
   boundaries recorded by ADR-0029 and ADR-0033; the runner ADRs are relevant context only.
 - **No follow-up stub surfaced.** The guarded, one-command retry rule fully covers the discovered
   harness boundary without expanding the change's scope.
+
+## Finalize blocked
+
+### 2026-07-22 — rebase-retest gate
+
+The required local gate did not reach green. Its canonical login-shell command selected Apple
+Bash 3.2, while the validator family requires Bash 4+ (`declare -A` and `mapfile`); the ADR
+validator passes under the installed Bash 5. A Bash 5 diagnostic suite then reproducibly stalled
+in `tests/test_docket_status.sh`'s BOARD.md conflict-race fixture after preflight, so a full green
+suite could not be verified. Select and configure a supported test interpreter, resolve the
+stalled fixture, then re-run `docket-finalize-change 128`.
