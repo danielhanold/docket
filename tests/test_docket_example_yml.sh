@@ -104,7 +104,9 @@ map_for(){ # map_for <EXPORT_KEY> -> ERE matching the example's line, or empty i
     LEARNINGS_CAP)         echo '^[[:space:]]+cap:[[:space:]]*300' ;;
     BOARD_SURFACES)        echo '^board_surfaces:[[:space:]]*\[[[:space:]]*inline[[:space:]]*\]' ;;
     AUTO_GROOM)            echo '^auto_groom:[[:space:]]*false' ;;
-    AUTO_CAPTURE)          echo '^auto_capture:[[:space:]]*false' ;;
+    CHANGE_TYPES)          echo '^change_types:[[:space:]]*\[[[:space:]]*chore,[[:space:]]*docs,[[:space:]]*feat,[[:space:]]*fix,[[:space:]]*refactor,[[:space:]]*perf[[:space:]]*\]' ;;
+    AUTO_CAPTURE_ENABLED)  echo '^[[:space:]]+enabled:[[:space:]]*false' ;;
+    AUTO_CAPTURE_TYPES)    echo '^[[:space:]]+types:[[:space:]]*all' ;;
     TERMINAL_PUBLISH)      echo '^terminal_publish:[[:space:]]*false' ;;
     RECLAIM_LEASE_TTL)     echo '^[[:space:]]+lease_ttl:[[:space:]]*72' ;;
     RECLAIM_AUTO)          echo '^[[:space:]]+auto:[[:space:]]*false' ;;
@@ -159,7 +161,10 @@ done
 #   check below would false-red it.
 #   DOCKET_BASH_PATH — the manifest key is the `runtime:` block header while its value is assigned
 #   through block-scoped intermediates, so no assignment line can carry that header literally.
-correspondence_exempt="BOARD_SURFACES DOCKET_BASH_PATH"
+#   CHANGE_TYPES — change 0127. Same shape as BOARD_SURFACES: the value is assembled through
+#   intermediates (ct_raw / ct_body) and the built-in fallback reads a library array, so no
+#   `CHANGE_TYPES=` assignment line ever carries the literal leaf key "change_types".
+correspondence_exempt="BOARD_SURFACES DOCKET_BASH_PATH CHANGE_TYPES"
 classify_key(){ # classify_key <example-key-name> -> "resolved:EXPORT" | "elsewhere:path" | ""
   case "$1" in
     runtime)              echo 'resolved:DOCKET_BASH_PATH' ;;
@@ -175,7 +180,9 @@ classify_key(){ # classify_key <example-key-name> -> "resolved:EXPORT" | "elsewh
     learnings.cap)                echo 'resolved:LEARNINGS_CAP' ;;
     board_surfaces)       echo 'resolved:BOARD_SURFACES' ;;
     auto_groom)           echo 'resolved:AUTO_GROOM' ;;
-    auto_capture)         echo 'resolved:AUTO_CAPTURE' ;;
+    change_types)         echo 'resolved:CHANGE_TYPES' ;;
+    auto_capture.enabled) echo 'resolved:AUTO_CAPTURE_ENABLED' ;;
+    auto_capture.types)   echo 'resolved:AUTO_CAPTURE_TYPES' ;;
     terminal_publish)     echo 'resolved:TERMINAL_PUBLISH' ;;
     reclaim.lease_ttl)            echo 'resolved:RECLAIM_LEASE_TTL' ;;
     reclaim.auto)                 echo 'resolved:RECLAIM_AUTO' ;;
@@ -185,7 +192,7 @@ classify_key(){ # classify_key <example-key-name> -> "resolved:EXPORT" | "elsewh
     skills.review)                echo 'resolved:SKILL_REVIEW' ;;
     skills.finish)                echo 'resolved:SKILL_FINISH' ;;
     # Block headers carry no value of their own; their children are classified above.
-    finalize|learnings|reclaim|skills|runners|runners.codex) echo 'elsewhere:HEADER' ;;
+    finalize|learnings|reclaim|skills|runners|runners.codex|auto_capture) echo 'elsewhere:HEADER' ;;
     # Genuinely non-resolver-read keys, each with its real consumer named.
     #
     # github_project is the one exception to "real consumer": .docket.example.yml itself says
@@ -416,10 +423,12 @@ assert "manifest: every elsewhere:HEADER entry is a real bare block opener (${ma
 # hole, not a hypothetical one (mutation-tested: dropping commented_config_keys from the pipeline
 # reddens this exact assert, via the raw floor directly below it). If you add a new documented
 # key, bump expected_key_count in the same commit as classify_key's new arm — that is the
+# intentional-growth remedy in action: change 0127 took it from 33 to 36 (change_types plus the
+# auto_capture block's header and its two leaves, less the retired scalar auto_capture).
 # intentional-growth remedy this count is guarding. This is the single source for that count: the
 # condition and the failure message below both read it, so bumping it in one place updates both
 # instead of leaving one stale.
-expected_key_count=33
+expected_key_count=36
 # RAW FLOOR (change 0102 whole-branch review, MINOR 3): example_keys_raw feeds BOTH this section's
 # manifest loop (via example_keys, deduped) and the duplicate-leaf check directly below (also
 # fed from example_keys_raw, undeduped). Without this assert, an edit that makes the raw pipeline
@@ -1073,8 +1082,8 @@ fence_marker(){
 # opposite direction (an undocumented fence added without keys in the example). The remedy is
 # inline in the message so it survives into CI output.
 fence_count="$(fence_openers "$README" | grep -c .)"
-assert "(9) README yaml fence count is exactly 9 — floor against discovery going silently empty, ceiling against an unguarded new fence; if you ADDED a config fence, bump this literal AND ensure its keys are in .docket.example.yml in the same commit; if this dropped to 8, check that the fence regex is still whitespace-tolerant (fence 576 is indented) before touching the literal (got $fence_count)" \
-  '[ "$fence_count" = "9" ]'
+assert "(9) README yaml fence count is exactly 10 — floor against discovery going silently empty, ceiling against an unguarded new fence; if you ADDED a config fence, bump this literal AND ensure its keys are in .docket.example.yml in the same commit; if this dropped to 9, check that the fence regex is still whitespace-tolerant (fence 576 is indented) before touching the literal (got $fence_count)" \
+  '[ "$fence_count" = "10" ]'
 
 # ANCHOR: .docket.example.yml, ONE HOP. Sections (2a)/(2b)/(2c) already bind the example to the
 # resolver in BOTH directions and prove it a faithful superset of everything the code reads, so
@@ -1216,7 +1225,7 @@ assert "(9) every docket:config-fence marker parses (fence-line + reason; ${f9_m
 # every fence BEFORE any skip) gives two floors against it: an exact count of fences reached, and
 # a floor that at least one of them is values-marked.
 f9_seen="$(printf '%s\n' "$findings9" | grep -c '^seen ')"
-assert "(9) scan_fences visited all 9 fences — same literal as NON-VACUITY FLOOR 1's fence-count assert above; if you added a fence, see that assert's message for the remedy (got $f9_seen)" '[ "$f9_seen" = "9" ]'
+assert "(9) scan_fences visited all 10 fences — same literal as NON-VACUITY FLOOR 1's fence-count assert above; if you added a fence, see that assert's message for the remedy (got $f9_seen)" '[ "$f9_seen" = "10" ]'
 f9_vmarked="$(printf '%s\n' "$findings9" | grep -c '^seen .* values$')"
 assert "(9) at least one fence is values-marked — floor against the marker being deleted entirely; it does NOT prove the marker sits on the RIGHT fence (see the positive control immediately below for that) (got $f9_vmarked)" \
   '[ "$f9_vmarked" -ge 1 ]'
