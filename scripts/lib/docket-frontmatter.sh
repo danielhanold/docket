@@ -148,6 +148,19 @@ DOCKET_PRIORITIES=(critical high medium low)
 # The default is an independent documented fact, not a positional consequence of the array.
 DOCKET_PRIORITY_DEFAULT=medium
 
+# --- change-type vocabulary (change 0127) -----------------------------------------------------
+# The BUILT-IN taxonomy. `change_types` in .docket.yml can replace this whole list (never merge
+# with it), so every consumer takes an EFFECTIVE list as an argument and this array is only the
+# default the resolver falls back to. Order is significant: it survives the resolver's export and
+# is the canonical sequence any type-ordered output follows.
+DOCKET_CHANGE_TYPES_DEFAULT=(chore docs feat fix refactor perf)
+
+# Pseudo-values that are legal as a config selector or a QUERY token but never legal in a stored
+# manifest: `all` is the auto_capture.types selector and the --type wildcard; `untyped` is the
+# --type query token for a change carrying no type: yet, and the backfill's migration-set name.
+# Storing either would make a selector indistinguishable from a real value.
+DOCKET_CHANGE_TYPE_RESERVED=(all untyped)
+
 _docket_array_has(){
   local needle="$1"; shift
   local value
@@ -158,6 +171,33 @@ _docket_array_has(){
 docket_status_is_active(){ _docket_array_has "$1" "${DOCKET_STATUSES_ACTIVE[@]}"; }
 docket_status_is_terminal(){ _docket_array_has "$1" "${DOCKET_STATUSES_TERMINAL[@]}"; }
 docket_priority_is_member(){ _docket_array_has "$1" "${DOCKET_PRIORITIES[@]}"; }
+
+# Membership over the EFFECTIVE list the caller resolved — never over the built-in array. A change
+# file may legitimately carry a type absent from THIS machine's effective list (another machine's
+# config wrote it), so readers must not use this to decide whether to RENDER a stored value; it
+# gates creation and admission only.
+docket_change_type_is_member(){ # docket_change_type_is_member VALUE TYPE...
+  local value="$1"; shift
+  _docket_array_has "$value" "$@"
+}
+
+docket_change_type_is_reserved(){ # docket_change_type_is_reserved VALUE
+  _docket_array_has "$1" "${DOCKET_CHANGE_TYPE_RESERVED[@]}"
+}
+
+# Shape gate for the spec's `[a-z][a-z0-9-]*`, keyed on shape rather than an enumerated set of bad
+# spellings (AGENTS.md). Deliberately pure `case` — no `printf | grep -Eq`, which would be a
+# producer piped into an early-exiting consumer (SIGPIPE 141 under pipefail), and whose line-wise
+# match would accept a multi-line value on the strength of its first line alone. The two patterns
+# together reject: empty, a non-lowercase-alpha first character, and any subsequent character
+# outside [a-z0-9-] — including a space, colon, underscore, or embedded newline.
+docket_change_type_is_wellformed(){ # docket_change_type_is_wellformed VALUE
+  case "$1" in
+    ''|[!a-z]*)   return 1 ;;
+    *[!a-z0-9-]*) return 1 ;;
+  esac
+  return 0
+}
 docket_priority_rank(){
   local wanted="$1" value i=0
   docket_priority_is_member "$wanted" || wanted="$DOCKET_PRIORITY_DEFAULT"
