@@ -2,9 +2,9 @@
 slug: guards-are-code
 hook: "A guard is code — mutation-test it (strip the feature, watch it go red) or it is decoration."
 topics: [testing, sentinels, mutation]
-changes: [14, 15, 21, 36, 37, 64, 65, 67, 68, 69, 70, 71, 72, 73, 74, 83, 84, 88, 91, 96, 101, 102, 106, 107, 111]
+changes: [14, 15, 21, 36, 37, 64, 65, 67, 68, 69, 70, 71, 72, 73, 74, 83, 84, 88, 91, 96, 101, 102, 106, 107, 111, 116]
 created: 2026-06-17
-updated: 2026-07-21
+updated: 2026-07-22
 promotion_state: promoted
 promoted_to: AGENTS.md
 ---
@@ -254,3 +254,9 @@ lib. A snippet the PLAN hands you is unvetted code: mutation-test it like any as
   alone. And the change's own remedy prose had drifted on first write (it said "all four" surfaces
   after adding a fifth), which is the by-now-familiar pattern of a drift guard drifting inside the
   change that ships it (see [[verify-the-claim]]).
+- 2026-07-22 (#116, PR #120) — **An exhaustive mapping needs a two-way, shape-aware proof.**
+  Replacing duplicated board vocabularies with shared arrays is not enough when consumer `case`
+  mappings remain: deleting an array member or a mapping arm can each leave a plausible surface.
+  The shipped guards extract the executable mapping arms, assert a nonzero population, then pin
+  both arity and exact set equality against the named vocabulary. Mutating both directions made
+  the intended guard redden; sparse mappings with a correct default stayed deliberately unpinned.
