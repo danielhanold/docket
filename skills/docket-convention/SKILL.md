@@ -23,7 +23,10 @@ changes_dir: docs/changes    # default
 adrs_dir: docs/adrs          # default
 results_dir: docs/results    # default  — close-out 'results' artifacts (build-time files, like plans)
 auto_groom: false            # repo default for autonomous grooming; per-change auto_groomable overrides
-auto_capture: false          # autonomous mid-run capture of discovered follow-up work into stubs
+change_types: [chore, docs, feat, fix, refactor, perf]  # a higher layer REPLACES this list, never merges
+auto_capture:                # autonomous mid-run capture of discovered work into stubs
+  enabled: false             # breaking: the old scalar `auto_capture: true` is now a hard error
+  types: all                 # `all` or a change_types subset; leaves resolve independently
 board_surfaces: [inline]     # which derived board view(s) to render: inline (BOARD.md) and/or github; [] = none
 terminal_publish: false      # false (default) = terminal records (change file, spec, Accepted ADRs)
                              # stay on the metadata branch. true = ALSO copy them onto the
@@ -142,6 +145,7 @@ slug: quicklook-interactions
 title: Quick Look interactions — external links + local images
 status: proposed          # proposed | in-progress | blocked | deferred | implemented | done | killed
 priority: medium          # low | medium | high | critical   (default: medium)
+type: feat                # a configured change_type; set at creation. `all`/`untyped` are reserved
 created: 2026-05-30
 updated: 2026-05-30
 depends_on: [4]           # change ids that must reach `done` (PR merged) first
@@ -246,39 +250,44 @@ A stub is **autonomous-eligible** — selectable by `docket-auto-groom` — when
 
 ### Auto-capture (shared definition)
 
-`auto_capture` (default `false`, global-able) governs what an **autonomous** skill does with genuine
-follow-up work it discovers mid-run. Disabled, the model reports it in prose and moves on. Enabled,
-the model mints it as an ordinary `proposed` needs-brainstorm stub with `discovered_from:` set —
-capture fidelity, **not** autonomy: every minted stub still waits at the human's groom gate.
+`auto_capture` (a map: `enabled` default `false`, `types` default `all`; global-able) governs what
+an **autonomous** skill does with genuine follow-up work it discovers mid-run. Disabled, the model
+reports it in prose. Enabled, it **classifies** the work and — only if that type is admitted — mints
+an ordinary `proposed` needs-brainstorm stub with `discovered_from:` and `type:` set. Capture
+fidelity, **not** autonomy: every stub still waits at the human's groom gate.
 
 **Mint sites** are the autonomous *single-change* skills: `docket-implement-next` (reconcile and
-review discoveries) and the `docket-finalize-change` / `docket-status` harvest (close-out findings).
-**`docket-auto-groom` is never a mint site** — a minted stub is itself autonomous-eligible, so
-minting would break its provable-termination invariant and make `auto_groom` × `auto_capture` a
-backlog-growth loop. **Interactive skills need no auto-capture path** — a human is present to decide
-what gets filed, whether the skill mints ids itself (`docket-new-change`'s scan mode) or never does
-(`docket-groom-next`).
+review) and the `docket-finalize-change` / `docket-status` harvest. **`docket-auto-groom` is never a
+mint site** — a minted stub is itself autonomous-eligible, so minting would break its
+provable-termination invariant and make `auto_groom` × `auto_capture` a backlog-growth loop.
+**Interactive skills need no auto-capture path** — a human is present to decide what gets filed.
+
+**Per discovery** (after the materiality bar): assign exactly one type from `CHANGE_TYPES` — the
+model classifies, the script never infers (ADR-0012). `AUTO_CAPTURE_ENABLED: false` ⇒ report, mint
+nothing. Enabled but the type is outside `AUTO_CAPTURE_TYPES` (the literal `all`, or a subset) ⇒
+mint nothing, report it as **policy-suppressed**. Enabled and admitted ⇒ `mint-stub --type`. Every
+outcome keeps ADR-0045's best-effort posture. **Type filtering runs before the cap is consumed** —
+a suppressed candidate must never spend a mint slot; dedup stays after admission.
 
 **Materiality bar** — mint only for *actionable follow-up work that would be its own change / PR*
-("would a human file this as a `docket-new-change`?"). A lesson about how to build → the **learnings**
-harvest. Drift inside the current change → the **reconcile log** or the current work. A bare
-observation → the run report only.
+("would a human file this as a `docket-new-change`?"). A build lesson → the **learnings** harvest;
+drift inside the current change → the **reconcile log**; a bare observation → the run report.
 
 **The mint itself is deterministic** (ADR-0012 — the model judges *what*, the script does the mint):
 `"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh mint-stub --changes-dir .docket/<changes_dir>
---title <title> --body-file <file> --discovered-from <this change's id> --minted <n so far>` (in
+--title <title> --type <type> --body-file <file> --discovered-from <this change's id> --minted <n so far>` (in
 `docket`-mode; in `main`-mode, `--changes-dir <changes_dir>` — the metadata worktree IS the primary
 tree) — one stub per call, `--body-file` **must start with `## Why`**, contract in
 `scripts/mint-stub.md`. **`<n so far>` is the running count across the whole run on a single
-change, never reset per mint site** — a skill with more than one mint site (`docket-implement-next`'s
-reconcile and review) carries the total forward from the first call into the second. (`docket-status`'s
-sweep scopes it per swept change — see its SKILL.md.) It owns dedup, id allocation, the template
-write, and the CAS push; **exit 3** = duplicate skipped, **exit 4** = per-invocation cap (3) reached,
-**exit 1** = a real error (push failure, malformed body, or retry exhaustion). Every skip, capped
-overflow, and exit-1 failure is **surfaced in the run report, never silently dropped** — but none of
-them is fatal to the build: **auto-capture is best-effort and must never abort the change being
-built**, because capture is a courtesy while the change is the job. Minting is a metadata-worktree
-write only — it never touches the running change's own claim/branch/PR state.
+change, never reset per mint site** — a skill with two mint sites (`docket-implement-next`'s
+reconcile and review) carries the total forward. (`docket-status`'s sweep scopes it per swept
+change — see its SKILL.md.) It owns dedup, id allocation, the template write, and the CAS push;
+**exit 3** = duplicate skipped, **exit 4** = cap (3) reached, **exit 1** = a real error (push
+failure, malformed body, retry exhaustion). Every skip, overflow, and exit-1 failure is **surfaced
+in the run report, never silently dropped** — but none is fatal: **auto-capture is best-effort and
+must never abort the change being built**, because capture is a courtesy while the change is the
+job. Minting is a metadata-worktree write only — it never touches the running change's own
+claim/branch/PR state.
 
 ### Learnings ledger
 

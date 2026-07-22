@@ -286,4 +286,26 @@ assert "skill allowlist still skips with a reason and never aborts" \
 assert "skill Step 1 still routes an empty queue to drained" \
   'grep -q "drained" "$impl"'
 
+# --- change 0127: capture prose reads the new exports -----------------------------------------
+# The scalar AUTO_CAPTURE export is gone (change 0127), so any surviving reference in skill prose
+# names a variable the Step-0 block no longer emits — a silently dead gate. Matched on shape
+# (AUTO_CAPTURE not followed by _) so AUTO_CAPTURE_ENABLED / AUTO_CAPTURE_TYPES pass.
+for f in docket-implement-next docket-finalize-change docket-status docket-convention; do
+  ac_body="$(cat "$REPO/skills/$f/SKILL.md")"
+  assert "0127: $f carries no retired AUTO_CAPTURE reference" \
+    '! grep -Eq "AUTO_CAPTURE([^_]|$)" <<<"$ac_body"'
+done
+conv0127="$(cat "$REPO/skills/docket-convention/SKILL.md")"
+assert "0127: convention names AUTO_CAPTURE_ENABLED" 'grep -q "AUTO_CAPTURE_ENABLED" <<<"$conv0127"'
+assert "0127: convention names AUTO_CAPTURE_TYPES"   'grep -q "AUTO_CAPTURE_TYPES" <<<"$conv0127"'
+assert "0127: convention documents the --type mint argument" 'grep -q -- "--type" <<<"$conv0127"'
+# The cap-ordering rule is the one behavioral subtlety a mint site can silently get wrong: a
+# suppressed candidate must not spend one of the three slots.
+assert "0127: convention states type filtering precedes the cap" \
+  'grep -Eqi "before the (per-invocation )?cap|precedes the cap" <<<"$conv0127"'
+assert "0127: convention documents the policy-suppressed report outcome" \
+  'grep -qi "policy-suppressed" <<<"$conv0127"'
+assert "0127: convention's manifest block carries the type field" \
+  'grep -Eq "^type: " <<<"$conv0127"'
+
 exit $fail
