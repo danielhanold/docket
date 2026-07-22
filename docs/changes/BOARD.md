@@ -1,8 +1,8 @@
 # Backlog
 
-**127 changes** — 🟡 24 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 94 done · 🗑️ 6 killed
+**128 changes** — 🟡 25 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 94 done · 🗑️ 6 killed
 
-## 🟡 Proposed (24)
+## 🟡 Proposed (25)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -30,6 +30,7 @@
 | [0125](active/0125-decide-whether-the-rung-pair-completeness-claim-should-be-me.md) | Decide whether the rung-pair completeness claim should be mechanically enforced | `medium` | needs-brainstorm |
 | [0126](active/0126-apply-the-poison-value-prelude-uniformly-to-every-resolver-e.md) | Apply the poison-value prelude uniformly to every resolver eval in the config suite | `medium` | needs-brainstorm |
 | [0127](active/0127-typed-changes-selective-auto-capture.md) | Typed changes — configurable taxonomy, selective auto-capture, and backlog filters | `medium` | build-ready |
+| [0128](active/0128-truthful-git-errors-harness-neutral-escalation-retry.md) | Truthful Git failures and harness-neutral sandbox escalation retry | `high` | build-ready |
 
 ## 🔴 Blocked (1)
 
@@ -73,6 +74,7 @@ graph TD
   0125
   0126
   0127
+  0128
   0015:::done
   0016:::done
   0077:::done
