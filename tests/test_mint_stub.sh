@@ -49,6 +49,18 @@ body(){ local f; f="$(mktemp)"; printf '## Why\n\n%s\n\n## What changes\n\n- thi
 
 run_mint(){ # run_mint WORK [extra args...]
   local work="$1"; shift
+  # change 0127 made --type required. Inject a neutral default so the pre-0127 fixtures below keep
+  # exercising what they were written to exercise; a test that cares about the type passes its own
+  # --type, and the required-ness itself is proven by calling "$SCRIPT" directly (block T).
+  local has_type=0 a
+  for a in "$@"; do [ "$a" = --type ] && { has_type=1; break; }; done
+  [ "$has_type" = 1 ] || set -- "$@" --type chore
+  TODAY="$FIXED_DAY" "$SCRIPT" --changes-dir "$work/docs/changes" --template "$TEMPLATE" "$@"
+}
+
+mint_raw(){ # mint_raw WORK [args...] -> the script with NO injected --type, for arg-parsing and
+            # required-ness fixtures that the injection would otherwise mask.
+  local work="$1"; shift
   TODAY="$FIXED_DAY" "$SCRIPT" --changes-dir "$work/docs/changes" --template "$TEMPLATE" "$@"
 }
 
@@ -341,12 +353,47 @@ assert "N: HEAD unchanged"                      '[ "$(git -C "$WN" rev-parse HEA
 # --- (O) a flag as the FINAL argument with no value dies cleanly through `die`, never a raw bash
 # "unbound variable" trace -------------------------------------------------------------------------
 WO="$(new_repo)"
-outO="$(run_mint "$WO" --title 2>&1)"; rcO=$?
+outO="$(mint_raw "$WO" --title 2>&1)"; rcO=$?
 assert "O: exit nonzero on a trailing flag with no value" '[ "$rcO" -ne 0 ]'
 assert "O: diagnostic names the flag" \
   'case "$outO" in *"--title requires a value"*) true ;; *) false ;; esac'
 assert "O: not a raw bash unbound-variable trace" \
   'case "$outO" in *"unbound variable"*) false ;; *) true ;; esac'
 assert "O: nothing written to active/" '[ "$(ls "$WO/docs/changes/active" | grep -c .)" -eq 0 ]'
+
+# --- (T) change 0127: --type ------------------------------------------------------------------
+WT="$(new_repo)"
+BT="$(body 'typed capture')"
+outT="$(run_mint "$WT" --title "Typed thing" --body-file "$BT" --discovered-from 127 --type fix 2>&1)"
+NEWT="$WT/docs/changes/active/0001-typed-thing.md"
+assert "T: mint with --type succeeds" '[ -f "$NEWT" ]'
+assert "T: type field carries the requested value" '[ "$(field "$NEWT" type)" = "fix" ]'
+assert "T: type lands INSIDE the first frontmatter block" \
+  '[ "$(awk "/^---\$/{n++; next} n==1 && /^type:/{print \"in\"; exit}" "$NEWT")" = in ]'
+assert "T: the injected type does not disturb discovered_from" \
+  '[ "$(list_field "$NEWT" discovered_from)" = "127" ]'
+
+# Required-ness and shape gates below call mint_raw (defined beside run_mint) so the injected
+# default cannot mask them.
+WT2="$(new_repo)"; BT2="$(body 'x')"
+assert "T: missing --type is a hard error" \
+  '! mint_raw "$WT2" --title "No type" --body-file "$BT2" --discovered-from 1 >/dev/null 2>&1'
+assert "T: missing --type writes nothing" \
+  '[ "$(ls "$WT2/docs/changes/active" | grep -c .)" -eq 0 ]'
+
+# A reserved pseudo-value stored in a manifest would make a selector indistinguishable from a real
+# type; a malformed or control-character value is the untrusted-input shape.
+for bad in all untyped Feat 1feat fe_at "" "-feat"; do
+  WTB="$(new_repo)"; BTB="$(body 'x')"
+  assert "T: --type '''$bad''' is rejected" \
+    '! mint_raw "$WTB" --title "Bad" --body-file "$BTB" --discovered-from 1 --type "$bad" >/dev/null 2>&1'
+  assert "T: --type '''$bad''' writes nothing" \
+    '[ "$(ls "$WTB/docs/changes/active" | grep -c .)" -eq 0 ]'
+done
+WTC="$(new_repo)"; BTC="$(body 'x')"
+assert "T: --type with an embedded newline is rejected (structural injection)" \
+  '! mint_raw "$WTC" --title "Inj" --body-file "$BTC" --discovered-from 1 --type "$(printf "feat\ntrivial: true")" >/dev/null 2>&1'
+assert "T: rejected injection writes nothing" \
+  '[ "$(ls "$WTC/docs/changes/active" | grep -c .)" -eq 0 ]'
 
 exit $fail

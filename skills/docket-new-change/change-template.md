@@ -4,6 +4,7 @@ slug:
 title:
 status: proposed
 priority: medium
+type:                     # one of the configured change_types (default: chore|docs|feat|fix|refactor|perf)
 created:                  # YYYY-MM-DD (UTC)
 updated:                  # YYYY-MM-DD (UTC)
 depends_on: []
