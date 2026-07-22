@@ -21,6 +21,11 @@
 # records; docs/changes/active/ lives on the docket metadata branch and is absent from the
 # integration-branch checkout this suite runs in, so there is no such path to walk.
 # NO ALLOWLIST: exclusions are by walk scope, never by exception entry (ADR-0050, enumerated-floor).
+#
+# TRACKED-FILES-ONLY: the walk enumerates what the repository's version control tracks, not every
+# byte on disk. A brand-new file carrying an anchor is invisible here until it is staged, so a
+# newly added, unstaged file is NOT covered — accepted because this guard runs at the build gate
+# over committed work, and an untracked file is not yet part of the repo the gate protects.
 set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SELF="$(basename "${BASH_SOURCE[0]}")"
@@ -37,10 +42,11 @@ ANCHOR='[A-Za-z0-9_-]+\.(sh|md|yml|yaml|mdc):[0-9]+'
 # in ".sh:"/".md:" — the exact shape ANCHOR matches. Filtering git grep output would therefore
 # match the tool's own prefix on every line. Each file is scanned separately with grep -n, whose
 # "lineno:content" prefix cannot collide with ANCHOR (no extension precedes the colon).
+# docs/ needs no filter here: it is excluded structurally by simply never appearing in the
+# pathspec below (the root globs cannot reach into a subdirectory) — not by a post-hoc filter.
 mapfile -t FILES < <(
   cd "$ROOT" || exit 1
-  git ls-files -- scripts tests skills agents cursor-rules ':(glob)*.md' ':(glob)*.yml' \
-    | grep -vE '^docs/'
+  git ls-files -- scripts tests skills agents cursor-rules ':(glob)*.md' ':(glob)*.yml'
 )
 
 # --- population floor: the walk must actually reach files ---------------------------------------
@@ -52,8 +58,14 @@ n_files=${#FILES[@]}
   && ok "walk population is non-trivial ($n_files files)" \
   || nok "walk population collapsed to $n_files files (expected >= 40) — pathspec or ls-files broke"
 
+# Capture once into a variable rather than piping into grep -q per probe: a producer feeding an
+# early-exiting consumer under pipefail can take SIGPIPE and turn into an intermittent 141
+# (AGENTS.md, Shell). A here-string has no producer process to signal.
+files_joined=""
+[ "$n_files" -gt 0 ] && files_joined="$(printf '%s\n' "${FILES[@]}")"
+
 for probe in scripts/board-checks.sh tests/test_board_checks.sh AGENTS.md .docket.example.yml; do
-  printf '%s\n' "${FILES[@]}" | grep -qxF "$probe" \
+  grep -qxF "$probe" <<<"$files_joined" \
     && ok "walk includes $probe" \
     || nok "walk MISSES $probe — the in-scope surface is not fully covered"
 done
@@ -61,13 +73,18 @@ done
 # --- the check ----------------------------------------------------------------------------------
 violations=""
 scanned=0
-for f in "${FILES[@]}"; do
-  [ "$(basename "$f")" = "$SELF" ] && continue   # structural self-exclusion; never an allowlist
-  [ -f "$ROOT/$f" ] || continue
-  scanned=$(( scanned + 1 ))
-  hits="$(grep -nE "$ANCHOR" "$ROOT/$f" 2>/dev/null)"
-  [ -n "$hits" ] && violations+="$(printf '%s\n' "$hits" | sed "s|^|$f:|")"$'\n'
-done
+# Guard the expansion: "${FILES[@]}" on a fully empty array raises "unbound variable" under
+# set -u on bash 4.0-4.3, aborting instead of reporting a clean NOT OK. Skip the loop entirely
+# when the population is empty; the floor check above already reddens that case.
+if [ "$n_files" -gt 0 ]; then
+  for f in "${FILES[@]}"; do
+    [ "$(basename "$f")" = "$SELF" ] && continue   # structural self-exclusion; never an allowlist
+    [ -f "$ROOT/$f" ] || continue
+    scanned=$(( scanned + 1 ))
+    hits="$(grep -nE "$ANCHOR" "$ROOT/$f" 2>/dev/null)"
+    [ -n "$hits" ] && violations+="$(printf '%s\n' "$hits" | sed "s|^|$f:|")"$'\n'
+  done
+fi
 
 [ "$scanned" -ge 40 ] \
   && ok "scanned $scanned files (guard self-excluded)" \
