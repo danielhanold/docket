@@ -3,9 +3,17 @@
 ## Purpose
 
 The single executable entry point an agent or skill invokes instead of calling any other
-`scripts/*.sh` helper directly. `docket.sh` is a finite dispatch table of named operations: it
-forwards args verbatim to the matching helper and passes the helper's exit code and stderr
-through unmasked. There is **no** `run`/`exec`/`shell`/`eval` operation — the facade never
+`scripts/*.sh` helper directly. Its public entry is a POSIX-shell bootstrap: before parsing or
+running the Bash implementation, it validates the absolute executable `DOCKET_BASH_PATH` supplied
+by installation/bootstrap and re-execs itself through that exact GNU Bash 4+ runtime. A missing,
+invalid, non-GNU, or older configured runtime fails nonzero with the same actionable
+`docket/install.sh` remediation as the config resolver. The handoff uses an internal `bash -c`
+`$0` marker, not a positional argument, so caller argv cannot suppress or recurse through the
+bootstrap.
+
+After that boundary, `docket.sh` is a finite dispatch table of named operations: it forwards args
+verbatim to the matching helper through `DOCKET_BASH_PATH` and passes the helper's exit code and
+stderr through unmasked. There is **no** `run`/`exec`/`shell`/`eval` operation — the facade never
 executes caller-supplied shell text, and it never `eval`s positional args. Introduced in change
 0068.
 
@@ -32,7 +40,10 @@ no parsing, rewriting, or quoting reinterpretation happens in the facade.
 
 Mock seams (for tests): `SCRIPTS_DIR` (directory the wrapped helpers are resolved from; defaults
 to the directory `docket.sh` itself lives in) and `GIT`. `CONFIG_EXPORT_CMD` is honored
-transitively by `docket_preflight` (see `scripts/lib/docket-preflight.sh`).
+transitively by `docket_preflight` (see `scripts/lib/docket-preflight.sh`). `DOCKET_BASH_PATH` is
+not a command lookup seam: it is the validated, canonical runtime contract, and every facade,
+resolver, preflight helper, wrapped helper, and Docket-owned launcher handoff uses that exact path
+rather than a `bash` selected from `PATH`.
 
 ## Subcommand inventory
 
@@ -66,9 +77,10 @@ rather than a same-named script (there is no `scripts/preflight.sh`, `scripts/en
 ## Behavior
 
 **Dispatch.** `docket.sh <op> [args...]` looks `<op>` up in the table above. A match on one of the
-16 wrapped ops execs `$SCRIPTS_DIR/<op>.sh "$@"` — args forwarded verbatim, the helper's exit code
-and stderr pass through unmasked (the facade uses `exec`, so the wrapped helper's process directly
-replaces `docket.sh`'s; there is no wrapper-added exit-code translation or output buffering). A
+16 wrapped ops execs `"$DOCKET_BASH_PATH" "$SCRIPTS_DIR/<op>.sh" "$@"` — args forwarded verbatim,
+the helper's exit code and stderr pass through unmasked (the facade uses `exec`, so the wrapped
+helper's process directly replaces `docket.sh`'s; there is no wrapper-added exit-code translation
+or output buffering). A
 match on `preflight`, `env`, or `bootstrap` runs the verb-specific logic below instead of execing a
 same-named script. No match: `docket.sh` rejects with exit 2 and a `supported operations: preflight
 env bootstrap <op>...` line on stderr.
@@ -80,7 +92,8 @@ and `docket.sh` never `eval`s `"$@"`, `"$*"`, or any positional/caller-supplied 
 pure-routing artifact — see **`bootstrap`** below), but no caller is meant to `eval` or source
 that either: the Step-0 flow re-runs `preflight` for the model-facing block.
 
-**`bootstrap`.** `docket.sh bootstrap` execs `docket-config.sh --bootstrap "$@"` — the guarded
+**`bootstrap`.** `docket.sh bootstrap` execs
+`"$DOCKET_BASH_PATH" docket-config.sh --bootstrap "$@"` — the guarded
 `CREATE_ORPHAN` orphan-`docket` create (fresh repo, once, human-attended). Args are forwarded
 verbatim (so `--repo-dir` stays usable in fixtures); it is pure routing, not a composite (it does
 not sync the worktree or re-run `preflight`). Outside the `CREATE_ORPHAN` cell it performs no
@@ -148,6 +161,7 @@ above:
 | Code | Meaning |
 |---|---|
 | 0 | Success. |
+| 1 | The configured runtime is missing/unsupported, or preflight fails. |
 | 2 | Unknown or missing operation — `docket.sh` lists the supported operations on stderr. |
 | *(other)* | Propagated verbatim from the wrapped helper's own exit code (for the 16 wrapped ops), or from `docket_preflight`/`docket-config.sh` failure (for `preflight`/`env`/`bootstrap`). |
 
@@ -164,6 +178,9 @@ above:
 - **Args forwarded verbatim; exit code and stderr pass through unmasked.** `docket.sh` does not
   reinterpret, re-quote, or filter arguments, output, or exit codes for any wrapped op — it is a
   thin, transparent dispatch layer, not a translating proxy.
+- **One explicit Bash boundary.** The POSIX bootstrap validates `DOCKET_BASH_PATH` before any
+  Bash-specific implementation work, and every facade-owned helper launch uses that exact path;
+  `PATH` cannot silently select a different Bash.
 - **Operation name = helper basename**, except the `preflight`/`env`/`bootstrap` verbs (documented
   above with a non-`<op>.sh` `Wraps` value).
 - **Not-exposed scripts stay not exposed.** None of `docket-config`, `disable-worktree-hooks`,
