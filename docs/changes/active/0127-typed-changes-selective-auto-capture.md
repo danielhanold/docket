@@ -2,7 +2,7 @@
 id: 127
 slug: typed-changes-selective-auto-capture
 title: Typed changes — configurable taxonomy, selective auto-capture, and backlog filters
-status: in-progress
+status: implemented
 priority: high
 type: feat
 created: 2026-07-22
@@ -13,12 +13,12 @@ discovered_from: []
 adrs: [12, 19, 45, 52, 56, 57]
 spec: docs/superpowers/specs/2026-07-22-typed-changes-selective-auto-capture-design.md
 plan: docs/superpowers/plans/2026-07-22-typed-changes-selective-auto-capture.md
-results:
+results: docs/results/2026-07-22-typed-changes-selective-auto-capture-results.md
 trivial: false
 auto_groomable:
 branch: feat/typed-changes-selective-auto-capture
-claimed_at: 2026-07-22T20:38:14Z
-pr:
+claimed_at: 2026-07-22T22:03:13Z
+pr: https://github.com/danielhanold/docket/pull/123
 blocked_by:
 reconciled: true
 ---
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-22-typed-changes-selective-auto-capture-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-22-typed-changes-selective-auto-capture-design.md) |
 | Plan | [2026-07-22-typed-changes-selective-auto-capture.md](https://github.com/danielhanold/docket/blob/feat/typed-changes-selective-auto-capture/docs/superpowers/plans/2026-07-22-typed-changes-selective-auto-capture.md) |
+| Results | [2026-07-22-typed-changes-selective-auto-capture-results.md](https://github.com/danielhanold/docket/blob/feat/typed-changes-selective-auto-capture/docs/results/2026-07-22-typed-changes-selective-auto-capture-results.md) |
+| PR | [#123](https://github.com/danielhanold/docket/pull/123) |
 | ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0019](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0019-global-config-fence-classification.md), [ADR-0045](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0045-auto-capture-is-best-effort.md), [ADR-0052](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0052-config-key-resolution-boundary.md), [ADR-0056](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0056-config-manifest-key-scoping-follows-resolver-read-shape.md), [ADR-0057](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0057-frontmatter-read-must-be-anchored-when-key-may-be-absent.md) |
 <!-- docket:artifacts:end -->
 
