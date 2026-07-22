@@ -1,14 +1,8 @@
 # Backlog
 
-**128 changes** — 🟢 1 in progress · 🟡 24 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 94 done · 🗑️ 6 killed
+**130 changes** — 🟡 26 proposed · 🔴 1 blocked · 🔵 3 implemented · ✅ 94 done · 🗑️ 6 killed
 
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0116](active/0116-single-source-the-remaining-duplicated-board-vocabularies.md) | Single-source the remaining duplicated board vocabularies | `medium` | [spec](../superpowers/specs/2026-07-20-single-source-the-remaining-duplicated-board-vocabularies-design.md) | `feat/single-source-the-remaining-duplicated-board-vocabularies` |
-
-## 🟡 Proposed (24)
+## 🟡 Proposed (26)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -36,6 +30,8 @@
 | [0126](active/0126-apply-the-poison-value-prelude-uniformly-to-every-resolver-e.md) | Apply the poison-value prelude uniformly to every resolver eval in the config suite | `medium` | needs-brainstorm |
 | [0127](active/0127-typed-changes-selective-auto-capture.md) | Typed changes — configurable taxonomy, selective auto-capture, and backlog filters | `medium` | build-ready |
 | [0128](active/0128-truthful-git-errors-harness-neutral-escalation-retry.md) | Truthful Git failures and harness-neutral sandbox escalation retry | `high` | build-ready |
+| [0129](active/0129-fix-the-pipefail-unsafe-plain-format-config-assertion.md) | Fix the pipefail-unsafe plain-format config assertion | `medium` | needs-brainstorm |
+| [0130](active/0130-make-the-finalize-marker-reachability-guard-portable-to-bsd.md) | Make the finalize marker reachability guard portable to BSD grep | `medium` | needs-brainstorm |
 
 ## 🔴 Blocked (1)
 
@@ -43,12 +39,13 @@
 |---|-------|----------|------------|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | PR #69 is stale (predates the 0068/0072 facade rework and later agent-layer changes) and #0079 (runner delegation) reshapes the design — the build roles should grow a runner field (build.<role>.runner codex, the mixed topology 0079 deferred). Needs a rebase plus redesign pass before merge. |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (3)
 
 | # | Title | Priority | PR | Readiness |
 |---|-------|----------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
 | [0114](active/0114-decide-the-repo-s-posture-on-line-number-comment-anchors.md) | Decide the repo's posture on line-number comment anchors | `medium` | [#119](https://github.com/danielhanold/docket/pull/119) |  |
+| [0116](active/0116-single-source-the-remaining-duplicated-board-vocabularies.md) | Single-source the remaining duplicated board vocabularies | `medium` | [#120](https://github.com/danielhanold/docket/pull/120) |  |
 
 ```mermaid
 graph TD
@@ -80,6 +77,8 @@ graph TD
   0126
   0127
   0128
+  0129
+  0130
   0015:::done
   0016:::done
   0077:::done
