@@ -2,43 +2,55 @@
 
 ## Purpose
 
-Scaffold the global docket config on first run: write a minimal, pointer-only
-`~/.config/docket/config.yml` — a header comment naming `.docket.example.yml` as the canonical
-reference, and zero active keys — so the file exists for editing without ever pinning a shipped
-default, and without ever clobbering a config the user has already written.
+Bootstraps Docket's machine-local Bash runtime in the global config before any installer stage
+that may require Bash 4 or newer. It also retains the minimal pointer to `.docket.example.yml` on
+first install. The bootstrap itself is compatible with macOS Bash 3.2.
 
 ## Usage
 
-```
+```bash
 bash scripts/ensure-global-config.sh
 ```
 
-Run by `install.sh` as a primitive, before `sync-agents.sh`. Standalone-safe.
+The destination is
+`${XDG_CONFIG_HOME:-${DOCKET_HARNESS_ROOT:-$HOME}/.config}/docket/config.yml`.
+`DOCKET_BASH_STANDARD_ROOT` is a test-only seam that roots the two fixed macOS candidate paths in
+a sandbox; production leaves it unset.
 
-Environment:
-- `XDG_CONFIG_HOME` — when set, the config root (wins over `HOME`/`DOCKET_HARNESS_ROOT`).
-- `DOCKET_HARNESS_ROOT` — test seam overriding `$HOME` for the config root; consulted only
-  when `XDG_CONFIG_HOME` is unset. Matches `sync-agents.sh`'s resolution so both agree on
-  the path.
+## Discovery and validation
 
-## Behavior
+If the user has not written an explicit `runtime.bash`, candidates are deduplicated and checked in
+this order:
 
-- Destination: `${XDG_CONFIG_HOME:-${DOCKET_HARNESS_ROOT:-$HOME}/.config}/docket/config.yml`.
-- If the destination does NOT exist: create the parent dir as needed, write a fixed heredoc
-  (header comment + layer-precedence list + pointer to `.docket.example.yml`, zero active
-  keys), and log
-  `docket: wrote <dest> (empty pointer config — see .docket.example.yml for every key)`.
-- If the destination already exists: do nothing to it, log
-  `docket: <dest> already exists — left untouched`.
-- Never overwrites, merges, or edits an existing file.
+1. `<brew --prefix>/bin/bash`, when that command succeeds;
+2. `/opt/homebrew/bin/bash`;
+3. `/usr/local/bin/bash`;
+4. the absolute result of resolving `bash` on `PATH`.
+
+Each candidate must be an absolute executable path and identify itself, from its sole
+`--version` probe, as GNU Bash major version 4 or newer. If none qualifies the script exits
+non-zero and tells the user to run `brew install bash`.
+
+## Config ownership and writes
+
+A valid hand-authored `runtime.bash` is authoritative and leaves the complete file byte-untouched.
+An invalid hand-authored value stops installation and is never silently replaced. Otherwise the
+script writes this owned block while preserving all unrelated content:
+
+```yaml
+# >>> docket (runtime.bash) >>>
+runtime:
+  bash: /absolute/path/to/bash
+# <<< docket (runtime.bash) <<<
+```
+
+Before replacing an existing owned block it validates marker order, balance, and uniqueness.
+Malformed markers cause a non-zero exit with no write. Successful changes are rendered to a
+same-directory temporary file, retain the destination's permission bits, and are atomically
+renamed into place.
 
 ## Exit codes
 
-- `0` — on success (wrote or left-untouched). Idempotent. A genuine write failure (e.g. an
-  unwritable config dir) propagates a non-zero exit under `set -e`.
-
-## Invariants
-
-- An existing global config is never modified.
-- The scaffolded file contains no active keys, so it can never pin a shipped default.
-- The destination path equals the path `sync-agents.sh` reads as the global config.
+- `0` — a qualifying runtime is preserved or persisted.
+- non-zero — an explicit value is invalid, no qualifying runtime exists, markers are malformed,
+  or an atomic write fails.

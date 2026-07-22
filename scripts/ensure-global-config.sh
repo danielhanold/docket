@@ -1,53 +1,131 @@
 #!/usr/bin/env bash
-# ensure-global-config.sh — scaffold the global docket config on first run.
-#
-# Writes a MINIMAL, pointer-only ${XDG_CONFIG_HOME:-$HOME/.config}/docket/config.yml — a header
-# comment naming .docket.example.yml as the reference, and ZERO active keys — but ONLY if that
-# file does not already exist. Never overwrites, never merges, never edits an existing file.
-# Idempotent: safe to re-run any number of times. Run by install.sh BEFORE sync-agents.sh.
-#
-# Why pointer-only (change 0101): the previous version COPIED the repo's root-level example
-# config file, so a user who installed once carried a frozen snapshot of that day's defaults
-# forever — every later default change was silently pinned by their stale copy. A file with no
-# active keys cannot pin anything.
-#
-# Test seam: DOCKET_HARNESS_ROOT overrides $HOME for the config root (matching sync-agents.sh),
-# and it is only consulted when XDG_CONFIG_HOME is unset (a set XDG_CONFIG_HOME wins).
-set -euo pipefail
+# ensure-global-config.sh — scaffold global config and install its machine-local Bash runtime.
+# This bootstrap deliberately stays within Bash 3.2/POSIX syntax: install.sh runs it before any
+# Docket script that may require the configured Bash 4+ runtime.
+set -eu
 
 HARNESS_ROOT="${DOCKET_HARNESS_ROOT:-$HOME}"
 DEST_DIR="${XDG_CONFIG_HOME:-$HARNESS_ROOT/.config}/docket"
 DEST="$DEST_DIR/config.yml"
+MARK_OPEN='# >>> docket (runtime.bash) >>>'
+MARK_CLOSE='# <<< docket (runtime.bash) <<<'
+REMEDY='install Bash 4+ (on macOS: brew install bash), then re-run docket/install.sh'
 
-if [ -e "$DEST" ]; then
-  echo "docket: $DEST already exists — left untouched"
+die(){ printf 'ensure-global-config: %s\n' "$*" >&2; exit 1; }
+file_mode(){ stat -f '%Lp' "$1" 2>/dev/null || stat -c '%a' "$1" 2>/dev/null || echo 644; }
+
+validate_runtime(){
+  _vr_path=$1
+  case "$_vr_path" in /*) ;; *) return 1 ;; esac
+  [ -x "$_vr_path" ] || return 1
+  _vr_version="$(LC_ALL=C "$_vr_path" --version 2>/dev/null)" || return 1
+  _vr_first="$(printf '%s\n' "$_vr_version" | sed -n '1p')"
+  case "$_vr_first" in 'GNU bash, version '*) ;; *) return 1 ;; esac
+  _vr_major="$(printf '%s\n' "$_vr_first" | sed -n 's/^GNU bash, version \([0-9][0-9]*\)\..*/\1/p')"
+  case "$_vr_major" in ''|*[!0-9]*) return 1 ;; esac
+  [ "$_vr_major" -ge 4 ]
+}
+
+markers_valid(){
+  [ -f "$1" ] || return 0
+  awk -v o="$MARK_OPEN" -v c="$MARK_CLOSE" '
+    $0==o { if (inside || seen) bad=1; inside=1; seen=1; next }
+    $0==c { if (!inside) bad=1; inside=0; next }
+    END { if (inside || bad) exit 1 }
+  ' "$1"
+}
+
+explicit_runtime(){
+  [ -f "$1" ] || return 0
+  awk -v o="$MARK_OPEN" -v c="$MARK_CLOSE" '
+    $0==o { managed=1; next }
+    $0==c { managed=0; next }
+    !managed { print }
+  ' "$1" | awk '
+    { line=$0; sub(/[[:space:]]*#.*/, "", line) }
+    line ~ /^runtime[[:space:]]*:[[:space:]]*$/ { in_runtime=1; next }
+    in_runtime && line ~ /^[^[:space:]]/ { in_runtime=0 }
+    in_runtime && line ~ /^[[:space:]]+bash[[:space:]]*:/ {
+      sub(/^[[:space:]]+bash[[:space:]]*:[[:space:]]*/, "", line)
+      sub(/[[:space:]]+$/, "", line)
+      if (line ~ /^".*"$/ || line ~ /^'\''.*'\''$/) line=substr(line,2,length(line)-2)
+      print line; exit
+    }
+  '
+}
+
+consider_candidate(){
+  _cc_path=$1
+  [ -n "$_cc_path" ] || return 1
+  case "$_cc_path" in /*) ;; *) return 1 ;; esac
+  case "${_seen_candidates-}" in *"|$_cc_path|"*) return 1 ;; esac
+  _seen_candidates="${_seen_candidates-}|$_cc_path|"
+  if validate_runtime "$_cc_path"; then
+    DISCOVERED_RUNTIME=$_cc_path
+    return 0
+  fi
+  return 1
+}
+
+discover_runtime(){
+  DISCOVERED_RUNTIME=
+  _seen_candidates='|'
+  _brew_prefix=
+  if command -v brew >/dev/null 2>&1; then
+    _brew_prefix="$(brew --prefix 2>/dev/null)" || _brew_prefix=
+  fi
+  [ -z "$_brew_prefix" ] || consider_candidate "$_brew_prefix/bin/bash" || :
+
+  _standard_root=${DOCKET_BASH_STANDARD_ROOT-}
+  [ -n "$DISCOVERED_RUNTIME" ] || consider_candidate "$_standard_root/opt/homebrew/bin/bash" || :
+  [ -n "$DISCOVERED_RUNTIME" ] || consider_candidate "$_standard_root/usr/local/bin/bash" || :
+
+  if [ -z "$DISCOVERED_RUNTIME" ]; then
+    _path_bash="$(command -v bash 2>/dev/null)" || _path_bash=
+    consider_candidate "$_path_bash" || :
+  fi
+  [ -n "$DISCOVERED_RUNTIME" ] || die "no qualifying Bash runtime found — $REMEDY"
+}
+
+write_pointer(){
+  cat <<'EOF'
+# ~/.config/docket/config.yml — docket's GLOBAL (per-machine, every-repo) configuration.
+#
+# This file starts with no policy overrides; add only keys you want to change on this machine.
+# Configuration resolves per key: repo-local, repo-committed, global, then built-in.
+# See .docket.example.yml in the docket repo for every key, default, and allowed layer.
+EOF
+}
+
+markers_valid "$DEST" || die "$DEST has malformed $MARK_OPEN / $MARK_CLOSE markers — left unchanged"
+_explicit="$(explicit_runtime "$DEST")"
+if [ -n "$_explicit" ]; then
+  validate_runtime "$_explicit" \
+    || die "configured runtime.bash is not an absolute executable GNU Bash 4+: $_explicit — $REMEDY"
+  printf 'docket: %s already has a valid explicit runtime.bash — left untouched\n' "$DEST"
   exit 0
 fi
 
+discover_runtime
 mkdir -p "$DEST_DIR"
-cat > "$DEST" <<'EOF'
-# ~/.config/docket/config.yml — docket's GLOBAL (per-machine, every-repo) configuration.
-#
-# This file is intentionally EMPTY: every key is unset, so docket runs its shipped defaults.
-# Add only the keys you want to change on this machine.
-#
-# Configuration resolves PER KEY, precedence highest to lowest:
-#   1. repo-local     <repo>/.docket.local.yml   (this machine, this repo; gitignored)
-#   2. repo-committed <repo>/.docket.yml         (every clone)
-#   3. global         this file                  (this machine, every repo)
-#   4. built-in       docket's defaults
-#
-# FOR EVERY KEY, ITS DEFAULT, AND WHICH LAYERS MAY SET IT, SEE:
-#   .docket.example.yml  in the docket repo — the canonical, all-comprehensive reference.
-#
-# Keys tagged "scope: repo-only (coordination-fenced, ADR-0019)" there are NOT settable here:
-# a value for one of those in this file is loudly warned-and-ignored. Everything else is fair game.
-#
-# Common things to set on this machine:
-#   agent_harnesses: [claude, cursor]   # enable another harness (then also set agents: below)
-#   agents:                             # per-skill model/effort overrides
-#   auto_capture: true                  # mint discovered follow-up work as stubs
-#   reclaim: {auto: true}               # let expired claims self-heal
-EOF
-echo "docket: wrote $DEST (empty pointer config — see .docket.example.yml for every key)"
+_tmp="$(mktemp "$DEST_DIR/.config.yml.tmp.XXXXXX")" || die "cannot create temporary config beside $DEST"
+trap 'rm -f "$_tmp"' EXIT HUP INT TERM
+if [ -f "$DEST" ]; then
+  _dest_mode="$(file_mode "$DEST")"
+  awk -v o="$MARK_OPEN" -v c="$MARK_CLOSE" '
+    $0==o { skip=1; next }
+    $0==c { skip=0; next }
+    !skip { print }
+  ' "$DEST" > "$_tmp" || die "cannot preserve $DEST"
+  printf 'docket: updating managed runtime.bash in %s\n' "$DEST"
+else
+  _dest_mode=644
+  write_pointer > "$_tmp" || die "cannot scaffold $DEST"
+  printf 'docket: wrote %s (pointer config plus managed runtime.bash)\n' "$DEST"
+fi
+printf '%s\nruntime:\n  bash: %s\n%s\n' "$MARK_OPEN" "$DISCOVERED_RUNTIME" "$MARK_CLOSE" >> "$_tmp" \
+  || die "cannot write runtime.bash to temporary config"
+chmod "$_dest_mode" "$_tmp" || die "cannot preserve config permissions"
+mv "$_tmp" "$DEST" || die "cannot atomically replace $DEST"
+trap - EXIT HUP INT TERM
 exit 0

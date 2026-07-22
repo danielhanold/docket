@@ -10,58 +10,82 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # Accumulate all sandbox dirs; clean them up on exit.
 _tmpdirs=()
 trap 'rm -rf "${_tmpdirs[@]}"' EXIT
+RUNTIME_DIR="$(mktemp -d)"; _tmpdirs+=("$RUNTIME_DIR"); RUNTIME="$RUNTIME_DIR/bash"
+cat > "$RUNTIME" <<'EOF'
+#!/bin/sh
+[ "$#" -eq 1 ] && [ "$1" = --version ] || exit 42
+printf 'GNU bash, version 5.2.0(1)-release (test)\n'
+EOF
+chmod +x "$RUNTIME"
 
 # Each case runs in a sandbox HOME so the real profile is never touched.
 run(){ # run <target_shell>  -> sets $H to the sandbox home
   H="$(mktemp -d)"; _tmpdirs+=("$H")
-  HOME="$H" DOCKET_HARNESS_ROOT="$H" DOCKET_TARGET_SHELL="$1" bash "$SCRIPT" >/dev/null 2>&1
+  HOME="$H" DOCKET_HARNESS_ROOT="$H" DOCKET_TARGET_SHELL="$1" DOCKET_BASH_PATH="$RUNTIME" bash "$SCRIPT" >/dev/null 2>&1
 }
 
 # zsh -> ~/.zshenv export
 run zsh
 assert "zsh: writes ~/.zshenv"            '[ -f "$H/.zshenv" ]'
 assert "zsh: export line present"         'grep -qF "export DOCKET_SCRIPTS_DIR=\"$EXPECTED\"" "$H/.zshenv"'
+assert "zsh: runtime export present"      'grep -qF "export DOCKET_BASH_PATH=\"$RUNTIME\"" "$H/.zshenv"'
 assert "zsh: marker block present"        'grep -qF ">>> docket (DOCKET_SCRIPTS_DIR) >>>" "$H/.zshenv"'
 
 # bash -> ~/.bashrc export
 run bash
 assert "bash: writes ~/.bashrc export"    'grep -qF "export DOCKET_SCRIPTS_DIR=\"$EXPECTED\"" "$H/.bashrc"'
+assert "bash: writes runtime export"      'grep -qF "export DOCKET_BASH_PATH=\"$RUNTIME\"" "$H/.bashrc"'
 
 # fish -> ~/.config/fish/config.fish set -gx
 run fish
 assert "fish: writes config.fish set -gx" 'grep -qF "set -gx DOCKET_SCRIPTS_DIR \"$EXPECTED\"" "$H/.config/fish/config.fish"'
+assert "fish: writes runtime set -gx"     'grep -qF "set -gx DOCKET_BASH_PATH \"$RUNTIME\"" "$H/.config/fish/config.fish"'
 
 # unknown shell -> ~/.profile POSIX export fallback
 run ksh
 assert "other: POSIX export to ~/.profile" 'grep -qF "export DOCKET_SCRIPTS_DIR=\"$EXPECTED\"" "$H/.profile"'
+assert "other: runtime export to ~/.profile" 'grep -qF "export DOCKET_BASH_PATH=\"$RUNTIME\"" "$H/.profile"'
 
 # settings.json env (jq), preserving an existing key
 H="$(mktemp -d)"; _tmpdirs+=("$H"); mkdir -p "$H/.claude"
 printf '{"permissions":{"allow":["keep"]}}\n' > "$H/.claude/settings.json"
-HOME="$H" DOCKET_HARNESS_ROOT="$H" DOCKET_TARGET_SHELL=zsh bash "$SCRIPT" >/dev/null 2>&1
+HOME="$H" DOCKET_HARNESS_ROOT="$H" DOCKET_TARGET_SHELL=zsh DOCKET_BASH_PATH="$RUNTIME" bash "$SCRIPT" >/dev/null 2>&1
 assert "settings: env.DOCKET_SCRIPTS_DIR set" 'jq -e --arg v "$EXPECTED" ".env.DOCKET_SCRIPTS_DIR == \$v" "$H/.claude/settings.json" >/dev/null'
+assert "settings: env.DOCKET_BASH_PATH set" 'jq -e --arg v "$RUNTIME" ".env.DOCKET_BASH_PATH == \$v" "$H/.claude/settings.json" >/dev/null'
 assert "settings: pre-existing key preserved" 'jq -e ".permissions.allow | index(\"keep\")" "$H/.claude/settings.json" >/dev/null'
 assert "settings: still valid JSON"           'jq empty "$H/.claude/settings.json"'
 
 # invalid settings.json is left untouched (refuse to clobber)
 H="$(mktemp -d)"; _tmpdirs+=("$H"); mkdir -p "$H/.claude"
 printf 'not valid json\n' > "$H/.claude/settings.json"
-HOME="$H" DOCKET_HARNESS_ROOT="$H" DOCKET_TARGET_SHELL=zsh bash "$SCRIPT" >/dev/null 2>&1
+HOME="$H" DOCKET_HARNESS_ROOT="$H" DOCKET_TARGET_SHELL=zsh DOCKET_BASH_PATH="$RUNTIME" bash "$SCRIPT" >/dev/null 2>&1
 assert "invalid settings.json left unchanged" 'grep -qF "not valid json" "$H/.claude/settings.json"'
 
 # idempotent: a second run leaves exactly one marker block + unchanged settings
 H="$(mktemp -d)"; _tmpdirs+=("$H")
-HOME="$H" DOCKET_HARNESS_ROOT="$H" DOCKET_TARGET_SHELL=zsh bash "$SCRIPT" >/dev/null 2>&1
-HOME="$H" DOCKET_HARNESS_ROOT="$H" DOCKET_TARGET_SHELL=zsh bash "$SCRIPT" >/dev/null 2>&1
+HOME="$H" DOCKET_HARNESS_ROOT="$H" DOCKET_TARGET_SHELL=zsh DOCKET_BASH_PATH="$RUNTIME" bash "$SCRIPT" >/dev/null 2>&1
+HOME="$H" DOCKET_HARNESS_ROOT="$H" DOCKET_TARGET_SHELL=zsh DOCKET_BASH_PATH="$RUNTIME" bash "$SCRIPT" >/dev/null 2>&1
 assert "idempotent: exactly one marker block" '[ "$(grep -cF ">>> docket (DOCKET_SCRIPTS_DIR) >>>" "$H/.zshenv")" = "1" ]'
 
 # stale block (clone moved) is replaced, not duplicated
 H="$(mktemp -d)"; _tmpdirs+=("$H")
 printf '# >>> docket (DOCKET_SCRIPTS_DIR) >>>\nexport DOCKET_SCRIPTS_DIR="/old/path/scripts"\n# <<< docket (DOCKET_SCRIPTS_DIR) <<<\n' > "$H/.zshenv"
-HOME="$H" DOCKET_HARNESS_ROOT="$H" DOCKET_TARGET_SHELL=zsh bash "$SCRIPT" >/dev/null 2>&1
+HOME="$H" DOCKET_HARNESS_ROOT="$H" DOCKET_TARGET_SHELL=zsh DOCKET_BASH_PATH="$RUNTIME" bash "$SCRIPT" >/dev/null 2>&1
 assert "stale path replaced"               'grep -qF "export DOCKET_SCRIPTS_DIR=\"$EXPECTED\"" "$H/.zshenv"'
 assert "stale path: old value gone"        '! grep -qF "/old/path/scripts" "$H/.zshenv"'
 assert "stale path: still one block"       '[ "$(grep -cF ">>> docket (DOCKET_SCRIPTS_DIR) >>>" "$H/.zshenv")" = "1" ]'
+
+# Invalid runtime input fails before either destination is touched.
+H="$(mktemp -d)"; _tmpdirs+=("$H"); printf '# keep\n' > "$H/.zshenv"
+HOME="$H" DOCKET_HARNESS_ROOT="$H" DOCKET_TARGET_SHELL=zsh DOCKET_BASH_PATH=relative bash "$SCRIPT" >/dev/null 2>&1; invalid_rc=$?
+assert "invalid runtime: exits non-zero" '[ "$invalid_rc" -ne 0 ]'
+assert "invalid runtime: profile left unchanged" '[ "$(cat "$H/.zshenv")" = "# keep" ]'
+
+# Marker corruption is rejected byte-safely instead of consuming the profile tail.
+H="$(mktemp -d)"; _tmpdirs+=("$H")
+printf '# >>> docket (DOCKET_SCRIPTS_DIR) >>>\nold\n# trailing user data\n' > "$H/.zshenv"; cp "$H/.zshenv" "$H/before"
+HOME="$H" DOCKET_HARNESS_ROOT="$H" DOCKET_TARGET_SHELL=zsh DOCKET_BASH_PATH="$RUNTIME" bash "$SCRIPT" >/dev/null 2>&1; marker_rc=$?
+assert "markers: dangling profile block is rejected" '[ "$marker_rc" -ne 0 ] && cmp -s "$H/before" "$H/.zshenv"'
 
 # migrate-to-docket.sh points the user at install.sh for script reachability (DOCKET_SCRIPTS_DIR)
 MIG="$REPO/migrate-to-docket.sh"

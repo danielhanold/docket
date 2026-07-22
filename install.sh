@@ -2,14 +2,13 @@
 # install.sh — set up docket on this machine, in one command.
 #
 # Runs the four install primitives in order:
-#   1. link-skills.sh  — symlink the skills into each present harness's skill dir (live; edit-once)
-#   2. ensure-global-config.sh — scaffold a minimal pointer-only ~/.config/docket/config.yml on
-#                                first run (non-destructive), so the defaults are discoverable and
-#                                the generator (step 3) reads it
+#   1. ensure-global-config.sh — discover/persist a machine-local Bash 4+ runtime before any
+#                                runtime-dependent primitive
+#   2. link-skills.sh  — symlink the skills into each present harness's skill dir (live; edit-once)
 #   3. sync-agents.sh  — generate the model/effort-pinned agent wrappers into each present harness
 #                        (generated copies; re-run after editing a config layer)
-#   4. ensure-docket-env.sh — export DOCKET_SCRIPTS_DIR so the skills can reach scripts/ from any
-#                             consuming repo (re-run back-fills already-migrated clones)
+#   4. ensure-docket-env.sh — export DOCKET_SCRIPTS_DIR and DOCKET_BASH_PATH for consuming repos
+#                             (re-run back-fills already-migrated clones)
 # All are idempotent, so install.sh is safe to re-run any time (e.g. after adding a harness or
 # editing ~/.config/docket/config.yml).
 #
@@ -21,16 +20,26 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-echo "==> link-skills.sh (install skills)"
-bash "$SCRIPT_DIR/link-skills.sh"
-
-echo "==> ensure-global-config.sh (scaffold global config)"
+echo "==> ensure-global-config.sh (configure Bash runtime)"
 bash "$SCRIPT_DIR/scripts/ensure-global-config.sh"
 
-echo "==> sync-agents.sh (generate agent wrappers)"
-bash "$SCRIPT_DIR/sync-agents.sh"
+CONFIG_ROOT="${XDG_CONFIG_HOME:-${DOCKET_HARNESS_ROOT:-$HOME}/.config}"
+DOCKET_BASH_PATH="$(awk '
+  /^runtime:[[:space:]]*$/ { in_runtime=1; next }
+  in_runtime && /^[^[:space:]]/ { in_runtime=0 }
+  in_runtime && /^[[:space:]]+bash:[[:space:]]*/ {
+    sub(/^[[:space:]]+bash:[[:space:]]*/, ""); print; exit
+  }
+' "$CONFIG_ROOT/docket/config.yml")"
+export DOCKET_BASH_PATH
 
-echo "==> ensure-docket-env.sh (export DOCKET_SCRIPTS_DIR)"
-bash "$SCRIPT_DIR/scripts/ensure-docket-env.sh"
+echo "==> link-skills.sh (install skills)"
+"$DOCKET_BASH_PATH" "$SCRIPT_DIR/link-skills.sh"
+
+echo "==> sync-agents.sh (generate agent wrappers)"
+"$DOCKET_BASH_PATH" "$SCRIPT_DIR/sync-agents.sh"
+
+echo "==> ensure-docket-env.sh (export Docket runtime environment)"
+"$DOCKET_BASH_PATH" "$SCRIPT_DIR/scripts/ensure-docket-env.sh"
 
 echo "docket: install complete"
