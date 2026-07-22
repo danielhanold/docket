@@ -2,7 +2,7 @@
 id: 114
 slug: decide-the-repo-s-posture-on-line-number-comment-anchors
 title: Decide the repo's posture on line-number comment anchors
-status: implemented
+status: done
 priority: medium
 created: 2026-07-20
 updated: 2026-07-22
@@ -16,7 +16,7 @@ results: docs/results/2026-07-22-decide-the-repo-s-posture-on-line-number-commen
 trivial: false
 auto_groomable: true
 branch: feat/decide-the-repo-s-posture-on-line-number-comment-anchors
-claimed_at: 2026-07-22T03:44:13Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/119
 blocked_by:
 reconciled: true
