@@ -1,6 +1,6 @@
 # Backlog
 
-**123 changes** — 🟢 1 in progress · 🟡 21 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 93 done · 🗑️ 6 killed
+**124 changes** — 🟢 1 in progress · 🟡 22 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 93 done · 🗑️ 6 killed
 
 ## 🟢 In progress (1)
 
@@ -8,7 +8,7 @@
 |---|-------|----------|------|--------|
 | [0112](active/0112-pin-the-reverse-cross-layer-masking-for-the-committed-over-l.md) | Complete the finalize.test_command cross-layer masking matrix (reverse committed-over-local + both skip-rung pairs) | `medium` | [spec](../superpowers/specs/2026-07-20-reverse-cross-layer-masking-matrix-design.md) | `feat/pin-the-reverse-cross-layer-masking-for-the-committed-over-l` |
 
-## 🟡 Proposed (21)
+## 🟡 Proposed (22)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -33,6 +33,7 @@
 | [0121](active/0121-the-manifest-s-elsewhere-check-proves-a-word-occurrence-not.md) | The manifest's elsewhere: check proves a word occurrence, not a real config read | `medium` | needs-brainstorm |
 | [0122](active/0122-nested-keys-scope-tags-in-docket-example-yml-are-unguarded.md) | Nested keys' scope tags in .docket.example.yml are unguarded | `medium` | needs-brainstorm |
 | [0123](active/0123-machine-check-the-docket-config-md-export-list-order-against.md) | Machine-check the docket-config.md export list order against the resolver | `medium` | needs-brainstorm |
+| [0124](active/0124-backlog-triage-pass.md) | Backlog triage pass — kill, defer, or arm each needs-brainstorm stub | `medium` | needs-brainstorm |
 
 ## 🔴 Blocked (1)
 
@@ -72,6 +73,7 @@ graph TD
   0121
   0122
   0123
+  0124
   0015:::done
   0016:::done
   0077:::done
