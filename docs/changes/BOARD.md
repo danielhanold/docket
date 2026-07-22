@@ -1,8 +1,14 @@
 # Backlog
 
-**128 changes** — 🟡 25 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 94 done · 🗑️ 6 killed
+**128 changes** — 🟢 1 in progress · 🟡 24 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 94 done · 🗑️ 6 killed
 
-## 🟡 Proposed (25)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Spec | Branch |
+|---|-------|----------|------|--------|
+| [0116](active/0116-single-source-the-remaining-duplicated-board-vocabularies.md) | Single-source the remaining duplicated board vocabularies | `medium` | [spec](../superpowers/specs/2026-07-20-single-source-the-remaining-duplicated-board-vocabularies-design.md) | `feat/single-source-the-remaining-duplicated-board-vocabularies` |
+
+## 🟡 Proposed (24)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -18,7 +24,6 @@
 | [0110](active/0110-shared-metadata-worktree-contention.md) | Concurrent agents collide on the shared .docket worktree's dirty-tree window | `high` | needs-brainstorm |
 | [0113](active/0113-suppressed-handoff-silently-ends-autonomous-run.md) | A suppressed hand-off can silently end an autonomous run — make step completion verifiable, not narrated | `high` | needs-brainstorm |
 | [0115](active/0115-extend-the-board-row-dropped-invariant-to-archive-files.md) | Extend the board-row-dropped invariant to archive/ files | `medium` | build-ready |
-| [0116](active/0116-single-source-the-remaining-duplicated-board-vocabularies.md) | Single-source the remaining duplicated board vocabularies | `medium` | build-ready |
 | [0117](active/0117-deferred-adr-publish-visibility-decide-whether-docket-adr-s.md) | Deferred ADR-publish visibility — detect an unpublished ADR with a computed board-checks finding | `medium` | build-ready |
 | [0118](active/0118-decide-whether-the-sweep-s-skip-publish-path-should-also-mar.md) | Decide whether the sweep's skip-publish path should also mark an unpublished terminal record | `medium` | needs-brainstorm |
 | [0119](active/0119-scope-the-metadata-worktree-git-commit-calls-to-the-paths-th.md) | Scope the metadata-worktree git commit calls to the paths they own | `medium` | needs-brainstorm |
