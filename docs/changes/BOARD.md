@@ -1,6 +1,6 @@
 # Backlog
 
-**133 changes** — 🟡 27 proposed · 🔴 1 blocked · 🔵 5 implemented · ✅ 94 done · 🗑️ 6 killed
+**133 changes** — 🟡 27 proposed · 🔴 1 blocked · 🔵 4 implemented · ✅ 95 done · 🗑️ 6 killed
 
 ## 🟡 Proposed (27)
 
@@ -40,7 +40,7 @@
 |---|-------|----------|------------|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | PR #69 is stale (predates the 0068/0072 facade rework and later agent-layer changes) and #0079 (runner delegation) reshapes the design — the build roles should grow a runner field (build.<role>.runner codex, the mixed topology 0079 deferred). Needs a rebase plus redesign pass before merge. |
 
-## 🔵 Implemented — awaiting merge (5)
+## 🔵 Implemented — awaiting merge (4)
 
 | # | Title | Priority | PR | Readiness |
 |---|-------|----------|----|-----------|
@@ -48,7 +48,6 @@
 | [0114](active/0114-decide-the-repo-s-posture-on-line-number-comment-anchors.md) | Decide the repo's posture on line-number comment anchors | `medium` | [#119](https://github.com/danielhanold/docket/pull/119) |  |
 | [0116](active/0116-single-source-the-remaining-duplicated-board-vocabularies.md) | Single-source the remaining duplicated board vocabularies | `medium` | [#120](https://github.com/danielhanold/docket/pull/120) |  |
 | [0128](active/0128-truthful-git-errors-harness-neutral-escalation-retry.md) | Truthful Git failures and harness-neutral sandbox escalation retry | `high` | [#121](https://github.com/danielhanold/docket/pull/121) | finalize blocked — needs you |
-| [0132](active/0132-install-configured-bash-runtime.md) | Install and use a configured Bash 4+ runtime | `high` | [#122](https://github.com/danielhanold/docket/pull/122) |  |
 
 ```mermaid
 graph TD
@@ -83,7 +82,6 @@ graph TD
   0129
   0130
   0131
-  0132
   0133
   0015:::done
   0016:::done
@@ -91,10 +89,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (100)</summary>
+<details><summary>✅🗑️ Archive — done + killed (101)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0132](archive/2026-07-22-0132-install-configured-bash-runtime.md) | Install and use a configured Bash 4+ runtime | 2026-07-22 |
 | [0112](archive/2026-07-22-0112-pin-the-reverse-cross-layer-masking-for-the-committed-over-l.md) | Complete the finalize.test_command cross-layer masking matrix (reverse committed-over-local + both skip-rung pairs) | 2026-07-22 |
 | [0111](archive/2026-07-21-0111-guard-the-board-checks-check-id-enumerations-against-drift.md) | Guard the board-checks check-id enumerations against drift | 2026-07-21 |
 | [0108](archive/2026-07-21-0108-guard-the-readme-s-remaining-config-fences-against-key-drift.md) | Guard the README's remaining config fences against key drift | 2026-07-21 |
@@ -110,7 +109,6 @@ graph TD
 | [0098](archive/2026-07-19-0098-stale-finalize-marker-health-check.md) | Health check for a stale `## Finalize blocked` marker | 2026-07-19 |
 | [0097](archive/2026-07-19-0097-mirror-readiness-label-parity.md) | GitHub mirror readiness parity — readiness labels stop at `proposed` | 2026-07-19 |
 | [0096](archive/2026-07-19-0096-suppress-plan-skill-execution-handoff.md) | An autonomous run can be halted by a sub-skill's interactive hand-off — pre-specify the outcome at every autonomous call site | 2026-07-19 |
-| [0094](archive/2026-07-19-0094-selection-order-digest.md) | Selection-order backlog digest — implement-next selects from a digest instead of walking active/ | 2026-07-19 |
 | [0086](archive/2026-07-18-0086-attended-finalize-merge-path.md) | Attended finalize has no merge path under auto_approve — scope the --admin ban to autonomous runs | 2026-07-18 |
 | [0033](archive/2026-07-16-0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | 2026-07-16 |
 | [0076](archive/2026-07-14-0076-cwd-independent-repo-root-resolution.md) | Resolve the repo root independently of CWD — preflight run inside `.docket` mints a nested metadata worktree | 2026-07-14 |
@@ -121,7 +119,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-07](archive/) | 47 done |
+| [2026-07](archive/) | 48 done |
 | [2026-06](archive/) | 32 done |
 
 </details>
