@@ -2,7 +2,7 @@
 id: 132
 slug: install-configured-bash-runtime
 title: Install and use a configured Bash 4+ runtime
-status: implemented
+status: done
 priority: high
 created: 2026-07-22
 updated: 2026-07-22
@@ -19,7 +19,7 @@ branch: feat/install-configured-bash-runtime
 pr: https://github.com/danielhanold/docket/pull/122
 blocked_by:
 reconciled: true
-claimed_at: 2026-07-22T19:13:29Z
+claimed_at: 
 ---
 
 ## Artifacts
