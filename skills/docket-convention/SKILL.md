@@ -80,7 +80,7 @@ All metadata reads and writes happen in the metadata working tree on `metadata_b
 
 ### Harness-native recovery after sandbox or permission denial
 
-When a required `docket.sh` facade command or direct Git command fails with evidence of a host **sandbox** or **permission** denial, retry the **exact command** once through the host harness's native approval/escalation mechanism. Do not change its arguments, use `sudo`, or broaden the session sandbox. If native approval is unavailable or denied, or the one attempt retry fails, preserve the diagnostic and follow the caller's **existing failure posture**. An ordinary Git failure does not qualify for this recovery. In Step 0, retry the outer `docket.sh preflight` command, never a private inner fetch.
+When a required `docket.sh` facade command or direct Git command fails with evidence of a host **sandbox** or **permission** denial, retry the **exact command** once through the host harness's native approval/escalation mechanism. Do not change its arguments or broaden the session sandbox. No shell-level elevation mechanism, including `sudo`, is permitted. If native approval is unavailable or denied, or the one attempt retry fails, preserve the diagnostic and follow the caller's **existing failure posture**. An ordinary Git failure does not qualify for this recovery. In Step 0, retry the outer `docket.sh preflight` command, never a private inner fetch. This normative skill prose is **harness-neutral**: it must not name or invoke product-specific retry syntax.
 
 ### Agent layer — model/effort-pinned subagents (change 0016)
 

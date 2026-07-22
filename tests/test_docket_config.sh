@@ -1322,6 +1322,7 @@ assert "0102 R6c: diagnostic shows the offending value" 'grep -q "yes" <<<"$err6
 # Position matters: scripts/docket-config.md documents the order as a contract, and pipe
 # consumers may rely on it. Anchor on the neighbour rather than a bare "is present".
 out7="$(rung "$tmp/r1.xdg" "$tmp/r1" --export)"
+out7_plain="$(rung "$tmp/r1.xdg" "$tmp/r1" --export --format plain)"
 assert "0102 R7: FINALIZE_REQUIRE_PR_APPROVAL is emitted" \
   'grep -q "^FINALIZE_REQUIRE_PR_APPROVAL=" <<<"$out7"'
 assert "0102 R7: emitted directly after FINALIZE_TEST_COMMAND" \

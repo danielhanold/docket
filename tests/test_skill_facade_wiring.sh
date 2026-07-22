@@ -160,6 +160,11 @@ assert "recovery rule retries the exact command" 'grep -qi "exact command" <<<"$
 assert "recovery rule uses the harness-native approval boundary" 'grep -qiE "harness.*(native|approval)|native.*approval" <<<"$recovery"'
 assert "recovery rule limits the retry to one attempt" 'grep -qiE "once|one.*attempt" <<<"$recovery"'
 assert "recovery rule falls back to the caller posture" 'grep -qi "existing failure posture" <<<"$recovery"'
+assert "recovery rule forbids shell-level elevation" \
+  'grep -qiE "no shell-level elevation|do not use.*shell-level elevation" <<<"$recovery"'
+assert "recovery rule keeps normative prose harness-neutral" 'grep -qi "harness-neutral" <<<"$recovery"'
+assert "recovery rule names no product-specific retry syntax" \
+  '! grep -qiE "require_escalated|sandbox_permissions|with_escalated_permissions" <<<"$recovery"'
 
 # ---- Layer 3: the board-surfaces sentinel (change 0071) ----------------------------------------
 # 0071 removed every surfaces value from skill prose: the Board pass is now the single facade call
