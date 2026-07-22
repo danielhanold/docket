@@ -1,6 +1,6 @@
 # Single-source the remaining duplicated board vocabularies — results
 
-Change: #116 · Branch: feat/single-source-the-remaining-duplicated-board-vocabularies · PR: pending · Plan: docs/superpowers/plans/2026-07-22-single-source-board-vocabularies.md · ADRs: 55
+Change: #116 · Branch: feat/single-source-the-remaining-duplicated-board-vocabularies · PR: https://github.com/danielhanold/docket/pull/120 · Plan: docs/superpowers/plans/2026-07-22-single-source-board-vocabularies.md · ADRs: 55
 
 ## Findings
 
