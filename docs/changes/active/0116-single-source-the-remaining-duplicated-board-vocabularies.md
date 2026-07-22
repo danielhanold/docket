@@ -16,10 +16,10 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/single-source-the-remaining-duplicated-board-vocabularies
-claimed_at: 2026-07-22T11:18:52Z
+claimed_at: 2026-07-22T11:22:18Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -62,7 +62,7 @@ time, which is the shape 0104's own design argued against.
 
 Finish the job 0104 started: derive each vocabulary from a single source, and pin the
 correspondences that cannot be unified. Scope settled by a whole-repo derivation at **thirteen**
-executable sites across **seven** scripts — all of which already source
+executable sites across **six** scripts — all of which already source
 `scripts/lib/docket-frontmatter.sh`, so the comprehensive scope adds no new plumbing. Full site
 table, dispositions and rationale in the spec.
 
@@ -89,13 +89,12 @@ An **ADR** records the general rule the guards rest on: a `case` mapping is pinn
 exhaustive over a named array; a vocabulary that is exhaustive but *un-arrayed* gets an array first,
 then a pin; a sparse mapping with a correct default is left alone.
 
-**Sequencing.** `related: [111, 115]` is a build-order note, not a gate. Both would consume the
-arrays and helpers this change establishes and both touch `scripts/board-checks.sh` /
-`scripts/render-board.sh`, so **0116 should probably build first**. Deliberately not `depends_on`:
-neither is blocked on 0116 and each is independently implementable, so a dependency would falsely
-show two changes gated on the board. If one lands first, reconcile composes the edits by intent.
-Note for the builder: 0115 lists a `done|killed`-to-`DOCKET_STATUSES_TERMINAL` correspondence assert
-in its own scope — expect that guard to overlap with this change's.
+**Sequencing.** `related: [111, 115]` remains a build-order note, not a gate. Change 0111 landed
+first and added `BOARD_CHECK_IDS` beside the status arrays in `docket-frontmatter.sh`; this change
+preserves that vocabulary while extending the same shared block. Change 0115 remains proposed and
+independently implementable. Its planned `done|killed`-to-`DOCKET_STATUSES_TERMINAL`
+correspondence assert overlaps this change's scope, so if it lands before this PR merges, reconcile
+the guard by intent rather than choosing one version.
 
 ## Out of scope
 
@@ -114,7 +113,7 @@ Both of the stub's questions are **resolved** in the spec (2026-07-20, autonomou
   was a coincidence of two independent facts — priority has exactly one ordering and it is
   normative, so a membership-only second constant would protect nothing while reproducing the
   drift being removed. The index doubles as the sort rank, deleting the magic `0/1/3/2` ladder.
-- ~~Consumers outside the two scripts?~~ **Yes — seven scripts, thirteen sites**, derived by
+- ~~Consumers outside the two scripts?~~ **Yes — six scripts, thirteen sites**, derived by
   whole-repo case-insensitive sweep (see the spec's inventory). The sweep also proved its own
   lesson: a first pass anchored on the literal `done|killed` missed the archive block's
   `ARC_COUNT[done]` spelling, caught only by the critic's semantic read.
@@ -128,3 +127,24 @@ what would reverse it):
   untouched, and option lookup is by name, not position — and the new order matches `BOARD.md`'s
   section order. If the current order *is* deliberate, say so and the change keeps an explicitly
   ordered constant with a comment instead.
+
+## Reconcile log
+
+### 2026-07-22 — reconciled at claim (docket-implement-next)
+
+Re-derived the inventory semantically against `origin/main` at `c3ad10fb` and re-read related
+changes 0111/0115 plus ADR-0049/0050. The thirteen executable sites are still present and the
+design remains valid. Three current-reality adjustments were folded in:
+
+1. **0111 is done, not concurrent.** It added `BOARD_CHECK_IDS` to the shared library and expanded
+   the correspondence tests. This change must preserve that array and extend the existing
+   vocabulary block; no scope is obsolete.
+2. **The inventory spans six affected scripts, not seven.** The groomed spec counted
+   `render-change-links.sh` because it already sources the shared library, but it owns none of the
+   thirteen in-scope enumerations. The no-new-plumbing conclusion still holds for all six actual
+   consumers.
+3. **0115 remains proposed.** Its planned terminal-status correspondence guard still overlaps this
+   work, but there is no branch to compose today.
+
+No adjacent follow-up met the auto-capture materiality bar; these are corrections inside 0116's
+existing scope.

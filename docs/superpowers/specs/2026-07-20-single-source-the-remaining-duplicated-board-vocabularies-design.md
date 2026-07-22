@@ -53,10 +53,11 @@ whole section would silently vanish. That is the ADR-0050 "count line and tables
 verbatim. It is **not** covered by 0115, which is checker-side and names `ndone + nkilled` only as
 the symptom it models, never as a renderer edit.
 
-All thirteen sites live in scripts that **already source
+All thirteen sites live in six scripts that **already source
 `scripts/lib/docket-frontmatter.sh`** (verified: `render-board.sh:45`, `board-checks.sh:52`,
-`github-mirror.sh:80`, `archive-change.sh:22`, `terminal-publish.sh:28`, `docket-status.sh:31`,
-`render-change-links.sh:40`). The comprehensive scope therefore adds **no new sourcing plumbing** —
+`github-mirror.sh:80`, `archive-change.sh:22`, `terminal-publish.sh:28`, and `docket-status.sh:31`).
+`render-change-links.sh` also sources the library but owns no in-scope enumeration and is not an
+affected script. The comprehensive scope therefore adds **no new sourcing plumbing** —
 which is what collapses the usual narrow-vs-comprehensive trade-off here.
 
 ### Explicitly OUT of scope — single-status predicates
@@ -280,9 +281,9 @@ are both intended to be exhaustive over them (documented at `github-mirror.sh:12
 would land in "exhaustive over nothing," a mislabel that happens to give the right disposition today.
 The correct rule is three-way: exhaustive over a named array ⇒ pin; exhaustive over a vocabulary that
 has **no** array ⇒ **give it an array first, then pin**; exhaustive over nothing ⇒ leave it.
-This is not academic: **0111 guards the check-id vocabulary, which is exactly an un-arrayed
-vocabulary**, so the two-way rule would tell 0111 "no array ⇒ don't pin" when the intended answer is
-the middle case.
+This is not academic: **0111 guarded the formerly un-arrayed check-id vocabulary by first adding
+`BOARD_CHECK_IDS`**, then pinning its mirrors. Its landed implementation is direct evidence for the
+middle case rather than future work.
 
 ## Deferred (explicitly not this change)
 
@@ -309,7 +310,7 @@ direct evidence for the change's own thesis, and because it means **the build's 
 re-derive the inventory by semantics, not by re-running the same keyword grep.***
 Chosen because the stub itself directs deriving the site list from a whole-repo grep, and because
 the standing preference on a "finish the job 0104 started" change is the comprehensive fix.
-Decisive supporting fact: all seven affected scripts **already source the lib**, so the wider scope
+Decisive supporting fact: all six affected scripts **already source the lib**, so the wider scope
 costs no new plumbing and no new dependency edges. *Rejected:* limiting to `render-board.sh` +
 `board-checks.sh` — that would leave `github-mirror.sh:54` as a hand-written copy of
 `DOCKET_STATUSES_ACTIVE` **already drifted in order**, i.e. shipping the exact defect the change
@@ -352,7 +353,7 @@ lookup — A4 collapses and the reorder must be revisited.**
 
 **A5 — The vocabulary lives in `docket-frontmatter.sh`, not a new `docket-vocabulary.sh` lib.**
 The status arrays already live there and all consumers already source it; a new file would mean
-seven new `source` lines for zero behavioral gain. *Rejected:* a dedicated vocabulary lib — cleaner
+six new `source` lines for zero behavioral gain. *Rejected:* a dedicated vocabulary lib — cleaner
 on paper, but it is a refactor of the lib layout wearing this change's clothes. Revisit if the
 vocabulary block outgrows the file.
 
@@ -383,17 +384,11 @@ production code around a test's convenience).
 accepted:** a golden re-bless is the moment a real regression hides; the mitigation is that the two
 diffs are named up front and everything else must be byte-identical.
 
-**A9 — Dependency state: `depends_on` is empty and stays empty; 0111 and 0115 are expected
-downstream consumers.**
-Both are being groomed concurrently and both touch `scripts/board-checks.sh` and
-`scripts/render-board.sh`. 0111 (check-id vocabulary guard) and 0115 (archive-side
-`board-row-dropped`) would each consume the arrays and helpers this change establishes, so **0116
-should build first** — but this is a sequencing preference, not a hard `depends_on`: neither of them
-is blocked on 0116, and each is independently implementable. Recorded as `related:` with the
-reasoning in the change body rather than as a dependency, so the board does not show two changes
-falsely gated. If 0111 or 0115 lands first, this change's reconcile pass absorbs their edits —
-[[concurrent-edits-compose-at-rebase]] applies: keep each edit additive and reconcile by intent.
-**Not coordinated live with those agents by design**; this spec was authored standalone.
+**A9 — Dependency state: `depends_on` is empty and stays empty; related changes compose by intent.**
+Change 0111 has now landed and added `BOARD_CHECK_IDS` beside `DOCKET_STATUSES`; this change keeps
+that array intact while extending the same vocabulary block. Change 0115 (archive-side
+`board-row-dropped`) remains proposed and would consume the helpers established here, but is not
+blocked on 0116. The `related:` links remain accurate without manufacturing a dependency gate.
 
 **A10 — Prose restatements are deferred, not forgotten.**
 They cannot be derived from a bash array, so they are outside "single-source"; guarding them is a
@@ -412,8 +407,17 @@ it sits beside ADR-0049/0050. *Rejected:* no ADR (repeats 0104's decayed-comment
 **A12 — `STATUS_OPTIONS`' assignment moves below the `source` line. — added after critic round 1.**
 A mechanical prerequisite, not a preference: at `github-mirror.sh` the assignment (`:54`) precedes
 the `source` (`:80`), so an in-place derivation silently expands to empty and degrades to a
-best-effort `log` at `:299`. Recorded as an assumption because A1's evidence ("all seven scripts
+best-effort `log` at `:299`. Recorded as an assumption because A1's evidence ("all six scripts
 source the lib") proves *sourced*, not *sourced before use* — a gap that holds at one of thirteen
 sites and would have shipped a silently broken GitHub board. **Risk accepted:** other order-of-
 definition hazards may exist at sites not yet examined; the build must check source-order at each
 converted site rather than trusting A1's table.
+
+## Reconcile update — 2026-07-22
+
+Re-derived all thirteen executable enumerations against `origin/main` at `c3ad10fb`; none has been
+removed or fundamentally reshaped. Change 0111 landed first and added `BOARD_CHECK_IDS` plus its
+four-way correspondence guard, so the shared library and test extensions must preserve that work.
+Change 0115 remains proposed with no feature branch. Corrected the affected-script count from seven
+to six: `render-change-links.sh` sources the library but contains no in-scope enumeration. No other
+scope change or follow-up was warranted.
