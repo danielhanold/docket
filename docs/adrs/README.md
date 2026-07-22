@@ -53,6 +53,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0051](0051-publish-deferred-marker-not-branch-diff-detector.md) — Make a deferred terminal publish visible with a presence-encoded marker, not a branch-diff detector (Accepted) ← change #83 · relates to ADR-0001
 - [ADR-0052](0052-config-key-resolution-boundary.md) — A documented config key resolves through docket-config.sh; a model-read of .docket.yml is not a supported shape (Accepted) ← change #102 · relates to ADR-0048, ADR-0019, ADR-0012
 - [ADR-0053](0053-readme-yaml-fences-guarded-by-default-opt-out-marker-grammar.md) — README yaml fences are guarded by default, with an opt-out marker grammar (Accepted) ← change #108 · relates to ADR-0048
+- [ADR-0055](0055-exhaustive-vocabulary-mappings-require-array-pinned-set-equality.md) — Exhaustive vocabulary mappings require array-pinned set equality (Accepted) ← change #116 · relates to ADR-0049, ADR-0050
 
 ## Superseded / Reversed
 
