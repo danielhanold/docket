@@ -1,6 +1,6 @@
 # Backlog
 
-**126 changes** — 🟢 1 in progress · 🟡 23 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 94 done · 🗑️ 6 killed
+**127 changes** — 🟢 1 in progress · 🟡 24 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 94 done · 🗑️ 6 killed
 
 ## 🟢 In progress (1)
 
@@ -8,7 +8,7 @@
 |---|-------|----------|------|--------|
 | [0114](active/0114-decide-the-repo-s-posture-on-line-number-comment-anchors.md) | Decide the repo's posture on line-number comment anchors | `medium` | [spec](../superpowers/specs/2026-07-20-line-number-comment-anchors-design.md) | `feat/decide-the-repo-s-posture-on-line-number-comment-anchors` |
 
-## 🟡 Proposed (23)
+## 🟡 Proposed (24)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -35,6 +35,7 @@
 | [0124](active/0124-backlog-triage-pass.md) | Backlog triage pass — kill, defer, or arm each needs-brainstorm stub | `medium` | needs-brainstorm |
 | [0125](active/0125-decide-whether-the-rung-pair-completeness-claim-should-be-me.md) | Decide whether the rung-pair completeness claim should be mechanically enforced | `medium` | needs-brainstorm |
 | [0126](active/0126-apply-the-poison-value-prelude-uniformly-to-every-resolver-e.md) | Apply the poison-value prelude uniformly to every resolver eval in the config suite | `medium` | needs-brainstorm |
+| [0127](active/0127-typed-changes-selective-auto-capture.md) | Typed changes — configurable taxonomy, selective auto-capture, and backlog filters | `medium` | build-ready |
 
 ## 🔴 Blocked (1)
 
@@ -76,6 +77,7 @@ graph TD
   0124
   0125
   0126
+  0127
   0015:::done
   0016:::done
   0077:::done
