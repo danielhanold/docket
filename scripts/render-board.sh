@@ -5,6 +5,7 @@
 # commits), offline (no gh, no network). Same change files => identical bytes.
 #
 # Usage: render-board.sh --changes-dir DIR [--repo OWNER/REPO] [--format markdown|digest]
+#                        [--type TYPE|untyped|all] [--priority PRIORITY|all]
 #   --repo builds pr: hyperlinks; defaults to deriving OWNER/REPO from the origin remote of
 #   --changes-dir. Mock seam: GIT="${GIT:-git}".
 #   --format markdown (default) emits the BOARD.md markdown; --format digest emits the
@@ -24,11 +25,15 @@ ARCHIVE_RECENT=15
 CHANGES_DIR=""
 REPO=""
 FORMAT="markdown"
+FILTER_TYPE="all"
+FILTER_PRIORITY="all"
 while [ $# -gt 0 ]; do
   case "$1" in
     --changes-dir) CHANGES_DIR="$2"; shift ;;
     --repo) REPO="$2"; shift ;;
     --format) FORMAT="$2"; shift ;;
+    --type) FILTER_TYPE="$2"; shift ;;
+    --priority) FILTER_PRIORITY="$2"; shift ;;
     -h|--help) grep '^#' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) printf 'render-board: unknown argument: %s\n' "$1" >&2; exit 2 ;;
   esac
@@ -43,6 +48,51 @@ esac
 
 # shellcheck source=/dev/null
 source "$(dirname "${BASH_SOURCE[0]}")/lib/docket-frontmatter.sh"
+
+# --- report filter validation (change 0127) ---------------------------------------------------
+# `all` is the wildcard and is exactly equivalent to omitting the option. A --type filter accepts
+# any WELL-FORMED token rather than only the effective change_types: a repository legitimately
+# contains types written under another machine's configuration, and a query for one of those must
+# work. `untyped` is the query token for a change carrying no type: at all.
+if [ "$FILTER_TYPE" != all ] && [ "$FILTER_TYPE" != untyped ]; then
+  docket_change_type_is_wellformed "$FILTER_TYPE" || {
+    printf 'render-board: unknown --type value: %s (expected all, untyped, or a [a-z][a-z0-9-]* token)\n' \
+      "$FILTER_TYPE" >&2
+    exit 2
+  }
+fi
+if [ "$FILTER_PRIORITY" != all ]; then
+  docket_priority_is_member "$FILTER_PRIORITY" || {
+    printf 'render-board: unknown --priority value: %s (expected all, %s)\n' \
+      "$FILTER_PRIORITY" "${DOCKET_PRIORITIES[*]}" >&2
+    exit 2
+  }
+fi
+
+# digest_admits FILE — the report-only projection filter. Consulted ONLY inside the digest block:
+# the markdown writer must never call it, or a filtered --board-only run would commit a TRUNCATED
+# BOARD.md. That boundary is asserted in tests/test_render_board.sh.
+digest_admits(){
+  local t p
+  if [ "$FILTER_TYPE" != all ]; then
+    t="$(field "$1" type)"; t="${t:-untyped}"
+    [ "$t" = "$FILTER_TYPE" ] || return 1
+  fi
+  if [ "$FILTER_PRIORITY" != all ]; then
+    p="$(field "$1" priority)"; p="${p:-$DOCKET_PRIORITY_DEFAULT}"
+    [ "$p" = "$FILTER_PRIORITY" ] || return 1
+  fi
+  return 0
+}
+
+# type_cell FILE — the stored value verbatim, or `untyped` when absent. Deliberately NOT validated
+# against the effective change_types: configuration governs CREATION, never the readability of
+# shared history, so a type this machine does not configure still renders. Row visibility never
+# depends on the type — a type problem must not drop a row (change 0127).
+type_cell(){
+  local t; t="$(field "$1" type)"
+  printf '%s' "${t:-untyped}"
+}
 
 # Derive OWNER/REPO from the origin remote when --repo is unset (best-effort, offline). Skipped
 # entirely for --format digest (change 0094): REPO is consumed only by the markdown renderer's
@@ -129,6 +179,7 @@ if [ "$FORMAT" = digest ]; then
   done
   while IFS=$'\t' read -r id f; do
     [ -n "$id" ] || continue
+    digest_admits "$f" || continue
     st="$(field "$f" status)"
     printf 'change %s %s %s %s\n' \
       "$id" "$st" "$(digest_readiness "$f" "$id" "$st")" "$(field "$f" slug)"
@@ -160,6 +211,7 @@ if [ "$FORMAT" = digest ]; then
   done < <(
     while IFS=$'\t' read -r id f; do
       [ -n "$id" ] || continue
+      digest_admits "$f" || continue
       [ "$(digest_readiness "$f" "$id" proposed)" = build-ready ] || continue
       # An unset or unrecognized priority is `medium` — the convention's documented default.
       prank="$(docket_priority_rank "$(field "$f" priority)")"
@@ -221,11 +273,11 @@ pr_cell(){ local f="$1" pr num; pr="$(field "$f" pr)"
   esac
 }
 table_header_for(){ case "$1" in
-  in-progress) printf '| # | Title | Priority | Spec | Branch |\n|---|-------|----------|------|--------|\n' ;;
-  proposed)    printf '| # | Title | Priority | Readiness |\n|---|-------|----------|-----------|\n' ;;
-  blocked)     printf '| # | Title | Priority | Blocked by |\n|---|-------|----------|------------|\n' ;;
-  deferred)    printf '| # | Title | Priority |\n|---|-------|----------|\n' ;;
-  implemented) printf '| # | Title | Priority | PR | Readiness |\n|---|-------|----------|----|-----------|\n' ;;
+  in-progress) printf '| # | Title | Priority | Type | Spec | Branch |\n|---|-------|----------|------|------|--------|\n' ;;
+  proposed)    printf '| # | Title | Priority | Type | Readiness |\n|---|-------|----------|------|-----------|\n' ;;
+  blocked)     printf '| # | Title | Priority | Type | Blocked by |\n|---|-------|----------|------|------------|\n' ;;
+  deferred)    printf '| # | Title | Priority | Type |\n|---|-------|----------|------|\n' ;;
+  implemented) printf '| # | Title | Priority | Type | PR | Readiness |\n|---|-------|----------|------|----|-----------|\n' ;;
 esac; }
 print_section(){ # print_section STATUS HEADER_SUFFIX
   local st="$1" suffix="$2" n; n="$(count_of "$st")"
@@ -235,24 +287,25 @@ print_section(){ # print_section STATUS HEADER_SUFFIX
   table_header_for "$st"
   while IFS=$'\t' read -r id f; do
     [ -n "$id" ] || continue
-    local title priority; title="$(field "$f" title)"; priority="$(field "$f" priority)"
+    local title priority ctype; title="$(field "$f" title)"; priority="$(field "$f" priority)"
+    ctype="$(type_cell "$f")"
     local base; base="$(basename "$f")"
     # row_format_mapping
     case "$st" in
       in-progress)
-        printf '| [%s](active/%s) | %s | `%s` | [spec](%s) | `%s` |\n' \
-          "$(pad "$id")" "$base" "$title" "$priority" "$(spec_link "$(field "$f" spec)")" "$(field "$f" branch)" ;;
+        printf '| [%s](active/%s) | %s | `%s` | `%s` | [spec](%s) | `%s` |\n' \
+          "$(pad "$id")" "$base" "$title" "$priority" "$ctype" "$(spec_link "$(field "$f" spec)")" "$(field "$f" branch)" ;;
       proposed)
-        printf '| [%s](active/%s) | %s | `%s` | %s |\n' \
-          "$(pad "$id")" "$base" "$title" "$priority" "$(readiness_cell "$f" "$id")" ;;
+        printf '| [%s](active/%s) | %s | `%s` | `%s` | %s |\n' \
+          "$(pad "$id")" "$base" "$title" "$priority" "$ctype" "$(readiness_cell "$f" "$id")" ;;
       blocked)
-        printf '| [%s](active/%s) | %s | `%s` | %s |\n' \
-          "$(pad "$id")" "$base" "$title" "$priority" "$(field "$f" blocked_by)" ;;
+        printf '| [%s](active/%s) | %s | `%s` | `%s` | %s |\n' \
+          "$(pad "$id")" "$base" "$title" "$priority" "$ctype" "$(field "$f" blocked_by)" ;;
       deferred)
-        printf '| [%s](active/%s) | %s | `%s` |\n' "$(pad "$id")" "$base" "$title" "$priority" ;;
+        printf '| [%s](active/%s) | %s | `%s` | `%s` |\n' "$(pad "$id")" "$base" "$title" "$priority" "$ctype" ;;
       implemented)
-        printf '| [%s](active/%s) | %s | `%s` | %s | %s |\n' \
-          "$(pad "$id")" "$base" "$title" "$priority" "$(pr_cell "$f")" "$(implemented_cell "$f")" ;;
+        printf '| [%s](active/%s) | %s | `%s` | `%s` | %s | %s |\n' \
+          "$(pad "$id")" "$base" "$title" "$priority" "$ctype" "$(pr_cell "$f")" "$(implemented_cell "$f")" ;;
     esac
   done < <(rows_sorted "$st")
 }

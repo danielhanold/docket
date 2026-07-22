@@ -22,6 +22,7 @@ slug: alpha
 title: Alpha feature
 status: in-progress
 priority: high
+type: feat
 depends_on: []
 spec: docs/superpowers/specs/2026-06-10-alpha.md
 branch: feat/alpha
@@ -33,6 +34,7 @@ slug: bravo
 title: Bravo feature
 status: proposed
 priority: medium
+type: fix
 depends_on: [10]
 spec: docs/superpowers/specs/2026-06-10-bravo.md
 EOF
@@ -162,38 +164,38 @@ cat > "$golden" <<'EOF'
 
 ## 🟢 In progress (1)
 
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0001](active/0001-alpha.md) | Alpha feature | `high` | [spec](../superpowers/specs/2026-06-10-alpha.md) | `feat/alpha` |
+| # | Title | Priority | Type | Spec | Branch |
+|---|-------|----------|------|------|--------|
+| [0001](active/0001-alpha.md) | Alpha feature | `high` | `feat` | [spec](../superpowers/specs/2026-06-10-alpha.md) | `feat/alpha` |
 
 ## 🟡 Proposed (5)
 
-| # | Title | Priority | Readiness |
-|---|-------|----------|-----------|
-| [0002](active/0002-bravo.md) | Bravo feature | `medium` | build-ready |
-| [0003](active/0003-charlie.md) | Charlie feature | `medium` | needs-brainstorm |
-| [0004](active/0004-delta.md) | Delta feature | `low` | auto-groom blocked — needs you |
-| [0005](active/0005-echo.md) | Echo feature | `medium` | ⏳ waiting on #3 — not yet built |
-| [0006](active/0006-foxtrot.md) | Foxtrot feature | `medium` | ⏳ waiting on #8 — needs your merge |
+| # | Title | Priority | Type | Readiness |
+|---|-------|----------|------|-----------|
+| [0002](active/0002-bravo.md) | Bravo feature | `medium` | `fix` | build-ready |
+| [0003](active/0003-charlie.md) | Charlie feature | `medium` | `untyped` | needs-brainstorm |
+| [0004](active/0004-delta.md) | Delta feature | `low` | `untyped` | auto-groom blocked — needs you |
+| [0005](active/0005-echo.md) | Echo feature | `medium` | `untyped` | ⏳ waiting on #3 — not yet built |
+| [0006](active/0006-foxtrot.md) | Foxtrot feature | `medium` | `untyped` | ⏳ waiting on #8 — needs your merge |
 
 ## 🔴 Blocked (1)
 
-| # | Title | Priority | Blocked by |
-|---|-------|----------|------------|
-| [0007](active/0007-golf.md) | Golf feature | `medium` | upstream API frozen until Q3 |
+| # | Title | Priority | Type | Blocked by |
+|---|-------|----------|------|------------|
+| [0007](active/0007-golf.md) | Golf feature | `medium` | `untyped` | upstream API frozen until Q3 |
 
 ## ⚪ Deferred (1)
 
-| # | Title | Priority |
-|---|-------|----------|
-| [0009](active/0009-india.md) | India feature | `low` |
+| # | Title | Priority | Type |
+|---|-------|----------|------|
+| [0009](active/0009-india.md) | India feature | `low` | `untyped` |
 
 ## 🔵 Implemented — awaiting merge (2)
 
-| # | Title | Priority | PR | Readiness |
-|---|-------|----------|----|-----------|
-| [0008](active/0008-hotel.md) | Hotel feature | `high` | [#142](https://github.com/o/r/pull/142) |  |
-| [0013](active/0013-mike.md) | Mike feature | `high` | [#151](https://github.com/o/r/pull/151) | finalize blocked — needs you |
+| # | Title | Priority | Type | PR | Readiness |
+|---|-------|----------|------|----|-----------|
+| [0008](active/0008-hotel.md) | Hotel feature | `high` | `untyped` | [#142](https://github.com/o/r/pull/142) |  |
+| [0013](active/0013-mike.md) | Mike feature | `high` | `untyped` | [#151](https://github.com/o/r/pull/151) | finalize blocked — needs you |
 
 ```mermaid
 graph TD
@@ -260,7 +262,7 @@ assert "a marked implemented change renders the finalize-blocked cell" \
 assert "an unmarked implemented change renders an empty readiness cell" \
   'grep -qF "| [#142](https://github.com/o/r/pull/142) |  |" "$rendered"'
 assert "the implemented table carries the Readiness column" \
-  'grep -qF "| # | Title | Priority | PR | Readiness |" "$rendered"'
+  'grep -qF "| # | Title | Priority | Type | PR | Readiness |" "$rendered"'
 
 # Digest parity (change 0069's invariant: the digest can never disagree with the board).
 digest="$(bash "$SCRIPT" --changes-dir "$tmp" --format digest 2>/dev/null)"
@@ -323,7 +325,7 @@ prosedigest="$(bash "$SCRIPT" --changes-dir "$prose" --format digest 2>/dev/null
 assert "a prose mention of ## Auto-groom blocked does not render the blocked cell" \
   '! grep -qF "auto-groom blocked — needs you" <<<"$proseout"'
 assert "the prose-mentioning proposed change still reads needs-brainstorm" \
-  'grep -qF "| [0021](active/0021-quebec.md) | Quebec feature | \`medium\` | needs-brainstorm |" <<<"$proseout"'
+  'grep -qF "| [0021](active/0021-quebec.md) | Quebec feature | \`medium\` | \`untyped\` | needs-brainstorm |" <<<"$proseout"'
 assert "a prose mention of ## Finalize blocked does not render the blocked cell" \
   '! grep -qF "finalize blocked — needs you" <<<"$proseout"'
 assert "the prose-mentioning implemented change renders an empty readiness cell" \
@@ -1954,6 +1956,73 @@ assert "active board sections iterate the shared active-status array" \
   '[ "$(grep -cF '\''print_section "$st" "$(suffix_for "$st")"'\'' "$SCRIPT")" = 1 ]'
 archive_literal_sites="$(grep -nE 'ARC_COUNT\[(done|killed)\]' "$SCRIPT" || true)"
 assert "archive summary count and labels do not spell terminal members" '[ -z "$archive_literal_sites" ]'
+
+# ============================================================================
+# change 0127 — Type column + report-only --type/--priority filters
+# ============================================================================
+# A dedicated fixture tree: the golden above already proves the Type COLUMN, so this one exists to
+# prove the FILTER projection, which needs distinct type/priority combinations plus one change with
+# no type: at all (the `untyped` query token).
+f7="$tmp/f127"; mkdir -p "$f7/active" "$f7/archive"
+mk127(){ # mk127 <id> <slug> <priority> <type|"">
+  { printf -- '---\nid: %s\nslug: %s\ntitle: T%s\nstatus: proposed\npriority: %s\n' "$1" "$2" "$1" "$3"
+    [ -n "$4" ] && printf 'type: %s\n' "$4"
+    printf 'created: 2026-01-0%s\ndepends_on: []\ntrivial: true\n---\n\n## Why\nx\n' "$1"
+  } > "$f7/active/000$1-$2.md"
+}
+mk127 1 alpha high fix
+mk127 2 bravo high feat
+mk127 3 charlie low ""
+
+d127(){ "$SCRIPT" --changes-dir "$f7" --format digest "$@"; }
+m127(){ "$SCRIPT" --changes-dir "$f7" --format markdown --repo o/r "$@"; }
+
+dg="$(d127)"
+assert "0127 digest: unfiltered lists all three changes" '[ "$(grep -c "^change " <<<"$dg")" = 3 ]'
+assert "0127 digest: unfiltered ready carries all three" '[ "$(sed -n "s/^ready //p" <<<"$dg")" = "1 2 3" ]'
+
+dgt="$(d127 --type fix)"
+assert "0127 digest: --type narrows the change lines" '[ "$(grep -c "^change " <<<"$dgt")" = 1 ]'
+assert "0127 digest: --type narrows the ready queue"  '[ "$(sed -n "s/^ready //p" <<<"$dgt")" = "1" ]'
+
+dgu="$(d127 --type untyped)"
+assert "0127 digest: --type untyped selects the change with no type:" \
+  '[ "$(sed -n "s/^ready //p" <<<"$dgu")" = "3" ]'
+
+assert "0127 digest: --type all is byte-identical to unfiltered" '[ "$(d127 --type all)" = "$dg" ]'
+assert "0127 digest: --priority all is byte-identical to unfiltered" '[ "$(d127 --priority all)" = "$dg" ]'
+
+dgp="$(d127 --priority high)"
+assert "0127 digest: --priority narrows" '[ "$(sed -n "s/^ready //p" <<<"$dgp")" = "1 2" ]'
+
+dgc="$(d127 --type feat --priority high)"
+assert "0127 digest: combined filters AND together" '[ "$(sed -n "s/^ready //p" <<<"$dgc")" = "2" ]'
+
+dgn="$(d127 --type refactor)"
+assert "0127 digest: a filter matching nothing still emits a BARE ready line" \
+  'grep -qx "ready" <<<"$dgn"'
+assert "0127 digest: rollups are NOT narrowed by a filter (they report the real backlog)" \
+  'grep -qx "backlog proposed 3" <<<"$dgn"'
+
+# THE HARD BOUNDARY: a filter is a report projection and must never reach the markdown writer, or a
+# filtered --board-only run would commit a TRUNCATED BOARD.md.
+md_plain="$(m127)"
+assert "0127 boundary: filtered markdown is byte-identical to unfiltered" \
+  '[ "$(m127 --type fix)" = "$md_plain" ]'
+assert "0127 boundary: the unfiltered board really does carry an out-of-filter row" \
+  'grep -q "T2" <<<"$md_plain" && grep -q "T3" <<<"$md_plain"'
+
+# Invalid filter values fail closed, with the accepted values named.
+assert "0127 filter: an unknown --priority is rejected" '! d127 --priority urgent >/dev/null 2>&1'
+assert "0127 filter: a malformed --type is rejected"    '! d127 --type "Fix" >/dev/null 2>&1'
+assert "0127 filter: an OBSERVED type is accepted even though the built-in taxonomy is not consulted" \
+  'd127 --type fix >/dev/null 2>&1'
+assert "0127 filter: a well-formed type nobody uses is accepted (empty result, not an error)" \
+  'd127 --type spike >/dev/null 2>&1'
+err127="$(d127 --priority urgent 2>&1 >/dev/null)"
+assert "0127 filter: the priority diagnostic names the accepted values" \
+  'grep -q "critical" <<<"$err127"'
+
 
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"

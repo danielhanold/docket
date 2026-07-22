@@ -5,6 +5,7 @@
 # disabled, the backlog digest, `pass ok` on completion), so stdout is never empty (change 0069).
 #
 # Usage: docket-status.sh [--board-only] [--digest-only] [--must-land] [--repo OWNER/REPO]
+#                          [--type TYPE|untyped|all] [--priority PRIORITY|all]
 #                          [--project OWNER/NUMBER] [--auto-create-project] [--project-owner OWNER]
 #   --board-only           only regenerate the board surfaces; skip sweep/health passes
 #   --digest-only          WRITE-FREE READ (change 0094): resolve config, emit the backlog digest
@@ -33,11 +34,14 @@ SCRIPTS_DIR="${SCRIPTS_DIR:-$SELF_DIR}"
 . "$SELF_DIR"/lib/docket-preflight.sh
 
 BOARD_ONLY=0 DIGEST_ONLY=0 MUST_LAND=0 REPO_FLAG="" PROJECT_FLAG="" AUTO_CREATE_PROJECT=0 PROJECT_OWNER=""
+TYPE_FLAG="" PRIORITY_FLAG=""
 usage(){ sed -n '2,21p' "${BASH_SOURCE[0]}"; }
 while [ $# -gt 0 ]; do
   case "$1" in
     --board-only) BOARD_ONLY=1 ;;
     --digest-only) DIGEST_ONLY=1 ;;
+    --type) TYPE_FLAG="$2"; shift ;;
+    --priority) PRIORITY_FLAG="$2"; shift ;;
     --must-land) MUST_LAND=1 ;;
     --repo) REPO_FLAG="$2"; shift ;;
     --project) PROJECT_FLAG="$2"; shift ;;
@@ -350,7 +354,13 @@ backlog_pass(){
   mw="$(docket_metadata_worktree)"
   local cd_dir="$mw/$CHANGES_DIR"
   local out
-  if ! out="$("$DOCKET_BASH_PATH" "$SCRIPTS_DIR"/render-board.sh --changes-dir "$cd_dir" --format digest 2>&2)"; then
+  # change 0127: the report filters reach the DIGEST projection only. They are deliberately NOT
+  # forwarded to board_pass's board-refresh.sh call — that writer must always emit a COMPLETE
+  # BOARD.md, or a filtered --board-only run would commit a truncated board.
+  local -a filt=()
+  [ -n "$TYPE_FLAG" ]     && filt+=(--type "$TYPE_FLAG")
+  [ -n "$PRIORITY_FLAG" ] && filt+=(--priority "$PRIORITY_FLAG")
+  if ! out="$("$DOCKET_BASH_PATH" "$SCRIPTS_DIR"/render-board.sh --changes-dir "$cd_dir" --format digest ${filt[@]+"${filt[@]}"} 2>&2)"; then
     echo "docket-status: backlog digest failed; continuing without it" >&2
     return 0
   fi

@@ -21,6 +21,7 @@ Introduced in change 0022.
 
 ```
 render-board.sh --changes-dir DIR [--repo OWNER/REPO] [--format markdown|digest]
+                [--type TYPE|untyped|all] [--priority PRIORITY|all]
 ```
 
 | Flag | Required | Description |
@@ -28,6 +29,8 @@ render-board.sh --changes-dir DIR [--repo OWNER/REPO] [--format markdown|digest]
 | `--changes-dir DIR` | yes | Path to the changes directory (`active/` and `archive/` are children of this dir). |
 | `--repo OWNER/REPO` | no | Used to build `pr:` hyperlinks in the **Implemented** column. Defaults to deriving `OWNER/REPO` from the `origin` remote of `--changes-dir` (best-effort, offline). Absent or non-GitHub remote: PR numbers render as bare `#N`. |
 | `--format markdown\|digest` | no | Output projection. `markdown` (default) emits the board. `digest` emits the line-oriented backlog digest (change 0069) plus its trailing `ready` queue line (change 0094). Any other value is an argument error (exit 2). |
+| `--type TYPE` | no | Report filter, **digest projection only** (change 0127). `all` (default, ≡ omitted), `untyped` (changes carrying no `type:`), or any well-formed `[a-z][a-z0-9-]*` token. Deliberately NOT restricted to the effective `change_types`: a repo legitimately holds types written under another machine's configuration, and a query for one must work. An unknown value is an argument error (exit 2), written nothing. |
+| `--priority PRIORITY` | no | Report filter, **digest projection only**. `all` (default, ≡ omitted) or one of `critical`/`high`/`medium`/`low`. Combined with `--type` by logical AND. An unknown value is an argument error (exit 2). |
 
 Mock seam: `GIT="${GIT:-git}"` — override in tests.
 
@@ -50,11 +53,11 @@ with at least one change appear.
 
 | Status | Columns |
 |---|---|
-| in-progress | `# · Title · Priority · Spec · Branch` |
-| proposed | `# · Title · Priority · Readiness` |
-| blocked | `# · Title · Priority · Blocked by` |
-| deferred | `# · Title · Priority` |
-| implemented | `# · Title · Priority · PR · Readiness` |
+| in-progress | `# · Title · Priority · Type · Spec · Branch` |
+| proposed | `# · Title · Priority · Type · Readiness` |
+| blocked | `# · Title · Priority · Type · Blocked by` |
+| deferred | `# · Title · Priority · Type` |
+| implemented | `# · Title · Priority · Type · PR · Readiness` |
 
 The `#` cell links to the change file (`active/<filename>`). IDs are zero-padded to four digits.
 Sections are emitted in the fixed order: in-progress → proposed → blocked → deferred →
@@ -161,3 +164,25 @@ still reaches the report. `board-refresh.sh` remains the sole gated writer of `B
   commit.
 - **Default output is byte-identical.** `--format` defaults to `markdown`; the digest is purely
   additive. The golden byte-compare in `tests/test_render_board.sh` is the regression guard.
+
+
+## Type column and report filters (change 0127)
+
+Every **active** status table carries a `Type` cell rendering the change's stored `type:` verbatim,
+or `untyped` when the field is absent or empty. The value is deliberately **not** validated against
+the effective `change_types` — configuration governs what this machine *creates*, never the
+readability of shared history — and row visibility never depends on it: a type problem must not drop
+a row, matching the existing board-row safety posture. Archive tables are unchanged, because the
+archive is intentionally never backfilled.
+
+`--type` and `--priority` narrow **only** the digest projection: the `change` lines and the `ready`
+queue. They do NOT narrow:
+
+- the `backlog <status> <count>` rollups, which report the real backlog rather than the projection;
+- the markdown board, which always renders every active change.
+
+That second boundary is load-bearing and asserted directly (`tests/test_render_board.sh`, the "0127
+boundary" asserts): a filtered `--format markdown` run is byte-identical to an unfiltered one, so a
+filtered `docket-status --board-only` can never commit a truncated `BOARD.md`. A filter matching
+nothing still emits a **bare `ready` line** — absence of that line means no queue was produced,
+never "nothing is ready".
