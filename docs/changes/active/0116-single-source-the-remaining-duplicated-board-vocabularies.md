@@ -2,7 +2,7 @@
 id: 116
 slug: single-source-the-remaining-duplicated-board-vocabularies
 title: Single-source the remaining duplicated board vocabularies
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-20
 updated: 2026-07-22
@@ -12,12 +12,12 @@ discovered_from: [104]
 adrs: [55]
 spec: docs/superpowers/specs/2026-07-20-single-source-the-remaining-duplicated-board-vocabularies-design.md
 plan: docs/superpowers/plans/2026-07-22-single-source-board-vocabularies.md
-results:
+results: docs/results/2026-07-22-single-source-the-remaining-duplicated-board-vocabularies-results.md
 trivial: false
 auto_groomable: true
 branch: feat/single-source-the-remaining-duplicated-board-vocabularies
-claimed_at: 2026-07-22T11:22:18Z
-pr:
+claimed_at: 2026-07-22T12:19:31Z
+pr: https://github.com/danielhanold/docket/pull/120
 blocked_by:
 reconciled: true
 ---
@@ -29,6 +29,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-20-single-source-the-remaining-duplicated-board-vocabularies-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-20-single-source-the-remaining-duplicated-board-vocabularies-design.md) |
 | Plan | [2026-07-22-single-source-board-vocabularies.md](https://github.com/danielhanold/docket/blob/feat/single-source-the-remaining-duplicated-board-vocabularies/docs/superpowers/plans/2026-07-22-single-source-board-vocabularies.md) |
+| Results | [2026-07-22-single-source-the-remaining-duplicated-board-vocabularies-results.md](https://github.com/danielhanold/docket/blob/feat/single-source-the-remaining-duplicated-board-vocabularies/docs/results/2026-07-22-single-source-the-remaining-duplicated-board-vocabularies-results.md) |
+| PR | [#120](https://github.com/danielhanold/docket/pull/120) |
 | ADRs | [ADR-0055](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0055-exhaustive-vocabulary-mappings-require-array-pinned-set-equality.md) |
 <!-- docket:artifacts:end -->
 
