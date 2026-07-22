@@ -16,10 +16,10 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/truthful-git-errors-harness-neutral-escalation-retry
-claimed_at: 2026-07-22T12:54:10Z
+claimed_at: 2026-07-22T12:55:33Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -77,3 +77,22 @@ linked spec.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-07-22 — reconcile (docket-implement-next)
+
+Verified the settled design against `origin/main`, the current facade/config resolver and its
+hermetic test seams, related completed changes #0068, #0072, #0073, and #0079, cited ADRs
+0029/0033/0037/0038, and the newest archived guard work. The incident remains reproducible in a
+least-privilege Codex session: the exact canonical preflight succeeds when retried through the
+host approval boundary, while the current resolver still suppresses the permission diagnostic and
+mislabels it as a network failure.
+
+- **Scope remains valid.** The facade is still the sole executable Docket boundary; no runner,
+  facade-inventory, or shell-elevation redesign is needed.
+- **Implementation seam is current.** Stage 1 of `docket-config.sh` is the single fetch/error
+  site, `tests/test_docket_config.sh` provides the resolver guard surface, and the convention is
+  inherited by every operating skill.
+- **No new ADR.** The implementation applies the existing facade and harness-owned approval
+  boundaries recorded by ADR-0029 and ADR-0033; the runner ADRs are relevant context only.
+- **No follow-up stub surfaced.** The guarded, one-command retry rule fully covers the discovered
+  harness boundary without expanding the change's scope.
