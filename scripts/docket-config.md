@@ -81,20 +81,24 @@ is written to a temp file and cleaned up on exit.
 
 **File-absent vs. ref-unresolvable distinction:**
 - If `origin/HEAD` resolves but `.docket.yml` is genuinely absent → `git show` exits
-  non-zero; the temp file is left empty; all defaults apply. This is not an error.
+  non-zero; the temp file is left empty; ordinary defaults apply. This is not itself an error,
+  though the separately required machine-local `runtime.bash` must still resolve.
 - If `origin/HEAD` is unresolvable or `origin` is unreachable → the script already aborted
   in Stage 1 (keyed on fetch/set-head return codes). `git show` is never the abort signal.
 
-**YAML reader:** a minimal flat scalar reader (`yaml_get`) handles `key: value` lines.
+**YAML reader:** a minimal scalar reader (`yaml_get`) handles `key: value` lines.
 Inline `#` comments are stripped; leading/trailing whitespace and surrounding quotes are
 removed. The key is ERE-escaped before use. Nested keys (`finalize.gate`,
 `finalize.test_command`) are read by their unique leaf-key name (`gate`, `test_command`).
+`runtime.bash` is stricter: `yaml_block_body` isolates each `runtime:` block before `bash:` is
+read, so a bare `bash:` elsewhere cannot shadow the runtime setting.
 A value may not contain a literal `#` — it is treated as the start of an inline comment.
 
 **Resolved values and defaults:**
 
-| `.docket.yml` key | Default | Global-able | Notes |
+| Config key | Default | Global-able | Notes |
 |---|---|---|---|
+| `runtime.bash` | none (error) | machine-local only | absolute executable Bash 4+ path; resolves repo-local > global; a committed value is warned-and-ignored |
 | `metadata_branch` | `docket` | no (fenced) | must be `docket` or `main`; anything else aborts |
 | `integration_branch` | `auto` | no (fenced) | `auto` or empty → `DEFAULT_BRANCH`; explicit value used verbatim |
 | `changes_dir` | `docs/changes` | no (fenced) | |
@@ -111,6 +115,24 @@ A value may not contain a literal `#` — it is treated as the start of an inlin
 | `learnings.cap` | `300` | yes | read from the nested `learnings:` block; resolves repo-local > repo-committed > global |
 | `reclaim.lease_ttl` | `72` | yes | read from the nested `reclaim:` block; integer number of **hours** (consumers convert to seconds); resolves repo-local > repo-committed > global; behavioral, not coordination-fenced |
 | `reclaim.auto` | `false` | yes | read from the nested `reclaim:` block; `true`/`false`, anything else aborts; resolves repo-local > repo-committed > global; behavioral, not coordination-fenced — gates the ONLY mutating path of the claim-lease reclaim script |
+
+**`runtime.bash` (change 0132).** This is machine identity, not repo policy. Its only valid homes
+are global `config.yml` (normal) and a repo's gitignored `.docket.local.yml` (override), with
+repo-local winning. A value committed in `.docket.yml` is diagnosed and ignored before global
+fallback. The fence is keyed on declaration presence rather than parsed value: even an empty or
+duplicate committed declaration is warned-and-ignored without validation, so it cannot block a
+valid repo-local/global setting. The resolver requires a non-empty absolute path, executable
+permission, no carriage-return or newline bytes, the canonical `GNU bash, version …` identity
+banner under the C locale, and a numeric major of at least 4, obtained by invoking the candidate
+with `--version`; it never accepts a bare `bash` token, a numeric-version impostor, or a PATH
+search. Unlike ordinary scalars in this resolver, a quoted `runtime.bash` path may contain a
+literal `#`: use YAML single quotes for the canonical encoding, double any apostrophe in the path
+(`'it''s'`), and leave every backslash literal (do not double it). The surrounding quotes and
+doubled-apostrophe encoding are removed during resolution. Missing and invalid settings fail
+closed with the `docket/install.sh` / `brew install bash` remedy. The installer discovers the value in
+deterministic order (Homebrew, standard Homebrew locations, then an absolute PATH result),
+persists it globally, and exports it to the environment. Resolution emits
+`DOCKET_BASH_PATH` in both output formats for every Docket-owned shell launcher.
 
 `github_project` and `agents:`/`agent_harnesses` are per-repo-only / not read by this script (see
 Stage 2b/2b'/2c below and `sync-agents.sh`'s own contract, respectively) — every other key above
@@ -165,13 +187,15 @@ Either violation aborts the run with a diagnostic naming the dotted key.
 
 `${XDG_CONFIG_HOME:-$HOME/.config}/docket/config.yml` — read from the **local filesystem**
 (per-machine by definition; no authoritative-ref concern). Full `.docket.yml` schema,
-resolved per-key: repo-local > repo-committed > global > built-in. Map-valued `skills:` merges
-field-by-field. `agents:` and `agent_harnesses` are **not read here** — `sync-agents.sh` is their
-reader.
+resolved per-key: repo-local > repo-committed > global > built-in, except `runtime.bash`, which
+deliberately skips the committed layer. Map-valued `skills:` merges field-by-field. `agents:` and
+`agent_harnesses` are **not read here** — `sync-agents.sh` is their reader.
 
 **Guards (Stage 2c), all warn-and-ignore, never fatal:**
 - `~/.config/docket/.docket.yml` present → warned ("global config is config.yml"), never read.
 - `config.yml` exists but is not a readable regular file → warned; global layer ignored.
+- `runtime.bash` in committed `.docket.yml` → warned as machine-local and ignored; local/global
+  resolution continues.
 - **Coordination-key fence:** `metadata_branch`, `integration_branch`, `changes_dir`,
   `adrs_dir`, `results_dir`, `github_project`, `terminal_publish` set in
   the global layer OR in `.docket.local.yml` → each warned "per-repo-only" (naming which file) and
@@ -184,8 +208,9 @@ reader.
 
 ### Stage 2b': machine-local layer (change 0051)
 
-`<repo>/.docket.local.yml` — machine-**and**-repo-scoped overrides for exactly the global-able
-key set. Read from the **working tree** (not `origin/HEAD`) since the file is inherently
+`<repo>/.docket.local.yml` — machine-**and**-repo-scoped overrides for the global-able key set
+plus local-only `runtime.bash`. Read from the **working tree** (not `origin/HEAD`) since the file
+is inherently
 per-machine and typically gitignored; the origin/HEAD-authoritative read applies only to the
 committed `.docket.yml`. Because the file is machine-scoped, the ADR-0019 coordination-key fence
 applies to it verbatim, same as the global layer.
@@ -269,6 +294,7 @@ METADATA_BRANCH
 INTEGRATION_BRANCH
 METADATA_WORKTREE
 REPO_ROOT            (plain format only — see below)
+DOCKET_BASH_PATH
 CHANGES_DIR
 ADRS_DIR
 RESULTS_DIR
@@ -291,8 +317,9 @@ SKILL_FINISH
 BOOTSTRAP
 ```
 
-25 lines in `shell` format; 26 in `plain` format, with `REPO_ROOT` inserted directly
-after `METADATA_WORKTREE`. The last line is always `BOOTSTRAP=…`.
+26 lines in `shell` format; 27 in `plain` format, with `REPO_ROOT` inserted directly
+after `METADATA_WORKTREE` and `DOCKET_BASH_PATH` following it (or following
+`METADATA_WORKTREE` in shell format). The last line is always `BOOTSTRAP=…`.
 
 **`REPO_ROOT` (change 0075) — plain format only.** The absolute path of the main worktree (the
 same value `$REPO_DIR` resolved to, per the §1 repo anchor above) — the literal `docket.sh
@@ -303,9 +330,8 @@ shell-format `REPO_ROOT` here would silently capture that unrelated variable nam
 its behavior. `plain` output is model-facing and never `eval`'d, so the same collision risk does
 not apply there.
 
-The emitted `KEY=value` set and order are
-**unchanged** by the machine-local layer (change 0051) — `.docket.local.yml` only adds a
-higher-precedence input to the values already resolved above; no new KEY is introduced.
+Except for the new `DOCKET_BASH_PATH` runtime binding, the emitted `KEY=value` set and order are
+unchanged by the machine-local layer (change 0051).
 
 ## Exit codes
 
@@ -321,6 +347,7 @@ emits no `KEY=value` output.
 | `integration_branch` ref absent/unreadable (`ls-tree` non-zero) | 1 |
 | `metadata_branch` is neither `docket` nor `main` | 1 |
 | `terminal_publish` is neither `true` nor `false` | 1 |
+| `runtime.bash` is absent, relative, non-executable, unversionable, nonnumeric, or Bash <4 | 1 |
 | `mktree`/`commit-tree`/push failed during orphan create | 1 |
 | `--repo-dir` missing its argument | 2 |
 | Unknown argument | 2 |
@@ -342,20 +369,20 @@ emits no `KEY=value` output.
   post-write state, so the caller's `eval` sees `PROCEED` without a second invocation.
 - **`main`-mode skips the bootstrap guard entirely.** `DOCKET`/`LIVE` are not evaluated;
   `BOOTSTRAP` is always `PROCEED` in main-mode.
-- **25 `KEY=value` lines always emitted in the same order in `shell` format (26 in `plain`,
+- **26 `KEY=value` lines always emitted in the same order in `shell` format (27 in `plain`,
   `REPO_ROOT` inserted after `METADATA_WORKTREE` — change 0075).** Skills may rely on the order
   for pipe consumers, but should use the variable names (via `eval`) for correctness.
-- **The global layer never aborts a run — except on a malformed value for a fail-closed
-  boolean.** Every global-file *layer* problem (misplaced, unreadable file, fenced key) is a
+- **The global layer never aborts a run — except on a malformed fail-closed value.** Every
+  global-file *layer* problem (misplaced, unreadable file, fenced key) is a
   stderr warning; exit codes are unaffected for those. The exception is the *value* itself: for
   the subset of global-able keys in the resolved-values table above that fail closed on a
   non-boolean, a value parsing to neither `true` nor `false` aborts the run from whichever layer
-  supplied it, the global layer included.
-- **The machine-local layer never aborts a run either — same exception.** A malformed
+  supplied it, the global layer included. `runtime.bash` likewise aborts when absent or invalid.
+- **The machine-local layer never aborts a run either — same value exception.** A malformed
   `.docket.local.yml` or a fenced key set within it is a stderr warning (never fatal); the run
   falls through to the next layer in the chain. A bad value for one of those same fail-closed,
-  global-able boolean keys (resolved-values table above) aborts from this layer exactly as it
-  would from any other.
+  global-able boolean keys, or an invalid `runtime.bash` (resolved-values table above), aborts
+  from this layer exactly as it would from any other.
 - **`BOARD_SURFACES` is never emitted empty** (change 0071). The deliberate off-state is the
   positive token `none`; an empty value is reserved for "unresolved" and is a wiring bug every
   consumer rejects with exit 2.

@@ -199,7 +199,7 @@ else
       die "metadata worktree '$META_WORKTREE' $mw_why — refusing to push/rebase the marker removal there"
     fi
     log "clearing the $MARKER marker on $META_BRANCH before publishing"
-    "$(dirname "$0")/mark-publish-deferred.sh" --mode remove --change-file "$mark_file" \
+    "$DOCKET_BASH_PATH" "$(dirname "$0")/mark-publish-deferred.sh" --mode remove --change-file "$mark_file" \
       || die "could not clear the publish-deferred marker"
     $GIT -C "$META_WORKTREE" add -- "$change_path" \
       || die "git add failed for the marker removal"
@@ -274,7 +274,7 @@ $GIT worktree add -B "pub-$T" "$pub" "$REMOTE/$INT_BRANCH" >/dev/null 2>&1 \
 # Change 0063: this is docket's own doc-publish commit (its archived change/spec/ADRs), not the
 # team's code — skip the integration branch's shared hooks on it. Covers the publish commit AND the
 # CAS rebase --continue replay below (worktree-scoped, torn down with the worktree). Best-effort.
-"$(dirname "$0")/disable-worktree-hooks.sh" --worktree "$pub" >/dev/null 2>&1 || true
+"$DOCKET_BASH_PATH" "$(dirname "$0")/disable-worktree-hooks.sh" --worktree "$pub" >/dev/null 2>&1 || true
 
 teardown(){
   $GIT -C "$pub" checkout --detach >/dev/null 2>&1
@@ -291,7 +291,7 @@ teardown(){
 # re-render leaves nothing for the guarded commit to capture.
 refresh_adr_index(){
   [ "$adr_published" = true ] || return 0
-  "$(dirname "$0")/render-adr-index.sh" --adrs-dir "$pub/$ADRS_DIR" > "$pub/$ADRS_DIR/README.md" \
+  "$DOCKET_BASH_PATH" "$(dirname "$0")/render-adr-index.sh" --adrs-dir "$pub/$ADRS_DIR" > "$pub/$ADRS_DIR/README.md" \
     || { teardown; die "adr index render failed"; }
   $GIT -C "$pub" add "$ADRS_DIR/README.md"
 }

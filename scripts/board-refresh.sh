@@ -21,7 +21,7 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Mock seam: override RENDER_BOARD in tests to inject a stub (mirrors render-board.sh's GIT seam).
-RENDER_BOARD="${RENDER_BOARD:-$SCRIPT_DIR/render-board.sh}"
+if [ -n "${RENDER_BOARD:-}" ]; then RENDER_BOARD_EXPLICIT=1; else RENDER_BOARD_EXPLICIT=0; RENDER_BOARD="$SCRIPT_DIR/render-board.sh"; fi
 
 CHANGES_DIR=""
 REPO=""
@@ -101,7 +101,11 @@ render_args=(--changes-dir "$CHANGES_DIR")
 # Capture the renderer's exit code directly (no `!` — under `set -uo pipefail` without `-e`,
 # `rc=$?` right after the command is the renderer's real code; negating with `!` would always
 # yield 0 in the then-branch and swallow the failure signal).
-"$RENDER_BOARD" "${render_args[@]}" > "$tmp_board"
+if [ "$RENDER_BOARD_EXPLICIT" -eq 1 ]; then
+  "$RENDER_BOARD" "${render_args[@]}" > "$tmp_board"
+else
+  "${DOCKET_BASH_PATH:?run docket/install.sh}" "$RENDER_BOARD" "${render_args[@]}" > "$tmp_board"
+fi
 rc=$?
 if [ "$rc" -ne 0 ]; then
   printf 'board-refresh: render-board.sh failed (exit %d); BOARD.md left untouched\n' "$rc" >&2

@@ -5,6 +5,13 @@
 set -uo pipefail
 unset XDG_CONFIG_HOME   # hermetic: avoid inheriting the dev's real global config into the real-resolver fixture
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+DOCKET_BASH_PATH="$(command -v bash)"
+for runtime_candidate in "$DOCKET_BASH_PATH" /opt/homebrew/bin/bash /usr/local/bin/bash; do
+  [ -x "$runtime_candidate" ] || continue
+  [ "$(LC_ALL=C "$runtime_candidate" --version 2>/dev/null | sed -n 's/^GNU bash, version \([0-9][0-9]*\)\..*/\1/p')" -ge 4 ] 2>/dev/null || continue
+  DOCKET_BASH_PATH="$runtime_candidate"; break
+done
+export DOCKET_BASH_PATH
 SCRIPT="$REPO/scripts/ensure-claude-settings.sh"
 fail=0
 assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
@@ -94,6 +101,7 @@ assert "gitignore string ignores settings.local.json" \
 # bootstrap guard skipped (main-mode). Proves the #26 wiring is real, not a vacuous seam.
 mkrepo "$tmp/f"
 printf 'metadata_branch: main\nintegration_branch: develop\n' > "$tmp/f/.docket.yml"
+printf 'runtime:\n  bash: %s\n' "$DOCKET_BASH_PATH" > "$tmp/f/.docket.local.yml"
 git -C "$tmp/f" add .docket.yml; git -C "$tmp/f" commit --quiet -m cfg
 git -C "$tmp/f" push --quiet origin main
 run "$tmp/f" >/dev/null            # NO env seam -> exercises scripts/docket-config.sh

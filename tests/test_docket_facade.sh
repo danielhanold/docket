@@ -8,6 +8,15 @@ FACADE="$REPO/scripts/docket.sh"
 fail=0
 assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
 tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
+DOCKET_BASH_PATH="$(command -v bash)"
+for candidate in "$DOCKET_BASH_PATH" /opt/homebrew/bin/bash /usr/local/bin/bash; do
+  [ -x "$candidate" ] || continue
+  candidate_major="$(LC_ALL=C "$candidate" --version 2>/dev/null | sed -n 's/^GNU bash, version \([0-9][0-9]*\)\..*/\1/p')"
+  if [ -n "$candidate_major" ] && [ "$candidate_major" -ge 4 ]; then DOCKET_BASH_PATH="$candidate"; break; fi
+done
+export DOCKET_BASH_PATH
+mkdir -p "$tmp/void/docket"
+printf 'runtime:\n  bash: %s\n' "$DOCKET_BASH_PATH" > "$tmp/void/docket/config.yml"
 
 # --- stub helper dir: each stub echoes its own basename + forwarded args, and can exit N -------
 stub="$tmp/stub-scripts"; mkdir -p "$stub"

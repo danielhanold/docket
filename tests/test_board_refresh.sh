@@ -8,6 +8,13 @@
 # Mirrors tests/test_render_board.sh's hermetic-fixture pattern. Run: bash tests/test_board_refresh.sh
 set -uo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+DOCKET_BASH_PATH="$(command -v bash)"
+for runtime_candidate in "$DOCKET_BASH_PATH" /opt/homebrew/bin/bash /usr/local/bin/bash; do
+  [ -x "$runtime_candidate" ] || continue
+  [ "$(LC_ALL=C "$runtime_candidate" --version 2>/dev/null | sed -n 's/^GNU bash, version \([0-9][0-9]*\)\..*/\1/p')" -ge 4 ] 2>/dev/null || continue
+  DOCKET_BASH_PATH="$runtime_candidate"; break
+done
+export DOCKET_BASH_PATH
 SCRIPT="$REPO/scripts/board-refresh.sh"
 RENDER="$REPO/scripts/render-board.sh"
 fail=0

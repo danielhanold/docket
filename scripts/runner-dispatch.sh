@@ -83,4 +83,4 @@ done
 args=( --agent "$AGENT" )
 [ -n "$MODEL" ]  && args+=( --model "$MODEL" )
 [ -n "$EFFORT" ] && args+=( --effort "$EFFORT" )
-exec bash "$ADAPTER" "${args[@]}" -- "$@"
+exec "$DOCKET_BASH_PATH" "$ADAPTER" "${args[@]}" -- "$@"

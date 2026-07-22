@@ -20,8 +20,13 @@ docket_preflight(){
   local scripts_dir="$1"
   local git="${GIT:-git}"
   local cfg
-  cfg="$(${CONFIG_EXPORT_CMD:-"$scripts_dir"/docket-config.sh --export})" \
-    || { echo "docket-preflight: config export failed" >&2; return 1; }
+  if [ -n "${CONFIG_EXPORT_CMD:-}" ]; then
+    cfg="$($CONFIG_EXPORT_CMD)" \
+      || { echo "docket-preflight: config export failed" >&2; return 1; }
+  else
+    cfg="$("$DOCKET_BASH_PATH" "$scripts_dir"/docket-config.sh --export)" \
+      || { echo "docket-preflight: config export failed" >&2; return 1; }
+  fi
   eval "$cfg"
   case "${BOOTSTRAP:-}" in
     PROCEED) : ;;
@@ -60,7 +65,7 @@ docket_preflight(){
     fi
     # change 0063: skip the repo's shared git hooks on the metadata worktree (idempotent;
     # self-heals existing installs). Best-effort — a failure here must not block preflight.
-    "$scripts_dir"/disable-worktree-hooks.sh --worktree "$wt" >&2 \
+    "$DOCKET_BASH_PATH" "$scripts_dir"/disable-worktree-hooks.sh --worktree "$wt" >&2 \
       || echo "docket-preflight: warning — could not disable hooks on $wt (continuing)" >&2
     "$git" -C "$wt" fetch origin "$METADATA_BRANCH" >&2 \
       && "$git" -C "$wt" pull --rebase origin "$METADATA_BRANCH" >&2 \

@@ -1,9 +1,9 @@
-# ensure-docket-env.sh — idempotent DOCKET_SCRIPTS_DIR injector
+# ensure-docket-env.sh — idempotent Docket runtime-environment injector
 
 ## Purpose
 
-Makes docket's helper scripts reachable from any consuming repo by exporting
-`DOCKET_SCRIPTS_DIR` (the absolute path to this `scripts/` directory) into two locations:
+Exports both `DOCKET_SCRIPTS_DIR` (the absolute path to this `scripts/` directory) and the
+validated installer-selected `DOCKET_BASH_PATH` into two locations:
 
 1. **Shell profile** (primary) — re-sourced on every Bash-tool call inside Claude Code, so
    dispatched subagents pick up the variable without a session restart.
@@ -24,7 +24,8 @@ clones whose clone was moved or whose profile predates the variable. Introduced 
 bash scripts/ensure-docket-env.sh
 ```
 
-No positional arguments; no flags.
+No positional arguments; no flags. `DOCKET_BASH_PATH` is required and must name an absolute,
+executable GNU Bash 4+ interpreter; invalid input fails before either destination is changed.
 
 **Test seams:**
 - `HOME` — redirects the profile target and the default `settings.json` root.
@@ -40,28 +41,35 @@ Selects the target profile based on `$SHELL` (or `DOCKET_TARGET_SHELL`):
 
 | Shell | Profile file | Export syntax |
 |---|---|---|
-| `zsh` | `~/.zshenv` | `export DOCKET_SCRIPTS_DIR="<value>"` |
-| `bash` | `~/.bashrc` | `export DOCKET_SCRIPTS_DIR="<value>"` |
-| `fish` | `~/.config/fish/config.fish` | `set -gx DOCKET_SCRIPTS_DIR "<value>"` |
-| other | `~/.profile` | `export DOCKET_SCRIPTS_DIR="<value>"` (POSIX fallback) |
+| `zsh` | `~/.zshenv` | `export NAME=<shell-quoted-value>` |
+| `bash` | `~/.bashrc` | `export NAME=<shell-quoted-value>` |
+| `fish` | `~/.config/fish/config.fish` | `set -gx NAME <fish-quoted-value>` |
+| other | `~/.profile` | `export NAME=<shell-quoted-value>` (POSIX fallback) |
 
 The script wraps the export line in a named marker block:
 
 ```
 # >>> docket (DOCKET_SCRIPTS_DIR) >>>
 export DOCKET_SCRIPTS_DIR="<value>"
+export DOCKET_BASH_PATH="<absolute Bash 4+ path>"
 # <<< docket (DOCKET_SCRIPTS_DIR) <<<
 ```
 
+POSIX/bash/zsh bindings use POSIX single-quote escapes when a path contains metacharacters; fish
+bindings use fish's own single-quoted escapes for apostrophes and backslashes. Thus both values
+remain literal when the profile is sourced. Carriage returns and newlines are rejected.
+
 **Idempotency / re-run safety:** before appending, the script strips any pre-existing docket
-marker block from the profile using `awk`. A fresh block is then appended. This means:
+marker block from the profile using `awk`. Marker order, balance, and uniqueness are validated
+first; malformed blocks fail without touching the profile. A fresh block is then appended. This means:
 - A second run on the same path produces exactly one marker block (no duplication).
 - A moved clone updates the exported path instead of duplicating or preserving a stale value.
 - File permissions are preserved across the rewrite (read via `stat`, applied via `chmod`).
+- The rendered file is created beside the profile and atomically renamed into place.
 
 ### Stage 2: Claude Code settings.json env block
 
-Writes `env.DOCKET_SCRIPTS_DIR = "<value>"` into `~/.claude/settings.json` (or
+Writes both `env.DOCKET_SCRIPTS_DIR` and `env.DOCKET_BASH_PATH` into `~/.claude/settings.json` (or
 `$DOCKET_HARNESS_ROOT/.claude/settings.json`) using `jq`.
 
 Behavior:
@@ -69,16 +77,18 @@ Behavior:
 - Skips the write if `jq` is not installed (emits a warning; the profile export still
   completes).
 - Leaves the file unchanged if it is not valid JSON (emits a warning).
-- Preserves all existing keys in the file; only `.env.DOCKET_SCRIPTS_DIR` is set/overwritten.
+- Preserves all existing keys in the file; only the two Docket env keys are set/overwritten.
 - File permissions are preserved across the rewrite.
+- Writes through a same-directory temporary file and atomic rename.
 
 The `settings.json` write is idempotent: running again with the same path simply overwrites
 the same key with the same value.
 
 ## Exit codes
 
-This script always exits 0. Soft failures (jq absent, invalid JSON) are reported as warnings
-on stdout and do not abort the run.
+Invalid runtime input, malformed profile markers, or settings permission/rename failures exit
+non-zero. A missing `jq` or pre-existing invalid JSON remains a warning and does not undo the
+already-completed profile update.
 
 ## Invariants
 
@@ -86,7 +96,7 @@ on stdout and do not abort the run.
   export completes. The two stages are independent.
 - **Idempotent in both stages.** Re-running any number of times produces the same end state:
   exactly one marker block in the profile (with the current path), and the correct
-  `DOCKET_SCRIPTS_DIR` value in `settings.json`.
+  `DOCKET_SCRIPTS_DIR` and `DOCKET_BASH_PATH` values in `settings.json`.
 - **Stale-path safe.** A re-run after moving the docket clone replaces the old path in the
   profile block rather than appending a duplicate.
 - **Real clone, no drift.** `DOCKET_SCRIPTS_DIR` is always set to the `scripts/` directory of

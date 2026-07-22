@@ -13,14 +13,18 @@ mkdir -p "$tmp/.claude/skills"
 
 # Run the umbrella installer against the sandbox harness, from a repo-less cwd (so sync-agents.sh's
 # per-repo pass is a no-op — we are only exercising the user-level install both primitives perform).
-out="$(cd "$tmp" && HOME="$tmp" DOCKET_HARNESS_ROOT="$tmp" DOCKET_TARGET_SHELL=zsh bash "$REPO/install.sh" 2>&1)"; rc=$?
+out="$(cd "$tmp" && HOME="$tmp" DOCKET_HARNESS_ROOT="$tmp" DOCKET_TARGET_SHELL=zsh /bin/bash "$REPO/install.sh" 2>&1)"; rc=$?
 assert "install.sh exits 0" '[ "$rc" = "0" ]'
 assert "install.sh ran link-skills.sh (skill symlinked)" '[ -L "$tmp/.claude/skills/docket-status" ]'
 assert "install.sh ran sync-agents.sh (agent generated)" '[ -f "$tmp/.claude/agents/docket-status.md" ]'
 assert "install.sh injected DOCKET_SCRIPTS_DIR into the shell profile" \
   'grep -qF "export DOCKET_SCRIPTS_DIR=\"$REPO/scripts\"" "$tmp/.zshenv"'
+assert "install.sh injected DOCKET_BASH_PATH into the shell profile" \
+  'grep -qE "^export DOCKET_BASH_PATH=\"/.*\"$" "$tmp/.zshenv"'
 assert "install.sh injected env.DOCKET_SCRIPTS_DIR into settings.json" \
   'jq -e --arg v "$REPO/scripts" ".env.DOCKET_SCRIPTS_DIR == \$v" "$tmp/.claude/settings.json" >/dev/null'
+assert "install.sh injected env.DOCKET_BASH_PATH into settings.json" \
+  'jq -e '\''(.env.DOCKET_BASH_PATH | type == "string" and startswith("/"))'\'' "$tmp/.claude/settings.json" >/dev/null'
 
 # --- the skill and the scripts it invokes must resolve to ONE clone (change 0094) -------------
 # docket-implement-next Step 1 runs `"$DOCKET_SCRIPTS_DIR"/docket.sh docket-status --digest-only`.
@@ -56,24 +60,51 @@ assert "the scripts/ reached via DOCKET_SCRIPTS_DIR implements --digest-only" \
 
 # install.sh scaffolds the global config (ensure-global-config.sh), before sync-agents reads it.
 assert "install.sh scaffolded the global config" '[ -f "$tmp/.config/docket/config.yml" ]'
-# Pointer-only (change 0101): the scaffolded file has ZERO active keys and points at
-# .docket.example.yml, so it can never pin a shipped default. See test_ensure_global_config.sh
-# for the exhaustive unit coverage of ensure-global-config.sh itself; this just checks install.sh
-# actually invokes it and produces the same shape.
-assert "install.sh global config has NO active keys (comment/blank lines only)" \
-  '[ -z "$(grep -vE "^[[:space:]]*(#.*)?$" "$tmp/.config/docket/config.yml" 2>/dev/null)" ]'
+# The scaffold pins no policy default: its only active value is the machine-local runtime, and it
+# still points at .docket.example.yml. The unit test covers the exhaustive shape.
+assert "install.sh global config contains the managed runtime block" \
+  'grep -qF "# >>> docket (runtime.bash) >>>" "$tmp/.config/docket/config.yml" && grep -qE "^[[:space:]]+bash: '\''/[^'\'']+'\''$" "$tmp/.config/docket/config.yml"'
 assert "install.sh global config points at .docket.example.yml" \
   'grep -qF ".docket.example.yml" "$tmp/.config/docket/config.yml"'
 
 # Idempotent: a second run still succeeds.
-out2="$(cd "$tmp" && HOME="$tmp" DOCKET_HARNESS_ROOT="$tmp" DOCKET_TARGET_SHELL=zsh bash "$REPO/install.sh" 2>&1)"; rc2=$?
+out2="$(cd "$tmp" && HOME="$tmp" DOCKET_HARNESS_ROOT="$tmp" DOCKET_TARGET_SHELL=zsh /bin/bash "$REPO/install.sh" 2>&1)"; rc2=$?
 assert "install.sh idempotent (second run exits 0)" '[ "$rc2" = "0" ]'
 
 # A user-edited global config is NOT overwritten by a re-run.
 printf '# user edit\nagent_harnesses: [claude]\n' > "$tmp/.config/docket/config.yml"
-out3="$(cd "$tmp" && HOME="$tmp" DOCKET_HARNESS_ROOT="$tmp" DOCKET_TARGET_SHELL=zsh bash "$REPO/install.sh" 2>&1)"; rc3=$?
+out3="$(cd "$tmp" && HOME="$tmp" DOCKET_HARNESS_ROOT="$tmp" DOCKET_TARGET_SHELL=zsh /bin/bash "$REPO/install.sh" 2>&1)"; rc3=$?
 assert "install.sh re-run exits 0 with an edited global config" '[ "$rc3" = "0" ]'
 assert "install.sh re-run left the user-edited global config untouched" \
   'grep -qF "# user edit" "$tmp/.config/docket/config.yml"'
+
+# A quoted explicit runtime with an inline comment must pass through install's config read with the
+# same normalization as the resolver/ensure primitive, then reach profile/settings successfully.
+quoted_tmp="$(mktemp -d)"
+mkdir -p "$quoted_tmp/.claude/skills" "$quoted_tmp/.config/docket"
+installed_runtime="$(jq -r '.env.DOCKET_BASH_PATH' "$tmp/.claude/settings.json")"
+printf 'runtime:\n  bash: "%s" # hand-authored explicit runtime\n' "$installed_runtime" > "$quoted_tmp/.config/docket/config.yml"
+quoted_out="$(cd "$quoted_tmp" && HOME="$quoted_tmp" DOCKET_HARNESS_ROOT="$quoted_tmp" DOCKET_TARGET_SHELL=zsh /bin/bash "$REPO/install.sh" 2>&1)"; quoted_rc=$?
+assert "install.sh accepts a quoted explicit runtime with an inline comment" '[ "$quoted_rc" -eq 0 ]'
+assert "install.sh normalizes the quoted runtime before profile binding" \
+  'grep -qF "export DOCKET_BASH_PATH=\"$installed_runtime\"" "$quoted_tmp/.zshenv"'
+assert "install.sh normalizes the quoted runtime before settings binding" \
+  'jq -e --arg v "$installed_runtime" ".env.DOCKET_BASH_PATH == \$v" "$quoted_tmp/.claude/settings.json" >/dev/null'
+rm -rf "$quoted_tmp"
+
+# Installer round-trip for the managed scalar grammar: a quoted executable path may carry shell
+# and YAML metacharacters without truncation or evaluation at either the config-reader or profile
+# boundary.
+meta_tmp="$(mktemp -d)"
+mkdir -p "$meta_tmp/.claude/skills" "$meta_tmp/.config/docket"
+meta_dir="$meta_tmp/runtime'quote\\slash \$(touch $meta_tmp/pwned); # colon: value"
+mkdir -p "$meta_dir"; meta_runtime="$meta_dir/bash"; ln -s "$installed_runtime" "$meta_runtime"
+meta_yaml_runtime="${meta_runtime//\'/\'\'}"
+printf "runtime:\n  bash: '%s'\n" "$meta_yaml_runtime" > "$meta_tmp/.config/docket/config.yml"
+meta_out="$(cd "$meta_tmp" && HOME="$meta_tmp" DOCKET_HARNESS_ROOT="$meta_tmp" DOCKET_TARGET_SHELL=zsh /bin/bash "$REPO/install.sh" 2>&1)"; meta_rc=$?
+assert "install.sh round-trips a metacharacter runtime literally" \
+  '[ "$meta_rc" -eq 0 ] && jq -e --arg v "$meta_runtime" ".env.DOCKET_BASH_PATH == \$v" "$meta_tmp/.claude/settings.json" >/dev/null'
+assert "install.sh does not evaluate runtime metacharacters" '[ ! -e "$meta_tmp/pwned" ]'
+rm -rf "$meta_tmp"
 
 exit $fail

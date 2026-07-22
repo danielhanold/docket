@@ -120,18 +120,23 @@ Place the docket repo at `~/dev/docket` (the source of truth the symlinks point 
 bash ~/dev/docket/install.sh
 ```
 
-That is the whole install. `install.sh` runs four primitives in order and is idempotent — re-run it any time (after adding a harness, or after editing `~/.config/docket/config.yml`):
+That is the whole install. `install.sh` discovers an absolute Bash 4+ interpreter (Homebrew first,
+then standard Homebrew locations, then an absolute PATH result), validates it with `--version`,
+and persists it as `runtime.bash`. It runs four primitives in order and is idempotent —
+re-run it any time (after adding a harness, or after editing `~/.config/docket/config.yml`):
 
 - **`link-skills.sh`** creates absolute symlinks from each present harness's global skill directory back to `~/dev/docket/skills/<name>`. It links into harnesses that already exist on your machine, creating the `skills/` subdirectory when the harness itself is present but that subdirectory is missing, and never creates a harness you don't use. Because skills are symlinks, editing one in the repo takes effect everywhere immediately.
-- **`ensure-global-config.sh`** drops a minimal starter `~/.config/docket/config.yml` into place the first time you install — non-destructively (an existing config is left untouched). It contains no active keys: it is a header plus a pointer to [`.docket.example.yml`](.docket.example.yml), docket's canonical reference for every key and its default (see step 2). It runs before `sync-agents.sh` so the generator reads the just-written config.
+- **`ensure-global-config.sh`** discovers, validates, and persists the one managed `runtime.bash` value in `~/.config/docket/config.yml` while preserving unrelated user content. It also adds a pointer to [`.docket.example.yml`](.docket.example.yml), docket's canonical reference for every key and its default (see step 2).
 - **`sync-agents.sh`** generates docket's model/effort-pinned subagent wrappers from layered config (built-in defaults ⊕ global `config.yml` ⊕ a repo's committed `.docket.yml` ⊕ that repo's `.docket.local.yml`) into each present harness's `agents/` directory. For any repo that opts in (via an `agents:` block or an `agent_harnesses:` key, in either file), it also writes the full per-repo agent set as **machine-local**, gitignored files — **never committed**. Unlike the skill symlinks, these are generated **copies** (they bake in the resolved model and effort), so re-run it after editing any config layer — `install.sh` does this for you, or call `sync-agents.sh` directly. Run `sync-agents.sh --check` in CI to catch a missing or stale `.gitignore` block, or an accidentally-tracked generated file.
-- **`ensure-docket-env.sh`** exports `DOCKET_SCRIPTS_DIR` — the absolute path to docket's `scripts/` directory — into your shell profile (and, for the Claude Code harness, its user-level `settings.json` `env`), so every docket skill can reach its deterministic helper scripts from *any* repo, not just this clone. Re-running `install.sh` back-fills already-migrated repos. Without it, the skills fail loud with a `run docket/install.sh` remedy rather than silently hand-working each operation.
+- **`ensure-docket-env.sh`** exports `DOCKET_SCRIPTS_DIR` and the validated `DOCKET_BASH_PATH` into your shell profile (and, for the Claude Code harness, its user-level `settings.json` `env`) so every docket skill can reach and run its helpers from *any* repo. Re-running `install.sh` back-fills already-migrated repos.
 
 (You can still run any primitive on its own — `install.sh` just saves you from remembering all four.)
 
 ### 2. Set up your global config
 
-`install.sh` writes a minimal `~/.config/docket/config.yml` the first time it runs (and leaves an existing one untouched). It ships with **no active keys** — docket's defaults already apply, so most users never edit it.
+`install.sh` writes a minimal `~/.config/docket/config.yml` the first time it runs and
+non-destructively maintains its only managed active value, the discovered `runtime.bash`.
+Docket's ordinary behavior defaults already apply.
 
 The canonical reference for every key is [`.docket.example.yml`](.docket.example.yml) in this repo: every config key, active at its shipped default, with full documentation and a scope tag saying which layers may set it. Copy the keys you want to change into the layer you want them in.
 
@@ -197,6 +202,9 @@ Configuration resolves **per key**, across up to four layers, with precedence **
 2. **Repo-committed** — that repo's committed `.docket.yml` (every clone).
 3. **Global** — the cross-repo `~/.config/docket/config.yml` (this machine, every repo).
 4. **Built-in** — docket's defaults.
+
+`runtime.bash` is the deliberate exception: it is machine identity, so resolution is
+**repo-local > global** and a committed value is warned-and-ignored.
 
 Map-valued keys (`skills:`, `agents:`) merge field-by-field with the same precedence, so a global default and a repo override can each set different fields of the same map.
 
@@ -288,7 +296,9 @@ Cross-repo defaults live in one optional user-level file: `${XDG_CONFIG_HOME:-~/
 
 ```yaml
 # ~/.config/docket/config.yml — optional; applies to every repo on this machine.
-# Same schema as .docket.yml; a repo's committed .docket.yml wins per key.
+# Same schema as .docket.yml; committed values normally win (runtime.bash is local-only).
+runtime:
+  bash: /opt/homebrew/bin/bash # managed by install.sh; an explicit valid value is preserved
 skills:                      # rebind workflow roles for all your repos
   build: auto
 agents:                      # agent model/effort defaults (same agents: shape as .docket.yml)
@@ -313,6 +323,8 @@ agent_harnesses: [claude]    # scopes sync-agents.sh's user-level pass ONLY (ove
 # integration_branch, changes_dir, adrs_dir, results_dir, github_project, terminal_publish, and
 # board_surfaces' github token) are warned-and-ignored here too — set those in the committed
 # .docket.yml instead.
+runtime:
+  bash: /usr/local/bin/bash   # optional override for this clone; never commit it
 skills:
   build: auto
 agents:
@@ -328,6 +340,11 @@ board_surfaces: [inline]      # the github token is fenced here too — per-repo
 ```
 
 Its own path (and every file `sync-agents.sh` generates) is kept out of git by the managed docket `.gitignore` block (the `# docket:start` / `# docket:end` markers) the script owns — see **Tuning an agent's model & effort** below.
+
+The runtime resolver exports a valid setting as `DOCKET_BASH_PATH` in both shell and plain
+preflight output. Missing, relative, non-executable, unversionable, or Bash-3 paths fail closed
+with an install/upgrade diagnostic; Docket never accepts a bare `bash` command or searches PATH at
+resolver time.
 
 ### Coordination keys are per-repo-only
 

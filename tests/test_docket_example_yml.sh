@@ -14,6 +14,10 @@ tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
 # Hermetic: never read OR WRITE the dev machine's real global config. See the
 # config-layer-write-and-read-hazards learning — this suite reaches ensure-global-config.sh.
 export XDG_CONFIG_HOME="$tmp/xdg-void"
+mkdir -p "$XDG_CONFIG_HOME/docket"
+printf '#!/bin/sh\nprintf "GNU bash, version 5.2.0(1)-release\\n"\n' >"$tmp/fake-bash"
+chmod +x "$tmp/fake-bash"
+printf 'runtime:\n  bash: %s\n' "$tmp/fake-bash" >"$XDG_CONFIG_HOME/docket/config.yml"
 
 # fixture builder: a clone with a bare origin, one commit on main (origin/HEAD -> main).
 # Mirrors tests/test_docket_config.sh's mkrepo.
@@ -89,6 +93,7 @@ map_for(){ # map_for <EXPORT_KEY> -> ERE matching the example's line, or empty i
   case "$1" in
     METADATA_BRANCH)       echo '^metadata_branch:[[:space:]]*docket' ;;
     INTEGRATION_BRANCH)    echo '^integration_branch:[[:space:]]*auto' ;;
+    DOCKET_BASH_PATH)      echo '^#[[:space:]]+bash:[[:space:]]*/[^[:space:]]+' ;;
     CHANGES_DIR)           echo '^changes_dir:[[:space:]]*docs/changes' ;;
     ADRS_DIR)              echo '^adrs_dir:[[:space:]]*docs/adrs' ;;
     RESULTS_DIR)           echo '^results_dir:[[:space:]]*docs/results' ;;
@@ -150,11 +155,13 @@ done
 # check below, which closes that gap for every entry except the ones named here.
 #   BOARD_SURFACES — its value is built entirely through intermediate variables (bs_raw / bs /
 #   _filtered; docket-config.sh:242-266). No `BOARD_SURFACES=` assignment line ever contains the
-#   literal leaf key "board_surfaces" — the mechanical same-line check below would false-red this
-#   one legitimate entry, so it is exempted here, explicitly, rather than the check being loosened.
-correspondence_exempt="BOARD_SURFACES"
+#   literal leaf key "board_surfaces" — the mechanical same-line check below would false-red it.
+#   DOCKET_BASH_PATH — the manifest key is the `runtime:` block header while its value is assigned
+#   through block-scoped intermediates, so no assignment line can carry that header literally.
+correspondence_exempt="BOARD_SURFACES DOCKET_BASH_PATH"
 classify_key(){ # classify_key <example-key-name> -> "resolved:EXPORT" | "elsewhere:path" | ""
   case "$1" in
+    runtime)              echo 'resolved:DOCKET_BASH_PATH' ;;
     metadata_branch)      echo 'resolved:METADATA_BRANCH' ;;
     integration_branch)   echo 'resolved:INTEGRATION_BRANCH' ;;
     changes_dir)          echo 'resolved:CHANGES_DIR' ;;
@@ -249,11 +256,11 @@ presence_sensitive_keys="agents agent_harnesses"
 # likewise) is never preceded by a scope tag, so it is not a false positive; neither is a nested
 # commented sub-key inside the agents: example block (e.g. "#   claude:", "#     status: {...}")
 # — none of those sit directly under a scope tag either, only agents:/agent_harnesses: do.
-# Verified against the whole real file (task report has the audit): extracts exactly
-# {agent_harnesses, agents}, nothing else.
+# Verified against the whole real file: extracts the three intentionally commented top-level keys
+# {agent_harnesses, agents, runtime}, nothing else.
 commented_config_keys(){  # commented_config_keys <file> -> one key name per line on stdout
   awk '
-    /^[[:space:]]*#[[:space:]]*scope:[[:space:]]*(repo-only|any layer)/ { prev_scope=1; next }
+    /^[[:space:]]*#[[:space:]]*scope:[[:space:]]*(repo-only|any layer|local-only)/ { prev_scope=1; next }
     {
       if (prev_scope && match($0, /^[[:space:]]*#[[:space:]]*[A-Za-z_][A-Za-z0-9_]*:/)) {
         line = $0
@@ -371,8 +378,8 @@ assert "manifest: every elsewhere: entry's named consumer mentions the key (${ma
 assert "manifest: every elsewhere:HEADER entry is a real bare block opener (${manifest_bad_header:-none bad})" \
   '[ -z "$manifest_bad_header" ]'
 # NON-VACUITY, EXACT COUNT not a floor: the loop above must actually iterate, AND classify_key
-# carries exactly expected_key_count key TOKENS — not "expected_key_count arms": it is 27 case
-# arms carrying 32 key tokens, because the header arm alone
+# carries exactly expected_key_count key TOKENS — not "expected_key_count arms": it is 28 case
+# arms carrying 33 key tokens, because the header arm alone
 # (finalize|learnings|reclaim|skills|runners|codex) carries six — so an extraction that drops
 # keys must redden too. A loose floor (formerly -ge 20) does not do this: the dominant breakage
 # (dropping the [[:space:]]* from the first sed, so nested keys vanish) yields 15 and IS caught,
@@ -385,7 +392,7 @@ assert "manifest: every elsewhere:HEADER entry is a real bare block opener (${ma
 # intentional-growth remedy this count is guarding. This is the single source for that count: the
 # condition and the failure message below both read it, so bumping it in one place updates both
 # instead of leaving one stale.
-expected_key_count=32
+expected_key_count=33
 # RAW FLOOR (change 0102 whole-branch review, MINOR 3): example_keys_raw feeds BOTH this section's
 # manifest loop (via example_keys, deduped) and the duplicate-leaf check directly below (also
 # fed from example_keys_raw, undeduped). Without this assert, an edit that makes the raw pipeline
@@ -426,6 +433,9 @@ assert "completeness: agent_harnesses present (commented)" \
   'grep -Eq "^#[[:space:]]*agent_harnesses:[[:space:]]*\[[[:space:]]*claude[[:space:]]*\][[:space:]]*$" "$EX"'
 assert "completeness: agents present (commented)" \
   'grep -Eq "^#[[:space:]]*agents:[[:space:]]*$" "$EX"'
+runtime_example="$(sed -n '/^# runtime:$/,/^$/p' "$EX")"
+assert "completeness: runtime.bash uses the nested commented shape" \
+  'grep -qxE "#[[:space:]]+bash:[[:space:]]*/[^[:space:]]+" <<<"$runtime_example"'
 assert "completeness: runners.codex.sandbox present" \
   'grep -Eq "^[[:space:]]+sandbox:[[:space:]]*workspace-write[[:space:]]*(#.*)?$" "$EX"'
 assert "completeness: runners.codex.network present" \
@@ -532,6 +542,7 @@ assert "example documents the four layers" \
 # block above all three.
 assert "scope tag: repo-only form present"  'grep -qF "scope: repo-only (coordination-fenced, ADR-0019)" "$EX"'
 assert "scope tag: any-layer form present"  'grep -qF "scope: any layer" "$EX"'
+assert "scope tag: local-only form present" 'grep -qF "scope: local-only" "$EX"'
 untagged_keys="$(awk '
   {
     content[NR] = $0
@@ -672,27 +683,42 @@ assert "round-trip: cursor status model came from the example block" \
   '[ "$(fm "$SB/.cursor/agents/docket-status.md" model)" = "grok-4.5-fast-medium" ]'
 rm -rf "$_sbs"
 
-# --- (6) SCAFFOLD SHAPE: install writes a POINTER, never pinned values -------
+# --- (6) SCAFFOLD SHAPE: install writes runtime + pointer, never policy values
 # Why this guard exists: the old scaffold COPIED config.yml.example, so a user installed once and
 # then carried a frozen snapshot of that day's defaults forever — every later default change was
-# silently pinned by their stale copy. The scaffold must therefore write NO active keys at all.
+# silently pinned by their stale copy. The scaffold must therefore write only the installer-owned,
+# machine-local runtime block; every policy value remains commented/unset.
 SC="$(mktemp -d)"; _scs="$SC"
 out="$(HOME="$SC" DOCKET_HARNESS_ROOT="$SC" XDG_CONFIG_HOME="$SC/.config" \
        bash "$REPO/scripts/ensure-global-config.sh" 2>&1)"; scrc=$?
 GC="$SC/.config/docket/config.yml"
 assert "scaffold: exits 0"            '[ "$scrc" = "0" ]'
 assert "scaffold: wrote the file"     '[ -f "$GC" ]'
-# "No active keys" = every non-blank line is a comment.
-assert "scaffold: contains NO active keys (comment/blank lines only)" \
-  '[ -z "$(grep -vE "^[[:space:]]*(#.*)?$" "$GC" 2>/dev/null)" ]'
+# Validate the managed block before trusting a range extraction: exactly one ordered marker pair,
+# then pin the only active YAML shape without enumerating the discovered path spelling.
+runtime_open_line="$(grep -nF '# >>> docket (runtime.bash) >>>' "$GC" | cut -d: -f1)"
+runtime_close_line="$(grep -nF '# <<< docket (runtime.bash) <<<' "$GC" | cut -d: -f1)"
+assert "scaffold: has one ordered installer-managed runtime block" \
+  '[ "$(grep -cF "# >>> docket (runtime.bash) >>>" "$GC")" = "1" ] &&
+   [ "$(grep -cF "# <<< docket (runtime.bash) <<<" "$GC")" = "1" ] &&
+   [ "$runtime_open_line" -lt "$runtime_close_line" ]'
+active_scaffold="$(grep -vE '^[[:space:]]*(#.*)?$' "$GC" 2>/dev/null)"
+assert "scaffold: only active keys are runtime.bash with an absolute path" \
+  '[ "$(printf "%s\n" "$active_scaffold" | wc -l | tr -d " ")" = "2" ] &&
+   printf "%s\n" "$active_scaffold" | sed -n "1p" | grep -Eq "^runtime:[[:space:]]*$" &&
+   printf "%s\n" "$active_scaffold" | sed -n "2p" | grep -Eq "^[[:space:]]+bash:[[:space:]]+'\''/[^'\'']+'\''[[:space:]]*$"'
 assert "scaffold: points at .docket.example.yml" 'grep -qF ".docket.example.yml" "$GC"'
 assert "scaffold: names the layer precedence"    'grep -qiE "repo-local|precedence" "$GC"'
-# Idempotent + non-destructive: a second run leaves an existing file byte-untouched.
-printf '# user edited\nauto_capture: true\n' > "$GC"
-before="$(cat "$GC")"
+# Non-destructive: when the block must be inserted, unrelated user bytes remain an exact suffix,
+# including a missing final newline.
+user_config="$SC/user-config.expected"
+printf '# user edited\nauto_capture: true' > "$user_config"
+cp "$user_config" "$GC"
 HOME="$SC" DOCKET_HARNESS_ROOT="$SC" XDG_CONFIG_HOME="$SC/.config" \
   bash "$REPO/scripts/ensure-global-config.sh" >/dev/null 2>&1
-assert "scaffold: existing user config left byte-untouched" '[ "$(cat "$GC")" = "$before" ]'
+user_bytes="$(wc -c < "$user_config" | tr -d ' ')"
+assert "scaffold: unrelated user config bytes survive runtime insertion" \
+  'tail -c "$user_bytes" "$GC" | cmp -s - "$user_config"'
 rm -rf "$_scs"
 
 # The deleted surfaces stay deleted.

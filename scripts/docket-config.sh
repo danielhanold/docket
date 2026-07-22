@@ -12,6 +12,7 @@
 # Four config layers resolve per-key (change 0051 adds the local rung): repo-local
 # (<repo>/.docket.local.yml, gitignored, machine-AND-repo-scoped) > repo-committed
 # (.docket.yml) > global (${XDG_CONFIG_HOME:-$HOME/.config}/docket/config.yml) > built-in.
+# `runtime.bash` is the machine-local exception: repo-local > global; committed is ignored.
 # The coordination-key fence (ADR-0019) applies to both machine-scoped layers alike.
 #
 # Usage: docket-config.sh [--export] [--format plain|shell] [--bootstrap] [--repo-dir DIR]
@@ -117,6 +118,61 @@ yaml_block_body() {  # yaml_block_body <file> <top-level-key>  -> child lines on
   ' "$1"
 }
 
+# Read one scalar from one top-level block without treating `#` inside a quoted value as a
+# comment. Duplicate leaves (including two separate runtime blocks) are an ambiguity, not
+# precedence: callers require exactly one authority per layer.
+runtime_get() { # runtime_get <file>
+  [ -f "$1" ] || return 0
+  awk '
+    function scalar(value, sq,out,i,ch,rest) {
+      sq=sprintf("%c", 39)
+      if (substr(value,1,1) == sq) {
+        out=""
+        for (i=2; i<=length(value); i++) {
+          ch=substr(value,i,1)
+          if (ch == sq) {
+            if (substr(value,i+1,1) == sq) { out=out sq; i++; continue }
+            rest=substr(value,i+1)
+            if (rest ~ /^[[:space:]]*(#.*)?$/) return out
+            return value
+          }
+          out=out ch
+        }
+        return value
+      }
+      if (value ~ /^"[^"]*"[[:space:]]*(#.*)?$/) {
+        sub(/^"/, "", value); sub(/"[[:space:]]*(#.*)?$/, "", value)
+      } else {
+        sub(/[[:space:]]*#.*/, "", value); sub(/[[:space:]]+$/, "", value)
+      }
+      return value
+    }
+    { raw=$0; structural=$0; sub(/[[:space:]]*#.*/, "", structural) }
+    structural ~ /^runtime[[:space:]]*:[[:space:]]*$/ { in_runtime=1; next }
+    in_runtime && structural ~ /^[^[:space:]]/ { in_runtime=0 }
+    in_runtime && structural ~ /^[[:space:]]+bash[[:space:]]*:/ {
+      count++
+      value=raw; sub(/^[[:space:]]+bash[[:space:]]*:[[:space:]]*/, "", value)
+      found=scalar(value)
+    }
+    END { if (count > 1) exit 2; if (count == 1) print found }
+  ' "$1"
+}
+
+# Count runtime.bash declarations without parsing their values. The committed layer is fenced by
+# key presence, so even empty, malformed, or duplicate committed values are warning-only and can
+# never block a valid machine-local fallback.
+runtime_count() { # runtime_count <file>
+  [ -f "$1" ] || { printf '0\n'; return; }
+  awk '
+    { structural=$0; sub(/[[:space:]]*#.*/, "", structural) }
+    structural ~ /^runtime[[:space:]]*:[[:space:]]*$/ { in_runtime=1; next }
+    in_runtime && structural ~ /^[^[:space:]]/ { in_runtime=0 }
+    in_runtime && structural ~ /^[[:space:]]+bash[[:space:]]*:/ { count++ }
+    END { print count+0 }
+  ' "$1"
+}
+
 # --- Stage 1: resolve origin/HEAD + default branch (keyed on fetch/set-head rc) ---
 g rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "not a git repo: $REPO_DIR"
 g fetch --quiet origin 2>/dev/null || die "cannot reach origin (git fetch failed) — check the remote/network"
@@ -164,6 +220,46 @@ if [ -e "$GCFG" ] && { [ ! -f "$GCFG" ] || [ ! -r "$GCFG" ]; }; then
   printf 'docket-config: warning: %s is not a readable regular file — global config layer ignored\n' "$GCFG" >&2
   GCFG=/dev/null
 fi
+
+# runtime.bash is machine-local by definition: repo-local > global, while a committed value is
+# loudly ignored. Read every `bash:` leaf WITHIN its `runtime:` block so an unrelated bare leaf
+# cannot shadow it. The temporary block bodies are removed before validation can die.
+_runtime_local="$(runtime_get "$LCFG")" \
+  || die ".docket.local.yml contains multiple runtime.bash declarations; keep exactly one"
+_runtime_committed_count="$(runtime_count "$CFG")"
+_runtime_global="$(runtime_get "$GCFG")" \
+  || die "global config.yml contains multiple runtime.bash declarations; keep exactly one"
+
+if [ "$_runtime_committed_count" -gt 0 ]; then
+  printf 'docket-config: warning: committed config key runtime.bash is machine-local — set it in .docket.local.yml or global config.yml; ignored\n' >&2
+fi
+
+DOCKET_BASH_PATH="$_runtime_local"
+if [ -z "$DOCKET_BASH_PATH" ]; then
+  DOCKET_BASH_PATH="$_runtime_global"
+fi
+
+_runtime_remedy='run docket/install.sh after installing Bash 4+ (on macOS: brew install bash)'
+[ -n "$DOCKET_BASH_PATH" ] \
+  || die "runtime.bash is not configured — $_runtime_remedy"
+case "$DOCKET_BASH_PATH" in
+  *$'\r'*|*$'\n'*) die "runtime.bash must not contain carriage returns or newlines — $_runtime_remedy" ;;
+esac
+[[ "$DOCKET_BASH_PATH" = /* ]] \
+  || die "runtime.bash must be an absolute path, got '$DOCKET_BASH_PATH' — $_runtime_remedy"
+[[ -x "$DOCKET_BASH_PATH" ]] \
+  || die "runtime.bash is not an executable file: $DOCKET_BASH_PATH — $_runtime_remedy"
+_runtime_version="$(LC_ALL=C "$DOCKET_BASH_PATH" --version 2>/dev/null)" \
+  || die "runtime.bash could not report its version: $DOCKET_BASH_PATH — $_runtime_remedy"
+_runtime_first_line="${_runtime_version%%$'\n'*}"
+case "$_runtime_first_line" in
+  'GNU bash, version '*) ;;
+  *) die "runtime.bash did not identify itself as GNU Bash: $DOCKET_BASH_PATH reported '${_runtime_first_line:-no version}' — $_runtime_remedy" ;;
+esac
+_runtime_major="$(sed -nE 's/^GNU bash, version ([0-9]+)\..*/\1/p' <<<"$_runtime_first_line")"
+[[ "$_runtime_major" =~ ^[0-9]+$ ]] && [ "$_runtime_major" -ge 4 ] \
+  || die "runtime.bash must be Bash 4 or newer, got '${_runtime_first_line:-unknown version}' from $DOCKET_BASH_PATH — $_runtime_remedy"
+
 # Coordination-key fence: a key whose effect writes SHARED state (commits on shared
 # branches, committed generated files, external GitHub objects) is per-repo-only; a global
 # value is loudly warned-and-ignored — never honored, never fatal. (ADR records the rule.)
@@ -421,6 +517,7 @@ if [ "$MODE" = export ]; then
   if [ "$FORMAT" = plain ]; then
     emit REPO_ROOT "$REPO_ABS"
   fi
+  emit DOCKET_BASH_PATH "$DOCKET_BASH_PATH"
   emit CHANGES_DIR "$CHANGES_DIR"
   emit ADRS_DIR "$ADRS_DIR"
   emit RESULTS_DIR "$RESULTS_DIR"

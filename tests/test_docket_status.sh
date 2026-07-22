@@ -3,6 +3,14 @@
 set -uo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SCRIPT="$REPO/scripts/docket-status.sh"
+DOCKET_BASH_PATH=""
+for runtime_candidate in "$(command -v bash)" /opt/homebrew/bin/bash /usr/local/bin/bash; do
+  [ -x "$runtime_candidate" ] || continue
+  [ "$(LC_ALL=C "$runtime_candidate" --version 2>/dev/null | sed -n 's/^GNU bash, version \([0-9][0-9]*\)\..*/\1/p')" -ge 4 ] 2>/dev/null || continue
+  DOCKET_BASH_PATH="$runtime_candidate"; break
+done
+: "${DOCKET_BASH_PATH:?tests require an absolute GNU Bash 4+ runtime}"
+export DOCKET_BASH_PATH
 fail=0
 assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
 
@@ -491,7 +499,9 @@ EOF
 chmod +x "$tmp/git-race.sh"
 
 write_board_fixture inline
-(cd "$tmp/conflict-case/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" GIT="$tmp/git-race.sh" "$SCRIPT" --board-only >"$tmp/conflict-run.txt" 2>"$tmp/conflict-run-err.txt")
+(cd "$tmp/conflict-case/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-board.sh" \
+  GIT="$tmp/git-race.sh" GIT_EDITOR=true \
+  "$SCRIPT" --board-only >"$tmp/conflict-run.txt" 2>"$tmp/conflict-run-err.txt")
 rc=$?
 assert "conflict run exits zero" '[ $rc -eq 0 ]'
 assert "conflict run reports inline changed pushed or push-failed" 'grep -Eq "board inline changed (pushed|push-failed)" "$tmp/conflict-run.txt"'

@@ -7,6 +7,7 @@
 set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 RM="$ROOT/README.md"
+FIN="$ROOT/skills/docket-finalize-change/SKILL.md"
 fail=0
 assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
 
@@ -48,5 +49,20 @@ assert "no live auto-approve subsystem reference" \
   '! grep -Eqi "auto_approve|setup-auto-approve|auto-approve-setup.md|docket-approve.yml" "$RM"'
 assert "the deleted setup guide is not linked" \
   '[ ! -f "$ROOT/docs/auto-approve-setup.md" ]'
+
+# (e) configured-Bash boundary for finalize's local suite (change 0132). The
+# executable fixture in test_configured_bash_finalize.sh proves both branches;
+# these sharp doc sentinels keep the user-facing contract explicit.
+assert "auto-detected shell tests use the configured Bash runtime" \
+  'grep -qF -- '"'"'"$DOCKET_BASH_PATH" "$test"'"'"' "$FIN"'
+assert "explicit finalize command is evaluated without an interpreter prefix" \
+  'grep -qF -- '"'"'eval "$FINALIZE_TEST_COMMAND"'"'"' "$FIN"'
+assert "explicit finalize command retains DOCKET_BASH_PATH in its environment" \
+  'grep -Eqi "FINALIZE_TEST_COMMAND.{0,180}(exported|environment).{0,80}DOCKET_BASH_PATH|DOCKET_BASH_PATH.{0,180}(environment).{0,80}FINALIZE_TEST_COMMAND" "$FIN"'
+
+# (f) the runtime installer is shipped, not future work. Search current user-facing surfaces as a
+# set so moving stale copy between files cannot evade the guard.
+assert "runtime docs contain no pre-install future/manual-setup claims" \
+  '! rg -qi --glob "*.md" --glob "!docs/superpowers/**" --glob "!docs/changes/**" --glob "!docs/results/**" "forthcoming installer|next installer slice|set (it )?manually until|currently contains no active keys|exec bash scripts/runners" "$ROOT/README.md" "$ROOT/scripts" "$ROOT/skills" "$ROOT/.docket.example.yml"'
 
 exit $fail
