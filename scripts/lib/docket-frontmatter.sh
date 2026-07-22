@@ -172,8 +172,9 @@ docket_priority_rank(){
 # The CLOSED check-id vocabulary board-checks.sh emits. Declared HERE, beside DOCKET_STATUSES,
 # rather than in board-checks.sh itself, because board-checks.sh is not sourceable — a guard
 # wanting the set would have to parse its source text, manufacturing exactly the tokenizer that
-# can drift from what bash actually assigns. This lib IS sourceable (board-checks.sh sources it at
-# :52, well before emit() at :71), so tests/test_board_checks.sh reads the real runtime array.
+# can drift from what bash actually assigns. This lib IS sourceable (board-checks.sh's
+# `source "$(dirname "${BASH_SOURCE[0]}")/lib/docket-frontmatter.sh"` runs well before its
+# `emit()` definition), so tests/test_board_checks.sh reads the real runtime array.
 #
 # Accepted impurity: this lib's name says "frontmatter" and a check-id is not a frontmatter field.
 # Noted deliberately; rationalising the lib's naming is change 0116's charter.

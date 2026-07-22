@@ -77,7 +77,8 @@ assert "ordering key 4 is the priority tiebreak" '[ -n "$p_tie" ]'
 assert "the four ordering keys appear in contract order" \
   '[ -n "$p_dep" ] && [ -n "$p_mrg" ] && [ -n "$p_dif" ] && [ -n "$p_tie" ] &&
    [ "$p_dep" -lt "$p_mrg" ] && [ "$p_mrg" -lt "$p_dif" ] && [ "$p_dif" -lt "$p_tie" ]'
-# CONFLICTING DEPRIORITIZES, it is not excluded — line 54's delegation to the rebase-retest gate
+# CONFLICTING DEPRIORITIZES, it is not excluded — the "keeps conflict resolution delegated to the
+# rebase-resolver" assert's delegation to the rebase-retest gate
 # is preserved, so `docket-rebase-resolver` still owns resolution. A bare grep for "CONFLICTING"
 # would be decorative (the word predates this change), so anchor on the deprioritize/never-exclude
 # shape and on the delegation surviving.

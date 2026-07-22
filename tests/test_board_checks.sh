@@ -598,7 +598,8 @@ assert "clean active tree emits no board-row-dropped finding" '! printf "%s" "$j
 # (f) THE COMPUTED-PREDICATE CASE: an active/ file carrying a TERMINAL status (`done`). Every
 # ENUMERATED check is correctly silent — `done` is in DOCKET_STATUSES so field-domain passes it, and
 # the id is a well-formed integer so malformed-id passes it — yet render-board.sh counts the file in
-# `total` (:86) and calls print_section only for the five ACTIVE statuses (:265-269), so the row is
+# `total` (`total=${#AFILES[@]}`) and calls print_section only for the five ACTIVE statuses, so the
+# row is
 # rendered nowhere and the board's count line disagrees with its tables. Only an invariant computed
 # from DOCKET_STATUSES_ACTIVE sees this; a predicate written against DOCKET_STATUSES cannot.
 # Reachable in practice: docket-status's `sweep-failed <id> archive <reason>` is exactly this state
@@ -950,10 +951,12 @@ assert "board-checks still exits 0 with publish-deferred findings (warn-only)" \
 #
 # The derivation keys on the call's SYNTACTIC SHAPE (`emit <id> "`), never on line position. An
 # earlier version anchored `^[[:space:]]*emit`, requiring `emit` to be the first token on its
-# line; it silently missed every `cond || emit ...` call (board-checks.sh:197 and :206 — the
+# line; it silently missed every `cond || emit ...` call (the `broken-spec` and field-loop sites in
+# board-checks.sh — the
 # broken-spec / broken-plan-results idiom), so the guard was decoration for 2 of the 12 real
 # check-ids, and for any future check-id written with that idiom. `emit <id> "` doesn't care what
-# precedes it on the line, and does NOT match the English "emit a table row" prose comment on :94
+# precedes it on the line, and does NOT match the English "emit a table row" prose comment in the
+# `renders_row` header
 # — a real call is always `emit` + identifier + a quoted change-id argument; prose never quotes
 # like that.
 BCSH="$REPO/scripts/board-checks.sh"; BCMD="$REPO/scripts/board-checks.md"; DSMD="$REPO/scripts/docket-status.md"
@@ -963,7 +966,8 @@ emitted="$(grep -oE 'emit [a-z][a-z-]*[[:space:]]+"' "$BCSH" | awk '{print $2}' 
 # sits below the true count by construction, so it can never catch an under-derivation — it didn't
 # catch this file's own bug (10 cleared an `-ge 8` floor while the real count was 12). Instead
 # derive an INDEPENDENT count from the script's own header comment (`check-id ∈ {...}`, see
-# board-checks.sh:11-13 — the set spans three comment lines, so the extraction joins them before
+# board-checks.sh's `check-id ∈ {…}` header enumeration — the set spans three comment lines, so
+# the extraction joins them before
 # parsing) and assert the two counts agree. An under-derivation now disagrees with the header
 # instead of merely clearing a floor both the buggy and correct counts satisfy.
 header_ids="$(sed -n '/check-id ∈ {/,/}/p' "$BCSH" | sed -E 's/^#[[:space:]]*//' | tr '\n' ' ' \
@@ -979,7 +983,8 @@ assert "the emitted check-id derivation is non-empty (a broken regex must not va
 # misspelling `publish-deferred` in the header alone kept both sides at 12 and the suite printed
 # PASS. `comm -3` prints the lines unique to either side, so any disagreement — under-derivation,
 # over-derivation, or a one-for-one rename — leaves output and reddens. Both sides are already
-# `sort -u`'d, which comm requires. Matches tests/test_docket_facade.sh:148's exact-set idiom for
+# `sort -u`'d, which comm requires. Matches the exact-set idiom in tests/test_docket_facade.sh's
+# "docket.sh op set == docket.md documented op set" assert, for
 # this same class of guard. The `|| { … >&2; false; }` tail reports WHICH ids disagree.
 assert "emitted check-id SET == the header's own check-id ∈ {...} enumeration (a rename disagrees; a count compare would not)" \
   '[ -z "$(comm -3 <(printf "%s\n" "$emitted") <(printf "%s\n" "$header_ids"))" ] \
@@ -1027,9 +1032,11 @@ assert "emitted check-id SET == scripts/docket-status.md's 'check <check-id>' en
 
 # --- S0: the DECLARED vocabulary, sourced as a real runtime array (change 0111) -----------------
 # board-checks.sh is NOT sourceable (it parses argv and runs the whole walk on source), so the
-# vocabulary is declared in the lib that board-checks.sh already sources at :52. That lets this
+# vocabulary is declared in the lib that board-checks.sh already sources near the top of the file.
+# That lets this
 # guard read the REAL array rather than parsing source text for it — the same mechanism
-# tests/test_render_board.sh:1883-1885 uses for DOCKET_STATUSES, and it deletes a whole class of
+# tests/test_render_board.sh uses for DOCKET_STATUSES (its `source "$LIB"` of
+# lib/docket-frontmatter.sh), and it deletes a whole class of
 # tokenizer fragility instead of relocating it.
 LIB="$REPO/scripts/lib/docket-frontmatter.sh"
 # shellcheck source=/dev/null
@@ -1046,10 +1053,12 @@ assert "BOARD_CHECK_IDS SET == the set board-checks.sh actually emits (edit scri
 # quoted change-id argument. A site written `emit "$var" ...` matches none of it and is therefore
 # invisible to every assert in this section, WITHOUT reddening any of them: the distinct-id set is
 # unchanged whenever the dynamic site's id is also emitted somewhere else. Verified, not assumed —
-# mutating board-checks.sh:181's `emit field-domain` to `emit "$dyn"` holds the set at 12 and
+# mutating board-checks.sh's slug-alphabet `emit field-domain` call to `emit "$dyn"` holds the set
+# at 12 and
 # drops the call-site count from 17 to 16. So the count is the only thing that can see it.
 #
-# Comments are stripped first so the header's prose (`emit a table row`, :94) is out of scope; it
+# Comments are stripped first so the header's prose (`emit a table row`, in the `renders_row`
+# header) is out of scope; it
 # would not match the literal shape anyway, but stripping makes the two counts comparable over the
 # same text. `emit(){` is excluded for free by requiring the space after `emit`.
 #

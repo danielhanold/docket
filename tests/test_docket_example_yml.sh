@@ -154,8 +154,9 @@ done
 # named export is emitted SOMEWHERE, never that it belongs to THIS key — see the correspondence
 # check below, which closes that gap for every entry except the ones named here.
 #   BOARD_SURFACES — its value is built entirely through intermediate variables (bs_raw / bs /
-#   _filtered; docket-config.sh:242-266). No `BOARD_SURFACES=` assignment line ever contains the
-#   literal leaf key "board_surfaces" — the mechanical same-line check below would false-red it.
+#   _filtered; docket-config.sh's board_surfaces layer-resolution block). No `BOARD_SURFACES=`
+#   assignment line ever contains the literal leaf key "board_surfaces" — the mechanical same-line
+#   check below would false-red it.
 #   DOCKET_BASH_PATH — the manifest key is the `runtime:` block header while its value is assigned
 #   through block-scoped intermediates, so no assignment line can carry that header literally.
 correspondence_exempt="BOARD_SURFACES DOCKET_BASH_PATH"
@@ -496,22 +497,29 @@ assert "runners.codex.sandbox is still read by the codex adapter" \
 # block — never by parsing .docket.yml itself. The next two asserts are the sole-channel proof.
 # Reviewed and replaced (task-3 review, finding 1): the original single "does not parse .docket.yml"
 # assert required the key name and the framing string on the SAME line, which no line in this file
-# has ever satisfied — it was vacuous on day one and stayed green under both a revert of SKILL.md:108
+# has ever satisfied — it was vacuous on day one and stayed green under both a revert of the
+# finalize SKILL's export-block sentence
 # and a bolted-on fallback sentence (mutation-tested; see task-3-report.md). Replaced with two
 # assertions anchored on the real positive/negative shape of the sole-channel contract:
 assert "require_pr_approval is still named by the finalize skill body" \
   'grep -q "require_pr_approval" "$REPO/skills/docket-finalize-change/SKILL.md"'
-# (finding 2) Anchored on the PROVENANCE clause at SKILL.md:120 — the sentence that actually tells
+# (finding 2) Anchored on the PROVENANCE clause in the finalize SKILL — the `require_pr_approval`
+# sentence naming FINALIZE_REQUIRE_PR_APPROVAL as "the sole channel" — the sentence that actually
+# tells
 # the agent where the value comes from — not a bare "does FINALIZE_REQUIRE_PR_APPROVAL appear
-# anywhere" check. FINALIZE_REQUIRE_PR_APPROVAL also appears at SKILL.md:108's config-block framing
-# sentence, so an existence-anywhere grep stays green even if this :120 clause is deleted outright;
+# anywhere" check. FINALIZE_REQUIRE_PR_APPROVAL also appears in the SKILL's "Every value below is
+# read from the Step-0 `preflight` export block" framing
+# sentence, so an existence-anywhere grep stays green even if this provenance clause is deleted
+# outright;
 # this requires the full provenance phrase (mutation-tested against deleting the clause).
-assert "0102: the finalize skill's provenance clause (SKILL.md:120) ties FINALIZE_REQUIRE_PR_APPROVAL to the Step-0 export block as the sole channel" \
+assert "0102: the finalize skill's provenance clause (the 'sole channel' sentence) ties FINALIZE_REQUIRE_PR_APPROVAL to the Step-0 export block" \
   'grep -Eq "reads its resolved value as.{0,60}FINALIZE_REQUIRE_PR_APPROVAL.{0,80}Step-0 export block.{0,60}sole channel" "$REPO/skills/docket-finalize-change/SKILL.md"'
-# (finding 1a) Positive framing: SKILL.md:108 states the sole-channel rule as "never by parsing
-# .docket.yml", tied to the exported keys it names. Reverting :108 back to its pre-0102 framing
+# (finding 1a) Positive framing: the SKILL's export-block sentence states the sole-channel rule as
+# "never by parsing
+# .docket.yml", tied to the exported keys it names. Reverting the export-block sentence back to its
+# pre-0102 framing
 # ("Configured by `.docket.yml`:") removes this phrase entirely, reddening this assert.
-assert "0102: the finalize skill states its sole channel positively (never by parsing .docket.yml, SKILL.md:108)" \
+assert "0102: the finalize skill states its sole channel positively (never by parsing .docket.yml)" \
   'grep -Eq "FINALIZE_REQUIRE_PR_APPROVAL.{0,20}never by parsing.{0,15}\.docket\.yml" "$REPO/skills/docket-finalize-change/SKILL.md"'
 # (finding 1b) Negative guard: no bolted-on fallback sentence ("...fall back to reading
 # require_pr_approval from .docket.yml") — the explicit no-fallback-by-design contract. The
@@ -1033,8 +1041,8 @@ assert "(9) README yaml fence count is exactly 9 — floor against discovery goi
 #   - top-level segment only a COMMENTED pseudo-key => acceptance stops at the top-level segment,
 #     because a commented key has no nested body to match against.
 # Building a pseudo-key SET by regex is rejected: `^#[[:space:]]*[A-Za-z_]+:` also matches the
-# example's prose comments (`# exceptions:` :22, `# scope: any layer` in many places, `# line:`
-# :179), which would silently accept anything.
+# example's prose comments (`# exceptions:`, `# scope: any layer` in many places, `# line:`),
+# which would silently accept anything.
 #
 # is_pseudo_key matches the key LITERALLY via index()==1 rather than interpolating it into an
 # ERE. That is strictly stronger than escaping it (escape-ere-metacharacters-in-key): there is no

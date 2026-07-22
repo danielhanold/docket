@@ -64,7 +64,8 @@ FINDINGS=""                            # accumulate "<check>\t<id>\t<msg>\n"; so
 
 # sanitize VALUE — render TAB and CR as the visible two-character escapes \t and \r (change 0104).
 # Findings are TAB-separated and the caller splits them with `IFS=$'\t' read -r check_id change_id
-# message` (docket-status.sh:627), so an interior TAB in ANY embedded value shifts every later
+# message` (docket-status.sh's `health_checks`), so an interior TAB in ANY embedded value
+# shifts every later
 # field. field() truncates at the first newline and strips trailing whitespace, but an interior TAB
 # survives it — these values are untrusted frontmatter, not program constants. Pure bash parameter
 # expansion: BSD sed does not interpret \t in a pattern, so a sed form would be silently wrong.
@@ -98,17 +99,18 @@ FINALIZE_BLOCKED_STALE_SECS=$(( 72 * 3600 ))
 # board-row-dropped invariant (change 0104): it mirrors the renderer's own bucketing rather than
 # re-enumerating the conditions the other checks already name, so a drop path ADDED TO THE RENDERER
 # is noticed here without anyone editing this script. Two clauses, each anchored to a renderer line:
-#   1. render-board.sh:76  `id="$(int_field "$f" id)"; [ -n "$id" ] || continue`
+#   1. render-board.sh's id gate, `id="$(int_field "$f" id)"; [ -n "$id" ] || continue`
 #      — a file with no usable integer id never enters SECTION at all.
 #   2. render-board.sh iterates DOCKET_STATUSES_ACTIVE when calling print_section, and buckets on
-#      the RAW `status:` read — so a status outside that set lands in a SECTION key nothing
-#      iterates. Membership is read from the SAME array via docket_status_is_active, never a list
-#      restated here: the five-name active
+#      the RAW `status:` read (`SECTION["$st"]+="$id"…`) — so a status outside that set
+#      lands in a SECTION key nothing iterates. Membership is read from the SAME array via
+#      docket_status_is_active, never a list restated here: the five-name active
 #      set and the seven-name full vocabulary are DIFFERENT sets, and the difference is exactly the
 #      live drop path a `DOCKET_STATUSES` test would miss — a terminal status (`done`/`killed`)
 #      sitting in `active/`, which is a legal status in an illegal directory (the state
 #      docket-status's `sweep-failed <id> archive <reason>` leaves behind: status flipped, archive
-#      move failed). :86 still counts the file in `total`, so the count line and the tables disagree.
+#      move failed). `total=${#AFILES[@]}` still counts the file, so the count line and the tables
+#      disagree.
 renders_row(){
   local rr_id="$1" rr_st="$2"
   [ -n "$rr_id" ] || return 1
@@ -129,13 +131,15 @@ for f in "${FILES[@]}"; do
   # --- board-row-dropped, computed (change 0104). THE ONLY site that populates DROPPED: the
   # invariant is evaluated once, from renders_row's mirror of the renderer, for every active file —
   # never re-derived per drop CAUSE at the checks that happen to name one. `archive/` is exempt (the
-  # archive table renders from its own pass, :297+, and is not subject to this invariant).
+  # archive table renders from its own pass, under the `# --- archive ---` section, and is not
+  # subject to this invariant).
   if [ "$fd_active" = 1 ] && ! renders_row "$id" "$status"; then DROPPED["$cid"]=1; fi
 
   if [ -z "$id" ]; then
     if [ -n "$raw" ]; then
       emit malformed-id "$cid" "non-integer id '$raw' in $(basename "$f")"
-      # EXPLAINED: a non-integer id is a genuine drop CAUSE (render-board.sh:76 skips the row), so
+      # EXPLAINED: a non-integer id is a genuine drop CAUSE (render-board.sh's `[ -n "$id" ] ||
+      # continue` skips the row), so
       # this finding accounts for the DROPPED entry above and the backstop stays quiet.
       EXPLAINED["$cid"]=1
     fi
@@ -175,7 +179,8 @@ for f in "${FILES[@]}"; do
     EXPLAINED["$cid"]=1
   fi
 
-  # slugify's own alphabet (mint-stub.sh:88-91). Empty fails — slug has no documented default.
+  # slugify's own alphabet (mint-stub.sh's `slugify()`). Empty fails — slug has no documented
+  # default.
   case "$fd_slug" in
     ''|*[!a-z0-9-]*) emit field-domain "$cid" "slug '$fd_slug' is not ^[a-z0-9-]+\$" ;;
   esac

@@ -73,8 +73,9 @@ metadata_branch: docket
 # integration_branch — the branch code lands on, i.e. where PRs merge. `auto` (the default)
 # resolves to the repo's default branch, origin/HEAD; name a branch explicitly (`main`,
 # `develop`) to point docket at a different code line. In DOCKET-MODE the named ref must exist on
-# origin, or startup fails closed rather than guessing (the bootstrap guard's ls-tree probe reads
-# it, docket-config.sh:369-381); in main-mode the resolver does not validate the ref.
+# origin, or startup fails closed rather than guessing (docket-config.sh's Stage 3 bootstrap guard
+# reads it via `g ls-tree "origin/$INTEGRATION_BRANCH"`, which dies on a non-zero exit rather than
+# reading it as ¬LIVE); in main-mode the resolver does not validate the ref.
 # scope: repo-only (coordination-fenced, ADR-0019)
 integration_branch: auto
 
@@ -174,7 +175,8 @@ board_surfaces: [inline]
 #   github_project from config: github-mirror.sh resolves its board only from --project /
 #   --auto-create-project, and docket-status.sh populates those only from its own CLI flags,
 #   which no skill passes. The key's sole live effect is the coordination-key fence
-#   (docket-config.sh:170), which warns-and-ignores it in the machine-scoped layers. Enabling
+#   (docket-config.sh's `for _fkey in metadata_branch integration_branch …` fence loop), which
+#   warns-and-ignores it in the machine-scoped layers. Enabling
 #   `github` in board_surfaces therefore mirrors ISSUES only; no Projects v2 board is created or
 #   synced, and nothing is written back over `auto`. The scope tag below records where the key
 #   WILL be settable once the read is wired — it is not a claim that it works now.
