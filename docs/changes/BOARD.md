@@ -1,14 +1,8 @@
 # Backlog
 
-**124 changes** — 🟢 1 in progress · 🟡 22 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 93 done · 🗑️ 6 killed
+**126 changes** — 🟡 24 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 93 done · 🗑️ 6 killed
 
-## 🟢 In progress (1)
-
-| # | Title | Priority | Spec | Branch |
-|---|-------|----------|------|--------|
-| [0112](active/0112-pin-the-reverse-cross-layer-masking-for-the-committed-over-l.md) | Complete the finalize.test_command cross-layer masking matrix (reverse committed-over-local + both skip-rung pairs) | `medium` | [spec](../superpowers/specs/2026-07-20-reverse-cross-layer-masking-matrix-design.md) | `feat/pin-the-reverse-cross-layer-masking-for-the-committed-over-l` |
-
-## 🟡 Proposed (22)
+## 🟡 Proposed (24)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -34,6 +28,8 @@
 | [0122](active/0122-nested-keys-scope-tags-in-docket-example-yml-are-unguarded.md) | Nested keys' scope tags in .docket.example.yml are unguarded | `medium` | needs-brainstorm |
 | [0123](active/0123-machine-check-the-docket-config-md-export-list-order-against.md) | Machine-check the docket-config.md export list order against the resolver | `medium` | needs-brainstorm |
 | [0124](active/0124-backlog-triage-pass.md) | Backlog triage pass — kill, defer, or arm each needs-brainstorm stub | `medium` | needs-brainstorm |
+| [0125](active/0125-decide-whether-the-rung-pair-completeness-claim-should-be-me.md) | Decide whether the rung-pair completeness claim should be mechanically enforced | `medium` | needs-brainstorm |
+| [0126](active/0126-apply-the-poison-value-prelude-uniformly-to-every-resolver-e.md) | Apply the poison-value prelude uniformly to every resolver eval in the config suite | `medium` | needs-brainstorm |
 
 ## 🔴 Blocked (1)
 
@@ -41,11 +37,12 @@
 |---|-------|----------|------------|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | PR #69 is stale (predates the 0068/0072 facade rework and later agent-layer changes) and #0079 (runner delegation) reshapes the design — the build roles should grow a runner field (build.<role>.runner codex, the mixed topology 0079 deferred). Needs a rebase plus redesign pass before merge. |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | PR | Readiness |
 |---|-------|----------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
+| [0112](active/0112-pin-the-reverse-cross-layer-masking-for-the-committed-over-l.md) | Complete the finalize.test_command cross-layer masking matrix (reverse committed-over-local + both skip-rung pairs) | `medium` | [#118](https://github.com/danielhanold/docket/pull/118) |  |
 
 ```mermaid
 graph TD
@@ -74,6 +71,8 @@ graph TD
   0122
   0123
   0124
+  0125
+  0126
   0015:::done
   0016:::done
   0077:::done
