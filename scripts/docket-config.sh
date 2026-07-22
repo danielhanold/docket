@@ -174,15 +174,25 @@ runtime_count() { # runtime_count <file>
 }
 
 # --- Stage 1: resolve origin/HEAD + default branch (keyed on fetch/set-head rc) ---
+CFG=""
+FETCH_ERR=""
+trap 'rm -f "$CFG" "$FETCH_ERR"' EXIT
 g rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "not a git repo: $REPO_DIR"
-g fetch --quiet origin 2>/dev/null || die "cannot reach origin (git fetch failed) — check the remote/network"
+FETCH_ERR="$(mktemp)" || die "could not create git-fetch diagnostic file"
+if ! g fetch --quiet origin 2>"$FETCH_ERR"; then
+  printf 'docket-config: git fetch origin failed\n' >&2
+  cat "$FETCH_ERR" >&2
+  exit 1
+fi
+rm -f "$FETCH_ERR"
+FETCH_ERR=""
 g remote set-head origin -a >/dev/null 2>&1 || die "cannot resolve origin/HEAD (git remote set-head failed)"
 DEFAULT_BRANCH="$(g symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null || true)"
 DEFAULT_BRANCH="${DEFAULT_BRANCH#origin/}"
 [ -n "$DEFAULT_BRANCH" ] || die "origin/HEAD is unresolvable after set-head"
 
 # --- Stage 2: read + resolve .docket.yml (authoritative via git show origin/HEAD) ---
-CFG="$(mktemp)"; trap 'rm -f "$CFG"' EXIT
+CFG="$(mktemp)"
 g show "origin/HEAD:.docket.yml" >"$CFG" 2>/dev/null || : >"$CFG"   # absent file => defaults (NOT an error)
 
 # --- Stage 2b: global config layer (change 0050) ------------------------------

@@ -263,6 +263,39 @@ rm -rf "$tmp/f1.origin.git"                       # destroy the remote
 assert "unreachable origin: nonzero exit" '[ "$(run_rc "$tmp/f1" --export)" -ne 0 ]'
 assert "unreachable origin: emits nothing" '[ -z "$(bash "$SCRIPT" --repo-dir "$tmp/f1" --export 2>/dev/null)" ]'
 
+# (F1a) a fetch failure preserves Git's real diagnostics behind Docket's neutral wrapper.
+# The fake scans all argv because g() prepends -C <repo> before the Git subcommand.
+fake_git="$tmp/fetch-fail-git"
+cat >"$fake_git" <<'EOF'
+#!/usr/bin/env bash
+for arg in "$@"; do
+  if [ "$arg" = fetch ]; then
+    printf 'fake-git: permission boundary denied\n' >&2
+    printf 'fake-git: cannot write origin lock\n' >&2
+    exit 47
+  fi
+done
+exit 0
+EOF
+chmod +x "$fake_git"
+mkrepo "$tmp/fetch-failure"
+fetch_rc=0
+fetch_stdout="$(GIT="$fake_git" bash "$SCRIPT" --repo-dir "$tmp/fetch-failure" --export 2>"$tmp/fetch-failure.err")" || fetch_rc=$?
+fetch_stderr="$(<"$tmp/fetch-failure.err")"
+fetch_first_line="${fetch_stderr%%$'\n'*}"
+assert "fetch failure: nonzero exit" '[ "$fetch_rc" -ne 0 ]'
+assert "fetch failure: emits no KEY=value stdout" '[ -z "$fetch_stdout" ]'
+assert "fetch failure: neutral wrapper is the first stderr line" \
+  '[ "$fetch_first_line" = "docket-config: git fetch origin failed" ]'
+assert "fetch failure: neutral wrapper is present" \
+  'grep -qxF "docket-config: git fetch origin failed" <<<"$fetch_stderr"'
+assert "fetch failure: first fake diagnostic is preserved" \
+  'grep -qxF "fake-git: permission boundary denied" <<<"$fetch_stderr"'
+assert "fetch failure: second fake diagnostic is preserved" \
+  'grep -qxF "fake-git: cannot write origin lock" <<<"$fetch_stderr"'
+assert "fetch failure: old network diagnosis is absent" \
+  '! grep -qF "cannot reach origin" <<<"$fetch_stderr" && ! grep -qF "check the remote/network" <<<"$fetch_stderr"'
+
 # (F2) cached-but-stale origin/HEAD must NOT mask an unreachable origin (keys on fetch rc,
 #      not git show — LEARNINGS / spec §7). origin/HEAD + .docket.yml are cached locally,
 #      so `git show origin/HEAD:.docket.yml` would still succeed with stale bytes.
