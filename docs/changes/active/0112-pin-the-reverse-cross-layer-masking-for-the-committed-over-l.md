@@ -2,7 +2,7 @@
 id: 112
 slug: pin-the-reverse-cross-layer-masking-for-the-committed-over-l
 title: Complete the finalize.test_command cross-layer masking matrix (reverse committed-over-local + both skip-rung pairs)
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-20
 updated: 2026-07-21
@@ -12,12 +12,12 @@ discovered_from: [106]
 adrs: []
 spec: docs/superpowers/specs/2026-07-20-reverse-cross-layer-masking-matrix-design.md
 plan: docs/superpowers/plans/2026-07-21-reverse-cross-layer-masking-matrix.md
-results:
+results: docs/results/2026-07-21-pin-the-reverse-cross-layer-masking-for-the-committed-over-l-results.md
 trivial: false
 auto_groomable: true
 branch: feat/pin-the-reverse-cross-layer-masking-for-the-committed-over-l
-claimed_at: 2026-07-21T23:20:32Z
-pr:
+claimed_at: 2026-07-22T00:20:47Z
+pr: https://github.com/danielhanold/docket/pull/118
 blocked_by:
 reconciled: true
 ---
@@ -29,6 +29,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-20-reverse-cross-layer-masking-matrix-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-20-reverse-cross-layer-masking-matrix-design.md) |
 | Plan | [2026-07-21-reverse-cross-layer-masking-matrix.md](https://github.com/danielhanold/docket/blob/feat/pin-the-reverse-cross-layer-masking-for-the-committed-over-l/docs/superpowers/plans/2026-07-21-reverse-cross-layer-masking-matrix.md) |
+| Results | [2026-07-21-pin-the-reverse-cross-layer-masking-for-the-committed-over-l-results.md](https://github.com/danielhanold/docket/blob/feat/pin-the-reverse-cross-layer-masking-for-the-committed-over-l/docs/results/2026-07-21-pin-the-reverse-cross-layer-masking-for-the-committed-over-l-results.md) |
+| PR | [#118](https://github.com/danielhanold/docket/pull/118) |
 <!-- docket:artifacts:end -->
 
 ## Why
