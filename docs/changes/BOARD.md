@@ -1,8 +1,14 @@
 # Backlog
 
-**130 changes** — 🟡 26 proposed · 🔴 1 blocked · 🔵 3 implemented · ✅ 94 done · 🗑️ 6 killed
+**130 changes** — 🟢 1 in progress · 🟡 25 proposed · 🔴 1 blocked · 🔵 3 implemented · ✅ 94 done · 🗑️ 6 killed
 
-## 🟡 Proposed (26)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Spec | Branch |
+|---|-------|----------|------|--------|
+| [0128](active/0128-truthful-git-errors-harness-neutral-escalation-retry.md) | Truthful Git failures and harness-neutral sandbox escalation retry | `high` | [spec](../superpowers/specs/2026-07-22-truthful-git-errors-harness-neutral-escalation-retry-design.md) | `feat/truthful-git-errors-harness-neutral-escalation-retry` |
+
+## 🟡 Proposed (25)
 
 | # | Title | Priority | Readiness |
 |---|-------|----------|-----------|
@@ -29,7 +35,6 @@
 | [0125](active/0125-decide-whether-the-rung-pair-completeness-claim-should-be-me.md) | Decide whether the rung-pair completeness claim should be mechanically enforced | `medium` | needs-brainstorm |
 | [0126](active/0126-apply-the-poison-value-prelude-uniformly-to-every-resolver-e.md) | Apply the poison-value prelude uniformly to every resolver eval in the config suite | `medium` | needs-brainstorm |
 | [0127](active/0127-typed-changes-selective-auto-capture.md) | Typed changes — configurable taxonomy, selective auto-capture, and backlog filters | `medium` | build-ready |
-| [0128](active/0128-truthful-git-errors-harness-neutral-escalation-retry.md) | Truthful Git failures and harness-neutral sandbox escalation retry | `high` | build-ready |
 | [0129](active/0129-fix-the-pipefail-unsafe-plain-format-config-assertion.md) | Fix the pipefail-unsafe plain-format config assertion | `medium` | needs-brainstorm |
 | [0130](active/0130-make-the-finalize-marker-reachability-guard-portable-to-bsd.md) | Make the finalize marker reachability guard portable to BSD grep | `medium` | needs-brainstorm |
 
