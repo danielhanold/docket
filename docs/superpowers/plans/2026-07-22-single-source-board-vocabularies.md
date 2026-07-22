@@ -260,7 +260,7 @@ git commit -m "refactor(0116): derive board vocabulary consumers"
 - Consumes: the shared arrays and the Task 2 consumer shapes.
 - Produces: exact set-equality guards for the table-header, row-format, and issue-close mappings, plus a producer-anchored sentinel against executable `done|killed` restatements.
 
-- [ ] **Step 1: Add failing non-vacuous mapping extractors and set comparisons**
+- [x] **Step 1: Add failing non-vacuous mapping extractors and set comparisons**
 
 Extract the row-format arms by their syntactic shape, not by every `word)` token in the body:
 
@@ -280,7 +280,7 @@ Add exact cardinality then equality assertions for `table_header_for` and `row_f
 
 Add a sentinel that derives the converted executable files by whole-repo search, excludes only the two column-zero CLI usage comments, and requires zero executable `done|killed` pairs. Capture grep output before testing it; never use a producer-to-`grep -q` pipeline under `pipefail`.
 
-- [ ] **Step 2: Run mapping tests and verify they fail on missing extraction anchors**
+- [x] **Step 2: Run mapping tests and verify they fail on missing extraction anchors**
 
 Run:
 
@@ -291,7 +291,7 @@ bash tests/test_github_mirror.sh
 
 Expected: failures name `table_header_for`, the row-format marker, and the issue-close marker; extractor cardinality asserts fail before the set comparisons are trusted.
 
-- [ ] **Step 3: Extract the renderer header mapping and mark the retained mappings**
+- [x] **Step 3: Extract the renderer header mapping and mark the retained mappings**
 
 Move only the table-header `case` into the one-line-header form required by the proven tokenizer:
 
@@ -307,7 +307,7 @@ esac; }
 
 Call `table_header_for "$st"` from `print_section`. Put `# row_format_mapping` immediately above the retained row-format `case`. Put `# terminal_close_reason_mapping` immediately above the retained `github-mirror.sh` close-reason `case`. Document beside the tests that exhaustive mappings are pinned, sparse mappings such as `suffix_for` and `readiness_label` are intentionally not pinned, and an un-arrayed exhaustive vocabulary receives an array first.
 
-- [ ] **Step 4: Run focused tests and mutation-test both correspondence directions**
+- [x] **Step 4: Run focused tests and mutation-test both correspondence directions**
 
 Run the two focused suites; expected `PASS`.
 
@@ -321,7 +321,7 @@ Perform and restore each mutation independently:
 6. Add a `retired)` issue-close arm; the terminal mapping guard must fail.
 7. Restore every mutation and rerun both suites to `PASS`.
 
-- [ ] **Step 5: Run the whole suite and audit the expected baseline exception**
+- [x] **Step 5: Run the whole suite and audit the expected baseline exception**
 
 Run:
 
@@ -340,7 +340,7 @@ git status --short
 
 Expected: no whitespace errors; only the plan and intended source/test files are changed.
 
-- [ ] **Step 6: Mark the plan executed and commit the guard net**
+- [x] **Step 6: Mark the plan executed and commit the guard net**
 
 Change every completed checkbox in this plan from `[ ]` to `[x]`, then:
 

@@ -220,22 +220,24 @@ pr_cell(){ local f="$1" pr num; pr="$(field "$f" pr)"
        else printf '#%s' "$num"; fi ;;              # bare-number fallback
   esac
 }
+table_header_for(){ case "$1" in
+  in-progress) printf '| # | Title | Priority | Spec | Branch |\n|---|-------|----------|------|--------|\n' ;;
+  proposed)    printf '| # | Title | Priority | Readiness |\n|---|-------|----------|-----------|\n' ;;
+  blocked)     printf '| # | Title | Priority | Blocked by |\n|---|-------|----------|------------|\n' ;;
+  deferred)    printf '| # | Title | Priority |\n|---|-------|----------|\n' ;;
+  implemented) printf '| # | Title | Priority | PR | Readiness |\n|---|-------|----------|----|-----------|\n' ;;
+esac; }
 print_section(){ # print_section STATUS HEADER_SUFFIX
   local st="$1" suffix="$2" n; n="$(count_of "$st")"
   [ "$n" -gt 0 ] || return 0
   printf '\n## %s %s%s (%d)\n\n' "$(emoji_for "$st")" "$(label_for_title "$st")" "$suffix" "$n"
   local id f
-  case "$st" in
-    in-progress) printf '| # | Title | Priority | Spec | Branch |\n|---|-------|----------|------|--------|\n' ;;
-    proposed)    printf '| # | Title | Priority | Readiness |\n|---|-------|----------|-----------|\n' ;;
-    blocked)     printf '| # | Title | Priority | Blocked by |\n|---|-------|----------|------------|\n' ;;
-    deferred)    printf '| # | Title | Priority |\n|---|-------|----------|\n' ;;
-    implemented) printf '| # | Title | Priority | PR | Readiness |\n|---|-------|----------|----|-----------|\n' ;;
-  esac
+  table_header_for "$st"
   while IFS=$'\t' read -r id f; do
     [ -n "$id" ] || continue
     local title priority; title="$(field "$f" title)"; priority="$(field "$f" priority)"
     local base; base="$(basename "$f")"
+    # row_format_mapping
     case "$st" in
       in-progress)
         printf '| [%s](active/%s) | %s | `%s` | [spec](%s) | `%s` |\n' \

@@ -238,6 +238,7 @@ mirror_change(){
 
   # CLOSE STATE — the sync is the sole writer. Only terminal statuses close.
   if [ -n "$eff_issue" ]; then
+    # terminal_close_reason_mapping
     case "$status" in
       done)   run_gh issue close "$eff_issue" ${REPO:+-R "$REPO"} --reason completed >/dev/null ;;
       killed) run_gh issue close "$eff_issue" ${REPO:+-R "$REPO"} --reason "not planned" >/dev/null ;;

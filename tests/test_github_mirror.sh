@@ -269,5 +269,27 @@ assert "a freshly-minted done change is created AND closed-completed in the same
   'grep -qE "MOCKGH issue create" "$fresh/gh.log" && grep -qE "MOCKGH issue close 4242 .*--reason completed" "$fresh/gh.log"'
 rm -rf "$fresh"
 
+# Exhaustive mappings stay as cases, but their arm sets are pinned to the declared vocabulary.
+# Sparse mappings such as readiness_label are intentionally not pinned: syntax cannot decide
+# exhaustiveness. A vocabulary with no array gets one first (the BOARD_CHECK_IDS precedent).
+LIB="$REPO/scripts/lib/docket-frontmatter.sh"
+# shellcheck source=/dev/null
+source "$LIB"
+close_reason_labels="$({
+  awk '
+    /# terminal_close_reason_mapping$/ { inb=1; next }
+    inb {
+      line=$0; sub(/^[[:space:]]*/, "", line)
+      if (line ~ /^[a-z][a-z-]*\)/) { sub(/\).*/, "", line); print line }
+    }
+    inb && /esac/ { exit }
+  ' "$SCRIPT"
+} | sort -u)"
+expected_terminal="$(printf '%s\n' "${DOCKET_STATUSES_TERMINAL[@]}" | sort -u)"
+assert "close-reason extractor found exactly 2 mapping arms" \
+  '[ "$(printf "%s\n" "$close_reason_labels" | grep -c .)" = 2 ]'
+assert "issue close-reason case arms are EXACTLY DOCKET_STATUSES_TERMINAL" \
+  '[ "$close_reason_labels" = "$expected_terminal" ]'
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"

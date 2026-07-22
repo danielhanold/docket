@@ -1890,11 +1890,9 @@ n_active="$(grep -cF 'for st in "${DOCKET_STATUSES_ACTIVE[@]}"' "$SCRIPT")"
 n_literal="$(grep -cE '^[[:space:]]*for st in [a-z]' "$SCRIPT")"
 assert "render-board.sh iterates DOCKET_STATUSES at both full-vocabulary sites" '[ "$n_all" = 2 ]'
 assert "render-board.sh iterates DOCKET_STATUSES_ACTIVE at all three active-only sites" '[ "$n_active" = 3 ]'
-# Scoped to what the pattern actually proves: `^\s*for st in [a-z]` sees ITERATION HEADERS only.
-# Hand-written status lists demonstrably survive elsewhere in the renderer (the `done|killed` count
-# arms, label_for_title, the per-status table-header and row-format `case`s, and the print_section
-# call list). Widening this check to cover those sites is deliberately DEFERRED follow-up work —
-# do not silently broaden the assert name to imply coverage it does not have.
+# Scoped to what the pattern actually proves: `^\s*for st in [a-z]` sees iteration headers only.
+# Change 0116 discharges the former deferral for the other set-shaped sites with helper-based
+# derivation and explicit mapping guards below; this narrow sentinel keeps its honest name.
 assert "no hand-written \`for st in\` status list survives in render-board.sh" '[ "$n_literal" = 0 ]'
 
 # (b) the arrays themselves: composition and order (the golden compares bytes, this names the rule)
@@ -1914,18 +1912,37 @@ case_labels(){
 }
 emoji_labels="$(case_labels emoji_for)"
 title_labels="$(case_labels label_for_title)"
+header_labels="$(case_labels table_header_for)"
+row_format_labels="$({
+  awk '
+    /# row_format_mapping$/ { inb=1; next }
+    inb {
+      line=$0; sub(/^[[:space:]]*/, "", line)
+      if (line ~ /^[a-z][a-z-]*\)/) { sub(/\).*/, "", line); print line }
+    }
+    inb && /esac/ { exit }
+  ' "$SCRIPT"
+} | sort -u)"
 # Non-vacuity: a tokenizer that parses nothing passes everything. Assert the COUNT it found before
 # trusting the comparison below (learnings: guards-are-code).
 assert "case_labels extracted all 7 emoji_for arms (tokenizer sees the function)" \
   '[ "$(printf "%s\n" "$emoji_labels" | grep -c .)" = 7 ]'
 assert "case_labels extracted all 5 label_for_title arms (tokenizer sees the function)" \
   '[ "$(printf "%s\n" "$title_labels" | grep -c .)" = 5 ]'
+assert "case_labels extracted all 5 table_header_for arms (tokenizer sees the function)" \
+  '[ "$(printf "%s\n" "$header_labels" | grep -c .)" = 5 ]'
+assert "row-format extractor found exactly 5 mapping arms" \
+  '[ "$(printf "%s\n" "$row_format_labels" | grep -c .)" = 5 ]'
 exp_all="$(printf '%s\n' "${DOCKET_STATUSES[@]}" | sort -u)"
 exp_active="$(printf '%s\n' "${DOCKET_STATUSES_ACTIVE[@]}" | sort -u)"
 assert "emoji_for's case arms are EXACTLY DOCKET_STATUSES (both directions)" \
   '[ "$emoji_labels" = "$exp_all" ]'
 assert "label_for_title's case arms are EXACTLY DOCKET_STATUSES_ACTIVE (both directions)" \
   '[ "$title_labels" = "$exp_active" ]'
+assert "table_header_for's case arms are EXACTLY DOCKET_STATUSES_ACTIVE (both directions)" \
+  '[ "$header_labels" = "$exp_active" ]'
+assert "row-format case arms are EXACTLY DOCKET_STATUSES_ACTIVE (both directions)" \
+  '[ "$row_format_labels" = "$exp_active" ]'
 
 # Every exact terminal-set branch is now derived from the shared helper. Capture before testing:
 # a live producer piped to an early-exiting grep under pipefail turns success into SIGPIPE 141.
