@@ -28,8 +28,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-20-single-source-the-remaining-duplicated-board-vocabularies-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-20-single-source-the-remaining-duplicated-board-vocabularies-design.md) |
-| Plan | [2026-07-22-single-source-board-vocabularies.md](https://github.com/danielhanold/docket/blob/feat/single-source-the-remaining-duplicated-board-vocabularies/docs/superpowers/plans/2026-07-22-single-source-board-vocabularies.md) |
-| Results | [2026-07-22-single-source-the-remaining-duplicated-board-vocabularies-results.md](https://github.com/danielhanold/docket/blob/feat/single-source-the-remaining-duplicated-board-vocabularies/docs/results/2026-07-22-single-source-the-remaining-duplicated-board-vocabularies-results.md) |
+| Plan | [2026-07-22-single-source-board-vocabularies.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-22-single-source-board-vocabularies.md) |
+| Results | [2026-07-22-single-source-the-remaining-duplicated-board-vocabularies-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-22-single-source-the-remaining-duplicated-board-vocabularies-results.md) |
 | PR | [#120](https://github.com/danielhanold/docket/pull/120) |
 | ADRs | [ADR-0055](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0055-exhaustive-vocabulary-mappings-require-array-pinned-set-equality.md) |
 <!-- docket:artifacts:end -->
