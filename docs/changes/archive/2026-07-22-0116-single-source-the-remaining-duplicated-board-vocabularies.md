@@ -2,7 +2,7 @@
 id: 116
 slug: single-source-the-remaining-duplicated-board-vocabularies
 title: Single-source the remaining duplicated board vocabularies
-status: implemented
+status: done
 priority: medium
 created: 2026-07-20
 updated: 2026-07-22
@@ -16,7 +16,7 @@ results: docs/results/2026-07-22-single-source-the-remaining-duplicated-board-vo
 trivial: false
 auto_groomable: true
 branch: feat/single-source-the-remaining-duplicated-board-vocabularies
-claimed_at: 2026-07-22T12:19:31Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/120
 blocked_by:
 reconciled: true
