@@ -62,7 +62,7 @@ These were measured during planning and are load-bearing for Task 3:
 
 **Modified (docs):**
 - `AGENTS.md` — the authoring rule
-- `docs/adrs/0044-autonomy-precedence-call-site-pre-specification.md` — append-only `## Update`
+- `docs/adrs/0044-…` — append-only `## Update`, on the METADATA branch (never the feature branch)
 
 ---
 
@@ -935,74 +935,36 @@ neutered pattern, and removed self-exclusion each redden it."
 
 ---
 
-### Task 4: Mint ADR-0054 and repair ADR-0044's stale anchor
+### Task 4: ADR work — ADR-0054 mint and ADR-0044 repair
 
-**Files:**
-- Create: `docs/adrs/0054-*.md` — **via the `docket-adr` subagent**, which assigns the number, updates the index, and commits on `origin/docket`. Do not hand-author the file.
-- Modify: `docs/adrs/0044-autonomy-precedence-call-site-pre-specification.md` — append-only `## Update`.
+> **CORRECTED AT BUILD TIME (2026-07-22).** This task originally directed the ADR-0044 `## Update`
+> to be written in the feature worktree. **That would violate the branch invariant**: the
+> docket-convention states the feature branch "adds only the plan + results + code and **never
+> modifies** docket metadata (the change file, `BOARD.md`, ADRs)". ADRs are authored on the
+> `docket` metadata branch; the copies visible on the integration branch are published mirrors
+> maintained by `terminal-publish`. Editing `docs/adrs/0044-*.md` here would commit a metadata
+> change onto the code line and diverge the two copies.
+>
+> **Both ADR actions are therefore performed on the metadata branch by the `docket-adr` subagent**,
+> dispatched at the implementing skill's review step — not in this worktree, and not by a plan task.
+> No feature-branch commit is made for this task.
 
-**Interfaces:**
-- Consumes: the guard and rule from Task 3.
-- Produces: ADR-0054, whose number is appended to change 0114's `adrs:` field by the implementer skill.
+**Deliverables (executed off the feature branch):**
 
-- [ ] **Step 1: Repair ADR-0044's stale anchor the one way the convention permits**
+1. **Mint ADR-0054** recording the posture: cross-references in maintained source anchor on symbol
+   names or verbatim-quoted clauses; the guard enforces the explicit-file form only; the bare
+   colon-number and prose forms are deliberately unguarded, with their measured false-positive
+   rates (~38% and 60%) as the stated reason. `relates_to` **ADR-0031** (the bound of source-syntax
+   scanning) and **ADR-0050** (compute, don't re-enumerate); `change: 114`.
+   **The ADR must not itself contain an explicit-file anchor** — `docs/adrs/` is unwalked, so
+   nothing would catch it.
 
-ADR-0044 cites `skills/docket-finalize-change/SKILL.md:124` as "the human-present close-out"; that line is now the `gate == off` rule. An `Accepted` ADR is immutable except its `status:` line, so the body is left **byte-untouched** and a dated note is appended.
-
-Append to the end of `docs/adrs/0044-autonomy-precedence-call-site-pre-specification.md`:
-
-```markdown
-## Update — 2026-07-22 (change 0114)
-
-The corollary's cross-reference into `skills/docket-finalize-change/SKILL.md` was anchored on a
-line number, which has since drifted to an unrelated rule. Restating it with a stable anchor, and
-leaving the Decision and Corollaries above byte-untouched: the human-present exception is the
-close-out step whose SKILL text conditions merge on an attended run — anchor on that conditional
-sentence, not on a line number.
-
-This ADR's body keeps its original line-number citation, which is precisely why `docs/adrs/` sits
-outside the walk of `tests/test_comment_anchor_style.sh`: an Accepted ADR cannot be edited to
-satisfy a guard, so guarding it would demand a repair the convention forbids (ADR-0054).
-```
-
-- [ ] **Step 2: Verify ADR-0044's body above the new section is unchanged**
-
-```bash
-cd "$(git rev-parse --show-toplevel)"
-git diff -U0 -- docs/adrs/0044-autonomy-precedence-call-site-pre-specification.md | grep -E '^-' | grep -vE '^---' && echo "BODY WAS MODIFIED — STOP" || echo "append-only: OK"
-```
-
-Expected: `append-only: OK`. Any removed line violates ADR immutability — revert and re-do as a pure append.
-
-- [ ] **Step 3: Confirm the ADR edit did not redden the guard**
-
-```bash
-bash tests/test_comment_anchor_style.sh; echo "exit=$?"
-```
-
-Expected: `exit=0` — `docs/adrs/` is outside the walk, so this passes; the run confirms the exclusion is real rather than assumed.
-
-- [ ] **Step 4: Commit the ADR-0044 update**
-
-```bash
-git add docs/adrs/0044-autonomy-precedence-call-site-pre-specification.md
-git commit -m "docs(0114): ADR-0044 — restate the corollary's cross-reference with a stable anchor
-
-Append-only Update note; Decision and Corollaries untouched. The body's original
-line-number citation stays, which is why docs/adrs/ is outside the new guard's walk."
-```
-
-- [ ] **Step 5: Run the full suite one final time**
-
-```bash
-fail=0; for t in tests/test_*.sh; do bash "$t" >/tmp/$(basename "$t").out 2>&1 || { echo "FAIL: $t"; fail=1; }; done; echo "suite fail=$fail"
-```
-
-Expected: `suite fail=0`.
-
-**Note for the implementing skill:** ADR-0054 itself is minted by dispatching the `docket-adr` subagent at review time (step 6 of docket-implement-next), recording: cross-references in maintained source anchor on symbols or quoted clauses; the guard enforces the explicit-file form only; the bare and prose forms are deliberately unguarded with their measured false-positive rates as the reason. It should `relates_to` ADR-0031 (the bound of source-syntax scanning) and ADR-0050 (compute, don't re-enumerate), and `change: 114`. **The ADR must not itself contain an explicit-file anchor** — `docs/adrs/` is unwalked, so nothing would catch it.
-
----
+2. **Repair ADR-0044's own stale anchor** by appending a dated `## Update` note — the one form of
+   edit an `Accepted` ADR permits. Its body, Decision, and Corollaries stay byte-untouched. The
+   note restates the corollary's cross-reference with a stable anchor and records that ADR-0044's
+   original line-number citation persists in the body, which is precisely why `docs/adrs/` sits
+   outside the guard's walk: an Accepted ADR cannot be edited to satisfy a guard, so guarding it
+   would demand a repair the convention forbids.
 
 ## Self-Review
 
