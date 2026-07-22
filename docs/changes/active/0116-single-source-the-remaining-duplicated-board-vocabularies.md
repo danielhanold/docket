@@ -2,10 +2,10 @@
 id: 116
 slug: single-source-the-remaining-duplicated-board-vocabularies
 title: Single-source the remaining duplicated board vocabularies
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-07-20
-updated: 2026-07-20
+updated: 2026-07-22
 depends_on: []
 related: [111, 115]
 discovered_from: [104]
@@ -15,7 +15,8 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch:
+branch: feat/single-source-the-remaining-duplicated-board-vocabularies
+claimed_at: 2026-07-22T11:18:52Z
 pr:
 blocked_by:
 reconciled: false
