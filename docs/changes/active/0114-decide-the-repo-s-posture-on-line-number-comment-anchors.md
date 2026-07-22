@@ -9,7 +9,7 @@ updated: 2026-07-22
 depends_on: []
 related: []
 discovered_from: [106]
-adrs: []
+adrs: [54]
 spec: docs/superpowers/specs/2026-07-20-line-number-comment-anchors-design.md
 plan: docs/superpowers/plans/2026-07-22-line-number-comment-anchors.md
 results:
@@ -29,6 +29,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-20-line-number-comment-anchors-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-20-line-number-comment-anchors-design.md) |
 | Plan | [2026-07-22-line-number-comment-anchors.md](https://github.com/danielhanold/docket/blob/feat/decide-the-repo-s-posture-on-line-number-comment-anchors/docs/superpowers/plans/2026-07-22-line-number-comment-anchors.md) |
+| ADRs | [ADR-0054](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0054-cross-reference-anchor-style.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
