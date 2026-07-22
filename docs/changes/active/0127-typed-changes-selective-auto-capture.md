@@ -10,7 +10,7 @@ updated: 2026-07-22
 depends_on: []
 related: [90, 91, 94, 124]
 discovered_from: []
-adrs: [12, 19, 45, 52]
+adrs: [12, 19, 45, 52, 56, 57]
 spec: docs/superpowers/specs/2026-07-22-typed-changes-selective-auto-capture-design.md
 plan: docs/superpowers/plans/2026-07-22-typed-changes-selective-auto-capture.md
 results:
@@ -30,7 +30,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-22-typed-changes-selective-auto-capture-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-22-typed-changes-selective-auto-capture-design.md) |
 | Plan | [2026-07-22-typed-changes-selective-auto-capture.md](https://github.com/danielhanold/docket/blob/feat/typed-changes-selective-auto-capture/docs/superpowers/plans/2026-07-22-typed-changes-selective-auto-capture.md) |
-| ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0019](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0019-global-config-fence-classification.md), [ADR-0045](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0045-auto-capture-is-best-effort.md), [ADR-0052](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0052-config-key-resolution-boundary.md) |
+| ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md), [ADR-0019](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0019-global-config-fence-classification.md), [ADR-0045](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0045-auto-capture-is-best-effort.md), [ADR-0052](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0052-config-key-resolution-boundary.md), [ADR-0056](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0056-config-manifest-key-scoping-follows-resolver-read-shape.md), [ADR-0057](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0057-frontmatter-read-must-be-anchored-when-key-may-be-absent.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
