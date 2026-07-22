@@ -1150,6 +1150,26 @@ FINALIZE_TEST_COMMAND=__poison__
 out="$(rung "$tmp/s8.xdg" "$tmp/s8" --export)"; eval "$out"
 assert "0112 s8: global auto does NOT wipe local real command (committed key absent)" '[ "$FINALIZE_TEST_COMMAND" = "make local-test" ]'
 
+# (s9) FORWARD, skip-rung: a local `auto` masks a GLOBAL real command, committed key absent.
+# Expects an EMPTY value, which is also what an absent key yields -- so it carries a control
+# assert first, the same reason s4 and s5 do.
+mkrepo "$tmp/s9"
+mkdir -p "$tmp/s9.xdg/docket"
+printf 'finalize:\n  test_command: make global\n' > "$tmp/s9.xdg/docket/config.yml"
+cat > "$tmp/s9/.docket.yml" <<'EOF'
+metadata_branch: main
+integration_branch: main
+EOF
+git -C "$tmp/s9" add .docket.yml; git -C "$tmp/s9" commit --quiet -m cfg
+git -C "$tmp/s9" push --quiet origin main
+FINALIZE_TEST_COMMAND=__poison__
+out="$(rung "$tmp/s9.xdg" "$tmp/s9" --export)"; eval "$out"
+assert "0112 s9 control: global real command resolves before masking" '[ "$FINALIZE_TEST_COMMAND" = "make global" ]'
+printf 'finalize:\n  test_command: auto\n' > "$tmp/s9/.docket.local.yml"
+FINALIZE_TEST_COMMAND=__poison__
+out="$(rung "$tmp/s9.xdg" "$tmp/s9" --export)"; eval "$out"
+assert "0112 s9: local auto masks global real command (committed key absent)" '[ -z "$FINALIZE_TEST_COMMAND" ]'
+
 # ============================================================================
 # Change 0102 — finalize.require_pr_approval layer resolution
 # ============================================================================
