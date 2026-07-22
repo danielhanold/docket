@@ -43,3 +43,15 @@ means), this file does not restate them.
   whole-repo grep, then sort them into prose vs executable. Only the executable ones can violate a
   gate, and a docs-shaped reading skips right past them.
 - Run the whole suite at the build gate, never only the tests the spec enumerated.
+
+## Comments and cross-references
+
+- A cross-reference in maintained source anchors on a **symbol name** or a **verbatim-quoted
+  clause** — never on a line number. A quoted clause is greppable, so drift is mechanically
+  visible; a line number is checkable by nothing, and rots fastest in exactly the files that move
+  most. `tests/test_comment_anchor_style.sh` enforces the filename-plus-line-number form; the bare
+  colon-number and prose "line N" forms are unenforceable without false positives and rest on this
+  rule (ADR-0054).
+- This binds maintained source only. Point-in-time records — results files, archived changes,
+  specs, and Accepted ADRs — keep whatever pointer was true when written; rewriting them falsifies
+  history.
