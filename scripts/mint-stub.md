@@ -15,7 +15,7 @@ formulaic commit.
 ## Usage
 
 ```
-mint-stub.sh --changes-dir DIR --title TITLE --body-file FILE --discovered-from ID
+mint-stub.sh --changes-dir DIR --title TITLE --type TYPE --body-file FILE --discovered-from ID
              [--slug SLUG] [--minted N] [--cap N] [--remote R] [--template PATH]
              [--metadata-branch NAME]
 ```
@@ -26,6 +26,7 @@ Reached from a skill through the facade: `docket.sh mint-stub …`.
 |---|---|---|
 | `--changes-dir` | yes | the metadata worktree's changes dir (e.g. `.docket/docs/changes`) |
 | `--title` | yes | the stub's title |
+| `--type` | yes | the stub's change type, written to `type:` (change 0127). The CALLER classifies — this script never infers a type (ADR-0012) — and the value is deliberately **not** validated against the effective `change_types`, so the script stays usable in a repo whose configured taxonomy differs from the one that wrote a given stub. Rejected: a control character, a malformed token (must match `[a-z][a-z0-9-]*`), and the reserved values `all`/`untyped`, which are a config selector and a query pseudo-value and are never legal in a stored manifest |
 | `--body-file` | yes | file whose contents become the stub body verbatim; **must start with `## Why`** |
 | `--discovered-from` | yes | originating change id; populates `discovered_from: [ID]` |
 | `--slug` | no | derived from `--title` when omitted |
@@ -40,7 +41,7 @@ Reached from a skill through the facade: `docket.sh mint-stub …`.
 1. **Validate** every argument; a malformed body (no leading `## Why`) is rejected before any write,
    and a recognized flag given as the final argument with no following value is rejected by name
    (`<flag> requires a value`) rather than crashing on an unset positional. `--title` and an explicit
-   `--slug` are also rejected if they contain a control character (newline, CR, tab, ...): both land
+   `--slug` and `--type` are also rejected if they contain a control character (newline, CR, tab, ...): both land
    verbatim in frontmatter, and an embedded newline is the way either value could split into a
    second, caller-chosen `key: value` frontmatter line (see Invariants); the check is not narrowed to
    newline alone so no control character can corrupt a rendered frontmatter line, the minted

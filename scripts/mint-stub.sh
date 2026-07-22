@@ -6,7 +6,8 @@
 # (no gh, no network beyond the remote). ADR-0012: a deterministic script, never model prose.
 # ADR-0021: authors its own mechanical commit.
 #
-# Usage: mint-stub.sh --changes-dir DIR --title TITLE --body-file FILE --discovered-from ID
+# Usage: mint-stub.sh --changes-dir DIR --title TITLE --type TYPE --body-file FILE
+#                     --discovered-from ID
 #                     [--slug SLUG] [--minted N] [--cap N] [--remote R] [--template PATH]
 #                     [--metadata-branch NAME]
 #   Mints exactly ONE stub per invocation. --minted is how many stubs THIS skill invocation has
@@ -24,7 +25,7 @@ set -uo pipefail
 GIT="${GIT:-git}"
 TODAY="${TODAY:-$(date -u +%Y-%m-%d)}"
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CHANGES_DIR=""; TITLE=""; BODY_FILE=""; FROM=""; SLUG=""; MINTED=0; CAP=3; REMOTE="origin"
+CHANGES_DIR=""; TITLE=""; BODY_FILE=""; FROM=""; SLUG=""; TYPE=""; MINTED=0; CAP=3; REMOTE="origin"
 META_BRANCH=""
 TEMPLATE="$SELF_DIR/../skills/docket-new-change/change-template.md"
 die(){ printf '%s\n' "mint-stub: $*" >&2; exit 1; }
@@ -32,7 +33,7 @@ while [ $# -gt 0 ]; do
   # A recognized flag with no following value would otherwise dereference an unset $2 under `set -u`
   # (a raw "$2: unbound variable" instead of a diagnosed exit 1) when it lands as the final argument.
   case "$1" in
-    --changes-dir|--title|--body-file|--discovered-from|--slug|--minted|--cap|--remote|--template|--metadata-branch)
+    --changes-dir|--title|--body-file|--discovered-from|--slug|--type|--minted|--cap|--remote|--template|--metadata-branch)
       [ $# -ge 2 ] || die "$1 requires a value" ;;
   esac
   case "$1" in
@@ -41,6 +42,7 @@ while [ $# -gt 0 ]; do
     --body-file) BODY_FILE="$2"; shift ;;
     --discovered-from) FROM="$2"; shift ;;
     --slug) SLUG="$2"; shift ;;
+    --type) TYPE="$2"; shift ;;
     --minted) MINTED="$2"; shift ;;
     --cap) CAP="$2"; shift ;;
     --remote) REMOTE="$2"; shift ;;
@@ -55,6 +57,7 @@ done
 [ -d "$CHANGES_DIR" ] || die "changes dir not found: $CHANGES_DIR"
 [ -n "$TITLE" ]       || die "missing --title"
 [ -n "$BODY_FILE" ]   || die "missing --body-file"
+[ -n "$TYPE" ]        || die "missing --type (the caller classifies the work; this script never infers it — ADR-0012)"
 [ -f "$BODY_FILE" ]   || die "body file not found: $BODY_FILE"
 [ -f "$TEMPLATE" ]    || die "change template not found: $TEMPLATE"
 case "$FROM"   in ''|*[!0-9]*) die "missing/invalid --discovered-from (want a change id)" ;; esac
@@ -73,12 +76,27 @@ case "$CAP"    in ''|*[!0-9]*) die "invalid --cap" ;; esac
 # there is no legitimate title or slug that carries a control character.
 case "$TITLE" in *[[:cntrl:]]*) die "--title must not contain control characters (e.g. a newline)" ;; esac
 case "$SLUG"  in *[[:cntrl:]]*) die "--slug must not contain control characters (e.g. a newline)" ;; esac
+case "$TYPE"  in *[[:cntrl:]]*) die "--type must not contain control characters (e.g. a newline)" ;; esac
 # The body is the model's prose; pin only its entry shape so a malformed stub can never land.
 head1="$(head -n1 "$BODY_FILE")"
 case "$head1" in "## Why"*) ;; *) die "body file must start with '## Why'" ;; esac
 
 # shellcheck source=/dev/null
-. "$SELF_DIR/lib/docket-frontmatter.sh"   # field / int_field
+. "$SELF_DIR/lib/docket-frontmatter.sh"   # field / int_field / docket_change_type_* (change 0127)
+
+# --type shape gates (change 0127). Placed here, after the lib source, because the predicates live
+# in it; the control-character check above runs earlier, with its --title/--slug siblings, so a
+# structurally injecting value is refused before anything else looks at it. Reserved values are
+# rejected separately from malformed ones: `all`/`untyped` are well-formed tokens that are simply
+# never legal in a STORED manifest (they are a config selector and a query pseudo-value), so a
+# shape check alone would let them through. The effective change_types list is deliberately NOT
+# consulted — the caller resolved it and made the classification (ADR-0012), and this script must
+# stay usable in a repo whose configured taxonomy differs from the one that wrote a given stub.
+if docket_change_type_is_reserved "$TYPE"; then
+  die "--type must not be the reserved value '$TYPE' (a config selector / query pseudo-value, never a stored type)"
+fi
+docket_change_type_is_wellformed "$TYPE" \
+  || die "--type must match [a-z][a-z0-9-]*, got '$TYPE'"
 
 # slugify TEXT — lowercase, non-alphanumerics -> '-', squeeze, trim, cap at 60 chars, trim again.
 # The second trim (B5) matters: `cut -c1-60` runs AFTER the first trim, so truncation can reopen a
@@ -186,6 +204,7 @@ write_stub(){
   set_field "$tmp" title "$TITLE"             || die "set_field title failed for stub $id"
   set_field "$tmp" created "$TODAY"           || die "set_field created failed for stub $id"
   set_field "$tmp" updated "$TODAY"           || die "set_field updated failed for stub $id"
+  set_field "$tmp" type "$TYPE"               || die "set_field type failed for stub $id"
   set_field "$tmp" discovered_from "[$FROM]"  || die "set_field discovered_from failed for stub $id"
   {
     cat "$tmp"
