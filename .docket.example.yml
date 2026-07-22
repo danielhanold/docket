@@ -202,15 +202,38 @@ terminal_publish: false
 # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
 auto_groom: false
 
-# auto_capture — (change 0091) mid-run discovered work becomes a proposed stub instead of prose.
-# When an AUTONOMOUS run surfaces genuine follow-up work (implement-next's reconcile/review, a
-# close-out finding), there is no human to ask. With auto_capture: true the skill mints a
-# needs-brainstorm stub with discovered_from: provenance; you still gate it at groom time, so this
-# buys capture fidelity, not autonomy. Bounded: a cheap active-slug dedup check and a hardcoded cap
-# of 3 stubs per invocation, with any overflow reported rather than dropped. docket-auto-groom is
-# deliberately never a mint site. Fails closed on a non-boolean.
+# change_types — (change 0127) the taxonomy every new change is classified into. Ordered,
+# non-empty, duplicate-free, lowercase [a-z][a-z0-9-]*. The default borrows the familiar
+# Conventional Commit vocabulary without making docket's lifecycle depend on Conventional Commits.
+# A higher layer REPLACES this whole list rather than merging with it, so you can remove a built-in
+# value instead of only ever adding to it. `all` and `untyped` are reserved (a config selector and
+# a query pseudo-value) and may never appear here or in a change file.
 # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
-auto_capture: false
+change_types: [chore, docs, feat, fix, refactor, perf]
+
+# auto_capture — (change 0091; became a MAP in change 0127) mid-run discovered work becomes a
+# proposed stub instead of prose. When an AUTONOMOUS run surfaces genuine follow-up work
+# (implement-next's reconcile/review, a close-out finding), there is no human to ask. With
+# enabled: true the skill classifies the discovery and mints a needs-brainstorm stub carrying
+# discovered_from: provenance and type:; you still gate it at groom time, so this buys capture
+# fidelity, not autonomy. Bounded: a cheap active-slug dedup check and a hardcoded cap of 3 stubs
+# per invocation, with any overflow reported rather than dropped. docket-auto-groom is deliberately
+# never a mint site.
+#
+# BREAKING (change 0127): the old scalar `auto_capture: true|false` is no longer valid and has no
+# compatibility shim — it fails closed with a diagnostic printing the nested replacement.
+#
+# Leaves resolve INDEPENDENTLY, so a machine-local layer can flip `enabled` while inheriting
+# `types` from the committed layer. Both leaves fail closed on garbage.
+#   enabled — gates all minting.
+#   types   — `all` (every effective change_type) or a list drawn from change_types, e.g.
+#             [feat, fix] to keep chores and docs findings out of the backlog. A list REPLACES
+#             `all` rather than narrowing it in place. A type-excluded candidate is reported as
+#             policy-suppressed and does NOT consume one of the three mint slots.
+# scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
+auto_capture:
+  enabled: false
+  types: all
 
 
 # ═══ Agent harnesses & per-skill models ════════════════════════════════════════════════════

@@ -32,6 +32,11 @@ SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$SELF_DIR/lib/docket-gitignore-block.sh"
 # shellcheck source=/dev/null
 . "$SELF_DIR/lib/docket-root.sh"
+# change 0127: the authoritative change-type vocabulary (DOCKET_CHANGE_TYPES_DEFAULT,
+# DOCKET_CHANGE_TYPE_RESERVED, and the three docket_change_type_* predicates). Sourced rather than
+# restated so the resolver and every consumer pin the SAME array — ADR-0055's single-authoritative-
+# array rule. Definitions only; no source-time side effects.
+. "$SELF_DIR/lib/docket-frontmatter.sh"
 
 GIT="${GIT:-git}"
 MODE=export
@@ -323,17 +328,10 @@ case "$FINALIZE_REQUIRE_PR_APPROVAL" in
   *) die "unparseable config: finalize.require_pr_approval must be 'true' or 'false', got '$FINALIZE_REQUIRE_PR_APPROVAL'" ;;
 esac
 AUTO_GROOM="$(lcl auto_groom)"; AUTO_GROOM="${AUTO_GROOM:-$(yaml_get "$CFG" auto_groom)}"; AUTO_GROOM="${AUTO_GROOM:-$(gbl auto_groom)}"; AUTO_GROOM="${AUTO_GROOM:-false}"
-# change 0091: auto_capture — gates autonomous mid-run capture of discovered follow-up work into
-# proposed needs-brainstorm stubs. Global-able (ADR-0019): like auto_groom it gates a LOCAL-RUN
-# behavior producing ordinary backlog commits, never coordination state, so per-machine divergence
-# is the benign "machine A captures, machine B does not" — never a split backlog. Unlike auto_groom
-# it fails CLOSED on a non-boolean (the reclaim.auto / learnings.enabled precedent): defaulting a
-# typo to `false` would silently stop capture in a repo that opted in, an invisible failure.
-AUTO_CAPTURE="$(lcl auto_capture)"; AUTO_CAPTURE="${AUTO_CAPTURE:-$(yaml_get "$CFG" auto_capture)}"; AUTO_CAPTURE="${AUTO_CAPTURE:-$(gbl auto_capture)}"; AUTO_CAPTURE="${AUTO_CAPTURE:-false}"
-case "$AUTO_CAPTURE" in
-  true|false) ;;
-  *) die "unparseable config: auto_capture must be 'true' or 'false', got '$AUTO_CAPTURE'" ;;
-esac
+# change 0127: auto_capture became a MAP (change_types + the nested block are resolved together,
+# after the reclaim: block below — auto_capture.types validates against the effective change_types,
+# so the list must resolve first). The scalar form this key had from change 0091 is now a hard
+# error with no compatibility shim; see the legacy guard there.
 # change 0064: coordination-key fenced — repo-committed .docket.yml ONLY (no lcl/gbl rungs; a
 # machine-scoped value is warned-and-ignored by the Stage 2c fence above). Fail closed on garbage:
 # silently defaulting a typo to `true` would publish onto the integration branch against intent.
@@ -472,6 +470,85 @@ case "$RECLAIM_AUTO" in
   *) die "unparseable config: reclaim.auto must be 'true' or 'false', got '$RECLAIM_AUTO'" ;;
 esac
 
+# --- change_types + auto_capture: the typed-capture policy (change 0127) -------
+# change_types is a LIST resolved with WHOLE-LIST REPLACEMENT: the first layer that sets it wins
+# entirely. Merging would make a built-in value unremovable — a user could only ever add types,
+# never drop one, which is the opposite of a configurable taxonomy. Inline flow style only
+# (`[a, b]`), matching the board_surfaces / agent_harnesses precedent. Global-able: it governs
+# what this machine CREATES, never coordination state.
+ct_raw="$(lcl change_types)"
+[ -n "$ct_raw" ] || ct_raw="$(yaml_get "$CFG" change_types)"
+[ -n "$ct_raw" ] || ct_raw="$(gbl change_types)"
+if [ -z "$ct_raw" ]; then
+  CHANGE_TYPES="${DOCKET_CHANGE_TYPES_DEFAULT[*]}"
+else
+  ct_body="${ct_raw#[}"; ct_body="${ct_body%]}"; ct_body="${ct_body//,/ }"
+  CHANGE_TYPES="$(echo $ct_body)"                  # trim/collapse; "[]" => ""
+  [ -n "$CHANGE_TYPES" ] \
+    || die "unparseable config: change_types must be a non-empty list, got '$ct_raw'"
+  for ct_tok in $CHANGE_TYPES; do
+    if docket_change_type_is_reserved "$ct_tok"; then
+      die "unparseable config: change_types must not contain the reserved value '$ct_tok' (a selector/query pseudo-value, never a real type)"
+    fi
+    docket_change_type_is_wellformed "$ct_tok" \
+      || die "unparseable config: change_types entry '$ct_tok' must match [a-z][a-z0-9-]*"
+  done
+  ct_dupes="$(printf '%s\n' $CHANGE_TYPES | sort | uniq -d | tr '\n' ' ')"
+  [ -z "${ct_dupes// /}" ] \
+    || die "unparseable config: change_types has duplicate entries: ${ct_dupes% }"
+fi
+
+# auto_capture is a MAP (intentionally breaking, change 0127). The legacy scalar has NO shim: a
+# top-level auto_capture carrying a non-empty scalar value is a hard error in EVERY layer, with a
+# diagnostic that prints the nested replacement carrying the user's OWN value — a remedy has to be
+# valid in the exact state that produced it (learning: printed-remedy-state-validity). A map header
+# (`auto_capture:`) yields an empty yaml_get read, which is what discriminates it from the scalar.
+for ac_layer in "$LCFG" "$CFG" "$GCFG"; do
+  [ -f "$ac_layer" ] || continue
+  ac_legacy="$(yaml_get "$ac_layer" auto_capture 2>/dev/null || true)"
+  [ -n "$ac_legacy" ] || continue
+  die "unparseable config: auto_capture is now a map, not a scalar (found 'auto_capture: $ac_legacy' in $ac_layer). Replace it with:
+
+auto_capture:
+  enabled: $ac_legacy
+  types: all"
+done
+# Nested block parsed exactly like learnings:/reclaim: — each leaf read WITHIN the block, which is
+# what gives PER-LEAF fallback (a high layer may override `enabled` while inheriting `types`) and
+# what keeps `enabled` from colliding with learnings.enabled under yaml_get's flat reader.
+AC_BLK="$(mktemp)";  yaml_block_body "$CFG"  auto_capture >"$AC_BLK"
+GAC_BLK="$(mktemp)"; yaml_block_body "$GCFG" auto_capture >"$GAC_BLK"
+LAC_BLK="$(mktemp)"; yaml_block_body "$LCFG" auto_capture >"$LAC_BLK"
+trap 'rm -f "$CFG" "$LEARN_BLK" "$GLEARN_BLK" "$LLEARN_BLK" "$RECLAIM_BLK" "$GRECLAIM_BLK" "$LRECLAIM_BLK" "$AC_BLK" "$GAC_BLK" "$LAC_BLK"' EXIT
+ac_key(){  # ac_key <leaf> <default> -> resolved value on stdout
+  local v; v="$(yaml_get "$LAC_BLK" "$1")"
+  [ -n "$v" ] || v="$(yaml_get "$AC_BLK" "$1")"
+  [ -n "$v" ] || v="$(yaml_get "$GAC_BLK" "$1")"
+  printf '%s' "${v:-$2}"
+}
+AUTO_CAPTURE_ENABLED="$(ac_key enabled false)"
+case "$AUTO_CAPTURE_ENABLED" in
+  true|false) ;;
+  *) die "unparseable config: auto_capture.enabled must be 'true' or 'false', got '$AUTO_CAPTURE_ENABLED'" ;;
+esac
+# `all` is preserved LITERALLY rather than expanded to the effective list, so a consumer can still
+# distinguish "every type, including any a future layer adds" from "this explicit subset".
+AUTO_CAPTURE_TYPES="$(ac_key types all)"
+if [ "$AUTO_CAPTURE_TYPES" != all ]; then
+  act_raw="$AUTO_CAPTURE_TYPES"
+  act_body="${act_raw#[}"; act_body="${act_body%]}"; act_body="${act_body//,/ }"
+  AUTO_CAPTURE_TYPES="$(echo $act_body)"
+  [ -n "$AUTO_CAPTURE_TYPES" ] \
+    || die "unparseable config: auto_capture.types must be 'all' or a non-empty list, got '$act_raw'"
+  for act_tok in $AUTO_CAPTURE_TYPES; do
+    docket_change_type_is_member "$act_tok" $CHANGE_TYPES \
+      || die "unparseable config: auto_capture.types entry '$act_tok' is not in the effective change_types ($CHANGE_TYPES)"
+  done
+  act_dupes="$(printf '%s\n' $AUTO_CAPTURE_TYPES | sort | uniq -d | tr '\n' ' ')"
+  [ -z "${act_dupes// /}" ] \
+    || die "unparseable config: auto_capture.types has duplicate entries: ${act_dupes% }"
+fi
+
 # --- Stage 3: bootstrap guard — evaluate the DOCKET/LIVE 2×2 (docket-mode only) ---
 BOOTSTRAP=PROCEED
 if [ "$DOCKET_MODE" = docket ]; then
@@ -539,7 +616,9 @@ if [ "$MODE" = export ]; then
   emit LEARNINGS_CAP "$LEARNINGS_CAP"
   emit BOARD_SURFACES "$BOARD_SURFACES"
   emit AUTO_GROOM "$AUTO_GROOM"
-  emit AUTO_CAPTURE "$AUTO_CAPTURE"
+  emit CHANGE_TYPES "$CHANGE_TYPES"
+  emit AUTO_CAPTURE_ENABLED "$AUTO_CAPTURE_ENABLED"
+  emit AUTO_CAPTURE_TYPES "$AUTO_CAPTURE_TYPES"
   emit TERMINAL_PUBLISH "$TERMINAL_PUBLISH"
   emit RECLAIM_LEASE_TTL "$RECLAIM_LEASE_TTL"
   emit RECLAIM_AUTO "$RECLAIM_AUTO"

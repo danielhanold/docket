@@ -245,19 +245,20 @@ reclaim:
   auto: false     # true => docket-status self-heals eligible claims each pass
 ```
 
-### Capturing discovered work (`auto_capture`)
+### Capturing discovered work (`auto_capture`) and typing it (`change_types`)
 
 Agents constantly surface follow-up work mid-task: a reconcile pass notices an adjacent gap, a build
 uncovers a latent bug, a close-out finding implies a next step. With a human in the room the model
 asks. In an unattended run there is nobody to ask, so that work is mentioned in prose that scrolls
 away — and lost.
 
-`auto_capture: true` closes that gap. An autonomous skill that identifies genuine follow-up work
-mints it as an ordinary `proposed` needs-brainstorm stub, with `discovered_from:` recording which
-change surfaced it. Nothing is designed, built, or merged — you still gate every stub at groom time.
-It buys **capture fidelity, not autonomy**.
+`auto_capture.enabled: true` closes that gap. An autonomous skill that identifies genuine follow-up
+work classifies it and mints it as an ordinary `proposed` needs-brainstorm stub, with
+`discovered_from:` recording which change surfaced it and `type:` recording what kind of work it is.
+Nothing is designed, built, or merged — you still gate every stub at groom time. It buys **capture
+fidelity, not autonomy**.
 
-- **Off by default.** With `auto_capture` unset or `false`, behavior is exactly as before.
+- **Off by default.** With `auto_capture` unset or `enabled: false`, behavior is exactly as before.
 - **Where it fires.** `docket-implement-next` (reconcile and review) and the
   `docket-finalize-change` / `docket-status` close-out harvest. `docket-auto-groom` deliberately
   never mints — a stub it created would be its own next input, so grooming could grow the queue it
@@ -265,16 +266,52 @@ It buys **capture fidelity, not autonomy**.
 - **What gets minted.** Only work that would be its own change/PR. Build-loop lessons go to
   [learnings](#learnings--the-loops-memory); drift inside the current change goes to its reconcile
   log.
+- **Selective by type.** `types` admits only the kinds of work you want captured. A candidate whose
+  type is excluded is reported as policy-suppressed and does **not** consume one of the run's three
+  mint slots, so a narrow `docs` finding can never crowd out a `feat` one.
 - **Bounded.** A cheap dedup check against active changes, plus a cap of 3 stubs per invocation.
   Overflow is reported in the run output, never silently dropped.
-- **Global-able.** Set it per-repo, in your global config, or in `.docket.local.yml`.
+- **Global-able.** Set it per-repo, in your global config, or in `.docket.local.yml`. The two leaves
+  resolve independently, so a machine-local layer can flip `enabled` while inheriting `types`.
 
 ```yaml
-auto_capture: true
+change_types: [chore, docs, feat, fix, refactor, perf]
+
+auto_capture:
+  enabled: true
+  types: [feat, fix]
 ```
 
 Minted stubs appear on the board as ordinary `needs-brainstorm` work and flow into
 `docket-groom-next`'s queue like anything else you filed by hand.
+
+#### Migrating to typed changes
+
+Change 0127 made `auto_capture` a map. **The old scalar is a hard error with no compatibility
+shim** — the resolver refuses to start and prints the replacement, carrying your own value:
+
+```yaml
+# before — no longer valid
+# auto_capture: true
+
+# after
+auto_capture:
+  enabled: true
+  types: all
+```
+
+Then categorize the active backlog once. Archived changes are never reclassified; every creation
+path writes a type from here on, so the untyped set can only shrink.
+
+```bash
+# 1. the exact inventory
+docket.sh docket-status --type untyped
+
+# 2. an agent proposes a complete id -> type mapping; you approve it as one decision
+
+# 3. the deterministic helper validates and applies it — all files or none, and idempotent
+docket.sh backfill-change-types --changes-dir .docket/docs/changes --map 7=feat,8=feat,9=fix
+```
 
 ### Workflow roles — the `skills:` map
 

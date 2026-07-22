@@ -110,7 +110,10 @@ A value may not contain a literal `#` — it is treated as the start of an inlin
 | `require_pr_approval` (finalize) | `false` | yes | read from `finalize.require_pr_approval` leaf key; resolves repo-local > repo-committed > global; `true`/`false`, anything else aborts. Deliberately **not** coordination-fenced — `finalize.gate` is the precedent: both halves of one merge gate share a scope class (change 0102) |
 | `board_surfaces` | `inline` | yes, minus `github` | YAML list `[a, b]` stripped of brackets/commas; **`[]` → the reserved token `none`** (change 0071 — an empty value is NEVER emitted; empty means "unresolved", a wiring bug); a `github` token arriving from either machine-scoped layer (repo-local or global) is dropped (Stage 2c), and a list left empty by that drop also resolves to `none` |
 | `auto_groom` | `false` | yes | resolves repo-local > repo-committed > global |
-| `auto_capture` | `false` | yes | resolves repo-local > repo-committed > global; fails closed on a non-boolean (change 0091) |
+| `change_types` | `[chore, docs, feat, fix, refactor, perf]` | yes | YAML list `[a, b]` stripped of brackets/commas; resolves repo-local > repo-committed > global with **WHOLE-LIST REPLACEMENT** — the first layer that sets it wins entirely, lists never merge, so a user can remove a built-in value instead of only adding (change 0127). Empty, duplicated, malformed (`[a-z][a-z0-9-]*`), or reserved (`all`/`untyped`) entries abort |
+| `auto_capture.enabled` | `false` | yes | read from the nested `auto_capture:` block; resolves repo-local > repo-committed > global; `true`/`false`, anything else aborts (change 0091; nested in change 0127) |
+| `auto_capture.types` | `all` | yes | read from the nested `auto_capture:` block; the literal scalar `all` (preserved verbatim, never expanded, so "every type including future ones" stays distinguishable from an explicit subset) or a list drawn from the effective `change_types`. Same whole-list replacement as `change_types`; leaves resolve INDEPENDENTLY, so a high layer may override `enabled` while inheriting `types`. Duplicates, an empty list, or a token outside the effective taxonomy abort (change 0127) |
+| ~~`auto_capture`~~ (scalar) | — | — | **REMOVED in change 0127.** The scalar form is a hard error with no compatibility shim; the diagnostic prints the nested replacement carrying the offending layer's own value |
 | `terminal_publish` | `false` | no (fenced) | `true`/`false`; the default `false` makes `terminal-publish.sh` a no-op for BOTH shapes — archived change files, specs, and ADRs stay on the metadata branch. `true` opts in to the direct-commit publish onto the integration branch. Anything else aborts |
 | `learnings.enabled` | `true` | yes | read from the nested `learnings:` block; resolves repo-local > repo-committed > global; `true`/`false`, anything else aborts |
 | `learnings.cap` | `300` | yes | read from the nested `learnings:` block; resolves repo-local > repo-committed > global |
@@ -306,7 +309,9 @@ LEARNINGS_ENABLED
 LEARNINGS_CAP
 BOARD_SURFACES
 AUTO_GROOM
-AUTO_CAPTURE
+CHANGE_TYPES
+AUTO_CAPTURE_ENABLED
+AUTO_CAPTURE_TYPES
 TERMINAL_PUBLISH
 RECLAIM_LEASE_TTL
 RECLAIM_AUTO

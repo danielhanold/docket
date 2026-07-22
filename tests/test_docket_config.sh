@@ -166,7 +166,7 @@ assert "board fenced-to-empty: emits BOARD_SURFACES=none" \
 
 # --- (E) direct-pipe caller (LEARNINGS #22: $() hides a dropped trailing \n) -
 n="$(run "$tmp/c" --export | grep -c '=')"
-assert "direct-pipe: 26 KEY=value lines emitted"       '[ "$n" -eq 26 ]'
+assert "direct-pipe: 28 KEY=value lines emitted"       '[ "$n" -eq 28 ]'
 last="$(run "$tmp/c" --export | tail -n1)"
 assert "direct-pipe: last line is BOOTSTRAP"           'case "$last" in BOOTSTRAP=*) true;; *) false;; esac'
 
@@ -458,7 +458,7 @@ assert "0050 Q: XDG unset -> \$HOME/.config fallback read"   '[ "$AUTO_GROOM" = 
 
 # --- (E') emit-interface guard: exactly 26 lines with a global file present ---
 n50="$(rung "$tmp/k.xdg" "$tmp/k" --export | grep -c '=')"
-assert "0050 E': 26 KEY=value lines with global layer" '[ "$n50" -eq 26 ]'
+assert "0050 E': 28 KEY=value lines with global layer" '[ "$n50" -eq 28 ]'
 
 # --- (M) coordination-key fence: warned-and-ignored, never honored, never fatal ---
 mkrepo "$tmp/m"
@@ -986,62 +986,69 @@ assert "unparseable reclaim.auto: mentions reclaim.auto" \
 # learnings.enabled / terminal_publish precedent): silently defaulting a typo to `false` would make
 # an opted-in repo quietly stop capturing, which is invisible rather than loud.
 
-# (AC-a) default
+# (AC-a) default — change 0127 rewrote this family onto the nested map. The leaf keeps auto_groom's
+# four-layer resolution and still fails CLOSED on a non-boolean.
 mkrepo "$tmp/ac-a"
-out_ac="$(run "$tmp/ac-a" --export 2>/dev/null)"
-assert "AUTO_CAPTURE defaults to false" 'echo "$out_ac" | grep -qxF "AUTO_CAPTURE=false"'
+out_ac="$(run "$tmp/ac-a" --export --format plain 2>/dev/null)"
+assert "AUTO_CAPTURE_ENABLED defaults to false" 'echo "$out_ac" | grep -qxF "AUTO_CAPTURE_ENABLED=false"'
 
 # (AC-b) repo-committed .docket.yml wins over the built-in
 mkrepo "$tmp/ac-b"
-printf 'auto_capture: true\n' > "$tmp/ac-b/.docket.yml"
+printf 'auto_capture:\n  enabled: true\n' > "$tmp/ac-b/.docket.yml"
 git -C "$tmp/ac-b" add .docket.yml >/dev/null 2>&1
 git -C "$tmp/ac-b" commit -qm "cfg" >/dev/null 2>&1
 git -C "$tmp/ac-b" push -q origin HEAD:main >/dev/null 2>&1
-out_ac_b="$(run "$tmp/ac-b" --export 2>/dev/null)"
-assert "AUTO_CAPTURE reads repo .docket.yml" 'echo "$out_ac_b" | grep -qxF "AUTO_CAPTURE=true"'
+out_ac_b="$(run "$tmp/ac-b" --export --format plain 2>/dev/null)"
+assert "AUTO_CAPTURE_ENABLED reads repo .docket.yml" 'echo "$out_ac_b" | grep -qxF "AUTO_CAPTURE_ENABLED=true"'
 
 # (AC-c) global layer is honored (NOT fenced) and emits no per-repo-only warning
 mkrepo "$tmp/ac-c"
 mkdir -p "$tmp/ac-c.xdg/docket"
-printf 'auto_capture: true\n' > "$tmp/ac-c.xdg/docket/config.yml"
-ac_c_out="$(rung "$tmp/ac-c.xdg" "$tmp/ac-c" --export 2>/dev/null)"
-ac_c_err="$(rung "$tmp/ac-c.xdg" "$tmp/ac-c" --export 2>&1 >/dev/null)"
-assert "auto_capture is global-able (not fenced)" 'echo "$ac_c_out" | grep -qxF "AUTO_CAPTURE=true"'
+printf 'auto_capture:\n  enabled: true\n' > "$tmp/ac-c.xdg/docket/config.yml"
+ac_c_out="$(rung "$tmp/ac-c.xdg" "$tmp/ac-c" --export --format plain 2>/dev/null)"
+ac_c_err="$(rung "$tmp/ac-c.xdg" "$tmp/ac-c" --export --format plain 2>&1 >/dev/null)"
+assert "auto_capture is global-able (not fenced)" 'echo "$ac_c_out" | grep -qxF "AUTO_CAPTURE_ENABLED=true"'
 assert "no fence warning for auto_capture" '! printf "%s" "$ac_c_err" | grep -qi "auto_capture.*per-repo-only"'
 
 # (AC-d) repo-local .docket.local.yml outranks repo-committed AND global
 mkrepo "$tmp/ac-d"
 mkdir -p "$tmp/ac-d.xdg/docket"
-printf 'auto_capture: false\n' > "$tmp/ac-d.xdg/docket/config.yml"
-printf 'auto_capture: false\n' > "$tmp/ac-d/.docket.yml"
+printf 'auto_capture:\n  enabled: false\n' > "$tmp/ac-d.xdg/docket/config.yml"
+printf 'auto_capture:\n  enabled: false\n' > "$tmp/ac-d/.docket.yml"
 git -C "$tmp/ac-d" add .docket.yml >/dev/null 2>&1
 git -C "$tmp/ac-d" commit -qm "cfg" >/dev/null 2>&1
 git -C "$tmp/ac-d" push -q origin HEAD:main >/dev/null 2>&1
-printf 'auto_capture: true\n' > "$tmp/ac-d/.docket.local.yml"
-ac_d_out="$(rung "$tmp/ac-d.xdg" "$tmp/ac-d" --export 2>/dev/null)"
-assert "repo-local auto_capture outranks repo-committed and global" \
-  'echo "$ac_d_out" | grep -qxF "AUTO_CAPTURE=true"'
+printf 'auto_capture:\n  enabled: true\n' > "$tmp/ac-d/.docket.local.yml"
+ac_d_out="$(rung "$tmp/ac-d.xdg" "$tmp/ac-d" --export --format plain 2>/dev/null)"
+assert "repo-local auto_capture.enabled outranks repo-committed and global" \
+  'echo "$ac_d_out" | grep -qxF "AUTO_CAPTURE_ENABLED=true"'
 
-# (AC-e) fail closed on garbage, and the diagnostic names the key
+# (AC-e) fail closed on garbage, and the diagnostic names the leaf
 mkrepo "$tmp/ac-e"
-printf 'auto_capture: maybe\n' > "$tmp/ac-e/.docket.yml"
+printf 'auto_capture:\n  enabled: maybe\n' > "$tmp/ac-e/.docket.yml"
 git -C "$tmp/ac-e" add .docket.yml >/dev/null 2>&1
 git -C "$tmp/ac-e" commit -qm "cfg" >/dev/null 2>&1
 git -C "$tmp/ac-e" push -q origin HEAD:main >/dev/null 2>&1
-assert "non-bool auto_capture aborts nonzero" '! run "$tmp/ac-e" --export >/dev/null 2>&1'
+assert "non-bool auto_capture.enabled aborts nonzero" '! run "$tmp/ac-e" --export >/dev/null 2>&1'
 ac_e_err="$(run "$tmp/ac-e" --export 2>&1 >/dev/null)"
-assert "unparseable auto_capture: names auto_capture" \
-  'printf "%s" "$ac_e_err" | grep -qF "auto_capture"'
+assert "unparseable auto_capture.enabled names the leaf" \
+  'printf "%s" "$ac_e_err" | grep -qF "auto_capture.enabled"'
 
-# (AC-f) emit ORDER is pinned: AUTO_CAPTURE immediately follows AUTO_GROOM (the contract in
-# scripts/docket-config.md lists them adjacently; a reordering there is a silent contract break).
-# Identity, not just adjacency: look up each variable's OWN line number by name, so a swap of the
-# two (still adjacent, but AUTO_CAPTURE before AUTO_GROOM) is caught rather than passing vacuously.
-ac_f_out="$(run "$tmp/ac-a" --export 2>/dev/null)"
+# (AC-f) emit ORDER is pinned: the three change-0127 exports follow AUTO_GROOM in a fixed sequence
+# (scripts/docket-config.md lists them in this order; a reordering there is a silent contract
+# break). Identity, not just adjacency: each variable's OWN line number is looked up by name, so a
+# swap within the group is caught rather than passing vacuously.
+ac_f_out="$(run "$tmp/ac-a" --export --format plain 2>/dev/null)"
 ac_g_line="$(printf '%s\n' "$ac_f_out" | grep -n '^AUTO_GROOM=' | cut -d: -f1)"
-ac_c_line="$(printf '%s\n' "$ac_f_out" | grep -n '^AUTO_CAPTURE=' | cut -d: -f1)"
-assert "AUTO_CAPTURE is emitted directly after AUTO_GROOM" \
-  '[ -n "$ac_g_line" ] && [ -n "$ac_c_line" ] && [ "$ac_c_line" -eq "$(( ac_g_line + 1 ))" ]'
+ac_ct_line="$(printf '%s\n' "$ac_f_out" | grep -n '^CHANGE_TYPES=' | cut -d: -f1)"
+ac_ace_line="$(printf '%s\n' "$ac_f_out" | grep -n '^AUTO_CAPTURE_ENABLED=' | cut -d: -f1)"
+ac_act_line="$(printf '%s\n' "$ac_f_out" | grep -n '^AUTO_CAPTURE_TYPES=' | cut -d: -f1)"
+assert "CHANGE_TYPES is emitted directly after AUTO_GROOM" \
+  '[ -n "$ac_g_line" ] && [ -n "$ac_ct_line" ] && [ "$ac_ct_line" -eq "$(( ac_g_line + 1 ))" ]'
+assert "AUTO_CAPTURE_ENABLED is emitted directly after CHANGE_TYPES" \
+  '[ -n "$ac_ace_line" ] && [ "$ac_ace_line" -eq "$(( ac_ct_line + 1 ))" ]'
+assert "AUTO_CAPTURE_TYPES is emitted directly after AUTO_CAPTURE_ENABLED" \
+  '[ -n "$ac_act_line" ] && [ "$ac_act_line" -eq "$(( ac_ace_line + 1 ))" ]'
 
 # --- (S) finalize.test_command: auto  ==  unset (change 0101 sentinel) -------
 # `auto` is the example file's way of shipping the default EXPLICITLY. It must resolve
@@ -1536,6 +1543,142 @@ assert "0132 runtime control byte: rejected runtime emits no export" \
   '[ -z "$runtime_control_out" ]'
 assert "0132 runtime control byte: diagnostic names forbidden CR/LF bytes" \
   'grep -qF "carriage returns or newlines" "$tmp/runtime-control-byte.err"'
+
+# ============================================================================
+# change 0127 — change_types + the nested auto_capture map
+# ============================================================================
+ct_get(){ printf '%s\n' "$2" | sed -n "s/^$1=//p"; }
+# The repo-COMMITTED layer is read from `origin/HEAD:.docket.yml` (docket-config.sh:201), never
+# from the worktree, so a fixture must commit AND push it or it resolves as absent.
+ct_commit(){ # ct_commit <repo-dir>
+  git -C "$1" add .docket.yml >/dev/null 2>&1
+  git -C "$1" commit -qm "cfg" >/dev/null 2>&1
+  git -C "$1" push -q origin HEAD:main >/dev/null 2>&1
+}
+
+# --- defaults ---------------------------------------------------------------
+mkrepo "$tmp/ct-default"
+ct_out="$(run "$tmp/ct-default" --export --format plain)"
+assert "0127 ct: CHANGE_TYPES defaults to the built-in taxonomy" \
+  '[ "$(ct_get CHANGE_TYPES "$ct_out")" = "chore docs feat fix refactor perf" ]'
+assert "0127 ct: AUTO_CAPTURE_ENABLED defaults false" \
+  '[ "$(ct_get AUTO_CAPTURE_ENABLED "$ct_out")" = "false" ]'
+assert "0127 ct: AUTO_CAPTURE_TYPES defaults to the literal all" \
+  '[ "$(ct_get AUTO_CAPTURE_TYPES "$ct_out")" = "all" ]'
+assert "0127 ct: the retired AUTO_CAPTURE export is gone" \
+  '! grep -q "^AUTO_CAPTURE=" <<<"$ct_out"'
+
+# --- repo-committed map, both leaves ----------------------------------------
+mkrepo "$tmp/ct-repo"
+printf 'change_types: [feat, fix, chore]\nauto_capture:\n  enabled: true\n  types: [feat]\n' \
+  >"$tmp/ct-repo/.docket.yml"
+ct_commit "$tmp/ct-repo"
+ct_out="$(run "$tmp/ct-repo" --export --format plain)"
+assert "0127 ct: repo change_types replaces the built-in list wholesale" \
+  '[ "$(ct_get CHANGE_TYPES "$ct_out")" = "feat fix chore" ]'
+assert "0127 ct: repo auto_capture.enabled resolves" \
+  '[ "$(ct_get AUTO_CAPTURE_ENABLED "$ct_out")" = "true" ]'
+assert "0127 ct: repo auto_capture.types resolves" \
+  '[ "$(ct_get AUTO_CAPTURE_TYPES "$ct_out")" = "feat" ]'
+
+# --- PER-LEAF inheritance: local overrides enabled, inherits types -----------
+mkrepo "$tmp/ct-leaf"
+printf 'auto_capture:\n  enabled: false\n  types: [fix]\n' >"$tmp/ct-leaf/.docket.yml"
+ct_commit "$tmp/ct-leaf"
+printf 'auto_capture:\n  enabled: true\n'                  >"$tmp/ct-leaf/.docket.local.yml"
+ct_out="$(run "$tmp/ct-leaf" --export --format plain)"
+assert "0127 ct: local layer overrides auto_capture.enabled" \
+  '[ "$(ct_get AUTO_CAPTURE_ENABLED "$ct_out")" = "true" ]'
+assert "0127 ct: auto_capture.types is INHERITED from the repo layer (per-leaf fallback)" \
+  '[ "$(ct_get AUTO_CAPTURE_TYPES "$ct_out")" = "fix" ]'
+
+# --- whole-list replacement, never concatenation ----------------------------
+mkrepo "$tmp/ct-replace"
+printf 'change_types: [chore, docs, feat]\n' >"$tmp/ct-replace/.docket.yml"
+ct_commit "$tmp/ct-replace"
+printf 'change_types: [feat]\n'             >"$tmp/ct-replace/.docket.local.yml"
+ct_out="$(run "$tmp/ct-replace" --export --format plain)"
+assert "0127 ct: a higher-layer list REPLACES the lower list, never merges" \
+  '[ "$(ct_get CHANGE_TYPES "$ct_out")" = "feat" ]'
+
+# --- cross-layer precedence: repo-local > repo-committed > global > built-in -
+mkrepo "$tmp/ct-prec"
+mkdir -p "$tmp/ct-prec.xdg/docket"
+printf 'change_types: [chore]\n' >"$tmp/ct-prec.xdg/docket/config.yml"
+ct_out="$(rung "$tmp/ct-prec.xdg" "$tmp/ct-prec" --export --format plain)"
+assert "0127 ct: global layer resolves when both repo layers are silent" \
+  '[ "$(ct_get CHANGE_TYPES "$ct_out")" = "chore" ]'
+printf 'change_types: [docs]\n' >"$tmp/ct-prec/.docket.yml"
+ct_commit "$tmp/ct-prec"
+ct_out="$(rung "$tmp/ct-prec.xdg" "$tmp/ct-prec" --export --format plain)"
+assert "0127 ct: repo-committed beats global" \
+  '[ "$(ct_get CHANGE_TYPES "$ct_out")" = "docs" ]'
+printf 'change_types: [perf]\n' >"$tmp/ct-prec/.docket.local.yml"
+ct_out="$(rung "$tmp/ct-prec.xdg" "$tmp/ct-prec" --export --format plain)"
+assert "0127 ct: repo-local beats repo-committed" \
+  '[ "$(ct_get CHANGE_TYPES "$ct_out")" = "perf" ]'
+
+# --- an explicit `all` survives serialization as the literal all -------------
+mkrepo "$tmp/ct-all"
+printf 'auto_capture:\n  enabled: true\n  types: all\n' >"$tmp/ct-all/.docket.yml"
+ct_commit "$tmp/ct-all"
+ct_out="$(run "$tmp/ct-all" --export --format plain)"
+assert "0127 ct: an explicitly written 'all' stays the literal all" \
+  '[ "$(ct_get AUTO_CAPTURE_TYPES "$ct_out")" = "all" ]'
+
+# --- fail-closed cases -------------------------------------------------------
+ct_fail_n=0
+ct_fails(){ # ct_fails <label> <yaml-body> <expected-substring>
+  ct_fail_n=$((ct_fail_n + 1))
+  local d="$tmp/ctf-$ct_fail_n" err rc
+  mkrepo "$d"
+  printf '%b' "$2" >"$d/.docket.yml"
+  ct_commit "$d"
+  err="$(run "$d" --export --format plain 2>&1 >/dev/null)"; rc=$?
+  assert "0127 ct-fail: $1 exits non-zero" '[ "'"$rc"'" -ne 0 ]'
+  assert "0127 ct-fail: $1 diagnostic mentions '$3'" 'grep -qF -- "'"$3"'" <<<"'"$err"'"'
+}
+ct_fails "legacy scalar true"      'auto_capture: true\n'                                    'auto_capture'
+ct_fails "legacy scalar false"     'auto_capture: false\n'                                   'auto_capture'
+ct_fails "empty change_types"      'change_types: []\n'                                      'change_types'
+ct_fails "duplicate change_types"  'change_types: [feat, feat]\n'                            'duplicate'
+ct_fails "malformed type token"    'change_types: [Feat]\n'                                  'change_types'
+ct_fails "reserved type in list"   'change_types: [feat, all]\n'                             'reserved'
+ct_fails "non-boolean enabled"     'auto_capture:\n  enabled: yes\n'                         'auto_capture.enabled'
+ct_fails "types outside taxonomy"  'change_types: [feat]\nauto_capture:\n  types: [docs]\n'  'docs'
+ct_fails "duplicate types"         'auto_capture:\n  types: [feat, feat]\n'                  'duplicate'
+ct_fails "empty types list"        'auto_capture:\n  types: []\n'                            'auto_capture.types'
+
+# The legacy diagnostic must print a remedy valid in the state that produced it
+# (learning: printed-remedy-state-validity).
+mkrepo "$tmp/ct-legacy"
+printf 'auto_capture: true\n' >"$tmp/ct-legacy/.docket.yml"
+ct_commit "$tmp/ct-legacy"
+ct_err="$(run "$tmp/ct-legacy" --export --format plain 2>&1 >/dev/null)" || true
+assert "0127 ct: legacy diagnostic shows the nested replacement shape" \
+  'grep -q "enabled:" <<<"$ct_err" && grep -q "types:" <<<"$ct_err"'
+assert "0127 ct: legacy diagnostic carries the user's OWN value into the remedy" \
+  'grep -q "enabled: true" <<<"$ct_err"'
+mkrepo "$tmp/ct-legacy-f"
+printf 'auto_capture: false\n' >"$tmp/ct-legacy-f/.docket.yml"
+ct_commit "$tmp/ct-legacy-f"
+ct_errf="$(run "$tmp/ct-legacy-f" --export --format plain 2>&1 >/dev/null)" || true
+assert "0127 ct: legacy diagnostic remedy is branched on the actual value, not fixed" \
+  'grep -q "enabled: false" <<<"$ct_errf"'
+
+# A machine-scoped legacy scalar is caught too — the fence never silently swallows it.
+mkrepo "$tmp/ct-legacy-local"
+printf 'auto_capture: true\n' >"$tmp/ct-legacy-local/.docket.local.yml"
+assert "0127 ct: a legacy scalar in the LOCAL layer also fails closed" \
+  '! run "$tmp/ct-legacy-local" --export --format plain >/dev/null 2>&1'
+
+# An observed type absent from the effective taxonomy must not break resolution — config governs
+# creation, never the readability of history.
+mkrepo "$tmp/ct-narrow"
+printf 'change_types: [feat]\n' >"$tmp/ct-narrow/.docket.yml"
+ct_commit "$tmp/ct-narrow"
+assert "0127 ct: a narrowed taxonomy still resolves cleanly" \
+  'run "$tmp/ct-narrow" --export --format plain >/dev/null 2>&1'
 
 if [ "$fail" = 0 ]; then echo PASS; else echo FAIL; fi
 exit "$fail"
