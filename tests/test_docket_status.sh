@@ -3123,4 +3123,11 @@ assert "0127: an invalid filter leaves the pre-existing BOARD.md byte-identical"
 assert "--help mentions --type"     '"$SCRIPT" --help 2>&1 | grep -q -- "--type"'
 assert "--help mentions --priority" '"$SCRIPT" --help 2>&1 | grep -q -- "--priority"'
 
+# An invalid filter must fail closed in EVERY mode, not only --digest-only: backlog_pass is
+# best-effort by design, so without the exit-2 carve-out `--board-only --type Bogus` would print a
+# board and silently omit the backlog the caller asked to filter.
+(cd "$dg/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-digest.sh" GIT="$tmp/spy-git.sh" \
+  "$SCRIPT" --board-only --type "Bogus" >/dev/null 2>&1)
+assert "0127: an invalid filter fails closed on --board-only too" '[ "$?" -ne 0 ]'
+
 exit $fail

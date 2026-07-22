@@ -1548,7 +1548,7 @@ assert "0132 runtime control byte: diagnostic names forbidden CR/LF bytes" \
 # change 0127 — change_types + the nested auto_capture map
 # ============================================================================
 ct_get(){ printf '%s\n' "$2" | sed -n "s/^$1=//p"; }
-# The repo-COMMITTED layer is read from `origin/HEAD:.docket.yml` (docket-config.sh:201), never
+# The repo-COMMITTED layer is read from `origin/HEAD:.docket.yml` (docket-config.sh's `g show`), never
 # from the worktree, so a fixture must commit AND push it or it resolves as absent.
 ct_commit(){ # ct_commit <repo-dir>
   git -C "$1" add .docket.yml >/dev/null 2>&1
