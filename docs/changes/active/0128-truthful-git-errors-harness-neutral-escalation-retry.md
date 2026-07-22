@@ -11,12 +11,12 @@ related: [68, 72, 73, 79]
 discovered_from: [127]
 adrs: [29, 33, 37, 38]
 spec: docs/superpowers/specs/2026-07-22-truthful-git-errors-harness-neutral-escalation-retry-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-22-truthful-git-errors-harness-neutral-escalation-retry.md
 results:
 trivial: false
 auto_groomable:
 branch: feat/truthful-git-errors-harness-neutral-escalation-retry
-claimed_at: 2026-07-22T12:55:33Z
+claimed_at: 2026-07-22T12:59:57Z
 pr:
 blocked_by:
 reconciled: true
@@ -28,6 +28,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-22-truthful-git-errors-harness-neutral-escalation-retry-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-22-truthful-git-errors-harness-neutral-escalation-retry-design.md) |
+| Plan | [2026-07-22-truthful-git-errors-harness-neutral-escalation-retry.md](https://github.com/danielhanold/docket/blob/feat/truthful-git-errors-harness-neutral-escalation-retry/docs/superpowers/plans/2026-07-22-truthful-git-errors-harness-neutral-escalation-retry.md) |
 | ADRs | [ADR-0029](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0029-docket-facade-routing-and-config-presentation.md), [ADR-0033](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0033-cursor-auto-run-trust-at-facade.md), [ADR-0037](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0037-runner-delegation-explicit-runner-field.md), [ADR-0038](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0038-runner-shim-wrapper-single-dispatch-chokepoint.md) |
 <!-- docket:artifacts:end -->
 
