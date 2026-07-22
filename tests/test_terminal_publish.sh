@@ -4,6 +4,14 @@
 set -uo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SCRIPT="$REPO/scripts/terminal-publish.sh"
+DOCKET_BASH_PATH=""
+for runtime_candidate in "$(command -v bash)" /opt/homebrew/bin/bash /usr/local/bin/bash; do
+  [ -x "$runtime_candidate" ] || continue
+  [ "$(LC_ALL=C "$runtime_candidate" --version 2>/dev/null | sed -n 's/^GNU bash, version \([0-9][0-9]*\)\..*/\1/p')" -ge 4 ] 2>/dev/null || continue
+  DOCKET_BASH_PATH="$runtime_candidate"; break
+done
+: "${DOCKET_BASH_PATH:?tests require an absolute GNU Bash 4+ runtime}"
+export DOCKET_BASH_PATH
 fail=0
 assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
 

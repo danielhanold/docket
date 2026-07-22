@@ -242,6 +242,9 @@ fi
 _runtime_remedy='run docket/install.sh after installing Bash 4+ (on macOS: brew install bash)'
 [ -n "$DOCKET_BASH_PATH" ] \
   || die "runtime.bash is not configured — $_runtime_remedy"
+case "$DOCKET_BASH_PATH" in
+  *$'\r'*|*$'\n'*) die "runtime.bash must not contain carriage returns or newlines — $_runtime_remedy" ;;
+esac
 [[ "$DOCKET_BASH_PATH" = /* ]] \
   || die "runtime.bash must be an absolute path, got '$DOCKET_BASH_PATH' — $_runtime_remedy"
 [[ -x "$DOCKET_BASH_PATH" ]] \

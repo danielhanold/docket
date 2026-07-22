@@ -122,11 +122,14 @@ repo-local winning. A value committed in `.docket.yml` is diagnosed and ignored 
 fallback. The fence is keyed on declaration presence rather than parsed value: even an empty or
 duplicate committed declaration is warned-and-ignored without validation, so it cannot block a
 valid repo-local/global setting. The resolver requires a non-empty absolute path, executable
-permission, the canonical
-`GNU bash, version …` identity banner under the C locale, and a numeric major of at least 4,
-obtained by invoking the candidate with `--version`; it never accepts a bare `bash` token, a
-numeric-version impostor, or a PATH search. Missing and invalid settings fail closed with the
-`docket/install.sh` / `brew install bash` remedy. The installer discovers the value in
+permission, no carriage-return or newline bytes, the canonical `GNU bash, version …` identity
+banner under the C locale, and a numeric major of at least 4, obtained by invoking the candidate
+with `--version`; it never accepts a bare `bash` token, a numeric-version impostor, or a PATH
+search. Unlike ordinary scalars in this resolver, a quoted `runtime.bash` path may contain a
+literal `#`: use YAML single quotes for the canonical encoding, double any apostrophe in the path
+(`'it''s'`), and leave every backslash literal (do not double it). The surrounding quotes and
+doubled-apostrophe encoding are removed during resolution. Missing and invalid settings fail
+closed with the `docket/install.sh` / `brew install bash` remedy. The installer discovers the value in
 deterministic order (Homebrew, standard Homebrew locations, then an absolute PATH result),
 persists it globally, and exports it to the environment. Resolution emits
 `DOCKET_BASH_PATH` in both output formats for every Docket-owned shell launcher.

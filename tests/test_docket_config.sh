@@ -1482,5 +1482,24 @@ runtime_odd_plain="$(rung "$tmp/runtime-odd.xdg" "$tmp/runtime-odd" --export --f
 assert "0132 odd runtime: plain export preserves apostrophe and backslash" \
   'grep -qxF "DOCKET_BASH_PATH=$odd_runtime_dir/bash" <<<"$runtime_odd_plain"'
 
+# Control bytes are never valid in an executable identity. A carriage return can survive the
+# scalar parser when it appears inside quotes, so give it a real executable target: without an
+# explicit resolver validation this fixture passes every later absolute/executable/version check.
+cr_runtime="$tmp/runtime-bin/carriage"$'\r'"return-bash"
+fake_bash "$cr_runtime" 'GNU bash, version 5.2.0(1)-release'
+mkrepo "$tmp/runtime-control-byte"
+mkdir -p "$tmp/runtime-control-byte.xdg/docket"
+printf "runtime:\n  bash: '%s'\n" "$cr_runtime" \
+  >"$tmp/runtime-control-byte.xdg/docket/config.yml"
+runtime_control_out="$(XDG_CONFIG_HOME="$tmp/runtime-control-byte.xdg" bash "$SCRIPT" \
+  --repo-dir "$tmp/runtime-control-byte" --export 2>"$tmp/runtime-control-byte.err")"
+runtime_control_rc=$?
+assert "0132 runtime control byte: carriage return is rejected before execution" \
+  '[ "$runtime_control_rc" -ne 0 ]'
+assert "0132 runtime control byte: rejected runtime emits no export" \
+  '[ -z "$runtime_control_out" ]'
+assert "0132 runtime control byte: diagnostic names forbidden CR/LF bytes" \
+  'grep -qF "carriage returns or newlines" "$tmp/runtime-control-byte.err"'
+
 if [ "$fail" = 0 ]; then echo PASS; else echo FAIL; fi
 exit "$fail"
