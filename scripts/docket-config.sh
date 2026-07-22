@@ -124,22 +124,52 @@ yaml_block_body() {  # yaml_block_body <file> <top-level-key>  -> child lines on
 runtime_get() { # runtime_get <file>
   [ -f "$1" ] || return 0
   awk '
+    function scalar(value, sq,out,i,ch,rest) {
+      sq=sprintf("%c", 39)
+      if (substr(value,1,1) == sq) {
+        out=""
+        for (i=2; i<=length(value); i++) {
+          ch=substr(value,i,1)
+          if (ch == sq) {
+            if (substr(value,i+1,1) == sq) { out=out sq; i++; continue }
+            rest=substr(value,i+1)
+            if (rest ~ /^[[:space:]]*(#.*)?$/) return out
+            return value
+          }
+          out=out ch
+        }
+        return value
+      }
+      if (value ~ /^"[^"]*"[[:space:]]*(#.*)?$/) {
+        sub(/^"/, "", value); sub(/"[[:space:]]*(#.*)?$/, "", value)
+      } else {
+        sub(/[[:space:]]*#.*/, "", value); sub(/[[:space:]]+$/, "", value)
+      }
+      return value
+    }
     { raw=$0; structural=$0; sub(/[[:space:]]*#.*/, "", structural) }
     structural ~ /^runtime[[:space:]]*:[[:space:]]*$/ { in_runtime=1; next }
     in_runtime && structural ~ /^[^[:space:]]/ { in_runtime=0 }
     in_runtime && structural ~ /^[[:space:]]+bash[[:space:]]*:/ {
       count++
       value=raw; sub(/^[[:space:]]+bash[[:space:]]*:[[:space:]]*/, "", value)
-      if (value ~ /^'\''[^'\'']*'\''[[:space:]]*(#.*)?$/) {
-        sub(/^'\''/, "", value); sub(/'\''[[:space:]]*(#.*)?$/, "", value)
-      } else if (value ~ /^"[^"]*"[[:space:]]*(#.*)?$/) {
-        sub(/^"/, "", value); sub(/"[[:space:]]*(#.*)?$/, "", value)
-      } else {
-        sub(/[[:space:]]*#.*/, "", value); sub(/[[:space:]]+$/, "", value)
-      }
-      found=value
+      found=scalar(value)
     }
     END { if (count > 1) exit 2; if (count == 1) print found }
+  ' "$1"
+}
+
+# Count runtime.bash declarations without parsing their values. The committed layer is fenced by
+# key presence, so even empty, malformed, or duplicate committed values are warning-only and can
+# never block a valid machine-local fallback.
+runtime_count() { # runtime_count <file>
+  [ -f "$1" ] || { printf '0\n'; return; }
+  awk '
+    { structural=$0; sub(/[[:space:]]*#.*/, "", structural) }
+    structural ~ /^runtime[[:space:]]*:[[:space:]]*$/ { in_runtime=1; next }
+    in_runtime && structural ~ /^[^[:space:]]/ { in_runtime=0 }
+    in_runtime && structural ~ /^[[:space:]]+bash[[:space:]]*:/ { count++ }
+    END { print count+0 }
   ' "$1"
 }
 
@@ -196,26 +226,15 @@ fi
 # cannot shadow it. The temporary block bodies are removed before validation can die.
 _runtime_local="$(runtime_get "$LCFG")" \
   || die ".docket.local.yml contains multiple runtime.bash declarations; keep exactly one"
-_runtime_committed="$(runtime_get "$CFG")" \
-  || die "committed .docket.yml contains multiple runtime.bash declarations; keep exactly one"
+_runtime_committed_count="$(runtime_count "$CFG")"
 _runtime_global="$(runtime_get "$GCFG")" \
   || die "global config.yml contains multiple runtime.bash declarations; keep exactly one"
 
-if [ -n "$_runtime_committed" ]; then
+if [ "$_runtime_committed_count" -gt 0 ]; then
   printf 'docket-config: warning: committed config key runtime.bash is machine-local — set it in .docket.local.yml or global config.yml; ignored\n' >&2
 fi
 
 DOCKET_BASH_PATH="$_runtime_local"
-_runtime_source=local
-if [ -z "$DOCKET_BASH_PATH" ]; then
-  DOCKET_BASH_PATH="$_runtime_committed"
-  _runtime_source=committed
-fi
-# The committed-layer fence is deliberately an executable branch: removing it makes a committed
-# runtime win over global, and the resolver test mutation-checks that failure mode.
-if [ "$_runtime_source" = committed ]; then
-  DOCKET_BASH_PATH=""
-fi
 if [ -z "$DOCKET_BASH_PATH" ]; then
   DOCKET_BASH_PATH="$_runtime_global"
 fi

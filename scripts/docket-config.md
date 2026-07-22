@@ -119,7 +119,10 @@ A value may not contain a literal `#` — it is treated as the start of an inlin
 **`runtime.bash` (change 0132).** This is machine identity, not repo policy. Its only valid homes
 are global `config.yml` (normal) and a repo's gitignored `.docket.local.yml` (override), with
 repo-local winning. A value committed in `.docket.yml` is diagnosed and ignored before global
-fallback. The resolver requires a non-empty absolute path, executable permission, the canonical
+fallback. The fence is keyed on declaration presence rather than parsed value: even an empty or
+duplicate committed declaration is warned-and-ignored without validation, so it cannot block a
+valid repo-local/global setting. The resolver requires a non-empty absolute path, executable
+permission, the canonical
 `GNU bash, version …` identity banner under the C locale, and a numeric major of at least 4,
 obtained by invoking the candidate with `--version`; it never accepts a bare `bash` token, a
 numeric-version impostor, or a PATH search. Missing and invalid settings fail closed with the

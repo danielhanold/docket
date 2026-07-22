@@ -62,4 +62,57 @@ assert "xdg: honors XDG_CONFIG_HOME" '[ -f "$XDGDIR/docket/config.yml" ] && [ "$
 assert "script does not reference config.yml.example" \
   '! grep -qF "config.yml.example" "$SCRIPT"'
 
+# A present explicit declaration is authoritative even when its scalar is empty. Empty must not
+# collapse into "absent" and trigger discovery/prepending; fail with a remediation and preserve
+# every existing byte for all supported empty spellings.
+for empty_case in bare quoted comment; do
+  EMPTY_SB="$(mktemp -d)"; _tmpdirs+=("$EMPTY_SB")
+  EMPTY_DEST="$EMPTY_SB/.config/docket/config.yml"
+  mkdir -p "$(dirname "$EMPTY_DEST")"
+  case "$empty_case" in
+    bare)    printf 'before: keep\nruntime:\n  bash:\nafter: keep\n' > "$EMPTY_DEST" ;;
+    quoted)  printf "before: keep\nruntime:\n  bash: ''\nafter: keep\n" > "$EMPTY_DEST" ;;
+    comment) printf 'before: keep\nruntime:\n  bash: # choose this machine runtime\nafter: keep\n' > "$EMPTY_DEST" ;;
+  esac
+  cp "$EMPTY_DEST" "$EMPTY_DEST.before"
+  empty_out="$(HOME="$EMPTY_SB" DOCKET_HARNESS_ROOT="$EMPTY_SB" bash "$SCRIPT" 2>&1)"; empty_rc=$?
+  assert "empty explicit $empty_case: exits non-zero" '[ "$empty_rc" -ne 0 ]'
+  assert "empty explicit $empty_case: config remains byte-identical" \
+    'cmp -s "$EMPTY_DEST.before" "$EMPTY_DEST"'
+  assert "empty explicit $empty_case: diagnostic is actionable" \
+    'grep -qi "empty" <<<"$empty_out" && grep -Eqi "set|remove" <<<"$empty_out"'
+done
+
+# The managed YAML scalar must round-trip real executable paths containing both an apostrophe and
+# a backslash. YAML single quotes double apostrophes and keep backslashes literal.
+ODD_ROOT="$(mktemp -d)/runtime'quote\\slash"; _tmpdirs+=("${ODD_ROOT%%/runtime*}")
+mkdir -p "$ODD_ROOT/opt/homebrew/bin"
+cp "$RUNTIME_ROOT/opt/homebrew/bin/bash" "$ODD_ROOT/opt/homebrew/bin/bash"
+chmod +x "$ODD_ROOT/opt/homebrew/bin/bash"
+ODD_SB="$(mktemp -d)"; _tmpdirs+=("$ODD_SB")
+odd_out="$(HOME="$ODD_SB" DOCKET_HARNESS_ROOT="$ODD_SB" DOCKET_BASH_STANDARD_ROOT="$ODD_ROOT" bash "$SCRIPT" 2>&1)"; odd_rc=$?
+ODD_DEST="$ODD_SB/.config/docket/config.yml"
+ODD_EXPECTED="${ODD_ROOT//\'/\'\'}/opt/homebrew/bin/bash"
+assert "odd runtime path: bootstrap succeeds" '[ "$odd_rc" -eq 0 ]'
+assert "odd runtime path: managed YAML doubles apostrophe and preserves backslash" \
+  'grep -qxF "  bash: '\''$ODD_EXPECTED'\''" "$ODD_DEST"'
+odd_before="$(cat "$ODD_DEST")"
+odd_rerun_out="$(HOME="$ODD_SB" DOCKET_HARNESS_ROOT="$ODD_SB" DOCKET_BASH_STANDARD_ROOT="$ODD_ROOT" bash "$SCRIPT" 2>&1)"; odd_rerun_rc=$?
+assert "odd runtime path: generated YAML parses on re-run" \
+  '[ "$odd_rerun_rc" -eq 0 ] && [ "$(cat "$ODD_DEST")" = "$odd_before" ]'
+
+# Newlines remain outside every supported scalar/profile grammar even when the underlying file is
+# a real qualifying executable; reject before creating a destination.
+NEWLINE_ROOT="$(mktemp -d)/runtime
+newline"; _tmpdirs+=("${NEWLINE_ROOT%%/runtime*}")
+mkdir -p "$NEWLINE_ROOT/opt/homebrew/bin"
+cp "$RUNTIME_ROOT/opt/homebrew/bin/bash" "$NEWLINE_ROOT/opt/homebrew/bin/bash"
+chmod +x "$NEWLINE_ROOT/opt/homebrew/bin/bash"
+NEWLINE_SB="$(mktemp -d)"; _tmpdirs+=("$NEWLINE_SB")
+newline_out="$(HOME="$NEWLINE_SB" DOCKET_HARNESS_ROOT="$NEWLINE_SB" DOCKET_BASH_STANDARD_ROOT="$NEWLINE_ROOT" bash "$SCRIPT" 2>&1)"; newline_rc=$?
+assert "newline runtime path: bootstrap rejects real executable" \
+  '[ "$newline_rc" -ne 0 ] && [ ! -e "$NEWLINE_SB/.config/docket/config.yml" ]'
+assert "newline runtime path: diagnostic names line-break restriction" \
+  'grep -qi "line-break" <<<"$newline_out"'
+
 exit $fail

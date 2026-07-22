@@ -41,10 +41,10 @@ Selects the target profile based on `$SHELL` (or `DOCKET_TARGET_SHELL`):
 
 | Shell | Profile file | Export syntax |
 |---|---|---|
-| `zsh` | `~/.zshenv` | `export NAME="<value>"` |
-| `bash` | `~/.bashrc` | `export NAME="<value>"` |
-| `fish` | `~/.config/fish/config.fish` | `set -gx NAME "<value>"` |
-| other | `~/.profile` | `export NAME="<value>"` (POSIX fallback) |
+| `zsh` | `~/.zshenv` | `export NAME=<shell-quoted-value>` |
+| `bash` | `~/.bashrc` | `export NAME=<shell-quoted-value>` |
+| `fish` | `~/.config/fish/config.fish` | `set -gx NAME <fish-quoted-value>` |
+| other | `~/.profile` | `export NAME=<shell-quoted-value>` (POSIX fallback) |
 
 The script wraps the export line in a named marker block:
 
@@ -54,6 +54,10 @@ export DOCKET_SCRIPTS_DIR="<value>"
 export DOCKET_BASH_PATH="<absolute Bash 4+ path>"
 # <<< docket (DOCKET_SCRIPTS_DIR) <<<
 ```
+
+POSIX/bash/zsh bindings use POSIX single-quote escapes when a path contains metacharacters; fish
+bindings use fish's own single-quoted escapes for apostrophes and backslashes. Thus both values
+remain literal when the profile is sourced. Carriage returns and newlines are rejected.
 
 **Idempotency / re-run safety:** before appending, the script strips any pre-existing docket
 marker block from the profile using `awk`. Marker order, balance, and uniqueness are validated

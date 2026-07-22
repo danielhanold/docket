@@ -1377,6 +1377,36 @@ assert "0132 runtime fence: global runtime wins over committed runtime" \
 assert "0132 runtime fence: committed runtime is not emitted" \
   '! grep -qF "$tmp/runtime-bin/committed-bash" <<<"$runtime_committed_out"'
 
+# Presence drives the committed-layer fence, independently of scalar parsing. Empty and duplicate
+# committed declarations are both warned-and-ignored (never validated); a valid machine-local
+# fallback still resolves.
+for committed_case in empty duplicate; do
+  mkrepo "$tmp/runtime-committed-$committed_case"
+  mkdir -p "$tmp/runtime-committed-$committed_case.xdg/docket"
+  printf 'runtime:\n  bash: %s\n' "$tmp/runtime-bin/global-bash" \
+    >"$tmp/runtime-committed-$committed_case.xdg/docket/config.yml"
+  case "$committed_case" in
+    empty) printf "runtime:\n  bash: ''\n" >"$tmp/runtime-committed-$committed_case/.docket.yml" ;;
+    duplicate)
+      printf 'runtime:\n  bash: relative-invalid\nruntime:\n  bash: /also/missing\n' \
+        >"$tmp/runtime-committed-$committed_case/.docket.yml"
+      printf 'runtime:\n  bash: %s\n' "$tmp/runtime-bin/local-bash" \
+        >"$tmp/runtime-committed-$committed_case/.docket.local.yml" ;;
+  esac
+  git -C "$tmp/runtime-committed-$committed_case" add .docket.yml
+  git -C "$tmp/runtime-committed-$committed_case" commit --quiet -m cfg
+  git -C "$tmp/runtime-committed-$committed_case" push --quiet origin main
+  committed_err="$(XDG_CONFIG_HOME="$tmp/runtime-committed-$committed_case.xdg" bash "$SCRIPT" --repo-dir "$tmp/runtime-committed-$committed_case" --export 2>&1 >/dev/null)"; committed_rc=$?
+  committed_out="$(rung "$tmp/runtime-committed-$committed_case.xdg" "$tmp/runtime-committed-$committed_case" --export 2>/dev/null)"
+  assert "0132 committed $committed_case: ignored layer does not abort" '[ "$committed_rc" -eq 0 ]'
+  assert "0132 committed $committed_case: presence emits fence warning" \
+    'grep -q "committed.*runtime.bash.*ignored" <<<"$committed_err"'
+  expected_fallback="$tmp/runtime-bin/global-bash"
+  [ "$committed_case" = duplicate ] && expected_fallback="$tmp/runtime-bin/local-bash"
+  assert "0132 committed $committed_case: valid machine-local fallback wins" \
+    'grep -qxF "DOCKET_BASH_PATH=$expected_fallback" <<<"$committed_out"'
+done
+
 # Duplicate runtime authorities in one machine-local layer fail closed. This catches files left by
 # an older installer where a stale managed block coexists with a valid hand-authored declaration.
 mkrepo "$tmp/runtime-ambiguous"
@@ -1433,6 +1463,24 @@ assert "0132 runtime absent: diagnostic names runtime.bash" \
   'grep -qF "runtime.bash" <<<"$runtime_absent_err"'
 assert "0132 runtime absent: diagnostic gives install/upgrade remedy" \
   'grep -Eq "docket/install.sh|brew install bash" <<<"$runtime_absent_err"'
+
+# A valid machine-local executable path may contain apostrophes and backslashes. The YAML fixture
+# uses the canonical single-quoted encoding (apostrophe doubled; backslash literal), while shell
+# export remains eval-safe and plain format remains byte-literal.
+odd_runtime_dir="$tmp/runtime-bin/odd'quote\\slash"
+mkdir -p "$odd_runtime_dir"
+fake_bash "$odd_runtime_dir/bash" 'GNU bash, version 5.2.0(1)-release'
+mkrepo "$tmp/runtime-odd"
+mkdir -p "$tmp/runtime-odd.xdg/docket"
+odd_yaml_path="${odd_runtime_dir//\'/\'\'}/bash"
+printf "runtime:\n  bash: '%s'\n" "$odd_yaml_path" >"$tmp/runtime-odd.xdg/docket/config.yml"
+runtime_odd_out="$(rung "$tmp/runtime-odd.xdg" "$tmp/runtime-odd" --export)"
+eval "$runtime_odd_out"
+assert "0132 odd runtime: shell export evaluates to exact executable path" \
+  '[ "$DOCKET_BASH_PATH" = "$odd_runtime_dir/bash" ]'
+runtime_odd_plain="$(rung "$tmp/runtime-odd.xdg" "$tmp/runtime-odd" --export --format plain)"
+assert "0132 odd runtime: plain export preserves apostrophe and backslash" \
+  'grep -qxF "DOCKET_BASH_PATH=$odd_runtime_dir/bash" <<<"$runtime_odd_plain"'
 
 if [ "$fail" = 0 ]; then echo PASS; else echo FAIL; fi
 exit "$fail"

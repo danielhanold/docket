@@ -97,9 +97,10 @@ rm -rf "$quoted_tmp"
 # boundary.
 meta_tmp="$(mktemp -d)"
 mkdir -p "$meta_tmp/.claude/skills" "$meta_tmp/.config/docket"
-meta_dir="$meta_tmp/runtime \$(touch $meta_tmp/pwned); # colon: value"
+meta_dir="$meta_tmp/runtime'quote\\slash \$(touch $meta_tmp/pwned); # colon: value"
 mkdir -p "$meta_dir"; meta_runtime="$meta_dir/bash"; ln -s "$installed_runtime" "$meta_runtime"
-printf "runtime:\n  bash: '%s'\n" "$meta_runtime" > "$meta_tmp/.config/docket/config.yml"
+meta_yaml_runtime="${meta_runtime//\'/\'\'}"
+printf "runtime:\n  bash: '%s'\n" "$meta_yaml_runtime" > "$meta_tmp/.config/docket/config.yml"
 meta_out="$(cd "$meta_tmp" && HOME="$meta_tmp" DOCKET_HARNESS_ROOT="$meta_tmp" DOCKET_TARGET_SHELL=zsh /bin/bash "$REPO/install.sh" 2>&1)"; meta_rc=$?
 assert "install.sh round-trips a metacharacter runtime literally" \
   '[ "$meta_rc" -eq 0 ] && jq -e --arg v "$meta_runtime" ".env.DOCKET_BASH_PATH == \$v" "$meta_tmp/.claude/settings.json" >/dev/null'

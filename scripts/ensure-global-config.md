@@ -40,9 +40,13 @@ script writes this owned block before the user-owned bytes:
 ```yaml
 # >>> docket (runtime.bash) >>>
 runtime:
-  bash: /absolute/path/to/bash
+  bash: '/absolute/path/to/bash'
 # <<< docket (runtime.bash) <<<
 ```
+
+The managed scalar uses YAML single-quote rules: an apostrophe in the path is doubled and a
+backslash remains literal. Carriage returns and newlines are rejected. A present but empty
+hand-authored declaration is invalid (it is never treated as absent and replaced by discovery).
 
 Before replacing an existing owned block it validates marker order, balance, and uniqueness.
 Malformed markers cause a non-zero exit with no write. Successful changes are rendered to a

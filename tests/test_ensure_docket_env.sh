@@ -49,10 +49,10 @@ assert "other: runtime export to ~/.profile" 'grep -qF "export DOCKET_BASH_PATH=
 # Paths are data, never shell text. Exercise both persisted values with command substitution,
 # semicolon, hash, colon-space, and whitespace, then source the POSIX profile to prove it neither
 # executes the payload nor changes either value.
-META_BASE="$(mktemp -d)/clone \$(touch injected); # colon: value"
+META_BASE="$(mktemp -d)/clone'quote\\slash \$(touch injected); # colon: value"
 mkdir -p "$META_BASE/scripts"; cp "$SCRIPT" "$META_BASE/scripts/ensure-docket-env.sh"
 META_SCRIPTS_RESOLVED="$(cd "$META_BASE/scripts" && pwd -P)"
-META_RUNTIME_DIR="$(mktemp -d)/runtime \$(touch injected-runtime); # colon: value"
+META_RUNTIME_DIR="$(mktemp -d)/runtime'quote\\slash \$(touch injected-runtime); # colon: value"
 mkdir -p "$META_RUNTIME_DIR"; META_RUNTIME="$META_RUNTIME_DIR/bash"
 cp "$RUNTIME" "$META_RUNTIME"; chmod +x "$META_RUNTIME"
 H="$(mktemp -d)"; _tmpdirs+=("$H" "${META_BASE%%/clone *}" "${META_RUNTIME_DIR%%/runtime *}")
@@ -63,10 +63,16 @@ assert "serialization: metacharacter clone/runtime values persist" '[ "$meta_rc"
   printf '%s\n%s\n' "$DOCKET_SCRIPTS_DIR" "$DOCKET_BASH_PATH" > "$H/loaded" )
 assert "serialization: POSIX profile reloads both values literally" \
   '[ "$(sed -n "1p" "$H/loaded")" = "$META_SCRIPTS_RESOLVED" ] && [ "$(sed -n "2p" "$H/loaded")" = "$META_RUNTIME" ]'
+zsh -c 'unset DOCKET_SCRIPTS_DIR DOCKET_BASH_PATH; source "$1"; printf "%s\n%s\n" "$DOCKET_SCRIPTS_DIR" "$DOCKET_BASH_PATH"' \
+  zsh "$H/.profile" > "$H/zsh-loaded"
+assert "serialization: zsh sources apostrophe/backslash values literally" \
+  '[ "$(sed -n "1p" "$H/zsh-loaded")" = "$META_SCRIPTS_RESOLVED" ] && [ "$(sed -n "2p" "$H/zsh-loaded")" = "$META_RUNTIME" ]'
 assert "serialization: profile evaluation executes no embedded command" \
   '[ ! -e "$H/injected" ] && [ ! -e "$H/injected-runtime" ]'
+FISH_SCRIPTS="${META_SCRIPTS_RESOLVED//\\/\\\\}"; FISH_SCRIPTS="${FISH_SCRIPTS//\'/\\\'}"
+FISH_RUNTIME="${META_RUNTIME//\\/\\\\}"; FISH_RUNTIME="${FISH_RUNTIME//\'/\\\'}"
 assert "serialization: fish bindings use literal single-quoted values" \
-  'HOME="$H" DOCKET_HARNESS_ROOT="$H" DOCKET_TARGET_SHELL=fish DOCKET_BASH_PATH="$META_RUNTIME" bash "$META_BASE/scripts/ensure-docket-env.sh" >/dev/null 2>&1 && grep -qF "set -gx DOCKET_SCRIPTS_DIR '\''$META_SCRIPTS_RESOLVED'\''" "$H/.config/fish/config.fish" && grep -qF "set -gx DOCKET_BASH_PATH '\''$META_RUNTIME'\''" "$H/.config/fish/config.fish"'
+  'HOME="$H" DOCKET_HARNESS_ROOT="$H" DOCKET_TARGET_SHELL=fish DOCKET_BASH_PATH="$META_RUNTIME" bash "$META_BASE/scripts/ensure-docket-env.sh" >/dev/null 2>&1 && grep -qF "set -gx DOCKET_SCRIPTS_DIR '\''$FISH_SCRIPTS'\''" "$H/.config/fish/config.fish" && grep -qF "set -gx DOCKET_BASH_PATH '\''$FISH_RUNTIME'\''" "$H/.config/fish/config.fish"'
 
 # settings.json env (jq), preserving an existing key
 H="$(mktemp -d)"; _tmpdirs+=("$H"); mkdir -p "$H/.claude"
@@ -102,6 +108,17 @@ H="$(mktemp -d)"; _tmpdirs+=("$H"); printf '# keep\n' > "$H/.zshenv"
 HOME="$H" DOCKET_HARNESS_ROOT="$H" DOCKET_TARGET_SHELL=zsh DOCKET_BASH_PATH=relative bash "$SCRIPT" >/dev/null 2>&1; invalid_rc=$?
 assert "invalid runtime: exits non-zero" '[ "$invalid_rc" -ne 0 ]'
 assert "invalid runtime: profile left unchanged" '[ "$(cat "$H/.zshenv")" = "# keep" ]'
+
+# A real executable whose path contains a newline is still not serializable as a one-line profile
+# binding. Reject it before touching either destination.
+NEWLINE_RUNTIME_DIR="$(mktemp -d)/runtime
+newline"; _tmpdirs+=("${NEWLINE_RUNTIME_DIR%%/runtime*}")
+mkdir -p "$NEWLINE_RUNTIME_DIR"; NEWLINE_RUNTIME="$NEWLINE_RUNTIME_DIR/bash"
+cp "$RUNTIME" "$NEWLINE_RUNTIME"; chmod +x "$NEWLINE_RUNTIME"
+H="$(mktemp -d)"; _tmpdirs+=("$H"); printf '# keep\n' > "$H/.zshenv"
+HOME="$H" DOCKET_HARNESS_ROOT="$H" DOCKET_TARGET_SHELL=zsh DOCKET_BASH_PATH="$NEWLINE_RUNTIME" bash "$SCRIPT" >/dev/null 2>&1; newline_rc=$?
+assert "newline runtime: exits non-zero" '[ "$newline_rc" -ne 0 ]'
+assert "newline runtime: profile left unchanged" '[ "$(cat "$H/.zshenv")" = "# keep" ]'
 
 # Marker corruption is rejected byte-safely instead of consuming the profile tail.
 H="$(mktemp -d)"; _tmpdirs+=("$H")

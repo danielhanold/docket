@@ -25,19 +25,35 @@ DOCKET_BOOTSTRAP_LAUNCH=1 bash "$SCRIPT_DIR/scripts/ensure-global-config.sh"
 
 CONFIG_ROOT="${XDG_CONFIG_HOME:-${DOCKET_HARNESS_ROOT:-$HOME}/.config}"
 DOCKET_BASH_PATH="$(awk '
+  function scalar(value, sq,out,i,ch,rest) {
+    sq=sprintf("%c", 39)
+    if (substr(value,1,1) == sq) {
+      out=""
+      for (i=2; i<=length(value); i++) {
+        ch=substr(value,i,1)
+        if (ch == sq) {
+          if (substr(value,i+1,1) == sq) { out=out sq; i++; continue }
+          rest=substr(value,i+1)
+          if (rest ~ /^[[:space:]]*(#.*)?$/) return out
+          return value
+        }
+        out=out ch
+      }
+      return value
+    }
+    if (value ~ /^"[^"]*"[[:space:]]*(#.*)?$/) {
+      sub(/^"/, "", value); sub(/"[[:space:]]*(#.*)?$/, "", value)
+    } else {
+      sub(/[[:space:]]*#.*/, "", value); sub(/[[:space:]]+$/, "", value)
+    }
+    return value
+  }
   { raw=$0; structural=$0; sub(/[[:space:]]*#.*/, "", structural) }
   structural ~ /^runtime[[:space:]]*:[[:space:]]*$/ { in_runtime=1; next }
   in_runtime && structural ~ /^[^[:space:]]/ { in_runtime=0 }
   in_runtime && structural ~ /^[[:space:]]+bash[[:space:]]*:/ {
     line=raw; sub(/^[[:space:]]+bash[[:space:]]*:[[:space:]]*/, "", line)
-    if (line ~ /^'\''[^'\'']*'\''[[:space:]]*(#.*)?$/) {
-      sub(/^'\''/, "", line); sub(/'\''[[:space:]]*(#.*)?$/, "", line)
-    } else if (line ~ /^"[^"]*"[[:space:]]*(#.*)?$/) {
-      sub(/^"/, "", line); sub(/"[[:space:]]*(#.*)?$/, "", line)
-    } else {
-      sub(/[[:space:]]*#.*/, "", line); sub(/[[:space:]]+$/, "", line)
-    }
-    print line; exit
+    print scalar(line); exit
   }
 ' "$CONFIG_ROOT/docket/config.yml")"
 export DOCKET_BASH_PATH

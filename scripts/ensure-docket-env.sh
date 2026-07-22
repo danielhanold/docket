@@ -10,12 +10,27 @@ MARK_CLOSE="# <<< docket (DOCKET_SCRIPTS_DIR) <<<"
 say(){ printf 'ensure-docket-env: %s\n' "$*"; }
 die(){ say "$*" >&2; exit 1; }
 file_mode(){ stat -f '%Lp' "$1" 2>/dev/null || stat -c '%a' "$1" 2>/dev/null || echo 644; }
-literal_path(){
-  case "$1" in *"'"*|*'\'*|*$'\n'*|*$'\r'*)
-    die "$2 contains unsupported quote, backslash, or line-break characters" ;;
+validate_literal_path(){
+  case "$1" in *$'\n'*|*$'\r'*)
+    die "$2 contains unsupported line-break characters" ;;
   esac
+}
+posix_literal(){
+  validate_literal_path "$1" "$2"
   case "$1" in
-    *[!A-Za-z0-9_./:+@%=-]*) printf "'%s'" "$1" ;;
+    *[!A-Za-z0-9_./:+@%=-]*)
+      _pl_value=${1//\'/\'\\\'\'}
+      printf "'%s'" "$_pl_value" ;;
+    *) printf '"%s"' "$1" ;;
+  esac
+}
+fish_literal(){
+  validate_literal_path "$1" "$2"
+  case "$1" in
+    *[!A-Za-z0-9_./:+@%=-]*)
+      _fl_value=${1//\\/\\\\}
+      _fl_value=${_fl_value//\'/\\\'}
+      printf "'%s'" "$_fl_value" ;;
     *) printf '"%s"' "$1" ;;
   esac
 }
@@ -28,16 +43,26 @@ _first="${_version%%$'\n'*}"
 case "$_first" in 'GNU bash, version '*) ;; *) die "DOCKET_BASH_PATH is not GNU Bash" ;; esac
 _major="$(sed -nE 's/^GNU bash, version ([0-9]+)\..*/\1/p' <<<"$_first")"
 [[ "$_major" =~ ^[0-9]+$ ]] && [ "$_major" -ge 4 ] || die "DOCKET_BASH_PATH must be Bash 4 or newer"
-
-SCRIPTS_LITERAL="$(literal_path "$SCRIPTS_VALUE" DOCKET_SCRIPTS_DIR)"
-BASH_LITERAL="$(literal_path "$BASH_VALUE" DOCKET_BASH_PATH)"
+validate_literal_path "$SCRIPTS_VALUE" DOCKET_SCRIPTS_DIR
+validate_literal_path "$BASH_VALUE" DOCKET_BASH_PATH
 
 shell="${DOCKET_TARGET_SHELL:-$(basename "${SHELL:-sh}")}"
 case "$shell" in
-  zsh)  prof="$HOME/.zshenv";                  script_line="export DOCKET_SCRIPTS_DIR=$SCRIPTS_LITERAL"; bash_line="export DOCKET_BASH_PATH=$BASH_LITERAL" ;;
-  bash) prof="$HOME/.bashrc";                  script_line="export DOCKET_SCRIPTS_DIR=$SCRIPTS_LITERAL"; bash_line="export DOCKET_BASH_PATH=$BASH_LITERAL" ;;
-  fish) prof="$HOME/.config/fish/config.fish"; script_line="set -gx DOCKET_SCRIPTS_DIR $SCRIPTS_LITERAL"; bash_line="set -gx DOCKET_BASH_PATH $BASH_LITERAL" ;;
-  *)    prof="$HOME/.profile";                 script_line="export DOCKET_SCRIPTS_DIR=$SCRIPTS_LITERAL"; bash_line="export DOCKET_BASH_PATH=$BASH_LITERAL" ;;
+  zsh|bash)
+    SCRIPTS_LITERAL="$(posix_literal "$SCRIPTS_VALUE" DOCKET_SCRIPTS_DIR)"
+    BASH_LITERAL="$(posix_literal "$BASH_VALUE" DOCKET_BASH_PATH)"
+    [ "$shell" = zsh ] && prof="$HOME/.zshenv" || prof="$HOME/.bashrc"
+    script_line="export DOCKET_SCRIPTS_DIR=$SCRIPTS_LITERAL"; bash_line="export DOCKET_BASH_PATH=$BASH_LITERAL" ;;
+  fish)
+    SCRIPTS_LITERAL="$(fish_literal "$SCRIPTS_VALUE" DOCKET_SCRIPTS_DIR)"
+    BASH_LITERAL="$(fish_literal "$BASH_VALUE" DOCKET_BASH_PATH)"
+    prof="$HOME/.config/fish/config.fish"
+    script_line="set -gx DOCKET_SCRIPTS_DIR $SCRIPTS_LITERAL"; bash_line="set -gx DOCKET_BASH_PATH $BASH_LITERAL" ;;
+  *)
+    SCRIPTS_LITERAL="$(posix_literal "$SCRIPTS_VALUE" DOCKET_SCRIPTS_DIR)"
+    BASH_LITERAL="$(posix_literal "$BASH_VALUE" DOCKET_BASH_PATH)"
+    prof="$HOME/.profile"
+    script_line="export DOCKET_SCRIPTS_DIR=$SCRIPTS_LITERAL"; bash_line="export DOCKET_BASH_PATH=$BASH_LITERAL" ;;
 esac
 mkdir -p "$(dirname "$prof")"; touch "$prof"
 
