@@ -3092,4 +3092,35 @@ assert "--digest-only emits a diagnostic on stderr for a render failure" \
 # --help documents the flag (the skill's author has to be able to find it).
 assert "--help mentions --digest-only" '"$SCRIPT" --help 2>&1 | grep -q -- "--digest-only"'
 
+# ── change 0127: --type / --priority are REPORT filters ──────────────────────────────────────
+# They narrow the digest projection (`change` lines + the `ready` queue) and nothing else. Reuses
+# the --digest-only fixture above, whose 0050 (high) and 0051 (critical) are both untyped.
+dgf_out="$tmp/digest-filter-out.txt"
+(cd "$dg/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-digest.sh" GIT="$tmp/spy-git.sh" \
+  "$SCRIPT" --digest-only --type untyped >"$dgf_out" 2>/dev/null)
+assert "0127: --type reaches the digest projection" 'grep -qE "^ready( [0-9]+)+$" "$dgf_out"'
+assert "0127: --type untyped admits the untyped fixtures" \
+  '[ "$(sed -n "s/^ready //p" "$dgf_out")" = "51 50" ]'
+
+dgf2_out="$tmp/digest-filter2-out.txt"
+(cd "$dg/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-digest.sh" GIT="$tmp/spy-git.sh" \
+  "$SCRIPT" --digest-only --type feat >"$dgf2_out" 2>/dev/null)
+assert "0127: a non-matching --type still emits a bare ready line, never silence" \
+  'grep -qx "ready" "$dgf2_out"'
+
+dgf3_out="$tmp/digest-filter3-out.txt"
+(cd "$dg/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-digest.sh" GIT="$tmp/spy-git.sh" \
+  "$SCRIPT" --digest-only --priority critical >"$dgf3_out" 2>/dev/null)
+assert "0127: --priority narrows the ready queue" \
+  '[ "$(sed -n "s/^ready //p" "$dgf3_out")" = "51" ]'
+
+(cd "$dg/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-digest.sh" GIT="$tmp/spy-git.sh" \
+  "$SCRIPT" --digest-only --priority urgent >/dev/null 2>&1)
+assert "0127: an invalid --priority exits non-zero" '[ "$?" -ne 0 ]'
+assert "0127: an invalid filter leaves the pre-existing BOARD.md byte-identical" \
+  'diff -q "$tmp/dg-board-before.md" "$dg/work/.docket/docs/changes/BOARD.md" >/dev/null'
+
+assert "--help mentions --type"     '"$SCRIPT" --help 2>&1 | grep -q -- "--type"'
+assert "--help mentions --priority" '"$SCRIPT" --help 2>&1 | grep -q -- "--priority"'
+
 exit $fail
