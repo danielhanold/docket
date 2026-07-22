@@ -66,6 +66,7 @@ rather than a `bash` selected from `PATH`.
 | `board-checks` | `board-checks.sh` | board consistency checks |
 | `reclaim-claims` | `reclaim-claims.sh` | reclaim expired-lease, no-branch in-progress claims back to `proposed` |
 | `mint-stub` | `mint-stub.sh` | mint one discovered-work stub into `active/` with `discovered_from:` provenance (auto-capture, change 0091) |
+| `backfill-change-types` | `backfill-change-types.sh` | apply a human-approved `id=type` mapping to ACTIVE change files, all-or-nothing and idempotent; never touches `archive/` (change 0127) |
 | `runner-dispatch` | `runner-dispatch.sh` | delegate one agent run to a child harness via a registered runner adapter (change 0079) |
 | `mark-publish-deferred` | `mark-publish-deferred.sh` | add/remove the `## Publish deferred` marker on a change file (terminal-publish gap visibility, change 0083) |
 

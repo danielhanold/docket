@@ -5,7 +5,10 @@
 # on source beyond declaring functions and the dependency-resolution globals. No git, no network.
 #
 # Provides:
-#   field FILE KEY        — first top-level frontmatter scalar for KEY, trimmed.
+#   field FILE KEY        — first matching scalar for KEY anywhere in the file, trimmed.
+#   fm_field FILE KEY     — like field(), but ONLY inside the first ---...--- block. Use this for
+#                           any key that may be ABSENT from frontmatter (e.g. type:), where field()
+#                           would fall through and return body prose.
 #   list_field FILE KEY   — `[a, b]` -> space-separated `a b` (empty for `[]` / unset).
 #   int_field FILE KEY    — like field(), but empty unless the value is a well-formed non-negative integer.
 #   has_section FILE STR  — exit 0 iff the body contains the literal line STR (whole-line match:
@@ -32,6 +35,31 @@ field(){
   printf '%s\n' "${raw%"${raw##*[![:space:]]}"}"   # strip trailing whitespace; trailing \n matches the
 }                                                  # original sed form (callers that pipe field directly,
                                                    # e.g. the mermaid done-id list, rely on the separator)
+# fm_field FILE KEY — like field(), but reads ONLY inside the FIRST ---...--- block (change 0127).
+#
+# field() scans the whole file and takes the first match. For the pre-0127 fields that is safe: the
+# frontmatter sits at the top, so its line always wins over any body prose discussing the same key.
+# It is NOT safe for a key that may be ABSENT from frontmatter while present in body prose — the
+# match then falls through to the body and returns prose as a value. `type:` is exactly that case
+# during the migration window: every un-backfilled change has no frontmatter type:, and a change
+# whose body happens to open a line with `type:` would otherwise render its prose as the type and
+# make the backfill refuse to touch it. Anchoring is the same discipline AGENTS.md already requires
+# for frontmatter WRITES, applied to the read.
+fm_field(){ # fm_field FILE KEY -> value on stdout (empty when absent from the first block)
+  awk -v key="$2" '
+    BEGIN { n = 0 }
+    /^---[[:space:]]*$/ { n++; if (n >= 2) exit; next }
+    n == 1 {
+      if ($0 ~ ("^" key ":")) {
+        sub("^" key ":[[:space:]]*", "")
+        sub(/[[:space:]]+$/, "")
+        print
+        exit
+      }
+    }
+  ' "$1"
+}
+
 list_field(){
   local raw; raw="$(field "$1" "$2")"
   raw="${raw#[}"; raw="${raw%]}"

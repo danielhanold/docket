@@ -55,4 +55,26 @@ assert "reserved array has exactly 2 members" \
 assert "reserved array is exactly {all, untyped}" \
   '[ "$(printf "%s\n" "${DOCKET_CHANGE_TYPE_RESERVED[@]}" | sort | tr "\n" " ")" = "all untyped " ]'
 
+# --- fm_field: frontmatter-anchored reads (change 0127) ----------------------
+# The failure this exists to prevent: a change with NO frontmatter type: whose BODY opens a line
+# with `type:` — the exact state of every un-backfilled change during the migration window.
+fmtmp="$(mktemp -d)"; trap 'rm -rf "$fmtmp"' EXIT
+printf -- '---\nid: 1\nstatus: proposed\n---\n\n## Why\ntype: this is prose, not frontmatter\n' > "$fmtmp/no-type.md"
+printf -- '---\nid: 2\nstatus: proposed\ntype: feat\n---\n\n## Why\ntype: prose again\n' > "$fmtmp/typed.md"
+printf -- '---\nid: 3\nstatus: proposed\ntype:\n---\n\n## Why\nx\n' > "$fmtmp/empty.md"
+
+assert "fm_field: a body-only key reads EMPTY, never the prose" \
+  '[ -z "$(fm_field "$fmtmp/no-type.md" type)" ]'
+assert "fm_field: reads a real frontmatter value" \
+  '[ "$(fm_field "$fmtmp/typed.md" type)" = feat ]'
+assert "fm_field: an empty placeholder reads empty" \
+  '[ -z "$(fm_field "$fmtmp/empty.md" type)" ]'
+assert "fm_field: an absent key reads empty" \
+  '[ -z "$(fm_field "$fmtmp/typed.md" nosuchkey)" ]'
+assert "fm_field: still reads the other frontmatter keys" \
+  '[ "$(fm_field "$fmtmp/typed.md" status)" = proposed ]'
+# The contrast that proves the anchor is load-bearing: unanchored field() DOES return the prose.
+assert "fm_field: unanchored field() would have returned the prose (the bug this prevents)" \
+  '[ "$(field "$fmtmp/no-type.md" type)" = "this is prose, not frontmatter" ]'
+
 exit $fail
