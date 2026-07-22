@@ -53,6 +53,26 @@ while [ $# -gt 0 ]; do
 done
 # Opposite postures: --digest-only is a write-free READ, --board-only commits and pushes BOARD.md.
 # Rejected in BOTH orders — a gate that only closes one way is not a gate.
+# Filter values are validated HERE, before any pass runs, so an invalid value fails closed
+# IDENTICALLY in every mode. It cannot be left to render-board's own check: backlog_pass is
+# best-effort by design, so a rejected filter would be swallowed on the full pass and
+# `--board-only --type Bogus` would print a board while silently omitting the backlog the caller
+# asked to filter. Keying on render-board's exit 2 instead does not work either — it also spends
+# that code on "changes dir not found", a condition the full pass legitimately tolerates.
+# This is a second CALL SITE of the shared predicates, not a second RULE: the grammar lives in
+# lib/docket-frontmatter.sh, which this script already sources, so the two checks cannot drift.
+if [ -n "$TYPE_FLAG" ] && [ "$TYPE_FLAG" != all ] && [ "$TYPE_FLAG" != untyped ]; then
+  if ! docket_change_type_is_wellformed "$TYPE_FLAG"; then
+    echo "docket-status: unknown --type value: $TYPE_FLAG (expected all, untyped, or a [a-z][a-z0-9-]* token)" >&2
+    exit 2
+  fi
+fi
+if [ -n "$PRIORITY_FLAG" ] && [ "$PRIORITY_FLAG" != all ]; then
+  if ! docket_priority_is_member "$PRIORITY_FLAG"; then
+    echo "docket-status: unknown --priority value: $PRIORITY_FLAG (expected all, ${DOCKET_PRIORITIES[*]})" >&2
+    exit 2
+  fi
+fi
 if [ "$DIGEST_ONLY" = 1 ] && [ "$BOARD_ONLY" = 1 ]; then
   echo "docket-status: --digest-only and --board-only are mutually exclusive (a write-free read vs. a committing board write)" >&2
   exit 2
