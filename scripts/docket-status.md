@@ -27,7 +27,7 @@ docket-status.sh -h | --help
 | `--project OWNER/NUMBER` | GitHub Project to sync during the github board surface. Passed through to `github-mirror.sh`. |
 | `--auto-create-project` | Create the GitHub Project if `--project` doesn't resolve. Passed through to `github-mirror.sh`. |
 | `--project-owner OWNER` | Owner to create the project under when auto-creating. Passed through to `github-mirror.sh`. |
-| `-h`, `--help` | Print the usage synopsis (the script's leading `# scripts/docket-status.sh —` header comment block) and exit 0. |
+| `-h`, `--help` | Print the usage synopsis (the range of the leading header comment block that `usage()` prints) and exit 0. |
 
 Any other argument is a hard error (`docket-status: unknown argument: <arg>`, exit 2).
 

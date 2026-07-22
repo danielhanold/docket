@@ -975,7 +975,7 @@ neutered pattern, and removed self-exclusion each redden it."
 - *Document the rule in `AGENTS.md`* → Task 3 Step 5, written without a literal counter-example (spec build-trap 2).
 - *Mint a new ADR; repair ADR-0044 by append* → Task 4.
 - *Build traps 1–3* → self-exclusion by `BASH_SOURCE` (Task 3 Step 1, mutation-checked as M4), `AGENTS.md` self-match (Step 6), ADR hygiene (Task 4 note).
-- *Excluded surfaces* → encoded in the walk's `grep -vE '^docs/'` and documented in the guard header.
+- *Excluded surfaces* → `docs/` is excluded structurally: it never appears in the walk's pathspec, so there is no filter to drift. Documented in the guard header.
 
 **2. Placeholder scan.** No TBDs. Every conversion gives exact old and new text; every command has an expected result; the guard is given in full.
 

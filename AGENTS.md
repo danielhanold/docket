@@ -49,7 +49,7 @@ means), this file does not restate them.
 - A cross-reference in maintained source anchors on a **symbol name** or a **verbatim-quoted
   clause** — never on a line number. A quoted clause is greppable, so drift is mechanically
   visible; a line number is checkable by nothing, and rots fastest in exactly the files that move
-  most. `tests/test_comment_anchor_style.sh` enforces the filename-plus-line-number form; the bare
+  most. `tests/test_comment_anchor_style.sh` rejects the filename-plus-line-number form; the bare
   colon-number and prose "line N" forms are unenforceable without false positives and rest on this
   rule (ADR-0054).
 - This binds maintained source only. Point-in-time records — results files, archived changes,

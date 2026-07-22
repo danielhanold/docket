@@ -326,7 +326,7 @@ after `METADATA_WORKTREE` and `DOCKET_BASH_PATH` following it (or following
 same value `$REPO_DIR` resolved to, per the §1 repo anchor above) — the literal `docket.sh
 preflight`/`env` print and a skill reads for a cwd-independent `cd`. Deliberately **absent from
 the `shell` format**: `scripts/ensure-claude-settings.sh` sets its own `REPO_ROOT` variable from
-`git rev-parse --show-toplevel` and `eval`s the shell export, reading it back later — emitting a
+`rev-parse --show-toplevel` and `eval`s the shell export, reading it back later — emitting a
 shell-format `REPO_ROOT` here would silently capture that unrelated variable name and corrupt
 its behavior. `plain` output is model-facing and never `eval`'d, so the same collision risk does
 not apply there.

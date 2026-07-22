@@ -522,7 +522,7 @@ if [ "$MODE" = export ]; then
   # REPO_ROOT — PLAIN FORMAT ONLY (change 0075). The absolute main-worktree path; the literal
   # skills read from the `docket.sh preflight` block for a cwd-independent `cd`. It is deliberately
   # absent from the SHELL format: ensure-claude-settings.sh sets its own REPO_ROOT (from
-  # `git rev-parse --show-toplevel`) and eval's the shell export, reading it back later —
+  # `rev-parse --show-toplevel`) and eval's the shell export, reading it back later —
   # emitting it there would silently capture that
   # name. (REPO_ABS is computed above, in the plain branch.)
   if [ "$FORMAT" = plain ]; then
