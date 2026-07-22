@@ -28,8 +28,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-22-truthful-git-errors-harness-neutral-escalation-retry-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-22-truthful-git-errors-harness-neutral-escalation-retry-design.md) |
-| Plan | [2026-07-22-truthful-git-errors-harness-neutral-escalation-retry.md](https://github.com/danielhanold/docket/blob/feat/truthful-git-errors-harness-neutral-escalation-retry/docs/superpowers/plans/2026-07-22-truthful-git-errors-harness-neutral-escalation-retry.md) |
-| Results | [2026-07-22-truthful-git-errors-harness-neutral-escalation-retry-results.md](https://github.com/danielhanold/docket/blob/feat/truthful-git-errors-harness-neutral-escalation-retry/docs/results/2026-07-22-truthful-git-errors-harness-neutral-escalation-retry-results.md) |
+| Plan | [2026-07-22-truthful-git-errors-harness-neutral-escalation-retry.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-22-truthful-git-errors-harness-neutral-escalation-retry.md) |
+| Results | [2026-07-22-truthful-git-errors-harness-neutral-escalation-retry-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-22-truthful-git-errors-harness-neutral-escalation-retry-results.md) |
 | PR | [#121](https://github.com/danielhanold/docket/pull/121) |
 | ADRs | [ADR-0029](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0029-docket-facade-routing-and-config-presentation.md), [ADR-0033](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0033-cursor-auto-run-trust-at-facade.md), [ADR-0037](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0037-runner-delegation-explicit-runner-field.md), [ADR-0038](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0038-runner-shim-wrapper-single-dispatch-chokepoint.md) |
 <!-- docket:artifacts:end -->
