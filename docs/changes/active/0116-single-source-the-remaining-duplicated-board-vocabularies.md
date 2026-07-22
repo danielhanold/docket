@@ -11,7 +11,7 @@ related: [111, 115]
 discovered_from: [104]
 adrs: []
 spec: docs/superpowers/specs/2026-07-20-single-source-the-remaining-duplicated-board-vocabularies-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-22-single-source-board-vocabularies.md
 results:
 trivial: false
 auto_groomable: true
@@ -28,6 +28,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-20-single-source-the-remaining-duplicated-board-vocabularies-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-20-single-source-the-remaining-duplicated-board-vocabularies-design.md) |
+| Plan | [2026-07-22-single-source-board-vocabularies.md](https://github.com/danielhanold/docket/blob/feat/single-source-the-remaining-duplicated-board-vocabularies/docs/superpowers/plans/2026-07-22-single-source-board-vocabularies.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
