@@ -12,6 +12,7 @@
 # Four config layers resolve per-key (change 0051 adds the local rung): repo-local
 # (<repo>/.docket.local.yml, gitignored, machine-AND-repo-scoped) > repo-committed
 # (.docket.yml) > global (${XDG_CONFIG_HOME:-$HOME/.config}/docket/config.yml) > built-in.
+# `runtime.bash` is the machine-local exception: repo-local > global; committed is ignored.
 # The coordination-key fence (ADR-0019) applies to both machine-scoped layers alike.
 #
 # Usage: docket-config.sh [--export] [--format plain|shell] [--bootstrap] [--repo-dir DIR]
@@ -164,6 +165,51 @@ if [ -e "$GCFG" ] && { [ ! -f "$GCFG" ] || [ ! -r "$GCFG" ]; }; then
   printf 'docket-config: warning: %s is not a readable regular file — global config layer ignored\n' "$GCFG" >&2
   GCFG=/dev/null
 fi
+
+# runtime.bash is machine-local by definition: repo-local > global, while a committed value is
+# loudly ignored. Read every `bash:` leaf WITHIN its `runtime:` block so an unrelated bare leaf
+# cannot shadow it. The temporary block bodies are removed before validation can die.
+RUNTIME_BLK="$(mktemp)";  yaml_block_body "$CFG"  runtime >"$RUNTIME_BLK"
+GRUNTIME_BLK="$(mktemp)"; yaml_block_body "$GCFG" runtime >"$GRUNTIME_BLK"
+LRUNTIME_BLK="$(mktemp)"; yaml_block_body "$LCFG" runtime >"$LRUNTIME_BLK"
+_runtime_local="$(yaml_get "$LRUNTIME_BLK" bash)"
+_runtime_committed="$(yaml_get "$RUNTIME_BLK" bash)"
+_runtime_global="$(yaml_get "$GRUNTIME_BLK" bash)"
+rm -f "$RUNTIME_BLK" "$GRUNTIME_BLK" "$LRUNTIME_BLK"
+
+if [ -n "$_runtime_committed" ]; then
+  printf 'docket-config: warning: committed config key runtime.bash is machine-local — set it in .docket.local.yml or global config.yml; ignored\n' >&2
+fi
+
+DOCKET_BASH_PATH="$_runtime_local"
+_runtime_source=local
+if [ -z "$DOCKET_BASH_PATH" ]; then
+  DOCKET_BASH_PATH="$_runtime_committed"
+  _runtime_source=committed
+fi
+# The committed-layer fence is deliberately an executable branch: removing it makes a committed
+# runtime win over global, and the resolver test mutation-checks that failure mode.
+if [ "$_runtime_source" = committed ]; then
+  DOCKET_BASH_PATH=""
+fi
+if [ -z "$DOCKET_BASH_PATH" ]; then
+  DOCKET_BASH_PATH="$_runtime_global"
+fi
+
+_runtime_remedy='run docket/install.sh after installing Bash 4+ (on macOS: brew install bash)'
+[ -n "$DOCKET_BASH_PATH" ] \
+  || die "runtime.bash is not configured — $_runtime_remedy"
+[[ "$DOCKET_BASH_PATH" = /* ]] \
+  || die "runtime.bash must be an absolute path, got '$DOCKET_BASH_PATH' — $_runtime_remedy"
+[[ -x "$DOCKET_BASH_PATH" ]] \
+  || die "runtime.bash is not an executable file: $DOCKET_BASH_PATH — $_runtime_remedy"
+_runtime_version="$("$DOCKET_BASH_PATH" --version 2>/dev/null)" \
+  || die "runtime.bash could not report its version: $DOCKET_BASH_PATH — $_runtime_remedy"
+_runtime_first_line="${_runtime_version%%$'\n'*}"
+_runtime_major="$(sed -nE 's/^[^0-9]*([0-9]+)\..*/\1/p' <<<"$_runtime_first_line")"
+[[ "$_runtime_major" =~ ^[0-9]+$ ]] && [ "$_runtime_major" -ge 4 ] \
+  || die "runtime.bash must be Bash 4 or newer, got '${_runtime_first_line:-unknown version}' from $DOCKET_BASH_PATH — $_runtime_remedy"
+
 # Coordination-key fence: a key whose effect writes SHARED state (commits on shared
 # branches, committed generated files, external GitHub objects) is per-repo-only; a global
 # value is loudly warned-and-ignored — never honored, never fatal. (ADR records the rule.)
@@ -421,6 +467,7 @@ if [ "$MODE" = export ]; then
   if [ "$FORMAT" = plain ]; then
     emit REPO_ROOT "$REPO_ABS"
   fi
+  emit DOCKET_BASH_PATH "$DOCKET_BASH_PATH"
   emit CHANGES_DIR "$CHANGES_DIR"
   emit ADRS_DIR "$ADRS_DIR"
   emit RESULTS_DIR "$RESULTS_DIR"

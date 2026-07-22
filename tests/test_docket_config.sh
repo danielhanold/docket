@@ -24,16 +24,42 @@ mkrepo(){
   git -C "$dir" remote set-head origin -a >/dev/null 2>&1
 }
 # run <dir> [args...] : run the resolver against <dir>, echo stdout
-run(){ local d="$1"; shift; bash "$SCRIPT" --repo-dir "$d" "$@"; }
+run(){ local d="$1"; shift; ensure_test_runtime "$XDG_CONFIG_HOME" "$d"; bash "$SCRIPT" --repo-dir "$d" "$@"; }
 
 tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
+
+fake_bash(){ # fake_bash <path> <version> [executable]
+  local path="$1" version="$2" executable="${3:-yes}"
+  printf '#!/bin/sh\n[ "$1" = --version ] && { printf "%%s\\n" "%s"; exit 0; }\nexit 2\n' \
+    "$version" >"$path"
+  [ "$executable" = yes ] && chmod +x "$path"
+}
+mkdir -p "$tmp/runtime-bin"
+fake_bash "$tmp/runtime-bin/default-bash" 5.2.0
+
+# Existing resolver fixtures predate the required runtime. Seed one into a writable machine-local
+# layer unless a fixture already supplies an explicit runtime block (including an invalid one).
+# Dedicated absence tests call the resolver directly and bypass this helper.
+ensure_test_runtime(){ # ensure_test_runtime <xdg-root> <repo>
+  local x="$1" d="$2" global="$1/docket/config.yml" local_cfg="$2/.docket.local.yml"
+  if { [ -f "$global" ] && grep -q '^[[:space:]]*runtime[[:space:]]*:' "$global"; } \
+     || { [ -f "$local_cfg" ] && grep -q '^[[:space:]]*runtime[[:space:]]*:' "$local_cfg"; }; then
+    return
+  fi
+  if [ ! -e "$global" ] || [ -f "$global" ]; then
+    mkdir -p "$x/docket"
+    printf '\nruntime:\n  bash: %s\n' "$tmp/runtime-bin/default-bash" >>"$global"
+  elif [ ! -e "$local_cfg" ] || [ -f "$local_cfg" ]; then
+    printf '\nruntime:\n  bash: %s\n' "$tmp/runtime-bin/default-bash" >>"$local_cfg"
+  fi
+}
 
 # Hermetic: never read the dev machine's real global config (change 0050 — docket-config.sh
 # now reads ${XDG_CONFIG_HOME:-$HOME/.config}/docket/config.yml). Point XDG at a void.
 export XDG_CONFIG_HOME="$tmp/xdg-void"
 # rung <xdgdir> <repodir> [args...] : run the resolver with the global layer rooted at <xdgdir>
-rung(){ local x="$1" d="$2"; shift 2; XDG_CONFIG_HOME="$x" bash "$SCRIPT" --repo-dir "$d" "$@"; }
-rung_rc(){ local x="$1" d="$2"; shift 2; XDG_CONFIG_HOME="$x" bash "$SCRIPT" --repo-dir "$d" "$@" >/dev/null 2>&1; echo $?; }
+rung(){ local x="$1" d="$2"; shift 2; ensure_test_runtime "$x" "$d"; XDG_CONFIG_HOME="$x" bash "$SCRIPT" --repo-dir "$d" "$@"; }
+rung_rc(){ local x="$1" d="$2"; shift 2; ensure_test_runtime "$x" "$d"; XDG_CONFIG_HOME="$x" bash "$SCRIPT" --repo-dir "$d" "$@" >/dev/null 2>&1; echo $?; }
 
 # --- (A) absent .docket.yml -> all defaults (docket-mode) --------------------
 mkrepo "$tmp/a"
@@ -140,7 +166,7 @@ assert "board fenced-to-empty: emits BOARD_SURFACES=none" \
 
 # --- (E) direct-pipe caller (LEARNINGS #22: $() hides a dropped trailing \n) -
 n="$(run "$tmp/c" --export | grep -c '=')"
-assert "direct-pipe: 25 KEY=value lines emitted"       '[ "$n" -eq 25 ]'
+assert "direct-pipe: 26 KEY=value lines emitted"       '[ "$n" -eq 26 ]'
 last="$(run "$tmp/c" --export | tail -n1)"
 assert "direct-pipe: last line is BOOTSTRAP"           'case "$last" in BOOTSTRAP=*) true;; *) false;; esac'
 
@@ -229,7 +255,7 @@ assert "bootstrap migrated: PROCEED"            '[ "$BOOTSTRAP" = PROCEED ]'
 assert "bootstrap migrated: origin/docket SHA unchanged (no-op)" '[ "$w4_before" = "$w4_after" ]'
 
 # --- fail-closed error paths (non-zero exit, stderr diagnostic, no KEY=value) ----
-run_rc(){ local d="$1"; shift; bash "$SCRIPT" --repo-dir "$d" "$@" >/dev/null 2>&1; echo $?; }
+run_rc(){ local d="$1"; shift; ensure_test_runtime "$XDG_CONFIG_HOME" "$d"; bash "$SCRIPT" --repo-dir "$d" "$@" >/dev/null 2>&1; echo $?; }
 
 # (F1) unreachable origin -> exit≠0, no output
 mkrepo "$tmp/f1"
@@ -393,13 +419,13 @@ assert "0050 L: skills merge — unset role stays default"     '[ "$SKILL_BUILD"
 # --- (Q) XDG_CONFIG_HOME honored; HOME/.config is the fallback ---------------
 mkrepo "$tmp/q"
 mkdir -p "$tmp/q.home/.config/docket"
-printf 'auto_groom: true\n' > "$tmp/q.home/.config/docket/config.yml"
+printf 'auto_groom: true\nruntime:\n  bash: %s\n' "$tmp/runtime-bin/default-bash" > "$tmp/q.home/.config/docket/config.yml"
 out="$(env -u XDG_CONFIG_HOME HOME="$tmp/q.home" bash "$SCRIPT" --repo-dir "$tmp/q" --export)"; eval "$out"
 assert "0050 Q: XDG unset -> \$HOME/.config fallback read"   '[ "$AUTO_GROOM" = true ]'
 
-# --- (E') emit-interface guard: still exactly 25 lines with a global file present ---
+# --- (E') emit-interface guard: exactly 26 lines with a global file present ---
 n50="$(rung "$tmp/k.xdg" "$tmp/k" --export | grep -c '=')"
-assert "0050 E': still 25 KEY=value lines with global layer" '[ "$n50" -eq 25 ]'
+assert "0050 E': 26 KEY=value lines with global layer" '[ "$n50" -eq 26 ]'
 
 # --- (M) coordination-key fence: warned-and-ignored, never honored, never fatal ---
 mkrepo "$tmp/m"
@@ -1268,8 +1294,9 @@ assert "0102 R7: FINALIZE_REQUIRE_PR_APPROVAL is emitted" \
 assert "0102 R7: emitted directly after FINALIZE_TEST_COMMAND" \
   '[ "$(grep -n "^FINALIZE_REQUIRE_PR_APPROVAL=" <<<"$out7" | cut -d: -f1)" \
      = "$(( $(grep -n "^FINALIZE_TEST_COMMAND=" <<<"$out7" | cut -d: -f1) + 1 ))" ]'
+out7_plain="$(rung "$tmp/r1.xdg" "$tmp/r1" --export --format plain)"
 assert "0102 R7: present in plain format too" \
-  'rung "$tmp/r1.xdg" "$tmp/r1" --export --format plain | grep -q "^FINALIZE_REQUIRE_PR_APPROVAL="'
+  'grep -q "^FINALIZE_REQUIRE_PR_APPROVAL=" <<<"$out7_plain"'
 
 # --- (R8) the contract doc documents it -------------------------------------
 assert "0102 R8: docket-config.md has a require_pr_approval table row" \
@@ -1295,6 +1322,92 @@ printf 'finalize:\n  require_pr_approval: false\n' > "$tmp/r9/.docket.local.yml"
 out="$(rung "$tmp/r9.xdg" "$tmp/r9" --export)"; eval "$out"
 assert "0102 R9: repo-local false beats global true (repo-committed unset)" \
   '[ "$FINALIZE_REQUIRE_PR_APPROVAL" = false ]'
+
+# ============================================================================
+# Change 0132 — machine-local Bash runtime
+# ============================================================================
+
+fake_bash "$tmp/runtime-bin/global-bash" 5.2.0
+fake_bash "$tmp/runtime-bin/local-bash" 5.2.0
+fake_bash "$tmp/runtime-bin/committed-bash" 5.2.0
+
+# Global runtime resolves when the repo-local layer is absent.
+mkrepo "$tmp/runtime-global"
+mkdir -p "$tmp/runtime-global.xdg/docket"
+printf 'runtime:\n  bash: %s\n' "$tmp/runtime-bin/global-bash" \
+  >"$tmp/runtime-global.xdg/docket/config.yml"
+runtime_global_out="$(rung "$tmp/runtime-global.xdg" "$tmp/runtime-global" --export)"
+assert "0132 runtime: global runtime is emitted exactly" \
+  'grep -qxF "DOCKET_BASH_PATH=$tmp/runtime-bin/global-bash" <<<"$runtime_global_out"'
+assert "0132 runtime: shell export follows METADATA_WORKTREE" \
+  '[ "$(grep -n "^DOCKET_BASH_PATH=" <<<"$runtime_global_out" | cut -d: -f1)" \
+     = "$(( $(grep -n "^METADATA_WORKTREE=" <<<"$runtime_global_out" | cut -d: -f1) + 1 ))" ]'
+runtime_global_plain="$(rung "$tmp/runtime-global.xdg" "$tmp/runtime-global" --export --format plain)"
+assert "0132 runtime: global runtime is present in plain format" \
+  'grep -qxF "DOCKET_BASH_PATH=$tmp/runtime-bin/global-bash" <<<"$runtime_global_plain"'
+assert "0132 runtime: plain export follows REPO_ROOT" \
+  '[ "$(grep -n "^DOCKET_BASH_PATH=" <<<"$runtime_global_plain" | cut -d: -f1)" \
+     = "$(( $(grep -n "^REPO_ROOT=" <<<"$runtime_global_plain" | cut -d: -f1) + 1 ))" ]'
+
+# Repo-local runtime overrides a distinct valid global runtime.
+printf 'runtime:\n  bash: %s\n' "$tmp/runtime-bin/local-bash" \
+  >"$tmp/runtime-global/.docket.local.yml"
+runtime_local_out="$(rung "$tmp/runtime-global.xdg" "$tmp/runtime-global" --export)"
+assert "0132 runtime: repo-local runtime overrides global" \
+  'grep -qxF "DOCKET_BASH_PATH=$tmp/runtime-bin/local-bash" <<<"$runtime_local_out"'
+assert "0132 runtime: losing global runtime is not emitted" \
+  '! grep -qF "$tmp/runtime-bin/global-bash" <<<"$runtime_local_out"'
+
+# A committed runtime is diagnosed and ignored; the valid global runtime still wins.
+mkrepo "$tmp/runtime-committed"
+mkdir -p "$tmp/runtime-committed.xdg/docket"
+printf 'runtime:\n  bash: %s\n' "$tmp/runtime-bin/global-bash" \
+  >"$tmp/runtime-committed.xdg/docket/config.yml"
+printf 'runtime:\n  bash: %s\n' "$tmp/runtime-bin/committed-bash" \
+  >"$tmp/runtime-committed/.docket.yml"
+git -C "$tmp/runtime-committed" add .docket.yml
+git -C "$tmp/runtime-committed" commit --quiet -m cfg
+git -C "$tmp/runtime-committed" push --quiet origin main
+runtime_committed_err="$(XDG_CONFIG_HOME="$tmp/runtime-committed.xdg" bash "$SCRIPT" --repo-dir "$tmp/runtime-committed" --export 2>&1 >/dev/null)"
+runtime_committed_out="$(rung "$tmp/runtime-committed.xdg" "$tmp/runtime-committed" --export)"
+assert "0132 runtime fence: committed runtime is warned-and-ignored" \
+  'grep -q "committed.*runtime.bash.*ignored" <<<"$runtime_committed_err"'
+assert "0132 runtime fence: global runtime wins over committed runtime" \
+  'grep -qxF "DOCKET_BASH_PATH=$tmp/runtime-bin/global-bash" <<<"$runtime_committed_out"'
+assert "0132 runtime fence: committed runtime is not emitted" \
+  '! grep -qF "$tmp/runtime-bin/committed-bash" <<<"$runtime_committed_out"'
+
+# Invalid explicit machine-local values fail closed and emit no captured runtime.
+mkrepo "$tmp/runtime-invalid"
+mkdir -p "$tmp/runtime-invalid.xdg/docket"
+fake_bash "$tmp/runtime-bin/not-executable" 5.2.0 no
+fake_bash "$tmp/runtime-bin/legacy-bash" 3.2.57
+for runtime_case in relative missing nonexec legacy; do
+  case "$runtime_case" in
+    relative) runtime_value='bash' ;;
+    missing)  runtime_value="$tmp/runtime-bin/does-not-exist" ;;
+    nonexec)  runtime_value="$tmp/runtime-bin/not-executable" ;;
+    legacy)   runtime_value="$tmp/runtime-bin/legacy-bash" ;;
+  esac
+  printf 'runtime:\n  bash: %s\n' "$runtime_value" \
+    >"$tmp/runtime-invalid.xdg/docket/config.yml"
+  DOCKET_BASH_PATH=""
+  runtime_invalid_out="$(rung "$tmp/runtime-invalid.xdg" "$tmp/runtime-invalid" --export 2>/dev/null)"
+  runtime_invalid_rc="$(rung_rc "$tmp/runtime-invalid.xdg" "$tmp/runtime-invalid" --export)"
+  assert "0132 runtime invalid $runtime_case: resolver aborts" '[ "$runtime_invalid_rc" != 0 ]'
+  assert "0132 runtime invalid $runtime_case: export is empty" '[ -z "$runtime_invalid_out" ]'
+  assert "0132 runtime invalid $runtime_case: captured value remains clear" '[ -z "$DOCKET_BASH_PATH" ]'
+done
+
+# Absence is distinct from a configured path that names a missing file: both fail closed, but the
+# former has no runtime block at all. Bypass rung() so its legacy-fixture seed cannot mask this.
+mkrepo "$tmp/runtime-absent"
+DOCKET_BASH_PATH=""
+runtime_absent_out="$(XDG_CONFIG_HOME="$tmp/runtime-absent.xdg" bash "$SCRIPT" --repo-dir "$tmp/runtime-absent" --export 2>/dev/null)"
+runtime_absent_rc=$?
+assert "0132 runtime absent: resolver aborts" '[ "$runtime_absent_rc" != 0 ]'
+assert "0132 runtime absent: export is empty" '[ -z "$runtime_absent_out" ]'
+assert "0132 runtime absent: captured value remains clear" '[ -z "$DOCKET_BASH_PATH" ]'
 
 if [ "$fail" = 0 ]; then echo PASS; else echo FAIL; fi
 exit "$fail"

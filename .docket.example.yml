@@ -11,9 +11,10 @@
 #   2. repo-committed <repo>/.docket.yml                          (every clone — committed on origin/HEAD)
 #   3. global        ${XDG_CONFIG_HOME:-~/.config}/docket/config.yml  (this machine, every repo)
 #   4. built-in      docket's defaults — the values in this file
-# Every nested block — `skills:`, `agents:`, `learnings:`, `reclaim:`, `runners:` — merges LEAF BY
-# LEAF with the same precedence, never whole-block. Setting one leaf in a higher layer leaves the
-# block's other leaves resolving from the layers below.
+# Every nested block — `runtime:`, `skills:`, `agents:`, `learnings:`, `reclaim:`, `runners:` —
+# merges LEAF BY LEAF with the same precedence, never whole-block. Setting one leaf in a higher
+# layer leaves the block's other leaves resolving from the layers below. `runtime:` is the one
+# scope exception: machine-local only, so its chain skips repo-committed.
 #
 # ── How to use this file ───────────────────────────────────────────────────────────────────
 # Copy the keys you want to CHANGE into the layer you want them in. Do not copy the whole file
@@ -34,6 +35,8 @@
 #       a value in .docket.local.yml or the global config is loudly warned-and-ignored.
 #   # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
 #       Behavioral only. Per-machine divergence is benign.
+#   # scope: local-only (.docket.local.yml or global config.yml; never committed)
+#       Identifies machine-specific tooling. A committed value is loudly warned-and-ignored.
 # The authoritative classification lives in scripts/docket-config.md; this file mirrors it.
 #
 # ── THE STANDING RULE ──────────────────────────────────────────────────────────────────────
@@ -41,6 +44,18 @@
 # that introduces it. tests/test_docket_example_yml.sh enforces it: a new key with no entry here
 # fails the suite. This rule is why the file is worth having; without it the file drifts and
 # becomes the fourth stale surface it was created to replace.
+
+
+# ═══ Runtime ═══════════════════════════════════════════════════════════════════════════════
+
+# runtime.bash — the absolute executable path to Bash 4 or newer used for Docket-owned shell
+# execution. `install.sh` discovers a qualifying interpreter, validates its major version, and
+# writes this machine-specific value to global config. Override it for one clone in
+# .docket.local.yml. Missing, relative, non-executable, or Bash <4 values fail closed with the
+# install/upgrade remedy; a committed runtime is warned-and-ignored.
+# scope: local-only (.docket.local.yml or global config.yml; never committed)
+# runtime:
+#   bash: /opt/homebrew/bin/bash
 
 
 # ═══ Branch model & layout ═════════════════════════════════════════════════════════════════
