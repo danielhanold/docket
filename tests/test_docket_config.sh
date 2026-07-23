@@ -1680,5 +1680,114 @@ ct_commit "$tmp/ct-narrow"
 assert "0127 ct: a narrowed taxonomy still resolves cleanly" \
   'run "$tmp/ct-narrow" --export --format plain >/dev/null 2>&1'
 
+# ============================================================================
+# change 0128 — cross-layer auto_capture.types validation + glob-proof inline lists
+# ============================================================================
+
+# --- (A) the two keys resolve through INDEPENDENT chains ---------------------
+# `change_types` resolves by WHOLE-LIST replacement (the first layer that sets it wins outright);
+# `auto_capture.types` resolves PER-LEAF inside the block. Both are documented features, and
+# composing them must not abort the resolver: the membership check runs against the change_types
+# the author AT THE LAYER THAT SUPPLIED `types` could see, never against the globally effective
+# CHANGE_TYPES. Validating against the latter let a higher layer that merely narrowed
+# change_types invalidate a LOWER layer's perfectly valid block — and since every skill's Step 0
+# runs `docket.sh preflight`, one machine-local narrowing bricked docket on that machine entirely.
+# Pinned in BOTH directions: cross-layer composes, same-layer inconsistency still dies.
+
+# A1 — committed `types`, machine-local `change_types` narrowing. Asserted at both `enabled`
+# polarities: the disabled case is the sharper one — the leaf governs nothing there, so aborting
+# the whole resolver over it is pure collateral damage.
+for xl_en in false true; do
+  xl_d="$tmp/ac-xlayer-$xl_en"
+  mkrepo "$xl_d"
+  printf 'auto_capture:\n  enabled: %s\n  types: [docs]\n' "$xl_en" >"$xl_d/.docket.yml"
+  ct_commit "$xl_d"                                    # committed layer: types, NO change_types
+  printf 'change_types: [feat, fix]\n' >"$xl_d/.docket.local.yml"   # local layer: narrows only
+  xl_out="$(run "$xl_d" --export --format plain 2>"$xl_d.err")"; xl_rc=$?
+  assert "0128 xlayer(enabled=$xl_en): local change_types narrowing does not abort the resolver" \
+    '[ "$xl_rc" -eq 0 ]'
+  assert "0128 xlayer(enabled=$xl_en): committed auto_capture.types survives the narrowing" \
+    '[ "$(ct_get AUTO_CAPTURE_TYPES "$xl_out")" = "docs" ]'
+  assert "0128 xlayer(enabled=$xl_en): the local change_types still replaces the taxonomy" \
+    '[ "$(ct_get CHANGE_TYPES "$xl_out")" = "feat fix" ]'
+done
+
+# A2 — the global layer supplies `types`; the repo's committed .docket.yml narrows change_types.
+# Same shape one rung down: the global author could only ever see the built-in taxonomy.
+mkrepo "$tmp/ac-xlayer-g"
+mkdir -p "$tmp/ac-xlayer-g.xdg/docket"
+printf 'auto_capture:\n  enabled: true\n  types: [docs]\n' >"$tmp/ac-xlayer-g.xdg/docket/config.yml"
+printf 'change_types: [feat, fix]\n' >"$tmp/ac-xlayer-g/.docket.yml"
+ct_commit "$tmp/ac-xlayer-g"
+xlg_out="$(rung "$tmp/ac-xlayer-g.xdg" "$tmp/ac-xlayer-g" --export --format plain 2>"$tmp/ac-xlayer-g.err")"; xlg_rc=$?
+assert "0128 xlayer(global): a committed change_types narrowing does not invalidate global types" \
+  '[ "$xlg_rc" -eq 0 ]'
+assert "0128 xlayer(global): global auto_capture.types resolves through the narrowing" \
+  '[ "$(ct_get AUTO_CAPTURE_TYPES "$xlg_out")" = "docs" ]'
+assert "0128 xlayer(global): the committed change_types still wins the taxonomy" \
+  '[ "$(ct_get CHANGE_TYPES "$xlg_out")" = "feat fix" ]'
+
+# A3 — the other direction: ONE layer stating both keys inconsistently is still a hard error, and
+# the diagnostic names the offending token AND the layer whose author wrote it. Cross-layer
+# tolerance must not degrade into never checking.
+mkrepo "$tmp/ac-samelayer-c"
+printf 'change_types: [feat, fix]\nauto_capture:\n  enabled: true\n  types: [docs]\n' \
+  >"$tmp/ac-samelayer-c/.docket.yml"
+ct_commit "$tmp/ac-samelayer-c"
+slc_out="$(run "$tmp/ac-samelayer-c" --export --format plain 2>"$tmp/ac-samelayer-c.err")"; slc_rc=$?
+assert "0128 same-layer(committed): change_types/types inconsistency still exits non-zero" \
+  '[ "$slc_rc" -ne 0 ]'
+assert "0128 same-layer(committed): diagnostic names the offending token" \
+  'grep -qF "docs" "$tmp/ac-samelayer-c.err"'
+assert "0128 same-layer(committed): diagnostic names the committed layer" \
+  'grep -qF "committed" "$tmp/ac-samelayer-c.err"'
+assert "0128 same-layer(committed): the rejected run emits nothing" '[ -z "$slc_out" ]'
+
+mkrepo "$tmp/ac-samelayer-l"
+printf 'change_types: [feat, fix]\nauto_capture:\n  enabled: true\n  types: [docs]\n' \
+  >"$tmp/ac-samelayer-l/.docket.local.yml"
+sll_out="$(run "$tmp/ac-samelayer-l" --export --format plain 2>"$tmp/ac-samelayer-l.err")"; sll_rc=$?
+assert "0128 same-layer(local): change_types/types inconsistency still exits non-zero" \
+  '[ "$sll_rc" -ne 0 ]'
+assert "0128 same-layer(local): diagnostic names the offending token" \
+  'grep -qF "docs" "$tmp/ac-samelayer-l.err"'
+assert "0128 same-layer(local): diagnostic names the local layer" \
+  'grep -qF "local" "$tmp/ac-samelayer-l.err"'
+assert "0128 same-layer(local): the rejected run emits nothing" '[ -z "$sll_out" ]'
+
+# --- (B) inline-list values must NEVER pathname-expand ------------------------
+# Normalization once ended in an unquoted `$(echo $body)` with no `set -f`, so `change_types: [f*]`
+# resolved the taxonomy from FILENAMES IN THE RESOLVER'S CWD: the same committed config produced a
+# different taxonomy on different machines, silently, because every expanded lowercase filename
+# passes the well-formedness check downstream. Decoy entries named after real types make the
+# regression observable — mirrors the `set -f` decoy in tests/test_sync_agents.sh.
+glob_cwd="$tmp/inline-glob-decoy-cwd"
+mkdir -p "$glob_cwd/feat" "$glob_cwd/fix"       # `f*` expands to exactly `feat fix` here
+# run_in <cwd> <repo-dir> [args...] : run the resolver FROM <cwd> (--repo-dir keeps the repo
+# anchor independent of it), so the decoys are on the expansion path and nowhere else.
+run_in(){ local c="$1" d="$2"; shift 2; ensure_test_runtime "$XDG_CONFIG_HOME" "$d"
+  ( cd "$c" && bash "$SCRIPT" --repo-dir "$d" "$@" ); }
+
+mkrepo "$tmp/glob-ct"
+printf 'change_types: [f*]\n' >"$tmp/glob-ct/.docket.yml"
+ct_commit "$tmp/glob-ct"
+glob_ct_out="$(run_in "$glob_cwd" "$tmp/glob-ct" --export --format plain 2>"$tmp/glob-ct.err")"; glob_ct_rc=$?
+assert "0128 glob: change_types [f*] does NOT expand against the resolver's cwd" \
+  '! grep -qxF "CHANGE_TYPES=feat fix" <<<"$glob_ct_out"'
+assert "0128 glob: change_types [f*] is rejected as malformed instead" '[ "$glob_ct_rc" -ne 0 ]'
+assert "0128 glob: the change_types diagnostic quotes the LITERAL token" \
+  'grep -qF "f*" "$tmp/glob-ct.err"'
+
+mkrepo "$tmp/glob-act"
+printf 'auto_capture:\n  enabled: true\n  types: [f*]\n' >"$tmp/glob-act/.docket.yml"
+ct_commit "$tmp/glob-act"
+glob_act_out="$(run_in "$glob_cwd" "$tmp/glob-act" --export --format plain 2>"$tmp/glob-act.err")"; glob_act_rc=$?
+assert "0128 glob: auto_capture.types [f*] does NOT expand against the resolver's cwd" \
+  '! grep -qxF "AUTO_CAPTURE_TYPES=feat fix" <<<"$glob_act_out"'
+assert "0128 glob: auto_capture.types [f*] is rejected as a non-member instead" \
+  '[ "$glob_act_rc" -ne 0 ]'
+assert "0128 glob: the auto_capture.types diagnostic quotes the LITERAL token" \
+  'grep -qF "f*" "$tmp/glob-act.err"'
+
 if [ "$fail" = 0 ]; then echo PASS; else echo FAIL; fi
 exit "$fail"

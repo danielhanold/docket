@@ -269,6 +269,105 @@ assert "a freshly-minted done change is created AND closed-completed in the same
   'grep -qE "MOCKGH issue create" "$fresh/gh.log" && grep -qE "MOCKGH issue close 4242 .*--reason completed" "$fresh/gh.log"'
 rm -rf "$fresh"
 
+# === F. TYPE ON THE GITHUB SURFACE ===========================================
+# change 0127 added `type:` to the change manifest and rendered it on the INLINE board; the
+# GITHUB surface was never updated, so with board_surfaces: [github] a change's type appeared
+# nowhere and the two configured surfaces silently disagreed about what a row shows. The body
+# now always states a type (`untyped` when absent), but the LABEL is emitted only for a real
+# type — deliberately asymmetric, so the migration does not mint docket:type/untyped on every
+# un-backfilled change. Both halves are pinned below; a future change that starts labelling
+# `untyped` must turn this red on purpose.
+#
+# Its own fixture trees (separate runs) so the "no docket:type/ label ANYWHERE" assertion is
+# airtight rather than a needle-in-a-haystack over the section-A output.
+typed="$(mktemp -d)"; mkdir -p "$typed/active" "$typed/archive"
+cat > "$typed/active/0301-typed-feat.md" <<'EOF'
+---
+id: 301
+slug: typed-feat
+title: A backfilled change carrying a type
+status: in-progress
+priority: high
+type: feat
+depends_on: []
+adrs: []
+issue: 301
+---
+EOF
+typedout="$(bash "$SCRIPT" --dry-run --changes-dir "$typed" --repo o/r --metadata-branch docket \
+             --changes-path docs/changes 2>&1)"
+
+untyped="$(mktemp -d)"; mkdir -p "$untyped/active" "$untyped/archive"
+cat > "$untyped/active/0302-un-backfilled.md" <<'EOF'
+---
+id: 302
+slug: un-backfilled
+title: An un-backfilled change with no type
+status: blocked
+priority: low
+depends_on: []
+adrs: []
+issue: 302
+---
+EOF
+# Anchored-read fixture: no frontmatter type:, but a BODY line that opens with `type:`. A
+# whole-file read (field()) would return the prose as the type; fm_field() must not.
+cat > "$untyped/active/0303-body-mentions-type.md" <<'EOF'
+---
+id: 303
+slug: body-mentions-type
+title: A change whose body opens a line with the type key
+status: in-progress
+priority: medium
+depends_on: []
+adrs: []
+issue: 303
+---
+
+## Why
+
+type: prose-not-frontmatter is what a whole-file read would wrongly return here.
+EOF
+untypedout="$(bash "$SCRIPT" --dry-run --changes-dir "$untyped" --repo o/r --metadata-branch docket \
+               --changes-path docs/changes 2>&1)"
+
+# Full metadata lines, held in variables so the eval'd assertion never re-parses the backticks.
+meta_typed='**status** `in-progress` · **priority** `high` · **type** `feat` · **#301**'
+meta_untyped='**status** `blocked` · **priority** `low` · **type** `untyped` · **#302**'
+meta_bodytype='**status** `in-progress` · **priority** `medium` · **type** `untyped` · **#303**'
+
+# 1. a real type reaches BOTH halves of the surface
+assert "typed change's issue body states its type" \
+  'grep -qF "**type** \`feat\`" <<<"$typedout"'
+assert "typed change self-provisions the docket:type/ label" \
+  'grep -qF "label create docket:type/feat" <<<"$typedout"'
+assert "typed change attaches the docket:type/ label to its issue" \
+  'grep -qF -- "--add-label docket:type/feat" <<<"$typedout"'
+
+# 2. an absent type reaches the BODY only — never the label set
+assert "un-backfilled change's issue body states type untyped" \
+  'grep -qF "**type** \`untyped\`" <<<"$untypedout"'
+assert "un-backfilled change mints NO docket:type/ label at all (not even untyped)" \
+  '! grep -qF "docket:type/" <<<"$untypedout"'
+
+# 3. the pre-existing segments/labels survived the printf format edit — VALUES, not just words,
+#    since a mis-ordered printf would still "contain" status/priority/type.
+assert "typed change's metadata line keeps status, priority, type and #id in that order with the right values" \
+  'grep -qF "$meta_typed" <<<"$typedout"'
+assert "untyped change's metadata line keeps status, priority, type and #id in that order with the right values" \
+  'grep -qF "$meta_untyped" <<<"$untypedout"'
+assert "status/priority labels are unchanged for the typed change" \
+  'grep -qF "docket:status/in-progress" <<<"$typedout" && grep -qF "docket:priority/high" <<<"$typedout"'
+assert "status/priority labels are unchanged for the untyped change" \
+  'grep -qF "docket:status/blocked" <<<"$untypedout" && grep -qF "docket:priority/low" <<<"$untypedout"'
+
+# 4. the read is ANCHORED to the first frontmatter block — body prose is never a type
+assert "a body line opening with type: does not become the type (anchored read)" \
+  'grep -qF "$meta_bodytype" <<<"$untypedout"'
+assert "a body line opening with type: never leaks into the metadata line as a value" \
+  '! grep -qF "**type** \`prose-not-frontmatter" <<<"$untypedout"'
+rm -rf "$typed" "$untyped"
+
 # Exhaustive mappings stay as cases, but their arm sets are pinned to the declared vocabulary.
 # Sparse mappings such as readiness_label are intentionally not pinned: syntax cannot decide
 # exhaustiveness. A vocabulary with no array gets one first (the BOARD_CHECK_IDS precedent).

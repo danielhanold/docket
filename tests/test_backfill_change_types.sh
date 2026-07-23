@@ -84,7 +84,18 @@ refuses "conflicting overwrite"     "1=fix,2=docs,4=chore,3=chore"
 refuses "an archived id"            "1=fix,2=docs,4=chore,9=chore"
 refuses "malformed entry, no ="     "1=fix,2docs,4=chore"
 refuses "empty type"                "1=,2=docs,4=chore"
-refuses "control character in type" "1=$(printf 'fix\ntrivial: true'),2=docs,4=chore"
+# --- control characters in --map ---------------------------------------------
+# The mapping is ONE physical line by contract: `IFS=',' read -r -a` consumes a SINGLE line, so an
+# embedded newline silently discards every assignment after it — the validation for those entries
+# included. Rejecting the shape before the split is what makes the loss visible.
+#
+# The old test here passed for the wrong reason: `1=$(printf 'fix\ntrivial: true'),2=docs,4=chore`
+# was truncated by `read` down to `1=fix`, so it died on `incomplete mapping` and never reached any
+# control-character guard at all. It is now split into the three shapes below, each pinned to the
+# diagnostic it actually produces.
+refuses "a newline between --map entries"   "$(printf '1=fix,\n2=docs,4=chore')"
+refuses "a newline inside a type token"     "$(printf '1=fix,2=docs,4=ch\nore')"
+refuses "a tab inside a type token"         "$(printf '1=fix\ttrivial: true,2=docs,4=chore')"
 
 # Each refusal above asserts only "non-zero exit + nothing written", which several INDEPENDENT
 # mechanisms can satisfy — the conflicting-overwrite case, for instance, is also caught downstream
@@ -104,6 +115,112 @@ diag "partial mapping"       "1=fix"                        "incomplete mapping"
 diag "duplicate assignment"  "1=fix,1=docs,2=docs,4=chore"  "duplicate assignment"
 diag "reserved type"         "1=all,2=docs,4=chore"         "reserved value"
 diag "malformed type"        "1=Fix,2=docs,4=chore"         "must match"
+# The map-level control-character guard, pinned to its OWN message so the newline cases above can
+# never again be satisfied by `incomplete mapping` (which is what the truncation itself produced).
+diag "a newline between --map entries" "$(printf '1=fix,\n2=docs,4=chore')" \
+  "--map contains a control character"
+diag "a newline inside a type token"   "$(printf '1=fix,2=docs,4=ch\nore')" \
+  "--map contains a control character"
+# NOTE (verified against this script, 2026-07-22): a NON-newline control character cannot reach the
+# per-type `type for id N contains control characters` guard either. Every type token is a substring
+# of $MAP, so any control character in a type is by construction a control character in $MAP and is
+# caught by the map-level guard first — a tab, vertical tab, CR, FF and BEL were all checked. That
+# per-type guard is therefore unreachable defence-in-depth (and doubly redundant: the `[a-z][a-z0-9-]*`
+# shape gate rejects the same tokens). It is pinned here to the diagnostic that DOES fire; deleting
+# the per-type guard is not observable from outside the script, so no assert can hold it in place.
+diag "a tab inside a type token"       "$(printf '1=fix\ttrivial: true,2=docs,4=chore')" \
+  "--map contains a control character"
+
+# The WORST case the map-level guard exists for: the break lands INSIDE the final type token. Before
+# the guard this exited 0 having written `type: ch` — the completeness check still passed (id 4 WAS
+# assigned, just to a truncated value), --dry-run reported it identically to a correct run, and the
+# overwrite guard then refused to repair the wrong value. Pin both halves: the refusal, and the
+# absence of the truncated value.
+dnl="$tmp/newline-worst"; mkfix "$dnl"
+bash "$SCRIPT" --changes-dir "$dnl" --map "$(printf '1=fix,2=docs,4=ch\nore')" >/dev/null 2>&1
+nlrc=$?
+assert "newline: a break inside the FINAL type token is refused, not silently truncated" \
+  '[ "$nlrc" -ne 0 ]'
+assert "newline: the truncated type 'ch' is never written" \
+  '[ -z "$(fm_type "$dnl/active/0004-d.md")" ]'
+assert "newline: the assignments before the break are not written either" \
+  '[ -z "$(fm_type "$dnl/active/0001-a.md")" ] && [ -z "$(fm_type "$dnl/active/0002-b.md")" ]'
+
+# --- zero-padded ids ---------------------------------------------------------
+# `0004` and `4` name the same change. Filenames (`0004-d.md`) and BOARD.md rows both show the
+# PADDED form, so that is what an operator or an agent composing the map copies, while `id:`
+# frontmatter carries the bare integer. Keying the two sides differently made a live active change
+# report as "id 0001 is not an active change (archived records are never reclassified)" — a
+# diagnostic that names the one thing that was NOT wrong. Both sides canonicalize now.
+dpad="$tmp/padded"; mkfix "$dpad"
+dbare="$tmp/bare";  mkfix "$dbare"
+bash "$SCRIPT" --changes-dir "$dbare" --map "1=fix,2=docs,4=chore" >/dev/null 2>&1
+padout="$(bash "$SCRIPT" --changes-dir "$dpad" --map "0001=fix,0002=docs,0004=chore" 2>&1)"
+padrc=$?
+assert "padded ids: a zero-padded map exits 0"   '[ "$padrc" -eq 0 ]'
+assert "padded ids: it is not misreported as inactive" \
+  '! grep -q "not an active change" <<<"$padout"'
+assert "padded ids: id 0001 is typed"            '[ "$(fm_type "$dpad/active/0001-a.md")" = fix ]'
+assert "padded ids: id 0002 is typed"            '[ "$(fm_type "$dpad/active/0002-b.md")" = docs ]'
+assert "padded ids: 0004's empty placeholder is filled" \
+  '[ "$(fm_type "$dpad/active/0004-d.md")" = chore ]'
+assert "padded ids: the padded map lands exactly what the bare map lands" \
+  'diff -r "$dpad/active" "$dbare/active" >/dev/null'
+# The other side of the same coin: a change file whose OWN frontmatter carries a zero-padded `id:`
+# (a shape board-checks.sh tolerates) must still be addressable by the bare id. Canonicalizing only
+# the --map side would just move the mismatch, not remove it.
+dfmp="$tmp/fm-padded"; mkdir -p "$dfmp/active" "$dfmp/archive"
+printf -- '---\nid: 0007\nslug: g\ntitle: G\nstatus: proposed\npriority: low\n---\n\n## Why\nx\n' \
+  > "$dfmp/active/0007-g.md"
+assert "padded ids: a padded frontmatter id: is addressable by its bare id" \
+  'bash "$SCRIPT" --changes-dir "$dfmp" --map "7=feat" >/dev/null 2>&1'
+assert "padded ids: ...and the type lands in that file" \
+  '[ "$(fm_type "$dfmp/active/0007-g.md")" = feat ]'
+
+# Canonicalizing must not blanket-suppress the guard: a padded id that is genuinely absent from
+# active/ still gets the real diagnostic (reported in its canonical bare form).
+refuses "a padded but absent id" "1=fix,2=docs,4=chore,0077=docs"
+diag    "a padded but absent id" "1=fix,2=docs,4=chore,0077=docs" "77 is not an active change"
+
+# --- install-phase rollback --------------------------------------------------
+# Staging protects the REWRITE phase only. The install itself is a loop of `mv`, and a bare loop is
+# NOT all-or-none: a failure at file k leaves 1..k-1 installed and k..N not — exactly the
+# half-migrated backlog the contract, and the documented exit-code semantics ("install failure.
+# Nothing was installed."), promise is impossible. So the install carries its own undo, and the
+# property to pin is the strong one: after a MID-LOOP failure every active file is byte-identical
+# to its pre-run state.
+#
+# The failure is forced from outside the script, on the real `mv`: the stage installs in glob order
+# (0001, 0002, 0004), so making 0002's destination immutable fails the SECOND mv — after 0001 has
+# already landed and before 0004 has. TMPDIR is redirected under the fixture so the script's own
+# scratch dir (whose rollback copies inherit the immutable flag) is cleaned up with it.
+drb="$tmp/rollback"; mkfix "$drb"; mkdir -p "$drb/tmpdir"
+rb1="$(cat "$drb/active/0001-a.md")"; rb2="$(cat "$drb/active/0002-b.md")"
+rb3="$(cat "$drb/active/0003-c.md")"; rb4="$(cat "$drb/active/0004-d.md")"
+rbarc="$(arc_hash "$drb")"
+if chflags uchg "$drb/active/0002-b.md" 2>/dev/null; then
+  # Clear the flag before the tree is removed, however this script exits.
+  trap 'chflags -R nouchg "$drb" 2>/dev/null; rm -rf "$tmp"' EXIT
+  rberr="$(TMPDIR="$drb/tmpdir" bash "$SCRIPT" --changes-dir "$drb" \
+             --map "1=fix,2=docs,4=chore" 2>&1 >/dev/null)"
+  rbrc=$?
+  chflags nouchg "$drb/active/0002-b.md" 2>/dev/null
+  assert "rollback: a mid-install failure exits non-zero" '[ "$rbrc" -ne 0 ]'
+  assert "rollback: the failure names the file and says it rolled back" \
+    'grep -q "install failed for 0002-b.md" <<<"$rberr" && grep -q "rolled back" <<<"$rberr"'
+  assert "rollback: the file installed BEFORE the failure is restored to its pre-run bytes" \
+    '[ "$(cat "$drb/active/0001-a.md")" = "$rb1" ]'
+  assert "rollback: the file the install failed ON is unchanged" \
+    '[ "$(cat "$drb/active/0002-b.md")" = "$rb2" ]'
+  assert "rollback: the files AFTER the failure are unchanged" \
+    '[ "$(cat "$drb/active/0003-c.md")" = "$rb3" ] && [ "$(cat "$drb/active/0004-d.md")" = "$rb4" ]'
+  assert "rollback: the archive is byte-identical" '[ "$(arc_hash "$drb")" = "$rbarc" ]'
+  assert "rollback: no rollback-failure warning was emitted" \
+    '! grep -q "rollback failed" <<<"$rberr"'
+else
+  # No way to make one destination unwritable here (root, or a filesystem without chflags).
+  echo "skip - rollback: cannot make an install destination unwritable in this environment"
+fi
 
 # --- dry run -----------------------------------------------------------------
 d3="$tmp/dry"; mkfix "$d3"; snap3="$(cat "$d3/active/0001-a.md")"
