@@ -2,11 +2,11 @@
 id: 127
 slug: typed-changes-selective-auto-capture
 title: Typed changes — configurable taxonomy, selective auto-capture, and backlog filters
-status: implemented
+status: done
 priority: high
 type: feat
 created: 2026-07-22
-updated: 2026-07-22
+updated: 2026-07-23
 depends_on: []
 related: [90, 91, 94, 124]
 discovered_from: []
@@ -17,7 +17,7 @@ results: docs/results/2026-07-22-typed-changes-selective-auto-capture-results.md
 trivial: false
 auto_groomable:
 branch: feat/typed-changes-selective-auto-capture
-claimed_at: 2026-07-22T22:03:13Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/123
 blocked_by:
 reconciled: true
