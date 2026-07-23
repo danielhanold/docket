@@ -10,6 +10,7 @@ One curated finding per file; this index is the hint surface. Load it, then read
 
 - [config-knob-ship-end-to-end](config-knob-ship-end-to-end.md) — A new config knob is not done when it merely works — ship the sample config, the README, and the now-relaxed prose in the same change. · also: docs, ux
 - [config-layer-write-and-read-hazards](config-layer-write-and-read-hazards.md) — A new config layer brings two hazards — a shared-location write turns read-leaking tests into data-loss, and a lower-precedence read can be shadowed by a generated artifact. · also: testing, precedence
+- [config-shape-change-strands-outer-layers](config-shape-change-strands-outer-layers.md) — A repo-committed config migration cannot reach the machine-local and global layers — change an existing key's SHAPE with no shim and every install with an override breaks the moment the PR merges. · also: migration, compat
 - [opt-in-signal-not-file-presence](opt-in-signal-not-file-presence.md) — Gate output-generating behavior on an explicit opt-in key, never on the mere presence of the config file. · also: adoption, compat
 
 ## design
@@ -74,6 +75,10 @@ One curated finding per file; this index is the hint surface. Load it, then read
 ## ux
 
 - [printed-remedy-state-validity](printed-remedy-state-validity.md) — A remedy command you print for a user to run verbatim must be valid in the exact repo state that produced it. · also: remedies, migration
+
+## yaml
+
+- [frontmatter-anchored-read](frontmatter-anchored-read.md) — A first-match-anywhere field read is safe only for keys that are ALWAYS present — for an optional key it falls through into the body and returns prose. · also: frontmatter, reads ⟨needs promotion⟩
 
 ## Promoted
 

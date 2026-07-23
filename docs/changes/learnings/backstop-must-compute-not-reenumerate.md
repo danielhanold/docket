@@ -2,9 +2,9 @@
 slug: backstop-must-compute-not-reenumerate
 hook: "A backstop that re-enumerates the causes it backs up is a fourth restatement wearing the word invariant — derive its predicate from the real consumer, and mutation-test its POPULATION, not only its suppression."
 topics: [testing, guards, invariants]
-changes: [104]
+changes: [104, 127]
 created: 2026-07-20
-updated: 2026-07-20
+updated: 2026-07-23
 promotion_state: candidate
 promoted_to:
 ---
@@ -56,3 +56,17 @@ it is the last line).
   drop a row — so a future drop path would have been silenced by an unrelated pipe in some change's
   title. Both found by the **whole-branch review, after five per-task reviews had passed with a
   green suite**.
+- 2026-07-23 (#127, PR #123 — the same rule, applied to a uniqueness guard) — the sample-config
+  guard forbade duplicate leaf key names outright, and the new `auto_capture.enabled` collided with
+  the existing `learnings.enabled`. Neither available reflex was right: renaming the leaf distorts
+  the schema to satisfy a test, and weakening the guard drops a real protection. The floor was
+  instead **re-derived from the consumer's read shape** — `yaml_get`'s `head -n1` means only the
+  *flat-read* keys (every top-level key plus the `finalize.*` leaves) can be shadowed by a duplicate,
+  while block-scoped leaves are read inside their own `yaml_block_body` and are genuinely
+  unambiguous — so keys are now qualified by full ancestor path and only the flat-read set must be
+  globally unique. Recorded as **ADR-0056**. Same lesson in a new place: a guard's population comes
+  from what the consuming code actually does, never from the shape that was easiest to assert. Same
+  change also produced a textbook vacuous guard — the backfill's refusal cases asserted only
+  "non-zero exit + nothing written", so deleting the conflicting-overwrite guard left the block
+  green because a downstream post-write verification caught it too; each refusal is now pinned to
+  its **own diagnostic**. See [[guards-are-code]].
