@@ -167,6 +167,7 @@ for f in "${FILES[@]}"; do
   # arms would mean an unrelated pipe in a change's title silences the backstop on a row that
   # genuinely vanished for some other reason — the false-suppression failure the design warns about.
   fd_slug="$(field "$f" slug)"; fd_priority="$(field "$f" priority)"; fd_title="$(field "$f" title)"
+  fd_type="$(fm_field "$f" type)"   # anchored: type may be ABSENT, so field() would read body prose
 
   status_ok=0
   for fd_s in "${DOCKET_STATUSES[@]}"; do
@@ -194,6 +195,22 @@ for f in "${FILES[@]}"; do
   case "$fd_title" in
     *'|'*) emit field-domain "$cid" "title contains '|', which injects columns into the board row: $fd_title" ;;
   esac
+
+  # `type` is rendered into every active board row (change 0127), so it needs the same
+  # column-injection guard `title` has — without it a `|`-bearing value silently widened that row
+  # of BOARD.md and nothing flagged it. The domain half checks SHAPE, not membership in the
+  # configured taxonomy: render-board deliberately renders a type this machine does not configure
+  # ("configuration governs CREATION, never the readability of shared history") and the --type
+  # filter validates the same way, so a membership check here would report another machine's
+  # legitimate type as a finding — the guard would become the noise source. Empty is LEGAL: it
+  # renders as `untyped`, which is the state the migration exists to drain.
+  if [ -n "$fd_type" ]; then
+    case "$fd_type" in
+      *'|'*) emit field-domain "$cid" "type contains '|', which injects columns into the board row: $fd_type" ;;
+      *) docket_change_type_is_wellformed "$fd_type" \
+           || emit field-domain "$cid" "type '$fd_type' is not ^[a-z][a-z0-9-]*\$ (empty = untyped)" ;;
+    esac
+  fi
 
   # --- broken-spec: spec set, not trivial, path absent on the metadata branch ---
   if [ -n "$spec" ] && [ "$trivial" != "true" ]; then

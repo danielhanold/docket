@@ -224,6 +224,29 @@ if [ -e "$LCFG" ] && { [ ! -f "$LCFG" ] || [ ! -r "$LCFG" ]; }; then
 fi
 lcl(){ yaml_get "$LCFG" "$1"; }   # local-layer scalar read (empty when absent)
 
+# parse_inline_list RAW -> normalized space-separated tokens on stdout.
+# Strips one enclosing `[ ]`, treats commas as separators, collapses whitespace runs, trims the
+# ends. `[]` and `[ ]` normalize to the empty string, which every caller checks for.
+#
+# Single source for all three inline-list keys (board_surfaces, change_types, auto_capture.types):
+# the earlier per-key copies each spelled the same bracket/comma surgery inline, so a fix to one
+# never reached the others.
+#
+# It normalizes WITHOUT word-splitting, deliberately. The previous spelling ended in an unquoted
+# `$(echo $body)`; with no `set -f` in effect that pathname-expands, so `change_types: [f*]`
+# resolved the taxonomy from FILENAMES IN THE RESOLVER'S CWD — the same committed config produced
+# a different taxonomy on different machines, silently, because every expanded lowercase filename
+# passes the well-formedness check downstream. sync-agents.sh already disables globbing for
+# externally-sourced tokens for exactly this reason; using `tr` instead of a split means there is
+# no expansion step to guard in the first place. Callers iterate via `read -r -a`, which also
+# never globs.
+parse_inline_list(){ # parse_inline_list RAW -> normalized tokens
+  local body="${1#[}"; body="${body%]}"; body="${body//,/ }"
+  body="$(printf '%s' "$body" | tr -s '[:space:]' ' ')"
+  body="${body# }"; body="${body% }"
+  printf '%s' "$body"
+}
+
 # --- Stage 2c: fail-loud guards + the coordination-key fence (change 0050) ----
 # Misplacement: a global .docket.yml is NEVER read — the global file is config.yml.
 if [ -e "$GCFG_DIR/.docket.yml" ]; then
@@ -353,21 +376,21 @@ fi
 if [ -z "$bs_raw" ]; then
   BOARD_SURFACES="inline"                                  # unset in all layers => default [inline]
 else
-  bs="${bs_raw#[}"; bs="${bs%]}"; bs="${bs//,/ }"
-  BOARD_SURFACES="$(echo $bs)"                             # trim/collapse; "[]" => ""
+  BOARD_SURFACES="$(parse_inline_list "$bs_raw")"          # trim/collapse; "[]" => ""
   # The github token is per-repo-only when it arrives from a MACHINE-scoped layer (local or
   # global): it mints issues + a Projects board (external objects, not self-healing). Per-repo
   # github is honored.
   if [ "$bs_machine" -eq 1 ] && [ -n "$BOARD_SURFACES" ]; then
     _filtered=""
-    for _tok in $BOARD_SURFACES; do
+    read -r -a _bs_arr <<< "$BOARD_SURFACES"
+    for _tok in "${_bs_arr[@]}"; do
       if [ "$_tok" = github ]; then
         printf 'docket-config: warning: board_surfaces token github is per-repo-only (mints external GitHub objects) — set it in the committed .docket.yml; ignored\n' >&2
       else
         _filtered="$_filtered $_tok"
       fi
     done
-    BOARD_SURFACES="$(echo $_filtered)"
+    BOARD_SURFACES="$(parse_inline_list "$_filtered")"
   fi
 fi
 # Change 0071 — the positive sentinel. BOARD_SURFACES is NEVER emitted empty. `board_surfaces: []`
@@ -482,18 +505,18 @@ ct_raw="$(lcl change_types)"
 if [ -z "$ct_raw" ]; then
   CHANGE_TYPES="${DOCKET_CHANGE_TYPES_DEFAULT[*]}"
 else
-  ct_body="${ct_raw#[}"; ct_body="${ct_body%]}"; ct_body="${ct_body//,/ }"
-  CHANGE_TYPES="$(echo $ct_body)"                  # trim/collapse; "[]" => ""
+  CHANGE_TYPES="$(parse_inline_list "$ct_raw")"    # trim/collapse; "[]" => ""
   [ -n "$CHANGE_TYPES" ] \
     || die "unparseable config: change_types must be a non-empty list, got '$ct_raw'"
-  for ct_tok in $CHANGE_TYPES; do
+  read -r -a ct_arr <<< "$CHANGE_TYPES"
+  for ct_tok in "${ct_arr[@]}"; do
     if docket_change_type_is_reserved "$ct_tok"; then
       die "unparseable config: change_types must not contain the reserved value '$ct_tok' (a selector/query pseudo-value, never a real type)"
     fi
     docket_change_type_is_wellformed "$ct_tok" \
       || die "unparseable config: change_types entry '$ct_tok' must match [a-z][a-z0-9-]*"
   done
-  ct_dupes="$(printf '%s\n' $CHANGE_TYPES | sort | uniq -d | tr '\n' ' ')"
+  ct_dupes="$(printf '%s\n' "${ct_arr[@]}" | sort | uniq -d | tr '\n' ' ')"
   [ -z "${ct_dupes// /}" ] \
     || die "unparseable config: change_types has duplicate entries: ${ct_dupes% }"
 fi
@@ -526,6 +549,33 @@ ac_key(){  # ac_key <leaf> <default> -> resolved value on stdout
   [ -n "$v" ] || v="$(yaml_get "$GAC_BLK" "$1")"
   printf '%s' "${v:-$2}"
 }
+# ct_effective_at LAYER -> the change_types an author writing AT that layer could see: their own
+# layer when it sets the key, else the layers BELOW them in precedence, else the built-in default.
+#
+# The auto_capture.types membership check below is evaluated against THIS, not against the globally
+# effective CHANGE_TYPES. The two keys resolve through independent chains — change_types by
+# WHOLE-LIST replacement, types per-leaf inside the block — so a higher layer that narrows
+# change_types without also restating types would otherwise invalidate a LOWER layer's perfectly
+# valid block. That was not hypothetical: .docket.example.yml advertises whole-list replacement as
+# the way to remove a built-in value, and separately advertises per-leaf inheritance of `types`;
+# composing the two documented features aborted the resolver, and since every skill's Step 0 runs
+# `docket.sh preflight`, one machine-local narrowing bricked docket on that machine entirely —
+# even with auto_capture.enabled: false, where the leaf governs nothing. Validating each layer
+# against what its own author could see keeps a genuine SAME-layer inconsistency an error while
+# letting independently-valid layers compose.
+ct_effective_at(){ # ct_effective_at local|committed|global -> normalized change_types
+  local raw=""
+  case "$1" in
+    local)     raw="$(lcl change_types)"
+               [ -n "$raw" ] || raw="$(yaml_get "$CFG" change_types)"
+               [ -n "$raw" ] || raw="$(gbl change_types)" ;;
+    committed) raw="$(yaml_get "$CFG" change_types)"
+               [ -n "$raw" ] || raw="$(gbl change_types)" ;;
+    global)    raw="$(gbl change_types)" ;;
+  esac
+  if [ -z "$raw" ]; then printf '%s' "${DOCKET_CHANGE_TYPES_DEFAULT[*]}"
+  else parse_inline_list "$raw"; fi
+}
 AUTO_CAPTURE_ENABLED="$(ac_key enabled false)"
 case "$AUTO_CAPTURE_ENABLED" in
   true|false) ;;
@@ -536,15 +586,23 @@ esac
 AUTO_CAPTURE_TYPES="$(ac_key types all)"
 if [ "$AUTO_CAPTURE_TYPES" != all ]; then
   act_raw="$AUTO_CAPTURE_TYPES"
-  act_body="${act_raw#[}"; act_body="${act_body%]}"; act_body="${act_body//,/ }"
-  AUTO_CAPTURE_TYPES="$(echo $act_body)"
+  AUTO_CAPTURE_TYPES="$(parse_inline_list "$act_raw")"
   [ -n "$AUTO_CAPTURE_TYPES" ] \
     || die "unparseable config: auto_capture.types must be 'all' or a non-empty list, got '$act_raw'"
-  for act_tok in $AUTO_CAPTURE_TYPES; do
-    docket_change_type_is_member "$act_tok" $CHANGE_TYPES \
-      || die "unparseable config: auto_capture.types entry '$act_tok' is not in the effective change_types ($CHANGE_TYPES)"
+  # Which layer supplied `types`? Same precedence ac_key resolved it with.
+  ac_types_layer=local
+  if   [ -n "$(yaml_get "$LAC_BLK" types)" ]; then ac_types_layer=local
+  elif [ -n "$(yaml_get "$AC_BLK"  types)" ]; then ac_types_layer=committed
+  elif [ -n "$(yaml_get "$GAC_BLK" types)" ]; then ac_types_layer=global
+  fi
+  ct_visible="$(ct_effective_at "$ac_types_layer")"
+  read -r -a ctv_arr <<< "$ct_visible"
+  read -r -a act_arr <<< "$AUTO_CAPTURE_TYPES"
+  for act_tok in "${act_arr[@]}"; do
+    docket_change_type_is_member "$act_tok" "${ctv_arr[@]}" \
+      || die "unparseable config: auto_capture.types entry '$act_tok' is not in the change_types visible to the $ac_types_layer layer ($ct_visible)"
   done
-  act_dupes="$(printf '%s\n' $AUTO_CAPTURE_TYPES | sort | uniq -d | tr '\n' ' ')"
+  act_dupes="$(printf '%s\n' "${act_arr[@]}" | sort | uniq -d | tr '\n' ' ')"
   [ -z "${act_dupes// /}" ] \
     || die "unparseable config: auto_capture.types has duplicate entries: ${act_dupes% }"
 fi

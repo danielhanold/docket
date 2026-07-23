@@ -32,8 +32,15 @@ while [ $# -gt 0 ]; do
     --changes-dir) CHANGES_DIR="$2"; shift ;;
     --repo) REPO="$2"; shift ;;
     --format) FORMAT="$2"; shift ;;
-    --type) FILTER_TYPE="$2"; shift ;;
-    --priority) FILTER_PRIORITY="$2"; shift ;;
+    --type|--priority)
+      # Guard the arity: without it a trailing `--type` reads an unset $2 under `set -u` and dies
+      # with a raw "unbound variable" trace instead of the documented exit-2 argument error.
+      [ $# -ge 2 ] || { printf 'render-board: %s requires a value\n' "$1" >&2; exit 2; }
+      case "$1" in
+        --type)     FILTER_TYPE="$2" ;;
+        --priority) FILTER_PRIORITY="$2" ;;
+      esac
+      shift ;;
     -h|--help) grep '^#' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) printf 'render-board: unknown argument: %s\n' "$1" >&2; exit 2 ;;
   esac
@@ -79,7 +86,13 @@ digest_admits(){
     [ "$t" = "$FILTER_TYPE" ] || return 1
   fi
   if [ "$FILTER_PRIORITY" != all ]; then
-    p="$(field "$1" priority)"; p="${p:-$DOCKET_PRIORITY_DEFAULT}"
+    p="$(field "$1" priority)"
+    # Substitute the default for an UNRECOGNIZED value, not merely an absent one, because
+    # docket_priority_rank does exactly that when it sorts. Admitting only on an exact string
+    # match made the two disagree: a change carrying `priority: Medium` sorts into the medium band
+    # in the unfiltered queue, yet matched NO --priority value — not even `medium` — so it was
+    # reachable only via `--priority all`, and any narrowed selection silently dropped it.
+    docket_priority_is_member "$p" || p="$DOCKET_PRIORITY_DEFAULT"
     [ "$p" = "$FILTER_PRIORITY" ] || return 1
   fi
   return 0
