@@ -1,8 +1,8 @@
 # Backlog
 
-**134 changes** — 🟡 27 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 99 done · 🗑️ 6 killed
+**135 changes** — 🟡 28 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 99 done · 🗑️ 6 killed
 
-## 🟡 Proposed (27)
+## 🟡 Proposed (28)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -33,6 +33,7 @@
 | [0131](active/0131-make-board-conflict-rebase-continuation-noninteractive.md) | Make board-conflict rebase continuation noninteractive | `medium` | `fix` | needs-brainstorm |
 | [0133](active/0133-centralize-runtime-config-helpers.md) | Centralize shared Bash runtime configuration helpers | `medium` | `refactor` | build-ready |
 | [0134](active/0134-audit-field-call-sites-for-frontmatter-anchored-reads.md) | Audit field() call sites for frontmatter-anchored reads | `medium` | `fix` | needs-brainstorm |
+| [0135](active/0135-cursor-agent-wrapper-contract.md) | "Generated Cursor wrappers violate Cursor's subagent contract, disabling skills and model effort" | `high` | `fix` | needs-brainstorm |
 
 ## 🔴 Blocked (1)
 
@@ -77,6 +78,7 @@ graph TD
   0131
   0133
   0134
+  0135
   0015:::done
   0016:::done
   0077:::done
