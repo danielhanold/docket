@@ -17,6 +17,7 @@ What you get:
 - [How it works](#how-it-works)
 - [Why docket](#why-docket)
 - [Install](#install)
+- [Updating docket](#updating-docket)
 - [Quickstart: the daily loop](#quickstart-the-daily-loop)
 - [Configuration — `.docket.yml`, global config, and machine-local overrides](#configuration--docketyml-global-config-and-machine-local-overrides)
 - [docket-mode: where metadata lives](#docket-mode-where-metadata-lives)
@@ -123,7 +124,8 @@ bash ~/dev/docket/install.sh
 That is the whole install. `install.sh` discovers an absolute Bash 4+ interpreter (Homebrew first,
 then standard Homebrew locations, then an absolute PATH result), validates it with `--version`,
 and persists it as `runtime.bash`. It runs four primitives in order and is idempotent —
-re-run it any time (after adding a harness, or after editing `~/.config/docket/config.yml`):
+re-run it any time (after adding a harness, after editing `~/.config/docket/config.yml`, and after
+every version update — see [Updating docket](#updating-docket)):
 
 - **`link-skills.sh`** creates absolute symlinks from each present harness's global skill directory back to `~/dev/docket/skills/<name>`. It links into harnesses that already exist on your machine, creating the `skills/` subdirectory when the harness itself is present but that subdirectory is missing, and never creates a harness you don't use. Because skills are symlinks, editing one in the repo takes effect everywhere immediately.
 - **`ensure-global-config.sh`** discovers, validates, and persists the one managed `runtime.bash` value in `~/.config/docket/config.yml` while preserving unrelated user content. It also adds a pointer to [`.docket.example.yml`](.docket.example.yml), docket's canonical reference for every key and its default (see step 2).
@@ -147,6 +149,26 @@ The canonical reference for every key is [`.docket.example.yml`](.docket.example
 See [Configuration](#configuration--docketyml-global-config-and-machine-local-overrides) for the layer model.
 
 The change data — `docs/changes/`, `docs/adrs/`, `docs/results/` — lives in each consuming project, not in the docket repo itself. To adopt docket in an *existing* repo, run `migrate-to-docket.sh` from inside that repo — a separate step from this machine install (see [Migration](#migration)).
+
+---
+
+## Updating docket
+
+**Every time you pull a new version — a `git pull` on `main` or a checked-out release tag — re-run `install.sh`.** It is the catch-all: it applies whatever the new version needs on your machine, and it is idempotent, so running it when nothing changed is a no-op.
+
+```bash
+cd ~/dev/docket
+git fetch --tags && git pull        # or: git checkout v0.8.0
+bash ~/dev/docket/install.sh        # always — not only when something looks broken
+```
+
+Pulling alone is **not** enough. Skills are symlinks, so those do update the moment you pull — but the rest of docket's on-disk footprint is generated or persisted, and only `install.sh` refreshes it:
+
+- **Agent wrappers are generated copies**, not symlinks — they bake in the resolved model and effort. A version that adds a subagent, renames one, or changes a pin lands only when `sync-agents.sh` re-runs.
+- **New harness support**, and any harness you installed since last time, gets its `skills/` symlinks and `agents/` wrappers only on the next `link-skills.sh` / `sync-agents.sh` pass.
+- **Managed config and env** — the validated `runtime.bash` in `~/.config/docket/config.yml`, and the `DOCKET_SCRIPTS_DIR` / `DOCKET_BASH_PATH` exports in your shell profile and Claude Code's user-level `settings.json` — are back-filled by `ensure-global-config.sh` and `ensure-docket-env.sh`.
+
+Re-running it is **in addition to** anything the release notes call for, never a substitute. A release may also carry a per-repo step — a `migrate-to-docket.sh` run, a `.docket.yml` key to add, a remedy commit to land — and those are listed in the notes for that version. Do the machine-level `install.sh` first, then the per-repo steps.
 
 ---
 
