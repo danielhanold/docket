@@ -541,6 +541,57 @@ printf -- '---\nid: 60\nslug: archived\ntitle: Archived\nstatus: done\npriority:
 gout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$G/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
 assert "field-domain silent for a terminal status in archive/ (id 60)" '! has_finding "$gout" field-domain 60'
 
+# ----------------------- field-domain: `type` (change 0127) -----------------------
+# `type` is rendered into every active board row, so it needs the same column-injection guard
+# `title` has: a `|` in it silently widens that row of BOARD.md. The DOMAIN half deliberately
+# checks SHAPE (^[a-z][a-z0-9-]*$), never membership in the configured taxonomy — render-board
+# renders a type this machine does not configure on purpose ("configuration governs CREATION,
+# never the readability of shared history"), so a membership check here would report another
+# machine's legitimate type as a finding and turn the guard into the noise source. Empty is
+# LEGAL: it renders as `untyped`, the state the migration exists to drain, and flagging it would
+# fire on every un-backfilled change.
+read -r T _ < <(new_repo)
+mk_ft(){ # mk_ft FILE-BASENAME ID SLUG [TYPE] — TYPE omitted/empty ⇒ NO frontmatter `type:` line
+  local tl=""
+  [ -n "${4-}" ] && tl="type: $4"$'\n'
+  printf -- '---\nid: %s\nslug: %s\ntitle: Typed change\nstatus: proposed\npriority: medium\ndepends_on: []\n%s---\n' \
+    "$2" "$3" "$tl" > "$T/docs/changes/active/$1"
+}
+mk_ft 0050-pipetype.md  50 pipetype  "feat | fix"
+mk_ft 0051-uppertype.md 51 uppertype "Feat"
+mk_ft 0052-goodtype.md  52 goodtype  "feat"
+mk_ft 0053-notype.md    53 notype
+mk_ft 0054-spiketype.md 54 spiketype "spike"
+# No frontmatter `type:` at all, but the BODY opens a line with `type:` carrying a pipe. The read
+# is ANCHORED to the first ---...--- block (fm_field), so this must stay silent; an unanchored
+# field() would fall through and return the prose as the type.
+mk_ft 0055-bodytype.md  55 bodytype
+cat >> "$T/docs/changes/active/0055-bodytype.md" <<'EOF'
+
+## Notes
+type: something | weird
+EOF
+tout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$T/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+
+assert "field-domain fires for a type containing a pipe (id 50)" 'has_finding "$tout" field-domain 50'
+assert "the type finding names the pipe as the board-row column-injection hazard (id 50)" \
+  'printf "%s" "$tout" | grep -E "$(printf "^field-domain\t50\t")" | grep -qF "type contains '\''|'\'', which injects columns into the board row"'
+assert "field-domain fires for a malformed type shape (id 51, uppercase)" 'has_finding "$tout" field-domain 51'
+assert "the malformed-type finding quotes the value and names the shape (id 51)" \
+  'printf "%s" "$tout" | grep -E "$(printf "^field-domain\t51\t")" | grep -qF "type '\''Feat'\'' is not ^[a-z][a-z0-9-]*\$"'
+assert "field-domain SILENT for a well-formed type (id 52)" '! has_finding "$tout" field-domain 52'
+# The assert that stops the guard becoming a noise source: an ABSENT type: is legal (renders as
+# `untyped`), so every un-backfilled change during the migration must stay quiet.
+assert "field-domain SILENT for an ABSENT type (id 53, empty = untyped)" \
+  '! has_finding "$tout" field-domain 53'
+# SHAPE, not membership: `spike` is well-formed but not in DOCKET_CHANGE_TYPES_DEFAULT. Tightening
+# this guard into a taxonomy-membership check turns this assert red — which is the point.
+assert "field-domain SILENT for a well-formed type OUTSIDE the configured taxonomy (id 54, spike)" \
+  '! has_finding "$tout" field-domain 54'
+# The anchored read: body prose beginning `type:` is not a frontmatter value.
+assert "field-domain SILENT for a piped 'type:' line in the BODY of an untyped change (id 55, anchored read)" \
+  '! has_finding "$tout" field-domain 55'
+
 # ======================= board-row-dropped (change 0104, spec part 2) =======================
 # The invariant: an ACTIVE file counted in render-board.sh's `total` but rendered in no section.
 # The trigger is COMPUTED (renders_row mirrors the renderer's bucketing), not enumerated per drop

@@ -3130,4 +3130,120 @@ assert "--help mentions --priority" '"$SCRIPT" --help 2>&1 | grep -q -- "--prior
   "$SCRIPT" --board-only --type "Bogus" >/dev/null 2>&1)
 assert "0127: an invalid filter fails closed on --board-only too" '[ "$?" -ne 0 ]'
 
+# ── 0127 review fixes: empty-string is not "unset", arity is guarded, --help is not truncated ──
+# Reuses the --digest-only fixture above ($dg/work, changes 0050 high + 0051 critical, both
+# untyped), so a filter that admits everything must print `ready 51 50` and one that admits
+# nothing must print a bare `ready`.
+
+# --- (A) `--type ""` / `--priority ""` are PROVIDED values, not absent flags -------------------
+# The guards used to read `[ -n "$TYPE_FLAG" ] && ...`, which conflated "empty" with "not given":
+# `--type ""` skipped BOTH the validation above AND the forwarding to render-board.sh, so the
+# caller asking for a filtered digest silently received the COMPLETE backlog with exit 0 — while
+# render-board.sh rejects that same value with exit 2. docket-status.md promises the value "is
+# rejected UP FRONT — before any pass runs — so it fails closed identically in every mode", so the
+# empty case must reject, and must not leak a digest on the way out. TYPE_SET/PRIORITY_SET record
+# that the option was provided; validation and forwarding both key on those.
+(cd "$dg/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-digest.sh" GIT="$tmp/spy-git.sh" \
+  "$SCRIPT" --digest-only --type "" >"$tmp/dg-empty-type-out.txt" 2>"$tmp/dg-empty-type-err.txt")
+dg_empty_type_rc=$?
+assert "0127: --type '' exits 2 (empty is a provided value, not an unset flag)" \
+  '[ "$dg_empty_type_rc" -eq 2 ]'
+assert "0127: --type '' emits NO digest (never the silent complete backlog)" \
+  '[ ! -s "$tmp/dg-empty-type-out.txt" ] && ! grep -q "^ready 51 50" "$tmp/dg-empty-type-out.txt"'
+assert "0127: the --type '' rejection names the flag on stderr" \
+  'grep -q -- "--type" "$tmp/dg-empty-type-err.txt"'
+
+(cd "$dg/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-digest.sh" GIT="$tmp/spy-git.sh" \
+  "$SCRIPT" --digest-only --priority "" >"$tmp/dg-empty-prio-out.txt" 2>"$tmp/dg-empty-prio-err.txt")
+dg_empty_prio_rc=$?
+assert "0127: --priority '' exits 2 (empty is a provided value, not an unset flag)" \
+  '[ "$dg_empty_prio_rc" -eq 2 ]'
+assert "0127: --priority '' emits NO digest (never the silent complete backlog)" \
+  '[ ! -s "$tmp/dg-empty-prio-out.txt" ] && ! grep -q "^ready 51 50" "$tmp/dg-empty-prio-out.txt"'
+assert "0127: the --priority '' rejection names the flag on stderr" \
+  'grep -q -- "--priority" "$tmp/dg-empty-prio-err.txt"'
+
+# The happy paths the SET-flag rewrite must not have broken. `all` and an omitted flag are
+# documented as exactly equivalent, so they must produce byte-identical ready queues.
+(cd "$dg/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-digest.sh" GIT="$tmp/spy-git.sh" \
+  "$SCRIPT" --digest-only --type all >"$tmp/dg-type-all-out.txt" 2>/dev/null)
+dg_type_all_rc=$?
+assert "0127: --type all exits 0 and admits every change" \
+  '[ "$dg_type_all_rc" -eq 0 ] && [ "$(sed -n "s/^ready //p" "$tmp/dg-type-all-out.txt")" = "51 50" ]'
+
+(cd "$dg/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-digest.sh" GIT="$tmp/spy-git.sh" \
+  "$SCRIPT" --digest-only --priority all >"$tmp/dg-prio-all-out.txt" 2>/dev/null)
+dg_prio_all_rc=$?
+assert "0127: --priority all exits 0 and admits every change" \
+  '[ "$dg_prio_all_rc" -eq 0 ] && [ "$(sed -n "s/^ready //p" "$tmp/dg-prio-all-out.txt")" = "51 50" ]'
+
+(cd "$dg/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-digest.sh" GIT="$tmp/spy-git.sh" \
+  "$SCRIPT" --digest-only --type untyped >"$tmp/dg-type-untyped-out.txt" 2>/dev/null)
+dg_type_untyped_rc=$?
+assert "0127: --type untyped exits 0 and admits the untyped fixtures" \
+  '[ "$dg_type_untyped_rc" -eq 0 ] && [ "$(sed -n "s/^ready //p" "$tmp/dg-type-untyped-out.txt")" = "51 50" ]'
+
+# A real, well-formed type nobody in the fixture carries: accepted (exit 0) AND actually applied
+# (bare `ready`). Both halves matter — an accepted-but-dropped filter also exits 0.
+(cd "$dg/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-digest.sh" GIT="$tmp/spy-git.sh" \
+  "$SCRIPT" --digest-only --type feat >"$tmp/dg-type-feat-out.txt" 2>/dev/null)
+dg_type_feat_rc=$?
+assert "0127: a real --type value is accepted AND forwarded (exit 0, narrowed ready line)" \
+  '[ "$dg_type_feat_rc" -eq 0 ] && grep -qx "ready" "$tmp/dg-type-feat-out.txt"'
+
+# Omitting the flags entirely: unchanged behaviour, identical to `all`.
+(cd "$dg/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-digest.sh" GIT="$tmp/spy-git.sh" \
+  "$SCRIPT" --digest-only >"$tmp/dg-nofilter-out.txt" 2>/dev/null)
+dg_nofilter_rc=$?
+assert "0127: omitting both filters exits 0 and is equivalent to --type all" \
+  '[ "$dg_nofilter_rc" -eq 0 ] \
+   && [ "$(sed -n "s/^ready //p" "$tmp/dg-nofilter-out.txt")" = "51 50" ] \
+   && cmp -s "$tmp/dg-nofilter-out.txt" "$tmp/dg-type-all-out.txt"'
+
+# --- (B) arity: a trailing --type/--priority must not die on `set -u` -------------------------
+# Without the `[ $# -ge 2 ]` guard the arm reads an unset $2 and the script aborts with a raw
+# "unbound variable" trace (exit 1) instead of the documented exit-2 argument error.
+(cd "$dg/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-digest.sh" GIT="$tmp/spy-git.sh" \
+  "$SCRIPT" --digest-only --type >"$tmp/dg-arity-type-out.txt" 2>"$tmp/dg-arity-type-err.txt")
+dg_arity_type_rc=$?
+assert "0127: a trailing --type with no value exits 2" '[ "$dg_arity_type_rc" -eq 2 ]'
+assert "0127: the trailing --type error says it requires a value" \
+  'grep -q "requires a value" "$tmp/dg-arity-type-err.txt"'
+assert "0127: the trailing --type error is not a raw 'unbound variable' trace" \
+  '! grep -q "unbound variable" "$tmp/dg-arity-type-err.txt"'
+
+(cd "$dg/work" && CONFIG_EXPORT_CMD="bash $tmp/fixture-digest.sh" GIT="$tmp/spy-git.sh" \
+  "$SCRIPT" --digest-only --priority >"$tmp/dg-arity-prio-out.txt" 2>"$tmp/dg-arity-prio-err.txt")
+dg_arity_prio_rc=$?
+assert "0127: a trailing --priority with no value exits 2" '[ "$dg_arity_prio_rc" -eq 2 ]'
+assert "0127: the trailing --priority error says it requires a value" \
+  'grep -q "requires a value" "$tmp/dg-arity-prio-err.txt"'
+assert "0127: the trailing --priority error is not a raw 'unbound variable' trace" \
+  '! grep -q "unbound variable" "$tmp/dg-arity-prio-err.txt"'
+
+# --- (C) --help must not truncate ------------------------------------------------------------
+# usage() is a HARDCODED `sed -n '2,NNp'` range over the script's own header, so every header
+# insertion that does not bump the bound silently drops the TAIL of the documented flag list —
+# which is exactly how the --type/--priority rows went missing once already. The load-bearing
+# assert is therefore on the LAST documented row (--project-owner): pinning any earlier flag
+# would stay green through the same truncation. If a future header edit adds rows below
+# --project-owner, this assert must be re-pointed at the new final row, not deleted.
+# It matches the DESCRIPTION ROW, not the bare flag name: the multi-line `Usage:` SYNOPSIS near
+# the top of the header names --project-owner too and survives any tail truncation, so a plain
+# `grep -- --project-owner` stays green on a truncated --help (verified against a 2,21p mutant).
+help_out="$tmp/help-out.txt"
+"$SCRIPT" --help >"$help_out" 2>&1
+help_rc=$?
+assert "--help exits 0" '[ "$help_rc" -eq 0 ]'
+assert "--help is not truncated: the LAST documented row (--project-owner) survives the sed range" \
+  'grep -qE -- "--project-owner OWNER[[:space:]]+owner to create the project under" "$help_out"'
+# The rows that were actually lost last time: present WITH their description text, not merely as
+# synopsis-line tokens (the synopsis on line 7-8 mentions both flags even when their rows are cut).
+assert "--help documents --type with its description (REPORT-ONLY), not just the synopsis" \
+  'grep -qE -- "--type TYPE +REPORT-ONLY" "$help_out"'
+assert "--help documents --priority with its description (REPORT-ONLY), not just the synopsis" \
+  'grep -qE -- "--priority PRIORITY +REPORT-ONLY" "$help_out"'
+assert "--help carries BOTH REPORT-ONLY description rows (neither filter row is cut)" \
+  '[ "$(grep -c "REPORT-ONLY" "$help_out")" -eq 2 ]'
+
 exit $fail

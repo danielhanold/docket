@@ -2023,6 +2023,74 @@ err127="$(d127 --priority urgent 2>&1 >/dev/null)"
 assert "0127 filter: the priority diagnostic names the accepted values" \
   'grep -q "critical" <<<"$err127"'
 
+# --- 0127 review: --priority must default on an UNRECOGNIZED value, not merely an ABSENT one ---
+# digest_admits used to read `p="$(field "$1" priority)"; p="${p:-$DOCKET_PRIORITY_DEFAULT}"` —
+# substituting the default only for an EMPTY field. docket_priority_rank, which ORDERS the ready
+# queue, substitutes it for ANY non-member value. The two therefore disagreed about the same file:
+# a change carrying `priority: Medium` (wrong case — or any malformed value) is ranked INTO the
+# medium band and appears in the UNFILTERED digest, yet matched NO --priority value, not even
+# `medium`. It was reachable through `--priority all` alone, so every narrowed selection SILENTLY
+# DROPPED it — the precise failure a selection filter exists to prevent. The fix makes admission
+# ask the same membership question the ranker asks: `docket_priority_is_member "$p" || p=DEFAULT`.
+#
+# The fixture pairs a well-formed `medium` with a malformed `Medium` and adds a `high` change as
+# the positive control, so the exclusion asserts cannot pass on an empty or failed render. Every
+# projection is asserted TWICE — the `ready` queue line AND the `change` lines — because the 0127
+# coverage above only ever checked the ready line, and admission governs both.
+fp="$tmp/fpri"; mkdir -p "$fp/active" "$fp/archive"
+mkpri(){ # mkpri <id> <slug> <priority-literal> <created>   -> a build-ready proposed change
+  printf -- '---\nid: %s\nslug: %s\ntitle: P%s\nstatus: proposed\npriority: %s\ncreated: %s\ndepends_on: []\ntrivial: true\n---\n\n## Why\nx\n' \
+    "$1" "$2" "$1" "$3" "$4" > "$fp/active/000$1-$2.md"
+}
+mkpri 1 lower  medium 2026-02-01
+mkpri 2 mixed  Medium 2026-02-02   # malformed: the value docket_priority_rank ranks as medium
+mkpri 3 tall   high   2026-02-03
+
+dpri(){ "$SCRIPT" --changes-dir "$fp" --format digest "$@"; }
+
+# (1) UNFILTERED — both changes are present, and the malformed one really does rank in the medium
+#     band (queue order high -> medium-by-created is what proves it). This is the premise that
+#     makes the drop a BUG rather than a filter working as intended.
+dp_all="$(dpri)"
+assert "priority-default: the malformed-priority change ranks into the medium band unfiltered" \
+  '[ "$(sed -n "s/^ready //p" <<<"$dp_all")" = "3 1 2" ]'
+assert "priority-default: unfiltered CHANGE lines carry both the medium and the Medium change" \
+  'grep -qx "change 1 proposed build-ready lower" <<<"$dp_all" && grep -qx "change 2 proposed build-ready mixed" <<<"$dp_all"'
+
+# (2) --priority medium now admits BOTH — the fix under test.
+dp_med="$(dpri --priority medium)"
+assert "priority-default: --priority medium's ready queue carries the malformed-priority change" \
+  '[ "$(sed -n "s/^ready //p" <<<"$dp_med")" = "1 2" ]'
+assert "priority-default: --priority medium's CHANGE lines carry it too (the ready line alone was the gap)" \
+  '[ "$(grep -c "^change " <<<"$dp_med")" = 2 ] && grep -qx "change 1 proposed build-ready lower" <<<"$dp_med" && grep -qx "change 2 proposed build-ready mixed" <<<"$dp_med"'
+
+# (3) A DIFFERENT filter admits NEITHER — defaulting must not make every unrecognized value match
+#     everything. The `high` row is the positive control: the render is real, the filter selects.
+dp_high="$(dpri --priority high)"
+assert "priority-default: --priority high still selects its own row (positive control)" \
+  '[ "$(sed -n "s/^ready //p" <<<"$dp_high")" = "3" ] && grep -qx "change 3 proposed build-ready tall" <<<"$dp_high"'
+assert "priority-default: --priority high's ready queue carries NEITHER medium-band change" \
+  '[ "$(sed -n "s/^ready //p" <<<"$dp_high")" = "3" ]'
+assert "priority-default: --priority high's CHANGE lines carry NEITHER medium-band change" \
+  '[ "$(grep -c "^change " <<<"$dp_high")" = 1 ] && ! grep -qE "^change [12] " <<<"$dp_high"'
+
+# --- 0127 review: the value-taking flags guard their arity ------------------------------------
+# `--type` / `--priority` consume $2. A TRAILING flag with no value used to read an unset $2 under
+# `set -u` and die with a raw `unbound variable` trace — an internal-error shape, on a script that
+# has a documented exit-2 argument-error path for every other malformed invocation. The shared
+# case arm now checks `[ $# -ge 2 ]` first. Asserting the ABSENCE of the trace matters as much as
+# the exit code: a future refactor that reintroduces the crash could still exit non-zero.
+for flag in --type --priority; do
+  aerr="$tmp/arity${flag}.txt"
+  bash "$SCRIPT" --changes-dir "$fp" "$flag" >/dev/null 2>"$aerr"
+  arc=$?
+  assert "arity: a trailing $flag with no value exits 2" '[ "$arc" -eq 2 ]'
+  assert "arity: a trailing $flag names the missing value on stderr" \
+    'grep -qF -- "$flag requires a value" "$aerr"'
+  assert "arity: a trailing $flag emits NO raw unbound-variable trace" \
+    '! grep -qi "unbound variable" "$aerr"'
+done
+
 
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"

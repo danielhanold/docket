@@ -77,4 +77,39 @@ assert "fm_field: still reads the other frontmatter keys" \
 assert "fm_field: unanchored field() would have returned the prose (the bug this prevents)" \
   '[ "$(field "$fmtmp/no-type.md" type)" = "this is prose, not frontmatter" ]'
 
+# --- fm_field: a YAML inline comment is stripped BEFORE the key prefix -------
+# The failure this exists to prevent: change-template.md ships `type:` WITH a trailing comment, so
+# an unfilled template line read without the strip returns the COMMENT TEXT rather than empty. The
+# change is then neither `untyped` nor a real type: it escapes `docket-status --type untyped` (the
+# documented migration inventory), backfill-change-types.sh refuses to assign it ("already has
+# type ..."), and the comment's pipe characters inject phantom columns into its board row.
+#
+# The fixture takes the template's type: line VERBATIM from the shipped template rather than
+# restating it here, so the pin tracks the real artifact instead of a copy that can drift from it.
+TEMPLATE="$REPO/skills/docket-new-change/change-template.md"
+tmpl_line="$(grep -m1 '^type:' "$TEMPLATE" || true)"
+assert "fixture source: change-template.md still ships a commented type: placeholder" \
+  '[ -n "$tmpl_line" ] && [ "$tmpl_line" != "${tmpl_line%%#*}" ]'
+{ printf -- '---\nid: 4\nstatus: proposed\n'
+  printf '%s\n' "$tmpl_line"
+  printf -- '---\n\n## Why\nx\n'; } > "$fmtmp/template-line.md"
+printf -- '---\nid: 5\nstatus: proposed  # set at creation\ntype: feat   # chosen at creation\n---\n\n## Why\nx\n' > "$fmtmp/commented.md"
+printf -- '---\nid: 6\nstatus: proposed\ntype: feat#1\n---\n\n## Why\nx\n' > "$fmtmp/hash-value.md"
+
+assert "fm_field: the template's own commented type: placeholder reads EMPTY (not the comment)" \
+  '[ -z "$(fm_field "$fmtmp/template-line.md" type)" ]'
+assert "fm_field: a real value with a trailing comment reads as just the value" \
+  '[ "$(fm_field "$fmtmp/commented.md" type)" = feat ]'
+# YAML only treats `#` as a comment when whitespace precedes it; anything else is part of the value.
+assert "fm_field: a hash with no preceding whitespace stays in the value" \
+  '[ "$(fm_field "$fmtmp/hash-value.md" type)" = "feat#1" ]'
+# The strip must be scoped to the matched line's own value — sibling keys still read normally.
+assert "fm_field: a commented sibling key is unharmed by the strip" \
+  '[ "$(fm_field "$fmtmp/commented.md" status)" = proposed ]'
+# The contrast that proves the strip is load-bearing: comment-blind field() DOES return the
+# comment text — comment-shaped (leading #) and pipe-bearing (the phantom board columns).
+tmpl_unstripped="$(field "$fmtmp/template-line.md" type)"
+assert "fm_field: comment-blind field() would have returned the template comment (the bug this prevents)" \
+  '[ "${tmpl_unstripped#\#}" != "$tmpl_unstripped" ] && [ "${tmpl_unstripped%%|*}" != "$tmpl_unstripped" ]'
+
 exit $fail
