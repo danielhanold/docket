@@ -96,15 +96,22 @@ assert "(A) non-vacuity floor: the auto_capture config examples still exist to b
 
 # ── (B) the migration runbook prescribes a WRITE-FREE inventory ────────────────────────────────
 #
-# Any documented `--type untyped` invocation must carry `--digest-only`. Matched per line: both
-# call sites are single-line commands, and the rule is written against `--type untyped` itself
-# (not against `docket-status`) so a rewrite that renames or wraps the entrypoint still trips it.
+# Any documented `docket-status … --type untyped` INVOCATION must carry `--digest-only`.
+#
+# Scoped to lines that actually invoke docket-status, not to every appearance of the flag pair.
+# The write hazard is a property of THAT pass — it commits and pushes BOARD.md, sweeps, archives,
+# and harvests — not of the filter: `render-board --format digest --type untyped` is write-free
+# and correctly needs no `--digest-only`. An earlier, broader spelling matched the flags alone and
+# duly fired on a prose sentence explaining what the `untyped` selector means, which is the guard
+# becoming the noise source. Keying on the pass costs a little rename-resistance and buys a rule
+# that is true; the non-vacuity floor below is what catches a rename (it goes red if the
+# documented invocation disappears entirely).
 b_bad="$(for f in "$RM" "$BF"; do
   [ -f "$f" ] || continue
-  grep -nE -- '--type[= ]+untyped' "$f" | grep -v -- '--digest-only' | sed "s|^|${f#"$ROOT"/}:|"
+  grep -nE -- 'docket-status[^`]*--type[= ]+untyped' "$f" | grep -v -- '--digest-only' | sed "s|^|${f#"$ROOT"/}:|"
 done)"
 b_count="$(for f in "$RM" "$BF"; do
-  [ -f "$f" ] && grep -cE -- '--type[= ]+untyped' "$f"
+  [ -f "$f" ] && grep -cE -- 'docket-status[^`]*--type[= ]+untyped' "$f"
 done | awk '{n+=$1} END{print n+0}')"
 assert "(B) every documented --type untyped inventory is --digest-only (a bare docket-status pass commits and pushes BOARD.md, sweeps, archives, and harvests before printing the digest — a command run to *look* must not write). Offenders: [${b_bad//$'\n'/ | }]" \
   '[ -z "$b_bad" ]'
@@ -145,5 +152,34 @@ assert "(C) Scan mode restates the shrink-only invariant" \
   'printf "%s\n" "$SCAN" | grep -q "untyped" && printf "%s\n" "$SCAN" | grep -Eqi "shrink"'
 assert "(C) README still states the invariant the skill has to uphold" \
   'flat "$RM" | grep -Eqi "creation path writes a type" && flat "$RM" | grep -Eqi "untyped set can only shrink"'
+
+# --- (D) THE TAXONOMY ITSELF IS DOCUMENTED, NOT JUST NAMED -------------------
+# The section heading promises `change_types`, but for a while the key appeared ONLY as a bare
+# line inside a yaml example — nothing told a reader the default set, that a higher layer REPLACES
+# the list rather than merging it (the only way to remove a built-in), what a valid token looks
+# like, or that `all`/`untyped` are reserved. A config key you cannot discover how to change is
+# undocumented no matter how often the word appears. Pinned against a whitespace-flattened README
+# because these docs are hard-wrapped and every sentence below straddles a line break.
+RMF="$(flat "$RM")"
+assert "(D) README names the default taxonomy in full" \
+  'printf "%s" "$RMF" | grep -Eq "chore.*docs.*feat.*fix.*refactor.*perf"'
+assert "(D) README states the list is REPLACED, never merged" \
+  'printf "%s" "$RMF" | grep -Eqi "replace" && printf "%s" "$RMF" | grep -Eqi "never merge|not merge|rather than merg"'
+assert "(D) README explains that replacement is how you REMOVE a built-in" \
+  'printf "%s" "$RMF" | grep -Eqi "unremovable|remove .*perf|never drop one"'
+assert "(D) README gives the token grammar" \
+  'printf "%s" "$RMF" | grep -q "a-z0-9-"'
+assert "(D) README names all/untyped as reserved, never stored types" \
+  'printf "%s" "$RMF" | grep -Eqi "reserved" && printf "%s" "$RMF" | grep -Eqi "all. and .untyped|untyped. are reserved|all./.untyped"'
+assert "(D) README shows a CUSTOM taxonomy example, not only the default restated" \
+  'grep -Eq "^change_types: \[.*(spike|[a-z-]+)\]" "$RM" && printf "%s" "$RMF" | grep -Eqi "spike"'
+assert "(D) README documents the report-only --type/--priority filters" \
+  'printf "%s" "$RMF" | grep -Eq "\-\-type" && printf "%s" "$RMF" | grep -Eq "\-\-priority" && printf "%s" "$RMF" | grep -Eqi "report.only|narrow the digest|digest only"'
+assert "(D) README says the filters never narrow writes (the property that makes them safe)" \
+  'printf "%s" "$RMF" | grep -Eqi "never .*(the board|narrow the board)" || printf "%s" "$RMF" | grep -Eqi "narrow the .{0,20}digest .{0,20}only"'
+# The per-layer validation rule is user-visible semantics: it is why a machine-local narrowing no
+# longer bricks a repo, so a reader who hits the same-layer error needs it stated somewhere.
+assert "(D) README explains auto_capture.types is checked against the SETTING layer's taxonomy" \
+  'printf "%s" "$RMF" | grep -Eqi "visible to the layer|layer that set it" && printf "%s" "$RMF" | grep -Eqi "independent"'
 
 exit $fail

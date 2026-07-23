@@ -275,15 +275,45 @@ fidelity, not autonomy**.
   resolve independently, so a machine-local layer can flip `enabled` while inheriting `types`.
 
 ```yaml
-change_types: [chore, docs, feat, fix, refactor, perf]
+change_types: [chore, docs, feat, fix, refactor, perf]   # the taxonomy — see below
 
 auto_capture:
   enabled: true
-  types: [feat, fix]
+  types: [feat, fix]                                     # a subset of change_types, or `all`
 ```
 
 Minted stubs appear on the board as ordinary `needs-brainstorm` work and flow into
 `docket-groom-next`'s queue like anything else you filed by hand.
+
+#### The taxonomy (`change_types`)
+
+`change_types` is the vocabulary a change's `type:` may draw from. It governs what this machine
+**creates**, never how shared history reads: a change carrying a type you do not configure still
+renders on the board and still answers `--type` queries, because configuration is not allowed to
+make someone else's work unreadable.
+
+- **Default.** `[chore, docs, feat, fix, refactor, perf]` when no layer sets it.
+- **Replaced, never merged.** The first layer that sets `change_types` wins *entirely*. Merging
+  would make a built-in value unremovable — you could only ever add types, never drop one — so
+  restating the whole list is how you remove `perf`, or add something like `spike`.
+- **Grammar.** Each entry matches `[a-z][a-z0-9-]*`. Duplicates and an empty list are config
+  errors. `all` and `untyped` are reserved: they are query pseudo-values, never stored types.
+- **Global-able.** Set it per-repo, in `~/.config/docket/config.yml`, or in `.docket.local.yml`.
+
+```yaml
+# ~/.config/docket/config.yml — drop a built-in, add your own; the list REPLACES the default
+change_types: [chore, docs, feat, fix, spike]
+```
+
+`auto_capture.types` must be drawn from the taxonomy, but it is validated against the
+`change_types` **visible to the layer that set it**. So narrowing `change_types` on one machine
+never invalidates a `types` list inherited from the committed config — the two keys resolve
+through independent chains, and each layer only has to be internally consistent.
+
+Every active board row carries a **Type** cell, and `docket-status` and `render-board` both take
+report-only `--type` / `--priority` filters: `--type untyped` finds changes carrying no type at
+all, and `--type all` (the default) selects everything. These narrow the **digest only** — never
+the board, the merge sweep, archiving, harvesting, health checks, or any write.
 
 #### Migrating to typed changes
 
