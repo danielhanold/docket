@@ -18,6 +18,7 @@ branch: feat/configurable-build-model
 pr: https://github.com/danielhanold/docket/pull/69
 blocked_by: PR #69 is stale (predates the 0068/0072 facade rework and later agent-layer changes) and #0079 (runner delegation) reshapes the design — the build roles should grow a runner field (build.<role>.runner codex, the mixed topology 0079 deferred). Needs a rebase plus redesign pass before merge.
 reconciled: true
+type: feat
 ---
 
 ## Artifacts

@@ -18,6 +18,7 @@ branch: feat/codex-cli-validation-runbook
 pr: https://github.com/danielhanold/docket/pull/89
 blocked_by:
 reconciled: true
+type: chore
 ---
 
 ## Artifacts

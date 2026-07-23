@@ -17,6 +17,7 @@ branch:
 pr:
 blocked_by:
 reconciled: false
+type: feat
 ---
 
 ## Why

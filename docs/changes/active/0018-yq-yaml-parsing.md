@@ -18,6 +18,7 @@ branch:
 pr:
 blocked_by:
 reconciled: false
+type: refactor
 ---
 
 ## Why
