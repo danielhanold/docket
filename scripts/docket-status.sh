@@ -17,6 +17,12 @@
 #   --must-land            (with --board-only) retry a push-failed board write in-script and
 #                          map the outcome to the exit code (0 = board landed); see docket-status.md
 #   --repo OWNER/REPO      GitHub repo for PR-link resolution (defaults to origin remote)
+#   --type TYPE            REPORT-ONLY: narrow the backlog digest to changes of TYPE. `untyped`
+#                          selects changes carrying no type:; `all` (the default) selects every
+#                          change and is exactly equivalent to omitting the flag. Never narrows
+#                          the board, sweep, harvesting, archiving, health checks, or reclaim.
+#   --priority PRIORITY    REPORT-ONLY: narrow the backlog digest to changes of PRIORITY. `all`
+#                          (the default) selects every change. Same read-only scope as --type.
 #   --project OWNER/NUMBER GitHub Project to sync (later task)
 #   --auto-create-project  create the GitHub Project if --project doesn't resolve (later task)
 #   --project-owner OWNER  owner to create the project under (later task)
@@ -34,14 +40,24 @@ SCRIPTS_DIR="${SCRIPTS_DIR:-$SELF_DIR}"
 . "$SELF_DIR"/lib/docket-preflight.sh
 
 BOARD_ONLY=0 DIGEST_ONLY=0 MUST_LAND=0 REPO_FLAG="" PROJECT_FLAG="" AUTO_CREATE_PROJECT=0 PROJECT_OWNER=""
-TYPE_FLAG="" PRIORITY_FLAG=""
-usage(){ sed -n '2,21p' "${BASH_SOURCE[0]}"; }
+TYPE_FLAG="" PRIORITY_FLAG="" TYPE_SET=0 PRIORITY_SET=0
+# The range must end on the LAST documented flag. tests/test_docket_status.sh pins that the final
+# row (--project-owner) survives, because a header edit that does not bump this bound truncates
+# --help silently — which is exactly how the two rows above went missing once already.
+usage(){ sed -n '2,28p' "${BASH_SOURCE[0]}"; }
 while [ $# -gt 0 ]; do
   case "$1" in
     --board-only) BOARD_ONLY=1 ;;
     --digest-only) DIGEST_ONLY=1 ;;
-    --type) TYPE_FLAG="$2"; shift ;;
-    --priority) PRIORITY_FLAG="$2"; shift ;;
+    --type|--priority)
+      # Guard the arity: without it a trailing `--type` reads an unset $2 under `set -u` and dies
+      # with a raw "unbound variable" trace instead of the documented exit-2 argument error.
+      [ $# -ge 2 ] || { echo "docket-status: $1 requires a value" >&2; exit 2; }
+      case "$1" in
+        --type)     TYPE_FLAG="$2"; TYPE_SET=1 ;;
+        --priority) PRIORITY_FLAG="$2"; PRIORITY_SET=1 ;;
+      esac
+      shift ;;
     --must-land) MUST_LAND=1 ;;
     --repo) REPO_FLAG="$2"; shift ;;
     --project) PROJECT_FLAG="$2"; shift ;;
@@ -61,13 +77,17 @@ done
 # that code on "changes dir not found", a condition the full pass legitimately tolerates.
 # This is a second CALL SITE of the shared predicates, not a second RULE: the grammar lives in
 # lib/docket-frontmatter.sh, which this script already sources, so the two checks cannot drift.
-if [ -n "$TYPE_FLAG" ] && [ "$TYPE_FLAG" != all ] && [ "$TYPE_FLAG" != untyped ]; then
+# Gate on "the flag was PROVIDED", never on "the value is non-empty". Empty-as-unset made
+# `--type ""` skip validation AND skip forwarding, silently returning the COMPLETE backlog, while
+# render-board.sh rejects that same value with exit 2 — so a caller writing `--type "$T"` with an
+# unset variable got the exact opposite of the fail-closed behaviour this block documents.
+if [ "$TYPE_SET" = 1 ] && [ "$TYPE_FLAG" != all ] && [ "$TYPE_FLAG" != untyped ]; then
   if ! docket_change_type_is_wellformed "$TYPE_FLAG"; then
     echo "docket-status: unknown --type value: $TYPE_FLAG (expected all, untyped, or a [a-z][a-z0-9-]* token)" >&2
     exit 2
   fi
 fi
-if [ -n "$PRIORITY_FLAG" ] && [ "$PRIORITY_FLAG" != all ]; then
+if [ "$PRIORITY_SET" = 1 ] && [ "$PRIORITY_FLAG" != all ]; then
   if ! docket_priority_is_member "$PRIORITY_FLAG"; then
     echo "docket-status: unknown --priority value: $PRIORITY_FLAG (expected all, ${DOCKET_PRIORITIES[*]})" >&2
     exit 2
@@ -378,8 +398,8 @@ backlog_pass(){
   # forwarded to board_pass's board-refresh.sh call — that writer must always emit a COMPLETE
   # BOARD.md, or a filtered --board-only run would commit a truncated board.
   local -a filt=()
-  [ -n "$TYPE_FLAG" ]     && filt+=(--type "$TYPE_FLAG")
-  [ -n "$PRIORITY_FLAG" ] && filt+=(--priority "$PRIORITY_FLAG")
+  [ "$TYPE_SET" = 1 ]     && filt+=(--type "$TYPE_FLAG")
+  [ "$PRIORITY_SET" = 1 ] && filt+=(--priority "$PRIORITY_FLAG")
   if ! out="$("$DOCKET_BASH_PATH" "$SCRIPTS_DIR"/render-board.sh --changes-dir "$cd_dir" --format digest ${filt[@]+"${filt[@]}"} 2>&2)"; then
     echo "docket-status: backlog digest failed; continuing without it" >&2
     return 0

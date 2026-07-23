@@ -152,14 +152,16 @@ why_distilled(){ # first non-empty lines under "## Why", capped at two sentences
 
 build_body(){ # build_body FILE SUBDIR FILENAME
   local f="$1" subdir="$2" fname="$3"
-  local id title status priority spec plan results
+  local id title status priority spec plan results ctype
   id="$(field "$f" id)"; title="$(field "$f" title)"; status="$(field "$f" status)"
   priority="$(field "$f" priority)"; spec="$(field "$f" spec)"
+  ctype="$(fm_field "$f" type)"; ctype="${ctype:-untyped}"   # anchored read — type may be ABSENT
   plan="$(field "$f" plan)"; results="$(field "$f" results)"
   printf '> **Generated mirror** of `%s/%s/%s` on the `%s` branch. ' \
     "$CHANGES_PATH" "$subdir" "$fname" "$META_BRANCH"
   printf 'Edits and comments here are not read back — the change file is the source of truth.\n\n'
-  printf '**status** `%s` · **priority** `%s` · **#%s**\n\n' "$status" "$priority" "$id"
+  printf '**status** `%s` · **priority** `%s` · **type** `%s` · **#%s**\n\n' \
+    "$status" "$priority" "$ctype" "$id"
   local why; why="$(why_distilled "$f")"
   [ -n "$why" ] && printf '%s\n\n' "$why"
   printf '**Links:**\n'
@@ -180,10 +182,15 @@ build_body(){ # build_body FILE SUBDIR FILENAME
 
 # --- label set ----------------------------------------------------------------
 labels_for(){ # echoes one docket:* label per line
-  local f="$1" status priority ready
+  local f="$1" status priority ready ctype
   status="$(field "$f" status)"; priority="$(field "$f" priority)"
+  ctype="$(fm_field "$f" type)"
   printf 'docket:status/%s\n' "$status"
   [ -n "$priority" ] && printf 'docket:priority/%s\n' "$priority"
+  # Mirrored like the other two closed vocabularies. Omitted when absent rather than labelled
+  # `untyped`, so the migration does not mint a label on every un-backfilled change; the issue
+  # BODY still states `untyped` so the surface is never silent about it.
+  [ -n "$ctype" ] && printf 'docket:type/%s\n' "$ctype"
   ready="$(readiness_label "$f" "$status")"
   [ -n "$ready" ] && printf '%s\n' "$ready"
 }

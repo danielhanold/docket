@@ -45,12 +45,21 @@ field(){
 # whose body happens to open a line with `type:` would otherwise render its prose as the type and
 # make the backfill refuse to touch it. Anchoring is the same discipline AGENTS.md already requires
 # for frontmatter WRITES, applied to the read.
+#
+# It also strips a YAML inline comment (whitespace-preceded `#` to end of line) before taking the
+# value, because change-template.md ships `type:` WITH one. Without the strip an unfilled template
+# line reads as the comment text rather than as absent: the change is then neither `untyped` nor a
+# real type, so it escapes `--type untyped` (the documented migration inventory), the backfill
+# refuses to assign it, and the comment's `|` characters inject phantom columns into its board row.
+# mint-stub.sh strips the same shape on WRITE for the same reason; this is the read-side half.
+# A `#` not preceded by whitespace is part of the value, exactly as YAML defines it.
 fm_field(){ # fm_field FILE KEY -> value on stdout (empty when absent from the first block)
   awk -v key="$2" '
     BEGIN { n = 0 }
     /^---[[:space:]]*$/ { n++; if (n >= 2) exit; next }
     n == 1 {
       if ($0 ~ ("^" key ":")) {
+        sub(/[[:space:]]+#.*$/, "")
         sub("^" key ":[[:space:]]*", "")
         sub(/[[:space:]]+$/, "")
         print

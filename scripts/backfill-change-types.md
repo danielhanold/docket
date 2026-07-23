@@ -35,7 +35,9 @@ backfill-change-types.sh -h | --help
 
 Reached from a skill through the facade: `docket.sh backfill-change-types …`.
 
-Find the exact input set first — `docket-status --type untyped` is the authoritative inventory.
+Find the exact input set first — `docket-status --digest-only --type untyped` is the authoritative
+inventory. `--digest-only` is load-bearing: without it the pass commits and pushes `BOARD.md`,
+sweeps, archives, and harvests before printing the digest, so a command run to *look* would write.
 
 ## Behavior
 

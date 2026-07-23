@@ -304,8 +304,10 @@ Then categorize the active backlog once. Archived changes are never reclassified
 path writes a type from here on, so the untyped set can only shrink.
 
 ```bash
-# 1. the exact inventory
-docket.sh docket-status --type untyped
+# 1. the exact inventory — --digest-only keeps this a WRITE-FREE read. A bare docket-status pass
+#    commits and pushes BOARD.md, sweeps merged changes, archives, and harvests before it prints
+#    the digest, which is not what you want from a command you are running to *look*.
+docket.sh docket-status --digest-only --type untyped
 
 # 2. an agent proposes a complete id -> type mapping; you approve it as one decision
 
@@ -342,7 +344,9 @@ agents:                      # agent model/effort defaults (same agents: shape a
   default:
     implement-next: { model: claude-opus-4-8, effort: xhigh }
 auto_groom: false
-auto_capture: false
+auto_capture:                # a MAP since change 0127 — a bare scalar is a hard config error
+  enabled: false
+  types: all
 finalize:
   gate: local
 board_surfaces: [inline]     # the github token is per-repo-only and ignored here (see below)
@@ -372,7 +376,9 @@ agent_harnesses: [claude]     # can opt a tracking-only repo into per-repo agent
 finalize:
   gate: local
 auto_groom: false
-auto_capture: false
+auto_capture:                 # a MAP since change 0127 — a bare scalar is a hard config error
+  enabled: false
+  types: all
 board_surfaces: [inline]      # the github token is fenced here too — per-repo-only
 ```
 
