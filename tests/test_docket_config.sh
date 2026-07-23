@@ -1601,6 +1601,24 @@ ct_out="$(run "$tmp/ct-replace" --export --format plain)"
 assert "0127 ct: a higher-layer list REPLACES the lower list, never merges" \
   '[ "$(ct_get CHANGE_TYPES "$ct_out")" = "feat" ]'
 
+# --- a NOVEL type, not merely a subset of the built-ins ---------------------
+# Every replacement case above happens to restate built-in tokens, so none of them proves a token
+# outside DOCKET_CHANGE_TYPES_DEFAULT survives resolution. README documents exactly this shape
+# (`change_types: [chore, docs, feat, fix, spike]`) as how you extend the taxonomy, and
+# auto_capture.types must be able to name it — that pairing is what the README example promises.
+mkrepo "$tmp/ct-novel"
+printf 'change_types: [chore, docs, feat, fix, spike]\nauto_capture:\n  enabled: true\n  types: [spike, fix]\n' \
+  >"$tmp/ct-novel/.docket.yml"
+ct_commit "$tmp/ct-novel"
+ct_out="$(run "$tmp/ct-novel" --export --format plain)"
+assert "0127 ct: a custom type outside the built-in taxonomy resolves" \
+  '[ "$(ct_get CHANGE_TYPES "$ct_out")" = "chore docs feat fix spike" ]'
+assert "0127 ct: auto_capture.types may name that custom type" \
+  '[ "$(ct_get AUTO_CAPTURE_TYPES "$ct_out")" = "spike fix" ]'
+# The removal half of "replaced, never merged": perf is a built-in, and dropping it must stick.
+assert "0127 ct: a built-in dropped from the list is genuinely gone" \
+  '! printf "%s" "$(ct_get CHANGE_TYPES "$ct_out")" | grep -qw perf'
+
 # --- cross-layer precedence: repo-local > repo-committed > global > built-in -
 mkrepo "$tmp/ct-prec"
 mkdir -p "$tmp/ct-prec.xdg/docket"

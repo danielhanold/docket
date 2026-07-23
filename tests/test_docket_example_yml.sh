@@ -1082,8 +1082,8 @@ fence_marker(){
 # opposite direction (an undocumented fence added without keys in the example). The remedy is
 # inline in the message so it survives into CI output.
 fence_count="$(fence_openers "$README" | grep -c .)"
-assert "(9) README yaml fence count is exactly 10 — floor against discovery going silently empty, ceiling against an unguarded new fence; if you ADDED a config fence, bump this literal AND ensure its keys are in .docket.example.yml in the same commit; if this dropped to 9, check that the fence regex is still whitespace-tolerant (fence 576 is indented) before touching the literal (got $fence_count)" \
-  '[ "$fence_count" = "10" ]'
+assert "(9) README yaml fence count is exactly 11 — floor against discovery going silently empty, ceiling against an unguarded new fence; if you ADDED a config fence, bump this literal AND ensure its keys are in .docket.example.yml in the same commit; if this dropped to 10, check that the fence regex is still whitespace-tolerant (fence 576 is indented) before touching the literal (got $fence_count)" \
+  '[ "$fence_count" = "11" ]'
 
 # ANCHOR: .docket.example.yml, ONE HOP. Sections (2a)/(2b)/(2c) already bind the example to the
 # resolver in BOTH directions and prove it a faithful superset of everything the code reads, so
@@ -1225,7 +1225,7 @@ assert "(9) every docket:config-fence marker parses (fence-line + reason; ${f9_m
 # every fence BEFORE any skip) gives two floors against it: an exact count of fences reached, and
 # a floor that at least one of them is values-marked.
 f9_seen="$(printf '%s\n' "$findings9" | grep -c '^seen ')"
-assert "(9) scan_fences visited all 10 fences — same literal as NON-VACUITY FLOOR 1's fence-count assert above; if you added a fence, see that assert's message for the remedy (got $f9_seen)" '[ "$f9_seen" = "10" ]'
+assert "(9) scan_fences visited all 11 fences — same literal as NON-VACUITY FLOOR 1's fence-count assert above; if you added a fence, see that assert's message for the remedy (got $f9_seen)" '[ "$f9_seen" = "11" ]'
 f9_vmarked="$(printf '%s\n' "$findings9" | grep -c '^seen .* values$')"
 assert "(9) at least one fence is values-marked — floor against the marker being deleted entirely; it does NOT prove the marker sits on the RIGHT fence (see the positive control immediately below for that) (got $f9_vmarked)" \
   '[ "$f9_vmarked" -ge 1 ]'
