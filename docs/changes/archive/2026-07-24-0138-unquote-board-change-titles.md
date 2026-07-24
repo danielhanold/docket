@@ -2,7 +2,7 @@
 id: 138
 slug: unquote-board-change-titles
 title: Board generator wraps each change title in literal double quotes
-status: implemented
+status: done
 priority: medium
 type: fix
 created: 2026-07-24
@@ -17,7 +17,7 @@ results: docs/results/2026-07-24-unquote-board-change-titles-results.md
 trivial: false
 auto_groomable: true
 branch: feat/unquote-board-change-titles
-claimed_at: 2026-07-24T16:17:31Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/125
 blocked_by:
 reconciled: true
