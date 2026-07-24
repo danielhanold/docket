@@ -2,9 +2,9 @@
 slug: verify-the-claim
 hook: "A document asserting a fact about another artifact is not an oracle — verify it against the artifact or the RUNNING CODE before acting on it."
 topics: [process, review, spec]
-changes: [12, 21, 47, 65, 67, 74, 96, 101, 102, 109, 112]
+changes: [12, 21, 47, 65, 67, 74, 96, 101, 102, 109, 112, 138]
 created: 2026-06-12
-updated: 2026-07-22
+updated: 2026-07-24
 promotion_state: retained
 promoted_to:
 ---
@@ -106,3 +106,19 @@ mid-build; leave the re-scope to the human. Reject false positives with evidence
   local rung), and the reviewer distinguished them by running the mutation — `L2` has the committed
   key *absent* rather than set to `auto`, so M3 leaves it untouched while `s7` reddens. "This is
   probably already covered" is a claim about another test's behavior, verifiable only by running it.
+- 2026-07-24 (#138, PR #125) — **An ENUMERATION of affected call sites is itself a claim — verify
+  its COMPLETENESS against every call site, not just the ones it names.** The change had `field()`
+  strip a matched surrounding quote pair, so board titles render unquoted. The spec enumerated six
+  *title* consumers of `field()` and asserted "every `field()` consumer benefits"; reconcile
+  confirmed the enumerated six but trusted the enumeration as the complete set instead of
+  independently auditing *all* `field()` call sites for what they do with the result. The one
+  consumer outside the list is exactly where it broke: `render-learnings-index.sh` reads the finding
+  `hook` via `field()` and then runs its OWN full YAML unescaper (`dequote`), which needs the RAW
+  quoted scalar — outer quotes intact — to detect the quote style and run its escaped-closer guard;
+  stripping the quotes in `field()` broke it. The whole-branch review didn't catch it either — the
+  full-suite **finish gate** did, reddening `tests/test_render_learnings_index.sh`. Resolved by
+  ADR-0058 (two-tier readers: `field_raw()` for consumers that do their own decode, `field()` for
+  plain reads). The move that was skipped is cheap and mechanical: `grep` every `field()`/`fm_field()`
+  call site and check each for post-decode behavior, rather than accepting the spec's list of which
+  ones matter. A spec that says "the consumers affected are X, Y, Z" is asserting a closed set;
+  closure is the part that fails, and only auditing the open set proves it.
