@@ -269,6 +269,12 @@ assert "fm_field leaves a bare value unchanged"      '[ "$(fm_field "$qd/bare.md
 assert "fm_field leaves an interior quote untouched" '[ "$(fm_field "$qd/interior.md" title)" = "Say \"hi\" now" ]'
 assert "fm_field leaves an unterminated open quote"  '[ "$(fm_field "$qd/untl.md" title)" = "\"unterminated" ]'
 assert "fm_field empty when the key is absent"       '[ -z "$(fm_field "$qd/dq.md" nonesuch)" ]'
+
+# field_raw() is the RAW reader — surrounding quotes are LEFT INTACT (change 0138)
+assert "field_raw preserves a double-quoted value"  '[ "$(field_raw "$qd/dq.md" title)" = "\"Comma, title\"" ]'
+assert "field_raw preserves a single-quoted value"  '[ "$(field_raw "$qd/sq.md" title)" = "'"'"'Comma, title'"'"'" ]'
+assert "field_raw leaves a bare value unchanged"    '[ "$(field_raw "$qd/bare.md" title)" = "Bare title" ]'
+assert "field_raw emits exactly one trailing newline" '[ "$(field_raw "$qd/dq.md" title | wc -l | tr -d " ")" = "1" ]'
 rm -rf "$qd"
 
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi

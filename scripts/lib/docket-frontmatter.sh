@@ -5,6 +5,8 @@
 # on source beyond declaring functions and the dependency-resolution globals. No git, no network.
 #
 # Provides:
+#   field_raw FILE KEY    — first matching scalar for KEY, trimmed, surrounding quotes INTACT (raw
+#                           token). For a consumer doing its own quote/escape decoding.
 #   field FILE KEY        — first matching scalar for KEY anywhere in the file, trimmed and with a
 #                           single matched pair of surrounding quotes stripped (logical value).
 #   fm_field FILE KEY     — like field(), but ONLY inside the first ---...--- block. Use this for
@@ -46,13 +48,22 @@ _docket_unwrap_quotes(){
   fi
   printf '%s' "$v"
 }
-field(){
+# field_raw FILE KEY — the first matching scalar for KEY anywhere in the file, trimmed, with any
+# surrounding quotes LEFT INTACT (the raw YAML token). For the rare consumer that does its own
+# quote/escape decoding and needs the quote style preserved (render-learnings-index.sh's `dequote`
+# on the `hook` field). Trailing \n matches the historical field() output shape (piped consumers,
+# e.g. the mermaid done-id list, rely on the separator).
+field_raw(){
   local raw; raw="$(sed -n "s/^$2:[[:space:]]*//p" "$1")"
   raw="${raw%%$'\n'*}"                              # keep only the first matching line — no pipe
-  raw="${raw%"${raw##*[![:space:]]}"}"             # strip trailing whitespace
-  printf '%s\n' "$(_docket_unwrap_quotes "$raw")"  # return the LOGICAL scalar (a matched surrounding
-}                                                  # quote pair stripped); the trailing \n preserves the
-                                                   # piped-consumer contract (e.g. the mermaid done-id list)
+  printf '%s\n' "${raw%"${raw##*[![:space:]]}"}"   # strip trailing whitespace
+}
+# field FILE KEY — like field_raw, but returns the LOGICAL scalar: a single matched pair of
+# surrounding quotes ("..." or '...') is stripped (change 0138). Use for display/comparison of
+# ordinary values; use field_raw when the caller does its own richer YAML decoding.
+field(){
+  printf '%s\n' "$(_docket_unwrap_quotes "$(field_raw "$1" "$2")")"
+}
 # fm_field FILE KEY — like field(), but reads ONLY inside the FIRST ---...--- block (change 0127).
 #
 # field() scans the whole file and takes the first match. For the pre-0127 fields that is safe: the

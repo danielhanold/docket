@@ -26,8 +26,10 @@ done
 # shellcheck source=/dev/null
 source "$(dirname "${BASH_SOURCE[0]}")/lib/docket-frontmatter.sh"
 
-# `field` returns the RAW scalar — quotes intact. `hook` is REQUIRED to be quoted (it carries a
-# colon-space; YAML-scalar family), so it must be dequoted here or the index ships quote bytes.
+# `field_raw` returns the RAW scalar — quotes intact (`field` would strip the outer pair before
+# `dequote` could read the quote style, so this consumer reads raw). `hook` is REQUIRED to be
+# quoted (it carries a colon-space; YAML-scalar family), so it must be dequoted here or the index
+# ships quote bytes.
 # A double-quoted scalar may carry YAML's own backslash escapes (e.g. a hook that itself discusses
 # quoting: `hook: "Never \"fix\" a guard by widening it."`), so dequoting it is a real left-to-right
 # unescape (`\"` -> `"`, `\\` -> `\`), not just outer-char stripping — a single-quoted scalar's only
@@ -108,7 +110,7 @@ SLUGS=""
 mapfile -t FILES < <(find "$LEARNINGS_DIR" -maxdepth 1 -name '*.md' ! -name 'README.md' 2>/dev/null | sort)
 for f in "${FILES[@]}"; do
   slug="$(field "$f" slug)"; [ -n "$slug" ] || continue
-  F_HOOK["$slug"]="$(dequote "$(field "$f" hook)")"
+  F_HOOK["$slug"]="$(dequote "$(field_raw "$f" hook)")"
   F_TOPICS["$slug"]="$(list_field "$f" topics)"
   state="$(field "$f" promotion_state)"
   # Positive off-state (ADR-0032): an unset/unknown state is NOT silently "retained" for the
