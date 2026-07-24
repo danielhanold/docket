@@ -3,7 +3,7 @@ id: 137
 slug: forked-claude-code-skills-assume-absent-task-dispatch
 title: "Forked Claude Code docket skills assume a Task subagent-dispatch tool the fork does not have, silently degrading SDD build and review"
 status: proposed
-priority: high
+priority: critical
 type: fix
 created: 2026-07-24
 updated: 2026-07-24
