@@ -2,7 +2,7 @@
 id: 136
 slug: artifact-backlinks
 title: Artifact back-links — a generated link at the top of every artifact pointing to the change
-status: in-progress
+status: implemented
 priority: medium
 type: feat
 created: 2026-07-23
@@ -13,12 +13,12 @@ discovered_from: []
 adrs: [12]
 spec: docs/superpowers/specs/2026-07-23-artifact-backlinks-design.md
 plan: docs/superpowers/plans/2026-07-24-artifact-backlinks.md
-results:
+results: docs/results/2026-07-24-artifact-backlinks-results.md
 trivial: false
 auto_groomable:
 branch: feat/artifact-backlinks
-claimed_at: 2026-07-24T04:26:46Z
-pr:
+claimed_at: 2026-07-24T05:04:09Z
+pr: https://github.com/danielhanold/docket/pull/124
 blocked_by:
 reconciled: true
 ---
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-23-artifact-backlinks-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-23-artifact-backlinks-design.md) |
 | Plan | [2026-07-24-artifact-backlinks.md](https://github.com/danielhanold/docket/blob/feat/artifact-backlinks/docs/superpowers/plans/2026-07-24-artifact-backlinks.md) |
+| Results | [2026-07-24-artifact-backlinks-results.md](https://github.com/danielhanold/docket/blob/feat/artifact-backlinks/docs/results/2026-07-24-artifact-backlinks-results.md) |
+| PR | [#124](https://github.com/danielhanold/docket/pull/124) |
 | ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md) |
 <!-- docket:artifacts:end -->
 
