@@ -12,7 +12,7 @@ related: []
 discovered_from: [127]
 adrs: []
 spec: docs/superpowers/specs/2026-07-24-unquote-board-change-titles-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-24-unquote-board-change-titles.md
 results:
 trivial: false
 auto_groomable: true
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-24-unquote-board-change-titles-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-24-unquote-board-change-titles-design.md) |
+| Plan | [2026-07-24-unquote-board-change-titles.md](https://github.com/danielhanold/docket/blob/feat/unquote-board-change-titles/docs/superpowers/plans/2026-07-24-unquote-board-change-titles.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
