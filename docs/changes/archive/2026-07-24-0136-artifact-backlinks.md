@@ -29,8 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-23-artifact-backlinks-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-23-artifact-backlinks-design.md) |
-| Plan | [2026-07-24-artifact-backlinks.md](https://github.com/danielhanold/docket/blob/feat/artifact-backlinks/docs/superpowers/plans/2026-07-24-artifact-backlinks.md) |
-| Results | [2026-07-24-artifact-backlinks-results.md](https://github.com/danielhanold/docket/blob/feat/artifact-backlinks/docs/results/2026-07-24-artifact-backlinks-results.md) |
+| Plan | [2026-07-24-artifact-backlinks.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-24-artifact-backlinks.md) |
+| Results | [2026-07-24-artifact-backlinks-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-24-artifact-backlinks-results.md) |
 | PR | [#124](https://github.com/danielhanold/docket/pull/124) |
 | ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md) |
 <!-- docket:artifacts:end -->
