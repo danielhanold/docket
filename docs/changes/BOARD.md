@@ -1,8 +1,8 @@
 # Backlog
 
-**137 changes** — 🟡 29 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 99 done · 🗑️ 6 killed
+**138 changes** — 🟡 30 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 99 done · 🗑️ 6 killed
 
-## 🟡 Proposed (29)
+## 🟡 Proposed (30)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -35,6 +35,7 @@
 | [0134](active/0134-audit-field-call-sites-for-frontmatter-anchored-reads.md) | Audit field() call sites for frontmatter-anchored reads | `medium` | `fix` | needs-brainstorm |
 | [0135](active/0135-cursor-agent-wrapper-contract.md) | "Generated Cursor wrappers violate Cursor's subagent contract, disabling skills and model effort" | `high` | `fix` | needs-brainstorm |
 | [0137](active/0137-forked-claude-code-skills-assume-absent-task-dispatch.md) | "Forked Claude Code docket skills assume a Task subagent-dispatch tool the fork does not have, silently degrading SDD build and review" | `critical` | `fix` | needs-brainstorm |
+| [0138](active/0138-unquote-board-change-titles.md) | Board generator wraps each change title in literal double quotes | `medium` | `fix` | needs-brainstorm |
 
 ## 🔴 Blocked (1)
 
@@ -83,6 +84,7 @@ graph TD
   0135
   0136
   0137
+  0138
   0015:::done
   0016:::done
   0077:::done
