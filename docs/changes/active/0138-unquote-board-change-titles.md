@@ -10,7 +10,7 @@ updated: 2026-07-24
 depends_on: []
 related: []
 discovered_from: [127]
-adrs: []
+adrs: [58]
 spec: docs/superpowers/specs/2026-07-24-unquote-board-change-titles-design.md
 plan: docs/superpowers/plans/2026-07-24-unquote-board-change-titles.md
 results:
@@ -30,6 +30,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-24-unquote-board-change-titles-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-24-unquote-board-change-titles-design.md) |
 | Plan | [2026-07-24-unquote-board-change-titles.md](https://github.com/danielhanold/docket/blob/feat/unquote-board-change-titles/docs/superpowers/plans/2026-07-24-unquote-board-change-titles.md) |
+| ADRs | [ADR-0058](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0058-two-tier-frontmatter-scalar-readers-field-vs-field-raw.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
