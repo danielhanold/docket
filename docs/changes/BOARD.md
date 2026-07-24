@@ -1,8 +1,14 @@
 # Backlog
 
-**138 changes** — 🟡 30 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 100 done · 🗑️ 6 killed
+**138 changes** — 🟢 1 in progress · 🟡 29 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 100 done · 🗑️ 6 killed
 
-## 🟡 Proposed (30)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch |
+|---|-------|----------|------|------|--------|
+| [0138](active/0138-unquote-board-change-titles.md) | Board generator wraps each change title in literal double quotes | `medium` | `fix` | [spec](../superpowers/specs/2026-07-24-unquote-board-change-titles-design.md) | `feat/unquote-board-change-titles` |
+
+## 🟡 Proposed (29)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -35,7 +41,6 @@
 | [0134](active/0134-audit-field-call-sites-for-frontmatter-anchored-reads.md) | Audit field() call sites for frontmatter-anchored reads | `medium` | `fix` | needs-brainstorm |
 | [0135](active/0135-cursor-agent-wrapper-contract.md) | "Generated Cursor wrappers violate Cursor's subagent contract, disabling skills and model effort" | `high` | `fix` | needs-brainstorm |
 | [0137](active/0137-forked-claude-code-skills-assume-absent-task-dispatch.md) | "Forked Claude Code docket skills assume a Task subagent-dispatch tool the fork does not have, silently degrading SDD build and review" | `critical` | `fix` | needs-brainstorm |
-| [0138](active/0138-unquote-board-change-titles.md) | Board generator wraps each change title in literal double quotes | `medium` | `fix` | build-ready |
 
 ## 🔴 Blocked (1)
 
