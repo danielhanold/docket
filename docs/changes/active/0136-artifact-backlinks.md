@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/artifact-backlinks
-claimed_at: 2026-07-24T04:24:04Z
+claimed_at: 2026-07-24T04:26:46Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -84,3 +84,30 @@ exact back-link text/glyph) is recorded there and open at build time.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-07-24 — reconcile before build
+
+Re-validated the design against current `main`. Every dependency the spec rests on is present and
+matches the spec's description:
+
+- `scripts/render-change-links.sh` (change 0035, the forward-block renderer this change mirrors)
+  exists with the sole-writer / marker-block / GitHub-blob-or-bare-path idioms the new renderer will
+  reuse (`field`/`list_field` from `lib/docket-frontmatter.sh`, `blob()`, the awk replace-vs-insert
+  split). Change 0035 is `done` (`archive/2026-06-21-0035-artifact-links.md`).
+- `scripts/terminal-publish.sh` still provisions one transient integration-branch worktree (`pub`)
+  and makes exactly one publish commit under `--enabled true`, gated by both the mode guard and the
+  `terminal_publish` knob (changes 0064/0084) — the single commit the plan/results re-stamp folds
+  into, exactly as decision 5 assumes. Recent work on this file (0083 marker-clear, 0084 loud-no-op,
+  0064 opt-in) is consistent with the spec and does not disturb the fold-in point.
+- `skills/docket-convention/references/terminal-close-out.md` carries the archive → re-render →
+  publish → cleanup → board sequence the spec extends (spec re-render in step 2, plan/results
+  re-render inside terminal-publish in step 3, PR-body re-render best-effort).
+- Call sites named by the spec are present: `docket-new-change §2` and the kill close-out already
+  call `render-change-links` after a spec write; `docket-implement-next §4/§7`, `docket-groom-next`,
+  and `docket-auto-groom` exist as described. ADR-0012 (script-vs-model boundary) is Accepted.
+
+No scope change. Body and spec are accurate as written; no work has been done elsewhere. No distinct
+follow-up work surfaced that meets the auto-capture materiality bar — the spec's out-of-scope items
+(one-time back-fill, ADR body back-links, durable plan/results under `terminal_publish: false`) are
+deliberate non-goals already recorded, not newly discovered work. The one open presentation call
+(exact back-link text/glyph, `↩ Change NNNN — <title>`) is resolved at build time.
