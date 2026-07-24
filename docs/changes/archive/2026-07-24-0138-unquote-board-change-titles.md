@@ -29,8 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-24-unquote-board-change-titles-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-24-unquote-board-change-titles-design.md) |
-| Plan | [2026-07-24-unquote-board-change-titles.md](https://github.com/danielhanold/docket/blob/feat/unquote-board-change-titles/docs/superpowers/plans/2026-07-24-unquote-board-change-titles.md) |
-| Results | [2026-07-24-unquote-board-change-titles-results.md](https://github.com/danielhanold/docket/blob/feat/unquote-board-change-titles/docs/results/2026-07-24-unquote-board-change-titles-results.md) |
+| Plan | [2026-07-24-unquote-board-change-titles.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-24-unquote-board-change-titles.md) |
+| Results | [2026-07-24-unquote-board-change-titles-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-24-unquote-board-change-titles-results.md) |
 | PR | [#125](https://github.com/danielhanold/docket/pull/125) |
 | ADRs | [ADR-0058](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0058-two-tier-frontmatter-scalar-readers-field-vs-field-raw.md) |
 <!-- docket:artifacts:end -->
