@@ -60,6 +60,7 @@ rather than a `bash` selected from `PATH`.
 | `github-mirror` | `github-mirror.sh` | GitHub Issues/Projects mirror |
 | `sync-integration-branch` | `sync-integration-branch.sh` | fast-forward the local integration branch |
 | `render-change-links` | `render-change-links.sh` | per-change Artifacts link block (pure renderer) |
+| `render-artifact-backlink` | `render-artifact-backlink.sh` | artifact back-link block (pure renderer) |
 | `render-adr-index` | `render-adr-index.sh` | ADR index (pure renderer) |
 | `render-learnings-index` | `render-learnings-index.sh` | learnings index (pure renderer) |
 | `adr-checks` | `adr-checks.sh` | ADR consistency checks |
