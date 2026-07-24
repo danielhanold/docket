@@ -1,12 +1,6 @@
 # Backlog
 
-**136 changes** — 🟢 1 in progress · 🟡 28 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 99 done · 🗑️ 6 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0136](active/0136-artifact-backlinks.md) | Artifact back-links — a generated link at the top of every artifact pointing to the change | `medium` | `feat` | [spec](../superpowers/specs/2026-07-23-artifact-backlinks-design.md) | `feat/artifact-backlinks` |
+**136 changes** — 🟡 28 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 99 done · 🗑️ 6 killed
 
 ## 🟡 Proposed (28)
 
@@ -47,11 +41,12 @@
 |---|-------|----------|------|------------|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | `feat` | PR #69 is stale (predates the 0068/0072 facade rework and later agent-layer changes) and #0079 (runner delegation) reshapes the design — the build roles should grow a runner field (build.<role>.runner codex, the mixed topology 0079 deferred). Needs a rebase plus redesign pass before merge. |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | `chore` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
+| [0136](active/0136-artifact-backlinks.md) | Artifact back-links — a generated link at the top of every artifact pointing to the change | `medium` | `feat` | [#124](https://github.com/danielhanold/docket/pull/124) |  |
 
 ```mermaid
 graph TD
