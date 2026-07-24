@@ -2,11 +2,11 @@
 id: 136
 slug: artifact-backlinks
 title: Artifact back-links — a generated link at the top of every artifact pointing to the change
-status: proposed
+status: in-progress
 priority: medium
 type: feat
 created: 2026-07-23
-updated: 2026-07-23
+updated: 2026-07-24
 depends_on: []
 related: [35]
 discovered_from: []
@@ -16,7 +16,8 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/artifact-backlinks
+claimed_at: 2026-07-24T04:24:04Z
 pr:
 blocked_by:
 reconciled: false
