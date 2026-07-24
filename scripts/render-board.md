@@ -63,6 +63,11 @@ The `#` cell links to the change file (`active/<filename>`). IDs are zero-padded
 Sections are emitted in the fixed order: in-progress → proposed → blocked → deferred →
 implemented. The **Implemented** heading suffix is `— awaiting merge`. Empty statuses are omitted.
 
+**Titles render bare.** The `Title` column shows the change's *logical* title. Titles are read
+through the shared `field()`/`fm_field()` readers (`scripts/lib/docket-frontmatter.sh`), which strip
+a single matched pair of surrounding YAML quotes, so a title that was double-quoted at write time
+(because it contains a comma or apostrophe) renders without the quotes (change 0138).
+
 **Readiness cell (proposed).** Calls `readiness()` from `lib/docket-frontmatter.sh`; maps the
 token: `waiting` → `⏳ waiting on #N — <reason>`; `auto-groom-blocked` → `auto-groom blocked —
 needs you`; `needs-brainstorm` → `needs-brainstorm`; `build-ready` → `build-ready`.

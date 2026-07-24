@@ -2092,5 +2092,25 @@ for flag in --type --priority; do
 done
 
 
+# --- change 0138: a YAML-quoted title renders BARE in the board (regression guard) ---
+qtmp="$(mktemp -d)"; mkdir -p "$qtmp/active" "$qtmp/archive"
+cat > "$qtmp/active/0020-tango.md" <<'EOF'
+---
+id: 20
+slug: tango
+title: "Tango, with a comma"
+status: proposed
+priority: medium
+type: fix
+depends_on: []
+spec: docs/superpowers/specs/2026-07-24-tango.md
+EOF
+qout="$(bash "$SCRIPT" --changes-dir "$qtmp" --repo o/r 2>/dev/null)"
+assert "quoted title renders without its surrounding quotes" \
+  'printf "%s" "$qout" | grep -qF "| Tango, with a comma |"'
+assert "quoted title does not render the literal double quotes" \
+  '! printf "%s" "$qout" | grep -qF "\"Tango, with a comma\""'
+rm -rf "$qtmp"
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
