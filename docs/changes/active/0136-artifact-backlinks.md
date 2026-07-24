@@ -12,7 +12,7 @@ related: [35]
 discovered_from: []
 adrs: [12]
 spec: docs/superpowers/specs/2026-07-23-artifact-backlinks-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-24-artifact-backlinks.md
 results:
 trivial: false
 auto_groomable:
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-23-artifact-backlinks-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-23-artifact-backlinks-design.md) |
+| Plan | [2026-07-24-artifact-backlinks.md](https://github.com/danielhanold/docket/blob/feat/artifact-backlinks/docs/superpowers/plans/2026-07-24-artifact-backlinks.md) |
 | ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md) |
 <!-- docket:artifacts:end -->
 
