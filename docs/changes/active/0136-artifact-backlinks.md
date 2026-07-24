@@ -1,0 +1,85 @@
+---
+id: 136
+slug: artifact-backlinks
+title: Artifact back-links — a generated link at the top of every artifact pointing to the change
+status: proposed
+priority: medium
+type: feat
+created: 2026-07-23
+updated: 2026-07-23
+depends_on: []
+related: [35]
+discovered_from: []
+adrs: [12]
+spec: docs/superpowers/specs/2026-07-23-artifact-backlinks-design.md
+plan:
+results:
+trivial: false
+auto_groomable:
+branch:
+pr:
+blocked_by:
+reconciled: false
+---
+
+## Artifacts
+
+<!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-07-23-artifact-backlinks-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-23-artifact-backlinks-design.md) |
+| ADRs | [ADR-0012](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0012-docket-status-script-vs-model-boundary.md) |
+<!-- docket:artifacts:end -->
+
+## Why
+
+Change 0035 made the change file a hub that links **out** to its spec, plan, results, ADRs, and PR
+via a generated `## Artifacts` block. But there is no link **back**: a reviewer reading a spec, a
+plan, a results file, or a PR has no clickable path home to the change that owns it, and must
+hand-search the backlog or the board. At every human review stop — spec review, the merge gate,
+results review — this friction repeats. The forward direction is solved; the reciprocal is the
+missing half.
+
+## What changes
+
+Add the reciprocal of 0035: a generated, marker-bounded **back-link block** at the very top of each
+artifact docket touches, pointing to the change file. It is the mirror image — same sole-writer /
+script-vs-model discipline (ADR-0012), same GitHub-blob-or-bare-path rendering, same
+frontmatter-is-truth stance.
+
+- A new deterministic renderer, `render-artifact-backlink.sh`, stamps a `docket:backlink` block at
+  the top of an artifact, built from the change's frontmatter. It is the block's sole writer; skills
+  never hand-edit it.
+- **Uniform target:** every back-link points to the change on `metadata_branch` at its current
+  canonical path (`active/…` while live, `archive/…` once terminal), so `terminal_publish` changes
+  only whether the close-out re-render fires, never the link target.
+- **Scope:** spec, plan, results, and the PR body. The two superpowers-authored artifacts (spec,
+  plan) are included via a docket post-write stamp — docket never patches the vendored superpowers
+  skills. ADRs are excluded (already back-referenced by `change:` frontmatter + the index).
+- **Durability tiers by where the artifact lives:** spec (on docket) and the PR body (via `gh`) are
+  always durable — re-rendered at close-out. plan/results (on the code line) are made durable by
+  folding their re-render into `terminal-publish.sh`'s existing integration-branch commit when
+  `terminal_publish: true` — no additional commit. When `terminal_publish: false`, plan/results are
+  stamped once at creation and accepted to go stale after archive.
+
+Full design — the block format, the renderer contract, all call sites, the terminal-publish
+extension, and the testing approach — is in the linked spec.
+
+## Out of scope
+
+- A one-time back-fill pass over artifacts of already-terminal changes (the block appears naturally
+  on the next relevant write).
+- ADR body back-links (already covered).
+- Durable plan/results back-links under `terminal_publish: false` (deliberately stamp-once).
+- Any change to BOARD.md or the forward `## Artifacts` block.
+- URL schemes beyond GitHub blob + bare-path fallback.
+
+## Open questions
+
+None outstanding — mechanism, uniform target, durability tiering, the terminal-publish fold-in, and
+the `terminal_publish: false` behavior are all resolved in the spec. One presentation call (the
+exact back-link text/glyph) is recorded there and open at build time.
+
+## Reconcile log
+
+<!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
