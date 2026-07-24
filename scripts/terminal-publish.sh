@@ -296,10 +296,33 @@ refresh_adr_index(){
   $GIT -C "$pub" add "$ADRS_DIR/README.md"
 }
 
+# change 0136: re-stamp the change's plan/results back-links inside THIS publish commit, pointing at
+# the archived change on the metadata branch. Change mode only (returns early in --adr mode, where
+# neither $change_path nor $tmpd/change.md exists). Per-artifact best-effort — a missing field, or a
+# field whose file is not present on the checked-out integration worktree (e.g. a killed change whose
+# plan never merged), is SKIPPED, never a die: the publish's own success does not hinge on a cosmetic
+# back-link (the renderer's own strictness is unchanged; this is the CALLER's best-effort posture).
+# The plan/results files already live on the integration branch (they arrived via the PR merge), so
+# they are present in $pub; the archived change file is in the copy-set, so $pub/$change_path exists.
+# The renderer derives repo (from $pub's origin) and config (metadata_branch/changes_dir) itself.
+restamp_build_artifacts(){
+  [ -n "$ID" ] || return 0
+  local rel art
+  for rel in "$(field "$tmpd/change.md" plan)" "$(field "$tmpd/change.md" results)"; do
+    [ -n "$rel" ] || continue
+    art="$pub/$rel"
+    [ -f "$art" ] || continue
+    "$DOCKET_BASH_PATH" "$(dirname "$0")/render-artifact-backlink.sh" \
+      --artifact-file "$art" --change-file "$pub/$change_path" >/dev/null 2>&1 || continue
+    $GIT -C "$pub" add -- "$rel" || true
+  done
+}
+
 # --- copy the terminal records from the metadata remote tip and CAS-push ---
 $GIT -C "$pub" fetch "$REMOTE" "$META_BRANCH" >/dev/null 2>&1 || { teardown; die "fetch in pub failed"; }
 $GIT -C "$pub" checkout "$metaref" -- "${copyset[@]}" || { teardown; die "checkout copyset failed"; }
 refresh_adr_index
+restamp_build_artifacts
 if ! $GIT -C "$pub" diff --cached --quiet; then
   $GIT -C "$pub" commit -m "$MESSAGE" >/dev/null || { teardown; die "publish commit failed"; }
 fi
@@ -308,6 +331,7 @@ until $GIT -C "$pub" push "$REMOTE" "HEAD:$INT_BRANCH"; do
   if $GIT -C "$pub" pull --rebase "$REMOTE" "$INT_BRANCH"; then :; else
     $GIT -C "$pub" checkout "$metaref" -- "${copyset[@]}"
     refresh_adr_index   # regenerate deterministically on conflict — never a 3-way-merge of the index
+    restamp_build_artifacts
     GIT_EDITOR=true $GIT -C "$pub" rebase --continue \
       || { teardown; die "CAS rebase --continue failed"; }
   fi

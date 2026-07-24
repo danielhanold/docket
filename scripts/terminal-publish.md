@@ -282,6 +282,36 @@ merge of the index. The post-push self-verify additionally asserts `<adrs_dir>/R
 — the mode guard early-exits before this region, and `docket-adr` already maintains the index in
 place there.
 
+### Plan/results back-link re-stamp (change 0136)
+
+In **change (`--id`) mode**, after the copy-set is checked out into `pub` and before the publish
+commit, `restamp_build_artifacts` re-renders the `docket:backlink` block on the change's `plan:` and
+`results:` files, pointing them at the **archived** change on `<metadata_branch>`. This is the
+durable half of change 0136's back-links: the plan/results files live on the code line (they arrive
+via the PR merge), so they are already present in the integration checkout `pub`, and re-stamping
+them rides the **existing publish commit** — no additional commit. The renderer
+(`render-artifact-backlink.sh`) is invoked against `$pub/<plan>` / `$pub/<results>`, with the
+archived change file (`$pub/<change_path>`, itself in the copy-set) as `--change-file`; it derives
+repo and config itself.
+
+Guards and posture:
+
+- **Change mode only.** Returns early in `--adr` mode (there is no change manifest and no
+  `change_path`).
+- **Inert under suppression.** Reached only past the mode guard and the `--enabled` knob guard, so
+  `--enabled false` and `main`-mode re-stamp nothing — exactly the `terminal_publish` durability
+  tiering (plan/results go stale after archive when publishing is off; the block was stamped once at
+  creation).
+- **Per-artifact best-effort.** A missing `plan:`/`results:` field, or a field whose file is not
+  present on the integration checkout (e.g. a `killed` change whose plan never merged), is
+  **skipped, never a die** — the publish's own success does not hinge on a cosmetic back-link. The
+  renderer's own strictness is unchanged; this best-effort posture is the caller's.
+- **Both checkout sites.** Called after the initial copy-set checkout AND in the CAS push-reject
+  retry path (after the re-checkout, before `rebase --continue`), so a rebased publish commit also
+  carries the re-stamp.
+- **Idempotent.** The renderer is idempotent, so a re-run (or a byte-identical re-stamp) leaves
+  nothing extra to commit.
+
 ## Exit codes
 
 - `0` — the full copy-set landed on `origin/<integration_branch>` and the worktree was torn down
@@ -316,6 +346,10 @@ archive; it only copies.
 **The ADR index is refreshed only from the integration branch's published ADR files, and only when
 an ADR is published** — rendered from `pub`'s own `<adrs_dir>` (never the metadata superset), in the
 same publish commit; a no-ADR change-publish and `main`-mode both leave the index untouched.
+
+**Plan/results back-links are re-stamped only under an enabled change-mode publish** (change 0136),
+inside the same publish commit, best-effort per artifact — a missing field or absent file is
+skipped, and `--enabled false` / `main`-mode / `--adr` mode re-stamp nothing.
 
 **Accepted gate fires at copy time** — an ADR that is `Proposed` at the moment the copy-set is
 assembled is excluded, even if it was `Accepted` at claim time.

@@ -356,5 +356,94 @@ post_int="$(git -C "$TW7" show "origin/main:$CHANGE_REL" 2>/dev/null)"
 assert "the silently-unremoved record never reached origin/main" \
   '! grep -q "stand-in touched" <<<"$post_int"'
 
+# (0136) terminal-publish re-stamps the change's plan/results back-links inside the SINGLE publish
+# commit. A dedicated hermetic fixture: a change (id 70) archived on docket carrying plan:/results:,
+# with those two files already present on the integration branch (main) — the post-PR-merge state.
+# The renderer that terminal-publish invokes resolves metadata_branch/changes_dir via a DOCKET_CONFIG
+# stub, inherited by the renderer subprocess, so the fixture stays offline
+# (metadata-branch-invisible-to-suite). The archived change is checked out into `pub` (it is in the
+# copy-set), so the renderer reads its id/title and derives the archive/ relpath from there.
+RS_CONFIG="$TP_ROOT/rs-config.sh"
+cat > "$RS_CONFIG" <<'RSC'
+#!/usr/bin/env bash
+echo "METADATA_BRANCH=docket"
+echo "CHANGES_DIR=docs/changes"
+RSC
+chmod +x "$RS_CONFIG"
+
+RS_CHANGE_REL=docs/changes/archive/2026-07-15-0070-restamp.md
+RS_PLAN_REL=docs/superpowers/plans/2026-07-15-restamp.md
+RS_RESULTS_REL=docs/results/2026-07-15-restamp-results.md
+
+rs_change(){
+  cat <<'CF'
+---
+id: 70
+slug: restamp
+title: A change whose plan and results get back-linked
+status: done
+priority: medium
+spec:
+plan: docs/superpowers/plans/2026-07-15-restamp.md
+results: docs/results/2026-07-15-restamp-results.md
+adrs: []
+---
+
+## Why
+
+Body.
+CF
+}
+
+# rs_repo: prints "<work>" — a bare origin holding main (with the plan+results files + the archived
+# record) and docket (the archived record carrying plan:/results:).
+rs_repo(){
+  local root origin work
+  root="$(mktemp -d "$TP_ROOT/rs.XXXXXX")"; origin="$root/origin.git"; work="$root/work"
+  git_quiet init --bare "$origin"
+  git_quiet clone "$origin" "$work"
+  git -C "$work" config user.email t@t; git -C "$work" config user.name t
+  git_quiet -C "$work" checkout -b main
+  mkdir -p "$work/docs/adrs" "$work/docs/changes/archive" "$work/docs/superpowers/plans" "$work/docs/results"
+  echo "# adr index" > "$work/docs/adrs/README.md"
+  printf '# Plan\n\nplan body.\n' > "$work/$RS_PLAN_REL"
+  printf '# Results\n\nresults body.\n' > "$work/$RS_RESULTS_REL"
+  rs_change > "$work/$RS_CHANGE_REL"
+  git -C "$work" add -A; git_quiet -C "$work" commit -m "main baseline (plan+results present)"; git_quiet -C "$work" push -u origin main
+  git_quiet -C "$work" checkout --orphan docket
+  git_quiet -C "$work" rm -rf .
+  mkdir -p "$work/docs/changes/archive" "$work/docs/adrs"
+  rs_change > "$work/$RS_CHANGE_REL"
+  git -C "$work" add -A; git_quiet -C "$work" commit -m "docket baseline"; git_quiet -C "$work" push -u origin docket
+  printf '%s\n' "$work"
+}
+
+# (0136-a) an ENABLED publish stamps BOTH files, in ONE new commit on the integration branch.
+RSW="$(rs_repo)"
+rs_args=(--id 70 --outcome done --integration-branch main --metadata-branch docket
+         --changes-dir docs/changes --adrs-dir docs/adrs --metadata-worktree "$RSW")
+git_quiet -C "$RSW" fetch origin main
+rs_before="$(git -C "$RSW" rev-list --count origin/main)"
+( cd "$RSW" && DOCKET_CONFIG="$RS_CONFIG" bash "$SCRIPT" "${rs_args[@]}" --enabled true >/dev/null 2>&1 ); rsrc=$?
+assert "restamp: enabled publish exits zero" '[ "$rsrc" -eq 0 ]'
+git_quiet -C "$RSW" fetch origin main
+rs_plan="$(git -C "$RSW" show "origin/main:$RS_PLAN_REL" 2>/dev/null)"
+rs_results="$(git -C "$RSW" show "origin/main:$RS_RESULTS_REL" 2>/dev/null)"
+assert "restamp: plan carries the back-link block on origin/main"    'grep -qF "docket:backlink:start" <<<"$rs_plan"'
+assert "restamp: results carries the back-link block on origin/main" 'grep -qF "docket:backlink:start" <<<"$rs_results"'
+assert "restamp: the block points at the archived change path"       'grep -qF "docs/changes/archive/2026-07-15-0070-restamp.md" <<<"$rs_plan"'
+rs_after="$(git -C "$RSW" rev-list --count origin/main)"
+assert "restamp: rides the single publish commit (no extra commit)"  '[ "$((rs_after - rs_before))" -eq 1 ]'
+
+# (0136-b) a SUPPRESSED publish (--enabled false) leaves the plan/results untouched — the knob guard
+# exits before any re-stamp can run.
+RSW2="$(rs_repo)"
+rs_args2=(--id 70 --outcome done --integration-branch main --metadata-branch docket
+          --changes-dir docs/changes --adrs-dir docs/adrs --metadata-worktree "$RSW2")
+( cd "$RSW2" && DOCKET_CONFIG="$RS_CONFIG" bash "$SCRIPT" "${rs_args2[@]}" --enabled false >/dev/null 2>&1 )
+git_quiet -C "$RSW2" fetch origin main
+rs2_plan="$(git -C "$RSW2" show "origin/main:$RS_PLAN_REL" 2>/dev/null)"
+assert "restamp: --enabled false leaves plan untouched (no block)" '! grep -qF "docket:backlink:start" <<<"$rs2_plan"'
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
