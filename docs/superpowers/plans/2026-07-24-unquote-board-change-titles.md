@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0138 — Board generator wraps each change title in literal double quotes](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0138-unquote-board-change-titles.md)**
+> ↩ **[Change 0138 — Board generator wraps each change title in literal double quotes](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-07-24-0138-unquote-board-change-titles.md)**
 <!-- docket:backlink:end -->
 
 # Unquote board change titles Implementation Plan
