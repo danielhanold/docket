@@ -5,10 +5,11 @@
 # on source beyond declaring functions and the dependency-resolution globals. No git, no network.
 #
 # Provides:
-#   field FILE KEY        — first matching scalar for KEY anywhere in the file, trimmed.
+#   field FILE KEY        — first matching scalar for KEY anywhere in the file, trimmed and with a
+#                           single matched pair of surrounding quotes stripped (logical value).
 #   fm_field FILE KEY     — like field(), but ONLY inside the first ---...--- block. Use this for
 #                           any key that may be ABSENT from frontmatter (e.g. type:), where field()
-#                           would fall through and return body prose.
+#                           would fall through and return body prose. Same quote-stripping as field().
 #   list_field FILE KEY   — `[a, b]` -> space-separated `a b` (empty for `[]` / unset).
 #   int_field FILE KEY    — like field(), but empty unless the value is a well-formed non-negative integer.
 #   has_section FILE STR  — exit 0 iff the body contains the literal line STR (whole-line match:
@@ -29,12 +30,29 @@
 #   DEP_ON[id]      bare id of the worst unmet dependency ("" when clear) — display support for #N
 
 # --- frontmatter accessors (lifted from github-mirror.sh, which now sources them here) --------
+# _docket_unwrap_quotes VALUE -> logical scalar on stdout, with NO trailing newline.
+# Strips a SINGLE matched pair of surrounding quotes (both " or both ') when VALUE is at least two
+# characters and its first and last characters are the same quote char. Interior bytes are left
+# byte-for-byte: this is NOT YAML unescaping (\" and \\ are untouched — see change 0138, spec
+# Assumption 3). Pure bash parameter expansion — no subshell, no fork, no external tool — so it is
+# pipefail-safe and portable across GNU/BSD hosts. field() and fm_field() are its only callers.
+_docket_unwrap_quotes(){
+  local v="$1" q
+  if [ "${#v}" -ge 2 ]; then
+    q="${v:0:1}"
+    if { [ "$q" = '"' ] || [ "$q" = "'" ]; } && [ "${v: -1}" = "$q" ]; then
+      v="${v:1:${#v}-2}"
+    fi
+  fi
+  printf '%s' "$v"
+}
 field(){
   local raw; raw="$(sed -n "s/^$2:[[:space:]]*//p" "$1")"
   raw="${raw%%$'\n'*}"                              # keep only the first matching line — no pipe
-  printf '%s\n' "${raw%"${raw##*[![:space:]]}"}"   # strip trailing whitespace; trailing \n matches the
-}                                                  # original sed form (callers that pipe field directly,
-                                                   # e.g. the mermaid done-id list, rely on the separator)
+  raw="${raw%"${raw##*[![:space:]]}"}"             # strip trailing whitespace
+  printf '%s\n' "$(_docket_unwrap_quotes "$raw")"  # return the LOGICAL scalar (a matched surrounding
+}                                                  # quote pair stripped); the trailing \n preserves the
+                                                   # piped-consumer contract (e.g. the mermaid done-id list)
 # fm_field FILE KEY — like field(), but reads ONLY inside the FIRST ---...--- block (change 0127).
 #
 # field() scans the whole file and takes the first match. For the pre-0127 fields that is safe: the
@@ -53,8 +71,9 @@ field(){
 # refuses to assign it, and the comment's `|` characters inject phantom columns into its board row.
 # mint-stub.sh strips the same shape on WRITE for the same reason; this is the read-side half.
 # A `#` not preceded by whitespace is part of the value, exactly as YAML defines it.
-fm_field(){ # fm_field FILE KEY -> value on stdout (empty when absent from the first block)
-  awk -v key="$2" '
+fm_field(){ # fm_field FILE KEY -> logical scalar on stdout (empty when absent from the first block)
+  local raw
+  raw="$(awk -v key="$2" '
     BEGIN { n = 0 }
     /^---[[:space:]]*$/ { n++; if (n >= 2) exit; next }
     n == 1 {
@@ -66,7 +85,8 @@ fm_field(){ # fm_field FILE KEY -> value on stdout (empty when absent from the f
         exit
       }
     }
-  ' "$1"
+  ' "$1")"
+  _docket_unwrap_quotes "$raw"
 }
 
 list_field(){

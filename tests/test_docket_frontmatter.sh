@@ -239,5 +239,37 @@ assert "priority rank derives low as three" '[ "$(docket_priority_rank low)" = 3
 assert "priority rank defaults empty to medium's index" '[ "$(docket_priority_rank "")" = 2 ]'
 assert "priority rank defaults unknown to medium's index" '[ "$(docket_priority_rank urgent)" = 2 ]'
 
+# --- matched-quote unwrap: readers return the LOGICAL scalar (change 0138) ---
+qd="$(mktemp -d)"
+printf -- '---\ntitle: "Comma, title"\n---\n'   > "$qd/dq.md"
+printf -- "---\ntitle: 'Comma, title'\n---\n"   > "$qd/sq.md"
+printf -- '---\ntitle: Bare title\n---\n'       > "$qd/bare.md"
+printf -- '---\ntitle: Say "hi" now\n---\n'     > "$qd/interior.md"
+printf -- '---\ntitle: "unterminated\n---\n'    > "$qd/untl.md"
+printf -- '---\ntitle: foo"\n---\n'             > "$qd/trailq.md"
+printf -- '---\ntitle: "\n---\n'                > "$qd/onechar.md"
+printf -- '---\ntitle: ""\n---\n'               > "$qd/empty2.md"
+
+# field(): strip a matched surrounding pair, leave everything else byte-for-byte
+assert "field strips a double-quoted value"       '[ "$(field "$qd/dq.md" title)" = "Comma, title" ]'
+assert "field strips a single-quoted value"       '[ "$(field "$qd/sq.md" title)" = "Comma, title" ]'
+assert "field leaves a bare value unchanged"      '[ "$(field "$qd/bare.md" title)" = "Bare title" ]'
+assert "field leaves an interior quote untouched" '[ "$(field "$qd/interior.md" title)" = "Say \"hi\" now" ]'
+assert "field leaves an unterminated open quote"  '[ "$(field "$qd/untl.md" title)" = "\"unterminated" ]'
+assert "field leaves a trailing-only quote"       '[ "$(field "$qd/trailq.md" title)" = "foo\"" ]'
+assert "field leaves a lone single quote char"    '[ "$(field "$qd/onechar.md" title)" = "\"" ]'
+assert "field reduces an empty quoted value"      '[ -z "$(field "$qd/empty2.md" title)" ]'
+# field() MUST keep its single trailing newline (piped-consumer contract, e.g. mermaid done-id list)
+assert "field emits exactly one trailing newline" '[ "$(field "$qd/dq.md" title | wc -l | tr -d " ")" = "1" ]'
+
+# fm_field(): mirror-image cases through the anchored twin (shares the helper)
+assert "fm_field strips a double-quoted value"       '[ "$(fm_field "$qd/dq.md" title)" = "Comma, title" ]'
+assert "fm_field strips a single-quoted value"       '[ "$(fm_field "$qd/sq.md" title)" = "Comma, title" ]'
+assert "fm_field leaves a bare value unchanged"      '[ "$(fm_field "$qd/bare.md" title)" = "Bare title" ]'
+assert "fm_field leaves an interior quote untouched" '[ "$(fm_field "$qd/interior.md" title)" = "Say \"hi\" now" ]'
+assert "fm_field leaves an unterminated open quote"  '[ "$(fm_field "$qd/untl.md" title)" = "\"unterminated" ]'
+assert "fm_field empty when the key is absent"       '[ -z "$(fm_field "$qd/dq.md" nonesuch)" ]'
+rm -rf "$qd"
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
