@@ -2,7 +2,7 @@
 id: 136
 slug: artifact-backlinks
 title: Artifact back-links — a generated link at the top of every artifact pointing to the change
-status: implemented
+status: done
 priority: medium
 type: feat
 created: 2026-07-23
@@ -17,7 +17,7 @@ results: docs/results/2026-07-24-artifact-backlinks-results.md
 trivial: false
 auto_groomable:
 branch: feat/artifact-backlinks
-claimed_at: 2026-07-24T05:04:09Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/124
 blocked_by:
 reconciled: true
