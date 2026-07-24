@@ -34,7 +34,7 @@
 | [0133](active/0133-centralize-runtime-config-helpers.md) | Centralize shared Bash runtime configuration helpers | `medium` | `refactor` | build-ready |
 | [0134](active/0134-audit-field-call-sites-for-frontmatter-anchored-reads.md) | Audit field() call sites for frontmatter-anchored reads | `medium` | `fix` | needs-brainstorm |
 | [0135](active/0135-cursor-agent-wrapper-contract.md) | "Generated Cursor wrappers violate Cursor's subagent contract, disabling skills and model effort" | `high` | `fix` | needs-brainstorm |
-| [0137](active/0137-forked-claude-code-skills-assume-absent-task-dispatch.md) | "Forked Claude Code docket skills assume a Task subagent-dispatch tool the fork does not have, silently degrading SDD build and review" | `high` | `fix` | needs-brainstorm |
+| [0137](active/0137-forked-claude-code-skills-assume-absent-task-dispatch.md) | "Forked Claude Code docket skills assume a Task subagent-dispatch tool the fork does not have, silently degrading SDD build and review" | `critical` | `fix` | needs-brainstorm |
 
 ## 🔴 Blocked (1)
 
