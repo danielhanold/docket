@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/unquote-board-change-titles
-claimed_at: 2026-07-24T15:13:07Z
+claimed_at: 2026-07-24T15:14:26Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -86,3 +86,29 @@ Resolved during grooming (see spec Assumptions):
 - The GitHub mirror **does** share the code path (reads title via the same
   `field()`), as do the ADR index and artifact backlinks — the shared-reader fix
   covers them all.
+
+## Reconcile log
+
+### 2026-07-24 — reconcile pass (implement-next)
+
+Verified the spec against current code (`origin/main` and `origin/docket`); no
+scope change.
+
+- `field()` (`scripts/lib/docket-frontmatter.sh:32-37`) and its anchored twin
+  `fm_field()` (`:56-70`) are byte-for-byte as the spec's root-cause analysis
+  describes — last touched by change 0127 (`298f382e`), which anchored `type:`
+  reads and did **not** alter title storage or quote handling, confirming the
+  spec's "not a 127 regression" attribution.
+- All six enumerated title consumers still read through the shared readers at the
+  cited call sites: `render-board.sh:303` (active) / `:399` (archive),
+  `github-mirror.sh:156`/`:208`, `board-checks.sh:169`, `render-adr-index.sh:40`
+  (`field()`), and `render-artifact-backlink.sh:78` (`fm_field()`). The
+  `mint-stub.sh:158` `dup_of` no-op site also holds.
+- Both target test files exist: `tests/test_docket_frontmatter.sh`,
+  `tests/test_render_board.sh`.
+- Auto-capture: the only adjacent item surfaced is the spec's deliberately
+  deferred full-YAML-unescaping (assumption 3), framed conditionally ("if a title
+  ever needs it") with no current instance — below the materiality bar, so
+  reported here rather than minted as a stub.
+
+The design is true as written; proceeding to plan + build.
