@@ -1,6 +1,6 @@
 # Backlog
 
-**138 changes** — 🟡 30 proposed · 🔴 1 blocked · 🔵 2 implemented · ✅ 99 done · 🗑️ 6 killed
+**138 changes** — 🟡 30 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 100 done · 🗑️ 6 killed
 
 ## 🟡 Proposed (30)
 
@@ -43,12 +43,11 @@
 |---|-------|----------|------|------------|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | `feat` | PR #69 is stale (predates the 0068/0072 facade rework and later agent-layer changes) and #0079 (runner delegation) reshapes the design — the build roles should grow a runner field (build.<role>.runner codex, the mixed topology 0079 deferred). Needs a rebase plus redesign pass before merge. |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | `chore` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
-| [0136](active/0136-artifact-backlinks.md) | Artifact back-links — a generated link at the top of every artifact pointing to the change | `medium` | `feat` | [#124](https://github.com/danielhanold/docket/pull/124) |  |
 
 ```mermaid
 graph TD
@@ -82,7 +81,6 @@ graph TD
   0133
   0134
   0135
-  0136
   0137
   0138
   0015:::done
@@ -91,10 +89,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (105)</summary>
+<details><summary>✅🗑️ Archive — done + killed (106)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0136](archive/2026-07-24-0136-artifact-backlinks.md) | Artifact back-links — a generated link at the top of every artifact pointing to the change | 2026-07-24 |
 | [0127](archive/2026-07-23-0127-typed-changes-selective-auto-capture.md) | Typed changes — configurable taxonomy, selective auto-capture, and backlog filters | 2026-07-23 |
 | [0132](archive/2026-07-22-0132-install-configured-bash-runtime.md) | Install and use a configured Bash 4+ runtime | 2026-07-22 |
 | [0128](archive/2026-07-22-0128-truthful-git-errors-harness-neutral-escalation-retry.md) | Truthful Git failures and harness-neutral sandbox escalation retry | 2026-07-22 |
@@ -110,7 +109,6 @@ graph TD
 | [0106](archive/2026-07-20-0106-pin-the-finalize-test-command-auto-sentinel-s-cross-layer-ma.md) | Pin the finalize.test_command auto sentinel's cross-layer masking with a two-layer fixture | 2026-07-20 |
 | [0105](archive/2026-07-20-0105-pin-docket-mode-main-coverage-for-docket-status-digest-only.md) | Pin DOCKET_MODE=main coverage for docket-status --digest-only | 2026-07-20 |
 | [0104](archive/2026-07-20-0104-guard-frontmatter-field-domain-violations-that-silently-drop.md) | Guard frontmatter field-domain violations that silently drop board rows | 2026-07-20 |
-| [0101](archive/2026-07-20-0101-docket-yml-example.md) | .docket.yml.example — the canonical all-comprehensive config reference | 2026-07-20 |
 | [0086](archive/2026-07-18-0086-attended-finalize-merge-path.md) | Attended finalize has no merge path under auto_approve — scope the --admin ban to autonomous runs | 2026-07-18 |
 | [0033](archive/2026-07-16-0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | 2026-07-16 |
 | [0076](archive/2026-07-14-0076-cwd-independent-repo-root-resolution.md) | Resolve the repo root independently of CWD — preflight run inside `.docket` mints a nested metadata worktree | 2026-07-14 |
@@ -121,7 +119,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-07](archive/) | 52 done |
+| [2026-07](archive/) | 53 done |
 | [2026-06](archive/) | 32 done |
 
 </details>
