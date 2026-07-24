@@ -46,6 +46,15 @@ before the first read; every commit pushes immediately.
    into the step-1 archive commit (which must stay change-file-only and byte-identical across
    concurrent archivers).
 
+   **Also re-render the spec's back-link (change 0136)** in the same follow-on commit — re-stamp its
+   `docket:backlink` block to point at the now-**archived** change path (the `active/ → archive/`
+   move stales an earlier back-link). Skip when there is no `spec:`; must-land:
+
+   ```
+   "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh render-artifact-backlink \
+     --artifact-file .docket/<spec-path> --change-file .docket/<changes_dir>/archive/<UTC-date>-<id>-<slug>.md
+   ```
+
 3. **Publish the terminal record.** Reached only after the step-2 commit is on `origin/docket`.
    **Gated by `TERMINAL_PUBLISH`** (change 0064) — pass `<terminal_publish>`, the resolved config's
    `TERMINAL_PUBLISH` value from Step 0's `preflight`/`env` block, straight through:
@@ -61,6 +70,13 @@ before the first read; every commit pushes immediately.
    from `origin/docket` onto the integration branch in one dedicated commit — the only flow of
    metadata onto the code line. Trust the exit code; its reuse-existing-file idempotency makes two
    drivers racing on the same change a safe no-op.
+
+   **Plan/results + PR back-links re-render here too (change 0136).** `terminal-publish.sh`
+   re-stamps the `docket:backlink` block on the change's `plan:`/`results:` inside this same publish
+   commit when `terminal_publish: true` (internal — no extra step; a no-op under the default and in
+   `main`-mode, where those back-links are stamp-once at creation and go stale after archive). A
+   driver editing the PR body may likewise re-render its back-link line via `gh pr edit` —
+   best-effort, never aborts close-out.
 
    When `terminal_publish` is `false` — **the default** since change 0084 — the script is a
    **no-op that exits 0**: the record stays on `docket`, and a suppressed publish is *success* —
