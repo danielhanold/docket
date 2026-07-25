@@ -178,7 +178,11 @@ dispatch a subagent. Verification is therefore split.
    population floor so the guard cannot validate zero markers
    (`marker-scoped-guard-needs-a-population-floor`).
 2. **Negative guard**: no docket prose gates on a literal tool name. Scoped to exclude the four
-   legitimately Cursor-scoped mentions listed above, so the guard does not demand their removal.
+   legitimately Cursor-scoped mentions listed above, so the guard does not demand their removal —
+   **and scoped to live prose only** (`skills/`, `README.md`, `docs/adrs/`). Archived change files
+   and results files are immutable historical records that mention `Task` both as the old tool name
+   and as plan-task labels ("Task 10", "Task-1b"); a guard that swept them would either be
+   permanently red or force edits to the ledger. See the reconcile addendum.
 3. **Live spike at build time**, findings recorded **verbatim in the results file** with the
    Claude Code version (`metadata-branch-invisible-to-suite`; and per
    `harness-behavior-is-mode-and-version-scoped` the findings are version-scoped and must say
@@ -203,6 +207,48 @@ child categorically lacks dispatch, Tier C would halt **every** forked build —
 In that case the change **stops and reports back to the human** rather than shipping a posture
 that breaks the primary path. The human then chooses between steering users toward
 agent-dispatch and relaxing Tier C. Do not resolve this silently.
+
+## Reconcile addendum — 2026-07-25 (build claim)
+
+Verified against current `main` + `docket` at claim time. The design stands unchanged; four
+build-facing constraints the groom pass could not see:
+
+1. **Every cited line number is still accurate.** The two wrong sites
+   (`agent-layer.md:131`, `README.md:620`), the immutable `ADR-0024:16`, and all four
+   Cursor-scoped mentions (`agent-layer.md:115`, `README.md:622`, `ADR-0017:30`, `ADR-0026:77`)
+   are byte-for-byte where the spec says. No re-survey needed.
+
+2. **The size-budget guard has ~zero headroom, so the fix must raise it in-diff.**
+   `tests/test_skill_size_budgets.sh` caps `skills/docket-convention/SKILL.md` at 354 lines /
+   5850 words; it currently sits at **347 / 5848 — two words of headroom**.
+   `skills/docket-implement-next/SKILL.md` sits at 135 / 3307 against 147 / 3315 — **eight
+   words**. Adding the capability-resolution rule and the Tier C posture therefore *requires*
+   raising those budget rows in the same diff. That is the guard's own sanctioned escape hatch
+   ("a change that bloats a skill must slim elsewhere or consciously RAISE the budget in this
+   table"), with precedent in changes 0127 and 0102 — but it is a deliberate, reviewable edit,
+   never a surprise, and the raise must be justified in the table's comment block.
+   `agent-layer.md` (152/168, 1671/1839) and `docket-auto-groom/SKILL.md` (60/66, 1159/1237)
+   have real headroom.
+
+3. **Tier C must be drawn against the existing missing-skill rule, not on top of it.** The
+   convention's *Skill layer* already says an un-invocable skill degrades to `auto` + warn. That
+   stays true and is a **different** condition: #0136's `subagent-driven-development` *was*
+   invoked and then could not dispatch from inside. The build must state the boundary explicitly
+   — **skill not invocable ⇒ missing-skill rule (degrade + warn); skill invocable but dispatch
+   unresolvable ⇒ Tier C (authorized-or-halt)** — or the two rules will read as contradicting
+   each other on the same symptom.
+
+4. **The #0135 stub amendment is already done.** Grooming landed it on 2026-07-25 (`0135`'s body
+   carries the dated "failure is skill-delivery, not dispatch" note, and its `related:` already
+   lists `137`). The only residue for this build is adding the new ADR's id to #0135's `adrs:`
+   once the number is assigned. Dropped from the change's scope accordingly.
+
+Also confirmed: **#0136 is `done`** (PR #124 merged 2026-07-24T14:32:40Z), so the
+"no retrofit of PR #124" non-goal is now about merged history. #0135 and #0113 are both still
+`proposed` / needs-brainstorm — `related:` only, nothing gates this build. Because this repo runs
+`terminal_publish: true`, `docs/adrs/` exists on **both** branches; the ADR-0024 `## Update` is a
+`docket-adr` write on `docket` that publishes onto `main` at acceptance — **never** a
+feature-branch edit.
 
 ## Out of scope
 

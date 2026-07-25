@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/forked-claude-code-skills-assume-absent-task-dispatch
-claimed_at: 2026-07-25T17:28:41Z
+claimed_at: 2026-07-25T17:31:52Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -81,7 +81,9 @@ dispatch is genuinely unavailable. Design in the spec; at scope altitude:
 - Prove reachability: a structural test anchored on the consuming skill sections, a negative guard
   that no docket prose gates on a literal tool name, and a **build-time live spike** over both
   ADR-[[0026]] invocation paths whose findings are recorded verbatim in the results file.
-- Amend change [[135]]'s stub to record that its failure is skill-delivery, not dispatch.
+- Add the new ADR's id to change [[135]]'s `adrs:` so it cites the shared decision. (The prose
+  amendment recording that 135's failure is skill-delivery, not dispatch, already landed at
+  grooming on 2026-07-25 — see the reconcile log.)
 
 ## Out of scope
 
@@ -104,3 +106,22 @@ dispatch is genuinely unavailable. Design in the spec; at scope altitude:
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+- **2026-07-25 (build claim)** — Claimed for implementation. Design verified against current `main`
+  + `docket`; it **stands unchanged** and no scope was adjusted downward beyond one completed item.
+  Details in the spec's *Reconcile addendum*. In brief: (1) every line number the spec cites is
+  still byte-accurate — both wrong sites, the immutable ADR-0024:16, and all four Cursor-scoped
+  mentions; no re-survey needed. (2) **New build constraint** — `tests/test_skill_size_budgets.sh`
+  leaves `docket-convention/SKILL.md` **two words** of headroom (347/354 lines, 5848/5850 words) and
+  `docket-implement-next/SKILL.md` **eight**, so the fix must consciously raise those budget rows
+  in the same diff (the guard's own sanctioned escape hatch; precedent 0127/0102). (3) **New design
+  obligation** — Tier C must be drawn *against* the existing missing-skill rule, not layered on it:
+  skill not invocable ⇒ degrade+warn, skill invocable but dispatch unresolvable ⇒ authorized-or-halt.
+  (4) The negative guard's scope must exclude `archive/` and `docs/results/` as well as the four
+  Cursor mentions — those immutable records use "Task" both as the old tool name and as plan-task
+  labels. (5) **Scope item already done** — 135's stub amendment landed at grooming on 2026-07-25,
+  so it drops to just adding the new ADR id to 135's `adrs:`. Context checks: #0136 is `done`
+  (PR #124 merged 2026-07-24), #0135 and #0113 remain `proposed` and gate nothing. This run is
+  **deliberately non-forked** — driven inline at `claude-opus-5` at the human's request to preserve
+  session model/effort — which itself makes the run a live observation of the dispatch surface the
+  change is about.
