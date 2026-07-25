@@ -19,12 +19,18 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # docket-finalize-change/SKILL.md's word budget was raised 4060 -> 4200 by change 0102, which grew
 # the file to 4059/4060 words (1 word of headroom) while wiring finalize.require_pr_approval
 # through the resolver — the next edit to that file would have reddened CI on arrival.
+# docket-convention/SKILL.md's budget was raised 354/5850 -> 365/6210 by change 0137, which added
+# the dispatch-capability resolution rule + its A/B/C tier table. The rule must live in SKILL.md
+# itself rather than a reference: it fires at the exact moment an agent is about to wrongly
+# conclude dispatch is absent, and a rule sitting in an unread reference file cannot intervene at
+# that moment. Both numbers are the measured actual (361 lines / 6209 words) rounded up to the
+# next multiple of 5 / 10, per the raise-budgets convention above.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
 skills/docket-auto-groom/SKILL.md                           66 1237
 skills/docket-brainstorm/SKILL.md                           84  692
-skills/docket-convention/SKILL.md                          354 5850
+skills/docket-convention/SKILL.md                          365 6210
 skills/docket-convention/github-board-mirror.md             19  462
 skills/docket-convention/references/agent-layer.md         168 1839
 skills/docket-convention/references/learnings.md            84  580

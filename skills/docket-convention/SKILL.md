@@ -85,6 +85,20 @@ All metadata reads and writes happen in the metadata working tree on `metadata_b
 
 On host **sandbox** or **permission** denial of a required `docket.sh` facade or direct Git command, retry the **exact command** once through the host harness's native approval/escalation mechanism. Do not change arguments or broaden the session sandbox. No shell-level elevation, including `sudo`, is permitted. If approval is unavailable or denied, or the retry fails, preserve the diagnostic and follow the caller's **existing failure posture**. Ordinary Git failures do not qualify. In Step 0, retry the outer `docket.sh preflight`, never an inner fetch. Normative skill prose is **harness-neutral**: never name or invoke product-specific retry syntax.
 
+### Dispatch-capability resolution (change 0137)
+
+A dispatch-dependent step — a composition dispatch, or a role skill that dispatches internally — may be declared unavailable only after the agent has, in order: (1) **resolved** a subagent-dispatch mechanism, **including searching any deferred or lazily-loaded tool surface** the harness exposes, since a partially-loaded tool set makes absence observable without anything having been resolved; and (2) **attempted one trivial dispatch**, if resolution was inconclusive. Only a **failed attempt** or an explicit **policy denial** establishes unavailability. **The absence of a specifically-named tool never does** — the rule is stated by capability, and a tool name is a diagnostic string, **never a decision input**. A failure diagnostic MAY report what was searched for; naming it there commits docket to nothing, the same posture the README takes toward the fork transcript path.
+
+When dispatch is genuinely unavailable the kinds are **not** equivalent, so the posture is tiered:
+
+| Tier | Dispatch | Posture |
+|---|---|---|
+| **A — deterministic** | the `docket-status` and `docket-adr` composition dispatches | Run the same work **inline** — a **first-class equivalent path**, neither a degradation nor a warning, because the contract is git state on `metadata_branch`, not an in-context return. Every obligation holds unchanged: re-sync before reading, derive from fresh origin, never adopt or commit another agent's uncommitted files. |
+| **B — adversarial** | the `docket-auto-groom-critic` gate | **Abstain**, per *Autonomous grooming*. Self-critique by the agent that drafted the spec is not an adversarial gate, and the abstain is a path that skill already owns. |
+| **C — discipline** | the `build` and `review` role skills | **Authorized-or-halt.** An **explicitly configured `auto` is the human's** authorization to run inline; any other resolved value that cannot dispatch is **abort-and-report**, leaving the change `in-progress` with `claimed_at` refreshed and the halt reason recorded. **No new status, no new field** — the reclaim lease self-heals an abandoned claim. |
+
+Tier C neither replaces nor softens the *Skill layer*'s **missing-skill rule**: a skill that cannot be **invoked** still degrades to `auto` + warn, while a skill that was invoked and then cannot **dispatch** is Tier C. Two conditions, two postures, one symptom in the run log.
+
 ### Agent layer — model/effort-pinned subagents (change 0016)
 
 Each **autonomous** docket skill can run as a model/effort-pinned **subagent** instead of inline at the session model. Five skills get a wrapper — `docket-implement-next`, `docket-auto-groom`, `docket-finalize-change`, `docket-status`, `docket-adr`; the two **interactive** skills (`docket-new-change`, `docket-groom-next`) stay inline and only surface an **advisory** recommended model/effort at startup (a skill cannot force the session model). `docket-convention` is not an agent — it is injected into every wrapper via `skills:`.
