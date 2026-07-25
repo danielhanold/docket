@@ -6,9 +6,9 @@ status: proposed
 priority: high
 type: fix
 created: 2026-07-23
-updated: 2026-07-23
+updated: 2026-07-25
 depends_on: []
-related: [16, 44, 45, 46, 48, 49, 66, 113]
+related: [16, 44, 45, 46, 48, 49, 66, 113, 137]
 discovered_from: []
 adrs: [8, 15, 24]
 spec:
@@ -66,6 +66,22 @@ Cursor does document nested subagent launches through the Task tool (within its 
 subject to mode, hook, and tool policy). That may provide a native execution route for SDD's
 implementer/reviewer tree, but docket has not designed, generated, or runtime-verified that route.
 
+**Note added 2026-07-25 (from change [[137]]'s grooming).** These two changes look like one defect
+but are failures at different layers, and neither fix reaches the other harness. **This change's
+failure is skill-delivery, not dispatch**: Cursor's Task tool exists and is documented; what the
+Cursor child lacked was a Skill tool and the docket instructions, because `skills:` preload and
+standalone `effort:` are not Cursor frontmatter fields. Change 137's failure is the reverse — its
+dispatch tool and skills both work, and it mis-detected them (Claude Code's dispatch tool is named
+`Agent`, not `Task`, and subagent tool sets are partially deferred). Consequently **change 137 does
+not fix this change**: it delivers its fix as docket-convention prose, through the very channel this
+change is broken on. Repairing wrapper delivery here is the prerequisite for any convention-level
+rule reaching a Cursor child. The two stay `related:`, never `depends_on:` — neither gates the other.
+
+Change 137 records the shared cross-harness decision (capability-based dispatch detection rather
+than tool-name matching, plus a tiered posture for genuinely-unavailable dispatch) in a new
+**harness-neutral** ADR that this change should **cite and implement for Cursor** rather than
+re-decide.
+
 ## What changes
 
 Make generated Cursor agents conform to Cursor's current subagent contract and prove that the
@@ -117,6 +133,11 @@ workflow capabilities docket advertises are reachable:
   inline fallback?
 - Does this correction supersede any Cursor-specific portions of ADR-0008 or ADR-0015, or only
   refine their harness mappings?
+- **What is Cursor's actual Task nesting limit?** Docket's tree runs three deep (wrapper → SDD
+  implementer → task reviewer). If the limit is below three, SDD genuinely cannot run on Cursor —
+  the capability-resolution rule would correctly detect it and the halt posture would fire, which is
+  an honest outcome rather than a bug. Unverified as of 2026-07-25; change [[137]] deliberately left
+  it here.
 
 ## Reconcile log
 

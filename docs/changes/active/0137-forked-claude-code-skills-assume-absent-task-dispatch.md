@@ -1,17 +1,17 @@
 ---
 id: 137
 slug: forked-claude-code-skills-assume-absent-task-dispatch
-title: "Forked Claude Code docket skills assume a Task subagent-dispatch tool the fork does not have, silently degrading SDD build and review"
+title: "Claude Code dispatch-capability detection: name-based probing silently drops SDD build and review discipline"
 status: proposed
 priority: critical
 type: fix
 created: 2026-07-24
-updated: 2026-07-24
+updated: 2026-07-25
 depends_on: []
 related: [16, 17, 49, 61, 113, 135]
 discovered_from: [136]
-adrs: [8, 17, 24]
-spec:
+adrs: [8, 17, 24, 26]
+spec: docs/superpowers/specs/2026-07-25-dispatch-capability-detection-design.md
 plan:
 results:
 trivial: false
@@ -27,89 +27,78 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
-| ADRs | [ADR-0008](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0008-agent-layer-generated-subagents.md), [ADR-0017](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0017-cursor-dispatch-rule-full-agent-set.md), [ADR-0024](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0024-claude-context-fork-skill-dispatch.md) |
+| Spec | [2026-07-25-dispatch-capability-detection-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-25-dispatch-capability-detection-design.md) |
+| ADRs | [ADR-0008](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0008-agent-layer-generated-subagents.md), [ADR-0017](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0017-cursor-dispatch-rule-full-agent-set.md), [ADR-0024](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0024-claude-context-fork-skill-dispatch.md), [ADR-0026](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0026-fork-dispatch-opacity-two-invocation-paths.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-A live `docket-implement-next 136` run — invoked as a Claude Code forked subagent via the
-`context: fork` + `agent:` dispatch of ADR-[[0024]] — reported that its runtime had **no
-subagent-dispatch (`Task`) tool**. Because of that, the resolved `build`
-(`superpowers:subagent-driven-development`) could not dispatch its fresh per-task implementer
-subagents, and the resolved `review` (`superpowers:requesting-code-review`) could not dispatch a
-reviewer. Both roles fell back to their inline `auto` fallbacks. The run still produced a plausible
-PR (#124), but it did **not** execute SDD's fresh per-task implementers, its per-task TDD gates, or
-a dispatched code review — exactly the disciplines docket's wrapper advertised as running.
+A live `docket-implement-next 136` run reported that its runtime had **no subagent-dispatch
+(`Task`) tool**, so `superpowers:subagent-driven-development` could not dispatch fresh per-task
+implementers and `superpowers:requesting-code-review` could not dispatch a reviewer. Both roles
+fell back to their inline `auto` fallbacks. PR #124 was sound and the degradation was disclosed in
+the results file and PR body — the honest-degradation posture worked — but the SDD isolation and
+independent review docket's wrapper advertises did not run. The same thing happened on change
+[[127]] (2026-07-22).
 
-This is the **Claude Code instance** of the defect class that change [[135]] records for **Cursor**:
-a generated/forked wrapper advertises workflow discipline that the harness path docket itself chose
-cannot actually execute, and a successful-looking artifact conceals it. Both are the
-`skill-fallback-degrades-discipline` learning (change 0066) biting in a real build.
+**Grooming established that the premise is wrong.** A probe on 2026-07-25 found there is no tool
+named `Task` in current Claude Code at all — the dispatch tool is named `Agent` — and that dispatch,
+nesting, and `Skill` all work in a dispatched subagent. Subagent tool sets are also **partially
+deferred** behind a search surface, so absence is easy to observe without ever having resolved
+anything. `AskUserQuestion` really is absent, so ADR-[[0024]]'s fork-exclusion principle stands.
 
-The structural cause is that ADR-[[0024]] closed the fork-exclusion question only for the **human**
-channel — a forked subagent is denied `AskUserQuestion` / `EnterPlanMode`, so only
-human-non-interactive skills are forked. It never addressed that a fork is **also denied the `Task`
-subagent-dispatch tool**. Yet three of the four forked autonomous skills depend on re-dispatch:
+The defect is a **false-negative capability probe**, not a harness capability gap. Docket's own
+prose primes an agent to look for a tool named `Task`; the Skill-layer *missing-skill rule* then
+fires correctly on a false premise, dropping the discipline while every artifact still looks
+complete — the `skill-fallback-degrades-discipline` learning (change [[66]]) biting again, with a
+new trigger. That it is variance rather than a wall is confirmed by SDD dispatching successfully on
+2026-07-14: two bad runs, not always-on.
 
-- `docket-implement-next` dispatches the `docket-status` subagent (§0) and the `docket-adr`
-  subagent (§6) **foreground** (docket-convention *Composition*), and its `build`/`review` roles
-  dispatch nested Superpowers subagents.
-- `docket-auto-groom` dispatches the `docket-auto-groom-critic` subagent for its adversarial gate.
-
-If a forked child truly has no `Task` tool, none of these dispatches can happen — the composition
-model and the SDD/review disciplines are **structurally unreachable** on the very
-skill-invoke path (`/docket-implement-next`) that ADR-[[0024]] names as first-class. The
-Skill-layer *missing-skill rule* (degrade to `auto` + warn) then fires **every time** rather than
-as a rare per-machine fallback, so the warning is honest but the discipline never runs. The change-136
-run surfaced this in its report and PR body rather than hiding it — the honest-degradation posture
-worked — but the capability gap it revealed is the bug.
+Only **two** live prose sites are actually wrong (`agent-layer.md:131`, `README.md:620`) plus the
+immutable ADR-[[0024]]:16. Four other `Task` mentions are Cursor-scoped and correct — a blanket
+rename would introduce new errors.
 
 ## What changes
 
-Establish whether, and how, a forked (or agent-dispatched) Claude Code docket skill can reach a
-subagent-dispatch tool, and make docket's advertised composition + workflow disciplines either
-genuinely reachable or honestly unavailable on Claude Code. Design lives in the brainstorm/spec;
-at scope altitude this covers:
+Make docket's dispatch-capability detection honest, and define what an autonomous run does when
+dispatch is genuinely unavailable. Design in the spec; at scope altitude:
 
-- Determine empirically what tools a Claude Code forked subagent actually has — specifically whether
-  `Task` (or any nested-dispatch mechanism) is present — and whether the **agent-dispatch** path
-  (`@docket-implement-next`, ADR-0024's second first-class path) differs from the **skill-invoke**
-  (forked) path on this point.
-- Decide the correct execution model for the three dispatch-dependent forked skills when no nested
-  `Task` is available: run the composition/build/review inline in a defined, auditable way; route
-  through a path that *does* grant dispatch; or halt rather than silently degrade.
-- Extend ADR-[[0024]]'s fork-exclusion reasoning (or record a new decision) to cover the
-  `Task`/dispatch channel, so the 4-forked/3-not split is justified against *re-dispatch* capability,
-  not only the human channel.
-- Define an honest, auditable failure posture for an autonomous Claude Code build whose configured
-  `build`/`review` discipline cannot dispatch: the current warn-and-inline is honest but always-on;
-  decide whether that is acceptable or whether such a run must halt (mirrors change [[135]]'s
-  identical open question for Cursor).
-- Add a Claude Code runtime check (structural test and/or smoke test) proving the configured
-  discipline is actually reachable on the fork/dispatch path docket uses, rather than only asserting
-  the wrapper's generated frontmatter.
+- Add a **capability-resolution rule** to docket-convention: resolve a dispatch mechanism —
+  including searching deferred tool surfaces — and if inconclusive, attempt one trivial dispatch.
+  Only a failed attempt or a policy denial establishes unavailability; the absence of a
+  specifically-named tool never does. Stated by capability, never by tool name; an observed name
+  may appear in the diagnostic only.
+- Adopt a **tiered unavailability posture**: deterministic composition (`docket-status`,
+  `docket-adr`) runs inline as a first-class equivalent path, since its contract is git state;
+  the adversarial `docket-auto-groom-critic` instead triggers auto-groom's existing **abstain**;
+  and `build`/`review` are **authorized-or-halt** — an explicitly configured `auto` is the human's
+  authorization for inline, anything else halts via abort-and-report.
+- Correct the two wrong prose sites, leaving the Cursor-scoped mentions alone.
+- Record a **new, harness-neutral ADR** (capability-gate-not-name plus the tiered posture) that
+  change [[135]] can cite, plus a dated `## Update` on ADR-[[0024]] extending its fork-exclusion
+  reasoning from the human channel to the dispatch channel.
+- Prove reachability: a structural test anchored on the consuming skill sections, a negative guard
+  that no docket prose gates on a literal tool name, and a **build-time live spike** over both
+  ADR-[[0026]] invocation paths whose findings are recorded verbatim in the results file.
+- Amend change [[135]]'s stub to record that its failure is skill-delivery, not dispatch.
 
 ## Out of scope
 
-- The **Cursor** instance of this defect — owned by change [[135]]; this change is the Claude Code
-  counterpart, and the two should share a consistent honest-failure posture without merging.
+- The **Cursor** instance of the symptom — owned by change [[135]]. This change does **not** fix
+  Cursor: its fix is delivered as docket-convention prose, through the one channel Cursor is broken
+  on. The two share the ADR, not the mechanism, and stay `related:` rather than `depends_on:`.
 - Changing the Superpowers SDD / TDD / code-review skills themselves.
-- Reworking the agent-layer wrapper generation (`sync-agents.sh`) beyond what a Claude Code fix
-  requires.
+- Reworking the agent-layer wrapper generation (`sync-agents.sh`) beyond what this fix requires.
 - Retrofitting the already-open PR #124 from the change-136 run.
+- Renaming the four Cursor-scoped `Task` mentions, which are correct.
+- Verifying Cursor's Task nesting limit — that belongs to change [[135]].
 
 ## Open questions
 
-- Does a Claude Code forked subagent have **any** nested-dispatch tool, or is re-dispatch
-  categorically unavailable inside a fork? Does the agent-dispatch path behave differently?
-- If re-dispatch is unavailable in a fork, must `docket-implement-next` / `docket-auto-groom` run
-  their composition (`docket-status`, `docket-adr`, `docket-auto-groom-critic`) **inline** — and is
-  inline composition faithful to the foreground-blocking, git-state contract of docket-convention's
-  *Composition* paragraph?
-- Should an autonomous Claude Code build whose configured `build`/`review` cannot dispatch **halt**,
-  or is warn-and-inline the accepted posture (must match whatever change [[135]] settles for Cursor)?
-- Is this a refinement of ADR-[[0024]] (append an `## Update`) or a new ADR about dispatch-tool
-  availability across harness invocation paths?
+- Does a real `context: fork` child have dispatch, and does it differ from the agent-dispatch path?
+  **Answered at build time by the spec's live spike**, which is a *gating* task: if forks
+  categorically lack dispatch, Tier C would halt every forked build, so the change stops and reports
+  back to the human rather than shipping a posture that bricks `/docket-implement-next`.
 
 ## Reconcile log
 
