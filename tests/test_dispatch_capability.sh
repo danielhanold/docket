@@ -39,7 +39,7 @@ done
 assert "convention: Tier A is a first-class equivalent path, not a degradation" \
   'grep -qiE "first-class equivalent path" "$CONV"'
 assert "convention: Tier B routes to the existing abstain" \
-  'grep -qiE "[Aa]bstain" "$CONV"'
+  'grep -qE "^\| \*\*B — adversarial\*\*.*\*\*Abstain\*\*" "$CONV"'
 assert "convention: Tier C is authorized-or-halt" \
   'grep -qiE "authorized-or-halt" "$CONV"'
 assert "convention: Tier C names an explicitly configured auto as the authorization" \
@@ -51,7 +51,7 @@ assert "convention: Tier C halt adds no new status or field" \
 # Both rules must coexist and be DISTINGUISHED; if the missing-skill rule vanished, Tier C would
 # have silently replaced it (a scope change this change does not authorize).
 assert "convention: the missing-skill rule still exists" \
-  'grep -qiE "[Mm]issing-skill rule" "$CONV"'
+  'grep -qE "^- \*\*Missing-skill rule — degrade to .?auto.? \+ warn\*\*" "$CONV"'
 assert "convention: Tier C is distinguished from the missing-skill rule" \
   'grep -qiE "cannot be \*\*invoked\*\*.{0,200}cannot \*\*dispatch\*\*" "$CONV"'
 
