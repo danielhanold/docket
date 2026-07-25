@@ -1,8 +1,14 @@
 # Backlog
 
-**138 changes** — 🟡 29 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 101 done · 🗑️ 6 killed
+**138 changes** — 🟢 1 in progress · 🟡 28 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 101 done · 🗑️ 6 killed
 
-## 🟡 Proposed (29)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch |
+|---|-------|----------|------|------|--------|
+| [0137](active/0137-forked-claude-code-skills-assume-absent-task-dispatch.md) | Claude Code dispatch-capability detection: name-based probing silently drops SDD build and review discipline | `critical` | `fix` | [spec](../superpowers/specs/2026-07-25-dispatch-capability-detection-design.md) | `feat/forked-claude-code-skills-assume-absent-task-dispatch` |
+
+## 🟡 Proposed (28)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -34,7 +40,6 @@
 | [0133](active/0133-centralize-runtime-config-helpers.md) | Centralize shared Bash runtime configuration helpers | `medium` | `refactor` | build-ready |
 | [0134](active/0134-audit-field-call-sites-for-frontmatter-anchored-reads.md) | Audit field() call sites for frontmatter-anchored reads | `medium` | `fix` | needs-brainstorm |
 | [0135](active/0135-cursor-agent-wrapper-contract.md) | Generated Cursor wrappers violate Cursor's subagent contract, disabling skills and model effort | `high` | `fix` | needs-brainstorm |
-| [0137](active/0137-forked-claude-code-skills-assume-absent-task-dispatch.md) | Claude Code dispatch-capability detection: name-based probing silently drops SDD build and review discipline | `critical` | `fix` | build-ready |
 
 ## 🔴 Blocked (1)
 
