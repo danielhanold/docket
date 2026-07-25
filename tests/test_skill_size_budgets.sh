@@ -24,7 +24,7 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # itself rather than a reference: it fires at the exact moment an agent is about to wrongly
 # conclude dispatch is absent, and a rule sitting in an unread reference file cannot intervene at
 # that moment. Both numbers are the measured actual (361 lines / 6209 words) rounded up to the
-# next multiple of 5 / 10, per the raise-budgets convention above.
+# next multiple of 5 / 10.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
