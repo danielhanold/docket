@@ -2,10 +2,10 @@
 id: 129
 slug: fix-the-pipefail-unsafe-plain-format-config-assertion
 title: Fix the pipefail-unsafe plain-format config assertion
-status: proposed
+status: killed
 priority: medium
 created: 2026-07-22
-updated: 2026-07-22
+updated: 2026-07-26
 depends_on: []
 related: []
 discovered_from: [116]
@@ -49,3 +49,13 @@ producer/early-consumer pipeline.
 ## Open questions
 
 - None.
+
+## Why killed
+
+Already fixed by change 0132 (`2e3789ca`, "Install configured Bash 4+ runtime", merged 2026-07-22 — the same day this stub was filed from 0116's results).
+
+The stub described `rung … | grep -q` running under `set -o pipefail`, where `grep -q`'s early exit can SIGPIPE the producer and surface as an intermittent exit 141. 0132 rewrote those assertions onto here-strings, which is precisely the remedy this change proposed ("capture the producer output first, then test the captured value with a here-string").
+
+Verified 2026-07-26: `tests/test_docket_config.sh:1336,1342` now read `grep -q "^FINALIZE_REQUIRE_PR_APPROVAL=" <<<\"\$out7\"`, and a scan for any surviving producer-into-`grep -q` pipeline in that file returns nothing.
+
+Killed rather than closed as done: no work was performed under this id, and the fix landed incidentally under another change's number. Recorded here so the coincidence is legible rather than looking like an unexplained disappearance.
