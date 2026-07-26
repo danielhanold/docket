@@ -1,6 +1,6 @@
 # Backlog
 
-**138 changes** — 🟢 1 in progress · 🟡 22 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 1 implemented · ✅ 101 done · 🗑️ 8 killed
+**138 changes** — 🟢 1 in progress · 🟡 21 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 1 implemented · ✅ 101 done · 🗑️ 9 killed
 
 ## 🟢 In progress (1)
 
@@ -8,7 +8,7 @@
 |---|-------|----------|------|------|--------|
 | [0137](active/0137-forked-claude-code-skills-assume-absent-task-dispatch.md) | Claude Code dispatch-capability detection: name-based probing silently drops SDD build and review discipline | `critical` | `fix` | [spec](../superpowers/specs/2026-07-25-dispatch-capability-detection-design.md) | `feat/forked-claude-code-skills-assume-absent-task-dispatch` |
 
-## 🟡 Proposed (22)
+## 🟡 Proposed (21)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -27,7 +27,6 @@
 | [0121](active/0121-the-manifest-s-elsewhere-check-proves-a-word-occurrence-not.md) | The manifest's elsewhere: check proves a word occurrence, not a real config read | `medium` | `fix` | needs-brainstorm |
 | [0122](active/0122-nested-keys-scope-tags-in-docket-example-yml-are-unguarded.md) | Nested keys' scope tags in .docket.example.yml are unguarded | `medium` | `fix` | needs-brainstorm |
 | [0123](active/0123-machine-check-the-docket-config-md-export-list-order-against.md) | Machine-check the docket-config.md export list order against the resolver | `medium` | `chore` | needs-brainstorm |
-| [0124](active/0124-backlog-triage-pass.md) | Backlog triage pass — kill, defer, or arm each needs-brainstorm stub | `medium` | `chore` | needs-brainstorm |
 | [0125](active/0125-decide-whether-the-rung-pair-completeness-claim-should-be-me.md) | Decide whether the rung-pair completeness claim should be mechanically enforced | `medium` | `chore` | needs-brainstorm |
 | [0126](active/0126-apply-the-poison-value-prelude-uniformly-to-every-resolver-e.md) | Apply the poison-value prelude uniformly to every resolver eval in the config suite | `medium` | `chore` | needs-brainstorm |
 | [0130](active/0130-make-the-finalize-marker-reachability-guard-portable-to-bsd.md) | Make the finalize marker reachability guard portable to BSD grep | `medium` | `fix` | needs-brainstorm |
@@ -79,7 +78,6 @@ graph TD
   0121
   0122
   0123
-  0124
   0125
   0126
   0130
@@ -93,12 +91,13 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (109)</summary>
+<details><summary>✅🗑️ Archive — done + killed (110)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0131](archive/2026-07-26-0131-make-board-conflict-rebase-continuation-noninteractive.md) | Make board-conflict rebase continuation noninteractive | 2026-07-26 |
 | [0129](archive/2026-07-26-0129-fix-the-pipefail-unsafe-plain-format-config-assertion.md) | Fix the pipefail-unsafe plain-format config assertion | 2026-07-26 |
+| [0124](archive/2026-07-26-0124-backlog-triage-pass.md) | Backlog triage pass — kill, defer, or arm each needs-brainstorm stub | 2026-07-26 |
 | [0138](archive/2026-07-24-0138-unquote-board-change-titles.md) | Board generator wraps each change title in literal double quotes | 2026-07-24 |
 | [0136](archive/2026-07-24-0136-artifact-backlinks.md) | Artifact back-links — a generated link at the top of every artifact pointing to the change | 2026-07-24 |
 | [0127](archive/2026-07-23-0127-typed-changes-selective-auto-capture.md) | Typed changes — configurable taxonomy, selective auto-capture, and backlog filters | 2026-07-23 |
