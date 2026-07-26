@@ -31,6 +31,13 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # Tier C) so the convention's dispatch-capability rule has a producer at every site that actually
 # dispatches, not only a definition. The line budget was NOT raised — the measured actual (135
 # lines) still fits the existing row.
+# docket-implement-next/SKILL.md's word budget was raised again 3420 -> 3440 by change 0137's fix
+# round, which pairs each Step 0/5/6 dispatch site's own noun with its tier in the same clause (so
+# a proximity-scoped guard can distinguish sites sharing one paragraph, instead of a bare tier-
+# literal presence check that a swapped-tier mutation could pass) and restores two fidelity details
+# dropped from the convention's restatement (Step 5's abort-and-report leaves `claimed_at`
+# refreshed; Step 0's Tier A is "neither a degradation nor a warning", not merely "not a
+# degradation"). The line budget was NOT raised — the measured actual (135 lines) still fits.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -43,7 +50,7 @@ skills/docket-convention/references/learnings.md            84  580
 skills/docket-convention/references/terminal-close-out.md  173 1458
 skills/docket-finalize-change/SKILL.md                     193 4200
 skills/docket-groom-next/SKILL.md                           77 1484
-skills/docket-implement-next/SKILL.md                      147 3420
+skills/docket-implement-next/SKILL.md                      147 3440
 skills/docket-implement-next/results-template.md            24  172
 skills/docket-new-change/SKILL.md                           61 1330
 skills/docket-new-change/change-template.md                 51  203

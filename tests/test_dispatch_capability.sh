@@ -57,9 +57,14 @@ assert "convention: Tier C is distinguished from the missing-skill rule" \
 
 # --- producer coverage: every CONSUMING dispatch site names its tier ----------------------------
 # Anchored on the consuming skill sections, never an allowlist of tiers (learnings:
-# correspondence-guard-runs-one-way). Each row: "<file>|<anchor regex>|<expected tier>". The anchor
-# is the site's own dispatch sentence, so a tier marker parked in an unrelated paragraph does not
-# satisfy it (learnings: marker-scoped-guard-needs-a-population-floor — attachment, not presence).
+# correspondence-guard-runs-one-way). Each row: "<file> <anchor regex> <expected tier> <label>
+# <site noun>". The anchor is the site's own dispatch sentence, so a tier marker parked in an
+# unrelated paragraph does not satisfy it (learnings: marker-scoped-guard-needs-a-population-floor
+# — attachment, not presence). Bare tier PRESENCE anywhere in the paragraph is not enough either:
+# two sites can share one paragraph, so a tier assert must also PAIR the site's own distinguishing
+# noun with its tier, within a bounded distance that does not cross a `;`/`.` clause boundary —
+# otherwise the two tiers could be swapped between sites (or a glued list could smuggle a bare tier
+# literal into an unrelated site's paragraph) and every assert would still read PASS.
 IMPL="$REPO/skills/docket-implement-next/SKILL.md"
 AUTOGROOM="$REPO/skills/docket-auto-groom/SKILL.md"
 
@@ -67,26 +72,58 @@ AUTOGROOM="$REPO/skills/docket-auto-groom/SKILL.md"
 para_with(){ awk -v pat="$2" 'BEGIN{RS="";} $0 ~ pat {print; exit}' "$1"; }
 
 seen=0
+all_nouns=""
 # NOTE: the tier is expanded into the assert expression at call time. `assert` runs `eval "$2"`,
 # so a `$3` left inside that string would resolve to *assert's* third positional parameter (unset
 # under `set -u`), not this function's — a real trap, caught while writing this plan.
-check_site(){ # $1 file  $2 anchor regex  $3 expected tier  $4 label
-  local p tier label; p="$(para_with "$1" "$2")"; tier="$3"; label="$4"
+check_site(){ # $1 file  $2 anchor regex  $3 expected tier  $4 label  $5 site noun
+  local p tier label noun; p="$(para_with "$1" "$2")"; tier="$3"; label="$4"; noun="$5"
   echo "seen $(basename "$(dirname "$1")")/$(basename "$1") $tier"  # per-site record, before any skip
-  seen=$((seen+1))
+  # Reach floor: only count a site the scanner actually FOUND (see the floor assert below) — an
+  # unconditional increment cannot tell a renamed anchor / moved paragraph from a real hit.
+  [ -n "$p" ] && seen=$((seen+1))
+  all_nouns="$all_nouns $noun"
   assert "$label: dispatch site found" '[ -n "$p" ]'
-  assert "$label: names $tier at the dispatch site" "grep -qF -- \"$tier\" <<<\"\$p\""
+  # Proximity, either order, same clause: "$noun ... $tier" or "$tier ... $noun" within 80 chars
+  # and never crossing a `;` or `.` — bare presence of the tier literal anywhere in the paragraph
+  # is not this assert; it must sit in the same clause as THIS site's own noun.
+  assert "$label: names $tier next to its own noun ($noun), same clause" \
+    "grep -qE -- \"${noun}[^;.]{0,80}${tier}|${tier}[^;.]{0,80}${noun}\" <<<\"\$p\""
 }
 
-check_site "$IMPL"      "dispatch the .?docket-status.? subagent" "Tier A" "implement-next §0 docket-status"
-check_site "$IMPL"      "docket-adr.? subagent"                  "Tier A" "implement-next §6 docket-adr"
-check_site "$IMPL"      "resolved build skill"                   "Tier C" "implement-next §5 build"
-check_site "$IMPL"      "resolved review skill"                  "Tier C" "implement-next §6 review"
-check_site "$AUTOGROOM" "docket-auto-groom-critic"               "Tier B" "auto-groom §3 critic"
+check_site "$IMPL"      "dispatch the .?docket-status.? subagent" "Tier A" "implement-next §0 docket-status" "docket-status"
+check_site "$IMPL"      "docket-adr.? subagent"                  "Tier A" "implement-next §6 docket-adr"    "docket-adr"
+check_site "$IMPL"      "resolved build skill"                   "Tier C" "implement-next §5 build"         "build"
+check_site "$IMPL"      "resolved review skill"                  "Tier C" "implement-next §6 review"        "review"
+check_site "$AUTOGROOM" "docket-auto-groom-critic"               "Tier B" "auto-groom §3 critic"            "docket-auto-groom-critic"
 
 # Population floor: the scanner must have REACHED all five sites. A renamed heading or a moved
-# paragraph would otherwise silently shrink the guard's scope to nothing and still print PASS.
-assert "consumer coverage: all five dispatch sites were scanned (floor)" '[ "$seen" -eq 5 ]'
+# paragraph now genuinely reddens this floor too, because `seen` only increments on an actual find
+# (see check_site above) — it is no longer an unconditional counter that always equals the number
+# of check_site calls regardless of whether any of them found anything.
+assert "consumer coverage: all five dispatch sites were reached (floor)" '[ "$seen" -eq 5 ]'
+
+# --- reverse correspondence: derive the dispatch-site population by SHAPE, never hand-listed -----
+# (learnings: never hand-list the sites of a literal/operation you are gating — derive them from a
+# whole-repo grep). The five check_site rows above are the FORWARD direction (each hand-picked site
+# names its tier); this is the REVERSE direction — every dispatch shape found by an independent
+# grep must be one of those hand-picked rows, so a sixth dispatch site added later without a
+# check_site row cannot be invisible to this guard.
+derived=""
+while IFS= read -r name; do
+  [ -n "$name" ] || continue
+  derived="$derived $name"
+done < <(grep -ohE '`[A-Za-z0-9_-]+`[^`]{0,20}subagent' "$IMPL" "$AUTOGROOM" \
+           | grep -oE '`[A-Za-z0-9_-]+`' | tr -d '`')
+while IFS= read -r name; do
+  [ -n "$name" ] || continue
+  derived="$derived $name"
+done < <(grep -ohE 'resolved (build|review) skill' "$IMPL" | grep -oE 'build|review')
+
+for name in $derived; do
+  assert "reverse: derived dispatch site '$name' is covered by a check_site row" \
+    "grep -qF -- \" $name\" <<<\"\$all_nouns \""
+done
 
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
