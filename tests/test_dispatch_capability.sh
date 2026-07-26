@@ -137,43 +137,109 @@ for name in $derived; do
 done
 
 # --- negative guard: no live prose gates a decision on a literal tool name -----------------------
-# Shape, not an allowlist (AGENTS.md: never hand-list the sites of a literal you are gating). In
-# live prose every `Task` occurrence is a dispatch-tool reference; it is legitimate only where the
-# line is Cursor-scoped, since Cursor documents a Task tool and Claude Code does not. docs/adrs/ is
-# out of scope: an Accepted ADR is immutable and is corrected by an appended dated `## Update`.
-mentions="$(cd "$REPO" && grep -rn '\bTask\b' --include='*.md' skills/ README.md 2>/dev/null)"
+# Shape, not an allowlist (AGENTS.md: never hand-list the sites of a literal you are gating). Keys
+# on the tool-reference SHAPE this repo actually uses to denote the dispatch tool — backticked
+# `Task`, bolded **Task**, or a call form Task( — never the bare spelling: a bare "Task" is also
+# this repo's own SDD vocabulary (`Task-10`, "each Task brief"), so a guard keyed on the spelling
+# alone reddens on correct prose (mutation-proven: appending "Each Task brief is reviewed before
+# the next one starts." to a skill reddened the bare-word guard). A shaped mention is legitimate
+# only when its LINE's CONTENT (not its path) is Cursor-scoped, since Cursor documents a real
+# `Task` tool and Claude Code does not.
+#
+# Four exclusion classes keep this scan's scope where the assert can actually hold; each is
+# enforced structurally, by never walking that path/file at all — never by an exception entry
+# inside the scan (AGENTS.md: no allowlist of exceptions to a gated literal):
+#   1. docs/adrs/ — an Accepted ADR is immutable except its status: line; the one wrong sentence
+#      there (0024) is corrected only by an appended dated `## Update`, never an edit. Widening
+#      this scan to docs/ would make that assert permanently, unfixably red.
+#   2. cursor-rules/** and the Cursor rule assembler in sync-agents.sh — the OTHER harness's own
+#      generated dispatch-rule templates, where the literal tool name is correct as written.
+#   3. docs/superpowers/plans|specs, docs/results/, docs/changes/archive/ — point-in-time records,
+#      where "Task" usually names SDD task numbering (`Task-10`, "Task 1's"), not a tool.
+#   4. Non-`.md` files under the scanned roots — out of scope via --include='*.md'; no such file
+#      carries the literal today.
+# agents/ and the root AGENTS.md ARE in scope (added below): both are maintained prose this repo
+# ships, neither carries a shaped "Task" mention today, so folding them in costs nothing now and
+# closes the gap before a future mention could land there unguarded.
+scan_and_classify(){ # $1 = tree root; emits "CURSOR <path:lineno:content>" or "OFFENDER <path:lineno:content>"
+  # ONE scan+classify implementation, called for BOTH the real repo and the positive-control tree
+  # below — never a second, independently-written grep+classify (same trap and same fix as
+  # tests/test_comment_anchor_style.sh's "ONE scan implementation" rationale). A parallel
+  # re-implementation for the control lets a mutation to this classifier go untested, because the
+  # control would keep grading itself with its own separate copy; routing both trees through this
+  # one function means neutering the classification anywhere neuters it for the control too.
+  local root="$1" line body
+  ( cd "$root" 2>/dev/null \
+      && grep -rnE '(`Task`|\*\*Task\*\*|\bTask\()' --include='*.md' skills/ README.md agents/ AGENTS.md 2>/dev/null
+  ) | while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    # Strip grep's own "path:lineno:" prefix before classifying: $line is the FULL record, and
+    # classifying on the full record blanket-exempts any PATH containing "cursor" regardless of
+    # what the line's content actually says (mutation-proven: planting the exact corrected
+    # violation inside skills/docket-convention/references/cursor-setup.md passed under a
+    # full-line check).
+    body="${line#*:}"; body="${body#*:}"
+    if grep -qi 'cursor' <<<"$body"; then
+      printf 'CURSOR %s\n' "$line"
+    else
+      printf 'OFFENDER %s\n' "$line"
+    fi
+  done || true   # Minor 2: a zero-hit scan must never abort a future `set -e` caller
+}
+
+mentions_classified="$(scan_and_classify "$REPO")" || true
 offenders=""; cursor_scoped=0; total=0
-while IFS= read -r line; do
-  [ -n "$line" ] || continue
+while IFS= read -r rec; do
+  [ -n "$rec" ] || continue
   total=$((total+1))
-  echo "seen ${line%%:*}:$(cut -d: -f2 <<<"$line")"          # per-hit record, before any skip
-  if grep -qi 'cursor' <<<"$line"; then
+  hit="${rec#* }"
+  echo "seen ${hit%%:*}:$(cut -d: -f2 <<<"$hit")"          # per-hit record, before any skip
+  if [ "${rec%% *}" = "CURSOR" ]; then
     cursor_scoped=$((cursor_scoped+1))
   else
     offenders="$offenders
-$line"
+$hit"
   fi
 done <<EOF
-$mentions
+$mentions_classified
 EOF
 
 assert "no live prose names a dispatch tool outside a Cursor-scoped line" \
   '[ -z "$(printf %s "$offenders" | tr -d "[:space:]")" ]'
 [ -z "$(printf %s "$offenders" | tr -d '[:space:]')" ] || printf 'offending lines:%s\n' "$offenders"
-# Population floor: the scan must have reached real content. Zero hits would pass the assert above
-# vacuously — a path typo or a moved file must redden, not silently guard nothing.
-assert "negative guard: scan reached live prose (floor: >=2 Cursor-scoped mentions)" \
-  '[ "$cursor_scoped" -ge 2 ]'
-assert "negative guard: scan is non-empty" '[ "$total" -ge 2 ]'
+# Population floor: the scan must have reached live prose. Zero hits would pass the assert above
+# vacuously — a path typo, a moved file, or an over-narrowed shape pattern must redden here, not
+# silently guard nothing. Today's in-scope population is exactly one shape-matching, Cursor-scoped
+# mention (README's trade-off-table prose); the floor is set at that observed count, not padded.
+assert "negative guard: scan reached live prose (floor: >=1 Cursor-scoped mention)" \
+  '[ "$cursor_scoped" -ge 1 ]'
+# Independent reconciliation, not a restatement of "total >= 2" (that was mathematically dead: it
+# cannot redden without the floor above also reddening, since cursor_scoped <= total always).
+# Every in-scope mention this scan finds today IS Cursor-scoped, so total must equal cursor_scoped
+# exactly; a categorization bug that drops a hit into neither bucket (or double-counts one)
+# reddens this without necessarily reddening the main assert above.
+assert "negative guard: every in-scope mention is Cursor-scoped (total == cursor_scoped)" \
+  '[ "$total" -eq "$cursor_scoped" ]'
 
 # Positive control: the guard must REPORT a planted violation, whatever the real tree looks like
-# (learnings: marker-scoped-guard-needs-a-population-floor — coverage, not population).
+# (learnings: marker-scoped-guard-needs-a-population-floor — coverage, not population). Routed
+# through the SAME scan_and_classify as the real scan above: a parallel re-implementation here
+# would leave the guard's own classifier unguarded (mutation-proven — see the function's rationale
+# comment above).
 ctl="$(mktemp -d)"; trap 'rm -rf "$ctl"' EXIT
 mkdir -p "$ctl/skills/x"
 printf 'A forked skill-invoke and an explicit agent dispatch (a `Task` naming the wrapper) are one.\n' \
   > "$ctl/skills/x/SKILL.md"
 : > "$ctl/README.md"
-ctl_hits="$(cd "$ctl" && grep -rn '\bTask\b' --include='*.md' skills/ README.md 2>/dev/null | grep -vi cursor)"
+ctl_classified="$(scan_and_classify "$ctl")" || true
+ctl_hits=""
+while IFS= read -r rec; do
+  [ -n "$rec" ] || continue
+  [ "${rec%% *}" = "OFFENDER" ] && ctl_hits="$ctl_hits
+${rec#* }"
+done <<EOF
+$ctl_classified
+EOF
 assert "negative guard: positive control — a planted non-Cursor Task line IS detected" \
   '[ -n "$ctl_hits" ]'
 
