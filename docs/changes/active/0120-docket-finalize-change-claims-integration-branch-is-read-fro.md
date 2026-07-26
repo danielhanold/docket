@@ -5,7 +5,7 @@ title: docket-finalize-change claims integration_branch is read from .docket.yml
 status: proposed
 priority: medium
 created: 2026-07-21
-updated: 2026-07-21
+updated: 2026-07-26
 depends_on: []
 related: []
 discovered_from: [102]
@@ -14,7 +14,7 @@ spec:
 plan:
 results:
 trivial: false
-auto_groomable:
+auto_groomable: true
 branch:
 pr:
 blocked_by:
@@ -62,3 +62,15 @@ to 4200 to leave headroom, so this edit should fit, but check before assuming.
 
 - Changing what `integration_branch` means or how it resolves.
 - Re-litigating its coordination-key fencing.
+
+## Triage note (2026-07-26, change 0124)
+
+Confirmed still live. The wrong claim is at `skills/docket-finalize-change/SKILL.md:92`, verbatim:
+"merge it into `<integration_branch>` (resolved from `.docket.yml`; not hard-coded `main`)". The
+resolver does export `INTEGRATION_BRANCH` (confirmed in the Step-0 `preflight` block), so the prose
+and the mechanism disagree exactly as described.
+
+Three other occurrences in the same file (lines 65, 104, 125) use `<integration_branch>` as a
+placeholder without asserting provenance — those read correctly and need no edit. Only line 92
+makes the false claim, so the minimal fix is one clause, leaving headroom for the sibling audit
+against the 4200-word budget.

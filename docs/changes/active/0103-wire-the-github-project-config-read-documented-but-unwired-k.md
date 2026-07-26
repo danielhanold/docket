@@ -72,3 +72,20 @@ is tracked separately as change 0102; the two could reasonably be groomed togeth
 
 - Any change to the one-way mirror direction (change files stay the source of truth).
 - Projects v2 field/column semantics beyond what `github-mirror.sh` already implements.
+
+## Triage note (2026-07-26, change 0124)
+
+Confirmed still live, verbatim in three places: `scripts/github-mirror.md:117` — "nothing currently
+reads `github_project` from config at all"; `scripts/docket-config.md:146` — the resolver "never
+resolves or emits it"; `.docket.example.yml:175` repeats the caveat. `scripts/docket-config.sh:304`
+still lists the key only in the coordination-**fence** loop, and `scripts/docket-status.sh:42,362`
+still populate `--project` / `--auto-create-project` solely from their own CLI flags.
+
+**The "groom them together" option at the end of `## What changes` is now moot.** Its named sibling
+`finalize.require_pr_approval` shipped as change 0102 (done, 2026-07-21) without this one, so the
+sweep framing has no second member — 0103 is the last of that family and should be groomed on its
+own terms.
+
+Worth noting on the way in: 0102's build was where the config-guard family (changes 0120–0123) was
+discovered, and ADR-0052 now states the config-key resolution boundary this change would have to
+satisfy. That is a constraint 0102 did not have when it started.

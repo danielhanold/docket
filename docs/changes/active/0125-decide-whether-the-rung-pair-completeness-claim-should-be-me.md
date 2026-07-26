@@ -71,3 +71,23 @@ viable designs here.
 
 - Re-opening 0112's fixtures or its mutation protocol; the six pairs that exist are pinned and proven.
 - Adding a fourth config layer. This is about detecting one, not building one.
+
+## Triage note (2026-07-26, change 0124)
+
+**The change-0114 coordination this stub was waiting on has resolved — grooming is unblocked.**
+
+0114 is `done` and landed **ADR-0054** (cross-reference anchor style). Its verdict was
+**"convert, do not close"**: source-shape/line-number anchors are not abandoned, they are moved to a
+guarded form. Re-measured at its reconcile, the guarded population had doubled 13 → 26 lines across
+8 files, and it concluded the idiom "accretes faster than it rots — which is the case for the
+guard."
+
+That removes the constraint framed in `## What changes`. The design tension as written assumed
+0114 might rule *against* source-shape anchors, which would have foreclosed deriving the rung count
+from the resolver's `lcl`/`yaml_get`/`gbl` helper set. It did not. So that option is live, and it
+should be weighed against ADR-0054's guarded-anchor conventions rather than treated as brittle by
+default.
+
+The genuine open question survives and is still a human call: whether the completeness claim is
+worth enforcing at all, or is better closed as a documented non-goal. Left in the human queue for
+that reason, not for the 0114 dependency.

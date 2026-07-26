@@ -86,3 +86,25 @@ Decide, too, whether this reason deserves naming in the abort-and-report set in
 - Does the denial behave differently headless vs attended? `harness-behavior-is-mode-and-version-scoped`
   (#0062, #0085, #0095) says assume it does until measured, and that any finding here is scoped to
   a Claude Code version rather than being a durable contract.
+
+## Triage note (2026-07-26, change 0124)
+
+**Materially narrowed by change 0128 — re-scope before grooming.** 0128 shipped the generic remedy
+as a convention rule at `skills/docket-convention/SKILL.md:84`: on host sandbox or permission denial
+of a required `docket.sh` facade or direct Git command, retry the exact command once through the
+harness's native approval/escalation mechanism, then follow the caller's existing failure posture.
+That covers the step-5 `--force-with-lease` denial as a class, which was this stub's primary ask.
+
+Two residuals survive and are what remains worth grooming:
+
+1. **The abort-and-report set is still incomplete.** `skills/docket-finalize-change/SKILL.md:166`
+   names a classifier denial only for *the merge itself*; the push denial is not in the set. This
+   is the question already posed at the end of `## What changes`, now the main event.
+2. **The allow-rule option is pointed the other way, not merely unanswered.**
+   `scripts/ensure-claude-settings.sh:10` and `README.md:803` state that force-pushes stay
+   deliberately guarded; the only granted rule is `Bash(git -C * push origin HEAD:main)`, verified
+   in `docs/results/2026-06-19-claude-settings-publish-permission-results.md:15` to *not* match a
+   force-push. So "just add an allow rule" would reverse a stated posture and needs to be argued,
+   not assumed.
+
+Kept in the human queue: residual 2 is a security-posture reversal, which is a human call.

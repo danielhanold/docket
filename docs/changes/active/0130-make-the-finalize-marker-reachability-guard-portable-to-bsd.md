@@ -5,7 +5,7 @@ title: Make the finalize marker reachability guard portable to BSD grep
 status: proposed
 priority: medium
 created: 2026-07-22
-updated: 2026-07-22
+updated: 2026-07-26
 depends_on: []
 related: []
 discovered_from: [116]
@@ -14,7 +14,7 @@ spec:
 plan:
 results:
 trivial: false
-auto_groomable:
+auto_groomable: true
 branch:
 pr:
 blocked_by:
@@ -48,3 +48,24 @@ call and confirming only the intended guard reddens.
 ## Open questions
 
 - None.
+
+## Triage note (2026-07-26, change 0124)
+
+**Confirmed still live, and it hides on a developer machine — do not conclude "already fixed" from
+a green suite.** The offending interval is `tests/test_finalize_disposition.sh:186`
+(`grep -Eqi "where the reason surfaces.{0,600}appends the .{0,4}## Finalize blocked"`). It is the
+only interval above 255 anywhere in `tests/`.
+
+Running `bash tests/test_finalize_disposition.sh` on the maintainer's machine **PASSES**, because
+that machine's PATH resolves `grep` to `ugrep 7.5.0`, which accepts the bound. The system grep does
+not:
+
+```
+$ /usr/bin/grep -Eqi "he.{0,600}lo"   # <<< "hello"
+grep: maximum repetition exceeds 255
+```
+
+So the correct verification is `/usr/bin/grep`, not whatever `grep` resolves to. Any fix must be
+mutation-tested against the system grep explicitly, and it is worth considering whether the suite
+should pin or report which grep it ran under — a portability guard that silently tests a different
+tool than the one it targets is the `guards-are-code` vacuity trap in a new costume.

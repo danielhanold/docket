@@ -5,7 +5,7 @@ title: Apply the poison-value prelude uniformly to every resolver eval in the co
 status: proposed
 priority: medium
 created: 2026-07-22
-updated: 2026-07-22
+updated: 2026-07-26
 depends_on: []
 related: []
 discovered_from: [112]
@@ -14,7 +14,7 @@ spec:
 plan:
 results:
 trivial: false
-auto_groomable:
+auto_groomable: true
 branch:
 pr:
 blocked_by:
@@ -64,3 +64,17 @@ fixture author honest. Weigh that against the enumerated-floor risk before build
 - Rewriting the fixtures' structure or extracting shared helpers; section S's per-fixture shape was
   deliberately preserved by changes 0106 and 0112.
 - Section S's own fixtures `s4`-`s9`, which already carry the prelude on every `eval`.
+
+## Triage note (2026-07-26, change 0124)
+
+Confirmed still live. The named `L2` gap is at `tests/test_docket_config.sh:501`:
+
+```sh
+out="$(rung "$tmp/n.xdg" "$tmp/n2" --export 2>/dev/null)"; eval "$out"
+assert "0050 N: per-repo github honored" '[ "$BOARD_SURFACES" = "inline github" ]'
+```
+
+No poison prelude, and the assert reads `BOARD_SURFACES` immediately after — so the hazard shape is
+present as described. Note the variable at risk here is `BOARD_SURFACES`, not
+`FINALIZE_TEST_COMMAND`: the poison line must clear *the variable the following assert reads*, so
+the audit is per-fixture, not a blanket copy of section S's line.

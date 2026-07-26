@@ -2,12 +2,12 @@
 id: 8
 slug: parallel-backlog-drain
 title: Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes
-status: proposed
+status: deferred
 priority: medium
 created: 2026-06-11
-updated: 2026-06-11
+updated: 2026-07-26
 depends_on: []
-related: [9]
+related: [9, 110]
 adrs: [1]
 spec:
 plan:
@@ -65,3 +65,23 @@ independent build-ready changes drains serially today.
   writer; verify it stays calm with N concurrent best-effort refreshes.
 
 ## Reconcile log
+
+## Why deferred
+
+Deferred 2026-07-26 by the change 0124 backlog triage pass.
+
+**Half of this already shipped.** Bullet 1 — loser-picks-next claim semantics — was delivered by
+change 0088: `skills/docket-implement-next/SKILL.md:103` now makes a lost claim CAS the
+continue-able `contended` disposition rather than an abort, covered by
+`tests/test_loop_continuation.sh`. The serial-drain complaint in `## Why` is also weaker than when
+filed: `/loop docket-implement-next <id-set>` is confirmed working and drains a backlog without
+fan-out.
+
+What remains is bullets 2–4 (N-way fan-out, independence guard, concurrency cap), and
+`skills/docket-implement-next/SKILL.md:98` still names "#0008's fan-out" as future work.
+
+Deferred rather than groomed because **it is gated on a hazard that is filed but unfixed**: change
+0110 (shared `.docket` metadata-worktree contention) shows concurrent agents already collide on the
+shared dirty-tree window with only the concurrency docket has *today*. Fanning out N implementers
+before that is resolved multiplies a known, reproducible failure. Revive after 0110 lands, and
+re-scope to fan-out only — bullet 1 is done.

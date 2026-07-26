@@ -5,7 +5,7 @@ title: Scope the metadata-worktree git commit calls to the paths they own
 status: proposed
 priority: medium
 created: 2026-07-21
-updated: 2026-07-21
+updated: 2026-07-26
 depends_on: []
 related: []
 discovered_from: [83]
@@ -14,7 +14,7 @@ spec:
 plan:
 results:
 trivial: false
-auto_groomable:
+auto_groomable: true
 branch:
 pr:
 blocked_by:
@@ -60,3 +60,20 @@ This is the `no-checkout-in-shared-worktree` / `cas-re-read-fresh-origin` family
   call-site-pinned audit instead?
 - Are there call sites where a pathspec is genuinely impossible (an unknown-ahead-of-time file set)?
   If so, they need an explicit clean-tree precondition rather than a pathspec.
+
+## Triage note (2026-07-26, change 0124)
+
+Confirmed still live. The exposed call sites in the shared metadata worktree are exactly two:
+
+- `scripts/docket-status.sh:278` — `"$GIT" -C "$mw" commit -q -m "$commit_msg"`
+- `scripts/docket-status.sh:643` — `"$GIT" -C "$mw" commit -q -m "docket($id): refresh artifacts links"`
+
+For contrast, `scripts/docket-status.sh:677` (the change 0083 mark path) already carries
+`-- "$archived"` — that is the target idiom, and it is in the same file, so the fix has a local
+precedent to copy rather than invent.
+
+The wider sweep bullet has two more to weigh, neither in the shared tree:
+`scripts/reclaim-claims.sh:93` and `scripts/mint-stub.sh:218` already pass pathspecs;
+`scripts/terminal-publish.sh:327` is pathspec-less but commits in its own dedicated publish
+worktree (`$pub`), not the shared `.docket` — decide deliberately whether the guard should cover it
+anyway on shape grounds, or whether scoping the guard to shared-tree call sites is the honest line.

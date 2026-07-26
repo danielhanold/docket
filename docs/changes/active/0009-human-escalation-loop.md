@@ -2,10 +2,10 @@
 id: 9
 slug: human-escalation-loop
 title: Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git
-status: proposed
+status: deferred
 priority: medium
 created: 2026-06-11
-updated: 2026-06-11
+updated: 2026-07-26
 depends_on: []
 related: [8]
 adrs: []
@@ -67,3 +67,22 @@ the response. The human-facing half of the loop is undefined.
   default) vs. escalate and block?
 
 ## Reconcile log
+
+## Why deferred
+
+Deferred 2026-07-26 by the change 0124 backlog triage pass.
+
+The generic `## Questions for you` channel does not exist — no such section, no
+`blocked_by: questions` protocol anywhere in `skills/` or `scripts/`. So the stub is not obsolete.
+
+But the *shape* it proposed has since been delivered twice, for the two cases that actually arose:
+`## Auto-groom blocked` (change 0014, defined at `skills/docket-convention/SKILL.md:247`) and
+`## Finalize blocked` (`skills/docket-convention/SKILL.md:180`) — both presence-encoded markers with
+the "needs you" board cells this stub asked for (`scripts/render-board.sh:271,277`). The board
+surfacing bullet is therefore already satisfied, twice over.
+
+Deferred because the remaining piece — a *generic* mid-build question/answer channel — has no
+forcing case. Each concrete escalation so far has been better served by a purpose-shaped marker
+than by a general protocol, and generalizing from two instances that already work is speculative.
+Revive if a third escalation case appears that neither existing marker fits; at that point the
+right design is likely "extract the common shape from three markers", not this stub as written.

@@ -2,10 +2,10 @@
 id: 7
 slug: recurring-change-templates
 title: Recurring change templates — scheduled maintenance work that spawns proposed instances
-status: proposed
+status: deferred
 priority: medium
 created: 2026-06-11
-updated: 2026-06-11
+updated: 2026-07-26
 depends_on: []
 related: []
 adrs: []
@@ -59,3 +59,21 @@ daemon, no scheduler store — just template files and a spawn pass.
 - Where do templates live so the board and id-scan don't confuse them with real changes?
 
 ## Reconcile log
+
+## Why deferred
+
+Deferred 2026-07-26 by the change 0124 backlog triage pass.
+
+Not obsolete — nothing in docket schedules recurring work, and the survey confirmed no
+`schedule:`/cron mechanism exists anywhere in `scripts/` or `skills/`. The two mentions of cron in
+the skill bodies are *drivers* invoking docket, never a docket-owned schedule.
+
+Deferred rather than killed because there is **no forcing case**. In the seven weeks since filing,
+no dependency bump, audit, or doc refresh has been re-proposed by hand often enough for anyone to
+feel the absence. The stub was synthesized from a competitive review, not from a felt need — and a
+feature whose only evidence is "a competitor has it" is exactly the kind that should wait for real
+demand before consuming a design conversation.
+
+Cheaper to build now than when filed: `scripts/mint-stub.sh` plus the change 0091 auto-capture path
+(ADR-0045) already provide the spawn primitive this would need. Revive when a concrete recurring
+task actually recurs.

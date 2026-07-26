@@ -5,7 +5,7 @@ title: Nested keys' scope tags in .docket.example.yml are unguarded
 status: proposed
 priority: medium
 created: 2026-07-21
-updated: 2026-07-21
+updated: 2026-07-26
 depends_on: []
 related: []
 discovered_from: [102]
@@ -14,7 +14,7 @@ spec:
 plan:
 results:
 trivial: false
-auto_groomable:
+auto_groomable: true
 branch:
 pr:
 blocked_by:
@@ -60,3 +60,15 @@ two bespoke asserts for it, which are now the *only* automated guard on any nest
 
 - Changing any key's actual scope, or the coordination-key fence itself.
 - The manifest classification guard, which is a separate mechanism.
+
+## Triage note (2026-07-26, change 0124)
+
+Confirmed still live. The column-0 anchor is `tests/test_docket_example_yml.sh:624`:
+
+```awk
+is_active = ($0 ~ /^[A-Za-z_][A-Za-z0-9_]*:/)
+```
+
+No leading-whitespace alternative, so every nested key is still invisible to the scope-tag check
+exactly as described. Line 631 keys its `H`/`S` header-vs-scalar split off the same anchored
+pattern, so extending coverage means revisiting both lines together, not just the `is_active` test.

@@ -64,3 +64,31 @@ optional, and several are discussed in body prose in docket's own change files.
 
 - Should `field()` itself become anchored (fixing every site at once, with a compatibility review of
   the callers that legitimately want a whole-file read), or should the anchored reader stay opt-in?
+
+## Triage note (2026-07-26, change 0124)
+
+Confirmed still live, and **ADR-0057 names this change by number as its tracked follow-up**: "The
+audit of `field()`'s other existing call sites … is out of scope for change 127 and is tracked as
+follow-up change 134." Its Consequences section states the exposure stands until this lands. That
+makes this the highest-value item left in the human queue.
+
+The exposed surface, counted across `scripts/`:
+
+| Key | `field()` sites | Optional? |
+|---|---|---|
+| `spec` | 4 (+1 in a test fixture) | yes |
+| `branch` | 3 | yes |
+| `issue` | 2 | yes |
+| `blocked_by` | 2 | yes |
+| `claimed_at` | 2 | yes |
+| `promotion_state` | 2 | yes |
+| `trivial` | 2 | yes |
+| `results`, `plan` | 1 each (+fixtures) | yes |
+
+Always-present keys already safe under `field()`: `status` (15), `id` (8), `title` (7), `slug` (5),
+`priority` (5). `fm_field` is currently used for `type` (8 sites) plus one `title`/`id` pair.
+
+Kept in the human queue deliberately: the open question is a repo-wide read-semantics fork
+(invert the default vs. keep `fm_field` opt-in), and ADR-0058 already split these readers into two
+tiers on purpose — changing the default would touch that decision, which is a call worth making
+consciously rather than by a default-biased autonomous groom.
