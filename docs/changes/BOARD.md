@@ -1,6 +1,6 @@
 # Backlog
 
-**138 changes** — 🟢 1 in progress · 🟡 28 proposed · 🔴 1 blocked · 🔵 1 implemented · ✅ 101 done · 🗑️ 6 killed
+**138 changes** — 🟢 1 in progress · 🟡 22 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 1 implemented · ✅ 101 done · 🗑️ 8 killed
 
 ## 🟢 In progress (1)
 
@@ -8,15 +8,11 @@
 |---|-------|----------|------|------|--------|
 | [0137](active/0137-forked-claude-code-skills-assume-absent-task-dispatch.md) | Claude Code dispatch-capability detection: name-based probing silently drops SDD build and review discipline | `critical` | `fix` | [spec](../superpowers/specs/2026-07-25-dispatch-capability-detection-design.md) | `feat/forked-claude-code-skills-assume-absent-task-dispatch` |
 
-## 🟡 Proposed (28)
+## 🟡 Proposed (22)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
-| [0007](active/0007-recurring-change-templates.md) | Recurring change templates — scheduled maintenance work that spawns proposed instances | `medium` | `feat` | needs-brainstorm |
-| [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` | needs-brainstorm |
-| [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` | needs-brainstorm |
-| [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` | needs-brainstorm |
-| [0018](active/0018-yq-yaml-parsing.md) | Evaluate adopting yq for YAML parsing across docket scripts | `low` | `refactor` | needs-brainstorm |
+| [0018](active/0018-yq-yaml-parsing.md) | Record the pure-bash YAML/frontmatter parsing stance as an ADR | `low` | `docs` | needs-brainstorm |
 | [0019](active/0019-finalize-ci-gate-functional-test.md) | Finalize ci/both gate — functional test against real GitHub CI (poll/retry) | `low` | `chore` | needs-brainstorm |
 | [0082](active/0082-global-harnesses-per-repo-generation.md) | Global agent_harnesses doesn't reach per-repo generation — silent no-op | `low` | `fix` | needs-brainstorm |
 | [0100](active/0100-force-push-lease-classifier-denial.md) | Force-push-with-lease denied by the auto-mode classifier — unblock finalize's merge gate | `medium` | `fix` | needs-brainstorm |
@@ -34,9 +30,7 @@
 | [0124](active/0124-backlog-triage-pass.md) | Backlog triage pass — kill, defer, or arm each needs-brainstorm stub | `medium` | `chore` | needs-brainstorm |
 | [0125](active/0125-decide-whether-the-rung-pair-completeness-claim-should-be-me.md) | Decide whether the rung-pair completeness claim should be mechanically enforced | `medium` | `chore` | needs-brainstorm |
 | [0126](active/0126-apply-the-poison-value-prelude-uniformly-to-every-resolver-e.md) | Apply the poison-value prelude uniformly to every resolver eval in the config suite | `medium` | `chore` | needs-brainstorm |
-| [0129](active/0129-fix-the-pipefail-unsafe-plain-format-config-assertion.md) | Fix the pipefail-unsafe plain-format config assertion | `medium` | `fix` | needs-brainstorm |
 | [0130](active/0130-make-the-finalize-marker-reachability-guard-portable-to-bsd.md) | Make the finalize marker reachability guard portable to BSD grep | `medium` | `fix` | needs-brainstorm |
-| [0131](active/0131-make-board-conflict-rebase-continuation-noninteractive.md) | Make board-conflict rebase continuation noninteractive | `medium` | `fix` | needs-brainstorm |
 | [0133](active/0133-centralize-runtime-config-helpers.md) | Centralize shared Bash runtime configuration helpers | `medium` | `refactor` | build-ready |
 | [0134](active/0134-audit-field-call-sites-for-frontmatter-anchored-reads.md) | Audit field() call sites for frontmatter-anchored reads | `medium` | `fix` | needs-brainstorm |
 | [0135](active/0135-cursor-agent-wrapper-contract.md) | Generated Cursor wrappers violate Cursor's subagent contract, disabling skills and model effort | `high` | `fix` | needs-brainstorm |
@@ -46,6 +40,15 @@
 | # | Title | Priority | Type | Blocked by |
 |---|-------|----------|------|------------|
 | [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | `feat` | PR #69 is stale (predates the 0068/0072 facade rework and later agent-layer changes) and #0079 (runner delegation) reshapes the design — the build roles should grow a runner field (build.<role>.runner codex, the mixed topology 0079 deferred). Needs a rebase plus redesign pass before merge. |
+
+## ⚪ Deferred (4)
+
+| # | Title | Priority | Type |
+|---|-------|----------|------|
+| [0007](active/0007-recurring-change-templates.md) | Recurring change templates — scheduled maintenance work that spawns proposed instances | `medium` | `feat` |
+| [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
+| [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
+| [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
 ## 🔵 Implemented — awaiting merge (1)
 
@@ -79,9 +82,7 @@ graph TD
   0124
   0125
   0126
-  0129
   0130
-  0131
   0133
   0134
   0135
@@ -92,10 +93,12 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (107)</summary>
+<details><summary>✅🗑️ Archive — done + killed (109)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0131](archive/2026-07-26-0131-make-board-conflict-rebase-continuation-noninteractive.md) | Make board-conflict rebase continuation noninteractive | 2026-07-26 |
+| [0129](archive/2026-07-26-0129-fix-the-pipefail-unsafe-plain-format-config-assertion.md) | Fix the pipefail-unsafe plain-format config assertion | 2026-07-26 |
 | [0138](archive/2026-07-24-0138-unquote-board-change-titles.md) | Board generator wraps each change title in literal double quotes | 2026-07-24 |
 | [0136](archive/2026-07-24-0136-artifact-backlinks.md) | Artifact back-links — a generated link at the top of every artifact pointing to the change | 2026-07-24 |
 | [0127](archive/2026-07-23-0127-typed-changes-selective-auto-capture.md) | Typed changes — configurable taxonomy, selective auto-capture, and backlog filters | 2026-07-23 |
