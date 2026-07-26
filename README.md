@@ -617,7 +617,7 @@ bash sync-agents.sh        # or re-run install.sh, which calls it for you
 | Path | How | You get | You give up |
 |---|---|---|---|
 | **Skill-invoke** | `/docket-status`, or the model auto-invoking the skill | The pinned run, forked — cheapest, no dispatch turn | Observability: it returns as `completed (forked execution)`, with no box to drill into in the TUI |
-| **Agent-dispatch** | `@docket-status`, or a `Task` dispatch naming the wrapper | The **identical** pinned run, drillable live in the TUI | One dispatch turn of overhead |
+| **Agent-dispatch** | `@docket-status`, or a subagent dispatch naming the wrapper | The **identical** pinned run, drillable live in the TUI | One dispatch turn of overhead |
 
 Reach for **agent-dispatch when you want to watch a long run** — a build you intend to babysit — and **skill-invoke for everything else**. A forked run is not lost, only unobservable in the TUI: Claude Code still writes its full transcript to `~/.claude/projects/<project-slug>/<session-id>/subagents/agent-<id>.jsonl`. Treat that path as an **observed internal, not an interface** — it was accurate on Claude Code 2.1.207, it may move, and docket depends on it for nothing. Cursor users are always on the drillable path: the generated dispatch rule routes a direct invocation through a real `Task` dispatch.
 

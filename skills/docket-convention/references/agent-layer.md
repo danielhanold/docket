@@ -128,7 +128,7 @@ drops its wrapper; a de-listed harness drops its wrappers and dispatch rule), an
 the `.gitignore` block, the tracked-file check, and (advisory) content staleness for both.
 
 **Both invocation paths land on the same pinned wrapper.** A forked skill-invoke (`/docket-status`)
-and an explicit agent dispatch (`@docket-status`, or a `Task` naming the wrapper) resolve to the
+and an explicit agent dispatch (`@docket-status`, or a dispatch naming the wrapper) resolve to the
 *same* generated wrapper and run at the *same* resolved model/effort; they differ only in
 **observability** (the dispatch is drillable in the TUI, the fork is not) and in **cost** (the
 dispatch spends a turn). The trade-off table, the fork's on-disk transcript path, and the
