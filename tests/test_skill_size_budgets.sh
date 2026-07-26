@@ -25,6 +25,12 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # conclude dispatch is absent, and a rule sitting in an unread reference file cannot intervene at
 # that moment. Both numbers are the measured actual (361 lines / 6209 words) rounded up to the
 # next multiple of 5 / 10.
+# docket-implement-next/SKILL.md's word budget was raised 3315 -> 3420 by change 0137, which names
+# the Tier A/C posture at its four consuming dispatch sites (Step 0's docket-status sweep and Step
+# 6's docket-adr dispatch are Tier A; Step 5's build invocation and Step 6's review invocation are
+# Tier C) so the convention's dispatch-capability rule has a producer at every site that actually
+# dispatches, not only a definition. The line budget was NOT raised — the measured actual (135
+# lines) still fits the existing row.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -37,7 +43,7 @@ skills/docket-convention/references/learnings.md            84  580
 skills/docket-convention/references/terminal-close-out.md  173 1458
 skills/docket-finalize-change/SKILL.md                     193 4200
 skills/docket-groom-next/SKILL.md                           77 1484
-skills/docket-implement-next/SKILL.md                      147 3315
+skills/docket-implement-next/SKILL.md                      147 3420
 skills/docket-implement-next/results-template.md            24  172
 skills/docket-new-change/SKILL.md                           61 1330
 skills/docket-new-change/change-template.md                 51  203
