@@ -55,5 +55,38 @@ assert "convention: the missing-skill rule still exists" \
 assert "convention: Tier C is distinguished from the missing-skill rule" \
   'grep -qiE "cannot be \*\*invoked\*\*.{0,200}cannot \*\*dispatch\*\*" "$CONV"'
 
+# --- producer coverage: every CONSUMING dispatch site names its tier ----------------------------
+# Anchored on the consuming skill sections, never an allowlist of tiers (learnings:
+# correspondence-guard-runs-one-way). Each row: "<file>|<anchor regex>|<expected tier>". The anchor
+# is the site's own dispatch sentence, so a tier marker parked in an unrelated paragraph does not
+# satisfy it (learnings: marker-scoped-guard-needs-a-population-floor — attachment, not presence).
+IMPL="$REPO/skills/docket-implement-next/SKILL.md"
+AUTOGROOM="$REPO/skills/docket-auto-groom/SKILL.md"
+
+# Print the single paragraph (blank-line-delimited block) containing the first anchor match.
+para_with(){ awk -v pat="$2" 'BEGIN{RS="";} $0 ~ pat {print; exit}' "$1"; }
+
+seen=0
+# NOTE: the tier is expanded into the assert expression at call time. `assert` runs `eval "$2"`,
+# so a `$3` left inside that string would resolve to *assert's* third positional parameter (unset
+# under `set -u`), not this function's — a real trap, caught while writing this plan.
+check_site(){ # $1 file  $2 anchor regex  $3 expected tier  $4 label
+  local p tier label; p="$(para_with "$1" "$2")"; tier="$3"; label="$4"
+  echo "seen $(basename "$(dirname "$1")")/$(basename "$1") $tier"  # per-site record, before any skip
+  seen=$((seen+1))
+  assert "$label: dispatch site found" '[ -n "$p" ]'
+  assert "$label: names $tier at the dispatch site" "grep -qF -- \"$tier\" <<<\"\$p\""
+}
+
+check_site "$IMPL"      "dispatch the .?docket-status.? subagent" "Tier A" "implement-next §0 docket-status"
+check_site "$IMPL"      "docket-adr.? subagent"                  "Tier A" "implement-next §6 docket-adr"
+check_site "$IMPL"      "resolved build skill"                   "Tier C" "implement-next §5 build"
+check_site "$IMPL"      "resolved review skill"                  "Tier C" "implement-next §6 review"
+check_site "$AUTOGROOM" "docket-auto-groom-critic"               "Tier B" "auto-groom §3 critic"
+
+# Population floor: the scanner must have REACHED all five sites. A renamed heading or a moved
+# paragraph would otherwise silently shrink the guard's scope to nothing and still print PASS.
+assert "consumer coverage: all five dispatch sites were scanned (floor)" '[ "$seen" -eq 5 ]'
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
