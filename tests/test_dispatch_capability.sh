@@ -81,7 +81,9 @@ check_site(){ # $1 file  $2 anchor regex  $3 expected tier  $4 label  $5 site no
   echo "seen $(basename "$(dirname "$1")")/$(basename "$1") $tier"  # per-site record, before any skip
   # Reach floor: only count a site the scanner actually FOUND (see the floor assert below) — an
   # unconditional increment cannot tell a renamed anchor / moved paragraph from a real hit.
-  [ -n "$p" ] && seen=$((seen+1))
+  # (Written as if/then/fi rather than `[ -n "$p" ] && seen=...` so a future `set -e` in this file
+  # cannot abort the run on the false branch of the `&&` chain.)
+  if [ -n "$p" ]; then seen=$((seen+1)); fi
   all_nouns="$all_nouns $noun"
   assert "$label: dispatch site found" '[ -n "$p" ]'
   # Proximity, either order, same clause: "$noun ... $tier" or "$tier ... $noun" within 80 chars
@@ -120,10 +122,60 @@ while IFS= read -r name; do
   derived="$derived $name"
 done < <(grep -ohE 'resolved (build|review) skill' "$IMPL" | grep -oE 'build|review')
 
+# Population floor: the derivation itself must have found all five shapes. Without this, rewording
+# a dispatch mention out of backticks (e.g. `` `docket-status` subagent `` -> `docket-status
+# subagent`) silently drops it from $derived and the loop below simply iterates over fewer names —
+# every reverse assert still reads PASS despite two of five derived sites having gone missing.
+assert "reverse: derivation found all five shapes" \
+  '[ "$(printf "%s" "$derived" | wc -w)" -eq 5 ]'
+
 for name in $derived; do
+  # Token match, not substring: the trailing space in both the pattern and the haystack keeps a
+  # phantom site named e.g. "docket" from being falsely reported as covered by " docket-status".
   assert "reverse: derived dispatch site '$name' is covered by a check_site row" \
-    "grep -qF -- \" $name\" <<<\"\$all_nouns \""
+    "grep -qF -- \" $name \" <<<\"\$all_nouns \""
 done
+
+# --- negative guard: no live prose gates a decision on a literal tool name -----------------------
+# Shape, not an allowlist (AGENTS.md: never hand-list the sites of a literal you are gating). In
+# live prose every `Task` occurrence is a dispatch-tool reference; it is legitimate only where the
+# line is Cursor-scoped, since Cursor documents a Task tool and Claude Code does not. docs/adrs/ is
+# out of scope: an Accepted ADR is immutable and is corrected by an appended dated `## Update`.
+mentions="$(cd "$REPO" && grep -rn '\bTask\b' --include='*.md' skills/ README.md 2>/dev/null)"
+offenders=""; cursor_scoped=0; total=0
+while IFS= read -r line; do
+  [ -n "$line" ] || continue
+  total=$((total+1))
+  echo "seen ${line%%:*}:$(cut -d: -f2 <<<"$line")"          # per-hit record, before any skip
+  if grep -qi 'cursor' <<<"$line"; then
+    cursor_scoped=$((cursor_scoped+1))
+  else
+    offenders="$offenders
+$line"
+  fi
+done <<EOF
+$mentions
+EOF
+
+assert "no live prose names a dispatch tool outside a Cursor-scoped line" \
+  '[ -z "$(printf %s "$offenders" | tr -d "[:space:]")" ]'
+[ -z "$(printf %s "$offenders" | tr -d '[:space:]')" ] || printf 'offending lines:%s\n' "$offenders"
+# Population floor: the scan must have reached real content. Zero hits would pass the assert above
+# vacuously — a path typo or a moved file must redden, not silently guard nothing.
+assert "negative guard: scan reached live prose (floor: >=2 Cursor-scoped mentions)" \
+  '[ "$cursor_scoped" -ge 2 ]'
+assert "negative guard: scan is non-empty" '[ "$total" -ge 2 ]'
+
+# Positive control: the guard must REPORT a planted violation, whatever the real tree looks like
+# (learnings: marker-scoped-guard-needs-a-population-floor — coverage, not population).
+ctl="$(mktemp -d)"; trap 'rm -rf "$ctl"' EXIT
+mkdir -p "$ctl/skills/x"
+printf 'A forked skill-invoke and an explicit agent dispatch (a `Task` naming the wrapper) are one.\n' \
+  > "$ctl/skills/x/SKILL.md"
+: > "$ctl/README.md"
+ctl_hits="$(cd "$ctl" && grep -rn '\bTask\b' --include='*.md' skills/ README.md 2>/dev/null | grep -vi cursor)"
+assert "negative guard: positive control — a planted non-Cursor Task line IS detected" \
+  '[ -n "$ctl_hits" ]'
 
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
