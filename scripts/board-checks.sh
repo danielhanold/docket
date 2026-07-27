@@ -186,8 +186,8 @@ for f in "${FILES[@]}"; do
   done
   if [ "$status_ok" != 1 ]; then
     emit field-domain "$cid" "status '$status' is not one of: ${DOCKET_STATUSES[*]}"
-    # A status outside the seven-name vocabulary is outside the five-name ACTIVE set too, so on an
-    # `active/` file renders_row has already recorded the drop; this finding names its cause.
+    # A status outside the seven-name vocabulary is outside the five-name ACTIVE set too, so on a
+    # file in either directory renders_row has already recorded the drop; this finding names its cause.
     EXPLAINED["$cid"]=1
   fi
 
@@ -323,21 +323,31 @@ for f in "${FILES[@]}"; do
   fi
 done
 
-# --- board-row-dropped: an ACTIVE file counted in the board's total but rendered in no section ---
+# --- board-row-dropped: an ACTIVE-or-ARCHIVE file counted in the board's total but not accounted
+# --- for by its directory's pass ---
 # The membership test is renders_row() (above), computed from the renderer's own bucketing — NOT a
 # restatement of the causes the enumerated checks name. SUPPRESSED when a finding already accounts
 # for the drop: `malformed-id` (non-integer id) or a `field-domain` **status** finding. Those are the
 # only two arms that mark EXPLAINED, because they are the only two that describe a row DISAPPEARING;
 # a bad slug/priority/title deliberately does not suppress (see the field-domain block).
 # Unsuppressed, this finding says exactly one thing: a row vanished and nothing enumerated explains
-# why. Two live triggers today —
-#   (a) a file with NO `id:` field at all (malformed-id needs a non-empty raw value to fire), and
-#   (b) an `active/` file carrying a TERMINAL status (`done`/`killed`): a legal status in the wrong
-#       directory, so every enumerated check is correctly silent and only the computed invariant
-#       sees it (the `sweep-failed <id> archive <reason>` state — status flipped, archive move failed).
-# Beyond those, its remaining trigger is a future renderer-added drop path: because renders_row reads
-# DOCKET_STATUSES_ACTIVE — the array render-board.sh's own section iteration uses — a status the
-# renderer stops rendering starts reporting here with no edit to this script.
+# why. Four live triggers today, one set per directory —
+#   active/:
+#     (a) a file with NO `id:` field at all (malformed-id needs a non-empty raw value to fire), and
+#     (b) an `active/` file carrying a TERMINAL status (`done`/`killed`): a legal status in the wrong
+#         directory, so every enumerated check is correctly silent and only the computed invariant
+#         sees it (the `sweep-failed <id> archive <reason>` state — status flipped, archive move
+#         failed).
+#   archive/:
+#     (c) an `archive/` file carrying a NON-TERMINAL status: the symmetric case, a legal status in
+#         the wrong directory, reachable from the same interrupted operation as (b) but on the other
+#         side of the move.
+#     (d) a terminal `archive/` file with NO usable id: the same "no `id:` field at all" shape as
+#         (a), evaluated after the file has already moved.
+# Beyond those, the remaining trigger on either side is a future renderer-added drop path: because
+# renders_row reads DOCKET_STATUSES_ACTIVE and DOCKET_STATUSES_TERMINAL — the two arrays
+# render-board.sh's own section iteration uses — a status either side of the renderer stops
+# rendering starts reporting here with no edit to this script.
 for drop_id in "${!DROPPED[@]}"; do
   [ -n "${EXPLAINED[$drop_id]:-}" ] && continue
   # The message names the two SUPPRESSING arms specifically, not "field-domain" wholesale: a change
