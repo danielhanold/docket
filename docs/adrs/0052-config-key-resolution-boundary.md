@@ -61,3 +61,27 @@ scope classes would be harder to explain than the per-machine divergence it perm
 Relates to ADR-0048 (`.docket.example.yml` as a tested canonical reference), ADR-0019 (the
 coordination-key fence, which this key sits deliberately outside of), and ADR-0012 (the
 script-vs-model boundary — this is that boundary applied to config reads).
+
+## Update — 2026-07-27 (change 0120)
+
+This decision has two halves, and `## Enforcement` above only ever guarded one of them.
+`tests/test_docket_example_yml.sh` guards the **key** side: every key documented in
+`.docket.example.yml` is actually resolved by `docket-config.sh` and emitted in its export block.
+The **prose** side — "a model-read of `.docket.yml` is not a supported shape" — shipped stated but
+unenforced, and an occurrence landed anyway: `integration_branch` in
+`skills/docket-finalize-change/SKILL.md` (occurrence #2). That is what change 0120 corrects.
+
+Change 0120 adds a second enforcer, `tests/test_config_read_channel.sh`, which guards the prose
+side: no skill body tells an agent to read `.docket.yml` itself. It auto-discovers `skills/**/*.md`
+minus two declared `docket-convention` exclusions — the contract that describes the config file
+itself — and requires every `.docket.yml` occurrence to carry an in-line class marker naming an
+admissible class: `write-back` (the line describes a write to the file) or `negative` (the line says
+the file is *not* read that way). An unclassified occurrence fails the suite.
+
+The rule is keyed on **shape** — "an unclassified occurrence" — never on the spelling of any
+particular bad sentence, so a novel phrasing of the same mistake still fails. The marker count must
+equal the occurrence count on a line, so a new violation cannot hide inside an already-marked
+paragraph.
+
+Nothing in `## Decision`, `## Enforcement`, or `## Consequences` changes; this update records the
+second enforcer that makes the prose half of the rule real.
