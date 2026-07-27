@@ -113,7 +113,9 @@ make_sandbox                                        # .claude and .cursor both p
 mkdir -p "$SBX/.cursor" "$SBX/.config/docket"
 printf 'agents:\n  default:\n    status: { model: haiku }\n  cursor:\n    status: { model: gpt-5.5-medium-fast }\n' > "$SBX/.config/docket/config.yml"
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null )
-assert "global cursor block wins for cursor" '[ "$(fm "$SBX/.cursor/agents/docket-status.md" model)" = "gpt-5.5-medium-fast" ]'
+# 0135: the Cursor wrapper encodes effort INSIDE the model value. This config sets only a model,
+# so the effort falls through to docket-status's built-in `medium`.
+assert "global cursor block wins for cursor" '[ "$(fm "$SBX/.cursor/agents/docket-status.md" model)" = "gpt-5.5-medium-fast[effort=medium]" ]'
 assert "global claude falls to default" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "haiku" ]'
 rm -rf "$SBX"
 
@@ -274,22 +276,34 @@ make_sandbox
 HROOTM="$(mktemp -d)"; mkdir -p "$HROOTM/.claude"
 printf 'agent_harnesses: [claude, cursor]\nagents:\n  default:\n    status: { model: sonnet, effort: high }\n  cursor:\n    status: { model: gpt-5.5-medium-fast }\n' > "$SBX/.docket.yml"
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTM" bash "$SYNC" >/dev/null )
-assert "0046 (a): cursor model from cursor block" '[ "$(fm "$SBX/.cursor/agents/docket-status.md" model)" = "gpt-5.5-medium-fast" ]'
-assert "0046 (b): cursor effort inherited from default" '[ "$(fm "$SBX/.cursor/agents/docket-status.md" effort)" = "high" ]'
+assert "0046 (a): cursor model from cursor block" '[ "$(fm "$SBX/.cursor/agents/docket-status.md" model)" = "gpt-5.5-medium-fast[effort=high]" ]'
+# 0135 retired the standalone `effort:` key from Cursor wrappers, but the MECHANISM this guards —
+# field-level merge, where effort falls through to default: while model comes from the cursor: block
+# — is still live. Narrowed to read the surviving carrier of that value.
+assert "0046 (b): cursor effort inherited from default (now inside the model value)" \
+  '[ "$(fm "$SBX/.cursor/agents/docket-status.md" model)" = "gpt-5.5-medium-fast[effort=high]" ]'
 assert "0046 (a): claude model falls to default" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "sonnet" ]'
 assert "0046 (a): claude effort from default" '[ "$(fm "$SBX/.claude/agents/docket-status.md" effort)" = "high" ]'
 # (c) arbitrary non-Claude id passes through verbatim; the two harness files now DIFFER (was byte-identical pre-0046).
-assert "0046 (c): non-Claude id verbatim in .cursor" '[ "$(fm "$SBX/.cursor/agents/docket-status.md" model)" = "gpt-5.5-medium-fast" ]'
+assert "0046 (c): non-Claude id verbatim in .cursor" '[ "$(fm "$SBX/.cursor/agents/docket-status.md" model)" = "gpt-5.5-medium-fast[effort=high]" ]'
+# NOTE (0135): this next assert is now trivially true — every Cursor wrapper differs from its Claude
+# counterpart by shape alone. Its discriminating power moved to "0135 (d): default-only => harness
+# files DIFFER". Kept because it is cheap.
 assert "0046: harness files differ when overridden" '! diff -q "$SBX/.claude/agents/docket-status.md" "$SBX/.cursor/agents/docket-status.md" >/dev/null'
 rm -rf "$SBX" "$HROOTM"
 
-# (d) default-only (no harness block) reproduces today's .claude/agents output byte-for-byte across harnesses.
+# (d) default-only (no harness block) reaches EVERY listed harness. 0135 inverted the byte-identity
+# half of this: a Cursor wrapper is no longer Claude-shaped, so the two files must now DIFFER.
 make_sandbox
 HROOTD0="$(mktemp -d)"; mkdir -p "$HROOTD0/.claude"
 printf 'agent_harnesses: [claude, cursor]\nagents:\n  default:\n    status: { model: sonnet, effort: high }\n' > "$SBX/.docket.yml"
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTD0" bash "$SYNC" >/dev/null )
-assert "0046 (d): default-only => both harness files byte-identical" 'diff -q "$SBX/.claude/agents/docket-status.md" "$SBX/.cursor/agents/docket-status.md" >/dev/null'
+# 0135 inverted this: a Cursor wrapper is NO LONGER Claude-shaped, so default-only config must
+# produce DIFFERENT files. The surviving property is that the default: block reaches both.
+assert "0135 (d): default-only => harness files DIFFER (cursor has its own shape)" \
+  '! diff -q "$SBX/.claude/agents/docket-status.md" "$SBX/.cursor/agents/docket-status.md" >/dev/null'
 assert "0046 (d): default-only applies model to claude" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "sonnet" ]'
+assert "0135 (d): default-only applies model+effort to cursor" '[ "$(fm "$SBX/.cursor/agents/docket-status.md" model)" = "sonnet[effort=high]" ]'
 rm -rf "$SBX" "$HROOTD0"
 
 # 0046: tab-indented .docket.yml agents: block resolves (ind() must count tabs as indentation, not drop the block)
@@ -502,7 +516,9 @@ printf 'agent_harnesses: [claude, cursor]\nagents:\n  default:\n    status: { mo
 assert "0045 fanout: .claude/agents generated" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
 assert "0045 fanout: .cursor/agents generated" '[ -f "$SBX/.cursor/agents/docket-status.md" ]'
 assert "0046 fanout: claude carries default model" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "sonnet" ]'
-assert "0046 fanout: cursor carries its override model" '[ "$(fm "$SBX/.cursor/agents/docket-status.md" model)" = "gpt-5.5-medium-fast" ]'
+# 0135: bracket-encoded; this fixture pins no effort, so it falls through to the built-in `medium`.
+assert "0046 fanout: cursor carries its override model" '[ "$(fm "$SBX/.cursor/agents/docket-status.md" model)" = "gpt-5.5-medium-fast[effort=medium]" ]'
+# NOTE (0135): trivially true now (see the note on "0046: harness files differ when overridden").
 assert "0046 fanout: harness files differ when cursor overrides" '! diff -q "$SBX/.claude/agents/docket-status.md" "$SBX/.cursor/agents/docket-status.md" >/dev/null'
 rm -rf "$SBX" "$HROOTB"
 
