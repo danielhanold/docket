@@ -700,14 +700,15 @@ Note: `docket-brainstorm` is its own opt-in **role** skill (bound via the `brain
 
 Docket agents normally run on the harness hosting your session. **Runner delegation** hands an
 agent's *whole run* to a child harness with its own subscription, models, and skills — activated
-per agent by an explicit `runner:` key, never inferred from model IDs. One pair ships today:
-parent `claude` (Claude Code) → child `codex` (OpenAI Codex CLI).
+per agent by an explicit `runner:` key, never inferred from model IDs. Two pairs ship today, both
+with parent `claude` (Claude Code): child `codex` (OpenAI Codex CLI) and child `cursor` (Cursor CLI).
 
 ```yaml
 # .docket.yml (or the global ~/.config/docket/config.yml — runner is a machine preference)
 agents:
   claude:                       # the PARENT harness: when Claude Code hosts the session…
     status: { model: gpt-5.1-codex, effort: medium, runner: codex }   # …run docket-status on Codex
+    adr:    { model: gpt-5.1, effort: high, runner: cursor }          # …or run docket-adr on Cursor
 runners:
   codex:
     sandbox: workspace-write    # workspace-write (default) | danger-full-access
@@ -737,6 +738,15 @@ Rules and limits:
 installed in Codex; docket skills linked (`link-skills.sh`, automatic on install); and
 `[features] multi_agent = true` in `~/.codex/config.toml` if you delegate an orchestrator
 (SDD fan-out) rather than a leaf agent. Full adapter contract: `scripts/runners/codex.md`.
+
+**Prerequisites (cursor):** `cursor-agent` installed and authenticated, and docket skills linked
+into `~/.cursor/skills` (`link-skills.sh`, automatic on install). `cursor` delegates to
+`cursor-agent -p`. Note that `cursor-agent` is unreliable and lags the Cursor IDE in features, so
+the adapter's posture is a loud abort-and-report on any failure — it never falls back to running the
+agent inline. Cursor has no effort flag: `effort:` is encoded inside the model value as
+`--model <id>[effort=<e>]`, and with no model resolved it is dropped with a WARN. Full adapter
+contract: `scripts/runners/cursor.md`. Validating the Cursor harness end to end (the CLI probe and
+the human IDE checklist): [docs/cursor/validation.md](docs/cursor/validation.md).
 
 ### Running under Cursor Auto-run
 
