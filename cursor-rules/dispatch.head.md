@@ -1,5 +1,5 @@
 ---
-description: Docket agents must be dispatched, never run inline. Cursor runs a directly-invoked skill at the current model, which defeats docket's model/effort pins — so force a Task dispatch to the matching subagent_type.
+description: Docket agents must be dispatched, never run inline. Cursor runs a directly-invoked skill at the current model, which defeats docket's model/effort pins — so force a dispatch to the matching docket subagent.
 alwaysApply: true
 ---
 
@@ -15,7 +15,13 @@ instead.
 For every docket agent named below:
 
 1. Do **NOT** run the skill inline in this chat.
-2. Launch a **Task** with `subagent_type: "docket-<name>"` and `run_in_background: false`
-   (foreground — wait for it). Pass the user's request through in the prompt, including any change /
-   ADR id or argument they gave.
-3. Relay the subagent's result back; do not re-do its work in the parent chat.
+2. Dispatch to the subagent `docket-<name>` using this mode's subagent-launch mechanism,
+   **foreground** — block until it returns; never background it and never poll.
+3. Pass the user's request through in the prompt, including any change / ADR id or argument they
+   gave.
+4. Relay the subagent's result back; do not re-do its work in the parent chat.
+
+If the dispatch mechanism appears unavailable, resolve before concluding — including any deferred or
+lazily-loaded tool surface this mode exposes — and, if resolution is inconclusive, attempt one
+trivial dispatch. Only a failed attempt or an explicit policy denial establishes unavailability; the
+absence of a tool with a particular **name** never does.

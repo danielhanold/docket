@@ -537,7 +537,7 @@ assemble_dispatch_rule() {
       desc="$(agent_description "$src")"
       printf '## docket-%s — dispatch only\n\n' "$name"
       printf '%s\n\n' "$desc"
-      printf 'When this applies, do NOT run the skill inline. Launch a Task with `subagent_type: "docket-%s"`, `run_in_background: false`, and relay its result.\n' "$name"
+      printf 'When this applies, do NOT run the skill inline. Dispatch to the subagent `docket-%s` using this mode'"'"'s subagent-launch mechanism, foreground, and relay its result.\n' "$name"
       log "WARN no dispatch fragment for docket-$name — emitted a minimal auto-block; add cursor-rules/dispatch/docket-$name.md"
     fi
   done
