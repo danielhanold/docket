@@ -1,5 +1,9 @@
+<!-- docket:backlink:start (generated — do not hand-edit) -->
+> ↩ **[Change 0137 — Claude Code dispatch-capability detection: name-based probing silently drops SDD build and review discipline](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0137-forked-claude-code-skills-assume-absent-task-dispatch.md)**
+<!-- docket:backlink:end -->
+
 # Dispatch-capability detection — results
-Change: #0137 · Branch: feat/forked-claude-code-skills-assume-absent-task-dispatch · PR: <url> · Plan: docs/superpowers/plans/2026-07-25-dispatch-capability-detection.md · ADRs: <ids>
+Change: #0137 · Branch: feat/forked-claude-code-skills-assume-absent-task-dispatch · PR: <url> · Plan: docs/superpowers/plans/2026-07-25-dispatch-capability-detection.md · ADRs: 0059 (new), 0024 (dated Update)
 
 ## Live dispatch spike (gating)
 
@@ -117,14 +121,16 @@ Every mutation below was applied to a git-free scratch copy of the repo (a plain
 git worktree, to avoid entangling the copy's refs with the real feature branch — see the note
 under *Deviations* on how the first attempt at this went wrong), run against
 `tests/test_dispatch_capability.sh`, confirmed to redden at least one assert, then reverted before
-the next mutation. 31 mutations were run (broader than the eight the plan's Step 1 enumerated,
-since the guard grew five review rounds past what that list describes — see the brief's note (A)).
-Rows 1–21 are the four per-task rounds; rows 22–33 were added by the whole-branch round.
+the next mutation. 35 mutations were run (broader than the eight the plan's Step 1 enumerated,
+since the guard grew six review rounds past what that list describes). Rows 1–21 are the four
+per-task rounds; rows 22–33 were added by the whole-branch round; rows 34–35 by the re-review of
+that round's fixes.
 
 **Every row below reddened. That is a coverage claim about these rows, not a soundness claim about
 the guard** — rows 1–21 all reddened and the whole-branch review that followed still found five
-green survivors (see *What this guard does not cover*, immediately after this table). Rows 22–33
-are the mutations proving those five are now closed.
+green survivors; rows 22–33 closed those, and a re-review of *those fixes* found two more (see
+*What this guard does not cover*, immediately after this table). Rows 34–35 close the last two.
+Each round's "all green-to-red" was true and insufficient; that is the honest shape of this file.
 
 | # | Mutation | Assert(s) reddened |
 |---|---|---|
@@ -160,6 +166,8 @@ are the mutations proving those five are now closed.
 | 30 | Append a **bare-word, non-Cursor** violation to `references/agent-layer.md`: "Claude Code forces a Task dispatch to the matching wrapper, so the pin holds." | `no live prose names a dispatch tool outside a Cursor-scoped line` — stayed **green** under the markup-only shape pattern, while the same sentence *with backticks* reddened |
 | 31 | **Negative control (must NOT redden):** append "Each Task brief is reviewed before the next one starts." to the same file | none — suite stayed **PASS**, confirming the bare-word branch is narrowed by the following word (`dispatch\|tool\|launch`) and still excludes this repo's SDD vocabulary |
 | 32 | Add a skill file under a colon-containing directory (`skills/zz:probe/SKILL.md`) carrying a non-Cursor `` `Task` `` mention | `negative guard: every scanned record was classified (no UNCLASSIFIED bucket)` — **and nothing else**, which is the point: the replaced `total -eq cursor_scoped` assert could not redden independently of the offender assert, and this one does |
+| 34 | Swap Tier A ↔ Tier C between Step 6's two clauses AFTER the `;` was restored between them | `implement-next §6 docket-adr: names Tier A next to its own noun (docket-adr), same clause`; `implement-next §6 review: names Tier C next to its own noun (review), same clause` — with the intervening `,` this same swap had stayed green for a shorter rewording |
+| 35 | Delete "— never from a tool name" from a wired site while leaving the section title | `<site>: paragraph forbids concluding unavailability from a tool name` — the title-only citation assert stayed green on this at all five sites |
 | 33 | Drop `-n` from the negative scan's grep (records lose their line numbers) | `negative guard: scan reached live prose`; `… includes README.md specifically`; `… no UNCLASSIFIED bucket`; `negative guard: positive control …` |
 
 ## What this guard does not cover
@@ -236,20 +244,42 @@ failure exits 1").
   changed. Task 5 added a comment stating the floor must never be lowered to 0 (0 is vacuous — see
   learnings: `enumerated-floor`) plus a coverage assert pinning the scan's reach to `README.md`
   specifically, not just a number.
-- **Budget-row raises, old → new:**
-  - `docket-convention/SKILL.md`: `354/5850` → `365/6210` (change 0137's capability-resolution rule
-    + A/B/C tier table; both numbers are the measured actual, 361 lines / 6209 words, rounded up to
-    the next multiple of 5/10).
-  - `docket-implement-next/SKILL.md` words: `3315` → `3420` (naming the tier at all four consuming
-    dispatch sites), then `3420` → `3440` in the same change's fix round (pairing each site's noun
-    with its tier in the same clause, plus two restored fidelity details). Its line budget was never
-    raised — the measured actual (135 lines) fits the existing row throughout.
-  - `docket-convention/SKILL.md`'s row was **not** raised again after the tier-naming task: that
-    task's own touch to the convention file replaced a dangling cross-reference into docket's
-    (non-distributed) README — "the same posture the README takes toward the fork transcript path"
-    — with a self-contained clause — "such a name is an observed internal, not an interface" — a
-    like-for-like swap with net-zero word delta, so no budget movement was needed. The file now sits
-    at 6209/6210 words, one word of headroom.
+- **Budget-row raises, old → final:**
+  - `docket-convention/SKILL.md`: `354/5850` → **`365/6250`** (change 0137's capability-resolution
+    rule + A/B/C tier table). Measured actual 361 lines / 6209 words.
+  - `docket-implement-next/SKILL.md` words: `3315` → **`3500`**, in three steps as the tier wiring
+    was hardened (naming the tier at four consuming sites; then pairing each site's noun with its
+    tier in the same clause; then giving Step 6's two clauses the same resolution-rule back-pointer
+    the other sites carry). Measured actual 3445 words. Its LINE budget was never raised — the
+    actual (135) fits the pre-existing 147 throughout.
+  - `docket-convention/SKILL.md`'s row was **not** raised a second time: the tier-naming task's own
+    touch to that file replaced a dangling cross-reference into docket's (non-distributed) README —
+    "the same posture the README takes toward the fork transcript path" — with a self-contained
+    clause — "such a name is an observed internal, not an interface" — a like-for-like swap with
+    net-zero word delta.
+  - **The budget file stated two contradictory policies mid-build and now states one.** Its header
+    claims rows are "actuals + ~10%", while this change's raises used "next multiple of 5/50" — and
+    an intermediate round rounded words to the next multiple of *10*, leaving `+1` and `+9` words of
+    headroom. That is precisely the failure mode change 0102's own entry records eleven lines above
+    ("the next edit to that file would have reddened CI on arrival") — and it bit immediately: the
+    whole-branch review's required fixes reddened CI on arrival. Resolved by documenting the actual
+    two-era practice (0085's +10% basis; later raises = measured actual + a working margin) and
+    adding a floor to the rule: if the next multiple of 50 lands within 25 words of the actual, take
+    the one after. `3450` would have left a 5-word margin, hence `3500`.
+
+**A sixth and seventh survivor, found by the re-review of the fixes above.** The bounded re-review
+of the fix commits found two more, both now closed (rows 34–35):
+
+6. **A clause boundary silently downgraded to a comma.** Rewriting Step 6's two clauses replaced the
+   `;` separating them with a `,`. The proximity regex excludes `;` and `.` but not `,`, so the two
+   sites sharing that paragraph were once again separated only by character distance. Today's
+   wording still reddened on a tier swap, but a plausible *shorter* rewording would have been green
+   both when correct and when swapped — re-opening the round-2 defect. Fixed by restoring the `;`,
+   and the swap mutation was re-run to confirm it reddens (row 34).
+7. **Only half the back-pointer clause was guarded.** The new citation assert keyed on the section
+   title *Dispatch-capability resolution* alone, so deleting the other half — "never from a tool
+   name", the half that actually forbids the false negative — stayed green at all five sites. Fixed
+   with a second per-site assert on that clause (row 35).
 
 **Note on the mutation-testing method itself:** the first attempt copied the scratch tree with
 `cp -R` of the whole worktree directory, including its `.git` file. A git worktree's `.git` is a
@@ -306,7 +336,7 @@ that shouldn't. Closing that gap took four rounds of adversarial mutation, not o
   **false negative**. The learnings ledger's only writer is the close-out harvest (not this results
   file), so this correction cannot be applied here — it is flagged for that harvest to pick up and
   amend the entry.
-- A follow-up stub should be minted to extend the tiered posture (this change's A/B/C table) to
+- **Change #0139 was minted** (type `fix`) to extend the tiered posture (this change's A/B/C table) to
   `docket-finalize-change`'s two in-context-gating dispatches — `docket-rebase-resolver` (resolves
   rebase conflicts) and `docket-integration-repair` (repairs a red post-rebase suite) — neither of
   which matches any of the three tier rows as written (they are gate-internal, in-context dispatches
