@@ -19,7 +19,7 @@ branch: feat/docket-finalize-change-claims-integration-branch-is-read-fro
 claimed_at: 2026-07-27T23:15:13Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 type: docs
 ---
 
@@ -88,3 +88,32 @@ Three other occurrences in the same file (lines 65, 104, 125) use `<integration_
 placeholder without asserting provenance — those read correctly and need no edit. Only line 92
 makes the false claim, so the minimal fix is one clause, leaving headroom for the sibling audit
 against the 4200-word budget.
+
+## Reconcile log
+
+### 2026-07-27 — build-time reconcile (claimed for implementation)
+
+Re-ran the spec's §2 audit against `origin/main` @ `0da1c0aa`. Every snapshot in the spec still
+holds; scope is unchanged.
+
+- **The bug is still live**, still one clause, still at `skills/docket-finalize-change/SKILL.md:92`:
+  "merge it into `<integration_branch>` (resolved from `.docket.yml`; not hard-coded `main`)".
+- **Audit re-run confirms the snapshot exactly**: 16 `.docket.yml` occurrences across the same 5
+  skill files, in the same distribution — `docket-convention/SKILL.md` 6, `references/agent-layer.md`
+  5, `docket-finalize-change/SKILL.md` 2 (the bug + the correct `negative` at line 108),
+  `docket-status/SKILL.md` 2 (`write-back`, lines 61 and 78), `github-board-mirror.md` 1
+  (`write-back`, line 17). No second false claim; no site the spec did not already classify.
+- **§4's exclusion re-confirmed.** `docket-convention/SKILL.md:54` ("`integration_branch` is a value
+  *read from* the file, so the file cannot be located *by* it") reads in context as a statement about
+  where `.docket.yml` *lives* — the sentence it sits in is about the file being on the default branch,
+  not the integration branch. Line 58 of the same file attributes the actual read to the resolver
+  ("read `.docket.yml` authoritatively … performed deterministically by the config resolver"). It is
+  not a read-channel instruction to any agent, so the exclusion stands and the spec's fallback
+  rephrase is NOT triggered.
+- **Both budget dimensions re-measured** on `origin/main`, and all four marker lines fit:
+  `docket-finalize-change/SKILL.md` 189/193 lines · 4131/4200 words (+1 line);
+  `docket-status/SKILL.md` 107/118 · 2323/2393 (+2 lines);
+  `github-board-mirror.md` 17/19 · 420/462 (+1 line — the tightest, landing at 18/19).
+- **ADR-0052 is still `Accepted`** and its `## Enforcement` section still names only
+  `tests/test_docket_example_yml.sh`, so the dated `## Update` in scope item 4 is still required.
+- `depends_on` is empty; nothing is gated. No work has been done elsewhere; no scope dropped.
