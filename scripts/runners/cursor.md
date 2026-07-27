@@ -1,0 +1,75 @@
+# runners/cursor.sh — the cursor runner adapter
+
+## Purpose
+
+The per-runner adapter that delegates one docket agent's **whole run** to Cursor's CLI via its
+non-interactive print primitive, `cursor-agent -p`. Owns everything child-specific — preflight,
+prompt assembly, flag mapping, foreground execution, final-message relay. Invoked only by
+`runner-dispatch.sh` (behind `docket.sh runner-dispatch`), never directly by skills or shims.
+
+## Usage
+
+```
+bash scripts/runners/cursor.sh --agent <name> [--model <m>] [--effort <e>] [--] [<args…>]
+```
+
+- `--agent <name>` (required) — the built-in agent to delegate; its wrapper source
+  `agents/docket-<name>.md` supplies the skills list and body for the prompt.
+- `--model <m>` (optional) — passed to `cursor-agent --model` **verbatim** (ADR-0015 opaque
+  passthrough; docket never validates or rewrites model IDs). Omitted ⇒ the child's own default.
+- `--effort <e>` (optional) — Cursor has **no effort flag**. Reasoning effort is a model parameter
+  encoded inside the model value, so the adapter passes `--model <model>[effort=<effort>]` — the
+  same encoding the wrapper emitter uses. With **no model resolved** the effort has nowhere to
+  attach and is **dropped with a WARN** on stderr. `auto` means "no pin" and is never encoded.
+- `-- <args…>` — appended to the prompt as caller task context.
+
+Environment (set by the facade):
+
+| Var | Meaning | Default |
+|---|---|---|
+| `DOCKET_REPO_ROOT` | absolute main-worktree path; the run's repo anchor | required |
+
+`runners.cursor` has no configuration keys today. Mock seam: `CURSOR_BIN` (default `cursor-agent`).
+
+## Behavior
+
+1. **Preflight** — `cursor-agent` (or `$CURSOR_BIN`) resolvable on PATH. Failing is a loud
+   abort-and-report — **never** a silent degrade to a native run, because `runner:` was explicit
+   human config.
+2. **Prompt assembly** — from `agents/docket-<agent>.md`: "invoke skill `<s>`" for each entry of
+   the wrapper's `skills:` frontmatter list (docket skills are linked into `~/.cursor/skills` by
+   `link-skills.sh`), then the wrapper body verbatim (which carries the abort-and-report rule),
+   then any passthrough args.
+3. **Flag mapping** — `-p --output-format text`, plus `--model <model>` (with the effort bracket
+   appended when both are supplied) when a model is resolved.
+4. **Execution + relay** — runs `cursor-agent -p` **foreground**, blocking until exit; the child's
+   final message is the adapter's stdout, relayed verbatim.
+
+## Exit codes
+
+- `0` — child ran and exited 0; stdout carries its final message.
+- `1` — precondition abort (bad args, missing agent source, missing binary, missing
+  `DOCKET_REPO_ROOT`).
+- any other — the child's own nonzero exit, propagated.
+
+## Invariants
+
+- Model IDs are never validated or rewritten (ADR-0015); there is no allowlist of Cursor model IDs
+  or effort tokens.
+- Exactly one `cursor-agent` invocation per adapter run; always foreground, never backgrounded,
+  never retried.
+- **Never degrades to running the agent natively.** A `cursor-agent` failure, timeout, or
+  missing-feature error is a loud abort-and-report; the adapter has no fall-back path and never
+  suggests running the agent inline in the parent instead.
+
+## Recorded risk
+
+`cursor-agent` is known from hands-on testing to be **unreliable and to lag the Cursor IDE in
+features**. This adapter therefore rests on a shakier foundation than `runners/codex.md` — which is
+exactly why its failure posture admits no fall-back. A silent degrade here would reproduce change
+0135's own root cause (a silently-dropped configuration) in a new location.
+
+## Prerequisites (documented, not automated)
+
+- Cursor CLI installed (`cursor-agent` on PATH) and authenticated.
+- docket skills linked into `~/.cursor/skills` (`link-skills.sh`, automatic on install).
