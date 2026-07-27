@@ -1,14 +1,8 @@
 # Backlog
 
-**143 changes** — 🟢 1 in progress · 🟡 23 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 3 implemented · ✅ 102 done · 🗑️ 9 killed
+**145 changes** — 🟡 25 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 4 implemented · ✅ 102 done · 🗑️ 9 killed
 
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0117](active/0117-deferred-adr-publish-visibility-decide-whether-docket-adr-s.md) | Deferred ADR-publish visibility — detect an unpublished ADR with a computed board-checks finding | `medium` | `feat` | [spec](../superpowers/specs/2026-07-21-unpublished-adr-check-design.md) | `feat/deferred-adr-publish-visibility-decide-whether-docket-adr-s` |
-
-## 🟡 Proposed (23)
+## 🟡 Proposed (25)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -35,6 +29,8 @@
 | [0141](active/0141-factor-the-shared-wrapper-source-parse-out-of-the-named-harn.md) | Factor the shared wrapper-source parse out of the named harness emitters | `medium` | `refactor` | needs-brainstorm |
 | [0142](active/0142-make-the-unmapped-harness-wrapper-gap-loud-at-generation-tim.md) | Make the unmapped-harness wrapper gap loud at generation time | `medium` | `fix` | needs-brainstorm |
 | [0143](active/0143-empty-id-collapses-the-archive-sort-feeder-s-tab-joined-fiel.md) | Empty id collapses the archive sort feeder's TAB-joined fields in render-board.sh | `medium` | `fix` | needs-brainstorm |
+| [0144](active/0144-a-board-checks-sh-non-zero-exit-silently-voids-the-entire-he.md) | A board-checks.sh non-zero exit silently voids the entire health pass | `medium` | `chore` | needs-brainstorm |
+| [0145](active/0145-docket-status-skill-md-restates-a-stale-check-count-and-list.md) | docket-status SKILL.md restates a stale check count and list the 0111 guard does not pin | `medium` | `docs` | needs-brainstorm |
 
 ## 🔴 Blocked (1)
 
@@ -51,12 +47,13 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (3)
+## 🔵 Implemented — awaiting merge (4)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | `chore` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
 | [0115](active/0115-extend-the-board-row-dropped-invariant-to-archive-files.md) | Extend the board-row-dropped invariant to archive/ files | `medium` | `fix` | [#128](https://github.com/danielhanold/docket/pull/128) |  |
+| [0117](active/0117-deferred-adr-publish-visibility-decide-whether-docket-adr-s.md) | Deferred ADR-publish visibility — detect an unpublished ADR with a computed board-checks finding | `medium` | `feat` | [#129](https://github.com/danielhanold/docket/pull/129) |  |
 | [0135](active/0135-cursor-agent-wrapper-contract.md) | Generated Cursor wrappers violate Cursor's subagent contract, disabling skills and model effort | `high` | `fix` | [#127](https://github.com/danielhanold/docket/pull/127) |  |
 
 ```mermaid
@@ -93,6 +90,8 @@ graph TD
   0141
   0142
   0143
+  0144
+  0145
   0015:::done
   0016:::done
   0077:::done
