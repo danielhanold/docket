@@ -361,6 +361,15 @@ ctl="$(mktemp -d)"; trap 'rm -rf "$ctl"' EXIT
 mkdir -p "$ctl/skills/x"
 printf 'A forked skill-invoke and an explicit agent dispatch (a `Task` naming the wrapper) are one.\n' \
   > "$ctl/skills/x/SKILL.md"
+# $SHAPE has TWO independent halves — markup-shaped and bare-word-narrowed-by-context — and the
+# control must plant one record for EACH, or half the pattern is unexercised. The bare-word half
+# had exactly one live instance in the scanned tree (references/agent-layer.md's Cursor
+# dispatch-rule sentence) until change 0135 reworded it by capability; with the live instance gone
+# and only a backticked record planted here, deleting the whole `Task[[:space:]]+(dispatch|tool|
+# launch)` alternation from $SHAPE left the entire suite green (mutation-proven). A HERMETIC
+# control record is the right home for this coverage precisely because it does not depend on how
+# any live document happens to be worded today.
+printf 'Cursor forces a Task dispatch to the matching wrapper.\n' > "$ctl/skills/x/BARE.md"
 : > "$ctl/README.md"
 ctl_classified="$(scan_and_classify "$ctl")" || true
 ctl_hits=""
@@ -375,6 +384,14 @@ $ctl_classified
 EOF
 assert "negative guard: positive control — a planted non-Cursor Task line IS detected" \
   '[ -n "$ctl_hits" ]'
+# Per-record coverage, one assert per $SHAPE half. Anchored on $ctl_classified (every record the
+# scan produced) rather than $ctl_hits, because the bare-word record is Cursor-scoped and so
+# classifies as CURSOR, not OFFENDER — the point here is that the SHAPE matched at all, which is
+# what dies when an alternation is dropped from $SHAPE.
+assert "negative guard: positive control — the markup-shaped Task record is detected" \
+  'grep -qE "^(CURSOR|OFFENDER) skills/x/SKILL\.md:" <<<"$ctl_classified"'
+assert "negative guard: positive control — the BARE-WORD Task record is detected" \
+  'grep -qE "^(CURSOR|OFFENDER) skills/x/BARE\.md:" <<<"$ctl_classified"'
 
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
