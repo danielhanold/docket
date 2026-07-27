@@ -10,7 +10,7 @@ updated: 2026-07-27
 depends_on: []
 related: [16, 44, 45, 46, 48, 49, 66, 113, 137]
 discovered_from: []
-adrs: [8, 15, 24, 59]
+adrs: [8, 15, 24, 59, 60]
 spec: docs/superpowers/specs/2026-07-26-cursor-agent-wrapper-contract-design.md
 plan: docs/superpowers/plans/2026-07-27-cursor-agent-wrapper-contract.md
 results:
@@ -30,7 +30,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-26-cursor-agent-wrapper-contract-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-26-cursor-agent-wrapper-contract-design.md) |
 | Plan | [2026-07-27-cursor-agent-wrapper-contract.md](https://github.com/danielhanold/docket/blob/feat/cursor-agent-wrapper-contract/docs/superpowers/plans/2026-07-27-cursor-agent-wrapper-contract.md) |
-| ADRs | [ADR-0008](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0008-agent-layer-generated-subagents.md), [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md), [ADR-0024](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0024-claude-context-fork-skill-dispatch.md), [ADR-0059](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0059-dispatch-capability-resolved-not-inferred-from-tool-name.md) |
+| ADRs | [ADR-0008](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0008-agent-layer-generated-subagents.md), [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md), [ADR-0024](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0024-claude-context-fork-skill-dispatch.md), [ADR-0059](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0059-dispatch-capability-resolved-not-inferred-from-tool-name.md), [ADR-0060](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0060-generated-wrapper-conforms-to-target-harness-contract.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
