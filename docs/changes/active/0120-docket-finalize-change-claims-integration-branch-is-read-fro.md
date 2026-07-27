@@ -9,8 +9,8 @@ updated: 2026-07-26
 depends_on: []
 related: []
 discovered_from: [102]
-adrs: []
-spec:
+adrs: [52]
+spec: docs/superpowers/specs/2026-07-26-skill-config-read-channel-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,10 @@ type: docs
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-07-26-skill-config-read-channel-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-26-skill-config-read-channel-design.md) |
+| ADRs | [ADR-0052](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0052-config-key-resolution-boundary.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -48,15 +52,24 @@ Surfaced by the whole-branch review of change 0102.
 
 ## What changes
 
-- Correct the skill body's provenance claim to name the exported `INTEGRATION_BRANCH` read from the
-  Step-0 block, matching how 0102 fixed `FINALIZE_REQUIRE_PR_APPROVAL`.
-- Audit the other skill bodies for the same shape — any prose telling an agent to read a value
-  "from `.docket.yml`" when that value is an exported resolver key. ADR-0052 makes this a rule, so
-  this is now enforcement of a stated boundary rather than a one-off fix.
-- Consider whether a sentinel can guard the class, rather than fixing occurrences one at a time.
+Settled by the linked spec (autonomously groomed 2026-07-26):
 
-**Note:** `skills/docket-finalize-change/SKILL.md` sits near its word budget; change 0102 raised it
-to 4200 to leave headroom, so this edit should fit, but check before assuming.
+- **Correct the one false claim** — `skills/docket-finalize-change/SKILL.md`'s *Per-change steps*
+  step 1 parenthetical, to name the exported `INTEGRATION_BRANCH` read from the Step-0 `preflight`
+  block, keeping the "not hard-coded `main`" warning.
+- **The sibling audit is complete** and found no second false claim: 16 `.docket.yml` occurrences
+  across 5 skill files, all others being write-backs, negatives, or convention prose about the file
+  itself. The implementer re-runs the grep at reconcile rather than trusting the snapshot.
+- **Guard the class** with a new `tests/test_config_read_channel.sh`: an auto-discovered population
+  (`skills/**/*.md` minus two declared `docket-convention` exclusions) in which every `.docket.yml`
+  occurrence must carry an in-line class marker (`write-back` / `negative`) or fail. Four legitimate
+  sites get markers as part of this change. Mutation-tested, with a population floor.
+- **Append a dated `## Update` to ADR-0052** naming the second enforcer; delivered atomically via
+  `adrs: [52]`.
+
+**Note:** `skills/docket-finalize-change/SKILL.md` is at 4131/4200 words and 189/193 lines;
+`github-board-mirror.md` has only 2 lines of budget headroom. Check both dimensions before assuming
+the marker lines fit.
 
 ## Out of scope
 
