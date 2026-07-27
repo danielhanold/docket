@@ -353,7 +353,11 @@ if [ -n "$ADRS_DIR" ] && [ "$ADR_GATE" = 1 ]; then
     printf 'board-checks: adrs dir is not inside a git worktree: %s\n' "$ADRS_DIR" >&2; exit 2
   fi
   mapfile -t ADR_FILES < <(find "$ADRS_DIR" -maxdepth 1 -name '*.md' ! -name 'README.md' 2>/dev/null | sort)
-  for af in "${ADR_FILES[@]}"; do
+  # Guarded expansion (same idiom as commit 0695b921): an ADR dir that EXISTS but is EMPTY — the
+  # normal state of a repo that opted in before writing its first ADR — leaves ADR_FILES declared
+  # but empty, and "${ADR_FILES[@]}" throws "unbound variable" under set -u on bash 4.0-4.3 (this
+  # repo's floor), aborting the script before FINDINGS prints and losing every other check's output.
+  for af in ${ADR_FILES[@]+"${ADR_FILES[@]}"}; do
     a_num="$(padded_id_from_file "$af")"
     [ "$a_num" = '?' ] && continue          # not a numbered ADR file; adr-checks.sh owns naming hygiene
     a_rel="${adr_prefix}$(basename "$af")"
@@ -392,6 +396,11 @@ if [ -n "$ADRS_DIR" ] && [ "$ADR_GATE" = 1 ]; then
     fi
 
     # Absent on the integration branch. Never expected there unless the publish trigger has fired.
+    # An ADR not on the metadata branch at all (m_blob empty — working-tree-only, uncommitted) is
+    # not yet a publish obligation: nothing to publish FROM, and the remedy this arm would print
+    # (docket.sh terminal-publish --adr) reads its copy-set from the metadata branch and would
+    # fail outright. Mirrors the stale arm's own "nothing to compare against" reasoning above.
+    [ -n "$m_blob" ] || continue
     [ "$a_status" = "Accepted" ] || continue
     if [ -n "$a_change" ]; then
       # Change-tied: due only once its change reached a TERMINAL status. An unresolvable

@@ -1200,11 +1200,19 @@ assert "exactly one adr-unpublished finding carries the '?' change-id (ADR-0010 
   '[ "$(grep -cF -- "$(printf "adr-unpublished\t?\t")" <<<"$auout")" -eq 1 ]'
 assert "adr-unpublished emits exactly the three due findings and nothing else" \
   '[ "$(grep -c "^adr-unpublished" <<<"$auout")" -eq 3 ]'
+# M3(c): the change-id column carries only the change id (or '?'), not the ADR number — verify the
+# ADR number itself is NAMED in the message for the change-tied findings too, not just the
+# standalone one already checked above (ADR-0010).
+assert "adr-unpublished names ADR-0011 in its message, not only the change-id column (cid 60)" \
+  'grep -qF -- "ADR-0011" <<<"$auout"'
+assert "adr-unpublished names ADR-0012 in its message, not only the change-id column (cid 61)" \
+  'grep -qF -- "ADR-0012" <<<"$auout"'
 # ADR-0049: the change-id column carries a shape-validated value only. `?` is the existing
 # fallback for "no usable id" (padded_id_from_file), reused here rather than widening the column
 # to admit an ADR reference — the ADR number rides the message column, which is the last field of
 # the caller's `read` and therefore harmless.
-au10="$(grep -E "$(printf '^adr-unpublished\t\\?\t')" <<<"$auout")"
+# Fixed-string tab prefix, not `\?` in an ERE — see the st21 comment below for why.
+au10="$(grep -F -- "$(printf 'adr-unpublished\t?\t')" <<<"$auout")"
 assert "the standalone ADR's change-id column is the validated '?' fallback, not an ADR reference" \
   '[ -n "$au10" ]'
 assert "adr-unpublished message names the integration branch" 'grep -qF -- "main" <<<"$au10"'
@@ -1230,15 +1238,19 @@ stout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AU/docs/changes" \
   --adrs-dir "$AU/docs/adrs" --terminal-publish \
   --metadata-branch docket --integration-branch main 2>/dev/null)"
 
+# Fixed-string tab prefix, not `\?` in an ERE (POSIX leaves `\?` in ERE undefined; the failure
+# mode is silent — the pattern degrades to matching EVERY adr-unpublished line, making a `-n`
+# assert vacuous). Computed once, up front, and reused below instead of re-deriving it — a
+# `producer | grep -qF` chain would trip this file's own `set -uo pipefail` (see has_finding).
+st21="$(grep -F -- "$(printf 'adr-unpublished\t?\t')" <<<"$stout" | grep -- "ADR-0021")"
 assert "adr-unpublished fires the STALE arm for a published ADR whose bytes drifted (ADR-0021)" \
   '[ "$(grep -c -- "ADR-0021" <<<"$stout")" -eq 1 ]'
 assert "the stale finding is an adr-unpublished line (one check-id, two messages)" \
-  'grep -E "$(printf "^adr-unpublished\t")" <<<"$stout" | grep -qF -- "ADR-0021"'
+  '[ -n "$st21" ]'
 assert "adr-unpublished SILENT for a published ADR whose bytes MATCH (ADR-0020)" \
   '[ "$(grep -c -- "ADR-0020" <<<"$stout")" -eq 0 ]'
 # Status-blindness: ADR-0021 is no longer Accepted, yet it is still due because it is already
 # published. An Accepted-only gate on this arm would silence exactly the case it exists to catch.
-st21="$(grep -E "$(printf '^adr-unpublished\t\\?\t')" <<<"$stout" | grep -- "ADR-0021")"
 assert "the stale message is DISTINCT from the missing message (says differs/re-publish, not absent)" \
   '! grep -qF -- "absent" <<<"$st21"'
 assert "the stale message names both branches" \
@@ -1268,6 +1280,152 @@ AU_NOGIT="$(mktemp -d)"
 assert "an --adrs-dir outside any git worktree is rejected up front (exit 2)" \
   '! bash "$SCRIPT" --changes-dir "$AU/docs/changes" --adrs-dir "$AU_NOGIT" \
      --terminal-publish --metadata-branch docket --integration-branch main >/dev/null 2>&1'
+
+# ============================ adr-unpublished: additional coverage (review round) =============
+# Three separate fixtures, isolated in their own repo: (a) i_blob present / m_blob absent — an ADR
+# published on the integration branch that was never committed on the metadata branch at all (the
+# stale arm's own "nothing to compare against" comment describes this shape, but nothing exercised
+# it); (b) a change-tied ADR whose change IS terminal but whose status is NOT Accepted and which is
+# absent from the integration branch — the due matrix's sixth cell; (c) an ADR sitting only in the
+# working tree, never committed anywhere (I2) — a publish-gap finding here would print a remedy
+# (`terminal-publish.sh --adr N`) that reads its copy-set from the metadata branch and fails.
+read -r AU2 AU2_ORIGIN <<<"$(new_repo)"
+mkdir -p "$AU2/docs/adrs"
+cat > "$AU2/docs/changes/archive/2026-07-01-0070-done-change.md" <<'EOF'
+---
+id: 70
+slug: done-change-2
+title: A change that reached done
+status: done
+priority: medium
+depends_on: []
+trivial: true
+EOF
+
+# (b) change-tied (terminal change 70), status Proposed (NOT Accepted), absent from integration.
+cat > "$AU2/docs/adrs/0030-adr-30.md" <<'EOF'
+---
+id: 30
+slug: adr-30
+title: ADR 30
+status: Proposed
+date: 2026-07-01
+supersedes: []
+reverses: []
+relates_to: []
+change: 70
+---
+
+## Context
+
+c
+
+## Decision
+
+d
+
+## Consequences
+
+q
+EOF
+echo "# index" > "$AU2/docs/adrs/README.md"
+git -C "$AU2" add docs/changes docs/adrs/0030-adr-30.md docs/adrs/README.md
+git_quiet -C "$AU2" commit -m "au2 fixtures (change 70, adr 30)"
+git_quiet -C "$AU2" push origin docket
+
+# (a) standalone Accepted, committed onto main ONLY — never committed onto docket at all.
+git_quiet -C "$AU2" checkout main
+mkdir -p "$AU2/docs/adrs"
+cat > "$AU2/docs/adrs/0031-adr-31.md" <<'EOF'
+---
+id: 31
+slug: adr-31
+title: ADR 31
+status: Accepted
+date: 2026-07-01
+supersedes: []
+reverses: []
+relates_to: []
+---
+
+## Context
+
+c
+
+## Decision
+
+d
+
+## Consequences
+
+q
+EOF
+git -C "$AU2" add docs/adrs/0031-adr-31.md
+git_quiet -C "$AU2" commit -m "adr 31 on main only"
+git_quiet -C "$AU2" push origin main
+git_quiet -C "$AU2" checkout docket
+
+# (c) I2: standalone Accepted, written to the working tree but never `git add`-ed anywhere.
+cat > "$AU2/docs/adrs/0032-adr-32.md" <<'EOF'
+---
+id: 32
+slug: adr-32
+title: ADR 32
+status: Accepted
+date: 2026-07-01
+supersedes: []
+reverses: []
+relates_to: []
+---
+
+## Context
+
+c
+
+## Decision
+
+d
+
+## Consequences
+
+q
+EOF
+
+au2out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AU2/docs/changes" \
+  --adrs-dir "$AU2/docs/adrs" --terminal-publish \
+  --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "adr-unpublished SILENT: change-tied change IS terminal but ADR status is NOT Accepted, absent from integration (due matrix's sixth cell, ADR-0030)" \
+  '[ "$(grep -c -- "ADR-0030" <<<"$au2out")" -eq 0 ]'
+assert "adr-unpublished SILENT: ADR present on the integration branch only, never committed on the metadata branch (i_blob present / m_blob absent, ADR-0031)" \
+  '[ "$(grep -c -- "ADR-0031" <<<"$au2out")" -eq 0 ]'
+assert "adr-unpublished SILENT: ADR present in the working tree but never committed (I2, ADR-0032)" \
+  '[ "$(grep -c -- "ADR-0032" <<<"$au2out")" -eq 0 ]'
+
+# ============================ I1: an --adrs-dir that EXISTS but is EMPTY must not crash ========
+# The normal state of a repo that opted into the check before writing its first ADR. Before the
+# fix, `mapfile -t ADR_FILES < ...` (empty) then `for af in "${ADR_FILES[@]}"` threw an unbound-
+# variable error under `set -u` on bash 4.0-4.3 (this repo's floor per ensure-docket-env.sh),
+# aborting the script before the FINDINGS print and losing every OTHER check's output too.
+read -r AE _ < <(new_repo)
+mkdir -p "$AE/docs/adrs"   # exists, zero *.md files
+cat > "$AE/docs/changes/active/0080-missing.md" <<'EOF'
+---
+id: 80
+slug: missing-spec-2
+title: Missing spec (I1 fixture)
+status: proposed
+priority: medium
+depends_on: []
+spec: docs/superpowers/specs/2026-06-01-ABSENT.md
+trivial: false
+EOF
+aeout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AE/docs/changes" \
+  --adrs-dir "$AE/docs/adrs" --terminal-publish \
+  --metadata-branch docket --integration-branch main 2>/dev/null)"; aerc=$?
+assert "I1: an empty (but existing) --adrs-dir does not crash board-checks.sh (bash 4.0-4.3 unbound-var shape)" \
+  '[ "$aerc" -eq 0 ]'
+assert "I1: other checks still fire when --adrs-dir is empty (broken-spec, id 80)" \
+  'has_finding "$aeout" broken-spec 80'
 
 # --- registration: the check-id is documented everywhere it must be (correspondence guard) ------
 # Derived by grep from the emitting script, never hand-listed: every check-id board-checks.sh can

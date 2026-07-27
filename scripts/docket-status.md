@@ -216,6 +216,13 @@ of its TSV findings as `check <check-id> <change-id> <message>` on this script's
 one `judgment blocked <id> <blocked_by-text>` line per `active` change with `status: blocked`,
 leaving the actual re-examination judgment to the caller/skill. Both are best-effort/warn-only: a
 clean tree, or a `board-checks.sh` failure, produces no extra output and never aborts the pass.
+Also forwards `--adrs-dir` and `--terminal-publish` (change 0117) to arm the `adr-unpublished`
+check, but only when its ADR directory actually **exists** under the metadata worktree — `ADRS_DIR`
+always has a value (`docket-config.sh` defaults it to `docs/adrs`), so a fresh repo without one
+would otherwise pass a nonexistent path and lose every health check at once, not just this one.
+`--terminal-publish` is gated further, on both caller-side legs required by spec §4.4: the
+`terminal_publish: true` config knob AND docket-mode (`metadata_branch: docket`) — in main-mode the
+metadata and integration refs coincide, so the comparison would be vacuous.
 
 **7a. Reclaim pass — opt-in mutation OR a state-valid remedy (change 0089). Full path only.** After
 the health-check lines are captured and printed, `reclaim_pass` keys on the stable `[reclaimable]`
