@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # tests/test_skill_size_budgets.sh — regrowth guard (change 0085): every skills/**/*.md stays
-# within a per-file line/word budget (~10% above the 0085 post-slim actuals). A future change that
+# within a per-file line/word budget (originally set ~10% above the 0085 post-slim actuals; see the
+# BUDGETS comment for how a later raise is set). A future change that
 # bloats a skill must slim elsewhere or consciously RAISE the budget in this table (an in-diff edit).
 # Budgets are a DIRECTION made durable, not the slim's goal (learnings: size-target-is-direction).
 set -uo pipefail
@@ -8,8 +9,14 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 fail=0
 assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
 
-# BUDGETS: one row per tracked file — "<relpath> <maxLines> <maxWords>". Set from 0085 post-slim
-# actuals + ~10% (ceil). To raise a budget, edit the number here in the same diff that grows the file.
+# BUDGETS: one row per tracked file — "<relpath> <maxLines> <maxWords>". The ORIGINAL basis of these
+# rows is the 0085 post-slim actuals + ~10% (ceil). A LATER RAISE (0102, 0127, 0137) does not re-apply
+# that +10% to a grown file — it sets the row to the file's re-measured actual plus a small WORKING
+# MARGIN, so a subsequent one-line edit does not redden CI on arrival. Change 0137's rule for the
+# rows it raises: lines rounded up to the next multiple of 5, words to the next multiple of 50.
+# Near-zero headroom is not the intent — it is the failure mode 0102 recorded below (1 word left),
+# and 0137's first attempt repeated it (rounding words to the next multiple of 10 left +1 and +9).
+# To raise a budget, edit the number here in the same diff that grows the file.
 # docket-convention/SKILL.md's word budget was raised 5689 -> 5850 by change 0127, which added a
 # whole policy dimension to the Auto-capture shared definition (classify -> admit -> suppress, and
 # the filtering-precedes-the-cap rule) plus the change_types / nested auto_capture config block and
@@ -19,38 +26,35 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # docket-finalize-change/SKILL.md's word budget was raised 4060 -> 4200 by change 0102, which grew
 # the file to 4059/4060 words (1 word of headroom) while wiring finalize.require_pr_approval
 # through the resolver — the next edit to that file would have reddened CI on arrival.
-# docket-convention/SKILL.md's budget was raised 354/5850 -> 365/6210 by change 0137, which added
+# docket-convention/SKILL.md's budget was raised 354/5850 -> 365/6250 by change 0137, which added
 # the dispatch-capability resolution rule + its A/B/C tier table. The rule must live in SKILL.md
 # itself rather than a reference: it fires at the exact moment an agent is about to wrongly
 # conclude dispatch is absent, and a rule sitting in an unread reference file cannot intervene at
-# that moment. Both numbers are the measured actual (361 lines / 6209 words) rounded up to the
-# next multiple of 5 / 10.
-# docket-implement-next/SKILL.md's word budget was raised 3315 -> 3420 by change 0137, which names
+# that moment. Set per the rule above from the measured actual: 361 lines -> 365, 6209 words -> 6250.
+# docket-implement-next/SKILL.md's word budget was raised 3315 -> 3450 by change 0137, which names
 # the Tier A/C posture at its four consuming dispatch sites (Step 0's docket-status sweep and Step
 # 6's docket-adr dispatch are Tier A; Step 5's build invocation and Step 6's review invocation are
 # Tier C) so the convention's dispatch-capability rule has a producer at every site that actually
-# dispatches, not only a definition. The line budget was NOT raised — the measured actual (135
-# lines) still fits the existing row.
-# docket-implement-next/SKILL.md's word budget was raised again 3420 -> 3440 by change 0137's fix
-# round, which pairs each Step 0/5/6 dispatch site's own noun with its tier in the same clause (so
-# a proximity-scoped guard can distinguish sites sharing one paragraph, instead of a bare tier-
-# literal presence check that a swapped-tier mutation could pass) and restores two fidelity details
-# dropped from the convention's restatement (Step 5's abort-and-report leaves `claimed_at`
-# refreshed; Step 0's Tier A is "neither a degradation nor a warning", not merely "not a
-# degradation"). The line budget was NOT raised — the measured actual (135 lines) still fits.
+# dispatches, not only a definition. Two later fix rounds grew it further: pairing each site's own
+# noun with its tier in the same clause (so a proximity-scoped guard can distinguish sites sharing
+# one paragraph, instead of a bare tier-literal presence check that a swapped-tier mutation could
+# pass), and giving Step 6's two clauses the same *Dispatch-capability resolution* back-pointer the
+# other sites carry — the citation, not the tier label, is what stops an agent concluding "no
+# dispatch tool". Set from the measured actual: 3446 words -> 3450. The LINE budget was not raised
+# by this change at all — the measured actual (135 lines) still fits the pre-existing 147.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
 skills/docket-auto-groom/SKILL.md                           66 1237
 skills/docket-brainstorm/SKILL.md                           84  692
-skills/docket-convention/SKILL.md                          365 6210
+skills/docket-convention/SKILL.md                          365 6250
 skills/docket-convention/github-board-mirror.md             19  462
 skills/docket-convention/references/agent-layer.md         168 1839
 skills/docket-convention/references/learnings.md            84  580
 skills/docket-convention/references/terminal-close-out.md  173 1458
 skills/docket-finalize-change/SKILL.md                     193 4200
 skills/docket-groom-next/SKILL.md                           77 1484
-skills/docket-implement-next/SKILL.md                      147 3440
+skills/docket-implement-next/SKILL.md                      147 3450
 skills/docket-implement-next/results-template.md            24  172
 skills/docket-new-change/SKILL.md                           61 1330
 skills/docket-new-change/change-template.md                 51  203
