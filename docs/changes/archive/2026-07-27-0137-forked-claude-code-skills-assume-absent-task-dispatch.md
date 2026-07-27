@@ -2,7 +2,7 @@
 id: 137
 slug: forked-claude-code-skills-assume-absent-task-dispatch
 title: "Claude Code dispatch-capability detection: name-based probing silently drops SDD build and review discipline"
-status: implemented
+status: done
 priority: critical
 type: fix
 created: 2026-07-24
@@ -17,7 +17,7 @@ results: docs/results/2026-07-25-dispatch-capability-detection-results.md
 trivial: false
 auto_groomable:
 branch: feat/forked-claude-code-skills-assume-absent-task-dispatch
-claimed_at: 2026-07-27T01:40:04Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/126
 blocked_by:
 reconciled: true
