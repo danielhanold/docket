@@ -21,8 +21,10 @@
 # THE MARKER SITS ON THE SAME LINE AS THE OCCURRENCE. A position-sensitive attachment rule
 # ("nearest preceding non-blank line") fails open the moment an edit inserts a blank line or moves
 # the comment, and it reads green — attachment is failure mode 2 in the
-# marker-scoped-guard-needs-a-population-floor learning. Same-line attachment has no such degree of
-# freedom. A marker classifies EVERY occurrence on its own line.
+# marker-scoped-guard-needs-a-population-floor learning. Same-line attachment moves the degree of
+# freedom from POSITION to LINE CONTENT: a line can still gain a second, unmarked occurrence of the
+# token while keeping its one existing marker. scan_tree closes that by counting occurrences and
+# markers PER LINE and requiring them equal — a line short by even one marker is unclassified.
 set -uo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 fail=0
@@ -36,11 +38,18 @@ MARKER_RE='<!-- docket:config-read-channel: (write-back|negative) -->'
 # config file itself, so a read-channel rule cannot apply to them as written:
 #   skills/docket-convention/SKILL.md — defines the config file, its schema, and its layers.
 #   skills/docket-convention/references/agent-layer.md — describes the config LAYERING itself.
-# Re-examined at change 0120's reconcile rather than waved through. The one convention line that
-# carries the guarded shape — "`integration_branch` is a value *read from* the file, so the file
-# cannot be located *by* it" — is a statement about WHERE the config file LIVES (on the default
-# branch, not the integration branch), and the same file attributes the actual read to the resolver
-# ("performed deterministically by the config resolver"). It instructs no agent to parse anything.
+# Re-examined at change 0120's reconcile, not waved through wholesale — three loose-provenance
+# lines in docket-convention/SKILL.md were read, not just the one quoted below:
+#   - "Read at startup by every docket skill." (the config section's opening line) and the
+#     `# .docket.yml — ... read by every docket skill at startup` yaml comment inside its example
+#     block both describe the file being read WITHOUT naming who performs the read.
+#   - "`integration_branch` is a value *read from* the file, so the file cannot be located *by*
+#     it" is a statement about WHERE the config file LIVES (default branch, not integration
+#     branch), not about a read mechanism.
+# All three stand unmarked because the same file closes the loop lower down: "performed
+# deterministically by the config resolver (`docket-config.sh --export`)" — the only read channel
+# this file ever attributes is the resolver, never an agent parsing the file directly. None of the
+# three instructs an agent to parse anything itself.
 EXCLUDE="
 skills/docket-convention/SKILL.md
 skills/docket-convention/references/agent-layer.md
@@ -53,7 +62,8 @@ skills/docket-convention/references/agent-layer.md
 # mutation-test the population, because a scan that reaches nothing yields zero findings and reads
 # identical to a clean tree).
 scan_tree(){
-  local root="$1" f rel line n
+  local root="$1" f rel line n occ m cls
+  local -a markers
   while IFS= read -r f; do
     rel="${f#"$root"/}"
     case "$EXCLUDE" in
@@ -66,8 +76,19 @@ $rel
     while IFS= read -r line || [ -n "$line" ]; do
       n=$((n+1))
       case "$line" in *"$TOKEN"*) ;; *) continue ;; esac
-      if [[ $line =~ $MARKER_RE ]]; then
-        printf 'ok\t%s\t%s\t%s\n' "$rel" "$n" "${BASH_REMATCH[1]}"
+      # Count OCCURRENCES of the token and MARKERS on this same line and require them equal — a
+      # line with 2 occurrences and 1 marker must fail open no longer: it is reported unclassified,
+      # not admitted on the strength of the one marker it happens to carry (Finding 1).
+      occ="$(grep -oF -- "$TOKEN" <<<"$line" | wc -l | tr -d ' ')"
+      markers=()
+      while IFS= read -r m; do
+        [ -n "$m" ] && markers+=("$m")
+      done < <(grep -oE -- "$MARKER_RE" <<<"$line")
+      if [ "${#markers[@]}" -eq "$occ" ]; then
+        for m in "${markers[@]}"; do
+          cls="${m#*: }"; cls="${cls% -->}"
+          printf 'ok\t%s\t%s\t%s\n' "$rel" "$n" "$cls"
+        done
       else
         printf 'unclassified\t%s\t%s\t%s\n' "$rel" "$n" "$line"
       fi
@@ -164,6 +185,28 @@ assert "mutation (e): an excluded file is skipped" \
   '! grep -q -- "$(printf "^file\tskills/docket-convention/SKILL.md$")" <<<"$oute"'
 assert "mutation (e): a NON-excluded sibling is still scanned and rejected" \
   'grep -q -- "$(printf "^unclassified\tskills/docket-convention/references/learnings.md\t1\t")" <<<"$oute"'
+
+# (f) TWO occurrences on one already-marked line but only ONE marker => REJECTED. This is the
+# reviewer's reproduction: a later edit adds a new violating occurrence into an already-marked
+# paragraph and the whole-line admit rule stayed green. scan_tree must count occurrences vs
+# markers PER LINE and reject on a shortfall.
+mkfix f
+printf 'resolved from `%s`, never from `%s` <!-- docket:config-read-channel: negative -->\n' \
+  "$TOKEN" "$TOKEN" > "$tmp/f/skills/x/SKILL.md"
+outf="$(scan_tree "$tmp/f")"
+assert "mutation (f): two occurrences with only one marker on the line is REJECTED" \
+  'grep -q -- "$(printf "^unclassified\tskills/x/SKILL.md\t1\t")" <<<"$outf"'
+
+# (g) the SAME two occurrences, each carrying its own marker => ACCEPTED, non-vacuously. Load-
+# bearing pair with (f): proves the count-and-require-equal rule, not merely "any marker present".
+mkfix g
+printf 'resolved from `%s` <!-- docket:config-read-channel: negative -->, never from `%s` <!-- docket:config-read-channel: negative -->\n' \
+  "$TOKEN" "$TOKEN" > "$tmp/g/skills/x/SKILL.md"
+outg="$(scan_tree "$tmp/g")"
+assert "mutation (g): the same line with two markers is ACCEPTED" \
+  '[ -z "$(grep -- "$(printf "^unclassified\t")" <<<"$outg")" ]'
+assert "mutation (g) is non-vacuous: both occurrences on the line were actually classified" \
+  '[ "$(grep -c -- "$(printf "^ok\t")" <<<"$outg")" = 2 ]'
 
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
