@@ -6,11 +6,11 @@
 # stays model-driven in the skill — it is NOT here.
 #
 # Usage: board-checks.sh --changes-dir DIR --metadata-branch BR --integration-branch BR [--strict]
-#                         [--lease-ttl-hours N]
+#                         [--lease-ttl-hours N] [--adrs-dir DIR] [--terminal-publish]
 #   Findings: TAB-separated  <check-id>\t<change-id>\t<message>  on stdout, sorted by (check-id, change-id).
-#     check-id ∈ {board-row-dropped, broken-spec, broken-plan-results, dep-cycle, field-domain,
-#                 publish-deferred, stale-in-progress, merge-gate-stall, stale-finalize-blocked,
-#                 merged-orphan, unknown-commit-ref, malformed-id}
+#     check-id ∈ {adr-unpublished, board-row-dropped, broken-spec, broken-plan-results, dep-cycle,
+#                 field-domain, publish-deferred, stale-in-progress, merge-gate-stall,
+#                 stale-finalize-blocked, merged-orphan, unknown-commit-ref, malformed-id}
 #     The set above is declared in lib/docket-frontmatter.sh as BOARD_CHECK_IDS and pinned to it,
 #     to board-checks.md, and to docket-status.md by tests/test_board_checks.sh — edit all four.
 #   Clean tree ⇒ no output, exit 0. --strict ⇒ exit 1 if any finding (for a future CI gate).
@@ -26,6 +26,7 @@ set -uo pipefail
 GIT="${GIT:-git}"
 NOW="${NOW:-$(date +%s)}"
 CHANGES_DIR=""; METADATA_BRANCH=""; INTEGRATION_BRANCH=""; STRICT=0
+ADRS_DIR=""; ADR_GATE=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --changes-dir) CHANGES_DIR="$2"; shift ;;
@@ -33,6 +34,8 @@ while [ $# -gt 0 ]; do
     --integration-branch) INTEGRATION_BRANCH="$2"; shift ;;
     --strict) STRICT=1 ;;
     --lease-ttl-hours) LEASE_TTL_HOURS="$2"; shift ;;
+    --adrs-dir) ADRS_DIR="$2"; shift ;;
+    --terminal-publish) ADR_GATE=1 ;;
     -h|--help) grep '^#' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) printf 'board-checks: unknown argument: %s\n' "$1" >&2; exit 2 ;;
   esac
@@ -49,6 +52,11 @@ esac
 [ -d "$CHANGES_DIR" ]        || { printf 'board-checks: changes dir not found: %s\n' "$CHANGES_DIR" >&2; exit 2; }
 [ -n "$METADATA_BRANCH" ]    || { printf 'board-checks: missing --metadata-branch\n' >&2; exit 2; }
 [ -n "$INTEGRATION_BRANCH" ] || { printf 'board-checks: missing --integration-branch\n' >&2; exit 2; }
+# --adrs-dir is OPTIONAL (the check is opt-in), but a path that was SUPPLIED and does not exist is
+# a caller error, never a silent skip: a typo'd dir would make the check vacuously green forever.
+if [ -n "$ADRS_DIR" ] && [ ! -d "$ADRS_DIR" ]; then
+  printf 'board-checks: adrs dir not found: %s\n' "$ADRS_DIR" >&2; exit 2
+fi
 
 # shellcheck source=/dev/null
 source "$(dirname "${BASH_SOURCE[0]}")/lib/docket-frontmatter.sh"
@@ -322,6 +330,67 @@ for f in "${FILES[@]}"; do
     emit publish-deferred "$cid" "terminal-publish to $INTEGRATION_BRANCH not completed — record on $METADATA_BRANCH only; complete the publish or record a decision not to"
   fi
 done
+
+# --- adr-unpublished: an ADR whose publish onto the integration branch is DUE but did not happen,
+# or that drifted after publication (change 0117). Computed, not marked: unlike publish-deferred,
+# this needs nothing at all from the run that went wrong — which is the whole point, since the
+# failure mode being closed is that NOBODY NOTICED. The ADR corpus has no marker seam to hang a
+# marker on anyway: an ADR file is never moved (no archive moment) and an Accepted ADR is immutable
+# except its status: line. See ADR-0051's boundary — that decision declined a detector-AND-HEALER
+# over CHANGE records; this is a read-only report over ADRs and reverses nothing.
+#
+# Gated twice, both legs required (spec §4.4): --adrs-dir supplied AND --terminal-publish passed.
+# The caller passes --terminal-publish only under `terminal_publish: true` AND docket-mode; under
+# the default `false` the ledger deliberately lives on the metadata branch only, so an ungated
+# check would fire on every ADR forever, and in main-mode the two refs coincide so the comparison
+# is vacuous.
+if [ -n "$ADRS_DIR" ] && [ "$ADR_GATE" = 1 ]; then
+  # Repo-relative path prefix for the ADR dir, derived from git itself rather than from the
+  # config value: the script is handed a FILESYSTEM path (as with --changes-dir) but must probe
+  # refs, which are addressed repo-relative. --show-prefix is worktree-root-relative, which is
+  # exactly what `<ref>:<path>` wants, and it needs no network.
+  adr_prefix="$("$GIT" -C "$ADRS_DIR" rev-parse --show-prefix 2>/dev/null)"
+  mapfile -t ADR_FILES < <(find "$ADRS_DIR" -maxdepth 1 -name '*.md' ! -name 'README.md' 2>/dev/null | sort)
+  for af in "${ADR_FILES[@]}"; do
+    a_num="$(padded_id_from_file "$af")"
+    [ "$a_num" = '?' ] && continue          # not a numbered ADR file; adr-checks.sh owns naming hygiene
+    a_rel="${adr_prefix}$(basename "$af")"
+    # fm_field, never field: `change:` is legitimately ABSENT on a standalone ADR, and field()
+    # would fall through and read body prose as its value.
+    a_status="$(fm_field "$af" status)"
+    a_change="$(fm_field "$af" change)"
+    a_change_id=""
+    case "$a_change" in
+      ''|*[!0-9]*) ;;                        # absent, or not a bare integer -> unresolvable
+      *) a_change_id="$(( 10#$a_change ))" ;;
+    esac
+    # ADR-0049: the change-id column carries only script-derived or shape-validated values. The
+    # validated change id when there is one; otherwise `?`, the same fallback padded_id_from_file
+    # already uses for a file whose id is unusable. The ADR number rides the MESSAGE column, which
+    # is the last field of the caller's `read` and cannot shift a field.
+    a_cid="${a_change_id:-?}"
+    m_blob="$("$GIT" -C "$ADRS_DIR" rev-parse --verify -q "$METADATA_BRANCH:$a_rel" 2>/dev/null)"
+    i_blob="$("$GIT" -C "$ADRS_DIR" rev-parse --verify -q "$INTEGRATION_BRANCH:$a_rel" 2>/dev/null)"
+
+    if [ -n "$i_blob" ]; then
+      # Present on the integration branch => due FOREVER, whatever its status. This row is what
+      # catches an un-re-published status flip, and it is deliberately status-blind: an ADR
+      # published while Accepted must keep tracking its bytes after it is Superseded or Reversed.
+      # (stale arm lands in Task 2.)
+      continue
+    fi
+
+    # Absent on the integration branch. Never expected there unless the publish trigger has fired.
+    [ "$a_status" = "Accepted" ] || continue
+    if [ -n "$a_change" ]; then
+      # Change-tied: due only once its change reached a TERMINAL status. An unresolvable
+      # change: value stays silent — absence of a resolvable link is not evidence of a gap.
+      [ -n "$a_change_id" ] || continue
+      docket_status_is_terminal "${STATUS_OF[$a_change_id]:-}" || continue
+    fi
+    emit adr-unpublished "$a_cid" "ADR-$a_num is due on $INTEGRATION_BRANCH but absent — publish it (docket.sh terminal-publish --adr $a_num)"
+  done
+fi
 
 # --- board-row-dropped: an ACTIVE-or-ARCHIVE file counted in the board's total but not accounted
 # --- for by its directory's pass ---

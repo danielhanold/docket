@@ -1093,6 +1093,119 @@ assert "a marked ACTIVE change does not trip board-row-dropped (id 52)" \
 assert "board-checks still exits 0 with publish-deferred findings (warn-only)" \
   'NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$PD/docs/changes" --metadata-branch docket --integration-branch main >/dev/null 2>&1'
 
+# ============================ adr-unpublished (missing arm) ============================
+# The due rule (spec §4.2) decides whether an ADR absent from the integration branch is a gap.
+# Every negative row is asserted, not just the positive: a check that fires on everything absent
+# is the naive formulation the ADR-0023/ADR-0060 data points exist to rule out.
+read -r AU AU_ORIGIN <<<"$(new_repo)"
+mkdir -p "$AU/docs/adrs"
+
+# --- change files the due rule resolves `change:` against (on the docket checkout) ---
+cat > "$AU/docs/changes/archive/2026-07-01-0060-done-change.md" <<'EOF'
+---
+id: 60
+slug: done-change
+title: A change that reached done
+status: done
+priority: medium
+depends_on: []
+trivial: true
+---
+EOF
+cat > "$AU/docs/changes/archive/2026-07-02-0061-killed-change.md" <<'EOF'
+---
+id: 61
+slug: killed-change
+title: A change that was killed
+status: killed
+priority: medium
+depends_on: []
+trivial: true
+---
+EOF
+cat > "$AU/docs/changes/active/0062-implemented-change.md" <<'EOF'
+---
+id: 62
+slug: implemented-change
+title: A change still at the merge gate
+status: implemented
+priority: medium
+depends_on: []
+trivial: true
+---
+EOF
+
+# --- ADRs. Only adr_pub is committed to BOTH branches; the rest live on docket only. ---
+# 10: standalone (no change:), Accepted        -> DUE now, absent      => finding
+# 11: change: 60 (done)                        -> DUE, absent          => finding
+# 12: change: 61 (killed)                      -> DUE, absent          => finding
+# 13: change: 62 (implemented)                 -> NOT due (ADR-0060 shape) => silent
+# 14: standalone, status: Superseded by ADR-10 -> NOT Accepted, absent  => silent
+# 15: change: 99 (no such change file)         -> unresolvable          => silent
+write_adr(){ # write_adr NUM STATUS CHANGE
+  local num="$1" st="$2" ch="$3"
+  { printf -- '---\nid: %s\nslug: adr-%s\ntitle: ADR %s\nstatus: %s\ndate: 2026-07-01\n' \
+      "$((10#$num))" "$((10#$num))" "$((10#$num))" "$st"
+    printf 'supersedes: []\nreverses: []\nrelates_to: []\n'
+    [ -n "$ch" ] && printf 'change: %s\n' "$ch"
+    printf -- '---\n\n## Context\n\nc\n\n## Decision\n\nd\n\n## Consequences\n\nq\n'
+  } > "$AU/docs/adrs/${num}-adr-$((10#$num)).md"
+}
+write_adr 0010 Accepted ""
+write_adr 0011 Accepted 60
+write_adr 0012 Accepted 61
+write_adr 0013 Accepted 62
+write_adr 0014 "Superseded by ADR-10" ""
+write_adr 0015 Accepted 99
+echo "# index" > "$AU/docs/adrs/README.md"
+git -C "$AU" add -A; git_quiet -C "$AU" commit -m "adr fixtures"; git_quiet -C "$AU" push origin docket
+
+auout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AU/docs/changes" \
+  --adrs-dir "$AU/docs/adrs" --terminal-publish \
+  --metadata-branch docket --integration-branch main 2>/dev/null)"
+
+assert "adr-unpublished fires for a STANDALONE Accepted ADR absent from the integration branch (ADR-0010)" \
+  'has_finding "$auout" adr-unpublished "?"'
+assert "adr-unpublished fires for a change-tied ADR whose change is DONE (ADR-0011, cid 60)" \
+  'has_finding "$auout" adr-unpublished 60'
+assert "adr-unpublished fires for a change-tied ADR whose change is KILLED (ADR-0012, cid 61)" \
+  'has_finding "$auout" adr-unpublished 61'
+assert "adr-unpublished SILENT for a change-tied ADR whose change is IMPLEMENTED (ADR-0013 — the live ADR-0060 shape)" \
+  '! has_finding "$auout" adr-unpublished 62'
+assert "adr-unpublished SILENT for a non-Accepted ADR absent from the integration branch (ADR-0014)" \
+  '[ "$(grep -c -- "ADR-0014" <<<"$auout")" -eq 0 ]'
+assert "adr-unpublished SILENT for an ADR whose change: resolves to no change file (ADR-0015)" \
+  '[ "$(grep -c -- "ADR-0015" <<<"$auout")" -eq 0 ]'
+assert "adr-unpublished names the ADR number in the message column (ADR-0010)" \
+  '[ "$(grep -c -- "ADR-0010" <<<"$auout")" -eq 1 ]'
+assert "adr-unpublished skips README.md (never reported as an ADR)" \
+  '[ "$(grep -ci -- "README" <<<"$auout")" -eq 0 ]'
+# ADR-0049: the change-id column carries a shape-validated value only. `?` is the existing
+# fallback for "no usable id" (padded_id_from_file), reused here rather than widening the column
+# to admit an ADR reference — the ADR number rides the message column, which is the last field of
+# the caller's `read` and therefore harmless.
+au10="$(grep -E "$(printf '^adr-unpublished\t\\?\t')" <<<"$auout")"
+assert "the standalone ADR's change-id column is the validated '?' fallback, not an ADR reference" \
+  '[ -n "$au10" ]'
+assert "adr-unpublished message names the integration branch" 'grep -qF -- "main" <<<"$au10"'
+
+# --- the SCRIPT-SIDE gate leg: no --terminal-publish => the check is entirely silent ---
+augateout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AU/docs/changes" \
+  --adrs-dir "$AU/docs/adrs" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "gate: without --terminal-publish the check emits NOTHING (spec §4.4)" \
+  '[ "$(grep -c "^adr-unpublished" <<<"$augateout")" -eq 0 ]'
+# ...and the whole check is opt-in on --adrs-dir too, so every pre-existing caller is unaffected.
+aunodir="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AU/docs/changes" --terminal-publish \
+  --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "gate: without --adrs-dir the check emits NOTHING" \
+  '[ "$(grep -c "^adr-unpublished" <<<"$aunodir")" -eq 0 ]'
+assert "board-checks still exits 0 with adr-unpublished findings (warn-only)" \
+  'NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AU/docs/changes" --adrs-dir "$AU/docs/adrs" \
+     --terminal-publish --metadata-branch docket --integration-branch main >/dev/null 2>&1'
+assert "a missing --adrs-dir path is rejected up front (exit 2), never silently skipped" \
+  '! bash "$SCRIPT" --changes-dir "$AU/docs/changes" --adrs-dir "$AU/docs/adrs-nope" \
+     --terminal-publish --metadata-branch docket --integration-branch main >/dev/null 2>&1'
+
 # --- registration: the check-id is documented everywhere it must be (correspondence guard) ------
 # Derived by grep from the emitting script, never hand-listed: every check-id board-checks.sh can
 # EMIT must appear in the script's own header set, in board-checks.md, and in docket-status.md's
@@ -1192,8 +1305,10 @@ LIB="$REPO/scripts/lib/docket-frontmatter.sh"
 # shellcheck source=/dev/null
 source "$LIB"
 
-assert "BOARD_CHECK_IDS holds the 12 check-ids board-checks.sh emits" \
-  '[ "${#BOARD_CHECK_IDS[@]}" = 12 ]'
+# 13 since change 0117 added adr-unpublished. This literal is the ONE hand-edit the derived
+# set-compares below do not absorb (verified at 0117's reconcile) — bump it with every new id.
+assert "BOARD_CHECK_IDS holds the 13 check-ids board-checks.sh emits" \
+  '[ "${#BOARD_CHECK_IDS[@]}" = 13 ]'
 assert "BOARD_CHECK_IDS SET == the set board-checks.sh actually emits (edit scripts/lib/docket-frontmatter.sh)" \
   '[ -z "$(comm -3 <(printf "%s\n" "${BOARD_CHECK_IDS[*]}" | tr " " "\n" | sort -u) <(printf "%s\n" "$emitted"))" ] \
    || { comm -3 <(printf "%s\n" "${BOARD_CHECK_IDS[*]}" | tr " " "\n" | sort -u) <(printf "%s\n" "$emitted") >&2; false; }'
