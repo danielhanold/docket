@@ -2,9 +2,9 @@
 slug: skill-fallback-degrades-discipline
 hook: "Read a skill fallback warning as a build-loop defect to investigate, never as boilerplate — a degraded binding silently drops the discipline."
 topics: [skills, subagents, process]
-changes: [66, 136]
+changes: [66, 136, 137]
 created: 2026-07-13
-updated: 2026-07-24
+updated: 2026-07-27
 promotion_state: retained
 promoted_to:
 ---
@@ -31,3 +31,13 @@ should have produced is still there.
   (test-first → verify-fail → implement → verify-pass → commit per task) and disclosed it in results
   + PR, so the *discipline* was preserved even though the *isolation/independent-review* was lost.
   The residual cost is the missing independent perspective, not skipped tests.
+- 2026-07-27 (#137, PR #126 — **correction to the entry above**) — #136's recorded cause ("the run's
+  runtime exposed no subagent-dispatch (Task) tool at all") is now a **likely false negative**, not a
+  harness gap. A live probe found no tool named `Task` exists in current Claude Code at all — the
+  mechanism is named `Agent` — and dispatch resolves on both the agent-dispatched and `context: fork`
+  paths. Docket's own prose naming `Task` primed the probe; the Missing-skill rule then fired
+  correctly on a false premise. So the class is wider than "the harness lacks the machinery": a role
+  can degrade because the agent *concluded* the machinery was absent without ever resolving it. Read
+  a fallback warning as a defect to investigate in **both** directions — is the skill really
+  uninvocable, and is the dispatch really unavailable. The resolution rule is
+  [[capability-absence-needs-a-failed-attempt]].
