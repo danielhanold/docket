@@ -360,8 +360,15 @@ harness_ext(){ case "$1" in codex) printf 'toml';; *) printf 'md';; esac; }
 # (empty => keep the built-in), identical in meaning to emit()'s args.
 emit_for_harness(){  # $1=src md  $2=harness  $3=model  $4=effort
   case "$2" in
-    codex) emit_codex_toml "$1" "$3" "$4";;
-    *)     emit "$1" "$3" "$4";;
+    codex)  emit_codex_toml "$1" "$3" "$4";;
+    cursor) emit_cursor_md  "$1" "$3" "$4";;
+    claude) emit            "$1" "$3" "$4";;
+    # The generic Claude-shaped wrapper. A harness reaching this branch has NO verified contract
+    # mapping — its wrapper is a best guess, not a supported shape. Adding a harness token here
+    # without a named emitter is how the Cursor defect (change 0135) shipped: the token inherited
+    # Claude's frontmatter, and docket reported pins the harness never read. Give a new harness its
+    # own emitter, or accept that its wrapper is unverified.
+    *)      emit            "$1" "$3" "$4";;
   esac
 }
 
@@ -409,6 +416,63 @@ ${body}"
   # (built-in bodies have neither, but keep the emitter robust). Closing """ on its own line.
   esc="$(printf '%s' "$dev" | sed -e 's/\\/\\\\/g' -e 's/"""/""\\"/g')"
   printf 'developer_instructions = """\n%s\n"""\n' "$esc"
+}
+
+# Transform a built-in markdown wrapper into a Cursor custom-agent document on stdout (change 0135).
+# Cursor documents exactly five frontmatter fields — name, description, model, readonly,
+# is_background — and encodes reasoning effort INSIDE the model value (`<id>[effort=<e>]`). It has
+# no standalone `effort:` field and no `skills:` preload, so the generic Claude-shaped emitter
+# silently dropped all three. Field mapping (ADR-0015 verbatim passthrough for model/effort):
+#   frontmatter name:        -> name
+#   frontmatter description: -> description
+#   effective model + effort -> model: <model>[effort=<effort>]   (see the table below)
+#   skills: preload + body   -> a body preamble + the body verbatim
+# readonly/is_background are deliberately NOT emitted: their Cursor defaults already match every
+# docket agent (agents commit and push; every docket dispatch is foreground), and emitting them
+# would assert a policy docket does not have.
+#
+#   model            effort           emitted
+#   claude-opus-4-8  xhigh            model: claude-opus-4-8[effort=xhigh]
+#   claude-opus-4-8  unset|auto       model: claude-opus-4-8
+#   unset|inherit    unset|auto       (no model: line)
+#   unset|inherit    xhigh            (no model: line) + a generation-time WARN
+#
+# Docket keeps NO allowlist of Cursor model IDs and NO allowlist of effort tokens: Cursor's own
+# compatible-model fallback handles anything it does not recognize, and a committed table of a
+# vendor's internals goes stale silently (ADR-0015; ADR-0059's rejection of vendor-internal tables).
+emit_cursor_md(){  # $1=src md  $2=model_override  $3=effort_override
+  local src="$1" mo="$2" eo="$3"
+  local name desc bi_model bi_effort model effort skills_csv body
+  name="$(sed -n '/^name:/{s/^name:[[:space:]]*//;p;q;}' "$src")"
+  [ -n "$name" ] || name="docket-$(short_name "$src")"
+  desc="$(agent_description "$src")"
+  bi_model="$(sed -n '/^model:/{s/^model:[[:space:]]*//;p;q;}' "$src")"
+  bi_effort="$(sed -n '/^effort:/{s/^effort:[[:space:]]*//;p;q;}' "$src")"
+  model="${mo:-$bi_model}"
+  effort="${eo:-$bi_effort}"
+  # Normalize the two "no pin" sentinels to empty, so the emit logic below has one shape to test.
+  [ "$model" = "inherit" ] && model=""
+  [ "$effort" = "auto" ] && effort=""
+  skills_csv="$(sed -n '/^skills:/{s/^skills:[[:space:]]*//;p;q;}' "$src" | sed -e 's/^\[//' -e 's/\][[:space:]]*$//' -e 's/[[:space:]]*$//')"
+  # body = everything after the frontmatter closing --- , leading blank lines trimmed.
+  body="$(awk '/^---[[:space:]]*$/ && d<2 {d++; next} d>=2 {print}' "$src" | awk 'NF{p=1} p{print}')"
+  printf -- '---\n'
+  printf 'name: %s\n' "$name"
+  printf 'description: %s\n' "$desc"
+  if [ -n "$model" ]; then
+    if [ -n "$effort" ]; then
+      printf 'model: %s[effort=%s]\n' "$model" "$effort"
+    else
+      printf 'model: %s\n' "$model"
+    fi
+  elif [ -n "$effort" ]; then
+    log "WARN cursor/$name: effort '$effort' dropped — Cursor encodes effort inside the model value, and the resolved model is 'inherit'. Set an explicit model to pin effort on Cursor."
+  fi
+  printf -- '---\n\n'
+  if [ -n "$skills_csv" ]; then
+    printf 'Before acting, load these docket skills from your Cursor skills directory: %s.\n\n' "$skills_csv"
+  fi
+  printf '%s\n' "$body"
 }
 
 # Emit either the native wrapper (via emit_for_harness — harness-aware, change 0077) or,
