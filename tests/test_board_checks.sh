@@ -631,13 +631,22 @@ assert "board-row-dropped is suppressed when malformed-id explains the drop (007
   '! has_finding "$hout" board-row-dropped 0072'
 assert "malformed-id still fires for that file (0072)" 'has_finding "$hout" malformed-id 0072'
 
-# (d) archive/ is NOT subject to the invariant — the archive table renders from its own pass.
+# (d) CASE B — an archive/ file with NO id: field at all, at a terminal status. The archive summary
+#     count keys on the raw status, so this file IS counted there, while no row IDENTIFYING it ever
+#     renders. Nothing enumerated explains it: malformed-id needs a non-empty raw id value, and
+#     `done` is a legal status so field-domain passes it. Only the computed invariant sees it.
+#     (Before change 0115 this block asserted the OPPOSITE, under the premise that archive/ was
+#     exempt from the invariant. That premise is what 0115 deletes.)
 read -r I _ < <(new_repo)
 printf -- '---\nslug: archnoid\ntitle: Arch no id\nstatus: done\npriority: medium\ndepends_on: []\n---\n' \
   > "$I/docs/changes/archive/2026-06-16-0073-archnoid.md"
 iout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$I/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
-assert "board-row-dropped does not fire for an archive/ file (0073)" \
-  '! has_finding "$iout" board-row-dropped 0073'
+assert "board-row-dropped fires for an archive/ file with no id: field (0073)" \
+  'has_finding "$iout" board-row-dropped 0073'
+assert "malformed-id does NOT fire for it (there is no raw id value to report)" \
+  '! has_finding "$iout" malformed-id 0073'
+assert "field-domain does NOT explain it (done is a legal status)" \
+  '! has_finding "$iout" field-domain 0073'
 
 # (e) a wholly clean tree stays silent — the backstop must not fire on healthy repos.
 read -r J _ < <(new_repo)
@@ -700,6 +709,69 @@ assert "a bad slug + bad priority do NOT suppress board-row-dropped on a dropped
   'has_finding "$nout" board-row-dropped 79'
 assert "field-domain still reports the slug/priority violations alongside it (79)" \
   'has_finding "$nout" field-domain 79'
+
+# ============ archive-side board-row-dropped (change 0115) ============
+# The invariant is SINGULAR — one `total`, one set of tables — so it is widened, not split: no new
+# check-id. renders_row now takes the directory and reads the status set the renderer actually
+# iterates for it (DOCKET_STATUSES_ACTIVE vs DOCKET_STATUSES_TERMINAL, via the shared
+# docket_status_is_* helpers), above a hoisted "id must be usable" clause.
+
+# (T1) CASE A, block open: a non-terminal status in archive/, beside a healthy done sibling. The
+# archive block opens (the sibling is terminal) so the misfiled row DOES print — but under a
+# <summary> count that excludes it, because that count reads terminal statuses only. Count and
+# tables disagree, which is the whole invariant.
+read -r AA _ < <(new_repo)
+printf -- '---\nid: 80\nslug: misfiled\ntitle: Misfiled\nstatus: implemented\npriority: medium\ndepends_on: []\n---\n' \
+  > "$AA/docs/changes/archive/2026-06-16-0080-misfiled.md"
+printf -- '---\nid: 81\nslug: good\ntitle: Good\nstatus: done\npriority: medium\ndepends_on: []\n---\n' \
+  > "$AA/docs/changes/archive/2026-06-16-0081-good.md"
+aaout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AA/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "board-row-dropped fires for a NON-TERMINAL status in archive/ (80)" \
+  'has_finding "$aaout" board-row-dropped 80'
+assert "the healthy done sibling in archive/ draws no finding (81)" \
+  '! has_finding "$aaout" board-row-dropped 81'
+assert "the archive misfile is NOT explained by field-domain (implemented is a legal status)" \
+  '! has_finding "$aaout" field-domain 80'
+
+# (T2) CASE A, block closed: the same misfiled file with NO terminal sibling. The entire archive
+# block is gated on the terminal counts, so it never opens and the row appears NOWHERE at all.
+# Distinct from T1 in the rendered outcome; identical in the accounting failure.
+read -r AB _ < <(new_repo)
+printf -- '---\nid: 82\nslug: alone\ntitle: Alone\nstatus: implemented\npriority: medium\ndepends_on: []\n---\n' \
+  > "$AB/docs/changes/archive/2026-06-16-0082-alone.md"
+about="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AB/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "board-row-dropped fires when the archive block never opens at all (82)" \
+  'has_finding "$about" board-row-dropped 82'
+
+# (T3) FALSE-POSITIVE GUARD for the ARCHIVE_RECENT window. 16 well-formed done files: the renderer
+# shows 15 verbatim and REDIRECTS the 16th into the per-month "Older done (collapsed)" digest.
+# Collapse is a redirect, not a discard — the file is still in the summary count and still
+# represented in the digest — so the predicate, which is written against ACCOUNTING rather than
+# against verbatim row emission, must be blind to it. A predicate "tightened" toward row emission
+# would fire on every done file past the 16th; this assert is what stops that from creeping back in.
+# Asserted on the SPECIFIC id the window pushes out (not "no findings at all", which would pass
+# vacuously): sort is date-desc, so the oldest date (2026-06-01, id 101) is the one that collapses.
+# Verified against the running renderer: 15 verbatim rows + 1 collapsed.
+read -r AC _ < <(new_repo)
+for i in $(seq 1 16); do
+  acd="$(printf '2026-06-%02d' "$i")"; acid=$(( 100 + i ))
+  printf -- '---\nid: %s\nslug: c%s\ntitle: C%s\nstatus: done\npriority: medium\ndepends_on: []\n---\n' \
+    "$acid" "$acid" "$acid" > "$AC/docs/changes/archive/$acd-0$acid-c$acid.md"
+done
+acout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AC/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "the collapsed done file draws NO board-row-dropped finding (101 — ARCHIVE_RECENT redirects, never discards)" \
+  '! has_finding "$acout" board-row-dropped 101'
+assert "nor does the newest verbatim done row (116)" \
+  '! has_finding "$acout" board-row-dropped 116'
+
+# (T4) the other member of DOCKET_STATUSES_TERMINAL: a killed archive file is healthy and silent.
+# Its value is covering `killed`, not anything about collapse (killed never collapses).
+read -r AD _ < <(new_repo)
+printf -- '---\nid: 84\nslug: abandoned\ntitle: Abandoned\nstatus: killed\npriority: medium\ndepends_on: []\n---\n' \
+  > "$AD/docs/changes/archive/2026-06-16-0084-abandoned.md"
+adout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AD/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "a killed archive file draws NO board-row-dropped finding (84)" \
+  '! has_finding "$adout" board-row-dropped 84'
 
 # ============================ merged-orphan / unknown-commit-ref ============================
 # Cross-reference change ids in integration-branch (main) commit *subjects* against active/archive.
