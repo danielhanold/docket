@@ -9,14 +9,14 @@ updated: 2026-07-27
 depends_on: []
 related: [83, 118]
 discovered_from: [83]
-adrs: [51]
+adrs: [51, 61]
 spec: docs/superpowers/specs/2026-07-21-unpublished-adr-check-design.md
 plan: docs/superpowers/plans/2026-07-27-unpublished-adr-check-plan.md
 results:
 trivial: false
 auto_groomable:
 branch: feat/deferred-adr-publish-visibility-decide-whether-docket-adr-s
-claimed_at: 2026-07-27T21:17:34Z
+claimed_at: 2026-07-27T23:02:21Z
 pr:
 blocked_by:
 reconciled: true
@@ -30,7 +30,7 @@ type: feat
 |---|---|
 | Spec | [2026-07-21-unpublished-adr-check-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-21-unpublished-adr-check-design.md) |
 | Plan | [2026-07-27-unpublished-adr-check-plan.md](https://github.com/danielhanold/docket/blob/feat/deferred-adr-publish-visibility-decide-whether-docket-adr-s/docs/superpowers/plans/2026-07-27-unpublished-adr-check-plan.md) |
-| ADRs | [ADR-0051](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0051-publish-deferred-marker-not-branch-diff-detector.md) |
+| ADRs | [ADR-0051](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0051-publish-deferred-marker-not-branch-diff-detector.md), [ADR-0061](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0061-detect-vs-mark-a-missing-terminal-record.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
