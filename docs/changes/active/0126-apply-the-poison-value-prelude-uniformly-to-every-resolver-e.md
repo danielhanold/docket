@@ -5,12 +5,12 @@ title: Apply the poison-value prelude uniformly to every resolver eval in the co
 status: proposed
 priority: medium
 created: 2026-07-22
-updated: 2026-07-26
+updated: 2026-07-27
 depends_on: []
-related: []
+related: [125]
 discovered_from: [112]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-07-27-poison-prelude-uniformity-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ type: chore
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-07-27-poison-prelude-uniformity-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-27-poison-prelude-uniformity-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -46,18 +49,26 @@ failing, which is exactly the shape that survives until someone looks.
 
 ## What changes
 
-Audit every `eval` of resolver output in `tests/test_docket_config.sh` (and any sibling suite that
-uses the same idiom), and apply the poison-value prelude uniformly wherever an assert reads an
-exported variable afterwards.
+Settled at grooming (2026-07-27) — full design and assumptions in the linked spec.
 
-Prove the fix rather than asserting it: for at least the `L2` case, demonstrate the hazard is real
-by making the resolver abort for that fixture and showing the assert passes on the stale value
-without the poison line, then reddens with it. That mutation is the completion bar — a poison line
-added without a demonstrated hazard is decoration.
+- **Scope: `tests/test_docket_config.sh` only.** A whole-repo grep finds no sibling suite evaling
+  command output into asserted variables. Roughly 50 of ~64 eval sites carry no clearing prelude.
+- **Per-fixture clearing, using the poison-assignment idiom** (`VAR=__poison__`): clear exactly the
+  variables the following asserts read, not a blanket line. The existing `unset`-idiom blocks stay
+  byte-untouched. Sites whose asserts read only `$out`/`$err` text are exempt **by derivation**.
+- **Mutation demonstration at the O→P `AUTO_GROOM` coincidence** (`tests/test_docket_config.sh:509–520`),
+  not at `:500` — at `:500` the stale value is `none`, so the assert reddens rather than passing
+  vacuously. Blocks O and P already leave and read the same `AUTO_GROOM=false` with nothing between,
+  so aborting P's resolver run demonstrates the vacuous pass on the unmodified file.
+- **A correspondence guard, not a presence guard**: it extracts the asserted variable names per
+  segment, intersects them with the resolver's live-derived exported key set, and requires each to be
+  cleared. A presence-only guard is green on exactly the failure it exists to stop. If correspondence
+  proves infeasible at build time, ship **no** guard and record why.
 
-Consider whether the convention is better enforced than remembered: a guard asserting that every
-`eval "$out"` in the file is immediately preceded by a poison assignment would keep the next
-fixture author honest. Weigh that against the enumerated-floor risk before building it.
+## Open questions
+
+Resolved at grooming; none remain open. The one judgment a human may want to revisit is whether the
+enforcement guard belongs here at all — the spec's assumption 6 records why it was kept.
 
 ## Out of scope
 
