@@ -1142,6 +1142,9 @@ EOF
 # 13: change: 62 (implemented)                 -> NOT due (ADR-0060 shape) => silent
 # 14: standalone, status: Superseded by ADR-10 -> NOT Accepted, absent  => silent
 # 15: change: 99 (no such change file)         -> unresolvable          => silent
+# 16 (adr_pub): standalone, Accepted, PUBLISHED (byte-identical on main too) -> the i_blob-present
+#     arm must fire (status-blind, due forever) but this check's `missing` arm must stay silent —
+#     the whole point of the "present on integration branch => continue" clause under test.
 write_adr(){ # write_adr NUM STATUS CHANGE
   local num="$1" st="$2" ch="$3"
   { printf -- '---\nid: %s\nslug: adr-%s\ntitle: ADR %s\nstatus: %s\ndate: 2026-07-01\n' \
@@ -1157,8 +1160,19 @@ write_adr 0012 Accepted 61
 write_adr 0013 Accepted 62
 write_adr 0014 "Superseded by ADR-10" ""
 write_adr 0015 Accepted 99
+write_adr 0016 Accepted ""
 echo "# index" > "$AU/docs/adrs/README.md"
 git -C "$AU" add -A; git_quiet -C "$AU" commit -m "adr fixtures"; git_quiet -C "$AU" push origin docket
+
+# --- publish ADR-0016 onto main with IDENTICAL bytes (the way terminal-publish.sh does): checkout
+# main, pull the exact blob from docket, commit, push, return to docket (new_repo's parked branch).
+git -C "$AU" checkout main >/dev/null 2>&1
+mkdir -p "$AU/docs/adrs"
+git -C "$AU" checkout docket -- docs/adrs/0016-adr-16.md
+git -C "$AU" add docs/adrs/0016-adr-16.md
+git_quiet -C "$AU" commit -m "publish adr 16 onto main"
+git_quiet -C "$AU" push origin main
+git -C "$AU" checkout docket >/dev/null 2>&1
 
 auout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AU/docs/changes" \
   --adrs-dir "$AU/docs/adrs" --terminal-publish \
@@ -1180,6 +1194,12 @@ assert "adr-unpublished names the ADR number in the message column (ADR-0010)" \
   '[ "$(grep -c -- "ADR-0010" <<<"$auout")" -eq 1 ]'
 assert "adr-unpublished skips README.md (never reported as an ADR)" \
   '[ "$(grep -ci -- "README" <<<"$auout")" -eq 0 ]'
+assert "adr-unpublished SILENT for a standalone Accepted ADR already published byte-identical on the integration branch (ADR-0016, adr_pub — the i_blob-present arm)" \
+  '[ "$(grep -c -- "ADR-0016" <<<"$auout")" -eq 0 ]'
+assert "exactly one adr-unpublished finding carries the '?' change-id (ADR-0010 only — adr_pub must not also fire)" \
+  '[ "$(grep -cF -- "$(printf "adr-unpublished\t?\t")" <<<"$auout")" -eq 1 ]'
+assert "adr-unpublished emits exactly the three due findings and nothing else" \
+  '[ "$(grep -c "^adr-unpublished" <<<"$auout")" -eq 3 ]'
 # ADR-0049: the change-id column carries a shape-validated value only. `?` is the existing
 # fallback for "no usable id" (padded_id_from_file), reused here rather than widening the column
 # to admit an ADR reference — the ADR number rides the message column, which is the last field of
@@ -1204,6 +1224,14 @@ assert "board-checks still exits 0 with adr-unpublished findings (warn-only)" \
      --terminal-publish --metadata-branch docket --integration-branch main >/dev/null 2>&1'
 assert "a missing --adrs-dir path is rejected up front (exit 2), never silently skipped" \
   '! bash "$SCRIPT" --changes-dir "$AU/docs/changes" --adrs-dir "$AU/docs/adrs-nope" \
+     --terminal-publish --metadata-branch docket --integration-branch main >/dev/null 2>&1'
+# An --adrs-dir that EXISTS but sits outside any git worktree must also be rejected up front (exit
+# 2), not silently swallowed into an empty prefix — that would make every ADR ref lookup miss and
+# the check would misreport EVERY ADR as unpublished (a false-positive storm, not a silent skip,
+# but just as much a "never a silent failure mode" violation as the missing-dir case above).
+AU_NOGIT="$(mktemp -d)"
+assert "an --adrs-dir outside any git worktree is rejected up front (exit 2)" \
+  '! bash "$SCRIPT" --changes-dir "$AU/docs/changes" --adrs-dir "$AU_NOGIT" \
      --terminal-publish --metadata-branch docket --integration-branch main >/dev/null 2>&1'
 
 # --- registration: the check-id is documented everywhere it must be (correspondence guard) ------
