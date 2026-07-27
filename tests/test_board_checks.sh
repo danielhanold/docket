@@ -773,6 +773,33 @@ adout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AD/docs/changes" --metada
 assert "a killed archive file draws NO board-row-dropped finding (84)" \
   '! has_finding "$adout" board-row-dropped 84'
 
+# (T6) suppression by malformed-id on the archive side. A non-integer id is a genuine archive drop
+# cause, so the enumerated finding accounts for it and the backstop stays quiet.
+read -r AE _ < <(new_repo)
+printf -- '---\nid: nope\nslug: badarch\ntitle: Bad arch id\nstatus: done\npriority: medium\ndepends_on: []\n---\n' \
+  > "$AE/docs/changes/archive/2026-06-16-0085-badarch.md"
+aeout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AE/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "malformed-id fires for a non-integer id in archive/ (0085)" \
+  'has_finding "$aeout" malformed-id 0085'
+assert "board-row-dropped is suppressed when malformed-id explains the archive drop (0085)" \
+  '! has_finding "$aeout" board-row-dropped 0085'
+
+# (T7) suppression by the field-domain `status` arm on the archive side. A status outside the
+# seven-name vocabulary is outside DOCKET_STATUSES_TERMINAL too, so it explains the archive drop.
+# EXACTLY ONE finding, for the same reason case (b) asserts it on the active side: DROPPED is
+# written by the computed predicate and EXPLAINED by the field-domain status arm, at independent
+# sites — so deleting that arm's EXPLAINED marker reddens this with a second finding.
+read -r AF _ < <(new_repo)
+printf -- '---\nid: 86\nslug: weird\ntitle: Weird status\nstatus: finished\npriority: medium\ndepends_on: []\n---\n' \
+  > "$AF/docs/changes/archive/2026-06-16-0086-weird.md"
+afout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AF/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+n86="$(printf '%s' "$afout" | /usr/bin/grep -c .)"
+assert "an out-of-vocabulary archive status yields exactly ONE finding (86)" '[ "$n86" = 1 ]'
+assert "and that one finding is field-domain, not board-row-dropped (86)" \
+  'has_finding "$afout" field-domain 86'
+assert "board-row-dropped is suppressed when field-domain explains the archive drop (86)" \
+  '! has_finding "$afout" board-row-dropped 86'
+
 # ============================ merged-orphan / unknown-commit-ref ============================
 # Cross-reference change ids in integration-branch (main) commit *subjects* against active/archive.
 # All fixtures use --allow-empty commits (subjects only). Each negative is discriminating: it pairs
