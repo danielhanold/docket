@@ -89,3 +89,27 @@ as a documented trade rather than tooled around: docket names **two first-class 
 paths** into the same pinned wrapper — skill-invoke (forked, cheap, opaque) and agent-dispatch
 (the identical run, drillable, one dispatch turn) — and adds no observability machinery. See
 ADR-[[0026]] (change #0065).
+
+## Update — 2026-07-26 — tool name corrected; fork-exclusion extended to the dispatch channel
+
+Two corrections, both additive — nothing above is superseded or reversed.
+
+**The tool name in this ADR's Context is wrong, and naming one there was the wrong shape in the
+first place.** "reached via a `Task` dispatch" should read: the pin holds when the skill is
+reached through **a dispatch mechanism** — either invocation path ADR-[[0026]] names — not when
+invoked directly/inline. Per ADR-[[0059]], docket depends on no specific tool name for this or
+any dispatch-capability decision; a name may appear in a diagnostic, never in the rule.
+
+**The fork-exclusion principle above was reasoned only over the human channel** — a forked
+subagent has no channel to the human, so this ADR forks only skills that never need one
+mid-run. Build-time probing for change #0137 (2026-07-25/26, Claude Code `2.1.218`) probed a
+real forked child (skill-invoke path) directly and confirmed: it still has **no human-question
+tool** — the original principle stands, now on live evidence rather than argument alone — and it
+**does** have a working dispatch mechanism and a working nested dispatch. The same run confirmed
+the identical facts on the agent-dispatch path.
+
+The two channels are therefore **independent properties, not one fact wearing two names**:
+absence of the human channel is a property of a fork; absence of the dispatch channel is not,
+and the original #0127/#0136 defect was exactly this conflation — inferring "no dispatch" from
+what should only ever have implied "no human channel." See ADR-[[0059]] for the capability-
+resolution rule and the tiered unavailability posture this evidence backs.
