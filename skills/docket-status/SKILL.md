@@ -58,7 +58,7 @@ Drive these off the report lines `docket.sh docket-status` emits; skip a categor
 
 - **`harvest <id> <path>` lines** — for each, run the harvest-learnings procedure (the *Harvest learnings* step in `docket-finalize-change`'s SKILL.md is its single source — invoke it by reference, do not reimplement it here). Best-effort: log and continue on failure, never abort the rest of the pass for it. When `AUTO_CAPTURE_ENABLED` is `true`, the same step's auto-capture leg (convention: *Auto-capture*, including its classify-then-admit sequence) applies here too — cap scoped **per swept change** — and is likewise best-effort: log and continue.
 - **`judgment blocked <id> <text>` lines** — re-examine that change's `blocked_by:` free text; flag to the user if the referenced issue/PR/event appears resolved. This is judgment, not a git probe — never scripted.
-- **`minted issue <id> <n>` / `minted project <owner> <n>` lines** — write the value back into the change file (`issue:`) or `.docket.yml` (`github_project: {owner, number}`) on `metadata_branch`, following normal push discipline (re-run `docket.sh preflight`, commit, push).
+- **`minted issue <id> <n>` / `minted project <owner> <n>` lines** — write the value back into the change file (`issue:`) or `.docket.yml` (`github_project: {owner, number}`) on `metadata_branch`, following normal push discipline (re-run `docket.sh preflight`, commit, push). <!-- docket:config-read-channel: write-back -->
 - **`github` mirror reachability** — only when `board_surfaces` includes `github`: warn on a change carrying an `issue:` whose mirror looks unreachable. Best-effort visibility flag, like the other checks — never auto-fix.
 
 ## Final summary
@@ -75,7 +75,7 @@ Renders each surface in `board_surfaces` (config; default `[inline]`) from the s
 
 When `board_surfaces` includes `inline`, `board-refresh.sh` (contract: `scripts/board-refresh.md`) is the single gated writer of `BOARD.md`: it owns the surface gate and the atomic replace, wrapping the pure renderer `/render-board.sh` (contract: `scripts/render-board.md`) internally so nothing else ever touches the file; the orchestrator commits and pushes the result to `metadata_branch` only when it actually changed. This skill **never hand-edits `BOARD.md`, never hand-renders it, and never 3-way merges it**; on a rebase conflict, regenerate through `board-refresh.sh` — never a hand-merge — and continue. When `board_surfaces` omits `inline`, there is simply no board. Where present, `BOARD.md` is the live planning view and stays on `docket` — never published to the integration branch.
 
-`github` is the one-way Issues + Projects v2 mirror (`github-mirror.sh`, mechanics in `skills/docket-convention/github-board-mirror.md`), best-effort — runs only when `board_surfaces` includes `github`; a fresh mint prints `issue-minted`/`project-minted` lines to record back into the change file / `.docket.yml`.
+`github` is the one-way Issues + Projects v2 mirror (`github-mirror.sh`, mechanics in `skills/docket-convention/github-board-mirror.md`), best-effort — runs only when `board_surfaces` includes `github`; a fresh mint prints `issue-minted`/`project-minted` lines to record back into the change file / `.docket.yml`. <!-- docket:config-read-channel: write-back -->
 
 ### Merge sweep
 

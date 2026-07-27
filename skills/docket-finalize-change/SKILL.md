@@ -89,7 +89,7 @@ The final report **enumerates** the change merged (if any), each change **skippe
 
 ## Per-change steps
 
-1. **Check the PR** (`gh`). Already merged → straight to step 2. Approved + mergeable but not merged → merge it into `<integration_branch>` (resolved from `.docket.yml`; not hard-coded `main`). An explicit id IS the merge decision (and overrides `require_pr_approval`); under auto-detect, follow the Selection matrix. **Before the merge lands, run *The rebase-retest merge gate* below** (unless `finalize.gate` is `off`). The merge itself, and every step after it through the close-out, works from the repo's main worktree (see above).
+1. **Check the PR** (`gh`). Already merged → straight to step 2. Approved + mergeable but not merged → merge it into `<integration_branch>` (the exported `INTEGRATION_BRANCH` from the Step-0 `preflight` block; not hard-coded `main`). An explicit id IS the merge decision (and overrides `require_pr_approval`); under auto-detect, follow the Selection matrix. **Before the merge lands, run *The rebase-retest merge gate* below** (unless `finalize.gate` is `off`). The merge itself, and every step after it through the close-out, works from the repo's main worktree (see above).
 
 2. **Verify the merge landed** on the integration branch. If the change carries a `results:` file, this is the moment to append interactive-verification outcomes and any late findings to it, post-merge.
 
@@ -105,7 +105,7 @@ The final report **enumerates** the change merged (if any), each change **skippe
 
 ## The rebase-retest merge gate
 
-Guards step 1's merge — the **only** place docket itself merges. Every value below is read from the Step-0 `preflight` export block (`FINALIZE_GATE`, `FINALIZE_TEST_COMMAND`, `FINALIZE_REQUIRE_PR_APPROVAL`), never by parsing `.docket.yml`; the block documents what each key means and where it's set:
+Guards step 1's merge — the **only** place docket itself merges. Every value below is read from the Step-0 `preflight` export block (`FINALIZE_GATE`, `FINALIZE_TEST_COMMAND`, `FINALIZE_REQUIRE_PR_APPROVAL`), never by parsing `.docket.yml`; the block documents what each key means and where it's set: <!-- docket:config-read-channel: negative -->
 
 ```yaml
 finalize:
