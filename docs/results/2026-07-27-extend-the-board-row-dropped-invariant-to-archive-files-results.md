@@ -1,6 +1,6 @@
 <!-- results-template.md — close-out artifact for a change. -->
 # Extend the board-row-dropped invariant to archive files — results
-Change: #0115 · Branch: feat/extend-the-board-row-dropped-invariant-to-archive-files · PR: (set on open) · Plan: .superpowers/sdd/2026-07-27-archive-side-row-dropped-invariant/plan.md · ADRs: none
+Change: #0115 · Branch: feat/extend-the-board-row-dropped-invariant-to-archive-files · PR: (set on open) · Plan: docs/superpowers/plans/2026-07-27-archive-side-row-dropped-invariant.md · ADRs: none
 
 ## Verify (human)
 
