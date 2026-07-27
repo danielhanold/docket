@@ -198,7 +198,10 @@ gen_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48F" bash "$SCRATCH/sync-agen
 RULE="$SBX/.cursor/rules/docket-dispatch.mdc"
 assert "0048 auto-block: warns about the missing fragment" 'printf "%s" "$gen_err" | grep -qi "no dispatch fragment for docket-status"'
 assert "0048 auto-block: still emits a docket-status subsection" 'grep -q "^## docket-status — dispatch only" "$RULE"'
-assert "0048 auto-block: subsection includes a Task subagent_type" 'grep -q "subagent_type: \"docket-status\"" "$RULE"'
+# 0135: the auto-block instructs by CAPABILITY, not by a tool name (ADR-0059 §2) — it must still
+# name the agent it dispatches to, so this pins the dispatch sentence, not the old `subagent_type:`.
+assert "0048 auto-block: subsection dispatches to the named subagent by capability" \
+  'grep -q "Dispatch to the subagent .docket-status. using this mode.s subagent-launch mechanism" "$RULE"'
 rm -rf "$SBX" "$HROOT48F" "$SCRATCH"
 
 # 0048 Piece 2 --check — a committed dispatch rule that drifts fails --check.
