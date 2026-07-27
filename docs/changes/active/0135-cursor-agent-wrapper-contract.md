@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/cursor-agent-wrapper-contract
-claimed_at: 2026-07-27T02:15:20Z
+claimed_at: 2026-07-27T02:22:00Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -152,3 +152,27 @@ best-effort and cannot settle it.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-07-27 — reconcile at claim
+
+Scope, spec, and design all hold as written; the spec was groomed 2026-07-26 (one day old) and every
+premise it rests on was re-verified against `origin/main` at `0da1c0aa`:
+
+- **ADR-0059 has landed.** `docs/adrs/0059-dispatch-capability-resolved-not-inferred-from-tool-name.md`
+  is present and `Accepted`, and change 0137 is merged and published. The spec's "cite, do not
+  re-decide" posture is therefore live rather than anticipatory. `adrs:` already carries `59`, so the
+  spec's note about #0137 not having folded it in is now discharged — no edit needed.
+- **The defect is still present, unchanged.** `sync-agents.sh`'s `emit_for_harness()` (~line 361)
+  still routes `codex)` to `emit_codex_toml` and everything else — Cursor included — through the
+  generic Claude-shaped `emit()`. `harness_ext()` still maps every non-Codex token to `md`. Nothing
+  in changes 0130–0137 touched Cursor emission.
+- **`scripts/runners/` still contains only `codex.{sh,md}`**, so the runner adapter is net-new as the
+  spec assumes, and remains the pre-agreed carve-out point.
+- **The dispatch rule surface is as described**: `cursor-rules/dispatch.head.md` plus exactly nine
+  `cursor-rules/dispatch/docket-*.md` fragments.
+- **The defect-encoding tests exist as the spec claims.** `tests/test_sync_agents.sh` asserts a Cursor
+  wrapper's standalone `effort:` field is inherited from `default` and that a default-only config
+  makes the Claude and Cursor files **byte-identical**. Both assertions encode the defect and are
+  rewritten by Tier 1 rather than kept.
+
+No scope was dropped, added, or resized. `reconciled: true`.
