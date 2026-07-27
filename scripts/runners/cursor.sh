@@ -73,6 +73,13 @@ fi
 # reasoning effort is a model parameter encoded inside the model value, the same `<id>[effort=<e>]`
 # shape the wrapper emitter uses. With no model resolved the effort has nowhere to attach, so it is
 # dropped — LOUDLY, because a silently-dropped pin is this change's own root cause.
+# `inherit` is DOCKET'S OWN "no pin" sentinel (never a vendor model ID), so it is normalized to
+# empty here — the same normalization emit_cursor_md performs — BEFORE the mapping below. Without
+# this, an explicit `model: inherit` would be handed to cursor-agent as a literal model ID
+# (`--model inherit[effort=xhigh]`), where its compatible-model fallback silently substitutes
+# something and takes the effort pin down with it, while this WARN branch stays unreachable.
+# This is sentinel normalization, not model-ID validation (ADR-0015): no vendor value is inspected.
+if [ "$MODEL" = "inherit" ]; then MODEL=""; fi
 if [ -n "$MODEL" ] && [ -n "$EFFORT" ] && [ "$EFFORT" != "auto" ]; then
   MODEL="${MODEL}[effort=${EFFORT}]"   # braces only to keep `$MODEL[` out of array-index territory
 elif [ -z "$MODEL" ] && [ -n "$EFFORT" ] && [ "$EFFORT" != "auto" ]; then

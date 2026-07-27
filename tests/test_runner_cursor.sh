@@ -72,6 +72,21 @@ assert "no model: effort dropped with a WARN" 'grep -qi "effort" <<<"$ERR" && gr
 assert "no model: no --model flag passed" '! grep -qxF -- "--model" "$MOCK_DIR/argv.txt"'
 assert "no model: child still ran (drop is not an abort)" 'grep -qxF -- "-p" "$MOCK_DIR/argv.txt"'
 
+# --- `inherit` is docket's own NO-PIN sentinel, not a vendor model ID -----------------------------
+# An explicit `--model inherit` must behave EXACTLY like no model at all: no --model flag reaches
+# cursor-agent, and the effort-dropped WARN fires. Handing the literal `inherit[effort=xhigh]` to
+# cursor-agent would hit its compatible-model fallback — a silently-substituted model AND a
+# silently-destroyed effort pin, i.e. this change's own root cause reproduced in the adapter.
+: > "$MOCK_DIR/argv.txt"
+ERR="$( MOCK_ARGV="$MOCK_DIR/argv.txt" CURSOR_BIN="$MOCK_DIR/cursor-agent" DOCKET_REPO_ROOT="$REPO" \
+        bash "$ADAPTER" --agent status --model inherit --effort xhigh 2>&1 >/dev/null )"
+assert "inherit sentinel: no --model flag passed" '! grep -qxF -- "--model" "$MOCK_DIR/argv.txt"'
+assert "inherit sentinel: the literal sentinel never reaches cursor-agent" \
+  '! grep -qF -- "inherit[effort=" "$MOCK_DIR/argv.txt"'
+assert "inherit sentinel: effort dropped with a WARN (the -z MODEL branch is reached)" \
+  'grep -qi "effort" <<<"$ERR" && grep -qi "dropped" <<<"$ERR"'
+assert "inherit sentinel: child still ran (drop is not an abort)" 'grep -qxF -- "-p" "$MOCK_DIR/argv.txt"'
+
 # --- preflight: binary missing => loud abort, NEVER a degrade ------------------------------------
 OUT="$( CURSOR_BIN="$MOCK_DIR/definitely-not-here" DOCKET_REPO_ROOT="$REPO" \
         bash "$ADAPTER" --agent status 2>&1 )"; RC=$?

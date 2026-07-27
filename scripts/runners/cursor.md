@@ -69,6 +69,14 @@ features**. This adapter therefore rests on a shakier foundation than `runners/c
 exactly why its failure posture admits no fall-back. A silent degrade here would reproduce change
 0135's own root cause (a silently-dropped configuration) in a new location.
 
+**Stdout purity is an ASSUMPTION, not established behavior**, pending first-real-run verification:
+Behavior §4 relays the child's stdout verbatim as the agent's result on the strength of
+`--output-format text` emitting the final message and nothing else — unlike `runners/codex.md`,
+which guarantees purity mechanically (child stream redirected to stderr, final message relayed from
+`--output-last-message`). If the real CLI ever writes a banner or a progress line to stdout, that
+line becomes part of the agent's reported result; confirm against a real `cursor-agent` run before
+treating §4's relay as proven.
+
 ## Prerequisites (documented, not automated)
 
 - Cursor CLI installed (`cursor-agent` on PATH) and authenticated.
