@@ -117,9 +117,14 @@ Every mutation below was applied to a git-free scratch copy of the repo (a plain
 git worktree, to avoid entangling the copy's refs with the real feature branch — see the note
 under *Deviations* on how the first attempt at this went wrong), run against
 `tests/test_dispatch_capability.sh`, confirmed to redden at least one assert, then reverted before
-the next mutation. 21 mutations were run (broader than the eight the plan's Step 1 enumerated,
-since the guard grew four review rounds past what that list describes — see the brief's note (A)).
-**All 21 reddened; zero green survivors.**
+the next mutation. 31 mutations were run (broader than the eight the plan's Step 1 enumerated,
+since the guard grew five review rounds past what that list describes — see the brief's note (A)).
+Rows 1–21 are the four per-task rounds; rows 22–33 were added by the whole-branch round.
+
+**Every row below reddened. That is a coverage claim about these rows, not a soundness claim about
+the guard** — rows 1–21 all reddened and the whole-branch review that followed still found five
+green survivors (see *What this guard does not cover*, immediately after this table). Rows 22–33
+are the mutations proving those five are now closed.
 
 | # | Mutation | Assert(s) reddened |
 |---|---|---|
@@ -140,10 +145,67 @@ since the guard grew four review rounds past what that list describes — see th
 | 15 | Rename "resolved build skill" → "resolved builder skill" (renamed anchor) | `implement-next §5 build: dispatch site found`; its pairing assert; `consumer coverage: all five dispatch sites were reached (floor)`; `reverse: derivation found all five shapes` |
 | 16 | Rename the derived `docket-auto-groom-critic` mention to `docket-auto-groom-critic-v2` at the subagent-adjacent occurrence only | `reverse: derived dispatch site 'docket-auto-groom-critic-v2' is covered by a check_site row` — isolated to the coverage lookup; the reach floor stayed green (still 5 names, one just renamed) |
 | 17 | Remove the backticks from implement-next's `` `docket-status` `` subagent mention (reverse derivation can no longer see it) | `reverse: derivation found all five shapes` |
-| 18 | Reintroduce a non-Cursor-scoped shaped `Task` mention (in `AGENTS.md`) | `no live prose names a dispatch tool outside a Cursor-scoped line`; `negative guard: every in-scope mention is Cursor-scoped (total == cursor_scoped)` |
+| 18 | Reintroduce a non-Cursor-scoped shaped `Task` mention (in `AGENTS.md`) | `no live prose names a dispatch tool outside a Cursor-scoped line` (it also reddened `total == cursor_scoped`, an assert row 30's round deleted as mathematically dead — see row 32) |
 | 19 | Point the negative guard's scan roots at a nonexistent directory (vacuity check) | `negative guard: scan reached live prose (floor: >=1 Cursor-scoped mention)`; `negative guard: the scan's population includes README.md specifically`; `negative guard: positive control — a planted non-Cursor Task line IS detected` — the shared `scan_and_classify()` breaking for the real scan breaks the control too, confirming it is one implementation, not two |
 | 20 | Reword README's Cursor-scoped `` `Task` `` mention out of shape while planting a *different*, unrelated Cursor-scoped shaped mention elsewhere (`AGENTS.md`) | `negative guard: the scan's population includes README.md specifically` — the floor alone stayed green (still ≥1, from the substitute), which is exactly the masked-loss scenario this Task 5 hardening item exists to catch |
 | 21 | Break `scan_and_classify`'s Cursor detection (`if grep -qi cursor` → `if true`) | `negative guard: positive control — a planted non-Cursor Task line IS detected` — proves the control is graded by the same classifier, not a parallel copy |
+| 22 | **INVERT** the Tier C / missing-skill boundary sentence: "cannot be **invoked** is Tier C … cannot **dispatch** still degrades to `auto` + warn" | `convention: a skill that cannot be INVOKED degrades to auto + warn`; `convention: a skill that was invoked but cannot DISPATCH is Tier C` — the old co-occurrence form stayed **green** on this |
+| 23 | **SWAP the SUBJECTS** of the convention's Tier A and Tier B table rows (table then claims the `docket-status`/`docket-adr` dispatches abstain and the critic runs inline) | `convention table: the Tier A row names 'docket-status'`; `… 'docket-adr'`; `convention table: the Tier B row names 'docket-auto-groom-critic'` — nothing cross-checked table against sites before, so this stayed **green** |
+| 24 | Delete the *Dispatch-capability resolution* back-pointer from implement-next Step 0's `docket-status` clause (tier label left intact) | `implement-next §0 docket-status: paragraph cites the convention's Dispatch-capability resolution rule` |
+| 25 | Same deletion at Step 5's build clause | `implement-next §5 build: paragraph cites …` |
+| 26 | Same deletion at Step 6's shared clause (covers two sites) | `implement-next §6 docket-adr: paragraph cites …`; `implement-next §6 review: paragraph cites …` |
+| 27 | Same deletion at auto-groom Step 3's critic clause | `auto-groom §3 critic: paragraph cites …` — rows 24–27 all stayed **green** before this round: the phrase appeared nowhere in the test file |
+| 28 | Plant a sixth dispatch site — a bolded "dispatch the `docket-newthing` subagent" sentence — in `skills/docket-status/SKILL.md`, a file the old two-file derivation never read | `reverse: derived dispatch site 'docket-newthing' is a check_site row or a PENDING_TIER member` — stayed **green** while the derivation was hand-listed to `$IMPL`/`$AUTOGROOM` |
+| 29 | Delete a real `check_site` row (the auto-groom critic) from the test | `consumer coverage: all five dispatch sites were reached (floor)`; `reverse: derived dispatch site 'docket-auto-groom-critic' …` (×2, one per derived mention) — confirms widening the derivation did not weaken the forward direction |
+| 30 | Append a **bare-word, non-Cursor** violation to `references/agent-layer.md`: "Claude Code forces a Task dispatch to the matching wrapper, so the pin holds." | `no live prose names a dispatch tool outside a Cursor-scoped line` — stayed **green** under the markup-only shape pattern, while the same sentence *with backticks* reddened |
+| 31 | **Negative control (must NOT redden):** append "Each Task brief is reviewed before the next one starts." to the same file | none — suite stayed **PASS**, confirming the bare-word branch is narrowed by the following word (`dispatch\|tool\|launch`) and still excludes this repo's SDD vocabulary |
+| 32 | Add a skill file under a colon-containing directory (`skills/zz:probe/SKILL.md`) carrying a non-Cursor `` `Task` `` mention | `negative guard: every scanned record was classified (no UNCLASSIFIED bucket)` — **and nothing else**, which is the point: the replaced `total -eq cursor_scoped` assert could not redden independently of the offender assert, and this one does |
+| 33 | Drop `-n` from the negative scan's grep (records lose their line numbers) | `negative guard: scan reached live prose`; `… includes README.md specifically`; `… no UNCLASSIFIED bucket`; `negative guard: positive control …` |
+
+## What this guard does not cover
+
+Rows 1–21 above were all green-to-red, and the guard was still unsound. A **whole-branch** review
+run after that matrix found **five green survivors** — mutations that changed the meaning of the
+shipped prose while the whole suite stayed PASS:
+
+1. **Boundary polarity.** The Tier C / missing-skill assert keyed on the two phrases appearing in
+   order (`cannot be \*\*invoked\*\*.{0,200}cannot \*\*dispatch\*\*`), so *inverting* the sentence —
+   the single most load-bearing sentence in this change — passed. Fixed: each condition is pinned to
+   its own posture inside one clause, with `*` excluded from the proximity class so a match cannot
+   reach across the next bolded phrase (row 22).
+2. **Convention-table coherence.** Nothing cross-checked the convention's tier table against the
+   five consuming sites, in different files, so swapping the Tier A and Tier B row *subjects* passed
+   (row 23). Fixed by a loop over the existing `check_site` rows — no second hand-list.
+3. **The resolution-rule back-pointer.** The phrase *Dispatch-capability resolution* appeared nowhere
+   in the test, so deleting the citation from every wired site (tier labels intact) passed (rows
+   24–27) — and the citation, not the tier label, is what stops an agent concluding "no dispatch
+   tool". Fixed, and Step 6's two clauses, which lacked the pointer, now carry it.
+4. **Hand-listed derivation scope.** The "reverse correspondence" check greped exactly two named
+   files while its comment claimed an independent whole-repo derivation, so a planted site in a third
+   skill file passed (row 28). Fixed: derived over the whole `skills/` tree.
+5. **The bare-word blind spot.** The negative guard keyed on markup (`` `Task` ``, `**Task**`,
+   `Task(`) and missed the bare form — which is this repo's own house idiom at the one surviving
+   correct mention (row 30). Fixed by a bare-word branch narrowed by the *following word*.
+
+All five are fixed in this same change. What remains genuinely uncovered:
+
+- **Known tier gap, machine-visible.** `docket-finalize-change`'s two in-context-gating dispatches
+  (`docket-rebase-resolver`, `docket-integration-repair`) are **knowingly untiered** — deferred to
+  the follow-up in *Follow-ups* below rather than improvised here. They are named in the test's
+  `PENDING_TIER` list, so the derivation sees them, the deferral is a fact the guard states, and a
+  genuinely new seventh site still reddens. The list is pinned to exactly two entries and must
+  shrink to empty when that follow-up lands.
+- **Negative-scan reach.** The scan walks exactly `skills/ README.md agents/ AGENTS.md` (`*.md`
+  only). It does **not** walk `docs/codex/setup.md` or `docs/cursor/*.md` — maintained harness docs
+  that would legitimately belong in scope; they carry no matching mention today (verified), so no
+  live violation is hidden, but widening to them is unfinished work. It also deliberately never
+  walks `docs/adrs/` (immutable Accepted ADRs, including 0024's one wrong sentence), `cursor-rules/**`
+  and sync-agents.sh's Cursor assembler (the other harness's own correct templates), or the
+  point-in-time record trees.
+- **Sentinels remain sampling, not parsing.** Every prose assert here is a regex over markdown. It
+  can prove a clause is present and paired with its own subject; it cannot prove the paragraph
+  around it still *means* the right thing. That is what the whole-branch review is for — as rows
+  22–33 demonstrate, the per-task rounds could not see it.
 
 ## Suite
 
