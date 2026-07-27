@@ -1209,6 +1209,41 @@ assert "the standalone ADR's change-id column is the validated '?' fallback, not
   '[ -n "$au10" ]'
 assert "adr-unpublished message names the integration branch" 'grep -qF -- "main" <<<"$au10"'
 
+# ============================ adr-unpublished (stale arm) ============================
+# An ADR present on BOTH branches whose bytes differ — the un-re-published status flip. A marker
+# structurally cannot catch this: nothing failed at publish time, the file simply moved on.
+# Fixture shape matters (green-suite-untested-branch): ADR-0020 is published and IDENTICAL, so the
+# arm must distinguish drift from mere presence rather than firing on every published ADR.
+write_adr 0020 Accepted ""
+write_adr 0021 Accepted ""
+git -C "$AU" add -A; git_quiet -C "$AU" commit -m "adrs 20,21 on docket"; git_quiet -C "$AU" push origin docket
+# Publish both onto main verbatim, then drift ONLY 0021 on docket (a status flip).
+git_quiet -C "$AU" checkout main
+git_quiet -C "$AU" checkout docket -- docs/adrs/0020-adr-20.md docs/adrs/0021-adr-21.md
+git -C "$AU" add -A; git_quiet -C "$AU" commit -m "publish adrs 20,21"; git_quiet -C "$AU" push origin main
+git_quiet -C "$AU" checkout docket
+sed -i.bak 's/^status: Accepted/status: Superseded by ADR-20/' "$AU/docs/adrs/0021-adr-21.md"
+rm -f "$AU/docs/adrs/0021-adr-21.md.bak"
+git -C "$AU" add -A; git_quiet -C "$AU" commit -m "flip adr 21 status"; git_quiet -C "$AU" push origin docket
+
+stout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AU/docs/changes" \
+  --adrs-dir "$AU/docs/adrs" --terminal-publish \
+  --metadata-branch docket --integration-branch main 2>/dev/null)"
+
+assert "adr-unpublished fires the STALE arm for a published ADR whose bytes drifted (ADR-0021)" \
+  '[ "$(grep -c -- "ADR-0021" <<<"$stout")" -eq 1 ]'
+assert "the stale finding is an adr-unpublished line (one check-id, two messages)" \
+  'grep -E "$(printf "^adr-unpublished\t")" <<<"$stout" | grep -qF -- "ADR-0021"'
+assert "adr-unpublished SILENT for a published ADR whose bytes MATCH (ADR-0020)" \
+  '[ "$(grep -c -- "ADR-0020" <<<"$stout")" -eq 0 ]'
+# Status-blindness: ADR-0021 is no longer Accepted, yet it is still due because it is already
+# published. An Accepted-only gate on this arm would silence exactly the case it exists to catch.
+st21="$(grep -E "$(printf '^adr-unpublished\t\\?\t')" <<<"$stout" | grep -- "ADR-0021")"
+assert "the stale message is DISTINCT from the missing message (says differs/re-publish, not absent)" \
+  '! grep -qF -- "absent" <<<"$st21"'
+assert "the stale message names both branches" \
+  'grep -qF -- "docket" <<<"$st21" && grep -qF -- "main" <<<"$st21"'
+
 # --- the SCRIPT-SIDE gate leg: no --terminal-publish => the check is entirely silent ---
 augateout="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AU/docs/changes" \
   --adrs-dir "$AU/docs/adrs" --metadata-branch docket --integration-branch main 2>/dev/null)"

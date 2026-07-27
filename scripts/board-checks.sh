@@ -375,10 +375,19 @@ if [ -n "$ADRS_DIR" ] && [ "$ADR_GATE" = 1 ]; then
     i_blob="$("$GIT" -C "$ADRS_DIR" rev-parse --verify -q "$INTEGRATION_BRANCH:$a_rel" 2>/dev/null)"
 
     if [ -n "$i_blob" ]; then
-      # Present on the integration branch => due FOREVER, whatever its status. This row is what
-      # catches an un-re-published status flip, and it is deliberately status-blind: an ADR
-      # published while Accepted must keep tracking its bytes after it is Superseded or Reversed.
-      # (the byte-comparison stale arm attaches here — change 0117.)
+      # Present on the integration branch => due FOREVER, whatever its status. Deliberately
+      # status-blind: an ADR published while Accepted must keep tracking its bytes after it is
+      # Superseded or Reversed, and an Accepted-only gate here would silence exactly the
+      # un-re-published status flip this arm exists to catch — the case a marker structurally
+      # cannot see, because nothing FAILED at publish time.
+      #
+      # Blob-SHA equality, not a byte-by-byte diff: git already content-addresses both sides, so
+      # the compare is one rev-parse each and needs no working-tree read. A missing m_blob (the
+      # ADR is on the integration branch but not committed on the metadata branch) has nothing to
+      # compare against, so it stays silent rather than guessing.
+      if [ -n "$m_blob" ] && [ "$m_blob" != "$i_blob" ]; then
+        emit adr-unpublished "$a_cid" "ADR-$a_num differs between $METADATA_BRANCH and $INTEGRATION_BRANCH — re-publish it (docket.sh terminal-publish --adr $a_num)"
+      fi
       continue
     fi
 
