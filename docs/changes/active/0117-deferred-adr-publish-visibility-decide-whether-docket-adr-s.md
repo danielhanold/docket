@@ -16,10 +16,10 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/deferred-adr-publish-visibility-decide-whether-docket-adr-s
-claimed_at: 2026-07-27T21:15:02Z
+claimed_at: 2026-07-27T21:17:34Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 type: feat
 ---
 
@@ -79,13 +79,44 @@ un-re-published status flip. Design rationale and the ADR-0051 boundary are in t
 - A set-diff or audit over **change** records — #0083's decline stands; #0118 owns the adjacent
   skip-publish question.
 - Any healer, re-publisher, or auto-fix. Report only.
-- Publishing ADR-0023 (the one ADR absent from `main`) — its change #0044 is `blocked`, so under
-  the due rule it is correctly absent and the check stays silent about it.
+- Publishing the ADRs currently absent from `main` — ADR-0023 (change #0044, `blocked`) and
+  ADR-0060 (change #0135, `implemented`, PR still open). Under the due rule both are correctly
+  absent and the check stays silent about them.
 - Wiring `adr-checks.sh` into the `docket-status` health pass — considered and **declined**, not
   deferred (spec §4.1). It already runs under `docket-adr` on every ADR create and supersede,
   which is when its three checks could newly break. No stub minted.
 - The `terminal_publish` knob's semantics, and the classifier / branch-protection / `--admin`
   policy — not docket's to change.
+
+## Reconcile log
+
+### 2026-07-27 — claimed for build
+
+Re-read against current `origin/docket` + `origin/main` and the current code. Design holds; no
+scope change beyond the refreshed measurements below.
+
+- **Ledger re-measured** (spec §1b was taken 2026-07-21 at 53/52). Today: **60 ADRs on `docket`,
+  58 on `main`**; **zero** byte drift among the 58 present on both. **Two** ADRs are absent from
+  `main`, not one — ADR-0023 (`change: 44`, `blocked`) and the newly-added **ADR-0060**
+  (`change: 135`, `implemented`, PR open). Both are correctly not-due under §4.2's due rule, so
+  the check still yields **zero findings** on this repo today. ADR-0060 is a *better* negative
+  fixture than ADR-0023: it exercises the `implemented` (built, unmerged) shape rather than the
+  `blocked` (never built) one, and the two together cover both non-terminal arms.
+- **Registration surfaces confirmed** at their current shape: `BOARD_CHECK_IDS` in
+  `scripts/lib/docket-frontmatter.sh` (12 entries), `board-checks.sh`'s `check-id ∈ {…}` header,
+  `scripts/board-checks.md`'s `**`<id>`**` sections, `scripts/docket-status.md`'s single
+  `check <check-id>` row. Spec §4.5 asked whether change #0111's guard covers a new id for free —
+  **it does not, entirely**: the set-compares are enumerated and cover it, but
+  `tests/test_board_checks.sh` also carries a hardcoded `[ "${#BOARD_CHECK_IDS[@]}" = 12 ]`
+  count assert that must be bumped to 13. That is the one hand-edit the guard does not absorb.
+- **Call site** is `docket-status.sh`'s `health_checks()`, which already passes
+  `--changes-dir/--metadata-branch/--integration-branch/--lease-ttl-hours`; `--adrs-dir` and
+  `--terminal-publish` join that list. Note `--integration-branch` is passed as
+  `origin/$INTEGRATION_BRANCH` there while `--metadata-branch` is the bare branch name — the new
+  check must use the args verbatim, as the existing link checks do.
+- **§5 open question** (the `<change-id>` column) remains a build-time call; ADR-0049 read and
+  its `?` precedent for an unusable id is the leading candidate, with the ADR reference carried
+  in the message column. Settled during the build, with an ADR.
 
 ## Open questions
 

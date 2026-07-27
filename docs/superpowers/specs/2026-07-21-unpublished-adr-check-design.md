@@ -33,17 +33,23 @@ therefore uncovered by #0083's change-file marker:
 
 ### 1b. Measured state of the ledger
 
-Taken 2026-07-21 against `origin/docket` and `origin/main`:
+Re-measured 2026-07-27 at build time against `origin/docket` and `origin/main` (the 2026-07-21
+figures were 53/52 with one absent ADR):
 
-- 53 ADRs on `docket`, 52 on `main`.
-- Of the 52 present on both, **zero** differ byte-for-byte — every status flip to date has been
+- 60 ADRs on `docket`, 58 on `main`.
+- Of the 58 present on both, **zero** differ byte-for-byte — every status flip to date has been
   re-published correctly.
-- Exactly one ADR is absent from `main`: `ADR-0023` (`Accepted`, `change: 44`).
+- **Two** ADRs are absent from `main`: `ADR-0023` (`Accepted`, `change: 44`) and `ADR-0060`
+  (`Accepted`, `change: 135`).
 
-`ADR-0023` is **not** a gap. Change #0044 is `blocked` — never built, never closed out — and
-docket's rule is that a change-tied ADR rides its change's terminal publish. So it is correctly
-absent, and a check must stay silent about it. This is load-bearing: it is the single data point
-that rules out the naive formulation (§3, option i).
+Neither is a gap, and the pair is load-bearing — together they rule out the naive formulation
+(§3, option i) on *both* non-terminal arms:
+
+- Change #0044 is `blocked` — never built, never closed out.
+- Change #0135 is `implemented` — built, PR open, not yet merged.
+
+docket's rule is that a change-tied ADR rides its change's terminal publish, so under §4.2 both
+are correctly absent and the check must stay silent about both.
 
 ## 2. Goal
 
@@ -195,6 +201,12 @@ suppression mechanism is being built for a problem no repo currently has.
 Missing any one reproduces exactly the drift change #0104 had to repair by hand. Change #0111's
 guard enumerates rather than hardcodes, so it should cover the new id for free — verify this at
 build time rather than assuming it.
+
+**Verified 2026-07-27 (reconcile): partly.** The four set-compares in
+`tests/test_board_checks.sh` are all derived (`emit <id> "` grep vs. each surface) and do cover a
+new id with no edit. But the same block carries one hardcoded count assert —
+`[ "${#BOARD_CHECK_IDS[@]}" = 12 ]` — which must be bumped to 13. That single literal is the
+whole residual; everything else in the guard absorbs the addition.
 
 The check is **orthogonal to the `DROPPED`/`EXPLAINED` suppression machinery**: it concerns ADR
 files, not change rows, so it can never drop a board row and neither marks `EXPLAINED` nor feeds
