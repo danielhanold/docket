@@ -59,7 +59,7 @@ resolve_deps "$CHANGES_DIR"            # populates STATUS_OF / DEP_STATE / DEP_R
 git_has(){ "$GIT" -C "$CHANGES_DIR" cat-file -e "$1:$2" 2>/dev/null; }
 
 declare -A ID_ACTIVE ID_EXISTS                # id -> 1; populated in the FILES walk below
-declare -A EXPLAINED DROPPED                  # change-id -> 1; drive board-row-dropped (change 0104)
+declare -A EXPLAINED DROPPED DROPPED_DIR      # change-id -> 1 / -> dir kind; drive board-row-dropped
 FINDINGS=""                            # accumulate "<check>\t<id>\t<msg>\n"; sorted + printed at the end
 
 # sanitize VALUE — render TAB and CR as the visible two-character escapes \t and \r (change 0104).
@@ -94,27 +94,37 @@ padded_id_from_file(){
 # independent tuning is ever wanted.
 FINALIZE_BLOCKED_STALE_SECS=$(( 72 * 3600 ))
 
-# renders_row ID STATUS — exit 0 iff render-board.sh would emit a table row for an `active/` file
-# carrying this (int_field-validated) ID and this raw STATUS. This is the COMPUTED half of the
-# board-row-dropped invariant (change 0104): it mirrors the renderer's own bucketing rather than
-# re-enumerating the conditions the other checks already name, so a drop path ADDED TO THE RENDERER
-# is noticed here without anyone editing this script. Two clauses, each anchored to a renderer line:
-#   1. render-board.sh's id gate, `id="$(int_field "$f" id)"; [ -n "$id" ] || continue`
-#      — a file with no usable integer id never enters SECTION at all.
-#   2. render-board.sh iterates DOCKET_STATUSES_ACTIVE when calling print_section, and buckets on
-#      the RAW `status:` read (`SECTION["$st"]+="$id"…`) — so a status outside that set
-#      lands in a SECTION key nothing iterates. Membership is read from the SAME array via
-#      docket_status_is_active, never a list restated here: the five-name active
-#      set and the seven-name full vocabulary are DIFFERENT sets, and the difference is exactly the
-#      live drop path a `DOCKET_STATUSES` test would miss — a terminal status (`done`/`killed`)
-#      sitting in `active/`, which is a legal status in an illegal directory (the state
-#      docket-status's `sweep-failed <id> archive <reason>` leaves behind: status flipped, archive
-#      move failed). `total=${#AFILES[@]}` still counts the file, so the count line and the tables
-#      disagree.
+# renders_row DIR_KIND ID STATUS — exit 0 iff render-board.sh would account for a file in DIR_KIND
+# ('active' or 'archive') carrying this (int_field-validated) ID and this raw STATUS. This is the
+# COMPUTED half of the board-row-dropped invariant (change 0104; widened to archive/ by 0115): it
+# mirrors the renderer's own bucketing rather than re-enumerating the conditions the other checks
+# already name, so a drop path ADDED TO THE RENDERER is noticed here without anyone editing this
+# script. Three clauses, each anchored to real renderer behavior:
+#   1. The id gate, hoisted because it is ONE condition holding in BOTH directories: the renderer
+#      requires a usable integer id to emit an identifying row on either side. A file without one
+#      is still counted in `total`, so it is unaccounted for.
+#   2. active/  -> the renderer calls print_section once per DOCKET_STATUSES_ACTIVE member and
+#      buckets on the RAW `status:` read, so a status outside that set lands in a bucket nothing
+#      iterates. The live case is a TERMINAL status sitting in active/ — legal status, wrong
+#      directory (the `sweep-failed <id> archive <reason>` state: status flipped, archive move
+#      failed).
+#   3. archive/ -> the archive block's open gate and its <summary> count both come from the
+#      per-status archive tally read over DOCKET_STATUSES_TERMINAL, so a NON-terminal status is
+#      counted in `total` and joins no summary. The live case is the mirror image: an interrupted
+#      archive-change.sh, whose `git mv` precedes its status flip.
+# Membership is read from the SHARED arrays via docket_status_is_active / docket_status_is_terminal,
+# never a list restated here. That matters twice over: the active set (five names) and the full
+# vocabulary (seven) are DIFFERENT sets and the difference IS the drop path, and since change 0116
+# single-sourced the renderer's own vocabularies the renderer reads these very arrays too — so both
+# arms are backed by the same source the consumer reads, not by a comment-asserted correspondence.
 renders_row(){
-  local rr_id="$1" rr_st="$2"
+  local rr_dir="$1" rr_id="$2" rr_st="$3"
   [ -n "$rr_id" ] || return 1
-  docket_status_is_active "$rr_st"
+  case "$rr_dir" in
+    active)  docket_status_is_active   "$rr_st" ;;
+    archive) docket_status_is_terminal "$rr_st" ;;
+    *) return 1 ;;
+  esac
 }
 
 # Walk every change file (active + archive); per-check filters apply inside.
@@ -125,15 +135,16 @@ for f in "${FILES[@]}"; do
   # cid — the change-id column for every finding about this file: the validated integer id when
   # there is one, else the filename-derived padded id. NEVER the raw frontmatter value.
   cid="${id:-$pid}"
-  fd_active=0; case "$f" in */active/*) fd_active=1 ;; esac
+  # Anchored on "$CHANGES_DIR" rather than a bare */active/* glob: an unanchored pattern
+  # misclassifies every file when CHANGES_DIR itself contains an `active` path component.
+  dir_kind=archive; case "$f" in "$CHANGES_DIR"/active/*) dir_kind=active ;; esac
   status="$(field "$f" status)"
 
-  # --- board-row-dropped, computed (change 0104). THE ONLY site that populates DROPPED: the
-  # invariant is evaluated once, from renders_row's mirror of the renderer, for every active file —
-  # never re-derived per drop CAUSE at the checks that happen to name one. `archive/` is exempt (the
-  # archive table renders from its own pass, under the `# --- archive ---` section, and is not
-  # subject to this invariant).
-  if [ "$fd_active" = 1 ] && ! renders_row "$id" "$status"; then DROPPED["$cid"]=1; fi
+  # --- board-row-dropped, computed (change 0104; widened to archive/ by 0115). THE ONLY site that
+  # populates DROPPED: the invariant is evaluated once, from renders_row's mirror of the renderer,
+  # for every file in EITHER directory — never re-derived per drop CAUSE at the checks that happen
+  # to name one.
+  if ! renders_row "$dir_kind" "$id" "$status"; then DROPPED["$cid"]=1; DROPPED_DIR["$cid"]="$dir_kind"; fi
 
   if [ -z "$id" ]; then
     if [ -n "$raw" ]; then
@@ -333,7 +344,13 @@ for drop_id in "${!DROPPED[@]}"; do
   # can legitimately carry a field-domain finding (a piped title, say) AND this one, because that
   # finding does not account for a dropped row. Saying "no field-domain finding explains it" next to
   # a visible field-domain finding on the same id would read as a contradiction.
-  emit board-row-dropped "$drop_id" "counted in the board total but rendered in no section; no malformed-id or field-domain status finding accounts for the drop"
+  # Two strings, one per direction: the direction is what tells the reader which way the file is
+  # misfiled, and it is the reason this is a widened check rather than a second check-id.
+  if [ "${DROPPED_DIR[$drop_id]:-active}" = archive ]; then
+    emit board-row-dropped "$drop_id" "counted in the board total but not accounted for by the archive pass (no row identifying it, or a summary count that excludes it); no malformed-id or field-domain status finding accounts for the drop"
+  else
+    emit board-row-dropped "$drop_id" "counted in the board total but rendered in no section; no malformed-id or field-domain status finding accounts for the drop"
+  fi
 done
 
 # --- dep-cycle: DFS over depends_on; mark every node that lies on a cycle ---
