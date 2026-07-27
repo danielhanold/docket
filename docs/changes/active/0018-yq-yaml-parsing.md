@@ -5,14 +5,14 @@ title: Record the pure-bash YAML/frontmatter parsing stance as an ADR
 status: proposed
 priority: low
 created: 2026-06-16
-updated: 2026-07-26
+updated: 2026-07-27
 depends_on: [16]
 related: [11, 127]
 adrs: [57, 58]
 spec:
 plan:
 results:
-trivial: false
+trivial: true
 auto_groomable: true
 branch:
 pr:
@@ -20,6 +20,14 @@ blocked_by:
 reconciled: false
 type: docs
 ---
+
+## Artifacts
+
+<!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| ADRs | [ADR-0057](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0057-frontmatter-read-must-be-anchored-when-key-may-be-absent.md), [ADR-0058](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0058-two-tier-frontmatter-scalar-readers-field-vs-field-raw.md) |
+<!-- docket:artifacts:end -->
 
 ## Why
 
@@ -73,7 +81,36 @@ readers and does not take a dependency on `yq` or any external YAML parser.
 - Name the accepted consequence: the hand readers handle a subset, and top-level flow-style
   mappings (e.g. `agents: {…}`) are silently ignored rather than parsed.
 - Relate it to ADR-0057 and ADR-0058, which decide *how* the in-repo readers behave and only make
-  sense under this stance.
+  sense under this stance. The link is one-way by construction: both are Accepted and immutable
+  except their `status:` line, so their `relates_to: []` is NOT to be edited back.
+
+The new ADR's id is whatever the `docket-adr` flow allocates at author time — do not pre-reserve
+one here (other in-flight changes mint ADRs concurrently). Frontmatter: `change: 18`,
+`relates_to: [57, 58]`, no `supersedes`/`reverses`.
+
+Name the reader modules as they exist today — `sync-agents.sh` (repo root), `scripts/docket-config.sh`,
+`scripts/lib/docket-frontmatter.sh`. The helper names in `## Why` above (`entry_line`, `block_names`)
+are pre-refactor history and must not be transcribed into the ADR; the current parser is
+`section_body()` / `harness_agent_line()` / `field_of()`. The flow-style consequence is still true:
+`section_body()` matches only a bare header, so a top-level `agents: {…}` never enters the block.
+
+### Execution shape (metadata-only change)
+
+This change has no code deliverable, which is unusual and must not be discovered cold at build time:
+
+- The ADR is authored on `metadata_branch` by the `docket-adr` dispatch, and doing so is this
+  change's **acceptance criterion — unconditional**. Do not let it ride step 6's "non-obvious
+  decision made during implementation" condition: no decision is made during this build, the ADR
+  *is* the deliverable. The step-4 plan MUST carry an explicit "author the ADR via the `docket-adr`
+  dispatch" task. A PR that opens with no new ADR id recorded in `adrs:` is an incomplete build,
+  not a clean one.
+- The feature branch never carries metadata (change file, `BOARD.md`, ADRs), so it holds only the
+  plan file plus a short results file — enough for a non-empty PR at step 7.
+- Delivery to the integration branch is the change's own terminal publish, triggered by that PR's
+  merge, with the new ADR id appended to this change's `adrs:` (becoming `[57, 58, <new>]`).
+  Re-copying 57 and 58 is idempotent and harmless.
+- Do NOT use `docket-adr`'s standalone `terminal-publish --adr NN` path: it would publish the ADR
+  while leaving this change with no route to `done`.
 
 ## Out of scope
 
@@ -81,11 +118,26 @@ readers and does not take a dependency on `yq` or any external YAML parser.
   edit — and it would be all-or-nothing, never one bilingual script.
 - Changing any reader's behavior, or touching `sync-agents.sh` / `scripts/github-mirror.sh`
   parsing. This change writes a record; it moves no code.
+- Prose in the repo `README.md` or any `scripts/*.md` contract. (Regenerating `docs/adrs/README.md`
+  and the integration-branch ADR index at publish are mandatory parts of the `docket-adr` flow, not
+  scope creep.)
 - `sync-agents.sh`'s `emit()` frontmatter rewrite — markdown-with-frontmatter is not pure YAML and
   stays `awk` under any stance.
 
 ## Open questions
 
 - None. The decision is made; this records it.
+
+## Auto-groom verdict — trivial (2026-07-27)
+
+Groomed autonomously to `trivial: true` (build-ready, no spec). Reasoning: the sole deliverable is
+one ADR whose stance, boundary, three reasons, accepted consequence, and re-open rule are already
+written in this stub — a spec would restate it verbatim. The adversarial critic verified against the
+tree that zero `yq` invocations exist repo-wide (only the `(no yq)` comment at
+`scripts/docket-config.sh:97`), that ADR-0057/0058 are Accepted and about the in-repo readers, that
+change 0132 makes "zero external deps" an overclaim, that `depends_on: [16]` is satisfied (0016
+archived `done`), and that no existing ADR states this stance. Its three corrections — do not
+pre-reserve an ADR id, do not transcribe the stale helper names, and state the metadata-only
+execution shape — are folded into `## What changes` above. No decision needed human context.
 
 ## Reconcile log
