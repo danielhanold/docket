@@ -11,7 +11,7 @@ related: [83, 118]
 discovered_from: [83]
 adrs: [51]
 spec: docs/superpowers/specs/2026-07-21-unpublished-adr-check-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-27-unpublished-adr-check-plan.md
 results:
 trivial: false
 auto_groomable:
@@ -29,6 +29,7 @@ type: feat
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-21-unpublished-adr-check-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-21-unpublished-adr-check-design.md) |
+| Plan | [2026-07-27-unpublished-adr-check-plan.md](https://github.com/danielhanold/docket/blob/feat/deferred-adr-publish-visibility-decide-whether-docket-adr-s/docs/superpowers/plans/2026-07-27-unpublished-adr-check-plan.md) |
 | ADRs | [ADR-0051](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0051-publish-deferred-marker-not-branch-diff-detector.md) |
 <!-- docket:artifacts:end -->
 
