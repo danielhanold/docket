@@ -222,12 +222,13 @@ done
 #   * markup-shaped — backticked `Task`, bolded **Task**, or a call form Task(
 #   * BARE WORD narrowed by CONTEXT — `Task` immediately followed by dispatch/tool/launch. This
 #     branch is not optional: it is this repo's OWN house idiom (AGENTS.md: "the spelling you miss
-#     is the target file's own house idiom"). The surviving correct mention in
-#     references/agent-layer.md is written exactly that way ("forces a Task dispatch to the
-#     matching `subagent_type` — Cursor otherwise"), and appending
+#     is the target file's own house idiom"). It was proven on references/agent-layer.md, whose
+#     Cursor dispatch-rule sentence was written exactly that way until change 0135 reworded it by
+#     capability ("forces a dispatch to the matching docket subagent"): appending
 #     "Claude Code forces a Task dispatch to the matching wrapper, so the pin holds." to that file
 #     stayed green under the markup-only pattern while the backticked twin reddened
-#     (mutation-proven). Narrowing by the FOLLOWING WORD rather than by markup is what keeps this
+#     (mutation-proven). The branch stays — the idiom it catches is still this repo's, and the
+#     reword removed one instance, not the shape. Narrowing by the FOLLOWING WORD rather than by markup is what keeps this
 #     repo's SDD vocabulary out ("Task 10", "each Task brief is reviewed…" do not match).
 # A matching mention is legitimate only when its LINE's CONTENT (not its path) is Cursor-scoped,
 # since Cursor documents a real `Task` tool and Claude Code does not.
@@ -316,18 +317,19 @@ assert "no live prose names a dispatch tool outside a Cursor-scoped line" \
 [ -z "$(printf %s "$offenders" | tr -d '[:space:]')" ] || printf 'offending lines:%s\n' "$offenders"
 # Population floor: the scan must have reached live prose. Zero hits would pass the assert above
 # vacuously — a path typo, a moved file, or an over-narrowed shape pattern must redden here, not
-# silently guard nothing. Today's in-scope population is exactly TWO matching, Cursor-scoped
-# mentions — README's trade-off-table prose (backticked) and references/agent-layer.md's Cursor
-# dispatch-rule sentence (bare word, brought into the scanned population by the bare-word branch
-# added above; it is Cursor-scoped on its own line, so it classifies as legitimate). The floor is
-# the observed count, not padded.
+# silently guard nothing. Today's in-scope population is exactly ONE matching, Cursor-scoped
+# mention — README's trade-off-table prose (backticked). It was TWO until change 0135 reworded
+# references/agent-layer.md's Cursor dispatch-rule sentence by capability ("forces a dispatch to
+# the matching docket subagent"), which no longer names a tool and so no longer matches $SHAPE at
+# all; the sentence still lives, in place, saying the same thing. Re-derived from the scan itself
+# per the rule below, never zeroed. The floor is the observed count, not padded.
 # DO NOT lower this floor to 0 if a future legitimate reword of those sentences turns it red: 0 is
 # vacuous (the assert above would then hold trivially with nothing left to scan), and a reworded
 # sentence that stays in scope is exactly what this guard exists to keep noticing. Fix a red floor
 # by confirming the sentences still live where they did (moved/reworded, not deleted) and, only
 # then, re-deriving the new observed count from the scan itself — never by zeroing the floor.
-assert "negative guard: scan reached live prose (floor: >=2 Cursor-scoped mentions)" \
-  '[ "$cursor_scoped" -ge 2 ]'
+assert "negative guard: scan reached live prose (floor: >=1 Cursor-scoped mention)" \
+  '[ "$cursor_scoped" -ge 1 ]'
 # Pin the floor's reach to a NAMED file, not just a bare count: a bare ">= 1" would stay green even
 # if the scan's one hit migrated from README.md to something else entirely (a different file that
 # happens to also carry a Cursor-scoped shape match) — the count alone cannot tell "the same

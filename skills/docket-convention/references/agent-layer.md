@@ -20,12 +20,10 @@ Contents: [Layered config](#layered-config) · [Harness-first agents: blocks](#h
 
 ## Harness-first agents: blocks
 
-Every one of `config.yml`'s, the repo's committed `.docket.yml`'s, and the repo's `.docket.local.yml`'s
-`agents:` blocks are **harness-first**: a reserved `default:` key holds the
-harness-neutral fallback, and any harness name (e.g. `cursor`) can override just the fields that
-differ for that harness — the harness key is just a map key in any of the three blocks.
-Whatever keys any of the three blocks has, they resolve the same harness-first way (`~/.claude/agents`,
-`~/.cursor/agents`, …):
+Every one of `config.yml`'s, the repo's committed `.docket.yml`'s, and the repo's `.docket.local.yml`'s `agents:`
+blocks are **harness-first**: a reserved `default:` key holds the harness-neutral fallback, and any harness name
+(e.g. `cursor`) can override just the fields that differ for that harness — the harness key is just a map key.
+All three resolve the same harness-first way (`~/.claude/agents`, `~/.cursor/agents`, …):
 
 ```yaml
 agents:                                 # harness-first: reserved `default:` + harness-name keys
@@ -35,6 +33,8 @@ agents:                                 # harness-first: reserved `default:` + h
   cursor:                               # per-harness override — only what differs
     implement-next: { model: gpt-5.1, effort: high }
     status:         { model: gpt-5.5-medium-fast }
+    # CONFIG shape, identical across harnesses; the GENERATED Cursor wrapper has no `effort:`
+    # key — effort rides inside the model value. See the wrapper-shape table below.
   claude:                               # runner: delegates the whole run to a child harness
     status: { model: gpt-5.1-codex, runner: codex }   # (change 0079; see below)
   # Resolution is field-by-field, first non-empty wins: agents.<harness>.<agent> -> agents.default.<agent> -> shipped built-in (agents/docket-*.md).
@@ -62,14 +62,14 @@ generator hand-merging the two directories onto the same file. An agent with no 
 `model: inherit` with no `effort`.
 
 **`runner:` — cross-harness delegation (change 0079).** An agent entry may carry `runner: <name>`
-naming a registered runner (shipped: `codex`); the generated wrapper body then becomes a shim that
+naming a registered runner (shipped: `codex`, `cursor`); the generated wrapper body then becomes a shim that
 makes one foreground `docket.sh runner-dispatch` call, delegating the whole run to that child
 harness. `runner` resolves per-field through the same four layers and is global-able (a machine
 preference, like `model`/`effort` — it writes no shared state). It is honored under the `claude`
 harness key (or `default:` when generating claude's files); under any other harness key it is
 reserved and warned-and-ignored. An unregistered name is a loud generation-time error. Per-runner
-knobs live in a top-level `runners.<name>:` block (any layer); the codex knobs and prerequisites
-are in `scripts/runners/codex.md`, and the user-facing walkthrough is README's *Runner delegation*
+knobs live in a top-level `runners.<name>:` block (any layer); each adapter's knobs and
+prerequisites are in `scripts/runners/<name>.md`, and the user-facing walkthrough is README's *Runner delegation*
 subsection under *Customization*.
 
 ## Generation scope: agent_harnesses
@@ -90,57 +90,67 @@ drift gate spans every generated per-harness file.
 
 ## Harness-portable model IDs
 
-**Harness-portable model IDs (ADR-0015).** Agent `model:` values are **direct model
-IDs, harness-neutral and passed through verbatim** — no tier layer. The running harness interprets the string (a Claude alias/ID under Claude Code; a Cursor
-model ID like `gpt-5.5-medium-fast` under Cursor). This unvalidated **passthrough** is exactly what
-lets docket drive non-Claude harnesses.
+**Harness-portable model IDs (ADR-0015).** Agent `model:` values are **direct model IDs, harness-neutral and
+passed through verbatim** — no tier layer. The running harness interprets the string (a Claude alias/ID under
+Claude Code; a Cursor model ID like `gpt-5.5-medium-fast` under Cursor). This unvalidated **passthrough** is
+exactly what lets docket drive non-Claude harnesses.
+
+**Per-harness wrapper shapes.** The generated wrapper is **not one uniform document** — each harness gets its
+target harness's documented shape, from its own named emitter in `sync-agents.sh`. A harness with no named
+emitter falls to the generic `*)` branch, which emits **Claude's** shape: a best guess, not a supported mapping
+(change 0135; the Cursor defect shipped that way).
+
+| harness | file | model | effort | skills |
+|---|---|---|---|---|
+| claude | `.md` | `model:` | `effort:` | `skills:` frontmatter |
+| cursor | `.md` | `model: <id>[effort=<e>]` | *(inside the model value)* | body preamble |
+| codex | `.toml` | `model =` | `model_reasoning_effort =` | `developer_instructions` preamble |
+
+Cursor's frontmatter is `name`, `description`, `model`, `readonly`, `is_background` — no standalone `effort:` key
+and no `skills:` preload; docket emits the first three and leaves the rest at Cursor's defaults, which suit
+every docket agent. Under `model: inherit` a resolved effort has nowhere to attach and is dropped with a
+generation-time WARN.
 
 ## Always-full-set generation + the Cursor dispatch rule
 
-**Always-full-set generation, machine-local, + the Cursor dispatch rule.** The **per-repo pass
-writes the full built-in agent set** for every harness in `agent_harnesses` — the `agents:` block
-is **override-only** (it tunes a model/effort; it never decides *which* agents exist, since the
-agents compose and a harness needs all of them; an entry naming no built-in is a typo warning).
-Per-repo generation is **opt-in**: a repo opts in by declaring an `agents:` block or a top-level
-`agent_harnesses:` key in **either** its committed `.docket.yml` or its `.docket.local.yml`; with
-neither, no per-repo wrappers are generated and `--check` stays a no-op. The generated files are
-**gitignored, never committed** — regenerated from each machine's own resolved config, not shared
-through git. `sync-agents.sh` maintains the marker-bounded `# docket:start` / `# docket:end` block
-in the repo's `.gitignore` covering every docket-owned path (plus `.docket.local.yml` itself),
-writing or repairing it the moment a repo opts in (or merely carries a `.docket.local.yml`) and
-printing a one-time notice to commit the block; a repo with 0048-era committed copies gets a
-one-time migration on the next run (tracked copies deleted, local set regenerated fresh, the
-single remedy commit printed). The `cursor` harness additionally gets a generated
-**`docket-dispatch.mdc`** rule (`~/.cursor/rules/` user-level; `<repo>/.cursor/rules/` per-repo,
-also gitignored) that forces a Task dispatch to the matching `subagent_type` — Cursor otherwise
-runs a directly-invoked skill inline at the current model, defeating the pin. Claude Code fixes
-the same inline quirk natively: the four headless-safe autonomous skills (`docket-status`,
-`docket-adr`, `docket-implement-next`, `docket-auto-groom`) carry `context: fork` +
-`agent: docket-<name>` frontmatter directly in their `SKILL.md`, forking a directly-invoked skill
-into the same pinned wrapper — no generated file to sync, inert in every other harness.
-**Fork-exclusion principle:** only skills that never need the human mid-run are forked, since a
-forked subagent has no channel back to the human (Claude Code withholds `AskUserQuestion` and
-similar); the two interactive skills stay inline, and `docket-finalize-change` stays unforked —
-its headless merge is gated by a permission classifier, a separate decision (see ADR-0043). The
-per-repo pass generates that same full set into the harness, so the Cursor rule's dispatch targets
-resolve by construction. `sync-agents.sh` prunes orphaned `docket-*` files (a removed built-in
-drops its wrapper; a de-listed harness drops its wrappers and dispatch rule), and `--check` spans
-the `.gitignore` block, the tracked-file check, and (advisory) content staleness for both.
+The **per-repo pass writes the full built-in agent set** for every harness in `agent_harnesses` — the `agents:`
+block is **override-only** (it tunes a model/effort; it never decides *which* agents exist, since the agents
+compose and a harness needs all of them; an entry naming no built-in is a typo warning). Per-repo generation is
+**opt-in**: by declaring an `agents:` block or a top-level `agent_harnesses:` key in **either** its committed
+`.docket.yml` or its `.docket.local.yml`; with neither, no per-repo wrappers are generated and `--check` stays a
+no-op. The generated files are **gitignored, never committed** — regenerated from each machine's resolved config,
+not shared through git. `sync-agents.sh` maintains the marker-bounded `# docket:start` / `# docket:end` block in
+the repo's `.gitignore` covering every docket-owned path (plus `.docket.local.yml` itself), writing or repairing
+it the moment a repo opts in (or merely carries a `.docket.local.yml`) and printing a one-time notice to commit
+the block; a repo with 0048-era committed copies gets a one-time migration on the next run (tracked copies
+deleted, local set regenerated fresh, the single remedy commit printed). The `cursor` harness additionally gets a
+generated **`docket-dispatch.mdc`** rule (`~/.cursor/rules/` user-level; `<repo>/.cursor/rules/` per-repo, also
+gitignored) that forces a dispatch to the matching docket subagent — Cursor otherwise runs a directly-invoked
+skill inline at the current model, defeating the pin. Claude Code fixes the same inline quirk natively: the four
+headless-safe autonomous skills (`docket-status`, `docket-adr`, `docket-implement-next`, `docket-auto-groom`)
+carry `context: fork` + `agent: docket-<name>` frontmatter directly in their `SKILL.md`, forking a
+directly-invoked skill into the same pinned wrapper — no generated file to sync, inert in every other harness.
+**Fork-exclusion principle:** only skills that never need the human mid-run are forked, since a forked subagent
+has no channel back to the human (Claude Code withholds `AskUserQuestion` and similar); the two interactive
+skills stay inline, and `docket-finalize-change` stays unforked — its headless merge is gated by a permission
+classifier, a separate decision (see ADR-0043). That full set is generated into the harness too, so the Cursor
+rule's dispatch targets resolve by construction. `sync-agents.sh` prunes orphaned `docket-*` files (a removed
+built-in drops its wrapper; a de-listed harness drops its wrappers and dispatch rule), and `--check` spans the
+`.gitignore` block, the tracked-file check, and (advisory) content staleness for both.
 
 **Both invocation paths land on the same pinned wrapper.** A forked skill-invoke (`/docket-status`)
 and an explicit agent dispatch (`@docket-status`, or a subagent dispatch naming the wrapper)
 resolve to the *same* generated wrapper and run at the *same* resolved model/effort; they differ
 only in **observability** (the dispatch is drillable in the TUI, the fork is not) and in **cost**
 (the dispatch spends a turn). The trade-off table, the fork's on-disk transcript path, and the
-restart-your-session caveat live in docket's README (*Tuning agent models & effort*) — not restated
-here.
-Two mechanics do belong here, because they govern how the wrappers compose: **a wrapper whose
-`skills:` preloads the very skill that forks into it does not recurse** (preload is content
-injection at startup; the fork fires on invocation — verified on Claude Code 2.1.207, closing the
-question ADR-0024 left open), and **skills and agents register at process start**, so after
-`sync-agents.sh` or a skill-frontmatter edit an already-open session still runs the old definitions.
+restart-your-session caveat live in docket's README (*Tuning agent models & effort*) — not restated here.
+Two mechanics do belong here, because they govern how the wrappers compose: **a wrapper whose `skills:` preloads
+the very skill that forks into it does not recurse** (preload is content injection at startup; the fork fires on
+invocation — verified on Claude Code 2.1.207, closing the question ADR-0024 left open), and **skills and agents
+register at process start**, so after `sync-agents.sh` or a skill-frontmatter edit an already-open session still
+runs the old definitions.
 
-Generated files are machine-local: per-repo wrappers were committed before the all-local model, so identical-on-every-clone pinning is retired — a deliberate trade-off; team defaults still live in the committed `.docket.yml` `agents:` block by convention, without CI-enforced pinning of generated copies.
+Generated files are machine-local: identical-on-every-clone pinning is retired — a deliberate trade-off; team defaults still live in the committed `.docket.yml` `agents:` block, without CI-enforced pinning of generated copies.
 
 ## sync-agents.sh runs + the --check gate
 
