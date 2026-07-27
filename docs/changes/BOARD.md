@@ -1,8 +1,8 @@
 # Backlog
 
-**142 changes** — 🟡 23 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 3 implemented · ✅ 102 done · 🗑️ 9 killed
+**143 changes** — 🟡 24 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 3 implemented · ✅ 102 done · 🗑️ 9 killed
 
-## 🟡 Proposed (23)
+## 🟡 Proposed (24)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -29,6 +29,7 @@
 | [0140](active/0140-normalize-the-inherit-model-sentinel-once-for-every-runner-a.md) | Normalize the inherit model sentinel once for every runner adapter | `medium` | `fix` | needs-brainstorm |
 | [0141](active/0141-factor-the-shared-wrapper-source-parse-out-of-the-named-harn.md) | Factor the shared wrapper-source parse out of the named harness emitters | `medium` | `refactor` | needs-brainstorm |
 | [0142](active/0142-make-the-unmapped-harness-wrapper-gap-loud-at-generation-tim.md) | Make the unmapped-harness wrapper gap loud at generation time | `medium` | `fix` | needs-brainstorm |
+| [0143](active/0143-empty-id-collapses-the-archive-sort-feeder-s-tab-joined-fiel.md) | Empty id collapses the archive sort feeder's TAB-joined fields in render-board.sh | `medium` | `fix` | needs-brainstorm |
 
 ## 🔴 Blocked (1)
 
@@ -86,6 +87,7 @@ graph TD
   0140
   0141
   0142
+  0143
   0015:::done
   0016:::done
   0077:::done
