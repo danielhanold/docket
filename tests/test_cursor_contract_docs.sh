@@ -37,12 +37,19 @@ assert "agent-layer: calls the generic branch not a supported mapping" \
   'grep -qiF -- "not a supported mapping" "$AL"'
 
 # Every emitter named in sync-agents.sh must have a documented row (the reverse direction).
+# The extraction is keyed on the SYNTACTIC SHAPE of an `emit_for_harness` case branch — any
+# lowercase token followed by `)` and an `emit…` call — never on a hand-listed set of harness names
+# (AGENTS.md: key a guard on syntactic shape, never an enumerated list of spellings). Naming the
+# three known harnesses here would make this loop a verbatim duplicate of the forward `for h in …`
+# loop above and detect nothing: a NEW named emitter shipped without a doc row — the one failure
+# this direction exists to catch — would never be extracted. Mutation-proven by adding a
+# `windsurf) emit_windsurf_md …` branch to sync-agents.sh.
 emitters=0
 while IFS= read -r h; do
   [ -n "$h" ] || continue
   emitters=$((emitters+1))
   assert "agent-layer: emitter '$h' has a documented wrapper shape" 'grep -qE "^\| *'"$h"' *\|" "$AL"'
-done < <(sed -n -E 's/^[[:space:]]*(claude|cursor|codex)\)[[:space:]]*emit.*/\1/p' "$REPO/sync-agents.sh")
+done < <(sed -n -E 's/^[[:space:]]*([a-z][a-z0-9_-]*)\)[[:space:]]*emit.*/\1/p' "$REPO/sync-agents.sh")
 # Population floor: the derivation must actually have reached sync-agents.sh's dispatch table. With
 # zero extracted emitters the loop above iterates zero times and every reverse assert reads PASS
 # vacuously — a renamed branch or a reshaped `case` must redden here.
