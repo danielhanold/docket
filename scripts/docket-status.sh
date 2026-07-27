@@ -710,10 +710,13 @@ health_checks(){
       adr_args+=(--terminal-publish)
     fi
   fi
+  # Guarded expansion: this repo's floor is Bash 4 (scripts/docket.sh, ensure-docket-env.sh), and
+  # "${adr_args[@]}" on a declared-but-empty array throws "unbound variable" under set -u on bash
+  # 4.0-4.3 (fixed upstream in 4.4) — the same change-0064 crash shape, one line lower.
   "$DOCKET_BASH_PATH" "$SCRIPTS_DIR"/board-checks.sh \
     --changes-dir "$cd_dir" --metadata-branch "$metadata_branch" \
     --integration-branch "origin/$INTEGRATION_BRANCH" \
-    --lease-ttl-hours "${RECLAIM_LEASE_TTL:-72}" "${adr_args[@]}" 2>&2 | \
+    --lease-ttl-hours "${RECLAIM_LEASE_TTL:-72}" ${adr_args[@]+"${adr_args[@]}"} 2>&2 | \
   while IFS=$'\t' read -r check_id change_id message; do
     [ -n "$check_id" ] || continue
     echo "check $check_id $change_id $message"
