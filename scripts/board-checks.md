@@ -118,6 +118,11 @@ unresolvable `change:` stays silent. The change-id column carries the validated 
 there is one and `?` otherwise (ADR-0049); the ADR number is always named in the message. Report
 only — this check writes nothing and heals nothing.
 
+Two arms share the one check-id (the `stale-in-progress` precedent): **missing** — due but absent
+on the integration branch; and **stale** — present on both branches with differing blob SHAs, the
+un-re-published status flip. An ADR present on the integration branch but not committed on the
+metadata branch has nothing to compare against and stays silent.
+
 **`merged-orphan`** — A change id is referenced by a commit *subject* on `--integration-branch`
 while the change is still non-terminal (a file under `active/`, not yet archived). This is the
 classic orphan: work merged, but the docket record was never closed out. It is a git-history
