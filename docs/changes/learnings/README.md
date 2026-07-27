@@ -32,6 +32,7 @@ One curated finding per file; this index is the hint surface. Load it, then read
 
 ## process
 
+- [capability-absence-needs-a-failed-attempt](capability-absence-needs-a-failed-attempt.md) — An agent's own report that a capability is unavailable is untrusted input — only a failed attempt or a policy denial establishes absence; a missing tool NAME and an unobserved result establish nothing. · also: subagents, verification ⟨needs promotion⟩
 - [check-plumbing-auto-discovery](check-plumbing-auto-discovery.md) — At reconcile, check whether plumbing auto-discovers before planning an edit to it. · also: reconcile, plan
 - [dormant-code-live-mid-branch](dormant-code-live-mid-branch.md) — When a premise is 'X is dead today', re-probe X's liveness at the task that flips its precondition, not against the pre-branch tree. · also: spec, reconcile
 - [harness-behavior-is-mode-and-version-scoped](harness-behavior-is-mode-and-version-scoped.md) — An observation about a harness guard is scoped to the mode and version it was seen in — re-probe in the exact mode you will run before designing against it. · also: spike, environment ⟨needs promotion⟩
