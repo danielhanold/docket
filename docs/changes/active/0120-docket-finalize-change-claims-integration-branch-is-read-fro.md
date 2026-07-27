@@ -11,7 +11,7 @@ related: []
 discovered_from: [102]
 adrs: [52]
 spec: docs/superpowers/specs/2026-07-26-skill-config-read-channel-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-27-config-read-channel-guard.md
 results:
 trivial: false
 auto_groomable: true
@@ -29,6 +29,7 @@ type: docs
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-26-skill-config-read-channel-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-26-skill-config-read-channel-design.md) |
+| Plan | [2026-07-27-config-read-channel-guard.md](https://github.com/danielhanold/docket/blob/feat/docket-finalize-change-claims-integration-branch-is-read-fro/docs/superpowers/plans/2026-07-27-config-read-channel-guard.md) |
 | ADRs | [ADR-0052](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0052-config-key-resolution-boundary.md) |
 <!-- docket:artifacts:end -->
 
