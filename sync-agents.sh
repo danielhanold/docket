@@ -466,7 +466,7 @@ emit_cursor_md(){  # $1=src md  $2=model_override  $3=effort_override
       printf 'model: %s\n' "$model"
     fi
   elif [ -n "$effort" ]; then
-    log "WARN cursor/$name: effort '$effort' dropped — Cursor encodes effort inside the model value, and the resolved model is 'inherit'. Set an explicit model to pin effort on Cursor."
+    log "WARN cursor/$name: effort '$effort' dropped — Cursor encodes effort inside the model value, and no model is resolved (either none is configured or it is the 'inherit' sentinel). Set an explicit model to pin effort on Cursor."
   fi
   printf -- '---\n\n'
   if [ -n "$skills_csv" ]; then

@@ -60,8 +60,12 @@ RB="$REPO/docs/cursor/validation.md"
 assert "runbook: exists" '[ -f "$RB" ]'
 assert "runbook: states the Tier 2 evidence rule (a negative CLI result proves nothing)" \
   'grep -qiE "never evidence that the wrapper contract is wrong" "$RB"'
-assert "runbook: Tier 3 is the certifying tier, required before merge" \
-  'grep -qiE "required before merge|certifying tier" "$RB"'
+# HEADING-ANCHORED, not a whole-file OR-grep: `certifying tier` also appears in body prose, so a
+# file-scoped grep stayed green when the Tier 3 heading itself was downgraded to
+# "(optional, best-effort)". This assert guards the merge-gate obligation the change hangs on, so
+# it must key on the heading that declares it.
+assert "runbook: Tier 3 heading declares it required before merge" \
+  'grep -qE "^## Tier 3 .*required before merge" "$RB"'
 assert "runbook: names all six IDE phases" \
   '[ "$(grep -cE "^### Phase [1-6]" "$RB")" = "6" ]'
 # The probe is copy-pasteable, and its non-gating posture is stated where a future implementer
