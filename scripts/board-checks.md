@@ -148,46 +148,56 @@ second overlapping check would double-report the same file. Every domain is a sh
 test; none enumerates bad values.
 
 **`board-row-dropped`** — Backstop for the count-vs-rows invariant, and the only check whose trigger
-is **computed rather than enumerated**. An `active/` change file is *rendered* iff `int_field id`
-yields a non-empty integer **and** its `status:` is one of the five statuses `render-board.sh`
-actually calls `print_section` for (`DOCKET_STATUSES_ACTIVE`). Anything else in `active/` is counted
-in the board's `total` and rendered nowhere — the count line and the tables disagree. The predicate
-(`renders_row` in the script) reads the *same array the renderer's own section iteration uses*, so
-it is a mirror of the renderer's bucketing, not a restatement of the causes the other checks name:
-a drop path added to the renderer starts reporting here with **no edit to `board-checks.sh`**.
+is **computed rather than enumerated**. A change file is *rendered* iff `int_field id` yields a
+non-empty integer **and** its `status:` is a member of the status set the renderer iterates for
+that file's directory: `DOCKET_STATUSES_ACTIVE` for `active/`, `DOCKET_STATUSES_TERMINAL` for
+`archive/`. Anything else is counted in the board's `total` and rendered nowhere — the count line
+and the tables disagree. The predicate (`renders_row` in the script) reads the *same arrays the
+renderer's own section iteration uses*, so it is a mirror of the renderer's bucketing in both
+directories, not a restatement of the causes the other checks name: a drop path added to either
+side of the renderer starts reporting here with **no edit to `board-checks.sh`**.
 
-Emitted **only when no finding already accounts for the drop**. Exactly two arms suppress it, and
-both describe a row *disappearing*:
+Emitted **only when no finding already accounts for the drop**. Exactly two arms suppress it, both
+already directory-agnostic, and both describe a row *disappearing*:
 
 | Suppressing finding | Why it explains the drop |
 |---|---|
-| `malformed-id` | A non-integer `id:` — `render-board.sh` skips the row outright. |
-| `field-domain` on **`status`** | A status outside the seven-name vocabulary is outside the five-name active set too, so the row buckets under a key nothing iterates. |
+| `malformed-id` | A non-integer `id:` — `render-board.sh` skips the row outright, in either directory. |
+| `field-domain` on **`status`** | A status outside the seven-name vocabulary is outside both the five-name active set and the two-name terminal set, so the row buckets under a key nothing iterates. |
 
-A `field-domain` finding on `slug`, `priority` or `title` does **not** suppress: none of them drops
-a row (a piped `title` injects columns into a row that is still emitted; `priority` renders raw;
-`slug` is not read by the markdown renderer at all). Were they to suppress, an unrelated pipe in a
-change's title would silence the backstop on a row that vanished for a different reason.
+A `field-domain` finding on `slug`, `priority` or `title` does **not** suppress, on either side: none
+of them drops a row (a piped `title` injects columns into a row that is still emitted; `priority`
+renders raw; `slug` is not read by the markdown renderer at all). Were they to suppress, an
+unrelated pipe in a change's title would silence the backstop on a row that vanished for a
+different reason.
 
-Two live triggers today:
+Live triggers today, one set per directory:
 
-- A change file with **no `id:` field at all** — `malformed-id` requires a non-empty (if
-  non-integer) value, so nothing else reports it.
-- An `active/` file carrying a **terminal status** (`done` / `killed`) — a *legal* status in the
-  *wrong directory*. `field-domain` is correctly silent (`done` is in `DOCKET_STATUSES`) and the id
-  is valid, so the computed invariant is the only thing that sees it. This state is reachable and
-  documented: `docket-status`'s `sweep-failed <id> archive <reason>` is exactly "status flipped to
-  `done`, archive move failed".
+- `active/`:
+  - A change file with **no `id:` field at all** — `malformed-id` requires a non-empty (if
+    non-integer) value, so nothing else reports it.
+  - An `active/` file carrying a **terminal status** (`done` / `killed`) — a *legal* status in the
+    *wrong directory*. `field-domain` is correctly silent (`done` is in `DOCKET_STATUSES`) and the
+    id is valid, so the computed invariant is the only thing that sees it. This state is reachable
+    and documented: `docket-status`'s `sweep-failed <id> archive <reason>` is exactly "status
+    flipped to `done`, archive move failed".
+- `archive/`:
+  - An `archive/` file carrying a **non-terminal** status — the symmetric case: a *legal* status in
+    the *wrong directory*, reachable from the same interrupted operation as the active-side case —
+    `archive-change.sh` does its `git mv` before the status flip and the commit, so a failure
+    between them leaves the file moved but not re-statused.
+  - A **terminal** `archive/` file with **no usable id** — same "no `id:` field at all" shape as the
+    active side, evaluated after the file has already moved.
 
-Beyond those, its remaining trigger is a future renderer-added drop path.
+Beyond those, the remaining trigger on either side is a future renderer-added drop path.
 
-**Scope: the check covers `active/` only.** This is a deliberate bound, not a claim that `archive/`
-is safe. The symmetric archive-side violation is real and currently undetected: an `archive/` file
-carrying a **non-terminal** status is counted in `total` and rendered nowhere (the archive block is
-gated on `ndone + nkilled > 0` and its summary count comes from `ARC_COUNT`, which such a file does
-not join). It arises from the same interrupted operation as the active-side case — `archive-change.sh`
-does its `git mv` before the status flip and the commit, so a failure between them leaves the file
-moved but not re-statused. Extending the invariant to `archive/` is tracked as follow-up work.
+One thing this predicate deliberately does **not** treat as a drop: the `ARCHIVE_RECENT` collapse.
+The archive renderer's recency window redirects an older file's row into its per-month digest
+instead of emitting it as a table row, but the file still joins the summary count (`ARC_COUNT`) it
+is checked against. The predicate is written against that accounting — count vs. what the renderer
+accounts for — not against verbatim per-row emission, so it is blind to the collapse by design, and
+must stay blind to it: flagging every digest-collapsed file would make the check fire on every
+healthy archive with more than a few months of history.
 
 **`malformed-id`** — Guard/carve-out — it reports a malformed *file* rather than an unhealthy
 *change* — but a first-class emitted check-id like the rest, and a full member of the closed
