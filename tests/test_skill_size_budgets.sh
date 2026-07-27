@@ -13,7 +13,9 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # rows is the 0085 post-slim actuals + ~10% (ceil). A LATER RAISE (0102, 0127, 0137) does not re-apply
 # that +10% to a grown file — it sets the row to the file's re-measured actual plus a small WORKING
 # MARGIN, so a subsequent one-line edit does not redden CI on arrival. Change 0137's rule for the
-# rows it raises: lines rounded up to the next multiple of 5, words to the next multiple of 50.
+# rows it raises: lines rounded up to the next multiple of 5, words to the next multiple of 50 —
+# and if that lands within 25 words of the actual, the multiple AFTER it, because a rule that can
+# leave a 4-word margin reproduces the failure mode this paragraph exists to forbid.
 # Near-zero headroom is not the intent — it is the failure mode 0102 recorded below (1 word left),
 # and 0137's first attempt repeated it (rounding words to the next multiple of 10 left +1 and +9).
 # To raise a budget, edit the number here in the same diff that grows the file.
@@ -31,7 +33,7 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # itself rather than a reference: it fires at the exact moment an agent is about to wrongly
 # conclude dispatch is absent, and a rule sitting in an unread reference file cannot intervene at
 # that moment. Set per the rule above from the measured actual: 361 lines -> 365, 6209 words -> 6250.
-# docket-implement-next/SKILL.md's word budget was raised 3315 -> 3450 by change 0137, which names
+# docket-implement-next/SKILL.md's word budget was raised 3315 -> 3500 by change 0137, which names
 # the Tier A/C posture at its four consuming dispatch sites (Step 0's docket-status sweep and Step
 # 6's docket-adr dispatch are Tier A; Step 5's build invocation and Step 6's review invocation are
 # Tier C) so the convention's dispatch-capability rule has a producer at every site that actually
@@ -40,7 +42,8 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # one paragraph, instead of a bare tier-literal presence check that a swapped-tier mutation could
 # pass), and giving Step 6's two clauses the same *Dispatch-capability resolution* back-pointer the
 # other sites carry — the citation, not the tier label, is what stops an agent concluding "no
-# dispatch tool". Set from the measured actual: 3446 words -> 3450. The LINE budget was not raised
+# dispatch tool". Set from the measured actual: 3445 words -> 3500 (the next multiple of 50 is 3450,
+# which would leave a 5-word margin — the within-25 clause above pushes it to 3500). The LINE budget was not raised
 # by this change at all — the measured actual (135 lines) still fits the pre-existing 147.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
@@ -54,7 +57,7 @@ skills/docket-convention/references/learnings.md            84  580
 skills/docket-convention/references/terminal-close-out.md  173 1458
 skills/docket-finalize-change/SKILL.md                     193 4200
 skills/docket-groom-next/SKILL.md                           77 1484
-skills/docket-implement-next/SKILL.md                      147 3450
+skills/docket-implement-next/SKILL.md                      147 3500
 skills/docket-implement-next/results-template.md            24  172
 skills/docket-new-change/SKILL.md                           61 1330
 skills/docket-new-change/change-template.md                 51  203
