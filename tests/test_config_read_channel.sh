@@ -87,8 +87,10 @@ unclassified="$(grep "$(printf '^unclassified\t')" <<<"$out")"
 assert "population: at least 10 skill files scanned (got $files)" '[ "$files" -ge 10 ]'
 assert "population: the finalize skill is in the scanned set" \
   'grep -q -- "$(printf "^file\tskills/docket-finalize-change/SKILL.md$")" <<<"$out"'
-assert "population: the two declared exclusions are NOT scanned" \
-  '! grep -q -- "$(printf "^file\tskills/docket-convention/")" <<<"$out"'
+assert "population: excluded file skills/docket-convention/SKILL.md is NOT scanned" \
+  '! grep -q -- "$(printf "^file\tskills/docket-convention/SKILL.md$")" <<<"$out"'
+assert "population: excluded file skills/docket-convention/references/agent-layer.md is NOT scanned" \
+  '! grep -q -- "$(printf "^file\tskills/docket-convention/references/agent-layer.md$")" <<<"$out"'
 assert "population: at least 4 occurrences were reached and classified (got $oks)" '[ "$oks" -ge 4 ]'
 
 # Coverage: BOTH admissible classes are actually exercised by the real tree, so neither arm of the
