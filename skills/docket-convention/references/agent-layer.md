@@ -128,11 +128,12 @@ drops its wrapper; a de-listed harness drops its wrappers and dispatch rule), an
 the `.gitignore` block, the tracked-file check, and (advisory) content staleness for both.
 
 **Both invocation paths land on the same pinned wrapper.** A forked skill-invoke (`/docket-status`)
-and an explicit agent dispatch (`@docket-status`, or a subagent dispatch naming the wrapper) resolve to the
-*same* generated wrapper and run at the *same* resolved model/effort; they differ only in
-**observability** (the dispatch is drillable in the TUI, the fork is not) and in **cost** (the
-dispatch spends a turn). The trade-off table, the fork's on-disk transcript path, and the
-restart-your-session caveat live in docket's README (*Tuning agent models & effort*) — not restated here.
+and an explicit agent dispatch (`@docket-status`, or a subagent dispatch naming the wrapper)
+resolve to the *same* generated wrapper and run at the *same* resolved model/effort; they differ
+only in **observability** (the dispatch is drillable in the TUI, the fork is not) and in **cost**
+(the dispatch spends a turn). The trade-off table, the fork's on-disk transcript path, and the
+restart-your-session caveat live in docket's README (*Tuning agent models & effort*) — not restated
+here.
 Two mechanics do belong here, because they govern how the wrappers compose: **a wrapper whose
 `skills:` preloads the very skill that forks into it does not recurse** (preload is content
 injection at startup; the fork fires on invocation — verified on Claude Code 2.1.207, closing the

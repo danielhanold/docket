@@ -211,8 +211,21 @@ assert "no live prose names a dispatch tool outside a Cursor-scoped line" \
 # vacuously — a path typo, a moved file, or an over-narrowed shape pattern must redden here, not
 # silently guard nothing. Today's in-scope population is exactly one shape-matching, Cursor-scoped
 # mention (README's trade-off-table prose); the floor is set at that observed count, not padded.
+# DO NOT lower this floor to 0 if a future legitimate reword of that one README sentence turns it
+# red: 0 is vacuous (the assert above would then hold trivially with nothing left to scan), and a
+# reworded sentence that stays in scope is exactly what this guard exists to keep noticing. Fix a
+# red floor by confirming the sentence still lives in README.md (moved/reworded, not deleted) and,
+# only then, re-deriving the new observed count from the scan itself — never by zeroing the floor.
 assert "negative guard: scan reached live prose (floor: >=1 Cursor-scoped mention)" \
   '[ "$cursor_scoped" -ge 1 ]'
+# Pin the floor's reach to a NAMED file, not just a bare count: a bare ">= 1" would stay green even
+# if the scan's one hit migrated from README.md to something else entirely (a different file that
+# happens to also carry a Cursor-scoped shape match) — the count alone cannot tell "the same
+# mention moved" from "a coincidentally-shaped mention elsewhere covered for it". Anchored on
+# $mentions_classified (every record the scan produced, before classification), not on $offenders
+# or $cursor_scoped, so this coverage check is independent of the CURSOR/OFFENDER split above.
+assert "negative guard: the scan's population includes README.md specifically" \
+  'grep -qE "^(CURSOR|OFFENDER) README\.md:" <<<"$mentions_classified"'
 # Independent reconciliation, not a restatement of "total >= 2" (that was mathematically dead: it
 # cannot redden without the floor above also reddening, since cursor_scoped <= total always).
 # Every in-scope mention this scan finds today IS Cursor-scoped, so total must equal cursor_scoped
@@ -235,8 +248,10 @@ ctl_classified="$(scan_and_classify "$ctl")" || true
 ctl_hits=""
 while IFS= read -r rec; do
   [ -n "$rec" ] || continue
-  [ "${rec%% *}" = "OFFENDER" ] && ctl_hits="$ctl_hits
+  if [ "${rec%% *}" = "OFFENDER" ]; then
+    ctl_hits="$ctl_hits
 ${rec#* }"
+  fi
 done <<EOF
 $ctl_classified
 EOF
