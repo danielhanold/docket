@@ -16,10 +16,10 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/extend-the-board-row-dropped-invariant-to-archive-files
-claimed_at: 2026-07-27T18:51:52Z
+claimed_at: 2026-07-27T18:55:19Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 type: fix
 ---
 
@@ -70,9 +70,12 @@ already run over `archive/` files and are both genuine archive drop causes, so t
 archive triggers end up being exactly the two nothing enumerates — a legal status in the wrong
 directory, and a file with no `id:` field at all.
 
-Also in scope: a correspondence assert pinning the renderer's hard-coded `done|killed` literals to
-`DOCKET_STATUSES_TERMINAL`, and the `board-checks.md` contract edit replacing its "covers `active/`
-only" paragraph — which currently documents this very gap as follow-up work.
+Also in scope: the `board-checks.md` contract edit replacing its "covers `active/` only" paragraph —
+which currently documents this very gap as follow-up work.
+
+**Dropped at reconcile:** the spec's T9 correspondence assert. Change 0116 landed on 2026-07-22 and
+single-sourced the renderer's terminal vocabulary, so the `done|killed` literals T9 was written to
+pin no longer exist. See the reconcile log.
 
 Full derivation, truth table, test plan, and the mutation set are in the spec.
 
@@ -102,3 +105,49 @@ Both settled at grooming; see the spec for the derivation.
   The stub's "wrong directory for its status" framing is rejected as the *trigger*: the no-usable-id
   archive case is in the *correct* directory for its status, so that predicate would have missed it —
   the same blind-spot shape ADR-0050 was written about. It survives as the message's remedy hint.
+
+## Reconcile log
+
+### 2026-07-27 — reconciled at claim (docket-implement-next)
+
+Re-read against `origin/main` @ `0da1c0aa`, the spec, and changes 0104 / 0111 / 0116 / 0127. The
+design's decision, predicate, suppression analysis, and message text all survive unchanged. Four
+adjustments:
+
+1. **Change 0116 has landed** (archived 2026-07-22), and the spec anticipated exactly this: "If 0116
+   has landed by build time, re-read `render-board.sh` and correct the comment rather than shipping
+   it stale." It has, so the comment ships to the new reality. `render-board.sh` now reads
+   `DOCKET_STATUSES_TERMINAL` directly at the archive block gate and summary count, and calls
+   `docket_status_is_terminal` at the count-line and mermaid arms. **Zero** hard-coded `done|killed`
+   set literals remain. The spec's central caveat — that the archive arm is a mirror "by convention,
+   not by construction," with `DOCKET_STATUSES_TERMINAL` having no renderer readers — is therefore
+   **obsolete**, and the `renders_row` comment must NOT ship it. Both arms are now backed the same
+   way; the asymmetry the spec spends a section on is gone.
+2. **T9 is dropped, not deferred.** T9 asked for a correspondence assert that tokenizes the
+   renderer's `done|killed` `case` arms and asserts set-equality with `DOCKET_STATUSES_TERMINAL`.
+   Those arms no longer exist — 0116 replaced them with reads of that very array, which is the
+   guarantee T9 was a proxy for, delivered structurally rather than by test. Writing T9 now would
+   mean asserting against literals that are gone. The two surviving `"done"` comparisons in the
+   renderer (the mermaid done-node filter and the `ARCHIVE_RECENT` collapse partition) are
+   single-status semantics — `killed` never collapses — not restatements of the terminal set, so
+   neither is a correspondence target.
+3. **The widen is smaller than drafted.** 0104's `renders_row` no longer loops an array inline; it
+   delegates to the 0116 helper `docket_status_is_active`. The archive arm is therefore a
+   `docket_status_is_terminal` branch, not new plumbing. Every line number in the spec is stale
+   (0111, 0116, and 0127 all edited these files) — anchors get re-derived against the tip at build
+   time rather than copied from the spec.
+4. **Assumption 8 re-swept at build time, as the spec instructs.** This repo's `archive/` is clean:
+   111 files, every one terminal-status, every one carrying a valid integer id. Nothing goes red on
+   landing, and `--strict` gains no pre-existing failure.
+
+Still-valid checks: assumption 6's guard holds — 0116 kept `DOCKET_STATUSES_ACTIVE` and
+`DOCKET_STATUSES_TERMINAL` as distinct arrays and did not route the renderer to a third list, which
+is what the two things it "must not do" forbade. 0111's check-id hardening now pins the enumerations
+to `BOARD_CHECK_IDS` in the shared lib; adding no check-id keeps this change clear of it entirely.
+0127 added a `type` arm to `field-domain` that does not mark `EXPLAINED` — consistent with the
+spec's suppression analysis (only `status` suppresses), so no conflict.
+
+Scope, dependencies (none), and the out-of-scope list are unchanged. `## Assumptions` item 9(ii)
+(the `dir_kind` glob anchoring) is taken in passing, since the build edits that exact line; 9(i)
+(`DROPPED`/`EXPLAINED` keyed by `cid` rather than path) stays out of scope and is captured as
+follow-up.

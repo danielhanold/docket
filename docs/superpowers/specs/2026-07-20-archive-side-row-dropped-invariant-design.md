@@ -1,6 +1,13 @@
 # Extend the board-row-dropped invariant to `archive/` — design
 
-**Change:** 0115 · **Status:** design settled (auto-groomed) · **Date:** 2026-07-20
+**Change:** 0115 · **Status:** design settled (auto-groomed); reconciled 2026-07-27 · **Date:** 2026-07-20
+
+> **Reconcile note (2026-07-27).** Change **0116 has landed**. It single-sourced the renderer's
+> terminal vocabulary, which retires two things this spec was written before: the "mirror by
+> convention, not by construction" caveat in *The predicate*, and test **T9** entirely. Both sections
+> below are marked inline. Every line number in this document is stale — 0111, 0116, and 0127 have
+> since edited these files; re-derive anchors against the tip. The decision, the predicate, the
+> suppression analysis, the message text, and the rest of the test plan are unchanged.
 
 ## Problem
 
@@ -75,6 +82,18 @@ already sources that lib (:52), so the archive arm needs no new plumbing. Nothin
 `[ -n "$ID" ]` clause is one condition anchored to two renderer lines, so it stays hoisted above the
 directory switch.
 
+> **SUPERSEDED BY RECONCILE (2026-07-27) — do not build from the rest of this subsection.** It was
+> written when `DOCKET_STATUSES_TERMINAL` had zero readers in `render-board.sh`. Change 0116 landed
+> 2026-07-22 and gave it readers: the archive block gate and its summary count iterate that array
+> directly, and the count-line and mermaid arms call `docket_status_is_terminal`. No hard-coded
+> `done|killed` set literal survives. **Both arms are now backed identically** — each reads the same
+> shared array the renderer itself iterates — so there is no asymmetry to caveat and no follow-up to
+> name. The `renders_row` comment must describe *that*, not what follows. (The renderer's two
+> remaining bare `"done"` comparisons — the mermaid done-node filter and the `ARCHIVE_RECENT`
+> collapse partition — are single-status semantics, since `killed` never collapses; neither
+> restates the terminal set.) Retained below only as the reasoning that made reading the shared
+> arrays the right call in the first place.
+
 **Neither arm is a mirror by construction today. Both rest on comment-asserted correspondence, and
 the difference between them is degree, not kind** — this must be stated exactly that way, because
 ADR-0050's own Consequences (:64–67) already records it as shipped fact: the active arm's
@@ -99,6 +118,12 @@ fourth restatement. Two consequences for the build:
    the renderer's literals and upgrades both. If 0116 has landed by build time, re-read
    `render-board.sh` and correct the comment rather than shipping it stale.
 2. Close the archive arm's corroboration gap mechanically — see **T9**.
+
+> **Reconcile resolution (2026-07-27).** 0116 *had* landed by build time, so consequence 1 resolves
+> by its own escape clause: re-read the renderer and write the comment to the post-0116 reality —
+> both arms read the shared arrays the renderer iterates, no caveat, no follow-up named. Consequence
+> 2 is void: the corroboration gap it points at no longer exists, so **T9 is dropped** rather than
+> deferred.
 
 The population site in the file walk drops its `fd_active = 1` guard and passes the directory it
 already computes:
@@ -214,7 +239,12 @@ repo; assertions key on `has_finding <out> board-row-dropped <id>`.
   switch runs, so mutating the archive status arm leaves it green. A builder who expects T5 to redden
   there will misread a working harness as broken — or, worse, "fix" the predicate until it does.
 
-- **T9 (correspondence assert)** — convert the archive arm's caveat from prose into a tripwire.
+- **T9 — DROPPED at reconcile (2026-07-27). Do not build.** It asked for a tripwire pinning the
+  renderer's `done|killed` `case` arms to `DOCKET_STATUSES_TERMINAL`. Change 0116 removed those arms
+  and replaced them with reads of that array, delivering the guarantee structurally instead of by
+  test; there is nothing left to tokenize. Original text retained for audit:
+
+  ~~**T9 (correspondence assert)** — convert the archive arm's caveat from prose into a tripwire.~~
   `tests/test_render_board.sh:1918–1929` already implements the pattern for `label_for_title`:
   tokenize the function's `case` arms and assert set-equality against the array in **both**
   directions. Copy it for the renderer's terminal literals — extract the `done|killed` arms
@@ -296,7 +326,11 @@ deferred human audit.
    **But the independence is not symmetric in value.** The renderer currently hard-codes its terminal
    literals (`render-board.sh:125`, :195, :309–310) and reads `DOCKET_STATUSES_TERMINAL` nowhere, so
    until 0116 single-sources them the archive arm is a mirror by *convention*, not by construction —
-   see the caveat in "The predicate". 0116 is what makes it real. Two things 0116 must not do: collapse
+   see the caveat in "The predicate". 0116 is what makes it real.
+   **Reconcile 2026-07-27: 0116 landed and did make it real; the asymmetry described in the rest of
+   this item no longer holds, and neither of the two prohibitions below was violated —
+   `DOCKET_STATUSES_ACTIVE` and `DOCKET_STATUSES_TERMINAL` remain distinct arrays and the renderer
+   reads them, not a third list.** Two things 0116 must not do: collapse
    `DOCKET_STATUSES_ACTIVE` and `DOCKET_STATUSES_TERMINAL` into a single `DOCKET_STATUSES` read (the
    difference between those sets is this check's entire signal), or single-source the renderer's
    literals to some *third* list this predicate does not read.
@@ -317,4 +351,7 @@ deferred human audit.
    path component; anchoring the glob on `"$CHANGES_DIR"/active/*` hardens it. Both are cheap to fix
    in passing if the builder is already in those lines; neither is a reason to widen this change's
    scope, and neither is newly introduced by it.
+   **Reconcile 2026-07-27:** (ii) is taken in passing — the build edits that exact line, so anchoring
+   the glob on `"$CHANGES_DIR"/active/*` costs nothing. (i) stays out of scope (re-keying
+   `DROPPED`/`EXPLAINED` by path touches every marking site) and is captured as a follow-up stub.
 10. **`depends_on` state:** none. The stub has no dependencies and none was inferred.
