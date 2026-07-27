@@ -110,6 +110,11 @@ check_site(){ # $1 file  $2 anchor regex  $3 expected tier  $4 label  $5 site no
   # green before this assert existed — the phrase appeared nowhere in this file at all.
   assert "$label: paragraph cites the convention's Dispatch-capability resolution rule" \
     'grep -qF -- "Dispatch-capability resolution" <<<"$p"'
+  # The section title alone is not the whole clause: "never from a tool name" is the half that
+  # forbids the false-negative this change exists to end, so it gets its own assert. Deleting it
+  # from all five sites kept the suite green when only the title was checked.
+  assert "$label: paragraph forbids concluding unavailability from a tool name" \
+    'grep -qF -- "never from a tool name" <<<"$p"'
   # Proximity, either order, same clause: "$noun ... $tier" or "$tier ... $noun" within 80 chars
   # and never crossing a `;` or `.` — bare presence of the tier literal anywhere in the paragraph
   # is not this assert; it must sit in the same clause as THIS site's own noun.
