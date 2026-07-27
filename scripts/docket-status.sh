@@ -704,7 +704,14 @@ health_checks(){
   # refs coincide so the comparison is vacuous. "${TERMINAL_PUBLISH:-false}" guards a stale or
   # mocked config export that does not emit the key (the change-0064 unbound-variable shape).
   local adr_args=()
-  if [ -n "${ADRS_DIR:-}" ]; then
+  # change 0117 review: ADRS_DIR is never empty (docket-config.sh defaults it to docs/adrs and
+  # always exports it), so gating on -n alone always passes --adrs-dir even when the directory
+  # does not exist (a fresh repo that skipped seeding adrs/ — migrate-to-docket.sh's fresh-repo path). board-
+  # checks.sh's exit-2-on-missing-dir rule is correct for a hand-run caller with a typo'd path,
+  # but here it would exit the whole pipeline non-zero and silently drop EVERY health check
+  # (broken-spec, dep-cycle, merged-orphan, board-row-dropped, ...), not just adr-unpublished.
+  # Require the directory to actually exist before ever passing --adrs-dir.
+  if [ -n "${ADRS_DIR:-}" ] && [ -d "$mw/$ADRS_DIR" ]; then
     adr_args+=(--adrs-dir "$mw/$ADRS_DIR")
     if [ "${TERMINAL_PUBLISH:-false}" = true ] && [ "${DOCKET_MODE:-}" = docket ]; then
       adr_args+=(--terminal-publish)

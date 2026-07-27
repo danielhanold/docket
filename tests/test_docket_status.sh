@@ -1145,7 +1145,7 @@ assert "0084 gate(TERMINAL_PUBLISH unset): defaults to DISABLED — archived rec
 # Mock board-checks.sh via SCRIPTS_DIR — this is a pure formatting/plumbing test, not a
 # re-test of board-checks.sh's own check logic.
 health_dir="$tmp/health-case"
-mkdir -p "$health_dir/docs/changes/active" "$tmp/mock-health"
+mkdir -p "$health_dir/docs/changes/active" "$health_dir/docs/adrs" "$health_dir/.docket/docs/adrs" "$tmp/mock-health"
 cat > "$tmp/mock-health/board-checks.sh" <<'EOF'
 #!/usr/bin/env bash
 echo "board-checks $*" >> "$HEALTH_LOG"
@@ -1201,6 +1201,28 @@ health_out_unset="$( cd "$health_dir" && \
   bash -c '. "'"$SCRIPT"'"; health_checks' )"
 assert "0117 gate(TERMINAL_PUBLISH unset): no unbound-variable crash, flag not passed" \
   '! grep -q -- "--terminal-publish" "$health_log_unset"'
+
+# --- C1 (review round): ADRS_DIR is NEVER empty (docket-config.sh defaults it to docs/adrs and
+# always exports it), so gating solely on `-n "${ADRS_DIR:-}"` always passes --adrs-dir, even for
+# a repo whose ADR directory does not exist at all (a fresh repo that skipped seeding adrs/ per
+# migrate-to-docket.sh's fresh-repo path). board-checks.sh correctly exit-2's on a supplied-but-missing dir (a
+# hand-run caller's typo must not silently no-op) — but health_checks pipes into a `while read`
+# loop, so that exit 2 yields ZERO `check` lines, losing EVERY health check, not just
+# adr-unpublished. health_checks must therefore only pass --adrs-dir when the directory exists.
+health_dir_nodir="$tmp/health-case-nodir"
+mkdir -p "$health_dir_nodir/docs/changes/active"   # deliberately NO docs/adrs
+health_log_nodir="$tmp/health-calls-nodir.log"; : > "$health_log_nodir"
+health_out_nodir="$( cd "$health_dir_nodir" && \
+  DOCKET_MODE=docket CHANGES_DIR=docs/changes ADRS_DIR=docs/adrs TERMINAL_PUBLISH=true \
+  INTEGRATION_BRANCH=main METADATA_BRANCH=docket \
+  SCRIPTS_DIR="$tmp/mock-health" HEALTH_LOG="$health_log_nodir" \
+  bash -c '. "'"$SCRIPT"'"; health_checks' )"
+assert "C1: health_checks still emits check lines when ADRS_DIR points at a nonexistent dir" \
+  'printf "%s\n" "$health_out_nodir" | grep -qF "check broken-spec 12 spec path missing on docket"'
+assert "C1: health_checks does NOT pass --adrs-dir when the dir does not exist" \
+  '! grep -q -- "--adrs-dir" "$health_log_nodir"'
+assert "C1: --terminal-publish is also withheld when --adrs-dir is withheld (gated on it existing)" \
+  '! grep -q -- "--terminal-publish" "$health_log_nodir"'
 
 # health_checks: clean tree (no findings) prints nothing.
 mkdir -p "$tmp/mock-health-clean"
