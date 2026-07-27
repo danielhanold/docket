@@ -291,6 +291,6 @@ docket_priority_rank(){
 # script's own --help header enumeration, against scripts/board-checks.md's per-check sections, and
 # against scripts/docket-status.md's `check` report-line row. Adding a check-id means editing the
 # array plus the four surfaces it is pinned against; the guard's failure messages name them.
-BOARD_CHECK_IDS=(board-row-dropped broken-plan-results broken-spec dep-cycle field-domain
-                 malformed-id merge-gate-stall merged-orphan publish-deferred
+BOARD_CHECK_IDS=(adr-unpublished board-row-dropped broken-plan-results broken-spec dep-cycle
+                 field-domain malformed-id merge-gate-stall merged-orphan publish-deferred
                  stale-finalize-blocked stale-in-progress unknown-commit-ref)

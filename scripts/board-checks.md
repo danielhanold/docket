@@ -13,7 +13,7 @@ and owns human-facing display. The one judgment-bearing check — `blocked_by:` 
 
 ```
 board-checks.sh --changes-dir DIR --metadata-branch BR --integration-branch BR [--strict]
-                 [--lease-ttl-hours N]
+                 [--lease-ttl-hours N] [--adrs-dir DIR] [--terminal-publish]
 ```
 
 | Flag | Required | Description |
@@ -23,6 +23,8 @@ board-checks.sh --changes-dir DIR --metadata-branch BR --integration-branch BR [
 | `--integration-branch BR` | yes | The branch against which `plan:` / `results:` paths for `done` changes are resolved. |
 | `--strict` | no | Exit 1 if any finding is emitted (a CI gate). Default: exit 0 regardless of findings. |
 | `--lease-ttl-hours N` | no | Claim-lease TTL (hours) for the `stale-in-progress` check's `claimed_at:` signal. Default `72` when absent, so standalone use stays sane. |
+| `--adrs-dir DIR` | no | Path to the flat ADR directory. Enables the `adr-unpublished` check (with `--terminal-publish`). A supplied path that does not exist is an error (exit 2), never a silent skip. |
+| `--terminal-publish` | no | Opens the `adr-unpublished` gate. The caller passes it only when `terminal_publish: true` **and** docket-mode; absent, the check emits nothing. |
 
 **Output format:** every finding is `<check-id>\t<change-id>\t<message>` on stdout, sorted
 by `(check-id asc, change-id numeric asc)`. A clean tree produces no output.
@@ -103,6 +105,18 @@ forever under `terminal_publish: false`, and break this script's git-only/offlin
 deferral nobody marked stays as invisible as it was before change 0083 — the check raises the floor
 for drivers that follow the rule, it does not detect the gap independently. Warn-only; it never
 mutates the change file.
+
+**`adr-unpublished`** — An ADR whose publish onto the integration branch was due but did not
+happen. Gated: emits nothing unless `--adrs-dir` is supplied **and** `--terminal-publish` is
+passed. Walks `<adrs-dir>/*.md` (excluding `README.md` and any file whose basename yields no
+padded id), and for each resolves the blob on `--metadata-branch` and on `--integration-branch`
+via `git rev-parse --verify -q <ref>:<path>` — local refs only, no network. The due rule: a
+standalone `Accepted` ADR is due immediately; a `change:`-tied ADR is due once that change reaches
+`done` or `killed`; an ADR already present on the integration branch is due always, whatever its
+status. An ADR that is neither `Accepted` nor already published is never expected there, and an
+unresolvable `change:` stays silent. The change-id column carries the validated `change:` id when
+there is one and `?` otherwise (ADR-0049); the ADR number is always named in the message. Report
+only — this check writes nothing and heals nothing.
 
 **`merged-orphan`** — A change id is referenced by a commit *subject* on `--integration-branch`
 while the change is still non-terminal (a file under `active/`, not yet archived). This is the
