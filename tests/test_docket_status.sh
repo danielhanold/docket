@@ -1155,7 +1155,8 @@ chmod +x "$tmp/mock-health/board-checks.sh"
 health_log="$tmp/health-calls.log"; : > "$health_log"
 
 health_out="$( cd "$health_dir" && \
-  DOCKET_MODE=main CHANGES_DIR=docs/changes INTEGRATION_BRANCH=main METADATA_BRANCH=main \
+  DOCKET_MODE=main CHANGES_DIR=docs/changes ADRS_DIR=docs/adrs TERMINAL_PUBLISH=true \
+  INTEGRATION_BRANCH=main METADATA_BRANCH=main \
   SCRIPTS_DIR="$tmp/mock-health" HEALTH_LOG="$health_log" \
   bash -c '. "'"$SCRIPT"'"; health_checks' )"
 assert "health_checks: prefixes board-checks finding as 'check <id> <change-id> <message>'" \
@@ -1163,6 +1164,43 @@ assert "health_checks: prefixes board-checks finding as 'check <id> <change-id> 
 assert "health_checks: invokes board-checks.sh with expected flags" \
   'grep -Eq -- "--changes-dir \./?docs/changes" "$health_log" && grep -q -- "--metadata-branch main" "$health_log" \
    && grep -q -- "--integration-branch origin/main" "$health_log"'
+
+# --- change 0117: the ADR-check arguments, and the CALLER-SIDE leg of its gate ----------------
+# The script-side leg (--terminal-publish absent => silent) is pinned in tests/test_board_checks.sh.
+# THIS is the other leg: docket-status passes the flag only under terminal_publish:true AND
+# docket-mode. Both negatives are asserted, not just the positive — a gate that is only ever tested
+# open is a gate nothing proves is closed.
+assert "0117: health_checks passes --adrs-dir" \
+  'grep -Eq -- "--adrs-dir \./?docs/adrs" "$health_log"'
+assert "0117 gate(main-mode): --terminal-publish is NOT passed even with TERMINAL_PUBLISH=true" \
+  '! grep -q -- "--terminal-publish" "$health_log"'
+
+health_log_dk="$tmp/health-calls-docket.log"; : > "$health_log_dk"
+health_out_dk="$( cd "$health_dir" && \
+  DOCKET_MODE=docket CHANGES_DIR=docs/changes ADRS_DIR=docs/adrs \
+  INTEGRATION_BRANCH=main METADATA_BRANCH=docket TERMINAL_PUBLISH=true \
+  SCRIPTS_DIR="$tmp/mock-health" HEALTH_LOG="$health_log_dk" \
+  bash -c '. "'"$SCRIPT"'"; health_checks' )"
+assert "0117 gate(docket-mode + terminal_publish:true): --terminal-publish IS passed" \
+  'grep -q -- "--terminal-publish" "$health_log_dk"'
+
+health_log_off="$tmp/health-calls-off.log"; : > "$health_log_off"
+health_out_off="$( cd "$health_dir" && \
+  DOCKET_MODE=docket CHANGES_DIR=docs/changes ADRS_DIR=docs/adrs \
+  INTEGRATION_BRANCH=main METADATA_BRANCH=docket TERMINAL_PUBLISH=false \
+  SCRIPTS_DIR="$tmp/mock-health" HEALTH_LOG="$health_log_off" \
+  bash -c '. "'"$SCRIPT"'"; health_checks' )"
+assert "0117 gate(docket-mode + terminal_publish:false): --terminal-publish is NOT passed" \
+  '! grep -q -- "--terminal-publish" "$health_log_off"'
+
+health_log_unset="$tmp/health-calls-unset.log"; : > "$health_log_unset"
+health_out_unset="$( cd "$health_dir" && \
+  DOCKET_MODE=docket CHANGES_DIR=docs/changes ADRS_DIR=docs/adrs \
+  INTEGRATION_BRANCH=main METADATA_BRANCH=docket \
+  SCRIPTS_DIR="$tmp/mock-health" HEALTH_LOG="$health_log_unset" \
+  bash -c '. "'"$SCRIPT"'"; health_checks' )"
+assert "0117 gate(TERMINAL_PUBLISH unset): no unbound-variable crash, flag not passed" \
+  '! grep -q -- "--terminal-publish" "$health_log_unset"'
 
 # health_checks: clean tree (no findings) prints nothing.
 mkdir -p "$tmp/mock-health-clean"

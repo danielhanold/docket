@@ -698,10 +698,22 @@ health_checks(){
   local cd_dir="$mw/$CHANGES_DIR"
   local metadata_branch
   if [ "${DOCKET_MODE:-}" = docket ]; then metadata_branch="$METADATA_BRANCH"; else metadata_branch="$INTEGRATION_BRANCH"; fi
+  # change 0117: the adr-unpublished check is opt-in on --adrs-dir, and its gate opens only when
+  # terminal_publish is true AND we are in docket-mode. BOTH legs are resolved HERE, not in
+  # board-checks.sh: mode is this script's knowledge, and in main-mode the metadata and integration
+  # refs coincide so the comparison is vacuous. "${TERMINAL_PUBLISH:-false}" guards a stale or
+  # mocked config export that does not emit the key (the change-0064 unbound-variable shape).
+  local adr_args=()
+  if [ -n "${ADRS_DIR:-}" ]; then
+    adr_args+=(--adrs-dir "$mw/$ADRS_DIR")
+    if [ "${TERMINAL_PUBLISH:-false}" = true ] && [ "${DOCKET_MODE:-}" = docket ]; then
+      adr_args+=(--terminal-publish)
+    fi
+  fi
   "$DOCKET_BASH_PATH" "$SCRIPTS_DIR"/board-checks.sh \
     --changes-dir "$cd_dir" --metadata-branch "$metadata_branch" \
     --integration-branch "origin/$INTEGRATION_BRANCH" \
-    --lease-ttl-hours "${RECLAIM_LEASE_TTL:-72}" 2>&2 | \
+    --lease-ttl-hours "${RECLAIM_LEASE_TTL:-72}" "${adr_args[@]}" 2>&2 | \
   while IFS=$'\t' read -r check_id change_id message; do
     [ -n "$check_id" ] || continue
     echo "check $check_id $change_id $message"
