@@ -59,6 +59,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0056](0056-config-manifest-key-scoping-follows-resolver-read-shape.md) — Config-manifest keys are qualified by their ancestor path; the duplicate-name floor is derived from the resolver's read shape (Accepted) ← change #127
 - [ADR-0057](0057-frontmatter-read-must-be-anchored-when-key-may-be-absent.md) — A frontmatter read must be anchored when the key may be absent (Accepted) ← change #127
 - [ADR-0058](0058-two-tier-frontmatter-scalar-readers-field-vs-field-raw.md) — Two-tier frontmatter scalar readers — field() (logical value) vs field_raw() (raw token) (Accepted) ← change #138
+- [ADR-0059](0059-dispatch-capability-resolved-not-inferred-from-tool-name.md) — Dispatch capability is resolved, never inferred from a tool name; unavailability is tiered (Accepted) ← change #137 · relates to ADR-0008, ADR-0017, ADR-0024, ADR-0026
 
 ## Superseded / Reversed
 
