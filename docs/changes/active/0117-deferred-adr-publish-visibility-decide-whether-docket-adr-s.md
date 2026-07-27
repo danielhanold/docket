@@ -2,7 +2,7 @@
 id: 117
 slug: deferred-adr-publish-visibility-decide-whether-docket-adr-s
 title: Deferred ADR-publish visibility — detect an unpublished ADR with a computed board-checks finding
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-21
 updated: 2026-07-27
@@ -12,12 +12,12 @@ discovered_from: [83]
 adrs: [51, 61]
 spec: docs/superpowers/specs/2026-07-21-unpublished-adr-check-design.md
 plan: docs/superpowers/plans/2026-07-27-unpublished-adr-check-plan.md
-results:
+results: docs/results/2026-07-27-deferred-adr-publish-visibility-results.md
 trivial: false
 auto_groomable:
 branch: feat/deferred-adr-publish-visibility-decide-whether-docket-adr-s
-claimed_at: 2026-07-27T23:02:21Z
-pr:
+claimed_at: 2026-07-27T23:06:52Z
+pr: https://github.com/danielhanold/docket/pull/129
 blocked_by:
 reconciled: true
 type: feat
@@ -30,6 +30,8 @@ type: feat
 |---|---|
 | Spec | [2026-07-21-unpublished-adr-check-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-21-unpublished-adr-check-design.md) |
 | Plan | [2026-07-27-unpublished-adr-check-plan.md](https://github.com/danielhanold/docket/blob/feat/deferred-adr-publish-visibility-decide-whether-docket-adr-s/docs/superpowers/plans/2026-07-27-unpublished-adr-check-plan.md) |
+| Results | [2026-07-27-deferred-adr-publish-visibility-results.md](https://github.com/danielhanold/docket/blob/feat/deferred-adr-publish-visibility-decide-whether-docket-adr-s/docs/results/2026-07-27-deferred-adr-publish-visibility-results.md) |
+| PR | [#129](https://github.com/danielhanold/docket/pull/129) |
 | ADRs | [ADR-0051](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0051-publish-deferred-marker-not-branch-diff-detector.md), [ADR-0061](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0061-detect-vs-mark-a-missing-terminal-record.md) |
 <!-- docket:artifacts:end -->
 
