@@ -349,7 +349,9 @@ if [ -n "$ADRS_DIR" ] && [ "$ADR_GATE" = 1 ]; then
   # config value: the script is handed a FILESYSTEM path (as with --changes-dir) but must probe
   # refs, which are addressed repo-relative. --show-prefix is worktree-root-relative, which is
   # exactly what `<ref>:<path>` wants, and it needs no network.
-  adr_prefix="$("$GIT" -C "$ADRS_DIR" rev-parse --show-prefix 2>/dev/null)"
+  if ! adr_prefix="$("$GIT" -C "$ADRS_DIR" rev-parse --show-prefix 2>/dev/null)"; then
+    printf 'board-checks: adrs dir is not inside a git worktree: %s\n' "$ADRS_DIR" >&2; exit 2
+  fi
   mapfile -t ADR_FILES < <(find "$ADRS_DIR" -maxdepth 1 -name '*.md' ! -name 'README.md' 2>/dev/null | sort)
   for af in "${ADR_FILES[@]}"; do
     a_num="$(padded_id_from_file "$af")"
@@ -376,7 +378,7 @@ if [ -n "$ADRS_DIR" ] && [ "$ADR_GATE" = 1 ]; then
       # Present on the integration branch => due FOREVER, whatever its status. This row is what
       # catches an un-re-published status flip, and it is deliberately status-blind: an ADR
       # published while Accepted must keep tracking its bytes after it is Superseded or Reversed.
-      # (stale arm lands in Task 2.)
+      # (the byte-comparison stale arm attaches here — change 0117.)
       continue
     fi
 
