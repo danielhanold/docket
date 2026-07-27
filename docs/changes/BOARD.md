@@ -1,8 +1,14 @@
 # Backlog
 
-**142 changes** — 🟡 24 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 2 implemented · ✅ 102 done · 🗑️ 9 killed
+**142 changes** — 🟢 1 in progress · 🟡 23 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 2 implemented · ✅ 102 done · 🗑️ 9 killed
 
-## 🟡 Proposed (24)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch |
+|---|-------|----------|------|------|--------|
+| [0115](active/0115-extend-the-board-row-dropped-invariant-to-archive-files.md) | Extend the board-row-dropped invariant to archive/ files | `medium` | `fix` | [spec](../superpowers/specs/2026-07-20-archive-side-row-dropped-invariant-design.md) | `feat/extend-the-board-row-dropped-invariant-to-archive-files` |
+
+## 🟡 Proposed (23)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -13,7 +19,6 @@
 | [0103](active/0103-wire-the-github-project-config-read-documented-but-unwired-k.md) | Wire the github_project config read (documented-but-unwired key) | `low` | `fix` | needs-brainstorm |
 | [0110](active/0110-shared-metadata-worktree-contention.md) | Concurrent agents collide on the shared .docket worktree's dirty-tree window | `high` | `fix` | needs-brainstorm |
 | [0113](active/0113-suppressed-handoff-silently-ends-autonomous-run.md) | A suppressed hand-off can silently end an autonomous run — make step completion verifiable, not narrated | `high` | `fix` | needs-brainstorm |
-| [0115](active/0115-extend-the-board-row-dropped-invariant-to-archive-files.md) | Extend the board-row-dropped invariant to archive/ files | `medium` | `fix` | build-ready |
 | [0117](active/0117-deferred-adr-publish-visibility-decide-whether-docket-adr-s.md) | Deferred ADR-publish visibility — detect an unpublished ADR with a computed board-checks finding | `medium` | `feat` | build-ready |
 | [0118](active/0118-decide-whether-the-sweep-s-skip-publish-path-should-also-mar.md) | Decide whether the sweep's skip-publish path should also mark an unpublished terminal record | `medium` | `fix` | needs-brainstorm |
 | [0119](active/0119-scope-the-metadata-worktree-git-commit-calls-to-the-paths-th.md) | Scope the metadata-worktree git commit calls to the paths they own | `medium` | `fix` | auto-groom blocked — needs you |
