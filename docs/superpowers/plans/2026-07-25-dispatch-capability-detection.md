@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0137 — Claude Code dispatch-capability detection: name-based probing silently drops SDD build and review discipline](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0137-forked-claude-code-skills-assume-absent-task-dispatch.md)**
+> ↩ **[Change 0137 — Claude Code dispatch-capability detection: name-based probing silently drops SDD build and review discipline](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-07-27-0137-forked-claude-code-skills-assume-absent-task-dispatch.md)**
 <!-- docket:backlink:end -->
 
 # Dispatch-Capability Detection Implementation Plan
