@@ -3,7 +3,7 @@
 <!-- docket:backlink:end -->
 
 # Dispatch-capability detection — results
-Change: #0137 · Branch: feat/forked-claude-code-skills-assume-absent-task-dispatch · PR: <url> · Plan: docs/superpowers/plans/2026-07-25-dispatch-capability-detection.md · ADRs: 0059 (new), 0024 (dated Update)
+Change: #0137 · Branch: feat/forked-claude-code-skills-assume-absent-task-dispatch · PR: https://github.com/danielhanold/docket/pull/126 · Plan: docs/superpowers/plans/2026-07-25-dispatch-capability-detection.md · ADRs: 0059 (new), 0024 (dated Update)
 
 ## Live dispatch spike (gating)
 
