@@ -2,10 +2,10 @@
 id: 115
 slug: extend-the-board-row-dropped-invariant-to-archive-files
 title: Extend the board-row-dropped invariant to archive/ files
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-07-20
-updated: 2026-07-20
+updated: 2026-07-27
 depends_on: []
 related: []
 discovered_from: [104]
@@ -15,7 +15,8 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch:
+branch: feat/extend-the-board-row-dropped-invariant-to-archive-files
+claimed_at: 2026-07-27T18:51:52Z
 pr:
 blocked_by:
 reconciled: false
