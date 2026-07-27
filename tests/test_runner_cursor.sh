@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+# tests/test_runner_cursor.sh — the cursor runner adapter (change 0135). Mirrors runners/codex.sh:
+# preflight, prompt assembly from the built-in wrapper source, verbatim model passthrough with
+# effort ridden inside the model value, foreground exec, final-message relay on stdout.
+# Failure posture is LOUD abort-and-report — never a silent inline fall-back, which would
+# reproduce change 0135's own root cause in a new location.
+# run: bash tests/test_runner_cursor.sh
+set -uo pipefail
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ADAPTER="$REPO/scripts/runners/cursor.sh"
+fail=0
+assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
+
+assert "adapter exists" '[ -f "$ADAPTER" ]'
+assert "contract doc exists (test_script_contracts_coverage parity)" '[ -f "$REPO/scripts/runners/cursor.md" ]'
+assert "registered in sync-agents REGISTERED_RUNNERS" 'grep -qE "^REGISTERED_RUNNERS=\"[^\"]*\bcursor\b" "$REPO/sync-agents.sh"'
+
+# A mock cursor-agent that records its argv + counts invocations and prints a final message.
+MOCK_DIR="$(mktemp -d)"
+cat > "$MOCK_DIR/cursor-agent" <<'MOCK'
+#!/usr/bin/env bash
+printf '%s\n' "$@" > "$MOCK_ARGV"
+printf 'CALL\n' >> "${MOCK_CALLS:-/dev/null}"
+printf 'MOCK-FINAL-MESSAGE\n'
+exit "${MOCK_RC:-0}"
+MOCK
+chmod +x "$MOCK_DIR/cursor-agent"
+
+run_adapter(){  # $@ = adapter args ; sets OUT / RC / ARGV / CALLS
+  MOCK_ARGV="$MOCK_DIR/argv.txt"
+  MOCK_CALLS="$MOCK_DIR/calls.txt"
+  : > "$MOCK_CALLS"
+  OUT="$( MOCK_ARGV="$MOCK_ARGV" MOCK_CALLS="$MOCK_CALLS" MOCK_RC="${MOCK_RC:-0}" \
+          CURSOR_BIN="$MOCK_DIR/cursor-agent" \
+          DOCKET_REPO_ROOT="$REPO" bash "$ADAPTER" "$@" 2>/dev/null )"
+  RC=$?
+  ARGV="$(cat "$MOCK_ARGV" 2>/dev/null)"
+  CALLS="$(grep -c CALL "$MOCK_CALLS" 2>/dev/null)"
+}
+
+# --- happy path: foreground exec, final message relayed on stdout --------------------------------
+run_adapter --agent status --model gpt-5.5-medium-fast --effort high
+assert "happy: exits 0"                       '[ "$RC" = "0" ]'
+assert "happy: relays the child final message" 'grep -qF "MOCK-FINAL-MESSAGE" <<<"$OUT"'
+assert "happy: passes -p (non-interactive print mode)" 'grep -qxF -- "-p" <<<"$ARGV"'
+assert "happy: passes --output-format text"   'grep -qxF -- "--output-format" <<<"$ARGV" && grep -qxF -- "text" <<<"$ARGV"'
+assert "happy: model is passed via --model"   'grep -qxF -- "--model" <<<"$ARGV"'
+assert "happy: effort rides INSIDE the model value" 'grep -qF -- "gpt-5.5-medium-fast[effort=high]" <<<"$ARGV"'
+assert "happy: no separate --effort flag exists on cursor-agent" '! grep -qxF -- "--effort" <<<"$ARGV"'
+assert "happy: prompt carries the skills to load"  'grep -qF "docket-convention" <<<"$ARGV"'
+assert "happy: prompt carries the wrapper body"    'grep -qi "refresh docket state" <<<"$ARGV"'
+assert "happy: exactly one cursor-agent invocation" '[ "$CALLS" = "1" ]'
+
+# --- passthrough args land in the prompt ---------------------------------------------------------
+run_adapter --agent status -- please-do-0135
+assert "passthrough: -- args reach the prompt" 'grep -qF "please-do-0135" <<<"$ARGV"'
+
+# --- no effort => BARE model, no bracket ---------------------------------------------------------
+run_adapter --agent status --model gpt-5.5-medium-fast
+assert "no effort: model passed bare" 'grep -qxF -- "gpt-5.5-medium-fast" <<<"$ARGV"'
+assert "no effort: no bracket encoding" '! grep -qF -- "[effort=" <<<"$ARGV"'
+
+# --- effort 'auto' => treated as no pin, bare model ----------------------------------------------
+run_adapter --agent status --model gpt-5.5-medium-fast --effort auto
+assert "auto effort: model passed bare" 'grep -qxF -- "gpt-5.5-medium-fast" <<<"$ARGV"'
+
+# --- no model + an effort => effort DROPPED with a warn (mirrors the emitter's edge case) --------
+: > "$MOCK_DIR/argv.txt"
+ERR="$( MOCK_ARGV="$MOCK_DIR/argv.txt" CURSOR_BIN="$MOCK_DIR/cursor-agent" DOCKET_REPO_ROOT="$REPO" \
+        bash "$ADAPTER" --agent status --effort high 2>&1 >/dev/null )"
+assert "no model: effort dropped with a WARN" 'grep -qi "effort" <<<"$ERR" && grep -qi "dropped" <<<"$ERR"'
+assert "no model: no --model flag passed" '! grep -qxF -- "--model" "$MOCK_DIR/argv.txt"'
+assert "no model: child still ran (drop is not an abort)" 'grep -qxF -- "-p" "$MOCK_DIR/argv.txt"'
+
+# --- preflight: binary missing => loud abort, NEVER a degrade ------------------------------------
+OUT="$( CURSOR_BIN="$MOCK_DIR/definitely-not-here" DOCKET_REPO_ROOT="$REPO" \
+        bash "$ADAPTER" --agent status 2>&1 )"; RC=$?
+assert "preflight: missing binary exits nonzero" '[ "$RC" != "0" ]'
+# NOTE: this worktree's own path contains the string "cursor-agent", so a bare
+# `grep -qi cursor-agent` would pass off any shell error mentioning the path. Anchor on the
+# adapter's own diagnostic prefix instead.
+assert "preflight: diagnostic is the adapter's own, and names cursor-agent" 'grep -qF "runners/cursor:" <<<"$OUT" && grep -qF "cursor-agent CLI" <<<"$OUT"'
+assert "preflight: never suggests running inline instead" '! grep -qi "inline" <<<"$OUT"'
+assert "preflight: never suggests a fall-back" '! grep -qi "fall.back\|fallback\|instead run\|natively" <<<"$OUT"'
+
+# --- source posture: no backgrounding, no inline-degrade path in the adapter itself ---------------
+assert "source: never backgrounds the child" '! grep -qE "\"\\$\{cmd\[@\]\}\"[[:space:]]*.*&[[:space:]]*$" "$ADAPTER"'
+assert "source: records the unreliability risk" 'grep -qi "unreliable" "$ADAPTER"'
+
+# --- child nonzero propagates (abort-and-report, no retry) ---------------------------------------
+MOCK_RC=7 run_adapter --agent status
+assert "child nonzero: adapter propagates it" '[ "$RC" = "7" ]'
+assert "child nonzero: no retry (single invocation)" '[ "$CALLS" = "1" ]'
+unset MOCK_RC
+
+# --- missing DOCKET_REPO_ROOT => precondition abort ----------------------------------------------
+OUT="$( CURSOR_BIN="$MOCK_DIR/cursor-agent" bash "$ADAPTER" --agent status 2>&1 )"; RC=$?
+assert "precondition: unset DOCKET_REPO_ROOT aborts" '[ "$RC" != "0" ]'
+assert "precondition: names runner-dispatch as the entry point" 'grep -qi "runner-dispatch" <<<"$OUT"'
+
+# --- unknown agent => precondition abort ----------------------------------------------------------
+OUT="$( CURSOR_BIN="$MOCK_DIR/cursor-agent" DOCKET_REPO_ROOT="$REPO" bash "$ADAPTER" --agent nope 2>&1 )"; RC=$?
+assert "precondition: unknown agent aborts" '[ "$RC" != "0" ]'
+assert "precondition: names the expected source path" 'grep -qF "docket-nope.md" <<<"$OUT"'
+
+# --- unknown argument => precondition abort -------------------------------------------------------
+OUT="$( CURSOR_BIN="$MOCK_DIR/cursor-agent" DOCKET_REPO_ROOT="$REPO" bash "$ADAPTER" --bogus x 2>&1 )"; RC=$?
+assert "precondition: unknown argument aborts" '[ "$RC" != "0" ]'
+
+# --- missing --agent => precondition abort --------------------------------------------------------
+OUT="$( CURSOR_BIN="$MOCK_DIR/cursor-agent" DOCKET_REPO_ROOT="$REPO" bash "$ADAPTER" 2>&1 )"; RC=$?
+assert "precondition: missing --agent aborts" '[ "$RC" != "0" ]'
+
+rm -rf "$MOCK_DIR"
+echo "---"; [ "$fail" = "0" ] && echo "ALL PASS" || echo "FAILURES"; exit $fail
