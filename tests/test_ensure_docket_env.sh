@@ -161,4 +161,58 @@ MIG="$REPO/migrate-to-docket.sh"
 assert "migrate next-steps names DOCKET_SCRIPTS_DIR"  'grep -qF "DOCKET_SCRIPTS_DIR" "$MIG"'
 assert "migrate next-steps points at install.sh"      'grep -qE "install\.sh" "$MIG"'
 
+# --- change 0152: pin all five runtime diagnostics BEFORE the detection moves to the shared
+# library. The suite asserted NONE of them, which made "the consolidation is message-preserving"
+# unfalsifiable exactly where it matters. These are CHARACTERIZATION tests: green before and after.
+mkfake(){ # mkfake <path> <first --version line> [noexec]
+  mkdir -p "$(dirname "$1")"
+  cat > "$1" <<EOF
+#!/bin/sh
+[ "\$#" -eq 1 ] && [ "\$1" = --version ] || exit 42
+printf '%s\n' '$2'
+EOF
+  if [ "${3-}" = noexec ]; then chmod -x "$1"; else chmod +x "$1"; fi
+}
+FAKE_BIN="$(mktemp -d)"; _tmpdirs+=("$FAKE_BIN")
+mkfake "$FAKE_BIN/legacy"  'GNU bash, version 3.2.57(1)-release (fake-legacy)'
+mkfake "$FAKE_BIN/notbash" 'zsh 5.9 (arm64-apple-darwin)'
+mkfake "$FAKE_BIN/noexec"  'GNU bash, version 5.2.0(1)-release (test)' noexec
+printf '#!/bin/sh\nexit 7\n' > "$FAKE_BIN/novers"; chmod +x "$FAKE_BIN/novers"
+
+diag(){ # diag <DOCKET_BASH_PATH value> -> stderr+stdout of one rejected run
+  local h; h="$(mktemp -d)"; _tmpdirs+=("$h")
+  HOME="$h" DOCKET_HARNESS_ROOT="$h" DOCKET_TARGET_SHELL=zsh DOCKET_BASH_PATH="$1" \
+    bash "$SCRIPT" 2>&1
+}
+
+assert "0152 diagnostic: a relative path names 'must be an absolute path'" \
+  'grep -qF "DOCKET_BASH_PATH must be an absolute path" <<<"$(diag relative)"'
+assert "0152 diagnostic: a missing file names 'is not executable' with the path" \
+  'grep -qF "DOCKET_BASH_PATH is not executable: $FAKE_BIN/does-not-exist" <<<"$(diag "$FAKE_BIN/does-not-exist")"'
+assert "0152 diagnostic: a non-executable file names 'is not executable' with the path" \
+  'grep -qF "DOCKET_BASH_PATH is not executable: $FAKE_BIN/noexec" <<<"$(diag "$FAKE_BIN/noexec")"'
+assert "0152 diagnostic: a binary that cannot report a version names 'cannot report its version'" \
+  'grep -qF "DOCKET_BASH_PATH cannot report its version" <<<"$(diag "$FAKE_BIN/novers")"'
+assert "0152 diagnostic: a non-GNU binary names 'is not GNU Bash'" \
+  'grep -qF "DOCKET_BASH_PATH is not GNU Bash" <<<"$(diag "$FAKE_BIN/notbash")"'
+assert "0152 diagnostic: a Bash 3 binary names 'must be Bash 4 or newer'" \
+  'grep -qF "DOCKET_BASH_PATH must be Bash 4 or newer" <<<"$(diag "$FAKE_BIN/legacy")"'
+
+# NEGATIVE FIXTURES — the coverage gap this change exists to close. Routing through the library does
+# NOT by itself give this file coverage: without these two cases, breaking the library's major check
+# would leave tests/test_ensure_docket_env.sh fully green (green-suite-untested-branch).
+h152_legacy="$(mktemp -d)"; _tmpdirs+=("$h152_legacy")
+assert "0152 negative: a Bash 3.2 runtime is rejected non-zero" \
+  '! HOME="$h152_legacy" DOCKET_TARGET_SHELL=zsh DOCKET_BASH_PATH="$FAKE_BIN/legacy" bash "$SCRIPT" >/dev/null 2>&1'
+h152_notbash="$(mktemp -d)"; _tmpdirs+=("$h152_notbash")
+assert "0152 negative: a non-GNU runtime is rejected non-zero" \
+  '! HOME="$h152_notbash" DOCKET_TARGET_SHELL=zsh DOCKET_BASH_PATH="$FAKE_BIN/notbash" bash "$SCRIPT" >/dev/null 2>&1'
+
+# Neither rejection may touch the profile.
+h152="$(mktemp -d)"; _tmpdirs+=("$h152"); printf '# keep\n' > "$h152/.zshenv"
+HOME="$h152" DOCKET_HARNESS_ROOT="$h152" DOCKET_TARGET_SHELL=zsh DOCKET_BASH_PATH="$FAKE_BIN/legacy" \
+  bash "$SCRIPT" >/dev/null 2>&1
+assert "0152 negative: a rejected legacy runtime leaves the profile untouched" \
+  '[ "$(cat "$h152/.zshenv")" = "# keep" ]'
+
 exit $fail
