@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0135 — Generated Cursor wrappers violate Cursor's subagent contract, disabling skills and model effort](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0135-cursor-agent-wrapper-contract.md)**
+> ↩ **[Change 0135 — Generated Cursor wrappers violate Cursor's subagent contract, disabling skills and model effort](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-07-28-0135-cursor-agent-wrapper-contract.md)**
 <!-- docket:backlink:end -->
 
 # Cursor agent wrapper contract — results
