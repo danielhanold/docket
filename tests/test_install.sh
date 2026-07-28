@@ -107,4 +107,31 @@ assert "install.sh round-trips a metacharacter runtime literally" \
 assert "install.sh does not evaluate runtime metacharacters" '[ ! -e "$meta_tmp/pwned" ]'
 rm -rf "$meta_tmp"
 
+# change 0152: install.sh sources scripts/lib/docket-runtime.sh's docket_runtime_validate_bash
+# indirectly, through the ensure-global-config.sh primitive it runs first. That is install.sh's
+# ONLY reachable path to the library's major-version floor, so give it a real GNU Bash 4+ floor
+# fixture the same way tests/test_ensure_global_config.sh does for its own direct caller: an
+# explicit runtime.bash pointing at a hand-built 3.2.57 executable. Without this, breaking the
+# library's major check leaves this suite green even though install.sh is a surviving caller.
+legacy_tmp="$(mktemp -d)"
+mkdir -p "$legacy_tmp/.claude/skills" "$legacy_tmp/.config/docket" "$legacy_tmp/legacy-bash-root"
+cat > "$legacy_tmp/legacy-bash-root/bash" <<'EOF'
+#!/bin/sh
+[ "$#" -eq 1 ] && [ "$1" = --version ] || exit 42
+printf 'GNU bash, version 3.2.57(1)-release (test)\n'
+EOF
+chmod +x "$legacy_tmp/legacy-bash-root/bash"
+legacy_runtime="$legacy_tmp/legacy-bash-root/bash"
+printf "runtime:\n  bash: '%s'\n" "$legacy_runtime" > "$legacy_tmp/.config/docket/config.yml"
+legacy_before="$(cat "$legacy_tmp/.config/docket/config.yml")"
+legacy_out="$(cd "$legacy_tmp" && HOME="$legacy_tmp" DOCKET_HARNESS_ROOT="$legacy_tmp" DOCKET_TARGET_SHELL=zsh /bin/bash "$REPO/install.sh" 2>&1)"; legacy_rc=$?
+assert "install.sh rejects an explicit sub-4 GNU Bash runtime" '[ "$legacy_rc" -ne 0 ]'
+# Read verbatim from scripts/ensure-global-config.sh's own die() call — the primitive install.sh
+# runs first and the only place this diagnostic text is authored.
+assert "install.sh surfaces ensure-global-config.sh's not-Bash-4+ diagnostic" \
+  'grep -qF "configured runtime.bash is not an absolute executable GNU Bash 4+" <<<"$legacy_out"'
+assert "install.sh leaves the rejected config byte-identical" \
+  '[ "$(cat "$legacy_tmp/.config/docket/config.yml")" = "$legacy_before" ]'
+rm -rf "$legacy_tmp"
+
 exit $fail
