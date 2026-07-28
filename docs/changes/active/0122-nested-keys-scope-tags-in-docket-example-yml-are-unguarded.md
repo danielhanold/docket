@@ -11,7 +11,7 @@ related: []
 discovered_from: [102]
 adrs: []
 spec: docs/superpowers/specs/2026-07-26-nested-key-scope-tags-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-28-nested-key-scope-tags-plan.md
 results:
 trivial: false
 auto_groomable: true
@@ -29,6 +29,7 @@ type: fix
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-26-nested-key-scope-tags-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-26-nested-key-scope-tags-design.md) |
+| Plan | [2026-07-28-nested-key-scope-tags-plan.md](https://github.com/danielhanold/docket/blob/feat/nested-keys-scope-tags-in-docket-example-yml-are-unguarded/docs/superpowers/plans/2026-07-28-nested-key-scope-tags-plan.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
