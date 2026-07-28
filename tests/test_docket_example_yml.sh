@@ -699,6 +699,19 @@ if [ -n "$untagged_keys" ]; then
   echo "---"
 fi
 
+# POPULATION FLOOR — EXACT, and emitted by the guard's OWN pass (change 0122).
+# The emptiness assert above is green both when every key is covered AND when the pass enumerated
+# nothing at all; only a floor distinguishes those. The count MUST come from $scope_guard_out —
+# NOT from example_keys_raw's qualified extractor above, which would keep this green while the
+# guard's own pass reached zero nested keys, i.e. exactly the vacuity this assert exists to catch.
+#
+# EXACT, not >=. An at-least floor of 15 is satisfied by the PRE-0102 file and would tolerate a
+# regression that silently drops both runners.codex leaves. The 17: 3 finalize.*, 2 learnings.*,
+# 2 reclaim.*, 2 auto_capture.*, runners.codex + its 2 leaves, 5 skills.*.
+expected_nested_key_count=17
+assert "scope tag: the pass enumerated exactly $expected_nested_key_count keys at depth > 0 (got ${nested_key_count:-0}; if you added or removed a nested key in .docket.example.yml, bump expected_nested_key_count in the same commit)" \
+  '[ "${nested_key_count:-0}" = "$expected_nested_key_count" ]'
+
 # --- (3) PRESENCE-SENSITIVE keys ship COMMENTED ------------------------------
 # Regression guard for a real break (change 0048): gating per-repo generation on file PRESENCE
 # littered wrappers into change-tracking-only repos and flipped their --check from a no-op to
