@@ -1,6 +1,6 @@
 # Backlog
 
-**149 changes** — 🟢 1 in progress · 🟡 25 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 3 implemented · ✅ 106 done · 🗑️ 9 killed
+**151 changes** — 🟢 1 in progress · 🟡 27 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 2 implemented · ✅ 107 done · 🗑️ 9 killed
 
 ## 🟢 In progress (1)
 
@@ -8,7 +8,7 @@
 |---|-------|----------|------|------|--------|
 | [0130](active/0130-make-the-finalize-marker-reachability-guard-portable-to-bsd.md) | Make the finalize marker reachability guard portable to BSD grep | `medium` | `fix` | [spec](../superpowers/specs/2026-07-27-bsd-grep-interval-portability-design.md) | `feat/make-the-finalize-marker-reachability-guard-portable-to-bsd` |
 
-## 🟡 Proposed (25)
+## 🟡 Proposed (27)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -37,6 +37,8 @@
 | [0147](active/0147-extend-the-2c-orphan-key-check-past-its-column-0-anchor-to-n.md) | Extend the (2c) orphan-key check past its column-0 anchor to nested keys | `medium` | `fix` | needs-brainstorm |
 | [0148](active/0148-two-unfalsifiable-z-asserts-in-the-config-suite-sit-in-eval.md) | Two unfalsifiable -z asserts in the config suite sit in eval-free blocks | `medium` | `chore` | needs-brainstorm |
 | [0149](active/0149-make-the-prelude-guard-s-exemption-bound-proportional-and-cl.md) | Make the prelude guard's exemption bound proportional, and close the partial-rename gap | `medium` | `chore` | needs-brainstorm |
+| [0150](active/0150-pin-or-report-the-resolved-shell-toolchain-across-the-test-s.md) | Pin or report the resolved shell toolchain across the test suite | `medium` | `chore` | needs-brainstorm |
+| [0151](active/0151-vacuous-docket-bash-path-asserts-sit-in-eval-free-blocks-out.md) | Vacuous DOCKET_BASH_PATH asserts sit in eval-free blocks, out of the poison-prelude guard's reach | `medium` | `fix` | needs-brainstorm |
 
 ## 🔴 Blocked (1)
 
@@ -53,12 +55,11 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (3)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | `chore` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
-| [0126](active/0126-apply-the-poison-value-prelude-uniformly-to-every-resolver-e.md) | Apply the poison-value prelude uniformly to every resolver eval in the config suite | `medium` | `chore` | [#132](https://github.com/danielhanold/docket/pull/132) |  |
 | [0135](active/0135-cursor-agent-wrapper-contract.md) | Generated Cursor wrappers violate Cursor's subagent contract, disabling skills and model effort | `high` | `fix` | [#127](https://github.com/danielhanold/docket/pull/127) |  |
 
 ```mermaid
@@ -81,7 +82,6 @@ graph TD
   0121
   0123
   0125
-  0126
   0130
   0133
   0134
@@ -97,6 +97,8 @@ graph TD
   0147
   0148
   0149
+  0150
+  0151
   0015:::done
   0016:::done
   0077:::done
@@ -105,10 +107,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (115)</summary>
+<details><summary>✅🗑️ Archive — done + killed (116)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0126](archive/2026-07-28-0126-apply-the-poison-value-prelude-uniformly-to-every-resolver-e.md) | Apply the poison-value prelude uniformly to every resolver eval in the config suite | 2026-07-28 |
 | [0122](archive/2026-07-28-0122-nested-keys-scope-tags-in-docket-example-yml-are-unguarded.md) | Nested keys' scope tags in .docket.example.yml are unguarded | 2026-07-28 |
 | [0120](archive/2026-07-28-0120-docket-finalize-change-claims-integration-branch-is-read-fro.md) | docket-finalize-change claims integration_branch is read from .docket.yml, but it is an exported resolver key | 2026-07-28 |
 | [0117](archive/2026-07-28-0117-deferred-adr-publish-visibility-decide-whether-docket-adr-s.md) | Deferred ADR-publish visibility — detect an unpublished ADR with a computed board-checks finding | 2026-07-28 |
@@ -126,7 +129,6 @@ graph TD
 | [0114](archive/2026-07-22-0114-decide-the-repo-s-posture-on-line-number-comment-anchors.md) | Decide the repo's posture on line-number comment anchors | 2026-07-22 |
 | [0112](archive/2026-07-22-0112-pin-the-reverse-cross-layer-masking-for-the-committed-over-l.md) | Complete the finalize.test_command cross-layer masking matrix (reverse committed-over-local + both skip-rung pairs) | 2026-07-22 |
 | [0111](archive/2026-07-21-0111-guard-the-board-checks-check-id-enumerations-against-drift.md) | Guard the board-checks check-id enumerations against drift | 2026-07-21 |
-| [0108](archive/2026-07-21-0108-guard-the-readme-s-remaining-config-fences-against-key-drift.md) | Guard the README's remaining config fences against key drift | 2026-07-21 |
 | [0105](archive/2026-07-20-0105-pin-docket-mode-main-coverage-for-docket-status-digest-only.md) | Pin DOCKET_MODE=main coverage for docket-status --digest-only | 2026-07-20 |
 | [0086](archive/2026-07-18-0086-attended-finalize-merge-path.md) | Attended finalize has no merge path under auto_approve — scope the --admin ban to autonomous runs | 2026-07-18 |
 | [0033](archive/2026-07-16-0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | 2026-07-16 |
@@ -138,7 +140,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-07](archive/) | 59 done |
+| [2026-07](archive/) | 60 done |
 | [2026-06](archive/) | 32 done |
 
 </details>
