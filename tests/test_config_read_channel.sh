@@ -299,10 +299,16 @@ assert "mutation (m): a path-qualified docket/config.yml counts ONCE" \
   '[ -z "$(grep -- "$(printf "^unclassified\t")" <<<"$outm")" ] && [ "$(grep -c -- "$(printf "^ok\t")" <<<"$outm")" = 1 ]'
 
 # OVERLAP INVARIANT. Assert directly that no two tokens in the set can co-match an OVERLAPPING
-# region of a line — not merely that no token is a substring of another, which is necessary but
-# INSUFFICIENT (a future token whose prefix is another token's suffix would satisfy non-substring
-# and still double-count). Built by concatenating each ordered pair and requiring the summed count
-# to equal exactly 2.
+# region of a line. Two probes per ordered pair, because neither alone is sufficient:
+#   - SEPARATED (x<t1>y<t2>z): the tokens sit apart, which proves no token is a substring of
+#     another (self-containment) — necessary but INSUFFICIENT, since a future token whose prefix
+#     is another token's suffix would pass this probe cleanly and still double-count once the two
+#     appear back to back in real prose.
+#   - ADJACENT (<t1><t2>, no separator): the tokens sit directly next to each other, which is
+#     exactly where a suffix/prefix overlap manifests — a match that consumes characters spanning
+#     both tokens sums to 3+ here, not 2, and reddens.
+# Both probes require the summed count across the whole token set to equal exactly 2 (each token
+# matched once, no overlapping third match).
 overlap_ok=1
 for _t1 in "${TOKENS[@]}"; do
   for _t2 in "${TOKENS[@]}"; do
@@ -311,10 +317,17 @@ for _t1 in "${TOKENS[@]}"; do
     for _t in "${TOKENS[@]}"; do
       _sum=$(( _sum + $(grep -oF -- "$_t" <<<"$_line" | wc -l | tr -d ' ') ))
     done
-    [ "$_sum" -eq 2 ] || { overlap_ok=0; echo "overlap: <$_t1> + <$_t2> summed to $_sum"; }
+    [ "$_sum" -eq 2 ] || { overlap_ok=0; echo "overlap (separated): <$_t1> + <$_t2> summed to $_sum"; }
+
+    _adj="${_t1}${_t2}"
+    _adjsum=0
+    for _t in "${TOKENS[@]}"; do
+      _adjsum=$(( _adjsum + $(grep -oF -- "$_t" <<<"$_adj" | wc -l | tr -d ' ') ))
+    done
+    [ "$_adjsum" -eq 2 ] || { overlap_ok=0; echo "overlap (adjacent): <$_t1><$_t2> summed to $_adjsum"; }
   done
 done
-assert "0146: no two tokens in the set co-match an overlapping region (summing is exact)" \
+assert "0146: no two tokens in the set co-match an overlapping region, separated or adjacent (summing is exact)" \
   '[ "$overlap_ok" = 1 ]'
 
 # POPULATION FLOOR on the token set itself: an accidental truncation to one token must not read as
