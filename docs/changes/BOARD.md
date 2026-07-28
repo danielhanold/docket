@@ -1,12 +1,6 @@
 # Backlog
 
-**147 changes** — 🟢 1 in progress · 🟡 25 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 4 implemented · ✅ 103 done · 🗑️ 9 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0122](active/0122-nested-keys-scope-tags-in-docket-example-yml-are-unguarded.md) | Nested keys' scope tags in .docket.example.yml are unguarded | `medium` | `fix` | [spec](../superpowers/specs/2026-07-26-nested-key-scope-tags-design.md) | `feat/nested-keys-scope-tags-in-docket-example-yml-are-unguarded` |
+**147 changes** — 🟡 25 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 5 implemented · ✅ 103 done · 🗑️ 9 killed
 
 ## 🟡 Proposed (25)
 
@@ -53,13 +47,14 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (4)
+## 🔵 Implemented — awaiting merge (5)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | `chore` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
 | [0117](active/0117-deferred-adr-publish-visibility-decide-whether-docket-adr-s.md) | Deferred ADR-publish visibility — detect an unpublished ADR with a computed board-checks finding | `medium` | `feat` | [#129](https://github.com/danielhanold/docket/pull/129) |  |
 | [0120](active/0120-docket-finalize-change-claims-integration-branch-is-read-fro.md) | docket-finalize-change claims integration_branch is read from .docket.yml, but it is an exported resolver key | `medium` | `docs` | [#130](https://github.com/danielhanold/docket/pull/130) |  |
+| [0122](active/0122-nested-keys-scope-tags-in-docket-example-yml-are-unguarded.md) | Nested keys' scope tags in .docket.example.yml are unguarded | `medium` | `fix` | [#131](https://github.com/danielhanold/docket/pull/131) |  |
 | [0135](active/0135-cursor-agent-wrapper-contract.md) | Generated Cursor wrappers violate Cursor's subagent contract, disabling skills and model effort | `high` | `fix` | [#127](https://github.com/danielhanold/docket/pull/127) |  |
 
 ```mermaid
