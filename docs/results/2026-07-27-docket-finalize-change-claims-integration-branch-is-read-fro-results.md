@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0120 — docket-finalize-change claims integration_branch is read from .docket.yml, but it is an exported resolver key](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0120-docket-finalize-change-claims-integration-branch-is-read-fro.md)**
+> ↩ **[Change 0120 — docket-finalize-change claims integration_branch is read from .docket.yml, but it is an exported resolver key](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-07-28-0120-docket-finalize-change-claims-integration-branch-is-read-fro.md)**
 <!-- docket:backlink:end -->
 
 # Skill config read-channel — correct the finalize provenance claim and guard the class — results
