@@ -2112,5 +2112,59 @@ assert "quoted title does not render the literal double quotes" \
   '! printf "%s" "$qout" | grep -qF "\"Tango, with a comma\""'
 rm -rf "$qtmp"
 
+# --- change 0143: empty id/status must not collapse the TAB-joined archive sort feeder ---
+# TAB is IFS whitespace, so `read` collapses runs of it: an empty field is not preserved and every
+# later field shifts left. The consuming loop's own `[ -n "$id" ] || continue` sits DOWNSTREAM of
+# the lossy join and never sees the empty value. Separately, an empty `status:` used as an
+# associative-array subscript fails with `bad array subscript`, and that error ABORTS the whole
+# `for` loop, dropping every file sorted after it from the tally.
+#
+# PRE-FIX OUTPUT (measured 2026-07-28, so these asserts' keys are pinned, not merely present):
+#   markdown : "Archive — done (1)" above three rows, two of them
+#              "| [0005](archive/) |  | 2026-07-02 |" and "| [0000](archive/) |  | 2026-07-01 |"
+#   stderr   : SECTION/ARC_COUNT "bad array subscript", "printf: done: invalid number",
+#              "sed: : No such file or directory"
+#   digest   : "backlog done 1" and an EMPTY `ready` line (no `backlog proposed`, no `change 8`)
+c143="$(mktemp -d)"
+mkdir -p "$c143/active" "$c143/archive"
+printf -- '---\nid:\nslug: empty-id\ntitle: Empty Id\nstatus: done\ncreated: 2026-07-01\n---\n' \
+  > "$c143/archive/2026-07-01-0000-empty-id.md"
+printf -- '---\nid: 5\nslug: empty-status\ntitle: Empty Status\nstatus:\ncreated: 2026-07-02\n---\n' \
+  > "$c143/archive/2026-07-02-0005-empty-status.md"
+printf -- '---\nid: 6\nslug: ok\ntitle: Fine\nstatus: done\ncreated: 2026-07-03\n---\n' \
+  > "$c143/archive/2026-07-03-0006-ok.md"
+printf -- '---\nid: 7\nslug: bad-active\ntitle: Bad Active\nstatus:\npriority: medium\ncreated: 2026-07-04\n---\n' \
+  > "$c143/active/0007-bad-active.md"
+printf -- '---\nid: 8\nslug: good-active\ntitle: Good Active\nstatus: proposed\npriority: medium\ncreated: 2026-07-05\nspec: docs/x.md\n---\n' \
+  > "$c143/active/0008-good-active.md"
+
+c143_md="$(bash "$SCRIPT" --changes-dir "$c143" 2>/dev/null)"
+c143_err="$(bash "$SCRIPT" --changes-dir "$c143" 2>&1 >/dev/null)"
+c143_digest="$(bash "$SCRIPT" --changes-dir "$c143" --format digest 2>/dev/null)"
+
+# No corrupt row. Anchored on the ERE `^\| \[[0-9]{4}\]\(archive/\) \|` rather than the bare
+# substring `](archive/) `, which ALSO matches a legitimate shipping row: the older-done collapse
+# table emits `| [2026-07](archive/) | 62 done |`. The YYYY-MM key is not four digits, so the ERE
+# excludes it regardless of fixture size — the assert must not depend on the fixture staying under
+# ARCHIVE_RECENT (15). /usr/bin/grep, never PATH grep (which is ugrep here).
+assert "0143: no corrupt archive row with an empty basename" \
+  '! /usr/bin/grep -qE "^\| \[[0-9]{4}\]\(archive/\) \|" <<<"$c143_md"'
+assert "0143: the well-formed archive row still renders" \
+  '/usr/bin/grep -qF -- "| [0006](archive/2026-07-03-0006-ok.md) | Fine | 2026-07-03 |" <<<"$c143_md"'
+assert "0143: render stderr is clean (no subscript abort, no printf/sed noise)" \
+  '[ -z "$c143_err" ]'
+# The header counts BOTH done files while only one row renders. This mismatch is INTENDED: it is
+# the case-(B) state change 0115's board-row-dropped check exists to report, so ARC_COUNT keeps no
+# id guard. Asserted so a later "fix" to that loop cannot land silently.
+assert "0143: the archive header tally is not truncated by the abort" \
+  '/usr/bin/grep -qF -- "Archive — done (2)" <<<"$c143_md"'
+assert "0143: digest counts both done files" \
+  '/usr/bin/grep -qxF "backlog done 2" <<<"$c143_digest"'
+assert "0143: digest still reaches the active change behind the empty-status file" \
+  '/usr/bin/grep -qxF "backlog proposed 1" <<<"$c143_digest"'
+assert "0143: the ready queue line is not emptied by the tally abort" \
+  '/usr/bin/grep -qxF "ready 8" <<<"$c143_digest"'
+rm -rf "$c143"
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
