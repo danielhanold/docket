@@ -1993,6 +1993,7 @@ t_out="$(prelude_report "${BASH_SOURCE[0]}" "$t_keys")"
 t_sites="$(printf '%s\n' "$t_out" | sed -n 's/^TOTALS sites=\([0-9]*\) .*/\1/p')"
 t_viol="$(printf '%s\n' "$t_out" | sed -n 's/^TOTALS .* viol=\([0-9]*\)$/\1/p')"
 t_exempt="$(printf '%s\n' "$t_out" | sed -n 's/^TOTALS .* exempt=\([0-9]*\) .*/\1/p')"
+t_ok="$(printf '%s\n' "$t_out" | sed -n 's/^TOTALS .* ok=\([0-9]*\) .*/\1/p')"
 # Print the TOTALS line AND every violating site. Printing totals alone leaves the
 # next author staring at `viol=1` with no line number and no variable name.
 printf '%s\n' "$t_out" | /usr/bin/grep -E '^(TOTALS|SITE .* viol)'
@@ -2015,14 +2016,27 @@ t_selfrefs="$(awk -v s="$T_SELF_START" -v e="$T_SELF_END" '
 
 assert "0126 T: guard reached a real population (>= 60 sites)" '[ "$t_sites" -ge 60 ]'
 assert "0126 T: the derived key set is non-vacuous (>= 20 keys)" '[ "$t_keycount" -ge 20 ]'
-# Exemption ceiling — the twin of the keycount floor. An EMPTY key set is caught
-# above; a WRONG one (any wholesale rename of the resolver's export names) is not:
-# every site's asserts would then intersect the key set emptily, every site would
-# be "exempt by derivation", and the guard would report viol=0 having checked
-# nothing. 3 sites are legitimately exempt today (their asserts read no exported
-# var at all); the ceiling leaves headroom for ordinary drift but nothing like the
-# 64 an all-exempt run would produce.
-assert "0126 T: exemptions stay a rounding error (guard not degenerate)" '[ "$t_exempt" -le 5 ]'
+# Coverage floor — the twin of the keycount floor, and the successor to change 0126's absolute
+# `t_exempt <= 5` ceiling (change 0149). An EMPTY key set is caught by t_keycount above; a WRONG one
+# would make every site "exempt by derivation" and the guard would report viol=0 having checked
+# nothing. The old ceiling was ABSOLUTE: a fixed 5 against a real 3 left two sites of headroom that
+# did not grow with the file, so several legitimately-exempt fixtures landing together would trip it
+# — a loud false red as it aged.
+#
+# A floor on `ok` is preferred to a ratio on `exempt` for two reasons: it measures the property that
+# matters (coverage PROVEN) rather than its complement, and because `viol` must independently be 0,
+# the floor bounds `exempt` without naming it. Note the arithmetic direction: `t_exempt * 5 <=
+# t_sites` — the obvious "proportional" rewrite — would permit 12 exempt sites at 64, which is
+# LOOSER than the absolute 5 it replaces. At today's 64 sites this floor permits 6 non-`ok` sites
+# where the ceiling permitted 5: one site of immediate slack traded for slack that SCALES.
+#
+# MEASURED FINDING, recorded so the ceiling is not reinstated by someone re-deriving the original
+# worry: this guard is NOT the rename detector. Renaming one emitted export key turns four ordinary
+# asserts red while TOTALS comes back byte-identical (exempt does not move at all, because no eval
+# window reads a key exclusively); renaming five aborts the run under `set -u` with an unbound
+# variable before section (T) ever executes. Both cheaper layers already catch it.
+assert "0126 T: the guard proved something at >=90% of sites (ok=$t_ok of $t_sites)" \
+  '[ $(( t_ok * 10 )) -ge $(( t_sites * 9 )) ]'
 assert "0126 T: site count agrees with the independent grep extractor" \
   '[ "$t_sites" -eq "$(( t_raw - t_helper - t_comments - t_selflit ))" ]'
 assert "0126 T: the self-block is bounded and non-empty" '[ "$t_selfrefs" -ge 3 ]'
