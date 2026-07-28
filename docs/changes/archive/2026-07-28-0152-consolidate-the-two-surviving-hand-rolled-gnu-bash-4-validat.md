@@ -2,7 +2,7 @@
 id: 152
 slug: consolidate-the-two-surviving-hand-rolled-gnu-bash-4-validat
 title: Consolidate the two surviving hand-rolled GNU Bash 4+ validator copies
-status: proposed
+status: killed
 priority: medium
 type: refactor
 created: 2026-07-28
@@ -66,3 +66,7 @@ Design settled in the linked spec.
   compatibility requirement. Adding their missing mutation coverage is explicitly in scope.
 - `_docket_runtime_scan`'s leaf-match grammar — change 0153 owns it.
 - Any change to which interpreter docket runs under.
+
+## Why killed
+
+Subsumed by change 0157, which carries this work on a single rolled-up branch. The design in this change's spec remains authoritative for its unit.
