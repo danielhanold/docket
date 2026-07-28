@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0115 — Extend the board-row-dropped invariant to archive/ files](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0115-extend-the-board-row-dropped-invariant-to-archive-files.md)**
+> ↩ **[Change 0115 — Extend the board-row-dropped invariant to archive/ files](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-07-28-0115-extend-the-board-row-dropped-invariant-to-archive-files.md)**
 <!-- docket:backlink:end -->
 
 # Archive-side `board-row-dropped` Invariant Implementation Plan
