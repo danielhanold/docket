@@ -2,7 +2,7 @@
 id: 164
 slug: retune-agent-model-effort-defaults-for-all-three-harnesses
 title: Retune agent model/effort defaults for all three supported harnesses
-status: proposed
+status: in-progress
 priority: medium
 type: chore
 created: 2026-07-28
@@ -16,7 +16,8 @@ plan:
 results:
 trivial: true
 auto_groomable:
-branch:
+branch: feat/retune-agent-model-effort-defaults-for-all-three-harnesses
+claimed_at: 2026-07-28T23:02:44Z
 pr:
 blocked_by:
 reconciled: false
