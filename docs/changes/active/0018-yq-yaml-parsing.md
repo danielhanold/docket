@@ -10,12 +10,12 @@ depends_on: [16]
 related: [11, 127]
 adrs: [57, 58]
 spec:
-plan:
+plan: docs/superpowers/plans/2026-07-28-yq-yaml-parsing.md
 results:
 trivial: true
 auto_groomable: true
 branch: feat/yq-yaml-parsing
-claimed_at: 2026-07-28T22:56:37Z
+claimed_at: 2026-07-28T22:58:53Z
 pr:
 blocked_by:
 reconciled: true
@@ -27,6 +27,7 @@ type: docs
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Plan | [2026-07-28-yq-yaml-parsing.md](https://github.com/danielhanold/docket/blob/feat/yq-yaml-parsing/docs/superpowers/plans/2026-07-28-yq-yaml-parsing.md) |
 | ADRs | [ADR-0057](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0057-frontmatter-read-must-be-anchored-when-key-may-be-absent.md), [ADR-0058](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0058-two-tier-frontmatter-scalar-readers-field-vs-field-raw.md) |
 <!-- docket:artifacts:end -->
 
