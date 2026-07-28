@@ -54,6 +54,10 @@ One curated finding per file; this index is the hint surface. Load it, then read
 
 - [consolidation-flattens-caller-variance](consolidation-flattens-caller-variance.md) — Restatements across N callers are not pure duplication — diff them against each other before templating, or the shared source silently rewrites the callers that differed. · also: docs, contracts
 
+## review
+
+- [fix-reintroduces-its-own-defect-class](fix-reintroduces-its-own-defect-class.md) — New code added by a change that fixes a defect class is the likeliest place for that class to reappear — audit the change's OWN additions against its thesis before review, and check the twin it did not touch. · also: refactoring, contracts ⟨needs promotion⟩
+
 ## shell
 
 - [agent-shell-noop-reads-as-success](agent-shell-noop-reads-as-success.md) — The agent's interactive shell is not bash and its grep may not be grep — a sweep can iterate zero items, a verification grep can match nothing, and both still print success. · also: verification, environment ⟨needs promotion⟩
@@ -70,6 +74,7 @@ One curated finding per file; this index is the hint surface. Load it, then read
 
 ## testing
 
+- [assert-detects-removal-not-replacement](assert-detects-removal-not-replacement.md) — A guard written to CONFIRM the wording you just introduced detects nothing — write the assert that DETECTS the state you just removed, and prove the mutation actually landed before believing it passed. · also: guards, mutation ⟨needs promotion⟩
 - [backstop-must-compute-not-reenumerate](backstop-must-compute-not-reenumerate.md) — A backstop that re-enumerates the causes it backs up is a fourth restatement wearing the word invariant — derive its predicate from the real consumer, and mutation-test its POPULATION, not only its suppression. · also: guards, invariants ⟨needs promotion⟩
 - [correspondence-guard-runs-one-way](correspondence-guard-runs-one-way.md) — A guard over a correspondence between two sets proves only the direction it iterates — write the reverse loop too, and anchor it on the consuming code, not an allowlist. · also: coverage, sentinels ⟨needs promotion⟩
 - [environment](environment.md) — A RED suite in a build sandbox or an installed dev shell is a hypothesis, not a verdict — re-run it on the unmodified base. · also: environment, ci

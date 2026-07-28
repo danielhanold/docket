@@ -2,7 +2,7 @@
 slug: consolidation-flattens-caller-variance
 hook: "Restatements across N callers are not pure duplication — diff them against each other before templating, or the shared source silently rewrites the callers that differed."
 topics: [refactoring, docs, contracts]
-changes: [85, 133]
+changes: [85, 133, 135]
 created: 2026-07-17
 updated: 2026-07-28
 promotion_state: retained
@@ -61,3 +61,11 @@ Two traps specific to this move:
   whole-branch review could see it. A centralization claim has to be verified against the
   **consumers**, never against the key the sweep happened to search on. Claims narrowed to what is
   true; the surviving duplication became #0152.
+- 2026-07-28 (#135, PR #127) — Nine Cursor dispatch-rule fragments looked interchangeable and were
+  not: `docket-brainstorm-consultant.md` carries **no `Do NOT` line at all** (it states "It performs
+  zero docket operations" instead), and the nine split into two structural families. Applying one
+  template literally would have deleted a behavioural constraint while reading as a docs edit. The
+  fix was to change only each fragment's dispatch-instruction sentence and then **prove** the
+  variance survived: a `--word-diff` over `cursor-rules/` shows zero word deletions across all
+  nine. That proof is the move worth copying — on a fan-out edit, assert the *deletion count*, since
+  no sentinel can tell you what a template silently overwrote.

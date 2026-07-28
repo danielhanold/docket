@@ -2,9 +2,9 @@
 slug: capability-absence-needs-a-failed-attempt
 hook: "An agent's own report that a capability is unavailable is untrusted input — only a failed attempt or a policy denial establishes absence; a missing tool NAME and an unobserved result establish nothing."
 topics: [process, subagents, verification]
-changes: [137]
+changes: [137, 135]
 created: 2026-07-27
-updated: 2026-07-27
+updated: 2026-07-28
 promotion_state: candidate
 promoted_to:
 ---
@@ -41,3 +41,15 @@ probe result stays true.
   `NESTING: FAILED`. The transcript showed the nested child had run and replied `NESTED_OK`.
   Dispatch succeeded; only *retrieval* failed, and the agent converted that into a reported
   capability gap. An independent re-derivation of the convention's never-yield rule.
+- 2026-07-28 (#135, PR #127) — **The rule's first live exercise, and it held.** A Tier 2 spike ran
+  `cursor-agent -p --output-format text` to probe whether Cursor honors docket's wrapper contract;
+  it returned `Error: Authentication required` and never reached a model. The run recorded the
+  result as **absent, therefore uninformative** rather than as evidence the contract was wrong —
+  the standing evidence rule being that a negative or absent result from an unreliable probe is
+  never a verdict, and only a *positive* result carries weight (and only for the surface it was
+  observed on). Promoting that silence would have been the exact false-negative shape this finding
+  exists to prevent: an absence observed in the wrong surface, converted into a capability verdict.
+  The results file states the rule again so a future implementer cannot re-promote the spike to a
+  gate. Scoping matters here too — the observation is pinned to `cursor-agent`
+  `2026.01.23-916f423`, unauthenticated, headless
+  ([[harness-behavior-is-mode-and-version-scoped]]).
