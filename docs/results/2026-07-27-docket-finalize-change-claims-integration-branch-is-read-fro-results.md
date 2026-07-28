@@ -3,7 +3,7 @@
 <!-- docket:backlink:end -->
 
 # Skill config read-channel — correct the finalize provenance claim and guard the class — results
-Change: #0120 · Branch: feat/docket-finalize-change-claims-integration-branch-is-read-fro · PR: <url> · Plan: docs/superpowers/plans/2026-07-27-config-read-channel-guard.md · ADRs: 52
+Change: #0120 · Branch: feat/docket-finalize-change-claims-integration-branch-is-read-fro · PR: https://github.com/danielhanold/docket/pull/130 · Plan: docs/superpowers/plans/2026-07-27-config-read-channel-guard.md · ADRs: 52
 
 ## Verify (human)
 
