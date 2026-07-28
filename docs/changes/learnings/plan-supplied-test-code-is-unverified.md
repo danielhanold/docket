@@ -2,7 +2,7 @@
 slug: plan-supplied-test-code-is-unverified
 hook: "Test code a plan hands you is unverified code, not an oracle — prove the assert CAN pass, and mutation-test its own key."
 topics: [testing, plan, guards]
-changes: [94, 104, 112, 130, 133]
+changes: [94, 104, 112, 130, 133, 157]
 created: 2026-07-19
 updated: 2026-07-28
 promotion_state: candidate
@@ -100,3 +100,17 @@ implementer. It is not a reason to distrust plans — it is a reason to run the 
   idiom's real job is guarding an empty trailing line from command substitution's newline strip.
   Same three characters, load-bearing in one place and silently fatal in the other; which it is
   depends entirely on whether the caller reads `$?`.
+- 2026-07-28 (#157, PR #136 — merged) — **A plan's mutation command is test code too, and this one
+  inverted its own oracle.** The plan supplied
+  `perl -pi -e 's/.../[ "$_major" -ge 0 ]/'` to relax a Bash-major floor and prove the guard reddens.
+  `$_major` is interpolated by *Perl*, not the shell, so the substitution collapsed the line to
+  `[ "" -ge 0 ]` — which breaks validation outright instead of relaxing it, and left the targeted
+  asserts green. Run literally the recorded oracle was invalid; re-run with the shell variable
+  escaped, the property held (3 reddens, both targets). The general shape: a mutation command is the
+  *only* evidence a guard is load-bearing, so a broken one produces a confident, fully-documented
+  false negative — and it is the one piece of plan-supplied code nobody re-reads, because its output
+  is the reassurance you were looking for. Escape-level bugs are the common failure (a shell `$` read
+  by `perl`/`sed`/`awk`); the cheap check is diffing the mutated file, not just reading the exit code.
+  Same change, same family: 0146's overlap-invariant guard **always inserted separators**, so it could
+  never exercise the unseparated adjacency it existed to catch — vacuous by construction. Fixed with
+  vacuity evidence before shipping rather than after.

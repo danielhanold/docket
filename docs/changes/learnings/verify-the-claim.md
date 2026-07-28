@@ -2,7 +2,7 @@
 slug: verify-the-claim
 hook: "A document asserting a fact about another artifact is not an oracle — verify it against the artifact or the RUNNING CODE before acting on it."
 topics: [process, review, spec]
-changes: [12, 21, 47, 65, 67, 74, 96, 101, 102, 109, 112, 138, 130]
+changes: [12, 21, 47, 65, 67, 74, 96, 101, 102, 109, 112, 138, 130, 157]
 created: 2026-06-12
 updated: 2026-07-28
 promotion_state: retained
@@ -139,3 +139,14 @@ mid-build; leave the re-scope to the human. Reject false positives with evidence
   silent-escape risk, then **measured** — `/usr/bin/grep -E 'a{,600}' f` exits 1 with no error,
   because BSD does not parse that form as an interval at all — and ruled out of scope with the
   measurement recorded rather than with an assumption.
+- 2026-07-28 (#157, PR #136 — merged) — **A spec's "already covered" is a coverage claim, and it
+  measured zero.** Change 0152's spec asserted that `install.sh` was "genuinely covered already" for
+  the Bash-major mutation, so its acceptance bar ("every surviving caller must redden") looked
+  partially pre-satisfied. Direct measurement found **0 reddens** for that caller — the claim was not
+  merely optimistic, it was inverted, and taking it at face value would have shipped the change
+  declaring an acceptance bar it did not meet. The gap was in scope, so it was closed in
+  `tests/test_install.sh`; all four callers then reddened (1/2/4/3), independently re-measured rather
+  than inferred from the fix. Generalize: **"X is already covered" is the cheapest claim to make and
+  the cheapest to check** — one mutation run answers it — and it is exactly the claim a spec author
+  writes from memory of the file rather than from running it. When a change's acceptance bar is
+  stated as coverage, measure the baseline before trusting any part of it as already paid.
