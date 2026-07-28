@@ -2,7 +2,7 @@
 id: 122
 slug: nested-keys-scope-tags-in-docket-example-yml-are-unguarded
 title: Nested keys' scope tags in .docket.example.yml are unguarded
-status: implemented
+status: done
 priority: medium
 created: 2026-07-21
 updated: 2026-07-28
@@ -16,7 +16,7 @@ results: docs/results/2026-07-28-nested-keys-scope-tags-in-docket-example-yml-ar
 trivial: false
 auto_groomable: true
 branch: feat/nested-keys-scope-tags-in-docket-example-yml-are-unguarded
-claimed_at: 2026-07-28T01:05:00Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/131
 blocked_by:
 reconciled: true
