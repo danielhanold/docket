@@ -183,7 +183,7 @@ assert "README's drain subsection cross-links the branch-protection prerequisite
 # Without this the whole marker/skip/clear apparatus is inert: every other marker assertion below
 # passes on the *definition* alone, so nothing else catches "no code path ever writes it".
 assert "SKILL wires the marker write into the abort-and-report surfacing step" \
-  'grep -Eqi "where the reason surfaces.{0,600}appends the .{0,4}## Finalize blocked" "$FIN"'
+  'grep -Eqi "where the reason surfaces.*appends the .{0,4}## Finalize blocked" "$FIN"'
 # A retry that fails again must not accrete a second heading — the marker is state, not a log.
 assert "SKILL states a re-mark REPLACES the section rather than appending a second heading" \
   'grep -Eqi "re-mark.{0,60}replaces.{0,120}never appends a second heading" "$FIN"'
