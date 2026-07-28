@@ -1,14 +1,15 @@
 # Backlog
 
-**164 changes** — 🟢 1 in progress · 🟡 27 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 1 implemented · ✅ 112 done · 🗑️ 18 killed
+**164 changes** — 🟢 2 in progress · 🟡 26 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 1 implemented · ✅ 112 done · 🗑️ 18 killed
 
-## 🟢 In progress (1)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0018](active/0018-yq-yaml-parsing.md) | Record the pure-bash YAML/frontmatter parsing stance as an ADR | `low` | `docs` | [spec](../) | `feat/yq-yaml-parsing` |
+| [0164](active/0164-retune-agent-model-effort-defaults-for-all-three-harnesses.md) | Retune agent model/effort defaults for all three supported harnesses | `medium` | `chore` | [spec](../) | `feat/retune-agent-model-effort-defaults-for-all-three-harnesses` |
 
-## 🟡 Proposed (27)
+## 🟡 Proposed (26)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -38,7 +39,6 @@
 | [0159](active/0159-docket-status-skill-md-s-normal-outcomes-list-omits-the-heal.md) | docket-status SKILL.md's normal-outcomes list omits the 'health checks failed <exit>' line | `medium` | `docs` | needs-brainstorm |
 | [0160](active/0160-a-committed-too-deep-runtime-bash-lost-its-machine-local-ign.md) | A committed too-deep runtime.bash lost its machine-local ignored advisory | `medium` | `fix` | needs-brainstorm |
 | [0163](active/0163-six-phase-tier-3-guard-counts-headings-instead-of-asserting.md) | Six-phase Tier 3 guard counts headings instead of asserting the phase set | `medium` | `fix` | needs-brainstorm |
-| [0164](active/0164-retune-agent-model-effort-defaults-for-all-three-harnesses.md) | Retune agent model/effort defaults for all three supported harnesses | `medium` | `chore` | build-ready |
 
 ## 🔴 Blocked (1)
 
