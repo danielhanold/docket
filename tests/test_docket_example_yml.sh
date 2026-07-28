@@ -641,6 +641,13 @@ assert "scope tag: local-only form present" 'grep -qF "scope: local-only" "$EX"'
 scope_guard_awk="$(cat <<'SCOPE_GUARD_AWK'
 {
   content[NR] = $0
+  # SENSITIVITY (change 0102 whole-branch review, MINOR 3): this anchor is [[:space:]]*, not
+  # column-0, so it also matches an indented line that merely LOOKS like a key. There are no YAML
+  # block scalars (`note: |` followed by indented prose) in this file today, so that never fires
+  # a false key — but if one is ever added, an indented line under it would be misread as a real
+  # nested key and inflate nested_key_count. No code change made for this: the exact-count floor
+  # below already makes that loud (the count would jump and redden), so this comment exists only
+  # to explain WHY the count jumped when it eventually does.
   is_active = ($0 ~ /^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*[[:space:]]*:/)
   is_pseudo = ($0 ~ /^# (agent_harnesses|agents):/)
   is_banner = ($0 ~ /^#[[:space:]]*═══/)
@@ -667,6 +674,12 @@ END {
     winEnd = keyline[k]
     own = 0
     for (l = winStart; l <= winEnd; l++) {
+      # Change 0102 whole-branch review, MINOR 2: require the matched line to itself LOOK LIKE A
+      # COMMENT, not merely contain one of the three sanctioned tag strings. Without this, a
+      # window that happens to include prose quoting a tag verbatim (this file's own legend, at
+      # the top, does exactly that inside a "# ═══" banner-sealed block) would grant vacuous
+      # coverage to the first active key ever added above the first banner.
+      if (content[l] !~ /^[[:space:]]*#/) continue
       if (content[l] ~ /scope: repo-only \(coordination-fenced, ADR-0019\)/) own = 1
       if (content[l] ~ /scope: any layer/) own = 1
       if (content[l] ~ /scope: local-only/) own = 1
@@ -676,21 +689,35 @@ END {
     for (i = top; i >= 1; i--) path = sname[i] "." path
     covered = own
     if (!covered) { for (i = top; i >= 1; i--) if (sown[i]) { covered = 1; break } }
-    if (!covered && keytype[k] == "S" && k > 1 && winStart == keyline[k] && prevB == keyline[k-1] && keydepth[k] == keydepth[k-1]) covered = effcov[k-1]
+    # Change 0102 whole-branch review, IMPORTANT 1(b): rule 4's adjacency inheritance must be LOUD,
+    # not free. It is meant for exactly one shared-comment group (changes_dir/adrs_dir/results_dir,
+    # inheriting from changes_dir), but as written it also silently covers a key added with NO
+    # comment of its own directly beneath ANY tagged same-depth sibling — the cheapest way to add
+    # an untagged key evades the guard entirely. Count every time this branch actually FIRES (the
+    # adjacency condition matched, regardless of what effcov[k-1] turns out to be), independent of
+    # nested/COUNT, so a new adjacency-inherited key moves this counter even when it moves nothing
+    # else.
+    if (!covered && keytype[k] == "S" && k > 1 && winStart == keyline[k] && prevB == keyline[k-1] && keydepth[k] == keydepth[k-1]) { covered = effcov[k-1]; adjinherit++ }
     effcov[k] = covered
     if (keydepth[k] > 0) nested++
     if (keytype[k] == "S" && !covered) print path
     top++; sdepth[top] = keydepth[k]; sname[top] = keyname[k]; sown[top] = own
   }
   print "COUNT " nested
+  # Distinct, collision-proof prefix (mirrors COUNT's own safety argument): dotted paths never
+  # contain a space, and "ADJINHERIT " (with its trailing space) is not a form any key name or
+  # path can take, so splitting on "^ADJINHERIT " can never eat a real uncovered-key line.
+  print "ADJINHERIT " adjinherit
 }
 SCOPE_GUARD_AWK
 )"
-# The pass emits two streams on one stdout: uncovered dotted paths, then a trailing COUNT line.
-# Split them, so the COUNT line cannot make the emptiness assert unconditionally false.
+# The pass emits three streams on one stdout: uncovered dotted paths, a trailing COUNT line, and
+# a trailing ADJINHERIT line. Split them, so neither trailer can make the emptiness assert
+# unconditionally false.
 scope_guard_out="$(awk "$scope_guard_awk" "$EX")"
 nested_key_count="$(printf '%s\n' "$scope_guard_out" | sed -n 's/^COUNT //p')"
-untagged_keys="$(printf '%s\n' "$scope_guard_out" | grep -v '^COUNT ')"
+adjacency_inherit_count="$(printf '%s\n' "$scope_guard_out" | sed -n 's/^ADJINHERIT //p')"
+untagged_keys="$(printf '%s\n' "$scope_guard_out" | grep -v '^COUNT ' | grep -v '^ADJINHERIT ')"
 assert "scope tag: every ACTIVE SCALAR key at every depth is covered by a scope tag" \
   '[ -z "$untagged_keys" ]'
 if [ -n "$untagged_keys" ]; then
@@ -709,17 +736,32 @@ fi
 # regression that silently drops both runners.codex leaves. The 17: 3 finalize.*, 2 learnings.*,
 # 2 reclaim.*, 2 auto_capture.*, runners.codex + its 2 leaves, 5 skills.*.
 expected_nested_key_count=17
-assert "scope tag: the pass enumerated exactly $expected_nested_key_count keys at depth > 0 (got ${nested_key_count:-0}; if you added or removed a nested key in .docket.example.yml, bump expected_nested_key_count in the same commit)" \
+assert "scope tag: the pass enumerated exactly $expected_nested_key_count keys at depth > 0 (got ${nested_key_count:-0}; if you added or removed a nested key in .docket.example.yml, first CONFIRM the new key carries its own scope: tag or sits directly under a tagged header — bumping expected_nested_key_count alone, with no tag and no header, ships an untagged key that this guard will never catch again — then bump expected_nested_key_count in the same commit)" \
   '[ "${nested_key_count:-0}" = "$expected_nested_key_count" ]'
 
+# ADJACENCY-INHERITANCE POPULATION FLOOR — EXACT (change 0102 whole-branch review, IMPORTANT 1).
+# Rule 4 (same-depth adjacency inheritance with a genuinely empty window) exists for exactly one
+# group today: adrs_dir and results_dir, both inheriting coverage from changes_dir. Left
+# unguarded, that rule is also the cheapest way to ship an untagged key — add it with no comment
+# at all, directly beneath any tagged same-depth sibling, and rule 4 covers it for free, COUNT
+# alone moves, and "bump expected_nested_key_count" launders it back to green. This floor makes
+# that path loud: a THIRD adjacency-inherited key (or a first one arising from an unrelated
+# sibling) moves this counter independently of nested_key_count.
+expected_adjacency_inherit_count=2
+assert "scope tag: exactly $expected_adjacency_inherit_count keys inherit coverage via rule-4 same-depth adjacency (got ${adjacency_inherit_count:-0}; a new adjacency-inherited key must either be given its OWN scope: tag (closing the gap for real) or be deliberately accounted for by bumping expected_adjacency_inherit_count in the same commit, with a note on why it is safe to leave untagged)" \
+  '[ "${adjacency_inherit_count:-0}" = "$expected_adjacency_inherit_count" ]'
+
 # GUARD-THE-GUARD (change 0122). The asserts above are green on a correct file; these prove the
-# pass actually goes RED on the drift it exists to catch. Both run $scope_guard_awk — literally
-# the program that ships — over a MUTATED COPY in $tmp. The real .docket.example.yml is never
-# touched. Deletions are anchored on the KEY LINE'S CONTENT, not on a line number, because the
-# population floor above explicitly anticipates this file gaining keys.
+# pass actually goes RED on the drift it exists to catch. All THREE mutation self-tests below —
+# mut-gate, mut-skills, mut-0102 — run $scope_guard_awk, literally the program that ships, over a
+# MUTATED COPY in $tmp. The real .docket.example.yml is never touched. Deletions are anchored on
+# the KEY LINE'S CONTENT, not on a line number, because the population floor above explicitly
+# anticipates this file gaining keys.
 #
 # drop_tag_above <file> <key-line-regex> — deletes the `scope:` comment line sitting immediately
-# above the first line matching the regex. Emits the mutated file on stdout.
+# above EVERY line matching the regex (no first-match short-circuit — the loop below runs to NR
+# for every line and `continue`s each one it drops, so a regex matching more than one line drops
+# a tag above each occurrence). Emits the mutated file on stdout.
 drop_tag_above(){
   awk -v pat="$2" '
     { b[NR] = $0 }
@@ -735,14 +777,14 @@ drop_tag_above(){
 # (a) A key that carries its OWN tag: finalize.gate. Under the PRE-0122 guard this mutation was
 # green — the finalize: header's window extended forward and its two siblings' tags satisfied it.
 drop_tag_above "$EX" '^  gate:' > "$tmp/mut-gate.yml"
-mut_gate_out="$(awk "$scope_guard_awk" "$tmp/mut-gate.yml" | grep -v '^COUNT ')"
+mut_gate_out="$(awk "$scope_guard_awk" "$tmp/mut-gate.yml" | grep -v '^COUNT ' | grep -v '^ADJINHERIT ')"
 assert "guard-the-guard: dropping finalize.gate's own tag is REPORTED (got '${mut_gate_out}')" \
   '[ "$mut_gate_out" = "finalize.gate" ]'
 
 # (b) A block whose children INHERIT: skills. Dropping the header's tag must report all five
 # leaves, since none carries a tag of its own — this is the inheritance half of rule 2.
 drop_tag_above "$EX" '^skills:' > "$tmp/mut-skills.yml"
-mut_skills_out="$(awk "$scope_guard_awk" "$tmp/mut-skills.yml" | grep -v '^COUNT ' | sort | tr '\n' ' ')"
+mut_skills_out="$(awk "$scope_guard_awk" "$tmp/mut-skills.yml" | grep -v '^COUNT ' | grep -v '^ADJINHERIT ' | sort | tr '\n' ' ')"
 assert "guard-the-guard: dropping the skills: header tag reports all five leaves (got '${mut_skills_out}')" \
   '[ "$mut_skills_out" = "skills.brainstorm skills.build skills.finish skills.plan skills.review " ]'
 
@@ -750,7 +792,7 @@ assert "guard-the-guard: dropping the skills: header tag reports all five leaves
 # whose window holds no sanctioned tag, while its two siblings remain tagged. The pre-0122 guard
 # was GREEN here — which is how the bug shipped. Rule 3 is the only reason this is now red.
 drop_tag_above "$EX" '^  require_pr_approval:' > "$tmp/mut-0102.yml"
-mut_0102_out="$(awk "$scope_guard_awk" "$tmp/mut-0102.yml" | grep -v '^COUNT ')"
+mut_0102_out="$(awk "$scope_guard_awk" "$tmp/mut-0102.yml" | grep -v '^COUNT ' | grep -v '^ADJINHERIT ')"
 assert "guard-the-guard: the 0102 regression (an untagged finalize sibling) is REPORTED (got '${mut_0102_out}')" \
   '[ "$mut_0102_out" = "finalize.require_pr_approval" ]'
 
@@ -759,6 +801,17 @@ assert "guard-the-guard: the 0102 regression (an untagged finalize sibling) is R
 # guard's clean (empty) output against a non-empty expectation — i.e. they'd fail loudly rather
 # than pass falsely. But an inverted bug (the helper deleting too much) is silent, so pin the
 # damage: each mutated copy must be EXACTLY one line shorter than the original.
+#
+# ASSUMPTION (change 0102 whole-branch review, MINOR 5): this delta computation assumes $EX ends
+# in a trailing newline. `wc -l` counts newlines, not lines, so a file with no trailing newline
+# would undercount by one on BOTH sides of the subtraction in a way that happens to cancel out
+# only if the "same" byte is missing from the mutated copy too — in practice, a source file with
+# no trailing final newline makes awk's `print` (inside drop_tag_above) ADD one that the original
+# lacks, so the delta would silently read one line SHORTER than reality, redding all three asserts
+# below for a reason unrelated to the mutation itself. $EX does end in a trailing newline today
+# (verified: `xxd` shows a final 0a), so this is latent, not live — and any regression is loud
+# (these asserts fail), not silent. No code change made; recorded here so a future trailing-
+# newline change to .docket.example.yml is understood as the cause if these three go red.
 for mf in mut-gate mut-skills mut-0102; do
   assert "guard-the-guard: $mf.yml differs from the original by exactly one deleted line" \
     '[ "$(( $(wc -l < "$EX") - $(wc -l < "$tmp/'"$mf"'.yml") ))" = "1" ]'
