@@ -140,4 +140,31 @@ assert "legacy explicit runtime.bash: diagnostic names the not-Bash-4+ failure" 
 assert "legacy explicit runtime.bash: config remains byte-identical" \
   '[ "$(cat "$LEGACY_DEST")" = "$legacy_before" ]'
 
+# --- change 0153 part 3: the both-declarations guard must keep firing on a DEEP explicit block ---
+# Verified pre-tightening: managed block + hand-authored deep block yields explicit_count = 1, so
+# this die fires today. After the depth anchor that count becomes 0 — without the DEEP-aware guard
+# the installer would rewrite its managed block over a file whose author declared something else,
+# and the resolver would then read COUNT=1 from the managed block, so NO diagnostic would appear
+# anywhere. A loud abort would become a silent override.
+DEEP_SB="$(mktemp -d)"; _tmpdirs+=("$DEEP_SB")
+DEEP_DEST="$DEEP_SB/.config/docket/config.yml"
+mkdir -p "$(dirname "$DEEP_DEST")"
+printf '# >>> docket (runtime.bash) >>>\nruntime:\n  bash: %s\n# <<< docket (runtime.bash) <<<\nruntime:\n  codex:\n    bash: /hand/authored\n' \
+  "$RUNTIME_ROOT/opt/homebrew/bin/bash" > "$DEEP_DEST"
+cp "$DEEP_DEST" "$DEEP_DEST.before"
+deep_out="$(HOME="$DEEP_SB" DOCKET_HARNESS_ROOT="$DEEP_SB" bash "$SCRIPT" 2>&1)"; deep_rc=$?
+assert "0153: managed + deep explicit still dies (unchanged message)" \
+  '[ "$deep_rc" -ne 0 ] && grep -qF "contains both managed and explicit runtime.bash declarations" <<<"$deep_out"'
+assert "0153: the refused file is left byte-identical" 'cmp -s "$DEEP_DEST.before" "$DEEP_DEST"'
+
+# A deep block with NO managed block must also be named, never silently overwritten.
+DEEP2_SB="$(mktemp -d)"; _tmpdirs+=("$DEEP2_SB")
+DEEP2="$DEEP2_SB/.config/docket/config.yml"
+mkdir -p "$(dirname "$DEEP2")"
+printf 'runtime:\n  codex:\n    bash: /hand/authored\n' > "$DEEP2"; cp "$DEEP2" "$DEEP2.before"
+deep2_out="$(HOME="$DEEP2_SB" DOCKET_HARNESS_ROOT="$DEEP2_SB" bash "$SCRIPT" 2>&1)"; deep2_rc=$?
+assert "0153: a deep-only explicit block is reported, not overwritten" \
+  '[ "$deep2_rc" -ne 0 ] && grep -qF "exactly one level" <<<"$deep2_out"'
+assert "0153: the deep-only file is left byte-identical" 'cmp -s "$DEEP2.before" "$DEEP2"'
+
 exit $fail

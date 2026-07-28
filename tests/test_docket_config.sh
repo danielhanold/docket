@@ -1595,6 +1595,40 @@ assert "0132 runtime control byte: rejected runtime emits no export" \
 assert "0132 runtime control byte: diagnostic names forbidden CR/LF bytes" \
   'grep -qF "carriage returns or newlines" "$tmp/runtime-control-byte.err"'
 
+# --- change 0153: a too-deeply-nested runtime.bash leaf is a NAMED error, never an absence ---
+# Both rc consumers hard-code non-zero to mean "multiple declarations", so an unmapped rc 3 would
+# emit an actively FALSE diagnostic naming a duplicate that does not exist.
+mkrepo "$tmp/runtime-deep"
+mkdir -p "$tmp/runtime-deep.xdg/docket"
+printf 'runtime:\n  codex:\n    bash: %s\n' "$tmp/runtime-bin/global-bash" \
+  > "$tmp/runtime-deep.xdg/docket/config.yml"
+deep_rc="$(rung_rc "$tmp/runtime-deep.xdg" "$tmp/runtime-deep" --export)"
+deep_err="$(XDG_CONFIG_HOME="$tmp/runtime-deep.xdg" bash "$SCRIPT" --repo-dir "$tmp/runtime-deep" --export 2>&1 >/dev/null)"
+assert "0153 deep global: resolver aborts" '[ "$deep_rc" != 0 ]'
+assert "0153 deep global: diagnostic names the nesting depth, not a duplicate" \
+  'grep -qF "exactly one level" <<<"$deep_err"'
+assert "0153 deep global: diagnostic does NOT claim multiple declarations" \
+  '! grep -qF "multiple runtime.bash declarations" <<<"$deep_err"'
+assert "0153 deep global: diagnostic names the offending file" \
+  'grep -qF "config.yml" <<<"$deep_err"'
+
+# The repo-local twin — same shape, different file, and it must name ITS file.
+mkrepo "$tmp/runtime-deep-local"
+printf 'runtime:\n  codex:\n    bash: %s\n' "$tmp/runtime-bin/local-bash" \
+  > "$tmp/runtime-deep-local/.docket.local.yml"
+deepl_rc="$(rung_rc "$tmp/runtime-deep-local.xdg" "$tmp/runtime-deep-local" --export)"
+deepl_err="$(XDG_CONFIG_HOME="$tmp/runtime-deep-local.xdg" bash "$SCRIPT" --repo-dir "$tmp/runtime-deep-local" --export 2>&1 >/dev/null)"
+assert "0153 deep local: resolver aborts" '[ "$deepl_rc" != 0 ]'
+assert "0153 deep local: diagnostic names .docket.local.yml, not a duplicate" \
+  'grep -qF ".docket.local.yml" <<<"$deepl_err" && ! grep -qF "multiple runtime.bash declarations" <<<"$deepl_err"'
+
+# NON-REGRESSION: a genuine duplicate must STILL get the duplicate message, not the depth one.
+mkrepo "$tmp/runtime-dup"
+printf 'runtime:\n  bash: /a\n  bash: /b\n' > "$tmp/runtime-dup/.docket.local.yml"
+dup_err="$(XDG_CONFIG_HOME="$tmp/runtime-dup.xdg" bash "$SCRIPT" --repo-dir "$tmp/runtime-dup" --export 2>&1 >/dev/null)"
+assert "0153: a real duplicate still gets the duplicate diagnostic" \
+  'grep -qF "multiple runtime.bash declarations" <<<"$dup_err"'
+
 # ============================================================================
 # change 0127 — change_types + the nested auto_capture map
 # ============================================================================

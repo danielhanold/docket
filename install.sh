@@ -31,8 +31,8 @@ DOCKET_BOOTSTRAP_LAUNCH=1 bash "$SCRIPT_DIR/scripts/ensure-global-config.sh"
 
 CONFIG_ROOT="${XDG_CONFIG_HOME:-${DOCKET_HARNESS_ROOT:-$HOME}/.config}"
 # No markers and no duplicate handling: ensure-global-config.sh has just guaranteed exactly one
-# authoritative declaration or exited non-zero, so this reads the value it settled on — managed or
-# hand-authored alike.
+# authoritative declaration — one level deep, none deeper (change 0153) — or exited non-zero, so
+# this reads the value it settled on — managed or hand-authored alike.
 DOCKET_BASH_PATH="$(docket_runtime_first "$CONFIG_ROOT/docket/config.yml")"
 export DOCKET_BASH_PATH
 
