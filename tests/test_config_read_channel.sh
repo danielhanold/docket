@@ -25,13 +25,32 @@
 # freedom from POSITION to LINE CONTENT: a line can still gain a second, unmarked occurrence of the
 # token while keeping its one existing marker. scan_tree closes that by counting occurrences and
 # markers PER LINE and requiring them equal — a line short by even one marker is unclassified.
+#
+# THE OCCURRENCE TEST IS A SUBSTRING MATCH, DELIBERATELY (change 0146). `myconfig.docket.yml.bak`
+# counts as an occurrence. This over-reports — it can demand a marker on a line that arguably needs
+# none — and that direction is fail-SAFE: it can never admit an unmarked real occurrence, which is
+# the only failure ADR-0052 cares about. It is also unreachable today (no superstring occurrence
+# exists in skills/**). The obvious tightening is actively worse: a boundary-anchored
+# `grep -oE '(^|[^A-Za-z0-9_.-])<tok>($|[^A-Za-z0-9_-])'` CONSUMES the boundary character, so
+# `see <tok> <tok> here` counts 1, not 2 — an undercount, which makes markers == occ satisfiable
+# with fewer markers than occurrences: the per-line fail-open Finding 1 closed.
 set -uo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 fail=0
 assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
 
-# Built by parts so this file's own source is not an occurrence of the token it scans for.
+# Built by parts so this file's own source is not an occurrence of the tokens it scans for.
 TOKEN=".docket$(printf '')".yml
+TOKEN_LOCAL=".docket$(printf '')".local.yml
+TOKEN_GLOBAL="config$(printf '')".yml
+# ADR-0052's rule is about the config FILE, not one of its three filenames (change 0146). docket
+# documents three layers a skill could just as wrongly be told to read: the repo-committed
+# .docket.yml, the machine-local sibling, and the user-level global. The third token is BARE, not
+# path-qualified: docket's own house phrasing is "the global `config.yml`", which is therefore the
+# likeliest spelling a future author would use — and the bare form subsumes the qualified one while
+# keeping the set overlap-free (the qualified form CONTAINS the bare one, so a set holding both
+# would double-count every path-qualified occurrence).
+TOKENS=("$TOKEN" "$TOKEN_LOCAL" "$TOKEN_GLOBAL")
 MARKER_RE='<!-- docket:config-read-channel: (write-back|negative) -->'
 
 # EXCLUSIONS — declared, each with its reason. Both files ARE the contract that describes the
@@ -62,7 +81,7 @@ skills/docket-convention/references/agent-layer.md
 # mutation-test the population, because a scan that reaches nothing yields zero findings and reads
 # identical to a clean tree).
 scan_tree(){
-  local root="$1" f rel line n occ m cls
+  local root="$1" f rel line n occ m cls _hit _t
   local -a markers
   while IFS= read -r f; do
     rel="${f#"$root"/}"
@@ -75,11 +94,22 @@ $rel
     n=0
     while IFS= read -r line || [ -n "$line" ]; do
       n=$((n+1))
-      case "$line" in *"$TOKEN"*) ;; *) continue ;; esac
-      # Count OCCURRENCES of the token and MARKERS on this same line and require them equal — a
-      # line with 2 occurrences and 1 marker must fail open no longer: it is reported unclassified,
-      # not admitted on the strength of the one marker it happens to carry (Finding 1).
-      occ="$(grep -oF -- "$TOKEN" <<<"$line" | wc -l | tr -d ' ')"
+      # PREFILTER — must cover the whole token set. Widening only the counter below while leaving
+      # this single-token silently preserves the fail-open change 0146 closes.
+      _hit=0
+      for _t in "${TOKENS[@]}"; do
+        case "$line" in *"$_t"*) _hit=1; break ;; esac
+      done
+      [ "$_hit" = 1 ] || continue
+      # Count OCCURRENCES across the whole token set and MARKERS on this same line and require them
+      # equal — a line with 2 occurrences and 1 marker is reported unclassified, not admitted on the
+      # strength of the one marker it happens to carry (Finding 1). The counts SUM exactly because
+      # no two tokens can co-match an overlapping region; that property is asserted directly below,
+      # and backed by ground-truth fixtures (l) and (m) rather than by the structural assert alone.
+      occ=0
+      for _t in "${TOKENS[@]}"; do
+        occ=$(( occ + $(grep -oF -- "$_t" <<<"$line" | wc -l | tr -d ' ') ))
+      done
       markers=()
       while IFS= read -r m; do
         [ -n "$m" ] && markers+=("$m")
@@ -207,6 +237,90 @@ assert "mutation (g): the same line with two markers is ACCEPTED" \
   '[ -z "$(grep -- "$(printf "^unclassified\t")" <<<"$outg")" ]'
 assert "mutation (g) is non-vacuous: both occurrences on the line were actually classified" \
   '[ "$(grep -c -- "$(printf "^ok\t")" <<<"$outg")" = 2 ]'
+
+# (h) an unmarked .docket.local.yml occurrence => REJECTED. This is the exact fail-open change 0146
+# closes: reproduced end-to-end on 0120's branch, an unmarked "Read `.docket.local.yml` yourself and
+# parse the `finalize:` block" line left the suite PASSing.
+mkfix h
+printf 'read `%s` yourself and parse the `finalize:` block\n' "$TOKEN_LOCAL" > "$tmp/h/skills/x/SKILL.md"
+outh="$(scan_tree "$tmp/h")"
+assert "mutation (h): an unmarked .docket.local.yml occurrence is REJECTED" \
+  'grep -q -- "$(printf "^unclassified\tskills/x/SKILL.md\t1\t")" <<<"$outh"'
+
+# (i) an unmarked bare config.yml occurrence => REJECTED.
+mkfix i
+printf 'the global `%s` sets it\n' "$TOKEN_GLOBAL" > "$tmp/i/skills/x/SKILL.md"
+outi="$(scan_tree "$tmp/i")"
+assert "mutation (i): an unmarked bare config.yml occurrence is REJECTED" \
+  'grep -q -- "$(printf "^unclassified\tskills/x/SKILL.md\t1\t")" <<<"$outi"'
+
+# (j) a MARKED occurrence of each NEW token => classified ok. Proves both new tokens reach the
+# admissible arm and are not reject-only.
+mkfix j
+{ printf 'never by parsing `%s` <!-- docket:config-read-channel: negative -->\n' "$TOKEN_LOCAL"
+  printf 'never by parsing `%s` <!-- docket:config-read-channel: negative -->\n' "$TOKEN_GLOBAL"
+} > "$tmp/j/skills/x/SKILL.md"
+outj="$(scan_tree "$tmp/j")"
+assert "mutation (j): marked occurrences of both new tokens are ACCEPTED" \
+  '[ -z "$(grep -- "$(printf "^unclassified\t")" <<<"$outj")" ]'
+assert "mutation (j) is non-vacuous: both new-token occurrences were actually classified" \
+  '[ "$(grep -c -- "$(printf "^ok\t")" <<<"$outj")" = 2 ]'
+
+# (k) a line carrying TWO DIFFERENT tokens with only ONE marker => REJECTED. Pins that the
+# equal-count rule SUMS across the token set rather than short-circuiting on the first token
+# that matches.
+mkfix k
+printf 'either `%s` or `%s` <!-- docket:config-read-channel: negative -->\n' \
+  "$TOKEN" "$TOKEN_LOCAL" > "$tmp/k/skills/x/SKILL.md"
+outk="$(scan_tree "$tmp/k")"
+assert "mutation (k): two different tokens with one marker is REJECTED" \
+  'grep -q -- "$(printf "^unclassified\tskills/x/SKILL.md\t1\t")" <<<"$outk"'
+
+# (l) GROUND TRUTH FOR SUMMING: a line containing .docket.local.yml ONCE with exactly one marker
+# => ok. This is the direct test that the token set counts it ONCE, not twice — and it is what
+# actually proves the overlap property, rather than asserting a proxy for it. (`.docket.yml` is
+# NOT a substring of `.docket.local.yml`, so the count is 1; a naive alternation that also
+# matched the `.yml` tail would double-count and demand a phantom second marker.)
+mkfix l
+printf 'never by parsing `%s` <!-- docket:config-read-channel: negative -->\n' \
+  "$TOKEN_LOCAL" > "$tmp/l/skills/x/SKILL.md"
+outl="$(scan_tree "$tmp/l")"
+assert "mutation (l): a single .docket.local.yml occurrence counts ONCE, not twice" \
+  '[ -z "$(grep -- "$(printf "^unclassified\t")" <<<"$outl")" ] && [ "$(grep -c -- "$(printf "^ok\t")" <<<"$outl")" = 1 ]'
+
+# (m) a line whose only match is the PATH-QUALIFIED docket/config.yml => counted ONCE (the bare
+# token matches inside the path), with one marker => ok. Pins the subsumption decision: the token
+# set holds bare `config.yml`, never `docket/config.yml`, precisely so this counts once.
+mkfix m
+printf 'never by parsing `docket/%s` <!-- docket:config-read-channel: negative -->\n' \
+  "$TOKEN_GLOBAL" > "$tmp/m/skills/x/SKILL.md"
+outm="$(scan_tree "$tmp/m")"
+assert "mutation (m): a path-qualified docket/config.yml counts ONCE" \
+  '[ -z "$(grep -- "$(printf "^unclassified\t")" <<<"$outm")" ] && [ "$(grep -c -- "$(printf "^ok\t")" <<<"$outm")" = 1 ]'
+
+# OVERLAP INVARIANT. Assert directly that no two tokens in the set can co-match an OVERLAPPING
+# region of a line — not merely that no token is a substring of another, which is necessary but
+# INSUFFICIENT (a future token whose prefix is another token's suffix would satisfy non-substring
+# and still double-count). Built by concatenating each ordered pair and requiring the summed count
+# to equal exactly 2.
+overlap_ok=1
+for _t1 in "${TOKENS[@]}"; do
+  for _t2 in "${TOKENS[@]}"; do
+    _line="x${_t1}y${_t2}z"
+    _sum=0
+    for _t in "${TOKENS[@]}"; do
+      _sum=$(( _sum + $(grep -oF -- "$_t" <<<"$_line" | wc -l | tr -d ' ') ))
+    done
+    [ "$_sum" -eq 2 ] || { overlap_ok=0; echo "overlap: <$_t1> + <$_t2> summed to $_sum"; }
+  done
+done
+assert "0146: no two tokens in the set co-match an overlapping region (summing is exact)" \
+  '[ "$overlap_ok" = 1 ]'
+
+# POPULATION FLOOR on the token set itself: an accidental truncation to one token must not read as
+# a clean tree (backstop-must-compute-not-reenumerate — a scan that reaches nothing is
+# byte-identical to green).
+assert "0146: the scanned token set has exactly three members" '[ "${#TOKENS[@]}" -eq 3 ]'
 
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
