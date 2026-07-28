@@ -712,6 +712,58 @@ expected_nested_key_count=17
 assert "scope tag: the pass enumerated exactly $expected_nested_key_count keys at depth > 0 (got ${nested_key_count:-0}; if you added or removed a nested key in .docket.example.yml, bump expected_nested_key_count in the same commit)" \
   '[ "${nested_key_count:-0}" = "$expected_nested_key_count" ]'
 
+# GUARD-THE-GUARD (change 0122). The asserts above are green on a correct file; these prove the
+# pass actually goes RED on the drift it exists to catch. Both run $scope_guard_awk — literally
+# the program that ships — over a MUTATED COPY in $tmp. The real .docket.example.yml is never
+# touched. Deletions are anchored on the KEY LINE'S CONTENT, not on a line number, because the
+# population floor above explicitly anticipates this file gaining keys.
+#
+# drop_tag_above <file> <key-line-regex> — deletes the `scope:` comment line sitting immediately
+# above the first line matching the regex. Emits the mutated file on stdout.
+drop_tag_above(){
+  awk -v pat="$2" '
+    { b[NR] = $0 }
+    END {
+      for (i = 1; i <= NR; i++) {
+        if (b[i+1] ~ pat && b[i] ~ /scope:/) continue
+        print b[i]
+      }
+    }
+  ' "$1"
+}
+
+# (a) A key that carries its OWN tag: finalize.gate. Under the PRE-0122 guard this mutation was
+# green — the finalize: header's window extended forward and its two siblings' tags satisfied it.
+drop_tag_above "$EX" '^  gate:' > "$tmp/mut-gate.yml"
+mut_gate_out="$(awk "$scope_guard_awk" "$tmp/mut-gate.yml" | grep -v '^COUNT ')"
+assert "guard-the-guard: dropping finalize.gate's own tag is REPORTED (got '${mut_gate_out}')" \
+  '[ "$mut_gate_out" = "finalize.gate" ]'
+
+# (b) A block whose children INHERIT: skills. Dropping the header's tag must report all five
+# leaves, since none carries a tag of its own — this is the inheritance half of rule 2.
+drop_tag_above "$EX" '^skills:' > "$tmp/mut-skills.yml"
+mut_skills_out="$(awk "$scope_guard_awk" "$tmp/mut-skills.yml" | grep -v '^COUNT ' | sort | tr '\n' ' ')"
+assert "guard-the-guard: dropping the skills: header tag reports all five leaves (got '${mut_skills_out}')" \
+  '[ "$mut_skills_out" = "skills.brainstorm skills.build skills.finish skills.plan skills.review " ]'
+
+# (c) THE ANTI-MASKING REGRESSION, reproduced. This is change 0102's exact bug: a finalize child
+# whose window holds no sanctioned tag, while its two siblings remain tagged. The pre-0122 guard
+# was GREEN here — which is how the bug shipped. Rule 3 is the only reason this is now red.
+drop_tag_above "$EX" '^  require_pr_approval:' > "$tmp/mut-0102.yml"
+mut_0102_out="$(awk "$scope_guard_awk" "$tmp/mut-0102.yml" | grep -v '^COUNT ')"
+assert "guard-the-guard: the 0102 regression (an untagged finalize sibling) is REPORTED (got '${mut_0102_out}')" \
+  '[ "$mut_0102_out" = "finalize.require_pr_approval" ]'
+
+# Non-vacuity for the mutations themselves: a drop_tag_above that silently matched nothing would
+# leave the copy identical to the original, and all three asserts would then be comparing the
+# guard's clean (empty) output against a non-empty expectation — i.e. they'd fail loudly rather
+# than pass falsely. But an inverted bug (the helper deleting too much) is silent, so pin the
+# damage: each mutated copy must be EXACTLY one line shorter than the original.
+for mf in mut-gate mut-skills mut-0102; do
+  assert "guard-the-guard: $mf.yml differs from the original by exactly one deleted line" \
+    '[ "$(( $(wc -l < "$EX") - $(wc -l < "$tmp/'"$mf"'.yml") ))" = "1" ]'
+done
+
 # --- (3) PRESENCE-SENSITIVE keys ship COMMENTED ------------------------------
 # Regression guard for a real break (change 0048): gating per-repo generation on file PRESENCE
 # littered wrappers into change-tracking-only repos and flipped their --check from a no-op to
