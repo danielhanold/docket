@@ -11,7 +11,7 @@ related: [18, 132]
 discovered_from: [132]
 adrs: [14, 19, 29]
 spec: docs/superpowers/specs/2026-07-22-centralize-runtime-config-helpers-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-28-centralize-runtime-config-helpers.md
 results:
 trivial: false
 auto_groomable:
@@ -29,6 +29,7 @@ type: refactor
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-22-centralize-runtime-config-helpers-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-22-centralize-runtime-config-helpers-design.md) |
+| Plan | [2026-07-28-centralize-runtime-config-helpers.md](https://github.com/danielhanold/docket/blob/feat/centralize-runtime-config-helpers/docs/superpowers/plans/2026-07-28-centralize-runtime-config-helpers.md) |
 | ADRs | [ADR-0014](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0014-consuming-repo-script-resolution.md), [ADR-0019](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0019-global-config-fence-classification.md), [ADR-0029](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0029-docket-facade-routing-and-config-presentation.md) |
 <!-- docket:artifacts:end -->
 
