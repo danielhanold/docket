@@ -2,9 +2,9 @@
 slug: guards-are-code
 hook: "A guard is code — mutation-test it (strip the feature, watch it go red) or it is decoration."
 topics: [testing, sentinels, mutation]
-changes: [14, 15, 21, 36, 37, 64, 65, 67, 68, 69, 70, 71, 72, 73, 74, 83, 84, 88, 91, 96, 101, 102, 106, 107, 111, 116]
+changes: [14, 15, 21, 36, 37, 64, 65, 67, 68, 69, 70, 71, 72, 73, 74, 83, 84, 88, 91, 96, 101, 102, 106, 107, 111, 116, 126]
 created: 2026-06-17
-updated: 2026-07-22
+updated: 2026-07-28
 promotion_state: promoted
 promoted_to: AGENTS.md
 ---
@@ -260,3 +260,19 @@ lib. A snippet the PLAN hands you is unvetted code: mutation-test it like any as
   The shipped guards extract the executable mapping arms, assert a nonzero population, then pin
   both arity and exact set equality against the named vocabulary. Mutating both directions made
   the intended guard redden; sparse mappings with a correct default stayed deliberately unpinned.
+- 2026-07-28 (#126, PR #132 — merged) — Four Important review findings on a single newly-authored
+  guard, three of which the guard's own green run could not show. (a) **Violations were computed but
+  never printed** — a red run emitted a bare count, no line number and no variable name, so the guard
+  was unactionable exactly when it fired; closed by widening its print filter to emit per-site
+  records. (b) **The derivation was non-hermetic and cwd-dependent**: it shelled out without
+  `--repo-dir`, coupling the guard to this repo's own committed `.docket.yml`, and running the suite
+  from a different working directory reddened it. Route derivation through the file's own
+  fixture-repo builder, then re-verify green **from a foreign cwd** — not just from the repo root.
+  (c) **A guard keyed on a construct has no reach into blocks that lack it**: this one keys on `eval`
+  sites, so `[ -z "$VAR" ]` asserts sitting in blocks with no eval at all are invisible to it and can
+  never fail — a distinct vacuity class the guard's own green totals cannot reveal (minted as a
+  follow-up). (d) A **fixed** exempt ceiling (`-le 5` against today's `exempt=3`) ages into a loud
+  false red rather than a silent pass — acceptable, but a proportional bound would be drift-proof,
+  and a *partial* key rename can still slip under it. Note also that two prior human reviews
+  hand-counted 64 and 65 sites; the disagreement is why the population is derived at runtime and
+  cross-checked against a **structurally different** extractor rather than hardcoded.

@@ -2,7 +2,7 @@
 slug: green-suite-untested-branch
 hook: "Green tests are not proof the hard branch was exercised — a mock that omits the tool routes every test through the degrade path."
 topics: [testing, fixtures, mocks]
-changes: [16, 22, 25, 26, 35, 58, 62, 69, 91, 93, 117]
+changes: [16, 22, 25, 26, 35, 58, 62, 69, 91, 93, 117, 126]
 created: 2026-07-11
 updated: 2026-07-28
 promotion_state: retained
@@ -72,3 +72,14 @@ was exercised.
   the suite green. Caught only by mutation: after the fixture was added, the same deletion reddened
   three asserts. The comment describing the fixture was authored before the fixture was, and nothing
   in a green run can tell those two states apart. Mutation-test the branch, not the suite's color.
+- 2026-07-28 (#126, PR #132 — merged) — **State leaked from the previous fixture makes the next
+  block's assert vacuous.** Sequential resolver fixtures in one file share exported variables; when
+  block P's resolver was sabotaged into aborting, its `eval` received an empty string and the assert
+  silently read block **O's** stale `AUTO_GROOM=false` — printing `ok` for a resolver that never
+  ran. Proven, not asserted: same assert, three states — clean `ok`, sabotage-only `ok` (vacuous),
+  sabotage + an `AUTO_GROOM=__poison__` prelude `NOT OK` (caught). Poison every variable an assert
+  will read, between evals. Two cautions the demonstration itself taught: sibling asserts in the
+  same block redden for *unrelated correct* reasons under the sabotage, so read the target assert's
+  own status rather than the suite's ok/notok deltas; and the site the stub originally named was
+  the wrong one to demonstrate at — where the previous fixture happens to leave a *differing*
+  value, the hazard is real but latent and the assert reddens honestly.
