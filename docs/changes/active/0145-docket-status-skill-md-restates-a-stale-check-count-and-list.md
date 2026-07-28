@@ -12,12 +12,12 @@ related: [117, 144]
 discovered_from: [117]
 adrs: []
 spec: docs/superpowers/specs/2026-07-28-status-skill-stale-check-restatement-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-28-status-skill-stale-check-restatement-plan.md
 results:
 trivial: false
 auto_groomable: true
 branch: feat/docket-status-skill-md-restates-a-stale-check-count-and-list
-claimed_at: 2026-07-28T11:22:10Z
+claimed_at: 2026-07-28T11:32:05Z
 pr:
 blocked_by:
 reconciled: true
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-28-status-skill-stale-check-restatement-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-28-status-skill-stale-check-restatement-design.md) |
+| Plan | [2026-07-28-status-skill-stale-check-restatement-plan.md](https://github.com/danielhanold/docket/blob/feat/docket-status-skill-md-restates-a-stale-check-count-and-list/docs/superpowers/plans/2026-07-28-status-skill-stale-check-restatement-plan.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
