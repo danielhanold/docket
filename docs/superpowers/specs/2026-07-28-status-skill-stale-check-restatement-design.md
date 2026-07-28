@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0145 — docket-status SKILL.md restates a stale check count and list the 0111 guard does not pin](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0145-docket-status-skill-md-restates-a-stale-check-count-and-list.md)**
+> ↩ **[Change 0145 — docket-status SKILL.md restates a stale check count and list the 0111 guard does not pin](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-07-28-0145-docket-status-skill-md-restates-a-stale-check-count-and-list.md)**
 <!-- docket:backlink:end -->
 
 # Design — `docket-status` SKILL.md restates a stale check count and list (change 0145)

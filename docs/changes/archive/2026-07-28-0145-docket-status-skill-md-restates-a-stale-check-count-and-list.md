@@ -29,8 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-28-status-skill-stale-check-restatement-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-28-status-skill-stale-check-restatement-design.md) |
-| Plan | [2026-07-28-status-skill-stale-check-restatement-plan.md](https://github.com/danielhanold/docket/blob/feat/docket-status-skill-md-restates-a-stale-check-count-and-list/docs/superpowers/plans/2026-07-28-status-skill-stale-check-restatement-plan.md) |
-| Results | [2026-07-28-docket-status-skill-md-restates-a-stale-check-count-and-list-results.md](https://github.com/danielhanold/docket/blob/feat/docket-status-skill-md-restates-a-stale-check-count-and-list/docs/results/2026-07-28-docket-status-skill-md-restates-a-stale-check-count-and-list-results.md) |
+| Plan | [2026-07-28-status-skill-stale-check-restatement-plan.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-28-status-skill-stale-check-restatement-plan.md) |
+| Results | [2026-07-28-docket-status-skill-md-restates-a-stale-check-count-and-list-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-28-docket-status-skill-md-restates-a-stale-check-count-and-list-results.md) |
 | PR | [#135](https://github.com/danielhanold/docket/pull/135) |
 <!-- docket:artifacts:end -->
 
