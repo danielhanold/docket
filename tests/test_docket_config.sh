@@ -1807,5 +1807,140 @@ assert "0128 glob: auto_capture.types [f*] is rejected as a non-member instead" 
 assert "0128 glob: the auto_capture.types diagnostic quotes the LITERAL token" \
   'grep -qF "f*" "$tmp/glob-act.err"'
 
+# --- (T) prelude correspondence guard (change 0126) ---------------------------
+# Every `eval "$V"` of resolver output must clear the exported variables the
+# asserts between it and the NEXT eval site read. The window is "anything since
+# the previous eval site", not "the preceding line": the hazard is a stale value
+# left by the PREVIOUS fixture's eval, so a clearing anywhere in between kills
+# it. That is also what lets the pre-existing `unset`-idiom blocks satisfy this
+# guard byte-untouched (change 0126, spec assumption 2).
+#
+# Corpus is the WHOLE file minus this section's own marker-delimited self-block.
+# Deliberately NOT truncated at an end-of-file marker: the file's tail is where
+# new fixtures land, so truncation would make them permanently invisible.
+
+prelude_report(){
+  local file="$1" keys="$2"
+  awk -v keys="$keys" '
+    { L[NR] = $0 }
+    END {
+      n = NR
+      split(keys, ka, " "); for (i in ka) KEY[ka[i]] = 1
+
+      # --- locate this guards own self-block (FIRST occurrence of each marker;
+      # the literal necessarily appears twice - the marker and the pattern that
+      # searches for it).
+      sstart = 0; send = 0
+      for (i = 1; i <= n; i++) {
+        if (sstart == 0 && index(L[i], SELFSTART) > 0) sstart = i
+        else if (sstart != 0 && send == 0 && index(L[i], SELFEND) > 0) send = i
+      }
+
+      # --- discover sites: eval "$V" where V came from a command substitution
+      ns = 0
+      split("", cmdsub)
+      for (i = 1; i <= n; i++) {
+        if (sstart != 0 && i >= sstart && i <= send) continue
+        line = L[i]; s = line; sub(/^[ \t]+/, "", s)
+        if (s ~ /^#/) continue
+        tmp = line
+        while (match(tmp, /[A-Za-z_][A-Za-z0-9_]*="?\$\(/)) {
+          seg = substr(tmp, RSTART, RLENGTH); sub(/=.*$/, "", seg); cmdsub[seg] = 1
+          tmp = substr(tmp, RSTART + RLENGTH)
+        }
+        tmp = line
+        while (match(tmp, /eval[ \t]+"\$[A-Za-z_][A-Za-z0-9_]*"/)) {
+          seg = substr(tmp, RSTART, RLENGTH); v = seg
+          sub(/^eval[ \t]+"\$/, "", v); sub(/"$/, "", v)
+          if (v in cmdsub) { ns++; SL[ns] = i }
+          tmp = substr(tmp, RSTART + RLENGTH)
+        }
+      }
+
+      exempt = 0; okc = 0; viol = 0
+      for (k = 1; k <= ns; k++) {
+        lo = SL[k]; hi = (k < ns ? SL[k+1] - 1 : n)
+
+        # asserted exported variables in this segment (matches ${VAR-unset} too,
+        # otherwise every existing unset-idiom assert reads as an empty
+        # intersection and is wrongly exempted)
+        split("", need)
+        for (i = lo; i <= hi; i++) {
+          if (sstart != 0 && i >= sstart && i <= send) continue
+          s = L[i]; t = s; sub(/^[ \t]+/, "", t); if (t ~ /^#/) continue
+          tmp = s
+          while (match(tmp, /\$\{?[A-Za-z_][A-Za-z0-9_]*/)) {
+            w = substr(tmp, RSTART, RLENGTH); sub(/^\$\{?/, "", w)
+            if (w in KEY) need[w] = 1
+            tmp = substr(tmp, RSTART + RLENGTH)
+          }
+        }
+
+        # clearing window: since the previous site, through this eval line
+        split("", cleared)
+        wlo = (k > 1 ? SL[k-1] + 1 : 1)
+        for (i = wlo; i <= lo; i++) {
+          if (sstart != 0 && i >= sstart && i <= send) continue
+          c = L[i]; q = c; sub(/^[ \t]+/, "", q); if (q ~ /^#/) continue
+          tmp = c
+          while (match(tmp, /[A-Za-z_][A-Za-z0-9_]*=(__poison__|"")/)) {
+            w = substr(tmp, RSTART, RLENGTH); sub(/=.*$/, "", w); cleared[w] = 1
+            tmp = substr(tmp, RSTART + RLENGTH)
+          }
+          if (c ~ /(^|[;&| \t])unset[ \t]/) {
+            tmp = c; sub(/^.*unset[ \t]+/, "", tmp)
+            nf = split(tmp, uu, /[ \t;]+/)
+            for (j = 1; j <= nf; j++) if (uu[j] ~ /^[A-Z_][A-Z0-9_]*$/) cleared[uu[j]] = 1
+          }
+        }
+
+        cnt = 0; miss = ""
+        for (w in need) { cnt++; if (!(w in cleared)) miss = miss " " w }
+        if (cnt == 0)        { exempt++; print "SITE " SL[k] " exempt" }
+        else if (miss == "") { okc++;    print "SITE " SL[k] " ok" }
+        else                 { viol++;   print "SITE " SL[k] " viol" miss }
+      }
+      print "TOTALS sites=" ns " exempt=" exempt " ok=" okc " viol=" viol
+    }
+  ' SELFSTART="$T_SELF_START" SELFEND="$T_SELF_END" "$file"
+}
+
+# docket:prelude-guard:self:start
+# The two marker literals below are the guard's own scan patterns. Everything
+# between the start and end marker is subtracted from the corpus.
+T_SELF_START='docket:prelude-guard:self:start'
+T_SELF_END='docket:prelude-guard:self:end'
+T_EVAL_LITERAL='eval "$'
+# docket:prelude-guard:self:end
+
+t_keys="$(bash "$SCRIPT" --export 2>/dev/null | sed 's/=.*//' | sort | tr '\n' ' ')"
+t_out="$(prelude_report "${BASH_SOURCE[0]}" "$t_keys")"
+t_sites="$(printf '%s\n' "$t_out" | sed -n 's/^TOTALS sites=\([0-9]*\) .*/\1/p')"
+t_viol="$(printf '%s\n' "$t_out" | sed -n 's/^TOTALS .* viol=\([0-9]*\)$/\1/p')"
+printf '%s\n' "$t_out" | /usr/bin/grep '^TOTALS'
+
+# Population floor, from a STRUCTURALLY DIFFERENT extractor: a plain grep of the
+# raw literal, minus the known non-sites: the assert() helper at :8 (whose eval
+# takes a positional rather than a cmdsub var), every COMMENT line that merely
+# mentions the literal in prose (a real site is never a comment line — this
+# mirrors the site-discovery awk's own `if (s ~ /^#/) continue`), and this
+# guard's own T_EVAL_LITERAL holder (a quoted copy of the pattern, not a site).
+# Each count is derived at runtime, not hand-counted, so file drift (new
+# fixtures, new prose elsewhere) cannot silently desync the two extractors.
+t_raw="$(/usr/bin/grep -cF "$T_EVAL_LITERAL" "${BASH_SOURCE[0]}")"
+t_helper="$(/usr/bin/grep -cE '^assert\(\)\{' "${BASH_SOURCE[0]}")"
+t_comments="$(/usr/bin/grep -E '^[[:space:]]*#' "${BASH_SOURCE[0]}" | /usr/bin/grep -cF "$T_EVAL_LITERAL")"
+t_selflit="$(/usr/bin/grep -cE '^T_EVAL_LITERAL=' "${BASH_SOURCE[0]}")"
+t_selfrefs="$(awk -v s="$T_SELF_START" -v e="$T_SELF_END" '
+  index($0,s)>0 && !st {st=NR} index($0,e)>0 && st && !en {en=NR}
+  END{ if (st && en) print en-st+1; else print 0 }' "${BASH_SOURCE[0]}")"
+
+assert "0126 T: guard reached a real population (>= 60 sites)" '[ "$t_sites" -ge 60 ]'
+assert "0126 T: site count agrees with the independent grep extractor" \
+  '[ "$t_sites" -eq "$(( t_raw - t_helper - t_comments - t_selflit ))" ]'
+assert "0126 T: the self-block is bounded and non-empty" '[ "$t_selfrefs" -ge 3 ]'
+assert "0126 T: every eval site clears the exported vars its asserts read" \
+  '[ "$t_viol" -eq 0 ]'
+
 if [ "$fail" = 0 ]; then echo PASS; else echo FAIL; fi
 exit "$fail"
