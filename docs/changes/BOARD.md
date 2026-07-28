@@ -1,14 +1,8 @@
 # Backlog
 
-**147 changes** — 🟢 1 in progress · 🟡 24 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 2 implemented · ✅ 106 done · 🗑️ 9 killed
+**149 changes** — 🟡 26 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 3 implemented · ✅ 106 done · 🗑️ 9 killed
 
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0126](active/0126-apply-the-poison-value-prelude-uniformly-to-every-resolver-e.md) | Apply the poison-value prelude uniformly to every resolver eval in the config suite | `medium` | `chore` | [spec](../superpowers/specs/2026-07-27-poison-prelude-uniformity-design.md) | `feat/apply-the-poison-value-prelude-uniformly-to-every-resolver-e` |
-
-## 🟡 Proposed (24)
+## 🟡 Proposed (26)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -36,6 +30,8 @@
 | [0145](active/0145-docket-status-skill-md-restates-a-stale-check-count-and-list.md) | docket-status SKILL.md restates a stale check count and list the 0111 guard does not pin | `medium` | `docs` | build-ready |
 | [0146](active/0146-widen-the-config-read-channel-guard-to-the-sibling-config-la.md) | Widen the config read-channel guard to the sibling config layers it does not match | `medium` | `fix` | build-ready |
 | [0147](active/0147-extend-the-2c-orphan-key-check-past-its-column-0-anchor-to-n.md) | Extend the (2c) orphan-key check past its column-0 anchor to nested keys | `medium` | `fix` | needs-brainstorm |
+| [0148](active/0148-two-unfalsifiable-z-asserts-in-the-config-suite-sit-in-eval.md) | Two unfalsifiable -z asserts in the config suite sit in eval-free blocks | `medium` | `chore` | needs-brainstorm |
+| [0149](active/0149-make-the-prelude-guard-s-exemption-bound-proportional-and-cl.md) | Make the prelude guard's exemption bound proportional, and close the partial-rename gap | `medium` | `chore` | needs-brainstorm |
 
 ## 🔴 Blocked (1)
 
@@ -52,11 +48,12 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (3)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | `chore` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
+| [0126](active/0126-apply-the-poison-value-prelude-uniformly-to-every-resolver-e.md) | Apply the poison-value prelude uniformly to every resolver eval in the config suite | `medium` | `chore` | [#132](https://github.com/danielhanold/docket/pull/132) |  |
 | [0135](active/0135-cursor-agent-wrapper-contract.md) | Generated Cursor wrappers violate Cursor's subagent contract, disabling skills and model effort | `high` | `fix` | [#127](https://github.com/danielhanold/docket/pull/127) |  |
 
 ```mermaid
@@ -93,6 +90,8 @@ graph TD
   0145
   0120 --> 0146
   0147
+  0148
+  0149
   0015:::done
   0016:::done
   0077:::done
