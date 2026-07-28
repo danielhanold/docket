@@ -1,6 +1,6 @@
 # Backlog
 
-**147 changes** — 🟢 1 in progress · 🟡 25 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 5 implemented · ✅ 102 done · 🗑️ 9 killed
+**147 changes** — 🟢 1 in progress · 🟡 25 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 4 implemented · ✅ 103 done · 🗑️ 9 killed
 
 ## 🟢 In progress (1)
 
@@ -53,12 +53,11 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (5)
+## 🔵 Implemented — awaiting merge (4)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | `chore` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
-| [0115](active/0115-extend-the-board-row-dropped-invariant-to-archive-files.md) | Extend the board-row-dropped invariant to archive/ files | `medium` | `fix` | [#128](https://github.com/danielhanold/docket/pull/128) |  |
 | [0117](active/0117-deferred-adr-publish-visibility-decide-whether-docket-adr-s.md) | Deferred ADR-publish visibility — detect an unpublished ADR with a computed board-checks finding | `medium` | `feat` | [#129](https://github.com/danielhanold/docket/pull/129) |  |
 | [0120](active/0120-docket-finalize-change-claims-integration-branch-is-read-fro.md) | docket-finalize-change claims integration_branch is read from .docket.yml, but it is an exported resolver key | `medium` | `docs` | [#130](https://github.com/danielhanold/docket/pull/130) |  |
 | [0135](active/0135-cursor-agent-wrapper-contract.md) | Generated Cursor wrappers violate Cursor's subagent contract, disabling skills and model effort | `high` | `fix` | [#127](https://github.com/danielhanold/docket/pull/127) |  |
@@ -78,7 +77,6 @@ graph TD
   0103
   0110
   0113
-  0115
   0117
   0118
   0119
@@ -107,10 +105,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (111)</summary>
+<details><summary>✅🗑️ Archive — done + killed (112)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0115](archive/2026-07-28-0115-extend-the-board-row-dropped-invariant-to-archive-files.md) | Extend the board-row-dropped invariant to archive/ files | 2026-07-28 |
 | [0137](archive/2026-07-27-0137-forked-claude-code-skills-assume-absent-task-dispatch.md) | Claude Code dispatch-capability detection: name-based probing silently drops SDD build and review discipline | 2026-07-27 |
 | [0131](archive/2026-07-26-0131-make-board-conflict-rebase-continuation-noninteractive.md) | Make board-conflict rebase continuation noninteractive | 2026-07-26 |
 | [0129](archive/2026-07-26-0129-fix-the-pipefail-unsafe-plain-format-config-assertion.md) | Fix the pipefail-unsafe plain-format config assertion | 2026-07-26 |
@@ -128,7 +127,6 @@ graph TD
 | [0102](archive/2026-07-21-0102-finalize-require-pr-approval-has-no-layer-resolution.md) | finalize.require_pr_approval has no layer resolution | 2026-07-21 |
 | [0083](archive/2026-07-21-0083-terminal-publish-gap-detection.md) | A terminal record can silently never reach the integration branch — mark deferred publishes, stop the checker lying | 2026-07-21 |
 | [0109](archive/2026-07-20-0109-rename-docket-yml-example-to-docket-example-yml.md) | Rename .docket.yml.example to .docket.example.yml so editors syntax-highlight it | 2026-07-20 |
-| [0107](archive/2026-07-20-0107-guard-the-readme-config-snippet-against-docket-yml-example-d.md) | Guard the README config snippet against .docket.yml.example drift | 2026-07-20 |
 | [0105](archive/2026-07-20-0105-pin-docket-mode-main-coverage-for-docket-status-digest-only.md) | Pin DOCKET_MODE=main coverage for docket-status --digest-only | 2026-07-20 |
 | [0086](archive/2026-07-18-0086-attended-finalize-merge-path.md) | Attended finalize has no merge path under auto_approve — scope the --admin ban to autonomous runs | 2026-07-18 |
 | [0033](archive/2026-07-16-0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | 2026-07-16 |
@@ -140,7 +138,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-07](archive/) | 55 done |
+| [2026-07](archive/) | 56 done |
 | [2026-06](archive/) | 32 done |
 
 </details>
