@@ -1,8 +1,14 @@
 # Backlog
 
-**153 changes** — 🟡 28 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 2 implemented · ✅ 109 done · 🗑️ 9 killed
+**153 changes** — 🟢 1 in progress · 🟡 27 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 2 implemented · ✅ 109 done · 🗑️ 9 killed
 
-## 🟡 Proposed (28)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch |
+|---|-------|----------|------|------|--------|
+| [0145](active/0145-docket-status-skill-md-restates-a-stale-check-count-and-list.md) | docket-status SKILL.md restates a stale check count and list the 0111 guard does not pin | `medium` | `docs` | [spec](../superpowers/specs/2026-07-28-status-skill-stale-check-restatement-design.md) | `feat/docket-status-skill-md-restates-a-stale-check-count-and-list` |
+
+## 🟡 Proposed (27)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -25,7 +31,6 @@
 | [0142](active/0142-make-the-unmapped-harness-wrapper-gap-loud-at-generation-tim.md) | Make the unmapped-harness wrapper gap loud at generation time | `medium` | `fix` | needs-brainstorm |
 | [0143](active/0143-empty-id-collapses-the-archive-sort-feeder-s-tab-joined-fiel.md) | Empty id collapses the archive sort feeder's TAB-joined fields in render-board.sh | `medium` | `fix` | auto-groom blocked — needs you |
 | [0144](active/0144-a-board-checks-sh-non-zero-exit-silently-voids-the-entire-he.md) | A board-checks.sh non-zero exit silently voids the entire health pass | `medium` | `chore` | auto-groom blocked — needs you |
-| [0145](active/0145-docket-status-skill-md-restates-a-stale-check-count-and-list.md) | docket-status SKILL.md restates a stale check count and list the 0111 guard does not pin | `medium` | `docs` | build-ready |
 | [0146](active/0146-widen-the-config-read-channel-guard-to-the-sibling-config-la.md) | Widen the config read-channel guard to the sibling config layers it does not match | `medium` | `fix` | build-ready |
 | [0147](active/0147-extend-the-2c-orphan-key-check-past-its-column-0-anchor-to-n.md) | Extend the (2c) orphan-key check past its column-0 anchor to nested keys | `medium` | `fix` | needs-brainstorm |
 | [0148](active/0148-two-unfalsifiable-z-asserts-in-the-config-suite-sit-in-eval.md) | Two unfalsifiable -z asserts in the config suite sit in eval-free blocks | `medium` | `chore` | needs-brainstorm |
