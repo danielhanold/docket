@@ -1,8 +1,8 @@
 # Backlog
 
-**158 changes** — 🟡 24 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 3 implemented · ✅ 110 done · 🗑️ 16 killed
+**160 changes** — 🟡 26 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 3 implemented · ✅ 110 done · 🗑️ 16 killed
 
-## 🟡 Proposed (24)
+## 🟡 Proposed (26)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -30,6 +30,8 @@
 | [0155](active/0155-interior-tabs-in-a-frontmatter-value-shift-the-render-board.md) | Interior TABs in a frontmatter value shift the render-board sort feeder's fields | `medium` | `fix` | needs-brainstorm |
 | [0156](active/0156-render-board-sh-exits-0-on-malformed-input-and-commits-a-cor.md) | render-board.sh exits 0 on malformed input and commits a corrupt board | `medium` | `fix` | needs-brainstorm |
 | [0158](active/0158-batch-mode-for-docket-implement-next-build-several-coupled-c.md) | Batch mode for docket-implement-next — build several coupled changes on one branch | `medium` | `feat` | needs-brainstorm |
+| [0159](active/0159-docket-status-skill-md-s-normal-outcomes-list-omits-the-heal.md) | docket-status SKILL.md's normal-outcomes list omits the 'health checks failed <exit>' line | `medium` | `docs` | needs-brainstorm |
+| [0160](active/0160-a-committed-too-deep-runtime-bash-lost-its-machine-local-ign.md) | A committed too-deep runtime.bash lost its machine-local ignored advisory | `medium` | `fix` | needs-brainstorm |
 
 ## 🔴 Blocked (1)
 
@@ -88,6 +90,8 @@ graph TD
   0156
   0157
   0158
+  0159
+  0160
   0015:::done
   0016:::done
   0077:::done
