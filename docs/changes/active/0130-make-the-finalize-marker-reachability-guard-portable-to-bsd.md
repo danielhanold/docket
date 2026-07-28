@@ -2,10 +2,10 @@
 id: 130
 slug: make-the-finalize-marker-reachability-guard-portable-to-bsd
 title: Make the finalize marker reachability guard portable to BSD grep
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-07-22
-updated: 2026-07-27
+updated: 2026-07-28
 depends_on: []
 related: []
 discovered_from: [116]
@@ -15,7 +15,8 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch:
+branch: feat/make-the-finalize-marker-reachability-guard-portable-to-bsd
+claimed_at: 2026-07-28T05:14:55Z
 pr:
 blocked_by:
 reconciled: false
