@@ -17,10 +17,10 @@ results:
 trivial: true
 auto_groomable:
 branch: feat/retune-agent-model-effort-defaults-for-all-three-harnesses
-claimed_at: 2026-07-28T23:02:44Z
+claimed_at: 2026-07-28T23:04:36Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -93,6 +93,9 @@ Sites to update:
 - The literal assertions in `tests/test_sync_agents.sh`, `tests/test_sync_agents_codex.sh`,
   `tests/test_sync_agents_cursor.sh`, and `tests/test_docket_example_yml.sh` — these pin the
   built-in and example values by string, so they move with the retune rather than being weakened.
+- (added at reconcile) `README.md`'s two illustrative `agents:` example blocks and
+  `sync-agents.sh`'s effort-rendering comment table — same class of illustrative model literal as
+  `agent-layer.md`, and stale for the same reason.
 
 Verification: `sync-agents.sh --check` clean, plus the four touched test files green.
 
@@ -105,3 +108,39 @@ Verification: `sync-agents.sh --check` clean, plus the four touched test files g
 - Updating this machine's `~/.config/docket/config.yml` or `.docket.local.yml` mirrors. Those are
   per-machine files outside the repo's change surface; note in the results that they now differ
   from the built-ins.
+- The `claude-sonnet-5` advisory model pinned in the two interactive skills
+  (`docket-new-change`, `docket-groom-next`) and asserted at `tests/test_sync_agents.sh:494-495`.
+  Those are advisory session-model recommendations, not wrapper defaults; retuning them is a
+  separate judgment call.
+
+## Reconcile log
+
+### 2026-07-28
+
+Re-read against current code on `origin/main`. Findings:
+
+- **Claude tier is stale as described.** Eight of nine wrappers move; `status` alone is already at
+  the target (`claude-haiku-4-5-20251001` / `medium`). `adr` and `finalize-change` move off
+  `claude-sonnet-5`/`medium`; the other six move off `claude-opus-4-8`/`xhigh`. All nine land on
+  the values in `## What changes`.
+- **The `codex:` example block is ALREADY byte-equivalent to the target** (`gpt-5.6-luna` /
+  `-terra` / `-sol` at the same efforts). It needs no value edit — only whatever whitespace
+  alignment the retune's formatting implies. Scope narrows accordingly.
+- **The `cursor:` example block is the real second edit**: every ID moves from bare `grok-4.5-*`
+  to the `cursor-grok-4.5-*` namespace, and three of the nine change tier as well
+  (`status` fast-medium→low-fast, `auto-groom` high→medium, `finalize-change` fast-high→high-fast).
+- **Mirror equality is machine-enforced**, so this is not a "remember to update both" risk:
+  `tests/test_docket_example_yml.sh` §(4) asserts the commented `agents.claude` block matches each
+  wrapper's frontmatter value-for-value (relocated ADR-0039). The wrappers lead; the example
+  follows; a half-done retune fails the suite.
+- **Two extra live surfaces carry the same stale literals** and are folded into scope:
+  `README.md:397` and `README.md:425` (the `config.yml` and `.docket.local.yml` illustrative
+  blocks), plus `sync-agents.sh:435-436`'s comment table showing effort rendering. Archived
+  changes, plans, and specs under `docs/` keep their literals — they are historical records.
+- **Two cross-harness tests pin the CLAUDE `status` id deliberately**
+  (`test_sync_agents_codex.sh:35`, `test_sync_agents_cursor.sh:47`) as the built-in a non-claude
+  harness inherits. Since `status` does not move, both stay green untouched — no weakening needed.
+- **One cursor value assertion does move**: `test_docket_example_yml.sh:907` pins
+  `grok-4.5-fast-medium` for the generated cursor `status` wrapper and follows the example block
+  to `cursor-grok-4.5-low-fast`.
+- Design intact; no invalidation. Values-only, exactly as drafted.
