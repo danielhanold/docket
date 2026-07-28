@@ -2,7 +2,7 @@
 id: 126
 slug: apply-the-poison-value-prelude-uniformly-to-every-resolver-e
 title: Apply the poison-value prelude uniformly to every resolver eval in the config suite
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-22
 updated: 2026-07-28
@@ -12,12 +12,12 @@ discovered_from: [112]
 adrs: []
 spec: docs/superpowers/specs/2026-07-27-poison-prelude-uniformity-design.md
 plan: docs/superpowers/plans/2026-07-28-poison-prelude-uniformity.md
-results:
+results: docs/results/2026-07-28-apply-the-poison-value-prelude-uniformly-to-every-resolver-e-results.md
 trivial: false
 auto_groomable: true
 branch: feat/apply-the-poison-value-prelude-uniformly-to-every-resolver-e
-claimed_at: 2026-07-28T02:16:49Z
-pr:
+claimed_at: 2026-07-28T04:56:38Z
+pr: https://github.com/danielhanold/docket/pull/132
 blocked_by:
 reconciled: true
 type: chore
@@ -30,6 +30,8 @@ type: chore
 |---|---|
 | Spec | [2026-07-27-poison-prelude-uniformity-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-27-poison-prelude-uniformity-design.md) |
 | Plan | [2026-07-28-poison-prelude-uniformity.md](https://github.com/danielhanold/docket/blob/feat/apply-the-poison-value-prelude-uniformly-to-every-resolver-e/docs/superpowers/plans/2026-07-28-poison-prelude-uniformity.md) |
+| Results | [2026-07-28-apply-the-poison-value-prelude-uniformly-to-every-resolver-e-results.md](https://github.com/danielhanold/docket/blob/feat/apply-the-poison-value-prelude-uniformly-to-every-resolver-e/docs/results/2026-07-28-apply-the-poison-value-prelude-uniformly-to-every-resolver-e-results.md) |
+| PR | [#132](https://github.com/danielhanold/docket/pull/132) |
 <!-- docket:artifacts:end -->
 
 ## Why
