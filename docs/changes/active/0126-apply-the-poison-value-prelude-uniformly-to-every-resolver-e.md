@@ -11,7 +11,7 @@ related: [125]
 discovered_from: [112]
 adrs: []
 spec: docs/superpowers/specs/2026-07-27-poison-prelude-uniformity-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-28-poison-prelude-uniformity.md
 results:
 trivial: false
 auto_groomable: true
@@ -29,6 +29,7 @@ type: chore
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-27-poison-prelude-uniformity-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-27-poison-prelude-uniformity-design.md) |
+| Plan | [2026-07-28-poison-prelude-uniformity.md](https://github.com/danielhanold/docket/blob/feat/apply-the-poison-value-prelude-uniformly-to-every-resolver-e/docs/superpowers/plans/2026-07-28-poison-prelude-uniformity.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
