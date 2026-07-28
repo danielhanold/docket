@@ -432,8 +432,8 @@ ${body}"
 # would assert a policy docket does not have.
 #
 #   model            effort           emitted
-#   claude-opus-4-8  xhigh            model: claude-opus-4-8[effort=xhigh]
-#   claude-opus-4-8  unset|auto       model: claude-opus-4-8
+#   claude-opus-5    medium           model: claude-opus-5[effort=medium]
+#   claude-opus-5    unset|auto       model: claude-opus-5
 #   unset|inherit    unset|auto       (no model: line)
 #   unset|inherit    xhigh            (no model: line) + a generation-time WARN
 #
