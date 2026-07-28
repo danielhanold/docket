@@ -2,7 +2,7 @@
 id: 153
 slug: decide-whether-the-runtime-bash-leaf-match-should-be-depth-a
 title: Decide whether the runtime.bash leaf match should be depth-anchored
-status: proposed
+status: killed
 priority: medium
 type: fix
 created: 2026-07-28
@@ -74,3 +74,7 @@ Design settled in the linked spec.
 - The rest of 0133's consolidation; the `runtime:` header match, duplicate handling, marker/managed
   semantics, and the scalar decoder are all unchanged.
 - `docket_runtime_validate_bash` and the validator duplication — change 0152 owns those.
+
+## Why killed
+
+Subsumed by change 0157, which carries this work on a single rolled-up branch. The design in this change's spec remains authoritative for its unit.
