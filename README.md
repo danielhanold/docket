@@ -394,7 +394,7 @@ skills:                      # rebind workflow roles for all your repos
   build: auto
 agents:                      # agent model/effort defaults (same agents: shape as .docket.yml)
   default:
-    implement-next: { model: claude-opus-4-8, effort: xhigh }
+    implement-next: { model: claude-opus-5, effort: medium }
 auto_groom: false
 auto_capture:                # a MAP since change 0127 — a bare scalar is a hard config error
   enabled: false
@@ -422,7 +422,7 @@ skills:
   build: auto
 agents:
   default:
-    implement-next: { model: claude-opus-4-8, effort: xhigh }
+    implement-next: { model: claude-opus-5, effort: medium }
 agent_harnesses: [claude]     # can opt a tracking-only repo into per-repo agent generation on
                               # its own, without touching the committed .docket.yml
 finalize:

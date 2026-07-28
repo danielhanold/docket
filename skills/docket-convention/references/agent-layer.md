@@ -28,7 +28,7 @@ All three resolve the same harness-first way (`~/.claude/agents`, `~/.cursor/age
 ```yaml
 agents:                                 # harness-first: reserved `default:` + harness-name keys
   default:                              # neutral fallback for any harness without its own entry
-    implement-next: { model: claude-opus-4-8, effort: xhigh }
+    implement-next: { model: claude-opus-5, effort: medium }
     status:         { model: claude-haiku-4-5-20251001 }
   cursor:                               # per-harness override — only what differs
     implement-next: { model: gpt-5.1, effort: high }
