@@ -2,7 +2,7 @@
 id: 133
 slug: centralize-runtime-config-helpers
 title: Centralize shared Bash runtime configuration helpers
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-22
 updated: 2026-07-28
@@ -12,12 +12,12 @@ discovered_from: [132]
 adrs: [14, 19, 29]
 spec: docs/superpowers/specs/2026-07-22-centralize-runtime-config-helpers-design.md
 plan: docs/superpowers/plans/2026-07-28-centralize-runtime-config-helpers.md
-results:
+results: docs/results/2026-07-28-centralize-runtime-config-helpers-results.md
 trivial: false
 auto_groomable:
 branch: feat/centralize-runtime-config-helpers
-claimed_at: 2026-07-28T07:16:53Z
-pr:
+claimed_at: 2026-07-28T10:17:32Z
+pr: https://github.com/danielhanold/docket/pull/134
 blocked_by:
 reconciled: true
 type: refactor
@@ -30,6 +30,8 @@ type: refactor
 |---|---|
 | Spec | [2026-07-22-centralize-runtime-config-helpers-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-22-centralize-runtime-config-helpers-design.md) |
 | Plan | [2026-07-28-centralize-runtime-config-helpers.md](https://github.com/danielhanold/docket/blob/feat/centralize-runtime-config-helpers/docs/superpowers/plans/2026-07-28-centralize-runtime-config-helpers.md) |
+| Results | [2026-07-28-centralize-runtime-config-helpers-results.md](https://github.com/danielhanold/docket/blob/feat/centralize-runtime-config-helpers/docs/results/2026-07-28-centralize-runtime-config-helpers-results.md) |
+| PR | [#134](https://github.com/danielhanold/docket/pull/134) |
 | ADRs | [ADR-0014](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0014-consuming-repo-script-resolution.md), [ADR-0019](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0019-global-config-fence-classification.md), [ADR-0029](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0029-docket-facade-routing-and-config-presentation.md) |
 <!-- docket:artifacts:end -->
 
