@@ -119,6 +119,61 @@ assert "empty markers do not match blank lines" \
 assert "omitted markers behave like empty markers" \
   '[ "$(docket_runtime_first "$tmp/blank.yml")" = "/blank/bash" ]'
 
+# --- serializability (mutation target M5) -----------------------------------
+assert "M5 serializable: a plain path is accepted" 'docket_runtime_serializable "/opt/homebrew/bin/bash"'
+assert "M5 serializable: an empty value is accepted" 'docket_runtime_serializable ""'
+assert "M5 serializable: an apostrophe is accepted" 'docket_runtime_serializable "/opt/od'\''d/bash"'
+assert "M5 serializable: a backslash is accepted" 'docket_runtime_serializable "/opt/back\\slash/bash"'
+assert "M5 serializable: a newline is rejected" '! docket_runtime_serializable "/opt/two"$'\''\n'\''"lines"'
+assert "M5 serializable: a carriage return is rejected" '! docket_runtime_serializable "/opt/cr"$'\''\r'\''"bash"'
+
+# --- Bash 4+ validation (mutation target M4) --------------------------------
+fake_bash(){ # fake_bash <path> <first --version line> [noexec]
+  mkdir -p "$(dirname "$1")"
+  cat > "$1" <<EOF
+#!/bin/sh
+[ "\$#" -eq 1 ] && [ "\$1" = --version ] || exit 42
+printf '%s\n' '$2'
+EOF
+  if [ "${3-}" = noexec ]; then chmod -x "$1"; else chmod +x "$1"; fi
+}
+BIN="$tmp/vbin"; mkdir -p "$BIN"
+fake_bash "$BIN/good"      'GNU bash, version 5.2.0(1)-release (test)'
+fake_bash "$BIN/exactly4"  'GNU bash, version 4.0.0(1)-release (test)'
+fake_bash "$BIN/legacy"    'GNU bash, version 3.2.57(1)-release (test)'
+fake_bash "$BIN/notbash"   'zsh 5.9 (arm64-apple-darwin)'
+fake_bash "$BIN/weird"     'GNU bash, version X.Y-release (test)'
+fake_bash "$BIN/noexec"    'GNU bash, version 5.2.0(1)-release (test)' noexec
+printf '#!/bin/sh\nexit 7\n' > "$BIN/novers"; chmod +x "$BIN/novers"
+
+probe(){ # probe <path> -> "<rc>|<reason>|<version line>"
+  local out rc reason rest
+  out="$(docket_runtime_validate_bash "$1"; printf 'x')"
+  docket_runtime_validate_bash "$1" >/dev/null 2>&1; rc=$?
+  out="${out%x}"
+  reason="${out%%$'\n'*}"; rest="${out#*$'\n'}"
+  printf '%s|%s|%s' "$rc" "$reason" "${rest%$'\n'}"
+}
+
+assert "validate: a GNU Bash 5 executable is ok" \
+  '[ "$(probe "$BIN/good")" = "0|ok|GNU bash, version 5.2.0(1)-release (test)" ]'
+assert "M4 validate: major exactly 4 is accepted" \
+  '[ "$(probe "$BIN/exactly4")" = "0|ok|GNU bash, version 4.0.0(1)-release (test)" ]'
+assert "M4 validate: Bash 3.2 is rejected as old-major" \
+  '[ "$(probe "$BIN/legacy")" = "1|old-major|GNU bash, version 3.2.57(1)-release (test)" ]'
+assert "M4 validate: an unparseable major is rejected as old-major" \
+  '[ "$(probe "$BIN/weird")" = "1|old-major|GNU bash, version X.Y-release (test)" ]'
+assert "validate: a non-GNU-Bash binary is rejected with its banner" \
+  '[ "$(probe "$BIN/notbash")" = "1|not-gnu-bash|zsh 5.9 (arm64-apple-darwin)" ]'
+assert "validate: a relative path is rejected before any exec" \
+  '[ "$(probe "bash")" = "1|not-absolute|" ]'
+assert "validate: a missing file is rejected as not-executable" \
+  '[ "$(probe "$BIN/does-not-exist")" = "1|not-executable|" ]'
+assert "validate: a non-executable file is rejected as not-executable" \
+  '[ "$(probe "$BIN/noexec")" = "1|not-executable|" ]'
+assert "validate: a binary that cannot report a version is rejected" \
+  '[ "$(probe "$BIN/novers")" = "1|no-version|" ]'
+
 # --- bootstrap compatibility: the real Bash 3.2 witness ---------------------
 # The library is sourced by install.sh and ensure-global-config.sh BEFORE a configured Bash 4+
 # exists, so it must run under the system Bash. macOS ships 3.2.57 at /bin/bash.
