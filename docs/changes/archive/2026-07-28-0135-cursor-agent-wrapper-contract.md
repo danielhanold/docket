@@ -2,11 +2,11 @@
 id: 135
 slug: cursor-agent-wrapper-contract
 title: "Generated Cursor wrappers violate Cursor's subagent contract, disabling skills and model effort"
-status: implemented
+status: done
 priority: high
 type: fix
 created: 2026-07-23
-updated: 2026-07-27
+updated: 2026-07-28
 depends_on: []
 related: [16, 44, 45, 46, 48, 49, 66, 113, 137]
 discovered_from: []
@@ -17,7 +17,7 @@ results: docs/results/2026-07-27-cursor-agent-wrapper-contract-results.md
 trivial: false
 auto_groomable:
 branch: feat/cursor-agent-wrapper-contract
-claimed_at: 2026-07-27T05:46:10Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/127
 blocked_by:
 reconciled: true
