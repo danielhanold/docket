@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0126 — Apply the poison-value prelude uniformly to every resolver eval in the config suite](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0126-apply-the-poison-value-prelude-uniformly-to-every-resolver-e.md)**
+> ↩ **[Change 0126 — Apply the poison-value prelude uniformly to every resolver eval in the config suite](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-07-28-0126-apply-the-poison-value-prelude-uniformly-to-every-resolver-e.md)**
 <!-- docket:backlink:end -->
 
 <!-- results-template.md — close-out artifact for a change. -->
