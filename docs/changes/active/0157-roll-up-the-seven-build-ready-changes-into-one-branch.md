@@ -2,7 +2,7 @@
 id: 157
 slug: roll-up-the-seven-build-ready-changes-into-one-branch
 title: Roll up the seven build-ready changes into one branch
-status: proposed
+status: in-progress
 priority: medium
 type: fix
 created: 2026-07-28
@@ -16,9 +16,10 @@ plan:
 results:
 trivial: false
 auto_groomable: false
-branch:
+branch: feat/roll-up-the-seven-build-ready-changes-into-one-branch
 pr:
 blocked_by:
+claimed_at: 2026-07-28T15:55:15Z
 reconciled: false
 ---
 
