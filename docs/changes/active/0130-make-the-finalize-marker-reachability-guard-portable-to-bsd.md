@@ -2,7 +2,7 @@
 id: 130
 slug: make-the-finalize-marker-reachability-guard-portable-to-bsd
 title: Make the finalize marker reachability guard portable to BSD grep
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-22
 updated: 2026-07-28
@@ -12,12 +12,12 @@ discovered_from: [116]
 adrs: []
 spec: docs/superpowers/specs/2026-07-27-bsd-grep-interval-portability-design.md
 plan: docs/superpowers/plans/2026-07-28-bsd-grep-interval-portability.md
-results:
+results: docs/results/2026-07-28-make-the-finalize-marker-reachability-guard-portable-to-bsd-results.md
 trivial: false
 auto_groomable: true
 branch: feat/make-the-finalize-marker-reachability-guard-portable-to-bsd
-claimed_at: 2026-07-28T05:16:30Z
-pr:
+claimed_at: 2026-07-28T06:30:21Z
+pr: https://github.com/danielhanold/docket/pull/133
 blocked_by:
 reconciled: true
 type: fix
@@ -30,6 +30,8 @@ type: fix
 |---|---|
 | Spec | [2026-07-27-bsd-grep-interval-portability-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-27-bsd-grep-interval-portability-design.md) |
 | Plan | [2026-07-28-bsd-grep-interval-portability.md](https://github.com/danielhanold/docket/blob/feat/make-the-finalize-marker-reachability-guard-portable-to-bsd/docs/superpowers/plans/2026-07-28-bsd-grep-interval-portability.md) |
+| Results | [2026-07-28-make-the-finalize-marker-reachability-guard-portable-to-bsd-results.md](https://github.com/danielhanold/docket/blob/feat/make-the-finalize-marker-reachability-guard-portable-to-bsd/docs/results/2026-07-28-make-the-finalize-marker-reachability-guard-portable-to-bsd-results.md) |
+| PR | [#133](https://github.com/danielhanold/docket/pull/133) |
 <!-- docket:artifacts:end -->
 
 ## Why
