@@ -51,9 +51,9 @@ Copied verbatim in substance from the reconciled change file `0018-yq-yaml-parsi
 - Consumes: nothing.
 - Produces: the plan path `docs/superpowers/plans/2026-07-28-yq-yaml-parsing.md`, recorded in the change's `plan:` field on `metadata_branch`, and the artifact whose back-link Task 1 Step 2 stamps.
 
-- [ ] **Step 1: Write this plan file** (already done by the act of reading it).
+- [x] **Step 1: Write this plan file** (already done by the act of reading it).
 
-- [ ] **Step 2: Stamp the plan's back-link home**
+- [x] **Step 2: Stamp the plan's back-link home**
 
 ```bash
 "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh render-artifact-backlink \
@@ -63,7 +63,7 @@ Copied verbatim in substance from the reconciled change file `0018-yq-yaml-parsi
 
 Expected: a `<!-- docket:backlink:start … -->` / `<!-- docket:backlink:end -->` block at the TOP of the plan file. The renderer is the sole writer of that block — never hand-author it.
 
-- [ ] **Step 3: Commit the plan on `feat/yq-yaml-parsing`**
+- [x] **Step 3: Commit the plan on `feat/yq-yaml-parsing`**
 
 ```bash
 cd /Users/homer/dev/docket/.worktrees/yq-yaml-parsing
@@ -71,7 +71,7 @@ git add docs/superpowers/plans/2026-07-28-yq-yaml-parsing.md
 git commit -m "docs(0018): plan — record the no-external-YAML-parser stance as an ADR"
 ```
 
-- [ ] **Step 4: Record `plan:` in the metadata working tree**
+- [x] **Step 4: Record `plan:` in the metadata working tree**
 
 Edit `/Users/homer/dev/docket/.docket/docs/changes/active/0018-yq-yaml-parsing.md`, setting
 `plan: docs/superpowers/plans/2026-07-28-yq-yaml-parsing.md` and re-stamping `claimed_at:` to a
@@ -105,7 +105,7 @@ Expected: push lands. On a non-fast-forward rejection, re-run `docket.sh preflig
 - Consumes: the reconciled change body's `## What changes` section as the ADR's content brief.
 - Produces: **the new ADR's integer id**, consumed by Task 3's `adrs:` append and by Task 4's results file.
 
-- [ ] **Step 1: Dispatch `docket-adr` (foreground) with the full content brief**
+- [x] **Step 1: Dispatch `docket-adr` (foreground) with the full content brief**
 
 The dispatch must carry every element below verbatim in substance — the sub-agent has no other source:
 
@@ -136,11 +136,11 @@ The dispatch must carry every element below verbatim in substance — the sub-ag
 
 **Explicitly excluded from the ADR:** the pre-refactor helper names `entry_line` and `block_names`; any line-number citation (the `(no yq)` comment in `scripts/docket-config.sh` has already drifted once); and the phrase "zero dependencies".
 
-- [ ] **Step 2: Confirm the dispatch returned an id**
+- [x] **Step 2: Confirm the dispatch returned an id**
 
 If the dispatch returns no id, the build is incomplete — halt and report rather than proceeding to Task 3.
 
-- [ ] **Step 3: Verify git state on `origin/docket`, not the dispatch's prose**
+- [x] **Step 3: Verify git state on `origin/docket`, not the dispatch's prose**
 
 ```bash
 "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh preflight
@@ -163,12 +163,12 @@ Expected: the ADR file exists on `docket` with `status: Accepted`, `change: 18`,
 - Consumes: the ADR id from Task 2.
 - Produces: `adrs: [57, 58, <new>]`, which is what makes terminal publish carry the ADR to the integration branch at merge.
 
-- [ ] **Step 1: Edit `adrs:` and re-stamp `claimed_at:`**
+- [x] **Step 1: Edit `adrs:` and re-stamp `claimed_at:`**
 
 Set `adrs: [57, 58, <new>]` and `claimed_at:` to a fresh `date -u +%Y-%m-%dT%H:%M:%SZ`. Anchor the
 edit on the frontmatter key, never a first-match-anywhere read.
 
-- [ ] **Step 2: Regenerate `## Artifacts` in the same commit**
+- [x] **Step 2: Regenerate `## Artifacts` in the same commit**
 
 `adrs:` is link-bearing, so the renderer must run before committing:
 
@@ -180,7 +180,7 @@ edit on the frontmatter key, never a first-match-anywhere read.
 
 Expected: the Artifacts table's ADRs row now lists three ADRs.
 
-- [ ] **Step 3: Commit and push on `docket`**
+- [x] **Step 3: Commit and push on `docket`**
 
 ```bash
 cd /Users/homer/dev/docket/.docket
@@ -205,14 +205,14 @@ Warranted under criterion (a) and (c): the merge gate carries a human obligation
 - Consumes: the ADR id from Task 2.
 - Produces: the results path, recorded in `results:` on `metadata_branch` at step 7.
 
-- [ ] **Step 1: Author the results file** covering, at minimum:
+- [x] **Step 1: Author the results file** covering, at minimum:
   - What shipped: one ADR (by id and title) on `metadata_branch`; **zero code changes** — the diff is this plan plus this results file by design.
   - Why the PR diff looks empty of substance, so a reviewer does not read it as a broken build.
   - The merge-gate obligation: the ADR reaches `main` only via this change's **own terminal publish at merge**, with `adrs: [57, 58, <new>]` driving it. Re-copying 57 and 58 is idempotent.
   - The explicit non-action: `terminal-publish --adr NN` was **not** used, and why.
   - Verification performed: zero `yq` invocations repo-wide; ADR-0057/0058 Accepted and untouched; `depends_on: [16]` satisfied.
 
-- [ ] **Step 2: Stamp the results file's back-link home**
+- [x] **Step 2: Stamp the results file's back-link home**
 
 ```bash
 "${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh render-artifact-backlink \
@@ -220,7 +220,7 @@ Warranted under criterion (a) and (c): the merge gate carries a human obligation
   --change-file /Users/homer/dev/docket/.docket/docs/changes/active/0018-yq-yaml-parsing.md
 ```
 
-- [ ] **Step 3: Commit on `feat/yq-yaml-parsing`**
+- [x] **Step 3: Commit on `feat/yq-yaml-parsing`**
 
 ```bash
 cd /Users/homer/dev/docket/.worktrees/yq-yaml-parsing
