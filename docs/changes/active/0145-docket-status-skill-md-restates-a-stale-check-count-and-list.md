@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/docket-status-skill-md-restates-a-stale-check-count-and-list
-claimed_at: 2026-07-28T11:15:48Z
+claimed_at: 2026-07-28T11:22:10Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -72,3 +72,37 @@ Design, rejected alternatives, and the guard's named limitation are in the linke
 - Changing the check-id vocabulary itself or any check's behavior.
 - The four already-pinned surfaces, which are correct and guarded.
 - Auditing other skills for the same restatement class — real, but a separate sweep.
+
+## Reconcile log
+
+### 2026-07-28
+
+Reconciled at claim against `origin/main` (`f804c7b2`) and `origin/docket`. Scope unchanged; three
+facts the spec stated as *pending* are now *settled*, all in this change's favour.
+
+- **0117 (PR #129) has MERGED.** `BOARD_CHECK_IDS` on `main` now holds **thirteen** ids
+  (`adr-unpublished board-row-dropped broken-plan-results broken-spec dep-cycle field-domain
+  malformed-id merge-gate-stall merged-orphan publish-deferred stale-finalize-blocked
+  stale-in-progress unknown-commit-ref`), and change 0117 is archived. Consequences: (a) the spec's
+  "12 on `main`, 13 after #129" (Assumption 9) resolves to a flat **13** — still not load-bearing,
+  since the fix *removes* the count rather than corrects it; (b) **Assumption 6's file-collision
+  risk is retired** — 0117's two hunks in `tests/test_board_checks.sh` are already on `main`, so
+  there is no concurrent rewrite to place around. The spec's end-of-file placement rule is kept
+  anyway: it is independently correct (the epilogue is the stable anchor) and it keeps the guard
+  out of the count-assert region that 0117 just churned.
+- **SKILL.md is unchanged and the spec's structural claims re-verify on today's `main`.**
+  `### Health checks` is still the file's **last** section (lines 92–107 of 107), so the extractor's
+  **EOF arm is the live path**, exactly as Assumption 4 requires — a two-heading extractor would be
+  vacuous from birth. Line 86 (`## Merge sweep` sweep-posture) remains the file's **only** check-id
+  occurrence outside the target section (`publish-deferred`), so the negative assert must stay
+  **section-scoped**, not file-wide.
+- **`$emitted` is still derived in `tests/test_board_checks.sh`** (line 1447, from `board-checks.sh`'s
+  `emit <id> "` sites) and the file still ends with the `PASS`/`exit "$fail"` epilogue — so the new
+  assert can consume the real emitted set and sit immediately before that epilogue as designed.
+
+**Still open, unchanged:** Assumption 7's soft spot — change 0144 is still `proposed` with **no
+spec** (`auto_groomable: false`, `## Auto-groom blocked` present), and if it lands a distinguishable
+`board-checks failed <exit>` diagnostic line it will likely edit `## Read the report` in this same
+SKILL.md. Different section, same file; whoever builds second re-checks. No `depends_on` warranted.
+
+No scope change, no work dropped, no new constraint folded in.

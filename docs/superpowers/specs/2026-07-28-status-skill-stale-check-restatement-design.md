@@ -186,3 +186,23 @@ No other test changes. `tests/test_skill_size_budgets.sh` covers SKILL.md's size
    (`scripts/lib/docket-frontmatter.sh`) and the `BOARD_CHECK_IDS holds the 12 check-ids` assert. The stub's
    "thirteen" anticipates 0117. Since the fix **removes** the number rather than correcting it, the exact
    value is not load-bearing for the implementation — but the implementer must not "fix" the count and stop.
+
+## Reconcile note — 2026-07-28
+
+Re-verified against `origin/main` at `f804c7b2` when change 0145 was claimed. The design stands
+unchanged; two of its *pending* premises have settled:
+
+- **0117 (PR #129) merged.** `BOARD_CHECK_IDS` now holds **thirteen** ids on `main`, so Assumption 9's
+  conditional count is a flat 13 — still not load-bearing, because the fix removes the number.
+  Assumption 6's file-collision risk in `tests/test_board_checks.sh` is **retired**: 0117's two hunks
+  are already on `main`. §3's end-of-file placement rule is retained on its own merits — the
+  `PASS`/`exit "$fail"` epilogue is the stable structural anchor, and it keeps the new assert clear of
+  the count-assert region 0117 just rewrote.
+- **The structural claims re-verify.** `### Health checks` is still the last section of
+  `skills/docket-status/SKILL.md` (lines 92–107 of 107), so the extractor's **EOF arm is the live
+  path**; line 86 remains the file's only check-id occurrence (`publish-deferred`) outside that
+  section, so the negative assert stays **section-scoped**. `$emitted` is still derived at
+  `tests/test_board_checks.sh:1447`.
+
+Assumption 7 (change 0144's predicted overlap in this same SKILL.md's `## Read the report` section)
+is **unchanged and still open** — 0144 remains `proposed` with no spec.
