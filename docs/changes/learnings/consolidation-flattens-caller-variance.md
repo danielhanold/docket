@@ -2,9 +2,9 @@
 slug: consolidation-flattens-caller-variance
 hook: "Restatements across N callers are not pure duplication — diff them against each other before templating, or the shared source silently rewrites the callers that differed."
 topics: [refactoring, docs, contracts]
-changes: [85]
+changes: [85, 133]
 created: 2026-07-17
-updated: 2026-07-17
+updated: 2026-07-28
 promotion_state: retained
 promoted_to:
 ---
@@ -43,3 +43,21 @@ Two traps specific to this move:
   test pinned the wording. The same round's other consolidation (six Board-pass litanies → one
   `--must-land` flag) was safe precisely because the variance moved into a *flag* the callers pass,
   not prose a template overwrites.
+- 2026-07-28 (#133, PR #134 — merged) — Two entries: how the flattening was **avoided**, and where
+  the sweep still missed copies. (a) The two validator copies differed in their diagnostics —
+  `scripts/docket-config.sh` builds **five** distinct user-facing messages, `ensure-global-config.sh`
+  builds **one** for every failure mode — so a naive `return 0/1` helper would have flattened the
+  richer caller. The shared function instead returns a machine-readable **reason token**
+  (`not-absolute`, `not-executable`, `no-version`, `not-gnu-bash`, `old-major`, `ok`) plus the
+  version line; the resolver dispatches on it, the installer discards it with `>/dev/null`. Deciding
+  what the library owns is the move: reusable *mechanics* centralize; authority, discovery, writes,
+  and diagnostics stay caller-owned. `old-major` deliberately merges "unparseable major" and "major
+  below 4" because the resolver already collapsed them — do not invent a distinction no caller makes.
+  All five messages were live-exercised and confirmed byte-identical to the pre-refactor text.
+  (b) **The de-duplication sweep keyed on the parser's own symbol** (`function scalar`), which two
+  further copies — in `scripts/docket.sh` and `scripts/ensure-docket-env.sh` — never had, so the
+  library's header claim to be "the ONE implementation" and the contract's "delegated to the shared
+  library" were both false on merge. No single task's diff contained those files; only the
+  whole-branch review could see it. A centralization claim has to be verified against the
+  **consumers**, never against the key the sweep happened to search on. Claims narrowed to what is
+  true; the surviving duplication became #0152.

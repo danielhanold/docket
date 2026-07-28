@@ -2,7 +2,7 @@
 slug: plan-supplied-test-code-is-unverified
 hook: "Test code a plan hands you is unverified code, not an oracle — prove the assert CAN pass, and mutation-test its own key."
 topics: [testing, plan, guards]
-changes: [94, 104, 112, 130]
+changes: [94, 104, 112, 130, 133]
 created: 2026-07-19
 updated: 2026-07-28
 promotion_state: candidate
@@ -90,3 +90,13 @@ implementer. It is not a reason to distrust plans — it is a reason to run the 
   the pattern it forbids a live constraint on the guard's source.** The plan author has to write the
   header comment without using the very literal the header is about — and a plan that hands over
   verbatim guard text has to have been run against the tree it will land in, not just read.
+- 2026-07-28 (#133, PR #134 — merged) — **A rc-capture idiom that made every rc assertion vacuous.**
+  The plan's `probe()` helper wrote `out="$(cmd; printf 'x')"; rc=$?` — `$?` is `printf`'s status,
+  not the target function's, so `rc` was always 0 and the whole validator block asserted nothing.
+  The implementer diagnosed it, fixed the **test** only, and left the library exactly as specified;
+  the reviewer independently reproduced the diagnosis and confirmed the library had been right all
+  along. The sharp edge: the *same* `printf 'x'` idiom appears in the shipped resolver and is
+  correct there, because that caller branches on a returned reason token and never on `$?` — the
+  idiom's real job is guarding an empty trailing line from command substitution's newline strip.
+  Same three characters, load-bearing in one place and silently fatal in the other; which it is
+  depends entirely on whether the caller reads `$?`.
