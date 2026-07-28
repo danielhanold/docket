@@ -2,10 +2,10 @@
 id: 117
 slug: deferred-adr-publish-visibility-decide-whether-docket-adr-s
 title: Deferred ADR-publish visibility — detect an unpublished ADR with a computed board-checks finding
-status: implemented
+status: done
 priority: medium
 created: 2026-07-21
-updated: 2026-07-27
+updated: 2026-07-28
 depends_on: []
 related: [83, 118]
 discovered_from: [83]
@@ -16,7 +16,7 @@ results: docs/results/2026-07-27-deferred-adr-publish-visibility-results.md
 trivial: false
 auto_groomable:
 branch: feat/deferred-adr-publish-visibility-decide-whether-docket-adr-s
-claimed_at: 2026-07-27T23:06:52Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/129
 blocked_by:
 reconciled: true
