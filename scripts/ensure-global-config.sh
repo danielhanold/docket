@@ -14,24 +14,18 @@ REMEDY='install Bash 4+ (on macOS: brew install bash), then re-run docket/instal
 die(){ printf 'ensure-global-config: %s\n' "$*" >&2; exit 1; }
 file_mode(){ stat -f '%Lp' "$1" 2>/dev/null || stat -c '%a' "$1" 2>/dev/null || echo 644; }
 
-validate_runtime(){
-  _vr_path=$1
-  case "$_vr_path" in /*) ;; *) return 1 ;; esac
-  [ -x "$_vr_path" ] || return 1
-  _vr_version="$(LC_ALL=C "$_vr_path" --version 2>/dev/null)" || return 1
-  _vr_first="$(printf '%s\n' "$_vr_version" | sed -n '1p')"
-  case "$_vr_first" in 'GNU bash, version '*) ;; *) return 1 ;; esac
-  _vr_major="$(printf '%s\n' "$_vr_first" | sed -n 's/^GNU bash, version \([0-9][0-9]*\)\..*/\1/p')"
-  case "$_vr_major" in ''|*[!0-9]*) return 1 ;; esac
-  [ "$_vr_major" -ge 4 ]
-}
+# The runtime.bash parser and the Bash 4+ validator are shared with scripts/docket-config.sh and
+# install.sh (change 0133). The library is bootstrap-compatible for exactly this call site: it is
+# sourced before a configured Bash 4+ runtime exists.
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/docket-runtime.sh
+. "$SELF_DIR/lib/docket-runtime.sh"
 
-validate_serializable_path(){
-  # Paths are one-line YAML scalars. Apostrophes are doubled by write_runtime_block and
-  # backslashes are literal in YAML single quotes; only record separators are unrepresentable.
-  case "$1" in *$'\n'*|*$'\r'*) return 1 ;; esac
-  return 0
-}
+# Policy stays here: this script has ONE diagnostic for every invalid-runtime mode, so it discards
+# the library's reason token. scripts/docket-config.sh consumes the same token to build five.
+validate_runtime(){ docket_runtime_validate_bash "$1" >/dev/null; }
+
+validate_serializable_path(){ docket_runtime_serializable "$1"; }
 
 markers_valid(){
   [ -f "$1" ] || return 0
@@ -42,59 +36,12 @@ markers_valid(){
   ' "$1"
 }
 
-explicit_runtime(){
-  [ -f "$1" ] || return 0
-  awk -v o="$MARK_OPEN" -v c="$MARK_CLOSE" '
-    function scalar(value, sq,out,i,ch,rest) {
-      sq=sprintf("%c", 39)
-      if (substr(value,1,1) == sq) {
-        out=""
-        for (i=2; i<=length(value); i++) {
-          ch=substr(value,i,1)
-          if (ch == sq) {
-            if (substr(value,i+1,1) == sq) { out=out sq; i++; continue }
-            rest=substr(value,i+1)
-            if (rest ~ /^[[:space:]]*(#.*)?$/) return out
-            return value
-          }
-          out=out ch
-        }
-        return value
-      }
-      if (value ~ /^"[^"]*"[[:space:]]*(#.*)?$/) {
-        sub(/^"/, "", value); sub(/"[[:space:]]*(#.*)?$/, "", value)
-      } else {
-        sub(/[[:space:]]*#.*/, "", value); sub(/[[:space:]]+$/, "", value)
-      }
-      return value
-    }
-    $0==o { managed=1; next }
-    $0==c { managed=0; next }
-    managed { next }
-    { raw=$0; structural=$0; sub(/[[:space:]]*#.*/, "", structural) }
-    structural ~ /^runtime[[:space:]]*:[[:space:]]*$/ { in_runtime=1; next }
-    in_runtime && structural ~ /^[^[:space:]]/ { in_runtime=0 }
-    in_runtime && structural ~ /^[[:space:]]+bash[[:space:]]*:/ {
-      value=raw; sub(/^[[:space:]]+bash[[:space:]]*:[[:space:]]*/, "", value)
-      print scalar(value); exit
-    }
-  ' "$1"
-}
+# "Explicit" means user-authored: the installer-managed block is excluded, so this script can tell
+# its own previous write apart from a hand-authored authority. That exclusion is the only reason
+# these two pass markers and the resolver's equivalents do not.
+explicit_runtime(){ docket_runtime_first "$1" "$MARK_OPEN" "$MARK_CLOSE"; }
 
-
-explicit_runtime_count(){
-  [ -f "$1" ] || { printf '0\n'; return; }
-  awk -v o="$MARK_OPEN" -v c="$MARK_CLOSE" '
-    $0==o { managed=1; next }
-    $0==c { managed=0; next }
-    managed { next }
-    { line=$0; sub(/[[:space:]]*#.*/, "", line) }
-    line ~ /^runtime[[:space:]]*:[[:space:]]*$/ { in_runtime=1; next }
-    in_runtime && line ~ /^[^[:space:]]/ { in_runtime=0 }
-    in_runtime && line ~ /^[[:space:]]+bash[[:space:]]*:/ { count++ }
-    END { print count+0 }
-  ' "$1"
-}
+explicit_runtime_count(){ docket_runtime_count "$1" "$MARK_OPEN" "$MARK_CLOSE"; }
 
 consider_candidate(){
   _cc_path=$1
