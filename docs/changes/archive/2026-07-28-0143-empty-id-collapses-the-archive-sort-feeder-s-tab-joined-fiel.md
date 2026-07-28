@@ -2,7 +2,7 @@
 id: 143
 slug: empty-id-collapses-the-archive-sort-feeder-s-tab-joined-fiel
 title: Empty id collapses the archive sort feeder's TAB-joined fields in render-board.sh
-status: proposed
+status: killed
 priority: medium
 type: fix
 created: 2026-07-27
@@ -83,3 +83,7 @@ None — resolved at design time; see the spec's `## Assumptions`. 0115 is `done
 is recorded; the stub's original "must land after 0115" rationale was found inverted and dropped.
 `related: [144]` records subject overlap on the board/health surface (different file, no ordering
 constraint).
+
+## Why killed
+
+Subsumed by change 0157, which carries this work on a single rolled-up branch. The design in this change's spec remains authoritative for its unit.
