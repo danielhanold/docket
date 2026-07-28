@@ -878,7 +878,7 @@ done
 # both are gated by the same `/^  # cursor:/,$` range address, and once the header substitution
 # fires it consumes the '#' that the range address matches on — reordering it first would freeze
 # the range before the children ever get touched (found by testing against the real file).
-agents_block="$(sed -n '/^# agents:$/,/finalize-change:.*grok-4\.5-fast-high/p' "$EX")"
+agents_block="$(sed -n '/^# agents:$/,/finalize-change:.*cursor-grok-4\.5-high-fast/p' "$EX")"
 stage1="$(printf '%s\n' "$agents_block" | sed -E 's/^#[[:space:]]?//')"
 stage2="$(printf '%s\n' "$stage1" | sed -E \
   -e '/^  # cursor:/,$ s/^  #   /    /' \
@@ -904,7 +904,7 @@ assert "round-trip: claude status model mirrors the built-in" \
   '[ "$(fm "$SB/.claude/agents/docket-status.md" model)" = "$(fm "$REPO/agents/docket-status.md" model)" ]'
 assert "round-trip: a cursor wrapper was generated" '[ -f "$SB/.cursor/agents/docket-status.md" ]'
 assert "round-trip: cursor status model came from the example block" \
-  '[ "$(fm "$SB/.cursor/agents/docket-status.md" model)" = "grok-4.5-fast-medium" ]'
+  '[ "$(fm "$SB/.cursor/agents/docket-status.md" model)" = "cursor-grok-4.5-low-fast" ]'
 rm -rf "$_sbs"
 
 # --- (6) SCAFFOLD SHAPE: install writes runtime + pointer, never policy values

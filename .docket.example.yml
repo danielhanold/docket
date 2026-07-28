@@ -307,15 +307,15 @@ auto_capture:
 #   #   integration-repair:    { model: gpt-5.6-sol, effort: high }
 #   #   finalize-change:       { model: gpt-5.6-terra, effort: high }
 #   # cursor:
-#   #   status:                { model: grok-4.5-fast-medium, effort: auto }
-#   #   adr:                   { model: grok-4.5-xhigh, effort: auto }
-#   #   brainstorm-consultant: { model: grok-4.5-xhigh, effort: auto }
-#   #   auto-groom:            { model: grok-4.5-high, effort: auto }
-#   #   auto-groom-critic:     { model: grok-4.5-xhigh, effort: auto }
-#   #   implement-next:        { model: grok-4.5-xhigh, effort: auto }
-#   #   rebase-resolver:       { model: grok-4.5-xhigh, effort: auto }
-#   #   integration-repair:    { model: grok-4.5-xhigh, effort: auto }
-#   #   finalize-change:       { model: grok-4.5-fast-high, effort: auto }
+#   #   status:                { model: cursor-grok-4.5-low-fast, effort: auto }
+#   #   adr:                   { model: cursor-grok-4.5-high, effort: auto }
+#   #   brainstorm-consultant: { model: cursor-grok-4.5-high, effort: auto }
+#   #   auto-groom:            { model: cursor-grok-4.5-medium, effort: auto }
+#   #   auto-groom-critic:     { model: cursor-grok-4.5-high, effort: auto }
+#   #   implement-next:        { model: cursor-grok-4.5-high, effort: auto }
+#   #   rebase-resolver:       { model: cursor-grok-4.5-high, effort: auto }
+#   #   integration-repair:    { model: cursor-grok-4.5-high, effort: auto }
+#   #   finalize-change:       { model: cursor-grok-4.5-high-fast, effort: auto }
 
 # runners — per-runner knobs for RUNNER DELEGATION (change 0079): handing an agent's whole run to
 # a child harness with its own subscription, models, and skills. Activated per agent by an explicit
