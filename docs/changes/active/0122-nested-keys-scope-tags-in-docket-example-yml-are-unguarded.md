@@ -16,10 +16,10 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/nested-keys-scope-tags-in-docket-example-yml-are-unguarded
-claimed_at: 2026-07-28T00:14:58Z
+claimed_at: 2026-07-28T00:22:00Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 type: fix
 ---
 
@@ -94,3 +94,37 @@ is_active = ($0 ~ /^[A-Za-z_][A-Za-z0-9_]*:/)
 No leading-whitespace alternative, so every nested key is still invisible to the scope-tag check
 exactly as described. Line 631 keys its `H`/`S` header-vs-scalar split off the same anchored
 pattern, so extending coverage means revisiting both lines together, not just the `is_active` test.
+
+## Reconcile log
+
+### 2026-07-28 — build-time reconcile (claim → plan)
+
+Re-read the change, its spec, `related`/`discovered_from` (0102), the recent ADRs, and the current
+code on `origin/main` (tip `f47f480a`). **Design holds unchanged; scope unchanged; no edits to the
+spec were required.** Verified point by point:
+
+- **The defect is still live.** `tests/test_docket_example_yml.sh` still anchors its scope-tag pass
+  on `is_active = ($0 ~ /^[A-Za-z_][A-Za-z0-9_]*:/)` with no leading-whitespace alternative, and
+  the `H`/`S` header-vs-scalar split still keys off the same anchored pattern. The header's window
+  still extends forward through its nested body (the masking rule 3 deletes).
+- **The exact-17 nested-key floor is confirmed against the current file.** Enumerating
+  `^[[:space:]]+<key>:` in `.docket.example.yml` on `origin/main` yields exactly 17 keys —
+  3 `finalize.*`, 2 `learnings.*`, 2 `reclaim.*`, 2 `auto_capture.*`, `runners.codex` plus its 2
+  leaves, and 5 `skills.*` — matching the spec's enumeration key for key. The floor ships as an
+  exact count as designed.
+- **Zero edits to `.docket.example.yml` are still required.** The legend still defines all three
+  tag forms, and the file's mixed convention (per-child tags on `finalize`/`learnings`/`reclaim`,
+  block-header tags on `auto_capture`/`runners`/`skills`) remains legal under rules 1–3.
+- **Drift, in docket's favour:** the spec asks for the `scope: local-only` **presence** assert to be
+  kept alongside the other two; all three presence asserts already exist on `origin/main`. Only the
+  *accepted set inside the awk pass* still omits `local-only` — the awk still tests just the
+  `repo-only` and `any layer` forms. Scope is unchanged, one bullet is simply already half-done.
+- **0102's two bespoke asserts are intact** (the `any layer` tag assert and the negative stale-prose
+  guard) and stay, per assumption 5.
+- **No writer contention materialized.** Assumption 9's flagged co-writers of the same test file
+  and example file are all still un-started: 0121 is `proposed`/needs-brainstorm, 0103 is
+  `proposed`/needs-brainstorm. Siblings 0126 and 0130 touch different test files. Merge risk is
+  textual only and currently nil.
+
+Auto-capture: the spec's out-of-scope observation that the `(2c)` orphan-key check is equally
+column-0 anchored was minted as its own stub (see below), rather than left as prose.
