@@ -26,7 +26,9 @@
 #
 #   docket_runtime_count  <file> [open] [close]  -> declaration count on stdout (0 if absent)
 #   docket_runtime_first  <file> [open] [close]  -> first declaration's decoded value (empty if none)
-#   docket_runtime_unique <file> [open] [close]  -> the value; returns 2 (prints nothing) if count>1
+#   docket_runtime_unique <file> [open] [close]  -> the value; returns 2 (prints nothing) if count>1,
+#                                                    3 (prints nothing) if any bash: leaf sits deeper
+#                                                    than the block's shallowest structural child
 #   docket_runtime_serializable <value>          -> 0 iff representable as a one-line YAML scalar
 #   docket_runtime_validate_bash <path>          -> line1 reason token, line2 version line; 0 iff ok
 #
@@ -38,14 +40,19 @@
 # ensure-global-config.md), not by a co-located .md (test_script_contracts_coverage.sh scopes
 # scripts/lib/ out).
 
-# Scan <file> for `runtime:` -> `bash:` declarations. Sets DOCKET_RUNTIME_COUNT and
-# DOCKET_RUNTIME_VALUE (the FIRST declaration's decoded scalar). Always returns 0.
+# Scan <file> for `runtime:` -> `bash:` declarations. Sets DOCKET_RUNTIME_COUNT (leaves that sit
+# exactly one level under the block's shallowest structural child), DOCKET_RUNTIME_DEEP (leaves
+# that sit deeper than that anchor -- e.g. `runtime:` -> `codex:` -> `bash:` -- reported rather
+# than silently adopted), and DOCKET_RUNTIME_VALUE (the FIRST *counted* declaration's decoded
+# scalar). Always returns 0.
 #
-# The `printf x` guard is load-bearing: `$( )` strips ALL trailing newlines, so an empty value
-# would collapse the two-line payload to one line and the count would be read back as the value.
+# The payload is three lines, in this ORDER: count, deep, value. The `printf x` guard is
+# load-bearing: `$( )` strips ALL trailing newlines, so an empty value must be terminal or the
+# existing `${_raw%$'\n'}` strip would silently swallow whatever came after it.
 _docket_runtime_scan(){ # _docket_runtime_scan <file> [open] [close]
   local _raw
   DOCKET_RUNTIME_COUNT=0
+  DOCKET_RUNTIME_DEEP=0
   DOCKET_RUNTIME_VALUE=""
   [ -f "$1" ] || return 0
   _raw="$(awk -v o="${2-}" -v c="${3-}" '
@@ -79,19 +86,36 @@ _docket_runtime_scan(){ # _docket_runtime_scan <file> [open] [close]
     c != "" && $0==c { managed=0; next }
     managed { next }
     { raw=$0; structural=$0; sub(/[[:space:]]*#.*/, "", structural) }
-    structural ~ /^runtime[[:space:]]*:[[:space:]]*$/ { in_runtime=1; next }
-    in_runtime && structural ~ /^[^[:space:]]/ { in_runtime=0 }
+    structural ~ /^runtime[[:space:]]*:[[:space:]]*$/ { in_runtime=1; have_anchor=0; next }
+    in_runtime && structural ~ /^[^[:space:]]/ { in_runtime=0; have_anchor=0 }
+    # Anchor tracking runs BEFORE the leaf rule below: every non-blank structural child under the
+    # header updates the running MINIMUM indent seen so far (guarded by have_anchor so the first
+    # child sets it rather than comparing against an uninitialised 0). The leaf itself is a
+    # structural child, so when it is the first thing seen it sets the anchor to its own indent --
+    # this is why a leaf one level under the header (two spaces, four spaces, a tab, whatever)
+    # keeps resolving: it anchors itself.
+    in_runtime && structural ~ /[^[:space:]]/ {
+      indent = match(structural, /[^[:space:]]/) - 1
+      if (!have_anchor || indent < anchor) { anchor = indent; have_anchor = 1 }
+    }
     in_runtime && structural ~ /^[[:space:]]+bash[[:space:]]*:/ {
-      count++
-      if (count == 1) {
-        value=raw; sub(/^[[:space:]]+bash[[:space:]]*:[[:space:]]*/, "", value)
-        first=scalar(value)
+      indent = match(structural, /[^[:space:]]/) - 1
+      if (indent > anchor) {
+        deep++
+      } else {
+        count++
+        if (count == 1) {
+          value=raw; sub(/^[[:space:]]+bash[[:space:]]*:[[:space:]]*/, "", value)
+          first=scalar(value)
+        }
       }
     }
-    END { printf "%d\n%s\n", count+0, first }
+    END { printf "%d\n%d\n%s\n", count+0, deep+0, first }
   ' "$1"; printf 'x')"
   _raw="${_raw%x}"
   DOCKET_RUNTIME_COUNT="${_raw%%$'\n'*}"
+  _raw="${_raw#*$'\n'}"
+  DOCKET_RUNTIME_DEEP="${_raw%%$'\n'*}"
   _raw="${_raw#*$'\n'}"
   DOCKET_RUNTIME_VALUE="${_raw%$'\n'}"
   return 0
@@ -108,9 +132,13 @@ docket_runtime_first(){ # docket_runtime_first <file> [open] [close]
 }
 
 # Duplicates are an AMBIGUITY, not a precedence question: callers require exactly one authority
-# per layer, so more than one declaration is reported (return 2) rather than resolved.
+# per layer, so more than one declaration is reported (return 2) rather than resolved. A too-deep
+# leaf (return 3) is checked FIRST and REGARDLESS of COUNT: a file carrying both a valid one-level
+# leaf and a too-deep one must still report the deep shape, or the installer's both-declarations
+# guard (ensure-global-config.sh) loses its signal.
 docket_runtime_unique(){ # docket_runtime_unique <file> [open] [close]
   _docket_runtime_scan "$@"
+  [ "${DOCKET_RUNTIME_DEEP:-0}" -eq 0 ] || return 3
   [ "$DOCKET_RUNTIME_COUNT" -le 1 ] || return 2
   printf '%s\n' "$DOCKET_RUNTIME_VALUE"
 }

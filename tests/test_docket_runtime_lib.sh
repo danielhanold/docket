@@ -182,6 +182,65 @@ assert "validate: a non-executable file is rejected as not-executable" \
 assert "validate: a binary that cannot report a version is rejected" \
   '[ "$(probe "$BIN/novers")" = "1|no-version|" ]'
 
+# --- depth anchoring of the runtime leaf (mutation target M6) -----------------
+# The pre-0153 pattern `in_runtime && structural ~ /^[[:space:]]+bash[[:space:]]*:/` matched ANY
+# indentation depth under the header, and in_runtime is cleared only by a column-0 non-space line.
+# Measured pre-fix: `runtime:` -> `codex:` -> `bash: /opt/weird/bash` resolved to count=1,
+# value=/opt/weird/bash. A user writing that means "the bash for the codex runner"; docket adopted
+# it as the machine's Bash runtime for every operation, with no diagnostic.
+printf 'runtime:\n  nested:\n    bash: /some/path\n' > "$tmp/deep.yml"
+assert "M6 a leaf deeper than the block's shallowest child is not counted" \
+  '[ "$(docket_runtime_count "$tmp/deep.yml")" = 0 ]'
+assert "M6 a too-deep leaf yields no value" \
+  '[ -z "$(docket_runtime_first "$tmp/deep.yml")" ]'
+docket_runtime_unique "$tmp/deep.yml" >/dev/null 2>&1; deep_rc=$?
+assert "M6 docket_runtime_unique reports a too-deep leaf with rc 3" '[ "$deep_rc" -eq 3 ]'
+
+# The motivating hazard: a SIBLING key, not a decorative nesting.
+printf 'runtime:\n  codex:\n    bash: /opt/weird/bash\n' > "$tmp/sibling.yml"
+assert "M6 a bash: under a sibling nested key is not adopted" \
+  '[ "$(docket_runtime_count "$tmp/sibling.yml")" = 0 ]'
+docket_runtime_unique "$tmp/sibling.yml" >/dev/null 2>&1; sib_rc=$?
+assert "M6 the sibling-key shape is reported with rc 3" '[ "$sib_rc" -eq 3 ]'
+
+# DEPTH-RELATIVE, NOT TWO-SPACE: a four-space canonical file resolved before this change and must
+# keep resolving. Hard-coding two spaces would be a second, unannounced tightening.
+printf 'runtime:\n    bash: /four/space/bash\n' > "$tmp/four.yml"
+assert "M6 a four-space one-level leaf still resolves" \
+  '[ "$(docket_runtime_first "$tmp/four.yml")" = "/four/space/bash" ]'
+assert "M6 the four-space file is counted once" \
+  '[ "$(docket_runtime_count "$tmp/four.yml")" = 1 ]'
+
+# The anchor is the SHALLOWEST structural child, not the FIRST: when the first child is the nested
+# key, a first-child anchor lands too deep and would wrongly reject a later legitimate leaf.
+printf 'runtime:\n    deep_first:\n      x: 1\n  bash: /correct/bash\n' > "$tmp/shallow-later.yml"
+assert "M6 a one-level leaf after a deeper first child still resolves" \
+  '[ "$(docket_runtime_first "$tmp/shallow-later.yml")" = "/correct/bash" ]'
+
+# PER-BLOCK RESET: without it, block 2 inherits block 1's anchor.
+printf 'runtime:\n  nested:\n    bash: /deep/one\nruntime:\n  bash: /good/two\n' > "$tmp/two-blocks.yml"
+assert "M6 the depth anchor resets when in_runtime clears" \
+  '[ "$(docket_runtime_first "$tmp/two-blocks.yml")" = "/good/two" ]'
+assert "M6 block 2 is counted once despite block 1's deep leaf" \
+  '[ "$(docket_runtime_count "$tmp/two-blocks.yml")" = 1 ]'
+
+# UNCHANGED SHAPES — regression pins, expected green both ways.
+assert "M6 the canonical two-space file is unchanged" \
+  '[ "$(docket_runtime_first "$tmp/one.yml")" = "/one" ]'
+assert "M6 a tab-indented leaf is still read" \
+  '[ "$(docket_runtime_first "$tmp/tab.yml")" = "/tab/bash" ]'
+assert "M6 a bash: at column 0 outside any runtime: block is still ignored" \
+  '[ "$(docket_runtime_count "$tmp/decoy.yml")" = 0 ]'
+assert "M6 the managed-block file is unchanged" \
+  '[ "$(docket_runtime_count "$tmp/managed-only.yml" "$MARK_OPEN" "$MARK_CLOSE")" = 0 ]'
+
+# A deep leaf INSIDE a managed block must not be seen at all: managed lines `next` out before
+# `structural` is computed, so depth tracking never sees them.
+printf '%s\nruntime:\n  nested:\n    bash: /managed/deep\n%s\nruntime:\n  bash: /explicit/ok\n' \
+  "$MARK_OPEN" "$MARK_CLOSE" > "$tmp/managed-deep.yml"
+assert "M6 a deep leaf inside the managed block does not leak a DEEP report" \
+  '[ "$(docket_runtime_count "$tmp/managed-deep.yml" "$MARK_OPEN" "$MARK_CLOSE")" = 1 ]'
+
 # --- bootstrap compatibility: the real Bash 3.2 witness ---------------------
 # The library is sourced by install.sh and ensure-global-config.sh BEFORE a configured Bash 4+
 # exists, so it must run under the system Bash. macOS ships 3.2.57 at /bin/bash.
