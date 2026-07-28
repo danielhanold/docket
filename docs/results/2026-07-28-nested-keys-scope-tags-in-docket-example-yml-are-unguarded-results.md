@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0122 — Nested keys' scope tags in .docket.example.yml are unguarded](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0122-nested-keys-scope-tags-in-docket-example-yml-are-unguarded.md)**
+> ↩ **[Change 0122 — Nested keys' scope tags in .docket.example.yml are unguarded](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-07-28-0122-nested-keys-scope-tags-in-docket-example-yml-are-unguarded.md)**
 <!-- docket:backlink:end -->
 
 # Nested keys' scope tags in `.docket.example.yml` are unguarded — results
