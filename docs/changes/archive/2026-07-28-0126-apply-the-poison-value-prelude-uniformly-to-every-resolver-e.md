@@ -2,7 +2,7 @@
 id: 126
 slug: apply-the-poison-value-prelude-uniformly-to-every-resolver-e
 title: Apply the poison-value prelude uniformly to every resolver eval in the config suite
-status: implemented
+status: done
 priority: medium
 created: 2026-07-22
 updated: 2026-07-28
@@ -16,7 +16,7 @@ results: docs/results/2026-07-28-apply-the-poison-value-prelude-uniformly-to-eve
 trivial: false
 auto_groomable: true
 branch: feat/apply-the-poison-value-prelude-uniformly-to-every-resolver-e
-claimed_at: 2026-07-28T04:56:38Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/132
 blocked_by:
 reconciled: true
