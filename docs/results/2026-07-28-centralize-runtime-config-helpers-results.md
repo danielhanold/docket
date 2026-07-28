@@ -3,7 +3,7 @@
 <!-- docket:backlink:end -->
 
 # Centralize shared Bash runtime configuration helpers — results
-Change: #0133 · Branch: feat/centralize-runtime-config-helpers · PR: <url> · Plan: docs/superpowers/plans/2026-07-28-centralize-runtime-config-helpers.md · ADRs: none
+Change: #0133 · Branch: feat/centralize-runtime-config-helpers · PR: https://github.com/danielhanold/docket/pull/134 · Plan: docs/superpowers/plans/2026-07-28-centralize-runtime-config-helpers.md · ADRs: none
 
 ## Verify (human)
 
