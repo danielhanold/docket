@@ -2,7 +2,7 @@
 id: 146
 slug: widen-the-config-read-channel-guard-to-the-sibling-config-la
 title: Widen the config read-channel guard to the sibling config layers it does not match
-status: proposed
+status: killed
 priority: medium
 type: fix
 created: 2026-07-27
@@ -96,3 +96,7 @@ Both resolved at grooming (see the spec's Assumptions 2 and 3):
   at zero occurrences outside the exclusions.
 - *Should the three filenames share one class-marker vocabulary?* **Yes.** The classes are
   layer-independent; a machine-local-only class would force marker renames on layer changes.
+
+## Why killed
+
+Subsumed by change 0157, which carries this work on a single rolled-up branch. The design in this change's spec remains authoritative for its unit.
