@@ -19,8 +19,8 @@ auto_groomable: false
 branch: feat/roll-up-the-seven-build-ready-changes-into-one-branch
 pr:
 blocked_by:
-claimed_at: 2026-07-28T15:55:15Z
-reconciled: false
+claimed_at: 2026-07-28T15:56:42Z
+reconciled: true
 ---
 
 ## Artifacts
@@ -85,3 +85,30 @@ Acceptance is every constituent's own bar, plus one green full-suite run at the 
 
 None. Scope, kill-the-originals, and the seven-change membership were settled with the human at
 creation.
+
+## Reconcile log
+
+### 2026-07-28
+
+No drift. The change was created today and reconciled the same day, so the snapshot it was drafted
+against is still current. Verified:
+
+- **All seven originals are killed and archived** — `2026-07-28-0143-…`, `-0144-`, `-0146-`, `-0148-`,
+  `-0149-`, `-0152-`, `-0153-` all sit in `archive/`, and each kill's terminal record is published on
+  `origin/main` (commits `483d3d3c`…`f264d7e6`). None is selectable by `docket-implement-next`, so the
+  double-implementation risk the spec names is closed.
+- **All seven constituent specs survive the kills** on `docket` in `docs/superpowers/specs/`, as the
+  spec predicted (killing a change archives the change file, not its artifacts). They stay
+  authoritative for their own designs.
+- **No target file moved under us.** Nothing on `origin/main` has touched `render-board.sh`,
+  `docket-status.sh`, `lib/docket-runtime.sh`, `ensure-docket-env.sh`, `ensure-global-config.sh`,
+  `test_docket_config.sh`, `test_config_read_channel.sh`, or `test_render_board.sh` since the specs
+  were authored; the newest code commits on those paths are change 0133's runtime-library work, which
+  every constituent spec was already written against.
+- **The code anchors each unit keys on are intact** — the two `-z "$DOCKET_BASH_PATH"` asserts
+  (0148) at `test_docket_config.sh:1534,1550`, the `__poison__` seeds at `:1410,1566`, and the
+  absolute `exempt <= 5` ceiling (0149) at `:2021`.
+
+Scope, ordering, and the acceptance bar carry forward unchanged. One correction of emphasis for the
+build: 0149's proportional floor must be derived against the tree **after** 0148's assert deletions
+land on this branch — the numbers printed in 0149's own spec predate them.
