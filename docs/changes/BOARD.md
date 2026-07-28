@@ -1,8 +1,14 @@
 # Backlog
 
-**158 changes** — 🟡 25 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 2 implemented · ✅ 110 done · 🗑️ 16 killed
+**158 changes** — 🟢 1 in progress · 🟡 24 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 2 implemented · ✅ 110 done · 🗑️ 16 killed
 
-## 🟡 Proposed (25)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch |
+|---|-------|----------|------|------|--------|
+| [0157](active/0157-roll-up-the-seven-build-ready-changes-into-one-branch.md) | Roll up the seven build-ready changes into one branch | `medium` | `fix` | [spec](../superpowers/specs/2026-07-28-build-ready-fix-rollup-design.md) | `feat/roll-up-the-seven-build-ready-changes-into-one-branch` |
+
+## 🟡 Proposed (24)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -29,7 +35,6 @@
 | [0154](active/0154-audit-skill-bodies-for-the-stale-restatement-class-change-01.md) | Audit skill bodies for the stale-restatement class change 0145 closed in one file | `medium` | `docs` | needs-brainstorm |
 | [0155](active/0155-interior-tabs-in-a-frontmatter-value-shift-the-render-board.md) | Interior TABs in a frontmatter value shift the render-board sort feeder's fields | `medium` | `fix` | needs-brainstorm |
 | [0156](active/0156-render-board-sh-exits-0-on-malformed-input-and-commits-a-cor.md) | render-board.sh exits 0 on malformed input and commits a corrupt board | `medium` | `fix` | needs-brainstorm |
-| [0157](active/0157-roll-up-the-seven-build-ready-changes-into-one-branch.md) | Roll up the seven build-ready changes into one branch | `medium` | `fix` | build-ready |
 | [0158](active/0158-batch-mode-for-docket-implement-next-build-several-coupled-c.md) | Batch mode for docket-implement-next — build several coupled changes on one branch | `medium` | `feat` | needs-brainstorm |
 
 ## 🔴 Blocked (1)
