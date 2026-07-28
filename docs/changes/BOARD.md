@@ -1,6 +1,6 @@
 # Backlog
 
-**153 changes** — 🟢 1 in progress · 🟡 27 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 2 implemented · ✅ 109 done · 🗑️ 9 killed
+**154 changes** — 🟢 1 in progress · 🟡 28 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 2 implemented · ✅ 109 done · 🗑️ 9 killed
 
 ## 🟢 In progress (1)
 
@@ -8,7 +8,7 @@
 |---|-------|----------|------|------|--------|
 | [0145](active/0145-docket-status-skill-md-restates-a-stale-check-count-and-list.md) | docket-status SKILL.md restates a stale check count and list the 0111 guard does not pin | `medium` | `docs` | [spec](../superpowers/specs/2026-07-28-status-skill-stale-check-restatement-design.md) | `feat/docket-status-skill-md-restates-a-stale-check-count-and-list` |
 
-## 🟡 Proposed (27)
+## 🟡 Proposed (28)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -37,8 +37,9 @@
 | [0149](active/0149-make-the-prelude-guard-s-exemption-bound-proportional-and-cl.md) | Make the prelude guard's exemption bound proportional, and close the partial-rename gap | `medium` | `chore` | build-ready |
 | [0150](active/0150-pin-or-report-the-resolved-shell-toolchain-across-the-test-s.md) | Pin or report the resolved shell toolchain across the test suite | `medium` | `chore` | auto-groom blocked — needs you |
 | [0151](active/0151-vacuous-docket-bash-path-asserts-sit-in-eval-free-blocks-out.md) | Vacuous DOCKET_BASH_PATH asserts sit in eval-free blocks, out of the poison-prelude guard's reach | `medium` | `fix` | auto-groom blocked — needs you |
-| [0152](active/0152-consolidate-the-two-surviving-hand-rolled-gnu-bash-4-validat.md) | Consolidate the two surviving hand-rolled GNU Bash 4+ validator copies | `medium` | `refactor` | needs-brainstorm |
+| [0152](active/0152-consolidate-the-two-surviving-hand-rolled-gnu-bash-4-validat.md) | Consolidate the two surviving hand-rolled GNU Bash 4+ validator copies | `medium` | `refactor` | build-ready |
 | [0153](active/0153-decide-whether-the-runtime-bash-leaf-match-should-be-depth-a.md) | Decide whether the runtime.bash leaf match should be depth-anchored | `medium` | `fix` | needs-brainstorm |
+| [0154](active/0154-audit-skill-bodies-for-the-stale-restatement-class-change-01.md) | Audit skill bodies for the stale-restatement class change 0145 closed in one file | `medium` | `docs` | needs-brainstorm |
 
 ## 🔴 Blocked (1)
 
@@ -99,6 +100,7 @@ graph TD
   0151
   0152
   0153
+  0154
   0015:::done
   0016:::done
   0077:::done
