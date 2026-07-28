@@ -19,9 +19,9 @@ docket's shell scripts read YAML config and markdown frontmatter with hand-rolle
 - `scripts/lib/docket-frontmatter.sh` — `field_raw`, `field`, `fm_field`, `list_field`, `int_field`
 - `scripts/lib/docket-runtime.sh` — the `runtime.bash` declaration reader (changes 0133/0152)
 
-Adopting `yq` was tracked as an open question from 2026-06-16, in change 0018's original framing. It was never adopted. docket then invested in the opposite direction: centralizing the readers into `scripts/lib/docket-frontmatter.sh`, and writing ADR-0057 and ADR-0058 *about* those readers — design work that would be nonsense had adoption still been open.
+Adopting `yq` was tracked as an open question from 2026-06-16, in change 0018's original framing. It was never adopted. docket then invested in the opposite direction: centralizing frontmatter reading into `scripts/lib/docket-frontmatter.sh`, and writing ADR-0057 and ADR-0058 *about* those readers — design work that would be nonsense had adoption still been open.
 
-So the question is closed by conduct, but was never written down. That is what this ADR fixes. Zero `yq` invocations exist repo-wide, and `scripts/docket-config.sh` already carries "(no yq)" as a standing property in a comment.
+So the question is closed by conduct, but was never written down. That is what this ADR fixes. Zero `yq` invocations exist repo-wide, and `scripts/docket-config.sh` notes "(no yq)" as the reason its `.docket.yml` reader is a flat scalar reader.
 
 ## Decision
 
