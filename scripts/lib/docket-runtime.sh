@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 # scripts/lib/docket-runtime.sh — the ONE implementation of docket's `runtime.bash` mechanics
-# (change 0133). SOURCE this; declaring functions is its only effect — no writes, no git, no
-# network, no output at source time.
+# for install.sh, scripts/ensure-global-config.sh, and scripts/docket-config.sh (change 0133).
+# SOURCE this; declaring functions is its only effect — no writes, no git, no network, no output
+# at source time.
+#
+# Independent Bash-version checks still live in scripts/docket.sh (its POSIX bootstrap, before a
+# Bash interpreter is even chosen) and scripts/ensure-docket-env.sh (its own DOCKET_BASH_PATH
+# validation). Folding those into this library is out of this library's current scope.
 #
 # BOOTSTRAP-COMPATIBLE BY REQUIREMENT. install.sh and scripts/ensure-global-config.sh source this
 # BEFORE a configured GNU Bash 4+ runtime has been discovered or persisted, so every line here must

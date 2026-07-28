@@ -112,6 +112,14 @@ printf '%s\nruntime:\n  bash: /managed/bash\n%s\n' "$MARK_OPEN" "$MARK_CLOSE" > 
 assert "M3 managed-only file has no explicit declaration" \
   '[ "$(docket_runtime_count "$tmp/managed-only.yml" "$MARK_OPEN" "$MARK_CLOSE")" = 0 ]'
 
+# The managed block's own `runtime:` header must not leak in_runtime state past the close
+# marker: a bare indented `bash:` leaf with NO runtime: header of its own, sitting right after
+# the close marker, must not be picked up.
+printf '%s\nruntime:\n  bash: /managed/bash\n%s\n  bash: /leaked/bash\n' \
+  "$MARK_OPEN" "$MARK_CLOSE" > "$tmp/leak-after-close.yml"
+assert "M3 the managed runtime: header does not leak past the close marker" \
+  '[ "$(docket_runtime_count "$tmp/leak-after-close.yml" "$MARK_OPEN" "$MARK_CLOSE")" = 0 ]'
+
 # Empty marker arguments must not match blank lines — the resolver passes none.
 printf '\nruntime:\n\n  bash: /blank/bash\n\n' > "$tmp/blank.yml"
 assert "empty markers do not match blank lines" \
