@@ -6,12 +6,12 @@ status: proposed
 priority: medium
 type: docs
 created: 2026-07-27
-updated: 2026-07-27
+updated: 2026-07-28
 depends_on: []
-related: []
+related: [117, 144]
 discovered_from: [117]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-07-28-status-skill-stale-check-restatement-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-07-28-status-skill-stale-check-restatement-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-28-status-skill-stale-check-restatement-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -43,13 +46,28 @@ the exact `correspondence-guard-runs-one-way` failure the repo has already recor
 
 ## What changes
 
-Refresh the SKILL.md prose to stop restating a count and a list it does not own, and decide how it
-should be kept honest. Two candidate shapes: point the skill at the authoritative enumeration
-instead of restating it (the cheapest durable fix), or add SKILL.md as a fifth pinned surface to the
-change-0111 guard. Prefer whichever removes the restatement rather than adding a fifth place to
-maintain it.
+Remove the restatement from `skills/docket-status/SKILL.md`'s `### Health checks` section rather
+than add a fifth surface to change 0111's correspondence guard — removal makes the drift impossible
+instead of merely detected.
+
+- **Drop** the count word ("Five"), the five-item check-id list, and the hand-run
+  `docket.sh board-checks` invocation block (the skill never runs the checker directly — it invokes
+  `docket.sh docket-status`, and SKILL.md already delegates mechanics to `scripts/docket-status.md`).
+- **Keep** what the skill actually owns: the warn-only/git-only/never-auto-fix posture, the existing
+  one-line cross-reference to `## Judgment follow-ups`, and a one-line characterization of what the
+  checks are about.
+- **Point** at the authoritative enumeration instead: `scripts/board-checks.md`'s per-check sections
+  and `scripts/docket-status.md`'s `check <check-id>` row.
+- **Guard** the removal so it cannot silently return: one assert in `tests/test_board_checks.sh`,
+  placed immediately before the `PASS`/`exit` epilogue, that extracts the `### Health checks` section
+  (terminator: next `^#{1,3} ` heading or EOF — the section is currently file-final) and asserts no
+  emitted check-id appears in it by word boundary, with a positive non-vacuity anchor so a heading
+  rename reddens rather than passing silently.
+
+Design, rejected alternatives, and the guard's named limitation are in the linked spec.
 
 ## Out of scope
 
 - Changing the check-id vocabulary itself or any check's behavior.
 - The four already-pinned surfaces, which are correct and guarded.
+- Auditing other skills for the same restatement class — real, but a separate sweep.
