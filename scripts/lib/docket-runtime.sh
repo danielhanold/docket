@@ -104,3 +104,36 @@ docket_runtime_unique(){ # docket_runtime_unique <file> [open] [close]
   [ "$DOCKET_RUNTIME_COUNT" -le 1 ] || return 2
   printf '%s\n' "$DOCKET_RUNTIME_VALUE"
 }
+
+# A runtime path is stored as a ONE-LINE YAML scalar. write_runtime_block doubles apostrophes and
+# YAML single quotes keep backslashes literal, so only record separators are unrepresentable.
+docket_runtime_serializable(){ # docket_runtime_serializable <value>
+  case "$1" in *$'\n'*|*$'\r'*) return 1 ;; esac
+  return 0
+}
+
+# Validate that <path> is an absolute, executable GNU Bash 4 or newer. Prints a machine-readable
+# reason token on line 1 and the binary's `--version` first line on line 2 (empty when it was not
+# obtained), so a caller can build its OWN diagnostic without re-running the binary. `old-major`
+# deliberately covers both an unparseable major and a major below 4: the resolver has always
+# collapsed those into one "must be Bash 4 or newer" failure, and splitting them here would invent
+# a distinction no caller makes.
+docket_runtime_validate_bash(){ # docket_runtime_validate_bash <path>
+  local _p="$1" _version _first _major
+  case "$_p" in /*) ;; *) printf '%s\n%s\n' not-absolute ""; return 1 ;; esac
+  [ -x "$_p" ] || { printf '%s\n%s\n' not-executable ""; return 1; }
+  _version="$(LC_ALL=C "$_p" --version 2>/dev/null)" \
+    || { printf '%s\n%s\n' no-version ""; return 1; }
+  _first="${_version%%$'\n'*}"
+  case "$_first" in
+    'GNU bash, version '*) ;;
+    *) printf '%s\n%s\n' not-gnu-bash "$_first"; return 1 ;;
+  esac
+  _major="$(printf '%s\n' "$_first" | sed -n 's/^GNU bash, version \([0-9][0-9]*\)\..*/\1/p')"
+  case "$_major" in
+    ''|*[!0-9]*) printf '%s\n%s\n' old-major "$_first"; return 1 ;;
+  esac
+  [ "$_major" -ge 4 ] || { printf '%s\n%s\n' old-major "$_first"; return 1; }
+  printf '%s\n%s\n' ok "$_first"
+  return 0
+}
