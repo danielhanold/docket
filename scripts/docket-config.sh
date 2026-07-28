@@ -225,11 +225,19 @@ fi
 # runtime.bash is machine-local by definition: repo-local > global, while a committed value is
 # loudly ignored. Read every `bash:` leaf WITHIN its `runtime:` block so an unrelated bare leaf
 # cannot shadow it. The temporary block bodies are removed before validation can die.
-_runtime_local="$(runtime_get "$LCFG")" \
-  || die ".docket.local.yml contains multiple runtime.bash declarations; keep exactly one"
+_runtime_local="$(runtime_get "$LCFG")"; _runtime_local_rc=$?
+case "$_runtime_local_rc" in
+  0) ;;
+  3) die "runtime.bash must be nested exactly one level under \`runtime:\`; found it deeper in .docket.local.yml" ;;
+  *) die ".docket.local.yml contains multiple runtime.bash declarations; keep exactly one" ;;
+esac
 _runtime_committed_count="$(runtime_count "$CFG")"
-_runtime_global="$(runtime_get "$GCFG")" \
-  || die "global config.yml contains multiple runtime.bash declarations; keep exactly one"
+_runtime_global="$(runtime_get "$GCFG")"; _runtime_global_rc=$?
+case "$_runtime_global_rc" in
+  0) ;;
+  3) die "runtime.bash must be nested exactly one level under \`runtime:\`; found it deeper in global config.yml" ;;
+  *) die "global config.yml contains multiple runtime.bash declarations; keep exactly one" ;;
+esac
 
 if [ "$_runtime_committed_count" -gt 0 ]; then
   printf 'docket-config: warning: committed config key runtime.bash is machine-local — set it in .docket.local.yml or global config.yml; ignored\n' >&2

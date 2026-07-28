@@ -34,8 +34,11 @@ non-zero and tells the user to run `brew install bash`.
 ## Config ownership and writes
 
 A valid hand-authored `runtime.bash` is authoritative and leaves the complete file byte-untouched.
-An invalid hand-authored value stops installation and is never silently replaced. Otherwise the
-script writes this owned block before the user-owned bytes:
+An invalid hand-authored value stops installation and is never silently replaced. The leaf must
+sit exactly one level under `runtime:` (change 0153); a `bash:` declared deeper (e.g. `runtime:`
+-> `codex:` -> `bash:`) is refused with a diagnostic naming the file, and the file is left
+unchanged rather than silently overwritten. Otherwise the script writes this owned block before
+the user-owned bytes:
 
 ```yaml
 # >>> docket (runtime.bash) >>>
@@ -53,6 +56,12 @@ Malformed markers cause a non-zero exit with no write. Successful changes are re
 same-directory temporary file, retain the destination's permission bits, and are atomically
 renamed into place. User-owned bytes remain exact even when their final line has no newline, on
 both first install and re-run.
+
+The both-declarations guard (managed block plus a hand-authored explicit one) also fires when the
+hand-authored block is a too-deep one: without that, a depth violation would silently drop out of
+the explicit-declaration count, the guard would stop firing, and the installer would rewrite its
+managed block over a file whose author declared something the resolver would never read. Both
+shapes — managed-plus-deep and deep-with-no-managed-block — die with the file left unchanged.
 
 The `runtime.bash` scalar parser, declaration counter, path-serializability check, and GNU Bash 4+
 validator come from the shared `scripts/lib/docket-runtime.sh` (change 0133). Discovery order,

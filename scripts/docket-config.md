@@ -91,8 +91,11 @@ is written to a temp file and cleaned up on exit.
 Inline `#` comments are stripped; leading/trailing whitespace and surrounding quotes are
 removed. The key is ERE-escaped before use. Nested keys (`finalize.gate`,
 `finalize.test_command`) are read by their unique leaf-key name (`gate`, `test_command`).
-`runtime.bash` is stricter: `yaml_block_body` isolates each `runtime:` block before `bash:` is
-read, so a bare `bash:` elsewhere cannot shadow the runtime setting.
+`runtime.bash` is stricter: the leaf must sit exactly one level under `runtime:` — anchored on
+the block's shallowest structural child, so a two-space, four-space, or tab-indented file all
+resolve — and a bare `bash:` elsewhere cannot shadow the runtime setting. A `bash:` leaf nested
+deeper than that anchor (e.g. `runtime:` -> `codex:` -> `bash:`) is a reported error, never an
+absent key.
 A value may not contain a literal `#` — it is treated as the start of an inline comment.
 
 **Resolved values and defaults:**
@@ -365,6 +368,7 @@ emits no `KEY=value` output.
 | `metadata_branch` is neither `docket` nor `main` | 1 |
 | `terminal_publish` is neither `true` nor `false` | 1 |
 | `runtime.bash` is absent, relative, non-executable, unversionable, nonnumeric, or Bash <4 | 1 |
+| `runtime.bash` is declared deeper than one level under `runtime:` | 1 |
 | `mktree`/`commit-tree`/push failed during orphan create | 1 |
 | `--repo-dir` missing its argument | 2 |
 | Unknown argument | 2 |

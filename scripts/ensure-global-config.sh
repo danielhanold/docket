@@ -43,6 +43,11 @@ explicit_runtime(){ docket_runtime_first "$1" "$MARK_OPEN" "$MARK_CLOSE"; }
 
 explicit_runtime_count(){ docket_runtime_count "$1" "$MARK_OPEN" "$MARK_CLOSE"; }
 
+# Always returns 0 (script runs under set -eu): _docket_runtime_scan itself always returns 0, and
+# printf's exit status is discarded by nothing weakening it here — there is no command whose
+# failure could propagate.
+explicit_runtime_deep(){ _docket_runtime_scan "$1" "$MARK_OPEN" "$MARK_CLOSE"; printf '%s\n' "$DOCKET_RUNTIME_DEEP"; }
+
 consider_candidate(){
   _cc_path=$1
   [ -n "$_cc_path" ] || return 1
@@ -114,10 +119,19 @@ strip_runtime_block(){
 markers_valid "$DEST" || die "$DEST has malformed $MARK_OPEN / $MARK_CLOSE markers — left unchanged"
 _explicit="$(explicit_runtime "$DEST")"
 _explicit_count="$(explicit_runtime_count "$DEST")"
+_explicit_deep="$(explicit_runtime_deep "$DEST")"
 [ "$_explicit_count" -le 1 ] \
   || die "$DEST contains multiple explicit runtime.bash declarations; keep exactly one — left unchanged"
-if [ "$_explicit_count" -eq 1 ] && grep -qF -- "$MARK_OPEN" "$DEST"; then
+# change 0153: the depth anchor drops a hand-authored deep block out of _explicit_count, which
+# would silently disarm this guard and let the installer rewrite its managed block over a file
+# whose author declared something else. Gate on DEEP as well.
+if { [ "$_explicit_count" -eq 1 ] || [ "$_explicit_deep" -gt 0 ]; } && grep -qF -- "$MARK_OPEN" "$DEST"; then
   die "$DEST contains both managed and explicit runtime.bash declarations; remove one so exactly one runtime is authoritative — left unchanged"
+fi
+# A deep block with NO managed block is equally unsafe to overwrite: the author declared something
+# the resolver will not read. Name it rather than absorbing it.
+if [ "$_explicit_deep" -gt 0 ]; then
+  die "$DEST declares runtime.bash deeper than one level under \`runtime:\`; it must be nested exactly one level — left unchanged"
 fi
 if [ "$_explicit_count" -eq 1 ] && [ -z "$_explicit" ]; then
   die "$DEST contains an empty explicit runtime.bash; set it to an absolute executable GNU Bash 4+ path or remove the declaration — left unchanged"
