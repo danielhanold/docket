@@ -21,6 +21,10 @@ One curated finding per file; this index is the hint surface. Load it, then read
 - [sole-channel](sole-channel.md) — When a channel becomes the SOLE source of some state, re-prove on the survivor every property the fallback used to give you free. · also: contracts, retries
 - [unset-sort-key-check-your-own-template](unset-sort-key-check-your-own-template.md) — Decide a sort key's unset case explicitly — then check whether your own template makes unset the COMMON case rather than the rare one. · also: sorting, templates
 
+## docs
+
+- [restatement-accumulates-its-own-guards](restatement-accumulates-its-own-guards.md) — Deleting a restatement is never a one-file edit — tests grep the COPY, not the source, so the copy has quietly become load-bearing. · also: testing, refactoring ⟨needs promotion⟩
+
 ## git
 
 - [cas-re-read-fresh-origin](cas-re-read-fresh-origin.md) — A CAS retry must re-derive eligibility from FRESH ORIGIN state — re-reading the working tree you just wrote always reads back your own write and mislabels every real race as a no-op. · also: concurrency, scripts ⟨needs promotion⟩
