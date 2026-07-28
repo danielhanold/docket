@@ -2,7 +2,7 @@
 id: 145
 slug: docket-status-skill-md-restates-a-stale-check-count-and-list
 title: docket-status SKILL.md restates a stale check count and list the 0111 guard does not pin
-status: proposed
+status: in-progress
 priority: medium
 type: docs
 created: 2026-07-27
@@ -16,7 +16,8 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch:
+branch: feat/docket-status-skill-md-restates-a-stale-check-count-and-list
+claimed_at: 2026-07-28T11:15:48Z
 pr:
 blocked_by:
 reconciled: false
