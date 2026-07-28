@@ -137,7 +137,7 @@ declare -A SECTION         # status -> newline-separated "id\tfile"
 mapfile -t AFILES < <(find "$CHANGES_DIR/active" -maxdepth 1 -name '*.md' 2>/dev/null | sort)
 for f in "${AFILES[@]}"; do
   id="$(int_field "$f" id)"; [ -n "$id" ] || continue
-  st="$(field "$f" status)"
+  st="$(field "$f" status)"; [ -n "$st" ] || continue
   SECTION["$st"]+="$id"$'\t'"$f"$'\n'
 done
 
@@ -151,7 +151,7 @@ mapfile -t ARCFILES < <(find "$CHANGES_DIR/archive" -maxdepth 1 -name '*.md' 2>/
 total=$(( total + ${#ARCFILES[@]} ))
 
 declare -A ARC_COUNT  # terminal-status counts (archive)
-for f in "${ARCFILES[@]}"; do st="$(field "$f" status)"; ARC_COUNT["$st"]=$(( ${ARC_COUNT[$st]:-0} + 1 )); done
+for f in "${ARCFILES[@]}"; do st="$(field "$f" status)"; [ -n "$st" ] || continue; ARC_COUNT["$st"]=$(( ${ARC_COUNT[$st]:-0} + 1 )); done
 
 # --- digest projection (change 0069) --------------------------------------------------------
 # A second, line-oriented projection of the SAME dependency-resolution/readiness pass the board
@@ -400,6 +400,7 @@ if [ "$archive_count" -gt 0 ]; then
   done < <(
     for f in "${ARCFILES[@]}"; do
       base="$(basename "$f")"; d="${base:0:10}"; id="$(int_field "$f" id)"; st="$(field "$f" status)"
+      [ -n "$id" ] && [ -n "$st" ] || continue
       printf '%s\t%s\t%s\t%s\n' "$d" "$id" "$st" "$f"
     done | sort -t$'\t' -k1,1r -k2,2nr
   )
