@@ -15,10 +15,10 @@ results:
 trivial: true
 auto_groomable: true
 branch: feat/yq-yaml-parsing
-claimed_at: 2026-07-28T22:55:06Z
+claimed_at: 2026-07-28T22:56:37Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 type: docs
 ---
 
@@ -57,7 +57,8 @@ formalized that investment:
 - **ADR-0057** (anchored reads for optionally-absent keys) and **ADR-0058** (the two-tier
   `field` vs `field_raw` reader split) are Accepted decisions *about the hand-rolled readers* —
   design work that would be nonsense had adoption still been open.
-- `scripts/docket-config.sh:97` states "(no yq)" as a standing property.
+- `scripts/docket-config.sh` states "(no yq)" as a standing property (line has since drifted to
+  `:100`; cite the file, not the line).
 - Zero `yq` invocations exist repo-wide.
 
 So the "if yes" branch is foreclosed, and this change is reduced to the "if no" branch's single
@@ -90,7 +91,8 @@ one here (other in-flight changes mint ADRs concurrently). Frontmatter: `change:
 `relates_to: [57, 58]`, no `supersedes`/`reverses`.
 
 Name the reader modules as they exist today — `sync-agents.sh` (repo root), `scripts/docket-config.sh`,
-`scripts/lib/docket-frontmatter.sh`. The helper names in `## Why` above (`entry_line`, `block_names`)
+`scripts/lib/docket-frontmatter.sh`, and `scripts/lib/docket-runtime.sh` (the `runtime.bash`
+declaration reader, changes 0133/0152). The helper names in `## Why` above (`entry_line`, `block_names`)
 are pre-refactor history and must not be transcribed into the ADR; the current parser is
 `section_body()` / `harness_agent_line()` / `field_of()`. The flow-style consequence is still true:
 `section_body()` matches only a bare header, so a top-level `agents: {…}` never enters the block.
@@ -142,3 +144,34 @@ pre-reserve an ADR id, do not transcribe the stale helper names, and state the m
 execution shape — are folded into `## What changes` above. No decision needed human context.
 
 ## Reconcile log
+
+### 2026-07-28 — reconciled at claim, no scope change
+
+Re-verified every premise of the 2026-07-26 re-scope against the tree at `origin/main`; all hold,
+and the change stays exactly what the auto-groom verdict left it: author one ADR, nothing else.
+
+- **Zero `yq` invocations repo-wide.** The only hits are prose in archived changes, plans, and one
+  results file — no script calls it.
+- **ADR-0057 and ADR-0058 are both `Accepted`**, both about the in-repo readers, and both carry
+  `relates_to: []` — left untouched per `## What changes` (the link is one-way by construction).
+- **`depends_on: [16]` satisfied** — `0016-docket-subagent-model-effort` is archived `done`.
+- **No existing ADR states this stance** (no ADR in `docs/adrs/` mentions `yq`), so this is a new
+  decision record, not a restatement. Highest allocated id today is 0061; the new id is still to be
+  allocated by the `docket-adr` dispatch, not reserved here.
+- **`sync-agents.sh`'s current parser is `section_body()` / `field_of()` / `harness_agent_line()`**,
+  as the re-scope said; the pre-refactor names stay out of the ADR.
+- **`scripts/lib/docket-frontmatter.sh` exports `field_raw` / `field` / `fm_field` / `list_field` /
+  `int_field`** — unchanged.
+
+Two drifts folded in, neither affecting scope:
+
+1. The `(no yq)` comment in `scripts/docket-config.sh` has moved from line 97 to line 100. The ADR
+   cites the file, never a line number.
+2. `scripts/lib/docket-runtime.sh` (changes 0133/0152) is a **fourth** hand-rolled reader — it parses
+   `runtime.bash` declarations under the same no-external-parser stance, and under a stricter
+   constraint still (it must run on macOS system Bash 3.2). Added to the reader modules the ADR
+   names, and it strengthens rather than complicates the decision.
+
+Execution shape confirmed unchanged: metadata-only, the ADR is the unconditional acceptance
+criterion, the feature branch carries only plan + results, and delivery rides this change's own
+terminal publish at merge — never `terminal-publish --adr NN`.
