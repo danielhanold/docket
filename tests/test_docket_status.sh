@@ -3306,4 +3306,116 @@ assert "--help documents --priority with its description (REPORT-ONLY), not just
 assert "--help carries BOTH REPORT-ONLY description rows (neither filter row is cut)" \
   '[ "$(grep -c "REPORT-ONLY" "$help_out")" -eq 2 ]'
 
+# ============================================================================
+# change 0144: a board-checks.sh non-zero exit must be reported, not swallowed
+# ============================================================================
+# board-checks.sh accumulates findings into $FINDINGS and prints once at the END, so a validation
+# failure (exit 2) emits ZERO TSV lines: the read loop never runs and the report was byte-identical
+# to a clean tree. 0117's regression test cannot see this — its mock exits 0 regardless of
+# arguments, so the assert passes against both the fixed and the unfixed code
+# (green-suite-untested-branch).
+
+mkdir -p "$tmp/mock-0144"
+cat > "$tmp/mock-0144/board-checks.sh" <<'EOF'
+#!/usr/bin/env bash
+if [ -n "${MOCK_BC_BODY:-}" ]; then printf '%s\n' "$MOCK_BC_BODY"; fi
+exit "${MOCK_BC_RC:-0}"
+EOF
+chmod +x "$tmp/mock-0144/board-checks.sh"
+
+# mk_bc_mock <exit-code> <tsv-body> — configures the board-checks.sh mock above via env, read at
+# invocation time by run_status_full / run_status_must_land_clean_board below.
+mk_bc_mock(){ export MOCK_BC_RC="$1" MOCK_BC_BODY="$2"; }
+
+# Hermetic fixture with NO active changes (mirrors full-none-case above), so detect_merged
+# short-circuits before ever touching gh — this task is about health_checks, not the sweep.
+git_repo_setup "$tmp/case-0144"
+git clone -q "$tmp/case-0144/origin.git" "$tmp/case-0144/work" 2>/dev/null
+mkdir -p "$tmp/case-0144/work/docs/changes/active" "$tmp/case-0144/work/docs/adrs"
+git -C "$tmp/case-0144/work" -c user.email=t@t -c user.name=t commit -q --allow-empty -m "seed 0144" 2>/dev/null || true
+git -C "$tmp/case-0144/work" push -q origin main 2>/dev/null || true
+
+cat > "$tmp/gh-0144.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "gh-0144: unexpected call: $*" >&2
+exit 1
+EOF
+chmod +x "$tmp/gh-0144.sh"
+
+write_full_fixture none
+
+# run_status_full — the full pass (no --board-only), the path health_checks reports on.
+run_status_full(){
+  (cd "$tmp/case-0144/work" && \
+    CONFIG_EXPORT_CMD="bash $tmp/fixture-full.sh" GH="$tmp/gh-0144.sh" \
+    SCRIPTS_DIR="$tmp/mock-0144" \
+    "$SCRIPT" 2>"$tmp/o144-err.txt")
+}
+
+# run_status_must_land_clean_board — the STRUCTURAL GUARD invocation: a bare --must-land (no
+# --board-only) still runs the FULL path (the arg parser excludes --must-land only against
+# --digest-only). BOARD_SURFACES=none makes board_pass_must_land's deliberate off-state its own
+# success case, so this exercises health_checks with no board-push machinery in the way.
+run_status_must_land_clean_board(){
+  (cd "$tmp/case-0144/work" && \
+    CONFIG_EXPORT_CMD="bash $tmp/fixture-full.sh" GH="$tmp/gh-0144.sh" \
+    SCRIPTS_DIR="$tmp/mock-0144" \
+    "$SCRIPT" --must-land 2>"$tmp/o144f-err.txt")
+}
+
+# (1) mock exits 2 with no output -> exactly one diagnostic; the run still completes.
+mk_bc_mock 2 ''
+o144="$(run_status_full)"
+assert "0144: a board-checks exit 2 emits exactly one health-checks diagnostic" \
+  '[ "$(grep -c "^health checks failed 2$" <<<"$o144")" = 1 ]'
+assert "0144: the pass still completes after a checker failure" \
+  'grep -qxF "pass ok" <<<"$o144"'
+
+# (2) a different non-zero code is carried verbatim.
+mk_bc_mock 1 ''
+o144b="$(run_status_full)"
+assert "0144: the exit code is carried verbatim (1)" \
+  'grep -qxF "health checks failed 1" <<<"$o144b"'
+
+# (3) ADDITIVE, not replacement: findings AND the diagnostic. A naive
+# `if rc; then diagnostic; else findings; fi` fails this. Not hypothetical — board-checks.sh's
+# --strict path already prints $FINDINGS and THEN exits 1; health_checks is one flag away.
+mk_bc_mock 2 "$(printf 'broken-spec\t42\tspec missing')"
+o144c="$(run_status_full)"
+assert "0144: a finding emitted before a non-zero exit is still reported" \
+  'grep -qxF "check broken-spec 42 spec missing" <<<"$o144c"'
+assert "0144: the diagnostic accompanies the finding rather than replacing it" \
+  'grep -qxF "health checks failed 2" <<<"$o144c"'
+
+# --- NON-REGRESSION PINS. Expected to pass BOTH ways; do NOT apply the mutation mandate. ---
+# The no-false-positive direction (correspondence-guard-runs-one-way).
+mk_bc_mock 0 "$(printf 'broken-spec\t42\tspec missing')"
+o144d="$(run_status_full)"
+assert "0144: a clean exit with findings emits NO diagnostic" \
+  '! grep -q "^health checks failed" <<<"$o144d"'
+assert "0144: findings on a clean exit are unchanged" \
+  'grep -qxF "check broken-spec 42 spec missing" <<<"$o144d"'
+
+# The reclaim remedy still fires when the checker also failed.
+mk_bc_mock 2 "$(printf 'stale-in-progress\t7\tlease expired [reclaimable]')"
+o144e="$(run_status_full)"
+assert "0144: the reclaim remedy line survives a checker failure" \
+  'grep -q "reclaim-claims" <<<"$o144e"'
+
+# --- STRUCTURAL GUARD. The capture-scope argument rests on call ordering inside main() that a
+# future edit could silently break: board_pass_must_land classifies only its OWN board_out,
+# captured BEFORE health_checks ever runs. A bare --must-land DOES run the full path (the arg
+# parser excludes --must-land only against --digest-only), so this needs its own test.
+mk_bc_mock 2 ''
+o144f="$(run_status_must_land_clean_board)"; rc144f=$?
+assert "0144: --must-land still exits 0 when only the health checker failed" \
+  '[ "$rc144f" -eq 0 ] && grep -qxF "pass ok" <<<"$o144f"'
+
+# --- DOC GUARD: the STALE SENTENCE IS GONE, not merely that the new line is documented. The
+# existing `assert "status contract documents …"` family pins presence only.
+assert "0144: the stale 'a board-checks failure produces no extra output' claim is gone" \
+  '! grep -qF "or a \`board-checks.sh\` failure, produces no extra output" "$REPO/scripts/docket-status.md"'
+assert "0144: the output contract documents the new health-pass line" \
+  'grep -qF "health checks failed <exit>" "$REPO/scripts/docket-status.md"'
+
 exit $fail
