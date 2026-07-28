@@ -33,7 +33,7 @@
 | [0141](active/0141-factor-the-shared-wrapper-source-parse-out-of-the-named-harn.md) | Factor the shared wrapper-source parse out of the named harness emitters | `medium` | `refactor` | needs-brainstorm |
 | [0142](active/0142-make-the-unmapped-harness-wrapper-gap-loud-at-generation-tim.md) | Make the unmapped-harness wrapper gap loud at generation time | `medium` | `fix` | needs-brainstorm |
 | [0143](active/0143-empty-id-collapses-the-archive-sort-feeder-s-tab-joined-fiel.md) | Empty id collapses the archive sort feeder's TAB-joined fields in render-board.sh | `medium` | `fix` | auto-groom blocked — needs you |
-| [0144](active/0144-a-board-checks-sh-non-zero-exit-silently-voids-the-entire-he.md) | A board-checks.sh non-zero exit silently voids the entire health pass | `medium` | `chore` | needs-brainstorm |
+| [0144](active/0144-a-board-checks-sh-non-zero-exit-silently-voids-the-entire-he.md) | A board-checks.sh non-zero exit silently voids the entire health pass | `medium` | `chore` | ⏳ waiting on #117 — needs your merge |
 | [0145](active/0145-docket-status-skill-md-restates-a-stale-check-count-and-list.md) | docket-status SKILL.md restates a stale check count and list the 0111 guard does not pin | `medium` | `docs` | needs-brainstorm |
 | [0146](active/0146-widen-the-config-read-channel-guard-to-the-sibling-config-la.md) | Widen the config read-channel guard to the sibling config layers it does not match | `medium` | `fix` | needs-brainstorm |
 | [0147](active/0147-extend-the-2c-orphan-key-check-past-its-column-0-anchor-to-n.md) | Extend the (2c) orphan-key check past its column-0 anchor to nested keys | `medium` | `fix` | needs-brainstorm |
@@ -97,7 +97,7 @@ graph TD
   0141
   0142
   0143
-  0144
+  0117 --> 0144
   0145
   0146
   0147
