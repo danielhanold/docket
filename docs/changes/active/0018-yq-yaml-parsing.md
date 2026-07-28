@@ -8,14 +8,14 @@ created: 2026-06-16
 updated: 2026-07-28
 depends_on: [16]
 related: [11, 127]
-adrs: [57, 58]
+adrs: [57, 58, 62]
 spec:
 plan: docs/superpowers/plans/2026-07-28-yq-yaml-parsing.md
 results:
 trivial: true
 auto_groomable: true
 branch: feat/yq-yaml-parsing
-claimed_at: 2026-07-28T22:58:53Z
+claimed_at: 2026-07-28T23:00:56Z
 pr:
 blocked_by:
 reconciled: true
@@ -28,7 +28,7 @@ type: docs
 | Artifact | Link |
 |---|---|
 | Plan | [2026-07-28-yq-yaml-parsing.md](https://github.com/danielhanold/docket/blob/feat/yq-yaml-parsing/docs/superpowers/plans/2026-07-28-yq-yaml-parsing.md) |
-| ADRs | [ADR-0057](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0057-frontmatter-read-must-be-anchored-when-key-may-be-absent.md), [ADR-0058](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0058-two-tier-frontmatter-scalar-readers-field-vs-field-raw.md) |
+| ADRs | [ADR-0057](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0057-frontmatter-read-must-be-anchored-when-key-may-be-absent.md), [ADR-0058](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0058-two-tier-frontmatter-scalar-readers-field-vs-field-raw.md), [ADR-0062](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0062-in-repo-shell-yaml-readers-no-external-parser.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
