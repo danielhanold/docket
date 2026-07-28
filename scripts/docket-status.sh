@@ -691,7 +691,8 @@ sweep_execute_one(){
 
 # health_checks — runs board-checks.sh (the mechanical git-only checks) over the current
 # changes-dir and prefixes each TSV finding line as "check <check-id> <change-id> <message>".
-# Best-effort: a clean tree (or a board-checks failure) prints nothing extra; never aborts the pass.
+# Best-effort: a clean tree prints nothing extra; a board-checks.sh failure now prints
+# "health checks failed <exit>" (change 0144) — either way this never aborts the pass.
 health_checks(){
   local mw
   mw="$(docket_metadata_worktree)"   # ABSOLUTE (change 0075) — see board_pass.
@@ -720,14 +721,28 @@ health_checks(){
   # Guarded expansion: this repo's floor is Bash 4 (scripts/docket.sh, ensure-docket-env.sh), and
   # "${adr_args[@]}" on a declared-but-empty array throws "unbound variable" under set -u on bash
   # 4.0-4.3 (fixed upstream in 4.4) — the same change-0064 crash shape, one line lower.
-  "$DOCKET_BASH_PATH" "$SCRIPTS_DIR"/board-checks.sh \
+  # Capture-then-consume (change 0144). board-checks.sh accumulates findings into $FINDINGS and
+  # prints once at the END, so a validation failure (exit 2) emits ZERO TSV lines: piping it
+  # straight into the read loop made a broken checker byte-indistinguishable from a clean tree.
+  # This file's own idiom — reclaim_pass captures then greps a here-string, per change 0067's
+  # no-pipefail-SIGPIPE rule. The prologue is `set -uo pipefail` (no -e), so `|| rc=$?` is safe.
+  # The loop no longer runs in a pipeline subshell, so its three variables must be `local`.
+  local out rc=0 check_id change_id message
+  out="$("$DOCKET_BASH_PATH" "$SCRIPTS_DIR"/board-checks.sh \
     --changes-dir "$cd_dir" --metadata-branch "$metadata_branch" \
     --integration-branch "origin/$INTEGRATION_BRANCH" \
-    --lease-ttl-hours "${RECLAIM_LEASE_TTL:-72}" ${adr_args[@]+"${adr_args[@]}"} 2>&2 | \
+    --lease-ttl-hours "${RECLAIM_LEASE_TTL:-72}" ${adr_args[@]+"${adr_args[@]}"} 2>&2)" || rc=$?
+  # An empty $out yields one blank line from <<<, already swallowed by the [ -n ] guard below.
   while IFS=$'\t' read -r check_id change_id message; do
     [ -n "$check_id" ] || continue
     echo "check $check_id $change_id $message"
-  done
+  done <<<"$out"
+  # ADDITIVE, never a replacement: findings print first, then the diagnostic. board-checks.sh's
+  # --strict path already prints $FINDINGS and THEN exits 1, so the emit-then-fail shape is one
+  # flag away from this caller. The exit code is the whole payload — the CAUSE stays on stderr,
+  # where board-checks.sh already writes it and this function passes it through untouched. Same
+  # contract as `board inline failed`: the line signals WHICH STEP failed, not why.
+  [ "$rc" -eq 0 ] || printf 'health checks failed %s\n' "$rc"
   return 0
 }
 

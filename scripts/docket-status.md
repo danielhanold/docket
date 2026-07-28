@@ -215,7 +215,9 @@ claim-lease staleness signal keys on the repo's configured `reclaim.lease_ttl` �
 of its TSV findings as `check <check-id> <change-id> <message>` on this script's stdout. Also emits
 one `judgment blocked <id> <blocked_by-text>` line per `active` change with `status: blocked`,
 leaving the actual re-examination judgment to the caller/skill. Both are best-effort/warn-only: a
-clean tree, or a `board-checks.sh` failure, produces no extra output and never aborts the pass.
+clean tree produces no extra output, and a `board-checks.sh` failure (change 0144) emits
+`health checks failed <exit>` on stdout — its findings, if any, are still printed above that line —
+but either way the pass still continues and never aborts.
 Also forwards `--adrs-dir` and `--terminal-publish` (change 0117) to arm the `adr-unpublished`
 check, but only when its ADR directory actually **exists** under the metadata worktree — `ADRS_DIR`
 always has a value (`docket-config.sh` defaults it to `docs/adrs`), so a fresh repo without one
@@ -365,6 +367,7 @@ All report lines are stdout, one shape per line, diagnostics go to stderr:
 | `reclaim <line>` | Step 7a, `reclaim.auto: true`: a passthrough of one `reclaim-claims.sh` report line (`reclaimed <id> <slug> …` / `skipped <id> raced`) after the mutating reclaim sweep ran and **pushed to origin**. Emitted only on the full path when a `[reclaimable]` finding exists. |
 | `learnings disabled` | `learnings.enabled` resolved `false` — the pass is a total no-op: no render, no advisories, no read or write of `learnings/` at all. |
 | `learnings index skipped (no learnings dir)` | Learnings enabled, but `<changes-dir>/learnings` does not exist — nothing to render and no finding files to advise on. |
+| `health checks failed <exit>` | The health pass's `board-checks.sh` invocation exited non-zero (`<exit>` is its status); its findings, if any, are still printed above this line. A **health-pass** line, deliberately outside the `board ` family — the cause stays on stderr. Warn-only: the pass still continues to `pass ok`. |
 | `learnings index failed` | The learnings index render failed; the existing `README.md` (if any) was left untouched (best-effort — the pass still continues). The two advisory lines below still fire on this path (change 0067 review, finding 3). |
 | `learnings index clean` | The rendered index matched the existing `README.md` AND there is nothing unpushed touching it — the same two-part attestation as `board inline clean`. |
 | `learnings index changed pushed` | The learnings index changed and the commit was pushed successfully. |
