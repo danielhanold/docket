@@ -604,66 +604,97 @@ assert "example header states the must-update rule" \
 assert "example documents the four layers" \
   'grep -qF "1. repo-local" "$EX" && grep -qF "2. repo-committed" "$EX" && grep -qF "3. global" "$EX" && grep -qF "4. built-in" "$EX"'
 
-# Scope tags: both forms present, and every ACTIVE top-level key is individually tagged — a real
-# per-key check, not just "the phrase occurs somewhere in the file" (which the two asserts below
-# alone would only prove). The awk pass finds each active (uncommented) top-level key's own
-# preceding comment "window" bounded by the nearest neighbor on either side among: a section
-# banner (# ═══...), another active top-level key, or a commented pseudo-key (# agent_harnesses:
-# / # agents:). A header key (a mapping-opener like `finalize:`, with nothing after the colon)
-# extends its window forward through its nested body, since its scope lives on its children, not
-# on the header line itself. A scalar key whose window comes up empty (no comment lines of its
-# own, immediately adjacent to the previous active key with zero lines between) inherits that
-# key's tag coverage — this is the changes_dir / adrs_dir / results_dir group, one shared comment
-# block above all three.
+# Scope tags: all three forms present, and every ACTIVE SCALAR key at EVERY nesting depth is
+# covered by a scope tag — a real per-key check, not just "the phrase occurs somewhere in the
+# file" (which the three asserts below alone would only prove).
+#
+# The pass finds each active (uncommented) key's own preceding comment "window", bounded by the
+# nearest neighbor above among: a section banner (# ═══...), another active key at ANY depth, or
+# a commented pseudo-key (# agent_harnesses: / # agents:). Four rules (change 0122):
+#
+#   1. A SCALAR key (anything after the colon) must be covered. A HEADER key (a mapping opener
+#      like `finalize:`, nothing after the colon) is never itself required to carry a tag — it
+#      may PROVIDE one for its subtree, but a container has no scope of its own to assert.
+#   2. Coverage = the key's own window carries a sanctioned tag, ELSE the nearest enclosing
+#      header block's own window does. Both of the file's conventions are therefore legal:
+#      finalize/learnings/reclaim tag each child individually, while auto_capture/runners/skills
+#      tag the block header and let the children inherit.
+#   3. A header's window is its OWN preceding comment lines ONLY, and is NEVER extended forward
+#      into its body. This is the anti-masking rule. The pre-0122 guard did extend it forward,
+#      so ANY ONE child's tag satisfied the header and no child was ever checked individually —
+#      which is exactly how change 0102 shipped `finalize.require_pr_approval` carrying a
+#      bespoke note claiming the OPPOSITE of its real scope, with the suite fully green.
+#   4. A scalar key with a genuinely empty window (no comment lines of its own, immediately
+#      adjacent to the previous key AT THE SAME DEPTH) inherits that key's coverage — this is
+#      the changes_dir / adrs_dir / results_dir group, one shared comment block above all three.
+#
+# Failures are reported as DOTTED PATHS (`finalize.gate`), because a bare leaf name is ambiguous
+# between learnings.enabled and auto_capture.enabled.
+#
+# The program is HOISTED into $scope_guard_awk rather than written inline, so the mutation
+# self-tests below run LITERALLY THIS PROGRAM. A hand-copied second inline copy would be a
+# guard that tests a different program than the one that ships (plan-supplied-test-code-is-
+# unverified). The heredoc delimiter is single-quoted so awk's $0 is not shell-expanded.
 assert "scope tag: repo-only form present"  'grep -qF "scope: repo-only (coordination-fenced, ADR-0019)" "$EX"'
 assert "scope tag: any-layer form present"  'grep -qF "scope: any layer" "$EX"'
 assert "scope tag: local-only form present" 'grep -qF "scope: local-only" "$EX"'
-untagged_keys="$(awk '
-  {
-    content[NR] = $0
-    is_active = ($0 ~ /^[A-Za-z_][A-Za-z0-9_]*:/)
-    is_pseudo = ($0 ~ /^# (agent_harnesses|agents):/)
-    is_banner = ($0 ~ /^#[[:space:]]*═══/)
-    if (is_active || is_pseudo || is_banner) { nb++; bnd[nb] = NR }
-    if (is_active) {
-      nk++
-      keyline[nk] = NR
-      keytype[nk] = ($0 ~ /^[A-Za-z_][A-Za-z0-9_]*:[[:space:]]*$/) ? "H" : "S"
-      bndidx[nk] = nb
-    }
+scope_guard_awk="$(cat <<'SCOPE_GUARD_AWK'
+{
+  content[NR] = $0
+  is_active = ($0 ~ /^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*[[:space:]]*:/)
+  is_pseudo = ($0 ~ /^# (agent_harnesses|agents):/)
+  is_banner = ($0 ~ /^#[[:space:]]*═══/)
+  if (is_active || is_pseudo || is_banner) { nb++; bnd[nb] = NR }
+  if (is_active) {
+    nk++
+    keyline[nk] = NR
+    match($0, /^[[:space:]]*/); keydepth[nk] = RLENGTH
+    rest = $0
+    sub(/^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*[[:space:]]*:/, "", rest)
+    keytype[nk] = (rest ~ /^[[:space:]]*(#.*)?$/) ? "H" : "S"
+    nm = $0
+    sub(/^[[:space:]]*/, "", nm)
+    sub(/[[:space:]]*:.*/, "", nm)
+    keyname[nk] = nm
+    bndidx[nk] = nb
   }
-  END {
-    maxNR = NR
-    for (k = 1; k <= nk; k++) {
-      idx = bndidx[k]
-      prevB = (idx > 1) ? bnd[idx-1] : 0
-      winStart = prevB + 1
-      if (keytype[k] == "H") {
-        nextB = (idx < nb) ? bnd[idx+1] : (maxNR + 1)
-        winEnd = nextB - 1
-      } else {
-        winEnd = keyline[k]
-      }
-      tagged = 0
-      for (l = winStart; l <= winEnd; l++) {
-        if (content[l] ~ /scope: repo-only \(coordination-fenced, ADR-0019\)/) tagged = 1
-        if (content[l] ~ /scope: any layer/) tagged = 1
-      }
-      if (!tagged && k > 1 && winStart == keyline[k] && prevB == keyline[k-1]) {
-        tagged = taggedEff[k-1]
-      }
-      taggedEff[k] = tagged
-      if (!tagged) {
-        name = content[keyline[k]]
-        sub(/:.*/, "", name)
-        print name
-      }
+}
+END {
+  for (k = 1; k <= nk; k++) {
+    idx = bndidx[k]
+    prevB = (idx > 1) ? bnd[idx-1] : 0
+    winStart = prevB + 1
+    winEnd = keyline[k]
+    own = 0
+    for (l = winStart; l <= winEnd; l++) {
+      if (content[l] ~ /scope: repo-only \(coordination-fenced, ADR-0019\)/) own = 1
+      if (content[l] ~ /scope: any layer/) own = 1
+      if (content[l] ~ /scope: local-only/) own = 1
     }
+    while (top > 0 && sdepth[top] >= keydepth[k]) top--
+    path = keyname[k]
+    for (i = top; i >= 1; i--) path = sname[i] "." path
+    covered = own
+    if (!covered) { for (i = top; i >= 1; i--) if (sown[i]) { covered = 1; break } }
+    if (!covered && keytype[k] == "S" && k > 1 && winStart == keyline[k] && prevB == keyline[k-1] && keydepth[k] == keydepth[k-1]) covered = effcov[k-1]
+    effcov[k] = covered
+    if (keydepth[k] > 0) nested++
+    if (keytype[k] == "S" && !covered) print path
+    top++; sdepth[top] = keydepth[k]; sname[top] = keyname[k]; sown[top] = own
   }
-' "$EX")"
-assert "scope tag: every ACTIVE top-level key is individually tagged" '[ -z "$untagged_keys" ]'
+  print "COUNT " nested
+}
+SCOPE_GUARD_AWK
+)"
+# The pass emits two streams on one stdout: uncovered dotted paths, then a trailing COUNT line.
+# Split them, so the COUNT line cannot make the emptiness assert unconditionally false.
+scope_guard_out="$(awk "$scope_guard_awk" "$EX")"
+nested_key_count="$(printf '%s\n' "$scope_guard_out" | sed -n 's/^COUNT //p')"
+untagged_keys="$(printf '%s\n' "$scope_guard_out" | grep -v '^COUNT ')"
+assert "scope tag: every ACTIVE SCALAR key at every depth is covered by a scope tag" \
+  '[ -z "$untagged_keys" ]'
 if [ -n "$untagged_keys" ]; then
-  echo "--- untagged top-level keys ---"
+  echo "--- keys with no scope tag (own or inherited), as dotted paths ---"
   printf '%s\n' "$untagged_keys"
   echo "---"
 fi
