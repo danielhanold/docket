@@ -1,8 +1,8 @@
 # Backlog
 
-**160 changes** — 🟡 26 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 3 implemented · ✅ 110 done · 🗑️ 16 killed
+**162 changes** — 🟡 28 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 2 implemented · ✅ 111 done · 🗑️ 16 killed
 
-## 🟡 Proposed (26)
+## 🟡 Proposed (28)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -32,6 +32,8 @@
 | [0158](active/0158-batch-mode-for-docket-implement-next-build-several-coupled-c.md) | Batch mode for docket-implement-next — build several coupled changes on one branch | `medium` | `feat` | needs-brainstorm |
 | [0159](active/0159-docket-status-skill-md-s-normal-outcomes-list-omits-the-heal.md) | docket-status SKILL.md's normal-outcomes list omits the 'health checks failed <exit>' line | `medium` | `docs` | needs-brainstorm |
 | [0160](active/0160-a-committed-too-deep-runtime-bash-lost-its-machine-local-ign.md) | A committed too-deep runtime.bash lost its machine-local ignored advisory | `medium` | `fix` | needs-brainstorm |
+| [0161](active/0161-enumerate-the-health-checks-failed-outcome-in-docket-status.md) | Enumerate the health-checks-failed outcome in docket-status SKILL.md | `medium` | `docs` | needs-brainstorm |
+| [0162](active/0162-restore-the-machine-local-ignored-advisory-for-a-committed-t.md) | Restore the machine-local-ignored advisory for a committed too-deep runtime.bash | `medium` | `fix` | needs-brainstorm |
 
 ## 🔴 Blocked (1)
 
@@ -48,13 +50,12 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (3)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | `chore` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
 | [0135](active/0135-cursor-agent-wrapper-contract.md) | Generated Cursor wrappers violate Cursor's subagent contract, disabling skills and model effort | `high` | `fix` | [#127](https://github.com/danielhanold/docket/pull/127) |  |
-| [0157](active/0157-roll-up-the-seven-build-ready-changes-into-one-branch.md) | Roll up the seven build-ready changes into one branch | `medium` | `fix` | [#136](https://github.com/danielhanold/docket/pull/136) |  |
 
 ```mermaid
 graph TD
@@ -88,20 +89,22 @@ graph TD
   0154
   0155
   0156
-  0157
   0158
   0159
   0160
+  0161
+  0162
   0015:::done
   0016:::done
   0077:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (126)</summary>
+<details><summary>✅🗑️ Archive — done + killed (127)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0157](archive/2026-07-28-0157-roll-up-the-seven-build-ready-changes-into-one-branch.md) | Roll up the seven build-ready changes into one branch | 2026-07-28 |
 | [0153](archive/2026-07-28-0153-decide-whether-the-runtime-bash-leaf-match-should-be-depth-a.md) | Decide whether the runtime.bash leaf match should be depth-anchored | 2026-07-28 |
 | [0152](archive/2026-07-28-0152-consolidate-the-two-surviving-hand-rolled-gnu-bash-4-validat.md) | Consolidate the two surviving hand-rolled GNU Bash 4+ validator copies | 2026-07-28 |
 | [0149](archive/2026-07-28-0149-make-the-prelude-guard-s-exemption-bound-proportional-and-cl.md) | Make the prelude guard's exemption bound proportional, and close the partial-rename gap | 2026-07-28 |
@@ -126,7 +129,6 @@ graph TD
 | [0127](archive/2026-07-23-0127-typed-changes-selective-auto-capture.md) | Typed changes — configurable taxonomy, selective auto-capture, and backlog filters | 2026-07-23 |
 | [0132](archive/2026-07-22-0132-install-configured-bash-runtime.md) | Install and use a configured Bash 4+ runtime | 2026-07-22 |
 | [0128](archive/2026-07-22-0128-truthful-git-errors-harness-neutral-escalation-retry.md) | Truthful Git failures and harness-neutral sandbox escalation retry | 2026-07-22 |
-| [0116](archive/2026-07-22-0116-single-source-the-remaining-duplicated-board-vocabularies.md) | Single-source the remaining duplicated board vocabularies | 2026-07-22 |
 | [0105](archive/2026-07-20-0105-pin-docket-mode-main-coverage-for-docket-status-digest-only.md) | Pin DOCKET_MODE=main coverage for docket-status --digest-only | 2026-07-20 |
 | [0086](archive/2026-07-18-0086-attended-finalize-merge-path.md) | Attended finalize has no merge path under auto_approve — scope the --admin ban to autonomous runs | 2026-07-18 |
 | [0033](archive/2026-07-16-0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | 2026-07-16 |
@@ -138,7 +140,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-07](archive/) | 63 done |
+| [2026-07](archive/) | 64 done |
 | [2026-06](archive/) | 32 done |
 
 </details>
