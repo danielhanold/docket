@@ -138,6 +138,11 @@ deterministic order (Homebrew, standard Homebrew locations, then an absolute PAT
 persists it globally, and exports it to the environment. Resolution emits
 `DOCKET_BASH_PATH` in both output formats for every Docket-owned shell launcher.
 
+`runtime.bash` parsing, declaration counting, and GNU Bash 4+ validation are delegated to the
+shared `scripts/lib/docket-runtime.sh` (change 0133). The resolver keeps its own policy: repo-local
+> global precedence, the committed-key fence, the duplicate-declaration abort, and the five
+distinct runtime diagnostics it builds from the library's reason token.
+
 `github_project` and `agents:`/`agent_harnesses` are per-repo-only / not read by this script (see
 Stage 2b/2b'/2c below and `sync-agents.sh`'s own contract, respectively) — every other key above
 not marked "Global-able" is per-repo-only. **`github_project: auto` ≡ unset** (change 0101): the
