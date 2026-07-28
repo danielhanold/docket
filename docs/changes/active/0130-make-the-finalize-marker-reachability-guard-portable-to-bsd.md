@@ -11,7 +11,7 @@ related: []
 discovered_from: [116]
 adrs: []
 spec: docs/superpowers/specs/2026-07-27-bsd-grep-interval-portability-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-28-bsd-grep-interval-portability.md
 results:
 trivial: false
 auto_groomable: true
@@ -29,6 +29,7 @@ type: fix
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-27-bsd-grep-interval-portability-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-27-bsd-grep-interval-portability-design.md) |
+| Plan | [2026-07-28-bsd-grep-interval-portability.md](https://github.com/danielhanold/docket/blob/feat/make-the-finalize-marker-reachability-guard-portable-to-bsd/docs/superpowers/plans/2026-07-28-bsd-grep-interval-portability.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
