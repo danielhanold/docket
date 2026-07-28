@@ -2,9 +2,9 @@
 slug: verify-the-claim
 hook: "A document asserting a fact about another artifact is not an oracle — verify it against the artifact or the RUNNING CODE before acting on it."
 topics: [process, review, spec]
-changes: [12, 21, 47, 65, 67, 74, 96, 101, 102, 109, 112, 138]
+changes: [12, 21, 47, 65, 67, 74, 96, 101, 102, 109, 112, 138, 130]
 created: 2026-06-12
-updated: 2026-07-24
+updated: 2026-07-28
 promotion_state: retained
 promoted_to:
 ---
@@ -122,3 +122,20 @@ mid-build; leave the re-scope to the human. Reject false positives with evidence
   call site and check each for post-decode behavior, rather than accepting the spec's list of which
   ones matter. A spec that says "the consumers affected are X, Y, Z" is asserting a closed set;
   closure is the part that fails, and only auditing the open set proves it.
+- 2026-07-28 (#130, PR #133 — merged) — **A regex claim asserted in both the spec and the plan,
+  never executed, and false.** Spec §A3 and the plan both stated that the ERE extraction pattern
+  `\{[0-9]+(,[0-9]*)?\}` "also matches BRE `\{m,n\}`", calling the over-match harmless. It matches
+  it not at all — against `\{0,600\}` the pattern consumes `{`, then `600`, then requires `}` and
+  finds `\` — so the guard shipped covering roughly half the surface its own header comment claimed,
+  with 21 tracked non-`docs/` files using BRE intervals and the identical `maximum repetition
+  exceeds 255` hazard live in `sed` and plain `grep`. One execution against the real source text
+  would have shown it; three per-task reviews did not, and only the whole-branch review did. The
+  repair's own helper was then a **silent fail-open**: without the backslash strip in `offenders()`,
+  a genuine `\{0,600\}` planted in a tracked file was found by the scan and never reported, while
+  the check printed `ok`. Mutation-verified in both directions, with a BRE positive control and a
+  legal-BRE negative control.
+
+  The counter-example in the same change is the model: `{,600}` (no lower bound) was flagged as a
+  silent-escape risk, then **measured** — `/usr/bin/grep -E 'a{,600}' f` exits 1 with no error,
+  because BSD does not parse that form as an interval at all — and ruled out of scope with the
+  measurement recorded rather than with an assumption.

@@ -2,9 +2,9 @@
 slug: plan-supplied-test-code-is-unverified
 hook: "Test code a plan hands you is unverified code, not an oracle — prove the assert CAN pass, and mutation-test its own key."
 topics: [testing, plan, guards]
-changes: [94, 104, 112]
+changes: [94, 104, 112, 130]
 created: 2026-07-19
-updated: 2026-07-22
+updated: 2026-07-28
 promotion_state: candidate
 promoted_to:
 ---
@@ -77,3 +77,16 @@ implementer. It is not a reason to distrust plans — it is a reason to run the 
   The generalizable claim is narrow but real: this family's defects are **front-loadable**. The cost
   of checking a plan's asserts against running code before dispatch is bounded and paid once; the
   cost of discovering them at review is a round per defect, and #102 shows that reaching five.
+- 2026-07-28 (#130, PR #133 — merged) — **The plan's own guard source violated the invariant that
+  guard enforces.** The plan embedded the complete guard text for verbatim transcription, and that
+  text wrote `{0,600}` literally inside four header comments. The guard is deliberately not
+  self-excluded, so transcribing it faithfully made the plan's own success criterion (`exit=0`, zero
+  `NOT OK`) unreachable — staging the file produced a self-scan failure naming those exact four
+  lines. The implementer diagnosed it, reworded only those four comments, and reported the deviation
+  rather than silently diverging; the reviewer diffed the shipped file against the plan's block
+  line-for-line to confirm nothing else moved.
+
+  Generalize past the incident: **a guard that scans its own population makes the documentation of
+  the pattern it forbids a live constraint on the guard's source.** The plan author has to write the
+  header comment without using the very literal the header is about — and a plan that hands over
+  verbatim guard text has to have been run against the tree it will land in, not just read.
