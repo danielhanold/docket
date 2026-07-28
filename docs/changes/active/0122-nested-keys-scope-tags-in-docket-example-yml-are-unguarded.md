@@ -2,7 +2,7 @@
 id: 122
 slug: nested-keys-scope-tags-in-docket-example-yml-are-unguarded
 title: Nested keys' scope tags in .docket.example.yml are unguarded
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-21
 updated: 2026-07-28
@@ -12,12 +12,12 @@ discovered_from: [102]
 adrs: []
 spec: docs/superpowers/specs/2026-07-26-nested-key-scope-tags-design.md
 plan: docs/superpowers/plans/2026-07-28-nested-key-scope-tags-plan.md
-results:
+results: docs/results/2026-07-28-nested-keys-scope-tags-in-docket-example-yml-are-unguarded-results.md
 trivial: false
 auto_groomable: true
 branch: feat/nested-keys-scope-tags-in-docket-example-yml-are-unguarded
-claimed_at: 2026-07-28T00:22:00Z
-pr:
+claimed_at: 2026-07-28T01:05:00Z
+pr: https://github.com/danielhanold/docket/pull/131
 blocked_by:
 reconciled: true
 type: fix
@@ -30,6 +30,8 @@ type: fix
 |---|---|
 | Spec | [2026-07-26-nested-key-scope-tags-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-26-nested-key-scope-tags-design.md) |
 | Plan | [2026-07-28-nested-key-scope-tags-plan.md](https://github.com/danielhanold/docket/blob/feat/nested-keys-scope-tags-in-docket-example-yml-are-unguarded/docs/superpowers/plans/2026-07-28-nested-key-scope-tags-plan.md) |
+| Results | [2026-07-28-nested-keys-scope-tags-in-docket-example-yml-are-unguarded-results.md](https://github.com/danielhanold/docket/blob/feat/nested-keys-scope-tags-in-docket-example-yml-are-unguarded/docs/results/2026-07-28-nested-keys-scope-tags-in-docket-example-yml-are-unguarded-results.md) |
+| PR | [#131](https://github.com/danielhanold/docket/pull/131) |
 <!-- docket:artifacts:end -->
 
 ## Why
