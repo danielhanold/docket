@@ -2,9 +2,9 @@
 slug: shell-portability
 hook: "Treat awk whitespace classes, --leading grep patterns, and symlinked temp paths as suspect — and test each on both GNU and BSD."
 topics: [shell, grep, awk]
-changes: [25, 38, 46, 71]
+changes: [25, 38, 46, 71, 117]
 created: 2026-06-19
-updated: 2026-07-16
+updated: 2026-07-28
 promotion_state: promoted
 promoted_to: AGENTS.md
 ---
@@ -28,3 +28,13 @@ test tab-indented input; `pwd -P` both the path and the prefix before stripping 
   config layer was silently dropped — use `[^[:space:]]` and test tab-indented input. (c) **macOS path
   resolution:** `mktemp` yields `/var/…` but git reports `/private/var/…`, so stripping a worktree
   prefix matched nothing — `pwd -P` both the path and the prefix before stripping.
+- 2026-07-28 (#117, PR #129 — merged) — Two more traps, both invisible on this machine. (a) **ERE
+  `\?` is POSIX-undefined:** `grep -E '^adr-unpublished\t?\t'` was intended to match a literal `?`
+  field, but where the escape degrades the `?` becomes a quantifier and the pattern matches EVERY
+  `adr-unpublished` line — the assert built on it goes vacuous while staying green. Normalize such
+  asserts to fixed-string matching. (b) **`for x in "${arr[@]}"` on an EMPTY array** throws
+  `unbound variable` under `set -u` on bash 4.0–4.3. The repo's enforced floor is bash *major* 4,
+  not 4.4, so the everyday state "ADR directory exists but is empty" aborted the script before its
+  findings printed. Use `${arr[@]+"${arr[@]}"}`. No 4.0–4.3 exists in this environment, so the fix
+  landed on code-identity with an already-proven sibling fix rather than a live repro — the trap is
+  structurally invisible to a local green suite.

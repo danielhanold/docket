@@ -2,9 +2,9 @@
 slug: green-suite-untested-branch
 hook: "Green tests are not proof the hard branch was exercised — a mock that omits the tool routes every test through the degrade path."
 topics: [testing, fixtures, mocks]
-changes: [16, 22, 25, 26, 35, 58, 62, 69, 91, 93]
+changes: [16, 22, 25, 26, 35, 58, 62, 69, 91, 93, 117]
 created: 2026-07-11
-updated: 2026-07-19
+updated: 2026-07-28
 promotion_state: retained
 promoted_to:
 ---
@@ -66,3 +66,9 @@ was exercised.
   fixture *input* realism rather than mock shape — when the value under test is free text a model
   writes, the fixture must carry the punctuation, the multi-line case, and the shell metacharacters
   that real prose carries. Tidy fixtures test the happy path you imagined, not the input you ship.
+- 2026-07-28 (#117, PR #129 — merged) — The fixture the comment described was never written. A test
+  claimed an `adr_pub` fixture published to both branches; none existed, so `i_blob` was empty on
+  every iteration and the present-on-integration branch never executed — deleting that branch left
+  the suite green. Caught only by mutation: after the fixture was added, the same deletion reddened
+  three asserts. The comment describing the fixture was authored before the fixture was, and nothing
+  in a green run can tell those two states apart. Mutation-test the branch, not the suite's color.
