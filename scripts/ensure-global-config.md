@@ -54,6 +54,12 @@ same-directory temporary file, retain the destination's permission bits, and are
 renamed into place. User-owned bytes remain exact even when their final line has no newline, on
 both first install and re-run.
 
+The `runtime.bash` scalar parser, declaration counter, path-serializability check, and GNU Bash 4+
+validator come from the shared `scripts/lib/docket-runtime.sh` (change 0133). Discovery order,
+managed-marker validation and rewriting, explicit-versus-managed authority, and this script's
+single invalid-runtime diagnostic remain owned here. The library is bootstrap-compatible because
+this script runs before a configured Bash 4+ runtime exists.
+
 ## Exit codes
 
 - `0` — a qualifying runtime is preserved or persisted.
