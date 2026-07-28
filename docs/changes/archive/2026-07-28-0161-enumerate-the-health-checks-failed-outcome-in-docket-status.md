@@ -2,7 +2,7 @@
 id: 161
 slug: enumerate-the-health-checks-failed-outcome-in-docket-status
 title: Enumerate the health-checks-failed outcome in docket-status SKILL.md
-status: proposed
+status: killed
 priority: medium
 type: docs
 created: 2026-07-28
@@ -44,3 +44,7 @@ Add the `health checks failed <exit>` outcome to the enumerated outcomes list in
 ## Out of scope
 
 Any change to the script's behavior or the line's format.
+
+## Why killed
+
+Duplicate — already captured as #159 by change 0157's own auto-capture.
