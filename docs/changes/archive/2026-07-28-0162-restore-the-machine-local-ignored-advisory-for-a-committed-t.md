@@ -2,7 +2,7 @@
 id: 162
 slug: restore-the-machine-local-ignored-advisory-for-a-committed-t
 title: Restore the machine-local-ignored advisory for a committed too-deep runtime.bash
-status: proposed
+status: killed
 priority: medium
 type: fix
 created: 2026-07-28
@@ -43,3 +43,7 @@ fixture pinning it so the advisory cannot silently disappear again.
 ## Out of scope
 
 Changing which shapes are accepted; only the advisory is at issue.
+
+## Why killed
+
+Duplicate — already captured as #160 by change 0157's own auto-capture.
