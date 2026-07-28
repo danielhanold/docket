@@ -1,6 +1,6 @@
 # Backlog
 
-**153 changes** — 🟡 28 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 3 implemented · ✅ 108 done · 🗑️ 9 killed
+**153 changes** — 🟡 28 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 2 implemented · ✅ 109 done · 🗑️ 9 killed
 
 ## 🟡 Proposed (28)
 
@@ -50,12 +50,11 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (3)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | `chore` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
-| [0133](active/0133-centralize-runtime-config-helpers.md) | Centralize shared Bash runtime configuration helpers | `medium` | `refactor` | [#134](https://github.com/danielhanold/docket/pull/134) |  |
 | [0135](active/0135-cursor-agent-wrapper-contract.md) | Generated Cursor wrappers violate Cursor's subagent contract, disabling skills and model effort | `high` | `fix` | [#127](https://github.com/danielhanold/docket/pull/127) |  |
 
 ```mermaid
@@ -78,7 +77,6 @@ graph TD
   0121
   0123
   0125
-  0133
   0134
   0135
   0139
@@ -104,10 +102,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (117)</summary>
+<details><summary>✅🗑️ Archive — done + killed (118)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0133](archive/2026-07-28-0133-centralize-runtime-config-helpers.md) | Centralize shared Bash runtime configuration helpers | 2026-07-28 |
 | [0130](archive/2026-07-28-0130-make-the-finalize-marker-reachability-guard-portable-to-bsd.md) | Make the finalize marker reachability guard portable to BSD grep | 2026-07-28 |
 | [0126](archive/2026-07-28-0126-apply-the-poison-value-prelude-uniformly-to-every-resolver-e.md) | Apply the poison-value prelude uniformly to every resolver eval in the config suite | 2026-07-28 |
 | [0122](archive/2026-07-28-0122-nested-keys-scope-tags-in-docket-example-yml-are-unguarded.md) | Nested keys' scope tags in .docket.example.yml are unguarded | 2026-07-28 |
@@ -125,7 +124,6 @@ graph TD
 | [0128](archive/2026-07-22-0128-truthful-git-errors-harness-neutral-escalation-retry.md) | Truthful Git failures and harness-neutral sandbox escalation retry | 2026-07-22 |
 | [0116](archive/2026-07-22-0116-single-source-the-remaining-duplicated-board-vocabularies.md) | Single-source the remaining duplicated board vocabularies | 2026-07-22 |
 | [0114](archive/2026-07-22-0114-decide-the-repo-s-posture-on-line-number-comment-anchors.md) | Decide the repo's posture on line-number comment anchors | 2026-07-22 |
-| [0112](archive/2026-07-22-0112-pin-the-reverse-cross-layer-masking-for-the-committed-over-l.md) | Complete the finalize.test_command cross-layer masking matrix (reverse committed-over-local + both skip-rung pairs) | 2026-07-22 |
 | [0105](archive/2026-07-20-0105-pin-docket-mode-main-coverage-for-docket-status-digest-only.md) | Pin DOCKET_MODE=main coverage for docket-status --digest-only | 2026-07-20 |
 | [0086](archive/2026-07-18-0086-attended-finalize-merge-path.md) | Attended finalize has no merge path under auto_approve — scope the --admin ban to autonomous runs | 2026-07-18 |
 | [0033](archive/2026-07-16-0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | 2026-07-16 |
@@ -137,7 +135,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-07](archive/) | 61 done |
+| [2026-07](archive/) | 62 done |
 | [2026-06](archive/) | 32 done |
 
 </details>
