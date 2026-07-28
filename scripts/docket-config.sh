@@ -37,6 +37,9 @@ SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # restated so the resolver and every consumer pin the SAME array — ADR-0055's single-authoritative-
 # array rule. Definitions only; no source-time side effects.
 . "$SELF_DIR/lib/docket-frontmatter.sh"
+# change 0133: the single implementation of runtime.bash parsing, counting, and Bash 4+
+# validation, shared with install.sh and scripts/ensure-global-config.sh. Definitions only.
+. "$SELF_DIR/lib/docket-runtime.sh"
 
 GIT="${GIT:-git}"
 MODE=export
@@ -125,57 +128,17 @@ yaml_block_body() {  # yaml_block_body <file> <top-level-key>  -> child lines on
 
 # Read one scalar from one top-level block without treating `#` inside a quoted value as a
 # comment. Duplicate leaves (including two separate runtime blocks) are an ambiguity, not
-# precedence: callers require exactly one authority per layer.
+# precedence: callers require exactly one authority per layer. The resolver passes NO markers —
+# it has no managed block; only the installer excludes one.
 runtime_get() { # runtime_get <file>
-  [ -f "$1" ] || return 0
-  awk '
-    function scalar(value, sq,out,i,ch,rest) {
-      sq=sprintf("%c", 39)
-      if (substr(value,1,1) == sq) {
-        out=""
-        for (i=2; i<=length(value); i++) {
-          ch=substr(value,i,1)
-          if (ch == sq) {
-            if (substr(value,i+1,1) == sq) { out=out sq; i++; continue }
-            rest=substr(value,i+1)
-            if (rest ~ /^[[:space:]]*(#.*)?$/) return out
-            return value
-          }
-          out=out ch
-        }
-        return value
-      }
-      if (value ~ /^"[^"]*"[[:space:]]*(#.*)?$/) {
-        sub(/^"/, "", value); sub(/"[[:space:]]*(#.*)?$/, "", value)
-      } else {
-        sub(/[[:space:]]*#.*/, "", value); sub(/[[:space:]]+$/, "", value)
-      }
-      return value
-    }
-    { raw=$0; structural=$0; sub(/[[:space:]]*#.*/, "", structural) }
-    structural ~ /^runtime[[:space:]]*:[[:space:]]*$/ { in_runtime=1; next }
-    in_runtime && structural ~ /^[^[:space:]]/ { in_runtime=0 }
-    in_runtime && structural ~ /^[[:space:]]+bash[[:space:]]*:/ {
-      count++
-      value=raw; sub(/^[[:space:]]+bash[[:space:]]*:[[:space:]]*/, "", value)
-      found=scalar(value)
-    }
-    END { if (count > 1) exit 2; if (count == 1) print found }
-  ' "$1"
+  docket_runtime_unique "$1"
 }
 
 # Count runtime.bash declarations without parsing their values. The committed layer is fenced by
 # key presence, so even empty, malformed, or duplicate committed values are warning-only and can
 # never block a valid machine-local fallback.
 runtime_count() { # runtime_count <file>
-  [ -f "$1" ] || { printf '0\n'; return; }
-  awk '
-    { structural=$0; sub(/[[:space:]]*#.*/, "", structural) }
-    structural ~ /^runtime[[:space:]]*:[[:space:]]*$/ { in_runtime=1; next }
-    in_runtime && structural ~ /^[^[:space:]]/ { in_runtime=0 }
-    in_runtime && structural ~ /^[[:space:]]+bash[[:space:]]*:/ { count++ }
-    END { print count+0 }
-  ' "$1"
+  docket_runtime_count "$1"
 }
 
 # --- Stage 1: resolve origin/HEAD + default branch (keyed on fetch/set-head rc) ---
@@ -280,23 +243,31 @@ fi
 _runtime_remedy='run docket/install.sh after installing Bash 4+ (on macOS: brew install bash)'
 [ -n "$DOCKET_BASH_PATH" ] \
   || die "runtime.bash is not configured — $_runtime_remedy"
-case "$DOCKET_BASH_PATH" in
-  *$'\r'*|*$'\n'*) die "runtime.bash must not contain carriage returns or newlines — $_runtime_remedy" ;;
+docket_runtime_serializable "$DOCKET_BASH_PATH" \
+  || die "runtime.bash must not contain carriage returns or newlines — $_runtime_remedy"
+# The shared validator returns a reason token; the five diagnostics below are resolver-owned
+# policy and are why it returns a token instead of printing a message. The `printf x` guard keeps
+# an empty version line from collapsing the two-line payload.
+_runtime_probe="$(docket_runtime_validate_bash "$DOCKET_BASH_PATH"; printf 'x')"
+_runtime_probe="${_runtime_probe%x}"
+_runtime_reason="${_runtime_probe%%$'\n'*}"
+_runtime_probe="${_runtime_probe#*$'\n'}"
+_runtime_first_line="${_runtime_probe%$'\n'}"
+case "$_runtime_reason" in
+  ok) ;;
+  not-absolute)
+    die "runtime.bash must be an absolute path, got '$DOCKET_BASH_PATH' — $_runtime_remedy" ;;
+  not-executable)
+    die "runtime.bash is not an executable file: $DOCKET_BASH_PATH — $_runtime_remedy" ;;
+  no-version)
+    die "runtime.bash could not report its version: $DOCKET_BASH_PATH — $_runtime_remedy" ;;
+  not-gnu-bash)
+    die "runtime.bash did not identify itself as GNU Bash: $DOCKET_BASH_PATH reported '${_runtime_first_line:-no version}' — $_runtime_remedy" ;;
+  old-major)
+    die "runtime.bash must be Bash 4 or newer, got '${_runtime_first_line:-unknown version}' from $DOCKET_BASH_PATH — $_runtime_remedy" ;;
+  *)
+    die "runtime.bash validation returned an unrecognized result '$_runtime_reason' for $DOCKET_BASH_PATH — $_runtime_remedy" ;;
 esac
-[[ "$DOCKET_BASH_PATH" = /* ]] \
-  || die "runtime.bash must be an absolute path, got '$DOCKET_BASH_PATH' — $_runtime_remedy"
-[[ -x "$DOCKET_BASH_PATH" ]] \
-  || die "runtime.bash is not an executable file: $DOCKET_BASH_PATH — $_runtime_remedy"
-_runtime_version="$(LC_ALL=C "$DOCKET_BASH_PATH" --version 2>/dev/null)" \
-  || die "runtime.bash could not report its version: $DOCKET_BASH_PATH — $_runtime_remedy"
-_runtime_first_line="${_runtime_version%%$'\n'*}"
-case "$_runtime_first_line" in
-  'GNU bash, version '*) ;;
-  *) die "runtime.bash did not identify itself as GNU Bash: $DOCKET_BASH_PATH reported '${_runtime_first_line:-no version}' — $_runtime_remedy" ;;
-esac
-_runtime_major="$(sed -nE 's/^GNU bash, version ([0-9]+)\..*/\1/p' <<<"$_runtime_first_line")"
-[[ "$_runtime_major" =~ ^[0-9]+$ ]] && [ "$_runtime_major" -ge 4 ] \
-  || die "runtime.bash must be Bash 4 or newer, got '${_runtime_first_line:-unknown version}' from $DOCKET_BASH_PATH — $_runtime_remedy"
 
 # Coordination-key fence: a key whose effect writes SHARED state (commits on shared
 # branches, committed generated files, external GitHub objects) is per-repo-only; a global
