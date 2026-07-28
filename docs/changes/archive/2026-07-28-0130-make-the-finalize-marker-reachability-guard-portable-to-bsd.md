@@ -29,8 +29,8 @@ type: fix
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-27-bsd-grep-interval-portability-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-27-bsd-grep-interval-portability-design.md) |
-| Plan | [2026-07-28-bsd-grep-interval-portability.md](https://github.com/danielhanold/docket/blob/feat/make-the-finalize-marker-reachability-guard-portable-to-bsd/docs/superpowers/plans/2026-07-28-bsd-grep-interval-portability.md) |
-| Results | [2026-07-28-make-the-finalize-marker-reachability-guard-portable-to-bsd-results.md](https://github.com/danielhanold/docket/blob/feat/make-the-finalize-marker-reachability-guard-portable-to-bsd/docs/results/2026-07-28-make-the-finalize-marker-reachability-guard-portable-to-bsd-results.md) |
+| Plan | [2026-07-28-bsd-grep-interval-portability.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-28-bsd-grep-interval-portability.md) |
+| Results | [2026-07-28-make-the-finalize-marker-reachability-guard-portable-to-bsd-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-07-28-make-the-finalize-marker-reachability-guard-portable-to-bsd-results.md) |
 | PR | [#133](https://github.com/danielhanold/docket/pull/133) |
 <!-- docket:artifacts:end -->
 

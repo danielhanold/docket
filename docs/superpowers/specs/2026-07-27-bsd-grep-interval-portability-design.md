@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0130 — Make the finalize marker reachability guard portable to BSD grep](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0130-make-the-finalize-marker-reachability-guard-portable-to-bsd.md)**
+> ↩ **[Change 0130 — Make the finalize marker reachability guard portable to BSD grep](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-07-28-0130-make-the-finalize-marker-reachability-guard-portable-to-bsd.md)**
 <!-- docket:backlink:end -->
 
 # Design — make the finalize marker reachability guard portable to BSD grep (change 0130)
