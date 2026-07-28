@@ -2,7 +2,7 @@
 id: 18
 slug: yq-yaml-parsing
 title: Record the pure-bash YAML/frontmatter parsing stance as an ADR
-status: implemented
+status: done
 priority: low
 created: 2026-06-16
 updated: 2026-07-28
@@ -15,7 +15,7 @@ results: docs/results/2026-07-28-yq-yaml-parsing-results.md
 trivial: true
 auto_groomable: true
 branch: feat/yq-yaml-parsing
-claimed_at: 2026-07-28T23:15:36Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/137
 blocked_by:
 reconciled: true
