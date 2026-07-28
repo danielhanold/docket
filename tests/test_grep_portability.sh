@@ -3,12 +3,12 @@
 # above 255 (change 0130).
 #
 # WHY: BSD grep rejects a repetition bound above 255 with "maximum repetition exceeds 255". A test
-# written with an over-threshold bound therefore errors out before it examines anything, and on a machine whose
-# PATH grep is GNU grep or ugrep it passes anyway — the suite runs green while the bug is real.
-# This guard is a STATIC SOURCE scan, deliberately not a runtime probe of the local grep's
-# behavior: on Linux /usr/bin/grep is GNU grep and accepts the bound, so a behavioral assertion
-# would be a platform-dependent false failure. The property wanted is source portability, which is
-# true or false independent of the machine running the suite.
+# written with an over-threshold bound therefore errors out before it examines anything, and on a
+# machine whose PATH grep is GNU grep or ugrep it passes anyway — the suite runs green while the
+# bug is real. This guard is a STATIC SOURCE scan, deliberately not a runtime probe of the local
+# grep's behavior: on Linux /usr/bin/grep is GNU grep and accepts the bound, so a behavioral
+# assertion would be a platform-dependent false failure. The property wanted is source
+# portability, which is true or false independent of the machine running the suite.
 #
 # SCOPE: every tracked path (git ls-files, anchored on the repo root resolved from BASH_SOURCE),
 # minus the docs/ prefix. NO extension filter — an extension list is the same re-enumeration on a
@@ -19,9 +19,9 @@
 # published terminal records and design specs legitimately quote defective patterns verbatim, and
 # they are immutable point-in-time records the convention forbids rewriting (AGENTS.md, "Comments
 # and cross-references"). Four such occurrences exist today, and terminal_publish: true will add
-# this change's own file and spec — which quote the historical over-threshold bound verbatim — at close-out. The guard must not
-# demand a repair it cannot legally have. Every OTHER tracked surface is in scope automatically,
-# including any new top-level directory added later.
+# this change's own file and spec — which quote the historical over-threshold bound verbatim —
+# at close-out. The guard must not demand a repair it cannot legally have. Every OTHER tracked
+# surface is in scope automatically, including any new top-level directory added later.
 # NO ALLOWLIST: exclusions are by walk scope, never by exception entry (ADR-0050).
 #
 # SELF-MEMBERSHIP: this file is NOT self-excluded. It is asserted to be in the scanned population
@@ -38,13 +38,19 @@ nok(){  printf 'NOT OK - %s\n' "$1"; fail=1; }
 
 # The maximum repetition bound BSD grep accepts. A bound EQUAL to this is legal; above it is not.
 MAX_BOUND=255
+# The walk must reach at least this many tracked files, or it has silently collapsed.
+MIN_FILES=100
 
-# A brace interval literal: {m}, {m,} or {m,n}. \{ is a literal brace in ERE on GNU and BSD alike.
-# This also matches the BRE form \{m,n\} — the backslash merely precedes the matched text.
+# A brace interval literal in EITHER regex flavor: ERE {m}, {m,} or {m,n}, and BRE \{m,n\} (a
+# backslash immediately before the brace on either or both sides). Against a BRE-quoted
+# over-threshold bound this pattern consumes the leading backslash, the brace, the digits, and
+# the trailing backslash-brace, so it DOES match the BRE form — earlier wording claiming the plain
+# ERE pattern matched BRE text without the optional backslashes was wrong; the backslashes are
+# matched explicitly here, not incidentally.
 # NOTE: no \b / \< anywhere — git grep's and BSD grep's ERE do not support them and return zero
 # silently. This pattern carries no bound of its own above MAX_BOUND, so the guard stays clean
 # under its own scan.
-INTERVAL='\{[0-9]+(,[0-9]*)?\}'
+INTERVAL='\\?\{[0-9]+(,[0-9]*)?\\?\}'
 
 # ONE scan implementation, used by the main loop AND both controls below — never a second,
 # independently-written grep call. Routing everything through this function means neutering the
@@ -61,7 +67,8 @@ offenders(){
     [ -n "$line" ] || continue
     lineno="${line%%:*}"
     interval="${line#*:}"
-    nums="${interval#\{}"; nums="${nums%\}}"     # {0,N} -> 0,N
+    interval="${interval//\\/}"                  # drop the BRE flavor backslashes so the digits below are bare
+    nums="${interval#\{}"; nums="${nums%\}}"     # peel the braces, leaving just the comma-joined numbers
     while [ -n "$nums" ]; do
       n="${nums%%,*}"
       if [ -n "$n" ] && [ "$n" -gt "$MAX_BOUND" ] 2>/dev/null; then
@@ -88,17 +95,25 @@ printf '#    - resolved grep: %s (%s)\n' "${grep_path:-unknown}" "${grep_ver:-ve
 # --- collect the in-scope population -------------------------------------------------------------
 # Computed from tracked files, never a hand-enumerated directory list: a hand list leaves any new
 # top-level source directory silently unguarded, which is precisely what ADR-0050 rules out.
-mapfile -t FILES < <(
-  cd "$ROOT" || exit 1
-  git ls-files | grep -v '^docs/'
-)
+# NUL-delimited (git ls-files -z + mapfile -d '') so a tracked path with a special character (a
+# quote, non-ASCII bytes, an embedded newline) survives the walk instead of being silently quoted
+# by git and then vanishing at the [ -f ] test below. The docs/ exclusion is applied as a bash
+# pattern match on each NUL-delimited entry, not via `grep -z` (not portable to BSD grep).
+mapfile -d '' -t ALL_FILES < <(cd "$ROOT" && git ls-files -z)
+FILES=()
+for f in "${ALL_FILES[@]}"; do
+  case "$f" in
+    docs/*) continue ;;
+  esac
+  FILES+=("$f")
+done
 
 # --- population floor: the walk must actually reach files ----------------------------------------
 # A guard iterating an empty list is green and proves nothing.
 n_files=${#FILES[@]}
-[ "$n_files" -ge 100 ] \
+[ "$n_files" -ge "$MIN_FILES" ] \
   && ok "walk population is non-trivial ($n_files files)" \
-  || nok "walk population collapsed to $n_files files (expected >= 100) — ls-files or the filter broke"
+  || nok "walk population collapsed to $n_files files (expected >= $MIN_FILES) — ls-files or the filter broke"
 
 files_joined=""
 [ "$n_files" -gt 0 ] && files_joined="$(printf '%s\n' "${FILES[@]}")"
@@ -127,20 +142,34 @@ grep -qxF "$SELF_REL" <<<"$files_joined" \
 # --- the check -----------------------------------------------------------------------------------
 violations=""
 scanned=0
+skipped=""
 if [ "$n_files" -gt 0 ]; then
   for f in "${FILES[@]}"; do
-    [ -f "$ROOT/$f" ] || continue
+    if [ ! -f "$ROOT/$f" ]; then
+      skipped+="$f"$'\n'
+      continue
+    fi
     scanned=$(( scanned + 1 ))
     hits="$(scan_file "$ROOT/$f")"
     [ -n "$hits" ] || continue
     bad="$(offenders <<<"$hits")"
-    [ -n "$bad" ] && violations+="$(sed "s|^|$f:|" <<<"$bad")"$'\n'
+    if [ -n "$bad" ]; then
+      while IFS= read -r l; do
+        violations+="$f:$l"$'\n'
+      done <<<"$bad"
+    fi
   done
 fi
 
-[ "$scanned" -ge 100 ] \
-  && ok "scanned $scanned files" \
-  || nok "scanned only $scanned files — the scan loop is not reaching the population"
+# Equality, not a floor: a floor of MIN_FILES would still pass on a sparse checkout that silently
+# dropped a large fraction of the population (fail-open). Every file the walk found must actually
+# be scanned, or the guard names exactly which tracked paths were skipped.
+if [ "$scanned" -eq "$n_files" ]; then
+  ok "scanned $scanned files"
+else
+  nok "scanned $scanned of $n_files tracked files — the scan loop is not reaching the population; skipped:"
+  printf '%s' "$skipped" | sed 's/^/       /'
+fi
 
 if [ -z "$violations" ]; then
   ok "no ERE repetition bound above $MAX_BOUND in maintained source"
@@ -154,9 +183,9 @@ fi
 # Routed through the SAME scan_file + offenders the loop uses, so a control can only stay green if
 # the exact path the loop runs is still capable of firing.
 #
-# The over-threshold fixtures are ASSEMBLED AT RUNTIME. Writing an over-threshold bound literally here would make
-# this guard fail its own scan — the self-membership assert above is what makes that a real
-# constraint rather than a stylistic one.
+# The over-threshold fixtures are ASSEMBLED AT RUNTIME. Writing an over-threshold bound literally
+# here would make this guard fail its own scan — the self-membership assert above is what makes
+# that a real constraint rather than a stylistic one.
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
@@ -164,24 +193,33 @@ over="$(( MAX_BOUND + 345 ))"       # 600 — the real-world bound, never writte
 edge="$(( MAX_BOUND + 1 ))"         # 256 — one past the boundary
 printf 'x.%s%s,%s%sy\n' '{' 0 "$over" '}' > "$tmp/over.txt"
 printf 'x.%s%s,%s%sy\n' '{' 0 "$edge" '}' > "$tmp/edge.txt"
+printf 'x.%s%s,%s%sy\n' '\{' 0 "$over" '\}' > "$tmp/bre.txt"
 
 pos="$(offenders <<<"$(scan_file "$tmp/over.txt")")"
 [ -n "$pos" ] \
-  && ok "positive control: a bound of $over is reported" \
-  || nok "positive control FAILED: a bound of $over is not reported — the guard is vacuous"
+  && ok "positive control: an ERE bound of $over is reported" \
+  || nok "positive control FAILED: an ERE bound of $over is not reported — the guard is vacuous"
 
 edge_hit="$(offenders <<<"$(scan_file "$tmp/edge.txt")")"
 [ -n "$edge_hit" ] \
   && ok "boundary control: a bound of $edge (one past $MAX_BOUND) is reported" \
   || nok "boundary control FAILED: $edge slipped through — the threshold is off by at least one"
 
+bre_hit="$(offenders <<<"$(scan_file "$tmp/bre.txt")")"
+[ -n "$bre_hit" ] \
+  && ok "BRE positive control: a bound of \\{0,$over\\} is reported" \
+  || nok "BRE positive control FAILED: \\{0,$over\\} is not reported — the BRE interval form is not covered"
+
 # Negative control. This 255 bound is written LITERALLY on purpose: it is legal under this guard's
-# own rule, so it doubles as a demonstration that the boundary is inclusive.
+# own rule, so it doubles as a demonstration that the boundary is inclusive. The BRE line does the
+# same for the BRE form: \{0,1\} is a real, legal interval — 21 tracked files use this construct
+# today in sed/grep invocations — and must not be flagged either.
 printf 'x.{0,255}y\n' > "$tmp/clean.txt"
 printf 'a{b}c and ${VAR} and awk "{print}"\n' >> "$tmp/clean.txt"
+printf 'sed -E "s/a\\{0,1\\}/X/"\n' >> "$tmp/clean.txt"
 neg="$(offenders <<<"$(scan_file "$tmp/clean.txt")")"
 [ -n "$neg" ] \
-  && nok "negative control FAILED: a legal bound of $MAX_BOUND or a non-regex brace was flagged" \
-  || ok "negative control: a bound of exactly $MAX_BOUND and non-regex braces are not flagged"
+  && nok "negative control FAILED: a legal bound (ERE $MAX_BOUND, BRE 0,1) or a non-regex brace was flagged" \
+  || ok "negative control: legal ERE/BRE bounds and non-regex braces are not flagged"
 
 exit "$fail"
