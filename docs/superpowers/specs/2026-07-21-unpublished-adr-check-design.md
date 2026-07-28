@@ -1,3 +1,7 @@
+<!-- docket:backlink:start (generated — do not hand-edit) -->
+> ↩ **[Change 0117 — Deferred ADR-publish visibility — detect an unpublished ADR with a computed board-checks finding](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-07-28-0117-deferred-adr-publish-visibility-decide-whether-docket-adr-s.md)**
+<!-- docket:backlink:end -->
+
 # Unpublished-ADR detection — a computed `board-checks` finding, not a marker
 
 **Change:** #0117 · **Date:** 2026-07-21 · **Status:** design settled, ready to build
