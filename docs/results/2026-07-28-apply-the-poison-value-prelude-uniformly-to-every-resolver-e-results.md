@@ -1,3 +1,7 @@
+<!-- docket:backlink:start (generated — do not hand-edit) -->
+> ↩ **[Change 0126 — Apply the poison-value prelude uniformly to every resolver eval in the config suite](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0126-apply-the-poison-value-prelude-uniformly-to-every-resolver-e.md)**
+<!-- docket:backlink:end -->
+
 <!-- results-template.md — close-out artifact for a change. -->
 # Apply the poison-value prelude uniformly to every resolver eval in the config suite — results
 Change: #126 · Branch: feat/apply-the-poison-value-prelude-uniformly-to-every-resolver-e · PR: (not yet opened) · Plan: docs/superpowers/plans/2026-07-28-poison-prelude-uniformity.md · ADRs: none
