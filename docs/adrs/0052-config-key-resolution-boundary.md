@@ -85,3 +85,27 @@ paragraph.
 
 Nothing in `## Decision`, `## Enforcement`, or `## Consequences` changes; this update records the
 second enforcer that makes the prose half of the rule real.
+
+## Update — 2026-07-28 (change 0146)
+
+The prose-side enforcer added by change 0120 scanned exactly one filename, `.docket.yml`. This
+decision's subject is the config **file**, not one of its three filenames — docket documents two
+more layers a skill could just as wrongly be instructed to read: the machine-local
+`<repo>/.docket.local.yml` and the user-level `${XDG_CONFIG_HOME:-~/.config}/docket/config.yml`. An
+unmarked instruction to read either sibling layer therefore passed the guard.
+
+Change 0146 widens `tests/test_config_read_channel.sh` to a three-token set — `.docket.yml`,
+`.docket.local.yml`, and bare `config.yml` — at **both** of `scan_tree`'s match sites (the per-line
+prefilter and the counting pass; widening only the counter would have preserved the fail-open). The
+third token is bare rather than path-qualified because "the global `config.yml`" is docket's own
+in-house phrasing and therefore the likeliest spelling; the bare form also subsumes
+`docket/config.yml` while keeping the token set overlap-free, so per-line occurrence counts still
+sum exactly.
+
+The three filenames share **one** class vocabulary: `write-back` and `negative` describe what a line
+says about the file, which is layer-independent, and this decision draws no per-layer distinction.
+The per-line equal-count rule, the marker syntax, and the admissible class set are unchanged from
+change 0120. The widening reclassified nothing — all thirteen sibling-layer occurrences in
+`skills/**` sit inside the two `docket-convention` exclusions change 0120 already declared.
+
+Nothing in `## Decision`, `## Enforcement`, or `## Consequences` changes.
