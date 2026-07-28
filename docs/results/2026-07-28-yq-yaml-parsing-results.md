@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0018 — Record the pure-bash YAML/frontmatter parsing stance as an ADR](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0018-yq-yaml-parsing.md)**
+> ↩ **[Change 0018 — Record the pure-bash YAML/frontmatter parsing stance as an ADR](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-07-28-0018-yq-yaml-parsing.md)**
 <!-- docket:backlink:end -->
 
 # Record the pure-bash YAML/frontmatter parsing stance as an ADR — results

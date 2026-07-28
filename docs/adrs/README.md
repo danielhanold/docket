@@ -61,6 +61,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0059](0059-dispatch-capability-resolved-not-inferred-from-tool-name.md) — Dispatch capability is resolved, never inferred from a tool name; unavailability is tiered (Accepted) ← change #137 · relates to ADR-0008, ADR-0017, ADR-0024, ADR-0026
 - [ADR-0060](0060-generated-wrapper-conforms-to-target-harness-contract.md) — A generated wrapper conforms to its target harness's own documented contract (Accepted) ← change #135 · relates to ADR-0008, ADR-0015, ADR-0017, ADR-0059
 - [ADR-0061](0061-detect-vs-mark-a-missing-terminal-record.md) — Detect a missing terminal record where there is no marker seam; mark where the failure mode is a conscious human deferral (Accepted) ← change #117 · relates to ADR-0049, ADR-0051
+- [ADR-0062](0062-in-repo-shell-yaml-readers-no-external-parser.md) — YAML and frontmatter are parsed by in-repo shell readers — no external YAML parser (Accepted) ← change #18 · relates to ADR-0057, ADR-0058
 
 ## Superseded / Reversed
 
