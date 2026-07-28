@@ -1908,12 +1908,22 @@ prelude_report(){
 # docket:prelude-guard:self:start
 # The two marker literals below are the guard's own scan patterns. Everything
 # between the start and end marker is subtracted from the corpus.
-T_SELF_START='docket:prelude-guard:self:start'
-T_SELF_END='docket:prelude-guard:self:end'
+T_SELF_START='docket:prelude-guard:self'':start'
+T_SELF_END='docket:prelude-guard:self'':end'
 T_EVAL_LITERAL='eval "$'
 # docket:prelude-guard:self:end
 
 t_keys="$(bash "$SCRIPT" --export 2>/dev/null | sed 's/=.*//' | sort | tr '\n' ' ')"
+
+# Vacuity floor: if the resolver's --export ever breaks, changes format, or the
+# pipeline above silently swallows an error, $t_keys goes empty and EVERY site
+# becomes "exempt by derivation" (no key can ever match an empty KEY set) —
+# the guard would report sites=N exempt=N viol=0 and go GREEN having checked
+# nothing. This floor makes an empty/truncated key set a RED suite instead
+# (28 keys today; floor set well below that so ordinary drift doesn't trip it,
+# but an empty or badly-truncated set does).
+t_keycount="$(printf '%s\n' "$t_keys" | tr ' ' '\n' | sed '/^$/d' | wc -l | tr -d ' ')"
+
 t_out="$(prelude_report "${BASH_SOURCE[0]}" "$t_keys")"
 t_sites="$(printf '%s\n' "$t_out" | sed -n 's/^TOTALS sites=\([0-9]*\) .*/\1/p')"
 t_viol="$(printf '%s\n' "$t_out" | sed -n 's/^TOTALS .* viol=\([0-9]*\)$/\1/p')"
@@ -1936,6 +1946,7 @@ t_selfrefs="$(awk -v s="$T_SELF_START" -v e="$T_SELF_END" '
   END{ if (st && en) print en-st+1; else print 0 }' "${BASH_SOURCE[0]}")"
 
 assert "0126 T: guard reached a real population (>= 60 sites)" '[ "$t_sites" -ge 60 ]'
+assert "0126 T: the derived key set is non-vacuous (>= 20 keys)" '[ "$t_keycount" -ge 20 ]'
 assert "0126 T: site count agrees with the independent grep extractor" \
   '[ "$t_sites" -eq "$(( t_raw - t_helper - t_comments - t_selflit ))" ]'
 assert "0126 T: the self-block is bounded and non-empty" '[ "$t_selfrefs" -ge 3 ]'
