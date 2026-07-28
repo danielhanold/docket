@@ -20,42 +20,20 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# change 0133: the shared runtime.bash reader. Sourced here rather than re-implemented so a fix to
+# the scalar grammar reaches install, the installer, and the resolver together. Bootstrap-
+# compatible by requirement — this runs under the system Bash, before DOCKET_BASH_PATH exists.
+# shellcheck source=scripts/lib/docket-runtime.sh
+. "$SCRIPT_DIR/scripts/lib/docket-runtime.sh"
+
 echo "==> ensure-global-config.sh (configure Bash runtime)"
 DOCKET_BOOTSTRAP_LAUNCH=1 bash "$SCRIPT_DIR/scripts/ensure-global-config.sh"
 
 CONFIG_ROOT="${XDG_CONFIG_HOME:-${DOCKET_HARNESS_ROOT:-$HOME}/.config}"
-DOCKET_BASH_PATH="$(awk '
-  function scalar(value, sq,out,i,ch,rest) {
-    sq=sprintf("%c", 39)
-    if (substr(value,1,1) == sq) {
-      out=""
-      for (i=2; i<=length(value); i++) {
-        ch=substr(value,i,1)
-        if (ch == sq) {
-          if (substr(value,i+1,1) == sq) { out=out sq; i++; continue }
-          rest=substr(value,i+1)
-          if (rest ~ /^[[:space:]]*(#.*)?$/) return out
-          return value
-        }
-        out=out ch
-      }
-      return value
-    }
-    if (value ~ /^"[^"]*"[[:space:]]*(#.*)?$/) {
-      sub(/^"/, "", value); sub(/"[[:space:]]*(#.*)?$/, "", value)
-    } else {
-      sub(/[[:space:]]*#.*/, "", value); sub(/[[:space:]]+$/, "", value)
-    }
-    return value
-  }
-  { raw=$0; structural=$0; sub(/[[:space:]]*#.*/, "", structural) }
-  structural ~ /^runtime[[:space:]]*:[[:space:]]*$/ { in_runtime=1; next }
-  in_runtime && structural ~ /^[^[:space:]]/ { in_runtime=0 }
-  in_runtime && structural ~ /^[[:space:]]+bash[[:space:]]*:/ {
-    line=raw; sub(/^[[:space:]]+bash[[:space:]]*:[[:space:]]*/, "", line)
-    print scalar(line); exit
-  }
-' "$CONFIG_ROOT/docket/config.yml")"
+# No markers and no duplicate handling: ensure-global-config.sh has just guaranteed exactly one
+# authoritative declaration or exited non-zero, so this reads the value it settled on — managed or
+# hand-authored alike.
+DOCKET_BASH_PATH="$(docket_runtime_first "$CONFIG_ROOT/docket/config.yml")"
 export DOCKET_BASH_PATH
 
 echo "==> link-skills.sh (install skills)"
