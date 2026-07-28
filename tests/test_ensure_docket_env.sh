@@ -50,7 +50,8 @@ assert "other: runtime export to ~/.profile" 'grep -qF "export DOCKET_BASH_PATH=
 # semicolon, hash, colon-space, and whitespace, then source the POSIX profile to prove it neither
 # executes the payload nor changes either value.
 META_BASE="$(mktemp -d)/clone'quote\\slash \$(touch injected); # colon: value"
-mkdir -p "$META_BASE/scripts"; cp "$SCRIPT" "$META_BASE/scripts/ensure-docket-env.sh"
+mkdir -p "$META_BASE/scripts/lib"; cp "$SCRIPT" "$META_BASE/scripts/ensure-docket-env.sh"
+cp "$REPO/scripts/lib/docket-runtime.sh" "$META_BASE/scripts/lib/docket-runtime.sh"
 META_SCRIPTS_RESOLVED="$(cd "$META_BASE/scripts" && pwd -P)"
 META_RUNTIME_DIR="$(mktemp -d)/runtime'quote\\slash \$(touch injected-runtime); # colon: value"
 mkdir -p "$META_RUNTIME_DIR"; META_RUNTIME="$META_RUNTIME_DIR/bash"

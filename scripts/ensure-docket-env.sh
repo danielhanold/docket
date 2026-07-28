@@ -3,6 +3,8 @@
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+# shellcheck source=lib/docket-runtime.sh
+. "$HERE/lib/docket-runtime.sh"
 SCRIPTS_VALUE="$HERE"
 BASH_VALUE="${DOCKET_BASH_PATH:-}"
 MARK_OPEN="# >>> docket (DOCKET_SCRIPTS_DIR) >>>"
@@ -10,11 +12,9 @@ MARK_CLOSE="# <<< docket (DOCKET_SCRIPTS_DIR) <<<"
 say(){ printf 'ensure-docket-env: %s\n' "$*"; }
 die(){ say "$*" >&2; exit 1; }
 file_mode(){ stat -f '%Lp' "$1" 2>/dev/null || stat -c '%a' "$1" 2>/dev/null || echo 644; }
-validate_literal_path(){
-  case "$1" in *$'\n'*|*$'\r'*)
-    die "$2 contains unsupported line-break characters" ;;
-  esac
-}
+# Detection in the library, the label-bearing message caller-side — same split as the validator
+# above (change 0152).
+validate_literal_path(){ docket_runtime_serializable "$1" || die "$2 contains unsupported line-break characters"; }
 posix_literal(){
   validate_literal_path "$1" "$2"
   case "$1" in
@@ -36,13 +36,22 @@ fish_literal(){
 }
 
 case "$SCRIPTS_VALUE" in /*) ;; *) die "DOCKET_SCRIPTS_DIR must be absolute" ;; esac
-case "$BASH_VALUE" in /*) ;; *) die "DOCKET_BASH_PATH must be an absolute path" ;; esac
-[ -x "$BASH_VALUE" ] || die "DOCKET_BASH_PATH is not executable: $BASH_VALUE"
-_version="$(LC_ALL=C "$BASH_VALUE" --version 2>/dev/null)" || die "DOCKET_BASH_PATH cannot report its version"
-_first="${_version%%$'\n'*}"
-case "$_first" in 'GNU bash, version '*) ;; *) die "DOCKET_BASH_PATH is not GNU Bash" ;; esac
-_major="$(sed -nE 's/^GNU bash, version ([0-9]+)\..*/\1/p' <<<"$_first")"
-[[ "$_major" =~ ^[0-9]+$ ]] && [ "$_major" -ge 4 ] || die "DOCKET_BASH_PATH must be Bash 4 or newer"
+# Detection is delegated to the shared library (change 0152); the diagnostics stay here, which is
+# exactly why docket_runtime_validate_bash returns a reason token instead of printing a message.
+# The guarded capture idiom matches scripts/docket-config.sh. This caller reads only line 1 — all
+# five die strings interpolate $BASH_VALUE, never the version — so nothing here depends on the
+# guard; it matters where a caller consumes line 2, which is why the library documents it.
+_probe="$(docket_runtime_validate_bash "$BASH_VALUE"; printf 'x')"; _probe="${_probe%x}"
+_reason="${_probe%%$'\n'*}"
+case "$_reason" in
+  ok) ;;
+  not-absolute)   die "DOCKET_BASH_PATH must be an absolute path" ;;
+  not-executable) die "DOCKET_BASH_PATH is not executable: $BASH_VALUE" ;;
+  no-version)     die "DOCKET_BASH_PATH cannot report its version" ;;
+  not-gnu-bash)   die "DOCKET_BASH_PATH is not GNU Bash" ;;
+  old-major)      die "DOCKET_BASH_PATH must be Bash 4 or newer" ;;
+  *)              die "DOCKET_BASH_PATH validation returned an unrecognized result '$_reason'" ;;
+esac
 validate_literal_path "$SCRIPTS_VALUE" DOCKET_SCRIPTS_DIR
 validate_literal_path "$BASH_VALUE" DOCKET_BASH_PATH
 
