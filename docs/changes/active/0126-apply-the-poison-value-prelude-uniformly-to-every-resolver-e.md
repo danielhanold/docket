@@ -16,10 +16,10 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/apply-the-poison-value-prelude-uniformly-to-every-resolver-e
-claimed_at: 2026-07-28T02:15:02Z
+claimed_at: 2026-07-28T02:16:49Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 type: chore
 ---
 
@@ -76,6 +76,39 @@ enforcement guard belongs here at all — the spec's assumption 6 records why it
 - Rewriting the fixtures' structure or extracting shared helpers; section S's per-fixture shape was
   deliberately preserved by changes 0106 and 0112.
 - Section S's own fixtures `s4`-`s9`, which already carry the prelude on every `eval`.
+
+## Reconcile log
+
+### 2026-07-28
+
+Reconciled against `origin/main` before planning. The design holds unchanged; three drift points
+recorded so the build does not trust the spec's frozen numbers:
+
+- **The file moved under the change.** `tests/test_docket_config.sh` is now 1811 lines (change 0127
+  landed the `change_types` taxonomy + nested `auto_capture` map, plus its follow-up review fixes).
+  The spec anticipated exactly this by refusing to hardcode a site count — the build derives the
+  count with its own comment-skipping tokenizer and pins it then, under the `>= 60` floor.
+- **Both named anchors survived**, shifted by one line: the `L2`/`N` `BOARD_SURFACES` site is now at
+  `:501` (spec said `:500`), and the O→P `AUTO_GROOM` coincidence that carries the mutation
+  demonstration is now `:511` / `:520` (spec said `:509`–`:520`), still with nothing writing
+  `AUTO_GROOM` between them. The demonstration remains reproducible on the unmodified file.
+- **The eval-site population grew from 63 to 66** by the `eval "$V"` spelling — consistent with 0127
+  adding fixtures. This strengthens rather than weakens the case for the enforcement guard: the file's
+  tail is where new fixtures land, which is precisely assumption 8's argument against truncating the
+  guard's corpus at an end-of-file marker.
+
+**Scope re-verified, not assumed.** A per-file count of the idiom across `tests/` gives 66 in the
+target file against 1 in almost every sibling — that 1 being the shared `assert()` helper's own
+`eval "$2"`, not a resolver-output eval. Four files show 2–3 (`test_skill_facade_wiring.sh`,
+`test_sync_agents.sh`, `test_render_board.sh`, `test_readme_finalize_docs.sh`,
+`test_mark_publish_deferred.sh`, `test_dispatch_capability.sh`); the build confirms each is a
+non-hazard (no exported config variable asserted after the eval) before ruling the single-file scope
+final, rather than inheriting the spec's grep.
+
+**Coupling unchanged.** Change 0125 (rung-pair completeness over this same file) is still `proposed`
+and needs-brainstorm, so 0126 lands first and 0125 rebases onto its section. No `depends_on`.
+
+No scope change, no kill, no invalidation.
 
 ## Triage note (2026-07-26, change 0124)
 
