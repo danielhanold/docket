@@ -1570,6 +1570,10 @@ assert "every board-checks.sh emit call site names a LITERAL check-id (an 'emit 
 # `publish-deferred` while explaining what that mark drives — it is the file's only check-id
 # occurrence outside the section below, and a file-wide ban would redden honest prose.
 #
+# NAMED LIMITATION: section scoping means this stops the restatement returning *in this section
+# only*. An editor who re-adds the list under a **new** heading escapes it — the non-vacuity
+# anchor catches a *rename of* `### Health checks`, not a *new* section elsewhere.
+#
 # The extractor terminates on the next `^(#|##|###) ` heading OR EOF. The EOF arm is the LIVE
 # path, not a fallback: `### Health checks` is currently the file's LAST section, so an extractor
 # written as "lines between two heading matches" would yield the empty set and the negative assert
