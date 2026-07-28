@@ -2,7 +2,7 @@
 id: 148
 slug: two-unfalsifiable-z-asserts-in-the-config-suite-sit-in-eval
 title: Two unfalsifiable -z asserts in the config suite sit in eval-free blocks
-status: proposed
+status: killed
 priority: medium
 type: chore
 created: 2026-07-28
@@ -68,3 +68,7 @@ Design settled in the linked spec.
 - A general "assert reads an exported key in a block with no eval" checker: over-fitting against two
   known instances, both removed here.
 - Change 0151's sweep-and-widen framing, of which this discharges the concrete half.
+
+## Why killed
+
+Subsumed by change 0157, which carries this work on a single rolled-up branch. The design in this change's spec remains authoritative for its unit.
