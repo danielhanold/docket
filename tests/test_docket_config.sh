@@ -63,6 +63,7 @@ rung_rc(){ local x="$1" d="$2"; shift 2; ensure_test_runtime "$x" "$d"; XDG_CONF
 
 # --- (A) absent .docket.yml -> all defaults (docket-mode) --------------------
 mkrepo "$tmp/a"
+AUTO_GROOM=__poison__; FINALIZE_GATE=__poison__; ADRS_DIR=__poison__; DOCKET_MODE=__poison__; DEFAULT_BRANCH=__poison__; METADATA_WORKTREE=__poison__; CHANGES_DIR=__poison__; INTEGRATION_BRANCH=__poison__; TERMINAL_PUBLISH=__poison__; BOARD_SURFACES=__poison__; FINALIZE_TEST_COMMAND=__poison__; METADATA_BRANCH=__poison__; RESULTS_DIR=__poison__
 out="$(run "$tmp/a" --export)"; eval "$out"
 assert "absent cfg: METADATA_BRANCH default docket"    '[ "$METADATA_BRANCH" = docket ]'
 assert "absent cfg: DOCKET_MODE docket"                '[ "$DOCKET_MODE" = docket ]'
@@ -86,6 +87,7 @@ integration_branch: main
 EOF
 git -C "$tmp/b" add .docket.yml; git -C "$tmp/b" commit --quiet -m cfg
 git -C "$tmp/b" push --quiet origin main
+BOOTSTRAP=__poison__; DOCKET_MODE=__poison__; METADATA_WORKTREE=__poison__; METADATA_BRANCH=__poison__
 out="$(run "$tmp/b" --export)"; eval "$out"
 assert "main-mode: METADATA_BRANCH main"               '[ "$METADATA_BRANCH" = main ]'
 assert "main-mode: DOCKET_MODE main"                   '[ "$DOCKET_MODE" = main ]'
@@ -114,6 +116,7 @@ finalize:
 EOF
 git -C "$tmp/c" add .docket.yml; git -C "$tmp/c" commit --quiet -m cfg
 git -C "$tmp/c" push --quiet origin main
+AUTO_GROOM=__poison__; FINALIZE_GATE=__poison__; ADRS_DIR=__poison__; CHANGES_DIR=__poison__; INTEGRATION_BRANCH=__poison__; FINALIZE_TEST_COMMAND=__poison__; BOARD_SURFACES=__poison__; RESULTS_DIR=__poison__
 out="$(run "$tmp/c" --export)"; eval "$out"
 assert "explicit: INTEGRATION_BRANCH verbatim develop" '[ "$INTEGRATION_BRANCH" = develop ]'
 assert "explicit: CHANGES_DIR override"                '[ "$CHANGES_DIR" = planning/changes ]'
@@ -150,6 +153,7 @@ assert "board []: plain format never emits an empty BOARD_SURFACES" \
   '! printf "%s\n" "$out_plain" | grep -qxF "BOARD_SURFACES="'
 assert "board []: shell format never emits quoted-empty BOARD_SURFACES" \
   '! printf "%s\n" "$out" | grep -qxF "BOARD_SURFACES='\'''\''"'
+BOARD_SURFACES=__poison__
 eval "$out"
 assert "board []: BOARD_SURFACES is the none token"     '[ "$BOARD_SURFACES" = none ]'
 
@@ -192,21 +196,25 @@ make_docket(){
 
 # (B1) migrated: DOCKET ∧ ¬LIVE -> PROCEED
 mkrepo "$tmp/b1"; make_docket "$tmp/b1"
+BOOTSTRAP=__poison__
 out="$(run "$tmp/b1" --export)"; eval "$out"
 assert "2x2 migrated -> PROCEED"            '[ "$BOOTSTRAP" = PROCEED ]'
 
 # (B2) fresh: ¬DOCKET ∧ ¬LIVE -> CREATE_ORPHAN
 mkrepo "$tmp/b2"
+BOOTSTRAP=__poison__
 out="$(run "$tmp/b2" --export)"; eval "$out"
 assert "2x2 fresh -> CREATE_ORPHAN"         '[ "$BOOTSTRAP" = CREATE_ORPHAN ]'
 
 # (B3) existing single-branch: ¬DOCKET ∧ LIVE -> STOP_MIGRATE
 mkrepo "$tmp/b3"; seed_live "$tmp/b3"
+BOOTSTRAP=__poison__
 out="$(run "$tmp/b3" --export)"; eval "$out"
 assert "2x2 single-branch -> STOP_MIGRATE"  '[ "$BOOTSTRAP" = STOP_MIGRATE ]'
 
 # (B4) half-migrated: DOCKET ∧ LIVE -> STOP_MIGRATE
 mkrepo "$tmp/b4"; seed_live "$tmp/b4"; make_docket "$tmp/b4"
+BOOTSTRAP=__poison__
 out="$(run "$tmp/b4" --export)"; eval "$out"
 assert "2x2 half-migrated -> STOP_MIGRATE"  '[ "$BOOTSTRAP" = STOP_MIGRATE ]'
 
@@ -215,12 +223,14 @@ origin_has_docket(){ git -C "$1.origin.git" rev-parse --verify --quiet refs/head
 
 # (W1) default --export in fresh cell: NO write, verdict CREATE_ORPHAN
 mkrepo "$tmp/w1"
+BOOTSTRAP=__poison__
 out="$(run "$tmp/w1" --export)"; eval "$out"
 assert "read-only default: no orphan created" '! origin_has_docket "$tmp/w1"'
 assert "read-only default: verdict CREATE_ORPHAN" '[ "$BOOTSTRAP" = CREATE_ORPHAN ]'
 
 # (W2) --bootstrap in fresh cell: creates origin/docket, re-reports PROCEED
 mkrepo "$tmp/w2"
+BOOTSTRAP=__poison__
 out="$(run "$tmp/w2" --bootstrap --export)"; eval "$out"
 assert "bootstrap fresh: origin/docket created" 'origin_has_docket "$tmp/w2"'
 assert "bootstrap fresh: verdict now PROCEED"   '[ "$BOOTSTRAP" = PROCEED ]'
@@ -242,6 +252,7 @@ assert "0057 export: read-only — no .gitignore seeded" '[ ! -e "$w1gi/.gitigno
 
 # (W3) --bootstrap in STOP_MIGRATE cell: GUARD holds — no orphan written
 mkrepo "$tmp/w3"; seed_live "$tmp/w3"
+BOOTSTRAP=__poison__
 out="$(run "$tmp/w3" --bootstrap --export)"; eval "$out"
 assert "bootstrap guard: no write in single-branch cell" '! origin_has_docket "$tmp/w3"'
 assert "bootstrap guard: verdict stays STOP_MIGRATE"     '[ "$BOOTSTRAP" = STOP_MIGRATE ]'
@@ -249,6 +260,7 @@ assert "bootstrap guard: verdict stays STOP_MIGRATE"     '[ "$BOOTSTRAP" = STOP_
 # (W4) --bootstrap in migrated cell: idempotent no-op, PROCEED (origin/docket SHA unchanged)
 mkrepo "$tmp/w4"; make_docket "$tmp/w4"
 w4_before="$(git -C "$tmp/w4.origin.git" rev-parse refs/heads/docket)"
+BOOTSTRAP=__poison__
 out="$(run "$tmp/w4" --bootstrap --export)"; eval "$out"
 w4_after="$(git -C "$tmp/w4.origin.git" rev-parse refs/heads/docket)"
 assert "bootstrap migrated: PROCEED"            '[ "$BOOTSTRAP" = PROCEED ]'
@@ -366,6 +378,7 @@ assert "finalize finish uses SKILL_FINISH" \
 mkrepo "$tmp/g"
 printf 'metadata_branch: main\n' > "$tmp/g/.docket.yml"
 git -C "$tmp/g" add .docket.yml; git -C "$tmp/g" commit --quiet -m cfg; git -C "$tmp/g" push --quiet origin main
+SKILL_BUILD=__poison__; SKILL_REVIEW=__poison__; SKILL_BRAINSTORM=__poison__; SKILL_PLAN=__poison__; SKILL_FINISH=__poison__
 out="$(run "$tmp/g" --export)"; eval "$out"
 assert "skills absent: BRAINSTORM default" '[ "$SKILL_BRAINSTORM" = superpowers:brainstorming ]'
 assert "skills absent: PLAN default"       '[ "$SKILL_PLAN" = superpowers:writing-plans ]'
@@ -383,6 +396,7 @@ skills:
   brainstorm: superpowers:brainstorming
 EOF
 git -C "$tmp/h" add .docket.yml; git -C "$tmp/h" commit --quiet -m cfg; git -C "$tmp/h" push --quiet origin main
+SKILL_BUILD=__poison__; SKILL_REVIEW=__poison__; SKILL_PLAN=__poison__
 out="$(run "$tmp/h" --export)"; eval "$out"
 assert "skills auto: BUILD is auto"         '[ "$SKILL_BUILD" = auto ]'
 assert "skills custom: REVIEW verbatim"     '[ "$SKILL_REVIEW" = my-org:custom-review ]'
@@ -392,6 +406,7 @@ assert "skills partial: PLAN still default" '[ "$SKILL_PLAN" = superpowers:writi
 mkrepo "$tmp/i"
 printf 'metadata_branch: main\nskills:\n\tplan: auto\n' > "$tmp/i/.docket.yml"
 git -C "$tmp/i" add .docket.yml; git -C "$tmp/i" commit --quiet -m cfg; git -C "$tmp/i" push --quiet origin main
+SKILL_PLAN=__poison__
 out="$(run "$tmp/i" --export)"; eval "$out"
 assert "skills tab-indent: PLAN auto"       '[ "$SKILL_PLAN" = auto ]'
 
@@ -400,6 +415,7 @@ mkrepo "$tmp/j"
 printf 'metadata_branch: main\nskills:\n  bogus: x\n  plan: auto\n' > "$tmp/j/.docket.yml"
 git -C "$tmp/j" add .docket.yml; git -C "$tmp/j" commit --quiet -m cfg; git -C "$tmp/j" push --quiet origin main
 jerr="$(run "$tmp/j" --export 2>&1 >/dev/null)"
+SKILL_PLAN=__poison__
 out="$(run "$tmp/j" --export 2>/dev/null)"; eval "$out"
 assert "skills unknown key: warned on stderr"       'printf "%s" "$jerr" | grep -qi "unknown skills role"'
 assert "skills unknown key: known PLAN still parsed" '[ "$SKILL_PLAN" = auto ]'
@@ -419,6 +435,7 @@ finalize:
 skills:
   build: auto
 EOF
+SKILL_BUILD=__poison__; AUTO_GROOM=__poison__; FINALIZE_GATE=__poison__; BOARD_SURFACES=__poison__; SKILL_PLAN=__poison__
 out="$(rung "$tmp/k.xdg" "$tmp/k" --export)"; eval "$out"
 assert "0050 K: global auto_groom honored"          '[ "$AUTO_GROOM" = true ]'
 assert "0050 K: global finalize.gate honored"       '[ "$FINALIZE_GATE" = ci ]'
@@ -443,6 +460,7 @@ skills:
   plan: auto
   review: my-org:global-review
 EOF
+SKILL_BUILD=__poison__; AUTO_GROOM=__poison__; SKILL_REVIEW=__poison__; SKILL_PLAN=__poison__
 out="$(rung "$tmp/l.xdg" "$tmp/l" --export)"; eval "$out"
 assert "0050 L: per-repo auto_groom false beats global true" '[ "$AUTO_GROOM" = false ]'
 assert "0050 L: skills merge — repo plan wins over global"   '[ "$SKILL_PLAN" = superpowers:writing-plans ]'
@@ -453,6 +471,7 @@ assert "0050 L: skills merge — unset role stays default"     '[ "$SKILL_BUILD"
 mkrepo "$tmp/q"
 mkdir -p "$tmp/q.home/.config/docket"
 printf 'auto_groom: true\nruntime:\n  bash: %s\n' "$tmp/runtime-bin/default-bash" > "$tmp/q.home/.config/docket/config.yml"
+AUTO_GROOM=__poison__
 out="$(env -u XDG_CONFIG_HOME HOME="$tmp/q.home" bash "$SCRIPT" --repo-dir "$tmp/q" --export)"; eval "$out"
 assert "0050 Q: XDG unset -> \$HOME/.config fallback read"   '[ "$AUTO_GROOM" = true ]'
 
@@ -469,6 +488,7 @@ changes_dir: elsewhere/changes
 auto_groom: true
 EOF
 merr="$(rung "$tmp/m.xdg" "$tmp/m" --export 2>&1 >/dev/null)"
+AUTO_GROOM=__poison__; CHANGES_DIR=__poison__; METADATA_BRANCH=__poison__
 out="$(rung "$tmp/m.xdg" "$tmp/m" --export 2>/dev/null)"; eval "$out"
 assert "0050 M: fence warns metadata_branch"        'printf "%s" "$merr" | grep -q "metadata_branch"'
 assert "0050 M: fence names per-repo-only"          'printf "%s" "$merr" | grep -qi "per-repo-only"'
@@ -483,6 +503,7 @@ mkrepo "$tmp/n"
 mkdir -p "$tmp/n.xdg/docket"
 printf 'board_surfaces: [inline, github]\n' > "$tmp/n.xdg/docket/config.yml"
 nerr="$(rung "$tmp/n.xdg" "$tmp/n" --export 2>&1 >/dev/null)"
+BOARD_SURFACES=__poison__
 out="$(rung "$tmp/n.xdg" "$tmp/n" --export 2>/dev/null)"; eval "$out"
 assert "0050 N: global github token warned"         'printf "%s" "$nerr" | grep -q "github"'
 assert "0050 N: global github token dropped"        '[ "$BOARD_SURFACES" = inline ]'
@@ -497,6 +518,7 @@ printf 'metadata_branch: main\nboard_surfaces: [inline, github]\n' > "$tmp/n2/.d
 git -C "$tmp/n2" add .docket.yml; git -C "$tmp/n2" commit --quiet -m cfg
 git -C "$tmp/n2" push --quiet origin main
 n2err="$(rung "$tmp/n.xdg" "$tmp/n2" --export 2>&1 >/dev/null)"
+BOARD_SURFACES=__poison__
 out="$(rung "$tmp/n.xdg" "$tmp/n2" --export 2>/dev/null)"; eval "$out"
 assert "0050 N: per-repo github honored"            '[ "$BOARD_SURFACES" = "inline github" ]'
 assert "0050 N: per-repo github NOT warned"         '! printf "%s" "$n2err" | grep -q "board_surfaces token github"'
@@ -506,6 +528,7 @@ mkrepo "$tmp/o"
 mkdir -p "$tmp/o.xdg/docket"
 printf 'auto_groom: true\n' > "$tmp/o.xdg/docket/.docket.yml"
 oerr="$(rung "$tmp/o.xdg" "$tmp/o" --export 2>&1 >/dev/null)"
+AUTO_GROOM=__poison__
 out="$(rung "$tmp/o.xdg" "$tmp/o" --export 2>/dev/null)"; eval "$out"
 assert "0050 O: misplacement warned, names config.yml" 'printf "%s" "$oerr" | grep -q "config.yml"'
 assert "0050 O: misplaced file NOT read (auto_groom default)" '[ "$AUTO_GROOM" = false ]'
@@ -515,6 +538,7 @@ assert "0050 O: misplacement not fatal (exit 0)"    '[ "$(rung_rc "$tmp/o.xdg" "
 mkrepo "$tmp/p"
 mkdir -p "$tmp/p.xdg/docket/config.yml"            # a DIRECTORY at the config path
 perr="$(rung "$tmp/p.xdg" "$tmp/p" --export 2>&1 >/dev/null)"
+AUTO_GROOM=__poison__
 out="$(rung "$tmp/p.xdg" "$tmp/p" --export 2>/dev/null)"; eval "$out"
 assert "0050 P: malformed global warned"            'printf "%s" "$perr" | grep -qi "not a readable regular file"'
 assert "0050 P: built-ins fallback (auto_groom)"    '[ "$AUTO_GROOM" = false ]'
@@ -539,6 +563,7 @@ git -C "$tmp/l1" push --quiet origin main
 mkdir -p "$tmp/xdg-l1/docket"
 printf 'skills:\n  build: global-build\n  review: global-review\n' > "$tmp/xdg-l1/docket/config.yml"
 printf 'skills:\n  build: local-build\n' > "$tmp/l1/.docket.local.yml"
+SKILL_BUILD=__poison__; SKILL_REVIEW=__poison__; SKILL_PLAN=__poison__
 out="$(rung "$tmp/xdg-l1" "$tmp/l1" --export)"; eval "$out"
 assert "0051 L1: local skills.build beats committed+global"  '[ "$SKILL_BUILD" = local-build ]'
 assert "0051 L1: unset-local review falls to global"         '[ "$SKILL_REVIEW" = global-review ]'
@@ -556,6 +581,7 @@ git -C "$tmp/l2" push --quiet origin main
 mkdir -p "$tmp/xdg-l2/docket"
 printf 'finalize:\n  gate: ci\n' > "$tmp/xdg-l2/docket/config.yml"
 printf 'auto_groom: true\nfinalize:\n  gate: both\n  test_command: make local-test\n' > "$tmp/l2/.docket.local.yml"
+AUTO_GROOM=__poison__; FINALIZE_GATE=__poison__; FINALIZE_TEST_COMMAND=__poison__
 out="$(rung "$tmp/xdg-l2" "$tmp/l2" --export)"; eval "$out"
 assert "0051 L2: local auto_groom beats committed"       '[ "$AUTO_GROOM" = true ]'
 assert "0051 L2: local finalize.gate beats global"       '[ "$FINALIZE_GATE" = both ]'
@@ -565,6 +591,7 @@ assert "0051 L2: local finalize.test_command honored"    '[ "$FINALIZE_TEST_COMM
 mkrepo "$tmp/l3"
 printf 'metadata_branch: main\nchanges_dir: sneaky/changes\ngithub_project: {owner: x, number: 1}\n' > "$tmp/l3/.docket.local.yml"
 errout="$(rung "$tmp/l3-noxdg" "$tmp/l3" --export 2>&1 >/dev/null)"; rc=$?
+CHANGES_DIR=__poison__; METADATA_BRANCH=__poison__
 out="$(rung "$tmp/l3-noxdg" "$tmp/l3" --export 2>/dev/null)"; eval "$out"
 assert "0051 L3: fenced local keys not fatal (rc=0)"     '[ "$rc" = "0" ]'
 assert "0051 L3: warns metadata_branch is per-repo-only" 'grep -q "metadata_branch" <<<"$errout" && grep -qi "per-repo-only" <<<"$errout"'
@@ -582,6 +609,7 @@ git -C "$tmp/l4" add .docket.yml; git -C "$tmp/l4" commit --quiet -m cfg
 git -C "$tmp/l4" push --quiet origin main
 printf 'board_surfaces: [inline, github]\n' > "$tmp/l4/.docket.local.yml"
 errout="$(rung "$tmp/l4-noxdg" "$tmp/l4" --export 2>&1 >/dev/null)"
+BOARD_SURFACES=__poison__
 out="$(rung "$tmp/l4-noxdg" "$tmp/l4" --export 2>/dev/null)"; eval "$out"
 assert "0051 L4: local board_surfaces honored minus github" '[ "$BOARD_SURFACES" = inline ]'
 assert "0051 L4: warns the github token is per-repo-only"   'grep -qi "github" <<<"$errout" && grep -qi "per-repo-only" <<<"$errout"'
@@ -594,6 +622,7 @@ board_surfaces: [inline, github]
 EOF
 git -C "$tmp/l4b" add .docket.yml; git -C "$tmp/l4b" commit --quiet -m cfg
 git -C "$tmp/l4b" push --quiet origin main
+BOARD_SURFACES=__poison__
 out="$(run "$tmp/l4b" --export)"; eval "$out"
 assert "0051 L4: committed github token still honored" '[ "$BOARD_SURFACES" = "inline github" ]'
 
@@ -620,6 +649,7 @@ mkrepo "$tmp/tp"
 printf 'metadata_branch: docket\nterminal_publish: false\n' > "$tmp/tp/.docket.yml"
 git -C "$tmp/tp" add .docket.yml; git -C "$tmp/tp" commit --quiet -m cfg
 git -C "$tmp/tp" push --quiet origin main
+TERMINAL_PUBLISH=__poison__
 out="$(run "$tmp/tp" --export)"; eval "$out"
 assert "0064: repo terminal_publish false is honored" '[ "$TERMINAL_PUBLISH" = false ]'
 
@@ -628,6 +658,7 @@ mkrepo "$tmp/tp2"
 printf 'metadata_branch: docket\nterminal_publish: true\n' > "$tmp/tp2/.docket.yml"
 git -C "$tmp/tp2" add .docket.yml; git -C "$tmp/tp2" commit --quiet -m cfg
 git -C "$tmp/tp2" push --quiet origin main
+TERMINAL_PUBLISH=__poison__
 out="$(run "$tmp/tp2" --export)"; eval "$out"
 assert "0064: repo terminal_publish true is honored" '[ "$TERMINAL_PUBLISH" = true ]'
 
@@ -1063,6 +1094,7 @@ finalize:
 EOF
 git -C "$tmp/s" add .docket.yml; git -C "$tmp/s" commit --quiet -m cfg
 git -C "$tmp/s" push --quiet origin main
+FINALIZE_GATE=__poison__; FINALIZE_TEST_COMMAND=__poison__
 out="$(run "$tmp/s" --export)"; eval "$out"
 assert "test_command auto: FINALIZE_TEST_COMMAND empty" '[ -z "$FINALIZE_TEST_COMMAND" ]'
 assert "test_command auto: FINALIZE_GATE still local"   '[ "$FINALIZE_GATE" = local ]'
@@ -1077,6 +1109,7 @@ finalize:
 EOF
 git -C "$tmp/s2" add .docket.yml; git -C "$tmp/s2" commit --quiet -m cfg
 git -C "$tmp/s2" push --quiet origin main
+FINALIZE_TEST_COMMAND=__poison__
 out="$(run "$tmp/s2" --export)"; eval "$out"
 assert "explicit test_command honored verbatim" '[ "$FINALIZE_TEST_COMMAND" = "make test" ]'
 
@@ -1090,6 +1123,7 @@ finalize:
 EOF
 git -C "$tmp/s3" add .docket.yml; git -C "$tmp/s3" commit --quiet -m cfg
 git -C "$tmp/s3" push --quiet origin main
+FINALIZE_TEST_COMMAND=__poison__
 out="$(run "$tmp/s3" --export)"; eval "$out"
 assert "test_command AUTO is NOT the sentinel (case-sensitive)" '[ "$FINALIZE_TEST_COMMAND" = "AUTO" ]'
 
@@ -1246,6 +1280,7 @@ assert "0112 s9: local auto masks global real command (committed key absent)" '[
 
 # --- (R1) built-in default when unset in every layer -------------------------
 mkrepo "$tmp/r1"
+FINALIZE_REQUIRE_PR_APPROVAL=__poison__
 out="$(rung "$tmp/r1.xdg" "$tmp/r1" --export)"; eval "$out"
 assert "0102 R1: unset everywhere -> built-in false" \
   '[ "$FINALIZE_REQUIRE_PR_APPROVAL" = false ]'
@@ -1255,6 +1290,7 @@ assert "0102 R1: unset everywhere -> built-in false" \
 mkrepo "$tmp/r2"
 mkdir -p "$tmp/r2.xdg/docket"
 printf 'finalize:\n  require_pr_approval: true\n' > "$tmp/r2.xdg/docket/config.yml"
+FINALIZE_REQUIRE_PR_APPROVAL=__poison__
 out="$(rung "$tmp/r2.xdg" "$tmp/r2" --export)"; eval "$out"
 assert "0102 R2: global finalize.require_pr_approval honored" \
   '[ "$FINALIZE_REQUIRE_PR_APPROVAL" = true ]'
@@ -1266,6 +1302,7 @@ git -C "$tmp/r3" add .docket.yml; git -C "$tmp/r3" commit --quiet -m cfg
 git -C "$tmp/r3" push --quiet origin main
 mkdir -p "$tmp/r3.xdg/docket"
 printf 'finalize:\n  require_pr_approval: true\n' > "$tmp/r3.xdg/docket/config.yml"
+FINALIZE_REQUIRE_PR_APPROVAL=__poison__
 out="$(rung "$tmp/r3.xdg" "$tmp/r3" --export)"; eval "$out"
 assert "0102 R3: repo-committed false beats global true" \
   '[ "$FINALIZE_REQUIRE_PR_APPROVAL" = false ]'
@@ -1276,6 +1313,7 @@ printf 'metadata_branch: main\nfinalize:\n  require_pr_approval: false\n' > "$tm
 git -C "$tmp/r4" add .docket.yml; git -C "$tmp/r4" commit --quiet -m cfg
 git -C "$tmp/r4" push --quiet origin main
 printf 'finalize:\n  require_pr_approval: true\n' > "$tmp/r4/.docket.local.yml"
+FINALIZE_REQUIRE_PR_APPROVAL=__poison__
 out="$(rung "$tmp/r4.xdg" "$tmp/r4" --export)"; eval "$out"
 assert "0102 R4: repo-local true beats repo-committed false" \
   '[ "$FINALIZE_REQUIRE_PR_APPROVAL" = true ]'
@@ -1358,10 +1396,12 @@ assert "0102 R8: docket-config.md lists the export name" \
 mkrepo "$tmp/r9"
 mkdir -p "$tmp/r9.xdg/docket"
 printf 'finalize:\n  require_pr_approval: true\n' > "$tmp/r9.xdg/docket/config.yml"
+FINALIZE_REQUIRE_PR_APPROVAL=__poison__
 out="$(rung "$tmp/r9.xdg" "$tmp/r9" --export)"; eval "$out"
 assert "0102 R9: global alone is honored here (guards against vacuity below)" \
   '[ "$FINALIZE_REQUIRE_PR_APPROVAL" = true ]'
 printf 'finalize:\n  require_pr_approval: false\n' > "$tmp/r9/.docket.local.yml"
+DOCKET_BASH_PATH=__poison__; FINALIZE_REQUIRE_PR_APPROVAL=__poison__
 out="$(rung "$tmp/r9.xdg" "$tmp/r9" --export)"; eval "$out"
 assert "0102 R9: repo-local false beats global true (repo-committed unset)" \
   '[ "$FINALIZE_REQUIRE_PR_APPROVAL" = false ]'
