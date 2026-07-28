@@ -1,6 +1,6 @@
 # Backlog
 
-**166 changes** — 🟢 1 in progress · 🟡 28 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 2 implemented · ✅ 112 done · 🗑️ 18 killed
+**166 changes** — 🟢 1 in progress · 🟡 28 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 1 implemented · ✅ 113 done · 🗑️ 18 killed
 
 ## 🟢 In progress (1)
 
@@ -56,11 +56,10 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
-| [0018](active/0018-yq-yaml-parsing.md) | Record the pure-bash YAML/frontmatter parsing stance as an ADR | `low` | `docs` | [#137](https://github.com/danielhanold/docket/pull/137) |  |
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | `chore` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
 
 ```mermaid
@@ -69,7 +68,6 @@ graph TD
   0008
   0009
   0010
-  0016 --> 0018
   0015 --> 0019
   0044
   0077 --> 0078
@@ -102,12 +100,11 @@ graph TD
   0165
   0166
   0015:::done
-  0016:::done
   0077:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (130)</summary>
+<details><summary>✅🗑️ Archive — done + killed (131)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
@@ -130,6 +127,7 @@ graph TD
 | [0120](archive/2026-07-28-0120-docket-finalize-change-claims-integration-branch-is-read-fro.md) | docket-finalize-change claims integration_branch is read from .docket.yml, but it is an exported resolver key | 2026-07-28 |
 | [0117](archive/2026-07-28-0117-deferred-adr-publish-visibility-decide-whether-docket-adr-s.md) | Deferred ADR-publish visibility — detect an unpublished ADR with a computed board-checks finding | 2026-07-28 |
 | [0115](archive/2026-07-28-0115-extend-the-board-row-dropped-invariant-to-archive-files.md) | Extend the board-row-dropped invariant to archive/ files | 2026-07-28 |
+| [0018](archive/2026-07-28-0018-yq-yaml-parsing.md) | Record the pure-bash YAML/frontmatter parsing stance as an ADR | 2026-07-28 |
 | [0137](archive/2026-07-27-0137-forked-claude-code-skills-assume-absent-task-dispatch.md) | Claude Code dispatch-capability detection: name-based probing silently drops SDD build and review discipline | 2026-07-27 |
 | [0131](archive/2026-07-26-0131-make-board-conflict-rebase-continuation-noninteractive.md) | Make board-conflict rebase continuation noninteractive | 2026-07-26 |
 | [0129](archive/2026-07-26-0129-fix-the-pipefail-unsafe-plain-format-config-assertion.md) | Fix the pipefail-unsafe plain-format config assertion | 2026-07-26 |
@@ -137,7 +135,6 @@ graph TD
 | [0138](archive/2026-07-24-0138-unquote-board-change-titles.md) | Board generator wraps each change title in literal double quotes | 2026-07-24 |
 | [0136](archive/2026-07-24-0136-artifact-backlinks.md) | Artifact back-links — a generated link at the top of every artifact pointing to the change | 2026-07-24 |
 | [0127](archive/2026-07-23-0127-typed-changes-selective-auto-capture.md) | Typed changes — configurable taxonomy, selective auto-capture, and backlog filters | 2026-07-23 |
-| [0132](archive/2026-07-22-0132-install-configured-bash-runtime.md) | Install and use a configured Bash 4+ runtime | 2026-07-22 |
 | [0105](archive/2026-07-20-0105-pin-docket-mode-main-coverage-for-docket-status-digest-only.md) | Pin DOCKET_MODE=main coverage for docket-status --digest-only | 2026-07-20 |
 | [0086](archive/2026-07-18-0086-attended-finalize-merge-path.md) | Attended finalize has no merge path under auto_approve — scope the --admin ban to autonomous runs | 2026-07-18 |
 | [0033](archive/2026-07-16-0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | 2026-07-16 |
@@ -149,7 +146,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-07](archive/) | 65 done |
+| [2026-07](archive/) | 66 done |
 | [2026-06](archive/) | 32 done |
 
 </details>
