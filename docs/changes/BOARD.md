@@ -1,8 +1,8 @@
 # Backlog
 
-**157 changes** — 🟡 24 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 2 implemented · ✅ 110 done · 🗑️ 16 killed
+**158 changes** — 🟡 25 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 2 implemented · ✅ 110 done · 🗑️ 16 killed
 
-## 🟡 Proposed (24)
+## 🟡 Proposed (25)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -30,6 +30,7 @@
 | [0155](active/0155-interior-tabs-in-a-frontmatter-value-shift-the-render-board.md) | Interior TABs in a frontmatter value shift the render-board sort feeder's fields | `medium` | `fix` | needs-brainstorm |
 | [0156](active/0156-render-board-sh-exits-0-on-malformed-input-and-commits-a-cor.md) | render-board.sh exits 0 on malformed input and commits a corrupt board | `medium` | `fix` | needs-brainstorm |
 | [0157](active/0157-roll-up-the-seven-build-ready-changes-into-one-branch.md) | Roll up the seven build-ready changes into one branch | `medium` | `fix` | build-ready |
+| [0158](active/0158-batch-mode-for-docket-implement-next-build-several-coupled-c.md) | Batch mode for docket-implement-next — build several coupled changes on one branch | `medium` | `feat` | needs-brainstorm |
 
 ## 🔴 Blocked (1)
 
@@ -86,6 +87,7 @@ graph TD
   0155
   0156
   0157
+  0158
   0015:::done
   0016:::done
   0077:::done
