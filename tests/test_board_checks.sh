@@ -965,24 +965,18 @@ assert "stale-finalize-blocked silent for a non-implemented change carrying a st
   '! has_finding "$fbout" stale-finalize-blocked 43'
 
 # ============================ docket-status wiring sentinels (SKILL is code on main) ============================
-assert "docket-status Health checks invoke board-checks (via the docket.sh facade)" \
-  'grep -qF "docket.sh board-checks" "$SKILL"'
-# The five mechanical checks are now delegated — their old standalone bullets are gone as bullets,
-# but the SKILL still names them so a reader knows what the script covers. Assert the surviving
-# model-driven signals, each anchored to a phrase it owns: the blocked_by re-examination
-# (judgment) and the github mirror-reachability visibility flag. Change 0024 retired the inline
-# board/source-drift check (deterministic render + the unconditional Board-pass re-render make it
-# vacuous); its removed tripwire lives in tests/test_board_refresh_on_transition.sh.
+# The SKILL no longer names the check-ids at all (change 0145 — see the section-scoped guard at
+# the end of this file, which now forbids it). What remains here are the surviving model-driven
+# signals, each anchored to a phrase it owns: the blocked_by re-examination (judgment) and the
+# github mirror-reachability visibility flag. Change 0024 retired the inline board/source-drift
+# check (deterministic render + the unconditional Board-pass re-render make it vacuous); its
+# removed tripwire lives in tests/test_board_refresh_on_transition.sh.
 assert "docket-status keeps blocked_by re-examination model-driven" \
   'grep -qiF "blocked_by:" "$SKILL"'
 assert "docket-status keeps the github mirror-reachability visibility flag (survives 0024 inline-drift retirement)" \
   'grep -qiF "mirror reachability" "$SKILL" || grep -qiF "mirror-reachability" "$SKILL"'
 assert "docket-status keeps the do-not-auto-fix stance" \
   'grep -qiF "do not auto-fix" "$SKILL"'
-# Mutation guard: the board-checks invocation passes the changes-dir + both branch refs.
-assert "the board-checks invocation passes --changes-dir" 'grep -qF -- "--changes-dir" "$SKILL"'
-assert "the board-checks invocation passes --metadata-branch and --integration-branch" \
-  'grep -qF -- "--metadata-branch" "$SKILL" && grep -qF -- "--integration-branch" "$SKILL"'
 
 # ============================ publish-deferred ============================
 # A change carrying the `## Publish deferred` marker emits exactly one publish-deferred finding —
@@ -1562,6 +1556,44 @@ assert "board-checks.sh has emit call sites for the lint to inspect (17 at the 0
 assert "every board-checks.sh emit call site names a LITERAL check-id (an 'emit \$var' site is invisible to this whole guard)" \
   '[ "$emit_sites" = "$emit_literal_sites" ] \
    || { echo "emit sites: $emit_sites, literal-id sites: $emit_literal_sites — a dynamic check-id would escape the set compares above" >&2; false; }'
+
+
+# ============ SKILL.md must not restate the check-id vocabulary (change 0145) ============
+# Change 0145 DELETED the count word, the five-item check-id list, and the hand-run invocation
+# block from skills/docket-status/SKILL.md's `### Health checks` section. The 0111 correspondence
+# guard above pins the check-id set across four surfaces, and SKILL.md was never one of them — so
+# every new check-id drifted there silently while this suite stayed green. Rather than add a fifth
+# pinned surface (which taxes every future check-id with another edit), the restatement was
+# removed; this guard is what keeps it removed.
+#
+# SCOPED TO THE SECTION, NOT THE FILE. The `### Merge sweep` section legitimately names
+# `publish-deferred` while explaining what that mark drives — it is the file's only check-id
+# occurrence outside the section below, and a file-wide ban would redden honest prose.
+#
+# The extractor terminates on the next `^(#|##|###) ` heading OR EOF. The EOF arm is the LIVE
+# path, not a fallback: `### Health checks` is currently the file's LAST section, so an extractor
+# written as "lines between two heading matches" would yield the empty set and the negative assert
+# would pass vacuously forever. The non-vacuity anchor below is what catches that — and catches a
+# rename of the heading, which would otherwise silently disable this whole guard.
+hc_section="$(awk '/^### Health checks[[:space:]]*$/{inhc=1;next} inhc && /^(#|##|###) /{exit} inhc' "$SKILL")"
+
+assert "SKILL.md's '### Health checks' section is extractable and non-empty (a heading rename must redden, not pass vacuously)" \
+  '[ -n "${hc_section//[[:space:]]/}" ]'
+assert "SKILL.md's '### Health checks' section points at the authoritative enumeration (scripts/board-checks.md)" \
+  'grep -qF "scripts/board-checks.md" <<<"$hc_section"'
+
+# Word-boundary match, deliberately NOT backtick-anchored. A backtick-only matcher would miss a
+# list re-added in bare form (`- broken-spec — ...`) AND would pass a mutation check written by
+# copying the old backticked list — passing its own test while leaving the hole open. Every
+# emitted id is a hyphenated compound that cannot occur in ordinary prose, so word-boundary
+# matching costs no false positives. Consumed from a here-string, never a pipe: this file runs
+# under `set -uo pipefail`, where piping into an early-exiting `grep -q` is a real hazard.
+hc_restated="$(while IFS= read -r cid; do
+                 [ -n "$cid" ] || continue
+                 grep -qw -- "$cid" <<<"$hc_section" && printf "%s\n" "$cid"
+               done <<<"$emitted")"
+assert "no check-id is restated in SKILL.md's '### Health checks' section (point at scripts/board-checks.md, never a list)" \
+  '[ -z "$hc_restated" ] || { echo "restated check-ids: $(echo $hc_restated)" >&2; false; }'
 
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"

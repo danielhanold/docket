@@ -19,7 +19,7 @@ agent: docket-status
 
 ## Convention (load first — blocking)
 
-Invoke the `docket-convention` skill via the Skill tool first — unless already invoked this session — and run its *Step-0 preamble*: `docket.sh preflight` as its own Bash call, reading the printed `KEY=value` block off stdout. `docket.sh docket-status` re-derives and re-checks the bootstrap gate + metadata-worktree sync itself, but the block gives you `$DOCKET_SCRIPTS_DIR` and the other exported values for the rest of this skill. Everything below uses the convention's vocabulary without redefinition.
+Invoke the `docket-convention` skill via the Skill tool first — unless already invoked this session — and run its *Step-0 preamble*: `docket.sh preflight` as its own Bash call, reading the printed `KEY=value` block off stdout. `docket.sh docket-status` re-derives and re-checks the bootstrap gate + metadata working tree sync itself, but the block gives you `$DOCKET_SCRIPTS_DIR` and the other exported values for the rest of this skill. Everything below uses the convention's vocabulary without redefinition.
 
 ## Mode choice
 
@@ -91,17 +91,6 @@ Runs on a **full pass only** — never under `--board-only` — gated FIRST on `
 
 ### Health checks
 
-Flag the following (do not auto-fix unless asked). Five mechanical, git-only, warn-only checks run via `docket.sh board-checks` against the shared dependency-resolution pass:
-
-```
-"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh board-checks --changes-dir <metadata working tree>/<changes_dir> \
-  --metadata-branch <metadata_branch> --integration-branch origin/<integration_branch>
-```
-
-- **`broken-spec`** — `spec:` set (and not `trivial: true`) but the path does not resolve on the metadata branch.
-- **`broken-plan-results`** — a `done` change's set `plan:`/`results:` does not resolve on the integration branch (link rot). An `implemented` change is never flagged — those files legitimately still live on the unmerged feature branch.
-- **`dep-cycle`** — a `depends_on` cycle; one finding per change in the loop.
-- **`stale-in-progress`** — an `in-progress` change whose feature branch exists but has had no commit in 3 days.
-- **`merge-gate-stall`** — a build-ready change whose worst-unmet dependency is stuck at `implemented` (reason `"needs your merge"`).
+Flag what the pass reports (do not auto-fix unless asked): mechanical, git-only, warn-only checks over stale claims, broken spec/plan/results links, and dependency stalls. This skill never runs the checker directly — it invokes `docket.sh docket-status`, which runs it. The closed check-id set and each check's meaning live where they are owned: the per-check sections of `scripts/board-checks.md`, and the `check <check-id>` report-line row in `scripts/docket-status.md`.
 
 Two judgment checks stay in-model, on top of the script: `blocked_by:` re-examination and `github` mirror reachability (see *Judgment follow-ups* above) — both warn-only, never auto-fix.

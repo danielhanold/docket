@@ -34,8 +34,11 @@ assert "results-template has Follow-ups section" \
 # 5. Flow prose wired into the three skills.
 assert "implement-next has a results close-out step" \
   'grep -qi "results close-out" skills/docket-implement-next/SKILL.md'
-assert "status health check covers results: link" \
-  'grep -q "those files legitimately still live on the unmerged" skills/docket-status/SKILL.md'
+# Change 0145 removed skills/docket-status/SKILL.md's restatement of the check-id vocabulary
+# (including this explanation) in favor of a pointer to scripts/board-checks.md, the authoritative
+# source. Assert the reasoning lives there instead of pinning prose SKILL.md no longer carries.
+assert "status health check covers results: link (owned by scripts/board-checks.md after change 0145)" \
+  'grep -q "still live on the unmerged feature" scripts/board-checks.md'
 assert "finalize mentions appending to the results file" \
   'grep -q "append interactive-verification" skills/docket-finalize-change/SKILL.md'
 
