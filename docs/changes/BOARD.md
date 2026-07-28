@@ -1,8 +1,8 @@
 # Backlog
 
-**162 changes** — 🟡 26 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 2 implemented · ✅ 111 done · 🗑️ 18 killed
+**163 changes** — 🟡 27 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 1 implemented · ✅ 112 done · 🗑️ 18 killed
 
-## 🟡 Proposed (26)
+## 🟡 Proposed (27)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -32,6 +32,7 @@
 | [0158](active/0158-batch-mode-for-docket-implement-next-build-several-coupled-c.md) | Batch mode for docket-implement-next — build several coupled changes on one branch | `medium` | `feat` | needs-brainstorm |
 | [0159](active/0159-docket-status-skill-md-s-normal-outcomes-list-omits-the-heal.md) | docket-status SKILL.md's normal-outcomes list omits the 'health checks failed <exit>' line | `medium` | `docs` | needs-brainstorm |
 | [0160](active/0160-a-committed-too-deep-runtime-bash-lost-its-machine-local-ign.md) | A committed too-deep runtime.bash lost its machine-local ignored advisory | `medium` | `fix` | needs-brainstorm |
+| [0163](active/0163-six-phase-tier-3-guard-counts-headings-instead-of-asserting.md) | Six-phase Tier 3 guard counts headings instead of asserting the phase set | `medium` | `fix` | needs-brainstorm |
 
 ## 🔴 Blocked (1)
 
@@ -48,12 +49,11 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | `chore` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
-| [0135](active/0135-cursor-agent-wrapper-contract.md) | Generated Cursor wrappers violate Cursor's subagent contract, disabling skills and model effort | `high` | `fix` | [#127](https://github.com/danielhanold/docket/pull/127) |  |
 
 ```mermaid
 graph TD
@@ -76,7 +76,6 @@ graph TD
   0123
   0125
   0134
-  0135
   0139
   0140
   0141
@@ -90,13 +89,14 @@ graph TD
   0158
   0159
   0160
+  0163
   0015:::done
   0016:::done
   0077:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (129)</summary>
+<details><summary>✅🗑️ Archive — done + killed (130)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
@@ -111,6 +111,7 @@ graph TD
 | [0145](archive/2026-07-28-0145-docket-status-skill-md-restates-a-stale-check-count-and-list.md) | docket-status SKILL.md restates a stale check count and list the 0111 guard does not pin | 2026-07-28 |
 | [0144](archive/2026-07-28-0144-a-board-checks-sh-non-zero-exit-silently-voids-the-entire-he.md) | A board-checks.sh non-zero exit silently voids the entire health pass | 2026-07-28 |
 | [0143](archive/2026-07-28-0143-empty-id-collapses-the-archive-sort-feeder-s-tab-joined-fiel.md) | Empty id collapses the archive sort feeder's TAB-joined fields in render-board.sh | 2026-07-28 |
+| [0135](archive/2026-07-28-0135-cursor-agent-wrapper-contract.md) | Generated Cursor wrappers violate Cursor's subagent contract, disabling skills and model effort | 2026-07-28 |
 | [0133](archive/2026-07-28-0133-centralize-runtime-config-helpers.md) | Centralize shared Bash runtime configuration helpers | 2026-07-28 |
 | [0130](archive/2026-07-28-0130-make-the-finalize-marker-reachability-guard-portable-to-bsd.md) | Make the finalize marker reachability guard portable to BSD grep | 2026-07-28 |
 | [0126](archive/2026-07-28-0126-apply-the-poison-value-prelude-uniformly-to-every-resolver-e.md) | Apply the poison-value prelude uniformly to every resolver eval in the config suite | 2026-07-28 |
@@ -126,7 +127,6 @@ graph TD
 | [0136](archive/2026-07-24-0136-artifact-backlinks.md) | Artifact back-links — a generated link at the top of every artifact pointing to the change | 2026-07-24 |
 | [0127](archive/2026-07-23-0127-typed-changes-selective-auto-capture.md) | Typed changes — configurable taxonomy, selective auto-capture, and backlog filters | 2026-07-23 |
 | [0132](archive/2026-07-22-0132-install-configured-bash-runtime.md) | Install and use a configured Bash 4+ runtime | 2026-07-22 |
-| [0128](archive/2026-07-22-0128-truthful-git-errors-harness-neutral-escalation-retry.md) | Truthful Git failures and harness-neutral sandbox escalation retry | 2026-07-22 |
 | [0105](archive/2026-07-20-0105-pin-docket-mode-main-coverage-for-docket-status-digest-only.md) | Pin DOCKET_MODE=main coverage for docket-status --digest-only | 2026-07-20 |
 | [0086](archive/2026-07-18-0086-attended-finalize-merge-path.md) | Attended finalize has no merge path under auto_approve — scope the --admin ban to autonomous runs | 2026-07-18 |
 | [0033](archive/2026-07-16-0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | 2026-07-16 |
@@ -138,7 +138,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-07](archive/) | 64 done |
+| [2026-07](archive/) | 65 done |
 | [2026-06](archive/) | 32 done |
 
 </details>
