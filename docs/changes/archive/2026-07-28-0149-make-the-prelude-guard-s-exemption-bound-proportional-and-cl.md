@@ -2,7 +2,7 @@
 id: 149
 slug: make-the-prelude-guard-s-exemption-bound-proportional-and-cl
 title: Make the prelude guard's exemption bound proportional, and close the partial-rename gap
-status: proposed
+status: killed
 priority: medium
 type: chore
 created: 2026-07-28
@@ -70,3 +70,7 @@ Design and measurements settled in the linked spec.
 - Extending the `TOTALS` line: `t_viol`'s extractor is end-anchored, so appending a field would
   silently empty it.
 - Anchoring the export key set against a second independent source — change 0123 owns that.
+
+## Why killed
+
+Subsumed by change 0157, which carries this work on a single rolled-up branch. The design in this change's spec remains authoritative for its unit.
