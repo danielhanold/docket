@@ -170,4 +170,66 @@ assert "legacy runtime gets the actionable install remediation" \
   'grep -qF "run docket/install.sh after installing Bash 4+ (on macOS: brew install bash)" <<<"$legacy_out"'
 assert "legacy runtime is rejected before facade implementation work" '[ ! -s "$LEGACY_LOG" ]'
 
+# --- change 0152: behavioral equivalence between the two surviving GNU Bash 4+ validators ---
+# scripts/docket.sh's prologue is a DELIBERATE bootstrap exception (POSIX sh, cannot source the Bash
+# library — see that file's comment block), so the duplication is permanent. This guard makes the
+# maintenance obligation MECHANICAL rather than aspirational: a version-grammar change applied to one
+# implementation and not the other reddens here.
+#
+# Anchored on BEHAVIOR (invoke each with a fake bash fixture and compare verdicts), never on source
+# text — the two are written in different shell dialects on purpose, so any text-level assertion
+# pins the wrong property and would break on a legitimate rewrite of either.
+#
+# Scope: banner shape and major-version floor — the two properties a grammar change actually moves.
+# NOT full token-by-token equivalence: the prologue emits prose and exits, the library emits tokens,
+# and forcing them to agree on the whole vocabulary would push the prologue toward the library's
+# interface, which is the coupling this design deliberately avoids.
+. "$REPO/scripts/lib/docket-runtime.sh"
+
+EQ_BIN="$tmp/eqbin"; mkdir -p "$EQ_BIN"
+# An ACCEPTED fixture must delegate, or docket.sh's exec has nothing to run.
+mk_accept(){ # mk_accept <path> <banner>
+  cat > "$1" <<EOF
+#!/bin/sh
+if [ "\$1" = --version ]; then printf '%s\n' '$2'; exit 0; fi
+exec "\$REAL_BASH" "\$@"
+EOF
+  chmod +x "$1"
+}
+# A REJECTED fixture never gets exec'd, so a pure banner-printer is correct (and if the prologue
+# wrongly accepted it, the run would fail loudly rather than silently pass).
+mk_reject(){ # mk_reject <path> <banner>
+  cat > "$1" <<EOF
+#!/bin/sh
+printf '%s\n' '$2'
+exit 0
+EOF
+  chmod +x "$1"
+}
+mk_accept "$EQ_BIN/v5"       'GNU bash, version 5.2.0(1)-release (eq)'
+mk_accept "$EQ_BIN/v4"       'GNU bash, version 4.0.0(1)-release (eq)'
+mk_reject "$EQ_BIN/v3"       'GNU bash, version 3.2.57(1)-release (eq)'
+mk_reject "$EQ_BIN/notgnu"   'zsh 5.9 (arm64-apple-darwin)'
+mk_reject "$EQ_BIN/weird"    'GNU bash, version X.Y-release (eq)'
+
+eq_mismatch=""
+for _fx in v5 v4 v3 notgnu weird; do
+  DOCKET_BASH_PATH="$EQ_BIN/$_fx" SCRIPTS_DIR="$tmp/stub-scripts" "$FACADE" env >/dev/null 2>&1
+  _prologue=$?; [ "$_prologue" -eq 0 ] || _prologue=1
+  docket_runtime_validate_bash "$EQ_BIN/$_fx" >/dev/null 2>&1
+  _library=$?; [ "$_library" -eq 0 ] || _library=1
+  [ "$_prologue" -eq "$_library" ] || eq_mismatch="$eq_mismatch $_fx(prologue=$_prologue,library=$_library)"
+done
+assert "0152: the prologue and the library agree on banner shape and major floor$eq_mismatch" \
+  '[ -z "$eq_mismatch" ]'
+
+# NON-VACUITY: the fixture set must actually contain both verdicts, or an all-reject set would make
+# the loop agree trivially (marker-scoped-guard-needs-a-population-floor). The status is captured
+# into a variable first — `$?` inside the assert's quoted argument would be evaluated at eval time
+# and read the assert helper's own state, not the validator's.
+docket_runtime_validate_bash "$EQ_BIN/v5" >/dev/null 2>&1; eq_accept_rc=$?
+assert "0152 equivalence set is non-vacuous: it contains an ACCEPTED fixture" '[ "$eq_accept_rc" -eq 0 ]'
+docket_runtime_validate_bash "$EQ_BIN/v3" >/dev/null 2>&1; eq_reject_rc=$?
+assert "0152 equivalence set is non-vacuous: it contains a REJECTED fixture" '[ "$eq_reject_rc" -ne 0 ]'
+
 exit "$fail"
