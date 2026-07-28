@@ -2,10 +2,10 @@
 id: 133
 slug: centralize-runtime-config-helpers
 title: Centralize shared Bash runtime configuration helpers
-status: proposed
+status: in-progress
 priority: medium
 created: 2026-07-22
-updated: 2026-07-22
+updated: 2026-07-28
 depends_on: []
 related: [18, 132]
 discovered_from: [132]
@@ -15,7 +15,8 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/centralize-runtime-config-helpers
+claimed_at: 2026-07-28T07:15:07Z
 pr:
 blocked_by:
 reconciled: false
