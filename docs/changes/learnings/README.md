@@ -30,6 +30,10 @@ One curated finding per file; this index is the hint surface. Load it, then read
 - [no-checkout-in-shared-worktree](no-checkout-in-shared-worktree.md) — Review subagents must NOT git checkout in a shared worktree — and after every push, SHA-compare local vs origin. · also: worktrees, subagents
 - [shared-git-config-mutation](shared-git-config-mutation.md) — When a helper mutates SHARED git config on a frequently-run path, only touch a value when the tool's own rule requires it. · also: config, concurrency
 
+## guards
+
+- [guard-remedy-must-not-teach-the-evasion](guard-remedy-must-not-teach-the-evasion.md) — A count-based guard whose failure message says 'bump the expected count' teaches the evasion — budget the coverage-granting path with its own counter. · also: testing, invariants ⟨needs promotion⟩
+
 ## process
 
 - [capability-absence-needs-a-failed-attempt](capability-absence-needs-a-failed-attempt.md) — An agent's own report that a capability is unavailable is untrusted input — only a failed attempt or a policy denial establishes absence; a missing tool NAME and an unobserved result establish nothing. · also: subagents, verification ⟨needs promotion⟩
