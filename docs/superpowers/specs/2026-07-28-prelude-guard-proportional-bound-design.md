@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0149 — Make the prelude guard's exemption bound proportional, and close the partial-rename gap](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0149-make-the-prelude-guard-s-exemption-bound-proportional-and-cl.md)**
+> ↩ **[Change 0149 — Make the prelude guard's exemption bound proportional, and close the partial-rename gap](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-07-28-0149-make-the-prelude-guard-s-exemption-bound-proportional-and-cl.md)**
 <!-- docket:backlink:end -->
 
 # Make the prelude guard's exemption bound proportional, and close the partial-rename gap — design

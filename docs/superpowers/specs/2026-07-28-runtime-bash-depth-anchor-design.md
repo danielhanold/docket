@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0153 — Decide whether the runtime.bash leaf match should be depth-anchored](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0153-decide-whether-the-runtime-bash-leaf-match-should-be-depth-a.md)**
+> ↩ **[Change 0153 — Decide whether the runtime.bash leaf match should be depth-anchored](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-07-28-0153-decide-whether-the-runtime-bash-leaf-match-should-be-depth-a.md)**
 <!-- docket:backlink:end -->
 
 # Decide whether the runtime.bash leaf match should be depth-anchored — design

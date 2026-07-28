@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0144 — A board-checks.sh non-zero exit silently voids the entire health pass](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0144-a-board-checks-sh-non-zero-exit-silently-voids-the-entire-he.md)**
+> ↩ **[Change 0144 — A board-checks.sh non-zero exit silently voids the entire health pass](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-07-28-0144-a-board-checks-sh-non-zero-exit-silently-voids-the-entire-he.md)**
 <!-- docket:backlink:end -->
 
 # A board-checks.sh non-zero exit silently voids the entire health pass — design

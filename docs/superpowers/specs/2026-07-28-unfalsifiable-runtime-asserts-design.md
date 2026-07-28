@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0148 — Two unfalsifiable -z asserts in the config suite sit in eval-free blocks](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0148-two-unfalsifiable-z-asserts-in-the-config-suite-sit-in-eval.md)**
+> ↩ **[Change 0148 — Two unfalsifiable -z asserts in the config suite sit in eval-free blocks](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-07-28-0148-two-unfalsifiable-z-asserts-in-the-config-suite-sit-in-eval.md)**
 <!-- docket:backlink:end -->
 
 # Two unfalsifiable -z asserts in the config suite sit in eval-free blocks — design

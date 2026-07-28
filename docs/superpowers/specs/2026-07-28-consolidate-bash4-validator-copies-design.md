@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0152 — Consolidate the two surviving hand-rolled GNU Bash 4+ validator copies](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0152-consolidate-the-two-surviving-hand-rolled-gnu-bash-4-validat.md)**
+> ↩ **[Change 0152 — Consolidate the two surviving hand-rolled GNU Bash 4+ validator copies](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-07-28-0152-consolidate-the-two-surviving-hand-rolled-gnu-bash-4-validat.md)**
 <!-- docket:backlink:end -->
 
 # Consolidate the two surviving hand-rolled GNU Bash 4+ validator copies — design

@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0146 — Widen the config read-channel guard to the sibling config layers it does not match](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0146-widen-the-config-read-channel-guard-to-the-sibling-config-la.md)**
+> ↩ **[Change 0146 — Widen the config read-channel guard to the sibling config layers it does not match](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-07-28-0146-widen-the-config-read-channel-guard-to-the-sibling-config-la.md)**
 <!-- docket:backlink:end -->
 
 # Design — Widen the config read-channel guard to the sibling config layers (change 0146)

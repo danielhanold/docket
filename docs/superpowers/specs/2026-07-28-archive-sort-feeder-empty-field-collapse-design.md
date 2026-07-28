@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0143 — Empty id collapses the archive sort feeder's TAB-joined fields in render-board.sh](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0143-empty-id-collapses-the-archive-sort-feeder-s-tab-joined-fiel.md)**
+> ↩ **[Change 0143 — Empty id collapses the archive sort feeder's TAB-joined fields in render-board.sh](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-07-28-0143-empty-id-collapses-the-archive-sort-feeder-s-tab-joined-fiel.md)**
 <!-- docket:backlink:end -->
 
 # Empty fields collapse the archive sort feeder in render-board.sh — design
