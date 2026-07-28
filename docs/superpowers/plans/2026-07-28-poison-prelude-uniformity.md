@@ -71,7 +71,7 @@ The demonstration cannot run at the site the stub named. At `:501` the previousl
 - Consumes: nothing.
 - Produces: three recorded observations (baseline / vacuous-pass / prelude-fixes-it) plus their ok / NOT-OK counts, consumed by Task 5's results file.
 
-- [ ] **Step 1: Record the clean baseline**
+- [x] **Step 1: Record the clean baseline**
 
 ```bash
 cd /Users/homer/dev/docket/.worktrees/apply-the-poison-value-prelude-uniformly-to-every-resolver-e
@@ -84,7 +84,7 @@ printf 'ok=%s notok=%s\n' \
 
 Expected: `rc=0`, `notok=0`, and one `PASS` line. Record the `ok` count — it is the denominator for the next two steps. If the baseline is already red, **stop and report**: per the `environment` learning, a red suite is a hypothesis, not a verdict, and the demonstration is meaningless on a broken base.
 
-- [ ] **Step 2: Make block P's resolver abort, and watch `:520` pass vacuously**
+- [x] **Step 2: Make block P's resolver abort, and watch `:520` pass vacuously**
 
 Every `die` in `scripts/docket-config.sh` precedes the first `emit`, so an aborting run emits nothing on stdout and `eval ""` is a no-op. Break block P's repo so its resolver dies — an unresolvable `origin/<integration_branch>` is a hard config error. Insert the sabotage immediately **after** the `mkdir -p "$tmp/p.xdg/docket/config.yml"` line (currently `:516`):
 
@@ -103,7 +103,7 @@ Expected: `ok - 0050 P: built-ins fallback (auto_groom)`.
 
 That line is the whole point: block P's resolver produced **nothing**, so the assert passed by reading **block O's** stale `AUTO_GROOM=false`. Record the full ok / NOT-OK counts too, and record explicitly that the sibling asserts `0050 P: malformed global warned` (`:519`) and `0050 P: malformed global not fatal (exit 0)` (`:521`) legitimately go NOT OK under this sabotage. **The counts must not be read as "only `:520` changed"** — the demonstration is about `:520` alone.
 
-- [ ] **Step 3: Add the prelude and watch the same sabotage redden it**
+- [x] **Step 3: Add the prelude and watch the same sabotage redden it**
 
 Keeping the Step-2 sabotage in place, insert immediately before the eval at `:518`:
 
@@ -121,7 +121,7 @@ Expected: `NOT OK - 0050 P: built-ins fallback (auto_groom)`.
 
 The prelude converted a silent vacuous pass into a visible failure. That is the property the whole change buys, demonstrated on the real file rather than argued.
 
-- [ ] **Step 4: Revert both mutations and confirm the baseline returns**
+- [x] **Step 4: Revert both mutations and confirm the baseline returns**
 
 ```bash
 git -C /Users/homer/dev/docket/.worktrees/apply-the-poison-value-prelude-uniformly-to-every-resolver-e checkout -- tests/test_docket_config.sh
@@ -131,7 +131,7 @@ bash tests/test_docket_config.sh 2>&1 | tail -1
 
 Expected: `git status` prints nothing (file is clean), and the suite prints `PASS`. Per the `agent-shell-noop-reads-as-success` learning, assert on the **effect** — a clean `git status` — not on the fact that `checkout` exited 0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 Nothing to commit — this task deliberately produces no file changes. Verify that:
 
@@ -160,7 +160,7 @@ Add section (T). It discovers eval sites by **shape**, extracts the exported var
 2. **Correspondence, never presence.** A presence-only guard is green on precisely the regression this change exists to stop — append a fixture asserting `BOARD_SURFACES`, prepend `FINALIZE_TEST_COMMAND=__poison__`, hazard live, suite green. That would mechanically bless a wrong convention.
 3. **The key set is derived live from the resolver**, while the asserted names are extracted from the test file — so the two sides of the correspondence are genuinely independent. Not from the E′ assert (which pins a *count* and names nothing), and not from grepping `emit` (29 calls; the shell format omits `REPO_ROOT`, so an `emit`-derived set carries a key no `eval "$out"` site can ever define).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append this section to `tests/test_docket_config.sh`, immediately before the final epilogue line. Note the self-block markers wrapping the pattern literals — the guard's own patterns contain the strings it scans for, so without them it discovers itself.
 
@@ -294,7 +294,7 @@ assert "0126 T: every eval site clears the exported vars its asserts read" \
   '[ "$t_viol" -eq 0 ]'
 ```
 
-- [ ] **Step 2: Run it to verify it fails for the right reason**
+- [x] **Step 2: Run it to verify it fails for the right reason**
 
 ```bash
 cd /Users/homer/dev/docket/.worktrees/apply-the-poison-value-prelude-uniformly-to-every-resolver-e
@@ -311,11 +311,11 @@ bash tests/test_docket_config.sh 2>&1 | /usr/bin/grep '^TOTALS' || true
 
 Expected: `sites=64 exempt=3 ok=21 viol=40`. A deviation of a site or two is tolerable (the file moves); a large one means re-derive before continuing.
 
-- [ ] **Step 3: No implementation yet**
+- [x] **Step 3: No implementation yet**
 
 This task deliberately ships the guard red. Task 3 is the implementation that turns it green. Do not weaken any assert to make this step pass — that is the `guards-are-code` failure the whole change exists to prevent.
 
-- [ ] **Step 4: Verify the guard cannot see past its own corpus bound**
+- [x] **Step 4: Verify the guard cannot see past its own corpus bound**
 
 Before committing, prove the self-block subtraction did not silently eat the file's tail. Append a throwaway compliant site **below** the guard and confirm the site count rises:
 
@@ -328,7 +328,7 @@ bash /tmp/t-probe.sh 2>&1 | /usr/bin/grep '^TOTALS'
 
 Expected: `sites=65` — one more than the committed file. If it still reads 64, the corpus is truncated and the guard has a permanent blind spot exactly where new fixtures land. Delete `/tmp/t-probe.sh` afterward.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd /Users/homer/dev/docket/.worktrees/apply-the-poison-value-prelude-uniformly-to-every-resolver-e
@@ -349,7 +349,7 @@ Turn the guard green by clearing, at each violating site, exactly the variables 
 - Consumes: `prelude_report()`'s `SITE <line> viol <vars...>` records from Task 2.
 - Produces: a green guard; no new symbols.
 
-- [ ] **Step 1: Generate the work list from the guard itself**
+- [x] **Step 1: Generate the work list from the guard itself**
 
 Do not hand-enumerate the sites — the guard already knows them, and a hand list is the enumerated floor this repo has been bitten by repeatedly.
 
@@ -362,7 +362,7 @@ cat /tmp/worklist.txt
 
 Expected: ~40 lines, each `SITE <line> viol VAR [VAR...]`.
 
-- [ ] **Step 2: Insert the preludes, highest line number first**
+- [x] **Step 2: Insert the preludes, highest line number first**
 
 Work **bottom-up** so earlier insertions do not shift the line numbers of later ones. For each record `SITE <n> viol V1 V2`, insert immediately before line `<n>`, at the same indentation as line `<n>`:
 
@@ -376,7 +376,7 @@ Per the `agent-shell-noop-reads-as-success` learning, run any scripted sweep und
 
 Do **not** touch the existing `unset`-idiom blocks. They are already compliant under the wide window; the guard proves it, and spec assumption 2 requires it.
 
-- [ ] **Step 3: Run the guard to verify it passes**
+- [x] **Step 3: Run the guard to verify it passes**
 
 ```bash
 bash tests/test_docket_config.sh 2>&1 | /usr/bin/grep -E '^(ok|NOT OK) - 0126 T:'
@@ -385,7 +385,7 @@ bash tests/test_docket_config.sh 2>&1 | /usr/bin/grep '^TOTALS'
 
 Expected: all four `0126 T:` asserts **ok**, and `TOTALS sites=64 exempt=3 ok=61 viol=0`.
 
-- [ ] **Step 4: Run the whole suite and confirm no fixture regressed**
+- [x] **Step 4: Run the whole suite and confirm no fixture regressed**
 
 The preludes are inserted into live fixtures; a prelude clearing a variable a *preceding* assert still needed would redden that assert.
 
@@ -399,7 +399,7 @@ tail -1 /tmp/poison-after.txt
 
 Expected: `rc=0`, `notok=0`, `PASS`, and an `ok` count equal to the Task 1 baseline **plus 4** (the four new `0126 T:` asserts). An `ok` count that did not rise by exactly 4 means a fixture changed behavior — investigate before proceeding.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tests/test_docket_config.sh
@@ -420,7 +420,7 @@ A guard that has never been observed to fail is an untested claim. The critical 
 - Consumes: the green guard from Task 3.
 - Produces: a four-cell mutation matrix recorded for Task 5's results file.
 
-- [ ] **Step 1: Mutation A — delete a prelude**
+- [x] **Step 1: Mutation A — delete a prelude**
 
 Remove any one prelude line added in Task 3, then:
 
@@ -430,7 +430,7 @@ bash tests/test_docket_config.sh 2>&1 | /usr/bin/grep -E 'NOT OK - 0126 T:|^TOTA
 
 Expected: `viol=1`, and `NOT OK - 0126 T: every eval site clears the exported vars its asserts read`. Revert.
 
-- [ ] **Step 2: Mutation B — clear the WRONG variable (the load-bearing cell)**
+- [x] **Step 2: Mutation B — clear the WRONG variable (the load-bearing cell)**
 
 Take a prelude such as `BOARD_SURFACES=__poison__` and change it to `FINALIZE_TEST_COMMAND=__poison__` — a prelude that is *present* but clears a variable the following asserts never read.
 
@@ -442,7 +442,7 @@ Expected: `viol=1` naming `BOARD_SURFACES`, and the correspondence assert **NOT 
 
 A presence-only guard would be **green** here. If this cell does not redden, the guard is presence-only in effect and must be fixed or, per the spec's fallback, removed entirely with the reason recorded — never shipped as a presence guard wearing a correspondence guard's name. Revert.
 
-- [ ] **Step 3: Mutation C — a new unprotected fixture appended at the file's tail**
+- [x] **Step 3: Mutation C — a new unprotected fixture appended at the file's tail**
 
 This is the regression the change exists to stop: the next author appends a fixture and forgets the prelude.
 
@@ -454,7 +454,7 @@ bash /tmp/t-tail.sh 2>&1 | /usr/bin/grep -E 'NOT OK - 0126 T:|^TOTALS'
 
 Expected: `sites=65`, `viol=1` naming `BOARD_SURFACES`. This is simultaneously the coverage proof and the proof the corpus is not truncated. Delete `/tmp/t-tail.sh`.
 
-- [ ] **Step 4: Mutation D — break the corpus bound**
+- [x] **Step 4: Mutation D — break the corpus bound**
 
 Confirm the count asserts actually catch a mis-bound extractor. Move the `# docket:prelude-guard:self:end` marker up so it swallows part of the guard, then:
 
@@ -464,7 +464,7 @@ bash tests/test_docket_config.sh 2>&1 | /usr/bin/grep -E 'NOT OK - 0126 T:'
 
 Expected: at least one of the structural asserts (`>= 60 sites` or `site count agrees`) goes **NOT OK** rather than the suite quietly reporting a smaller population as success. Revert and re-confirm green.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 No committed change — mutations are all reverted. Verify and record the matrix:
 
