@@ -16,10 +16,10 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/centralize-runtime-config-helpers
-claimed_at: 2026-07-28T07:15:07Z
+claimed_at: 2026-07-28T07:16:53Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 type: refactor
 ---
 
@@ -60,3 +60,38 @@ linked spec.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-07-28
+
+Verified against `origin/main` at `a68b7335`. Change 0132's runtime work has landed and the
+duplication this change targets is present and unchanged since drafting — scope holds, no
+adjustment needed.
+
+Confirmed duplicate sites, so the build has a fixed target list:
+
+- The scalar-decoding awk function is copied **three** times, byte-for-byte in substance:
+  `install.sh` (inline `awk` at the `DOCKET_BASH_PATH` read), `scripts/ensure-global-config.sh`
+  (`explicit_runtime`), and `scripts/docket-config.sh` (`runtime_get`).
+- Runtime-block traversal (`runtime:` header, dedent-terminates, comment-stripped structural
+  line) is copied **five** times: the three above plus `explicit_runtime_count` and
+  `runtime_count`.
+- GNU Bash 4+ validation exists **twice**: `ensure-global-config.sh:validate_runtime` (POSIX/3.2
+  syntax) and `docket-config.sh`'s inline `case`/`[[ ]]` chain at the `DOCKET_BASH_PATH` guard.
+- Serializability (no CR/LF) is checked **twice**: `validate_serializable_path` and
+  `docket-config.sh`'s inline `case`.
+
+Caller-policy differences the library must NOT absorb, re-confirmed in the current sources: the
+installer excludes its own `MARK_OPEN`/`MARK_CLOSE` block while reading an explicit value and
+reports a count for its both-declared / empty-declaration diagnostics; the resolver has no marker
+concept, treats a duplicate as a hard `die`, and owns repo-local > global precedence plus the
+committed-key warning; `install.sh` performs a plain post-bootstrap global read with no
+duplicate handling at all. Each stays caller-owned policy.
+
+`scripts/lib/` currently holds four libraries (`docket-frontmatter.sh`, `docket-gitignore-block.sh`,
+`docket-preflight.sh`, `docket-root.sh`), all source-only and reached via a `$SELF_DIR`/`dirname`
+prefix — the new `docket-runtime.sh` follows that established shape. It is, however, the first
+library that must parse under Bash 3.2, since `ensure-global-config.sh` and `install.sh` source it
+before a configured runtime exists; the existing four are Bash 4+ only and impose no constraint.
+
+Spec's no-new-ADR judgment stands: the runtime and configuration boundaries are unchanged, and the
+bootstrap-compatibility requirement is already recorded as a spec decision.
