@@ -34,6 +34,20 @@
 #
 # Contract: scripts/docket.md. Mock seams: SCRIPTS_DIR (helper dir), GIT, CONFIG_EXPORT_CMD.
 
+# THIS VALIDATOR IS INTENTIONALLY DUPLICATED (change 0152). It is POSIX `sh` by necessity — it runs
+# before a Bash interpreter is chosen — and it must NOT source scripts/lib/docket-runtime.sh. The
+# reason is NOT a parse failure: that library is bootstrap-compatible and sources fine under
+# /bin/sh and dash. The reason is that `$'\n'` degrades to a LITERAL under a non-bash /bin/sh, so
+# the library's `${_version%%$'\n'*}` payload split strips nothing and returns a wrong answer while
+# still returning 0 — which is why the line below uses `sed -n '1p'` instead. The prologue also has
+# no way to find the library: there is no ${BASH_SOURCE[0]} under sh, and SELF_DIR is not defined
+# until after the exec.
+#
+# MAINTENANCE OBLIGATION: any change to the version grammar (the banner match or the major-version
+# floor) MUST be applied to docket_runtime_validate_bash as well. The equivalence guard in
+# tests/test_bash_runtime_routing.sh drives both implementations with fake fixtures and reddens if
+# they diverge on banner shape or major floor.
+
 # The bootstrap supplies the implementation marker as bash -c's $0. It cannot collide with a
 # caller argument, so an operation named like the marker cannot bypass interpreter selection.
 if [ "$0" != docket-bash-runtime ]; then

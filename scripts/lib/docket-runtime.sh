@@ -4,9 +4,14 @@
 # SOURCE this; declaring functions is its only effect — no writes, no git, no network, no output
 # at source time.
 #
-# Independent Bash-version checks still live in scripts/docket.sh (its POSIX bootstrap, before a
-# Bash interpreter is even chosen) and scripts/ensure-docket-env.sh (its own DOCKET_BASH_PATH
-# validation). Folding those into this library is out of this library's current scope.
+# After change 0152 (Task 7 routed scripts/ensure-docket-env.sh through this library), the ONLY
+# independent Bash-version check left is scripts/docket.sh's POSIX `sh` bootstrap prologue, which
+# runs before a Bash interpreter is even chosen. That duplication is PERMANENT BY DESIGN, not a
+# folding-in backlog item — see that prologue's own comment block for why it cannot source this
+# library. MAINTENANCE OBLIGATION: any change to the version grammar (the banner match or the
+# major-version floor) made to docket_runtime_validate_bash below MUST also be applied to that
+# prologue's copy, or vice versa — tests/test_bash_runtime_routing.sh's change-0152 equivalence
+# guard drives both implementations with fake fixtures and reddens if they diverge.
 #
 # BOOTSTRAP-COMPATIBLE BY REQUIREMENT. install.sh and scripts/ensure-global-config.sh source this
 # BEFORE a configured GNU Bash 4+ runtime has been discovered or persisted, so every line here must

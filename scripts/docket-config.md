@@ -141,9 +141,13 @@ persists it globally, and exports it to the environment. Resolution emits
 This script's `runtime.bash` parsing, declaration counting, and GNU Bash 4+ validation are
 delegated to the shared `scripts/lib/docket-runtime.sh` (change 0133). The resolver keeps its own
 policy: repo-local > global precedence, the committed-key fence, the duplicate-declaration abort,
-and the five distinct runtime diagnostics it builds from the library's reason token. `scripts/docket.sh`
-and `scripts/ensure-docket-env.sh` run their own independent Bash-version checks and do not use
-this library.
+and the five distinct runtime diagnostics it builds from the library's reason token. After change
+0152, `scripts/ensure-docket-env.sh` is a caller of this same library; only `scripts/docket.sh`'s
+POSIX `sh` bootstrap prologue still runs its own independent Bash-version check — permanently, by
+design, because it executes before a Bash interpreter is even chosen (see that script's own
+comment block for why it cannot source this library, and its **MAINTENANCE OBLIGATION** note: any
+change to the version grammar must be applied to `docket_runtime_validate_bash` too, or the
+change-0152 equivalence guard in `tests/test_bash_runtime_routing.sh` reddens).
 
 `github_project` and `agents:`/`agent_harnesses` are per-repo-only / not read by this script (see
 Stage 2b/2b'/2c below and `sync-agents.sh`'s own contract, respectively) — every other key above

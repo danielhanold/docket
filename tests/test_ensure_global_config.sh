@@ -115,4 +115,29 @@ assert "newline runtime path: bootstrap rejects real executable" \
 assert "newline runtime path: diagnostic names line-break restriction" \
   'grep -qi "line-break" <<<"$newline_out"'
 
+# change 0152: an explicit runtime.bash pointing at a real, executable, but Bash-3.2.57 (pre-4)
+# binary must be rejected through the shared library's major-version floor. Without this fixture,
+# breaking docket_runtime_validate_bash's major check would leave this suite green — the stub's
+# "every surviving caller reddens" requirement is not delivered without it.
+LEGACY_ROOT="$(mktemp -d)"; _tmpdirs+=("$LEGACY_ROOT")
+mkdir -p "$LEGACY_ROOT/opt/homebrew/bin"
+cat > "$LEGACY_ROOT/opt/homebrew/bin/bash" <<'EOF'
+#!/bin/sh
+[ "$#" -eq 1 ] && [ "$1" = --version ] || exit 42
+printf 'GNU bash, version 3.2.57(1)-release (test)\n'
+EOF
+chmod +x "$LEGACY_ROOT/opt/homebrew/bin/bash"
+LEGACY_BASH="$LEGACY_ROOT/opt/homebrew/bin/bash"
+LEGACY_SB="$(mktemp -d)"; _tmpdirs+=("$LEGACY_SB")
+LEGACY_DEST="$LEGACY_SB/.config/docket/config.yml"
+mkdir -p "$(dirname "$LEGACY_DEST")"
+printf "runtime:\n  bash: '%s'\n" "$LEGACY_BASH" > "$LEGACY_DEST"
+legacy_before="$(cat "$LEGACY_DEST")"
+legacy_out="$(HOME="$LEGACY_SB" DOCKET_HARNESS_ROOT="$LEGACY_SB" DOCKET_BASH_STANDARD_ROOT="$RUNTIME_ROOT" bash "$SCRIPT" 2>&1)"; legacy_rc=$?
+assert "legacy explicit runtime.bash: exits non-zero" '[ "$legacy_rc" -ne 0 ]'
+assert "legacy explicit runtime.bash: diagnostic names the not-Bash-4+ failure" \
+  'grep -qF "configured runtime.bash is not an absolute executable GNU Bash 4+" <<<"$legacy_out"'
+assert "legacy explicit runtime.bash: config remains byte-identical" \
+  '[ "$(cat "$LEGACY_DEST")" = "$legacy_before" ]'
+
 exit $fail

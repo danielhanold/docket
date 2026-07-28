@@ -183,6 +183,18 @@ above:
 - **One explicit Bash boundary.** The POSIX bootstrap validates `DOCKET_BASH_PATH` before any
   Bash-specific implementation work, and every facade-owned helper launch uses that exact path;
   `PATH` cannot silently select a different Bash.
+- **The bootstrap's Bash-version check is an intentionally duplicated exception (change 0152).**
+  The POSIX `sh` prologue cannot source `scripts/lib/docket-runtime.sh` — not because the library
+  fails to parse under `sh` (it is bootstrap-compatible by requirement and sources fine under
+  `/bin/sh` and `dash`), but because `$'\n'` degrades to a literal under a non-bash `/bin/sh`, so
+  the library's payload split would silently return a wrong answer while still returning 0; the
+  prologue also has no `${BASH_SOURCE[0]}` under `sh` to locate the library before its own `exec`.
+  This duplication is permanent, and every other surviving Bash-version check (`install.sh`,
+  `scripts/ensure-global-config.sh`, `scripts/docket-config.sh`, `scripts/ensure-docket-env.sh`)
+  now goes through that one library. **Maintenance obligation:** any change to the version grammar
+  (the banner match or the major-version floor) made in one place MUST be applied to the other —
+  `tests/test_bash_runtime_routing.sh`'s change-0152 equivalence guard drives both implementations
+  with fake fixtures and reddens if they diverge on banner shape or major floor.
 - **Operation name = helper basename**, except the `preflight`/`env`/`bootstrap` verbs (documented
   above with a non-`<op>.sh` `Wraps` value).
 - **Not-exposed scripts stay not exposed.** None of `docket-config`, `disable-worktree-hooks`,
