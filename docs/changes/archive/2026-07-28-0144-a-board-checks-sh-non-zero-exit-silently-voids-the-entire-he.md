@@ -2,7 +2,7 @@
 id: 144
 slug: a-board-checks-sh-non-zero-exit-silently-voids-the-entire-he
 title: A board-checks.sh non-zero exit silently voids the entire health pass
-status: proposed
+status: killed
 priority: medium
 type: chore
 created: 2026-07-27
@@ -63,3 +63,7 @@ Design settled in the linked spec.
 - Change 0117's specific trigger, already fixed and merged.
 - The check-id vocabulary and its pinned surfaces — no id is added.
 - `skills/docket-status/SKILL.md`, which change 0145 owns and is currently building.
+
+## Why killed
+
+Subsumed by change 0157, which carries this work on a single rolled-up branch. The design in this change's spec remains authoritative for its unit.
