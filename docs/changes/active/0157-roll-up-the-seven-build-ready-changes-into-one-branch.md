@@ -12,14 +12,14 @@ related: [143, 144, 146, 148, 149, 152, 153]
 discovered_from: []
 adrs: [52]
 spec: docs/superpowers/specs/2026-07-28-build-ready-fix-rollup-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-28-build-ready-fix-rollup-plan.md
 results:
 trivial: false
 auto_groomable: false
 branch: feat/roll-up-the-seven-build-ready-changes-into-one-branch
 pr:
 blocked_by:
-claimed_at: 2026-07-28T15:56:42Z
+claimed_at: 2026-07-28T16:15:13Z
 reconciled: true
 ---
 
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-28-build-ready-fix-rollup-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-28-build-ready-fix-rollup-design.md) |
+| Plan | [2026-07-28-build-ready-fix-rollup-plan.md](https://github.com/danielhanold/docket/blob/feat/roll-up-the-seven-build-ready-changes-into-one-branch/docs/superpowers/plans/2026-07-28-build-ready-fix-rollup-plan.md) |
 | ADRs | [ADR-0052](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0052-config-key-resolution-boundary.md) |
 <!-- docket:artifacts:end -->
 
