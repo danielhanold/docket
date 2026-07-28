@@ -2,7 +2,7 @@
 id: 120
 slug: docket-finalize-change-claims-integration-branch-is-read-fro
 title: docket-finalize-change claims integration_branch is read from .docket.yml, but it is an exported resolver key
-status: implemented
+status: done
 priority: medium
 created: 2026-07-21
 updated: 2026-07-28
@@ -16,7 +16,7 @@ results: docs/results/2026-07-27-docket-finalize-change-claims-integration-branc
 trivial: false
 auto_groomable: true
 branch: feat/docket-finalize-change-claims-integration-branch-is-read-fro
-claimed_at: 2026-07-28T00:06:12Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/130
 blocked_by:
 reconciled: true
