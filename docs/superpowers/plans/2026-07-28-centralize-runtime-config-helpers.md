@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0133 — Centralize shared Bash runtime configuration helpers](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0133-centralize-runtime-config-helpers.md)**
+> ↩ **[Change 0133 — Centralize shared Bash runtime configuration helpers](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-07-28-0133-centralize-runtime-config-helpers.md)**
 <!-- docket:backlink:end -->
 
 # Centralize Shared Bash Runtime Configuration Helpers — Implementation Plan
