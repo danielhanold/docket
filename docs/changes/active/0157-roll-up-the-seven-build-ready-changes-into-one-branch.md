@@ -2,7 +2,7 @@
 id: 157
 slug: roll-up-the-seven-build-ready-changes-into-one-branch
 title: Roll up the seven build-ready changes into one branch
-status: in-progress
+status: implemented
 priority: medium
 type: fix
 created: 2026-07-28
@@ -17,7 +17,7 @@ results:
 trivial: false
 auto_groomable: false
 branch: feat/roll-up-the-seven-build-ready-changes-into-one-branch
-pr:
+pr: 136
 blocked_by:
 claimed_at: 2026-07-28T16:15:13Z
 reconciled: true
@@ -30,6 +30,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-28-build-ready-fix-rollup-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-28-build-ready-fix-rollup-design.md) |
 | Plan | [2026-07-28-build-ready-fix-rollup-plan.md](https://github.com/danielhanold/docket/blob/feat/roll-up-the-seven-build-ready-changes-into-one-branch/docs/superpowers/plans/2026-07-28-build-ready-fix-rollup-plan.md) |
+| PR | 136 |
 | ADRs | [ADR-0052](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0052-config-key-resolution-boundary.md) |
 <!-- docket:artifacts:end -->
 
