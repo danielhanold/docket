@@ -1401,13 +1401,7 @@ out="$(rung "$tmp/r9.xdg" "$tmp/r9" --export)"; eval "$out"
 assert "0102 R9: global alone is honored here (guards against vacuity below)" \
   '[ "$FINALIZE_REQUIRE_PR_APPROVAL" = true ]'
 printf 'finalize:\n  require_pr_approval: false\n' > "$tmp/r9/.docket.local.yml"
-# DOCKET_BASH_PATH is poisoned here not because this require_pr_approval fixture
-# cares about the bash runtime, but because the guard's windows are asymmetric:
-# this site's need-window runs to the NEXT eval site (the odd-runtime block far
-# below), sweeping in the `[ -z "$DOCKET_BASH_PATH" ]` reads in the 0132
-# invalid/absent blocks, whose own `DOCKET_BASH_PATH=""` lines sit past this
-# site's cleared-window. Load-bearing; do not delete.
-DOCKET_BASH_PATH=__poison__; FINALIZE_REQUIRE_PR_APPROVAL=__poison__
+FINALIZE_REQUIRE_PR_APPROVAL=__poison__
 out="$(rung "$tmp/r9.xdg" "$tmp/r9" --export)"; eval "$out"
 assert "0102 R9: repo-local false beats global true (repo-committed unset)" \
   '[ "$FINALIZE_REQUIRE_PR_APPROVAL" = false ]'
@@ -1525,13 +1519,18 @@ for runtime_case in relative missing nonexec legacy notbash; do
   esac
   printf 'runtime:\n  bash: %s\n' "$runtime_value" \
     >"$tmp/runtime-invalid.xdg/docket/config.yml"
-  DOCKET_BASH_PATH=""
   runtime_invalid_out="$(rung "$tmp/runtime-invalid.xdg" "$tmp/runtime-invalid" --export 2>/dev/null)"
   runtime_invalid_rc="$(rung_rc "$tmp/runtime-invalid.xdg" "$tmp/runtime-invalid" --export)"
   runtime_invalid_err="$(XDG_CONFIG_HOME="$tmp/runtime-invalid.xdg" bash "$SCRIPT" --repo-dir "$tmp/runtime-invalid" --export 2>&1 >/dev/null)"
   assert "0132 runtime invalid $runtime_case: resolver aborts" '[ "$runtime_invalid_rc" != 0 ]'
   assert "0132 runtime invalid $runtime_case: export is empty" '[ -z "$runtime_invalid_out" ]'
-  assert "0132 runtime invalid $runtime_case: captured value remains clear" '[ -z "$DOCKET_BASH_PATH" ]'
+  # No per-variable `[ -z "$DOCKET_BASH_PATH" ]` assert here (change 0148). `export is empty` one
+  # line above is the SOLE CHANNEL: docket-config.sh --export writes shell assignments to stdout and
+  # nothing else, and a subprocess has no channel into the parent's environment — so an empty export
+  # admits NO exported variable, and a per-variable restatement is implied, not additive. The
+  # deleted assert was also unfalsifiable: a `DOCKET_BASH_PATH=""` seed above it forced the value the
+  # assert demanded. Do NOT "repair" it by inserting an `eval "$out"` on a provably-empty export —
+  # that is a no-op added solely to satisfy a guard's site-detection heuristic.
   assert "0132 runtime invalid $runtime_case: diagnostic names runtime.bash" \
     'grep -qF "runtime.bash" <<<"$runtime_invalid_err"'
   assert "0132 runtime invalid $runtime_case: diagnostic gives install/upgrade remedy" \
@@ -1541,13 +1540,18 @@ done
 # Absence is distinct from a configured path that names a missing file: both fail closed, but the
 # former has no runtime block at all. Bypass rung() so its legacy-fixture seed cannot mask this.
 mkrepo "$tmp/runtime-absent"
-DOCKET_BASH_PATH=""
 runtime_absent_out="$(XDG_CONFIG_HOME="$tmp/runtime-absent.xdg" bash "$SCRIPT" --repo-dir "$tmp/runtime-absent" --export 2>/dev/null)"
 runtime_absent_rc=$?
 runtime_absent_err="$(XDG_CONFIG_HOME="$tmp/runtime-absent.xdg" bash "$SCRIPT" --repo-dir "$tmp/runtime-absent" --export 2>&1 >/dev/null)"
 assert "0132 runtime absent: resolver aborts" '[ "$runtime_absent_rc" != 0 ]'
 assert "0132 runtime absent: export is empty" '[ -z "$runtime_absent_out" ]'
-assert "0132 runtime absent: captured value remains clear" '[ -z "$DOCKET_BASH_PATH" ]'
+# No per-variable `[ -z "$DOCKET_BASH_PATH" ]` assert here (change 0148). `export is empty` one
+# line above is the SOLE CHANNEL: docket-config.sh --export writes shell assignments to stdout and
+# nothing else, and a subprocess has no channel into the parent's environment — so an empty export
+# admits NO exported variable, and a per-variable restatement is implied, not additive. The
+# deleted assert was also unfalsifiable: a `DOCKET_BASH_PATH=""` seed above it forced the value the
+# assert demanded. Do NOT "repair" it by inserting an `eval "$out"` on a provably-empty export —
+# that is a no-op added solely to satisfy a guard's site-detection heuristic.
 assert "0132 runtime absent: diagnostic names runtime.bash" \
   'grep -qF "runtime.bash" <<<"$runtime_absent_err"'
 assert "0132 runtime absent: diagnostic gives install/upgrade remedy" \
@@ -2024,6 +2028,21 @@ assert "0126 T: site count agrees with the independent grep extractor" \
 assert "0126 T: the self-block is bounded and non-empty" '[ "$t_selfrefs" -ge 3 ]'
 assert "0126 T: every eval site clears the exported vars its asserts read" \
   '[ "$t_viol" -eq 0 ]'
+
+# Change 0148 post-conditions. `t_exempt` is deliberately NOT a tripwire here: it measured 3 both
+# before and after the deletions, so an assert on its movement would pass while certifying nothing.
+# The real invariants are that the guard still proves something everywhere, and that the
+# require_pr_approval site kept a NON-EMPTY need set after losing its DOCKET_BASH_PATH poison —
+# it retains FINALIZE_REQUIRE_PR_APPROVAL (an emitted key), so it does not fall into the exempt
+# bucket and t_exempt legitimately stays 3. The site's line number is derived, not hand-counted:
+# it is the last `eval "$out"` line for the r9 fixture seen before the assert that immediately
+# follows it, so file drift above this point cannot silently desync the two.
+r9_poison_site_line="$(awk '
+  /out="\$\(rung "\$tmp\/r9\.xdg" "\$tmp\/r9" --export\)"; eval "\$out"/ { last = NR }
+  /0102 R9: repo-local false beats global true/ { print last; exit }
+' "${BASH_SOURCE[0]}")"
+assert "0148: the require_pr_approval site still has a non-empty need set (not exempt)" \
+  '/usr/bin/grep -qE "^SITE $r9_poison_site_line (ok|viol)" <<<"$t_out"'
 
 if [ "$fail" = 0 ]; then echo PASS; else echo FAIL; fi
 exit "$fail"
