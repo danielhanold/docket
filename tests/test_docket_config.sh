@@ -791,7 +791,7 @@ assert "0075 plain: METADATA_WORKTREE from <repo>/sub is <root>/.docket, not <su
 # (§1: LCFG="$REPO_DIR/.docket.local.yml"). auto_groom is a global-able (non-fenced) key.
 printf 'auto_groom: true\n' > "$tmp/z/.docket.local.yml"
 z_sub_shell="$(cd "$tmp/z/sub" && bash "$SCRIPT" --export)"
-AUTO_GROOM=""; eval "$z_sub_shell"
+AUTO_GROOM=__poison__; eval "$z_sub_shell"
 assert "0075: <repo>/.docket.local.yml is read when invoked from <repo>/sub (§1 behavior change)" \
   '[ "$AUTO_GROOM" = true ]'
 rm -f "$tmp/z/.docket.local.yml"
@@ -1401,6 +1401,12 @@ out="$(rung "$tmp/r9.xdg" "$tmp/r9" --export)"; eval "$out"
 assert "0102 R9: global alone is honored here (guards against vacuity below)" \
   '[ "$FINALIZE_REQUIRE_PR_APPROVAL" = true ]'
 printf 'finalize:\n  require_pr_approval: false\n' > "$tmp/r9/.docket.local.yml"
+# DOCKET_BASH_PATH is poisoned here not because this require_pr_approval fixture
+# cares about the bash runtime, but because the guard's windows are asymmetric:
+# this site's need-window runs to the NEXT eval site (the odd-runtime block far
+# below), sweeping in the `[ -z "$DOCKET_BASH_PATH" ]` reads in the 0132
+# invalid/absent blocks, whose own `DOCKET_BASH_PATH=""` lines sit past this
+# site's cleared-window. Load-bearing; do not delete.
 DOCKET_BASH_PATH=__poison__; FINALIZE_REQUIRE_PR_APPROVAL=__poison__
 out="$(rung "$tmp/r9.xdg" "$tmp/r9" --export)"; eval "$out"
 assert "0102 R9: repo-local false beats global true (repo-committed unset)" \
@@ -1557,6 +1563,7 @@ mkrepo "$tmp/runtime-odd"
 mkdir -p "$tmp/runtime-odd.xdg/docket"
 odd_yaml_path="${odd_runtime_dir//\'/\'\'}/bash"
 printf "runtime:\n  bash: '%s'\n" "$odd_yaml_path" >"$tmp/runtime-odd.xdg/docket/config.yml"
+DOCKET_BASH_PATH=__poison__
 runtime_odd_out="$(rung "$tmp/runtime-odd.xdg" "$tmp/runtime-odd" --export)"
 eval "$runtime_odd_out"
 assert "0132 odd runtime: shell export evaluates to exact executable path" \
@@ -1916,14 +1923,20 @@ prelude_report(){
           }
         }
 
-        # clearing window: since the previous site, through this eval line
+        # clearing window: since the previous site, through this eval line.
+        # A clear counts only as `VAR=__poison__` or `unset VAR`. `VAR=""` does
+        # NOT count: the empty string is a real resolver output, so before an
+        # assert like `[ -z "$VAR" ]` the "clear" value and the asserted value are
+        # identical and the assert stays exactly as vacuous as with no prelude at
+        # all. `unset` stays legal because those blocks assert via ${VAR-unset},
+        # which is discriminating (and set -u-safe).
         split("", cleared)
         wlo = (k > 1 ? SL[k-1] + 1 : 1)
         for (i = wlo; i <= lo; i++) {
           if (sstart != 0 && i >= sstart && i <= send) continue
           c = L[i]; q = c; sub(/^[ \t]+/, "", q); if (q ~ /^#/) continue
           tmp = c
-          while (match(tmp, /[A-Za-z_][A-Za-z0-9_]*=(__poison__|"")/)) {
+          while (match(tmp, /[A-Za-z_][A-Za-z0-9_]*=__poison__/)) {
             w = substr(tmp, RSTART, RLENGTH); sub(/=.*$/, "", w); cleared[w] = 1
             tmp = substr(tmp, RSTART + RLENGTH)
           }
@@ -1953,7 +1966,15 @@ T_SELF_END='docket:prelude-guard:self'':end'
 T_EVAL_LITERAL='eval "$'
 # docket:prelude-guard:self:end
 
-t_keys="$(bash "$SCRIPT" --export 2>/dev/null | sed 's/=.*//' | sort | tr '\n' ' ')"
+# Key derivation is HERMETIC, like every other fixture in this file. A bare
+# `bash "$SCRIPT" --export` would resolve against the INVOKING cwd: run the suite
+# from anywhere outside a git repo and the resolver aborts, $t_keys goes empty and
+# the keycount floor reddens the whole suite for a reason that has nothing to do
+# with the code under test. It would also couple the guard to this repo's own
+# committed .docket.yml. A throwaway fixture repo gives the same key set with
+# neither dependency.
+mkrepo "$tmp/tkeys"
+t_keys="$(run "$tmp/tkeys" --export 2>/dev/null | sed 's/=.*//' | sort | tr '\n' ' ')"
 
 # Vacuity floor: if the resolver's --export ever breaks, changes format, or the
 # pipeline above silently swallows an error, $t_keys goes empty and EVERY site
@@ -1967,7 +1988,10 @@ t_keycount="$(printf '%s\n' "$t_keys" | tr ' ' '\n' | sed '/^$/d' | wc -l | tr -
 t_out="$(prelude_report "${BASH_SOURCE[0]}" "$t_keys")"
 t_sites="$(printf '%s\n' "$t_out" | sed -n 's/^TOTALS sites=\([0-9]*\) .*/\1/p')"
 t_viol="$(printf '%s\n' "$t_out" | sed -n 's/^TOTALS .* viol=\([0-9]*\)$/\1/p')"
-printf '%s\n' "$t_out" | /usr/bin/grep '^TOTALS'
+t_exempt="$(printf '%s\n' "$t_out" | sed -n 's/^TOTALS .* exempt=\([0-9]*\) .*/\1/p')"
+# Print the TOTALS line AND every violating site. Printing totals alone leaves the
+# next author staring at `viol=1` with no line number and no variable name.
+printf '%s\n' "$t_out" | /usr/bin/grep -E '^(TOTALS|SITE .* viol)'
 
 # Population floor, from a STRUCTURALLY DIFFERENT extractor: a plain grep of the
 # raw literal, minus the known non-sites: the assert() helper at :8 (whose eval
@@ -1987,6 +2011,14 @@ t_selfrefs="$(awk -v s="$T_SELF_START" -v e="$T_SELF_END" '
 
 assert "0126 T: guard reached a real population (>= 60 sites)" '[ "$t_sites" -ge 60 ]'
 assert "0126 T: the derived key set is non-vacuous (>= 20 keys)" '[ "$t_keycount" -ge 20 ]'
+# Exemption ceiling — the twin of the keycount floor. An EMPTY key set is caught
+# above; a WRONG one (any wholesale rename of the resolver's export names) is not:
+# every site's asserts would then intersect the key set emptily, every site would
+# be "exempt by derivation", and the guard would report viol=0 having checked
+# nothing. 3 sites are legitimately exempt today (their asserts read no exported
+# var at all); the ceiling leaves headroom for ordinary drift but nothing like the
+# 64 an all-exempt run would produce.
+assert "0126 T: exemptions stay a rounding error (guard not degenerate)" '[ "$t_exempt" -le 5 ]'
 assert "0126 T: site count agrees with the independent grep extractor" \
   '[ "$t_sites" -eq "$(( t_raw - t_helper - t_comments - t_selflit ))" ]'
 assert "0126 T: the self-block is bounded and non-empty" '[ "$t_selfrefs" -ge 3 ]'
