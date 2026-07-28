@@ -1,3 +1,7 @@
+<!-- docket:backlink:start (generated — do not hand-edit) -->
+> ↩ **[Change 0115 — Extend the board-row-dropped invariant to archive/ files](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-07-28-0115-extend-the-board-row-dropped-invariant-to-archive-files.md)**
+<!-- docket:backlink:end -->
+
 # Extend the board-row-dropped invariant to `archive/` — design
 
 **Change:** 0115 · **Status:** design settled (auto-groomed); reconciled 2026-07-27 · **Date:** 2026-07-20

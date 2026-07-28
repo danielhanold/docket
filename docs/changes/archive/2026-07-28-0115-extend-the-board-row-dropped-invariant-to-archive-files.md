@@ -29,7 +29,8 @@ type: fix
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-20-archive-side-row-dropped-invariant-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-20-archive-side-row-dropped-invariant-design.md) |
-| Plan | [2026-07-27-archive-side-row-dropped-invariant.md](https://github.com/danielhanold/docket/blob/feat/extend-the-board-row-dropped-invariant-to-archive-files/docs/superpowers/plans/2026-07-27-archive-side-row-dropped-invariant.md) |
+| Plan | [2026-07-27-archive-side-row-dropped-invariant.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-07-27-archive-side-row-dropped-invariant.md) |
+| PR | 128 |
 <!-- docket:artifacts:end -->
 
 ## Why
