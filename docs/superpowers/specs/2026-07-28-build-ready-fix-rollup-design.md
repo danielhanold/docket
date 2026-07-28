@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0157 — Roll up the seven build-ready changes into one branch](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0157-roll-up-the-seven-build-ready-changes-into-one-branch.md)**
+> ↩ **[Change 0157 — Roll up the seven build-ready changes into one branch](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-07-28-0157-roll-up-the-seven-build-ready-changes-into-one-branch.md)**
 <!-- docket:backlink:end -->
 
 # Build-ready rollup — seven groomed changes in one branch
