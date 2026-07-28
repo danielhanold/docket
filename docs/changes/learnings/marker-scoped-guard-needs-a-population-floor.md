@@ -2,9 +2,9 @@
 slug: marker-scoped-guard-needs-a-population-floor
 hook: "A marker-keyed guard validates only the markers it finds — separately assert that the marker EXISTS, sits where you meant, and covers the case you care about; \"at least one\" pins a population, not coverage."
 topics: [testing, sentinels, guards]
-changes: [108]
+changes: [108, 120]
 created: 2026-07-21
-updated: 2026-07-21
+updated: 2026-07-28
 promotion_state: candidate
 promoted_to:
 ---
@@ -66,3 +66,13 @@ elements) trades one drift surface for another.
   unguarded fences and was already wrong when filed — it omitted the `reclaim:` fence. The same
   blind spot appeared three times in one change's lifetime, at three altitudes (proposal, guard
   design, first fix), which is the tell that it is structural rather than careless.
+- 2026-07-28 (#120, PR #130 — merged) — **Moving the marker's attachment rule moved the hole; only
+  counting closed it.** The guard admitted an occurrence if its *line* carried a class marker, and
+  these skill files run one paragraph per line — so a later edit could add a new violating
+  occurrence into an already-marked paragraph and stay green (the reviewer reproduced it). The
+  same-line design had itself been chosen to close a *different* fail-open: a "nearest preceding
+  non-blank line" rule reads green the moment an edit inserts a blank line. Generalize past the
+  incident: **a marker-scoped guard fails open wherever its unit of admission is coarser than its
+  unit of violation**, and changing the unit relocates the gap rather than removing it. The fix was
+  to require the marker count on a line to EQUAL the occurrence count, with a non-vacuous pair of
+  fixtures (2-occurrence/1-marker rejected, 2-occurrence/2-marker accepted).
