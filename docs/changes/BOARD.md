@@ -1,14 +1,8 @@
 # Backlog
 
-**151 changes** — 🟢 1 in progress · 🟡 26 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 2 implemented · ✅ 108 done · 🗑️ 9 killed
+**153 changes** — 🟡 28 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 3 implemented · ✅ 108 done · 🗑️ 9 killed
 
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0133](active/0133-centralize-runtime-config-helpers.md) | Centralize shared Bash runtime configuration helpers | `medium` | `refactor` | [spec](../superpowers/specs/2026-07-22-centralize-runtime-config-helpers-design.md) | `feat/centralize-runtime-config-helpers` |
-
-## 🟡 Proposed (26)
+## 🟡 Proposed (28)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -38,6 +32,8 @@
 | [0149](active/0149-make-the-prelude-guard-s-exemption-bound-proportional-and-cl.md) | Make the prelude guard's exemption bound proportional, and close the partial-rename gap | `medium` | `chore` | needs-brainstorm |
 | [0150](active/0150-pin-or-report-the-resolved-shell-toolchain-across-the-test-s.md) | Pin or report the resolved shell toolchain across the test suite | `medium` | `chore` | needs-brainstorm |
 | [0151](active/0151-vacuous-docket-bash-path-asserts-sit-in-eval-free-blocks-out.md) | Vacuous DOCKET_BASH_PATH asserts sit in eval-free blocks, out of the poison-prelude guard's reach | `medium` | `fix` | needs-brainstorm |
+| [0152](active/0152-consolidate-the-two-surviving-hand-rolled-gnu-bash-4-validat.md) | Consolidate the two surviving hand-rolled GNU Bash 4+ validator copies | `medium` | `refactor` | needs-brainstorm |
+| [0153](active/0153-decide-whether-the-runtime-bash-leaf-match-should-be-depth-a.md) | Decide whether the runtime.bash leaf match should be depth-anchored | `medium` | `fix` | needs-brainstorm |
 
 ## 🔴 Blocked (1)
 
@@ -54,11 +50,12 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (3)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | `chore` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
+| [0133](active/0133-centralize-runtime-config-helpers.md) | Centralize shared Bash runtime configuration helpers | `medium` | `refactor` | [#134](https://github.com/danielhanold/docket/pull/134) |  |
 | [0135](active/0135-cursor-agent-wrapper-contract.md) | Generated Cursor wrappers violate Cursor's subagent contract, disabling skills and model effort | `high` | `fix` | [#127](https://github.com/danielhanold/docket/pull/127) |  |
 
 ```mermaid
@@ -97,6 +94,8 @@ graph TD
   0149
   0150
   0151
+  0152
+  0153
   0015:::done
   0016:::done
   0077:::done
