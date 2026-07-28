@@ -2,7 +2,7 @@
 id: 133
 slug: centralize-runtime-config-helpers
 title: Centralize shared Bash runtime configuration helpers
-status: implemented
+status: done
 priority: medium
 created: 2026-07-22
 updated: 2026-07-28
@@ -16,7 +16,7 @@ results: docs/results/2026-07-28-centralize-runtime-config-helpers-results.md
 trivial: false
 auto_groomable:
 branch: feat/centralize-runtime-config-helpers
-claimed_at: 2026-07-28T10:17:32Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/134
 blocked_by:
 reconciled: true
