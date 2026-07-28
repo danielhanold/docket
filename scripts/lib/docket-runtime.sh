@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # scripts/lib/docket-runtime.sh — the ONE implementation of docket's `runtime.bash` mechanics
-# for install.sh, scripts/ensure-global-config.sh, and scripts/docket-config.sh (change 0133).
+# for install.sh, scripts/ensure-global-config.sh, scripts/docket-config.sh (change 0133), and
+# scripts/ensure-docket-env.sh (change 0152).
 # SOURCE this; declaring functions is its only effect — no writes, no git, no network, no output
 # at source time.
 #
@@ -24,8 +25,10 @@
 # layer precedence, and every user-facing diagnostic stay in the caller — which is why the
 # validator returns a machine-readable reason token instead of printing a message.
 #
-#   docket_runtime_count  <file> [open] [close]  -> declaration count on stdout (0 if absent)
-#   docket_runtime_first  <file> [open] [close]  -> first declaration's decoded value (empty if none)
+#   docket_runtime_count  <file> [open] [close]  -> declaration count on stdout (0 if absent;
+#                                                    excludes too-deep leaves — see DOCKET_RUNTIME_DEEP)
+#   docket_runtime_first  <file> [open] [close]  -> first declaration's decoded value (empty if none;
+#                                                    a too-deep leaf is never chosen as first)
 #   docket_runtime_unique <file> [open] [close]  -> the value; returns 2 (prints nothing) if count>1,
 #                                                    3 (prints nothing) if any bash: leaf sits deeper
 #                                                    than the block's shallowest structural child

@@ -43,9 +43,8 @@ explicit_runtime(){ docket_runtime_first "$1" "$MARK_OPEN" "$MARK_CLOSE"; }
 
 explicit_runtime_count(){ docket_runtime_count "$1" "$MARK_OPEN" "$MARK_CLOSE"; }
 
-# Always returns 0 (script runs under set -eu): _docket_runtime_scan itself always returns 0, and
-# printf's exit status is discarded by nothing weakening it here — there is no command whose
-# failure could propagate.
+# Always returns 0 (script runs under set -eu): _docket_runtime_scan always returns 0 and printf is
+# the last command, so under set -e this substitution cannot abort the script.
 explicit_runtime_deep(){ _docket_runtime_scan "$1" "$MARK_OPEN" "$MARK_CLOSE"; printf '%s\n' "$DOCKET_RUNTIME_DEEP"; }
 
 consider_candidate(){

@@ -2026,6 +2026,10 @@ t_keycount="$(printf '%s\n' "$t_keys" | tr ' ' '\n' | sed '/^$/d' | wc -l | tr -
 t_out="$(prelude_report "${BASH_SOURCE[0]}" "$t_keys")"
 t_sites="$(printf '%s\n' "$t_out" | sed -n 's/^TOTALS sites=\([0-9]*\) .*/\1/p')"
 t_viol="$(printf '%s\n' "$t_out" | sed -n 's/^TOTALS .* viol=\([0-9]*\)$/\1/p')"
+# t_exempt is diagnostic-only, on purpose: since change 0149 replaced the absolute exempt ceiling
+# with the proportional `ok` floor below, no assert reads this variable and nothing prints it.
+# Kept extracted (not deleted) for a reader diffing this TOTALS line by eye — an unread variable
+# here is deliberate, not an oversight.
 t_exempt="$(printf '%s\n' "$t_out" | sed -n 's/^TOTALS .* exempt=\([0-9]*\) .*/\1/p')"
 t_ok="$(printf '%s\n' "$t_out" | sed -n 's/^TOTALS .* ok=\([0-9]*\) .*/\1/p')"
 # Print the TOTALS line AND every violating site. Printing totals alone leaves the
