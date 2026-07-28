@@ -2,22 +2,22 @@
 id: 120
 slug: docket-finalize-change-claims-integration-branch-is-read-fro
 title: docket-finalize-change claims integration_branch is read from .docket.yml, but it is an exported resolver key
-status: in-progress
+status: implemented
 priority: medium
 created: 2026-07-21
-updated: 2026-07-27
+updated: 2026-07-28
 depends_on: []
 related: []
 discovered_from: [102]
 adrs: [52]
 spec: docs/superpowers/specs/2026-07-26-skill-config-read-channel-design.md
 plan: docs/superpowers/plans/2026-07-27-config-read-channel-guard.md
-results:
+results: docs/results/2026-07-27-docket-finalize-change-claims-integration-branch-is-read-fro-results.md
 trivial: false
 auto_groomable: true
 branch: feat/docket-finalize-change-claims-integration-branch-is-read-fro
-claimed_at: 2026-07-27T23:15:13Z
-pr:
+claimed_at: 2026-07-28T00:06:12Z
+pr: https://github.com/danielhanold/docket/pull/130
 blocked_by:
 reconciled: true
 type: docs
@@ -30,6 +30,8 @@ type: docs
 |---|---|
 | Spec | [2026-07-26-skill-config-read-channel-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-26-skill-config-read-channel-design.md) |
 | Plan | [2026-07-27-config-read-channel-guard.md](https://github.com/danielhanold/docket/blob/feat/docket-finalize-change-claims-integration-branch-is-read-fro/docs/superpowers/plans/2026-07-27-config-read-channel-guard.md) |
+| Results | [2026-07-27-docket-finalize-change-claims-integration-branch-is-read-fro-results.md](https://github.com/danielhanold/docket/blob/feat/docket-finalize-change-claims-integration-branch-is-read-fro/docs/results/2026-07-27-docket-finalize-change-claims-integration-branch-is-read-fro-results.md) |
+| PR | [#130](https://github.com/danielhanold/docket/pull/130) |
 | ADRs | [ADR-0052](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0052-config-key-resolution-boundary.md) |
 <!-- docket:artifacts:end -->
 
