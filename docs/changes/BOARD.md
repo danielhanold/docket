@@ -1,6 +1,6 @@
 # Backlog
 
-**146 changes** — 🟢 1 in progress · 🟡 24 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 5 implemented · ✅ 102 done · 🗑️ 9 killed
+**147 changes** — 🟢 1 in progress · 🟡 25 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 5 implemented · ✅ 102 done · 🗑️ 9 killed
 
 ## 🟢 In progress (1)
 
@@ -8,7 +8,7 @@
 |---|-------|----------|------|------|--------|
 | [0122](active/0122-nested-keys-scope-tags-in-docket-example-yml-are-unguarded.md) | Nested keys' scope tags in .docket.example.yml are unguarded | `medium` | `fix` | [spec](../superpowers/specs/2026-07-26-nested-key-scope-tags-design.md) | `feat/nested-keys-scope-tags-in-docket-example-yml-are-unguarded` |
 
-## 🟡 Proposed (24)
+## 🟡 Proposed (25)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -32,10 +32,11 @@
 | [0140](active/0140-normalize-the-inherit-model-sentinel-once-for-every-runner-a.md) | Normalize the inherit model sentinel once for every runner adapter | `medium` | `fix` | needs-brainstorm |
 | [0141](active/0141-factor-the-shared-wrapper-source-parse-out-of-the-named-harn.md) | Factor the shared wrapper-source parse out of the named harness emitters | `medium` | `refactor` | needs-brainstorm |
 | [0142](active/0142-make-the-unmapped-harness-wrapper-gap-loud-at-generation-tim.md) | Make the unmapped-harness wrapper gap loud at generation time | `medium` | `fix` | needs-brainstorm |
-| [0143](active/0143-empty-id-collapses-the-archive-sort-feeder-s-tab-joined-fiel.md) | Empty id collapses the archive sort feeder's TAB-joined fields in render-board.sh | `medium` | `fix` | needs-brainstorm |
+| [0143](active/0143-empty-id-collapses-the-archive-sort-feeder-s-tab-joined-fiel.md) | Empty id collapses the archive sort feeder's TAB-joined fields in render-board.sh | `medium` | `fix` | auto-groom blocked — needs you |
 | [0144](active/0144-a-board-checks-sh-non-zero-exit-silently-voids-the-entire-he.md) | A board-checks.sh non-zero exit silently voids the entire health pass | `medium` | `chore` | needs-brainstorm |
 | [0145](active/0145-docket-status-skill-md-restates-a-stale-check-count-and-list.md) | docket-status SKILL.md restates a stale check count and list the 0111 guard does not pin | `medium` | `docs` | needs-brainstorm |
 | [0146](active/0146-widen-the-config-read-channel-guard-to-the-sibling-config-la.md) | Widen the config read-channel guard to the sibling config layers it does not match | `medium` | `fix` | needs-brainstorm |
+| [0147](active/0147-extend-the-2c-orphan-key-check-past-its-column-0-anchor-to-n.md) | Extend the (2c) orphan-key check past its column-0 anchor to nested keys | `medium` | `fix` | needs-brainstorm |
 
 ## 🔴 Blocked (1)
 
@@ -99,6 +100,7 @@ graph TD
   0144
   0145
   0146
+  0147
   0015:::done
   0016:::done
   0077:::done
