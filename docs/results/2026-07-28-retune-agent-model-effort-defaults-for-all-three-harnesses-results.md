@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0164 — Retune agent model/effort defaults for all three supported harnesses](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0164-retune-agent-model-effort-defaults-for-all-three-harnesses.md)**
+> ↩ **[Change 0164 — Retune agent model/effort defaults for all three supported harnesses](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-07-29-0164-retune-agent-model-effort-defaults-for-all-three-harnesses.md)**
 <!-- docket:backlink:end -->
 
 # Retune agent model/effort defaults for all three supported harnesses — results
