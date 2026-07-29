@@ -1,6 +1,6 @@
 # Backlog
 
-**166 changes** — 🟡 28 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 2 implemented · ✅ 113 done · 🗑️ 18 killed
+**166 changes** — 🟡 28 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 1 implemented · ✅ 114 done · 🗑️ 18 killed
 
 ## 🟡 Proposed (28)
 
@@ -50,12 +50,11 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | `chore` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
-| [0164](active/0164-retune-agent-model-effort-defaults-for-all-three-harnesses.md) | Retune agent model/effort defaults for all three supported harnesses | `medium` | `chore` | [#138](https://github.com/danielhanold/docket/pull/138) |  |
 
 ```mermaid
 graph TD
@@ -91,7 +90,6 @@ graph TD
   0159
   0160
   0163
-  0164
   0165
   0166
   0015:::done
@@ -99,10 +97,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (131)</summary>
+<details><summary>✅🗑️ Archive — done + killed (132)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0164](archive/2026-07-29-0164-retune-agent-model-effort-defaults-for-all-three-harnesses.md) | Retune agent model/effort defaults for all three supported harnesses | 2026-07-29 |
 | [0162](archive/2026-07-28-0162-restore-the-machine-local-ignored-advisory-for-a-committed-t.md) | Restore the machine-local-ignored advisory for a committed too-deep runtime.bash | 2026-07-28 |
 | [0161](archive/2026-07-28-0161-enumerate-the-health-checks-failed-outcome-in-docket-status.md) | Enumerate the health-checks-failed outcome in docket-status SKILL.md | 2026-07-28 |
 | [0157](archive/2026-07-28-0157-roll-up-the-seven-build-ready-changes-into-one-branch.md) | Roll up the seven build-ready changes into one branch | 2026-07-28 |
@@ -129,7 +128,6 @@ graph TD
 | [0124](archive/2026-07-26-0124-backlog-triage-pass.md) | Backlog triage pass — kill, defer, or arm each needs-brainstorm stub | 2026-07-26 |
 | [0138](archive/2026-07-24-0138-unquote-board-change-titles.md) | Board generator wraps each change title in literal double quotes | 2026-07-24 |
 | [0136](archive/2026-07-24-0136-artifact-backlinks.md) | Artifact back-links — a generated link at the top of every artifact pointing to the change | 2026-07-24 |
-| [0127](archive/2026-07-23-0127-typed-changes-selective-auto-capture.md) | Typed changes — configurable taxonomy, selective auto-capture, and backlog filters | 2026-07-23 |
 | [0105](archive/2026-07-20-0105-pin-docket-mode-main-coverage-for-docket-status-digest-only.md) | Pin DOCKET_MODE=main coverage for docket-status --digest-only | 2026-07-20 |
 | [0086](archive/2026-07-18-0086-attended-finalize-merge-path.md) | Attended finalize has no merge path under auto_approve — scope the --admin ban to autonomous runs | 2026-07-18 |
 | [0033](archive/2026-07-16-0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | 2026-07-16 |
@@ -141,7 +139,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-07](archive/) | 66 done |
+| [2026-07](archive/) | 67 done |
 | [2026-06](archive/) | 32 done |
 
 </details>
