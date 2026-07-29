@@ -1,12 +1,6 @@
 # Backlog
 
-**166 changes** — 🟢 1 in progress · 🟡 28 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 1 implemented · ✅ 113 done · 🗑️ 18 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0164](active/0164-retune-agent-model-effort-defaults-for-all-three-harnesses.md) | Retune agent model/effort defaults for all three supported harnesses | `medium` | `chore` | [spec](../) | `feat/retune-agent-model-effort-defaults-for-all-three-harnesses` |
+**166 changes** — 🟡 28 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 2 implemented · ✅ 113 done · 🗑️ 18 killed
 
 ## 🟡 Proposed (28)
 
@@ -56,11 +50,12 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | `chore` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
+| [0164](active/0164-retune-agent-model-effort-defaults-for-all-three-harnesses.md) | Retune agent model/effort defaults for all three supported harnesses | `medium` | `chore` | [#138](https://github.com/danielhanold/docket/pull/138) |  |
 
 ```mermaid
 graph TD
