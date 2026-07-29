@@ -560,12 +560,12 @@ Preserve the surrounding column alignment of that comment table.
 cd /Users/homer/dev/docket/.worktrees/retune-agent-model-effort-defaults-for-all-three-harnesses
 command grep -rn 'claude-opus-4-8' \
   --include='*.md' --include='*.sh' --include='*.yml' . \
-  | command grep -v '^\./docs/' \
+  | command grep -vE '^\./docs/(changes|adrs|results|superpowers)/' \
   | command grep -v '^\./tests/test_sync_agents\.sh'
 ```
 
 Expected: **no output**. Two exclusions are deliberate and correct:
-- `docs/` holds archived changes, plans, and specs — historical records of what the defaults *were*. They keep their literals.
+- `docs/changes/`, `docs/adrs/`, `docs/results/`, and `docs/superpowers/` hold archived changes, plans, ADRs, and specs — historical records of what the defaults *were*. They keep their literals. This does NOT cover all of `docs/` — live user-facing docs such as `docs/codex/setup.md` and `docs/cursor/*` are in scope for the sweep and must come back clean.
 - `tests/test_sync_agents.sh` retains `claude-opus-4-8` at lines ~648 and ~658, where it is an arbitrary fixture override value, not a built-in (see Task 1, Step 1).
 
 If either exclusion produces a surprise hit, investigate before proceeding — a live surface hiding behind a broad filter is exactly the failure mode this sweep exists to catch. Note that the shell's `grep` is `ugrep` and strips leading `./` from paths; the `command grep` calls above are required for the `^\./` filters to match at all.

@@ -879,6 +879,13 @@ done
 # fires it consumes the '#' that the range address matches on — reordering it first would freeze
 # the range before the children ever get touched (found by testing against the real file).
 agents_block="$(sed -n '/^# agents:$/,/finalize-change:.*cursor-grok-4\.5-high-fast/p' "$EX")"
+# Guard the range's END address: if the cursor finalize-change literal ever drifts away from this
+# anchor, the sed range never closes and silently runs to EOF, swallowing the runners: block and
+# surrounding prose — while every assert below it still passes on the over-wide slice. Pinning the
+# slice's LAST line to the anchor catches both over-run (anchor never matched, slice hits EOF) and
+# under-run (anchor matched somewhere earlier than intended).
+assert "round-trip: the agents slice terminates at its cursor finalize-change anchor (not EOF)" \
+  '[ -n "$agents_block" ] && printf "%s\n" "$agents_block" | tail -n1 | grep -q "finalize-change:.*cursor-grok-4\.5-high-fast"'
 stage1="$(printf '%s\n' "$agents_block" | sed -E 's/^#[[:space:]]?//')"
 stage2="$(printf '%s\n' "$stage1" | sed -E \
   -e '/^  # cursor:/,$ s/^  #   /    /' \
