@@ -2,23 +2,23 @@
 id: 164
 slug: retune-agent-model-effort-defaults-for-all-three-harnesses
 title: Retune agent model/effort defaults for all three supported harnesses
-status: in-progress
+status: implemented
 priority: medium
 type: chore
 created: 2026-07-28
-updated: 2026-07-28
+updated: 2026-07-29
 depends_on: []
 related: []
 discovered_from: []
 adrs: [39]
 spec:
 plan: docs/superpowers/plans/2026-07-28-retune-agent-model-effort-defaults.md
-results:
+results: docs/results/2026-07-28-retune-agent-model-effort-defaults-for-all-three-harnesses-results.md
 trivial: true
 auto_groomable:
 branch: feat/retune-agent-model-effort-defaults-for-all-three-harnesses
-claimed_at: 2026-07-28T23:04:36Z
-pr:
+claimed_at: 2026-07-29T00:58:35Z
+pr: https://github.com/danielhanold/docket/pull/138
 blocked_by:
 reconciled: true
 ---
@@ -29,6 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Plan | [2026-07-28-retune-agent-model-effort-defaults.md](https://github.com/danielhanold/docket/blob/feat/retune-agent-model-effort-defaults-for-all-three-harnesses/docs/superpowers/plans/2026-07-28-retune-agent-model-effort-defaults.md) |
+| Results | [2026-07-28-retune-agent-model-effort-defaults-for-all-three-harnesses-results.md](https://github.com/danielhanold/docket/blob/feat/retune-agent-model-effort-defaults-for-all-three-harnesses/docs/results/2026-07-28-retune-agent-model-effort-defaults-for-all-three-harnesses-results.md) |
+| PR | [#138](https://github.com/danielhanold/docket/pull/138) |
 | ADRs | [ADR-0039](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0039-config-example-mirrors-wrapper-defaults.md) |
 <!-- docket:artifacts:end -->
 
