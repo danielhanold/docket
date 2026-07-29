@@ -2,9 +2,9 @@
 slug: verify-the-claim
 hook: "A document asserting a fact about another artifact is not an oracle — verify it against the artifact or the RUNNING CODE before acting on it."
 topics: [process, review, spec]
-changes: [12, 21, 47, 65, 67, 74, 96, 101, 102, 109, 112, 138, 130, 157]
+changes: [12, 21, 47, 65, 67, 74, 96, 101, 102, 109, 112, 138, 130, 157, 164]
 created: 2026-06-12
-updated: 2026-07-28
+updated: 2026-07-29
 promotion_state: retained
 promoted_to:
 ---
@@ -150,3 +150,18 @@ mid-build; leave the re-scope to the human. Reject false positives with evidence
   the cheapest to check** — one mutation run answers it — and it is exactly the claim a spec author
   writes from memory of the file rather than from running it. When a change's acceptance bar is
   stated as coverage, measure the baseline before trusting any part of it as already paid.
+- 2026-07-29 (#164, PR #138 — merged) — **Third instance of the same sub-class: README prose
+  asserting agent model/effort tiers, factually false, every grep green.** A values-only retune moved
+  `docket-implement-next` to `claude-opus-5`/**medium** and `docket-auto-groom` to
+  `claude-opus-5`/**low**. Two `README.md` sites carrying the literals were edited; a paragraph 140
+  lines below still said a build runs "at the top tier, **at high effort**" and that autonomous design
+  "earns that same tier, **because deciding what to build is no cheaper than building it**" — the
+  first clause false outright, the second asserting as justification the exact opposite of the new
+  defaults. Every literal-based verification on the branch was green throughout and **none could have
+  caught it: the sentence names no model ID and no effort value.** Generalize: prose that describes a
+  configurable relationship *qualitatively* is a drift surface with **no grep signature**, so a
+  stale-literal sweep provably cannot cover it — when a change moves a value, read the surrounding
+  prose for claims about that value's *relationship* to others, not just for the value itself. Same
+  branch, same sweep: excluding all of `docs/` from a stale-literal sweep is a trap — `docs/` also
+  holds live user-facing documentation, not only archived records; narrow such exclusions to the
+  archive subtrees.

@@ -2,9 +2,9 @@
 slug: marker-scoped-guard-needs-a-population-floor
 hook: "A marker-keyed guard validates only the markers it finds — separately assert that the marker EXISTS, sits where you meant, and covers the case you care about; \"at least one\" pins a population, not coverage."
 topics: [testing, sentinels, guards]
-changes: [108, 120, 145]
+changes: [108, 120, 145, 164]
 created: 2026-07-21
-updated: 2026-07-28
+updated: 2026-07-29
 promotion_state: candidate
 promoted_to:
 ---
@@ -83,3 +83,16 @@ elements) trades one drift surface for another.
   file-wide alternative was rejected on merit (it reddens `### Merge sweep`'s legitimate
   `publish-deferred` prose), so the limitation was shipped **named in the guard's own header
   comment** instead — the right move when the hole is a priced trade-off rather than a defect.
+- 2026-07-29 (#164, PR #138 — merged) — Same shape, `sed` range scope. A test isolating the
+  commented `agents:` region of `.docket.example.yml` selected it with
+  `sed -n '/^# agents:$/,/<cursor model literal>/p'` — an **end address keyed on a value the same
+  change was editing**. The build correctly moved the anchor in lockstep, so nothing was broken;
+  the reviewer asked the question the build had not, and mutated the two apart. The slice grew from
+  33 lines to 63 — running to EOF and swallowing the `runners:` block and surrounding prose — and
+  the file still exited **green**, because every existing assert (exit 0, no unknown-harness
+  warning, wrapper exists, status model) survives an over-wide slice. The plan had predicted "the
+  failure is loud but its cause is not"; the failure was not loud at all. **A range end address is
+  a scope marker with the same fail-open behavior as any other, and an over-wide slice is the
+  vacuity case that looks most like coverage** — every assert still runs, just against more text
+  than intended. Fixed by pinning the slice's last line, mutation-verified in both directions
+  (unmutated 182 ok / 0 red; mutated 181 ok / 1 red, the red being exactly the new assert).
