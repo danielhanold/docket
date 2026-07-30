@@ -34,7 +34,7 @@ mk_cursor_repo(){  # $1 = optional .docket.yml body (default: bare [claude, curs
 # --- the two fields Cursor does not have are GONE ------------------------------------------------
 mk_cursor_repo
 assert "cursor: wrapper generated"            '[ -f "$C" ]'
-assert "cursor: full built-in set (9 files)"  '[ "$(find "$SBX/.cursor/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "9" ]'
+assert "cursor: full built-in set (12 files)"  '[ "$(find "$SBX/.cursor/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "12" ]'
 assert "cursor: emits NO standalone effort: key" '! has_fm_key "$C" effort'
 assert "cursor: emits NO skills: preload key"    '! has_fm_key "$C" skills'
 assert "cursor: emits name"                      '[ "$(fm "$C" name)" = "docket-status" ]'

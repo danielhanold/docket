@@ -856,7 +856,8 @@ ex_field(){ # $1=agent  $2=field(model|effort)
   printf '%s' "$line" | sed -nE "s/.*[{,[:space:]]$2[[:space:]]*:[[:space:]]*([A-Za-z0-9._-]+).*/\1/p" | head -n1
 }
 for a in status adr brainstorm-consultant auto-groom auto-groom-critic \
-         implement-next rebase-resolver integration-repair finalize-change; do
+         implement-next rebase-resolver integration-repair finalize-change \
+         build-economy build-standard build-premium; do
   w="$REPO/agents/docket-$a.md"
   assert "$a: wrapper exists" '[ -f "$w" ]'
   assert "$a: model mirrors wrapper" '[ -n "$(ex_field "$a" model)" ] && [ "$(ex_field "$a" model)" = "$(fm "$w" model)" ]'
@@ -875,7 +876,7 @@ done
 #
 # Within the slice, codex:/cursor: are DOUBLY commented (disabled inside the disabled agents:
 # block — an extra opt-in step past enabling agents: itself). Stage 1 strips one '# ' layer,
-# which uncomments agents:/claude:/its nine children and demotes codex:/cursor: from doubly- to
+# which uncomments agents:/claude:/its twelve children and demotes codex:/cursor: from doubly- to
 # singly-commented (still inert). Stage 2 then strips cursor:'s own remaining layer — ONLY
 # cursor's, leaving codex commented. The two stage-2 substitutions must run children-line-first:
 # both are gated by the same `/^  # cursor:/,$` range address, and once the header substitution
