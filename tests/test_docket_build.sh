@@ -20,11 +20,13 @@ worker_body="$(cat "$WORKER" 2>/dev/null)"
 assert "worker: contract is non-vacuous (>= 40 lines)" \
   '[ "$(printf "%s\n" "$worker_body" | grep -c .)" -ge 40 ]'
 
-# The three outcome tokens are the controller's entire input vocabulary — each must be present
-# as a standalone token, not merely as a word inside prose.
+# The three outcome tokens are the controller's entire input vocabulary — each must be defined
+# by its Outcomes-section bullet (the shape a token-presence-anywhere grep cannot observe being
+# removed, since each token also appears in the frontmatter description, the commit section, and
+# the return template regardless of whether its defining bullet exists).
 for tok in COMPLETE NEEDS_ESCALATION BLOCKED; do
-  assert "worker: defines the $tok outcome" \
-    'grep -qE "(^|[^A-Z_])'"$tok"'([^A-Z_]|$)" <<<"$worker_body"'
+  assert "worker: defines the $tok outcome (Outcomes bullet)" \
+    'grep -qE "^- \*\*\`'"$tok"'\`\*\*" <<<"$worker_body"'
 done
 
 # Exactly-one-commit rule: the deliverable of a task is one commit, and only on success.
@@ -47,11 +49,15 @@ done
 assert "worker: names the insufficient reasons for skipping RED/GREEN" \
   'grep -qiF -- "hard to test" <<<"$worker_body" && grep -qiF -- "no existing tests" <<<"$worker_body"'
 
-# NO REVIEW: the worker self-reviews; it must never dispatch a reviewer or fix agent.
+# NO REVIEW: the worker self-reviews; it must never dispatch a reviewer or fix agent. The negation
+# is word-anchored (\b) so it cannot match inside "Nothing", "not", "none", or "known" — an
+# unanchored "no" let a body rewrite state the OPPOSITE rule and still pass (probe: finding 2).
 assert "worker: forbids dispatching a reviewer or another agent" \
-  'grep -qiE "(never|does not|do not|no)[^.]{0,80}(dispatch|subagent)" <<<"$worker_body"'
+  'grep -qiE "\b(never|does not|do not|no)\b[^.]{0,80}(dispatch|subagent)" <<<"$worker_body"'
+# Keyed on the body sentence, not the bare word, since "self-review" alone also appears in the
+# frontmatter description and would satisfy a presence-only grep even if the body rule were gone.
 assert "worker: self-review is part of implementation, not a second agent" \
-  'grep -qiE "self-review" <<<"$worker_body"'
+  'grep -qiF -- "self-review is part of" <<<"$worker_body"'
 
 # Escalation is a narrow door — an expected RED or one failed run is NOT an escalation.
 assert "worker: excludes an expected RED / ordinary debugging from escalation" \
