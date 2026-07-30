@@ -337,6 +337,7 @@ AUTO_CAPTURE_TYPES
 TERMINAL_PUBLISH
 RECLAIM_LEASE_TTL
 RECLAIM_AUTO
+BUILD_CHECKPOINT
 SKILL_BRAINSTORM
 SKILL_PLAN
 SKILL_BUILD
@@ -345,7 +346,7 @@ SKILL_FINISH
 BOOTSTRAP
 ```
 
-26 lines in `shell` format; 27 in `plain` format, with `REPO_ROOT` inserted directly
+29 lines in `shell` format; 30 in `plain` format, with `REPO_ROOT` inserted directly
 after `METADATA_WORKTREE` and `DOCKET_BASH_PATH` following it (or following
 `METADATA_WORKTREE` in shell format). The last line is always `BOOTSTRAP=…`.
 
