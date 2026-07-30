@@ -170,7 +170,7 @@ assert "board fenced-to-empty: emits BOARD_SURFACES=none" \
 
 # --- (E) direct-pipe caller (LEARNINGS #22: $() hides a dropped trailing \n) -
 n="$(run "$tmp/c" --export | grep -c '=')"
-assert "direct-pipe: 28 KEY=value lines emitted"       '[ "$n" -eq 28 ]'
+assert "direct-pipe: 29 KEY=value lines emitted"       '[ "$n" -eq 29 ]'
 last="$(run "$tmp/c" --export | tail -n1)"
 assert "direct-pipe: last line is BOOTSTRAP"           'case "$last" in BOOTSTRAP=*) true;; *) false;; esac'
 
@@ -477,7 +477,7 @@ assert "0050 Q: XDG unset -> \$HOME/.config fallback read"   '[ "$AUTO_GROOM" = 
 
 # --- (E') emit-interface guard: exactly 26 lines with a global file present ---
 n50="$(rung "$tmp/k.xdg" "$tmp/k" --export | grep -c '=')"
-assert "0050 E': 28 KEY=value lines with global layer" '[ "$n50" -eq 28 ]'
+assert "0050 E': 29 KEY=value lines with global layer" '[ "$n50" -eq 29 ]'
 
 # --- (M) coordination-key fence: warned-and-ignored, never honored, never fatal ---
 mkrepo "$tmp/m"
@@ -1011,6 +1011,79 @@ assert "unparseable reclaim.lease_ttl: mentions reclaim.lease_ttl" \
 rcl_f2_err="$(run_resolver_with "reclaim:\n  auto: maybe\n" 2>&1 >/dev/null)"
 assert "unparseable reclaim.auto: mentions reclaim.auto" \
   'printf "%s" "$rcl_f2_err" | grep -qF "reclaim.auto"'
+
+# ============================================================================
+# Change 0167 — the build: block (BUILD_CHECKPOINT)
+# NOTE (guards-are-code (e)): clear the asserted vars BEFORE each eval — an aborting run emits
+# NOTHING, and eval "" would silently leave the previous case's value in place.
+# ============================================================================
+
+# --- (BLD-a) default when no layer sets the block -----------------------------
+unset BUILD_CHECKPOINT
+mkrepo "$tmp/bld-a"
+out="$(run "$tmp/bld-a" --export)"; eval "$out"
+assert "BUILD_CHECKPOINT defaults to false" 'echo "$out" | grep -qxF "BUILD_CHECKPOINT=false"'
+
+# --- (BLD-b) repo-committed block is honored ----------------------------------
+unset BUILD_CHECKPOINT
+mkrepo "$tmp/bld-b"
+cat > "$tmp/bld-b/.docket.yml" <<'EOF'
+metadata_branch: main
+build:
+  checkpoint: true
+EOF
+git -C "$tmp/bld-b" add .docket.yml; git -C "$tmp/bld-b" commit --quiet -m cfg
+git -C "$tmp/bld-b" push --quiet origin main
+out2="$(run "$tmp/bld-b" --export)"; eval "$out2"
+assert "BUILD_CHECKPOINT reads the block" 'echo "$out2" | grep -qxF "BUILD_CHECKPOINT=true"'
+
+# --- (BLD-c) global-able (ADR-0019 — NOT coordination-fenced) -----------------
+unset BUILD_CHECKPOINT
+mkrepo "$tmp/bld-c"
+mkdir -p "$tmp/bld-c.xdg/docket"
+cat > "$tmp/bld-c.xdg/docket/config.yml" <<'EOF'
+build:
+  checkpoint: true
+EOF
+bld_c_err="$(rung "$tmp/bld-c.xdg" "$tmp/bld-c" --export 2>&1 >/dev/null)"
+out="$(rung "$tmp/bld-c.xdg" "$tmp/bld-c" --export 2>/dev/null)"; eval "$out"
+assert "build.checkpoint is global-able (not fenced)" '[ "$BUILD_CHECKPOINT" = "true" ]'
+assert "no fence warning for build.checkpoint" '! printf "%s" "$bld_c_err" | grep -qi "build.*per-repo-only"'
+
+# --- (BLD-d) repo-local layer wins over repo-committed ------------------------
+unset BUILD_CHECKPOINT
+mkrepo "$tmp/bld-d"
+cat > "$tmp/bld-d/.docket.yml" <<'EOF'
+metadata_branch: main
+build:
+  checkpoint: true
+EOF
+git -C "$tmp/bld-d" add .docket.yml; git -C "$tmp/bld-d" commit --quiet -m cfg
+git -C "$tmp/bld-d" push --quiet origin main
+printf 'build:\n  checkpoint: false\n' > "$tmp/bld-d/.docket.local.yml"
+out="$(run "$tmp/bld-d" --export)"; eval "$out"
+assert "local layer beats repo-committed for build.checkpoint" '[ "$BUILD_CHECKPOINT" = "false" ]'
+
+# --- (BLD-e) SHADOW GUARD — a bare checkpoint: OUTSIDE the build: block --------
+# must not leak in. This is the whole reason the block is read via yaml_block_body: `checkpoint`
+# is a generic word another block could otherwise shadow.
+unset BUILD_CHECKPOINT
+mkrepo "$tmp/bld-e"
+cat > "$tmp/bld-e/.docket.yml" <<'EOF'
+metadata_branch: main
+some_future_block:
+  checkpoint: true
+EOF
+git -C "$tmp/bld-e" add .docket.yml; git -C "$tmp/bld-e" commit --quiet -m cfg
+git -C "$tmp/bld-e" push --quiet origin main
+out="$(run "$tmp/bld-e" --export)"; eval "$out"
+assert "a foreign block's checkpoint: does not shadow build.checkpoint" '[ "$BUILD_CHECKPOINT" = "false" ]'
+
+# --- (BLD-f) fail closed on garbage -------------------------------------------
+assert "non-bool checkpoint aborts nonzero" '! run_resolver_with "build:\n  checkpoint: maybe\n" >/dev/null 2>&1'
+bld_f_err="$(run_resolver_with "build:\n  checkpoint: maybe\n" 2>&1 >/dev/null)"
+assert "unparseable build.checkpoint: mentions build.checkpoint" \
+  'printf "%s" "$bld_f_err" | grep -qF "build.checkpoint"'
 
 # --- Change 0091 — auto_capture (global-able boolean, default false) ---------------------------
 # Mirrors auto_groom's four-layer resolution, but fails CLOSED on a non-boolean (the reclaim.auto /
