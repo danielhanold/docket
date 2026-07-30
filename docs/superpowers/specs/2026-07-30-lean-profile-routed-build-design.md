@@ -359,24 +359,52 @@ trade-off, checkpoint default, Claude-only support boundary, and how to opt back
 
 ## Supersession and follow-ups
 
-This change supersedes active change 0044. Its implementation closes 0044 as killed/superseded
-rather than rebasing or merging its stale branch and PR.
+*(Reconciled 2026-07-30: the change-0044 close-out and the three follow-up changes were both
+completed before this build started. Only the ADR supersession remains in scope.)*
+
+This change supersedes change 0044, which was **already killed as superseded on 2026-07-30** — no
+rebase or merge of its stale branch and PR #69, and nothing left for this implementation to close.
 
 A new ADR records the profile-routed model-and-effort decision and supersedes ADR-0023. The new
 record explains why direct model configuration inside SDD no longer matches the selected topology:
 the task reviewer role is removed, task complexity is routed through named agents, and effort is
-first-class.
+first-class. Because a superseded ADR is skipped by the terminal-publish Accepted gate, the status
+flip on ADR-0023 must be published deliberately at close-out rather than assumed.
 
-Three separate follow-up changes are created:
+The three follow-up changes **already exist** in the backlog and are not minted by this work:
 
-1. Cursor support for build-profile dispatch, native model identifiers, and Cursor effort
-   semantics.
-2. Codex support for build-profile dispatch, native model identifiers, and reasoning-effort
-   semantics.
-3. A lean Docket-owned `skills.review` replacement: one bounded, read-only whole-branch review with
-   explicit model and effort and no recursive review agents.
+1. **Change 0168** — Cursor support for build-profile dispatch, native model identifiers, and
+   Cursor effort semantics.
+2. **Change 0169** — Codex support for build-profile dispatch, native model identifiers, and
+   reasoning-effort semantics.
+3. **Change 0170** — a lean Docket-owned `skills.review` replacement: one bounded, read-only
+   whole-branch review with explicit model and effort and no recursive review agents.
 
 These are separate backlog changes, not tasks hidden inside this implementation.
+
+## Registration surfaces (reconciled against current `main`)
+
+Adding `agents/docket-build-{economy,standard,premium}.md` is self-registering for `sync-agents.sh`,
+which discovers agents by the `agents/docket-*.md` glob. The following surfaces enumerate the roster
+or its size by hand and must be updated in the same change:
+
+- `.docket.example.yml` — the `agents.claude` mirror plus the commented `codex:` and `cursor:`
+  mirrors, and the prose stating how many wrappers ship.
+- `tests/test_docket_example_yml.sh` — the mirror-equality loop over the agent list, the
+  `classify_key` arms, and the exact expected key count (a new `build.checkpoint` key bumps it).
+- `skills/docket-convention/SKILL.md` and `README.md` — the "nine generated wrappers / five skills"
+  prose.
+- `cursor-rules/dispatch/` — one fragment per agent; a missing fragment degrades to an
+  auto-generated block plus a warning rather than failing.
+- `tests/test_dispatch_capability.sh` — its per-agent check rows.
+- `tests/test_skill_size_budgets.sh` — a `BUDGETS` row for each of the two new `SKILL.md` files,
+  added in the same diff per its documented rounding rule.
+
+`build.checkpoint` follows the existing `reclaim:` block verbatim in `scripts/docket-config.sh`
+(`yaml_block_body` extraction, a per-leaf resolver across local → committed → global → built-in, and
+a `true|false` validator that dies on anything else), which already delivers the "configuration
+error rather than silent fallback" posture this design requires. The `runner:` delegation layer is
+an orthogonal axis keyed off `agents:` entries, not `skills.build`, so no runner work is implied.
 
 ## Verification
 
