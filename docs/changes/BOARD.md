@@ -1,8 +1,14 @@
 # Backlog
 
-**170 changes** — 🟡 32 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 114 done · 🗑️ 19 killed
+**170 changes** — 🟢 1 in progress · 🟡 31 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 114 done · 🗑️ 19 killed
 
-## 🟡 Proposed (32)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch |
+|---|-------|----------|------|------|--------|
+| [0167](active/0167-lean-profile-routed-build.md) | Lean profile-routed build — fresh task workers without review loops | `high` | `feat` | [spec](../superpowers/specs/2026-07-30-lean-profile-routed-build-design.md) | `feat/lean-profile-routed-build` |
+
+## 🟡 Proposed (31)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -34,7 +40,6 @@
 | [0163](active/0163-six-phase-tier-3-guard-counts-headings-instead-of-asserting.md) | Six-phase Tier 3 guard counts headings instead of asserting the phase set | `medium` | `fix` | needs-brainstorm |
 | [0165](active/0165-consolidate-or-document-the-duplicated-flat-scalar-docket-ym.md) | Consolidate or document the duplicated flat-scalar .docket.yml reader in migrate-to-docket.sh | `medium` | `refactor` | needs-brainstorm |
 | [0166](active/0166-retune-the-interactive-skills-advisory-session-model-recomme.md) | Retune the interactive skills' advisory session-model recommendation | `medium` | `chore` | needs-brainstorm |
-| [0167](active/0167-lean-profile-routed-build.md) | Lean profile-routed build — fresh task workers without review loops | `high` | `feat` | build-ready |
 | [0168](active/0168-cursor-profile-routed-build-support.md) | Cursor support for profile-routed Docket builds | `medium` | `feat` | ⏳ waiting on #167 — not yet built |
 | [0169](active/0169-codex-profile-routed-build-support.md) | Codex support for profile-routed Docket builds | `medium` | `feat` | ⏳ waiting on #167 — not yet built |
 | [0170](active/0170-lean-whole-branch-review-skill.md) | Lean Docket-owned whole-branch review skill | `medium` | `feat` | ⏳ waiting on #167 — not yet built |
