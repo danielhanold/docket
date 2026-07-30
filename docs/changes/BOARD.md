@@ -1,6 +1,6 @@
 # Backlog
 
-**172 changes** — 🟡 33 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 114 done · 🗑️ 19 killed
+**172 changes** — 🟡 33 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 115 done · 🗑️ 19 killed
 
 ## 🟡 Proposed (33)
 
@@ -34,9 +34,9 @@
 | [0163](active/0163-six-phase-tier-3-guard-counts-headings-instead-of-asserting.md) | Six-phase Tier 3 guard counts headings instead of asserting the phase set | `medium` | `fix` | needs-brainstorm |
 | [0165](active/0165-consolidate-or-document-the-duplicated-flat-scalar-docket-ym.md) | Consolidate or document the duplicated flat-scalar .docket.yml reader in migrate-to-docket.sh | `medium` | `refactor` | needs-brainstorm |
 | [0166](active/0166-retune-the-interactive-skills-advisory-session-model-recomme.md) | Retune the interactive skills' advisory session-model recommendation | `medium` | `chore` | needs-brainstorm |
-| [0168](active/0168-cursor-profile-routed-build-support.md) | Cursor support for profile-routed Docket builds | `medium` | `feat` | ⏳ waiting on #167 — needs your merge |
-| [0169](active/0169-codex-profile-routed-build-support.md) | Codex support for profile-routed Docket builds | `medium` | `feat` | ⏳ waiting on #167 — needs your merge |
-| [0170](active/0170-lean-whole-branch-review-skill.md) | Lean Docket-owned whole-branch review skill | `medium` | `feat` | ⏳ waiting on #167 — needs your merge |
+| [0168](active/0168-cursor-profile-routed-build-support.md) | Cursor support for profile-routed Docket builds | `medium` | `feat` | needs-brainstorm |
+| [0169](active/0169-codex-profile-routed-build-support.md) | Codex support for profile-routed Docket builds | `medium` | `feat` | needs-brainstorm |
+| [0170](active/0170-lean-whole-branch-review-skill.md) | Lean Docket-owned whole-branch review skill | `medium` | `feat` | needs-brainstorm |
 | [0171](active/0171-settle-a-reflow-tolerant-house-pattern-for-prose-anchored-gu.md) | Settle a reflow-tolerant house pattern for prose-anchored guards | `medium` | `refactor` | needs-brainstorm |
 | [0172](active/0172-normalize-the-banned-producer-pipe-shape-across-tests-and-he.md) | Normalize the banned producer-pipe shape across tests and helpers | `medium` | `chore` | needs-brainstorm |
 
@@ -49,12 +49,11 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | `chore` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
-| [0167](active/0167-lean-profile-routed-build.md) | Lean profile-routed build — fresh task workers without review loops | `high` | `feat` | [#139](https://github.com/danielhanold/docket/pull/139) |  |
 
 ```mermaid
 graph TD
@@ -91,7 +90,6 @@ graph TD
   0163
   0165
   0166
-  0167
   0167 --> 0168
   0167 --> 0169
   0167 --> 0170
@@ -99,13 +97,15 @@ graph TD
   0172
   0015:::done
   0077:::done
+  0167:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (133)</summary>
+<details><summary>✅🗑️ Archive — done + killed (134)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0167](archive/2026-07-30-0167-lean-profile-routed-build.md) | Lean profile-routed build — fresh task workers without review loops | 2026-07-30 |
 | [0044](archive/2026-07-30-0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | 2026-07-30 |
 | [0164](archive/2026-07-29-0164-retune-agent-model-effort-defaults-for-all-three-harnesses.md) | Retune agent model/effort defaults for all three supported harnesses | 2026-07-29 |
 | [0162](archive/2026-07-28-0162-restore-the-machine-local-ignored-advisory-for-a-committed-t.md) | Restore the machine-local-ignored advisory for a committed too-deep runtime.bash | 2026-07-28 |
@@ -133,7 +133,6 @@ graph TD
 | [0129](archive/2026-07-26-0129-fix-the-pipefail-unsafe-plain-format-config-assertion.md) | Fix the pipefail-unsafe plain-format config assertion | 2026-07-26 |
 | [0124](archive/2026-07-26-0124-backlog-triage-pass.md) | Backlog triage pass — kill, defer, or arm each needs-brainstorm stub | 2026-07-26 |
 | [0138](archive/2026-07-24-0138-unquote-board-change-titles.md) | Board generator wraps each change title in literal double quotes | 2026-07-24 |
-| [0136](archive/2026-07-24-0136-artifact-backlinks.md) | Artifact back-links — a generated link at the top of every artifact pointing to the change | 2026-07-24 |
 | [0105](archive/2026-07-20-0105-pin-docket-mode-main-coverage-for-docket-status-digest-only.md) | Pin DOCKET_MODE=main coverage for docket-status --digest-only | 2026-07-20 |
 | [0086](archive/2026-07-18-0086-attended-finalize-merge-path.md) | Attended finalize has no merge path under auto_approve — scope the --admin ban to autonomous runs | 2026-07-18 |
 | [0033](archive/2026-07-16-0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | 2026-07-16 |
@@ -145,7 +144,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-07](archive/) | 67 done |
+| [2026-07](archive/) | 68 done |
 | [2026-06](archive/) | 32 done |
 
 </details>
