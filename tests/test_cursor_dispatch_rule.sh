@@ -37,14 +37,16 @@ assert "head: still requires foreground" 'grep -qi "foreground" <<<"$head_plain"
 assert "head: instruction prose names no dispatch tool literal" \
   '! grep -qE "\b(Task|Agent)\b" <<<"$(grep -v "^    " "$HEAD")"'
 
-# Population derived by glob, with a floor. Twelve built-in agents ship fragments today; the floor
-# is >= 9 so adding a tenth agent does not redden, while a vanished/renamed directory does.
+# Population derived by glob, with a floor. Twelve built-in agents ship fragments today, and the
+# floor is that same 12 (raised from 9 by change 0167, which added the three docket-build profile
+# agents — a floor of 9 would have tolerated deleting all three fragments): adding a thirteenth
+# agent does not redden, while a vanished/renamed directory or a dropped fragment does.
 frags=""; n=0
 for f in "$REPO"/cursor-rules/dispatch/docket-*.md; do
   [ -e "$f" ] || continue
   frags="$frags $f"; n=$((n+1))
 done
-assert "fragments: population floor reached (>= 9 found)" '[ "$n" -ge 9 ]'
+assert "fragments: population floor reached (>= 12 found)" '[ "$n" -ge 12 ]'
 
 for f in $frags; do
   b="$(basename "$f")"
