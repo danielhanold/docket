@@ -475,7 +475,7 @@ AUTO_GROOM=__poison__
 out="$(env -u XDG_CONFIG_HOME HOME="$tmp/q.home" bash "$SCRIPT" --repo-dir "$tmp/q" --export)"; eval "$out"
 assert "0050 Q: XDG unset -> \$HOME/.config fallback read"   '[ "$AUTO_GROOM" = true ]'
 
-# --- (E') emit-interface guard: exactly 26 lines with a global file present ---
+# --- (E') emit-interface guard: exactly 29 lines with a global file present ---
 n50="$(rung "$tmp/k.xdg" "$tmp/k" --export | grep -c '=')"
 assert "0050 E': 29 KEY=value lines with global layer" '[ "$n50" -eq 29 ]'
 
@@ -1084,6 +1084,26 @@ assert "non-bool checkpoint aborts nonzero" '! run_resolver_with "build:\n  chec
 bld_f_err="$(run_resolver_with "build:\n  checkpoint: maybe\n" 2>&1 >/dev/null)"
 assert "unparseable build.checkpoint: mentions build.checkpoint" \
   'printf "%s" "$bld_f_err" | grep -qF "build.checkpoint"'
+
+# --- (BLD-g) export presence and POSITION -------------------------------------
+# Position matters: scripts/docket-config.md documents the order as a contract, and pipe
+# consumers may rely on it. Anchor on the neighbour rather than a bare "is present" (the 0102 R7
+# precedent) — identity, not just adjacency, so a reorder is caught by name, not by line count.
+out_g="$(run "$tmp/bld-a" --export)"
+out_g_plain="$(run "$tmp/bld-a" --export --format plain)"
+assert "BUILD_CHECKPOINT is emitted" \
+  'grep -q "^BUILD_CHECKPOINT=" <<<"$out_g"'
+assert "BUILD_CHECKPOINT is emitted directly after RECLAIM_AUTO" \
+  '[ "$(grep -n "^BUILD_CHECKPOINT=" <<<"$out_g" | cut -d: -f1)" \
+     = "$(( $(grep -n "^RECLAIM_AUTO=" <<<"$out_g" | cut -d: -f1) + 1 ))" ]'
+assert "BUILD_CHECKPOINT present in plain format too" \
+  'grep -q "^BUILD_CHECKPOINT=" <<<"$out_g_plain"'
+
+# --- (BLD-h) the contract doc documents it ------------------------------------
+assert "docket-config.md has a build.checkpoint table row" \
+  'grep -qE "^\| \`build\.checkpoint\` \| \`false\` \| yes \|" "$REPO/scripts/docket-config.md"'
+assert "docket-config.md lists the export name" \
+  'grep -q "^BUILD_CHECKPOINT$" "$REPO/scripts/docket-config.md"'
 
 # --- Change 0091 — auto_capture (global-able boolean, default false) ---------------------------
 # Mirrors auto_groom's four-layer resolution, but fails CLOSED on a non-boolean (the reclaim.auto /
