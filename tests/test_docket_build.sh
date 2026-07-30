@@ -79,6 +79,105 @@ assert "worker: repository instructions override the generic contract" \
   'grep -qF -- "AGENTS.md" <<<"$worker_body"'
 
 # ---------------------------------------------------------------------------
+# docket-build — the controller contract
+# ---------------------------------------------------------------------------
+CTRL="$REPO/skills/docket-build/SKILL.md"
+assert "controller: SKILL.md exists" '[ -f "$CTRL" ]'
+ctrl_body="$(cat "$CTRL" 2>/dev/null)"
+assert "controller: contract is non-vacuous (>= 50 lines)" \
+  '[ "$(printf "%s\n" "$ctrl_body" | grep -c .)" -ge 50 ]'
+
+# It must dispatch by AGENT NAME — the whole point of the change is that model and effort are
+# properties of a named agent rather than an ad-hoc per-dispatch argument.
+for a in docket-build-economy docket-build-standard docket-build-premium; do
+  assert "controller: names the $a agent" 'grep -qF -- "'"$a"'" <<<"$ctrl_body"'
+done
+
+# The routing rubric, with its deliberate asymmetry.
+assert "controller: economy must be POSITIVELY established" \
+  'grep -qiE "economy[^.]{0,120}(only when|positively)" <<<"$ctrl_body"'
+assert "controller: named risk selects premium" \
+  'grep -qiE "premium[^.]{0,200}(authentication|security boundar)" <<<"$ctrl_body"'
+assert "controller: uncertainty defaults to standard" \
+  'grep -qiE "(uncertainty|remaining|otherwise)[^.]{0,80}standard|standard[^.]{0,80}(default|remaining)" <<<"$ctrl_body"'
+
+# The plan override and its fail-loud contract.
+assert "controller: honors an explicit plan Build profile override" \
+  'grep -qF -- "Build profile:" <<<"$ctrl_body"'
+assert "controller: an invalid explicit profile HALTS rather than falling back" \
+  'grep -qiE "invalid[^.]{0,120}halt" <<<"$ctrl_body"'
+
+# The escalation ladder — all three edges, including the terminal one.
+assert "controller: economy escalates to standard" \
+  'grep -qiE "economy[^.]{0,40}(->|→|to)[^.]{0,20}standard" <<<"$ctrl_body"'
+assert "controller: standard escalates to premium" \
+  'grep -qiE "standard[^.]{0,40}(->|→|to)[^.]{0,20}premium" <<<"$ctrl_body"'
+# Anchored on "initial premium" (the escalation ladder's defining line), not bare "premium", since
+# the repair ladder's "standard -> premium -> halt" line would otherwise decoy-match this assert
+# even after the escalation ladder's terminal edge was deleted (mutation probe 1).
+assert "controller: premium escalation halts" \
+  'grep -qiE "initial premium[^.]{0,20}(->|→|to)?[^.]{0,20}halt" <<<"$ctrl_body"'
+assert "controller: at most ONE escalation per task" \
+  'grep -qiE "(at most once|one escalation|single .{0,20}escalation)" <<<"$ctrl_body"'
+assert "controller: a retried task does not climb twice" \
+  'grep -qiE "does not climb|never climbs|not climb again" <<<"$ctrl_body"'
+
+# NO REVIEW inside the build — the defining property of this topology. Anchored on "per-task
+# independent review" (the Review-boundary section's defining phrase), not the bare "no
+# per-task ... review" shape, since that shape ALSO appears in the frontmatter description
+# ("no per-task review") regardless of whether the body's Review-boundary rule holds — a
+# presence-anywhere grep cannot observe the body rule being inverted (mutation probe 2).
+assert "controller: performs no per-task review" \
+  'grep -qiF -- "no per-task independent review" <<<"$ctrl_body"'
+assert "controller: performs no final review of its own" \
+  'grep -qiE "no final review|no whole-branch review of its own" <<<"$ctrl_body"'
+assert "controller: hands the single review to docket-implement-next Step 6" \
+  'grep -qiE "skills.review|Step 6" <<<"$ctrl_body"'
+
+# The full-suite gate is DERIVED, never a second config key or a hand-copied fragment.
+assert "controller: full-suite gate reads finalize.test_command" \
+  'grep -qF -- "FINALIZE_TEST_COMMAND" <<<"$ctrl_body"'
+assert "controller: falls back to finalize's existing auto-detection" \
+  'grep -qiE "auto-detect" <<<"$ctrl_body"'
+assert "controller: cites finalize's canonical suite-command block rather than copying it" \
+  'grep -qF -- "configured-bash-finalize" <<<"$ctrl_body"'
+# SINGLE SOURCE: the canonical fragment lives in finalize's SKILL.md and nowhere else. A second
+# marker pair here would be the duplicate this change exists to avoid.
+assert "controller: does not open a second configured-bash-finalize marker block" \
+  '[ "$(grep -cF -- "<!-- configured-bash-finalize:start -->" "$CTRL")" = 0 ]'
+assert "controller: introduces no second test-command config key" \
+  '! grep -qiE "build\.test_command|BUILD_TEST_COMMAND" <<<"$ctrl_body"'
+
+# A red suite becomes ONE synthetic repair task, not a repair/review loop.
+assert "controller: a red suite does not invoke review" \
+  'grep -qiE "red[^.]{0,80}(does not|never)[^.]{0,40}review" <<<"$ctrl_body"'
+assert "controller: red suite becomes one integration-repair task" \
+  'grep -qiE "integration.repair" <<<"$ctrl_body"'
+assert "controller: repair ladder is standard -> premium -> halt" \
+  'grep -qiE "standard[^.]{0,60}premium[^.]{0,60}halt" <<<"$ctrl_body"'
+
+# Checkpointing: off by default, and the ledger path is exact.
+assert "controller: reads BUILD_CHECKPOINT" 'grep -qF -- "BUILD_CHECKPOINT" <<<"$ctrl_body"'
+assert "controller: names the ledger path" \
+  'grep -qF -- ".superpowers/docket-build/" <<<"$ctrl_body"'
+assert "controller: skips a resumed task only on COMPLETE + plan hash + ancestor commit" \
+  'grep -qiE "ancestor" <<<"$ctrl_body"'
+
+# Tier C: an un-dispatchable build halts unless the human explicitly configured auto.
+assert "controller: un-dispatchable profile routing halts (Tier C)" \
+  'grep -qiE "Tier C" <<<"$ctrl_body"'
+assert "controller: cites the convention's dispatch-capability resolution" \
+  'grep -qiF -- "Dispatch-capability resolution" <<<"$ctrl_body"'
+assert "controller: forbids concluding unavailability from a tool name" \
+  'grep -qF -- "never from a tool name" <<<"$ctrl_body"'
+
+# A malformed worker return is never read as success.
+assert "controller: a missing or malformed outcome halts" \
+  'grep -qiE "(missing or malformed|malformed)[^.]{0,60}halt" <<<"$ctrl_body"'
+assert "controller: never infers success from a child reporting it finished" \
+  'grep -qiE "never infer" <<<"$ctrl_body"'
+
+# ---------------------------------------------------------------------------
 # The three Claude build-profile wrappers (change 0167)
 # ---------------------------------------------------------------------------
 fmv(){ awk 'NR==1 && $0=="---"{f=1;next} f && $0=="---"{exit} f{print}' "$1" \

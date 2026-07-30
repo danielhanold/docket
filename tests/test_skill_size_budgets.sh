@@ -51,11 +51,16 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # budget was then raised 100 -> 105 in a fix round: 1 line of headroom is the exact near-zero
 # failure mode this comment block warns against (see the 0102/0137 entries above), so one added
 # line to SKILL.md would redden CI on arrival.
+# skills/docket-build/SKILL.md is a NEW row added by change 0167, which introduced the docket-build
+# controller skill. Set per the rounding rule above from the measured actual: 153 lines -> 155 (2
+# lines of margin), 1177 words -> 1200 would leave only 23 words of margin (within the 25-word
+# threshold), so the next multiple was taken instead: 1250 (73 words of margin).
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
 skills/docket-auto-groom/SKILL.md                           66 1237
 skills/docket-brainstorm/SKILL.md                           84  692
+skills/docket-build/SKILL.md                               155 1250
 skills/docket-build-task/SKILL.md                          105  850
 skills/docket-convention/SKILL.md                          365 6250
 skills/docket-convention/github-board-mirror.md             19  462
