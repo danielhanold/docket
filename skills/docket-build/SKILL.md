@@ -18,16 +18,16 @@ gets exactly one fresh worker dispatch unless that worker requests its single al
 Three named agents, all preloading the same `docket-build-task` worker skill and differing only in
 model and effort:
 
-| Agent | Effort | Use |
-|---|---|---|
-| `docket-build-economy` | low | fully specified, localized, pattern-following, no consequential risk |
-| `docket-build-standard` | medium | normal feature, integration, refactor, and debugging work |
-| `docket-build-premium` | high | named risk, or unresolved architecture |
+| Agent | Use |
+|---|---|
+| `docket-build-economy` | fully specified, localized, pattern-following, no consequential risk |
+| `docket-build-standard` | normal feature, integration, refactor, and debugging work |
+| `docket-build-premium` | named risk, or unresolved architecture |
 
 `premium` means greater reasoning investment, **not** a stronger correctness guarantee — every
 profile carries identical testing and completion obligations. Model and effort resolve through
 docket's ordinary generated-agent layer and may be overridden at the global, repo-committed, or
-repo-local layer; never restate literal model IDs in your dispatch prose.
+repo-local layer; never restate literal model IDs or effort tiers in your dispatch prose.
 
 ## Routing
 
@@ -62,10 +62,17 @@ profile and routing reason, and the completion schema. Never preload a review sk
 a task reviewer, and never dispatch two workers concurrently.
 
 If profile dispatch is genuinely unavailable — established only per the convention's
-*Dispatch-capability resolution*, **never from a tool name** — this role is **Tier C,
-authorized-or-halt**: only an explicitly configured `skills.build: auto` authorizes inline
-execution. Selecting `docket-build` is not implicit authorization to discard its isolation or its
-model/effort contract, so abort-and-report instead, leaving the change `in-progress`.
+*Dispatch-capability resolution*, **never from a tool name** — this role is
+**Tier C, authorized-or-halt**: only an explicitly configured `skills.build: auto` authorizes
+inline execution. Selecting `docket-build` is not implicit authorization to discard its isolation
+or its model/effort contract, so abort-and-report instead, leaving the change `in-progress`.
+
+A profile agent that is **not registered on this machine** is the same authorized-or-halt
+condition, reached differently: the harness rejected a dispatch naming `docket-build-economy` — a
+concrete rejection of a named agent, never an inference about dispatch capability from a missing
+tool name, so the rule above stands unchanged. The cause is a stale install: `install.sh` generates
+the profile wrappers and links the build skills, and a harness registers them only at session
+start. Abort and report, naming a re-run of `install.sh` plus a fresh session as the remedy.
 
 ## Reading a worker's return
 

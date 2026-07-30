@@ -79,8 +79,9 @@ plainly.
 - **`COMPLETE`** — focused verification is green and exactly one task commit exists.
 - **`NEEDS_ESCALATION`** — the task proves materially more complex or riskier than the assigned
   profile, with a **concrete reason** naming what exceeded it. An expected RED test, ordinary
-  debugging, or a single failed test run is **not** an escalation condition. You get at most one
-  escalation per task, so spend it on genuine under-capacity, not on friction.
+  debugging, or a single failed test run is **not** an escalation condition. Whether this task
+  still has an escalation left is the controller's to know, not yours — so spend the outcome on
+  genuine under-capacity, not on friction.
 - **`BLOCKED`** — a stronger model cannot resolve this: missing authority, contradictory
   requirements, an absent dependency, or an unsafe condition. Name which.
 

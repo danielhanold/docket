@@ -57,15 +57,25 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # threshold), so the next multiple was taken instead: 1250 (73 words of margin). The LINE budget
 # was then raised 155 -> 160 in a fix round, matching the docket-build-task precedent above: 2
 # lines of headroom is still near-zero relative to a routine edit, so the next multiple of 5 was
-# taken instead (7 lines of margin).
+# taken instead (7 lines of margin). Change 0167's final fix wave raised it again, 160/1250 ->
+# 165/1300: the whole-branch review found the controller silent on the change's most likely
+# first-run failure (a profile agent not yet registered, because install.sh has not re-run since
+# the opt-in went live), and that rule has to live where the dispatch happens. Measured actual
+# 160 lines -> the next multiple of 5 IS 160, i.e. zero margin, so 165; 1261 words -> 1300.
+# skills/docket-convention/SKILL.md's WORD budget was raised 6250 -> 6300 by change 0167's final
+# fix wave: the *Agent layer*'s "injected into every wrapper" clause became false when the three
+# docket-build profile workers shipped without docket-convention, so the clause now names both
+# no-convention exceptions and why. Measured actual 6248 words fits 6250 with 2 words of margin —
+# the exact near-zero failure mode this block warns about — so the rule's next multiple was taken:
+# 6300. The LINE budget was not raised (361 actual, 365 budget).
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
 skills/docket-auto-groom/SKILL.md                           66 1237
 skills/docket-brainstorm/SKILL.md                           84  692
-skills/docket-build/SKILL.md                               160 1250
+skills/docket-build/SKILL.md                               165 1300
 skills/docket-build-task/SKILL.md                          105  850
-skills/docket-convention/SKILL.md                          365 6250
+skills/docket-convention/SKILL.md                          365 6300
 skills/docket-convention/github-board-mirror.md             19  462
 skills/docket-convention/references/agent-layer.md         168 1839
 skills/docket-convention/references/learnings.md            84  580

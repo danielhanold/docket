@@ -70,13 +70,28 @@ assert "worker: owns exactly one task" 'grep -qiE "exactly one task|only that ta
 assert "worker: must not rewrite earlier task commits" \
   'grep -qiE "not rewrite|never rewrite" <<<"$worker_body"'
 
-# An escalated worker inherits the worktree — it must account for uncommitted changes.
+# An escalated worker inherits the worktree — it must account for uncommitted changes. The bare
+# word "uncommitted" is only the SUBJECT of the rule, not the rule: a body rewrite instructing the
+# escalated worker to `git checkout .` over the leftovers kept that word and stayed green (final
+# fix wave, finding 2c). Anchored on the prohibition itself.
 assert "worker: escalated worker must not blindly discard existing uncommitted work" \
-  'grep -qiE "uncommitted" <<<"$worker_body"'
+  'grep -qiE "uncommitted" <<<"$worker_body" && grep -qiF -- "never discard them blindly" <<<"$worker_body"'
 
-# Repository instructions outrank this generic contract.
+# Repository instructions outrank this generic contract. "AGENTS.md" alone names only the
+# artifact — reversing the override DIRECTION (this contract overriding the repo's instructions)
+# left it green (final fix wave, finding 2d) — so the operative "— **override**" construction,
+# which reads correctly only in the repo-instructions-win direction, is required alongside it.
 assert "worker: repository instructions override the generic contract" \
-  'grep -qF -- "AGENTS.md" <<<"$worker_body"'
+  'grep -qF -- "AGENTS.md" <<<"$worker_body" && grep -qF -- "— **override**" <<<"$worker_body"'
+
+# The return fence is the literal WIRE FORMAT the controller keys on when reading an outcome, so
+# each field name is a contract term, not formatting. Deleting the whole fenced block reddened
+# nothing before this loop (final fix wave, finding 8). Each field is anchored at line start,
+# where the schema declares it — the tokens also occur as prose elsewhere in the file.
+for field in OUTCOME PROFILE VERIFICATION TDD COMMIT NOTES; do
+  assert "worker: return schema declares the $field field" \
+    'grep -qE "^'"$field"':" <<<"$worker_body"'
+done
 
 # ---------------------------------------------------------------------------
 # docket-build — the controller contract
@@ -171,20 +186,55 @@ assert "controller: repair ladder is standard -> premium -> halt" \
 # the file (BUILD_CHECKPOINT is also named in ## Output; the bare directory prefix also appears in
 # the false-branch "write no .superpowers/docket-build/ files" sentence) and so survived deletion
 # of the actual defining sentence (fix round 2, finding 2).
-assert "controller: reads BUILD_CHECKPOINT" \
-  'grep -qF -- "from the Step-0 config export" <<<"$ctrl_body"'
+# The variable NAME is the controller<->resolver seam: it must match what docket-config.sh exports.
+# Keyed on the phrase alone, renaming BUILD_CHECKPOINT to anything else throughout this SKILL.md
+# stayed green, leaving the seam completely unguarded (final fix wave, finding 3) — so the name and
+# its provenance are required together, as one literal.
+assert "controller: reads BUILD_CHECKPOINT from the Step-0 config export" \
+  'grep -qF -- "\`BUILD_CHECKPOINT\` from the Step-0 config export" <<<"$ctrl_body"'
 assert "controller: names the ledger path" \
   'grep -qF -- ".superpowers/docket-build/<change-id>/progress.md" <<<"$ctrl_body"'
+# The resume rule is the "only when" construction, not the word "ancestor": flipping "skip a task
+# **only** when" to "whenever" — which turns a conjunction of three conditions into a licence to
+# skip on any of them — left an "ancestor"-keyed assert green (final fix wave, finding 2b). All
+# three conditions plus the restrictive quantifier are required.
 assert "controller: skips a resumed task only on COMPLETE + plan hash + ancestor commit" \
-  'grep -qiE "ancestor" <<<"$ctrl_body"'
+  'grep -qF -- "skip a task **only** when" <<<"$ctrl_body" && grep -qiF -- "plan hash" <<<"$ctrl_body" && grep -qiF -- "ancestor" <<<"$ctrl_body"'
 
-# Tier C: an un-dispatchable build halts unless the human explicitly configured auto.
+# ADR-0024 dispatch discipline — the rule docket has actually been burned by, and `## Dispatching a
+# task` is the only place this change states it: a backgrounded or concurrent child returns
+# `completed` on a half-done run. Unguarded before this block, rewriting the paragraph to "in the
+# background, all tasks at once" plus "Always preload a review skill" passed, and deleting the
+# paragraph outright passed too (final fix wave, finding 4). Each clause is anchored on its
+# DEFINING occurrence — the dispatch sentence itself, keyed on "Dispatch the profile agent" —
+# rather than on a bare adverb that recurs in prose; the concurrency negation is word-anchored
+# (\b) so a rewrite cannot state the opposite rule inside a word like "Nothing" and still pass.
+assert "controller: dispatches workers in the FOREGROUND" \
+  'grep -qE "Dispatch the profile agent[^.]{0,60}foreground" <<<"$ctrl_body"'
+assert "controller: dispatches one task at a time" \
+  'grep -qE "Dispatch the profile agent[^.]{0,80}one task at a time" <<<"$ctrl_body"'
+assert "controller: never dispatches two workers concurrently" \
+  'grep -qiE "\b(never|does not|do not|no)\b[^.]{0,60}dispatch two workers concurrently" <<<"$ctrl_body"'
+
+# Tier C: an un-dispatchable build halts unless the human explicitly configured auto. "Tier C" is
+# the label, not the rule — rewriting the clause to "Tier C, run-inline-and-continue: no
+# authorization is needed for inline" kept the label and passed (final fix wave, finding 2a), so
+# the posture literal is required with it — as the bolded compound term at its DEFINING occurrence,
+# since a bare "authorized-or-halt" also appears in the unregistered-agent clause below it and so
+# survives inverting this paragraph — together with the authorization the posture turns on.
 assert "controller: un-dispatchable profile routing halts (Tier C)" \
-  'grep -qiE "Tier C" <<<"$ctrl_body"'
+  'grep -qF -- "**Tier C, authorized-or-halt**" <<<"$ctrl_body" && grep -qF -- "skills.build: auto" <<<"$ctrl_body"'
 assert "controller: cites the convention's dispatch-capability resolution" \
   'grep -qiF -- "Dispatch-capability resolution" <<<"$ctrl_body"'
 assert "controller: forbids concluding unavailability from a tool name" \
   'grep -qF -- "never from a tool name" <<<"$ctrl_body"'
+# The first-run failure mode after this change goes live: `.docket.yml` binds skills.build from
+# origin/HEAD immediately, but the profile wrappers and build skills exist only once install.sh
+# has re-run and the harness has restarted. Without this rule the controller would have to
+# improvise exactly where Tier C forbids it. Two literals, reflow-proof: the condition (which
+# appears nowhere else in the file) and the remedy it must name.
+assert "controller: an unregistered profile agent is authorized-or-halt, remedied by install.sh" \
+  'grep -qiF -- "not registered on this machine" <<<"$ctrl_body" && grep -qF -- "install.sh" <<<"$ctrl_body"'
 
 # A malformed worker return is never read as success.
 assert "controller: a missing or malformed outcome halts" \

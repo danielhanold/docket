@@ -327,6 +327,7 @@ auto_capture:
 #   #   rebase-resolver:       { model: gpt-5.6-sol, effort: high }
 #   #   integration-repair:    { model: gpt-5.6-sol, effort: high }
 #   #   finalize-change:       { model: gpt-5.6-terra, effort: high }
+#   #   # build profiles — docket-build is Claude Code only for now; not yet supported here, see changes 0168/0169
 #   #   build-economy:         { model: gpt-5.6-sol, effort: low }
 #   #   build-standard:        { model: gpt-5.6-sol, effort: medium }
 #   #   build-premium:         { model: gpt-5.6-sol, effort: high }
@@ -339,6 +340,7 @@ auto_capture:
 #   #   implement-next:        { model: cursor-grok-4.5-high, effort: auto }
 #   #   rebase-resolver:       { model: cursor-grok-4.5-high, effort: auto }
 #   #   integration-repair:    { model: cursor-grok-4.5-high, effort: auto }
+#   #   # build profiles — docket-build is Claude Code only for now; not yet supported here, see changes 0168/0169
 #   #   build-economy:         { model: cursor-grok-4.5-low-fast, effort: auto }
 #   #   build-standard:        { model: cursor-grok-4.5-medium, effort: auto }
 #   #   build-premium:         { model: cursor-grok-4.5-high, effort: auto }
