@@ -2,7 +2,7 @@
 id: 23
 slug: configurable-sdd-build-model
 title: Configurable SDD build models — a `build:` surface of per-role direct model IDs
-status: Accepted
+status: Superseded by ADR-63
 date: 2026-07-11
 supersedes: []
 reverses: []
