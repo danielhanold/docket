@@ -1,14 +1,8 @@
 # Backlog
 
-**170 changes** — 🟢 1 in progress · 🟡 31 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 114 done · 🗑️ 19 killed
+**172 changes** — 🟡 33 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 114 done · 🗑️ 19 killed
 
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0167](active/0167-lean-profile-routed-build.md) | Lean profile-routed build — fresh task workers without review loops | `high` | `feat` | [spec](../superpowers/specs/2026-07-30-lean-profile-routed-build-design.md) | `feat/lean-profile-routed-build` |
-
-## 🟡 Proposed (31)
+## 🟡 Proposed (33)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -40,9 +34,11 @@
 | [0163](active/0163-six-phase-tier-3-guard-counts-headings-instead-of-asserting.md) | Six-phase Tier 3 guard counts headings instead of asserting the phase set | `medium` | `fix` | needs-brainstorm |
 | [0165](active/0165-consolidate-or-document-the-duplicated-flat-scalar-docket-ym.md) | Consolidate or document the duplicated flat-scalar .docket.yml reader in migrate-to-docket.sh | `medium` | `refactor` | needs-brainstorm |
 | [0166](active/0166-retune-the-interactive-skills-advisory-session-model-recomme.md) | Retune the interactive skills' advisory session-model recommendation | `medium` | `chore` | needs-brainstorm |
-| [0168](active/0168-cursor-profile-routed-build-support.md) | Cursor support for profile-routed Docket builds | `medium` | `feat` | ⏳ waiting on #167 — not yet built |
-| [0169](active/0169-codex-profile-routed-build-support.md) | Codex support for profile-routed Docket builds | `medium` | `feat` | ⏳ waiting on #167 — not yet built |
-| [0170](active/0170-lean-whole-branch-review-skill.md) | Lean Docket-owned whole-branch review skill | `medium` | `feat` | ⏳ waiting on #167 — not yet built |
+| [0168](active/0168-cursor-profile-routed-build-support.md) | Cursor support for profile-routed Docket builds | `medium` | `feat` | ⏳ waiting on #167 — needs your merge |
+| [0169](active/0169-codex-profile-routed-build-support.md) | Codex support for profile-routed Docket builds | `medium` | `feat` | ⏳ waiting on #167 — needs your merge |
+| [0170](active/0170-lean-whole-branch-review-skill.md) | Lean Docket-owned whole-branch review skill | `medium` | `feat` | ⏳ waiting on #167 — needs your merge |
+| [0171](active/0171-settle-a-reflow-tolerant-house-pattern-for-prose-anchored-gu.md) | Settle a reflow-tolerant house pattern for prose-anchored guards | `medium` | `refactor` | needs-brainstorm |
+| [0172](active/0172-normalize-the-banned-producer-pipe-shape-across-tests-and-he.md) | Normalize the banned producer-pipe shape across tests and helpers | `medium` | `chore` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -53,11 +49,12 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | `chore` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
+| [0167](active/0167-lean-profile-routed-build.md) | Lean profile-routed build — fresh task workers without review loops | `high` | `feat` | [#139](https://github.com/danielhanold/docket/pull/139) |  |
 
 ```mermaid
 graph TD
@@ -98,6 +95,8 @@ graph TD
   0167 --> 0168
   0167 --> 0169
   0167 --> 0170
+  0171
+  0172
   0015:::done
   0077:::done
   classDef done fill:#d3f9d8;
