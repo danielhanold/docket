@@ -973,11 +973,9 @@ assert "README no longer names config.yml.example"   '! grep -qF "config.yml.exa
 # Dogfooding: this repo's own .docket.yml carries ONLY the values it actually sets, plus a
 # pointer to the example. It is the copy-out workflow's worked demonstration, so it must not
 # regress into a second all-keys surface — that drift is exactly what change 0101 ended.
-# Budget raised 40 -> 45 by change 0167, which dogfoods docket's own build role (skills.build,
-# build.checkpoint, and the agents.claude profile block) — real, deliberate content, not drift.
 DY="$REPO/.docket.yml"
 assert "repo .docket.yml points at the example" 'grep -qF ".docket.example.yml" "$DY"'
-assert "repo .docket.yml is slim (<= 45 lines)"  '[ "$(wc -l < "$DY")" -le 45 ]'
+assert "repo .docket.yml is slim (<= 40 lines)"  '[ "$(wc -l < "$DY")" -le 40 ]'
 assert "repo .docket.yml keeps its set values" \
   'grep -Eq "^metadata_branch:[[:space:]]*docket" "$DY" && grep -Eq "^terminal_publish:[[:space:]]*true" "$DY"'
 

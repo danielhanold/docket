@@ -140,7 +140,7 @@ assert "convention names docket-integration-repair" 'grep -q "docket-integration
 assert "convention count prose says twelve wrappers" 'grep -qi "twelve" "$CONV"'
 assert "convention names the no-convention consultant wrapper" 'grep -q "docket-brainstorm-consultant" "$CONV"'
 # Non-vacuous count guard: the "six skills get a wrapper" language must stay exact.
-assert "convention keeps 'six skills get a wrapper' exact" 'grep -qi "six .*skills.* get a wrapper" "$CONV"'
+assert "convention keeps 'six skills get a wrapper' exact" 'grep -qiE "\bsix\b.*skills.* get a wrapper" "$CONV"'
 
 # ---- docket-status notes the gate is finalize-only ---------------------------
 assert "status notes the rebase-retest gate is finalize-only" \

@@ -696,7 +696,7 @@ If the consultant can't be dispatched on this machine (agents not synced, harnes
 
 Note: `docket-brainstorm` is its own opt-in **role** skill (bound via the `brainstorm` key), not one of the operating-loop stages in [The eight skills](#the-eight-skills) above — it's why you'll find eleven directories under `skills/` even though that table lists eight — docket-brainstorm plus the two build-role skills, docket-build and docket-build-task.
 
-#### docket-build — the lean, profile-routed build
+### docket-build — the lean, profile-routed build
 
 By default, the `build` role (the step in `docket-implement-next` that turns a written plan into commits) runs `superpowers:subagent-driven-development` — a per-task implementer/reviewer subagent pair, plus a duplicate whole-branch review folded into the same loop. **`docket-build` is an opt-in alternative** that dispatches one fresh worker per task and does no review of its own, leaving `skills.review` as docket's sole review gate: roughly `T + 1` nested runs (one worker per task, plus one final full-suite gate) against SDD's `2T + 2` clean path.
 
@@ -709,7 +709,7 @@ skills:
 
 Opt back out — or do nothing, since this stays the shipped default for everyone who hasn't opted in — with `skills: build: superpowers:subagent-driven-development`.
 
-Each task is routed to one of three named Claude profile agents (`docket-build-economy`, `docket-build-standard`, `docket-build-premium`), sharing one worker contract and differing only in effort. The classifier is deliberately asymmetric: `economy` must be *positively* established (fully specified, localized, pattern-following, no consequential risk), while genuine uncertainty defaults to `standard` rather than the cheaper tier. A plan task can override the classifier outright with a `**Build profile:** economy` line on that task; an invalid value halts the build rather than silently falling back. The full routing rubric and worker protocol are the `docket-build` skill's, not restated here.
+Each task is routed to one of three named Claude profile agents (`docket-build-economy`, `docket-build-standard`, `docket-build-premium`), sharing one worker contract and differing only in effort. The classifier is deliberately asymmetric: `economy` must be *positively* established (fully specified, localized, pattern-following, no consequential risk), while genuine uncertainty defaults to `standard` rather than the cheaper tier. A plan task can override the classifier outright with a `**Build profile:** economy` line on that task; an invalid value halts the build rather than silently falling back. The full routing rubric and worker protocol are the [`docket-build`](skills/docket-build/SKILL.md) skill's, not restated here.
 
 Each task carries at most one automatic escalation — an `economy` worker retries once at `standard`, a `standard` worker retries once at `premium` — never a second climb; a `premium` worker that still can't finish halts the build for a human. After every task has committed, `docket-build` runs the whole suite exactly once, resolved from `finalize.test_command` (no second, driftable test-command key of its own) — green hands off to `skills.review`, red becomes one synthetic integration-repair task on the same `standard -> premium -> halt` ladder.
 
