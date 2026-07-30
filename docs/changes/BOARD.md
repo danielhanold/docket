@@ -1,8 +1,8 @@
 # Backlog
 
-**166 changes** — 🟡 28 proposed · 🔴 1 blocked · ⚪ 4 deferred · 🔵 1 implemented · ✅ 114 done · 🗑️ 18 killed
+**170 changes** — 🟡 32 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 114 done · 🗑️ 19 killed
 
-## 🟡 Proposed (28)
+## 🟡 Proposed (32)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -34,12 +34,10 @@
 | [0163](active/0163-six-phase-tier-3-guard-counts-headings-instead-of-asserting.md) | Six-phase Tier 3 guard counts headings instead of asserting the phase set | `medium` | `fix` | needs-brainstorm |
 | [0165](active/0165-consolidate-or-document-the-duplicated-flat-scalar-docket-ym.md) | Consolidate or document the duplicated flat-scalar .docket.yml reader in migrate-to-docket.sh | `medium` | `refactor` | needs-brainstorm |
 | [0166](active/0166-retune-the-interactive-skills-advisory-session-model-recomme.md) | Retune the interactive skills' advisory session-model recommendation | `medium` | `chore` | needs-brainstorm |
-
-## 🔴 Blocked (1)
-
-| # | Title | Priority | Type | Blocked by |
-|---|-------|----------|------|------------|
-| [0044](active/0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | `low` | `feat` | PR #69 is stale (predates the 0068/0072 facade rework and later agent-layer changes) and #0079 (runner delegation) reshapes the design — the build roles should grow a runner field (build.<role>.runner codex, the mixed topology 0079 deferred). Needs a rebase plus redesign pass before merge. |
+| [0167](active/0167-lean-profile-routed-build.md) | Lean profile-routed build — fresh task workers without review loops | `high` | `feat` | build-ready |
+| [0168](active/0168-cursor-profile-routed-build-support.md) | Cursor support for profile-routed Docket builds | `medium` | `feat` | ⏳ waiting on #167 — not yet built |
+| [0169](active/0169-codex-profile-routed-build-support.md) | Codex support for profile-routed Docket builds | `medium` | `feat` | ⏳ waiting on #167 — not yet built |
+| [0170](active/0170-lean-whole-branch-review-skill.md) | Lean Docket-owned whole-branch review skill | `medium` | `feat` | ⏳ waiting on #167 — not yet built |
 
 ## ⚪ Deferred (4)
 
@@ -63,7 +61,6 @@ graph TD
   0009
   0010
   0015 --> 0019
-  0044
   0077 --> 0078
   0082
   0100
@@ -92,15 +89,20 @@ graph TD
   0163
   0165
   0166
+  0167
+  0167 --> 0168
+  0167 --> 0169
+  0167 --> 0170
   0015:::done
   0077:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (132)</summary>
+<details><summary>✅🗑️ Archive — done + killed (133)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0044](archive/2026-07-30-0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | 2026-07-30 |
 | [0164](archive/2026-07-29-0164-retune-agent-model-effort-defaults-for-all-three-harnesses.md) | Retune agent model/effort defaults for all three supported harnesses | 2026-07-29 |
 | [0162](archive/2026-07-28-0162-restore-the-machine-local-ignored-advisory-for-a-committed-t.md) | Restore the machine-local-ignored advisory for a committed too-deep runtime.bash | 2026-07-28 |
 | [0161](archive/2026-07-28-0161-enumerate-the-health-checks-failed-outcome-in-docket-status.md) | Enumerate the health-checks-failed outcome in docket-status SKILL.md | 2026-07-28 |
