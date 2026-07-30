@@ -37,7 +37,7 @@ assert "head: still requires foreground" 'grep -qi "foreground" <<<"$head_plain"
 assert "head: instruction prose names no dispatch tool literal" \
   '! grep -qE "\b(Task|Agent)\b" <<<"$(grep -v "^    " "$HEAD")"'
 
-# Population derived by glob, with a floor. Nine built-in agents ship fragments today; the floor
+# Population derived by glob, with a floor. Twelve built-in agents ship fragments today; the floor
 # is >= 9 so adding a tenth agent does not redden, while a vanished/renamed directory does.
 frags=""; n=0
 for f in "$REPO"/cursor-rules/dispatch/docket-*.md; do

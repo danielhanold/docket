@@ -142,7 +142,7 @@ make_sandbox                                       # SBX = the repo
 HROOT48A="$(mktemp -d)"; mkdir -p "$HROOT48A/.claude"
 printf 'agents:\n  default:\n    status: { model: sonnet, effort: high }\n' > "$SBX/.docket.yml"
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48A" bash "$SYNC" >/dev/null )
-assert "0048: full set — all 8 built-ins land in project-level .claude/agents" \
+assert "0048: full set — all 12 built-ins land in project-level .claude/agents" \
   '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "12" ]'
 assert "0048: listed agent carries its override (status=sonnet)" \
   '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "sonnet" ]'

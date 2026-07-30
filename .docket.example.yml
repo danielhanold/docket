@@ -339,10 +339,10 @@ auto_capture:
 #   #   implement-next:        { model: cursor-grok-4.5-high, effort: auto }
 #   #   rebase-resolver:       { model: cursor-grok-4.5-high, effort: auto }
 #   #   integration-repair:    { model: cursor-grok-4.5-high, effort: auto }
-#   #   finalize-change:       { model: cursor-grok-4.5-high-fast, effort: auto }
 #   #   build-economy:         { model: cursor-grok-4.5-low-fast, effort: auto }
 #   #   build-standard:        { model: cursor-grok-4.5-medium, effort: auto }
 #   #   build-premium:         { model: cursor-grok-4.5-high, effort: auto }
+#   #   finalize-change:       { model: cursor-grok-4.5-high-fast, effort: auto }
 
 # runners — per-runner knobs for RUNNER DELEGATION (change 0079): handing an agent's whole run to
 # a child harness with its own subscription, models, and skills. Activated per agent by an explicit

@@ -105,8 +105,14 @@ assert "the three profiles carry three DISTINCT efforts" \
 
 # All three share one model — the profile axis is effort, not model. If a future change
 # deliberately splits models, this assert is the place that must be updated consciously.
-models="$(for n in economy standard premium; do fmv "$REPO/agents/docket-build-$n.md" model; done | sort -u)"
-assert "the three profiles share one model" '[ "$(grep -c . <<<"$models")" = 1 ]'
+# Collected as three raw values (not sort -u'd away first): a deleted model: line collapses to a
+# blank that a bare "one distinct value" check would silently ignore, so the non-vacuity half
+# (exactly 3 non-empty values) is asserted alongside the one-value half, same shape as the
+# efforts DISTINCT-count assert above.
+models=""
+for n in economy standard premium; do models="$models $(fmv "$REPO/agents/docket-build-$n.md" model)"; done
+assert "the three profiles share one model" \
+  '[ "$(tr " " "\n" <<<"$models" | grep -c .)" = 3 ] && [ "$(tr " " "\n" <<<"$models" | grep . | sort -u | wc -l | tr -d " ")" = 1 ]'
 
 # The IDs must NOT appear under agents.default in the example — Claude model IDs there would
 # falsely present themselves as harness-portable (spec: "never the harness-neutral fallback").
@@ -114,6 +120,18 @@ EX="$REPO/.docket.example.yml"
 default_blk="$(awk '/^#[[:space:]]*default:[[:space:]]*$/{inblk=1;next} inblk && /^#[[:space:]]{0,3}[a-z]/{inblk=0} inblk{print}' "$EX")"
 assert "no build profile is documented under agents.default" \
   '! grep -qE "build-(economy|standard|premium)" <<<"$default_blk"'
+
+# Non-vacuity companion: the shipped example has no commented `default:` block today, so
+# $default_blk is normally the empty string and the assert above passes trivially — that must be
+# an ASSERTED "nothing to check" state, not an unexamined silent pass that would stay green even
+# if the awk extraction itself broke. Require either the slice is non-empty OR the file genuinely
+# has no `default:` block opener at all (so a future extraction regression, with a real `default:`
+# block present, has somewhere to redden). The positive half of the rule — that the three
+# build-profile entries really do live under `claude:` — is covered by the mirror-equality loop in
+# tests/test_docket_example_yml.sh.
+default_hdr_count="$(grep -cE '^#[[:space:]]*default:[[:space:]]*$' "$EX")"
+assert "agents.default guard is armed: slice is non-empty, or the file truly has no default: block" \
+  '[ -n "$default_blk" ] || [ "$default_hdr_count" = 0 ]'
 
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
