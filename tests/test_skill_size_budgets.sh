@@ -45,11 +45,15 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # dispatch tool". Set from the measured actual: 3445 words -> 3500 (the next multiple of 50 is 3450,
 # which would leave a 5-word margin — the within-25 clause above pushes it to 3500). The LINE budget was not raised
 # by this change at all — the measured actual (135 lines) still fits the pre-existing 147.
+# skills/docket-build-task/SKILL.md is a NEW row added by change 0167, which introduced the
+# docket-build-task worker contract. Set per the rounding rule above from the measured actual:
+# 99 lines -> 100, 805 words -> 850 (45 words of margin, above the within-25 threshold).
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
 skills/docket-auto-groom/SKILL.md                           66 1237
 skills/docket-brainstorm/SKILL.md                           84  692
+skills/docket-build-task/SKILL.md                          100  850
 skills/docket-convention/SKILL.md                          365 6250
 skills/docket-convention/github-board-mirror.md             19  462
 skills/docket-convention/references/agent-layer.md         168 1839
