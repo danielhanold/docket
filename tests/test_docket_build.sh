@@ -70,6 +70,43 @@ assert "worker: owns exactly one task" 'grep -qiE "exactly one task|only that ta
 assert "worker: must not rewrite earlier task commits" \
   'grep -qiE "not rewrite|never rewrite" <<<"$worker_body"'
 
+# METADATA BOUNDARY (whole-branch review, finding 3). The three profile wrappers deliberately do
+# NOT preload docket-convention, and docket-convention was the only document asserting they "perform
+# no docket metadata operations" — i.e. the one document these workers never read. They are
+# full-tool agents that write code and commit, so today the boundary holds only incidentally
+# (a feature worktree happens to contain no .docket/). It must be stated in the contract they DO
+# load. Extracted from the `## Scope` section rather than grepped file-wide, because the boundary is
+# a SCOPE rule: a stray mention in the intro or in a NOTES example would satisfy a whole-file grep
+# while the normative bullet was gone. Non-vacuity companion first, per this file's standard.
+scope_blk="$(awk '/^## Scope$/{inblk=1;next} inblk && /^## /{inblk=0} inblk' <<<"$worker_body")"
+assert "worker: the Scope section body is non-vacuous" \
+  '[ "$(grep -c . <<<"$scope_blk")" -ge 8 ]'
+assert "worker: works only inside the feature worktree, on its branch" \
+  'grep -qiF -- "inside the feature worktree" <<<"$scope_blk"'
+# Negations are word-anchored (\b) so a rewrite cannot state the OPPOSITE rule inside "Nothing",
+# "none", or "notwithstanding" and still pass — the idiom this file already uses for the
+# no-dispatch and no-concurrency rules.
+assert "worker: performs NO docket metadata operations" \
+  'grep -qiE "\b(no|never|not)\b[^.]{0,60}docket metadata operations" <<<"$scope_blk"'
+# Each forbidden target named individually: a boundary that lists only some of them is the gap.
+while IFS= read -r tgt; do
+  [ -n "$tgt" ] || continue
+  assert "worker: metadata boundary forbids writing — $tgt" 'grep -qF -- "$tgt" <<<"$scope_blk"'
+done <<'EOF'
+.docket/
+metadata branch
+change files
+ADRs
+board
+learnings ledger
+EOF
+assert "worker: never pushes, force-pushes, resets --hard, or rebases" \
+  'grep -qiE "\b(never|do not|does not)\b[^.]{0,40}push[^.]{0,80}(reset|rebase)" <<<"$scope_blk"'
+# Plan checkboxes are not progress state (finding 4) — the worker half of the rule; the controller
+# half is asserted in its Checkpointing block below.
+assert "worker: plan checkboxes are not progress state" \
+  'grep -qiE "checkboxes are \*\*not\*\* progress state|checkboxes are not progress state" <<<"$scope_blk"'
+
 # An escalated worker inherits the worktree — it must account for uncommitted changes. The bare
 # word "uncommitted" is only the SUBJECT of the rule, not the rule: a body rewrite instructing the
 # escalated worker to `git checkout .` over the leftovers kept that word and stayed green (final
@@ -194,6 +231,11 @@ assert "controller: reads BUILD_CHECKPOINT from the Step-0 config export" \
   'grep -qF -- "\`BUILD_CHECKPOINT\` from the Step-0 config export" <<<"$ctrl_body"'
 assert "controller: names the ledger path" \
   'grep -qF -- ".superpowers/docket-build/<change-id>/progress.md" <<<"$ctrl_body"'
+# Finding 4: the checkpoint-`false` resume story reads "the plan" for progress, and superpowers
+# plans carry `- [ ]` checkboxes — a half-ticked plan is exactly the misread docket has been burned
+# by. The controller half of the rule (the worker half is in its Scope block above).
+assert "controller: plan checkboxes are NOT progress state on resume" \
+  'grep -qiE "checkboxes are \*\*not\*\* progress state|checkboxes are not progress state" <<<"$ctrl_body" && grep -qiF -- "never checkbox marks" <<<"$ctrl_body"'
 # The resume rule is the "only when" construction, not the word "ancestor": flipping "skip a task
 # **only** when" to "whenever" — which turns a conjunction of three conditions into a licence to
 # skip on any of them — left an "ancestor"-keyed assert green (final fix wave, finding 2b). All
@@ -241,6 +283,65 @@ assert "controller: a missing or malformed outcome halts" \
   'grep -qiE "(missing or malformed|malformed)[^.]{0,60}halt" <<<"$ctrl_body"'
 assert "controller: never infers success from a child reporting it finished" \
   'grep -qiE "never infer" <<<"$ctrl_body"'
+
+# HALTING CONDITIONS (whole-branch review, findings 1/2/5). The review's framing: the contract
+# repeatedly stated a PREDICATE ("a task without a commit is not complete") where it owed a
+# DISPOSITION, leaving well-formed-but-wrong states — an unverifiable COMPLETE, an undetectable
+# suite, a stray commit — with no defined action. One section now enumerates every halt and owns the
+# shared disposition; the in-place rules point AT it instead of restating it. Anchored on the
+# section HEADING at line start and required to be UNIQUE, since the phrase "Halting conditions"
+# now recurs in every in-place back-pointer — a presence-anywhere grep would stay green with the
+# section itself deleted, which is precisely the state this guard exists to catch.
+assert "controller: has exactly one Halting conditions section" \
+  '[ "$(grep -cE "^## Halting conditions$" <<<"$ctrl_body")" = 1 ]'
+# The heading alone is not the rule: a heading whose disposition sentence is stripped enumerates
+# conditions with no stated action — the exact defect being closed. All three parts of the
+# disposition (halted / in-progress / worktree preserved) are required together.
+assert "controller: every halt returns halted, in-progress, worktree preserved" \
+  'grep -qE "^Every halt is the same disposition" <<<"$ctrl_body" && grep -qF -- "worktree is preserved" <<<"$ctrl_body" && grep -qiE "stays \`in-progress\`" <<<"$ctrl_body"'
+# Non-vacuity companion for the extraction below (this file's standard for any awk slice).
+halt_blk="$(awk '/^## Halting conditions$/{inblk=1;next} inblk && /^## /{inblk=0} inblk' <<<"$ctrl_body")"
+assert "controller: the Halting conditions section body is non-vacuous" \
+  '[ "$(grep -c . <<<"$halt_blk")" -ge 15 ]'
+# Every halt the review enumerated, keyed INSIDE the section slice — a whole-file grep would be
+# satisfied by the in-place rule that points here, so deleting a bullet would redden nothing.
+while IFS='|' read -r label pat; do
+  [ -n "$label" ] || continue
+  assert "controller: Halting conditions enumerates — $label" \
+    'grep -qiF -- "$pat" <<<"$halt_blk"'
+done <<'EOF'
+un-dispatchable profile routing|Profile routing is un-dispatchable
+profile agent not registered|not registered on this machine
+invalid explicit profile|value is invalid
+malformed or unverifiable worker return|malformed or unverifiable
+escalation allowance exhausted|escalation allowance is exhausted
+stray commit from a failed attempt|failed attempt left a commit
+no detectable suite|No suite is detectable
+still red after the premium repair|still red after the premium repair
+EOF
+
+# Finding 1's in-place rule, at the surface that owns it: a COMPLETE is settled against GIT STATE.
+# The prose check it replaced ("must come with ... a commit SHA") was satisfiable by the return TEXT
+# containing a SHA-shaped string, against this repo's own recorded lesson that a child's completion
+# report is unreliable in both directions. The ancestry COMMAND is the operative literal; the
+# no-re-dispatch negation is word-anchored so the opposite rule cannot pass.
+assert "controller: verifies a COMPLETE's commit is an ancestor of the branch tip" \
+  'grep -qF -- "git merge-base --is-ancestor <sha> HEAD" <<<"$ctrl_body"'
+assert "controller: never re-dispatches a task to repair its own return" \
+  'grep -qiE "\b(never|do not|does not)\b[^.]{0,60}re-dispatch" <<<"$ctrl_body"'
+
+# Finding 2's in-place rule: finalize's auto-detection exits non-zero in a repo with no test files,
+# which the two-branch gate read as RED — manufacturing a repair task and burning standard ->
+# premium -> halt on a configuration problem. Keyed on the classification itself, not on the word
+# "halt", since a rewrite that keeps the halt but drops the classification re-opens the mis-routing.
+assert "controller: an undetectable suite is a configuration gap, not a red suite" \
+  'grep -qiF -- "configuration gap, not a red suite" <<<"$ctrl_body" && grep -qF -- "finalize.test_command" <<<"$ctrl_body"'
+
+# Finding 5's in-place rule: a failed attempt that left a COMMIT (not merely a dirty tree) cancels
+# the escalation, because the escalated worker is separately forbidden to rewrite earlier task
+# commits and the exactly-one-commit accounting is already contaminated.
+assert "controller: does not escalate onto a commit left by a failed attempt" \
+  'grep -qiE "\b(do not|does not|never)\b escalate onto a stray commit" <<<"$ctrl_body"'
 
 # ---------------------------------------------------------------------------
 # The three Claude build-profile wrappers (change 0167)
