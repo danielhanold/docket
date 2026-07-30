@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0167 — Lean profile-routed build — fresh task workers without review loops](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0167-lean-profile-routed-build.md)**
+> ↩ **[Change 0167 — Lean profile-routed build — fresh task workers without review loops](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-07-30-0167-lean-profile-routed-build.md)**
 <!-- docket:backlink:end -->
 
 # Lean Profile-Routed Build Implementation Plan
