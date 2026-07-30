@@ -2,9 +2,9 @@
 slug: assert-detects-removal-not-replacement
 hook: "A guard written to CONFIRM the wording you just introduced detects nothing — write the assert that DETECTS the state you just removed, and prove the mutation actually landed before believing it passed."
 topics: [testing, guards, mutation]
-changes: [135]
+changes: [135, 167]
 created: 2026-07-28
-updated: 2026-07-28
+updated: 2026-07-30
 promotion_state: candidate
 promoted_to:
 ---
@@ -53,3 +53,14 @@ sentinel does and does not pin).
   The unifying shape: **each assert confirmed the wording just introduced instead of detecting the
   state just removed.** Both surviving implementers ended up asserting `grep -c` before and after
   every mutation as standing practice.
+- 2026-07-30 (#167, PR #139) — Guard **anchoring** was the dominant defect class across four fix
+  rounds, and it failed in both directions. Too loose: a presence-anywhere grep survives deletion of
+  the very rule it guards, because the phrase also occurs in the frontmatter `description:`, a
+  summary line, or a template block — deleting all three `## Outcomes` bullets once left all three
+  outcome asserts green. An unanchored `no` alternative matched inside the word `Nothing`, so a full
+  inversion of the change's no-review rule passed. And the `agents.default` guard was **vacuous**:
+  its extraction returned the empty string against the real file, so the negative assert could not
+  fail under any mutation. Every one was found by mutation, none by reading. The generalization the
+  round produced: anchor on a **stable syntactic feature** (a line, a marker block, the producing
+  code), never on where prose happens to sit — the too-loose presence grep and the reflow-brittle
+  line-scoped assert are one root cause seen from opposite sides (tracked as #0171).

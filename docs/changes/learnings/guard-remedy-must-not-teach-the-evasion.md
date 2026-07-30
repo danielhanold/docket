@@ -2,9 +2,9 @@
 slug: guard-remedy-must-not-teach-the-evasion
 hook: "A count-based guard whose failure message says 'bump the expected count' teaches the evasion — budget the coverage-granting path with its own counter."
 topics: [guards, testing, invariants]
-changes: [122]
+changes: [122, 167]
 created: 2026-07-28
-updated: 2026-07-28
+updated: 2026-07-30
 promotion_state: candidate
 promoted_to:
 ---
@@ -50,3 +50,12 @@ guard's *unit of admission* was the hole.
   against the real file during the plan pass, so every expected value was measured, not predicted;
   all three mutation outputs matched on the implementer's first run
   ([[plan-supplied-test-code-is-unverified]]).
+- 2026-07-30 (#167, PR #139) — The same evasion, taken. `.docket.yml`'s slim-file line budget was
+  raised **40 → 45** so an added `agents.claude` block would fit. Review found the block was a pure
+  mirror of the shipped built-ins: it resolved nothing new and was itself unguarded by ADR-0039's
+  mirror-equality loop. Deleting it put the file at **34** lines — eleven under the original budget.
+  The budget existed precisely to stop that accretion, and bumping it was the cheapest path to green,
+  so the guard fired correctly and the remedy taken was the wrong one. Resolved by removing the
+  block, not by re-budgeting. Read a count-bump in a diff as a **finding to investigate**, never as
+  bookkeeping: the guard is reporting that something grew, and the interesting question is always
+  whether the growth earned its lines.

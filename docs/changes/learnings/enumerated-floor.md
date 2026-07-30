@@ -2,9 +2,9 @@
 slug: enumerated-floor
 hook: "Every hand-written enumeration is a floor, not the set — derive the sites from a whole-repo grep, then treat that grep as a floor too."
 topics: [process, inventory, review]
-changes: [14, 32, 42, 52, 54, 56, 64, 67, 71, 74, 84, 96, 98, 99]
+changes: [14, 32, 42, 52, 54, 56, 64, 67, 71, 74, 84, 96, 98, 99, 167]
 created: 2026-06-12
-updated: 2026-07-19
+updated: 2026-07-30
 promotion_state: promoted
 promoted_to: AGENTS.md
 ---
@@ -99,3 +99,11 @@ enumerated.
   rather than **false**. When an enumeration keeps drifting under you, ask whether the claim needs
   the enumeration at all — a stated invariant with an explicitly-dated example list degrades
   gracefully where a bare count degrades into a lie.
+- 2026-07-30 (#167, PR #139) — The rule re-confirmed at its plainest, this time against a *plan*.
+  The build-profile roster moved 9 → 12; the plan named **five** surfaces carrying the count and a
+  whole-repo grep found **four more** (`test_sync_agents.sh`'s second assert, `test_sync_agents_cursor.sh`,
+  `test_sync_agents_codex.sh`, and a prose comment in `test_docket_example_yml.sh`). A plan's
+  enumeration of sites is a floor exactly as a change file's is — being written by the pass that
+  greps does not exempt it. Second-order: one README site the report claimed to have edited had not
+  been edited, caught only because the reviewer re-read the file rather than trusting the report
+  ([[verify-the-claim]]).

@@ -2,9 +2,9 @@
 slug: foundational-test-discipline
 hook: "Sentinel greps are sampling, not parsing — pair them with a whole-branch review that reads for meaning."
 topics: [testing, sentinels, review]
-changes: [1, 2, 5, 13, 137]
+changes: [1, 2, 5, 13, 137, 167]
 created: 2026-06-02
-updated: 2026-07-27
+updated: 2026-07-30
 promotion_state: retained
 promoted_to:
 ---
@@ -35,3 +35,12 @@ findings.
   re-review of *those fixes* found two more. Each round's "all green-to-red" was true and
   insufficient. Coverage over the mutations you thought of is a claim about your imagination, not
   about the guard.
+- 2026-07-30 (#167, PR #139) — What distinguishes a review that finds things is **stance**, not
+  count. Five task-scoped reviews *and* a whole-branch review all passed; a separate independent
+  whole-branch review then found five Important contract defects none of them could see. Every one
+  was an off-happy-path **disposition** gap — the contract stated a predicate ("a task without a
+  commit is not complete") where it owed an **action**. The difference in method was the whole
+  difference: the earlier reviews read the skills as **grep targets**, the one that found the defects
+  read them as an **operator executing from a cold start**, which is the only stance under which a
+  missing disposition is visible at all. Incidental but pointed: this was the review topology the
+  change itself was arguing for, so the change validated its own thesis mid-build.
