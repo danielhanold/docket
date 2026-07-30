@@ -142,7 +142,7 @@ Docket's ordinary behavior defaults already apply.
 
 The canonical reference for every key is [`.docket.example.yml`](.docket.example.yml) in this repo: every config key, active at its shipped default, with full documentation and a scope tag saying which layers may set it. Copy the keys you want to change into the layer you want them in.
 
-- **To see docket's built-in per-skill model and effort:** the example's commented `agents.claude` block mirrors the shipped defaults for all nine subagents, so you can read and tune them in one place instead of opening nine wrapper files.
+- **To see docket's built-in per-skill model and effort:** the example's commented `agents.claude` block mirrors the shipped defaults for all twelve subagents, so you can read and tune them in one place instead of opening twelve wrapper files.
 - **Claude-only users can skip this entirely** — the defaults already apply.
 - **To enable another harness (Cursor, Codex):** uncomment `agent_harnesses` and add the harness, **and** uncomment that harness's block under `agents:`, then re-run `install.sh` so `sync-agents.sh` regenerates the wrappers. Both keys are **presence-sensitive** — uncommenting either opts the repo into per-repo wrapper generation even at default values.
 
@@ -694,7 +694,7 @@ If the consultant can't be dispatched on this machine (agents not synced, harnes
 
 **Capture-then-groom: an entire brainstorm at a chosen model.** The consultant pins *authorship*; the dialogue and option generation still run at whatever model the session is on. To pin the *whole* brainstorm, no new machinery is needed: capture the idea as a stub with `docket-new-change` in whichever session it strikes you (skip straight past brainstorming — the stub lands at `needs-brainstorm`), then run `docket-groom-next` from a session set to the model you want. That session does the full design conversation at its own model, and can still opt into consultant authorship on top.
 
-Note: `docket-brainstorm` is its own opt-in **role** skill (bound via the `brainstorm` key), not one of the operating-loop stages in [The eight skills](#the-eight-skills) above — it's why you'll find nine directories under `skills/` even though that table lists eight.
+Note: `docket-brainstorm` is its own opt-in **role** skill (bound via the `brainstorm` key), not one of the operating-loop stages in [The eight skills](#the-eight-skills) above — it's why you'll find eleven directories under `skills/` even though that table lists eight — docket-brainstorm plus the two build-role skills, docket-build and docket-build-task.
 
 ### Runner delegation — running docket agents on another harness
 

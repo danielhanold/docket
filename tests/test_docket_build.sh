@@ -78,5 +78,42 @@ assert "worker: escalated worker must not blindly discard existing uncommitted w
 assert "worker: repository instructions override the generic contract" \
   'grep -qF -- "AGENTS.md" <<<"$worker_body"'
 
+# ---------------------------------------------------------------------------
+# The three Claude build-profile wrappers (change 0167)
+# ---------------------------------------------------------------------------
+fmv(){ awk 'NR==1 && $0=="---"{f=1;next} f && $0=="---"{exit} f{print}' "$1" \
+        | sed -n "s/^$2:[[:space:]]*//p" | head -n1 | sed 's/[[:space:]]*$//'; }
+
+# The ladder is a triple, and effort is the ONLY thing that differs. Asserting the efforts
+# pairwise-distinct is what stops a copy-paste that silently makes all three the same agent.
+efforts=""
+for p in economy:low standard:medium premium:high; do
+  name="${p%%:*}"; want="${p##*:}"
+  w="$REPO/agents/docket-build-$name.md"
+  assert "profile $name: wrapper exists" '[ -f "$w" ]'
+  [ -f "$w" ] || continue
+  assert "profile $name: name field matches its filename" '[ "$(fmv "$w" name)" = "docket-build-'"$name"'" ]'
+  assert "profile $name: effort is $want" '[ "$(fmv "$w" effort)" = "'"$want"'" ]'
+  assert "profile $name: model is set" '[ -n "$(fmv "$w" model)" ]'
+  assert "profile $name: preloads the shared worker skill" \
+    'grep -qF -- "docket-build-task" <<<"$(fmv "$w" skills)"'
+  assert "profile $name: emits no maxTurns" '! grep -qiE "^maxTurns[[:space:]]*:" "$w"'
+  efforts="$efforts $(fmv "$w" effort)"
+done
+assert "the three profiles carry three DISTINCT efforts" \
+  '[ "$(tr " " "\n" <<<"$efforts" | grep -c .)" = 3 ] && [ "$(tr " " "\n" <<<"$efforts" | grep -c . )" = "$(tr " " "\n" <<<"$efforts" | grep . | sort -u | wc -l | tr -d " ")" ]'
+
+# All three share one model — the profile axis is effort, not model. If a future change
+# deliberately splits models, this assert is the place that must be updated consciously.
+models="$(for n in economy standard premium; do fmv "$REPO/agents/docket-build-$n.md" model; done | sort -u)"
+assert "the three profiles share one model" '[ "$(grep -c . <<<"$models")" = 1 ]'
+
+# The IDs must NOT appear under agents.default in the example — Claude model IDs there would
+# falsely present themselves as harness-portable (spec: "never the harness-neutral fallback").
+EX="$REPO/.docket.example.yml"
+default_blk="$(awk '/^#[[:space:]]*default:[[:space:]]*$/{inblk=1;next} inblk && /^#[[:space:]]{0,3}[a-z]/{inblk=0} inblk{print}' "$EX")"
+assert "no build profile is documented under agents.default" \
+  '! grep -qE "build-(economy|standard|premium)" <<<"$default_blk"'
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
