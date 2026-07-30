@@ -12,7 +12,7 @@ related: [42, 44, 135, 137]
 discovered_from: []
 adrs: [23]
 spec: docs/superpowers/specs/2026-07-30-lean-profile-routed-build-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-30-lean-profile-routed-build.md
 results:
 trivial: false
 auto_groomable:
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-30-lean-profile-routed-build-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-30-lean-profile-routed-build-design.md) |
+| Plan | [2026-07-30-lean-profile-routed-build.md](https://github.com/danielhanold/docket/blob/feat/lean-profile-routed-build/docs/superpowers/plans/2026-07-30-lean-profile-routed-build.md) |
 | ADRs | [ADR-0023](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0023-configurable-sdd-build-model.md) |
 <!-- docket:artifacts:end -->
 
