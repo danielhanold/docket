@@ -66,6 +66,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 ## Superseded / Reversed
 
 - [ADR-0017](0017-cursor-dispatch-rule-full-agent-set.md) — Per-repo agent generation goes always-full-set, opt-in, with a Cursor dispatch rule (Superseded by ADR-20) ← change #48 · relates to ADR-0015, ADR-0016
+- [ADR-0023](0023-configurable-sdd-build-model.md) — Configurable SDD build models — a `build:` surface of per-role direct model IDs (Superseded by ADR-63) ← change #44 · relates to ADR-0015, ADR-0016, ADR-0018
 - [ADR-0039](0039-config-example-mirrors-wrapper-defaults.md) — config.yml.example is a documented mirror of the shipped wrapper defaults (Superseded by ADR-48) ← change #81
 - [ADR-0042](0042-auto-approve-consent-model.md) — Auto-approve consent model — a bot approval proves docket's pipeline signed off, not human review (Reversed by ADR-0043) ← change #62 · relates to ADR-0011
 
