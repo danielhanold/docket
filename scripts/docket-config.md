@@ -122,6 +122,7 @@ A value may not contain a literal `#` — it is treated as the start of an inlin
 | `learnings.cap` | `300` | yes | read from the nested `learnings:` block; resolves repo-local > repo-committed > global |
 | `reclaim.lease_ttl` | `72` | yes | read from the nested `reclaim:` block; integer number of **hours** (consumers convert to seconds); resolves repo-local > repo-committed > global; behavioral, not coordination-fenced |
 | `reclaim.auto` | `false` | yes | read from the nested `reclaim:` block; `true`/`false`, anything else aborts; resolves repo-local > repo-committed > global; behavioral, not coordination-fenced — gates the ONLY mutating path of the claim-lease reclaim script |
+| `build.checkpoint` | `false` | yes | read from the nested `build:` block; `true`/`false`, anything else aborts; resolves repo-local > repo-committed > global; behavioral, not coordination-fenced — gates whether `docket-build` persists a resume ledger |
 
 **`runtime.bash` (change 0132).** This is machine identity, not repo policy. Its only valid homes
 are global `config.yml` (normal) and a repo's gitignored `.docket.local.yml` (override), with
@@ -200,6 +201,13 @@ ADR-0019 fence entry. `lease_ttl` is an integer number of **hours** (the consumi
 converts it to seconds); `auto` gates the ONLY mutating path of that script. Both fail closed on
 garbage: `lease_ttl` must be a non-negative integer; `auto` must be exactly `true` or `false`.
 Either violation aborts the run with a diagnostic naming the dotted key.
+
+### `build:`
+
+`build.checkpoint` (default `false`, any layer) gates whether `docket-build` persists a resume
+ledger under `.superpowers/docket-build/<change-id>/progress.md`. Read within the block via
+`yaml_block_body` so a bare `checkpoint:` elsewhere cannot shadow it; a value other than `true` or
+`false` aborts the resolver rather than falling back.
 
 ### Stage 2b: global config layer (change 0050)
 

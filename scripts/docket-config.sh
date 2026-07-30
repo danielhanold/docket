@@ -472,6 +472,29 @@ case "$RECLAIM_AUTO" in
   *) die "unparseable config: reclaim.auto must be 'true' or 'false', got '$RECLAIM_AUTO'" ;;
 esac
 
+# --- build: the build-role knobs (change 0167) -------------------------------
+# Nested block parsed exactly like reclaim: — the leaf is read WITHIN the block via
+# yaml_block_body, never as a bare top-level key: `checkpoint` is a generic word another block
+# could shadow. Behavioral, NOT coordination-fenced: it resolves through the full per-field
+# layering repo-local > repo-committed > global > built-in, like reclaim.* / learnings.*.
+# checkpoint gates whether docket-build persists a resume ledger; false (the default) keeps the
+# build's durability in the per-task code commits alone.
+BUILD_BLK="$(mktemp)";  yaml_block_body "$CFG"  build >"$BUILD_BLK"
+GBUILD_BLK="$(mktemp)"; yaml_block_body "$GCFG" build >"$GBUILD_BLK"
+LBUILD_BLK="$(mktemp)"; yaml_block_body "$LCFG" build >"$LBUILD_BLK"
+trap 'rm -f "$CFG" "$LEARN_BLK" "$GLEARN_BLK" "$LLEARN_BLK" "$RECLAIM_BLK" "$GRECLAIM_BLK" "$LRECLAIM_BLK" "$BUILD_BLK" "$GBUILD_BLK" "$LBUILD_BLK"' EXIT
+build_key(){  # build_key <leaf> <default> -> resolved value on stdout
+  local v; v="$(yaml_get "$LBUILD_BLK" "$1")"
+  [ -n "$v" ] || v="$(yaml_get "$BUILD_BLK" "$1")"
+  [ -n "$v" ] || v="$(yaml_get "$GBUILD_BLK" "$1")"
+  printf '%s' "${v:-$2}"
+}
+BUILD_CHECKPOINT="$(build_key checkpoint false)"
+case "$BUILD_CHECKPOINT" in
+  true|false) ;;
+  *) die "unparseable config: build.checkpoint must be 'true' or 'false', got '$BUILD_CHECKPOINT'" ;;
+esac
+
 # --- change_types + auto_capture: the typed-capture policy (change 0127) -------
 # change_types is a LIST resolved with WHOLE-LIST REPLACEMENT: the first layer that sets it wins
 # entirely. Merging would make a built-in value unremovable — a user could only ever add types,
@@ -521,7 +544,7 @@ done
 AC_BLK="$(mktemp)";  yaml_block_body "$CFG"  auto_capture >"$AC_BLK"
 GAC_BLK="$(mktemp)"; yaml_block_body "$GCFG" auto_capture >"$GAC_BLK"
 LAC_BLK="$(mktemp)"; yaml_block_body "$LCFG" auto_capture >"$LAC_BLK"
-trap 'rm -f "$CFG" "$LEARN_BLK" "$GLEARN_BLK" "$LLEARN_BLK" "$RECLAIM_BLK" "$GRECLAIM_BLK" "$LRECLAIM_BLK" "$AC_BLK" "$GAC_BLK" "$LAC_BLK"' EXIT
+trap 'rm -f "$CFG" "$LEARN_BLK" "$GLEARN_BLK" "$LLEARN_BLK" "$RECLAIM_BLK" "$GRECLAIM_BLK" "$LRECLAIM_BLK" "$BUILD_BLK" "$GBUILD_BLK" "$LBUILD_BLK" "$AC_BLK" "$GAC_BLK" "$LAC_BLK"' EXIT
 ac_key(){  # ac_key <leaf> <default> -> resolved value on stdout
   local v; v="$(yaml_get "$LAC_BLK" "$1")"
   [ -n "$v" ] || v="$(yaml_get "$AC_BLK" "$1")"
@@ -659,6 +682,7 @@ if [ "$MODE" = export ]; then
   emit TERMINAL_PUBLISH "$TERMINAL_PUBLISH"
   emit RECLAIM_LEASE_TTL "$RECLAIM_LEASE_TTL"
   emit RECLAIM_AUTO "$RECLAIM_AUTO"
+  emit BUILD_CHECKPOINT "$BUILD_CHECKPOINT"
   emit SKILL_BRAINSTORM "$SKILL_BRAINSTORM"
   emit SKILL_PLAN "$SKILL_PLAN"
   emit SKILL_BUILD "$SKILL_BUILD"

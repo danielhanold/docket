@@ -152,6 +152,22 @@ reclaim:
   auto: false
 
 
+# ═══ build — the docket-owned build role ═══════════════════════════════════════════════════
+
+# Knobs for docket's own build role, docket-build (change 0167) — the lean, profile-routed
+# alternative to superpowers:subagent-driven-development, selected via `skills: build:` below.
+# Inert unless that role is bound to docket-build.
+build:
+  # checkpoint — false (default) => the build persists NO resume ledger; completed work is durable
+  # through the per-task code commits alone, and a resumed run reconstructs progress conservatively
+  # from the plan, commits, code, and tests. true => docket-build writes a compact state ledger to
+  # the gitignored .superpowers/docket-build/<change-id>/progress.md, and a resumed task is skipped
+  # only when its entry is COMPLETE, the plan hash still matches, and its commit is an ancestor of
+  # the branch. Anything other than true/false is a config error, not a silent fallback.
+  # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
+  checkpoint: false
+
+
 # ═══ Board surfaces ════════════════════════════════════════════════════════════════════════
 
 # board_surfaces — which derived board view(s) to render. A list; [] disables the board entirely
