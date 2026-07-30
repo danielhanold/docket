@@ -159,12 +159,17 @@ and its reason.
 Each task may escalate automatically at most once:
 
 ```text
-economy -> standard -> premium -> halt
+initial economy  -> one standard retry
+initial standard -> one premium retry
+initial premium  -> halt
 ```
 
 A worker returns `NEEDS_ESCALATION` only when the task proves materially more complex or risky
 than the assigned profile, with a concrete reason. An expected RED test, ordinary debugging, or a
 single failed test run is not an escalation condition.
+
+The retry consumes that task's escalation allowance. A task that started at `economy` therefore
+halts if its `standard` retry still cannot complete; it does not climb again to `premium`.
 
 The stronger worker continues in the same worktree. It must inspect and account for any existing
 uncommitted changes; it may revise them but must not discard them blindly. A task produces a
