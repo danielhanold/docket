@@ -32,11 +32,3 @@ skills:
 build:
   # no resume ledger; per-task commits are the durability
   checkpoint: false
-
-# Mirrors the shipped profile defaults so they are visible and tunable in one place. Claude only —
-# Cursor and Codex profile mappings land with changes 0168 and 0169.
-agents:
-  claude:
-    build-economy:  { model: claude-opus-5, effort: low }
-    build-standard: { model: claude-opus-5, effort: medium }
-    build-premium:  { model: claude-opus-5, effort: high }

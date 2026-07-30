@@ -251,11 +251,33 @@ assert "agents.default guard is armed: slice is non-empty, or the file truly has
 # Dogfood: this repo opts in, the shipped default does NOT change
 # ---------------------------------------------------------------------------
 DY="$REPO/.docket.yml"
-dy_body="$(cat "$DY")"
+
+# Extract the top-level `skills:`/`build:` blocks the SAME way the resolver's own
+# yaml_block_body (scripts/docket-config.sh) does, so an assert here proves what the
+# resolver would actually see. A same-file grep-anywhere for the indented leaf would stay
+# green even if `skills:`/`build:` were renamed to `zskills:`/`zbuild:` — the resolver reads
+# each leaf WITHIN its named block, so a renamed header means the opt-in silently stops
+# resolving while a bare leaf-presence grep notices nothing.
+dy_yaml_block_body(){  # dy_yaml_block_body <file> <top-level-key> -> child lines on stdout
+  awk -v parent="$2" '
+    { line=$0; sub(/[[:space:]]*#.*/, "", line) }
+    line ~ ("^" parent "[[:space:]]*:[[:space:]]*$") { inblk=1; next }
+    inblk && line ~ /^[^[:space:]]/ { inblk=0 }
+    inblk { print }
+  ' "$1"
+}
+skills_blk="$(dy_yaml_block_body "$DY" skills)"
+build_blk="$(dy_yaml_block_body "$DY" build)"
+
+# Non-vacuity companions: without these, a broken/renamed-header extraction silently returns
+# an empty slice and the leaf assert below would never have anything to fail against.
+assert "repo's skills: block extraction is non-vacuous" '[ -n "$skills_blk" ]'
 assert "repo opts skills.build in to docket-build" \
-  'grep -qE "^[[:space:]]+build:[[:space:]]+docket-build[[:space:]]*$" <<<"$dy_body"'
+  'grep -qE "^[[:space:]]+build:[[:space:]]+docket-build[[:space:]]*$" <<<"$skills_blk"'
+
+assert "repo's build: block extraction is non-vacuous" '[ -n "$build_blk" ]'
 assert "repo pins build.checkpoint explicitly" \
-  'grep -qE "^[[:space:]]+checkpoint:[[:space:]]+(true|false)[[:space:]]*$" <<<"$dy_body"'
+  'grep -qE "^[[:space:]]+checkpoint:[[:space:]]+(true|false)[[:space:]]*$" <<<"$build_blk"'
 
 # The SHIPPED cross-harness default must stay SDD — the opt-in is this repo's, not everyone's.
 # Anchored on the resolver, which is what actually decides the default.
