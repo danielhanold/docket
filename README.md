@@ -698,7 +698,7 @@ Note: `docket-brainstorm` is its own opt-in **role** skill (bound via the `brain
 
 ### docket-build — the lean, profile-routed build
 
-By default, the `build` role (the step in `docket-implement-next` that turns a written plan into commits) runs `superpowers:subagent-driven-development` — a per-task implementer/reviewer subagent pair, plus a duplicate whole-branch review folded into the same loop. **`docket-build` is an opt-in alternative** that dispatches one fresh worker per task and does no review of its own, leaving `skills.review` as docket's sole review gate: roughly `T + 1` nested runs (one worker per task, plus one final full-suite gate) against SDD's `2T + 2` clean path.
+By default, the `build` role (the step in `docket-implement-next` that turns a written plan into commits) runs `superpowers:subagent-driven-development` — a per-task implementer/reviewer subagent pair, plus a duplicate whole-branch review folded into the same loop. **`docket-build` is an opt-in alternative** that dispatches one fresh worker per task and does no review of its own, leaving `skills.review` as docket's sole review gate: `T` nested runs on the clean path — one worker per task — plus one full-suite gate the controller runs itself as a Bash command rather than as a nested agent, against SDD's `2T + 2`. Each escalation adds at most one more nested run.
 
 Select it in any config layer:
 
@@ -709,7 +709,7 @@ skills:
 
 Opt back out — or do nothing, since this stays the shipped default for everyone who hasn't opted in — with `skills: build: superpowers:subagent-driven-development`.
 
-Opting in also means re-running `install.sh` and starting a fresh session: the installer is what generates the three profile agents and links the two build skills onto this machine, and Claude Code registers both only at process start — until it has, the first build stops with `agent docket-build-economy not found` and says so, rather than improvising a substitute.
+Opting in also means re-running `install.sh` and starting a fresh session: the installer is what generates the three profile agents and links the two build skills onto this machine, and Claude Code registers both only at process start — until it has, the first build stops on the harness rejecting a dispatch to a profile agent it does not yet know about, and reports that condition (with re-running `install.sh` in a fresh session as the remedy) rather than improvising a substitute.
 
 Each task is routed to one of three named Claude profile agents (`docket-build-economy`, `docket-build-standard`, `docket-build-premium`), sharing one worker contract and differing only in effort. The classifier is deliberately asymmetric: `economy` must be *positively* established (fully specified, localized, pattern-following, no consequential risk), while genuine uncertainty defaults to `standard` rather than the cheaper tier. A plan task can override the classifier outright with a `**Build profile:** economy` line on that task; an invalid value halts the build rather than silently falling back. The full routing rubric and worker protocol are the [`docket-build`](skills/docket-build/SKILL.md) skill's, not restated here.
 
@@ -717,7 +717,7 @@ Each task carries at most one automatic escalation — an `economy` worker retri
 
 `build.checkpoint` (default `false`) governs whether a run persists a resume ledger: `false` keeps only the per-task commits as the durable record, while `true` writes a compact state file recording each task's profile, escalation, and commit so a resumed run can skip work already proven complete.
 
-**`docket-build` is Claude Code only, for now**: the three profile agents ship Claude model IDs under `agents.claude`, so Cursor and Codex users should stay on the shipped default until changes 0168 and 0169 bring profile mappings for those harnesses.
+**`docket-build` ships validated model IDs for Claude Code only, for now**: the wrapper plumbing itself is harness-generic — `sync-agents.sh` generates the three profiles for every harness in `agent_harnesses`, docket ships Cursor dispatch rules for them, and `.docket.example.yml` carries commented `build-*` rows under both `codex:` and `cursor:` — but the only model IDs docket actually ships are the Claude ones under `agents.claude`; the rows under the other harnesses are unvalidated examples. On Cursor or Codex you must supply your own IDs, or stay on the shipped default until changes 0168 and 0169 land validated mappings.
 
 ### Runner delegation — running docket agents on another harness
 

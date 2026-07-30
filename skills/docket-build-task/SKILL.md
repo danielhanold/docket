@@ -17,6 +17,12 @@ subagent, and never load a review skill.
 
 - Implement only that task. Work outside its boundary belongs to another worker.
 - Never rewrite, amend, or revert earlier task commits, and never touch unrelated user work.
+- Stay **inside the feature worktree, on its branch**, performing **no docket metadata operations**:
+  never write to `.docket/`, the metadata branch, change files, ADRs, the board, or the
+  learnings ledger; never push, force-push, `reset --hard`, or rebase. The controller and
+  `docket-implement-next` own all of that.
+- A plan's `- [ ]` checkboxes are **not** progress state — do not tick them. Your commit is the
+  record of what you finished; nothing reads the marks.
 - Repository instructions — `AGENTS.md`, `CLAUDE.md`, and any nested equivalents — **override**
   this generic contract wherever they conflict. Read them before you write code.
 - If you were dispatched as an **escalated** worker, the worktree may already hold uncommitted
@@ -69,7 +75,11 @@ Examples of genuine cases — illustrative, not an exhaustive allowlist:
 
 A task produces a commit **only on success** — `COMPLETE` means focused verification is green and
 **exactly one successful task commit** exists for this task. Never commit on `NEEDS_ESCALATION` or
-`BLOCKED`: leave the worktree as it stands so the next worker or the human can read it.
+`BLOCKED`: leave the worktree as it stands so the next worker or the human can read it. A commit
+left behind by a failed attempt does not get escalated onto — it halts the build.
+
+If the **task text itself** prescribes more than one commit, the plan wins over this default:
+follow the task and report every SHA in your return.
 
 ## Outcomes
 
@@ -79,7 +89,8 @@ plainly.
 - **`COMPLETE`** — focused verification is green and exactly one task commit exists.
 - **`NEEDS_ESCALATION`** — the task proves materially more complex or riskier than the assigned
   profile, with a **concrete reason** naming what exceeded it. An expected RED test, ordinary
-  debugging, or a single failed test run is **not** an escalation condition. Whether this task
+  debugging, or a single failed test run is **not** an escalation condition, and without a concrete
+  reason the controller reads this as a malformed return and halts. Whether this task
   still has an escalation left is the controller's to know, not yours — so spend the outcome on
   genuine under-capacity, not on friction.
 - **`BLOCKED`** — a stronger model cannot resolve this: missing authority, contradictory
@@ -95,6 +106,6 @@ OUTCOME: COMPLETE | NEEDS_ESCALATION | BLOCKED
 PROFILE: <economy|standard|premium> — <one-line routing reason as given to you>
 VERIFICATION: <the focused command you ran> -> <result>
 TDD: <RED/GREEN evidence, or the three-part exception: why unsuitable / what replaced it / residual risk>
-COMMIT: <sha, or "none" for a non-COMPLETE outcome>
+COMMIT: <sha — every sha, if the task text prescribed more than one — or "none" for a non-COMPLETE outcome>
 NOTES: <only what the next worker or the PR genuinely needs — omit when there is nothing>
 ```

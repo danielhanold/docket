@@ -13,6 +13,16 @@ protocol, and run the build gate. Then you stop — review is not yours.
 You are not a router subagent: routing is a decision you make in this context. Each selected task
 gets exactly one fresh worker dispatch unless that worker requests its single allowed escalation.
 
+## Inputs
+
+- The **plan** `docket-implement-next` Step 4 wrote, at the path recorded in the change's `plan:`
+  field and committed on the feature branch.
+- The **feature branch and worktree** already cut for this change, plus that repo's own
+  instruction files (`AGENTS.md`, `CLAUDE.md`, nested equivalents).
+- The plan's `### Task N` headings, which are the **unit of dispatch** — one heading, one worker,
+  one commit. The routing rubric below assumes that granularity; a plan whose tasks are not
+  separable at that boundary is a planning defect, not something to re-cut here.
+
 ## Profiles
 
 Three named agents, all preloading the same `docket-build-task` worker skill and differing only in
@@ -38,8 +48,8 @@ repo-local layer; never restate literal model IDs or effort tiers in your dispat
 ```
 
 A valid value (`economy`, `standard`, `premium`) is authoritative; record its use in that task's
-routing line. An **invalid** value is a plan contract error: **halt** and surface it — never
-silently fall back to a default.
+routing line. An **invalid** value is a plan contract error: **halt** per *Halting conditions* and
+surface it — never silently fall back to a default.
 
 **Otherwise classify**, with a deliberate asymmetry — `economy` must be *positively* established,
 a named risk selects `premium`, and uncertainty defaults to `standard`:
@@ -58,28 +68,40 @@ Emit one concise routing line per task naming both the profile and its reason.
 Dispatch the profile agent **by name**, foreground, one task at a time — later tasks build on
 earlier task commits and share the worktree, so workers are strictly sequential. Give the worker:
 the plan task text, the branch and worktree, the applicable repository instructions, the selected
-profile and routing reason, and the completion schema. Never preload a review skill, never dispatch
-a task reviewer, and never dispatch two workers concurrently.
+profile and routing reason, and the completion schema. Never dispatch a task reviewer, and
+never dispatch two workers concurrently. Never preload a review skill either — though for a
+**named** agent the operative protection is the wrapper's own `skills:` frontmatter, which you
+cannot change from here, so what this rule actually forbids is bolting a review skill or a review
+instruction onto the dispatch prompt.
 
 If profile dispatch is genuinely unavailable — established only per the convention's
 *Dispatch-capability resolution*, **never from a tool name** — this role is
 **Tier C, authorized-or-halt**: only an explicitly configured `skills.build: auto` authorizes
 inline execution. Selecting `docket-build` is not implicit authorization to discard its isolation
-or its model/effort contract, so abort-and-report instead, leaving the change `in-progress`.
+or its model/effort contract, so halt per *Halting conditions* instead.
 
 A profile agent that is **not registered on this machine** is the same authorized-or-halt
 condition, reached differently: the harness rejected a dispatch naming `docket-build-economy` — a
 concrete rejection of a named agent, never an inference about dispatch capability from a missing
 tool name, so the rule above stands unchanged. The cause is a stale install: `install.sh` generates
 the profile wrappers and links the build skills, and a harness registers them only at session
-start. Abort and report, naming a re-run of `install.sh` plus a fresh session as the remedy.
+start. Halt, naming a re-run of `install.sh` plus a fresh session as the remedy.
 
 ## Reading a worker's return
 
 Valid outcomes are `COMPLETE`, `NEEDS_ESCALATION`, and `BLOCKED`. A
 **missing or malformed outcome halts** the build. Never infer success from a child merely
-reporting that it finished — a `COMPLETE` claim must come with the focused verification result
-and a commit SHA, and a task without a commit is not complete.
+reporting that it finished: a child's completion report is unreliable in **both** directions, so
+every claim is settled against git state and never against the return's prose — a SHA-shaped string
+appearing somewhere in the text is not a commit.
+
+**Malformed is wider than an unparsable token.** Before accepting a `COMPLETE`, verify the claimed
+commit: the SHA must resolve in this repository *and* be an ancestor of the branch tip
+(`git merge-base --is-ancestor <sha> HEAD`). A `COMPLETE` whose commit is absent, unresolvable, or
+not on this branch is a malformed return — halt per *Halting conditions*, and never re-dispatch the
+task to "fix" its own return. A `COMPLETE` must equally carry the focused verification result, and
+a task without a commit is not complete. A `NEEDS_ESCALATION` carrying no concrete reason is
+malformed the same way (see *Escalation*).
 
 ## Escalation
 
@@ -96,16 +118,45 @@ whose `standard` retry still cannot complete **halts** — it does not climb aga
 
 Escalate only on a concrete reason that the task is materially more complex or riskier than the
 assigned profile. An expected RED test, ordinary debugging, or a single failed test run is not an
-escalation condition; a worker returning `NEEDS_ESCALATION` without such a reason is a malformed
-return.
+escalation condition; a worker returning `NEEDS_ESCALATION` without such a reason is a **malformed
+return**, and a malformed return halts — it is never a free escalation.
 
 The stronger worker continues in the **same worktree** and must inspect and account for any
 uncommitted changes the weaker worker left — revising them is allowed, discarding them blindly is
 not. A successful escalation continues this run automatically.
 
-Return `halted` — change still `in-progress`, worktree preserved for inspection or resume — when a
-premium worker requests escalation, an escalated worker still cannot finish, requirements
-contradict, authority or dependencies are missing, or continuation is unsafe.
+A failed attempt that left a **commit** — not merely a dirty tree — is different, and it is the
+one state that cancels the escalation. The worker was told never to commit on `NEEDS_ESCALATION` or
+`BLOCKED`, but a crashed or truncated one still can; the escalated worker is separately forbidden
+to rewrite earlier task commits, so it would inherit state it cannot clean up, and this task's
+exactly-one-commit accounting is already contaminated. **Do not escalate onto a stray commit** —
+halt per *Halting conditions*, naming the stray SHA so a human can inspect, keep, or drop it.
+
+## Halting conditions
+
+Every halt is the same disposition: stop, return `halted` — the change stays `in-progress` and the
+worktree is preserved for inspection or resume — and report which condition below fired with its
+concrete evidence (task, profile, SHA, command, or harness message). Never improvise past one,
+never substitute a weaker path, and never invoke review. The rules elsewhere in this file name
+their condition and point here rather than restating the disposition.
+
+- **Profile routing is un-dispatchable**, established per the convention's *Dispatch-capability
+  resolution* and never from a tool name, and `skills.build: auto` was not explicitly configured.
+- **A profile agent is not registered on this machine** — the harness rejected a dispatch naming
+  it. Remedy: re-run `install.sh`, then start a fresh session.
+- **An explicit plan `Build profile:` value is invalid** — a plan contract error; never fall back
+  to a default.
+- **A worker return is malformed or unverifiable** — a missing or unparsable outcome, a `COMPLETE`
+  whose commit is absent, unresolvable, or not an ancestor of the branch tip, or a
+  `NEEDS_ESCALATION` with no concrete reason. Never re-dispatch a task to repair its own return.
+- **A task's escalation allowance is exhausted** — an initial `premium` worker requests escalation,
+  or an escalated worker still cannot finish.
+- **A failed attempt left a commit** — name the stray SHA; do not escalate onto it.
+- **No suite is detectable** — no `FINALIZE_TEST_COMMAND` and nothing finalize's auto-detection
+  recognizes. Remedy: set `finalize.test_command`. Never convert this into a repair task.
+- **The suite is still red after the premium repair** — there is no second repair round.
+- **Continuation is unsafe** — a worker's `BLOCKED`: contradictory requirements, missing authority,
+  or an absent dependency.
 
 ## The build gate
 
@@ -113,6 +164,11 @@ Workers run focused tests only. After every plan task has committed, run the **w
 
 1. Use the already-resolved `FINALIZE_TEST_COMMAND` when it is non-empty.
 2. Otherwise reuse finalize's existing suite **auto-detection**.
+3. **Neither** — no `FINALIZE_TEST_COMMAND` *and* nothing the auto-detection recognizes — is a
+   **configuration gap, not a red suite**. A repo with no matching test files leaves the detection
+   glob literal and exits non-zero; reading that as RED would manufacture a repair task and burn a
+   whole ladder on a config problem. Finalize itself aborts here rather than repairing, and so do
+   you: halt per *Halting conditions*, naming `finalize.test_command` as the remedy.
 
 The command boundary is the one finalize already publishes — its `configured-bash-finalize` marker
 block in `skills/docket-finalize-change/SKILL.md` is the single source, and the awkward `finalize`
@@ -126,7 +182,7 @@ role once over the whole branch.
 integration-repair task, run through the same worker contract on the ladder
 `standard -> premium -> halt`. The repair worker diagnoses the cross-task failure, adds regression
 coverage where appropriate, fixes it, re-runs the full suite, and commits the repair. There is no
-repeated repair/review loop; failure after the premium repair path returns `halted`.
+repeated repair/review loop; failure after the premium repair path halts per *Halting conditions*.
 
 ## Review boundary
 
@@ -143,6 +199,11 @@ Read `BUILD_CHECKPOINT` from the Step-0 config export.
 commits; keep only the compact in-context worker returns; write no `.superpowers/docket-build/`
 files. A resumed run reconstructs progress conservatively from the plan, the commits, the code, and
 the tests rather than trusting a formal receipt.
+
+**Plan checkboxes are not progress state.** Nobody ticks a plan's `- [ ]` boxes — not you, not a
+worker — so a half-ticked plan means nothing, and a resumed run reads commits, code, and tests,
+never checkbox marks. Treating a checkbox as evidence of a finished task is a misread docket has
+already been burned by.
 
 **`true`** — write a compact ledger to `.superpowers/docket-build/<change-id>/progress.md` (covered
 by the committed `.superpowers/` ignore rule) recording branch, plan path and blob hash, task

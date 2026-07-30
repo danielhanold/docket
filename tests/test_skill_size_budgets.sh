@@ -68,13 +68,29 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # no-convention exceptions and why. Measured actual 6248 words fits 6250 with 2 words of margin —
 # the exact near-zero failure mode this block warns about — so the rule's next multiple was taken:
 # 6300. The LINE budget was not raised (361 actual, 365 budget).
+# Change 0167's INDEPENDENT WHOLE-BRANCH review raised both docket-build rows again:
+# docket-build/SKILL.md 165/1300 -> 225/2050 and docket-build-task/SKILL.md 105/850 -> 115/1000.
+# The review's framing was that the contracts state a PREDICATE where they owe a DISPOSITION, and
+# its remedy is structural rather than a phrase edit: one `## Halting conditions` section in the
+# controller enumerating all nine halts and owning the shared disposition, plus an `## Inputs`
+# section, the COMPLETE-commit ancestry verification, the undetectable-suite configuration-gap
+# branch, the stray-commit rule, and the plan-checkbox rule; and in the worker, the metadata
+# boundary its wrappers cannot get from docket-convention (they do not load it) plus the same
+# checkbox rule. Set per the rounding rule above from the measured actuals: controller 221 lines ->
+# 225, 1989 words -> 2000 would leave 11 words (within the 25-word threshold) so the next multiple,
+# 2050; worker 111 lines -> 115, 962 words -> 1000 (38 words of margin). For LINES this change read
+# the same "within-25-of-a-50-step" proportion as a half-step of the 5-line step — 4 and 4 lines of
+# margin both clear it, where the earlier 0/2-line margins did not.
+# skills/docket-convention/SKILL.md was NOT raised by that review wave: its cardinal fix
+# ("except two" -> "except four", plus the pointer at docket-build-task's own Scope) measured
+# 361/6267, inside the existing 365/6300.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
 skills/docket-auto-groom/SKILL.md                           66 1237
 skills/docket-brainstorm/SKILL.md                           84  692
-skills/docket-build/SKILL.md                               165 1300
-skills/docket-build-task/SKILL.md                          105  850
+skills/docket-build/SKILL.md                               225 2050
+skills/docket-build-task/SKILL.md                          115 1000
 skills/docket-convention/SKILL.md                          365 6300
 skills/docket-convention/github-board-mirror.md             19  462
 skills/docket-convention/references/agent-layer.md         168 1839
