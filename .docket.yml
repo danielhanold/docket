@@ -22,3 +22,21 @@ board_surfaces: [inline]       # BOARD.md only; the GitHub mirror stays off
 # This repo mirrors its terminal records (archived change files, specs, Accepted ADRs) onto main,
 # so it opts in to the direct-commit publish explicitly. See .docket.example.yml for the caveats.
 terminal_publish: true
+
+# This repo dogfoods docket's own build role (change 0167): each plan task is routed to a named
+# economy/standard/premium profile agent instead of SDD's implementer+reviewer pairs. The SHIPPED
+# cross-harness default stays superpowers:subagent-driven-development — see .docket.example.yml.
+skills:
+  build: docket-build
+
+build:
+  # no resume ledger; per-task commits are the durability
+  checkpoint: false
+
+# Mirrors the shipped profile defaults so they are visible and tunable in one place. Claude only —
+# Cursor and Codex profile mappings land with changes 0168 and 0169.
+agents:
+  claude:
+    build-economy:  { model: claude-opus-5, effort: low }
+    build-standard: { model: claude-opus-5, effort: medium }
+    build-premium:  { model: claude-opus-5, effort: high }
