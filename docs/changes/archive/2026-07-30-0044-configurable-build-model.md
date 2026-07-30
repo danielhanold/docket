@@ -2,10 +2,10 @@
 id: 44
 slug: configurable-build-model
 title: Configurable SDD build models for docket-implement-next
-status: blocked
+status: killed
 priority: low
 created: 2026-07-07
-updated: 2026-07-15
+updated: 2026-07-30
 depends_on: []
 related: [16, 42, 79]
 adrs: [23]
@@ -111,3 +111,7 @@ shape (`model` / `effort` / `runner`) so the two surfaces read identically.
   `model:` per dispatch (Q3); Q4 (does the target harness honor the dispatch model) is a
   build-time/live note — the same verification that gates the `agents:` block, not hermetically
   testable. Scope unchanged.
+
+## Why killed
+
+Superseded by change 0167, which replaces SDD role-level model overrides with a lean profile-routed build topology and explicit model plus effort profiles.
