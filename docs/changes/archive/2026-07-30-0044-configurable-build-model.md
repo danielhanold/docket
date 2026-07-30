@@ -115,3 +115,16 @@ shape (`model` / `effort` / `runner`) so the two surfaces read identically.
 ## Why killed
 
 Superseded by change 0167, which replaces SDD role-level model overrides with a lean profile-routed build topology and explicit model plus effort profiles.
+
+## Publish deferred
+
+### 2026-07-30 — terminal-publish to `main` not completed
+
+**blocked** — Direct terminal publication to origin/main requires explicit user approval.
+
+Close-out steps 1–2 (archive, `## Artifacts` re-render) landed on the metadata branch;
+the terminal-publish step (copying the archived change file + its `spec:` + its Accepted
+ADRs onto `main`) did **not** run. The record is on the metadata branch only.
+
+**Re-arm:** complete the publish (`docket.sh terminal-publish --id 44 …`), or record a decision
+not to. A successful publish removes this section automatically.
