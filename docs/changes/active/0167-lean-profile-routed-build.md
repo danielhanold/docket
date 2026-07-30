@@ -2,7 +2,7 @@
 id: 167
 slug: lean-profile-routed-build
 title: Lean profile-routed build — fresh task workers without review loops
-status: proposed
+status: in-progress
 priority: high
 type: feat
 created: 2026-07-30
@@ -16,7 +16,8 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/lean-profile-routed-build
+claimed_at: 2026-07-30T15:26:45Z
 pr:
 blocked_by:
 reconciled: false
