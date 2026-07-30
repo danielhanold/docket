@@ -1,3 +1,7 @@
+<!-- docket:backlink:start (generated — do not hand-edit) -->
+> ↩ **[Change 0044 — Configurable SDD build models for docket-implement-next](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-07-30-0044-configurable-build-model.md)**
+<!-- docket:backlink:end -->
+
 # Design — Configurable SDD build models for docket-implement-next
 
 Change: #0044 · slug `configurable-build-model` · spec drafted 2026-07-07, reshaped 2026-07-08 (owner)
