@@ -25,7 +25,6 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0020](0020-generated-agent-artifacts-machine-local.md) — Generated agent artifacts are machine-local, never committed; `.docket.local.yml` completes the four-layer config (Accepted) ← change #51 → supersedes ADR-0017 · relates to ADR-0015, ADR-0019
 - [ADR-0021](0021-pipeline-script-authored-mechanical-commits.md) — Deterministic pipeline scripts may author formulaic commits and mutate blessed-sequence state (Accepted) ← change #58 · relates to ADR-0012
 - [ADR-0022](0022-consultant-authored-brainstorm.md) — Consultant-authored brainstorm — opt-in pinned design agent for the brainstorm role (Accepted) ← change #56 · relates to ADR-0008, ADR-0009, ADR-0018
-- [ADR-0023](0023-configurable-sdd-build-model.md) — Configurable SDD build models — a `build:` surface of per-role direct model IDs (Accepted) ← change #44 · relates to ADR-0015, ADR-0016, ADR-0018
 - [ADR-0024](0024-claude-context-fork-skill-dispatch.md) — Claude Code uses `context: fork` frontmatter as its inline-skill dispatch mechanism; fork only human-non-interactive skills (Accepted) ← change #61 · relates to ADR-0008, ADR-0017
 - [ADR-0025](0025-docket-worktrees-disable-git-hooks.md) — docket bookkeeping commits skip shared git hooks via worktree-scoped core.hooksPath (Accepted) ← change #63 · relates to ADR-0001
 - [ADR-0026](0026-fork-dispatch-opacity-two-invocation-paths.md) — Accept fork-dispatch opacity; document two invocation paths; add no tooling (Accepted) ← change #65 · relates to ADR-0008, ADR-0017, ADR-0020, ADR-0024
@@ -63,10 +62,12 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0060](0060-generated-wrapper-conforms-to-target-harness-contract.md) — A generated wrapper conforms to its target harness's own documented contract (Accepted) ← change #135 · relates to ADR-0008, ADR-0015, ADR-0017, ADR-0059
 - [ADR-0061](0061-detect-vs-mark-a-missing-terminal-record.md) — Detect a missing terminal record where there is no marker seam; mark where the failure mode is a conscious human deferral (Accepted) ← change #117 · relates to ADR-0049, ADR-0051
 - [ADR-0062](0062-in-repo-shell-yaml-readers-no-external-parser.md) — YAML and frontmatter are parsed by in-repo shell readers — no external YAML parser (Accepted) ← change #18 · relates to ADR-0057, ADR-0058
+- [ADR-0063](0063-docket-owns-the-build-role-profile-routed-workers.md) — Docket owns the build role — profile-routed workers, model and effort on named agents (Accepted) ← change #167 → supersedes ADR-0023 · relates to ADR-0015, ADR-0016, ADR-0018, ADR-0059
 
 ## Superseded / Reversed
 
 - [ADR-0017](0017-cursor-dispatch-rule-full-agent-set.md) — Per-repo agent generation goes always-full-set, opt-in, with a Cursor dispatch rule (Superseded by ADR-20) ← change #48 · relates to ADR-0015, ADR-0016
+- [ADR-0023](0023-configurable-sdd-build-model.md) — Configurable SDD build models — a `build:` surface of per-role direct model IDs (Superseded by ADR-63) ← change #44 · relates to ADR-0015, ADR-0016, ADR-0018
 - [ADR-0039](0039-config-example-mirrors-wrapper-defaults.md) — config.yml.example is a documented mirror of the shipped wrapper defaults (Superseded by ADR-48) ← change #81
 - [ADR-0042](0042-auto-approve-consent-model.md) — Auto-approve consent model — a bot approval proves docket's pipeline signed off, not human review (Reversed by ADR-0043) ← change #62 · relates to ADR-0011
 
