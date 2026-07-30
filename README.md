@@ -724,7 +724,7 @@ Codex's `model_reasoning_effort` (docket's `max` → codex `xhigh`).
 
 Rules and limits:
 
-- **Only autonomous wrappers are delegatable** (the nine generated agents). Interactive skills
+- **Only autonomous wrappers are delegatable** (the twelve generated agents). Interactive skills
   stay inline — an exec primitive has no human channel.
 - A delegated *orchestrator*'s own sub-dispatches run child-natively (for Codex:
   `spawn_agent`, via superpowers' Codex support). Per-agent model pins do **not** carry into
