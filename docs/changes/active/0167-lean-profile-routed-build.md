@@ -10,14 +10,14 @@ updated: 2026-07-30
 depends_on: []
 related: [42, 44, 135, 137]
 discovered_from: []
-adrs: [23]
+adrs: [23, 63]
 spec: docs/superpowers/specs/2026-07-30-lean-profile-routed-build-design.md
 plan: docs/superpowers/plans/2026-07-30-lean-profile-routed-build.md
 results:
 trivial: false
 auto_groomable:
 branch: feat/lean-profile-routed-build
-claimed_at: 2026-07-30T15:32:50Z
+claimed_at: 2026-07-30T21:33:06Z
 pr:
 blocked_by:
 reconciled: true
@@ -30,7 +30,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-30-lean-profile-routed-build-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-30-lean-profile-routed-build-design.md) |
 | Plan | [2026-07-30-lean-profile-routed-build.md](https://github.com/danielhanold/docket/blob/feat/lean-profile-routed-build/docs/superpowers/plans/2026-07-30-lean-profile-routed-build.md) |
-| ADRs | [ADR-0023](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0023-configurable-sdd-build-model.md) |
+| ADRs | [ADR-0023](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0023-configurable-sdd-build-model.md), [ADR-0063](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0063-docket-owns-the-build-role-profile-routed-workers.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
