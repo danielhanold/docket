@@ -93,13 +93,16 @@ for a in docket-build-economy docket-build-standard docket-build-premium; do
   assert "controller: names the $a agent" 'grep -qF -- "'"$a"'" <<<"$ctrl_body"'
 done
 
-# The routing rubric, with its deliberate asymmetry.
+# The routing rubric, with its deliberate asymmetry. The economy/standard rubric bullets are
+# anchored on the same "^- **`token`**" structural idiom this file already uses for the worker's
+# outcome bullets, since the prose disjunctions they replace were absorbed by the `## Routing`
+# summary sentence — deleting the operative bullet reddened nothing (fix round 2, finding 2).
 assert "controller: economy must be POSITIVELY established" \
-  'grep -qiE "economy[^.]{0,120}(only when|positively)" <<<"$ctrl_body"'
+  'grep -qE "^- \*\*\`economy\`\*\* \*only when\*" <<<"$ctrl_body"'
 assert "controller: named risk selects premium" \
   'grep -qiE "premium[^.]{0,200}(authentication|security boundar)" <<<"$ctrl_body"'
 assert "controller: uncertainty defaults to standard" \
-  'grep -qiE "(uncertainty|remaining|otherwise)[^.]{0,80}standard|standard[^.]{0,80}(default|remaining)" <<<"$ctrl_body"'
+  'grep -qE "^- \*\*\`standard\`\*\* for everything remaining" <<<"$ctrl_body"'
 
 # The plan override and its fail-loud contract.
 assert "controller: honors an explicit plan Build profile override" \
@@ -107,28 +110,35 @@ assert "controller: honors an explicit plan Build profile override" \
 assert "controller: an invalid explicit profile HALTS rather than falling back" \
   'grep -qiE "invalid[^.]{0,120}halt" <<<"$ctrl_body"'
 
-# The escalation ladder — all three edges, including the terminal one.
+# The escalation ladder — all three edges, including the terminal one. Each is anchored on its
+# "initial <profile>" prefix (the ladder fence's defining shape), not bare "<profile>", since the
+# build gate's repair-ladder literal "standard -> premium -> halt" decoy-matches any assert keyed
+# on bare profile-name-then-arrow text — proven for all three edges by mutation (deleting the
+# whole ladder fence still left bare-anchored asserts green; fix round 1 caught it for the premium
+# edge only, fix round 2 applied the same anchor to economy and standard).
 assert "controller: economy escalates to standard" \
-  'grep -qiE "economy[^.]{0,40}(->|→|to)[^.]{0,20}standard" <<<"$ctrl_body"'
+  'grep -qiE "initial economy[^.]{0,40}(->|→|to)[^.]{0,20}standard" <<<"$ctrl_body"'
 assert "controller: standard escalates to premium" \
-  'grep -qiE "standard[^.]{0,40}(->|→|to)[^.]{0,20}premium" <<<"$ctrl_body"'
-# Anchored on "initial premium" (the escalation ladder's defining line), not bare "premium", since
-# the repair ladder's "standard -> premium -> halt" line would otherwise decoy-match this assert
-# even after the escalation ladder's terminal edge was deleted (mutation probe 1).
+  'grep -qiE "initial standard[^.]{0,40}(->|→|to)[^.]{0,20}premium" <<<"$ctrl_body"'
 assert "controller: premium escalation halts" \
   'grep -qiE "initial premium[^.]{0,20}(->|→|to)?[^.]{0,20}halt" <<<"$ctrl_body"'
+# Anchored on the ladder intro's exact literal sentence, not a disjunction that also matches the
+# unrelated intro paragraph's "its single allowed escalation" — that alternative let the ladder's
+# own "at most once" sentence be deleted without reddening (fix round 2, finding 2).
 assert "controller: at most ONE escalation per task" \
-  'grep -qiE "(at most once|one escalation|single .{0,20}escalation)" <<<"$ctrl_body"'
+  'grep -qiF -- "escalate automatically **at most once**" <<<"$ctrl_body"'
 assert "controller: a retried task does not climb twice" \
   'grep -qiE "does not climb|never climbs|not climb again" <<<"$ctrl_body"'
 
-# NO REVIEW inside the build — the defining property of this topology. Anchored on "per-task
-# independent review" (the Review-boundary section's defining phrase), not the bare "no
-# per-task ... review" shape, since that shape ALSO appears in the frontmatter description
-# ("no per-task review") regardless of whether the body's Review-boundary rule holds — a
-# presence-anywhere grep cannot observe the body rule being inverted (mutation probe 2).
+# NO REVIEW inside the build — the defining property of this topology. Anchored on the
+# Review-boundary section's defining SENTENCE START (^This build performs), not the bare prose
+# literal — a fixed-string match on "no per-task independent review" alone would still be
+# defeatable by a benign reorder ("no independent per-task review") per this file's own promise
+# that "a rewrite that keeps the rule stays green" (fix round 2, finding 3). Line-start anchoring
+# also keeps this distinct from the frontmatter description's unrelated "no per-task review" text
+# (mutation probe 2, fix round 1).
 assert "controller: performs no per-task review" \
-  'grep -qiF -- "no per-task independent review" <<<"$ctrl_body"'
+  'grep -qE "^This build performs \*\*no per-task independent review\*\*" <<<"$ctrl_body"'
 assert "controller: performs no final review of its own" \
   'grep -qiE "no final review|no whole-branch review of its own" <<<"$ctrl_body"'
 assert "controller: hands the single review to docket-implement-next Step 6" \
@@ -156,10 +166,15 @@ assert "controller: red suite becomes one integration-repair task" \
 assert "controller: repair ladder is standard -> premium -> halt" \
   'grep -qiE "standard[^.]{0,60}premium[^.]{0,60}halt" <<<"$ctrl_body"'
 
-# Checkpointing: off by default, and the ledger path is exact.
-assert "controller: reads BUILD_CHECKPOINT" 'grep -qF -- "BUILD_CHECKPOINT" <<<"$ctrl_body"'
+# Checkpointing: off by default, and the ledger path is exact. Both asserts below are anchored on
+# their defining occurrence's full text, since the shorter shapes each replaces recur elsewhere in
+# the file (BUILD_CHECKPOINT is also named in ## Output; the bare directory prefix also appears in
+# the false-branch "write no .superpowers/docket-build/ files" sentence) and so survived deletion
+# of the actual defining sentence (fix round 2, finding 2).
+assert "controller: reads BUILD_CHECKPOINT" \
+  'grep -qF -- "from the Step-0 config export" <<<"$ctrl_body"'
 assert "controller: names the ledger path" \
-  'grep -qF -- ".superpowers/docket-build/" <<<"$ctrl_body"'
+  'grep -qF -- ".superpowers/docket-build/<change-id>/progress.md" <<<"$ctrl_body"'
 assert "controller: skips a resumed task only on COMPLETE + plan hash + ancestor commit" \
   'grep -qiE "ancestor" <<<"$ctrl_body"'
 
