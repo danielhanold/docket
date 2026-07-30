@@ -247,5 +247,33 @@ default_hdr_count="$(grep -cE '^#[[:space:]]*default:[[:space:]]*$' "$EX")"
 assert "agents.default guard is armed: slice is non-empty, or the file truly has no default: block" \
   '[ -n "$default_blk" ] || [ "$default_hdr_count" = 0 ]'
 
+# ---------------------------------------------------------------------------
+# Dogfood: this repo opts in, the shipped default does NOT change
+# ---------------------------------------------------------------------------
+DY="$REPO/.docket.yml"
+dy_body="$(cat "$DY")"
+assert "repo opts skills.build in to docket-build" \
+  'grep -qE "^[[:space:]]+build:[[:space:]]+docket-build[[:space:]]*$" <<<"$dy_body"'
+assert "repo pins build.checkpoint explicitly" \
+  'grep -qE "^[[:space:]]+checkpoint:[[:space:]]+(true|false)[[:space:]]*$" <<<"$dy_body"'
+
+# The SHIPPED cross-harness default must stay SDD — the opt-in is this repo's, not everyone's.
+# Anchored on the resolver, which is what actually decides the default.
+sdd_default="$(grep -E 'SKILL_BUILD=|skill_role build' "$REPO/scripts/docket-config.sh")"
+assert "shipped skills.build default is still superpowers SDD" \
+  'grep -qF -- "superpowers:subagent-driven-development" <<<"$sdd_default"'
+
+# The knob is documented for users, not only implemented (config-knob-ship-end-to-end).
+RM="$REPO/README.md"
+rm_body="$(cat "$RM")"
+assert "README documents the docket-build role" 'grep -qF -- "docket-build" <<<"$rm_body"'
+assert "README documents the three profiles" \
+  'grep -qF -- "economy" <<<"$rm_body" && grep -qF -- "premium" <<<"$rm_body"'
+assert "README documents build.checkpoint" 'grep -qF -- "build.checkpoint" <<<"$rm_body"'
+assert "README says how to opt back into SDD" \
+  'grep -qF -- "superpowers:subagent-driven-development" <<<"$rm_body"'
+assert "README states the Claude-only support boundary for the profiles" \
+  'grep -qiE "docket-build[^.]{0,200}(claude-only|Claude Code only|only.{0,20}Claude)" <<<"$rm_body"'
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
