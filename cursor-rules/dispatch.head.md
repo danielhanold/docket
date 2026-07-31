@@ -1,14 +1,19 @@
 ---
-description: Docket agents must be dispatched, never run inline. Cursor runs a directly-invoked skill at the current model, which defeats docket's model/effort pins — so force a dispatch to the matching docket subagent.
+description: Docket agents must be dispatched, never run inline. Cursor runs a directly-invoked skill at the current model and outside its wrapper, dropping the wrapper's model/effort pin where one is set and its skill preload and isolation always — so force a dispatch to the matching docket subagent.
 alwaysApply: true
 ---
 
 # Docket agents — dispatch only
 
-Docket ships model/effort-pinned subagent wrappers in `.cursor/agents/docket-*.md`. When you are
-asked to run one of the docket agents listed below, Cursor would otherwise run the skill **inline at
-the currently-selected model**, which defeats the pin. Always dispatch to the matching subagent
-instead.
+Docket generates a subagent wrapper per docket agent into `.cursor/agents/docket-*.md`. It ships
+validated Cursor model IDs for the three build-profile workers only — `docket-build-economy`,
+`docket-build-standard`, `docket-build-premium`. Every other wrapper is generated **unpinned**
+unless a config layer sets a model for it, and runs at Cursor's own default.
+
+Dispatch is required either way. When you are asked to run one of the docket agents listed below,
+Cursor would otherwise run the skill **inline at the currently-selected model**, bypassing the
+wrapper altogether — its pin where one is set, and its skill preload and isolation from this
+conversation in every case. Always dispatch to the matching subagent instead.
 
 ## Required dispatch pattern
 

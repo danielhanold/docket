@@ -127,6 +127,25 @@ assert "agentsmd: has closing marker" 'grep -qF "docket:dispatch:end" "$A"'
 assert "agentsmd: names an agent to delegate to" 'grep -qi "docket-implement-next" "$A"'
 assert "agentsmd: carries NO model id (machine-neutral)" '! grep -qE "claude-|gpt-|model_reasoning_effort|model[[:space:]]*=" "$A"'
 
+# 0168 whole-branch review, IMPORTANT 4. This block is COMMITTED into consumer repos and checked by
+# `sync-agents.sh --check`, so a false claim in it is shipped, not just displayed. It used to open
+# "Docket ships model/effort-pinned agent definitions … its pinned model and reasoning effort are
+# the whole point" — true when the wrapper sources carried pins, false since change 0168 moved the
+# default store to a harness-indexed sidecar that ships NO codex entries. The premise is derived
+# from that sidecar rather than hard-coded, so change 0169 landing a codex block retires the guard
+# by making its `if` false instead of leaving a stale assert behind.
+# shellcheck source=/dev/null
+. "$REPO/scripts/lib/harness-defaults.sh"
+HD="$REPO/agents/harness-defaults.yml"
+n_codex_shipped="$(hd_agents "$HD" codex | grep -c . || true)"
+if [ "$n_codex_shipped" = "0" ]; then
+  assert "agentsmd: makes no blanket 'ships pinned agent definitions' claim while the sidecar ships no codex pins" \
+    '! grep -qiE "ships model/effort-pinned agent definitions" "$A"'
+  assert "agentsmd: says an unconfigured codex agent runs UNPINNED" 'grep -qi "unpinned" "$A"'
+  assert "agentsmd: still requires the dispatch regardless of the pin" \
+    'grep -qi "either way" "$A"'
+fi
+
 # idempotent second run: byte-identical
 before="$(cat "$A")"
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )

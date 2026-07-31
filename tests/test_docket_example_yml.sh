@@ -855,10 +855,13 @@ fm(){ sed -n "s/^$2:[[:space:]]*//p" "$1" | head -n1 | sed 's/[[:space:]]*$//'; 
 . "$REPO/scripts/lib/harness-defaults.sh"
 HD="$REPO/agents/harness-defaults.yml"
 # The example's agent lines are COMMENTED, so strip a leading '# ' before matching.
+# The value class matches hd_field's: "up to the flow-map delimiter", not a character allowlist.
+# A narrower class would clip a provider-prefixed ID on BOTH sides of the comparison and mirror
+# a truncated prefix to a truncated prefix — a false green (0168 whole-branch review).
 ex_field(){ # $1=agent  $2=field(model|effort)
   local line
   line="$(sed -E 's/^[[:space:]]*#[[:space:]]?//' "$EX" | grep -E "^    $1:[[:space:]]" | head -n1)"
-  printf '%s' "$line" | sed -nE "s/.*[{,[:space:]]$2[[:space:]]*:[[:space:]]*([A-Za-z0-9._-]+).*/\1/p" | head -n1
+  printf '%s' "$line" | sed -nE "s/.*[{,[:space:]]$2[[:space:]]*:[[:space:]]*([^,}[:space:]]+).*/\1/p" | head -n1
 }
 for a in status adr brainstorm-consultant auto-groom auto-groom-critic \
          implement-next rebase-resolver integration-repair finalize-change \
@@ -870,6 +873,50 @@ for a in status adr brainstorm-consultant auto-groom auto-groom-critic \
   assert "$a: effort mirrors the shipped sidecar" \
     '[ -n "$(ex_field "$a" effort)" ] && [ "$(ex_field "$a" effort)" = "$(hd_field "$HD" claude "'"$a"'" effort)" ]'
 done
+
+# --- (4b) MIRROR EQUALITY: the SHIPPED cursor rows ---------------------------
+# 0168 whole-branch review, IMPORTANT 1. The example (and README) claim the three cursor `build-*`
+# rows mirror agents/harness-defaults.yml, but ex_field above could never see them: the cursor
+# block is DOUBLY commented (disabled inside the disabled agents: block) and ex_field strips one
+# '#' layer, so a two-layer row survives as `  # build-economy:` and matches nothing. The claim
+# shipped unguarded. This leg strips BOTH layers.
+#
+# Scoped to the cursor slice first, for two reasons: a whole-file two-layer strip would also
+# uncomment the codex rows, whose agent keys are the SAME names (a cursor assert would then be
+# satisfiable by a codex row); and the prose that follows the block would uncomment into noise.
+cursor_slice="$(sed -n '/^#[[:space:]]*#[[:space:]]*cursor:[[:space:]]*$/,/finalize-change:.*cursor-grok-4\.5-high-fast/p' "$EX" \
+  | sed -E 's/^[[:space:]]*#[[:space:]]?//' | sed -E 's/^[[:space:]]*#[[:space:]]?//')"
+# Terminator guard, same shape as the round-trip slice below: an unclosed range silently runs to
+# EOF and pulls the codex rows and surrounding prose in with it, while every assert below stays
+# green on the over-wide slice.
+# First/last line taken by parameter expansion, not `printf | head -n1`: under this file's
+# `set -o pipefail` a producer feeding an early-exiting consumer takes SIGPIPE and turns the assert
+# into an intermittent 141 (AGENTS.md, Shell).
+cursor_first="${cursor_slice%%$'\n'*}"
+cursor_last="${cursor_slice##*$'\n'}"
+assert "cursor mirror: the cursor slice was isolated and terminates at its finalize-change anchor" \
+  '[ -n "$cursor_slice" ] && [ "$cursor_first" = "cursor:" ] &&
+   grep -q "finalize-change:.*cursor-grok-4\.5-high-fast" <<<"$cursor_last"'
+ex_cursor_field(){ # $1=agent  $2=field(model|effort)
+  local line
+  line="$(grep -E "^[[:space:]]*$1:[[:space:]]" <<<"$cursor_slice" || true)"
+  line="${line%%$'\n'*}"
+  sed -nE "s/.*[{,[:space:]]$2[[:space:]]*:[[:space:]]*([^,}[:space:]]+).*/\1/p" <<<"$line"
+}
+# Population derived from the sidecar, never hand-listed: whatever docket ships under `cursor:` is
+# exactly what the example must mirror, so adding a fourth shipped cursor entry arms this loop for
+# it automatically. The floor catches an emptied/renamed cursor block making the loop vacuous.
+cursor_mirrored=0
+while IFS= read -r a; do
+  [ -n "$a" ] || continue
+  cursor_mirrored=$((cursor_mirrored+1))
+  assert "cursor/$a: model mirrors the shipped sidecar" \
+    '[ -n "$(ex_cursor_field "'"$a"'" model)" ] && [ "$(ex_cursor_field "'"$a"'" model)" = "$(hd_field "$HD" cursor "'"$a"'" model)" ]'
+  assert "cursor/$a: effort mirrors the shipped sidecar" \
+    '[ -n "$(ex_cursor_field "'"$a"'" effort)" ] && [ "$(ex_cursor_field "'"$a"'" effort)" = "$(hd_field "$HD" cursor "'"$a"'" effort)" ]'
+done < <(hd_agents "$HD" cursor)
+assert "cursor mirror: every shipped cursor entry was checked (floor 3; got $cursor_mirrored)" \
+  '[ "$cursor_mirrored" -ge 3 ]'
 
 # --- (5) RESOLVER ROUND-TRIP (retained from tests/test_config_example.sh) ----
 # Uncomment the agents: block + the cursor block and enable cursor — the example IDs must resolve
