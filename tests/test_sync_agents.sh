@@ -86,6 +86,20 @@ assert "no wrapper for groom-next (advisory)" '[ ! -f "$AGENTS/docket-groom-next
 SYNC="$REPO/sync-agents.sh"
 assert "sync-agents.sh exists and is executable-by-bash" '[ -f "$SYNC" ]'
 
+# -- cached reader equivalence: flow-map and block-shaped field boundaries --
+reader_out="$({
+  . "$SYNC"
+  set +e  # sync-agents.sh enables errexit for direct invocation; this test intentionally does not.
+  printf '%s\t%s\n' inline "$(field_of 'x: {model: a.b_c-d, effort: high}' model)"
+  printf '%s\t%s\n' block "$(field_of '  model: slash/vendor:id' model)"
+  printf '%s\t%s\n' prefix "$(field_of 'x: {model_alias: wrong, model: right}' model)"
+  printf '%s\t%s\n' repeated "$(field_of 'x: {model: first, model: last}' model)"
+  printf '%s\t%s\n' missing "$(field_of 'x: {effort: high}' model)"
+  printf '%s\t%s\n' raw "$(field_of_raw 'x: {model: two words   , effort: high}' model)"
+} )"
+assert "0175 readers: consumed/raw edge cases preserve fixed semantics" \
+  '[ "$reader_out" = "$(printf "inline\\ta.b_c-d\\nblock\\tslash/vendor:id\\nprefix\\tright\\nrepeated\\tlast\\nmissing\\t\\nraw\\ttwo words")" ]'
+
 # Helper: a fresh fake harness root + repo for an isolated generator run.
 make_sandbox(){ SBX="$(mktemp -d)"; mkdir -p "$SBX/.claude" "$SBX/.agents"; }   # .cursor/.codex/.kiro/.windsurf absent on purpose
 

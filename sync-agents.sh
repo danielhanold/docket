@@ -271,6 +271,32 @@ section_body() {  # $1=key ; reads stdin
   '
 }
 
+if [ "${BASH_VERSINFO[0]}" -ge 4 ]; then
+  declare -A _LAYER_BODY_CACHE=()
+else
+  _LAYER_BODY_CACHE=()
+fi
+
+# Prime on a synchronous caller path: cache writes made in `line="$(harness_agent_line ...)"`
+# occur in a subshell and would not be available to subsequent command-substituted reads.
+prime_layer_body() {  # $1=file $2=harness $3=under_agents(0|1)
+  local file="$1" harness="$2" under_agents="$3" key sub body
+  [ "${BASH_VERSINFO[0]}" -ge 4 ] || return 0
+  key="${file}"$'\x1f'"${harness}"$'\x1f'"${under_agents}"
+  [ -z "${_LAYER_BODY_CACHE[$key]+_}" ] || return 0
+  if [ ! -f "$file" ]; then
+    _LAYER_BODY_CACHE[$key]=""
+    return 0
+  fi
+  if [ "$under_agents" = "1" ]; then
+    sub="$(section_body agents < "$file")"
+  else
+    sub="$(<"$file")"
+  fi
+  body="$(section_body "$harness" <<<"$sub" || true)"
+  _LAYER_BODY_CACHE[$key]="$body"
+}
+
 # field_of() — the flow-map value reader (change 0173).
 #
 # The value class is "everything up to the flow-map delimiters" — NOT a character allowlist.
@@ -282,9 +308,9 @@ section_body() {  # $1=key ; reads stdin
 # scripts/lib/harness-defaults.sh (change 0168); the two readers deliberately match.
 # Anything this class cannot express is caught by validate_user_agent_values, not silently clipped.
 field_of() {  # $1=line  $2=field
-  local out
-  out="$(printf '%s' "$1" | sed -nE "s/.*[{,[:space:]]${2}[[:space:]]*:[[:space:]]*([^,}[:space:]]+).*/\1/p")"
-  head -n1 <<<"$out"
+  local re=".*[{,[:space:]]${2}[[:space:]]*:[[:space:]]*([^,}[:space:]]+).*"
+  [[ $1 =~ $re ]] && printf '%s' "${BASH_REMATCH[1]}"
+  return 0
 }
 
 # field_of_raw() — the RAW field text: everything between the colon and the next flow-map delimiter
@@ -295,22 +321,35 @@ field_of() {  # $1=line  $2=field
 # (ADR-0058), harness-defaults.sh has hd_field/hd_field_raw — though the split here is
 # reader-capability, not quote-style.
 field_of_raw() {  # $1=line  $2=field
-  local out
-  out="$(printf '%s' "$1" | sed -nE "s/.*[{,[:space:]]${2}[[:space:]]*:[[:space:]]*([^,}]*).*/\1/p")"
-  out="$(head -n1 <<<"$out")"
-  printf '%s' "$(sed -E 's/[[:space:]]+$//' <<<"$out")"
+  local re=".*[{,[:space:]]${2}[[:space:]]*:[[:space:]]*([^,}]*).*" out
+  [[ $1 =~ $re ]] || return 0
+  out="${BASH_REMATCH[1]}"
+  while [[ $out == *[[:space:]] ]]; do out="${out%?}"; done
+  printf '%s' "$out"
 }
 
 # Print the `agents.<harness>.<agent>` entry line from <file>. under_agents=1 => the harness map is
 # nested under a top-level `agents:` key (.docket.yml); 0 => the harness map is the whole file (global).
 harness_agent_line() {  # $1=file  $2=harness  $3=agent  $4=under_agents(0|1)
-  local sub hbody stripped matched
-  [ -f "$1" ] || return 0
-  if [ "$4" = "1" ]; then sub="$(section_body agents < "$1")"; else sub="$(cat "$1")"; fi
-  hbody="$(printf '%s\n' "$sub" | section_body "$2" || true)"                # body under <harness>/<default>
-  stripped="$(printf '%s\n' "$hbody" | sed 's/#.*//')"
-  matched="$(printf '%s\n' "$stripped" | grep -E "^[[:space:]]*$3[[:space:]]*:" || true)"
-  head -n1 <<<"$matched"
+  local key body line stripped sub hbody matched
+  if [ "${BASH_VERSINFO[0]}" -lt 4 ]; then
+    [ -f "$1" ] || return 0
+    if [ "$4" = "1" ]; then sub="$(section_body agents < "$1")"; else sub="$(cat "$1")"; fi
+    hbody="$(printf '%s\n' "$sub" | section_body "$2" || true)"
+    stripped="$(printf '%s\n' "$hbody" | sed 's/#.*//')"
+    matched="$(printf '%s\n' "$stripped" | grep -E "^[[:space:]]*$3[[:space:]]*:" || true)"
+    head -n1 <<<"$matched"
+    return 0
+  fi
+  key="${1}"$'\x1f'"${2}"$'\x1f'"${4}"
+  body="${_LAYER_BODY_CACHE[$key]-}"
+  while IFS= read -r line || [ -n "$line" ]; do
+    stripped="${line%%#*}"
+    if [[ $stripped =~ ^[[:space:]]*${3}[[:space:]]*: ]]; then
+      printf '%s' "$stripped"
+      return 0
+    fi
+  done <<<"$body"
 }
 
 # Resolve (harness, agent) per-field across the given layer files, highest precedence
@@ -329,6 +368,8 @@ resolve_agent_layers() {  # $1=harness  $2=agent  $3..=layer files (precedence o
   RES_MODEL=""; RES_EFFORT=""; RES_RUNNER=""; RES_MODEL_FROM_HARNESS=0
   RES_MODEL_FROM_USER=0; RES_EFFORT_FROM_USER=0
   for f in "$@"; do
+    prime_layer_body "$f" "$harness" 1
+    prime_layer_body "$f" default 1
     hline="$(harness_agent_line "$f" "$harness" "$agent" 1)"
     dline="$(harness_agent_line "$f" default "$agent" 1)"
     hm="$(field_of "$hline" model)";  he="$(field_of "$hline" effort)"
@@ -434,6 +475,7 @@ validate_user_agent_values() {
           *) [ -d "$HARNESS_ROOT/.$h" ] || continue ;;
         esac
       fi
+      prime_layer_body "$f" "$h" 1
       while IFS= read -r a; do
         [ -n "$a" ] || continue
         [ -f "$AGENTS_SRC/docket-$a.md" ] || continue
