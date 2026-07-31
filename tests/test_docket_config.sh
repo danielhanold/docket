@@ -10,8 +10,11 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # --- fixture builder: a clone with a bare origin -----------------------------
 # mkrepo <dir> : create a bare origin + a working clone at <dir>, identity set,
 #   one commit on `main` (origin/HEAD -> main). Echoes nothing; populates $dir.
-mkrepo(){
-  local dir="$1" bare="$1.origin.git"
+# MKREPO_TEMPLATE: the baseline every mkrepo fixture is copied from; built on first use.
+MKREPO_TEMPLATE=""
+_mkrepo_build_template(){
+  MKREPO_TEMPLATE="$tmp/.mkrepo-template"
+  local dir="$MKREPO_TEMPLATE" bare="$MKREPO_TEMPLATE.origin.git"
   git init --quiet --bare "$bare"
   git clone --quiet "$bare" "$dir" 2>/dev/null
   git -C "$dir" config user.email t@t.test
@@ -23,10 +26,47 @@ mkrepo(){
   git -C "$dir" push --quiet -u origin main
   git -C "$dir" remote set-head origin -a >/dev/null 2>&1
 }
+mkrepo(){
+  local dir="$1" bare="$1.origin.git"
+  [ -n "$MKREPO_TEMPLATE" ] || _mkrepo_build_template
+  mkdir -p "$(dirname "$dir")"
+  rm -rf "$dir" "$bare"
+  cp -R "$MKREPO_TEMPLATE" "$dir"
+  cp -R "$MKREPO_TEMPLATE.origin.git" "$bare"
+  git -C "$dir" remote set-url origin "$bare"
+}
 # run <dir> [args...] : run the resolver against <dir>, echo stdout
 run(){ local d="$1"; shift; ensure_test_runtime "$XDG_CONFIG_HOME" "$d"; bash "$SCRIPT" --repo-dir "$d" "$@"; }
 
 tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
+
+# --- fixture independence (change 0174) --------------------------------------
+# mkrepo now copies a once-built template. These assertions pin the property that
+# makes that safe: fixtures are independent of each other AND of the template.
+# The "did advance" assert is anti-vacuity — without it, a silently failed push
+# would make every "unchanged" assertion below pass for the wrong reason.
+mkrepo "$tmp/indep-a"
+mkrepo "$tmp/indep-b"
+indep_tpl_before="$(git -C "$MKREPO_TEMPLATE.origin.git" rev-parse refs/heads/main)"
+indep_b_before="$(git -C "$tmp/indep-b.origin.git" rev-parse refs/heads/main)"
+echo mutated > "$tmp/indep-a/MUTATION.md"
+git -C "$tmp/indep-a" add MUTATION.md
+git -C "$tmp/indep-a" commit --quiet -m mutate
+git -C "$tmp/indep-a" push --quiet origin main
+assert "0174 independence: the mutated fixture's own origin DID advance (mutation was real)" \
+  '[ "$(git -C "$tmp/indep-a.origin.git" rev-parse refs/heads/main)" != "$indep_tpl_before" ]'
+assert "0174 independence: a sibling fixture's origin is untouched" \
+  '[ "$(git -C "$tmp/indep-b.origin.git" rev-parse refs/heads/main)" = "$indep_b_before" ]'
+assert "0174 independence: the template's origin is untouched" \
+  '[ "$(git -C "$MKREPO_TEMPLATE.origin.git" rev-parse refs/heads/main)" = "$indep_tpl_before" ]'
+assert "0174 independence: a sibling worktree never sees the mutation" \
+  '[ ! -e "$tmp/indep-b/MUTATION.md" ]'
+assert "0174 independence: the template worktree never sees the mutation" \
+  '[ ! -e "$MKREPO_TEMPLATE/MUTATION.md" ]'
+assert "0174 independence: each fixture points at its OWN origin" \
+  '[ "$(git -C "$tmp/indep-a" config remote.origin.url)" = "$tmp/indep-a.origin.git" ]'
+assert "0174 fixture parity: origin/HEAD still resolves after the copy" \
+  '[ "$(git -C "$tmp/indep-b" rev-parse --abbrev-ref origin/HEAD)" = "origin/main" ]'
 
 fake_bash(){ # fake_bash <path> <version> [executable]
   local path="$1" version="$2" executable="${3:-yes}"
