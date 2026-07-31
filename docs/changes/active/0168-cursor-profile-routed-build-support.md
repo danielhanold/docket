@@ -2,11 +2,11 @@
 id: 168
 slug: cursor-profile-routed-build-support
 title: Cursor support for profile-routed Docket builds
-status: proposed
+status: in-progress
 priority: medium
 type: feat
 created: 2026-07-30
-updated: 2026-07-30
+updated: 2026-07-31
 depends_on: [167]
 related: [135, 142, 164, 169]
 discovered_from: [167]
@@ -16,7 +16,8 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/cursor-profile-routed-build-support
+claimed_at: 2026-07-31T01:11:31Z
 pr:
 blocked_by:
 reconciled: false
