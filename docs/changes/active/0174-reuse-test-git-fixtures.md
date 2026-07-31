@@ -2,7 +2,7 @@
 id: 174
 slug: reuse-test-git-fixtures
 title: Reuse test git fixtures instead of rebuilding them per assertion
-status: proposed
+status: in-progress
 priority: medium
 type: chore
 created: 2026-07-31
@@ -16,7 +16,8 @@ plan:
 results:
 trivial: false
 auto_groomable: false
-branch:
+branch: feat/reuse-test-git-fixtures
+claimed_at: 2026-07-31T10:23:17Z
 pr:
 blocked_by:
 reconciled: false
