@@ -188,6 +188,13 @@ assert "0174 independence: each fixture points at its OWN origin" \
 assert "0174 fixture parity: the copy still carries the seeded change and both ADRs" \
   '[ -f "$indep_b_w/docs/changes/active/0007-sample.md" ] && [ -f "$indep_b_w/docs/adrs/0003-accepted.md" ] && [ -f "$indep_b_w/docs/adrs/0005-proposed.md" ]'
 
+# Template integrity: the independence block above proves the property HERE; this snapshot
+# plus the re-assertion just before the final exit extends it over every fixture call in
+# the file, so a future test that dirties the shared template cannot go unnoticed.
+tplint_refs="$(git -C "$NEW_REPO_TEMPLATE/tpl/origin.git" for-each-ref --format='%(refname) %(objectname)' | LC_ALL=C sort)"
+tplint_head="$(git -C "$NEW_REPO_TEMPLATE/tpl/work" rev-parse HEAD)"
+tplint_branch="$(git -C "$NEW_REPO_TEMPLATE/tpl/work" rev-parse --abbrev-ref HEAD)"
+
 assert "archive-change.sh exists and is executable" '[ -x "$ARCHIVE" ]'
 
 # --- archive-change.sh: done happy path ---
@@ -701,5 +708,10 @@ assert "D1(remote-guard): the local branch still exists (still checked out elsew
   'git -C "$c6/work" rev-parse --verify -q feat/wid >/dev/null'
 assert "D1(remote-guard): refusal names the local-branch-survives reason on stderr" \
   'grep -qi "local branch still exists" "$tmp/d1-remote-guard.err"'
+
+assert "0174 template integrity: the shared template is unmutated after the full run" \
+  '[ "$(git -C "$NEW_REPO_TEMPLATE/tpl/origin.git" for-each-ref --format="%(refname) %(objectname)" | LC_ALL=C sort)" = "$tplint_refs" ] &&
+   [ "$(git -C "$NEW_REPO_TEMPLATE/tpl/work" rev-parse HEAD)" = "$tplint_head" ] &&
+   [ "$(git -C "$NEW_REPO_TEMPLATE/tpl/work" rev-parse --abbrev-ref HEAD)" = "$tplint_branch" ]'
 
 exit "$fail"

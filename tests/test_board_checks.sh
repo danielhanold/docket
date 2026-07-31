@@ -93,6 +93,8 @@ new_repo(){
 # no speedup at all. Per-call roots come from mktemp for the same reason: a shared
 # counter incremented in a subshell never advances.
 _new_repo_build_template
+# Safe to install here: this file has no other EXIT trap, so nothing is being replaced.
+trap 'rm -rf "$NEW_REPO_TEMPLATE"' EXIT
 
 # --- fixture independence (change 0174) --------------------------------------
 # new_repo now copies a once-built template. Fixtures must not share an origin.
@@ -116,6 +118,13 @@ assert "0174 independence: each fixture points at its OWN origin" \
   '[ "$(git -C "$indep_a_w" config remote.origin.url)" = "$indep_a_o" ]'
 assert "0174 fixture parity: the copy is still parked on docket with main present" \
   '[ "$(git -C "$indep_b_w" rev-parse --abbrev-ref HEAD)" = docket ] && [ -n "$(git -C "$indep_b_o" rev-parse --verify -q refs/heads/main)" ]'
+
+# Template integrity: the independence block above proves the property HERE; this snapshot
+# plus the re-assertion just before the final exit extends it over every fixture call in
+# the file, so a future test that dirties the shared template cannot go unnoticed.
+tplint_refs="$(git -C "$NEW_REPO_TEMPLATE/tpl/origin.git" for-each-ref --format='%(refname) %(objectname)' | LC_ALL=C sort)"
+tplint_head="$(git -C "$NEW_REPO_TEMPLATE/tpl/work" rev-parse HEAD)"
+tplint_branch="$(git -C "$NEW_REPO_TEMPLATE/tpl/work" rev-parse --abbrev-ref HEAD)"
 
 # commit_present_spec_change: a helper used across tasks — writes a change file into active/.
 # (Inline cat in each task is fine too; this keeps fixtures short.)
@@ -1643,6 +1652,11 @@ hc_restated="$(while IFS= read -r cid; do
                done <<<"$emitted")"
 assert "no check-id is restated in SKILL.md's '### Health checks' section (point at scripts/board-checks.md, never a list)" \
   '[ -z "$hc_restated" ] || { echo "restated check-ids: $(echo $hc_restated)" >&2; false; }'
+
+assert "0174 template integrity: the shared template is unmutated after the full run" \
+  '[ "$(git -C "$NEW_REPO_TEMPLATE/tpl/origin.git" for-each-ref --format="%(refname) %(objectname)" | LC_ALL=C sort)" = "$tplint_refs" ] &&
+   [ "$(git -C "$NEW_REPO_TEMPLATE/tpl/work" rev-parse HEAD)" = "$tplint_head" ] &&
+   [ "$(git -C "$NEW_REPO_TEMPLATE/tpl/work" rev-parse --abbrev-ref HEAD)" = "$tplint_branch" ]'
 
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"

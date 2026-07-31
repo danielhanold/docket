@@ -208,7 +208,8 @@ rc=$?
 assert "PROCEED exits zero" '[ $rc -eq 0 ]'
 
 # ensure_and_sync_worktree: hermetic fixture repos (no network, throwaway origin bare repo).
-# GIT_REPO_TEMPLATE: the baseline every git_repo_setup fixture is copied from.
+# GIT_REPO_TEMPLATE: the baseline every git_repo_setup fixture is copied from; built once,
+#   eagerly, at file scope (see the _git_repo_build_template call below for why).
 GIT_REPO_TEMPLATE=""
 _git_repo_build_template(){
   GIT_REPO_TEMPLATE="$tmp/.git-repo-template"
@@ -218,9 +219,15 @@ _git_repo_build_template(){
     && git -C "$GIT_REPO_TEMPLATE/seed" -c user.email=t@t -c user.name=t branch docket \
     && git clone -q --bare "$GIT_REPO_TEMPLATE/seed" "$GIT_REPO_TEMPLATE/origin.git"
 }
+# Built eagerly, at file scope, on purpose: a lazy
+# `[ -n "$GIT_REPO_TEMPLATE" ] || _git_repo_build_template` inside git_repo_setup would
+# assign GIT_REPO_TEMPLATE only in whatever shell reached it first, so any call made from
+# a SUBSHELL would leave the parent's copy empty and rebuild the template on the next
+# call -- correct, silently, and with no speedup. Eager init removes that footgun for
+# every present and future call site. (Same pattern as tests/test_board_checks.sh.)
+_git_repo_build_template
 git_repo_setup(){
   local root="$1"
-  [ -n "$GIT_REPO_TEMPLATE" ] || _git_repo_build_template || return 1
   mkdir -p "$root"
   rm -rf "$root/seed" "$root/origin.git"
   cp -R "$GIT_REPO_TEMPLATE/seed" "$root/seed" \
@@ -248,6 +255,15 @@ assert "0174 independence: a copied bare origin points at its OWN seed" \
   '[ "$(git -C "$tmp/indep-b/origin.git" config remote.origin.url)" = "$tmp/indep-b/seed" ]'
 assert "0174 fixture parity: the copied origin still carries both branches" \
   '[ -n "$(git -C "$tmp/indep-b/origin.git" rev-parse --verify -q refs/heads/docket)" ]'
+
+# Template integrity: the independence block above proves the property HERE; this snapshot
+# plus the re-assertion just before the final exit extends it over every git_repo_setup call
+# in the file, so a future test that dirties the shared template cannot go unnoticed.
+# This template's shape is seed/ (the work tree) + origin.git (the bare), so both are pinned.
+tplint_refs="$( { git -C "$GIT_REPO_TEMPLATE/origin.git" for-each-ref --format='origin %(refname) %(objectname)'
+                  git -C "$GIT_REPO_TEMPLATE/seed"       for-each-ref --format='seed %(refname) %(objectname)'; } | LC_ALL=C sort)"
+tplint_head="$(git -C "$GIT_REPO_TEMPLATE/seed" rev-parse HEAD)"
+tplint_branch="$(git -C "$GIT_REPO_TEMPLATE/seed" rev-parse --abbrev-ref HEAD)"
 
 write_sync_fixture(){
   # $1 mode, $2 metadata_branch, $3 metadata_worktree
@@ -3450,5 +3466,11 @@ assert "0144: the stale 'a board-checks failure produces no extra output' claim 
   '! grep -qF "or a \`board-checks.sh\` failure, produces no extra output" "$REPO/scripts/docket-status.md"'
 assert "0144: the output contract documents the new health-pass line" \
   'grep -qF "health checks failed <exit>" "$REPO/scripts/docket-status.md"'
+
+assert "0174 template integrity: the shared template is unmutated after the full run" \
+  '[ "$( { git -C "$GIT_REPO_TEMPLATE/origin.git" for-each-ref --format="origin %(refname) %(objectname)"
+           git -C "$GIT_REPO_TEMPLATE/seed"       for-each-ref --format="seed %(refname) %(objectname)"; } | LC_ALL=C sort)" = "$tplint_refs" ] &&
+   [ "$(git -C "$GIT_REPO_TEMPLATE/seed" rev-parse HEAD)" = "$tplint_head" ] &&
+   [ "$(git -C "$GIT_REPO_TEMPLATE/seed" rev-parse --abbrev-ref HEAD)" = "$tplint_branch" ]'
 
 exit $fail
