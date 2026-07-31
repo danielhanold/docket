@@ -465,15 +465,22 @@ assert "README documents the three profiles" \
 assert "README documents build.checkpoint" 'grep -qF -- "build.checkpoint" <<<"$rm_body"'
 assert "README says how to opt back into SDD" \
   'grep -qF -- "superpowers:subagent-driven-development" <<<"$rm_body"'
-# Change 0168 moved this boundary: the shipped sidecar now carries validated Cursor IDs for the
-# three build profiles, so the profiles are no longer Claude-only. Both directions, because
-# confirming only the new sentence would leave the falsified one undetected if both survived.
+# Change 0168 moved this boundary once (the sidecar gained validated Cursor IDs, so the profiles
+# stopped being Claude-only) and change 0169 moved it again (the sidecar gained a complete Codex
+# block, so Codex stopped being user-configured). Both directions each time, because confirming
+# only the new sentence would leave the falsified one undetected if both survived — and the
+# retired 0168-era claim is asserted ABSENT rather than deleted, so a revert of the README prose
+# reddens here instead of silently restoring a false promise.
 assert "README states the shipped-defaults boundary for the profiles" \
-  'grep -qiE "docket-build[^.]{0,200}(Claude Code and Cursor|Claude and Cursor)" <<<"$rm_body"'
+  'grep -qiE "docket-build[^.]{0,200}Claude Code, Cursor, and Codex" <<<"$rm_body"'
 assert "README no longer claims the profiles are Claude-only" \
   '! grep -qiE "docket-build[^.]{0,200}(claude-only|Claude Code only|only.{0,20}Claude)" <<<"$rm_body"'
-assert "README says Codex stays user-configured for now" \
-  'grep -qiE "Codex remains user-configured" <<<"$rm_body"'
+# The 0168-era pair, re-pointed: the sidecar's Codex block is complete, so the README must say the
+# shipped set is complete and must NOT still promise Codex is user-configured until 0169 lands.
+assert "README says all three shipped harness blocks are complete" \
+  'grep -qiE "all three are complete" <<<"$rm_body"'
+assert "README no longer says Codex stays user-configured" \
+  '! grep -qiE "Codex remains user-configured|until change 0169" <<<"$rm_body"'
 
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
