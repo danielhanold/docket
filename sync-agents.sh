@@ -352,24 +352,43 @@ agents_block_harnesses() {  # $1=file  (docket.yml, under_agents=1)
 }
 
 # --- emit a resolved wrapper to stdout ---------------------------------------
-# Rewrites model:/effort: lines inside the frontmatter. Empty override => keep built-in.
-# effort override "auto" => drop the effort line entirely (inherit model default).
+# Model/effort are the FINAL resolved values (change 0168): agents/harness-defaults.yml, not the
+# source frontmatter, is the default store. This STRIPS any model:/effort: line the source still
+# carries and INSERTS the resolved pair before the closing fence, so it is idempotent whether or
+# not the source carries a pin — which is what lets the source cleanup later in this change be a
+# pure deletion — and can never emit a duplicated key. An empty (or `inherit`) model, and an empty
+# (or `auto`) effort, omit their field entirely; the harness then applies its own default.
+# The pair therefore lands at the END of the frontmatter block (below any `skills:` line) rather
+# than at the source's original position. YAML mapping order is not significant and no consumer
+# reads these files positionally; `tests/test_sync_agents*.sh` assert the fields, not the order.
 emit() {  # $1=src file  $2=model  $3=effort
-  awk -v model="$2" -v effort="$3" '
-    /^---[[:space:]]*$/ { d++; print; infm=(d==1); next }
-    {
-      if (infm && model!=""  && $0 ~ /^model[[:space:]]*:/)  { print "model: " model; next }
-      if (infm && effort!="" && $0 ~ /^effort[[:space:]]*:/) { if (effort!="auto") print "effort: " effort; next }
-      print
-    }' "$1"
+  local m="$2" e="$3"
+  [ "$m" = "inherit" ] && m=""
+  [ "$e" = "auto" ] && e=""
+  awk -v model="$m" -v effort="$e" '
+    /^---[[:space:]]*$/ {
+      d++
+      if (d==1) { print; infm=1; next }
+      if (d==2 && infm) {                             # closing fence: insert the resolved pair
+        if (model!="")  print "model: " model
+        if (effort!="") print "effort: " effort
+        infm=0; print; next
+      }
+      print; next
+    }
+    infm && $0 ~ /^model[[:space:]]*:/  { next }      # drop any pin the source still carries
+    infm && $0 ~ /^effort[[:space:]]*:/ { next }
+    { print }
+  ' "$1"
 }
 
 # --- per-harness emitter registry (change 0077) ------------------------------
 # Map a harness token to the on-disk extension docket generates for it.
 harness_ext(){ case "$1" in codex) printf 'toml';; *) printf 'md';; esac; }
 
-# Dispatch to the harness-appropriate emitter. MODEL/EFFORT are resolved OVERRIDES
-# (empty => keep the built-in), identical in meaning to emit()'s args.
+# Dispatch to the harness-appropriate emitter. MODEL/EFFORT are the FINAL resolved values
+# (change 0168: shipped sidecar ⊕ user layers; empty => emit no pin), identical in meaning to
+# emit()'s args.
 emit_for_harness(){  # $1=src md  $2=harness  $3=model  $4=effort
   case "$2" in
     codex)  emit_codex_toml "$1" "$3" "$4";;
@@ -391,19 +410,20 @@ toml_escape_basic(){ printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'; }
 # Field mapping (ADR-0015 verbatim passthrough for model/effort):
 #   frontmatter name:        -> name
 #   frontmatter description: -> description
-#   effective model          -> model                  (override||built-in; omit if empty/inherit)
-#   effective effort         -> model_reasoning_effort  (override||built-in; omit if empty/auto)
+#   resolved model           -> model                  (omit if empty/inherit)
+#   resolved effort          -> model_reasoning_effort  (omit if empty/auto)
 #   skills: preload + body   -> developer_instructions  (multi-line basic string)
-emit_codex_toml(){  # $1=src md  $2=model_override  $3=effort_override
+emit_codex_toml(){  # $1=src md  $2=model  $3=effort   (both FINAL resolved values)
   local src="$1" mo="$2" eo="$3"
-  local name desc bi_model bi_effort model effort skills_csv body dev esc
+  local name desc model effort skills_csv body dev esc
   name="$(sed -n '/^name:/{s/^name:[[:space:]]*//;p;q;}' "$src")"
   [ -n "$name" ] || name="docket-$(short_name "$src")"
   desc="$(agent_description "$src")"
-  bi_model="$(sed -n '/^model:/{s/^model:[[:space:]]*//;p;q;}' "$src")"
-  bi_effort="$(sed -n '/^effort:/{s/^effort:[[:space:]]*//;p;q;}' "$src")"
-  model="${mo:-$bi_model}"
-  effort="${eo:-$bi_effort}"
+  # change 0168: FINAL resolved values (shipped sidecar ⊕ user layers). The source frontmatter is
+  # no longer a default store, so there is nothing to fall back to: an unresolved field means the
+  # wrapper is honestly UNPINNED and Codex applies its own default.
+  model="$mo"
+  effort="$eo"
   skills_csv="$(sed -n '/^skills:/{s/^skills:[[:space:]]*//;p;q;}' "$src" | sed -e 's/^\[//' -e 's/\][[:space:]]*$//' -e 's/[[:space:]]*$//')"
   # body = everything after the frontmatter closing --- , leading blank lines trimmed.
   body="$(awk '/^---[[:space:]]*$/ && d<2 {d++; next} d>=2 {print}' "$src" | awk 'NF{p=1} p{print}')"
@@ -437,7 +457,7 @@ ${body}"
 # silently dropped all three. Field mapping (ADR-0015 verbatim passthrough for model/effort):
 #   frontmatter name:        -> name
 #   frontmatter description: -> description
-#   effective model + effort -> model: <model>[effort=<effort>]   (see the table below)
+#   resolved model + effort  -> model: <model>[effort=<effort>]   (see the table below)
 #   skills: preload + body   -> a body preamble + the body verbatim
 # readonly/is_background are deliberately NOT emitted: their Cursor defaults already match every
 # docket agent (agents commit and push; every docket dispatch is foreground), and emitting them
@@ -452,16 +472,19 @@ ${body}"
 # Docket keeps NO allowlist of Cursor model IDs and NO allowlist of effort tokens: Cursor's own
 # compatible-model fallback handles anything it does not recognize, and a committed table of a
 # vendor's internals goes stale silently (ADR-0015; ADR-0059's rejection of vendor-internal tables).
-emit_cursor_md(){  # $1=src md  $2=model_override  $3=effort_override
+emit_cursor_md(){  # $1=src md  $2=model  $3=effort   (both FINAL resolved values)
   local src="$1" mo="$2" eo="$3"
-  local name desc bi_model bi_effort model effort skills_csv body
+  local name desc model effort skills_csv body
   name="$(sed -n '/^name:/{s/^name:[[:space:]]*//;p;q;}' "$src")"
   [ -n "$name" ] || name="docket-$(short_name "$src")"
   desc="$(agent_description "$src")"
-  bi_model="$(sed -n '/^model:/{s/^model:[[:space:]]*//;p;q;}' "$src")"
-  bi_effort="$(sed -n '/^effort:/{s/^effort:[[:space:]]*//;p;q;}' "$src")"
-  model="${mo:-$bi_model}"
-  effort="${eo:-$bi_effort}"
+  # change 0168: FINAL resolved values (shipped sidecar ⊕ user layers). The source frontmatter is
+  # no longer a default store, so there is nothing to fall back to. An agent with no cursor entry
+  # in agents/harness-defaults.yml and no user override is emitted UNPINNED — which is the point:
+  # falling back to the source frontmatter is exactly how a Claude model ID leaked into a Cursor
+  # wrapper that could never honor it.
+  model="$mo"
+  effort="$eo"
   # Normalize the two "no pin" sentinels to empty, so the emit logic below has one shape to test.
   [ "$model" = "inherit" ] && model=""
   [ "$effort" = "auto" ] && effort=""
