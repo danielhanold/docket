@@ -17,7 +17,7 @@ results:
 trivial: false
 auto_groomable: false
 branch: feat/sync-agents-per-invocation-cost
-claimed_at: 2026-07-31T21:06:15Z
+claimed_at: 2026-07-31T22:09:36Z
 pr:
 blocked_by:
 reconciled: true
@@ -118,3 +118,16 @@ compatible with this harness.
 Preflight re-verified the `in-progress` claim and clean feature worktree. `origin/main` remains
 `07818ef4`, the exact integration SHA used by the prior reconcile, so the reconciled design is
 still fresh and no repeated scope edit is needed. Resume continues at Task 1 of the linked plan.
+
+### 2026-07-31 — build halted at Task 3 performance guard
+
+The repaired profile workers completed Task 1 (`f9b84b97`) and Task 2 (`655f3cdf`) with their
+focused suites green. Task 3's real PATH-shim measurement found 644 retained parser-tool calls
+(`sed` 288, `head` 0, `awk` 185, `grep` 171), versus 788 on `origin/main`. That is an improvement
+but remains above the plan's required standing ceiling of 400, so the new guard is correctly red.
+
+Task 3 owns the test guard, not a second source refactor, and returned `BLOCKED` with no commit.
+The configured build contract makes that an unsafe-continuation halt: it cannot silently widen the
+accepted budget or reopen completed Task 2. Its 39-line uncommitted test change remains in the
+feature worktree for inspection; review, full-suite gate, results close-out, and PR creation were
+not reached.
