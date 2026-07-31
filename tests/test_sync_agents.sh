@@ -1564,4 +1564,71 @@ assert "0168 R2: no cursor/codex wrapper carries a model that lives ONLY in the 
   '[ -z "$leaks" ]'
 rm -rf "$SBX" "$HROOT168R"
 
+# ============================================================================
+# Change 0173 — field_of() value class: provider-prefixed model IDs round-trip
+# ============================================================================
+# The truncation is SILENT: a wrapper is still written and still parses, it just
+# carries `anthropic` where the user wrote `anthropic/claude-opus-5`. Every assert
+# here is therefore value-level — "generation succeeded" and "the wrapper exists"
+# both pass against the bug.
+
+# -- layer 1 of 3: global config.yml --
+make_sandbox
+mkdir -p "$SBX/.config/docket"
+printf 'agents:\n  default:\n    status: { model: anthropic/claude-opus-5, effort: low }\n' > "$SBX/.config/docket/config.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null )
+assert "0173: global layer — slash-bearing model survives whole" \
+  '[ "$(fm_anchored "$SBX/.claude/agents/docket-status.md" model)" = "anthropic/claude-opus-5" ]'
+assert "0173: global layer — effort alongside it is unaffected" \
+  '[ "$(fm_anchored "$SBX/.claude/agents/docket-status.md" effort)" = "low" ]'
+rm -rf "$SBX"
+
+# -- layer 2 of 3: repo-committed .docket.yml --
+make_sandbox
+HROOT173B="$(mktemp -d)"; mkdir -p "$HROOT173B/.claude"
+printf 'agents:\n  default:\n    status: { model: openai:gpt-5.6-sol, effort: high }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT173B" bash "$SYNC" >/dev/null )
+assert "0173: committed layer — colon-bearing model survives whole" \
+  '[ "$(fm_anchored "$SBX/.claude/agents/docket-status.md" model)" = "openai:gpt-5.6-sol" ]'
+rm -rf "$SBX" "$HROOT173B"
+
+# -- layer 3 of 3: machine-local .docket.local.yml --
+make_sandbox
+HROOT173C="$(mktemp -d)"; mkdir -p "$HROOT173C/.claude"
+printf 'agents:\n  default:\n    status: { model: openrouter:vendor/model, effort: high }\n' > "$SBX/.docket.local.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT173C" bash "$SYNC" >/dev/null )
+assert "0173: local layer — colon AND slash together survive whole" \
+  '[ "$(fm_anchored "$SBX/.claude/agents/docket-status.md" model)" = "openrouter:vendor/model" ]'
+rm -rf "$SBX" "$HROOT173C"
+
+# -- non-regression: a plain unprefixed id is untouched by the widening --
+make_sandbox
+HROOT173D="$(mktemp -d)"; mkdir -p "$HROOT173D/.claude"
+printf 'agents:\n  default:\n    status: { model: sonnet, effort: high }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT173D" bash "$SYNC" >/dev/null )
+assert "0173: plain unprefixed model still resolves exactly (non-regression)" \
+  '[ "$(fm_anchored "$SBX/.claude/agents/docket-status.md" model)" = "sonnet" ]'
+assert "0173: closing brace is not swallowed into the value" \
+  '! /usr/bin/grep -q "model:.*}" "$SBX/.claude/agents/docket-status.md"'
+rm -rf "$SBX" "$HROOT173D"
+
+# -- the agents.default vs agents.<harness> merge, with provenance --
+# A harness-specific line and a default line, both provider-prefixed. The harness line must win
+# for its own harness, the default must reach the other, and RES_MODEL_FROM_HARNESS (which drives
+# warn_fallback_model) must be unaffected by the widening.
+make_sandbox
+mkdir -p "$SBX/.cursor"
+HROOT173E="$(mktemp -d)"; mkdir -p "$HROOT173E/.claude"
+printf 'agent_harnesses: [claude, cursor]\nagents:\n  default:\n    status: { model: anthropic/claude-opus-5 }\n  cursor:\n    status: { model: openrouter:vendor/model }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT173E" bash "$SYNC" >/dev/null )
+# Cursor encodes effort INSIDE the model value as `<id>[effort=<e>]`, but only when an effort
+# actually resolves. Probed against the real generated file for THIS fixture (no cursor effort is
+# configured and none resolves): the emitted value is bare, with no `[effort=…]` suffix. So compare
+# on the whole value — an unstripped comparison also catches a suffix appearing where none belongs.
+cur_m="$(fm_anchored "$SBX/.cursor/agents/docket-status.md" model)"
+assert "0173: merge — harness block wins for cursor, whole" '[ "$cur_m" = "openrouter:vendor/model" ]'
+assert "0173: merge — claude falls to agents.default, whole" \
+  '[ "$(fm_anchored "$SBX/.claude/agents/docket-status.md" model)" = "anthropic/claude-opus-5" ]'
+rm -rf "$SBX" "$HROOT173E"
+
 exit $fail

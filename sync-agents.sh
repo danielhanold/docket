@@ -256,11 +256,34 @@ section_body() {  # $1=key ; reads stdin
   '
 }
 
-# field_of() — UNCHANGED (kept verbatim from the prior version).
+# field_of() — the flow-map value reader (change 0173).
+#
+# The value class is "everything up to the flow-map delimiters" — NOT a character allowlist.
+# ADR-0015 makes model IDs opaque passthrough with no vendor allowlist, and provider-prefixed IDs
+# (`anthropic/claude-opus-5`, `openrouter:vendor/model`) are ordinary. The pre-0173 class
+# ([A-Za-z0-9._-]+) did not REJECT such an ID — which would at least be honest — it TRUNCATED it to
+# a first segment that still looks well-formed, and the generator baked that wrong pin into the
+# wrapper with no warning. This is the same class, and the same fix, as hd_field in
+# scripts/lib/harness-defaults.sh (change 0168); the two readers deliberately match.
+# Anything this class cannot express is caught by validate_user_agent_values, not silently clipped.
 field_of() {  # $1=line  $2=field
   local out
-  out="$(printf '%s' "$1" | sed -nE "s/.*[{,[:space:]]${2}[[:space:]]*:[[:space:]]*([A-Za-z0-9._-]+).*/\1/p")"
+  out="$(printf '%s' "$1" | sed -nE "s/.*[{,[:space:]]${2}[[:space:]]*:[[:space:]]*([^,}[:space:]]+).*/\1/p")"
   head -n1 <<<"$out"
+}
+
+# field_of_raw() — the RAW field text: everything between the colon and the next flow-map delimiter
+# (`,` or `}`), trailing whitespace trimmed. This is what a YAML parser would see; field_of is what
+# DOCKET's reader consumes. validate_user_agent_values rejects any entry where the two disagree, so
+# a value the reader cannot consume whole fails loudly instead of shipping as a truncated prefix.
+# The `_raw` tier follows the existing pair convention — docket-frontmatter.sh has field/field_raw
+# (ADR-0058), harness-defaults.sh has hd_field/hd_field_raw — though the split here is
+# reader-capability, not quote-style.
+field_of_raw() {  # $1=line  $2=field
+  local out
+  out="$(printf '%s' "$1" | sed -nE "s/.*[{,[:space:]]${2}[[:space:]]*:[[:space:]]*([^,}]*).*/\1/p")"
+  out="$(head -n1 <<<"$out")"
+  printf '%s' "$(sed -E 's/[[:space:]]+$//' <<<"$out")"
 }
 
 # Print the `agents.<harness>.<agent>` entry line from <file>. under_agents=1 => the harness map is
