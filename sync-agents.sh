@@ -384,6 +384,56 @@ agents_block_harnesses() {  # $1=file  (docket.yml, under_agents=1)
   printf '%s\n' "$sub" | awk '{ nc=$0; sub(/#.*/,"",nc) } /^[A-Za-z0-9._-]+[[:space:]]*:[[:space:]]*$/ { k=nc; sub(/[[:space:]]*:.*/,"",k); if(k!="") print k }'
 }
 
+# --- user-config value validation (change 0173) ------------------------------
+# field_of consumes bare scalars only. A value it cannot consume WHOLE — a quoted scalar, an
+# embedded space — would otherwise be clipped to a prefix that still looks well-formed and baked
+# into a wrapper as a wrong pin. Collect every offender across every layer, report them all, and
+# fail BEFORE any wrapper is written: partial generation carrying a known-bad pin is exactly the
+# harm this exists to prevent.
+#
+# Posture note: this is deliberately asymmetric with scripts/runner-dispatch.sh, which stays
+# tolerant. Generation time has a human reading output and leaves a wrong pin persisted in a file;
+# runner-dispatch runs mid-handoff on a live dispatch path, where dying would convert a cosmetic
+# config typo into a failed dispatch.
+#
+# Only the harness-first shape is walked. The pre-0046 flat shape is warned about and DROPPED by
+# warn_legacy_shape/legacy_agent_keys, so validating it would reject config that is already ignored.
+validate_user_agent_values() {
+  local rc=0 f h a k line raw consumed
+  for f in "$LOCAL_CFG" "$DOCKET_YML" "$GLOBAL_CFG"; do
+    [ -f "$f" ] || continue
+    while IFS= read -r h; do
+      [ -n "$h" ] || continue
+      while IFS= read -r a; do
+        [ -n "$a" ] || continue
+        line="$(harness_agent_line "$f" "$h" "$a" 1)"
+        [ -n "$line" ] || continue
+        for k in model effort runner; do
+          # Key absent from this entry is normal — every field is optional in user config.
+          # Herestring, not `printf … | grep -Eq`: under `set -o pipefail` an early-exiting consumer
+          # SIGPIPEs its producer and the 141 becomes an intermittent skip (AGENTS.md, "Shell").
+          grep -Eq "[{,[:space:]]${k}[[:space:]]*:" <<<"$line" || continue
+          raw="$(field_of_raw "$line" "$k")"
+          consumed="$(field_of "$line" "$k")"
+          if [ -z "$raw" ]; then
+            # Present-but-empty. A DIFFERENT diagnostic from the one below on purpose: without the
+            # split, a clip that lands empty blames ABSENCE for what is really a quoting problem.
+            log "$h/$a '$k' is present but has no value ($f)"; rc=1
+          elif [ "$raw" != "$consumed" ] || case "$raw" in '"'*|"'"*) true;; *) false;; esac; then
+            # Two legs. The != leg catches anything the value class cannot express (an embedded
+            # space). The quote leg catches what != structurally CANNOT see: a quoted but
+            # space-free value has consumed == raw, so the quotes would ride into the emitted pin
+            # verbatim while the diagnostic's own remedy text tells the user to write them unquoted.
+            log "$h/$a '$k' value '$raw' is not a bare scalar — the reader consumes only '$consumed'; write model/effort values unquoted and space-free ($f)"
+            rc=1
+          fi
+        done
+      done < <(agent_keys "$f" 1)
+    done < <(agents_block_harnesses "$f")
+  done
+  return $rc
+}
+
 # --- emit a resolved wrapper to stdout ---------------------------------------
 # Model/effort are the FINAL resolved values (change 0168): agents/harness-defaults.yml, not the
 # source frontmatter, is the default store. This STRIPS any model:/effort: line the source still
@@ -1024,6 +1074,10 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
       log "check: agents/harness-defaults.yml is invalid — a real run would refuse to write wrappers."
       exit 1
     fi
+    if ! validate_user_agent_values; then
+      log "check: user agent config has unconsumable values — a real run would refuse to write wrappers."
+      exit 1
+    fi
     if check_project_level; then exit 0; else exit 1; fi
   fi
 
@@ -1031,6 +1085,14 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
   # malformed file cannot leave a half-regenerated agent directory behind.
   if ! hd_validate "$HARNESS_DEFAULTS" "$AGENTS_SRC"; then
     log "ERROR agents/harness-defaults.yml is missing or invalid — no wrappers were written."
+    exit 1
+  fi
+
+  # Same gate for USER config (change 0173): validate before writing any wrapper. This must stay
+  # ABOVE migrate_legacy_global/user_level_pass — the first `mkdir -p` or emit_wrapper redirection
+  # past this point is already a partial generation.
+  if ! validate_user_agent_values; then
+    log "ERROR user agent config has unconsumable values — no wrappers were written."
     exit 1
   fi
 

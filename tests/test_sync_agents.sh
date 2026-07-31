@@ -1631,4 +1631,171 @@ assert "0173: merge — claude falls to agents.default, whole" \
   '[ "$(fm_anchored "$SBX/.claude/agents/docket-status.md" model)" = "anthropic/claude-opus-5" ]'
 rm -rf "$SBX" "$HROOT173E"
 
+# ---- 0173: the validator — unconsumable values fail generation, loudly, before any write ----
+# Posture is deliberately asymmetric with runner-dispatch.sh: here a human is reading output and a
+# wrong pin PERSISTS in a generated file, so generation aborts. Partial generation carrying a
+# known-bad pin is precisely the harm this change exists to prevent.
+#
+# Every grep below reads a herestring, never `printf … | grep -q`: the suite runs under
+# `set -o pipefail`, and an early-exiting consumer SIGPIPEs its producer into an intermittent 141
+# (AGENTS.md, "Shell"). Same asserts, no race.
+SQ173="'"   # a literal single quote, so the diagnostic's `'model'` quoting can be asserted verbatim
+
+# -- a space-bearing value: non-zero exit, named diagnostic, and NO wrapper written --
+make_sandbox
+HROOT173V="$(mktemp -d)"; mkdir -p "$HROOT173V/.claude"
+printf 'agents:\n  default:\n    status: { model: two words, effort: high }\n' > "$SBX/.docket.yml"
+v_err="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT173V" bash "$SYNC" 2>&1 >/dev/null )"; v_rc=$?
+assert "0173 validator: space-bearing value exits non-zero" '[ "$v_rc" != "0" ]'
+assert "0173 validator: diagnostic names the harness/agent" '/usr/bin/grep -qF "default/status" <<<"$v_err"'
+assert "0173 validator: diagnostic names the key"           '/usr/bin/grep -qF "${SQ173}model${SQ173}" <<<"$v_err"'
+assert "0173 validator: diagnostic quotes the RAW value"    '/usr/bin/grep -qF "two words" <<<"$v_err"'
+assert "0173 validator: diagnostic names what was CONSUMED" '/usr/bin/grep -qF "consumes only" <<<"$v_err"'
+assert "0173 validator: says not a bare scalar"             '/usr/bin/grep -qF "is not a bare scalar" <<<"$v_err"'
+assert "0173 validator: diagnostic names the layer file"    '/usr/bin/grep -qF ".docket.yml" <<<"$v_err"'
+# The whole point of validating BEFORE the write: no half-regenerated agent dir.
+assert "0173 validator: NO wrapper file was written" '[ ! -e "$SBX/.claude/agents/docket-status.md" ]'
+assert "0173 validator: no agents dir created at all" '[ ! -d "$SBX/.claude/agents" ]'
+rm -rf "$SBX" "$HROOT173V"
+
+# -- a quoted value: same posture. `"claude-opus-5"` has consumed == raw, so the raw/consumed
+#    comparison alone CANNOT see it — this assert is what pins the explicit quote leg. --
+make_sandbox
+HROOT173Q="$(mktemp -d)"; mkdir -p "$HROOT173Q/.claude"
+printf 'agents:\n  default:\n    status: { model: "claude-opus-5", effort: high }\n' > "$SBX/.docket.yml"
+q_err="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT173Q" bash "$SYNC" 2>&1 >/dev/null )"; q_rc=$?
+assert "0173 validator: quoted value exits non-zero" '[ "$q_rc" != "0" ]'
+assert "0173 validator: quoted diagnostic names the remedy" '/usr/bin/grep -qF "unquoted" <<<"$q_err"'
+assert "0173 validator: quoted value writes no wrapper" '[ ! -e "$SBX/.claude/agents/docket-status.md" ]'
+rm -rf "$SBX" "$HROOT173Q"
+
+# -- a SINGLE-quoted value is caught the same way (the remedy says "unquoted", not "double-quoted") --
+make_sandbox
+HROOT173S="$(mktemp -d)"; mkdir -p "$HROOT173S/.claude"
+printf "agents:\n  default:\n    status: { model: 'claude-opus-5', effort: high }\n" > "$SBX/.docket.yml"
+s_err="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT173S" bash "$SYNC" 2>&1 >/dev/null )"; s_rc=$?
+assert "0173 validator: single-quoted value exits non-zero" '[ "$s_rc" != "0" ]'
+assert "0173 validator: single-quoted value writes no wrapper" '[ ! -e "$SBX/.claude/agents/docket-status.md" ]'
+rm -rf "$SBX" "$HROOT173S"
+
+# -- a genuinely MISSING value is a DIFFERENT diagnostic. Without this distinction a clip that
+#    lands empty makes the error blame ABSENCE for what is really a quoting problem. --
+make_sandbox
+HROOT173M="$(mktemp -d)"; mkdir -p "$HROOT173M/.claude"
+printf 'agents:\n  default:\n    status: { model: , effort: high }\n' > "$SBX/.docket.yml"
+m_err="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT173M" bash "$SYNC" 2>&1 >/dev/null )"; m_rc=$?
+assert "0173 validator: empty value exits non-zero" '[ "$m_rc" != "0" ]'
+assert "0173 validator: empty value uses the MISSING diagnostic" '/usr/bin/grep -qF "has no value" <<<"$m_err"'
+assert "0173 validator: empty value does NOT claim not-a-bare-scalar" \
+  '! /usr/bin/grep -qF "is not a bare scalar" <<<"$m_err"'
+rm -rf "$SBX" "$HROOT173M"
+
+# -- every offender is reported, not just the first (collect-then-fail) --
+make_sandbox
+HROOT173A="$(mktemp -d)"; mkdir -p "$HROOT173A/.claude"
+printf 'agents:\n  default:\n    status: { model: two words }\n    adr: { model: three more words }\n' > "$SBX/.docket.yml"
+a_err="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT173A" bash "$SYNC" 2>&1 >/dev/null )"
+assert "0173 validator: reports the first offender"  '/usr/bin/grep -qF "default/status" <<<"$a_err"'
+assert "0173 validator: reports the second offender too" '/usr/bin/grep -qF "default/adr" <<<"$a_err"'
+rm -rf "$SBX" "$HROOT173A"
+
+# -- every LAYER is walked, not just the committed one (local + global each reach the gate) --
+make_sandbox
+HROOT173L="$(mktemp -d)"; mkdir -p "$HROOT173L/.claude"
+printf 'agents:\n  default:\n    status: { model: local words }\n' > "$SBX/.docket.local.yml"
+l_err="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT173L" bash "$SYNC" 2>&1 >/dev/null )"; l_rc=$?
+assert "0173 validator: machine-local layer is validated too" '[ "$l_rc" != "0" ]'
+assert "0173 validator: local-layer diagnostic names .docket.local.yml" \
+  '/usr/bin/grep -qF ".docket.local.yml" <<<"$l_err"'
+rm -rf "$SBX" "$HROOT173L"
+
+make_sandbox
+mkdir -p "$SBX/.config/docket"
+printf 'agents:\n  default:\n    status: { model: global words }\n' > "$SBX/.config/docket/config.yml"
+g_err="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" 2>&1 >/dev/null )"; g_rc=$?
+assert "0173 validator: global layer is validated too" '[ "$g_rc" != "0" ]'
+assert "0173 validator: global-layer diagnostic names config.yml" \
+  '/usr/bin/grep -qF "config.yml" <<<"$g_err"'
+assert "0173 validator: global offender writes no user-level wrapper" \
+  '[ ! -e "$SBX/.claude/agents/docket-status.md" ]'
+rm -rf "$SBX"
+
+# -- the non-model keys are gated too --
+make_sandbox
+HROOT173F="$(mktemp -d)"; mkdir -p "$HROOT173F/.claude"
+printf 'agents:\n  default:\n    status: { model: sonnet, effort: "high" }\n' > "$SBX/.docket.yml"
+f_err="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT173F" bash "$SYNC" 2>&1 >/dev/null )"; f_rc=$?
+assert "0173 validator: a quoted effort is an offender too" '[ "$f_rc" != "0" ]'
+assert "0173 validator: effort offender names the effort key" \
+  '/usr/bin/grep -qF "${SQ173}effort${SQ173}" <<<"$f_err"'
+rm -rf "$SBX" "$HROOT173F"
+
+# -- --check validates too: CI must not pass against config a real run would refuse --
+# NOTE on the rc assert: --check ALSO exits 1 in this fixture for unrelated drift (no wrappers
+# generated, no .gitignore block), so `k_rc != 0` is green even before this task — probed. The two
+# message asserts below are the load-bearing ones; they are what actually go red without the gate.
+make_sandbox
+HROOT173K="$(mktemp -d)"; mkdir -p "$HROOT173K/.claude"
+printf 'agents:\n  default:\n    status: { model: two words }\n' > "$SBX/.docket.yml"
+k_out="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT173K" bash "$SYNC" --check 2>&1 )"; k_rc=$?
+assert "0173 validator: --check fails on an unconsumable value" '[ "$k_rc" != "0" ]'
+assert "0173 validator: --check names the offending value, not just generic drift" \
+  '/usr/bin/grep -qF "is not a bare scalar" <<<"$k_out"'
+assert "0173 validator: --check refuses via the user-config gate" \
+  '/usr/bin/grep -qF "user agent config has unconsumable values" <<<"$k_out"'
+rm -rf "$SBX" "$HROOT173K"
+
+# -- a CLEAN provider-prefixed config passes the validator (it must not over-reject) --
+make_sandbox
+HROOT173P="$(mktemp -d)"; mkdir -p "$HROOT173P/.claude"
+printf 'agents:\n  default:\n    status: { model: anthropic/claude-opus-5, effort: high }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT173P" bash "$SYNC" >/dev/null 2>&1 ); p_rc=$?
+assert "0173 validator: clean provider-prefixed config still generates (rc=0)" '[ "$p_rc" = "0" ]'
+assert "0173 validator: and the wrapper IS written" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
+rm -rf "$SBX" "$HROOT173P"
+
+# -- over-rejection floor: a REALISTIC multi-harness config, aligned-column style, with an entry
+#    that omits model, one that omits effort, a runner:, a trailing comment, and a tab-indented
+#    layer. All of it is legal today and must stay legal. --
+make_sandbox
+mkdir -p "$SBX/.cursor" "$SBX/.config/docket"
+printf 'agents:\n  default:\n    adr: { model: claude-opus-5, effort: low }\n' > "$SBX/.config/docket/config.yml"
+printf 'agents:\n\tdefault:\n\t\tauto-groom: { model: tab-m }\n' > "$SBX/.docket.local.yml"
+{
+  printf 'agent_harnesses: [claude, cursor]\n'
+  printf 'agents:\n'
+  printf '  default:\n'
+  printf '    status:         { model: claude-haiku-4-5-20251001, effort: medium }   # aligned + commented\n'
+  printf '    implement-next: { effort: auto }\n'
+  printf '    finalize-change: { model: claude-opus-5 }\n'
+  printf '  cursor:\n'
+  printf '    status:         { model: cursor-grok-4.5-low-fast,  effort: auto }\n'
+  printf '  claude:\n'
+  printf '    integration-repair: { model: gpt-5.1-codex, effort: high, runner: codex }\n'
+} > "$SBX/.docket.yml"
+r_err="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" 2>&1 >/dev/null )"; r_rc=$?
+assert "0173 validator: a realistic multi-harness config is NOT rejected (rc=0)" '[ "$r_rc" = "0" ]'
+assert "0173 validator: and it emits no bare-scalar complaint" \
+  '! /usr/bin/grep -qF "is not a bare scalar" <<<"$r_err"'
+assert "0173 validator: and it emits no has-no-value complaint" \
+  '! /usr/bin/grep -qF "has no value" <<<"$r_err"'
+assert "0173 validator: the realistic config still generated its wrapper" \
+  '[ -f "$SBX/.claude/agents/docket-status.md" ]'
+rm -rf "$SBX"
+
+# -- an absent agents: block is not an error (the overwhelmingly common case) --
+make_sandbox
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 ); n_rc=$?
+assert "0173 validator: no config at all still generates (rc=0)" '[ "$n_rc" = "0" ]'
+rm -rf "$SBX"
+
+# -- the pre-0046 FLAT shape is warned+dropped elsewhere; the gate must not resurrect it as a hard
+#    error, or a repo carrying already-ignored legacy config would stop generating entirely. --
+make_sandbox
+HROOT173G="$(mktemp -d)"; mkdir -p "$HROOT173G/.claude"
+printf 'agents:\n  status: { model: two words, effort: high }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT173G" bash "$SYNC" >/dev/null 2>&1 ); lg_rc=$?
+assert "0173 validator: legacy flat shape is not promoted to a fatal error" '[ "$lg_rc" = "0" ]'
+rm -rf "$SBX" "$HROOT173G"
+
 exit $fail
