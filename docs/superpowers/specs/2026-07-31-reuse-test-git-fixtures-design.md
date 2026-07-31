@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0174 — Reuse test git fixtures instead of rebuilding them per assertion](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0174-reuse-test-git-fixtures.md)**
+> ↩ **[Change 0174 — Reuse test git fixtures instead of rebuilding them per assertion](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-07-31-0174-reuse-test-git-fixtures.md)**
 <!-- docket:backlink:end -->
 
 # Reuse test git fixtures instead of rebuilding them per assertion
