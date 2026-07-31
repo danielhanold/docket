@@ -1,14 +1,15 @@
 # Backlog
 
-**179 changes** — 🟢 1 in progress · 🟡 37 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 117 done · 🗑️ 19 killed
+**179 changes** — 🟢 2 in progress · 🟡 36 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 117 done · 🗑️ 19 killed
 
-## 🟢 In progress (1)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
+| [0169](active/0169-codex-profile-routed-build-support.md) | Codex support for profile-routed Docket builds | `medium` | `feat` | [spec](../superpowers/specs/2026-07-31-codex-profile-routed-build-support-design.md) | `feat/codex-profile-routed-build-support` |
 | [0173](active/0173-field-of-silently-truncates-a-model-id-containing-or.md) | field_of() silently truncates a model ID containing / or : | `medium` | `fix` | [spec](../superpowers/specs/2026-07-31-field-of-silently-truncates-a-model-id-containing-or-design.md) | `feat/field-of-silently-truncates-a-model-id-containing-or` |
 
-## 🟡 Proposed (37)
+## 🟡 Proposed (36)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -40,7 +41,6 @@
 | [0163](active/0163-six-phase-tier-3-guard-counts-headings-instead-of-asserting.md) | Six-phase Tier 3 guard counts headings instead of asserting the phase set | `medium` | `fix` | needs-brainstorm |
 | [0165](active/0165-consolidate-or-document-the-duplicated-flat-scalar-docket-ym.md) | Consolidate or document the duplicated flat-scalar .docket.yml reader in migrate-to-docket.sh | `medium` | `refactor` | needs-brainstorm |
 | [0166](active/0166-retune-the-interactive-skills-advisory-session-model-recomme.md) | Retune the interactive skills' advisory session-model recommendation | `medium` | `chore` | needs-brainstorm |
-| [0169](active/0169-codex-profile-routed-build-support.md) | Codex support for profile-routed Docket builds | `medium` | `feat` | build-ready |
 | [0170](active/0170-lean-whole-branch-review-skill.md) | Lean Docket-owned whole-branch review skill | `medium` | `feat` | needs-brainstorm |
 | [0171](active/0171-settle-a-reflow-tolerant-house-pattern-for-prose-anchored-gu.md) | Settle a reflow-tolerant house pattern for prose-anchored guards | `medium` | `refactor` | needs-brainstorm |
 | [0172](active/0172-normalize-the-banned-producer-pipe-shape-across-tests-and-he.md) | Normalize the banned producer-pipe shape across tests and helpers | `medium` | `chore` | needs-brainstorm |
