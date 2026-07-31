@@ -95,6 +95,14 @@ Both `sed -nE` and bash `[[ =~ ]]` are POSIX ERE with a greedy leading `.*`, so 
 semantics are preserved. **This equivalence is a verification task, not an assumption** — see
 Testing.
 
+> **Collision with change 0173.** That change fixes a real defect in *this exact pattern*: the
+> class `[A-Za-z0-9._-]+` silently truncates a provider-prefixed model ID (`anthropic/claude-opus-5`
+> → `anthropic`). The two changes edit the same line of the same function for different reasons and
+> are not ordered by a dependency, so whichever builds second **must reconcile rather than
+> overwrite**: this change ports the character class verbatim, so if 0173 lands first the ported
+> ERE is 0173's widened class, not the one quoted above. Compose, do not choose — the two intents
+> (fork-free extraction, correct class) are independent and both must survive.
+
 **4. Arg validation.** Today any unrecognized argument falls through into a full generation pass
 that writes wrapper files. That is a correctness bug independent of speed: `--help` currently
 *generates*. Add a real flag parser — `--help` prints usage and exits 0 without generating; an

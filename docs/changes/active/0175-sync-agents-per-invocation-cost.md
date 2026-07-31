@@ -8,7 +8,7 @@ type: perf
 created: 2026-07-31
 updated: 2026-07-31
 depends_on: []
-related: [150, 174, 176]
+related: [150, 173, 174, 176]
 discovered_from: [168]
 adrs: []
 spec: docs/superpowers/specs/2026-07-31-sync-agents-per-invocation-cost-design.md
