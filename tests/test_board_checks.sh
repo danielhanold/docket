@@ -48,9 +48,13 @@ NOW_EPOCH=1750000000
 #   main:   docs/superpowers/plans + docs/results (committed build artifacts).
 # Callers add change files under $work/docs/changes/{active,archive}/ on the docket checkout,
 # create feature branches as needed, then invoke the script against $work/docs/changes.
-new_repo(){
-  local root work origin
-  root="$(mktemp -d)"; origin="$root/origin.git"; work="$root/work"
+# NEW_REPO_TEMPLATE: root holding the once-built baseline (tpl/) plus every copied
+# fixture. One mktemp -d for the root instead of one per call.
+NEW_REPO_TEMPLATE=""
+_new_repo_build_template(){
+  NEW_REPO_TEMPLATE="$(mktemp -d)"
+  local work="$NEW_REPO_TEMPLATE/tpl/work" origin="$NEW_REPO_TEMPLATE/tpl/origin.git"
+  mkdir -p "$NEW_REPO_TEMPLATE/tpl"
   git_quiet init --bare "$origin"
   git_quiet clone "$origin" "$work"
   git -C "$work" config user.email t@t; git -C "$work" config user.name t
@@ -68,9 +72,50 @@ new_repo(){
   echo "# present spec" > "$work/docs/superpowers/specs/2026-06-01-present.md"
   git -C "$work" add -A; git_quiet -C "$work" commit -m "docket metadata baseline"
   git_quiet -C "$work" push -u origin docket
-  # leave the work clone parked on docket (the metadata working tree)
+  # leave the template parked on docket (the metadata working tree)
+}
+new_repo(){
+  local root work origin
+  root="$(mktemp -d "$NEW_REPO_TEMPLATE/fXXXXXX")"
+  origin="$root/origin.git"; work="$root/work"
+  cp -R "$NEW_REPO_TEMPLATE/tpl/origin.git" "$origin"
+  cp -R "$NEW_REPO_TEMPLATE/tpl/work" "$work"
+  # The copy inherits the TEMPLATE's remote.origin.url; repoint it at its own bare
+  # origin, or every fixture would push into (and read back from) the template.
+  git -C "$work" remote set-url origin "$origin"
   printf '%s %s\n' "$work" "$origin"
 }
+# Built eagerly, at file scope, on purpose: every caller consumes new_repo as
+# `read -r W O < <(new_repo)`, which runs it in a SUBSHELL. A lazy
+# `[ -n "$NEW_REPO_TEMPLATE" ] || _new_repo_build_template` inside new_repo would
+# assign NEW_REPO_TEMPLATE only in that subshell, so the parent would still see it
+# empty and rebuild the template on every single call -- correct, silently, and with
+# no speedup at all. Per-call roots come from mktemp for the same reason: a shared
+# counter incremented in a subshell never advances.
+_new_repo_build_template
+
+# --- fixture independence (change 0174) --------------------------------------
+# new_repo now copies a once-built template. Fixtures must not share an origin.
+read -r indep_a_w indep_a_o < <(new_repo)
+read -r indep_b_w indep_b_o < <(new_repo)
+indep_tpl_before="$(git -C "$NEW_REPO_TEMPLATE/tpl/origin.git" rev-parse refs/heads/docket)"
+indep_b_before="$(git -C "$indep_b_o" rev-parse refs/heads/docket)"
+echo mutated > "$indep_a_w/MUTATION.md"
+git -C "$indep_a_w" add MUTATION.md
+git_quiet -C "$indep_a_w" commit -m mutate
+git_quiet -C "$indep_a_w" push origin docket
+assert "0174 independence: the mutated fixture's own origin DID advance (mutation was real)" \
+  '[ "$(git -C "$indep_a_o" rev-parse refs/heads/docket)" != "$indep_tpl_before" ]'
+assert "0174 independence: a sibling fixture's origin is untouched" \
+  '[ "$(git -C "$indep_b_o" rev-parse refs/heads/docket)" = "$indep_b_before" ]'
+assert "0174 independence: the template's origin is untouched" \
+  '[ "$(git -C "$NEW_REPO_TEMPLATE/tpl/origin.git" rev-parse refs/heads/docket)" = "$indep_tpl_before" ]'
+assert "0174 independence: a sibling worktree never sees the mutation" \
+  '[ ! -e "$indep_b_w/MUTATION.md" ]'
+assert "0174 independence: each fixture points at its OWN origin" \
+  '[ "$(git -C "$indep_a_w" config remote.origin.url)" = "$indep_a_o" ]'
+assert "0174 fixture parity: the copy is still parked on docket with main present" \
+  '[ "$(git -C "$indep_b_w" rev-parse --abbrev-ref HEAD)" = docket ] && [ -n "$(git -C "$indep_b_o" rev-parse --verify -q refs/heads/main)" ]'
 
 # commit_present_spec_change: a helper used across tasks — writes a change file into active/.
 # (Inline cat in each task is fine too; this keeps fixtures short.)
