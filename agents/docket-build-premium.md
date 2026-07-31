@@ -1,8 +1,6 @@
 ---
 name: docket-build-premium
 description: Premium build-profile worker for docket-build — implements one high-risk or architecturally unresolved plan task under the docket-build-task contract; the strongest of docket-build's three profiles.
-model: claude-opus-5
-effort: high
 skills: [docket-build-task]
 ---
 Implement the single plan task handed to you, following the docket-build-task skill exactly.
