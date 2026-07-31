@@ -77,13 +77,17 @@ for f in "$REPO_ROOT/.docket.local.yml" "$REPO_ROOT/.docket.yml" "$GLOBAL_CFG"; 
     # flow-map class would be wrong here — it would admit a slash-bearing path only by luck. The
     # pre-0173 class ([A-Za-z0-9._-]+) truncated `https://host/v1` to `https` and dropped a
     # leading-slash path entirely. Comment detection requires leading whitespace, per YAML, so a
-    # value containing `#` (a URL fragment) survives.
+    # value containing `#` (a URL fragment) survives. A COMMENT-ONLY value needs its own leg: the
+    # capture's `[[:space:]]*` is greedy and eats the space before the `#`, so the whitespace-
+    # preceded strip below can never fire on it — without this the comment TEXT would be exported
+    # as the value, which is worse than the truncation this change removes (change 0173 review).
+    # A YAML plain scalar can never begin with `#`, so stripping a leading-`#` value is safe.
     # Posture stays TOLERANT — an unparseable value `continue`s rather than dying. This path runs
     # mid-handoff to a child process, where dying converts a cosmetic config typo into a failed
     # dispatch. sync-agents.sh is loud instead; the asymmetry is deliberate (change 0173).
     v="$(sed -nE 's/^[[:space:]]*[A-Za-z0-9._-]+[[:space:]]*:[[:space:]]*(.*)$/\1/p' <<<"$line")"
     v="${v%%$'\n'*}"
-    v="$(sed -E -e 's/[[:space:]]+#.*$//' -e 's/[[:space:]]+$//' <<<"$v")"
+    v="$(sed -E -e 's/^#.*$//' -e 's/[[:space:]]+#.*$//' -e 's/[[:space:]]+$//' <<<"$v")"
     [ -n "$v" ] || continue
     uk="$(tr '[:lower:]' '[:upper:]' <<<"$k" | tr '.-' '__')"
     export "DOCKET_RUNNER_CFG_$uk=$v"

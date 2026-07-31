@@ -204,6 +204,13 @@ assert "0173 rd: a non-whitespace-preceded # stays in the value" \
   '[ "$(probe "https://example.test/v1#frag")" = "https://example.test/v1#frag" ]'
 assert "0173 rd: a plain value is unchanged (non-regression)" \
   '[ "$(probe "danger-full-access")" = "danger-full-access" ]'
+# A COMMENT-ONLY value must export NOTHING. The capture's `[[:space:]]*` is greedy and eats the
+# space before the `#`, so the whitespace-preceded strip cannot fire here — without its own leg the
+# comment TEXT becomes the value, and codex.sh would then run `--sandbox '# TODO decide later'`
+# (or `die` on a commented-out `network:`), turning a cosmetic comment into a failed dispatch —
+# exactly what the tolerant posture exists to prevent (change 0173 review).
+assert "0173 rd: a comment-only value exports nothing" \
+  '[ "$(probe "  # TODO decide later")" = "<unset>" ]'
 rm -rf "$SBX"
 
 # -- tolerant posture: an unparseable value skips WITHOUT dying, and still masks lower layers --

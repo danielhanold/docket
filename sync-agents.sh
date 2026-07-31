@@ -404,8 +404,24 @@ validate_user_agent_values() {
     [ -f "$f" ] || continue
     while IFS= read -r h; do
       [ -n "$h" ] || continue
+      # Skip config every pass already DROPS, so the gate cannot hard-fail a repo over entries that
+      # generate nothing — the same reasoning that exempts the pre-0046 flat shape above (change
+      # 0173 review). A block for a harness outside agent_harnesses is warned "ignored (dead
+      # config)"; an agent key overriding no built-in is warned "ignored (typo?)".
+      #
+      # The harness test deliberately ERRS TOWARD VALIDATING: it skips only when the block is
+      # consumable by NEITHER pass, since USER_TARGETS is resolved after this gate runs. Missing a
+      # live block would let the silent truncation this change exists to close slip through, which
+      # is strictly worse than an over-rejection.
+      if [ "$h" != "default" ]; then
+        case " ${HARNESSES:-} ${USER_HARNESSES:-} " in
+          *" $h "*) : ;;
+          *) [ -d "$HARNESS_ROOT/.$h" ] || continue ;;
+        esac
+      fi
       while IFS= read -r a; do
         [ -n "$a" ] || continue
+        [ -f "$AGENTS_SRC/docket-$a.md" ] || continue
         line="$(harness_agent_line "$f" "$h" "$a" 1)"
         [ -n "$line" ] || continue
         for k in model effort runner; do
