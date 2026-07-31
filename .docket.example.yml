@@ -10,7 +10,7 @@
 #   1. repo-local    <repo>/.docket.local.yml                     (this machine, this repo; gitignored)
 #   2. repo-committed <repo>/.docket.yml                          (every clone — committed on origin/HEAD)
 #   3. global        ${XDG_CONFIG_HOME:-~/.config}/docket/config.yml  (this machine, every repo)
-#   4. built-in      docket's defaults — the values in this file
+#   4. built-in      docket's shipped defaults — agents/harness-defaults.yml (mirrored below)
 # Every nested block — `runtime:`, `skills:`, `agents:`, `learnings:`, `reclaim:`, `runners:` —
 # merges LEAF BY LEAF with the same precedence, never whole-block. Setting one leaf in a higher
 # layer leaves the block's other leaves resolving from the layers below. `runtime:` is the one
@@ -272,10 +272,12 @@ auto_capture:
 # into agent wrappers by sync-agents.sh. Keys are skill SHORT names nested under a reserved
 # `default:` (the harness-neutral fallback) and, optionally, per-harness override keys (e.g.
 # `cursor:`) that only need to list the fields that differ; resolution is field-by-field:
-# agents.<harness>.<agent> -> agents.default.<agent> -> shipped built-in (agents/docket-*.md).
+# agents.<harness>.<agent> -> agents.default.<agent> -> shipped built-in
+# (agents/harness-defaults.yml) -> unpinned (the harness applies its own default).
 # `effort: auto` explicitly drops the effort line (inherit the model default); omitting the
 # `effort:` key instead keeps the built-in effort — auto and omitted are NOT equivalent. 12 wrapper
-# files ship (agents/docket-*.md, mirrored below): 5 wrap one of the 5 autonomous skills (adr,
+# files ship (agents/docket-*.md; their shipped model/effort live in agents/harness-defaults.yml,
+# mirrored below): 5 wrap one of the 5 autonomous skills (adr,
 # auto-groom, finalize-change, implement-next, status); 3 (build-economy, build-standard,
 # build-premium) are docket-build's task workers and all preload the same docket-build-task
 # worker skill, differing only in model/effort; the other 4 (auto-groom-critic,
@@ -294,10 +296,11 @@ auto_capture:
 # delegate that agent's whole run to a child harness with its own subscription, models, and
 # skills — see the `runners:` block below.
 #
-# The `claude:` block below MIRRORS docket's shipped built-in defaults (the values in each
-# agents/docket-*.md wrapper), shown so the otherwise-invisible defaults are visible and
-# tunable. Deleting any line falls back to the SAME built-in. Per ADR-0039 the wrappers are
-# the single source of truth; if a shipped default changes, update this mirror to match.
+# The `claude:` block below MIRRORS docket's shipped built-in defaults — the values in
+# agents/harness-defaults.yml — shown so the otherwise-invisible defaults are visible and
+# tunable. Deleting any line falls back to the SAME shipped default. The sidecar is the single
+# source of truth; this mirror never leads, and tests/test_docket_example_yml.sh enforces the
+# equality. If a shipped default changes, update this mirror to match.
 #
 # PRESENCE-SENSITIVE: uncommenting this key changes behavior even at these default values.
 # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
@@ -327,10 +330,16 @@ auto_capture:
 #   #   rebase-resolver:       { model: gpt-5.6-sol, effort: high }
 #   #   integration-repair:    { model: gpt-5.6-sol, effort: high }
 #   #   finalize-change:       { model: gpt-5.6-terra, effort: high }
-#   #   # build profiles — the wrappers generate for any configured harness, but docket ships validated model IDs only under `claude:`; these are unvalidated examples (changes 0168/0169 land validated mappings)
+#   #   # build profiles — the wrappers generate for any configured harness, but docket ships validated model IDs only under `claude:` and `cursor:`; these codex rows are unvalidated examples (change 0169 lands validated mappings)
 #   #   build-economy:         { model: gpt-5.6-sol, effort: low }
 #   #   build-standard:        { model: gpt-5.6-sol, effort: medium }
 #   #   build-premium:         { model: gpt-5.6-sol, effort: high }
+#   # -- cursor: docket SHIPS validated defaults for the three build-profile workers only
+#   #  (change 0168). Their rows below mirror agents/harness-defaults.yml and are what you get
+#   #  with no configuration at all: build-economy -> cursor-grok-4.5-medium, build-standard ->
+#   #  cursor-grok-4.5-high, build-premium -> claude-opus-5-high. Cursor's other nine agents ship
+#   #  UNPINNED: Cursor applies its own default model unless you set one here. Any cursor row for
+#   #  a non-build agent is an unvalidated illustration.
 #   # cursor:
 #   #   status:                { model: cursor-grok-4.5-low-fast, effort: auto }
 #   #   adr:                   { model: cursor-grok-4.5-high, effort: auto }
@@ -340,10 +349,11 @@ auto_capture:
 #   #   implement-next:        { model: cursor-grok-4.5-high, effort: auto }
 #   #   rebase-resolver:       { model: cursor-grok-4.5-high, effort: auto }
 #   #   integration-repair:    { model: cursor-grok-4.5-high, effort: auto }
-#   #   # build profiles — the wrappers generate for any configured harness, but docket ships validated model IDs only under `claude:`; these are unvalidated examples (changes 0168/0169 land validated mappings)
-#   #   build-economy:         { model: cursor-grok-4.5-low-fast, effort: auto }
-#   #   build-standard:        { model: cursor-grok-4.5-medium, effort: auto }
-#   #   build-premium:         { model: cursor-grok-4.5-high, effort: auto }
+#   #   # build profiles — SHIPPED and validated (change 0168); these three rows mirror
+#   #   # agents/harness-defaults.yml and apply with no configuration at all
+#   #   build-economy:         { model: cursor-grok-4.5-medium, effort: auto }
+#   #   build-standard:        { model: cursor-grok-4.5-high, effort: auto }
+#   #   build-premium:         { model: claude-opus-5-high, effort: auto }
 #   #   finalize-change:       { model: cursor-grok-4.5-high-fast, effort: auto }
 
 # runners — per-runner knobs for RUNNER DELEGATION (change 0079): handing an agent's whole run to
