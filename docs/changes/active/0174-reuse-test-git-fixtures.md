@@ -2,7 +2,7 @@
 id: 174
 slug: reuse-test-git-fixtures
 title: Reuse test git fixtures instead of rebuilding them per assertion
-status: in-progress
+status: implemented
 priority: medium
 type: chore
 created: 2026-07-31
@@ -13,12 +13,12 @@ discovered_from: [168]
 adrs: []
 spec: docs/superpowers/specs/2026-07-31-reuse-test-git-fixtures-design.md
 plan: docs/superpowers/plans/2026-07-31-reuse-test-git-fixtures.md
-results:
+results: docs/results/2026-07-31-reuse-test-git-fixtures-results.md
 trivial: false
 auto_groomable: false
 branch: feat/reuse-test-git-fixtures
-claimed_at: 2026-07-31T10:26:40Z
-pr:
+claimed_at: 2026-07-31T12:18:38Z
+pr: https://github.com/danielhanold/docket/pull/141
 blocked_by:
 reconciled: true
 ---
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-31-reuse-test-git-fixtures-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-31-reuse-test-git-fixtures-design.md) |
 | Plan | [2026-07-31-reuse-test-git-fixtures.md](https://github.com/danielhanold/docket/blob/feat/reuse-test-git-fixtures/docs/superpowers/plans/2026-07-31-reuse-test-git-fixtures.md) |
+| Results | [2026-07-31-reuse-test-git-fixtures-results.md](https://github.com/danielhanold/docket/blob/feat/reuse-test-git-fixtures/docs/results/2026-07-31-reuse-test-git-fixtures-results.md) |
+| PR | [#141](https://github.com/danielhanold/docket/pull/141) |
 <!-- docket:artifacts:end -->
 
 ## Why
