@@ -42,23 +42,12 @@ triple — five forks each (`section_body agents`, `section_body <harness>`, `se
 producing roughly **32× redundant work over ~6 distinct parses**. `field_of` then forks `sed` +
 `head` per field.
 
-## Precondition — change 0173 lands first
+## Reconciled precondition — change 0173 has landed
 
-0173 fixes a value-class defect in `field_of()`: the class `[A-Za-z0-9._-]+` silently truncates a
-model ID containing `/` or `:`. It widens the class to `[^,}[:space:]]+` and adds a `field_of_raw`
-companion plus a bare-scalar validator, mirroring `harness-defaults.sh`'s `hd_field`/`hd_field_raw`
-pair.
-
-This spec was written against the pre-0173 tree, so two items below are stale on their face and must
-be reconciled at build time:
-
-- The ERE this design carries forward into `[[ $line =~ ... ]]` must be the **widened** one. Both
-  `sed -nE` and bash `[[ =~ ]]` are POSIX ERE, so it transfers without reformulation.
-- The `field_of` equivalence test must be written against the **fixed** baseline. Written against
-  the pre-0173 behavior it would pin the truncation bug as expected output.
-- `field_of_raw` is a second function the memoization pass must carry across, on the same terms.
-
-`depends_on: [173]` records the ordering.
+0173 is `done` on current `origin/main`. The baseline now has the widened
+`[^,}[:space:]]+` value class, `field_of_raw`, and the two-leg bare-scalar validator required by
+ADR-0065. This change ports both readers to Bash matching without weakening either behavior; its
+equivalence test is written against the fixed baseline.
 
 ## Goal
 
@@ -86,14 +75,16 @@ Two alternatives were considered and rejected:
 
 **1. `_layer_body` cache.** A `declare -A` map keyed `<file>\x1f<harness>`, value = the dedented
 body under `agents.<harness>` (for a layer read under a top-level `agents:` wrapper) or the
-whole-file equivalent (global layer). Populated on first touch, reusing the **existing**
-`section_body` awk unchanged. Roughly 6 entries per run.
+whole-file equivalent (global layer). A caller primes each needed file/harness body synchronously
+before any command-substituted `harness_agent_line` read, reusing the **existing** `section_body`
+awk unchanged. Roughly 6 entries per run.
 
-The array is declared at **file scope**, not lazily initialized inside a function. This is not
-stylistic: change 0174's first implementation used lazy init inside a helper that two callers
-consumed via `read -r W _ < <(new_repo)` — a subshell — so the assignment never reached the parent,
-every fixture was rebuilt, the suite ran green, and the result was *slower than baseline*. Record
-that reason in-file so it is not "simplified" back.
+The array is declared at **file scope**, and priming happens on the synchronous caller path, not
+lazily inside `harness_agent_line`. This is not stylistic: `harness_agent_line` itself is consumed
+through command substitution, so a cache miss filled there would die with the subshell. Change
+0174 hit the same class when a cache initialized from process substitution never reached the
+parent; its suite stayed green while performance regressed. Record that reason in-file so it is
+not "simplified" back.
 
 `declare -A` is already the repo idiom (7 scripts use it) and the enforced floor is bash major 4.
 
@@ -103,23 +94,19 @@ zero. An absent file stores the empty string, which is indistinguishable from to
 `[ -f "$1" ] || return 0`.
 
 **3. `field_of`.** Becomes `[[ $line =~ <ERE> ]]` plus `BASH_REMATCH[1]`, replacing `sed` + `head`.
-The existing ERE transfers verbatim:
+The fixed 0173 ERE transfers verbatim:
 
 ```
-.*[{,[:space:]]FIELD[[:space:]]*:[[:space:]]*([A-Za-z0-9._-]+).*
+.*[{,[:space:]]FIELD[[:space:]]*:[[:space:]]*([^,}[:space:]]+).*
 ```
 
 Both `sed -nE` and bash `[[ =~ ]]` are POSIX ERE with a greedy leading `.*`, so last-match-wins
 semantics are preserved. **This equivalence is a verification task, not an assumption** — see
 Testing.
 
-> **Collision with change 0173.** That change fixes a real defect in *this exact pattern*: the
-> class `[A-Za-z0-9._-]+` silently truncates a provider-prefixed model ID (`anthropic/claude-opus-5`
-> → `anthropic`). The two changes edit the same line of the same function for different reasons and
-> are not ordered by a dependency, so whichever builds second **must reconcile rather than
-> overwrite**: this change ports the character class verbatim, so if 0173 lands first the ported
-> ERE is 0173's widened class, not the one quoted above. Compose, do not choose — the two intents
-> (fork-free extraction, correct class) are independent and both must survive.
+`field_of_raw` receives the same fork-free treatment while retaining its broader raw-value class
+and trailing-whitespace trim. ADR-0065's validator remains unchanged and keeps comparing the two
+readers plus its explicit quote leg.
 
 **4. Arg validation.** Today any unrecognized argument falls through into a full generation pass
 that writes wrapper files. That is a correctness bug independent of speed: `--help` currently
@@ -153,9 +140,9 @@ Add explicitly:
 - A `field_of` equivalence test over the ERE's edge cases — inline-map form (`{model: x, effort: y}`),
   block form, a value containing `.`/`_`/`-`, a field name that is a prefix of another, and a line
   where the field appears twice (last-match-wins).
-- A **tab-indented layer file** case. The `shell-portability` learning's item (b) was exactly this
-  class in exactly this file: `ind()` used `[^ ]`, so a tab-indented config layer was silently
-  dropped.
+- Preserve the existing **tab-indented layer file** cases unchanged. The `shell-portability`
+  learning's item (b) was exactly this class in exactly this file: `ind()` used `[^ ]`, so a
+  tab-indented config layer was silently dropped.
 
 **Speed.** Two parts:
 

@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable: false
 branch: feat/sync-agents-per-invocation-cost
-claimed_at: 2026-07-31T20:30:19Z
+claimed_at: 2026-07-31T20:34:21Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -81,3 +81,24 @@ Design: [`docs/superpowers/specs/2026-07-31-sync-agents-per-invocation-cost-desi
 - A parallel suite runner, and toolchain pinning — change 0150.
 
 ## Reconcile log
+
+### 2026-07-31 — reconciled against landed 0173 and current `origin/main`
+
+Re-read the change and spec against `related` (0150, 0173, 0174, 0176), recent ADRs 0062–0065,
+and current `origin/main` (`07818ef4`). Dependency 0173 is `done`; its widened `field_of`, new
+`field_of_raw`, and two-leg bare-scalar validator are now the baseline this optimization must
+preserve. The old narrow-class text in the spec was refreshed accordingly.
+
+One implementation constraint was made explicit: `harness_agent_line` is consumed through command
+substitution, so a cache filled lazily inside that helper would be filled in a subshell and lost.
+The cache must therefore be populated synchronously by its caller before command-substituted reads;
+the standing fork-count guard proves that priming remains effective.
+
+The existing suite already has tab-indented agent-layer cases, so this change preserves those
+assertions rather than adding a duplicate. Change 0169 is concurrently editing `sync-agents.sh`
+and its tests on a separate in-progress feature worktree; none of its uncommitted bytes were read or
+adopted. Its committed scope adds Codex sidecar defaults and does not invalidate this change, but
+normal PR conflict reconciliation may be needed if it merges first.
+
+No scope change and no adjacent follow-up met the auto-capture bar. The shared-extractor follow-up
+is already change 0179, and the separate resolver optimization is already change 0176.
