@@ -703,7 +703,9 @@ assert "0047 §agent-cfg: does NOT hardcode a model/effort literal (references t
 # Change 0168 re-worded the diagnostic: the source frontmatter is no longer a default store, so
 # the fallthrough can only come from agents.default (or from nothing at all, which is a distinct
 # "generated unpinned" warning). The property guarded is unchanged — this fixture pins a Claude
-# ID under agents.default and cursor has no sidecar entry for `status`, so cursor must be told.
+# ID under agents.default, which outranks the sidecar, so the cursor wrapper really is emitted with
+# a foreign ID and cursor must be told. (Cursor now ships a complete sidecar block; what makes the
+# warning correct here is that agents.default WON the field, not that the pair is uncovered.)
 make_sandbox
 HROOTW="$(mktemp -d)"; mkdir -p "$HROOTW/.claude"
 printf 'agent_harnesses: [claude, cursor]\nagents:\n  default:\n    status: { model: claude-opus-4-8 }\n' > "$SBX/.docket.yml"
@@ -1473,19 +1475,36 @@ assert "0168: user model alone bakes --model but not the shipped --effort" \
 rm -rf "$SBX" "$HROOT168F"
 
 # The fallback warning's premise moved with the default store. A non-claude harness/agent pair the
-# sidecar DOES cover is a deliberate shipped default, not a leak, so it must stay silent; a pair it
-# does NOT cover now generates unpinned rather than inheriting a foreign ID, and says so.
+# sidecar SUPPLIES is a deliberate shipped default, not a leak, so it must stay silent; a pair it
+# does not cover generates unpinned rather than inheriting a foreign ID, and says so.
+#
+# The unpinned leg is driven by CODEX, not cursor: cursor now ships a complete block, so no cursor
+# pair can be uncovered. Codex is the harness docket ships nothing for (change 0169), which makes
+# it the only honest fixture for "no harness-specific value anywhere".
 make_sandbox
 HROOT168W="$(mktemp -d)"; mkdir -p "$HROOT168W/.claude"
-printf 'agent_harnesses: [claude, cursor]\n' > "$SBX/.docket.yml"
+printf 'agent_harnesses: [claude, cursor, codex]\n' > "$SBX/.docket.yml"
 w168="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT168W" bash "$SYNC" 2>&1 >/dev/null)"
-assert "0168: a cursor agent WITH a shipped sidecar entry draws no warning" \
+assert "0168: a cursor agent the sidecar supplies draws no warning" \
   '! grep -qF "cursor/docket-build-standard" <<<"$w168"'
-assert "0168: a cursor agent WITHOUT one warns that it is generated unpinned" \
-  'grep -qF "cursor/docket-status: no harness-specific model" <<<"$w168"'
+assert "0168: a complete cursor block silences the whole harness" \
+  '! grep -qF "WARN cursor/" <<<"$w168"'
+assert "0168: a codex agent with no sidecar entry warns that it is generated unpinned" \
+  'grep -qF "codex/docket-status: no harness-specific model" <<<"$w168"'
 assert "0168: the unpinned warning names the key that would fix it" \
-  'grep -qF "agents.cursor.status.model" <<<"$w168"'
-rm -rf "$SBX" "$HROOT168W"
+  'grep -qF "agents.codex.status.model" <<<"$w168"'
+# Amendment guard: a user `agents.default` outranks the sidecar, so the wrapper carries the FOREIGN
+# id — the warning must fire even though the pair IS covered. Testing entry-existence instead of
+# value-provenance silenced this exact case.
+make_sandbox
+HROOT168D="$(mktemp -d)"; mkdir -p "$HROOT168D/.claude"
+printf 'agent_harnesses: [claude, cursor]\nagents:\n  default:\n    status: { model: claude-opus-4-8 }\n' > "$SBX/.docket.yml"
+w168d="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT168D" bash "$SYNC" 2>&1 >/dev/null)"
+assert "0168: agents.default overriding a COVERED cursor pair still warns" \
+  'grep -qF "cursor/docket-status: model '"'"'claude-opus-4-8'"'"' came from agents.default" <<<"$w168d"'
+assert "0168: and the wrapper really does carry the foreign id (the warning is not a false alarm)" \
+  '[ "$(sed -n "s/^model:[[:space:]]*//p" "$SBX/.cursor/agents/docket-status.md" | head -n1)" = "claude-opus-4-8" ]'
+rm -rf "$SBX" "$HROOT168W" "$HROOT168D"
 
 # ---- change 0168's two headline properties, asserted on a BARE opt-in --------
 # 0168 whole-branch review, Recommendation 2. Everything above proves a mechanism; this proves the

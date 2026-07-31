@@ -312,7 +312,15 @@ resolve_agent_layers() {  # $1=harness  $2=agent  $3..=layer files (precedence o
   # Shipped floor (change 0168): the sidecar is harness-indexed, so it can only supply a value for
   # the harness being generated. It never sets RES_*_FROM_USER — that split is what keeps a shipped
   # native default out of a delegated child-runner's flags (see emit_wrapper).
-  [ -z "$RES_MODEL" ]  && RES_MODEL="$(hd_field "$HARNESS_DEFAULTS" "$harness" "$agent" model)"
+  # RES_MODEL_FROM_SIDECAR records whether the sidecar ACTUALLY supplied the resolved model, which
+  # is not the same question as whether the sidecar HOLDS an entry for the pair: a user
+  # `agents.default` line wins the field above and leaves the sidecar entry unused. Only the former
+  # licenses warn_fallback_model's silence.
+  RES_MODEL_FROM_SIDECAR=0
+  if [ -z "$RES_MODEL" ]; then
+    RES_MODEL="$(hd_field "$HARNESS_DEFAULTS" "$harness" "$agent" model)"
+    [ -n "$RES_MODEL" ] && RES_MODEL_FROM_SIDECAR=1
+  fi
   [ -z "$RES_EFFORT" ] && RES_EFFORT="$(hd_field "$HARNESS_DEFAULTS" "$harness" "$agent" effort)"
   return 0
 }
@@ -720,10 +728,15 @@ migrate_tracked_wrappers() {  # one-time: untrack 0048-era committed wrappers; i
 # that may be meaningless to that harness (ADR-0015: some harnesses silently run their house
 # default on an unknown model). Never an error; sync still succeeds. Scoped to non-claude — the
 # claude sidecar values ARE Claude IDs.
-warn_fallback_model(){  # $1=harness $2=agent ; consumes RES_MODEL_FROM_HARNESS / RES_MODEL
+warn_fallback_model(){  # $1=harness $2=agent ; consumes RES_MODEL_FROM_HARNESS / _FROM_SIDECAR / RES_MODEL
   [ "$1" = "claude" ] && return 0
   [ "$RES_MODEL_FROM_HARNESS" = "1" ] && return 0
-  [ -n "$(hd_field "$HARNESS_DEFAULTS" "$1" "$2" model)" ] && return 0
+  # Silence requires that the SIDECAR SUPPLIED the value, not merely that it holds an entry for the
+  # pair. Testing existence instead silences the warning exactly when it is most needed: a user
+  # `agents.default` line outranks the sidecar, so the wrapper is emitted with the foreign ID while
+  # the guard reports the shipped default that never applied. Latent in change 0168 (it could only
+  # bite cursor's three build workers); live once a harness ships a complete block.
+  [ "$RES_MODEL_FROM_SIDECAR" = "1" ] && return 0
   if [ -z "${RES_MODEL:-}" ]; then
     log "WARN $1/docket-$2: no harness-specific model — generated unpinned; harness '$1' will apply its own default. Set agents.$1.$2.model to pin it."
   else

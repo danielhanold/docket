@@ -296,11 +296,13 @@ auto_capture:
 # delegate that agent's whole run to a child harness with its own subscription, models, and
 # skills — see the `runners:` block below.
 #
-# The `claude:` block below MIRRORS docket's shipped built-in defaults — the values in
-# agents/harness-defaults.yml — shown so the otherwise-invisible defaults are visible and
+# The `claude:` and `cursor:` blocks below MIRROR docket's shipped built-in defaults — the values
+# in agents/harness-defaults.yml — shown so the otherwise-invisible defaults are visible and
 # tunable. Deleting any line falls back to the SAME shipped default. The sidecar is the single
 # source of truth; this mirror never leads, and tests/test_docket_example_yml.sh enforces the
-# equality. If a shipped default changes, update this mirror to match.
+# equality. If a shipped default changes, update this mirror to match. The `codex:` block is
+# NOT a mirror — docket ships no codex defaults yet (change 0169), so it is carried one comment
+# level deeper as unvalidated illustration.
 #
 # PRESENCE-SENSITIVE: uncommenting this key changes behavior even at these default values.
 # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
@@ -319,7 +321,7 @@ auto_capture:
 #     build-standard:        { model: claude-opus-5,             effort: medium }
 #     build-premium:         { model: claude-opus-5,             effort: high }
 #
-#   # To enable a block below: verify the example IDs against your harness's current models, uncomment the block, and add the harness to `agent_harnesses` above. The IDs here are UNVALIDATED examples.
+#   # To enable the codex block: verify the example IDs against Codex's current models, strip BOTH comment levels, and add `codex` to `agent_harnesses` above. The IDs here are UNVALIDATED examples.
 #   # codex:
 #   #   status:                { model: gpt-5.6-luna, effort: xhigh }
 #   #   adr:                   { model: gpt-5.6-terra, effort: xhigh }
@@ -334,27 +336,25 @@ auto_capture:
 #   #   build-economy:         { model: gpt-5.6-sol, effort: low }
 #   #   build-standard:        { model: gpt-5.6-sol, effort: medium }
 #   #   build-premium:         { model: gpt-5.6-sol, effort: high }
-#   # -- cursor: docket SHIPS validated defaults for the three build-profile workers only
-#   #  (change 0168). Their rows below mirror agents/harness-defaults.yml and are what you get
-#   #  with no configuration at all: build-economy -> cursor-grok-4.5-medium, build-standard ->
-#   #  cursor-grok-4.5-high, build-premium -> claude-opus-5-high. Cursor's other nine agents ship
-#   #  UNPINNED: Cursor applies its own default model unless you set one here. Any cursor row for
-#   #  a non-build agent is an unvalidated illustration.
-#   # cursor:
-#   #   status:                { model: cursor-grok-4.5-low-fast, effort: auto }
-#   #   adr:                   { model: cursor-grok-4.5-high, effort: auto }
-#   #   brainstorm-consultant: { model: cursor-grok-4.5-high, effort: auto }
-#   #   auto-groom:            { model: cursor-grok-4.5-medium, effort: auto }
-#   #   auto-groom-critic:     { model: cursor-grok-4.5-high, effort: auto }
-#   #   implement-next:        { model: cursor-grok-4.5-high, effort: auto }
-#   #   rebase-resolver:       { model: cursor-grok-4.5-high, effort: auto }
-#   #   integration-repair:    { model: cursor-grok-4.5-high, effort: auto }
-#   #   # build profiles — SHIPPED and validated (change 0168); these three rows mirror
-#   #   # agents/harness-defaults.yml and apply with no configuration at all
-#   #   build-economy:         { model: cursor-grok-4.5-medium, effort: auto }
-#   #   build-standard:        { model: cursor-grok-4.5-high, effort: auto }
-#   #   build-premium:         { model: claude-opus-5-high, effort: auto }
-#   #   finalize-change:       { model: cursor-grok-4.5-high-fast, effort: auto }
+#
+#   # The cursor block — SHIPPED defaults (change 0168). Like the claude block above, these rows mirror
+#   # agents/harness-defaults.yml and are what a Cursor repo gets with no configuration at all.
+#   # Every ID is a complete Cursor built-in with its variant already encoded, so `effort: auto`:
+#   # the Cursor emitter writes the ID verbatim rather than appending a conflicting suffix.
+#   # Add `cursor` to `agent_harnesses` above to generate the wrappers.
+#   cursor:
+#     status:                { model: cursor-grok-4.5-low-fast,  effort: auto }
+#     adr:                   { model: cursor-grok-4.5-high,      effort: auto }
+#     brainstorm-consultant: { model: cursor-grok-4.5-high,      effort: auto }
+#     auto-groom:            { model: cursor-grok-4.5-medium,    effort: auto }
+#     auto-groom-critic:     { model: cursor-grok-4.5-high,      effort: auto }
+#     implement-next:        { model: cursor-grok-4.5-high,      effort: auto }
+#     rebase-resolver:       { model: cursor-grok-4.5-high,      effort: auto }
+#     integration-repair:    { model: cursor-grok-4.5-high,      effort: auto }
+#     finalize-change:       { model: cursor-grok-4.5-high-fast, effort: auto }
+#     build-economy:         { model: cursor-grok-4.5-medium,    effort: auto }
+#     build-standard:        { model: cursor-grok-4.5-high,      effort: auto }
+#     build-premium:         { model: claude-opus-5-high,        effort: auto }
 
 # runners — per-runner knobs for RUNNER DELEGATION (change 0079): handing an agent's whole run to
 # a child harness with its own subscription, models, and skills. Activated per agent by an explicit

@@ -66,17 +66,18 @@ key and **no** `skills:` key; the skills the agent needs appear as a preamble in
 `.cursor/rules/docket-dispatch.mdc` exists.
 
 The `model:` key is present only where a model resolves. Docket's shipped
-`agents/harness-defaults.yml` maps Cursor for exactly the **three build-profile workers**, so with no
-Cursor `agents:` config of your own:
+`agents/harness-defaults.yml` maps Cursor for **all twelve wrappers**, so with no Cursor `agents:`
+config of your own, every file carries a `model:` line holding the Cursor ID that harness-defaults
+ships for it.
 
-- `docket-build-economy`, `docket-build-standard`, `docket-build-premium` carry a `model:` line with
-  the Cursor ID that harness-defaults ships for them;
-- the **other nine** wrappers carry **no `model:` line at all** — they are generated *unpinned*, and
-  Cursor applies its own default. A Claude model ID appearing in any of the nine is the cross-harness
-  leak this design removed; treat it as a defect, not a default.
+A **Claude** model ID appearing in a Cursor wrapper is the cross-harness leak this design removed;
+treat it as a defect, not a default. The one deliberate exception is `docket-build-premium`, whose
+shipped Cursor ID *is* `claude-opus-5-high` — that is Cursor's own name for the model, selected
+through Cursor, not a leaked Claude Code pin. A **missing** `model:` line is also a defect now:
+before this change nine wrappers shipped unpinned, and that is no longer the design.
 
 Where an effort *is* pinned by your own config, the `model` value carries the bracket encoding
-(`<id>[effort=<e>]`). The three shipped Cursor IDs already encode their variant, so they ship at
+(`<id>[effort=<e>]`). Every shipped Cursor ID already encodes its variant, so they all ship at
 `effort: auto` and carry no bracket.
 
 ### Phase 2 — Agent visible
@@ -124,8 +125,8 @@ Cursor.
 
 ### Phase 7 — Profile-routed build under Cursor (required when `skills.build: docket-build`)
 
-Docket ships Cursor model IDs for the three build profiles, so a Cursor repo can run a
-profile-routed build with no configuration. That routing is what these checks certify; none of them
+Docket ships Cursor model IDs for every wrapper, the three build profiles among them, so a Cursor
+repo can run a profile-routed build with no configuration. That routing is what these checks certify; none of them
 can be run by an autonomous build, and `cursor-agent` is not an accepted substitute.
 
 Run a real `docket-build` on a plan with at least three tasks, in the Cursor IDE:
