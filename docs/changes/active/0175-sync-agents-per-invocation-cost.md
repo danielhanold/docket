@@ -17,7 +17,7 @@ results:
 trivial: false
 auto_groomable: false
 branch: feat/sync-agents-per-invocation-cost
-claimed_at: 2026-07-31T20:40:09Z
+claimed_at: 2026-07-31T21:06:15Z
 pr:
 blocked_by:
 reconciled: true
@@ -112,3 +112,9 @@ Codex with a ChatGPT account. No task code or task commit was produced. The prof
 contract is Tier C and does not authorize inline substitution; the feature worktree is preserved
 at plan commit `38ee3624` for inspection or resume after the installed profile mapping is made
 compatible with this harness.
+
+### 2026-07-31 — build resumed after profile repair
+
+Preflight re-verified the `in-progress` claim and clean feature worktree. `origin/main` remains
+`07818ef4`, the exact integration SHA used by the prior reconcile, so the reconciled design is
+still fresh and no repeated scope edit is needed. Resume continues at Task 1 of the linked plan.
