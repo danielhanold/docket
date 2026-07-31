@@ -17,7 +17,7 @@ results:
 trivial: false
 auto_groomable: false
 branch: feat/sync-agents-per-invocation-cost
-claimed_at: 2026-07-31T22:09:36Z
+claimed_at: 2026-07-31T23:33:17Z
 pr:
 blocked_by:
 reconciled: true
@@ -131,3 +131,12 @@ The configured build contract makes that an unsafe-continuation halt: it cannot 
 accepted budget or reopen completed Task 2. Its 39-line uncommitted test change remains in the
 feature worktree for inspection; review, full-suite gate, results close-out, and PR creation were
 not reached.
+
+### 2026-07-31 — optimization resumed with target retained
+
+The human explicitly kept the `<400` parser-call ceiling as the goal and authorized extending the
+Task 2 source optimization until Task 3's retained guard turns green. Preflight re-verified the
+claim and preserved worktree; `origin/main` is still `07818ef4`, so the reconcile remains fresh.
+Resume keeps commits `f9b84b97` and `655f3cdf` plus the uncommitted 39-line guard, and routes the
+unresolved performance repair through the configured build profile rather than weakening the
+target.
