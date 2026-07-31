@@ -2,7 +2,7 @@
 id: 173
 slug: field-of-silently-truncates-a-model-id-containing-or
 title: field_of() silently truncates a model ID containing / or :
-status: in-progress
+status: implemented
 priority: medium
 type: fix
 created: 2026-07-31
@@ -13,12 +13,12 @@ discovered_from: [168]
 adrs: [65]
 spec: docs/superpowers/specs/2026-07-31-field-of-silently-truncates-a-model-id-containing-or-design.md
 plan: docs/superpowers/plans/2026-07-31-field-of-value-class-truncation.md
-results:
+results: docs/results/2026-07-31-field-of-silently-truncates-a-model-id-containing-or-results.md
 trivial: false
 auto_groomable:
 branch: feat/field-of-silently-truncates-a-model-id-containing-or
-claimed_at: 2026-07-31T15:02:08Z
-pr:
+claimed_at: 2026-07-31T19:34:29Z
+pr: https://github.com/danielhanold/docket/pull/142
 blocked_by:
 reconciled: true
 ---
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-31-field-of-silently-truncates-a-model-id-containing-or-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-31-field-of-silently-truncates-a-model-id-containing-or-design.md) |
 | Plan | [2026-07-31-field-of-value-class-truncation.md](https://github.com/danielhanold/docket/blob/feat/field-of-silently-truncates-a-model-id-containing-or/docs/superpowers/plans/2026-07-31-field-of-value-class-truncation.md) |
+| Results | [2026-07-31-field-of-silently-truncates-a-model-id-containing-or-results.md](https://github.com/danielhanold/docket/blob/feat/field-of-silently-truncates-a-model-id-containing-or/docs/results/2026-07-31-field-of-silently-truncates-a-model-id-containing-or-results.md) |
+| PR | [#142](https://github.com/danielhanold/docket/pull/142) |
 | ADRs | [ADR-0065](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0065-bare-scalar-validation-needs-an-explicit-quote-leg.md) |
 <!-- docket:artifacts:end -->
 
