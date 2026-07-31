@@ -260,6 +260,13 @@ A bidirectional derived guard compares the README catalog's skill names with the
 directories. The heading therefore never needs another count edit, and a new skill cannot silently
 remain undocumented.
 
+The count lives in more than the heading, and the sites move together: the table-of-contents entry
+and a later footnote both link the counted anchor, and that footnote carries its own hand-maintained
+arithmetic reconciling eleven skill directories against a table of eight. A separate README
+paragraph claims the only shipped model IDs are the Claude ones and promises that holds until
+changes 0168 and 0169 land validated mappings; shipping the Cursor build defaults falsifies it, so
+it is rewritten rather than left as a stale forward reference.
+
 The lean-build documentation becomes harness-neutral:
 
 - profile workers are named Docket workers, not Claude workers;
@@ -285,8 +292,12 @@ Generator and contract tests prove:
 2. Its Claude keys equal the source-wrapper set in both directions.
 3. Its Cursor keys equal the build-worker set in both directions.
 4. Source wrappers contain no `model:` or `effort:` frontmatter defaults.
-5. Native Claude generated wrappers remain byte-equivalent in model/effort and behavior to the
-   pre-change output.
+5. Native Claude generated wrappers remain equivalent in resolved model/effort and behavior to the
+   pre-change output. This is value equivalence, not file identity: the two existing assertions
+   that `diff` a generated Claude wrapper against its `agents/` source become structurally
+   impossible once the source stops carrying the fields, so they are rewritten to compare body,
+   description, and skills against the source while comparing model/effort against the resolved
+   sidecar value.
 6. Cursor build wrappers emit exactly the three selected IDs with no standalone effort and no
    appended effort suffix.
 7. Non-build Cursor and unconfigured Codex wrappers omit model/effort and warn rather than
@@ -333,8 +344,15 @@ The ADR extends ADR-0016's harness-first, field-level resolution and relates to:
 - ADR-0060 — generated wrappers conform to the target harness contract;
 - ADR-0063 — Docket-owned profile-routed build workers.
 
-It does not supersede those decisions. Change 0169 extends the table with a Codex block rather than
-creating another resolution mechanism.
+It does not supersede those three. It **does supersede ADR-0048**, whose first invariant fixes the
+example file's mirror target at `agents/docket-*.md` wrapper frontmatter and states that "the
+wrappers remain the single source of truth." Moving shipped defaults into the sidecar falsifies that
+target, so the new ADR restates all three of ADR-0048's invariants — mirror rule, resolver fidelity,
+and must-update-on-new-key — with the mirror re-pointed at `agents/harness-defaults.yml`. This is
+the same relocation pattern by which ADR-0048 superseded ADR-0039; the surviving invariants are
+carried forward rather than orphaned.
+
+Change 0169 extends the table with a Codex block rather than creating another resolution mechanism.
 
 ## Expected outcome
 
