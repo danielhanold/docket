@@ -1,5 +1,5 @@
 # Codex support for profile-routed Docket builds — results
-Change: #169 · Branch: feat/codex-profile-routed-build-support · PR: (pending) · Plan: docs/superpowers/plans/2026-07-31-codex-profile-routed-build-support.md · ADRs: 36, 37, 38, 63, 64
+Change: #169 · Branch: feat/codex-profile-routed-build-support · PR: https://github.com/danielhanold/docket/pull/143 · Plan: docs/superpowers/plans/2026-07-31-codex-profile-routed-build-support.md · ADRs: 36, 37, 38, 63, 64
 
 **Codex certification pending.** Tier 2 of the design is a human-in-a-Codex-session checklist that an
 autonomous build cannot execute, and this change is **not certified** until all three named dispatches
