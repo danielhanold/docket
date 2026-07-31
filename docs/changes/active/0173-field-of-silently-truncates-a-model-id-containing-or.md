@@ -10,7 +10,7 @@ updated: 2026-07-31
 depends_on: []
 related: [175]
 discovered_from: [168]
-adrs: []
+adrs: [65]
 spec: docs/superpowers/specs/2026-07-31-field-of-silently-truncates-a-model-id-containing-or-design.md
 plan: docs/superpowers/plans/2026-07-31-field-of-value-class-truncation.md
 results:
@@ -30,6 +30,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-31-field-of-silently-truncates-a-model-id-containing-or-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-31-field-of-silently-truncates-a-model-id-containing-or-design.md) |
 | Plan | [2026-07-31-field-of-value-class-truncation.md](https://github.com/danielhanold/docket/blob/feat/field-of-silently-truncates-a-model-id-containing-or/docs/superpowers/plans/2026-07-31-field-of-value-class-truncation.md) |
+| ADRs | [ADR-0065](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0065-bare-scalar-validation-needs-an-explicit-quote-leg.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
