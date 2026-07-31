@@ -12,7 +12,7 @@ related: [150, 175]
 discovered_from: [168]
 adrs: []
 spec: docs/superpowers/specs/2026-07-31-reuse-test-git-fixtures-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-31-reuse-test-git-fixtures.md
 results:
 trivial: false
 auto_groomable: false
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-31-reuse-test-git-fixtures-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-31-reuse-test-git-fixtures-design.md) |
+| Plan | [2026-07-31-reuse-test-git-fixtures.md](https://github.com/danielhanold/docket/blob/feat/reuse-test-git-fixtures/docs/superpowers/plans/2026-07-31-reuse-test-git-fixtures.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
