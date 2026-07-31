@@ -41,6 +41,14 @@ Mock seams: `RUNNERS_DIR` (adapter directory), `GIT` (through `lib/docket-root.s
    names — each adapter defines and defaults its own (see its contract). `runners:` is **not**
    coordination-fenced: it is a machine preference in the same class as `model`/`effort`
    (it writes no shared state), so all three layers are honored.
+
+   A value is read as the **rest of the line** after `<key>:`, with a whitespace-preceded `#`
+   comment stripped and surrounding whitespace trimmed — so paths and URLs (`/Users/x/p`,
+   `https://host/v1`) survive intact. A value that parses to nothing is **skipped, not fatal**:
+   this runs on a live dispatch path, so a cosmetic config typo must not convert into a failed
+   dispatch. The key is still claimed for its layer before its value is parsed, so a malformed
+   high-precedence value masks the same key in lower layers (precedence is per-key, not
+   per-value).
 4. **Handoff** — `exec "$DOCKET_BASH_PATH" scripts/runners/<name>.sh --agent <agent> [--model m] [--effort e]
    -- <args…>`, foreground. The facade's stdout/stderr/exit code are the adapter's.
 
