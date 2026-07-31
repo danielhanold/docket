@@ -8,10 +8,10 @@ type: perf
 created: 2026-07-31
 updated: 2026-07-31
 depends_on: []
-related: [150, 174]
+related: [150, 174, 176]
 discovered_from: [168]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-07-31-sync-agents-per-invocation-cost-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-07-31-sync-agents-per-invocation-cost-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-31-sync-agents-per-invocation-cost-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -48,21 +51,32 @@ generation itself faster would pay out for every real `sync-agents.sh` run a hum
 triggers — not just for the suite. Which of those is the actual goal is exactly the question a
 brainstorm should settle.
 
+**Measured 2026-07-31** (the profile the stub asked for): the 5.5s is ~2,430 subprocess forks —
+976 `sed`, 770 `head`, 477 `awk`, 204 `grep` — spent re-parsing three small YAML layer files. Not
+git, not I/O, not the config resolver. `harness_agent_line` re-parses a whole layer file (five
+forks) on every (harness, agent, layer) triple: 192 calls over ~6 distinct parses.
+
+The goal is **real-run speed**, not just suite speed — a cheaper generation pass pays out for every
+run a human, an `install.sh`, or a skill triggers, and the suite improvement follows for free.
+
 ## What changes
 
-To be designed. At minimum, establish where the 5.5s actually goes before choosing between a
-fast-path flag, a cheaper generation pass, or test fixtures that stop invoking the real generator
-per assertion.
+Parse each layer file once per run and cache it; extract fields with bash builtins instead of
+forking. The layer-precedence logic is deliberately untouched, so the existing test suite stays the
+correctness oracle. Also add real argument validation — today an unrecognized flag (including
+`--help`) silently falls through into a full generation pass that writes wrapper files.
+
+Because a perf change has no oracle in the suite, acceptance is measured wall clock recorded in the
+results file, plus a standing fork-count assert that goes red if the cache is ever silently inert.
+
+Design: [`docs/superpowers/specs/2026-07-31-sync-agents-per-invocation-cost-design.md`](../../superpowers/specs/2026-07-31-sync-agents-per-invocation-cost-design.md).
 
 ## Out of scope
 
+- `test_render_board.sh` — a different script an order of magnitude smaller, not yet shown to share
+  the cause. File a stub only if the idiom transfers.
+- `docket-config.sh` per-invocation cost — change 0176, kept independent and cross-linked.
 - Git fixture reuse — change 0174.
-- A parallel suite runner — change 0150 records the missing-runner gap.
-
-## Open questions
-
-- Where does the 5.5s go? No profile has been taken; the number is wall clock on a full pass.
-- Is the goal suite speed, or real-run speed? They select different fixes.
-- Does `test_render_board.sh` belong in this change or its own?
+- A parallel suite runner, and toolchain pinning — change 0150.
 
 ## Reconcile log
