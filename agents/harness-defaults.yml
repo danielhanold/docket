@@ -12,7 +12,8 @@
 #   - a listed entry supplies BOTH model and effort — the table is sparse by harness and agent,
 #     never by field;
 #   - `runner:` is forbidden — delegation is user policy, never a shipped default;
-#   - the claude and cursor blocks are both COMPLETE (each key set equals agents/docket-*.md).
+#   - every harness listed in HD_SHIPPED_HARNESSES carries a COMPLETE block (its key set equals
+#     agents/docket-*.md) — claude, cursor, and codex today.
 #
 # Model IDs and effort tokens are opaque passthrough values (ADR-0015). Docket keeps no vendor
 # allowlist; an unrecognized string is never rejected here. They must, however, be written as BARE
@@ -53,3 +54,25 @@ agents:
     integration-repair:    { model: cursor-grok-4.5-high, effort: auto }
     rebase-resolver:       { model: cursor-grok-4.5-high, effort: auto }
     status:                { model: cursor-grok-4.5-low-fast, effort: auto }
+
+  # Codex's full wrapper set (change 0169). Codex takes a real reasoning-effort token per agent,
+  # so unlike the cursor block every row carries a distinct model/effort PAIR rather than `auto`.
+  #
+  # The profile names describe the capability/cost role of a complete pair, NOT a cross-model
+  # ordinal: reasoning tokens are model-specific settings, so `xhigh` on Luna is not "stronger
+  # than" `medium` on Sol. The build ladder is therefore Luna/xhigh for positively established
+  # low-risk work, Terra/high for ordinary work, and Sol/medium for named risk or the one allowed
+  # escalation.
+  codex:
+    adr:                   { model: gpt-5.6-terra, effort: xhigh }
+    auto-groom:            { model: gpt-5.6-sol, effort: low }
+    auto-groom-critic:     { model: gpt-5.6-sol, effort: medium }
+    brainstorm-consultant: { model: gpt-5.6-sol, effort: medium }
+    build-economy:         { model: gpt-5.6-luna, effort: xhigh }
+    build-standard:        { model: gpt-5.6-terra, effort: high }
+    build-premium:         { model: gpt-5.6-sol, effort: medium }
+    finalize-change:       { model: gpt-5.6-terra, effort: high }
+    implement-next:        { model: gpt-5.6-sol, effort: medium }
+    integration-repair:    { model: gpt-5.6-sol, effort: high }
+    rebase-resolver:       { model: gpt-5.6-sol, effort: high }
+    status:                { model: gpt-5.6-luna, effort: xhigh }
