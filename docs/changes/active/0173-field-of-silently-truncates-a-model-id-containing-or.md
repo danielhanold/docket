@@ -2,7 +2,7 @@
 id: 173
 slug: field-of-silently-truncates-a-model-id-containing-or
 title: field_of() silently truncates a model ID containing / or :
-status: proposed
+status: in-progress
 priority: medium
 type: fix
 created: 2026-07-31
@@ -16,7 +16,8 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/field-of-silently-truncates-a-model-id-containing-or
+claimed_at: 2026-07-31T15:00:18Z
 pr:
 blocked_by:
 reconciled: false
