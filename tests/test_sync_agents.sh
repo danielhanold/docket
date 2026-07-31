@@ -89,6 +89,19 @@ assert "sync-agents.sh exists and is executable-by-bash" '[ -f "$SYNC" ]'
 # Helper: a fresh fake harness root + repo for an isolated generator run.
 make_sandbox(){ SBX="$(mktemp -d)"; mkdir -p "$SBX/.claude" "$SBX/.agents"; }   # .cursor/.codex/.kiro/.windsurf absent on purpose
 
+# -- command-line contract: help/errors must return before any generation side effect --
+make_sandbox
+HROOT175A="$(mktemp -d)"; mkdir -p "$HROOT175A/.claude"
+help_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT175A" bash "$SYNC" --help 2>&1)"; help_rc=$?
+assert "0175 args: --help succeeds" '[ "$help_rc" = "0" ]'
+assert "0175 args: --help prints usage" '/usr/bin/grep -qF "Usage: bash sync-agents.sh [--check]" <<<"$help_out"'
+assert "0175 args: --help writes no wrapper" '[ ! -e "$SBX/.claude/agents/docket-status.md" ]'
+bad_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT175A" bash "$SYNC" --bogus 2>&1)"; bad_rc=$?
+assert "0175 args: unknown flag fails with rc=2" '[ "$bad_rc" = "2" ]'
+assert "0175 args: unknown flag names the argument" '/usr/bin/grep -qF "unknown argument: --bogus" <<<"$bad_out"'
+assert "0175 args: unknown flag writes no wrapper" '[ ! -e "$SBX/.claude/agents/docket-status.md" ]'
+rm -rf "$SBX" "$HROOT175A"
+
 # git-repo fixture: sandbox repo with identity + one commit (for ls-files-based legs).
 # Defined here (rather than at first historical use, further down) so the change-0057
 # widened-trigger tests — which need a real docket branch — can use it too.

@@ -87,8 +87,23 @@ VALID_HARNESS_TOKENS="$DOCKET_GI_HARNESS_TOKENS"
 REGISTERED_RUNNERS="codex cursor"
 is_registered_runner(){ case " $REGISTERED_RUNNERS " in *" $1 "*) return 0;; *) return 1;; esac; }
 
+usage() {
+  printf '%s\n' 'Usage: bash sync-agents.sh [--check]'
+}
+
 CHECK=0
-[ "${1:-}" = "--check" ] && CHECK=1
+if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
+  case "$#:${1:-}" in
+    0:) ;;
+    1:--check) CHECK=1 ;;
+    1:--help) usage; exit 0 ;;
+    *)
+      printf 'sync-agents: unknown argument: %s\n' "${1:-<empty>}" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+fi
 
 log(){ printf '%s\n' "sync-agents: $*" >&2; }
 
