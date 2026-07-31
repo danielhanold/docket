@@ -526,17 +526,29 @@ emit_wrapper(){  # $1=src $2=model $3=effort $4=runner $5=harness $6=agent-name 
     log "ERROR docket-$6: runner '$runner' is not a registered runner (registered: $REGISTERED_RUNNERS)"
     exit 1
   fi
-  emit_shim "$1" "$2" "$3" "$runner" "$6"
+  # change 0168: ONLY a user-configured value may become a child-runner flag. `runner:` hands this
+  # agent to a DIFFERENT harness's CLI, so the baked flags are read by that child. A shipped
+  # agents/harness-defaults.yml entry is a default for THIS harness; it is not evidence that the
+  # same ID means anything to a Codex or Cursor child, and baking it would send e.g. a Claude model
+  # ID to a Codex process. A runner-only override therefore bakes no flag and lets the child pick
+  # its own default. The provenance flags are set by resolve_agent_layers, which every emit_wrapper
+  # call site invokes for this same (harness, agent) immediately beforehand.
+  local flag_model="" flag_effort=""
+  [ "${RES_MODEL_FROM_USER:-0}" = "1" ]  && flag_model="$2"
+  [ "${RES_EFFORT_FROM_USER:-0}" = "1" ] && flag_effort="$3"
+  emit_shim "$1" "$2" "$3" "$runner" "$6" "$flag_model" "$flag_effort"
 }
 
-# The shim: native frontmatter (model line kept for bookkeeping — the effective pin is
-# the baked --model argument), body = one foreground facade call + relay + verify rules.
-# An empty model/effort override bakes NO flag (the child harness's own default applies).
-emit_shim(){  # $1=src $2=model $3=effort $4=runner $5=agent-name  (stdout)
+# The shim: native frontmatter carrying the FULLY RESOLVED pin (bookkeeping for the claude parent —
+# the effective pin for the delegated work is the baked --model argument), body = one foreground
+# facade call + relay + verify rules. The baked flags come from $6/$7, which carry USER-configured
+# values only (change 0168); an empty one bakes NO flag, so the child harness applies its own
+# default rather than inheriting a default that was only ever meant for this harness.
+emit_shim(){  # $1=src $2=model $3=effort $4=runner $5=agent-name $6=flag-model $7=flag-effort  (stdout)
   emit "$1" "$2" "$3" | awk '/^---[[:space:]]*$/{d++; print; next} d<2{print}'
   local flags="--runner $4 --agent $5"
-  [ -n "$2" ] && flags="$flags --model $2"
-  [ -n "$3" ] && [ "$3" != "auto" ] && flags="$flags --effort $3"
+  [ -n "${6:-}" ] && flags="$flags --model $6"
+  [ -n "${7:-}" ] && [ "${7:-}" != "auto" ] && flags="$flags --effort $7"
   cat <<SHIM
 This agent is DELEGATED to the \`$4\` runner (cross-harness runner delegation, change 0079).
 Do NOT execute the skill inline and do NOT load its skills yourself.
@@ -681,14 +693,22 @@ migrate_tracked_wrappers() {  # one-time: untrack 0048-era committed wrappers; i
   log "  $cmd"
 }
 
-# Non-fatal footgun warning: when generating a NON-claude harness file whose `model` resolved from
-# default/built-in (no agents.<harness> override supplied it), the ID is likely wrong for that
-# harness (ADR-0015: some harnesses silently run their house default on an unknown model). Never
-# an error; sync still succeeds. Scoped to non-claude — the claude built-ins/default ARE Claude IDs.
+# Non-fatal footgun warning for a NON-claude harness wrapper with no harness-specific value —
+# neither a shipped agents/harness-defaults.yml entry nor an agents.<harness> override. Since
+# change 0168 that pair is generated UNPINNED (the source frontmatter is no longer a default store,
+# so there is nothing left to leak); or, if only agents.default supplied a model, it carries an ID
+# that may be meaningless to that harness (ADR-0015: some harnesses silently run their house
+# default on an unknown model). Never an error; sync still succeeds. Scoped to non-claude — the
+# claude sidecar values ARE Claude IDs.
 warn_fallback_model(){  # $1=harness $2=agent ; consumes RES_MODEL_FROM_HARNESS / RES_MODEL
   [ "$1" = "claude" ] && return 0
   [ "$RES_MODEL_FROM_HARNESS" = "1" ] && return 0
-  log "WARN $1/docket-$2: model '${RES_MODEL:-<built-in>}' came from default/built-in; may not be a valid model ID for harness '$1'."
+  [ -n "$(hd_field "$HARNESS_DEFAULTS" "$1" "$2" model)" ] && return 0
+  if [ -z "${RES_MODEL:-}" ]; then
+    log "WARN $1/docket-$2: no harness-specific model — generated unpinned; harness '$1' will apply its own default. Set agents.$1.$2.model to pin it."
+  else
+    log "WARN $1/docket-$2: model '$RES_MODEL' came from agents.default; may not be a valid model ID for harness '$1'."
+  fi
 }
 
 warn_legacy_shape(){  # $1=file $2=under_agents ; warns once per bare agent key

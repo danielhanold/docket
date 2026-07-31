@@ -680,14 +680,18 @@ assert "0047 §agent-cfg: does NOT hardcode a model/effort literal (references t
 # Change 0046 — per-harness values: diagnostics
 # ============================================================================
 
-# (h) Non-Claude fallback warning: a cursor file whose model fell through to default/built-in warns;
+# (h) Non-Claude fallback warning: a cursor file whose model fell through to agents.default warns;
 #     suppressed for claude, and suppressed when cursor supplies its own model.
+# Change 0168 re-worded the diagnostic: the source frontmatter is no longer a default store, so
+# the fallthrough can only come from agents.default (or from nothing at all, which is a distinct
+# "generated unpinned" warning). The property guarded is unchanged — this fixture pins a Claude
+# ID under agents.default and cursor has no sidecar entry for `status`, so cursor must be told.
 make_sandbox
 HROOTW="$(mktemp -d)"; mkdir -p "$HROOTW/.claude"
 printf 'agent_harnesses: [claude, cursor]\nagents:\n  default:\n    status: { model: claude-opus-4-8 }\n' > "$SBX/.docket.yml"
 gen_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTW" bash "$SYNC" 2>&1 >/dev/null)"; gen_rc=$?
 assert "0046 (h): generation not fatal (rc=0)" '[ "$gen_rc" = "0" ]'
-assert "0046 (h): warns cursor model came from default/built-in" 'printf "%s" "$gen_err" | grep -qi "cursor" && printf "%s" "$gen_err" | grep -qi "default/built-in"'
+assert "0046 (h): warns cursor model came from agents.default" 'grep -qi "cursor/docket-status" <<<"$gen_err" && grep -qF "came from agents.default" <<<"$gen_err"'
 assert "0046 (h): does NOT warn for the claude harness" '! printf "%s" "$gen_err" | grep -qiE "claude/docket-status|WARN claude"'
 rm -rf "$SBX" "$HROOTW"
 
@@ -696,7 +700,7 @@ make_sandbox
 HROOTW2="$(mktemp -d)"; mkdir -p "$HROOTW2/.claude"
 printf 'agent_harnesses: [claude, cursor]\nagents:\n  default:\n    status: { model: claude-opus-4-8 }\n  cursor:\n    status: { model: gpt-5.5-medium-fast }\n' > "$SBX/.docket.yml"
 gen_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTW2" bash "$SYNC" 2>&1 >/dev/null)"; gen_rc=$?
-assert "0046 (h'): no fallback warning when cursor supplies model" '! printf "%s" "$gen_err" | grep -qi "status.*default/built-in"'
+assert "0046 (h'): no fallback warning when cursor supplies model" '! grep -qiE "cursor/docket-status: (no harness-specific model|model .* came from agents\.default)" <<<"$gen_err"'
 rm -rf "$SBX" "$HROOTW2"
 
 # (f) Legacy bare-agent-key block (pre-0046 flat shape) => warned + ignored; --check flags it as drift.
@@ -1368,5 +1372,72 @@ for w in docket-status docket-implement-next docket-build-premium; do
     '[ "$(grep -c "^effort:" "$G")" = "1" ]'
 done
 rm -rf "$SBX"
+
+# ---- change 0168: a shipped default never becomes a child-runner flag -------
+# The provenance boundary. `runner:` delegates this agent to a DIFFERENT harness's CLI, so the
+# baked --model/--effort flags are read by that child, not by Claude. A shipped
+# agents/harness-defaults.yml value is a CLAUDE default; baking it into a Codex dispatch sends a
+# Claude model ID to a Codex child. Only a USER-configured value may cross that boundary — the
+# resolved pair still pins the wrapper's own native frontmatter, which is bookkeeping for the
+# Claude parent and never reaches the child.
+mkgitrepo
+mkdir -p "$SBX/.claude"
+HROOT168F="$(mktemp -d)"; mkdir -p "$HROOT168F/.claude"
+cat > "$SBX/.docket.yml" <<'YML'
+agent_harnesses: [claude]
+agents:
+  claude:
+    status: { runner: codex }
+YML
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT168F" bash "$SYNC" >/dev/null 2>&1 )
+S="$SBX/.claude/agents/docket-status.md"
+# Fixture sanity FIRST: without a real shim the two negative asserts below are vacuous.
+assert "0168: runner-only config still emits a shim" 'grep -qF "docket.sh runner-dispatch" "$S"'
+assert "0168: runner-only shim still names the runner" 'grep -qF -- "--runner codex" "$S"'
+assert "0168: runner-only shim bakes NO --model flag"  '! grep -qF -- "--model" "$S"'
+assert "0168: runner-only shim bakes NO --effort flag" '! grep -qF -- "--effort" "$S"'
+assert "0168: runner-only shim frontmatter still carries the native pin" \
+  '[ "$(fm "$S" model)" = "$(hd_field "$HD" claude status model)" ]'
+assert "0168: runner-only shim frontmatter still carries the native effort" \
+  '[ "$(fm "$S" effort)" = "$(hd_field "$HD" claude status effort)" ]'
+
+# A user-configured pair is policy, not a shipped guess: it still passes through to the child.
+cat > "$SBX/.docket.yml" <<'YML'
+agent_harnesses: [claude]
+agents:
+  claude:
+    status: { runner: codex, model: gpt-5.5, effort: high }
+YML
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT168F" bash "$SYNC" >/dev/null 2>&1 )
+assert "0168: an explicit override still passes through to the child" \
+  'grep -qF -- "--model gpt-5.5" "$S" && grep -qF -- "--effort high" "$S"'
+
+# The two fields split independently: a user model with no user effort bakes --model only,
+# even though the sidecar supplies an effort for this agent.
+cat > "$SBX/.docket.yml" <<'YML'
+agent_harnesses: [claude]
+agents:
+  claude:
+    status: { runner: codex, model: gpt-5.5 }
+YML
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT168F" bash "$SYNC" >/dev/null 2>&1 )
+assert "0168: user model alone bakes --model but not the shipped --effort" \
+  'grep -qF -- "--model gpt-5.5" "$S" && ! grep -qF -- "--effort" "$S"'
+rm -rf "$SBX" "$HROOT168F"
+
+# The fallback warning's premise moved with the default store. A non-claude harness/agent pair the
+# sidecar DOES cover is a deliberate shipped default, not a leak, so it must stay silent; a pair it
+# does NOT cover now generates unpinned rather than inheriting a foreign ID, and says so.
+make_sandbox
+HROOT168W="$(mktemp -d)"; mkdir -p "$HROOT168W/.claude"
+printf 'agent_harnesses: [claude, cursor]\n' > "$SBX/.docket.yml"
+w168="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT168W" bash "$SYNC" 2>&1 >/dev/null)"
+assert "0168: a cursor agent WITH a shipped sidecar entry draws no warning" \
+  '! grep -qF "cursor/docket-build-standard" <<<"$w168"'
+assert "0168: a cursor agent WITHOUT one warns that it is generated unpinned" \
+  'grep -qF "cursor/docket-status: no harness-specific model" <<<"$w168"'
+assert "0168: the unpinned warning names the key that would fix it" \
+  'grep -qF "agents.cursor.status.model" <<<"$w168"'
+rm -rf "$SBX" "$HROOT168W"
 
 exit $fail
