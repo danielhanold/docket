@@ -2,7 +2,7 @@
 id: 168
 slug: cursor-profile-routed-build-support
 title: Cursor support for profile-routed Docket builds
-status: in-progress
+status: implemented
 priority: medium
 type: feat
 created: 2026-07-30
@@ -13,12 +13,12 @@ discovered_from: [167]
 adrs: [15, 16, 48, 60, 63, 64]
 spec: docs/superpowers/specs/2026-07-30-cursor-profile-routed-build-support-design.md
 plan: docs/superpowers/plans/2026-07-31-cursor-profile-routed-build-support.md
-results:
+results: docs/results/2026-07-31-cursor-profile-routed-build-support-results.md
 trivial: false
 auto_groomable:
 branch: feat/cursor-profile-routed-build-support
-claimed_at: 2026-07-31T01:21:44Z
-pr:
+claimed_at: 2026-07-31T08:08:42Z
+pr: https://github.com/danielhanold/docket/pull/140
 blocked_by:
 reconciled: true
 ---
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-30-cursor-profile-routed-build-support-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-30-cursor-profile-routed-build-support-design.md) |
 | Plan | [2026-07-31-cursor-profile-routed-build-support.md](https://github.com/danielhanold/docket/blob/feat/cursor-profile-routed-build-support/docs/superpowers/plans/2026-07-31-cursor-profile-routed-build-support.md) |
+| Results | [2026-07-31-cursor-profile-routed-build-support-results.md](https://github.com/danielhanold/docket/blob/feat/cursor-profile-routed-build-support/docs/results/2026-07-31-cursor-profile-routed-build-support-results.md) |
+| PR | [#140](https://github.com/danielhanold/docket/pull/140) |
 | ADRs | [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md), [ADR-0016](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0016-harness-first-agent-config.md), [ADR-0048](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0048-docket-yml-example-invariants.md), [ADR-0060](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0060-generated-wrapper-conforms-to-target-harness-contract.md), [ADR-0063](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0063-docket-owns-the-build-role-profile-routed-workers.md), [ADR-0064](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0064-shipped-agent-defaults-live-in-a-harness-indexed-sidecar.md) |
 <!-- docket:artifacts:end -->
 
