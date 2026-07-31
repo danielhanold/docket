@@ -28,7 +28,18 @@ Before the above, regenerate and eyeball the wrappers — `bash sync-agents.sh`,
 `.cursor/agents/`:
 
 - [ ] The three `docket-build-*` wrappers carry their Cursor IDs with **no** `[effort=…]` suffix
-- [ ] The other nine Cursor wrappers carry **no** `model:` line at all (unpinned, not a leaked Claude ID)
+- [ ] **All twelve** Cursor wrappers carry a `model:` line, each matching its `cursor:` row in
+      `agents/harness-defaults.yml`, none with an `[effort=…]` suffix. A **missing** `model:` line
+      is a defect — the shipped cursor block is complete.
+      The one Claude-namespace ID that is correct here is `docket-build-premium`'s
+      `claude-opus-5-high`: that is Cursor's own name for the model, selected through Cursor, not a
+      leaked Claude Code pin. Any *other* `claude-*` ID in a Cursor wrapper is the cross-harness
+      leak this design removed.
+
+> This item was amended after the first certification attempt. It originally read "the other nine
+> Cursor wrappers carry **no** `model:` line at all", which was the shipped design until the review
+> of PR #140 completed the cursor block. If you are working from a printed or cached copy, the
+> twelve-pinned form above is the current one.
 
 ## Findings
 
@@ -44,6 +55,27 @@ with no route to `done`.
 **The reconcile pass found the ADR-0048 collision, which the design spec had missed** — the spec's
 architecture-decision section named ADR-0015/0016/0060/0063 and claimed the new ADR superseded
 nothing. Both the spec and the change body were corrected before planning.
+
+**The cursor block was completed after the first certification attempt.** As shipped by the build,
+cursor carried only the three build-profile workers and the other nine generated unpinned, with
+docket's intended tiering for them sitting in a commented example block. A commented default is
+inert, so in practice those nine had no docket default at all. Maintainer review of PR #140 called
+this out; the cursor block now covers all twelve wrappers, and `hd_validate` enforces the same
+completeness for cursor that it already enforced for claude, keyed off a new
+`HD_SHIPPED_HARNESSES`. Sparseness is now a property of *which harnesses* appear, never of how much
+of one appears — a thirteenth wrapper cannot land pinned on one shipped harness and unpinned on
+another.
+
+**Completing the block exposed a latent bug in the build's own warning.**
+`warn_fallback_model` suppressed its foreign-ID warning when the sidecar *held an entry* for a
+harness/agent pair, rather than when the sidecar *supplied the resolved value*. Those differ: a
+user's `agents.default` line outranks the sidecar, so the wrapper was emitted carrying the foreign
+ID while the guard stayed silent, reporting a shipped default that never applied. Verified
+concretely — `agents.default.status.model: claude-opus-4-8` put `model: claude-opus-4-8` in the
+*Cursor* wrapper with no warning. Now keyed on a `RES_MODEL_FROM_SIDECAR` provenance flag and
+pinned by a test asserting both the warning and that the wrapper really carries the foreign ID, so
+the guard cannot pass on a false alarm. Latent in the original 0168 build because it was reachable
+only through cursor's three build workers; general once a harness ships a complete block.
 
 **The safety property was verified by generation, not by prose.** The independent review extracted
 `origin/main` and `HEAD` into separate trees and ran `sync-agents.sh` from each into identical
