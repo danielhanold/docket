@@ -66,6 +66,11 @@ codex debug models | jq -r '.models[] | .slug'
 Set them per agent under `agents:` (harness-first) in whichever config layer applies — see the
 main README's agent-layer section for the full precedence rules.
 
+**Upgrading from a docket that shipped no `codex:` block:** resolution is field-by-field, so a codex
+agent for which you pinned only `model` now keeps your model *and* inherits docket's shipped
+`effort` — previously it got no effort line at all. If your model does not accept docket's shipped
+reasoning-effort token, pin `effort` explicitly alongside it.
+
 ## Verifying it works
 
 After opting a repo in and running `sync-agents.sh`:
@@ -73,8 +78,10 @@ After opting a repo in and running `sync-agents.sh`:
 1. `.codex/agents/docket-*.toml` exist and each carries the `model` / `model_reasoning_effort`
    docket ships for that agent — compare against the `codex:` block in
    `agents/harness-defaults.yml`, which is the single source of truth. A field you set in a config
-   layer wins over the shipped value; a missing line means neither docket nor your config supplied
-   one, and Codex will apply its own default.
+   layer wins over the shipped value. Since docket's `codex:` block covers every agent, both lines
+   are always present unless you deliberately blank one with a sentinel — `model: inherit` or
+   `effort: auto`, which the Codex emitter drops rather than writing — in which case Codex applies
+   its own default for the dropped field.
 2. `AGENTS.md` contains the marker-bounded `docket` dispatch block.
 3. In a Codex session opened in the repo, a directly-invoked docket skill is delegated to its
    pinned agent, and Codex runs it at the pinned model/effort.

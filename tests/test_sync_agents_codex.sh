@@ -91,6 +91,34 @@ assert "claude side: carries the SHIPPED pin, injected not copied" \
    ! grep -qE "^(model|effort):" "$REPO/agents/docket-status.md"'
 rm -rf "$SBX"
 
+# --- user override outranks the shipped codex block, FIELD BY FIELD (spec Tier-1 property 6) -----
+# Nothing else writes an `agents.codex.<agent>` override and checks the wrapper, so before this the
+# property was carried only by the .docket.example.yml round-trip — which cannot see it (the example
+# mirrors the sidecar, so both sides of that comparison move together).
+#
+# The fixture is deliberately PARTIAL — a user model with no user effort — because that is the
+# backward-compat hazard change 0169 introduces: before the codex block shipped, such an agent got
+# NO effort line; now it silently inherits docket's shipped effort next to a model the user chose.
+# Cursor had no equivalent hazard at change 0168 (every cursor effort is `auto`, which the emitter
+# drops); Codex's efforts are real tokens that reach the harness. This assert pins that resolution
+# as INTENDED behavior and is the executable half of the upgrade warning in docs/codex/setup.md.
+SBX="$(mktemp -d)"
+git -C "$SBX" init --quiet
+git -C "$SBX" config user.email t@t.test
+git -C "$SBX" config user.name Test
+printf 'agent_harnesses: [claude, codex]\nagents:\n  codex:\n    status: { model: gpt-5.1-codex }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
+OT="$SBX/.codex/agents/docket-status.toml"
+assert "override: the wrapper carries the USER model, not the shipped one" \
+  '[ -f "$OT" ] && [ "$(toml_get "$OT" model)" = "gpt-5.1-codex" ] &&
+   [ "$(hd_field "$HD" codex status model)" != "gpt-5.1-codex" ]'
+assert "override: with no user effort, the SHIPPED codex effort is still applied (fields resolve independently)" \
+  '[ -n "$(hd_field "$HD" codex status effort)" ] &&
+   [ "$(toml_get "$OT" model_reasoning_effort)" = "$(hd_field "$HD" codex status effort)" ]'
+assert "override: an unoverridden codex agent is untouched by the partial override" \
+  '[ "$(toml_get "$SBX/.codex/agents/docket-adr.toml" model)" = "$(hd_field "$HD" codex adr model)" ]'
+rm -rf "$SBX"
+
 # --- regression: emit_codex_toml preserves a --- thematic break inside the body ---
 DIVDIR="$(mktemp -d)"
 cat > "$DIVDIR/docket-divfixture.md" <<'FIX'

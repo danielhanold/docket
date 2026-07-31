@@ -980,6 +980,12 @@ assert "round-trip: cursor status model came from the example block" \
 # Codex evidence (change 0169): the example's codex rows must survive the REAL generator into real
 # Codex TOML, which is what proves they are executable YAML rather than text that merely happens to
 # match the sidecar reader. Read from the generated wrapper, compared against the sidecar.
+#
+# Naming caveat for the whole round-trip section, cursor leg included: "came from the example block"
+# overstates what these asserts see. Both sides move together — with the example's rows gone the
+# resolver falls back to the sidecar and they still pass. They catch a VALUE drift between example
+# and sidecar, not a missing example row. Provenance is established separately, by the sentinel
+# round-trip below ("sentinel: the codex wrapper carries the EXAMPLE's value, not the sidecar's").
 CT="$SB/.codex/agents/docket-status.toml"
 assert "round-trip: a codex wrapper was generated" '[ -f "$CT" ]'
 assert "round-trip: codex status model came from the example block" \
@@ -992,6 +998,57 @@ assert "round-trip: the codex build profiles resolve to their shipped ladder" \
    [ "$(sed -nE "s/^model[[:space:]]*=[[:space:]]*\"(.*)\"[[:space:]]*$/\1/p" "$SB/.codex/agents/docket-build-standard.toml")" = "gpt-5.6-terra" ] &&
    [ "$(sed -nE "s/^model[[:space:]]*=[[:space:]]*\"(.*)\"[[:space:]]*$/\1/p" "$SB/.codex/agents/docket-build-premium.toml")" = "gpt-5.6-sol" ]'
 rm -rf "$_sbs"
+
+# --- SENTINEL round-trip: prove the EXAMPLE's rows are what the generator consumed --------------
+# Every assert in the round-trip above compares the generated wrapper against the SIDECAR, and the
+# example mirrors the sidecar value for value — so both sides of each comparison move together and
+# the asserts cannot detect the example's rows going missing. Proved: delete all twelve codex rows
+# from .docket.example.yml and "round-trip: codex status model came from the example block" still
+# passes, because the resolver simply falls back to the sidecar. Those asserts state provenance
+# they cannot see; they are kept above (they DO catch the example drifting to a different value),
+# and this block supplies the provenance half they are missing.
+#
+# Method: rewrite ONE model value in the uncommented slice to a sentinel that exists in neither the
+# sidecar nor any other block, then assert the sentinel reaches the generated wrapper. Only the
+# example's own row can put it there. This is spec Tier-1 property 9's second clause.
+probe_slice(){ # $1 = harness key, $2 = old model literal, $3 = sentinel
+  awk -v h="$1" -v old="$2" -v new="$3" '
+    /^  [A-Za-z0-9_-]+:[[:space:]]*$/ { cur=$1; sub(/:$/,"",cur) }
+    cur==h && /^    status:/ { sub(old, new, $0) }
+    { print }'
+}
+stage2_probe="$(printf '%s\n' "$stage2" \
+  | probe_slice codex  'gpt-5\.6-luna'            'gpt-5.6-probe' \
+  | probe_slice cursor 'cursor-grok-4\.5-low-fast' 'cursor-grok-4.5-probe')"
+# Fixture sanity FIRST: a substitution that silently missed would leave every assert below vacuous
+# (the example would carry the shipped value, the wrapper would too, and nothing would notice).
+# Exactly one occurrence each, and the sentinels must be absent from the shipped sidecar so a hit
+# in the wrapper can only have come from the example.
+assert "sentinel: exactly one codex model was rewritten in the example slice" \
+  '[ "$(grep -cF "gpt-5.6-probe" <<<"$stage2_probe")" = "1" ]'
+assert "sentinel: exactly one cursor model was rewritten in the example slice" \
+  '[ "$(grep -cF "cursor-grok-4.5-probe" <<<"$stage2_probe")" = "1" ]'
+assert "sentinel: neither sentinel exists in the shipped sidecar" \
+  '! grep -qF "gpt-5.6-probe" "$HD" && ! grep -qF "cursor-grok-4.5-probe" "$HD"'
+
+SBP="$(mktemp -d)"; _sbps="$SBP"
+mkdir -p "$SBP/.claude/agents" "$SBP/.cursor/agents" "$SBP/.codex/agents" "$SBP/.config/docket"
+{
+  printf '%s\n' "$harnesses_line"
+  printf '%s\n' "$stage2_probe"
+} > "$SBP/.config/docket/config.yml"
+( cd "$SBP" && HOME="$SBP" XDG_CONFIG_HOME="$SBP/.config" DOCKET_HARNESS_ROOT="$SBP" \
+  bash "$REPO/sync-agents.sh" >/dev/null 2>&1 ); prc=$?
+assert "sentinel: sync-agents resolves the probed example (exit 0)" '[ "$prc" = "0" ]'
+assert "sentinel: the codex wrapper carries the EXAMPLE's value, not the sidecar's" \
+  '[ "$(sed -nE "s/^model[[:space:]]*=[[:space:]]*\"(.*)\"[[:space:]]*$/\1/p" "$SBP/.codex/agents/docket-status.toml")" = "gpt-5.6-probe" ]'
+assert "sentinel: the cursor wrapper carries the EXAMPLE's value, not the sidecar's" \
+  '[ "$(fm "$SBP/.cursor/agents/docket-status.md" model)" = "cursor-grok-4.5-probe" ]'
+# Unprobed rows still resolve, so the probe did not corrupt the slice into a one-row config.
+assert "sentinel: an unprobed codex row still resolves from the example" \
+  '[ -n "$(hd_field "$HD" codex build-premium model)" ] &&
+   [ "$(sed -nE "s/^model[[:space:]]*=[[:space:]]*\"(.*)\"[[:space:]]*$/\1/p" "$SBP/.codex/agents/docket-build-premium.toml")" = "$(hd_field "$HD" codex build-premium model)" ]'
+rm -rf "$_sbps"
 
 # --- (6) SCAFFOLD SHAPE: install writes runtime + pointer, never policy values
 # Why this guard exists: the old scaffold COPIED config.yml.example, so a user installed once and

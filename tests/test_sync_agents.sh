@@ -1602,14 +1602,27 @@ assert "0168: the unpinned warning names the key that would fix it" \
   'grep -qF "agents.codex.status.model" <<<"$w168"'
 rm -rf "$SCRW" "$SBX" "$HROOT168W"
 # Complement, on the REAL tree: because codex now ships complete, a shipped harness draws no
-# unpinned warning at all. This is the property change 0169 actually adds, and it is what would
-# redden if the codex block were dropped or left partial.
+# unpinned warning at all.
+#
+# The negative assert CANNOT carry this on its own, and the pair is what makes the property real.
+# A dropped or partial codex block makes `hd_validate` abort generation before any wrapper is
+# written, so no `WARN codex/` line is ever emitted and the pure-negative assert stays green; it
+# would also stay green on any unrelated `sync-agents.sh` failure. The positive companion supplies
+# the missing half — the run really succeeded, a codex wrapper really exists, and it really carries
+# the value the sidecar ships — so between them: generation reached completion AND it produced a
+# pinned wrapper AND it did so silently. Mutation-proved by deleting the codex `status` row: the
+# companion reddens (the abort writes no wrapper) while the negative alone does not.
 make_sandbox
 HROOT169S="$(mktemp -d)"; mkdir -p "$HROOT169S/.claude"
 printf 'agent_harnesses: [claude, cursor, codex]\n' > "$SBX/.docket.yml"
-w169="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT169S" bash "$SYNC" 2>&1 >/dev/null)"
+w169="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT169S" bash "$SYNC" 2>&1 >/dev/null)"; rc169=$?
 assert "0169: a complete codex block silences the whole harness" \
   '! grep -qF "WARN codex/" <<<"$w169"'
+assert "0169: and generation actually SUCCEEDED and pinned the codex wrapper (the silence is not an abort)" \
+  '[ "$rc169" = "0" ] &&
+   [ -f "$SBX/.codex/agents/docket-status.toml" ] &&
+   [ -n "$(hd_field "$HD" codex status model)" ] &&
+   [ "$(sed -nE "s/^model[[:space:]]*=[[:space:]]*\"(.*)\"[[:space:]]*$/\1/p" "$SBX/.codex/agents/docket-status.toml")" = "$(hd_field "$HD" codex status model)" ]'
 rm -rf "$SBX" "$HROOT169S"
 # Amendment guard: a user `agents.default` outranks the sidecar, so the wrapper carries the FOREIGN
 # id — the warning must fire even though the pair IS covered. Testing entry-existence instead of
