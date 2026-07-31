@@ -155,8 +155,8 @@ assert "agentsmd: carries NO model id (machine-neutral)" '! grep -qE "claude-|gp
 # "Docket ships model/effort-pinned agent definitions … its pinned model and reasoning effort are
 # the whole point" — true when the wrapper sources carried pins, false since change 0168 moved the
 # default store to a harness-indexed sidecar that ships NO codex entries. The premise is derived
-# from that sidecar rather than hard-coded, so change 0169 landing a codex block retires the guard
-# by making its `if` false instead of leaving a stale assert behind.
+# from that sidecar rather than hard-coded. Change 0169 landed a complete codex block, so the
+# premise is now false and the `else` arm below asserts the post-0169 claim just as hard.
 # shellcheck source=/dev/null
 . "$REPO/scripts/lib/harness-defaults.sh"
 HD="$REPO/agents/harness-defaults.yml"
@@ -167,7 +167,29 @@ if [ "$n_codex_shipped" = "0" ]; then
   assert "agentsmd: says an unconfigured codex agent runs UNPINNED" 'grep -qi "unpinned" "$A"'
   assert "agentsmd: still requires the dispatch regardless of the pin" \
     'grep -qi "either way" "$A"'
+else
+  # Change 0169 shipped the codex block, so the premise above is false and that arm no longer runs.
+  # A guard that merely switches off leaves its NEW truth unguarded — which is exactly how the
+  # cursor dispatch head kept a stale "ships IDs for the three build profiles only" claim after
+  # change 0168 completed the cursor block. So the else arm asserts the post-0169 claim just as
+  # hard: the block must no longer call an unconfigured Codex agent unpinned, and must still
+  # require the dispatch for a reason that survives the pin.
+  assert "agentsmd: no longer claims an unconfigured codex agent runs unpinned" \
+    '! grep -qi "unpinned" "$A"'
+  assert "agentsmd: no longer promises validated IDs are still to come" \
+    '! grep -qiE "ships no validated|no validated codex|change 0169" "$A"'
+  assert "agentsmd: states the dispatch is required for reasons beyond the pin" \
+    'grep -qi "either way" "$A"'
+  assert "agentsmd: still carries NO model id (machine-neutral even now that pins exist)" \
+    '! grep -qE "claude-|gpt-|model_reasoning_effort|model[[:space:]]*=" "$A"'
 fi
+# Population floor: without this, an emptied codex block would take the else arm out of service and
+# BOTH arms would be satisfied by whichever branch happened to run. Anchored on the source glob so a
+# thirteenth wrapper does not redden it.
+n_src_codex=0
+for f in "$REPO"/agents/docket-*.md; do [ -e "$f" ] || continue; n_src_codex=$((n_src_codex+1)); done
+assert "agentsmd: the pinned-premise branch is the live one (codex ships $n_codex_shipped of $n_src_codex)" \
+  '[ "$n_codex_shipped" = "$n_src_codex" ] && [ "$n_src_codex" -ge 12 ]'
 
 # idempotent second run: byte-identical
 before="$(cat "$A")"

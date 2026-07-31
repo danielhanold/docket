@@ -859,13 +859,13 @@ write_dispatch_rule() {  # $1 = <root>/.<harness> base path
 # Assemble the committed AGENTS.md docket dispatch block (markers included) to stdout.
 # Machine-neutral: agent names + delegation prose only, NO model IDs (pins live in the .toml).
 #
-# The head deliberately does NOT claim these definitions are pinned. This block is COMMITTED into
-# consumer repos and checked by `--check`, so a false claim here ships. Since change 0168 the
-# default store is agents/harness-defaults.yml, which carries no codex entries: every generated
-# Codex wrapper is unpinned until the user configures one, or until change 0169 lands validated
-# IDs. The dispatch is required either way — the agent carries the skill's contract and preload,
-# not just a model — so the rationale is stated in terms that stay true when a pin IS configured.
-# Guarded, against the sidecar rather than a literal, in tests/test_sync_agents_codex.sh.
+# This block is COMMITTED into consumer repos and checked by `--check`, so a false claim here ships
+# rather than merely displaying. The default store is agents/harness-defaults.yml, whose codex block
+# is complete since change 0169, so the head states the pinned truth. The dispatch is required
+# either way — the agent carries the skill's contract and preload, not just a model — so the
+# rationale stays true however the pin resolves. Guarded, against the sidecar rather than a literal,
+# in tests/test_sync_agents_codex.sh, which asserts the claim in BOTH directions so completing or
+# emptying the codex block cannot leave this prose unchecked.
 assemble_agents_md_dispatch(){
   printf '%s\n' "$DISPATCH_START"
   cat <<'HEAD'
@@ -874,10 +874,11 @@ assemble_agents_md_dispatch(){
 Docket generates an agent definition per docket skill in `.codex/agents/docket-*.toml`. When you
 are asked to run one of the docket skills below, run the matching **agent** instead of executing
 the skill inline at the session model: the agent carries that skill's dispatch contract, its skill
-preload, and whatever model and reasoning effort your config layers pin for it. Docket ships no
-validated Codex model IDs today, so an unconfigured Codex agent runs **unpinned**, at Codex's own
-default — dispatch to the agent either way. Pass the request through unchanged, including any
-change or ADR id.
+preload, and whatever model and reasoning effort your config layers pin for it. Docket ships a
+validated Codex model and reasoning effort for every one of these agents, so they are pinned out of
+the box; your config layers override either field per agent. Dispatch to the agent either way — the
+pin is not the only reason, since the agent also carries the skill's dispatch contract and preload.
+Pass the request through unchanged, including any change or ADR id.
 HEAD
   printf '\n'
   local src name desc
