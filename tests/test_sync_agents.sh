@@ -51,24 +51,32 @@ for w in $AUTONOMOUS; do
   assert "$w: has a description" '[ -n "$(fm "$f" description)" ]'
   assert "$w: description matches the skill (single source)" \
     '[ "$(fm "$f" description)" = "$(fm "$REPO/skills/$w/SKILL.md" description)" ]'
-  assert "$w: model is a known alias or full id" '[[ "$(fm "$f" model)" =~ ^(opus|sonnet|haiku|fable|claude-[a-z0-9]+(-[a-z0-9]+)*)$ ]]'
-  assert "$w: effort in allowed set" '[[ "$(fm "$f" effort)" =~ ^(low|medium|high|xhigh|max)$ ]]'
   assert "$w: skills: injects the skill itself" 'grep -Eq "^skills:.*\b'"$w"'\b" "$f"'
   assert "$w: skills: injects docket-convention" 'grep -Eq "^skills:.*docket-convention" "$f"'
   assert "$w: body carries abort-and-report directive" 'grep -qi "abort-and-report" "$f"'
 done
 
-# Built-in model/effort match the §4 default table.
-assert "implement-next built-in = claude-opus-5/medium" \
-  '[ "$(fm "$AGENTS/docket-implement-next.md" model)/$(fm "$AGENTS/docket-implement-next.md" effort)" = "claude-opus-5/medium" ]'
-assert "auto-groom built-in = claude-opus-5/low" \
-  '[ "$(fm "$AGENTS/docket-auto-groom.md" model)/$(fm "$AGENTS/docket-auto-groom.md" effort)" = "claude-opus-5/low" ]'
-assert "finalize-change built-in = claude-opus-5/low" \
-  '[ "$(fm "$AGENTS/docket-finalize-change.md" model)/$(fm "$AGENTS/docket-finalize-change.md" effort)" = "claude-opus-5/low" ]'
-assert "status built-in = claude-haiku-4-5-20251001/medium" \
-  '[ "$(fm "$AGENTS/docket-status.md" model)/$(fm "$AGENTS/docket-status.md" effort)" = "claude-haiku-4-5-20251001/medium" ]'
-assert "adr built-in = claude-opus-5/low" \
-  '[ "$(fm "$AGENTS/docket-adr.md" model)/$(fm "$AGENTS/docket-adr.md" effort)" = "claude-opus-5/low" ]'
+# Shipped model/effort match the §4 default table. Change 0168 moved these OUT of the wrapper
+# sources and into agents/harness-defaults.yml, so they are read with hd_field, not fm(). Reading
+# them off the source with fm() would be worse than stale: fm() is a first-match-ANYWHERE read, so
+# with no `model:` line left in the frontmatter it scans on into the body and can return prose.
+for w in $AUTONOMOUS; do
+  n="${w#docket-}"
+  assert "$w: shipped model is a known alias or full id" \
+    '[[ "$(hd_field "$HD" claude "'"$n"'" model)" =~ ^(opus|sonnet|haiku|fable|claude-[a-z0-9]+(-[a-z0-9]+)*)$ ]]'
+  assert "$w: shipped effort in allowed set" \
+    '[[ "$(hd_field "$HD" claude "'"$n"'" effort)" =~ ^(low|medium|high|xhigh|max)$ ]]'
+done
+assert "implement-next shipped = claude-opus-5/medium" \
+  '[ "$(hd_field "$HD" claude implement-next model)/$(hd_field "$HD" claude implement-next effort)" = "claude-opus-5/medium" ]'
+assert "auto-groom shipped = claude-opus-5/low" \
+  '[ "$(hd_field "$HD" claude auto-groom model)/$(hd_field "$HD" claude auto-groom effort)" = "claude-opus-5/low" ]'
+assert "finalize-change shipped = claude-opus-5/low" \
+  '[ "$(hd_field "$HD" claude finalize-change model)/$(hd_field "$HD" claude finalize-change effort)" = "claude-opus-5/low" ]'
+assert "status shipped = claude-haiku-4-5-20251001/medium" \
+  '[ "$(hd_field "$HD" claude status model)/$(hd_field "$HD" claude status effort)" = "claude-haiku-4-5-20251001/medium" ]'
+assert "adr shipped = claude-opus-5/low" \
+  '[ "$(hd_field "$HD" claude adr model)/$(hd_field "$HD" claude adr effort)" = "claude-opus-5/low" ]'
 
 # Advisory/interactive skills must NOT have a wrapper file.
 assert "no wrapper for new-change (advisory)" '[ ! -f "$AGENTS/docket-new-change.md" ]'
@@ -127,8 +135,8 @@ printf 'agents:\n  default:\n    status: { model: haiku, effort: low }\n    impl
 assert "global default sets model" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "haiku" ]'
 assert "global default sets effort" '[ "$(fm "$SBX/.claude/agents/docket-status.md" effort)" = "low" ]'
 assert "effort: auto drops the effort line" '! grep -q "^effort:" "$SBX/.claude/agents/docket-implement-next.md"'
-assert "auto keeps the built-in model" '[ "$(fm "$SBX/.claude/agents/docket-implement-next.md" model)" = "claude-opus-5" ]'
-assert "unlisted skill keeps built-in model+effort" '[ "$(fm "$SBX/.claude/agents/docket-adr.md" model)/$(fm "$SBX/.claude/agents/docket-adr.md" effort)" = "claude-opus-5/low" ]'
+assert "auto keeps the shipped model" '[ "$(fm "$SBX/.claude/agents/docket-implement-next.md" model)" = "claude-opus-5" ]'
+assert "unlisted skill keeps shipped model+effort" '[ "$(fm "$SBX/.claude/agents/docket-adr.md" model)/$(fm "$SBX/.claude/agents/docket-adr.md" effort)" = "claude-opus-5/low" ]'
 rm -rf "$SBX"
 
 # -- global: a per-harness block overrides default for THAT harness only (user-level) --
@@ -157,8 +165,8 @@ printf 'agents:\n  default:\n    status: { model: sonnet, effort: high }\n    ne
 assert "per-repo default writes project-level file" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
 assert "per-repo default applies model" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "sonnet" ]'
 assert "per-repo default applies effort" '[ "$(fm "$SBX/.claude/agents/docket-status.md" effort)" = "high" ]'
-assert "0048: unlisted skill NOW generated at built-in default (implement-next)" '[ -f "$SBX/.claude/agents/docket-implement-next.md" ]'
-assert "0048: unlisted implement-next carries built-in model (claude-opus-5)" '[ "$(fm "$SBX/.claude/agents/docket-implement-next.md" model)" = "claude-opus-5" ]'
+assert "0048: unlisted skill NOW generated at shipped default (implement-next)" '[ -f "$SBX/.claude/agents/docket-implement-next.md" ]'
+assert "0048: unlisted implement-next carries shipped model (claude-opus-5)" '[ "$(fm "$SBX/.claude/agents/docket-implement-next.md" model)" = "claude-opus-5" ]'
 assert "advisory skill in agents: produces NO file (new-change)" '[ ! -f "$SBX/.claude/agents/docket-new-change.md" ]'
 rm -rf "$SBX" "$HROOT"
 
@@ -176,7 +184,7 @@ assert "0048: full set — all 12 built-ins land in project-level .claude/agents
   '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "12" ]'
 assert "0048: listed agent carries its override (status=sonnet)" \
   '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "sonnet" ]'
-assert "0048: UNLISTED agent generated at built-in default (implement-next=claude-opus-5/medium)" \
+assert "0048: UNLISTED agent generated at shipped default (implement-next=claude-opus-5/medium)" \
   '[ "$(fm "$SBX/.claude/agents/docket-implement-next.md" model)/$(fm "$SBX/.claude/agents/docket-implement-next.md" effort)" = "claude-opus-5/medium" ]'
 rm -rf "$SBX" "$HROOT48A"
 
@@ -360,8 +368,8 @@ CRITIC="$AGENTS/docket-auto-groom-critic.md"
 assert "critic wrapper exists" '[ -f "$CRITIC" ]'
 assert "critic: name matches file" '[ "$(fm "$CRITIC" name)" = "docket-auto-groom-critic" ]'
 assert "critic: has a description" '[ -n "$(fm "$CRITIC" description)" ]'
-assert "critic: model is claude-opus-5" '[ "$(fm "$CRITIC" model)" = "claude-opus-5" ]'
-assert "critic: effort is medium" '[ "$(fm "$CRITIC" effort)" = "medium" ]'
+assert "critic: shipped model is claude-opus-5" '[ "$(hd_field "$HD" claude auto-groom-critic model)" = "claude-opus-5" ]'
+assert "critic: shipped effort is medium" '[ "$(hd_field "$HD" claude auto-groom-critic effort)" = "medium" ]'
 assert "critic: skills injects docket-convention" 'grep -Eq "^skills:.*docket-convention" "$CRITIC"'
 # Isolation: the skills: line must NOT pull in the designer skill (would re-inject its bias).
 # Scope the check to the skills: line — the name: line legitimately contains "docket-auto-groom".
@@ -394,8 +402,8 @@ for nw in docket-rebase-resolver docket-integration-repair; do
   assert "$nw: wrapper exists" '[ -f "$f" ]'
   assert "$nw: name matches file" '[ "$(fm "$f" name)" = "$nw" ]'
   assert "$nw: has a description" '[ -n "$(fm "$f" description)" ]'
-  assert "$nw: model is claude-opus-5" '[ "$(fm "$f" model)" = "claude-opus-5" ]'
-  assert "$nw: effort is medium" '[ "$(fm "$f" effort)" = "medium" ]'
+  assert "$nw: shipped model is claude-opus-5" '[ "$(hd_field "$HD" claude "'"${nw#docket-}"'" model)" = "claude-opus-5" ]'
+  assert "$nw: shipped effort is medium" '[ "$(hd_field "$HD" claude "'"${nw#docket-}"'" effort)" = "medium" ]'
   assert "$nw: skills injects docket-convention" 'grep -Eq "^skills:.*docket-convention" "$f"'
   # Isolation: the skills: line wraps NO docket skill (only the convention).
   nw_skills_line="$(grep -E "^skills:" "$f" || true)"
@@ -409,8 +417,8 @@ CONSULT="$AGENTS/docket-brainstorm-consultant.md"
 assert "consultant: wrapper exists" '[ -f "$CONSULT" ]'
 assert "consultant: name matches file" '[ "$(fm "$CONSULT" name)" = "docket-brainstorm-consultant" ]'
 assert "consultant: has a description" '[ -n "$(fm "$CONSULT" description)" ]'
-assert "consultant: model is claude-opus-5" '[ "$(fm "$CONSULT" model)" = "claude-opus-5" ]'
-assert "consultant: effort is medium" '[ "$(fm "$CONSULT" effort)" = "medium" ]'
+assert "consultant: shipped model is claude-opus-5" '[ "$(hd_field "$HD" claude brainstorm-consultant model)" = "claude-opus-5" ]'
+assert "consultant: shipped effort is medium" '[ "$(hd_field "$HD" claude brainstorm-consultant effort)" = "medium" ]'
 # Deliberate ADR-0009 deviation: injects NEITHER a wrapped skill NOR docket-convention.
 assert "consultant: injects NO docket-convention" '! grep -Eq "^skills:.*docket-convention" "$CONSULT"'
 assert "consultant: injects NO wrapped docket skill" '! grep -Eq "^skills:.*docket-(finalize-change|implement-next|auto-groom|status|adr|groom-next|new-change|brainstorm)\b" "$CONSULT"'
@@ -483,7 +491,7 @@ printf 'agent_harnesses: [claude, cursor]\n' > "$SBX/.docket.yml"   # no agents:
 assert "0048 opt-in: agent_harnesses-only generates full set for cursor" '[ "$(find "$SBX/.cursor/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "12" ]'
 assert "0048 opt-in: agent_harnesses-only generates full set for claude" '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "12" ]'
 assert "0048 opt-in: agent_harnesses-only generates the cursor dispatch rule" '[ -f "$SBX/.cursor/rules/docket-dispatch.mdc" ]'
-assert "0048 opt-in: agent_harnesses-only wrappers carry built-in default (no overrides)" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "claude-haiku-4-5-20251001" ]'
+assert "0048 opt-in: agent_harnesses-only wrappers carry shipped default (no overrides)" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "claude-haiku-4-5-20251001" ]'
 rm -rf "$SBX" "$HROOTAH"
 
 # 0048: a repo with NO .docket.yml at all has nothing to check -> passes.
@@ -672,7 +680,8 @@ assert "0047 §agent-cfg: references docket-convention Agent layer for the shape
 assert "0047 §agent-cfg: documents effort: auto drops the pinned effort line" \
   'grep -qF "effort: auto" <<<"$sec" && grep -qF "drops the effort line" <<<"$sec"'
 # Non-restatement guard: the section must NOT hardcode a per-skill model/effort literal
-# (those are config-overridable; built-in defaults live only in agents/docket-*.md). LEARNINGS #17.
+# (those are config-overridable; the shipped defaults live only in agents/harness-defaults.yml
+# since change 0168 — the wrapper sources are behavior-only templates). LEARNINGS #17.
 assert "0047 §agent-cfg: does NOT hardcode a model/effort literal (references the source instead)" \
   '! grep -qiE "\b(opus|sonnet|haiku|fable)\b.*\b(xhigh|high|medium|low)\b|model:[[:space:]]*(opus|sonnet|haiku|claude-)" <<<"$sec"'
 
@@ -710,7 +719,7 @@ printf 'agents:\n  status: { model: sonnet, effort: high }\n' > "$SBX/.docket.ym
 gen_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTL" bash "$SYNC" 2>&1 >/dev/null)"; gen_rc=$?
 assert "0046 (f): legacy shape not fatal (rc=0)" '[ "$gen_rc" = "0" ]'
 assert "0046 (f): warns about the legacy bare agent key" 'printf "%s" "$gen_err" | grep -qi "legacy" && printf "%s" "$gen_err" | grep -q "status"'
-assert "0046 (f): legacy status NOT applied (no project file / built-in only)" '[ ! -f "$SBX/.claude/agents/docket-status.md" ] || [ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "claude-haiku-4-5-20251001" ]'
+assert "0046 (f): legacy status NOT applied (no project file / shipped only)" '[ ! -f "$SBX/.claude/agents/docket-status.md" ] || [ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "claude-haiku-4-5-20251001" ]'
 # Pre-run a normal sync so the .gitignore block exists (leg a green) and the legacy
 # committed-config-shape leg is isolated (still rc!=0 — CI-meaningful, not advisory).
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTL" bash "$SYNC" >/dev/null 2>&1 )
@@ -790,7 +799,7 @@ make_sandbox
 mkdir -p "$SBX/.config/docket"
 printf 'default:\n  status: { model: haiku }\n' > "$SBX/.config/docket/agents.yaml.migrated"
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
-assert "0050 no-dual-read: .migrated is not read (built-in model)" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "claude-haiku-4-5-20251001" ]'
+assert "0050 no-dual-read: .migrated is not read (shipped model)" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "claude-haiku-4-5-20251001" ]'
 rm -rf "$SBX"
 
 # ============================================================================

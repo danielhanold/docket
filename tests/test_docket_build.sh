@@ -349,7 +349,16 @@ assert "controller: does not escalate onto a commit left by a failed attempt" \
 fmv(){ awk 'NR==1 && $0=="---"{f=1;next} f && $0=="---"{exit} f{print}' "$1" \
         | sed -n "s/^$2:[[:space:]]*//p" | head -n1 | sed 's/[[:space:]]*$//'; }
 
-# The ladder is a triple, and effort is the ONLY thing that differs. Asserting the efforts
+# Change 0168 moved the shipped model/effort out of the wrapper frontmatter and into the
+# harness-indexed sidecar, so the profile-ladder invariants are read from THERE. The wrapper
+# sources are behavior-only templates now — fmv() over one for `model` is not merely stale, it is
+# a first-match-anywhere read that would scan into the body and could return prose.
+# shellcheck source=/dev/null
+. "$REPO/scripts/lib/harness-defaults.sh"
+HD="$REPO/agents/harness-defaults.yml"
+assert "the shipped sidecar exists" '[ -f "$HD" ]'
+
+# The ladder is a triple. On CLAUDE, effort is the ONLY thing that differs. Asserting the efforts
 # pairwise-distinct is what stops a copy-paste that silently makes all three the same agent.
 efforts=""
 for p in economy:low standard:medium premium:high; do
@@ -358,26 +367,37 @@ for p in economy:low standard:medium premium:high; do
   assert "profile $name: wrapper exists" '[ -f "$w" ]'
   [ -f "$w" ] || continue
   assert "profile $name: name field matches its filename" '[ "$(fmv "$w" name)" = "docket-build-'"$name"'" ]'
-  assert "profile $name: effort is $want" '[ "$(fmv "$w" effort)" = "'"$want"'" ]'
-  assert "profile $name: model is set" '[ -n "$(fmv "$w" model)" ]'
+  assert "profile $name: shipped claude effort is $want" \
+    '[ "$(hd_field "$HD" claude build-'"$name"' effort)" = "'"$want"'" ]'
+  assert "profile $name: shipped claude model is set" \
+    '[ -n "$(hd_field "$HD" claude build-'"$name"' model)" ]'
   assert "profile $name: preloads the shared worker skill" \
     'grep -qF -- "docket-build-task" <<<"$(fmv "$w" skills)"'
   assert "profile $name: emits no maxTurns" '! grep -qiE "^maxTurns[[:space:]]*:" "$w"'
-  efforts="$efforts $(fmv "$w" effort)"
+  # The source is a behavior-only template: it must carry NO pin of its own, or the sidecar is no
+  # longer the single default store and the two can silently disagree.
+  assert "profile $name: source carries no model:/effort: pin of its own" \
+    '! grep -qE "^(model|effort):" "$w"'
+  efforts="$efforts $(hd_field "$HD" claude build-$name effort)"
 done
-assert "the three profiles carry three DISTINCT efforts" \
+assert "the three claude profiles carry three DISTINCT efforts" \
   '[ "$(tr " " "\n" <<<"$efforts" | grep -c .)" = 3 ] && [ "$(tr " " "\n" <<<"$efforts" | grep -c . )" = "$(tr " " "\n" <<<"$efforts" | grep . | sort -u | wc -l | tr -d " ")" ]'
 
-# All three share one model — the profile axis is effort, not model. If a future change
-# deliberately splits models, this assert is the place that must be updated consciously.
-# Collected as three raw values (not sort -u'd away first): a deleted model: line collapses to a
-# blank that a bare "one distinct value" check would silently ignore, so the non-vacuity half
-# (exactly 3 non-empty values) is asserted alongside the one-value half, same shape as the
-# efforts DISTINCT-count assert above.
+# On CLAUDE all three share one model — there the profile axis is effort, not model. Scoped to the
+# claude block explicitly, because the cursor block deliberately does the opposite (three complete
+# Cursor built-ins whose variant is baked into the ID, so there the axis IS the model).
+# Collected as three raw values (not sort -u'd away first): a deleted entry collapses to a blank
+# that a bare "one distinct value" check would silently ignore, so the non-vacuity half (exactly 3
+# non-empty values) is asserted alongside the one-value half, same shape as the efforts assert.
 models=""
-for n in economy standard premium; do models="$models $(fmv "$REPO/agents/docket-build-$n.md" model)"; done
-assert "the three profiles share one model" \
+for n in economy standard premium; do models="$models $(hd_field "$HD" claude build-$n model)"; done
+assert "the three claude profiles share one model" \
   '[ "$(tr " " "\n" <<<"$models" | grep -c .)" = 3 ] && [ "$(tr " " "\n" <<<"$models" | grep . | sort -u | wc -l | tr -d " ")" = 1 ]'
+
+cursor_models=""
+for n in economy standard premium; do cursor_models="$cursor_models $(hd_field "$HD" cursor build-$n model)"; done
+assert "the three cursor profiles use three DISTINCT models" \
+  '[ "$(tr " " "\n" <<<"$cursor_models" | grep -c .)" = 3 ] && [ "$(tr " " "\n" <<<"$cursor_models" | grep . | sort -u | wc -l | tr -d " ")" = 3 ]'
 
 # The IDs must NOT appear under agents.default in the example — Claude model IDs there would
 # falsely present themselves as harness-portable (spec: "never the harness-neutral fallback").

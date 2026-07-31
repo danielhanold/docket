@@ -13,6 +13,11 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 toml_get(){ sed -n -E 's/^'"$2"'[[:space:]]*=[[:space:]]*"(.*)"[[:space:]]*$/\1/p' "$1" | head -n1; }
 toml_has_key(){ grep -qE "^$2[[:space:]]*=" "$1"; }
 
+# Markdown frontmatter readers — needed since change 0168 to state what the CLAUDE side of a codex
+# run must still look like (byte identity with the source is gone; see the assert block below).
+fm(){ sed -n "s/^$2:[[:space:]]*//p" "$1" | head -n1 | sed 's/[[:space:]]*$//'; }
+body_of(){ awk '/^---[[:space:]]*$/ && d<2 {d++; next} d>=2 {print}' "$1"; }
+
 # Opt a sandbox repo into [claude, codex] and generate.
 mk_codex_repo(){
   SBX="$(mktemp -d)"
@@ -32,13 +37,35 @@ assert "codex: full built-in set as TOML (12 files)"      '[ "$(find "$SBX/.code
 T="$SBX/.codex/agents/docket-status.toml"
 assert "codex TOML: name = docket-status"          '[ "$(toml_get "$T" name)" = "docket-status" ]'
 assert "codex TOML: description matches source"    '[ "$(toml_get "$T" description)" = "$(sed -n "/^description:/{s/^description:[[:space:]]*//;p;q;}" "$REPO/agents/docket-status.md")" ]'
-assert "codex TOML: model = built-in claude id"    '[ "$(toml_get "$T" model)" = "claude-haiku-4-5-20251001" ]'
-assert "codex TOML: model_reasoning_effort = medium" '[ "$(toml_get "$T" model_reasoning_effort)" = "medium" ]'
+# Before change 0168 these asserted `claude-haiku-4-5-20251001` / `medium` — docket-status's CLAUDE
+# pin, read off the wrapper source and written into a Codex wrapper that cannot run a Claude model
+# ID. agents/harness-defaults.yml ships NO codex block (change 0169 owns that mapping), so with no
+# user config the honest output is an unpinned wrapper: Codex applies its own default. Asserting
+# ABSENCE, not a value, is what keeps a re-introduced cross-harness leak visible.
+assert "codex TOML: no model key — nothing shipped for codex, so honestly unpinned" \
+  '! toml_has_key "$T" model'
+assert "codex TOML: no model_reasoning_effort key either" \
+  '! toml_has_key "$T" model_reasoning_effort'
 assert "codex TOML: has developer_instructions"    'grep -qE "^developer_instructions[[:space:]]*=" "$T"'
 assert "codex TOML: dev_instructions carry body"   'grep -qi "refresh docket state" "$T"'
 assert "codex TOML: dev_instructions name the skills to load" 'grep -qi "docket-convention" "$T"'
-# claude side is untouched and still markdown
-assert "claude side still .md, byte-identical to source" 'diff -q "$REPO/agents/docket-status.md" "$SBX/.claude/agents/docket-status.md" >/dev/null'
+# claude side is untouched and still markdown. Byte identity with the source is structurally
+# impossible since change 0168 — the source is a behavior-only template and the generator injects
+# the pin from agents/harness-defaults.yml — so the property is asserted directly: the codex
+# emitter changed NOTHING on the Claude side except that injection.
+assert "claude side still .md, not .toml" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
+assert "claude side: body is verbatim from its source" \
+  'diff -q <(body_of "$REPO/agents/docket-status.md") <(body_of "$SBX/.claude/agents/docket-status.md") >/dev/null'
+assert "claude side: name/description/skills come from the source" \
+  '[ "$(fm "$SBX/.claude/agents/docket-status.md" name)" = "docket-status" ] &&
+   [ "$(fm "$SBX/.claude/agents/docket-status.md" description)" = "$(fm "$REPO/agents/docket-status.md" description)" ] &&
+   [ "$(fm "$SBX/.claude/agents/docket-status.md" skills)" = "$(fm "$REPO/agents/docket-status.md" skills)" ]'
+# Pins both halves: the generated file HAS the shipped pin and the source does NOT, so restoring a
+# default to the source frontmatter reddens it just as dropping the injection does.
+assert "claude side: carries the SHIPPED pin, injected not copied" \
+  '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "claude-haiku-4-5-20251001" ] &&
+   [ "$(fm "$SBX/.claude/agents/docket-status.md" effort)" = "medium" ] &&
+   ! grep -qE "^(model|effort):" "$REPO/agents/docket-status.md"'
 rm -rf "$SBX"
 
 # --- regression: emit_codex_toml preserves a --- thematic break inside the body ---

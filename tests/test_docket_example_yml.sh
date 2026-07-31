@@ -845,10 +845,15 @@ assert "commented codex example present"  'grep -Eq "^#[[:space:]]*#?[[:space:]]
 assert "commented cursor example present" 'grep -Eq "^#[[:space:]]*#?[[:space:]]*cursor:" "$EX"'
 
 # --- (4) MIRROR EQUALITY: relocated ADR-0039 ---------------------------------
-# The commented agents.claude block mirrors agents/docket-*.md wrapper frontmatter VALUE FOR
-# VALUE. The wrappers LEAD; this file mirrors. Same field regex as sync-agents.sh's field_of(),
-# so the test cannot accept a shape the real resolver would reject.
+# The commented agents.claude block mirrors docket's SHIPPED defaults VALUE FOR VALUE. Change 0168
+# moved those out of agents/docket-*.md frontmatter and into agents/harness-defaults.yml, so the
+# sidecar is what LEADS and this file mirrors. Reading the old side with fm() would not merely be
+# stale: fm() is a first-match-ANYWHERE read, so with no `model:` line left in a source's
+# frontmatter it scans on into the body and can return prose.
 fm(){ sed -n "s/^$2:[[:space:]]*//p" "$1" | head -n1 | sed 's/[[:space:]]*$//'; }
+# shellcheck source=/dev/null
+. "$REPO/scripts/lib/harness-defaults.sh"
+HD="$REPO/agents/harness-defaults.yml"
 # The example's agent lines are COMMENTED, so strip a leading '# ' before matching.
 ex_field(){ # $1=agent  $2=field(model|effort)
   local line
@@ -860,8 +865,10 @@ for a in status adr brainstorm-consultant auto-groom auto-groom-critic \
          build-economy build-standard build-premium; do
   w="$REPO/agents/docket-$a.md"
   assert "$a: wrapper exists" '[ -f "$w" ]'
-  assert "$a: model mirrors wrapper" '[ -n "$(ex_field "$a" model)" ] && [ "$(ex_field "$a" model)" = "$(fm "$w" model)" ]'
-  assert "$a: effort mirrors wrapper" '[ -n "$(ex_field "$a" effort)" ] && [ "$(ex_field "$a" effort)" = "$(fm "$w" effort)" ]'
+  assert "$a: model mirrors the shipped sidecar" \
+    '[ -n "$(ex_field "$a" model)" ] && [ "$(ex_field "$a" model)" = "$(hd_field "$HD" claude "'"$a"'" model)" ]'
+  assert "$a: effort mirrors the shipped sidecar" \
+    '[ -n "$(ex_field "$a" effort)" ] && [ "$(ex_field "$a" effort)" = "$(hd_field "$HD" claude "'"$a"'" effort)" ]'
 done
 
 # --- (5) RESOLVER ROUND-TRIP (retained from tests/test_config_example.sh) ----
@@ -911,8 +918,9 @@ assert "round-trip: sync-agents resolves the uncommented example (exit 0)" '[ "$
 assert "round-trip: no unknown-harness-token warning" \
   '! printf "%s" "$err" | grep -qiE "unknown agent_harnesses token"'
 assert "round-trip: a claude wrapper was generated" '[ -f "$SB/.claude/agents/docket-status.md" ]'
-assert "round-trip: claude status model mirrors the built-in" \
-  '[ "$(fm "$SB/.claude/agents/docket-status.md" model)" = "$(fm "$REPO/agents/docket-status.md" model)" ]'
+assert "round-trip: claude status model mirrors the shipped sidecar" \
+  '[ -n "$(hd_field "$HD" claude status model)" ] &&
+   [ "$(fm "$SB/.claude/agents/docket-status.md" model)" = "$(hd_field "$HD" claude status model)" ]'
 assert "round-trip: a cursor wrapper was generated" '[ -f "$SB/.cursor/agents/docket-status.md" ]'
 assert "round-trip: cursor status model came from the example block" \
   '[ "$(fm "$SB/.cursor/agents/docket-status.md" model)" = "cursor-grok-4.5-low-fast" ]'

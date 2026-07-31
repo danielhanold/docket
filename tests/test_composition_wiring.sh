@@ -48,9 +48,10 @@ assert "auto-groom: the critic re-check is dispatched foreground" \
   'grep -qi "re-check is dispatched foreground" "$AUTOGROOM"'
 
 # --- no hardcoded, config-overridable model/effort tiers in the dispatch prose ---
-# model/effort lives in the wrapper frontmatter + layered .docket.yml/global config (the single
-# source of truth, ADR-0008); restating a literal tier here would silently drift the moment a repo
-# overrides it. The prose names the subagent and says it runs at its OWN wrapper-resolved tier —
+# model/effort lives in agents/harness-defaults.yml (the shipped layer, change 0168) ⊕ the layered
+# .docket.yml/global config above it — together the single source of truth (ADR-0008). The wrapper
+# frontmatter no longer holds a default at all. Restating a literal tier here would silently drift
+# the moment a repo overrides it. The prose names the subagent and says it runs at its OWN tier —
 # never a literal value. Regex matches alias/effort pairs like `opus/xhigh`, `sonnet/medium`.
 assert "implement-next dispatch prose pins no literal model/effort tier" \
   '! grep -qE "(opus|sonnet|haiku|fable)/(low|medium|high|xhigh|max)" "$IMPL"'
