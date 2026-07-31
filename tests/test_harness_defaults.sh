@@ -34,17 +34,29 @@ for pair in \
     '[ "$(hd_field "$HD" claude "'"$1"'" model)/$(hd_field "$HD" claude "'"$1"'" effort)" = "'"$2"'/'"$3"'" ]'
 done
 
-# ---- the three Cursor build profiles ----------------------------------------
-assert "cursor/build-economy = cursor-grok-4.5-medium/auto" \
-  '[ "$(hd_field "$HD" cursor build-economy model)/$(hd_field "$HD" cursor build-economy effort)" = "cursor-grok-4.5-medium/auto" ]'
-assert "cursor/build-standard = cursor-grok-4.5-high/auto" \
-  '[ "$(hd_field "$HD" cursor build-standard model)/$(hd_field "$HD" cursor build-standard effort)" = "cursor-grok-4.5-high/auto" ]'
-assert "cursor/build-premium = claude-opus-5-high/auto" \
-  '[ "$(hd_field "$HD" cursor build-premium model)/$(hd_field "$HD" cursor build-premium effort)" = "claude-opus-5-high/auto" ]'
-assert "cursor block is exactly the three build workers" \
-  '[ "$(hd_agents "$HD" cursor | tr "\n" " ")" = "build-economy build-standard build-premium " ]'
+# ---- the Cursor block: complete, like claude ---------------------------------
+# Every ID is a complete Cursor built-in with its variant encoded, so every effort is `auto`.
+for pair in \
+  "adr cursor-grok-4.5-high" \
+  "auto-groom cursor-grok-4.5-medium" \
+  "auto-groom-critic cursor-grok-4.5-high" \
+  "brainstorm-consultant cursor-grok-4.5-high" \
+  "build-economy cursor-grok-4.5-medium" \
+  "build-standard cursor-grok-4.5-high" \
+  "build-premium claude-opus-5-high" \
+  "finalize-change cursor-grok-4.5-high-fast" \
+  "implement-next cursor-grok-4.5-high" \
+  "integration-repair cursor-grok-4.5-high" \
+  "rebase-resolver cursor-grok-4.5-high" \
+  "status cursor-grok-4.5-low-fast" ; do
+  set -- $pair
+  assert "cursor/$1 = $2/auto" \
+    '[ "$(hd_field "$HD" cursor "'"$1"'" model)/$(hd_field "$HD" cursor "'"$1"'" effort)" = "'"$2"'/auto" ]'
+done
 assert "no codex block yet (change 0169 owns it)" '[ -z "$(hd_agents "$HD" codex)" ]'
-assert "unlisted pair resolves empty" '[ -z "$(hd_field "$HD" cursor status model)" ]'
+# A pair unlisted because its HARNESS ships nothing still resolves empty — the sparse-by-harness
+# property survives cursor becoming complete.
+assert "unlisted harness pair resolves empty" '[ -z "$(hd_field "$HD" codex status model)" ]'
 
 # ---- set correspondence, BOTH directions ------------------------------------
 # forward: every claude entry names a real source wrapper
@@ -57,18 +69,37 @@ for f in "$SRC"/docket-*.md; do
   n="$(basename "$f" .md)"; n="${n#docket-}"
   assert "source $n has a claude entry" '[ -n "$(hd_field "$HD" claude "'"$n"'" model)" ]'
 done
-# reverse: every cursor entry is a build worker
+# forward: every cursor entry names a real source wrapper
 while IFS= read -r a; do
   [ -n "$a" ] || continue
-  assert "cursor/$a is a build worker" '[ -f "$SRC/docket-'"$a"'.md" ] && case "'"$a"'" in build-*) true;; *) false;; esac'
+  assert "cursor/$a has a source wrapper" '[ -f "$SRC/docket-'"$a"'.md" ]'
 done < <(hd_agents "$HD" cursor)
+# reverse: every source wrapper has a cursor entry — the same completeness claude carries, so a
+# thirteenth wrapper cannot land pinned on Claude and unpinned on Cursor
+for f in "$SRC"/docket-*.md; do
+  n="$(basename "$f" .md)"; n="${n#docket-}"
+  assert "source $n has a cursor entry" '[ -n "$(hd_field "$HD" cursor "'"$n"'" model)" ]'
+done
 
 # ---- validator rejects each malformed shape ---------------------------------
 T="$(mktemp -d)"
 mut(){ cp "$HD" "$T/hd.yml"; }
 
-mut; sed -i.bak '/^    status:/d' "$T/hd.yml"
+# Completeness is now enforced for BOTH shipped harnesses, so each gets its own mutation and each
+# checks the DIAGNOSTIC names the right harness. A bare `/^    status:/d` would delete the row from
+# both blocks at once and go green whichever leg actually fired — it could not tell a working
+# cursor rule from a cursor rule that was never written.
+mut; sed -i.bak '/^    status:.*claude-haiku/d' "$T/hd.yml"
 assert "reject: missing a claude entry" '! hd_validate "$T/hd.yml" "$SRC" 2>/dev/null'
+claude_gap_diag="$(hd_validate "$T/hd.yml" "$SRC" 2>&1 || true)"
+assert "reject: the claude gap is reported against claude" \
+  'grep -q "claude block is incomplete — no entry for .status." <<<"$claude_gap_diag"'
+
+mut; sed -i.bak '/^    status:.*cursor-grok/d' "$T/hd.yml"
+assert "reject: missing a cursor entry" '! hd_validate "$T/hd.yml" "$SRC" 2>/dev/null'
+cursor_gap_diag="$(hd_validate "$T/hd.yml" "$SRC" 2>&1 || true)"
+assert "reject: the cursor gap is reported against cursor" \
+  'grep -q "cursor block is incomplete — no entry for .status." <<<"$cursor_gap_diag"'
 
 mut; printf '    phantom:               { model: x, effort: low }\n' >> "$T/hd.yml"
 assert "reject: phantom agent key" '! hd_validate "$T/hd.yml" "$SRC" 2>/dev/null'

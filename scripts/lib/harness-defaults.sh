@@ -15,9 +15,15 @@
 # sync-agents.sh sets) a `producer | head -n1` would take SIGPIPE and turn into an intermittent
 # 141; single-line selection is done with shell parameter expansion instead.
 
-# Known harness tokens. Adding one here is not enough to ship defaults for it — the emitter and the
-# set-equality rules in hd_validate decide what a complete block means.
+# Known harness tokens — what may APPEAR in the sidecar at all. Adding one here is not enough to
+# ship defaults for it; the emitter must also know how to write the harness's wrapper.
 HD_KNOWN_HARNESSES="claude cursor codex"
+
+# Harnesses docket actually SHIPS defaults for. Each must carry a COMPLETE block (every
+# agents/docket-*.md). A known-but-unshipped harness (codex today, until change 0169) may hold no
+# block at all — but the moment it holds one, listing it here is what makes partial coverage an
+# error rather than a silent half-pinned harness.
+HD_SHIPPED_HARNESSES="claude cursor"
 
 # Print the body lines under `  <harness>:` (four-space-indented entries), comments stripped.
 _hd_block(){ # $1=file $2=harness
@@ -49,8 +55,7 @@ hd_harnesses(){ # $1=file
 }
 
 # Print the agent short-names under <harness>, in FILE ORDER. Callers that need a set comparison
-# sort explicitly; file order is what makes the "exactly the three build workers, in ladder order"
-# assertion readable.
+# sort explicitly.
 hd_agents(){ # $1=file $2=harness
   _hd_block "$1" "$2" | sed -e 's/^    //' -e 's/[[:space:]]*:.*//'
 }
@@ -157,24 +162,17 @@ hd_validate(){ # $1=file $2=sources-dir
       fi
     done < <(_hd_block "$f" "$h")
   done
-  # completeness: claude == every source wrapper, both directions
-  for n in "$src"/docket-*.md; do
-    [ -e "$n" ] || continue
-    a="$(basename "$n" .md)"; a="${a#docket-}"
-    [ -n "$(hd_field "$f" claude "$a" model)" ] || {
-      echo "harness-defaults: claude block is incomplete — no entry for '$a'" >&2; rc=1; }
-  done
-  # completeness: cursor == every build worker, both directions
-  for n in "$src"/docket-build-*.md; do
-    [ -e "$n" ] || continue
-    a="$(basename "$n" .md)"; a="${a#docket-}"
-    [ -n "$(hd_field "$f" cursor "$a" model)" ] || {
-      echo "harness-defaults: cursor block is incomplete — no entry for build profile '$a'" >&2; rc=1; }
-  done
-  for a in $(hd_agents "$f" cursor); do
-    case "$a" in build-*) : ;; *)
-      echo "harness-defaults: cursor/$a is not a build profile — change 0168 ships cursor defaults for the build workers only" >&2; rc=1 ;;
-    esac
+  # Completeness: every harness docket ships defaults for must cover the WHOLE wrapper set, so a
+  # new agents/docket-*.md cannot land pinned on one harness and unpinned on another. The reverse
+  # direction — an entry naming no wrapper source — is already enforced per-entry above (line
+  # 131), for every harness including ones docket ships nothing for.
+  for h in $HD_SHIPPED_HARNESSES; do
+    for n in "$src"/docket-*.md; do
+      [ -e "$n" ] || continue
+      a="$(basename "$n" .md)"; a="${a#docket-}"
+      [ -n "$(hd_field "$f" "$h" "$a" model)" ] || {
+        echo "harness-defaults: $h block is incomplete — no entry for '$a'" >&2; rc=1; }
+    done
   done
   return $rc
 }

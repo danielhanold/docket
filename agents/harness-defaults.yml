@@ -12,8 +12,7 @@
 #   - a listed entry supplies BOTH model and effort — the table is sparse by harness and agent,
 #     never by field;
 #   - `runner:` is forbidden — delegation is user policy, never a shipped default;
-#   - the claude block is COMPLETE (its key set equals agents/docket-*.md);
-#   - the cursor block is COMPLETE for the build profiles (its key set equals agents/docket-build-*.md).
+#   - the claude and cursor blocks are both COMPLETE (each key set equals agents/docket-*.md).
 #
 # Model IDs and effort tokens are opaque passthrough values (ADR-0015). Docket keeps no vendor
 # allowlist; an unrecognized string is never rejected here. They must, however, be written as BARE
@@ -36,10 +35,21 @@ agents:
     rebase-resolver:       { model: claude-opus-5, effort: medium }
     status:                { model: claude-haiku-4-5-20251001, effort: medium }
 
-  # Cursor's three build-profile workers. Each ID is a COMPLETE Cursor built-in whose variant is
-  # already encoded, so effort is `auto`: the Cursor emitter writes the ID verbatim rather than
-  # appending a second, conflicting `[effort=…]` suffix.
+  # Cursor's full wrapper set. Each ID is a COMPLETE Cursor built-in whose variant is already
+  # encoded, so effort is `auto`: the Cursor emitter writes the ID verbatim rather than appending
+  # a second, conflicting `[effort=…]` suffix. The tiering mirrors the claude block's intent —
+  # cheapest for the mechanical status sweep, mid for design and repair work, highest for the
+  # premium build profile — expressed in Cursor's variant suffixes instead of an effort token.
   cursor:
+    adr:                   { model: cursor-grok-4.5-high, effort: auto }
+    auto-groom:            { model: cursor-grok-4.5-medium, effort: auto }
+    auto-groom-critic:     { model: cursor-grok-4.5-high, effort: auto }
+    brainstorm-consultant: { model: cursor-grok-4.5-high, effort: auto }
     build-economy:         { model: cursor-grok-4.5-medium, effort: auto }
     build-standard:        { model: cursor-grok-4.5-high, effort: auto }
     build-premium:         { model: claude-opus-5-high, effort: auto }
+    finalize-change:       { model: cursor-grok-4.5-high-fast, effort: auto }
+    implement-next:        { model: cursor-grok-4.5-high, effort: auto }
+    integration-repair:    { model: cursor-grok-4.5-high, effort: auto }
+    rebase-resolver:       { model: cursor-grok-4.5-high, effort: auto }
+    status:                { model: cursor-grok-4.5-low-fast, effort: auto }

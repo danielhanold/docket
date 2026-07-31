@@ -45,16 +45,23 @@ assert "cursor: emits description from source"   '[ "$(fm "$C" description)" = "
 assert "cursor: does NOT emit readonly"          '! has_fm_key "$C" readonly'
 assert "cursor: does NOT emit is_background"     '! has_fm_key "$C" is_background'
 
-# --- an agent with NO cursor entry in the sidecar is generated honestly unpinned ------------------
+# --- a non-build cursor agent resolves its OWN cursor ID, not a claude one -----------------------
 # Before change 0168 this asserted `claude-haiku-4-5-20251001[effort=medium]` — docket-status's
-# CLAUDE pin, read off the wrapper source and leaked onto a harness that cannot run it. The sidecar
-# has no `cursor: status:` entry, so the correct output is no model line at all: Cursor applies its
-# own default rather than being handed a model ID from another vendor's namespace.
-# Bracket encoding itself is NOT lost — it is still exercised below by the explicit model+effort
-# override ("unknown model+effort pass through verbatim"), which is the real encoding path.
-assert "cursor: agent with no sidecar entry is honestly unpinned (no claude ID leak)" \
-  '! has_fm_key "$C" model'
-assert "cursor: unpinned agent leaks no bracket-encoded effort either" \
+# CLAUDE pin, read off the wrapper source and leaked onto a harness that cannot run it. 0168 first
+# made it honestly UNPINNED (no model line); the amendment completes the cursor block, so the
+# correct output is now docket-status's own CURSOR ID.
+#
+# Read from the sidecar rather than hard-coded: this asserts "the wrapper says what docket ships
+# for cursor/status", which is the no-leak property itself. A literal would restate the sidecar and
+# would still pass if BOTH moved to a claude ID together.
+# The honest-unpinned path is not lost — codex ships no block at all and covers it in
+# tests/test_sync_agents_codex.sh. Bracket encoding is exercised below by the explicit
+# model+effort override ("unknown model+effort pass through verbatim").
+. "$REPO/scripts/lib/harness-defaults.sh"
+cursor_status_id="$(hd_field "$REPO/agents/harness-defaults.yml" cursor status model)"
+assert "cursor: non-build agent is pinned to its own cursor ID (no claude ID leak)" \
+  '[ -n "$cursor_status_id" ] && [ "$(fm "$C" model)" = "$cursor_status_id" ]'
+assert "cursor: a shipped auto-effort ID carries no bracket-encoded effort" \
   '! grep -q "\[effort=" "$C"'
 
 # --- the body preamble replaces the inert skills: preload ----------------------------------------
