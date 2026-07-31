@@ -12,7 +12,7 @@ related: [135, 142, 164, 169]
 discovered_from: [167]
 adrs: [15, 16, 48, 60, 63]
 spec: docs/superpowers/specs/2026-07-30-cursor-profile-routed-build-support-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-31-cursor-profile-routed-build-support.md
 results:
 trivial: false
 auto_groomable:
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-30-cursor-profile-routed-build-support-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-30-cursor-profile-routed-build-support-design.md) |
+| Plan | [2026-07-31-cursor-profile-routed-build-support.md](https://github.com/danielhanold/docket/blob/feat/cursor-profile-routed-build-support/docs/superpowers/plans/2026-07-31-cursor-profile-routed-build-support.md) |
 | ADRs | [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md), [ADR-0016](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0016-harness-first-agent-config.md), [ADR-0048](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0048-docket-yml-example-invariants.md), [ADR-0060](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0060-generated-wrapper-conforms-to-target-harness-contract.md), [ADR-0063](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0063-docket-owns-the-build-role-profile-routed-workers.md) |
 <!-- docket:artifacts:end -->
 
