@@ -38,10 +38,15 @@ Shipped agent model/effort defaults live in a sparse, harness-indexed sidecar,
 1. **Every entry nests under a CONCRETE harness.** A harness-neutral `default:` block is forbidden
    in the sidecar. Such a block is precisely the cross-harness leakage this change removes: a value
    authored once and inherited by harnesses nobody validated it against.
-2. **Sparse by harness and by agent, never by field.** The table is complete for Claude (all twelve
-   agents) and deliberately partial for Cursor (its three build-profile workers only), with no Codex
-   block until change 0169. A listed entry supplies BOTH `model` and `effort`; there is no
-   half-specified entry.
+2. **Sparse by harness, complete within a shipped harness, never sparse by field.** The table is
+   complete for both harnesses docket ships defaults for — Claude and Cursor, all twelve agents
+   each — with no Codex block until change 0169. Sparseness is a property of *which harnesses*
+   appear, not of how much of a harness appears: once docket ships a harness at all, a partial
+   block would leave that harness half-pinned, with the unpinned half silently falling to the
+   harness's own default while the pinned half carries docket's judgment. `hd_validate` enforces
+   completeness against `agents/docket-*.md` for every harness in `HD_SHIPPED_HARNESSES`, so a
+   thirteenth wrapper cannot land pinned on one shipped harness and unpinned on another. A listed
+   entry supplies BOTH `model` and `effort`; there is no half-specified entry.
 3. **`runner:` is forbidden in the sidecar.** Delegation is user policy, never a shipped default.
 4. **Lowest layer.** Resolution stays field-by-field per ADR-0016, with the sidecar as the LOWEST
    layer — below machine-local, repo-committed, and global user config.
@@ -57,8 +62,11 @@ Shipped agent model/effort defaults live in a sparse, harness-indexed sidecar,
 canonical config reference held trustworthy by three invariants, enforced together by
 `tests/test_docket_example_yml.sh`:
 
-1. **The mirror rule, re-pointed.** `.docket.example.yml`'s commented `agents.claude` block mirrors
-   **`agents/harness-defaults.yml`** — no longer `agents/docket-*.md` wrapper frontmatter. The
+1. **The mirror rule, re-pointed.** `.docket.example.yml`'s commented `agents.claude` and
+   `agents.cursor` blocks mirror **`agents/harness-defaults.yml`** — no longer `agents/docket-*.md`
+   wrapper frontmatter. Both sit at the SAME comment depth, and that depth is itself meaningful:
+   a mirror of a shipped default is singly commented, while a block for a harness docket ships
+   nothing for (`codex`, until change 0169) is doubly commented as unvalidated illustration. The
    sidecar is now the single source of truth; the mirror never leads. A reader who finds the two
    disagreeing trusts the sidecar. The block still ships **commented**, not active, because
    `agents:` and `agent_harnesses:` are presence-sensitive: `sync-agents.sh` branches on whether the
