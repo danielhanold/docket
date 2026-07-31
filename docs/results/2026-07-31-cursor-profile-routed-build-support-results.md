@@ -19,10 +19,12 @@ outcome before continuing; a merely completed child is not success evidence.
 
 - [ ] An explicit `economy` task dispatches to `cursor-grok-4.5-medium`
 - [ ] An explicit `standard` task dispatches to `cursor-grok-4.5-high`
-- [ ] An explicit `premium` task dispatches to `claude-opus-5-high`
-- [ ] At least one automatically classified task whose routing line and model indicator agree
-- [ ] One task deliberately started at `standard` whose revealed named risk causes
+- [x] An explicit `premium` task dispatches to `claude-opus-5-high`
+- [x] At least one automatically classified task whose routing line and model indicator agree
+      — **accepted on reasoning, not observed under Cursor** (see the certification note below)
+- [x] One task deliberately started at `standard` whose revealed named risk causes
       `NEEDS_ESCALATION`, followed by exactly **one** foreground premium retry
+      — **accepted on reasoning, not observed under Cursor** (see the certification note below)
 
 Before the above, regenerate and eyeball the wrappers — `bash sync-agents.sh`, then inspect
 `.cursor/agents/`:
@@ -41,7 +43,23 @@ Before the above, regenerate and eyeball the wrappers — `bash sync-agents.sh`,
 > of PR #140 completed the cursor block. If you are working from a printed or cached copy, the
 > twelve-pinned form above is the current one.
 
-## Findings
+### Certification outcome (2026-07-31, maintainer, Cursor IDE)
+
+**Certified.** Observed directly in a live Cursor build of change 0009: all three profiles
+dispatched to their own agents (`Docket Build Economy` / `Standard` / `Premium`), economy and
+standard on Grok and premium on Opus, with routing that varied by task rather than being uniform —
+Zero Trust Access gating and a least-privilege deploy token to premium, scaffolding and gate
+validation to economy. Regenerated `.cursor/agents/` wrappers were separately confirmed to carry
+the correct model IDs.
+
+**Two checklist items were accepted on reasoning rather than observed**, at the maintainer's
+decision: automatic task classification, and the `NEEDS_ESCALATION` → single premium retry path.
+The rationale — escalation and classification are defined in the `docket-build-task` contract and
+`docket-build`'s loop, both harness-neutral prose loaded identically by all three profile workers;
+what is harness-specific is *dispatch*, and dispatch was certified above across all three profiles
+including two independent premium dispatches. Both paths have been observed working under Claude
+Code. Recorded here as a deliberate waiver, not an omission: if profile routing under Cursor ever
+misbehaves on an escalation, this is the gap to re-open first.
 
 **ADR-0064** records the decision — shipped agent defaults live in a sparse, harness-indexed sidecar
 (`agents/harness-defaults.yml`); behavioral wrapper templates carry no cross-harness model floor. It
