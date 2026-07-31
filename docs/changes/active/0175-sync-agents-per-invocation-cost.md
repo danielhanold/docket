@@ -2,7 +2,7 @@
 id: 175
 slug: sync-agents-per-invocation-cost
 title: sync-agents.sh costs ~5.5s per invocation and dominates the test suite
-status: proposed
+status: in-progress
 priority: medium
 type: perf
 created: 2026-07-31
@@ -16,7 +16,8 @@ plan:
 results:
 trivial: false
 auto_groomable: false
-branch:
+branch: feat/sync-agents-per-invocation-cost
+claimed_at: 2026-07-31T20:30:19Z
 pr:
 blocked_by:
 reconciled: false
