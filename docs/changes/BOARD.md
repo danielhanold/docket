@@ -1,8 +1,8 @@
 # Backlog
 
-**173 changes** — 🟡 33 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 115 done · 🗑️ 19 killed
+**175 changes** — 🟡 35 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 115 done · 🗑️ 19 killed
 
-## 🟡 Proposed (33)
+## 🟡 Proposed (35)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -39,6 +39,8 @@
 | [0171](active/0171-settle-a-reflow-tolerant-house-pattern-for-prose-anchored-gu.md) | Settle a reflow-tolerant house pattern for prose-anchored guards | `medium` | `refactor` | needs-brainstorm |
 | [0172](active/0172-normalize-the-banned-producer-pipe-shape-across-tests-and-he.md) | Normalize the banned producer-pipe shape across tests and helpers | `medium` | `chore` | needs-brainstorm |
 | [0173](active/0173-field-of-silently-truncates-a-model-id-containing-or.md) | field_of() silently truncates a model ID containing / or : | `medium` | `fix` | needs-brainstorm |
+| [0174](active/0174-reuse-test-git-fixtures.md) | Reuse test git fixtures instead of rebuilding them per assertion | `medium` | `chore` | build-ready |
+| [0175](active/0175-sync-agents-per-invocation-cost.md) | sync-agents.sh costs ~5.5s per invocation and dominates the test suite | `medium` | `perf` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -97,6 +99,8 @@ graph TD
   0171
   0172
   0173
+  0174
+  0175
   0015:::done
   0077:::done
   0167:::done
