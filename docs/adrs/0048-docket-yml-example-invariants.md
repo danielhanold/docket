@@ -2,7 +2,7 @@
 id: 48
 slug: docket-yml-example-invariants
 title: .docket.yml.example is a tested canonical config reference — mirror, fidelity, must-update
-status: Accepted
+status: Superseded by ADR-64
 date: 2026-07-19
 supersedes: [39]
 reverses: []
