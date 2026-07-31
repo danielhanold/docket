@@ -20,6 +20,9 @@ fm(){ sed -n "s/^$2:[[:space:]]*//p" "$1" | head -n1 | sed 's/[[:space:]]*$//'; 
 # a bare `grep -q '^effort:'` over the whole file would also match wrapper body prose.
 front(){ awk '/^---[[:space:]]*$/{d++; next} d==1{print} d>=2{exit}' "$1"; }
 has_fm_key(){ local f; f="$(front "$1")"; grep -qE "^$2[[:space:]]*:" <<<"$f"; }
+# Body = everything after the frontmatter's closing fence. Change 0168 made emit() strip-and-insert
+# the resolved model/effort, so a generated wrapper is no longer byte-identical to its source.
+body_of(){ awk '/^---[[:space:]]*$/ && d<2 {d++; next} d>=2 {print}' "$1"; }
 
 mk_cursor_repo(){  # $1 = optional .docket.yml body (default: bare [claude, cursor] opt-in)
   SBX="$(mktemp -d)"
@@ -42,9 +45,17 @@ assert "cursor: emits description from source"   '[ "$(fm "$C" description)" = "
 assert "cursor: does NOT emit readonly"          '! has_fm_key "$C" readonly'
 assert "cursor: does NOT emit is_background"     '! has_fm_key "$C" is_background'
 
-# --- effort rides INSIDE the model value ---------------------------------------------------------
-assert "cursor: model carries bracket-encoded effort" \
-  '[ "$(fm "$C" model)" = "claude-haiku-4-5-20251001[effort=medium]" ]'
+# --- an agent with NO cursor entry in the sidecar is generated honestly unpinned ------------------
+# Before change 0168 this asserted `claude-haiku-4-5-20251001[effort=medium]` — docket-status's
+# CLAUDE pin, read off the wrapper source and leaked onto a harness that cannot run it. The sidecar
+# has no `cursor: status:` entry, so the correct output is no model line at all: Cursor applies its
+# own default rather than being handed a model ID from another vendor's namespace.
+# Bracket encoding itself is NOT lost — it is still exercised below by the explicit model+effort
+# override ("unknown model+effort pass through verbatim"), which is the real encoding path.
+assert "cursor: agent with no sidecar entry is honestly unpinned (no claude ID leak)" \
+  '! has_fm_key "$C" model'
+assert "cursor: unpinned agent leaks no bracket-encoded effort either" \
+  '! grep -q "\[effort=" "$C"'
 
 # --- the body preamble replaces the inert skills: preload ----------------------------------------
 assert "cursor: body preamble names the agent's own skill" 'grep -qF "docket-status" "$C"'
@@ -52,9 +63,47 @@ assert "cursor: body preamble names docket-convention"     'grep -qF "docket-con
 assert "cursor: preamble tells the child to LOAD them"     'grep -qiF "load these docket skills" "$C"'
 assert "cursor: wrapper body survives verbatim"            'grep -qi "refresh docket state" "$C"'
 
+# --- the three shipped Cursor build-profile pins (change 0168) ------------------------------------
+# Each sidecar ID is a COMPLETE Cursor built-in whose variant is already encoded, so its effort is
+# `auto` and the emitter must write the ID verbatim rather than appending a second, conflicting
+# [effort=…] suffix on top of the one already baked into the name.
+assert "cursor: build-economy carries its shipped Cursor ID, no effort suffix" \
+  '[ "$(fm "$SBX/.cursor/agents/docket-build-economy.md" model)" = "cursor-grok-4.5-medium" ]'
+assert "cursor: build-standard carries its shipped Cursor ID, no effort suffix" \
+  '[ "$(fm "$SBX/.cursor/agents/docket-build-standard.md" model)" = "cursor-grok-4.5-high" ]'
+assert "cursor: build-premium carries its shipped Cursor ID, no effort suffix" \
+  '[ "$(fm "$SBX/.cursor/agents/docket-build-premium.md" model)" = "claude-opus-5-high" ]'
+for p in economy standard premium; do
+  assert "cursor: build-$p emits no standalone effort: key" \
+    '! has_fm_key "$SBX/.cursor/agents/docket-build-'"$p"'.md" effort'
+  assert "cursor: build-$p model has no appended [effort=…] suffix" \
+    '! grep -q "\[effort=" "$SBX/.cursor/agents/docket-build-'"$p"'.md"'
+done
+# The three profiles must be three DISTINCT Cursor models — the Cursor ladder varies by model where
+# the Claude ladder varies by effort, so a copy-paste that collapses them is the failure to catch.
+cursor_profile_models="$(for p in economy standard premium; do fm "$SBX/.cursor/agents/docket-build-$p.md" model; done)"
+assert "cursor: the three build profiles carry three DISTINCT models" \
+  '[ "$(grep -c . <<<"$cursor_profile_models")" = "3" ] &&
+   [ "$(sort -u <<<"$cursor_profile_models" | grep -c .)" = "3" ]'
+
 # --- the claude and codex sides are untouched (emitter-split regression guard) --------------------
-assert "cursor split: claude wrapper still byte-identical to its source" \
-  'diff -q "$REPO/agents/docket-status.md" "$SBX/.claude/agents/docket-status.md" >/dev/null'
+# Byte identity with the source is now structurally impossible: change 0168 made the source a
+# behavior-only template and the generator INJECTS the pin from agents/harness-defaults.yml. The
+# mechanism this guarded — the emitter split changes NOTHING on the Claude side except that
+# injection — is asserted directly instead.
+assert "cursor split: claude wrapper body is verbatim from its source" \
+  'diff -q <(body_of "$REPO/agents/docket-status.md") <(body_of "$SBX/.claude/agents/docket-status.md") >/dev/null'
+assert "cursor split: claude wrapper name/description/skills come from the source" \
+  '[ "$(fm "$SBX/.claude/agents/docket-status.md" name)" = "docket-status" ] &&
+   [ "$(fm "$SBX/.claude/agents/docket-status.md" description)" = "$(fm "$REPO/agents/docket-status.md" description)" ] &&
+   [ "$(fm "$SBX/.claude/agents/docket-status.md" skills)" = "$(fm "$REPO/agents/docket-status.md" skills)" ]'
+# The load-bearing one: it pins BOTH halves — the generated file HAS the shipped pin and the source
+# does NOT — so restoring a default to the source frontmatter reddens it just as dropping the
+# injection does.
+assert "cursor split: claude wrapper carries the SHIPPED pin, injected not copied" \
+  '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "claude-haiku-4-5-20251001" ] &&
+   [ "$(fm "$SBX/.claude/agents/docket-status.md" effort)" = "medium" ] &&
+   ! grep -qE "^(model|effort):" "$REPO/agents/docket-status.md"'
 assert "cursor split: claude wrapper still HAS effort:" 'has_fm_key "$SBX/.claude/agents/docket-status.md" effort'
 assert "cursor split: claude wrapper still HAS skills:" 'has_fm_key "$SBX/.claude/agents/docket-status.md" skills'
 rm -rf "$SBX"
