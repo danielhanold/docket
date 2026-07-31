@@ -1,8 +1,6 @@
 ---
 name: docket-build-economy
 description: Economy build-profile worker for docket-build — implements one fully-specified, low-risk plan task under the docket-build-task contract; the cheapest of docket-build's three profiles.
-model: claude-opus-5
-effort: low
 skills: [docket-build-task]
 ---
 Implement the single plan task handed to you, following the docket-build-task skill exactly.

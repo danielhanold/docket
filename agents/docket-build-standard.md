@@ -1,8 +1,6 @@
 ---
 name: docket-build-standard
 description: Standard build-profile worker for docket-build — implements one normal feature, integration, refactor, or debugging plan task under the docket-build-task contract; the middle of docket-build's three profiles and its default.
-model: claude-opus-5
-effort: medium
 skills: [docket-build-task]
 ---
 Implement the single plan task handed to you, following the docket-build-task skill exactly.

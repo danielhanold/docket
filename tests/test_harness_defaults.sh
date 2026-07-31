@@ -103,5 +103,22 @@ assert "runner guard names 'runner' under a clobbered IFS" \
   'grep -q "delegation is user policy" <<<"$diag"'
 rm -rf "$T"
 
+# ---- the sources are behavior-only templates --------------------------------
+# Anchored to the first frontmatter block: these files' BODIES legitimately discuss model/effort.
+# awk note: a bare `exit 0` in a rule still runs END, so the found-flag is load-bearing — an
+# END that unconditionally exits 1 would make every `! fm_has` assert vacuously green.
+fm_has(){ # $1=file $2=key -> 0 if the key appears in the first --- block
+  awk -v k="$2" '
+    /^---[[:space:]]*$/ { d++; if (d>=2) exit; next }
+    d==1 && $0 ~ "^"k"[[:space:]]*:" { found=1; exit }
+    END { exit(found?0:1) }' "$1"
+}
+for f in "$SRC"/docket-*.md; do
+  n="$(basename "$f")"
+  assert "$n: no model: in frontmatter (sidecar owns it)"  '! fm_has "'"$f"'" model'
+  assert "$n: no effort: in frontmatter (sidecar owns it)" '! fm_has "'"$f"'" effort'
+  assert "$n: still declares name:"                        'fm_has "'"$f"'" name'
+done
+
 [ "$fail" = 0 ] && echo "PASS" || echo "FAIL"
 exit "$fail"
