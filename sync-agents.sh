@@ -53,6 +53,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
 . "$SCRIPT_DIR/scripts/lib/docket-gitignore-block.sh"
+# shellcheck source=/dev/null
+. "$SCRIPT_DIR/scripts/lib/harness-defaults.sh"
+HARNESS_DEFAULTS="$SCRIPT_DIR/agents/harness-defaults.yml"
 AGENTS_SRC="$SCRIPT_DIR/agents"
 CURSOR_RULES_SRC="$SCRIPT_DIR/cursor-rules"
 REPO="$PWD"
@@ -273,14 +276,18 @@ harness_agent_line() {  # $1=file  $2=harness  $3=agent  $4=under_agents(0|1)
 # Resolve (harness, agent) per-field across the given layer files, highest precedence
 # first (each read under a top-level agents: wrapper). Within a layer the harness line
 # beats the default line; across layers the first layer supplying a field wins; the
-# built-in floor is handled by emit(). RES_MODEL_FROM_HARNESS=1 iff the model came from
-# a harness-specific line in ANY layer (drives warn_fallback_model). RES_RUNNER (change
-# 0079) resolves the same way; the pre-0079 early break is gone — runner rarely fills,
-# and the loop spans at most three small files.
+# shipped floor is agents/harness-defaults.yml (change 0168), applied below.
+# RES_MODEL_FROM_HARNESS=1 iff the model came from a harness-specific line in ANY
+# USER layer (drives warn_fallback_model) — the shipped sidecar never sets it.
+# RES_MODEL_FROM_USER / RES_EFFORT_FROM_USER = 1 iff that field came from a user
+# layer at all (harness-specific or default). RES_RUNNER (change 0079) resolves the
+# same way; the pre-0079 early break is gone — runner rarely fills, and the loop
+# spans at most three small files.
 resolve_agent_layers() {  # $1=harness  $2=agent  $3..=layer files (precedence order)
   local harness="$1" agent="$2" f hline dline hm he dm de hr dr
   shift 2
   RES_MODEL=""; RES_EFFORT=""; RES_RUNNER=""; RES_MODEL_FROM_HARNESS=0
+  RES_MODEL_FROM_USER=0; RES_EFFORT_FROM_USER=0
   for f in "$@"; do
     hline="$(harness_agent_line "$f" "$harness" "$agent" 1)"
     dline="$(harness_agent_line "$f" default "$agent" 1)"
@@ -288,18 +295,23 @@ resolve_agent_layers() {  # $1=harness  $2=agent  $3..=layer files (precedence o
     dm="$(field_of "$dline" model)";  de="$(field_of "$dline" effort)"
     hr="$(field_of "$hline" runner)"; dr="$(field_of "$dline" runner)"
     if [ -z "$RES_MODEL" ]; then
-      if   [ -n "$hm" ]; then RES_MODEL="$hm"; RES_MODEL_FROM_HARNESS=1
-      elif [ -n "$dm" ]; then RES_MODEL="$dm"; fi
+      if   [ -n "$hm" ]; then RES_MODEL="$hm"; RES_MODEL_FROM_HARNESS=1; RES_MODEL_FROM_USER=1
+      elif [ -n "$dm" ]; then RES_MODEL="$dm"; RES_MODEL_FROM_USER=1; fi
     fi
     if [ -z "$RES_EFFORT" ]; then
-      if   [ -n "$he" ]; then RES_EFFORT="$he"
-      elif [ -n "$de" ]; then RES_EFFORT="$de"; fi
+      if   [ -n "$he" ]; then RES_EFFORT="$he"; RES_EFFORT_FROM_USER=1
+      elif [ -n "$de" ]; then RES_EFFORT="$de"; RES_EFFORT_FROM_USER=1; fi
     fi
     if [ -z "$RES_RUNNER" ]; then
       if   [ -n "$hr" ]; then RES_RUNNER="$hr"
       elif [ -n "$dr" ]; then RES_RUNNER="$dr"; fi
     fi
   done
+  # Shipped floor (change 0168): the sidecar is harness-indexed, so it can only supply a value for
+  # the harness being generated. It never sets RES_*_FROM_USER — that split is what keeps a shipped
+  # native default out of a delegated child-runner's flags (see emit_wrapper).
+  [ -z "$RES_MODEL" ]  && RES_MODEL="$(hd_field "$HARNESS_DEFAULTS" "$harness" "$agent" model)"
+  [ -z "$RES_EFFORT" ] && RES_EFFORT="$(hd_field "$HARNESS_DEFAULTS" "$harness" "$agent" effort)"
   return 0
 }
 
@@ -906,6 +918,13 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
 
   if [ "$CHECK" = "1" ]; then
     if check_project_level; then exit 0; else exit 1; fi
+  fi
+
+  # The sidecar is required program data (change 0168). Validate BEFORE writing any wrapper, so a
+  # malformed file cannot leave a half-regenerated agent directory behind.
+  if ! hd_validate "$HARNESS_DEFAULTS" "$AGENTS_SRC"; then
+    log "ERROR agents/harness-defaults.yml is missing or invalid — no wrappers were written."
+    exit 1
   fi
 
   migrate_legacy_global

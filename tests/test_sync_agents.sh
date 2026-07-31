@@ -237,6 +237,13 @@ assert "0048 prune: adr generated before removal (per-repo)" '[ -f "$SBX/.cursor
 assert "0048 prune: adr generated before removal (user-level)" '[ -f "$HROOT48P/.cursor/agents/docket-adr.md" ]'
 # Remove the built-in agent + its fragment, regenerate: the orphan must be pruned.
 rm -f "$SCRATCH/agents/docket-adr.md" "$SCRATCH/cursor-rules/dispatch/docket-adr.md"
+# change 0168: the sidecar's claude block is set-EQUAL to agents/docket-*.md in both
+# directions, so retiring a built-in also retires its shipped default entry. Leaving it
+# behind is a genuine sidecar defect and hd_validate refuses the whole run before any
+# wrapper is written — which would make this leg fail for the wrong reason.
+sed -i.bak '/^    adr:/d' "$SCRATCH/agents/harness-defaults.yml"; rm -f "$SCRATCH/agents/harness-defaults.yml.bak"
+assert "0048 prune fixture: sidecar adr entry removed with the wrapper" \
+  '[ "$(grep -c "^    adr:" "$SCRATCH/agents/harness-defaults.yml")" = "0" ]'
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48P" bash "$SCRATCH/sync-agents.sh" >/dev/null )
 assert "0048 prune: removed built-in pruned from per-repo .cursor/agents" '[ ! -e "$SBX/.cursor/agents/docket-adr.md" ]'
 assert "0048 prune: removed built-in pruned from user-level .cursor/agents" '[ ! -e "$HROOT48P/.cursor/agents/docket-adr.md" ]'
@@ -964,6 +971,44 @@ rid_rc=0
 ( cd "$SBXR" && DOCKET_HARNESS_ROOT="$SBXR" /bin/bash "$SYNC" >/dev/null 2>&1 ) || rid_rc=$?
 assert "0051 rider: empty scan_dirs run succeeds under /bin/bash (rc=0)" '[ "$rid_rc" = "0" ]'
 rm -rf "$SBXR"
+
+# ---- change 0168: the shipped sidecar is the lowest layer -------------------
+# Outcome asserts only: they pin WHAT resolves, not WHERE it came from. While the
+# sources still carry model:/effort: these are green either way — the mechanism
+# (the resolver actually reading agents/harness-defaults.yml) is proved separately
+# by pointing the resolver at a sentinel sidecar, and permanently by Task 4's
+# deletion of the source frontmatter.
+make_sandbox
+HROOT168="$(mktemp -d)"; mkdir -p "$HROOT168/.claude"
+cat > "$SBX/.docket.yml" <<'YML'
+agent_harnesses: [claude]
+agents:
+  claude:
+    adr: { effort: high }
+YML
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT168" bash "$SYNC" >/dev/null 2>&1 )
+A="$SBX/.claude/agents/docket-adr.md"
+assert "0168: unconfigured agent takes the shipped claude model" \
+  '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "claude-haiku-4-5-20251001" ]'
+assert "0168: a user effort override beats the shipped effort" '[ "$(fm "$A" effort)" = "high" ]'
+assert "0168: the un-overridden field still comes from the sidecar" \
+  '[ "$(fm "$A" model)" = "claude-opus-5" ]'
+rm -rf "$SBX" "$HROOT168"
+
+# 0168 fail-before-write gate: an invalid sidecar aborts the run with a named diagnostic
+# and leaves ZERO wrappers behind — never a half-regenerated agent directory.
+make_sandbox
+HROOT168B="$(mktemp -d)"; mkdir -p "$HROOT168B/.claude"
+SCR168="$(mktemp -d)"; cp -R "$REPO/agents" "$REPO/cursor-rules" "$REPO/scripts" "$REPO/sync-agents.sh" "$SCR168/"
+printf 'agent_harnesses: [claude]\n' > "$SBX/.docket.yml"
+printf '    phantom-not-a-wrapper: { model: x, effort: low }\n' >> "$SCR168/agents/harness-defaults.yml"
+hd_rc=0
+hd_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT168B" bash "$SCR168/sync-agents.sh" 2>&1 >/dev/null)" || hd_rc=$?
+assert "0168 gate: invalid sidecar fails the run (rc!=0)"  '[ "$hd_rc" != "0" ]'
+assert "0168 gate: the diagnostic names harness-defaults"  'printf "%s" "$hd_err" | grep -q "harness-defaults"'
+assert "0168 gate: no per-repo wrapper was written"        '[ "$(find "$SBX" -name "docket-*.md" -path "*/agents/*" | wc -l | tr -d " ")" = "0" ]'
+assert "0168 gate: no user-level wrapper was written"      '[ "$(find "$HROOT168B" -name "docket-*.md" | wc -l | tr -d " ")" = "0" ]'
+rm -rf "$SBX" "$HROOT168B" "$SCR168"
 
 # ============================================================================
 # Change 0051/0057 — managed .gitignore block (# docket:start/end; mechanics now
