@@ -1,8 +1,8 @@
 # Backlog
 
-**176 changes** — 🟡 35 proposed · ⚪ 4 deferred · 🔵 3 implemented · ✅ 115 done · 🗑️ 19 killed
+**177 changes** — 🟡 36 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 116 done · 🗑️ 19 killed
 
-## 🟡 Proposed (35)
+## 🟡 Proposed (36)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -41,6 +41,7 @@
 | [0173](active/0173-field-of-silently-truncates-a-model-id-containing-or.md) | field_of() silently truncates a model ID containing / or : | `medium` | `fix` | needs-brainstorm |
 | [0175](active/0175-sync-agents-per-invocation-cost.md) | sync-agents.sh costs ~5.5s per invocation and dominates the test suite | `medium` | `perf` | needs-brainstorm |
 | [0176](active/0176-docket-config-sh-costs-0-87s-per-invocation-and-dominates-te.md) | docket-config.sh costs ~0.87s per invocation and dominates test_docket_config.sh | `medium` | `perf` | needs-brainstorm |
+| [0177](active/0177-harden-the-0174-fixture-template-helpers-sticky-failure-ungu.md) | Harden the 0174 fixture-template helpers (sticky failure, unguarded mktemp, destructive pre-clean, leaked root) | `medium` | `chore` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -51,13 +52,12 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (3)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | `chore` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
 | [0168](active/0168-cursor-profile-routed-build-support.md) | Cursor support for profile-routed Docket builds | `medium` | `feat` | [#140](https://github.com/danielhanold/docket/pull/140) |  |
-| [0174](active/0174-reuse-test-git-fixtures.md) | Reuse test git fixtures instead of rebuilding them per assertion | `medium` | `chore` | [#141](https://github.com/danielhanold/docket/pull/141) |  |
 
 ```mermaid
 graph TD
@@ -100,19 +100,20 @@ graph TD
   0171
   0172
   0173
-  0174
   0175
   0176
+  0177
   0015:::done
   0077:::done
   0167:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (134)</summary>
+<details><summary>✅🗑️ Archive — done + killed (135)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0174](archive/2026-07-31-0174-reuse-test-git-fixtures.md) | Reuse test git fixtures instead of rebuilding them per assertion | 2026-07-31 |
 | [0167](archive/2026-07-30-0167-lean-profile-routed-build.md) | Lean profile-routed build — fresh task workers without review loops | 2026-07-30 |
 | [0044](archive/2026-07-30-0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | 2026-07-30 |
 | [0164](archive/2026-07-29-0164-retune-agent-model-effort-defaults-for-all-three-harnesses.md) | Retune agent model/effort defaults for all three supported harnesses | 2026-07-29 |
@@ -140,7 +141,6 @@ graph TD
 | [0131](archive/2026-07-26-0131-make-board-conflict-rebase-continuation-noninteractive.md) | Make board-conflict rebase continuation noninteractive | 2026-07-26 |
 | [0129](archive/2026-07-26-0129-fix-the-pipefail-unsafe-plain-format-config-assertion.md) | Fix the pipefail-unsafe plain-format config assertion | 2026-07-26 |
 | [0124](archive/2026-07-26-0124-backlog-triage-pass.md) | Backlog triage pass — kill, defer, or arm each needs-brainstorm stub | 2026-07-26 |
-| [0138](archive/2026-07-24-0138-unquote-board-change-titles.md) | Board generator wraps each change title in literal double quotes | 2026-07-24 |
 | [0105](archive/2026-07-20-0105-pin-docket-mode-main-coverage-for-docket-status-digest-only.md) | Pin DOCKET_MODE=main coverage for docket-status --digest-only | 2026-07-20 |
 | [0086](archive/2026-07-18-0086-attended-finalize-merge-path.md) | Attended finalize has no merge path under auto_approve — scope the --admin ban to autonomous runs | 2026-07-18 |
 | [0033](archive/2026-07-16-0033-adr-index-main-maintenance.md) | Decide how the ADR index is maintained on the integration branch | 2026-07-16 |
@@ -152,7 +152,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-07](archive/) | 68 done |
+| [2026-07](archive/) | 69 done |
 | [2026-06](archive/) | 32 done |
 
 </details>
