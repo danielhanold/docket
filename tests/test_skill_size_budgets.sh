@@ -84,6 +84,12 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # skills/docket-convention/SKILL.md was NOT raised by that review wave: its cardinal fix
 # ("except two" -> "except four", plus the pointer at docket-build-task's own Scope) measured
 # 361/6267, inside the existing 365/6300.
+# references/agent-layer.md's budget was raised 168/1839 -> 175/2000 by change 0168, which moved the
+# built-in layer from the twelve wrapper sources to the shipped, harness-indexed
+# agents/harness-defaults.yml. The file gains the sidecar's own invariants (concrete harnesses only,
+# both fields per entry, no runner:) and the unmapped-pair-ships-unpinned rule — normative text with
+# no other home, since this reference IS the configuration mechanics. Set per the rule above from
+# the measured actual: 172 lines -> 175, 1948 words -> 1950 is within 25, so the multiple after: 2000.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -93,7 +99,7 @@ skills/docket-build/SKILL.md                               225 2050
 skills/docket-build-task/SKILL.md                          115 1000
 skills/docket-convention/SKILL.md                          365 6300
 skills/docket-convention/github-board-mirror.md             19  462
-skills/docket-convention/references/agent-layer.md         168 1839
+skills/docket-convention/references/agent-layer.md         175 2000
 skills/docket-convention/references/learnings.md            84  580
 skills/docket-convention/references/terminal-close-out.md  173 1458
 skills/docket-finalize-change/SKILL.md                     193 4200

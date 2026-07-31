@@ -518,7 +518,10 @@ assert "convention has an agent-layer section heading" 'grep -qiE "^#+ .*(agent 
 assert "0046 doc: agent-layer ref names the reserved default: key" 'within "$AGL" "agents:" "default:" 400'
 assert "0046 doc: agent-layer ref shows a per-harness key example (cursor)" 'within "$AGL" "agents:" "cursor:" 600'
 assert "0046 doc: agent-layer ref states field-level fallback H -> default -> built-in" 'grep -qiE "harness.*default.*built-in|<harness>.*default.*built-in" "$AGL"'
-assert "0046 doc: agent-layer ref notes non-Claude fallback warning" 'grep -qi "default/built-in" "$AGL"'
+# Change 0168 reworded this line: the shipped layer is harness-indexed, so a non-claude harness no
+# longer falls back to a claude ID — it warns and ships unpinned. Anchored on the verbatim clause.
+assert "0046 doc: agent-layer ref notes non-Claude fallback warning" \
+  'grep -qiE "non-.?claude.? harness with no harness-specific model gets a non-fatal warning" "$AGL"'
 
 # 0048 doc: convention states per-repo generates the full built-in set (config override-only)
 # and that cursor gets a generated docket-dispatch.mdc rule.

@@ -66,8 +66,8 @@ assert "runbook: states the Tier 2 evidence rule (a negative CLI result proves n
 # it must key on the heading that declares it.
 assert "runbook: Tier 3 heading declares it required before merge" \
   'grep -qE "^## Tier 3 .*required before merge" "$RB"'
-assert "runbook: names all six IDE phases" \
-  '[ "$(grep -cE "^### Phase [1-6]" "$RB")" = "6" ]'
+assert "runbook: names all seven IDE phases" \
+  '[ "$(grep -cE "^### Phase [1-7]" "$RB")" = "7" ]'
 # The probe is copy-pasteable, and its non-gating posture is stated where a future implementer
 # would look to promote it.
 assert "runbook: carries the cursor-agent probe invocation" \

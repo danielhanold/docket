@@ -14,7 +14,10 @@ bash scripts/runners/cursor.sh --agent <name> [--model <m>] [--effort <e>] [--] 
 ```
 
 - `--agent <name>` (required) — the built-in agent to delegate; its wrapper source
-  `agents/docket-<name>.md` supplies the skills list and body for the prompt.
+  `agents/docket-<name>.md` supplies the skills list and body for the prompt. That source is
+  behavior-only — model and effort arrive as the flags below, resolved by the caller from the
+  user's config layers over `agents/harness-defaults.yml`. A **shipped** default is never
+  forwarded: only a user-configured value becomes a flag.
 - `--model <m>` (optional) — passed to `cursor-agent --model` **verbatim** (ADR-0015 opaque
   passthrough; docket never validates or rewrites model IDs). Omitted ⇒ the child's own default.
 - `--effort <e>` (optional) — Cursor has **no effort flag**. Reasoning effort is a model parameter

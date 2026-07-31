@@ -10,7 +10,9 @@
 # committed wrappers so regenerated copies stay machine-local.
 #
 # Layers & precedence, per FIELD (model/effort independently) — local > committed > global > built-in:
-#   built-in   agents/docket-*.md in this repo (each ships its default model/effort)
+#   built-in   agents/harness-defaults.yml in this repo (harness-indexed and sparse; a pair it does
+#              not map resolves to nothing and is generated unpinned. agents/docket-*.md are the
+#              behavior-only wrapper sources — name, description, skills, body; never model/effort)
 #   global     ~/.config/docket/config.yml `agents:` block -> user-level ~/.claude/agents/docket-*.md
 #              (the legacy ~/.config/docket/agents.yaml is auto-migrated into it, then renamed .migrated)
 #   committed  <repo>/.docket.yml `agents:` block          -> project-level <repo>/.claude/agents/docket-*.md

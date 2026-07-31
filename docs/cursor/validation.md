@@ -1,10 +1,10 @@
 # Validating docket's Cursor harness — the CLI probe and the IDE checklist
 
 `sync-agents.sh` writes docket's Cursor artifacts against **Cursor's own documented subagent
-contract**: `.cursor/agents/docket-*.md` wrappers carrying `name`/`description`/`model` with the
-reasoning effort bracket-encoded inside the model value and the skills list as a body preamble, plus
-the `docket-dispatch.mdc` rule. The hermetic suite (`tests/test_sync_agents_cursor.sh`) proves docket
-*emits* that shape. It cannot prove Cursor *honors* it — that takes a live harness.
+contract**: `.cursor/agents/docket-*.md` wrappers carrying `name`/`description` (plus `model`
+wherever one resolves, with the reasoning effort bracket-encoded inside the model value) and the
+skills list as a body preamble, plus the `docket-dispatch.mdc` rule. The hermetic suite
+(`tests/test_sync_agents_cursor.sh`) proves docket *emits* that shape. It cannot prove Cursor *honors* it — that takes a live harness.
 
 This runbook carries the two tiers that cannot be automated. Tier 1 is the hermetic suite and is not
 described here.
@@ -52,18 +52,32 @@ result. The shape is settled by Cursor's published contract and certified by Tie
 The certifying tier. A human runs this in the Cursor IDE, in a repo opted in with
 `agent_harnesses: [claude, cursor]`.
 
-**Pass condition: passes when phases 1–3 and 5 are green and phases 4 and 6 have definitive observed
-answers.** A phase that is merely "seemed fine" is not an answer. Every gap found becomes a follow-up
-stub, not a silent note.
+**Pass condition: passes when phases 1–3 and 5 are green and phases 4, 6, and 7 have definitive
+observed answers.** Phase 7 applies only to a repo running `skills.build: docket-build`. A phase that
+is merely "seemed fine" is not an answer. Every gap found becomes a follow-up stub, not a silent
+note.
 
 ### Phase 1 — Generated artifacts
 
 Run `./sync-agents.sh`. Open `.cursor/agents/docket-*.md`.
 
-Observable outcome: every file's frontmatter carries `name`, `description`, `model` and **no**
-`effort:` key and **no** `skills:` key; the `model` value carries the bracket encoding
-(`<id>[effort=<e>]`) whenever an effort is pinned; the skills the agent needs appear as a preamble in
-the **body**. `.cursor/rules/docket-dispatch.mdc` exists.
+Observable outcome: every file's frontmatter carries `name` and `description`, and **no** `effort:`
+key and **no** `skills:` key; the skills the agent needs appear as a preamble in the **body**.
+`.cursor/rules/docket-dispatch.mdc` exists.
+
+The `model:` key is present only where a model resolves. Docket's shipped
+`agents/harness-defaults.yml` maps Cursor for exactly the **three build-profile workers**, so with no
+Cursor `agents:` config of your own:
+
+- `docket-build-economy`, `docket-build-standard`, `docket-build-premium` carry a `model:` line with
+  the Cursor ID that harness-defaults ships for them;
+- the **other nine** wrappers carry **no `model:` line at all** — they are generated *unpinned*, and
+  Cursor applies its own default. A Claude model ID appearing in any of the nine is the cross-harness
+  leak this design removed; treat it as a defect, not a default.
+
+Where an effort *is* pinned by your own config, the `model` value carries the bracket encoding
+(`<id>[effort=<e>]`). The three shipped Cursor IDs already encode their variant, so they ship at
+`effort: auto` and carry no bracket.
 
 ### Phase 2 — Agent visible
 
@@ -107,6 +121,28 @@ subagents and the final reviewer as siblings, and the implementer never dispatch
 exactly depth 2, which Cursor permits. This phase confirms live that the documented limit and docket's
 actual need line up. A failure here is a definitive answer too, and a blocking one for SDD under
 Cursor.
+
+### Phase 7 — Profile-routed build under Cursor (required when `skills.build: docket-build`)
+
+Docket ships Cursor model IDs for the three build profiles, so a Cursor repo can run a
+profile-routed build with no configuration. That routing is what these checks certify; none of them
+can be run by an autonomous build, and `cursor-agent` is not an accepted substitute.
+
+Run a real `docket-build` on a plan with at least three tasks, in the Cursor IDE:
+
+1. **Explicit routing, all three profiles.** A task carrying `**Build profile:** economy` lands on
+   `docket-build-economy`; likewise `standard` and `premium` on their own workers. Observable
+   outcome: three dispatches, three distinct agent names, each child reporting the Cursor model its
+   wrapper resolved — not the session model, and not a Claude ID.
+2. **One auto-classified task.** A task with no `**Build profile:**` line is routed by the
+   classifier. Observable outcome: the controller names the profile it chose and why, and the child
+   that runs is that profile's agent.
+3. **One bounded escalation.** A task that a worker returns `NEEDS_ESCALATION` on retries exactly
+   once, one tier up, and never climbs twice. Observable outcome: two dispatches for that task, the
+   second at the next tier, and a halt (not a third dispatch) if the second also fails.
+
+Record the Cursor version and each observed model ID. Anything short of a definitive observed answer
+is a gap, and becomes a follow-up stub.
 
 ## The merge-gate obligation
 

@@ -21,7 +21,9 @@ docket.sh runner-dispatch --runner <name> --agent <agent> [--model <m>] [--effor
   registered set (abort-and-report; explicit config is never silently ignored).
 - `--agent <agent>` (required) — the built-in docket agent to delegate (e.g. `status`).
 - `--model` / `--effort` — forwarded to the adapter verbatim (model is ADR-0015 opaque
-  passthrough end-to-end).
+  passthrough end-to-end). The generated shim bakes these only from **user-configured** values;
+  a value that came from docket's shipped `agents/harness-defaults.yml` is never forwarded, so
+  the child harness applies its own default instead of inheriting the parent harness's ID.
 - `-- <args…>` — forwarded to the adapter as caller task context.
 
 Mock seams: `RUNNERS_DIR` (adapter directory), `GIT` (through `lib/docket-root.sh`).

@@ -36,8 +36,9 @@ model and effort:
 
 `premium` means greater reasoning investment, **not** a stronger correctness guarantee — every
 profile carries identical testing and completion obligations. Model and effort resolve through
-docket's ordinary generated-agent layer and may be overridden at the global, repo-committed, or
-repo-local layer; never restate literal model IDs or effort tiers in your dispatch prose.
+docket's ordinary generated-agent layer — the shipped `agents/harness-defaults.yml` under whatever
+the global, repo-committed, and repo-local layers set; a harness the sidecar does not map for a
+profile runs it unpinned. Never restate literal model IDs or effort tiers in your dispatch prose.
 
 ## Routing
 
