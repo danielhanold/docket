@@ -8,6 +8,7 @@ One curated finding per file; this index is the hint surface. Load it, then read
 
 ## config
 
+- [commented-default-is-no-default](commented-default-is-no-default.md) — A default that ships commented out is not a default — and for a config that is deliberately sparse, decide whether sparseness means 'which entries appear' or 'how much of one entry appears'. · also: defaults, guards ⟨needs promotion⟩
 - [config-knob-ship-end-to-end](config-knob-ship-end-to-end.md) — A new config knob is not done when it merely works — ship the sample config, the README, and the now-relaxed prose in the same change. · also: docs, ux
 - [config-layer-write-and-read-hazards](config-layer-write-and-read-hazards.md) — A new config layer brings two hazards — a shared-location write turns read-leaking tests into data-loss, and a lower-precedence read can be shadowed by a generated artifact. · also: testing, precedence
 - [config-shape-change-strands-outer-layers](config-shape-change-strands-outer-layers.md) — A repo-committed config migration cannot reach the machine-local and global layers — change an existing key's SHAPE with no shim and every install with an override breaks the moment the PR merges. · also: migration, compat
@@ -36,6 +37,7 @@ One curated finding per file; this index is the hint surface. Load it, then read
 
 ## guards
 
+- [guard-keyed-on-presence-not-provenance](guard-keyed-on-presence-not-provenance.md) — A guard that suppresses itself when a source HOLDS a value must instead key on whether that source SUPPLIED the resolved one — under layered precedence the two diverge silently. · also: config, precedence ⟨needs promotion⟩
 - [guard-remedy-must-not-teach-the-evasion](guard-remedy-must-not-teach-the-evasion.md) — A count-based guard whose failure message says 'bump the expected count' teaches the evasion — budget the coverage-granting path with its own counter. · also: testing, invariants ⟨needs promotion⟩
 
 ## process

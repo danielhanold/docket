@@ -2,7 +2,7 @@
 slug: plan-supplied-test-code-is-unverified
 hook: "Test code a plan hands you is unverified code, not an oracle — prove the assert CAN pass, and mutation-test its own key."
 topics: [testing, plan, guards]
-changes: [94, 104, 112, 130, 133, 157, 174]
+changes: [94, 104, 112, 130, 133, 157, 168, 174]
 created: 2026-07-19
 updated: 2026-07-31
 promotion_state: candidate
@@ -129,3 +129,17 @@ implementer. It is not a reason to distrust plans — it is a reason to run the 
   semantics — harmless, but they inflate the apparent strength of the block they sit in. Counting
   the assertions that *cannot* fail is part of reading a mutation matrix honestly. The same build's
   inert-optimization defect is in [[optimization-needs-a-measured-oracle]].
+- 2026-07-31 (#168, PR #140 — merged) — **A supplied awk helper that returned failure
+  unconditionally, aimed at the change's central negative invariant.** The plan's `fm_has` used
+  `exit 0` inside a rule, but awk still runs `END` after a rule-body `exit`, and that `END` block's
+  `exit 1` overrode it — so the helper returned 1 no matter what the frontmatter contained. Every
+  `! fm_has` assert would therefore have been permanently green: a decoration guard sitting exactly
+  on the "no cross-harness model pin leaked into this wrapper" property the whole change existed to
+  establish. Note the asymmetry that makes this class dangerous — a helper stuck at *failure* is
+  loud under positive asserts and **silent under negated ones**, so the same bug is caught instantly
+  in one position and invisible in the other. Two further plan defects in the same build: test
+  snippets called sandbox helpers (`mk_repo_cfg`, `run_sync`) that do not exist in the target test
+  file, with a wrong generated-path shape; and Task 6 was told to leave the Codex TOML value asserts
+  unchanged when they could not stay — Codex has no sidecar block, so all twelve Codex wrappers now
+  emit no pin and the asserts had to be re-pointed at absence. (Change #0169 must flip them back to
+  value asserts when it lands the Codex mapping.)
