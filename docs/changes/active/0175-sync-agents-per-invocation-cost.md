@@ -12,7 +12,7 @@ related: [150, 173, 174, 176]
 discovered_from: [168]
 adrs: []
 spec: docs/superpowers/specs/2026-07-31-sync-agents-per-invocation-cost-design.md
-plan:
+plan: docs/superpowers/plans/2026-07-31-sync-agents-per-invocation-cost.md
 results:
 trivial: false
 auto_groomable: false
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-31-sync-agents-per-invocation-cost-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-31-sync-agents-per-invocation-cost-design.md) |
+| Plan | [2026-07-31-sync-agents-per-invocation-cost.md](https://github.com/danielhanold/docket/blob/feat/sync-agents-per-invocation-cost/docs/superpowers/plans/2026-07-31-sync-agents-per-invocation-cost.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
