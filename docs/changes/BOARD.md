@@ -1,15 +1,14 @@
 # Backlog
 
-**182 changes** — 🟢 2 in progress · 🟡 38 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 118 done · 🗑️ 19 killed
+**183 changes** — 🟢 1 in progress · 🟡 39 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 118 done · 🗑️ 19 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
-| [0169](active/0169-codex-profile-routed-build-support.md) | Codex support for profile-routed Docket builds | `medium` | `feat` | [spec](../superpowers/specs/2026-07-31-codex-profile-routed-build-support-design.md) | `feat/codex-profile-routed-build-support` |
 | [0175](active/0175-sync-agents-per-invocation-cost.md) | sync-agents.sh costs ~5.5s per invocation and dominates the test suite | `medium` | `perf` | [spec](../superpowers/specs/2026-07-31-sync-agents-per-invocation-cost-design.md) | `feat/sync-agents-per-invocation-cost` |
 
-## 🟡 Proposed (38)
+## 🟡 Proposed (39)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -51,6 +50,7 @@
 | [0180](active/0180-apply-adr-0065-s-quote-leg-to-hd-validate-and-the-remaining.md) | Apply ADR-0065's quote leg to hd_validate and the remaining flow-map truncation corners | `medium` | `fix` | needs-brainstorm |
 | [0181](active/0181-document-the-unquoted-space-free-rule-for-agent-model-effort.md) | Document the unquoted, space-free rule for agent model/effort config values | `medium` | `docs` | needs-brainstorm |
 | [0182](active/0182-facade-tests-read-the-developer-s-real-global-config-instead.md) | Facade tests read the developer's real global config instead of a sandbox | `medium` | `fix` | needs-brainstorm |
+| [0183](active/0183-cursor-dispatch-head-ships-a-stale-unpinned-claim-its-guard.md) | Cursor dispatch head ships a stale unpinned claim; its guard retired itself | `medium` | `fix` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -61,11 +61,12 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | `chore` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
+| [0169](active/0169-codex-profile-routed-build-support.md) | Codex support for profile-routed Docket builds | `medium` | `feat` | [#143](https://github.com/danielhanold/docket/pull/143) |  |
 
 ```mermaid
 graph TD
@@ -115,6 +116,7 @@ graph TD
   0180
   0181
   0182
+  0183
   0015:::done
   0077:::done
   0167:::done
