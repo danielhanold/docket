@@ -2,7 +2,7 @@
 id: 168
 slug: cursor-profile-routed-build-support
 title: Cursor support for profile-routed Docket builds
-status: implemented
+status: done
 priority: medium
 type: feat
 created: 2026-07-30
@@ -17,7 +17,7 @@ results: docs/results/2026-07-31-cursor-profile-routed-build-support-results.md
 trivial: false
 auto_groomable:
 branch: feat/cursor-profile-routed-build-support
-claimed_at: 2026-07-31T08:08:42Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/140
 blocked_by:
 reconciled: true
