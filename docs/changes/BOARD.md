@@ -1,14 +1,8 @@
 # Backlog
 
-**175 changes** — 🟢 1 in progress · 🟡 34 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 115 done · 🗑️ 19 killed
+**176 changes** — 🟡 35 proposed · ⚪ 4 deferred · 🔵 3 implemented · ✅ 115 done · 🗑️ 19 killed
 
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0174](active/0174-reuse-test-git-fixtures.md) | Reuse test git fixtures instead of rebuilding them per assertion | `medium` | `chore` | [spec](../superpowers/specs/2026-07-31-reuse-test-git-fixtures-design.md) | `feat/reuse-test-git-fixtures` |
-
-## 🟡 Proposed (34)
+## 🟡 Proposed (35)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -46,6 +40,7 @@
 | [0172](active/0172-normalize-the-banned-producer-pipe-shape-across-tests-and-he.md) | Normalize the banned producer-pipe shape across tests and helpers | `medium` | `chore` | needs-brainstorm |
 | [0173](active/0173-field-of-silently-truncates-a-model-id-containing-or.md) | field_of() silently truncates a model ID containing / or : | `medium` | `fix` | needs-brainstorm |
 | [0175](active/0175-sync-agents-per-invocation-cost.md) | sync-agents.sh costs ~5.5s per invocation and dominates the test suite | `medium` | `perf` | needs-brainstorm |
+| [0176](active/0176-docket-config-sh-costs-0-87s-per-invocation-and-dominates-te.md) | docket-config.sh costs ~0.87s per invocation and dominates test_docket_config.sh | `medium` | `perf` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -56,12 +51,13 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (3)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | `chore` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
 | [0168](active/0168-cursor-profile-routed-build-support.md) | Cursor support for profile-routed Docket builds | `medium` | `feat` | [#140](https://github.com/danielhanold/docket/pull/140) |  |
+| [0174](active/0174-reuse-test-git-fixtures.md) | Reuse test git fixtures instead of rebuilding them per assertion | `medium` | `chore` | [#141](https://github.com/danielhanold/docket/pull/141) |  |
 
 ```mermaid
 graph TD
@@ -106,6 +102,7 @@ graph TD
   0173
   0174
   0175
+  0176
   0015:::done
   0077:::done
   0167:::done
