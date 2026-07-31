@@ -118,8 +118,61 @@ green-before/green-after across the six neighbouring guards that grep the copy, 
 stale-promise grep. Residual risk: nothing mechanically ties README and `docs/codex/setup.md` prose
 to `agents/harness-defaults.yml`.
 
+## Independent whole-branch review (2026-07-31)
+
+Zero Critical, six Important, six Minor. All six Important are fixed on this branch; the Minor ones
+that were cheap and in files already being touched went in with them. **Two findings were proven by
+mutation before being fixed, and both were asserts that passed while detecting nothing** — the same
+self-cancelling class the build had already caught twice in the plan's own mutation matrix. Four
+instances on one change is the defining hazard here, and worth naming for the next reader.
+
+- **`tests/test_sync_agents.sh` — a pure-negative assert that could not redden for its own stated
+  condition.** `0169: a complete codex block silences the whole harness` (`! grep -qF "WARN codex/"`)
+  was commented as "what would redden if the codex block were dropped or left partial". It does not:
+  with a partial or missing block `hd_validate` aborts generation *before* any wrapper is written, so
+  no `WARN codex/` line is ever emitted and the negative passes. It would also have passed on any
+  unrelated `sync-agents.sh` failure. Confirmed by deleting the codex `status` row — the assert
+  stayed green. Now paired with a positive companion (run exited 0 **and** the generated TOML carries
+  the sidecar's model), and the comment states what the pair actually guards.
+- **`tests/test_docket_example_yml.sh` — the four codex round-trip asserts were self-cancelling.**
+  Deleting all twelve codex rows from `.docket.example.yml` left
+  `round-trip: codex status model came from the example block` **green**, because the resolver falls
+  back to the sidecar and both sides of the comparison move together. The assert names claimed
+  something they could not detect, and spec Tier-1 property 9's second clause ("resolves through the real
+  generator into Codex TOML") was established by nothing. Fixed with a sentinel: one example value is
+  rewritten to `gpt-5.6-probe` — verified absent repo-wide, and guarded by an assert that catches it
+  if ever adopted as a real ID — and the sentinel must reach the generated TOML. The pre-existing
+  cursor leg had the same misnomer and got the same treatment (`cursor-grok-4.5-probe`).
+- **Three maintained-prose sites still carried claims this change falsified** — `README.md`'s
+  "unvalidated illustrations, marked as such in the file" (pointing at a marking Task 3 deleted),
+  `skills/docket-convention/references/agent-layer.md`'s "claude complete, cursor build-profiles only"
+  table row (false since 0168, and a file agents load as ground truth), and
+  `tests/test_sync_agents_cursor.sh`'s cross-reference claiming codex ships no block. **Root cause was
+  a defect in the plan, not the build:** the spec said to remove all "unvalidated" wording, but the
+  plan's derivation grep vocabulary never included `unvalidated` or `illustration`, so the derived
+  site list structurally could not find them. Re-run with those terms added, it surfaced nothing else
+  in maintained source.
+- **A backward-compatibility hazard, now documented and guarded.** A user who had pinned only
+  `model` for a Codex agent previously got no effort line and now silently inherits docket's shipped
+  effort beside a model they chose. Cursor had no such hazard at 0168 because every Cursor effort is
+  `auto`; Codex's are real tokens, so this is new and specific to this change. Spec Tier-1 property 6
+  ("user values still override field-by-field") also had **no Codex-specific guard** — the example
+  round-trip could not substitute, being the same self-cancelling shape. Both closed: a sandbox test
+  with a partial `agents.codex` override asserting user-model + shipped-effort, and an upgrade
+  warning in `docs/codex/setup.md`.
+
+The review also verified the **change 0173 interaction end to end** (it merged to `main` mid-build,
+touching `sync-agents.sh` and `tests/test_sync_agents.sh`): `git merge-tree` merges cleanly, and
+0173's widened `field_of` value class and this change's `hd_field` are independent — the sidecar
+keeps its own `hd_validate` leg, and all twelve new Codex values are bare, unquoted, space-free, so
+both validators accept them. ADR-0065's missing quote leg in `hd_validate` is real and is already
+change **0180**; the duplicated-extractor question is change **0179**. Both correctly left alone.
+
+**Suite after the fixes: 73/73 green** (a full re-run, since test files changed after the first gate).
+
 ## Follow-ups
 
+- **Change 0183** was minted from this review for the `cursor-rules/dispatch.head.md` item below.
 - **`cursor-rules/dispatch.head.md` carries a stale claim.** It still says docket ships validated
   Cursor model IDs "for the three build-profile workers only — … Every other wrapper is generated
   **unpinned**". Change 0168 completed the Cursor block (twelve of twelve pinned), which made that
