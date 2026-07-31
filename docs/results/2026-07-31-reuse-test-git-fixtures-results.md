@@ -3,7 +3,7 @@
 <!-- docket:backlink:end -->
 
 # Reuse test git fixtures instead of rebuilding them per assertion — results
-Change: #0174 · Branch: feat/reuse-test-git-fixtures · PR: <url> · Plan: docs/superpowers/plans/2026-07-31-reuse-test-git-fixtures.md · ADRs: none
+Change: #0174 · Branch: feat/reuse-test-git-fixtures · PR: https://github.com/danielhanold/docket/pull/141 · Plan: docs/superpowers/plans/2026-07-31-reuse-test-git-fixtures.md · ADRs: none
 
 ## Verify (human)
 
