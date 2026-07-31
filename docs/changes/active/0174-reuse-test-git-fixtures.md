@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable: false
 branch: feat/reuse-test-git-fixtures
-claimed_at: 2026-07-31T10:23:17Z
+claimed_at: 2026-07-31T10:26:40Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -78,3 +78,23 @@ whether `remote set-head origin -a` must be re-run per copy; and whether the fou
 converge on one shared implementation or stay independent.
 
 ## Reconcile log
+
+### 2026-07-31 — reconciled against current `origin/main`
+
+Re-read against the spec, `related: [150, 175]`, `discovered_from: [168]`, ADRs 0058–0064, and the
+current test sources. The change is unchanged in scope; it was drafted today and nothing has landed
+since that touches it.
+
+Verified rather than assumed:
+
+- The four call-site counts in the spec are still exact against the working tree — `mkrepo` 122,
+  `new_repo` (board_checks) 37, `new_repo` (closeout) 31, `git_repo_setup` 30.
+- The three fixture layouts described in the spec match the current helper bodies, including the
+  detail that `git_repo_setup` builds only `seed` + `origin.git` and leaves the working clone to its
+  callers — so its copy path differs in shape from the other three.
+- Neither unmerged branch collides with this change: `feat/codex-cli-validation-runbook` (#89) and
+  `feat/cursor-profile-routed-build-support` (#140) touch none of the four test files.
+- The two related changes remain unstarted (0150 `proposed`, 0175 `proposed`), so the out-of-scope
+  boundaries the spec draws — cause (B) to 0175, cause (C) to 0150 — are still live and correct.
+
+No scope adjustment. The four open questions stay open and are planning inputs, as the spec intends.
