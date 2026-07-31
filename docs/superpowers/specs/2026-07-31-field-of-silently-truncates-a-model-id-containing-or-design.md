@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0173 — field_of() silently truncates a model ID containing / or :](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0173-field-of-silently-truncates-a-model-id-containing-or.md)**
+> ↩ **[Change 0173 — field_of() silently truncates a model ID containing / or :](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-07-31-0173-field-of-silently-truncates-a-model-id-containing-or.md)**
 <!-- docket:backlink:end -->
 
 # field_of() value-class truncation — design
