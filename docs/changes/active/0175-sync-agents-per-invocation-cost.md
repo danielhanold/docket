@@ -7,7 +7,7 @@ priority: medium
 type: perf
 created: 2026-07-31
 updated: 2026-07-31
-depends_on: []
+depends_on: [173]
 related: [150, 173, 174, 176]
 discovered_from: [168]
 adrs: []

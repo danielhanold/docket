@@ -42,6 +42,24 @@ triple — five forks each (`section_body agents`, `section_body <harness>`, `se
 producing roughly **32× redundant work over ~6 distinct parses**. `field_of` then forks `sed` +
 `head` per field.
 
+## Precondition — change 0173 lands first
+
+0173 fixes a value-class defect in `field_of()`: the class `[A-Za-z0-9._-]+` silently truncates a
+model ID containing `/` or `:`. It widens the class to `[^,}[:space:]]+` and adds a `field_of_raw`
+companion plus a bare-scalar validator, mirroring `harness-defaults.sh`'s `hd_field`/`hd_field_raw`
+pair.
+
+This spec was written against the pre-0173 tree, so two items below are stale on their face and must
+be reconciled at build time:
+
+- The ERE this design carries forward into `[[ $line =~ ... ]]` must be the **widened** one. Both
+  `sed -nE` and bash `[[ =~ ]]` are POSIX ERE, so it transfers without reformulation.
+- The `field_of` equivalence test must be written against the **fixed** baseline. Written against
+  the pre-0173 behavior it would pin the truncation bug as expected output.
+- `field_of_raw` is a second function the memoization pass must carry across, on the same terms.
+
+`depends_on: [173]` records the ordering.
+
 ## Goal
 
 **Real-run speed**, not suite speed. Making generation itself cheaper pays out for every run a
