@@ -30,5 +30,5 @@ skills:
   build: docket-build
 
 build:
-  # no resume ledger; per-task commits are the durability
-  checkpoint: false
+  # enable resume ledger
+  checkpoint: true
