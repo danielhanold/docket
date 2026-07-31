@@ -3,11 +3,11 @@
 Codex is a first-class docket harness. `sync-agents.sh` generates two Codex artifacts:
 
 - **`.codex/agents/docket-*.toml`** — the agent wrappers. These are **machine-local**: gitignored,
-  regenerated per machine, never committed (they bake resolved model IDs — ADR-0020). Docket ships
-  **no Codex defaults** — `agents/harness-defaults.yml` has no `codex:` block until change 0169
-  lands validated IDs — so all twelve `.toml` wrappers are generated **unpinned** unless you
-  configure them, and Codex applies its own default. An unpinned wrapper is the deliberate outcome:
-  a Claude model ID means nothing to Codex, so it is never lent across harnesses.
+  regenerated per machine, never committed (they bake resolved model IDs — ADR-0020).
+  `agents/harness-defaults.yml` ships a complete twelve-agent `codex:` block, so all twelve `.toml`
+  wrappers are generated **pinned** with no configuration at all. Any field is overridable per agent
+  from any config layer — your value wins over the shipped one. The pins are Codex-native: a Claude
+  model ID means nothing to Codex, so an ID is never lent across harnesses.
 - **A `docket` dispatch block in `AGENTS.md`** — a marker-bounded block in the repo-root
   `AGENTS.md` that tells Codex to delegate a directly-invoked docket skill to its matching
   `.toml` agent — pinned or not, since the agent also carries the skill's dispatch contract and
@@ -55,9 +55,9 @@ clone. Global `agent_harnesses` is therefore scoped to the user-level pass only.
 
 ## Pinning models and effort
 
-The `.toml` wrappers carry the model/effort resolved from the layered `agents:` config. Since docket
-ships no Codex defaults yet, that config is the **only** source of a Codex pin — set one for any
-agent whose tier you care about. Use the model IDs Codex itself reports:
+The `.toml` wrappers carry the model/effort resolved from the layered `agents:` config over docket's
+shipped `codex:` block. That config **overrides** the shipped pin rather than being the only source
+of one — set it for any agent whose tier you want retuned. Use the model IDs Codex itself reports:
 
 ```sh
 codex debug models | jq -r '.models[] | .slug'
@@ -70,9 +70,11 @@ main README's agent-layer section for the full precedence rules.
 
 After opting a repo in and running `sync-agents.sh`:
 
-1. `.codex/agents/docket-*.toml` exist and carry the expected `model`/`effort` — or, for any agent
-   you have not configured, no `model`/`model_reasoning_effort` line at all (unpinned is correct
-   until change 0169 ships Codex defaults).
+1. `.codex/agents/docket-*.toml` exist and each carries the `model` / `model_reasoning_effort`
+   docket ships for that agent — compare against the `codex:` block in
+   `agents/harness-defaults.yml`, which is the single source of truth. A field you set in a config
+   layer wins over the shipped value; a missing line means neither docket nor your config supplied
+   one, and Codex will apply its own default.
 2. `AGENTS.md` contains the marker-bounded `docket` dispatch block.
 3. In a Codex session opened in the repo, a directly-invoked docket skill is delegated to its
    pinned agent, and Codex runs it at the pinned model/effort.
