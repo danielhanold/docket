@@ -2,7 +2,7 @@
 id: 169
 slug: codex-profile-routed-build-support
 title: Codex support for profile-routed Docket builds
-status: proposed
+status: in-progress
 priority: medium
 type: feat
 created: 2026-07-30
@@ -16,7 +16,8 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/codex-profile-routed-build-support
+claimed_at: 2026-07-31T18:04:32Z
 pr:
 blocked_by:
 reconciled: false
