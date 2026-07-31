@@ -13,7 +13,7 @@ Contents: [Layered config](#layered-config) · [Harness-first agents: blocks](#h
 
 | Layer | Source | Generates |
 |---|---|---|
-| Built-in | `agents/docket-*.md` shipped in docket (each ships its default model/effort) | — |
+| Built-in | `agents/harness-defaults.yml` shipped in docket (harness-indexed; claude complete, cursor build-profiles only) | — |
 | Global | the `agents:` block in `~/.config/docket/config.yml` (optional, XDG; legacy `agents.yaml` auto-migrated) | user-level `~/.claude/agents/docket-*.md` |
 | Repo-committed | `.docket.yml` `agents:` block (committed, every clone) | project-level `<repo>/.claude/agents/docket-*.md` (gitignored, machine-local — see below) |
 | Repo-local | `.docket.local.yml` `agents:` block (gitignored, this machine only) | same project-level files, highest precedence |
@@ -37,29 +37,38 @@ agents:                                 # harness-first: reserved `default:` + h
     # key — effort rides inside the model value. See the wrapper-shape table below.
   claude:                               # runner: delegates the whole run to a child harness
     status: { model: gpt-5.1-codex, runner: codex }   # (change 0079; see below)
-  # Resolution is field-by-field, first non-empty wins: agents.<harness>.<agent> -> agents.default.<agent> -> shipped built-in (agents/docket-*.md).
+  # Resolution is field-by-field, first non-empty wins: agents.<harness>.<agent> -> agents.default.<agent> -> that harness's shipped built-in (agents/harness-defaults.yml).
   # effort: auto explicitly drops the effort line (inherit the model default); omitting the
   # effort: key instead keeps the built-in effort — auto and omitted are NOT equivalent.
   # The global ~/.config/docket/config.yml uses the SAME agents: wrapper shape (change 0050
   # unified it; the pre-0050 top-level-map agents.yaml is auto-migrated on the next sync).
   # <repo>/.docket.local.yml uses the SAME agents: wrapper shape too — gitignored,
   # this machine only, and the highest-precedence layer of the four.
-  # A non-`claude` harness whose model falls to default/built-in gets a non-fatal warning
-  # (likely-wrong ID; docket never validates model IDs).
+  # A non-`claude` harness with no harness-specific model gets a non-fatal warning: unpinned when
+  # nothing resolves, or a likely-wrong-ID note when the value came from agents.default. The
+  # shipped layer is harness-indexed, so it never lends one harness's ID to another.
   # A harness block not in `agent_harnesses`, or a bare pre-0046 agent key, is warned + ignored.
 ```
 
 `agent_harnesses` (which harness directories get generated files at all) is **orthogonal** to
 `agents.<harness>` (which values those files carry) — a harness can appear in one list without
 appearing in the other, and each falls back independently: `agent_harnesses` defaults to `[claude]`;
-an unlisted `agents.<harness>` falls to `agents.default`, then to the built-in.
+an unlisted `agents.<harness>` falls to `agents.default`, then to that harness's own built-in — and
+a pair the shipped layer does not map ships **unpinned**, never carrying another harness's model ID.
+
+**The shipped layer.** `agents/harness-defaults.yml` is program data, not user config, and
+`scripts/lib/harness-defaults.sh` validates it before any wrapper is written: every entry nests
+under a **concrete** harness (a neutral `default:` block is forbidden — that is the cross-harness
+leakage it exists to prevent), each entry supplies **both** `model` and `effort`, and `runner:` is
+forbidden, since delegation is user policy and never a shipped default.
 
 User-level files are built-in ⊕ global; project-level files are built-in ⊕ local ⊕ committed ⊕ global — where the
 harness-first resolution above runs first, inside each layer, to pick that layer's per-field value before folding
 into the next. Claude Code applies **project-over-user precedence natively**, so the effective order for a
 project-level file's own resolved value is **repo-local > repo-committed > global > built-in**, without the
-generator hand-merging the two directories onto the same file. An agent with no entry in any layer defaults to
-`model: inherit` with no `effort`.
+generator hand-merging the two directories onto the same file. A harness/agent pair with no entry in any layer
+— user or shipped — omits the field: the wrapper carries no `model` and no `effort`, and the harness applies
+its own default.
 
 **`runner:` — cross-harness delegation (change 0079).** An agent entry may carry `runner: <name>`
 naming a registered runner (shipped: `codex`, `cursor`); the generated wrapper body then becomes a shim that

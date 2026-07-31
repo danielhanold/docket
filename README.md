@@ -22,7 +22,7 @@ What you get:
 - [Configuration — `.docket.yml`, global config, and machine-local overrides](#configuration--docketyml-global-config-and-machine-local-overrides)
 - [docket-mode: where metadata lives](#docket-mode-where-metadata-lives)
 - [Tuning agent models & effort](#tuning-agent-models--effort)
-- [The eight skills](#the-eight-skills)
+- [Skills](#skills)
 - [Learnings — the loop's memory](#learnings--the-loops-memory)
 - [Customization](#customization)
 - [Status](#status)
@@ -142,7 +142,7 @@ Docket's ordinary behavior defaults already apply.
 
 The canonical reference for every key is [`.docket.example.yml`](.docket.example.yml) in this repo: every config key, active at its shipped default, with full documentation and a scope tag saying which layers may set it. Copy the keys you want to change into the layer you want them in.
 
-- **To see docket's built-in per-skill model and effort:** the example's commented `agents.claude` block mirrors the shipped defaults for all twelve subagents, so you can read and tune them in one place instead of opening twelve wrapper files.
+- **To see docket's built-in per-skill model and effort:** they all live in one file, [`agents/harness-defaults.yml`](agents/harness-defaults.yml) — docket's shipped, harness-indexed default sidecar, not a file you edit. The example's commented `agents.claude` and `agents.cursor` blocks mirror it, so you can read every shipped default and tune the ones you want in a single place.
 - **Claude-only users can skip this entirely** — the defaults already apply.
 - **To enable another harness (Cursor, Codex):** uncomment `agent_harnesses` and add the harness, **and** uncomment that harness's block under `agents:`, then re-run `install.sh` so `sync-agents.sh` regenerates the wrappers. Both keys are **presence-sensitive** — uncommenting either opts the repo into per-repo wrapper generation even at default values.
 
@@ -608,7 +608,7 @@ bash sync-agents.sh        # or re-run install.sh, which calls it for you
 - A committed `.docket.yml` using the legacy bare-agent-key `agents:` shape (agent keys sitting directly under `agents:` instead of nested under `agents: default:`) also fails — **CI-meaningful** (`rc != 0`) — naming the offending keys and the reshape to `agents.default.<agent>` in its message.
 - Generated content drifting from the resolved config is **advisory only** (`rc` unaffected) — every clone regenerates its own copy at build time, so a stale local file is a nudge to re-run `sync-agents.sh`, not a CI failure.
 
-**Always the full set, plus a Cursor dispatch rule.** The per-repo layer writes the **full built-in agent set** for every harness in `agent_harnesses` (the `agents:` block only *overrides* model/effort — it never decides which agents exist). It is **opt-in**: a repo opts in by declaring an `agents:` block or an `agent_harnesses:` key, in **either** its committed `.docket.yml` or its local `.docket.local.yml`; a repo with neither key set in either file generates no per-repo wrappers and its `--check` stays a no-op. A repo listing `cursor` also gets a generated `.cursor/rules/docket-dispatch.mdc` that forces Cursor to dispatch docket agents instead of running them inline. `sync-agents.sh --check` covers both the generated agents and the dispatch rule. For **Codex** — its `.codex/agents/*.toml` wrappers plus the committed `AGENTS.md` dispatch block, and why a *global* `agent_harnesses` does not generate them per-repo (the repo must opt in) — see [docs/codex/setup.md](docs/codex/setup.md).
+**Always the full set, plus a Cursor dispatch rule.** The per-repo layer writes the **full built-in agent set** for every harness in `agent_harnesses` (the `agents:` block only *overrides* model/effort — it never decides which agents exist). It is **opt-in**: a repo opts in by declaring an `agents:` block or an `agent_harnesses:` key, in **either** its committed `.docket.yml` or its local `.docket.local.yml`; a repo with neither key set in either file generates no per-repo wrappers and its `--check` stays a no-op. A repo listing `cursor` also gets a generated `.cursor/rules/docket-dispatch.mdc` that forces Cursor to dispatch docket agents instead of running them inline. `sync-agents.sh --check` covers both the generated agents and the dispatch rule. The model and effort each of those wrappers carries are resolved per field from your config layers over docket's shipped [`agents/harness-defaults.yml`](agents/harness-defaults.yml); a harness/agent pair with no entry in any layer is generated **unpinned**, so that harness applies its own default rather than inheriting another harness's model ID. For **Codex** — its `.codex/agents/*.toml` wrappers plus the committed `AGENTS.md` dispatch block, and why a *global* `agent_harnesses` does not generate them per-repo (the repo must opt in) — see [docs/codex/setup.md](docs/codex/setup.md).
 
 **Two mechanisms for one inline quirk.** Both Cursor and Claude Code run a *directly-invoked* skill — a human typing `/docket-status`, or the model auto-invoking it — inline at the session model, which silently defeats the wrapper's model/effort pin. They fix it differently: Cursor uses the generated `docket-dispatch.mdc` rule above; **Claude Code uses native `context: fork` + `agent: docket-<name>` frontmatter** committed in each forked skill's `SKILL.md`, which forks the invocation into the same pinned wrapper. That frontmatter is inert in every other harness (unknown keys are ignored), so one shared `SKILL.md` serves all of them, and it degrades to today's inline behavior on a Claude Code too old to know the field. **Fork-exclusion principle:** only skills that never need the human mid-run are forked — a forked subagent has no channel to the human (Claude Code withholds `AskUserQuestion`, `EnterPlanMode`, and similar from subagents). So the four headless-safe autonomous skills — `docket-status`, `docket-adr`, `docket-implement-next`, `docket-auto-groom` — carry the frontmatter; the two interactive brainstorm skills (`docket-new-change`, `docket-groom-next`) and `docket-finalize-change` (which retains real prompts — the multi-candidate batch confirmation and repair sign-off — so a headless drive is authorized by [naming ids](#closing-out-hands-free-with-loop) instead) do not.
 
@@ -632,9 +632,9 @@ Customization.
 
 ---
 
-## The eight skills
+## Skills
 
-The eight skills cover the full loop — create, groom, implement, finalize, report, decide — plus the shared contract they all load.
+The operating loop — create, groom, implement, finalize, report, decide — plus the shared contract every skill loads, and the pluggable role skills docket ships. Every directory under `skills/` appears below.
 
 | Skill | Role |
 |---|---|
@@ -646,6 +646,9 @@ The eight skills cover the full loop — create, groom, implement, finalize, rep
 | `docket-status` | Board and janitor — regenerates `BOARD.md`, sweeps merged PRs to `done`, and runs health checks for stale claims, broken links, and dependency stalls. |
 | `docket-adr` | Immutable decision ledger — records architecture decisions, handles supersessions and reversals, and maintains the ADR index. |
 | `docket-convention` | Shared contract, pure reference — single source of the docket convention (configuration, layout, manifest, lifecycle, build-readiness, bootstrap guard, branch model); every operating skill loads it as its blocking Step 0. |
+| `docket-brainstorm` | Pluggable `brainstorm` role, opt-in — keeps the design dialogue inline with you, then dispatches a pinned consultant once to author the spec or hand back critique concerns. See [Consultant-authored brainstorm](#consultant-authored-brainstorm-opt-in). |
+| `docket-build` | Pluggable `build` role, opt-in — turns a written plan into commits by routing each task to a named economy/standard/premium profile agent, with one bounded escalation per task, no per-task review, and a single full-suite gate. See [docket-build](#docket-build--the-lean-profile-routed-build). |
+| `docket-build-task` | The per-task worker contract `docket-build` preloads into its profile agents — one plan task from focused test through verification, self-review, and one commit. Not invoked directly by a human. |
 
 ---
 
@@ -694,8 +697,6 @@ If the consultant can't be dispatched on this machine (agents not synced, harnes
 
 **Capture-then-groom: an entire brainstorm at a chosen model.** The consultant pins *authorship*; the dialogue and option generation still run at whatever model the session is on. To pin the *whole* brainstorm, no new machinery is needed: capture the idea as a stub with `docket-new-change` in whichever session it strikes you (skip straight past brainstorming — the stub lands at `needs-brainstorm`), then run `docket-groom-next` from a session set to the model you want. That session does the full design conversation at its own model, and can still opt into consultant authorship on top.
 
-Note: `docket-brainstorm` is its own opt-in **role** skill (bound via the `brainstorm` key), not one of the operating-loop stages in [The eight skills](#the-eight-skills) above — it's why you'll find eleven directories under `skills/` even though that table lists eight — docket-brainstorm plus the two build-role skills, docket-build and docket-build-task.
-
 ### docket-build — the lean, profile-routed build
 
 By default, the `build` role (the step in `docket-implement-next` that turns a written plan into commits) runs `superpowers:subagent-driven-development` — a per-task implementer/reviewer subagent pair, plus a duplicate whole-branch review folded into the same loop. **`docket-build` is an opt-in alternative** that dispatches one fresh worker per task and does no review of its own, leaving `skills.review` as docket's sole review gate: `T` nested runs on the clean path — one worker per task — plus one full-suite gate the controller runs itself as a Bash command rather than as a nested agent, against SDD's `2T + 2`. Each escalation adds at most one more nested run.
@@ -717,7 +718,7 @@ Each task carries at most one automatic escalation — an `economy` worker retri
 
 `build.checkpoint` (default `false`) governs whether a run persists a resume ledger: `false` keeps only the per-task commits as the durable record, while `true` writes a compact state file recording each task's profile, escalation, and commit so a resumed run can skip work already proven complete.
 
-**`docket-build` ships validated model IDs for Claude Code only, for now**: the wrapper plumbing itself is harness-generic — `sync-agents.sh` generates the three profiles for every harness in `agent_harnesses`, docket ships Cursor dispatch rules for them, and `.docket.example.yml` carries commented `build-*` rows under both `codex:` and `cursor:` — but the only model IDs docket actually ships are the Claude ones under `agents.claude`; the rows under the other harnesses are unvalidated examples. On Cursor or Codex you must supply your own IDs, or stay on the shipped default until changes 0168 and 0169 land validated mappings.
+**`docket-build` ships validated model IDs for Claude Code and Cursor.** Every shipped default lives in [`agents/harness-defaults.yml`](agents/harness-defaults.yml), indexed by harness: Claude Code is complete — all twelve agents, the three build profiles among them — and Cursor ships validated IDs for exactly the three build-profile workers, so a Cursor repo gets profile-routed builds with no configuration at all. Cursor's other nine agents ship **unpinned**, and so do all twelve Codex wrappers; an unpinned wrapper lets the harness apply its own default rather than inherit a Claude ID that means nothing there. Codex remains user-configured until change 0169 lands its mapping. For any unpinned pair you care about, set the model yourself in a config layer — `.docket.example.yml` shows the shape, and marks which of its rows mirror a shipped default and which are illustrative.
 
 ### Runner delegation — running docket agents on another harness
 

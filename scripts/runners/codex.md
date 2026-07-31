@@ -15,7 +15,10 @@ bash scripts/runners/codex.sh --agent <name> [--model <m>] [--effort <e>] [--] [
 ```
 
 - `--agent <name>` (required) — the built-in agent to delegate; its wrapper source
-  `agents/docket-<name>.md` supplies the skills list and body for the prompt.
+  `agents/docket-<name>.md` supplies the skills list and body for the prompt. That source is
+  behavior-only — model and effort arrive as the flags below, resolved by the caller from the
+  user's config layers over `agents/harness-defaults.yml`. A **shipped** default is never
+  forwarded: only a user-configured value becomes a flag.
 - `--model <m>` (optional) — passed to `codex exec -m` **verbatim** (ADR-0015 opaque
   passthrough; docket never validates model IDs). Omitted ⇒ the child's own default model.
 - `--effort <e>` (optional) — mapped to Codex's `model_reasoning_effort` config override.
