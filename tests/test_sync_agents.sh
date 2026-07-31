@@ -26,6 +26,17 @@ within(){
 # Extract a single-line frontmatter scalar value from a markdown file.
 fm(){ sed -n "s/^$2:[[:space:]]*//p" "$1" | head -n1 | sed 's/[[:space:]]*$//'; }
 
+# Body = everything after the frontmatter's closing fence. Change 0168 made emit() strip-and-insert
+# the resolved model/effort, so a generated wrapper is no longer byte-identical to its source; what
+# must still hold is that the BODY comes through verbatim and only the pin is injected.
+body_of(){ awk '/^---[[:space:]]*$/ && d<2 {d++; next} d>=2 {print}' "$1"; }
+
+# The shipped default store (change 0168). Asserts about what an UNCONFIGURED wrapper is pinned to
+# read it from here rather than from the wrapper source's frontmatter.
+# shellcheck source=/dev/null
+. "$REPO/scripts/lib/harness-defaults.sh"
+HD="$REPO/agents/harness-defaults.yml"
+
 # ---- Task 1: built-in wrapper source files ---------------------------------
 AGENTS="$REPO/agents"
 AUTONOMOUS="docket-implement-next docket-auto-groom docket-finalize-change docket-status docket-adr"
@@ -87,7 +98,19 @@ assert "writes into present .claude/agents" '[ -f "$SBX/.claude/agents/docket-st
 assert "writes into present .agents/agents" '[ -f "$SBX/.agents/agents/docket-status.md" ]'
 assert "all 12 wrappers land in .claude/agents" '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "12" ]'
 assert "does NOT create an absent harness (.cursor)" '[ ! -d "$SBX/.cursor/agents" ]'
-assert "no override => byte-identical to built-in source" 'diff -q "$REPO/agents/docket-status.md" "$SBX/.claude/agents/docket-status.md" >/dev/null'
+# Change 0168 replaced the byte-identity assert here: the generator now INJECTS the pin from
+# agents/harness-defaults.yml instead of copying the source's frontmatter, so byte identity is
+# structurally impossible. The mechanism this guarded — an unconfigured run reproduces the source
+# faithfully and adds nothing of its own — is asserted directly instead.
+assert "no override => body verbatim from the built-in source" \
+  'diff -q <(body_of "$REPO/agents/docket-status.md") <(body_of "$SBX/.claude/agents/docket-status.md") >/dev/null'
+assert "no override => name/description/skills come from the source" \
+  '[ "$(fm "$SBX/.claude/agents/docket-status.md" name)" = "docket-status" ] &&
+   [ "$(fm "$SBX/.claude/agents/docket-status.md" description)" = "$(fm "$REPO/agents/docket-status.md" description)" ] &&
+   [ "$(fm "$SBX/.claude/agents/docket-status.md" skills)" = "$(fm "$REPO/agents/docket-status.md" skills)" ]'
+assert "no override => the emitted pin is the SHIPPED sidecar value" \
+  '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "$(hd_field "$HD" claude status model)" ] &&
+   [ "$(fm "$SBX/.claude/agents/docket-status.md" effort)" = "$(hd_field "$HD" claude status effort)" ]'
 
 # -- idempotency: second run is byte-identical ----
 before="$(cat "$SBX/.claude/agents/docket-implement-next.md")"
@@ -114,8 +137,15 @@ mkdir -p "$SBX/.cursor" "$SBX/.config/docket"
 printf 'agents:\n  default:\n    status: { model: haiku }\n  cursor:\n    status: { model: gpt-5.5-medium-fast }\n' > "$SBX/.config/docket/config.yml"
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null )
 # 0135: the Cursor wrapper encodes effort INSIDE the model value. This config sets only a model,
-# so the effort falls through to docket-status's built-in `medium`.
-assert "global cursor block wins for cursor" '[ "$(fm "$SBX/.cursor/agents/docket-status.md" model)" = "gpt-5.5-medium-fast[effort=medium]" ]'
+# and since change 0168 there is nothing left for the effort to fall through TO on this harness:
+# agents/harness-defaults.yml ships no cursor entry for `status`, and the Claude wrapper source is
+# no longer a default store. A bare model is the correct output — the `[effort=medium]` this used to
+# expect was docket-status's CLAUDE built-in leaking onto a harness that never saw a Claude pin.
+# (Bracket encoding itself is still covered below by the agents.default effort fixture, and in
+# tests/test_sync_agents_cursor.sh by the explicit model+effort override.)
+assert "global cursor block wins for cursor" '[ "$(fm "$SBX/.cursor/agents/docket-status.md" model)" = "gpt-5.5-medium-fast" ]'
+assert "global cursor block leaks no claude effort into the model value" \
+  '! grep -q "\[effort=" "$SBX/.cursor/agents/docket-status.md"'
 assert "global claude falls to default" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "haiku" ]'
 rm -rf "$SBX"
 
@@ -526,8 +556,10 @@ printf 'agent_harnesses: [claude, cursor]\nagents:\n  default:\n    status: { mo
 assert "0045 fanout: .claude/agents generated" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
 assert "0045 fanout: .cursor/agents generated" '[ -f "$SBX/.cursor/agents/docket-status.md" ]'
 assert "0046 fanout: claude carries default model" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "sonnet" ]'
-# 0135: bracket-encoded; this fixture pins no effort, so it falls through to the built-in `medium`.
-assert "0046 fanout: cursor carries its override model" '[ "$(fm "$SBX/.cursor/agents/docket-status.md" model)" = "gpt-5.5-medium-fast[effort=medium]" ]'
+# 0135 + 0168: bracket-encoded when an effort resolves. This fixture pins no effort, and the cursor
+# harness has no shipped `status` entry in agents/harness-defaults.yml, so the model is emitted bare
+# rather than picking up docket-status's Claude built-in effort (see "global cursor block wins").
+assert "0046 fanout: cursor carries its override model" '[ "$(fm "$SBX/.cursor/agents/docket-status.md" model)" = "gpt-5.5-medium-fast" ]'
 # NOTE (0135): trivially true now (see the note on "0046: harness files differ when overridden").
 assert "0046 fanout: harness files differ when cursor overrides" '! diff -q "$SBX/.claude/agents/docket-status.md" "$SBX/.cursor/agents/docket-status.md" >/dev/null'
 rm -rf "$SBX" "$HROOTB"
@@ -1295,10 +1327,46 @@ assert "0079: unregistered runner fails generation nonzero" '[ "$rc" != "0" ]'
 assert "0079: unregistered-runner error names it" 'grep -qF "gemini-cli" <<<"$err"'
 rm -rf "$SBX"
 
-# no runner config anywhere: byte-identical native output (regression fence)
+# no runner config anywhere: native (un-shimmed) output (regression fence)
 make_sandbox
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
-assert "0079: no-runner repo output stays byte-identical to built-in" 'diff -q "$REPO/agents/docket-status.md" "$SBX/.claude/agents/docket-status.md" >/dev/null'
+# Change 0168: byte identity with the source is structurally impossible (the pin is injected, not
+# copied). What this fence guards is that a repo with NO runner config anywhere gets the NATIVE
+# wrapper — source body verbatim, no delegation shim — carrying the shipped pin.
+assert "0079: no-runner repo output stays native (source body verbatim, no shim)" \
+  'diff -q <(body_of "$REPO/agents/docket-status.md") <(body_of "$SBX/.claude/agents/docket-status.md") >/dev/null &&
+   ! grep -qF "runner-dispatch" "$SBX/.claude/agents/docket-status.md"'
+assert "0079: no-runner repo output carries the shipped pin" \
+  '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "$(hd_field "$HD" claude status model)" ]'
+rm -rf "$SBX"
+
+# ---- change 0168: emit() inserts exactly one model:/effort: line -------------
+# emit() is strip-then-insert now: it drops any model:/effort: the SOURCE still carries and injects
+# the resolved pair before the closing fence. The failure mode that rewrite introduces is a
+# DUPLICATED key (insert without strip), which no earlier assert could see because substitution
+# cannot duplicate. Counted inside the FIRST frontmatter block — a whole-file count would also see
+# body prose (AGENTS.md: anchor a frontmatter read to the first ---…--- block) — plus a whole-file
+# count, so an insertion that lands outside the block is caught too.
+fm_key_count(){  # $1=file $2=key -> occurrences of `^<key>:` inside the first --- block
+  awk -v k="$2" '/^---[[:space:]]*$/{ d++; if (d>=2) exit; next }
+                 d==1 && $0 ~ "^"k"[[:space:]]*:" { n++ }
+                 END { print n+0 }' "$1"
+}
+mkgitrepo
+mkdir -p "$SBX/.claude"
+printf 'agent_harnesses: [claude]\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
+for w in docket-status docket-implement-next docket-build-premium; do
+  G="$SBX/.claude/agents/$w.md"
+  assert "0168: $w emits exactly one model: line in the frontmatter" \
+    '[ "$(fm_key_count "$G" model)" = "1" ]'
+  assert "0168: $w emits exactly one effort: line in the frontmatter" \
+    '[ "$(fm_key_count "$G" effort)" = "1" ]'
+  assert "0168: $w emits exactly one model: line in the whole file" \
+    '[ "$(grep -c "^model:" "$G")" = "1" ]'
+  assert "0168: $w emits exactly one effort: line in the whole file" \
+    '[ "$(grep -c "^effort:" "$G")" = "1" ]'
+done
 rm -rf "$SBX"
 
 exit $fail
