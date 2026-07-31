@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/field-of-silently-truncates-a-model-id-containing-or
-claimed_at: 2026-07-31T15:00:18Z
+claimed_at: 2026-07-31T15:02:08Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -69,3 +69,28 @@ A third reader shares the class: `scripts/runner-dispatch.sh:75`, which exports 
 - The shipped-defaults reader in `scripts/lib/harness-defaults.sh`, already fixed by change 0168.
 - Factoring a shared extractor across the three readers — a follow-up, deliberately deferred until
   change 0175 settles `field_of`'s implementation.
+
+## Reconcile log
+
+### 2026-07-31 — reconciled at claim, no scope change
+
+Re-read the change and its spec against `related` (0175), `discovered_from` (0168, merged),
+recently-archived changes, and CURRENT code on `origin/main` (`9d41fa6b`). Everything the spec
+asserts still holds verbatim:
+
+- `sync-agents.sh:262` still carries `([A-Za-z0-9._-]+)` under the comment `field_of() — UNCHANGED
+  (kept verbatim from the prior version)`. `sync-agents.sh` sits at the **repo root**, not under
+  `scripts/` — worth stating because every other reader named here is under `scripts/`.
+- `scripts/lib/harness-defaults.sh` carries the corrected twin (`hd_field` `[^,}[:space:]]+`,
+  `hd_field_raw` `[^,}]*`, and `hd_validate`'s bare-scalar leg with the exact diagnostic shape the
+  spec asks this change to mirror). The two readers do disagree today, as the Why claims.
+- `scripts/runner-dispatch.sh:75` still reads its value with the narrow class, and the per-key
+  precedence claim (`seen_keys` claimed before the value is parsed) is present and must survive.
+- Both target test files exist: `tests/test_sync_agents.sh`, `tests/test_runner_dispatch.sh`.
+
+Build-order coupling confirmed from the other side: 0175 carries `depends_on: [173]`, so this
+change lands first and 0175 inherits the widened class.
+
+No scope adjustment, no work already done elsewhere, no new constraint. The deferred
+shared-extractor refactor is already tracked as change 0179 (`waiting-on-175-unbuilt`), so it is
+not re-captured here.
