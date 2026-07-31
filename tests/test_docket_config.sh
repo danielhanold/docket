@@ -10,7 +10,8 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # --- fixture builder: a clone with a bare origin -----------------------------
 # mkrepo <dir> : create a bare origin + a working clone at <dir>, identity set,
 #   one commit on `main` (origin/HEAD -> main). Echoes nothing; populates $dir.
-# MKREPO_TEMPLATE: the baseline every mkrepo fixture is copied from; built on first use.
+# MKREPO_TEMPLATE: the baseline every mkrepo fixture is copied from; built once, eagerly,
+#   at file scope (see the _mkrepo_build_template call below for why it cannot be lazy).
 MKREPO_TEMPLATE=""
 _mkrepo_build_template(){
   MKREPO_TEMPLATE="$tmp/.mkrepo-template"
@@ -28,7 +29,6 @@ _mkrepo_build_template(){
 }
 mkrepo(){
   local dir="$1" bare="$1.origin.git"
-  [ -n "$MKREPO_TEMPLATE" ] || _mkrepo_build_template
   mkdir -p "$(dirname "$dir")"
   rm -rf "$dir" "$bare"
   cp -R "$MKREPO_TEMPLATE" "$dir"
@@ -39,6 +39,13 @@ mkrepo(){
 run(){ local d="$1"; shift; ensure_test_runtime "$XDG_CONFIG_HOME" "$d"; bash "$SCRIPT" --repo-dir "$d" "$@"; }
 
 tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
+
+# Built eagerly, at file scope, on purpose: mkrepo is reached from run_resolver_with,
+# which callers consume inside command substitution -- i.e. in a SUBSHELL. A lazy
+# `[ -n "$MKREPO_TEMPLATE" ] || _mkrepo_build_template` inside mkrepo would assign
+# MKREPO_TEMPLATE only in that subshell, so the parent would still see it empty and
+# rebuild the template on every single call -- correct, silently, and with no speedup.
+_mkrepo_build_template
 
 # --- fixture independence (change 0174) --------------------------------------
 # mkrepo now copies a once-built template. These assertions pin the property that
@@ -67,6 +74,13 @@ assert "0174 independence: each fixture points at its OWN origin" \
   '[ "$(git -C "$tmp/indep-a" config remote.origin.url)" = "$tmp/indep-a.origin.git" ]'
 assert "0174 fixture parity: origin/HEAD still resolves after the copy" \
   '[ "$(git -C "$tmp/indep-b" rev-parse --abbrev-ref origin/HEAD)" = "origin/main" ]'
+
+# Template integrity: the independence block above proves the property HERE; this snapshot
+# plus the re-assertion just before the final exit extends it over every mkrepo call in the
+# file, so a future test that dirties the shared template cannot go unnoticed.
+tplint_refs="$(git -C "$MKREPO_TEMPLATE.origin.git" for-each-ref --format='%(refname) %(objectname)' | LC_ALL=C sort)"
+tplint_head="$(git -C "$MKREPO_TEMPLATE" rev-parse HEAD)"
+tplint_branch="$(git -C "$MKREPO_TEMPLATE" rev-parse --abbrev-ref HEAD)"
 
 fake_bash(){ # fake_bash <path> <version> [executable]
   local path="$1" version="$2" executable="${3:-yes}"
@@ -2228,6 +2242,11 @@ r9_poison_site_line="$(awk '
 ' "${BASH_SOURCE[0]}")"
 assert "0148: the require_pr_approval site still has a non-empty need set (not exempt)" \
   '/usr/bin/grep -qE "^SITE $r9_poison_site_line (ok|viol)" <<<"$t_out"'
+
+assert "0174 template integrity: the shared template is unmutated after the full run" \
+  '[ "$(git -C "$MKREPO_TEMPLATE.origin.git" for-each-ref --format="%(refname) %(objectname)" | LC_ALL=C sort)" = "$tplint_refs" ] &&
+   [ "$(git -C "$MKREPO_TEMPLATE" rev-parse HEAD)" = "$tplint_head" ] &&
+   [ "$(git -C "$MKREPO_TEMPLATE" rev-parse --abbrev-ref HEAD)" = "$tplint_branch" ]'
 
 if [ "$fail" = 0 ]; then echo PASS; else echo FAIL; fi
 exit "$fail"
