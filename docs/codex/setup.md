@@ -9,8 +9,9 @@ Codex is a first-class docket harness. `sync-agents.sh` generates two Codex arti
   configure them, and Codex applies its own default. An unpinned wrapper is the deliberate outcome:
   a Claude model ID means nothing to Codex, so it is never lent across harnesses.
 - **A `docket` dispatch block in `AGENTS.md`** — a marker-bounded block in the repo-root
-  `AGENTS.md` that tells Codex to delegate a directly-invoked docket skill to its pinned
-  `.toml` agent (Codex has no analog of Cursor's `.mdc` rule; it reads `AGENTS.md`). This block
+  `AGENTS.md` that tells Codex to delegate a directly-invoked docket skill to its matching
+  `.toml` agent — pinned or not, since the agent also carries the skill's dispatch contract and
+  preload (Codex has no analog of Cursor's `.mdc` rule; it reads `AGENTS.md`). This block
   is **committed and machine-neutral**: it carries only agent names and delegation prose, never
   a model ID or effort value, so it is clone-identical across machines (ADR-0036).
 

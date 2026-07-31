@@ -358,14 +358,21 @@ agents_block_harnesses() {  # $1=file  (docket.yml, under_agents=1)
 # source frontmatter, is the default store. This STRIPS any model:/effort: line the source still
 # carries and INSERTS the resolved pair before the closing fence, so it is idempotent whether or
 # not the source carries a pin — which is what lets the source cleanup later in this change be a
-# pure deletion — and can never emit a duplicated key. An empty (or `inherit`) model, and an empty
-# (or `auto`) effort, omit their field entirely; the harness then applies its own default.
+# pure deletion — and can never emit a duplicated key. An empty model, and an empty (or `auto`)
+# effort, omit their field entirely; the harness then applies its own default.
 # The pair therefore lands at the END of the frontmatter block (below any `skills:` line) rather
 # than at the source's original position. YAML mapping order is not significant and no consumer
 # reads these files positionally; `tests/test_sync_agents*.sh` assert the fields, not the order.
+#
+# `model: inherit` passes through VERBATIM here, unlike in emit_cursor_md/emit_codex_toml. It is
+# not a docket sentinel on this harness: Claude Code documents `inherit` as a real frontmatter
+# value meaning "run this subagent on the parent conversation's model", which is a DIFFERENT
+# runtime outcome from omitting the key (Claude Code's own subagent default). Cursor and Codex
+# have no such value, so their emitters normalize it to "no pin" — that asymmetry is deliberate,
+# and folding it into this shared emitter silently changed Claude's resolution (0168 whole-branch
+# review, IMPORTANT 2). Pinned by the `inherit:` asserts in tests/test_sync_agents.sh.
 emit() {  # $1=src file  $2=model  $3=effort
   local m="$2" e="$3"
-  [ "$m" = "inherit" ] && m=""
   [ "$e" = "auto" ] && e=""
   awk -v model="$m" -v effort="$e" '
     /^---[[:space:]]*$/ {
@@ -600,15 +607,26 @@ write_dispatch_rule() {  # $1 = <root>/.<harness> base path
 
 # Assemble the committed AGENTS.md docket dispatch block (markers included) to stdout.
 # Machine-neutral: agent names + delegation prose only, NO model IDs (pins live in the .toml).
+#
+# The head deliberately does NOT claim these definitions are pinned. This block is COMMITTED into
+# consumer repos and checked by `--check`, so a false claim here ships. Since change 0168 the
+# default store is agents/harness-defaults.yml, which carries no codex entries: every generated
+# Codex wrapper is unpinned until the user configures one, or until change 0169 lands validated
+# IDs. The dispatch is required either way — the agent carries the skill's contract and preload,
+# not just a model — so the rationale is stated in terms that stay true when a pin IS configured.
+# Guarded, against the sidecar rather than a literal, in tests/test_sync_agents_codex.sh.
 assemble_agents_md_dispatch(){
   printf '%s\n' "$DISPATCH_START"
   cat <<'HEAD'
 ## Docket agents — dispatch, don't run inline
 
-Docket ships model/effort-pinned agent definitions in `.codex/agents/docket-*.toml`. When you are
-asked to run one of the docket skills below, run the matching **agent** (its pinned model and
-reasoning effort are the whole point) instead of executing the skill inline at the session model.
-Pass the request through unchanged, including any change or ADR id.
+Docket generates an agent definition per docket skill in `.codex/agents/docket-*.toml`. When you
+are asked to run one of the docket skills below, run the matching **agent** instead of executing
+the skill inline at the session model: the agent carries that skill's dispatch contract, its skill
+preload, and whatever model and reasoning effort your config layers pin for it. Docket ships no
+validated Codex model IDs today, so an unconfigured Codex agent runs **unpinned**, at Codex's own
+default — dispatch to the agent either way. Pass the request through unchanged, including any
+change or ADR id.
 HEAD
   printf '\n'
   local src name desc
@@ -962,6 +980,14 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
   resolve_agent_harnesses
 
   if [ "$CHECK" = "1" ]; then
+    # The sidecar is validated on this path too (0168 whole-branch review, MINOR 1). --check
+    # returned before the gate below, so CI could pass against a sidecar the next real run would
+    # refuse — the one place a repo would rather learn about it. It costs one pass over a shipped
+    # file docket owns; a valid sidecar changes nothing about --check's outcome.
+    if ! hd_validate "$HARNESS_DEFAULTS" "$AGENTS_SRC"; then
+      log "check: agents/harness-defaults.yml is invalid — a real run would refuse to write wrappers."
+      exit 1
+    fi
     if check_project_level; then exit 0; else exit 1; fi
   fi
 

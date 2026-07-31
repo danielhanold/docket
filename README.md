@@ -142,7 +142,7 @@ Docket's ordinary behavior defaults already apply.
 
 The canonical reference for every key is [`.docket.example.yml`](.docket.example.yml) in this repo: every config key, active at its shipped default, with full documentation and a scope tag saying which layers may set it. Copy the keys you want to change into the layer you want them in.
 
-- **To see docket's built-in per-skill model and effort:** they all live in one file, [`agents/harness-defaults.yml`](agents/harness-defaults.yml) — docket's shipped, harness-indexed default sidecar, not a file you edit. The example's commented `agents.claude` and `agents.cursor` blocks mirror it, so you can read every shipped default and tune the ones you want in a single place.
+- **To see docket's built-in per-skill model and effort:** they all live in one file, [`agents/harness-defaults.yml`](agents/harness-defaults.yml) — docket's shipped, harness-indexed default sidecar, not a file you edit. The example's commented `agents.claude` block mirrors it in full, and the three `build-*` rows of its commented `agents.cursor` block mirror the cursor entries — the rest of that block, and all of the `agents.codex` block, are unvalidated illustrations, marked as such in the file. So you can read every shipped default and tune the ones you want in a single place.
 - **Claude-only users can skip this entirely** — the defaults already apply.
 - **To enable another harness (Cursor, Codex):** uncomment `agent_harnesses` and add the harness, **and** uncomment that harness's block under `agents:`, then re-run `install.sh` so `sync-agents.sh` regenerates the wrappers. Both keys are **presence-sensitive** — uncommenting either opts the repo into per-repo wrapper generation even at default values.
 
@@ -578,6 +578,8 @@ Each **autonomous** docket skill runs as a model/effort-pinned subagent (`docket
 - **Repo-local** — the `agents:` block in that repo's `.docket.local.yml` (this machine only; wins over the committed value for this clone).
 
 The config **shape** — the `agents:` keys and how the model and effort are written — is documented once in docket-convention's **"Agent layer"**; consult it there rather than copying field examples here, so the shape has a single source of truth and stays current as it evolves.
+
+**`model: inherit` on Claude Code.** `inherit` is a Claude Code frontmatter value, not a docket keyword: it tells Claude Code to run the subagent on the **parent conversation's** model, which is a different outcome from setting no model at all (Claude Code's own subagent default). Docket passes it through to a `.claude` wrapper verbatim. Cursor and Codex have no equivalent, so on those harnesses `inherit` is treated as "no pin" and the wrapper is generated without a model, letting the harness apply its default.
 
 **Changing only the model?** To override an agent's model while *dropping* its pinned effort — e.g. pointing it at another harness's model, where Claude Code's effort tiers do not apply — set `effort: auto`, which drops the effort line entirely so the agent inherits the model default. Omitting the `effort:` key instead *keeps* the built-in effort, so `auto` is the explicit way to drop it.
 

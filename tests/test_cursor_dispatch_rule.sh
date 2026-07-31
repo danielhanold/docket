@@ -37,6 +37,31 @@ assert "head: still requires foreground" 'grep -qi "foreground" <<<"$head_plain"
 assert "head: instruction prose names no dispatch tool literal" \
   '! grep -qE "\b(Task|Agent)\b" <<<"$(grep -v "^    " "$HEAD")"'
 
+# 0168 whole-branch review, IMPORTANT 3: the head's RATIONALE must stay true against the shipped
+# sidecar. It used to open "Docket ships model/effort-pinned subagent wrappers in
+# `.cursor/agents/docket-*.md`" and rest the whole dispatch requirement on "which defeats the pin"
+# — true when every wrapper source carried a pin, false since change 0168 made the harness-indexed
+# sidecar the default store and shipped cursor IDs for the three build profiles only. The head is
+# catted verbatim into the generated `.cursor/rules/docket-dispatch.mdc`, so the false claim
+# shipped into every cursor repo.
+# The premise is DERIVED, not hard-coded: a future change that pins every cursor wrapper turns the
+# `if` false and retires the guard, rather than leaving a stale assert behind.
+# shellcheck source=/dev/null
+. "$REPO/scripts/lib/harness-defaults.sh"
+HD="$REPO/agents/harness-defaults.yml"
+n_src=0
+for f in "$REPO"/agents/docket-*.md; do [ -e "$f" ] || continue; n_src=$((n_src+1)); done
+n_cursor_pinned="$(hd_agents "$HD" cursor | grep -c . || true)"
+assert "head: sidecar population floor (>=12 sources, >=1 shipped cursor pin) — the premise below is not vacuous" \
+  '[ "$n_src" -ge 12 ] && [ "$n_cursor_pinned" -ge 1 ]'
+if [ "$n_cursor_pinned" -lt "$n_src" ]; then
+  assert "head: makes no blanket 'ships model/effort-pinned wrappers' claim ($n_cursor_pinned of $n_src cursor wrappers carry a shipped pin)" \
+    '! grep -qiE "ships model/effort-pinned" "$HEAD"'
+  assert "head: says the unpinned wrappers exist" 'grep -qi "unpinned" <<<"$head_plain"'
+  assert "head: requires the dispatch for a pinned and an unpinned wrapper alike" \
+    'grep -qi "either way" <<<"$head_plain"'
+fi
+
 # Population derived by glob, with a floor. Twelve built-in agents ship fragments today, and the
 # floor is that same 12 (raised from 9 by change 0167, which added the three docket-build profile
 # agents — a floor of 9 would have tolerated deleting all three fragments): adding a thirteenth

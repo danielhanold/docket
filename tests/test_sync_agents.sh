@@ -196,6 +196,12 @@ printf 'agent_harnesses: [claude, cursor]\nagents:\n  default:\n    status: { mo
 RULE="$SBX/.cursor/rules/docket-dispatch.mdc"
 assert "0048 rule: per-repo docket-dispatch.mdc written for cursor" '[ -f "$RULE" ]'
 assert "0048 rule: carries alwaysApply: true frontmatter" 'grep -q "^alwaysApply: true" "$RULE"'
+# The rule is a GENERATED artifact whose head is cursor-rules/dispatch.head.md catted verbatim.
+# tests/test_cursor_dispatch_rule.sh guards the head's CONTENT; nothing guarded that the generated
+# file still carries it, so a head edit could be asserted true at the source and shipped mangled
+# (0168 whole-branch review, IMPORTANT 3). Byte-compare the generated prefix against the source.
+assert "0048 rule: generated file opens with dispatch.head.md byte-for-byte" \
+  'diff -q <(head -n "$(wc -l < "$REPO/cursor-rules/dispatch.head.md")" "$RULE") "$REPO/cursor-rules/dispatch.head.md" >/dev/null'
 assert "0048 rule: has the required dispatch pattern heading" 'grep -q "## Required dispatch pattern" "$RULE"'
 assert "0048 rule: has a subsection for every built-in agent (12)" \
   '[ "$(grep -cE "^## docket-.* — dispatch only" "$RULE")" = "12" ]'
@@ -1385,6 +1391,35 @@ for w in docket-status docket-implement-next docket-build-premium; do
 done
 rm -rf "$SBX"
 
+# ---- `model: inherit` is a CLAUDE VALUE, not a cross-harness sentinel -------
+# 0168 whole-branch review, IMPORTANT 2. `inherit` is a documented Claude Code frontmatter value
+# meaning "run this subagent on the parent conversation's model"; Claude Code reads it and acts on
+# it. It is NOT a docket sentinel there. Cursor and Codex have no such value, so their emitters
+# (both pre-0168) normalize it to "emit no pin" — the harness then applies its own default.
+# Change 0168's rewritten emit() briefly folded the Cursor sentinel into the SHARED emitter, which
+# silently turned `model: inherit` into NO model: line on Claude — a different runtime meaning
+# (parent's model vs. Claude Code's own subagent default) on the one harness the change promised
+# to leave byte-for-byte alone. These asserts pin the split: verbatim on claude, dropped elsewhere.
+make_sandbox
+mkdir -p "$SBX/.cursor" "$SBX/.codex"
+HROOTINH="$(mktemp -d)"; mkdir -p "$HROOTINH/.claude"
+cat > "$SBX/.docket.yml" <<'YML'
+agent_harnesses: [claude, cursor, codex]
+agents:
+  default:
+    status: { model: inherit, effort: medium }
+YML
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTINH" bash "$SYNC" >/dev/null 2>&1 )
+assert "inherit: claude emits it VERBATIM (Claude Code's 'use the parent's model')" \
+  '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "inherit" ]'
+assert "inherit: claude still emits the configured effort alongside it" \
+  '[ "$(fm "$SBX/.claude/agents/docket-status.md" effort)" = "medium" ]'
+assert "inherit: cursor emits NO model: line (no such Cursor value)" \
+  '! grep -q "^model:" "$SBX/.cursor/agents/docket-status.md"'
+assert "inherit: codex emits NO model = line (no such Codex value)" \
+  '! grep -q "^model = " "$SBX/.codex/agents/docket-status.toml"'
+rm -rf "$SBX" "$HROOTINH"
+
 # ---- change 0168: a shipped default never becomes a child-runner flag -------
 # The provenance boundary. `runner:` delegates this agent to a DIFFERENT harness's CLI, so the
 # baked --model/--effort flags are read by that child, not by Claude. A shipped
@@ -1451,5 +1486,63 @@ assert "0168: a cursor agent WITHOUT one warns that it is generated unpinned" \
 assert "0168: the unpinned warning names the key that would fix it" \
   'grep -qF "agents.cursor.status.model" <<<"$w168"'
 rm -rf "$SBX" "$HROOT168W"
+
+# ---- change 0168's two headline properties, asserted on a BARE opt-in --------
+# 0168 whole-branch review, Recommendation 2. Everything above proves a mechanism; this proves the
+# OUTCOME a repo actually gets from `agent_harnesses:` and nothing else — no agents: block, no
+# overrides in any layer. Two properties, stated the way the change states them:
+#   (a) Claude keeps a complete pin — every generated claude wrapper carries BOTH model and effort;
+#   (b) no Claude-only model ID leaks into a cursor or codex wrapper.
+# (b) is the defect class change 0135 shipped and 0168 was written to make structurally impossible,
+# and it is the one a future harness token added without its own sidecar entry would re-open.
+make_sandbox
+mkdir -p "$SBX/.cursor" "$SBX/.codex"
+HROOT168R="$(mktemp -d)"; mkdir -p "$HROOT168R/.claude"
+printf 'agent_harnesses: [claude, cursor, codex]\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT168R" bash "$SYNC" >/dev/null 2>&1 )
+# Frontmatter-ANCHORED read. fm() above is first-match-anywhere, so on a wrapper with no pin it
+# scans into the body and can return prose — a false green for an assert whose whole point is
+# "the pin is present" (AGENTS.md: anchor a frontmatter read to the first ---…--- block).
+fm_anchored(){  # $1=file $2=key
+  awk -v k="$2" '/^---[[:space:]]*$/ { d++; if (d>=2) exit; next }
+                 d==1 && $0 ~ "^"k"[[:space:]]*:" { sub("^"k"[[:space:]]*:[[:space:]]*",""); sub(/[[:space:]]+$/,""); print; exit }' "$1"
+}
+n_r2=0
+for f in "$SBX"/.claude/agents/docket-*.md; do
+  [ -e "$f" ] || continue
+  n_r2=$((n_r2+1)); b="$(basename "$f")"
+  assert "0168 R2: claude/$b carries a non-empty model"  '[ -n "$(fm_anchored "'"$f"'" model)" ]'
+  assert "0168 R2: claude/$b carries a non-empty effort" '[ -n "$(fm_anchored "'"$f"'" effort)" ]'
+done
+assert "0168 R2: the full claude set generated (floor 12; got $n_r2) — the loop above is not vacuous" \
+  '[ "$n_r2" -ge 12 ]'
+
+# Claude-ONLY model IDs: every model the sidecar's claude block names, minus every model any other
+# harness block names. Derived from the sidecar, so a cursor entry that legitimately reuses a
+# Claude ID (claude-opus-5-high today) is excluded rather than hand-waived.
+claude_models="$(for a in $(hd_agents "$HD" claude); do hd_field "$HD" claude "$a" model; printf '\n'; done | sort -u | grep -v '^$')"
+other_models="$(for h in cursor codex; do for a in $(hd_agents "$HD" "$h"); do hd_field "$HD" "$h" "$a" model; printf '\n'; done; done | sort -u | grep -v '^$')"
+claude_only="$(comm -23 <(printf '%s\n' "$claude_models") <(printf '%s\n' "$other_models"))"
+assert "0168 R2: the claude-only model set is non-empty (floor — otherwise the leak asserts are vacuous)" \
+  '[ -n "$claude_only" ]'
+# Cursor encodes effort INSIDE the model value, so compare on the bare ID with any [effort=…]
+# suffix stripped; a substring match would false-positive on cursor's own claude-opus-5-high.
+leaks=""
+for f in "$SBX"/.cursor/agents/docket-*.md; do
+  [ -e "$f" ] || continue
+  v="$(fm_anchored "$f" model)"; v="${v%%\[*}"
+  [ -n "$v" ] || continue
+  grep -qxF "$v" <<<"$claude_only" && leaks="$leaks cursor:$(basename "$f")=$v"
+done
+for f in "$SBX"/.codex/agents/docket-*.toml; do
+  [ -e "$f" ] || continue
+  # `{p;q;}` rather than `| head -n1`: an early-exiting consumer would SIGPIPE sed under pipefail.
+  v="$(sed -n -E '/^model[[:space:]]*=/{s/^model[[:space:]]*=[[:space:]]*"(.*)"[[:space:]]*$/\1/p;q;}' "$f")"
+  [ -n "$v" ] || continue
+  grep -qxF "$v" <<<"$claude_only" && leaks="$leaks codex:$(basename "$f")=$v"
+done
+assert "0168 R2: no cursor/codex wrapper carries a model that lives ONLY in the sidecar's claude block (leaks:${leaks:- none})" \
+  '[ -z "$leaks" ]'
+rm -rf "$SBX" "$HROOT168R"
 
 exit $fail

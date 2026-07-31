@@ -30,14 +30,22 @@ _hd_block(){ # $1=file $2=harness
   ' "$1"
 }
 
-# Print the harness keys (two-space-indented, bare) present under agents:.
-hd_harnesses(){ # $1=file
+# Print the harness keys (two-space-indented, bare) present under agents:, in FILE ORDER, with
+# duplicates INTACT. Only the duplicate-block guard wants this view; everything else wants the set.
+_hd_harness_keys(){ # $1=file
   [ -f "$1" ] || return 0
   awk '
     { nc=$0; sub(/#.*/,"",nc) }
     nc ~ /^  [A-Za-z0-9._-]+[[:space:]]*:[[:space:]]*$/ {
       k=nc; sub(/^  /,"",k); sub(/[[:space:]]*:.*/,"",k); if (k!="") print k
-    }' "$1" | sort -u
+    }' "$1"
+}
+
+# Print the harness keys present under agents: as a SET (sorted, unique).
+# Counting repeats against this is meaningless — `sort -u` collapses them — so the
+# duplicate-harness-block guard in hd_validate counts against _hd_harness_keys instead.
+hd_harnesses(){ # $1=file
+  _hd_harness_keys "$1" | sort -u
 }
 
 # Print the agent short-names under <harness>, in FILE ORDER. Callers that need a set comparison
@@ -47,22 +55,53 @@ hd_agents(){ # $1=file $2=harness
   _hd_block "$1" "$2" | sed -e 's/^    //' -e 's/[[:space:]]*:.*//'
 }
 
-# Print the value of <field> for (harness, agent), or nothing.
-hd_field(){ # $1=file $2=harness $3=agent $4=model|effort
-  local block line val
+# Print the entry line for (harness, agent), or nothing. Shared by the two field readers so they
+# can never disagree about WHICH line they are reading.
+_hd_entry_line(){ # $1=file $2=harness $3=agent
+  local block line
   block="$(_hd_block "$1" "$2")"
   [ -n "$block" ] || return 0
   line="$(grep -E "^    $3[[:space:]]*:" <<<"$block" || true)"
   [ -n "$line" ] || return 0
-  line="${line%%$'\n'*}"                       # first match only; no `| head` under pipefail
-  val="$(sed -nE "s/.*[{,[:space:]]$4[[:space:]]*:[[:space:]]*([A-Za-z0-9._-]+).*/\1/p" <<<"$line")"
+  printf '%s' "${line%%$'\n'*}"                # first match only; no `| head` under pipefail
+}
+
+# Print the value of <field> for (harness, agent), or nothing.
+#
+# The value class is "everything up to the flow-map delimiters" — NOT a character allowlist.
+# ADR-0015 makes model IDs opaque passthrough with no vendor allowlist, and provider-prefixed IDs
+# (`anthropic/claude-opus-5`, `openai:gpt-5.6-sol`) are ordinary. A narrower class does not reject
+# them, which would at least be honest; it TRUNCATES them to a prefix that then satisfies the
+# completeness check in hd_validate and generates a wrong pin (0168 whole-branch review). Anything
+# the class cannot express — a quoted scalar, an embedded space — is caught by hd_validate's
+# bare-scalar check rather than silently clipped.
+hd_field(){ # $1=file $2=harness $3=agent $4=model|effort
+  local line val
+  line="$(_hd_entry_line "$1" "$2" "$3")"
+  [ -n "$line" ] || return 0
+  val="$(sed -nE "s/.*[{,[:space:]]$4[[:space:]]*:[[:space:]]*([^,}[:space:]]+).*/\1/p" <<<"$line")"
   [ -n "$val" ] || return 0
   printf '%s' "${val%%$'\n'*}"
 }
 
+# Print the RAW field text for (harness, agent): everything between the colon and the next flow-map
+# delimiter (`,` or `}`), trailing whitespace trimmed. This is what a YAML parser would see;
+# hd_field is what DOCKET's reader consumes. hd_validate rejects any entry where the two differ, so
+# a value the reader cannot consume whole fails loudly instead of shipping as a truncated prefix.
+# The `_raw` tier follows the naming of docket-frontmatter.sh's field/field_raw pair (ADR-0058),
+# though the split here is reader-capability, not quote-style.
+hd_field_raw(){ # $1=file $2=harness $3=agent $4=model|effort
+  local line val
+  line="$(_hd_entry_line "$1" "$2" "$3")"
+  [ -n "$line" ] || return 0
+  val="$(sed -nE "s/.*[{,[:space:]]$4[[:space:]]*:[[:space:]]*([^,}]*).*/\1/p" <<<"$line")"
+  val="${val%%$'\n'*}"
+  printf '%s' "$(sed -E 's/[[:space:]]+$//' <<<"$val")"
+}
+
 # Validate the sidecar against <sources-dir> (agents/). Exit 1 with diagnostics on stderr.
 hd_validate(){ # $1=file $2=sources-dir
-  local f="$1" src="$2" rc=0 h a line k v n fields
+  local f="$1" src="$2" rc=0 h a line k v raw n fields
   # This library is SOURCED, so it inherits whatever IFS the caller left behind. Several loops
   # below word-split an unquoted expansion; under a clobbered IFS ("") the field-name loop stops
   # splitting, which both fails the pristine sidecar and silently disarms the `runner` guard.
@@ -81,8 +120,9 @@ hd_validate(){ # $1=file $2=sources-dir
     case " $HD_KNOWN_HARNESSES " in *" $h "*) : ;; *)
       echo "harness-defaults: unknown harness '$h' (known: $HD_KNOWN_HARNESSES)" >&2; rc=1; continue ;;
     esac
-    # duplicate harness block
-    if [ "$(hd_harnesses "$f" | grep -cx "$h")" -gt 1 ]; then
+    # duplicate harness block. Counted against the RAW key listing: hd_harnesses ends in `sort -u`,
+    # so counting against it can never exceed 1 and the guard was dead (0168 whole-branch review).
+    if [ "$(_hd_harness_keys "$f" | grep -cxF "$h")" -gt 1 ]; then
       echo "harness-defaults: duplicate harness block '$h'" >&2; rc=1
     fi
     while IFS= read -r line; do
@@ -101,7 +141,15 @@ hd_validate(){ # $1=file $2=sources-dir
       done
       for k in model effort; do
         v="$(hd_field "$f" "$h" "$a" "$k")"
-        [ -n "$v" ] || { echo "harness-defaults: $h/$a is missing a non-empty '$k'" >&2; rc=1; }
+        raw="$(hd_field_raw "$f" "$h" "$a" "$k")"
+        if [ -z "$v" ]; then
+          echo "harness-defaults: $h/$a is missing a non-empty '$k'" >&2; rc=1
+        elif [ "$v" != "$raw" ]; then
+          # The reader consumes bare scalars only. Without this leg a quoted or space-bearing value
+          # is silently clipped to a prefix that still passes the non-empty check above — and when
+          # the clip is empty, the diagnostic blames ABSENCE for what is really a quoting problem.
+          echo "harness-defaults: $h/$a '$k' value '$raw' is not a bare scalar — the reader consumes only '$v'; write model/effort values unquoted and space-free" >&2; rc=1
+        fi
       done
       # duplicate agent entry within the block
       if [ "$(hd_agents "$f" "$h" | grep -cx "$a")" -gt 1 ]; then
