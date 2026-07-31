@@ -17,7 +17,7 @@ results:
 trivial: false
 auto_groomable: false
 branch: feat/sync-agents-per-invocation-cost
-claimed_at: 2026-07-31T20:34:21Z
+claimed_at: 2026-07-31T20:40:09Z
 pr:
 blocked_by:
 reconciled: true
@@ -103,3 +103,12 @@ normal PR conflict reconciliation may be needed if it merges first.
 
 No scope change and no adjacent follow-up met the auto-capture bar. The shared-extractor follow-up
 is already change 0179, and the separate resolver optimization is already change 0176.
+
+### 2026-07-31 — build halted before Task 1
+
+The configured `skills.build: docket-build` role routed Task 1 to its economy profile, but the
+named worker dispatch was rejected before execution: `claude-opus-5` is not supported when using
+Codex with a ChatGPT account. No task code or task commit was produced. The profile-routed build
+contract is Tier C and does not authorize inline substitution; the feature worktree is preserved
+at plan commit `38ee3624` for inspection or resume after the installed profile mapping is made
+compatible with this harness.
