@@ -147,7 +147,7 @@ make_sandbox
 HROOT175A="$(mktemp -d)"; mkdir -p "$HROOT175A/.claude"
 help_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT175A" bash "$SYNC" --help 2>&1)"; help_rc=$?
 assert "0175 args: --help succeeds" '[ "$help_rc" = "0" ]'
-assert "0175 args: --help prints usage" '/usr/bin/grep -qF "Usage: bash sync-agents.sh [--check]" <<<"$help_out"'
+assert "0175 args: --help prints inventory-safe usage" '/usr/bin/grep -qF "Usage: sync-agents.sh [--check]" <<<"$help_out"'
 assert "0175 args: --help writes no wrapper" '[ ! -e "$SBX/.claude/agents/docket-status.md" ]'
 bad_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT175A" bash "$SYNC" --bogus 2>&1)"; bad_rc=$?
 assert "0175 args: unknown flag fails with rc=2" '[ "$bad_rc" = "2" ]'

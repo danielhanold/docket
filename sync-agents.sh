@@ -88,7 +88,7 @@ REGISTERED_RUNNERS="codex cursor"
 is_registered_runner(){ case " $REGISTERED_RUNNERS " in *" $1 "*) return 0;; *) return 1;; esac; }
 
 usage() {
-  printf '%s\n' 'Usage: bash sync-agents.sh [--check]'
+  printf '%s\n' 'Usage: sync-agents.sh [--check]'
 }
 
 CHECK=0
