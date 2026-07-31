@@ -1,8 +1,8 @@
 # Backlog
 
-**178 changes** — 🟡 37 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 117 done · 🗑️ 19 killed
+**179 changes** — 🟡 38 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 117 done · 🗑️ 19 killed
 
-## 🟡 Proposed (37)
+## 🟡 Proposed (38)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -43,6 +43,7 @@
 | [0176](active/0176-docket-config-sh-costs-0-87s-per-invocation-and-dominates-te.md) | docket-config.sh costs ~0.87s per invocation and dominates test_docket_config.sh | `medium` | `perf` | needs-brainstorm |
 | [0177](active/0177-harden-the-0174-fixture-template-helpers-sticky-failure-ungu.md) | Harden the 0174 fixture-template helpers (sticky failure, unguarded mktemp, destructive pre-clean, leaked root) | `medium` | `chore` | needs-brainstorm |
 | [0178](active/0178-fix-the-bsd-grep-parse-error-truncating-test-docket-example.md) | Fix the BSD-grep parse error truncating test_docket_example_yml.sh | `medium` | `fix` | needs-brainstorm |
+| [0179](active/0179-revisit-factoring-a-shared-config-value-extractor-across-the.md) | Revisit factoring a shared config value extractor across the three readers | `medium` | `refactor` | ⏳ waiting on #175 — not yet built |
 
 ## ⚪ Deferred (4)
 
@@ -104,6 +105,7 @@ graph TD
   0176
   0177
   0178
+  0175 --> 0179
   0015:::done
   0077:::done
   0167:::done
