@@ -1798,4 +1798,37 @@ printf 'agents:\n  status: { model: two words, effort: high }\n' > "$SBX/.docket
 assert "0173 validator: legacy flat shape is not promoted to a fatal error" '[ "$lg_rc" = "0" ]'
 rm -rf "$SBX" "$HROOT173G"
 
+# -- the SAME carve-out reasoning, applied evenly (change 0173 review). Two more shapes are already
+#    warned-and-dropped by sync-agents.sh, so the gate must not hard-fail on them either:
+#    (a) an agents.<harness> block for a harness outside agent_harnesses ("ignored (dead config)"),
+#    (b) an agent key overriding no built-in ("ignored (typo?)").
+#    A repo carrying either with a quoted value could otherwise generate NOTHING at all. --
+make_sandbox
+HROOT173X="$(mktemp -d)"; mkdir -p "$HROOT173X/.claude"
+printf 'agent_harnesses: [claude]\nagents:\n  codex:\n    status: { model: "gpt-5.1-codex" }\n  default:\n    status: { model: sonnet }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT173X" bash "$SYNC" >/dev/null 2>&1 ); dead_rc=$?
+assert "0173 validator: dead-config harness block does not block generation" '[ "$dead_rc" = "0" ]'
+assert "0173 validator: and the live wrappers ARE written" \
+  '[ "$(fm_anchored "$SBX/.claude/agents/docket-status.md" model)" = "sonnet" ]'
+rm -rf "$SBX" "$HROOT173X"
+
+make_sandbox
+HROOT173Y="$(mktemp -d)"; mkdir -p "$HROOT173Y/.claude"
+printf 'agents:\n  default:\n    nonexistent-agent: { model: "quoted-value" }\n    status: { model: sonnet }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT173Y" bash "$SYNC" >/dev/null 2>&1 ); typo_rc=$?
+assert "0173 validator: typo'd agent key does not block generation" '[ "$typo_rc" = "0" ]'
+assert "0173 validator: and the real agent still resolves" \
+  '[ "$(fm_anchored "$SBX/.claude/agents/docket-status.md" model)" = "sonnet" ]'
+rm -rf "$SBX" "$HROOT173Y"
+
+# The carve-out must NOT become a hole: a LIVE harness block is still validated. Without this,
+# skipping dead config could silently disarm the gate for the config that actually generates.
+make_sandbox
+HROOT173Z="$(mktemp -d)"; mkdir -p "$HROOT173Z/.claude"
+printf 'agent_harnesses: [claude]\nagents:\n  claude:\n    status: { model: "quoted-value" }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT173Z" bash "$SYNC" >/dev/null 2>&1 ); live_rc=$?
+assert "0173 validator: a LIVE harness block is still a hard failure" '[ "$live_rc" != "0" ]'
+assert "0173 validator: and it wrote no wrapper" '[ ! -e "$SBX/.claude/agents/docket-status.md" ]'
+rm -rf "$SBX" "$HROOT173Z"
+
 exit $fail
