@@ -208,13 +208,46 @@ rc=$?
 assert "PROCEED exits zero" '[ $rc -eq 0 ]'
 
 # ensure_and_sync_worktree: hermetic fixture repos (no network, throwaway origin bare repo).
+# GIT_REPO_TEMPLATE: the baseline every git_repo_setup fixture is copied from.
+GIT_REPO_TEMPLATE=""
+_git_repo_build_template(){
+  GIT_REPO_TEMPLATE="$tmp/.git-repo-template"
+  mkdir -p "$GIT_REPO_TEMPLATE"
+  git init -q -b main "$GIT_REPO_TEMPLATE/seed" \
+    && git -C "$GIT_REPO_TEMPLATE/seed" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init \
+    && git -C "$GIT_REPO_TEMPLATE/seed" -c user.email=t@t -c user.name=t branch docket \
+    && git clone -q --bare "$GIT_REPO_TEMPLATE/seed" "$GIT_REPO_TEMPLATE/origin.git"
+}
 git_repo_setup(){
   local root="$1"
-  git init -q -b main "$root/seed" \
-    && git -C "$root/seed" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init \
-    && git -C "$root/seed" -c user.email=t@t -c user.name=t branch docket \
-    && git clone -q --bare "$root/seed" "$root/origin.git"
+  [ -n "$GIT_REPO_TEMPLATE" ] || _git_repo_build_template || return 1
+  mkdir -p "$root"
+  rm -rf "$root/seed" "$root/origin.git"
+  cp -R "$GIT_REPO_TEMPLATE/seed" "$root/seed" \
+    && cp -R "$GIT_REPO_TEMPLATE/origin.git" "$root/origin.git" \
+    && git -C "$root/origin.git" config remote.origin.url "$root/seed"
 }
+
+# --- fixture independence (change 0174) --------------------------------------
+# git_repo_setup now copies a once-built template. A fixture's bare origin must be
+# its own: pushing into one must not reach a sibling's origin or the template's.
+git_repo_setup "$tmp/indep-a"
+git_repo_setup "$tmp/indep-b"
+git clone -q "$tmp/indep-a/origin.git" "$tmp/indep-a/work" 2>/dev/null
+indep_tpl_before="$(git -C "$GIT_REPO_TEMPLATE/origin.git" rev-parse refs/heads/main)"
+indep_b_before="$(git -C "$tmp/indep-b/origin.git" rev-parse refs/heads/main)"
+git -C "$tmp/indep-a/work" -c user.email=t@t -c user.name=t commit -q --allow-empty -m mutate
+git -C "$tmp/indep-a/work" push -q origin main
+assert "0174 independence: the mutated fixture's own origin DID advance (mutation was real)" \
+  '[ "$(git -C "$tmp/indep-a/origin.git" rev-parse refs/heads/main)" != "$indep_tpl_before" ]'
+assert "0174 independence: a sibling fixture's origin is untouched" \
+  '[ "$(git -C "$tmp/indep-b/origin.git" rev-parse refs/heads/main)" = "$indep_b_before" ]'
+assert "0174 independence: the template's origin is untouched" \
+  '[ "$(git -C "$GIT_REPO_TEMPLATE/origin.git" rev-parse refs/heads/main)" = "$indep_tpl_before" ]'
+assert "0174 independence: a copied bare origin points at its OWN seed" \
+  '[ "$(git -C "$tmp/indep-b/origin.git" config remote.origin.url)" = "$tmp/indep-b/seed" ]'
+assert "0174 fixture parity: the copied origin still carries both branches" \
+  '[ -n "$(git -C "$tmp/indep-b/origin.git" rev-parse --verify -q refs/heads/docket)" ]'
 
 write_sync_fixture(){
   # $1 mode, $2 metadata_branch, $3 metadata_worktree
