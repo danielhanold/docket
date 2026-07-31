@@ -172,4 +172,56 @@ assert "facade: local layer beats committed per key" 'grep -qxF -- "workspace-wr
 assert "facade: unset-in-local key falls to committed (network still false)" '! grep -qF "network_access" <<<"$argv"'
 rm -rf "$SBX"
 
+# ---- 0173: runners.<name> value class — block mapping, tolerant posture -------------
+# The facade exports runners.<name>.* as DOCKET_RUNNER_CFG_*. These values are free-form and more
+# likely to be paths or URLs than model IDs, so the class is "rest of line", not the flow-map class
+# sync-agents.sh uses. Asserts read the exported value directly (via a throwaway adapter dropped
+# into a RUNNERS_DIR of our own) rather than through the codex adapter, so they pin the READER and
+# not the adapter's flag mapping. DOCKET_HARNESS_ROOT is pinned into the sandbox so the global
+# layer cannot reach the developer's real ~/.config/docket/config.yml.
+make_fixture
+mkdir -p "$SBX/runners"
+cat > "$SBX/runners/probe.sh" <<'PROBE'
+#!/usr/bin/env bash
+printf '%s' "${DOCKET_RUNNER_CFG_PROBEKEY-<unset>}"
+PROBE
+chmod +x "$SBX/runners/probe.sh"
+probe(){  # $1 = yaml value text -> prints the resulting DOCKET_RUNNER_CFG_PROBEKEY
+  printf 'runners:\n  probe:\n    probekey: %s\n' "$1" > "$SBX/.docket.yml"
+  ( cd "$SBX" && RUNNERS_DIR="$SBX/runners" DOCKET_HARNESS_ROOT="$SBX" \
+      bash "$FACADE" --runner probe --agent status 2>/dev/null )
+}
+
+assert "0173 rd: slash-bearing value arrives intact" \
+  '[ "$(probe "/Users/x/some/path")" = "/Users/x/some/path" ]'
+assert "0173 rd: colon-bearing URL value arrives intact" \
+  '[ "$(probe "https://example.test/v1")" = "https://example.test/v1" ]'
+assert "0173 rd: trailing comment stripped, whitespace trimmed" \
+  '[ "$(probe "workspace-write   # why we chose it")" = "workspace-write" ]'
+# Comment detection requires WHITESPACE before the `#`, per YAML — so a `#` inside the value
+# (a URL fragment) is part of the value, not the start of a comment.
+assert "0173 rd: a non-whitespace-preceded # stays in the value" \
+  '[ "$(probe "https://example.test/v1#frag")" = "https://example.test/v1#frag" ]'
+assert "0173 rd: a plain value is unchanged (non-regression)" \
+  '[ "$(probe "danger-full-access")" = "danger-full-access" ]'
+rm -rf "$SBX"
+
+# -- tolerant posture: an unparseable value skips WITHOUT dying, and still masks lower layers --
+make_fixture
+mkdir -p "$SBX/runners"
+cat > "$SBX/runners/probe.sh" <<'PROBE'
+#!/usr/bin/env bash
+printf '%s' "${DOCKET_RUNNER_CFG_SANDBOX-<unset>}"
+PROBE
+chmod +x "$SBX/runners/probe.sh"
+# High-precedence layer claims `sandbox` with an EMPTY value; the committed layer sets a real one.
+printf 'runners:\n  probe:\n    sandbox:\n' > "$SBX/.docket.local.yml"
+printf 'runners:\n  probe:\n    sandbox: danger-full-access\n' > "$SBX/.docket.yml"
+tol_out="$( cd "$SBX" && RUNNERS_DIR="$SBX/runners" DOCKET_HARNESS_ROOT="$SBX" \
+    bash "$FACADE" --runner probe --agent status 2>/dev/null )"; tol_rc=$?
+assert "0173 rd: malformed high-precedence value does not kill the dispatch" '[ "$tol_rc" = "0" ]'
+assert "0173 rd: and it still MASKS the lower layer (per-key precedence preserved)" \
+  '[ "$tol_out" = "<unset>" ]'
+rm -rf "$SBX"
+
 exit $fail

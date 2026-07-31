@@ -72,7 +72,18 @@ for f in "$REPO_ROOT/.docket.local.yml" "$REPO_ROOT/.docket.yml" "$GLOBAL_CFG"; 
     seen_keys="$seen_keys$k "                          # claim the key for THIS layer before parsing its
                                                        # value, so a malformed high-precedence value still
                                                        # masks lower layers (precedence is per-key, not per-value)
-    v="$(sed -nE 's/^[[:space:]]*[A-Za-z0-9._-]+[[:space:]]*:[[:space:]]*([A-Za-z0-9._-]+).*/\1/p' <<<"$line")"
+    # Value class (change 0173): rest of the line, trailing `# comment` stripped, whitespace
+    # trimmed. This is a BLOCK mapping (one key per line), not sync-agents.sh's flow map, so the
+    # flow-map class would be wrong here — it would admit a slash-bearing path only by luck. The
+    # pre-0173 class ([A-Za-z0-9._-]+) truncated `https://host/v1` to `https` and dropped a
+    # leading-slash path entirely. Comment detection requires leading whitespace, per YAML, so a
+    # value containing `#` (a URL fragment) survives.
+    # Posture stays TOLERANT — an unparseable value `continue`s rather than dying. This path runs
+    # mid-handoff to a child process, where dying converts a cosmetic config typo into a failed
+    # dispatch. sync-agents.sh is loud instead; the asymmetry is deliberate (change 0173).
+    v="$(sed -nE 's/^[[:space:]]*[A-Za-z0-9._-]+[[:space:]]*:[[:space:]]*(.*)$/\1/p' <<<"$line")"
+    v="${v%%$'\n'*}"
+    v="$(sed -E -e 's/[[:space:]]+#.*$//' -e 's/[[:space:]]+$//' <<<"$v")"
     [ -n "$v" ] || continue
     uk="$(tr '[:lower:]' '[:upper:]' <<<"$k" | tr '.-' '__')"
     export "DOCKET_RUNNER_CFG_$uk=$v"
