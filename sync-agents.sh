@@ -297,6 +297,87 @@ prime_layer_body() {  # $1=file $2=harness $3=under_agents(0|1)
   _LAYER_BODY_CACHE[$key]="$body"
 }
 
+# Validate the fixed shipped sidecar shape in one parser pass. hd_validate remains the Bash 3.2
+# fallback and the standalone library contract; on Bash 4+ its deliberately composable readers
+# would otherwise reparse the same 24 rows hundreds of times before every generation.
+validate_harness_defaults() {  # $1=file $2=sources-dir
+  local file="$1" sources="$2" src name source_names="" rc
+  if [ "${BASH_VERSINFO[0]}" -lt 4 ]; then
+    hd_validate "$file" "$sources"
+    return $?
+  fi
+  if [ ! -f "$file" ] || [ ! -r "$file" ]; then
+    printf 'harness-defaults: missing or unreadable: %s\n' "$file" >&2
+    return 1
+  fi
+  for src in "$sources"/docket-*.md; do
+    [ -e "$src" ] || continue
+    name="${src##*/}"; name="${name#docket-}"; name="${name%.md}"
+    source_names="${source_names}${name} "
+  done
+  awk -v known="$HD_KNOWN_HARNESSES" -v shipped="$HD_SHIPPED_HARNESSES" \
+      -v sources="$source_names" -v source_dir="$sources" '
+    function has(words, word) { return index(" " words " ", " " word " ") != 0 }
+    function trim(s) { sub(/^[[:space:]]+/, "", s); sub(/[[:space:]]+$/, "", s); return s }
+    function diag(s) { print "harness-defaults: " s > "/dev/stderr"; rc=1 }
+    {
+      nc=$0; sub(/#.*/, "", nc)
+      if (nc ~ /^agents:[[:space:]]*$/) top=1
+      if (nc ~ /^  [A-Za-z0-9._-]+[[:space:]]*:/) {
+        if (nc !~ /^  [A-Za-z0-9._-]+[[:space:]]*:[[:space:]]*$/) { h=""; next }
+        h=nc; sub(/^  /, "", h); sub(/[[:space:]]*:.*/, "", h)
+        harness_count[h]++
+        if (h == "default") diag("a harness-neutral \047default:\047 block is forbidden — every entry must name a concrete harness")
+        else if (!has(known, h)) diag("unknown harness \047" h "\047 (known: " known ")")
+        next
+      }
+      if (h != "" && nc ~ /^    [A-Za-z0-9._-]+[[:space:]]*:/) {
+        a=nc; sub(/^    /, "", a); sub(/[[:space:]]*:.*/, "", a)
+        entry_count[h SUBSEP a]++
+        present[h SUBSEP a]=1
+        if (!has(sources, a)) diag(h "/" a " names no wrapper source (" source_dir "/docket-" a ".md)")
+        fields=nc
+        if (fields !~ /\{.*\}/) { model=""; effort="" }
+        else {
+          sub(/^[^{]*\{/, "", fields); sub(/\}[^}]*$/, "", fields)
+          model=""; effort=""
+          n=split(fields, parts, ",")
+          for (i=1; i<=n; i++) {
+            part=parts[i]; key=part; sub(/:.*/, "", key); key=trim(key)
+            raw=part; sub(/^[^:]*:/, "", raw); raw=trim(raw)
+            if (key == "") continue
+            if (key == "model") model=raw
+            else if (key == "effort") effort=raw
+            else if (key == "runner") diag(h "/" a " sets \047runner\047 — delegation is user policy, never a shipped default")
+            else diag(h "/" a " has unknown field \047" key "\047 (allowed: model, effort)")
+          }
+        }
+        values["model"]=model; values["effort"]=effort
+        for (key in values) {
+          raw=values[key]
+          consumed=raw; sub(/[[:space:]].*$/, "", consumed)
+          if (consumed == "") diag(h "/" a " is missing a non-empty \047" key "\047")
+          else if (consumed != raw) diag(h "/" a " \047" key "\047 value \047" raw "\047 is not a bare scalar — the reader consumes only \047" consumed "\047; write model/effort values unquoted and space-free")
+        }
+      }
+    }
+    END {
+      if (!top) diag("no top-level \047agents:\047 block")
+      for (key in harness_count) if (harness_count[key] > 1) diag("duplicate harness block \047" key "\047")
+      for (key in entry_count) if (entry_count[key] > 1) {
+        split(key, pair, SUBSEP); diag("duplicate entry \047" pair[2] "\047 under \047" pair[1] "\047")
+      }
+      ns=split(shipped, hs, /[[:space:]]+/); na=split(sources, agents, /[[:space:]]+/)
+      for (i=1; i<=ns; i++) for (j=1; j<=na; j++)
+        if (hs[i] != "" && agents[j] != "" && !present[hs[i] SUBSEP agents[j]])
+          diag(hs[i] " block is incomplete — no entry for \047" agents[j] "\047")
+      exit rc
+    }
+  ' "$file"
+  rc=$?
+  return $rc
+}
+
 # field_of() — the flow-map value reader (change 0173).
 #
 # The value class is "everything up to the flow-map delimiters" — NOT a character allowlist.
@@ -363,7 +444,7 @@ harness_agent_line() {  # $1=file  $2=harness  $3=agent  $4=under_agents(0|1)
 # same way; the pre-0079 early break is gone — runner rarely fills, and the loop
 # spans at most three small files.
 resolve_agent_layers() {  # $1=harness  $2=agent  $3..=layer files (precedence order)
-  local harness="$1" agent="$2" f hline dline hm he dm de hr dr
+  local harness="$1" agent="$2" f hline dline hm he dm de hr dr sline
   shift 2
   RES_MODEL=""; RES_EFFORT=""; RES_RUNNER=""; RES_MODEL_FROM_HARNESS=0
   RES_MODEL_FROM_USER=0; RES_EFFORT_FROM_USER=0
@@ -396,11 +477,27 @@ resolve_agent_layers() {  # $1=harness  $2=agent  $3..=layer files (precedence o
   # `agents.default` line wins the field above and leaves the sidecar entry unused. Only the former
   # licenses warn_fallback_model's silence.
   RES_MODEL_FROM_SIDECAR=0
+  if [ "${BASH_VERSINFO[0]}" -ge 4 ]; then
+    prime_layer_body "$HARNESS_DEFAULTS" "$harness" 1
+    sline="$(harness_agent_line "$HARNESS_DEFAULTS" "$harness" "$agent" 1)"
+  else
+    sline=""
+  fi
   if [ -z "$RES_MODEL" ]; then
-    RES_MODEL="$(hd_field "$HARNESS_DEFAULTS" "$harness" "$agent" model)"
+    if [ "${BASH_VERSINFO[0]}" -ge 4 ]; then
+      RES_MODEL="$(field_of "$sline" model)"
+    else
+      RES_MODEL="$(hd_field "$HARNESS_DEFAULTS" "$harness" "$agent" model)"
+    fi
     [ -n "$RES_MODEL" ] && RES_MODEL_FROM_SIDECAR=1
   fi
-  [ -z "$RES_EFFORT" ] && RES_EFFORT="$(hd_field "$HARNESS_DEFAULTS" "$harness" "$agent" effort)"
+  if [ -z "$RES_EFFORT" ]; then
+    if [ "${BASH_VERSINFO[0]}" -ge 4 ]; then
+      RES_EFFORT="$(field_of "$sline" effort)"
+    else
+      RES_EFFORT="$(hd_field "$HARNESS_DEFAULTS" "$harness" "$agent" effort)"
+    fi
+  fi
   return 0
 }
 
@@ -1143,7 +1240,7 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
     # returned before the gate below, so CI could pass against a sidecar the next real run would
     # refuse — the one place a repo would rather learn about it. It costs one pass over a shipped
     # file docket owns; a valid sidecar changes nothing about --check's outcome.
-    if ! hd_validate "$HARNESS_DEFAULTS" "$AGENTS_SRC"; then
+    if ! validate_harness_defaults "$HARNESS_DEFAULTS" "$AGENTS_SRC"; then
       log "check: agents/harness-defaults.yml is invalid — a real run would refuse to write wrappers."
       exit 1
     fi
@@ -1156,7 +1253,7 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
 
   # The sidecar is required program data (change 0168). Validate BEFORE writing any wrapper, so a
   # malformed file cannot leave a half-regenerated agent directory behind.
-  if ! hd_validate "$HARNESS_DEFAULTS" "$AGENTS_SRC"; then
+  if ! validate_harness_defaults "$HARNESS_DEFAULTS" "$AGENTS_SRC"; then
     log "ERROR agents/harness-defaults.yml is missing or invalid — no wrappers were written."
     exit 1
   fi

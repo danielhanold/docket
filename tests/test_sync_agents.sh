@@ -103,6 +103,45 @@ assert "0175 readers: consumed/raw edge cases preserve fixed semantics" \
 # Helper: a fresh fake harness root + repo for an isolated generator run.
 make_sandbox(){ SBX="$(mktemp -d)"; mkdir -p "$SBX/.claude" "$SBX/.agents"; }   # .cursor/.codex/.kiro/.windsurf absent on purpose
 
+# Count the parser-heavy external commands used by one real generation pass. The shims deliberately
+# exec the pre-PATH absolute tools so this measures the generator rather than replacing its behavior.
+parser_subprocess_count(){  # $1=generator path; sets FORK_COUNT
+  local generator="$1" shim_dir fork_log harness_root tool real_tool
+  local real_sed real_head real_awk real_grep
+  real_sed="$(command -v sed)"
+  real_head="$(command -v head)"
+  real_awk="$(command -v awk)"
+  real_grep="$(command -v grep)"
+  shim_dir="$(mktemp -d)"
+  fork_log="$(mktemp)"
+  harness_root="$(mktemp -d)"
+  mkdir -p "$harness_root/.claude"
+  : > "$fork_log"
+  for tool in sed head awk grep; do
+    case "$tool" in
+      sed) real_tool="$real_sed" ;;
+      head) real_tool="$real_head" ;;
+      awk) real_tool="$real_awk" ;;
+      grep) real_tool="$real_grep" ;;
+    esac
+    printf '%s\n' '#!/usr/bin/env bash' \
+      "printf '%s\\n' '$tool' >> \"\${DOCKET_175_FORK_LOG:?}\"" \
+      "exec $real_tool \"\$@\"" > "$shim_dir/$tool"
+    chmod +x "$shim_dir/$tool"
+  done
+  make_sandbox
+  PATH="$shim_dir:$PATH" DOCKET_175_FORK_LOG="$fork_log" DOCKET_HARNESS_ROOT="$harness_root" \
+    bash "$generator" >/dev/null 2>&1
+  FORK_COUNT="$(wc -l < "$fork_log" | tr -d '[:space:]')"
+  rm -rf "$SBX" "$shim_dir" "$fork_log" "$harness_root"
+}
+
+# The optimization's standing performance oracle: retain real generator behavior while bounding
+# only its historic dominant parser commands. The nonzero floor makes a broken shim setup red too.
+parser_subprocess_count "$SYNC"
+assert "0175 parser subprocess guard: shims observed real generator calls" '[ "$FORK_COUNT" -gt 0 ]'
+assert "0175 parser subprocess guard: dominant parser commands stay below 400" '[ "$FORK_COUNT" -lt 400 ]'
+
 # -- command-line contract: help/errors must return before any generation side effect --
 make_sandbox
 HROOT175A="$(mktemp -d)"; mkdir -p "$HROOT175A/.claude"
