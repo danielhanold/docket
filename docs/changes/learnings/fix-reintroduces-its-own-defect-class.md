@@ -2,9 +2,9 @@
 slug: fix-reintroduces-its-own-defect-class
 hook: "New code added by a change that fixes a defect class is the likeliest place for that class to reappear — audit the change's OWN additions against its thesis before review, and check the twin it did not touch."
 topics: [review, refactoring, contracts]
-changes: [135]
+changes: [135, 173]
 created: 2026-07-28
-updated: 2026-07-28
+updated: 2026-07-31
 promotion_state: candidate
 promoted_to:
 ---
@@ -43,3 +43,17 @@ Related: [[escape-ere-metacharacters-in-key]] (the un-fixed twin of a duplicated
   suite; fixed by normalizing the sentinel before the flag mapping so it routes into the existing
   correct WARN. The Codex adapter's identical twin, rooted upstream in `emit_shim`, was still live
   and became **#0140**.
+- 2026-07-31 (#173, PR #142 — merged) — The change existed to widen three over-narrow value classes
+  that silently truncated config values. Its **own new** block-mapping reader in
+  `scripts/runner-dispatch.sh` then over-captured in the opposite direction: for a comment-only line
+  (`sandbox:   # TODO decide later`) it exported the comment text as the value, because the
+  capture's trailing `[[:space:]]*` is greedy and eats the space the strip-comment step keys on, so
+  that strip could never fire. `scripts/runners/codex.sh` would have run
+  `codex exec --sandbox '# TODO decide later'`, or `die`d outright on a commented-out `network:` —
+  turning a cosmetic comment into a failed dispatch, the exact harm the reader's deliberately
+  tolerant posture exists to prevent. Caught at whole-branch review, not by the suite. Alongside it,
+  the change's **new gate** was self-inconsistent: it exempted one already-warned-and-dropped config
+  shape while hard-failing two others, so a quoted value in dead config blocked *all* wrapper
+  generation. Both fixed in `ff9f0962`. The generalizable addition to this finding: when the defect
+  class is "the pattern is the wrong width," the replacement pattern is wrong in the *other*
+  direction just as easily — widening is not a safe direction, it is a second chance to be wrong.

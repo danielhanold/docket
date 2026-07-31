@@ -2,7 +2,7 @@
 slug: plan-supplied-test-code-is-unverified
 hook: "Test code a plan hands you is unverified code, not an oracle — prove the assert CAN pass, and mutation-test its own key."
 topics: [testing, plan, guards]
-changes: [94, 104, 112, 130, 133, 157, 168, 174]
+changes: [94, 104, 112, 130, 133, 157, 168, 173, 174]
 created: 2026-07-19
 updated: 2026-07-31
 promotion_state: candidate
@@ -143,3 +143,16 @@ implementer. It is not a reason to distrust plans — it is a reason to run the 
   unchanged when they could not stay — Codex has no sidecar block, so all twelve Codex wrappers now
   emit no pin and the asserts had to be re-pointed at absence. (Change #0169 must flip them back to
   value asserts when it lands the Codex mapping.)
+- 2026-07-31 (#173, PR #142 — merged) — **Two supplied snippets were flagged defective by the plan
+  itself; the implementers found a third that was not.** Task 3's `probe()` helper wrote its fixture
+  under `runners: codex:` while dispatching `--runner probe`, so every value assert would have read
+  `<unset>` regardless of whether the fix worked — permanently red, aimed at the change's own
+  central behavior. The sharper half of this entry is not plan-authored at all: a *review-fix*
+  assert written during the build over-escaped an apostrophe inside a double-quoted string
+  (`typo'"'"'d`), producing an unterminated quote that aborted `tests/test_sync_agents.sh` at line
+  1832 with **zero `NOT OK` lines and `rc=2`**. The file looked clean by the metric anyone scans
+  first; what gave it away was the *assert count* (526) coming in lower than expected. A suite whose
+  pass/fail summary is derived from failure lines cannot distinguish "nothing failed" from "the
+  interpreter stopped reading" — so when a test file is edited, compare the assert total against the
+  previous run, not just the failure count. Same discipline as the plan-supplied case, applied to
+  the code you just wrote yourself.
