@@ -3,7 +3,7 @@
 <!-- docket:backlink:end -->
 
 # Cursor support for profile-routed Docket builds — results
-Change: #168 · Branch: feat/cursor-profile-routed-build-support · PR: <url> · Plan: docs/superpowers/plans/2026-07-31-cursor-profile-routed-build-support.md · ADRs: 64 (supersedes 48)
+Change: #168 · Branch: feat/cursor-profile-routed-build-support · PR: https://github.com/danielhanold/docket/pull/140 · Plan: docs/superpowers/plans/2026-07-31-cursor-profile-routed-build-support.md · ADRs: 64 (supersedes 48)
 
 **Cursor IDE certification pending.** Tier 2 of the design is a human-at-the-IDE checklist that an
 autonomous build cannot execute. Until all five checks below pass, the support claim is unproven and
