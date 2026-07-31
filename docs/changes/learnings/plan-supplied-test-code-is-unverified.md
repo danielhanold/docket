@@ -2,9 +2,9 @@
 slug: plan-supplied-test-code-is-unverified
 hook: "Test code a plan hands you is unverified code, not an oracle — prove the assert CAN pass, and mutation-test its own key."
 topics: [testing, plan, guards]
-changes: [94, 104, 112, 130, 133, 157]
+changes: [94, 104, 112, 130, 133, 157, 174]
 created: 2026-07-19
-updated: 2026-07-28
+updated: 2026-07-31
 promotion_state: candidate
 promoted_to:
 ---
@@ -114,3 +114,18 @@ implementer. It is not a reason to distrust plans — it is a reason to run the 
   Same change, same family: 0146's overlap-invariant guard **always inserted separators**, so it could
   never exercise the unseparated adjacency it existed to catch — vacuous by construction. Fixed with
   vacuity evidence before shipping rather than after.
+- 2026-07-31 (#174, PR #141 — merged) — **The plan's scripted RED step could never have gone red.**
+  Each task was to begin by proving the new assertions fail against the un-refactored helper, on the
+  premise that an undefined template global would abort the file under `set -u`. It does not: every
+  dereference sat inside a command substitution, so `set -u` killed only the **subshell** and the
+  parent continued with an empty string — the file ran to completion, green. The implementer
+  substituted real mutation evidence against the implemented helper (delete the `remote set-url`
+  line; symlink the origin; symlink the work tree; drop a seeded ADR) and confirmed each new
+  assertion reddens under at least one mutation. Two honesty notes the same review surfaced, worth
+  copying: the mutation's blast radius was reported per file rather than in aggregate — the
+  URL-rewrite mutation reddens 121 assertions in one file and exactly **1** in another, and that one
+  merely restates the implementation line, so "the URL rewrite is the correctness core" was true of
+  three files, not four; and two assertions per block were flagged as unfalsifiable given `cp -R`
+  semantics — harmless, but they inflate the apparent strength of the block they sit in. Counting
+  the assertions that *cannot* fail is part of reading a mutation matrix honestly. The same build's
+  inert-optimization defect is in [[optimization-needs-a-measured-oracle]].
