@@ -2,7 +2,7 @@
 id: 169
 slug: codex-profile-routed-build-support
 title: Codex support for profile-routed Docket builds
-status: in-progress
+status: implemented
 priority: medium
 type: feat
 created: 2026-07-30
@@ -13,12 +13,12 @@ discovered_from: [167]
 adrs: [36, 37, 38, 63, 64]
 spec: docs/superpowers/specs/2026-07-31-codex-profile-routed-build-support-design.md
 plan: docs/superpowers/plans/2026-07-31-codex-profile-routed-build-support.md
-results:
+results: docs/results/2026-07-31-codex-profile-routed-build-support-results.md
 trivial: false
 auto_groomable:
 branch: feat/codex-profile-routed-build-support
-claimed_at: 2026-07-31T18:33:47Z
-pr:
+claimed_at: 2026-07-31T22:44:05Z
+pr: https://github.com/danielhanold/docket/pull/143
 blocked_by:
 reconciled: true
 ---
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-31-codex-profile-routed-build-support-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-31-codex-profile-routed-build-support-design.md) |
 | Plan | [2026-07-31-codex-profile-routed-build-support.md](https://github.com/danielhanold/docket/blob/feat/codex-profile-routed-build-support/docs/superpowers/plans/2026-07-31-codex-profile-routed-build-support.md) |
+| Results | [2026-07-31-codex-profile-routed-build-support-results.md](https://github.com/danielhanold/docket/blob/feat/codex-profile-routed-build-support/docs/results/2026-07-31-codex-profile-routed-build-support-results.md) |
+| PR | [#143](https://github.com/danielhanold/docket/pull/143) |
 | ADRs | [ADR-0036](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0036-codex-agents-md-dispatch-block-committed-machine-neutral.md), [ADR-0037](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0037-runner-delegation-explicit-runner-field.md), [ADR-0038](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0038-runner-shim-wrapper-single-dispatch-chokepoint.md), [ADR-0063](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0063-docket-owns-the-build-role-profile-routed-workers.md), [ADR-0064](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0064-shipped-agent-defaults-live-in-a-harness-indexed-sidecar.md) |
 <!-- docket:artifacts:end -->
 
