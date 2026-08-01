@@ -132,7 +132,10 @@ assert "controller: important/minor findings go to the PR body, never auto-fixed
   'grep -qE "important" <<<"$step6" && grep -qiE "PR body" <<<"$step6"'
 assert "controller: no re-review round after fixes" \
   'grep -qiE "no re-review|never re-review" <<<"$step6"'
-assert "controller: a red re-run halts" 'grep -qiE "red .{0,40}halt|halt" <<<"$step6"'
+# The bare `|halt` alternation this assert once carried made it vacuous: Step 6 already said
+# "authorized-or-halt" before the triage prose existed, so it passed on prose it did not guard.
+# Keyed on the proximity shape instead — the committed "A red re-run **halts**" satisfies it.
+assert "controller: a red re-run halts" 'grep -qiE "red .{0,40}halt" <<<"$step6"'
 
 step7="$(awk "/^### Step 7 — PR/{f=1;next} /^### Terminal disposition/{f=0} f" "$IMPL")"
 assert "controller: Step 7 was located (non-vacuity anchor)" '[ -n "$step7" ]'
