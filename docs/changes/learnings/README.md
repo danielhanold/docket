@@ -21,6 +21,7 @@ One curated finding per file; this index is the hint surface. Load it, then read
 - [presence-encoded-state](presence-encoded-state.md) — When state is encoded by an artifact's presence, every transition out of that state must remove the artifact. · also: state, views ⟨needs promotion⟩
 - [sole-channel](sole-channel.md) — When a channel becomes the SOLE source of some state, re-prove on the survivor every property the fallback used to give you free. · also: contracts, retries
 - [unset-sort-key-check-your-own-template](unset-sort-key-check-your-own-template.md) — Decide a sort key's unset case explicitly — then check whether your own template makes unset the COMMON case rather than the rare one. · also: sorting, templates
+- [validate-the-whole-input-set-first](validate-the-whole-input-set-first.md) — A tool that processes a list must validate every element before acting on any — otherwise a bad last argument surfaces only after the work on the earlier ones is already spent. · also: cli, validation
 
 ## docs
 
