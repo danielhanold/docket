@@ -131,8 +131,8 @@ can be run by an autonomous build, and `cursor-agent` is not an accepted substit
 
 Run a real `docket-build` on a plan with at least four tasks, in the Cursor IDE:
 
-1. **Explicit routing, all four profiles.** A task carrying `**Build profile:** low` lands on
-   `docket-build-low`; likewise `medium`, `high`, and `max` on their own workers. Observable
+1. **Explicit routing, all four profiles.** A task carrying `**Build profile:** economy` lands on
+   `docket-build-economy`; likewise `standard`, `premium`, and `max` on their own workers. Observable
    outcome: four dispatches, four distinct agent names, each child reporting the Cursor model its
    wrapper resolved — not the session model, and not a Claude ID.
 2. **One auto-classified task.** A task with no `**Build profile:**` line is routed by the

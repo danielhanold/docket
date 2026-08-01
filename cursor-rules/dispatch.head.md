@@ -7,7 +7,7 @@ alwaysApply: true
 
 Docket generates a subagent wrapper per docket agent into `.cursor/agents/docket-*.md`. It ships
 validated Cursor model IDs for **every** wrapper — including all four build-profile workers,
-`docket-build-low`, `docket-build-medium`, `docket-build-high`, and `docket-build-max` — so each
+`docket-build-economy`, `docket-build-standard`, `docket-build-premium`, and `docket-build-max` — so each
 one is generated pinned unless a config layer overrides it.
 
 Dispatch is required either way. When you are asked to run one of the docket agents listed below,

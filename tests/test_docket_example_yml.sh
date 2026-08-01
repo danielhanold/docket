@@ -897,7 +897,7 @@ ex_slice_field(){ # $1=slice  $2=agent  $3=field(model|effort)
 # Each block's terminator is its own build-max MODEL, which is what makes the three ranges
 # independent: every agent key appears in all three blocks, so a key-only anchor would resolve every
 # lookup to whichever block came first in the file. build-max is the terminator because it is the
-# LAST build row in ladder order (low, medium, high, max) and the build rows close every block — so
+# LAST build row in ladder order (economy, standard, premium, max) and the build rows close every block — so
 # this anchor moves whenever the ladder's top rung is renamed. Change 0184 moved it here from the
 # ladder's previous top rung; that rename is the reason the anchor is named in prose rather than
 # assumed.
@@ -1002,9 +1002,9 @@ assert "round-trip: codex status effort came from the example block" \
 # model is deliberate, not a copy-paste. Pair distinctness is asserted in tests/test_docket_build.sh;
 # this leg only proves the example's ladder survives the real generator into real Codex TOML.
 assert "round-trip: the codex build profiles resolve to their shipped ladder" \
-  '[ "$(sed -nE "s/^model[[:space:]]*=[[:space:]]*\"(.*)\"[[:space:]]*$/\1/p" "$SB/.codex/agents/docket-build-low.toml")" = "gpt-5.6-luna" ] &&
-   [ "$(sed -nE "s/^model[[:space:]]*=[[:space:]]*\"(.*)\"[[:space:]]*$/\1/p" "$SB/.codex/agents/docket-build-medium.toml")" = "gpt-5.6-terra" ] &&
-   [ "$(sed -nE "s/^model[[:space:]]*=[[:space:]]*\"(.*)\"[[:space:]]*$/\1/p" "$SB/.codex/agents/docket-build-high.toml")" = "gpt-5.6-sol" ] &&
+  '[ "$(sed -nE "s/^model[[:space:]]*=[[:space:]]*\"(.*)\"[[:space:]]*$/\1/p" "$SB/.codex/agents/docket-build-economy.toml")" = "gpt-5.6-luna" ] &&
+   [ "$(sed -nE "s/^model[[:space:]]*=[[:space:]]*\"(.*)\"[[:space:]]*$/\1/p" "$SB/.codex/agents/docket-build-standard.toml")" = "gpt-5.6-terra" ] &&
+   [ "$(sed -nE "s/^model[[:space:]]*=[[:space:]]*\"(.*)\"[[:space:]]*$/\1/p" "$SB/.codex/agents/docket-build-premium.toml")" = "gpt-5.6-sol" ] &&
    [ "$(sed -nE "s/^model[[:space:]]*=[[:space:]]*\"(.*)\"[[:space:]]*$/\1/p" "$SB/.codex/agents/docket-build-max.toml")" = "gpt-5.6-sol" ]'
 rm -rf "$_sbs"
 

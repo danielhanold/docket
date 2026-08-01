@@ -141,39 +141,45 @@ assert "controller: contract is non-vacuous (>= 50 lines)" \
 
 # It must dispatch by AGENT NAME — the whole point of the change is that model and effort are
 # properties of a named agent rather than an ad-hoc per-dispatch argument.
-for a in docket-build-low docket-build-medium docket-build-high docket-build-max; do
+for a in docket-build-economy docket-build-standard docket-build-premium docket-build-max; do
   assert "controller: names the $a agent" 'grep -qF -- "'"$a"'" <<<"$ctrl_body"'
 done
 
-# The routing rubric, with its deliberate asymmetry. The low/medium rubric bullets are
+# The routing rubric, with its deliberate asymmetry. The economy/standard rubric bullets are
 # anchored on the same "^- **`token`**" structural idiom this file already uses for the worker's
 # outcome bullets, since the prose disjunctions they replace were absorbed by the `## Routing`
 # summary sentence — deleting the operative bullet reddened nothing (fix round 2, finding 2).
-assert "controller: low must be POSITIVELY established" \
-  'grep -qE "^- \*\*\`low\`\*\* — \*only when\*" <<<"$ctrl_body"'
-assert "controller: named risk selects high" \
-  'grep -qiE "high[^.]{0,200}(authentication|security boundar)" <<<"$ctrl_body"'
-assert "controller: uncertainty defaults to medium" \
-  'grep -qE "^- \*\*\`medium\`\*\* — everything remaining" <<<"$ctrl_body"'
+assert "controller: economy must be POSITIVELY established" \
+  'grep -qE "^- \*\*\`economy\`\*\* — \*only when\*" <<<"$ctrl_body"'
+assert "controller: named risk selects premium" \
+  'grep -qiE "premium[^.]{0,200}(authentication|security boundar)" <<<"$ctrl_body"'
+assert "controller: uncertainty defaults to standard" \
+  'grep -qE "^- \*\*\`standard\`\*\* — everything remaining" <<<"$ctrl_body"'
 
 # 0184: max is reachable only through three narrow doors, and its DIRECT rubric is exactly two
-# items. An assert that merely finds the word "max" in the rubric would stay green if the old
-# premium trigger list were pasted under the new name — which is the regression to detect.
+# items. An assert that merely finds the word "max" in the rubric would stay green if the pre-0184
+# top-rung trigger list were pasted under the new name — which is the regression to detect. (Before
+# 0184 there were three profiles and `premium` was the top rung, carrying those triggers; 0184 added
+# a fourth above it, so the triggers belong to `premium` as the THIRD of four, not to `max`.)
 assert "controller: max's direct rubric is unresolved architecture + irreversible data only" \
   'grep -qiE "\*\*\`max\`\*\*[^.]{0,240}unresolved architecture" <<<"$ctrl_body" &&
    grep -qiE "\*\*\`max\`\*\*[^.]{0,240}irreversible" <<<"$ctrl_body"'
-assert "controller: the demoted premium triggers now name high, not max" \
+assert "controller: the demoted top-rung triggers now name premium, not max" \
   '! grep -qiE "\*\*\`max\`\*\*[^.]{0,240}(authentication|security boundar|concurrency|release infrastructure)" <<<"$ctrl_body"'
 
 # Detect the removed state. The clean break means these tokens must not survive as PROFILE names in
 # either contract; anchored on the two skill files rather than a whole-repo grep, because historical
 # records under docs/ legitimately keep the old vocabulary.
-# `standard` is in the pattern deliberately, even though the repo-wide guard below already catches
-# the hyphenated `build-standard` form: a regression that reintroduced a BARE `standard` profile
-# token into the rubric or a ladder would match neither the hyphenated guard nor a two-token
-# pattern, leaving one of the three retired names with no detector in prose at all.
-assert "controller + worker carry no retired profile token" \
-  '! grep -qiE "\b(economy|standard|premium)\b" "$CTRL" "$WORKER"'
+#
+# The retired vocabulary is now low/medium/high, and a BARE-word ban on those three is only
+# sound because neither contract may state an effort tier in the first place — the controller's
+# own "Never restate literal model IDs or effort tiers in your dispatch prose" rule, and the
+# worker's silence on the subject. That makes this assert do double duty: it catches a stale
+# profile token AND enforces the no-effort-tiers rule, which previously had no detector at all.
+# If a future change ever needs a literal effort tier in either body, this assert is the thing
+# that must be argued with first — narrowing it silently would drop both properties.
+assert "controller + worker carry no retired profile token (and state no effort tier)" \
+  '! grep -qiE "\b(low|medium|high)\b" "$CTRL" "$WORKER"'
 
 # The plan override and its fail-loud contract.
 assert "controller: honors an explicit plan Build profile override" \
@@ -183,16 +189,16 @@ assert "controller: an invalid explicit profile HALTS rather than falling back" 
 
 # The escalation ladder — all four edges, including the terminal one. Each is anchored on its
 # "initial <profile>" prefix (the ladder fence's defining shape), not bare "<profile>", since the
-# build gate's repair-ladder literal "high -> max -> halt" decoy-matches any assert keyed
+# build gate's repair-ladder literal "premium -> max -> halt" decoy-matches any assert keyed
 # on bare profile-name-then-arrow text — proven for all edges by mutation (deleting the
 # whole ladder fence still left bare-anchored asserts green; fix round 1 caught it for the top
 # edge only, fix round 2 applied the same anchor to the lower ones).
-assert "controller: low escalates to medium" \
-  'grep -qiE "initial low[^.]{0,40}(->|→|to)[^.]{0,20}medium" <<<"$ctrl_body"'
-assert "controller: medium escalates to high" \
-  'grep -qiE "initial medium[^.]{0,40}(->|→|to)[^.]{0,20}high" <<<"$ctrl_body"'
-assert "controller: high escalates to max" \
-  'grep -qiE "initial high[^.]{0,40}(->|→|to)[^.]{0,20}max" <<<"$ctrl_body"'
+assert "controller: economy escalates to standard" \
+  'grep -qiE "initial economy[^.]{0,40}(->|→|to)[^.]{0,20}standard" <<<"$ctrl_body"'
+assert "controller: standard escalates to premium" \
+  'grep -qiE "initial standard[^.]{0,40}(->|→|to)[^.]{0,20}premium" <<<"$ctrl_body"'
+assert "controller: premium escalates to max" \
+  'grep -qiE "initial premium[^.]{0,40}(->|→|to)[^.]{0,20}max" <<<"$ctrl_body"'
 assert "controller: max escalation halts" \
   'grep -qiE "initial max[^.]{0,20}(->|→|to)?[^.]{0,20}halt" <<<"$ctrl_body"'
 # Anchored on the ladder intro's exact literal sentence, not a disjunction that also matches the
@@ -236,8 +242,8 @@ assert "controller: a red suite does not invoke review" \
   'grep -qiE "red[^.]{0,80}(does not|never)[^.]{0,40}review" <<<"$ctrl_body"'
 assert "controller: red suite becomes one integration-repair task" \
   'grep -qiE "integration.repair" <<<"$ctrl_body"'
-assert "controller: repair ladder is high -> max -> halt" \
-  'grep -qiE "high[^.]{0,60}max[^.]{0,60}halt" <<<"$ctrl_body"'
+assert "controller: repair ladder is premium -> max -> halt" \
+  'grep -qiE "premium[^.]{0,60}max[^.]{0,60}halt" <<<"$ctrl_body"'
 
 # Checkpointing: off by default, and the ledger path is exact. Both asserts below are anchored on
 # their defining occurrence's full text, since the shorter shapes each replaces recur elsewhere in
@@ -352,7 +358,7 @@ assert "controller: never re-dispatches a task to repair its own return" \
   'grep -qiE "\b(never|do not|does not)\b[^.]{0,60}re-dispatch" <<<"$ctrl_body"'
 
 # Finding 2's in-place rule: finalize's auto-detection exits non-zero in a repo with no test files,
-# which the two-branch gate read as RED — manufacturing a repair task and burning high ->
+# which the two-branch gate read as RED — manufacturing a repair task and burning premium ->
 # max -> halt on a configuration problem. Keyed on the classification itself, not on the word
 # "halt", since a rewrite that keeps the halt but drops the classification re-opens the mis-routing.
 assert "controller: an undetectable suite is a configuration gap, not a red suite" \
@@ -384,7 +390,7 @@ assert "the shipped sidecar exists" '[ -f "$HD" ]'
 # holds any more. The invariant that survives — and the one the codex block's header already argues —
 # is that each rung is a distinct model/effort PAIR. A copy-paste that silently makes two rungs the
 # same agent is exactly what this catches.
-for p in low:claude-sonnet-5:low medium:claude-opus-5:low high:claude-opus-5:medium max:claude-opus-5:high; do
+for p in economy:claude-sonnet-5:low standard:claude-opus-5:low premium:claude-opus-5:medium max:claude-opus-5:high; do
   name="${p%%:*}"; rest="${p#*:}"; want_model="${rest%%:*}"; want_effort="${rest##*:}"
   w="$REPO/agents/docket-build-$name.md"
   assert "profile $name: wrapper exists" '[ -f "$w" ]'
@@ -405,7 +411,7 @@ done
 # blank that a bare "all distinct" check would silently ignore: the non-vacuity half (exactly 4
 # non-empty pairs) is asserted alongside the distinctness half.
 pairs=""
-for n in low medium high max; do
+for n in economy standard premium max; do
   pairs="$pairs $(hd_field "$HD" claude build-$n model)/$(hd_field "$HD" claude build-$n effort)"
 done
 assert "the four claude profiles are four DISTINCT model/effort pairs" \
@@ -414,24 +420,27 @@ assert "the four claude profiles are four DISTINCT model/effort pairs" \
 # 0184's stated purpose on claude: the bottom rung is a genuinely cheaper MODEL, not merely a lower
 # effort on the same one — the defect the change existed to fix ("economy never delivered a truly
 # cheap floor"). Asserted as a difference, not as a literal ID, so retuning the pin does not redden.
-assert "claude build-low runs a different model from the rest of the ladder" \
-  '[ -n "$(hd_field "$HD" claude build-low model)" ] &&
-   [ "$(hd_field "$HD" claude build-low model)" != "$(hd_field "$HD" claude build-medium model)" ]'
+assert "claude build-economy runs a different model from the rest of the ladder" \
+  '[ -n "$(hd_field "$HD" claude build-economy model)" ] &&
+   [ "$(hd_field "$HD" claude build-economy model)" != "$(hd_field "$HD" claude build-standard model)" ]'
 
-# The compression claim: max INHERITS the pre-0184 premium pin, so the ladder gained no new headroom
-# at the top — the savings come from the rungs below, not from spending more.
-assert "claude build-max is the pre-0184 premium pin (claude-opus-5/high)" \
+# The compression claim: max INHERITS the pin that was the top rung before 0184, so the ladder
+# gained no new headroom at the top — the savings come from the rungs below, not from spending more.
+# NB `premium` is a live rung again post-rename and is now the THIRD of four, so "the pre-0184
+# premium pin" would read as that rung's current pin; it means the pin of the old top rung, which
+# `max` now holds.
+assert "claude build-max holds the pre-0184 top-rung pin (claude-opus-5/high)" \
   '[ "$(hd_field "$HD" claude build-max model)/$(hd_field "$HD" claude build-max effort)" = "claude-opus-5/high" ]'
 
 cursor_models=""
-for n in low medium high max; do cursor_models="$cursor_models $(hd_field "$HD" cursor build-$n model)"; done
+for n in economy standard premium max; do cursor_models="$cursor_models $(hd_field "$HD" cursor build-$n model)"; done
 assert "the four cursor profiles use four DISTINCT models" \
   '[ "$(tr " " "\n" <<<"$cursor_models" | grep -c .)" = 4 ] && [ "$(tr " " "\n" <<<"$cursor_models" | grep . | sort -u | wc -l | tr -d " ")" = 4 ]'
 
-# Codex deliberately reuses one model at two efforts (sol/low for high, sol/medium for max), so
+# Codex deliberately reuses one model at two efforts (sol/low for premium, sol/medium for max), so
 # MODEL distinctness is the wrong assert there — the pair is the role. Four distinct pairs.
 codex_pairs=""
-for n in low medium high max; do
+for n in economy standard premium max; do
   codex_pairs="$codex_pairs $(hd_field "$HD" codex build-$n model)/$(hd_field "$HD" codex build-$n effort)"
 done
 assert "the four codex profiles are four DISTINCT model/effort pairs" \
@@ -442,9 +451,9 @@ assert "the four codex profiles are four DISTINCT model/effort pairs" \
 EX="$REPO/.docket.example.yml"
 default_blk="$(awk '/^#[[:space:]]*default:[[:space:]]*$/{inblk=1;next} inblk && /^#[[:space:]]{0,3}[a-z]/{inblk=0} inblk{print}' "$EX")"
 assert "no build profile is documented under agents.default" \
-  '! grep -qE "build-(low|medium|high|max)" <<<"$default_blk"'
+  '! grep -qE "build-(economy|standard|premium|max)" <<<"$default_blk"'
 assert "no retired profile name survives anywhere in the example" \
-  '! grep -qE "build-(economy|standard|premium)" "$EX"'
+  '! grep -qE "build-(low|medium|high)" "$EX"'
 
 # Non-vacuity companion: the shipped example has no commented `default:` block today, so
 # $default_blk is normally the empty string and the assert above passes trivially — that must be
@@ -501,7 +510,7 @@ RM="$REPO/README.md"
 rm_body="$(cat "$RM")"
 assert "README documents the docket-build role" 'grep -qF -- "docket-build" <<<"$rm_body"'
 assert "README documents the four profiles" \
-  'grep -qF -- "docket-build-low" <<<"$rm_body" && grep -qF -- "docket-build-max" <<<"$rm_body"'
+  'grep -qF -- "docket-build-economy" <<<"$rm_body" && grep -qF -- "docket-build-max" <<<"$rm_body"'
 assert "README documents build.checkpoint" 'grep -qF -- "build.checkpoint" <<<"$rm_body"'
 assert "README says how to opt back into SDD" \
   'grep -qF -- "superpowers:subagent-driven-development" <<<"$rm_body"'
@@ -532,7 +541,7 @@ assert "README no longer says Codex stays user-configured" \
 # Exempt by design: docs/changes/archive, docs/results, docs/superpowers, docs/adrs. Those record
 # what was true when written; rewriting them would falsify the history. This plan's own file lives
 # under docs/superpowers/plans and is exempt for the same reason.
-live_hits="$(git -C "$REPO" grep -InE 'build-(economy|standard|premium)|docket-build-(economy|standard|premium)' -- \
+live_hits="$(git -C "$REPO" grep -InE 'build-(low|medium|high)|docket-build-(low|medium|high)' -- \
   ':!docs/changes/archive' ':!docs/results' ':!docs/superpowers' ':!docs/adrs' ':!tests/test_docket_build.sh' || true)"
 assert "no live surface names a retired build profile" '[ -z "$live_hits" ]'
 [ -z "$live_hits" ] || printf '  live hits:\n%s\n' "$live_hits"
@@ -543,7 +552,7 @@ assert "no live surface names a retired build profile" '[ -z "$live_hits" ]'
 # outside it. Running an unfiltered pattern instead would be the wrong companion: a later edit that
 # over-broadened an exemption (say ':!docs/superpowers' widened to ':!docs') would empty $live_hits
 # while an unfiltered probe stayed happily green, reporting an armed guard that checks nothing.
-armed_hits="$(git -C "$REPO" grep -IlE 'build-(economy|standard|premium)' -- \
+armed_hits="$(git -C "$REPO" grep -IlE 'build-(low|medium|high)' -- \
   'docs/changes/archive' 'docs/results' 'docs/superpowers' 'docs/adrs' || true)"
 assert "retirement grep is armed (the exempt history still contains the tokens)" \
   '[ -n "$armed_hits" ]'

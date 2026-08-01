@@ -1593,7 +1593,7 @@ assert "0169 fixture: the copy still ships a complete cursor block (only codex w
 printf 'agent_harnesses: [claude, cursor, codex]\n' > "$SBX/.docket.yml"
 w168="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT168W" bash "$SCRW/sync-agents.sh" 2>&1 >/dev/null)"
 assert "0168: a cursor agent the sidecar supplies draws no warning" \
-  '! grep -qF "cursor/docket-build-medium" <<<"$w168"'
+  '! grep -qF "cursor/docket-build-standard" <<<"$w168"'
 assert "0168: a complete cursor block silences the whole harness" \
   '! grep -qF "WARN cursor/" <<<"$w168"'
 assert "0168: an agent with no sidecar entry warns that it is generated unpinned" \

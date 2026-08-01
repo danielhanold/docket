@@ -278,7 +278,7 @@ auto_capture:
 # `effort:` key instead keeps the built-in effort — auto and omitted are NOT equivalent. 13 wrapper
 # files ship (agents/docket-*.md; their shipped model/effort live in agents/harness-defaults.yml,
 # mirrored below): 5 wrap one of the 5 autonomous skills (adr,
-# auto-groom, finalize-change, implement-next, status); 4 (build-low, build-medium, build-high,
+# auto-groom, finalize-change, implement-next, status); 4 (build-economy, build-standard, build-premium,
 # build-max) are docket-build's task workers and all preload the same docket-build-task
 # worker skill, differing only in model/effort; the other 4 (auto-groom-critic,
 # brainstorm-consultant, integration-repair, rebase-resolver) are standalone agents those skills
@@ -316,9 +316,9 @@ auto_capture:
 #     rebase-resolver:       { model: claude-opus-5,             effort: medium }
 #     integration-repair:    { model: claude-opus-5,             effort: medium }
 #     finalize-change:       { model: claude-opus-5,             effort: low }
-#     build-low:             { model: claude-sonnet-5,           effort: low }
-#     build-medium:          { model: claude-opus-5,             effort: low }
-#     build-high:            { model: claude-opus-5,             effort: medium }
+#     build-economy:             { model: claude-sonnet-5,           effort: low }
+#     build-standard:          { model: claude-opus-5,             effort: low }
+#     build-premium:            { model: claude-opus-5,             effort: medium }
 #     build-max:             { model: claude-opus-5,             effort: high }
 #
 #   # The codex block — SHIPPED defaults (change 0169). Codex takes a real reasoning-effort token
@@ -334,9 +334,9 @@ auto_capture:
 #     rebase-resolver:       { model: gpt-5.6-sol, effort: high }
 #     integration-repair:    { model: gpt-5.6-sol, effort: high }
 #     finalize-change:       { model: gpt-5.6-terra, effort: high }
-#     build-low:             { model: gpt-5.6-luna, effort: xhigh }
-#     build-medium:          { model: gpt-5.6-terra, effort: medium }
-#     build-high:            { model: gpt-5.6-sol, effort: low }
+#     build-economy:             { model: gpt-5.6-luna, effort: xhigh }
+#     build-standard:          { model: gpt-5.6-terra, effort: medium }
+#     build-premium:            { model: gpt-5.6-sol, effort: low }
 #     build-max:             { model: gpt-5.6-sol, effort: medium }
 #
 #   # The cursor block — SHIPPED defaults (change 0168). Like the claude block above, these rows mirror
@@ -354,9 +354,9 @@ auto_capture:
 #     rebase-resolver:       { model: cursor-grok-4.5-high,      effort: auto }
 #     integration-repair:    { model: cursor-grok-4.5-high,      effort: auto }
 #     finalize-change:       { model: cursor-grok-4.5-high-fast, effort: auto }
-#     build-low:             { model: cursor-grok-4.5-low,       effort: auto }
-#     build-medium:          { model: cursor-grok-4.5-medium,    effort: auto }
-#     build-high:            { model: cursor-grok-4.5-high,      effort: auto }
+#     build-economy:             { model: cursor-grok-4.5-low,       effort: auto }
+#     build-standard:          { model: cursor-grok-4.5-medium,    effort: auto }
+#     build-premium:            { model: cursor-grok-4.5-high,      effort: auto }
 #     build-max:             { model: claude-opus-5-high,        effort: auto }
 
 # runners — per-runner knobs for RUNNER DELEGATION (change 0079): handing an agent's whole run to

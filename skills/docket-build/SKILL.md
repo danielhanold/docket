@@ -1,6 +1,6 @@
 ---
 name: docket-build
-description: Use as docket's build role (skills.build) — executes an implementation plan task-by-task by routing each task to a named low/medium/high/max profile agent running the docket-build-task contract, with one bounded escalation per task, no per-task review, and a single full-suite gate at the end.
+description: Use as docket's build role (skills.build) — executes an implementation plan task-by-task by routing each task to a named economy/standard/premium/max profile agent running the docket-build-task contract, with one bounded escalation per task, no per-task review, and a single full-suite gate at the end.
 ---
 
 # docket-build — profile-routed plan execution
@@ -30,9 +30,9 @@ model and effort:
 
 | Agent | Use |
 |---|---|
-| `docket-build-low` | fully specified, pattern-following, no consequential risk, no cross-file reasoning |
-| `docket-build-medium` | normal feature, integration, refactor, and debugging work — the default |
-| `docket-build-high` | consequential but correctable risk, or a risk the plan names |
+| `docket-build-economy` | fully specified, pattern-following, no consequential risk, no cross-file reasoning |
+| `docket-build-standard` | normal feature, integration, refactor, and debugging work — the default |
+| `docket-build-premium` | consequential but correctable risk, or a risk the plan names |
 | `docket-build-max` | unresolved architecture, or an irreversible data change |
 
 A higher rung means greater reasoning investment, **not** a stronger correctness guarantee — every
@@ -46,17 +46,17 @@ profile runs it unpinned. Never restate literal model IDs or effort tiers in you
 **Explicit override wins.** A plan task may carry a line of the form:
 
 ```markdown
-**Build profile:** low
+**Build profile:** economy
 ```
 
-A valid value (`low`, `medium`, `high`, `max`) is authoritative; record its use in that task's
+A valid value (`economy`, `standard`, `premium`, `max`) is authoritative; record its use in that task's
 routing line. An **invalid** value is a plan contract error: **halt** per *Halting conditions* and
 surface it — never silently fall back to a default.
 
-**Otherwise classify**, with a deliberate asymmetry — `low` must be *positively* established,
-named risk selects upward, and uncertainty defaults to `medium`.
+**Otherwise classify**, with a deliberate asymmetry — `economy` must be *positively* established,
+named risk selects upward, and uncertainty defaults to `standard`.
 
-The `max`/`high` boundary has an organizing principle, not just a list: **`max` is for mistakes this
+The `max`/`premium` boundary has an organizing principle, not just a list: **`max` is for mistakes this
 build's own correction machinery cannot walk back.** An auth bug is serious but patch-correctable and
 caught at the suite gate or in review; destroyed data cannot be un-destroyed by a retry, and a wrong
 architectural call shapes every task after it. Resolve edge cases by applying that test, not by
@@ -65,23 +65,23 @@ extending the lists below.
 - **`max`** — **unresolved architecture** or an **irreversible data change** (a destructive
   migration, a backfill, anything that cannot be rolled back). Nothing else classifies here.
   Irreversibility is the test: a reversible or purely additive migration is *not* `max` — it is
-  `high`, or `medium` if it carries no consequential risk at all.
-- **`high`** — authentication or security boundaries, concurrency or locking, release
+  `premium`, or `standard` if it carries no consequential risk at all.
+- **`premium`** — authentication or security boundaries, concurrency or locking, release
   infrastructure, or any consequential risk **explicitly named in the plan or spec text**. That last
   door is honored, not inferred: never articulate a new risk on your own — your classification is
-  this closed list, so uncertainty still sinks to `medium`.
-- **`medium`** — everything remaining; the default and the uncertainty sink. Deliberately including
+  this closed list, so uncertainty still sinks to `standard`.
+- **`standard`** — everything remaining; the default and the uncertainty sink. Deliberately including
   hard-but-safe work: difficulty without consequence stays here, because the plan override covers
-  difficulty known at plan time and the `medium -> high` escalation covers difficulty discovered at
+  difficulty known at plan time and the `standard -> premium` escalation covers difficulty discovered at
   build time.
-- **`low`** — *only when* the task is fully specified, follows an established pattern, carries no
+- **`economy`** — *only when* the task is fully specified, follows an established pattern, carries no
   consequential risk, and requires **no cross-file reasoning** — either localized to a couple of
   implementation files (tests do not count against locality), or a mechanical, pattern-identical
   edit repeated across many files whose instances do not interact and where a missed instance fails
   loudly (a grep, a validator) rather than silently. All four conditions must hold; doubt about any
-  one of them means `medium`.
+  one of them means `standard`.
 
-`max` is rare by construction: the two-item rubric above, an explicit plan override, and a `high`
+`max` is rare by construction: the two-item rubric above, an explicit plan override, and a `premium`
 escalation are its only three doors.
 
 Emit one concise routing line per task naming both the profile and its reason.
@@ -104,7 +104,7 @@ inline execution. Selecting `docket-build` is not implicit authorization to disc
 or its model/effort contract, so halt per *Halting conditions* instead.
 
 A profile agent that is **not registered on this machine** is the same authorized-or-halt
-condition, reached differently: the harness rejected a dispatch naming `docket-build-low` — a
+condition, reached differently: the harness rejected a dispatch naming `docket-build-economy` — a
 concrete rejection of a named agent, never an inference about dispatch capability from a missing
 tool name, so the rule above stands unchanged. The cause is a stale install: `install.sh` generates
 the profile wrappers and links the build skills, and a harness registers them only at session
@@ -131,14 +131,14 @@ malformed the same way (see *Escalation*).
 Each task may escalate automatically **at most once**:
 
 ```text
-initial low    -> one medium retry
-initial medium -> one high retry
-initial high   -> one max retry
-initial max    -> halt
+initial economy  -> one standard retry
+initial standard -> one premium retry
+initial premium  -> one max retry
+initial max      -> halt
 ```
 
-The retry consumes that task's whole escalation allowance: a task that started at `low` and
-whose `medium` retry still cannot complete **halts** — it does not climb again to `high`.
+The retry consumes that task's whole escalation allowance: a task that started at `economy` and
+whose `standard` retry still cannot complete **halts** — it does not climb again to `premium`.
 
 Escalate only on a concrete reason that the task is materially more complex or riskier than the
 assigned profile. An expected RED test, ordinary debugging, or a single failed test run is not an
@@ -204,7 +204,7 @@ role once over the whole branch.
 
 **Red** → the build **never invokes review**. Turn the failure into exactly one synthetic
 integration-repair task, run through the same worker contract on the ladder
-`high -> max -> halt`. The repair worker diagnoses the cross-task failure, adds regression
+`premium -> max -> halt`. The repair worker diagnoses the cross-task failure, adds regression
 coverage where appropriate, fixes it, re-runs the full suite, and commits the repair. That ladder
 starts one rung above the default deliberately: repair is cross-task diagnosis, never routine work.
 There is no repeated repair/review loop; failure after the max repair path halts per
