@@ -170,6 +170,19 @@ change **0180**; the duplicated-extractor question is change **0179**. Both corr
 
 **Suite after the fixes: 73/73 green** (a full re-run, since test files changed after the first gate).
 
+## Post-merge live certification (2026-08-01)
+
+The maintainer completed a real multi-task Codex build while implementing change 0176 and observed
+the three named profile workers using their shipped model/effort pairs:
+
+- economy — `gpt-5.6-luna` / `xhigh`
+- standard — `gpt-5.6-terra` / `high`
+- premium — `gpt-5.6-sol` / `medium`
+
+The build's testing completed successfully. This supplies the previously pending Tier 2
+session-observation evidence: all three native Codex profile dispatches resolve to the intended
+classes in a real Codex session.
+
 ## Follow-ups
 
 - **Change 0183** was minted from this review for the `cursor-rules/dispatch.head.md` item below.
