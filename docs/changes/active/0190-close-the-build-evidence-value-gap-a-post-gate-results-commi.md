@@ -17,7 +17,7 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/close-the-build-evidence-value-gap-a-post-gate-results-commi
-claimed_at: 2026-08-01T22:54:17Z
+claimed_at: 2026-08-01T23:00:23Z
 pr:
 blocked_by:
 reconciled: true
@@ -106,4 +106,20 @@ publish; the base has **not** moved since the spec recorded that tip.
   exemption… deliberately deferred") still open; the build records a dated `## Update` note that
   dates-and-closes it (via `docket-adr`). 0190's `adrs: [66]` is already set and the `## Artifacts`
   block already lists ADR-0066.
+
+### 2026-08-01 (halt — resume marker)
+
+Build halted at Step 5 under the convention's **Tier C (authorized-or-halt)** rule: the resolved
+build skill `docket-build` is invocable but **cannot dispatch** its profile agents on this machine —
+the harness rejected a dispatch naming `docket-build-standard` ("Unknown agent type") during the
+mandatory dispatch-capability probe. `skills.build` is `docket-build` (not `auto`), so there is no
+inline authorization. The change stays `in-progress` with the claim lease refreshed; worktree
+`.worktrees/close-the-build-evidence-value-gap-a-post-gate-results-commi` and the committed plan
+(`9419211d`) are intact for resume.
+
+Remedy: re-run `install.sh` (regenerates the profile wrappers and links the build skills), start a
+fresh session so the harness registers the `docket-build-*` profile agents, then resume this change —
+the reconcile pass has already run (`reconciled: true`) and must be re-run only if
+`origin/<integration_branch>` advances past `e108568a`.
+
 
