@@ -46,8 +46,10 @@ Ship `docket-review` — a Docket-owned `skills.review` replacement — plus the
 evidence chain it consumes:
 
 - One bounded, **read-only** whole-branch reviewer, dispatched foreground from
-  `docket-implement-next` Step 6 via a new pinned wrapper agent (Claude: opus-5 / medium;
-  other harnesses mirror the tier). It returns severity-tiered findings
+  `docket-implement-next` Step 6 via one of **three pinned rung wrappers**
+  (lean / standard / deep; Claude: sonnet-5/high, opus-5/medium, opus-5/high), selected
+  deterministically as "one above the build" — from the highest profile the build routed or
+  escalated to, with an optional diff-size bump. It returns severity-tiered findings
   (blocker / important / minor) and never fixes, never dispatches subagents, and **never runs
   the test suite**.
 - The build gate stays the suite's sole implementation-phase home and records a

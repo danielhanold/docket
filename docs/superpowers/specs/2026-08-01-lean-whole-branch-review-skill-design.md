@@ -111,8 +111,8 @@ the green check.
 
 A new skill implementing docket's review role, invocable via `skills.review`.
 
-**Dispatch shape.** `docket-implement-next` Step 6 dispatches the pinned wrapper agent once,
-**foreground** (the parent actively blocks). Foreground is forced by three facts: the findings
+**Dispatch shape.** `docket-implement-next` Step 6 dispatches the selected rung's wrapper
+agent once (rung selection: Component 2), **foreground** (the parent actively blocks). Foreground is forced by three facts: the findings
 are load-bearing for the very next step (Step 7 cannot open the PR before triage); a read-only
 agent has no git-state channel, so the in-context return is its only output path (the same
 shape as finalize's rebase-resolver and integration-repair dispatches); and ADR-0024 rules out
@@ -123,10 +123,10 @@ no suite — the parent blocks for one model read of the diff, not ten minutes o
 **Foreground ≠ inline — the pin survives the dispatch.** Foreground/background is a
 *scheduling* axis (does the parent block on the child's return); inline/dispatched is an
 *execution* axis (parent's own context vs. a separate subagent). This reviewer is a
-foreground **dispatch**: a fresh subagent spun up from the `docket-review` wrapper, which
-carries the resolved `model:`/`effort:` pin — so the review runs at opus-5/medium regardless
-of the model `docket-implement-next` itself is running at, exactly as the build workers and
-`docket-adr` run at their own pins today. The parent's model reaches the review only on the
+foreground **dispatch**: a fresh subagent spun up from the selected `docket-review-*` rung
+wrapper, which carries the resolved `model:`/`effort:` pin — so the review runs at its rung's
+pin regardless of the model `docket-implement-next` itself is running at, exactly as the
+build workers and `docket-adr` run at their own pins today. The parent's model reaches the review only on the
 degraded **inline** path (`skills.review: auto`, or Tier C's human-authorized inline
 fallback), which is precisely why that path is authorized-or-halt with a loud warning: a
 degraded binding drops the pin along with the discipline.
@@ -147,19 +147,45 @@ hooks the controller already pulls at Step 6; and the current **evidence block**
   mechanics (the build's own discipline).
 - Returns the finding list (schema below) and stops. An empty list is a valid, expected return.
 
-## Component 2 — wrapper agent + pins
+## Component 2 — reviewer rungs + pins
 
-One generated wrapper, `agents/docket-review.md`, joining the roster via the existing
-`agents/docket-*.md` glob (post-0184: thirteen wrappers → **fourteen**).
+Three generated wrappers — `agents/docket-review-lean.md`, `-standard.md`, `-deep.md` —
+joining the roster via the existing `agents/docket-*.md` glob (post-0184: thirteen wrappers
+→ **sixteen**). Same shape, differing only in pin, mirroring how the build profiles share
+`docket-build-task`.
 
-- **Wraps the review skill only — no `docket-convention` injection.** Precedent: the
-  `docket-build-*` profile workers, which perform no docket metadata operations. The reviewer
-  is read-only over the feature branch; it touches no docket metadata.
-- **Claude pin: `claude-opus-5` / `medium`** (settled during grooming: strong model for the
-  sole independent review; medium effort as the cost point). Codex and Cursor rows mirror
-  that tier in `agents/harness-defaults.yml`, with concrete model ids chosen at build time
-  against the post-0184 table (verify at reconcile — PR #147 must have merged; see Coupling).
-- Carries the standard abort-and-report posture of autonomous wrappers.
+**Rung selection — the "one above the build" rule.** The controller computes the build's
+overall complexity as the **highest profile any task routed to or escalated to** — read
+deterministically from `docket-build`'s stable output lines (task-to-profile selection;
+escalation), with an escalation counting as the tier escalated *to*. Mapping:
+
+| build's highest profile | reviewer rung |
+|---|---|
+| economy | lean |
+| standard | standard |
+| premium or max | deep (the cap merges the top two) |
+
+No fourth rung ships: under this mapping a reviewer-economy rung is unreachable — it would
+be a dead wrapper maintained forever. One optional modifier: a whole-branch diff above a
+size threshold (set at build time) bumps the rung by one — the single selection signal
+independent of the build's self-assessment, bounding the cost of a rubric misjudgment.
+Selection is a deterministic rule over the build record, never model judgment, and the
+chosen rung + reason is one line in the run output.
+
+**Pins — the rungs get their own table, not the build's shifted one.** A literal +1 on the
+build pins would price the common case (standard build) at premium's pin; instead the
+reviewer ladder prices review work directly. Claude: **lean = `claude-sonnet-5` / `high`,
+standard = `claude-opus-5` / `medium`, deep = `claude-opus-5` / `high`** — the common case
+stays at the opus-5/medium point settled during grooming. Codex and Cursor rows mirror the
+tiers in `agents/harness-defaults.yml`, concrete model ids chosen at build time against the
+post-0184 table (verify at reconcile — PR #147 must have merged; see Coupling).
+
+- **Each wrapper wraps the review skill only — no `docket-convention` injection.** Precedent:
+  the `docket-build-*` profile workers, which perform no docket metadata operations. The
+  reviewer is read-only over the feature branch; it touches no docket metadata.
+- All three carry the standard abort-and-report posture of autonomous wrappers.
+- **No reviewer escalation ladder**: one shot at the selected rung. A reviewer that cannot
+  complete aborts-and-reports; it never re-dispatches itself upward.
 
 **Binding posture (mirrors 0167):** the shipped cross-harness default for `skills.review`
 stays `superpowers:requesting-code-review`; this repository dogfoods `docket-review` via its
@@ -194,7 +220,11 @@ existing house rule (sole-writer, marker-bounded, never hand-edited).
 - Before dispatching review, the controller validates the evidence in-context: present, green,
   `head_sha` == branch HEAD. If not (a build-contract violation), it re-runs the gate once to
   mint fresh evidence rather than dispatching a review of an uncertified branch.
-- Dispatch the reviewer (foreground, DIRECTED per the autonomy-precedence rule), then triage:
+- Compute the reviewer rung per Component 2's rule (highest routed-or-escalated build
+  profile, +1-style mapping, optional diff-size bump) and log the selection + reason as one
+  line.
+- Dispatch the selected rung's reviewer (foreground, DIRECTED per the autonomy-precedence
+  rule), then triage:
   - **blocker** → one synthetic fix task covering all blockers, run through the
     `docket-build-task` contract on the ladder `standard → premium → halt` (mirroring
     integration-repair; no new machinery). If its commits land, re-run the full suite once and
@@ -269,9 +299,17 @@ nothing else — no prose report.
 
 1. Suite's implementation-phase home: **build gate only**; reviewer consumes evidence, never
    re-runs. (Daniel, 2026-08-01)
-2. Reviewer pin: **opus-5 / medium** on Claude; other harnesses mirror the tier.
+2. Reviewer pin: initially a single **opus-5 / medium** reviewer; revised same day to the
+   three-rung ladder (decision 6) with opus-5/medium kept as the common-case (standard-rung)
+   pin.
 3. Findings: **severity-tiered routing** — blockers fixed pre-PR via the build-task contract,
    important/minor to the PR body, follow-ups auto-captured.
 4. Finalize skip: **folded into 0170** (not a separate stub) — the evidence contract and its
    consumer ship together.
 5. Foreground dispatch: settled on data-flow + ADR-0024 grounds (see Component 1).
+6. Tiered review (Daniel's "one above the build" method, 2026-08-01): three reviewer rungs
+   selected deterministically from the build's highest routed-or-escalated profile, with the
+   rungs' own pin table and an optional diff-size bump. Four mirrored tiers rejected — the
+   bottom rung is unreachable under the +1 mapping (a dead wrapper). Evidence block stays in
+   the PR body, not a temp file — finalize is a cross-session/cross-machine consumer, and
+   `.superpowers/` checkpoint files are gitignored, opt-in, and transient.
