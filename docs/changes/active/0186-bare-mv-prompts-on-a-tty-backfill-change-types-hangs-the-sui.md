@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/bare-mv-prompts-on-a-tty-backfill-change-types-hangs-the-sui
-claimed_at: 2026-08-01T13:30:46Z
+claimed_at: 2026-08-01T13:34:00Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -101,3 +101,30 @@ fixture.
   both.** The pty layer tests behavior but is skippable (and `script(1)` diverges across BSD and
   util-linux in argument order *and* exit-status propagation); the sentinel always runs but is text
   over source. Neither alone is sufficient. Mechanics in the spec's §3, rationale in A3.
+
+## Reconcile log
+
+### 2026-08-01 — reconcile at claim
+
+Verified every call site and line number the spec cites against `origin/main` at `075fbb1b`. All
+four hold exactly as written, no drift:
+
+- `scripts/backfill-change-types.sh` — the bare `mv` install is at **162**; the rollback-restore
+  `cp -p` at **164** and the backup-stage `cp -p` at **155**. The spec's correction of the stub's
+  "line 161" stands.
+- `tests/test_backfill_change_types.sh` — the `chflags uchg` guard opens at **201**, the
+  single-fixture cleanup trap is at **203** (`chflags -R nouchg "$drb"` — confirmed scoped to
+  `$drb` only, so the spec's §3 constraint 3 is a real gap, not a hypothetical), and the
+  `2>&1 >/dev/null` capture idiom the pty layer must not inherit is at **204–205**.
+- `scripts/profile-one-test.sh` — the `tracing …` line is at **77**, already pre-launch (the child
+  runs at 83–86); the end-of-run `trace:`/`stdout:` summary is at **137–138**. So §4's premise
+  correction is accurate and the work is purely the pre-launch path emission.
+- `scripts/profile-asserts.sh` — `profiling %d test file(s)` at **108** is outside the per-test loop
+  (**112–123**, run at **116**); the TSV path prints only at **150**. The verified
+  per-command-flush comment §4 leans on is at **15–17**.
+
+Scope unchanged. No work has landed elsewhere: the three `related` changes (#0134, #0150, #0178) are
+all still `proposed`/unbuilt, so A6's "related, not depends_on, buildable today" holds. The only
+commits touching these four files since the change was drafted are change 0185's profiler additions
+(`0003608f`, `0d9efc7a`) — which are what §4 builds on, already present as described. No new ADRs
+bear on the design. Nothing dropped, nothing added.
