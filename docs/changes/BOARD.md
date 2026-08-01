@@ -1,8 +1,8 @@
 # Backlog
 
-**183 changes** — 🟡 38 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 121 done · 🗑️ 19 killed
+**184 changes** — 🟡 39 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 121 done · 🗑️ 19 killed
 
-## 🟡 Proposed (38)
+## 🟡 Proposed (39)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -44,6 +44,7 @@
 | [0181](active/0181-document-the-unquoted-space-free-rule-for-agent-model-effort.md) | Document the unquoted, space-free rule for agent model/effort config values | `medium` | `docs` | needs-brainstorm |
 | [0182](active/0182-facade-tests-read-the-developer-s-real-global-config-instead.md) | Facade tests read the developer's real global config instead of a sandbox | `medium` | `fix` | needs-brainstorm |
 | [0183](active/0183-cursor-dispatch-head-ships-a-stale-unpinned-claim-its-guard.md) | Cursor dispatch head ships a stale unpinned claim; its guard retired itself | `medium` | `fix` | needs-brainstorm |
+| [0184](active/0184-four-tier-build-profile-ladder.md) | Four-tier build profile ladder — low/medium/high/max replaces economy/standard/premium | `medium` | `feat` | build-ready |
 
 ## ⚪ Deferred (4)
 
@@ -105,6 +106,7 @@ graph TD
   0181
   0182
   0183
+  0184
   0015:::done
   0077:::done
   0167:::done
