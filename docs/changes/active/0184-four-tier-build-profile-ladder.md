@@ -1,7 +1,7 @@
 ---
 id: 184
 slug: four-tier-build-profile-ladder
-title: Four-tier build profile ladder — low/medium/high/max replaces economy/standard/premium
+title: Four-tier build profile ladder — economy/standard/premium/max
 status: implemented
 priority: high
 type: feat
@@ -48,19 +48,26 @@ truly cheap floor.
 
 ## What changes
 
-Replace the three build profiles with four — `low` / `medium` / `high` / `max` — as a
-clean break (old names invalid, no aliases):
+Add a fourth build profile above the existing three, keeping their names:
+`economy` / `standard` / `premium` / `max`.
+
+> **Naming, settled late.** This spec was built as `low` / `medium` / `high` / `max` and renamed
+> before merge. Two objections: the names collided with the `effort:` vocabulary in
+> `agents/harness-defaults.yml`, where the two ladders deliberately disagree row by row
+> (`build-low` at effort `xhigh` on Codex), and none of them identified which rung was the
+> default. Rungs 1–3 revert to their pre-0184 names; `max` — the rung this change adds — is
+> unaffected. Structure, routing, and pins below are unchanged by the rename.
 
 - **Routing:** `max` is reachable only by a two-item rubric (unresolved architecture,
-  irreversible data changes), a plan override, or escalation from `high`; the other
-  current premium triggers demote to `high`; `medium` stays the default; `low` keeps
-  the positively-established bar.
-- **Ladders:** escalation stays one-rung-once (`low→medium→high→max→halt`); the
-  integration-repair ladder becomes `high → max`, preserving today's effective repair
+  irreversible data changes), a plan override, or escalation from `premium`; the other
+  current top-rung triggers demote to `premium`; `standard` stays the default; `economy`
+  keeps the positively-established bar.
+- **Ladders:** escalation stays one-rung-once (`economy→standard→premium→max→halt`); the
+  integration-repair ladder becomes `premium → max`, preserving today's effective repair
   strength.
-- **Pins:** compressed — `max` inherits today's premium pin on every harness, each
-  rung below is at or below today's cost, and the default tier (`medium`) drops a
-  notch (the bulk of the savings). Claude `build-low` ships Sonnet/low, with Haiku
+- **Pins:** compressed — `max` inherits today's top-rung pin on every harness, each
+  rung below is at or below today's cost, and the default tier (`standard`) drops a
+  notch (the bulk of the savings). Claude `build-economy` ships Sonnet/low, with Haiku
   documented as the cost-aggressive user-layer override.
 - **Surface:** rename/add the wrapper agents (thirteen wrappers, four build workers),
   4-row build sets in all three `harness-defaults.yml` harness blocks, and update the
