@@ -67,7 +67,7 @@ Return a list of findings. Each finding carries exactly these fields:
 | Field | Meaning |
 |---|---|
 | `severity` | `blocker`, `important`, or `minor`. |
-| `location` | `path:symbol` or `path` plus a verbatim-quoted clause — never a line number. |
+| `location` | `path:symbol` or `path` plus a verbatim-quoted clause — never a line number, which the fix worker's own earlier edits shift out from under it. |
 | `summary` | One short line naming the defect. |
 | `rationale` | Why it is wrong, in one or two sentences. |
 | `suggested_fix` | The smallest change that would resolve it. Advice, not an edit. |

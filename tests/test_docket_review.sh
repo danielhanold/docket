@@ -187,7 +187,7 @@ rvsec="$(awk "/^### docket-review/{f=1;next} /^### /{f=0} f" "$RM")"
 assert "README: the docket-review section was located (non-vacuity anchor)" \
   '[ -n "$rvsec" ] && grep -qF -- "build-evidence" <<<"$rvsec"'
 assert "README states the suite-run count the change delivers" \
-  'grep -qiE "one full-suite run" <<<"$rvsec" && grep -qiE "never three" <<<"$rvsec"'
+  'grep -qiE "one full-suite run when" <<<"$rvsec" && grep -qiE "three only when both" <<<"$rvsec"'
 DY="$REPO/.docket.yml"
 assert "this repo dogfoods docket-review via .docket.yml" \
   'awk "/^skills:/{f=1;next} /^[a-z_]+:/{f=0} f" "$DY" | grep -qE "^ +review: +docket-review$"'
