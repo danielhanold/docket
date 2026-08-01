@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0175 — sync-agents.sh costs ~5.5s per invocation and dominates the test suite](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0175-sync-agents-per-invocation-cost.md)**
+> ↩ **[Change 0175 — sync-agents.sh costs ~5.5s per invocation and dominates the test suite](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-01-0175-sync-agents-per-invocation-cost.md)**
 <!-- docket:backlink:end -->
 
 # sync-agents.sh per-invocation cost — results
