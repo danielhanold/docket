@@ -21,9 +21,10 @@ for pair in \
   "auto-groom claude-opus-5 low" \
   "auto-groom-critic claude-opus-5 medium" \
   "brainstorm-consultant claude-opus-5 medium" \
-  "build-economy claude-opus-5 low" \
-  "build-standard claude-opus-5 medium" \
-  "build-premium claude-opus-5 high" \
+  "build-low claude-sonnet-5 low" \
+  "build-medium claude-opus-5 low" \
+  "build-high claude-opus-5 medium" \
+  "build-max claude-opus-5 high" \
   "finalize-change claude-opus-5 low" \
   "implement-next claude-opus-5 medium" \
   "integration-repair claude-opus-5 medium" \
@@ -41,9 +42,10 @@ for pair in \
   "auto-groom cursor-grok-4.5-medium" \
   "auto-groom-critic cursor-grok-4.5-high" \
   "brainstorm-consultant cursor-grok-4.5-high" \
-  "build-economy cursor-grok-4.5-medium" \
-  "build-standard cursor-grok-4.5-high" \
-  "build-premium claude-opus-5-high" \
+  "build-low cursor-grok-4.5-low" \
+  "build-medium cursor-grok-4.5-medium" \
+  "build-high cursor-grok-4.5-high" \
+  "build-max claude-opus-5-high" \
   "finalize-change cursor-grok-4.5-high-fast" \
   "implement-next cursor-grok-4.5-high" \
   "integration-repair cursor-grok-4.5-high" \
@@ -61,9 +63,10 @@ for triple in \
   "auto-groom gpt-5.6-sol low" \
   "auto-groom-critic gpt-5.6-sol medium" \
   "brainstorm-consultant gpt-5.6-sol medium" \
-  "build-economy gpt-5.6-luna xhigh" \
-  "build-standard gpt-5.6-terra high" \
-  "build-premium gpt-5.6-sol medium" \
+  "build-low gpt-5.6-luna xhigh" \
+  "build-medium gpt-5.6-terra medium" \
+  "build-high gpt-5.6-sol low" \
+  "build-max gpt-5.6-sol medium" \
   "finalize-change gpt-5.6-terra high" \
   "implement-next gpt-5.6-sol medium" \
   "integration-repair gpt-5.6-sol high" \
@@ -73,12 +76,22 @@ for triple in \
   assert "codex/$1 = $2/$3" \
     '[ "$(hd_field "$HD" codex "'"$1"'" model)/$(hd_field "$HD" codex "'"$1"'" effort)" = "'"$2"'/'"$3"'" ]'
 done
-# The three build profiles are the settled ladder for this change, asserted separately from the
-# loop above so a reader sees the claim the change is actually making.
-assert "codex build ladder = luna/xhigh, terra/high, sol/medium" \
-  '[ "$(hd_field "$HD" codex build-economy model)/$(hd_field "$HD" codex build-economy effort)" = "gpt-5.6-luna/xhigh" ] &&
-   [ "$(hd_field "$HD" codex build-standard model)/$(hd_field "$HD" codex build-standard effort)" = "gpt-5.6-terra/high" ] &&
-   [ "$(hd_field "$HD" codex build-premium model)/$(hd_field "$HD" codex build-premium effort)" = "gpt-5.6-sol/medium" ]'
+# The four build profiles are the settled ladder for this change, asserted separately from the
+# loop above so a reader sees the claim the change is actually making. Note that the codex ladder
+# is NOT model-monotonic: model/effort PAIRS are model-specific roles, not cross-model ordinals,
+# so sol appears at two different efforts and that is deliberate.
+assert "codex build ladder = luna/xhigh, terra/medium, sol/low, sol/medium" \
+  '[ "$(hd_field "$HD" codex build-low model)/$(hd_field "$HD" codex build-low effort)" = "gpt-5.6-luna/xhigh" ] &&
+   [ "$(hd_field "$HD" codex build-medium model)/$(hd_field "$HD" codex build-medium effort)" = "gpt-5.6-terra/medium" ] &&
+   [ "$(hd_field "$HD" codex build-high model)/$(hd_field "$HD" codex build-high effort)" = "gpt-5.6-sol/low" ] &&
+   [ "$(hd_field "$HD" codex build-max model)/$(hd_field "$HD" codex build-max effort)" = "gpt-5.6-sol/medium" ]'
+
+# Detect the REMOVED state, not the added one (a grep for the new names is green the moment the
+# edit lands and stays green even if an old row is left behind alongside it). Change 0184 retired
+# economy/standard/premium as profile names; a leftover row would be silently resolvable by any
+# config layer that still names it.
+assert "no retired profile row survives in any block" \
+  '! grep -qE "^[[:space:]]*build-(economy|standard|premium):" "$HD"'
 # Sparse-by-harness is still a live property of the reader — it just no longer has a shipped
 # harness to demonstrate it on. Narrowed (not deleted) to a token that genuinely holds no block:
 # what this guards is that hd_field returns EMPTY for an absent harness rather than falling through
@@ -154,7 +167,7 @@ assert "reject: entry missing effort" '! hd_validate "$T/hd.yml" "$SRC" 2>/dev/n
 mut; sed -i.bak 's|^    adr:.*|    adr:                   { model: claude-opus-5, effort: low, runner: codex }|' "$T/hd.yml"
 assert "reject: runner is forbidden" '! hd_validate "$T/hd.yml" "$SRC" 2>/dev/null'
 
-mut; sed -i.bak 's|^    build-economy:.*cursor-grok-4.5-medium.*|    build-economy:         { model: , effort: auto }|' "$T/hd.yml"
+mut; sed -i.bak 's|^    build-medium:.*cursor-grok-4.5-medium.*|    build-medium:          { model: , effort: auto }|' "$T/hd.yml"
 assert "reject: empty field value" '! hd_validate "$T/hd.yml" "$SRC" 2>/dev/null'
 
 # 0168 whole-branch review, IMPORTANT 5: a SECOND block for a harness that already has one. This
