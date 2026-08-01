@@ -546,6 +546,33 @@ live_hits="$(git -C "$REPO" grep -InE 'build-(low|medium|high)|docket-build-(low
 assert "no live surface names a retired build profile" '[ -z "$live_hits" ]'
 [ -z "$live_hits" ] || printf '  live hits:\n%s\n' "$live_hits"
 
+# The hyphenated guard above has a blind spot the rename walked straight into: a wrapper body says
+# "routed to the LOW profile" and a dispatch fragment says "Profile: low" — BARE tokens, which
+# `build-(low|medium|high)` cannot see. The bare-word ban earlier in this file does cover that
+# shape, but only across $CTRL and $WORKER, and the wrappers are neither. Eleven stale references
+# across six files survived both guards and the full suite stayed green.
+#
+# Sound as a BARE-word ban for the same reason it is sound on the two contracts: a wrapper source
+# carries no effort field (pins live in the harness-indexed sidecar, resolved by sync-agents.sh),
+# and no non-build wrapper or fragment uses these words at all — verified across the whole glob,
+# not just the build four. So any occurrence here is a profile token, and a stale one. Thirteen
+# agents and thirteen fragments ship today; the floor is that same 26.
+# Word boundaries are POSIX character classes, NOT `\b`: git grep -E is POSIX ERE, where `\b` is
+# not a word-boundary escape and the pattern silently matches nothing. Written with `\b` first,
+# this guard passed against the very defect it was added for — caught only because the mutation
+# probe below failed to redden. The rest of this file's `\b` asserts run through PATH grep, which
+# does support it; only the git-grep-based ones must avoid it.
+wrapper_hits="$(git -C "$REPO" grep -IniE '(^|[^[:alnum:]_])(low|medium|high)([^[:alnum:]_]|$)' -- \
+  'agents/docket-*.md' 'cursor-rules/dispatch/docket-*.md' || true)"
+assert "no wrapper or dispatch fragment names a retired profile in prose" '[ -z "$wrapper_hits" ]'
+[ -z "$wrapper_hits" ] || printf '  wrapper hits:\n%s\n' "$wrapper_hits"
+
+# Non-vacuity: the glob must actually be finding files. A renamed directory or a changed wrapper
+# extension would empty $wrapper_hits and report a green guard that reads nothing — the same
+# failure shape this whole section exists to prevent.
+wrapper_n="$(git -C "$REPO" grep -Il '' -- 'agents/docket-*.md' 'cursor-rules/dispatch/docket-*.md' | grep -c . || true)"
+assert "wrapper prose guard is armed (>= 26 wrapper/fragment files in scope)" '[ "$wrapper_n" -ge 26 ]'
+
 # Non-vacuity: the guard above swallows failure with `|| true`, so an empty $live_hits must be
 # proved to mean "nothing left" rather than "the search broke". Run the SAME pathspec list against a
 # pattern the exempt history is known to contain, and require that it finds the history and nothing

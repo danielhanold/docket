@@ -1,6 +1,6 @@
 ## docket-build-premium — dispatch only
 
-Trigger only from the `docket-build` controller, when it has routed a plan task to the HIGH
+Trigger only from the `docket-build` controller, when it has routed a plan task to the PREMIUM
 profile. Never trigger this agent from a human request directly.
 
 Dispatch to the subagent `docket-build-premium`, foreground, using this mode's subagent-launch
@@ -12,4 +12,4 @@ Do NOT implement the task in the parent, and do NOT dispatch a reviewer after it
 One concrete call, as an illustration of the shape — not the contract:
 
     Task(subagent_type: "docket-build-premium", run_in_background: false,
-         prompt: "Task 3 of <plan path>. Profile: high (touches locking). <task text>")
+         prompt: "Task 3 of <plan path>. Profile: premium (touches locking). <task text>")
