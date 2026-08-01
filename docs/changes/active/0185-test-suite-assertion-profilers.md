@@ -2,7 +2,7 @@
 id: 185
 slug: test-suite-assertion-profilers
 title: Test-suite profilers — per-assertion and per-command timing
-status: in-progress
+status: implemented
 priority: low
 type: chore
 created: 2026-08-01
@@ -17,8 +17,8 @@ results:
 trivial: true
 auto_groomable:
 branch: feat/test-suite-assertion-profilers
-claimed_at: 2026-08-01T12:16:11Z
-pr:
+claimed_at:
+pr: https://github.com/danielhanold/docket/pull/146
 blocked_by:
 reconciled: false
 ---
@@ -26,13 +26,16 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| PR | [#146](https://github.com/danielhanold/docket/pull/146) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-The suite is this repo's de-facto build gate — there is no GitHub Actions CI — and it runs several
-minutes across 73 files and roughly 3,000 assertions. Every gate run pays that cost, and so does
-every build-loop iteration that ends in a full-suite check.
+The suite is this repo's de-facto build gate — there is no GitHub Actions CI — and it runs 5m37s
+across 73 files and 4,905 assertions. Every gate run pays that cost, and so does every build-loop
+iteration that ends in a full-suite check.
 
 Today the only timing signal available is whatever a caller wraps around each file, which answers
 "which test file is slow" and nothing finer. That is the question with an easy answer; the useful
