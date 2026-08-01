@@ -464,6 +464,49 @@ SKILL_PLAN=__poison__
 out="$(run "$tmp/i" --export)"; eval "$out"
 assert "skills tab-indent: PLAN auto"       '[ "$SKILL_PLAN" = auto ]'
 
+# --- (0176) snapshot reader boundaries: scalar + nested-map first-match rules ---
+# All three layers participate so the resolver's output, rather than a private helper, pins the
+# immutable snapshot contract. The controls before each boundary assertion ensure a missing
+# fixture/layer cannot make the mutation-sensitive assertion pass vacuously.
+mkrepo "$tmp/snapshot"
+mkdir -p "$tmp/snapshot.xdg/docket"
+cat > "$tmp/snapshot.xdg/docket/config.yml" <<'EOF'
+skills:
+  plan: global-plan
+EOF
+cat > "$tmp/snapshot/.docket.yml" <<'EOF'
+metadata_branch: main
+change_types: [spike]
+change_types: [feat]
+build: wrong-top-level-value
+skills:
+	build: auto
+review: wrong-top-level-review
+skills:
+  build: wrong-later-block
+  review: committed-review
+EOF
+git -C "$tmp/snapshot" add .docket.yml
+git -C "$tmp/snapshot" commit --quiet -m cfg
+git -C "$tmp/snapshot" push --quiet origin main
+cat > "$tmp/snapshot/.docket.local.yml" <<'EOF'
+skills:
+  finish: local-finish
+EOF
+snapshot_out="$(rung "$tmp/snapshot.xdg" "$tmp/snapshot" --export --format plain)"
+assert "0176 snapshot fixture loads the global layer" \
+  'grep -qxF "SKILL_PLAN=global-plan" <<<"$snapshot_out"'
+assert "0176 snapshot reader keeps a tab-indented skills leaf over a bare top-level leaf" \
+  'grep -qxF "SKILL_BUILD=auto" <<<"$snapshot_out"'
+assert "0176 snapshot fixture loads the local layer" \
+  'grep -qxF "SKILL_FINISH=local-finish" <<<"$snapshot_out"'
+assert "0176 snapshot reader keeps the first duplicate scalar" \
+  'grep -qxF "CHANGE_TYPES=spike" <<<"$snapshot_out"'
+assert "0176 snapshot fixture reaches the second skills block after top-level content" \
+  'grep -qxF "SKILL_BUILD=auto" <<<"$snapshot_out"'
+assert "0176 snapshot reader returns the first matching leaf across repeated blocks and exits at top-level content" \
+  'grep -qxF "SKILL_REVIEW=committed-review" <<<"$snapshot_out"'
+
 # --- (J) skills: unknown role key -> warned on stderr, ignored; known keys still resolve ---
 mkrepo "$tmp/j"
 printf 'metadata_branch: main\nskills:\n  bogus: x\n  plan: auto\n' > "$tmp/j/.docket.yml"
