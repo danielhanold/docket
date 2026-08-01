@@ -1,6 +1,6 @@
 # Backlog
 
-**189 changes** — 🟡 40 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 123 done · 🗑️ 20 killed
+**189 changes** — 🟡 40 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 124 done · 🗑️ 20 killed
 
 ## 🟡 Proposed (40)
 
@@ -56,12 +56,11 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | `chore` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
-| [0184](active/0184-four-tier-build-profile-ladder.md) | Four-tier build profile ladder — economy/standard/premium/max | `high` | `feat` | [#147](https://github.com/danielhanold/docket/pull/147) |  |
 
 ```mermaid
 graph TD
@@ -107,7 +106,6 @@ graph TD
   0180
   0181
   0182
-  0184
   0187
   0188
   0189
@@ -118,12 +116,13 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (143)</summary>
+<details><summary>✅🗑️ Archive — done + killed (144)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0186](archive/2026-08-01-0186-bare-mv-prompts-on-a-tty-backfill-change-types-hangs-the-sui.md) | Bare mv prompts on a tty — backfill-change-types hangs the suite and can exit 0 without installing | 2026-08-01 |
 | [0185](archive/2026-08-01-0185-test-suite-assertion-profilers.md) | Test-suite profilers — per-assertion and per-command timing | 2026-08-01 |
+| [0184](archive/2026-08-01-0184-four-tier-build-profile-ladder.md) | Four-tier build profile ladder — economy/standard/premium/max | 2026-08-01 |
 | [0183](archive/2026-08-01-0183-cursor-dispatch-head-ships-a-stale-unpinned-claim-its-guard.md) | Cursor dispatch head ships a stale unpinned claim; its guard retired itself | 2026-08-01 |
 | [0176](archive/2026-08-01-0176-docket-config-sh-costs-0-87s-per-invocation-and-dominates-te.md) | docket-config.sh costs ~0.87s per invocation and dominates test_docket_config.sh | 2026-08-01 |
 | [0175](archive/2026-08-01-0175-sync-agents-per-invocation-cost.md) | sync-agents.sh costs ~5.5s per invocation and dominates the test suite | 2026-08-01 |
@@ -147,7 +146,6 @@ graph TD
 | [0143](archive/2026-07-28-0143-empty-id-collapses-the-archive-sort-feeder-s-tab-joined-fiel.md) | Empty id collapses the archive sort feeder's TAB-joined fields in render-board.sh | 2026-07-28 |
 | [0135](archive/2026-07-28-0135-cursor-agent-wrapper-contract.md) | Generated Cursor wrappers violate Cursor's subagent contract, disabling skills and model effort | 2026-07-28 |
 | [0133](archive/2026-07-28-0133-centralize-runtime-config-helpers.md) | Centralize shared Bash runtime configuration helpers | 2026-07-28 |
-| [0130](archive/2026-07-28-0130-make-the-finalize-marker-reachability-guard-portable-to-bsd.md) | Make the finalize marker reachability guard portable to BSD grep | 2026-07-28 |
 | [0131](archive/2026-07-26-0131-make-board-conflict-rebase-continuation-noninteractive.md) | Make board-conflict rebase continuation noninteractive | 2026-07-26 |
 | [0129](archive/2026-07-26-0129-fix-the-pipefail-unsafe-plain-format-config-assertion.md) | Fix the pipefail-unsafe plain-format config assertion | 2026-07-26 |
 | [0124](archive/2026-07-26-0124-backlog-triage-pass.md) | Backlog triage pass — kill, defer, or arm each needs-brainstorm stub | 2026-07-26 |
@@ -162,7 +160,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-07](archive/) | 76 done |
+| [2026-07](archive/) | 77 done |
 | [2026-06](archive/) | 32 done |
 
 </details>
