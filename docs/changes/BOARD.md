@@ -1,15 +1,14 @@
 # Backlog
 
-**186 changes** — 🟢 2 in progress · 🟡 38 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 122 done · 🗑️ 19 killed
+**187 changes** — 🟢 1 in progress · 🟡 39 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 122 done · 🗑️ 19 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
-| [0184](active/0184-four-tier-build-profile-ladder.md) | Four-tier build profile ladder — low/medium/high/max replaces economy/standard/premium | `high` | `feat` | [spec](../superpowers/specs/2026-08-01-four-tier-build-profiles-design.md) | `feat/four-tier-build-profile-ladder` |
 | [0186](active/0186-bare-mv-prompts-on-a-tty-backfill-change-types-hangs-the-sui.md) | Bare mv prompts on a tty — backfill-change-types hangs the suite and can exit 0 without installing | `high` | `fix` | [spec](../superpowers/specs/2026-08-01-bare-mv-prompts-on-a-tty-design.md) | `feat/bare-mv-prompts-on-a-tty-backfill-change-types-hangs-the-sui` |
 
-## 🟡 Proposed (38)
+## 🟡 Proposed (39)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -51,6 +50,7 @@
 | [0181](active/0181-document-the-unquoted-space-free-rule-for-agent-model-effort.md) | Document the unquoted, space-free rule for agent model/effort config values | `medium` | `docs` | needs-brainstorm |
 | [0182](active/0182-facade-tests-read-the-developer-s-real-global-config-instead.md) | Facade tests read the developer's real global config instead of a sandbox | `medium` | `fix` | needs-brainstorm |
 | [0183](active/0183-cursor-dispatch-head-ships-a-stale-unpinned-claim-its-guard.md) | Cursor dispatch head ships a stale unpinned claim; its guard retired itself | `medium` | `fix` | needs-brainstorm |
+| [0187](active/0187-harden-the-docket-example-yml-mirror-guards-one-directional.md) | Harden the .docket.example.yml mirror guards — one-directional coverage, an unexercised round-trip slice, and a prefix-weak terminator | `medium` | `chore` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -61,11 +61,12 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | `chore` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
+| [0184](active/0184-four-tier-build-profile-ladder.md) | Four-tier build profile ladder — low/medium/high/max replaces economy/standard/premium | `high` | `feat` | [#147](https://github.com/danielhanold/docket/pull/147) |  |
 
 ```mermaid
 graph TD
@@ -114,6 +115,7 @@ graph TD
   0183
   0184
   0186
+  0187
   0015:::done
   0077:::done
   0167:::done
