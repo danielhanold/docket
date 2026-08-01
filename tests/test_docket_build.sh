@@ -518,5 +518,28 @@ assert "README says all three shipped harness blocks are complete" \
 assert "README no longer says Codex stays user-configured" \
   '! grep -qiE "Codex remains user-configured|until change 0169" <<<"$rm_body"'
 
+# ---------------------------------------------------------------------------
+# Change 0184: the clean break is repo-wide, and the historical record is exempt
+# ---------------------------------------------------------------------------
+# A per-file assert cannot see a surface nobody thought to list. This walks the LIVE tree and fails
+# on any surviving profile token, with the exemption stated as a path filter rather than an
+# allowlist of known files — an allowlist would be an enumerated floor that ages into the gap.
+#
+# Exempt by design: docs/changes/archive, docs/results, docs/superpowers, docs/adrs. Those record
+# what was true when written; rewriting them would falsify the history. This plan's own file lives
+# under docs/superpowers/plans and is exempt for the same reason.
+live_hits="$(git -C "$REPO" grep -InE 'build-(economy|standard|premium)|docket-build-(economy|standard|premium)' -- \
+  ':!docs/changes/archive' ':!docs/results' ':!docs/superpowers' ':!docs/adrs' ':!tests/test_docket_build.sh' || true)"
+assert "no live surface names a retired build profile" '[ -z "$live_hits" ]'
+[ -z "$live_hits" ] || printf '  live hits:\n%s\n' "$live_hits"
+
+# Non-vacuity: the search must be capable of finding something. Run the same pattern WITHOUT the
+# exemptions and require hits — the historical record genuinely contains these tokens, so an empty
+# result here means the grep itself is broken (bad pathspec, wrong repo root) and the assert above
+# passed for the wrong reason.
+all_hits="$(git -C "$REPO" grep -IlE 'build-(economy|standard|premium)' || true)"
+assert "retirement grep is armed (the historical record still contains the tokens)" \
+  '[ -n "$all_hits" ]'
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
