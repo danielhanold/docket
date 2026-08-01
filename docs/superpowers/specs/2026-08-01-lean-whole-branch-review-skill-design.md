@@ -294,15 +294,12 @@ nothing else — no prose report.
 
 ## Coupling and ripple surfaces
 
-- **`depends_on: [167, 184]`.** 0167 is `done`. 0184 (four-tier ladder, PR #147) is
-  `implemented` — this change edits the same roster surfaces, so it builds only after #147
-  merges. Its reconcile pass re-verifies the pin table and wrapper count against merged main.
-- Roster/count surfaces (the 0167/0184 ripple list): `.docket.example.yml` (`agents.claude`
-  mirror + commented `codex:`/`cursor:` mirrors), README wrapper-count prose,
-  `skills/docket-convention/SKILL.md` wrapper enumeration, `cursor-rules/dispatch/` fragments,
-  and the tests asserting the roster, example-yml key count, and per-skill size budgets
-  (`test_sync_agents*.sh`, `test_docket_example_yml.sh`, `test_skill_size_budgets.sh`,
-  `test_dispatch_capability.sh`).
+- **`depends_on: [167, 184]`.** Both are `done` and merged — verified at reconcile
+  (2026-08-01). The pin table above was re-verified row-by-row against merged
+  `origin/main:agents/harness-defaults.yml`; every row holds, including the cross-harness
+  invariant **review-deep == build-max** (claude `claude-opus-5`/high, cursor
+  `claude-opus-5-high`, codex `gpt-5.6-sol`/medium). Wrapper count on merged main is
+  **thirteen**, so the target is **sixteen** as designed.
 - Skill-prose surfaces: `docket-build` (gate emits the evidence line), `docket-implement-next`
   Step 6/7 (dispatch + triage + PR-body block), `docket-finalize-change` (skip predicate),
   `docket-convention` (role table row for review; wrapper count).
@@ -310,6 +307,68 @@ nothing else — no prose report.
   chain.
 - **ADR at build time**: docket owns the review role — one bounded read-only reviewer, the
   evidence chain, and the suite-once placement; relates to ADR-0063 (build-role twin).
+
+### Reconciled ripple list (2026-08-01 — verified against merged main)
+
+No generator code changes: `sync-agents.sh` (repo **root**, not `scripts/`) and
+`scripts/lib/harness-defaults.sh` are entirely glob-driven over `agents/docket-*.md`, and
+`link-skills.sh` globs `skills/*/`. Short names derive as `${basename#docket-}` minus `.md`,
+so the sidecar keys are `review-lean` / `review-standard` / `review-deep`. New/edited surfaces:
+
+| Surface | Edit |
+|---|---|
+| `agents/docket-review-{lean,standard,deep}.md` | new — `skills: [docket-review]`, no convention injection |
+| `agents/harness-defaults.yml` | **+9 rows** (3 agents × claude/cursor/codex) |
+| `cursor-rules/dispatch/docket-review-*.md` | new — 3 fragments |
+| `skills/docket-review/SKILL.md` | new |
+| `skills/docket-build/SKILL.md` | evidence line in the gate/output |
+| `skills/docket-implement-next/SKILL.md` | Step 6 rung selection + evidence + triage; Step 7 PR block |
+| `skills/docket-finalize-change/SKILL.md` | conditional post-rebase skip in the gate flow's step 4 |
+| `skills/docket-convention/SKILL.md` | wrapper count/enumeration + Skill-layer review row + dispatch tier rows |
+| `.docket.example.yml` | "thirteen agents" prose + 3 commented mirror blocks (+3 rows each) |
+| `.docket.yml` | `skills: review: docket-review` (this repo's dogfood opt-in) |
+| `README.md` | two count sentences, `## Skills` catalog row, new `### docket-review` section |
+
+**Hard gates the groom did not name — each fails the suite if missed:**
+
+1. **`hd_validate` completeness.** Every shipped harness block must carry an entry for every
+   `agents/docket-*.md`. Three wrappers without all nine sidecar rows fail generation *before
+   any wrapper is written*.
+2. **`test_dispatch_capability.sh` reverse correspondence** (the sharpest constraint). It
+   greps all `skills/**/*.md` for `` `<name>` …subagent `` and `resolved (build|review) skill`,
+   and its site-coverage assert is an **exact** `-eq 5`. Naming the three rung wrappers as
+   dispatch targets in skill prose adds three sites: they need `check_site` rows, matching
+   tier rows in the convention's tier table, and the floor raised to 8. `PENDING_TIER` is
+   explicitly forbidden as a parking spot.
+3. **`test_finalize_gate.sh`** asserts the convention says "thirteen" and not "twelve"
+   (lines 140-141) → becomes sixteen/thirteen; and asserts the exact phrase
+   **"six skills get a wrapper"** (line 144) → becomes seven, since `docket-review` is a
+   wrapper-bearing skill. The same file forbids `opus|sonnet|haiku|fable` and `xhigh`
+   literals in finalize's own prose.
+4. **`test_docket_build.sh`** bans the bare words `low` / `medium` / `high` from every
+   `agents/docket-*.md` and `cursor-rules/dispatch/docket-*.md`. The review wrappers and
+   fragments must describe their rung without those tokens.
+5. **`test_skill_size_budgets.sh`** auto-discovers `skills/**/*.md` and fails on any file
+   with no budget row: one **new row** for `skills/docket-review/SKILL.md` plus **four
+   raises**, because the files to edit sit at 3-4 lines of headroom
+   (`docket-build` 247/250, `docket-convention` 361/365 and ~33 words,
+   `docket-finalize-change` 189/193, `docket-implement-next` 135/147 and ~55 words).
+   Budget rounding follows that file's own stated convention.
+6. **Roster counts**: `test_sync_agents.sh` (13 → 16, twice), `test_sync_agents_cursor.sh`,
+   `test_sync_agents_codex.sh` (one equality + two `-ge` floors),
+   `test_cursor_dispatch_rule.sh` fragment floor, and `test_readme_skill_catalog.sh`'s
+   forward/reverse check between `skills/*/` and the README catalog table.
+
+**Two roster hand-lists to settle deliberately** (neither reddens on its own):
+`test_sync_agents.sh`'s `AUTONOMOUS` list (scopes the per-agent convention-injection assert)
+and `test_skill_fork_dispatch.sh`'s `FORKED`/`EXCLUDED` lists — `docket-review` belongs in
+neither today, so the build must place it consciously rather than by omission.
+
+**Pre-existing prose defect to fix in passing:** `skills/docket-convention/SKILL.md`'s
+convention-injection sentence reads "every wrapper except **four**" while naming five
+(`docket-brainstorm-consultant` + the four `docket-build-*` workers) — an off-by-one left by
+0184's fourth profile. This change edits that exact sentence, so it is corrected here rather
+than captured separately; with the three review wrappers it becomes eight.
 
 ## Settled during grooming (decision log)
 

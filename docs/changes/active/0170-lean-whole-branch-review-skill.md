@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/lean-whole-branch-review-skill
-claimed_at: 2026-08-01T19:20:15Z
+claimed_at: 2026-08-01T19:28:40Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -73,3 +73,36 @@ Design detail, diagram, schema, and the full ripple list live in the linked spec
 - Implementing findings inside the reviewer.
 - Changing the build profiles, rubric, or TDD contract from changes 0167/0184.
 - A second review round after blocker fixes.
+
+## Reconcile log
+
+### 2026-08-01
+
+Claimed and reconciled against merged `origin/main` (tip `794e7545`, 0184's terminal publish).
+
+**Design holds — no scope change.** Both dependencies are satisfied: 0167 and 0184 are `done`
+and archived, so the four-tier profile ladder this change reads its rung-selection input from
+is live on main.
+
+**Verified, not assumed:**
+
+- The reviewer pin table was re-checked row-by-row against merged
+  `agents/harness-defaults.yml`. All nine rows hold as groomed, including the invariant that
+  **review-deep equals the build-max pin on every harness**.
+- Wrapper roster on main is **thirteen** (`agents/docket-*.md`), so the designed 13 → 16
+  transition is accurate.
+- The generators need **no code change**: `sync-agents.sh` (which lives at the repo root, not
+  under `scripts/`), `scripts/lib/harness-defaults.sh`, and `link-skills.sh` are all
+  glob-driven, so three wrapper files and one skill directory are picked up automatically.
+
+**Ripple list expanded.** The groom's list named the right surfaces but understated the guard
+rails around them. Six hard gates were added to the spec, the two sharpest being
+`test_dispatch_capability.sh`'s reverse-correspondence roster (an exact `-eq 5` site count
+that three named rung dispatches will break) and `test_skill_size_budgets.sh` (four of the
+files to edit sit at 3-4 lines of headroom, so budget raises ship in the same diff). The
+full table and gate list live in the spec's *Reconciled ripple list*.
+
+**Folded in rather than captured:** `skills/docket-convention/SKILL.md`'s
+convention-injection sentence says "every wrapper except four" while naming five — an
+off-by-one left behind by 0184. This change already edits that sentence, so it is corrected
+here as in-scope drift rather than minted as separate work.
