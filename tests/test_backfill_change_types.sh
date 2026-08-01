@@ -222,6 +222,23 @@ else
   echo "skip - rollback: cannot make an install destination unwritable in this environment"
 fi
 
+# --- source sentinel: the install cannot prompt ------------------------------
+# `mv` PROMPTS when the destination is unwritable and stdin is a terminal (BSD). Interactively that
+# hangs forever; under a pty at EOF it self-answers `n`, prints `not overwritten`, and exits 0 — so
+# the staged file silently never installs, `if ! mv` never fires, and the run reports success. `-f`
+# is what makes the install non-interactive, and it is load-bearing, not style.
+#
+# Anchored on the CALL SITE (an `mv` whose destination is the active-dir target) rather than written
+# as a whole-file "no bare `mv `" grep: a whole-file negative assertion is one comment edit or one
+# reformat away from a false failure, and a call-site-anchored positive assertion says what is
+# actually meant. The population floor below is what keeps it from passing vacuously if the call
+# site is ever renamed out from under it.
+install_call="$(awk '/[[:space:]]mv[[:space:]]/ && /CHANGES_DIR\/active\/\$base/' "$SCRIPT")"
+n_install="$(awk '/[[:space:]]mv[[:space:]]/ && /CHANGES_DIR\/active\/\$base/{c++} END{print c+0}' "$SCRIPT")"
+assert "sentinel: exactly one mv install call site exists to check" '[ "$n_install" -eq 1 ]'
+assert "sentinel: the install call site passes mv -f (cannot prompt on a tty)" \
+  'grep -q -F -- "mv -f " <<<"$install_call"'
+
 # --- dry run -----------------------------------------------------------------
 d3="$tmp/dry"; mkfix "$d3"; snap3="$(cat "$d3/active/0001-a.md")"
 dry="$(bash "$SCRIPT" --changes-dir "$d3" --map "1=fix,2=docs,4=chore" --dry-run 2>&1)"

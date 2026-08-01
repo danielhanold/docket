@@ -148,6 +148,13 @@ fi
 # nothing protected the install. So the install now carries its own undo: the current bytes of
 # every target are copied aside first, and a failed `mv` restores whatever already landed before
 # dying. `.backup` is a dot-directory, so the `*.md` globs below never pick it up.
+#
+# `mv -f` is not decoration. Bare `mv` PROMPTS when the destination is unwritable and stdin is a
+# terminal, so an interactive run blocks forever; and at EOF on a pty it answers its own prompt `n`,
+# prints `not overwritten`, and exits 0 — the staged file is never installed, `if ! mv` never fires,
+# no rollback runs, and the run reports SUCCESS with a half-migrated backlog. `-f` suppresses the
+# prompt on BSD and GNU alike and still returns non-zero on a genuine EPERM, which is exactly what
+# the rollback branch below is written against.
 backup="$stage/.backup"; mkdir -p "$backup" || die "could not create the rollback staging dir"
 for out in "$stage"/*.md; do
   [ -e "$out" ] || continue
@@ -159,7 +166,7 @@ installed=""
 for out in "$stage"/*.md; do
   [ -e "$out" ] || continue
   base="$(basename "$out")"
-  if ! mv "$out" "$CHANGES_DIR/active/$base"; then
+  if ! mv -f "$out" "$CHANGES_DIR/active/$base"; then
     for undo in $installed; do
       cp -p "$backup/$undo" "$CHANGES_DIR/active/$undo" 2>/dev/null \
         || printf 'backfill-change-types: WARNING: rollback failed for %s — restore it from git\n' "$undo" >&2
