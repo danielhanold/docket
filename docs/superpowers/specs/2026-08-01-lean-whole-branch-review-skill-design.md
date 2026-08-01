@@ -173,12 +173,28 @@ Selection is a deterministic rule over the build record, never model judgment, a
 chosen rung + reason is one line in the run output.
 
 **Pins — the rungs get their own table, not the build's shifted one.** A literal +1 on the
-build pins would price the common case (standard build) at premium's pin; instead the
-reviewer ladder prices review work directly. Claude: **lean = `claude-sonnet-5` / `high`,
-standard = `claude-opus-5` / `medium`, deep = `claude-opus-5` / `high`** — the common case
-stays at the opus-5/medium point settled during grooming. Codex and Cursor rows mirror the
-tiers in `agents/harness-defaults.yml`, concrete model ids chosen at build time against the
-post-0184 table (verify at reconcile — PR #147 must have merged; see Coupling).
+build pins would price the common case (standard build) at premium's pin everywhere; instead
+the reviewer ladder prices review work directly, reusing build-ladder pairs where they fit.
+Settled 2026-08-01 against the merged post-0184 `agents/harness-defaults.yml`:
+
+| rung | claude | cursor | codex |
+|---|---|---|---|
+| review-lean | `claude-sonnet-5` / high | `cursor-grok-4.5-medium` / auto | `gpt-5.6-terra` / medium |
+| review-standard | `claude-opus-5` / medium | `cursor-grok-4.5-high` / auto | `gpt-5.6-terra` / high |
+| review-deep | `claude-opus-5` / high | `claude-opus-5-high` / auto | `gpt-5.6-sol` / medium |
+
+Per-harness reasoning: **claude** — standard and deep sit exactly on build-premium's and
+build-max's pins; lean deviates from a literal +1 because sonnet-5/high is cheaper than
+opus-5/low and the build-economy comment's reason for avoiding smaller models (contract
+fumbles halt the build) does not apply to a read-and-return reviewer. **cursor** — pure +1:
+the three rungs take build-standard's, build-premium's, and build-max's IDs verbatim; effort
+stays `auto` per the block's variant-encoded rule. **codex** — pairs are roles (the block's
+own doctrine): lean takes build-standard's `terra/medium`; standard runs `terra/high`
+(chosen over build-premium's `sol/low` — same model as lean at higher reasoning, keeping the
+common-case review on the mid model); deep takes build-max's `sol/medium`. Invariant on
+every harness: **review-deep equals the build-max pin** — the cap rung never reviews below
+the strength the riskiest build work was built with. Reconcile re-verifies these rows against
+`origin/main`'s table at build time.
 
 - **Each wrapper wraps the review skill only — no `docket-convention` injection.** Precedent:
   the `docket-build-*` profile workers, which perform no docket metadata operations. The
