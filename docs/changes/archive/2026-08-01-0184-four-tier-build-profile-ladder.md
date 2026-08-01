@@ -2,7 +2,7 @@
 id: 184
 slug: four-tier-build-profile-ladder
 title: Four-tier build profile ladder — economy/standard/premium/max
-status: implemented
+status: done
 priority: high
 type: feat
 created: 2026-08-01
@@ -17,7 +17,7 @@ results: docs/results/2026-08-01-four-tier-build-profile-ladder-results.md
 trivial: false
 auto_groomable:
 branch: feat/four-tier-build-profile-ladder
-claimed_at: 2026-08-01T14:09:22Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/147
 blocked_by:
 reconciled: true
