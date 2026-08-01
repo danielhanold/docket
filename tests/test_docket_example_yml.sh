@@ -898,8 +898,9 @@ ex_slice_field(){ # $1=slice  $2=agent  $3=field(model|effort)
 # independent: every agent key appears in all three blocks, so a key-only anchor would resolve every
 # lookup to whichever block came first in the file. build-max is the terminator because it is the
 # LAST build row in ladder order (low, medium, high, max) and the build rows close every block — so
-# this anchor moves whenever the ladder's top rung is renamed. Change 0184 moved it here from
-# build-premium; the previous rename is the reason the anchor is named in prose rather than assumed.
+# this anchor moves whenever the ladder's top rung is renamed. Change 0184 moved it here from the
+# ladder's previous top rung; that rename is the reason the anchor is named in prose rather than
+# assumed.
 ere_escape(){ sed -E 's/[][\.^$*+?(){}|]/\\&/g' <<<"$1"; }
 for h in $HD_SHIPPED_HARNESSES; do
   bm_model="$(hd_field "$HD" "$h" build-max model)"
