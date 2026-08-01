@@ -11,7 +11,7 @@ depends_on: []
 related: [190, 138]
 discovered_from: [190]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-01-enforce-yaml-scalar-wellformedness-in-change-frontmatter-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-01-enforce-yaml-scalar-wellformedness-in-change-frontmatter-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-01-enforce-yaml-scalar-wellformedness-in-change-frontmatter-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -58,13 +61,19 @@ quote-unwrap convention) must NOT be flagged.
 
 ## Open questions
 
-- Field coverage: the four board-rendered fields (`slug`/`priority`/`title`/`type`) vs every
-  frontmatter scalar read by docket.
-- Exact scalar-form predicate: detecting a colon-space inside an unquoted value without
-  false-positives, and detecting a bare boolean keyword, both consistent with
-  `field()`/`fm_field()`'s existing quote-unwrap (0138).
-- Where the finding reports (a new check-id vs an extended `field-domain` arm), and its
-  `BOARD_CHECK_IDS` pinning obligations.
+Resolved during autonomous grooming (see the linked spec's Assumptions for the full audit trail):
+
+- **Field coverage** — a new `scalar-form` check scans `title` and `blocked_by` only: the sole
+  free-text string scalars that docket reads and that are not already gated by a shape/domain check.
+  The natively-boolean fields (`trivial`, `auto_groomable`, `reconciled`) are deliberately NOT scanned —
+  a bare `true`/`false` there is correct, well-formed YAML.
+- **Scalar-form predicate** — three legs over the raw token (`field_raw` for `title`, a new
+  `fm_field_raw` for the optional `blocked_by:` key — anchored per ADR-0057): skip quoted/empty,
+  flag an unquoted `: ` (colon-space), flag an unquoted bare YAML boolean keyword
+  (`on`/`off`/`yes`/`no`/`true`/`false`, case-insensitive).
+- **Finding location** — a new sibling check-id `scalar-form` beside `field-domain` (not an arm of it),
+  with its `BOARD_CHECK_IDS` pinned across all four surfaces (check-id array, `--help` header,
+  `board-checks.md`, `docket-status.md` report row) plus the tests.
 
 ## Reconcile log
 
