@@ -120,6 +120,17 @@ background-and-yield (a forked child has no notification channel — the caller 
 half-done run as `completed`). The cost is bounded: unlike the old default, this reviewer runs
 no suite — the parent blocks for one model read of the diff, not ten minutes of bash.
 
+**Foreground ≠ inline — the pin survives the dispatch.** Foreground/background is a
+*scheduling* axis (does the parent block on the child's return); inline/dispatched is an
+*execution* axis (parent's own context vs. a separate subagent). This reviewer is a
+foreground **dispatch**: a fresh subagent spun up from the `docket-review` wrapper, which
+carries the resolved `model:`/`effort:` pin — so the review runs at opus-5/medium regardless
+of the model `docket-implement-next` itself is running at, exactly as the build workers and
+`docket-adr` run at their own pins today. The parent's model reaches the review only on the
+degraded **inline** path (`skills.review: auto`, or Tier C's human-authorized inline
+fallback), which is precisely why that path is authorized-or-halt with a loud warning: a
+degraded binding drops the pin along with the discipline.
+
 **Inputs (in the dispatch prompt):** branch name and base (`origin/<integration_branch>`);
 the change's PM-altitude context (title, `## Why`, `## What changes`); the relevant learnings
 hooks the controller already pulls at Step 6; and the current **evidence block**.
