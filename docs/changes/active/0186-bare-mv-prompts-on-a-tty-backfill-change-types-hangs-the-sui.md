@@ -2,7 +2,7 @@
 id: 186
 slug: bare-mv-prompts-on-a-tty-backfill-change-types-hangs-the-sui
 title: Bare mv prompts on a tty — backfill-change-types hangs the suite and can exit 0 without installing
-status: in-progress
+status: implemented
 priority: high
 type: fix
 created: 2026-08-01
@@ -13,12 +13,12 @@ discovered_from: [185]
 adrs: []
 spec: docs/superpowers/specs/2026-08-01-bare-mv-prompts-on-a-tty-design.md
 plan: docs/superpowers/plans/2026-08-01-bare-mv-prompts-on-a-tty.md
-results:
+results: docs/results/2026-08-01-bare-mv-prompts-on-a-tty-backfill-change-types-hangs-the-sui-results.md
 trivial: false
 auto_groomable: true
 branch: feat/bare-mv-prompts-on-a-tty-backfill-change-types-hangs-the-sui
-claimed_at: 2026-08-01T13:34:00Z
-pr:
+claimed_at: 2026-08-01T14:49:58Z
+pr: https://github.com/danielhanold/docket/pull/148
 blocked_by:
 reconciled: true
 ---
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-01-bare-mv-prompts-on-a-tty-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-01-bare-mv-prompts-on-a-tty-design.md) |
 | Plan | [2026-08-01-bare-mv-prompts-on-a-tty.md](https://github.com/danielhanold/docket/blob/feat/bare-mv-prompts-on-a-tty-backfill-change-types-hangs-the-sui/docs/superpowers/plans/2026-08-01-bare-mv-prompts-on-a-tty.md) |
+| Results | [2026-08-01-bare-mv-prompts-on-a-tty-backfill-change-types-hangs-the-sui-results.md](https://github.com/danielhanold/docket/blob/feat/bare-mv-prompts-on-a-tty-backfill-change-types-hangs-the-sui/docs/results/2026-08-01-bare-mv-prompts-on-a-tty-backfill-change-types-hangs-the-sui-results.md) |
+| PR | [#148](https://github.com/danielhanold/docket/pull/148) |
 <!-- docket:artifacts:end -->
 
 ## Why
