@@ -70,7 +70,7 @@ assert "worker: owns exactly one task" 'grep -qiE "exactly one task|only that ta
 assert "worker: must not rewrite earlier task commits" \
   'grep -qiE "not rewrite|never rewrite" <<<"$worker_body"'
 
-# METADATA BOUNDARY (whole-branch review, finding 3). The three profile wrappers deliberately do
+# METADATA BOUNDARY (whole-branch review, finding 3). The four profile wrappers deliberately do
 # NOT preload docket-convention, and docket-convention was the only document asserting they "perform
 # no docket metadata operations" — i.e. the one document these workers never read. They are
 # full-tool agents that write code and commit, so today the boundary holds only incidentally
@@ -168,8 +168,12 @@ assert "controller: the demoted premium triggers now name high, not max" \
 # Detect the removed state. The clean break means these tokens must not survive as PROFILE names in
 # either contract; anchored on the two skill files rather than a whole-repo grep, because historical
 # records under docs/ legitimately keep the old vocabulary.
+# `standard` is in the pattern deliberately, even though the repo-wide guard below already catches
+# the hyphenated `build-standard` form: a regression that reintroduced a BARE `standard` profile
+# token into the rubric or a ladder would match neither the hyphenated guard nor a two-token
+# pattern, leaving one of the three retired names with no detector in prose at all.
 assert "controller + worker carry no retired profile token" \
-  '! grep -qiE "\b(economy|premium)\b" "$CTRL" "$WORKER"'
+  '! grep -qiE "\b(economy|standard|premium)\b" "$CTRL" "$WORKER"'
 
 # The plan override and its fail-loud contract.
 assert "controller: honors an explicit plan Build profile override" \
@@ -533,13 +537,16 @@ live_hits="$(git -C "$REPO" grep -InE 'build-(economy|standard|premium)|docket-b
 assert "no live surface names a retired build profile" '[ -z "$live_hits" ]'
 [ -z "$live_hits" ] || printf '  live hits:\n%s\n' "$live_hits"
 
-# Non-vacuity: the search must be capable of finding something. Run the same pattern WITHOUT the
-# exemptions and require hits — the historical record genuinely contains these tokens, so an empty
-# result here means the grep itself is broken (bad pathspec, wrong repo root) and the assert above
-# passed for the wrong reason.
-all_hits="$(git -C "$REPO" grep -IlE 'build-(economy|standard|premium)' || true)"
-assert "retirement grep is armed (the historical record still contains the tokens)" \
-  '[ -n "$all_hits" ]'
+# Non-vacuity: the guard above swallows failure with `|| true`, so an empty $live_hits must be
+# proved to mean "nothing left" rather than "the search broke". Run the SAME pathspec list against a
+# pattern the exempt history is known to contain, and require that it finds the history and nothing
+# outside it. Running an unfiltered pattern instead would be the wrong companion: a later edit that
+# over-broadened an exemption (say ':!docs/superpowers' widened to ':!docs') would empty $live_hits
+# while an unfiltered probe stayed happily green, reporting an armed guard that checks nothing.
+armed_hits="$(git -C "$REPO" grep -IlE 'build-(economy|standard|premium)' -- \
+  'docs/changes/archive' 'docs/results' 'docs/superpowers' 'docs/adrs' || true)"
+assert "retirement grep is armed (the exempt history still contains the tokens)" \
+  '[ -n "$armed_hits" ]'
 
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
