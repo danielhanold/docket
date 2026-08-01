@@ -1,3 +1,7 @@
+<!-- docket:backlink:start (generated — do not hand-edit) -->
+> ↩ **[Change 0169 — Codex support for profile-routed Docket builds](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-01-0169-codex-profile-routed-build-support.md)**
+<!-- docket:backlink:end -->
+
 # Codex support for profile-routed Docket builds — results
 Change: #169 · Branch: feat/codex-profile-routed-build-support · PR: https://github.com/danielhanold/docket/pull/143 · Plan: docs/superpowers/plans/2026-07-31-codex-profile-routed-build-support.md · ADRs: 36, 37, 38, 63, 64
 
