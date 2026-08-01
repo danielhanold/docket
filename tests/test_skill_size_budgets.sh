@@ -98,6 +98,16 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # `low` tier's cross-file-reasoning condition are normative routing text with no other home — a
 # reference file cannot intervene at the moment the router is choosing. Set per the rounding rule
 # above from the measured actual: 247 lines -> 250, 2313 words -> 2350 (37 words of margin).
+# skills/docket-review/SKILL.md is a NEW row added by change 0170, which introduced docket's own
+# bounded read-only whole-branch review role. The file is a compact worker contract in the
+# docket-build-task register: scope and metadata boundary, dispatch inputs, the read-only conduct
+# rules, the build-evidence verification (present / result: green / head_sha equals branch HEAD,
+# with the `unverified-build-state` blocker as the ONLY remedy available to a reviewer), what is in
+# and out of review scope, the finding schema plus verdict line, and the abort-and-report halting
+# posture. Set per the rounding rule above from the measured actuals: 96 lines -> the next multiple
+# of 5 is 100, but 4 lines of margin is the near-zero mode this block warns about at a file this
+# short, so the multiple after was taken (105), matching the docket-build-task precedent; 746 words
+# -> 750 is within the 25-word threshold, so the multiple after: 800 (54 words of margin).
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -114,6 +124,7 @@ skills/docket-finalize-change/SKILL.md                     193 4200
 skills/docket-groom-next/SKILL.md                           77 1484
 skills/docket-implement-next/SKILL.md                      147 3500
 skills/docket-implement-next/results-template.md            24  172
+skills/docket-review/SKILL.md                              105  800
 skills/docket-new-change/SKILL.md                           61 1330
 skills/docket-new-change/change-template.md                 51  203
 skills/docket-status/SKILL.md                              118 2393
