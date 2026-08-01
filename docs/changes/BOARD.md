@@ -1,6 +1,6 @@
 # Backlog
 
-**183 changes** — 🟡 38 proposed · ⚪ 4 deferred · 🔵 3 implemented · ✅ 119 done · 🗑️ 19 killed
+**183 changes** — 🟡 38 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 120 done · 🗑️ 19 killed
 
 ## 🟡 Proposed (38)
 
@@ -54,12 +54,11 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (3)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | `chore` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
-| [0169](active/0169-codex-profile-routed-build-support.md) | Codex support for profile-routed Docket builds | `medium` | `feat` | [#143](https://github.com/danielhanold/docket/pull/143) |  |
 | [0176](active/0176-docket-config-sh-costs-0-87s-per-invocation-and-dominates-te.md) | docket-config.sh costs ~0.87s per invocation and dominates test_docket_config.sh | `medium` | `perf` | [#145](https://github.com/danielhanold/docket/pull/145) |  |
 
 ```mermaid
@@ -97,8 +96,6 @@ graph TD
   0163
   0165
   0166
-  0167 --> 0169
-  0168 --> 0169
   0167 --> 0170
   0171
   0172
@@ -113,16 +110,16 @@ graph TD
   0015:::done
   0077:::done
   0167:::done
-  0168:::done
   0175:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (138)</summary>
+<details><summary>✅🗑️ Archive — done + killed (139)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0175](archive/2026-08-01-0175-sync-agents-per-invocation-cost.md) | sync-agents.sh costs ~5.5s per invocation and dominates the test suite | 2026-08-01 |
+| [0169](archive/2026-08-01-0169-codex-profile-routed-build-support.md) | Codex support for profile-routed Docket builds | 2026-08-01 |
 | [0174](archive/2026-07-31-0174-reuse-test-git-fixtures.md) | Reuse test git fixtures instead of rebuilding them per assertion | 2026-07-31 |
 | [0173](archive/2026-07-31-0173-field-of-silently-truncates-a-model-id-containing-or.md) | field_of() silently truncates a model ID containing / or : | 2026-07-31 |
 | [0168](archive/2026-07-31-0168-cursor-profile-routed-build-support.md) | Cursor support for profile-routed Docket builds | 2026-07-31 |
@@ -146,7 +143,6 @@ graph TD
 | [0126](archive/2026-07-28-0126-apply-the-poison-value-prelude-uniformly-to-every-resolver-e.md) | Apply the poison-value prelude uniformly to every resolver eval in the config suite | 2026-07-28 |
 | [0122](archive/2026-07-28-0122-nested-keys-scope-tags-in-docket-example-yml-are-unguarded.md) | Nested keys' scope tags in .docket.example.yml are unguarded | 2026-07-28 |
 | [0120](archive/2026-07-28-0120-docket-finalize-change-claims-integration-branch-is-read-fro.md) | docket-finalize-change claims integration_branch is read from .docket.yml, but it is an exported resolver key | 2026-07-28 |
-| [0117](archive/2026-07-28-0117-deferred-adr-publish-visibility-decide-whether-docket-adr-s.md) | Deferred ADR-publish visibility — detect an unpublished ADR with a computed board-checks finding | 2026-07-28 |
 | [0131](archive/2026-07-26-0131-make-board-conflict-rebase-continuation-noninteractive.md) | Make board-conflict rebase continuation noninteractive | 2026-07-26 |
 | [0129](archive/2026-07-26-0129-fix-the-pipefail-unsafe-plain-format-config-assertion.md) | Fix the pipefail-unsafe plain-format config assertion | 2026-07-26 |
 | [0124](archive/2026-07-26-0124-backlog-triage-pass.md) | Backlog triage pass — kill, defer, or arm each needs-brainstorm stub | 2026-07-26 |
@@ -161,7 +157,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-07](archive/) | 72 done |
+| [2026-07](archive/) | 73 done |
 | [2026-06](archive/) | 32 done |
 
 </details>
