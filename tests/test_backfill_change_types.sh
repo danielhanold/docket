@@ -269,6 +269,10 @@ pty_probe(){
 pty_run(){
   case "$PTY_FLAVOR" in
     bsd) script -q /dev/null "$@" </dev/null 2>/dev/null ;;
+    # util-linux takes ONE command string, so the argv has to be re-flattened. `printf %q` quotes
+    # for bash, which is what `script -c` runs it under; it is exact for the argument shapes this
+    # file passes (a path, an env assignment, a comma-separated map) and best-effort beyond them.
+    # Unexercised on this repo's hosts — every host reached so far probes as `bsd`.
     gnu) script -q -e -c "$(printf '%q ' "$@")" /dev/null </dev/null 2>/dev/null ;;
     *)   return 127 ;;
   esac
@@ -276,6 +280,7 @@ pty_run(){
 
 drb2="$tmp/rollback-pty"; mkfix "$drb2"; mkdir -p "$drb2/tmpdir"
 pb1="$(cat "$drb2/active/0001-a.md")"; pb2="$(cat "$drb2/active/0002-b.md")"
+pb3="$(cat "$drb2/active/0003-c.md")"
 pb4="$(cat "$drb2/active/0004-d.md")"; pbarc="$(arc_hash "$drb2")"
 if pty_probe && chflags uchg "$drb2/active/0002-b.md" 2>/dev/null; then
   praw="$(pty_run env TMPDIR="$drb2/tmpdir" bash "$SCRIPT" \
@@ -293,11 +298,15 @@ if pty_probe && chflags uchg "$drb2/active/0002-b.md" 2>/dev/null; then
   assert "pty: the file the install failed ON is unchanged" \
     '[ "$(cat "$drb2/active/0002-b.md")" = "$pb2" ]'
   assert "pty: the files AFTER the failure are unchanged" \
-    '[ "$(cat "$drb2/active/0004-d.md")" = "$pb4" ]'
+    '[ "$(cat "$drb2/active/0003-c.md")" = "$pb3" ] && [ "$(cat "$drb2/active/0004-d.md")" = "$pb4" ]'
   assert "pty: the archive is byte-identical" '[ "$(arc_hash "$drb2")" = "$pbarc" ]'
+  assert "pty: no rollback-failure warning was emitted" \
+    '! grep -q "rollback failed" <<<"$perr"'
 else
-  # Matches the idiom the surrounding chflags guard already uses.
-  echo "skip - pty: no exit-status-faithful script(1), or cannot make a destination unwritable here"
+  # Matches the idiom the surrounding chflags guard already uses. Both causes are named because
+  # they fail on different hosts — a Linux box without a faithful script(1) and a filesystem
+  # without chflags are diagnosed differently, and the skip line is the only signal either leaves.
+  echo "skip - pty: script(1) flavor='${PTY_FLAVOR:-none}' (empty = no exit-status-faithful flavor), or cannot make a destination unwritable here"
 fi
 
 # --- dry run -----------------------------------------------------------------

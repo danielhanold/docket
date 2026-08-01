@@ -308,11 +308,17 @@ bash tests/test_backfill_change_types.sh 2>&1 | grep -E "^(ok|NOT OK|skip) - pty
 
 Expected: seven `ok - pty: …` lines.
 
-- [ ] **Step 5: Confirm the widened trap leaves nothing behind**
+- [ ] **Step 5: Confirm the widened trap leaves nothing behind — and record what it does NOT cover**
 
 Run: `bash tests/test_backfill_change_types.sh >/dev/null 2>&1; ls /var/folders/*/*/T/tmp.* 2>/dev/null | wc -l`
 
-Expected: the count does not grow across two consecutive runs — no undeletable temp dir leaked from either `uchg` fixture. If a leftover exists, clear it with `chflags -R nouchg <dir>; rm -rf <dir>` and fix the trap.
+**Corrected after review (2026-08-01) — the original expectation here was wrong and is retained as a caution, not a target.** It read *"the count does not grow across two consecutive runs"*. It does grow: **+1 per run on `origin/main`, +2 per run on this branch.** Do not treat a growing count as a failure of this task.
+
+The widened trap does what it is for — it clears flags across `$tmp`, so neither fixture can leave an undeletable directory *inside the test's own tree*. The leak is somewhere the trap cannot reach: `scripts/backfill-change-types.sh` creates its scratch dir with `mktemp -d` and **no template**, and macOS `mktemp -d` ignores `TMPDIR` entirely (measured). So the `TMPDIR="$drb/tmpdir"` redirect that both fixtures pass is a no-op on macOS, the stage dir lands under `/var/folders/…` outside `$tmp`, `cp -p` preserves the `uchg` flag onto its `.backup/0002-b.md`, and the script's own `trap 'rm -rf "$stage"'` then fails with `Operation not permitted`.
+
+This is **pre-existing** (it is why the count already grows on `origin/main`); this branch's second `uchg` fixture doubles the rate by the identical mechanism. It is a resource leak, not a correctness problem for any assertion. It is tracked as its own change — the fix is one line in `backfill-change-types.sh` (give `mktemp` a template) and belongs with its own coverage, not smuggled in here.
+
+Accept this step when the suite passes; sweep accumulated debris with `chflags -R nouchg <dir>; rm -rf <dir>` if it bothers you.
 
 - [ ] **Step 6: Run the whole suite**
 
