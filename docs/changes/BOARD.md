@@ -1,8 +1,8 @@
 # Backlog
 
-**189 changes** — 🟡 41 proposed · ⚪ 4 deferred · 🔵 3 implemented · ✅ 122 done · 🗑️ 19 killed
+**189 changes** — 🟡 40 proposed · ⚪ 4 deferred · 🔵 3 implemented · ✅ 122 done · 🗑️ 20 killed
 
-## 🟡 Proposed (41)
+## 🟡 Proposed (40)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -43,7 +43,6 @@
 | [0180](active/0180-apply-adr-0065-s-quote-leg-to-hd-validate-and-the-remaining.md) | Apply ADR-0065's quote leg to hd_validate and the remaining flow-map truncation corners | `medium` | `fix` | needs-brainstorm |
 | [0181](active/0181-document-the-unquoted-space-free-rule-for-agent-model-effort.md) | Document the unquoted, space-free rule for agent model/effort config values | `medium` | `docs` | needs-brainstorm |
 | [0182](active/0182-facade-tests-read-the-developer-s-real-global-config-instead.md) | Facade tests read the developer's real global config instead of a sandbox | `medium` | `fix` | needs-brainstorm |
-| [0183](active/0183-cursor-dispatch-head-ships-a-stale-unpinned-claim-its-guard.md) | Cursor dispatch head ships a stale unpinned claim; its guard retired itself | `medium` | `fix` | needs-brainstorm |
 | [0187](active/0187-harden-the-docket-example-yml-mirror-guards-one-directional.md) | Harden the .docket.example.yml mirror guards — one-directional coverage, an unexercised round-trip slice, and a prefix-weak terminator | `medium` | `chore` | needs-brainstorm |
 | [0188](active/0188-backfill-change-types-sh-calls-mktemp-d-with-no-template-so.md) | backfill-change-types.sh calls mktemp -d with no template, so TMPDIR is ignored on macOS and uchg fixtures leak undeletable dirs | `medium` | `fix` | needs-brainstorm |
 | [0189](active/0189-sweep-the-15-remaining-bare-mv-install-sites-a-tty-prompt-ma.md) | Sweep the 15 remaining bare-mv install sites — a tty prompt makes their || die guards unreachable | `medium` | `fix` | needs-brainstorm |
@@ -109,7 +108,6 @@ graph TD
   0180
   0181
   0182
-  0183
   0184
   0186
   0187
@@ -122,11 +120,12 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (141)</summary>
+<details><summary>✅🗑️ Archive — done + killed (142)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0185](archive/2026-08-01-0185-test-suite-assertion-profilers.md) | Test-suite profilers — per-assertion and per-command timing | 2026-08-01 |
+| [0183](archive/2026-08-01-0183-cursor-dispatch-head-ships-a-stale-unpinned-claim-its-guard.md) | Cursor dispatch head ships a stale unpinned claim; its guard retired itself | 2026-08-01 |
 | [0176](archive/2026-08-01-0176-docket-config-sh-costs-0-87s-per-invocation-and-dominates-te.md) | docket-config.sh costs ~0.87s per invocation and dominates test_docket_config.sh | 2026-08-01 |
 | [0175](archive/2026-08-01-0175-sync-agents-per-invocation-cost.md) | sync-agents.sh costs ~5.5s per invocation and dominates the test suite | 2026-08-01 |
 | [0169](archive/2026-08-01-0169-codex-profile-routed-build-support.md) | Codex support for profile-routed Docket builds | 2026-08-01 |
