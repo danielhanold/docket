@@ -64,6 +64,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0063](0063-docket-owns-the-build-role-profile-routed-workers.md) — Docket owns the build role — profile-routed workers, model and effort on named agents (Accepted) ← change #167 → supersedes ADR-0023 · relates to ADR-0015, ADR-0016, ADR-0018, ADR-0059
 - [ADR-0064](0064-shipped-agent-defaults-live-in-a-harness-indexed-sidecar.md) — Shipped agent model/effort defaults live in a harness-indexed sidecar; wrapper templates carry no model floor (Accepted) ← change #168 → supersedes ADR-0048 · relates to ADR-0015, ADR-0016, ADR-0060, ADR-0063
 - [ADR-0065](0065-bare-scalar-validation-needs-an-explicit-quote-leg.md) — A bare-scalar validator needs an explicit quote leg — raw-vs-consumed comparison is a whitespace test, not a bare-scalar test (Accepted) ← change #173 · relates to ADR-0058, ADR-0015
+- [ADR-0066](0066-docket-owns-the-review-role-suite-runs-in-the-build-gate.md) — Docket owns the review role — read-only rungs, and the suite runs in the build gate (Accepted) ← change #170 · relates to ADR-0012, ADR-0024, ADR-0063
 
 ## Superseded / Reversed
 
