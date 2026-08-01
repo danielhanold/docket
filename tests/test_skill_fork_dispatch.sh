@@ -20,6 +20,9 @@ fmval(){ frontmatter "$1" | sed -n "s/^$2:[[:space:]]*//p" | head -n1 | sed 's/[
 FORKED="docket-status docket-adr docket-implement-next docket-auto-groom"
 # The three interactive/excluded skills that MUST NOT fork (no channel to the human, or a
 # merge blocked by the auto-mode classifier — see ADR-0043).
+# Wrapper-dispatched skills (docket-build, docket-build-task, docket-review) are in NEITHER list
+# by design: they are reached through a pinned wrapper, never through Claude Code's context: fork
+# path, so neither the forked-frontmatter assert nor the must-not-fork assert applies to them.
 EXCLUDED="docket-finalize-change docket-new-change docket-groom-next"
 
 for s in $FORKED; do

@@ -651,6 +651,7 @@ The operating loop — create, groom, implement, finalize, report, decide — pl
 | `docket-brainstorm` | Pluggable `brainstorm` role, opt-in — keeps the design dialogue inline with you, then dispatches a pinned consultant once to author the spec or hand back critique concerns. See [Consultant-authored brainstorm](#consultant-authored-brainstorm-opt-in). |
 | `docket-build` | Pluggable `build` role, opt-in — turns a written plan into commits by routing each task to a named economy/standard/premium profile agent, with one bounded escalation per task, no per-task review, and a single full-suite gate. See [docket-build](#docket-build--the-lean-profile-routed-build). |
 | `docket-build-task` | The per-task worker contract `docket-build` preloads into its profile agents — one plan task from focused test through verification, self-review, and one commit. Not invoked directly by a human. |
+| `docket-review` | Pluggable `review` role, opt-in — one bounded, read-only whole-branch reviewer behind pinned rung wrappers: reads the branch diff and the build-evidence record, returns severity-tiered findings, and never fixes, dispatches, or runs the test suite. |
 
 ---
 
