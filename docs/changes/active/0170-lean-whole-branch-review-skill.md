@@ -12,7 +12,7 @@ related: [137]
 discovered_from: [167]
 adrs: []
 spec: docs/superpowers/specs/2026-08-01-lean-whole-branch-review-skill-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-01-lean-whole-branch-review-skill.md
 results:
 trivial: false
 auto_groomable:
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-01-lean-whole-branch-review-skill-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-01-lean-whole-branch-review-skill-design.md) |
+| Plan | [2026-08-01-lean-whole-branch-review-skill.md](https://github.com/danielhanold/docket/blob/feat/lean-whole-branch-review-skill/docs/superpowers/plans/2026-08-01-lean-whole-branch-review-skill.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
