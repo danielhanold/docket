@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/close-the-build-evidence-value-gap-a-post-gate-results-commi
-claimed_at: 2026-08-01T22:52:30Z
+claimed_at: 2026-08-01T22:54:17Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -76,3 +76,33 @@ the linked spec. The skip's trust boundary change is recorded as a dated Update 
 
 - Weakening any other condition of the skip predicate.
 - Changing where the evidence block lives (the PR body; settled by ADR-0066).
+
+## Reconcile log
+
+### 2026-08-01
+
+Claimed and reconciled against merged `origin/main` — current tip `e108568a`, 0170's terminal
+publish; the base has **not** moved since the spec recorded that tip.
+
+**Design holds — no scope change.**
+
+- 0170 is `done`/archived; the skip stanza it ships is live at
+  `skills/docket-finalize-change/SKILL.md` step 4 (conjunction of a no-op rebase, a parseable green
+  `docket:build-evidence` block, and `head_sha` equal to the branch HEAD, with the fail-toward-running
+  posture and the loud skip log). Confirmed the guardian `tests/test_docket_review.sh`'s existing
+  sentinels (no-op / `result: green` / `head_sha` / fails-toward-running / `ci` untouched /
+  fragment purity) all survive a new ancestor+allowlist disjunct.
+- Suite-invisibility re-verified against the merged tree: 106 of 145 archived changes (73%) carry a
+  `results:` field, matching the measured frequency. Both exemption sites the spec relies on are
+  live — `tests/test_docket_build.sh`'s `:!docs/results` path-exclusion and
+  `tests/test_readme_finalize_docs.sh`'s `--glob "!docs/results/**"` — and the remaining
+  `docs/results` occurrences in tests/scripts/skills are benign (comments, fixture paths, config-key
+  references), not content reads. The `docs/results/` allowlist is suite-invisible in this repo; the
+  live guard test ships in-build.
+- Budget caps confirmed: `tests/test_skill_size_budgets.sh` holds finalize at 193 ln / 4350 w and
+  implement-next at 147 ln / 3950 w — the spec expects in-diff raises for the extended stanza.
+- ADR-0066 remains Accepted with its Consequences deferral sentence ("docs-only ancestor
+  exemption… deliberately deferred") still open; the build records a dated `## Update` note that
+  dates-and-closes it (via `docket-adr`). 0190's `adrs: [66]` is already set and the `## Artifacts`
+  block already lists ADR-0066.
+
