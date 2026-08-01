@@ -12,7 +12,7 @@ related: []
 discovered_from: [170]
 adrs: [66]
 spec: docs/superpowers/specs/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi.md
 results:
 trivial: false
 auto_groomable: true
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md) |
+| Plan | [2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi.md](https://github.com/danielhanold/docket/blob/feat/close-the-build-evidence-value-gap-a-post-gate-results-commi/docs/superpowers/plans/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi.md) |
 | ADRs | [ADR-0066](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0066-docket-owns-the-review-role-suite-runs-in-the-build-gate.md) |
 <!-- docket:artifacts:end -->
 
