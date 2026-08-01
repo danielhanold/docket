@@ -141,7 +141,7 @@ fi
 4. **Conditional skip of the local suite run (`local`/`both` only, change 0170).** Skip the post-rebase **local** suite run **only when all three hold**: the rebase was a no-op (HEAD is unchanged — the branch was already based on the current `origin/<integration_branch>` tip); the PR body carries a parseable `docket:build-evidence` block whose `result: green`; and that block's `head_sha` equals the branch HEAD being merged. Anything else — a missing, malformed, or unparseable block, a SHA mismatch, a rebase that actually moved commits — runs the suite exactly as before. **The posture fails toward running:** any doubt costs one suite run, never a broken integration branch. Log a skip loudly as one line naming the matched SHA, so the decision is auditable. The skip is scoped to the local run alone — `both` skips only its local leg, and `ci`, `both`'s CI leg, and `off` are untouched.
 
 5. **Validate per `gate`:**
-   - `local` runs the suite in the worktree **before any push**.
+   - `local` runs the suite in the worktree **before any push** — unless item 4's skip conditions all hold, in which case that run is skipped and logged.
    - `ci` pushes `--force-with-lease` then polls `gh pr checks`; `both` does both.
    - On **red**, dispatch `docket-integration-repair` (foreground, at the model/effort its wrapper resolves) — it root-causes and writes a minimal fix in at most two attempts. Green → apply the sign-off rule below. Stuck / cannot reach green → **abort-and-report**. Red or absent CI checks under `ci`/`both` also **abort-and-report**.
 6. **Push** `--force-with-lease` if rebased and not already pushed; a lease rejected by a concurrent push → **abort-and-report**.
