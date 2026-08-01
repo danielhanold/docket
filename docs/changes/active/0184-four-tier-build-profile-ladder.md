@@ -2,8 +2,8 @@
 id: 184
 slug: four-tier-build-profile-ladder
 title: Four-tier build profile ladder — low/medium/high/max replaces economy/standard/premium
-status: proposed
-priority: medium
+status: in-progress
+priority: high
 type: feat
 created: 2026-08-01
 updated: 2026-08-01
@@ -16,7 +16,8 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/four-tier-build-profile-ladder
+claimed_at: 2026-08-01T12:08:48Z
 pr:
 blocked_by:
 reconciled: false
