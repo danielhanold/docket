@@ -29,17 +29,37 @@ Clean break: the old names are removed, not aliased.
 ### Routing rubric
 
 The asymmetry principle is preserved — the cheap tier must be *positively established*,
-named risk selects upward, uncertainty defaults to the middle:
+named risk selects upward, uncertainty defaults to the middle.
+
+The `max`/`high` boundary has an organizing principle, not just a list: **`max` is for
+mistakes the ladder's own correction machinery cannot walk back.** An auth bug is
+serious but patch-correctable and caught at the suite gate or PR review; destroyed
+data cannot be un-destroyed by a retry, and a wrong architectural call shapes every
+subsequent task in the same build. `high` is consequential-but-correctable risk. Edge
+cases resolve by applying that test, not by extending the lists.
 
 - **`max`** — direct routing for **unresolved architecture** and **irreversible data
-  changes/migrations** ONLY. Nothing else classifies here.
+  changes** (destructive migrations, backfills, anything that cannot be rolled back)
+  ONLY. Nothing else classifies here. Irreversibility is the test: a reversible or
+  purely additive migration is *not* `max` — it routes to `high` (or `medium` if it
+  carries no consequential risk at all).
 - **`high`** — the remaining current premium triggers demote here: authentication or
-  security boundaries, concurrency or locking, release infrastructure, plus any other
-  named consequential risk.
+  security boundaries, concurrency or locking, release infrastructure, plus any
+  consequential risk **explicitly named in the plan or spec text**. That last door is
+  honored, not inferred: the router never articulates new risks on its own — router-side
+  classification is the closed list, so uncertainty still sinks to `medium`.
 - **`medium`** — everything remaining; the default and the uncertainty sink (normal
-  feature, integration, refactor, and debugging work).
-- **`low`** — only when positively established: fully specified, localized to roughly
-  one or two files, follows an established pattern, no consequential risk.
+  feature, integration, refactor, and debugging work). Deliberately including
+  hard-but-safe work: difficulty without consequence stays at `medium` — the plan
+  override covers difficulty known at plan time, and the `medium → high` escalation
+  covers difficulty discovered at build time.
+- **`low`** — only when positively established: fully specified, follows an
+  established pattern, carries no consequential risk, and requires **no cross-file
+  reasoning** — either localized to a couple of implementation files (tests don't
+  count against locality), or a mechanical, pattern-identical edit repeated across
+  many files whose instances don't interact and where a missed instance fails loudly
+  (a grep, a validator) rather than silently. All conditions must hold; doubt on any
+  one of them means `medium`.
 
 Plan override: `**Build profile:** <low|medium|high|max>`. The old tokens
 (`economy`/`standard`/`premium`) are invalid values — the existing invalid-override
