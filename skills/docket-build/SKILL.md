@@ -199,8 +199,23 @@ block in `skills/docket-finalize-change/SKILL.md` is the single source, and the 
 namespace is deliberately kept rather than introducing a second, driftable test command. Do not
 copy that fragment into this file.
 
-**Green** → the build is done; `docket-implement-next` Step 6 runs the resolved `skills.review`
-role once over the whole branch.
+**Green** → the build is done. Emit the **build-evidence** record — a marker-bounded block carrying
+`command` (the exact full-suite command run), `result: green`, `head_sha` (the branch HEAD the run
+tested, from `git rev-parse HEAD`), and `ran_at` (UTC ISO-8601):
+
+```text
+<!-- docket:build-evidence:start -->
+command:  <full-suite command>
+result:   green
+head_sha: <40-char SHA>
+ran_at:   <UTC ISO-8601>
+<!-- docket:build-evidence:end -->
+```
+
+The record certifies the branch so the review step need not re-run the suite; `docket-implement-next`
+Step 6 validates it and Step 7 writes it into the PR body, then runs the resolved `skills.review`
+role once over the whole branch. Only a green run mints a record: a red suite mints no evidence
+record at all, and enters the repair path below.
 
 **Red** → the build **never invokes review**. Turn the failure into exactly one synthetic
 integration-repair task, run through the same worker contract on the ladder
@@ -242,6 +257,7 @@ current branch — missing, stale, malformed, or contradictory state never marks
 
 Emit concise, stable lines and nothing more: task-to-profile selection and reason; escalation and
 reason; worker outcome and commit; focused verification; full-suite command and result; the
-terminal build disposition. Write no verbose task artifact unless `BUILD_CHECKPOINT` is `true`.
+build-evidence record on green; the terminal build disposition. Write no verbose task artifact
+unless `BUILD_CHECKPOINT` is `true`.
 Material TDD exceptions and residual risks flow into the PR description or the results artifact,
 not into per-task files.
