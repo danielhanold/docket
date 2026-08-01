@@ -2,7 +2,7 @@
 slug: guards-are-code
 hook: "A guard is code — mutation-test it (strip the feature, watch it go red) or it is decoration."
 topics: [testing, sentinels, mutation]
-changes: [14, 15, 21, 36, 37, 64, 65, 67, 68, 69, 70, 71, 72, 73, 74, 83, 84, 88, 91, 96, 101, 102, 106, 107, 111, 116, 126, 169]
+changes: [14, 15, 21, 36, 37, 64, 65, 67, 68, 69, 70, 71, 72, 73, 74, 83, 84, 88, 91, 96, 101, 102, 106, 107, 111, 116, 126, 169, 184]
 created: 2026-06-17
 updated: 2026-08-01
 promotion_state: promoted
@@ -282,3 +282,15 @@ lib. A snippet the PLAN hands you is unvetted code: mutation-test it like any as
   negative assert passed when validation aborted before output existed. The fixes added independent
   sentinels and positive success/output checks, then mutation-tested each. A green assertion that
   shares its source of truth with the code it claims to validate is not evidence of coverage.
+- 2026-08-01 (#184, PR #147) — **A fence that was true when written went permanently false, and the
+  assert it guarded vanished for months.** `tests/test_cursor_dispatch_rule.sh` gated its head
+  asserts on `n_cursor_pinned -lt n_src` with no `else` arm. Change 0168 completed the Cursor block,
+  making the condition false forever — so the head's claim went unchecked in exactly the state where
+  it had become wrong, and `cursor-rules/dispatch.head.md` shipped a false "three build-profile
+  workers only … every other wrapper is generated unpinned" line verbatim into every consumer repo's
+  `.cursor/rules/docket-dispatch.mdc`. The never-fence rule above usually fires on a fence derived
+  from the thing under test; this is its slower cousin — a fence derived from a *population* another
+  change is free to move. Both arms of a population fence need asserts, or the guard has an
+  undefended state. Also from this change: the new pair-distinctness asserts each carry a
+  non-vacuity half (four non-empty values counted before `sort -u`) so a deleted row cannot collapse
+  into a silent pass.

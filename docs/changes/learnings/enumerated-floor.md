@@ -2,9 +2,9 @@
 slug: enumerated-floor
 hook: "Every hand-written enumeration is a floor, not the set — derive the sites from a whole-repo grep, then treat that grep as a floor too."
 topics: [process, inventory, review]
-changes: [14, 32, 42, 52, 54, 56, 64, 67, 71, 74, 84, 96, 98, 99, 167]
+changes: [14, 32, 42, 52, 54, 56, 64, 67, 71, 74, 84, 96, 98, 99, 167, 184]
 created: 2026-06-12
-updated: 2026-07-30
+updated: 2026-08-01
 promotion_state: promoted
 promoted_to: AGENTS.md
 ---
@@ -107,3 +107,10 @@ enumerated.
   greps does not exempt it. Second-order: one README site the report claimed to have edited had not
   been edited, caught only because the reviewer re-read the file rather than trusting the report
   ([[verify-the-claim]]).
+- 2026-08-01 (#184, PR #147) — **The whole-tree guard paid for itself on its first run.** Renaming
+  the build profiles shipped a repo-wide retirement guard forbidding the old names anywhere in the
+  tree, alongside the usual per-file asserts. Its first execution caught a surface every per-file
+  assert had missed — a `build-premium` reference surviving in `tests/test_docket_example_yml.sh`'s
+  anchor-rationale comment. That is the case for the whole-tree form stated as cheaply as it gets:
+  no per-file assert can see a surface nobody thought to list. The guard's polarity is the load-
+  bearing detail — it forbids the OLD names rather than confirming the new ones ([[assert-detects-removal-not-replacement]]).
