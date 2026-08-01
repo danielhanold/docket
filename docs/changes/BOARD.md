@@ -1,6 +1,6 @@
 # Backlog
 
-**190 changes** — 🟡 40 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 124 done · 🗑️ 20 killed
+**190 changes** — 🟡 40 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 125 done · 🗑️ 20 killed
 
 ## 🟡 Proposed (40)
 
@@ -56,12 +56,11 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | `chore` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
-| [0170](active/0170-lean-whole-branch-review-skill.md) | Lean Docket-owned whole-branch review skill | `medium` | `feat` | [#149](https://github.com/danielhanold/docket/pull/149) |  |
 
 ```mermaid
 graph TD
@@ -98,8 +97,6 @@ graph TD
   0163
   0165
   0166
-  0167 --> 0170
-  0184 --> 0170
   0171
   0172
   0177
@@ -114,13 +111,11 @@ graph TD
   0190
   0015:::done
   0077:::done
-  0167:::done
   0175:::done
-  0184:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (144)</summary>
+<details><summary>✅🗑️ Archive — done + killed (145)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
@@ -130,6 +125,7 @@ graph TD
 | [0183](archive/2026-08-01-0183-cursor-dispatch-head-ships-a-stale-unpinned-claim-its-guard.md) | Cursor dispatch head ships a stale unpinned claim; its guard retired itself | 2026-08-01 |
 | [0176](archive/2026-08-01-0176-docket-config-sh-costs-0-87s-per-invocation-and-dominates-te.md) | docket-config.sh costs ~0.87s per invocation and dominates test_docket_config.sh | 2026-08-01 |
 | [0175](archive/2026-08-01-0175-sync-agents-per-invocation-cost.md) | sync-agents.sh costs ~5.5s per invocation and dominates the test suite | 2026-08-01 |
+| [0170](archive/2026-08-01-0170-lean-whole-branch-review-skill.md) | Lean Docket-owned whole-branch review skill | 2026-08-01 |
 | [0169](archive/2026-08-01-0169-codex-profile-routed-build-support.md) | Codex support for profile-routed Docket builds | 2026-08-01 |
 | [0174](archive/2026-07-31-0174-reuse-test-git-fixtures.md) | Reuse test git fixtures instead of rebuilding them per assertion | 2026-07-31 |
 | [0173](archive/2026-07-31-0173-field-of-silently-truncates-a-model-id-containing-or.md) | field_of() silently truncates a model ID containing / or : | 2026-07-31 |
@@ -149,7 +145,6 @@ graph TD
 | [0144](archive/2026-07-28-0144-a-board-checks-sh-non-zero-exit-silently-voids-the-entire-he.md) | A board-checks.sh non-zero exit silently voids the entire health pass | 2026-07-28 |
 | [0143](archive/2026-07-28-0143-empty-id-collapses-the-archive-sort-feeder-s-tab-joined-fiel.md) | Empty id collapses the archive sort feeder's TAB-joined fields in render-board.sh | 2026-07-28 |
 | [0135](archive/2026-07-28-0135-cursor-agent-wrapper-contract.md) | Generated Cursor wrappers violate Cursor's subagent contract, disabling skills and model effort | 2026-07-28 |
-| [0133](archive/2026-07-28-0133-centralize-runtime-config-helpers.md) | Centralize shared Bash runtime configuration helpers | 2026-07-28 |
 | [0131](archive/2026-07-26-0131-make-board-conflict-rebase-continuation-noninteractive.md) | Make board-conflict rebase continuation noninteractive | 2026-07-26 |
 | [0129](archive/2026-07-26-0129-fix-the-pipefail-unsafe-plain-format-config-assertion.md) | Fix the pipefail-unsafe plain-format config assertion | 2026-07-26 |
 | [0124](archive/2026-07-26-0124-backlog-triage-pass.md) | Backlog triage pass — kill, defer, or arm each needs-brainstorm stub | 2026-07-26 |
@@ -164,7 +159,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-07](archive/) | 77 done |
+| [2026-07](archive/) | 78 done |
 | [2026-06](archive/) | 32 done |
 
 </details>
