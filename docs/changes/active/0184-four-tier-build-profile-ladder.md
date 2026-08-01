@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/four-tier-build-profile-ladder
-claimed_at: 2026-08-01T12:08:48Z
+claimed_at: 2026-08-01T12:10:58Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -75,3 +75,39 @@ linked spec.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-08-01 — reconciled, no design drift
+
+The change was groomed the same day it is being built, so the spec's premises were
+re-verified rather than revised. Scope is unchanged; the spec needed no edit.
+
+- **All four `related` changes are terminal.** 0044 (configurable build model), 0167
+  (lean profile-routed build), 0168 (cursor support), and 0169 (codex support) are
+  archived `done`. Nothing in flight overlaps this change, and the three-profile system
+  this replaces is fully landed on `main`.
+- **Shipped pins match the spec's "today's pin" claims exactly**, so the compression
+  table is buildable as written: claude `build-economy/standard/premium` =
+  opus-5 at low/medium/high; cursor = grok-4.5-medium / grok-4.5-high /
+  claude-opus-5-high; codex = luna/xhigh, terra/high, sol/medium. Every "today's X pin"
+  annotation in the spec's pin table verified against `agents/harness-defaults.yml` on
+  `origin/main`.
+- **Ripple list extended with concrete files the spec named only by role.** Its
+  "dispatch-rule generation — verify no hardcoded profile names remain" resolves to
+  committed per-agent fragments: `cursor-rules/dispatch/docket-build-{economy,standard,premium}.md`
+  (rename three, add a fourth) plus `cursor-rules/dispatch.head.md`. Live prose sites
+  beyond the spec's list: `README.md` (two wrapper-count sentences),
+  `docs/cursor/validation.md` (three sites, including an explicit-routing walkthrough
+  that names `economy`), `docs/codex/setup.md` (twelve-agent claim),
+  `.docket.example.yml` (three shipped blocks mirrored value for value), and the test
+  suite (`test_docket_build.sh`, `test_harness_defaults.sh`, `test_sync_agents.sh`,
+  `test_sync_agents_cursor.sh`, `test_docket_example_yml.sh`).
+- **Historical records are explicitly out of scope for rewriting** — archived change
+  files, plans, results, prior specs, and ADR-0063/0064 keep their original
+  economy/standard/premium prose. They record what was true when written; only live
+  surfaces are renamed.
+- **Coupling noted, no action:** stub #183 (cursor-dispatch head ships a stale unpinned
+  claim) touches `cursor-rules/dispatch.head.md`, which this change also edits. #183 is
+  needs-brainstorm and unclaimed, so there is no concurrent-edit risk; whichever lands
+  second reconciles against the other.
+- **Auto-capture:** enabled, nothing minted at this pass — every follow-up this reconcile
+  surfaced is already inside the change's own scope or already tracked as #183.
