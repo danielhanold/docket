@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0176 — docket-config.sh costs ~0.87s per invocation and dominates test_docket_config.sh](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0176-docket-config-sh-costs-0-87s-per-invocation-and-dominates-te.md)**
+> ↩ **[Change 0176 — docket-config.sh costs ~0.87s per invocation and dominates test_docket_config.sh](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-01-0176-docket-config-sh-costs-0-87s-per-invocation-and-dominates-te.md)**
 <!-- docket:backlink:end -->
 
 # docket-config.sh per-invocation cost — results
