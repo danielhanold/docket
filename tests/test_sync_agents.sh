@@ -105,7 +105,7 @@ make_sandbox(){ SBX="$(mktemp -d)"; mkdir -p "$SBX/.claude" "$SBX/.agents"; }   
 
 # Count the parser-heavy external commands used by one real generation pass. The shims deliberately
 # exec the pre-PATH absolute tools so this measures the generator rather than replacing its behavior.
-parser_subprocess_count(){  # $1=generator path; sets FORK_COUNT
+parser_subprocess_count(){  # $1=generator path; sets FORK_COUNT + FORK_RC
   local generator="$1" shim_dir fork_log harness_root tool real_tool
   local real_sed real_head real_awk real_grep
   real_sed="$(command -v sed)"
@@ -132,6 +132,7 @@ parser_subprocess_count(){  # $1=generator path; sets FORK_COUNT
   make_sandbox
   PATH="$shim_dir:$PATH" DOCKET_175_FORK_LOG="$fork_log" DOCKET_HARNESS_ROOT="$harness_root" \
     bash "$generator" >/dev/null 2>&1
+  FORK_RC=$?
   FORK_COUNT="$(wc -l < "$fork_log" | tr -d '[:space:]')"
   rm -rf "$SBX" "$shim_dir" "$fork_log" "$harness_root"
 }
@@ -139,6 +140,7 @@ parser_subprocess_count(){  # $1=generator path; sets FORK_COUNT
 # The optimization's standing performance oracle: retain real generator behavior while bounding
 # only its historic dominant parser commands. The nonzero floor makes a broken shim setup red too.
 parser_subprocess_count "$SYNC"
+assert "0175 parser subprocess guard: real generation completes successfully" '[ "$FORK_RC" = "0" ]'
 assert "0175 parser subprocess guard: shims observed real generator calls" '[ "$FORK_COUNT" -gt 0 ]'
 assert "0175 parser subprocess guard: dominant parser commands stay below 400" '[ "$FORK_COUNT" -lt 400 ]'
 
@@ -148,12 +150,28 @@ HROOT175A="$(mktemp -d)"; mkdir -p "$HROOT175A/.claude"
 help_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT175A" bash "$SYNC" --help 2>&1)"; help_rc=$?
 assert "0175 args: --help succeeds" '[ "$help_rc" = "0" ]'
 assert "0175 args: --help prints inventory-safe usage" '/usr/bin/grep -qF "Usage: sync-agents.sh [--check]" <<<"$help_out"'
-assert "0175 args: --help writes no wrapper" '[ ! -e "$SBX/.claude/agents/docket-status.md" ]'
+assert "0175 args: --help writes no wrapper" '[ ! -e "$HROOT175A/.claude/agents/docket-status.md" ]'
 bad_out="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT175A" bash "$SYNC" --bogus 2>&1)"; bad_rc=$?
 assert "0175 args: unknown flag fails with rc=2" '[ "$bad_rc" = "2" ]'
 assert "0175 args: unknown flag names the argument" '/usr/bin/grep -qF "unknown argument: --bogus" <<<"$bad_out"'
-assert "0175 args: unknown flag writes no wrapper" '[ ! -e "$SBX/.claude/agents/docket-status.md" ]'
+assert "0175 args: unknown flag writes no wrapper" '[ ! -e "$HROOT175A/.claude/agents/docket-status.md" ]'
 rm -rf "$SBX" "$HROOT175A"
+
+# -- optimized sidecar validation must preserve the raw top-header rule from hd_validate --
+SCR175V="$(mktemp -d)"
+cp -R "$REPO/agents" "$REPO/cursor-rules" "$REPO/scripts" "$REPO/sync-agents.sh" "$SCR175V/"
+awk '{ if (!done && $0 == "agents:") { print "agents: # not a bare header"; done=1 } else print }' \
+  "$SCR175V/agents/harness-defaults.yml" > "$SCR175V/agents/harness-defaults.yml.tmp"
+mv "$SCR175V/agents/harness-defaults.yml.tmp" "$SCR175V/agents/harness-defaults.yml"
+make_sandbox
+HROOT175V="$(mktemp -d)"; mkdir -p "$HROOT175V/.claude"
+v175_err="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT175V" bash "$SCR175V/sync-agents.sh" 2>&1 >/dev/null)"; v175_rc=$?
+assert "0175 validator parity: commented top header is rejected" '[ "$v175_rc" != "0" ]'
+assert "0175 validator parity: commented top header names the missing bare block" \
+  '/usr/bin/grep -qF "no top-level '\''agents:'\'' block" <<<"$v175_err"'
+assert "0175 validator parity: rejection happens before wrapper writes" \
+  '[ ! -e "$HROOT175V/.claude/agents/docket-status.md" ]'
+rm -rf "$SBX" "$HROOT175V" "$SCR175V"
 
 # git-repo fixture: sandbox repo with identity + one commit (for ls-files-based legs).
 # Defined here (rather than at first historical use, further down) so the change-0057

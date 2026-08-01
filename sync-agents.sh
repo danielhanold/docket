@@ -321,8 +321,8 @@ validate_harness_defaults() {  # $1=file $2=sources-dir
     function trim(s) { sub(/^[[:space:]]+/, "", s); sub(/[[:space:]]+$/, "", s); return s }
     function diag(s) { print "harness-defaults: " s > "/dev/stderr"; rc=1 }
     {
+      if ($0 ~ /^agents:[[:space:]]*$/) top=1
       nc=$0; sub(/#.*/, "", nc)
-      if (nc ~ /^agents:[[:space:]]*$/) top=1
       if (nc ~ /^  [A-Za-z0-9._-]+[[:space:]]*:/) {
         if (nc !~ /^  [A-Za-z0-9._-]+[[:space:]]*:[[:space:]]*$/) { h=""; next }
         h=nc; sub(/^  /, "", h); sub(/[[:space:]]*:.*/, "", h)
