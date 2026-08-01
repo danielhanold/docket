@@ -8,10 +8,10 @@ type: fix
 created: 2026-08-01
 updated: 2026-08-01
 depends_on: []
-related: []
+related: [134, 150, 178]
 discovered_from: [185]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-01-bare-mv-prompts-on-a-tty-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-01-bare-mv-prompts-on-a-tty-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-01-bare-mv-prompts-on-a-tty-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -62,22 +65,26 @@ fixture.
 
 ## What changes
 
-- **`mv -f` at `scripts/backfill-change-types.sh:161`** — suppresses the prompt and returns
-  non-zero on `EPERM`, preserving the test's intent rather than working around it. This is the only
-  part that unblocks the suite.
-- **Audit the `cp -p` twin at line 163** (the rollback restore) and any other install/restore call
-  in this script for the same tty-dependent prompt exposure.
-- **Make the test prove the property in both environments** — the current assertions are only
-  honest without a tty. Pin that the install returns non-zero and rolls back regardless of whether
-  stdin is a terminal, so the silent-success path cannot come back.
-- **Two `profile-one-test.sh` ergonomics fixes** (from change 0185, merged): print the trace path
-  *before* launching the child — today it is printed only on success (line 137), so the one
-  artifact that explains a hang is unreachable while it hangs; and flush the `tracing …` line
-  (line 77), which is invisible under any redirect or pipe and turned "hanging" into "no output at
-  all". `scripts/profile-asserts.sh` shares both shapes and should be checked.
-- **A learnings finding**: a guard that forces a failure via a filesystem flag is only sound if the
-  tool under test does not prompt — non-tty stdin was concealing both a hang and a silent-success
-  path. A sharper instance of the existing `agent-shell-noop-reads-as-success` finding.
+- **`mv -f` at `scripts/backfill-change-types.sh:162`** (the stub said 161; 162 is the verified
+  line) — suppresses the prompt and returns non-zero on `EPERM`, preserving the test's intent rather
+  than working around it. Probe-confirmed. This is the only part that unblocks the suite.
+- **The `cp -p` twin at line 164** (rollback restore) and line 155 (backup stage) were **audited
+  during grooming: no prompt exposure, no change** — `cp` prompts only under `-i`, and `-f` on the
+  restore path would unlink the very destination the undo preserves. Recorded in the spec so the
+  diff stays one line plus its guards.
+- **Pin the property in both environments** with two layers: the existing rollback scenario re-run
+  through a `script(1)` pty (gated on an exit-status-fidelity probe, `-e` on util-linux, stdin from
+  `/dev/null`, stdout capture, CR normalization, and a widened `uchg` cleanup trap), plus a
+  call-site-anchored source sentinel that always runs where the pty layer skips.
+- **Profiler discoverability fixes** to `scripts/profile-one-test.sh` and
+  `scripts/profile-asserts.sh`: print the artifact paths *before* launching the child, and add a
+  per-test `running <t>` line inside `profile-asserts.sh`'s loop. Purely additive on the existing
+  stream. The stub's stdout-buffering diagnosis was **disproved** during grooming and is not built
+  on — see the spec's §4.
+- **A learnings recommendation** (the close-out harvest decides, and it is a three-way choice among
+  `shell-portability`, `green-suite-untested-branch`, and `agent-shell-noop-reads-as-success`): a
+  guard that forces a failure via a filesystem flag is sound only if the tool under test does not
+  prompt — non-tty stdin was concealing both a hang and a silent-success path.
 
 ## Out of scope
 
@@ -89,6 +96,7 @@ fixture.
 
 ## Open questions
 
-- Should the tty-vs-non-tty property be pinned by running the affected assertions under a pty
-  (`script -q /dev/null …`), or by asserting the `-f` flag's presence at the call site? The first
-  tests behavior and is portable-ish; the second is cheap but is a sentinel over source text.
+- ~~pty run vs. source sentinel for pinning the tty property?~~ **Resolved (2026-08-01, grooming):
+  both.** The pty layer tests behavior but is skippable (and `script(1)` diverges across BSD and
+  util-linux in argument order *and* exit-status propagation); the sentinel always runs but is text
+  over source. Neither alone is sufficient. Mechanics in the spec's §3, rationale in A3.
