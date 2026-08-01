@@ -1,6 +1,6 @@
 # Backlog
 
-**184 changes** — 🟢 1 in progress · 🟡 38 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 121 done · 🗑️ 19 killed
+**185 changes** — 🟢 1 in progress · 🟡 38 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 121 done · 🗑️ 19 killed
 
 ## 🟢 In progress (1)
 
@@ -60,11 +60,12 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | `chore` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
+| [0185](active/0185-test-suite-assertion-profilers.md) | Test-suite profilers — per-assertion and per-command timing | `low` | `chore` | [#146](https://github.com/danielhanold/docket/pull/146) |  |
 
 ```mermaid
 graph TD
@@ -112,6 +113,7 @@ graph TD
   0182
   0183
   0184
+  0185
   0015:::done
   0077:::done
   0167:::done
