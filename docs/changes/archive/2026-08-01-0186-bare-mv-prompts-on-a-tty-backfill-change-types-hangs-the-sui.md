@@ -29,8 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-01-bare-mv-prompts-on-a-tty-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-01-bare-mv-prompts-on-a-tty-design.md) |
-| Plan | [2026-08-01-bare-mv-prompts-on-a-tty.md](https://github.com/danielhanold/docket/blob/feat/bare-mv-prompts-on-a-tty-backfill-change-types-hangs-the-sui/docs/superpowers/plans/2026-08-01-bare-mv-prompts-on-a-tty.md) |
-| Results | [2026-08-01-bare-mv-prompts-on-a-tty-backfill-change-types-hangs-the-sui-results.md](https://github.com/danielhanold/docket/blob/feat/bare-mv-prompts-on-a-tty-backfill-change-types-hangs-the-sui/docs/results/2026-08-01-bare-mv-prompts-on-a-tty-backfill-change-types-hangs-the-sui-results.md) |
+| Plan | [2026-08-01-bare-mv-prompts-on-a-tty.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-01-bare-mv-prompts-on-a-tty.md) |
+| Results | [2026-08-01-bare-mv-prompts-on-a-tty-backfill-change-types-hangs-the-sui-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-01-bare-mv-prompts-on-a-tty-backfill-change-types-hangs-the-sui-results.md) |
 | PR | [#148](https://github.com/danielhanold/docket/pull/148) |
 <!-- docket:artifacts:end -->
 
