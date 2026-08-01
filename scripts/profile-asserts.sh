@@ -99,12 +99,17 @@ stamp_stream(){
   printf '%s\t%s\t%s\t%s\t%s\n' "$(( now - prev ))" TAIL "$t" 999999 '<after last assertion>' >> "$TSV"
 }
 
+# Validate the whole set BEFORE running anything: a typo in the last argument should not surface
+# after several minutes of profiling the ones that did resolve.
+for t in "${tests[@]}"; do
+  [ -f "$t" ] || { printf 'profile-asserts: no such test file: %s\n' "$t" >&2; exit 2; }
+done
+
 printf 'profiling %d test file(s) under %s\n' "${#tests[@]}" "$BASH_BIN"
 suite_start="$(now_us)"
 failed=0
 
 for t in "${tests[@]}"; do
-  if [ ! -f "$t" ]; then printf 'profile-asserts: no such test file: %s\n' "$t" >&2; exit 2; fi
   rc_file="$tmp/rc"; : > "$rc_file"
   t_start="$(now_us)"
   # The rc redirect keeps the exit status out of the stream the reader is timestamping.
