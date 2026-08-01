@@ -890,18 +890,21 @@ ex_slice_field(){ # $1=slice  $2=agent  $3=field(model|effort)
   sed -nE "s/.*[{,[:space:]]$3[[:space:]]*:[[:space:]]*([^,}[:space:]]+).*/\1/p" <<<"$line"
 }
 # Population AND terminator are both derived — from HD_SHIPPED_HARNESSES and from the sidecar's own
-# build-premium row. A literal `claude cursor codex` list here would be a fourth restatement of what
+# build-max row. A literal `claude cursor codex` list here would be a fourth restatement of what
 # the shipped set already knows, and it is precisely a hand-maintained harness list that let a stale
 # claim survive elsewhere in this repo. Adding a fourth shipped harness arms these loops for free.
 #
-# Each block's terminator is its own build-premium MODEL, which is what makes the three ranges
+# Each block's terminator is its own build-max MODEL, which is what makes the three ranges
 # independent: every agent key appears in all three blocks, so a key-only anchor would resolve every
-# lookup to whichever block came first in the file.
+# lookup to whichever block came first in the file. build-max is the terminator because it is the
+# LAST build row in ladder order (low, medium, high, max) and the build rows close every block — so
+# this anchor moves whenever the ladder's top rung is renamed. Change 0184 moved it here from
+# build-premium; the previous rename is the reason the anchor is named in prose rather than assumed.
 ere_escape(){ sed -E 's/[][\.^$*+?(){}|]/\\&/g' <<<"$1"; }
 for h in $HD_SHIPPED_HARNESSES; do
-  bp_model="$(hd_field "$HD" "$h" build-premium model)"
-  assert "$h mirror: the sidecar supplies a build-premium model to anchor the slice on" '[ -n "$bp_model" ]'
-  slice="$(ex_slice "$h" "build-premium:.*$(ere_escape "$bp_model")")"
+  bm_model="$(hd_field "$HD" "$h" build-max model)"
+  assert "$h mirror: the sidecar supplies a build-max model to anchor the slice on" '[ -n "$bm_model" ]'
+  slice="$(ex_slice "$h" "build-max:.*$(ere_escape "$bm_model")")"
   # Terminator guard: an unclosed sed range silently runs to EOF, pulling in neighbouring blocks and
   # surrounding prose, while every assert below stays green on the over-wide slice. Pinning the
   # slice's FIRST and LAST lines catches both over-run and under-run. First/last taken by parameter
@@ -909,8 +912,8 @@ for h in $HD_SHIPPED_HARNESSES; do
   # early-exiting consumer takes SIGPIPE and turns the assert into an intermittent 141.
   first="${slice%%$'\n'*}"; first="${first#"${first%%[![:space:]]*}"}"
   last="${slice##*$'\n'}"
-  assert "$h mirror: the $h slice was isolated and terminates at its build-premium anchor" \
-    '[ -n "$slice" ] && [ "$first" = "'"$h"':" ] && grep -q "build-premium:" <<<"$last"'
+  assert "$h mirror: the $h slice was isolated and terminates at its build-max anchor" \
+    '[ -n "$slice" ] && [ "$first" = "'"$h"':" ] && grep -q "build-max:" <<<"$last"'
   mirrored=0
   while IFS= read -r a; do
     [ -n "$a" ] || continue
@@ -950,7 +953,7 @@ agents_block="$(sed -n '/^# agents:$/,/finalize-change:.*cursor-grok-4\.5-high-f
 assert "round-trip: the agents slice terminates at its cursor finalize-change anchor (not EOF)" \
   '[ -n "$agents_block" ] && printf "%s\n" "$agents_block" | tail -n1 | grep -q "finalize-change:.*cursor-grok-4\.5-high-fast"'
 # Since change 0169 all three harness blocks sit at the SAME single-comment level, so one strip
-# uncomments agents:, its three harness blocks, and all thirty-six rows. (Before 0169 codex and
+# uncomments agents:, its three harness blocks, and all thirty-nine rows. (Before 0169 codex and
 # cursor sat a level deeper and needed a second, block-scoped strip; that stage is gone with the
 # asymmetry it existed for.)
 stage2="$(printf '%s\n' "$agents_block" | sed -E 's/^#[[:space:]]?//')"
@@ -993,16 +996,21 @@ assert "round-trip: codex status model came from the example block" \
    [ "$(sed -nE "s/^model[[:space:]]*=[[:space:]]*\"(.*)\"[[:space:]]*$/\1/p" "$CT")" = "$(hd_field "$HD" codex status model)" ]'
 assert "round-trip: codex status effort came from the example block" \
   '[ "$(sed -nE "s/^model_reasoning_effort[[:space:]]*=[[:space:]]*\"(.*)\"[[:space:]]*$/\1/p" "$CT")" = "$(hd_field "$HD" codex status effort)" ]'
+# The four-rung codex ladder (change 0184), read off the generated wrappers' new filenames. Sol is
+# expected at BOTH high and max: on codex the model/effort PAIR is the role, so two rungs sharing a
+# model is deliberate, not a copy-paste. Pair distinctness is asserted in tests/test_docket_build.sh;
+# this leg only proves the example's ladder survives the real generator into real Codex TOML.
 assert "round-trip: the codex build profiles resolve to their shipped ladder" \
-  '[ "$(sed -nE "s/^model[[:space:]]*=[[:space:]]*\"(.*)\"[[:space:]]*$/\1/p" "$SB/.codex/agents/docket-build-economy.toml")" = "gpt-5.6-luna" ] &&
-   [ "$(sed -nE "s/^model[[:space:]]*=[[:space:]]*\"(.*)\"[[:space:]]*$/\1/p" "$SB/.codex/agents/docket-build-standard.toml")" = "gpt-5.6-terra" ] &&
-   [ "$(sed -nE "s/^model[[:space:]]*=[[:space:]]*\"(.*)\"[[:space:]]*$/\1/p" "$SB/.codex/agents/docket-build-premium.toml")" = "gpt-5.6-sol" ]'
+  '[ "$(sed -nE "s/^model[[:space:]]*=[[:space:]]*\"(.*)\"[[:space:]]*$/\1/p" "$SB/.codex/agents/docket-build-low.toml")" = "gpt-5.6-luna" ] &&
+   [ "$(sed -nE "s/^model[[:space:]]*=[[:space:]]*\"(.*)\"[[:space:]]*$/\1/p" "$SB/.codex/agents/docket-build-medium.toml")" = "gpt-5.6-terra" ] &&
+   [ "$(sed -nE "s/^model[[:space:]]*=[[:space:]]*\"(.*)\"[[:space:]]*$/\1/p" "$SB/.codex/agents/docket-build-high.toml")" = "gpt-5.6-sol" ] &&
+   [ "$(sed -nE "s/^model[[:space:]]*=[[:space:]]*\"(.*)\"[[:space:]]*$/\1/p" "$SB/.codex/agents/docket-build-max.toml")" = "gpt-5.6-sol" ]'
 rm -rf "$_sbs"
 
 # --- SENTINEL round-trip: prove the EXAMPLE's rows are what the generator consumed --------------
 # Every assert in the round-trip above compares the generated wrapper against the SIDECAR, and the
 # example mirrors the sidecar value for value — so both sides of each comparison move together and
-# the asserts cannot detect the example's rows going missing. Proved: delete all twelve codex rows
+# the asserts cannot detect the example's rows going missing. Proved: delete all thirteen codex rows
 # from .docket.example.yml and "round-trip: codex status model came from the example block" still
 # passes, because the resolver simply falls back to the sidecar. Those asserts state provenance
 # they cannot see; they are kept above (they DO catch the example drifting to a different value),
@@ -1046,8 +1054,8 @@ assert "sentinel: the cursor wrapper carries the EXAMPLE's value, not the sideca
   '[ "$(fm "$SBP/.cursor/agents/docket-status.md" model)" = "cursor-grok-4.5-probe" ]'
 # Unprobed rows still resolve, so the probe did not corrupt the slice into a one-row config.
 assert "sentinel: an unprobed codex row still resolves from the example" \
-  '[ -n "$(hd_field "$HD" codex build-premium model)" ] &&
-   [ "$(sed -nE "s/^model[[:space:]]*=[[:space:]]*\"(.*)\"[[:space:]]*$/\1/p" "$SBP/.codex/agents/docket-build-premium.toml")" = "$(hd_field "$HD" codex build-premium model)" ]'
+  '[ -n "$(hd_field "$HD" codex build-max model)" ] &&
+   [ "$(sed -nE "s/^model[[:space:]]*=[[:space:]]*\"(.*)\"[[:space:]]*$/\1/p" "$SBP/.codex/agents/docket-build-max.toml")" = "$(hd_field "$HD" codex build-max model)" ]'
 rm -rf "$_sbps"
 
 # --- (6) SCAFFOLD SHAPE: install writes runtime + pointer, never policy values
