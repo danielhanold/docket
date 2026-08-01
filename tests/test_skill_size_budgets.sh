@@ -90,12 +90,20 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # both fields per entry, no runner:) and the unmapped-pair-ships-unpinned rule — normative text with
 # no other home, since this reference IS the configuration mechanics. Set per the rule above from
 # the measured actual: 172 lines -> 175, 1948 words -> 1950 is within 25, so the multiple after: 2000.
+# skills/docket-build/SKILL.md's budget was raised 225/2050 -> 250/2350 by change 0184, which
+# retiered the three build profiles to four. The growth is almost entirely the `## Routing` rubric:
+# a fourth tier adds a bullet, and the `max`/`high` boundary needed an ORGANIZING PRINCIPLE stated
+# ("`max` is for mistakes this build's own correction machinery cannot walk back") rather than a
+# longer trigger list, because a list is what the router over-applies. That principle plus the
+# `low` tier's cross-file-reasoning condition are normative routing text with no other home — a
+# reference file cannot intervene at the moment the router is choosing. Set per the rounding rule
+# above from the measured actual: 247 lines -> 250, 2313 words -> 2350 (37 words of margin).
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
 skills/docket-auto-groom/SKILL.md                           66 1237
 skills/docket-brainstorm/SKILL.md                           84  692
-skills/docket-build/SKILL.md                               225 2050
+skills/docket-build/SKILL.md                               250 2350
 skills/docket-build-task/SKILL.md                          115 1000
 skills/docket-convention/SKILL.md                          365 6300
 skills/docket-convention/github-board-mirror.md             19  462
