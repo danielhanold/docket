@@ -116,12 +116,21 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # prose the suite asserts on, so they have no other home. Set per the rounding rule above from the
 # measured actual: 6301 words -> the next multiple of 50 is 6350 (49 words of margin). The LINE
 # budget was not raised (361 actual, 365 budget) — every edit reflowed inside an existing line.
+# skills/docket-build/SKILL.md's budget was raised 250/2350 -> 265/2450 by change 0170, which made
+# the gate's GREEN path mint the build-evidence record and added it to the `## Output` list of
+# stable emitted lines. The growth is the record's literal shape: a marker-bounded fenced block
+# naming `command` / `result` / `head_sha` / `ran_at`. That shape is a cross-skill contract two
+# consumers grep verbatim (`docket-implement-next` Step 6 validates it, `docket-finalize-change`
+# reads it out of the PR body), so it has to be quoted where the producer writes it — a prose
+# summary or a pointer to a reference file would leave the producer free to drift from the readers.
+# Set per the rounding rule above from the measured actuals: 262 lines -> 265, 2414 words -> 2450
+# (36 words of margin).
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
 skills/docket-auto-groom/SKILL.md                           66 1237
 skills/docket-brainstorm/SKILL.md                           84  692
-skills/docket-build/SKILL.md                               250 2350
+skills/docket-build/SKILL.md                               265 2450
 skills/docket-build-task/SKILL.md                          115 1000
 skills/docket-convention/SKILL.md                          365 6350
 skills/docket-convention/github-board-mirror.md             19  462

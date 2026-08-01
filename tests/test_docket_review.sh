@@ -90,4 +90,24 @@ done
 assert "rung dispatch prose avoids the derived-dispatch-site shape" \
   '! grep -rohE --include="*.md" "\`docket-review-[a-z]+\`[^\`]{0,20}subagent" "$REPO/skills/" | grep -q .'
 
+# --- the build-evidence chain: producer ----------------------------------------------------
+# Per the learnings finding `specified-but-unreachable`: a contract with a producer and a consumer
+# needs at least one assert anchored on the paragraph that PERFORMS the write, not only on the
+# section that defines what the write means. The producer is docket-build's gate.
+BUILD="$REPO/skills/docket-build/SKILL.md"
+assert "producer: docket-build names the build-evidence record" \
+  'grep -qF -- "build-evidence" "$BUILD"'
+assert "producer: the evidence markers are defined where the gate emits them" \
+  'grep -qF -- "docket:build-evidence:start" "$BUILD"'
+for f in command result head_sha ran_at; do
+  assert "producer: the evidence record carries the '$f' field" 'grep -qF -- "$f" "$BUILD"'
+done
+# The emission must be attached to the GREEN path of the gate, never to the section that merely
+# describes the record: scope the search to the gate section's own text.
+gate_sec="$(awk "/^## The build gate/{f=1;next} /^## /{f=0} f" "$BUILD")"
+assert "producer: the gate section itself emits the evidence (not just a definition elsewhere)" \
+  'grep -qF -- "build-evidence" <<<"$gate_sec"'
+assert "producer: a red suite mints no evidence record" \
+  'grep -qiE "red .{0,60}(never|no) .{0,30}evidence|evidence .{0,40}only .{0,20}green" "$BUILD"'
+
 echo "---"; [ "$fails" -eq 0 ] && echo "PASS" || { echo "FAIL ($fails)"; exit 1; }
