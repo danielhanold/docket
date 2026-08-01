@@ -2,7 +2,7 @@
 id: 170
 slug: lean-whole-branch-review-skill
 title: Lean Docket-owned whole-branch review skill
-status: proposed
+status: in-progress
 priority: medium
 type: feat
 created: 2026-07-30
@@ -16,7 +16,8 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/lean-whole-branch-review-skill
+claimed_at: 2026-08-01T19:20:15Z
 pr:
 blocked_by:
 reconciled: false
