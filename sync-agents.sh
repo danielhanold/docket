@@ -87,8 +87,23 @@ VALID_HARNESS_TOKENS="$DOCKET_GI_HARNESS_TOKENS"
 REGISTERED_RUNNERS="codex cursor"
 is_registered_runner(){ case " $REGISTERED_RUNNERS " in *" $1 "*) return 0;; *) return 1;; esac; }
 
+usage() {
+  printf '%s\n' 'Usage: sync-agents.sh [--check]'
+}
+
 CHECK=0
-[ "${1:-}" = "--check" ] && CHECK=1
+if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
+  case "$#:${1:-}" in
+    0:) ;;
+    1:--check) CHECK=1 ;;
+    1:--help) usage; exit 0 ;;
+    *)
+      printf 'sync-agents: unknown argument: %s\n' "${1:-<empty>}" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+fi
 
 log(){ printf '%s\n' "sync-agents: $*" >&2; }
 
@@ -256,6 +271,113 @@ section_body() {  # $1=key ; reads stdin
   '
 }
 
+if [ "${BASH_VERSINFO[0]}" -ge 4 ]; then
+  declare -A _LAYER_BODY_CACHE=()
+else
+  _LAYER_BODY_CACHE=()
+fi
+
+# Prime on a synchronous caller path: cache writes made in `line="$(harness_agent_line ...)"`
+# occur in a subshell and would not be available to subsequent command-substituted reads.
+prime_layer_body() {  # $1=file $2=harness $3=under_agents(0|1)
+  local file="$1" harness="$2" under_agents="$3" key sub body
+  [ "${BASH_VERSINFO[0]}" -ge 4 ] || return 0
+  key="${file}"$'\x1f'"${harness}"$'\x1f'"${under_agents}"
+  [ -z "${_LAYER_BODY_CACHE[$key]+_}" ] || return 0
+  if [ ! -f "$file" ]; then
+    _LAYER_BODY_CACHE[$key]=""
+    return 0
+  fi
+  if [ "$under_agents" = "1" ]; then
+    sub="$(section_body agents < "$file")"
+  else
+    sub="$(<"$file")"
+  fi
+  body="$(section_body "$harness" <<<"$sub" || true)"
+  _LAYER_BODY_CACHE[$key]="$body"
+}
+
+# Validate the fixed shipped sidecar shape in one parser pass. hd_validate remains the Bash 3.2
+# fallback and the standalone library contract; on Bash 4+ its deliberately composable readers
+# would otherwise reparse the same 24 rows hundreds of times before every generation.
+validate_harness_defaults() {  # $1=file $2=sources-dir
+  local file="$1" sources="$2" src name source_names="" rc
+  if [ "${BASH_VERSINFO[0]}" -lt 4 ]; then
+    hd_validate "$file" "$sources"
+    return $?
+  fi
+  if [ ! -f "$file" ] || [ ! -r "$file" ]; then
+    printf 'harness-defaults: missing or unreadable: %s\n' "$file" >&2
+    return 1
+  fi
+  for src in "$sources"/docket-*.md; do
+    [ -e "$src" ] || continue
+    name="${src##*/}"; name="${name#docket-}"; name="${name%.md}"
+    source_names="${source_names}${name} "
+  done
+  awk -v known="$HD_KNOWN_HARNESSES" -v shipped="$HD_SHIPPED_HARNESSES" \
+      -v sources="$source_names" -v source_dir="$sources" '
+    function has(words, word) { return index(" " words " ", " " word " ") != 0 }
+    function trim(s) { sub(/^[[:space:]]+/, "", s); sub(/[[:space:]]+$/, "", s); return s }
+    function diag(s) { print "harness-defaults: " s > "/dev/stderr"; rc=1 }
+    {
+      if ($0 ~ /^agents:[[:space:]]*$/) top=1
+      nc=$0; sub(/#.*/, "", nc)
+      if (nc ~ /^  [A-Za-z0-9._-]+[[:space:]]*:/) {
+        if (nc !~ /^  [A-Za-z0-9._-]+[[:space:]]*:[[:space:]]*$/) { h=""; next }
+        h=nc; sub(/^  /, "", h); sub(/[[:space:]]*:.*/, "", h)
+        harness_count[h]++
+        if (h == "default") diag("a harness-neutral \047default:\047 block is forbidden — every entry must name a concrete harness")
+        else if (!has(known, h)) diag("unknown harness \047" h "\047 (known: " known ")")
+        next
+      }
+      if (h != "" && nc ~ /^    [A-Za-z0-9._-]+[[:space:]]*:/) {
+        a=nc; sub(/^    /, "", a); sub(/[[:space:]]*:.*/, "", a)
+        entry_count[h SUBSEP a]++
+        present[h SUBSEP a]=1
+        if (!has(sources, a)) diag(h "/" a " names no wrapper source (" source_dir "/docket-" a ".md)")
+        fields=nc
+        if (fields !~ /\{.*\}/) { model=""; effort="" }
+        else {
+          sub(/^[^{]*\{/, "", fields); sub(/\}[^}]*$/, "", fields)
+          model=""; effort=""
+          n=split(fields, parts, ",")
+          for (i=1; i<=n; i++) {
+            part=parts[i]; key=part; sub(/:.*/, "", key); key=trim(key)
+            raw=part; sub(/^[^:]*:/, "", raw); raw=trim(raw)
+            if (key == "") continue
+            if (key == "model") model=raw
+            else if (key == "effort") effort=raw
+            else if (key == "runner") diag(h "/" a " sets \047runner\047 — delegation is user policy, never a shipped default")
+            else diag(h "/" a " has unknown field \047" key "\047 (allowed: model, effort)")
+          }
+        }
+        values["model"]=model; values["effort"]=effort
+        for (key in values) {
+          raw=values[key]
+          consumed=raw; sub(/[[:space:]].*$/, "", consumed)
+          if (consumed == "") diag(h "/" a " is missing a non-empty \047" key "\047")
+          else if (consumed != raw) diag(h "/" a " \047" key "\047 value \047" raw "\047 is not a bare scalar — the reader consumes only \047" consumed "\047; write model/effort values unquoted and space-free")
+        }
+      }
+    }
+    END {
+      if (!top) diag("no top-level \047agents:\047 block")
+      for (key in harness_count) if (harness_count[key] > 1) diag("duplicate harness block \047" key "\047")
+      for (key in entry_count) if (entry_count[key] > 1) {
+        split(key, pair, SUBSEP); diag("duplicate entry \047" pair[2] "\047 under \047" pair[1] "\047")
+      }
+      ns=split(shipped, hs, /[[:space:]]+/); na=split(sources, agents, /[[:space:]]+/)
+      for (i=1; i<=ns; i++) for (j=1; j<=na; j++)
+        if (hs[i] != "" && agents[j] != "" && !present[hs[i] SUBSEP agents[j]])
+          diag(hs[i] " block is incomplete — no entry for \047" agents[j] "\047")
+      exit rc
+    }
+  ' "$file"
+  rc=$?
+  return $rc
+}
+
 # field_of() — the flow-map value reader (change 0173).
 #
 # The value class is "everything up to the flow-map delimiters" — NOT a character allowlist.
@@ -267,9 +389,9 @@ section_body() {  # $1=key ; reads stdin
 # scripts/lib/harness-defaults.sh (change 0168); the two readers deliberately match.
 # Anything this class cannot express is caught by validate_user_agent_values, not silently clipped.
 field_of() {  # $1=line  $2=field
-  local out
-  out="$(printf '%s' "$1" | sed -nE "s/.*[{,[:space:]]${2}[[:space:]]*:[[:space:]]*([^,}[:space:]]+).*/\1/p")"
-  head -n1 <<<"$out"
+  local re=".*[{,[:space:]]${2}[[:space:]]*:[[:space:]]*([^,}[:space:]]+).*"
+  [[ $1 =~ $re ]] && printf '%s' "${BASH_REMATCH[1]}"
+  return 0
 }
 
 # field_of_raw() — the RAW field text: everything between the colon and the next flow-map delimiter
@@ -280,22 +402,35 @@ field_of() {  # $1=line  $2=field
 # (ADR-0058), harness-defaults.sh has hd_field/hd_field_raw — though the split here is
 # reader-capability, not quote-style.
 field_of_raw() {  # $1=line  $2=field
-  local out
-  out="$(printf '%s' "$1" | sed -nE "s/.*[{,[:space:]]${2}[[:space:]]*:[[:space:]]*([^,}]*).*/\1/p")"
-  out="$(head -n1 <<<"$out")"
-  printf '%s' "$(sed -E 's/[[:space:]]+$//' <<<"$out")"
+  local re=".*[{,[:space:]]${2}[[:space:]]*:[[:space:]]*([^,}]*).*" out
+  [[ $1 =~ $re ]] || return 0
+  out="${BASH_REMATCH[1]}"
+  while [[ $out == *[[:space:]] ]]; do out="${out%?}"; done
+  printf '%s' "$out"
 }
 
 # Print the `agents.<harness>.<agent>` entry line from <file>. under_agents=1 => the harness map is
 # nested under a top-level `agents:` key (.docket.yml); 0 => the harness map is the whole file (global).
 harness_agent_line() {  # $1=file  $2=harness  $3=agent  $4=under_agents(0|1)
-  local sub hbody stripped matched
-  [ -f "$1" ] || return 0
-  if [ "$4" = "1" ]; then sub="$(section_body agents < "$1")"; else sub="$(cat "$1")"; fi
-  hbody="$(printf '%s\n' "$sub" | section_body "$2" || true)"                # body under <harness>/<default>
-  stripped="$(printf '%s\n' "$hbody" | sed 's/#.*//')"
-  matched="$(printf '%s\n' "$stripped" | grep -E "^[[:space:]]*$3[[:space:]]*:" || true)"
-  head -n1 <<<"$matched"
+  local key body line stripped sub hbody matched
+  if [ "${BASH_VERSINFO[0]}" -lt 4 ]; then
+    [ -f "$1" ] || return 0
+    if [ "$4" = "1" ]; then sub="$(section_body agents < "$1")"; else sub="$(cat "$1")"; fi
+    hbody="$(printf '%s\n' "$sub" | section_body "$2" || true)"
+    stripped="$(printf '%s\n' "$hbody" | sed 's/#.*//')"
+    matched="$(printf '%s\n' "$stripped" | grep -E "^[[:space:]]*$3[[:space:]]*:" || true)"
+    head -n1 <<<"$matched"
+    return 0
+  fi
+  key="${1}"$'\x1f'"${2}"$'\x1f'"${4}"
+  body="${_LAYER_BODY_CACHE[$key]-}"
+  while IFS= read -r line || [ -n "$line" ]; do
+    stripped="${line%%#*}"
+    if [[ $stripped =~ ^[[:space:]]*${3}[[:space:]]*: ]]; then
+      printf '%s' "$stripped"
+      return 0
+    fi
+  done <<<"$body"
 }
 
 # Resolve (harness, agent) per-field across the given layer files, highest precedence
@@ -309,11 +444,13 @@ harness_agent_line() {  # $1=file  $2=harness  $3=agent  $4=under_agents(0|1)
 # same way; the pre-0079 early break is gone — runner rarely fills, and the loop
 # spans at most three small files.
 resolve_agent_layers() {  # $1=harness  $2=agent  $3..=layer files (precedence order)
-  local harness="$1" agent="$2" f hline dline hm he dm de hr dr
+  local harness="$1" agent="$2" f hline dline hm he dm de hr dr sline
   shift 2
   RES_MODEL=""; RES_EFFORT=""; RES_RUNNER=""; RES_MODEL_FROM_HARNESS=0
   RES_MODEL_FROM_USER=0; RES_EFFORT_FROM_USER=0
   for f in "$@"; do
+    prime_layer_body "$f" "$harness" 1
+    prime_layer_body "$f" default 1
     hline="$(harness_agent_line "$f" "$harness" "$agent" 1)"
     dline="$(harness_agent_line "$f" default "$agent" 1)"
     hm="$(field_of "$hline" model)";  he="$(field_of "$hline" effort)"
@@ -340,11 +477,27 @@ resolve_agent_layers() {  # $1=harness  $2=agent  $3..=layer files (precedence o
   # `agents.default` line wins the field above and leaves the sidecar entry unused. Only the former
   # licenses warn_fallback_model's silence.
   RES_MODEL_FROM_SIDECAR=0
+  if [ "${BASH_VERSINFO[0]}" -ge 4 ]; then
+    prime_layer_body "$HARNESS_DEFAULTS" "$harness" 1
+    sline="$(harness_agent_line "$HARNESS_DEFAULTS" "$harness" "$agent" 1)"
+  else
+    sline=""
+  fi
   if [ -z "$RES_MODEL" ]; then
-    RES_MODEL="$(hd_field "$HARNESS_DEFAULTS" "$harness" "$agent" model)"
+    if [ "${BASH_VERSINFO[0]}" -ge 4 ]; then
+      RES_MODEL="$(field_of "$sline" model)"
+    else
+      RES_MODEL="$(hd_field "$HARNESS_DEFAULTS" "$harness" "$agent" model)"
+    fi
     [ -n "$RES_MODEL" ] && RES_MODEL_FROM_SIDECAR=1
   fi
-  [ -z "$RES_EFFORT" ] && RES_EFFORT="$(hd_field "$HARNESS_DEFAULTS" "$harness" "$agent" effort)"
+  if [ -z "$RES_EFFORT" ]; then
+    if [ "${BASH_VERSINFO[0]}" -ge 4 ]; then
+      RES_EFFORT="$(field_of "$sline" effort)"
+    else
+      RES_EFFORT="$(hd_field "$HARNESS_DEFAULTS" "$harness" "$agent" effort)"
+    fi
+  fi
   return 0
 }
 
@@ -419,6 +572,7 @@ validate_user_agent_values() {
           *) [ -d "$HARNESS_ROOT/.$h" ] || continue ;;
         esac
       fi
+      prime_layer_body "$f" "$h" 1
       while IFS= read -r a; do
         [ -n "$a" ] || continue
         [ -f "$AGENTS_SRC/docket-$a.md" ] || continue
@@ -1086,7 +1240,7 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
     # returned before the gate below, so CI could pass against a sidecar the next real run would
     # refuse — the one place a repo would rather learn about it. It costs one pass over a shipped
     # file docket owns; a valid sidecar changes nothing about --check's outcome.
-    if ! hd_validate "$HARNESS_DEFAULTS" "$AGENTS_SRC"; then
+    if ! validate_harness_defaults "$HARNESS_DEFAULTS" "$AGENTS_SRC"; then
       log "check: agents/harness-defaults.yml is invalid — a real run would refuse to write wrappers."
       exit 1
     fi
@@ -1099,7 +1253,7 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
 
   # The sidecar is required program data (change 0168). Validate BEFORE writing any wrapper, so a
   # malformed file cannot leave a half-regenerated agent directory behind.
-  if ! hd_validate "$HARNESS_DEFAULTS" "$AGENTS_SRC"; then
+  if ! validate_harness_defaults "$HARNESS_DEFAULTS" "$AGENTS_SRC"; then
     log "ERROR agents/harness-defaults.yml is missing or invalid — no wrappers were written."
     exit 1
   fi
