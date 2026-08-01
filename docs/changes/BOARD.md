@@ -1,14 +1,8 @@
 # Backlog
 
-**187 changes** — 🟢 1 in progress · 🟡 39 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 122 done · 🗑️ 19 killed
+**189 changes** — 🟡 41 proposed · ⚪ 4 deferred · 🔵 3 implemented · ✅ 122 done · 🗑️ 19 killed
 
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0186](active/0186-bare-mv-prompts-on-a-tty-backfill-change-types-hangs-the-sui.md) | Bare mv prompts on a tty — backfill-change-types hangs the suite and can exit 0 without installing | `high` | `fix` | [spec](../superpowers/specs/2026-08-01-bare-mv-prompts-on-a-tty-design.md) | `feat/bare-mv-prompts-on-a-tty-backfill-change-types-hangs-the-sui` |
-
-## 🟡 Proposed (39)
+## 🟡 Proposed (41)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -51,6 +45,8 @@
 | [0182](active/0182-facade-tests-read-the-developer-s-real-global-config-instead.md) | Facade tests read the developer's real global config instead of a sandbox | `medium` | `fix` | needs-brainstorm |
 | [0183](active/0183-cursor-dispatch-head-ships-a-stale-unpinned-claim-its-guard.md) | Cursor dispatch head ships a stale unpinned claim; its guard retired itself | `medium` | `fix` | needs-brainstorm |
 | [0187](active/0187-harden-the-docket-example-yml-mirror-guards-one-directional.md) | Harden the .docket.example.yml mirror guards — one-directional coverage, an unexercised round-trip slice, and a prefix-weak terminator | `medium` | `chore` | needs-brainstorm |
+| [0188](active/0188-backfill-change-types-sh-calls-mktemp-d-with-no-template-so.md) | backfill-change-types.sh calls mktemp -d with no template, so TMPDIR is ignored on macOS and uchg fixtures leak undeletable dirs | `medium` | `fix` | needs-brainstorm |
+| [0189](active/0189-sweep-the-15-remaining-bare-mv-install-sites-a-tty-prompt-ma.md) | Sweep the 15 remaining bare-mv install sites — a tty prompt makes their || die guards unreachable | `medium` | `fix` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -61,12 +57,13 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (3)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | `chore` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
 | [0184](active/0184-four-tier-build-profile-ladder.md) | Four-tier build profile ladder — low/medium/high/max replaces economy/standard/premium | `high` | `feat` | [#147](https://github.com/danielhanold/docket/pull/147) |  |
+| [0186](active/0186-bare-mv-prompts-on-a-tty-backfill-change-types-hangs-the-sui.md) | Bare mv prompts on a tty — backfill-change-types hangs the suite and can exit 0 without installing | `high` | `fix` | [#148](https://github.com/danielhanold/docket/pull/148) |  |
 
 ```mermaid
 graph TD
@@ -116,6 +113,8 @@ graph TD
   0184
   0186
   0187
+  0188
+  0189
   0015:::done
   0077:::done
   0167:::done
