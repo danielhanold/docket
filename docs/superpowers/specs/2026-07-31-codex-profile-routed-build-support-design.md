@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0169 — Codex support for profile-routed Docket builds](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0169-codex-profile-routed-build-support.md)**
+> ↩ **[Change 0169 — Codex support for profile-routed Docket builds](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-01-0169-codex-profile-routed-build-support.md)**
 <!-- docket:backlink:end -->
 
 # Codex support for profile-routed Docket builds
