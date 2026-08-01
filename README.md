@@ -721,7 +721,7 @@ Each task carries at most one automatic escalation — an `economy` worker retri
 
 `build.checkpoint` (default `false`) governs whether a run persists a resume ledger: `false` keeps only the per-task commits as the durable record, while `true` writes a compact state file recording each task's profile, escalation, and commit so a resumed run can skip work already proven complete.
 
-**`docket-build` ships validated model IDs for Claude Code, Cursor, and Codex.** Every shipped default lives in [`agents/harness-defaults.yml`](agents/harness-defaults.yml), indexed by harness, and all three are complete — thirteen agents each, the four build profiles among them — so any of the three harnesses gets profile-routed builds with no configuration at all. Codex takes a real reasoning-effort token per agent, so its rows carry a model/effort pair where Cursor's IDs encode their variant and use `auto`. A harness docket does not yet map generates **unpinned**, letting that harness apply its own default rather than inherit an ID that means nothing there. To retune any pair, set the model yourself in a config layer — `.docket.example.yml` mirrors all three shipped blocks value for value. On Claude, `build-economy` ships Sonnet rather than Haiku deliberately: the worker contract is long and strict, and its failure modes halt the build instead of escalating. If you want a more cost-aggressive floor, set `build-economy` to `claude-haiku-4-5-20251001` in a config layer.
+**`docket-build` ships validated model IDs for Claude Code, Cursor, and Codex.** Every shipped default lives in [`agents/harness-defaults.yml`](agents/harness-defaults.yml), indexed by harness, and all three are complete — sixteen agents each, the four build profiles and the three review rungs among them — so any of the three harnesses gets profile-routed builds with no configuration at all. Codex takes a real reasoning-effort token per agent, so its rows carry a model/effort pair where Cursor's IDs encode their variant and use `auto`. A harness docket does not yet map generates **unpinned**, letting that harness apply its own default rather than inherit an ID that means nothing there. To retune any pair, set the model yourself in a config layer — `.docket.example.yml` mirrors all three shipped blocks value for value. On Claude, `build-economy` ships Sonnet rather than Haiku deliberately: the worker contract is long and strict, and its failure modes halt the build instead of escalating. If you want a more cost-aggressive floor, set `build-economy` to `claude-haiku-4-5-20251001` in a config layer.
 
 ### Runner delegation — running docket agents on another harness
 
@@ -751,7 +751,7 @@ Codex's `model_reasoning_effort` (docket's `max` → codex `xhigh`).
 
 Rules and limits:
 
-- **Only autonomous wrappers are delegatable** (the thirteen generated agents). Interactive skills
+- **Only autonomous wrappers are delegatable** (the sixteen generated agents). Interactive skills
   stay inline — an exec primitive has no human channel.
 - A delegated *orchestrator*'s own sub-dispatches run child-natively (for Codex:
   `spawn_agent`, via superpowers' Codex support). Per-agent model pins do **not** carry into

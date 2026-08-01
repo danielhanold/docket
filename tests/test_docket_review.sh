@@ -41,4 +41,53 @@ assert "reviewer reports unverified-build-state rather than running the suite" \
 assert "reviewer verifies the evidence head_sha against the branch HEAD" \
   'grep -qF -- "head_sha" "$REV"'
 
+# --- the three rung wrappers ---------------------------------------------------------------
+HD="$REPO/agents/harness-defaults.yml"
+REV_DESC="$(awk "/^---$/{n++; next} n==1" "$REV" | sed -n 's/^description: //p')"
+assert "the skill's description is non-empty (anchor for the wrapper compare)" '[ -n "$REV_DESC" ]'
+
+for rung in lean standard deep; do
+  W="$REPO/agents/docket-review-$rung.md"
+  assert "wrapper exists: docket-review-$rung" '[ -f "$W" ]'
+  [ -f "$W" ] || continue
+  assert "docket-review-$rung: name matches its filename" \
+    'grep -qE "^name: docket-review-'"$rung"'$" "$W"'
+  # Byte-equality with the skill's own description is the house rule for wrappers.
+  assert "docket-review-$rung: description matches the skill's" \
+    'wd="$(sed -n "s/^description: //p" "$W")"; [ "$wd" = "$REV_DESC" ]'
+  # The wrapper wraps the review skill ONLY — no docket-convention, mirroring the build workers.
+  assert "docket-review-$rung: injects docket-review" 'grep -qF -- "skills: [docket-review]" "$W"'
+  assert "docket-review-$rung: does NOT inject docket-convention" \
+    '! grep -qF -- "docket-convention" "$W"'
+  assert "docket-review-$rung: carries the abort-and-report posture" \
+    'grep -qF -- "abort-and-report" "$W"'
+  # No pins live in wrapper files since change 0168 — they live in the sidecar.
+  assert "docket-review-$rung: carries no model/effort pin" \
+    '! grep -qE "^(model|effort):" "$W"'
+  # Every shipped harness must supply a pair, or generation fails outright.
+  for h in claude cursor codex; do
+    assert "harness-defaults: $h supplies a pair for review-$rung" \
+      'grep -qE "^ *review-'"$rung"': *\{ *model: *[^ ,}]+, *effort: *[^ ,}]+ *\}" "$HD"'
+  done
+  F="$REPO/cursor-rules/dispatch/docket-review-$rung.md"
+  assert "cursor dispatch fragment exists: docket-review-$rung" '[ -f "$F" ]'
+done
+
+# The cap-rung invariant, asserted per harness rather than asserted in prose: review-deep is
+# pinned exactly where build-max is, so the cap rung never reviews below the strength the
+# riskiest build work was built with.
+for h in claude cursor codex; do
+  assert "$h: the review-deep pin equals the build-max pin" \
+    'blk="$(awk "/^  '"$h"':/{f=1;next} /^  [a-z]+:/{f=0} f" "$HD")";
+     d="$(printf "%s" "$blk" | sed -n "s/^ *review-deep: *//p")";
+     m="$(printf "%s" "$blk" | sed -n "s/^ *build-max: *//p")";
+     [ -n "$d" ] && [ "$d" = "$m" ]'
+done
+
+# The rung wrappers must NOT introduce a new dispatch site into test_dispatch_capability.sh's
+# reverse-correspondence population. The four docket-build-* workers set the precedent: they are
+# referred to as profile agents, never in the `name`-near-"subagent" shape that guard derives on.
+assert "rung dispatch prose avoids the derived-dispatch-site shape" \
+  '! grep -rohE --include="*.md" "\`docket-review-[a-z]+\`[^\`]{0,20}subagent" "$REPO/skills/" | grep -q .'
+
 echo "---"; [ "$fails" -eq 0 ] && echo "PASS" || { echo "FAIL ($fails)"; exit 1; }

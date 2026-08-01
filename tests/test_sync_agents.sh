@@ -42,7 +42,7 @@ AGENTS="$REPO/agents"
 AUTONOMOUS="docket-implement-next docket-auto-groom docket-finalize-change docket-status docket-adr"
 
 assert "agents/ source dir exists" '[ -d "$AGENTS" ]'
-assert "exactly 13 built-in wrappers" '[ "$(find "$AGENTS" -maxdepth 1 -name "docket-*.md" | wc -l | tr -d " ")" = "13" ]'
+assert "exactly 16 built-in wrappers" '[ "$(find "$AGENTS" -maxdepth 1 -name "docket-*.md" | wc -l | tr -d " ")" = "16" ]'
 
 for w in $AUTONOMOUS; do
   f="$AGENTS/$w.md"
@@ -188,7 +188,7 @@ make_sandbox
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null )
 assert "writes into present .claude/agents" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
 assert "writes into present .agents/agents" '[ -f "$SBX/.agents/agents/docket-status.md" ]'
-assert "all 13 wrappers land in .claude/agents" '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "13" ]'
+assert "all 16 wrappers land in .claude/agents" '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "16" ]'
 assert "does NOT create an absent harness (.cursor)" '[ ! -d "$SBX/.cursor/agents" ]'
 # Change 0168 replaced the byte-identity assert here: the generator now INJECTS the pin from
 # agents/harness-defaults.yml instead of copying the source's frontmatter, so byte identity is
@@ -264,8 +264,8 @@ make_sandbox                                       # SBX = the repo
 HROOT48A="$(mktemp -d)"; mkdir -p "$HROOT48A/.claude"
 printf 'agents:\n  default:\n    status: { model: sonnet, effort: high }\n' > "$SBX/.docket.yml"
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT48A" bash "$SYNC" >/dev/null )
-assert "0048: full set — all 13 built-ins land in project-level .claude/agents" \
-  '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "13" ]'
+assert "0048: full set — all 16 built-ins land in project-level .claude/agents" \
+  '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "16" ]'
 assert "0048: listed agent carries its override (status=sonnet)" \
   '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "sonnet" ]'
 assert "0048: UNLISTED agent generated at shipped default (implement-next=claude-opus-5/medium)" \
@@ -287,8 +287,8 @@ assert "0048 rule: carries alwaysApply: true frontmatter" 'grep -q "^alwaysApply
 assert "0048 rule: generated file opens with dispatch.head.md byte-for-byte" \
   'diff -q <(head -n "$(wc -l < "$REPO/cursor-rules/dispatch.head.md")" "$RULE") "$REPO/cursor-rules/dispatch.head.md" >/dev/null'
 assert "0048 rule: has the required dispatch pattern heading" 'grep -q "## Required dispatch pattern" "$RULE"'
-assert "0048 rule: has a subsection for every built-in agent (13)" \
-  '[ "$(grep -cE "^## docket-.* — dispatch only" "$RULE")" = "13" ]'
+assert "0048 rule: has a subsection for every built-in agent (16)" \
+  '[ "$(grep -cE "^## docket-.* — dispatch only" "$RULE")" = "16" ]'
 assert "0048 rule: names docket-implement-next as a subsection" 'grep -q "^## docket-implement-next — dispatch only" "$RULE"'
 assert "0048 rule: names docket-status as a subsection" 'grep -q "^## docket-status — dispatch only" "$RULE"'
 assert "0048 rule: no subsection for a non-existent agent" '! grep -q "docket-nonexistent" "$RULE"'
@@ -578,8 +578,8 @@ make_sandbox
 HROOTAH="$(mktemp -d)"; mkdir -p "$HROOTAH/.claude"
 printf 'agent_harnesses: [claude, cursor]\n' > "$SBX/.docket.yml"   # no agents: block at all
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTAH" bash "$SYNC" >/dev/null )
-assert "0048 opt-in: agent_harnesses-only generates full set for cursor" '[ "$(find "$SBX/.cursor/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "13" ]'
-assert "0048 opt-in: agent_harnesses-only generates full set for claude" '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "13" ]'
+assert "0048 opt-in: agent_harnesses-only generates full set for cursor" '[ "$(find "$SBX/.cursor/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "16" ]'
+assert "0048 opt-in: agent_harnesses-only generates full set for claude" '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "16" ]'
 assert "0048 opt-in: agent_harnesses-only generates the cursor dispatch rule" '[ -f "$SBX/.cursor/rules/docket-dispatch.mdc" ]'
 assert "0048 opt-in: agent_harnesses-only wrappers carry shipped default (no overrides)" '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "claude-haiku-4-5-20251001" ]'
 rm -rf "$SBX" "$HROOTAH"
@@ -1288,7 +1288,7 @@ assert "0051 mig: announces the migration"                 'printf "%s" "$mig_er
 assert "0051 mig: prints git rm --cached instructions"     'printf "%s" "$mig_err" | grep -q -e "git rm" '
 assert "0051 mig: gitignore block written"                 'grep -q "^# docket:start" "$SBX/.gitignore"'
 assert "0051 mig: local files regenerated (fresh content)" 'grep -q "^model: sonnet" "$SBX/.claude/agents/docket-status.md"'
-assert "0051 mig: full local set regenerated"              '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "13" ]'
+assert "0051 mig: full local set regenerated"              '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "16" ]'
 # perform the printed migration commit; second run must NOT re-announce
 ( cd "$SBX" && git rm -r -q --cached '.claude/agents/docket-*.md' '.cursor/agents/docket-*.md' '.cursor/rules/docket-dispatch.mdc' && git add .gitignore && git commit -q -m "docket: agent files go machine-local" )
 mig_err2="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOTM" bash "$SYNC" 2>&1 >/dev/null)"
@@ -1589,7 +1589,7 @@ assert "0169 fixture: the copy no longer lists codex as shipped" \
 assert "0169 fixture: the copy has no codex block" \
   '[ -z "$(hd_agents "$SCRW/agents/harness-defaults.yml" codex)" ]'
 assert "0169 fixture: the copy still ships a complete cursor block (only codex was stripped)" \
-  '[ "$(hd_agents "$SCRW/agents/harness-defaults.yml" cursor | grep -c .)" = "13" ]'
+  '[ "$(hd_agents "$SCRW/agents/harness-defaults.yml" cursor | grep -c .)" = "16" ]'
 printf 'agent_harnesses: [claude, cursor, codex]\n' > "$SBX/.docket.yml"
 w168="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT168W" bash "$SCRW/sync-agents.sh" 2>&1 >/dev/null)"
 assert "0168: a cursor agent the sidecar supplies draws no warning" \
@@ -1664,8 +1664,8 @@ for f in "$SBX"/.claude/agents/docket-*.md; do
   assert "0168 R2: claude/$b carries a non-empty model"  '[ -n "$(fm_anchored "'"$f"'" model)" ]'
   assert "0168 R2: claude/$b carries a non-empty effort" '[ -n "$(fm_anchored "'"$f"'" effort)" ]'
 done
-assert "0168 R2: the full claude set generated (floor 13; got $n_r2) — the loop above is not vacuous" \
-  '[ "$n_r2" -ge 13 ]'
+assert "0168 R2: the full claude set generated (floor 16; got $n_r2) — the loop above is not vacuous" \
+  '[ "$n_r2" -ge 16 ]'
 
 # Claude-ONLY model IDs: every model the sidecar's claude block names, minus every model any other
 # harness block names. Derived from the sidecar, so a cursor entry that legitimately reuses a

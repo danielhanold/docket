@@ -927,8 +927,8 @@ for h in $HD_SHIPPED_HARNESSES; do
       '[ -n "$(ex_slice_field "$slice" "'"$a"'" effort)" ] &&
        [ "$(ex_slice_field "$slice" "'"$a"'" effort)" = "$(hd_field "$HD" '"$h"' "'"$a"'" effort)" ]'
   done < <(hd_agents "$HD" "$h")
-  assert "$h mirror: every shipped $h entry was checked (floor 13; got $mirrored)" \
-    '[ "$mirrored" -ge 13 ]'
+  assert "$h mirror: every shipped $h entry was checked (floor 16; got $mirrored)" \
+    '[ "$mirrored" -ge 16 ]'
 done
 # Floor on the POPULATION itself, not only on each block's row count: an emptied HD_SHIPPED_HARNESSES
 # would make the whole loop above run zero times with every assert trivially satisfied.
