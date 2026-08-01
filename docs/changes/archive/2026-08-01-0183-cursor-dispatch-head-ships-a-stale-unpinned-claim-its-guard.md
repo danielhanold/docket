@@ -2,11 +2,11 @@
 id: 183
 slug: cursor-dispatch-head-ships-a-stale-unpinned-claim-its-guard
 title: Cursor dispatch head ships a stale unpinned claim; its guard retired itself
-status: proposed
+status: killed
 priority: medium
 type: fix
 created: 2026-07-31
-updated: 2026-07-31
+updated: 2026-08-01
 depends_on: []
 related: []
 discovered_from: [169]
@@ -70,3 +70,11 @@ Deliberately left out of 0169's scope — Cursor support belongs to change 0168'
 
 - Is the self-retiring `if <premise>` guard shape worth a house rule (or a lint) rather than being
   fixed case by case? Two instances are now known; a third would argue for the general form.
+
+## Why killed
+
+Absorbed by change 0184 (PR #147), which fixed both halves of this stub in the same diff: `cursor-rules/dispatch.head.md`'s stale "three build-profile workers only … every other wrapper is generated unpinned" claim is corrected to the post-0168/0184 truth, and `tests/test_cursor_dispatch_rule.sh`'s self-retiring premise guard gained the `else` arm this stub specified — asserting the pinned-truth claim and raising the population floor 12 → 13.
+
+The third bullet (sweep for other self-retiring guards) was discharged by inspection: scanning every `tests/*.sh` for conditional blocks containing asserts with no `else` arm yields two hits, both in `test_docket_status.sh` (lines 606, 2369). Neither is this class — both are environment-conditional (did the sandbox push succeed) and each is preceded by an unconditional positive-shape assert that cannot go vacuous.
+
+The open question asked whether the shape warrants a house rule or lint, and set its own bar: "Two instances are now known; a third would argue for the general form." The sweep found no third, so the general form is not warranted and nothing remains to build.
