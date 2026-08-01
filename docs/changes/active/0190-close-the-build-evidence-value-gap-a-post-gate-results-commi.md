@@ -1,7 +1,7 @@
 ---
 id: 190
 slug: close-the-build-evidence-value-gap-a-post-gate-results-commi
-title: Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip
+title: "Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip"
 status: proposed
 priority: medium
 type: feat
