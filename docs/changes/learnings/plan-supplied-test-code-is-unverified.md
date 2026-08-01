@@ -2,9 +2,9 @@
 slug: plan-supplied-test-code-is-unverified
 hook: "Test code a plan hands you is unverified code, not an oracle — prove the assert CAN pass, and mutation-test its own key."
 topics: [testing, plan, guards]
-changes: [94, 104, 112, 130, 133, 157, 168, 173, 174]
+changes: [94, 104, 112, 130, 133, 157, 168, 170, 173, 174]
 created: 2026-07-19
-updated: 2026-07-31
+updated: 2026-08-01
 promotion_state: candidate
 promoted_to:
 ---
@@ -156,3 +156,22 @@ implementer. It is not a reason to distrust plans — it is a reason to run the 
   interpreter stopped reading" — so when a test file is edited, compare the assert total against the
   previous run, not just the failure count. Same discipline as the plan-supplied case, applied to
   the code you just wrote yourself.
+- 2026-08-01 (#170, PR #149 — merged) — **The pair extension: a plan that supplies both the assert
+  and the prose it greps for has verified neither against the other.** Four tasks in one plan (3, 4,
+  5, 6) shipped a hand-written assert and a suggested sentence written in the same pass, mismatched
+  every time: an `evidence`-within-30-characters proximity regex the suggested wording could not
+  satisfy; a case-sensitive `important` against prose that capitalized it; a bolded `**no-op**`
+  whose own asterisks broke the pattern meant to find it; and a whole-file README grep loose enough
+  to match anywhere. Each was resolved by keeping the assert and fixing the prose, or tightening the
+  assert where it was genuinely wrong — never by weakening one to meet the other.
+  The generalization is the sharp part: the existing rule says treat a supplied assert as a draft
+  under test. When the plan also supplies its **haystack**, there are *two* unverified artifacts and
+  the only evidence either is right is that they agree — which the plan author never checked,
+  because writing both in one pass feels like writing one thing. Run the supplied grep against the
+  supplied prose before writing any implementation; it costs one command and it is the whole check.
+  Same branch, adjacent class: the whole-branch review found three near-vacuous asserts — a bare
+  `|halt` alternation that passed before the prose it guarded existed, a `grep -qiE "once|one run"`
+  over a 900-line README, and a negated grep over an `awk` range that goes permanently green if the
+  fence markers it depends on are renamed. Each was tightened with a paired non-vacuity anchor and
+  mutation-proven. A negated grep over a derived haystack is the same silent-under-negation
+  asymmetry #168 recorded above, one layer up: the haystack, not the helper, is what empties.

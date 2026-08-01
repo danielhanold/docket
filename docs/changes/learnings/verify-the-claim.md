@@ -2,9 +2,9 @@
 slug: verify-the-claim
 hook: "A document asserting a fact about another artifact is not an oracle — verify it against the artifact or the RUNNING CODE before acting on it."
 topics: [process, review, spec]
-changes: [12, 21, 47, 65, 67, 74, 96, 101, 102, 109, 112, 138, 130, 157, 164]
+changes: [12, 21, 47, 65, 67, 74, 96, 101, 102, 109, 112, 138, 130, 157, 164, 170]
 created: 2026-06-12
-updated: 2026-07-29
+updated: 2026-08-01
 promotion_state: retained
 promoted_to:
 ---
@@ -165,3 +165,23 @@ mid-build; leave the re-scope to the human. Reject false positives with evidence
   branch, same sweep: excluding all of `docs/` from a stale-literal sweep is a trap — `docs/` also
   holds live user-facing documentation, not only archived records; narrow such exclusions to the
   archive subtrees.
+- 2026-08-01 (#170, PR #149 — merged) — **A false prose claim pinned green by a guard written to
+  match it.** The README asserted the new review design meant "one full-suite run on the clean path,
+  two in the worst case, and never three" — false by the change's own contract, since a blocker fix's
+  commits trigger a re-run (two) and a real rebase at finalize adds a third. `tests/test_docket_review.sh`
+  was asserting `grep -qiE "never three"`, so the guard had promoted a prose error into a *guarded*
+  prose error: every run green, forever, on a sentence that was wrong the day it was written.
+  This is the failure mode's worst shape, and it is worth naming separately from the plain
+  stale-prose case above. A guard keyed on a claim's own wording cannot distinguish "this claim is
+  true" from "this claim is still present" — it tests presence and reads as correctness. When prose
+  states a *count* or an *arithmetic property* of the system, derive it from the contract before
+  writing either the sentence or the assert, and key the assert on surviving phrases rather than on
+  the number itself. The correction here restated the honest arithmetic (one / two / three, with the
+  condition for each) and re-pointed the assert.
+  Two more in the same read, neither greppable: a reworded convention clause claimed a contract was
+  "the only thing those wrappers load" across all eight exceptions — false for
+  `docket-brainstorm-consultant`, which wraps no skill at all, a fact stated two lines below it; and
+  the same sentence read "every wrapper except **four**" while naming five, left behind by #184's
+  fourth build profile. Both are prose asserting a *count of siblings*, the drift surface #164
+  recorded, and both were found by the whole-branch read that the suite structurally could not
+  perform — which is the argument for keeping that read, made by the change that ships it.
