@@ -32,7 +32,8 @@ script.
 
 **Output:** the test's exit status and assertion counts, then the top source lines by cumulative
 self time, then the top individual command invocations, then the traced wall time — plus the
-assertion segments under `--asserts` — and finally the trace and captured-stdout paths. The test's
+assertion segments under `--asserts` — and finally the trace and captured-stdout paths — which are ALSO printed up front, before the test
+launches, so a hung run can be diagnosed by reading the growing trace file from another shell. The test's
 own output is captured to a file rather than printed, so the tables are not buried.
 
 ## Behavior

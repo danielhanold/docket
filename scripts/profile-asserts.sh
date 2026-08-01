@@ -106,12 +106,18 @@ for t in "${tests[@]}"; do
 done
 
 printf 'profiling %d test file(s) under %s\n' "${#tests[@]}" "$BASH_BIN"
+# The records path up front for the same reason the per-test line below exists: during a hang the
+# end-of-run print never arrives. `$TSV` is already resolved by this point.
+printf 'per-assertion records: %s\n' "$TSV"
 suite_start="$(now_us)"
 failed=0
 
 for t in "${tests[@]}"; do
   rc_file="$tmp/rc"; : > "$rc_file"
   t_start="$(now_us)"
+  # The pre-loop line says how MANY files; only this says WHICH one is executing. Without it a hung
+  # test is anonymous — the per-test rollup below prints only after the file completes.
+  printf 'running %s\n' "$t"
   # The rc redirect keeps the exit status out of the stream the reader is timestamping.
   { "$BASH_BIN" "$t" 2>&1; printf '%s' "$?" > "$rc_file"; } | stamp_stream "$t" "$t_start"
   t_end="$(now_us)"
