@@ -115,6 +115,23 @@ export XDG_CONFIG_HOME="$tmp/xdg-void"
 rung(){ local x="$1" d="$2"; shift 2; ensure_test_runtime "$x" "$d"; XDG_CONFIG_HOME="$x" bash "$SCRIPT" --repo-dir "$d" "$@"; }
 rung_rc(){ local x="$1" d="$2"; shift 2; ensure_test_runtime "$x" "$d"; XDG_CONFIG_HOME="$x" bash "$SCRIPT" --repo-dir "$d" "$@" >/dev/null 2>&1; echo $?; }
 
+# trace_external_commands TRACE REPO XDG: derive executable command names from one real resolver
+# run. The shim guard below wraps only this observed population, never a hand-picked parser list.
+trace_external_commands(){ # trace_external_commands TRACE REPO XDG -> NAME<TAB>ABSOLUTE_PATH
+  local trace="$1" repo="$2" xdg="$3" traced word resolved
+  XDG_CONFIG_HOME="$xdg" PS4='+ ' bash -x "$SCRIPT" --repo-dir "$repo" --export --format plain \
+    >/dev/null 2>"$trace"
+  while IFS= read -r traced; do
+    while [[ "$traced" == +* ]]; do traced="${traced#+}"; done
+    traced="${traced# }"
+    traced="${traced#"${traced%%[![:space:]]*}"}"
+    word="${traced%%[[:space:]]*}"
+    case "$word" in ''|*=*|\[*|\{*|\}*|\(*|\)*|if|then|else|fi|for|in|do|done|case|esac|while) continue ;; esac
+    resolved="$(type -P "$word" 2>/dev/null || true)"
+    [ -n "$resolved" ] && printf '%s\t%s\n' "$word" "$resolved"
+  done < "$trace"
+}
+
 # --- (A) absent .docket.yml -> all defaults (docket-mode) --------------------
 mkrepo "$tmp/a"
 AUTO_GROOM=__poison__; FINALIZE_GATE=__poison__; ADRS_DIR=__poison__; DOCKET_MODE=__poison__; DEFAULT_BRANCH=__poison__; METADATA_WORKTREE=__poison__; CHANGES_DIR=__poison__; INTEGRATION_BRANCH=__poison__; TERMINAL_PUBLISH=__poison__; BOARD_SURFACES=__poison__; FINALIZE_TEST_COMMAND=__poison__; METADATA_BRANCH=__poison__; RESULTS_DIR=__poison__
@@ -506,6 +523,28 @@ assert "0176 snapshot fixture reaches the second skills block after top-level co
   'grep -qxF "SKILL_BUILD=auto" <<<"$snapshot_out"'
 assert "0176 snapshot reader returns the first matching leaf across repeated blocks and exits at top-level content" \
   'grep -qxF "SKILL_REVIEW=committed-review" <<<"$snapshot_out"'
+
+# The resolver's command-cost ceiling is measured by interposing wrappers on precisely the
+# executable command population observed in an unmodified resolver trace. This guards actual
+# process execution rather than a source-level list of parser spellings.
+spawn_trace="$tmp/0176-resolver.trace"
+spawn_shims="$tmp/0176-command-shims"
+spawn_log="$tmp/0176-spawn.log"
+mkdir -p "$spawn_shims"
+while IFS=$'\t' read -r command_name command_path; do
+  case "$command_name" in *[![:alnum:]_+-]*|'') continue ;; esac
+  printf '#!/usr/bin/env bash\nprintf "%%s\\n" "${0##*/}" >> %q\nexec %q "$@"\n' \
+    "$spawn_log" "$command_path" > "$spawn_shims/$command_name"
+  chmod +x "$spawn_shims/$command_name"
+done < <(trace_external_commands "$spawn_trace" "$tmp/snapshot" "$tmp/snapshot.xdg")
+spawn_out="$(PATH="$spawn_shims:$PATH" rung "$tmp/snapshot.xdg" "$tmp/snapshot" --export --format plain)"
+assert "0176 spawn guard preserves representative resolved export" \
+  'grep -qxF "SKILL_BUILD=auto" <<<"$spawn_out"'
+command_count="$(wc -l < "$spawn_log" | tr -d '[:space:]')"
+assert "0176 spawn guard measured a non-empty command population" \
+  '[ "$command_count" -gt 0 ]'
+assert "0176 snapshot resolver stays under the spawned-command ceiling" \
+  '[ "$command_count" -le 120 ]'
 
 # --- (J) skills: unknown role key -> warned on stderr, ignored; known keys still resolve ---
 mkrepo "$tmp/j"
