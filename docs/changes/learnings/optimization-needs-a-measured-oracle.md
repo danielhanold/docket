@@ -2,7 +2,7 @@
 slug: optimization-needs-a-measured-oracle
 hook: "A performance change has no oracle in the suite — correctness asserts pass identically whether the optimization happened or not, so scope it and accept it on measured wall clock."
 topics: [testing, performance, planning]
-changes: [174, 175]
+changes: [174, 175, 176]
 created: 2026-07-31
 updated: 2026-08-01
 promotion_state: candidate
@@ -57,3 +57,9 @@ whose value depends on the property the change exists to deliver.
   bypassing the cache raised the same fixture to 597 calls and reddened it. Treat a mechanism
   metric as a companion to wall clock when the regression shape is retained work; measure the
   actual fixture and mutation-test that the metric still observes the optimized path.
+- 2026-08-01 (#176, PR #145 — merged) — Caching the three configuration-layer snapshots inside
+  `docket-config.sh` reduced the hermetic local-origin median from 0.485s to 0.170s (2.85×), while
+  the retained PATH-shim probe measured 13 spawned commands against a 120-command ceiling.
+  Restoring the repeated external scans raised the count to 173 and reddened the guard. The complete
+  suite remained a correctness oracle only; the timed median and mutation-proven mechanism metric
+  were the evidence that the optimization itself landed.
