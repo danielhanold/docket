@@ -1,6 +1,6 @@
 # Backlog
 
-**185 changes** — 🟢 1 in progress · 🟡 38 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 122 done · 🗑️ 19 killed
+**186 changes** — 🟢 1 in progress · 🟡 39 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 122 done · 🗑️ 19 killed
 
 ## 🟢 In progress (1)
 
@@ -8,7 +8,7 @@
 |---|-------|----------|------|------|--------|
 | [0184](active/0184-four-tier-build-profile-ladder.md) | Four-tier build profile ladder — low/medium/high/max replaces economy/standard/premium | `high` | `feat` | [spec](../superpowers/specs/2026-08-01-four-tier-build-profiles-design.md) | `feat/four-tier-build-profile-ladder` |
 
-## 🟡 Proposed (38)
+## 🟡 Proposed (39)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -50,6 +50,7 @@
 | [0181](active/0181-document-the-unquoted-space-free-rule-for-agent-model-effort.md) | Document the unquoted, space-free rule for agent model/effort config values | `medium` | `docs` | needs-brainstorm |
 | [0182](active/0182-facade-tests-read-the-developer-s-real-global-config-instead.md) | Facade tests read the developer's real global config instead of a sandbox | `medium` | `fix` | needs-brainstorm |
 | [0183](active/0183-cursor-dispatch-head-ships-a-stale-unpinned-claim-its-guard.md) | Cursor dispatch head ships a stale unpinned claim; its guard retired itself | `medium` | `fix` | needs-brainstorm |
+| [0186](active/0186-bare-mv-prompts-on-a-tty-backfill-change-types-hangs-the-sui.md) | Bare mv prompts on a tty — backfill-change-types hangs the suite and can exit 0 without installing | `high` | `fix` | build-ready |
 
 ## ⚪ Deferred (4)
 
@@ -112,6 +113,7 @@ graph TD
   0182
   0183
   0184
+  0186
   0015:::done
   0077:::done
   0167:::done
