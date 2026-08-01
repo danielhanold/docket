@@ -1,12 +1,6 @@
 # Backlog
 
-**183 changes** — 🟢 1 in progress · 🟡 38 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 119 done · 🗑️ 19 killed
-
-## 🟢 In progress (1)
-
-| # | Title | Priority | Type | Spec | Branch |
-|---|-------|----------|------|------|--------|
-| [0176](active/0176-docket-config-sh-costs-0-87s-per-invocation-and-dominates-te.md) | docket-config.sh costs ~0.87s per invocation and dominates test_docket_config.sh | `medium` | `perf` | [spec](../superpowers/specs/2026-07-31-docket-config-per-invocation-cost-design.md) | `feat/docket-config-sh-costs-0-87s-per-invocation-and-dominates-te` |
+**183 changes** — 🟡 38 proposed · ⚪ 4 deferred · 🔵 3 implemented · ✅ 119 done · 🗑️ 19 killed
 
 ## 🟡 Proposed (38)
 
@@ -60,12 +54,13 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (3)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | `chore` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
 | [0169](active/0169-codex-profile-routed-build-support.md) | Codex support for profile-routed Docket builds | `medium` | `feat` | [#143](https://github.com/danielhanold/docket/pull/143) |  |
+| [0176](active/0176-docket-config-sh-costs-0-87s-per-invocation-and-dominates-te.md) | docket-config.sh costs ~0.87s per invocation and dominates test_docket_config.sh | `medium` | `perf` | [#145](https://github.com/danielhanold/docket/pull/145) |  |
 
 ```mermaid
 graph TD
