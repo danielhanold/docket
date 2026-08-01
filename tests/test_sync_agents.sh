@@ -1529,6 +1529,14 @@ assert "0168: runner-only config still emits a shim" 'grep -qF "docket.sh runner
 assert "0168: runner-only shim still names the runner" 'grep -qF -- "--runner codex" "$S"'
 assert "0168: runner-only shim bakes NO --model flag"  '! grep -qF -- "--model" "$S"'
 assert "0168: runner-only shim bakes NO --effort flag" '! grep -qF -- "--effort" "$S"'
+# 0169: the Codex sidecar now supplies a model for this very agent, so the negative asserts above
+# stopped being vacuous in the direction that matters — a `runner: codex` shim could now bake a
+# real Codex ID if provenance were ignored. Pin the fixture's premise so a future emptying of the
+# codex block cannot quietly re-vacuum them.
+assert "0169: the codex sidecar really does supply a model for this agent (the guard above is not vacuous)" \
+  '[ -n "$(hd_field "$HD" codex status model)" ]'
+assert "0169: and the shipped CODEX default did not leak into the runner flags either" \
+  '! grep -qF -- "$(hd_field "$HD" codex status model)" "$S"'
 assert "0168: runner-only shim frontmatter still carries the native pin" \
   '[ "$(fm "$S" model)" = "$(hd_field "$HD" claude status model)" ]'
 assert "0168: runner-only shim frontmatter still carries the native effort" \
@@ -1562,21 +1570,60 @@ rm -rf "$SBX" "$HROOT168F"
 # sidecar SUPPLIES is a deliberate shipped default, not a leak, so it must stay silent; a pair it
 # does not cover generates unpinned rather than inheriting a foreign ID, and says so.
 #
-# The unpinned leg is driven by CODEX, not cursor: cursor now ships a complete block, so no cursor
-# pair can be uncovered. Codex is the harness docket ships nothing for (change 0169), which makes
-# it the only honest fixture for "no harness-specific value anywhere".
+# The unpinned leg can no longer be driven by any SHIPPED harness — claude, cursor, and codex all
+# carry complete blocks since change 0169. What the rule guards is still reachable (it is what a
+# newly-added, not-yet-mapped harness hits), so the fixture reconstructs that state in a throwaway
+# copy of the repo rather than asserting a condition the shipped tree can no longer reach: drop
+# codex from the copy's shipped list AND delete its block, which is exactly "known but unshipped".
 make_sandbox
 HROOT168W="$(mktemp -d)"; mkdir -p "$HROOT168W/.claude"
+SCRW="$(mktemp -d)"; cp -R "$REPO/agents" "$REPO/cursor-rules" "$REPO/scripts" "$REPO/sync-agents.sh" "$SCRW/"
+sed -i.bak 's/^HD_SHIPPED_HARNESSES="\(.*\) codex"$/HD_SHIPPED_HARNESSES="\1"/' "$SCRW/scripts/lib/harness-defaults.sh"
+awk '/^  codex:[[:space:]]*$/{skip=1; next}
+     skip && /^  [A-Za-z0-9._-]+[[:space:]]*:[[:space:]]*$/{skip=0}
+     !skip' "$SCRW/agents/harness-defaults.yml" > "$SCRW/hd.tmp" && mv "$SCRW/hd.tmp" "$SCRW/agents/harness-defaults.yml"
+# Fixture sanity FIRST: if either strip silently missed, every assert below is vacuous — the copy
+# would still ship codex and simply never warn.
+assert "0169 fixture: the copy no longer lists codex as shipped" \
+  '! grep -qE "^HD_SHIPPED_HARNESSES=.*codex" "$SCRW/scripts/lib/harness-defaults.sh"'
+assert "0169 fixture: the copy has no codex block" \
+  '[ -z "$(hd_agents "$SCRW/agents/harness-defaults.yml" codex)" ]'
+assert "0169 fixture: the copy still ships a complete cursor block (only codex was stripped)" \
+  '[ "$(hd_agents "$SCRW/agents/harness-defaults.yml" cursor | grep -c .)" = "12" ]'
 printf 'agent_harnesses: [claude, cursor, codex]\n' > "$SBX/.docket.yml"
-w168="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT168W" bash "$SYNC" 2>&1 >/dev/null)"
+w168="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT168W" bash "$SCRW/sync-agents.sh" 2>&1 >/dev/null)"
 assert "0168: a cursor agent the sidecar supplies draws no warning" \
   '! grep -qF "cursor/docket-build-standard" <<<"$w168"'
 assert "0168: a complete cursor block silences the whole harness" \
   '! grep -qF "WARN cursor/" <<<"$w168"'
-assert "0168: a codex agent with no sidecar entry warns that it is generated unpinned" \
+assert "0168: an agent with no sidecar entry warns that it is generated unpinned" \
   'grep -qF "codex/docket-status: no harness-specific model" <<<"$w168"'
 assert "0168: the unpinned warning names the key that would fix it" \
   'grep -qF "agents.codex.status.model" <<<"$w168"'
+rm -rf "$SCRW" "$SBX" "$HROOT168W"
+# Complement, on the REAL tree: because codex now ships complete, a shipped harness draws no
+# unpinned warning at all.
+#
+# The negative assert CANNOT carry this on its own, and the pair is what makes the property real.
+# A dropped or partial codex block makes `hd_validate` abort generation before any wrapper is
+# written, so no `WARN codex/` line is ever emitted and the pure-negative assert stays green; it
+# would also stay green on any unrelated `sync-agents.sh` failure. The positive companion supplies
+# the missing half — the run really succeeded, a codex wrapper really exists, and it really carries
+# the value the sidecar ships — so between them: generation reached completion AND it produced a
+# pinned wrapper AND it did so silently. Mutation-proved by deleting the codex `status` row: the
+# companion reddens (the abort writes no wrapper) while the negative alone does not.
+make_sandbox
+HROOT169S="$(mktemp -d)"; mkdir -p "$HROOT169S/.claude"
+printf 'agent_harnesses: [claude, cursor, codex]\n' > "$SBX/.docket.yml"
+w169="$(cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT169S" bash "$SYNC" 2>&1 >/dev/null)"; rc169=$?
+assert "0169: a complete codex block silences the whole harness" \
+  '! grep -qF "WARN codex/" <<<"$w169"'
+assert "0169: and generation actually SUCCEEDED and pinned the codex wrapper (the silence is not an abort)" \
+  '[ "$rc169" = "0" ] &&
+   [ -f "$SBX/.codex/agents/docket-status.toml" ] &&
+   [ -n "$(hd_field "$HD" codex status model)" ] &&
+   [ "$(sed -nE "s/^model[[:space:]]*=[[:space:]]*\"(.*)\"[[:space:]]*$/\1/p" "$SBX/.codex/agents/docket-status.toml")" = "$(hd_field "$HD" codex status model)" ]'
+rm -rf "$SBX" "$HROOT169S"
 # Amendment guard: a user `agents.default` outranks the sidecar, so the wrapper carries the FOREIGN
 # id — the warning must fire even though the pair IS covered. Testing entry-existence instead of
 # value-provenance silenced this exact case.
@@ -1588,7 +1635,7 @@ assert "0168: agents.default overriding a COVERED cursor pair still warns" \
   'grep -qF "cursor/docket-status: model '"'"'claude-opus-4-8'"'"' came from agents.default" <<<"$w168d"'
 assert "0168: and the wrapper really does carry the foreign id (the warning is not a false alarm)" \
   '[ "$(sed -n "s/^model:[[:space:]]*//p" "$SBX/.cursor/agents/docket-status.md" | head -n1)" = "claude-opus-4-8" ]'
-rm -rf "$SBX" "$HROOT168W" "$HROOT168D"
+rm -rf "$SBX" "$HROOT168D"
 
 # ---- change 0168's two headline properties, asserted on a BARE opt-in --------
 # 0168 whole-branch review, Recommendation 2. Everything above proves a mechanism; this proves the

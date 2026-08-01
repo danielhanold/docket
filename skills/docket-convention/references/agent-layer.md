@@ -13,7 +13,7 @@ Contents: [Layered config](#layered-config) · [Harness-first agents: blocks](#h
 
 | Layer | Source | Generates |
 |---|---|---|
-| Built-in | `agents/harness-defaults.yml` shipped in docket (harness-indexed; claude complete, cursor build-profiles only) | — |
+| Built-in | `agents/harness-defaults.yml` shipped in docket (harness-indexed; claude, cursor, and codex each complete) | — |
 | Global | the `agents:` block in `~/.config/docket/config.yml` (optional, XDG; legacy `agents.yaml` auto-migrated) | user-level `~/.claude/agents/docket-*.md` |
 | Repo-committed | `.docket.yml` `agents:` block (committed, every clone) | project-level `<repo>/.claude/agents/docket-*.md` (gitignored, machine-local — see below) |
 | Repo-local | `.docket.local.yml` `agents:` block (gitignored, this machine only) | same project-level files, highest precedence |

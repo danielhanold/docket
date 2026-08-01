@@ -54,8 +54,12 @@ assert "cursor: does NOT emit is_background"     '! has_fm_key "$C" is_backgroun
 # Read from the sidecar rather than hard-coded: this asserts "the wrapper says what docket ships
 # for cursor/status", which is the no-leak property itself. A literal would restate the sidecar and
 # would still pass if BOTH moved to a claude ID together.
-# The honest-unpinned path is not lost — codex ships no block at all and covers it in
-# tests/test_sync_agents_codex.sh. Bracket encoding is exercised below by the explicit
+# The honest-unpinned path is not lost, but it moved: since change 0169 all three shipped harnesses
+# carry complete blocks, so no shipped harness can reach it. It is now covered in
+# tests/test_sync_agents.sh by the repo-copy fixture whose asserts read
+# "0169 fixture: the copy has no codex block" — it strips codex from the copy's
+# HD_SHIPPED_HARNESSES and deletes its block, reconstructing "known but unshipped".
+# Bracket encoding is exercised below by the explicit
 # model+effort override ("unknown model+effort pass through verbatim").
 . "$REPO/scripts/lib/harness-defaults.sh"
 cursor_status_id="$(hd_field "$REPO/agents/harness-defaults.yml" cursor status model)"

@@ -12,8 +12,8 @@ SRC="$REPO/agents"
 # ---- the shipped file itself ------------------------------------------------
 assert "sidecar exists"            '[ -f "$HD" ]'
 assert "sidecar validates"         'hd_validate "$HD" "$SRC"'
-assert "harnesses are claude+cursor only" \
-  '[ "$(hd_harnesses "$HD" | tr "\n" " ")" = "claude cursor " ]'
+assert "harnesses are exactly the three shipped ones" \
+  '[ "$(hd_harnesses "$HD" | tr "\n" " ")" = "claude codex cursor " ]'
 
 # ---- every shipped Claude value, verbatim -----------------------------------
 for pair in \
@@ -53,10 +53,38 @@ for pair in \
   assert "cursor/$1 = $2/auto" \
     '[ "$(hd_field "$HD" cursor "'"$1"'" model)/$(hd_field "$HD" cursor "'"$1"'" effort)" = "'"$2"'/auto" ]'
 done
-assert "no codex block yet (change 0169 owns it)" '[ -z "$(hd_agents "$HD" codex)" ]'
-# A pair unlisted because its HARNESS ships nothing still resolves empty — the sparse-by-harness
-# property survives cursor becoming complete.
-assert "unlisted harness pair resolves empty" '[ -z "$(hd_field "$HD" codex status model)" ]'
+# ---- the Codex block: complete, with per-agent efforts ----------------------
+# Unlike cursor (whose IDs encode their variant, so every effort is `auto`), Codex takes a real
+# reasoning-effort token per agent, so both fields are asserted per row.
+for triple in \
+  "adr gpt-5.6-terra xhigh" \
+  "auto-groom gpt-5.6-sol low" \
+  "auto-groom-critic gpt-5.6-sol medium" \
+  "brainstorm-consultant gpt-5.6-sol medium" \
+  "build-economy gpt-5.6-luna xhigh" \
+  "build-standard gpt-5.6-terra high" \
+  "build-premium gpt-5.6-sol medium" \
+  "finalize-change gpt-5.6-terra high" \
+  "implement-next gpt-5.6-sol medium" \
+  "integration-repair gpt-5.6-sol high" \
+  "rebase-resolver gpt-5.6-sol high" \
+  "status gpt-5.6-luna xhigh" ; do
+  set -- $triple
+  assert "codex/$1 = $2/$3" \
+    '[ "$(hd_field "$HD" codex "'"$1"'" model)/$(hd_field "$HD" codex "'"$1"'" effort)" = "'"$2"'/'"$3"'" ]'
+done
+# The three build profiles are the settled ladder for this change, asserted separately from the
+# loop above so a reader sees the claim the change is actually making.
+assert "codex build ladder = luna/xhigh, terra/high, sol/medium" \
+  '[ "$(hd_field "$HD" codex build-economy model)/$(hd_field "$HD" codex build-economy effort)" = "gpt-5.6-luna/xhigh" ] &&
+   [ "$(hd_field "$HD" codex build-standard model)/$(hd_field "$HD" codex build-standard effort)" = "gpt-5.6-terra/high" ] &&
+   [ "$(hd_field "$HD" codex build-premium model)/$(hd_field "$HD" codex build-premium effort)" = "gpt-5.6-sol/medium" ]'
+# Sparse-by-harness is still a live property of the reader — it just no longer has a shipped
+# harness to demonstrate it on. Narrowed (not deleted) to a token that genuinely holds no block:
+# what this guards is that hd_field returns EMPTY for an absent harness rather than falling through
+# to another block's row.
+assert "a harness with no block resolves empty (sparse-by-harness read)" \
+  '[ -z "$(hd_field "$HD" windsurf status model)" ] && [ -z "$(hd_agents "$HD" windsurf)" ]'
 
 # ---- set correspondence, BOTH directions ------------------------------------
 # forward: every claude entry names a real source wrapper
@@ -85,21 +113,31 @@ done
 T="$(mktemp -d)"
 mut(){ cp "$HD" "$T/hd.yml"; }
 
-# Completeness is now enforced for BOTH shipped harnesses, so each gets its own mutation and each
-# checks the DIAGNOSTIC names the right harness. A bare `/^    status:/d` would delete the row from
-# both blocks at once and go green whichever leg actually fired — it could not tell a working
-# cursor rule from a cursor rule that was never written.
-mut; sed -i.bak '/^    status:.*claude-haiku/d' "$T/hd.yml"
-assert "reject: missing a claude entry" '! hd_validate "$T/hd.yml" "$SRC" 2>/dev/null'
-claude_gap_diag="$(hd_validate "$T/hd.yml" "$SRC" 2>&1 || true)"
-assert "reject: the claude gap is reported against claude" \
-  'grep -q "claude block is incomplete — no entry for .status." <<<"$claude_gap_diag"'
-
-mut; sed -i.bak '/^    status:.*cursor-grok/d' "$T/hd.yml"
-assert "reject: missing a cursor entry" '! hd_validate "$T/hd.yml" "$SRC" 2>/dev/null'
-cursor_gap_diag="$(hd_validate "$T/hd.yml" "$SRC" 2>&1 || true)"
-assert "reject: the cursor gap is reported against cursor" \
-  'grep -q "cursor block is incomplete — no entry for .status." <<<"$cursor_gap_diag"'
+# Completeness is enforced for EVERY shipped harness, so the mutation is derived from
+# HD_SHIPPED_HARNESSES rather than written once per harness with a value-specific pattern — adding
+# a fourth shipped harness arms this loop for free. Deleting the row from ONE block only is the
+# point: a bare `/^    status:/d` would delete it from all three at once and go green whichever leg
+# actually fired, unable to tell a working per-harness rule from one that was never written.
+del_entry(){ # $1=harness $2=agent -> writes $T/hd.yml
+  awk -v h="$1" -v a="$2" '
+    { nc=$0; sub(/#.*/,"",nc) }
+    nc ~ "^  "h"[[:space:]]*:[[:space:]]*$" { inb=1; print; next }
+    inb && nc ~ /^  [A-Za-z0-9._-]+[[:space:]]*:/ { inb=0 }
+    inb && nc ~ "^    "a"[[:space:]]*:" { next }
+    { print }
+  ' "$HD" > "$T/hd.yml"
+}
+for h in $HD_SHIPPED_HARNESSES; do
+  del_entry "$h" status
+  # Non-vacuity: prove the mutation actually landed on THIS block and left the others intact.
+  # Without this, a del_entry that silently matched nothing would leave every assert below green.
+  assert "mutation landed: $h lost exactly one entry" \
+    '[ "$(hd_agents "$T/hd.yml" "'"$h"'" | grep -c .)" = "$(( $(hd_agents "$HD" "'"$h"'" | grep -c .) - 1 ))" ]'
+  assert "reject: missing a $h entry" '! hd_validate "$T/hd.yml" "$SRC" 2>/dev/null'
+  gap_diag="$(hd_validate "$T/hd.yml" "$SRC" 2>&1 || true)"
+  assert "reject: the $h gap is reported against $h" \
+    'grep -q "'"$h"' block is incomplete — no entry for .status." <<<"$gap_diag"'
+done
 
 mut; printf '    phantom:               { model: x, effort: low }\n' >> "$T/hd.yml"
 assert "reject: phantom agent key" '! hd_validate "$T/hd.yml" "$SRC" 2>/dev/null'

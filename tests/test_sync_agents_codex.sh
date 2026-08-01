@@ -37,15 +37,38 @@ assert "codex: full built-in set as TOML (12 files)"      '[ "$(find "$SBX/.code
 T="$SBX/.codex/agents/docket-status.toml"
 assert "codex TOML: name = docket-status"          '[ "$(toml_get "$T" name)" = "docket-status" ]'
 assert "codex TOML: description matches source"    '[ "$(toml_get "$T" description)" = "$(sed -n "/^description:/{s/^description:[[:space:]]*//;p;q;}" "$REPO/agents/docket-status.md")" ]'
-# Before change 0168 these asserted `claude-haiku-4-5-20251001` / `medium` — docket-status's CLAUDE
-# pin, read off the wrapper source and written into a Codex wrapper that cannot run a Claude model
-# ID. agents/harness-defaults.yml ships NO codex block (change 0169 owns that mapping), so with no
-# user config the honest output is an unpinned wrapper: Codex applies its own default. Asserting
-# ABSENCE, not a value, is what keeps a re-introduced cross-harness leak visible.
-assert "codex TOML: no model key — nothing shipped for codex, so honestly unpinned" \
-  '! toml_has_key "$T" model'
-assert "codex TOML: no model_reasoning_effort key either" \
-  '! toml_has_key "$T" model_reasoning_effort'
+# Change 0169 ships a complete codex block, so the honest output is a PINNED wrapper. These read
+# the expected values from the sidecar rather than restating them: a literal here would be a second
+# copy of the shipped table, free to drift from the one the generator actually reads.
+#
+# These are the two asserts change 0168 inverted to absence; they are inverted BACK rather than
+# deleted, so their original job — catching a cross-harness leak, a Claude ID landing in a Codex
+# wrapper — stays live. The leak now shows up as a value mismatch instead of as an unexpected key.
+# shellcheck source=/dev/null
+. "$REPO/scripts/lib/harness-defaults.sh"
+HD="$REPO/agents/harness-defaults.yml"
+assert "codex TOML: model is the shipped codex pin" \
+  '[ -n "$(hd_field "$HD" codex status model)" ] &&
+   [ "$(toml_get "$T" model)" = "$(hd_field "$HD" codex status model)" ]'
+assert "codex TOML: model_reasoning_effort is the shipped codex effort" \
+  '[ -n "$(hd_field "$HD" codex status effort)" ] &&
+   [ "$(toml_get "$T" model_reasoning_effort)" = "$(hd_field "$HD" codex status effort)" ]'
+# And no Codex wrapper carries a Claude-namespace model ID — the cross-harness leak, stated as the
+# property rather than as one agent's value.
+assert "codex TOML: model is not a claude-namespace ID" \
+  '! grep -qE "^model[[:space:]]*=[[:space:]]*\"claude-" "$T"'
+# Whole-set coverage: every one of the twelve generated wrappers matches its sidecar row. Population
+# derived from the sidecar, so a thirteenth agent arms this loop automatically.
+n_codex_checked=0
+while IFS= read -r a; do
+  [ -n "$a" ] || continue
+  n_codex_checked=$((n_codex_checked+1))
+  assert "codex TOML docket-$a: model + effort match the sidecar" \
+    '[ "$(toml_get "$SBX/.codex/agents/docket-'"$a"'.toml" model)" = "$(hd_field "$HD" codex "'"$a"'" model)" ] &&
+     [ "$(toml_get "$SBX/.codex/agents/docket-'"$a"'.toml" model_reasoning_effort)" = "$(hd_field "$HD" codex "'"$a"'" effort)" ]'
+done < <(hd_agents "$HD" codex)
+assert "codex TOML: every shipped codex entry was checked (floor 12; got $n_codex_checked)" \
+  '[ "$n_codex_checked" -ge 12 ]'
 assert "codex TOML: has developer_instructions"    'grep -qE "^developer_instructions[[:space:]]*=" "$T"'
 assert "codex TOML: dev_instructions carry body"   'grep -qi "refresh docket state" "$T"'
 assert "codex TOML: dev_instructions name the skills to load" 'grep -qi "docket-convention" "$T"'
@@ -66,6 +89,34 @@ assert "claude side: carries the SHIPPED pin, injected not copied" \
   '[ "$(fm "$SBX/.claude/agents/docket-status.md" model)" = "claude-haiku-4-5-20251001" ] &&
    [ "$(fm "$SBX/.claude/agents/docket-status.md" effort)" = "medium" ] &&
    ! grep -qE "^(model|effort):" "$REPO/agents/docket-status.md"'
+rm -rf "$SBX"
+
+# --- user override outranks the shipped codex block, FIELD BY FIELD (spec Tier-1 property 6) -----
+# Nothing else writes an `agents.codex.<agent>` override and checks the wrapper, so before this the
+# property was carried only by the .docket.example.yml round-trip — which cannot see it (the example
+# mirrors the sidecar, so both sides of that comparison move together).
+#
+# The fixture is deliberately PARTIAL — a user model with no user effort — because that is the
+# backward-compat hazard change 0169 introduces: before the codex block shipped, such an agent got
+# NO effort line; now it silently inherits docket's shipped effort next to a model the user chose.
+# Cursor had no equivalent hazard at change 0168 (every cursor effort is `auto`, which the emitter
+# drops); Codex's efforts are real tokens that reach the harness. This assert pins that resolution
+# as INTENDED behavior and is the executable half of the upgrade warning in docs/codex/setup.md.
+SBX="$(mktemp -d)"
+git -C "$SBX" init --quiet
+git -C "$SBX" config user.email t@t.test
+git -C "$SBX" config user.name Test
+printf 'agent_harnesses: [claude, codex]\nagents:\n  codex:\n    status: { model: gpt-5.1-codex }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
+OT="$SBX/.codex/agents/docket-status.toml"
+assert "override: the wrapper carries the USER model, not the shipped one" \
+  '[ -f "$OT" ] && [ "$(toml_get "$OT" model)" = "gpt-5.1-codex" ] &&
+   [ "$(hd_field "$HD" codex status model)" != "gpt-5.1-codex" ]'
+assert "override: with no user effort, the SHIPPED codex effort is still applied (fields resolve independently)" \
+  '[ -n "$(hd_field "$HD" codex status effort)" ] &&
+   [ "$(toml_get "$OT" model_reasoning_effort)" = "$(hd_field "$HD" codex status effort)" ]'
+assert "override: an unoverridden codex agent is untouched by the partial override" \
+  '[ "$(toml_get "$SBX/.codex/agents/docket-adr.toml" model)" = "$(hd_field "$HD" codex adr model)" ]'
 rm -rf "$SBX"
 
 # --- regression: emit_codex_toml preserves a --- thematic break inside the body ---
@@ -132,8 +183,8 @@ assert "agentsmd: carries NO model id (machine-neutral)" '! grep -qE "claude-|gp
 # "Docket ships model/effort-pinned agent definitions … its pinned model and reasoning effort are
 # the whole point" — true when the wrapper sources carried pins, false since change 0168 moved the
 # default store to a harness-indexed sidecar that ships NO codex entries. The premise is derived
-# from that sidecar rather than hard-coded, so change 0169 landing a codex block retires the guard
-# by making its `if` false instead of leaving a stale assert behind.
+# from that sidecar rather than hard-coded. Change 0169 landed a complete codex block, so the
+# premise is now false and the `else` arm below asserts the post-0169 claim just as hard.
 # shellcheck source=/dev/null
 . "$REPO/scripts/lib/harness-defaults.sh"
 HD="$REPO/agents/harness-defaults.yml"
@@ -144,7 +195,29 @@ if [ "$n_codex_shipped" = "0" ]; then
   assert "agentsmd: says an unconfigured codex agent runs UNPINNED" 'grep -qi "unpinned" "$A"'
   assert "agentsmd: still requires the dispatch regardless of the pin" \
     'grep -qi "either way" "$A"'
+else
+  # Change 0169 shipped the codex block, so the premise above is false and that arm no longer runs.
+  # A guard that merely switches off leaves its NEW truth unguarded — which is exactly how the
+  # cursor dispatch head kept a stale "ships IDs for the three build profiles only" claim after
+  # change 0168 completed the cursor block. So the else arm asserts the post-0169 claim just as
+  # hard: the block must no longer call an unconfigured Codex agent unpinned, and must still
+  # require the dispatch for a reason that survives the pin.
+  assert "agentsmd: no longer claims an unconfigured codex agent runs unpinned" \
+    '! grep -qi "unpinned" "$A"'
+  assert "agentsmd: no longer promises validated IDs are still to come" \
+    '! grep -qiE "ships no validated|no validated codex|change 0169" "$A"'
+  assert "agentsmd: states the dispatch is required for reasons beyond the pin" \
+    'grep -qi "either way" "$A"'
+  assert "agentsmd: still carries NO model id (machine-neutral even now that pins exist)" \
+    '! grep -qE "claude-|gpt-|model_reasoning_effort|model[[:space:]]*=" "$A"'
 fi
+# Population floor: without this, an emptied codex block would take the else arm out of service and
+# BOTH arms would be satisfied by whichever branch happened to run. Anchored on the source glob so a
+# thirteenth wrapper does not redden it.
+n_src_codex=0
+for f in "$REPO"/agents/docket-*.md; do [ -e "$f" ] || continue; n_src_codex=$((n_src_codex+1)); done
+assert "agentsmd: the pinned-premise branch is the live one (codex ships $n_codex_shipped of $n_src_codex)" \
+  '[ "$n_codex_shipped" = "$n_src_codex" ] && [ "$n_src_codex" -ge 12 ]'
 
 # idempotent second run: byte-identical
 before="$(cat "$A")"

@@ -838,18 +838,20 @@ presence_sensitive_marker_count="$(grep -cF "PRESENCE-SENSITIVE: uncommenting th
 presence_sensitive_expected="$(printf '%s\n' $presence_sensitive_keys | grep -c .)"
 assert "PRESENCE-SENSITIVE marker count is exactly $presence_sensitive_expected, matching presence_sensitive_keys ($presence_sensitive_keys; got $presence_sensitive_marker_count; a new commented PRESENCE-SENSITIVE key must add its name to presence_sensitive_keys near the top of (2b), in the same commit as its marker comment)" \
   '[ "$presence_sensitive_marker_count" = "$presence_sensitive_expected" ]'
-# ...but the commented examples ARE present, so a user can find and enable them. `codex` is the
-# one harness docket ships NO defaults for (change 0169), so it alone sits DOUBLY commented —
-# disabled-within-disabled, an unvalidated illustration rather than a mirror. `claude` and
-# `cursor` are mirrors of the shipped sidecar and sit at the SAME single-comment level. That
-# difference is load-bearing, so assert the levels exactly rather than allowing an optional
-# layer on both: an accidental second '#' on the cursor block would silently demote a shipped
-# mirror to an illustration, which is precisely the state change 0168 was amended to fix.
-assert "codex example is doubly commented (docket ships no codex defaults)" \
-  'grep -Eq "^#[[:space:]]+#[[:space:]]*codex:[[:space:]]*$" "$EX"'
-# Both legs anchor the header at END OF LINE: prose that merely mentions `# cursor:` inside the
-# doubly-commented codex neighbourhood is not a block header, and matching it would fail this
-# assert for a comment reflow rather than for a comment-level change.
+# ...but the commented examples ARE present, so a user can find and enable them. All three shipped
+# harnesses are mirrors of the shipped sidecar and sit at the SAME single-comment level.
+#
+# Change 0169 shipped the codex block, so codex joins claude and cursor as a MIRROR and sits at the
+# same single-comment level. The doubly-commented level is asserted ABSENT rather than the assert
+# being deleted: an accidental second '#' would silently demote a shipped mirror back to an
+# illustration, which is the exact regression this pair of asserts exists to catch.
+assert "codex example is singly commented, like claude and cursor (all three mirror the sidecar)" \
+  'grep -Eq "^#[[:space:]]+codex:[[:space:]]*$" "$EX" && ! grep -Eq "^#[[:space:]]+#[[:space:]]*codex:[[:space:]]*$" "$EX"'
+assert "no doubly-commented harness block survives under agents:" \
+  '! sed -n "/^# agents:$/,/^runners:$/p" "$EX" | grep -Eq "^#[[:space:]]+#[[:space:]]*[a-z]+:[[:space:]]*$"'
+# Both legs anchor the header at END OF LINE: prose that merely mentions `# cursor:` in a
+# neighbouring comment is not a block header, and matching it would fail this assert for a comment
+# reflow rather than for a comment-level change.
 assert "cursor example is singly commented, like claude (both mirror the shipped sidecar)" \
   'grep -Eq "^#[[:space:]]+cursor:[[:space:]]*$" "$EX" && ! grep -Eq "^#[[:space:]]+#[[:space:]]*cursor:[[:space:]]*$" "$EX"'
 assert "claude example is singly commented" \
@@ -865,9 +867,9 @@ fm(){ sed -n "s/^$2:[[:space:]]*//p" "$1" | head -n1 | sed 's/[[:space:]]*$//'; 
 # shellcheck source=/dev/null
 . "$REPO/scripts/lib/harness-defaults.sh"
 HD="$REPO/agents/harness-defaults.yml"
-# Both mirrored blocks are read the SAME way, through a per-harness slice.
+# Every mirrored block is read the SAME way, through a per-harness slice.
 #
-# The slice is not decoration. `claude:` and `cursor:` now sit at the same comment level, so a
+# The slice is not decoration. All three harness blocks sit at the same comment level, so a
 # whole-file single strip makes their rows indistinguishable by key alone — every agent name
 # appears in both blocks, and a `head -n1` would silently resolve every lookup to whichever block
 # comes first in the file. That would leave the cursor legs asserting claude's values against
@@ -887,31 +889,28 @@ ex_slice_field(){ # $1=slice  $2=agent  $3=field(model|effort)
   line="${line%%$'\n'*}"
   sed -nE "s/.*[{,[:space:]]$3[[:space:]]*:[[:space:]]*([^,}[:space:]]+).*/\1/p" <<<"$line"
 }
-# Terminators are the two build-premium rows, which differ by VALUE (`claude-opus-5,` vs
-# `claude-opus-5-high`) — the only place the two blocks' text diverges enough to anchor on.
-claude_slice="$(ex_slice claude 'build-premium:.*claude-opus-5,')"
-cursor_slice="$(ex_slice cursor 'build-premium:.*claude-opus-5-high')"
-# Terminator guard: an unclosed sed range silently runs to EOF, pulling the codex rows and the
-# surrounding prose in with it, while every assert below stays green on the over-wide slice.
-# First/last line taken by parameter expansion, not `printf | head -n1`: under this file's
-# `set -o pipefail` a producer feeding an early-exiting consumer takes SIGPIPE and turns the assert
-# into an intermittent 141 (AGENTS.md, Shell).
-for h in claude cursor; do
-  eval "slice=\"\$${h}_slice\""
-  # The strip removes '#' plus at most ONE space, so a `#   claude:` header lands as `  claude:`
-  # with its block indentation intact. Trim that for the header comparison rather than stripping
-  # harder in ex_slice — the row indentation is what ex_slice_field's `^[[:space:]]*` tolerates,
-  # and flattening it here would only move the fragility.
+# Population AND terminator are both derived — from HD_SHIPPED_HARNESSES and from the sidecar's own
+# build-premium row. A literal `claude cursor codex` list here would be a fourth restatement of what
+# the shipped set already knows, and it is precisely a hand-maintained harness list that let a stale
+# claim survive elsewhere in this repo. Adding a fourth shipped harness arms these loops for free.
+#
+# Each block's terminator is its own build-premium MODEL, which is what makes the three ranges
+# independent: every agent key appears in all three blocks, so a key-only anchor would resolve every
+# lookup to whichever block came first in the file.
+ere_escape(){ sed -E 's/[][\.^$*+?(){}|]/\\&/g' <<<"$1"; }
+for h in $HD_SHIPPED_HARNESSES; do
+  bp_model="$(hd_field "$HD" "$h" build-premium model)"
+  assert "$h mirror: the sidecar supplies a build-premium model to anchor the slice on" '[ -n "$bp_model" ]'
+  slice="$(ex_slice "$h" "build-premium:.*$(ere_escape "$bp_model")")"
+  # Terminator guard: an unclosed sed range silently runs to EOF, pulling in neighbouring blocks and
+  # surrounding prose, while every assert below stays green on the over-wide slice. Pinning the
+  # slice's FIRST and LAST lines catches both over-run and under-run. First/last taken by parameter
+  # expansion, not `printf | head -n1`: under this file's `set -o pipefail` a producer feeding an
+  # early-exiting consumer takes SIGPIPE and turns the assert into an intermittent 141.
   first="${slice%%$'\n'*}"; first="${first#"${first%%[![:space:]]*}"}"
   last="${slice##*$'\n'}"
   assert "$h mirror: the $h slice was isolated and terminates at its build-premium anchor" \
     '[ -n "$slice" ] && [ "$first" = "'"$h"':" ] && grep -q "build-premium:" <<<"$last"'
-done
-# Population derived from the sidecar, never hand-listed: whatever docket ships under a harness is
-# exactly what the example must mirror, so adding a thirteenth wrapper arms these loops for it
-# automatically. The floor catches an emptied/renamed block making a loop vacuous.
-for h in claude cursor; do
-  eval "slice=\"\$${h}_slice\""
   mirrored=0
   while IFS= read -r a; do
     [ -n "$a" ] || continue
@@ -927,25 +926,21 @@ for h in claude cursor; do
   assert "$h mirror: every shipped $h entry was checked (floor 12; got $mirrored)" \
     '[ "$mirrored" -ge 12 ]'
 done
+# Floor on the POPULATION itself, not only on each block's row count: an emptied HD_SHIPPED_HARNESSES
+# would make the whole loop above run zero times with every assert trivially satisfied.
+n_shipped="$(printf '%s\n' $HD_SHIPPED_HARNESSES | grep -c .)"
+assert "mirror: at least three harnesses were mirrored (got $n_shipped)" '[ "$n_shipped" -ge 3 ]'
 
 # --- (5) RESOLVER ROUND-TRIP (retained from tests/test_config_example.sh) ----
-# Uncomment the agents: block + the cursor block and enable cursor — the example IDs must resolve
-# through the REAL resolver (sync-agents.sh) into a cursor wrapper. Proves the commented blocks
-# are valid YAML, not decorative prose.
+# Uncomment the agents: block and enable cursor + codex — the example IDs must resolve through the
+# REAL resolver (sync-agents.sh) into cursor and codex wrappers. Proves the commented blocks are
+# valid YAML, not decorative prose.
 #
 # The naive "strip a leading # from every line" approach corrupts the file: dozens of unrelated
 # prose paragraphs elsewhere also start with "#" + indentation and would get uncommented into
 # garbage right along with the agents: block. So this ISOLATES the exact commented region first
 # (unique start/end anchors, verified against this file) and transforms ONLY that slice.
 #
-# Within the slice, codex:/cursor: are DOUBLY commented (disabled inside the disabled agents:
-# block — an extra opt-in step past enabling agents: itself). Stage 1 strips one '# ' layer,
-# which uncomments agents:/claude:/its twelve children and demotes codex:/cursor: from doubly- to
-# singly-commented (still inert). Stage 2 then strips cursor:'s own remaining layer — ONLY
-# cursor's, leaving codex commented. The two stage-2 substitutions must run children-line-first:
-# both are gated by the same `/^  # cursor:/,$` range address, and once the header substitution
-# fires it consumes the '#' that the range address matches on — reordering it first would freeze
-# the range before the children ever get touched (found by testing against the real file).
 agents_block="$(sed -n '/^# agents:$/,/finalize-change:.*cursor-grok-4\.5-high-fast/p' "$EX")"
 # Guard the range's END address: if the cursor finalize-change literal ever drifts away from this
 # anchor, the sed range never closes and silently runs to EOF, swallowing the runners: block and
@@ -954,17 +949,18 @@ agents_block="$(sed -n '/^# agents:$/,/finalize-change:.*cursor-grok-4\.5-high-f
 # under-run (anchor matched somewhere earlier than intended).
 assert "round-trip: the agents slice terminates at its cursor finalize-change anchor (not EOF)" \
   '[ -n "$agents_block" ] && printf "%s\n" "$agents_block" | tail -n1 | grep -q "finalize-change:.*cursor-grok-4\.5-high-fast"'
-stage1="$(printf '%s\n' "$agents_block" | sed -E 's/^#[[:space:]]?//')"
-stage2="$(printf '%s\n' "$stage1" | sed -E \
-  -e '/^  # cursor:/,$ s/^  #   /    /' \
-  -e '/^  # cursor:/,$ s/^  # ?(cursor:)/  \1/')"
+# Since change 0169 all three harness blocks sit at the SAME single-comment level, so one strip
+# uncomments agents:, its three harness blocks, and all thirty-six rows. (Before 0169 codex and
+# cursor sat a level deeper and needed a second, block-scoped strip; that stage is gone with the
+# asymmetry it existed for.)
+stage2="$(printf '%s\n' "$agents_block" | sed -E 's/^#[[:space:]]?//')"
 # Derive the harness list from the REAL commented agent_harnesses: line (proving IT is valid too)
 # rather than hand-writing an unrelated literal, then extend it to enable cursor.
 harnesses_line="$(sed -n 's/^#[[:space:]]*\(agent_harnesses:.*\)/\1/p' "$EX" | head -n1)"
-harnesses_line="$(printf '%s' "$harnesses_line" | sed -E 's/\[claude\]/[claude, cursor]/')"
+harnesses_line="$(printf '%s' "$harnesses_line" | sed -E 's/\[claude\]/[claude, cursor, codex]/')"
 
 SB="$(mktemp -d)"; _sbs="$SB"
-mkdir -p "$SB/.claude/agents" "$SB/.cursor/agents" "$SB/.config/docket"
+mkdir -p "$SB/.claude/agents" "$SB/.cursor/agents" "$SB/.codex/agents" "$SB/.config/docket"
 {
   printf '%s\n' "$harnesses_line"
   printf '%s\n' "$stage2"
@@ -981,7 +977,78 @@ assert "round-trip: claude status model mirrors the shipped sidecar" \
 assert "round-trip: a cursor wrapper was generated" '[ -f "$SB/.cursor/agents/docket-status.md" ]'
 assert "round-trip: cursor status model came from the example block" \
   '[ "$(fm "$SB/.cursor/agents/docket-status.md" model)" = "cursor-grok-4.5-low-fast" ]'
+# Codex evidence (change 0169): the example's codex rows must survive the REAL generator into real
+# Codex TOML, which is what proves they are executable YAML rather than text that merely happens to
+# match the sidecar reader. Read from the generated wrapper, compared against the sidecar.
+#
+# Naming caveat for the whole round-trip section, cursor leg included: "came from the example block"
+# overstates what these asserts see. Both sides move together — with the example's rows gone the
+# resolver falls back to the sidecar and they still pass. They catch a VALUE drift between example
+# and sidecar, not a missing example row. Provenance is established separately, by the sentinel
+# round-trip below ("sentinel: the codex wrapper carries the EXAMPLE's value, not the sidecar's").
+CT="$SB/.codex/agents/docket-status.toml"
+assert "round-trip: a codex wrapper was generated" '[ -f "$CT" ]'
+assert "round-trip: codex status model came from the example block" \
+  '[ -n "$(hd_field "$HD" codex status model)" ] &&
+   [ "$(sed -nE "s/^model[[:space:]]*=[[:space:]]*\"(.*)\"[[:space:]]*$/\1/p" "$CT")" = "$(hd_field "$HD" codex status model)" ]'
+assert "round-trip: codex status effort came from the example block" \
+  '[ "$(sed -nE "s/^model_reasoning_effort[[:space:]]*=[[:space:]]*\"(.*)\"[[:space:]]*$/\1/p" "$CT")" = "$(hd_field "$HD" codex status effort)" ]'
+assert "round-trip: the codex build profiles resolve to their shipped ladder" \
+  '[ "$(sed -nE "s/^model[[:space:]]*=[[:space:]]*\"(.*)\"[[:space:]]*$/\1/p" "$SB/.codex/agents/docket-build-economy.toml")" = "gpt-5.6-luna" ] &&
+   [ "$(sed -nE "s/^model[[:space:]]*=[[:space:]]*\"(.*)\"[[:space:]]*$/\1/p" "$SB/.codex/agents/docket-build-standard.toml")" = "gpt-5.6-terra" ] &&
+   [ "$(sed -nE "s/^model[[:space:]]*=[[:space:]]*\"(.*)\"[[:space:]]*$/\1/p" "$SB/.codex/agents/docket-build-premium.toml")" = "gpt-5.6-sol" ]'
 rm -rf "$_sbs"
+
+# --- SENTINEL round-trip: prove the EXAMPLE's rows are what the generator consumed --------------
+# Every assert in the round-trip above compares the generated wrapper against the SIDECAR, and the
+# example mirrors the sidecar value for value — so both sides of each comparison move together and
+# the asserts cannot detect the example's rows going missing. Proved: delete all twelve codex rows
+# from .docket.example.yml and "round-trip: codex status model came from the example block" still
+# passes, because the resolver simply falls back to the sidecar. Those asserts state provenance
+# they cannot see; they are kept above (they DO catch the example drifting to a different value),
+# and this block supplies the provenance half they are missing.
+#
+# Method: rewrite ONE model value in the uncommented slice to a sentinel that exists in neither the
+# sidecar nor any other block, then assert the sentinel reaches the generated wrapper. Only the
+# example's own row can put it there. This is spec Tier-1 property 9's second clause.
+probe_slice(){ # $1 = harness key, $2 = old model literal, $3 = sentinel
+  awk -v h="$1" -v old="$2" -v new="$3" '
+    /^  [A-Za-z0-9_-]+:[[:space:]]*$/ { cur=$1; sub(/:$/,"",cur) }
+    cur==h && /^    status:/ { sub(old, new, $0) }
+    { print }'
+}
+stage2_probe="$(printf '%s\n' "$stage2" \
+  | probe_slice codex  'gpt-5\.6-luna'            'gpt-5.6-probe' \
+  | probe_slice cursor 'cursor-grok-4\.5-low-fast' 'cursor-grok-4.5-probe')"
+# Fixture sanity FIRST: a substitution that silently missed would leave every assert below vacuous
+# (the example would carry the shipped value, the wrapper would too, and nothing would notice).
+# Exactly one occurrence each, and the sentinels must be absent from the shipped sidecar so a hit
+# in the wrapper can only have come from the example.
+assert "sentinel: exactly one codex model was rewritten in the example slice" \
+  '[ "$(grep -cF "gpt-5.6-probe" <<<"$stage2_probe")" = "1" ]'
+assert "sentinel: exactly one cursor model was rewritten in the example slice" \
+  '[ "$(grep -cF "cursor-grok-4.5-probe" <<<"$stage2_probe")" = "1" ]'
+assert "sentinel: neither sentinel exists in the shipped sidecar" \
+  '! grep -qF "gpt-5.6-probe" "$HD" && ! grep -qF "cursor-grok-4.5-probe" "$HD"'
+
+SBP="$(mktemp -d)"; _sbps="$SBP"
+mkdir -p "$SBP/.claude/agents" "$SBP/.cursor/agents" "$SBP/.codex/agents" "$SBP/.config/docket"
+{
+  printf '%s\n' "$harnesses_line"
+  printf '%s\n' "$stage2_probe"
+} > "$SBP/.config/docket/config.yml"
+( cd "$SBP" && HOME="$SBP" XDG_CONFIG_HOME="$SBP/.config" DOCKET_HARNESS_ROOT="$SBP" \
+  bash "$REPO/sync-agents.sh" >/dev/null 2>&1 ); prc=$?
+assert "sentinel: sync-agents resolves the probed example (exit 0)" '[ "$prc" = "0" ]'
+assert "sentinel: the codex wrapper carries the EXAMPLE's value, not the sidecar's" \
+  '[ "$(sed -nE "s/^model[[:space:]]*=[[:space:]]*\"(.*)\"[[:space:]]*$/\1/p" "$SBP/.codex/agents/docket-status.toml")" = "gpt-5.6-probe" ]'
+assert "sentinel: the cursor wrapper carries the EXAMPLE's value, not the sidecar's" \
+  '[ "$(fm "$SBP/.cursor/agents/docket-status.md" model)" = "cursor-grok-4.5-probe" ]'
+# Unprobed rows still resolve, so the probe did not corrupt the slice into a one-row config.
+assert "sentinel: an unprobed codex row still resolves from the example" \
+  '[ -n "$(hd_field "$HD" codex build-premium model)" ] &&
+   [ "$(sed -nE "s/^model[[:space:]]*=[[:space:]]*\"(.*)\"[[:space:]]*$/\1/p" "$SBP/.codex/agents/docket-build-premium.toml")" = "$(hd_field "$HD" codex build-premium model)" ]'
+rm -rf "$_sbps"
 
 # --- (6) SCAFFOLD SHAPE: install writes runtime + pointer, never policy values
 # Why this guard exists: the old scaffold COPIED config.yml.example, so a user installed once and
