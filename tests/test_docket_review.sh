@@ -171,4 +171,25 @@ assert "finalize: the executable fragment was located (non-vacuity anchor)" \
 assert "finalize: the executable bash fragment is untouched by the skip logic" \
   '! grep -qiE "evidence|skip|head_sha" <<<"$frag"'
 
+# --- documentation + the dogfood binding ---------------------------------------------------
+RM="$REPO/README.md"
+assert "README documents the docket-review role" 'grep -qF -- "docket-review" "$RM"'
+assert "README explains why the suite lives in the build gate, not the reviewer" \
+  'grep -qiE "build gate" "$RM" && grep -qF -- "build-evidence" "$RM"'
+# The plan's assert here was `grep -qiE "once|one run" "$RM"` over the WHOLE README — vacuous
+# against a 900-line file that says "once" for a dozen unrelated reasons. Scope it to the new
+# section instead, with a non-vacuity anchor so a renamed heading reddens rather than passing on
+# an empty haystack.
+rvsec="$(awk "/^### docket-review/{f=1;next} /^### /{f=0} f" "$RM")"
+assert "README: the docket-review section was located (non-vacuity anchor)" \
+  '[ -n "$rvsec" ] && grep -qF -- "build-evidence" <<<"$rvsec"'
+assert "README states the suite-run count the change delivers" \
+  'grep -qiE "one full-suite run" <<<"$rvsec" && grep -qiE "never three" <<<"$rvsec"'
+DY="$REPO/.docket.yml"
+assert "this repo dogfoods docket-review via .docket.yml" \
+  'awk "/^skills:/{f=1;next} /^[a-z_]+:/{f=0} f" "$DY" | grep -qE "^ +review: +docket-review$"'
+# The SHIPPED default must NOT move — the example config is the cross-harness default surface.
+assert "the shipped default review binding is unchanged in the example config" \
+  'grep -qE "^ +review: +superpowers:requesting-code-review$" "$REPO/.docket.example.yml"'
+
 echo "---"; [ "$fails" -eq 0 ] && echo "PASS" || { echo "FAIL ($fails)"; exit 1; }

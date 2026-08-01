@@ -723,6 +723,34 @@ Each task carries at most one automatic escalation — an `economy` worker retri
 
 **`docket-build` ships validated model IDs for Claude Code, Cursor, and Codex.** Every shipped default lives in [`agents/harness-defaults.yml`](agents/harness-defaults.yml), indexed by harness, and all three are complete — sixteen agents each, the four build profiles and the three review rungs among them — so any of the three harnesses gets profile-routed builds with no configuration at all. Codex takes a real reasoning-effort token per agent, so its rows carry a model/effort pair where Cursor's IDs encode their variant and use `auto`. A harness docket does not yet map generates **unpinned**, letting that harness apply its own default rather than inherit an ID that means nothing there. To retune any pair, set the model yourself in a config layer — `.docket.example.yml` mirrors all three shipped blocks value for value. On Claude, `build-economy` ships Sonnet rather than Haiku deliberately: the worker contract is long and strict, and its failure modes halt the build instead of escalating. If you want a more cost-aggressive floor, set `build-economy` to `claude-haiku-4-5-20251001` in a config layer.
 
+### docket-review — the bounded whole-branch reviewer
+
+By default, the `review` role (the step in `docket-implement-next` that reads the finished branch before the PR opens) runs `superpowers:requesting-code-review`. **`docket-review` is an opt-in alternative**: one read-only reviewer contract behind three pinned rung wrappers — `docket-review-lean`, `docket-review-standard`, `docket-review-deep` — that share the contract and differ only in model and effort. The reviewer reads `git diff`, `git log`, and the tree; it never writes, never commits, never checks out, never dispatches a subagent, and never runs the test suite. It gets one shot at the rung it was dispatched at: there is no reviewer escalation ladder.
+
+Select it in any config layer:
+
+```yaml
+skills:
+  review: docket-review
+```
+
+The rung is chosen **deterministically as one above the build** — not by model judgment. `docket-implement-next` takes the highest profile any task routed or escalated to and maps `economy` to lean, `standard` to standard, and `premium` or `max` to deep; a whole-branch diff of more than 1500 changed lines bumps the rung one step, capped at deep. The reason a cheap build gets a cheap review is that the build's own routing already answered how hard the work was, and the diff-size bump is the one signal independent of that self-assessment.
+
+Findings come back severity-tiered, and each tier has a fixed destination: a **blocker** is fixed before the PR opens, as a synthetic task through the same `docket-build-task` contract that wrote the code; **important** and **minor** findings go into the PR body for merge-time judgment; and anything that is distinct follow-up work rather than this change's own defect becomes an auto-captured stub. The reviewer returns the finding list and a one-line verdict — nothing else, no prose report.
+
+**Why the full suite runs in the build gate and not inside the reviewer.** Four reasons, and they compound:
+
+- The suite answers the *build's* question — "does what I assembled actually work together?" — while review asks a different one: "is this good?" Putting the first question inside the second confuses two jobs.
+- The repair machinery already lives on the build side. A suite inside a reviewer forbidden to fix anything would have to hand its failures back out and re-enter build machinery, recreating exactly the build → review → build loop this design exists to kill.
+- Gate-first ordering is cheaper on failure. A red suite discovered *after* an expensive whole-branch read has already wasted the read; discovered before, it costs one build task.
+- The evidence chain then follows naturally, because the thing that last mutated the branch is the thing that certifies it.
+
+The mental model: **the suite is the boundary between build and review**, owned by the side that can fix a failure. It works like CI status checks on a pull request — the check runs on the branch as it lands, and the reviewer is the human-style reader who reads the diff and trusts the green check rather than re-running it.
+
+That boundary is made durable by a **build-evidence** record: on green, `docket-build`'s gate emits the command it ran, the result, the head SHA, and a timestamp; the reviewer verifies the record is present, green, and pinned to the exact HEAD it is reviewing, and returns an `unverified-build-state` blocker if it is missing, malformed, or stale — running the suite itself is never the remedy. `docket-implement-next` writes that record into the PR body inside `docket:build-evidence` markers, and `docket-finalize-change` reads it there: when the pre-merge rebase is a no-op and the evidence is green at the exact SHA being merged, the post-rebase suite run is skipped and the skip is logged; any doubt runs the suite. The arithmetic that falls out is **one full-suite run on the clean path, two in the worst case (a rebase that actually moved the branch), and never three** — where the previous shape could run it in the build, again inside the review loop, and again at finalize.
+
+The binding posture is deliberately asymmetric. The **shipped cross-harness default stays `superpowers:requesting-code-review`** — `.docket.example.yml` is unchanged, so nobody inherits this by upgrading. This repository dogfoods it by opting in through its own committed `.docket.yml`, and opting back out anywhere is one line: `skills: review: superpowers:requesting-code-review`. As with `docket-build`, opting in means re-running `install.sh` and starting a fresh session, since the three rung wrappers are generated by the installer and every harness registers agent definitions only at process start.
+
 ### Runner delegation — running docket agents on another harness
 
 Docket agents normally run on the harness hosting your session. **Runner delegation** hands an
