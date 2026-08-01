@@ -66,12 +66,12 @@ key and **no** `skills:` key; the skills the agent needs appear as a preamble in
 `.cursor/rules/docket-dispatch.mdc` exists.
 
 The `model:` key is present only where a model resolves. Docket's shipped
-`agents/harness-defaults.yml` maps Cursor for **all twelve wrappers**, so with no Cursor `agents:`
+`agents/harness-defaults.yml` maps Cursor for **all thirteen wrappers**, so with no Cursor `agents:`
 config of your own, every file carries a `model:` line holding the Cursor ID that harness-defaults
 ships for it.
 
 A **Claude** model ID appearing in a Cursor wrapper is the cross-harness leak this design removed;
-treat it as a defect, not a default. The one deliberate exception is `docket-build-premium`, whose
+treat it as a defect, not a default. The one deliberate exception is `docket-build-max`, whose
 shipped Cursor ID *is* `claude-opus-5-high` — that is Cursor's own name for the model, selected
 through Cursor, not a leaked Claude Code pin. A **missing** `model:` line is also a defect now:
 before this change nine wrappers shipped unpinned, and that is no longer the design.
@@ -125,15 +125,15 @@ Cursor.
 
 ### Phase 7 — Profile-routed build under Cursor (required when `skills.build: docket-build`)
 
-Docket ships Cursor model IDs for every wrapper, the three build profiles among them, so a Cursor
+Docket ships Cursor model IDs for every wrapper, the four build profiles among them, so a Cursor
 repo can run a profile-routed build with no configuration. That routing is what these checks certify; none of them
 can be run by an autonomous build, and `cursor-agent` is not an accepted substitute.
 
-Run a real `docket-build` on a plan with at least three tasks, in the Cursor IDE:
+Run a real `docket-build` on a plan with at least four tasks, in the Cursor IDE:
 
-1. **Explicit routing, all three profiles.** A task carrying `**Build profile:** economy` lands on
-   `docket-build-economy`; likewise `standard` and `premium` on their own workers. Observable
-   outcome: three dispatches, three distinct agent names, each child reporting the Cursor model its
+1. **Explicit routing, all four profiles.** A task carrying `**Build profile:** low` lands on
+   `docket-build-low`; likewise `medium`, `high`, and `max` on their own workers. Observable
+   outcome: four dispatches, four distinct agent names, each child reporting the Cursor model its
    wrapper resolved — not the session model, and not a Claude ID.
 2. **One auto-classified task.** A task with no `**Build profile:**` line is routed by the
    classifier. Observable outcome: the controller names the profile it chose and why, and the child
