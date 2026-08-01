@@ -108,6 +108,14 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # of 5 is 100, but 4 lines of margin is the near-zero mode this block warns about at a file this
 # short, so the multiple after was taken (105), matching the docket-build-task precedent; 746 words
 # -> 750 is within the 25-word threshold, so the multiple after: 800 (54 words of margin).
+# skills/docket-convention/SKILL.md's WORD budget was raised 6300 -> 6350 by change 0170's rung
+# wrappers. The roster grew thirteen -> sixteen, so the *Agent layer* opening now enumerates a
+# seventh wrapped skill (`docket-review`, shared by its three rung wrappers), the convention-
+# injection clause names an exception set of eight rather than the four it claimed while listing
+# five, and the *Composition* tally gains the review rungs as their own class. All three are count
+# prose the suite asserts on, so they have no other home. Set per the rounding rule above from the
+# measured actual: 6301 words -> the next multiple of 50 is 6350 (49 words of margin). The LINE
+# budget was not raised (361 actual, 365 budget) — every edit reflowed inside an existing line.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -115,7 +123,7 @@ skills/docket-auto-groom/SKILL.md                           66 1237
 skills/docket-brainstorm/SKILL.md                           84  692
 skills/docket-build/SKILL.md                               250 2350
 skills/docket-build-task/SKILL.md                          115 1000
-skills/docket-convention/SKILL.md                          365 6300
+skills/docket-convention/SKILL.md                          365 6350
 skills/docket-convention/github-board-mirror.md             19  462
 skills/docket-convention/references/agent-layer.md         175 2000
 skills/docket-convention/references/learnings.md            84  580

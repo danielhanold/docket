@@ -52,8 +52,8 @@ HD="$REPO/agents/harness-defaults.yml"
 n_src=0
 for f in "$REPO"/agents/docket-*.md; do [ -e "$f" ] || continue; n_src=$((n_src+1)); done
 n_cursor_pinned="$(hd_agents "$HD" cursor | grep -c . || true)"
-assert "head: sidecar population floor (>=13 sources, >=1 shipped cursor pin) — the premise below is not vacuous" \
-  '[ "$n_src" -ge 13 ] && [ "$n_cursor_pinned" -ge 1 ]'
+assert "head: sidecar population floor (>=16 sources, >=1 shipped cursor pin) — the premise below is not vacuous" \
+  '[ "$n_src" -ge 16 ] && [ "$n_cursor_pinned" -ge 1 ]'
 if [ "$n_cursor_pinned" -lt "$n_src" ]; then
   assert "head: makes no blanket 'ships model/effort-pinned wrappers' claim ($n_cursor_pinned of $n_src cursor wrappers carry a shipped pin)" \
     '! grep -qiE "ships model/effort-pinned" "$HEAD"'
@@ -71,17 +71,18 @@ else
     'grep -qF "docket-build-max" <<<"$head_plain"'
 fi
 
-# Population derived by glob, with a floor. Thirteen built-in agents ship fragments today, and the
-# floor is that same 13 (raised from 9 by change 0167, which added the three docket-build profile
-# agents — a floor of 9 would have tolerated deleting all three fragments; raised again to 13 by
-# change 0184, which added the fourth build profile): adding a fourteenth agent does not redden,
+# Population derived by glob, with a floor. Sixteen built-in agents ship fragments today, and the
+# floor is that same 16 (raised from 9 by change 0167, which added the three docket-build profile
+# agents — a floor of 9 would have tolerated deleting all three fragments; raised to 13 by
+# change 0184, which added the fourth build profile; raised again to 16 by change 0170, which added
+# the three docket-review rung wrappers): adding a seventeenth agent does not redden,
 # while a vanished/renamed directory or a dropped fragment does.
 frags=""; n=0
 for f in "$REPO"/cursor-rules/dispatch/docket-*.md; do
   [ -e "$f" ] || continue
   frags="$frags $f"; n=$((n+1))
 done
-assert "fragments: population floor reached (>= 13 found)" '[ "$n" -ge 13 ]'
+assert "fragments: population floor reached (>= 16 found)" '[ "$n" -ge 16 ]'
 
 for f in $frags; do
   b="$(basename "$f")"
