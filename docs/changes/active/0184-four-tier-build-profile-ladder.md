@@ -12,12 +12,12 @@ related: [44, 167, 168, 169]
 discovered_from: []
 adrs: [15, 16, 63]
 spec: docs/superpowers/specs/2026-08-01-four-tier-build-profiles-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-01-four-tier-build-profile-ladder.md
 results:
 trivial: false
 auto_groomable:
 branch: feat/four-tier-build-profile-ladder
-claimed_at: 2026-08-01T12:10:58Z
+claimed_at: 2026-08-01T12:21:05Z
 pr:
 blocked_by:
 reconciled: true
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-01-four-tier-build-profiles-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-01-four-tier-build-profiles-design.md) |
+| Plan | [2026-08-01-four-tier-build-profile-ladder.md](https://github.com/danielhanold/docket/blob/feat/four-tier-build-profile-ladder/docs/superpowers/plans/2026-08-01-four-tier-build-profile-ladder.md) |
 | ADRs | [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md), [ADR-0016](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0016-harness-first-agent-config.md), [ADR-0063](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0063-docket-owns-the-build-role-profile-routed-workers.md) |
 <!-- docket:artifacts:end -->
 
