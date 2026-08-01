@@ -2,7 +2,7 @@
 id: 170
 slug: lean-whole-branch-review-skill
 title: Lean Docket-owned whole-branch review skill
-status: in-progress
+status: implemented
 priority: medium
 type: feat
 created: 2026-07-30
@@ -13,12 +13,12 @@ discovered_from: [167]
 adrs: [66]
 spec: docs/superpowers/specs/2026-08-01-lean-whole-branch-review-skill-design.md
 plan: docs/superpowers/plans/2026-08-01-lean-whole-branch-review-skill.md
-results:
+results: docs/results/2026-08-01-lean-whole-branch-review-skill-results.md
 trivial: false
 auto_groomable:
 branch: feat/lean-whole-branch-review-skill
-claimed_at: 2026-08-01T19:28:40Z
-pr:
+claimed_at: 2026-08-01T21:28:26Z
+pr: https://github.com/danielhanold/docket/pull/149
 blocked_by:
 reconciled: true
 ---
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-01-lean-whole-branch-review-skill-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-01-lean-whole-branch-review-skill-design.md) |
 | Plan | [2026-08-01-lean-whole-branch-review-skill.md](https://github.com/danielhanold/docket/blob/feat/lean-whole-branch-review-skill/docs/superpowers/plans/2026-08-01-lean-whole-branch-review-skill.md) |
+| Results | [2026-08-01-lean-whole-branch-review-skill-results.md](https://github.com/danielhanold/docket/blob/feat/lean-whole-branch-review-skill/docs/results/2026-08-01-lean-whole-branch-review-skill-results.md) |
+| PR | [#149](https://github.com/danielhanold/docket/pull/149) |
 | ADRs | [ADR-0066](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0066-docket-owns-the-review-role-suite-runs-in-the-build-gate.md) |
 <!-- docket:artifacts:end -->
 
