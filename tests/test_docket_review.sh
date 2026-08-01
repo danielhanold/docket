@@ -143,4 +143,32 @@ assert "controller: Step 7 writes the evidence block into the PR body" \
 assert "controller: the review role keeps its Tier C dispatch paragraph" \
   'grep -qF -- "resolved review skill" "$IMPL"'
 
+# --- the build-evidence chain: finalize (consumer #2) --------------------------------------
+FIN="$REPO/skills/docket-finalize-change/SKILL.md"
+assert "finalize: reads the PR body's build-evidence block" \
+  'grep -qF -- "build-evidence" "$FIN"'
+# All three skip conditions must be stated; any one missing turns "fails toward running" into
+# "fails toward merging an untested branch".
+assert "finalize: skip requires a no-op rebase" \
+  'grep -qiE "no-op rebase|rebase was a no-op" "$FIN"'
+assert "finalize: skip requires result green" 'grep -qF -- "result: green" "$FIN"'
+assert "finalize: skip requires the head_sha to match the branch HEAD" \
+  'grep -qF -- "head_sha" "$FIN"'
+# The posture is the safety property, not a nicety.
+assert "finalize: any doubt runs the suite (fails toward running)" \
+  'grep -qiE "fails? toward running|any doubt .{0,40}runs" "$FIN"'
+assert "finalize: a skip is logged so the decision is auditable" \
+  'grep -qiE "log.{0,60}skip|skip .{0,40}logged" "$FIN"'
+assert "finalize: only the local gate path is affected" \
+  'grep -qE "\`ci\`.{0,60}untouched|untouched.{0,60}\`ci\`" "$FIN"'
+# The skip must NOT live inside the executable fragment, which the suite runs verbatim.
+frag="$(awk "/configured-bash-finalize:start/{f=1;next} /configured-bash-finalize:end/{f=0} f" "$FIN")"
+# Non-vacuity anchor, deliberately paired with the purity assert below: an awk range over a renamed
+# or deleted marker yields an EMPTY haystack, and a negated grep over nothing is permanently green.
+# Anchoring on the fragment's own control variable proves the extraction found the real fragment.
+assert "finalize: the executable fragment was located (non-vacuity anchor)" \
+  '[ -n "$frag" ] && grep -qF -- "FINALIZE_TEST_COMMAND" <<<"$frag"'
+assert "finalize: the executable bash fragment is untouched by the skip logic" \
+  '! grep -qiE "evidence|skip|head_sha" <<<"$frag"'
+
 echo "---"; [ "$fails" -eq 0 ] && echo "PASS" || { echo "FAIL ($fails)"; exit 1; }
