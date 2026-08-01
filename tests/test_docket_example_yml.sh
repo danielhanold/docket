@@ -998,7 +998,7 @@ assert "round-trip: codex status model came from the example block" \
 assert "round-trip: codex status effort came from the example block" \
   '[ "$(sed -nE "s/^model_reasoning_effort[[:space:]]*=[[:space:]]*\"(.*)\"[[:space:]]*$/\1/p" "$CT")" = "$(hd_field "$HD" codex status effort)" ]'
 # The four-rung codex ladder (change 0184), read off the generated wrappers' new filenames. Sol is
-# expected at BOTH high and max: on codex the model/effort PAIR is the role, so two rungs sharing a
+# expected at BOTH premium and max: on codex the model/effort PAIR is the role, so two rungs sharing a
 # model is deliberate, not a copy-paste. Pair distinctness is asserted in tests/test_docket_build.sh;
 # this leg only proves the example's ladder survives the real generator into real Codex TOML.
 assert "round-trip: the codex build profiles resolve to their shipped ladder" \
