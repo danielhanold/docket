@@ -78,15 +78,15 @@ assert "cursor: wrapper body survives verbatim"            'grep -qi "refresh do
 # Each sidecar ID is a COMPLETE Cursor built-in whose variant is already encoded, so its effort is
 # `auto` and the emitter must write the ID verbatim rather than appending a second, conflicting
 # [effort=…] suffix on top of the one already baked into the name.
-assert "cursor: build-low carries its shipped Cursor ID, no effort suffix" \
-  '[ "$(fm "$SBX/.cursor/agents/docket-build-low.md" model)" = "cursor-grok-4.5-low" ]'
-assert "cursor: build-medium carries its shipped Cursor ID, no effort suffix" \
-  '[ "$(fm "$SBX/.cursor/agents/docket-build-medium.md" model)" = "cursor-grok-4.5-medium" ]'
-assert "cursor: build-high carries its shipped Cursor ID, no effort suffix" \
-  '[ "$(fm "$SBX/.cursor/agents/docket-build-high.md" model)" = "cursor-grok-4.5-high" ]'
+assert "cursor: build-economy carries its shipped Cursor ID, no effort suffix" \
+  '[ "$(fm "$SBX/.cursor/agents/docket-build-economy.md" model)" = "cursor-grok-4.5-low" ]'
+assert "cursor: build-standard carries its shipped Cursor ID, no effort suffix" \
+  '[ "$(fm "$SBX/.cursor/agents/docket-build-standard.md" model)" = "cursor-grok-4.5-medium" ]'
+assert "cursor: build-premium carries its shipped Cursor ID, no effort suffix" \
+  '[ "$(fm "$SBX/.cursor/agents/docket-build-premium.md" model)" = "cursor-grok-4.5-high" ]'
 assert "cursor: build-max carries its shipped Cursor ID, no effort suffix" \
   '[ "$(fm "$SBX/.cursor/agents/docket-build-max.md" model)" = "claude-opus-5-high" ]'
-for p in low medium high max; do
+for p in economy standard premium max; do
   assert "cursor: build-$p emits no standalone effort: key" \
     '! has_fm_key "$SBX/.cursor/agents/docket-build-'"$p"'.md" effort'
   assert "cursor: build-$p model has no appended [effort=…] suffix" \
@@ -94,7 +94,7 @@ for p in low medium high max; do
 done
 # The four profiles must be four DISTINCT Cursor models — the Cursor ladder varies by model where
 # the Claude ladder varies by effort, so a copy-paste that collapses them is the failure to catch.
-cursor_profile_models="$(for p in low medium high max; do fm "$SBX/.cursor/agents/docket-build-$p.md" model; done)"
+cursor_profile_models="$(for p in economy standard premium max; do fm "$SBX/.cursor/agents/docket-build-$p.md" model; done)"
 assert "cursor: the four build profiles carry four DISTINCT models" \
   '[ "$(grep -c . <<<"$cursor_profile_models")" = "4" ] &&
    [ "$(sort -u <<<"$cursor_profile_models" | grep -c .)" = "4" ]'
