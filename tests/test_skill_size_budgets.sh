@@ -125,6 +125,17 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # summary or a pointer to a reference file would leave the producer free to drift from the readers.
 # Set per the rounding rule above from the measured actuals: 262 lines -> 265, 2414 words -> 2450
 # (36 words of margin).
+# skills/docket-implement-next/SKILL.md's WORD budget was raised 3500 -> 3900 by change 0170, which
+# gave Step 6 the three things the review role cannot infer: the build-evidence validation (present,
+# green, `head_sha` at HEAD, else re-run the suite once), the deterministic rung selection (the
+# build's highest routed-or-escalated profile, one step up past 1500 changed lines, capped at deep),
+# and the severity triage (blockers through the `docket-build-task` ladder plus one suite re-run,
+# important/minor to the PR body, no re-review round). Step 7 gained the marker-bounded evidence
+# block that `docket-finalize-change` reads. Every one of those is a rule another agent executes
+# verbatim, so none of it compresses into a pointer. Set per the rounding rule above from the
+# measured actual: 3839 words -> the next multiple of 50 is 3850, within the 25-word threshold, so
+# the multiple after: 3900 (61 words of margin). The LINE budget was not raised (143 actual, 147
+# budget) — the new prose is four paragraphs inside the existing 147-line ceiling.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -139,7 +150,7 @@ skills/docket-convention/references/learnings.md            84  580
 skills/docket-convention/references/terminal-close-out.md  173 1458
 skills/docket-finalize-change/SKILL.md                     193 4200
 skills/docket-groom-next/SKILL.md                           77 1484
-skills/docket-implement-next/SKILL.md                      147 3500
+skills/docket-implement-next/SKILL.md                      147 3900
 skills/docket-implement-next/results-template.md            24  172
 skills/docket-review/SKILL.md                              105  800
 skills/docket-new-change/SKILL.md                           61 1330

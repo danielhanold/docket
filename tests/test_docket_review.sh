@@ -110,4 +110,37 @@ assert "producer: the gate section itself emits the evidence (not just a definit
 assert "producer: a red suite mints no evidence record" \
   'grep -qiE "red .{0,60}(never|no) .{0,30}evidence|evidence .{0,40}only .{0,20}green" "$BUILD"'
 
+# --- the build-evidence chain: controller (consumer #1) ------------------------------------
+IMPL="$REPO/skills/docket-implement-next/SKILL.md"
+step6="$(awk "/^### Step 6 — Review/{f=1;next} /^### Step 6.5/{f=0} f" "$IMPL")"
+assert "controller: Step 6 was located (non-vacuity anchor)" '[ -n "$step6" ]'
+assert "controller: Step 6 validates the evidence before dispatching review" \
+  'grep -qF -- "build-evidence" <<<"$step6"'
+assert "controller: uncertified evidence re-runs the gate rather than reviewing blind" \
+  'grep -qiE "re-run.{0,40}(gate|suite)" <<<"$step6"'
+# Subshell, deliberately: `assert` runs its expression through `eval` in the CURRENT shell, so a
+# bare `exit 1` inside the loop would terminate the whole test run at the first missing rung
+# instead of recording one FAIL and continuing — every later assert would go unreported (observed
+# while watching this section fail). The `( … )` keeps the loop's semantics and confines the exit.
+assert "controller: names all three reviewer rungs" \
+  '( for r in lean standard deep; do grep -qF -- "docket-review-$r" <<<"$step6" || exit 1; done )'
+assert "controller: rung selection is deterministic, from the build's highest profile" \
+  'grep -qiE "highest .{0,40}profile" <<<"$step6"'
+assert "controller: blockers route through the docket-build-task contract" \
+  'grep -qF -- "docket-build-task" <<<"$step6"'
+assert "controller: important/minor findings go to the PR body, never auto-fixed" \
+  'grep -qE "important" <<<"$step6" && grep -qiE "PR body" <<<"$step6"'
+assert "controller: no re-review round after fixes" \
+  'grep -qiE "no re-review|never re-review" <<<"$step6"'
+assert "controller: a red re-run halts" 'grep -qiE "red .{0,40}halt|halt" <<<"$step6"'
+
+step7="$(awk "/^### Step 7 — PR/{f=1;next} /^### Terminal disposition/{f=0} f" "$IMPL")"
+assert "controller: Step 7 was located (non-vacuity anchor)" '[ -n "$step7" ]'
+assert "controller: Step 7 writes the evidence block into the PR body" \
+  'grep -qF -- "docket:build-evidence:start" <<<"$step7"'
+
+# The Tier C review site must survive untouched — this change adds rungs, not a new posture.
+assert "controller: the review role keeps its Tier C dispatch paragraph" \
+  'grep -qF -- "resolved review skill" "$IMPL"'
+
 echo "---"; [ "$fails" -eq 0 ] && echo "PASS" || { echo "FAIL ($fails)"; exit 1; }

@@ -118,7 +118,7 @@ docket's five workflow steps are **pluggable roles**: the optional `skills:` map
 | brainstorm | `superpowers:brainstorming` | `docket-new-change` §2, `docket-groom-next` | a spec file at the configured spec path; stop at the spec |
 | plan | `superpowers:writing-plans` | `docket-implement-next` §4 | a plan file on the feature branch, recorded in `plan:` |
 | build | `superpowers:subagent-driven-development` | `docket-implement-next` §5 | the plan executed on the feature branch |
-| review | `superpowers:requesting-code-review` | `docket-implement-next` §6 | a whole-branch review before the PR opens |
+| review | `superpowers:requesting-code-review` | `docket-implement-next` §6 | a whole-branch review before the PR opens, over a branch whose build evidence is green |
 | finish | `superpowers:finishing-a-development-branch` | `docket-implement-next` §7; `docket-finalize-change` close-out | a pushed feature branch + open PR — never merged; stop |
 
 - **Passthrough.** A value is passed verbatim to the Skill tool — never validated against a registry (ADR-0015); any third-party or in-repo skill plugs in. Unknown *role keys* are warned-and-ignored.
