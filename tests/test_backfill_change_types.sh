@@ -200,7 +200,9 @@ rb3="$(cat "$drb/active/0003-c.md")"; rb4="$(cat "$drb/active/0004-d.md")"
 rbarc="$(arc_hash "$drb")"
 if chflags uchg "$drb/active/0002-b.md" 2>/dev/null; then
   # Clear the flag before the tree is removed, however this script exits.
-  trap 'chflags -R nouchg "$drb" 2>/dev/null; rm -rf "$tmp"' EXIT
+  # Scoped to $tmp, not $drb: the pty scenario below adds a SECOND fixture with its own immutable
+  # file, and a flag left set anywhere under $tmp makes the rm fail and leaks an undeletable dir.
+  trap 'chflags -R nouchg "$tmp" 2>/dev/null; rm -rf "$tmp"' EXIT
   rberr="$(TMPDIR="$drb/tmpdir" bash "$SCRIPT" --changes-dir "$drb" \
              --map "1=fix,2=docs,4=chore" 2>&1 >/dev/null)"
   rbrc=$?
@@ -238,6 +240,65 @@ n_install="$(awk '/[[:space:]]mv[[:space:]]/ && /CHANGES_DIR\/active\/\$base/{c+
 assert "sentinel: exactly one mv install call site exists to check" '[ "$n_install" -eq 1 ]'
 assert "sentinel: the install call site passes mv -f (cannot prompt on a tty)" \
   'grep -q -F -- "mv -f " <<<"$install_call"'
+
+# --- install-phase rollback, UNDER A PTY -------------------------------------
+# The rollback block above is honest only where stdin is NOT a terminal. Under a pty a bare `mv`
+# self-answers its override prompt `n` and exits 0, so the script installs nothing, never rolls
+# back, and reports success — the assertions above would all still pass on the pre-fix code. This
+# block re-runs the same scenario with a terminal attached so that path cannot come back.
+
+# Resolve a script(1) flavor by PROBING it for exit-status fidelity rather than sniffing uname:
+# util-linux's `script` exits with its OWN status unless `-e` is passed, which would make every
+# exit-status assertion under it pass vacuously. A flavor that cannot report `exit 7` as 7 is not
+# used at all.
+PTY_FLAVOR=""
+pty_probe(){
+  command -v script >/dev/null 2>&1 || return 1
+  script -q /dev/null /bin/sh -c 'exit 7' </dev/null >/dev/null 2>&1
+  if [ "$?" -eq 7 ]; then PTY_FLAVOR=bsd; return 0; fi
+  script -q -e -c 'exit 7' /dev/null </dev/null >/dev/null 2>&1
+  if [ "$?" -eq 7 ]; then PTY_FLAVOR=gnu; return 0; fi
+  return 1
+}
+# pty_run <cmd> [args...] — CMD under a pseudo-terminal. stdin comes from /dev/null at THIS call
+# site (never at the runner level): `script` forwards its own stdin to the child pty, so without the
+# redirect a regression to bare `mv` would block on the override prompt forever — the guard would
+# reintroduce, in committed test code, the exact hang it exists to prevent. With EOF the regression
+# fails loudly and deterministically instead. Both child streams land on the pty and come back on
+# script's STDOUT, so callers capture stdout and strip the CRs the line discipline adds.
+pty_run(){
+  case "$PTY_FLAVOR" in
+    bsd) script -q /dev/null "$@" </dev/null 2>/dev/null ;;
+    gnu) script -q -e -c "$(printf '%q ' "$@")" /dev/null </dev/null 2>/dev/null ;;
+    *)   return 127 ;;
+  esac
+}
+
+drb2="$tmp/rollback-pty"; mkfix "$drb2"; mkdir -p "$drb2/tmpdir"
+pb1="$(cat "$drb2/active/0001-a.md")"; pb2="$(cat "$drb2/active/0002-b.md")"
+pb4="$(cat "$drb2/active/0004-d.md")"; pbarc="$(arc_hash "$drb2")"
+if pty_probe && chflags uchg "$drb2/active/0002-b.md" 2>/dev/null; then
+  praw="$(pty_run env TMPDIR="$drb2/tmpdir" bash "$SCRIPT" \
+            --changes-dir "$drb2" --map "1=fix,2=docs,4=chore")"
+  pbrc=$?
+  perr="$(tr -d '\r' <<<"$praw")"
+  chflags nouchg "$drb2/active/0002-b.md" 2>/dev/null
+  assert "pty: a mid-install failure exits non-zero WITH a terminal attached" '[ "$pbrc" -ne 0 ]'
+  assert "pty: the install did not silently decline the overwrite" \
+    '! grep -q "not overwritten" <<<"$perr"'
+  assert "pty: the failure names the file and says it rolled back" \
+    'grep -q "install failed for 0002-b.md" <<<"$perr" && grep -q "rolled back" <<<"$perr"'
+  assert "pty: the file installed BEFORE the failure is restored to its pre-run bytes" \
+    '[ "$(cat "$drb2/active/0001-a.md")" = "$pb1" ]'
+  assert "pty: the file the install failed ON is unchanged" \
+    '[ "$(cat "$drb2/active/0002-b.md")" = "$pb2" ]'
+  assert "pty: the files AFTER the failure are unchanged" \
+    '[ "$(cat "$drb2/active/0004-d.md")" = "$pb4" ]'
+  assert "pty: the archive is byte-identical" '[ "$(arc_hash "$drb2")" = "$pbarc" ]'
+else
+  # Matches the idiom the surrounding chflags guard already uses.
+  echo "skip - pty: no exit-status-faithful script(1), or cannot make a destination unwritable here"
+fi
 
 # --- dry run -----------------------------------------------------------------
 d3="$tmp/dry"; mkfix "$d3"; snap3="$(cat "$d3/active/0001-a.md")"
