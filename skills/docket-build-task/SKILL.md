@@ -103,7 +103,7 @@ records.
 
 ```text
 OUTCOME: COMPLETE | NEEDS_ESCALATION | BLOCKED
-PROFILE: <economy|standard|premium> — <one-line routing reason as given to you>
+PROFILE: <low|medium|high|max> — <one-line routing reason as given to you>
 VERIFICATION: <the focused command you ran> -> <result>
 TDD: <RED/GREEN evidence, or the three-part exception: why unsuitable / what replaced it / residual risk>
 COMMIT: <sha — every sha, if the task text prescribed more than one — or "none" for a non-COMPLETE outcome>
