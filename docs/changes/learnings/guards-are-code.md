@@ -2,9 +2,9 @@
 slug: guards-are-code
 hook: "A guard is code — mutation-test it (strip the feature, watch it go red) or it is decoration."
 topics: [testing, sentinels, mutation]
-changes: [14, 15, 21, 36, 37, 64, 65, 67, 68, 69, 70, 71, 72, 73, 74, 83, 84, 88, 91, 96, 101, 102, 106, 107, 111, 116, 126]
+changes: [14, 15, 21, 36, 37, 64, 65, 67, 68, 69, 70, 71, 72, 73, 74, 83, 84, 88, 91, 96, 101, 102, 106, 107, 111, 116, 126, 169]
 created: 2026-06-17
-updated: 2026-07-28
+updated: 2026-08-01
 promotion_state: promoted
 promoted_to: AGENTS.md
 ---
@@ -276,3 +276,9 @@ lib. A snippet the PLAN hands you is unvetted code: mutation-test it like any as
   and a *partial* key rename can still slip under it. Note also that two prior human reviews
   hand-counted 64 and 65 sites; the disagreement is why the population is derived at runtime and
   cross-checked against a **structurally different** extractor rather than hardcoded.
+- 2026-08-01 (#169, PR #143 — merged) — Four self-cancelling assertions surfaced during the
+  Codex-profile review. Two compared output whose expected side was derived from the same sidecar or
+  fallback chain as the producer, so deleting the configured rows left them green; another pure
+  negative assert passed when validation aborted before output existed. The fixes added independent
+  sentinels and positive success/output checks, then mutation-tested each. A green assertion that
+  shares its source of truth with the code it claims to validate is not evidence of coverage.
