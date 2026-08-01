@@ -12,7 +12,7 @@ related: [134, 150, 178]
 discovered_from: [185]
 adrs: []
 spec: docs/superpowers/specs/2026-08-01-bare-mv-prompts-on-a-tty-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-01-bare-mv-prompts-on-a-tty.md
 results:
 trivial: false
 auto_groomable: true
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-01-bare-mv-prompts-on-a-tty-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-01-bare-mv-prompts-on-a-tty-design.md) |
+| Plan | [2026-08-01-bare-mv-prompts-on-a-tty.md](https://github.com/danielhanold/docket/blob/feat/bare-mv-prompts-on-a-tty-backfill-change-types-hangs-the-sui/docs/superpowers/plans/2026-08-01-bare-mv-prompts-on-a-tty.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
