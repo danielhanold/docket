@@ -2,9 +2,9 @@
 slug: green-suite-untested-branch
 hook: "Green tests are not proof the hard branch was exercised — a mock that omits the tool routes every test through the degrade path."
 topics: [testing, fixtures, mocks]
-changes: [16, 22, 25, 26, 35, 58, 62, 69, 91, 93, 117, 126]
+changes: [16, 22, 25, 26, 35, 58, 62, 69, 91, 93, 117, 126, 186]
 created: 2026-07-11
-updated: 2026-07-28
+updated: 2026-08-01
 promotion_state: retained
 promoted_to:
 ---
@@ -83,3 +83,11 @@ was exercised.
   own status rather than the suite's ok/notok deltas; and the site the stub originally named was
   the wrong one to demonstrate at — where the previous fixture happens to leave a *differing*
   value, the hazard is real but latent and the assert reddens honestly.
+- 2026-08-01 (#186, PR #148 — merged) — **The environment, not the fixture, was the missing branch.**
+  A rollback test forced a mid-loop install failure with `chflags uchg` and asserted the undo path;
+  it passed for months. It passed only because nothing that ran it had a tty — BSD `mv` prompts on an
+  unwritable destination, so on a terminal the test hangs and in a pipe it takes a *different* failure
+  path than the one a real user hits (a silent zero-exit decline). Agent shells and the finalize gate
+  are both tty-less, so no runner could tell the two apart. When a fixture's premise is "this
+  operation will fail", check whether the *runner's* environment decides HOW it fails; cover the case
+  under a pty (`script(1)`) rather than trusting the color of a non-interactive run.
