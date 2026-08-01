@@ -136,6 +136,16 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # measured actual: 3839 words -> the next multiple of 50 is 3850, within the 25-word threshold, so
 # the multiple after: 3900 (61 words of margin). The LINE budget was not raised (143 actual, 147
 # budget) — the new prose is four paragraphs inside the existing 147-line ceiling.
+# docket-finalize-change/SKILL.md's WORD budget was raised 4200 -> 4350 by change 0170, which gave
+# the rebase-retest gate a conditional skip of its post-rebase LOCAL suite run. The growth is one
+# numbered flow item, and it is all predicate: the skip is admissible only on the conjunction of a
+# no-op rebase, a parseable `docket:build-evidence` block with `result: green`, and a `head_sha`
+# equal to the branch HEAD being merged — plus the fail-toward-running posture, the audit line, and
+# the scoping that leaves `ci`, `both`'s CI leg, and `off` alone. A shortened version would be a
+# predicate an agent has to guess at, and guessing wrong here merges an untested branch onto the
+# integration branch. Set per the rounding rule above from the measured actual: 4285 words -> the
+# next multiple of 50 is 4300, within the 25-word threshold, so the multiple after: 4350 (60 words
+# of margin). The LINE budget was not raised (191 actual, 193 budget) — the new item is two lines.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -148,7 +158,7 @@ skills/docket-convention/github-board-mirror.md             19  462
 skills/docket-convention/references/agent-layer.md         175 2000
 skills/docket-convention/references/learnings.md            84  580
 skills/docket-convention/references/terminal-close-out.md  173 1458
-skills/docket-finalize-change/SKILL.md                     193 4200
+skills/docket-finalize-change/SKILL.md                     193 4350
 skills/docket-groom-next/SKILL.md                           77 1484
 skills/docket-implement-next/SKILL.md                      147 3900
 skills/docket-implement-next/results-template.md            24  172
