@@ -95,35 +95,146 @@ create_orphan() {
   g fetch --quiet origin docket 2>/dev/null || true
 }
 
-# Minimal flat scalar reader for `key: value` (strips inline #comments, quotes, whitespace).
-# Adapted from migrate-to-docket.sh's reader (.docket.yml is intentionally a flat scalar file,
-# no yq); migrate's identical copy is out of this change's scope and left as-is. The key is
-# escaped before it enters the regex so a metacharacter in any future key can't match
-# unintended lines. Nested finalize.gate / finalize.test_command / finalize.require_pr_approval
-# are read by their unique leaf-key name. NOTE: a value may not contain a literal '#' — it is
-# treated as the start of an inline comment and truncated (fine for the current enum / path /
-# empty values).
-yaml_get() {  # yaml_get <file> <key>  -> value on stdout (empty if key absent)
-  [ -f "$1" ] || return 1
-  local key_re
-  key_re="$(printf '%s' "$2" | sed 's#[^[:alnum:]_]#\\&#g')"   # escape ERE metachars in the key
-  sed -n -E "s/^[[:space:]]*$key_re[[:space:]]*:[[:space:]]*([^#]*).*/\1/p" "$1" \
-    | head -n1 | sed -E 's/[[:space:]]+$//; s/^"(.*)"$/\1/; s/^'\''(.*)'\''$/\1/'
+# Snapshot-backed readers for the documented scalar/block YAML subset. The three fixed arrays are
+# populated once after each layer's established readability policy; no configuration text is ever
+# evaluated or used as an array name. `runtime.bash` deliberately keeps its separate file reader.
+declare -a CONFIG_LINES_COMMITTED=()
+declare -a CONFIG_LINES_GLOBAL=()
+declare -a CONFIG_LINES_LOCAL=()
+
+config_trim() {  # config_trim VALUE -> CONFIG_TRIMMED
+  CONFIG_TRIMMED="$1"
+  CONFIG_TRIMMED="${CONFIG_TRIMMED#"${CONFIG_TRIMMED%%[![:space:]]*}"}"
+  CONFIG_TRIMMED="${CONFIG_TRIMMED%"${CONFIG_TRIMMED##*[![:space:]]}"}"
 }
 
-# Emit the indented child lines of a top-level block key (block-style YAML only). Used for the
-# nested `skills:` map (change 0049) so each leaf is read WITHIN the block via yaml_get — never as
-# a bare top-level key, which a future top-level `build:`/`review:` could otherwise shadow.
-# Comment-strips each line (matching yaml_get semantics) so a trailing comment on `skills:` or a
-# full-line comment inside the block can't fool block detection. `[[:space:]]` => tab OR space.
-yaml_block_body() {  # yaml_block_body <file> <top-level-key>  -> child lines on stdout
-  [ -f "$1" ] || return 0
-  awk -v parent="$2" '
-    { line=$0; sub(/[[:space:]]*#.*/, "", line) }
-    line ~ ("^" parent "[[:space:]]*:[[:space:]]*$") { inblk=1; next }
-    inblk && line ~ /^[^[:space:]]/ { inblk=0 }
-    inblk { print }
-  ' "$1"
+config_normalize_scalar() {  # config_normalize_scalar RAW -> normalized scalar
+  local value
+  config_trim "${1%%#*}"
+  value="$CONFIG_TRIMMED"
+  if [ "${#value}" -ge 2 ]; then
+    case "$value" in
+      \"*\") value="${value:1:${#value}-2}" ;;
+      \'*\') value="${value:1:${#value}-2}" ;;
+    esac
+  fi
+  printf '%s' "$value"
+}
+
+config_line_scalar_get() {  # config_line_scalar_get KEY LINE -> value; 1 when key differs
+  local key="$1" line="$2" body candidate
+  body="${line%%#*}"
+  body="${body#"${body%%[![:space:]]*}"}"
+  [[ "$body" == *:* ]] || return 1
+  config_trim "${body%%:*}"
+  candidate="$CONFIG_TRIMMED"
+  [ "$candidate" = "$key" ] || return 1
+  config_normalize_scalar "${body#*:}"
+}
+
+config_scalar_from_lines() {  # config_scalar_from_lines KEY LINE... -> first scalar or empty
+  local key="$1" line
+  shift
+  for line in "$@"; do
+    if config_line_scalar_get "$key" "$line"; then
+      return 0
+    fi
+  done
+  return 0
+}
+
+config_layer_load() {  # config_layer_load committed|global|local FILE
+  local slot="$1" file="$2" line
+  [ -f "$file" ] || return 0
+  case "$slot" in
+    committed) CONFIG_LINES_COMMITTED=()
+               while IFS= read -r line || [ -n "$line" ]; do CONFIG_LINES_COMMITTED+=("$line"); done <"$file" ;;
+    global)    CONFIG_LINES_GLOBAL=()
+               while IFS= read -r line || [ -n "$line" ]; do CONFIG_LINES_GLOBAL+=("$line"); done <"$file" ;;
+    local)     CONFIG_LINES_LOCAL=()
+               while IFS= read -r line || [ -n "$line" ]; do CONFIG_LINES_LOCAL+=("$line"); done <"$file" ;;
+    *) die "internal error: unknown config layer $slot" ;;
+  esac
+}
+
+config_scalar_get() {  # config_scalar_get committed|global|local KEY -> first scalar or empty
+  case "$1" in
+    committed) config_scalar_from_lines "$2" "${CONFIG_LINES_COMMITTED[@]}" ;;
+    global)    config_scalar_from_lines "$2" "${CONFIG_LINES_GLOBAL[@]}" ;;
+    local)     config_scalar_from_lines "$2" "${CONFIG_LINES_LOCAL[@]}" ;;
+    *) die "internal error: unknown config layer $1" ;;
+  esac
+}
+
+config_block_header() {  # config_block_header LINE BLOCK
+  local line="$1" block="$2" candidate rest
+  [[ "$line" != [[:space:]]* && "$line" == *:* ]] || return 1
+  config_trim "${line%%:*}"
+  candidate="$CONFIG_TRIMMED"
+  config_trim "${line#*:}"
+  rest="$CONFIG_TRIMMED"
+  [ "$candidate" = "$block" ] && [ -z "$rest" ]
+}
+
+config_block_get_from_lines() {  # config_block_get_from_lines BLOCK LEAF LINE... -> first leaf
+  local block="$1" leaf="$2" line body in_block=0
+  shift 2
+  for line in "$@"; do
+    body="${line%%#*}"
+    if config_block_header "$body" "$block"; then
+      in_block=1
+      continue
+    fi
+    [ "$in_block" -eq 1 ] || continue
+    if [[ "$body" =~ ^[^[:space:]] ]]; then
+      in_block=0
+      continue
+    fi
+    if config_line_scalar_get "$leaf" "$line"; then
+      return 0
+    fi
+  done
+  return 0
+}
+
+config_block_get() {  # config_block_get committed|global|local BLOCK LEAF -> first block leaf
+  case "$1" in
+    committed) config_block_get_from_lines "$2" "$3" "${CONFIG_LINES_COMMITTED[@]}" ;;
+    global)    config_block_get_from_lines "$2" "$3" "${CONFIG_LINES_GLOBAL[@]}" ;;
+    local)     config_block_get_from_lines "$2" "$3" "${CONFIG_LINES_LOCAL[@]}" ;;
+    *) die "internal error: unknown config layer $1" ;;
+  esac
+}
+
+config_block_keys_from_lines() {  # config_block_keys_from_lines BLOCK LINE... -> scalar keys
+  local block="$1" line body candidate in_block=0
+  shift
+  for line in "$@"; do
+    body="${line%%#*}"
+    if config_block_header "$body" "$block"; then
+      in_block=1
+      continue
+    fi
+    [ "$in_block" -eq 1 ] || continue
+    if [[ "$body" =~ ^[^[:space:]] ]]; then
+      in_block=0
+      continue
+    fi
+    body="${body#"${body%%[![:space:]]*}"}"
+    [[ "$body" == *:* ]] || continue
+    config_trim "${body%%:*}"
+    candidate="$CONFIG_TRIMMED"
+    [[ "$candidate" =~ ^[[:alnum:]_-]+$ ]] && printf '%s\n' "$candidate"
+  done
+}
+
+config_block_keys() {  # config_block_keys committed|global|local BLOCK -> scalar keys
+  case "$1" in
+    committed) config_block_keys_from_lines "$2" "${CONFIG_LINES_COMMITTED[@]}" ;;
+    global)    config_block_keys_from_lines "$2" "${CONFIG_LINES_GLOBAL[@]}" ;;
+    local)     config_block_keys_from_lines "$2" "${CONFIG_LINES_LOCAL[@]}" ;;
+    *) die "internal error: unknown config layer $1" ;;
+  esac
 }
 
 # Read one scalar from one top-level block without treating `#` inside a quoted value as a
@@ -172,7 +283,7 @@ g show "origin/HEAD:.docket.yml" >"$CFG" 2>/dev/null || : >"$CFG"   # absent fil
 # fenced (warned-and-ignored) in Stage 2c below.
 GCFG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/docket"
 GCFG="$GCFG_DIR/config.yml"
-gbl(){ yaml_get "$GCFG" "$1"; }   # global-layer scalar read (empty when absent)
+gbl(){ config_scalar_get global "$1"; }   # global-layer scalar read (empty when absent)
 
 # --- Stage 2b': machine-local layer (change 0051) ------------------------------
 # <repo>/.docket.local.yml — machine-AND-repo-scoped overrides for exactly the
@@ -185,7 +296,7 @@ if [ -e "$LCFG" ] && { [ ! -f "$LCFG" ] || [ ! -r "$LCFG" ]; }; then
   printf 'docket-config: warning: %s is not a readable regular file — machine-local config layer ignored\n' "$LCFG" >&2
   LCFG=/dev/null
 fi
-lcl(){ yaml_get "$LCFG" "$1"; }   # local-layer scalar read (empty when absent)
+lcl(){ config_scalar_get local "$1"; }   # local-layer scalar read (empty when absent)
 
 # parse_inline_list RAW -> normalized space-separated tokens on stdout.
 # Strips one enclosing `[ ]`, treats commas as separators, collapses whitespace runs, trims the
@@ -221,6 +332,12 @@ if [ -e "$GCFG" ] && { [ ! -f "$GCFG" ] || [ ! -r "$GCFG" ]; }; then
   printf 'docket-config: warning: %s is not a readable regular file — global config layer ignored\n' "$GCFG" >&2
   GCFG=/dev/null
 fi
+
+# Read each permitted source exactly once. From this point general resolution is snapshot-backed;
+# runtime.bash intentionally remains file-backed through docket-runtime.sh below.
+config_layer_load committed "$CFG"
+config_layer_load global "$GCFG"
+config_layer_load local "$LCFG"
 
 # runtime.bash is machine-local by definition: repo-local > global, while a committed value is
 # loudly ignored. Read every `bash:` leaf WITHIN its `runtime:` block so an unrelated bare leaf
@@ -281,31 +398,31 @@ esac
 # branches, committed generated files, external GitHub objects) is per-repo-only; a global
 # value is loudly warned-and-ignored — never honored, never fatal. (ADR records the rule.)
 for _fkey in metadata_branch integration_branch changes_dir adrs_dir results_dir github_project terminal_publish; do
-  if [ -n "$(yaml_get "$GCFG" "$_fkey")" ]; then
+  if [ -n "$(config_scalar_get global "$_fkey")" ]; then
     printf "docket-config: warning: global config key %s is per-repo-only — set it in the repo's committed .docket.yml; ignored\n" "$_fkey" >&2
   fi
-  if [ -n "$(yaml_get "$LCFG" "$_fkey")" ]; then
+  if [ -n "$(config_scalar_get local "$_fkey")" ]; then
     printf "docket-config: warning: .docket.local.yml key %s is per-repo-only — set it in the repo's committed .docket.yml; ignored\n" "$_fkey" >&2
   fi
 done
 
-METADATA_BRANCH="$(yaml_get "$CFG" metadata_branch)"; METADATA_BRANCH="${METADATA_BRANCH:-docket}"
+METADATA_BRANCH="$(config_scalar_get committed metadata_branch)"; METADATA_BRANCH="${METADATA_BRANCH:-docket}"
 case "$METADATA_BRANCH" in
   docket) DOCKET_MODE=docket; METADATA_WORKTREE=.docket ;;
   main)   DOCKET_MODE=main;   METADATA_WORKTREE=. ;;
   *) die "unparseable .docket.yml: metadata_branch must be 'docket' or 'main', got '$METADATA_BRANCH'" ;;
 esac
 
-INTEGRATION_BRANCH="$(yaml_get "$CFG" integration_branch)"
+INTEGRATION_BRANCH="$(config_scalar_get committed integration_branch)"
 if [ -z "$INTEGRATION_BRANCH" ] || [ "$INTEGRATION_BRANCH" = auto ]; then
   INTEGRATION_BRANCH="$DEFAULT_BRANCH"
 fi
 
-CHANGES_DIR="$(yaml_get "$CFG" changes_dir)"; CHANGES_DIR="${CHANGES_DIR:-docs/changes}"
-ADRS_DIR="$(yaml_get "$CFG" adrs_dir)";       ADRS_DIR="${ADRS_DIR:-docs/adrs}"
-RESULTS_DIR="$(yaml_get "$CFG" results_dir)"; RESULTS_DIR="${RESULTS_DIR:-docs/results}"
-FINALIZE_GATE="$(lcl gate)"; FINALIZE_GATE="${FINALIZE_GATE:-$(yaml_get "$CFG" gate)}"; FINALIZE_GATE="${FINALIZE_GATE:-$(gbl gate)}"; FINALIZE_GATE="${FINALIZE_GATE:-local}"
-FINALIZE_TEST_COMMAND="$(lcl test_command)"; FINALIZE_TEST_COMMAND="${FINALIZE_TEST_COMMAND:-$(yaml_get "$CFG" test_command)}"; FINALIZE_TEST_COMMAND="${FINALIZE_TEST_COMMAND:-$(gbl test_command)}"
+CHANGES_DIR="$(config_scalar_get committed changes_dir)"; CHANGES_DIR="${CHANGES_DIR:-docs/changes}"
+ADRS_DIR="$(config_scalar_get committed adrs_dir)";       ADRS_DIR="${ADRS_DIR:-docs/adrs}"
+RESULTS_DIR="$(config_scalar_get committed results_dir)"; RESULTS_DIR="${RESULTS_DIR:-docs/results}"
+FINALIZE_GATE="$(lcl gate)"; FINALIZE_GATE="${FINALIZE_GATE:-$(config_scalar_get committed gate)}"; FINALIZE_GATE="${FINALIZE_GATE:-$(gbl gate)}"; FINALIZE_GATE="${FINALIZE_GATE:-local}"
+FINALIZE_TEST_COMMAND="$(lcl test_command)"; FINALIZE_TEST_COMMAND="${FINALIZE_TEST_COMMAND:-$(config_scalar_get committed test_command)}"; FINALIZE_TEST_COMMAND="${FINALIZE_TEST_COMMAND:-$(gbl test_command)}"
 # change 0101: `auto` ≡ unset — the sentinel that lets .docket.example.yml ship this default as an
 # ACTIVE value instead of a commented "normally unset" note. Applied AFTER layer resolution, which
 # is what makes a HIGHER layer's `auto` mask a LOWER layer's real command: converting per-layer
@@ -322,14 +439,14 @@ FINALIZE_TEST_COMMAND="$(lcl test_command)"; FINALIZE_TEST_COMMAND="${FINALIZE_T
 # typo to `false` would DISARM a gate the user believes is armed — the exact failure this change
 # exists to eliminate.
 FINALIZE_REQUIRE_PR_APPROVAL="$(lcl require_pr_approval)"
-FINALIZE_REQUIRE_PR_APPROVAL="${FINALIZE_REQUIRE_PR_APPROVAL:-$(yaml_get "$CFG" require_pr_approval)}"
+FINALIZE_REQUIRE_PR_APPROVAL="${FINALIZE_REQUIRE_PR_APPROVAL:-$(config_scalar_get committed require_pr_approval)}"
 FINALIZE_REQUIRE_PR_APPROVAL="${FINALIZE_REQUIRE_PR_APPROVAL:-$(gbl require_pr_approval)}"
 FINALIZE_REQUIRE_PR_APPROVAL="${FINALIZE_REQUIRE_PR_APPROVAL:-false}"
 case "$FINALIZE_REQUIRE_PR_APPROVAL" in
   true|false) ;;
   *) die "unparseable config: finalize.require_pr_approval must be 'true' or 'false', got '$FINALIZE_REQUIRE_PR_APPROVAL'" ;;
 esac
-AUTO_GROOM="$(lcl auto_groom)"; AUTO_GROOM="${AUTO_GROOM:-$(yaml_get "$CFG" auto_groom)}"; AUTO_GROOM="${AUTO_GROOM:-$(gbl auto_groom)}"; AUTO_GROOM="${AUTO_GROOM:-false}"
+AUTO_GROOM="$(lcl auto_groom)"; AUTO_GROOM="${AUTO_GROOM:-$(config_scalar_get committed auto_groom)}"; AUTO_GROOM="${AUTO_GROOM:-$(gbl auto_groom)}"; AUTO_GROOM="${AUTO_GROOM:-false}"
 # change 0127: auto_capture became a MAP (change_types + the nested block are resolved together,
 # after the reclaim: block below — auto_capture.types validates against the effective change_types,
 # so the list must resolve first). The scalar form this key had from change 0091 is now a hard
@@ -339,7 +456,7 @@ AUTO_GROOM="$(lcl auto_groom)"; AUTO_GROOM="${AUTO_GROOM:-$(yaml_get "$CFG" auto
 # silently defaulting a typo to `true` would publish onto the integration branch against intent.
 # change 0084: the default is `false` — publishing onto the integration branch is opt-in. A repo
 # that never set the key must never get direct machine commits on its code line.
-TERMINAL_PUBLISH="$(yaml_get "$CFG" terminal_publish)"; TERMINAL_PUBLISH="${TERMINAL_PUBLISH:-false}"
+TERMINAL_PUBLISH="$(config_scalar_get committed terminal_publish)"; TERMINAL_PUBLISH="${TERMINAL_PUBLISH:-false}"
 case "$TERMINAL_PUBLISH" in
   true|false) ;;
   *) die "unparseable .docket.yml: terminal_publish must be 'true' or 'false', got '$TERMINAL_PUBLISH'" ;;
@@ -347,7 +464,7 @@ esac
 
 bs_raw="$(lcl board_surfaces)"; bs_machine=0
 [ -n "$bs_raw" ] && bs_machine=1                            # local = machine-scoped
-if [ -z "$bs_raw" ]; then bs_raw="$(yaml_get "$CFG" board_surfaces)"; fi
+if [ -z "$bs_raw" ]; then bs_raw="$(config_scalar_get committed board_surfaces)"; fi
 if [ -z "$bs_raw" ]; then
   bs_raw="$(gbl board_surfaces)"
   [ -n "$bs_raw" ] && bs_machine=1                          # global = machine-scoped
@@ -383,13 +500,10 @@ fi
 # --- skills: role-keyed pluggable workflow skills (change 0049 + 0050 global layer) ---
 # Nested block; each leaf read within the block only. Per-key precedence:
 # per-repo leaf > global leaf > the superpowers default.
-SKILLS_BLK="$(mktemp)";  yaml_block_body "$CFG"  skills >"$SKILLS_BLK"
-GSKILLS_BLK="$(mktemp)"; yaml_block_body "$GCFG" skills >"$GSKILLS_BLK"
-LSKILLS_BLK="$(mktemp)"; yaml_block_body "$LCFG" skills >"$LSKILLS_BLK"
 skill_role(){  # skill_role <role> <default> -> resolved value on stdout
-  local v; v="$(yaml_get "$LSKILLS_BLK" "$1")"
-  [ -n "$v" ] || v="$(yaml_get "$SKILLS_BLK" "$1")"
-  [ -n "$v" ] || v="$(yaml_get "$GSKILLS_BLK" "$1")"
+  local v; v="$(config_block_get local skills "$1")"
+  [ -n "$v" ] || v="$(config_block_get committed skills "$1")"
+  [ -n "$v" ] || v="$(config_block_get global skills "$1")"
   printf '%s' "${v:-$2}"
 }
 SKILL_BRAINSTORM="$(skill_role brainstorm superpowers:brainstorming)"
@@ -398,38 +512,29 @@ SKILL_BUILD="$(skill_role build superpowers:subagent-driven-development)"
 SKILL_REVIEW="$(skill_role review superpowers:requesting-code-review)"
 SKILL_FINISH="$(skill_role finish superpowers:finishing-a-development-branch)"
 # Unknown role keys in EITHER layer: warn-and-ignore (a typo must never abort).
-for _blk in "$LSKILLS_BLK" "$SKILLS_BLK" "$GSKILLS_BLK"; do
+for _slot in local committed global; do
   while IFS= read -r _role; do
     [ -n "$_role" ] || continue
     case " brainstorm plan build review finish " in
       *" $_role "*) ;;
       *) printf 'docket-config: warning: unknown skills role %s — ignored\n' "$_role" >&2 ;;
     esac
-  done < <(sed -n -E 's/^[[:space:]]*([[:alnum:]_-]+)[[:space:]]*:.*/\1/p' "$_blk")
+  done < <(config_block_keys "$_slot" skills)
 done
-rm -f "$SKILLS_BLK" "$GSKILLS_BLK" "$LSKILLS_BLK"
 
 # --- learnings: the findings ledger subsystem (change 0067) --------------------
 # Nested block, mirroring finalize:'s SHAPE but the skills: block's PARSING. Each leaf is read
-# WITHIN the block via yaml_block_body — never as a bare top-level key. finalize.gate gets away
+# WITHIN the block via config_block_get — never as a bare top-level key. finalize.gate gets away
 # with a bare leaf read because `gate`/`test_command` are unusual words; `enabled` and `cap` are
 # generic, so a bare read would let ANY block's (or a future top-level) `enabled:` shadow this one.
 # Per-key precedence: repo-local > repo-committed > global > built-in.
 # ADR-0019 fence: BOTH keys are global-able. A machine-local disable only OMITS an enrichment
 # write — it never writes conflicting state, so there is no "which ledger is authoritative"
 # question, and the index self-heals on any enabled render.
-LEARN_BLK="$(mktemp)";  yaml_block_body "$CFG"  learnings >"$LEARN_BLK"
-GLEARN_BLK="$(mktemp)"; yaml_block_body "$GCFG" learnings >"$GLEARN_BLK"
-LLEARN_BLK="$(mktemp)"; yaml_block_body "$LCFG" learnings >"$LLEARN_BLK"
-# Re-issue the EXIT trap now that all four temp files are defined, so a die() below (or any
-# later in the script) cleans up LEARN_BLK/GLEARN_BLK/LLEARN_BLK too — unlike the skills: block
-# (which never dies), this block's own fail-closed guards can exit before an end-of-block
-# explicit rm would run, so cleanup has to live in the trap, not after the last use.
-trap 'rm -f "$CFG" "$LEARN_BLK" "$GLEARN_BLK" "$LLEARN_BLK"' EXIT
 learn_key(){  # learn_key <leaf> <default> -> resolved value on stdout
-  local v; v="$(yaml_get "$LLEARN_BLK" "$1")"
-  [ -n "$v" ] || v="$(yaml_get "$LEARN_BLK" "$1")"
-  [ -n "$v" ] || v="$(yaml_get "$GLEARN_BLK" "$1")"
+  local v; v="$(config_block_get local learnings "$1")"
+  [ -n "$v" ] || v="$(config_block_get committed learnings "$1")"
+  [ -n "$v" ] || v="$(config_block_get global learnings "$1")"
   printf '%s' "${v:-$2}"
 }
 LEARNINGS_ENABLED="$(learn_key enabled true)"
@@ -447,19 +552,15 @@ case "$LEARNINGS_CAP" in
 esac
 
 # --- reclaim: the claim-lease self-heal subsystem (change 0089) ----------------
-# Nested block parsed exactly like learnings: — each leaf read WITHIN the block via yaml_block_body
+# Nested block parsed exactly like learnings: — each leaf read WITHIN the block via config_block_get
 # (never a bare top-level key: `auto` is a generic word a future block could shadow). BOTH keys are
 # behavioral, NOT coordination-fenced (spec §7-H): they resolve through the full per-field layering
 # repo-local > repo-committed > global > built-in, like learnings.* / auto_groom. lease_ttl is an
 # integer number of HOURS (converted to seconds by the consumers); auto gates the ONLY mutating path.
-RECLAIM_BLK="$(mktemp)";  yaml_block_body "$CFG"  reclaim >"$RECLAIM_BLK"
-GRECLAIM_BLK="$(mktemp)"; yaml_block_body "$GCFG" reclaim >"$GRECLAIM_BLK"
-LRECLAIM_BLK="$(mktemp)"; yaml_block_body "$LCFG" reclaim >"$LRECLAIM_BLK"
-trap 'rm -f "$CFG" "$LEARN_BLK" "$GLEARN_BLK" "$LLEARN_BLK" "$RECLAIM_BLK" "$GRECLAIM_BLK" "$LRECLAIM_BLK"' EXIT
 reclaim_key(){  # reclaim_key <leaf> <default> -> resolved value on stdout
-  local v; v="$(yaml_get "$LRECLAIM_BLK" "$1")"
-  [ -n "$v" ] || v="$(yaml_get "$RECLAIM_BLK" "$1")"
-  [ -n "$v" ] || v="$(yaml_get "$GRECLAIM_BLK" "$1")"
+  local v; v="$(config_block_get local reclaim "$1")"
+  [ -n "$v" ] || v="$(config_block_get committed reclaim "$1")"
+  [ -n "$v" ] || v="$(config_block_get global reclaim "$1")"
   printf '%s' "${v:-$2}"
 }
 RECLAIM_LEASE_TTL="$(reclaim_key lease_ttl 72)"
@@ -474,19 +575,15 @@ esac
 
 # --- build: the build-role knobs (change 0167) -------------------------------
 # Nested block parsed exactly like reclaim: — the leaf is read WITHIN the block via
-# yaml_block_body, never as a bare top-level key: `checkpoint` is a generic word another block
+# config_block_get, never as a bare top-level key: `checkpoint` is a generic word another block
 # could shadow. Behavioral, NOT coordination-fenced: it resolves through the full per-field
 # layering repo-local > repo-committed > global > built-in, like reclaim.* / learnings.*.
 # checkpoint gates whether docket-build persists a resume ledger; false (the default) keeps the
 # build's durability in the per-task code commits alone.
-BUILD_BLK="$(mktemp)";  yaml_block_body "$CFG"  build >"$BUILD_BLK"
-GBUILD_BLK="$(mktemp)"; yaml_block_body "$GCFG" build >"$GBUILD_BLK"
-LBUILD_BLK="$(mktemp)"; yaml_block_body "$LCFG" build >"$LBUILD_BLK"
-trap 'rm -f "$CFG" "$LEARN_BLK" "$GLEARN_BLK" "$LLEARN_BLK" "$RECLAIM_BLK" "$GRECLAIM_BLK" "$LRECLAIM_BLK" "$BUILD_BLK" "$GBUILD_BLK" "$LBUILD_BLK"' EXIT
 build_key(){  # build_key <leaf> <default> -> resolved value on stdout
-  local v; v="$(yaml_get "$LBUILD_BLK" "$1")"
-  [ -n "$v" ] || v="$(yaml_get "$BUILD_BLK" "$1")"
-  [ -n "$v" ] || v="$(yaml_get "$GBUILD_BLK" "$1")"
+  local v; v="$(config_block_get local build "$1")"
+  [ -n "$v" ] || v="$(config_block_get committed build "$1")"
+  [ -n "$v" ] || v="$(config_block_get global build "$1")"
   printf '%s' "${v:-$2}"
 }
 BUILD_CHECKPOINT="$(build_key checkpoint false)"
@@ -502,7 +599,7 @@ esac
 # (`[a, b]`), matching the board_surfaces / agent_harnesses precedent. Global-able: it governs
 # what this machine CREATES, never coordination state.
 ct_raw="$(lcl change_types)"
-[ -n "$ct_raw" ] || ct_raw="$(yaml_get "$CFG" change_types)"
+[ -n "$ct_raw" ] || ct_raw="$(config_scalar_get committed change_types)"
 [ -n "$ct_raw" ] || ct_raw="$(gbl change_types)"
 if [ -z "$ct_raw" ]; then
   CHANGE_TYPES="${DOCKET_CHANGE_TYPES_DEFAULT[*]}"
@@ -527,10 +624,14 @@ fi
 # top-level auto_capture carrying a non-empty scalar value is a hard error in EVERY layer, with a
 # diagnostic that prints the nested replacement carrying the user's OWN value — a remedy has to be
 # valid in the exact state that produced it (learning: printed-remedy-state-validity). A map header
-# (`auto_capture:`) yields an empty yaml_get read, which is what discriminates it from the scalar.
-for ac_layer in "$LCFG" "$CFG" "$GCFG"; do
-  [ -f "$ac_layer" ] || continue
-  ac_legacy="$(yaml_get "$ac_layer" auto_capture 2>/dev/null || true)"
+# (`auto_capture:`) yields an empty scalar read, which is what discriminates it from the scalar.
+for ac_slot in local committed global; do
+  case "$ac_slot" in
+    local) ac_layer="$LCFG" ;;
+    committed) ac_layer="$CFG" ;;
+    global) ac_layer="$GCFG" ;;
+  esac
+  ac_legacy="$(config_scalar_get "$ac_slot" auto_capture)"
   [ -n "$ac_legacy" ] || continue
   die "unparseable config: auto_capture is now a map, not a scalar (found 'auto_capture: $ac_legacy' in $ac_layer). Replace it with:
 
@@ -540,15 +641,11 @@ auto_capture:
 done
 # Nested block parsed exactly like learnings:/reclaim: — each leaf read WITHIN the block, which is
 # what gives PER-LEAF fallback (a high layer may override `enabled` while inheriting `types`) and
-# what keeps `enabled` from colliding with learnings.enabled under yaml_get's flat reader.
-AC_BLK="$(mktemp)";  yaml_block_body "$CFG"  auto_capture >"$AC_BLK"
-GAC_BLK="$(mktemp)"; yaml_block_body "$GCFG" auto_capture >"$GAC_BLK"
-LAC_BLK="$(mktemp)"; yaml_block_body "$LCFG" auto_capture >"$LAC_BLK"
-trap 'rm -f "$CFG" "$LEARN_BLK" "$GLEARN_BLK" "$LLEARN_BLK" "$RECLAIM_BLK" "$GRECLAIM_BLK" "$LRECLAIM_BLK" "$BUILD_BLK" "$GBUILD_BLK" "$LBUILD_BLK" "$AC_BLK" "$GAC_BLK" "$LAC_BLK"' EXIT
+# what keeps `enabled` from colliding with learnings.enabled under the snapshot scalar reader.
 ac_key(){  # ac_key <leaf> <default> -> resolved value on stdout
-  local v; v="$(yaml_get "$LAC_BLK" "$1")"
-  [ -n "$v" ] || v="$(yaml_get "$AC_BLK" "$1")"
-  [ -n "$v" ] || v="$(yaml_get "$GAC_BLK" "$1")"
+  local v; v="$(config_block_get local auto_capture "$1")"
+  [ -n "$v" ] || v="$(config_block_get committed auto_capture "$1")"
+  [ -n "$v" ] || v="$(config_block_get global auto_capture "$1")"
   printf '%s' "${v:-$2}"
 }
 # ct_effective_at LAYER -> the change_types an author writing AT that layer could see: their own
@@ -569,9 +666,9 @@ ct_effective_at(){ # ct_effective_at local|committed|global -> normalized change
   local raw=""
   case "$1" in
     local)     raw="$(lcl change_types)"
-               [ -n "$raw" ] || raw="$(yaml_get "$CFG" change_types)"
+               [ -n "$raw" ] || raw="$(config_scalar_get committed change_types)"
                [ -n "$raw" ] || raw="$(gbl change_types)" ;;
-    committed) raw="$(yaml_get "$CFG" change_types)"
+    committed) raw="$(config_scalar_get committed change_types)"
                [ -n "$raw" ] || raw="$(gbl change_types)" ;;
     global)    raw="$(gbl change_types)" ;;
   esac
@@ -593,9 +690,9 @@ if [ "$AUTO_CAPTURE_TYPES" != all ]; then
     || die "unparseable config: auto_capture.types must be 'all' or a non-empty list, got '$act_raw'"
   # Which layer supplied `types`? Same precedence ac_key resolved it with.
   ac_types_layer=local
-  if   [ -n "$(yaml_get "$LAC_BLK" types)" ]; then ac_types_layer=local
-  elif [ -n "$(yaml_get "$AC_BLK"  types)" ]; then ac_types_layer=committed
-  elif [ -n "$(yaml_get "$GAC_BLK" types)" ]; then ac_types_layer=global
+  if   [ -n "$(config_block_get local auto_capture types)" ]; then ac_types_layer=local
+  elif [ -n "$(config_block_get committed auto_capture types)" ]; then ac_types_layer=committed
+  elif [ -n "$(config_block_get global auto_capture types)" ]; then ac_types_layer=global
   fi
   ct_visible="$(ct_effective_at "$ac_types_layer")"
   read -r -a ctv_arr <<< "$ct_visible"

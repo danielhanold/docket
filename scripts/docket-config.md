@@ -87,10 +87,15 @@ is written to a temp file and cleaned up on exit.
 - If `origin/HEAD` is unresolvable or `git fetch origin` failed → the script already aborted
   in Stage 1 (keyed on fetch/set-head return codes). `git show` is never the abort signal.
 
-**YAML reader:** a minimal scalar reader (`yaml_get`) handles `key: value` lines.
-Inline `#` comments are stripped; leading/trailing whitespace and surrounding quotes are
-removed. The key is ERE-escaped before use. Nested keys (`finalize.gate`,
-`finalize.test_command`) are read by their unique leaf-key name (`gate`, `test_command`).
+**YAML reader and snapshots:** after the existing path/readability checks, each committed,
+machine-local, and global config layer is loaded once per resolver invocation. The resolver then
+reads an immutable in-memory snapshot of each layer for the rest of that run. This changes neither
+the supported YAML subset nor layer precedence: scalar `key: value` lines still strip inline `#`
+comments, leading/trailing whitespace, and one surrounding quote pair; nested leaves are read
+within their named block. It does not apply to `runtime.bash`, whose dedicated reader remains
+file-backed, and it does not remove the authoritative Git probes that establish the committed
+layer and bootstrap state. Nested keys (`finalize.gate`, `finalize.test_command`) are read by
+their unique leaf-key name (`gate`, `test_command`) within `finalize:`.
 `runtime.bash` is stricter: the leaf must sit exactly one level under `runtime:` — anchored on
 the block's shallowest structural child, so a two-space, four-space, or tab-indented file all
 resolve — and a bare `bash:` elsewhere cannot shadow the runtime setting. A `bash:` leaf nested
