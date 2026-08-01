@@ -2,7 +2,7 @@
 id: 184
 slug: four-tier-build-profile-ladder
 title: Four-tier build profile ladder — low/medium/high/max replaces economy/standard/premium
-status: in-progress
+status: implemented
 priority: high
 type: feat
 created: 2026-08-01
@@ -13,12 +13,12 @@ discovered_from: []
 adrs: [15, 16, 63]
 spec: docs/superpowers/specs/2026-08-01-four-tier-build-profiles-design.md
 plan: docs/superpowers/plans/2026-08-01-four-tier-build-profile-ladder.md
-results:
+results: docs/results/2026-08-01-four-tier-build-profile-ladder-results.md
 trivial: false
 auto_groomable:
 branch: feat/four-tier-build-profile-ladder
-claimed_at: 2026-08-01T12:21:05Z
-pr:
+claimed_at: 2026-08-01T14:09:22Z
+pr: https://github.com/danielhanold/docket/pull/147
 blocked_by:
 reconciled: true
 ---
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-01-four-tier-build-profiles-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-01-four-tier-build-profiles-design.md) |
 | Plan | [2026-08-01-four-tier-build-profile-ladder.md](https://github.com/danielhanold/docket/blob/feat/four-tier-build-profile-ladder/docs/superpowers/plans/2026-08-01-four-tier-build-profile-ladder.md) |
+| Results | [2026-08-01-four-tier-build-profile-ladder-results.md](https://github.com/danielhanold/docket/blob/feat/four-tier-build-profile-ladder/docs/results/2026-08-01-four-tier-build-profile-ladder-results.md) |
+| PR | [#147](https://github.com/danielhanold/docket/pull/147) |
 | ADRs | [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md), [ADR-0016](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0016-harness-first-agent-config.md), [ADR-0063](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0063-docket-owns-the-build-role-profile-routed-workers.md) |
 <!-- docket:artifacts:end -->
 
