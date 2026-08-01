@@ -1,8 +1,14 @@
 # Backlog
 
-**184 changes** — 🟡 39 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 121 done · 🗑️ 19 killed
+**184 changes** — 🟢 1 in progress · 🟡 38 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 121 done · 🗑️ 19 killed
 
-## 🟡 Proposed (39)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch |
+|---|-------|----------|------|------|--------|
+| [0184](active/0184-four-tier-build-profile-ladder.md) | Four-tier build profile ladder — low/medium/high/max replaces economy/standard/premium | `high` | `feat` | [spec](../superpowers/specs/2026-08-01-four-tier-build-profiles-design.md) | `feat/four-tier-build-profile-ladder` |
+
+## 🟡 Proposed (38)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -44,7 +50,6 @@
 | [0181](active/0181-document-the-unquoted-space-free-rule-for-agent-model-effort.md) | Document the unquoted, space-free rule for agent model/effort config values | `medium` | `docs` | needs-brainstorm |
 | [0182](active/0182-facade-tests-read-the-developer-s-real-global-config-instead.md) | Facade tests read the developer's real global config instead of a sandbox | `medium` | `fix` | needs-brainstorm |
 | [0183](active/0183-cursor-dispatch-head-ships-a-stale-unpinned-claim-its-guard.md) | Cursor dispatch head ships a stale unpinned claim; its guard retired itself | `medium` | `fix` | needs-brainstorm |
-| [0184](active/0184-four-tier-build-profile-ladder.md) | Four-tier build profile ladder — low/medium/high/max replaces economy/standard/premium | `medium` | `feat` | build-ready |
 
 ## ⚪ Deferred (4)
 
