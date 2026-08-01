@@ -63,7 +63,8 @@ evidence chain it consumes:
   → PR body for merge-time judgment; follow-ups → existing auto-capture. No re-review round.
 - `docket-finalize-change`'s local gate **skips** its post-rebase suite run only when the
   rebase was a no-op and the PR's evidence block is green at the exact branch HEAD; any doubt
-  runs the suite. Net: one run clean-path, two worst-case, never three.
+  runs the suite. Net: one run when the review is clean and the base has not moved, two when
+  either a blocker fix lands or the rebase actually moves the branch, three only when both do.
 - Shipped default binding unchanged (`superpowers:requesting-code-review`); this repo dogfoods
   `docket-review` via `.docket.yml`. README documents the suite-placement rationale.
 
