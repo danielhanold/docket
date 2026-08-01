@@ -32,7 +32,7 @@ mk_codex_repo(){
 mk_codex_repo
 assert "codex: writes .codex/agents/docket-status.toml" '[ -f "$SBX/.codex/agents/docket-status.toml" ]'
 assert "codex: does NOT write a codex .md wrapper"       '[ ! -f "$SBX/.codex/agents/docket-status.md" ]'
-assert "codex: full built-in set as TOML (12 files)"      '[ "$(find "$SBX/.codex/agents" -name "docket-*.toml" | wc -l | tr -d " ")" = "12" ]'
+assert "codex: full built-in set as TOML (13 files)"      '[ "$(find "$SBX/.codex/agents" -name "docket-*.toml" | wc -l | tr -d " ")" = "13" ]'
 
 T="$SBX/.codex/agents/docket-status.toml"
 assert "codex TOML: name = docket-status"          '[ "$(toml_get "$T" name)" = "docket-status" ]'
@@ -57,7 +57,7 @@ assert "codex TOML: model_reasoning_effort is the shipped codex effort" \
 # property rather than as one agent's value.
 assert "codex TOML: model is not a claude-namespace ID" \
   '! grep -qE "^model[[:space:]]*=[[:space:]]*\"claude-" "$T"'
-# Whole-set coverage: every one of the twelve generated wrappers matches its sidecar row. Population
+# Whole-set coverage: every one of the thirteen generated wrappers matches its sidecar row. Population
 # derived from the sidecar, so a thirteenth agent arms this loop automatically.
 n_codex_checked=0
 while IFS= read -r a; do
@@ -67,8 +67,8 @@ while IFS= read -r a; do
     '[ "$(toml_get "$SBX/.codex/agents/docket-'"$a"'.toml" model)" = "$(hd_field "$HD" codex "'"$a"'" model)" ] &&
      [ "$(toml_get "$SBX/.codex/agents/docket-'"$a"'.toml" model_reasoning_effort)" = "$(hd_field "$HD" codex "'"$a"'" effort)" ]'
 done < <(hd_agents "$HD" codex)
-assert "codex TOML: every shipped codex entry was checked (floor 12; got $n_codex_checked)" \
-  '[ "$n_codex_checked" -ge 12 ]'
+assert "codex TOML: every shipped codex entry was checked (floor 13; got $n_codex_checked)" \
+  '[ "$n_codex_checked" -ge 13 ]'
 assert "codex TOML: has developer_instructions"    'grep -qE "^developer_instructions[[:space:]]*=" "$T"'
 assert "codex TOML: dev_instructions carry body"   'grep -qi "refresh docket state" "$T"'
 assert "codex TOML: dev_instructions name the skills to load" 'grep -qi "docket-convention" "$T"'
@@ -217,7 +217,7 @@ fi
 n_src_codex=0
 for f in "$REPO"/agents/docket-*.md; do [ -e "$f" ] || continue; n_src_codex=$((n_src_codex+1)); done
 assert "agentsmd: the pinned-premise branch is the live one (codex ships $n_codex_shipped of $n_src_codex)" \
-  '[ "$n_codex_shipped" = "$n_src_codex" ] && [ "$n_src_codex" -ge 12 ]'
+  '[ "$n_codex_shipped" = "$n_src_codex" ] && [ "$n_src_codex" -ge 13 ]'
 
 # idempotent second run: byte-identical
 before="$(cat "$A")"

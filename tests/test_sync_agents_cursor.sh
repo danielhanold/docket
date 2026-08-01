@@ -37,7 +37,7 @@ mk_cursor_repo(){  # $1 = optional .docket.yml body (default: bare [claude, curs
 # --- the two fields Cursor does not have are GONE ------------------------------------------------
 mk_cursor_repo
 assert "cursor: wrapper generated"            '[ -f "$C" ]'
-assert "cursor: full built-in set (12 files)"  '[ "$(find "$SBX/.cursor/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "12" ]'
+assert "cursor: full built-in set (13 files)"  '[ "$(find "$SBX/.cursor/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "13" ]'
 assert "cursor: emits NO standalone effort: key" '! has_fm_key "$C" effort'
 assert "cursor: emits NO skills: preload key"    '! has_fm_key "$C" skills'
 assert "cursor: emits name"                      '[ "$(fm "$C" name)" = "docket-status" ]'
@@ -74,28 +74,30 @@ assert "cursor: body preamble names docket-convention"     'grep -qF "docket-con
 assert "cursor: preamble tells the child to LOAD them"     'grep -qiF "load these docket skills" "$C"'
 assert "cursor: wrapper body survives verbatim"            'grep -qi "refresh docket state" "$C"'
 
-# --- the three shipped Cursor build-profile pins (change 0168) ------------------------------------
+# --- the four shipped Cursor build-profile pins (change 0184) -------------------------------------
 # Each sidecar ID is a COMPLETE Cursor built-in whose variant is already encoded, so its effort is
 # `auto` and the emitter must write the ID verbatim rather than appending a second, conflicting
 # [effort=…] suffix on top of the one already baked into the name.
-assert "cursor: build-economy carries its shipped Cursor ID, no effort suffix" \
-  '[ "$(fm "$SBX/.cursor/agents/docket-build-economy.md" model)" = "cursor-grok-4.5-medium" ]'
-assert "cursor: build-standard carries its shipped Cursor ID, no effort suffix" \
-  '[ "$(fm "$SBX/.cursor/agents/docket-build-standard.md" model)" = "cursor-grok-4.5-high" ]'
-assert "cursor: build-premium carries its shipped Cursor ID, no effort suffix" \
-  '[ "$(fm "$SBX/.cursor/agents/docket-build-premium.md" model)" = "claude-opus-5-high" ]'
-for p in economy standard premium; do
+assert "cursor: build-low carries its shipped Cursor ID, no effort suffix" \
+  '[ "$(fm "$SBX/.cursor/agents/docket-build-low.md" model)" = "cursor-grok-4.5-low" ]'
+assert "cursor: build-medium carries its shipped Cursor ID, no effort suffix" \
+  '[ "$(fm "$SBX/.cursor/agents/docket-build-medium.md" model)" = "cursor-grok-4.5-medium" ]'
+assert "cursor: build-high carries its shipped Cursor ID, no effort suffix" \
+  '[ "$(fm "$SBX/.cursor/agents/docket-build-high.md" model)" = "cursor-grok-4.5-high" ]'
+assert "cursor: build-max carries its shipped Cursor ID, no effort suffix" \
+  '[ "$(fm "$SBX/.cursor/agents/docket-build-max.md" model)" = "claude-opus-5-high" ]'
+for p in low medium high max; do
   assert "cursor: build-$p emits no standalone effort: key" \
     '! has_fm_key "$SBX/.cursor/agents/docket-build-'"$p"'.md" effort'
   assert "cursor: build-$p model has no appended [effort=…] suffix" \
     '! grep -q "\[effort=" "$SBX/.cursor/agents/docket-build-'"$p"'.md"'
 done
-# The three profiles must be three DISTINCT Cursor models — the Cursor ladder varies by model where
+# The four profiles must be four DISTINCT Cursor models — the Cursor ladder varies by model where
 # the Claude ladder varies by effort, so a copy-paste that collapses them is the failure to catch.
-cursor_profile_models="$(for p in economy standard premium; do fm "$SBX/.cursor/agents/docket-build-$p.md" model; done)"
-assert "cursor: the three build profiles carry three DISTINCT models" \
-  '[ "$(grep -c . <<<"$cursor_profile_models")" = "3" ] &&
-   [ "$(sort -u <<<"$cursor_profile_models" | grep -c .)" = "3" ]'
+cursor_profile_models="$(for p in low medium high max; do fm "$SBX/.cursor/agents/docket-build-$p.md" model; done)"
+assert "cursor: the four build profiles carry four DISTINCT models" \
+  '[ "$(grep -c . <<<"$cursor_profile_models")" = "4" ] &&
+   [ "$(sort -u <<<"$cursor_profile_models" | grep -c .)" = "4" ]'
 
 # --- the claude and codex sides are untouched (emitter-split regression guard) --------------------
 # Byte identity with the source is now structurally impossible: change 0168 made the source a

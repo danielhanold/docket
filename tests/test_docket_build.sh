@@ -344,7 +344,7 @@ assert "controller: does not escalate onto a commit left by a failed attempt" \
   'grep -qiE "\b(do not|does not|never)\b escalate onto a stray commit" <<<"$ctrl_body"'
 
 # ---------------------------------------------------------------------------
-# The three Claude build-profile wrappers (change 0167)
+# The four build-profile wrappers (change 0167; retiered to four by change 0184)
 # ---------------------------------------------------------------------------
 fmv(){ awk 'NR==1 && $0=="---"{f=1;next} f && $0=="---"{exit} f{print}' "$1" \
         | sed -n "s/^$2:[[:space:]]*//p" | head -n1 | sed 's/[[:space:]]*$//'; }
@@ -358,19 +358,19 @@ fmv(){ awk 'NR==1 && $0=="---"{f=1;next} f && $0=="---"{exit} f{print}' "$1" \
 HD="$REPO/agents/harness-defaults.yml"
 assert "the shipped sidecar exists" '[ -f "$HD" ]'
 
-# The ladder is a triple. On CLAUDE, effort is the ONLY thing that differs. Asserting the efforts
-# pairwise-distinct is what stops a copy-paste that silently makes all three the same agent.
-efforts=""
-for p in economy:low standard:medium premium:high; do
-  name="${p%%:*}"; want="${p##*:}"
+# The ladder is a quadruple. Claude's axis is no longer effort alone: change 0184 dropped a genuinely
+# cheaper MODEL onto the bottom rung, so neither "all efforts distinct" nor "all models identical"
+# holds any more. The invariant that survives — and the one the codex block's header already argues —
+# is that each rung is a distinct model/effort PAIR. A copy-paste that silently makes two rungs the
+# same agent is exactly what this catches.
+for p in low:claude-sonnet-5:low medium:claude-opus-5:low high:claude-opus-5:medium max:claude-opus-5:high; do
+  name="${p%%:*}"; rest="${p#*:}"; want_model="${rest%%:*}"; want_effort="${rest##*:}"
   w="$REPO/agents/docket-build-$name.md"
   assert "profile $name: wrapper exists" '[ -f "$w" ]'
   [ -f "$w" ] || continue
   assert "profile $name: name field matches its filename" '[ "$(fmv "$w" name)" = "docket-build-'"$name"'" ]'
-  assert "profile $name: shipped claude effort is $want" \
-    '[ "$(hd_field "$HD" claude build-'"$name"' effort)" = "'"$want"'" ]'
-  assert "profile $name: shipped claude model is set" \
-    '[ -n "$(hd_field "$HD" claude build-'"$name"' model)" ]'
+  assert "profile $name: shipped claude pin is $want_model/$want_effort" \
+    '[ "$(hd_field "$HD" claude build-'"$name"' model)/$(hd_field "$HD" claude build-'"$name"' effort)" = "'"$want_model"'/'"$want_effort"'" ]'
   assert "profile $name: preloads the shared worker skill" \
     'grep -qF -- "docket-build-task" <<<"$(fmv "$w" skills)"'
   assert "profile $name: emits no maxTurns" '! grep -qiE "^maxTurns[[:space:]]*:" "$w"'
@@ -378,33 +378,52 @@ for p in economy:low standard:medium premium:high; do
   # longer the single default store and the two can silently disagree.
   assert "profile $name: source carries no model:/effort: pin of its own" \
     '! grep -qE "^(model|effort):" "$w"'
-  efforts="$efforts $(hd_field "$HD" claude build-$name effort)"
 done
-assert "the three claude profiles carry three DISTINCT efforts" \
-  '[ "$(tr " " "\n" <<<"$efforts" | grep -c .)" = 3 ] && [ "$(tr " " "\n" <<<"$efforts" | grep -c . )" = "$(tr " " "\n" <<<"$efforts" | grep . | sort -u | wc -l | tr -d " ")" ]'
 
-# On CLAUDE all three share one model — there the profile axis is effort, not model. Scoped to the
-# claude block explicitly, because the cursor block deliberately does the opposite (three complete
-# Cursor built-ins whose variant is baked into the ID, so there the axis IS the model).
-# Collected as three raw values (not sort -u'd away first): a deleted entry collapses to a blank
-# that a bare "one distinct value" check would silently ignore, so the non-vacuity half (exactly 3
-# non-empty values) is asserted alongside the one-value half, same shape as the efforts assert.
-models=""
-for n in economy standard premium; do models="$models $(hd_field "$HD" claude build-$n model)"; done
-assert "the three claude profiles share one model" \
-  '[ "$(tr " " "\n" <<<"$models" | grep -c .)" = 3 ] && [ "$(tr " " "\n" <<<"$models" | grep . | sort -u | wc -l | tr -d " ")" = 1 ]'
+# Pair distinctness, collected as raw values (not sort -u'd first) so a deleted entry collapses to a
+# blank that a bare "all distinct" check would silently ignore: the non-vacuity half (exactly 4
+# non-empty pairs) is asserted alongside the distinctness half.
+pairs=""
+for n in low medium high max; do
+  pairs="$pairs $(hd_field "$HD" claude build-$n model)/$(hd_field "$HD" claude build-$n effort)"
+done
+assert "the four claude profiles are four DISTINCT model/effort pairs" \
+  '[ "$(tr " " "\n" <<<"$pairs" | grep -c .)" = 4 ] && [ "$(tr " " "\n" <<<"$pairs" | grep . | sort -u | wc -l | tr -d " ")" = 4 ]'
+
+# 0184's stated purpose on claude: the bottom rung is a genuinely cheaper MODEL, not merely a lower
+# effort on the same one — the defect the change existed to fix ("economy never delivered a truly
+# cheap floor"). Asserted as a difference, not as a literal ID, so retuning the pin does not redden.
+assert "claude build-low runs a different model from the rest of the ladder" \
+  '[ -n "$(hd_field "$HD" claude build-low model)" ] &&
+   [ "$(hd_field "$HD" claude build-low model)" != "$(hd_field "$HD" claude build-medium model)" ]'
+
+# The compression claim: max INHERITS the pre-0184 premium pin, so the ladder gained no new headroom
+# at the top — the savings come from the rungs below, not from spending more.
+assert "claude build-max is the pre-0184 premium pin (claude-opus-5/high)" \
+  '[ "$(hd_field "$HD" claude build-max model)/$(hd_field "$HD" claude build-max effort)" = "claude-opus-5/high" ]'
 
 cursor_models=""
-for n in economy standard premium; do cursor_models="$cursor_models $(hd_field "$HD" cursor build-$n model)"; done
-assert "the three cursor profiles use three DISTINCT models" \
-  '[ "$(tr " " "\n" <<<"$cursor_models" | grep -c .)" = 3 ] && [ "$(tr " " "\n" <<<"$cursor_models" | grep . | sort -u | wc -l | tr -d " ")" = 3 ]'
+for n in low medium high max; do cursor_models="$cursor_models $(hd_field "$HD" cursor build-$n model)"; done
+assert "the four cursor profiles use four DISTINCT models" \
+  '[ "$(tr " " "\n" <<<"$cursor_models" | grep -c .)" = 4 ] && [ "$(tr " " "\n" <<<"$cursor_models" | grep . | sort -u | wc -l | tr -d " ")" = 4 ]'
+
+# Codex deliberately reuses one model at two efforts (sol/low for high, sol/medium for max), so
+# MODEL distinctness is the wrong assert there — the pair is the role. Four distinct pairs.
+codex_pairs=""
+for n in low medium high max; do
+  codex_pairs="$codex_pairs $(hd_field "$HD" codex build-$n model)/$(hd_field "$HD" codex build-$n effort)"
+done
+assert "the four codex profiles are four DISTINCT model/effort pairs" \
+  '[ "$(tr " " "\n" <<<"$codex_pairs" | grep -c .)" = 4 ] && [ "$(tr " " "\n" <<<"$codex_pairs" | grep . | sort -u | wc -l | tr -d " ")" = 4 ]'
 
 # The IDs must NOT appear under agents.default in the example — Claude model IDs there would
 # falsely present themselves as harness-portable (spec: "never the harness-neutral fallback").
 EX="$REPO/.docket.example.yml"
 default_blk="$(awk '/^#[[:space:]]*default:[[:space:]]*$/{inblk=1;next} inblk && /^#[[:space:]]{0,3}[a-z]/{inblk=0} inblk{print}' "$EX")"
 assert "no build profile is documented under agents.default" \
-  '! grep -qE "build-(economy|standard|premium)" <<<"$default_blk"'
+  '! grep -qE "build-(low|medium|high|max)" <<<"$default_blk"'
+assert "no retired profile name survives anywhere in the example" \
+  '! grep -qE "build-(economy|standard|premium)" "$EX"'
 
 # Non-vacuity companion: the shipped example has no commented `default:` block today, so
 # $default_blk is normally the empty string and the assert above passes trivially — that must be
