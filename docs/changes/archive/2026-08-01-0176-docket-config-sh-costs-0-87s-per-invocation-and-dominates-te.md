@@ -29,8 +29,8 @@ claimed_at:
 | Artifact | Link |
 |---|---|
 | Spec | [2026-07-31-docket-config-per-invocation-cost-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-31-docket-config-per-invocation-cost-design.md) |
-| Plan | [2026-08-01-docket-config-per-invocation-cost.md](https://github.com/danielhanold/docket/blob/feat/docket-config-sh-costs-0-87s-per-invocation-and-dominates-te/docs/superpowers/plans/2026-08-01-docket-config-per-invocation-cost.md) |
-| Results | [2026-08-01-docket-config-per-invocation-cost-results.md](https://github.com/danielhanold/docket/blob/feat/docket-config-sh-costs-0-87s-per-invocation-and-dominates-te/docs/results/2026-08-01-docket-config-per-invocation-cost-results.md) |
+| Plan | [2026-08-01-docket-config-per-invocation-cost.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-01-docket-config-per-invocation-cost.md) |
+| Results | [2026-08-01-docket-config-per-invocation-cost-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-01-docket-config-per-invocation-cost-results.md) |
 | PR | [#145](https://github.com/danielhanold/docket/pull/145) |
 | ADRs | [ADR-0062](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0062-in-repo-shell-yaml-readers-no-external-parser.md) |
 <!-- docket:artifacts:end -->
