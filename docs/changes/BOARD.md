@@ -1,8 +1,14 @@
 # Backlog
 
-**183 changes** — 🟡 39 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 119 done · 🗑️ 19 killed
+**183 changes** — 🟢 1 in progress · 🟡 38 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 119 done · 🗑️ 19 killed
 
-## 🟡 Proposed (39)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch |
+|---|-------|----------|------|------|--------|
+| [0176](active/0176-docket-config-sh-costs-0-87s-per-invocation-and-dominates-te.md) | docket-config.sh costs ~0.87s per invocation and dominates test_docket_config.sh | `medium` | `perf` | [spec](../superpowers/specs/2026-07-31-docket-config-per-invocation-cost-design.md) | `feat/docket-config-sh-costs-0-87s-per-invocation-and-dominates-te` |
+
+## 🟡 Proposed (38)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -37,7 +43,6 @@
 | [0170](active/0170-lean-whole-branch-review-skill.md) | Lean Docket-owned whole-branch review skill | `medium` | `feat` | needs-brainstorm |
 | [0171](active/0171-settle-a-reflow-tolerant-house-pattern-for-prose-anchored-gu.md) | Settle a reflow-tolerant house pattern for prose-anchored guards | `medium` | `refactor` | needs-brainstorm |
 | [0172](active/0172-normalize-the-banned-producer-pipe-shape-across-tests-and-he.md) | Normalize the banned producer-pipe shape across tests and helpers | `medium` | `chore` | needs-brainstorm |
-| [0176](active/0176-docket-config-sh-costs-0-87s-per-invocation-and-dominates-te.md) | docket-config.sh costs ~0.87s per invocation and dominates test_docket_config.sh | `medium` | `perf` | build-ready |
 | [0177](active/0177-harden-the-0174-fixture-template-helpers-sticky-failure-ungu.md) | Harden the 0174 fixture-template helpers (sticky failure, unguarded mktemp, destructive pre-clean, leaked root) | `medium` | `chore` | needs-brainstorm |
 | [0178](active/0178-fix-the-bsd-grep-parse-error-truncating-test-docket-example.md) | Fix the BSD-grep parse error truncating test_docket_example_yml.sh | `medium` | `fix` | needs-brainstorm |
 | [0179](active/0179-revisit-factoring-a-shared-config-value-extractor-across-the.md) | Revisit factoring a shared config value extractor across the three readers | `medium` | `refactor` | needs-brainstorm |
