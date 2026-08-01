@@ -2,9 +2,9 @@
 slug: optimization-needs-a-measured-oracle
 hook: "A performance change has no oracle in the suite — correctness asserts pass identically whether the optimization happened or not, so scope it and accept it on measured wall clock."
 topics: [testing, performance, planning]
-changes: [174]
+changes: [174, 175]
 created: 2026-07-31
-updated: 2026-07-31
+updated: 2026-08-01
 promotion_state: candidate
 promoted_to:
 ---
@@ -49,3 +49,11 @@ whose value depends on the property the change exists to deliver.
   One durable technique from the same build: the ad-hoc probe that proved copied fixtures never
   mutate the shared template was **kept** as a template-integrity assertion before each file's final
   `exit` — turning a one-time investigation into a property checked across every future run.
+- 2026-08-01 (#175, PR #144 — merged) — The first cache optimization cut the parser-tool count
+  from 788 to 644–667, but did not meet the `<400` acceptance budget because validation still
+  re-parsed each config layer. A second, Bash-4+-only validation sidecar reduced the retained
+  fixture to 38 calls and the real generation median from 1.82s to 0.29s, while the Bash-3.2
+  fallback retained its existing behavior. The performance guard mattered as much as the timing:
+  bypassing the cache raised the same fixture to 597 calls and reddened it. Treat a mechanism
+  metric as a companion to wall clock when the regression shape is retained work; measure the
+  actual fixture and mutation-test that the metric still observes the optimized path.
