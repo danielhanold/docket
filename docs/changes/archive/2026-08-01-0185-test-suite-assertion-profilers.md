@@ -2,7 +2,7 @@
 id: 185
 slug: test-suite-assertion-profilers
 title: Test-suite profilers — per-assertion and per-command timing
-status: implemented
+status: done
 priority: low
 type: chore
 created: 2026-08-01
@@ -17,7 +17,7 @@ results:
 trivial: true
 auto_groomable:
 branch: feat/test-suite-assertion-profilers
-claimed_at:
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/146
 blocked_by:
 reconciled: false
