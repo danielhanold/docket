@@ -75,6 +75,11 @@ tmp="$(mktemp -d)"
 out="$tmp/stdout.log"
 
 printf 'tracing %s under %s ...\n' "$TEST" "$BASH_BIN"
+# Printed BEFORE the child launches, not only in the end-of-run summary: when a test HANGS the
+# summary never arrives, and the growing trace file read from another shell is the only way to see
+# where it stopped. Same stream as the summary — nothing parsing this output changes shape, and a
+# duplicated path line is harmless where a missing one is a dead end.
+printf 'trace:  %s\nstdout: %s\n' "$TRACE" "$out"
 # SHELLOPTS is read from the environment at Bash startup and applied before the script runs — the
 # one way to enable xtrace in a file you are not allowed to modify. It must be set with `env` and
 # not a command-prefix assignment: SHELLOPTS is READONLY in the shell running this script, so a

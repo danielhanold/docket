@@ -32,7 +32,7 @@ profile-asserts.sh [--top N] [--tsv PATH] [--verbose] [TEST ...]
 Tests run under `$DOCKET_BASH_PATH` when it is set (docket's configured `runtime.bash`), otherwise
 under the interpreter running the script.
 
-**Output:** a progress line per test file, then three tables — slowest assertion segments across
+**Output:** the records path, then a `running <test>` line and a completion line per test file, then three tables — slowest assertion segments across
 every profiled file, a per-test rollup, and the failing assertions — then a totals line and the
 records path.
 
