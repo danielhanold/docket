@@ -2,7 +2,7 @@
 id: 176
 slug: docket-config-sh-costs-0-87s-per-invocation-and-dominates-te
 title: docket-config.sh costs ~0.87s per invocation and dominates test_docket_config.sh
-status: implemented
+status: done
 priority: medium
 type: perf
 created: 2026-07-31
@@ -20,7 +20,7 @@ branch: feat/docket-config-sh-costs-0-87s-per-invocation-and-dominates-te
 pr: https://github.com/danielhanold/docket/pull/145
 blocked_by:
 reconciled: true
-claimed_at: 2026-08-01T01:51:54Z
+claimed_at: 
 ---
 
 ## Artifacts
