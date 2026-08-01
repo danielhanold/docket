@@ -2,11 +2,11 @@
 id: 169
 slug: codex-profile-routed-build-support
 title: Codex support for profile-routed Docket builds
-status: implemented
+status: done
 priority: medium
 type: feat
 created: 2026-07-30
-updated: 2026-07-31
+updated: 2026-08-01
 depends_on: [167, 168]
 related: [77, 78, 79]
 discovered_from: [167]
@@ -17,7 +17,7 @@ results: docs/results/2026-07-31-codex-profile-routed-build-support-results.md
 trivial: false
 auto_groomable:
 branch: feat/codex-profile-routed-build-support
-claimed_at: 2026-07-31T22:44:05Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/143
 blocked_by:
 reconciled: true
