@@ -2,23 +2,23 @@
 id: 175
 slug: sync-agents-per-invocation-cost
 title: sync-agents.sh costs ~5.5s per invocation and dominates the test suite
-status: in-progress
+status: implemented
 priority: medium
 type: perf
 created: 2026-07-31
-updated: 2026-07-31
+updated: 2026-08-01
 depends_on: [173]
 related: [150, 173, 174, 176]
 discovered_from: [168]
 adrs: []
 spec: docs/superpowers/specs/2026-07-31-sync-agents-per-invocation-cost-design.md
 plan: docs/superpowers/plans/2026-07-31-sync-agents-per-invocation-cost.md
-results:
+results: docs/results/2026-07-31-sync-agents-per-invocation-cost-results.md
 trivial: false
 auto_groomable: false
 branch: feat/sync-agents-per-invocation-cost
-claimed_at: 2026-07-31T23:33:17Z
-pr:
+claimed_at: 2026-08-01T00:53:29Z
+pr: https://github.com/danielhanold/docket/pull/144
 blocked_by:
 reconciled: true
 ---
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-07-31-sync-agents-per-invocation-cost-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-07-31-sync-agents-per-invocation-cost-design.md) |
 | Plan | [2026-07-31-sync-agents-per-invocation-cost.md](https://github.com/danielhanold/docket/blob/feat/sync-agents-per-invocation-cost/docs/superpowers/plans/2026-07-31-sync-agents-per-invocation-cost.md) |
+| Results | [2026-07-31-sync-agents-per-invocation-cost-results.md](https://github.com/danielhanold/docket/blob/feat/sync-agents-per-invocation-cost/docs/results/2026-07-31-sync-agents-per-invocation-cost-results.md) |
+| PR | [#144](https://github.com/danielhanold/docket/pull/144) |
 <!-- docket:artifacts:end -->
 
 ## Why
