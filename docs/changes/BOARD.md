@@ -1,6 +1,6 @@
 # Backlog
 
-**183 changes** — 🟡 38 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 120 done · 🗑️ 19 killed
+**183 changes** — 🟡 38 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 121 done · 🗑️ 19 killed
 
 ## 🟡 Proposed (38)
 
@@ -54,12 +54,11 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | `chore` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
-| [0176](active/0176-docket-config-sh-costs-0-87s-per-invocation-and-dominates-te.md) | docket-config.sh costs ~0.87s per invocation and dominates test_docket_config.sh | `medium` | `perf` | [#145](https://github.com/danielhanold/docket/pull/145) |  |
 
 ```mermaid
 graph TD
@@ -99,7 +98,6 @@ graph TD
   0167 --> 0170
   0171
   0172
-  0176
   0177
   0178
   0175 --> 0179
@@ -114,10 +112,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (139)</summary>
+<details><summary>✅🗑️ Archive — done + killed (140)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0176](archive/2026-08-01-0176-docket-config-sh-costs-0-87s-per-invocation-and-dominates-te.md) | docket-config.sh costs ~0.87s per invocation and dominates test_docket_config.sh | 2026-08-01 |
 | [0175](archive/2026-08-01-0175-sync-agents-per-invocation-cost.md) | sync-agents.sh costs ~5.5s per invocation and dominates the test suite | 2026-08-01 |
 | [0169](archive/2026-08-01-0169-codex-profile-routed-build-support.md) | Codex support for profile-routed Docket builds | 2026-08-01 |
 | [0174](archive/2026-07-31-0174-reuse-test-git-fixtures.md) | Reuse test git fixtures instead of rebuilding them per assertion | 2026-07-31 |
@@ -142,7 +141,6 @@ graph TD
 | [0130](archive/2026-07-28-0130-make-the-finalize-marker-reachability-guard-portable-to-bsd.md) | Make the finalize marker reachability guard portable to BSD grep | 2026-07-28 |
 | [0126](archive/2026-07-28-0126-apply-the-poison-value-prelude-uniformly-to-every-resolver-e.md) | Apply the poison-value prelude uniformly to every resolver eval in the config suite | 2026-07-28 |
 | [0122](archive/2026-07-28-0122-nested-keys-scope-tags-in-docket-example-yml-are-unguarded.md) | Nested keys' scope tags in .docket.example.yml are unguarded | 2026-07-28 |
-| [0120](archive/2026-07-28-0120-docket-finalize-change-claims-integration-branch-is-read-fro.md) | docket-finalize-change claims integration_branch is read from .docket.yml, but it is an exported resolver key | 2026-07-28 |
 | [0131](archive/2026-07-26-0131-make-board-conflict-rebase-continuation-noninteractive.md) | Make board-conflict rebase continuation noninteractive | 2026-07-26 |
 | [0129](archive/2026-07-26-0129-fix-the-pipefail-unsafe-plain-format-config-assertion.md) | Fix the pipefail-unsafe plain-format config assertion | 2026-07-26 |
 | [0124](archive/2026-07-26-0124-backlog-triage-pass.md) | Backlog triage pass — kill, defer, or arm each needs-brainstorm stub | 2026-07-26 |
@@ -157,7 +155,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-07](archive/) | 73 done |
+| [2026-07](archive/) | 74 done |
 | [2026-06](archive/) | 32 done |
 
 </details>
