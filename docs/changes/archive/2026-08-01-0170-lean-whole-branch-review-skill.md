@@ -2,7 +2,7 @@
 id: 170
 slug: lean-whole-branch-review-skill
 title: Lean Docket-owned whole-branch review skill
-status: implemented
+status: done
 priority: medium
 type: feat
 created: 2026-07-30
@@ -17,7 +17,7 @@ results: docs/results/2026-08-01-lean-whole-branch-review-skill-results.md
 trivial: false
 auto_groomable:
 branch: feat/lean-whole-branch-review-skill
-claimed_at: 2026-08-01T21:28:26Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/149
 blocked_by:
 reconciled: true
