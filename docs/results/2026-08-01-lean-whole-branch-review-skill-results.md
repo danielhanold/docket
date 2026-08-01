@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0170 — Lean Docket-owned whole-branch review skill](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0170-lean-whole-branch-review-skill.md)**
+> ↩ **[Change 0170 — Lean Docket-owned whole-branch review skill](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-01-0170-lean-whole-branch-review-skill.md)**
 <!-- docket:backlink:end -->
 
 # Lean whole-branch review skill + suite-once evidence chain — results
