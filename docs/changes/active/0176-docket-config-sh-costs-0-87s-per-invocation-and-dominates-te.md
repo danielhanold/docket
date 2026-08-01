@@ -19,8 +19,8 @@ auto_groomable:
 branch: feat/docket-config-sh-costs-0-87s-per-invocation-and-dominates-te
 pr:
 blocked_by:
-reconciled: false
-claimed_at: 2026-08-01T01:09:12Z
+reconciled: true
+claimed_at: 2026-08-01T01:12:30Z
 ---
 
 ## Artifacts
@@ -72,3 +72,16 @@ Design: [`docs/superpowers/specs/2026-07-31-docket-config-per-invocation-cost-de
 - Shared config-reader extraction — change 0179.
 - Caching or removing Git freshness and bootstrap probes.
 - Any change to accepted config syntax, precedence, output, warnings, or diagnostics.
+
+## Reconcile log
+
+### 2026-08-01 — reconciled against current `origin/main`
+
+Re-read the linked design against related changes 0174, 0175, and 0179; ADR-0062; recent
+archived changes; and `origin/main` at `6fd61cc9`. Change 0174's reusable fixture is landed,
+and change 0175's independent `sync-agents.sh` parser optimization is now done; neither changes
+`scripts/docket-config.sh`'s file-backed `yaml_get` / `yaml_block_body` readers or their tests.
+The current resolver still exhibits the fork-heavy reader shape described by the spec, while
+change 0179 remains an ungroomed, dependency-gated follow-up and is not a shared-extractor
+dependency. The specialized `runtime.bash` reader remains in `scripts/lib/docket-runtime.sh` and
+is explicitly outside this refactor. No scope adjustment or additional follow-up is needed.
