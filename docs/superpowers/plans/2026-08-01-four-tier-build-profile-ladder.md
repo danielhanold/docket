@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0184 — Four-tier build profile ladder — low/medium/high/max replaces economy/standard/premium](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0184-four-tier-build-profile-ladder.md)**
+> ↩ **[Change 0184 — Four-tier build profile ladder — economy/standard/premium/max](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-01-0184-four-tier-build-profile-ladder.md)**
 <!-- docket:backlink:end -->
 
 # Four-Tier Build Profile Ladder Implementation Plan
