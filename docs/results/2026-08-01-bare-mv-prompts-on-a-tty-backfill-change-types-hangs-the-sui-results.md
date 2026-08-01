@@ -12,10 +12,12 @@ The automated suite **cannot** verify the thing this change exists to fix: every
 finalize gate run without a tty, which is exactly the environment in which the bug was invisible.
 The first check below is the merge gate for this change.
 
-- [ ] **Run the suite from a real interactive terminal and confirm it finishes.**
+- [x] **Run the suite from a real interactive terminal and confirm it finishes.** *(Daniel, 2026-08-01
+      — ran from a real terminal, finished correctly.)*
       `bash tests/test_backfill_change_types.sh` — before this change it blocked forever on
       `override rw-r--r-- … for 0002-b.md? (y/n [n])`. It should now complete in a few seconds.
-- [ ] **Confirm the pty guard actually ran on your machine** — no `skip -` line in that output.
+- [x] **Confirm the pty guard actually ran on your machine** — no `skip -` line in that output.
+      *(Daniel, 2026-08-01 — all `ok`, no skips: the guard executed here.)*
       A skip means the guard proved nothing on your host; the skip line names the resolved
       `script(1)` flavor so you can tell which of the two causes fired.
 - [ ] **Optional, if you want to see the bug** — revert the fix in a scratch copy
