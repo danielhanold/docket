@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0186 — Bare mv prompts on a tty — backfill-change-types hangs the suite and can exit 0 without installing](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0186-bare-mv-prompts-on-a-tty-backfill-change-types-hangs-the-sui.md)**
+> ↩ **[Change 0186 — Bare mv prompts on a tty — backfill-change-types hangs the suite and can exit 0 without installing](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-01-0186-bare-mv-prompts-on-a-tty-backfill-change-types-hangs-the-sui.md)**
 <!-- docket:backlink:end -->
 
 # Bare `mv` prompts on a tty — results
