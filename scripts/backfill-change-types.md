@@ -79,7 +79,10 @@ assertion, so removing a guard once left the whole refusal block green.
 
 **4. Apply — staged, then installed.** Each rewrite goes to a scratch directory and is verified
 there; only once every file has rewritten cleanly are they moved into place. A failure partway
-through therefore cannot leave a half-migrated backlog.
+through therefore cannot leave a half-migrated backlog. The move is `mv -f`: a bare `mv` prompts
+when a destination is unwritable and stdin is a terminal, and at EOF it declines the overwrite and
+exits **0** — which would install nothing while reporting success, making the "Nothing was
+installed" promise below false in exactly the environment a maintainer runs it in.
 
 The write is **anchored to the first `---…---` block** (AGENTS.md): an awk counter tracks the
 frontmatter delimiters, so a body line beginning `type:` can never be rewritten. An existing
