@@ -1,14 +1,15 @@
 # Backlog
 
-**197 changes** — 🟢 1 in progress · 🟡 43 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 127 done · 🗑️ 20 killed
+**197 changes** — 🟢 2 in progress · 🟡 42 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 127 done · 🗑️ 20 killed
 
-## 🟢 In progress (1)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0190](active/0190-close-the-build-evidence-value-gap-a-post-gate-results-commi.md) | Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip | `medium` | `feat` | [spec](../superpowers/specs/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md) | `feat/close-the-build-evidence-value-gap-a-post-gate-results-commi` |
+| [0194](active/0194-retire-the-retired-default-framing-from-the-docket-owned-rol.md) | Retire the retired-default framing from the docket-owned role skill bodies | `medium` | `docs` | [spec](../superpowers/specs/2026-08-02-retire-the-retired-default-framing-from-the-docket-owned-rol-design.md) | `feat/retire-the-retired-default-framing-from-the-docket-owned-rol` |
 
-## 🟡 Proposed (43)
+## 🟡 Proposed (42)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -51,7 +52,6 @@
 | [0187](active/0187-harden-the-docket-example-yml-mirror-guards-one-directional.md) | Harden the .docket.example.yml mirror guards — one-directional coverage, an unexercised round-trip slice, and a prefix-weak terminator | `medium` | `chore` | needs-brainstorm |
 | [0188](active/0188-backfill-change-types-sh-calls-mktemp-d-with-no-template-so.md) | backfill-change-types.sh calls mktemp -d with no template, so TMPDIR is ignored on macOS and uchg fixtures leak undeletable dirs | `medium` | `fix` | needs-brainstorm |
 | [0189](active/0189-sweep-the-15-remaining-bare-mv-install-sites-a-tty-prompt-ma.md) | Sweep the 15 remaining bare-mv install sites — a tty prompt makes their || die guards unreachable | `medium` | `fix` | needs-brainstorm |
-| [0194](active/0194-retire-the-retired-default-framing-from-the-docket-owned-rol.md) | Retire the retired-default framing from the docket-owned role skill bodies | `medium` | `docs` | build-ready |
 | [0195](active/0195-retune-the-opencode-shipped-model-defaults-for-cost.md) | Retune the opencode shipped model defaults for cost | `medium` | `chore` | needs-brainstorm |
 | [0196](active/0196-shared-agents-md-dispatch-block-restate-and-test-the-single.md) | Shared AGENTS.md dispatch block — restate and test the single-owner assumptions | `medium` | `fix` | needs-brainstorm |
 | [0197](active/0197-clear-the-unfixed-review-findings-from-change-0193.md) | Clear the unfixed review findings from change 0193 | `medium` | `chore` | needs-brainstorm |
