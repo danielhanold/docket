@@ -242,8 +242,9 @@ agent_description(){ sed -n '/^description:/{s/^description:[[:space:]]*//;p;q;}
 HARNESS_HAS_DISPATCH_RULES="$DOCKET_GI_DISPATCH_HARNESSES"
 harness_has_dispatch_rule(){ case " $HARNESS_HAS_DISPATCH_RULES " in *" $1 "*) return 0;; *) return 1;; esac; }
 
-# Codex reads a committed AGENTS.md; only codex gets the AGENTS.md dispatch block (change 0077).
-AGENTS_MD_DISPATCH_HARNESSES="codex"
+# Codex and opencode both read a committed project-root AGENTS.md; they share the single managed
+# dispatch block (changes 0077, 0192). A repo targeting either gets it; targeting both gets it once.
+AGENTS_MD_DISPATCH_HARNESSES="codex opencode"
 # True if harness $1 is one that reads a committed AGENTS.md dispatch block.
 harness_gets_agents_md(){ case " $AGENTS_MD_DISPATCH_HARNESSES " in *" $1 "*) return 0;; *) return 1;; esac; }
 # True if the repo targets any AGENTS.md-dispatch harness (drives write-vs-strip + the --check leg).
@@ -909,28 +910,31 @@ write_dispatch_rule() {  # $1 = <root>/.<harness> base path
 }
 
 # Assemble the committed AGENTS.md docket dispatch block (markers included) to stdout.
-# Machine-neutral: agent names + delegation prose only, NO model IDs (pins live in the .toml).
+# Machine-neutral: agent names + delegation prose only, NO model IDs (pins live in each harness's
+# own generated agent definitions).
 #
 # This block is COMMITTED into consumer repos and checked by `--check`, so a false claim here ships
-# rather than merely displaying. The default store is agents/harness-defaults.yml, whose codex block
-# is complete since change 0169, so the head states the pinned truth. The dispatch is required
-# either way — the agent carries the skill's contract and preload, not just a model — so the
-# rationale stays true however the pin resolves. Guarded, against the sidecar rather than a literal,
-# in tests/test_sync_agents_codex.sh, which asserts the claim in BOTH directions so completing or
-# emptying the codex block cannot leave this prose unchecked.
+# rather than merely displaying. It is SHARED by every harness in AGENTS_MD_DISPATCH_HARNESSES
+# (codex and opencode), so its prose names no harness's artifact path and no harness's model
+# vocabulary — a claim true for Codex only would be false in an opencode repo. The default store is
+# agents/harness-defaults.yml, whose blocks are complete for every shipped harness, so the head
+# states the pinned truth. The dispatch is required either way — the agent carries the skill's
+# contract and preload, not just a model. Guarded, against the sidecar rather than a literal, in
+# tests/test_sync_agents_codex.sh and tests/test_sync_agents_opencode.sh.
 assemble_agents_md_dispatch(){
   printf '%s\n' "$DISPATCH_START"
   cat <<'HEAD'
 ## Docket agents — dispatch, don't run inline
 
-Docket generates an agent definition per docket skill in `.codex/agents/docket-*.toml`. When you
-are asked to run one of the docket skills below, run the matching **agent** instead of executing
+Docket generates an agent definition per docket skill in your harness's own agents directory. When
+you are asked to run one of the docket skills below, run the matching **agent** instead of executing
 the skill inline at the session model: the agent carries that skill's dispatch contract, its skill
 preload, and whatever model and reasoning effort your config layers pin for it. Docket ships a
-validated Codex model and reasoning effort for every one of these agents, so they are pinned out of
-the box; your config layers override either field per agent. Dispatch to the agent either way — the
-pin is not the only reason, since the agent also carries the skill's dispatch contract and preload.
-Pass the request through unchanged, including any change or ADR id.
+validated model and reasoning effort for every one of these agents on every harness it supports, so
+they are pinned out of the box; your config layers override either field per agent. Dispatch through
+the hosting harness's native named-agent dispatch either way — the pin is not the only reason, since
+the agent also carries the skill's dispatch contract and preload. Pass the request through
+unchanged, including any change or ADR id.
 HEAD
   printf '\n'
   local src name desc
@@ -945,9 +949,10 @@ HEAD
   printf '%s\n' "$DISPATCH_END"
 }
 
-# Write the AGENTS.md dispatch block when codex is a targeted per-repo harness; strip it when
-# codex is de-listed (within an opted-in repo). Logs a one-time commit notice on write/remove.
-sync_codex_agents_md_dispatch(){
+# Write the AGENTS.md dispatch block when an AGENTS.md-dispatch harness (codex, opencode) is a
+# targeted per-repo harness; strip it when the last one is de-listed (within an opted-in repo).
+# Logs a one-time commit notice on write/remove.
+sync_agents_md_dispatch(){
   local f="$REPO/AGENTS.md" status
   if repo_wants_agents_md_dispatch; then
     status="$(ensure_managed_block "$f" "$DISPATCH_START" "$DISPATCH_END" "$(assemble_agents_md_dispatch)")"
@@ -958,7 +963,7 @@ sync_codex_agents_md_dispatch(){
   else
     status="$(remove_managed_block "$f" "$DISPATCH_START" "$DISPATCH_END")"
     case "$status" in
-      removed) log "removed the docket dispatch block from $f (codex de-listed) — COMMIT THIS.";;
+      removed) log "removed the docket dispatch block from $f (no AGENTS.md-dispatch harness targeted) — COMMIT THIS.";;
       refused) log "WARN $f has a malformed docket:dispatch block — refusing to strip; repair the markers by hand.";;
     esac
   fi
@@ -1113,8 +1118,9 @@ project_level_pass() {  # built-in ⊕ local ⊕ committed ⊕ global -> <repo>/
     harness_has_dispatch_rule "$h" || continue
     write_dispatch_rule "$REPO/.$h"
   done
-  # Codex-only committed AGENTS.md dispatch block (change 0077).
-  sync_codex_agents_md_dispatch
+  # The committed AGENTS.md dispatch block, shared by every AGENTS_MD_DISPATCH_HARNESSES harness
+  # (changes 0077, 0192).
+  sync_agents_md_dispatch
 }
 
 check_project_level() {  # three legs: (a) gitignore block current [CI-meaningful], (b) nothing
@@ -1138,7 +1144,7 @@ check_project_level() {  # three legs: (a) gitignore block current [CI-meaningfu
   fi
   # AGENTS.md dispatch block currency (change 0077) — CI-meaningful, symmetric with the
   # .gitignore leg. The block is committed (exempt from the tracked-file leg); assert it
-  # is present & current when codex is targeted, and absent when codex is not.
+  # is present & current when an AGENTS.md-dispatch harness is targeted, and absent when none is.
   local am_want am_have
   am_want="$(assemble_agents_md_dispatch)"
   am_have="$(_docket_gi_current_block "$REPO/AGENTS.md" "$DISPATCH_START" "$DISPATCH_END")"
@@ -1149,7 +1155,7 @@ check_project_level() {  # three legs: (a) gitignore block current [CI-meaningfu
     fi
   else
     if [ -n "$am_have" ]; then
-      log "check: AGENTS.md carries a docket dispatch block but codex is not in agent_harnesses — run: bash sync-agents.sh and commit AGENTS.md"
+      log "check: AGENTS.md carries a docket dispatch block but no AGENTS.md-dispatch harness (codex, opencode) is in agent_harnesses — run: bash sync-agents.sh and commit AGENTS.md"
       rc=1
     fi
   fi
