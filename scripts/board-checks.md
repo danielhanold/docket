@@ -166,6 +166,33 @@ injects columns into it (`title`). One finding per violated field, per change.
 second overlapping check would double-report the same file. Every domain is a shape or membership
 test; none enumerates bad values.
 
+**`scalar-form`** — The well-formedness leg of the house yaml-scalar rule: a frontmatter scalar
+that is *syntactically malformed* YAML even though today's grep/awk readers happen to tolerate it.
+It covers the only two free-text string scalars docket reads that are not already gated — `title`
+(via `field_raw`) and the optional `blocked_by:` (via the new `fm_field_raw`). This field set is a
+**derivation**, never a hand-listed "bad fields" enumeration: the natively-boolean fields are
+deliberately excluded (`trivial`, `auto_groomable`, `reconciled`) because a bare `true`/`false`
+there is *correct* well-formed YAML, and the shape/domain-gated fields (`status`, `slug`,
+`priority`, `type`, `id`) are already covered by `field-domain` or `malformed-id`. One finding per
+violated leg per field.
+
+The check reads the **raw** token — never the quote-unwrapped value, which could not tell a quoted
+colon-space title from a bare one — and applies three legs, in order:
+
+- **Skip leg:** the raw value is empty, **or opens with `"` or `'`** — a quoted scalar is
+  well-formed by definition (the 0190 quoted-title shape) and is never inspected further.
+- **Colon-space leg:** the unquoted raw value contains `: `.
+- **Boolean leg:** the unquoted raw value is, whole-value and case-insensitive, exactly one of
+  `on`/`off`/`yes`/`no`/`true`/`false` (YAML 1.1).
+
+The `blocked_by:` read is **anchored** to the first `---…---` block via `fm_field_raw` (ADR-0057):
+the field is optional, so a change that omits it while its body happens to open a `blocked_by:`
+line must stay silent — an unanchored read would mistake body prose for the field and misfire.
+
+Warn-only, like every check here: it never marks `EXPLAINED`, never touches `board-row-dropped` (a
+malformed *scalar* never drops a row), and never auto-fixes or rewrites the change file. Example
+message: `title: unquoted scalar contains ': ' — quote it or reword (well-formed YAML)`.
+
 **`board-row-dropped`** — Backstop for the count-vs-rows invariant, and the only check whose trigger
 is **computed rather than enumerated**. A change file is *rendered* iff `int_field id` yields a
 non-empty integer **and** its `status:` is a member of the status set the renderer iterates for
