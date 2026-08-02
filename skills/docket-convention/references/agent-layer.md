@@ -33,8 +33,8 @@ agents:                                 # harness-first: reserved `default:` + h
   cursor:                               # per-harness override — only what differs
     implement-next: { model: gpt-5.1, effort: high }
     status:         { model: gpt-5.5-medium-fast }
-    # CONFIG shape, identical across harnesses; the GENERATED Cursor wrapper has no `effort:`
-    # key — effort rides inside the model value. See the wrapper-shape table below.
+    # CONFIG shape, identical across harnesses; the GENERATED Cursor wrapper carries the effort
+    # inside the model value instead of an `effort:` key. See the wrapper-shape table below.
   claude:                               # runner: delegates the whole run to a child harness
     status: { model: gpt-5.1-codex, runner: codex }   # (change 0079; see below)
   # Resolution is field-by-field, first non-empty wins: agents.<harness>.<agent> -> agents.default.<agent> -> that harness's shipped built-in (agents/harness-defaults.yml).
@@ -52,26 +52,23 @@ agents:                                 # harness-first: reserved `default:` + h
 
 `agent_harnesses` (which harness directories get generated files at all) is **orthogonal** to
 `agents.<harness>` (which values those files carry) — a harness can appear in one list without
-appearing in the other, and each falls back independently: `agent_harnesses` defaults to `[claude]`;
-an unlisted `agents.<harness>` falls to `agents.default`, then to that harness's own built-in — and
-a pair the shipped layer does not map ships **unpinned**, never carrying another harness's model ID.
+appearing in the other, and each falls back independently — and a pair the shipped layer does not
+map ships **unpinned**, never carrying another harness's model ID.
 
 **The shipped layer.** `agents/harness-defaults.yml` is program data, not user config, and
 `scripts/lib/harness-defaults.sh` validates it before any wrapper is written: every entry nests
 under a **concrete** harness (a neutral `default:` block is forbidden — that is the cross-harness
 leakage it exists to prevent), each entry supplies **both** `model` and `effort`, and `runner:` is
-forbidden, since delegation is user policy and never a shipped default. Which harnesses carry a
-shipped block is `HD_SHIPPED_HARNESSES` — claude, cursor, codex, and opencode today — and every
-one of them is COMPLETE: sparseness is a property of WHICH harnesses appear, never of how much of
-one appears.
+forbidden, since delegation is user policy and never a shipped default. `HD_SHIPPED_HARNESSES` names
+which harnesses carry a shipped block, and every one of them is COMPLETE: sparseness is a property
+of WHICH harnesses appear, never of how much of one appears.
 
 User-level files are built-in ⊕ global; project-level files are built-in ⊕ local ⊕ committed ⊕ global — where the
 harness-first resolution above runs first, inside each layer, to pick that layer's per-field value before folding
-into the next. Claude Code applies **project-over-user precedence natively**, so the effective order for a
-project-level file's own resolved value is **repo-local > repo-committed > global > built-in**, without the
-generator hand-merging the two directories onto the same file. A harness/agent pair with no entry in any layer
-— user or shipped — omits the field: the wrapper carries no `model` and no `effort`, and the harness applies
-its own default.
+into the next. Claude Code applies **project-over-user precedence natively**, so a project-level file resolves
+**repo-local > repo-committed > global > built-in** without the generator hand-merging the two directories onto
+the same file. A harness/agent pair with no entry in any layer — user or shipped — omits the field: the wrapper
+carries no `model` and no `effort`, and the harness applies its own default.
 
 **`runner:` — cross-harness delegation (change 0079).** An agent entry may carry `runner: <name>`
 naming a registered runner (shipped: `codex`, `cursor`); the generated wrapper body then becomes a shim that
