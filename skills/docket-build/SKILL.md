@@ -5,7 +5,7 @@ description: Use as docket's build role (skills.build) — executes an implement
 
 # docket-build — profile-routed plan execution
 
-The lean alternative to `superpowers:subagent-driven-development`. You are already running inside
+docket's build role, bound by `skills.build`. You are already running inside
 `docket-implement-next` Step 5 with the plan written and the feature worktree cut. You read the
 plan, route each task to a profile, dispatch one fresh worker per task, apply the escalation
 protocol, and run the build gate. Then you stop — review is not yours.
