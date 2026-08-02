@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0193 — Default the build and review roles to docket-build and docket-review](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0193-default-build-review-roles-to-docket-owned-skills.md)**
+> ↩ **[Change 0193 — Default the build and review roles to docket-build and docket-review](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-02-0193-default-build-review-roles-to-docket-owned-skills.md)**
 <!-- docket:backlink:end -->
 
 # Default the build and review roles to docket-build and docket-review — Implementation Plan
