@@ -508,11 +508,16 @@ assert "repo's build: block extraction is non-vacuous" '[ -n "$build_blk" ]'
 assert "repo pins build.checkpoint explicitly" \
   'grep -qE "^[[:space:]]+checkpoint:[[:space:]]+(true|false)[[:space:]]*$" <<<"$build_blk"'
 
-# The SHIPPED cross-harness default must stay SDD — the opt-in is this repo's, not everyone's.
-# Anchored on the resolver, which is what actually decides the default.
-sdd_default="$(grep -E 'SKILL_BUILD=|skill_role build' "$REPO/scripts/docket-config.sh")"
-assert "shipped skills.build default is still superpowers SDD" \
-  'grep -qF -- "superpowers:subagent-driven-development" <<<"$sdd_default"'
+# The SHIPPED cross-harness default is now docket-build (change 0193) — every repo gets the
+# profile-routed build with no opt-in. Anchored on the resolver, which is what actually decides
+# the default, and asserted in BOTH directions so a revert to SDD reddens here rather than
+# silently restoring the retired opt-in posture.
+build_default="$(grep -E 'SKILL_BUILD=|skill_role build' "$REPO/scripts/docket-config.sh")"
+assert "resolver's build default line was located (non-vacuity anchor)" '[ -n "$build_default" ]'
+assert "shipped skills.build default is docket-build" \
+  'grep -qF -- "docket-build" <<<"$build_default"'
+assert "shipped skills.build default is no longer superpowers SDD" \
+  '! grep -qF -- "superpowers:subagent-driven-development" <<<"$build_default"'
 
 # The knob is documented for users, not only implemented (config-knob-ship-end-to-end).
 RM="$REPO/README.md"

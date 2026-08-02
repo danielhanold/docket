@@ -499,7 +499,8 @@ fi
 
 # --- skills: role-keyed pluggable workflow skills (change 0049 + 0050 global layer) ---
 # Nested block; each leaf read within the block only. Per-key precedence:
-# per-repo leaf > global leaf > the superpowers default.
+# per-repo leaf > global leaf > the role's built-in default (superpowers for brainstorm/plan/
+# finish, docket's own docket-build/docket-review for build/review since change 0193).
 skill_role(){  # skill_role <role> <default> -> resolved value on stdout
   local v; v="$(config_block_get local skills "$1")"
   [ -n "$v" ] || v="$(config_block_get committed skills "$1")"
@@ -508,8 +509,8 @@ skill_role(){  # skill_role <role> <default> -> resolved value on stdout
 }
 SKILL_BRAINSTORM="$(skill_role brainstorm superpowers:brainstorming)"
 SKILL_PLAN="$(skill_role plan superpowers:writing-plans)"
-SKILL_BUILD="$(skill_role build superpowers:subagent-driven-development)"
-SKILL_REVIEW="$(skill_role review superpowers:requesting-code-review)"
+SKILL_BUILD="$(skill_role build docket-build)"
+SKILL_REVIEW="$(skill_role review docket-review)"
 SKILL_FINISH="$(skill_role finish superpowers:finishing-a-development-branch)"
 # Unknown role keys in EITHER layer: warn-and-ignore (a typo must never abort).
 for _slot in local committed global; do

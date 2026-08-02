@@ -205,6 +205,14 @@ assert "README: the docket-review section was located (non-vacuity anchor)" \
   '[ -n "$rvsec" ] && grep -qF -- "build-evidence" <<<"$rvsec"'
 assert "README states the suite-run count the change delivers" \
   'grep -qiE "one full-suite run when" <<<"$rvsec" && grep -qiE "three only when both" <<<"$rvsec"'
+# The shipped cross-harness default is now docket-review (change 0193). Anchored on the resolver,
+# both directions, mirroring the build guard in tests/test_docket_build.sh.
+review_default="$(grep -E 'SKILL_REVIEW=|skill_role review' "$REPO/scripts/docket-config.sh")"
+assert "resolver's review default line was located (non-vacuity anchor)" '[ -n "$review_default" ]'
+assert "shipped skills.review default is docket-review" \
+  'grep -qF -- "docket-review" <<<"$review_default"'
+assert "shipped skills.review default is no longer superpowers review" \
+  '! grep -qF -- "superpowers:requesting-code-review" <<<"$review_default"'
 DY="$REPO/.docket.yml"
 assert "this repo dogfoods docket-review via .docket.yml" \
   'awk "/^skills:/{f=1;next} /^[a-z_]+:/{f=0} f" "$DY" | grep -qE "^ +review: +docket-review$"'
