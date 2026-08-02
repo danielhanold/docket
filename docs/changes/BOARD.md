@@ -51,7 +51,7 @@
 | [0187](active/0187-harden-the-docket-example-yml-mirror-guards-one-directional.md) | Harden the .docket.example.yml mirror guards — one-directional coverage, an unexercised round-trip slice, and a prefix-weak terminator | `medium` | `chore` | needs-brainstorm |
 | [0188](active/0188-backfill-change-types-sh-calls-mktemp-d-with-no-template-so.md) | backfill-change-types.sh calls mktemp -d with no template, so TMPDIR is ignored on macOS and uchg fixtures leak undeletable dirs | `medium` | `fix` | needs-brainstorm |
 | [0189](active/0189-sweep-the-15-remaining-bare-mv-install-sites-a-tty-prompt-ma.md) | Sweep the 15 remaining bare-mv install sites — a tty prompt makes their || die guards unreachable | `medium` | `fix` | needs-brainstorm |
-| [0194](active/0194-retire-the-retired-default-framing-from-the-docket-owned-rol.md) | Retire the retired-default framing from the docket-owned role skill bodies | `medium` | `docs` | needs-brainstorm |
+| [0194](active/0194-retire-the-retired-default-framing-from-the-docket-owned-rol.md) | Retire the retired-default framing from the docket-owned role skill bodies | `medium` | `docs` | ⏳ waiting on #193 — needs your merge |
 | [0195](active/0195-retune-the-opencode-shipped-model-defaults-for-cost.md) | Retune the opencode shipped model defaults for cost | `medium` | `chore` | needs-brainstorm |
 | [0196](active/0196-shared-agents-md-dispatch-block-restate-and-test-the-single.md) | Shared AGENTS.md dispatch block — restate and test the single-owner assumptions | `medium` | `fix` | needs-brainstorm |
 
@@ -121,7 +121,7 @@ graph TD
   0190
   0191
   0193
-  0194
+  0193 --> 0194
   0192 --> 0195
   0196
   0015:::done
