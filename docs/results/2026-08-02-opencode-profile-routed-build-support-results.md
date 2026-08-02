@@ -13,20 +13,28 @@ truth**: docket keeps no vendor allowlist (ADR-0015), and every mirror assert co
 output against the sidecar that generated it — both sides move together, so no in-repo test can
 ever detect a wrong ID. These items are the oracle.
 
-- [ ] **The three shipped OpenRouter model IDs are correct and available on your account.**
+- [x] **The three shipped OpenRouter model IDs are correct and available on your account.**
       Verified present in the installed catalog on 2026-08-02 against opencode 1.18.11
       (`opencode models`, 360 entries): `openrouter/deepseek/deepseek-v4-flash-0731`,
       `openrouter/moonshotai/kimi-k3`, `openrouter/openai/gpt-5.6-luna`. Re-confirm they resolve
       under *your* OpenRouter credentials — catalog presence is not entitlement.
-- [ ] **Tier-2 live certification, remaining two rungs.** Economy was certified during the build
+- [x] **Tier-2 live certification, remaining two rungs.** Economy was certified during the build
       (evidence below). Standard and premium were specified for live certification by the spec but
       were not separately observed in a live dispatch. In a scratch repo with
       `agent_harnesses: [opencode]`, run `bash sync-agents.sh`, restart opencode, then:
       `opencode debug agent docket-build-standard` (expect Flash / `high`) and
       `opencode debug agent docket-build-premium` (expect Kimi / `medium`).
-- [ ] **A real end-to-end opencode dispatch.** Everything certified so far is *resolved config*, not
+- [x] **A real end-to-end opencode dispatch.** Everything certified so far is *resolved config*, not
       an executed run. Dispatch one docket agent in a live opencode session and confirm it actually
       runs on the pinned model and carries its skill preload.
+
+**All three cleared by the human on 2026-08-02** (Daniel, reviewing PR #150): the opencode agents
+ran live — including the review agent and explicit by-name agent selection — and the tier-2 live
+certification was completed. Observed cost note, not a defect: one live review run on Kimi K3 cost
+about **$0.80**, consistent with the published per-task figure for that model. Cost tuning of the
+shipped `opencode:` block is tracked as **change 0195** (retune the opencode shipped model defaults
+for cost, `depends_on: [192]`) — deliberately a follow-up rather than an amendment to this branch,
+since changing the shipped model IDs would re-open the three items above. Not a merge blocker.
 
 ### Certified during the build — economy rung
 
