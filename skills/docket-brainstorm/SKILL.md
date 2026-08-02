@@ -1,14 +1,14 @@
 ---
 name: docket-brainstorm
-description: Docket-owned brainstorm role implementing the single-dispatch consultant-author flow — the parent runs the dialogue inline with the real human, then dispatches the pinned docket-brainstorm-consultant once to author a spec or return critique concerns. Bindable via `skills: brainstorm:` (the 0049 passthrough); invoked by docket-new-change / docket-groom-next in place of the default `superpowers:brainstorming`.
+description: Docket-owned brainstorm role implementing the single-dispatch consultant-author flow — the parent runs the dialogue inline with the real human, then dispatches the pinned docket-brainstorm-consultant once to author a spec or return critique concerns. Bindable via `skills: brainstorm:` (the 0049 passthrough); invoked by docket-new-change / docket-groom-next.
 ---
 
 # docket-brainstorm — the consultant-author flow
 
 ## Overview
 
-`docket-brainstorm` is an opt-in alternative to the built-in `superpowers:brainstorming`
-role. It keeps the ADR-0006 boundary — the design dialogue stays with the real human,
+`docket-brainstorm` is docket's own brainstorm role, bound by `skills.brainstorm`.
+It keeps the ADR-0006 boundary — the design dialogue stays with the real human,
 inline, at whatever model the session runs — but adds one thing the built-in role
 cannot: every build-ready spec is authored (or audited) by a pinned high-tier
 consultant before it is written. The parent conducts the conversation; the consultant
