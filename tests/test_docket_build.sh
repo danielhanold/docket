@@ -432,19 +432,28 @@ assert "claude build-economy runs a different model from the rest of the ladder"
 assert "claude build-max holds the pre-0184 top-rung pin (claude-opus-5/high)" \
   '[ "$(hd_field "$HD" claude build-max model)/$(hd_field "$HD" claude build-max effort)" = "claude-opus-5/high" ]'
 
-cursor_models=""
-for n in economy standard premium max; do cursor_models="$cursor_models $(hd_field "$HD" cursor build-$n model)"; done
-assert "the four cursor profiles use four DISTINCT models" \
-  '[ "$(tr " " "\n" <<<"$cursor_models" | grep -c .)" = 4 ] && [ "$(tr " " "\n" <<<"$cursor_models" | grep . | sort -u | wc -l | tr -d " ")" = 4 ]'
-
-# Codex deliberately reuses one model at two efforts (sol/low for premium, sol/medium for max), so
-# MODEL distinctness is the wrong assert there — the pair is the role. Four distinct pairs.
-codex_pairs=""
-for n in economy standard premium max; do
-  codex_pairs="$codex_pairs $(hd_field "$HD" codex build-$n model)/$(hd_field "$HD" codex build-$n effort)"
+# The four-rung ladder must be COMPLETE and non-degenerate on every shipped harness — a rung
+# missing on one harness is a build that silently falls back to that harness's own default
+# mid-ladder, and two rungs sharing a pair is a copy-paste that quietly collapses the ladder.
+# MODEL distinctness is the wrong assert in general: codex deliberately reuses one model at two
+# efforts (sol/low for premium, sol/medium for max), so the model/effort PAIR is the role.
+# Population derived from $HD_SHIPPED_HARNESSES so a newly shipped harness arms this for free.
+n_lad=0
+for h in $HD_SHIPPED_HARNESSES; do
+  ladder=""
+  for n in economy standard premium max; do
+    assert "$h: build-$n carries a complete pair" \
+      '[ -n "$(hd_field "$HD" '"$h"' build-'"$n"' model)" ] &&
+       [ -n "$(hd_field "$HD" '"$h"' build-'"$n"' effort)" ]'
+    ladder="$ladder $(hd_field "$HD" "$h" build-$n model)/$(hd_field "$HD" "$h" build-$n effort)"
+  done
+  assert "the four $h profiles are four DISTINCT model/effort pairs" \
+    '[ "$(tr " " "\n" <<<"'"$ladder"'" | grep -c .)" = 4 ] &&
+     [ "$(tr " " "\n" <<<"'"$ladder"'" | grep . | sort -u | wc -l | tr -d " ")" = 4 ]'
+  n_lad=$((n_lad+1))
 done
-assert "the four codex profiles are four DISTINCT model/effort pairs" \
-  '[ "$(tr " " "\n" <<<"$codex_pairs" | grep -c .)" = 4 ] && [ "$(tr " " "\n" <<<"$codex_pairs" | grep . | sort -u | wc -l | tr -d " ")" = 4 ]'
+# Floor: a failed source leaves $HD_SHIPPED_HARNESSES empty and every loop above vacuous.
+assert "the ladder invariant was checked on every shipped harness (got $n_lad)" '[ "$n_lad" -ge 4 ]'
 
 # The IDs must NOT appear under agents.default in the example — Claude model IDs there would
 # falsely present themselves as harness-portable (spec: "never the harness-neutral fallback").
