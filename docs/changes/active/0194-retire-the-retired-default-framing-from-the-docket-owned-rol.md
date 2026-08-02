@@ -12,7 +12,7 @@ related: [154, 193]
 discovered_from: [193]
 adrs: []
 spec: docs/superpowers/specs/2026-08-02-retire-the-retired-default-framing-from-the-docket-owned-rol-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-02-retire-the-retired-default-framing-from-the-docket-owned-rol-plan.md
 results:
 trivial: false
 auto_groomable:
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-02-retire-the-retired-default-framing-from-the-docket-owned-rol-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-02-retire-the-retired-default-framing-from-the-docket-owned-rol-design.md) |
+| Plan | [2026-08-02-retire-the-retired-default-framing-from-the-docket-owned-rol-plan.md](https://github.com/danielhanold/docket/blob/feat/retire-the-retired-default-framing-from-the-docket-owned-rol/docs/superpowers/plans/2026-08-02-retire-the-retired-default-framing-from-the-docket-owned-rol-plan.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
