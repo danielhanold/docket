@@ -19,8 +19,8 @@ auto_groomable: true
 branch: feat/enforce-yaml-scalar-wellformedness-in-change-frontmatter
 pr:
 blocked_by:
-reconciled: false
-claimed_at: 2026-08-02T19:46:20Z
+reconciled: true
+claimed_at: 2026-08-02T19:49:14Z
 ---
 
 ## Artifacts
@@ -78,4 +78,24 @@ Resolved during autonomous grooming (see the linked spec's Assumptions for the f
 
 ## Reconcile log
 
-<!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+### 2026-08-02
+
+Claimed and reconciled against merged `origin/main` — current tip `868e55c2` (ADR-0036 publish).
+**Design holds — no scope change.**
+
+- Spec baseline verified against current code: `BOARD_CHECK_IDS` is 13 (spec's 13 → 14 pin is
+  accurate), `field-domain` lives in `scripts/board-checks.sh`'s per-file walk, `field_raw` /
+  `fm_field` / `_docket_unwrap_quotes` are present, and **no `fm_field_raw` exists yet** — the
+  read-side helper the spec's anchored `blocked_by` read requires is a real, still-pending add.
+  No target file (`board-checks.sh`, `lib/docket-frontmatter.sh`, `board-checks.md`,
+  `docket-status.md`, `test_board_checks.sh`) changed on `origin/main` since 2026-08-01 (verified
+  via `git log origin/main --since`), so the physical baseline matches the spec byte-for-byte.
+- Spec assumption 6 re-verified: change 0121's active file carries the unquoted colon-space title
+  (`The manifest's elsewhere: check proves a word occurrence, not a real config read`) — the
+  check's expected first warn-only finding on real history, not a regression.
+- Related change 0190 (in-progress) is halted at Step 5 on a build-dispatch availability issue;
+  unrelated to 0191's scope, and this session registers the `docket-build-*` profile agents the
+  halt remedy named. Related change 0138 (archived) — the quote-unwrap convention 0191's quote leg
+  relies on — is intact.
+- No follow-up surfaced worth minting: the 0121 finding is expected behavior of this very check,
+  already tracked, not new work.
