@@ -524,19 +524,24 @@ assert "README documents build.checkpoint" 'grep -qF -- "build.checkpoint" <<<"$
 assert "README says how to opt back into SDD" \
   'grep -qF -- "superpowers:subagent-driven-development" <<<"$rm_body"'
 # Change 0168 moved this boundary once (the sidecar gained validated Cursor IDs, so the profiles
-# stopped being Claude-only) and change 0169 moved it again (the sidecar gained a complete Codex
-# block, so Codex stopped being user-configured). Both directions each time, because confirming
-# only the new sentence would leave the falsified one undetected if both survived — and the
-# retired 0168-era claim is asserted ABSENT rather than deleted, so a revert of the README prose
-# reddens here instead of silently restoring a false promise.
+# stopped being Claude-only), change 0169 moved it again (the sidecar gained a complete Codex
+# block, so Codex stopped being user-configured), and change 0192 moved it a third time (opencode
+# joined as the fourth shipped harness). Both directions each time, because confirming only the new
+# sentence would leave the falsified one undetected if both survived — and the retired claims are
+# asserted ABSENT rather than deleted, so a revert of the README prose reddens here instead of
+# silently restoring a false promise.
 assert "README states the shipped-defaults boundary for the profiles" \
-  'grep -qiE "docket-build[^.]{0,200}Claude Code, Cursor, and Codex" <<<"$rm_body"'
+  'grep -qiE "docket-build[^.]{0,200}Claude Code, Cursor, Codex, and opencode" <<<"$rm_body"'
+assert "README no longer stops the shipped-defaults boundary at Codex" \
+  '! grep -qiE "docket-build[^.]{0,200}Claude Code, Cursor, and Codex\\." <<<"$rm_body"'
 assert "README no longer claims the profiles are Claude-only" \
   '! grep -qiE "docket-build[^.]{0,200}(claude-only|Claude Code only|only.{0,20}Claude)" <<<"$rm_body"'
-# The 0168-era pair, re-pointed: the sidecar's Codex block is complete, so the README must say the
-# shipped set is complete and must NOT still promise Codex is user-configured until 0169 lands.
-assert "README says all three shipped harness blocks are complete" \
-  'grep -qiE "all three are complete" <<<"$rm_body"'
+# The 0168-era pair, re-pointed again (0192): four shipped blocks, all complete. The superseded
+# three-harness wording is asserted absent so a partial revert cannot leave a stale count standing.
+assert "README says all four shipped harness blocks are complete" \
+  'grep -qiE "all four are complete" <<<"$rm_body"'
+assert "README no longer says only three shipped blocks are complete" \
+  '! grep -qiE "all three are complete" <<<"$rm_body"'
 assert "README no longer says Codex stays user-configured" \
   '! grep -qiE "Codex remains user-configured|until change 0169" <<<"$rm_body"'
 

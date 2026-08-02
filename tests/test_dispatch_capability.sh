@@ -241,7 +241,7 @@ done
 #     repo ships, carrying no matching mention today, so folding them in costs nothing and closes
 #     the gap before one could land there unguarded; README.md — carries the one legitimate
 #     Cursor-scoped mention the floor below pins.
-#   * OMITTED, maintained: `docs/codex/setup.md` and `docs/cursor/*.md` — per-harness setup docs
+#   * OMITTED, maintained: `docs/codex/setup.md`, `docs/opencode/setup.md` and `docs/cursor/*.md` — per-harness setup docs
 #     that ARE maintained (not point-in-time records) and would legitimately belong in scope. They
 #     carry no matching mention today (verified), so no live violation is being hidden; widening to
 #     them is a follow-up, not a silent assumption.
