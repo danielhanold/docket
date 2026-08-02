@@ -17,10 +17,10 @@ results:
 trivial: true
 auto_groomable:
 branch: feat/default-build-review-roles-to-docket-owned-skills
-claimed_at: 2026-08-02T20:41:31Z
+claimed_at: 2026-08-02T20:43:30Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -59,6 +59,27 @@ repo genuinely dogfoods the default rather than a pin over it.
 - Note the reversal of intent against ADR-0063 and ADR-0066 only if their text asserts the
   opt-in-not-default posture; if so, record the flip per the ADR rules rather than editing them.
 
+Verified call-site inventory (reconcile pass, 2026-08-02) — every live site naming an old default:
+
+- `scripts/docket-config.sh:511-512` — the two built-in default strings.
+- `.docket.yml:32-34` — the `skills:` block to remove (the sibling `build: checkpoint: true` block stays).
+- `.docket.example.yml:399-400` (the `skills:` template) and `:157-159` (the docket-build blurb calling
+  itself "the alternative to superpowers:subagent-driven-development ... inert unless bound").
+- `README.md:378-379` (role table) and `:705`, `:714`, `:728`, `:752` (four passages of opt-in prose,
+  including "this stays the shipped default for everyone who hasn't opted in" and "the shipped
+  cross-harness default stays `superpowers:requesting-code-review`").
+- `scripts/docket-config.md:177`.
+- `skills/docket-convention/SKILL.md:49-50` (config sample) and `:120-121` (Skill layer role table).
+- `skills/docket-implement-next/SKILL.md:74`, `:80`, `:82` — three restatements, including step 6's
+  rung-default sentence "the shipped default `superpowers:subagent-driven-development` emits none",
+  whose *rule* (no build record ⇒ `docket-review-standard`) survives the flip but whose naming of SDD
+  as the shipped default does not.
+- Tests: `tests/test_docket_config.sh:456-457` and `:604`; `tests/test_docket_example_yml.sh:116-117`;
+  `tests/test_docket_build.sh:506`, `:516`; `tests/test_docket_review.sh:196`.
+
+`skills/docket-build/SKILL.md:8` describes docket-build as "the lean alternative to
+`superpowers:subagent-driven-development`" — a comparative framing, not a default claim; out of scope.
+
 ## Out of scope
 
 - Any behavior change inside `docket-build` or `docket-review` themselves — this is a default flip,
@@ -74,3 +95,28 @@ repo genuinely dogfoods the default rather than a pin over it.
   authorized-or-halt posture should cover it, but confirm the docs say so).
 
 ## Reconcile log
+
+### 2026-08-02 — claim reconcile
+
+Change body verified against `origin/main` and `origin/docket` at claim time; still valid, scope
+unchanged, no work done elsewhere. Three refinements:
+
+1. **The conditional in "What changes" resolves to yes.** Both ADRs *do* assert the opt-in-not-default
+   posture in their **Consequences**, not in their Decisions: ADR-0063:89 ("default stays
+   `superpowers:subagent-driven-development`, so users who do nothing see no behavior [change]") and
+   ADR-0066:78 ("The shipped cross-harness default for `skills.review` stays
+   `superpowers:requesting-code-review`"). Neither *decision* is reversed — both still hold that docket
+   owns the role — so this is a consequence that has since been overtaken, which the convention handles
+   as a dated `## Update` note appended to each ADR, not a new reversing ADR and not an edit to the
+   decision text. Whether that is the right call is the one non-obvious judgment in this change and is
+   the natural candidate for the step-6 ADR dispatch.
+2. **The call-site inventory above was verified line-by-line** rather than left as a category list; it
+   adds four README opt-in passages and the `.docket.example.yml` docket-build blurb that the original
+   body's "documentation that names the old defaults" implied but did not enumerate.
+3. **One rule survives its example.** `skills/docket-implement-next/SKILL.md:80` uses SDD's
+   record-less-ness to motivate the `docket-review-standard` rung default. Post-flip the default build
+   skill *does* emit a record, so the sentence needs rewording without dropping the rule — the fallback
+   still has to cover a bound role that emits no record.
+
+No dependency drift (`depends_on` empty). `trivial: true` still correct — mechanical default flip plus
+doc/test updates, no design surface.
