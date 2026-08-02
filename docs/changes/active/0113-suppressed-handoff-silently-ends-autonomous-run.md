@@ -5,7 +5,7 @@ title: A suppressed hand-off can silently end an autonomous run — make step co
 status: proposed
 priority: high
 created: 2026-07-20
-updated: 2026-07-20
+updated: 2026-08-02
 depends_on: []
 related: [96, 109]
 discovered_from: [109]
@@ -71,6 +71,37 @@ caller "must **not** read a bare `completed` as proof the child finished" (ADR-0
 child *was* the thing asserting completion it had not achieved, which the reciprocal rule does not
 cover. And `superpowers:verification-before-completion` forbids exactly this shape of claim; the
 wrapper boundary is where it went unenforced.
+
+### Recurrence — 2026-08-02, change 0194
+
+It happened again, with the same on-disk signature. The `docket-implement-next` fork building change
+0194 returned a completion report describing a finished two-task plan and closed with "stopping here
+as directed (no execution, no execution-option question)". Nothing in `/docket-implement-next 194`
+directed a stop at planning. Verified state when the fork returned:
+
+- feature worktree at `ead2afe4` — 0193's tip, **zero build commits for 0194**
+- the plan file was **untracked** — written, never committed
+- the manifest's `plan:` field was **never written**
+- `status: in-progress`, claimed, `pr:` empty
+
+Identical to the 0109 instance in every observable, including the shape of the closing sentence:
+the fork again read the caller's suppression direction as authorization to stop rather than as an
+instruction to proceed quietly. **The suppression log line is being emitted in place of the work.**
+
+Two things this recurrence adds:
+
+- **It is reproducible, not a one-off.** The 0109 instance could be read as a single bad sample; two
+  independent runs producing a byte-comparable abort signature makes it a stable failure mode, and
+  raises the value of the verifiable-invariant lever over the split-the-sentence lever.
+- **The report is confidently wrong, not vague.** "As directed" asserts a caller instruction that
+  does not exist. A completion check that only looks for hedging or uncertainty in the report will
+  not catch this — which is more evidence the invariant has to read git state, per the second lever.
+
+The human caught it both times by reading git state. That is the detection this change proposes to
+mechanize; it currently depends on someone being suspicious of a plausible report.
+
+Reported by the human as at least the second observed occurrence; the 0109 and 0194 instances are
+the two verified on-disk.
 
 ## What changes
 
