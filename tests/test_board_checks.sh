@@ -646,6 +646,235 @@ assert "field-domain SILENT for a well-formed type OUTSIDE the configured taxono
 assert "field-domain SILENT for a piped 'type:' line in the BODY of an untyped change (id 55, anchored read)" \
   '! has_finding "$tout" field-domain 55'
 
+# ============================ scalar-form (change 0191) ============================
+# The well-formedness leg of the house yaml-scalar rule (AGENTS.md + ADR-0065): an UNQUOTED
+# frontmatter scalar that carries ': ' (colon-space) or is exactly a YAML 1.1 bare boolean keyword
+# (on/off/yes/no/true/false, case-insensitive) is read ambiguously by any YAML consumer. Covers the
+# only two free-text string scalars docket reads that are not already shape/domain-gated — title
+# (field_raw) and the optional blocked_by (the anchored fm_field_raw). A scalar that OPENS with "
+# or ' is well-formed by definition and never inspected (the 0190 quoted-title shape is the ACCEPT
+# case); the natively-boolean fields (trivial, auto_groomable, reconciled) hold a bare true/false
+# BY DESIGN and are not scanned. One finding per violated leg per field; warn-only (never EXPLAINED,
+# never board-row-dropped). Each fixture is its own new_repo with ONE change file, so the finding
+# set per id is unambiguous.
+mk_sf(){ # mk_sf REPO-DIR ID SLUG [FRONTMATTER-LINES...] — a well-formed active change file whose
+  local mrepo="$1" mid="$2" mslug="$3"; shift 3
+  { printf -- '---\nid: %s\nslug: %s\nstatus: proposed\npriority: medium\ndepends_on: []\n' "$mid" "$mslug"
+    printf '%s\n' "$@"
+    printf -- '---\n'
+  } > "$mrepo/docs/changes/active/$(printf '%04d' "$mid")-$mslug.md"
+}
+
+# --- RED: must fire a scalar-form finding ---
+# Unquoted colon-space title (the 0190 regression shape, unquoted).
+read -r S90 _ < <(new_repo)
+mk_sf "$S90" 90 colonspace-title 'title: a: b'
+s90out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$S90/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "scalar-form fires once for an unquoted colon-space title (id 90)" \
+  '[ "$(grep -cE "$(printf "^scalar-form\t90\t")" <<<"$s90out")" = 1 ]'
+SF_COLON_SHAPE="': '"
+s90line="$(grep -E "$(printf "^scalar-form\t90\t")" <<<"$s90out")"
+assert "the colon-space finding names the title field (id 90)" \
+  'grep -qF -- "title: unquoted scalar contains" <<<"$s90line"'
+assert "the colon-space finding names the ': ' shape literally (id 90)" \
+  'grep -qF "$SF_COLON_SHAPE" <<<"$s90line"'
+
+# Unquoted bare-boolean title — lower-case (yes) and case-insensitive (TRUE).
+read -r S91 _ < <(new_repo)
+mk_sf "$S91" 91 bool-title 'title: yes'
+s91out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$S91/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "scalar-form fires for an unquoted bare-boolean title (id 91, boolean leg)" \
+  'has_finding "$s91out" scalar-form 91'
+s91line="$(grep -E "$(printf "^scalar-form\t91\t")" <<<"$s91out")"
+assert "the boolean finding names the boolean shape and quotes the value (id 91)" \
+  'grep -qF -- "unquoted bare YAML boolean (yes)" <<<"$s91line"'
+read -r S85 _ < <(new_repo)
+mk_sf "$S85" 85 uppercase-bool-title 'title: TRUE'
+s85out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$S85/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "scalar-form is case-insensitive: an UNQUOTED UPPERCASE boolean title fires (id 85)" \
+  'has_finding "$s85out" scalar-form 85'
+s85line="$(grep -E "$(printf "^scalar-form\t85\t")" <<<"$s85out")"
+assert "the uppercase-boolean finding quotes the TRUE value (id 85)" \
+  'grep -qF -- "unquoted bare YAML boolean (TRUE)" <<<"$s85line"'
+
+# Unquoted colon-space blocked_by.
+read -r S92 _ < <(new_repo)
+mk_sf "$S92" 92 colonspace-blocked 'blocked_by: a: b'
+s92out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$S92/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "scalar-form fires for an unquoted colon-space blocked_by (id 92)" \
+  'has_finding "$s92out" scalar-form 92'
+s92line="$(grep -E "$(printf "^scalar-form\t92\t")" <<<"$s92out")"
+assert "the blocked_by colon-space finding names blocked_by (id 92)" \
+  'grep -qF -- "blocked_by: unquoted scalar contains" <<<"$s92line"'
+
+# Unquoted bare-boolean blocked_by.
+read -r S93 _ < <(new_repo)
+mk_sf "$S93" 93 bool-blocked 'blocked_by: off'
+s93out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$S93/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "scalar-form fires for an unquoted bare-boolean blocked_by (id 93)" \
+  'has_finding "$s93out" scalar-form 93'
+s93line="$(grep -E "$(printf "^scalar-form\t93\t")" <<<"$s93out")"
+assert "the blocked_by boolean finding quotes the value (id 93)" \
+  'grep -qF -- "unquoted bare YAML boolean (off)" <<<"$s93line"'
+
+# --- GREEN: must NOT fire a scalar-form finding (and nothing else on these clean fixtures) ---
+# Quoted colon-space TITLE — double-quoted and single-quoted (the 0190 ACCEPT shape; the quote leg
+# keeps it green). Exact empty output: no scalar-form and no other check fires.
+read -r S94 _ < <(new_repo)
+mk_sf "$S94" 94 quoted-colonspace 'title: "a: b"'
+s94out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$S94/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "scalar-form SILENT for a DOUBLE-quoted colon-space title (id 94, the 0190 accept shape)" \
+  '[ -z "$s94out" ]'
+read -r S87 _ < <(new_repo)
+mk_sf "$S87" 87 singlequoted-colonspace "title: 'a: b'"
+s87out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$S87/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "scalar-form SILENT for a SINGLE-quoted colon-space title (id 87, quote leg)" \
+  '[ -z "$s87out" ]'
+
+# Quoted blocked_by with a colon-space.
+read -r S95 _ < <(new_repo)
+mk_sf "$S95" 95 quoted-blocked 'blocked_by: "waiting: on review"'
+s95out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$S95/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "scalar-form SILENT for a quoted colon-space blocked_by (id 95)" \
+  '[ -z "$s95out" ]'
+
+# Clean bare title (no colon-space, no bare boolean).
+read -r S96 _ < <(new_repo)
+mk_sf "$S96" 96 clean-title 'title: A clean bare title'
+s96out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$S96/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "scalar-form SILENT for a clean bare title (id 96)" \
+  '[ -z "$s96out" ]'
+
+# Present, well-formed blocked_by.
+read -r S97 _ < <(new_repo)
+mk_sf "$S97" 97 clean-blocked 'blocked_by: waiting on review'
+s97out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$S97/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "scalar-form SILENT for a present, well-formed blocked_by (id 97)" \
+  '[ -z "$s97out" ]'
+
+# THE LOAD-BEARING fixture: frontmatter OMITS blocked_by but the BODY opens a blocked_by: line.
+# fm_field_raw is ANCHORED to the first ---...--- block, so it returns empty and the check stays
+# green; an UNANCHORED field_raw would fall through to the body prose and misfire (mutation 3).
+read -r S98 _ < <(new_repo)
+mk_sf "$S98" 98 absent-blocked-by 'title: Omits blocked_by'
+cat >> "$S98/docs/changes/active/0098-absent-blocked-by.md" <<'EOF'
+
+## Notes
+blocked_by: waiting: on review
+EOF
+s98out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$S98/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "scalar-form SILENT for a change that OMITS blocked_by while its BODY opens a blocked_by: line (id 98, anchored read)" \
+  '[ -z "$s98out" ]'
+
+# Natively-boolean field untouched: trivial: true is CORRECT well-formed YAML for a boolean field.
+read -r S99 _ < <(new_repo)
+mk_sf "$S99" 99 trivial-boolean 'trivial: true'
+s99out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$S99/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "scalar-form SILENT for a natively-boolean field (trivial: true, id 99)" \
+  '[ -z "$s99out" ]'
+
+# Quoted bare-boolean title.
+read -r S89 _ < <(new_repo)
+mk_sf "$S89" 89 quoted-bool-title 'title: "yes"'
+s89out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$S89/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "scalar-form SILENT for a quoted bare-boolean title (title: \"yes\", id 89)" \
+  '[ -z "$s89out" ]'
+
+# --- mutation tests (guards-are-code): throwaway copies of board-checks.sh, never committed ---
+# A guard is code: each leg below is mutated in a COPY of the script and watched change the
+# fixtures' outcome. The copy lives in a temp scripts/ tree so its `source` of
+# scripts/lib/docket-frontmatter.sh resolves. Every mutation is run against a FRESH
+# pristine copy (never a cumulative chain of earlier mutations on one file) and CONFIRMED LANDED
+# (grep -c before/after) before its red/green result is believed.
+read -r MUT _ < <(new_repo)
+mk_sf "$MUT" 85  uppercase-bool-title   'title: TRUE'
+mk_sf "$MUT" 90  colonspace-title       'title: a: b'
+mk_sf "$MUT" 91  bool-title             'title: yes'
+mk_sf "$MUT" 92  colonspace-blocked     'blocked_by: a: b'
+mk_sf "$MUT" 93  bool-blocked           'blocked_by: off'
+mk_sf "$MUT" 94  quoted-colonspace      'title: "a: b"'
+mk_sf "$MUT" 98  absent-blocked-by      'title: Omits blocked_by'
+cat >> "$MUT/docs/changes/active/0098-absent-blocked-by.md" <<'EOF'
+
+## Notes
+blocked_by: waiting: on review
+EOF
+mcopy=""
+mreseed(){
+  [ -n "$mcopy" ] && rm -rf "$mcopy"; mcopy="$(mktemp -d)"
+  mkdir -p "$mcopy/scripts/lib"
+  cp "$SCRIPT" "$mcopy/scripts/board-checks.sh"
+  cp "$REPO/scripts/lib/docket-frontmatter.sh" "$mcopy/scripts/lib/"
+  MUTSCRIPT="$mcopy/scripts/board-checks.sh"
+}
+mrun(){ NOW=$NOW_EPOCH bash "$MUTSCRIPT" --changes-dir "$MUT/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null; }
+
+# Mutation 1 — strip the colon-space leg: 90/92 go GREEN; the boolean leg SURVIVES (91/93).
+mreseed
+m1_before="$(grep -cF -- "unquoted scalar contains ': '" "$MUTSCRIPT")"
+awk "!/unquoted scalar contains ': '/" "$MUTSCRIPT" > "$MUTSCRIPT.trim"; mv "$MUTSCRIPT.trim" "$MUTSCRIPT"
+m1_after="$(grep -cF -- "unquoted scalar contains ': '" "$MUTSCRIPT")"
+m1out="$(mrun)"
+assert "mutation 1 landed: the colon-space emit arm is gone (count 1 -> 0)" \
+  '[ "$m1_before" = 1 ] && [ "$m1_after" = 0 ]'
+assert "mutation 1 (strip colon-space leg): colon-space title 90 goes GREEN" \
+  '! has_finding "$m1out" scalar-form 90'
+assert "mutation 1 (strip colon-space leg): colon-space blocked_by 92 goes GREEN" \
+  '! has_finding "$m1out" scalar-form 92'
+assert "mutation 1 (strip colon-space leg): boolean title 91 still fires (leg survives)" \
+  'has_finding "$m1out" scalar-form 91'
+assert "mutation 1 (strip colon-space leg): boolean blocked_by 93 still fires (leg survives)" \
+  'has_finding "$m1out" scalar-form 93'
+
+# Mutation 2 — strip the quote/empty skip leg: the QUOTED colon-space title 94 REDDENS (the wrong
+# direction, proving the quote leg is load-bearing); an EMPTY raw value (98, absent blocked_by)
+# still stays green because an empty value is neither colon-space nor a boolean.
+mreseed
+m2_before="$(grep -cF -- "skip leg:" "$MUTSCRIPT")"
+awk "!/skip leg:/" "$MUTSCRIPT" > "$MUTSCRIPT.trim"; mv "$MUTSCRIPT.trim" "$MUTSCRIPT"
+m2_after="$(grep -cF -- "skip leg:" "$MUTSCRIPT")"
+m2out="$(mrun)"
+assert "mutation 2 landed: the quote/empty skip arm is gone (count 1 -> 0)" \
+  '[ "$m2_before" = 1 ] && [ "$m2_after" = 0 ]'
+assert "mutation 2 (strip quote skip): the QUOTED colon-space title 94 REDDENS (the wrong direction)" \
+  'has_finding "$m2out" scalar-form 94'
+assert "mutation 2 (strip quote skip): the absent blocked_by 98 stays GREEN (empty is not a shape)" \
+  '! has_finding "$m2out" scalar-form 98'
+
+# Mutation 3 — replace fm_field_raw with field_raw for blocked_by: the absent-blocked_by +
+# body-prose fixture 98 MISFires (the unanchored read takes the body prose), proving the anchoring.
+mreseed
+m3_before="$(grep -cF 'fm_field_raw "$f" blocked_by' "$MUTSCRIPT")"
+awk '{ if ($0 ~ /sf_blocked_by=/) sub(/fm_field_raw/, "field_raw"); print }' "$MUTSCRIPT" > "$MUTSCRIPT.trim"; mv "$MUTSCRIPT.trim" "$MUTSCRIPT"
+m3_after="$(grep -cF 'fm_field_raw "$f" blocked_by' "$MUTSCRIPT")"
+m3out="$(mrun)"
+assert "mutation 3 landed: the blocked_by read is unanchored (fm_field_raw count 1 -> 0)" \
+  '[ "$m3_before" = 1 ] && [ "$m3_after" = 0 ]'
+assert "mutation 3 (replace fm_field_raw with field_raw): absent-blocked_by fixture 98 MISFires — proves the anchoring" \
+  'has_finding "$m3out" scalar-form 98'
+assert "mutation 3: the colon-space blocked_by 92 still fires under the unanchored read" \
+  'has_finding "$m3out" scalar-form 92'
+
+# Mutation 4 — drop the whole scalar-form probe block: every red fixture goes GREEN.
+mreseed
+m4_before="$(grep -c 'scalar_form_check' "$MUTSCRIPT")"
+awk '/# --- scalar-form:/{insf=1;next} /# --- broken-spec:/{insf=0;print;next} !insf{print}' "$MUTSCRIPT" > "$MUTSCRIPT.trim"; mv "$MUTSCRIPT.trim" "$MUTSCRIPT"
+m4_after="$(grep -c 'scalar_form_check' "$MUTSCRIPT")"
+m4out="$(mrun)"
+assert "mutation 4 landed: the scalar-form probe block is gone (scalar_form_check count 3 -> 0)" \
+  '[ "$m4_before" = 3 ] && [ "$m4_after" = 0 ]'
+assert "mutation 4 (drop whole probe block): colon-space title 90 goes GREEN" \
+  '! has_finding "$m4out" scalar-form 90'
+assert "mutation 4 (drop whole probe block): boolean title 91 goes GREEN" \
+  '! has_finding "$m4out" scalar-form 91'
+assert "mutation 4 (drop whole probe block): colon-space blocked_by 92 goes GREEN" \
+  '! has_finding "$m4out" scalar-form 92'
+assert "mutation 4 (drop whole probe block): boolean blocked_by 93 goes GREEN" \
+  '! has_finding "$m4out" scalar-form 93'
+assert "mutation 4 (drop whole probe block): uppercase boolean title 85 goes GREEN" \
+  '! has_finding "$m4out" scalar-form 85'
+rm -rf "$mcopy"
+
 # ======================= board-row-dropped (change 0104, spec part 2) =======================
 # The invariant: an ACTIVE file counted in render-board.sh's `total` but rendered in no section.
 # The trigger is COMPUTED (renders_row mirrors the renderer's bucketing), not enumerated per drop
