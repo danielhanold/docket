@@ -12,7 +12,7 @@ related: [167, 170]
 discovered_from: [170]
 adrs: [63, 66]
 spec:
-plan:
+plan: docs/superpowers/plans/2026-08-02-default-build-review-roles-to-docket-owned-skills.md
 results:
 trivial: true
 auto_groomable:
@@ -28,6 +28,7 @@ reconciled: true
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Plan | [2026-08-02-default-build-review-roles-to-docket-owned-skills.md](https://github.com/danielhanold/docket/blob/feat/default-build-review-roles-to-docket-owned-skills/docs/superpowers/plans/2026-08-02-default-build-review-roles-to-docket-owned-skills.md) |
 | ADRs | [ADR-0063](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0063-docket-owns-the-build-role-profile-routed-workers.md), [ADR-0066](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0066-docket-owns-the-review-role-suite-runs-in-the-build-gate.md) |
 <!-- docket:artifacts:end -->
 
