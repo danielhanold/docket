@@ -2,7 +2,7 @@
 id: 191
 slug: enforce-yaml-scalar-wellformedness-in-change-frontmatter
 title: Enforce YAML scalar well-formedness in change-file frontmatter
-status: in-progress
+status: implemented
 priority: medium
 type: fix
 created: 2026-08-01
@@ -13,14 +13,14 @@ discovered_from: [190]
 adrs: []
 spec: docs/superpowers/specs/2026-08-01-enforce-yaml-scalar-wellformedness-in-change-frontmatter-design.md
 plan: docs/superpowers/plans/2026-08-01-enforce-yaml-scalar-wellformedness-in-change-frontmatter.md
-results:
+results: docs/results/2026-08-01-enforce-yaml-scalar-wellformedness-in-change-frontmatter-results.md
 trivial: false
 auto_groomable: true
 branch: feat/enforce-yaml-scalar-wellformedness-in-change-frontmatter
-pr:
+pr: https://github.com/danielhanold/docket/pull/151
 blocked_by:
 reconciled: true
-claimed_at: 2026-08-02T19:49:14Z
+claimed_at: 2026-08-02T20:55:00Z
 ---
 
 ## Artifacts
@@ -30,6 +30,8 @@ claimed_at: 2026-08-02T19:49:14Z
 |---|---|
 | Spec | [2026-08-01-enforce-yaml-scalar-wellformedness-in-change-frontmatter-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-01-enforce-yaml-scalar-wellformedness-in-change-frontmatter-design.md) |
 | Plan | [2026-08-01-enforce-yaml-scalar-wellformedness-in-change-frontmatter.md](https://github.com/danielhanold/docket/blob/feat/enforce-yaml-scalar-wellformedness-in-change-frontmatter/docs/superpowers/plans/2026-08-01-enforce-yaml-scalar-wellformedness-in-change-frontmatter.md) |
+| Results | [2026-08-01-enforce-yaml-scalar-wellformedness-in-change-frontmatter-results.md](https://github.com/danielhanold/docket/blob/feat/enforce-yaml-scalar-wellformedness-in-change-frontmatter/docs/results/2026-08-01-enforce-yaml-scalar-wellformedness-in-change-frontmatter-results.md) |
+| PR | [#151](https://github.com/danielhanold/docket/pull/151) |
 <!-- docket:artifacts:end -->
 
 ## Why
