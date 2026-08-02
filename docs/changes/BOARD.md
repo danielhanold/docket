@@ -1,6 +1,6 @@
 # Backlog
 
-**191 changes** — 🟢 1 in progress · 🟡 40 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 125 done · 🗑️ 20 killed
+**192 changes** — 🟢 1 in progress · 🟡 41 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 125 done · 🗑️ 20 killed
 
 ## 🟢 In progress (1)
 
@@ -8,7 +8,7 @@
 |---|-------|----------|------|------|--------|
 | [0190](active/0190-close-the-build-evidence-value-gap-a-post-gate-results-commi.md) | Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip | `medium` | `feat` | [spec](../superpowers/specs/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md) | `feat/close-the-build-evidence-value-gap-a-post-gate-results-commi` |
 
-## 🟡 Proposed (40)
+## 🟡 Proposed (41)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -52,6 +52,7 @@
 | [0188](active/0188-backfill-change-types-sh-calls-mktemp-d-with-no-template-so.md) | backfill-change-types.sh calls mktemp -d with no template, so TMPDIR is ignored on macOS and uchg fixtures leak undeletable dirs | `medium` | `fix` | needs-brainstorm |
 | [0189](active/0189-sweep-the-15-remaining-bare-mv-install-sites-a-tty-prompt-ma.md) | Sweep the 15 remaining bare-mv install sites — a tty prompt makes their || die guards unreachable | `medium` | `fix` | needs-brainstorm |
 | [0191](active/0191-enforce-yaml-scalar-wellformedness-in-change-frontmatter.md) | Enforce YAML scalar well-formedness in change-file frontmatter | `medium` | `fix` | build-ready |
+| [0192](active/0192-opencode-profile-routed-build-support.md) | opencode support for profile-routed Docket builds | `medium` | `feat` | build-ready |
 
 ## ⚪ Deferred (4)
 
@@ -116,6 +117,7 @@ graph TD
   0189
   0190
   0191
+  0192
   0015:::done
   0077:::done
   0175:::done
