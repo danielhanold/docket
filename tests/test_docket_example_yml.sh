@@ -834,6 +834,8 @@ assert "no ACTIVE codex: header under agents:" \
   '! sed -n "/^# agents:$/,/^runners:$/p" "$EX" | grep -Eq "^[[:space:]]*codex:[[:space:]]*$"'
 assert "no ACTIVE cursor: header under agents:" \
   '! sed -n "/^# agents:$/,/^runners:$/p" "$EX" | grep -Eq "^[[:space:]]*cursor:[[:space:]]*$"'
+assert "no ACTIVE opencode: header under agents:" \
+  '! sed -n "/^# agents:$/,/^runners:$/p" "$EX" | grep -Eq "^[[:space:]]*opencode:[[:space:]]*$"'
 presence_sensitive_marker_count="$(grep -cF "PRESENCE-SENSITIVE: uncommenting this key changes behavior" "$EX")"
 presence_sensitive_expected="$(printf '%s\n' $presence_sensitive_keys | grep -c .)"
 assert "PRESENCE-SENSITIVE marker count is exactly $presence_sensitive_expected, matching presence_sensitive_keys ($presence_sensitive_keys; got $presence_sensitive_marker_count; a new commented PRESENCE-SENSITIVE key must add its name to presence_sensitive_keys near the top of (2b), in the same commit as its marker comment)" \
@@ -856,6 +858,10 @@ assert "cursor example is singly commented, like claude (both mirror the shipped
   'grep -Eq "^#[[:space:]]+cursor:[[:space:]]*$" "$EX" && ! grep -Eq "^#[[:space:]]+#[[:space:]]*cursor:[[:space:]]*$" "$EX"'
 assert "claude example is singly commented" \
   'grep -Eq "^#[[:space:]]+claude:[[:space:]]*$" "$EX"'
+# Change 0192 shipped the opencode block, the fourth mirror. Same pair as codex: present at the
+# single-comment level, absent at the doubly-commented one.
+assert "opencode example is singly commented, like the other three mirrors" \
+  'grep -Eq "^#[[:space:]]+opencode:[[:space:]]*$" "$EX" && ! grep -Eq "^#[[:space:]]+#[[:space:]]*opencode:[[:space:]]*$" "$EX"'
 
 # --- (4) MIRROR EQUALITY: relocated ADR-0039 ---------------------------------
 # The commented agents.claude block mirrors docket's SHIPPED defaults VALUE FOR VALUE. Change 0168
@@ -881,7 +887,14 @@ HD="$REPO/agents/harness-defaults.yml"
 # A narrower class would clip a provider-prefixed ID on BOTH sides of the comparison and mirror
 # a truncated prefix to a truncated prefix — a false green (0168 whole-branch review).
 ex_slice(){ # $1=harness  $2=ERE anchoring the block's LAST line
-  sed -n "/^#[[:space:]]*$1:[[:space:]]*$/,/$2/p" "$EX" | sed -E 's/^[[:space:]]*#[[:space:]]?//'
+  # The terminator is DERIVED from the sidecar's build-max model, so it can contain any character
+  # the bare-scalar rule allows — including `/`, which opencode's OpenRouter IDs carry (change
+  # 0192). An unescaped `/` closes sed's address delimiter and the whole expression dies with
+  # "invalid command code", which surfaces as an empty slice and reads like a missing block rather
+  # than a quoting bug. Escape the delimiter here, in the one place that owns the address, rather
+  # than asking every caller to pre-escape.
+  local term="${2//\//\\/}"
+  sed -n "/^#[[:space:]]*$1:[[:space:]]*$/,/$term/p" "$EX" | sed -E 's/^[[:space:]]*#[[:space:]]?//'
 }
 ex_slice_field(){ # $1=slice  $2=agent  $3=field(model|effort)
   local line
@@ -933,7 +946,7 @@ done
 # Floor on the POPULATION itself, not only on each block's row count: an emptied HD_SHIPPED_HARNESSES
 # would make the whole loop above run zero times with every assert trivially satisfied.
 n_shipped="$(printf '%s\n' $HD_SHIPPED_HARNESSES | grep -c .)"
-assert "mirror: at least three harnesses were mirrored (got $n_shipped)" '[ "$n_shipped" -ge 3 ]'
+assert "mirror: at least four harnesses were mirrored (got $n_shipped)" '[ "$n_shipped" -ge 4 ]'
 
 # --- (5) RESOLVER ROUND-TRIP (retained from tests/test_config_example.sh) ----
 # Uncomment the agents: block and enable cursor + codex — the example IDs must resolve through the
@@ -961,10 +974,10 @@ stage2="$(printf '%s\n' "$agents_block" | sed -E 's/^#[[:space:]]?//')"
 # Derive the harness list from the REAL commented agent_harnesses: line (proving IT is valid too)
 # rather than hand-writing an unrelated literal, then extend it to enable cursor.
 harnesses_line="$(sed -n 's/^#[[:space:]]*\(agent_harnesses:.*\)/\1/p' "$EX" | head -n1)"
-harnesses_line="$(printf '%s' "$harnesses_line" | sed -E 's/\[claude\]/[claude, cursor, codex]/')"
+harnesses_line="$(printf '%s' "$harnesses_line" | sed -E 's/\[claude\]/[claude, cursor, codex, opencode]/')"
 
 SB="$(mktemp -d)"; _sbs="$SB"
-mkdir -p "$SB/.claude/agents" "$SB/.cursor/agents" "$SB/.codex/agents" "$SB/.config/docket"
+mkdir -p "$SB/.claude/agents" "$SB/.cursor/agents" "$SB/.codex/agents" "$SB/.opencode/agents" "$SB/.config/docket"
 {
   printf '%s\n' "$harnesses_line"
   printf '%s\n' "$stage2"
@@ -1006,6 +1019,19 @@ assert "round-trip: the codex build profiles resolve to their shipped ladder" \
    [ "$(sed -nE "s/^model[[:space:]]*=[[:space:]]*\"(.*)\"[[:space:]]*$/\1/p" "$SB/.codex/agents/docket-build-standard.toml")" = "gpt-5.6-terra" ] &&
    [ "$(sed -nE "s/^model[[:space:]]*=[[:space:]]*\"(.*)\"[[:space:]]*$/\1/p" "$SB/.codex/agents/docket-build-premium.toml")" = "gpt-5.6-sol" ] &&
    [ "$(sed -nE "s/^model[[:space:]]*=[[:space:]]*\"(.*)\"[[:space:]]*$/\1/p" "$SB/.codex/agents/docket-build-max.toml")" = "gpt-5.6-sol" ]'
+# opencode evidence (change 0192): the fourth harness must survive the REAL generator too, into a
+# real opencode agent definition. Same "both sides move together" caveat as the codex leg above —
+# this catches a VALUE drift between example and sidecar, not a missing example row. It also pins
+# the one thing unique to opencode: effort lands as `reasoningEffort:`, never as a claude-shaped
+# `effort:` key, which is what a fallback emitter would have written.
+OCF="$SB/.opencode/agents/docket-build-economy.md"
+assert "round-trip: the example resolves into an opencode definition" '[ -f "$OCF" ]'
+assert "round-trip: opencode definition carries the shipped build-economy model" \
+  '[ -n "$(hd_field "$HD" opencode build-economy model)" ] &&
+   grep -qx "model: $(hd_field "$HD" opencode build-economy model)" "$OCF"'
+assert "round-trip: opencode definition carries the effort as reasoningEffort" \
+  '[ -n "$(hd_field "$HD" opencode build-economy effort)" ] &&
+   grep -qx "reasoningEffort: $(hd_field "$HD" opencode build-economy effort)" "$OCF"'
 rm -rf "$_sbs"
 
 # --- SENTINEL round-trip: prove the EXAMPLE's rows are what the generator consumed --------------
