@@ -2,7 +2,7 @@
 id: 192
 slug: opencode-profile-routed-build-support
 title: opencode support for profile-routed Docket builds
-status: proposed
+status: in-progress
 priority: medium
 type: feat
 created: 2026-08-02
@@ -16,9 +16,10 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/opencode-profile-routed-build-support
 pr:
 blocked_by:
+claimed_at: 2026-08-02T14:23:41Z
 reconciled: false
 ---
 
