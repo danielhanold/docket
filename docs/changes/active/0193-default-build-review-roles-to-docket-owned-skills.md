@@ -2,7 +2,7 @@
 id: 193
 slug: default-build-review-roles-to-docket-owned-skills
 title: Default the build and review roles to docket-build and docket-review
-status: proposed
+status: in-progress
 priority: medium
 type: chore
 created: 2026-08-02
@@ -16,7 +16,8 @@ plan:
 results:
 trivial: true
 auto_groomable:
-branch:
+branch: feat/default-build-review-roles-to-docket-owned-skills
+claimed_at: 2026-08-02T20:41:31Z
 pr:
 blocked_by:
 reconciled: false
