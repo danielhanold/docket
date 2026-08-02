@@ -1,6 +1,6 @@
 # Backlog
 
-**192 changes** — 🟢 2 in progress · 🟡 39 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 125 done · 🗑️ 20 killed
+**193 changes** — 🟢 2 in progress · 🟡 40 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 125 done · 🗑️ 20 killed
 
 ## 🟢 In progress (2)
 
@@ -9,7 +9,7 @@
 | [0190](active/0190-close-the-build-evidence-value-gap-a-post-gate-results-commi.md) | Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip | `medium` | `feat` | [spec](../superpowers/specs/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md) | `feat/close-the-build-evidence-value-gap-a-post-gate-results-commi` |
 | [0191](active/0191-enforce-yaml-scalar-wellformedness-in-change-frontmatter.md) | Enforce YAML scalar well-formedness in change-file frontmatter | `medium` | `fix` | [spec](../superpowers/specs/2026-08-01-enforce-yaml-scalar-wellformedness-in-change-frontmatter-design.md) | `feat/enforce-yaml-scalar-wellformedness-in-change-frontmatter` |
 
-## 🟡 Proposed (39)
+## 🟡 Proposed (40)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -52,6 +52,7 @@
 | [0187](active/0187-harden-the-docket-example-yml-mirror-guards-one-directional.md) | Harden the .docket.example.yml mirror guards — one-directional coverage, an unexercised round-trip slice, and a prefix-weak terminator | `medium` | `chore` | needs-brainstorm |
 | [0188](active/0188-backfill-change-types-sh-calls-mktemp-d-with-no-template-so.md) | backfill-change-types.sh calls mktemp -d with no template, so TMPDIR is ignored on macOS and uchg fixtures leak undeletable dirs | `medium` | `fix` | needs-brainstorm |
 | [0189](active/0189-sweep-the-15-remaining-bare-mv-install-sites-a-tty-prompt-ma.md) | Sweep the 15 remaining bare-mv install sites — a tty prompt makes their || die guards unreachable | `medium` | `fix` | needs-brainstorm |
+| [0193](active/0193-default-build-review-roles-to-docket-owned-skills.md) | Default the build and review roles to docket-build and docket-review | `medium` | `chore` | build-ready |
 
 ## ⚪ Deferred (4)
 
@@ -118,6 +119,7 @@ graph TD
   0190
   0191
   0192
+  0193
   0015:::done
   0077:::done
   0175:::done
