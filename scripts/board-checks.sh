@@ -9,8 +9,8 @@
 #                         [--lease-ttl-hours N] [--adrs-dir DIR] [--terminal-publish]
 #   Findings: TAB-separated  <check-id>\t<change-id>\t<message>  on stdout, sorted by (check-id, change-id).
 #     check-id ∈ {adr-unpublished, board-row-dropped, broken-spec, broken-plan-results, dep-cycle,
-#                 field-domain, publish-deferred, stale-in-progress, merge-gate-stall,
-#                 stale-finalize-blocked, merged-orphan, unknown-commit-ref, malformed-id}
+#                 field-domain, malformed-id, publish-deferred, scalar-form, stale-in-progress,
+#                 merge-gate-stall, stale-finalize-blocked, merged-orphan, unknown-commit-ref}
 #     The set above is declared in lib/docket-frontmatter.sh as BOARD_CHECK_IDS and pinned to it,
 #     to board-checks.md, and to docket-status.md by tests/test_board_checks.sh — edit all four.
 #   Clean tree ⇒ no output, exit 0. --strict ⇒ exit 1 if any finding (for a future CI gate).
@@ -230,6 +230,40 @@ for f in "${FILES[@]}"; do
            || emit field-domain "$cid" "type '$fd_type' is not ^[a-z][a-z0-9-]*\$ (empty = untyped)" ;;
     esac
   fi
+
+  # --- scalar-form: an unquoted frontmatter scalar that is not well-formed YAML (change 0191).
+  # The well-formedness leg of the house yaml-scalar rule (AGENTS.md + ADR-0065): a BARE scalar
+  # carrying a ': ' (colon-space) or exactly matching a YAML 1.1 boolean keyword is read
+  # ambiguously by any YAML consumer, so it must be quoted or reworded. Covers the only two
+  # free-text string scalars docket reads that are not already shape/domain-gated — title and the
+  # optional blocked_by. The natively-boolean fields (trivial, auto_groomable, reconciled) hold a
+  # bare true/false BY DESIGN and are not scanned. Reads the RAW token (field_raw / fm_field_raw):
+  # field()/fm_field() unwrap surrounding quotes, which would make a quoted colon-space look exactly
+  # like a bad bare one. blocked_by is read via the anchored fm_field_raw so an ABSENT blocked_by
+  # does not fall through to a body-prose line. One finding per violated leg per field; warn-only;
+  # never marks EXPLAINED (a malformed scalar does not drop a board row). Three legs:
+  #   skip        — empty, or the raw value opens with " or ' (quoted is well-formed by definition;
+  #                 never inspect the interior).
+  #   colon-space — the unquoted raw value contains ': '.
+  #   boolean     — the unquoted raw value is exactly one of on off yes no true false, whole-value
+  #                 and case-insensitive (YAML 1.1).
+  scalar_form_check(){ # scalar_form_check FIELD RAW
+    local sfc_field="$1" sfc_raw="$2"
+    case "$sfc_raw" in
+      ''|\"*|\'*) return 0 ;;   # skip leg: empty, or opens with a quote -> well-formed, never inspected
+    esac
+    case "$sfc_raw" in
+      *': '*) emit scalar-form "$cid" "$sfc_field: unquoted scalar contains ': ' — quote it or reword (well-formed YAML)" ;;
+    esac
+    case "$sfc_raw" in
+      [Oo][Nn]|[Oo][Ff][Ff]|[Yy][Ee][Ss]|[Nn][Oo]|[Tt][Rr][Uu][Ee]|[Ff][Aa][Ll][Ss][Ee])
+        emit scalar-form "$cid" "$sfc_field: unquoted bare YAML boolean ($sfc_raw) — quote it or reword (well-formed YAML)" ;;
+    esac
+  }
+  sf_title="$(field_raw "$f" title)"
+  sf_blocked_by="$(fm_field_raw "$f" blocked_by)"
+  scalar_form_check title "$sf_title"
+  scalar_form_check blocked_by "$sf_blocked_by"
 
   # --- broken-spec: spec set, not trivial, path absent on the metadata branch ---
   if [ -n "$spec" ] && [ "$trivial" != "true" ]; then
