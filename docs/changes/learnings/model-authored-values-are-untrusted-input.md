@@ -2,9 +2,9 @@
 slug: model-authored-values-are-untrusted-input
 hook: "A value a model wrote is untrusted input to a script — and a helper copied from a sibling inherits that sibling's assumption that its values were generated constants."
 topics: [shell, scripts, injection, sed]
-changes: [91, 104]
+changes: [91, 104, 192]
 created: 2026-07-19
-updated: 2026-07-20
+updated: 2026-08-02
 promotion_state: candidate
 promoted_to:
 ---
@@ -57,3 +57,14 @@ helper, so it does not travel with the copy — restate it or replace the mechan
   written against the narrower surface.** The contract's blanket "the findings channel is not
   injectable" invariant was correspondingly split into *columns are not forgeable* vs *message text
   is untrusted* — the original sentence was simply false.
+- 2026-08-02 (#192, PR #150) — The same assumption, reached by a **shipped config value** rather
+  than a model-authored one. `ex_slice`'s `sed` address had always been given values with no `/`;
+  opencode's OpenRouter model IDs (`openrouter/deepseek/deepseek-v4-flash-0731`) were the first
+  shipped values in the repo containing the delimiter, and the address silently yielded an **empty
+  slice** instead of erroring — a latent defect found and fixed during the build, not by a red test.
+  The generalization: "untrusted input" is not only what a model or a user typed. **Any value class
+  whose members have never contained a shell/regex metacharacter is one new vendor away from
+  containing one**, and a delimiter collision fails by returning nothing, which reads as
+  "no matches" rather than as an error. When a change is the first to ship a value with a new
+  character class, grep for every `sed`/`grep -E` site that consumes it. See
+  [[escape-ere-metacharacters-in-key]].

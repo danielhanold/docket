@@ -2,9 +2,9 @@
 slug: external-truth-needs-a-human-checkpoint
 hook: "When a value's truth lives outside the repo (a vendor model ID, an external API name), no in-repo test can be its oracle — route it to a named human verification item instead of writing an assert that can only ever pass."
 topics: [testing, verification, config]
-changes: [184]
+changes: [184, 192]
 created: 2026-08-01
-updated: 2026-08-01
+updated: 2026-08-02
 promotion_state: candidate
 promoted_to:
 ---
@@ -43,3 +43,14 @@ value with no prior occurrence anywhere in history has never been exercised by a
   cannot reach `~/.config/docket/config.yml` or a machine-local `.docket.local.yml` either — the
   outside-the-repo boundary cuts on writes as well as reads (see
   [[config-shape-change-strands-outer-layers]]).
+- 2026-08-02 (#192, PR #150) — Second hit, and the first where the *whole* shipped table was
+  outside-truth: registering opencode meant three brand-new OpenRouter model IDs, none with any
+  prior occurrence in repo history. The rule was applied as written rather than rediscovered — the
+  IDs were routed to named merge-gate items on the `results:` file ("catalog presence is not
+  entitlement — confirm they resolve under your credentials"), alongside live-certification of the
+  standard and premium rungs and one real end-to-end dispatch, with the waived set (max rung, the
+  three review rungs, classification, escalation) stated explicitly. Worth noting for the class:
+  the economy rung *was* certified during the build via `opencode debug agent`, which prints fully
+  resolved config — that settles **spelling** questions (it is how `reasoningEffort:` was confirmed)
+  but still is not an executed run, so resolved-config evidence and entitlement evidence are two
+  different checkpoints.

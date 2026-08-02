@@ -26,6 +26,7 @@ One curated finding per file; this index is the hint surface. Load it, then read
 ## docs
 
 - [restatement-accumulates-its-own-guards](restatement-accumulates-its-own-guards.md) — Deleting a restatement is never a one-file edit — tests grep the COPY, not the source, so the copy has quietly become load-bearing. · also: testing, refactoring ⟨needs promotion⟩
+- [shared-resource-keeps-first-owner-assumptions](shared-resource-keeps-first-owner-assumptions.md) — When a single-owner resource gains a second owner, the prose and predicates written for the first owner stay valid-looking and become wrong — and single-owner fixtures pass against the old predicate, so nothing goes red. · also: testing, guards ⟨needs promotion⟩
 
 ## git
 
