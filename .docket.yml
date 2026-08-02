@@ -23,15 +23,8 @@ board_surfaces: [inline]       # BOARD.md only; the GitHub mirror stays off
 # so it opts in to the direct-commit publish explicitly. See .docket.example.yml for the caveats.
 terminal_publish: true
 
-# This repo dogfoods docket's own build AND review roles. Build (change 0167): each plan task is
-# routed to a named economy/standard/premium profile agent instead of SDD's implementer+reviewer
-# pairs. Review (change 0170): one bounded read-only whole-branch reviewer behind three pinned
-# rungs, selected one above the build. The SHIPPED cross-harness defaults are unchanged —
-# superpowers:subagent-driven-development and superpowers:requesting-code-review; see
-# .docket.example.yml.
-skills:
-  build: docket-build
-  review: docket-review
+# No `skills:` block: since change 0193 docket-build and docket-review are the SHIPPED defaults,
+# so this repo dogfoods them by running the default rather than pinning a copy of it.
 
 build:
   # enable resume ledger

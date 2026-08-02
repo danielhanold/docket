@@ -214,8 +214,10 @@ assert "shipped skills.review default is docket-review" \
 assert "shipped skills.review default is no longer superpowers review" \
   '! grep -qF -- "superpowers:requesting-code-review" <<<"$review_default"'
 DY="$REPO/.docket.yml"
-assert "this repo dogfoods docket-review via .docket.yml" \
-  'awk "/^skills:/{f=1;next} /^[a-z_]+:/{f=0} f" "$DY" | grep -qE "^ +review: +docket-review$"'
+dy_skills="$(awk "/^skills:/{f=1;next} /^[a-z_]+:/{f=0} f" "$DY")"
+# Change 0193: docket-review is the shipped default, so this repo stops pinning it. The dogfood
+# is now "we run what we ship", and the assert that proves it is the pin's ABSENCE.
+assert "this repo no longer pins skills.review (it runs the shipped default)" '[ -z "$dy_skills" ]'
 # The block guards a real property — the example config is the cross-harness default surface and
 # must agree with the resolver — so invert it, both directions: a revert of the example alone
 # would leave it disagreeing with the resolver, which is exactly the drift this pair exists to

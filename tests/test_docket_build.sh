@@ -500,9 +500,10 @@ build_blk="$(dy_yaml_block_body "$DY" build)"
 
 # Non-vacuity companions: without these, a broken/renamed-header extraction silently returns
 # an empty slice and the leaf assert below would never have anything to fail against.
-assert "repo's skills: block extraction is non-vacuous" '[ -n "$skills_blk" ]'
-assert "repo opts skills.build in to docket-build" \
-  'grep -qE "^[[:space:]]+build:[[:space:]]+docket-build[[:space:]]*$" <<<"$skills_blk"'
+# Change 0193 made docket-build the shipped default, so this repo no longer pins skills.build —
+# it genuinely runs the default rather than an override that happens to match. Asserting the
+# block is ABSENT is what detects a re-added pin silently reintroducing the duplication.
+assert "repo no longer pins skills.build (it runs the shipped default)" '[ -z "$skills_blk" ]'
 
 assert "repo's build: block extraction is non-vacuous" '[ -n "$build_blk" ]'
 assert "repo pins build.checkpoint explicitly" \
