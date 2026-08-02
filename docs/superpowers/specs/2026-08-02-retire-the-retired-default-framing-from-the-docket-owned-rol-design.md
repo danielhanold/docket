@@ -220,6 +220,17 @@ binding, and no other file will carry a copy of this rule.
 - Historical records: archived changes, plans, specs, and results are immutable and keep the old
   framing.
 
+### Reconcile confirmation (2026-08-02, against merged `origin/main`)
+
+The *Verified inventory* re-ran green after 0193 merged — both sentences are still present and
+still the only two occurrences of the construct under `skills/`; `docket-review/SKILL.md` still
+carries none. `README.md:688` still owns the brainstorm opt-in prose that
+`tests/test_consultant_brainstorm.sh` reads, and no test greps either sentence being deleted.
+
+Two build-time facts the spec left open, now settled: **`tests/test_skill_contracts.sh` does not
+exist**, so Task 3 ships a new dedicated test file; and the suite is a bare `tests/test_*.sh` glob
+(no registry file), so a new test needs no registration.
+
 ## Reconcile notes for the builder
 
 - **Land after #0193 merges.** This change's premise is that `docket-build` and `docket-review` are

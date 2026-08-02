@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/retire-the-retired-default-framing-from-the-docket-owned-rol
-claimed_at: 2026-08-02T23:05:54Z
+claimed_at: 2026-08-02T23:07:36Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -82,3 +82,25 @@ one-file edit each; the build re-runs that grep against the post-0193 tree regar
 
 `depends_on: [193]` — the premise that `docket-build` and `docket-review` *are* the defaults only
 holds on `main` once PR #152 merges.
+
+## Reconcile log
+
+### 2026-08-02
+
+- **Dependency satisfied.** 0193 is archived `done` on `docket` (PR #152 merged), so the change's
+  premise — `docket-build` and `docket-review` are the shipped defaults on `main` — now holds.
+- **Inventory re-verified against the merged tree**, as the spec required rather than trusted. Both
+  target sentences survive 0193 verbatim and remain the only two occurrences of the construct under
+  `skills/`: `skills/docket-build/SKILL.md` ("The lean alternative to
+  `superpowers:subagent-driven-development`") and `skills/docket-brainstorm/SKILL.md` (the
+  `## Overview` "opt-in alternative" opener plus the frontmatter description's "in place of the
+  default `superpowers:brainstorming`" clause). `skills/docket-review/SKILL.md` still carries none.
+- **Test-grep re-confirmed clean.** No test asserts on either deleted sentence.
+  `tests/test_consultant_brainstorm.sh` still reads the opt-in prose from `README.md`, which this
+  change does not touch, so that assert stays green.
+- **Two build-time unknowns settled** and folded into the spec: `tests/test_skill_contracts.sh` does
+  not exist, so the Task 3 guard ships as a new dedicated test file; and the suite is a bare
+  `tests/test_*.sh` glob with no registry, so the new file self-registers.
+- **Scope unchanged.** No work was done elsewhere, no new constraint folded in, no ADR anticipated
+  (the spec's *Consequences* already reserves step 6's dispatch if the guard's scoping turns out to
+  carry a real judgment).
