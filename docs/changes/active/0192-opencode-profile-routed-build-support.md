@@ -12,7 +12,7 @@ related: [77, 167, 168, 169]
 discovered_from: []
 adrs: [15, 36, 63, 64]
 spec: docs/superpowers/specs/2026-08-02-opencode-profile-routed-build-support-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-02-opencode-profile-routed-build-support.md
 results:
 trivial: false
 auto_groomable:
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-02-opencode-profile-routed-build-support-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-02-opencode-profile-routed-build-support-design.md) |
+| Plan | [2026-08-02-opencode-profile-routed-build-support.md](https://github.com/danielhanold/docket/blob/feat/opencode-profile-routed-build-support/docs/superpowers/plans/2026-08-02-opencode-profile-routed-build-support.md) |
 | ADRs | [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md), [ADR-0036](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0036-codex-agents-md-dispatch-block-committed-machine-neutral.md), [ADR-0063](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0063-docket-owns-the-build-role-profile-routed-workers.md), [ADR-0064](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0064-shipped-agent-defaults-live-in-a-harness-indexed-sidecar.md) |
 <!-- docket:artifacts:end -->
 
