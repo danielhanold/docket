@@ -46,8 +46,8 @@ agents:                      # harness-first per-skill subagent model/effort; se
 skills:                      # pluggable workflow skills; unset key = the superpowers default shown
   brainstorm: superpowers:brainstorming
   plan:       superpowers:writing-plans
-  build:      superpowers:subagent-driven-development   # e.g. `auto` to build inline without SDD
-  review:     superpowers:requesting-code-review
+  build:      docket-build   # e.g. `auto` to build inline with no fan-out
+  review:     docket-review
   finish:     superpowers:finishing-a-development-branch
 ```
 
@@ -111,14 +111,14 @@ A wrapper is a thin generated file: it carries the resolved `model` and `effort`
 
 ### Skill layer — pluggable workflow skills (change 0049)
 
-docket's five workflow steps are **pluggable roles**: the optional `skills:` map rebinds each to any skill name, or to the sentinel `auto`. An unset key defaults to the superpowers skill — an absent map is byte-identical to pre-0049 behavior.
+docket's five workflow steps are **pluggable roles**: the optional `skills:` map rebinds each to any skill name, or to the sentinel `auto`. An unset key defaults to the skill shown — superpowers for `brainstorm`/`plan`/`finish`, docket's own for `build`/`review` (change 0193).
 
 | Role | Default skill | Invoked by | `auto` / fallback artifact — stop-point |
 |---|---|---|---|
 | brainstorm | `superpowers:brainstorming` | `docket-new-change` §2, `docket-groom-next` | a spec file at the configured spec path; stop at the spec |
 | plan | `superpowers:writing-plans` | `docket-implement-next` §4 | a plan file on the feature branch, recorded in `plan:` |
-| build | `superpowers:subagent-driven-development` | `docket-implement-next` §5 | the plan executed on the feature branch |
-| review | `superpowers:requesting-code-review` | `docket-implement-next` §6 | a whole-branch review before the PR opens, over a branch whose build evidence is green |
+| build | `docket-build` | `docket-implement-next` §5 | the plan executed on the feature branch |
+| review | `docket-review` | `docket-implement-next` §6 | a whole-branch review before the PR opens, over a branch whose build evidence is green |
 | finish | `superpowers:finishing-a-development-branch` | `docket-implement-next` §7; `docket-finalize-change` close-out | a pushed feature branch + open PR — never merged; stop |
 
 - **Passthrough.** A value is passed verbatim to the Skill tool — never validated against a registry (ADR-0015); any third-party or in-repo skill plugs in. Unknown *role keys* are warned-and-ignored.

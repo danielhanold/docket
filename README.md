@@ -369,17 +369,17 @@ docket.sh backfill-change-types --changes-dir .docket/docs/changes --map 7=feat,
 
 ### Workflow roles — the `skills:` map
 
-docket is a lifecycle wrapper around a workflow engine, and superpowers is the default engine. Each of the **five workflow invocation points is a pluggable role**: an optional `skills:` map in any config layer rebinds a role to a different skill (the name is passed to the Skill tool verbatim) or to the sentinel `auto` (no skill — the running agent performs the step inline at its own model).
+docket is a lifecycle wrapper around a workflow engine, and superpowers is the default engine for three of the five roles — docket owns the `build` and `review` roles itself. Each of the **five workflow invocation points is a pluggable role**: an optional `skills:` map in any config layer rebinds a role to a different skill (the name is passed to the Skill tool verbatim) or to the sentinel `auto` (no skill — the running agent performs the step inline at its own model).
 
 | Role | Default skill | Invoked by |
 |---|---|---|
 | `brainstorm` | `superpowers:brainstorming` | `docket-new-change`, `docket-groom-next` — up-front design before the spec |
 | `plan` | `superpowers:writing-plans` | `docket-implement-next` — the task plan from the spec |
-| `build` | `superpowers:subagent-driven-development` | `docket-implement-next` — execute the plan with TDD |
-| `review` | `superpowers:requesting-code-review` | `docket-implement-next` — whole-branch review before the PR |
+| `build` | `docket-build` | `docket-implement-next` — execute the plan task-by-task via profile-routed workers |
+| `review` | `docket-review` | `docket-implement-next` — whole-branch review before the PR |
 | `finish` | `superpowers:finishing-a-development-branch` | `docket-implement-next`, `docket-finalize-change` — push the branch, open the PR |
 
-Unset keys default to the superpowers skills above — an absent `skills:` map is byte-identical to superpowers-everywhere. And if a resolved skill cannot be invoked at runtime (superpowers not installed, or a typo'd custom name), docket **degrades to that role's `auto` fallback with a prominent warning**, so a repo without superpowers works out of the box. The config shape — the `skills:` keys, the `auto` sentinel, and each role's fallback artifact — is documented once in docket-convention's **"Skill layer"**; consult it there rather than copying examples here.
+Unset keys default to the skills shown above: superpowers for `brainstorm`, `plan`, and `finish`, and docket's own `docket-build` and `docket-review` for the two roles docket has since taken ownership of. To run the superpowers engine at every point, set `build: superpowers:subagent-driven-development` and `review: superpowers:requesting-code-review` explicitly. And if a resolved skill cannot be invoked at runtime (superpowers not installed, or a typo'd custom name), docket **degrades to that role's `auto` fallback with a prominent warning**, so a repo without superpowers works out of the box. The config shape — the `skills:` keys, the `auto` sentinel, and each role's fallback artifact — is documented once in docket-convention's **"Skill layer"**; consult it there rather than copying examples here.
 
 ### Global config — `~/.config/docket/config.yml`
 
@@ -703,18 +703,16 @@ If the consultant can't be dispatched on this machine (agents not synced, harnes
 
 ### docket-build — the lean, profile-routed build
 
-By default, the `build` role (the step in `docket-implement-next` that turns a written plan into commits) runs `superpowers:subagent-driven-development` — a per-task implementer/reviewer subagent pair, plus a duplicate whole-branch review folded into the same loop. **`docket-build` is an opt-in alternative** that dispatches one fresh worker per task and does no review of its own, leaving `skills.review` as docket's sole review gate: `T` nested runs on the clean path — one worker per task — plus one full-suite gate the controller runs itself as a Bash command rather than as a nested agent, against SDD's `2T + 2`. Each escalation adds at most one more nested run.
+The `build` role — the step in `docket-implement-next` that turns a written plan into commits — runs **`docket-build`**, docket's own build engine and the shipped default since change 0193. It dispatches one fresh worker per task and does no review of its own, leaving `skills.review` as docket's sole review gate: `T` nested runs on the clean path — one worker per task — plus one full-suite gate the controller runs itself as a Bash command rather than as a nested agent, against the `2T + 2` of `superpowers:subagent-driven-development`, the per-task implementer/reviewer pair it replaced. Each escalation adds at most one more nested run.
 
-Select it in any config layer:
+Nothing to select — it is the default. To opt back out to the superpowers engine, set it in any config layer:
 
 ```yaml
 skills:
-  build: docket-build
+  build: superpowers:subagent-driven-development
 ```
 
-Opt back out — or do nothing, since this stays the shipped default for everyone who hasn't opted in — with `skills: build: superpowers:subagent-driven-development`.
-
-Opting in also means re-running `install.sh` and starting a fresh session: the installer is what generates the four profile agents and links the two build skills onto this machine, and every harness registers agent definitions only at process start — until the harness hosting your session has, the first build stops on the harness rejecting a dispatch to a profile agent it does not yet know about, and reports that condition (with re-running `install.sh` in a fresh session as the remedy) rather than improvising a substitute.
+Because `docket-build` is now the default, a repo upgrading docket must re-run `install.sh` and start a fresh session: the installer is what generates the four profile agents and links the two build skills onto this machine, and every harness registers agent definitions only at process start — until the harness hosting your session has, the first build stops on the harness rejecting a dispatch to a profile agent it does not yet know about, and reports that condition (with re-running `install.sh` in a fresh session as the remedy) rather than improvising a substitute.
 
 Each task is routed to one of four named profile agents (`docket-build-economy`, `docket-build-standard`, `docket-build-premium`, `docket-build-max`), sharing one worker contract and differing only in model and effort. The classifier is deliberately asymmetric: `economy` must be *positively* established (fully specified, pattern-following, no consequential risk, no cross-file reasoning), while genuine uncertainty defaults to `standard` rather than the cheaper tier. `max` is deliberately rare — reachable only for unresolved architecture or an irreversible data change, by an explicit plan override, or by escalation from `premium` — so the tier meant for extreme cases does not normalize. A plan task can override the classifier outright with a `**Build profile:** economy` line on that task; an invalid value halts the build rather than silently falling back. The full routing rubric and worker protocol are the [`docket-build`](skills/docket-build/SKILL.md) skill's, not restated here.
 
@@ -726,13 +724,13 @@ Each task carries at most one automatic escalation — an `economy` worker retri
 
 ### docket-review — the bounded whole-branch reviewer
 
-By default, the `review` role (the step in `docket-implement-next` that reads the finished branch before the PR opens) runs `superpowers:requesting-code-review`. **`docket-review` is an opt-in alternative**: one read-only reviewer contract behind three pinned rung wrappers — `docket-review-lean`, `docket-review-standard`, `docket-review-deep` — that share the contract and differ only in model and effort. The reviewer reads `git diff`, `git log`, and the tree; it never writes, never commits, never checks out, never dispatches a subagent, and never runs the test suite. It gets one shot at the rung it was dispatched at: there is no reviewer escalation ladder.
+The `review` role — the step in `docket-implement-next` that reads the finished branch before the PR opens — runs **`docket-review`**, the shipped default since change 0193: one read-only reviewer contract behind three pinned rung wrappers — `docket-review-lean`, `docket-review-standard`, `docket-review-deep` — that share the contract and differ only in model and effort. The reviewer reads `git diff`, `git log`, and the tree; it never writes, never commits, never checks out, never dispatches a subagent, and never runs the test suite. It gets one shot at the rung it was dispatched at: there is no reviewer escalation ladder.
 
-Select it in any config layer:
+Nothing to select — it is the default. To opt back out, set it in any config layer:
 
 ```yaml
 skills:
-  review: docket-review
+  review: superpowers:requesting-code-review
 ```
 
 The rung is chosen **deterministically as one above the build** — not by model judgment. `docket-implement-next` takes the highest profile any task routed or escalated to and maps `economy` to lean, `standard` to standard, and `premium` or `max` to deep; a whole-branch diff of more than 1500 changed lines bumps the rung one step, capped at deep. The reason a cheap build gets a cheap review is that the build's own routing already answered how hard the work was, and the diff-size bump is the one signal independent of that self-assessment.
@@ -750,7 +748,7 @@ The mental model: **the suite is the boundary between build and review**, owned 
 
 That boundary is made durable by a **build-evidence** record: on green, `docket-build`'s gate emits the command it ran, the result, the head SHA, and a timestamp; the reviewer verifies the record is present, green, and pinned to the exact HEAD it is reviewing, and returns an `unverified-build-state` blocker if it is missing, malformed, or stale — running the suite itself is never the remedy. `docket-implement-next` writes that record into the PR body inside `docket:build-evidence` markers, and `docket-finalize-change` reads it there: when the pre-merge rebase is a no-op and the evidence is green at the exact SHA being merged, the post-rebase suite run is skipped and the skip is logged; any doubt runs the suite. Two caveats on that skip. Any commit landing after the gate — a results file, a blocker fix — moves branch HEAD past the recorded `head_sha`, so the equality check fails and finalize simply runs the suite: the skip is the clean-path optimization, not the majority path. And the block lives in a PR body, which is human-editable input to a merge-gating decision — anyone who can edit the description can assert a green record at the current SHA, which is nil exposure for a single maintainer and worth weighing in a repo that takes outside contributions. The arithmetic that falls out is **one full-suite run when the review is clean and the base has not moved, two when either a blocker fix lands or the rebase actually moves the branch, and three only when both happen** — where the previous shape could run it in the build, again inside the review loop, and again at finalize, on every path.
 
-The binding posture is deliberately asymmetric. The **shipped cross-harness default stays `superpowers:requesting-code-review`** — `.docket.example.yml` is unchanged, so nobody inherits this by upgrading. This repository dogfoods it by opting in through its own committed `.docket.yml`, and opting back out anywhere is one line: `skills: review: superpowers:requesting-code-review`. As with `docket-build`, opting in means re-running `install.sh` and starting a fresh session, since the three rung wrappers are generated by the installer and every harness registers agent definitions only at process start.
+The binding posture used to be deliberately asymmetric — both roles shipped opt-in while this repository dogfooded them through its own committed `.docket.yml`. Change 0193 ended that: `docket-build` and `docket-review` are the shipped cross-harness defaults, `.docket.example.yml` states them as such, and this repository now carries no `skills:` block at all, so it runs exactly what everyone else does. As with `docket-build`, inheriting the role on upgrade means re-running `install.sh` and starting a fresh session, since the three rung wrappers are generated by the installer and every harness registers agent definitions only at process start.
 
 ### Runner delegation — running docket agents on another harness
 
