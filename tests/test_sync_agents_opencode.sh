@@ -48,4 +48,31 @@ while IFS= read -r a; do
 done < <(hd_agents "$HD" opencode)
 assert "opencode: the per-agent loop covered the whole block" '[ "$n" -ge 16 ]'
 
+# --- the shared AGENTS.md dispatch block (change 0192) -----------------------
+# opencode reads the same committed project-root AGENTS.md that Codex reads, so the single managed
+# block serves both harnesses. It is COMMITTED into consumer repos, so a false claim here ships.
+A="$R/AGENTS.md"
+assert "opencode-only repo gets the AGENTS.md dispatch block" '[ -f "$A" ] && grep -q "docket:dispatch:start" "$A"'
+assert "block lists every wrapper source" \
+  '[ "$(grep -c "^- \*\*docket-" "$A")" = "16" ]'
+# Machine-neutrality (ADR-0036): the committed block must carry no model IDs.
+assert "block carries no model IDs" \
+  '! grep -qE "openrouter/|gpt-5|claude-opus|kimi-k3|deepseek" "$A"'
+# Harness-neutral prose: with the block shared, naming ONE harness's artifact path is a false claim
+# in the other harness's repo. Anchor on shape — the block must not hardcode either harness's
+# generated-file path in its head prose.
+assert "block prose is harness-neutral about the generated path" \
+  '! grep -qE "\.codex/agents/docket-\*\.toml|\.opencode/agents/docket-\*\.md" "$A"'
+assert "block prose names the hosting harness generically" \
+  'grep -qi "hosting harness" "$A"'
+
+# De-list: dropping the only AGENTS.md-dispatch harness strips the block.
+R2="$WORK/repo2"; mk_opencode_repo "$R2"
+( cd "$R2" && DOCKET_HARNESS_ROOT="$WORK/home2" bash "$REPO/sync-agents.sh" >/dev/null 2>&1 ) || true
+assert "block present before de-list" 'grep -q "docket:dispatch:start" "$R2/AGENTS.md"'
+printf 'agent_harnesses: [claude]\n' > "$R2/.docket.yml"
+( cd "$R2" && DOCKET_HARNESS_ROOT="$WORK/home2" bash "$REPO/sync-agents.sh" >/dev/null 2>&1 ) || true
+assert "block stripped when no AGENTS.md-dispatch harness is targeted" \
+  '! grep -q "docket:dispatch:start" "$R2/AGENTS.md" 2>/dev/null'
+
 echo "---"; [ "$fail" = "0" ] && echo "ALL PASS" || echo "FAILURES"; exit $fail
