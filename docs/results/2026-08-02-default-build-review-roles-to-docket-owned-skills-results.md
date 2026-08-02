@@ -1,0 +1,34 @@
+<!-- docket:backlink:start (generated — do not hand-edit) -->
+> ↩ **[Change 0193 — Default the build and review roles to docket-build and docket-review](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0193-default-build-review-roles-to-docket-owned-skills.md)**
+<!-- docket:backlink:end -->
+
+# Default the build and review roles to docket-build and docket-review — results
+
+Change: #0193 · Branch: feat/default-build-review-roles-to-docket-owned-skills · PR: (opened at close of this run) · Plan: docs/superpowers/plans/2026-08-02-default-build-review-roles-to-docket-owned-skills.md · ADRs: 0063, 0066 (both updated, neither reversed)
+
+## Verify (human)
+
+- [ ] **Re-run `install.sh` and start a fresh session before the next build.** This is the change's real-world sharp edge and no test can cover it: `docket-build` and `docket-review` are now the shipped defaults, so *every* repo — not just those that opted in — needs the four `docket-build-*` profile agents and three `docket-review-*` rung wrappers registered. A harness registers agent definitions only at process start, so an upgrading install that has not re-run `install.sh` gets its first build halting on a dispatch to an agent it does not know about. The README says this; confirm it actually behaves that way once.
+- [ ] **Sanity-check a consuming repo that carries no `skills:` block.** docket's own repo now has none, which is the dogfood, but the interesting case is a *different* repo picking up the new defaults purely by upgrading. `docket.sh env | grep SKILL_` there should print `docket-build` / `docket-review` with no config change.
+- [ ] **Decide the three `important` review findings below** — none were auto-fixed, per the review contract. Two are one-line doc corrections; the third is a real guard weakness.
+
+## Findings
+
+**Review outcome: 0 blockers, 3 important, 3 minor** (rung `docket-review-standard`, selected from the build's highest routed profile `standard`; whole-branch diff 891 lines, under the 1500-line bump threshold). Full detail is in the PR body; the ones worth keeping past the merge are:
+
+- **The README's agent-roster table still calls both roles "opt-in"** (`important`). The same file says "the shipped default since change 0193" two sections later, so the document contradicts itself for a reader who hits the roster first. Straightforward two-cell fix; the `docket-brainstorm` row above them is correctly still "opt-in".
+- **`skills/docket-convention/SKILL.md`'s config sketch header comment still reads "unset key = the superpowers default shown"** (`important`) directly above the two rows now showing `docket-build` / `docket-review`. This is docket's most-copied config sketch, so the stale comment propagates.
+- **The inverted absence assert in `tests/test_docket_review.sh` is unanchored** (`important`). Inverting a presence assert (`grep -qE "^ +review: +docket-review$"`) into `[ -z "$dy_skills" ]` silently converts every read failure — wrong path, renamed file, broken `awk` — from red into green. `tests/test_docket_build.sh` got the same inversion right by keeping a live non-vacuity companion through the same extractor; the review file has none. This is the `assert-detects-removal-not-replacement` family biting on the removal side, and it is the finding most worth acting on: it is a guard that currently proves nothing.
+- Two `minor` findings concern assert precision (a pair of entailed `!=` asserts in `tests/test_docket_config.sh` that cannot redden independently of the `=` asserts above them, and a whole-file README substring assert satisfied by incidental narrative prose rather than by the opt-out fence it names).
+
+**ADR handling — the one non-obvious call.** ADR-0063 and ADR-0066 each asserted, in `## Consequences`, that the shipped cross-harness default would *stay* superpowers. This change falsifies both sentences. The judgment: neither ADR's **Decision** is reversed — both still hold that docket owns the respective role, and both roles' internals are untouched — so what was overtaken is a rollout-posture *consequence*, which the convention handles as a dated `## Update` note rather than a new reversing ADR. `docket-adr` independently reached the same conclusion and applied it: `## Update — 2026-08-02 (change 0193)` appended to both, `status:` left `Accepted`, no `## Decision` text touched, and both re-published onto `main` under this repo's `terminal_publish: true`.
+
+**Plan deviations (both mine, both worth recording).**
+
+1. **The plan's green-at-every-boundary claim was wrong for Task 1.** It asserted `.docket.example.yml`'s mirror guard compares the example against its own hardcoded expectations, so flipping the resolver alone would leave the suite green. True of the *completeness* loop — but `tests/test_docket_example_yml.sh` also carries a **fidelity** assert that resolves the example config through the live resolver and diffs it against the no-config resolution. Flipping the resolver while the example still shipped the superpowers names made those two disagree, so the suite was legitimately red at the Task 1 boundary until Task 2 landed. The task decomposition was still right; the plan's claim about it was not. The general lesson: a config file's guard can be self-consistent on one axis and resolver-coupled on another, and only reading the whole guard tells you which.
+2. **`git checkout -- <file>` is the wrong mutation-restore inside an uncommitted task.** The plan's mutation-test steps said to restore with `git checkout --` after reverting a value to watch a guard redden. At that point in the task the real edit is not yet committed, so `checkout` reverts the task's own work along with the mutation. The Task 1 worker hit this and caught it only because the plan also demanded a post-restore `grep -c` — the count came back 0 where 1 was expected. Task 2 was warned to copy the file aside and restore from the copy instead. The `grep -c`-before-and-after discipline is what made a silent loss visible, which is exactly why the learnings ledger insists on it.
+
+## Follow-ups
+
+- **#0194** (auto-captured from the review's `minor` finding 6) — `skills/docket-build/SKILL.md` still opens "The lean alternative to `superpowers:subagent-driven-development`", framing itself as the alternative to the thing it now replaces by default. The stub widens it into the real question: whether a role skill body should restate its own binding posture at all, given that every such restatement is one more copy to sweep the next time a default moves — which is precisely the work this change just did.
+- The three `important` and two remaining `minor` review findings were deliberately **not** auto-fixed (the review contract routes non-blockers to the human at the merge gate). If they are wanted as one cleanup rather than merge-gate edits, the guard-anchoring one is the only one with teeth.
