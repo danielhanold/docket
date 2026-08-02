@@ -2,7 +2,7 @@
 id: 192
 slug: opencode-profile-routed-build-support
 title: opencode support for profile-routed Docket builds
-status: implemented
+status: done
 priority: medium
 type: feat
 created: 2026-08-02
@@ -19,7 +19,7 @@ auto_groomable:
 branch: feat/opencode-profile-routed-build-support
 pr: https://github.com/danielhanold/docket/pull/150
 blocked_by:
-claimed_at: 2026-08-02T16:35:20Z
+claimed_at: 
 reconciled: true
 ---
 
