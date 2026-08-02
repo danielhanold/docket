@@ -1,6 +1,6 @@
 # Backlog
 
-**195 changes** — 🟢 1 in progress · 🟡 41 proposed · ⚪ 4 deferred · 🔵 4 implemented · ✅ 125 done · 🗑️ 20 killed
+**196 changes** — 🟢 1 in progress · 🟡 42 proposed · ⚪ 4 deferred · 🔵 3 implemented · ✅ 126 done · 🗑️ 20 killed
 
 ## 🟢 In progress (1)
 
@@ -8,7 +8,7 @@
 |---|-------|----------|------|------|--------|
 | [0190](active/0190-close-the-build-evidence-value-gap-a-post-gate-results-commi.md) | Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip | `medium` | `feat` | [spec](../superpowers/specs/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md) | `feat/close-the-build-evidence-value-gap-a-post-gate-results-commi` |
 
-## 🟡 Proposed (41)
+## 🟡 Proposed (42)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -52,7 +52,8 @@
 | [0188](active/0188-backfill-change-types-sh-calls-mktemp-d-with-no-template-so.md) | backfill-change-types.sh calls mktemp -d with no template, so TMPDIR is ignored on macOS and uchg fixtures leak undeletable dirs | `medium` | `fix` | needs-brainstorm |
 | [0189](active/0189-sweep-the-15-remaining-bare-mv-install-sites-a-tty-prompt-ma.md) | Sweep the 15 remaining bare-mv install sites — a tty prompt makes their || die guards unreachable | `medium` | `fix` | needs-brainstorm |
 | [0194](active/0194-retire-the-retired-default-framing-from-the-docket-owned-rol.md) | Retire the retired-default framing from the docket-owned role skill bodies | `medium` | `docs` | needs-brainstorm |
-| [0195](active/0195-retune-the-opencode-shipped-model-defaults-for-cost.md) | Retune the opencode shipped model defaults for cost | `medium` | `chore` | ⏳ waiting on #192 — needs your merge |
+| [0195](active/0195-retune-the-opencode-shipped-model-defaults-for-cost.md) | Retune the opencode shipped model defaults for cost | `medium` | `chore` | needs-brainstorm |
+| [0196](active/0196-shared-agents-md-dispatch-block-restate-and-test-the-single.md) | Shared AGENTS.md dispatch block — restate and test the single-owner assumptions | `medium` | `fix` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -63,13 +64,12 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (4)
+## 🔵 Implemented — awaiting merge (3)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | `chore` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
 | [0191](active/0191-enforce-yaml-scalar-wellformedness-in-change-frontmatter.md) | Enforce YAML scalar well-formedness in change-file frontmatter | `medium` | `fix` | [#151](https://github.com/danielhanold/docket/pull/151) |  |
-| [0192](active/0192-opencode-profile-routed-build-support.md) | opencode support for profile-routed Docket builds | `medium` | `feat` | [#150](https://github.com/danielhanold/docket/pull/150) |  |
 | [0193](active/0193-default-build-review-roles-to-docket-owned-skills.md) | Default the build and review roles to docket-build and docket-review | `medium` | `chore` | [#152](https://github.com/danielhanold/docket/pull/152) |  |
 
 ```mermaid
@@ -120,20 +120,22 @@ graph TD
   0189
   0190
   0191
-  0192
   0193
   0194
   0192 --> 0195
+  0196
   0015:::done
   0077:::done
   0175:::done
+  0192:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (145)</summary>
+<details><summary>✅🗑️ Archive — done + killed (146)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0192](archive/2026-08-02-0192-opencode-profile-routed-build-support.md) | opencode support for profile-routed Docket builds | 2026-08-02 |
 | [0186](archive/2026-08-01-0186-bare-mv-prompts-on-a-tty-backfill-change-types-hangs-the-sui.md) | Bare mv prompts on a tty — backfill-change-types hangs the suite and can exit 0 without installing | 2026-08-01 |
 | [0185](archive/2026-08-01-0185-test-suite-assertion-profilers.md) | Test-suite profilers — per-assertion and per-command timing | 2026-08-01 |
 | [0184](archive/2026-08-01-0184-four-tier-build-profile-ladder.md) | Four-tier build profile ladder — economy/standard/premium/max | 2026-08-01 |
@@ -159,7 +161,6 @@ graph TD
 | [0145](archive/2026-07-28-0145-docket-status-skill-md-restates-a-stale-check-count-and-list.md) | docket-status SKILL.md restates a stale check count and list the 0111 guard does not pin | 2026-07-28 |
 | [0144](archive/2026-07-28-0144-a-board-checks-sh-non-zero-exit-silently-voids-the-entire-he.md) | A board-checks.sh non-zero exit silently voids the entire health pass | 2026-07-28 |
 | [0143](archive/2026-07-28-0143-empty-id-collapses-the-archive-sort-feeder-s-tab-joined-fiel.md) | Empty id collapses the archive sort feeder's TAB-joined fields in render-board.sh | 2026-07-28 |
-| [0135](archive/2026-07-28-0135-cursor-agent-wrapper-contract.md) | Generated Cursor wrappers violate Cursor's subagent contract, disabling skills and model effort | 2026-07-28 |
 | [0131](archive/2026-07-26-0131-make-board-conflict-rebase-continuation-noninteractive.md) | Make board-conflict rebase continuation noninteractive | 2026-07-26 |
 | [0129](archive/2026-07-26-0129-fix-the-pipefail-unsafe-plain-format-config-assertion.md) | Fix the pipefail-unsafe plain-format config assertion | 2026-07-26 |
 | [0124](archive/2026-07-26-0124-backlog-triage-pass.md) | Backlog triage pass — kill, defer, or arm each needs-brainstorm stub | 2026-07-26 |
@@ -174,7 +175,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-07](archive/) | 78 done |
+| [2026-07](archive/) | 79 done |
 | [2026-06](archive/) | 32 done |
 
 </details>
