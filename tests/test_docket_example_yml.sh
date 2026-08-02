@@ -113,8 +113,8 @@ map_for(){ # map_for <EXPORT_KEY> -> ERE matching the example's line, or empty i
     BUILD_CHECKPOINT)      echo '^[[:space:]]+checkpoint:[[:space:]]*false' ;;
     SKILL_BRAINSTORM)      echo '^[[:space:]]+brainstorm:[[:space:]]*superpowers:brainstorming' ;;
     SKILL_PLAN)            echo '^[[:space:]]+plan:[[:space:]]*superpowers:writing-plans' ;;
-    SKILL_BUILD)           echo '^[[:space:]]+build:[[:space:]]*superpowers:subagent-driven-development' ;;
-    SKILL_REVIEW)          echo '^[[:space:]]+review:[[:space:]]*superpowers:requesting-code-review' ;;
+    SKILL_BUILD)           echo '^[[:space:]]+build:[[:space:]]*docket-build[[:space:]]*$' ;;
+    SKILL_REVIEW)          echo '^[[:space:]]+review:[[:space:]]*docket-review[[:space:]]*$' ;;
     SKILL_FINISH)          echo '^[[:space:]]+finish:[[:space:]]*superpowers:finishing-a-development-branch' ;;
     *) echo '' ;;
   esac

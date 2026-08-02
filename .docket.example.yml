@@ -154,9 +154,9 @@ reclaim:
 
 # ═══ build — the docket-owned build role ═══════════════════════════════════════════════════
 
-# Knobs for docket's own build role, docket-build (change 0167) — the lean, profile-routed
-# alternative to superpowers:subagent-driven-development, selected via `skills: build:` below.
-# Inert unless that role is bound to docket-build.
+# Knobs for docket's own build role, docket-build (change 0167) — the lean, profile-routed build
+# that has been the shipped default for `skills: build:` since change 0193. Inert if you rebind
+# that role away from docket-build.
 build:
   # checkpoint — false (default) => the build persists NO resume ledger; completed work is durable
   # through the per-task code commits alone, and a resumed run reconstructs progress conservatively
@@ -410,15 +410,17 @@ runners:
 # skills — (change 0049) rebinds any of the five workflow invocation points — brainstorm / plan /
 # build / review / finish — to a different skill (the name passes to the Skill tool verbatim,
 # unvalidated) or to `auto` (no skill; the running agent performs the step inline at its own
-# model — e.g. `build: auto` to build without SDD fan-out). Unset keys default to the superpowers
-# skills shown, so an absent block is byte-identical to superpowers-everywhere; a
-# resolved-but-unavailable skill degrades to that role's `auto` fallback with a prominent warning.
-# Unknown role keys are warned + ignored. Shape and per-role fallback artifacts: docket-convention
-# "Skill layer".
+# model — e.g. `build: auto` to build with no fan-out at all). Unset keys default to the values
+# shown: superpowers for brainstorm / plan / finish, and docket's own build and review roles
+# since change 0193. To run the superpowers engine everywhere instead, set `build:
+# superpowers:subagent-driven-development` and `review: superpowers:requesting-code-review`
+# explicitly. A resolved-but-unavailable skill degrades to that role's `auto` fallback with a
+# prominent warning. Unknown role keys are warned + ignored. Shape and per-role fallback
+# artifacts: docket-convention "Skill layer".
 # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
 skills:
   brainstorm: superpowers:brainstorming
   plan:       superpowers:writing-plans
-  build:      superpowers:subagent-driven-development
-  review:     superpowers:requesting-code-review
+  build:      docket-build
+  review:     docket-review
   finish:     superpowers:finishing-a-development-branch
