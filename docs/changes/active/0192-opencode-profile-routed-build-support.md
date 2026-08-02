@@ -2,7 +2,7 @@
 id: 192
 slug: opencode-profile-routed-build-support
 title: opencode support for profile-routed Docket builds
-status: in-progress
+status: implemented
 priority: medium
 type: feat
 created: 2026-08-02
@@ -13,13 +13,13 @@ discovered_from: []
 adrs: [15, 36, 63, 64]
 spec: docs/superpowers/specs/2026-08-02-opencode-profile-routed-build-support-design.md
 plan: docs/superpowers/plans/2026-08-02-opencode-profile-routed-build-support.md
-results:
+results: docs/results/2026-08-02-opencode-profile-routed-build-support-results.md
 trivial: false
 auto_groomable:
 branch: feat/opencode-profile-routed-build-support
-pr:
+pr: https://github.com/danielhanold/docket/pull/150
 blocked_by:
-claimed_at: 2026-08-02T14:31:05Z
+claimed_at: 2026-08-02T16:35:20Z
 reconciled: true
 ---
 
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-02-opencode-profile-routed-build-support-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-02-opencode-profile-routed-build-support-design.md) |
 | Plan | [2026-08-02-opencode-profile-routed-build-support.md](https://github.com/danielhanold/docket/blob/feat/opencode-profile-routed-build-support/docs/superpowers/plans/2026-08-02-opencode-profile-routed-build-support.md) |
+| Results | [2026-08-02-opencode-profile-routed-build-support-results.md](https://github.com/danielhanold/docket/blob/feat/opencode-profile-routed-build-support/docs/results/2026-08-02-opencode-profile-routed-build-support-results.md) |
+| PR | [#150](https://github.com/danielhanold/docket/pull/150) |
 | ADRs | [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md), [ADR-0036](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0036-codex-agents-md-dispatch-block-committed-machine-neutral.md), [ADR-0063](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0063-docket-owns-the-build-role-profile-routed-workers.md), [ADR-0064](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0064-shipped-agent-defaults-live-in-a-harness-indexed-sidecar.md) |
 <!-- docket:artifacts:end -->
 
