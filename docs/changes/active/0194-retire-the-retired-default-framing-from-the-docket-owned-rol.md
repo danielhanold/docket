@@ -2,7 +2,7 @@
 id: 194
 slug: retire-the-retired-default-framing-from-the-docket-owned-rol
 title: Retire the retired-default framing from the docket-owned role skill bodies
-status: proposed
+status: in-progress
 priority: medium
 type: docs
 created: 2026-08-02
@@ -16,7 +16,8 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/retire-the-retired-default-framing-from-the-docket-owned-rol
+claimed_at: 2026-08-02T23:05:54Z
 pr:
 blocked_by:
 reconciled: false
