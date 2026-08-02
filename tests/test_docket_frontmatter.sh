@@ -270,6 +270,32 @@ assert "fm_field leaves an interior quote untouched" '[ "$(fm_field "$qd/interio
 assert "fm_field leaves an unterminated open quote"  '[ "$(fm_field "$qd/untl.md" title)" = "\"unterminated" ]'
 assert "fm_field empty when the key is absent"       '[ -z "$(fm_field "$qd/dq.md" nonesuch)" ]'
 
+# fm_field_raw(): the RAW reader through the anchored twin — surrounding quotes LEFT INTACT, same
+# ---...--- scope and inline-comment strip as fm_field (change 0191).
+assert "fm_field_raw preserves a double-quoted value" '[ "$(fm_field_raw "$qd/dq.md" title)" = "\"Comma, title\"" ]'
+assert "fm_field_raw preserves a single-quoted value" '[ "$(fm_field_raw "$qd/sq.md" title)" = "'"'"'Comma, title'"'"'" ]'
+assert "fm_field_raw leaves a bare value unchanged"   '[ "$(fm_field_raw "$qd/bare.md" title)" = "Bare title" ]'
+assert "fm_field_raw leaves an interior quote untouched" '[ "$(fm_field_raw "$qd/interior.md" title)" = "Say \"hi\" now" ]'
+assert "fm_field_raw leaves an unterminated open quote"  '[ "$(fm_field_raw "$qd/untl.md" title)" = "\"unterminated" ]'
+assert "fm_field_raw empty when the key is absent"    '[ -z "$(fm_field_raw "$qd/dq.md" nonesuch)" ]'
+
+# The anchored-read proof: fm_field_raw must NOT fall through to a body line that opens with the
+# key when the frontmatter omits it (the ADR-0057 fixture discipline, same shape as fm_field's).
+fr="$(mktemp -d)"
+printf -- '---\nid: 1\n---\n\n## Why\nblocked_by: this is body prose, not frontmatter\n' > "$fr/body.md"
+assert "fm_field_raw is empty when the key is absent but the body opens with it" \
+  '[ -z "$(fm_field_raw "$fr/body.md" blocked_by)" ]'
+
+# Same inline-comment strip as fm_field: whitespace-preceded `#` to EOL is dropped, a `#` not
+# preceded by whitespace stays part of the value.
+printf -- '---\ntype: feat   # chosen at creation\n---\n' > "$fr/commented.md"
+printf -- '---\ntype: feat#1\n---\n' > "$fr/hash.md"
+assert "fm_field_raw strips the same inline-comment shape fm_field strips" \
+  '[ "$(fm_field_raw "$fr/commented.md" type)" = feat ]'
+assert "fm_field_raw keeps a hash not preceded by whitespace in the value" \
+  '[ "$(fm_field_raw "$fr/hash.md" type)" = "feat#1" ]'
+rm -rf "$fr"
+
 # field_raw() is the RAW reader — surrounding quotes are LEFT INTACT (change 0138)
 assert "field_raw preserves a double-quoted value"  '[ "$(field_raw "$qd/dq.md" title)" = "\"Comma, title\"" ]'
 assert "field_raw preserves a single-quoted value"  '[ "$(field_raw "$qd/sq.md" title)" = "'"'"'Comma, title'"'"'" ]'
