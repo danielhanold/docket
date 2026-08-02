@@ -2,11 +2,11 @@
 id: 191
 slug: enforce-yaml-scalar-wellformedness-in-change-frontmatter
 title: Enforce YAML scalar well-formedness in change-file frontmatter
-status: proposed
+status: in-progress
 priority: medium
 type: fix
 created: 2026-08-01
-updated: 2026-08-01
+updated: 2026-08-02
 depends_on: []
 related: [190, 138]
 discovered_from: [190]
@@ -16,10 +16,11 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch:
+branch: feat/enforce-yaml-scalar-wellformedness-in-change-frontmatter
 pr:
 blocked_by:
 reconciled: false
+claimed_at: 2026-08-02T19:46:20Z
 ---
 
 ## Artifacts
