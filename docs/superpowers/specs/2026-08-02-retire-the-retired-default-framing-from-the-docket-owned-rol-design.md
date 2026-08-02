@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **Change 0194 — Retire the retired-default framing from the docket-owned role skill bodies** — `docs/changes/active/0194-retire-the-retired-default-framing-from-the-docket-owned-rol.md`
+> ↩ **[Change 0194 — Retire the retired-default framing from the docket-owned role skill bodies](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0194-retire-the-retired-default-framing-from-the-docket-owned-rol.md)**
 <!-- docket:backlink:end -->
 
 # Retire the retired-default framing from the docket-owned role skill bodies
