@@ -19,8 +19,8 @@ auto_groomable:
 branch: feat/opencode-profile-routed-build-support
 pr:
 blocked_by:
-claimed_at: 2026-08-02T14:23:41Z
-reconciled: false
+claimed_at: 2026-08-02T14:31:05Z
+reconciled: true
 ---
 
 ## Artifacts
@@ -62,6 +62,8 @@ shipped default block and live certification.
   harness-neutral, serving Codex and opencode from one block.
 - Mirror the block in `.docket.example.yml`, extend the mirror/round-trip/leak guards with
   mutation evidence, add `docs/opencode/setup.md`, and update maintained docs.
+- Gitignore the generated `.opencode/agents/docket-*.md` definitions alongside the existing
+  per-harness entries (added at reconcile).
 - Certify economy, standard, and premium named dispatches in a live opencode session; record
   explicit waivers for the max rung, review rungs, classification, and escalation.
 
@@ -81,3 +83,34 @@ shipped default block and live certification.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-08-02 — reconcile at claim
+
+Scope holds; no drift that changes the design. Verified against current `origin/main` and a live
+opencode installation.
+
+**Substrate confirmed exactly as the spec describes it.** `scripts/lib/harness-defaults.sh` carries
+`HD_KNOWN_HARNESSES="claude cursor codex"` (line 20) and `HD_SHIPPED_HARNESSES="claude cursor codex"`
+(line 27); `sync-agents.sh` carries `is_valid_harness`, `AGENTS_MD_DISPATCH_HARNESSES="codex"` with
+its `harness_gets_agents_md` reader, the `emit_for_harness` registry dispatching to
+`emit_codex_toml` / `emit_cursor_md` over a Claude-shaped default, `harness_ext` (codex⇒toml, else
+md), and `sync_codex_agents_md_dispatch`. `REGISTERED_RUNNERS="codex cursor"` is untouched by this
+change, per the non-goal. All four insertion points named in the design are real and unchanged.
+
+**Model IDs verified live (blocking item from `## Open questions`).** opencode **1.18.11** installed
+at `/opt/homebrew/bin/opencode`. All three selected OpenRouter IDs are present verbatim in the
+installed catalog (`opencode models`, 360 entries): `openrouter/deepseek/deepseek-v4-flash-0731`,
+`openrouter/moonshotai/kimi-k3`, `openrouter/openai/gpt-5.6-luna`. No substitution needed; the
+shipped table stands as designed.
+
+**Effort passthrough remains the one open build-time gate.** The exact frontmatter option key that
+reaches the OpenRouter provider (docs document `reasoningEffort`) was NOT settled at reconcile — it
+stays a plan task requiring proof against the real installation before the emitter hardcodes a
+spelling, and a non-functional passthrough stops for a human rather than degrading to unpinned
+effort, exactly as `## Failure behavior` requires.
+
+**One addition the spec did not name.** Generated wrappers are machine-local and gitignored per
+harness — `.gitignore` lines 10/11/15/16 cover `.codex/agents/docket-*.{md,toml}`,
+`.cursor/agents/docket-*.md`, and `.cursor/rules/docket-dispatch.mdc`. `.opencode/agents/docket-*.md`
+must join them, or every generated definition shows up as untracked repo noise. Folded into scope as
+part of the emitter work; too small to be its own change.
