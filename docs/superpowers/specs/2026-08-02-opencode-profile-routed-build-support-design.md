@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0192 — opencode support for profile-routed Docket builds](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0192-opencode-profile-routed-build-support.md)**
+> ↩ **[Change 0192 — opencode support for profile-routed Docket builds](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-02-0192-opencode-profile-routed-build-support.md)**
 <!-- docket:backlink:end -->
 
 # opencode support for profile-routed Docket builds
