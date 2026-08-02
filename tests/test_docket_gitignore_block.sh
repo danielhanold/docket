@@ -22,7 +22,9 @@ assert "emit: claude agents pattern"       'printf "%s\n" "$BLK" | grep -qxF ".c
 assert "emit: windsurf agents pattern"     'printf "%s\n" "$BLK" | grep -qxF ".windsurf/agents/docket-*.md"'
 assert "emit: codex TOML wrapper pattern"   'printf "%s\n" "$BLK" | grep -qxF ".codex/agents/docket-*.toml"'
 assert "emit: codex .md pattern still present (constant, all tokens)" 'printf "%s\n" "$BLK" | grep -qxF ".codex/agents/docket-*.md"'
-assert "emit: cursor dispatch rule"        'printf "%s\n" "$BLK" | grep -qxF ".cursor/rules/docket-dispatch.mdc"'
+assert "block ignores generated opencode agent definitions" \
+  'printf "%s\n" "$BLK" | grep -F -x -q -- ".opencode/agents/docket-*.md"'
+assert "emit: cursor dispatch rule"       'printf "%s\n" "$BLK" | grep -qxF ".cursor/rules/docket-dispatch.mdc"'
 assert "emit: every non-marker line is docket-scoped (starts with . )" \
   '! printf "%s\n" "$BLK" | grep -v "^#" | grep -qvE "^\."'
 assert "emit: deterministic (two calls identical)" '[ "$(emit_docket_gitignore_block)" = "$(emit_docket_gitignore_block)" ]'

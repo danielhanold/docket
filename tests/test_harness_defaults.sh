@@ -12,8 +12,8 @@ SRC="$REPO/agents"
 # ---- the shipped file itself ------------------------------------------------
 assert "sidecar exists"            '[ -f "$HD" ]'
 assert "sidecar validates"         'hd_validate "$HD" "$SRC"'
-assert "harnesses are exactly the three shipped ones" \
-  '[ "$(hd_harnesses "$HD" | tr "\n" " ")" = "claude codex cursor " ]'
+assert "harnesses are exactly the four shipped ones" \
+  '[ "$(hd_harnesses "$HD" | tr "\n" " ")" = "claude codex cursor opencode " ]'
 
 # ---- every shipped Claude value, verbatim -----------------------------------
 for pair in \
@@ -85,6 +85,48 @@ assert "codex build ladder = luna/xhigh, terra/medium, sol/low, sol/medium" \
    [ "$(hd_field "$HD" codex build-standard model)/$(hd_field "$HD" codex build-standard effort)" = "gpt-5.6-terra/medium" ] &&
    [ "$(hd_field "$HD" codex build-premium model)/$(hd_field "$HD" codex build-premium effort)" = "gpt-5.6-sol/low" ] &&
    [ "$(hd_field "$HD" codex build-max model)/$(hd_field "$HD" codex build-max effort)" = "gpt-5.6-sol/medium" ]'
+
+# ---- every shipped opencode value, verbatim ---------------------------------
+for pair in \
+  "adr openrouter/moonshotai/kimi-k3 medium" \
+  "auto-groom openrouter/deepseek/deepseek-v4-flash-0731 medium" \
+  "auto-groom-critic openrouter/openai/gpt-5.6-luna high" \
+  "brainstorm-consultant openrouter/moonshotai/kimi-k3 medium" \
+  "build-economy openrouter/deepseek/deepseek-v4-flash-0731 medium" \
+  "build-standard openrouter/deepseek/deepseek-v4-flash-0731 high" \
+  "build-premium openrouter/moonshotai/kimi-k3 medium" \
+  "build-max openrouter/moonshotai/kimi-k3 high" \
+  "finalize-change openrouter/deepseek/deepseek-v4-flash-0731 high" \
+  "implement-next openrouter/deepseek/deepseek-v4-flash-0731 high" \
+  "integration-repair openrouter/moonshotai/kimi-k3 high" \
+  "rebase-resolver openrouter/moonshotai/kimi-k3 high" \
+  "review-lean openrouter/deepseek/deepseek-v4-flash-0731 high" \
+  "review-standard openrouter/moonshotai/kimi-k3 medium" \
+  "review-deep openrouter/moonshotai/kimi-k3 high" \
+  "status openrouter/deepseek/deepseek-v4-flash-0731 low" \
+; do
+  set -- $pair
+  assert "opencode/$1 model is $2"  '[ "$(hd_field "$HD" opencode '"$1"' model)" = "'"$2"'" ]'
+  assert "opencode/$1 effort is $3" '[ "$(hd_field "$HD" opencode '"$1"' effort)" = "'"$3"'" ]'
+done
+
+# The build ladder, stated as the pairs it actually is. Flash carries the two volume rungs at
+# different efforts and Kimi carries the two judgment rungs at different efforts — the pair is the
+# role, not the model.
+assert "opencode build ladder: economy is Flash/medium" \
+  '[ "$(hd_field "$HD" opencode build-economy model)" = "openrouter/deepseek/deepseek-v4-flash-0731" ] && [ "$(hd_field "$HD" opencode build-economy effort)" = "medium" ]'
+assert "opencode build ladder: standard is Flash/high" \
+  '[ "$(hd_field "$HD" opencode build-standard model)" = "openrouter/deepseek/deepseek-v4-flash-0731" ] && [ "$(hd_field "$HD" opencode build-standard effort)" = "high" ]'
+assert "opencode build ladder: premium is Kimi/medium" \
+  '[ "$(hd_field "$HD" opencode build-premium model)" = "openrouter/moonshotai/kimi-k3" ] && [ "$(hd_field "$HD" opencode build-premium effort)" = "medium" ]'
+assert "opencode build ladder: max is Kimi/high" \
+  '[ "$(hd_field "$HD" opencode build-max model)" = "openrouter/moonshotai/kimi-k3" ] && [ "$(hd_field "$HD" opencode build-max effort)" = "high" ]'
+
+# The slash-bearing ID is the first double-prefixed value any block ships. Pin that the bare-scalar
+# reader returns it WHOLE rather than clipping at the slash — hd_field's value class is
+# [^,}[:space:]]+, so this is the assert that would catch a future narrowing to an allowlist.
+assert "opencode: a double-prefixed ID survives the bare-scalar read intact" \
+  '[ "$(hd_field "$HD" opencode status model)" = "$(hd_field_raw "$HD" opencode status model)" ] && case "$(hd_field "$HD" opencode status model)" in */*/*) true;; *) false;; esac'
 
 # Detect the REMOVED state, not the added one (a grep for the new names is green the moment the
 # edit lands and stays green even if an old row is left behind alongside it). Change 0184 retired

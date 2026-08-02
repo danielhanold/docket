@@ -1578,7 +1578,14 @@ rm -rf "$SBX" "$HROOT168F"
 make_sandbox
 HROOT168W="$(mktemp -d)"; mkdir -p "$HROOT168W/.claude"
 SCRW="$(mktemp -d)"; cp -R "$REPO/agents" "$REPO/cursor-rules" "$REPO/scripts" "$REPO/sync-agents.sh" "$SCRW/"
-sed -i.bak 's/^HD_SHIPPED_HARNESSES="\(.*\) codex"$/HD_SHIPPED_HARNESSES="\1"/' "$SCRW/scripts/lib/harness-defaults.sh"
+# Anchored on the token being removed, not on its position in the list: `codex` stopped being the
+# final token when change 0192 appended `opencode`, and a position-anchored pattern would silently
+# stop matching (the fixture sanity asserts just below are what catch that).
+sed -i.bak 's/^HD_SHIPPED_HARNESSES="\(.*\)codex\(.*\)"$/HD_SHIPPED_HARNESSES="\1\2"/' "$SCRW/scripts/lib/harness-defaults.sh"
+# Normalize the doubled/trailing space the substitution above can leave. Address-scoped to the
+# assignment line: an unscoped `s/  */ /g` would also collapse the two literal spaces inside
+# _hd_block's `"^  "h` indent regexes and silently break the whole reader in the copy.
+sed -i.bak2 '/^HD_SHIPPED_HARNESSES=/{ s/  */ /g; s/= /=/; s/" /"/; s/ "$/"/; }' "$SCRW/scripts/lib/harness-defaults.sh"
 awk '/^  codex:[[:space:]]*$/{skip=1; next}
      skip && /^  [A-Za-z0-9._-]+[[:space:]]*:[[:space:]]*$/{skip=0}
      !skip' "$SCRW/agents/harness-defaults.yml" > "$SCRW/hd.tmp" && mv "$SCRW/hd.tmp" "$SCRW/agents/harness-defaults.yml"

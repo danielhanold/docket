@@ -17,14 +17,15 @@
 
 # Known harness tokens — what may APPEAR in the sidecar at all. Adding one here is not enough to
 # ship defaults for it; the emitter must also know how to write the harness's wrapper.
-HD_KNOWN_HARNESSES="claude cursor codex"
+HD_KNOWN_HARNESSES="claude cursor codex opencode"
 
 # Harnesses docket actually SHIPS defaults for. Each must carry a COMPLETE block (every
 # agents/docket-*.md). A known-but-unshipped harness — one listed in HD_KNOWN_HARNESSES but absent
 # here — may hold no block at all; the moment it holds one, listing it here is what makes partial
-# coverage an error rather than a silent half-pinned harness. All three known harnesses ship
-# complete blocks today.
-HD_SHIPPED_HARNESSES="claude cursor codex"
+# coverage an error rather than a silent half-pinned harness. Sparseness is a property of WHICH
+# harnesses appear, never of how much of one appears. All four known harnesses ship complete
+# blocks today.
+HD_SHIPPED_HARNESSES="claude cursor codex opencode"
 
 # Print the body lines under `  <harness>:` (four-space-indented entries), comments stripped.
 _hd_block(){ # $1=file $2=harness
