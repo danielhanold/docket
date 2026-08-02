@@ -11,12 +11,17 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 AL="$REPO/skills/docket-convention/references/agent-layer.md"
 assert "agent-layer: has a per-harness wrapper-shape table" \
   'grep -qiE "^\| *harness *\|" "$AL"'
-# One row per harness with a named emitter. Derived from the emitters that actually exist, so a
-# new named emitter without a doc row reddens (correspondence-guard-runs-one-way: anchor on the
-# consuming code, never an allowlist).
-for h in claude cursor codex; do
+# One row per harness with a named emitter. Population derived from HD_SHIPPED_HARNESSES rather
+# than a literal list, so a newly shipped harness cannot land without a doc row
+# (correspondence-guard-runs-one-way: anchor on the consuming code, never an allowlist).
+# shellcheck source=/dev/null
+. "$REPO/scripts/lib/harness-defaults.sh"
+n_rows=0
+for h in $HD_SHIPPED_HARNESSES; do
   assert "agent-layer: table has a $h row" 'grep -qE "^\| *'"$h"' *\|" "$AL"'
+  n_rows=$((n_rows+1))
 done
+assert "agent-layer: the row loop covered every shipped harness" '[ "$n_rows" -ge 4 ]'
 # Row-scoped, not file-scoped: `[effort=` and "body preamble" are asserted against the CURSOR ROW
 # itself, so the encoding claim cannot be satisfied by the same literal appearing in an unrelated
 # paragraph of the same file (a whole-file grep for a string the file discusses elsewhere is a
@@ -25,6 +30,8 @@ assert "agent-layer: cursor row shows bracket-encoded effort" \
   'grep -qE "^\| *cursor *\|.*\[effort=" "$AL"'
 assert "agent-layer: cursor row says skills ride in the body" \
   'grep -qE "^\| *cursor *\|.*body preamble" "$AL"'
+assert "agent-layer: opencode row shows the reasoningEffort passthrough" \
+  'grep -qE "^\| *opencode *\|.*reasoningEffort" "$AL"'
 # NEGATIVE assert: the removed wording, not the added wording. A guard that only confirms the new
 # sentence proves the replacement is present, never that the wrong claim is gone.
 assert "agent-layer: no longer claims the Cursor rule forces a Task dispatch" \

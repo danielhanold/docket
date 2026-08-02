@@ -651,15 +651,16 @@ harness_ext(){ case "$1" in codex) printf 'toml';; *) printf 'md';; esac; }
 # emit()'s args.
 emit_for_harness(){  # $1=src md  $2=harness  $3=model  $4=effort
   case "$2" in
-    codex)  emit_codex_toml "$1" "$3" "$4";;
-    cursor) emit_cursor_md  "$1" "$3" "$4";;
-    claude) emit            "$1" "$3" "$4";;
+    codex)    emit_codex_toml "$1" "$3" "$4";;
+    cursor)   emit_cursor_md  "$1" "$3" "$4";;
+    opencode) emit_opencode_md "$1" "$3" "$4";;
+    claude)   emit            "$1" "$3" "$4";;
     # The generic Claude-shaped wrapper. A harness reaching this branch has NO verified contract
     # mapping — its wrapper is a best guess, not a supported shape. Adding a harness token here
     # without a named emitter is how the Cursor defect (change 0135) shipped: the token inherited
     # Claude's frontmatter, and docket reported pins the harness never read. Give a new harness its
     # own emitter, or accept that its wrapper is unverified.
-    *)      emit            "$1" "$3" "$4";;
+    *)        emit            "$1" "$3" "$4";;
   esac
 }
 
@@ -766,6 +767,57 @@ emit_cursor_md(){  # $1=src md  $2=model  $3=effort   (both FINAL resolved value
   printf -- '---\n\n'
   if [ -n "$skills_csv" ]; then
     printf 'Before acting, load these docket skills from your Cursor skills directory: %s.\n\n' "$skills_csv"
+  fi
+  printf '%s\n' "$body"
+}
+
+# Transform a built-in markdown wrapper into an opencode agent definition on stdout (change 0192).
+# opencode agents are markdown with YAML frontmatter under .opencode/agents/; the FILENAME is the
+# agent identifier, so no `name:` field is emitted. Field mapping (ADR-0015 verbatim passthrough):
+#   frontmatter description: -> description
+#   (constant)               -> mode: subagent      every docket agent is dispatched, never primary
+#   resolved model           -> model               (omit if empty/inherit)
+#   resolved effort          -> reasoningEffort     (omit if empty/auto)
+#   skills: preload + body   -> a body preamble + the body verbatim
+#
+# opencode has NO first-class reasoning-effort field. It forwards unrecognized agent-frontmatter
+# keys to the provider as model options, so `reasoningEffort` is a real per-agent effort rather
+# than a decorative key: verified against opencode 1.18.11, where `opencode debug agent <name>`
+# reports it as `options.reasoningEffort`. That is also why effort is dropped when no model
+# resolves — a provider option with no provider selected has nothing to reach.
+#
+# Docket keeps NO allowlist of opencode model IDs or effort tokens (ADR-0015). IDs reached through
+# OpenRouter are double-prefixed (`openrouter/<vendor>/<model>`); opencode splits that into a
+# providerID and a modelID itself, so docket passes the whole string through untouched.
+emit_opencode_md(){  # $1=src md  $2=model  $3=effort   (both FINAL resolved values)
+  local src="$1" mo="$2" eo="$3"
+  local desc model effort skills_csv body
+  desc="$(agent_description "$src")"
+  # change 0168: FINAL resolved values (shipped sidecar ⊕ user layers). The source frontmatter is
+  # no longer a default store, so an unresolved field means the wrapper is honestly UNPINNED and
+  # opencode applies its own default.
+  model="$mo"
+  effort="$eo"
+  # Normalize the two "no pin" sentinels to empty, so the emit logic below has one shape to test.
+  # `inherit` is a real Claude Code frontmatter value with no opencode equivalent, so it normalizes
+  # here exactly as it does in emit_cursor_md/emit_codex_toml rather than passing through.
+  [ "$model" = "inherit" ] && model=""
+  [ "$effort" = "auto" ] && effort=""
+  skills_csv="$(sed -n '/^skills:/{s/^skills:[[:space:]]*//;p;q;}' "$src" | sed -e 's/^\[//' -e 's/\][[:space:]]*$//' -e 's/[[:space:]]*$//')"
+  # body = everything after the frontmatter closing --- , leading blank lines trimmed.
+  body="$(awk '/^---[[:space:]]*$/ && d<2 {d++; next} d>=2 {print}' "$src" | awk 'NF{p=1} p{print}')"
+  printf -- '---\n'
+  printf 'description: %s\n' "$desc"
+  printf 'mode: subagent\n'
+  if [ -n "$model" ]; then
+    printf 'model: %s\n' "$model"
+    [ -n "$effort" ] && printf 'reasoningEffort: %s\n' "$effort"
+  elif [ -n "$effort" ]; then
+    log "WARN opencode/docket-$(short_name "$src"): effort '$effort' dropped — opencode carries effort as a provider model option, and no model is resolved (either none is configured or it is the 'inherit' sentinel). Set an explicit model to pin effort on opencode."
+  fi
+  printf -- '---\n\n'
+  if [ -n "$skills_csv" ]; then
+    printf 'Before acting, load these docket skills from your opencode skills directory: %s.\n\n' "$skills_csv"
   fi
   printf '%s\n' "$body"
 }
