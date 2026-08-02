@@ -13,7 +13,7 @@
 #     never by field;
 #   - `runner:` is forbidden — delegation is user policy, never a shipped default;
 #   - every harness listed in HD_SHIPPED_HARNESSES carries a COMPLETE block (its key set equals
-#     agents/docket-*.md) — claude, cursor, and codex today.
+#     agents/docket-*.md) — claude, cursor, codex, and opencode today.
 #
 # Model IDs and effort tokens are opaque passthrough values (ADR-0015). Docket keeps no vendor
 # allowlist; an unrecognized string is never rejected here. They must, however, be written as BARE
@@ -101,3 +101,38 @@ agents:
     review-standard:       { model: gpt-5.6-terra, effort: high }
     review-deep:           { model: gpt-5.6-sol, effort: medium }
     status:                { model: gpt-5.6-luna, effort: xhigh }
+
+  # opencode's full wrapper set (change 0192). opencode has no first-class effort token; it passes
+  # unrecognized agent-frontmatter keys through to the provider as model options, so docket emits
+  # the effort as `reasoningEffort:` and it arrives as a real per-agent reasoning effort. Verified
+  # against opencode 1.18.11 via `opencode debug agent`, which reports it under `options`.
+  #
+  # Models are reached through OpenRouter, so IDs are double-prefixed (`openrouter/<vendor>/<id>`);
+  # the bare-scalar rule tolerates the slashes. The table is three models, chosen for very cheap
+  # high intelligence: DeepSeek V4 Flash carries every volume row (sweep, grooming, orchestration,
+  # the economy and standard build rungs, the lean review rung), Kimi K3 carries the judgment rows
+  # — design prose, ADRs, merge-intent reconstruction, red-suite repair — and the ladder top,
+  # appearing at two efforts exactly as Sol does in the codex block, and GPT-5.6 Luna is one
+  # deliberate diversity row so the adversarial critic does not share the drafter's blind spots.
+  #
+  # As in every other block the PAIR is the role, not the model: `high` on Flash is not "stronger
+  # than" `medium` on Kimi. review-deep equals build-max so the cap rung never reviews below the
+  # strength the riskiest build work was built with. Efforts cap at `high` — reasoning-effort
+  # vocabularies are model-specific and xhigh-class tokens are not assumed portable here.
+  opencode:
+    adr:                   { model: openrouter/moonshotai/kimi-k3, effort: medium }
+    auto-groom:            { model: openrouter/deepseek/deepseek-v4-flash-0731, effort: medium }
+    auto-groom-critic:     { model: openrouter/openai/gpt-5.6-luna, effort: high }
+    brainstorm-consultant: { model: openrouter/moonshotai/kimi-k3, effort: medium }
+    build-economy:         { model: openrouter/deepseek/deepseek-v4-flash-0731, effort: medium }
+    build-standard:        { model: openrouter/deepseek/deepseek-v4-flash-0731, effort: high }
+    build-premium:         { model: openrouter/moonshotai/kimi-k3, effort: medium }
+    build-max:             { model: openrouter/moonshotai/kimi-k3, effort: high }
+    finalize-change:       { model: openrouter/deepseek/deepseek-v4-flash-0731, effort: high }
+    implement-next:        { model: openrouter/deepseek/deepseek-v4-flash-0731, effort: high }
+    integration-repair:    { model: openrouter/moonshotai/kimi-k3, effort: high }
+    rebase-resolver:       { model: openrouter/moonshotai/kimi-k3, effort: high }
+    review-lean:           { model: openrouter/deepseek/deepseek-v4-flash-0731, effort: high }
+    review-standard:       { model: openrouter/moonshotai/kimi-k3, effort: medium }
+    review-deep:           { model: openrouter/moonshotai/kimi-k3, effort: high }
+    status:                { model: openrouter/deepseek/deepseek-v4-flash-0731, effort: low }

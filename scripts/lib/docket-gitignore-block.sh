@@ -6,7 +6,7 @@
 # own trigger policy. The emitter is a pure constant, so every writer emits identical bytes.
 
 # Canonical harness roster (moved here from sync-agents.sh; that script now sources this lib).
-DOCKET_GI_HARNESS_TOKENS="claude codex cursor agents kiro windsurf"
+DOCKET_GI_HARNESS_TOKENS="claude codex cursor opencode agents kiro windsurf"
 DOCKET_GI_DISPATCH_HARNESSES="cursor"
 
 # New markers (broadened contents + ownership).

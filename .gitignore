@@ -9,6 +9,7 @@
 .claude/agents/docket-*.md
 .codex/agents/docket-*.md
 .cursor/agents/docket-*.md
+.opencode/agents/docket-*.md
 .agents/agents/docket-*.md
 .kiro/agents/docket-*.md
 .windsurf/agents/docket-*.md
