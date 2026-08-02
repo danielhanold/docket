@@ -81,3 +81,19 @@ three parts are inseparable.
 
 This ADR is the twin of **ADR-0063**: build in-house there, review in-house here, with the test
 suite placed on the build side of the seam between them.
+
+## Update — 2026-08-02 (change 0193)
+
+The Consequences above state that the shipped cross-harness default for `skills.review` "stays
+`superpowers:requesting-code-review`, so users who do nothing see no behavior change", with this
+repo dogfooding `docket-review` through its committed `.docket.yml`. That consequence no longer
+holds: change 0193 flipped the built-in default for `skills.review` to `docket-review` and removed
+this repo's `skills:` pin, so the repo now dogfoods the shipped default itself.
+
+The **Decision** is unchanged and unreversed — the read-only rung topology, the deterministic
+one-above-the-build rung selection, and the build-evidence record that keeps the suite in the build
+gate are all untouched. Only the rollout posture changed: the conservative default was a
+first-release hedge pending evidence, and `docket-review` had by then been exercised enough on this
+repo to be trusted as the default. Setting `skills.review` explicitly at any config layer remains
+the escape hatch.
+

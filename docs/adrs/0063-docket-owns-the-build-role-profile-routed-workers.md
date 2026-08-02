@@ -92,3 +92,20 @@ Docket owns its build role rather than configuring someone else's topology.
   (ADR-0059): only an explicit `skills.build: auto` authorizes inline execution.
 
 This ADR **supersedes ADR-0023**.
+
+## Update — 2026-08-02 (change 0193)
+
+The Consequences above state that the shipped cross-harness `skills.build` default "stays
+`superpowers:subagent-driven-development`, so users who do nothing see no behavior change". That
+consequence no longer holds: change 0193 flipped the built-in default for `skills.build` to
+`docket-build`, and removed this repo's own `skills:` pin so it dogfoods the shipped default rather
+than an override.
+
+The **Decision** is unchanged and unreversed — docket still owns the build role, the profile-routed
+worker topology is untouched, and nothing about routing, escalation, or the single end-of-build
+suite gate is affected. What changed is only the rollout posture: the conservative default was a
+first-release hedge pending evidence, and `docket-build` had by then been exercised enough on this
+repo to be trusted as the default. A user who does nothing now gets `docket-build`; the escape hatch
+is unchanged — set `skills.build` explicitly (including to
+`superpowers:subagent-driven-development`) at any config layer.
+
