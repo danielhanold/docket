@@ -2,7 +2,7 @@
 id: 193
 slug: default-build-review-roles-to-docket-owned-skills
 title: Default the build and review roles to docket-build and docket-review
-status: in-progress
+status: implemented
 priority: medium
 type: chore
 created: 2026-08-02
@@ -13,12 +13,12 @@ discovered_from: [170]
 adrs: [63, 66]
 spec:
 plan: docs/superpowers/plans/2026-08-02-default-build-review-roles-to-docket-owned-skills.md
-results:
+results: docs/results/2026-08-02-default-build-review-roles-to-docket-owned-skills-results.md
 trivial: true
 auto_groomable:
 branch: feat/default-build-review-roles-to-docket-owned-skills
-claimed_at: 2026-08-02T20:43:30Z
-pr:
+claimed_at: 2026-08-02T22:04:27Z
+pr: https://github.com/danielhanold/docket/pull/152
 blocked_by:
 reconciled: true
 ---
@@ -29,6 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Plan | [2026-08-02-default-build-review-roles-to-docket-owned-skills.md](https://github.com/danielhanold/docket/blob/feat/default-build-review-roles-to-docket-owned-skills/docs/superpowers/plans/2026-08-02-default-build-review-roles-to-docket-owned-skills.md) |
+| Results | [2026-08-02-default-build-review-roles-to-docket-owned-skills-results.md](https://github.com/danielhanold/docket/blob/feat/default-build-review-roles-to-docket-owned-skills/docs/results/2026-08-02-default-build-review-roles-to-docket-owned-skills-results.md) |
+| PR | [#152](https://github.com/danielhanold/docket/pull/152) |
 | ADRs | [ADR-0063](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0063-docket-owns-the-build-role-profile-routed-workers.md), [ADR-0066](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0066-docket-owns-the-review-role-suite-runs-in-the-build-gate.md) |
 <!-- docket:artifacts:end -->
 
