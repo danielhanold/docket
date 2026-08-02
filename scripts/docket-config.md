@@ -170,12 +170,12 @@ once the read lands.
 
 **`skills:` (change 0049).** Reads the optional nested `skills:` block and emits
 `SKILL_BRAINSTORM`, `SKILL_PLAN`, `SKILL_BUILD`, `SKILL_REVIEW`, `SKILL_FINISH`. Each leaf
-resolves **repo-local > repo-committed > global > superpowers default** — the repo-local
+resolves **repo-local > repo-committed > global > built-in default** — the repo-local
 `.docket.local.yml`'s `skills:` block wins if the leaf is set there, else the per-repo
 `.docket.yml`'s `skills:` block, else the global `config.yml`'s `skills:` block, else the
-built-in superpowers skill (`superpowers:brainstorming`, `superpowers:writing-plans`,
-`superpowers:subagent-driven-development`, `superpowers:requesting-code-review`,
-`superpowers:finishing-a-development-branch`); a set leaf is passed through verbatim (or the
+built-in default (`superpowers:brainstorming`, `superpowers:writing-plans`, `docket-build`,
+`docket-review`, `superpowers:finishing-a-development-branch` — the build and review roles
+became docket-owned defaults in change 0193); a set leaf is passed through verbatim (or the
 sentinel `auto`). Leaves are read *within the block* (never as bare top-level keys). An unknown
 role key under `skills:`, in any of the three layers, is warned on stderr and ignored — never
 fatal.
