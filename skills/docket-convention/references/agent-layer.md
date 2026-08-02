@@ -13,7 +13,7 @@ Contents: [Layered config](#layered-config) · [Harness-first agents: blocks](#h
 
 | Layer | Source | Generates |
 |---|---|---|
-| Built-in | `agents/harness-defaults.yml` shipped in docket (harness-indexed; claude, cursor, and codex each complete) | — |
+| Built-in | `agents/harness-defaults.yml` shipped in docket (harness-indexed; claude, cursor, codex, and opencode each complete) | — |
 | Global | the `agents:` block in `~/.config/docket/config.yml` (optional, XDG; legacy `agents.yaml` auto-migrated) | user-level `~/.claude/agents/docket-*.md` |
 | Repo-committed | `.docket.yml` `agents:` block (committed, every clone) | project-level `<repo>/.claude/agents/docket-*.md` (gitignored, machine-local — see below) |
 | Repo-local | `.docket.local.yml` `agents:` block (gitignored, this machine only) | same project-level files, highest precedence |
@@ -60,7 +60,10 @@ a pair the shipped layer does not map ships **unpinned**, never carrying another
 `scripts/lib/harness-defaults.sh` validates it before any wrapper is written: every entry nests
 under a **concrete** harness (a neutral `default:` block is forbidden — that is the cross-harness
 leakage it exists to prevent), each entry supplies **both** `model` and `effort`, and `runner:` is
-forbidden, since delegation is user policy and never a shipped default.
+forbidden, since delegation is user policy and never a shipped default. Which harnesses carry a
+shipped block is `HD_SHIPPED_HARNESSES` — claude, cursor, codex, and opencode today — and every
+one of them is COMPLETE: sparseness is a property of WHICH harnesses appear, never of how much of
+one appears.
 
 User-level files are built-in ⊕ global; project-level files are built-in ⊕ local ⊕ committed ⊕ global — where the
 harness-first resolution above runs first, inside each layer, to pick that layer's per-field value before folding
