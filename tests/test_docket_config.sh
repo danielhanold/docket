@@ -445,7 +445,7 @@ assert "implement-next finish uses SKILL_FINISH" 'grep -qF "SKILL_FINISH" "$IMPL
 assert "finalize finish uses SKILL_FINISH" \
   'grep -qF "SKILL_FINISH" "$REPO/skills/docket-finalize-change/SKILL.md"'
 
-# --- (G) skills: absent -> five superpowers defaults (byte-identical behavior) ---
+# --- (G) skills: absent -> the five built-in defaults (three superpowers, two docket-owned) ---
 mkrepo "$tmp/g"
 printf 'metadata_branch: main\n' > "$tmp/g/.docket.yml"
 git -C "$tmp/g" add .docket.yml; git -C "$tmp/g" commit --quiet -m cfg; git -C "$tmp/g" push --quiet origin main
@@ -453,8 +453,14 @@ SKILL_BUILD=__poison__; SKILL_REVIEW=__poison__; SKILL_BRAINSTORM=__poison__; SK
 out="$(run "$tmp/g" --export)"; eval "$out"
 assert "skills absent: BRAINSTORM default" '[ "$SKILL_BRAINSTORM" = superpowers:brainstorming ]'
 assert "skills absent: PLAN default"       '[ "$SKILL_PLAN" = superpowers:writing-plans ]'
-assert "skills absent: BUILD default"      '[ "$SKILL_BUILD" = superpowers:subagent-driven-development ]'
-assert "skills absent: REVIEW default"     '[ "$SKILL_REVIEW" = superpowers:requesting-code-review ]'
+assert "skills absent: BUILD default"      '[ "$SKILL_BUILD" = docket-build ]'
+assert "skills absent: REVIEW default"     '[ "$SKILL_REVIEW" = docket-review ]'
+# The old superpowers defaults must be GONE, not merely shadowed — a resolver that emitted both
+# (or fell through to SDD on some layer path) would satisfy a presence-only assert.
+assert "skills absent: BUILD default is no longer SDD" \
+  '[ "$SKILL_BUILD" != superpowers:subagent-driven-development ]'
+assert "skills absent: REVIEW default is no longer superpowers review" \
+  '[ "$SKILL_REVIEW" != superpowers:requesting-code-review ]'
 assert "skills absent: FINISH default"     '[ "$SKILL_FINISH" = superpowers:finishing-a-development-branch ]'
 
 # --- (H) skills: explicit overrides incl. `auto`, a custom name, and a partial map ---
@@ -601,7 +607,7 @@ out="$(rung "$tmp/l.xdg" "$tmp/l" --export)"; eval "$out"
 assert "0050 L: per-repo auto_groom false beats global true" '[ "$AUTO_GROOM" = false ]'
 assert "0050 L: skills merge — repo plan wins over global"   '[ "$SKILL_PLAN" = superpowers:writing-plans ]'
 assert "0050 L: skills merge — global review holds"          '[ "$SKILL_REVIEW" = my-org:global-review ]'
-assert "0050 L: skills merge — unset role stays default"     '[ "$SKILL_BUILD" = superpowers:subagent-driven-development ]'
+assert "0050 L: skills merge — unset role stays default"     '[ "$SKILL_BUILD" = docket-build ]'
 
 # --- (Q) XDG_CONFIG_HOME honored; HOME/.config is the fallback ---------------
 mkrepo "$tmp/q"
