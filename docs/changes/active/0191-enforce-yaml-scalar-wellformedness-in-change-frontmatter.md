@@ -12,7 +12,7 @@ related: [190, 138]
 discovered_from: [190]
 adrs: []
 spec: docs/superpowers/specs/2026-08-01-enforce-yaml-scalar-wellformedness-in-change-frontmatter-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-01-enforce-yaml-scalar-wellformedness-in-change-frontmatter.md
 results:
 trivial: false
 auto_groomable: true
@@ -29,6 +29,7 @@ claimed_at: 2026-08-02T19:49:14Z
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-01-enforce-yaml-scalar-wellformedness-in-change-frontmatter-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-01-enforce-yaml-scalar-wellformedness-in-change-frontmatter-design.md) |
+| Plan | [2026-08-01-enforce-yaml-scalar-wellformedness-in-change-frontmatter.md](https://github.com/danielhanold/docket/blob/feat/enforce-yaml-scalar-wellformedness-in-change-frontmatter/docs/superpowers/plans/2026-08-01-enforce-yaml-scalar-wellformedness-in-change-frontmatter.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
