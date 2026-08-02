@@ -1576,8 +1576,8 @@ source "$LIB"
 
 # 13 since change 0117 added adr-unpublished. This literal is the ONE hand-edit the derived
 # set-compares below do not absorb (verified at 0117's reconcile) — bump it with every new id.
-assert "BOARD_CHECK_IDS holds the 13 check-ids board-checks.sh emits" \
-  '[ "${#BOARD_CHECK_IDS[@]}" = 13 ]'
+assert "BOARD_CHECK_IDS holds the 14 check-ids board-checks.sh emits" \
+  '[ "${#BOARD_CHECK_IDS[@]}" = 14 ]'
 assert "BOARD_CHECK_IDS SET == the set board-checks.sh actually emits (edit scripts/lib/docket-frontmatter.sh)" \
   '[ -z "$(comm -3 <(printf "%s\n" "${BOARD_CHECK_IDS[*]}" | tr " " "\n" | sort -u) <(printf "%s\n" "$emitted"))" ] \
    || { comm -3 <(printf "%s\n" "${BOARD_CHECK_IDS[*]}" | tr " " "\n" | sort -u) <(printf "%s\n" "$emitted") >&2; false; }'
