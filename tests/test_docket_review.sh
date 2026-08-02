@@ -5,6 +5,11 @@
 set -u
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
+# The shipped-harness population and the sidecar readers. Every harness loop below derives its
+# population from $HD_SHIPPED_HARNESSES rather than naming harnesses, so a newly shipped harness
+# arms these guards for free (repo AGENTS.md: never hand-list the sites of a literal).
+# shellcheck source=/dev/null
+. "$REPO/scripts/lib/harness-defaults.sh"
 fails=0
 assert(){ if eval "$2"; then echo "ok   - $1"; else echo "FAIL - $1"; fails=$((fails+1)); fi; }
 
@@ -64,11 +69,18 @@ for rung in lean standard deep; do
   # No pins live in wrapper files since change 0168 — they live in the sidecar.
   assert "docket-review-$rung: carries no model/effort pin" \
     '! grep -qE "^(model|effort):" "$W"'
-  # Every shipped harness must supply a pair, or generation fails outright.
-  for h in claude cursor codex; do
+  # Every shipped harness must supply a pair, or generation fails outright. Read per harness
+  # through hd_field, so the assert really is about THIS harness's block and not about the file
+  # containing the row somewhere.
+  n_pair=0
+  for h in $HD_SHIPPED_HARNESSES; do
     assert "harness-defaults: $h supplies a pair for review-$rung" \
-      'grep -qE "^ *review-'"$rung"': *\{ *model: *[^ ,}]+, *effort: *[^ ,}]+ *\}" "$HD"'
+      '[ -n "$(hd_field "$HD" '"$h"' review-'"$rung"' model)" ] &&
+       [ -n "$(hd_field "$HD" '"$h"' review-'"$rung"' effort)" ]'
+    n_pair=$((n_pair+1))
   done
+  # Floor: a failed source would leave $HD_SHIPPED_HARNESSES empty and the loop above vacuous.
+  assert "the review-$rung pair was checked on every shipped harness" '[ "$n_pair" -ge 4 ]'
   F="$REPO/cursor-rules/dispatch/docket-review-$rung.md"
   assert "cursor dispatch fragment exists: docket-review-$rung" '[ -f "$F" ]'
 done
@@ -76,13 +88,18 @@ done
 # The cap-rung invariant, asserted per harness rather than asserted in prose: review-deep is
 # pinned exactly where build-max is, so the cap rung never reviews below the strength the
 # riskiest build work was built with.
-for h in claude cursor codex; do
+# Read through hd_field rather than slicing the block with an awk regex: hd_field is the sidecar's
+# own reader, so the pair is compared exactly as sync-agents.sh would resolve it, and no harness
+# name whose spelling the slicer's boundary pattern fails to match can slip past.
+n_cap=0
+for h in $HD_SHIPPED_HARNESSES; do
   assert "$h: the review-deep pin equals the build-max pin" \
-    'blk="$(awk "/^  '"$h"':/{f=1;next} /^  [a-z]+:/{f=0} f" "$HD")";
-     d="$(printf "%s" "$blk" | sed -n "s/^ *review-deep: *//p")";
-     m="$(printf "%s" "$blk" | sed -n "s/^ *build-max: *//p")";
-     [ -n "$d" ] && [ "$d" = "$m" ]'
+    'd="$(hd_field "$HD" '"$h"' review-deep model)/$(hd_field "$HD" '"$h"' review-deep effort)";
+     m="$(hd_field "$HD" '"$h"' build-max model)/$(hd_field "$HD" '"$h"' build-max effort)";
+     [ "$d" != "/" ] && [ "$d" = "$m" ]'
+  n_cap=$((n_cap+1))
 done
+assert "the cap-rung invariant was checked on every shipped harness" '[ "$n_cap" -ge 4 ]'
 
 # The rung wrappers must NOT introduce a new dispatch site into test_dispatch_capability.sh's
 # reverse-correspondence population. The four docket-build-* workers set the precedent: they are

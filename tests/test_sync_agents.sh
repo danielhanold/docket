@@ -1649,13 +1649,19 @@ rm -rf "$SBX" "$HROOT168D"
 # OUTCOME a repo actually gets from `agent_harnesses:` and nothing else — no agents: block, no
 # overrides in any layer. Two properties, stated the way the change states them:
 #   (a) Claude keeps a complete pin — every generated claude wrapper carries BOTH model and effort;
-#   (b) no Claude-only model ID leaks into a cursor or codex wrapper.
+#   (b) no Claude-only model ID leaks into ANY other shipped harness's wrapper.
 # (b) is the defect class change 0135 shipped and 0168 was written to make structurally impossible,
-# and it is the one a future harness token added without its own sidecar entry would re-open.
+# and it is the one a future harness token added without its own sidecar entry would re-open — so
+# the population below is derived from $HD_SHIPPED_HARNESSES, never hand-listed: a newly shipped
+# harness is opted in, generated, and leak-scanned here for free (repo AGENTS.md).
 make_sandbox
-mkdir -p "$SBX/.cursor" "$SBX/.codex"
+hlist=""
+for h in $HD_SHIPPED_HARNESSES; do
+  hlist="${hlist:+$hlist, }$h"
+  [ "$h" = "claude" ] || mkdir -p "$SBX/.$h"
+done
 HROOT168R="$(mktemp -d)"; mkdir -p "$HROOT168R/.claude"
-printf 'agent_harnesses: [claude, cursor, codex]\n' > "$SBX/.docket.yml"
+printf 'agent_harnesses: [%s]\n' "$hlist" > "$SBX/.docket.yml"
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT168R" bash "$SYNC" >/dev/null 2>&1 )
 # Frontmatter-ANCHORED read. fm() above is first-match-anywhere, so on a wrapper with no pin it
 # scans into the body and can return prose — a false green for an assert whose whole point is
@@ -1678,27 +1684,38 @@ assert "0168 R2: the full claude set generated (floor 16; got $n_r2) — the loo
 # harness block names. Derived from the sidecar, so a cursor entry that legitimately reuses a
 # Claude ID (claude-opus-5-high today) is excluded rather than hand-waived.
 claude_models="$(for a in $(hd_agents "$HD" claude); do hd_field "$HD" claude "$a" model; printf '\n'; done | sort -u | grep -v '^$')"
-other_models="$(for h in cursor codex; do for a in $(hd_agents "$HD" "$h"); do hd_field "$HD" "$h" "$a" model; printf '\n'; done; done | sort -u | grep -v '^$')"
+other_models="$(for h in $HD_SHIPPED_HARNESSES; do
+  [ "$h" = "claude" ] && continue
+  for a in $(hd_agents "$HD" "$h"); do hd_field "$HD" "$h" "$a" model; printf '\n'; done
+done | sort -u | grep -v '^$')"
 claude_only="$(comm -23 <(printf '%s\n' "$claude_models") <(printf '%s\n' "$other_models"))"
 assert "0168 R2: the claude-only model set is non-empty (floor — otherwise the leak asserts are vacuous)" \
   '[ -n "$claude_only" ]'
 # Cursor encodes effort INSIDE the model value, so compare on the bare ID with any [effort=…]
 # suffix stripped; a substring match would false-positive on cursor's own claude-opus-5-high.
+# The scan is keyed on the FILE's shape (TOML `model = "…"` vs frontmatter `model: …`), not on a
+# list of harness names, so every non-claude harness docket ships is covered by construction.
 leaks=""
-for f in "$SBX"/.cursor/agents/docket-*.md; do
-  [ -e "$f" ] || continue
-  v="$(fm_anchored "$f" model)"; v="${v%%\[*}"
-  [ -n "$v" ] || continue
-  grep -qxF "$v" <<<"$claude_only" && leaks="$leaks cursor:$(basename "$f")=$v"
+n_scan=0
+for h in $HD_SHIPPED_HARNESSES; do
+  [ "$h" = "claude" ] && continue
+  for f in "$SBX/.$h"/agents/docket-*; do
+    [ -e "$f" ] || continue
+    case "$f" in
+      # `{p;q;}` rather than `| head -n1`: an early-exiting consumer would SIGPIPE sed under pipefail.
+      *.toml) v="$(sed -n -E '/^model[[:space:]]*=/{s/^model[[:space:]]*=[[:space:]]*"(.*)"[[:space:]]*$/\1/p;q;}' "$f")" ;;
+      *)      v="$(fm_anchored "$f" model)"; v="${v%%\[*}" ;;
+    esac
+    [ -n "$v" ] || continue
+    n_scan=$((n_scan+1))
+    grep -qxF "$v" <<<"$claude_only" && leaks="$leaks $h:$(basename "$f")=$v"
+  done
 done
-for f in "$SBX"/.codex/agents/docket-*.toml; do
-  [ -e "$f" ] || continue
-  # `{p;q;}` rather than `| head -n1`: an early-exiting consumer would SIGPIPE sed under pipefail.
-  v="$(sed -n -E '/^model[[:space:]]*=/{s/^model[[:space:]]*=[[:space:]]*"(.*)"[[:space:]]*$/\1/p;q;}' "$f")"
-  [ -n "$v" ] || continue
-  grep -qxF "$v" <<<"$claude_only" && leaks="$leaks codex:$(basename "$f")=$v"
-done
-assert "0168 R2: no cursor/codex wrapper carries a model that lives ONLY in the sidecar's claude block (leaks:${leaks:- none})" \
+# Floor: 16 wrappers on each non-claude shipped harness. Without it, a harness whose directory was
+# never generated would make the leak assert below pass vacuously.
+assert "0168 R2: the leak scan read a full wrapper set per non-claude harness (got $n_scan)" \
+  '[ "$n_scan" -ge 48 ]'
+assert "0168 R2: no non-claude wrapper carries a model that lives ONLY in the sidecar's claude block (leaks:${leaks:- none})" \
   '[ -z "$leaks" ]'
 rm -rf "$SBX" "$HROOT168R"
 
