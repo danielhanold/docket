@@ -60,3 +60,32 @@ machine-local artifact.
   proven gitignore path over strict DRY.
 - User-level `~/.codex/AGENTS.md` dispatch (vs project-level) is deliberately deferred to
   change 0078's live-Codex validation.
+
+## Update — 2026-08-02 (change 0192)
+
+Scope widened from Codex-only to **any AGENTS.md-dispatch harness**. Both decisions above
+stand unchanged: the project-root `AGENTS.md` dispatch block is still COMMITTED, and still
+MACHINE-NEUTRAL (no model ID, no reasoning-effort value). What changed is who it serves.
+
+opencode also reads the repo-root `AGENTS.md`, so the set of harnesses that dispatch through
+that one file is now a list — `AGENTS_MD_DISPATCH_HARNESSES`, today `codex opencode`. The
+block is a **single harness-neutral block shared by every harness in that list**, written
+once. A repo targeting either harness gets it; a repo targeting both gets it exactly once.
+The per-harness alternative (one block per harness, or a harness-scoped block) was rejected
+because both harnesses read the same single file, so per-harness blocks would collide in a
+repo targeting both.
+
+Consequences of the widening:
+
+- The block's prose names **no harness's artifact path and no harness's model vocabulary**.
+  It addresses "the hosting harness's native named-agent dispatch" instead. This is a real
+  expressiveness loss, accepted deliberately: the block can no longer name a generated
+  wrapper file path or a harness's effort vocabulary. The cost is bounded — the block is
+  committed into consumer repos and byte-checked by `--check`, so a harness-specific claim
+  in it would *ship* to every consumer rather than merely display locally.
+- Write-vs-strip logic, the `--check` staleness leg, and the machine-neutrality invariant
+  are unchanged. Removal is now keyed to the list, not to one harness: the block is stripped
+  only when the **last** AGENTS.md-dispatch harness is de-listed.
+- `sync_codex_agents_md_dispatch` was renamed `sync_agents_md_dispatch` to match.
+- The gitignored/machine-local regime for per-harness pinned wrappers (ADR-0020) is
+  untouched; opencode's wrappers follow it exactly as Codex's `.toml` files do.
