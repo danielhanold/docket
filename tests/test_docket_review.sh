@@ -216,8 +216,13 @@ assert "shipped skills.review default is no longer superpowers review" \
 DY="$REPO/.docket.yml"
 assert "this repo dogfoods docket-review via .docket.yml" \
   'awk "/^skills:/{f=1;next} /^[a-z_]+:/{f=0} f" "$DY" | grep -qE "^ +review: +docket-review$"'
-# The SHIPPED default must NOT move — the example config is the cross-harness default surface.
-assert "the shipped default review binding is unchanged in the example config" \
-  'grep -qE "^ +review: +superpowers:requesting-code-review$" "$REPO/.docket.example.yml"'
+# The block guards a real property — the example config is the cross-harness default surface and
+# must agree with the resolver — so invert it, both directions: a revert of the example alone
+# would leave it disagreeing with the resolver, which is exactly the drift this pair exists to
+# catch.
+assert "the example config states the shipped docket-review default" \
+  'grep -qE "^ +review: +docket-review$" "$REPO/.docket.example.yml"'
+assert "the example config no longer ships the superpowers review default" \
+  '! grep -qE "^ +review: +superpowers:requesting-code-review$" "$REPO/.docket.example.yml"'
 
 echo "---"; [ "$fails" -eq 0 ] && echo "PASS" || { echo "FAIL ($fails)"; exit 1; }
