@@ -2,9 +2,9 @@
 slug: assert-detects-removal-not-replacement
 hook: "A guard written to CONFIRM the wording you just introduced detects nothing — write the assert that DETECTS the state you just removed, and prove the mutation actually landed before believing it passed."
 topics: [testing, guards, mutation]
-changes: [135, 167]
+changes: [135, 167, 193]
 created: 2026-07-28
-updated: 2026-07-30
+updated: 2026-08-02
 promotion_state: candidate
 promoted_to:
 ---
@@ -29,6 +29,10 @@ Write the guard the other way round:
 4. **A reverse-direction guard must not hardcode the forward population.** Extracting the names to
    check with a pattern listing the very names the forward loop already asserts makes the reverse
    loop structurally incapable of finding the new one — the case it exists for.
+5. **An absence assert needs a non-vacuity companion through the SAME extractor.** Inverting a
+   presence assert into `[ -z "$extracted" ]` makes every extraction failure — wrong path, renamed
+   file, broken parser — read as the property holding. Keep one live assert that extracts a value
+   that must still be there, so a dead extractor reddens something.
 
 **Corollary — a mutation that "passes" is evidence only if the mutation landed.** An in-place
 substitution that silently fails to match yields a green run with nothing mutated, which reads
@@ -64,3 +68,10 @@ sentinel does and does not pin).
   round produced: anchor on a **stable syntactic feature** (a line, a marker block, the producing
   code), never on where prose happens to sit — the too-loose presence grep and the reflow-brittle
   line-scoped assert are one root cause seen from opposite sides (tracked as #0171).
+- 2026-08-02 (#193, PR #152) — Removing a config block turned two presence asserts into absence
+  asserts, and the two files diverged on the one detail that matters. `test_docket_build.sh` kept a
+  live companion reading a surviving key through the same `.docket.yml` extractor, so a broken
+  extractor reddens it. `test_docket_review.sh` kept only `[ -z "$dy_skills" ]` — green against a
+  renamed file, a wrong path, or an `awk` that stopped matching, i.e. green for reasons that have
+  nothing to do with the block being gone. Same edit, same session, same shape; only one of them
+  can fail. **The inversion is the moment to add the companion, not a later hardening pass.**
