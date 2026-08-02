@@ -12,6 +12,9 @@
 #   fm_field FILE KEY     — like field(), but ONLY inside the first ---...--- block. Use this for
 #                           any key that may be ABSENT from frontmatter (e.g. type:), where field()
 #                           would fall through and return body prose. Same quote-stripping as field().
+#   fm_field_raw FILE KEY — the RAW anchored twin of fm_field: same ---...--- scope and inline
+#                           comment strip, but leaves any surrounding quotes INTACT for a consumer
+#                           doing its own quote/escape decoding (change 0191).
 #   list_field FILE KEY   — `[a, b]` -> space-separated `a b` (empty for `[]` / unset).
 #   int_field FILE KEY    — like field(), but empty unless the value is a well-formed non-negative integer.
 #   has_section FILE STR  — exit 0 iff the body contains the literal line STR (whole-line match:
@@ -82,7 +85,13 @@ field(){
 # refuses to assign it, and the comment's `|` characters inject phantom columns into its board row.
 # mint-stub.sh strips the same shape on WRITE for the same reason; this is the read-side half.
 # A `#` not preceded by whitespace is part of the value, exactly as YAML defines it.
-fm_field(){ # fm_field FILE KEY -> logical scalar on stdout (empty when absent from the first block)
+#
+# fm_field_raw() is the RAW anchored twin: it runs the same ---...----scoped awk body as fm_field
+# but leaves any surrounding quotes INTACT (no _docket_unwrap_quotes call), for a consumer that
+# needs the raw YAML token — e.g. board-checks's scalar-form check, which must see the quotes to
+# know whether a colon-space is quoted or bare (change 0191). Single source for the awk body;
+# fm_field delegates so the reader shape lives in exactly one place.
+fm_field_raw(){ # fm_field_raw FILE KEY -> raw scalar on stdout (quotes intact, empty when absent)
   local raw
   raw="$(awk -v key="$2" '
     BEGIN { n = 0 }
@@ -97,7 +106,10 @@ fm_field(){ # fm_field FILE KEY -> logical scalar on stdout (empty when absent f
       }
     }
   ' "$1")"
-  _docket_unwrap_quotes "$raw"
+  printf '%s' "$raw"
+}
+fm_field(){ # fm_field FILE KEY -> logical scalar on stdout (empty when absent from the first block)
+  _docket_unwrap_quotes "$(fm_field_raw "$1" "$2")"
 }
 
 list_field(){
