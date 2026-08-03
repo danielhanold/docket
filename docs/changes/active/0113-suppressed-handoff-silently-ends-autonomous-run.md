@@ -16,10 +16,10 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/suppressed-handoff-silently-ends-autonomous-run
-claimed_at: 2026-08-03T02:12:06Z
+claimed_at: 2026-08-03T02:13:29Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 type: fix
 ---
 
@@ -170,3 +170,24 @@ a badge. Design detail, the cut predicates and why, and the ripple list live in 
 All four resolved during grooming (2026-08-02) — see the linked spec for the reasoning.
 
 ## Reconcile log
+
+### 2026-08-03
+
+Reconciled at claim. The spec's ripple list and its assumptions were re-verified against
+`origin/main` at `06a403e3` (0191's terminal publish, the most recent check-id shipped through this
+same path):
+
+- `BOARD_CHECK_IDS` in `scripts/lib/docket-frontmatter.sh` holds exactly the **fourteen** ids the
+  spec names, `scalar-form` among them — `aborted-run` sorts alphabetically first, as designed.
+- `broken-plan-results` (field set, file missing on `INTEGRATION_BRANCH`) and `stale-in-progress`
+  (lease TTL + hardcoded 3-day branch-idle horizon, trailing `[reclaimable]` marker) are both
+  present and shaped as the spec describes, so leg A's near-mirror implementation and leg B's
+  separate-check-id rationale both still hold.
+- The `docket-implement-next` §"field-write rule" sentence the heartbeat rider densifies still reads
+  "Each LATER phase-boundary metadata commit (reconcile, `implemented`) also RE-STAMPS
+  `claimed_at`" — unchanged, so the rider applies verbatim.
+- ADR-0044 is `Accepted`; the dated `## Update` note ships atomically via this change's `adrs: [44]`.
+
+No scope adjustment, no work found already done elsewhere. Change 0190
+(close-the-build-evidence-value-gap) is `in-progress` and touches the adjacent post-gate-commit
+concern, but is not a dependency and shares no surface with this change's legs.
