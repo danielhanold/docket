@@ -1,13 +1,12 @@
 # Backlog
 
-**203 changes** — 🟢 2 in progress · 🟡 46 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 129 done · 🗑️ 20 killed
+**203 changes** — 🟢 1 in progress · 🟡 46 proposed · ⚪ 4 deferred · 🔵 3 implemented · ✅ 129 done · 🗑️ 20 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0190](active/0190-close-the-build-evidence-value-gap-a-post-gate-results-commi.md) | Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip | `medium` | `feat` | [spec](../superpowers/specs/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md) | `feat/close-the-build-evidence-value-gap-a-post-gate-results-commi` |
-| [0201](active/0201-skill-compression-round-three.md) | Skill compression round three — targeted progressive disclosure on the Big 4 + regrowth-guard ratchet | `medium` | `refactor` | [spec](../superpowers/specs/2026-08-02-skill-compression-round-three-design.md) | `feat/skill-compression-round-three` |
 
 ## 🟡 Proposed (46)
 
@@ -69,12 +68,13 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (3)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | `chore` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
 | [0113](active/0113-suppressed-handoff-silently-ends-autonomous-run.md) | A suppressed hand-off can silently end an autonomous run — make step completion verifiable, not narrated | `high` | `fix` | [#154](https://github.com/danielhanold/docket/pull/154) |  |
+| [0201](active/0201-skill-compression-round-three.md) | Skill compression round three — targeted progressive disclosure on the Big 4 + regrowth-guard ratchet | `medium` | `refactor` | [#155](https://github.com/danielhanold/docket/pull/155) |  |
 
 ```mermaid
 graph TD
