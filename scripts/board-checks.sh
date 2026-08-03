@@ -7,10 +7,12 @@
 #
 # Usage: board-checks.sh --changes-dir DIR --metadata-branch BR --integration-branch BR [--strict]
 #                         [--lease-ttl-hours N] [--adrs-dir DIR] [--terminal-publish]
+#                         [--results-dir REPO-RELATIVE-DIR]
 #   Findings: TAB-separated  <check-id>\t<change-id>\t<message>  on stdout, sorted by (check-id, change-id).
-#     check-id ∈ {adr-unpublished, board-row-dropped, broken-spec, broken-plan-results, dep-cycle,
-#                 field-domain, malformed-id, publish-deferred, scalar-form, stale-in-progress,
-#                 merge-gate-stall, stale-finalize-blocked, merged-orphan, unknown-commit-ref}
+#     check-id ∈ {aborted-run, adr-unpublished, board-row-dropped, broken-spec, broken-plan-results,
+#                 dep-cycle, field-domain, malformed-id, publish-deferred, scalar-form,
+#                 stale-in-progress, merge-gate-stall, stale-finalize-blocked, merged-orphan,
+#                 unknown-commit-ref}
 #     The set above is declared in lib/docket-frontmatter.sh as BOARD_CHECK_IDS and pinned to it,
 #     to board-checks.md, and to docket-status.md by tests/test_board_checks.sh — edit all four.
 #   Clean tree ⇒ no output, exit 0. --strict ⇒ exit 1 if any finding (for a future CI gate).
@@ -35,6 +37,7 @@ while [ $# -gt 0 ]; do
     --strict) STRICT=1 ;;
     --lease-ttl-hours) LEASE_TTL_HOURS="$2"; shift ;;
     --adrs-dir) ADRS_DIR="$2"; shift ;;
+    --results-dir) RESULTS_DIR_REL="$2"; shift ;;
     --terminal-publish) ADR_GATE=1 ;;
     -h|--help) grep '^#' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) printf 'board-checks: unknown argument: %s\n' "$1" >&2; exit 2 ;;
@@ -42,6 +45,14 @@ while [ $# -gt 0 ]; do
   shift
 done
 LEASE_TTL_HOURS="${LEASE_TTL_HOURS:-72}"   # default when --lease-ttl-hours is absent (standalone use)
+# Repo-RELATIVE artifact directories for the aborted-run leg-A probe (change 0113). Unlike
+# --changes-dir/--adrs-dir (filesystem paths), these are addressed as `<ref>:<path>` and
+# `ls-tree --full-tree`, which are always worktree-root-relative. --results-dir defaults to the
+# convention's own default so a standalone hand-run stays sane; docket-status.sh passes the
+# resolved RESULTS_DIR. The plans dir has no config knob in the convention (the plan path is fixed
+# by the plan role's own default), so it is a constant here rather than a flag nobody would set.
+RESULTS_DIR_REL="${RESULTS_DIR_REL:-docs/results}"
+PLANS_DIR_REL="docs/superpowers/plans"
 # Validate the resolved TTL UNCONDITIONALLY (mirrors reclaim-claims.sh's own guard). A non-numeric or
 # negative value must fail here, cleanly — not crash the staleness arithmetic (`$(( LEASE_TTL_HOURS *
 # 3600 ))`) unbound, which would otherwise only surface on repos that carry an in-progress change.
@@ -65,6 +76,40 @@ resolve_deps "$CHANGES_DIR"            # populates STATUS_OF / DEP_STATE / DEP_R
 
 # git_has REF PATH — exit 0 iff REF:PATH resolves in the changes-dir's repo (no network).
 git_has(){ "$GIT" -C "$CHANGES_DIR" cat-file -e "$1:$2" 2>/dev/null; }
+
+# branch_ref BRANCH — print the first ref name that resolves for BRANCH (local first, then the
+# origin remote-tracking ref) and exit 0; exit 1 with empty stdout when neither resolves or BRANCH
+# is empty. Single source for "does this change's feature branch exist at all", shared by
+# stale-in-progress's has_branch test and aborted-run's leg A.
+branch_ref(){
+  local br="$1"
+  [ -n "$br" ] || return 1
+  if "$GIT" -C "$CHANGES_DIR" show-ref --verify --quiet "refs/heads/$br"; then
+    printf '%s' "refs/heads/$br"; return 0
+  fi
+  if "$GIT" -C "$CHANGES_DIR" show-ref --verify --quiet "refs/remotes/origin/$br"; then
+    printf '%s' "refs/remotes/origin/$br"; return 0
+  fi
+  return 1
+}
+
+# branch_only_artifact REF DIR — print the first path under DIR that exists on REF but NOT on
+# INTEGRATION_BRANCH, and exit 0; exit 1 with empty stdout when DIR is empty on REF or every path
+# under it is already on the integration branch (inherited, i.e. already-merged work).
+# --full-tree makes DIR worktree-root-relative regardless of the `-C "$CHANGES_DIR"` cwd, which is
+# a subdirectory. Captured into a variable and consumed from a here-string rather than piped: this
+# file runs under `set -uo pipefail`, where an early `return` out of a piped consumer races the
+# producer.
+branch_only_artifact(){
+  local boa_ref="$1" boa_dir="$2" boa_list boa_p
+  boa_list="$("$GIT" -C "$CHANGES_DIR" ls-tree -r --name-only --full-tree "$boa_ref" -- "$boa_dir" 2>/dev/null)"
+  [ -n "$boa_list" ] || return 1
+  while IFS= read -r boa_p; do
+    [ -n "$boa_p" ] || continue
+    git_has "$INTEGRATION_BRANCH" "$boa_p" || { printf '%s' "$boa_p"; return 0; }
+  done <<<"$boa_list"
+  return 1
+}
 
 declare -A ID_ACTIVE ID_EXISTS                # id -> 1; populated in the FILES walk below
 declare -A EXPLAINED DROPPED DROPPED_DIR      # change-id -> 1 / -> dir kind; drive board-row-dropped
@@ -101,6 +146,13 @@ padded_id_from_file(){
 # default's sense of "a few days is normal, longer is suspicious". Promote to a flag only if
 # independent tuning is ever wanted.
 FINALIZE_BLOCKED_STALE_SECS=$(( 72 * 3600 ))
+
+# Run-scale staleness horizon for aborted-run's leg B (change 0113). Hardcoded, no config knob —
+# same precedent as FINALIZE_BLOCKED_STALE_SECS above and stale-in-progress's 3*86400 branch-idle
+# threshold. 12h is six times tighter than the 72h lease default: tight enough that a /loop drain
+# trips over an abort on its next iteration, loose enough to leave room for a marathon build. When
+# a genuinely long build does trip it the finding is free, self-clearing, and worth a glance.
+ABORTED_RUN_STALE_SECS=$(( 12 * 3600 ))
 
 # renders_row DIR_KIND ID STATUS — exit 0 iff render-board.sh would account for a file in DIR_KIND
 # ('active' or 'archive') carrying this (int_field-validated) ID and this raw STATUS. This is the
@@ -288,12 +340,7 @@ for f in "${FILES[@]}"; do
     branch="$(field "$f" branch)"
     claimed="$(field "$f" claimed_at)"
     has_branch=0
-    if [ -n "$branch" ]; then
-      if "$GIT" -C "$CHANGES_DIR" show-ref --verify --quiet "refs/heads/$branch" \
-         || "$GIT" -C "$CHANGES_DIR" show-ref --verify --quiet "refs/remotes/origin/$branch"; then
-        has_branch=1
-      fi
-    fi
+    if branch_ref "$branch" >/dev/null; then has_branch=1; fi
     lease_secs="$(( LEASE_TTL_HOURS * 3600 ))"
     expired=0; age_h=""
     if [ -n "$claimed" ]; then
@@ -311,6 +358,41 @@ for f in "${FILES[@]}"; do
       fi
     elif [ "$expired" = 1 ]; then
       emit stale-in-progress "$id" "claim lease expired ${age_h}h ago; no feature branch — self-heal with docket.sh reclaim-claims [reclaimable]"
+    fi
+  fi
+
+  # --- aborted-run: an in-progress change whose autonomous run stopped mid-step (change 0113).
+  # An agent that dropped its bookkeeping write is the least reliable narrator of whether it
+  # dropped it — both observed incidents produced confident, specific, WRONG completion reports —
+  # so the oracle has to be external and mechanical. Two INDEPENDENT legs; either emits, and both
+  # can emit on one change (they describe different evidence, not two views of one).
+  #
+  # Advisory only. It flips no status, releases no claim, and touches no file: the originating
+  # incident left a real written plan a naive claim release would have stranded, and this script is
+  # a pure reader by contract. Never marks EXPLAINED and never feeds board-row-dropped — a dropped
+  # metadata write does not drop a board row.
+  #
+  # Every field here is read with the ANCHORED fm_field, never field(): plan/results/branch/
+  # claimed_at are all OPTIONAL, and an unanchored read falls through the closing --- into body
+  # prose (ADR-0057). In THIS repo that is not a contrived hazard — a change file whose body
+  # discusses `plan:` is ordinary content, and the failure it would cause is a silent FALSE
+  # NEGATIVE: prose read as a set plan: makes the check certify the exact abort it exists to catch.
+  if [ "$status" = "in-progress" ]; then
+    ar_branch="$(fm_field "$f" branch)"
+
+    # Leg A — manifest/git incoherence, time-free. The feature branch carries an artifact file the
+    # integration branch does not have, while the manifest field that should record it is empty.
+    # The exact INVERSE of broken-plan-results (field set, file missing on the integration branch):
+    # same two fields, same two trees, opposite direction. Its only false-positive window is the
+    # seconds between an artifact commit and its field write, and since the finding is advisory and
+    # self-clearing that race costs nothing.
+    if ar_ref="$(branch_ref "$ar_branch")"; then
+      if [ -z "$(fm_field "$f" plan)" ] && ar_hit="$(branch_only_artifact "$ar_ref" "$PLANS_DIR_REL")"; then
+        emit aborted-run "$id" "plan committed on $ar_branch ($ar_hit) but plan: is unset — the run stopped before its metadata write; record it or re-run the step"
+      fi
+      if [ -z "$(fm_field "$f" results)" ] && ar_hit="$(branch_only_artifact "$ar_ref" "$RESULTS_DIR_REL")"; then
+        emit aborted-run "$id" "results committed on $ar_branch ($ar_hit) but results: is unset — the run stopped before its metadata write; record it or re-run the step"
+      fi
     fi
   fi
 

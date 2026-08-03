@@ -731,6 +731,7 @@ health_checks(){
   out="$("$DOCKET_BASH_PATH" "$SCRIPTS_DIR"/board-checks.sh \
     --changes-dir "$cd_dir" --metadata-branch "$metadata_branch" \
     --integration-branch "origin/$INTEGRATION_BRANCH" \
+    --results-dir "${RESULTS_DIR:-docs/results}" \
     --lease-ttl-hours "${RECLAIM_LEASE_TTL:-72}" ${adr_args[@]+"${adr_args[@]}"} 2>&2)" || rc=$?
   # An empty $out yields one blank line from <<<, already swallowed by the [ -n ] guard below.
   while IFS=$'\t' read -r check_id change_id message; do
