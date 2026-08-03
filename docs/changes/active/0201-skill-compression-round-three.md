@@ -12,12 +12,12 @@ related: [53, 55, 85, 137, 167]
 discovered_from: []
 adrs: []
 spec: docs/superpowers/specs/2026-08-02-skill-compression-round-three-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-03-skill-compression-round-three.md
 results:
 trivial: false
 auto_groomable:
 branch: feat/skill-compression-round-three
-claimed_at: 2026-08-03T03:07:30Z
+claimed_at: 2026-08-03T03:14:45Z
 pr:
 blocked_by:
 reconciled: true
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-02-skill-compression-round-three-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-02-skill-compression-round-three-design.md) |
+| Plan | [2026-08-03-skill-compression-round-three.md](https://github.com/danielhanold/docket/blob/feat/skill-compression-round-three/docs/superpowers/plans/2026-08-03-skill-compression-round-three.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
