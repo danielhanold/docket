@@ -2,7 +2,7 @@
 id: 113
 slug: suppressed-handoff-silently-ends-autonomous-run
 title: A suppressed hand-off can silently end an autonomous run — make step completion verifiable, not narrated
-status: in-progress
+status: implemented
 priority: high
 created: 2026-07-20
 updated: 2026-08-03
@@ -12,12 +12,12 @@ discovered_from: [109]
 adrs: [24, 44]
 spec: docs/superpowers/specs/2026-08-02-verifiable-step-completion-design.md
 plan: docs/superpowers/plans/2026-08-03-verifiable-step-completion.md
-results:
+results: docs/results/2026-08-03-suppressed-handoff-silently-ends-autonomous-run-results.md
 trivial: false
 auto_groomable:
 branch: feat/suppressed-handoff-silently-ends-autonomous-run
-claimed_at: 2026-08-03T02:22:12Z
-pr:
+claimed_at: 2026-08-03T03:26:06Z
+pr: https://github.com/danielhanold/docket/pull/154
 blocked_by:
 reconciled: true
 type: fix
@@ -30,6 +30,8 @@ type: fix
 |---|---|
 | Spec | [2026-08-02-verifiable-step-completion-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-02-verifiable-step-completion-design.md) |
 | Plan | [2026-08-03-verifiable-step-completion.md](https://github.com/danielhanold/docket/blob/feat/suppressed-handoff-silently-ends-autonomous-run/docs/superpowers/plans/2026-08-03-verifiable-step-completion.md) |
+| Results | [2026-08-03-suppressed-handoff-silently-ends-autonomous-run-results.md](https://github.com/danielhanold/docket/blob/feat/suppressed-handoff-silently-ends-autonomous-run/docs/results/2026-08-03-suppressed-handoff-silently-ends-autonomous-run-results.md) |
+| PR | [#154](https://github.com/danielhanold/docket/pull/154) |
 | ADRs | [ADR-0024](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0024-claude-context-fork-skill-dispatch.md), [ADR-0044](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0044-autonomy-precedence-call-site-pre-specification.md) |
 <!-- docket:artifacts:end -->
 
