@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0191 — Enforce YAML scalar well-formedness in change-file frontmatter](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0191-enforce-yaml-scalar-wellformedness-in-change-frontmatter.md)**
+> ↩ **[Change 0191 — Enforce YAML scalar well-formedness in change-file frontmatter](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-03-0191-enforce-yaml-scalar-wellformedness-in-change-frontmatter.md)**
 <!-- docket:backlink:end -->
 
 # Enforce YAML scalar well-formedness in change-file frontmatter — design
