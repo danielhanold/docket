@@ -60,5 +60,12 @@ cn="$(claim_hits "$probe")"
 assert "the matcher ignores a bare operational reference (got $cn)" '[ "$cn" -eq 0 ]'
 rm -f "$probe"
 
+# The rule has a single home. The remedy above sends readers to the convention's *Skill layer*;
+# assert it is really stated there, so the remedy can never become a pointer to nothing.
+CONV="$REPO/skills/docket-convention/SKILL.md"
+assert "convention exists and is non-empty" '[ -s "$CONV" ]'
+assert "convention *Skill layer* owns the role-self-description rule" \
+  'grep -qiE "role skill (body )?(self-)?description" "$CONV" && grep -qF -- "skills.<role>" "$CONV"'
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
