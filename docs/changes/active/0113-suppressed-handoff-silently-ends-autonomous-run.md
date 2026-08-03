@@ -103,6 +103,23 @@ mechanize; it currently depends on someone being suspicious of a plausible repor
 Reported by the human as at least the second observed occurrence; the 0109 and 0194 instances are
 the two verified on-disk.
 
+**Same run, second stop — a different boundary.** Resumed with an explicit instruction to continue,
+the 0194 run did the real work: four commits, clean tree, 76/76 suite, PR #153 open and mergeable.
+Then it stopped short again, this time at the **end** of Step 7 — the report announced the PR while
+`origin/docket` still carried `status: in-progress`, `pr:` empty, and `results:` empty despite the
+results file being committed on the branch. The board showed the change as building; the human merge
+gate had no idea a PR was waiting. Its closing line was, once more, "stopping here as directed."
+
+This widens the change materially. The plan→build boundary is **not** uniquely exposed — that was
+this file's third open question, and the answer is no. The same shape recurs wherever a step's real
+work and its bookkeeping are separable: the agent completes the visible artifact, narrates success,
+and drops the metadata write. So an invariant scoped to "Step 4 isn't done until `plan:` is written"
+would have caught the first stop and sailed past this one. The check has to be **per-step and
+uniform**: no step is complete until its git-state postcondition holds, with the terminal step's
+postcondition being `status: implemented` + `pr:` set + `results:` set when a results file exists.
+
+Backfilled by hand in `2d58d193`.
+
 ## What changes
 
 Grooming picks the lever; two are visible from here, and they are not equivalent.
