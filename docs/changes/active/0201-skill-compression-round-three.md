@@ -2,11 +2,11 @@
 id: 201
 slug: skill-compression-round-three
 title: Skill compression round three — targeted progressive disclosure on the Big 4 + regrowth-guard ratchet
-status: proposed
+status: in-progress
 priority: medium
 type: refactor
 created: 2026-08-02
-updated: 2026-08-02
+updated: 2026-08-03
 depends_on: []
 related: [53, 55, 85, 137, 167]
 discovered_from: []
@@ -16,7 +16,8 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/skill-compression-round-three
+claimed_at: 2026-08-03T03:03:22Z
 pr:
 blocked_by:
 reconciled: false
