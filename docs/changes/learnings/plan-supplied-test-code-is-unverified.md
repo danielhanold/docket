@@ -2,9 +2,9 @@
 slug: plan-supplied-test-code-is-unverified
 hook: "Test code a plan hands you is unverified code, not an oracle — prove the assert CAN pass, and mutation-test its own key."
 topics: [testing, plan, guards]
-changes: [94, 104, 112, 130, 133, 157, 168, 170, 173, 174]
+changes: [94, 104, 112, 130, 133, 157, 168, 170, 173, 174, 194]
 created: 2026-07-19
-updated: 2026-08-01
+updated: 2026-08-02
 promotion_state: candidate
 promoted_to:
 ---
@@ -175,3 +175,20 @@ implementer. It is not a reason to distrust plans — it is a reason to run the 
   fence markers it depends on are renamed. Each was tightened with a paired non-vacuity anchor and
   mutation-proven. A negated grep over a derived haystack is the same silent-under-negation
   asymmetry #168 recorded above, one layer up: the haystack, not the helper, is what empties.
+- 2026-08-02 (#194, PR #153 — merged) — **Neither defect was in an assert; both were in the
+  plan's *operating instructions* around the asserts, and both fired on every task.** (a) The
+  verification step piped each suite to `tail -1` and expected the literal `PASS`. 46 of this
+  repo's 76 suites legitimately end with `ALL PASS`, `ALL OK`, or their last assert line, so run
+  verbatim the command reports 46 failures against a fully green tree — a *false red* across most
+  of the suite, which is the reading that gets a correct build abandoned as broken. Every run in
+  this build was keyed on **exit status** instead. (b) The mutation-proof step undid its mutation
+  with `git checkout -- <file>` while the task's own edit was still uncommitted, so running it
+  literally discards the work, not the mutation. Both implementers hit it live and both recovered
+  independently — one staged first and re-applied, the other kept a `cp` backup.
+  The generalization extends the rule past test code: **a plan's harness — how to run the suite,
+  how to read its verdict, how to undo a mutation — is unverified code with no assert of its own
+  and no reviewer, because its output is procedure rather than a result.** Both defects here are
+  in the class that cannot redden anything: one manufactures failure where there is none, the other
+  destroys the evidence. Cheap checks, in order: run the verdict command once against the untouched
+  tree before trusting a single red it reports, and undo a mutation from a copy you made yourself,
+  never from git, whenever your own edit is uncommitted.

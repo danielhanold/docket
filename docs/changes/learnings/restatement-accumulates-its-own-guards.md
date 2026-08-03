@@ -2,9 +2,9 @@
 slug: restatement-accumulates-its-own-guards
 hook: "Deleting a restatement is never a one-file edit — tests grep the COPY, not the source, so the copy has quietly become load-bearing."
 topics: [docs, testing, refactoring]
-changes: [145]
+changes: [145, 194]
 created: 2026-07-28
-updated: 2026-07-28
+updated: 2026-08-02
 promotion_state: candidate
 promoted_to:
 ---
@@ -43,3 +43,22 @@ content whose ownership was already ambiguous.
   And the mutation matrix included a cell where the *negative* assert goes green under a heading
   rename and only the non-vacuity anchor reddens — that inversion is the whole reason the anchor
   exists. The wider audit of this restatement class across `skills/` is #0154.
+- 2026-08-02 (#194, PR #153 — merged) — **The prevention half, and the one guard shape in this
+  family that cannot go stale.** #0193 had to sweep eight files to move a single fact ("which skill
+  is the `build`/`review` default"), because every docket-owned role skill had introduced itself by
+  its binding *posture*. 0194 settled the rule instead of the sentence: a role skill body may name
+  the `skills.<role>` key that binds it, never whether that binding is the default. The asymmetry is
+  the argument — the key changes only under a rename that breaks every consuming config and cannot
+  pass unnoticed; the default moved once already and will move again.
+  Two things worth copying. First, one edit went in **while its claim was still true**:
+  `docket-brainstorm`'s "in place of the default `superpowers:brainstorming`" was accurate that day
+  and was deleted anyway, because truth-at-time-of-writing is exactly the property the eight-file
+  sweep proved worthless. Second, the guard is a **negative** one — it asserts no role skill body
+  makes a default claim. That inverts this finding's usual hazard: a pinning guard asserting a copy
+  *matches* its source keeps the copy alive and can stale, while a guard asserting the copy *does
+  not exist* cannot, since the only way to redden it is to reintroduce the forbidden duplication.
+  When you remove a restatement class rather than one instance, prefer the absence assert.
+  Its review found the mirror-image cost: the rule's *positive* half ("name your binding key") shipped
+  already violated in `docket-review`, which mentions no `skills.review` at all, and the absence-only
+  guard by construction cannot see that (→ #0198, with the guard's co-occurrence and population gaps
+  in #0199).
