@@ -1,16 +1,15 @@
 # Backlog
 
-**201 changes** — 🟢 3 in progress · 🟡 44 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 129 done · 🗑️ 20 killed
+**203 changes** — 🟢 2 in progress · 🟡 46 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 129 done · 🗑️ 20 killed
 
-## 🟢 In progress (3)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
-| [0113](active/0113-suppressed-handoff-silently-ends-autonomous-run.md) | A suppressed hand-off can silently end an autonomous run — make step completion verifiable, not narrated | `high` | `fix` | [spec](../superpowers/specs/2026-08-02-verifiable-step-completion-design.md) | `feat/suppressed-handoff-silently-ends-autonomous-run` |
 | [0190](active/0190-close-the-build-evidence-value-gap-a-post-gate-results-commi.md) | Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip | `medium` | `feat` | [spec](../superpowers/specs/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md) | `feat/close-the-build-evidence-value-gap-a-post-gate-results-commi` |
 | [0201](active/0201-skill-compression-round-three.md) | Skill compression round three — targeted progressive disclosure on the Big 4 + regrowth-guard ratchet | `medium` | `refactor` | [spec](../superpowers/specs/2026-08-02-skill-compression-round-three-design.md) | `feat/skill-compression-round-three` |
 
-## 🟡 Proposed (44)
+## 🟡 Proposed (46)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -58,6 +57,8 @@
 | [0198](active/0198-settle-the-role-self-description-rule-s-positive-half-docket.md) | Settle the role-self-description rule's positive half — docket-review names no skills.review binding | `medium` | `docs` | needs-brainstorm |
 | [0199](active/0199-harden-the-role-self-description-guard-co-occurrence-gap-har.md) | Harden the role-self-description guard — co-occurrence gap, hardcoded population, broad default matcher | `medium` | `chore` | needs-brainstorm |
 | [0200](active/0200-clear-the-unfixed-review-findings-from-change-0191.md) | Clear the unfixed review findings from change 0191 | `medium` | `chore` | needs-brainstorm |
+| [0202](active/0202-clear-the-unfixed-review-findings-from-change-0113.md) | Clear the unfixed review findings from change 0113 | `medium` | `chore` | needs-brainstorm |
+| [0203](active/0203-define-the-per-step-git-state-postcondition-docket-implement.md) | Define the per-step git-state postcondition docket-implement-next now names but never states | `medium` | `docs` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -68,11 +69,12 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | `chore` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
+| [0113](active/0113-suppressed-handoff-silently-ends-autonomous-run.md) | A suppressed hand-off can silently end an autonomous run — make step completion verifiable, not narrated | `high` | `fix` | [#154](https://github.com/danielhanold/docket/pull/154) |  |
 
 ```mermaid
 graph TD
@@ -128,6 +130,8 @@ graph TD
   0199
   0200
   0201
+  0202
+  0203
   0015:::done
   0077:::done
   0175:::done
