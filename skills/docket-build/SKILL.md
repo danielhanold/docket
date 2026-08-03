@@ -19,9 +19,9 @@ gets exactly one fresh worker dispatch unless that worker requests its single al
   field and committed on the feature branch.
 - The **feature branch and worktree** already cut for this change, plus that repo's own
   instruction files (`AGENTS.md`, `CLAUDE.md`, nested equivalents).
-- The plan's `### Task N` headings, which are the **unit of dispatch** — one heading, one worker,
-  one commit. The routing rubric below assumes that granularity; a plan whose tasks are not
-  separable at that boundary is a planning defect, not something to re-cut here.
+- The plan's `### Task N` headings, the **unit of dispatch** — one heading, one worker, one
+  commit; a plan whose tasks are not separable at that boundary is a planning defect, not
+  something to re-cut here.
 
 ## Profiles
 
@@ -37,9 +37,9 @@ model and effort:
 
 A higher rung means greater reasoning investment, **not** a stronger correctness guarantee — every
 profile carries identical testing and completion obligations. Model and effort resolve through
-docket's ordinary generated-agent layer — the shipped `agents/harness-defaults.yml` under whatever
-the global, repo-committed, and repo-local layers set; a harness the sidecar does not map for a
-profile runs it unpinned. Never restate literal model IDs or effort tiers in your dispatch prose.
+docket's ordinary generated-agent layer over the shipped `agents/harness-defaults.yml`; an
+unmapped harness/profile pair runs unpinned. Never restate literal model IDs or effort tiers in
+your dispatch prose.
 
 ## Routing
 
@@ -57,10 +57,10 @@ surface it — never silently fall back to a default.
 named risk selects upward, and uncertainty defaults to `standard`.
 
 The `max`/`premium` boundary has an organizing principle, not just a list: **`max` is for mistakes this
-build's own correction machinery cannot walk back.** An auth bug is serious but patch-correctable and
-caught at the suite gate or in review; destroyed data cannot be un-destroyed by a retry, and a wrong
-architectural call shapes every task after it. Resolve edge cases by applying that test, not by
-extending the lists below.
+build's own correction machinery cannot walk back.** Destroyed data cannot be un-destroyed by a
+retry, and a wrong architectural call shapes every task after it; a patch-correctable bug is caught
+at the suite gate or in review. Resolve edge cases by applying that test, not by extending the
+lists below.
 
 - **`max`** — **unresolved architecture** or an **irreversible data change** (a destructive
   migration, a backfill, anything that cannot be rolled back). Nothing else classifies here.
@@ -70,10 +70,9 @@ extending the lists below.
   infrastructure, or any consequential risk **explicitly named in the plan or spec text**. That last
   door is honored, not inferred: never articulate a new risk on your own — your classification is
   this closed list, so uncertainty still sinks to `standard`.
-- **`standard`** — everything remaining; the default and the uncertainty sink. Deliberately including
-  hard-but-safe work: difficulty without consequence stays here, because the plan override covers
-  difficulty known at plan time and the `standard -> premium` escalation covers difficulty discovered at
-  build time.
+- **`standard`** — everything remaining; the default and the uncertainty sink. Deliberately includes
+  hard-but-safe work: the plan override covers difficulty known at plan time, and the
+  `standard -> premium` escalation covers difficulty discovered at build time.
 - **`economy`** — *only when* the task is fully specified, follows an established pattern, carries no
   consequential risk, and requires **no cross-file reasoning** — either localized to a couple of
   implementation files (tests do not count against locality), or a mechanical, pattern-identical
@@ -92,10 +91,9 @@ Dispatch the profile agent **by name**, foreground, one task at a time — later
 earlier task commits and share the worktree, so workers are strictly sequential. Give the worker:
 the plan task text, the branch and worktree, the applicable repository instructions, the selected
 profile and routing reason, and the completion schema. Never dispatch a task reviewer, and
-never dispatch two workers concurrently. Never preload a review skill either — though for a
-**named** agent the operative protection is the wrapper's own `skills:` frontmatter, which you
-cannot change from here, so what this rule actually forbids is bolting a review skill or a review
-instruction onto the dispatch prompt.
+never dispatch two workers concurrently. Never preload a review skill either — for a **named**
+agent the wrapper's own `skills:` frontmatter is the operative protection, so what this rule
+actually forbids is bolting a review skill or a review instruction onto the dispatch prompt.
 
 If profile dispatch is genuinely unavailable — established only per the convention's
 *Dispatch-capability resolution*, **never from a tool name** — this role is
@@ -106,9 +104,9 @@ or its model/effort contract, so halt per *Halting conditions* instead.
 A profile agent that is **not registered on this machine** is the same authorized-or-halt
 condition, reached differently: the harness rejected a dispatch naming `docket-build-economy` — a
 concrete rejection of a named agent, never an inference about dispatch capability from a missing
-tool name, so the rule above stands unchanged. The cause is a stale install: `install.sh` generates
-the profile wrappers and links the build skills, and a harness registers them only at session
-start. Halt, naming a re-run of `install.sh` plus a fresh session as the remedy.
+tool name, so the rule above stands unchanged. The cause is a stale install: `install.sh`
+generates the profile wrappers, and a harness registers them only at session start. Halt, naming
+a re-run of `install.sh` plus a fresh session as the remedy.
 
 ## Reading a worker's return
 
@@ -146,8 +144,8 @@ escalation condition; a worker returning `NEEDS_ESCALATION` without such a reaso
 return**, and a malformed return halts — it is never a free escalation.
 
 The stronger worker continues in the **same worktree** and must inspect and account for any
-uncommitted changes the weaker worker left — revising them is allowed, discarding them blindly is
-not. A successful escalation continues this run automatically.
+uncommitted changes the weaker worker left — revise, never blindly discard. A successful
+escalation continues this run automatically.
 
 A failed attempt that left a **commit** — not merely a dirty tree — is different, and it is the
 one state that cancels the escalation. The worker was told never to commit on `NEEDS_ESCALATION` or
@@ -190,9 +188,9 @@ Workers run focused tests only. After every plan task has committed, run the **w
 2. Otherwise reuse finalize's existing suite **auto-detection**.
 3. **Neither** — no `FINALIZE_TEST_COMMAND` *and* nothing the auto-detection recognizes — is a
    **configuration gap, not a red suite**. A repo with no matching test files leaves the detection
-   glob literal and exits non-zero; reading that as RED would manufacture a repair task and burn a
-   whole ladder on a config problem. Finalize itself aborts here rather than repairing, and so do
-   you: halt per *Halting conditions*, naming `finalize.test_command` as the remedy.
+   glob literal and exits non-zero; reading that as RED would manufacture a repair task. Finalize
+   itself aborts here rather than repairing, and so do you: halt per *Halting conditions*, naming
+   `finalize.test_command` as the remedy.
 
 The command boundary is the one finalize already publishes — its `configured-bash-finalize` marker
 block in `skills/docket-finalize-change/SKILL.md` is the single source, and the awkward `finalize`
@@ -238,8 +236,7 @@ Read `BUILD_CHECKPOINT` from the Step-0 config export.
 
 **`false` (default)** — persist nothing. Completed work is durable through the per-task code
 commits; keep only the compact in-context worker returns; write no `.superpowers/docket-build/`
-files. A resumed run reconstructs progress conservatively from the plan, the commits, the code, and
-the tests rather than trusting a formal receipt.
+files. A resumed run reconstructs progress conservatively from the plan, commits, code, and tests.
 
 **Plan checkboxes are not progress state.** Nobody ticks a plan's `- [ ]` boxes — not you, not a
 worker — so a half-ticked plan means nothing, and a resumed run reads commits, code, and tests,
