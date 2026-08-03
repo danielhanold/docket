@@ -2,10 +2,10 @@
 id: 113
 slug: suppressed-handoff-silently-ends-autonomous-run
 title: A suppressed hand-off can silently end an autonomous run — make step completion verifiable, not narrated
-status: proposed
+status: in-progress
 priority: high
 created: 2026-07-20
-updated: 2026-08-02
+updated: 2026-08-03
 depends_on: []
 related: [96, 109]
 discovered_from: [109]
@@ -15,7 +15,8 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/suppressed-handoff-silently-ends-autonomous-run
+claimed_at: 2026-08-03T02:12:06Z
 pr:
 blocked_by:
 reconciled: false
