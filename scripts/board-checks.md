@@ -14,6 +14,7 @@ and owns human-facing display. The one judgment-bearing check — `blocked_by:` 
 ```
 board-checks.sh --changes-dir DIR --metadata-branch BR --integration-branch BR [--strict]
                  [--lease-ttl-hours N] [--adrs-dir DIR] [--terminal-publish]
+                 [--results-dir REPO-RELATIVE-DIR]
 ```
 
 | Flag | Required | Description |
@@ -24,6 +25,7 @@ board-checks.sh --changes-dir DIR --metadata-branch BR --integration-branch BR [
 | `--strict` | no | Exit 1 if any finding is emitted (a CI gate). Default: exit 0 regardless of findings. |
 | `--lease-ttl-hours N` | no | Claim-lease TTL (hours) for the `stale-in-progress` check's `claimed_at:` signal. Default `72` when absent, so standalone use stays sane. |
 | `--adrs-dir DIR` | no | Path to the flat ADR directory. Enables the `adr-unpublished` check (with `--terminal-publish`). A supplied path that does not exist is an error (exit 2), never a silent skip. |
+| `--results-dir REPO-RELATIVE-DIR` | no | Repo-relative results directory scanned by `aborted-run`'s leg A. Defaults to `docs/results` (the convention's own default) so a hand-run stays sane. Unlike `--changes-dir` and `--adrs-dir` this is a **repo-relative** path, not a filesystem path: it is addressed through `<ref>:<path>` and `ls-tree --full-tree`, which are worktree-root-relative. |
 | `--terminal-publish` | no | Opens the `adr-unpublished` gate. The caller passes it only when `terminal_publish: true` **and** docket-mode; absent, the check emits nothing. |
 
 **Output format:** every finding is `<check-id>\t<change-id>\t<message>` on stdout, sorted
@@ -192,6 +194,44 @@ line must stay silent — an unanchored read would mistake body prose for the fi
 Warn-only, like every check here: it never marks `EXPLAINED`, never touches `board-row-dropped` (a
 malformed *scalar* never drops a row), and never auto-fixes or rewrites the change file. Example
 message: `title: unquoted scalar contains ': ' — quote it or reword (well-formed YAML)`.
+
+**`aborted-run`** — An `in-progress` change whose autonomous run stopped mid-step: it completed the
+visible artifact, narrated success, and dropped the metadata write. The oracle is deliberately
+**external** — the agent that dropped the bookkeeping write is the least reliable narrator of
+whether it dropped it, and the observed incidents produced confident, specific, wrong reports, so a
+check keyed on hedging in the report catches nothing. Gated on `status: in-progress`. Two
+independent legs; either emits, and both may emit on one change.
+
+- **Leg A — manifest/git incoherence (time-free).** The change's `branch:` carries a file under
+  `docs/superpowers/plans/` (or under `--results-dir`) that is **absent from the integration
+  branch**, while `plan:` (resp. `results:`) is empty. This is the exact **inverse of
+  `broken-plan-results`**, which catches *field set, file missing*; leg A catches *file present,
+  field empty*. Same two fields, same two trees, opposite direction. An artifact the branch merely
+  **inherits** from the integration branch is already-merged work and never fires. The only
+  false-positive window is the seconds between an artifact commit and its field write — advisory
+  and self-clearing, so the race costs nothing.
+- **Leg B — run-scale stale claim (time-based).** `claimed_at:` older than **12 hours**. This
+  catches the abort that leaves nothing in git at all (a plan written but never committed), which
+  leg A structurally cannot see.
+
+**A separate check-id, not a widened `stale-in-progress`.** That check keys on the same
+`claimed_at:` field but at a *human-scale abandonment* horizon (the 72h lease TTL, plus a 3-day
+branch-idle signal), with a different remedy — "this looks abandoned, reclaim it" — and a machine
+contract `docket-status` keys on, the trailing `[reclaimable]` marker. `aborted-run`'s remedy is
+"this run stopped mid-step, go look". Widening the incumbent predicate would silently change what
+an already-written consumer sees.
+
+The 12h window is **hardcoded**, matching `stale-finalize-blocked`'s 72h and `stale-in-progress`'s
+3-day branch-idle horizon; only the lease TTL is a knob.
+
+**Not detected, deliberately:** *"a PR is open but `pr:` is empty"* would need a network probe,
+which this script forbids by contract. *"Build commits present while `in-progress`"* is what a
+healthy in-flight build looks like, not incoherence.
+
+Warn-only, like every check here: it never marks `EXPLAINED`, never feeds `board-row-dropped`, and
+never mutates the change file. Every field it reads (`branch`, `plan`, `results`, `claimed_at`) is
+optional, so all four go through the **anchored** `fm_field` (ADR-0057) — an unanchored read would
+take body prose for a set field and certify the very abort the check exists to catch.
 
 **`board-row-dropped`** — Backstop for the count-vs-rows invariant, and the only check whose trigger
 is **computed rather than enumerated**. A change file is *rendered* iff `int_field id` yields a

@@ -875,6 +875,221 @@ assert "mutation 4 (drop whole probe block): uppercase boolean title 85 goes GRE
   '! has_finding "$m4out" scalar-form 85'
 rm -rf "$mcopy"
 
+# ============================ aborted-run, leg A (change 0113) ============================
+# An autonomous run that narrated success but dropped its bookkeeping write. Leg A is the
+# TIME-FREE half: the feature branch carries an artifact file that is absent from the integration
+# branch while the matching manifest field is EMPTY. This is the exact INVERSE of
+# broken-plan-results (field set, file missing on the integration branch) — same two fields, same
+# two trees, opposite direction; together they close a square that was half-open.
+#
+# Every optional field this check reads (plan, results, branch, claimed_at) goes through the
+# ANCHORED fm_field: an unanchored read falls through the closing --- into body prose, and in this
+# repo a change file whose body discusses `plan:` is normal content (ADR-0057). Fixture ar5 is what
+# pins that; mutation 3 in Task 3 is what proves the pin can fail.
+#
+# Advisory only: warn-only, never EXPLAINED, never board-row-dropped, never mutates a file.
+AR_PLAN_NEW="docs/superpowers/plans/2026-08-03-aborted.md"
+AR_RESULTS_NEW="docs/results/2026-08-03-aborted-results.md"
+
+# ar_branch REPO BRANCH PATH — cut BRANCH from main in REPO and commit PATH on it, so PATH exists
+# on BRANCH and NOT on main. Leaves the repo parked back on docket (the metadata working tree).
+ar_branch(){
+  local arb_repo="$1" arb_br="$2" arb_path="$3"
+  git -C "$arb_repo" checkout -b "$arb_br" main >/dev/null 2>&1
+  mkdir -p "$arb_repo/$(dirname "$arb_path")"
+  printf '# artifact\n' > "$arb_repo/$arb_path"
+  git -C "$arb_repo" add "$arb_path"
+  git_quiet -C "$arb_repo" commit -m "artifact on $arb_br"
+  git -C "$arb_repo" checkout docket >/dev/null 2>&1
+}
+
+# --- RED: the branch carries a plan the manifest does not record ---
+read -r AR1 _ < <(new_repo)
+ar_branch "$AR1" feat/ar1 "$AR_PLAN_NEW"
+cat > "$AR1/docs/changes/active/0201-plan-unrecorded.md" <<'EOF'
+---
+id: 201
+slug: plan-unrecorded
+title: Plan committed, plan field never written
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/ar1
+plan:
+results:
+---
+EOF
+ar1out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AR1/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "aborted-run leg A fires for a committed plan with an empty plan: (id 201)" \
+  'has_finding "$ar1out" aborted-run 201'
+ar1line="$(grep -E "$(printf "^aborted-run\t201\t")" <<<"$ar1out")"
+assert "the leg-A plan finding names the plan: field and the offending path (id 201)" \
+  'grep -qF -- "plan: is unset" <<<"$ar1line" && grep -qF -- "$AR_PLAN_NEW" <<<"$ar1line"'
+assert "aborted-run fires exactly ONCE for id 201 (leg B must stay silent on a fresh claim)" \
+  '[ "$(grep -cE "$(printf "^aborted-run\t201\t")" <<<"$ar1out")" = 1 ]'
+
+# --- RED: the branch carries a results file the manifest does not record ---
+read -r AR2 _ < <(new_repo)
+ar_branch "$AR2" feat/ar2 "$AR_RESULTS_NEW"
+cat > "$AR2/docs/changes/active/0202-results-unrecorded.md" <<'EOF'
+---
+id: 202
+slug: results-unrecorded
+title: Results committed, results field never written
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/ar2
+plan: docs/superpowers/plans/2026-06-01-present.md
+results:
+---
+EOF
+ar2out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AR2/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "aborted-run leg A fires for a committed results file with an empty results: (id 202)" \
+  'has_finding "$ar2out" aborted-run 202'
+ar2line="$(grep -E "$(printf "^aborted-run\t202\t")" <<<"$ar2out")"
+assert "the leg-A results finding names the results: field and the offending path (id 202)" \
+  'grep -qF -- "results: is unset" <<<"$ar2line" && grep -qF -- "$AR_RESULTS_NEW" <<<"$ar2line"'
+
+# --- GREEN: the healthy in-flight build. Branch carries a plan AND the field records it. ---
+read -r AR3 _ < <(new_repo)
+ar_branch "$AR3" feat/ar3 "$AR_PLAN_NEW"
+cat > "$AR3/docs/changes/active/0203-healthy.md" <<EOF
+---
+id: 203
+slug: healthy
+title: Healthy in-flight build
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/ar3
+plan: $AR_PLAN_NEW
+results:
+claimed_at: $(iso $(( NOW_EPOCH - 3600 )))
+---
+EOF
+ar3out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AR3/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "aborted-run SILENT for a healthy in-flight build: plan committed AND plan: set (id 203)" \
+  '! has_finding "$ar3out" aborted-run 203'
+
+# --- GREEN: an in-progress change with a branch that carries NO new artifact at all. Leg A is
+# time-free and must not fire merely because a claim exists; leg B (Task 2) is what covers this
+# shape, and its claim here is fresh.
+read -r AR4 _ < <(new_repo)
+git -C "$AR4" checkout -b feat/ar4 main >/dev/null 2>&1
+git -C "$AR4" checkout docket >/dev/null 2>&1
+cat > "$AR4/docs/changes/active/0204-nothing-yet.md" <<EOF
+---
+id: 204
+slug: nothing-yet
+title: Claimed, branch cut, nothing built yet
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/ar4
+plan:
+results:
+claimed_at: $(iso $(( NOW_EPOCH - 3600 )))
+---
+EOF
+ar4out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AR4/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "aborted-run SILENT for a fresh claim whose branch carries no new artifact (id 204)" \
+  '! has_finding "$ar4out" aborted-run 204'
+
+# --- THE LOAD-BEARING anchoring fixture: frontmatter OMITS plan: entirely while the BODY opens a
+# plan: line. fm_field is anchored to the first ---...--- block, so plan: reads EMPTY and the check
+# FIRES (the artifact is genuinely unrecorded). An UNANCHORED field() would read the body prose as
+# a set plan: and go silently green — the false-negative this whole change exists to prevent.
+read -r AR5 _ < <(new_repo)
+ar_branch "$AR5" feat/ar5 "$AR_PLAN_NEW"
+cat > "$AR5/docs/changes/active/0205-body-prose-plan.md" <<'EOF'
+---
+id: 205
+slug: body-prose-plan
+title: Omits plan in frontmatter, discusses it in the body
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/ar5
+---
+
+## Notes
+plan: docs/superpowers/plans/2026-06-01-present.md
+EOF
+ar5out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AR5/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "aborted-run leg A FIRES when plan: is absent from frontmatter and only body prose mentions it (id 205, anchored read)" \
+  'has_finding "$ar5out" aborted-run 205'
+
+# --- GREEN: status gate. The identical incoherence on a NON-in-progress change is silent.
+read -r AR6 _ < <(new_repo)
+ar_branch "$AR6" feat/ar6 "$AR_PLAN_NEW"
+cat > "$AR6/docs/changes/active/0206-proposed.md" <<'EOF'
+---
+id: 206
+slug: proposed-incoherent
+title: Same incoherence but not in-progress
+status: proposed
+priority: medium
+depends_on: []
+branch: feat/ar6
+plan:
+results:
+---
+EOF
+ar6out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AR6/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "aborted-run SILENT on a 'proposed' change with the same incoherence (id 206, status gate)" \
+  '! has_finding "$ar6out" aborted-run 206'
+
+# --- GREEN: an artifact that is on the branch AND on the integration branch is already merged
+# work, not an unrecorded artifact. The template's main carries
+# docs/superpowers/plans/2026-06-01-present.md; a branch that merely inherits it must not fire.
+read -r AR7 _ < <(new_repo)
+git -C "$AR7" checkout -b feat/ar7 main >/dev/null 2>&1
+echo unrelated > "$AR7/unrelated.txt"; git -C "$AR7" add unrelated.txt
+git_quiet -C "$AR7" commit -m "unrelated code commit"
+git -C "$AR7" checkout docket >/dev/null 2>&1
+cat > "$AR7/docs/changes/active/0207-inherited.md" <<EOF
+---
+id: 207
+slug: inherited-artifact
+title: Branch inherits main's plan file only
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/ar7
+plan:
+results:
+claimed_at: $(iso $(( NOW_EPOCH - 3600 )))
+---
+EOF
+ar7out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AR7/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "aborted-run SILENT when the branch's only plan file is INHERITED from the integration branch (id 207)" \
+  '! has_finding "$ar7out" aborted-run 207'
+
+# --- The --results-dir flag: a repo whose results live somewhere else is honored.
+read -r AR8 _ < <(new_repo)
+ar_branch "$AR8" feat/ar8 "docs/custom-results/2026-08-03-x-results.md"
+cat > "$AR8/docs/changes/active/0208-custom-results.md" <<'EOF'
+---
+id: 208
+slug: custom-results
+title: Custom results dir
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/ar8
+plan: docs/superpowers/plans/2026-06-01-present.md
+results:
+---
+EOF
+ar8_default="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AR8/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "aborted-run SILENT for a custom results dir when --results-dir is NOT passed (default docs/results)" \
+  '! has_finding "$ar8_default" aborted-run 208'
+ar8_custom="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AR8/docs/changes" --metadata-branch docket --integration-branch main --results-dir docs/custom-results 2>/dev/null)"
+assert "aborted-run FIRES for a custom results dir when --results-dir names it (id 208)" \
+  'has_finding "$ar8_custom" aborted-run 208'
+
+
 # ======================= board-row-dropped (change 0104, spec part 2) =======================
 # The invariant: an ACTIVE file counted in render-board.sh's `total` but rendered in no section.
 # The trigger is COMPUTED (renders_row mirrors the renderer's bucketing), not enumerated per drop
@@ -1803,10 +2018,11 @@ LIB="$REPO/scripts/lib/docket-frontmatter.sh"
 # shellcheck source=/dev/null
 source "$LIB"
 
-# 13 since change 0117 added adr-unpublished. This literal is the ONE hand-edit the derived
-# set-compares below do not absorb (verified at 0117's reconcile) — bump it with every new id.
-assert "BOARD_CHECK_IDS holds the 14 check-ids board-checks.sh emits" \
-  '[ "${#BOARD_CHECK_IDS[@]}" = 14 ]'
+# 15 since change 0113 added aborted-run (14 at 0191's scalar-form; 13 at 0117's adr-unpublished).
+# This literal is the ONE hand-edit the derived set-compares below do not absorb — bump it with
+# every new id.
+assert "BOARD_CHECK_IDS holds the 15 check-ids board-checks.sh emits" \
+  '[ "${#BOARD_CHECK_IDS[@]}" = 15 ]'
 assert "BOARD_CHECK_IDS SET == the set board-checks.sh actually emits (edit scripts/lib/docket-frontmatter.sh)" \
   '[ -z "$(comm -3 <(printf "%s\n" "${BOARD_CHECK_IDS[*]}" | tr " " "\n" | sort -u) <(printf "%s\n" "$emitted"))" ] \
    || { comm -3 <(printf "%s\n" "${BOARD_CHECK_IDS[*]}" | tr " " "\n" | sort -u) <(printf "%s\n" "$emitted") >&2; false; }'
