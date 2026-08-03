@@ -394,6 +394,18 @@ for f in "${FILES[@]}"; do
         emit aborted-run "$id" "results committed on $ar_branch ($ar_hit) but results: is unset — the run stopped before its metadata write; record it or re-run the step"
       fi
     fi
+
+    # Leg B — run-scale stale claim. Catches the abort that leaves NOTHING in git at all: the plan
+    # written to the worktree but never committed, so leg A has no artifact to see. An absent or
+    # unparseable claimed_at is NO POSITIVE EVIDENCE and stays silent — never treated as expired
+    # (the same posture iso_to_epoch's contract states and stale-in-progress already takes).
+    ar_claimed="$(fm_field "$f" claimed_at)"
+    if [ -n "$ar_claimed" ]; then
+      ar_epoch="$(iso_to_epoch "$ar_claimed")" || ar_epoch=""
+      if [ -n "$ar_epoch" ] && [ "$(( NOW - ar_epoch ))" -gt "$ABORTED_RUN_STALE_SECS" ]; then
+        emit aborted-run "$id" "claim stamped $(( (NOW - ar_epoch) / 3600 ))h ago, past the 12h run-scale window — a run may have stopped mid-step; verify it reached its PR"
+      fi
+    fi
   fi
 
   # --- merge-gate-stall: build-ready, but its worst-unmet dep is stuck at 'implemented' ---

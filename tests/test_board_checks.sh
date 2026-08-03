@@ -1089,6 +1089,142 @@ ar8_custom="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AR8/docs/changes" --
 assert "aborted-run FIRES for a custom results dir when --results-dir names it (id 208)" \
   'has_finding "$ar8_custom" aborted-run 208'
 
+# ---------------- aborted-run, leg B: run-scale stale claim (12h, hardcoded) ----------------
+# The abort that leaves NOTHING in git — the originating incident, where the plan was written but
+# never committed, so leg A has no artifact to see. Deliberately a separate check-id from
+# stale-in-progress rather than a retuned one: that check's 72h lease / 3-day branch-idle horizons
+# are human-scale abandonment signals with a different remedy and a machine contract
+# (the trailing [reclaimable] marker) that docket-status already keys on.
+AR_STALE_CLAIM="$(iso $(( NOW_EPOCH - 13*3600 )))"   # 13h  > 12h  => fires
+AR_FRESH_CLAIM="$(iso $(( NOW_EPOCH - 11*3600 )))"   # 11h  < 12h  => silent
+
+read -r AR10 _ < <(new_repo)
+cat > "$AR10/docs/changes/active/0210-stale-claim.md" <<EOF
+---
+id: 210
+slug: stale-claim
+title: Claim older than the run-scale window
+status: in-progress
+priority: medium
+depends_on: []
+branch:
+plan:
+results:
+claimed_at: $AR_STALE_CLAIM
+---
+EOF
+ar10out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AR10/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "aborted-run leg B fires for a claim older than 12h (id 210)" \
+  'has_finding "$ar10out" aborted-run 210'
+ar10line="$(grep -E "$(printf "^aborted-run\t210\t")" <<<"$ar10out")"
+assert "the leg-B finding reports the claim age in hours (id 210)" \
+  'grep -qE "13h" <<<"$ar10line"'
+# stale-in-progress must stay SILENT here: 13h is far inside its 72h lease TTL. This is the whole
+# point of the separate check-id — the two predicates must not have become one.
+assert "stale-in-progress SILENT on the same 13h claim (id 210, the two horizons stay distinct)" \
+  '! has_finding "$ar10out" stale-in-progress 210'
+
+read -r AR11 _ < <(new_repo)
+cat > "$AR11/docs/changes/active/0211-fresh-claim.md" <<EOF
+---
+id: 211
+slug: fresh-claim
+title: Claim inside the run-scale window
+status: in-progress
+priority: medium
+depends_on: []
+branch:
+plan:
+results:
+claimed_at: $AR_FRESH_CLAIM
+---
+EOF
+ar11out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AR11/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "aborted-run leg B SILENT for a claim 11h old (id 211, just inside the window)" \
+  '! has_finding "$ar11out" aborted-run 211'
+
+# No claimed_at at all => no positive evidence => silent (never treated as infinitely old).
+read -r AR12 _ < <(new_repo)
+cat > "$AR12/docs/changes/active/0212-no-claim.md" <<'EOF'
+---
+id: 212
+slug: no-claim
+title: In-progress with no claimed_at
+status: in-progress
+priority: medium
+depends_on: []
+branch:
+plan:
+results:
+claimed_at:
+---
+EOF
+ar12out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AR12/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "aborted-run leg B SILENT when claimed_at is absent (id 212, no positive evidence)" \
+  '! has_finding "$ar12out" aborted-run 212'
+
+# An unparseable claimed_at is also no positive evidence — never an exception, never "expired".
+read -r AR13 _ < <(new_repo)
+cat > "$AR13/docs/changes/active/0213-bad-claim.md" <<'EOF'
+---
+id: 213
+slug: bad-claim
+title: In-progress with a malformed claimed_at
+status: in-progress
+priority: medium
+depends_on: []
+branch:
+plan:
+results:
+claimed_at: not-a-timestamp
+---
+EOF
+ar13out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AR13/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "aborted-run leg B SILENT for an unparseable claimed_at (id 213)" \
+  '! has_finding "$ar13out" aborted-run 213'
+
+# BOTH legs on one change: an unrecorded plan AND a stale claim => TWO findings, not one.
+# The legs are independent evidence, and collapsing them would hide whichever fired second.
+read -r AR14 _ < <(new_repo)
+ar_branch "$AR14" feat/ar14 "$AR_PLAN_NEW"
+cat > "$AR14/docs/changes/active/0214-both-legs.md" <<EOF
+---
+id: 214
+slug: both-legs
+title: Unrecorded plan and a stale claim
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/ar14
+plan:
+results:
+claimed_at: $AR_STALE_CLAIM
+---
+EOF
+ar14out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AR14/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "both aborted-run legs fire independently on one change (id 214, exactly 2 findings)" \
+  '[ "$(grep -cE "$(printf "^aborted-run\t214\t")" <<<"$ar14out")" = 2 ]'
+
+# Status gate again, on leg B this time: a 'proposed' change with an ancient claimed_at is silent.
+read -r AR15 _ < <(new_repo)
+cat > "$AR15/docs/changes/active/0215-proposed-stale.md" <<EOF
+---
+id: 215
+slug: proposed-stale
+title: Proposed with an old claimed_at
+status: proposed
+priority: medium
+depends_on: []
+branch:
+plan:
+results:
+claimed_at: $AR_STALE_CLAIM
+---
+EOF
+ar15out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AR15/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "aborted-run leg B SILENT on a 'proposed' change with an old claimed_at (id 215, status gate)" \
+  '! has_finding "$ar15out" aborted-run 215'
+
 
 # ======================= board-row-dropped (change 0104, spec part 2) =======================
 # The invariant: an ACTIVE file counted in render-board.sh's `total` but rendered in no section.
