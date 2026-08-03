@@ -2,9 +2,9 @@
 slug: fix-reintroduces-its-own-defect-class
 hook: "New code added by a change that fixes a defect class is the likeliest place for that class to reappear — audit the change's OWN additions against its thesis before review, and check the twin it did not touch."
 topics: [review, refactoring, contracts]
-changes: [135, 173]
+changes: [135, 173, 113]
 created: 2026-07-28
-updated: 2026-07-31
+updated: 2026-08-03
 promotion_state: candidate
 promoted_to:
 ---
@@ -57,3 +57,19 @@ Related: [[escape-ere-metacharacters-in-key]] (the un-fixed twin of a duplicated
   generation. Both fixed in `ff9f0962`. The generalizable addition to this finding: when the defect
   class is "the pattern is the wrong width," the replacement pattern is wrong in the *other*
   direction just as easily — widening is not a safe direction, it is a second chance to be wrong.
+- 2026-08-03 (#113, PR #154 — merged) — **The purest instance yet: the change's thesis, applied to
+  the change's own additions, is the review finding.** 0113 exists because a first-match-anywhere
+  frontmatter read falls through into the body for an *optional* key (the
+  [[frontmatter-anchored-read]] class). Its new `aborted-run` check makes four such optional reads
+  — `plan`, `results`, `branch`, `claimed_at` — and all four correctly use the anchored `fm_field`.
+  But the guard proving the anchoring is load-bearing was written for **one** of them: swapping
+  `fm_field "$f" results` back to the unanchored `field` reproduces the original silent false
+  negative with the suite still fully green. Three of the four legs are correct by authorship and
+  unprotected by any assert — indistinguishable, from the suite's point of view, from three that
+  are wrong.
+  What this adds to the finding: the audit move here is not "did the fix reach the new code" (it
+  did, on all four legs) but **"does the evidence reach the new code"** — a change that ships a
+  defect class's antidote must mutation-test *every* site it applied it to, because a single proven
+  leg reads in a review as the property being established while it only establishes one instance of
+  it. A guard over an N-site invariant that exercises one site is the same shape as
+  [[correspondence-guard-runs-one-way]], one layer in. Captured as **#0202**.

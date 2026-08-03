@@ -2,9 +2,9 @@
 slug: plan-supplied-test-code-is-unverified
 hook: "Test code a plan hands you is unverified code, not an oracle — prove the assert CAN pass, and mutation-test its own key."
 topics: [testing, plan, guards]
-changes: [94, 104, 112, 130, 133, 157, 168, 170, 173, 174, 194]
+changes: [94, 104, 112, 130, 133, 157, 168, 170, 173, 174, 194, 113]
 created: 2026-07-19
-updated: 2026-08-02
+updated: 2026-08-03
 promotion_state: candidate
 promoted_to:
 ---
@@ -192,3 +192,18 @@ implementer. It is not a reason to distrust plans — it is a reason to run the 
   destroys the evidence. Cheap checks, in order: run the verdict command once against the untouched
   tree before trusting a single red it reports, and undo a mutation from a copy you made yourself,
   never from git, whenever your own edit is uncommitted.
+- 2026-08-03 (#113, PR #154 — merged) — **A supplied mutation that produced an unparseable script,
+  which would have shown up as a fully green run.** The plan's mutation B deleted only the `emit`
+  line from leg A's results arm, leaving `if …; then` immediately followed by `fi` — a bash
+  **syntax error**. The mutated `board-checks.sh` would have died before running any check, so
+  every fixture goes green *for the wrong reason* and the "this arm survives" assert fails
+  confusingly while the ones that matter never execute. The worker caught it, replaced the mutation
+  with one removing the whole `if`/`emit`/`fi` arm, and added `bash -n "$ARMSCRIPT"` guards to
+  mutations B and E.
+  The generalization sharpens #157's entry above. A broken mutation command is dangerous because it
+  fabricates evidence; a mutation that yields a **syntactically invalid** script is worse, because
+  the failure mode inverts with the assert's polarity — a script that cannot parse produces no
+  output at all, which reads as "no findings emitted," which is precisely what a
+  *deletion-shaped* mutation is supposed to prove. The mutation and its oracle agree, and both are
+  measuring nothing. Cheap check, now house practice here: **`bash -n` the mutated artifact before
+  reading its result**, for every mutation whose shape is a deletion.
