@@ -1,15 +1,14 @@
 # Backlog
 
-**197 changes** — 🟢 2 in progress · 🟡 42 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 127 done · 🗑️ 20 killed
+**199 changes** — 🟢 1 in progress · 🟡 44 proposed · ⚪ 4 deferred · 🔵 3 implemented · ✅ 127 done · 🗑️ 20 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0190](active/0190-close-the-build-evidence-value-gap-a-post-gate-results-commi.md) | Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip | `medium` | `feat` | [spec](../superpowers/specs/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md) | `feat/close-the-build-evidence-value-gap-a-post-gate-results-commi` |
-| [0194](active/0194-retire-the-retired-default-framing-from-the-docket-owned-rol.md) | Retire the retired-default framing from the docket-owned role skill bodies | `medium` | `docs` | [spec](../superpowers/specs/2026-08-02-retire-the-retired-default-framing-from-the-docket-owned-rol-design.md) | `feat/retire-the-retired-default-framing-from-the-docket-owned-rol` |
 
-## 🟡 Proposed (42)
+## 🟡 Proposed (44)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -55,6 +54,8 @@
 | [0195](active/0195-retune-the-opencode-shipped-model-defaults-for-cost.md) | Retune the opencode shipped model defaults for cost | `medium` | `chore` | needs-brainstorm |
 | [0196](active/0196-shared-agents-md-dispatch-block-restate-and-test-the-single.md) | Shared AGENTS.md dispatch block — restate and test the single-owner assumptions | `medium` | `fix` | needs-brainstorm |
 | [0197](active/0197-clear-the-unfixed-review-findings-from-change-0193.md) | Clear the unfixed review findings from change 0193 | `medium` | `chore` | needs-brainstorm |
+| [0198](active/0198-settle-the-role-self-description-rule-s-positive-half-docket.md) | Settle the role-self-description rule's positive half — docket-review names no skills.review binding | `medium` | `docs` | needs-brainstorm |
+| [0199](active/0199-harden-the-role-self-description-guard-co-occurrence-gap-har.md) | Harden the role-self-description guard — co-occurrence gap, hardcoded population, broad default matcher | `medium` | `chore` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -65,12 +66,13 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (3)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | `chore` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
 | [0191](active/0191-enforce-yaml-scalar-wellformedness-in-change-frontmatter.md) | Enforce YAML scalar well-formedness in change-file frontmatter | `medium` | `fix` | [#151](https://github.com/danielhanold/docket/pull/151) |  |
+| [0194](active/0194-retire-the-retired-default-framing-from-the-docket-owned-rol.md) | Retire the retired-default framing from the docket-owned role skill bodies | `medium` | `docs` | [#153](https://github.com/danielhanold/docket/pull/153) |  |
 
 ```mermaid
 graph TD
@@ -124,6 +126,8 @@ graph TD
   0192 --> 0195
   0196
   0197
+  0198
+  0199
   0015:::done
   0077:::done
   0175:::done
