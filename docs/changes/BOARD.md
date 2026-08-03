@@ -1,6 +1,6 @@
 # Backlog
 
-**203 changes** — 🟢 1 in progress · 🟡 46 proposed · ⚪ 4 deferred · 🔵 3 implemented · ✅ 129 done · 🗑️ 20 killed
+**204 changes** — 🟢 1 in progress · 🟡 47 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 130 done · 🗑️ 20 killed
 
 ## 🟢 In progress (1)
 
@@ -8,7 +8,7 @@
 |---|-------|----------|------|------|--------|
 | [0190](active/0190-close-the-build-evidence-value-gap-a-post-gate-results-commi.md) | Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip | `medium` | `feat` | [spec](../superpowers/specs/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md) | `feat/close-the-build-evidence-value-gap-a-post-gate-results-commi` |
 
-## 🟡 Proposed (46)
+## 🟡 Proposed (47)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -58,6 +58,7 @@
 | [0200](active/0200-clear-the-unfixed-review-findings-from-change-0191.md) | Clear the unfixed review findings from change 0191 | `medium` | `chore` | needs-brainstorm |
 | [0202](active/0202-clear-the-unfixed-review-findings-from-change-0113.md) | Clear the unfixed review findings from change 0113 | `medium` | `chore` | needs-brainstorm |
 | [0203](active/0203-define-the-per-step-git-state-postcondition-docket-implement.md) | Define the per-step git-state postcondition docket-implement-next now names but never states | `medium` | `docs` | needs-brainstorm |
+| [0204](active/0204-restore-rationale-dropped-by-round-three-compression-finaliz.md) | Restore rationale dropped by round-three compression (finalize named-id override, auto-capture mint-site loop) | `medium` | `docs` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -68,13 +69,12 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (3)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | `chore` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
 | [0113](active/0113-suppressed-handoff-silently-ends-autonomous-run.md) | A suppressed hand-off can silently end an autonomous run — make step completion verifiable, not narrated | `high` | `fix` | [#154](https://github.com/danielhanold/docket/pull/154) |  |
-| [0201](active/0201-skill-compression-round-three.md) | Skill compression round three — targeted progressive disclosure on the Big 4 + regrowth-guard ratchet | `medium` | `refactor` | [#155](https://github.com/danielhanold/docket/pull/155) |  |
 
 ```mermaid
 graph TD
@@ -129,9 +129,9 @@ graph TD
   0198
   0199
   0200
-  0201
   0202
   0203
+  0204
   0015:::done
   0077:::done
   0175:::done
@@ -139,10 +139,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (149)</summary>
+<details><summary>✅🗑️ Archive — done + killed (150)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0201](archive/2026-08-03-0201-skill-compression-round-three.md) | Skill compression round three — targeted progressive disclosure on the Big 4 + regrowth-guard ratchet | 2026-08-03 |
 | [0194](archive/2026-08-03-0194-retire-the-retired-default-framing-from-the-docket-owned-rol.md) | Retire the retired-default framing from the docket-owned role skill bodies | 2026-08-03 |
 | [0191](archive/2026-08-03-0191-enforce-yaml-scalar-wellformedness-in-change-frontmatter.md) | Enforce YAML scalar well-formedness in change-file frontmatter | 2026-08-03 |
 | [0193](archive/2026-08-02-0193-default-build-review-roles-to-docket-owned-skills.md) | Default the build and review roles to docket-build and docket-review | 2026-08-02 |
@@ -158,7 +159,6 @@ graph TD
 | [0174](archive/2026-07-31-0174-reuse-test-git-fixtures.md) | Reuse test git fixtures instead of rebuilding them per assertion | 2026-07-31 |
 | [0173](archive/2026-07-31-0173-field-of-silently-truncates-a-model-id-containing-or.md) | field_of() silently truncates a model ID containing / or : | 2026-07-31 |
 | [0168](archive/2026-07-31-0168-cursor-profile-routed-build-support.md) | Cursor support for profile-routed Docket builds | 2026-07-31 |
-| [0167](archive/2026-07-30-0167-lean-profile-routed-build.md) | Lean profile-routed build — fresh task workers without review loops | 2026-07-30 |
 | [0044](archive/2026-07-30-0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | 2026-07-30 |
 | [0162](archive/2026-07-28-0162-restore-the-machine-local-ignored-advisory-for-a-committed-t.md) | Restore the machine-local-ignored advisory for a committed too-deep runtime.bash | 2026-07-28 |
 | [0161](archive/2026-07-28-0161-enumerate-the-health-checks-failed-outcome-in-docket-status.md) | Enumerate the health-checks-failed outcome in docket-status SKILL.md | 2026-07-28 |
@@ -183,7 +183,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-07](archive/) | 82 done |
+| [2026-07](archive/) | 83 done |
 | [2026-06](archive/) | 32 done |
 
 </details>
