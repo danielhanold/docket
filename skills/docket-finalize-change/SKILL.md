@@ -122,7 +122,7 @@ finalize:
 **Flow** (runs before `gh pr merge`):
 
 1. `gate == off` → merge trusting the PR's own CI; skip the rest of the gate.
-2. **Rebase** `feat/<slug>` onto `origin/<integration_branch>`. On conflict, dispatch the `docket-rebase-resolver` subagent (foreground, at the model/effort its wrapper resolves) to reconcile every hunk until the rebase completes; an **ambiguous conflict** it can't resolve aborts the rebase and the gate **abort-and-reports**.
+2. **Rebase** `feat/<slug>` onto `origin/<integration_branch>`. On conflict, dispatch the `docket-rebase-resolver` subagent (foreground, at the model/effort its wrapper resolves); an **ambiguous conflict** it can't resolve aborts the rebase and the gate **abort-and-reports**. On any conflict, **read `references/gate-failure.md` now (blocking)** — it owns the resolver/repair split and the abort mechanics.
 3. **Determine the suite:** `test_command` override, else auto-detect. Under `local`/`both` with no detectable suite and no `test_command`, **abort-and-report** — this fires only when the suite is *undetectable*; a detected suite that runs clean (even one with zero tests) is green and proceeds.
    For the detected Bash-suite shape (`tests/test_*.sh`), run every test with the configured runtime. An explicit `FINALIZE_TEST_COMMAND` is user-authored shell text: execute that text unchanged, without prefixing or rewriting it, while leaving the exported `DOCKET_BASH_PATH` available to the command's environment. This is the command boundary:
 
@@ -143,7 +143,7 @@ fi
 5. **Validate per `gate`:**
    - `local` runs the suite in the worktree **before any push** — unless item 4's skip conditions all hold, in which case that run is skipped and logged.
    - `ci` pushes `--force-with-lease` then polls `gh pr checks`; `both` does both.
-   - On **red**, dispatch `docket-integration-repair` (foreground, at the model/effort its wrapper resolves) — it root-causes and writes a minimal fix in at most two attempts. Green → apply the sign-off rule below. Stuck / cannot reach green → **abort-and-report**. Red or absent CI checks under `ci`/`both` also **abort-and-report**.
+   - On **red**, dispatch `docket-integration-repair` (foreground, at the model/effort its wrapper resolves); green → the sign-off rule below; stuck / cannot reach green in at most two attempts → **abort-and-report**, as do red or absent CI checks under `ci`/`both`. On any red, **read `references/gate-failure.md` now (blocking)** — it owns the repair bound and the sign-off gating.
 6. **Push** `--force-with-lease` if rebased and not already pushed; a lease rejected by a concurrent push → **abort-and-report**.
 7. `gh pr merge` — **without** `--admin` whenever the PR is already `APPROVED`, or the integration
    branch's protection requires a pull request but **zero** approvals (docket's single-maintainer
@@ -152,31 +152,17 @@ fi
    otherwise-unsatisfiable required review → the existing close-out (harvest → archive →
    terminal-publish → cleanup → board).
 
-### The two agents (split at rebase-completion)
-
-`docket-rebase-resolver` resolves conflicts *during* the rebase and never runs tests; `docket-integration-repair` owns the **red suite** *after* the rebase lands, regardless of cause. Neither wraps a skill (only `docket-convention`); both are dispatched **foreground at the model/effort its wrapper resolves** — never a literal tier. An authored repair from `docket-integration-repair` is what fires the sign-off rule below; pure conflict resolution does not.
-
 ### Sign-off on auto-authored repairs
 
-A repair is code the human's approval predated, so it never merges unseen:
-
-- **Interactive finalize**: force-push the repaired branch, report the repair diff + what broke, and **prompt** for go-ahead before `gh pr merge`.
-- **Autonomous finalize**: cannot prompt, so it force-pushes the repair and follows **abort-and-report** — STOP, do not merge; the human reviews the pushed repair on the PR and re-runs finalize to merge.
+A repair is code the human's approval predated, so it never merges unseen: **interactive** finalize force-pushes the repair and **prompts** for go-ahead before `gh pr merge`; **autonomous** finalize cannot prompt, so it force-pushes and follows **abort-and-report** — the human reviews the pushed repair on the PR and re-runs finalize. Full flow, and the two-agent split behind it, in `references/gate-failure.md`.
 
 ### abort-and-report points (the full set)
 
-Each leaves the **PR open** and the change **`implemented`**: an ambiguous rebase conflict · `local`/`both` with no detectable suite and no `test_command` override · repair cannot reach green in ≤2 attempts · `ci`/`both` with red or absent CI checks · a `--force-with-lease` rejected by a concurrent push · any repair under **autonomous** finalize (sign-off) · **a harness or permission classifier denying the merge itself** (the branch-protection recipe in the README is what makes `gh pr merge` land unattended; if a denial still fires, that is a `halted`, not a retry loop).
-
-**Where the reason surfaces.** The subagent returns its diagnosis in-context; finalize relays it to the human (interactive) or the dispatching caller (autonomous), records it durably as a **comment on the PR** (`gh pr comment`) — a human returning later reads exactly why the auto-merge stopped — **and appends the `## Finalize blocked` marker to the change file** (see below). Every abort-and-report point does all three; the comment is the narrative, the marker is the state.
+The full set — each leaves the **PR open** and the change **`implemented`** — and the three-channel surfacing rule live in `references/gate-failure.md`; **read it at any abort** before reporting.
 
 ### `## Finalize blocked` — marking a change that needs a human
 
-A gate failure is recorded as a `## Finalize blocked` body section on the change file — a **metadata write** on `metadata_branch` like any other field write, appended in the metadata working tree and pushed immediately. The heading itself is **bare**, never dated (`has_section` is a whole-line match, so `## Finalize blocked — 2026-07-18` would not be detected); the date lives inside the section body instead, exactly as the live `## Auto-groom blocked` instances already do. It is deliberately **not a new status** and **not a reuse of `blocked`**: the change really *is* `implemented` with an open PR, and an eighth status would flatten the six distinct abort reasons into one label while forcing changes to the lifecycle diagram, the board renderer, the GitHub mirror's seven-state mapping, and the health checks. Shape mirrors the proven `## Auto-groom blocked`: a dated entry naming **which** reason fired and what the human must do. A **re-mark REPLACES the existing section, never appends a second heading** — the marker is state, not a log, and a retry that fails again must leave exactly one section (record successive attempts as dated bullets *inside* it).
-
-- **Auto-detect selection skips** any **unmerged** change already carrying the section — without this a re-run re-selects the same known-bad change forever and the drain never progresses past it. **An already-merged PR is archived regardless of the marker**: the silent-archive path is idempotent close-out work, not a merge decision, so a change the human merged by hand must never be stranded on the board by a stale marker. **An explicitly named id or allowlist member overrides the skip**: naming the id is the human's "I looked at it, retry" signal, exactly as the explicit id is itself the human authorization everywhere else in this file. Without the override the marker would deadlock — a skipped change can never be finalized, so the clearing rule below could never fire.
-- **A `CONFLICTING` PR is NOT marked at selection time** — the gate's `docket-rebase-resolver` usually resolves it, so marking it up front would strand a fixable PR as human-blocked. Marking happens only where every other abort-and-report reason does: at the gate.
-- **A successful finalize removes the section.** Unlike auto-groom's human-only re-arm, the condition is machine-verifiable (the gate passed), so requiring a human to delete it would strand stale markers on changes that are fine. That removal is a **live-path obligation** — an `implemented` change that stays `implemented` must not carry a stale needs-you cell — **not** a guarantee about archived files: nothing strips the section at close-out, so on an out-of-band human merge it rides into `archive/` verbatim, and nothing needs to. **Every automated reader is scoped to a change short of `done`** (the board cell, the auto-detect skip, the `stale-finalize-blocked` check, and the mirror's readiness label — the one reader that also scans `archive/`, whose `readiness_label` has no `done` arm), so archiving retires the marker's meaning whether or not the section survives; what the archived section keeps is its **human** reader, the record of why the change stalled. That is the presence-encoded-state rule **discharged, not waived** — removal is its usual *means*; the *end* is that no reader is left misinformed. Do **not** add strip-on-archive to satisfy it literally: it destroys that record and puts body surgery into the shared terminal primitive for zero observable gain.
-- The board renders a change carrying it as **`finalize blocked — needs you`**, parallel to `auto-groom blocked — needs you`.
+A gate failure is recorded as a `## Finalize blocked` body section on the change file — deliberately **not a new status** and **not a reuse of `blocked`** (the change really *is* `implemented` with an open PR). **Auto-detect selection skips** any **unmerged** change already carrying the section — without this a re-run re-selects the same known-bad change forever; **an already-merged PR is archived regardless of the marker** (the silent-archive path is idempotent close-out work, not a merge decision); **an explicitly named id or allowlist member overrides the skip** (naming the id is the human's "I looked at it, retry" signal). The board renders it as **`finalize blocked — needs you`**, parallel to `auto-groom blocked — needs you`. Write shape, the re-mark rule, the CONFLICTING-at-selection rule, and the clearing rule: **read `references/gate-failure.md` now (blocking)** before marking, skipping, or clearing.
 
 ## Where finishing-a-development-branch fits
 

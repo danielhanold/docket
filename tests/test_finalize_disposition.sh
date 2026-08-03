@@ -11,6 +11,14 @@ fail=0
 assert(){ if ( eval "$2" ); then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
 
 FIN="$REPO/skills/docket-finalize-change/SKILL.md"
+# Change 0201 moved the marker's write shape + lifecycle mechanics (re-mark, CONFLICTING-at-
+# selection, clearing, the abort surfacing channels) behind a blocking pointer in
+# references/gate-failure.md; the asserts guarding those mechanics read GF, while everything
+# selection consults on the hot path (skip / override / already-merged / board cell) stays on FIN.
+GF="$REPO/skills/docket-finalize-change/references/gate-failure.md"
+assert "gate-failure reference exists" '[ -f "$GF" ]'
+assert "SKILL points at the gate-failure reference (blocking)" \
+  'grep -Eqi "read .references/gate-failure\.md. now \(blocking\)" "$FIN"'
 
 # --- SKILL.md: the four-disposition terminal contract ---
 assert "SKILL has a Terminal disposition section" 'grep -Eqi "Terminal disposition" "$FIN"'
@@ -116,13 +124,13 @@ assert "SKILL states a named id or allowlist member OVERRIDES the marker skip" \
   'grep -Eqi "(explicitly named id|named id).{0,60}overrides the skip|overrides the skip.{0,60}named id" "$FIN"'
 assert "the skipped-with-reason list scopes the marker skip to auto-detect" \
   'grep -Eqi "already carrying .\`?## Finalize blocked.{0,80}(auto-detect|named id)" "$FIN"'
-assert "SKILL states a CONFLICTING PR is NOT marked at selection time" \
-  'grep -Eqi "CONFLICTING.{0,10}PR is .{0,4}NOT marked at selection time" "$FIN"'
-assert "SKILL states a successful finalize CLEARS the section" \
-  'grep -Eqi "(remove|clear)s?.{0,40}section|section.{0,40}(removed|cleared)" "$FIN"'
+assert "gate-failure states a CONFLICTING PR is NOT marked at selection time" \
+  'grep -Eqi "CONFLICTING.{0,10}PR is .{0,4}NOT marked at selection time" "$GF"'
+assert "gate-failure states a successful finalize CLEARS the section" \
+  'grep -Eqi "(remove|clear)s?.{0,40}section|section.{0,40}(removed|cleared)" "$GF"'
 assert "SKILL names the board cell wording" 'grep -qF "finalize blocked — needs you" "$FIN"'
-assert "SKILL says the marker is a metadata write" \
-  'grep -qF "**metadata write**" "$FIN"'
+assert "gate-failure says the marker is a metadata write" \
+  'grep -qF "**metadata write**" "$GF"'
 
 CONV="$REPO/skills/docket-convention/SKILL.md"
 assert "convention lists the Finalize blocked body section" 'grep -qF "## Finalize blocked" "$CONV"'
@@ -182,11 +190,11 @@ assert "README's drain subsection cross-links the branch-protection prerequisite
 # --- The marker WRITE must be reachable from the procedure, not only from its own definition. ---
 # Without this the whole marker/skip/clear apparatus is inert: every other marker assertion below
 # passes on the *definition* alone, so nothing else catches "no code path ever writes it".
-assert "SKILL wires the marker write into the abort-and-report surfacing step" \
-  'grep -Eqi "where the reason surfaces.*appends the .{0,4}## Finalize blocked" "$FIN"'
+assert "gate-failure wires the marker write into the abort-and-report surfacing step" \
+  'grep -Eqi "where the reason surfaces.*appends the .{0,4}## Finalize blocked" "$GF"'
 # A retry that fails again must not accrete a second heading — the marker is state, not a log.
-assert "SKILL states a re-mark REPLACES the section rather than appending a second heading" \
-  'grep -Eqi "re-mark.{0,60}replaces.{0,120}never appends a second heading" "$FIN"'
+assert "gate-failure states a re-mark REPLACES the section rather than appending a second heading" \
+  'grep -Eqi "re-mark.{0,60}replaces.{0,120}never appends a second heading" "$GF"'
 # The transition-out gap: a human-merged PR carrying a stale marker must still be archived.
 assert "SKILL states an already-merged PR is archived regardless of the marker" \
   'grep -Eqi "already-merged PR is archived regardless" "$FIN"'
@@ -199,8 +207,8 @@ assert "SKILL resolves the drained boundary: in-scope-but-human-requiring counts
 assert "SKILL states drained requires nothing in scope at all" \
   'grep -Eqi "drained.{0,40}requires that no .{0,4}implemented.{0,4} change was in scope" "$FIN"'
 # A classifier/harness denial of the merge is on the critical path and mapped nowhere otherwise.
-assert "SKILL maps a harness/classifier merge denial into the abort-and-report set" \
-  'grep -Eqi "classifier denying the merge" "$FIN"'
+assert "gate-failure maps a harness/classifier merge denial into the abort-and-report set" \
+  'grep -Eqi "classifier denying the merge" "$GF"'
 
 # --- Non-vacuity / mutation proof: the code-formatted disposition grep actually bites. ---
 probe="$(mktemp)"; printf 'plain advanced word, no code formatting\n' > "$probe"

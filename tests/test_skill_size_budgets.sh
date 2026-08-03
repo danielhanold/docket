@@ -161,6 +161,13 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # from the measured actual: 3923 words -> 3950 (27 words of margin, just above the 25-word
 # threshold). The LINE budget was not raised (143 actual, 147 budget) — every edit reflowed inside
 # an existing line.
+# skills/docket-finalize-change/references/gate-failure.md is a NEW row added by change 0201's
+# progressive-disclosure extraction: the merge-gate failure flows (the two-agent split, repair
+# sign-off, the abort-and-report set + surfacing channels, and the `## Finalize blocked` write
+# shape + lifecycle mechanics) moved behind blocking pointers at their trigger moments in the
+# parent SKILL.md. Set per the rounding rule above from the measured actuals: 31 lines -> the next
+# multiple of 5 is 35 (4 lines of margin — the same half-step proportion the 0167 line-margin
+# reading accepts), 852 words -> 900 (48 words of margin, above the within-25 threshold).
 # skills/docket-convention/SKILL.md's WORD budget was raised 6350 -> 6400 by change 0194, which
 # added the *Skill layer*'s role-self-description bullet: a role skill body names its skills.<role>
 # binding key, never whether that binding is the shipped default. The bullet is the single home of
@@ -183,6 +190,7 @@ skills/docket-convention/references/agent-layer.md         175 2000
 skills/docket-convention/references/learnings.md            84  580
 skills/docket-convention/references/terminal-close-out.md  173 1458
 skills/docket-finalize-change/SKILL.md                     193 4350
+skills/docket-finalize-change/references/gate-failure.md    35  900
 skills/docket-groom-next/SKILL.md                           77 1484
 skills/docket-implement-next/SKILL.md                      147 3950
 skills/docket-implement-next/results-template.md            24  172
