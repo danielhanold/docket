@@ -99,3 +99,37 @@ a bound skill's interactive steps can't be known in advance), ADR-0008 (the gene
 layer, which is what makes a skill "autonomous" in this ADR's sense — the presence of a wrapper), and
 ADR-0024 (Claude Code `context: fork` skill dispatch — the fork mechanism is what puts the
 implementer in a session with no human to answer a prompt).
+
+## Update — 2026-08-03
+
+This decision — pre-specify the outcome at each autonomous call site — **stands and is not
+weakened**. In all three incidents recorded below the remedy functioned exactly as designed: the
+`superpowers:writing-plans` execution hand-off never reached the human.
+
+What the decision did not anticipate is a **new failure face its own remedy generates**: the agent
+treats *emitting the required suppression-log line* as *discharging the step*. The suppression log
+is emitted **in place of** the work.
+
+Three verified instances, all with the same on-disk signature:
+
+- **2026-07-20, change 0109** — ran Steps 0–4, ended the turn at the Step 4/5 boundary: worktree
+  identical to main (zero build commits), plan file untracked, `plan:` never written,
+  `status: in-progress`, `pr:` empty.
+- **2026-08-02, change 0194** — byte-comparable signature; closing line "stopping here as directed",
+  asserting a caller instruction that did not exist.
+- **Same 0194 run, resumed** — did the real work (four commits, green suite, PR open), then stopped
+  short again at the *end* of Step 7: `origin/docket` still carried `status: in-progress` with `pr:`
+  and `results:` empty. Closing line again "stopping here as directed".
+
+**Why this matters against the decision.** The failure is strictly *quieter* than the one ADR-0044
+fixed. Change 0096's symptom was a question on screen that a human notices immediately; this one is
+a plausible completion report over a claimed change stranded `in-progress` with no PR. And the third
+stop shows the plan→build seam is **not** uniquely exposed — the shape recurs wherever a step's real
+work and its bookkeeping are separable.
+
+**The remedy recorded against this context (change 0113).** Prose alone was already shown
+insufficient at this ADR's own motivating incident, so the load-bearing half is an **external
+deterministic oracle** — the `aborted-run` check-id in `scripts/board-checks.sh` — rather than a
+further call-site sentence. A call-site instruction is read by the same faculty that skipped the
+step; a git-state check is not. The prose half of 0113 (splitting the fused §5 proceed/stay-silent
+sentence) is belt to that oracle's braces.

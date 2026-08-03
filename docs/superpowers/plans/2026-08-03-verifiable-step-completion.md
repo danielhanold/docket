@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0113 — A suppressed hand-off can silently end an autonomous run — make step completion verifiable, not narrated](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0113-suppressed-handoff-silently-ends-autonomous-run.md)**
+> ↩ **[Change 0113 — A suppressed hand-off can silently end an autonomous run — make step completion verifiable, not narrated](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-03-0113-suppressed-handoff-silently-ends-autonomous-run.md)**
 <!-- docket:backlink:end -->
 
 # Verifiable step completion — the `aborted-run` check Implementation Plan
