@@ -2,7 +2,7 @@
 id: 194
 slug: retire-the-retired-default-framing-from-the-docket-owned-rol
 title: Retire the retired-default framing from the docket-owned role skill bodies
-status: in-progress
+status: implemented
 priority: medium
 type: docs
 created: 2026-08-02
@@ -13,12 +13,12 @@ discovered_from: [193]
 adrs: []
 spec: docs/superpowers/specs/2026-08-02-retire-the-retired-default-framing-from-the-docket-owned-rol-design.md
 plan: docs/superpowers/plans/2026-08-02-retire-the-retired-default-framing-from-the-docket-owned-rol-plan.md
-results:
+results: docs/results/2026-08-02-retire-the-retired-default-framing-from-the-docket-owned-rol-results.md
 trivial: false
 auto_groomable:
 branch: feat/retire-the-retired-default-framing-from-the-docket-owned-rol
-claimed_at: 2026-08-02T23:07:36Z
-pr:
+claimed_at:
+pr: 153
 blocked_by:
 reconciled: true
 ---
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-02-retire-the-retired-default-framing-from-the-docket-owned-rol-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-02-retire-the-retired-default-framing-from-the-docket-owned-rol-design.md) |
 | Plan | [2026-08-02-retire-the-retired-default-framing-from-the-docket-owned-rol-plan.md](https://github.com/danielhanold/docket/blob/feat/retire-the-retired-default-framing-from-the-docket-owned-rol/docs/superpowers/plans/2026-08-02-retire-the-retired-default-framing-from-the-docket-owned-rol-plan.md) |
+| Results | [2026-08-02-retire-the-retired-default-framing-from-the-docket-owned-rol-results.md](https://github.com/danielhanold/docket/blob/feat/retire-the-retired-default-framing-from-the-docket-owned-rol/docs/results/2026-08-02-retire-the-retired-default-framing-from-the-docket-owned-rol-results.md) |
+| PR | 153 |
 <!-- docket:artifacts:end -->
 
 ## Why
