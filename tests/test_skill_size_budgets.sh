@@ -175,6 +175,15 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # 28 lines -> the next multiple of 5 is 30, which leaves 2 lines of margin — the near-zero mode
 # this block warns about — so the multiple after was taken: 35; 389 words -> 400 is within the
 # 25-word threshold (11 words of margin), so the multiple after: 450.
+# skills/docket-convention/references/auto-capture.md is a NEW row added by change 0201's
+# progressive-disclosure extraction: the auto-capture shared definition's mechanics (the
+# classify -> admit -> suppress sequence, the materiality bar, and the deterministic mint-stub
+# invocation with its exit codes and count carry-forward) moved behind a blocking read trigger,
+# with a summary + the 0127-pinned tokens kept inline (mirroring the learnings.md precedent).
+# Set per the rounding rule above from the measured actuals: 38 lines -> the next multiple of 5
+# is 40, which leaves 2 lines of margin — the near-zero mode — so the multiple after: 45;
+# 376 words -> 400 is within the 25-word threshold (24 words of margin), so the multiple
+# after: 450.
 # skills/docket-convention/SKILL.md's WORD budget was raised 6350 -> 6400 by change 0194, which
 # added the *Skill layer*'s role-self-description bullet: a role skill body names its skills.<role>
 # binding key, never whether that binding is the shipped default. The bullet is the single home of
@@ -194,6 +203,7 @@ skills/docket-build-task/SKILL.md                          115 1000
 skills/docket-convention/SKILL.md                          365 6400
 skills/docket-convention/github-board-mirror.md             19  462
 skills/docket-convention/references/agent-layer.md         175 2000
+skills/docket-convention/references/auto-capture.md         45  450
 skills/docket-convention/references/learnings.md            84  580
 skills/docket-convention/references/terminal-close-out.md  173 1458
 skills/docket-finalize-change/SKILL.md                     193 4350

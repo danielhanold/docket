@@ -266,44 +266,25 @@ A stub is **autonomous-eligible** — selectable by `docket-auto-groom` — when
 
 ### Auto-capture (shared definition)
 
-`auto_capture` (a map: `enabled` default `false`, `types` default `all`; global-able) governs what
-an **autonomous** skill does with genuine follow-up work it discovers mid-run. Disabled, the model
-reports it in prose. Enabled, it **classifies** the work and — only if that type is admitted — mints
-an ordinary `proposed` needs-brainstorm stub with `discovered_from:` and `type:` set. Capture
-fidelity, **not** autonomy: every stub still waits at the human's groom gate.
+`auto_capture` (a map: `enabled` default `false`, `types` default `all`; global-able — resolved as
+`AUTO_CAPTURE_ENABLED` / `AUTO_CAPTURE_TYPES`) governs what an **autonomous** skill does with
+genuine follow-up work it discovers mid-run. Disabled, the model reports it in prose; enabled, it
+**classifies** the work and — only if that type is admitted — mints an ordinary `proposed`
+needs-brainstorm stub (`mint-stub --type`, one per call) with `discovered_from:` and `type:` set.
+Capture fidelity, **not** autonomy: every stub still waits at the human's groom gate. A type
+outside policy is reported as **policy-suppressed**, never minted — and type filtering runs
+**before the cap** is consumed.
 
 **Mint sites** are the autonomous *single-change* skills: `docket-implement-next` (reconcile and
 review) and the `docket-finalize-change` / `docket-status` harvest. **`docket-auto-groom` is never a
 mint site** — a minted stub is itself autonomous-eligible, so minting would break its
-provable-termination invariant and make `auto_groom` × `auto_capture` a backlog-growth loop.
-**Interactive skills need no auto-capture path** — a human is present to decide what gets filed.
+provable-termination invariant. **Interactive skills need no auto-capture path** — a human is
+present to decide what gets filed.
 
-**Per discovery** (after the materiality bar): assign exactly one type from `CHANGE_TYPES` — the
-model classifies, the script never infers (ADR-0012). `AUTO_CAPTURE_ENABLED: false` ⇒ report, mint
-nothing. Enabled but the type is outside `AUTO_CAPTURE_TYPES` (the literal `all`, or a subset) ⇒
-mint nothing, report it as **policy-suppressed**. Enabled and admitted ⇒ `mint-stub --type`. Every
-outcome keeps ADR-0045's best-effort posture. **Type filtering runs before the cap is consumed** —
-a suppressed candidate must never spend a mint slot; dedup stays after admission.
-
-**Materiality bar** — mint only for *actionable follow-up work that would be its own change / PR*
-("would a human file this as a `docket-new-change`?"). A build lesson → the **learnings** harvest;
-drift inside the current change → the **reconcile log**; a bare observation → the run report.
-
-**The mint itself is deterministic** (ADR-0012 — the model judges *what*, the script does the mint):
-`"${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh mint-stub --changes-dir .docket/<changes_dir>
---title <title> --type <type> --body-file <file> --discovered-from <this change's id> --minted <n so far>` (in
-`docket`-mode; in `main`-mode, `--changes-dir <changes_dir>` — the metadata worktree IS the primary
-tree) — one stub per call, `--body-file` **must start with `## Why`**, contract in
-`scripts/mint-stub.md`. **`<n so far>` is the running count across the whole run on a single
-change, never reset per mint site** — a skill with two mint sites (`docket-implement-next`'s
-reconcile and review) carries the total forward. (`docket-status`'s sweep scopes it per swept
-change — see its SKILL.md.) It owns dedup, id allocation, the template write, and the CAS push;
-**exit 3** = duplicate skipped, **exit 4** = cap (3) reached, **exit 1** = a real error (push
-failure, malformed body, retry exhaustion). Every skip, overflow, and exit-1 failure is **surfaced
-in the run report, never silently dropped** — but none is fatal: **auto-capture is best-effort and
-must never abort the change being built**, because capture is a courtesy while the change is the
-job. Minting is a metadata-worktree write only — it never touches the running change's own
-claim/branch/PR state.
+Discovered follow-up work mid-run → **read [`references/auto-capture.md`](references/auto-capture.md)
+now (blocking)** before minting or suppressing — it owns the materiality bar, the
+classify → admit → suppress sequence, the deterministic mint invocation with its exit codes, and
+the cross-site `--minted` count carry-forward.
 
 ### Learnings ledger
 
