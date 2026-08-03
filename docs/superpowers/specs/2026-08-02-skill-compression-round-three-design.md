@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0201 — Skill compression round three — targeted progressive disclosure on the Big 4 + regrowth-guard ratchet](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0201-skill-compression-round-three.md)**
+> ↩ **[Change 0201 — Skill compression round three — targeted progressive disclosure on the Big 4 + regrowth-guard ratchet](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-03-0201-skill-compression-round-three.md)**
 <!-- docket:backlink:end -->
 
 # Skill compression round three — targeted progressive disclosure — design
