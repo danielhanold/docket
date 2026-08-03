@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/skill-compression-round-three
-claimed_at: 2026-08-03T03:03:22Z
+claimed_at: 2026-08-03T03:07:30Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -81,3 +81,15 @@ spec):
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+**2026-08-03** — Reconciled against origin/main @ 06a403e3. All four measured actuals
+are byte-identical to the spec's table (6349/4302/3939/2418 words), so scope and targets
+stand unchanged. Budget-test rows confirmed at convention 365/6400 (raised by 0194 after
+the spec snapshot — actual still 6349), finalize 193/4350, implement-next 147/3950,
+build 270/2450; the completeness guard will auto-require rows for the three new
+reference files. One new constraint: in-flight change 0113 (unmerged local branch)
+modifies `skills/docket-implement-next/SKILL.md` and `tests/test_skill_size_budgets.sh`;
+0190 (plan-only so far) will likely touch finalize/implement-next when built. Baseline
+remains origin/main per convention; the overlap is a finalize-time rebase concern for
+whichever change merges second, not a scope change here. No work done elsewhere to drop;
+no new follow-up discoveries to capture.
