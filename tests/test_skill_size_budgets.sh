@@ -168,6 +168,13 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # parent SKILL.md. Set per the rounding rule above from the measured actuals: 31 lines -> the next
 # multiple of 5 is 35 (4 lines of margin — the same half-step proportion the 0167 line-margin
 # reading accepts), 852 words -> 900 (48 words of margin, above the within-25 threshold).
+# skills/docket-implement-next/references/edge-paths.md is a NEW row added by change 0201's
+# progressive-disclosure extraction: the implementer's rare edges (reconcile-kill caller notes,
+# the resume-safety rules, and Step 7's PR-body assembly mechanics) moved behind blocking
+# pointers at their trigger moments. Set per the rounding rule above from the measured actuals:
+# 28 lines -> the next multiple of 5 is 30, which leaves 2 lines of margin — the near-zero mode
+# this block warns about — so the multiple after was taken: 35; 389 words -> 400 is within the
+# 25-word threshold (11 words of margin), so the multiple after: 450.
 # skills/docket-convention/SKILL.md's WORD budget was raised 6350 -> 6400 by change 0194, which
 # added the *Skill layer*'s role-self-description bullet: a role skill body names its skills.<role>
 # binding key, never whether that binding is the shipped default. The bullet is the single home of
@@ -193,6 +200,7 @@ skills/docket-finalize-change/SKILL.md                     193 4350
 skills/docket-finalize-change/references/gate-failure.md    35  900
 skills/docket-groom-next/SKILL.md                           77 1484
 skills/docket-implement-next/SKILL.md                      147 3950
+skills/docket-implement-next/references/edge-paths.md       35  450
 skills/docket-implement-next/results-template.md            24  172
 skills/docket-review/SKILL.md                              105  800
 skills/docket-new-change/SKILL.md                           61 1330
