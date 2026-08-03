@@ -18,7 +18,11 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # leave a 4-word margin reproduces the failure mode this paragraph exists to forbid.
 # Near-zero headroom is not the intent — it is the failure mode 0102 recorded below (1 word left),
 # and 0137's first attempt repeated it (rounding words to the next multiple of 10 left +1 and +9).
-# To raise a budget, edit the number here in the same diff that grows the file.
+# To raise a budget, edit the number here in the same diff that grows the file. A raise must
+# additionally NAME the references/ file the new prose was considered for and STATE why it cannot
+# live there (a rule that must intervene at the moment of action, a cross-skill contract quoted
+# where it is produced, ...) — "no other home" is a claim argued in-diff, not asserted
+# (change 0201).
 # docket-convention/SKILL.md's word budget was raised 5689 -> 5850 by change 0127, which added a
 # whole policy dimension to the Auto-capture shared definition (classify -> admit -> suppress, and
 # the filtering-precedes-the-cap rule) plus the change_types / nested auto_capture config block and
@@ -193,23 +197,32 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # rounding rule above from the measured actual: 6349 words -> the next multiple of 50 is 6350,
 # which leaves 1 word of margin (far under the 25-word threshold), so the multiple after was taken:
 # 6400 (51 words of margin). The LINE budget was NOT raised (363 actual, 365 budget).
+# Change 0201 RATCHETED the Big-4 rows DOWN to post-slim actuals (the first downward move since
+# 0085) after its three progressive-disclosure extractions + in-place tightening:
+# docket-convention/SKILL.md 365/6400 -> 345/5800 (measured 339/5773; 340 lines would leave 1 —
+# near-zero — so 345; 5800 leaves 27 words, above the 25 threshold), docket-finalize-change
+# 193/4350 -> 180/3450 (measured 174/3395; 175 leaves 1 line so 180; 3400 leaves 5 words so 3450),
+# docket-implement-next 147/3950 -> 145/3700 (measured 139/3654; 140 leaves 1 line so 145; 3700
+# leaves 46 words), docket-build 270/2450 -> 265/2400 (measured 260/2348; 260 is zero line margin
+# so 265; 2350 leaves 2 words so 2400). The three new reference rows were added by their creating
+# commits (gate-failure.md 35/900, edge-paths.md 35/450, auto-capture.md 45/450).
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
 skills/docket-auto-groom/SKILL.md                           66 1237
 skills/docket-brainstorm/SKILL.md                           84  692
-skills/docket-build/SKILL.md                               270 2450
+skills/docket-build/SKILL.md                               265 2400
 skills/docket-build-task/SKILL.md                          115 1000
-skills/docket-convention/SKILL.md                          365 6400
+skills/docket-convention/SKILL.md                          345 5800
 skills/docket-convention/github-board-mirror.md             19  462
 skills/docket-convention/references/agent-layer.md         175 2000
 skills/docket-convention/references/auto-capture.md         45  450
 skills/docket-convention/references/learnings.md            84  580
 skills/docket-convention/references/terminal-close-out.md  173 1458
-skills/docket-finalize-change/SKILL.md                     193 4350
+skills/docket-finalize-change/SKILL.md                     180 3450
 skills/docket-finalize-change/references/gate-failure.md    35  900
 skills/docket-groom-next/SKILL.md                           77 1484
-skills/docket-implement-next/SKILL.md                      147 3950
+skills/docket-implement-next/SKILL.md                      145 3700
 skills/docket-implement-next/references/edge-paths.md       35  450
 skills/docket-implement-next/results-template.md            24  172
 skills/docket-review/SKILL.md                              105  800
