@@ -83,3 +83,23 @@ and preserved intent — a missing closing `---` in one fixture heredoc, a Usage
 table row to match `board-checks.md`'s house shape, and the mutation-B replacement above. The
 plan's "add the row to the check-id table at the top of `board-checks.md`" step was a no-op: no
 head-of-document check-id list exists there.
+
+## Post-merge note (finalize, 2026-08-03)
+
+Change 0201 (skill compression round three) merged first, so this branch rebased across the
+anticipated conflict in `tests/test_skill_size_budgets.sh` — the one both change files flagged at
+reconcile. The conflict was composed by intent, not decided by side: 0201's ratcheted budgets and
+its three new reference-file rows were kept, this change's prose was kept, and the
+`docket-implement-next` row was **re-measured against the merged file** rather than taken from
+either branch.
+
+**This supersedes the budget figures in Follow-ups #0203 above.** The raise is `3700 -> 3800`
+(not `3950 -> 4050`), measured at 139 L / 3728 w on the merged file — so the remaining margin is
+**72 words, not 37**. The line budget was not raised at all: 139 still fits 0201's ratcheted 145,
+and this change's pre-rebase `147` was a pre-slim artifact. Full suite re-run green (77/77) on the
+rebased branch before merge.
+
+Per 0201's hardened raise procedure, the budget comment now names
+`skills/docket-implement-next/references/edge-paths.md` as the reference file considered and
+rejected for the two riders: both fire on the common path at the moment of action, whereas
+edge-paths.md is read only once a rare edge is already known to have been hit.
