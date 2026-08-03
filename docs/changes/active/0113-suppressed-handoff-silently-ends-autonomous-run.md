@@ -10,7 +10,7 @@ depends_on: []
 related: [96, 109]
 discovered_from: [109]
 adrs: [24, 44]
-spec:
+spec: docs/superpowers/specs/2026-08-02-verifiable-step-completion-design.md
 plan:
 results:
 trivial: false
@@ -27,6 +27,7 @@ type: fix
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Spec | [2026-08-02-verifiable-step-completion-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-02-verifiable-step-completion-design.md) |
 | ADRs | [ADR-0024](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0024-claude-context-fork-skill-dispatch.md), [ADR-0044](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0044-autonomy-precedence-call-site-pre-specification.md) |
 <!-- docket:artifacts:end -->
 
@@ -122,21 +123,39 @@ Backfilled by hand in `2d58d193`.
 
 ## What changes
 
-Grooming picks the lever; two are visible from here, and they are not equivalent.
+Both levers ship, with the verifiable invariant as the load-bearing half.
 
-- **Split the obligation to proceed from the obligation to stay silent.** In §5 these are one
-  sentence, and an agent can satisfy the first clause and drop the second. Cheap, targeted, but
-  fixes this instance rather than the class.
-- **Make step completion a verifiable invariant** (likely the stronger lever). Step 4 is not
-  complete until the plan is committed **and** `plan:` is written to the manifest; a run that
-  returns with `status: in-progress`, an empty `pr:`, and no build commits has **aborted, not
-  completed**, and must report itself that way. This is mechanically detectable from git state plus
-  frontmatter — the same evidence a human used to catch it — and would catch the whole class rather
-  than the one hand-off that happened to leak.
+**A new `aborted-run` check-id in `board-checks.sh`** — an external, deterministic, git-only oracle,
+because the agent that dropped the bookkeeping write is the least reliable narrator of whether it
+dropped it. It rides the existing health-check family (registry, report rendering, fixture
+conventions — the path change 0191 used for `scalar-form`), so detection reaches every
+`docket-status` run and every Board pass, including the one at the top of the *next*
+`docket-implement-next`: a `/loop` drain trips over it on the following iteration instead of banking
+a false success. **Advisory only** — it flips no status and releases no claim, because the 0109 run
+left a real written plan a naive release would have stranded, and `board-checks.sh` is a pure reader
+by contract.
 
-Whether ADR-0044 needs a dated `## Update` note is part of the scope: this is that ADR's remedy
-generating a new failure surface, which is context worth recording against the decision even though
-the decision itself stands.
+Two independent legs, both scoped to `status: in-progress`:
+
+- **Manifest/git incoherence** (time-free) — the feature branch carries an artifact the manifest
+  doesn't record: a committed plan with `plan:` empty, or a committed results file with `results:`
+  empty. This is the exact inverse of the existing `broken-plan-results` check (field set, file
+  missing), closing a square that was half-open.
+- **A run-scale stale claim** (12h, hardcoded) — catches the abort that leaves nothing in git at
+  all, which is the originating instance. Deliberately a separate check-id rather than a retuned
+  `stale-in-progress`, whose 72h/3-day horizons and `[reclaimable]` machine contract serve a
+  different remedy.
+
+Two riders: **densify the claim heartbeat** so every metadata commit re-stamps `claimed_at` (today
+only reconcile and `implemented` do, leaving the whole plan→build→review span unstamped), and
+**split the §5 sentence** that fuses the obligation to proceed with the obligation to stay silent —
+the sentence both incidents misread.
+
+ADR-0044 gets a dated `## Update` note: the decision stands, but its remedy generating a new failure
+surface is context worth recording against it.
+
+Every predicate must be mutation-tested — a completion check that cannot fail is this defect wearing
+a badge. Design detail, the cut predicates and why, and the ripple list live in the linked spec.
 
 ## Out of scope
 
@@ -147,17 +166,6 @@ the decision itself stands.
 
 ## Open questions
 
-- Where does an abort-detecting invariant belong — in the skill body as a self-check before
-  returning, in the generated wrapper's abort-and-report rule, or as a deterministic script the way
-  ADR-0012 splits model judgment from mechanical checks?
-- Should a detected mid-run abort self-heal (release the claim, like `reclaim-claims.sh` does for an
-  expired lease with no branch) or stay claimed and surface loudly? The 0109 run left real work —
-  a written plan — that a naive release would have stranded.
-- Does the same silent-stop shape threaten the other autonomous multi-step skills
-  (`docket-auto-groom`, `docket-finalize-change`), or is the plan→build boundary uniquely exposed
-  because it is the one place a vendored skill's own closing instruction says "stop and ask"?
-- **Any invariant proposed here must be mutation-tested, not assumed to fire.** Change 0107's build
-  hit the adjacent "guard reports ok while asserting nothing" vacuity trap, and mutation testing was
-  what settled it. A completion check that never fails is this defect wearing a badge.
+All four resolved during grooming (2026-08-02) — see the linked spec for the reasoning.
 
 ## Reconcile log
