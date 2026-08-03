@@ -2,7 +2,7 @@
 id: 201
 slug: skill-compression-round-three
 title: Skill compression round three — targeted progressive disclosure on the Big 4 + regrowth-guard ratchet
-status: in-progress
+status: implemented
 priority: medium
 type: refactor
 created: 2026-08-02
@@ -13,12 +13,12 @@ discovered_from: []
 adrs: []
 spec: docs/superpowers/specs/2026-08-02-skill-compression-round-three-design.md
 plan: docs/superpowers/plans/2026-08-03-skill-compression-round-three.md
-results:
+results: docs/results/2026-08-03-skill-compression-round-three-results.md
 trivial: false
 auto_groomable:
 branch: feat/skill-compression-round-three
-claimed_at: 2026-08-03T03:14:45Z
-pr:
+claimed_at: 2026-08-03T04:08:59Z
+pr: https://github.com/danielhanold/docket/pull/155
 blocked_by:
 reconciled: true
 ---
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-02-skill-compression-round-three-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-02-skill-compression-round-three-design.md) |
 | Plan | [2026-08-03-skill-compression-round-three.md](https://github.com/danielhanold/docket/blob/feat/skill-compression-round-three/docs/superpowers/plans/2026-08-03-skill-compression-round-three.md) |
+| Results | [2026-08-03-skill-compression-round-three-results.md](https://github.com/danielhanold/docket/blob/feat/skill-compression-round-three/docs/results/2026-08-03-skill-compression-round-three-results.md) |
+| PR | [#155](https://github.com/danielhanold/docket/pull/155) |
 <!-- docket:artifacts:end -->
 
 ## Why
