@@ -161,6 +161,15 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # from the measured actual: 3923 words -> 3950 (27 words of margin, just above the 25-word
 # threshold). The LINE budget was not raised (143 actual, 147 budget) — every edit reflowed inside
 # an existing line.
+# skills/docket-convention/SKILL.md's WORD budget was raised 6350 -> 6400 by change 0194, which
+# added the *Skill layer*'s role-self-description bullet: a role skill body names its skills.<role>
+# binding key, never whether that binding is the shipped default. The bullet is the single home of
+# a rule change 0193 proved is needed — that flip had to sweep eight files because the default was
+# restated in each, and two role skill bodies still carried it. Stating it here is what stops the
+# ninth and tenth accumulating, so the words are load-bearing rather than commentary. Set per the
+# rounding rule above from the measured actual: 6349 words -> the next multiple of 50 is 6350,
+# which leaves 1 word of margin (far under the 25-word threshold), so the multiple after was taken:
+# 6400 (51 words of margin). The LINE budget was NOT raised (363 actual, 365 budget).
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -168,7 +177,7 @@ skills/docket-auto-groom/SKILL.md                           66 1237
 skills/docket-brainstorm/SKILL.md                           84  692
 skills/docket-build/SKILL.md                               270 2450
 skills/docket-build-task/SKILL.md                          115 1000
-skills/docket-convention/SKILL.md                          365 6350
+skills/docket-convention/SKILL.md                          365 6400
 skills/docket-convention/github-board-mirror.md             19  462
 skills/docket-convention/references/agent-layer.md         175 2000
 skills/docket-convention/references/learnings.md            84  580
