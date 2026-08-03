@@ -1,6 +1,6 @@
 # Backlog
 
-**199 changes** — 🟢 1 in progress · 🟡 44 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 128 done · 🗑️ 20 killed
+**199 changes** — 🟢 1 in progress · 🟡 44 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 129 done · 🗑️ 20 killed
 
 ## 🟢 In progress (1)
 
@@ -66,12 +66,11 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | `chore` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
-| [0191](active/0191-enforce-yaml-scalar-wellformedness-in-change-frontmatter.md) | Enforce YAML scalar well-formedness in change-file frontmatter | `medium` | `fix` | [#151](https://github.com/danielhanold/docket/pull/151) |  |
 
 ```mermaid
 graph TD
@@ -120,7 +119,6 @@ graph TD
   0188
   0189
   0190
-  0191
   0192 --> 0195
   0196
   0197
@@ -133,11 +131,12 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (148)</summary>
+<details><summary>✅🗑️ Archive — done + killed (149)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0194](archive/2026-08-03-0194-retire-the-retired-default-framing-from-the-docket-owned-rol.md) | Retire the retired-default framing from the docket-owned role skill bodies | 2026-08-03 |
+| [0191](archive/2026-08-03-0191-enforce-yaml-scalar-wellformedness-in-change-frontmatter.md) | Enforce YAML scalar well-formedness in change-file frontmatter | 2026-08-03 |
 | [0193](archive/2026-08-02-0193-default-build-review-roles-to-docket-owned-skills.md) | Default the build and review roles to docket-build and docket-review | 2026-08-02 |
 | [0192](archive/2026-08-02-0192-opencode-profile-routed-build-support.md) | opencode support for profile-routed Docket builds | 2026-08-02 |
 | [0186](archive/2026-08-01-0186-bare-mv-prompts-on-a-tty-backfill-change-types-hangs-the-sui.md) | Bare mv prompts on a tty — backfill-change-types hangs the suite and can exit 0 without installing | 2026-08-01 |
@@ -153,7 +152,6 @@ graph TD
 | [0168](archive/2026-07-31-0168-cursor-profile-routed-build-support.md) | Cursor support for profile-routed Docket builds | 2026-07-31 |
 | [0167](archive/2026-07-30-0167-lean-profile-routed-build.md) | Lean profile-routed build — fresh task workers without review loops | 2026-07-30 |
 | [0044](archive/2026-07-30-0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | 2026-07-30 |
-| [0164](archive/2026-07-29-0164-retune-agent-model-effort-defaults-for-all-three-harnesses.md) | Retune agent model/effort defaults for all three supported harnesses | 2026-07-29 |
 | [0162](archive/2026-07-28-0162-restore-the-machine-local-ignored-advisory-for-a-committed-t.md) | Restore the machine-local-ignored advisory for a committed too-deep runtime.bash | 2026-07-28 |
 | [0161](archive/2026-07-28-0161-enumerate-the-health-checks-failed-outcome-in-docket-status.md) | Enumerate the health-checks-failed outcome in docket-status SKILL.md | 2026-07-28 |
 | [0153](archive/2026-07-28-0153-decide-whether-the-runtime-bash-leaf-match-should-be-depth-a.md) | Decide whether the runtime.bash leaf match should be depth-anchored | 2026-07-28 |
@@ -177,7 +175,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-07](archive/) | 81 done |
+| [2026-07](archive/) | 82 done |
 | [2026-06](archive/) | 32 done |
 
 </details>
