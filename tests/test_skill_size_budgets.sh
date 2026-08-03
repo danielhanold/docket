@@ -206,6 +206,22 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # leaves 46 words), docket-build 270/2450 -> 265/2400 (measured 260/2348; 260 is zero line margin
 # so 265; 2350 leaves 2 words so 2400). The three new reference rows were added by their creating
 # commits (gate-failure.md 35/900, edge-paths.md 35/450, auto-capture.md 45/450).
+# skills/docket-implement-next/SKILL.md's WORD budget was raised 3700 -> 3800 by change 0113, whose
+# two riders split the §5 fused proceed/stay-silent sentence into separately-stated obligations and
+# densified the claimed_at heartbeat from two phase boundaries to every metadata commit. Both are
+# additions to prose that two observed runs demonstrably misread; the words buy the disambiguation.
+# The references/ file considered and rejected is skills/docket-implement-next/references/edge-paths.md
+# (0201's rare-edges extraction): neither rider can live there. Both are rules that must fire on the
+# COMMON path at the exact moment of action — the §5 rider governs every build invocation as the
+# agent decides whether a suppressed hand-off ends the step, and the heartbeat rider governs every
+# metadata commit the skill makes. edge-paths.md is read only when a rare edge is already known to
+# have been hit, so a rule parked there is unread precisely when it must intervene; that is the same
+# argument the 0137 dispatch-capability entry above records. Set per the rounding rule above from
+# the re-measured MERGED file (0201's slim plus 0113's riders): 3728 words -> the next multiple of
+# 50 is 3750, which leaves 22 words (within the 25-word threshold), so the multiple after: 3800
+# (72 words of margin). The LINE budget was NOT raised — the riders reflowed inside existing lines
+# (139 actual, 145 budget, which is 0201's ratcheted value). Neither pre-rebase number survives:
+# 0113's 4050 was measured against the pre-slim file, and 0201's 3700 predates these riders.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -222,7 +238,7 @@ skills/docket-convention/references/terminal-close-out.md  173 1458
 skills/docket-finalize-change/SKILL.md                     180 3450
 skills/docket-finalize-change/references/gate-failure.md    35  900
 skills/docket-groom-next/SKILL.md                           77 1484
-skills/docket-implement-next/SKILL.md                      145 3700
+skills/docket-implement-next/SKILL.md                      145 3800
 skills/docket-implement-next/references/edge-paths.md       35  450
 skills/docket-implement-next/results-template.md            24  172
 skills/docket-review/SKILL.md                              105  800
