@@ -1225,6 +1225,179 @@ ar15out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AR15/docs/changes" --me
 assert "aborted-run leg B SILENT on a 'proposed' change with an old claimed_at (id 215, status gate)" \
   '! has_finding "$ar15out" aborted-run 215'
 
+# ---------------- aborted-run mutation tests (guards-are-code) ----------------
+# Each predicate is broken in a throwaway COPY of board-checks.sh and watched change the fixtures'
+# outcome. Every mutation runs against a FRESH pristine copy (never a cumulative chain) and is
+# CONFIRMED LANDED with a grep -c before/after before its result is believed.
+read -r ARM _ < <(new_repo)
+ar_branch "$ARM" feat/arm-plan    "$AR_PLAN_NEW"
+git -C "$ARM" checkout -b feat/arm-results main >/dev/null 2>&1
+mkdir -p "$ARM/docs/results"
+printf '# artifact\n' > "$ARM/$AR_RESULTS_NEW"
+git -C "$ARM" add "$AR_RESULTS_NEW"; git_quiet -C "$ARM" commit -m "results on feat/arm-results"
+git -C "$ARM" checkout docket >/dev/null 2>&1
+# 220: unrecorded plan, FRESH claim  -> leg A (plan) only
+cat > "$ARM/docs/changes/active/0220-mplan.md" <<EOF
+---
+id: 220
+slug: mplan
+title: Unrecorded plan
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/arm-plan
+plan:
+results:
+claimed_at: $AR_FRESH_CLAIM
+---
+EOF
+# 221: unrecorded results, FRESH claim -> leg A (results) only
+cat > "$ARM/docs/changes/active/0221-mresults.md" <<EOF
+---
+id: 221
+slug: mresults
+title: Unrecorded results
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/arm-results
+plan: docs/superpowers/plans/2026-06-01-present.md
+results:
+claimed_at: $AR_FRESH_CLAIM
+---
+EOF
+# 222: STALE claim, no branch -> leg B only
+cat > "$ARM/docs/changes/active/0222-mclaim.md" <<EOF
+---
+id: 222
+slug: mclaim
+title: Stale claim only
+status: in-progress
+priority: medium
+depends_on: []
+branch:
+plan:
+results:
+claimed_at: $AR_STALE_CLAIM
+---
+EOF
+# 223: plan absent from FRONTMATTER, present in BODY prose, unrecorded plan on the branch, fresh
+# claim -> leg A fires under the ANCHORED read and goes silent under an unanchored one.
+cat > "$ARM/docs/changes/active/0223-manchor.md" <<EOF
+---
+id: 223
+slug: manchor
+title: Body prose mentions plan
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/arm-plan
+results:
+claimed_at: $AR_FRESH_CLAIM
+---
+
+## Notes
+plan: docs/superpowers/plans/2026-06-01-present.md
+EOF
+
+armcopy=""
+armreseed(){
+  [ -n "$armcopy" ] && rm -rf "$armcopy"; armcopy="$(mktemp -d)"
+  mkdir -p "$armcopy/scripts/lib"
+  cp "$SCRIPT" "$armcopy/scripts/board-checks.sh"
+  cp "$REPO/scripts/lib/docket-frontmatter.sh" "$armcopy/scripts/lib/"
+  ARMSCRIPT="$armcopy/scripts/board-checks.sh"
+}
+armrun(){ NOW=$NOW_EPOCH bash "$ARMSCRIPT" --changes-dir "$ARM/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null; }
+
+# Baseline: the un-mutated copy fires exactly the three expected findings.
+armreseed
+arm0out="$(armrun)"
+assert "mutation baseline: unmutated copy fires leg A on 220 (plan)" 'has_finding "$arm0out" aborted-run 220'
+assert "mutation baseline: unmutated copy fires leg A on 221 (results)" 'has_finding "$arm0out" aborted-run 221'
+assert "mutation baseline: unmutated copy fires leg B on 222 (stale claim)" 'has_finding "$arm0out" aborted-run 222'
+assert "mutation baseline: unmutated copy fires leg A on 223 (anchored read)" 'has_finding "$arm0out" aborted-run 223'
+
+# Mutation A — invert leg A's plan emptiness test (-z becomes -n): the unrecorded-plan fixture 220
+# goes GREEN and the healthy-field fixture 221 (plan: SET) starts misfiring. Both directions.
+armreseed
+armA_before="$(grep -cF 'if [ -z "$(fm_field "$f" plan)" ]' "$ARMSCRIPT")"
+awk '{ if ($0 ~ /fm_field "\$f" plan/) sub(/-z /, "-n "); print }' "$ARMSCRIPT" > "$ARMSCRIPT.t"; mv "$ARMSCRIPT.t" "$ARMSCRIPT"
+armA_after="$(grep -cF 'if [ -z "$(fm_field "$f" plan)" ]' "$ARMSCRIPT")"
+armAout="$(armrun)"
+assert "mutation A landed: leg A's plan emptiness test is inverted (count 1 -> 0)" \
+  '[ "$armA_before" = 1 ] && [ "$armA_after" = 0 ]'
+assert "mutation A (invert plan emptiness): the unrecorded-plan fixture 220 goes GREEN" \
+  '! has_finding "$armAout" aborted-run 220'
+assert "mutation A: the stale-claim fixture 222 still fires (leg B is independent)" \
+  'has_finding "$armAout" aborted-run 222'
+
+# Mutation B — strip leg A's results emit arm: 221 goes GREEN, the plan arm survives on 220.
+# The whole `if … then / emit / fi` arm goes, not just the emit line: deleting the emit alone would
+# leave an empty `then` body, which is a bash SYNTAX ERROR — the script would die before any check
+# ran and every fixture would go green for the wrong reason, including the surviving-arm assert.
+armreseed
+armB_before="$(grep -cF 'but results: is unset' "$ARMSCRIPT")"
+awk '/\[ -z "\$\(fm_field "\$f" results\)" \]/{inres=1}
+     inres{ if ($0 ~ /^[[:space:]]*fi$/) inres=0; next }
+     {print}' "$ARMSCRIPT" > "$ARMSCRIPT.t"; mv "$ARMSCRIPT.t" "$ARMSCRIPT"
+armB_after="$(grep -cF 'but results: is unset' "$ARMSCRIPT")"
+armBout="$(armrun)"
+assert "mutation B landed: leg A's results emit arm is gone (count 1 -> 0)" \
+  '[ "$armB_before" = 1 ] && [ "$armB_after" = 0 ]'
+assert "mutation B landed: the mutated copy is still valid bash (an empty then-body would be a syntax error)" \
+  'bash -n "$ARMSCRIPT"'
+assert "mutation B (strip results arm): the unrecorded-results fixture 221 goes GREEN" \
+  '! has_finding "$armBout" aborted-run 221'
+assert "mutation B: the unrecorded-plan fixture 220 still fires (arm survives)" \
+  'has_finding "$armBout" aborted-run 220'
+
+# Mutation C — widen leg B's window from 12h to 1000h: the stale-claim fixture 222 goes GREEN,
+# proving the finding is produced by the THRESHOLD and not by the mere presence of claimed_at.
+armreseed
+armC_before="$(grep -cF 'ABORTED_RUN_STALE_SECS=$(( 12 * 3600 ))' "$ARMSCRIPT")"
+awk '{ sub(/ABORTED_RUN_STALE_SECS=\$\(\( 12 \* 3600 \)\)/, "ABORTED_RUN_STALE_SECS=$(( 1000 * 3600 ))"); print }' "$ARMSCRIPT" > "$ARMSCRIPT.t"; mv "$ARMSCRIPT.t" "$ARMSCRIPT"
+armC_after="$(grep -cF 'ABORTED_RUN_STALE_SECS=$(( 12 * 3600 ))' "$ARMSCRIPT")"
+armCout="$(armrun)"
+assert "mutation C landed: leg B's window widened to 1000h (12h literal count 1 -> 0)" \
+  '[ "$armC_before" = 1 ] && [ "$armC_after" = 0 ]'
+assert "mutation C (widen leg B window): the 13h stale-claim fixture 222 goes GREEN" \
+  '! has_finding "$armCout" aborted-run 222'
+assert "mutation C: the unrecorded-plan fixture 220 still fires (leg A is independent)" \
+  'has_finding "$armCout" aborted-run 220'
+
+# Mutation D — unanchor the plan read (fm_field -> field): the body-prose fixture 223 goes GREEN,
+# because the unanchored read takes `plan: …` from the body as a set field and certifies the abort.
+# This is the FALSE-NEGATIVE direction, and it is the reason every read here is anchored.
+armreseed
+armD_before="$(grep -cF 'fm_field "$f" plan' "$ARMSCRIPT")"
+awk '{ if ($0 ~ /fm_field "\$f" plan/) sub(/fm_field/, "field"); print }' "$ARMSCRIPT" > "$ARMSCRIPT.t"; mv "$ARMSCRIPT.t" "$ARMSCRIPT"
+armD_after="$(grep -cF 'fm_field "$f" plan' "$ARMSCRIPT")"
+armDout="$(armrun)"
+assert "mutation D landed: the plan read is unanchored (fm_field count 1 -> 0)" \
+  '[ "$armD_before" = 1 ] && [ "$armD_after" = 0 ]'
+assert "mutation D (unanchor the plan read): the body-prose fixture 223 goes GREEN — proves the anchoring" \
+  '! has_finding "$armDout" aborted-run 223'
+assert "mutation D: fixture 220, which has no body plan: line, still fires" \
+  'has_finding "$armDout" aborted-run 220'
+
+# Mutation E — drop the whole aborted-run block: every red fixture goes GREEN, and
+# stale-in-progress must stay unaffected (the two checks are genuinely separate code).
+armreseed
+armE_before="$(grep -c 'aborted-run' "$ARMSCRIPT")"
+awk '/# --- aborted-run:/{inar=1} inar && /# --- merge-gate-stall:/{inar=0} !inar' "$ARMSCRIPT" > "$ARMSCRIPT.t"; mv "$ARMSCRIPT.t" "$ARMSCRIPT"
+armE_after="$(grep -c 'aborted-run' "$ARMSCRIPT")"
+armEout="$(armrun)"
+assert "mutation E landed: the aborted-run block is gone (aborted-run occurrences dropped)" \
+  '[ "$armE_before" -ge 3 ] && [ "$armE_after" -lt "$armE_before" ]'
+assert "mutation E landed: the mutated copy is still valid bash (the whole if-block came out balanced)" \
+  'bash -n "$ARMSCRIPT"'
+assert "mutation E (drop whole block): fixture 220 goes GREEN" '! has_finding "$armEout" aborted-run 220'
+assert "mutation E (drop whole block): fixture 221 goes GREEN" '! has_finding "$armEout" aborted-run 221'
+assert "mutation E (drop whole block): fixture 222 goes GREEN" '! has_finding "$armEout" aborted-run 222'
+assert "mutation E (drop whole block): fixture 223 goes GREEN" '! has_finding "$armEout" aborted-run 223'
+rm -rf "$armcopy"
+
 
 # ======================= board-row-dropped (change 0104, spec part 2) =======================
 # The invariant: an ACTIVE file counted in render-board.sh's `total` but rendered in no section.
