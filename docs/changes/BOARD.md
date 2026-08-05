@@ -1,17 +1,16 @@
 # Backlog
 
-**218 changes** — 🟢 4 in progress · 🟡 55 proposed · ⚪ 4 deferred · ✅ 135 done · 🗑️ 20 killed
+**220 changes** — 🟢 3 in progress · 🟡 57 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 135 done · 🗑️ 20 killed
 
-## 🟢 In progress (4)
+## 🟢 In progress (3)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0190](active/0190-close-the-build-evidence-value-gap-a-post-gate-results-commi.md) | Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip | `medium` | `feat` | [spec](../superpowers/specs/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md) | `feat/close-the-build-evidence-value-gap-a-post-gate-results-commi` |
-| [0207](active/0207-sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a.md) | sync-agents aborts mid-loop on a bad runner config, leaving a zero-length wrapper and stale siblings | `medium` | `fix` | [spec](../superpowers/specs/2026-08-05-atomic-wrapper-generation-design.md) | `feat/sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a` |
 | [0211](active/0211-aborted-run-is-blind-to-a-run-that-stops-after-the-build-com.md) | aborted-run is blind to a run that stops after the build: commits on an unpushed branch, every field coherent | `high` | `fix` | [spec](../superpowers/specs/2026-08-05-aborted-run-built-but-not-delivered-leg-design.md) | `feat/aborted-run-is-blind-to-a-run-that-stops-after-the-build-com` |
 | [0212](active/0212-an-inlined-role-skill-s-terminal-stop-ends-the-whole-run-sco.md) | An inlined role skill's terminal stop ends the whole run — scope docket-build's stop and enforce the run disposition | `medium` | `fix` | [spec](../superpowers/specs/2026-08-05-inlined-role-terminal-stop-scoping-design.md) | `feat/an-inlined-role-skill-s-terminal-stop-ends-the-whole-run-sco` |
 
-## 🟡 Proposed (55)
+## 🟡 Proposed (57)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -70,6 +69,8 @@
 | [0216](active/0216-guard-the-capture-shape-constraint-in-branch-only-artifact-w.md) | Guard the capture-shape constraint in branch_only_artifact with a mutation G | `medium` | `chore` | needs-brainstorm |
 | [0217](active/0217-clear-change-0202-s-three-minor-findings-dead-guard-stale-ba.md) | Clear change 0202's three minor findings: dead guard, stale baseline comment, wrong plan pattern | `medium` | `chore` | needs-brainstorm |
 | [0218](active/0218-fix-review-findings-in-branch-instead-of-minting-a-stub-for.md) | Fix review findings in-branch instead of minting a stub for every one | `high` | `feat` | needs-brainstorm |
+| [0219](active/0219-aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d.md) | aborted-run's sixth signature: PR opened and pr: written, run dies before status: implemented | `medium` | `fix` | needs-brainstorm |
+| [0220](active/0220-clear-the-unfixed-review-findings-from-change-0207.md) | clear the unfixed review findings from change 0207 | `medium` | `fix` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -79,6 +80,12 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | Type | PR | Readiness |
+|---|-------|----------|------|----|-----------|
+| [0207](active/0207-sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a.md) | sync-agents aborts mid-loop on a bad runner config, leaving a zero-length wrapper and stale siblings | `medium` | `fix` | [#159](https://github.com/danielhanold/docket/pull/159) |  |
 
 ```mermaid
 graph TD
@@ -145,6 +152,8 @@ graph TD
   0216
   0217
   0218
+  0219
+  0220
   0015:::done
   0175:::done
   0192:::done
