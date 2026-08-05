@@ -1,13 +1,12 @@
 # Backlog
 
-**214 changes** — 🟢 3 in progress · 🟡 53 proposed · ⚪ 4 deferred · ✅ 134 done · 🗑️ 20 killed
+**214 changes** — 🟢 2 in progress · 🟡 53 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 134 done · 🗑️ 20 killed
 
-## 🟢 In progress (3)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0190](active/0190-close-the-build-evidence-value-gap-a-post-gate-results-commi.md) | Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip | `medium` | `feat` | [spec](../superpowers/specs/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md) | `feat/close-the-build-evidence-value-gap-a-post-gate-results-commi` |
-| [0202](active/0202-clear-the-unfixed-review-findings-from-change-0113.md) | Clear the unfixed review findings from change 0113 | `high` | `chore` | [spec](../superpowers/specs/2026-08-05-clear-the-unfixed-review-findings-from-change-0113-design.md) | `feat/clear-the-unfixed-review-findings-from-change-0113` |
 | [0207](active/0207-sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a.md) | sync-agents aborts mid-loop on a bad runner config, leaving a zero-length wrapper and stale siblings | `medium` | `fix` | [spec](../superpowers/specs/2026-08-05-atomic-wrapper-generation-design.md) | `feat/sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a` |
 
 ## 🟡 Proposed (53)
@@ -63,7 +62,7 @@
 | [0208](active/0208-runner-dispatch-worktree-gate-3-proves-repo-containment-not.md) | runner-dispatch --worktree gate 3 proves repo containment, not worktree membership | `medium` | `fix` | needs-brainstorm |
 | [0209](active/0209-the-worktree-requirement-covers-build-only-leaving-three-fea.md) | The --worktree requirement covers build-* only, leaving three feature-scoped agent families ungated | `medium` | `fix` | needs-brainstorm |
 | [0210](active/0210-a-valueless-trailing-flag-hangs-runner-dispatch-forever-inst.md) | A valueless trailing flag hangs runner-dispatch forever instead of aborting | `medium` | `fix` | needs-brainstorm |
-| [0211](active/0211-aborted-run-is-blind-to-a-run-that-stops-after-the-build-com.md) | aborted-run is blind to a run that stops after the build: commits on an unpushed branch, every field coherent | `high` | `fix` | ⏳ waiting on #202 — not yet built |
+| [0211](active/0211-aborted-run-is-blind-to-a-run-that-stops-after-the-build-com.md) | aborted-run is blind to a run that stops after the build: commits on an unpushed branch, every field coherent | `high` | `fix` | ⏳ waiting on #202 — needs your merge |
 | [0212](active/0212-an-inlined-role-skill-s-terminal-stop-ends-the-whole-run-sco.md) | An inlined role skill's terminal stop ends the whole run — scope docket-build's stop and enforce the run disposition | `medium` | `fix` | build-ready |
 | [0213](active/0213-settle-the-bash-4-4-mapfile-d-floor-inconsistency-between-te.md) | Settle the bash 4.4 mapfile -d floor inconsistency between tests and shipped scripts | `medium` | `chore` | needs-brainstorm |
 | [0214](active/0214-agents-md-s-promoted-frontmatter-rule-omits-the-whitespace-c.md) | AGENTS.md's promoted frontmatter rule omits the whitespace-class half that corrupted two field writes | `medium` | `docs` | needs-brainstorm |
@@ -76,6 +75,12 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | Type | PR | Readiness |
+|---|-------|----------|------|----|-----------|
+| [0202](active/0202-clear-the-unfixed-review-findings-from-change-0113.md) | Clear the unfixed review findings from change 0113 | `high` | `chore` | [#158](https://github.com/danielhanold/docket/pull/158) |  |
 
 ```mermaid
 graph TD
