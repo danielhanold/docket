@@ -2,7 +2,7 @@
 id: 213
 slug: settle-the-bash-4-4-mapfile-d-floor-inconsistency-between-te
 title: Settle the bash 4.4 mapfile -d floor inconsistency between tests and shipped scripts
-status: proposed
+status: killed
 priority: medium
 type: chore
 created: 2026-08-05
@@ -59,3 +59,7 @@ read it, so the next instance is a decision rather than a repeat of this drift.
 
 - `branch_only_artifact`'s own rewrite — change 0202 lands the `read -r -d ''` shape.
 - Any change to which shell the suite selects at runtime (change 0150's territory).
+
+## Why killed
+
+Consolidated into change 0200 (board-checks and test-suite hardening bundle); scope carried over verbatim, nothing dropped.
