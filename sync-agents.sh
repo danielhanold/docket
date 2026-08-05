@@ -823,22 +823,48 @@ emit_opencode_md(){  # $1=src md  $2=model  $3=effort   (both FINAL resolved val
   printf '%s\n' "$body"
 }
 
+# The single source of truth for both `runner:` rules, their diagnostics, and their ORDER
+# (registration before required-model). Emits ONE diagnostic on stdout and returns 1, or returns 0
+# silently. Callers capture stdout — never let it reach emit_wrapper's stdout, which is redirected
+# into the wrapper file.
+#
+# Scope lives HERE, not in callers: an empty runner and a non-claude harness both return "no error".
+# `runner:` under a non-claude harness is currently reserved (warned and ignored, emitting native),
+# which implies a future where that scope moves; keeping the test in one place means the gate and
+# the assertion cannot drift apart when it does.
+#
+# $4 is the PROVENANCE-FILTERED model (change 0168): a shipped agents/harness-defaults.yml default
+# is not a user model, so it must arrive here empty. `inherit` is docket's own no-pin sentinel —
+# every adapter normalizes it to "no flag", so accepting it would leave a one-word bypass.
+runner_config_error(){  # $1=harness $2=agent $3=runner $4=flag_model  (diagnostic on stdout)
+  local harness="$1" agent="$2" runner="$3" flag_model="$4"
+  [ -n "$runner" ] || return 0
+  [ "$harness" = "claude" ] || return 0
+  # Registration FIRST: an unregistered AND model-less runner must report the more specific
+  # failure. tests/test_sync_agents.sh pins this with its "ORDERING FENCE" fixture.
+  if ! is_registered_runner "$runner"; then
+    printf '%s\n' "$harness/docket-$agent: runner '$runner' is not a registered runner (registered: $REGISTERED_RUNNERS)"
+    return 1
+  fi
+  if [ -z "$flag_model" ] || [ "$flag_model" = "inherit" ]; then
+    printf '%s\n' "$harness/docket-$agent: runner '$runner' requires an explicit model — add a 'model:' to the agents.$harness.$agent entry in a config layer, then re-run. docket never forwards its own shipped default to another harness (that ID means nothing to the child), so without one the run would silently use $runner's own default model, of unknown identity and cost."
+    return 1
+  fi
+  return 0
+}
+
 # Emit either the native wrapper (via emit_for_harness — harness-aware, change 0077) or,
 # when a runner resolved for the claude harness, the runner-delegation shim body under the
 # native frontmatter (change 0079). Non-claude harness + runner => warn (reserved) and emit
-# native. Unregistered runner under claude => loud generation-time error (explicit config
-# is never silently ignored). A registered runner with no USER-configured model => the same, by
-# the change-0205 required-model rule below.
+# native. Both error rules for a claude runner — unregistered runner, and a registered runner
+# with no USER-configured model — live in runner_config_error and are gated up front by
+# validate_runner_config; the call below is only a can't-happen assertion.
 emit_wrapper(){  # $1=src $2=model $3=effort $4=runner $5=harness $6=agent-name  (stdout)
   local runner="$4"
   if [ -z "$runner" ]; then emit_for_harness "$1" "$5" "$2" "$3"; return 0; fi
   if [ "$5" != "claude" ]; then
     log "WARN $5/docket-$6: runner: $runner is reserved for the claude parent — ignored (native dispatch)"
     emit_for_harness "$1" "$5" "$2" "$3"; return 0
-  fi
-  if ! is_registered_runner "$runner"; then
-    log "ERROR docket-$6: runner '$runner' is not a registered runner (registered: $REGISTERED_RUNNERS)"
-    exit 1
   fi
   # change 0168: ONLY a user-configured value may become a child-runner flag. `runner:` hands this
   # agent to a DIFFERENT harness's CLI, so the baked flags are read by that child. A shipped
@@ -857,10 +883,16 @@ emit_wrapper(){  # $1=src $2=model $3=effort $4=runner $5=harness $6=agent-name 
   # like OpenRouter unknown cost, with the failure surfacing on the bill rather than in the run.
   # `inherit` is docket's own no-pin sentinel — every adapter normalizes it to "no flag", so
   # accepting it here would leave a one-word bypass. Raised at generation time, where the config
-  # was just written, and AFTER the registration check above so an unregistered runner still
-  # reports its own (more specific) failure.
-  if [ -z "$flag_model" ] || [ "$flag_model" = "inherit" ]; then
-    log "ERROR docket-$6: runner '$runner' requires an explicit model — add a 'model:' to the agents.$5.$6 entry in a config layer, then re-run. docket never forwards its own shipped default to another harness (that ID means nothing to the child), so without one the run would silently use $runner's own default model, of unknown identity and cost."
+  # was just written; the ordering now lives in runner_config_error.
+  #
+  # Can't-happen assertion, not the user-facing mechanism: validate_runner_config gates every
+  # triple before the first wrapper write. This covers a FUTURE call site added without that gate —
+  # there are three today (user_level_pass, project_level_pass, check_project_level's leg (c)) and
+  # nothing structurally prevents a fourth. Reaching it means the gate under-enumerated, so it dies
+  # loudly rather than emitting a wrapper the config says must not exist.
+  local rc_err
+  if ! rc_err="$(runner_config_error "$5" "$6" "$runner" "$flag_model")"; then
+    log "ERROR $rc_err"
     exit 1
   fi
   emit_shim "$1" "$2" "$3" "$runner" "$6" "$flag_model" "$flag_effort"
