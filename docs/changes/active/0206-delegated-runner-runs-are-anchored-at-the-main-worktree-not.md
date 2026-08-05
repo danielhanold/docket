@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/delegated-runner-runs-are-anchored-at-the-main-worktree-not
-claimed_at: 2026-08-05T13:32:57Z
+claimed_at: 2026-08-05T13:34:53Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -82,3 +82,30 @@ Design, rejected alternatives, and the test matrix are in the spec.
 - The opencode adapter's own flag mapping and permission gate (shipped and settled in 0205).
 - Delegating orchestrator agents — 0205's "delegate leaves, not orchestrators" rule is unaffected.
 - `ensure-claude-settings.sh`'s remaining `--show-toplevel` use (ADR-0034's known residual).
+
+## Reconcile log
+
+### 2026-08-05 — build-time reconcile
+
+Re-read against `origin/main`, the spec, `related: [79, 192]`, ADR-0034, and the recently-archived
+0205. **No drift — scope stands unchanged.** Every premise the spec rests on verified against
+current code:
+
+- `depends_on: [205]` is satisfied — `scripts/runners/opencode.{sh,md}` are on `origin/main`, so
+  the contract edit this change makes to `opencode.md` has a file to land in.
+- `scripts/runner-dispatch.sh` still anchors with `REPO_ROOT="$(docket_main_worktree)"` and still
+  parses exactly the four flags (`--runner/--agent/--model/--effort`), so `--worktree` is a clean
+  addition to an unchanged parse loop.
+- `docket_anchor_path` exists in `scripts/lib/docket-root.sh` with the documented signature and the
+  absolute-passthrough / `"."`-to-root / relative-join behavior the design routes through.
+- All three adapters (`codex.sh`, `cursor.sh`, `opencode.sh`) read `DOCKET_REPO_ROOT` verbatim into
+  their own directory flag, so they stay code-unchanged; only their contracts' env rows move.
+- `emit_shim` still receives the agent name as `$5`, so the `build-*` slot can be baked per-agent.
+
+One scope refinement (a clarification, not a change of intent): the adapter-contract edits are
+slightly wider than "one env-table row each" — `opencode.md`'s Purpose prose also states the anchor
+comes from `docket_main_worktree()`, and `cursor.sh`/`codex.sh` carry the same claim in a header
+comment. Those restatements are corrected alongside their tables, so no surface is left asserting
+the anchor is always the primary checkout.
+
+No auto-capture candidates surfaced — nothing adjacent rose above the materiality bar.
