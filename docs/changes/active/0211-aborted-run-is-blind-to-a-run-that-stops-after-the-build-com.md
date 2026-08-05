@@ -2,7 +2,7 @@
 id: 211
 slug: aborted-run-is-blind-to-a-run-that-stops-after-the-build-com
 title: aborted-run is blind to a run that stops after the build: commits on an unpushed branch, every field coherent
-status: proposed
+status: in-progress
 priority: high
 type: fix
 created: 2026-08-05
@@ -16,9 +16,10 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch:
+branch: feat/aborted-run-is-blind-to-a-run-that-stops-after-the-build-com
 pr:
 blocked_by:
+claimed_at: 2026-08-05T18:24:57Z
 reconciled: false
 ---
 
