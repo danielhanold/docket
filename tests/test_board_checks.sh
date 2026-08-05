@@ -1385,6 +1385,13 @@ assert "leg C reports the branch idle age in hours on 232" \
   'grep -qF "(last commit 3h ago)" <<<"$ar16out"'
 assert "leg C is SILENT for leg A on 232 — plan: is recorded, so the legs did not double-count" \
   '! grep -qF "but plan: is unset" <<<"$ar16out"'
+# The REGISTER, pinned as deliberately as the evidence. Leg C's predicate fires on healthy runs by
+# construction (the idle floor's known residual), so the message may not assert the abort as fact;
+# and its remedy may not be a state change, because "push it / open the PR" acted on against a run
+# that is merely between commits races the running agent on its own branch.
+assert "leg C HEDGES on 232 and prescribes verification, not a push" \
+  'grep -qF "a run may have stopped before it pushed; verify it is not still building" <<<"$ar16out" &&
+   ! grep -qF "push and open it" <<<"$ar16out"'
 
 # --- RED: the same branch PUSHED, pr: still unset -> leg C, push/PR-seam message ---
 read -r AR17 _ < <(new_repo)
@@ -1414,6 +1421,14 @@ assert "leg C names the PUSH/PR-SEAM remedy on 233" \
   'grep -qF "feat/ar17 is pushed but pr: is unset" <<<"$ar17out"'
 assert "leg C does NOT claim 233 was never pushed — the two messages are exclusive" \
   '! grep -qF "branch never pushed" <<<"$ar17out"'
+assert "leg C HEDGES on 233 and prescribes verification, not opening the PR" \
+  'grep -qF "a run may have stopped between its push and its PR record; verify the PR exists" <<<"$ar17out" &&
+   ! grep -qF "open the PR or record it" <<<"$ar17out"'
+# Leg B emits "a run may have stopped mid-step". Leg C hedges with its OWN seam instead, and that
+# separation is what keeps a message-shape assert (mutation K's, below) able to discriminate: were
+# leg C to reuse "mid-step", an assert keyed on it could be satisfied by a leg-B finding.
+assert "leg C's hedge is not leg B's — \"mid-step\" stays leg-B-exclusive on both leg-C arms" \
+  '! grep -qF "mid-step" <<<"$ar16out" && ! grep -qF "mid-step" <<<"$ar17out"'
 
 # --- GREEN: the LIVE-RUN WINDOW. Identical to 232 except the branch is 30m old, not 3h. This is
 # the fixture that proves the idle floor is real: board-checks.sh runs on every Board pass,
@@ -1598,6 +1613,67 @@ EOF
 ar23out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AR23/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
 assert "leg C pluralizes the count noun above one commit (id 239)" \
   'grep -qF "2 commits on feat/ar23 ahead of main and origin/main" <<<"$ar23out"'
+
+# --- GREEN: NO BASE RESOLVES. Run against an integration branch that exists as neither
+# refs/heads/<b> nor refs/remotes/origin/<b>, so ar_bases comes out EMPTY and leg C's count gate
+# short-circuits the whole predicate. board-checks.md's claim for this case is "No base resolving
+# at all is silence, never 'ahead of nothing'" — this is the fixture that makes it assertable.
+#
+# Silence ALONE is weak evidence, because an aborted script is also silent. So the repo carries a
+# SECOND change, 248, that sorts AFTER 247 in the walk (`find … | sort`, by filename) and produces
+# an UNRELATED finding: broken-spec, which resolves against the METADATA branch and so is entirely
+# untouched by the bogus integration branch. Asserting 248's finding is PRESENT is what
+# distinguishes "leg C declined correctly" from "the walk died before reaching 248".
+#
+# plan: and results: are SET on 247 deliberately. With a bogus integration branch every git_has
+# against it fails, so branch_only_artifact would report the template's INHERITED plan file as
+# branch-only and fire LEG A here — masking exactly what this fixture measures. The set fields
+# cannot themselves fire broken-plan-results, which is gated on `status: done`.
+read -r AR24 _ < <(new_repo)
+ar_branch_at "$AR24" feat/ar24 main $(( 3*3600 )) "docs/notes/2026-06-04-nobase.md"
+assert "leg C fixture 247 precondition: 'nosuchbranch' resolves as NEITHER base (ar_bases is empty)" \
+  '! git -C "$AR24" show-ref --verify --quiet refs/heads/nosuchbranch &&
+   ! git -C "$AR24" show-ref --verify --quiet refs/remotes/origin/nosuchbranch'
+# Non-vacuity: every OTHER leg-C conjunct must hold, or 247 would be silent for some other reason
+# and mutation M would prove nothing.
+assert "leg C fixture 247 precondition: feat/ar24 is genuinely built and its tip clears the idle floor" \
+  '[ -n "$(git -C "$AR24" rev-list -n 1 feat/ar24 --not refs/heads/main refs/remotes/origin/main)" ] &&
+   [ "$(( NOW_EPOCH - $(git -C "$AR24" log -1 --format=%ct feat/ar24) ))" -gt 7200 ]'
+cat > "$AR24/docs/changes/active/0247-no-base.md" <<EOF
+---
+id: 247
+slug: no-base
+title: Built branch, integration branch resolves to nothing
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/ar24
+plan: docs/superpowers/plans/2026-06-01-present.md
+results: docs/results/2026-06-01-present-results.md
+pr:
+claimed_at: $AR_FRESH_CLAIM
+---
+EOF
+cat > "$AR24/docs/changes/active/0248-later-finding.md" <<'EOF'
+---
+id: 248
+slug: later-finding
+title: Sorts after 247 and carries an unrelated defect
+status: proposed
+priority: medium
+depends_on: []
+spec: docs/superpowers/specs/2026-06-01-absent.md
+---
+EOF
+ar24err="$(mktemp)"
+ar24out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AR24/docs/changes" --metadata-branch docket --integration-branch nosuchbranch 2>"$ar24err")"
+assert "aborted-run leg C SILENT when NO base resolves (id 247) — silence, never 'ahead of nothing'" \
+  '! has_finding "$ar24out" aborted-run 247'
+assert "the walk SURVIVED the declining leg: the later change 248 still reports broken-spec" \
+  'has_finding "$ar24out" broken-spec 248'
+assert "the no-base run writes NOTHING to stderr — the count gate short-circuits before the expansion" \
+  '[ ! -s "$ar24err" ]'
+rm -f "$ar24err"
 
 # ---------------- aborted-run mutation tests (guards-are-code) ----------------
 # Each predicate is broken in a throwaway COPY of board-checks.sh and watched change the fixtures'
@@ -1916,6 +1992,24 @@ armreseed(){
 armrun_at(){ NOW=$NOW_EPOCH bash "$ARMSCRIPT" --changes-dir "$1/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null; }
 armrun(){ armrun_at "$ARM"; }
 
+# armrun_ib REPO INTEGRATION-BRANCH — run the mutated copy against REPO with a CALLER-CHOSEN
+# integration branch, setting armib_out / armib_err / armib_status. A SIBLING of armrun_at, not a
+# widening of it: armrun_at hardcodes `--integration-branch main` and DISCARDS stderr, and
+# mutations A-L are all measured through it — changing its shape would change what they measure.
+# Mutation M needs both axes: an integration branch that resolves to no ref at all, and stderr,
+# which under a bash that errors on empty-array expansion is the ONLY channel the defect reaches.
+#
+# Sets globals rather than printing, and must therefore be CALLED DIRECTLY — `x="$(armrun_ib …)"`
+# would run it in a subshell and the parent would see none of the three.
+armib_out=""; armib_err=""; armib_status=0
+armrun_ib(){
+  local aib_errf; aib_errf="$(mktemp)"
+  armib_out="$(NOW=$NOW_EPOCH bash "$ARMSCRIPT" --changes-dir "$1/docs/changes" \
+    --metadata-branch docket --integration-branch "$2" 2>"$aib_errf")"
+  armib_status=$?
+  armib_err="$(cat "$aib_errf")"; rm -f "$aib_errf"
+}
+
 # Baseline: the un-mutated copy fires exactly the three expected findings.
 armreseed
 arm0out="$(armrun)"
@@ -2217,6 +2311,56 @@ assert "mutation L (unanchor the pr: read): the body-prose fixture 246 goes GREE
   '! has_finding "$armLout" aborted-run 246'
 assert "mutation L: fixture 240, which has no body pr: line, still fires" \
   'has_finding "$armLout" aborted-run 240'
+rm -rf "$armcopy"
+
+# Mutation M — delete leg C's empty-ar_bases count gate, leaving `"${ar_bases[@]}"` expanded with
+# nothing to expand. Run against AR24, whose integration branch resolves as NEITHER base.
+#
+# The gate's removal has TWO different observable consequences and WHICH one you get is decided by
+# the bash running the script, so the arm asserted here is chosen by probing that very bash:
+#   - bash >= 4.4 expands an empty array under `set -u` without complaint. `rev-list -n 1 "$ar_ref"
+#     --not` then excludes NO bases at all, lists the branch's whole history, and leg C FIRES with
+#     an EMPTY base label — literally "ahead of , branch never pushed", the "ahead of nothing"
+#     reading board-checks.md forbids.
+#   - bash before 4.4 raises `ar_bases[@]: unbound variable`. Measured on /bin/bash 3.2, not
+#     assumed: that error kills only the COMMAND-SUBSTITUTION SUBSHELL. The substitution comes out
+#     empty, leg C declines, the walk continues to 248, and the script still exits 0 — so the
+#     damage is a diagnostic leaking onto stderr for every no-base change, which the baseline
+#     assert on "$ar24err" pins as absent. There is NO stdout-observable difference from baseline
+#     there, which is exactly why this runner keeps stderr.
+#     The window where this arm actually RUNS is bash 4.0-4.3: board-checks.sh needs `mapfile` and
+#     `declare -g`, so bash 3.2 cannot execute it at all. The arm is kept because without it this
+#     mutation would go spuriously RED on a 4.0-4.3 host rather than measuring anything.
+# Both arms therefore assert a real defect; neither can assert a truncated walk or a non-zero exit,
+# because the script does not die in either world (pinned below, so a future bash that DOES die
+# reddens here rather than silently changing what this mutation measures).
+armreseed
+armM_before="$(grep -cF 'if [ "${#ar_bases[@]}" -gt 0 ] && \' "$ARMSCRIPT")"
+sed 's|if \[ "${#ar_bases\[@\]}" -gt 0 \] && \\$|if \\|' "$ARMSCRIPT" > "$ARMSCRIPT.t"
+mv "$ARMSCRIPT.t" "$ARMSCRIPT"
+armM_after="$(grep -cF 'if [ "${#ar_bases[@]}" -gt 0 ] && \' "$ARMSCRIPT")"
+assert "mutation M landed: leg C's empty-ar_bases count gate is gone (count 1 -> 0)" \
+  '[ "$armM_before" = 1 ] && [ "$armM_after" = 0 ]'
+assert "mutation M landed: the mutated copy is still valid bash" 'bash -n "$ARMSCRIPT"'
+# Probe the SAME interpreter armrun_ib invokes (`bash` off PATH), not this test's own.
+armM_lax=0
+bash -uc 'armprobe=(); : "${armprobe[@]}"' 2>/dev/null && armM_lax=1
+armrun_ib "$AR24" nosuchbranch
+if [ "$armM_lax" = 1 ]; then
+  assert "mutation M (drop the count gate; this bash expands an empty array): leg C MISFIRES on 247" \
+    'has_finding "$armib_out" aborted-run 247'
+  assert "mutation M: the misfire IS the forbidden reading — an empty base label, 'ahead of nothing'" \
+    'grep -qF "ahead of , branch never pushed and pr: is unset" <<<"$armib_out"'
+else
+  assert "mutation M (drop the count gate; this bash errors on an empty array): stderr names ar_bases" \
+    'grep -qF "ar_bases[@]: unbound variable" <<<"$armib_err"'
+  assert "mutation M: on this bash the diagnostic is the whole damage — stdout still declines 247" \
+    '! has_finding "$armib_out" aborted-run 247'
+fi
+assert "mutation M: the run does NOT abort — exit 0, so the evidence above is the only evidence there is" \
+  '[ "$armib_status" = 0 ]'
+assert "mutation M: the walk is NOT truncated — 248's later finding survives in both worlds" \
+  'has_finding "$armib_out" broken-spec 248'
 rm -rf "$armcopy"
 
 
