@@ -94,6 +94,8 @@ profile and routing reason, and the completion schema. Never dispatch a task rev
 never dispatch two workers concurrently. Never preload a review skill either — for a **named**
 agent the wrapper's own `skills:` frontmatter is the operative protection, so what this rule
 actually forbids is bolting a review skill or a review instruction onto the dispatch prompt.
+A worker reached through a runner delegation receives its worktree through the facade's
+`--worktree` flag, not through the prompt body alone.
 
 If profile dispatch is genuinely unavailable — established only per the convention's
 *Dispatch-capability resolution*, **never from a tool name** — this role is

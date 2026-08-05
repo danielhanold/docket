@@ -1425,6 +1425,44 @@ chk="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check 2>&1 )"
 assert "0079: --check flags a de-shimmed wrapper as drift" 'grep -qF "drift in .claude/agents/docket-status.md" <<<"$chk"'
 rm -rf "$SBX"
 
+# ---- change 0206: build-* shims bake --worktree as a required slot -------------------
+# BIDIRECTIONAL by construction (LEARNINGS: correspondence-guard-runs-one-way). This is a MIRROR
+# correspondence, not a subset: build-* shims must carry the flag AND non-build shims must not, so
+# a future change that widens the flag to every shim reddens just as a change that drops it does.
+# Placed AFTER the leg-(c) block's `rm -rf "$SBX"`: this block mints its own fixture, and the
+# leg-(c) asserts above still read the previous fixture's $G.
+mkgitrepo
+mkdir -p "$SBX/.claude"
+printf 'agents:\n  claude:\n    build-economy: { model: test-model-x, runner: codex }\n    status: { model: test-model-y, runner: codex }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
+B="$SBX/.claude/agents/docket-build-economy.md"
+S="$SBX/.claude/agents/docket-status.md"
+
+# NON-VACUITY FLOOR: every assert below reads these two files, so prove BOTH are real shims first.
+# Without this, a generation failure leaves absent files and the negative asserts pass by default —
+# which reads exactly like the property holding.
+assert "0206: fixture sanity — build-economy generated a real shim" \
+  'grep -qF "docket.sh runner-dispatch" "$B"'
+assert "0206: fixture sanity — status generated a real shim" \
+  'grep -qF "docket.sh runner-dispatch" "$S"'
+
+# Direction 1: a build-* shim CARRIES the slot. The dispatch line is captured into a variable
+# before it is searched — a `grep … | grep -q` pipeline would SIGPIPE the producer under pipefail.
+dispatch_line="$(grep -F "docket.sh runner-dispatch" "$B")"
+assert "0206: build-* shim bakes --worktree into the dispatch line" \
+  'grep -qF -- "--worktree" "$B"'
+assert "0206: build-* shim keeps the slot on the runner-dispatch line itself" \
+  'grep -qF -- "--worktree" <<<"$dispatch_line"'
+assert "0206: build-* shim tells the caller to abort rather than guess a path" \
+  'grep -qiF "abort-and-report" "$B"'
+
+# Direction 2: a non-build shim does NOT. (grep -qF -- is mandatory: a bare leading `--` is parsed
+# as an option, exit 2, which inside this negation would be permanently, vacuously green.)
+assert "0206: non-build shim carries no --worktree" '! grep -qF -- "--worktree" "$S"'
+assert "0206: exactly one dispatch invocation in the build-* shim" \
+  '[ "$(grep -cF "docket.sh runner-dispatch" "$B")" = "1" ]'
+rm -rf "$SBX"
+
 # runner under a NON-claude harness key: warned-and-ignored (reserved), file stays native
 mkgitrepo
 mkdir -p "$SBX/.claude" "$SBX/.cursor"
