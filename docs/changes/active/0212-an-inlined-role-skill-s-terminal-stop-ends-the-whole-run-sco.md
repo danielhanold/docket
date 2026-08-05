@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/an-inlined-role-skill-s-terminal-stop-ends-the-whole-run-sco
-claimed_at: 2026-08-05T18:23:57Z
+claimed_at: 2026-08-05T18:25:59Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -106,8 +106,9 @@ moment of action and still lost to the sub-skill's sentence. Lever 1 works by **
 conflicting instruction at its source** rather than out-ranking it; lever 2 is deliberately the
 smaller half.
 
-**Size budgets are a live constraint** on every swept file (`docket-build` has 52 words of margin,
-`docket-build-task` 41). Sequence: compress the touched section, re-measure, raise only rows that
+**Size budgets are a live constraint** on every swept file (re-measured 2026-08-05 at reconcile:
+`docket-build` 262/2369 against 265/2400 — **3 lines, 31 words**; `docket-build-task` 111/959 against
+115/1000 — 4 lines, 41 words). Sequence: compress the touched section, re-measure, raise only rows that
 still exceed — and note that `skills/docket-build/` and `skills/docket-review/` have **no
 `references/` tree**, so change 0201's raise-justification rule must argue against creating one
 rather than name an existing file.
@@ -126,3 +127,45 @@ rather than name an existing file.
   removes the mechanism rather than counter-instructing it, weighed and recorded in the spec as a
   structural redesign outside a fix change.
 - Reversing ADR-0044 (pre-specification at the call site) or re-litigating ADR-0024 (`context: fork`).
+
+## Reconcile log
+
+### 2026-08-05
+
+Reconciled against `origin/main` @ `18195d91` and `origin/docket`. The design holds unchanged; the
+only drift is measured numbers, now corrected in `## What changes`.
+
+**Re-verified the per-file verdict table (the spec's own instruction to re-check it at build time).**
+All six hazard readings still resolve on `origin/main`:
+
+- `skills/docket-build/SKILL.md:11` — *"Then you stop — review is not yours."* present. **Edit.**
+- `skills/docket-review/SKILL.md` — H1 line 6 ("read the branch, return findings, stop"), `## Conduct`
+  lines 28–32 (never writes / never commits / never checks out / never dispatches / never runs the
+  suite), and line 94's abort-and-report. **Edit** — and the prohibition class is the larger half, as
+  the spec argues.
+- `skills/docket-adr/SKILL.md` — no terminal stop and no second-person prohibition anywhere in the
+  body. **No-hazard confirmed**, to be recorded as a verdict rather than skipped silently.
+- `skills/docket-brainstorm/SKILL.md:65-66` — `STOP AT THE SPEC` immediately followed by the owner of
+  the next step. **No-hazard confirmed**; it stays the house pattern the clause is modelled on.
+- `skills/docket-status/SKILL.md:35` — *"surface the stderr diagnostic and stop rather than
+  improvising a fix"* present and unscoped; the file is inlined at `docket-implement-next` Step 0
+  under Tier A. **Verdict still open at build time**, as designed.
+- `skills/docket-build-task/SKILL.md:86` — *"Return exactly one of three outcomes"* present, plus the
+  prohibition class. **Verdict still open at build time.**
+
+**Budget drift — the one substantive correction.** The spec measured `docket-build` at 260/2348
+(5 lines, 52 words of margin). Change 0202 has landed since; the actual is now **262/2369 — 3 lines
+and 31 words**. Thirty-one words will not absorb a two-sided mode-conditioned clause, so the spec's
+"docket-build's 52-word margin may absorb the clause outright" is no longer a live possibility: plan
+on compressing `## Output` / the line-11 sentence first, then raising the row from the *measured*
+post-compression actual under the file's rounding rule. Every other row is unchanged from the spec's
+table. `docket-adr` (78/1280 against 86/1408) and `docket-brainstorm` (76/622 against 84/692) have
+room if a recorded no-hazard verdict turns out to want a line of prose.
+
+**Dependencies and collisions unchanged.** 0203 and 0211 are both still `proposed` and unbuilt, so
+0212 lands first on `skills/docket-implement-next/SKILL.md` and on the budget table; the re-measure
+obligation transfers to whichever of them lands second, exactly as assumption 8 states. The guard
+tests the change extends both exist on `origin/main`: `tests/test_role_skill_self_description.sh`
+(the shape lever 1's new guard copies) and `tests/test_loop_continuation.sh` (lever 2's home).
+
+No scope change, no kill, no invalidation.
