@@ -2,9 +2,9 @@
 slug: green-suite-untested-branch
 hook: "Green tests are not proof the hard branch was exercised — a mock that omits the tool routes every test through the degrade path."
 topics: [testing, fixtures, mocks]
-changes: [16, 22, 25, 26, 35, 58, 62, 69, 91, 93, 117, 126, 186]
+changes: [16, 22, 25, 26, 35, 58, 62, 69, 91, 93, 117, 126, 186, 207]
 created: 2026-07-11
-updated: 2026-08-01
+updated: 2026-08-05
 promotion_state: retained
 promoted_to:
 ---
@@ -91,3 +91,20 @@ was exercised.
   are both tty-less, so no runner could tell the two apart. When a fixture's premise is "this
   operation will fail", check whether the *runner's* environment decides HOW it fails; cover the case
   under a pty (`script(1)`) rather than trusting the color of a non-interactive run.
+- 2026-08-05 (#207, PR #159 — merged with the gap open, carried to #220) — **Every fixture for a
+  rule lived in ONE config layer, so the sibling layer's code path was entirely
+  mutation-survivable.** The change added a pre-flight gate with two legs — a project-level leg and
+  a user-level leg over `$USER_TARGETS`. Every `runner:` fixture in every suite writes `.docket.yml`,
+  the project-level file, because that is the convenient one to author. Result: the user-level block
+  shipped green with no test that could redden if it were deleted — and that is the leg protecting
+  `~/.claude/agents`, the **widest blast radius of the original bug**. The same untested block also
+  held the build's subtlest fix: the plan predicted `$USER_TARGETS` would be unset under `set -u` on
+  the `--check` path and prescribed calling `compute_user_targets`, but that helper itself reads
+  `$USER_HARNESSES_SET`, which is *also* unset there — so the plan's remedy alone would still have
+  died. The correct chain (`[ -n "${USER_HARNESSES_SET:-}" ] || resolve_global_agent_harnesses`, then
+  `compute_user_targets`) is verified by nothing. Note the selection pressure: fixtures cluster in
+  whichever layer is cheapest to write, so "which layer do all my fixtures use?" is a question worth
+  asking directly — the answer names the branch with no coverage. Where a rule spans a user-level and
+  a project-level location, at least one fixture must exercise **each**, and the way to prove it is
+  deletion, not reading ([[config-layer-write-and-read-hazards]] on giving the two locations separate
+  dirs).

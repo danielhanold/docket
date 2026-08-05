@@ -2,9 +2,9 @@
 slug: atomic-generated-write
 hook: "Never redirect a renderer straight into the file it generates — > truncates on open, so a failed render destroys the last-good file before its exit code is even read."
 topics: [shell, dataloss, generated]
-changes: [67, 109, 83]
+changes: [67, 109, 83, 207]
 created: 2026-07-16
-updated: 2026-07-21
+updated: 2026-08-05
 promotion_state: candidate
 promoted_to:
 ---
@@ -71,3 +71,21 @@ state most needs.
   of fidelity**, because no cheap size assertion can distinguish a legitimately shrinking render
   from a partial one. The general rule: `-s` proves *something* was written, never that *everything*
   was; when a render concatenates independent sources, check each source, not just the block.
+- 2026-08-05 (#207, PR #159) — **The redirect need not be a renderer's, and temp+`mv` is not always
+  the right prescription.** `sync-agents.sh` generated each wrapper as
+  `emit_wrapper … > "$dir/docket-<name>.<ext>"` — a *function* whose stdout the caller redirects. On
+  a bad `runner:` config the function did `log ERROR` then `exit 1` **inline, mid-body**. Both faces
+  of `>` fired at once: the shell truncated the target at open, so the offending agent was left with
+  a **zero-length wrapper**; and `exit 1` killed the whole script, so every agent later in glob order
+  was never regenerated and a user-level failure meant the project-level pass never ran at all. The
+  mechanism was years old and latent — change 0205's runner-wide required-model rule simply raised
+  its trip rate, because a model-less `runner:` had been a *documented supported configuration* and
+  docket cannot reach or migrate the config layers (`.docket.local.yml`, `~/.config/docket/config.yml`)
+  that may still carry one. Note what the fix was **not**: temp+`mv` per file would have saved each
+  wrapper individually and still shipped a mixed-state agent directory — fresh, stale, and
+  half-regenerated wrappers with nothing announcing that generation stopped early. The right unit of
+  atomicity was the whole run, so the remedy was a pre-flight gate over every (pass, agent, harness)
+  triple that reports **all** offenders and fails before the first write
+  ([[validate-the-whole-input-set-first]]), with the in-loop check demoted to a can't-happen
+  assertion. Decide what the atomic unit *is* before reaching for the per-file idiom: when a run
+  writes N generated files that are only meaningful as a set, validate the set, not each write.
