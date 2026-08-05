@@ -1,6 +1,6 @@
 # Backlog
 
-**207 changes** — 🟢 1 in progress · 🟡 49 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 132 done · 🗑️ 20 killed
+**207 changes** — 🟢 1 in progress · 🟡 49 proposed · ⚪ 4 deferred · ✅ 133 done · 🗑️ 20 killed
 
 ## 🟢 In progress (1)
 
@@ -59,8 +59,8 @@
 | [0202](active/0202-clear-the-unfixed-review-findings-from-change-0113.md) | Clear the unfixed review findings from change 0113 | `medium` | `chore` | needs-brainstorm |
 | [0203](active/0203-define-the-per-step-git-state-postcondition-docket-implement.md) | Define the per-step git-state postcondition docket-implement-next now names but never states | `medium` | `docs` | needs-brainstorm |
 | [0204](active/0204-restore-rationale-dropped-by-round-three-compression-finaliz.md) | Restore rationale dropped by round-three compression (finalize named-id override, auto-capture mint-site loop) | `medium` | `docs` | needs-brainstorm |
-| [0206](active/0206-delegated-runner-runs-are-anchored-at-the-main-worktree-not.md) | Delegated runner runs are anchored at the main worktree, not the feature worktree | `medium` | `fix` | ⏳ waiting on #205 — needs your merge |
-| [0207](active/0207-sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a.md) | sync-agents aborts mid-loop on a bad runner config, leaving a zero-length wrapper and stale siblings | `medium` | `fix` | ⏳ waiting on #205 — needs your merge |
+| [0206](active/0206-delegated-runner-runs-are-anchored-at-the-main-worktree-not.md) | Delegated runner runs are anchored at the main worktree, not the feature worktree | `medium` | `fix` | build-ready |
+| [0207](active/0207-sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a.md) | sync-agents aborts mid-loop on a bad runner config, leaving a zero-length wrapper and stale siblings | `medium` | `fix` | build-ready |
 
 ## ⚪ Deferred (4)
 
@@ -70,12 +70,6 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
-
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | Type | PR | Readiness |
-|---|-------|----------|------|----|-----------|
-| [0205](active/0205-opencode-runner-adapter.md) | opencode runner adapter — delegate build workers to OpenRouter models | `medium` | `feat` | [#156](https://github.com/danielhanold/docket/pull/156) |  |
 
 ```mermaid
 graph TD
@@ -131,19 +125,20 @@ graph TD
   0202
   0203
   0204
-  0205
   0205 --> 0206
   0205 --> 0207
   0015:::done
   0175:::done
   0192:::done
+  0205:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (152)</summary>
+<details><summary>✅🗑️ Archive — done + killed (153)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0205](archive/2026-08-05-0205-opencode-runner-adapter.md) | opencode runner adapter — delegate build workers to OpenRouter models | 2026-08-05 |
 | [0078](archive/2026-08-05-0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | 2026-08-05 |
 | [0201](archive/2026-08-03-0201-skill-compression-round-three.md) | Skill compression round three — targeted progressive disclosure on the Big 4 + regrowth-guard ratchet | 2026-08-03 |
 | [0194](archive/2026-08-03-0194-retire-the-retired-default-framing-from-the-docket-owned-rol.md) | Retire the retired-default framing from the docket-owned role skill bodies | 2026-08-03 |
@@ -159,7 +154,6 @@ graph TD
 | [0175](archive/2026-08-01-0175-sync-agents-per-invocation-cost.md) | sync-agents.sh costs ~5.5s per invocation and dominates the test suite | 2026-08-01 |
 | [0170](archive/2026-08-01-0170-lean-whole-branch-review-skill.md) | Lean Docket-owned whole-branch review skill | 2026-08-01 |
 | [0169](archive/2026-08-01-0169-codex-profile-routed-build-support.md) | Codex support for profile-routed Docket builds | 2026-08-01 |
-| [0174](archive/2026-07-31-0174-reuse-test-git-fixtures.md) | Reuse test git fixtures instead of rebuilding them per assertion | 2026-07-31 |
 | [0044](archive/2026-07-30-0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | 2026-07-30 |
 | [0162](archive/2026-07-28-0162-restore-the-machine-local-ignored-advisory-for-a-committed-t.md) | Restore the machine-local-ignored advisory for a committed too-deep runtime.bash | 2026-07-28 |
 | [0161](archive/2026-07-28-0161-enumerate-the-health-checks-failed-outcome-in-docket-status.md) | Enumerate the health-checks-failed outcome in docket-status SKILL.md | 2026-07-28 |
@@ -184,7 +178,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-07](archive/) | 85 done |
+| [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
 </details>
