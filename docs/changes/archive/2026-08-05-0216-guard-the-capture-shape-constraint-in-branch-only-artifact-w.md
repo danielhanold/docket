@@ -2,7 +2,7 @@
 id: 216
 slug: guard-the-capture-shape-constraint-in-branch-only-artifact-w
 title: Guard the capture-shape constraint in branch_only_artifact with a mutation G
-status: proposed
+status: killed
 priority: medium
 type: chore
 created: 2026-08-05
@@ -61,3 +61,7 @@ judgment.
 
 - Whether the same capture-shape hazard exists at any other `-z` read in the scripts, which would
   make this a helper-level guard rather than a single mutation arm.
+
+## Why killed
+
+Consolidated into change 0200 (board-checks and test-suite hardening bundle); scope carried over verbatim, nothing dropped.
