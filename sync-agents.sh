@@ -876,13 +876,28 @@ emit_shim(){  # $1=src $2=model $3=effort $4=runner $5=agent-name $6=flag-model 
   local flags="--runner $4 --agent $5"
   [ -n "${6:-}" ] && flags="$flags --model $6"
   [ -n "${7:-}" ] && [ "${7:-}" != "auto" ] && flags="$flags --effort $7"
+  # change 0206: a build worker must run INSIDE its feature worktree, on its branch — the
+  # docket-build-task contract's own requirement. Baked PER AGENT (emit_shim receives the name as
+  # $5) rather than as generic prose, so a status/adr shim stays byte-identical. The VALUE is still
+  # prose-supplied one level up; what makes that acceptable is the facade's build-* gate, which
+  # turns an omission into a loud abort instead of a silent main-tree run on the integration branch.
+  local wt_slot="" wt_rule=""
+  case "$5" in
+    build-*)
+      wt_slot=" --worktree <feature worktree>"
+      wt_rule="This is a BUILD worker: it must run INSIDE its feature worktree, on its branch —
+never the main tree on the integration branch. Replace \`<feature worktree>\` with the absolute
+path of the feature worktree your caller named (drop the angle brackets). If your caller named no
+worktree, abort-and-report — never guess a path, and never omit the flag."
+      ;;
+  esac
   cat <<SHIM
 This agent is DELEGATED to the \`$4\` runner (cross-harness runner delegation, change 0079).
 Do NOT execute the skill inline and do NOT load its skills yourself.
 
 Make exactly ONE foreground Bash call, with the maximum timeout (600000):
 
-    "\${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh runner-dispatch $flags [-- <caller args>]
+    "\${DOCKET_SCRIPTS_DIR:?run docket/install.sh}"/docket.sh runner-dispatch $flags$wt_slot [-- <caller args>]
 
 appending any caller-supplied task arguments after \`--\` (drop the brackets; omit entirely
 when there are none). Block until it completes — never background it, never poll. Then relay
@@ -892,6 +907,10 @@ exactly as a native caller would: git state on origin/docket for state-contract 
 non-zero, abort-and-report its stderr diagnostic — never retry silently, and
 never run the skill inline on this harness as a fallback.
 SHIM
+  # `if … fi`, never `[ -n "$wt_rule" ] && printf …`: as the function's last command the && form
+  # returns 1 for a non-build shim, and emit_wrapper returns emit_shim's status. Emitted OUTSIDE
+  # the heredoc so a non-build shim gains no trailing blank line (byte-identical output).
+  if [ -n "$wt_rule" ]; then printf '\n%s\n' "$wt_rule"; fi
 }
 
 # Assemble the Cursor dispatch rule to stdout: static head + one subsection per built-in agent
