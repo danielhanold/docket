@@ -2,7 +2,7 @@
 id: 210
 slug: a-valueless-trailing-flag-hangs-runner-dispatch-forever-inst
 title: A valueless trailing flag hangs runner-dispatch forever instead of aborting
-status: proposed
+status: killed
 priority: medium
 type: fix
 created: 2026-08-05
@@ -53,3 +53,7 @@ defect is pre-existing for the four older flags (`--runner`, `--agent`, `--model
 ## Out of scope
 
 - Any change to what the flags mean or how their values are resolved.
+
+## Why killed
+
+Consolidated into change 0208 (runner-dispatch hardening bundle); scope carried over verbatim, nothing dropped.
