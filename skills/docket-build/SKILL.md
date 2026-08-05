@@ -10,8 +10,9 @@ the plan written and the worktree cut: read the plan, route each task to a profi
 fresh worker per task, apply the escalation protocol, run the build gate. Then you stop — review
 is not yours.
 
-**Scope of this stop:** loaded inline into a caller's context, this stop ends the build role only
-and that caller continues to its own next step; dispatched as a subagent, your turn ends here.
+**Scope of this stop:** if you invoked this skill yourself, this stop ends only the build role —
+you continue to your own next step; only an agent whose entire assignment is this role ends its
+turn here.
 
 You are not a router subagent: routing is a decision you make in this context. Each selected task
 gets exactly one fresh worker dispatch unless that worker requests its single allowed escalation.

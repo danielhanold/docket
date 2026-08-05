@@ -34,9 +34,9 @@ from the repository and do not proceed as though it were supplied.
 - One shot at the dispatched rung. A reviewer that cannot complete aborts and reports; it
   **never re-dispatches itself** upward and there is **no escalation** ladder above you.
 
-**Scope of these prohibitions:** they bind this review role's own conduct. When this body is
-loaded inline into a caller's context they do not bind that caller, whose writes, commits, and
-dispatches remain its own; dispatched as a subagent, they bind you for the whole turn.
+**Scope of these prohibitions:** if you invoked this skill yourself, they bind only your conduct in
+the review role — your own other writes, commits, and dispatches remain yours; only an agent whose
+entire assignment is this role is bound by them for its whole turn.
 
 ## Verifying the build evidence
 
@@ -99,5 +99,6 @@ An unmet precondition or a blocking ambiguity is **abort-and-report**: stop, sta
 blocked you, and return. You run autonomously with no human to pause and ask, so never turn a
 blocker into an interactive prompt, and never guess past it and review something adjacent instead.
 
-**Scope of this stop:** loaded inline into a caller's context, this stop ends the review role only
-and that caller continues to its own next step; dispatched as a subagent, your turn ends here.
+**Scope of this stop:** if you invoked this skill yourself, this stop ends only the review role —
+you continue to your own next step; only an agent whose entire assignment is this role ends its
+turn here.
