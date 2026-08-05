@@ -2,7 +2,7 @@
 id: 211
 slug: aborted-run-is-blind-to-a-run-that-stops-after-the-build-com
 title: aborted-run is blind to a run that stops after the build: commits on an unpushed branch, every field coherent
-status: in-progress
+status: implemented
 priority: high
 type: fix
 created: 2026-08-05
@@ -13,13 +13,13 @@ discovered_from: [113]
 adrs: []
 spec: docs/superpowers/specs/2026-08-05-aborted-run-built-but-not-delivered-leg-design.md
 plan: docs/superpowers/plans/2026-08-05-aborted-run-built-but-not-delivered-leg-plan.md
-results:
+results: docs/results/2026-08-05-aborted-run-is-blind-to-a-run-that-stops-after-the-build-com-results.md
 trivial: false
 auto_groomable: true
 branch: feat/aborted-run-is-blind-to-a-run-that-stops-after-the-build-com
-pr:
+pr: https://github.com/danielhanold/docket/pull/160
 blocked_by:
-claimed_at: 2026-08-05T18:36:43Z
+claimed_at: 2026-08-05T21:02:25Z
 reconciled: true
 ---
 
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-05-aborted-run-built-but-not-delivered-leg-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-05-aborted-run-built-but-not-delivered-leg-design.md) |
 | Plan | [2026-08-05-aborted-run-built-but-not-delivered-leg-plan.md](https://github.com/danielhanold/docket/blob/feat/aborted-run-is-blind-to-a-run-that-stops-after-the-build-com/docs/superpowers/plans/2026-08-05-aborted-run-built-but-not-delivered-leg-plan.md) |
+| Results | [2026-08-05-aborted-run-is-blind-to-a-run-that-stops-after-the-build-com-results.md](https://github.com/danielhanold/docket/blob/feat/aborted-run-is-blind-to-a-run-that-stops-after-the-build-com/docs/results/2026-08-05-aborted-run-is-blind-to-a-run-that-stops-after-the-build-com-results.md) |
+| PR | [#160](https://github.com/danielhanold/docket/pull/160) |
 <!-- docket:artifacts:end -->
 
 ## Why
