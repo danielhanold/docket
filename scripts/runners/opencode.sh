@@ -98,7 +98,12 @@ cmd=( "$OPENCODE_BIN" run --dir "$DOCKET_REPO_ROOT" )
 [ -n "$MODEL" ] && cmd+=( --model "$MODEL" )
 [ -n "$EFFORT" ] && [ "$EFFORT" != "auto" ] && cmd+=( --variant "$EFFORT" )
 [ "$PERMISSIONS" = "auto-approve" ] && cmd+=( --auto )
-cmd+=( "$prompt" )
+# `--` ends option parsing so the prompt is always taken as the positional `message`, never as
+# flags. Latent with today's agent bodies (all open with a letter), but a future wrapper whose body
+# opens with a markdown bullet or a `--flag` example would otherwise have its prompt partly consumed
+# by opencode's parser. Verified against opencode 1.18.11: `opencode run --version` prints the
+# version (flag consumed), while `opencode run -- --version` sends `--version` as the message.
+cmd+=( -- "$prompt" )
 
 # --- foreground execution + relay ---------------------------------------------------
 # opencode has no --output-last-message analogue, so the child's default formatted stdout IS the
