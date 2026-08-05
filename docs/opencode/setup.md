@@ -161,7 +161,26 @@ generates a shim with **no `--variant` flag at all**, and the run silently takes
 default effort. The shipped `claude` effort for that agent is *not* used, because it is a Claude
 default and means nothing to opencode; the shipped `opencode` effort is not used either, because
 the runner path resolves under the parent harness. Write the effort explicitly, as the recipe above
-does, or accept the provider default deliberately.
+does — or opt out deliberately with `effort: auto`, per the next section.
+
+### Saying "no effort at all" — omit vs `auto`
+
+There are two ways to end up with no `--variant`, and they are **not** equivalent:
+
+| You write | Meaning | Result |
+|---|---|---|
+| no `effort:` key | "no opinion here" — the field still resolves from **lower config layers** | whatever a machine-local or global layer supplies; nothing only if no user layer sets one |
+| `effort: auto` | "explicitly no pin" — wins the field and suppresses it | never any `--variant` |
+
+So if your global `~/.config/docket/config.yml` pins an effort for that agent, omitting the key in
+the repo does **not** hand you the model's default — the global value is user-configured, so it is
+forwarded like any other. Use `auto` to actually opt out:
+
+```yaml
+build-max: { runner: opencode, model: openrouter/moonshotai/kimi-k3, effort: auto }
+```
+
+`auto` is docket's existing no-pin sentinel for effort and behaves identically on every runner.
 
 Two smaller notes:
 
