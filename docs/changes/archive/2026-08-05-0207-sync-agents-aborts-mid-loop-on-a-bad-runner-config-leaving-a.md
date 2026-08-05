@@ -29,8 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-05-atomic-wrapper-generation-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-05-atomic-wrapper-generation-design.md) |
-| Plan | [2026-08-05-atomic-wrapper-generation.md](https://github.com/danielhanold/docket/blob/feat/sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a/docs/superpowers/plans/2026-08-05-atomic-wrapper-generation.md) |
-| Results | [2026-08-05-sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a-results.md](https://github.com/danielhanold/docket/blob/feat/sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a/docs/results/2026-08-05-sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a-results.md) |
+| Plan | [2026-08-05-atomic-wrapper-generation.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-05-atomic-wrapper-generation.md) |
+| Results | [2026-08-05-sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-05-sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a-results.md) |
 | PR | [#159](https://github.com/danielhanold/docket/pull/159) |
 <!-- docket:artifacts:end -->
 
