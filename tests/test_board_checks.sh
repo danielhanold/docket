@@ -1374,6 +1374,26 @@ claimed_at: $AR_FRESH_CLAIM
 ## Notes
 plan: docs/superpowers/plans/2026-06-01-present.md
 EOF
+# 224: results absent from FRONTMATTER, present in BODY prose, unrecorded results on the branch,
+# fresh claim -> leg A's RESULTS arm fires under the ANCHORED read and goes silent under an
+# unanchored one. The exact mirror of 223, which pins the same property for the plan arm.
+# plan: is SET so the plan arm cannot contribute the finding and mask what this fixture measures.
+cat > "$ARM/docs/changes/active/0224-manchor-results.md" <<EOF
+---
+id: 224
+slug: manchor-results
+title: Body prose mentions results
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/arm-results
+plan: docs/superpowers/plans/2026-06-01-present.md
+claimed_at: $AR_FRESH_CLAIM
+---
+
+## Notes
+results: docs/results/2026-06-01-present-results.md
+EOF
 
 armcopy=""
 armreseed(){
@@ -1393,6 +1413,8 @@ assert "mutation baseline: unmutated copy fires leg A on 220 (plan)" 'has_findin
 assert "mutation baseline: unmutated copy fires leg A on 221 (results)" 'has_finding "$arm0out" aborted-run 221'
 assert "mutation baseline: unmutated copy fires leg B on 222 (stale claim)" 'has_finding "$arm0out" aborted-run 222'
 assert "mutation baseline: unmutated copy fires leg A on 223 (anchored read)" 'has_finding "$arm0out" aborted-run 223'
+assert "mutation baseline: unmutated copy fires leg A on 224 (anchored results read)" \
+  'has_finding "$arm0out" aborted-run 224'
 
 # Mutation A — invert leg A's plan emptiness test (-z becomes -n): the unrecorded-plan fixture 220
 # goes GREEN and the healthy-field fixture 221 (plan: SET) starts misfiring. Both directions.
@@ -1456,6 +1478,23 @@ assert "mutation D (unanchor the plan read): the body-prose fixture 223 goes GRE
   '! has_finding "$armDout" aborted-run 223'
 assert "mutation D: fixture 220, which has no body plan: line, still fires" \
   'has_finding "$armDout" aborted-run 220'
+
+# Mutation D2 — unanchor the RESULTS read (fm_field -> field), the mirror of D. The body-prose
+# fixture 224 goes GREEN (proving the anchoring is what makes it fire), while 221 — which has no
+# body results: line — still fires, proving the arm itself survived the mutation.
+armreseed
+armD2_before="$(grep -cF 'fm_field "$f" results' "$ARMSCRIPT")"
+awk '{ sub(/fm_field "\$f" results/, "field \"$f\" results"); print }' "$ARMSCRIPT" > "$ARMSCRIPT.t"
+mv "$ARMSCRIPT.t" "$ARMSCRIPT"
+armD2_after="$(grep -cF 'fm_field "$f" results' "$ARMSCRIPT")"
+armD2out="$(armrun)"
+assert "mutation D2 landed: the results read is unanchored (fm_field count 1 -> 0)" \
+  '[ "$armD2_before" = 1 ] && [ "$armD2_after" = 0 ]'
+assert "mutation D2 landed: the mutated copy is still valid bash" 'bash -n "$ARMSCRIPT"'
+assert "mutation D2 (unanchor the results read): the body-prose fixture 224 goes GREEN — proves the anchoring" \
+  '! has_finding "$armD2out" aborted-run 224'
+assert "mutation D2: fixture 221, which has no body results: line, still fires" \
+  'has_finding "$armD2out" aborted-run 221'
 
 # Mutation E — drop the whole aborted-run block: every red fixture goes GREEN, and
 # stale-in-progress must stay unaffected (the two checks are genuinely separate code).
