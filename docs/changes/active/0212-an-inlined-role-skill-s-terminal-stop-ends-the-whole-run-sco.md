@@ -2,7 +2,7 @@
 id: 212
 slug: an-inlined-role-skill-s-terminal-stop-ends-the-whole-run-sco
 title: An inlined role skill's terminal stop ends the whole run — scope docket-build's stop and enforce the run disposition
-status: proposed
+status: in-progress
 priority: medium
 type: fix
 created: 2026-08-05
@@ -16,7 +16,8 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch:
+branch: feat/an-inlined-role-skill-s-terminal-stop-ends-the-whole-run-sco
+claimed_at: 2026-08-05T18:23:57Z
 pr:
 blocked_by:
 reconciled: false
