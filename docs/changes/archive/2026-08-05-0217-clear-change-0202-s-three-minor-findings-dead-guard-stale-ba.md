@@ -2,7 +2,7 @@
 id: 217
 slug: clear-change-0202-s-three-minor-findings-dead-guard-stale-ba
 title: Clear change 0202's three minor findings: dead guard, stale baseline comment, wrong plan pattern
-status: proposed
+status: killed
 priority: medium
 type: chore
 created: 2026-08-05
@@ -57,3 +57,7 @@ beside code that no longer matches it, which is exactly how 0113's findings aged
 
 - Whether a merged plan file is editable at all, or is a frozen build record. This stub's third
   bullet is really that policy question wearing a specific instance.
+
+## Why killed
+
+Consolidated into change 0200 (board-checks and test-suite hardening bundle); scope carried over verbatim, nothing dropped.
