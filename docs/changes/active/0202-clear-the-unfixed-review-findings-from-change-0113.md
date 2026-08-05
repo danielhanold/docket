@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/clear-the-unfixed-review-findings-from-change-0113
-claimed_at: 2026-08-05T16:56:33Z
+claimed_at: 2026-08-05T16:58:58Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -83,3 +83,36 @@ non-default `--results-dir` pin, and ARM fixtures 224-226 — is in the spec.
 - The dangling `git-state postcondition` clause in `docket-implement-next` §5 and Step 4's missing
   rider — that is a normative design question, captured separately.
 - Any change to `aborted-run`'s predicates or its 12h window.
+
+## Reconcile log
+
+### 2026-08-05 — build claim
+
+Verified every one of the five findings still stands against `origin/main` at `a25bf7d7`; the scope
+is unchanged and nothing here has been overtaken by other work.
+
+- **Finding 1** — `scripts/docket-status.sh:734` still passes `--results-dir
+  "${RESULTS_DIR:-docs/results}"`, and `tests/test_docket_status.sh` contains **zero** occurrences of
+  `results-dir`. The assert gap is real.
+- **Finding 2** — `scripts/board-checks.sh:393` still reads `fm_field "$f" results`, and mutation D
+  (`tests/test_board_checks.sh:1369`) still unanchors the `plan` read alone. Unpinned as described.
+- **Finding 3** — mutation A's comment (line 1322) still claims fixture 221 "starts misfiring. Both
+  directions", and mutation E's comment (line 1385) still claims "stale-in-progress must stay
+  unaffected" with no corresponding assert. Both unreachable as described.
+- **Finding 4** — `branch_only_artifact` (`scripts/board-checks.sh:103-112`) still uses the
+  capture-then-here-string shape over plain `--name-only`. The C-quoting false positive is live.
+- **Finding 5** — confirmed **already satisfied**: `tests/test_skill_size_budgets.sh` now records
+  `3728 words -> … 3800 (72 words of margin)` and `139 actual, 145 budget`. The build verifies and
+  makes no edit. The stale pre-rebase figures (`4013 -> 4050`, `147 for 143`) must not be restored —
+  the change file's own bullet already says so and is left as written.
+
+Two spec preconditions re-checked at claim time:
+
+- **Fixture ids 224-226 are still free** — `tests/test_board_checks.sh` defines ARM fixtures 220-223
+  only.
+- **Change 0211 has not landed** (still `proposed`, and its own board readiness reads
+  `waiting-on-202-unbuilt`), so the adjacent-region composition noted in spec Assumption 8 does not
+  arise this pass. `depends_on:` correctly stays empty.
+
+Auto-captured one adjacent discovery the spec flagged for separate capture (Assumption 1): the
+test-side `mapfile -d` usage against the shipped-script bash 4.0 floor, minted as change **0213**.
