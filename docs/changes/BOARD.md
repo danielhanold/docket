@@ -61,7 +61,7 @@
 | [0204](active/0204-restore-rationale-dropped-by-round-three-compression-finaliz.md) | Restore dropped doc rationale (compression losses) and complete AGENTS.md's frontmatter-edit rule | `medium` | `docs` | needs-brainstorm |
 | [0208](active/0208-runner-dispatch-worktree-gate-3-proves-repo-containment-not.md) | Harden runner-dispatch — worktree membership gate, feature-scoped coverage, flag-parse guards | `medium` | `fix` | needs-brainstorm |
 | [0218](active/0218-fix-review-findings-in-branch-instead-of-minting-a-stub-for.md) | Fix review findings in-branch instead of minting a stub for every one | `high` | `feat` | needs-brainstorm |
-| [0219](active/0219-aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d.md) | aborted-run's sixth signature: PR opened and pr: written, run dies before status: implemented | `medium` | `fix` | ⏳ waiting on #211 — needs your merge |
+| [0219](active/0219-aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d.md) | aborted-run's sixth signature: PR opened and pr: written, run dies before status: implemented | `high` | `fix` | ⏳ waiting on #211 — needs your merge |
 | [0220](active/0220-clear-the-unfixed-review-findings-from-change-0207.md) | clear the unfixed review findings from change 0207 | `medium` | `fix` | build-ready |
 
 ## ⚪ Deferred (4)
