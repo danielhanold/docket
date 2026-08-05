@@ -94,13 +94,22 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # both fields per entry, no runner:) and the unmapped-pair-ships-unpinned rule — normative text with
 # no other home, since this reference IS the configuration mechanics. Set per the rule above from
 # the measured actual: 172 lines -> 175, 1948 words -> 1950 is within 25, so the multiple after: 2000.
-# Raised again 175/2000 -> 190/2200 by change 0205, which added the runner-wide model/effort
+# Raised again 175/2000 -> 190/2150 by change 0205, which added the runner-wide model/effort
 # provenance rules (a shipped default is never forwarded to a child harness; model: is therefore
-# required, ADR-0067; effort: omitted defers to lower user layers while `auto` suppresses). Same
-# justification shape as 0168: normative configuration mechanics with no other home — a reader
-# writing a `runner:` entry needs them here or they write a config that fails generation. The prose
-# was compressed to a single paragraph before raising; set from the measured actual per the rule
-# above: 184 lines -> 190, 2120 words -> 2125 is within 25, so the multiple after: 2200.
+# required, ADR-0067; effort: omitted defers to lower user layers while `auto` suppresses).
+# WHERE ELSE IT WAS CONSIDERED, per the naming requirement above: the natural alternatives are
+# scripts/runners/<name>.md (rejected — there are three of them, and a per-adapter home is exactly
+# the "learn it twice" failure ADR-0067 exists to remove) and README's Runner delegation subsection
+# (which DOES now carry the user-facing statement). It cannot live only in those, because this
+# reference is what an agent loads while WRITING an `agents:` entry: the required-model rule has to
+# intervene at the moment of action, or the agent emits a config that fails generation. That is the
+# same "no other home" argument 0168 made, argued rather than asserted.
+# The new prose was drafted long and compressed to a single paragraph before commit (the two-bullet
+# form was ~250 words; the shipped paragraph is ~110) — note this is compression of the ADDITION,
+# not of pre-existing prose, which the diff leaves untouched apart from the runner-list line.
+# Set from the measured actual per the rule above: 184 lines -> 185 leaves 1 line, the near-zero
+# failure mode, so the multiple after: 190. 2120 words -> the next multiple of 50 is 2150, whose
+# 30-word margin is OUTSIDE the within-25 clause, so 2150 stands (not 2200).
 # skills/docket-build/SKILL.md's budget was raised 225/2050 -> 250/2350 by change 0184, which
 # retiered the three build profiles to four. The growth is almost entirely the `## Routing` rubric:
 # a fourth tier adds a bullet, and the `max`/`high` boundary needed an ORGANIZING PRINCIPLE stated
@@ -238,7 +247,7 @@ skills/docket-build/SKILL.md                               265 2400
 skills/docket-build-task/SKILL.md                          115 1000
 skills/docket-convention/SKILL.md                          345 5800
 skills/docket-convention/github-board-mirror.md             19  462
-skills/docket-convention/references/agent-layer.md         190 2200
+skills/docket-convention/references/agent-layer.md         190 2150
 skills/docket-convention/references/auto-capture.md         45  450
 skills/docket-convention/references/learnings.md            84  580
 skills/docket-convention/references/terminal-close-out.md  173 1458
