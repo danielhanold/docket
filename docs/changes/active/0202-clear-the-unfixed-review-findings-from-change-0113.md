@@ -8,10 +8,10 @@ type: chore
 created: 2026-08-03
 updated: 2026-08-05
 depends_on: []
-related: []
+related: [113, 211]
 discovered_from: [113]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-05-clear-the-unfixed-review-findings-from-change-0113-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-05-clear-the-unfixed-review-findings-from-change-0113-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-05-clear-the-unfixed-review-findings-from-change-0113-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -61,12 +64,18 @@ would be the worse outcome.
   C-quotes any path containing a quote, a backslash, a control character, or (under the default
   `core.quotePath=true`) a non-ASCII byte. `git_has` then fails on the literal quoted string and
   the function reports an inherited file as branch-only — a false positive in a check whose
-  credibility is its whole value. Fix is one flag: `-z`, consumed with
-  `while IFS= read -r -d ''`, keeping the capture-then-here-string shape.
-- `tests/test_skill_size_budgets.sh` — the 0113 budget-rationale comment omits the measured actual
-  and resulting margin every other entry records (`4013 words -> 4050, 37 words of margin`; the
-  LINE budget correctly stayed at 147 for 143 actual). That figure is what lets the next editor
-  re-derive the number instead of re-measuring.
+  credibility is its whole value. Fix is `-z`, consumed with `while IFS= read -r -d ''`. **The
+  capture-then-here-string shape cannot be kept** — command substitution strips NUL bytes — so the
+  spec settles on a process-substituted redirect instead.
+- `tests/test_skill_size_budgets.sh` — the 0113 budget-rationale comment was reported to omit the
+  measured actual and margin. **Superseded by the spec:** a later merge (0201's slim, re-measured)
+  already restored them — the comment now records `3728 words -> 3800 (72 words of margin)` and
+  `139 actual, 145 budget`. The build verifies and makes no edit; the figures quoted in the original
+  finding (`4013 -> 4050`, `147 for 143`) are pre-rebase and must not be restored.
+
+Each fix's settled shape — the NUL-delimited `ls-tree` rewrite, the paired
+sanity/inherited fixtures and the both-halves mutation, mutation D2 for the `results` read, the
+non-default `--results-dir` pin, and ARM fixtures 224-226 — is in the spec.
 
 ## Out of scope
 
