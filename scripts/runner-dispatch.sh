@@ -14,13 +14,14 @@ RUNNERS_DIR="${RUNNERS_DIR:-$SELF_DIR/runners}"
 
 die(){ printf 'runner-dispatch: %s\n' "$*" >&2; exit 1; }
 
-RUNNER=""; AGENT=""; MODEL=""; EFFORT=""
+RUNNER=""; AGENT=""; MODEL=""; EFFORT=""; WORKTREE=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --runner) RUNNER="${2:-}"; shift 2 ;;
     --agent)  AGENT="${2:-}";  shift 2 ;;
     --model)  MODEL="${2:-}";  shift 2 ;;
     --effort) EFFORT="${2:-}"; shift 2 ;;
+    --worktree) WORKTREE="${2:-}"; shift 2 ;;
     --) shift; break ;;
     *) die "unknown argument: $1" ;;
   esac
@@ -38,9 +39,31 @@ if [ ! -f "$ADAPTER" ]; then
   die "unknown runner '$RUNNER' — no adapter at $ADAPTER (registered runners: ${registered:-<none>})"
 fi
 
+# --- anchor: an explicit argument defaulting to the main worktree (change 0206) -----
+# ADR-0034 is UNAMENDED. Routing --worktree through docket_anchor_path rather than using it raw
+# is the whole point: a relative value joins to the MAIN worktree, so it resolves identically from
+# any cwd, and the new argument inherits ADR-0034's cwd-independence instead of quietly
+# reintroducing the hazard ADR-0034 was written against. Absent --worktree the expression is
+# docket_anchor_path "." — the main worktree — so every currently-shipped shim is unaffected.
 REPO_ROOT="$(docket_main_worktree)"
 [ -n "$REPO_ROOT" ] || die "not inside a git repository"
-export DOCKET_REPO_ROOT="$REPO_ROOT"
+# Gate 1 — a build worker must run INSIDE its feature worktree. This is the one piece of
+# agent-family knowledge the facade gains; it is a RUNTIME requirement (the path is runtime data),
+# so sync-agents.sh's generation-time slot cannot substitute for it. Loud, matching the facade's
+# posture for an unknown --runner rather than its tolerant posture for a runners.<name>: value:
+# that tolerance exists so a cosmetic config typo cannot fail a live dispatch, whereas this is a
+# request the facade cannot serve correctly.
+case "$AGENT" in
+  build-*) [ -n "$WORKTREE" ] || die "--worktree is required for build-* agents (a build worker must run in its feature worktree, not the main tree)" ;;
+esac
+ANCHOR="$(docket_anchor_path "${WORKTREE:-.}")"
+# Gate 2 — the resolved anchor must exist as a directory.
+[ -d "$ANCHOR" ] || die "--worktree $ANCHOR is not a directory"
+# Gate 3 — and belong to THIS repo's worktree set, so a child harness running under an
+# auto-approve permission grant is never handed a tree docket does not own. A non-repo path makes
+# docket_main_worktree print nothing, so the not-a-repo case falls out of this same comparison.
+[ "$(docket_main_worktree "$ANCHOR")" = "$REPO_ROOT" ] || die "--worktree $ANCHOR is not a worktree of this repository"
+export DOCKET_REPO_ROOT="$ANCHOR"
 
 # --- runners.<name>: config, per-key across layers (local > committed > global) -----
 # Same nested-section awk shape as sync-agents.sh's section_body (kept self-contained
