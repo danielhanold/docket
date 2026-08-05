@@ -253,13 +253,20 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # entry above — a prohibition-scoping rule must be read in the same breath as the prohibition it
 # scopes. Set from the measured actual: 103 lines -> 105 (unchanged, still above the actual),
 # 838 words -> 900 (850 lands within 25 words of the actual, so the next multiple is taken).
+# skills/docket-build-task/SKILL.md's budget was raised 115/1000 -> 120/1100 by change 0212, which
+# scoped the worker contract's ## Scope prohibitions and its ## Outcomes return to the worker role.
+# The body reaches a caller's context by wrapper preload (agents/docket-build-*.md carry
+# skills: [docket-build-task]), so the hazard is real for this file. skills/docket-build-task/ has NO
+# references/ tree; a created one could not intervene at the moment the return instruction is read.
+# ## Scope's worktree bullet was compressed first; set from the measured actual: 117 -> 120,
+# 1035 -> 1100 (1050 lands within 25 words of the actual, so the next multiple is taken).
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
 skills/docket-auto-groom/SKILL.md                           66 1237
 skills/docket-brainstorm/SKILL.md                           84  692
 skills/docket-build/SKILL.md                               270 2450
-skills/docket-build-task/SKILL.md                          115 1000
+skills/docket-build-task/SKILL.md                          120 1100
 skills/docket-convention/SKILL.md                          345 5800
 skills/docket-convention/github-board-mirror.md             19  462
 skills/docket-convention/references/agent-layer.md         190 2150
