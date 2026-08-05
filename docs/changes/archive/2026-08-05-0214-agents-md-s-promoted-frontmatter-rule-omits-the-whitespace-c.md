@@ -2,7 +2,7 @@
 id: 214
 slug: agents-md-s-promoted-frontmatter-rule-omits-the-whitespace-c
 title: AGENTS.md's promoted frontmatter rule omits the whitespace-class half that corrupted two field writes
-status: proposed
+status: killed
 priority: medium
 type: docs
 created: 2026-08-05
@@ -68,3 +68,7 @@ exactly the population AGENTS.md governs and no test can reach.
   writers are not the population at risk.
 - Re-promoting or re-tiering the `frontmatter-edit-anchor` finding itself — it is already
   `promoted`, and the ledger side was updated at 0206's close-out.
+
+## Why killed
+
+Consolidated into change 0204 (docs rationale-restoration bundle); scope carried over verbatim, nothing dropped.
