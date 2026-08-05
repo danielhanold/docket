@@ -7,7 +7,7 @@ priority: medium
 type: fix
 created: 2026-08-05
 updated: 2026-08-05
-depends_on: []
+depends_on: [211]
 related: []
 discovered_from: [211]
 adrs: []

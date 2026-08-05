@@ -1,15 +1,15 @@
 ---
 id: 200
 slug: clear-the-unfixed-review-findings-from-change-0191
-title: Clear the unfixed review findings from change 0191
+title: Board-checks and test-suite hardening — sanitize LF escape, mutation G, minor-finding clearance, mapfile floor
 status: proposed
 priority: medium
-type: chore
+type: fix
 created: 2026-08-03
-updated: 2026-08-03
+updated: 2026-08-05
 depends_on: []
-related: []
-discovered_from: [191]
+related: [213, 215, 216, 217]
+discovered_from: [191, 202]
 adrs: []
 spec:
 plan:
@@ -29,12 +29,45 @@ reconciled: false
 
 ## Why
 
-Change 0191's whole-branch review returned 3 minor findings that were consciously left for
-merge-time judgment and never fixed; PR #151 merged with all three outstanding. They are cosmetic
-or documentation-level, but each is a real small defect in shipped code and would otherwise be lost
-once the results artifact stops being read.
+Consolidates five stubs that all touch `scripts/board-checks.sh` and its test suite — this one
+(0191's three minor findings) plus killed changes 0215 (sanitize LF escape, a real behavior fix),
+0216 (mutation G guard), 0217 (0202's three minor findings), and 0213 (the bash 4.4 `mapfile -d`
+floor inconsistency). One change avoids five conflicting PRs against the same two files; the type
+is `fix` because 0215's sanitize gap is a genuine correctness defect.
+
+**(a) 0191's unfixed minor findings (original 0200).** Change 0191's whole-branch review returned
+3 minor findings that were consciously left for merge-time judgment and never fixed; PR #151
+merged with all three outstanding. Cosmetic or documentation-level, but each is a real small
+defect in shipped code and would otherwise be lost once the results artifact stops being read.
+
+**(b) sanitize misses a raw LF under `-z` (absorbed from 0215, `important` at 0202's review).**
+Change 0202 rewrote `branch_only_artifact` to read `git ls-tree -r -z` instead of `--name-only`,
+which fixed a false positive on C-quoted paths but silently invalidated a premise `sanitize`
+still relies on: it escapes only TAB and CR, justified by a comment asserting every emitted value
+arrives via `field`/`fm_field` (which truncate at the first newline). `$ar_hit` is a **git
+path**, not a frontmatter field — under `-z` a raw LF reaches `emit`, splitting one finding
+across two TSV records and breaking the `sort` determinism downstream.
+
+**(c) The capture-shape constraint is unguarded (absorbed from 0216, `important` at 0202's
+review).** A refactor to `boa_list="$(… git ls-tree -r -z …)"` + `done <<<"$boa_list"` keeps
+`-z`, keeps `read -r -d ''`, passes `bash -n`, and makes `branch_only_artifact` return 1 for
+**every** input — command substitution strips NUL bytes, so `read -d ''` hits EOF and the loop
+body never runs. Leg A would go permanently, silently false-negative with a green suite. The
+"do not simplify this back" comment has nothing enforcing it — decoration, by this repo's own
+guard rule.
+
+**(d) 0202's three minor findings (absorbed from 0217).** Same class 0202 exists to close —
+accurate-looking prose sitting beside code that no longer matches it.
+
+**(e) The bash 4.4 `mapfile -d` floor drift (absorbed from 0213).** The shipped-script floor is
+bash 4.0 (what `ensure-docket-env.sh` enforces), and 0202's spec rejected `mapfile -d` for
+shipped code on that basis — yet `tests/test_grep_portability.sh:102` already uses it, an
+unexplained inconsistency that would fail on a bash 4.0–4.3 host with a confusing
+`mapfile: -d: invalid option` instead of a clear floor diagnostic.
 
 ## What changes
+
+0191 findings (a):
 
 1. `scripts/board-checks.sh` — hoist `scalar_form_check(){...}` out of the per-file walk loop (it is
    redefined per file) to sit alongside `renders_row` with the file's other top-level helpers.
@@ -46,10 +79,58 @@ once the results artifact stops being read.
 3. `tests/test_board_checks.sh` — the count-pin provenance comment above the `BOARD_CHECK_IDS` assert
    still reads "13 since change 0117..." while the assert now says 14; reword for the next bumper.
 
+Sanitize LF (b):
+
+4. `scripts/board-checks.sh` — add `v="${v//$'\n'/\\n}"` to `sanitize`, and update the comment that
+   currently justifies the TAB/CR-only scope so it no longer asserts a premise the `-z` read broke.
+5. `tests/test_board_checks.sh` — a fixture whose branch carries a path with an embedded newline,
+   asserting the finding stays one TSV record.
+
+Mutation G (c):
+
+6. `tests/test_board_checks.sh` — add a mutation G that rewrites the consumption to the capture
+   shape while keeping `-z`, and asserts fixture 230 goes GREEN (i.e. the check stops firing), so
+   the constraint the comment states is enforced by execution.
+
+0202 minor findings (d):
+
+7. `scripts/board-checks.sh` — `[ -n "$boa_p" ] || continue` in `branch_only_artifact` is
+   unreachable under `-z`; remove it, or state why it is kept.
+8. `tests/test_board_checks.sh` — the mutation-baseline comment says the baseline "fires exactly
+   the three expected findings"; reword to drop the number rather than re-pin it (re-pinning buys
+   a maintenance burden with no guard behind it).
+9. `docs/superpowers/plans/2026-08-05-clear-the-unfixed-review-findings-from-change-0113.md` —
+   Task 5 Step 2's verification pattern (`grep -nE '4013|4050|147 for 143'`) matches the comment
+   line that *explains* 4050 is stale. Recommended resolution: rule merged plan files **frozen
+   build records** (never edited), record that decision where a future build will read it, and
+   leave the plan file untouched.
+
+Mapfile floor (e):
+
+10. Drop `mapfile -d` from `tests/test_grep_portability.sh` in favor of the
+    `while IFS= read -r -d ''` shape 0202 adopts for shipped code, keeping one bash 4.0 floor
+    everywhere; state the rule once where a future author writing `mapfile -d` will read it, so
+    the next instance is a decision rather than a repeat of this drift.
+
 ## Out of scope
 
-Any behavior change to the `scalar-form` check itself, and fixing change 0121's flagged title.
+- Any behavior change to the `scalar-form` check itself, and fixing change 0121's flagged title.
+- Any further change to the `-z` read itself (0202 settled that shape); `branch_only_artifact`'s
+  current shape is correct, and mutation F's existing arm stays as-is.
+- Raising the validated bash floor to 4.4 or declaring a two-floor policy — rejected in favor of
+  option (10) above; revisit only if the `read -r -d ''` rewrite proves unworkable.
+- Any change to which shell the suite selects at runtime (change 0150's territory).
 
 ## Open questions
 
-Whether finding 2 warrants a pinning fixture in addition to the prose, or prose alone.
+- Whether (a)'s finding 2 warrants a pinning fixture in addition to the prose, or prose alone.
+- Whether the sanitize premise (b) is relied on by any other `emit` caller passing a
+  non-frontmatter value.
+- Whether the capture-shape hazard (c) exists at any other `-z` read in the scripts, which would
+  make it a helper-level guard rather than a single mutation arm.
+
+## Consolidation note
+
+2026-08-05: absorbed changes 0213, 0215, 0216, and 0217 (all killed pointing here); type flipped
+chore → fix accordingly. 0217's merged-plan policy question is resolved by recommendation in
+item 9: merged plans are frozen build records.

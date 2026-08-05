@@ -8,7 +8,7 @@ type: fix
 created: 2026-08-05
 updated: 2026-08-05
 depends_on: []
-related: []
+related: [208]
 discovered_from: [206]
 adrs: []
 spec:
