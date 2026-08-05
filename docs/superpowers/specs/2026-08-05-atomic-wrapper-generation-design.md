@@ -230,9 +230,11 @@ bites — narrowing is the fallback, not the design.
 
 ## Dependencies
 
-**Depends on change 0205** (`feat/opencode-runner-adapter`, PR #156, status `implemented`). The
-required-model rule this change restructures exists only on that branch; building against `main`
-would rewrite `emit_wrapper` underneath it.
+**Depended on change 0205** (`feat/opencode-runner-adapter`, PR #156) — **now merged and `done`**
+(reconciled 2026-08-05). The required-model rule this change restructures is present on `main`, so
+the feature branch cuts from `origin/main` normally; the original concern (building against a `main`
+that would rewrite `emit_wrapper` underneath it) no longer applies.
 
-Related: change 0206 (delegated runner runs anchored at the wrong worktree) also touches runner
-delegation, in `runner-dispatch.sh` rather than `sync-agents.sh`. No collision expected.
+Related: change 0206 (delegated runner runs anchored at the wrong worktree) also touched runner
+delegation, in `runner-dispatch.sh` rather than `sync-agents.sh`. Also merged; the predicted
+no-collision held.

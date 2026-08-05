@@ -20,7 +20,7 @@ branch: feat/sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a
 claimed_at: 2026-08-05T17:27:55Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -86,3 +86,37 @@ Design: `docs/superpowers/specs/2026-08-05-atomic-wrapper-generation-design.md`.
 - Gate 2's pre-migration blind spot (`validate_user_agent_values` runs before
   `migrate_legacy_global`). Real and pre-existing; only fixable by hoisting a write above every
   gate, which would break `--check`'s read-only property. Noted in the spec, not fixed here.
+
+## Reconcile log
+
+### 2026-08-05
+
+Reconciled against `origin/main` at `2d1a3e9e`. The design holds unchanged — no scope adjustment,
+no folding-in, no drop.
+
+- **Dependency 0205 is now `done`** (merged; archived as
+  `2026-08-05-0205-opencode-runner-adapter.md`). The spec's *Dependencies* section still describes
+  it as `implemented` on `feat/opencode-runner-adapter` / PR #156. That is now stale prose only:
+  the required-model rule this change restructures is present on `main`, so the feature branch cuts
+  from `origin/main` normally and no cross-branch build is needed. Sibling 0206 is also merged,
+  and its work was confined to `scripts/runner-dispatch.sh` — the predicted no-collision held.
+- **Every structural claim in the spec re-verified against `main`.** `sync-agents.sh` lives at the
+  **repo root**, not under `scripts/`. `emit_wrapper` is at line 832 and still carries both inline
+  `log ERROR` + `exit 1` blocks — the registration check (line 839) above the required-model check
+  (line 863), the order the spec requires the shared predicate to preserve. The redirected call
+  shape, the `RES_MODEL_FROM_USER` provenance filter, the non-claude reserved-runner warn path, and
+  `is_registered_runner` (line 88) are all exactly as described.
+- **The gate-placement plan is confirmed by the real `main()` body.** The `--check` branch returns
+  after `validate_harness_defaults` + `validate_user_agent_values`, and the real-run path runs those
+  two gates, then `migrate_legacy_global`, then `resolve_global_agent_harnesses`, then
+  `user_level_pass`. The new gate 3's slot — below `resolve_global_agent_harnesses`, above
+  `user_level_pass` — is available exactly as specified, and the comment it must mirror is present
+  verbatim above gate 2.
+- **The migrated test is where the spec says**, though line numbers have drifted slightly from the
+  spec's citations: the `! -s` assertion and the comment explaining why `-s` rather than `-e` was
+  chosen sit in the change-0205 block of `tests/test_sync_agents.sh`, and the
+  registration-before-required-model ordering test follows it. The plan should locate both by
+  content, not by the spec's line numbers.
+
+No follow-up work minted. Gate 2's pre-migration blind spot is a documented design boundary already
+recorded in *Out of scope* — a deliberate decision, not a newly discovered defect.
