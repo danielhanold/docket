@@ -1,6 +1,6 @@
 # Backlog
 
-**212 changes** — 🟢 2 in progress · 🟡 52 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 133 done · 🗑️ 20 killed
+**214 changes** — 🟢 2 in progress · 🟡 54 proposed · ⚪ 4 deferred · ✅ 134 done · 🗑️ 20 killed
 
 ## 🟢 In progress (2)
 
@@ -9,7 +9,7 @@
 | [0190](active/0190-close-the-build-evidence-value-gap-a-post-gate-results-commi.md) | Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip | `medium` | `feat` | [spec](../superpowers/specs/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md) | `feat/close-the-build-evidence-value-gap-a-post-gate-results-commi` |
 | [0202](active/0202-clear-the-unfixed-review-findings-from-change-0113.md) | Clear the unfixed review findings from change 0113 | `high` | `chore` | [spec](../superpowers/specs/2026-08-05-clear-the-unfixed-review-findings-from-change-0113-design.md) | `feat/clear-the-unfixed-review-findings-from-change-0113` |
 
-## 🟡 Proposed (52)
+## 🟡 Proposed (54)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -65,6 +65,8 @@
 | [0210](active/0210-a-valueless-trailing-flag-hangs-runner-dispatch-forever-inst.md) | A valueless trailing flag hangs runner-dispatch forever instead of aborting | `medium` | `fix` | needs-brainstorm |
 | [0211](active/0211-aborted-run-is-blind-to-a-run-that-stops-after-the-build-com.md) | aborted-run is blind to a run that stops after the build: commits on an unpushed branch, every field coherent | `high` | `fix` | ⏳ waiting on #202 — not yet built |
 | [0212](active/0212-an-inlined-role-skill-s-terminal-stop-ends-the-whole-run-sco.md) | An inlined role skill's terminal stop ends the whole run — scope docket-build's stop and enforce the run disposition | `medium` | `fix` | build-ready |
+| [0213](active/0213-settle-the-bash-4-4-mapfile-d-floor-inconsistency-between-te.md) | Settle the bash 4.4 mapfile -d floor inconsistency between tests and shipped scripts | `medium` | `chore` | needs-brainstorm |
+| [0214](active/0214-agents-md-s-promoted-frontmatter-rule-omits-the-whitespace-c.md) | AGENTS.md's promoted frontmatter rule omits the whitespace-class half that corrupted two field writes | `medium` | `docs` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -74,12 +76,6 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
-
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | Type | PR | Readiness |
-|---|-------|----------|------|----|-----------|
-| [0206](active/0206-delegated-runner-runs-are-anchored-at-the-main-worktree-not.md) | Delegated runner runs are anchored at the main worktree, not the feature worktree | `medium` | `fix` | [#157](https://github.com/danielhanold/docket/pull/157) |  |
 
 ```mermaid
 graph TD
@@ -135,13 +131,14 @@ graph TD
   0202
   0203
   0204
-  0205 --> 0206
   0205 --> 0207
   0208
   0209
   0210
   0202 --> 0211
   0212
+  0213
+  0214
   0015:::done
   0175:::done
   0192:::done
@@ -149,10 +146,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (153)</summary>
+<details><summary>✅🗑️ Archive — done + killed (154)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0206](archive/2026-08-05-0206-delegated-runner-runs-are-anchored-at-the-main-worktree-not.md) | Delegated runner runs are anchored at the main worktree, not the feature worktree | 2026-08-05 |
 | [0205](archive/2026-08-05-0205-opencode-runner-adapter.md) | opencode runner adapter — delegate build workers to OpenRouter models | 2026-08-05 |
 | [0078](archive/2026-08-05-0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | 2026-08-05 |
 | [0201](archive/2026-08-03-0201-skill-compression-round-three.md) | Skill compression round three — targeted progressive disclosure on the Big 4 + regrowth-guard ratchet | 2026-08-03 |
@@ -168,7 +166,6 @@ graph TD
 | [0176](archive/2026-08-01-0176-docket-config-sh-costs-0-87s-per-invocation-and-dominates-te.md) | docket-config.sh costs ~0.87s per invocation and dominates test_docket_config.sh | 2026-08-01 |
 | [0175](archive/2026-08-01-0175-sync-agents-per-invocation-cost.md) | sync-agents.sh costs ~5.5s per invocation and dominates the test suite | 2026-08-01 |
 | [0170](archive/2026-08-01-0170-lean-whole-branch-review-skill.md) | Lean Docket-owned whole-branch review skill | 2026-08-01 |
-| [0169](archive/2026-08-01-0169-codex-profile-routed-build-support.md) | Codex support for profile-routed Docket builds | 2026-08-01 |
 | [0044](archive/2026-07-30-0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | 2026-07-30 |
 | [0162](archive/2026-07-28-0162-restore-the-machine-local-ignored-advisory-for-a-committed-t.md) | Restore the machine-local-ignored advisory for a committed too-deep runtime.bash | 2026-07-28 |
 | [0161](archive/2026-07-28-0161-enumerate-the-health-checks-failed-outcome-in-docket-status.md) | Enumerate the health-checks-failed outcome in docket-status SKILL.md | 2026-07-28 |
@@ -193,6 +190,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
+| [2026-08](archive/) | 1 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
