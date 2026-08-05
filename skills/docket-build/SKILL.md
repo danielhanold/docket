@@ -5,10 +5,13 @@ description: Use as docket's build role (skills.build) — executes an implement
 
 # docket-build — profile-routed plan execution
 
-docket's build role, bound by `skills.build`. You are already running inside
-`docket-implement-next` Step 5 with the plan written and the feature worktree cut. You read the
-plan, route each task to a profile, dispatch one fresh worker per task, apply the escalation
-protocol, and run the build gate. Then you stop — review is not yours.
+docket's build role, bound by `skills.build`. You run inside `docket-implement-next` Step 5 with
+the plan written and the worktree cut: read the plan, route each task to a profile, dispatch one
+fresh worker per task, apply the escalation protocol, run the build gate. Then you stop — review
+is not yours.
+
+**Scope of this stop:** loaded inline into a caller's context, this stop ends the build role only
+and that caller continues to its own next step; dispatched as a subagent, your turn ends here.
 
 You are not a router subagent: routing is a decision you make in this context. Each selected task
 gets exactly one fresh worker dispatch unless that worker requests its single allowed escalation.
@@ -158,9 +161,10 @@ halt per *Halting conditions*, naming the stray SHA so a human can inspect, keep
 
 ## Halting conditions
 
-Every halt is the same disposition: stop, return `halted` — the change stays `in-progress` and the
-worktree is preserved for inspection or resume — and report which condition below fired with its
-concrete evidence (task, profile, SHA, command, or harness message). Never improvise past one,
+Every halt is the same **role-scoped** build disposition: stop, return `halted` — a build outcome,
+not `docket-implement-next`'s run disposition of the same name — the change stays `in-progress`
+and the worktree is preserved for inspection or resume — and report which condition below fired
+with its concrete evidence (task, profile, SHA, command, or harness message). Never improvise past one,
 never substitute a weaker path, and never invoke review. The rules elsewhere in this file name
 their condition and point here rather than restating the disposition.
 
@@ -256,7 +260,8 @@ current branch — missing, stale, malformed, or contradictory state never marks
 
 Emit concise, stable lines and nothing more: task-to-profile selection and reason; escalation and
 reason; worker outcome and commit; focused verification; full-suite command and result; the
-build-evidence record on green; the terminal build disposition. Write no verbose task artifact
+build-evidence record on green; the terminal build disposition (**role-scoped** — a build
+disposition, never a run disposition). Write no verbose task artifact
 unless `BUILD_CHECKPOINT` is `true`.
 Material TDD exceptions and residual risks flow into the PR description or the results artifact,
 not into per-task files.
