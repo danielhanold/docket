@@ -8,10 +8,10 @@ type: fix
 created: 2026-08-05
 updated: 2026-08-05
 depends_on: []
-related: []
+related: [96, 113, 154, 203, 211]
 discovered_from: [113]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-05-inlined-role-terminal-stop-scoping-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-05-inlined-role-terminal-stop-scoping-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-05-inlined-role-terminal-stop-scoping-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -66,30 +69,59 @@ over until a run disposition is declared and its git state proven.
 ## What changes
 
 Two prose levers, both aimed at the step-to-step transition rather than at any one step's contents.
+Settled by the linked spec (auto-groom, 2026-08-05).
 
-**Scope the build role's stop sentence to the build role.** `docket-build` SKILL.md line 11 and its
-`## Output` section ("the terminal build disposition") should say plainly that the stop ends the
-**build role**, not the caller's run, and that a driver receiving the build disposition continues to
-its own next step. Then sweep the other role skills docket invokes inline — `docket-review`,
-`docket-adr`, the resolved finish skill — for the same shape; this is a class, not one sentence. See
-also change 0154's audit of stale restatements across skill bodies for the sweep pattern.
+**Lever 1 — scope the stop to the role, and sweep for the class.** The hazardous construct is a
+**second-person directive in a body that can be loaded into a caller's context**: terminal stops
+("Then you stop — review is not yours") and, worse, second-person prohibitions (`docket-review`'s
+`## Conduct` never-writes / never-commits / never-dispatches, which inline-loaded at Step 6 would
+forbid the driver's own dispatches and Step 7's metadata writes). The sweep criterion is
+**loadability, not role-skill membership** — `docket-adr` and `docket-status` are not role skills but
+are run inline under the convention's Tier A, and `docket-build-task` reaches a caller's context by
+wrapper preload. Six files get a per-file verdict (edit or recorded no-hazard):
+`docket-build`, `docket-review`, `docket-adr`, `docket-brainstorm`, `docket-status`,
+`docket-build-task`. The clause is **two-sided and conditioned on invocation mode** — a wrapper
+injects the same body, so a one-sided "the caller continues" would be read by dispatched subagents
+whose turn genuinely does end. `docket-brainstorm` Step 3 is the house pattern: it stops, then names
+the owner of the next step. A **positive-presence**, proximity-scoped guard test in the
+0194/0198/0199 style backs it; a negative vocabulary grep is rejected as paraphrase-evadable.
 
-**Make the run-level disposition an enforced closing obligation.** `docket-implement-next`'s
-*Terminal disposition* section currently reads as guidance to a driver on how to interpret an
-outcome; it should also bind the agent: the run does not end until one of the four is declared, and
-`advanced` specifically requires the PR URL plus `status: implemented`, `pr:` and (when a results
-file exists) `results:` written. A report declaring any other disposition vocabulary is by
-construction an aborted run.
+**Lever 2 — bind the run disposition.** `docket-implement-next`'s *Terminal disposition* section
+gains an obligation on the **agent**, not only guidance to a driver: the run does not end until
+exactly one of `advanced` / `contended` / `drained` / `halted` is declared, and a final report
+declaring any other disposition vocabulary is by construction an aborted run. `advanced` is claimable
+only when Step 7's postcondition holds — stated **by pointer**, never defined here.
 
-Grooming should decide whether the second lever is purely prose or gets a mechanical companion — the
-final report is model output, so a check would have to live in the driver or in a wrapper, not in
-`board-checks.sh`.
+**No new runtime mechanism for lever 2** — the stub's open question, settled. The final report is
+model output: `board-checks.sh` is git-only by contract, `/loop` is vendored, and a wrapper cannot
+read a subagent's final message. A git-readable run record was weighed and rejected — it duplicates
+the `aborted-run` ledger (0113's incoherence leg plus 0211's leg C already cover all four observed
+signatures) and the convention's Tier-C precedent is explicit that an abandoned run gets **no new
+status, no new field**. Lever 2 is prose plus a prose-presence guard in
+`tests/test_loop_continuation.sh`.
+
+**Why this is not the fix that already failed.** 0113's rider was already driver-body prose at the
+moment of action and still lost to the sub-skill's sentence. Lever 1 works by **removing the
+conflicting instruction at its source** rather than out-ranking it; lever 2 is deliberately the
+smaller half.
+
+**Size budgets are a live constraint** on every swept file (`docket-build` has 52 words of margin,
+`docket-build-task` 41). Sequence: compress the touched section, re-measure, raise only rows that
+still exceed — and note that `skills/docket-build/` and `skills/docket-review/` have **no
+`references/` tree**, so change 0201's raise-justification rule must argue against creating one
+rather than name an existing file.
 
 ## Out of scope
 
 - The deterministic oracle half — extending `aborted-run` with a built-but-not-delivered leg — which
-  is a separate change.
-- Defining the per-step git-state postconditions Step 5 names but never states; that is change 0203,
-  which this change should be sequenced against rather than duplicate.
+  is change 0211.
+- Defining the per-step git-state postconditions Step 5 names but never states; that is change 0203.
+  0212 points at Step 7's postcondition and never defines it. The two collide on
+  `skills/docket-implement-next/SKILL.md` and on a `tests/test_skill_size_budgets.sh` budget row —
+  a **semantic** conflict a clean git merge does not resolve, so whichever lands second re-derives
+  the row from the post-rebase actual.
+- Editing any vendored skill body; the ADR-0044 call-site pre-specification is the remedy there.
+- Dispatching the build role as a subagent instead of invoking it inline — the one option that
+  removes the mechanism rather than counter-instructing it, weighed and recorded in the spec as a
+  structural redesign outside a fix change.
 - Reversing ADR-0044 (pre-specification at the call site) or re-litigating ADR-0024 (`context: fork`).
-  Both stand; this is their remedy meeting a sub-skill contract nobody scoped.
