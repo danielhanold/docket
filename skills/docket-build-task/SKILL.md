@@ -18,9 +18,8 @@ subagent, and never load a review skill.
 - Implement only that task. Work outside its boundary belongs to another worker.
 - Never rewrite, amend, or revert earlier task commits, and never touch unrelated user work.
 - Stay **inside the feature worktree, on its branch**, performing **no docket metadata operations**:
-  never write to `.docket/`, the metadata branch, change files, ADRs, the board, or the
-  learnings ledger; never push, force-push, `reset --hard`, or rebase. The controller and
-  `docket-implement-next` own all of that.
+  never write to `.docket/`, the metadata branch, change files, ADRs, the board, or the learnings
+  ledger; never push, force-push, `reset --hard`, or rebase. The controller owns all of that.
 - A plan's `- [ ]` checkboxes are **not** progress state — do not tick them. Your commit is the
   record of what you finished; nothing reads the marks.
 - Repository instructions — `AGENTS.md`, `CLAUDE.md`, and any nested equivalents — **override**
@@ -28,6 +27,10 @@ subagent, and never load a review skill.
 - If you were dispatched as an **escalated** worker, the worktree may already hold uncommitted
   changes from the weaker worker's attempt. Inspect and account for every one of them. You may
   revise or replace them, but never discard them blindly and never `git checkout .` over them.
+
+**Scope of these prohibitions:** they bind this worker's own conduct. When this body is
+loaded inline into a caller's context they do not bind that caller, whose writes, commits, and
+dispatches remain its own; dispatched as a subagent, they bind you for the whole turn.
 
 ## The cycle
 
@@ -85,6 +88,9 @@ follow the task and report every SHA in your return.
 
 Return exactly one of three outcomes. A missing or malformed outcome halts the build, so state it
 plainly.
+
+**Scope of this return:** loaded inline into a caller's context, returning ends the worker role only
+and that caller continues to its own next step; dispatched as a subagent, your turn ends here.
 
 - **`COMPLETE`** — focused verification is green and exactly one task commit exists.
 - **`NEEDS_ESCALATION`** — the task proves materially more complex or riskier than the assigned
