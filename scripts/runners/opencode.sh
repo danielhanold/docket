@@ -5,7 +5,7 @@
 # ADR-0015; effort -> --variant; repo root -> --dir; permission posture -> --auto), foreground
 # execution, stdout relay. Invoked by runner-dispatch.sh — not directly by skills.
 # Contract: scripts/runners/opencode.md. Mock seam: OPENCODE_BIN. Env in (from the facade):
-# DOCKET_REPO_ROOT (absolute, required), DOCKET_RUNNER_CFG_PERMISSIONS (default `ask`).
+# DOCKET_REPO_ROOT (absolute run anchor — main worktree unless the caller named one, required), DOCKET_RUNNER_CFG_PERMISSIONS (default `ask`).
 #
 # WHY `ask` REFUSES: opencode prompts for approval before editing a file or running a command. A
 # delegated run has no human channel to answer with, so without --auto it blocks on the first

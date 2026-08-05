@@ -6,7 +6,7 @@
 # `<id>[effort=<e>]` encoding — Cursor has no separate effort flag), foreground execution,
 # final-message relay on stdout. Invoked by runner-dispatch.sh — not directly by skills.
 # Contract: scripts/runners/cursor.md. Mock seam: CURSOR_BIN. Env in (from the facade):
-# DOCKET_REPO_ROOT (absolute, required).
+# DOCKET_REPO_ROOT (absolute run anchor — main worktree unless the caller named one, required).
 #
 # RECORDED RISK: cursor-agent is known to be unreliable and to lag the Cursor IDE in features, so
 # this adapter rests on a shakier foundation than runners/codex.sh. Its failure posture is pinned

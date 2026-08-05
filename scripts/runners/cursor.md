@@ -35,7 +35,7 @@ Environment (set by the facade):
 
 | Var | Meaning | Default |
 |---|---|---|
-| `DOCKET_REPO_ROOT` | absolute main-worktree path; the run's repo anchor | required |
+| `DOCKET_REPO_ROOT` | absolute run anchor — the main worktree unless the caller named a feature worktree; the run's repo anchor | required |
 
 `runners.cursor` has no configuration keys today. Mock seam: `CURSOR_BIN` (default `cursor-agent`).
 
