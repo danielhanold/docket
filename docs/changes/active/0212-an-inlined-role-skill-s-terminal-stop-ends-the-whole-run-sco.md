@@ -12,12 +12,12 @@ related: [96, 113, 154, 203, 211]
 discovered_from: [113]
 adrs: []
 spec: docs/superpowers/specs/2026-08-05-inlined-role-terminal-stop-scoping-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-05-inlined-role-terminal-stop-scoping.md
 results:
 trivial: false
 auto_groomable: true
 branch: feat/an-inlined-role-skill-s-terminal-stop-ends-the-whole-run-sco
-claimed_at: 2026-08-05T18:25:59Z
+claimed_at: 2026-08-05T18:34:28Z
 pr:
 blocked_by:
 reconciled: true
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-05-inlined-role-terminal-stop-scoping-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-05-inlined-role-terminal-stop-scoping-design.md) |
+| Plan | [2026-08-05-inlined-role-terminal-stop-scoping.md](https://github.com/danielhanold/docket/blob/feat/an-inlined-role-skill-s-terminal-stop-ends-the-whole-run-sco/docs/superpowers/plans/2026-08-05-inlined-role-terminal-stop-scoping.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
