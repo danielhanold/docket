@@ -108,10 +108,17 @@ fixture there is nothing to seed and it exits 1 by design. The fresh-repo path i
       auto-groom:            { model: <slug>, effort: xhigh }
       auto-groom-critic:     { model: <slug>, effort: xhigh }
       brainstorm-consultant: { model: <slug>, effort: xhigh }
+      build-economy:         { model: <slug>, effort: xhigh }
+      build-max:             { model: <slug>, effort: xhigh }
+      build-premium:         { model: <slug>, effort: xhigh }
+      build-standard:        { model: <slug>, effort: xhigh }
       finalize-change:       { model: <slug>, effort: xhigh }
       implement-next:        { model: <slug>, effort: xhigh }
       integration-repair:    { model: <slug>, effort: xhigh }
       rebase-resolver:       { model: <slug>, effort: xhigh }
+      review-deep:           { model: <slug>, effort: xhigh }
+      review-lean:           { model: <slug>, effort: xhigh }
+      review-standard:       { model: <slug>, effort: xhigh }
   YAML
   ```
   Substitute the slug from step 3 for `<slug>`. Agent keys are **bare and un-prefixed**, nested
@@ -140,7 +147,7 @@ fixture there is nothing to seed and it exits 1 by design. The fresh-repo path i
   Either way, an unpinned Phase 3 or Phase 4 would be observing agents Codex cannot spawn, and a
   refusal there would be **indistinguishable** from "Codex does not honor the dispatch block" —
   manufacturing a false answer to the very question ADR-0036 deferred to this runbook. Pinning
-  all nine here, from `.docket.local.yml` (which overrides both the repo and global layers),
+  all sixteen here, from `.docket.local.yml` (which overrides both the repo and global layers),
   makes every later phase observe a runnable wrapper.
 
   If you later edit this file, **do not overwrite it** and do not drop the `agent_harnesses:`
@@ -170,10 +177,13 @@ fixture there is nothing to seed and it exits 1 by design. The fresh-repo path i
   ls ~/.codex/skills                               # expect docket skill symlinks
   bash /path/to/docket/sync-agents.sh --check; echo "exit=$?"   # expect exit=0
   ```
-  The full built-in set, as of this runbook, is nine agents: `docket-adr`,
+  The full built-in set, as of this runbook, is sixteen agents: `docket-adr`,
   `docket-auto-groom`, `docket-auto-groom-critic`, `docket-brainstorm-consultant`,
-  `docket-finalize-change`, `docket-implement-next`, `docket-integration-repair`,
-  `docket-rebase-resolver`, `docket-status`. **Don't trust that printed list as a ceiling** —
+  `docket-build-economy`, `docket-build-max`, `docket-build-premium`,
+  `docket-build-standard`, `docket-finalize-change`, `docket-implement-next`,
+  `docket-integration-repair`, `docket-rebase-resolver`, `docket-review-deep`,
+  `docket-review-lean`, `docket-review-standard`, `docket-status`.
+  **Don't trust that printed list as a ceiling** —
   the set grows; compare the count against `ls agents/docket-*.md` in the docket clone itself
   before treating a mismatch as a bug. If the set has grown, add the new keys to step 4's pin.
 
