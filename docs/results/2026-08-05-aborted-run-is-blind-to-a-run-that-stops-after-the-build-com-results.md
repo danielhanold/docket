@@ -7,7 +7,7 @@ Change: #0211 · Branch: feat/aborted-run-is-blind-to-a-run-that-stops-after-the
 
 ## Verify (human)
 
-- [ ] **Decide the two `important` review findings** (both recorded in full under *Findings*). Neither is a defect in shipped behavior; both are judgment calls the reviewer deliberately left to you rather than auto-fixing:
+- [ ] **Decide the two `important` review findings** (both recorded in full under *Findings*). These are the only findings left open — the seven `minor` ones were fixed in this PR at your instruction. Neither is a defect in shipped behavior; both are judgment calls:
   - the untested empty-`ar_bases` short-circuit (a coverage gap on the one predicate with no mutation),
   - leg C's assertive message register versus leg B's hedged one, on a predicate documented to fire on healthy runs.
 - [ ] **Sanity-check leg C against this repo's own live state.** This run is itself the signature: run `docket.sh docket-status` while change 0211 sits `in-progress` with its PR open, and confirm leg C does NOT fire on it (`pr:` is set, so the leg short-circuits at the free frontmatter read). That is the cheapest end-to-end confirmation the `pr:` gate works against real data rather than fixtures.
@@ -24,7 +24,11 @@ Change: #0211 · Branch: feat/aborted-run-is-blind-to-a-run-that-stops-after-the
 
 **Review outcome — `docket-review-deep`, 0 blockers / 2 important / 7 minor.** Full text in the PR body. No ADR was warranted: every non-obvious decision (both-bases exclusion, the 2h floor, one-leg-two-messages, no new check-id) was settled in the spec's `## Assumptions` before the build, and the two deviations above are test mechanics, not architecture.
 
+**All seven `minor` findings were subsequently fixed in this PR** (commit `305267cc`), at the maintainer's instruction rather than by the default triage rule. Three produced real behavior changes — the ahead-count is no longer computed on the pushed path, the never-pushed message now names *both* bases the count actually measured (derived from the resolved base set, so it never claims two when only one resolved), and the noun agrees with the number. Four were comment or doc corrections: the git-invocation cost contract was one low in both the script and `board-checks.md`; the `-n "$ar_ref"` guard's stated failure mode could not occur and was rewritten as the cost guard it actually is; and the `Known residual` note was widened in **both** records to cover any >2h inter-commit gap, not only the post-build tail.
+
+**A plural coverage gap surfaced while fixing finding 9:** every pre-existing firing fixture was exactly one commit ahead, so the `commits` branch was unreachable and a mutation pinning the noun would have stayed green. Fixture **239** closes it with a two-commit branch, plus a negative assert that `1 commits` never appears. Finding 8's widened absence asserts were proven non-vacuous by re-running the baseline arm under mutation G's idle-floor neutralization and observing exactly those three asserts redden.
+
 ## Follow-ups
 
 - **Change 0219** (minted at reconcile, `discovered_from: [211]`) — aborted-run's *sixth* signature: the PR opened and `pr:` written, then the run dies before `status: implemented`. Leg C's `pr:`-empty gate makes it invisible by design; leg B catches it at 12h. Its evidence is a manifest/GitHub comparison, and `board-checks.sh` is git-only by contract, so it needs a different oracle — a design question, not a fourth leg.
-- The seven `minor` review findings are recorded in the PR body rather than filed as changes: each is a one-line edit to code this PR introduces (message wording, a stale cost count, a comment whose stated failure mode cannot occur, an absence assert narrower than its twin, "1 commits"). They belong to whoever merges this, not to a future change.
+- The seven `minor` review findings needed no follow-up change: all were fixed in this PR (see *Findings*). Only the two `important` ones remain open, as merge-time judgment calls.
