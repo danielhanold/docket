@@ -28,9 +28,9 @@ subagent, and never load a review skill.
   changes from the weaker worker's attempt. Inspect and account for every one of them. You may
   revise or replace them, but never discard them blindly and never `git checkout .` over them.
 
-**Scope of these prohibitions:** they bind this worker's own conduct. When this body is
-loaded inline into a caller's context they do not bind that caller, whose writes, commits, and
-dispatches remain its own; dispatched as a subagent, they bind you for the whole turn.
+**Scope of these prohibitions:** if you invoked this skill yourself, they bind only your conduct in
+the worker role — your own other writes, commits, and dispatches remain yours; only an agent whose
+entire assignment is this role is bound by them for its whole turn.
 
 ## The cycle
 
@@ -89,8 +89,9 @@ follow the task and report every SHA in your return.
 Return exactly one of three outcomes. A missing or malformed outcome halts the build, so state it
 plainly.
 
-**Scope of this return:** loaded inline into a caller's context, returning ends the worker role only
-and that caller continues to its own next step; dispatched as a subagent, your turn ends here.
+**Scope of this return:** if you invoked this skill yourself, returning ends only the worker role —
+you continue to your own next step; only an agent whose entire assignment is this role ends its
+turn here.
 
 - **`COMPLETE`** — focused verification is green and exactly one task commit exists.
 - **`NEEDS_ESCALATION`** — the task proves materially more complex or riskier than the assigned

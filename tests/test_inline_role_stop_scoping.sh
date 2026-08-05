@@ -14,7 +14,8 @@
 # appear within WINDOW lines AFTER the anchor line.
 #
 # WRAP-TOLERANT: the swept bodies are hard-wrapped markdown prose, so either half of the clause can
-# straddle a line break — docket-status's instance wraps mid-anchor as "dispatched as a / subagent,".
+# straddle a line break — the swept instances wrap mid-anchor (e.g. "only an agent whose entire /
+# assignment is this role").
 # The window is therefore whitespace-normalized before matching. Line-literal matching would have
 # reddened that site for a formatting reason with nothing wrong at it.
 #
@@ -26,10 +27,15 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 fail=0
 assert(){ if ( eval "$2" ); then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
 
-# Both halves of the two-sided, mode-conditioned clause. A wrapper injects the SAME body, so a
-# one-sided "the caller continues" would be read by dispatched subagents whose turn genuinely ends.
-INLINE_HALF="loaded inline into a caller's context"
-DISPATCH_HALF="dispatched as a subagent"
+# Both halves of the two-sided clause. The discriminator is HOW THIS BODY ARRIVED, not the reader's
+# employment status: a docket-implement-next fork reading docket-build inline is BOTH a dispatched
+# subagent AND an inline caller, so an "inline vs dispatched" split is not mutually exclusive from
+# the reader's viewpoint and the sticky second person decides it. The second person therefore sits
+# on the CONTINUE branch, and the abort branch is third-person about "an agent whose entire
+# assignment is this role". A wrapper injects the SAME body, so both halves stay load-bearing.
+# Both anchors are lowercase and mid-sentence, because matching is case-sensitive and fixed-string.
+INLINE_HALF="you invoked this skill yourself"
+DISPATCH_HALF="only an agent whose entire assignment is this role"
 WINDOW=6
 
 # The line number of the first line matching a fixed-string anchor, or empty. Captured into a
@@ -124,18 +130,18 @@ missing_ln="$(anchor_line "$probe" "no such anchor anywhere in this probe")"
 assert "anchor_line returns empty for an absent anchor (got '$missing_ln')" '[ -z "$missing_ln" ]'
 # And it must ACCEPT a properly scoped one.
 printf '%s\n' 'Then you stop — review is not yours.' '' \
-  "**Scope of this stop:** $INLINE_HALF, this stop ends this role only and that caller continues to its own next step; $DISPATCH_HALF, your turn ends here." > "$probe"
+  "**Scope of this stop:** If $INLINE_HALF, this stop ends only this role — you continue to your own next step; $DISPATCH_HALF ends its turn here." > "$probe"
 pl="$(anchor_line "$probe" "Then you stop — review is not yours.")"
 assert "the matcher ACCEPTS a scoped stop" 'clause_near "$probe" "$pl"'
 # ... including one whose halves straddle a hard wrap, which is how the swept prose is formatted.
 printf '%s\n' 'Then you stop — review is not yours.' '' \
-  '**Scope of this stop:** loaded inline into a' "caller's context, this stop ends this role only; dispatched as a" 'subagent, your turn ends here.' > "$probe"
+  '**Scope of this stop:** If you invoked this skill' 'yourself, this stop ends only this role; only an agent whose entire' 'assignment is this role ends its turn here.' > "$probe"
 pl="$(anchor_line "$probe" "Then you stop — review is not yours.")"
 assert "the matcher ACCEPTS a clause wrapped across lines" 'clause_near "$probe" "$pl"'
-# One-sided clauses must NOT satisfy it: the wrapper injects the same body, so both halves are
-# load-bearing.
+# One-sided clauses must NOT satisfy it: the wrapper injects the same body, so an agent whose whole
+# assignment IS this role must still be told its turn ends. Both halves are load-bearing.
 printf '%s\n' 'Then you stop — review is not yours.' '' \
-  "**Scope of this stop:** $INLINE_HALF, the caller continues." > "$probe"
+  "**Scope of this stop:** If $INLINE_HALF, you continue to your own next step." > "$probe"
 pl="$(anchor_line "$probe" "Then you stop — review is not yours.")"
 assert "the matcher REJECTS a one-sided clause" '! clause_near "$probe" "$pl"'
 # Presence far from the site must NOT satisfy it (the 0199 co-occurrence lesson, proved).
@@ -148,8 +154,10 @@ rm -f "$probe"
 
 if [ "$fail" != 0 ]; then
   echo "REMEDY: a docket-owned skill body loadable into a caller's context scopes its terminal stop"
-  echo "        and its second-person prohibitions to the role, two-sided and conditioned on"
-  echo "        invocation mode: \"$INLINE_HALF\" ... \"$DISPATCH_HALF\". Put the clause AT the site,"
+  echo "        and its second-person prohibitions to the role, two-sided and conditioned on HOW"
+  echo "        THIS BODY ARRIVED, with the second person on the CONTINUE branch:"
+  echo "        \"If $INLINE_HALF, ... you continue to your own next step;"
+  echo "        $DISPATCH_HALF ends its turn here.\" Put the clause AT the site,"
   echo "        within $WINDOW lines of the anchor — not elsewhere in the file. If a stop was"
   echo "        reworded, update this file's SITES table in the same diff."
 fi
