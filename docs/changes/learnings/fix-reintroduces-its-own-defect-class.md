@@ -2,9 +2,9 @@
 slug: fix-reintroduces-its-own-defect-class
 hook: "New code added by a change that fixes a defect class is the likeliest place for that class to reappear — audit the change's OWN additions against its thesis before review, and check the twin it did not touch."
 topics: [review, refactoring, contracts]
-changes: [135, 173, 113]
+changes: [135, 173, 113, 212]
 created: 2026-07-28
-updated: 2026-08-03
+updated: 2026-08-05
 promotion_state: candidate
 promoted_to:
 ---
@@ -73,3 +73,20 @@ Related: [[escape-ere-metacharacters-in-key]] (the un-fixed twin of a duplicated
   leg reads in a review as the property being established while it only establishes one instance of
   it. A guard over an N-site invariant that exercises one site is the same shape as
   [[correspondence-guard-runs-one-way]], one layer in. Captured as **#0202**.
+- 2026-08-05 (#212, PR #161) — **The defect class reappeared inside the sentence written to abolish
+  it.** 0212 exists because a terminal stop in a role-skill body ("your turn ends here") is read by
+  an *inlining* caller as ending the whole run. The fix was one scoping clause, swept across seven
+  stop sites. The first version conditioned on the reader's **employment status**: "loaded inline
+  into a caller's context … dispatched as a subagent, your turn ends here." Both antecedents are
+  simultaneously true of a `docket-implement-next` instance — it *is* a forked subagent and it *is*
+  an inlining caller — so the clause reproduces exactly the ambiguous-antecedent read it was written
+  to remove, and the continue branch was third-person while the abort branch was second-person, so
+  the branch that survives a careless pronoun read is the aborting one. Landed instead:
+  discriminate on **provenance** ("if you invoked this skill yourself"), with the second person on
+  the **continue** branch. Recorded as ADR-0069 so the rule binds future bodies, not just these
+  seven.
+  What this adds: when the defect class is *ambiguous reference*, the antidote is prose, and prose
+  is where the class lives — so the fix is written in the defect's own medium and inherits its
+  failure mode for free. The audit move is mechanical and cheap: enumerate the readers of the new
+  sentence, and check the discriminator is a property on which they actually **differ**. Employment
+  status was not one; provenance was.

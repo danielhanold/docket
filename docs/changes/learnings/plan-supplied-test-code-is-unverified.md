@@ -2,9 +2,9 @@
 slug: plan-supplied-test-code-is-unverified
 hook: "Test code a plan hands you is unverified code, not an oracle — prove the assert CAN pass, and mutation-test its own key."
 topics: [testing, plan, guards]
-changes: [94, 104, 112, 130, 133, 157, 168, 170, 173, 174, 194, 113]
+changes: [94, 104, 112, 130, 133, 157, 168, 170, 173, 174, 194, 113, 212]
 created: 2026-07-19
-updated: 2026-08-03
+updated: 2026-08-05
 promotion_state: candidate
 promoted_to:
 ---
@@ -207,3 +207,16 @@ implementer. It is not a reason to distrust plans — it is a reason to run the 
   *deletion-shaped* mutation is supposed to prove. The mutation and its oracle agree, and both are
   measuring nothing. Cheap check, now house practice here: **`bash -n` the mutated artifact before
   reading its result**, for every mutation whose shape is a deletion.
+- 2026-08-05 (#212, PR #161) — The plan handed the worker a finished guard script for the seven
+  swept stop sites. It failed **twice** against the landed files, both times invisibly-as-written.
+  (1) The `SITES` anchor `Then you stop — review is not yours.` matched nothing, because an earlier
+  task in the same plan compressed that body and wrapped the sentence across two lines. (2) The
+  `clause_near` matcher was line-literal, so `docket-status`'s clause — wrapped between
+  `dispatched as a` and `subagent,` — read as **absent** on a file where it was present and
+  correct. Both were found by execution, neither by reading.
+  The sharpening this adds: a plan-supplied guard is written against the file as it exists **at
+  plan time**, and a multi-task plan is a machine for invalidating exactly that. When earlier tasks
+  in the same plan reflow, compress, or move the prose the later guard anchors on, the guard's
+  staleness is *caused by the plan it came in*. Prose anchors are the fragile case — run the guard
+  against the real post-task tree before trusting either polarity, and prefer shape-based matchers
+  over line-literal ones anywhere text can wrap.

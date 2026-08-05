@@ -94,6 +94,7 @@ One curated finding per file; this index is the hint surface. Load it, then read
 - [optimization-needs-a-measured-oracle](optimization-needs-a-measured-oracle.md) — A performance change has no oracle in the suite — correctness asserts pass identically whether the optimization happened or not, so scope it and accept it on measured wall clock. · also: performance, planning ⟨needs promotion⟩
 - [plan-supplied-test-code-is-unverified](plan-supplied-test-code-is-unverified.md) — Test code a plan hands you is unverified code, not an oracle — prove the assert CAN pass, and mutation-test its own key. · also: plan, guards ⟨needs promotion⟩
 - [specified-but-unreachable](specified-but-unreachable.md) — Sentinels over prose assert a claim is PRESENT, never that it is REACHABLE — where a contract has a producer and a consumer, anchor one assert on the producer. · also: sentinels, review ⟨needs promotion⟩
+- [test-helper-interpolates-its-own-description](test-helper-interpolates-its-own-description.md) — A helper that interpolates a caller-supplied description into a double-quoted string executes any backticks in it — a guard's own harness can mutate the tree it is testing. · also: shell, guards ⟨needs promotion⟩
 - [test-premise-deleted-not-regated](test-premise-deleted-not-regated.md) — When a change invalidates a test's premise, ask what the block GUARDS, not what it asserts. · also: guards, refactoring
 
 ## ux

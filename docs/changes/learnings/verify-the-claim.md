@@ -2,9 +2,9 @@
 slug: verify-the-claim
 hook: "A document asserting a fact about another artifact is not an oracle — verify it against the artifact or the RUNNING CODE before acting on it."
 topics: [process, review, spec]
-changes: [12, 21, 47, 65, 67, 74, 96, 101, 102, 109, 112, 138, 130, 157, 164, 170]
+changes: [12, 21, 47, 65, 67, 74, 96, 101, 102, 109, 112, 138, 130, 157, 164, 170, 212]
 created: 2026-06-12
-updated: 2026-08-01
+updated: 2026-08-05
 promotion_state: retained
 promoted_to:
 ---
@@ -185,3 +185,16 @@ mid-build; leave the re-scope to the human. Reject false positives with evidence
   fourth build profile. Both are prose asserting a *count of siblings*, the drift surface #164
   recorded, and both were found by the whole-branch read that the suite structurally could not
   perform — which is the argument for keeping that read, made by the change that ships it.
+- 2026-08-05 (#212, PR #161) — **A review finding is a claim, and gets the same treatment.** Of
+  eleven findings on this branch, one asserted that `docket-brainstorm` was "the only swept body
+  without `context: fork`". The worker fixing it checked: `docket-build`, `docket-review`, and
+  `docket-build-task` also lack it. The finding's load-bearing half survived — `docket-brainstorm`
+  is the only body whose *sole* invocation path is inline loading, which is what the fix actually
+  needed — so the fix landed on the corrected basis rather than the stated one.
+  The extension to this finding: reviewers produce documents asserting facts about artifacts, which
+  is precisely the shape this rule already covers, but the review context invites deference — a
+  finding arrives with the authority of having been *looked for*, and the natural response is to
+  fix it rather than to check it. Verify the finding's premise against the running code before
+  implementing its remedy. The cost of not doing so is a fix that is correct by luck, resting on a
+  false rationale that then gets written into the commit message and outlives everyone's memory of
+  the review.
