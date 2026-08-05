@@ -12,12 +12,12 @@ related: [79, 192]
 discovered_from: [205]
 adrs: [34]
 spec: docs/superpowers/specs/2026-08-05-delegated-run-worktree-anchor-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-05-delegated-run-worktree-anchor-plan.md
 results:
 trivial: false
 auto_groomable:
 branch: feat/delegated-runner-runs-are-anchored-at-the-main-worktree-not
-claimed_at: 2026-08-05T13:34:53Z
+claimed_at: 2026-08-05T13:41:02Z
 pr:
 blocked_by:
 reconciled: true
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-05-delegated-run-worktree-anchor-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-05-delegated-run-worktree-anchor-design.md) |
+| Plan | [2026-08-05-delegated-run-worktree-anchor-plan.md](https://github.com/danielhanold/docket/blob/feat/delegated-runner-runs-are-anchored-at-the-main-worktree-not/docs/superpowers/plans/2026-08-05-delegated-run-worktree-anchor-plan.md) |
 | ADRs | [ADR-0034](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0034-repo-root-anchored-to-main-worktree.md) |
 <!-- docket:artifacts:end -->
 
