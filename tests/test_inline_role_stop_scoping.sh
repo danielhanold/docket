@@ -98,6 +98,23 @@ done <<EOF
 $SITES
 EOF
 
+# docket-build-task reaches its worker by WRAPPER PRELOAD (agents/docket-build-*.md carry
+# `skills: [docket-build-task]`), so for this one body the inline half is readable by the worker
+# itself — which would exempt it from the metadata/never-push prohibitions the clause is the only
+# enforcement of. The two halves above cannot express that; a positive disambiguation must say
+# preload is not self-invocation. Asserted per-site, not file-wide (the 0199 co-occurrence lesson).
+PRELOAD="Wrapper preload is not self-invocation"
+BT="$REPO/skills/docket-build-task/SKILL.md"
+for a in "If you were dispatched as an **escalated** worker" "Return exactly one of three outcomes"; do
+  bt_ln="$(anchor_line "$BT" "$a")"
+  assert "docket-build-task still carries its anchor: $a" '[ -n "$bt_ln" ]'
+  [ -n "$bt_ln" ] || continue
+  bt_win="$(awk -v lo="$bt_ln" -v hi="$(( bt_ln + WINDOW ))" \
+    'NR>=lo && NR<=hi { s = s $0 "\n" } END { gsub(/[[:space:]]+/, " ", s); print s }' "$BT")"
+  assert "docket-build-task disambiguates preload at: $a" \
+    'case "$bt_win" in *"$PRELOAD"*) true ;; *) false ;; esac'
+done
+
 # --- Recorded no-hazard verdicts (the sweep's deliverable is a per-file verdict, not an edit set) ---
 # docket-adr: no terminal stop and no second-person prohibition; the body ends on a validation
 # invocation. Asserted live rather than left as a comment, so a future edit that introduces a stop
