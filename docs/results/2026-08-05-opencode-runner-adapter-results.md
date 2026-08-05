@@ -85,8 +85,12 @@ scope effect — it was out of scope either way.
   (`fix`, auto-captured).
 - **#0207** — `sync-agents` aborts mid-loop on a bad runner config, leaving a zero-length wrapper and
   stale siblings (`fix`, auto-captured).
-- **Unfixed review findings** are listed in the PR body for merge-time judgment, per docket's rule
-  that `important`/`minor` findings are never auto-fixed. The two most actionable: `codex.md` and
-  `cursor.md` still document "Omitted ⇒ the child's own default," the posture ADR-0067 reverses; and
-  `skills/docket-convention/references/agent-layer.md` still lists the shipped runners as
-  `codex, cursor` and documents `model:` as optional alongside `runner:`.
+- **Review findings — all closed on this branch.** The first deep review returned 0 blockers, 5
+  important, 4 minor; a second deep review after the fix wave returned 2 blockers, 2 important, 5
+  minor. Every one was fixed in-branch rather than deferred, at the human's direction. Notably
+  `f80e3a5c` closed the two framework-doc findings this section previously listed as open (`codex.md`
+  and `cursor.md` documenting "Omitted ⇒ the child's own default"; `agent-layer.md` listing the
+  shipped runners as `codex, cursor`). The per-finding record with commit SHAs is the PR body's
+  findings table.
+- **The `build-*` recipe is a preview, not yet usable** — see #0206 below. All three user-facing
+  surfaces now carry that warning.

@@ -71,6 +71,12 @@ NETWORK="${DOCKET_RUNNER_CFG_NETWORK:-true}"
 # facade's block-mapping reader does not strip quotes, so `network: "true"` arrives as the literal
 # `"true"` and lands here. Showing the quoted value alone is not actionable (ADR-0065).
 case "$NETWORK" in true|false) ;; *) die "runners.codex.network must be 'true' or 'false' (got '$NETWORK') — write the value unquoted" ;; esac
+# `auto` is DOCKET's own "no pin" sentinel, never a vendor effort token — normalize it away before
+# the mapping below, exactly as runners/cursor.sh and runners/opencode.sh do. Generated shims never
+# forward it (emit_shim filters `auto`), so this is unreachable through config; it matters for a
+# hand invocation, which the adapter contracts explicitly contemplate, and it makes the shared
+# "`auto` behaves identically on every runner" claim true at the adapter layer too (change 0205).
+case "$EFFORT" in auto) EFFORT="" ;; esac
 case "$EFFORT" in max) EFFORT="xhigh" ;; esac   # codex's reasoning-effort vocabulary tops out at xhigh
 
 cmd=( "$CODEX_BIN" exec -C "$DOCKET_REPO_ROOT" --sandbox "$SANDBOX" --color never )

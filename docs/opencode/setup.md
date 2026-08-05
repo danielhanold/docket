@@ -225,7 +225,10 @@ useful third:
 The default names what actually happens rather than serving as a placeholder, and nobody receives
 blanket auto-approval as a side effect of typing `runner: opencode` — the risk is accepted at a
 visible line in config. **Pair `auto-approve` with opencode's own deny rules**: `--auto` approves
-what is not explicitly denied, so the deny list, not the flag, is the real boundary.
+what is not explicitly denied, so the deny list — not the flag — is *intended* to be the real
+boundary. Treat that as unverified: docket read it from a single line of `opencode run --help` and
+has not tested the interaction. Confirm the deny-rule spelling and behavior against your own
+opencode version before relying on it to contain a delegated build worker.
 
 ### Verifying a delegated run
 
