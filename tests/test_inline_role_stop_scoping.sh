@@ -70,6 +70,7 @@ clause_near(){
 # "…— review is not yours." across two lines, so the full sentence exists on no single line.
 SITES="
 skills/docket-build/SKILL.md|Then you stop — review|terminal stop
+skills/docket-build/SKILL.md|Every halt is the same disposition|halting stop (nine conditions)
 skills/docket-review/SKILL.md|One shot at the dispatched rung|second-person prohibitions
 skills/docket-review/SKILL.md|An unmet precondition or a blocking ambiguity is **abort-and-report**|terminal stop
 skills/docket-status/SKILL.md|stop rather than improvising a fix|hard-error stop (Tier A inline path)
