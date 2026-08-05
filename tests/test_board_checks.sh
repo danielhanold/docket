@@ -1098,6 +1098,81 @@ assert "aborted-run FIRES for a custom results dir when --results-dir names it (
 AR_STALE_CLAIM="$(iso $(( NOW_EPOCH - 13*3600 )))"   # 13h  > 12h  => fires
 AR_FRESH_CLAIM="$(iso $(( NOW_EPOCH - 11*3600 )))"   # 11h  < 12h  => silent
 
+# ---------------- branch_only_artifact: C-quoted paths (change 0202, finding 4) ----------------
+# These are leg-A fixtures, placed here rather than beside the other leg-A ones because they consume
+# `AR_FRESH_CLAIM`, which is defined just above: under this file's `set -u`, a heredoc referencing it
+# any earlier aborts the run outright.
+# `git ls-tree --name-only` C-quotes any path with a quote, a backslash, a control character, or
+# (under the default core.quotePath=true) a non-ASCII byte. git_has would then look up the literal
+# quoted string, fail, and report an INHERITED artifact as branch-only — a false positive. The fix
+# reads the listing NUL-delimited (-z), which suppresses quoting entirely.
+# core.quotePath is set explicitly per-repo: it is git's default, but a developer's global config
+# may turn it off, which would make the mutation below silently unreproducible.
+AR_PLAN_UTF8="docs/superpowers/plans/2026-06-01-café-plan.md"
+
+# ARQ1 — SANITY: the non-ASCII plan is branch-only. Leg A fires. Proves the NUL plumbing reads a
+# real path; does NOT discriminate the mutation (a branch-only path fails git_has either way).
+read -r ARQ1 _ < <(new_repo)
+git -C "$ARQ1" config core.quotePath true
+ar_branch "$ARQ1" feat/arq1 "$AR_PLAN_UTF8"
+cat > "$ARQ1/docs/changes/active/0230-utf8-branchonly.md" <<EOF
+---
+id: 230
+slug: utf8-branchonly
+title: Non-ASCII plan committed on the branch only
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/arq1
+plan:
+results:
+claimed_at: $AR_FRESH_CLAIM
+---
+EOF
+arq1out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$ARQ1/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "0202: leg A fires for a branch-only plan with a non-ASCII path (id 230, NUL plumbing reads it)" \
+  'has_finding "$arq1out" aborted-run 230'
+# The reported path must be the REAL path, not a C-quoted rendering of it.
+arq1line="$(grep -E "$(printf "^aborted-run\t230\t")" <<<"$arq1out")"
+assert "0202: the leg-A finding reports the unquoted non-ASCII path (id 230)" \
+  'grep -qF "$AR_PLAN_UTF8" <<<"$arq1line"'
+
+# ARQ2 — INHERITED (the discriminating fixture): the non-ASCII plan is on main, so the branch
+# INHERITS it and it is NOT branch-only. Fixed script: SILENT. Mutated: FIRES (the false positive).
+# The "only" is load-bearing — branch_only_artifact returns the FIRST non-inherited path it finds,
+# so any stray branch-only plan in this repo would mask the assert.
+read -r ARQ2 _ < <(new_repo)
+git -C "$ARQ2" config core.quotePath true
+git -C "$ARQ2" checkout main >/dev/null 2>&1
+mkdir -p "$ARQ2/$(dirname "$AR_PLAN_UTF8")"
+printf '# artifact\n' > "$ARQ2/$AR_PLAN_UTF8"
+git -C "$ARQ2" add "$AR_PLAN_UTF8"; git_quiet -C "$ARQ2" commit -m "non-ASCII plan on main"
+git -C "$ARQ2" branch feat/arq2 main
+git -C "$ARQ2" checkout docket >/dev/null 2>&1
+cat > "$ARQ2/docs/changes/active/0231-utf8-inherited.md" <<EOF
+---
+id: 231
+slug: utf8-inherited
+title: Non-ASCII plan inherited from the integration branch
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/arq2
+plan:
+results:
+claimed_at: $AR_FRESH_CLAIM
+---
+EOF
+arq2out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$ARQ2/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "0202: leg A SILENT for an INHERITED non-ASCII plan (id 231, no C-quoting false positive)" \
+  '! has_finding "$arq2out" aborted-run 231'
+# Non-vacuity: the fixture must actually have a plan file on its branch, or the silence above
+# would be the trivial empty-listing silence rather than the inherited-path silence.
+assert "0202: fixture 231's branch really does carry the non-ASCII plan (assert is not vacuous)" \
+  'git -C "$ARQ2" cat-file -e "feat/arq2:$AR_PLAN_UTF8"'
+assert "0202: fixture 231's non-ASCII plan is also on main (that is what makes it inherited)" \
+  'git -C "$ARQ2" cat-file -e "main:$AR_PLAN_UTF8"'
+
 read -r AR10 _ < <(new_repo)
 cat > "$AR10/docs/changes/active/0210-stale-claim.md" <<EOF
 ---
@@ -1308,7 +1383,8 @@ armreseed(){
   cp "$REPO/scripts/lib/docket-frontmatter.sh" "$armcopy/scripts/lib/"
   ARMSCRIPT="$armcopy/scripts/board-checks.sh"
 }
-armrun(){ NOW=$NOW_EPOCH bash "$ARMSCRIPT" --changes-dir "$ARM/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null; }
+armrun_at(){ NOW=$NOW_EPOCH bash "$ARMSCRIPT" --changes-dir "$1/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null; }
+armrun(){ armrun_at "$ARM"; }
 
 # Baseline: the un-mutated copy fires exactly the three expected findings.
 armreseed
@@ -1396,6 +1472,34 @@ assert "mutation E (drop whole block): fixture 220 goes GREEN" '! has_finding "$
 assert "mutation E (drop whole block): fixture 221 goes GREEN" '! has_finding "$armEout" aborted-run 221'
 assert "mutation E (drop whole block): fixture 222 goes GREEN" '! has_finding "$armEout" aborted-run 222'
 assert "mutation E (drop whole block): fixture 223 goes GREEN" '! has_finding "$armEout" aborted-run 223'
+rm -rf "$armcopy"
+
+# Mutation F — restore the C-quoting bug in branch_only_artifact (change 0202). BOTH halves must
+# revert together. Reverting -z ALONE is not a usable mutation: `read -d ''` would hit EOF on
+# newline-delimited input, the loop body would never run, the function would return 1 for every
+# input, and both fixtures would go green for entirely the wrong reason. So the read form reverts
+# with it. The here-string capture is NOT restored and does not need to be — the C-quoting is
+# produced by ls-tree, not by how the output is consumed, so these two edits reproduce the defect
+# exactly. Runs against ARQ2 (inherited non-ASCII plan), the only fixture that discriminates.
+armreseed
+armF_z_before="$(grep -cF 'ls-tree -r -z --name-only' "$ARMSCRIPT")"
+armF_d_before="$(grep -cF "read -r -d ''" "$ARMSCRIPT")"
+sed -e 's/ls-tree -r -z --name-only/ls-tree -r --name-only/' \
+    -e "s/while IFS= read -r -d '' boa_p; do/while IFS= read -r boa_p; do/" \
+    "$ARMSCRIPT" > "$ARMSCRIPT.t"; mv "$ARMSCRIPT.t" "$ARMSCRIPT"
+armF_z_after="$(grep -cF 'ls-tree -r -z --name-only' "$ARMSCRIPT")"
+armF_d_after="$(grep -cF "read -r -d ''" "$ARMSCRIPT")"
+assert "mutation F landed: -z is gone from the ls-tree listing (count 1 -> 0)" \
+  '[ "$armF_z_before" = 1 ] && [ "$armF_z_after" = 0 ]'
+assert "mutation F landed: the NUL read form is gone (count 1 -> 0)" \
+  '[ "$armF_d_before" = 1 ] && [ "$armF_d_after" = 0 ]'
+assert "mutation F landed: the mutated copy is still valid bash" 'bash -n "$ARMSCRIPT"'
+armFout="$(armrun_at "$ARQ2")"
+assert "mutation F (restore C-quoting): the INHERITED non-ASCII fixture 231 MISFIRES — the false positive" \
+  'has_finding "$armFout" aborted-run 231'
+armFsan="$(armrun_at "$ARQ1")"
+assert "mutation F: the branch-only fixture 230 still fires (the arm itself survives the mutation)" \
+  'has_finding "$armFsan" aborted-run 230'
 rm -rf "$armcopy"
 
 
