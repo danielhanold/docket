@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0205 — opencode runner adapter — delegate build workers to OpenRouter models](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0205-opencode-runner-adapter.md)**
+> ↩ **[Change 0205 — opencode runner adapter — delegate build workers to OpenRouter models](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-05-0205-opencode-runner-adapter.md)**
 <!-- docket:backlink:end -->
 
 # opencode runner adapter — design
