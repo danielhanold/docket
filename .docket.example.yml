@@ -395,14 +395,19 @@ auto_capture:
 
 # runners — per-runner knobs for RUNNER DELEGATION (change 0079): handing an agent's whole run to
 # a child harness with its own subscription, models, and skills. Activated per agent by an explicit
-# `runner:` key inside an `agents:` entry — never inferred from model IDs. One pair ships today:
-# parent `claude` (Claude Code) -> child `codex` (OpenAI Codex CLI). With no agent carrying a
-# `runner:` key, this block is inert.
+# `runner:` key inside an `agents:` entry — never inferred from model IDs. Three pairs ship today,
+# all with parent `claude` (Claude Code): children `codex` (OpenAI Codex CLI), `cursor` (Cursor
+# CLI), and `opencode`. A delegated agent MUST carry an explicit `model:` in your own config — a
+# shipped default is never forwarded to another harness, so a model-less delegation is a
+# generation-time error rather than a silent run on the child's own default. With no agent carrying
+# a `runner:` key, this block is inert.
 # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
 runners:
   codex:
     sandbox: workspace-write   # workspace-write (default) | danger-full-access
     network: true              # default true — git push and gh need it
+  opencode:
+    permissions: ask           # ask (default — REFUSES to delegate) | auto-approve
 
 
 # ═══ Pluggable workflow skills ═════════════════════════════════════════════════════════════

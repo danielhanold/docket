@@ -754,8 +754,9 @@ The binding posture used to be deliberately asymmetric — both roles shipped op
 
 Docket agents normally run on the harness hosting your session. **Runner delegation** hands an
 agent's *whole run* to a child harness with its own subscription, models, and skills — activated
-per agent by an explicit `runner:` key, never inferred from model IDs. Two pairs ship today, both
-with parent `claude` (Claude Code): child `codex` (OpenAI Codex CLI) and child `cursor` (Cursor CLI).
+per agent by an explicit `runner:` key, never inferred from model IDs. Three pairs ship today, all
+with parent `claude` (Claude Code): children `codex` (OpenAI Codex CLI), `cursor` (Cursor CLI), and
+`opencode`.
 
 ```yaml
 # .docket.yml (or the global ~/.config/docket/config.yml — runner is a machine preference)
@@ -763,10 +764,15 @@ agents:
   claude:                       # the PARENT harness: when Claude Code hosts the session…
     status: { model: gpt-5.1-codex, effort: medium, runner: codex }   # …run docket-status on Codex
     adr:    { model: gpt-5.1, effort: high, runner: cursor }          # …or run docket-adr on Cursor
+    # Delegate the four build workers to cheap OpenRouter models; leave review native.
+    build-economy:  { runner: opencode, model: openrouter/deepseek/deepseek-v4-flash-0731 }
+    build-standard: { runner: opencode, model: openrouter/deepseek/deepseek-v4-flash-0731 }
 runners:
   codex:
     sandbox: workspace-write    # workspace-write (default) | danger-full-access
     network: true               # default true — git push and gh need it
+  opencode:
+    permissions: auto-approve   # ask (default) REFUSES to delegate — see below
 ```
 
 How it works: `sync-agents.sh` generates that agent's wrapper with a **shim body** — one
@@ -787,6 +793,14 @@ Rules and limits:
   unregistered runner name fails generation loudly.
 - Delegation is never a policy bypass: do not delegate `docket-finalize-change` to sidestep
   merge-approval gates (see ADR-0043).
+- **A delegated agent must carry an explicit `model:` in your config.** Docket never forwards its
+  own shipped default to another harness — that ID means nothing to the child — so a model-less
+  `runner:` is a loud generation-time error rather than a silent run on the child's own default,
+  which on a pay-per-token backend surfaces on the bill instead of in the run.
+- **Delegate leaves, not orchestrators.** A delegated run's own sub-dispatches run child-natively,
+  so delegating `docket-implement-next` drags its review dispatch into the child too. Delegating
+  the four `build-*` profile workers rather than the `docket-build` controller is the same rule:
+  delegating the controller would move the routing decision into the child as well.
 
 **Prerequisites (codex):** Codex CLI installed and authenticated (`codex login`); superpowers
 installed in Codex; docket skills linked (`link-skills.sh`, automatic on install); and
@@ -801,6 +815,17 @@ agent inline. Cursor has no effort flag: `effort:` is encoded inside the model v
 `--model <id>[effort=<e>]`, and with no model resolved it is dropped with a WARN. Full adapter
 contract: `scripts/runners/cursor.md`. Validating the Cursor harness end to end (the CLI probe and
 the human IDE checklist): [docs/cursor/validation.md](docs/cursor/validation.md).
+
+**Prerequisites (opencode):** `opencode` installed (verified against 1.18.11) with a provider
+authenticated (`opencode auth login`), and docket skills linked into `~/.agents/skills`
+(`link-skills.sh`, automatic on install). `opencode` delegates to `opencode run`. **You must set
+`runners.opencode.permissions: auto-approve`** — opencode prompts for approval before editing a
+file or running a command, a delegated run has nothing to answer with, and the adapter therefore
+refuses up front rather than hanging. That grant is deliberately a visible line in config, not
+something you get by typing `runner: opencode`; pair it with opencode's own deny rules. Effort maps
+to `--variant` and passes through unmapped, including docket's `max`. Full adapter contract:
+`scripts/runners/opencode.md`; the config recipe is in
+[docs/opencode/setup.md](docs/opencode/setup.md).
 
 ### Running under Cursor Auto-run
 
