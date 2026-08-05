@@ -2,10 +2,10 @@
 id: 78
 slug: codex-cli-validation-runbook
 title: Codex CLI live-validation runbook — prove docket works end-to-end under Codex
-status: implemented
+status: done
 priority: high
 created: 2026-07-15
-updated: 2026-07-16
+updated: 2026-08-05
 depends_on: [77]
 related: [45]
 adrs: []
