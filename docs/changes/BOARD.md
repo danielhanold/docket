@@ -1,6 +1,6 @@
 # Backlog
 
-**204 changes** — 🟢 1 in progress · 🟡 47 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 131 done · 🗑️ 20 killed
+**205 changes** — 🟢 1 in progress · 🟡 48 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 131 done · 🗑️ 20 killed
 
 ## 🟢 In progress (1)
 
@@ -8,7 +8,7 @@
 |---|-------|----------|------|------|--------|
 | [0190](active/0190-close-the-build-evidence-value-gap-a-post-gate-results-commi.md) | Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip | `medium` | `feat` | [spec](../superpowers/specs/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md) | `feat/close-the-build-evidence-value-gap-a-post-gate-results-commi` |
 
-## 🟡 Proposed (47)
+## 🟡 Proposed (48)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -59,6 +59,7 @@
 | [0202](active/0202-clear-the-unfixed-review-findings-from-change-0113.md) | Clear the unfixed review findings from change 0113 | `medium` | `chore` | needs-brainstorm |
 | [0203](active/0203-define-the-per-step-git-state-postcondition-docket-implement.md) | Define the per-step git-state postcondition docket-implement-next now names but never states | `medium` | `docs` | needs-brainstorm |
 | [0204](active/0204-restore-rationale-dropped-by-round-three-compression-finaliz.md) | Restore rationale dropped by round-three compression (finalize named-id override, auto-capture mint-site loop) | `medium` | `docs` | needs-brainstorm |
+| [0205](active/0205-opencode-runner-adapter.md) | opencode runner adapter — delegate build workers to OpenRouter models | `medium` | `feat` | build-ready |
 
 ## ⚪ Deferred (4)
 
@@ -130,6 +131,7 @@ graph TD
   0202
   0203
   0204
+  0205
   0015:::done
   0077:::done
   0175:::done
