@@ -12,14 +12,14 @@ related: [113, 212]
 discovered_from: [113]
 adrs: []
 spec: docs/superpowers/specs/2026-08-05-aborted-run-built-but-not-delivered-leg-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-05-aborted-run-built-but-not-delivered-leg-plan.md
 results:
 trivial: false
 auto_groomable: true
 branch: feat/aborted-run-is-blind-to-a-run-that-stops-after-the-build-com
 pr:
 blocked_by:
-claimed_at: 2026-08-05T18:31:00Z
+claimed_at: 2026-08-05T18:36:43Z
 reconciled: true
 ---
 
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-05-aborted-run-built-but-not-delivered-leg-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-05-aborted-run-built-but-not-delivered-leg-design.md) |
+| Plan | [2026-08-05-aborted-run-built-but-not-delivered-leg-plan.md](https://github.com/danielhanold/docket/blob/feat/aborted-run-is-blind-to-a-run-that-stops-after-the-build-com/docs/superpowers/plans/2026-08-05-aborted-run-built-but-not-delivered-leg-plan.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
