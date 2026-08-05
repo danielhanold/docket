@@ -238,12 +238,20 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # (72 words of margin). The LINE budget was NOT raised — the riders reflowed inside existing lines
 # (139 actual, 145 budget, which is 0201's ratcheted value). Neither pre-rebase number survives:
 # 0113's 4050 was measured against the pre-slim file, and 0201's 3700 predates these riders.
+# skills/docket-build/SKILL.md's budget was raised 265/2400 -> 270/2450 by change 0212, which added the
+# mode-conditioned scoping clause beside the file's terminal stop. skills/docket-build/ has NO
+# references/ tree, so change 0201's rule cannot be discharged by naming an existing file: the home
+# that would have to be created is skills/docket-build/references/. Creating it is wrong here — the
+# clause must fire at the exact moment a reader reads "Then you stop", and a rule sitting in an
+# unread reference file cannot intervene at that moment. That is the same argument change 0137
+# recorded for the convention's dispatch rule. The H1 paragraph was compressed first; set from the
+# measured actual: 267 lines -> 270, 2421 words -> 2450.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
 skills/docket-auto-groom/SKILL.md                           66 1237
 skills/docket-brainstorm/SKILL.md                           84  692
-skills/docket-build/SKILL.md                               265 2400
+skills/docket-build/SKILL.md                               270 2450
 skills/docket-build-task/SKILL.md                          115 1000
 skills/docket-convention/SKILL.md                          345 5800
 skills/docket-convention/github-board-mirror.md             19  462
