@@ -92,15 +92,26 @@ assert "README: no longer claims only one runner pair ships" \
   '! grep -qF "One pair ships today" "$REPO/README.md"'
 # The same stale claim also shipped in .docket.example.yml's `runners:` comment and went stale there
 # for two whole runners (cursor, then opencode) because this guard hand-listed README as its only
-# site. Derive the sites from a whole-repo grep instead of naming one (AGENTS.md), so the next
-# runner cannot re-stale a surface nobody is watching.
-stale_pair_sites="$(grep -rlF "One pair ships today" "$REPO" --include="*.md" --include="*.yml" 2>/dev/null | grep -v "/docs/changes/archive/\|/docs/results/\|/docs/superpowers/" | tr '\n' ' ')"
+# site. Derive the sites instead of naming one (AGENTS.md), so the next runner cannot re-stale a
+# surface nobody is watching.
+#
+# Enumerate with `git grep`, NOT `grep -r "$REPO"`. The checkout root contains docket's own
+# `.worktrees/<slug>/` siblings and the `.docket/` metadata worktree; a recursive filesystem walk
+# audits those foreign checkouts too, and a sibling branched off older main legitimately still
+# carries the stale sentence — which would redden this suite in the primary tree for reasons that
+# have nothing to do with this repo's content. `git grep` is scoped to THIS checkout's tracked
+# files, matching the `git ls-files` idiom test_comment_anchor_style.sh already uses for the same
+# reason. Pathspecs also replace the --include filters, so the whole pipeline is one extractor.
+stale_grep(){ git -C "$REPO" grep -lF "$1" -- '*.md' '*.yml' 2>/dev/null | grep -v "^docs/changes/archive/\|^docs/results/\|^docs/superpowers/"; }
+stale_pair_sites="$(stale_grep "One pair ships today" | tr '\n' ' ')"
 assert "no maintained file still claims only one runner pair ships (${stale_pair_sites:-none})" \
   '[ -z "${stale_pair_sites// /}" ]'
-# NON-VACUITY COMPANION: the extractor above must be able to find anything at all, or the absence
-# assert is green for reasons unrelated to the claim being gone.
-probe_sites="$(grep -rlF "runner:" "$REPO/README.md" "$REPO/.docket.example.yml" 2>/dev/null | tr '\n' ' ')"
-assert "the stale-claim extractor reaches both surfaces it audits (got ${probe_sites:-none})" \
-  '[ "$(printf "%s" "$probe_sites" | wc -w | tr -d " ")" = "2" ]'
+# NON-VACUITY COMPANION, through the SAME extractor (assert-detects-removal-not-replacement): the
+# earlier version grepped two named files with no recursion, no pathspecs and no exclusion pipeline,
+# so a broken traversal would leave the absence assert vacuously green while the companion still
+# passed. Probe a sentinel that must exist in a maintained *.md/*.yml via the identical function.
+probe_sites="$(stale_grep "runner:" | tr '\n' ' ')"
+assert "the stale-claim extractor still finds live content through the same pipeline (got ${probe_sites:-none})" \
+  '[ -n "${probe_sites// /}" ]'
 
 echo "---"; [ "$fail" = "0" ] && echo "ALL PASS" || echo "FAILURES"; exit $fail
