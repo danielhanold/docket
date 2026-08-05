@@ -78,7 +78,11 @@ a future `deny-list` value without a boolean→enum migration.
    abort-and-report rule), then any passthrough args. The assembled prompt is opencode's
    **positional** `message` argument.
 4. **Flag mapping** — `run --dir $DOCKET_REPO_ROOT`, `--model <model>` and `--variant <effort>`
-   when supplied, `--auto` when `permissions` is `auto-approve`.
+   when supplied, `--auto` when `permissions` is `auto-approve`, then `--` and the prompt. The
+   `--` ends option parsing so the prompt is always the positional `message`: a wrapper body that
+   opened with a markdown bullet or a `--flag` example would otherwise be partly consumed by
+   opencode's parser. Verified against 1.18.11 — `opencode run --version` prints the version, while
+   `opencode run -- --version` sends `--version` as the message.
 5. **Execution + relay** — runs `opencode run` **foreground**, blocking until exit; the child's
    stdout is the adapter's stdout, verbatim.
 

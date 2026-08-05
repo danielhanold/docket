@@ -21,23 +21,33 @@ MOCK_DIR="$(mktemp -d)"
 cat > "$MOCK_DIR/opencode" <<'MOCK'
 #!/usr/bin/env bash
 printf '%s\n' "$@" > "$MOCK_ARGV"
+# The prompt is MULTI-LINE, so $MOCK_ARGV's line count is not the arg count and line positions are
+# not arg positions. Record the arg count and the index of `--` separately, so a positional assert
+# (is `--` the second-to-last arg?) is possible at all.
+printf '%s\n' "$#" > "${MOCK_ARGC:-/dev/null}"
+i=1; for a in "$@"; do [ "$a" = "--" ] && printf '%s\n' "$i" > "${MOCK_DASHPOS:-/dev/null}"; i=$((i+1)); done
 printf 'CALL\n' >> "${MOCK_CALLS:-/dev/null}"
 printf 'MOCK-FINAL-MESSAGE\n'
 exit "${MOCK_RC:-0}"
 MOCK
 chmod +x "$MOCK_DIR/opencode"
 
-run_adapter(){  # $@ = adapter args ; sets OUT / RC / ARGV / CALLS
+run_adapter(){  # $@ = adapter args ; sets OUT / RC / ARGV / CALLS / ARGC / DASHPOS
   MOCK_ARGV="$MOCK_DIR/argv.txt"
   MOCK_CALLS="$MOCK_DIR/calls.txt"
-  : > "$MOCK_CALLS"; : > "$MOCK_ARGV"
+  MOCK_ARGC="$MOCK_DIR/argc.txt"
+  MOCK_DASHPOS="$MOCK_DIR/dashpos.txt"
+  : > "$MOCK_CALLS"; : > "$MOCK_ARGV"; : > "$MOCK_ARGC"; : > "$MOCK_DASHPOS"
   OUT="$( MOCK_ARGV="$MOCK_ARGV" MOCK_CALLS="$MOCK_CALLS" MOCK_RC="${MOCK_RC:-0}" \
+          MOCK_ARGC="$MOCK_ARGC" MOCK_DASHPOS="$MOCK_DASHPOS" \
           OPENCODE_BIN="$MOCK_DIR/opencode" \
           DOCKET_RUNNER_CFG_PERMISSIONS="${PERM:-auto-approve}" \
           DOCKET_REPO_ROOT="$REPO" bash "$ADAPTER" "$@" 2>/dev/null )"
   RC=$?
   ARGV="$(cat "$MOCK_ARGV" 2>/dev/null)"
   CALLS="$(grep -c CALL "$MOCK_CALLS" 2>/dev/null)"
+  ARGC="$(cat "$MOCK_ARGC" 2>/dev/null)"
+  DASHPOS="$(cat "$MOCK_DASHPOS" 2>/dev/null)"
 }
 
 # --- happy path: foreground exec, stdout relayed verbatim ----------------------------------------
@@ -56,6 +66,13 @@ assert "happy: exactly one opencode invocation"   '[ "$CALLS" = "1" ]'
 # opencode's -p is --password, NOT print mode. Copying cursor.sh's -p would silently hand the
 # prompt to a basic-auth flag. This assert detects that specific mis-port.
 assert "happy: never passes -p (opencode's -p is --password, not print)" '! grep -qxF -- "-p" <<<"$ARGV"'
+# `--` must end option parsing, so a prompt that happens to open with a flag is still taken as the
+# message. Positional, not a presence grep: `--` must be the SECOND-TO-LAST arg, i.e. immediately
+# before the prompt. A bare presence check would pass with the sentinel emitted anywhere.
+# (Verified against opencode 1.18.11: `opencode run --version` prints the version, while
+# `opencode run -- --version` sends `--version` as the message.)
+assert "happy: -- is the arg immediately before the positional prompt" \
+  '[ -n "$DASHPOS" ] && [ -n "$ARGC" ] && [ "$DASHPOS" = "$(( ARGC - 1 ))" ]'
 
 # --- docket's `max` passes through unmapped (unlike codex, which maps max -> xhigh) ---------------
 run_adapter --agent status --model openrouter/moonshotai/kimi-k3 --effort max
