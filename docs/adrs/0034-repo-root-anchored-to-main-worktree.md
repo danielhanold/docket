@@ -6,7 +6,7 @@ status: Accepted
 date: 2026-07-14
 supersedes: []
 reverses: []
-relates_to: []
+relates_to: [68]
 change: 75
 ---
 
@@ -70,3 +70,13 @@ radius), mitigated by the fact that the main worktree is the root each already i
 
 One known out-of-scope residual: `ensure-claude-settings.sh` still uses `--show-toplevel` (a
 session-time install helper, not facade-reached) — a reasonable future follow-up.
+
+## Update — 2026-08-05
+
+The **delegation** path (`runner-dispatch.sh`) now takes an explicit `--worktree` anchor argument
+whose default is the main worktree, because a feature-scoped delegated agent (a `build-*` worker)
+must run inside its feature worktree, not the primary checkout. See **ADR-0068**.
+
+This decision is unamended. The anchor is still never resolved from the caller's CWD: absent the
+argument the anchor is the main worktree, and a relative `--worktree` is resolved through
+`docket_anchor_path` against the main worktree, so it too is cwd-independent.
