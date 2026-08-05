@@ -7,11 +7,11 @@ priority: high
 type: fix
 created: 2026-08-05
 updated: 2026-08-05
-depends_on: []
-related: []
+depends_on: [202]
+related: [113, 212]
 discovered_from: [113]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-05-aborted-run-built-but-not-delivered-leg-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-05-aborted-run-built-but-not-delivered-leg-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-05-aborted-run-built-but-not-delivered-leg-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -66,31 +69,34 @@ separated nothing, so an incoherence oracle has nothing to see.
 
 ## What changes
 
-Add a third, time-free leg to `aborted-run` that keys on **built-but-not-delivered** rather than on
-field incoherence. The candidate predicate, scoped like the others to `status: in-progress`:
+Add a third leg to `aborted-run` that keys on **built-but-not-delivered** rather than on field
+incoherence. Scoped like the others to `status: in-progress`: the feature branch named in `branch:`
+exists and carries commits ahead of the integration branch, `pr:` is empty, and the branch has gone
+quiet — with the message naming whether the branch was never pushed, or was pushed with no PR
+recorded.
 
-the feature branch named in `branch:` exists and carries commits ahead of the integration branch,
-AND either the branch has no remote tracking ref, or `pr:` is empty.
+On the 0206 instance that fires roughly 2h after the run stops, against leg B's 12h.
 
-On the 0206 instance that fires the moment the run stops, with no time horizon at all.
+Settled by the linked spec (auto-groom, 2026-08-05):
 
-Design questions grooming must settle:
+- **The live-run window** gets a **branch-idle floor** — the branch's newest commit older than a
+  hardcoded 2h — not the advisory/self-clearing posture leg A takes. Leg A's false-positive window is
+  seconds; leg C's would be the entire build span, on a check that runs on every Board pass including
+  those inside the run being built. The floor keys on the commit timestamp, never on `claimed_at`.
+- **One leg, two messages.** The expensive probe is shared and the two disjuncts are mutually
+  exclusive once ordered, so a single emit site branches the message on whether the branch was ever
+  pushed. No new check-id.
+- **Cost** is gated by the free frontmatter read first: a non-empty `pr:` skips leg C with zero git
+  calls; a non-firing path costs at most three, the firing path five.
+- The ahead-of-integration comparison excludes **both** the local integration ref and its
+  remote-tracking twin — feature branches are cut from `origin/<integration>`, and a lagging local
+  ref would otherwise make a nothing-built branch look arbitrarily far ahead with arbitrarily old
+  commits, firing leg C on the 0109 signature.
 
-- **The live-run window.** Every healthy run passes through this state for the whole build span —
-  commits landing on an unpushed branch with `pr:` empty is what a working build looks like. So the
-  leg needs either a branch-idle floor (newest commit older than N minutes) or an explicit acceptance
-  that the finding is advisory and self-clearing, the same posture leg A takes for its
-  commit-to-field-write race. Note the floor cannot key on `claimed_at` — that is leg B, and the
-  heartbeat makes it unusable here.
-- **Whether the two disjuncts are one leg or two.** Unpushed-branch and empty-`pr:` are different
-  evidence: the first says Step 7 never started, the second says it started and did not finish
-  (0194's second stop). They may deserve separate messages.
-- **Cost.** The leg needs a remote-tracking-ref probe per in-progress change; `board-checks.sh` is a
-  pure reader run on every `docket-status` and every Board pass, and change 0176 established that
-  per-invocation cost in this path is a real constraint.
-
-Every predicate must be mutation-tested, per 0113's own rule: a completion check that cannot fail is
-this defect wearing a badge.
+Every predicate is mutation-tested, per 0113's own rule: a completion check that cannot fail is this
+defect wearing a badge. The existing ARM fixtures are silent for leg C only because the suite's
+`NOW_EPOCH` predates their wall-clock commit dates — the build must neutralize that skew rather than
+inherit it.
 
 ## Out of scope
 
@@ -99,4 +105,7 @@ this defect wearing a badge.
   `aborted-run` is advisory by design; the originating incident left real committed work that a naive
   claim release would have stranded.
 - The prose half of the failure — an inlined role skill's terminal "you stop" ending the whole run —
-  which is a separate change.
+  which is a separate change (0212).
+- A sixth signature: the PR opened and `pr:` written, then the run dies before `status: implemented`.
+  Leg C's `pr:`-empty gate makes it invisible; leg B catches it at 12h. Its evidence is a
+  manifest/GitHub comparison, and `board-checks.sh` is git-only by contract.
