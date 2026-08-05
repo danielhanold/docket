@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0207 — sync-agents aborts mid-loop on a bad runner config, leaving a zero-length wrapper and stale siblings](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0207-sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a.md)**
+> ↩ **[Change 0207 — sync-agents aborts mid-loop on a bad runner config, leaving a zero-length wrapper and stale siblings](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-05-0207-sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a.md)**
 <!-- docket:backlink:end -->
 
 # Atomic Wrapper Generation Implementation Plan
