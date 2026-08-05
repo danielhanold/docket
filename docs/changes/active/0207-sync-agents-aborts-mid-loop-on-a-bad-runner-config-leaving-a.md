@@ -12,12 +12,12 @@ related: [206]
 discovered_from: [205]
 adrs: []
 spec: docs/superpowers/specs/2026-08-05-atomic-wrapper-generation-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-05-atomic-wrapper-generation.md
 results:
 trivial: false
 auto_groomable:
 branch: feat/sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a
-claimed_at: 2026-08-05T17:27:55Z
+claimed_at: 2026-08-05T17:34:41Z
 pr:
 blocked_by:
 reconciled: true
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-05-atomic-wrapper-generation-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-05-atomic-wrapper-generation-design.md) |
+| Plan | [2026-08-05-atomic-wrapper-generation.md](https://github.com/danielhanold/docket/blob/feat/sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a/docs/superpowers/plans/2026-08-05-atomic-wrapper-generation.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
