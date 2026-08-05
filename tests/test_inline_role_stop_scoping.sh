@@ -49,23 +49,33 @@ anchor_line(){
   printf '%s' "${first%%:*}"
 }
 
-# Does the window starting at the anchor line carry BOTH halves of the clause? The window is joined
-# and its whitespace runs collapsed to single spaces in one awk pass (no pipe, no early-exiting
-# consumer), so a half that straddles a hard wrap still matches as one literal.
+# The WINDOW lines at and after an anchor line, joined with whitespace runs collapsed to single
+# spaces in one awk pass (no pipe, no early-exiting consumer), so a literal that straddles a hard
+# wrap still matches. Every proximity assert in this file reads its window through here.
+window_text(){
+  awk -v lo="$2" -v hi="$(( $2 + WINDOW ))" \
+    'NR>=lo && NR<=hi { s = s $0 "\n" } END { gsub(/[[:space:]]+/, " ", s); print s }' "$1"
+}
+
+# Does the window starting at the anchor line carry BOTH halves of the clause?
 clause_near(){
-  local file="$1" line="$2" text lo hi
-  lo="$line"; hi=$(( line + WINDOW ))
-  text="$(awk -v lo="$lo" -v hi="$hi" \
-    'NR>=lo && NR<=hi { s = s $0 "\n" } END { gsub(/[[:space:]]+/, " ", s); print s }' "$file")"
+  local file="$1" line="$2" text
+  text="$(window_text "$file" "$line")"
   case "$text" in *"$INLINE_HALF"*) ;; *) return 1 ;; esac
   case "$text" in *"$DISPATCH_HALF"*) ;; *) return 1 ;; esac
   return 0
 }
 
 # SITES: "<relpath>|<verbatim anchor clause>|<what the site is>". Verbatim-quoted clauses, never line
-# numbers (AGENTS.md / ADR-0054). A PROHIBITION site anchors on the LAST bullet of its block, not the
-# first, because the clause is appended after the block — anchoring on the first bullet would put the
-# clause outside the window. No comment lines inside the heredoc: `read` would take one as a path.
+# numbers (AGENTS.md / ADR-0054). A PROHIBITION site anchors on the LAST LINE of the last bullet of
+# its block, not the first, because the clause is appended after the block — anchoring earlier spends
+# the window on the bullet's own body. docket-build-task's site was re-anchored from the escalated
+# bullet's FIRST line to its last for exactly that reason: the clause's second half sat at
+# anchor + WINDOW, so one added line or a reflow would have reddened the site for a formatting reason
+# with nothing wrong at it. Re-anchoring nearer is preferred to widening WINDOW, which would weaken
+# every other site. An anchor must also carry NO BACKTICK: assert descriptions are double-quoted, so
+# a backticked anchor is command-substituted rather than printed. No comment lines inside the
+# heredoc: `read` would take one as a path.
 # docket-build's anchor is the wrapped prefix `Then you stop — review`: the landed compression broke
 # "…— review is not yours." across two lines, so the full sentence exists on no single line.
 SITES="
@@ -74,7 +84,7 @@ skills/docket-build/SKILL.md|Every halt is the same disposition|halting stop (ni
 skills/docket-review/SKILL.md|One shot at the dispatched rung|second-person prohibitions
 skills/docket-review/SKILL.md|An unmet precondition or a blocking ambiguity is **abort-and-report**|terminal stop
 skills/docket-status/SKILL.md|stop rather than improvising a fix|hard-error stop (Tier A inline path)
-skills/docket-build-task/SKILL.md|If you were dispatched as an **escalated** worker|second-person prohibitions
+skills/docket-build-task/SKILL.md|revise or replace them, but never discard them blindly|second-person prohibitions
 skills/docket-build-task/SKILL.md|Return exactly one of three outcomes|terminal return
 skills/docket-brainstorm/SKILL.md|STOP AT THE SPEC|terminal stop (always-inlined body)
 "
@@ -107,12 +117,11 @@ EOF
 # preload is not self-invocation. Asserted per-site, not file-wide (the 0199 co-occurrence lesson).
 PRELOAD="Wrapper preload is not self-invocation"
 BT="$REPO/skills/docket-build-task/SKILL.md"
-for a in "If you were dispatched as an **escalated** worker" "Return exactly one of three outcomes"; do
+for a in "revise or replace them, but never discard them blindly" "Return exactly one of three outcomes"; do
   bt_ln="$(anchor_line "$BT" "$a")"
   assert "docket-build-task still carries its anchor: $a" '[ -n "$bt_ln" ]'
   [ -n "$bt_ln" ] || continue
-  bt_win="$(awk -v lo="$bt_ln" -v hi="$(( bt_ln + WINDOW ))" \
-    'NR>=lo && NR<=hi { s = s $0 "\n" } END { gsub(/[[:space:]]+/, " ", s); print s }' "$BT")"
+  bt_win="$(window_text "$BT" "$bt_ln")"
   assert "docket-build-task disambiguates preload at: $a" \
     'case "$bt_win" in *"$PRELOAD"*) true ;; *) false ;; esac'
 done
@@ -180,10 +189,22 @@ assert "docket-adr carries no second-person prohibition (found $adr_2p_hits)" '[
 # does, and it is asserted mechanically by the SITES row. The naming assert is KEPT, not superseded:
 # it is a different property (the artifact/stop-point boundary against `writing-plans`), and it is
 # the thing that would silently vanish if the stop paragraph were reworded around the new clause.
+#
+# PROXIMITY-SCOPED like every other site, and for the same reason: presence of the naming anywhere in
+# the file is not presence of it AT the stop. It reuses this file's own machinery — the SITES row's
+# `STOP AT THE SPEC` anchor and `window_text` — so the two asserts share one anchor and check
+# DIFFERENT literals: the SITES row checks the two-sided mode clause, this one checks the
+# artifact/stop-point naming. They do not duplicate each other.
 BS="$REPO/skills/docket-brainstorm/SKILL.md"
+OWNER="owned by \`docket-implement-next\`"
 assert "docket-brainstorm exists and is non-empty" '[ -s "$BS" ]'
-assert "docket-brainstorm's stop still names planning's owner" \
-  'grep -qF -- "owned by \`docket-implement-next\`" "$BS"'
+bs_ln="$(anchor_line "$BS" "STOP AT THE SPEC")"
+assert "docket-brainstorm still carries its STOP AT THE SPEC anchor" '[ -n "$bs_ln" ]'
+if [ -n "$bs_ln" ]; then
+  bs_win="$(window_text "$BS" "$bs_ln")"
+  assert "docket-brainstorm's stop still names planning's owner AT the stop" \
+    'case "$bs_win" in *"$OWNER"*) true ;; *) false ;; esac'
+fi
 
 # --- Non-vacuity anchor #3 (mutation-in-fixture): the matcher must FIRE on an unscoped site. ---
 # Without this, a typo in either half makes every assert above permanently green — the inversion
