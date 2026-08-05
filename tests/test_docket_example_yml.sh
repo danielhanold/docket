@@ -194,7 +194,7 @@ classify_key(){ # classify_key <example-key-name> -> "resolved:EXPORT" | "elsewh
     skills.review)                echo 'resolved:SKILL_REVIEW' ;;
     skills.finish)                echo 'resolved:SKILL_FINISH' ;;
     # Block headers carry no value of their own; their children are classified above.
-    finalize|learnings|reclaim|build|skills|runners|runners.codex|auto_capture) echo 'elsewhere:HEADER' ;;
+    finalize|learnings|reclaim|build|skills|runners|runners.codex|runners.opencode|auto_capture) echo 'elsewhere:HEADER' ;;
     # Genuinely non-resolver-read keys, each with its real consumer named.
     #
     # github_project is the one exception to "real consumer": .docket.example.yml itself says
@@ -207,6 +207,7 @@ classify_key(){ # classify_key <example-key-name> -> "resolved:EXPORT" | "elsewh
     agent_harnesses)      echo 'elsewhere:sync-agents.sh' ;;
     runners.codex.sandbox) echo 'elsewhere:scripts/runners/codex.sh' ;;
     runners.codex.network) echo 'elsewhere:scripts/runners/codex.sh' ;;
+    runners.opencode.permissions) echo 'elsewhere:scripts/runners/opencode.sh' ;;
     *) echo '' ;;
   esac
 }
@@ -333,6 +334,7 @@ example_keys="$(printf '%s\n' "$example_keys_raw" | sort -u)"
 # answers "is this expected?", never "does this exist?").
 consumers="$CFGSCRIPT $REPO/sync-agents.sh $REPO/scripts/runner-dispatch.sh"
 consumers="$consumers $REPO/skills/docket-finalize-change/SKILL.md $REPO/scripts/runners/codex.sh"
+consumers="$consumers $REPO/scripts/runners/opencode.sh"
 for k in $example_keys; do
   # LEAF of a qualified key (change 0127): the manifest is keyed by the full path
   # (`learnings.enabled`), but the resolver assigns from, and a consumer script mentions, the BARE
@@ -427,11 +429,12 @@ assert "manifest: every elsewhere:HEADER entry is a real bare block opener (${ma
 # key, bump expected_key_count in the same commit as classify_key's new arm — that is the
 # intentional-growth remedy in action: change 0127 took it from 33 to 36 (change_types plus the
 # auto_capture block's header and its two leaves, less the retired scalar auto_capture); change
-# 0167 took it from 36 to 38 (the build: block header and its checkpoint leaf).
+# 0167 took it from 36 to 38 (the build: block header and its checkpoint leaf); change 0205 took
+# it from 38 to 40 (the runners.opencode header and its permissions leaf).
 # intentional-growth remedy this count is guarding. This is the single source for that count: the
 # condition and the failure message below both read it, so bumping it in one place updates both
 # instead of leaving one stale.
-expected_key_count=38
+expected_key_count=40
 # RAW FLOOR (change 0102 whole-branch review, MINOR 3): example_keys_raw feeds BOTH this section's
 # manifest loop (via example_keys, deduped) and the duplicate-leaf check directly below (also
 # fed from example_keys_raw, undeduped). Without this assert, an edit that makes the raw pipeline
@@ -511,6 +514,8 @@ assert "completeness: runners.codex.sandbox present" \
   'grep -Eq "^[[:space:]]+sandbox:[[:space:]]*workspace-write[[:space:]]*(#.*)?$" "$EX"'
 assert "completeness: runners.codex.network present" \
   'grep -Eq "^[[:space:]]+network:[[:space:]]*true[[:space:]]*(#.*)?$" "$EX"'
+assert "completeness: runners.opencode.permissions present" \
+  'grep -Eq "^[[:space:]]+permissions:[[:space:]]*ask[[:space:]]*(#.*)?$" "$EX"'
 assert "completeness: runners block header present" 'grep -Eq "^runners:" "$EX"'
 
 # change 0102: require_pr_approval is now RESOLVER-read and global-able, so it carries the
@@ -561,6 +566,8 @@ assert "no orphan keys: every active top-level key is read by a consumer (${orph
 # require_pr_approval producer assert above).
 assert "runners.codex.sandbox is still read by the codex adapter" \
   'grep -q "DOCKET_RUNNER_CFG_SANDBOX" "$REPO/scripts/runners/codex.sh"'
+assert "runners.opencode.permissions is still read by the opencode adapter" \
+  'grep -q "DOCKET_RUNNER_CFG_PERMISSIONS" "$REPO/scripts/runners/opencode.sh"'
 
 # change 0102: require_pr_approval is now RESOLVER-read. The skill still NAMES the policy (that is
 # what the (2c) consumer grep anchors on), but it must obtain the VALUE from the Step-0 export
@@ -736,9 +743,10 @@ fi
 # guard's own pass reached zero nested keys, i.e. exactly the vacuity this assert exists to catch.
 #
 # EXACT, not >=. An at-least floor of 15 is satisfied by the PRE-0102 file and would tolerate a
-# regression that silently drops both runners.codex leaves. The 18: 3 finalize.*, 2 learnings.*,
-# 2 reclaim.*, 1 build.checkpoint, 2 auto_capture.*, runners.codex + its 2 leaves, 5 skills.*.
-expected_nested_key_count=18
+# regression that silently drops both runners.codex leaves. The 20: 3 finalize.*, 2 learnings.*,
+# 2 reclaim.*, 1 build.checkpoint, 2 auto_capture.*, runners.codex + its 2 leaves,
+# runners.opencode + its 1 leaf, 5 skills.*.
+expected_nested_key_count=20
 assert "scope tag: the pass enumerated exactly $expected_nested_key_count keys at depth > 0 (got ${nested_key_count:-0}; if you added or removed a nested key in .docket.example.yml, first CONFIRM the new key carries its own scope: tag or sits directly under a tagged header — bumping expected_nested_key_count alone, with no tag and no header, ships an untagged key that this guard will never catch again — then bump expected_nested_key_count in the same commit)" \
   '[ "${nested_key_count:-0}" = "$expected_nested_key_count" ]'
 

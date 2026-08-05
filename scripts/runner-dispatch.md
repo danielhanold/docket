@@ -8,7 +8,8 @@ validates the request, anchors the repo root, resolves the per-runner config blo
 off — foreground — to the named per-runner adapter `scripts/runners/<name>.sh`, which owns
 everything child-specific. Adding a future runner touches only the seams: a new adapter script
 + contract in `scripts/runners/`, and a registry token in `sync-agents.sh`'s
-`REGISTERED_RUNNERS` (generation-time); the facade itself never changes.
+`REGISTERED_RUNNERS` (generation-time); the facade itself never changes — it has now absorbed
+three adapters (`codex`, `cursor`, `opencode`) without a line of change.
 
 ## Usage
 
@@ -22,8 +23,9 @@ docket.sh runner-dispatch --runner <name> --agent <agent> [--model <m>] [--effor
 - `--agent <agent>` (required) — the built-in docket agent to delegate (e.g. `status`).
 - `--model` / `--effort` — forwarded to the adapter verbatim (model is ADR-0015 opaque
   passthrough end-to-end). The generated shim bakes these only from **user-configured** values;
-  a value that came from docket's shipped `agents/harness-defaults.yml` is never forwarded, so
-  the child harness applies its own default instead of inheriting the parent harness's ID.
+  a value that came from docket's shipped `agents/harness-defaults.yml` is never forwarded. Since
+  change 0205 a `runner:`-bearing agent with **no** user-configured model is a generation-time
+  error, so the model-less case reaches this facade only on a direct hand invocation.
 - `-- <args…>` — forwarded to the adapter as caller task context.
 
 Mock seams: `RUNNERS_DIR` (adapter directory), `GIT` (through `lib/docket-root.sh`).

@@ -97,6 +97,84 @@ reasoning effort. Two consequences:
   business, not opencode's or docket's. `high` is the ceiling docket ships; if your model rejects
   docket's token, pin `effort` explicitly alongside your model.
 
+## Delegating Claude Code agents to opencode (runner delegation)
+
+Everything above configures opencode as the harness **hosting** your session. Runner delegation is
+the other direction: your session stays in Claude Code, and individual docket agents are handed to
+opencode — with its models and its bill — for their whole run. The motivating use is cost
+asymmetry: through OpenRouter, opencode reaches DeepSeek-tier models at a fraction of a
+frontier-model task, and because docket's build and review roles are already separate agents
+(ADR-0063), you can send build work to cheap models while review stays on your Claude
+subscription.
+
+```yaml
+# .docket.local.yml (this machine only) or the global ~/.config/docket/config.yml
+agents:
+  claude:                       # the PARENT harness: when Claude Code hosts the session…
+    build-economy:  { runner: opencode, model: openrouter/deepseek/deepseek-v4-flash-0731 }
+    build-standard: { runner: opencode, model: openrouter/deepseek/deepseek-v4-flash-0731 }
+    build-premium:  { runner: opencode, model: openrouter/moonshotai/kimi-k3 }
+    build-max:      { runner: opencode, model: openrouter/moonshotai/kimi-k3 }
+    # review-lean / review-standard / review-deep: no runner: → native Claude Code
+runners:
+  opencode:
+    permissions: auto-approve   # REQUIRED — see below. Default `ask` refuses to delegate.
+```
+
+Re-run `sync-agents.sh` after editing, and restart the parent session.
+
+**Delegate leaves, not orchestrators.** A delegated run's own sub-dispatches run child-natively, so
+delegating an orchestrator drags everything beneath it into the child. Delegate
+`docket-implement-next` and its review dispatch goes to opencode too. Delegating the four profile
+workers rather than the `docket-build` controller is the same rule applied one level down:
+delegating the controller would move the routing decision into the child as well.
+
+**Model selection is explicit, by design.** The `opencode:` block in `agents/harness-defaults.yml`
+is *not* consulted here, and that is deliberate. That block answers "if opencode ran this whole
+project, what should each role cost?"; delegation asks a different question — "which rows do I want
+to leave my Claude subscription, and which do I deliberately keep?" — and the build-delegated /
+review-native split above is exactly that asymmetry. Cross-indexing the two would also mean
+retuning the native table silently changed what your delegated Claude Code builds run on, with the
+coupling invisible at the config site. So you write the models yourself, where you can see, grep,
+review, and revert them.
+
+Relatedly: **a delegated agent must carry a `model:`.** Docket never forwards its own shipped
+default to another harness, so without one the run would fall through to opencode's own default —
+pay-per-token, of unknown identity — and the mistake would surface on your bill rather than in the
+run. `sync-agents.sh` refuses to generate a model-less delegation.
+
+### What `auto-approve` actually grants
+
+opencode has no sandbox *levels*. It has a permission system that prompts before editing a file or
+running a shell command, and `--auto` auto-approves everything **not explicitly denied** in
+opencode's own config. Its own help text marks it `(dangerous!)`.
+
+A delegated run cannot answer a prompt, so `runners.opencode.permissions` has two values and no
+useful third:
+
+| Value | Effect |
+|---|---|
+| `ask` (default) | The adapter **refuses to delegate**, with a diagnostic naming this knob. Without `--auto` the child would block on the first approval until something timed out; refusing turns a silent hang into a message. |
+| `auto-approve` | Bakes `--auto`. A delegated build worker can then run any command in the repository unwatched, except what your opencode deny rules forbid. |
+
+The default names what actually happens rather than serving as a placeholder, and nobody receives
+blanket auto-approval as a side effect of typing `runner: opencode` — the risk is accepted at a
+visible line in config. **Pair `auto-approve` with opencode's own deny rules**: `--auto` approves
+what is not explicitly denied, so the deny list, not the flag, is the real boundary.
+
+### Verifying a delegated run
+
+Model IDs and entitlement live outside this repo, so no docket test can validate them — confirm
+them yourself:
+
+```sh
+opencode models openrouter        # the IDs above must appear, spelled exactly
+```
+
+Catalog presence is not entitlement: an ID can be listed and still fail under your credentials.
+Certify one real dispatch end to end before trusting the setup — ask for a `build-economy` task and
+confirm the work happened in opencode, not Claude Code.
+
 ## Verifying it works
 
 After opting a repo in and running `sync-agents.sh`:
