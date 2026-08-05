@@ -258,19 +258,25 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # has NO references/ tree; the home that would have to be created is
 # skills/docket-review/references/, and creating it is wrong for the same reason as docket-build's
 # entry above — a prohibition-scoping rule must be read in the same breath as the prohibition it
-# scopes. Set from the measured actual: 103 lines -> 105 (unchanged, still above the actual),
-# 838 words -> 900 (850 lands within 25 words of the actual, so the next multiple is taken).
-# skills/docket-build-task/SKILL.md's budget was raised 115/1000 -> 120/1100 by change 0212, which
+# scopes. Set from the measured actual: 838 words -> 900 (850 lands within 25 words of the actual,
+# so the next multiple is taken). The LINE budget was then raised 105 -> 110 in a fix round: the
+# file measures 104 lines, so 105 left ONE line of headroom — the near-zero margin this block
+# already records raising for twice (docket-build-task 100 -> 105, docket-build 155 -> 160), on a
+# file this change edited twice.
+# skills/docket-build-task/SKILL.md's budget was raised 115/1000 -> 125/1100 by change 0212, which
 # scoped the worker contract's ## Scope prohibitions and its ## Outcomes return to the worker role.
 # The body reaches a caller's context by wrapper preload (agents/docket-build-*.md carry
 # skills: [docket-build-task]), so the hazard is real for this file. skills/docket-build-task/ has NO
 # references/ tree; a created one could not intervene at the moment the return instruction is read.
-# ## Scope's worktree bullet was compressed first; set from the measured actual: 117 -> 120,
-# 1035 -> 1100 (1050 lands within 25 words of the actual, so the next multiple is taken).
+# ## Scope's worktree bullet was compressed first. The derivation was re-measured in a fix round —
+# later commits on this branch moved the file after the original comment was written — and set from
+# the CURRENT measured actual: 119 lines -> 120 leaves ONE line of headroom, the near-zero margin
+# this block forbids, so the multiple after (125); 1051 words -> 1100, unchanged.
 # skills/docket-implement-next/SKILL.md's budget was raised 145/3800 -> 150/3850 by change 0212,
 # which added the run-disposition obligation the agent must discharge when it decides the run is
-# over. The row was sitting at EXACTLY the measured actual on both axes — 145 lines, 3800 words,
-# zero headroom — which is the failure mode this comment block's 0102 and 0137 entries record: one
+# over. This change grew the file from 139/3728 (the actual the 0113 entry above records) to
+# EXACTLY its 145/3800 budget on both axes — zero headroom — so the raise is consumed by this diff
+# rather than prophylactic. That is the failure mode this comment block's 0102 and 0137 entries record: one
 # word of margin means the next edit to the file reddens CI on arrival, so the raise is taken now
 # rather than deferred. The considered home was skills/docket-implement-next/references/edge-paths.md,
 # and the obligation cannot live there: edge-paths.md is read CONDITIONALLY, only when the run hits
@@ -284,7 +290,7 @@ skills/docket-adr/adr-template.md                           26   90
 skills/docket-auto-groom/SKILL.md                           66 1237
 skills/docket-brainstorm/SKILL.md                           84  692
 skills/docket-build/SKILL.md                               280 2500
-skills/docket-build-task/SKILL.md                          120 1100
+skills/docket-build-task/SKILL.md                          125 1100
 skills/docket-convention/SKILL.md                          345 5800
 skills/docket-convention/github-board-mirror.md             19  462
 skills/docket-convention/references/agent-layer.md         190 2150
@@ -297,7 +303,7 @@ skills/docket-groom-next/SKILL.md                           77 1484
 skills/docket-implement-next/SKILL.md                      150 3850
 skills/docket-implement-next/references/edge-paths.md       35  450
 skills/docket-implement-next/results-template.md            24  172
-skills/docket-review/SKILL.md                              105  900
+skills/docket-review/SKILL.md                              110  900
 skills/docket-new-change/SKILL.md                           61 1330
 skills/docket-new-change/change-template.md                 51  203
 skills/docket-status/SKILL.md                              118 2393
