@@ -14,7 +14,8 @@ parent's own subscription. Because build and review are already separate wrapper
 (ADR-0063), that split needs no new mechanism — just `runner:` on the rows you want to leave.
 
 **Known limitation — that motivating use is not usable yet (change #0206).** `runner-dispatch.sh`
-sets `DOCKET_REPO_ROOT` from `docket_main_worktree()` (cwd-independent by design, ADR-0034) and this
+sets `DOCKET_REPO_ROOT` to the run anchor — the main worktree by default, or the tree named by
+`--worktree` (both cwd-independent by design, ADR-0034) — and this
 adapter passes it to `--dir`. Correct for the metadata-scoped agents delegation previously shipped
 for; wrong for a build worker, whose contract requires the feature worktree on its branch. Until
 #0206 resolves the anchoring rule, delegating `build-*` starts the child in the primary checkout.
@@ -46,7 +47,7 @@ Environment (set by the facade):
 
 | Var | Meaning | Default |
 |---|---|---|
-| `DOCKET_REPO_ROOT` | absolute main-worktree path; becomes `opencode run --dir` | required |
+| `DOCKET_REPO_ROOT` | absolute run anchor — the main worktree unless the caller named a feature worktree; becomes `opencode run --dir` | required |
 | `DOCKET_RUNNER_CFG_PERMISSIONS` | `runners.opencode.permissions` — `ask` \| `auto-approve` | `ask` |
 
 Mock seam: `OPENCODE_BIN` (default `opencode`).

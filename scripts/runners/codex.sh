@@ -5,7 +5,8 @@
 # mapping (model verbatim per ADR-0015; effort -> model_reasoning_effort; sandbox/network
 # from the runners.codex config), foreground execution, final-message relay on stdout.
 # Invoked by runner-dispatch.sh — not directly by skills. Contract: scripts/runners/codex.md.
-# Mock seam: CODEX_BIN. Env in (from the facade): DOCKET_REPO_ROOT (absolute, required),
+# Mock seam: CODEX_BIN. Env in (from the facade):
+# DOCKET_REPO_ROOT (absolute run anchor — main worktree unless the caller named one, required),
 # DOCKET_RUNNER_CFG_SANDBOX (default workspace-write), DOCKET_RUNNER_CFG_NETWORK (default true).
 set -uo pipefail
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

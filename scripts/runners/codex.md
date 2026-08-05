@@ -36,7 +36,7 @@ Environment (set by the facade):
 
 | Var | Meaning | Default |
 |---|---|---|
-| `DOCKET_REPO_ROOT` | absolute main-worktree path; becomes `codex exec -C` | required |
+| `DOCKET_REPO_ROOT` | absolute run anchor — the main worktree unless the caller named a feature worktree; becomes `codex exec -C` | required |
 | `DOCKET_RUNNER_CFG_SANDBOX` | `runners.codex.sandbox` — `workspace-write` \| `danger-full-access` | `workspace-write` |
 | `DOCKET_RUNNER_CFG_NETWORK` | `runners.codex.network` — network access inside workspace-write | `true` |
 
