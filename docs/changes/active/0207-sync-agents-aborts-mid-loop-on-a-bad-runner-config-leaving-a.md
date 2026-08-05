@@ -2,7 +2,7 @@
 id: 207
 slug: sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a
 title: sync-agents aborts mid-loop on a bad runner config, leaving a zero-length wrapper and stale siblings
-status: proposed
+status: in-progress
 priority: medium
 type: fix
 created: 2026-08-05
@@ -16,7 +16,8 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a
+claimed_at: 2026-08-05T17:27:55Z
 pr:
 blocked_by:
 reconciled: false
