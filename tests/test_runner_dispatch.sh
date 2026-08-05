@@ -157,6 +157,66 @@ argv="$(cat "$LOG")"
 assert "facade: -C is the main worktree even from a subdir" 'grep -qxF -- "$SBX" <<<"$argv"'
 rm -rf "$SBX"
 
+# ---- change 0206: --worktree, the explicit run anchor -------------------------------
+# The facade's anchor is an ARGUMENT defaulting to the main worktree. ADR-0034 is unamended:
+# nothing resolves the anchor from the caller's CWD, so a RELATIVE --worktree joins to the main
+# worktree, not to $PWD. That relative-from-a-subdir assert is the one that distinguishes this
+# design from the rejected resolve-the-caller's-CWD option — do not drop it.
+make_fixture
+mkdir -p "$SBX/.worktrees/featslug" "$SBX/sub/dir"
+
+# (a) flag absent => main worktree (regression fence on today's behavior)
+: > "$LOG"
+( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent status >/dev/null 2>&1 )
+argv="$(cat "$LOG")"
+assert "0206: no --worktree => anchor is the main worktree" 'grep -qxF -- "$SBX" <<<"$argv"'
+
+# (b) absolute --worktree => that path verbatim
+: > "$LOG"
+( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent status \
+    --worktree "$SBX/.worktrees/featslug" >/dev/null 2>&1 )
+argv="$(cat "$LOG")"
+assert "0206: absolute --worktree becomes the anchor" \
+  'grep -qxF -- "$SBX/.worktrees/featslug" <<<"$argv"'
+assert "0206: absolute --worktree displaces the main worktree" '! grep -qxF -- "$SBX" <<<"$argv"'
+
+# (c) relative --worktree from a FOREIGN cwd inside the repo => joins to the MAIN worktree.
+# This is the ADR-0034 discriminator: CWD-resolution would yield $SBX/sub/dir/.worktrees/featslug.
+: > "$LOG"
+( cd "$SBX/sub/dir" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent status \
+    --worktree ".worktrees/featslug" >/dev/null 2>&1 )
+argv="$(cat "$LOG")"
+assert "0206: relative --worktree joins to the main worktree, not the cwd" \
+  'grep -qxF -- "$SBX/.worktrees/featslug" <<<"$argv"'
+assert "0206: relative --worktree did NOT resolve against the caller cwd" \
+  '! grep -qF -- "$SBX/sub/dir/.worktrees" <<<"$argv"'
+
+# (d) build-* agent with no --worktree => loud nonzero naming the flag
+err="$( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent build-economy 2>&1 >/dev/null )"; rc=$?
+assert "0206: build-* without --worktree is rejected" '[ "$rc" != "0" ]'
+assert "0206: build-* rejection names --worktree" 'grep -qF -- "--worktree" <<<"$err"'
+
+# (e) the gate is SCOPED to build-* — a metadata-scoped agent still needs no flag
+( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent status >/dev/null 2>&1 ); rc=$?
+assert "0206: non-build agent without --worktree still succeeds" '[ "$rc" = "0" ]'
+
+# (f) resolved anchor is not a directory => nonzero
+printf 'x\n' > "$SBX/notadir"
+err="$( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent status \
+    --worktree "$SBX/notadir" 2>&1 >/dev/null )"; rc=$?
+assert "0206: --worktree pointing at a non-directory is rejected" '[ "$rc" != "0" ]'
+assert "0206: non-directory rejection says directory" 'grep -qiF "not a directory" <<<"$err"'
+
+# (g) resolved anchor outside this repo's worktree set => nonzero
+OUTSIDE="$(mktemp -d)"; OUTSIDE="$(cd "$OUTSIDE" && pwd -P)"
+err="$( cd "$SBX" && PATH="$BIN:$PATH" bash "$FACADE" --runner codex --agent status \
+    --worktree "$OUTSIDE" 2>&1 >/dev/null )"; rc=$?
+assert "0206: --worktree outside the repo worktree set is rejected" '[ "$rc" != "0" ]'
+assert "0206: outside-repo rejection says worktree of this repository" \
+  'grep -qiF "not a worktree of this repository" <<<"$err"'
+rm -rf "$OUTSIDE"
+rm -rf "$SBX"
+
 # ---- facade: runners.<name> config resolution across layers ------------------------
 make_fixture
 printf 'runners:\n  codex:\n    sandbox: danger-full-access\n    network: false\n' > "$SBX/.docket.yml"
