@@ -123,11 +123,52 @@ done
 # docket-adr: no terminal stop and no second-person prohibition; the body ends on a validation
 # invocation. Asserted live rather than left as a comment, so a future edit that introduces a stop
 # without scoping it reddens here.
+#
+# The two asserts below are keyed on SYNTACTIC SHAPE, not on another skill's spellings (AGENTS.md:
+# "the spelling you miss is the target file's own house idiom"). The previous form grepped
+# `then you stop|your turn ends|never (writes|commits|dispatches)` — every alternative lifted
+# verbatim from docket-review's third-person-singular phrasing, none of which docket-adr's
+# imperative house style could ever produce. It could not fire.
+#
+# Shape 1 — TERMINAL STOP: the BARE (imperative / second-person) form of the stop-verb family.
+# Bare form is the discriminator, not the lemma: "Then stop", "you stop", "Stop and report" all
+# address the reader; the inflected third-person "it simply stops being added to"
+# (present in the body today) describes the world and is correctly ignored by the word boundary.
+ADR_STOP_RE='(^|[^[:alnum:]_])(stop|halt|abort|cease|quit)([^[:alnum:]_]|$)'
+#
+# Shape 2 — SECOND-PERSON PROHIBITION: a sentence carrying BOTH a second-person pronoun and a
+# negative-deontic marker. Both are closed grammatical classes of English, not a per-file idiom
+# list, so a newly-added "Never write to the integration branch" or "you must not push" is caught
+# by construction. The two-part shape is what keeps docket-adr's real imperatives about the
+# ARTIFACT ("Never edit an `Accepted` ADR's body", "never hand-render it") out of scope: those
+# constrain how the ADR ledger is edited, they do not tell the reader what it, as an agent, may do
+# — and it is only the reader-directed form that an inlining caller wrongly inherits.
+ADR_2P='(^|[^[:alnum:]_])(you|your|yours|yourself)([^[:alnum:]_]|$)'
+ADR_NEG='(^|[^[:alnum:]_])(never|cannot|dont|do not|does not|must not|may not|shall not|should not|can not)([^[:alnum:]_]|$)'
 ADR="$REPO/skills/docket-adr/SKILL.md"
 assert "docket-adr exists and is non-empty" '[ -s "$ADR" ]'
 assert "docket-adr still names itself (live presence, non-vacuity)" 'grep -qF -- "docket-adr" "$ADR"'
-adr_stops="$(grep -icE "then you stop|your turn ends|never (writes|commits|dispatches)" "$ADR" || true)"
-assert "docket-adr carries no unscoped stop or prohibition (found $adr_stops)" '[ "$adr_stops" -eq 0 ]'
+
+# Sentence stream: markdown emphasis/code markers are stripped (so `do **not**` reads as `do not`),
+# whitespace is collapsed, and the body is split on sentence terminators — the prohibition and the
+# pronoun must co-occur in ONE SENTENCE, not merely one file (change 0199's co-occurrence lesson).
+# Blank lines terminate a sentence too, so a heading or bullet cannot bleed into its neighbour.
+adr_sentences(){
+  awk '{ gsub(/[`*_]/, "", $0); if ($0 ~ /^[[:space:]]*$/) { print s; s=""; next }
+         s = s " " $0
+         while (match(s, /[.;!?]/)) { print substr(s, 1, RSTART); s = substr(s, RSTART+1) } }
+       END { print s }' "$1"
+}
+adr_stream="$(adr_sentences "$ADR")"
+# Non-vacuity: the stream must be non-empty and still carry the body's own text, or both greps
+# below pass on nothing.
+assert "docket-adr sentence stream is non-empty and live" \
+  '[ -n "$adr_stream" ] && grep -qF -- "docket-adr maintains the project-wide" <<<"$adr_stream"'
+
+adr_stops="$(grep -icE -e "$ADR_STOP_RE" <<<"$adr_stream" || true)"
+assert "docket-adr carries no reader-directed stop (found $adr_stops)" '[ "$adr_stops" -eq 0 ]'
+adr_2p_hits="$(grep -iE -e "$ADR_2P" <<<"$adr_stream" | grep -icE -e "$ADR_NEG" || true)"
+assert "docket-adr carries no second-person prohibition (found $adr_2p_hits)" '[ "$adr_2p_hits" -eq 0 ]'
 
 # docket-brainstorm: NOT a no-hazard verdict — it is a SWEPT SITE (see the SITES table above), and
 # the only swept body with no `context: fork` frontmatter, so it is ALWAYS loaded into its caller's
