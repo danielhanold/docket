@@ -2,7 +2,7 @@
 id: 206
 slug: delegated-runner-runs-are-anchored-at-the-main-worktree-not
 title: Delegated runner runs are anchored at the main worktree, not the feature worktree
-status: implemented
+status: done
 priority: medium
 type: fix
 created: 2026-08-05
@@ -17,7 +17,7 @@ results: docs/results/2026-08-05-delegated-runner-runs-are-anchored-at-the-main-
 trivial: false
 auto_groomable:
 branch: feat/delegated-runner-runs-are-anchored-at-the-main-worktree-not
-claimed_at: 2026-08-05T14:46:59Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/157
 blocked_by:
 reconciled: true
