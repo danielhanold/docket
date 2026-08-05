@@ -7,11 +7,11 @@ priority: medium
 type: fix
 created: 2026-08-05
 updated: 2026-08-05
-depends_on: []
-related: []
+depends_on: [205]
+related: [79, 192]
 discovered_from: [205]
-adrs: []
-spec:
+adrs: [34]
+spec: docs/superpowers/specs/2026-08-05-delegated-run-worktree-anchor-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,10 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-05-delegated-run-worktree-anchor-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-05-delegated-run-worktree-anchor-design.md) |
+| ADRs | [ADR-0034](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0034-repo-root-anchored-to-main-worktree.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -45,19 +49,35 @@ branch**. A delegated `build-economy` therefore starts in the main tree on the i
 holding whatever permission grant its runner was configured with (`--auto` under opencode), and the
 only thing pointing it at the correct tree is prose in the relayed prompt.
 
+Two facts sharpen the failure mode. Feature worktrees live at `<repo>/.worktrees/<slug>` — *inside*
+the main worktree — so codex's `workspace-write` sandbox already permits writes to the feature tree;
+this is not a permission failure. The exposure is the starting cwd and the checked-out branch: a
+worker that does not faithfully follow the prompt's instruction commits code onto the integration
+branch in the shared primary checkout, unattended.
+
 ## What changes
 
-Decide and implement the anchoring rule for delegated runs. Options weighed in the review:
+A delegated run's anchor becomes an **explicit argument whose default is the main worktree**; the
+delegated agent's scope decides which. ADR-0034 stands unamended — nothing resolves an anchor from
+the caller's CWD, and the only way off the main worktree is an argument someone deliberately wrote.
 
-- Have the facade resolve the caller's cwd when it is inside the repo, and pass that instead of the
-  main worktree — preserving `docket_main_worktree()` as the fallback.
-- Add an explicit worktree argument to the dispatch contract, set by the shim for worker agents.
-- Keep the anchor and make the constraint explicit: forbid delegating `build-*` agents, or document
-  the limitation loudly in each adapter contract.
+- **`runner-dispatch.sh`** gains an optional `--worktree <path>`, resolved through
+  `docket_anchor_path` so a relative value joins to the main worktree and stays cwd-independent.
+  Three loud gates: `--worktree` is required for `build-*` agents; the resolved anchor must be a
+  directory; it must belong to this repo's worktree set. Absent the flag, behavior is
+  byte-identical to today.
+- **The three adapters are unchanged** — only their contracts' env tables, from "main-worktree
+  path" to "run anchor". The facade owning the anchor is what makes this free.
+- **`sync-agents.sh`'s `emit_shim`** bakes the flag into `build-*` shims as a required slot, with
+  an abort-and-report rule when the caller named no worktree. Other shims are untouched.
+  `docket-build`'s dispatch section notes the flag as the channel.
+- **A new ADR** records the framework rule (`relates_to: [34]`), plus a dated `## Update` on
+  ADR-0034 pointing at it; both ids ride this change's `adrs:`.
 
-Whichever is chosen, it is a framework decision affecting all three adapters, not an opencode
-detail, and it likely touches ADR-0034's reasoning.
+Design, rejected alternatives, and the test matrix are in the spec.
 
 ## Out of scope
 
 - The opencode adapter's own flag mapping and permission gate (shipped and settled in 0205).
+- Delegating orchestrator agents — 0205's "delegate leaves, not orchestrators" rule is unaffected.
+- `ensure-claude-settings.sh`'s remaining `--show-toplevel` use (ADR-0034's known residual).
