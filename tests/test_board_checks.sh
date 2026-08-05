@@ -1399,6 +1399,154 @@ assert "leg C names the PUSH/PR-SEAM remedy on 233" \
 assert "leg C does NOT claim 233 was never pushed — the two messages are exclusive" \
   '! grep -qF "branch never pushed" <<<"$ar17out"'
 
+# --- GREEN: the LIVE-RUN WINDOW. Identical to 232 except the branch is 30m old, not 3h. This is
+# the fixture that proves the idle floor is real: board-checks.sh runs on every Board pass,
+# INCLUDING the passes inside the very run being built, so without a floor leg C would fire on
+# every healthy build for the whole build span.
+read -r AR18 _ < <(new_repo)
+ar_branch_at "$AR18" feat/ar18 main $(( 1800 )) "$AR_PLAN_NEW"
+cat > "$AR18/docs/changes/active/0234-live-run.md" <<EOF
+---
+id: 234
+slug: live-run
+title: Build commits 30 minutes old, run still live
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/ar18
+plan: docs/superpowers/plans/2026-06-01-present.md
+results:
+pr:
+claimed_at: $AR_FRESH_CLAIM
+---
+EOF
+ar18out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AR18/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "aborted-run leg C SILENT inside the live-run window — branch quiet only 30m (id 234)" \
+  '! has_finding "$ar18out" aborted-run 234'
+
+# --- GREEN: DELIVERED. Pushed, quiet 3h, ahead — every other conjunct true — but pr: is SET, so
+# the free frontmatter read short-circuits the leg before a single git call.
+read -r AR19 _ < <(new_repo)
+ar_branch_at "$AR19" feat/ar19 main $(( 3*3600 )) "$AR_PLAN_NEW"
+ar_push "$AR19" feat/ar19
+cat > "$AR19/docs/changes/active/0235-delivered.md" <<EOF
+---
+id: 235
+slug: delivered
+title: Pushed and the PR is recorded
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/ar19
+plan: docs/superpowers/plans/2026-06-01-present.md
+results:
+pr: https://github.com/o/r/pull/7
+claimed_at: $AR_FRESH_CLAIM
+---
+EOF
+ar19out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AR19/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "aborted-run leg C SILENT when pr: is recorded — the delivered state (id 235)" \
+  '! has_finding "$ar19out" aborted-run 235'
+
+# --- GREEN: NOTHING BUILT. The branch exists and is old, but carries ZERO commits of its own.
+# This is the 0109 signature — a run that stopped with nothing built — which is leg B's territory,
+# not leg C's. Leg C claims "built but not delivered"; with nothing built it must stay silent.
+read -r AR20 _ < <(new_repo)
+ar_branch_at "$AR20" feat/ar20 main $(( 3*3600 ))
+cat > "$AR20/docs/changes/active/0236-nothing-built.md" <<EOF
+---
+id: 236
+slug: nothing-built
+title: Branch cut, nothing committed on it
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/ar20
+plan:
+results:
+pr:
+claimed_at: $AR_FRESH_CLAIM
+---
+EOF
+ar20out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AR20/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "aborted-run leg C SILENT on a branch with zero commits ahead — the 0109 signature (id 236)" \
+  '! has_finding "$ar20out" aborted-run 236'
+
+# --- GREEN: a STALE LOCAL integration ref. Advance the fixture's own bare origin (and therefore
+# refs/remotes/origin/main) WITHOUT moving local main, then cut the change's branch from
+# origin/main with no commits of its own. `push origin tmp:main` does both in one call — no fetch
+# needed, since new_repo's template already carries both refs.
+#
+# The advancing commits MUST be dated relative to NOW_EPOCH: the change's branch tip IS one of
+# them, so with real wall-clock dates the idle floor would be false and this fixture could never
+# discriminate — it would be green for the wrong reason, and mutation I could never fire.
+#
+# Under the correct BOTH-bases predicate this branch is ahead of nothing: SILENT. Under a
+# local-ref-only predicate it inherits every commit origin/main gained, looks arbitrarily far
+# ahead with an arbitrarily old tip, and fires.
+#
+# The advancing commit touches a NEUTRAL path — neither RESULTS_DIR_REL nor PLANS_DIR_REL. Leg A's
+# `branch_only_artifact "$ar_ref" "$RESULTS_DIR_REL"` probe reads the SAME stale local main as its
+# base, so a results-shaped advancing file would ride onto feat/ar21 and fire LEG A here, making
+# the leg-C-silence assert below (and Task 3's mutation-K assert on the ARM twin) vacuous.
+read -r AR21 _ < <(new_repo)
+ar_branch_at "$AR21" tmp-advance main $(( 3*3600 )) "docs/notes/2026-06-02-advance.md"
+git -C "$AR21" push -q origin tmp-advance:main >/dev/null 2>&1
+assert "leg C fixture 237 precondition: origin/main is AHEAD of local main (the stale local ref)" \
+  '[ "$(git -C "$AR21" rev-parse refs/remotes/origin/main)" != "$(git -C "$AR21" rev-parse refs/heads/main)" ]'
+ar_branch_at "$AR21" feat/ar21 refs/remotes/origin/main 0
+cat > "$AR21/docs/changes/active/0237-stale-local-base.md" <<EOF
+---
+id: 237
+slug: stale-local-base
+title: Branch cut from origin/main while local main lags
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/ar21
+plan:
+results:
+pr:
+claimed_at: $AR_FRESH_CLAIM
+---
+EOF
+ar21out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AR21/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "aborted-run leg C SILENT when the branch is ahead of a STALE LOCAL main but not of origin/main (id 237)" \
+  '! has_finding "$ar21out" aborted-run 237'
+
+# --- RED x2: leg A and leg C on ONE change, proving the legs stayed independent. The branch
+# carries an unrecorded PLAN (leg A) and is quiet, ahead, unpushed with pr: unset (leg C). Same
+# shape as the existing "BOTH legs" fixture for A+B; both messages are self-contained, so
+# docket-status printing two lines with different remedies for one change needs no caller change.
+read -r AR22 _ < <(new_repo)
+ar_branch_at "$AR22" feat/ar22 main $(( 3*3600 )) "$AR_PLAN_NEW"
+cat > "$AR22/docs/changes/active/0238-both-a-and-c.md" <<EOF
+---
+id: 238
+slug: both-a-and-c
+title: Unrecorded plan on a quiet unpushed branch
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/ar22
+plan:
+results:
+pr:
+claimed_at: $AR_FRESH_CLAIM
+---
+EOF
+ar22out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AR22/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "aborted-run fires on 238 (legs A and C together)" 'has_finding "$ar22out" aborted-run 238'
+assert "legs A and C are INDEPENDENT: leg A's unrecorded-plan message is present on 238" \
+  'grep -qF "but plan: is unset" <<<"$ar22out"'
+assert "legs A and C are INDEPENDENT: leg C's never-pushed message is ALSO present on 238" \
+  'grep -qF "branch never pushed and pr: is unset" <<<"$ar22out"'
+# Computed OUTSIDE the assert: the assert argument is eval'd, and burying a TAB-bearing pattern in
+# it means escaping out of and back into single quotes for every field separator.
+ar22n="$(grep -cE "^aborted-run"$'\t'"238"$'\t' <<<"$ar22out")"
+assert "238 emits exactly TWO aborted-run lines — one per leg, not one merged or three" \
+  '[ "$ar22n" = 2 ]'
+
 # ---------------- aborted-run mutation tests (guards-are-code) ----------------
 # Each predicate is broken in a throwaway COPY of board-checks.sh and watched change the fixtures'
 # outcome. Every mutation runs against a FRESH pristine copy (never a cumulative chain) and is
