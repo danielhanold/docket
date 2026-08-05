@@ -2,9 +2,9 @@
 slug: enumerated-floor
 hook: "Every hand-written enumeration is a floor, not the set — derive the sites from a whole-repo grep, then treat that grep as a floor too."
 topics: [process, inventory, review]
-changes: [14, 32, 42, 52, 54, 56, 64, 67, 71, 74, 84, 96, 98, 99, 167, 184]
+changes: [14, 32, 42, 52, 54, 56, 64, 67, 71, 74, 78, 84, 96, 98, 99, 167, 184]
 created: 2026-06-12
-updated: 2026-08-01
+updated: 2026-08-05
 promotion_state: promoted
 promoted_to: AGENTS.md
 ---
@@ -23,6 +23,22 @@ an explicit goal. And run the WHOLE suite at the merge/build gate, never only th
 enumerated.
 
 ## War story
+- 2026-08-05 (#78, PR #89 — merged) — **A prose warning about staleness is not a guard; the
+  glob-derived assertion is.** The codex validation runbook hand-listed docket's "nine agents" in
+  two places — a `.docket.local.yml` pin block and an enumerated built-in set. Sitting unmerged for
+  three weeks, the roster grew to sixteen (four `docket-build-*` workers, three `docket-review-*`
+  rungs), and the rebase at finalize turned both hand-lists stale at once. What makes this instance
+  worth recording is that **the doc predicted its own decay in prose**: Phase 1 step 6 told the
+  operator "Don't trust that printed list as a ceiling — the set grows; … If the set has grown, add
+  the new keys to step 4's pin." That warning changed nothing, because no reader ever executed the
+  runbook. What actually caught it was the branch's own structural guard deriving the roster from
+  `ls agents/docket-*.md` and diffing against the doc — two assertions, both red, naming all seven
+  missing agents exactly. So: an enumeration that KNOWS it is a floor is still a floor. Only a
+  derived assertion converts that knowledge into an error. The corollary for long-lived branches is
+  sharper still — a hand-list decays against `main` while the branch sits idle, so the merge gate's
+  post-rebase full-suite run is what surfaces it, which is a second reason never to narrow that run
+  to the tests a spec enumerated.
+
 - 2026-06-12 → 2026-07-16 (#14 PR #10; #32 PR #43; #42 PR #52; #56 PR #68; #64 PR #75; #52 PR #61;
   #54 PR #66; #71 PR #81; #74 PR #82; #84 PR #90; #67 PR #91 — merged, one enumerated-floor family) — **Every
   hand-written enumeration is a floor, not the set** — of sites, of audit dimensions, of tests — and
