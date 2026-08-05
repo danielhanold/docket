@@ -1,15 +1,14 @@
 # Backlog
 
-**205 changes** — 🟢 2 in progress · 🟡 47 proposed · ⚪ 4 deferred · ✅ 132 done · 🗑️ 20 killed
+**207 changes** — 🟢 1 in progress · 🟡 49 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 132 done · 🗑️ 20 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0190](active/0190-close-the-build-evidence-value-gap-a-post-gate-results-commi.md) | Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip | `medium` | `feat` | [spec](../superpowers/specs/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md) | `feat/close-the-build-evidence-value-gap-a-post-gate-results-commi` |
-| [0205](active/0205-opencode-runner-adapter.md) | opencode runner adapter — delegate build workers to OpenRouter models | `medium` | `feat` | [spec](../superpowers/specs/2026-08-04-opencode-runner-adapter-design.md) | `feat/opencode-runner-adapter` |
 
-## 🟡 Proposed (47)
+## 🟡 Proposed (49)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -60,6 +59,8 @@
 | [0202](active/0202-clear-the-unfixed-review-findings-from-change-0113.md) | Clear the unfixed review findings from change 0113 | `medium` | `chore` | needs-brainstorm |
 | [0203](active/0203-define-the-per-step-git-state-postcondition-docket-implement.md) | Define the per-step git-state postcondition docket-implement-next now names but never states | `medium` | `docs` | needs-brainstorm |
 | [0204](active/0204-restore-rationale-dropped-by-round-three-compression-finaliz.md) | Restore rationale dropped by round-three compression (finalize named-id override, auto-capture mint-site loop) | `medium` | `docs` | needs-brainstorm |
+| [0206](active/0206-delegated-runner-runs-are-anchored-at-the-main-worktree-not.md) | Delegated runner runs are anchored at the main worktree, not the feature worktree | `medium` | `fix` | needs-brainstorm |
+| [0207](active/0207-sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a.md) | sync-agents aborts mid-loop on a bad runner config, leaving a zero-length wrapper and stale siblings | `medium` | `fix` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -69,6 +70,12 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | Type | PR | Readiness |
+|---|-------|----------|------|----|-----------|
+| [0205](active/0205-opencode-runner-adapter.md) | opencode runner adapter — delegate build workers to OpenRouter models | `medium` | `feat` | [#156](https://github.com/danielhanold/docket/pull/156) |  |
 
 ```mermaid
 graph TD
@@ -125,6 +132,8 @@ graph TD
   0203
   0204
   0205
+  0206
+  0207
   0015:::done
   0175:::done
   0192:::done
