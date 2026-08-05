@@ -8,10 +8,10 @@ type: fix
 created: 2026-08-05
 updated: 2026-08-05
 depends_on: []
-related: []
+related: [82, 140, 141, 207]
 discovered_from: [207]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-05-clear-0207-review-findings-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-05-clear-0207-review-findings-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-05-clear-0207-review-findings-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
