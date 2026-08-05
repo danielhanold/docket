@@ -1,6 +1,6 @@
 # Backlog
 
-**222 changes** — 🟢 1 in progress · 🟡 52 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 137 done · 🗑️ 27 killed
+**222 changes** — 🟢 1 in progress · 🟡 52 proposed · ⚪ 4 deferred · ✅ 138 done · 🗑️ 27 killed
 
 ## 🟢 In progress (1)
 
@@ -60,10 +60,10 @@
 | [0204](active/0204-restore-rationale-dropped-by-round-three-compression-finaliz.md) | Restore dropped doc rationale (compression losses) and complete AGENTS.md's frontmatter-edit rule | `medium` | `docs` | needs-brainstorm |
 | [0208](active/0208-runner-dispatch-worktree-gate-3-proves-repo-containment-not.md) | Harden runner-dispatch — worktree membership gate, feature-scoped coverage, flag-parse guards | `medium` | `fix` | needs-brainstorm |
 | [0218](active/0218-fix-review-findings-in-branch-instead-of-minting-a-stub-for.md) | Fix review findings in-branch instead of minting a stub for every one | `high` | `feat` | needs-brainstorm |
-| [0219](active/0219-aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d.md) | aborted-run's sixth signature: PR opened and pr: written, run dies before status: implemented | `high` | `fix` | ⏳ waiting on #211 — needs your merge |
+| [0219](active/0219-aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d.md) | aborted-run's sixth signature: PR opened and pr: written, run dies before status: implemented | `high` | `fix` | needs-brainstorm |
 | [0220](active/0220-clear-the-unfixed-review-findings-from-change-0207.md) | clear the unfixed review findings from change 0207 | `medium` | `fix` | build-ready |
 | [0221](active/0221-assert-executes-backticks-in-its-test-description-so-a-verba.md) | assert() executes backticks in its test description, so a verbatim-quoted anchor can run shell | `medium` | `fix` | needs-brainstorm |
-| [0222](active/0222-raise-docket-s-minimum-bash-from-4-to-5-0.md) | Raise docket's minimum Bash from 4+ to 5.0 | `medium` | `chore` | ⏳ waiting on #211 — needs your merge |
+| [0222](active/0222-raise-docket-s-minimum-bash-from-4-to-5-0.md) | Raise docket's minimum Bash from 4+ to 5.0 | `medium` | `chore` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -73,12 +73,6 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
-
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | Type | PR | Readiness |
-|---|-------|----------|------|----|-----------|
-| [0211](active/0211-aborted-run-is-blind-to-a-run-that-stops-after-the-build-com.md) | aborted-run is blind to a run that stops after the build: commits on an unpushed branch, every field coherent | `high` | `fix` | [#160](https://github.com/danielhanold/docket/pull/160) |  |
 
 ```mermaid
 graph TD
@@ -134,7 +128,6 @@ graph TD
   0203
   0204
   0208
-  0202 --> 0211
   0218
   0211 --> 0219
   0220
@@ -143,11 +136,11 @@ graph TD
   0015:::done
   0175:::done
   0192:::done
-  0202:::done
+  0211:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (164)</summary>
+<details><summary>✅🗑️ Archive — done + killed (165)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
@@ -157,6 +150,7 @@ graph TD
 | [0214](archive/2026-08-05-0214-agents-md-s-promoted-frontmatter-rule-omits-the-whitespace-c.md) | AGENTS.md's promoted frontmatter rule omits the whitespace-class half that corrupted two field writes | 2026-08-05 |
 | [0213](archive/2026-08-05-0213-settle-the-bash-4-4-mapfile-d-floor-inconsistency-between-te.md) | Settle the bash 4.4 mapfile -d floor inconsistency between tests and shipped scripts | 2026-08-05 |
 | [0212](archive/2026-08-05-0212-an-inlined-role-skill-s-terminal-stop-ends-the-whole-run-sco.md) | An inlined role skill's terminal stop ends the whole run — scope docket-build's stop and enforce the run disposition | 2026-08-05 |
+| [0211](archive/2026-08-05-0211-aborted-run-is-blind-to-a-run-that-stops-after-the-build-com.md) | aborted-run is blind to a run that stops after the build: commits on an unpushed branch, every field coherent | 2026-08-05 |
 | [0210](archive/2026-08-05-0210-a-valueless-trailing-flag-hangs-runner-dispatch-forever-inst.md) | A valueless trailing flag hangs runner-dispatch forever instead of aborting | 2026-08-05 |
 | [0209](archive/2026-08-05-0209-the-worktree-requirement-covers-build-only-leaving-three-fea.md) | The --worktree requirement covers build-* only, leaving three feature-scoped agent families ungated | 2026-08-05 |
 | [0207](archive/2026-08-05-0207-sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a.md) | sync-agents aborts mid-loop on a bad runner config, leaving a zero-length wrapper and stale siblings | 2026-08-05 |
@@ -172,7 +166,6 @@ graph TD
 | [0192](archive/2026-08-02-0192-opencode-profile-routed-build-support.md) | opencode support for profile-routed Docket builds | 2026-08-02 |
 | [0186](archive/2026-08-01-0186-bare-mv-prompts-on-a-tty-backfill-change-types-hangs-the-sui.md) | Bare mv prompts on a tty — backfill-change-types hangs the suite and can exit 0 without installing | 2026-08-01 |
 | [0185](archive/2026-08-01-0185-test-suite-assertion-profilers.md) | Test-suite profilers — per-assertion and per-command timing | 2026-08-01 |
-| [0184](archive/2026-08-01-0184-four-tier-build-profile-ladder.md) | Four-tier build profile ladder — economy/standard/premium/max | 2026-08-01 |
 | [0183](archive/2026-08-01-0183-cursor-dispatch-head-ships-a-stale-unpinned-claim-its-guard.md) | Cursor dispatch head ships a stale unpinned claim; its guard retired itself | 2026-08-01 |
 | [0044](archive/2026-07-30-0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | 2026-07-30 |
 | [0162](archive/2026-07-28-0162-restore-the-machine-local-ignored-advisory-for-a-committed-t.md) | Restore the machine-local-ignored advisory for a committed too-deep runtime.bash | 2026-07-28 |
@@ -198,7 +191,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 4 done |
+| [2026-08](archive/) | 5 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
