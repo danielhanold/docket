@@ -237,13 +237,16 @@ independent legs; any emits, and more than one may emit on one change.
     case free, and "unpushed branch with a recorded PR" is a different defect with a different
     remedy that leg C would be a misleading oracle for.
 
-  **Cost:** at most three `git` invocations on a non-firing path and five on the firing path, and
-  only for `in-progress` changes with an empty `pr:` — the population legs A and B already walk.
-  A change with a recorded PR adds **zero**.
+  **Cost:** at most four `git` invocations on a non-firing path (`log -1`, the two base `show-ref`s,
+  and `rev-list -n 1`) and six on the firing path — five on the pushed arm, which skips the
+  `rev-list --count` — and only for `in-progress` changes with an empty `pr:` — the population legs
+  A and B already walk. A change with a recorded PR adds **zero**.
 
-  **Known residual:** a marathon post-build tail with no further commit fires leg C on a healthy
-  run. The finding is advisory and self-clearing once the PR is recorded; a floor loose enough
-  never to misfire would be loose enough to stop detecting.
+  **Known residual:** the floor keys on the branch tip, so **any** gap longer than 2 hours between
+  commits fires leg C on a live, healthy run — a marathon post-build tail with no further commit,
+  but equally a single long build task between two per-task commits. The finding is advisory and
+  self-clearing once the next commit lands or the PR is recorded; a floor loose enough never to
+  misfire would be loose enough to stop detecting.
 
   **Not covered:** the run that opens the PR, writes `pr:`, and dies before `status: implemented`.
   Leg C's `pr:`-empty gate makes it invisible and leg B catches it at 12h; its evidence is a

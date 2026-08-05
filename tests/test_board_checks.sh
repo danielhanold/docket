@@ -1376,8 +1376,11 @@ assert "aborted-run leg C FIRES on an unpushed branch ahead of main, quiet 3h, p
   'has_finding "$ar16out" aborted-run 232'
 assert "leg C names the NEVER-PUSHED remedy on 232" \
   'grep -qF "branch never pushed and pr: is unset" <<<"$ar16out"'
-assert "leg C reports the commit count ahead of the integration branch on 232" \
-  'grep -qF "1 commits on feat/ar16 ahead of main" <<<"$ar16out"'
+# The count excludes BOTH bases, so the message names both — and singularizes the noun at 1.
+assert "leg C reports the commit count and the bases it was measured against on 232" \
+  'grep -qF "1 commit on feat/ar16 ahead of main and origin/main" <<<"$ar16out"'
+assert "leg C does not render \"1 commits\" on 232" \
+  '! grep -qF "1 commits" <<<"$ar16out"'
 assert "leg C reports the branch idle age in hours on 232" \
   'grep -qF "(last commit 3h ago)" <<<"$ar16out"'
 assert "leg C is SILENT for leg A on 232 — plan: is recorded, so the legs did not double-count" \
@@ -1559,6 +1562,42 @@ assert "legs A and C are INDEPENDENT: leg C's never-pushed message is ALSO prese
 ar22n="$(grep -cE "^aborted-run"$'\t'"238"$'\t' <<<"$ar22out")"
 assert "238 emits exactly TWO aborted-run lines — one per leg, not one merged or three" \
   '[ "$ar22n" = 2 ]'
+
+# --- RED: the PLURAL arm of the count noun. Every other firing leg-C fixture is exactly one commit
+# ahead, so without this the `commits` branch is unreachable and a mutation pinning the noun to the
+# singular would stay green. Two commits, both dated relative to NOW_EPOCH — the tip's age is what
+# the idle floor reads, and a real wall-clock date would make it negative (see ar_branch_at).
+read -r AR23 _ < <(new_repo)
+ar_branch_at "$AR23" feat/ar23 main $(( 3*3600 )) "$AR_PLAN_NEW"
+git -C "$AR23" checkout feat/ar23 >/dev/null 2>&1
+# A NEUTRAL path (neither PLANS_DIR_REL nor RESULTS_DIR_REL), so the extra commit cannot make leg A
+# fire here and turn the count assert below into a two-leg accident.
+mkdir -p "$AR23/docs/notes"
+printf '# second\n' > "$AR23/docs/notes/2026-06-03-second.md"
+git -C "$AR23" add docs/notes/2026-06-03-second.md
+GIT_AUTHOR_DATE="@$(( NOW_EPOCH - 3*3600 ))" GIT_COMMITTER_DATE="@$(( NOW_EPOCH - 3*3600 ))" \
+  git -C "$AR23" commit -m "second commit on feat/ar23" >/dev/null 2>&1
+git -C "$AR23" checkout docket >/dev/null 2>&1
+assert "leg C fixture 239 precondition: feat/ar23 is TWO commits ahead of both bases" \
+  '[ "$(git -C "$AR23" rev-list --count feat/ar23 --not refs/heads/main refs/remotes/origin/main)" = 2 ]'
+cat > "$AR23/docs/changes/active/0239-two-commits.md" <<EOF
+---
+id: 239
+slug: two-commits
+title: Two commits built, nothing delivered
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/ar23
+plan: docs/superpowers/plans/2026-06-01-present.md
+results:
+pr:
+claimed_at: $AR_FRESH_CLAIM
+---
+EOF
+ar23out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AR23/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "leg C pluralizes the count noun above one commit (id 239)" \
+  'grep -qF "2 commits on feat/ar23 ahead of main and origin/main" <<<"$ar23out"'
 
 # ---------------- aborted-run mutation tests (guards-are-code) ----------------
 # Each predicate is broken in a throwaway COPY of board-checks.sh and watched change the fixtures'
@@ -1909,20 +1948,25 @@ assert "mutation baseline: leg C SILENT on 245 (stale local main)"  '! has_findi
 # re-dating those fixtures later reddens HERE with a message that says why, instead of silently
 # changing what mutations A-F measure.
 # Computed outside the asserts, for the same reason as 238's count above.
-arm0_legc="$(grep -cF "branch never pushed and pr: is unset" <<<"$arm0out")"
+# The absence asserts match on `pr: is unset` — the substring COMMON to both of leg C's messages,
+# and emitted by neither leg A nor leg B (pinned on 201 and 214 above, whose twins of these asserts
+# use the same string). Matching the never-pushed message alone would lean on an unasserted property
+# of ar_branch (that it never pushes its branches): the day a fixture here gains a push, leg C could
+# start firing the PUSHED message on it and these asserts would stay green.
+arm0_legc="$(grep -cF "pr: is unset" <<<"$arm0out")"
 arm0_220="$(grep -E "^aborted-run"$'\t'"220"$'\t' <<<"$arm0out")"
 arm0_221="$(grep -E "^aborted-run"$'\t'"221"$'\t' <<<"$arm0out")"
 arm0_223="$(grep -E "^aborted-run"$'\t'"223"$'\t' <<<"$arm0out")"
 assert "leg C does not reach the existing leg-A fixtures: no leg-C message on 220" \
-  '! grep -qF "branch never pushed and pr: is unset" <<<"$arm0_220"'
+  '! grep -qF "pr: is unset" <<<"$arm0_220"'
 assert "leg C does not reach the existing leg-A fixtures: no leg-C message on 221" \
-  '! grep -qF "branch never pushed and pr: is unset" <<<"$arm0_221"'
+  '! grep -qF "pr: is unset" <<<"$arm0_221"'
 assert "leg C does not reach the existing leg-A fixtures: no leg-C message on 223" \
-  '! grep -qF "branch never pushed and pr: is unset" <<<"$arm0_223"'
-# Non-vacuity companion for the three absence asserts above (they would all pass if leg C's
-# never-pushed message never appeared at all): the SAME string must be present somewhere in this
-# very output, on the fixtures that are supposed to have it.
-assert "the leg-C never-pushed message IS present in this run — the three absence asserts are not vacuous" \
+  '! grep -qF "pr: is unset" <<<"$arm0_223"'
+# Non-vacuity companion for the three absence asserts above (they would all pass if leg C emitted
+# nothing at all): the SAME string, through the SAME extractor, must be present somewhere in this
+# very output — on the fixtures that are supposed to have it.
+assert "a leg-C message IS present in this run — the three absence asserts are not vacuous" \
   '[ "$arm0_legc" -ge 1 ]'
 assert "leg C SILENT on 225 (healthy fields) — the fixture stays a pure leg-A mutation target" \
   '! has_finding "$arm0out" aborted-run 225'
