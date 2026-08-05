@@ -1372,9 +1372,17 @@ REGISTRY_LINE="$(grep -E '^REGISTERED_RUNNERS=' "$SYNC")"
 REGISTRY_LINE="$(head -n1 <<<"$REGISTRY_LINE")"
 assert "0079: sync-agents declares REGISTERED_RUNNERS" '[ -n "$REGISTRY_LINE" ]'
 runners_from_registry="$(sed -E 's/^REGISTERED_RUNNERS="([^"]*)".*/\1/' <<<"$REGISTRY_LINE")"
+n_registry_tokens=0
 for r in $runners_from_registry; do
   assert "0079: registry token '$r' has an adapter script" '[ -f "$REPO/scripts/runners/'"$r"'.sh" ]'
+  n_registry_tokens=$((n_registry_tokens+1))
 done
+# NON-VACUITY (change 0205): the registry->adapter loop above derives its population from a sed
+# extraction of the REGISTERED_RUNNERS line. An extractor that returned the empty string would run
+# that loop zero times and leave every assert inside it unexecuted, which reads exactly like parity
+# holding. Pin the population instead of trusting the silence.
+assert "0205: the registry->adapter loop actually enumerated the registry (got $n_registry_tokens)" \
+  '[ "$n_registry_tokens" -ge 3 ]'
 for a in "$REPO"/scripts/runners/*.sh; do
   [ -e "$a" ] || continue
   tok="$(basename "$a" .sh)"
