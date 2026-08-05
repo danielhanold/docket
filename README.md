@@ -796,7 +796,12 @@ Rules and limits:
 - **A delegated agent must carry an explicit `model:` in your config.** Docket never forwards its
   own shipped default to another harness — that ID means nothing to the child — so a model-less
   `runner:` is a loud generation-time error rather than a silent run on the child's own default,
-  which on a pay-per-token backend surfaces on the bill instead of in the run.
+  which on a pay-per-token backend surfaces on the bill instead of in the run (ADR-0067).
+- **`effort:` is optional — and omitting it is not the same as opting out.** It follows the same
+  never-forward-a-shipped-default rule, but with no matching error. Omitting the key means "no
+  opinion" and still resolves from lower **user** config layers, whose value *is* forwarded;
+  `effort: auto` is the explicit no-pin that suppresses the flag. With no flag baked, the child uses
+  its own default for the chosen model — the parent's effort is never inherited.
 - **Delegate leaves, not orchestrators.** A delegated run's own sub-dispatches run child-natively,
   so delegating `docket-implement-next` drags its review dispatch into the child too. Delegating
   the four `build-*` profile workers rather than the `docket-build` controller is the same rule:
@@ -823,10 +828,8 @@ authenticated (`opencode auth login`), and docket skills linked into `~/.agents/
 file or running a command, a delegated run has nothing to answer with, and the adapter therefore
 refuses up front rather than hanging. That grant is deliberately a visible line in config, not
 something you get by typing `runner: opencode`; pair it with opencode's own deny rules. `effort:`
-maps to `--variant` and passes through unmapped, including docket's `max` — but note it follows the
-same never-forward-a-shipped-default rule as `model:` **without** the matching error, so a delegated
-agent with no effort from any user layer silently runs at the provider's default. Omitting the key
-defers to lower config layers; `effort: auto` is the explicit no-pin. Full adapter contract:
+maps to `--variant` and passes through unmapped, including docket's `max` (unlike codex, where `max`
+becomes `xhigh`); the shared omit-vs-`auto` rule above applies unchanged. Full adapter contract:
 `scripts/runners/opencode.md`; the config recipe is in
 [docs/opencode/setup.md](docs/opencode/setup.md).
 

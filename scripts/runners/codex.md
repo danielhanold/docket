@@ -19,11 +19,17 @@ bash scripts/runners/codex.sh --agent <name> [--model <m>] [--effort <e>] [--] [
   behavior-only — model and effort arrive as the flags below, resolved by the caller from the
   user's config layers over `agents/harness-defaults.yml`. A **shipped** default is never
   forwarded: only a user-configured value becomes a flag.
-- `--model <m>` (optional) — passed to `codex exec -m` **verbatim** (ADR-0015 opaque
-  passthrough; docket never validates model IDs). Omitted ⇒ the child's own default model.
+- `--model <m>` (optional **at this CLI**, required in practice) — passed to `codex exec -m`
+  **verbatim** (ADR-0015 opaque passthrough; docket never validates model IDs). Omitted here ⇒ the
+  child's own default model — but since change 0205 a `runner:`-bearing agent with no
+  user-configured model is a **generation-time error** (ADR-0067), so a generated shim never omits
+  it. The model-less case is reachable only by invoking this adapter by hand.
 - `--effort <e>` (optional) — mapped to Codex's `model_reasoning_effort` config override.
   Values pass through verbatim except docket's `max`, which maps to codex's `xhigh` (the top
-  of Codex's vocabulary). Omitted ⇒ no override (child default).
+  of Codex's vocabulary). Omitted ⇒ no override (child default). Effort stays genuinely optional,
+  but note that **omitting `effort:` in config is not the same as opting out**: it defers to lower
+  user config layers, whose value *is* forwarded. `effort: auto` is the explicit no-pin that
+  suppresses the flag outright.
 - `-- <args…>` — appended to the prompt as caller task context.
 
 Environment (set by the facade):
