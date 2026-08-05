@@ -199,8 +199,8 @@ message: `title: unquoted scalar contains ': ' — quote it or reword (well-form
 visible artifact, narrated success, and dropped the metadata write. The oracle is deliberately
 **external** — the agent that dropped the bookkeeping write is the least reliable narrator of
 whether it dropped it, and the observed incidents produced confident, specific, wrong reports, so a
-check keyed on hedging in the report catches nothing. Gated on `status: in-progress`. Two
-independent legs; either emits, and both may emit on one change.
+check keyed on hedging in the report catches nothing. Gated on `status: in-progress`. **Three**
+independent legs; any emits, and more than one may emit on one change.
 
 - **Leg A — manifest/git incoherence (time-free).** The change's `branch:` carries a file under
   `docs/superpowers/plans/` (or under `--results-dir`) that is **absent from the integration
@@ -213,6 +213,41 @@ independent legs; either emits, and both may emit on one change.
 - **Leg B — run-scale stale claim (time-based).** `claimed_at:` older than **12 hours**. This
   catches the abort that leaves nothing in git at all (a plan written but never committed), which
   leg A structurally cannot see.
+- **Leg C — built but not delivered (time-based, change 0211).** The branch named in `branch:`
+  carries commits reachable from **neither** `refs/heads/<integration-branch>` **nor**
+  `refs/remotes/origin/<integration-branch>`, its newest commit is older than **2 hours**, and
+  `pr:` is empty. Catches the run that finished its build and stopped before delivering it —
+  invisible to leg A (every field is coherent: `plan:` recorded, no results file yet) and to leg B
+  (the `claimed_at` heartbeat was re-stamped at that very metadata write, so leg B's countdown
+  starts from the freshest possible stamp). One leg, two messages, chosen by whether
+  `refs/remotes/origin/<branch>` resolves: *branch never pushed* (the run stopped before its push)
+  or *pushed but `pr:` unset* (the run stopped between the push and the PR record).
+
+  Three design points worth stating, because each is a predicate someone will later be tempted to
+  simplify:
+
+  - **Both integration bases are excluded, each `show-ref`-verified.** Feature branches are cut
+    from `origin/<integration-branch>` while a local integration ref routinely lags it, so a
+    local-only comparison makes a freshly-cut, nothing-built branch look arbitrarily far ahead with
+    arbitrarily old commits — firing leg C on a signature that belongs to leg B. No base resolving
+    is **silence**, never "ahead of nothing".
+  - **The idle floor is keyed on the branch's newest commit, never on `claimed_at`** — the
+    heartbeat rider makes `claimed_at` unusable here, which is precisely why leg B is blind.
+  - **A non-empty `pr:` short-circuits the whole leg** before any git call. That keeps the common
+    case free, and "unpushed branch with a recorded PR" is a different defect with a different
+    remedy that leg C would be a misleading oracle for.
+
+  **Cost:** at most three `git` invocations on a non-firing path and five on the firing path, and
+  only for `in-progress` changes with an empty `pr:` — the population legs A and B already walk.
+  A change with a recorded PR adds **zero**.
+
+  **Known residual:** a marathon post-build tail with no further commit fires leg C on a healthy
+  run. The finding is advisory and self-clearing once the PR is recorded; a floor loose enough
+  never to misfire would be loose enough to stop detecting.
+
+  **Not covered:** the run that opens the PR, writes `pr:`, and dies before `status: implemented`.
+  Leg C's `pr:`-empty gate makes it invisible and leg B catches it at 12h; its evidence is a
+  manifest/GitHub comparison, and this script is git-only by contract.
 
 **A separate check-id, not a widened `stale-in-progress`.** That check keys on the same
 `claimed_at:` field but at a *human-scale abandonment* horizon (the 72h lease TTL, plus a 3-day
@@ -221,8 +256,9 @@ contract `docket-status` keys on, the trailing `[reclaimable]` marker. `aborted-
 "this run stopped mid-step, go look". Widening the incumbent predicate would silently change what
 an already-written consumer sees.
 
-The 12h window is **hardcoded**, matching `stale-finalize-blocked`'s 72h and `stale-in-progress`'s
-3-day branch-idle horizon; only the lease TTL is a knob.
+The 12h leg-B window and the 2h leg-C branch-idle floor (`ABORTED_RUN_STALE_SECS` and
+`ABORTED_RUN_IDLE_SECS`) are both **hardcoded**, matching `stale-finalize-blocked`'s 72h and
+`stale-in-progress`'s 3-day branch-idle horizon; only the lease TTL is a knob.
 
 **Not detected, deliberately:** *"a PR is open but `pr:` is empty"* would need a network probe,
 which this script forbids by contract. *"Build commits present while `in-progress`"* is what a
