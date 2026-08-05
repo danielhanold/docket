@@ -3,7 +3,7 @@ id: 218
 slug: fix-review-findings-in-branch-instead-of-minting-a-stub-for
 title: Fix review findings in-branch instead of minting a stub for every one
 status: proposed
-priority: medium
+priority: high
 type: feat
 created: 2026-08-05
 updated: 2026-08-05
