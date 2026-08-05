@@ -1626,6 +1626,12 @@ assert "0169: nor did the shipped CODEX model" \
   '! grep -qF -- "$(hd_field "$HD" codex status model)" "$S"'
 assert "0168: runner shim frontmatter still carries the resolved native effort (bookkeeping)" \
   '[ "$(fm "$S" effort)" = "$(hd_field "$HD" claude status effort)" ]'
+# The MODEL half of that same bookkeeping claim. The 0205 migration re-pointed the effort assert but
+# dropped this one, leaving "the shim's frontmatter carries the resolved pin" only half pinned. Here
+# the resolved model IS the user value (the required-model rule guarantees one), so this asserts the
+# frontmatter tracks the resolution rather than being left empty or stale by the shim path.
+assert "0168: runner shim frontmatter still carries the resolved native model (bookkeeping)" \
+  '[ "$(fm "$S" model)" = "user-picked-id" ]'
 
 # A user-configured pair is policy, not a shipped guess: it still passes through to the child.
 cat > "$SBX/.docket.yml" <<'YML'
