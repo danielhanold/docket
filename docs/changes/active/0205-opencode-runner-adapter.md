@@ -12,12 +12,12 @@ related: [79, 192, 195, 78]
 discovered_from: [192]
 adrs: [15, 37, 38, 63]
 spec: docs/superpowers/specs/2026-08-04-opencode-runner-adapter-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-05-opencode-runner-adapter.md
 results:
 trivial: false
 auto_groomable: false
 branch: feat/opencode-runner-adapter
-claimed_at: 2026-08-05T01:12:01Z
+claimed_at: 2026-08-05T01:23:40Z
 pr:
 blocked_by:
 reconciled: true
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-04-opencode-runner-adapter-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-04-opencode-runner-adapter-design.md) |
+| Plan | [2026-08-05-opencode-runner-adapter.md](https://github.com/danielhanold/docket/blob/feat/opencode-runner-adapter/docs/superpowers/plans/2026-08-05-opencode-runner-adapter.md) |
 | ADRs | [ADR-0015](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0015-harness-portable-agent-config.md), [ADR-0037](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0037-runner-delegation-explicit-runner-field.md), [ADR-0038](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0038-runner-shim-wrapper-single-dispatch-chokepoint.md), [ADR-0063](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0063-docket-owns-the-build-role-profile-routed-workers.md) |
 <!-- docket:artifacts:end -->
 
