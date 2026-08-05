@@ -17,7 +17,7 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a
-claimed_at: 2026-08-05T17:34:41Z
+claimed_at: 2026-08-05T18:39:28Z
 pr:
 blocked_by:
 reconciled: true
@@ -121,3 +121,13 @@ no folding-in, no drop.
 
 No follow-up work minted. Gate 2's pre-migration blind spot is a documented design boundary already
 recorded in *Out of scope* — a deliberate decision, not a newly discovered defect.
+
+#### Resume re-reconcile (same day, post-build)
+
+The run stopped at the build/review boundary and was resumed. `origin/main` had advanced
+`2d1a3e9e` → `18195d91` in the interim, so the resume rule's second trigger fired and the pass was
+re-run. **Substantively a no-op:** the new commits are all change 0202, which touched
+`scripts/board-checks.sh`, `tests/test_board_checks.sh`, and `tests/test_docket_status.sh` — zero
+overlap with this change's files (`sync-agents.sh`, `tests/test_sync_agents.sh`, `README.md`). No
+scope change, no new constraint, nothing to fold in. Recorded rather than skipped so the audit
+signal stays honest about which base the build was validated against.
