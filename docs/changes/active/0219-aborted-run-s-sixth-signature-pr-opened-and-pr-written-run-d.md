@@ -3,7 +3,7 @@ id: 219
 slug: aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d
 title: aborted-run's sixth signature: PR opened and pr: written, run dies before status: implemented
 status: proposed
-priority: medium
+priority: high
 type: fix
 created: 2026-08-05
 updated: 2026-08-05
