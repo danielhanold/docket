@@ -1,6 +1,6 @@
 # Backlog
 
-**205 changes** — 🟢 2 in progress · 🟡 47 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 131 done · 🗑️ 20 killed
+**205 changes** — 🟢 2 in progress · 🟡 47 proposed · ⚪ 4 deferred · ✅ 132 done · 🗑️ 20 killed
 
 ## 🟢 In progress (2)
 
@@ -70,12 +70,6 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | Type | PR | Readiness |
-|---|-------|----------|------|----|-----------|
-| [0078](active/0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | `high` | `chore` | [#89](https://github.com/danielhanold/docket/pull/89) |  |
-
 ```mermaid
 graph TD
   0007
@@ -83,7 +77,6 @@ graph TD
   0009
   0010
   0015 --> 0019
-  0077 --> 0078
   0082
   0100
   0103
@@ -133,16 +126,16 @@ graph TD
   0204
   0205
   0015:::done
-  0077:::done
   0175:::done
   0192:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (151)</summary>
+<details><summary>✅🗑️ Archive — done + killed (152)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0078](archive/2026-08-05-0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | 2026-08-05 |
 | [0201](archive/2026-08-03-0201-skill-compression-round-three.md) | Skill compression round three — targeted progressive disclosure on the Big 4 + regrowth-guard ratchet | 2026-08-03 |
 | [0194](archive/2026-08-03-0194-retire-the-retired-default-framing-from-the-docket-owned-rol.md) | Retire the retired-default framing from the docket-owned role skill bodies | 2026-08-03 |
 | [0191](archive/2026-08-03-0191-enforce-yaml-scalar-wellformedness-in-change-frontmatter.md) | Enforce YAML scalar well-formedness in change-file frontmatter | 2026-08-03 |
@@ -158,7 +151,6 @@ graph TD
 | [0170](archive/2026-08-01-0170-lean-whole-branch-review-skill.md) | Lean Docket-owned whole-branch review skill | 2026-08-01 |
 | [0169](archive/2026-08-01-0169-codex-profile-routed-build-support.md) | Codex support for profile-routed Docket builds | 2026-08-01 |
 | [0174](archive/2026-07-31-0174-reuse-test-git-fixtures.md) | Reuse test git fixtures instead of rebuilding them per assertion | 2026-07-31 |
-| [0173](archive/2026-07-31-0173-field-of-silently-truncates-a-model-id-containing-or.md) | field_of() silently truncates a model ID containing / or : | 2026-07-31 |
 | [0044](archive/2026-07-30-0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | 2026-07-30 |
 | [0162](archive/2026-07-28-0162-restore-the-machine-local-ignored-advisory-for-a-committed-t.md) | Restore the machine-local-ignored advisory for a committed too-deep runtime.bash | 2026-07-28 |
 | [0161](archive/2026-07-28-0161-enumerate-the-health-checks-failed-outcome-in-docket-status.md) | Enumerate the health-checks-failed outcome in docket-status SKILL.md | 2026-07-28 |
@@ -183,7 +175,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-07](archive/) | 84 done |
+| [2026-07](archive/) | 85 done |
 | [2026-06](archive/) | 32 done |
 
 </details>
