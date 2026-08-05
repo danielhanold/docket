@@ -44,7 +44,10 @@ PERMISSIONS="${DOCKET_RUNNER_CFG_PERMISSIONS:-ask}"
 case "$PERMISSIONS" in
   auto-approve) ;;
   ask) die "runners.opencode.permissions is 'ask' (the default) — a delegated run cannot answer opencode's approval prompts and would hang. Set 'runners.opencode.permissions: auto-approve' to approve everything not explicitly denied by your own opencode deny rules, or drop 'runner: opencode' from this agent." ;;
-  *)   die "runners.opencode.permissions must be 'ask' or 'auto-approve' (got '$PERMISSIONS')" ;;
+  # The remedy names quoting because the facade's block-mapping reader does NOT strip quotes, so
+  # `permissions: "auto-approve"` arrives here as the literal `"auto-approve"` and lands on this
+  # leg. Showing the value with its quotes is not a hint a reader can act on (ADR-0065).
+  *)   die "runners.opencode.permissions must be 'ask' or 'auto-approve' (got '$PERMISSIONS') — write the value unquoted" ;;
 esac
 
 # --- preflight: binary (abort-and-report; never degrade to a native run) --------

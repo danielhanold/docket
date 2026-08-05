@@ -67,7 +67,10 @@ SANDBOX="${DOCKET_RUNNER_CFG_SANDBOX:-workspace-write}"
 NETWORK="${DOCKET_RUNNER_CFG_NETWORK:-true}"
 # network is a boolean gate below; a non-boolean value must fail loud, never silently
 # disable network (explicit config is never silently ignored — same posture as the facade).
-case "$NETWORK" in true|false) ;; *) die "runners.codex.network must be 'true' or 'false' (got '$NETWORK')" ;; esac
+# The remedy names quoting for the same reason as runners/opencode.sh's permissions leg: the
+# facade's block-mapping reader does not strip quotes, so `network: "true"` arrives as the literal
+# `"true"` and lands here. Showing the quoted value alone is not actionable (ADR-0065).
+case "$NETWORK" in true|false) ;; *) die "runners.codex.network must be 'true' or 'false' (got '$NETWORK') — write the value unquoted" ;; esac
 case "$EFFORT" in max) EFFORT="xhigh" ;; esac   # codex's reasoning-effort vocabulary tops out at xhigh
 
 cmd=( "$CODEX_BIN" exec -C "$DOCKET_REPO_ROOT" --sandbox "$SANDBOX" --color never )

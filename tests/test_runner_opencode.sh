@@ -145,6 +145,19 @@ OUT="$( MOCK_CALLS="$MOCK_DIR/calls.txt" OPENCODE_BIN="$MOCK_DIR/opencode" \
 assert "permissions unknown: exits nonzero" '[ "$RC" != "0" ]'
 assert "permissions unknown: echoes the offending value" 'grep -qF "yolo" <<<"$OUT"'
 assert "permissions unknown: NO child was invoked" '[ "$(grep -c CALL "$MOCK_DIR/calls.txt")" = "0" ]'
+assert "permissions unknown: remedy names the unquoted-value rule (ADR-0065)" 'grep -qF "unquoted" <<<"$OUT"'
+
+# --- a QUOTED value is the realistic way to reach that leg -----------------------------------------
+# runner-dispatch.sh's block-mapping reader does not strip quotes, so `permissions: "auto-approve"`
+# arrives here as the literal `"auto-approve"` — a correct-looking config that fails. Without the
+# quoting remedy the diagnostic just echoes the value back with its quotes, which reads as noise.
+: > "$MOCK_DIR/calls.txt"
+OUT="$( MOCK_CALLS="$MOCK_DIR/calls.txt" OPENCODE_BIN="$MOCK_DIR/opencode" \
+        DOCKET_RUNNER_CFG_PERMISSIONS='"auto-approve"' DOCKET_REPO_ROOT="$REPO" \
+        bash "$ADAPTER" --agent status --model m/x/y 2>&1 )"; RC=$?
+assert "quoted value: refuses rather than silently accepting it" '[ "$RC" != "0" ]'
+assert "quoted value: NO child was invoked" '[ "$(grep -c CALL "$MOCK_DIR/calls.txt")" = "0" ]'
+assert "quoted value: remedy names the unquoted-value rule" 'grep -qF "unquoted" <<<"$OUT"'
 
 # --- preflight: binary missing => loud abort, NEVER a degrade --------------------------------------
 OUT="$( OPENCODE_BIN="$MOCK_DIR/definitely-not-here" DOCKET_RUNNER_CFG_PERMISSIONS=auto-approve \
