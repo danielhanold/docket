@@ -2,7 +2,7 @@
 slug: verify-the-claim
 hook: "A document asserting a fact about another artifact is not an oracle — verify it against the artifact or the RUNNING CODE before acting on it."
 topics: [process, review, spec]
-changes: [12, 21, 47, 65, 67, 74, 96, 101, 102, 109, 112, 138, 130, 157, 164, 170, 212]
+changes: [12, 21, 47, 65, 67, 74, 96, 101, 102, 109, 112, 138, 130, 157, 164, 170, 212, 211]
 created: 2026-06-12
 updated: 2026-08-05
 promotion_state: retained
@@ -198,3 +198,16 @@ mid-build; leave the re-scope to the human. Reject false positives with evidence
   implementing its remedy. The cost of not doing so is a fix that is correct by luck, resting on a
   false rationale that then gets written into the commit message and outlives everyone's memory of
   the review.
+- 2026-08-05 (#211, PR #160) — **A review finding was real; its stated failure mode was wrong, and
+  writing the test the reviewer described would have measured the wrong thing.** The finding said an
+  untested empty-collection short-circuit in `board-checks.sh` would, if removed, abort the walk
+  under `set -u`, truncate every later change's findings, and exit non-zero. Measured, it does not:
+  the expansion sits inside `$( … )`, so the `set -u` failure kills only the command-substitution
+  subshell — the parent walk continues and the script exits 0. The build measured this, then
+  re-verified it independently before accepting the deviation, and wrote the mutation to assert the
+  walk **survives** so that a future bash which *does* abort reddens here rather than silently
+  changing what the mutation measures. The generalization: **accept a review finding's existence
+  claim and its causal claim separately.** The reviewer saw a genuine coverage gap by reading; the
+  mechanism they attributed to it was a prediction about runtime behavior, and a test built on that
+  prediction inherits it as an unexamined premise — passing for reasons neither the reviewer nor the
+  implementer ever checked.

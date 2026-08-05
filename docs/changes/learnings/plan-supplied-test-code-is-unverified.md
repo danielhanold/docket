@@ -2,7 +2,7 @@
 slug: plan-supplied-test-code-is-unverified
 hook: "Test code a plan hands you is unverified code, not an oracle — prove the assert CAN pass, and mutation-test its own key."
 topics: [testing, plan, guards]
-changes: [94, 104, 112, 130, 133, 157, 168, 170, 173, 174, 194, 113, 212]
+changes: [94, 104, 112, 130, 133, 157, 168, 170, 173, 174, 194, 113, 212, 211]
 created: 2026-07-19
 updated: 2026-08-05
 promotion_state: candidate
@@ -220,3 +220,16 @@ implementer. It is not a reason to distrust plans — it is a reason to run the 
   staleness is *caused by the plan it came in*. Prose anchors are the fragile case — run the guard
   against the real post-task tree before trusting either polarity, and prefer shape-based matchers
   over line-literal ones anywhere text can wrap.
+- 2026-08-05 (#211, PR #160) — the plan's fixtures for `aborted-run`'s new leg C advanced a fixture
+  origin with a commit under `docs/results/`. That path sits inside `RESULTS_DIR_REL`, so the
+  advancing file rode onto the feature branch and fired **leg A** — breaking an id-scoped silence
+  assert in one fixture, and in the mutation repo doing something worse: it would have made the
+  mutation guarding this change's *central* design decision (both integration bases excluded) pass
+  on a leg-A finding even with that predicate deleted. **Vacuously true, and green.** A second
+  plan defect in the same fixture family — a single-commit advance whose tip carried a real
+  wall-clock date — left another mutation unable to fire at all against the harness's deliberate
+  clock skew. The generalization this adds: when a fixture must be *neutral*, check its paths
+  against every directory the system under test already treats as meaningful — a plan author
+  picking an "obvious" filename has no way to know which paths are load-bearing. And a mutation
+  that passes proves nothing until you have shown it can *fail*: neutering each mutation's `sed`
+  to `cat` and re-running is what surfaced both defects here.

@@ -2,7 +2,7 @@
 slug: defaulting-an-unset-collection-skips-the-leg
 hook: "Under set -u, ${LIST:-} turns a crash into a silently skipped leg — and the helper you call to populate LIST may itself read another unset variable."
 topics: [shell, defaults, validation]
-changes: [207]
+changes: [207, 211]
 created: 2026-08-05
 updated: 2026-08-05
 promotion_state: retained
@@ -59,3 +59,15 @@ mode is also the one fixtures cover least, so the crash and its wrong fix can bo
   the under-enumeration the gate was built to prevent, and that leg guards `~/.claude/agents`, the
   widest blast radius of the original bug. The fix is real but unverified: every `runner:` fixture in
   the suite lives in `.docket.yml`, so nothing reddens if the whole block is deleted.
+- 2026-08-05 (#211, PR #160) — **The containment case: `set -u` inside `$( … )` does not abort the
+  script, it aborts the subshell.** `board-checks.sh`'s new leg C guards an empty base-set before
+  expanding `${ar_bases[@]}`. A review finding predicted that deleting the guard would kill the whole
+  per-change walk and exit non-zero. It does not — the expansion lives inside a command
+  substitution, so the failure kills only that subshell; the parent walk continues, every later
+  change still reports, and the script exits **0**. The visible symptom is not a crash but a
+  *misfire*: on bash ≥ 4.4 the leg emits with an empty base label, and on 4.0–4.3 the diagnostic
+  appears on stderr only. So the same defect this finding names — a `set -u` failure that costs you
+  a leg instead of the run — arrives here without anyone writing `:-` at all: **`$( … )` is an
+  implicit error-suppressor for everything expanded inside it**, and the wider the surrounding loop,
+  the more thoroughly it hides. When auditing where a collection can be unset, treat every command
+  substitution boundary as a place the abort you were counting on will be swallowed.
