@@ -97,17 +97,34 @@ branch_ref(){
 # INTEGRATION_BRANCH, and exit 0; exit 1 with empty stdout when DIR is empty on REF or every path
 # under it is already on the integration branch (inherited, i.e. already-merged work).
 # --full-tree makes DIR worktree-root-relative regardless of the `-C "$CHANGES_DIR"` cwd, which is
-# a subdirectory. Captured into a variable and consumed from a here-string rather than piped: this
-# file runs under `set -uo pipefail`, where an early `return` out of a piped consumer races the
-# producer.
+# a subdirectory.
+#
+# -z is REQUIRED, not a style choice (change 0202). Plain `--name-only` C-quotes any path holding a
+# quote, a backslash, a control character, or — under the default core.quotePath=true — any
+# non-ASCII byte. git_has would then look up the literal quoted string, fail, and this function
+# would report an INHERITED file as branch-only: a false positive in a check whose whole value is
+# that it is believable. -z suppresses quoting and delimits with NUL.
+#
+# The NUL listing CANNOT be captured into a variable first: `$(…)` strips NUL bytes, so the
+# delimiters would vanish and every path would concatenate into one string. Hence the
+# process-substituted redirect. Do not "simplify" this back to a capture with a here-string.
+#
+# It is also not a pipeline, which matters for the early `return 0`. The hazard the previous
+# comment called a race was really the SUBSHELL of `producer | while … done`: there, the in-loop
+# `return 0` exits only the subshell, the function falls through to `return 1`, and the caller's
+# `if` fails even though the path was printed. A redirect runs the loop in THIS shell, so the
+# return is real. On that early return the process-substituted producer is orphaned and reaped with
+# its remaining output discarded — harmless for a pure reader like ls-tree, and the reason never to
+# swap in a producer with side effects.
+#
+# No empty-listing early-out is needed: an empty listing yields zero loop iterations and falls
+# through to `return 1`.
 branch_only_artifact(){
-  local boa_ref="$1" boa_dir="$2" boa_list boa_p
-  boa_list="$("$GIT" -C "$CHANGES_DIR" ls-tree -r --name-only --full-tree "$boa_ref" -- "$boa_dir" 2>/dev/null)"
-  [ -n "$boa_list" ] || return 1
-  while IFS= read -r boa_p; do
+  local boa_ref="$1" boa_dir="$2" boa_p
+  while IFS= read -r -d '' boa_p; do
     [ -n "$boa_p" ] || continue
     git_has "$INTEGRATION_BRANCH" "$boa_p" || { printf '%s' "$boa_p"; return 0; }
-  done <<<"$boa_list"
+  done < <("$GIT" -C "$CHANGES_DIR" ls-tree -r -z --name-only --full-tree "$boa_ref" -- "$boa_dir" 2>/dev/null)
   return 1
 }
 
