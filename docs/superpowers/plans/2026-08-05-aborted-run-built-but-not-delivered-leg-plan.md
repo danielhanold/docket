@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0211 — aborted-run is blind to a run that stops after the build: commits on an unpushed branch, every field coherent](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0211-aborted-run-is-blind-to-a-run-that-stops-after-the-build-com.md)**
+> ↩ **[Change 0211 — aborted-run is blind to a run that stops after the build: commits on an unpushed branch, every field coherent](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-05-0211-aborted-run-is-blind-to-a-run-that-stops-after-the-build-com.md)**
 <!-- docket:backlink:end -->
 
 # aborted-run leg C — built but not delivered: Implementation Plan
