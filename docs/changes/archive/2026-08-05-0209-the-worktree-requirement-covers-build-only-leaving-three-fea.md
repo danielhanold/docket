@@ -2,7 +2,7 @@
 id: 209
 slug: the-worktree-requirement-covers-build-only-leaving-three-fea
 title: The --worktree requirement covers build-* only, leaving three feature-scoped agent families ungated
-status: proposed
+status: killed
 priority: medium
 type: fix
 created: 2026-08-05
@@ -57,3 +57,7 @@ grant the runner carries. This is the "check the twin it did not touch" case
 ## Out of scope
 
 - The containment-vs-membership weakness in gate 3 (its own change).
+
+## Why killed
+
+Consolidated into change 0208 (runner-dispatch hardening bundle); scope carried over verbatim, nothing dropped.
