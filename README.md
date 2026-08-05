@@ -780,6 +780,12 @@ The OpenRouter IDs above are illustrative, not validated: docket keeps no vendor
 `opencode models openrouter` under your own credentials before relying on them — catalog presence is
 not entitlement. Full verification steps: [docs/opencode/setup.md](docs/opencode/setup.md).
 
+⚠️ **`build-*` delegation is not usable yet.** A delegated run is anchored at the repo's **main
+worktree** (ADR-0034, cwd-independent by design) — correct for the metadata-scoped `status`/`adr`
+agents delegation shipped for previously, wrong for a build worker, which must stay in the feature
+worktree on its branch. The build rows above are a preview of the shape delegation will have once
+that is fixed; see change #0206.
+
 How it works: `sync-agents.sh` generates that agent's wrapper with a **shim body** — one
 foreground call to `docket.sh runner-dispatch`, which resolves the `runners.codex` knobs and
 runs `codex exec` (blocking, sandboxed, final-message relay via `--output-last-message`). Every
