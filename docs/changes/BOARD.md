@@ -1,14 +1,15 @@
 # Backlog
 
-**212 changes** — 🟢 1 in progress · 🟡 53 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 133 done · 🗑️ 20 killed
+**212 changes** — 🟢 2 in progress · 🟡 52 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 133 done · 🗑️ 20 killed
 
-## 🟢 In progress (1)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0190](active/0190-close-the-build-evidence-value-gap-a-post-gate-results-commi.md) | Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip | `medium` | `feat` | [spec](../superpowers/specs/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md) | `feat/close-the-build-evidence-value-gap-a-post-gate-results-commi` |
+| [0202](active/0202-clear-the-unfixed-review-findings-from-change-0113.md) | Clear the unfixed review findings from change 0113 | `high` | `chore` | [spec](../superpowers/specs/2026-08-05-clear-the-unfixed-review-findings-from-change-0113-design.md) | `feat/clear-the-unfixed-review-findings-from-change-0113` |
 
-## 🟡 Proposed (53)
+## 🟡 Proposed (52)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -56,7 +57,6 @@
 | [0198](active/0198-settle-the-role-self-description-rule-s-positive-half-docket.md) | Settle the role-self-description rule's positive half — docket-review names no skills.review binding | `medium` | `docs` | needs-brainstorm |
 | [0199](active/0199-harden-the-role-self-description-guard-co-occurrence-gap-har.md) | Harden the role-self-description guard — co-occurrence gap, hardcoded population, broad default matcher | `medium` | `chore` | needs-brainstorm |
 | [0200](active/0200-clear-the-unfixed-review-findings-from-change-0191.md) | Clear the unfixed review findings from change 0191 | `medium` | `chore` | needs-brainstorm |
-| [0202](active/0202-clear-the-unfixed-review-findings-from-change-0113.md) | Clear the unfixed review findings from change 0113 | `high` | `chore` | build-ready |
 | [0203](active/0203-define-the-per-step-git-state-postcondition-docket-implement.md) | Define the per-step git-state postcondition docket-implement-next now names but never states | `medium` | `docs` | build-ready |
 | [0204](active/0204-restore-rationale-dropped-by-round-three-compression-finaliz.md) | Restore rationale dropped by round-three compression (finalize named-id override, auto-capture mint-site loop) | `medium` | `docs` | needs-brainstorm |
 | [0207](active/0207-sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a.md) | sync-agents aborts mid-loop on a bad runner config, leaving a zero-length wrapper and stale siblings | `medium` | `fix` | build-ready |
