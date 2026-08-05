@@ -84,7 +84,7 @@ VALID_HARNESS_TOKENS="$DOCKET_GI_HARNESS_TOKENS"
 
 # Registered runner names (change 0079) — a runner: value must name one of these; each token
 # has a matching scripts/runners/<name>.sh adapter (tests assert parity in both directions).
-REGISTERED_RUNNERS="codex cursor"
+REGISTERED_RUNNERS="codex cursor opencode"
 is_registered_runner(){ case " $REGISTERED_RUNNERS " in *" $1 "*) return 0;; *) return 1;; esac; }
 
 usage() {

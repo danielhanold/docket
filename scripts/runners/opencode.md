@@ -1,0 +1,120 @@
+# runners/opencode.sh — the opencode runner adapter
+
+## Purpose
+
+The third per-runner adapter of the cross-harness runner delegation framework (change 0079):
+delegates one docket agent's **whole run** to opencode via its non-interactive `opencode run`.
+Owns everything child-specific — permission gating, preflight, prompt assembly, flag mapping,
+foreground execution, relay. Invoked only by `runner-dispatch.sh` (behind
+`docket.sh runner-dispatch`), never directly by skills or shims.
+
+The motivating use is cost asymmetry: opencode reaches OpenRouter models, so docket's four
+build profile workers can be delegated to cheap models while the review rungs stay native on the
+parent's own subscription. Because build and review are already separate wrappered agents
+(ADR-0063), that split needs no new mechanism — just `runner:` on the rows you want to leave.
+
+## Usage
+
+```
+bash scripts/runners/opencode.sh --agent <name> [--model <m>] [--effort <e>] [--] [<args…>]
+```
+
+- `--agent <name>` (required) — the built-in agent to delegate; its wrapper source
+  `agents/docket-<name>.md` supplies the skills list and body for the prompt. That source is
+  behavior-only — model and effort arrive as the flags below, resolved by the caller from the
+  user's config layers. A **shipped** default is never forwarded: only a user-configured value
+  becomes a flag, and since change 0205 a `runner:`-bearing agent with no user-configured model
+  is a generation-time error rather than a model-less dispatch.
+- `--model <m>` (optional here, required in practice by the generation-time rule) — passed to
+  `opencode run --model` **verbatim** (ADR-0015 opaque passthrough). OpenRouter IDs are
+  double-prefixed (`openrouter/<vendor>/<model>`); opencode splits that itself. Docket's own
+  `inherit` no-pin sentinel is normalized to "no flag" and never reaches opencode.
+- `--effort <e>` (optional) — mapped to `opencode run --variant`, opencode's provider-specific
+  reasoning-effort knob. Values pass through **verbatim, with no mapping table**: `--variant`
+  accepts docket's `max` natively, unlike codex where `max` becomes `xhigh`. `auto` and an unset
+  value both emit no flag (the provider's own default applies). With no model resolved the effort
+  has nothing to attach to and is dropped with a WARN.
+- `-- <args…>` — appended to the prompt as caller task context.
+
+Environment (set by the facade):
+
+| Var | Meaning | Default |
+|---|---|---|
+| `DOCKET_REPO_ROOT` | absolute main-worktree path; becomes `opencode run --dir` | required |
+| `DOCKET_RUNNER_CFG_PERMISSIONS` | `runners.opencode.permissions` — `ask` \| `auto-approve` | `ask` |
+
+Mock seam: `OPENCODE_BIN` (default `opencode`).
+
+## The `permissions` knob
+
+opencode has no sandbox *levels*. Where codex takes `--sandbox workspace-write |
+danger-full-access`, opencode has a permission system that prompts for approval before editing a
+file or running a shell command; `--auto` auto-approves everything **not explicitly denied** in
+opencode's own config, and its own help text marks it `(dangerous!)`.
+
+- **`ask`** (the default) — names what actually happens with no flag. A delegated run under `ask`
+  **fails at adapter preflight, before any child process is invoked**, because a delegated run has
+  no human channel and would otherwise block on the first approval until something times out. The
+  default value describes reality rather than serving as a placeholder.
+- **`auto-approve`** — bakes `--auto`. Self-describing at the config site; a reader needs no
+  knowledge of opencode's CLI. Pair it with opencode's own deny rules — `--auto` approves what is
+  not explicitly denied, so the deny list is the real boundary.
+- Any other value is a loud refusal, not a silent fall-back to `ask`: explicit config is never
+  silently ignored, and a typo must not be indistinguishable from a deliberate refusal.
+
+An enum rather than a boolean, structurally parallel to `runners.codex.sandbox`, leaving room for
+a future `deny-list` value without a boolean→enum migration.
+
+## Behavior
+
+1. **Permission gate** — resolve `permissions`; refuse on `ask` (default) or an unknown value.
+   Evaluated **before** preflight so the refusal is identical with or without the binary present.
+2. **Preflight** — `opencode` (or `$OPENCODE_BIN`) resolvable on PATH. Failure is a loud
+   abort-and-report — **never** a silent degrade to a native run, because `runner:` was explicit
+   human config. Authentication is **not** probed; see *Prerequisites*.
+3. **Prompt assembly** — from `agents/docket-<agent>.md`: "invoke skill `<s>`" for each entry of
+   the wrapper's `skills:` frontmatter list (docket skills are linked into `~/.agents/skills` by
+   `link-skills.sh`, which opencode reads), then the wrapper body verbatim (which carries the
+   abort-and-report rule), then any passthrough args. The assembled prompt is opencode's
+   **positional** `message` argument.
+4. **Flag mapping** — `run --dir $DOCKET_REPO_ROOT`, `--model <model>` and `--variant <effort>`
+   when supplied, `--auto` when `permissions` is `auto-approve`.
+5. **Execution + relay** — runs `opencode run` **foreground**, blocking until exit; the child's
+   stdout is the adapter's stdout, verbatim.
+
+## Exit codes
+
+- `0` — child ran and exited 0; stdout carries its output.
+- `1` — precondition abort (bad args, missing agent source, missing binary, missing
+  `DOCKET_REPO_ROOT`, or a `permissions` value that refuses).
+- any other — the child's own nonzero exit, propagated.
+
+## Invariants
+
+- The `ask` refusal happens **before** any child process is invoked — never after.
+- Model IDs and effort tokens are never validated or rewritten (ADR-0015); `max` is **not**
+  remapped.
+- Exactly one `opencode run` invocation per adapter run; always foreground, never backgrounded.
+- Never degrades to running the agent natively.
+
+## Relay shape — why default, not `--format json`
+
+`opencode run` offers `--format default` (formatted) and `--format json` (raw JSON events). It has
+no `--output-last-message` analogue, so there is no flag that yields the final message alone.
+This adapter relays the **default** formatted stdout verbatim, matching `runners/cursor.sh`.
+Parsing `--format json` would bind docket to an unversioned event schema where a wrong or drifted
+parse silently **truncates** the relay; decoration inside a faithful relay is the smaller failure,
+and it is visible rather than silent. If real-world output proves unusable, `--format json` plus a
+documented extractor is the recorded escape hatch — a deliberate, reversible follow-up.
+
+## Prerequisites (documented, not automated)
+
+- opencode installed (`opencode` on PATH); verified against **1.18.11** (`run --model`,
+  `--variant`, `--dir`, `--auto`).
+- A provider authenticated — `opencode auth login` (alias `opencode providers`). OpenRouter for
+  the double-prefixed IDs in the recipe. **Not probed by the adapter:** `opencode auth list`'s
+  exit code on a machine with zero credentials is unverified, and a probe with unknown failure
+  semantics would convert an unusual-but-working setup into a hard abort.
+- Docket skills linked into `~/.agents/skills` (`link-skills.sh`, automatic on install).
+- `runners.opencode.permissions: auto-approve` in a config layer — without it every delegated run
+  refuses by design.
