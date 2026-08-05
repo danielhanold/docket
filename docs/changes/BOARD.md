@@ -1,6 +1,6 @@
 # Backlog
 
-**220 changes** — 🟢 1 in progress · 🟡 50 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 136 done · 🗑️ 27 killed
+**221 changes** — 🟢 1 in progress · 🟡 51 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 136 done · 🗑️ 27 killed
 
 ## 🟢 In progress (1)
 
@@ -8,7 +8,7 @@
 |---|-------|----------|------|------|--------|
 | [0190](active/0190-close-the-build-evidence-value-gap-a-post-gate-results-commi.md) | Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip | `medium` | `feat` | [spec](../superpowers/specs/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md) | `feat/close-the-build-evidence-value-gap-a-post-gate-results-commi` |
 
-## 🟡 Proposed (50)
+## 🟡 Proposed (51)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -62,6 +62,7 @@
 | [0218](active/0218-fix-review-findings-in-branch-instead-of-minting-a-stub-for.md) | Fix review findings in-branch instead of minting a stub for every one | `high` | `feat` | needs-brainstorm |
 | [0219](active/0219-aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d.md) | aborted-run's sixth signature: PR opened and pr: written, run dies before status: implemented | `high` | `fix` | ⏳ waiting on #211 — needs your merge |
 | [0220](active/0220-clear-the-unfixed-review-findings-from-change-0207.md) | clear the unfixed review findings from change 0207 | `medium` | `fix` | build-ready |
+| [0221](active/0221-assert-executes-backticks-in-its-test-description-so-a-verba.md) | assert() executes backticks in its test description, so a verbatim-quoted anchor can run shell | `medium` | `fix` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -138,6 +139,7 @@ graph TD
   0218
   0211 --> 0219
   0220
+  0221
   0015:::done
   0175:::done
   0192:::done
