@@ -111,10 +111,10 @@ subscription.
 # .docket.local.yml (this machine only) or the global ~/.config/docket/config.yml
 agents:
   claude:                       # the PARENT harness: when Claude Code hosts the session…
-    build-economy:  { runner: opencode, model: openrouter/deepseek/deepseek-v4-flash-0731 }
-    build-standard: { runner: opencode, model: openrouter/deepseek/deepseek-v4-flash-0731 }
-    build-premium:  { runner: opencode, model: openrouter/moonshotai/kimi-k3 }
-    build-max:      { runner: opencode, model: openrouter/moonshotai/kimi-k3 }
+    build-economy:  { runner: opencode, model: openrouter/deepseek/deepseek-v4-flash-0731, effort: medium }
+    build-standard: { runner: opencode, model: openrouter/deepseek/deepseek-v4-flash-0731, effort: high }
+    build-premium:  { runner: opencode, model: openrouter/moonshotai/kimi-k3,             effort: medium }
+    build-max:      { runner: opencode, model: openrouter/moonshotai/kimi-k3,             effort: high }
     # review-lean / review-standard / review-deep: no runner: → native Claude Code
 runners:
   opencode:
@@ -142,6 +142,41 @@ Relatedly: **a delegated agent must carry a `model:`.** Docket never forwards it
 default to another harness, so without one the run would fall through to opencode's own default —
 pay-per-token, of unknown identity — and the mistake would surface on your bill rather than in the
 run. `sync-agents.sh` refuses to generate a model-less delegation.
+
+### Effort is optional — but it is not inherited either
+
+`effort:` maps to `opencode run --variant`, opencode's provider-specific reasoning-effort knob.
+Docket's vocabulary passes through **verbatim, with no mapping table**: `--variant` accepts
+docket's `max` natively, unlike codex where `max` becomes `xhigh`.
+
+The trap is that effort follows the **same provenance rule as model** — a value from docket's
+shipped `agents/harness-defaults.yml` is never forwarded to a child harness — but unlike model
+there is no error when it is missing. So this:
+
+```yaml
+build-max: { runner: opencode, model: openrouter/moonshotai/kimi-k3 }   # no effort
+```
+
+generates a shim with **no `--variant` flag at all**, and the run silently takes the provider's
+default effort. The shipped `claude` effort for that agent is *not* used, because it is a Claude
+default and means nothing to opencode; the shipped `opencode` effort is not used either, because
+the runner path resolves under the parent harness. Write the effort explicitly, as the recipe above
+does, or accept the provider default deliberately.
+
+Two smaller notes:
+
+- **The vocabulary is model-specific.** Which tokens a model accepts is the provider's business,
+  not opencode's or docket's (ADR-0015 — docket validates nothing). If a model rejects docket's
+  token, change the token, not the model.
+- **Effort needs a model to attach to.** `--variant` is a provider model option, so with no model
+  resolved the adapter drops the effort with a warning rather than passing a dangling flag. Under
+  the required-model rule that combination is unreachable through a generated shim, but it is
+  reachable if you invoke the adapter by hand.
+
+Note this is a **different mechanism from *Pinning models and effort* above**, which covers opencode
+as the *hosting* harness: that path writes `reasoningEffort:` into `.opencode/agents/docket-*.md`,
+read by opencode's own agent loader. Delegation bakes `--variant` into the shim's command line
+instead. Same `effort:` key in your config, two different destinations.
 
 ### What `auto-approve` actually grants
 
