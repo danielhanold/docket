@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0206 — Delegated runner runs are anchored at the main worktree, not the feature worktree](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0206-delegated-runner-runs-are-anchored-at-the-main-worktree-not.md)**
+> ↩ **[Change 0206 — Delegated runner runs are anchored at the main worktree, not the feature worktree](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-05-0206-delegated-runner-runs-are-anchored-at-the-main-worktree-not.md)**
 <!-- docket:backlink:end -->
 
 # Delegated Run Worktree Anchor Implementation Plan
