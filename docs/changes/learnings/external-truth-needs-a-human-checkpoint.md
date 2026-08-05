@@ -2,9 +2,9 @@
 slug: external-truth-needs-a-human-checkpoint
 hook: "When a value's truth lives outside the repo (a vendor model ID, an external API name), no in-repo test can be its oracle — route it to a named human verification item instead of writing an assert that can only ever pass."
 topics: [testing, verification, config]
-changes: [184, 192]
+changes: [184, 192, 205]
 created: 2026-08-01
-updated: 2026-08-02
+updated: 2026-08-05
 promotion_state: candidate
 promoted_to:
 ---
@@ -28,6 +28,17 @@ Recognize the class at plan time by asking **where the oracle lives**:
 The distinguishing question is not "is this value new?" but "is this value new *to the outside
 world*?" Re-pointing an ID the repo already ships elsewhere is covered by the existing corpus; a
 value with no prior occurrence anywhere in history has never been exercised by anything.
+
+**Outside-truth is not only values — it is behavior.** A flag's semantics, what a subcommand exits
+with, whether an omitted option falls back or errors: each is a fact owned by the external tool, and
+each is as unassertable as an ID. Read them off `--help` if you must, but record that the source was
+documentation rather than an executed run — the two are different grades of evidence, and a one-line
+`--help` summary is the weakest of them. Two corollaries follow. First, **a probe whose own failure
+semantics are unknown is not a substitute for the human checkpoint**: adding a preflight check whose
+exit code you have not established converts an unusual-but-working setup into a hard abort, which is
+worse than the gap it closes — leave it as a named item and say what run would settle it. Second,
+the rule works **at design time, not only at results time**: when a cheaper option exists that
+introduces no new outside-truth, prefer it, and say in the results file that you did.
 
 ## War story
 - 2026-08-01 (#184, PR #147) — The four-tier build-profile ladder introduced
@@ -54,3 +65,19 @@ value with no prior occurrence anywhere in history has never been exercised by a
   resolved config — that settles **spelling** questions (it is how `reasoningEffort:` was confirmed)
   but still is not an executed run, so resolved-config evidence and entitlement evidence are two
   different checkpoints.
+- 2026-08-05 (#205, PR #156) — Third hit, and the one that widened the rule from *values* to
+  *behavior*. The opencode runner adapter shipped **no new model IDs at all** — that was the point:
+  the spec proposed `openrouter/x-ai/grok-4.5` for the premium/max rungs and the build deliberately
+  used the Kimi ID `agents/harness-defaults.yml` already carried from #192, so the recipe pointed
+  nothing new at the outside world. Applying the rule as a design constraint cost nothing and
+  removed a whole checkpoint. What remained outside-truth was entirely **behavioral**, and all of it
+  had been read off a single line of `opencode run --help`: whether an omitted `--variant` yields the
+  provider default or an error, what `--auto` actually grants and how it interacts with a deny-list,
+  and whether opencode's formatted stdout relays legibly through the shim (`opencode run` has no
+  `--output-last-message` analogue, and parsing `--format json`'s unversioned event schema could
+  silently truncate, so the adapter relays verbatim). Each went to the results file as a named item.
+  The sharpest instance was the auth preflight: `codex.sh` probes `codex login status`, so the
+  obvious parity move was an `opencode auth list` probe — but its exit code on a machine with **zero**
+  credentials could not be established without destroying real ones, and a probe with unknown failure
+  semantics would turn an unusual-but-working setup into a hard abort. The adapter checks the binary
+  only and the question became a results item. Declining to probe was the correct call, not a gap.
