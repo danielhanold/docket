@@ -19,8 +19,8 @@ auto_groomable: true
 branch: feat/aborted-run-is-blind-to-a-run-that-stops-after-the-build-com
 pr:
 blocked_by:
-claimed_at: 2026-08-05T18:24:57Z
-reconciled: false
+claimed_at: 2026-08-05T18:31:00Z
+reconciled: true
 ---
 
 ## Artifacts
@@ -110,3 +110,23 @@ inherit it.
 - A sixth signature: the PR opened and `pr:` written, then the run dies before `status: implemented`.
   Leg C's `pr:`-empty gate makes it invisible; leg B catches it at 12h. Its evidence is a
   manifest/GitHub comparison, and `board-checks.sh` is git-only by contract.
+
+## Reconcile log
+
+### 2026-08-05
+
+Re-read against `origin/docket`, `origin/main`, `related: [113, 212]`, and current code. The change
+stands as written; scope unchanged.
+
+- **`depends_on: [202]` is satisfied.** 0202 reached `done` and is archived; `branch_only_artifact`
+  now carries its NUL-delimited `ls-tree` rewrite, and leg C is therefore being added beside hardened
+  predicates as assumption 9 intended.
+- **Fixture numbering confirmed.** `tests/test_board_checks.sh` ends its ARM series at **226** (0202
+  landed 224, 225, 226), so the spec's assumption 8 holds verbatim: leg-C fixtures start at **227**.
+- **The target block is unchanged since the spec was written.** `scripts/board-checks.sh` still has
+  legs A and B inside one `if [ "$status" = "in-progress" ]`, `branch_ref` still probes local-then-
+  `origin`, `ABORTED_RUN_STALE_SECS` still sits at line ~172 beside `FINALIZE_BLOCKED_STALE_SECS`.
+  Every code claim in the spec's *Predicate* and *Cost* sections re-verified against the file.
+- **No collision with the two other in-progress changes.** 0212 (the prose half) edits skill bodies,
+  and 0190 edits the build-evidence path; neither touches `board-checks.sh` or its test file.
+- The spec's `## Assumptions` remain the audit trail; nothing in them was invalidated.
