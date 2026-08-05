@@ -827,7 +827,8 @@ emit_opencode_md(){  # $1=src md  $2=model  $3=effort   (both FINAL resolved val
 # when a runner resolved for the claude harness, the runner-delegation shim body under the
 # native frontmatter (change 0079). Non-claude harness + runner => warn (reserved) and emit
 # native. Unregistered runner under claude => loud generation-time error (explicit config
-# is never silently ignored).
+# is never silently ignored). A registered runner with no USER-configured model => the same, by
+# the change-0205 required-model rule below.
 emit_wrapper(){  # $1=src $2=model $3=effort $4=runner $5=harness $6=agent-name  (stdout)
   local runner="$4"
   if [ -z "$runner" ]; then emit_for_harness "$1" "$5" "$2" "$3"; return 0; fi
@@ -849,6 +850,19 @@ emit_wrapper(){  # $1=src $2=model $3=effort $4=runner $5=harness $6=agent-name 
   local flag_model="" flag_effort=""
   [ "${RES_MODEL_FROM_USER:-0}" = "1" ]  && flag_model="$2"
   [ "${RES_EFFORT_FROM_USER:-0}" = "1" ] && flag_effort="$3"
+  # change 0205: a delegated agent MUST carry a user-configured model. Runner-wide, not per-adapter
+  # — "is a model required?" must not be an adapter-by-adapter fact a user learns twice. Because a
+  # shipped default is never forwarded (the provenance rule directly above), a model-less
+  # delegation ran on the CHILD's own default: unknown identity, and on a pay-per-token backend
+  # like OpenRouter unknown cost, with the failure surfacing on the bill rather than in the run.
+  # `inherit` is docket's own no-pin sentinel — every adapter normalizes it to "no flag", so
+  # accepting it here would leave a one-word bypass. Raised at generation time, where the config
+  # was just written, and AFTER the registration check above so an unregistered runner still
+  # reports its own (more specific) failure.
+  if [ -z "$flag_model" ] || [ "$flag_model" = "inherit" ]; then
+    log "ERROR docket-$6: runner '$runner' requires an explicit model — add a 'model:' to the agents.$5.$6 entry in a config layer, then re-run. docket never forwards its own shipped default to another harness (that ID means nothing to the child), so without one the run would silently use $runner's own default model, of unknown identity and cost."
+    exit 1
+  fi
   emit_shim "$1" "$2" "$3" "$runner" "$6" "$flag_model" "$flag_effort"
 }
 

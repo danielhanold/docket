@@ -1443,6 +1443,72 @@ assert "0079: unregistered runner fails generation nonzero" '[ "$rc" != "0" ]'
 assert "0079: unregistered-runner error names it" 'grep -qF "gemini-cli" <<<"$err"'
 rm -rf "$SBX"
 
+# ---- change 0205: a runner: with no USER-configured model is a generation-time ERROR ----
+# Runner-wide, not opencode-only. Under change 0168 a shipped agents/harness-defaults.yml value is
+# never forwarded to a child harness, so a model-less delegation silently ran on the CHILD's own
+# default — of unknown identity and, on a pay-per-token backend like OpenRouter, unknown cost. The
+# failure surfaced on the bill, not in the run. Raised at generation time, where the config was
+# just written, rather than mid-dispatch. Asserted on ALL THREE runners because this is a framework
+# rule, not an adapter behavior: a per-adapter implementation would be the defect it replaces.
+for rnr in codex cursor opencode; do
+  mkgitrepo
+  mkdir -p "$SBX/.claude"
+  printf 'agents:\n  claude:\n    status: { runner: %s }\n' "$rnr" > "$SBX/.docket.yml"
+  err="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" 2>&1 >/dev/null )"; rc=$?
+  assert "0205/$rnr: model-less runner fails generation nonzero" '[ "$rc" != "0" ]'
+  assert "0205/$rnr: the diagnostic names the agent"  'grep -qF "docket-status" <<<"$err"'
+  assert "0205/$rnr: the diagnostic names the runner" 'grep -qF "'"$rnr"'" <<<"$err"'
+  assert "0205/$rnr: the diagnostic says a model is required" 'grep -qiE "model" <<<"$err"'
+  # The error must not leave a USABLE shim behind. Note this is deliberately `! -s` (absent OR
+  # empty), NOT `! -e`: emit_wrapper's call sites redirect into the target path, so the shell
+  # creates and truncates the file BEFORE the function body runs and exits. The offending agent is
+  # therefore left with a zero-length wrapper, which is inert — the harness has nothing to
+  # dispatch — and is overwritten on the next successful run. Asserting `! -e` here would be
+  # asserting a fail-before-write property this rule does not have.
+  assert "0205/$rnr: no usable wrapper was written for the offending agent" \
+    '[ ! -s "$SBX/.claude/agents/docket-status.md" ]'
+  # NON-VACUITY COMPANION: the same fixture WITH a user model must succeed and emit a real shim.
+  # Without this, every assert above stays green if sync-agents.sh broke for an unrelated reason.
+  printf 'agents:\n  claude:\n    status: { runner: %s, model: some/model-id }\n' "$rnr" > "$SBX/.docket.yml"
+  ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 ); rc2=$?
+  assert "0205/$rnr: the SAME fixture with a user model succeeds (the guard above is not vacuous)" '[ "$rc2" = "0" ]'
+  assert "0205/$rnr: and emits a real shim baking that model" \
+    'grep -qF -- "--model some/model-id" "$SBX/.claude/agents/docket-status.md"'
+  rm -rf "$SBX"
+done
+
+# `model: inherit` is docket's own NO-PIN sentinel — every adapter normalizes it to "no flag", so
+# accepting it here would leave a one-word bypass around the rule: the child would run on its own
+# default exactly as if no model had been written at all.
+mkgitrepo
+mkdir -p "$SBX/.claude"
+printf 'agents:\n  claude:\n    status: { runner: codex, model: inherit }\n' > "$SBX/.docket.yml"
+err="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" 2>&1 >/dev/null )"; rc=$?
+assert "0205: model: inherit does not satisfy the required-model rule" '[ "$rc" != "0" ]'
+assert "0205: the inherit diagnostic still names the agent" 'grep -qF "docket-status" <<<"$err"'
+rm -rf "$SBX"
+
+# ORDERING FENCE: the registration check must still fire FIRST. This fixture is model-less AND
+# unregistered; if the model check ran first, the diagnostic would stop naming the runner and the
+# change-0079 unregistered-runner assert would break for the wrong reason.
+mkgitrepo
+mkdir -p "$SBX/.claude"
+printf 'agents:\n  claude:\n    status: { runner: gemini-cli }\n' > "$SBX/.docket.yml"
+err="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" 2>&1 >/dev/null )"
+assert "0205: an unregistered AND model-less runner still reports the REGISTRATION failure first" \
+  'grep -qF "gemini-cli" <<<"$err" && grep -qiE "not a registered runner" <<<"$err"'
+rm -rf "$SBX"
+
+# A non-claude harness carrying runner: is warned-and-ignored (reserved) and emits NATIVE — the
+# required-model rule must not fire there, because no delegation happens.
+mkgitrepo
+mkdir -p "$SBX/.claude" "$SBX/.cursor"
+printf 'agent_harnesses: [claude, cursor]\nagents:\n  cursor:\n    status: { runner: codex }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 ); rc=$?
+assert "0205: a reserved (non-claude) runner does NOT trip the required-model rule" '[ "$rc" = "0" ]'
+assert "0205: and its wrapper is still native" '! grep -qF "runner-dispatch" "$SBX/.cursor/agents/docket-status.md"'
+rm -rf "$SBX"
+
 # no runner config anywhere: native (un-shimmed) output (regression fence)
 make_sandbox
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
@@ -1521,6 +1587,14 @@ rm -rf "$SBX" "$HROOTINH"
 # Claude model ID to a Codex child. Only a USER-configured value may cross that boundary — the
 # resolved pair still pins the wrapper's own native frontmatter, which is bookkeeping for the
 # Claude parent and never reaches the child.
+#
+# CHANGE 0205 NARROWED THIS TEST'S REACH, and the narrowing is a strengthening, not lost coverage.
+# The fixture used to configure a bare `runner: codex` with no model; that is now a generation-time
+# ERROR (the required-model rule), which makes the MODEL half of the provenance leak structurally
+# impossible rather than merely guarded — a shipped model can no longer be the resolved-and-baked
+# value under a runner, because a user model is mandatory. What remains reachable, and is therefore
+# what this block now pins, is the EFFORT half: effort stays optional, so a user who configures only
+# a model must still not have the shipped effort forwarded to the child.
 mkgitrepo
 mkdir -p "$SBX/.claude"
 HROOT168F="$(mktemp -d)"; mkdir -p "$HROOT168F/.claude"
@@ -1528,26 +1602,29 @@ cat > "$SBX/.docket.yml" <<'YML'
 agent_harnesses: [claude]
 agents:
   claude:
-    status: { runner: codex }
+    status: { runner: codex, model: user-picked-id }
 YML
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT168F" bash "$SYNC" >/dev/null 2>&1 )
 S="$SBX/.claude/agents/docket-status.md"
-# Fixture sanity FIRST: without a real shim the two negative asserts below are vacuous.
-assert "0168: runner-only config still emits a shim" 'grep -qF "docket.sh runner-dispatch" "$S"'
-assert "0168: runner-only shim still names the runner" 'grep -qF -- "--runner codex" "$S"'
-assert "0168: runner-only shim bakes NO --model flag"  '! grep -qF -- "--model" "$S"'
-assert "0168: runner-only shim bakes NO --effort flag" '! grep -qF -- "--effort" "$S"'
-# 0169: the Codex sidecar now supplies a model for this very agent, so the negative asserts above
-# stopped being vacuous in the direction that matters — a `runner: codex` shim could now bake a
-# real Codex ID if provenance were ignored. Pin the fixture's premise so a future emptying of the
-# codex block cannot quietly re-vacuum them.
-assert "0169: the codex sidecar really does supply a model for this agent (the guard above is not vacuous)" \
-  '[ -n "$(hd_field "$HD" codex status model)" ]'
-assert "0169: and the shipped CODEX default did not leak into the runner flags either" \
+# Fixture sanity FIRST: without a real shim the negative asserts below are vacuous.
+assert "0168: a user-model runner config emits a shim" 'grep -qF "docket.sh runner-dispatch" "$S"'
+assert "0168: the shim names the runner" 'grep -qF -- "--runner codex" "$S"'
+assert "0168: the USER model is baked (the provenance rule's positive half)" \
+  'grep -qF -- "--model user-picked-id" "$S"'
+assert "0168: no user effort configured => NO --effort flag baked" '! grep -qF -- "--effort" "$S"'
+# 0169 (re-pointed by 0205): the sidecar supplies an EFFORT for this very agent on both the parent
+# and the child harness, so the negative assert above is non-vacuous in the direction that matters
+# — a shipped effort could be baked into the flags if provenance were ignored. Pin the fixture's
+# premise so a future emptying of either block cannot quietly re-vacuum it.
+assert "0169: the claude sidecar really does supply an effort for this agent (the guard above is not vacuous)" \
+  '[ -n "$(hd_field "$HD" claude status effort)" ]'
+assert "0169: the codex sidecar really does supply an effort for this agent" \
+  '[ -n "$(hd_field "$HD" codex status effort)" ]'
+assert "0169: and neither shipped EFFORT leaked into the runner flags" \
+  '! grep -qF -- "--effort $(hd_field "$HD" claude status effort)" "$S" && ! grep -qF -- "--effort $(hd_field "$HD" codex status effort)" "$S"'
+assert "0169: nor did the shipped CODEX model" \
   '! grep -qF -- "$(hd_field "$HD" codex status model)" "$S"'
-assert "0168: runner-only shim frontmatter still carries the native pin" \
-  '[ "$(fm "$S" model)" = "$(hd_field "$HD" claude status model)" ]'
-assert "0168: runner-only shim frontmatter still carries the native effort" \
+assert "0168: runner shim frontmatter still carries the resolved native effort (bookkeeping)" \
   '[ "$(fm "$S" effort)" = "$(hd_field "$HD" claude status effort)" ]'
 
 # A user-configured pair is policy, not a shipped guess: it still passes through to the child.
