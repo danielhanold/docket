@@ -1,13 +1,12 @@
 # Backlog
 
-**220 changes** — 🟢 3 in progress · 🟡 57 proposed · ⚪ 4 deferred · ✅ 136 done · 🗑️ 20 killed
+**220 changes** — 🟢 2 in progress · 🟡 57 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 136 done · 🗑️ 20 killed
 
-## 🟢 In progress (3)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0190](active/0190-close-the-build-evidence-value-gap-a-post-gate-results-commi.md) | Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip | `medium` | `feat` | [spec](../superpowers/specs/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md) | `feat/close-the-build-evidence-value-gap-a-post-gate-results-commi` |
-| [0211](active/0211-aborted-run-is-blind-to-a-run-that-stops-after-the-build-com.md) | aborted-run is blind to a run that stops after the build: commits on an unpushed branch, every field coherent | `high` | `fix` | [spec](../superpowers/specs/2026-08-05-aborted-run-built-but-not-delivered-leg-design.md) | `feat/aborted-run-is-blind-to-a-run-that-stops-after-the-build-com` |
 | [0212](active/0212-an-inlined-role-skill-s-terminal-stop-ends-the-whole-run-sco.md) | An inlined role skill's terminal stop ends the whole run — scope docket-build's stop and enforce the run disposition | `medium` | `fix` | [spec](../superpowers/specs/2026-08-05-inlined-role-terminal-stop-scoping-design.md) | `feat/an-inlined-role-skill-s-terminal-stop-ends-the-whole-run-sco` |
 
 ## 🟡 Proposed (57)
@@ -80,6 +79,12 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | Type | PR | Readiness |
+|---|-------|----------|------|----|-----------|
+| [0211](active/0211-aborted-run-is-blind-to-a-run-that-stops-after-the-build-com.md) | aborted-run is blind to a run that stops after the build: commits on an unpushed branch, every field coherent | `high` | `fix` | [#160](https://github.com/danielhanold/docket/pull/160) |  |
 
 ```mermaid
 graph TD
