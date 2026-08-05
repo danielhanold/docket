@@ -1251,6 +1251,19 @@ health_out_unset="$( cd "$health_dir" && \
 assert "0117 gate(TERMINAL_PUBLISH unset): no unbound-variable crash, flag not passed" \
   '! grep -q -- "--terminal-publish" "$health_log_unset"'
 
+# --- change 0202 (finding 1): the --results-dir caller wiring ---------------------------------
+# board-checks.sh defaults RESULTS_DIR_REL to docs/results on its own, so asserting the DEFAULT
+# string would stay green even if docket-status stopped passing the flag entirely. Pin the
+# RESOLVED value with a non-default RESULTS_DIR: only the caller can be supplying that.
+health_log_rd="$tmp/health-calls-resultsdir.log"; : > "$health_log_rd"
+health_out_rd="$( cd "$health_dir" && \
+  DOCKET_MODE=docket CHANGES_DIR=docs/changes ADRS_DIR=docs/adrs \
+  INTEGRATION_BRANCH=main METADATA_BRANCH=docket RESULTS_DIR=docs/custom-results \
+  SCRIPTS_DIR="$tmp/mock-health" HEALTH_LOG="$health_log_rd" \
+  bash -c '. "'"$SCRIPT"'"; health_checks' )"
+assert "0202: health_checks passes the RESOLVED --results-dir, not the callee's fallback" \
+  'grep -q -- "--results-dir docs/custom-results" "$health_log_rd"'
+
 # --- C1 (review round): ADRS_DIR is NEVER empty (docket-config.sh defaults it to docs/adrs and
 # always exports it), so gating solely on `-n "${ADRS_DIR:-}"` always passes --adrs-dir, even for
 # a repo whose ADR directory does not exist at all (a fresh repo that skipped seeding adrs/ per
