@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0202 — Clear the unfixed review findings from change 0113](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0202-clear-the-unfixed-review-findings-from-change-0113.md)**
+> ↩ **[Change 0202 — Clear the unfixed review findings from change 0113](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-05-0202-clear-the-unfixed-review-findings-from-change-0113.md)**
 <!-- docket:backlink:end -->
 
 # Clear the unfixed review findings from change 0113
