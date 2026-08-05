@@ -489,8 +489,20 @@ for f in "${FILES[@]}"; do
         for ar_b in "refs/heads/$INTEGRATION_BRANCH" "refs/remotes/origin/$INTEGRATION_BRANCH"; do
           "$GIT" -C "$CHANGES_DIR" show-ref --verify --quiet "$ar_b" && ar_bases+=( "$ar_b" )
         done
-        # The count gate must come FIRST and short-circuit: expanding "${ar_bases[@]}" on an empty
-        # array is a set -u error under older bash.
+        # The count gate must come FIRST and short-circuit. It is load-bearing in TWO different
+        # ways, and neither is hypothetical (mutation M in tests/test_board_checks.sh deletes it
+        # and watches both):
+        #   - bash >= 4.4 expands "${ar_bases[@]}" on an empty array happily, so the rev-list below
+        #     would exclude NO bases at all, list the branch's WHOLE history, and fire the leg with
+        #     an empty base label — "ahead of nothing", the exact reading this leg's design forbids.
+        #     (Spelled without the rev-list's own literal text: the mutation that deletes THAT
+        #     predicate counts its occurrences, and a comment quoting it verbatim would break the
+        #     count.)
+        #   - bash before 4.4 raises `ar_bases[@]: unbound variable` under set -u. Measured, not
+        #     assumed: that error kills only the command-substitution SUBSHELL, not this script, so
+        #     the damage there is a diagnostic leaking onto stderr for every no-base change rather
+        #     than a crash. (The reachable window is 4.0-4.3 — this script needs `mapfile` and
+        #     `declare -g`, so bash 3.2 cannot run it at all.)
         if [ "${#ar_bases[@]}" -gt 0 ] && \
            [ -n "$("$GIT" -C "$CHANGES_DIR" rev-list -n 1 "$ar_ref" --not "${ar_bases[@]}" 2>/dev/null)" ]; then
           # Display values only, computed ONLY on the firing path where their cost is irrelevant and
@@ -501,8 +513,17 @@ for f in "${FILES[@]}"; do
           # remote-tracking ref left by a remote-side branch deletion reads as "pushed" and yields
           # the other message — acceptable for an advisory finding whose remedy in both cases is
           # "go look at this run".
+          #
+          # Both messages HEDGE, matching leg B's "a run may have stopped mid-step; verify it
+          # reached its PR". The predicate fires on healthy runs by construction (see the idle
+          # floor's known residual in board-checks.md), so asserting the abort as fact would be a
+          # claim the check cannot support — and the remedy stays a VERIFICATION, never "push it"
+          # or "open the PR", which acted on against a live run races the running agent on its own
+          # branch. Neither message reuses leg B's "mid-step": the hedge names leg C's own seam
+          # (the push, and the gap between the push and the PR record) so a message-shape assert
+          # can still tell the legs apart.
           if "$GIT" -C "$CHANGES_DIR" show-ref --verify --quiet "refs/remotes/origin/$ar_branch"; then
-            emit aborted-run "$id" "$ar_branch is pushed but pr: is unset (last commit ${ar_idle_h}h ago) — the run stopped between the push and the PR record; open the PR or record it"
+            emit aborted-run "$id" "$ar_branch is pushed but pr: is unset (last commit ${ar_idle_h}h ago) — a run may have stopped between its push and its PR record; verify the PR exists"
           else
             # The count and its base label are built HERE, on the only arm that prints them: the
             # pushed arm above would pay for a second rev-list traversal it never reads.
@@ -520,7 +541,7 @@ for f in "${FILES[@]}"; do
             done
             # "1 commits" reads as a bug in the check itself, which is corrosive for an advisory.
             if [ "$ar_ahead" = 1 ]; then ar_noun=commit; else ar_noun=commits; fi
-            emit aborted-run "$id" "$ar_ahead $ar_noun on $ar_branch ahead of $ar_base_label, branch never pushed and pr: is unset (last commit ${ar_idle_h}h ago) — the run stopped before it opened its PR; push and open it, or re-run the step"
+            emit aborted-run "$id" "$ar_ahead $ar_noun on $ar_branch ahead of $ar_base_label, branch never pushed and pr: is unset (last commit ${ar_idle_h}h ago) — a run may have stopped before it pushed; verify it is not still building"
           fi
         fi
       fi

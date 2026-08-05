@@ -220,8 +220,21 @@ independent legs; any emits, and more than one may emit on one change.
   invisible to leg A (every field is coherent: `plan:` recorded, no results file yet) and to leg B
   (the `claimed_at` heartbeat was re-stamped at that very metadata write, so leg B's countdown
   starts from the freshest possible stamp). One leg, two messages, chosen by whether
-  `refs/remotes/origin/<branch>` resolves: *branch never pushed* (the run stopped before its push)
-  or *pushed but `pr:` unset* (the run stopped between the push and the PR record).
+  `refs/remotes/origin/<branch>` resolves: *branch never pushed* (with the ahead-count and the
+  bases it was measured against) or *`<branch>` is pushed but `pr:` unset*.
+
+  **Both messages hedge, and neither prescribes a state change.** They read
+  `a run may have stopped before it pushed; verify it is not still building` and
+  `a run may have stopped between its push and its PR record; verify the PR exists` — leg B's
+  register (`a run may have stopped mid-step; verify it reached its PR`), applied to leg C's own
+  seam. Two reasons, both structural rather than stylistic. The predicate fires on healthy runs by
+  construction (see **Known residual** below), so asserting the abort as fact would be a claim the
+  check cannot support. And a remedy phrased as "push it" or "open the PR", acted on against a run
+  that is merely between commits, races the running agent on its own branch. Leg C deliberately
+  does **not** reuse leg B's `mid-step`: that phrase stays leg-B-exclusive so a message-shape
+  assert can tell the two legs apart. The clause `pr: is unset` is likewise leg-C-exclusive — leg A
+  emits `plan: is unset` / `results: is unset`, leg B emits neither — and `tests/test_board_checks.sh`
+  keys every leg-C presence and absence assert on it.
 
   Three design points worth stating, because each is a predicate someone will later be tempted to
   simplify:
@@ -230,7 +243,12 @@ independent legs; any emits, and more than one may emit on one change.
     from `origin/<integration-branch>` while a local integration ref routinely lags it, so a
     local-only comparison makes a freshly-cut, nothing-built branch look arbitrarily far ahead with
     arbitrarily old commits — firing leg C on a signature that belongs to leg B. No base resolving
-    is **silence**, never "ahead of nothing".
+    at all is **silence**, never "ahead of nothing": the verified bases are collected into
+    `ar_bases`, and a count gate short-circuits the whole predicate when that array is empty. That
+    gate is exercised, not asserted — a fixture run against an integration branch that resolves as
+    neither ref pins the silence (and pins that a *later* change's finding still appears, so the
+    silence is a decline and not a dead walk), and a mutation deleting the gate watches leg C start
+    reporting a branch as ahead of an empty base label.
   - **The idle floor is keyed on the branch's newest commit, never on `claimed_at`** — the
     heartbeat rider makes `claimed_at` unusable here, which is precisely why leg B is blind.
   - **A non-empty `pr:` short-circuits the whole leg** before any git call. That keeps the common
