@@ -2,7 +2,7 @@
 id: 207
 slug: sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a
 title: sync-agents aborts mid-loop on a bad runner config, leaving a zero-length wrapper and stale siblings
-status: in-progress
+status: implemented
 priority: medium
 type: fix
 created: 2026-08-05
@@ -13,12 +13,12 @@ discovered_from: [205]
 adrs: []
 spec: docs/superpowers/specs/2026-08-05-atomic-wrapper-generation-design.md
 plan: docs/superpowers/plans/2026-08-05-atomic-wrapper-generation.md
-results:
+results: docs/results/2026-08-05-sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a-results.md
 trivial: false
 auto_groomable:
 branch: feat/sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a
-claimed_at: 2026-08-05T18:39:28Z
-pr:
+claimed_at: 2026-08-05T19:11:21Z
+pr: https://github.com/danielhanold/docket/pull/159
 blocked_by:
 reconciled: true
 ---
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-05-atomic-wrapper-generation-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-05-atomic-wrapper-generation-design.md) |
 | Plan | [2026-08-05-atomic-wrapper-generation.md](https://github.com/danielhanold/docket/blob/feat/sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a/docs/superpowers/plans/2026-08-05-atomic-wrapper-generation.md) |
+| Results | [2026-08-05-sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a-results.md](https://github.com/danielhanold/docket/blob/feat/sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a/docs/results/2026-08-05-sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a-results.md) |
+| PR | [#159](https://github.com/danielhanold/docket/pull/159) |
 <!-- docket:artifacts:end -->
 
 ## Why
