@@ -2,7 +2,7 @@
 id: 215
 slug: escape-newlines-in-board-checks-sanitize-now-that-z-can-deli
 title: Escape newlines in board-checks sanitize now that -z can deliver a raw LF
-status: proposed
+status: killed
 priority: medium
 type: fix
 created: 2026-08-05
@@ -58,3 +58,7 @@ has one) and the check is warn-only, which is why it graded important rather tha
 ## Open questions
 
 - Whether the same premise is relied on by any other `emit` caller passing a non-frontmatter value.
+
+## Why killed
+
+Consolidated into change 0200 (board-checks and test-suite hardening bundle); scope carried over verbatim, nothing dropped.
