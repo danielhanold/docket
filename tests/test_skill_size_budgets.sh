@@ -246,6 +246,13 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # unread reference file cannot intervene at that moment. That is the same argument change 0137
 # recorded for the convention's dispatch rule. The H1 paragraph was compressed first; set from the
 # measured actual: 267 lines -> 270, 2421 words -> 2450.
+# Extended by change 0212: 270/2450 -> 280/2500, for the SECOND scoping clause the same change owes —
+# at ## Halting conditions, whose `halted` token collides with docket-implement-next's run
+# disposition of the same name. The references/ argument above applies unchanged and with more force:
+# this clause must fire as the reader decides whether `halted` ends the run. Set from the measured
+# actual: 2460 words -> 2500 (40 words of margin, past the 25-word threshold); 274 lines -> the next
+# multiple of 5 is 275, which leaves ONE line of margin — the near-zero headroom this table's header
+# forbids — so the multiple after: 280.
 # skills/docket-review/SKILL.md's budget was raised 105/800 -> 105/900 by change 0212, which scoped
 # the file's ## Conduct prohibitions and its ## Halting stop to the review role. skills/docket-review/
 # has NO references/ tree; the home that would have to be created is
@@ -276,7 +283,7 @@ skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
 skills/docket-auto-groom/SKILL.md                           66 1237
 skills/docket-brainstorm/SKILL.md                           84  692
-skills/docket-build/SKILL.md                               270 2450
+skills/docket-build/SKILL.md                               280 2500
 skills/docket-build-task/SKILL.md                          120 1100
 skills/docket-convention/SKILL.md                          345 5800
 skills/docket-convention/github-board-mirror.md             19  462
