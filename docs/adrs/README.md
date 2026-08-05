@@ -67,6 +67,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0066](0066-docket-owns-the-review-role-suite-runs-in-the-build-gate.md) — Docket owns the review role — read-only rungs, and the suite runs in the build gate (Accepted) ← change #170 · relates to ADR-0012, ADR-0024, ADR-0063
 - [ADR-0067](0067-runner-bearing-agent-requires-a-user-configured-model.md) — A runner-bearing agent must carry a user-configured model, runner-wide (Accepted) ← change #205 · relates to ADR-0015, ADR-0037, ADR-0038
 - [ADR-0068](0068-delegated-run-anchor-is-an-explicit-argument.md) — A delegated run's anchor is an explicit argument defaulting to the main worktree (Accepted) ← change #206 · relates to ADR-0034
+- [ADR-0069](0069-mode-conditioned-clause-discriminates-on-provenance.md) — A mode-conditioned clause in a loadable skill body discriminates on provenance, and the second person belongs to the continue branch (Accepted) ← change #212 · relates to ADR-0024, ADR-0044
 
 ## Superseded / Reversed
 
