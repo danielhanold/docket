@@ -246,6 +246,13 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # unread reference file cannot intervene at that moment. That is the same argument change 0137
 # recorded for the convention's dispatch rule. The H1 paragraph was compressed first; set from the
 # measured actual: 267 lines -> 270, 2421 words -> 2450.
+# skills/docket-review/SKILL.md's budget was raised 105/800 -> 105/900 by change 0212, which scoped
+# the file's ## Conduct prohibitions and its ## Halting stop to the review role. skills/docket-review/
+# has NO references/ tree; the home that would have to be created is
+# skills/docket-review/references/, and creating it is wrong for the same reason as docket-build's
+# entry above — a prohibition-scoping rule must be read in the same breath as the prohibition it
+# scopes. Set from the measured actual: 103 lines -> 105 (unchanged, still above the actual),
+# 838 words -> 900 (850 lands within 25 words of the actual, so the next multiple is taken).
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -265,7 +272,7 @@ skills/docket-groom-next/SKILL.md                           77 1484
 skills/docket-implement-next/SKILL.md                      145 3800
 skills/docket-implement-next/references/edge-paths.md       35  450
 skills/docket-implement-next/results-template.md            24  172
-skills/docket-review/SKILL.md                              105  800
+skills/docket-review/SKILL.md                              105  900
 skills/docket-new-change/SKILL.md                           61 1330
 skills/docket-new-change/change-template.md                 51  203
 skills/docket-status/SKILL.md                              118 2393
