@@ -903,6 +903,37 @@ ar_branch(){
   git -C "$arb_repo" checkout docket >/dev/null 2>&1
 }
 
+# ar_branch_at REPO BRANCH BASE AGE_SECS [PATH] — cut BRANCH from BASE in REPO and, when PATH is
+# given, commit PATH on it with BOTH author and committer dates set to AGE_SECS before NOW_EPOCH.
+# Leaves the repo parked back on docket, like ar_branch.
+#
+# A SIBLING of ar_branch, not a widening of it (change 0211): ar_branch is called by every existing
+# ARM fixture, and giving it date control would change what those fixtures measure. Byte-identical
+# is not the same as unaffected — leg C changes what they COULD emit, which is pinned separately.
+#
+# The dates are load-bearing, not decoration. ar_branch's commits carry real wall-clock dates while
+# NOW_EPOCH is 1750000000 (2025-06), so `NOW - ts` is hugely NEGATIVE for them and they are silent
+# for leg C's idle floor only by accident. A leg-C fixture must never inherit that accident: its
+# age has to be the thing under test.
+ar_branch_at(){
+  local aba_repo="$1" aba_br="$2" aba_base="$3" aba_age="$4" aba_path="${5:-}" aba_when
+  aba_when="@$(( NOW_EPOCH - aba_age ))"
+  git -C "$aba_repo" checkout -b "$aba_br" "$aba_base" >/dev/null 2>&1
+  if [ -n "$aba_path" ]; then
+    mkdir -p "$aba_repo/$(dirname "$aba_path")"
+    printf '# artifact\n' > "$aba_repo/$aba_path"
+    git -C "$aba_repo" add "$aba_path"
+    GIT_AUTHOR_DATE="$aba_when" GIT_COMMITTER_DATE="$aba_when" \
+      git -C "$aba_repo" commit -m "commit on $aba_br" >/dev/null 2>&1
+  fi
+  git -C "$aba_repo" checkout docket >/dev/null 2>&1
+}
+
+# ar_push REPO BRANCH — publish BRANCH to the fixture's own bare origin, which is what creates
+# refs/remotes/origin/<BRANCH> — the ref leg C's message branch probes. Separate from ar_branch_at
+# because "was it pushed" is exactly the axis the two leg-C messages split on.
+ar_push(){ git -C "$1" push -q origin "$2" >/dev/null 2>&1; }
+
 # --- RED: the branch carries a plan the manifest does not record ---
 read -r AR1 _ < <(new_repo)
 ar_branch "$AR1" feat/ar1 "$AR_PLAN_NEW"
@@ -1300,6 +1331,73 @@ EOF
 ar15out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AR15/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
 assert "aborted-run leg B SILENT on a 'proposed' change with an old claimed_at (id 215, status gate)" \
   '! has_finding "$ar15out" aborted-run 215'
+
+# ---------------- aborted-run leg C: built but not delivered (change 0211) ----------------
+# The signature legs A and B are both blind to: the build finished, the delivery did not. Fixture
+# ids start at 232 — 220-226 are the ARM mutation repo and 230-231 are the ARQ non-ASCII fixtures.
+
+# --- RED: commits on an UNPUSHED branch, quiet 3h, pr: unset -> leg C, "never pushed" message ---
+read -r AR16 _ < <(new_repo)
+ar_branch_at "$AR16" feat/ar16 main $(( 3*3600 )) "$AR_PLAN_NEW"
+# Sanity: the branch really is unpushed. Without this the "never pushed" assert below could pass
+# because the push silently failed rather than because the message branch is right.
+assert "leg C fixture 232 precondition: feat/ar16 has NO remote-tracking ref" \
+  '! git -C "$AR16" show-ref --verify --quiet refs/remotes/origin/feat/ar16'
+cat > "$AR16/docs/changes/active/0232-built-unpushed.md" <<EOF
+---
+id: 232
+slug: built-unpushed
+title: Build finished, branch never pushed
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/ar16
+plan: docs/superpowers/plans/2026-06-01-present.md
+results:
+pr:
+claimed_at: $AR_FRESH_CLAIM
+---
+EOF
+ar16out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AR16/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "aborted-run leg C FIRES on an unpushed branch ahead of main, quiet 3h, pr: unset (id 232)" \
+  'has_finding "$ar16out" aborted-run 232'
+assert "leg C names the NEVER-PUSHED remedy on 232" \
+  'grep -qF "branch never pushed and pr: is unset" <<<"$ar16out"'
+assert "leg C reports the commit count ahead of the integration branch on 232" \
+  'grep -qF "1 commits on feat/ar16 ahead of main" <<<"$ar16out"'
+assert "leg C reports the branch idle age in hours on 232" \
+  'grep -qF "(last commit 3h ago)" <<<"$ar16out"'
+assert "leg C is SILENT for leg A on 232 — plan: is recorded, so the legs did not double-count" \
+  '! grep -qF "but plan: is unset" <<<"$ar16out"'
+
+# --- RED: the same branch PUSHED, pr: still unset -> leg C, push/PR-seam message ---
+read -r AR17 _ < <(new_repo)
+ar_branch_at "$AR17" feat/ar17 main $(( 3*3600 )) "$AR_PLAN_NEW"
+ar_push "$AR17" feat/ar17
+assert "leg C fixture 233 precondition: feat/ar17 HAS a remote-tracking ref (the push landed)" \
+  'git -C "$AR17" show-ref --verify --quiet refs/remotes/origin/feat/ar17'
+cat > "$AR17/docs/changes/active/0233-built-pushed.md" <<EOF
+---
+id: 233
+slug: built-pushed
+title: Branch pushed, PR never recorded
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/ar17
+plan: docs/superpowers/plans/2026-06-01-present.md
+results:
+pr:
+claimed_at: $AR_FRESH_CLAIM
+---
+EOF
+ar17out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AR17/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "aborted-run leg C FIRES on a PUSHED branch with pr: unset (id 233)" \
+  'has_finding "$ar17out" aborted-run 233'
+assert "leg C names the PUSH/PR-SEAM remedy on 233" \
+  'grep -qF "feat/ar17 is pushed but pr: is unset" <<<"$ar17out"'
+assert "leg C does NOT claim 233 was never pushed — the two messages are exclusive" \
+  '! grep -qF "branch never pushed" <<<"$ar17out"'
 
 # ---------------- aborted-run mutation tests (guards-are-code) ----------------
 # Each predicate is broken in a throwaway COPY of board-checks.sh and watched change the fixtures'

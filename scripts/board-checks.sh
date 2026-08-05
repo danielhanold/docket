@@ -171,6 +171,21 @@ FINALIZE_BLOCKED_STALE_SECS=$(( 72 * 3600 ))
 # a genuinely long build does trip it the finding is free, self-clearing, and worth a glance.
 ABORTED_RUN_STALE_SECS=$(( 12 * 3600 ))
 
+# Branch-idle floor for aborted-run's leg C (change 0211). Hardcoded, no config knob — the same
+# precedent as ABORTED_RUN_STALE_SECS above, FINALIZE_BLOCKED_STALE_SECS, and stale-in-progress's
+# 3*86400. Keyed on the branch's newest COMMIT, never on claimed_at: the heartbeat rider re-stamps
+# claimed_at at every phase boundary, which is exactly why leg B is blind to this signature.
+#
+# 2h, derived: after the last build commit a healthy run still has review, any ADR, the ~10-minute
+# suite, and the push to get through — and a review-driven fix COMMITS, resetting this clock, so the
+# real exposure is that tail, not the whole build span. 2h covers it with room and is 6x tighter
+# than leg B's 12h (the same ratio leg B took against the 72h lease).
+#
+# The residual, stated rather than hidden: a marathon tail with no post-review commit WILL fire leg
+# C on a healthy run. That finding is free, advisory, and self-clearing the moment the PR is
+# recorded — and a floor loose enough never to misfire would be loose enough to stop detecting.
+ABORTED_RUN_IDLE_SECS=$(( 2 * 3600 ))
+
 # renders_row DIR_KIND ID STATUS — exit 0 iff render-board.sh would account for a file in DIR_KIND
 # ('active' or 'archive') carrying this (int_field-validated) ID and this raw STATUS. This is the
 # COMPUTED half of the board-row-dropped invariant (change 0104; widened to archive/ by 0115): it
@@ -421,6 +436,70 @@ for f in "${FILES[@]}"; do
       ar_epoch="$(iso_to_epoch "$ar_claimed")" || ar_epoch=""
       if [ -n "$ar_epoch" ] && [ "$(( NOW - ar_epoch ))" -gt "$ABORTED_RUN_STALE_SECS" ]; then
         emit aborted-run "$id" "claim stamped $(( (NOW - ar_epoch) / 3600 ))h ago, past the 12h run-scale window — a run may have stopped mid-step; verify it reached its PR"
+      fi
+    fi
+
+    # Leg C — BUILT BUT NOT DELIVERED (change 0211). The run finished its build and stopped before
+    # delivering it: commits on the feature branch, no PR recorded. Legs A and B are both
+    # STRUCTURALLY blind to this, which is why it is a third leg and not a widening:
+    #   - leg A keys on manifest/git INCOHERENCE, and here every field is coherent (plan: recorded,
+    #     no results file written yet). The run dropped no bookkeeping write — it dropped two steps.
+    #   - leg B keys on claimed_at, which the heartbeat rider re-stamps at every phase boundary, so
+    #     a run that dies just AFTER a metadata commit starts leg B's countdown from the freshest
+    #     possible stamp. Leg B is at its blindest exactly when a run has just completed a step.
+    # Same check-id: this is more evidence for the same conclusion ("this run stopped mid-step"), so
+    # a new id would buy a four-place BOARD_CHECK_IDS edit and a second remedy vocabulary for nothing.
+    #
+    # Gates are ordered CHEAPEST FIRST, and the ordering is a cost contract, not a style choice:
+    # the FREE frontmatter read decides the common case (a change with a recorded PR costs ZERO git
+    # calls), a non-firing path costs at most three, and the remote-ref probe runs only once the leg
+    # has already decided to fire. This path is cost-sensitive (change 0176).
+    #
+    # A non-empty pr: short-circuits the WHOLE leg. A change whose PR is recorded has delivered;
+    # "unpushed branch with a recorded PR" means the PR record and the remote disagree, which is a
+    # different defect with a different remedy that leg C would be a misleading oracle for.
+    if [ -z "$(fm_field "$f" pr)" ] && [ -n "$ar_ref" ]; then
+      # ar_ref is REUSED from leg A but RE-GUARDED, and the guard is not optional: leg C runs
+      # OUTSIDE leg A's `if ar_ref="$(branch_ref …)"`, and a failed branch_ref leaves ar_ref SET BUT
+      # EMPTY. Without the -n test, `log -1 --format=%ct ""` returns empty, `NOW - ""` is NOW, and
+      # the idle floor evaluates TRUE for a change with no branch at all.
+      ar_tip="$("$GIT" -C "$CHANGES_DIR" log -1 --format=%ct "$ar_ref" 2>/dev/null)"
+      if [ -n "$ar_tip" ] && [ "$(( NOW - ar_tip ))" -gt "$ABORTED_RUN_IDLE_SECS" ]; then
+        # Ahead of BOTH bases. Feature branches are cut from origin/<integration_branch> while
+        # INTEGRATION_BRANCH names the LOCAL ref, and a local integration ref routinely LAGS origin
+        # (sync-integration-branch.sh is FF-only and best-effort). Comparing against the local ref
+        # alone makes a freshly-cut, NOTHING-BUILT branch look arbitrarily far ahead with
+        # arbitrarily old commits — it would sail through the idle floor and fire leg C on the
+        # exact signature (0109: stopped with nothing built) that belongs to leg B.
+        #
+        # BOTH bases are show-ref-verified, symmetrically. An absent refs/heads/<integration> makes
+        # rev-list exit 128 with EMPTY stdout, and since the predicate reads "empty => not ahead",
+        # guarding only the remote one would silently turn the whole leg into a no-op with no
+        # diagnostic. No base resolving at all is SILENCE (no positive evidence) — the same posture
+        # leg B takes for an unparseable claimed_at — never "ahead of nothing".
+        ar_bases=()
+        for ar_b in "refs/heads/$INTEGRATION_BRANCH" "refs/remotes/origin/$INTEGRATION_BRANCH"; do
+          "$GIT" -C "$CHANGES_DIR" show-ref --verify --quiet "$ar_b" && ar_bases+=( "$ar_b" )
+        done
+        # The count gate must come FIRST and short-circuit: expanding "${ar_bases[@]}" on an empty
+        # array is a set -u error under older bash.
+        if [ "${#ar_bases[@]}" -gt 0 ] && \
+           [ -n "$("$GIT" -C "$CHANGES_DIR" rev-list -n 1 "$ar_ref" --not "${ar_bases[@]}" 2>/dev/null)" ]; then
+          # Display values only, computed ONLY on the firing path where their cost is irrelevant and
+          # they are what make the finding actionable.
+          ar_ahead="$("$GIT" -C "$CHANGES_DIR" rev-list --count "$ar_ref" --not "${ar_bases[@]}" 2>/dev/null)"
+          ar_idle_h=$(( (NOW - ar_tip) / 3600 ))
+          # One emit site, two mutually-exclusive messages. `origin` is hardcoded, inheriting
+          # branch_ref's existing convention rather than inventing a second one. A STALE
+          # remote-tracking ref left by a remote-side branch deletion reads as "pushed" and yields
+          # the other message — acceptable for an advisory finding whose remedy in both cases is
+          # "go look at this run".
+          if "$GIT" -C "$CHANGES_DIR" show-ref --verify --quiet "refs/remotes/origin/$ar_branch"; then
+            emit aborted-run "$id" "$ar_branch is pushed but pr: is unset (last commit ${ar_idle_h}h ago) — the run stopped between the push and the PR record; open the PR or record it"
+          else
+            emit aborted-run "$id" "$ar_ahead commits on $ar_branch ahead of $INTEGRATION_BRANCH, branch never pushed and pr: is unset (last commit ${ar_idle_h}h ago) — the run stopped before it opened its PR; push and open it, or re-run the step"
+          fi
+        fi
       fi
     fi
   fi
