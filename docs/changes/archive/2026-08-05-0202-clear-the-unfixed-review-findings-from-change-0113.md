@@ -2,7 +2,7 @@
 id: 202
 slug: clear-the-unfixed-review-findings-from-change-0113
 title: Clear the unfixed review findings from change 0113
-status: implemented
+status: done
 priority: high
 type: chore
 created: 2026-08-03
@@ -17,7 +17,7 @@ results: docs/results/2026-08-05-clear-the-unfixed-review-findings-from-change-0
 trivial: false
 auto_groomable: true
 branch: feat/clear-the-unfixed-review-findings-from-change-0113
-claimed_at: 2026-08-05T17:52:57Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/158
 blocked_by:
 reconciled: true
