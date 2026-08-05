@@ -110,6 +110,12 @@ Every run ends by declaring exactly **one** of four dispositions, so any driver 
 
 The driver's decision is binary: **continue on `advanced`/`contended`, stop on `drained`/`halted`.** The contract is **driver-agnostic** — it names run outcomes, not any one driver's mechanics; `/loop` is *recommended*, not required (see the README drain-pattern doc).
 
+**The obligation is on the agent, not only the driver** — the run does not end until exactly one of
+the four is declared. A final report that declares a step-scoped or invented disposition — a build
+disposition, a review outcome, "complete" — is by construction an aborted run, whatever else it
+reports. `advanced` is claimable only when **Step 7's postcondition** holds; that postcondition is
+Step 7's to state, not this section's.
+
 The final report **enumerates** what happened: the change built (if any), each change **skipped with its reason** (needs-brainstorm / already `in-progress` / waiting on an unmerged `depends_on` / outside the id allowlist), any stubs **auto-captured** (plus every dedup skip and any cap overflow), and which disposition ended the run.
 
 ### Best-effort board refresh
