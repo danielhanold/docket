@@ -64,7 +64,9 @@ opencode's own config, and its own help text marks it `(dangerous!)`.
   default value describes reality rather than serving as a placeholder.
 - **`auto-approve`** — bakes `--auto`. Self-describing at the config site; a reader needs no
   knowledge of opencode's CLI. Pair it with opencode's own deny rules — `--auto` approves what is
-  not explicitly denied, so the deny list is the real boundary.
+  not explicitly denied, so the deny list is *intended* to be the real boundary. **Unverified:**
+  read from one line of `opencode run --help`; the interaction has not been tested. Confirm it
+  against your own opencode version before relying on it.
 - Any other value is a loud refusal, not a silent fall-back to `ask`: explicit config is never
   silently ignored, and a typo must not be indistinguishable from a deliberate refusal.
 

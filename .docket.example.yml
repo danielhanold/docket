@@ -296,7 +296,9 @@ auto_capture:
 # .cursor/rules/docket-dispatch.mdc dispatch rule; sync-agents.sh prunes orphaned docket-* files.
 # An entry may also carry a `runner:` key (e.g. `runner: codex`) alongside `model:`/`effort:` to
 # delegate that agent's whole run to a child harness with its own subscription, models, and
-# skills — see the `runners:` block below.
+# skills — see the `runners:` block below. A delegated entry MUST carry an explicit `model:`
+# (ADR-0067): docket never forwards its own shipped default to another harness, so a model-less
+# `runner:` is a generation-time error, not a silent run on the child's default.
 #
 # The `claude:`, `codex:`, `cursor:`, and `opencode:` blocks below all MIRROR docket's shipped
 # built-in defaults — the values in agents/harness-defaults.yml — shown so the otherwise-invisible

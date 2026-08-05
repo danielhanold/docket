@@ -767,6 +767,9 @@ agents:
     # Delegate the four build workers to cheap OpenRouter models; leave review native.
     build-economy:  { runner: opencode, model: openrouter/deepseek/deepseek-v4-flash-0731, effort: medium }
     build-standard: { runner: opencode, model: openrouter/deepseek/deepseek-v4-flash-0731, effort: high }
+    build-premium:  { runner: opencode, model: openrouter/moonshotai/kimi-k3,              effort: medium }
+    build-max:      { runner: opencode, model: openrouter/moonshotai/kimi-k3,              effort: high }
+    # review-lean / review-standard / review-deep: no runner: → native Claude Code
 runners:
   codex:
     sandbox: workspace-write    # workspace-write (default) | danger-full-access
@@ -838,7 +841,9 @@ authenticated (`opencode auth login`), and docket skills linked into `~/.agents/
 `runners.opencode.permissions: auto-approve`** — opencode prompts for approval before editing a
 file or running a command, a delegated run has nothing to answer with, and the adapter therefore
 refuses up front rather than hanging. That grant is deliberately a visible line in config, not
-something you get by typing `runner: opencode`; pair it with opencode's own deny rules. `effort:`
+something you get by typing `runner: opencode`; pair it with opencode's own deny rules (whose
+containing behavior docket has documented from its help text but not tested — verify before relying
+on it). `effort:`
 maps to `--variant` and passes through unmapped, including docket's `max` (unlike codex, where `max`
 becomes `xhigh`); the shared omit-vs-`auto` rule above applies unchanged. Full adapter contract:
 `scripts/runners/opencode.md`; the config recipe is in
