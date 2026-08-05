@@ -824,8 +824,9 @@ file or running a command, a delegated run has nothing to answer with, and the a
 refuses up front rather than hanging. That grant is deliberately a visible line in config, not
 something you get by typing `runner: opencode`; pair it with opencode's own deny rules. `effort:`
 maps to `--variant` and passes through unmapped, including docket's `max` — but note it follows the
-same never-forward-a-shipped-default rule as `model:` **without** the matching error, so omitting it
-silently yields no `--variant` and the provider's default effort. Full adapter contract:
+same never-forward-a-shipped-default rule as `model:` **without** the matching error, so a delegated
+agent with no effort from any user layer silently runs at the provider's default. Omitting the key
+defers to lower config layers; `effort: auto` is the explicit no-pin. Full adapter contract:
 `scripts/runners/opencode.md`; the config recipe is in
 [docs/opencode/setup.md](docs/opencode/setup.md).
 
