@@ -1,3 +1,7 @@
+<!-- docket:backlink:start (generated — do not hand-edit) -->
+> ↩ **[Change 0078 — Codex CLI live-validation runbook — prove docket works end-to-end under Codex](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-05-0078-codex-cli-validation-runbook.md)**
+<!-- docket:backlink:end -->
+
 # Codex CLI live-validation runbook — design
 
 **Change:** 0078 · **Date:** 2026-07-15 · **Status:** approved (brainstormed with Daniel)
