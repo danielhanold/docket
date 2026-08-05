@@ -59,7 +59,7 @@
 | [0202](active/0202-clear-the-unfixed-review-findings-from-change-0113.md) | Clear the unfixed review findings from change 0113 | `medium` | `chore` | needs-brainstorm |
 | [0203](active/0203-define-the-per-step-git-state-postcondition-docket-implement.md) | Define the per-step git-state postcondition docket-implement-next now names but never states | `medium` | `docs` | needs-brainstorm |
 | [0204](active/0204-restore-rationale-dropped-by-round-three-compression-finaliz.md) | Restore rationale dropped by round-three compression (finalize named-id override, auto-capture mint-site loop) | `medium` | `docs` | needs-brainstorm |
-| [0206](active/0206-delegated-runner-runs-are-anchored-at-the-main-worktree-not.md) | Delegated runner runs are anchored at the main worktree, not the feature worktree | `medium` | `fix` | needs-brainstorm |
+| [0206](active/0206-delegated-runner-runs-are-anchored-at-the-main-worktree-not.md) | Delegated runner runs are anchored at the main worktree, not the feature worktree | `medium` | `fix` | ⏳ waiting on #205 — needs your merge |
 | [0207](active/0207-sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a.md) | sync-agents aborts mid-loop on a bad runner config, leaving a zero-length wrapper and stale siblings | `medium` | `fix` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
@@ -132,7 +132,7 @@ graph TD
   0203
   0204
   0205
-  0206
+  0205 --> 0206
   0207
   0015:::done
   0175:::done
