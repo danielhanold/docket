@@ -2,7 +2,7 @@
 id: 205
 slug: opencode-runner-adapter
 title: opencode runner adapter — delegate build workers to OpenRouter models
-status: implemented
+status: done
 priority: medium
 type: feat
 created: 2026-08-04
@@ -17,7 +17,7 @@ results: docs/results/2026-08-05-opencode-runner-adapter-results.md
 trivial: false
 auto_groomable: false
 branch: feat/opencode-runner-adapter
-claimed_at: 2026-08-05T03:04:55Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/156
 blocked_by:
 reconciled: true
