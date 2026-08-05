@@ -90,5 +90,17 @@ assert "README: registers cursor as a shipped runner" \
 # only the new "Two pairs" wording would leave the stale sentence undetected if both survived.
 assert "README: no longer claims only one runner pair ships" \
   '! grep -qF "One pair ships today" "$REPO/README.md"'
+# The same stale claim also shipped in .docket.example.yml's `runners:` comment and went stale there
+# for two whole runners (cursor, then opencode) because this guard hand-listed README as its only
+# site. Derive the sites from a whole-repo grep instead of naming one (AGENTS.md), so the next
+# runner cannot re-stale a surface nobody is watching.
+stale_pair_sites="$(grep -rlF "One pair ships today" "$REPO" --include="*.md" --include="*.yml" 2>/dev/null | grep -v "/docs/changes/archive/\|/docs/results/\|/docs/superpowers/" | tr '\n' ' ')"
+assert "no maintained file still claims only one runner pair ships (${stale_pair_sites:-none})" \
+  '[ -z "${stale_pair_sites// /}" ]'
+# NON-VACUITY COMPANION: the extractor above must be able to find anything at all, or the absence
+# assert is green for reasons unrelated to the claim being gone.
+probe_sites="$(grep -rlF "runner:" "$REPO/README.md" "$REPO/.docket.example.yml" 2>/dev/null | tr '\n' ' ')"
+assert "the stale-claim extractor reaches both surfaces it audits (got ${probe_sites:-none})" \
+  '[ "$(printf "%s" "$probe_sites" | wc -w | tr -d " ")" = "2" ]'
 
 echo "---"; [ "$fail" = "0" ] && echo "ALL PASS" || echo "FAILURES"; exit $fail

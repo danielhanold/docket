@@ -71,7 +71,7 @@ the same file. A harness/agent pair with no entry in any layer — user or shipp
 carries no `model` and no `effort`, and the harness applies its own default.
 
 **`runner:` — cross-harness delegation (change 0079).** An agent entry may carry `runner: <name>`
-naming a registered runner (shipped: `codex`, `cursor`); the generated wrapper body then becomes a shim that
+naming a registered runner (shipped: `codex`, `cursor`, `opencode`); the generated wrapper body then becomes a shim that
 makes one foreground `docket.sh runner-dispatch` call, delegating the whole run to that child
 harness. `runner` resolves per-field through the same four layers and is global-able (a machine
 preference, like `model`/`effort` — it writes no shared state). It is honored under the `claude`
@@ -80,6 +80,17 @@ reserved and warned-and-ignored. An unregistered name is a loud generation-time 
 knobs live in a top-level `runners.<name>:` block (any layer); each adapter's knobs and
 prerequisites are in `scripts/runners/<name>.md`, and the user-facing walkthrough is README's *Runner delegation*
 subsection under *Customization*.
+
+**Model and effort on a delegated agent (0168, 0205).** A shipped `harness-defaults.yml` value is
+**never forwarded to a child harness**: the sidecar is harness-indexed and the runner path resolves
+under the *parent*, so that value is a parent default, not evidence the string means anything to the
+child. Only user-configured values cross. Two consequences, runner-wide, not per-adapter.
+**`model:` is required** — a model-less (or `inherit`, the no-pin sentinel every adapter normalizes
+away) `runner:` entry is a generation-time error (ADR-0067), reversing the old "omitted ⇒ child
+default" posture. **`effort:` stays optional, but omitting ≠ opting out** — it defers to lower
+*user* layers, whose value IS forwarded, while `effort: auto` suppresses the flag outright. With no
+flag baked the child uses its own default for the chosen model; the parent's effort stays in the
+wrapper frontmatter and never reaches the child.
 
 ## Generation scope: agent_harnesses
 

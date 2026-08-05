@@ -18,12 +18,17 @@ bash scripts/runners/cursor.sh --agent <name> [--model <m>] [--effort <e>] [--] 
   behavior-only — model and effort arrive as the flags below, resolved by the caller from the
   user's config layers over `agents/harness-defaults.yml`. A **shipped** default is never
   forwarded: only a user-configured value becomes a flag.
-- `--model <m>` (optional) — passed to `cursor-agent --model` **verbatim** (ADR-0015 opaque
-  passthrough; docket never validates or rewrites model IDs). Omitted ⇒ the child's own default.
+- `--model <m>` (optional **at this CLI**, required in practice) — passed to `cursor-agent --model`
+  **verbatim** (ADR-0015 opaque passthrough; docket never validates or rewrites model IDs). Omitted
+  here ⇒ the child's own default — but since change 0205 a `runner:`-bearing agent with no
+  user-configured model is a **generation-time error** (ADR-0067), so a generated shim never omits
+  it. The model-less case is reachable only by invoking this adapter by hand.
 - `--effort <e>` (optional) — Cursor has **no effort flag**. Reasoning effort is a model parameter
   encoded inside the model value, so the adapter passes `--model <model>[effort=<effort>]` — the
   same encoding the wrapper emitter uses. With **no model resolved** the effort has nowhere to
   attach and is **dropped with a WARN** on stderr. `auto` means "no pin" and is never encoded.
+  In config, note that **omitting `effort:` is not the same as opting out**: it defers to lower user
+  config layers, whose value *is* forwarded. `effort: auto` is the explicit no-pin.
 - `-- <args…>` — appended to the prompt as caller task context.
 
 Environment (set by the facade):
