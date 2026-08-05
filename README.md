@@ -765,8 +765,8 @@ agents:
     status: { model: gpt-5.1-codex, effort: medium, runner: codex }   # …run docket-status on Codex
     adr:    { model: gpt-5.1, effort: high, runner: cursor }          # …or run docket-adr on Cursor
     # Delegate the four build workers to cheap OpenRouter models; leave review native.
-    build-economy:  { runner: opencode, model: openrouter/deepseek/deepseek-v4-flash-0731 }
-    build-standard: { runner: opencode, model: openrouter/deepseek/deepseek-v4-flash-0731 }
+    build-economy:  { runner: opencode, model: openrouter/deepseek/deepseek-v4-flash-0731, effort: medium }
+    build-standard: { runner: opencode, model: openrouter/deepseek/deepseek-v4-flash-0731, effort: high }
 runners:
   codex:
     sandbox: workspace-write    # workspace-write (default) | danger-full-access
@@ -822,8 +822,10 @@ authenticated (`opencode auth login`), and docket skills linked into `~/.agents/
 `runners.opencode.permissions: auto-approve`** — opencode prompts for approval before editing a
 file or running a command, a delegated run has nothing to answer with, and the adapter therefore
 refuses up front rather than hanging. That grant is deliberately a visible line in config, not
-something you get by typing `runner: opencode`; pair it with opencode's own deny rules. Effort maps
-to `--variant` and passes through unmapped, including docket's `max`. Full adapter contract:
+something you get by typing `runner: opencode`; pair it with opencode's own deny rules. `effort:`
+maps to `--variant` and passes through unmapped, including docket's `max` — but note it follows the
+same never-forward-a-shipped-default rule as `model:` **without** the matching error, so omitting it
+silently yields no `--variant` and the provider's default effort. Full adapter contract:
 `scripts/runners/opencode.md`; the config recipe is in
 [docs/opencode/setup.md](docs/opencode/setup.md).
 
