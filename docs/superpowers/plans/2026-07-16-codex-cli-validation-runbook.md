@@ -1,3 +1,7 @@
+<!-- docket:backlink:start (generated — do not hand-edit) -->
+> ↩ **[Change 0078 — Codex CLI live-validation runbook — prove docket works end-to-end under Codex](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-05-0078-codex-cli-validation-runbook.md)**
+<!-- docket:backlink:end -->
+
 # Codex CLI Live-Validation Runbook Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
