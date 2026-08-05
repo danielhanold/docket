@@ -234,7 +234,9 @@ Following the existing adapter tests:
   they do not gate this change, which is a further argument for option A.
 - **Sidecar cross-indexing** (option C), and any change to 0168's provenance rule beyond the
   required-model error.
-- **Codex work.** Change 0078's validation runbook is being deferred as built on outdated logic.
+- **Codex work.** Change 0078's validation runbook sits at `implemented` (PR #89 open) and is
+  settled separately. The only codex-facing effect here is the shared runner-wide required-model
+  rule, which is framework-level by design.
 - **New delegatable-agent restrictions.** The framework's existing rule is unchanged; this ships
   capability, and which agents are pinned is user config.
 - **Parent harnesses other than `claude`.** `runner:` under another harness key stays reserved and

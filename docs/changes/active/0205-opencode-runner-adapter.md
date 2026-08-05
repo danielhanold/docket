@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable: false
 branch: feat/opencode-runner-adapter
-claimed_at: 2026-08-05T01:10:17Z
+claimed_at: 2026-08-05T01:12:01Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -83,7 +83,9 @@ retune silently change delegated builds. Rationale in the spec.
 - **Model retuning** — change 0195 owns the opencode default table and its open questions.
 - **Sidecar cross-indexing**, and any change to 0168's provenance rule beyond the required-model
   error.
-- **Codex work** — change 0078 is being deferred separately as built on outdated logic.
+- **Codex work** — change 0078 (Codex CLI validation runbook) sits at `implemented` with PR #89
+  open and is settled separately; this change touches no codex adapter behavior except the shared
+  runner-wide required-model rule.
 - **New restrictions on which agents are delegatable** — unchanged; this ships capability, and
   which agents are pinned is user config.
 - **Parent harnesses other than `claude`** — `runner:` elsewhere stays reserved.
@@ -103,3 +105,29 @@ All are live-session verify items, not design gaps; enumerated with reasoning in
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+### 2026-08-05
+
+Verified the whole design against current `main`. Every load-bearing premise still holds:
+
+- `REGISTERED_RUNNERS="codex cursor"` (sync-agents.sh:87) — unchanged since 0192, so the opencode
+  token is still net-new.
+- `scripts/runners/` holds exactly `codex.{sh,md}` and `cursor.{sh,md}`; no opencode adapter exists.
+- `runner-dispatch.sh` already resolves an arbitrary `runners.<name>:` block per-key across the
+  config layers and exports each key as `DOCKET_RUNNER_CFG_<KEY>`, so the new
+  `runners.opencode.permissions` knob needs **no** resolver plumbing — only adapter-side reading,
+  exactly as `runners.codex.sandbox` does via `DOCKET_RUNNER_CFG_SANDBOX`.
+- 0168's provenance rule is live at `emit_wrapper` (sync-agents.sh:849-852) as
+  `RES_MODEL_FROM_USER`/`RES_EFFORT_FROM_USER` gates, which is precisely the site the runner-wide
+  required-model error attaches to — an empty `flag_model` on a `runner:`-bearing claude agent.
+- `docs/opencode/setup.md` exists (created by 0192) and is the right home for the config recipe.
+- 0192's opencode harness support is merged and archived; change 0195 (default-table retune) is
+  still `proposed`/needs-brainstorm, so option A's decoupling argument stands unchanged.
+
+One correction: the change and spec both said change 0078 was "being deferred as built on outdated
+logic." It is in fact `implemented` with PR #89 open. Corrected in both — it changes no scope, since
+0078 was already out of scope either way.
+
+No scope adjustments otherwise. Auto-capture: no follow-up work surfaced that is not already
+tracked (the model-table retune is 0195; the live-verify items are this change's own open questions,
+resolved at build time).
