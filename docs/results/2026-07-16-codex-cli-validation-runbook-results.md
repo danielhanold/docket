@@ -33,3 +33,30 @@ Change: #78 · Branch: feat/codex-cli-validation-runbook · PR: <url> · Plan: d
 - **Every gap the runbook finds** becomes a `proposed` stub when you execute it — including, if Phase 4 says so, user-level `~/.codex/AGENTS.md` dispatch (ADR-0036's deferred decision).
 - **Consider a repo-level defense for the silent-fake-slug hazard** in the first finding: a harness-specific model that resolves from the *global* layer is currently indistinguishable from a validated one. Options range from a note in `docs/codex/setup.md` to a `sync-agents.sh --check` leg. Worth a stub only if executing the runbook confirms it bites in practice.
 - **`config.yml.example`'s codex block is copy-paste bait.** It ships commented, but the machine config proves it gets uncommented verbatim, slugs and all. A stub to make the example self-defeating (obviously-invalid placeholder slugs rather than plausible-looking ones) may be worth more than the doc warning it already carries.
+
+## Not tested — 2026-08-05
+
+**The runbook in this change was never executed.** It is merged as a historical record, not as
+evidence that docket works under Codex CLI.
+
+Recorded plainly so no later reader mistakes the merge for a validation:
+
+- The six-phase checklist in `docs/codex/validation-runbook.md` was **never run against a live
+  Codex CLI session** — not at merge time, and not at any point between authoring (2026-07-16) and
+  merge (2026-08-05).
+- The spec's **deliverables 2 (execution results) and 3 (follow-up stubs) were never produced**.
+  Every "Follow-ups" item above remains hypothetical: each was contingent on executing the runbook.
+- **ADR-0036's deferred question stays deferred.** Whether Codex honors the `AGENTS.md` dispatch
+  block is exactly what Phase 4 existed to settle, and it did not.
+- The merge gate that passed here validated only that the runbook is **internally correct and its
+  structural guard is green** — the same scope the PR body claimed from the start ("is this runbook
+  correct and executable?", never "did Codex pass?").
+
+One asymmetry worth stating, because it is easy to misread. At merge the runbook was repaired to
+match docket's current sixteen-agent roster (commit `3f79be27`): it had been authored against nine
+agents, and both glob-derived assertions in `tests/test_codex_runbook.sh` reddened after the rebase.
+So the document is now **more current than it has ever been validated to be** — it describes the
+present agent set, while carrying zero execution evidence at any roster size.
+
+The change is being closed out on the human's explicit direction, with codex validation effort
+redirected to opencode (see change 0205, the opencode runner adapter).
