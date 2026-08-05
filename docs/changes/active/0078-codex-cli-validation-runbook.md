@@ -66,6 +66,24 @@ doc; every gap becomes a follow-up stub. Passes when phases 1–3 and 6 are gree
 - None beyond the spec's noted doc-drift risk (re-check live Codex docs when finalizing
   exact commands).
 
+## Not tested
+
+- **2026-08-05** — The runbook this change ships was **never executed**. It is merged as a
+  historical record, not as evidence that docket works under Codex CLI.
+  - The six-phase checklist in `docs/codex/validation-runbook.md` was never run against a live
+    Codex CLI session, at any point between authoring (2026-07-16) and merge (2026-08-05).
+  - The spec's deliverables 2 (execution results) and 3 (follow-up stubs) were never produced.
+  - **ADR-0036's deferred question stays deferred** — whether Codex honors the `AGENTS.md`
+    dispatch block is what Phase 4 existed to settle, and it did not.
+  - The merge gate validated only that the runbook is internally correct and its structural guard
+    green — the scope the PR body claimed throughout ("is this runbook correct and executable?",
+    never "did Codex pass?").
+  - At merge the pin block was repaired to docket's current sixteen-agent roster (`3f79be27`); it
+    had been authored against nine. The document is therefore **more current than it has ever been
+    validated to be**.
+  - Closed out on the human's explicit direction, with codex validation effort redirected to
+    opencode (change 0205).
+
 ## Reconcile log
 
 ### 2026-07-16 — reconciled at claim (build time)
