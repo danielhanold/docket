@@ -1,15 +1,16 @@
 # Backlog
 
-**214 changes** — 🟢 2 in progress · 🟡 54 proposed · ⚪ 4 deferred · ✅ 134 done · 🗑️ 20 killed
+**214 changes** — 🟢 3 in progress · 🟡 53 proposed · ⚪ 4 deferred · ✅ 134 done · 🗑️ 20 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (3)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0190](active/0190-close-the-build-evidence-value-gap-a-post-gate-results-commi.md) | Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip | `medium` | `feat` | [spec](../superpowers/specs/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md) | `feat/close-the-build-evidence-value-gap-a-post-gate-results-commi` |
 | [0202](active/0202-clear-the-unfixed-review-findings-from-change-0113.md) | Clear the unfixed review findings from change 0113 | `high` | `chore` | [spec](../superpowers/specs/2026-08-05-clear-the-unfixed-review-findings-from-change-0113-design.md) | `feat/clear-the-unfixed-review-findings-from-change-0113` |
+| [0207](active/0207-sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a.md) | sync-agents aborts mid-loop on a bad runner config, leaving a zero-length wrapper and stale siblings | `medium` | `fix` | [spec](../superpowers/specs/2026-08-05-atomic-wrapper-generation-design.md) | `feat/sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a` |
 
-## 🟡 Proposed (54)
+## 🟡 Proposed (53)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -59,7 +60,6 @@
 | [0200](active/0200-clear-the-unfixed-review-findings-from-change-0191.md) | Clear the unfixed review findings from change 0191 | `medium` | `chore` | needs-brainstorm |
 | [0203](active/0203-define-the-per-step-git-state-postcondition-docket-implement.md) | Define the per-step git-state postcondition docket-implement-next now names but never states | `medium` | `docs` | build-ready |
 | [0204](active/0204-restore-rationale-dropped-by-round-three-compression-finaliz.md) | Restore rationale dropped by round-three compression (finalize named-id override, auto-capture mint-site loop) | `medium` | `docs` | needs-brainstorm |
-| [0207](active/0207-sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a.md) | sync-agents aborts mid-loop on a bad runner config, leaving a zero-length wrapper and stale siblings | `medium` | `fix` | build-ready |
 | [0208](active/0208-runner-dispatch-worktree-gate-3-proves-repo-containment-not.md) | runner-dispatch --worktree gate 3 proves repo containment, not worktree membership | `medium` | `fix` | needs-brainstorm |
 | [0209](active/0209-the-worktree-requirement-covers-build-only-leaving-three-fea.md) | The --worktree requirement covers build-* only, leaving three feature-scoped agent families ungated | `medium` | `fix` | needs-brainstorm |
 | [0210](active/0210-a-valueless-trailing-flag-hangs-runner-dispatch-forever-inst.md) | A valueless trailing flag hangs runner-dispatch forever instead of aborting | `medium` | `fix` | needs-brainstorm |
