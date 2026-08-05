@@ -1,13 +1,14 @@
 # Backlog
 
-**217 changes** — 🟢 2 in progress · 🟡 56 proposed · ⚪ 4 deferred · ✅ 135 done · 🗑️ 20 killed
+**218 changes** — 🟢 3 in progress · 🟡 56 proposed · ⚪ 4 deferred · ✅ 135 done · 🗑️ 20 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (3)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0190](active/0190-close-the-build-evidence-value-gap-a-post-gate-results-commi.md) | Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip | `medium` | `feat` | [spec](../superpowers/specs/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md) | `feat/close-the-build-evidence-value-gap-a-post-gate-results-commi` |
 | [0207](active/0207-sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a.md) | sync-agents aborts mid-loop on a bad runner config, leaving a zero-length wrapper and stale siblings | `medium` | `fix` | [spec](../superpowers/specs/2026-08-05-atomic-wrapper-generation-design.md) | `feat/sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a` |
+| [0212](active/0212-an-inlined-role-skill-s-terminal-stop-ends-the-whole-run-sco.md) | An inlined role skill's terminal stop ends the whole run — scope docket-build's stop and enforce the run disposition | `medium` | `fix` | [spec](../superpowers/specs/2026-08-05-inlined-role-terminal-stop-scoping-design.md) | `feat/an-inlined-role-skill-s-terminal-stop-ends-the-whole-run-sco` |
 
 ## 🟡 Proposed (56)
 
@@ -63,12 +64,12 @@
 | [0209](active/0209-the-worktree-requirement-covers-build-only-leaving-three-fea.md) | The --worktree requirement covers build-* only, leaving three feature-scoped agent families ungated | `medium` | `fix` | needs-brainstorm |
 | [0210](active/0210-a-valueless-trailing-flag-hangs-runner-dispatch-forever-inst.md) | A valueless trailing flag hangs runner-dispatch forever instead of aborting | `medium` | `fix` | needs-brainstorm |
 | [0211](active/0211-aborted-run-is-blind-to-a-run-that-stops-after-the-build-com.md) | aborted-run is blind to a run that stops after the build: commits on an unpushed branch, every field coherent | `high` | `fix` | build-ready |
-| [0212](active/0212-an-inlined-role-skill-s-terminal-stop-ends-the-whole-run-sco.md) | An inlined role skill's terminal stop ends the whole run — scope docket-build's stop and enforce the run disposition | `medium` | `fix` | build-ready |
 | [0213](active/0213-settle-the-bash-4-4-mapfile-d-floor-inconsistency-between-te.md) | Settle the bash 4.4 mapfile -d floor inconsistency between tests and shipped scripts | `medium` | `chore` | needs-brainstorm |
 | [0214](active/0214-agents-md-s-promoted-frontmatter-rule-omits-the-whitespace-c.md) | AGENTS.md's promoted frontmatter rule omits the whitespace-class half that corrupted two field writes | `medium` | `docs` | needs-brainstorm |
 | [0215](active/0215-escape-newlines-in-board-checks-sanitize-now-that-z-can-deli.md) | Escape newlines in board-checks sanitize now that -z can deliver a raw LF | `medium` | `fix` | needs-brainstorm |
 | [0216](active/0216-guard-the-capture-shape-constraint-in-branch-only-artifact-w.md) | Guard the capture-shape constraint in branch_only_artifact with a mutation G | `medium` | `chore` | needs-brainstorm |
 | [0217](active/0217-clear-change-0202-s-three-minor-findings-dead-guard-stale-ba.md) | Clear change 0202's three minor findings: dead guard, stale baseline comment, wrong plan pattern | `medium` | `chore` | needs-brainstorm |
+| [0218](active/0218-fix-review-findings-in-branch-instead-of-minting-a-stub-for.md) | Fix review findings in-branch instead of minting a stub for every one | `high` | `feat` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -143,6 +144,7 @@ graph TD
   0215
   0216
   0217
+  0218
   0015:::done
   0175:::done
   0192:::done
