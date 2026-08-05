@@ -66,6 +66,10 @@ write the spec to the configured spec path and **STOP AT THE SPEC** — the 0049
 artifact/stop-point is unchanged. Do NOT continue to `superpowers:writing-plans`;
 planning is build-time, owned by `docket-implement-next`.
 
+**Scope of this stop:** if you invoked this skill yourself, this stop ends only the brainstorm
+role — you continue to your own next step (for `docket-new-change`, its Steps 3–5: draft, commit,
+push & Board pass); only an agent whose entire assignment is this role ends its turn here.
+
 ## Degrade rule (ADR-0018)
 
 If the consultant cannot be dispatched — agents not synced, harness without dispatch,

@@ -76,6 +76,7 @@ skills/docket-review/SKILL.md|An unmet precondition or a blocking ambiguity is *
 skills/docket-status/SKILL.md|stop rather than improvising a fix|hard-error stop (Tier A inline path)
 skills/docket-build-task/SKILL.md|If you were dispatched as an **escalated** worker|second-person prohibitions
 skills/docket-build-task/SKILL.md|Return exactly one of three outcomes|terminal return
+skills/docket-brainstorm/SKILL.md|STOP AT THE SPEC|terminal stop (always-inlined body)
 "
 
 while IFS='|' read -r rel anchor what; do
@@ -116,7 +117,9 @@ for a in "If you were dispatched as an **escalated** worker" "Return exactly one
     'case "$bt_win" in *"$PRELOAD"*) true ;; *) false ;; esac'
 done
 
-# --- Recorded no-hazard verdicts (the sweep's deliverable is a per-file verdict, not an edit set) ---
+# --- Recorded no-hazard verdicts (the sweep's deliverable is a per-file verdict, not an edit set).
+# Of the six swept bodies only docket-adr's verdict is still no-hazard; docket-brainstorm's was
+# revised to a scoped SITES row (see below and the table above). ---
 # docket-adr: no terminal stop and no second-person prohibition; the body ends on a validation
 # invocation. Asserted live rather than left as a comment, so a future edit that introduces a stop
 # without scoping it reddens here.
@@ -126,13 +129,19 @@ assert "docket-adr still names itself (live presence, non-vacuity)" 'grep -qF --
 adr_stops="$(grep -icE "then you stop|your turn ends|never (writes|commits|dispatches)" "$ADR" || true)"
 assert "docket-adr carries no unscoped stop or prohibition (found $adr_stops)" '[ "$adr_stops" -eq 0 ]'
 
-# docket-brainstorm: its stop is the HOUSE PATTERN — it stops, then names the owner of the next step.
-# Assert the naming half, which is the part that makes the stop safe.
+# docket-brainstorm: NOT a no-hazard verdict — it is a SWEPT SITE (see the SITES table above), and
+# the only swept body with no `context: fork` frontmatter, so it is ALWAYS loaded into its caller's
+# context (`docket-new-change` §2, `docket-groom-next`) and its own Degrade rule makes inline a
+# first-class path. Its house-pattern naming half names `docket-implement-next` as the owner of
+# PLANNING — a downstream skill, not the caller's next step; an inlining `docket-new-change` still
+# has Steps 3–5 (scan related context, draft the change, commit/push/Board pass) after the
+# brainstorm, so that naming alone did not make the stop safe. The mode-conditioned clause is what
+# does, and it is asserted mechanically by the SITES row. The naming assert is KEPT, not superseded:
+# it is a different property (the artifact/stop-point boundary against `writing-plans`), and it is
+# the thing that would silently vanish if the stop paragraph were reworded around the new clause.
 BS="$REPO/skills/docket-brainstorm/SKILL.md"
 assert "docket-brainstorm exists and is non-empty" '[ -s "$BS" ]'
-bs_ln="$(anchor_line "$BS" "STOP AT THE SPEC")"
-assert "docket-brainstorm still carries its stop anchor" '[ -n "$bs_ln" ]'
-assert "docket-brainstorm's stop names the owner of the next step" \
+assert "docket-brainstorm's stop still names planning's owner" \
   'grep -qF -- "owned by \`docket-implement-next\`" "$BS"'
 
 # --- Non-vacuity anchor #3 (mutation-in-fixture): the matcher must FIRE on an unscoped site. ---
