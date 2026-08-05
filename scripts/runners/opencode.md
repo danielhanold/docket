@@ -13,12 +13,12 @@ build profile workers can be delegated to cheap models while the review rungs st
 parent's own subscription. Because build and review are already separate wrappered agents
 (ADR-0063), that split needs no new mechanism — just `runner:` on the rows you want to leave.
 
-**Known limitation — that motivating use is not usable yet (change #0206).** `runner-dispatch.sh`
-sets `DOCKET_REPO_ROOT` to the run anchor — the main worktree by default, or the tree named by
-`--worktree` (both cwd-independent by design, ADR-0034) — and this
-adapter passes it to `--dir`. Correct for the metadata-scoped agents delegation previously shipped
-for; wrong for a build worker, whose contract requires the feature worktree on its branch. Until
-#0206 resolves the anchoring rule, delegating `build-*` starts the child in the primary checkout.
+Delegating a build worker therefore turns on **where the child starts**. `runner-dispatch.sh` sets
+`DOCKET_REPO_ROOT` to the run anchor — the main worktree by default, or the tree named by
+`--worktree` (both cwd-independent by design, ADR-0034) — and this adapter passes it to `--dir`.
+The default suits the metadata-scoped agents delegation first shipped for; a build worker's
+contract requires the feature worktree on its branch, so the facade **requires** `--worktree` for a
+`build-*` agent and aborts loudly when it names none (change 0206).
 
 ## Usage
 

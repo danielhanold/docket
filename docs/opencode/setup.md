@@ -123,16 +123,13 @@ runners:
 
 Re-run `sync-agents.sh` after editing, and restart the parent session.
 
-> ⚠️ **Known limitation — `build-*` delegation is not usable yet (change #0206).**
-> `runner-dispatch.sh` anchors every delegated run at the repo's **main worktree**
-> (`docket_main_worktree()`, cwd-independent by design — ADR-0034) and hands that path to
-> `opencode run --dir`. That is correct for the agents delegation shipped for previously
-> (`status`, `adr`), which are metadata-scoped. It is **wrong for a build worker**, whose contract
-> requires it to stay inside the feature worktree on its branch: the child would start in the
-> primary checkout, on whatever branch it has checked out, with `--auto` approval, while the
-> feature branch receives nothing. The recipe above is written for the shape delegation will have
-> once #0206 lands; until then treat it as a preview and verify where the child actually works
-> before trusting it.
+> **Where the child works.** `runner-dispatch.sh` anchors a delegated run at the repo's **main
+> worktree** by default (`docket_main_worktree()`, cwd-independent by design — ADR-0034) and hands
+> that path to `opencode run --dir`. That suits the metadata-scoped agents (`status`, `adr`), but a
+> build worker's contract requires it to stay inside the feature worktree on its branch — so a
+> delegated build worker runs in the tree named by `--worktree`, which the generated `build-*`
+> shims carry, and the facade aborts a `build-*` delegation that names none rather than silently
+> starting the child in the primary checkout.
 
 **Delegate leaves, not orchestrators.** A delegated run's own sub-dispatches run child-natively, so
 delegating an orchestrator drags everything beneath it into the child. Delegate
