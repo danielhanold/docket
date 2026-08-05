@@ -260,6 +260,17 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # references/ tree; a created one could not intervene at the moment the return instruction is read.
 # ## Scope's worktree bullet was compressed first; set from the measured actual: 117 -> 120,
 # 1035 -> 1100 (1050 lands within 25 words of the actual, so the next multiple is taken).
+# skills/docket-implement-next/SKILL.md's budget was raised 145/3800 -> 150/3850 by change 0212,
+# which added the run-disposition obligation the agent must discharge when it decides the run is
+# over. The row was sitting at EXACTLY the measured actual on both axes — 145 lines, 3800 words,
+# zero headroom — which is the failure mode this comment block's 0102 and 0137 entries record: one
+# word of margin means the next edit to the file reddens CI on arrival, so the raise is taken now
+# rather than deferred. The considered home was skills/docket-implement-next/references/edge-paths.md,
+# and the obligation cannot live there: edge-paths.md is read CONDITIONALLY, only when the run hits
+# one of its named edges, whereas the closing obligation must already be in context on EVERY run at
+# the moment the agent decides it is finished. The run that ends early is exactly the run that never
+# reaches a conditional read, so a reference-file home would be absent precisely when it is needed.
+# Set from the measured actual per the rule above: 145 lines -> 150, 3800 words -> 3850.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -276,7 +287,7 @@ skills/docket-convention/references/terminal-close-out.md  173 1458
 skills/docket-finalize-change/SKILL.md                     180 3450
 skills/docket-finalize-change/references/gate-failure.md    35  900
 skills/docket-groom-next/SKILL.md                           77 1484
-skills/docket-implement-next/SKILL.md                      145 3800
+skills/docket-implement-next/SKILL.md                      150 3850
 skills/docket-implement-next/references/edge-paths.md       35  450
 skills/docket-implement-next/results-template.md            24  172
 skills/docket-review/SKILL.md                              105  900

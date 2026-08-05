@@ -18,8 +18,8 @@ subagent, and never load a review skill.
 - Implement only that task. Work outside its boundary belongs to another worker.
 - Never rewrite, amend, or revert earlier task commits, and never touch unrelated user work.
 - Stay **inside the feature worktree, on its branch**, performing **no docket metadata operations**:
-  never write to `.docket/`, the metadata branch, change files, ADRs, the board, or the learnings
-  ledger; never push, force-push, `reset --hard`, or rebase. The controller owns all of that.
+  never write to `.docket/`, the metadata branch, change files, ADRs, the board, or the
+  learnings ledger; never push, force-push, `reset --hard`, or rebase. The controller owns that.
 - A plan's `- [ ]` checkboxes are **not** progress state — do not tick them. Your commit is the
   record of what you finished; nothing reads the marks.
 - Repository instructions — `AGENTS.md`, `CLAUDE.md`, and any nested equivalents — **override**
