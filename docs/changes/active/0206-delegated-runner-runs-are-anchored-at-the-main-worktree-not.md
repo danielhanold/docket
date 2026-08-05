@@ -2,7 +2,7 @@
 id: 206
 slug: delegated-runner-runs-are-anchored-at-the-main-worktree-not
 title: Delegated runner runs are anchored at the main worktree, not the feature worktree
-status: in-progress
+status: implemented
 priority: medium
 type: fix
 created: 2026-08-05
@@ -13,12 +13,12 @@ discovered_from: [205]
 adrs: [34, 68]
 spec: docs/superpowers/specs/2026-08-05-delegated-run-worktree-anchor-design.md
 plan: docs/superpowers/plans/2026-08-05-delegated-run-worktree-anchor-plan.md
-results:
+results: docs/results/2026-08-05-delegated-runner-runs-are-anchored-at-the-main-worktree-not-results.md
 trivial: false
 auto_groomable:
 branch: feat/delegated-runner-runs-are-anchored-at-the-main-worktree-not
-claimed_at: 2026-08-05T14:35:28Z
-pr:
+claimed_at: 2026-08-05T14:46:59Z
+pr: https://github.com/danielhanold/docket/pull/157
 blocked_by:
 reconciled: true
 ---
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-05-delegated-run-worktree-anchor-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-05-delegated-run-worktree-anchor-design.md) |
 | Plan | [2026-08-05-delegated-run-worktree-anchor-plan.md](https://github.com/danielhanold/docket/blob/feat/delegated-runner-runs-are-anchored-at-the-main-worktree-not/docs/superpowers/plans/2026-08-05-delegated-run-worktree-anchor-plan.md) |
+| Results | [2026-08-05-delegated-runner-runs-are-anchored-at-the-main-worktree-not-results.md](https://github.com/danielhanold/docket/blob/feat/delegated-runner-runs-are-anchored-at-the-main-worktree-not/docs/results/2026-08-05-delegated-runner-runs-are-anchored-at-the-main-worktree-not-results.md) |
+| PR | [#157](https://github.com/danielhanold/docket/pull/157) |
 | ADRs | [ADR-0034](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0034-repo-root-anchored-to-main-worktree.md), [ADR-0068](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0068-delegated-run-anchor-is-an-explicit-argument.md) |
 <!-- docket:artifacts:end -->
 
