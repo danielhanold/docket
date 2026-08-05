@@ -1,14 +1,15 @@
 # Backlog
 
-**207 changes** — 🟢 1 in progress · 🟡 49 proposed · ⚪ 4 deferred · ✅ 133 done · 🗑️ 20 killed
+**207 changes** — 🟢 2 in progress · 🟡 48 proposed · ⚪ 4 deferred · ✅ 133 done · 🗑️ 20 killed
 
-## 🟢 In progress (1)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0190](active/0190-close-the-build-evidence-value-gap-a-post-gate-results-commi.md) | Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip | `medium` | `feat` | [spec](../superpowers/specs/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md) | `feat/close-the-build-evidence-value-gap-a-post-gate-results-commi` |
+| [0206](active/0206-delegated-runner-runs-are-anchored-at-the-main-worktree-not.md) | Delegated runner runs are anchored at the main worktree, not the feature worktree | `medium` | `fix` | [spec](../superpowers/specs/2026-08-05-delegated-run-worktree-anchor-design.md) | `feat/delegated-runner-runs-are-anchored-at-the-main-worktree-not` |
 
-## 🟡 Proposed (49)
+## 🟡 Proposed (48)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -59,7 +60,6 @@
 | [0202](active/0202-clear-the-unfixed-review-findings-from-change-0113.md) | Clear the unfixed review findings from change 0113 | `medium` | `chore` | needs-brainstorm |
 | [0203](active/0203-define-the-per-step-git-state-postcondition-docket-implement.md) | Define the per-step git-state postcondition docket-implement-next now names but never states | `medium` | `docs` | needs-brainstorm |
 | [0204](active/0204-restore-rationale-dropped-by-round-three-compression-finaliz.md) | Restore rationale dropped by round-three compression (finalize named-id override, auto-capture mint-site loop) | `medium` | `docs` | needs-brainstorm |
-| [0206](active/0206-delegated-runner-runs-are-anchored-at-the-main-worktree-not.md) | Delegated runner runs are anchored at the main worktree, not the feature worktree | `medium` | `fix` | build-ready |
 | [0207](active/0207-sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a.md) | sync-agents aborts mid-loop on a bad runner config, leaving a zero-length wrapper and stale siblings | `medium` | `fix` | build-ready |
 
 ## ⚪ Deferred (4)
