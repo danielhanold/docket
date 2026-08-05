@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0212 — An inlined role skill's terminal stop ends the whole run — scope docket-build's stop and enforce the run disposition](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0212-an-inlined-role-skill-s-terminal-stop-ends-the-whole-run-sco.md)**
+> ↩ **[Change 0212 — An inlined role skill's terminal stop ends the whole run — scope docket-build's stop and enforce the run disposition](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-05-0212-an-inlined-role-skill-s-terminal-stop-ends-the-whole-run-sco.md)**
 <!-- docket:backlink:end -->
 
 # Inlined Role Terminal Stop Scoping Implementation Plan
