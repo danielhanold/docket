@@ -2,7 +2,7 @@
 id: 212
 slug: an-inlined-role-skill-s-terminal-stop-ends-the-whole-run-sco
 title: An inlined role skill's terminal stop ends the whole run — scope docket-build's stop and enforce the run disposition
-status: in-progress
+status: implemented
 priority: medium
 type: fix
 created: 2026-08-05
@@ -13,12 +13,12 @@ discovered_from: [113]
 adrs: [69]
 spec: docs/superpowers/specs/2026-08-05-inlined-role-terminal-stop-scoping-design.md
 plan: docs/superpowers/plans/2026-08-05-inlined-role-terminal-stop-scoping.md
-results:
+results: docs/results/2026-08-05-an-inlined-role-skill-s-terminal-stop-ends-the-whole-run-sco-results.md
 trivial: false
 auto_groomable: true
 branch: feat/an-inlined-role-skill-s-terminal-stop-ends-the-whole-run-sco
-claimed_at: 2026-08-05T18:34:28Z
-pr:
+claimed_at: 2026-08-05T21:22:41Z
+pr: https://github.com/danielhanold/docket/pull/161
 blocked_by:
 reconciled: true
 ---
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-05-inlined-role-terminal-stop-scoping-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-05-inlined-role-terminal-stop-scoping-design.md) |
 | Plan | [2026-08-05-inlined-role-terminal-stop-scoping.md](https://github.com/danielhanold/docket/blob/feat/an-inlined-role-skill-s-terminal-stop-ends-the-whole-run-sco/docs/superpowers/plans/2026-08-05-inlined-role-terminal-stop-scoping.md) |
+| Results | [2026-08-05-an-inlined-role-skill-s-terminal-stop-ends-the-whole-run-sco-results.md](https://github.com/danielhanold/docket/blob/feat/an-inlined-role-skill-s-terminal-stop-ends-the-whole-run-sco/docs/results/2026-08-05-an-inlined-role-skill-s-terminal-stop-ends-the-whole-run-sco-results.md) |
+| PR | [#161](https://github.com/danielhanold/docket/pull/161) |
 | ADRs | [ADR-0069](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0069-mode-conditioned-clause-discriminates-on-provenance.md) |
 <!-- docket:artifacts:end -->
 
