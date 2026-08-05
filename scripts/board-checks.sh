@@ -181,9 +181,11 @@ ABORTED_RUN_STALE_SECS=$(( 12 * 3600 ))
 # real exposure is that tail, not the whole build span. 2h covers it with room and is 6x tighter
 # than leg B's 12h (the same ratio leg B took against the 72h lease).
 #
-# The residual, stated rather than hidden: a marathon tail with no post-review commit WILL fire leg
-# C on a healthy run. That finding is free, advisory, and self-clearing the moment the PR is
-# recorded — and a floor loose enough never to misfire would be loose enough to stop detecting.
+# The residual, stated rather than hidden: the floor keys on the branch TIP, so ANY gap longer than
+# this between commits on a live run fires leg C — a marathon tail with no post-review commit, but
+# equally a single long build task sitting between two per-task commits. That finding is free,
+# advisory, and self-clearing the moment the next commit lands or the PR is recorded — and a floor
+# loose enough never to misfire would be loose enough to stop detecting.
 ABORTED_RUN_IDLE_SECS=$(( 2 * 3600 ))
 
 # renders_row DIR_KIND ID STATUS — exit 0 iff render-board.sh would account for a file in DIR_KIND
@@ -452,17 +454,23 @@ for f in "${FILES[@]}"; do
     #
     # Gates are ordered CHEAPEST FIRST, and the ordering is a cost contract, not a style choice:
     # the FREE frontmatter read decides the common case (a change with a recorded PR costs ZERO git
-    # calls), a non-firing path costs at most three, and the remote-ref probe runs only once the leg
-    # has already decided to fire. This path is cost-sensitive (change 0176).
+    # calls), a non-firing path costs at most four (`log -1`, the two base `show-ref`s, and
+    # `rev-list -n 1`), and the remote-ref probe runs only once the leg has already decided to fire:
+    # at most six in total, and five on the pushed arm, which skips the `rev-list --count`. This
+    # path is cost-sensitive (change 0176).
     #
     # A non-empty pr: short-circuits the WHOLE leg. A change whose PR is recorded has delivered;
     # "unpushed branch with a recorded PR" means the PR record and the remote disagree, which is a
     # different defect with a different remedy that leg C would be a misleading oracle for.
     if [ -z "$(fm_field "$f" pr)" ] && [ -n "$ar_ref" ]; then
-      # ar_ref is REUSED from leg A but RE-GUARDED, and the guard is not optional: leg C runs
-      # OUTSIDE leg A's `if ar_ref="$(branch_ref …)"`, and a failed branch_ref leaves ar_ref SET BUT
-      # EMPTY. Without the -n test, `log -1 --format=%ct ""` returns empty, `NOW - ""` is NOW, and
-      # the idle floor evaluates TRUE for a change with no branch at all.
+      # ar_ref is REUSED from leg A but RE-GUARDED: leg C runs OUTSIDE leg A's
+      # `if ar_ref="$(branch_ref …)"`, and a failed branch_ref leaves ar_ref SET BUT EMPTY. The
+      # guard is a COST guard, not a correctness one, and the distinction is worth stating so
+      # nobody deletes it on a false premise: `git log -1 --format=%ct ""` exits 128 with empty
+      # stdout, so the `[ -n "$ar_tip" ]` test on the very next line already keeps the idle floor
+      # unreachable for a change with no branch. The -n test is kept because it skips that
+      # pointless git call on every branchless in-progress change. Delete it and the leg still
+      # behaves correctly — it just pays for a git invocation that can only fail.
       ar_tip="$("$GIT" -C "$CHANGES_DIR" log -1 --format=%ct "$ar_ref" 2>/dev/null)"
       if [ -n "$ar_tip" ] && [ "$(( NOW - ar_tip ))" -gt "$ABORTED_RUN_IDLE_SECS" ]; then
         # Ahead of BOTH bases. Feature branches are cut from origin/<integration_branch> while
@@ -487,7 +495,6 @@ for f in "${FILES[@]}"; do
            [ -n "$("$GIT" -C "$CHANGES_DIR" rev-list -n 1 "$ar_ref" --not "${ar_bases[@]}" 2>/dev/null)" ]; then
           # Display values only, computed ONLY on the firing path where their cost is irrelevant and
           # they are what make the finding actionable.
-          ar_ahead="$("$GIT" -C "$CHANGES_DIR" rev-list --count "$ar_ref" --not "${ar_bases[@]}" 2>/dev/null)"
           ar_idle_h=$(( (NOW - ar_tip) / 3600 ))
           # One emit site, two mutually-exclusive messages. `origin` is hardcoded, inheriting
           # branch_ref's existing convention rather than inventing a second one. A STALE
@@ -497,7 +504,23 @@ for f in "${FILES[@]}"; do
           if "$GIT" -C "$CHANGES_DIR" show-ref --verify --quiet "refs/remotes/origin/$ar_branch"; then
             emit aborted-run "$id" "$ar_branch is pushed but pr: is unset (last commit ${ar_idle_h}h ago) — the run stopped between the push and the PR record; open the PR or record it"
           else
-            emit aborted-run "$id" "$ar_ahead commits on $ar_branch ahead of $INTEGRATION_BRANCH, branch never pushed and pr: is unset (last commit ${ar_idle_h}h ago) — the run stopped before it opened its PR; push and open it, or re-run the step"
+            # The count and its base label are built HERE, on the only arm that prints them: the
+            # pushed arm above would pay for a second rev-list traversal it never reads.
+            ar_ahead="$("$GIT" -C "$CHANGES_DIR" rev-list --count "$ar_ref" --not "${ar_bases[@]}" 2>/dev/null)"
+            # Name the bases the count ACTUALLY excluded, read back off ar_bases rather than
+            # hardcoded. With a stale local integration ref the two bases differ, and a message
+            # naming only "$INTEGRATION_BRANCH" cannot be reconciled with
+            # `git rev-list --count <integration>..<branch>`; naming BOTH unconditionally would be a
+            # fresh lie whenever only one base resolved. The ref prefixes are stripped so it reads
+            # as the names a human types (`main and origin/main`).
+            ar_base_label=""
+            for ar_bl in "${ar_bases[@]}"; do
+              ar_bl="${ar_bl#refs/heads/}"; ar_bl="${ar_bl#refs/remotes/}"
+              ar_base_label="${ar_base_label:+$ar_base_label and }$ar_bl"
+            done
+            # "1 commits" reads as a bug in the check itself, which is corrosive for an advisory.
+            if [ "$ar_ahead" = 1 ]; then ar_noun=commit; else ar_noun=commits; fi
+            emit aborted-run "$id" "$ar_ahead $ar_noun on $ar_branch ahead of $ar_base_label, branch never pushed and pr: is unset (last commit ${ar_idle_h}h ago) — the run stopped before it opened its PR; push and open it, or re-run the step"
           fi
         fi
       fi
