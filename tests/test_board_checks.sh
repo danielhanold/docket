@@ -958,6 +958,13 @@ assert "the leg-A plan finding names the plan: field and the offending path (id 
   'grep -qF -- "plan: is unset" <<<"$ar1line" && grep -qF -- "$AR_PLAN_NEW" <<<"$ar1line"'
 assert "aborted-run fires exactly ONCE for id 201 (leg B must stay silent on a fresh claim)" \
   '[ "$(grep -cE "$(printf "^aborted-run\t201\t")" <<<"$ar1out")" = 1 ]'
+# Leg C (change 0211) shares this check-id, and 201 satisfies three of its four conjuncts: feat/ar1
+# is ahead of main and pr: is absent. It stays silent only because ar_branch dates its commit with
+# the real wall clock while NOW is NOW_EPOCH, making the idle floor's delta NEGATIVE. Name the
+# intent, so re-dating this fixture reddens here — with a message that says why — instead of
+# silently turning the count above into 2.
+assert "leg C stays out of the id-201 count: no leg-C message on 201" \
+  '! grep -qF "pr: is unset" <<<"$ar1line"'
 
 # --- RED: the branch carries a results file the manifest does not record ---
 read -r AR2 _ < <(new_repo)
@@ -1311,6 +1318,12 @@ EOF
 ar14out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AR14/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
 assert "both aborted-run legs fire independently on one change (id 214, exactly 2 findings)" \
   '[ "$(grep -cE "$(printf "^aborted-run\t214\t")" <<<"$ar14out")" = 2 ]'
+# Same reasoning as the id-201 count above: leg C (change 0211) shares this check-id and 214 meets
+# three of its conjuncts, so the "exactly 2" count means "leg A plus leg B" only for as long as
+# ar_branch's wall-clock dating keeps the idle floor's delta negative. Pin which two legs they are.
+ar14line="$(grep -E "^aborted-run"$'\t'"214"$'\t' <<<"$ar14out")"
+assert "leg C stays out of the id-214 count: the two findings are legs A and B, not leg C" \
+  '! grep -qF "pr: is unset" <<<"$ar14line"'
 
 # Status gate again, on leg B this time: a 'proposed' change with an ancient claimed_at is silent.
 read -r AR15 _ < <(new_repo)
@@ -1677,6 +1690,182 @@ claimed_at: $AR_LEASE_STALE_CLAIM
 ---
 EOF
 
+# --- leg C fixtures in the shared mutation repo (change 0211) ---------------------------------
+# Two OLD-dated commits are laid down on the integration bases FIRST, because two of the leg-C
+# mutation fixtures need a branch whose TIP IS OLD while its ahead-count is ZERO — a shape that
+# cannot be built from the template's own main. new_repo's main tip carries a real wall-clock date
+# (2026-08) while NOW_EPOCH is 1750000000 (2025-06), so `NOW - tip` is NEGATIVE for any branch cut
+# from it with nothing committed: such a branch fails leg C's IDLE FLOOR and would be silent no
+# matter what the ahead-of-bases predicate did. Fixtures 244 and 245 would then be green for the
+# wrong reason and mutations H and K could never fire — the exact vacuity the landed-asserts exist
+# to catch.
+#
+#   B1 — dated 3h before NOW_EPOCH, fast-forwarded onto BOTH local main and origin/main.
+#        Fixture 244's branch is cut here: old tip, ahead of nothing.
+#   B2 — dated 3h before NOW_EPOCH, pushed to origin/main ONLY, so the LOCAL integration ref lags.
+#        Fixture 245's branch is cut here: old tip, ahead of LOCAL main but not of origin/main.
+#
+# Both advancing commits touch a NEUTRAL path — neither PLANS_DIR_REL nor RESULTS_DIR_REL. This is
+# not cosmetic. Leg A's `branch_only_artifact "$ar_ref" "$RESULTS_DIR_REL"` resolves "branch-only"
+# against the SAME stale local main, so a results-shaped or plan-shaped advancing file would ride
+# onto feat/arm-c-frombase and fire LEG A on 245 — which would break the id-scoped
+# "leg C SILENT on 245" baseline assert below AND make mutation K's `has_finding … 245` VACUOUSLY
+# true, passing even with the both-bases predicate deleted.
+#
+# Safe for every other check in this repo: leg A compares file LISTS under the plans/results dirs
+# (a docs/notes/ file appears in neither), broken-plan-results only asks whether the recorded
+# plan/results paths still resolve on local main (they do — B1 only adds), and merged-orphan /
+# unknown-commit-ref key on commit SUBJECTS matching a numeric conventional-commit scope or a
+# "(change N)" tag, which "commit on tmp-base"/"commit on tmp-advance" match neither of.
+ar_branch_at "$ARM" tmp-base main $(( 3*3600 )) "docs/notes/2026-06-02-arm-base.md"
+git -C "$ARM" branch -f main tmp-base >/dev/null 2>&1
+git -C "$ARM" push -q origin tmp-base:main >/dev/null 2>&1
+ar_branch_at "$ARM" tmp-advance tmp-base $(( 3*3600 )) "docs/notes/2026-06-02-arm-advance.md"
+git -C "$ARM" push -q origin tmp-advance:main >/dev/null 2>&1
+assert "ARM precondition: origin/main is AHEAD of local main (fixture 245's stale local ref)" \
+  '[ "$(git -C "$ARM" rev-parse refs/remotes/origin/main)" != "$(git -C "$ARM" rev-parse refs/heads/main)" ]'
+# The idle floor must be SATISFIED by a branch sitting on either base, or 244/245 are silent for the
+# wrong reason and mutations H and K prove nothing.
+assert "ARM precondition: local main's tip is older than the leg-C idle floor (2h before NOW_EPOCH)" \
+  '[ "$(( NOW_EPOCH - $(git -C "$ARM" log -1 --format=%ct refs/heads/main) ))" -gt 7200 ]'
+assert "ARM precondition: origin/main's tip is older than the leg-C idle floor (2h before NOW_EPOCH)" \
+  '[ "$(( NOW_EPOCH - $(git -C "$ARM" log -1 --format=%ct refs/remotes/origin/main) ))" -gt 7200 ]'
+
+ar_branch_at "$ARM" feat/arm-c-unpushed main $(( 3*3600 )) "$AR_PLAN_NEW"
+ar_branch_at "$ARM" feat/arm-c-pushed   main $(( 3*3600 )) "$AR_PLAN_NEW"
+ar_push "$ARM" feat/arm-c-pushed
+ar_branch_at "$ARM" feat/arm-c-live     main $(( 1800 ))   "$AR_PLAN_NEW"
+ar_branch_at "$ARM" feat/arm-c-empty    main 0
+ar_branch_at "$ARM" feat/arm-c-frombase refs/remotes/origin/main 0
+ar_branch_at "$ARM" feat/arm-c-prose    main $(( 3*3600 )) "$AR_PLAN_NEW"
+# Non-vacuity for mutations H and K: each fixture's baseline SILENCE must come from the predicate
+# the mutation removes, not from some other conjunct that happens to decline first.
+assert "ARM precondition: feat/arm-c-empty is ahead of NEITHER base (mutation H's silence is the ahead test)" \
+  '[ -z "$(git -C "$ARM" rev-list -n 1 feat/arm-c-empty --not refs/heads/main refs/remotes/origin/main)" ]'
+assert "ARM precondition: feat/arm-c-frombase is ahead of LOCAL main (mutation K has something to find)" \
+  '[ -n "$(git -C "$ARM" rev-list -n 1 feat/arm-c-frombase --not refs/heads/main)" ]'
+assert "ARM precondition: feat/arm-c-frombase is ahead of NEITHER base together (baseline silence is the remote base)" \
+  '[ -z "$(git -C "$ARM" rev-list -n 1 feat/arm-c-frombase --not refs/heads/main refs/remotes/origin/main)" ]'
+
+# 240: unpushed, quiet 3h, ahead, pr: unset -> leg C fires, "never pushed"
+cat > "$ARM/docs/changes/active/0240-mc-unpushed.md" <<EOF
+---
+id: 240
+slug: mc-unpushed
+title: Built on an unpushed branch
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/arm-c-unpushed
+plan: docs/superpowers/plans/2026-06-01-present.md
+results:
+pr:
+claimed_at: $AR_FRESH_CLAIM
+---
+EOF
+# 241: identical but only 30m quiet -> SILENT. Mutation G's fixture (the idle floor).
+cat > "$ARM/docs/changes/active/0241-mc-live.md" <<EOF
+---
+id: 241
+slug: mc-live
+title: Build commits 30 minutes old
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/arm-c-live
+plan: docs/superpowers/plans/2026-06-01-present.md
+results:
+pr:
+claimed_at: $AR_FRESH_CLAIM
+---
+EOF
+# 242: PUSHED, pr: unset -> leg C fires, push/PR seam. Mutation J's fixture (the message branch).
+cat > "$ARM/docs/changes/active/0242-mc-pushed.md" <<EOF
+---
+id: 242
+slug: mc-pushed
+title: Pushed with no PR recorded
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/arm-c-pushed
+plan: docs/superpowers/plans/2026-06-01-present.md
+results:
+pr:
+claimed_at: $AR_FRESH_CLAIM
+---
+EOF
+# 243: pushed AND pr: set -> SILENT. Mutation I's fixture (the pr: gate).
+cat > "$ARM/docs/changes/active/0243-mc-delivered.md" <<EOF
+---
+id: 243
+slug: mc-delivered
+title: Pushed and delivered
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/arm-c-pushed
+plan: docs/superpowers/plans/2026-06-01-present.md
+results:
+pr: https://github.com/o/r/pull/9
+claimed_at: $AR_FRESH_CLAIM
+---
+EOF
+# 244: branch with ZERO commits ahead -> SILENT. Mutation H's fixture (the ahead-of-bases test).
+# Cut from B1, which sits on BOTH bases: nothing built, yet the tip is old enough to clear the idle
+# floor, so the ONLY conjunct declining here is the ahead-of-bases test.
+cat > "$ARM/docs/changes/active/0244-mc-empty.md" <<EOF
+---
+id: 244
+slug: mc-empty
+title: Branch cut, nothing built
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/arm-c-empty
+plan:
+results:
+pr:
+claimed_at: $AR_FRESH_CLAIM
+---
+EOF
+# 245: cut from origin/main while LOCAL main lags -> SILENT. Mutation K's fixture (both bases).
+cat > "$ARM/docs/changes/active/0245-mc-frombase.md" <<EOF
+---
+id: 245
+slug: mc-frombase
+title: Cut from origin/main, local main stale
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/arm-c-frombase
+plan:
+results:
+pr:
+claimed_at: $AR_FRESH_CLAIM
+---
+EOF
+# 246: pr: absent from FRONTMATTER, present in BODY prose -> leg C fires under the ANCHORED read
+# and goes silent under an unanchored one. Mutation L's fixture (ADR-0057), the exact shape 223/224
+# pin for plan: and results:.
+cat > "$ARM/docs/changes/active/0246-mc-prose.md" <<EOF
+---
+id: 246
+slug: mc-prose
+title: Body prose mentions pr
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/arm-c-prose
+plan: docs/superpowers/plans/2026-06-01-present.md
+results:
+claimed_at: $AR_FRESH_CLAIM
+---
+
+## Notes
+pr: https://github.com/o/r/pull/11
+EOF
+
 armcopy=""
 armreseed(){
   [ -n "$armcopy" ] && rm -rf "$armcopy"; armcopy="$(mktemp -d)"
@@ -1703,6 +1892,40 @@ assert "mutation baseline: unmutated copy fires leg B on 226 (100h claim)" \
   'has_finding "$arm0out" aborted-run 226'
 assert "mutation baseline: unmutated copy ALSO fires stale-in-progress on 226 (both checks, one change)" \
   'has_finding "$arm0out" stale-in-progress 226'
+assert "mutation baseline: leg C fires on 240 (unpushed, quiet, ahead)" 'has_finding "$arm0out" aborted-run 240'
+assert "mutation baseline: leg C fires on 242 (pushed, no PR)" 'has_finding "$arm0out" aborted-run 242'
+assert "mutation baseline: leg C fires on 246 (pr: only in body prose)" 'has_finding "$arm0out" aborted-run 246'
+assert "mutation baseline: leg C SILENT on 241 (live-run window)"   '! has_finding "$arm0out" aborted-run 241'
+assert "mutation baseline: leg C SILENT on 243 (pr: recorded)"      '! has_finding "$arm0out" aborted-run 243'
+assert "mutation baseline: leg C SILENT on 244 (nothing built)"     '! has_finding "$arm0out" aborted-run 244'
+assert "mutation baseline: leg C SILENT on 245 (stale local main)"  '! has_finding "$arm0out" aborted-run 245'
+
+# The EXISTING leg-A/B fixtures (220, 221, 223, 225) all have a branch that is ahead of main with
+# pr: absent — three of leg C's four conjuncts. They stay leg-C-silent ONLY because ar_branch dates
+# its commits with the real wall clock (2026-08) while NOW_EPOCH is 1750000000 (2025-06), making
+# `NOW - ts` NEGATIVE and the idle floor false. That is an ACCIDENT of the harness, not an intent,
+# and it is exactly what leg C's arrival makes load-bearing: the single-finding asserts above are
+# otherwise guarded by nothing but the sign of that delta. Pin the intent explicitly, so that
+# re-dating those fixtures later reddens HERE with a message that says why, instead of silently
+# changing what mutations A-F measure.
+# Computed outside the asserts, for the same reason as 238's count above.
+arm0_legc="$(grep -cF "branch never pushed and pr: is unset" <<<"$arm0out")"
+arm0_220="$(grep -E "^aborted-run"$'\t'"220"$'\t' <<<"$arm0out")"
+arm0_221="$(grep -E "^aborted-run"$'\t'"221"$'\t' <<<"$arm0out")"
+arm0_223="$(grep -E "^aborted-run"$'\t'"223"$'\t' <<<"$arm0out")"
+assert "leg C does not reach the existing leg-A fixtures: no leg-C message on 220" \
+  '! grep -qF "branch never pushed and pr: is unset" <<<"$arm0_220"'
+assert "leg C does not reach the existing leg-A fixtures: no leg-C message on 221" \
+  '! grep -qF "branch never pushed and pr: is unset" <<<"$arm0_221"'
+assert "leg C does not reach the existing leg-A fixtures: no leg-C message on 223" \
+  '! grep -qF "branch never pushed and pr: is unset" <<<"$arm0_223"'
+# Non-vacuity companion for the three absence asserts above (they would all pass if leg C's
+# never-pushed message never appeared at all): the SAME string must be present somewhere in this
+# very output, on the fixtures that are supposed to have it.
+assert "the leg-C never-pushed message IS present in this run — the three absence asserts are not vacuous" \
+  '[ "$arm0_legc" -ge 1 ]'
+assert "leg C SILENT on 225 (healthy fields) — the fixture stays a pure leg-A mutation target" \
+  '! has_finding "$arm0out" aborted-run 225'
 
 # Mutation A — invert leg A's plan emptiness test (-z becomes -n): the unrecorded-plan fixture 220
 # goes GREEN and the healthy-field fixture 225 starts misfiring. Both directions. 225, not 221:
@@ -1837,6 +2060,119 @@ assert "mutation F (restore C-quoting): the INHERITED non-ASCII fixture 231 MISF
 armFsan="$(armrun_at "$ARQ1")"
 assert "mutation F: the branch-only fixture 230 still fires (the arm itself survives the mutation)" \
   'has_finding "$armFsan" aborted-run 230'
+rm -rf "$armcopy"
+
+# ---------------- leg C mutations (change 0211) ----------------
+# Mutation G — neutralize leg C's idle floor (the > comparison becomes a tautology): the live-run
+# fixture 241 starts firing. NOTE the blast radius: without the floor, every ARM branch fixture
+# whose branch is ahead with pr: absent becomes a leg-C candidate, which is why the baseline block
+# above pins those fixtures explicitly rather than trusting the date delta.
+armreseed
+armG_before="$(grep -cF '"$(( NOW - ar_tip ))" -gt "$ABORTED_RUN_IDLE_SECS"' "$ARMSCRIPT")"
+sed 's/"$(( NOW - ar_tip ))" -gt "$ABORTED_RUN_IDLE_SECS"/-n "$ar_tip"/' "$ARMSCRIPT" > "$ARMSCRIPT.t"
+mv "$ARMSCRIPT.t" "$ARMSCRIPT"
+armG_after="$(grep -cF '"$(( NOW - ar_tip ))" -gt "$ABORTED_RUN_IDLE_SECS"' "$ARMSCRIPT")"
+assert "mutation G landed: the idle-floor comparison is gone (count 1 -> 0)" \
+  '[ "$armG_before" = 1 ] && [ "$armG_after" = 0 ]'
+assert "mutation G landed: the mutated copy is still valid bash" 'bash -n "$ARMSCRIPT"'
+armGout="$(armrun)"
+assert "mutation G (drop the idle floor): the live-run fixture 241 starts firing — the floor is real" \
+  'has_finding "$armGout" aborted-run 241'
+assert "mutation G: the quiet fixture 240 still fires (the leg itself survives)" \
+  'has_finding "$armGout" aborted-run 240'
+rm -rf "$armcopy"
+
+# Mutation H — make the ahead-of-bases probe unconditionally true: the nothing-built fixture 244
+# starts firing, i.e. leg C would claim "built but not delivered" about a branch with no build.
+armreseed
+armH_before="$(grep -cF 'rev-list -n 1 "$ar_ref" --not' "$ARMSCRIPT")"
+sed 's|\[ -n "$("$GIT" -C "$CHANGES_DIR" rev-list -n 1 "$ar_ref" --not "${ar_bases\[@\]}" 2>/dev/null)" \]|true|' \
+  "$ARMSCRIPT" > "$ARMSCRIPT.t"; mv "$ARMSCRIPT.t" "$ARMSCRIPT"
+armH_after="$(grep -cF 'rev-list -n 1 "$ar_ref" --not' "$ARMSCRIPT")"
+assert "mutation H landed: the ahead-of-bases probe is gone (count 1 -> 0)" \
+  '[ "$armH_before" = 1 ] && [ "$armH_after" = 0 ]'
+assert "mutation H landed: the mutated copy is still valid bash" 'bash -n "$ARMSCRIPT"'
+armHout="$(armrun)"
+assert "mutation H (drop the ahead test): the nothing-built fixture 244 starts firing" \
+  'has_finding "$armHout" aborted-run 244'
+assert "mutation H: the genuinely-built fixture 240 still fires" 'has_finding "$armHout" aborted-run 240'
+rm -rf "$armcopy"
+
+# Mutation I — drop leg C's pr:-empty gate: the delivered fixture 243 starts firing.
+armreseed
+armI_before="$(grep -cF 'if [ -z "$(fm_field "$f" pr)" ] && [ -n "$ar_ref" ]; then' "$ARMSCRIPT")"
+sed 's|if \[ -z "$(fm_field "$f" pr)" \] && \[ -n "$ar_ref" \]; then|if [ -n "$ar_ref" ]; then|' \
+  "$ARMSCRIPT" > "$ARMSCRIPT.t"; mv "$ARMSCRIPT.t" "$ARMSCRIPT"
+armI_after="$(grep -cF 'if [ -z "$(fm_field "$f" pr)" ] && [ -n "$ar_ref" ]; then' "$ARMSCRIPT")"
+assert "mutation I landed: leg C's pr:-empty gate is gone (count 1 -> 0)" \
+  '[ "$armI_before" = 1 ] && [ "$armI_after" = 0 ]'
+assert "mutation I landed: the mutated copy is still valid bash" 'bash -n "$ARMSCRIPT"'
+armIout="$(armrun)"
+assert "mutation I (drop the pr: gate): the delivered fixture 243 starts firing" \
+  'has_finding "$armIout" aborted-run 243'
+rm -rf "$armcopy"
+
+# Mutation J — invert the message-selecting remote-ref probe: the two firing fixtures SWAP
+# messages. This is the mutation that proves the branch is a real discriminator and not a coin
+# flip that happens to be right for one of them.
+armreseed
+armJ_before="$(grep -cF 'show-ref --verify --quiet "refs/remotes/origin/$ar_branch"' "$ARMSCRIPT")"
+sed 's|if "$GIT" -C "$CHANGES_DIR" show-ref --verify --quiet "refs/remotes/origin/$ar_branch"; then|if ! "$GIT" -C "$CHANGES_DIR" show-ref --verify --quiet "refs/remotes/origin/$ar_branch"; then|' \
+  "$ARMSCRIPT" > "$ARMSCRIPT.t"; mv "$ARMSCRIPT.t" "$ARMSCRIPT"
+armJ_after="$(grep -cF 'if ! "$GIT" -C "$CHANGES_DIR" show-ref --verify --quiet "refs/remotes/origin/$ar_branch"; then' "$ARMSCRIPT")"
+assert "mutation J landed: the remote-ref probe is negated (count 0 -> 1)" \
+  '[ "$armJ_before" = 1 ] && [ "$armJ_after" = 1 ]'
+assert "mutation J landed: the mutated copy is still valid bash" 'bash -n "$ARMSCRIPT"'
+armJout="$(armrun)"
+armJ240="$(grep -E "^aborted-run"$'\t'"240"$'\t' <<<"$armJout")"
+armJ242="$(grep -E "^aborted-run"$'\t'"242"$'\t' <<<"$armJout")"
+assert "mutation J (swap the probe): the UNPUSHED fixture 240 now gets the pushed message" \
+  'grep -qF "is pushed but pr: is unset" <<<"$armJ240"'
+assert "mutation J (swap the probe): the PUSHED fixture 242 now gets the never-pushed message" \
+  'grep -qF "branch never pushed and pr: is unset" <<<"$armJ242"'
+rm -rf "$armcopy"
+
+# Mutation K — drop the remote-tracking base from ar_bases (the single-base predicate an earlier
+# draft used): fixture 245, cut from origin/main while local main lags, starts firing. This is the
+# false positive the both-bases design exists to prevent — and note the idle floor does NOT catch
+# it, because the inherited commits are genuinely old.
+armreseed
+armK_before="$(grep -cF 'for ar_b in "refs/heads/$INTEGRATION_BRANCH" "refs/remotes/origin/$INTEGRATION_BRANCH"; do' "$ARMSCRIPT")"
+sed 's|for ar_b in "refs/heads/$INTEGRATION_BRANCH" "refs/remotes/origin/$INTEGRATION_BRANCH"; do|for ar_b in "refs/heads/$INTEGRATION_BRANCH"; do|' \
+  "$ARMSCRIPT" > "$ARMSCRIPT.t"; mv "$ARMSCRIPT.t" "$ARMSCRIPT"
+armK_after="$(grep -cF 'for ar_b in "refs/heads/$INTEGRATION_BRANCH" "refs/remotes/origin/$INTEGRATION_BRANCH"; do' "$ARMSCRIPT")"
+assert "mutation K landed: the remote-tracking base is gone from ar_bases (count 1 -> 0)" \
+  '[ "$armK_before" = 1 ] && [ "$armK_after" = 0 ]'
+assert "mutation K landed: the mutated copy is still valid bash" 'bash -n "$ARMSCRIPT"'
+armKout="$(armrun)"
+assert "mutation K (local base only): the stale-local-main fixture 245 starts firing" \
+  'has_finding "$armKout" aborted-run 245'
+# 245 is silent at baseline and speaks ONLY here, and the message it speaks is leg C's — not leg A
+# riding the same stale local base off the advancing commit (which is why that commit touches a
+# neutral path, not docs/results). Without this, the assert above would pass on a leg-A finding.
+armK245="$(grep -E "^aborted-run"$'\t'"245"$'\t' <<<"$armKout")"
+assert "mutation K: 245's new finding is LEG C's, not leg A riding the same stale base" \
+  'grep -qF "ahead of main, branch never pushed and pr: is unset" <<<"$armK245"'
+rm -rf "$armcopy"
+
+# Mutation L — unanchor leg C's pr: read (fm_field -> field): the body-prose fixture 246 goes
+# GREEN, because the unanchored read falls through the closing --- and returns the prose line as
+# if it were a recorded PR. ADR-0057, the same property 223 and 224 pin for plan: and results:.
+# A FALSE NEGATIVE is the dangerous direction here: it makes the check certify the exact abort it
+# exists to catch.
+armreseed
+armL_before="$(grep -cF 'fm_field "$f" pr' "$ARMSCRIPT")"
+sed 's|\[ -z "$(fm_field "$f" pr)" \]|[ -z "$(field "$f" pr)" ]|' "$ARMSCRIPT" > "$ARMSCRIPT.t"
+mv "$ARMSCRIPT.t" "$ARMSCRIPT"
+armL_after="$(grep -cF 'fm_field "$f" pr' "$ARMSCRIPT")"
+assert "mutation L landed: leg C's pr: read is unanchored (count 1 -> 0)" \
+  '[ "$armL_before" = 1 ] && [ "$armL_after" = 0 ]'
+assert "mutation L landed: the mutated copy is still valid bash" 'bash -n "$ARMSCRIPT"'
+armLout="$(armrun)"
+assert "mutation L (unanchor the pr: read): the body-prose fixture 246 goes GREEN — proves the anchoring" \
+  '! has_finding "$armLout" aborted-run 246'
+assert "mutation L: fixture 240, which has no body pr: line, still fires" \
+  'has_finding "$armLout" aborted-run 240'
 rm -rf "$armcopy"
 
 
