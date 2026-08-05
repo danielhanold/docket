@@ -161,10 +161,10 @@ halt per *Halting conditions*, naming the stray SHA so a human can inspect, keep
 
 ## Halting conditions
 
-Every halt is the same **role-scoped** build disposition: stop, return `halted` — a build outcome,
-not `docket-implement-next`'s run disposition of the same name — the change stays `in-progress`
-and the worktree is preserved for inspection or resume — and report which condition below fired
-with its concrete evidence (task, profile, SHA, command, or harness message). Never improvise past one,
+Every halt is the same disposition, **role-scoped** to the build: stop, return `halted` — a build
+outcome, not `docket-implement-next`'s run disposition of the same name — the change
+stays `in-progress`, the worktree is preserved for inspection or resume — and report which condition
+below fired with its evidence (task, profile, SHA, command, or harness message). Never improvise past one,
 never substitute a weaker path, and never invoke review. The rules elsewhere in this file name
 their condition and point here rather than restating the disposition.
 
