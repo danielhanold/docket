@@ -805,6 +805,11 @@ Rules and limits:
   those child-side dispatches (accepted limitation).
 - `runner:` under a non-`claude` harness key is reserved and warned-and-ignored; an
   unregistered runner name fails generation loudly.
+- **Generation is all-or-nothing.** Any bad `runner:` entry is detected before the first wrapper is
+  written, and the run refuses rather than regenerating some wrappers and not others: one bad entry
+  refreshes *zero* wrappers, and previously generated ones survive untouched. The diagnostic names
+  every offender in one pass, so the fix is a single edit and a re-run. `sync-agents.sh --check`
+  reports the same failure without writing anything.
 - Delegation is never a policy bypass: do not delegate `docket-finalize-change` to sidestep
   merge-approval gates (see ADR-0043).
 - **A delegated agent must carry an explicit `model:` in your config.** Docket never forwards its

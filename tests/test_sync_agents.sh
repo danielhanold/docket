@@ -1497,14 +1497,11 @@ for rnr in codex cursor opencode; do
   assert "0205/$rnr: the diagnostic names the agent"  'grep -qF "docket-status" <<<"$err"'
   assert "0205/$rnr: the diagnostic names the runner" 'grep -qF "'"$rnr"'" <<<"$err"'
   assert "0205/$rnr: the diagnostic says a model is required" 'grep -qiE "model" <<<"$err"'
-  # The error must not leave a USABLE shim behind. Note this is deliberately `! -s` (absent OR
-  # empty), NOT `! -e`: emit_wrapper's call sites redirect into the target path, so the shell
-  # creates and truncates the file BEFORE the function body runs and exits. The offending agent is
-  # therefore left with a zero-length wrapper, which is inert — the harness has nothing to
-  # dispatch — and is overwritten on the next successful run. Asserting `! -e` here would be
-  # asserting a fail-before-write property this rule does not have.
-  assert "0205/$rnr: no usable wrapper was written for the offending agent" \
-    '[ ! -s "$SBX/.claude/agents/docket-status.md" ]'
+  # `! -e`, not `! -s`: change 0207 gave this rule the fail-before-write property it lacked. The
+  # gate runs above the first emit_wrapper redirection, so the offending agent's file is never
+  # created rather than created-and-truncated.
+  assert "0205/$rnr: no wrapper was written for the offending agent" \
+    '[ ! -e "$SBX/.claude/agents/docket-status.md" ]'
   # NON-VACUITY COMPANION: the same fixture WITH a user model must succeed and emit a real shim.
   # Without this, every assert above stays green if sync-agents.sh broke for an unrelated reason.
   printf 'agents:\n  claude:\n    status: { runner: %s, model: some/model-id }\n' "$rnr" > "$SBX/.docket.yml"
@@ -1535,6 +1532,85 @@ printf 'agents:\n  claude:\n    status: { runner: gemini-cli }\n' > "$SBX/.docke
 err="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" 2>&1 >/dev/null )"
 assert "0205: an unregistered AND model-less runner still reports the REGISTRATION failure first" \
   'grep -qF "gemini-cli" <<<"$err" && grep -qiE "not a registered runner" <<<"$err"'
+rm -rf "$SBX"
+
+# ---- change 0207: wrapper generation is ATOMIC ----------------------------------------------
+# A bad runner: config is detected before the FIRST wrapper write. Previously emit_wrapper failed
+# inline, mid-loop, with its stdout already redirected into the target — so the offending agent was
+# left zero-length and every agent later in glob order was never regenerated. The invariant now:
+# a run either regenerates every wrapper or changes nothing on disk (nginx -t semantics).
+
+# (1) FRESH tree + bad runner => NO wrapper files exist at all, for ANY agent.
+mkgitrepo
+mkdir -p "$SBX/.claude"
+printf 'agents:\n  claude:\n    status: { runner: codex }\n' > "$SBX/.docket.yml"
+err="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" 2>&1 >/dev/null )"; rc=$?
+assert "0207: a bad runner config fails the run nonzero" '[ "$rc" != "0" ]'
+# `! -e`, not `! -s`: change 0207 makes this a fail-BEFORE-write property. The offending agent's
+# file is never created, so the zero-length-wrapper case the 0205 comment described is gone.
+assert "0207: fresh tree — the offending agent has no wrapper at all" \
+  '[ ! -e "$SBX/.claude/agents/docket-status.md" ]'
+# The whole point: OTHER agents are not written either. Under the old mid-loop abort, every agent
+# ahead of docket-status in glob order was already on disk by the time it failed.
+assert "0207: fresh tree — NO wrapper was written for any agent" \
+  '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" 2>/dev/null | wc -l | tr -d " ")" = "0" ]'
+assert "0207: the summary names the whole-run consequence" \
+  'grep -qiE "no wrappers were written" <<<"$err"'
+rm -rf "$SBX"
+
+# (2) PRE-EXISTING wrappers + bad runner => every wrapper BYTE-IDENTICAL to before the run.
+# This is the invariant the change exists to create and had no test before it.
+mkgitrepo
+mkdir -p "$SBX/.claude"
+printf 'agents:\n  claude:\n    status: { runner: codex, model: some/model-id }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
+assert "0207: (fixture) the good config generated wrappers to preserve" \
+  '[ -s "$SBX/.claude/agents/docket-status.md" ]'
+before="$(mktemp -d)"; cp -R "$SBX/.claude/agents/." "$before/"
+# Now break it: drop the model: from the SAME entry.
+printf 'agents:\n  claude:\n    status: { runner: codex }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 ); rc=$?
+assert "0207: the run over pre-existing wrappers still fails nonzero" '[ "$rc" != "0" ]'
+assert "0207: every pre-existing wrapper survives byte-untouched" \
+  'diff -r "$before" "$SBX/.claude/agents" >/dev/null'
+rm -rf "$SBX" "$before"
+
+# (3) MULTIPLE offenders across different agents => all named in ONE run.
+mkgitrepo
+mkdir -p "$SBX/.claude"
+printf 'agents:\n  claude:\n    status: { runner: codex }\n    adr: { runner: gemini-cli }\n' > "$SBX/.docket.yml"
+err="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" 2>&1 >/dev/null )"; rc=$?
+assert "0207: multiple offenders fail the run nonzero" '[ "$rc" != "0" ]'
+assert "0207: the first offender is named" 'grep -qF "docket-status" <<<"$err"'
+assert "0207: the SECOND offender is named in the same run" 'grep -qF "docket-adr" <<<"$err"'
+# Accumulating, not short-circuiting: the unregistered one must report its OWN rule, not be
+# swallowed by whichever offender the walk happened to reach first.
+assert "0207: the unregistered offender reports the registration rule" \
+  'grep -qF "gemini-cli" <<<"$err"'
+rm -rf "$SBX"
+
+# (4) --check reports the failure and exits nonzero (docket's `nginx -t`).
+mkgitrepo
+mkdir -p "$SBX/.claude"
+printf 'agents:\n  claude:\n    status: { runner: codex }\n' > "$SBX/.docket.yml"
+err="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check 2>&1 >/dev/null )"; rc=$?
+assert "0207: --check fails on a bad runner config" '[ "$rc" != "0" ]'
+assert "0207: --check says a real run would refuse to write wrappers" \
+  'grep -qiE "would refuse to write wrappers" <<<"$err"'
+assert "0207: --check wrote no wrappers" \
+  '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" 2>/dev/null | wc -l | tr -d " ")" = "0" ]'
+rm -rf "$SBX"
+
+# NON-VACUITY COMPANION for the whole 0207 block: the same shape with a VALID runner config must
+# generate the full set. Without this, every assert above stays green if sync-agents.sh broke for
+# an unrelated reason and wrote nothing at all.
+mkgitrepo
+mkdir -p "$SBX/.claude"
+printf 'agents:\n  claude:\n    status: { runner: codex, model: some/model-id }\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 ); rc=$?
+assert "0207: a VALID runner config still generates (the guards above are not vacuous)" '[ "$rc" = "0" ]'
+assert "0207: and the full built-in set lands" \
+  '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "16" ]'
 rm -rf "$SBX"
 
 # A non-claude harness carrying runner: is warned-and-ignored (reserved) and emits NATIVE — the

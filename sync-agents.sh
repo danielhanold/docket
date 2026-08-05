@@ -605,6 +605,57 @@ validate_user_agent_values() {
   return $rc
 }
 
+# Gate 3 (change 0207): every `runner:` rule, checked across every candidate triple, BEFORE the
+# first wrapper write. Wrapper generation is atomic — a run regenerates every wrapper or changes
+# nothing on disk, so a configuration error leaves the previously generated wrappers in place on
+# the assumption that what was already there was working (nginx -t / nginx -s reload).
+#
+# PLACEMENT IS BOUNDED ON BOTH SIDES. It must stay BELOW resolve_global_agent_harnesses —
+# USER_TARGETS is not computable until the POST-migration $GLOBAL_CFG has been read, and any triple
+# this gate fails to see trips emit_wrapper's assertion mid-loop, which is the original bug. It must
+# stay ABOVE user_level_pass — the first `mkdir -p` or emit_wrapper redirection past this point is
+# already a partial generation. (Gates 1 and 2 sit above migrate_legacy_global, so the three are
+# deliberately not contiguous.)
+#
+# ACCUMULATES rather than short-circuits: one run names every offender, so the fix is a single edit
+# and a re-run. It loops every agent x every harness and lets runner_config_error decide
+# applicability — narrowing to `claude` here would put the rule's scope in a second place, and the
+# day that scope moves this gate would silently under-enumerate.
+validate_runner_config() {
+  local rc=0 src name harness err
+  # USER_TARGETS is computed by user_level_pass, which runs BELOW this gate; on the --check path
+  # neither compute_user_targets nor resolve_global_agent_harnesses has run at all, so under `set -u`
+  # both USER_TARGETS and USER_HARNESSES_SET are unset. Resolve them here rather than reading
+  # `${USER_TARGETS:-}`: an empty list would silently skip the whole user-level leg, and a skipped
+  # leg is precisely the under-enumeration this gate exists to prevent. Both are idempotent config
+  # reads; the `-n` test keeps the real run — where resolve_global_agent_harnesses has already run —
+  # from re-emitting its "unknown agent_harnesses token" warnings a second time.
+  [ -n "${USER_HARNESSES_SET:-}" ] || resolve_global_agent_harnesses
+  compute_user_targets
+  for src in "$AGENTS_SRC"/docket-*.md; do
+    [ -e "$src" ] || continue
+    name="$(short_name "$src")"
+    # user-level pass: USER_TARGETS resolved over the global layer only
+    for harness in $USER_TARGETS; do
+      resolve_agent_layers "$harness" "$name" "$GLOBAL_CFG"
+      if ! err="$(runner_config_error "$harness" "$name" "$RES_RUNNER" "$(user_flag_model)")"; then
+        log "ERROR $err"; rc=1
+      fi
+    done
+    # project-level pass: HARNESSES resolved over local + committed + global.
+    # `continue`, not an early `return 0` hoisted out of the loop: it skips only THIS agent's
+    # project-level leg, leaving the user-level leg above intact for a non-opted-in repo.
+    per_repo_opted_in || continue
+    for harness in $HARNESSES; do
+      resolve_agent_layers "$harness" "$name" "$LOCAL_CFG" "$DOCKET_YML" "$GLOBAL_CFG"
+      if ! err="$(runner_config_error "$harness" "$name" "$RES_RUNNER" "$(user_flag_model)")"; then
+        log "ERROR $err"; rc=1
+      fi
+    done
+  done
+  return $rc
+}
+
 # --- emit a resolved wrapper to stdout ---------------------------------------
 # Model/effort are the FINAL resolved values (change 0168): agents/harness-defaults.yml, not the
 # source frontmatter, is the default store. This STRIPS any model:/effort: line the source still
@@ -822,6 +873,12 @@ emit_opencode_md(){  # $1=src md  $2=model  $3=effort   (both FINAL resolved val
   fi
   printf '%s\n' "$body"
 }
+
+# The provenance-filtered model (change 0168), read from the RES_* globals resolve_agent_layers just
+# set. ONLY a user-configured value may become a child-runner flag, so a shipped
+# agents/harness-defaults.yml default must read as absent here. Spelled once: emit_wrapper and
+# validate_runner_config must agree exactly, or the gate passes a triple the assertion then kills.
+user_flag_model(){ [ "${RES_MODEL_FROM_USER:-0}" = "1" ] && printf '%s' "${RES_MODEL:-}"; return 0; }
 
 # The single source of truth for both `runner:` rules, their diagnostics, and their ORDER
 # (registration before required-model). Emits ONE diagnostic on stdout and returns 1, or returns 0
@@ -1372,6 +1429,13 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
       log "check: user agent config has unconsumable values — a real run would refuse to write wrappers."
       exit 1
     fi
+    # This leg reads PRE-migration config. That is the same asymmetry the two gates above already
+    # have, and it matches what check_project_level's leg (c) drift loop itself resolves, so no gap
+    # opens between the gate and that loop's own emit_wrapper calls.
+    if ! validate_runner_config; then
+      log "check: runner configuration is invalid — a real run would refuse to write wrappers."
+      exit 1
+    fi
     if check_project_level; then exit 0; else exit 1; fi
   fi
 
@@ -1392,6 +1456,13 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
 
   migrate_legacy_global
   resolve_global_agent_harnesses
+  # Gate 3 — see validate_runner_config. Must stay BELOW resolve_global_agent_harnesses (USER_TARGETS
+  # needs the post-migration $GLOBAL_CFG) and ABOVE user_level_pass (the first mkdir -p or
+  # emit_wrapper redirection past this point is already a partial generation).
+  if ! validate_runner_config; then
+    log "ERROR runner configuration is invalid — no wrappers were written."
+    exit 1
+  fi
   user_level_pass
   migrate_tracked_wrappers
   if gitignore_block_wanted; then ensure_docket_gitignore_block "$REPO"; fi
