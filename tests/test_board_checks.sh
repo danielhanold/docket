@@ -1097,6 +1097,7 @@ assert "aborted-run FIRES for a custom results dir when --results-dir names it (
 # (the trailing [reclaimable] marker) that docket-status already keys on.
 AR_STALE_CLAIM="$(iso $(( NOW_EPOCH - 13*3600 )))"   # 13h  > 12h  => fires
 AR_FRESH_CLAIM="$(iso $(( NOW_EPOCH - 11*3600 )))"   # 11h  < 12h  => silent
+AR_LEASE_STALE_CLAIM="$(iso $(( NOW_EPOCH - 100*3600 )))"  # 100h > 72h lease AND > 12h => BOTH checks fire
 
 # ---------------- branch_only_artifact: C-quoted paths (change 0202, finding 4) ----------------
 # These are leg-A fixtures, placed here rather than beside the other leg-A ones because they consume
@@ -1394,6 +1395,41 @@ claimed_at: $AR_FRESH_CLAIM
 ## Notes
 results: docs/results/2026-06-01-present-results.md
 EOF
+# 225: healthy fields, but the branch DOES carry a branch-only plan. Baseline: SILENT (plan: is
+# set, so leg A's -z guard correctly declines). Under mutation A (-z -> -n) it MISFIRES. This is
+# the fixture mutation A's "both directions" claim needs — 221 cannot serve, because its branch
+# (feat/arm-results) carries no plan file, leaving the misfire conjunct unreachable.
+cat > "$ARM/docs/changes/active/0225-mhealthy.md" <<EOF
+---
+id: 225
+slug: mhealthy
+title: Recorded plan and results, plan file present on the branch
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/arm-plan
+plan: docs/superpowers/plans/2026-06-01-present.md
+results: docs/results/2026-06-01-present-results.md
+claimed_at: $AR_FRESH_CLAIM
+---
+EOF
+# 226: no branch, claim 100h old — past BOTH the 12h aborted-run window and the 72h stale-in-progress
+# lease, so BOTH checks fire at baseline. That is what makes mutation E's "stale-in-progress must
+# stay unaffected" claim assertable: dropping the aborted-run block must remove exactly one of them.
+cat > "$ARM/docs/changes/active/0226-mboth-checks.md" <<EOF
+---
+id: 226
+slug: mboth-checks
+title: Claim past both the run window and the lease
+status: in-progress
+priority: medium
+depends_on: []
+branch:
+plan:
+results:
+claimed_at: $AR_LEASE_STALE_CLAIM
+---
+EOF
 
 armcopy=""
 armreseed(){
@@ -1415,9 +1451,17 @@ assert "mutation baseline: unmutated copy fires leg B on 222 (stale claim)" 'has
 assert "mutation baseline: unmutated copy fires leg A on 223 (anchored read)" 'has_finding "$arm0out" aborted-run 223'
 assert "mutation baseline: unmutated copy fires leg A on 224 (anchored results read)" \
   'has_finding "$arm0out" aborted-run 224'
+assert "mutation baseline: unmutated copy is SILENT on 225 (healthy fields, plan file on the branch)" \
+  '! has_finding "$arm0out" aborted-run 225'
+assert "mutation baseline: unmutated copy fires leg B on 226 (100h claim)" \
+  'has_finding "$arm0out" aborted-run 226'
+assert "mutation baseline: unmutated copy ALSO fires stale-in-progress on 226 (both checks, one change)" \
+  'has_finding "$arm0out" stale-in-progress 226'
 
 # Mutation A — invert leg A's plan emptiness test (-z becomes -n): the unrecorded-plan fixture 220
-# goes GREEN and the healthy-field fixture 221 (plan: SET) starts misfiring. Both directions.
+# goes GREEN and the healthy-field fixture 225 starts misfiring. Both directions. 225, not 221:
+# 221's branch (feat/arm-results) carries no plan file, so the misfire conjunct is unreachable
+# there — the guard would prove only half of what its comment claims (change 0202, finding 3).
 armreseed
 armA_before="$(grep -cF 'if [ -z "$(fm_field "$f" plan)" ]' "$ARMSCRIPT")"
 awk '{ if ($0 ~ /fm_field "\$f" plan/) sub(/-z /, "-n "); print }' "$ARMSCRIPT" > "$ARMSCRIPT.t"; mv "$ARMSCRIPT.t" "$ARMSCRIPT"
@@ -1427,6 +1471,8 @@ assert "mutation A landed: leg A's plan emptiness test is inverted (count 1 -> 0
   '[ "$armA_before" = 1 ] && [ "$armA_after" = 0 ]'
 assert "mutation A (invert plan emptiness): the unrecorded-plan fixture 220 goes GREEN" \
   '! has_finding "$armAout" aborted-run 220'
+assert "mutation A (invert plan emptiness): the healthy fixture 225 MISFIRES — the other direction" \
+  'has_finding "$armAout" aborted-run 225'
 assert "mutation A: the stale-claim fixture 222 still fires (leg B is independent)" \
   'has_finding "$armAout" aborted-run 222'
 
@@ -1496,8 +1542,10 @@ assert "mutation D2 (unanchor the results read): the body-prose fixture 224 goes
 assert "mutation D2: fixture 221, which has no body results: line, still fires" \
   'has_finding "$armD2out" aborted-run 221'
 
-# Mutation E — drop the whole aborted-run block: every red fixture goes GREEN, and
-# stale-in-progress must stay unaffected (the two checks are genuinely separate code).
+# Mutation E — drop the whole aborted-run block: every red fixture goes GREEN, and stale-in-progress
+# must stay unaffected (the two checks are genuinely separate code). Fixture 226 is what makes the
+# second half assertable: its 100h claim fires BOTH checks at baseline, so dropping this block must
+# remove the aborted-run finding and leave the stale-in-progress one standing (change 0202).
 armreseed
 armE_before="$(grep -c 'aborted-run' "$ARMSCRIPT")"
 awk '/# --- aborted-run:/{inar=1} inar && /# --- merge-gate-stall:/{inar=0} !inar' "$ARMSCRIPT" > "$ARMSCRIPT.t"; mv "$ARMSCRIPT.t" "$ARMSCRIPT"
@@ -1511,6 +1559,10 @@ assert "mutation E (drop whole block): fixture 220 goes GREEN" '! has_finding "$
 assert "mutation E (drop whole block): fixture 221 goes GREEN" '! has_finding "$armEout" aborted-run 221'
 assert "mutation E (drop whole block): fixture 222 goes GREEN" '! has_finding "$armEout" aborted-run 222'
 assert "mutation E (drop whole block): fixture 223 goes GREEN" '! has_finding "$armEout" aborted-run 223'
+assert "mutation E (drop whole block): fixture 226's aborted-run finding goes GREEN" \
+  '! has_finding "$armEout" aborted-run 226'
+assert "mutation E: stale-in-progress on 226 SURVIVES — the two checks are separate code" \
+  'has_finding "$armEout" stale-in-progress 226'
 rm -rf "$armcopy"
 
 # Mutation F — restore the C-quoting bug in branch_only_artifact (change 0202). BOTH halves must
