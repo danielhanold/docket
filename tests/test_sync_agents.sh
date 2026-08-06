@@ -1701,6 +1701,45 @@ assert "0220/D2: and the full built-in set lands user-level" \
   '[ "$(find "$D2ROOT/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "16" ]'
 rm -rf "$D2REPO" "$D2ROOT"
 
+# ---- change 0220 / D3: emit_wrapper's $2 == $RES_MODEL calling contract ------------------------
+# emit_wrapper keeps its OWN copy of the provenance filter (RES_MODEL_FROM_USER over positional $2)
+# rather than calling user_flag_model. The two agree only because all three call sites pass
+# $RES_MODEL immediately after resolve_agent_layers. Nothing documented or enforced that, so a
+# future call site passing a post-processed model would silently reintroduce the mid-loop abort
+# 0207 exists to prevent. The contract is now on the header AND asserted; this fixture pins the
+# assertion by calling emit_wrapper directly with a mismatched $2.
+d3_out="$(
+  set +e
+  # shellcheck source=/dev/null
+  DOCKET_HARNESS_ROOT="$(mktemp -d)" bash -c '
+    set -uo pipefail
+    . "$1" 2>/dev/null || true
+    RES_MODEL="the-resolved-one"; RES_EFFORT=""; RES_MODEL_FROM_USER=1; RES_EFFORT_FROM_USER=0
+    emit_wrapper "$2" "a-DIFFERENT-model" "" "" "claude" "status"
+  ' _ "$REPO/sync-agents.sh" "$REPO/agents/docket-status.md" 2>&1
+  printf 'RC=%s' "$?"
+)"
+assert "0220/D3: emit_wrapper aborts when \$2 is not the resolved RES_MODEL" \
+  '! grep -qF "RC=0" <<<"$d3_out"'
+assert "0220/D3: and the abort names the contract" \
+  'grep -qiE "RES_MODEL" <<<"$d3_out"'
+# Non-vacuity: the SAME call with $2 == $RES_MODEL must succeed, so the assert above is about the
+# mismatch and not about emit_wrapper failing to run at all in this harness.
+d3_ok="$(
+  set +e
+  DOCKET_HARNESS_ROOT="$(mktemp -d)" bash -c '
+    set -uo pipefail
+    . "$1" 2>/dev/null || true
+    RES_MODEL="the-resolved-one"; RES_EFFORT=""; RES_MODEL_FROM_USER=1; RES_EFFORT_FROM_USER=0
+    emit_wrapper "$2" "the-resolved-one" "" "" "claude" "status"
+  ' _ "$REPO/sync-agents.sh" "$REPO/agents/docket-status.md" >/dev/null 2>&1
+  printf 'RC=%s' "$?"
+)"
+assert "0220/D3: (non-vacuity) a matching \$2 still emits successfully" '[ "$d3_ok" = "RC=0" ]'
+# And the contract is stated where a caller reads it, not only enforced.
+assert "0220/D3: emit_wrapper's header states the \$2 contract" \
+  'within "$REPO/sync-agents.sh" "emit_wrapper(){" "RES_MODEL" 900'
+
 # no runner config anywhere: native (un-shimmed) output (regression fence)
 make_sandbox
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
