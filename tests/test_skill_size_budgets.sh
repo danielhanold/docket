@@ -323,6 +323,14 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # measured actual: 144 lines -> 145 is the next multiple of 5 but leaves ONE line of margin, the
 # near-zero failure mode this block records raising for three times already, so 150; 1353 words ->
 # 1400 (47 words of margin, above the within-25 threshold).
+# fix-loop.md's row was raised again, 150/1400 -> 160/1550, by a later 0218 review fix: the loop
+# bounded escalations and suite runs but not the NUMBER of fix tasks, so a ten-plus-finding review
+# could expand Step 6 without limit. The cap (at most five non-blocker fix tasks, blockers never
+# counted, overflow deferred deterministically) belongs in `## Tasks, batching, commits` — this
+# file owns the loop's task mechanics end to end, per the same considered-home reasoning as the
+# two raises above. Set per the rounding rule above from the measured actual: 155 lines -> 155 is
+# a multiple of 5 but leaves ZERO margin, so 160; 1509 words -> 1550 (41 words of margin, above
+# the within-25 threshold).
 # skills/docket-convention/references/auto-capture.md's budget was raised 45/450 -> 50/550 by change
 # 0218, which narrowed the materiality bar: work fixable by a small in-branch edit now FAILS the bar,
 # so a review finding about the branch's own diff is never mintable. The prose has no other home —
@@ -363,7 +371,7 @@ skills/docket-finalize-change/references/gate-failure.md    35  900
 skills/docket-groom-next/SKILL.md                           77 1484
 skills/docket-implement-next/SKILL.md                      150 3850
 skills/docket-implement-next/references/edge-paths.md       35  450
-skills/docket-implement-next/references/fix-loop.md        150 1400
+skills/docket-implement-next/references/fix-loop.md        160 1550
 skills/docket-implement-next/results-template.md            25  250
 skills/docket-review/SKILL.md                              110  900
 skills/docket-new-change/SKILL.md                           61 1330
