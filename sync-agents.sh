@@ -229,6 +229,17 @@ per_repo_opted_in() {
   return 1
 }
 
+# Whether THIS run generates per-repo wrappers into <repo>/.<harness>/agents. The single predicate
+# shared by the writer (project_level_pass), the gate (validate_runner_config's project-level leg)
+# and --check's wrapper/dispatch-rule drift loops (check_project_level's leg (c)), so the gate can
+# never see fewer triples than a call site later resolves — the under-enumeration change 0220 fixed.
+# It is a delegation, not an alias: the three call sites must move together, and naming the concept
+# is what makes that reviewable. gitignore_block_wanted is deliberately NOT this predicate — it is
+# strictly weaker (a .docket.local.yml, a docket branch, or a pre-existing block all satisfy it),
+# and legs (a)/(b) keep it because they are about the .gitignore block and tracked leftovers, which
+# exist independently of whether any wrapper was generated.
+project_wrappers_generated() { per_repo_opted_in; }
+
 short_name(){ local b; b="$(basename "$1")"; b="${b#docket-}"; printf '%s' "${b%.md}"; }
 
 # Extract the single-line `description:` frontmatter value from a wrapper source file.
@@ -606,9 +617,16 @@ validate_user_agent_values() {
 }
 
 # Gate 3 (change 0207): every `runner:` rule, checked across every candidate triple, BEFORE the
-# first wrapper write. Wrapper generation is atomic — a run regenerates every wrapper or changes
-# nothing on disk, so a configuration error leaves the previously generated wrappers in place on
+# first wrapper write. Wrapper generation is atomic — a run regenerates every WRAPPER or changes no
+# wrapper on disk, so a configuration error leaves the previously generated wrappers in place on
 # the assumption that what was already there was working (nginx -t / nginx -s reload).
+#
+# "No wrapper" is the exact claim, not "nothing" (change 0220): migrate_legacy_global runs ABOVE
+# this gate and has two disk effects a failing run does not undo — it renames the user's legacy
+# ~/.config/docket/agents.yaml to .migrated, and it APPENDS an indented agents: block to the user's
+# live global config.yml (adding a trailing newline first if that file lacked one). Nothing else on
+# the failure path writes: the .gitignore write, migrate_tracked_wrappers and prune_orphans all sit
+# below a passing gate.
 #
 # PLACEMENT IS BOUNDED ON BOTH SIDES. It must stay BELOW resolve_global_agent_harnesses —
 # USER_TARGETS is not computable until the POST-migration $GLOBAL_CFG has been read, and any triple
@@ -645,7 +663,7 @@ validate_runner_config() {
     # project-level pass: HARNESSES resolved over local + committed + global.
     # `continue`, not an early `return 0` hoisted out of the loop: it skips only THIS agent's
     # project-level leg, leaving the user-level leg above intact for a non-opted-in repo.
-    per_repo_opted_in || continue
+    project_wrappers_generated || continue
     for harness in $HARNESSES; do
       resolve_agent_layers "$harness" "$name" "$LOCAL_CFG" "$DOCKET_YML" "$GLOBAL_CFG"
       if ! err="$(runner_config_error "$harness" "$name" "$RES_RUNNER" "$(user_flag_model)")"; then
@@ -945,8 +963,11 @@ emit_wrapper(){  # $1=src $2=model $3=effort $4=runner $5=harness $6=agent-name 
   # Can't-happen assertion, not the user-facing mechanism: validate_runner_config gates every
   # triple before the first wrapper write. This covers a FUTURE call site added without that gate —
   # there are three today (user_level_pass, project_level_pass, check_project_level's leg (c)) and
-  # nothing structurally prevents a fourth. Reaching it means the gate under-enumerated, so it dies
-  # loudly rather than emitting a wrapper the config says must not exist.
+  # nothing structurally prevents a fourth. The three are gated consistently BECAUSE the gate's
+  # project-level leg and leg (c) share project_wrappers_generated (change 0220) — not as a
+  # coincidence of two predicates that happen to agree. A fourth call site must adopt that
+  # predicate too, or re-open the gap 0220 closed. Reaching it means the gate under-enumerated, so
+  # it dies loudly rather than emitting a wrapper the config says must not exist.
   local rc_err
   if ! rc_err="$(runner_config_error "$5" "$6" "$runner" "$flag_model")"; then
     log "ERROR $rc_err"
@@ -1202,7 +1223,7 @@ user_level_pass() {  # built-in ⊕ global -> each user-level target harness, re
 }
 
 project_level_pass() {  # built-in ⊕ local ⊕ committed ⊕ global -> <repo>/.<H>/agents for each H in HARNESSES
-  per_repo_opted_in || return 0
+  project_wrappers_generated || return 0
   local src name harness dir cfg_h cfgname layer_f
   for layer_f in "$LOCAL_CFG" "$DOCKET_YML"; do
     warn_legacy_shape "$layer_f" 1
@@ -1288,6 +1309,16 @@ check_project_level() {  # three legs: (a) gitignore block current [CI-meaningfu
     rc=1
   fi
   # leg (c) — local staleness (ADVISORY: reported, never fails CI; vacuous on a fresh clone).
+  # Gated on project_wrappers_generated, the SAME predicate project_level_pass writes under. Two
+  # reasons, one predicate: (1) this loop calls emit_wrapper, so a triple the gate skipped would
+  # die here on the can't-happen assertion (change 0220); (2) diffing against wrappers this repo
+  # never generates produced a "not generated on this machine" advisory for every agent, which was
+  # simply false. A repo that WAS opted in, generated wrappers, then dropped its key keeps those
+  # wrappers and stops having them diffed — accepted, because prune_orphans' legs are themselves
+  # per-repo-opt-in gated, so leg (c) was the last survivor of a boundary drawn everywhere else.
+  if ! project_wrappers_generated; then
+    return $rc
+  fi
   local src name got tmp d harness
   tmp="$(mktemp -d)"
   for src in "$AGENTS_SRC"/docket-*.md; do
@@ -1429,9 +1460,12 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
       log "check: user agent config has unconsumable values — a real run would refuse to write wrappers."
       exit 1
     fi
-    # This leg reads PRE-migration config. That is the same asymmetry the two gates above already
-    # have, and it matches what check_project_level's leg (c) drift loop itself resolves, so no gap
-    # opens between the gate and that loop's own emit_wrapper calls.
+    # This leg reads PRE-migration config — the same asymmetry the two gates above already have.
+    # It matches what check_project_level's leg (c) drift loop resolves, and since change 0220 the
+    # two are gated by the SAME predicate (project_wrappers_generated), so the gate cannot see
+    # fewer triples than that loop later emits. Before 0220 the gate used per_repo_opted_in while
+    # leg (c) used the strictly weaker gitignore_block_wanted, and a global agent_harnesses: list
+    # omitting claude let a bad claude runner: reach leg (c)'s emit_wrapper unchecked.
     if ! validate_runner_config; then
       log "check: runner configuration is invalid — a real run would refuse to write wrappers."
       exit 1

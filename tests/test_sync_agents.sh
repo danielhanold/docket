@@ -1597,8 +1597,11 @@ err="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check 2>&1 >/dev/
 assert "0207: --check fails on a bad runner config" '[ "$rc" != "0" ]'
 assert "0207: --check says a real run would refuse to write wrappers" \
   'grep -qiE "would refuse to write wrappers" <<<"$err"'
-assert "0207: --check wrote no wrappers" \
-  '[ "$(find "$SBX/.claude/agents" -name "docket-*.md" 2>/dev/null | wc -l | tr -d " ")" = "0" ]'
+# (This assert was vacuous as written — leg (c) redirects into a mktemp -d, so --check never wrote
+# into .claude/agents even pre-0207. The property it was reaching for is pinned by the 0220/D1
+# fixture below, which proves --check reaches its own return rather than exiting mid-leg.)
+assert "0207: --check exits before check_project_level runs its legs" \
+  '! grep -qF "nothing else to check" <<<"$err" && ! grep -qF "advisory" <<<"$err"'
 rm -rf "$SBX"
 
 # NON-VACUITY COMPANION for the whole 0207 block: the same shape with a VALID runner config must
@@ -1621,6 +1624,46 @@ printf 'agent_harnesses: [claude, cursor]\nagents:\n  cursor:\n    status: { run
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 ); rc=$?
 assert "0205: a reserved (non-claude) runner does NOT trip the required-model rule" '[ "$rc" = "0" ]'
 assert "0205: and its wrapper is still native" '! grep -qF "runner-dispatch" "$SBX/.cursor/agents/docket-status.md"'
+rm -rf "$SBX"
+
+# ---- change 0220 / D1: the gate and leg (c) share ONE predicate -------------------------------
+# The gap this closes: with a GLOBAL agent_harnesses: list that omits claude, $USER_TARGETS has no
+# claude, so the gate's user-level leg never sees agents.claude.*; in a repo that is NOT opted in
+# the gate's project-level leg `continue`s; but leg (c) iterated $HARNESSES (default claude) and
+# called emit_wrapper, which died on its can't-happen assertion — raw ERROR + exit 1, skipping the
+# remaining --check legs and leaking leg (c)'s mktemp -d.
+#
+# The assertion shape is INVERTED from the obvious one on purpose. In this fixture the gate itself
+# is legitimately silent (runner_config_error returns 0 on the user leg because USER_TARGETS has no
+# claude; the project leg continues), and on the --check path a FAILING gate exit 1s before
+# check_project_level runs at all — so "the gate now catches it" and "the remaining legs still run
+# after a gate failure" both describe unreachable paths. What is provable is that leg (c) no longer
+# runs at all in a repo with no per-repo wrappers: no runner ERROR, no false advisory, and rc = 0.
+#
+# rc = 0 is the load-bearing assert: emit_wrapper's failure path is a hard `exit 1`, so rc can only
+# be 0 if check_project_level reached its own `return $rc`. The .gitignore docket block is
+# pre-written so leg (a) passes and rc = 0 is meaningful rather than vacuously non-zero.
+mkgitrepo
+mkdir -p "$SBX/.config/docket"
+# global layer: harness list WITHOUT claude, plus a bad (model-less) claude runner
+printf 'agent_harnesses: [codex]\nagents:\n  claude:\n    status: { runner: codex }\n' \
+  > "$SBX/.config/docket/config.yml"
+# NO .docket.yml and NO .docket.local.yml => per_repo_opted_in is false.
+# gitignore_block_wanted is still TRUE (the block below), which is exactly the weaker predicate.
+( . "$REPO/scripts/lib/docket-gitignore-block.sh" && emit_docket_gitignore_block ) > "$SBX/.gitignore"
+d1_err="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check 2>&1 >/dev/null )"; d1_rc=$?
+assert "0220/D1: --check completes rather than aborting inside leg (c) (rc=0)" \
+  '[ "$d1_rc" = "0" ]'
+assert "0220/D1: no raw runner ERROR escapes from leg (c)" \
+  '! grep -qF "requires an explicit model" <<<"$d1_err"'
+# The false advisory D1 removes as a side effect: project_level_pass writes nothing in a
+# non-opted-in repo, so leg (c) reporting "not generated on this machine" was always wrong.
+assert "0220/D1: no false leg-(c) advisory for un-generated per-repo wrappers" \
+  '! grep -qF "not generated on this machine" <<<"$d1_err"'
+# Non-vacuity: the fixture really did put the weaker predicate in the TRUE state, so the assert
+# above is about the shared predicate and not about check_project_level having returned early.
+assert "0220/D1: (fixture) gitignore_block_wanted was true — leg (a) ran and passed" \
+  '! grep -qF "nothing else to check" <<<"$d1_err"'
 rm -rf "$SBX"
 
 # no runner config anywhere: native (un-shimmed) output (regression fence)
