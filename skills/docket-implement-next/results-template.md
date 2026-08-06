@@ -9,7 +9,9 @@ Change: #<id> · Branch: feat/<slug> · PR: <url> · Plan: <path> · ADRs: <ids>
 
 ## Verify (human)
 
-<!-- Interactive/manual checks for the merge gate. Each item PENDING until checked. -->
+<!-- GENUINELY MANUAL checks for the merge gate — things no automated test can reach. Each item
+     PENDING until checked. A fixed finding never belongs here: the fix plus the green suite is its
+     verification, and the PR body's disposition table is where its outcome is read. -->
 - [ ] …
 
 ## Findings

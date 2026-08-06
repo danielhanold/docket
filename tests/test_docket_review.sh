@@ -216,6 +216,44 @@ for d in fixed deferred reverted recorded; do
   assert "fix-loop: the disposition table has a '$d' state" \
     'grep -qiE "\b'"$d"'\b" <<<"$fix_body"'
 done
+
+# --- change 0218: auto-capture no longer absorbs this branch's own findings ---
+AC="$REPO/skills/docket-convention/references/auto-capture.md"
+ac_body="$(cat "$AC" 2>/dev/null)"
+assert "auto-capture: reference is non-vacuous (>= 20 lines)" \
+  '[ "$(printf "%s\n" "$ac_body" | grep -c .)" -ge 20 ]'
+# Scoped to the Materiality bar SECTION, not the whole file: a whole-file grep would match the
+# clause wherever it landed, including a passing mention in the mint paragraph, which is not where
+# the bar is applied. The section extractor gets its own non-vacuity anchor for the same reason.
+ac_bar="$(awk '/^## Materiality bar/{f=1;next} /^## /{f=0} f' "$AC")"
+assert "auto-capture: the Materiality bar section was located (non-vacuity anchor)" \
+  '[ -n "$ac_bar" ]'
+# Proximity-shaped, not a bare "in-branch" presence check. The clause this guards is "work fixable
+# by a small in-branch edit FAILS THE BAR"; the sentence after it independently says the finding
+# "is fixed in-branch", so a presence grep stayed GREEN when the rule-bearing clause was deleted
+# (observed while mutation-testing this assert). Key it on in-branch fixability sitting next to
+# failing the bar — the `[^.]` class keeps the pair inside one sentence.
+assert "auto-capture: work fixable by a small in-branch edit fails the bar" \
+  'grep -qiE "in-branch[^.]{0,40}fails the bar" <<<"$ac_bar"'
+
+# --- the PR body records a disposition, not a wishlist ------------------------
+EP="$REPO/skills/docket-implement-next/references/edge-paths.md"
+ep_body="$(cat "$EP" 2>/dev/null)"
+assert "edge-paths: reference is non-vacuous (>= 15 lines)" \
+  '[ "$(printf "%s\n" "$ep_body" | grep -c .)" -ge 15 ]'
+assert "edge-paths: the PR body carries the findings disposition table" \
+  'grep -qiF -- "disposition table" <<<"$ep_body"'
+assert "edge-paths: no longer parks importants/minors for merge-time judgment alone" \
+  '! grep -qiF -- "left for merge-time judgment" <<<"$ep_body"'
+
+# --- Verify (human) is manual checks only -------------------------------------
+RT="$REPO/skills/docket-implement-next/results-template.md"
+rt_body="$(cat "$RT" 2>/dev/null)"
+assert "results-template: is non-vacuous (>= 15 lines)" \
+  '[ "$(printf "%s\n" "$rt_body" | grep -c .)" -ge 15 ]'
+assert "results-template: Verify (human) excludes fixed findings" \
+  'grep -qiE "fixed finding[^.]{0,80}(never|not)|(never|not)[^.]{0,80}fixed finding" <<<"$rt_body"'
+
 # The bare `|halt` alternation this assert once carried made it vacuous: Step 6 already said
 # "authorized-or-halt" before the triage prose existed, so it passed on prose it did not guard.
 # Keyed on the proximity shape instead — the committed "A red re-run **halts**" satisfies it.
