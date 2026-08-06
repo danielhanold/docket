@@ -210,6 +210,21 @@ assert "fix-loop: the gate is bounded at two suite runs" \
 assert "fix-loop: still-red after the revert halts" \
   'grep -qiE "still[- ]red[^.]{0,80}halt" <<<"$fix_body"'
 
+# The revert path's re-run must REFRESH the evidence record too. Without it the first (red) run's
+# result survives into the PR body's `docket:build-evidence` block for a branch that is actually
+# green — misreporting to the human and to docket-finalize-change, which reads that block to decide
+# whether to skip its own post-rebase suite run. Scoped to the suite-gate SECTION and to the
+# numbered step that re-runs, not the whole file: the first branch already says "refresh", so a
+# whole-file grep would stay green with the revert path silent — exactly the defect.
+gate_section="$(awk '/^## The suite gate/{f=1; next} /^## /{f=0} f' <<<"$fix_body")"
+assert "fix-loop: the suite-gate section is extractable (anchor for the re-run guard)" \
+  '[ -n "$gate_section" ]'
+rerun_step="$(awk '/^[0-9]+\. /{keep = tolower($0) ~ /re-?run/} keep' <<<"$gate_section")"
+assert "fix-loop: the post-revert re-run step is extractable (non-vacuity anchor)" \
+  '[ -n "$rerun_step" ]'
+assert "fix-loop: the post-revert re-run refreshes the build-evidence record" \
+  'grep -qiE "refresh[^.]{0,80}(build-)?evidence record" <<<"$rerun_step"'
+
 # The knob, and the always-fix-blockers carve-out that makes it safe.
 assert "fix-loop: reads the severity threshold from the resolved knob" \
   'grep -qF -- "REVIEW_MIN_FIX_SEVERITY" <<<"$fix_body"'
