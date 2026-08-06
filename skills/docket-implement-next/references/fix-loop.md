@@ -83,6 +83,9 @@ Every fix runs the **`docket-build-task`** contract (focused test → implement 
 self-review → one commit), dispatched by profile name, **foreground and sequential** — fixes share
 one worktree, so two concurrent workers would collide.
 
+- **Order: blockers first, then importants, then minors.** Non-blocker fix commits are therefore
+  the tail of the branch, and the suite gate below can lift them off without unstacking a blocker
+  fix that landed on the same region.
 - **Blockers and importants: one task per finding**, one commit each, the message naming the
   finding and the reasoning. Per-finding tasks buy failure isolation and a bisectable narrative,
   and blockers are rare enough that the extra dispatches cost nothing.
@@ -104,7 +107,12 @@ docket-build's gate uses, and refresh the build-evidence record from the result.
 **Red** → the loop must not leave the branch worse than the green build that entered it:
 
 1. **Revert the non-blocker fix commits** by tracked SHA — the importants and minors. Blocker
-   fixes stay: the run cannot proceed without them.
+   fixes stay: the run cannot proceed without them. They are the branch's tail by the dispatch
+   order above, so the revert applies cleanly. **Should one conflict anyway** → **halt**: restore
+   the worktree to its pre-revert state first, then abort-and-report, the change staying
+   `in-progress` with `claimed_at` refreshed and the reason recorded. A half-applied revert in a
+   shared worktree is the one outcome worse than the red branch — the human must arrive at a
+   coherent branch to inspect.
 2. **Re-run the suite once**, refreshing the build-evidence record from this run — the record must
    always reflect the *last* suite run, or a now-green branch ships the first run's `result: red`.
 3. **Green** → proceed with the refreshed record. The reverted findings are recorded unfixed in the

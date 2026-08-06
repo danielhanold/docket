@@ -193,6 +193,19 @@ assert "fix-loop: severity selects the failure posture, not the profile" \
   'grep -qiE "severity[^.]{0,100}posture" <<<"$fix_body"'
 
 # Task shape and commits.
+# Task ORDER is load-bearing, not cosmetic: blockers first is what keeps the non-blocker fix
+# commits at the branch's tail, so the suite gate's revert never has to unstack a blocker fix that
+# landed on top of the same region. Scoped to the section where task order BELONGS — a whole-file
+# grep would stay green if the rule existed only as an aside inside the revert step, and a rule
+# restated at its point of use is the drift class this repo already documents
+# (restatement-accumulates-its-own-guards).
+tasks_section="$(awk '/^## Tasks, batching, commits/{f=1; next} /^## /{f=0} f' <<<"$fix_body")"
+assert "fix-loop: the tasks section is extractable (anchor for the ordering guard)" \
+  '[ -n "$tasks_section" ]'
+assert "fix-loop: fix tasks are ordered blockers first" \
+  'grep -qiE "blockers?[^.]{0,40}(first|before)" <<<"$tasks_section"'
+assert "fix-loop: the ordering is justified by leaving non-blockers at the branch tail" \
+  'grep -qiE "tail" <<<"$tasks_section"'
 assert "fix-loop: blockers and importants get one task per finding" \
   'grep -qiE "(one task per finding|per-finding task)" <<<"$fix_body"'
 assert "fix-loop: minors batch by shared routed profile" \
@@ -224,6 +237,15 @@ assert "fix-loop: the post-revert re-run step is extractable (non-vacuity anchor
   '[ -n "$rerun_step" ]'
 assert "fix-loop: the post-revert re-run refreshes the build-evidence record" \
   'grep -qiE "refresh[^.]{0,80}(build-)?evidence record" <<<"$rerun_step"'
+
+# A conflicted revert is the one way the "never worse than the green build that entered" guarantee
+# can fail open: an autonomous run has no human to finish a half-applied revert, and the worktree is
+# shared. The posture must be stated, and it must be a halt that first puts the worktree back.
+# Scoped to the suite-gate section for the same reason as the re-run guard above.
+assert "fix-loop: a conflicted revert halts" \
+  'grep -qiE "conflict[^.]{0,160}halt|halt[^.]{0,160}conflict" <<<"$gate_section"'
+assert "fix-loop: a conflicted revert restores the worktree to its pre-revert state" \
+  'grep -qiE "worktree[^.]{0,120}pre-revert|pre-revert[^.]{0,120}worktree" <<<"$gate_section"'
 
 # The knob, and the always-fix-blockers carve-out that makes it safe.
 assert "fix-loop: reads the severity threshold from the resolved knob" \
