@@ -310,6 +310,24 @@ assert "README: the docket-review section was located (non-vacuity anchor)" \
   '[ -n "$rvsec" ] && grep -qF -- "build-evidence" <<<"$rvsec"'
 assert "README states the suite-run count the change delivers" \
   'grep -qiE "one full-suite run when" <<<"$rvsec" && grep -qiE "three only when both" <<<"$rvsec"'
+
+# --- change 0218: README documents the in-branch fix loop and its knob -------
+# Scoped to the docket-review section via $rvsec — the section-scoped haystack this file already
+# extracts, whose non-vacuity is anchored by "README: the docket-review section was located" above.
+# (The plan named a fresh `rm_body`; $rvsec IS that extractor, so it is reused rather than
+# duplicated — a second identical awk range would be one more thing to keep in step.) A whole-README
+# grep for "min_fix_severity" would be satisfied by any passing mention anywhere in a 900-line file.
+assert "README: the fix loop replaced the record-everything rule" \
+  '! grep -qiF -- "go into the PR body for merge-time judgment" <<<"$rvsec"'
+assert "README: documents the in-branch fix loop" \
+  'grep -qiF -- "fix loop" <<<"$rvsec"'
+assert "README: documents the min_fix_severity knob" \
+  'grep -qF -- "min_fix_severity" <<<"$rvsec"'
+assert "README: states that fix routing never reaches max" \
+  'grep -qiE "never[^.]{0,80}\`?max\`?" <<<"$rvsec"'
+assert "README: states blockers are fixed regardless of the knob" \
+  'grep -qiE "blocker[^.]{0,120}regardless" <<<"$rvsec"'
+
 # The shipped cross-harness default is now docket-review (change 0193). Anchored on the resolver,
 # both directions, mirroring the build guard in tests/test_docket_build.sh.
 review_default="$(grep -E 'SKILL_REVIEW=|skill_role review' "$REPO/scripts/docket-config.sh")"
