@@ -363,8 +363,15 @@ assert "README explains why the suite lives in the build gate, not the reviewer"
 rvsec="$(awk "/^### docket-review/{f=1;next} /^### /{f=0} f" "$RM")"
 assert "README: the docket-review section was located (non-vacuity anchor)" \
   '[ -n "$rvsec" ] && grep -qF -- "build-evidence" <<<"$rvsec"'
+# Re-keyed by change 0218: the pre-0218 arithmetic (one / two / three) was written when only a
+# BLOCKER fix could land after the build gate. The in-branch fix loop lands importants and minors
+# too and can itself run the suite twice (fix run, then the post-revert run), so the ceiling is
+# FOUR — build gate, fix run, post-revert run, finalize rebase. The floor key is "on the clean
+# path" rather than a bare "one full-suite run", because the fix-loop paragraph in this same
+# section already says "One full-suite run after the fixes land" and would satisfy the looser key
+# with the arithmetic sentence deleted entirely.
 assert "README states the suite-run count the change delivers" \
-  'grep -qiE "one full-suite run when" <<<"$rvsec" && grep -qiE "three only when both" <<<"$rvsec"'
+  'grep -qiE "one full-suite run on the clean path" <<<"$rvsec" && grep -qiE "at most \*{0,2}four" <<<"$rvsec"'
 
 # --- change 0218: README documents the in-branch fix loop and its knob -------
 # Scoped to the docket-review section via $rvsec — the section-scoped haystack this file already
