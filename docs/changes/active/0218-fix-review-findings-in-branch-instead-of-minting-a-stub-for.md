@@ -10,7 +10,7 @@ updated: 2026-08-06
 depends_on: []
 related: [197, 200, 220]
 discovered_from: [202]
-adrs: [66]
+adrs: [66, 70]
 spec: docs/superpowers/specs/2026-08-06-fix-review-findings-in-branch-design.md
 plan: docs/superpowers/plans/2026-08-06-fix-review-findings-in-branch.md
 results:
