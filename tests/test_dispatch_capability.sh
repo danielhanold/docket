@@ -81,6 +81,7 @@ assert "convention: a skill that was invoked but cannot DISPATCH is Tier C" \
 # literal into an unrelated site's paragraph) and every assert would still read PASS.
 IMPL="$REPO/skills/docket-implement-next/SKILL.md"
 AUTOGROOM="$REPO/skills/docket-auto-groom/SKILL.md"
+FIXLOOP="$REPO/skills/docket-implement-next/references/fix-loop.md"
 
 # Print the single paragraph (blank-line-delimited block) containing the first anchor match.
 para_with(){ awk -v pat="$2" 'BEGIN{RS="";} $0 ~ pat {print; exit}' "$1"; }
@@ -127,12 +128,36 @@ check_site "$IMPL"      "docket-adr.? subagent"                  "Tier A" "imple
 check_site "$IMPL"      "resolved build skill"                   "Tier C" "implement-next §5 build"         "build"
 check_site "$IMPL"      "resolved review skill"                  "Tier C" "implement-next §6 review"        "review"
 check_site "$AUTOGROOM" "docket-auto-groom-critic"               "Tier B" "auto-groom §3 critic"            "docket-auto-groom-critic"
+# The Step 6 in-branch fix workers (change 0218) are a THIRD Tier C consumer, and the only one that
+# does not own a `skills:` role of its own — it BORROWS the build role's `auto`. Wiring it as an
+# ordinary check_site row is what pins the dual-purpose statement in its canonical home without a
+# copy-pinning assert: the table-coherence loop below derives its requirement from this row's noun,
+# so the convention's Tier C row must NAME the fix consumer or this reddens. Rewording either side
+# independently is exactly what the derivation catches; nothing here quotes a sentence.
+check_site "$FIXLOOP"   "fix dispatch is"                        "Tier C" "implement-next §6 fix loop"      "fix"
 
-# Population floor: the scanner must have REACHED all five sites. A renamed heading or a moved
+# Population floor: the scanner must have REACHED all six sites. A renamed heading or a moved
 # paragraph now genuinely reddens this floor too, because `seen` only increments on an actual find
 # (see check_site above) — it is no longer an unconditional counter that always equals the number
 # of check_site calls regardless of whether any of them found anything.
-assert "consumer coverage: all five dispatch sites were reached (floor)" '[ "$seen" -eq 5 ]'
+assert "consumer coverage: all six dispatch sites were reached (floor)" '[ "$seen" -eq 6 ]'
+
+# --- the borrowed authorization is stated in its canonical home ----------------------------------
+# The row-derived coherence check above proves the Tier C row NAMES the fix consumer; it does not
+# prove the row says WHICH switch authorizes it. A config reader's surprise is the whole finding:
+# one knob named for the build role authorizes two different kinds of inline work. Pin that pairing
+# inside the row's own dispatch CELL — `[^|]` cannot cross a table-cell boundary, so a `skills.build:
+# auto` sitting in the neighbouring posture cell (where it would read as the build role's alone)
+# does not satisfy this.
+tierC_row="$(grep -E "^\| \*\*C — discipline\*\*" "$CONV")"
+assert "convention: Tier C row exists (anchor for the borrowed-authorization asserts)" \
+  '[ -n "$tierC_row" ]'
+assert "convention: Tier C names skills.build: auto as the FIX consumer's authorization too" \
+  'grep -qE -- "fix[^|]{0,160}skills\.build: auto|skills\.build: auto[^|]{0,160}fix" <<<"$tierC_row"'
+# And that the borrowing is a stated decision, not an omission: a reader must not have to wonder
+# whether a `skills.fix` key exists somewhere they have not looked.
+assert "convention: Tier C states there is no separate skills.fix key" \
+  'grep -qE -- "no separate .?skills\.fix" <<<"$tierC_row"'
 
 # --- whole-branch coherence: the convention's tier table must AGREE with the consuming sites ------
 # Nothing above cross-checks the definition against its consumers, and they live in different files

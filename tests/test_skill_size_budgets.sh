@@ -383,6 +383,31 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # would leave 9 (within the 25-word threshold), so 250.
 # skills/docket-implement-next/references/edge-paths.md's row was NOT raised by change 0218: turning
 # the PR-body findings clause into the disposition-table pointer measures 28/411, inside 35/450.
+# skills/docket-convention/SKILL.md's WORD budget was raised 5800 -> 5850 by a later 0218 review fix:
+# the human decided `skills.build: auto` keeps authorizing the Step 6 in-branch fix workers rather
+# than growing a `skills.fix` twin, so the BORROWING has to be stated where the authorization is
+# defined — the *Dispatch-capability resolution* Tier C row, whose dispatch cell enumerates that
+# tier's consumers. A config reader who meets one knob named for one role, silently authorizing two
+# kinds of inline work, is the surprise the words buy off. The considered home,
+# skills/docket-convention/references/agent-layer.md, is read only when configuring `agents:` /
+# running sync-agents.sh — never at the moment an agent is deciding whether an inline fix is
+# authorized, which is precisely when the Tier C row fires (the same reasoning that put the tier
+# table in SKILL.md at change 0137, above). The three satellite sites (README, .docket.example.yml,
+# fix-loop.md) carry short pointers stating only what THAT reader needs, so the rule is not restated.
+# Set per the rounding rule above from the measured actual: 5804 words -> 5850 (46 words of margin,
+# above the within-25 threshold). The LINE budget was NOT raised (339 actual, 345 budget).
+# skills/docket-implement-next/references/fix-loop.md's row was raised 175/1800 -> 180/1850 by that
+# same fix: its Tier C paragraph already cited `skills.build: auto`, but incidentally — the sentence
+# that makes the borrowing deliberate, and answers why no `skills.fix` knob exists (a fix worker runs
+# the `docket-build-task` contract at `docket-build`'s own profiles), belongs beside the citation it
+# qualifies. The considered home is the convention's Tier C row, which now owns the RULE; the
+# "why is there no knob" question is asked by a reader of this file, at this paragraph, and an
+# answer parked one file away leaves the citation reading as an accident here. The paragraph was also
+# re-wrapped so `*Dispatch-capability resolution*` sits on ONE line: the check_site guard in
+# tests/test_dispatch_capability.sh greps the citation as a literal, and a line-wrapped phrase is
+# unfindable to it (AGENTS.md: a cross-reference anchors on a greppable verbatim clause). Set per the
+# rounding rule above from the measured actual: 175 lines is a multiple of 5 but leaves ZERO margin,
+# so the multiple after it, 180; 1779 words -> 1800 leaves 21 (within the 25-word threshold), so 1850.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -391,7 +416,7 @@ skills/docket-brainstorm/SKILL.md                           84  692
 skills/docket-build/SKILL.md                               280 2500
 skills/docket-build/references/task-routing.md              50  500
 skills/docket-build-task/SKILL.md                          125 1100
-skills/docket-convention/SKILL.md                          345 5800
+skills/docket-convention/SKILL.md                          345 5850
 skills/docket-convention/github-board-mirror.md             19  462
 skills/docket-convention/references/agent-layer.md         190 2150
 skills/docket-convention/references/auto-capture.md         55  600
@@ -402,7 +427,7 @@ skills/docket-finalize-change/references/gate-failure.md    35  900
 skills/docket-groom-next/SKILL.md                           77 1484
 skills/docket-implement-next/SKILL.md                      150 3850
 skills/docket-implement-next/references/edge-paths.md       35  450
-skills/docket-implement-next/references/fix-loop.md        175 1800
+skills/docket-implement-next/references/fix-loop.md        180 1850
 skills/docket-implement-next/results-template.md            25  250
 skills/docket-review/SKILL.md                              110  900
 skills/docket-new-change/SKILL.md                           61 1330

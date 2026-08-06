@@ -445,7 +445,10 @@ runners:
 # skills — (change 0049) rebinds any of the five workflow invocation points — brainstorm / plan /
 # build / review / finish — to a different skill (the name passes to the Skill tool verbatim,
 # unvalidated) or to `auto` (no skill; the running agent performs the step inline at its own
-# model — e.g. `build: auto` to build with no fan-out at all). Unset keys default to the values
+# model — e.g. `build: auto` to build with no fan-out at all). Note that `build: auto` is
+# DUAL-PURPOSE: it authorizes inline building AND the in-branch fix workers docket-implement-next
+# runs on review findings, which execute the build role's own contract — one switch, two kinds of
+# inline work, and deliberately no `skills.fix` key. Unset keys default to the values
 # shown: superpowers for brainstorm / plan / finish, and docket's own build and review roles
 # since change 0193. To run the superpowers engine everywhere instead, set `build:
 # superpowers:subagent-driven-development` and `review: superpowers:requesting-code-review`

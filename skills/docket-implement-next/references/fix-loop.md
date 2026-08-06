@@ -87,13 +87,15 @@ Every fix runs the **`docket-build-task`** contract (focused test → implement 
 self-review → one commit), dispatched by profile name, **foreground and sequential** — fixes share
 one worktree, so two concurrent workers would collide.
 
-**If profile dispatch is unavailable** — established only per the convention's *Dispatch-capability
-resolution*, **never from a tool name**; an unregistered profile wrapper is the same condition
-reached by a concrete rejection — the fix dispatch is **Tier C**, on the same authorized-or-halt
-terms Step 5's build role carries: an explicitly configured `skills.build: auto` authorizes running
-the fix inline under this same contract, and any other resolved value is abort-and-report. Recording
-every finding instead is **not** the fallback — that fails the loop open silently, and a blocker
-would ride out to the PR unfixed.
+**If profile dispatch is unavailable** — established only per the convention's
+*Dispatch-capability resolution*, **never from a tool name**; an unregistered profile wrapper is
+the same condition reached by a concrete rejection — the fix dispatch is **Tier C**, on the same
+authorized-or-halt terms Step 5's build role carries: an explicitly configured `skills.build: auto`
+authorizes running the fix inline under this same contract, and any other resolved value is
+abort-and-report. That authorizer is **borrowed on purpose** — a fix worker runs the
+`docket-build-task` contract at `docket-build`'s own profiles, so the build role's switch is the
+honest one and no `skills.fix` knob exists. Recording every finding instead is **not** the
+fallback — that fails the loop open silently, and a blocker would ride out to the PR unfixed.
 
 - **Order: blockers first, then importants, then minors.** Non-blocker fix commits are therefore
   the tail of the branch, and the suite gate below can lift them off without unstacking a blocker
