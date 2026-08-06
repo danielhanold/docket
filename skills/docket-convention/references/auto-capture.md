@@ -19,6 +19,13 @@ Mint only for *actionable follow-up work that would be its own change / PR*
 ("would a human file this as a `docket-new-change`?"). A build lesson → the **learnings** harvest;
 drift inside the current change → the **reconcile log**; a bare observation → the run report.
 
+**Work fixable by a small in-branch edit fails the bar** (change 0218). A review finding about the
+diff currently on the branch is **never mintable** — it is fixed in-branch or recorded in the PR
+body, per `docket-implement-next`'s fix loop. A stub costs a title, an id, a groom, a spec, a plan,
+a branch, a PR, and a close-out; a dead line of code costs one deletion, and routing the second
+through the machinery built for the first is what made the backlog self-generating. Minting from
+review survives only for genuinely distinct, beyond-the-branch work that clears the bar on its own.
+
 ## The deterministic mint
 
 **The mint itself is deterministic** (ADR-0012 — the model judges *what*, the script does the mint):

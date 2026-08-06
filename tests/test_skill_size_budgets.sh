@@ -303,6 +303,27 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # measured actual: 122 lines -> 125 (3 lines of margin, the accepted half-step proportion),
 # 1053 words -> 1100 (47 words of margin, above the within-25 threshold). SKILL.md's own row was
 # NOT raised: the rewritten triage paragraph measures 145/3840, inside the existing 150/3850.
+# skills/docket-convention/references/auto-capture.md's budget was raised 45/450 -> 50/550 by change
+# 0218, which narrowed the materiality bar: work fixable by a small in-branch edit now FAILS the bar,
+# so a review finding about the branch's own diff is never mintable. The prose has no other home —
+# this file IS the bar's definition, and a rule about what the bar admits cannot live in a sibling
+# reference (the considered home was skills/docket-implement-next/references/fix-loop.md, which is
+# read only by the implementer's Step 6; the bar is applied by every auto-capture site, including
+# docket-status's sweep, which never reads the implementer's references). Set per the rounding rule
+# above from the measured actual: 45 lines -> 45 is the next multiple of 5 but leaves ZERO margin,
+# so the multiple after it, 50; 478 words -> 500 would leave 22 (within the 25-word threshold), so
+# 550.
+# skills/docket-implement-next/results-template.md's budget was raised 24/172 -> 25/250 by change
+# 0218, which narrowed `## Verify (human)` to genuinely manual checks and said where a fixed
+# finding's outcome IS read instead (the PR body's disposition table). The prose is a template
+# comment: it must sit in the template itself, at the moment an author is filling the section in —
+# the considered home, skills/docket-implement-next/references/edge-paths.md, is read only when a
+# run hits a rare edge, and writing a results file is not one. Set per the rounding rule above from
+# the measured actual: 23 lines -> 25 (the next multiple of 5; the pre-existing 24 would leave the
+# 1-line margin this comment block twice records as the near-zero failure mode), 191 words -> 200
+# would leave 9 (within the 25-word threshold), so 250.
+# skills/docket-implement-next/references/edge-paths.md's row was NOT raised by change 0218: turning
+# the PR-body findings clause into the disposition-table pointer measures 28/411, inside 35/450.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -314,7 +335,7 @@ skills/docket-build-task/SKILL.md                          125 1100
 skills/docket-convention/SKILL.md                          345 5800
 skills/docket-convention/github-board-mirror.md             19  462
 skills/docket-convention/references/agent-layer.md         190 2150
-skills/docket-convention/references/auto-capture.md         45  450
+skills/docket-convention/references/auto-capture.md         50  550
 skills/docket-convention/references/learnings.md            84  580
 skills/docket-convention/references/terminal-close-out.md  173 1458
 skills/docket-finalize-change/SKILL.md                     180 3450
@@ -323,7 +344,7 @@ skills/docket-groom-next/SKILL.md                           77 1484
 skills/docket-implement-next/SKILL.md                      150 3850
 skills/docket-implement-next/references/edge-paths.md       35  450
 skills/docket-implement-next/references/fix-loop.md        125 1100
-skills/docket-implement-next/results-template.md            24  172
+skills/docket-implement-next/results-template.md            25  250
 skills/docket-review/SKILL.md                              110  900
 skills/docket-new-change/SKILL.md                           61 1330
 skills/docket-new-change/change-template.md                 51  203
