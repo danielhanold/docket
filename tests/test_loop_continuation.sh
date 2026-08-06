@@ -90,6 +90,18 @@ assert "SKILL states the conditions are cumulative" \
 # scoping clause parked in an unrelated paragraph cannot satisfy it.
 assert "SKILL scopes cumulativity to each row's own step" \
   'grep -qE "cumulative.{0,200}as of the close of its own step" <<<"$impl_flat"'
+# ...and the "read from git" rule must NAME its one exception. The build-evidence record rows 5-6
+# turn on is NOT a git artifact: docket-build emits it as output, its default BUILD_CHECKPOINT:
+# false "persist[s] nothing", and even the true-path ledger lives under `.superpowers/`, which
+# .gitignore excludes. An unqualified universal here is simply false, and the honest reading is what
+# makes the head_sha == HEAD conjunct load-bearing rather than decorative. Proximity-scoped so the
+# admission has to sit inside the governing rule, not in some distant paragraph. No backticks in
+# these patterns on purpose: assert() eval's its argument, so a backtick would re-parse as command
+# substitution.
+assert "SKILL names the build-evidence record a non-git artifact" \
+  'grep -qF -- "is an in-context artifact, not a git object" <<<"$impl_flat"'
+assert "SKILL pins head_sha == HEAD as the record's only git fact" \
+  'grep -qE "in-context artifact, not a git object.{0,80}== HEAD conjunct is a git fact" <<<"$impl_flat"'
 
 # PROXIMITY-SCOPED producer assert (learnings: specified-but-unreachable). The contract's producer
 # is Step 5's clause; anchoring only on the defining section would leave the term orphaned exactly
@@ -146,6 +158,19 @@ assert "the read-scoping matcher ACCEPTS the scoped sentence (across a wrap)" \
 printf 'cumulative.%s as of the close of its own step\n' "$(printf ' x%.0s' $(seq 1 210))" > "$probe"
 assert "the read-scoping matcher rejects a distant co-occurrence" \
   '! grep -qE "cumulative.{0,200}as of the close of its own step" <<<"$(flatten < "$probe")"'
+# (c3) the evidence-qualification matcher must go RED on the UNQUALIFIED governing sentence — the
+# state in which the section asserts a universal ("read from git, never from a sub-skill's report")
+# that rows 5-6 cannot honour — and green once the exception is named, across a wrap.
+printf '%s\n' 'Each step below is complete only when its row holds — read from **git**, never from a sub-skill'"'"'s report or its own narration.' > "$probe"
+assert "the evidence-qualification matcher REJECTS the unqualified rule" \
+  '! grep -qE "in-context artifact, not a git object.{0,80}== HEAD conjunct is a git fact" <<<"$(flatten < "$probe")"'
+printf 'the build-evidence record of rows 5-6 is an in-context artifact, not\na git object, so only its head_sha == HEAD conjunct is a git fact.\n' > "$probe"
+assert "the evidence-qualification matcher ACCEPTS the named exception (across a wrap)" \
+  'grep -qE "in-context artifact, not a git object.{0,80}== HEAD conjunct is a git fact" <<<"$(flatten < "$probe")"'
+# ...and is not satisfied by the two halves parked far apart.
+printf 'in-context artifact, not a git object.%s == HEAD conjunct is a git fact\n' "$(printf ' x%.0s' $(seq 1 90))" > "$probe"
+assert "the evidence-qualification matcher rejects a distant co-occurrence" \
+  '! grep -qE "in-context artifact, not a git object.{0,80}== HEAD conjunct is a git fact" <<<"$(flatten < "$probe")"'
 # (d) THE load-bearing one: the proximity assert must go RED on the pre-0203 state — the clause
 # present with no pointer. This is the state 0203 removed, not the wording it introduced.
 printf '%s\n' 'the step is not complete until its git-state postcondition holds. docket-build routes each task.' > "$probe"
