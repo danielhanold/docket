@@ -894,8 +894,11 @@ emit_opencode_md(){  # $1=src md  $2=model  $3=effort   (both FINAL resolved val
 
 # The provenance-filtered model (change 0168), read from the RES_* globals resolve_agent_layers just
 # set. ONLY a user-configured value may become a child-runner flag, so a shipped
-# agents/harness-defaults.yml default must read as absent here. Spelled once: emit_wrapper and
-# validate_runner_config must agree exactly, or the gate passes a triple the assertion then kills.
+# agents/harness-defaults.yml default must read as absent here. NOT spelled once (change 0220):
+# emit_wrapper deliberately keeps its own copy over positional $2, because $2 is also the
+# frontmatter pin and rerouting only the flag would split the two. What keeps them from drifting is
+# emit_wrapper's $2 == $RES_MODEL assertion, not a shared call — the two spellings must still agree
+# exactly, or the gate passes a triple the assertion then kills.
 user_flag_model(){ [ "${RES_MODEL_FROM_USER:-0}" = "1" ] && printf '%s' "${RES_MODEL:-}"; return 0; }
 
 # The single source of truth for both `runner:` rules, their diagnostics, and their ORDER
@@ -934,7 +937,23 @@ runner_config_error(){  # $1=harness $2=agent $3=runner $4=flag_model  (diagnost
 # native. Both error rules for a claude runner — unregistered runner, and a registered runner
 # with no USER-configured model — live in runner_config_error and are gated up front by
 # validate_runner_config; the call below is only a can't-happen assertion.
+#
+# CALLING CONTRACT (change 0220): $2 MUST be the RES_MODEL that resolve_agent_layers just resolved
+# for this exact (harness, agent) pair, and $3 the matching RES_EFFORT. $2 is used TWICE and for
+# two different things — as emit_shim's frontmatter pin, and (provenance-filtered through
+# RES_MODEL_FROM_USER) as the baked --model flag — so a caller that passes a post-processed model
+# would split the wrapper against itself. This is why the provenance filter here is a second
+# spelling of user_flag_model's rather than a call to it: rerouting only the flag would leave the
+# frontmatter pin on $2 and emit a wrapper whose two halves disagree, silently. The assertion at the
+# top of the body is what makes the contract enforced rather than merely conventional.
 emit_wrapper(){  # $1=src $2=model $3=effort $4=runner $5=harness $6=agent-name  (stdout)
+  # Enforce the calling contract stated in the header above. ABOVE the `[ -z "$runner" ]`
+  # short-circuit deliberately: the header states the contract for EVERY call, so enforcing it only
+  # on the delegated path would leave the documented rule unenforced on the native one.
+  if [ "$2" != "${RES_MODEL:-}" ]; then
+    log "ERROR emit_wrapper called for $5/docket-$6 with model '$2', which is not the resolved RES_MODEL '${RES_MODEL:-}' — see emit_wrapper's calling contract. No wrappers were written."
+    exit 1
+  fi
   local runner="$4"
   if [ -z "$runner" ]; then emit_for_harness "$1" "$5" "$2" "$3"; return 0; fi
   if [ "$5" != "claude" ]; then
