@@ -30,7 +30,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-06-fix-review-findings-in-branch-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-06-fix-review-findings-in-branch-design.md) |
 | Plan | [2026-08-06-fix-review-findings-in-branch.md](https://github.com/danielhanold/docket/blob/feat/fix-review-findings-in-branch-instead-of-minting-a-stub-for/docs/superpowers/plans/2026-08-06-fix-review-findings-in-branch.md) |
-| ADRs | [ADR-0066](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0066-docket-owns-the-review-role-suite-runs-in-the-build-gate.md) |
+| ADRs | [ADR-0066](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0066-docket-owns-the-review-role-suite-runs-in-the-build-gate.md), [ADR-0070](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0070-fix-loop-profile-envelope-blocker-floor-and-max-ceiling.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
