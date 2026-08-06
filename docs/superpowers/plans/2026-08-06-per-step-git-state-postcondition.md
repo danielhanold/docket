@@ -311,7 +311,7 @@ clause specifically."
 ## Verification
 
 - [ ] Full suite green, run once as the build gate: `bash tests/run_all.sh` (or the repo's documented runner — check `AGENTS.md` / `tests/` for the entry point).
-- [ ] `grep -c 'git-state postcondition' skills/docket-implement-next/SKILL.md` returns **2** (§5's clause and — if the section's prose repeats it — the section). One is the pre-change state; the point is that it is no longer orphaned.
+- [ ] `grep -c 'git-state postcondition' skills/docket-implement-next/SKILL.md` returns **1** — §5's clause only; the new `### Step postconditions` section deliberately does not repeat the term. Non-orphanhood is not pinned by an occurrence count but by the proximity assert in `tests/test_loop_continuation.sh`, which requires §5's clause to point at *Step postconditions*.
 - [ ] `wc -l -w skills/docket-implement-next/SKILL.md` is at or under the re-derived budget row.
 - [ ] `git diff origin/main...HEAD --stat` touches exactly three files: the SKILL.md and the two test files.
 
