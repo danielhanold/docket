@@ -294,6 +294,15 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # -> 500 (36 words of margin, above the within-25 threshold).
 # skills/docket-build/SKILL.md's budget was NOT lowered by the extraction: a budget is a ceiling,
 # and lowering it to the new actual would redden the next unrelated edit for no invariant.
+# skills/docket-implement-next/references/fix-loop.md is a NEW row added by change 0218, which gave
+# Step 6 a bounded in-branch fix loop for review findings. The mechanics are heavy AND conditionally
+# read — a review that returns no findings never needs them — which is the skill-extraction-and-stub-
+# pointer test, and the same shape as this skill's existing edge-paths.md and the convention's
+# auto-capture.md. Step 6 keeps the RULE (fix in-branch, character-routed, never max, threshold knob)
+# and the blocking pointer; the reference keeps rule + why. Set per the rounding rule above from the
+# measured actual: 122 lines -> 125 (3 lines of margin, the accepted half-step proportion),
+# 1053 words -> 1100 (47 words of margin, above the within-25 threshold). SKILL.md's own row was
+# NOT raised: the rewritten triage paragraph measures 145/3840, inside the existing 150/3850.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -313,6 +322,7 @@ skills/docket-finalize-change/references/gate-failure.md    35  900
 skills/docket-groom-next/SKILL.md                           77 1484
 skills/docket-implement-next/SKILL.md                      150 3850
 skills/docket-implement-next/references/edge-paths.md       35  450
+skills/docket-implement-next/references/fix-loop.md        125 1100
 skills/docket-implement-next/results-template.md            24  172
 skills/docket-review/SKILL.md                              110  900
 skills/docket-new-change/SKILL.md                           61 1330

@@ -143,12 +143,79 @@ assert "controller: names all three reviewer rungs" \
   '( for r in lean standard deep; do grep -qF -- "docket-review-$r" <<<"$step6" || exit 1; done )'
 assert "controller: rung selection is deterministic, from the build's highest profile" \
   'grep -qiE "highest .{0,40}profile" <<<"$step6"'
-assert "controller: blockers route through the docket-build-task contract" \
+# --- change 0218: findings are FIXED in-branch, not recorded and re-minted ----
+# The removed rule was "An `important` or `minor` finding is recorded in the PR body for the
+# human's merge-time judgment, never auto-fixed". The assert that used to sit here confirmed the
+# words "important" and "PR body" were present — both of which survive the rewrite, so it would
+# have stayed green across the exact change it was meant to notice. Assert the NEGATIVE instead.
+assert "controller: Step 6 no longer forbids auto-fixing non-blockers" \
+  '! grep -qiE "never auto-fixed" <<<"$step6"'
+assert "controller: Step 6 sends findings through a bounded in-branch fix loop" \
+  'grep -qiF -- "fix loop" <<<"$step6"'
+assert "controller: Step 6 points at the fix-loop reference (blocking read)" \
+  'grep -qF -- "references/fix-loop.md" <<<"$step6"'
+assert "controller: Step 6 names the severity threshold knob" \
+  'grep -qF -- "REVIEW_MIN_FIX_SEVERITY" <<<"$step6"'
+assert "controller: blockers still route through the docket-build-task contract" \
   'grep -qF -- "docket-build-task" <<<"$step6"'
-assert "controller: important/minor findings go to the PR body, never auto-fixed" \
-  'grep -qE "important" <<<"$step6" && grep -qiE "PR body" <<<"$step6"'
 assert "controller: no re-review round after fixes" \
   'grep -qiE "no re-review|never re-review" <<<"$step6"'
+
+# --- the fix-loop reference itself --------------------------------------------
+FIX="$REPO/skills/docket-implement-next/references/fix-loop.md"
+assert "fix-loop: the reference exists" '[ -f "$FIX" ]'
+fix_body="$(cat "$FIX" 2>/dev/null)"
+assert "fix-loop: reference is non-vacuous (>= 30 lines)" \
+  '[ "$(printf "%s\n" "$fix_body" | grep -c .)" -ge 30 ]'
+
+# The routing axis DELEGATES — it must never restate the rubric it shares with docket-build.
+assert "fix-loop: routes by character via the shared rubric" \
+  'grep -qF -- "task-routing.md" <<<"$fix_body"'
+assert "fix-loop: does not restate the rubric's economy bullet" \
+  '! grep -qE "^- \*\*\`economy\`\*\* — \*only when\*" <<<"$fix_body"'
+
+# The CEILING is the whole safety argument: no fix task may ever reach max, at any severity.
+assert "fix-loop: never dispatches the max profile" \
+  'grep -qiE "never[^.]{0,80}\`?max\`?|no fix task[^.]{0,60}max" <<<"$fix_body"'
+assert "fix-loop: a max-character blocker halts" \
+  'grep -qiE "max[^.]{0,120}halt" <<<"$fix_body"'
+
+# Severity sets POSTURE only — the orthogonality claim, which is what keeps a minor finding from
+# being handed to a cheap model just for being minor.
+assert "fix-loop: severity selects the failure posture, not the profile" \
+  'grep -qiE "severity[^.]{0,100}posture" <<<"$fix_body"'
+
+# Task shape and commits.
+assert "fix-loop: blockers and importants get one task per finding" \
+  'grep -qiE "(one task per finding|per-finding task)" <<<"$fix_body"'
+assert "fix-loop: minors batch by shared routed profile" \
+  'grep -qiE "batch" <<<"$fix_body"'
+assert "fix-loop: fixes run the docket-build-task contract" \
+  'grep -qF -- "docket-build-task" <<<"$fix_body"'
+
+# The suite gate: revert-and-record, bounded at two runs.
+assert "fix-loop: re-runs the full suite after fixes land" \
+  'grep -qiE "full[- ]suite" <<<"$fix_body"'
+assert "fix-loop: a red re-run reverts the NON-BLOCKER fix commits" \
+  'grep -qiE "revert[^.]{0,120}non-blocker|non-blocker[^.]{0,120}revert" <<<"$fix_body"'
+assert "fix-loop: the gate is bounded at two suite runs" \
+  'grep -qiE "two suite runs|at most two" <<<"$fix_body"'
+assert "fix-loop: still-red after the revert halts" \
+  'grep -qiE "still[- ]red[^.]{0,80}halt" <<<"$fix_body"'
+
+# The knob, and the always-fix-blockers carve-out that makes it safe.
+assert "fix-loop: reads the severity threshold from the resolved knob" \
+  'grep -qF -- "REVIEW_MIN_FIX_SEVERITY" <<<"$fix_body"'
+assert "fix-loop: blockers are fixed regardless of the threshold" \
+  'grep -qiE "blocker[^.]{0,120}regardless" <<<"$fix_body"'
+
+# The recording surface.
+assert "fix-loop: the PR body carries a disposition table" \
+  'grep -qiF -- "disposition table" <<<"$fix_body"'
+for d in fixed deferred reverted recorded; do
+  assert "fix-loop: the disposition table has a '$d' state" \
+    'grep -qiE "\b'"$d"'\b" <<<"$fix_body"'
+done
 # The bare `|halt` alternation this assert once carried made it vacuous: Step 6 already said
 # "authorized-or-halt" before the triage prose existed, so it passed on prose it did not guard.
 # Keyed on the proximity shape instead — the committed "A red re-run **halts**" satisfies it.
