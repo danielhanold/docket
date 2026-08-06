@@ -1666,6 +1666,41 @@ assert "0220/D1: (fixture) gitignore_block_wanted was true — leg (a) ran and p
   '! grep -qF "nothing else to check" <<<"$d1_err"'
 rm -rf "$SBX"
 
+# ---- change 0220 / D2: the gate's USER-LEVEL leg, exercised through the GLOBAL layer -----------
+# Every other runner: fixture writes .docket.yml (the project layer), so the whole
+# `for harness in $USER_TARGETS` block in validate_runner_config was mutation-survivable: delete it
+# and nothing reddened. This is the leg that protects ~/.claude/agents — the widest blast radius of
+# the original change-0079/0205 bug. The repo here has NO .docket.yml and NO .docket.local.yml, so
+# per_repo_opted_in is false and the project-level leg `continue`s: only the user-level leg can
+# catch this, and rc != 0 is therefore attributable to it alone.
+D2REPO="$(mktemp -d)"; D2ROOT="$(mktemp -d)"
+mkdir -p "$D2ROOT/.claude" "$D2ROOT/.config/docket"
+printf 'agents:\n  claude:\n    status: { runner: codex }\n' > "$D2ROOT/.config/docket/config.yml"
+d2_err="$( cd "$D2REPO" && DOCKET_HARNESS_ROOT="$D2ROOT" bash "$SYNC" 2>&1 >/dev/null )"; d2_rc=$?
+assert "0220/D2: a bad runner in the GLOBAL layer fails the real run nonzero" '[ "$d2_rc" != "0" ]'
+assert "0220/D2: the user-level diagnostic names the agent" 'grep -qF "docket-status" <<<"$d2_err"'
+assert "0220/D2: and names the required-model rule" \
+  'grep -qF "requires an explicit model" <<<"$d2_err"'
+# The protected behavior, stated as behavior: ~/.claude/agents is never generated from bad config.
+assert "0220/D2: NO user-level wrapper was written for any agent" \
+  '[ "$(find "$D2ROOT/.claude/agents" -name "docket-*.md" 2>/dev/null | wc -l | tr -d " ")" = "0" ]'
+# --check must reach the same verdict (this is the path where compute_user_targets has not run and
+# USER_TARGETS/USER_HARNESSES_SET are unset under set -u).
+d2c_err="$( cd "$D2REPO" && DOCKET_HARNESS_ROOT="$D2ROOT" bash "$SYNC" --check 2>&1 >/dev/null )"; d2c_rc=$?
+assert "0220/D2: --check fails on the same global-layer config" '[ "$d2c_rc" != "0" ]'
+assert "0220/D2: --check says a real run would refuse to write wrappers" \
+  'grep -qiE "would refuse to write wrappers" <<<"$d2c_err"'
+# Non-vacuity companion: the SAME shape with a model present must generate the full set, so the
+# asserts above cannot be satisfied by sync-agents.sh failing for an unrelated reason.
+rm -rf "$D2ROOT/.claude"; mkdir -p "$D2ROOT/.claude"
+printf 'agents:\n  claude:\n    status: { runner: codex, model: some/model-id }\n' \
+  > "$D2ROOT/.config/docket/config.yml"
+( cd "$D2REPO" && DOCKET_HARNESS_ROOT="$D2ROOT" bash "$SYNC" >/dev/null 2>&1 ); d2v_rc=$?
+assert "0220/D2: a VALID global runner config still generates (not vacuous)" '[ "$d2v_rc" = "0" ]'
+assert "0220/D2: and the full built-in set lands user-level" \
+  '[ "$(find "$D2ROOT/.claude/agents" -name "docket-*.md" | wc -l | tr -d " ")" = "16" ]'
+rm -rf "$D2REPO" "$D2ROOT"
+
 # no runner config anywhere: native (un-shimmed) output (regression fence)
 make_sandbox
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )
