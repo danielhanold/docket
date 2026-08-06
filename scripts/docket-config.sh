@@ -601,8 +601,8 @@ esac
 # independent reasons — the line is indented, and it has a value after the colon — so neither
 # check alone is load-bearing for THAT spelling. The column-0 requirement IS load-bearing for an
 # indented, valueless `review:` carrying a nested `min_fix_severity`. tests/test_docket_config.sh
-# pins both: RMF-f1 the coexistence, RMF-f2 the column-0 invariant (mutation-verified — deleting
-# the column-0 conjunct reddens RMF-f2 and nothing else).
+# pins both: RMF-g1 the coexistence, RMF-g2 the column-0 invariant (mutation-verified — deleting
+# the column-0 conjunct reddens RMF-g2 and nothing else).
 # Behavioral, NOT coordination-fenced: it shapes BRANCH content (which findings get fixed in the
 # diff a human reviews), never shared metadata, so it resolves through the full per-field layering
 # repo-local > repo-committed > global > built-in, like build.checkpoint / reclaim.* / learnings.*.
