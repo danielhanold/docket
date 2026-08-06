@@ -303,6 +303,13 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # measured actual: 122 lines -> 125 (3 lines of margin, the accepted half-step proportion),
 # 1053 words -> 1100 (47 words of margin, above the within-25 threshold). SKILL.md's own row was
 # NOT raised: the rewritten triage paragraph measures 145/3840, inside the existing 150/3850.
+# fix-loop.md's row was raised 125/1100 -> 140/1250 by a 0218 review fix: the blocker floor (a
+# blocker's fix starts no lower than standard, the one exception to character/severity
+# orthogonality) must live beside the routing table it excepts — this file IS the routing rule's
+# home, and stating an exception anywhere else (the considered home was SKILL.md's Step 6 summary,
+# which keeps only the rule + pointer) would leave the table it modifies contradicting it. Set per
+# the rounding rule above from the measured actual: 135 lines -> 135 is the next multiple of 5 but
+# leaves ZERO margin, so 140; 1215 words -> 1250 (35 words of margin, above the within-25 threshold).
 # skills/docket-convention/references/auto-capture.md's budget was raised 45/450 -> 50/550 by change
 # 0218, which narrowed the materiality bar: work fixable by a small in-branch edit now FAILS the bar,
 # so a review finding about the branch's own diff is never mintable. The prose has no other home —
@@ -343,7 +350,7 @@ skills/docket-finalize-change/references/gate-failure.md    35  900
 skills/docket-groom-next/SKILL.md                           77 1484
 skills/docket-implement-next/SKILL.md                      150 3850
 skills/docket-implement-next/references/edge-paths.md       35  450
-skills/docket-implement-next/references/fix-loop.md        125 1100
+skills/docket-implement-next/references/fix-loop.md        140 1250
 skills/docket-implement-next/results-template.md            25  250
 skills/docket-review/SKILL.md                              110  900
 skills/docket-new-change/SKILL.md                           61 1330
