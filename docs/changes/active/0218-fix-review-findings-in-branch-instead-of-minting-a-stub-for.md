@@ -2,7 +2,7 @@
 id: 218
 slug: fix-review-findings-in-branch-instead-of-minting-a-stub-for
 title: Fix review findings in-branch instead of minting a stub for every one
-status: in-progress
+status: implemented
 priority: high
 type: feat
 created: 2026-08-05
@@ -13,12 +13,12 @@ discovered_from: [202]
 adrs: [66, 70]
 spec: docs/superpowers/specs/2026-08-06-fix-review-findings-in-branch-design.md
 plan: docs/superpowers/plans/2026-08-06-fix-review-findings-in-branch.md
-results:
+results: docs/results/2026-08-06-fix-review-findings-in-branch-instead-of-minting-a-stub-for-results.md
 trivial: false
 auto_groomable:
 branch: feat/fix-review-findings-in-branch-instead-of-minting-a-stub-for
-claimed_at: 2026-08-06T03:11:32Z
-pr:
+claimed_at: 2026-08-06T04:21:27Z
+pr: https://github.com/danielhanold/docket/pull/162
 blocked_by:
 reconciled: true
 ---
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-06-fix-review-findings-in-branch-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-06-fix-review-findings-in-branch-design.md) |
 | Plan | [2026-08-06-fix-review-findings-in-branch.md](https://github.com/danielhanold/docket/blob/feat/fix-review-findings-in-branch-instead-of-minting-a-stub-for/docs/superpowers/plans/2026-08-06-fix-review-findings-in-branch.md) |
+| Results | [2026-08-06-fix-review-findings-in-branch-instead-of-minting-a-stub-for-results.md](https://github.com/danielhanold/docket/blob/feat/fix-review-findings-in-branch-instead-of-minting-a-stub-for/docs/results/2026-08-06-fix-review-findings-in-branch-instead-of-minting-a-stub-for-results.md) |
+| PR | [#162](https://github.com/danielhanold/docket/pull/162) |
 | ADRs | [ADR-0066](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0066-docket-owns-the-review-role-suite-runs-in-the-build-gate.md), [ADR-0070](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0070-fix-loop-profile-envelope-blocker-floor-and-max-ceiling.md) |
 <!-- docket:artifacts:end -->
 
