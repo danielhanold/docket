@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/define-the-per-step-git-state-postcondition-docket-implement
-claimed_at: 2026-08-06T21:14:02Z
+claimed_at: 2026-08-06T21:15:54Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -86,9 +86,10 @@ design in the linked spec; the settled shape:
 - **Named residual**: on a clean-review path Step 6 produces no git state of its own, so its row
   reduces to Step 5's. Recorded, not papered over.
 
-Word budget is a live constraint: `skills/docket-implement-next/SKILL.md` measured 139 lines / 3728
-words on 2026-08-05 against a `145 / 3800` row — 6 lines, 72 words. Compress the touched region
-first, re-measure, raise only if it still exceeds.
+Word budget is a live constraint. **Re-measured 2026-08-06 (post-0212):**
+`skills/docket-implement-next/SKILL.md` is 145 lines / 3844 words against a `150 / 3850` row — 5
+lines and 6 words of margin, not the 6/72 the stub recorded pre-0212. Compress the touched region
+first, re-measure, raise from the *measured* actual.
 
 ## Sequencing
 
@@ -98,8 +99,47 @@ either way). Recorded as a recommendation, not `depends_on:`, because a hard gat
 change until 0212 reaches `done`. Whichever lands second re-measures the merged file and re-derives
 the budget row.
 
+**Resolved (2026-08-06):** 0212 landed first, as recommended. 0203 is therefore the second lander
+and **owes the re-measure**: the budget row is now `150 3850` and the file measures 145/3844 — 5
+lines and **6 words** of margin. A raise is now effectively certain, and its in-diff justification
+must be written rather than assumed.
+
 ## Out of scope
 
 - Reversing ADR-0044 or re-litigating call-site pre-specification.
 - Changing the `aborted-run` check or its predicates — the deterministic oracle is not what is
   under-specified here.
+
+## Reconcile log
+
+### 2026-08-06 — claimed and reconciled against current `docket` + `main`
+
+Re-verified every fact the spec's assumption 11 orders re-checked at build time. All hold, with
+three updates:
+
+1. **0212 landed** (`archive/2026-08-05-0212-…`), as the spec recommended. So did **0211**
+   (`aborted-run` leg C exists in `scripts/board-checks.sh`) and **0202**. The sequencing question is
+   settled and 0203 is the second lander that owes the post-rebase re-measure.
+2. **The budget is much tighter than the spec recorded.** 0212 raised the row `145/3800 → 150/3850`
+   and consumed the raise in its own diff. Measured now: **145 lines / 3844 words** — 5 lines, 6
+   words. "Compress first, raise only if it still exceeds" is unchanged as a *sequence*, but the
+   spec's implicit hope that compression alone might absorb the table is no longer plausible; plan
+   for a raise with a written in-diff justification naming `references/edge-paths.md` and why the
+   table cannot live there.
+3. **0212's pointer is now concrete.** `SKILL.md` reads "`advanced` is claimable only when **Step
+   7's postcondition** holds; that postcondition is Step 7's to state, not this section's", and
+   `tests/test_loop_continuation.sh` asserts that pointer (`advanced.{0,80}Step 7|Step 7.{0,80}advanced`)
+   while deliberately asserting no postcondition wording — the test comment names 0203 as the
+   surface that supplies it. **That regex is a live constraint on any compression of that sentence:
+   `Step 7` must stay within 80 characters of `advanced`.**
+
+Verified unchanged: `git-state postcondition` still occurs **exactly once** across `skills/` (§5,
+`SKILL.md:74`). `scripts/board-checks.sh` reads **neither** the build-evidence record **nor**
+`## Reconcile log` presence — the spec's correction stands, so table rows 3, 5 and 6 do name state no
+existing check consumes. `tests/test_loop_continuation.sh` (63 lines) still carries one `mktemp`
+probe over one matcher and no file-exists/non-empty anchor, so the spec's instruction to borrow the
+fuller anchor set from `tests/test_role_skill_self_description.sh` (file-exists + non-empty anchor, a
+live presence assert through the same read, and a mutation probe **per new matcher**) applies as
+written.
+
+Scope unchanged; no design invalidation. Proceeding to plan.
