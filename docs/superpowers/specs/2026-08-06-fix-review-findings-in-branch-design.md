@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0218 — Fix review findings in-branch instead of minting a stub for every one](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0218-fix-review-findings-in-branch-instead-of-minting-a-stub-for.md)**
+> ↩ **[Change 0218 — Fix review findings in-branch instead of minting a stub for every one](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-06-0218-fix-review-findings-in-branch-instead-of-minting-a-stub-for.md)**
 <!-- docket:backlink:end -->
 
 # Fix review findings in-branch instead of minting a stub for every one — design
