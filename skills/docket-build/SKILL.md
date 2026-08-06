@@ -57,35 +57,16 @@ A valid value (`economy`, `standard`, `premium`, `max`) is authoritative; record
 routing line. An **invalid** value is a plan contract error: **halt** per *Halting conditions* and
 surface it — never silently fall back to a default.
 
-**Otherwise classify**, with a deliberate asymmetry — `economy` must be *positively* established,
-named risk selects upward, and uncertainty defaults to `standard`.
+**Otherwise classify** using the shared character→profile rubric in
+[`references/task-routing.md`](references/task-routing.md) — the same rubric
+`docket-implement-next`'s Step 6 fix loop reads, which is why it lives in a file rather than here.
+**Read it now (blocking) before routing your first task.** It carries the deliberate asymmetry
+(`economy` positively established, uncertainty sinking to `standard`), the `max`/`premium`
+organizing principle, and the four tier bullets. Never restate it in this file or in your dispatch
+prose.
 
-The `max`/`premium` boundary has an organizing principle, not just a list: **`max` is for mistakes this
-build's own correction machinery cannot walk back.** Destroyed data cannot be un-destroyed by a
-retry, and a wrong architectural call shapes every task after it; a patch-correctable bug is caught
-at the suite gate or in review. Resolve edge cases by applying that test, not by extending the
-lists below.
-
-- **`max`** — **unresolved architecture** or an **irreversible data change** (a destructive
-  migration, a backfill, anything that cannot be rolled back). Nothing else classifies here.
-  Irreversibility is the test: a reversible or purely additive migration is *not* `max` — it is
-  `premium`, or `standard` if it carries no consequential risk at all.
-- **`premium`** — authentication or security boundaries, concurrency or locking, release
-  infrastructure, or any consequential risk **explicitly named in the plan or spec text**. That last
-  door is honored, not inferred: never articulate a new risk on your own — your classification is
-  this closed list, so uncertainty still sinks to `standard`.
-- **`standard`** — everything remaining; the default and the uncertainty sink. Deliberately includes
-  hard-but-safe work: the plan override covers difficulty known at plan time, and the
-  `standard -> premium` escalation covers difficulty discovered at build time.
-- **`economy`** — *only when* the task is fully specified, follows an established pattern, carries no
-  consequential risk, and requires **no cross-file reasoning** — either localized to a couple of
-  implementation files (tests do not count against locality), or a mechanical, pattern-identical
-  edit repeated across many files whose instances do not interact and where a missed instance fails
-  loudly (a grep, a validator) rather than silently. All four conditions must hold; doubt about any
-  one of them means `standard`.
-
-`max` is rare by construction: the two-item rubric above, an explicit plan override, and a `premium`
-escalation are its only three doors.
+For docket-build specifically, `max` has exactly three doors: the rubric's two-item direct
+classification, an explicit plan override, and a `premium` escalation.
 
 Emit one concise routing line per task naming both the profile and its reason.
 

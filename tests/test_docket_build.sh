@@ -6,6 +6,7 @@
 set -uo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 WORKER="$REPO/skills/docket-build-task/SKILL.md"
+ROUTING="$REPO/skills/docket-build/references/task-routing.md"
 fail=0
 assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
 
@@ -145,27 +146,85 @@ for a in docket-build-economy docket-build-standard docket-build-premium docket-
   assert "controller: names the $a agent" 'grep -qF -- "'"$a"'" <<<"$ctrl_body"'
 done
 
-# The routing rubric, with its deliberate asymmetry. The economy/standard rubric bullets are
-# anchored on the same "^- **`token`**" structural idiom this file already uses for the worker's
-# outcome bullets, since the prose disjunctions they replace were absorbed by the `## Routing`
-# summary sentence — deleting the operative bullet reddened nothing (fix round 2, finding 2).
-assert "controller: economy must be POSITIVELY established" \
-  'grep -qE "^- \*\*\`economy\`\*\* — \*only when\*" <<<"$ctrl_body"'
-assert "controller: named risk selects premium" \
-  'grep -qiE "premium[^.]{0,200}(authentication|security boundar)" <<<"$ctrl_body"'
-assert "controller: uncertainty defaults to standard" \
-  'grep -qE "^- \*\*\`standard\`\*\* — everything remaining" <<<"$ctrl_body"'
+# --- change 0218: the routing rubric is EXTRACTED, with two owners ------------
+# The rubric moved out of the controller so docket-implement-next's fix loop can classify a
+# finding from the same source instead of restating it. These asserts are the multi-owner
+# fixture the shared-resource-keeps-first-owner-assumptions learning demands: a guard that only
+# checks docket-build still points at the file passes against a reference that never learned it
+# has a second consumer. Every rubric assert below is a RELOCATION of the controller-scoped assert
+# that used to sit here, repointed at the artifact that now owns the prose — never a restoration.
+assert "routing: the shared reference exists" '[ -f "$ROUTING" ]'
+routing_body="$(cat "$ROUTING" 2>/dev/null)"
+# Non-vacuity floor, this file's standard: every negative assert below reads $routing_body, so a
+# missing or unreadable reference must redden HERE rather than passing every `! grep` by default.
+assert "routing: reference is non-vacuous (>= 20 lines)" \
+  '[ "$(printf "%s\n" "$routing_body" | grep -c .)" -ge 20 ]'
 
-# 0184: max is reachable only through three narrow doors, and its DIRECT rubric is exactly two
-# items. An assert that merely finds the word "max" in the rubric would stay green if the pre-0184
-# top-rung trigger list were pasted under the new name — which is the regression to detect. (Before
-# 0184 there were three profiles and `premium` was the top rung, carrying those triggers; 0184 added
-# a fourth above it, so the triggers belong to `premium` as the THIRD of four, not to `max`.)
-assert "controller: max's direct rubric is unresolved architecture + irreversible data only" \
-  'grep -qiE "\*\*\`max\`\*\*[^.]{0,240}unresolved architecture" <<<"$ctrl_body" &&
-   grep -qiE "\*\*\`max\`\*\*[^.]{0,240}irreversible" <<<"$ctrl_body"'
-assert "controller: the demoted top-rung triggers now name premium, not max" \
-  '! grep -qiE "\*\*\`max\`\*\*[^.]{0,240}(authentication|security boundar|concurrency|release infrastructure)" <<<"$ctrl_body"'
+# The rubric itself now lives in the reference, not the controller. The economy/standard bullets
+# keep the "^- **`token`**" structural idiom this file already uses for the worker's outcome
+# bullets, since the prose disjunctions they replace were absorbed by the section's summary
+# sentence — deleting the operative bullet reddened nothing (0167 fix round 2, finding 2).
+assert "routing: economy must be POSITIVELY established (in the reference)" \
+  'grep -qE "^- \*\*\`economy\`\*\* — \*only when\*" <<<"$routing_body"'
+assert "routing: named risk selects premium (in the reference)" \
+  'grep -qiE "premium[^.]{0,200}(authentication|security boundar)" <<<"$routing_body"'
+assert "routing: uncertainty defaults to standard (in the reference)" \
+  'grep -qE "^- \*\*\`standard\`\*\* — everything remaining" <<<"$routing_body"'
+
+# 0184's rule, repointed at its new owner: max is reachable only through narrow doors, and its
+# DIRECT rubric is exactly two items. An assert that merely finds the word "max" in the rubric
+# would stay green if the pre-0184 top-rung trigger list were pasted under the new name — which is
+# the regression to detect. (Before 0184 there were three profiles and `premium` was the top rung,
+# carrying those triggers; 0184 added a fourth above it, so the triggers belong to `premium` as the
+# THIRD of four, not to `max`.)
+#
+# Both asserts read the max bullet FOLDED INTO ONE LOGICAL LINE, not the raw file. The rubric is
+# hard-wrapped and grep is line-based, so against the raw body the negation below could only see a
+# trigger sharing line 1 with the `**`max`**` token — a trigger pasted onto a CONTINUATION line of
+# the same bullet left it green (proven by mutation while relocating it here, and true of the
+# 0184-era controller-scoped assert it replaces). Since the bullet wraps after ~100 columns, that
+# was most of the defect surface. Folding restores the intended SENTENCE scope: `[^.]{0,240}` still
+# stops at the first period, so a trigger must be attached to `max` in its own opening sentence.
+# The range is bounded by the next top-level bullet, never run to EOF (AGENTS.md, unbounded ranges).
+routing_max="$(awk '
+  /^- \*\*`max`\*\*/ { inb=1; printf "%s ", $0; next }
+  inb && /^- \*\*/   { inb=0 }
+  inb                { printf "%s ", $0 }
+' <<<"$routing_body")"
+# Non-vacuity companion for the extractor: an awk slice that silently returns empty makes the
+# negative assert below pass against anything at all.
+assert "routing: the max bullet extraction is non-vacuous" '[ "${#routing_max}" -ge 100 ]'
+assert "routing: max's direct rubric is unresolved architecture + irreversible data only" \
+  'grep -qiE "\*\*\`max\`\*\*[^.]{0,240}unresolved architecture" <<<"$routing_max" &&
+   grep -qiE "\*\*\`max\`\*\*[^.]{0,240}irreversible" <<<"$routing_max"'
+assert "routing: the demoted top-rung triggers name premium, not max" \
+  '! grep -qiE "\*\*\`max\`\*\*[^.]{0,240}(authentication|security boundar|concurrency|release infrastructure)" <<<"$routing_max"'
+# The RATIONALE moved with the rule — an extraction is behavior-neutral only if the why moved too.
+assert "routing: the reference carries the max/premium organizing principle" \
+  'grep -qiF -- "cannot walk back" <<<"$routing_body"'
+
+# The controller keeps a stub + pointer, and no longer carries the rubric bullets itself.
+assert "controller: Routing section points at the shared reference" \
+  'grep -qF -- "references/task-routing.md" <<<"$ctrl_body"'
+assert "controller: no longer restates the economy rubric bullet" \
+  '! grep -qE "^- \*\*\`economy\`\*\* — \*only when\*" <<<"$ctrl_body"'
+# The consumer-SPECIFIC rules stay in the controller: they are docket-build's, not the fix loop's.
+# These two deliberately overlap the plan-override asserts further down the file — those pin the
+# rule's CONTENT, these pin that the extraction left it behind instead of carrying it off.
+assert "controller: keeps the plan-override rule" \
+  'grep -qF -- "**Build profile:**" <<<"$ctrl_body"'
+assert "controller: keeps the invalid-override halt" \
+  'grep -qiE "invalid[^.]{0,80}halt" <<<"$ctrl_body"'
+
+# TWO OWNERS. This is the assert a single-owner fixture cannot reach. The second consumer's path
+# is named here so this file records the contract; its existence and its own guards belong to
+# tests/test_docket_review.sh, which is where the fix loop is tested.
+IMPL_FIX="$REPO/skills/docket-implement-next/references/fix-loop.md"
+assert "routing: the reference names both of its consumers" \
+  'grep -qiF -- "docket-build" <<<"$routing_body" &&
+   grep -qiF -- "docket-implement-next" <<<"$routing_body"'
+assert "routing: the reference does not describe itself as docket-build's alone" \
+  '! grep -qiE "only consumer|sole consumer" <<<"$routing_body"'
 
 # Detect the removed state. The clean break means these tokens must not survive as PROFILE names in
 # either contract; anchored on the two skill files rather than a whole-repo grep, because historical
@@ -178,8 +237,11 @@ assert "controller: the demoted top-rung triggers now name premium, not max" \
 # profile token AND enforces the no-effort-tiers rule, which previously had no detector at all.
 # If a future change ever needs a literal effort tier in either body, this assert is the thing
 # that must be argued with first — narrowing it silently would drop both properties.
-assert "controller + worker carry no retired profile token (and state no effort tier)" \
-  '! grep -qiE "\b(low|medium|high)\b" "$CTRL" "$WORKER"'
+# Change 0218 added $ROUTING to the scanned set rather than leaving it behind: the rubric prose
+# this ban most plausibly regrows a stale tier token in is exactly the prose that moved out of the
+# controller, and a sentinel that keeps grepping the source after the copy moved guards nothing.
+assert "controller + worker + routing reference carry no retired profile token (and state no effort tier)" \
+  '! grep -qiE "\b(low|medium|high)\b" "$CTRL" "$WORKER" "$ROUTING"'
 
 # The plan override and its fail-loud contract.
 assert "controller: honors an explicit plan Build profile override" \
