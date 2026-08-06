@@ -2,11 +2,11 @@
 id: 220
 slug: clear-the-unfixed-review-findings-from-change-0207
 title: clear the unfixed review findings from change 0207
-status: proposed
+status: in-progress
 priority: medium
 type: fix
 created: 2026-08-05
-updated: 2026-08-05
+updated: 2026-08-06
 depends_on: []
 related: [82, 140, 141, 207]
 discovered_from: [207]
@@ -16,7 +16,8 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch:
+branch: feat/clear-the-unfixed-review-findings-from-change-0207
+claimed_at: 2026-08-06T21:29:58Z
 pr:
 blocked_by:
 reconciled: false
