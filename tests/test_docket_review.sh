@@ -180,6 +180,13 @@ assert "fix-loop: never dispatches the max profile" \
 assert "fix-loop: a max-character blocker halts" \
   'grep -qiE "max[^.]{0,120}halt" <<<"$fix_body"'
 
+# The FLOOR is the ceiling's mirror: a blocker's fix may never START below standard, so a blocker
+# misrouted as mechanical still reaches premium before halting (the pre-0218 guarantee).
+assert "fix-loop: blocker fixes start no lower than standard (the floor)" \
+  'grep -qiE "blocker[^.]{0,120}no lower than \`standard\`|floor[^.]{0,120}\`standard\`" <<<"$fix_body"'
+assert "fix-loop: the floor is named as the one exception to orthogonality" \
+  'grep -qiE "exception[^.]{0,120}orthogonalit" <<<"$fix_body"'
+
 # Severity sets POSTURE only — the orthogonality claim, which is what keeps a minor finding from
 # being handed to a cheap model just for being minor.
 assert "fix-loop: severity selects the failure posture, not the profile" \

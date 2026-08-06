@@ -23,13 +23,26 @@ being a blocker.
   your dispatch prose.**
 - **Severity → posture.** What happens when the fix does not land.
 
+One deliberate exception to this orthogonality exists — the blocker floor, below.
+
 ## The ceiling — fix tasks stop at `premium`
 
 **No fix task dispatches the `max` profile, at any severity.** `premium` is
 "consequential but correctable" — still walk-backable inside a reviewed diff. `max` is defined by
 irreversibility, and an irreversible act must never happen to a branch as an unplanned side-quest
-discovered at review time. This matches the pre-0218 blocker ladder (`standard` → `premium` →
-halt), which also stopped short of that top tier.
+discovered at review time. The pre-0218 blocker ladder (`standard` → `premium` → halt) also
+stopped short of that top tier, so the **ceiling** matches it; the **floor** it guaranteed is
+preserved separately, below.
+
+## The floor — a blocker's fix starts no lower than `standard`
+
+This is the one deliberate exception to the character/severity orthogonality above, and the only
+place severity touches the profile: a blocker's fix task starts at `standard` even when its
+character routes `economy`. A blocker is the gate that must not fail open — the run halts on it —
+so its fix may not start below the uncertainty sink. Without the floor, a blocker misclassified as
+mechanical would run `economy` → `standard` and halt with `premium` never tried, where the
+pre-0218 ladder always reached `premium` before halting. The floor restores that guarantee;
+character routing at or above `standard` is untouched, and the never-`max` ceiling still binds.
 
 The rubric therefore doubles as the size ceiling; there is no separate knob for "too big to fix
 in-branch". A **max-character blocker halts** — abort-and-report, the change stays `in-progress`
@@ -41,14 +54,14 @@ becomes a line in the PR body for the human's merge-time judgment, **not** a fol
 
 | Finding character | blocker | important | minor |
 |---|---|---|---|
-| `economy` | fix (→ 1 escalation) | fix (→ 1 escalation) | fix, batched (→ 1 escalation) |
+| `economy` | fix at `standard` — the blocker floor (→ 1 escalation) | fix (→ 1 escalation) | fix, batched (→ 1 escalation) |
 | `standard` | fix (→ 1 escalation) | fix (→ 1 escalation) | fix (→ 1 escalation) |
 | `premium` | fix (no retry — the next rung is `max`) | fix (no retry) | fix (no retry) |
 | `max` | **halt** | PR-body record | PR-body record |
 
 Escalation is docket-build's one-bounded-escalation rule, **truncated at `premium`**: an `economy`
 fix retries once at `standard`, a `standard` fix once at `premium`, and a `premium` fix does not
-retry at all. Failure after the allowance is exhausted follows the severity posture — a blocker
+retry at all. The blocker floor means a blocker's ladder is always `standard` → `premium` → halt. Failure after the allowance is exhausted follows the severity posture — a blocker
 halts, an important or minor becomes a PR-body record naming the failure as the reason.
 
 ## The severity threshold
