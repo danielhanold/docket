@@ -283,13 +283,25 @@ assert "auto-capture: reference is non-vacuous (>= 20 lines)" \
 ac_bar="$(awk '/^## Materiality bar/{f=1;next} /^## /{f=0} f' "$AC")"
 assert "auto-capture: the Materiality bar section was located (non-vacuity anchor)" \
   '[ -n "$ac_bar" ]'
-# Proximity-shaped, not a bare "in-branch" presence check. The clause this guards is "work fixable
-# by a small in-branch edit FAILS THE BAR"; the sentence after it independently says the finding
-# "is fixed in-branch", so a presence grep stayed GREEN when the rule-bearing clause was deleted
-# (observed while mutation-testing this assert). Key it on in-branch fixability sitting next to
-# failing the bar — the `[^.]` class keeps the pair inside one sentence.
-assert "auto-capture: work fixable by a small in-branch edit fails the bar" \
-  'grep -qiE "in-branch[^.]{0,40}fails the bar" <<<"$ac_bar"'
+# Proximity-shaped, not a bare "in-branch" presence check. The clause this guards is "work THE
+# CURRENT RUN WILL FIX in-branch FAILS THE BAR"; the sentence after it independently says the
+# finding "is fixed in-branch", so a presence grep stayed GREEN when the rule-bearing clause was
+# deleted (observed while mutation-testing this assert). Key it on in-branch fixability sitting next
+# to failing the bar — the `[^.]` class keeps the pair inside one sentence.
+#
+# The scoping ("the current run will fix") is INSIDE the keyed shape, not a separate assert: this
+# reference is shared by mint sites with no branch and no fix loop (the finalize/status harvest),
+# and an unscoped bar tells those sites to drop precisely the follow-up nothing else will pick up.
+# Dropping the scope back to the unscoped "work fixable by a small in-branch edit" wording must
+# redden here, so the run-will-fix qualifier is load-bearing in the pattern.
+assert "auto-capture: work the current run will fix in-branch fails the bar" \
+  'grep -qiE "current run will fix in-branch[^.]{0,40}fails the bar" <<<"$ac_bar"'
+# The other half of the scoping: the harvest sites must be told the clause does not reach them,
+# or a harvest-time reader applies the fix-loop caller's rule with no fix loop to apply it with.
+assert "auto-capture: the harvest sites are exempt from the in-branch clause" \
+  'grep -qiE "harvest[^.]{0,20}exempt" <<<"$ac_bar"'
+assert "auto-capture: the exemption says why — no branch, no fix loop at harvest" \
+  'grep -qiE "no open branch[^.]{0,20}no fix loop" <<<"$ac_bar"'
 
 # --- the PR body records a disposition, not a wishlist ------------------------
 EP="$REPO/skills/docket-implement-next/references/edge-paths.md"
