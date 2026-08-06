@@ -2,7 +2,7 @@
 id: 218
 slug: fix-review-findings-in-branch-instead-of-minting-a-stub-for
 title: Fix review findings in-branch instead of minting a stub for every one
-status: implemented
+status: done
 priority: high
 type: feat
 created: 2026-08-05
@@ -17,7 +17,7 @@ results: docs/results/2026-08-06-fix-review-findings-in-branch-instead-of-mintin
 trivial: false
 auto_groomable:
 branch: feat/fix-review-findings-in-branch-instead-of-minting-a-stub-for
-claimed_at: 2026-08-06T04:21:27Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/162
 blocked_by:
 reconciled: true
