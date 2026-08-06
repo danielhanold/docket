@@ -408,6 +408,33 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # unfindable to it (AGENTS.md: a cross-reference anchors on a greppable verbatim clause). Set per the
 # rounding rule above from the measured actual: 175 lines is a multiple of 5 but leaves ZERO margin,
 # so the multiple after it, 180; 1779 words -> 1800 leaves 21 (within the 25-word threshold), so 1850.
+# skills/docket-implement-next/SKILL.md's budget was raised 150/3850 -> 165/4250 by change 0203,
+# which gave the file's orphan term `git-state postcondition` a referent: one `### Step
+# postconditions` table stating, for each of Steps 2-7, the git condition that completes it (refs,
+# commits, frontmatter fields, and the committed build-evidence record), prefaced by the governing
+# sentence that these certify a STEP and never the run — only Step 7's postcondition also completes
+# the run, so a satisfied intermediate row is never licence to stop. Change 0113 added the clause
+# "the step is not complete until its git-state postcondition holds" and defined the term nowhere;
+# the 0206 run stopped at a satisfied Step-5 condition, which is the failure the governing sentence
+# is aimed at. COMPRESSION WAS TAKEN FIRST, per this block's compress-then-raise posture: the
+# *Terminal disposition* pointer sentence ("that postcondition is Step 7's to state, not this
+# section's") became "stated in *Step postconditions* above, not here" — but that recovered only
+# 2 words and 0 lines, so essentially the whole raise is the new section. Deeper compression was
+# rejected on inventory: eleven test files grep this SKILL.md's prose, and
+# test_board_refresh_on_transition.sh, test_learnings_ledger.sh, test_closeout.sh and
+# test_results_artifact.sh assert on sentences a cut would have taken (restatement-accumulates-its-
+# own-guards; size-target-is-direction — take the raise rather than cut prose another guard holds).
+# The considered home is skills/docket-implement-next/references/edge-paths.md, and the table cannot
+# live there: edge-paths.md is read CONDITIONALLY, only once a run already knows it hit one of its
+# named edges, whereas a postcondition table is read on the COMMON path at EVERY step boundary — the
+# agent consults it precisely while deciding whether an ordinary step is finished, which is never an
+# edge. A rule parked there is unread exactly when it must intervene; that is the same argument the
+# 0113 and 0212 entries above record for this same file and reference pair.
+# Set per the rounding rule above from the measured actuals: pre-edit 145/3844, post-edit 160/4186.
+# 160 lines is itself a multiple of 5 and so leaves ZERO margin, the near-zero failure mode this
+# block records raising for repeatedly, so the multiple after it: 165. 4186 words -> the next
+# multiple of 50 is 4200, which leaves 14 words (within the 25-word threshold), so the multiple
+# after it: 4250 (64 words of margin).
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -425,7 +452,7 @@ skills/docket-convention/references/terminal-close-out.md  173 1458
 skills/docket-finalize-change/SKILL.md                     180 3450
 skills/docket-finalize-change/references/gate-failure.md    35  900
 skills/docket-groom-next/SKILL.md                           77 1484
-skills/docket-implement-next/SKILL.md                      150 3850
+skills/docket-implement-next/SKILL.md                      165 4250
 skills/docket-implement-next/references/edge-paths.md       35  450
 skills/docket-implement-next/references/fix-loop.md        180 1850
 skills/docket-implement-next/results-template.md            25  250
