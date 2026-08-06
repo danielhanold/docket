@@ -6,12 +6,12 @@ status: proposed
 priority: high
 type: feat
 created: 2026-08-05
-updated: 2026-08-05
+updated: 2026-08-06
 depends_on: []
-related: []
+related: [197, 200, 220]
 discovered_from: [202]
-adrs: []
-spec:
+adrs: [66]
+spec: docs/superpowers/specs/2026-08-06-fix-review-findings-in-branch-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,10 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-06-fix-review-findings-in-branch-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-06-fix-review-findings-in-branch-design.md) |
+| ADRs | [ADR-0066](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0066-docket-owns-the-review-role-suite-runs-in-the-build-gate.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -57,34 +61,32 @@ close-out. The dead line of code costs one deletion.
 
 ## What changes
 
-- **A fix loop in `docket-implement-next`, after review returns and before the PR opens.** Findings
-  are repaired where the build context is still hot and the branch is still open. The human's gate
-  does not move: the PR is still the review, and every auto-authored fix arrives inside the diff
-  they already read.
-- **Severity routing**, replacing today's uniform "record and defer":
-  - `blocker` → fix (already the case).
-  - `important` → fix in-branch by default; stub only on an explicit, recorded deferral.
-  - `minor` → fix in-branch; never stub.
-- **Raise the auto-capture materiality bar** so cosmetic findings cannot become changes at all. The
-  bar is "would a human file this as a `docket-new-change`?" — a dead line of code fails it, and
-  0217 should not have been mintable.
-- Whatever bound the fix loop needs (attempt cap, size ceiling, suite re-run) so it cannot become an
-  unbounded second build phase.
+- **A bounded fix loop inside `docket-implement-next` Step 6** — an extended phase, not a new role
+  skill — repairing findings on the open branch after review returns and before the PR opens. The
+  human's gate does not move: every auto-authored fix arrives inside the diff they already read.
+- **Two orthogonal axes:** the fix's *character* picks the profile via docket-build's task-routing
+  rubric (extracted to a shared `docket-build/references/task-routing.md`, stub + pointer left
+  behind); the finding's *severity* picks only the failure posture. No fix task ever dispatches
+  `max` — the rubric's premium/max boundary doubles as the in-branch size ceiling; blockers halt on
+  a max-character fix (today's ladder endpoint), non-blockers get a PR-body record.
+- **Per-finding tasks and commits** for blockers and importants (replacing the single synthetic
+  all-blockers task); minors batch per shared routed profile with one enumerating commit. All fixes
+  run the `docket-build-task` contract with build's one-bounded-escalation rule, truncated at
+  premium.
+- **Revert-and-record suite gate:** one full-suite re-run after fixes; red → revert the non-blocker
+  fix commits and re-run once — green proceeds with those findings recorded unfixed, still-red
+  halts. Bounded at two suite runs; no re-review round.
+- **`review.fix_severity` knob** (`minor` default | `important` | `blocker`), resolved as
+  `REVIEW_FIX_SEVERITY`; `blocker` is the pre-0218 compat escape hatch. Global-able; not a
+  coordination key.
+- **Auto-capture narrows:** a finding about this branch's own diff is never mintable; the
+  materiality bar gains "work fixable by a small in-branch edit fails the bar." PR-body findings
+  become a disposition table (fixed / deferred / reverted / recorded); `## Verify (human)` shrinks
+  to genuinely manual checks.
 
 ## Out of scope
 
-- Changing `docket-review`'s read-only contract. The reviewer should stay a reviewer; the fixer is
-  a separate role, dispatched with the review's findings as input.
+- Changing `docket-review`'s read-only contract (ADR-0066). The reviewer stays a reviewer.
 - Retroactively clearing the existing self-generated backlog. That is its own triage pass, and this
   change is about closing the tap.
 - The merge gate's `docket-integration-repair` path, which is correct as-is for its own purpose.
-
-## Open questions
-
-- Does the fixer run as a new role skill (`skills.fix`) or as a bounded phase inside
-  `docket-implement-next`? A role skill is more composable; a phase is less machinery.
-- Does a fix loop that reddens the suite abort the run, or hand back to build?
-- Should the severity policy be configurable (`review.fix_severity: minor|important|blocker`), or
-  fixed? A knob invites a repo to turn the discipline off, which is how this hole opened.
-- Does the review re-run after fixes land, and if so, how is a second round of findings bounded?
-- Where does the `## Verify (human)` checklist fit once findings are fixed rather than recorded?
