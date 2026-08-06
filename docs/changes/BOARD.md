@@ -1,14 +1,15 @@
 # Backlog
 
-**222 changes** — 🟢 1 in progress · 🟡 51 proposed · ⚪ 4 deferred · ✅ 139 done · 🗑️ 27 killed
+**222 changes** — 🟢 2 in progress · 🟡 50 proposed · ⚪ 4 deferred · ✅ 139 done · 🗑️ 27 killed
 
-## 🟢 In progress (1)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0190](active/0190-close-the-build-evidence-value-gap-a-post-gate-results-commi.md) | Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip | `medium` | `feat` | [spec](../superpowers/specs/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md) | `feat/close-the-build-evidence-value-gap-a-post-gate-results-commi` |
+| [0203](active/0203-define-the-per-step-git-state-postcondition-docket-implement.md) | Define the per-step git-state postcondition docket-implement-next now names but never states | `medium` | `docs` | [spec](../superpowers/specs/2026-08-05-per-step-git-state-postcondition-design.md) | `feat/define-the-per-step-git-state-postcondition-docket-implement` |
 
-## 🟡 Proposed (51)
+## 🟡 Proposed (50)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -56,7 +57,6 @@
 | [0198](active/0198-settle-the-role-self-description-rule-s-positive-half-docket.md) | Settle the role-self-description rule's positive half — docket-review names no skills.review binding | `medium` | `docs` | needs-brainstorm |
 | [0199](active/0199-harden-the-role-self-description-guard-co-occurrence-gap-har.md) | Harden the role-self-description guard — co-occurrence gap, hardcoded population, broad default matcher | `medium` | `chore` | needs-brainstorm |
 | [0200](active/0200-clear-the-unfixed-review-findings-from-change-0191.md) | Board-checks and test-suite hardening — sanitize LF escape, mutation G, minor-finding clearance, mapfile floor | `medium` | `fix` | needs-brainstorm |
-| [0203](active/0203-define-the-per-step-git-state-postcondition-docket-implement.md) | Define the per-step git-state postcondition docket-implement-next now names but never states | `medium` | `docs` | build-ready |
 | [0204](active/0204-restore-rationale-dropped-by-round-three-compression-finaliz.md) | Restore dropped doc rationale (compression losses) and complete AGENTS.md's frontmatter-edit rule | `medium` | `docs` | needs-brainstorm |
 | [0208](active/0208-runner-dispatch-worktree-gate-3-proves-repo-containment-not.md) | Harden runner-dispatch — worktree membership gate, feature-scoped coverage, flag-parse guards | `medium` | `fix` | needs-brainstorm |
 | [0219](active/0219-aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d.md) | aborted-run's sixth signature: PR opened and pr: written, run dies before status: implemented | `high` | `fix` | needs-brainstorm |
