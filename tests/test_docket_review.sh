@@ -213,6 +213,17 @@ assert "fix-loop: minors batch by shared routed profile" \
 assert "fix-loop: fixes run the docket-build-task contract" \
   'grep -qF -- "docket-build-task" <<<"$fix_body"'
 
+# The count cap. Without it, only escalations and suite runs are bounded — a ten-plus-finding
+# review expands Step 6 without limit. Blockers must stay outside the count, or the cap disarms
+# the same gate the blocker floor exists to protect. Scoped to the tasks section, where the cap
+# belongs; overflow must land in the disposition table, not silently vanish.
+assert "fix-loop: non-blocker fix tasks are capped per run" \
+  'grep -qiE "at most five non-blocker fix tasks" <<<"$tasks_section"'
+assert "fix-loop: blockers are never counted against the cap" \
+  'grep -qiE "blockers are never counted against" <<<"$tasks_section"'
+assert "fix-loop: cap overflow takes the deferred disposition" \
+  'grep -qiE "overflow[^.|]{0,120}deferred|deferred[^.|]{0,120}overflow" <<<"$fix_body"'
+
 # The suite gate: revert-and-record, bounded at two runs.
 assert "fix-loop: re-runs the full suite after fixes land" \
   'grep -qiE "full[- ]suite" <<<"$fix_body"'

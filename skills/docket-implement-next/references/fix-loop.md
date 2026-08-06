@@ -94,6 +94,17 @@ one worktree, so two concurrent workers would collide.
   it is homogeneous by construction. One commit enumerating the findings it fixed; a failed batch
   falls back to recording its members.
 
+**The cap — at most five non-blocker fix tasks per run.** Blockers are never counted against it:
+the run cannot proceed past an unfixed blocker, so a cap that counted them would disarm the gate
+the floor above exists to protect. The unit is the **task**, not the finding — a minor batch spends
+one slot. Fill the slots deterministically in the dispatch order above: importants in the
+reviewer's returned order, then the minor batches — so two runs over the same findings fix the
+same set. Overflow findings take the disposition table's `deferred` state, with the cap named as
+the reason. Five sits above auto-capture's three-mints-per-run precedent because a fix commit
+inside an already-reviewed diff is far cheaper than a minted change. This bounds aggregate
+**count**; per-finding **size** remains the rubric ceiling above — the "no separate knob for too
+big" sentence is about size, and the two rules do not overlap.
+
 **Track every fix commit's SHA and whether its task addressed a blocker.** The suite gate below
 cannot run without that record.
 
@@ -132,7 +143,7 @@ about each one:
 | State | Meaning |
 |---|---|
 | **fixed** | repaired in-branch; cite the commit SHA |
-| **deferred** | below `REVIEW_MIN_FIX_SEVERITY`, or a max-character non-blocker; recorded for merge-time judgment |
+| **deferred** | below `REVIEW_MIN_FIX_SEVERITY`, a max-character non-blocker, or fix-task cap overflow; recorded for merge-time judgment |
 | **reverted** | fixed, then rolled back by the suite gate; the finding stands |
 | **recorded** | the fix was attempted and its escalation allowance was exhausted; name the failure |
 
