@@ -310,6 +310,19 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # which keeps only the rule + pointer) would leave the table it modifies contradicting it. Set per
 # the rounding rule above from the measured actual: 135 lines -> 135 is the next multiple of 5 but
 # leaves ZERO margin, so 140; 1215 words -> 1250 (35 words of margin, above the within-25 threshold).
+# fix-loop.md's row was raised again, 140/1250 -> 150/1400, by a later 0218 review fix: the suite
+# gate's revert step named no fix-task ORDER and no posture for a conflicted revert, and the whole
+# "the branch can never end worse than the green build that entered it" guarantee rests on that
+# revert succeeding. The ordering rule (blockers first, so non-blocker commits are the branch's
+# tail) belongs in `## Tasks, batching, commits` and the conflict posture in the gate step that can
+# hit it — both in THIS file, which owns the loop's mechanics end to end. The considered home was
+# skills/docket-implement-next/SKILL.md's Step 6 summary, which deliberately keeps only the rule
+# plus the blocking pointer; putting a dispatch-ordering constraint there would separate it from
+# the revert whose safety it buys, and the revert step would then have to restate it — the drift
+# class the task-routing.md entry above already records. Set per the rounding rule above from the
+# measured actual: 144 lines -> 145 is the next multiple of 5 but leaves ONE line of margin, the
+# near-zero failure mode this block records raising for three times already, so 150; 1353 words ->
+# 1400 (47 words of margin, above the within-25 threshold).
 # skills/docket-convention/references/auto-capture.md's budget was raised 45/450 -> 50/550 by change
 # 0218, which narrowed the materiality bar: work fixable by a small in-branch edit now FAILS the bar,
 # so a review finding about the branch's own diff is never mintable. The prose has no other home —
@@ -350,7 +363,7 @@ skills/docket-finalize-change/references/gate-failure.md    35  900
 skills/docket-groom-next/SKILL.md                           77 1484
 skills/docket-implement-next/SKILL.md                      150 3850
 skills/docket-implement-next/references/edge-paths.md       35  450
-skills/docket-implement-next/references/fix-loop.md        140 1250
+skills/docket-implement-next/references/fix-loop.md        150 1400
 skills/docket-implement-next/results-template.md            25  250
 skills/docket-review/SKILL.md                              110  900
 skills/docket-new-change/SKILL.md                           61 1330
