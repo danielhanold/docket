@@ -284,12 +284,23 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # the moment the agent decides it is finished. The run that ends early is exactly the run that never
 # reaches a conditional read, so a reference-file home would be absent precisely when it is needed.
 # Set from the measured actual per the rule above: 145 lines -> 150, 3800 words -> 3850.
+# skills/docket-build/references/task-routing.md is a NEW row added by change 0218, which extracted
+# docket-build's `## Routing` rubric to a shared reference so docket-implement-next's Step 6 fix loop
+# could classify a finding from the same source rather than restate it. The justification for the
+# extraction is SHARED CONSUMPTION, not section weight — the file has two owners, and a restated
+# rubric is the documented drift class (restatement-accumulates-its-own-guards). Set per the
+# rounding rule above from the measured actual: 46 lines -> 50 (4 lines of margin, the same
+# half-step proportion the 0167 line-margin reading and the gate-failure.md row accept), 464 words
+# -> 500 (36 words of margin, above the within-25 threshold).
+# skills/docket-build/SKILL.md's budget was NOT lowered by the extraction: a budget is a ceiling,
+# and lowering it to the new actual would redden the next unrelated edit for no invariant.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
 skills/docket-auto-groom/SKILL.md                           66 1237
 skills/docket-brainstorm/SKILL.md                           84  692
 skills/docket-build/SKILL.md                               280 2500
+skills/docket-build/references/task-routing.md              50  500
 skills/docket-build-task/SKILL.md                          125 1100
 skills/docket-convention/SKILL.md                          345 5800
 skills/docket-convention/github-board-mirror.md             19  462
