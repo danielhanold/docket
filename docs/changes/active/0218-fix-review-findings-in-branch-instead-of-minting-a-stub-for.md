@@ -17,7 +17,7 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/fix-review-findings-in-branch-instead-of-minting-a-stub-for
-claimed_at: 2026-08-06T01:50:52Z
+claimed_at: 2026-08-06T03:11:32Z
 pr:
 blocked_by:
 reconciled: true
