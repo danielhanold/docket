@@ -435,6 +435,17 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # block records raising for repeatedly, so the multiple after it: 165. 4186 words -> the next
 # multiple of 50 is 4200, which leaves 14 words (within the 25-word threshold), so the multiple
 # after it: 4250 (64 words of margin).
+# Change 0203 REVIEW FIX, same file, word budget 4250 -> 4300 (lines unchanged at 165): the governing
+# sentence claimed every row is read "from git, never from a sub-skill's report", which is false for
+# rows 5-6 — docket-build EMITS the build-evidence record as output, its default BUILD_CHECKPOINT:
+# false persists nothing, and the true-path ledger lives under the gitignored `.superpowers/`. The
+# section now names that one exception and pins head_sha == HEAD as the record's only git fact.
+# Compression was taken first and paid most of it: Step 5's parenthetical "(the conjunct that makes a
+# sub-skill's report git-checkable)" was DELETED, the header now saying it once and for both rows.
+# No references/ home applies — this is a qualifier on the governing sentence of a table that the
+# rejection above already argued cannot leave SKILL.md; splitting a rule from its own exception is
+# strictly worse than either whole. Set per the rounding rule from the measured actual 160/4243:
+# 4243 -> 4250 leaves 7 words (within the 25-word threshold), so the multiple after it, 4300.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -452,7 +463,7 @@ skills/docket-convention/references/terminal-close-out.md  173 1458
 skills/docket-finalize-change/SKILL.md                     180 3450
 skills/docket-finalize-change/references/gate-failure.md    35  900
 skills/docket-groom-next/SKILL.md                           77 1484
-skills/docket-implement-next/SKILL.md                      165 4250
+skills/docket-implement-next/SKILL.md                      165 4300
 skills/docket-implement-next/references/edge-paths.md       35  450
 skills/docket-implement-next/references/fix-loop.md        180 1850
 skills/docket-implement-next/results-template.md            25  250
