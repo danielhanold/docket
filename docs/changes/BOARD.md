@@ -1,13 +1,12 @@
 # Backlog
 
-**222 changes** — 🟢 3 in progress · 🟡 49 proposed · ⚪ 4 deferred · ✅ 139 done · 🗑️ 27 killed
+**222 changes** — 🟢 2 in progress · 🟡 49 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 139 done · 🗑️ 27 killed
 
-## 🟢 In progress (3)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0190](active/0190-close-the-build-evidence-value-gap-a-post-gate-results-commi.md) | Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip | `medium` | `feat` | [spec](../superpowers/specs/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md) | `feat/close-the-build-evidence-value-gap-a-post-gate-results-commi` |
-| [0203](active/0203-define-the-per-step-git-state-postcondition-docket-implement.md) | Define the per-step git-state postcondition docket-implement-next now names but never states | `medium` | `docs` | [spec](../superpowers/specs/2026-08-05-per-step-git-state-postcondition-design.md) | `feat/define-the-per-step-git-state-postcondition-docket-implement` |
 | [0220](active/0220-clear-the-unfixed-review-findings-from-change-0207.md) | clear the unfixed review findings from change 0207 | `medium` | `fix` | [spec](../superpowers/specs/2026-08-05-clear-0207-review-findings-design.md) | `feat/clear-the-unfixed-review-findings-from-change-0207` |
 
 ## 🟡 Proposed (49)
@@ -72,6 +71,12 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | Type | PR | Readiness |
+|---|-------|----------|------|----|-----------|
+| [0203](active/0203-define-the-per-step-git-state-postcondition-docket-implement.md) | Define the per-step git-state postcondition docket-implement-next now names but never states | `medium` | `docs` | [#163](https://github.com/danielhanold/docket/pull/163) |  |
 
 ```mermaid
 graph TD
