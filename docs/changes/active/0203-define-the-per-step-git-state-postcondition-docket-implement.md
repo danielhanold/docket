@@ -12,12 +12,12 @@ related: [113, 202, 211, 212]
 discovered_from: [113]
 adrs: []
 spec: docs/superpowers/specs/2026-08-05-per-step-git-state-postcondition-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-06-per-step-git-state-postcondition.md
 results:
 trivial: false
 auto_groomable: true
 branch: feat/define-the-per-step-git-state-postcondition-docket-implement
-claimed_at: 2026-08-06T21:15:54Z
+claimed_at: 2026-08-06T21:19:54Z
 pr:
 blocked_by:
 reconciled: true
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-05-per-step-git-state-postcondition-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-05-per-step-git-state-postcondition-design.md) |
+| Plan | [2026-08-06-per-step-git-state-postcondition.md](https://github.com/danielhanold/docket/blob/feat/define-the-per-step-git-state-postcondition-docket-implement/docs/superpowers/plans/2026-08-06-per-step-git-state-postcondition.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
