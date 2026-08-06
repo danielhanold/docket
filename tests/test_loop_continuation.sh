@@ -73,6 +73,14 @@ for row in "2 Claim" "3 Reconcile" "4 Worktree + plan" "5 Build" "6 Review + ADR
   assert "the postcondition table has a row for Step $row" 'grep -qF -- "| $row |" "$IMPL"'
 done
 
+# Row 2 must name ALL FOUR fields Step 2's procedure sets. The pre-fix row omitted `updated:`,
+# making the certificate weaker than the step it certifies — the same defect class as the missing
+# field-write conjuncts below, just inside a single row.
+row2="$(grep -F -- "| 2 Claim |" "$IMPL")"
+for f in "status: in-progress" "branch:" "updated:" "claimed_at:"; do
+  assert "row 2 names the $f field Step 2 writes" 'grep -qF -- "$f" <<<"$row2"'
+done
+
 # The governing sentence — a step certificate is NEVER a run certificate. This is the half the
 # 0206 evidence bought: that run satisfied Step 5's postcondition at the moment it died.
 assert "SKILL states the postconditions certify a step, not the run" \
@@ -102,6 +110,17 @@ assert "SKILL names the build-evidence record a non-git artifact" \
   'grep -qF -- "is an in-context artifact, not a git object" <<<"$impl_flat"'
 assert "SKILL pins head_sha == HEAD as the record's only git fact" \
   'grep -qE "in-context artifact, not a git object.{0,80}== HEAD conjunct is a git fact" <<<"$impl_flat"'
+
+# ...and the metadata-commit rows (3/4/6/7) must inherit the field-write rule's OWN conjuncts. Those
+# rows name only the field they set, but the field-write rule mandates two more git-checkable facts
+# on the same commit: the claimed_at re-stamp, and — for a link-bearing field — the regenerated
+# ## Artifacts block. Without this clause a step is declarable complete on a commit missing the
+# regen, which is the "row weaker than the procedure it certifies" failure the section exists to
+# prevent. Stated ONCE (shared clause) rather than per row, so this assert is proximity-scoped
+# across the three parts instead of looping over rows. No backticks in the pattern: assert() eval's
+# its argument and a backtick would re-parse as command substitution.
+assert "SKILL binds the metadata rows to the field-write rule's own conjuncts" \
+  'grep -qE "field-write rule.{0,120}claimed_at.{0,160}Artifacts.{0,40}block in the same commit" <<<"$impl_flat"'
 
 # PROXIMITY-SCOPED producer assert (learnings: specified-but-unreachable). The contract's producer
 # is Step 5's clause; anchoring only on the defining section would leave the term orphaned exactly
@@ -171,6 +190,22 @@ assert "the evidence-qualification matcher ACCEPTS the named exception (across a
 printf 'in-context artifact, not a git object.%s == HEAD conjunct is a git fact\n' "$(printf ' x%.0s' $(seq 1 90))" > "$probe"
 assert "the evidence-qualification matcher rejects a distant co-occurrence" \
   '! grep -qE "in-context artifact, not a git object.{0,80}== HEAD conjunct is a git fact" <<<"$(flatten < "$probe")"'
+# (b2) the row-2 field matcher reddens on the pre-fix row — the one that dropped `updated:`.
+printf '%s\n' '| 2 Claim | `status: in-progress` + `branch:` + `claimed_at:` committed on `metadata_branch`. |' > "$probe"
+assert "the row-2 field matcher REJECTS the row that omits updated:" \
+  '! grep -qF -- "updated:" <<<"$(grep -F -- "| 2 Claim |" "$probe")"'
+# (c4) the field-write-conjuncts matcher must go RED on a row that names the rule but carries none
+# of its conjuncts — the state the finding reported — and green once both are named, across a wrap.
+printf '%s\n' 'plan: landed on metadata_branch per the **field-write rule** — a two-tree conjunction.' > "$probe"
+assert "the field-write-conjuncts matcher REJECTS a pointer with no conjuncts" \
+  '! grep -qE "field-write rule.{0,120}claimed_at.{0,160}Artifacts.{0,40}block in the same commit" <<<"$(flatten < "$probe")"'
+printf 'the **field-write rule**'"'"'s conjuncts on every metadata commit they name:\nthe claimed_at re-stamp, and — for any link-bearing field write — the\nregenerated ## Artifacts block in the same commit.\n' > "$probe"
+assert "the field-write-conjuncts matcher ACCEPTS the shared clause (across a wrap)" \
+  'grep -qE "field-write rule.{0,120}claimed_at.{0,160}Artifacts.{0,40}block in the same commit" <<<"$(flatten < "$probe")"'
+# ...and half of it is not enough: dropping the Artifacts regen must redden.
+printf '%s\n' 'the **field-write rule**'"'"'s conjuncts: the claimed_at re-stamp on every metadata commit.' > "$probe"
+assert "the field-write-conjuncts matcher rejects the claimed_at half alone" \
+  '! grep -qE "field-write rule.{0,120}claimed_at.{0,160}Artifacts.{0,40}block in the same commit" <<<"$(flatten < "$probe")"'
 # (d) THE load-bearing one: the proximity assert must go RED on the pre-0203 state — the clause
 # present with no pointer. This is the state 0203 removed, not the wording it introduced.
 printf '%s\n' 'the step is not complete until its git-state postcondition holds. docket-build routes each task.' > "$probe"
