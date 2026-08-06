@@ -168,6 +168,24 @@ build:
   checkpoint: false
 
 
+# ═══ review — the docket-owned review role ═════════════════════════════════════════════════
+
+# Knobs for what docket-implement-next does with the findings its review role returns (change
+# 0218). Independent of WHICH skill `skills: review:` is bound to — the threshold is applied by
+# the implementer, not by the reviewer.
+review:
+  # min_fix_severity — the lowest review-finding severity that docket-implement-next's Step 6 fix
+  # loop repairs in-branch, on the open feature branch, before the PR opens. minor (default) => every
+  # finding the reviewer returns is a fix candidate. important => minors are recorded in the PR body
+  # instead of fixed. blocker => nothing but blockers is fixed, which is docket's pre-0218 behavior,
+  # kept as a compat escape hatch. Blockers are ALWAYS fixed regardless of this value: a run cannot
+  # proceed past an unfixed blocker. Routing a fix to a model profile is by the fix's CHARACTER, not
+  # its severity, and never reaches the `max` profile; severity sets only what happens when a fix
+  # fails. Anything other than these three values is a config error, not a silent fallback.
+  # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
+  min_fix_severity: minor
+
+
 # ═══ Board surfaces ════════════════════════════════════════════════════════════════════════
 
 # board_surfaces — which derived board view(s) to render. A list; [] disables the board entirely

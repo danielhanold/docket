@@ -593,6 +593,37 @@ case "$BUILD_CHECKPOINT" in
   *) die "unparseable config: build.checkpoint must be 'true' or 'false', got '$BUILD_CHECKPOINT'" ;;
 esac
 
+# --- review: the review-role knobs (change 0218) ------------------------------
+# Nested block parsed exactly like build: — the leaf is read WITHIN the block via config_block_get,
+# never as a bare top-level key. Two reasons here, not one: `min_fix_severity` is a generic-ish
+# word another block could shadow, AND the `skills:` block already carries a `review:` LEAF.
+# config_block_header rejects `skills.review: docket-review` as this block's header for TWO
+# independent reasons — the line is indented, and it has a value after the colon — so neither
+# check alone is load-bearing for THAT spelling. The column-0 requirement IS load-bearing for an
+# indented, valueless `review:` carrying a nested `min_fix_severity`. tests/test_docket_config.sh
+# pins both: RMF-f1 the coexistence, RMF-f2 the column-0 invariant (mutation-verified — deleting
+# the column-0 conjunct reddens RMF-f2 and nothing else).
+# Behavioral, NOT coordination-fenced: it shapes BRANCH content (which findings get fixed in the
+# diff a human reviews), never shared metadata, so it resolves through the full per-field layering
+# repo-local > repo-committed > global > built-in, like build.checkpoint / reclaim.* / learnings.*.
+# min_fix_severity is the MINIMUM finding severity that enters docket-implement-next's Step 6 fix
+# loop. Blockers are always fixed regardless — a run cannot proceed past an unfixed blocker — so
+# `blocker` means "fix nothing else", the pre-0218 record-everything behavior kept as a compat
+# escape hatch. Fails CLOSED on anything else (the build.checkpoint / learnings.enabled
+# precedent): silently defaulting a typo would either over-fix or under-fix a branch a human is
+# about to merge, and both are invisible.
+review_key(){  # review_key <leaf> <default> -> resolved value on stdout
+  local v; v="$(config_block_get local review "$1")"
+  [ -n "$v" ] || v="$(config_block_get committed review "$1")"
+  [ -n "$v" ] || v="$(config_block_get global review "$1")"
+  printf '%s' "${v:-$2}"
+}
+REVIEW_MIN_FIX_SEVERITY="$(review_key min_fix_severity minor)"
+case "$REVIEW_MIN_FIX_SEVERITY" in
+  minor|important|blocker) ;;
+  *) die "unparseable config: review.min_fix_severity must be 'minor', 'important', or 'blocker', got '$REVIEW_MIN_FIX_SEVERITY'" ;;
+esac
+
 # --- change_types + auto_capture: the typed-capture policy (change 0127) -------
 # change_types is a LIST resolved with WHOLE-LIST REPLACEMENT: the first layer that sets it wins
 # entirely. Merging would make a built-in value unremovable — a user could only ever add types,
@@ -781,6 +812,7 @@ if [ "$MODE" = export ]; then
   emit RECLAIM_LEASE_TTL "$RECLAIM_LEASE_TTL"
   emit RECLAIM_AUTO "$RECLAIM_AUTO"
   emit BUILD_CHECKPOINT "$BUILD_CHECKPOINT"
+  emit REVIEW_MIN_FIX_SEVERITY "$REVIEW_MIN_FIX_SEVERITY"
   emit SKILL_BRAINSTORM "$SKILL_BRAINSTORM"
   emit SKILL_PLAN "$SKILL_PLAN"
   emit SKILL_BUILD "$SKILL_BUILD"
