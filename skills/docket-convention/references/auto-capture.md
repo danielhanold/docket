@@ -19,12 +19,18 @@ Mint only for *actionable follow-up work that would be its own change / PR*
 ("would a human file this as a `docket-new-change`?"). A build lesson → the **learnings** harvest;
 drift inside the current change → the **reconcile log**; a bare observation → the run report.
 
-**Work fixable by a small in-branch edit fails the bar** (change 0218). A review finding about the
+**Work the current run will fix in-branch fails the bar** (change 0218). A review finding about the
 diff currently on the branch is **never mintable** — it is fixed in-branch or recorded in the PR
 body, per `docket-implement-next`'s fix loop. A stub costs a title, an id, a groom, a spec, a plan,
 a branch, a PR, and a close-out; a dead line of code costs one deletion, and routing the second
 through the machinery built for the first is what made the backlog self-generating. Minting from
 review survives only for genuinely distinct, beyond-the-branch work that clears the bar on its own.
+
+**That clause binds only where a branch and a fix loop exist** — `docket-implement-next`'s reconcile
+and review mint sites. **The `docket-finalize-change` / `docket-status` harvest is exempt**: it runs
+with no open branch and no fix loop, so no run there fixes anything in-branch. Cheap-to-fix work
+found at harvest is exactly what nothing else picks up — judge it on the *own change / PR* test
+above.
 
 ## The deterministic mint
 

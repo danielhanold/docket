@@ -341,6 +341,17 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # above from the measured actual: 45 lines -> 45 is the next multiple of 5 but leaves ZERO margin,
 # so the multiple after it, 50; 478 words -> 500 would leave 22 (within the 25-word threshold), so
 # 550.
+# That same row was raised again, 50/550 -> 55/600, by a 0218 review fix: the narrowed bar was stated
+# UNSCOPED in a reference shared by mint sites that have no branch and no fix loop (the
+# docket-finalize-change / docket-status harvest), so "fixable by a small in-branch edit fails the
+# bar" told exactly those sites to drop the follow-up nothing else will ever pick up. The scoping
+# paragraph — which sites the clause binds at, and that the harvest is exempt because neither a
+# branch nor a fix loop exists there — has no other home: this file IS the bar's definition and the
+# one artifact every mint site reads before minting, and the considered alternative,
+# skills/docket-implement-next/references/fix-loop.md, is read ONLY by the caller the clause already
+# binds — putting the exemption there leaves the harvest reader with the unscoped rule and nothing
+# to correct it. Set per the rounding rule above from the measured actual: 51 lines -> 55; 544 words
+# -> 550 would leave 6 (within the 25-word threshold), so 600.
 # skills/docket-implement-next/results-template.md's budget was raised 24/172 -> 25/250 by change
 # 0218, which narrowed `## Verify (human)` to genuinely manual checks and said where a fixed
 # finding's outcome IS read instead (the PR body's disposition table). The prose is a template
@@ -363,7 +374,7 @@ skills/docket-build-task/SKILL.md                          125 1100
 skills/docket-convention/SKILL.md                          345 5800
 skills/docket-convention/github-board-mirror.md             19  462
 skills/docket-convention/references/agent-layer.md         190 2150
-skills/docket-convention/references/auto-capture.md         50  550
+skills/docket-convention/references/auto-capture.md         55  600
 skills/docket-convention/references/learnings.md            84  580
 skills/docket-convention/references/terminal-close-out.md  173 1458
 skills/docket-finalize-change/SKILL.md                     180 3450
