@@ -105,9 +105,10 @@ docket-build's gate uses, and refresh the build-evidence record from the result.
 
 1. **Revert the non-blocker fix commits** by tracked SHA — the importants and minors. Blocker
    fixes stay: the run cannot proceed without them.
-2. **Re-run the suite once.**
-3. **Green** → proceed. The reverted findings are recorded unfixed in the PR body, which is the
-   fallback they already had.
+2. **Re-run the suite once**, refreshing the build-evidence record from this run — the record must
+   always reflect the *last* suite run, or a now-green branch ships the first run's `result: red`.
+3. **Green** → proceed with the refreshed record. The reverted findings are recorded unfixed in the
+   PR body, which is the fallback they already had.
 4. **Still red** → **halt**: the blocker fixes are implicated, and there is no second repair
    chain — abort-and-report, the change stays `in-progress` with the reason recorded.
 
