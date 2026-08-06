@@ -111,6 +111,7 @@ map_for(){ # map_for <EXPORT_KEY> -> ERE matching the example's line, or empty i
     RECLAIM_LEASE_TTL)     echo '^[[:space:]]+lease_ttl:[[:space:]]*72' ;;
     RECLAIM_AUTO)          echo '^[[:space:]]+auto:[[:space:]]*false' ;;
     BUILD_CHECKPOINT)      echo '^[[:space:]]+checkpoint:[[:space:]]*false' ;;
+    REVIEW_MIN_FIX_SEVERITY) echo '^[[:space:]]+min_fix_severity:[[:space:]]*minor[[:space:]]*$' ;;
     SKILL_BRAINSTORM)      echo '^[[:space:]]+brainstorm:[[:space:]]*superpowers:brainstorming' ;;
     SKILL_PLAN)            echo '^[[:space:]]+plan:[[:space:]]*superpowers:writing-plans' ;;
     SKILL_BUILD)           echo '^[[:space:]]+build:[[:space:]]*docket-build[[:space:]]*$' ;;
@@ -188,13 +189,14 @@ classify_key(){ # classify_key <example-key-name> -> "resolved:EXPORT" | "elsewh
     reclaim.lease_ttl)            echo 'resolved:RECLAIM_LEASE_TTL' ;;
     reclaim.auto)                 echo 'resolved:RECLAIM_AUTO' ;;
     build.checkpoint)             echo 'resolved:BUILD_CHECKPOINT' ;;
+    review.min_fix_severity)      echo 'resolved:REVIEW_MIN_FIX_SEVERITY' ;;
     skills.brainstorm)            echo 'resolved:SKILL_BRAINSTORM' ;;
     skills.plan)                  echo 'resolved:SKILL_PLAN' ;;
     skills.build)                 echo 'resolved:SKILL_BUILD' ;;
     skills.review)                echo 'resolved:SKILL_REVIEW' ;;
     skills.finish)                echo 'resolved:SKILL_FINISH' ;;
     # Block headers carry no value of their own; their children are classified above.
-    finalize|learnings|reclaim|build|skills|runners|runners.codex|runners.opencode|auto_capture) echo 'elsewhere:HEADER' ;;
+    finalize|learnings|reclaim|build|review|skills|runners|runners.codex|runners.opencode|auto_capture) echo 'elsewhere:HEADER' ;;
     # Genuinely non-resolver-read keys, each with its real consumer named.
     #
     # github_project is the one exception to "real consumer": .docket.example.yml itself says
@@ -430,11 +432,12 @@ assert "manifest: every elsewhere:HEADER entry is a real bare block opener (${ma
 # intentional-growth remedy in action: change 0127 took it from 33 to 36 (change_types plus the
 # auto_capture block's header and its two leaves, less the retired scalar auto_capture); change
 # 0167 took it from 36 to 38 (the build: block header and its checkpoint leaf); change 0205 took
-# it from 38 to 40 (the runners.opencode header and its permissions leaf).
+# it from 38 to 40 (the runners.opencode header and its permissions leaf); change 0218 took it
+# from 40 to 42 (the review: block header and its min_fix_severity leaf).
 # intentional-growth remedy this count is guarding. This is the single source for that count: the
 # condition and the failure message below both read it, so bumping it in one place updates both
 # instead of leaving one stale.
-expected_key_count=40
+expected_key_count=42
 # RAW FLOOR (change 0102 whole-branch review, MINOR 3): example_keys_raw feeds BOTH this section's
 # manifest loop (via example_keys, deduped) and the duplicate-leaf check directly below (also
 # fed from example_keys_raw, undeduped). Without this assert, an edit that makes the raw pipeline
@@ -743,10 +746,11 @@ fi
 # guard's own pass reached zero nested keys, i.e. exactly the vacuity this assert exists to catch.
 #
 # EXACT, not >=. An at-least floor of 15 is satisfied by the PRE-0102 file and would tolerate a
-# regression that silently drops both runners.codex leaves. The 20: 3 finalize.*, 2 learnings.*,
-# 2 reclaim.*, 1 build.checkpoint, 2 auto_capture.*, runners.codex + its 2 leaves,
-# runners.opencode + its 1 leaf, 5 skills.*.
-expected_nested_key_count=20
+# regression that silently drops both runners.codex leaves. The 21: 3 finalize.*, 2 learnings.*,
+# 2 reclaim.*, 1 build.checkpoint, 1 review.min_fix_severity (change 0218 — it carries its OWN
+# `# scope: any layer` tag, so it is covered by rule 1, not by adjacency), 2 auto_capture.*,
+# runners.codex + its 2 leaves, runners.opencode + its 1 leaf, 5 skills.*.
+expected_nested_key_count=21
 assert "scope tag: the pass enumerated exactly $expected_nested_key_count keys at depth > 0 (got ${nested_key_count:-0}; if you added or removed a nested key in .docket.example.yml, first CONFIRM the new key carries its own scope: tag or sits directly under a tagged header — bumping expected_nested_key_count alone, with no tag and no header, ships an untagged key that this guard will never catch again — then bump expected_nested_key_count in the same commit)" \
   '[ "${nested_key_count:-0}" = "$expected_nested_key_count" ]'
 

@@ -241,7 +241,7 @@ assert "board fenced-to-empty: emits BOARD_SURFACES=none" \
 
 # --- (E) direct-pipe caller (LEARNINGS #22: $() hides a dropped trailing \n) -
 n="$(run "$tmp/c" --export | grep -c '=')"
-assert "direct-pipe: 29 KEY=value lines emitted"       '[ "$n" -eq 29 ]'
+assert "direct-pipe: 30 KEY=value lines emitted"       '[ "$n" -eq 30 ]'
 last="$(run "$tmp/c" --export | tail -n1)"
 assert "direct-pipe: last line is BOOTSTRAP"           'case "$last" in BOOTSTRAP=*) true;; *) false;; esac'
 
@@ -617,9 +617,9 @@ AUTO_GROOM=__poison__
 out="$(env -u XDG_CONFIG_HOME HOME="$tmp/q.home" bash "$SCRIPT" --repo-dir "$tmp/q" --export)"; eval "$out"
 assert "0050 Q: XDG unset -> \$HOME/.config fallback read"   '[ "$AUTO_GROOM" = true ]'
 
-# --- (E') emit-interface guard: exactly 29 lines with a global file present ---
+# --- (E') emit-interface guard: exactly 30 lines with a global file present ---
 n50="$(rung "$tmp/k.xdg" "$tmp/k" --export | grep -c '=')"
-assert "0050 E': 29 KEY=value lines with global layer" '[ "$n50" -eq 29 ]'
+assert "0050 E': 30 KEY=value lines with global layer" '[ "$n50" -eq 30 ]'
 
 # --- (M) coordination-key fence: warned-and-ignored, never honored, never fatal ---
 mkrepo "$tmp/m"
@@ -1246,6 +1246,167 @@ assert "docket-config.md has a build.checkpoint table row" \
   'grep -qE "^\| \`build\.checkpoint\` \| \`false\` \| yes \|" "$REPO/scripts/docket-config.md"'
 assert "docket-config.md lists the export name" \
   'grep -q "^BUILD_CHECKPOINT$" "$REPO/scripts/docket-config.md"'
+
+# ============================================================================
+# Change 0218 — the review: block (REVIEW_MIN_FIX_SEVERITY)
+# Structural clone of the build: block above. NOTE (guards-are-code (e)): clear the asserted var
+# BEFORE each eval — an aborting run emits NOTHING, and eval "" would silently leave the previous
+# case's value in place.
+# ============================================================================
+
+# --- (RMF-a) default when no layer sets the block -----------------------------
+unset REVIEW_MIN_FIX_SEVERITY
+mkrepo "$tmp/rmf-a"
+out="$(run "$tmp/rmf-a" --export)"; eval "$out"
+assert "REVIEW_MIN_FIX_SEVERITY defaults to minor" \
+  'echo "$out" | grep -qxF "REVIEW_MIN_FIX_SEVERITY=minor"'
+
+# --- (RMF-b) repo-committed block is honored ----------------------------------
+unset REVIEW_MIN_FIX_SEVERITY
+mkrepo "$tmp/rmf-b"
+cat > "$tmp/rmf-b/.docket.yml" <<'EOF'
+metadata_branch: main
+review:
+  min_fix_severity: important
+EOF
+git -C "$tmp/rmf-b" add .docket.yml; git -C "$tmp/rmf-b" commit --quiet -m cfg
+git -C "$tmp/rmf-b" push --quiet origin main
+out2="$(run "$tmp/rmf-b" --export)"; eval "$out2"
+assert "REVIEW_MIN_FIX_SEVERITY reads the block" \
+  'echo "$out2" | grep -qxF "REVIEW_MIN_FIX_SEVERITY=important"'
+
+# --- (RMF-c) global-able (ADR-0019 — NOT coordination-fenced) -----------------
+unset REVIEW_MIN_FIX_SEVERITY
+mkrepo "$tmp/rmf-c"
+mkdir -p "$tmp/rmf-c.xdg/docket"
+cat > "$tmp/rmf-c.xdg/docket/config.yml" <<'EOF'
+review:
+  min_fix_severity: blocker
+EOF
+rmf_c_err="$(rung "$tmp/rmf-c.xdg" "$tmp/rmf-c" --export 2>&1 >/dev/null)"
+out="$(rung "$tmp/rmf-c.xdg" "$tmp/rmf-c" --export 2>/dev/null)"; eval "$out"
+assert "review.min_fix_severity is global-able (not fenced)" \
+  '[ "$REVIEW_MIN_FIX_SEVERITY" = "blocker" ]'
+# The negative half names BOTH spellings the fence could warn under — the block header `review`
+# and the leaf `min_fix_severity`. Matching only the block name would be decorative: the fence
+# reads keys with config_scalar_get, and a block header resolves to an EMPTY value, so a `review`
+# entry in the fence list prints nothing at all. The leaf is the spelling that can actually
+# produce a warning (config_line_scalar_get strips indentation), and mutation-testing this assert
+# means adding `min_fix_severity` to the fence list. Its non-vacuity companion is the positive
+# assert directly above: it proves the global layer was read in the first place.
+assert "no fence warning for review.min_fix_severity" \
+  '! grep -qiE "(review|min_fix_severity).*per-repo-only" <<<"$rmf_c_err"'
+
+# --- (RMF-d) repo-local layer wins over repo-committed ------------------------
+unset REVIEW_MIN_FIX_SEVERITY
+mkrepo "$tmp/rmf-d"
+cat > "$tmp/rmf-d/.docket.yml" <<'EOF'
+metadata_branch: main
+review:
+  min_fix_severity: blocker
+EOF
+git -C "$tmp/rmf-d" add .docket.yml; git -C "$tmp/rmf-d" commit --quiet -m cfg
+git -C "$tmp/rmf-d" push --quiet origin main
+printf 'review:\n  min_fix_severity: minor\n' > "$tmp/rmf-d/.docket.local.yml"
+out="$(run "$tmp/rmf-d" --export)"; eval "$out"
+assert "local layer beats repo-committed for review.min_fix_severity" \
+  '[ "$REVIEW_MIN_FIX_SEVERITY" = "minor" ]'
+
+# --- (RMF-e) SHADOW GUARD — a bare min_fix_severity: OUTSIDE the review: block -
+unset REVIEW_MIN_FIX_SEVERITY
+mkrepo "$tmp/rmf-e"
+cat > "$tmp/rmf-e/.docket.yml" <<'EOF'
+metadata_branch: main
+some_future_block:
+  min_fix_severity: blocker
+EOF
+git -C "$tmp/rmf-e" add .docket.yml; git -C "$tmp/rmf-e" commit --quiet -m cfg
+git -C "$tmp/rmf-e" push --quiet origin main
+out="$(run "$tmp/rmf-e" --export)"; eval "$out"
+assert "a foreign block's min_fix_severity: does not shadow review.min_fix_severity" \
+  '[ "$REVIEW_MIN_FIX_SEVERITY" = "minor" ]'
+
+# --- (RMF-f) THE skills.review COLLISION GUARD --------------------------------
+# `skills:` already carries a `review:` LEAF, and this knob introduces a top-level `review:`
+# BLOCK. The two must not see each other, in either direction. That is the invariant this knob's
+# correctness rests on, so assert it rather than assume it.
+#
+# GUARDS ARE CODE — read this before simplifying the fixtures. The OBVIOUS fixture for the shadow
+# direction (a lone `skills:` block carrying `review: docket-review`) is DECORATIVE: it was
+# written, mutation-tested, and found to redden nothing. config_block_header rejects that line for
+# TWO independent reasons — it is indented, AND it has a value after the colon — so relaxing
+# either one alone leaves the fixture green; relaxing BOTH also leaves it green, because the
+# would-be block has no `min_fix_severity` leaf under it to find. Both were run, not reasoned:
+# under each relaxation and under both together, that fixture stayed green.
+#
+# The fixture that makes the column-0 requirement genuinely load-bearing is (RMF-f2) below: an
+# indented, VALUELESS `review:` with a `min_fix_severity` leaf nested under it. Verified by
+# mutation: deleting the `"$line" != [[:space:]]*` conjunct from config_block_header reddens
+# RMF-f2 and nothing else in this file, and so does deleting both conjuncts.
+
+# (RMF-f1) COEXISTENCE — both spellings in one file, each resolving to its own value. `skills:`
+# uses a NON-DEFAULT review skill on purpose: asserting the shipped default would pass just as
+# well against a resolver that never read the block at all.
+unset REVIEW_MIN_FIX_SEVERITY
+SKILL_REVIEW=__poison__
+mkrepo "$tmp/rmf-f"
+cat > "$tmp/rmf-f/.docket.yml" <<'EOF'
+metadata_branch: main
+skills:
+  review: my-org:custom-review
+review:
+  min_fix_severity: important
+EOF
+git -C "$tmp/rmf-f" add .docket.yml; git -C "$tmp/rmf-f" commit --quiet -m cfg
+git -C "$tmp/rmf-f" push --quiet origin main
+out="$(run "$tmp/rmf-f" --export)"; eval "$out"
+assert "the review: block resolves alongside a skills.review leaf" \
+  '[ "$REVIEW_MIN_FIX_SEVERITY" = "important" ]'
+assert "skills.review still resolves normally alongside the review: block" \
+  '[ "$SKILL_REVIEW" = "my-org:custom-review" ]'
+
+# (RMF-f2) THE COLUMN-0 INVARIANT — the assert the header matcher's indentation check is what
+# keeps green. An INDENTED, valueless `review:` carrying a min_fix_severity leaf is the shape that
+# reads as this block's header the moment config_block_header stops requiring column 0; without
+# that check the nested `blocker` leaks out as review.min_fix_severity.
+unset REVIEW_MIN_FIX_SEVERITY
+SKILL_REVIEW=__poison__
+mkrepo "$tmp/rmf-f2"
+cat > "$tmp/rmf-f2/.docket.yml" <<'EOF'
+metadata_branch: main
+skills:
+  review:
+    min_fix_severity: blocker
+EOF
+git -C "$tmp/rmf-f2" add .docket.yml; git -C "$tmp/rmf-f2" commit --quiet -m cfg
+git -C "$tmp/rmf-f2" push --quiet origin main
+out="$(run "$tmp/rmf-f2" --export)"; eval "$out"
+assert "an INDENTED review: is not read as the review: block header" \
+  '[ "$REVIEW_MIN_FIX_SEVERITY" = "minor" ]'
+
+# --- (RMF-g) fail closed on garbage -------------------------------------------
+assert "non-enum min_fix_severity aborts nonzero" \
+  '! run_resolver_with "review:\n  min_fix_severity: critical\n" >/dev/null 2>&1'
+rmf_g_err="$(run_resolver_with "review:\n  min_fix_severity: critical\n" 2>&1 >/dev/null)"
+assert "unparseable review.min_fix_severity: mentions review.min_fix_severity" \
+  'grep -qF "review.min_fix_severity" <<<"$rmf_g_err"'
+
+# --- (RMF-h) export presence and POSITION -------------------------------------
+out_rmf="$(run "$tmp/rmf-a" --export)"
+out_rmf_plain="$(run "$tmp/rmf-a" --export --format plain)"
+assert "REVIEW_MIN_FIX_SEVERITY is emitted" \
+  'grep -q "^REVIEW_MIN_FIX_SEVERITY=" <<<"$out_rmf"'
+assert "REVIEW_MIN_FIX_SEVERITY is emitted directly after BUILD_CHECKPOINT" \
+  '[ "$(grep -n "^REVIEW_MIN_FIX_SEVERITY=" <<<"$out_rmf" | cut -d: -f1)" \
+     = "$(( $(grep -n "^BUILD_CHECKPOINT=" <<<"$out_rmf" | cut -d: -f1) + 1 ))" ]'
+assert "REVIEW_MIN_FIX_SEVERITY present in plain format too" \
+  'grep -q "^REVIEW_MIN_FIX_SEVERITY=" <<<"$out_rmf_plain"'
+
+# --- (RMF-i) the contract doc documents it ------------------------------------
+assert "docket-config.md has a review.min_fix_severity table row" \
+  'grep -qE "^\| \`review\.min_fix_severity\` \| \`minor\` \| yes \|" "$REPO/scripts/docket-config.md"'
+assert "docket-config.md lists the export name" \
+  'grep -q "^REVIEW_MIN_FIX_SEVERITY$" "$REPO/scripts/docket-config.md"'
 
 # --- Change 0091 — auto_capture (global-able boolean, default false) ---------------------------
 # Mirrors auto_groom's four-layer resolution, but fails CLOSED on a non-boolean (the reclaim.auto /

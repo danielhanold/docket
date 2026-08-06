@@ -128,6 +128,7 @@ A value may not contain a literal `#` — it is treated as the start of an inlin
 | `reclaim.lease_ttl` | `72` | yes | read from the nested `reclaim:` block; integer number of **hours** (consumers convert to seconds); resolves repo-local > repo-committed > global; behavioral, not coordination-fenced |
 | `reclaim.auto` | `false` | yes | read from the nested `reclaim:` block; `true`/`false`, anything else aborts; resolves repo-local > repo-committed > global; behavioral, not coordination-fenced — gates the ONLY mutating path of the claim-lease reclaim script |
 | `build.checkpoint` | `false` | yes | read from the nested `build:` block; `true`/`false`, anything else aborts; resolves repo-local > repo-committed > global; behavioral, not coordination-fenced — gates whether `docket-build` persists a resume ledger |
+| `review.min_fix_severity` | `minor` | yes | read from the nested `review:` block; `minor`/`important`/`blocker`, anything else aborts; resolves repo-local > repo-committed > global; behavioral, not coordination-fenced — the minimum finding severity that enters `docket-implement-next`'s Step 6 fix loop |
 
 **`runtime.bash` (change 0132).** This is machine identity, not repo policy. Its only valid homes
 are global `config.yml` (normal) and a repo's gitignored `.docket.local.yml` (override), with
@@ -213,6 +214,17 @@ Either violation aborts the run with a diagnostic naming the dotted key.
 ledger under `.superpowers/docket-build/<change-id>/progress.md`. Read within the block via
 `yaml_block_body` so a bare `checkpoint:` elsewhere cannot shadow it; a value other than `true` or
 `false` aborts the resolver rather than falling back.
+
+### `review:`
+
+`review.min_fix_severity` (default `minor`, any layer) sets the lowest review-finding severity that
+`docket-implement-next`'s Step 6 fix loop repairs in-branch. Blockers are always fixed regardless of
+this value, so `blocker` means "fix nothing but blockers" — the pre-0218 record-everything behavior,
+kept as a compat escape hatch. `important` fixes blockers and importants and records minors. Note
+the nested read: the `skills:` block also has a `review:` key. That leaf is rejected as this
+block's header twice over — it is indented, and it carries a value — but the column-0 half of
+`config_block_header` is what keeps an indented, *valueless* `review:` from opening this block, so
+the two are only separated as long as that check stands.
 
 ### Stage 2b: global config layer (change 0050)
 
@@ -343,6 +355,7 @@ TERMINAL_PUBLISH
 RECLAIM_LEASE_TTL
 RECLAIM_AUTO
 BUILD_CHECKPOINT
+REVIEW_MIN_FIX_SEVERITY
 SKILL_BRAINSTORM
 SKILL_PLAN
 SKILL_BUILD
@@ -351,7 +364,7 @@ SKILL_FINISH
 BOOTSTRAP
 ```
 
-29 lines in `shell` format; 30 in `plain` format, with `REPO_ROOT` inserted directly
+30 lines in `shell` format; 31 in `plain` format, with `REPO_ROOT` inserted directly
 after `METADATA_WORKTREE` and `DOCKET_BASH_PATH` following it (or following
 `METADATA_WORKTREE` in shell format). The last line is always `BOOTSTRAP=…`.
 
