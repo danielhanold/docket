@@ -241,7 +241,7 @@ assert "board fenced-to-empty: emits BOARD_SURFACES=none" \
 
 # --- (E) direct-pipe caller (LEARNINGS #22: $() hides a dropped trailing \n) -
 n="$(run "$tmp/c" --export | grep -c '=')"
-assert "direct-pipe: 30 KEY=value lines emitted"       '[ "$n" -eq 30 ]'
+assert "direct-pipe: 31 KEY=value lines emitted"       '[ "$n" -eq 31 ]'
 last="$(run "$tmp/c" --export | tail -n1)"
 assert "direct-pipe: last line is BOOTSTRAP"           'case "$last" in BOOTSTRAP=*) true;; *) false;; esac'
 
@@ -617,9 +617,9 @@ AUTO_GROOM=__poison__
 out="$(env -u XDG_CONFIG_HOME HOME="$tmp/q.home" bash "$SCRIPT" --repo-dir "$tmp/q" --export)"; eval "$out"
 assert "0050 Q: XDG unset -> \$HOME/.config fallback read"   '[ "$AUTO_GROOM" = true ]'
 
-# --- (E') emit-interface guard: exactly 30 lines with a global file present ---
+# --- (E') emit-interface guard: exactly 31 lines with a global file present ---
 n50="$(rung "$tmp/k.xdg" "$tmp/k" --export | grep -c '=')"
-assert "0050 E': 30 KEY=value lines with global layer" '[ "$n50" -eq 30 ]'
+assert "0050 E': 31 KEY=value lines with global layer" '[ "$n50" -eq 31 ]'
 
 # --- (M) coordination-key fence: warned-and-ignored, never honored, never fatal ---
 mkrepo "$tmp/m"
@@ -1414,6 +1414,158 @@ assert "docket-config.md has a review.min_fix_severity table row" \
   'grep -qE "^\| \`review\.min_fix_severity\` \| \`minor\` \| yes \|" "$REPO/scripts/docket-config.md"'
 assert "docket-config.md lists the export name" \
   'grep -q "^REVIEW_MIN_FIX_SEVERITY$" "$REPO/scripts/docket-config.md"'
+
+# ============================================================================
+# Change 0218 — review.max_fix_tasks (REVIEW_MAX_FIX_TASKS)
+# The second leaf of the review: block, resolved through the SAME review_key helper as
+# min_fix_severity (so the RMF-f2 column-0 invariant above covers this leaf too — it pins the
+# helper's block scoping, not one leaf's). It is a COUNT, so it validates like reclaim.lease_ttl /
+# learnings.cap: non-negative integer or abort. Same NOTE as the RMF block (guards-are-code (e)):
+# clear the asserted var BEFORE each eval — an aborting run emits NOTHING, and eval "" would
+# silently leave the previous case's value in place.
+#
+# ORDERING, and why it is not the RMF block's: the export-SHAPE asserts (presence, position,
+# plain-format) run FIRST, before any fixture that dereferences $REVIEW_MAX_FIX_TASKS. Under
+# `set -u` a missing export does not redden an assert — `eval ""` leaves the variable unbound and
+# assert()'s own eval kills the suite — so a shape assert placed after a deref-ing fixture can only
+# ever be reached when it was going to pass anyway. Mutation-verified: deleting the emit line
+# reddens `REVIEW_MAX_FIX_TASKS is emitted` by name in this order, and aborted the run before
+# reaching it in the other.
+# ============================================================================
+
+# --- (RMX-a) default when no layer sets the leaf ------------------------------
+# Asserted on the EMITTED LINE, deliberately without an eval: this is the first assert about a
+# brand-new export, so it is the one that must survive the export not existing at all.
+mkrepo "$tmp/rmx-a"
+out="$(run "$tmp/rmx-a" --export)"
+assert "REVIEW_MAX_FIX_TASKS defaults to 10" \
+  'grep -qxF "REVIEW_MAX_FIX_TASKS=10" <<<"$out"'
+
+# --- (RMX-b) export presence, POSITION, and both formats ----------------------
+out_rmx="$(run "$tmp/rmx-a" --export)"
+out_rmx_plain="$(run "$tmp/rmx-a" --export --format plain)"
+assert "REVIEW_MAX_FIX_TASKS is emitted" \
+  'grep -q "^REVIEW_MAX_FIX_TASKS=" <<<"$out_rmx"'
+assert "REVIEW_MAX_FIX_TASKS is emitted directly after REVIEW_MIN_FIX_SEVERITY" \
+  '[ "$(grep -n "^REVIEW_MAX_FIX_TASKS=" <<<"$out_rmx" | cut -d: -f1)" \
+     = "$(( $(grep -n "^REVIEW_MIN_FIX_SEVERITY=" <<<"$out_rmx" | cut -d: -f1) + 1 ))" ]'
+assert "REVIEW_MAX_FIX_TASKS present in plain format too" \
+  'grep -q "^REVIEW_MAX_FIX_TASKS=" <<<"$out_rmx_plain"'
+
+# --- (RMX-c) repo-committed block is honored ----------------------------------
+unset REVIEW_MAX_FIX_TASKS
+mkrepo "$tmp/rmx-c"
+cat > "$tmp/rmx-c/.docket.yml" <<'EOF'
+metadata_branch: main
+review:
+  max_fix_tasks: 3
+EOF
+git -C "$tmp/rmx-c" add .docket.yml; git -C "$tmp/rmx-c" commit --quiet -m cfg
+git -C "$tmp/rmx-c" push --quiet origin main
+out2="$(run "$tmp/rmx-c" --export)"; eval "$out2"
+assert "REVIEW_MAX_FIX_TASKS reads the block" \
+  'grep -qxF "REVIEW_MAX_FIX_TASKS=3" <<<"$out2" && [ "$REVIEW_MAX_FIX_TASKS" = "3" ]'
+
+# --- (RMX-d) global-able (ADR-0019 — NOT coordination-fenced) -----------------
+unset REVIEW_MAX_FIX_TASKS
+mkrepo "$tmp/rmx-d"
+mkdir -p "$tmp/rmx-d.xdg/docket"
+cat > "$tmp/rmx-d.xdg/docket/config.yml" <<'EOF'
+review:
+  max_fix_tasks: 25
+EOF
+rmx_d_err="$(rung "$tmp/rmx-d.xdg" "$tmp/rmx-d" --export 2>&1 >/dev/null)"
+out="$(rung "$tmp/rmx-d.xdg" "$tmp/rmx-d" --export 2>/dev/null)"; eval "$out"
+assert "review.max_fix_tasks is global-able (not fenced)" \
+  '[ "$REVIEW_MAX_FIX_TASKS" = "25" ]'
+# Same reasoning as RMF-c's negative half: the fence reads keys with config_scalar_get, so a block
+# HEADER entry resolves empty and prints nothing — `max_fix_tasks`, the leaf, is the only spelling
+# that can actually produce a warning, and mutation-testing this assert means adding it to the fence
+# list (done; it reddens). Its non-vacuity companion is the positive assert directly above.
+assert "no fence warning for review.max_fix_tasks" \
+  '! grep -qiE "(review|max_fix_tasks).*per-repo-only" <<<"$rmx_d_err"'
+
+# --- (RMX-e) repo-local layer wins over repo-committed ------------------------
+unset REVIEW_MAX_FIX_TASKS
+mkrepo "$tmp/rmx-e"
+cat > "$tmp/rmx-e/.docket.yml" <<'EOF'
+metadata_branch: main
+review:
+  max_fix_tasks: 4
+EOF
+git -C "$tmp/rmx-e" add .docket.yml; git -C "$tmp/rmx-e" commit --quiet -m cfg
+git -C "$tmp/rmx-e" push --quiet origin main
+printf 'review:\n  max_fix_tasks: 7\n' > "$tmp/rmx-e/.docket.local.yml"
+out="$(run "$tmp/rmx-e" --export)"; eval "$out"
+assert "local layer beats repo-committed for review.max_fix_tasks" \
+  '[ "$REVIEW_MAX_FIX_TASKS" = "7" ]'
+
+# --- (RMX-f) SHADOW GUARD — a bare max_fix_tasks: OUTSIDE the review: block ---
+unset REVIEW_MAX_FIX_TASKS
+mkrepo "$tmp/rmx-f"
+cat > "$tmp/rmx-f/.docket.yml" <<'EOF'
+metadata_branch: main
+some_future_block:
+  max_fix_tasks: 99
+EOF
+git -C "$tmp/rmx-f" add .docket.yml; git -C "$tmp/rmx-f" commit --quiet -m cfg
+git -C "$tmp/rmx-f" push --quiet origin main
+out="$(run "$tmp/rmx-f" --export)"; eval "$out"
+assert "a foreign block's max_fix_tasks: does not shadow review.max_fix_tasks" \
+  '[ "$REVIEW_MAX_FIX_TASKS" = "10" ]'
+
+# --- (RMX-g) BOTH leaves out of ONE review: block, beside skills.review -------
+# RMF-f1/f2 above pin the block-vs-leaf separation using min_fix_severity alone. What is new here
+# is the MULTI-LEAF read: the review: block now has two leaves, and a reader that stopped at the
+# block's first leaf would serve min_fix_severity and silently default max_fix_tasks. Mutation-
+# verified: closing the block after its first leaf reddens the first assert by name.
+unset REVIEW_MIN_FIX_SEVERITY REVIEW_MAX_FIX_TASKS
+SKILL_REVIEW=__poison__
+mkrepo "$tmp/rmx-g"
+cat > "$tmp/rmx-g/.docket.yml" <<'EOF'
+metadata_branch: main
+skills:
+  review: my-org:custom-review
+review:
+  min_fix_severity: important
+  max_fix_tasks: 2
+EOF
+git -C "$tmp/rmx-g" add .docket.yml; git -C "$tmp/rmx-g" commit --quiet -m cfg
+git -C "$tmp/rmx-g" push --quiet origin main
+out="$(run "$tmp/rmx-g" --export)"; eval "$out"
+assert "both review: leaves resolve from one block" \
+  '[ "$REVIEW_MIN_FIX_SEVERITY" = "important" ] && [ "$REVIEW_MAX_FIX_TASKS" = "2" ]'
+assert "skills.review still resolves alongside a two-leaf review: block" \
+  '[ "$SKILL_REVIEW" = "my-org:custom-review" ]'
+
+# --- (RMX-h) fail closed on garbage — and 0 IS legal --------------------------
+# The validator is reclaim.lease_ttl's / learnings.cap's: `''|*[!0-9]*` aborts. That admits 0, and
+# admitting it is deliberate — see the resolver comment. Assert the boundary explicitly so a later
+# "tighten it to a positive integer" edit has to argue with a named guard rather than a silence.
+#
+# The 0 case reads the EMITTED LINE rather than eval-ing and dereferencing, for the reason the
+# block header gives: it is a fixture a mutation can make ABORT, and on an abort a deref would kill
+# the suite instead of reddening this assert. Mutation-verified: adding `0` to the reject list
+# reddens both asserts below by name.
+rmx_zero_out="$(run_resolver_with "review:\n  max_fix_tasks: 0\n" 2>/dev/null)"; rmx_zero_rc=$?
+assert "review.max_fix_tasks: 0 does not abort the resolver" '[ "$rmx_zero_rc" -eq 0 ]'
+assert "review.max_fix_tasks: 0 is legal (fix nothing but blockers)" \
+  'grep -qxF "REVIEW_MAX_FIX_TASKS=0" <<<"$rmx_zero_out"'
+assert "non-numeric max_fix_tasks aborts nonzero" \
+  '! run_resolver_with "review:\n  max_fix_tasks: many\n" >/dev/null 2>&1'
+assert "negative max_fix_tasks aborts nonzero" \
+  '! run_resolver_with "review:\n  max_fix_tasks: -1\n" >/dev/null 2>&1'
+assert "fractional max_fix_tasks aborts nonzero" \
+  '! run_resolver_with "review:\n  max_fix_tasks: 2.5\n" >/dev/null 2>&1'
+rmx_h_err="$(run_resolver_with "review:\n  max_fix_tasks: many\n" 2>&1 >/dev/null)"
+assert "unparseable review.max_fix_tasks: mentions review.max_fix_tasks" \
+  'grep -qF "review.max_fix_tasks" <<<"$rmx_h_err"'
+
+# --- (RMX-i) the contract doc documents it ------------------------------------
+assert "docket-config.md has a review.max_fix_tasks table row" \
+  'grep -qE "^\| \`review\.max_fix_tasks\` \| \`10\` \| yes \|" "$REPO/scripts/docket-config.md"'
+assert "docket-config.md lists the export name" \
+  'grep -q "^REVIEW_MAX_FIX_TASKS$" "$REPO/scripts/docket-config.md"'
 
 # --- Change 0091 — auto_capture (global-able boolean, default false) ---------------------------
 # Mirrors auto_groom's four-layer resolution, but fails CLOSED on a non-boolean (the reclaim.auto /

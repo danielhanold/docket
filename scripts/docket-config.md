@@ -129,6 +129,7 @@ A value may not contain a literal `#` — it is treated as the start of an inlin
 | `reclaim.auto` | `false` | yes | read from the nested `reclaim:` block; `true`/`false`, anything else aborts; resolves repo-local > repo-committed > global; behavioral, not coordination-fenced — gates the ONLY mutating path of the claim-lease reclaim script |
 | `build.checkpoint` | `false` | yes | read from the nested `build:` block; `true`/`false`, anything else aborts; resolves repo-local > repo-committed > global; behavioral, not coordination-fenced — gates whether `docket-build` persists a resume ledger |
 | `review.min_fix_severity` | `minor` | yes | read from the nested `review:` block; `minor`/`important`/`blocker`, anything else aborts; resolves repo-local > repo-committed > global; behavioral, not coordination-fenced — the minimum finding severity that enters `docket-implement-next`'s Step 6 fix loop |
+| `review.max_fix_tasks` | `10` | yes | read from the nested `review:` block; non-negative integer, anything else aborts; resolves repo-local > repo-committed > global; behavioral, not coordination-fenced — the most non-blocker fix **tasks** `docket-implement-next`'s Step 6 fix loop dispatches per run |
 
 **`runtime.bash` (change 0132).** This is machine identity, not repo policy. Its only valid homes
 are global `config.yml` (normal) and a repo's gitignored `.docket.local.yml` (override), with
@@ -220,9 +221,17 @@ ledger under `.superpowers/docket-build/<change-id>/progress.md`. Read within th
 `review.min_fix_severity` (default `minor`, any layer) sets the lowest review-finding severity that
 `docket-implement-next`'s Step 6 fix loop repairs in-branch. Blockers are always fixed regardless of
 this value, so `blocker` means "fix nothing but blockers" — the pre-0218 record-everything behavior,
-kept as a compat escape hatch. `important` fixes blockers and importants and records minors. Note
-the nested read: the `skills:` block also has a `review:` key. That leaf is rejected as this
-block's header twice over — it is indented, and it carries a value — but the column-0 half of
+kept as a compat escape hatch. `important` fixes blockers and importants and records minors.
+
+`review.max_fix_tasks` (default `10`, any layer) caps how many non-blocker fix **tasks** that same
+loop dispatches per run — the task, not the finding, so a batched-minors task spends one slot.
+Blockers never count against it, for the same reason `min_fix_severity` cannot suppress them.
+It validates as a count (`reclaim.lease_ttl`'s rule: non-negative integer or abort), and `0` is
+legal — it means "fix nothing but blockers", which `min_fix_severity: blocker` already expresses,
+and it cannot fail open because blockers sit outside the count.
+
+Note the nested read shared by both leaves: the `skills:` block also has a `review:` key. That leaf
+is rejected as this block's header twice over — it is indented, and it carries a value — but the column-0 half of
 `config_block_header` is what keeps an indented, *valueless* `review:` from opening this block, so
 the two are only separated as long as that check stands.
 
@@ -356,6 +365,7 @@ RECLAIM_LEASE_TTL
 RECLAIM_AUTO
 BUILD_CHECKPOINT
 REVIEW_MIN_FIX_SEVERITY
+REVIEW_MAX_FIX_TASKS
 SKILL_BRAINSTORM
 SKILL_PLAN
 SKILL_BUILD
@@ -364,7 +374,7 @@ SKILL_FINISH
 BOOTSTRAP
 ```
 
-30 lines in `shell` format; 31 in `plain` format, with `REPO_ROOT` inserted directly
+31 lines in `shell` format; 32 in `plain` format, with `REPO_ROOT` inserted directly
 after `METADATA_WORKTREE` and `DOCKET_BASH_PATH` following it (or following
 `METADATA_WORKTREE` in shell format). The last line is always `BOOTSTRAP=…`.
 

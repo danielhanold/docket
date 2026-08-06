@@ -217,12 +217,27 @@ assert "fix-loop: fixes run the docket-build-task contract" \
 # review expands Step 6 without limit. Blockers must stay outside the count, or the cap disarms
 # the same gate the blocker floor exists to protect. Scoped to the tasks section, where the cap
 # belongs; overflow must land in the disposition table, not silently vanish.
+# Re-keyed off the literal "five" when the cap became configurable: the prose must now name the
+# EXPORT, because an agent reading this file has to know which value to look up rather than a
+# number to apply. The default is asserted separately below so a doc that names the knob but drops
+# the number — leaving the reader with no value at all when no layer sets it — still reddens.
+#
+# These four read a NEWLINE-FLATTENED haystack. grep matches within a line, so a phrase-spanning
+# assert over wrapped markdown silently doubles as a line-wrap guard: re-flowing the paragraph
+# reddens it with a message about the cap, sending the next author hunting for a policy change that
+# never happened. Flattening keys them on the prose alone, which is what they are about. `[^.|]`
+# still bounds the window to one sentence and still keeps the disposition TABLE row (pipe-delimited)
+# from satisfying the overflow assert on its own.
+tasks_flat="$(tr '\n' ' ' <<<"$tasks_section")"
+fix_flat="$(tr '\n' ' ' <<<"$fix_body")"
 assert "fix-loop: non-blocker fix tasks are capped per run" \
-  'grep -qiE "at most five non-blocker fix tasks" <<<"$tasks_section"'
+  'grep -qE "at most .?REVIEW_MAX_FIX_TASKS.? non-blocker fix tasks" <<<"$tasks_flat"'
+assert "fix-loop: the cap's default is stated where the knob is named" \
+  'grep -qiE "REVIEW_MAX_FIX_TASKS[^.]{0,120}\`?10\`? by default" <<<"$tasks_flat"'
 assert "fix-loop: blockers are never counted against the cap" \
-  'grep -qiE "blockers are never counted against" <<<"$tasks_section"'
+  'grep -qiE "blockers are never counted against" <<<"$tasks_flat"'
 assert "fix-loop: cap overflow takes the deferred disposition" \
-  'grep -qiE "overflow[^.|]{0,120}deferred|deferred[^.|]{0,120}overflow" <<<"$fix_body"'
+  'grep -qiE "overflow[^.|]{0,120}deferred|deferred[^.|]{0,120}overflow" <<<"$fix_flat"'
 
 # The suite gate: revert-and-record, bounded at two runs.
 assert "fix-loop: re-runs the full suite after fixes land" \
@@ -410,6 +425,8 @@ assert "README: documents the in-branch fix loop" \
   'grep -qiF -- "fix loop" <<<"$rvsec"'
 assert "README: documents the min_fix_severity knob" \
   'grep -qF -- "min_fix_severity" <<<"$rvsec"'
+assert "README: documents the max_fix_tasks cap knob" \
+  'grep -qF -- "max_fix_tasks" <<<"$rvsec"'
 assert "README: states that fix routing never reaches max" \
   'grep -qiE "never[^.]{0,80}\`?max\`?" <<<"$rvsec"'
 assert "README: states blockers are fixed regardless of the knob" \
