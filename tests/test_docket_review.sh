@@ -168,29 +168,59 @@ fix_body="$(cat "$FIX" 2>/dev/null)"
 assert "fix-loop: reference is non-vacuous (>= 30 lines)" \
   '[ "$(printf "%s\n" "$fix_body" | grep -c .)" -ge 30 ]'
 
+# Every assert below whose pattern can SPAN A LINE BREAK reads a newline-FLATTENED haystack. grep
+# matches within a line, so a phrase-spanning assert over hard-wrapped markdown silently doubles as
+# a line-wrap guard: a pure re-flow of a paragraph reddens it with a message about a policy that
+# did not change, sending the next author hunting for a rule nobody touched. Flattening keys the
+# assert on the prose alone, which is what it is about.
+#
+# Four shapes deliberately stay LINE-based, because the line IS the thing they guard: the
+# `^`-anchored restated-rubric bullet just below, the line-count floor above, the pipe-anchored
+# disposition-table rows, and every awk section extractor (an extractor's input must keep its
+# newlines or the slice is the whole file). A handful of asserts keep reading $fix_body simply
+# because a single unbroken literal — `task-routing.md`, `docket-build-task`, `batch` — is not
+# splittable by a re-wrap and gains nothing from flattening.
+#
+# `[^.]` bounds a window to one sentence; `[^.|]` additionally holds the table-cell boundary. Use
+# `[^.|]` wherever the routing TABLE could otherwise bridge two flattened rows and satisfy a guard
+# whose prose rule was deleted — mutation-checked: with a bare `[^.]`, the blocker-floor assert
+# passes off `| \`economy\` | … the blocker floor … | | \`standard\` |` alone.
+#
+# `-s` (squeeze) is load-bearing, not tidiness: a wrapped LIST ITEM or numbered step indents its
+# continuation lines, so a plain `tr '\n' ' '` leaves "build-evidence" and "record" separated by
+# four spaces and a single-space pattern misses. Found by the re-wrap positive control — a re-flow
+# at width 64 reddened the post-revert-re-run guard until the squeeze went in.
+flatten(){ tr -s '[:space:]' ' '; }
+fix_flat="$(flatten <<<"$fix_body")"
+
 # The routing axis DELEGATES — it must never restate the rubric it shares with docket-build.
 assert "fix-loop: routes by character via the shared rubric" \
   'grep -qF -- "task-routing.md" <<<"$fix_body"'
+# LINE-anchored on purpose: `^- **\`economy\`** — *only when*` detects the rubric's own bullet
+# reappearing as a bullet. Flattening would erase the line start and with it the whole signal.
 assert "fix-loop: does not restate the rubric's economy bullet" \
   '! grep -qE "^- \*\*\`economy\`\*\* — \*only when\*" <<<"$fix_body"'
 
 # The CEILING is the whole safety argument: no fix task may ever reach max, at any severity.
 assert "fix-loop: never dispatches the max profile" \
-  'grep -qiE "never[^.]{0,80}\`?max\`?|no fix task[^.]{0,60}max" <<<"$fix_body"'
+  'grep -qiE "never[^.|]{0,80}\`?max\`?|no fix task[^.|]{0,60}max" <<<"$fix_flat"'
+# `[^.]`, not `[^.|]`, and deliberately: the routing table's own `| \`max\` | **halt** |` row states
+# this rule as legitimately as the prose sentence does, and it satisfied this assert before the
+# flattening too. Narrowing it to prose-only would be a semantics change, not a haystack change.
 assert "fix-loop: a max-character blocker halts" \
-  'grep -qiE "max[^.]{0,120}halt" <<<"$fix_body"'
+  'grep -qiE "max[^.]{0,120}halt" <<<"$fix_flat"'
 
 # The FLOOR is the ceiling's mirror: a blocker's fix may never START below standard, so a blocker
 # misrouted as mechanical still reaches premium before halting (the pre-0218 guarantee).
 assert "fix-loop: blocker fixes start no lower than standard (the floor)" \
-  'grep -qiE "blocker[^.]{0,120}no lower than \`standard\`|floor[^.]{0,120}\`standard\`" <<<"$fix_body"'
+  'grep -qiE "blocker[^.|]{0,120}no lower than \`standard\`|floor[^.|]{0,120}\`standard\`" <<<"$fix_flat"'
 assert "fix-loop: the floor is named as the one exception to orthogonality" \
-  'grep -qiE "exception[^.]{0,120}orthogonalit" <<<"$fix_body"'
+  'grep -qiE "exception[^.|]{0,120}orthogonalit" <<<"$fix_flat"'
 
 # Severity sets POSTURE only — the orthogonality claim, which is what keeps a minor finding from
 # being handed to a cheap model just for being minor.
 assert "fix-loop: severity selects the failure posture, not the profile" \
-  'grep -qiE "severity[^.]{0,100}posture" <<<"$fix_body"'
+  'grep -qiE "severity[^.|]{0,100}posture" <<<"$fix_flat"'
 
 # Task shape and commits.
 # Task ORDER is load-bearing, not cosmetic: blockers first is what keeps the non-blocker fix
@@ -199,19 +229,50 @@ assert "fix-loop: severity selects the failure posture, not the profile" \
 # grep would stay green if the rule existed only as an aside inside the revert step, and a rule
 # restated at its point of use is the drift class this repo already documents
 # (restatement-accumulates-its-own-guards).
+# The extractor keeps its newline-bearing input ($fix_body) — an awk range over a flattened file
+# would match the first `## ` heading and slice nothing. The FLATTENED slice is derived from it and
+# is what the phrase-spanning asserts read; both are covered by the one non-vacuity anchor, since
+# flattening a non-empty slice cannot produce an empty one.
 tasks_section="$(awk '/^## Tasks, batching, commits/{f=1; next} /^## /{f=0} f' <<<"$fix_body")"
+tasks_flat="$(flatten <<<"$tasks_section")"
 assert "fix-loop: the tasks section is extractable (anchor for the ordering guard)" \
   '[ -n "$tasks_section" ]'
 assert "fix-loop: fix tasks are ordered blockers first" \
-  'grep -qiE "blockers?[^.]{0,40}(first|before)" <<<"$tasks_section"'
+  'grep -qiE "blockers?[^.|]{0,40}(first|before)" <<<"$tasks_flat"'
 assert "fix-loop: the ordering is justified by leaving non-blockers at the branch tail" \
   'grep -qiE "tail" <<<"$tasks_section"'
 assert "fix-loop: blockers and importants get one task per finding" \
-  'grep -qiE "(one task per finding|per-finding task)" <<<"$fix_body"'
+  'grep -qiE "(one task per finding|per-finding task)" <<<"$fix_flat"'
 assert "fix-loop: minors batch by shared routed profile" \
   'grep -qiE "batch" <<<"$fix_body"'
 assert "fix-loop: fixes run the docket-build-task contract" \
   'grep -qF -- "docket-build-task" <<<"$fix_body"'
+
+# The Tier C dispatch clause — what happens when profile dispatch is unavailable. Scoped to the
+# paragraph that carries it (blank-line-delimited, the same slicing shape
+# tests/test_dispatch_capability.sh uses), with its own non-vacuity anchor.
+#
+# That file already wires THIS paragraph as a `check_site` row, and those asserts are not restated
+# here: the site exists, it cites the convention's *Dispatch-capability resolution*, it forbids
+# concluding unavailability "from a tool name", and `Tier C` sits in the same clause as the site's
+# own noun. Its convention-side companions pin the Tier C table ROW. What no assert anywhere
+# covered is this clause's own operative half — the equivalence that makes a MISSING wrapper the
+# same condition as a rejection, the posture, the borrowed authorizer, and the non-fallback — i.e.
+# everything a reader who has established unavailability actually acts on.
+dispatch_para="$(awk 'BEGIN{RS=""} /If profile dispatch is unavailable/{print; exit}' "$FIX")"
+dispatch_flat="$(flatten <<<"$dispatch_para")"
+assert "fix-loop: the Tier C dispatch paragraph is extractable (non-vacuity anchor)" \
+  '[ -n "$dispatch_para" ] && grep -qF -- "Tier C" <<<"$dispatch_para"'
+assert "fix-loop: an unregistered profile wrapper is the same condition as a concrete rejection" \
+  'grep -qiE "unregistered profile wrapper[^.|]{0,60}same condition[^.|]{0,60}rejection" <<<"$dispatch_flat"'
+assert "fix-loop: the fix dispatch carries the authorized-or-halt posture" \
+  'grep -qF -- "authorized-or-halt" <<<"$dispatch_flat"'
+assert "fix-loop: an explicitly configured skills.build: auto authorizes fixing inline" \
+  'grep -qiE "explicitly configured .?skills\.build: auto.?[^.|]{0,80}inline" <<<"$dispatch_flat"'
+assert "fix-loop: any other resolved value is abort-and-report" \
+  'grep -qiE "other resolved value[^.|]{0,40}abort-and-report" <<<"$dispatch_flat"'
+assert "fix-loop: recording every finding instead is NOT the fallback" \
+  'grep -qiE "recording every finding[^.|]{0,60}not[^.|]{0,20}the fallback" <<<"$dispatch_flat"'
 
 # The count cap. Without it, only escalations and suite runs are bounded — a ten-plus-finding
 # review expands Step 6 without limit. Blockers must stay outside the count, or the cap disarms
@@ -222,14 +283,9 @@ assert "fix-loop: fixes run the docket-build-task contract" \
 # number to apply. The default is asserted separately below so a doc that names the knob but drops
 # the number — leaving the reader with no value at all when no layer sets it — still reddens.
 #
-# These four read a NEWLINE-FLATTENED haystack. grep matches within a line, so a phrase-spanning
-# assert over wrapped markdown silently doubles as a line-wrap guard: re-flowing the paragraph
-# reddens it with a message about the cap, sending the next author hunting for a policy change that
-# never happened. Flattening keys them on the prose alone, which is what they are about. `[^.|]`
-# still bounds the window to one sentence and still keeps the disposition TABLE row (pipe-delimited)
-# from satisfying the overflow assert on its own.
-tasks_flat="$(tr '\n' ' ' <<<"$tasks_section")"
-fix_flat="$(tr '\n' ' ' <<<"$fix_body")"
+# These four read the NEWLINE-FLATTENED haystacks defined above ($tasks_flat / $fix_flat), for the
+# reason given there. `[^.|]` still bounds the window to one sentence and still keeps the
+# disposition TABLE row (pipe-delimited) from satisfying the overflow assert on its own.
 assert "fix-loop: non-blocker fix tasks are capped per run" \
   'grep -qE "at most .?REVIEW_MAX_FIX_TASKS.? non-blocker fix tasks" <<<"$tasks_flat"'
 assert "fix-loop: the cap's default is stated where the knob is named" \
@@ -239,15 +295,16 @@ assert "fix-loop: blockers are never counted against the cap" \
 assert "fix-loop: cap overflow takes the deferred disposition" \
   'grep -qiE "overflow[^.|]{0,120}deferred|deferred[^.|]{0,120}overflow" <<<"$fix_flat"'
 
-# The suite gate: revert-and-record, bounded at two runs.
+# The suite gate: revert-and-record, bounded at two runs. Flattened haystack — even "full suite"
+# and "at most two" are wrap-splittable two-word phrases.
 assert "fix-loop: re-runs the full suite after fixes land" \
-  'grep -qiE "full[- ]suite" <<<"$fix_body"'
+  'grep -qiE "full[- ]suite" <<<"$fix_flat"'
 assert "fix-loop: a red re-run reverts the NON-BLOCKER fix commits" \
-  'grep -qiE "revert[^.]{0,120}non-blocker|non-blocker[^.]{0,120}revert" <<<"$fix_body"'
+  'grep -qiE "revert[^.|]{0,120}non-blocker|non-blocker[^.|]{0,120}revert" <<<"$fix_flat"'
 assert "fix-loop: the gate is bounded at two suite runs" \
-  'grep -qiE "two suite runs|at most two" <<<"$fix_body"'
+  'grep -qiE "two suite runs|at most two" <<<"$fix_flat"'
 assert "fix-loop: still-red after the revert halts" \
-  'grep -qiE "still[- ]red[^.]{0,80}halt" <<<"$fix_body"'
+  'grep -qiE "still[- ]red[^.|]{0,80}halt" <<<"$fix_flat"'
 
 # The revert path's re-run must REFRESH the evidence record too. Without it the first (red) run's
 # result survives into the PR body's `docket:build-evidence` block for a branch that is actually
@@ -256,32 +313,66 @@ assert "fix-loop: still-red after the revert halts" \
 # numbered step that re-runs, not the whole file: the first branch already says "refresh", so a
 # whole-file grep would stay green with the revert path silent — exactly the defect.
 gate_section="$(awk '/^## The suite gate/{f=1; next} /^## /{f=0} f' <<<"$fix_body")"
+gate_flat="$(flatten <<<"$gate_section")"
 assert "fix-loop: the suite-gate section is extractable (anchor for the re-run guard)" \
   '[ -n "$gate_section" ]'
+# The numbered-step extractor is line-based by construction (it keys on `^[0-9]+. `), so it reads
+# the un-flattened slice; its OWN output is then flattened for the phrase-spanning assert below.
 rerun_step="$(awk '/^[0-9]+\. /{keep = tolower($0) ~ /re-?run/} keep' <<<"$gate_section")"
+rerun_flat="$(flatten <<<"$rerun_step")"
 assert "fix-loop: the post-revert re-run step is extractable (non-vacuity anchor)" \
   '[ -n "$rerun_step" ]'
 assert "fix-loop: the post-revert re-run refreshes the build-evidence record" \
-  'grep -qiE "refresh[^.]{0,80}(build-)?evidence record" <<<"$rerun_step"'
+  'grep -qiE "refresh[^.]{0,80}(build-)?evidence record" <<<"$rerun_flat"'
 
 # A conflicted revert is the one way the "never worse than the green build that entered" guarantee
 # can fail open: an autonomous run has no human to finish a half-applied revert, and the worktree is
 # shared. The posture must be stated, and it must be a halt that first puts the worktree back.
 # Scoped to the suite-gate section for the same reason as the re-run guard above.
 assert "fix-loop: a conflicted revert halts" \
-  'grep -qiE "conflict[^.]{0,160}halt|halt[^.]{0,160}conflict" <<<"$gate_section"'
+  'grep -qiE "conflict[^.]{0,160}halt|halt[^.]{0,160}conflict" <<<"$gate_flat"'
 assert "fix-loop: a conflicted revert restores the worktree to its pre-revert state" \
-  'grep -qiE "worktree[^.]{0,120}pre-revert|pre-revert[^.]{0,120}worktree" <<<"$gate_section"'
+  'grep -qiE "worktree[^.]{0,120}pre-revert|pre-revert[^.]{0,120}worktree" <<<"$gate_flat"'
 
 # The knob, and the always-fix-blockers carve-out that makes it safe.
 assert "fix-loop: reads the severity threshold from the resolved knob" \
   'grep -qF -- "REVIEW_MIN_FIX_SEVERITY" <<<"$fix_body"'
 assert "fix-loop: blockers are fixed regardless of the threshold" \
-  'grep -qiE "blocker[^.]{0,120}regardless" <<<"$fix_body"'
+  'grep -qiE "blocker[^.|]{0,120}regardless" <<<"$fix_flat"'
 
-# The recording surface.
+# `unverified-build-state` — the one blocker the controller answers itself, and the only suite run
+# in Step 6 that is NOT charged to the gate's two-run bound. Both halves shipped unguarded.
+#
+# The bound answer is the load-bearing half: without it this file holds two sentences that can be
+# read as contradicting each other ("at most three suite runs across Step 6" here, "at most two
+# suite runs" in the gate section), and the reader who resolves that contradiction the other way —
+# charging the self re-run to the gate — leaves a run with ONE gate slot: a red post-fix suite
+# could revert but never re-verify, and revert-and-record fails exactly where it matters. So the
+# REASON is guarded alongside the answer; an unreasoned "does not count" is one edit away from
+# being tidied back into the bound by someone who cannot see why it sits outside.
+#
+# Scoped to the threshold SECTION — where the carve-out belongs — with the knob as the slice's
+# non-vacuity anchor, and flattened for the same reason as everything above.
+thr_section="$(awk '/^## The severity threshold/{f=1; next} /^## /{f=0} f' <<<"$fix_body")"
+thr_flat="$(flatten <<<"$thr_section")"
+assert "fix-loop: the severity-threshold section is extractable (non-vacuity anchor)" \
+  '[ -n "$thr_section" ] && grep -qF -- "REVIEW_MIN_FIX_SEVERITY" <<<"$thr_section"'
+assert "fix-loop: unverified-build-state is never handed to a fix worker" \
+  'grep -qiE "unverified-build-state[^.|]{0,80}never hand" <<<"$thr_flat"'
+assert "fix-loop: the controller resolves it by re-running the suite itself" \
+  'grep -qiE "resolve[^.|]{0,40}re-run(ning)? the suite yourself" <<<"$thr_flat"'
+assert "fix-loop: that self re-run sits OUTSIDE the gate's two-run bound" \
+  'grep -qiE "re-run does[^.|]{0,20}not[^.|]{0,40}count against[^.|]{0,60}bound" <<<"$thr_flat"'
+assert "fix-loop: the carve-out is REASONED — charging it would spend the revert path's re-run" \
+  'grep -qiE "charg[^.|]{0,60}gate[^.|]{0,60}revert[^.|]{0,40}re-run" <<<"$thr_flat"'
+assert "fix-loop: the resulting Step 6 total is stated (at most three suite runs)" \
+  'grep -qiE "at most[^.|]{0,20}three[^.|]{0,20}suite runs" <<<"$thr_flat"'
+assert "fix-loop: the gate's own bound is stated as scoped to the gate, unchanged" \
+  'grep -qiE "bound[^.|]{0,40}scoped to the gate" <<<"$thr_flat"'
+
+# The recording surface. Flattened: "disposition table" is a two-word phrase a re-wrap can split.
 assert "fix-loop: the PR body carries a disposition table" \
-  'grep -qiF -- "disposition table" <<<"$fix_body"'
+  'grep -qiF -- "disposition table" <<<"$fix_flat"'
 # Anchored on the table ROWS' shape inside the extracted section, not on the words anywhere in the
 # file. A whole-file `\bfixed\b`-style loop was near-vacuous: all of these words occur in the
 # surrounding prose independently of the table ("recorded unfixed in the PR body", "the reverted
