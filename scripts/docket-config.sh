@@ -618,10 +618,30 @@ review_key(){  # review_key <leaf> <default> -> resolved value on stdout
   [ -n "$v" ] || v="$(config_block_get global review "$1")"
   printf '%s' "${v:-$2}"
 }
+# max_fix_tasks is the MAXIMUM number of non-blocker fix TASKS that loop dispatches per run — the
+# unit is the task as skills/docket-implement-next/references/fix-loop.md defines it, so a batched-
+# minors task spends one slot. Blockers are never counted against it, for the same reason
+# min_fix_severity cannot suppress them: a cap that counted blockers would disarm the gate the
+# blocker floor exists to protect. Validated as a COUNT, on reclaim.lease_ttl's / learnings.cap's
+# `''|*[!0-9]*` precedent rather than an enum: non-negative integer or abort. Fails CLOSED for the
+# same reason min_fix_severity does.
+# ZERO IS LEGAL, deliberately. It reads "fix nothing but blockers" — a state the config can ALREADY
+# express through `min_fix_severity: blocker`, so rejecting 0 here would forbid a configuration that
+# is reachable anyway by another key, which is arbitrary rather than protective. It also cannot fail
+# open: blockers sit outside the count, so a 0 cap still fixes every blocker and still halts on one
+# it cannot fix. The alternative reading — 0 means "unbounded", the way an empty list sometimes
+# means "all" — was rejected: it would make the single most restrictive-looking value the single
+# most permissive one, and this file's other counts (learnings.cap, reclaim.lease_ttl) give 0 no
+# such magic. tests/test_docket_config.sh RMX-h ("0 is legal (fix nothing but blockers)", beside the
+# aborts-nonzero asserts) pins the boundary in both directions.
 REVIEW_MIN_FIX_SEVERITY="$(review_key min_fix_severity minor)"
+REVIEW_MAX_FIX_TASKS="$(review_key max_fix_tasks 10)"
 case "$REVIEW_MIN_FIX_SEVERITY" in
   minor|important|blocker) ;;
   *) die "unparseable config: review.min_fix_severity must be 'minor', 'important', or 'blocker', got '$REVIEW_MIN_FIX_SEVERITY'" ;;
+esac
+case "$REVIEW_MAX_FIX_TASKS" in
+  ''|*[!0-9]*) die "unparseable config: review.max_fix_tasks must be a non-negative integer, got '$REVIEW_MAX_FIX_TASKS'" ;;
 esac
 
 # --- change_types + auto_capture: the typed-capture policy (change 0127) -------
@@ -813,6 +833,7 @@ if [ "$MODE" = export ]; then
   emit RECLAIM_AUTO "$RECLAIM_AUTO"
   emit BUILD_CHECKPOINT "$BUILD_CHECKPOINT"
   emit REVIEW_MIN_FIX_SEVERITY "$REVIEW_MIN_FIX_SEVERITY"
+  emit REVIEW_MAX_FIX_TASKS "$REVIEW_MAX_FIX_TASKS"
   emit SKILL_BRAINSTORM "$SKILL_BRAINSTORM"
   emit SKILL_PLAN "$SKILL_PLAN"
   emit SKILL_BUILD "$SKILL_BUILD"

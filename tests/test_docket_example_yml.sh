@@ -112,6 +112,7 @@ map_for(){ # map_for <EXPORT_KEY> -> ERE matching the example's line, or empty i
     RECLAIM_AUTO)          echo '^[[:space:]]+auto:[[:space:]]*false' ;;
     BUILD_CHECKPOINT)      echo '^[[:space:]]+checkpoint:[[:space:]]*false' ;;
     REVIEW_MIN_FIX_SEVERITY) echo '^[[:space:]]+min_fix_severity:[[:space:]]*minor[[:space:]]*$' ;;
+    REVIEW_MAX_FIX_TASKS)  echo '^[[:space:]]+max_fix_tasks:[[:space:]]*10[[:space:]]*$' ;;
     SKILL_BRAINSTORM)      echo '^[[:space:]]+brainstorm:[[:space:]]*superpowers:brainstorming' ;;
     SKILL_PLAN)            echo '^[[:space:]]+plan:[[:space:]]*superpowers:writing-plans' ;;
     SKILL_BUILD)           echo '^[[:space:]]+build:[[:space:]]*docket-build[[:space:]]*$' ;;
@@ -190,6 +191,7 @@ classify_key(){ # classify_key <example-key-name> -> "resolved:EXPORT" | "elsewh
     reclaim.auto)                 echo 'resolved:RECLAIM_AUTO' ;;
     build.checkpoint)             echo 'resolved:BUILD_CHECKPOINT' ;;
     review.min_fix_severity)      echo 'resolved:REVIEW_MIN_FIX_SEVERITY' ;;
+    review.max_fix_tasks)         echo 'resolved:REVIEW_MAX_FIX_TASKS' ;;
     skills.brainstorm)            echo 'resolved:SKILL_BRAINSTORM' ;;
     skills.plan)                  echo 'resolved:SKILL_PLAN' ;;
     skills.build)                 echo 'resolved:SKILL_BUILD' ;;
@@ -433,11 +435,12 @@ assert "manifest: every elsewhere:HEADER entry is a real bare block opener (${ma
 # auto_capture block's header and its two leaves, less the retired scalar auto_capture); change
 # 0167 took it from 36 to 38 (the build: block header and its checkpoint leaf); change 0205 took
 # it from 38 to 40 (the runners.opencode header and its permissions leaf); change 0218 took it
-# from 40 to 42 (the review: block header and its min_fix_severity leaf).
+# from 40 to 42 (the review: block header and its min_fix_severity leaf), then from 42 to 43 when
+# the fix loop's hard-coded cap became the review.max_fix_tasks leaf.
 # intentional-growth remedy this count is guarding. This is the single source for that count: the
 # condition and the failure message below both read it, so bumping it in one place updates both
 # instead of leaving one stale.
-expected_key_count=42
+expected_key_count=43
 # RAW FLOOR (change 0102 whole-branch review, MINOR 3): example_keys_raw feeds BOTH this section's
 # manifest loop (via example_keys, deduped) and the duplicate-leaf check directly below (also
 # fed from example_keys_raw, undeduped). Without this assert, an edit that makes the raw pipeline
@@ -746,11 +749,12 @@ fi
 # guard's own pass reached zero nested keys, i.e. exactly the vacuity this assert exists to catch.
 #
 # EXACT, not >=. An at-least floor of 15 is satisfied by the PRE-0102 file and would tolerate a
-# regression that silently drops both runners.codex leaves. The 21: 3 finalize.*, 2 learnings.*,
-# 2 reclaim.*, 1 build.checkpoint, 1 review.min_fix_severity (change 0218 — it carries its OWN
-# `# scope: any layer` tag, so it is covered by rule 1, not by adjacency), 2 auto_capture.*,
+# regression that silently drops both runners.codex leaves. The 22: 3 finalize.*, 2 learnings.*,
+# 2 reclaim.*, 1 build.checkpoint, 2 review.* (change 0218 — min_fix_severity, and max_fix_tasks
+# added when the fix loop's cap became configurable; EACH carries its OWN `# scope: any layer` tag,
+# so both are covered by rule 1, not by adjacency), 2 auto_capture.*,
 # runners.codex + its 2 leaves, runners.opencode + its 1 leaf, 5 skills.*.
-expected_nested_key_count=21
+expected_nested_key_count=22
 assert "scope tag: the pass enumerated exactly $expected_nested_key_count keys at depth > 0 (got ${nested_key_count:-0}; if you added or removed a nested key in .docket.example.yml, first CONFIRM the new key carries its own scope: tag or sits directly under a tagged header — bumping expected_nested_key_count alone, with no tag and no header, ships an untagged key that this guard will never catch again — then bump expected_nested_key_count in the same commit)" \
   '[ "${nested_key_count:-0}" = "$expected_nested_key_count" ]'
 

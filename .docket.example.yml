@@ -184,6 +184,16 @@ review:
   # fails. Anything other than these three values is a config error, not a silent fallback.
   # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
   min_fix_severity: minor
+  # max_fix_tasks — the most non-blocker fix TASKS that same loop dispatches in one run. The unit is
+  # the TASK, not the finding: minors sharing a routed profile are batched into one task, which
+  # spends one slot. Blockers are NEVER counted against it — a run cannot proceed past an unfixed
+  # blocker, so a cap that counted them would disarm the gate the blocker floor exists to protect.
+  # Overflow findings are recorded in the PR body as deferred, with the cap named as the reason, and
+  # the slots fill in the loop's deterministic dispatch order so two runs over the same findings fix
+  # the same set. 0 is legal and means "fix nothing but blockers". Anything that is not a
+  # non-negative integer is a config error, not a silent fallback.
+  # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
+  max_fix_tasks: 10
 
 
 # ═══ Board surfaces ════════════════════════════════════════════════════════════════════════
