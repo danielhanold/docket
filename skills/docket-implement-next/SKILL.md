@@ -71,7 +71,7 @@ git worktree add .worktrees/<slug> -b feat/<slug> origin/<integration_branch>
 
 ### Step 5 — Build
 
-The **resolved build skill** — `$SKILL_BUILD` from the Step-0 config export (default `docket-build`) — is invoked **DIRECTED to:** execute the plan task-by-task and stop at the executed plan. **Proceed through the build — the deliverable is the executed plan, never the decision about how to execute it.** Separately, and without ever relaxing the first: answer any choice it poses from resolved config, surface none, and log one line naming the role and skill if you suppressed a hand-off. Emitting that log line discharges the suppression obligation only; the step is not complete until its git-state postcondition holds. docket-build routes each task to a profile agent and gates on one full-suite run. On `auto` or unavailability, apply the build auto-fallback per the convention's *Skill layer* (execute the plan on the feature branch, warning prominently) — the artifact is the executed plan; method is the agent's choice. If the resolved skill is invocable but **cannot dispatch** (established only per the convention's *Dispatch-capability resolution* — never from a tool name), the build role is **Tier C, authorized-or-halt**: an explicitly configured `auto` authorizes the inline path above; any other resolved value is abort-and-report, leaving the change `in-progress` with `claimed_at` refreshed and the halt reason recorded.
+The **resolved build skill** — `$SKILL_BUILD` from the Step-0 config export (default `docket-build`) — is invoked **DIRECTED to:** execute the plan task-by-task and stop at the executed plan. **Proceed through the build — the deliverable is the executed plan, never the decision about how to execute it.** Separately, and without ever relaxing the first: answer any choice it poses from resolved config, surface none, and log one line naming the role and skill if you suppressed a hand-off. Emitting that log line discharges the suppression obligation only; the step is not complete until its git-state postcondition holds — see *Step postconditions*. docket-build routes each task to a profile agent and gates on one full-suite run. On `auto` or unavailability, apply the build auto-fallback per the convention's *Skill layer* (execute the plan on the feature branch, warning prominently) — the artifact is the executed plan; method is the agent's choice. If the resolved skill is invocable but **cannot dispatch** (established only per the convention's *Dispatch-capability resolution* — never from a tool name), the build role is **Tier C, authorized-or-halt**: an explicitly configured `auto` authorizes the inline path above; any other resolved value is abort-and-report, leaving the change `in-progress` with `claimed_at` refreshed and the halt reason recorded.
 
 ### Step 6 — Review + ADRs
 
@@ -97,6 +97,21 @@ Then, BACK IN THE **METADATA WORKING TREE** (in `docket`-mode, `.docket/`), set 
 
 **STOP.** The change stays in `active/` as `implemented` until a human merges it, or approves `docket-finalize-change` to merge it.
 
+### Step postconditions
+
+Each step below is complete only when its row holds — read from **git**, never from a sub-skill's report or its own narration. The conditions are **cumulative**: each holds in addition to every earlier step's. These certify a **step**, never the run. **Once a change is claimed, and absent a `halted` disposition or a Step-3 kill, the only postcondition that also completes the run is Step 7's** — a satisfied intermediate row is never licence to stop. A run that ends any other way ends on a **disposition**, not on a postcondition.
+
+| Step | Complete only when |
+|---|---|
+| 2 Claim | `status: in-progress` + `branch:` + `claimed_at:` committed on `metadata_branch` **and landed** (local tip == remote tip). |
+| 3 Reconcile | `reconciled: true` and a dated `## Reconcile log` entry landed on `metadata_branch` — or, on the kill path, the change archived. |
+| 4 Worktree + plan | Step 3's push SHA-confirmed **before** the branch is cut; then the plan file **and** its `docket:backlink` stamp committed on `feat/<slug>`, **and** `plan:` landed on `metadata_branch` — a two-tree conjunction, both refs read. |
+| 5 Build | the executed plan committed on `feat/<slug>`, with a build-evidence record at `result: green` whose `head_sha` **equals branch HEAD** (the conjunct that makes a sub-skill's report git-checkable). |
+| 6 Review + ADRs | that record still green at `head_sha` == HEAD **after** any fix commits, and every ADR the run produced landed in `adrs:`. Known-weak row: on a clean review this reduces to Step 5's, because whether a reviewer ran is not a fact about git. |
+| 7 PR + stop | the branch pushed (`origin/feat/<slug>` resolves), the PR open, and `status: implemented` + `pr:` landed on `metadata_branch`; `results:` set **iff** a results file and its backlink stamp are committed on `feat/<slug>`. |
+
+Steps 0, 1 and 6.5 get no row: 0 produces nothing scoped to this change, 1 is a pure read, and 6.5 is optional — its artifact rides in Step 7's `iff` conjunct.
+
 ### Terminal disposition (driver contract)
 
 Every run ends by declaring exactly **one** of four dispositions, so any driver keys on the outcome instead of parsing prose:
@@ -113,8 +128,8 @@ The driver's decision is binary: **continue on `advanced`/`contended`, stop on `
 **The obligation is on the agent, not only the driver** — the run does not end until exactly one of
 the four is declared. A final report that declares a step-scoped or invented disposition — a build
 disposition, a review outcome, "complete" — is by construction an aborted run, whatever else it
-reports. `advanced` is claimable only when **Step 7's postcondition** holds; that postcondition is
-Step 7's to state, not this section's.
+reports. `advanced` is claimable only when **Step 7's postcondition** holds — stated in
+*Step postconditions* above, not here.
 
 The final report **enumerates** what happened: the change built (if any), each change **skipped with its reason** (needs-brainstorm / already `in-progress` / waiting on an unmerged `depends_on` / outside the id allowlist), any stubs **auto-captured** (plus every dedup skip and any cap overflow), and which disposition ended the run.
 
