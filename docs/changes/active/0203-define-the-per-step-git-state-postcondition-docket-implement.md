@@ -2,7 +2,7 @@
 id: 203
 slug: define-the-per-step-git-state-postcondition-docket-implement
 title: Define the per-step git-state postcondition docket-implement-next now names but never states
-status: in-progress
+status: implemented
 priority: medium
 type: docs
 created: 2026-08-03
@@ -13,12 +13,12 @@ discovered_from: [113]
 adrs: []
 spec: docs/superpowers/specs/2026-08-05-per-step-git-state-postcondition-design.md
 plan: docs/superpowers/plans/2026-08-06-per-step-git-state-postcondition.md
-results:
+results: docs/results/2026-08-06-define-the-per-step-git-state-postcondition-docket-implement-results.md
 trivial: false
 auto_groomable: true
 branch: feat/define-the-per-step-git-state-postcondition-docket-implement
-claimed_at: 2026-08-06T21:19:54Z
-pr:
+claimed_at: 2026-08-06T22:53:21Z
+pr: https://github.com/danielhanold/docket/pull/163
 blocked_by:
 reconciled: true
 ---
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-05-per-step-git-state-postcondition-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-05-per-step-git-state-postcondition-design.md) |
 | Plan | [2026-08-06-per-step-git-state-postcondition.md](https://github.com/danielhanold/docket/blob/feat/define-the-per-step-git-state-postcondition-docket-implement/docs/superpowers/plans/2026-08-06-per-step-git-state-postcondition.md) |
+| Results | [2026-08-06-define-the-per-step-git-state-postcondition-docket-implement-results.md](https://github.com/danielhanold/docket/blob/feat/define-the-per-step-git-state-postcondition-docket-implement/docs/results/2026-08-06-define-the-per-step-git-state-postcondition-docket-implement-results.md) |
+| PR | [#163](https://github.com/danielhanold/docket/pull/163) |
 <!-- docket:artifacts:end -->
 
 ## Why
