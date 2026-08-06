@@ -1585,8 +1585,22 @@ assert "0207: the first offender is named" 'grep -qF "docket-status" <<<"$err"'
 assert "0207: the SECOND offender is named in the same run" 'grep -qF "docket-adr" <<<"$err"'
 # Accumulating, not short-circuiting: the unregistered one must report its OWN rule, not be
 # swallowed by whichever offender the walk happened to reach first.
-assert "0207: the unregistered offender reports the registration rule" \
-  'grep -qF "gemini-cli" <<<"$err"'
+#
+# Extract the OFFENDING AGENT'S OWN LINE first (change 0220). Matching the runner name against the
+# whole output could not tell the two rules apart — the name appears in both diagnostics, so
+# swapping the if-blocks in runner_config_error left this green. A whole-output negative assert is
+# not available either: docket-status in this same fixture is legitimately model-less, so the
+# required-model wording IS in $err against a correct implementation.
+adr_line="$(grep -F "docket-adr" <<<"$err" | head -n1)"
+assert "0220/D4: (fixture) the unregistered offender produced a diagnostic line" '[ -n "$adr_line" ]'
+assert "0220/D4: the unregistered offender's OWN line reports the REGISTRATION rule" \
+  'grep -qF "is not a registered runner" <<<"$adr_line"'
+assert "0220/D4: and that same line does NOT report the required-model rule" \
+  '! grep -qF "requires an explicit model" <<<"$adr_line"'
+# The companion direction: the registered-but-model-less agent reports the OTHER rule on its line.
+status_line="$(grep -F "docket-status" <<<"$err" | head -n1)"
+assert "0220/D4: the model-less offender's own line reports the required-model rule" \
+  '[ -n "$status_line" ] && grep -qF "requires an explicit model" <<<"$status_line"'
 rm -rf "$SBX"
 
 # (4) --check reports the failure and exits nonzero (docket's `nginx -t`).
