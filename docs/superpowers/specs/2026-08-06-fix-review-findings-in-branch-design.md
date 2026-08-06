@@ -94,17 +94,17 @@ entered it.
 No second review round after fixes (today's rule, kept). Remediation is carried by the worker's
 own self-review, the suite gate, and the human reading every fix in the PR diff.
 
-## Configuration — `review.fix_severity`
+## Configuration — `review.min_fix_severity`
 
 ```yaml
 review:
-  fix_severity: minor   # minor (default) | important | blocker
+  min_fix_severity: minor   # minor (default) | important | blocker
 ```
 
 The minimum severity that enters the fix loop; blockers are always fixed regardless (a run cannot
 proceed past an unfixed blocker). `important` = minors are recorded, not fixed; `blocker` =
 pre-0218 behavior, the compat escape hatch. Findings below the threshold take today's record path.
-Resolved by `docket-config.sh --export` as **`REVIEW_FIX_SEVERITY`**; not a coordination key (it
+Resolved by `docket-config.sh --export` as **`REVIEW_MIN_FIX_SEVERITY`**; not a coordination key (it
 shapes branch content, not shared metadata), so it is global-able like `finalize.gate`. Per the
 `config-knob-ship-end-to-end` learning, the sample config, README, and the now-relaxed Step 6
 prose ship in the same change.
@@ -131,5 +131,5 @@ prose ship in the same change.
 
 Sentinel/guard updates for: the rewritten Step 6 triage prose; the §Routing extraction stub +
 pointer (the `restatement-accumulates-its-own-guards` learning bites here — existing tests may
-grep the copy); the new `REVIEW_FIX_SEVERITY` resolver export (export-list order guard); the
+grep the copy); the new `REVIEW_MIN_FIX_SEVERITY` resolver export (export-list order guard); the
 rubric reference being read by two consumers; and the auto-capture materiality-bar clause.

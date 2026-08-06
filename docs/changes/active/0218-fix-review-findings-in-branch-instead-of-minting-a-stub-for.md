@@ -76,8 +76,8 @@ close-out. The dead line of code costs one deletion.
 - **Revert-and-record suite gate:** one full-suite re-run after fixes; red → revert the non-blocker
   fix commits and re-run once — green proceeds with those findings recorded unfixed, still-red
   halts. Bounded at two suite runs; no re-review round.
-- **`review.fix_severity` knob** (`minor` default | `important` | `blocker`), resolved as
-  `REVIEW_FIX_SEVERITY`; `blocker` is the pre-0218 compat escape hatch. Global-able; not a
+- **`review.min_fix_severity` knob** (`minor` default | `important` | `blocker`), resolved as
+  `REVIEW_MIN_FIX_SEVERITY`; `blocker` is the pre-0218 compat escape hatch. Global-able; not a
   coordination key.
 - **Auto-capture narrows:** a finding about this branch's own diff is never mintable; the
   materiality bar gains "work fixable by a small in-branch edit fails the bar." PR-body findings
