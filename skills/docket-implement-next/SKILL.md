@@ -103,12 +103,14 @@ Each step below is complete only when its row holds — read from **git**, never
 
 | Step | Complete only when |
 |---|---|
-| 2 Claim | `status: in-progress` + `branch:` + `claimed_at:` committed on `metadata_branch` **and landed** (local tip == remote tip). |
+| 2 Claim | `status: in-progress` + `branch:` + `updated:` + `claimed_at:` committed on `metadata_branch` **and landed** (local tip == remote tip). |
 | 3 Reconcile | `reconciled: true` and a dated `## Reconcile log` entry landed on `metadata_branch` — or, on the kill path, the change archived. |
 | 4 Worktree + plan | Step 3's push SHA-confirmed **before** the branch is cut; then the plan file **and** its `docket:backlink` stamp committed on `feat/<slug>`, **and** `plan:` landed on `metadata_branch` — a two-tree conjunction, both refs read. |
 | 5 Build | the executed plan committed on `feat/<slug>`, with a build-evidence record at `result: green` whose `head_sha` **equals branch HEAD**. |
 | 6 Review + ADRs | that record still green at `head_sha` == HEAD **after** any fix commits, and every ADR the run produced landed in `adrs:`. Known-weak row: on a clean review this reduces to Step 5's, because whether a reviewer ran is not a fact about git. |
 | 7 PR + stop | the branch pushed (`origin/feat/<slug>` resolves), the PR open, and `status: implemented` + `pr:` landed on `metadata_branch`; `results:` set **iff** a results file and its backlink stamp are committed on `feat/<slug>`. |
+
+Rows 3, 4, 6 and 7 each carry, in addition, the **field-write rule**'s conjuncts on every metadata commit they name: the `claimed_at` re-stamp, and — for any link-bearing field write — the regenerated `## Artifacts` block in the same commit.
 
 Steps 0, 1 and 6.5 get no row: 0 produces nothing scoped to this change, 1 is a pure read, and 6.5 is optional — its artifact rides in Step 7's `iff` conjunct.
 
