@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/clear-the-unfixed-review-findings-from-change-0207
-claimed_at: 2026-08-06T21:29:58Z
+claimed_at: 2026-08-06T21:33:00Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -86,3 +86,28 @@ Work the findings recorded in PR #159's review section. In the reviewer's own pr
   settled (spec `2026-08-05-atomic-wrapper-generation-design.md`); these are defects in its
   execution.
 - Gate 2's pre-migration blind spot — a documented boundary in 0207's own *Out of scope*.
+
+## Reconcile log
+
+### 2026-08-06
+
+Re-verified all seven findings against `sync-agents.sh` on `origin/main` (tip `3565b749`). Every one
+still reproduces, and the spec's decisions (D1–D6) still describe the code as it stands:
+
+- **D1** — the gate's project-level leg is still `per_repo_opted_in`-guarded (line ~648) while
+  `check_project_level` returns early on `gitignore_block_wanted` (line ~1258); the in-source comment
+  at line ~1433 still asserts "so no gap". `gitignore_block_wanted` still `per_repo_opted_in || …`
+  (line ~1104), so the strictly-weaker relationship holds. `prune_orphans`' legs are still
+  `per_repo_opted_in`-gated (lines ~1353, ~1377), so D1's consistency argument stands.
+- **D2** — no user-level (`$SBX/.config/docket/config.yml`) `runner:` fixture exists; every
+  `runner:` fixture is still project-layer.
+- **D3** — `user_flag_model` (line ~881) is still not called by `emit_wrapper`, which keeps its own
+  `RES_MODEL_FROM_USER` spelling over positional `$2` (line ~919 onward).
+- **D4/D5/D6** — the ordering assert, the "changes nothing on disk" comment, and the un-deduplicated
+  double report are all unchanged.
+
+Scope unchanged; no work has been done elsewhere. `depends_on` is still empty and 0207 is `done`.
+The four `related` changes touching the same file (0082, 0140, 0141) are all still `proposed` and
+unbuilt, so no rebase-over is needed now — whichever lands second rebases, as the spec assumed.
+
+No follow-up work surfaced by this pass beyond what the spec already scopes.
