@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/fix-review-findings-in-branch-instead-of-minting-a-stub-for
-claimed_at: 2026-08-06T01:40:09Z
+claimed_at: 2026-08-06T01:41:56Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -91,3 +91,38 @@ close-out. The dead line of code costs one deletion.
 - Retroactively clearing the existing self-generated backlog. That is its own triage pass, and this
   change is about closing the tap.
 - The merge gate's `docket-integration-repair` path, which is correct as-is for its own purpose.
+
+## Reconcile log
+
+### 2026-08-06
+
+Reconciled against `origin/main` at `12cf78e6` and the current docket branch. **Scope unchanged —
+every premise the spec was groomed on still holds:**
+
+- `skills/docket-implement-next/SKILL.md` Step 6 still carries the exact rule this change replaces
+  ("An `important` or `minor` finding is recorded in the PR body … never auto-fixed") and the single
+  synthetic all-blockers task on the `standard → premium → halt` ladder.
+- `skills/docket-build/SKILL.md` still carries the `## Routing` section verbatim at lines 48–90,
+  with the `max`/`premium` organizing principle the fix loop's ceiling rule leans on. The extraction
+  target `skills/docket-build/references/task-routing.md` does not exist yet, and `docket-build/`
+  currently holds only `SKILL.md` — the `references/` directory is new.
+- No `review:` block and no `REVIEW_MIN_FIX_SEVERITY` exist anywhere in `scripts/` or `skills/`.
+  `finalize.gate` (`scripts/docket-config.sh:424`) is the working precedent for a global-able,
+  non-fenced block-scoped scalar, including its explicit "deliberately NOT coordination-fenced"
+  comment at line 434 — that comment block is the place the new knob's classification note belongs.
+- `skills/docket-convention/references/auto-capture.md` §Materiality bar (lines 16–20) is still the
+  three-way routing paragraph the new "fixable by a small in-branch edit" clause extends.
+- ADR-0066 is `Accepted` and unchanged; the reviewer's read-only contract stays out of scope.
+- The motivating pattern is not stale, it grew: 0197, 0200, **and 0220** are all still sitting in
+  `active/` as unbuilt "clear the unfixed review findings from …" changes, and 0220 is currently
+  second in the build-ready queue behind this change.
+
+**One new coupling, non-blocking.** Change 0190 (`close-the-build-evidence-value-gap`) is
+`in-progress` on `feat/close-the-build-evidence-value-gap-a-post-gate-results-commi` and reworks how
+the build-evidence record's `head_sha` staleness is treated after post-gate commits. This change's
+suite gate refreshes that same record after fix commits land. 0190 is unmerged, so this build
+proceeds against the evidence contract as it exists on `origin/main` today; whichever change merges
+second absorbs the reconciliation. Recorded rather than made a `depends_on` — neither change's
+correctness needs the other, and adding the edge would deadlock two in-flight branches.
+
+No obsolescence, no invalidation, no scope adjustment. Proceeding to plan.
