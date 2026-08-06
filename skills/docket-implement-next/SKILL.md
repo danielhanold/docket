@@ -99,7 +99,7 @@ Then, BACK IN THE **METADATA WORKING TREE** (in `docket`-mode, `.docket/`), set 
 
 ### Step postconditions
 
-Each step below is complete only when its row holds — read from **git**, never from a sub-skill's report or its own narration. The conditions are **cumulative**: each holds in addition to every earlier step's. These certify a **step**, never the run. **Once a change is claimed, and absent a `halted` disposition or a Step-3 kill, the only postcondition that also completes the run is Step 7's** — a satisfied intermediate row is never licence to stop. A run that ends any other way ends on a **disposition**, not on a postcondition.
+Each step below is complete only when its row holds — read from **git**, never from a sub-skill's report or its own narration. The conditions are **cumulative**: each holds in addition to every earlier step's, each read **as of the close of its own step** — a later commit moving branch HEAD (Step 6.5's results file) leaves an earlier row's `head_sha` stale, which `references/edge-paths.md` calls expected, not a defect. These certify a **step**, never the run. **Once a change is claimed, and absent a `halted` disposition or a Step-3 kill, the only postcondition that also completes the run is Step 7's** — a satisfied intermediate row is never licence to stop. A run that ends any other way ends on a **disposition**, not on a postcondition.
 
 | Step | Complete only when |
 |---|---|

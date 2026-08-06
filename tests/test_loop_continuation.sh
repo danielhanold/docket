@@ -81,6 +81,15 @@ assert "SKILL states only Step 7's postcondition also completes the run" \
   'grep -qF -- "the only postcondition that also completes the run is Step 7'"'"'s" <<<"$impl_flat"'
 assert "SKILL states the conditions are cumulative" \
   'grep -qiE "cumulative" <<<"$impl_flat"'
+# ...and that cumulativity is READ-SCOPED to each row's own step. Unqualified cumulativity makes
+# Step 7 unsatisfiable on the Step-6.5 path: the results commit moves branch HEAD after the
+# evidence was minted, so Steps 5/6 `head_sha` == HEAD is false at Step 7 and `advanced` — which
+# only Step 7's row licenses — could never be declared on any run that writes a results file.
+# references/edge-paths.md already states the opposite rule ("a stale `head_sha` on that path is
+# EXPECTED, not a defect"); this assert pins the two files agreeing. Proximity-scoped so a
+# scoping clause parked in an unrelated paragraph cannot satisfy it.
+assert "SKILL scopes cumulativity to each row's own step" \
+  'grep -qE "cumulative.{0,200}as of the close of its own step" <<<"$impl_flat"'
 
 # PROXIMITY-SCOPED producer assert (learnings: specified-but-unreachable). The contract's producer
 # is Step 5's clause; anchoring only on the defining section would leave the term orphaned exactly
@@ -125,6 +134,18 @@ assert "the Step 7 phrase matcher rejects the wrong step number" \
 printf 'the conditions are independent.\n' > "$probe"
 assert "the cumulative matcher rejects prose that omits the word" \
   '! grep -qiE "cumulative" <<<"$(flatten < "$probe")"'
+# (c2) the read-scoping matcher must go RED on the UNQUALIFIED governing sentence — the exact state
+# that made Step 7 unsatisfiable on the Step-6.5 path — and green once the scoping clause is back.
+printf 'The conditions are **cumulative**: each holds in addition to every earlier step'"'"'s.\n' > "$probe"
+assert "the read-scoping matcher REJECTS unqualified cumulativity" \
+  '! grep -qE "cumulative.{0,200}as of the close of its own step" <<<"$(flatten < "$probe")"'
+printf 'The conditions are **cumulative**: each holds in addition to every earlier\nstep'"'"'s, each read **as of the close of its own step**.\n' > "$probe"
+assert "the read-scoping matcher ACCEPTS the scoped sentence (across a wrap)" \
+  'grep -qE "cumulative.{0,200}as of the close of its own step" <<<"$(flatten < "$probe")"'
+# ...and is not satisfied by a scoping clause far from the cumulativity claim.
+printf 'cumulative.%s as of the close of its own step\n' "$(printf ' x%.0s' $(seq 1 210))" > "$probe"
+assert "the read-scoping matcher rejects a distant co-occurrence" \
+  '! grep -qE "cumulative.{0,200}as of the close of its own step" <<<"$(flatten < "$probe")"'
 # (d) THE load-bearing one: the proximity assert must go RED on the pre-0203 state — the clause
 # present with no pointer. This is the state 0203 removed, not the wording it introduced.
 printf '%s\n' 'the step is not complete until its git-state postcondition holds. docket-build routes each task.' > "$probe"
