@@ -267,9 +267,22 @@ assert "fix-loop: blockers are fixed regardless of the threshold" \
 # The recording surface.
 assert "fix-loop: the PR body carries a disposition table" \
   'grep -qiF -- "disposition table" <<<"$fix_body"'
-for d in fixed deferred reverted recorded; do
-  assert "fix-loop: the disposition table has a '$d' state" \
-    'grep -qiE "\b'"$d"'\b" <<<"$fix_body"'
+# Anchored on the table ROWS' shape inside the extracted section, not on the words anywhere in the
+# file. A whole-file `\bfixed\b`-style loop was near-vacuous: all of these words occur in the
+# surrounding prose independently of the table ("recorded unfixed in the PR body", "the reverted
+# findings"), so deleting every row left all four green — it confirmed vocabulary, not the table.
+# The section extractor gets its own non-vacuity anchor for the same reason the auto-capture and
+# suite-gate slices below/above do: a renamed heading would otherwise empty the slice and make the
+# row asserts unfalsifiable. Verified by mutation: deleting a single row reddens exactly that row's
+# assert. `minted` is in the loop because auto-capture still admits genuinely distinct,
+# beyond-the-branch work — a finding that takes that path needs a row or the table is not the
+# complete per-finding accounting it claims to be.
+disp_section="$(awk '/^## Recording/{f=1; next} /^## /{f=0} f' <<<"$fix_body")"
+assert "fix-loop: the disposition-table section is extractable (non-vacuity anchor)" \
+  '[ -n "$disp_section" ]'
+for d in fixed deferred reverted recorded minted; do
+  assert "fix-loop: the disposition table has a '$d' ROW" \
+    'grep -qE "^\| \*\*'"$d"'\*\* \|" <<<"$disp_section"'
 done
 
 # --- change 0218: auto-capture no longer absorbs this branch's own findings ---

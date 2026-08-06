@@ -1383,6 +1383,13 @@ git -C "$tmp/rmf-f2" push --quiet origin main
 out="$(run "$tmp/rmf-f2" --export)"; eval "$out"
 assert "an INDENTED review: is not read as the review: block header" \
   '[ "$REVIEW_MIN_FIX_SEVERITY" = "minor" ]'
+# The reverse direction under this shape, which RMF-f1 asserts only under the valued spelling: the
+# nested leaf must not become skills.review's VALUE either. Without it the SKILL_REVIEW poison above
+# is a dead assignment — an assert that reads as dropped. A valueless `skills: review:` resolves to
+# the shipped default; here that is not the weak assertion RMF-f1's comment warns about, because the
+# poison makes "the resolver never ran" distinguishable from "the resolver read nothing under it".
+assert "a nested min_fix_severity does not leak out as skills.review's value" \
+  '[ "$SKILL_REVIEW" = "docket-review" ]'
 
 # --- (RMF-g) fail closed on garbage -------------------------------------------
 assert "non-enum min_fix_severity aborts nonzero" \

@@ -32,8 +32,10 @@ below.
   door is honored, not inferred: never articulate a new risk on your own — your classification is
   this closed list, so uncertainty still sinks to `standard`.
 - **`standard`** — everything remaining; the default and the uncertainty sink. Deliberately includes
-  hard-but-safe work: difficulty known ahead of time is handled by the consumer's own override, and
-  difficulty discovered while working is handled by the `standard -> premium` escalation.
+  hard-but-safe work: difficulty known ahead of time is handled by the consumer's own override
+  **where one exists** (docket-build's `**Build profile:**`; the fix loop has no override at all, so
+  a known-hard finding simply routes here), and difficulty discovered while working is handled by
+  the `standard -> premium` escalation.
 - **`economy`** — *only when* the work is fully specified, follows an established pattern, carries no
   consequential risk, and requires **no cross-file reasoning** — either localized to a couple of
   implementation files (tests do not count against locality), or a mechanical, pattern-identical

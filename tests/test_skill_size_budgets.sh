@@ -331,6 +331,26 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # two raises above. Set per the rounding rule above from the measured actual: 155 lines -> 155 is
 # a multiple of 5 but leaves ZERO margin, so 160; 1509 words -> 1550 (41 words of margin, above
 # the within-25 threshold).
+# fix-loop.md's row was raised again, 160/1550 -> 175/1800, by a later 0218 review fix wave: three
+# gaps in the loop's own mechanics. (a) The disposition table enumerated no state for a finding that
+# took the surviving narrow mint path, so the "complete per-finding accounting" claim was false — a
+# `minted` row plus the sentence that makes the claim explicit. (b) The `unverified-build-state`
+# self re-run was never reconciled with the gate's two-run bound, and the first could make the second
+# false — the re-run is now stated as outside the bound, with Step 6's real ceiling of three named.
+# (c) The loop named no posture for unavailable profile dispatch, a case docket-build states for its
+# own dispatches — now a tier plus a pointer at the convention's rule (pointed at, never restated).
+# All three belong in THIS file for the same considered-home reasoning as the three raises above:
+# the considered home was skills/docket-implement-next/SKILL.md's Step 6 summary, which deliberately
+# keeps only the rule plus the blocking pointer, and each of these three qualifies a mechanism —
+# the table, the gate bound, the dispatch — that exists only here; stating a qualifier apart from
+# the mechanism it qualifies leaves the mechanism reading as unqualified, the restatement drift class
+# the task-routing.md entry above records. Set per the rounding rule above from the measured actual:
+# 172 lines -> 175 (3 lines of margin, the accepted half-step proportion this block already took at
+# 122 -> 125); 1736 words -> 1750 is the next multiple of 50 but leaves 14 words (within the 25-word
+# threshold), so the multiple after it, 1800.
+# skills/docket-build/references/task-routing.md's row was NOT raised by the same wave: qualifying
+# the `standard` bullet's override clause (which asserted a consumer capability the fix loop does not
+# have) measures 48/485, inside the existing 50/500.
 # skills/docket-convention/references/auto-capture.md's budget was raised 45/450 -> 50/550 by change
 # 0218, which narrowed the materiality bar: work fixable by a small in-branch edit now FAILS the bar,
 # so a review finding about the branch's own diff is never mintable. The prose has no other home —
@@ -382,7 +402,7 @@ skills/docket-finalize-change/references/gate-failure.md    35  900
 skills/docket-groom-next/SKILL.md                           77 1484
 skills/docket-implement-next/SKILL.md                      150 3850
 skills/docket-implement-next/references/edge-paths.md       35  450
-skills/docket-implement-next/references/fix-loop.md        160 1550
+skills/docket-implement-next/references/fix-loop.md        175 1800
 skills/docket-implement-next/results-template.md            25  250
 skills/docket-review/SKILL.md                              110  900
 skills/docket-new-change/SKILL.md                           61 1330

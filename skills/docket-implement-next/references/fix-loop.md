@@ -75,13 +75,25 @@ so the knob can never disarm the one gate that must not be disarmed. A finding b
 takes the PR-body record path unchanged.
 
 The reviewer's `unverified-build-state` blocker is the one finding you never hand to a worker: you
-resolve it by re-running the suite yourself.
+resolve it by re-running the suite yourself, **before any fix task dispatches**. That re-run does
+**not** count against the suite gate's two-run bound below — it establishes the green baseline the
+loop requires rather than verifying the loop's own work, and charging it to the gate would spend the
+revert path's re-run before a single fix existed. A run that hits it therefore spends **at most
+three** suite runs across Step 6; the bound below is scoped to the gate and is unchanged.
 
 ## Tasks, batching, commits
 
 Every fix runs the **`docket-build-task`** contract (focused test → implement → verify →
 self-review → one commit), dispatched by profile name, **foreground and sequential** — fixes share
 one worktree, so two concurrent workers would collide.
+
+**If profile dispatch is unavailable** — established only per the convention's *Dispatch-capability
+resolution*, **never from a tool name**; an unregistered profile wrapper is the same condition
+reached by a concrete rejection — the fix dispatch is **Tier C**, on the same authorized-or-halt
+terms Step 5's build role carries: an explicitly configured `skills.build: auto` authorizes running
+the fix inline under this same contract, and any other resolved value is abort-and-report. Recording
+every finding instead is **not** the fallback — that fails the loop open silently, and a blocker
+would ride out to the PR unfixed.
 
 - **Order: blockers first, then importants, then minors.** Non-blocker fix commits are therefore
   the tail of the branch, and the suite gate below can lift them off without unstacking a blocker
@@ -146,6 +158,11 @@ about each one:
 | **deferred** | below `REVIEW_MIN_FIX_SEVERITY`, a max-character non-blocker, or fix-task cap overflow; recorded for merge-time judgment |
 | **reverted** | fixed, then rolled back by the suite gate; the finding stands |
 | **recorded** | the fix was attempted and its escalation allowance was exhausted; name the failure |
+| **minted** | genuinely distinct, beyond-the-branch work captured as its own change; cite the stub id |
+
+Every finding returned by the reviewer takes exactly one of these states — the table is the complete
+accounting, so a finding that reached the narrow mint path below still gets a row rather than
+vanishing from the human's view.
 
 ## Auto-capture is narrower here
 
