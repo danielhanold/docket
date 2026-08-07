@@ -1,0 +1,47 @@
+---
+id: 260
+slug: tier-finalize-s-in-context-dispatches-and-name-the-push-deni
+title: 'Tier finalize''s in-context dispatches and name the push-denial posture'
+status: proposed
+priority: medium
+type: fix
+created: 2026-08-07
+updated: 2026-08-07
+depends_on: []
+related: []
+discovered_from: [139]
+adrs: []
+spec:
+plan:
+results:
+trivial: false
+auto_groomable:
+branch:
+pr:
+blocked_by:
+reconciled: false
+---
+
+## Artifacts
+
+<!-- docket:artifacts:start (generated — do not hand-edit) -->
+<!-- docket:artifacts:end -->
+
+## Why
+
+Consolidates #0139 and #0100's residual (2026-08-07 triage): both are finalize-gate dispatch/denial posture, both land in the same two files (`skills/docket-convention/SKILL.md`'s tier table and `skills/docket-finalize-change/references/gate-failure.md`).
+
+Verified 2026-08-07:
+
+- **Finalize's two dispatches are untiered (#0139).** The 0137 dispatch-capability table still has exactly three rows (A/B/C — convention SKILL.md:88-94); `docket-rebase-resolver` and `docket-integration-repair` match none, because their reports flow back in-context to gate the merge. The gap is machine-pinned as a known deferral: `tests/test_dispatch_capability.sh:195-234` carries a `PENDING_TIER` block asserting "exactly the two knowingly-untiered finalize dispatches" — extending the taxonomy without wiring the sites reddens the suite, by design. Not unsafe today: `gate-failure.md:22` already covers both under abort-and-report. #0139's body argues itself to **halt** ("inline repair by the agent that will then merge its own repair is the same self-approval shape Tier B rejects") — that is the default this change takes, most cheaply as an explicit carve-out preserving finalize's existing abort-and-report rather than a fourth tier.
+- **The push-denial residual of #0100.** The 2026-07-26 triage of #0100 narrowed it to: `gate-failure.md:22` names the classifier denial only for "denying the merge itself" — the step-5 `git push --force-with-lease` denial (observed live, halting an autonomous finalize) is not in the abort-and-report enumeration (a lease rejected by a *concurrent push* is listed; a *policy-denied* push is not). The generic remedy shipped as the convention's "Harness-native recovery" section (retry the exact command once through the harness's native approval mechanism); the user-level allow-rule direction was deliberately not taken (`ensure-claude-settings.sh:9-10,:37` keeps force-push guarded — a security-posture decision this change does not reopen).
+
+## What changes
+
+- Tier or carve out the two finalize dispatches in the convention's dispatch-capability section (default: an explicit carve-out stating halt/abort-and-report, per #0139's own reasoning), and rewire `test_dispatch_capability.sh`'s `PENDING_TIER` block into the real assertion in the same change.
+- Add the push-classifier-denial sentence to `gate-failure.md`'s abort-and-report enumeration, pointing at the harness-native-recovery remedy.
+
+## Out of scope
+
+- Reversing the guarded-force-push settings posture (#0100's residual 2 — deliberate security stance, stands).
+- Any change to the rebase-resolver or integration-repair contracts themselves.
