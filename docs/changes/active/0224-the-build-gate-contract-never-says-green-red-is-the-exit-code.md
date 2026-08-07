@@ -12,12 +12,12 @@ related: [190, 223, 227]
 discovered_from: [203]
 adrs: []
 spec: docs/superpowers/specs/2026-08-07-the-build-gate-contract-never-says-green-red-is-the-exit-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-07-the-build-gate-contract-never-says-green-red-is-the-exit-plan.md
 results:
 trivial: false
 auto_groomable: true
 branch: feat/the-build-gate-contract-never-says-green-red-is-the-exit-code
-claimed_at: 2026-08-07T18:38:29Z
+claimed_at: 2026-08-07T18:43:30Z
 pr:
 blocked_by:
 reconciled: true
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-07-the-build-gate-contract-never-says-green-red-is-the-exit-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-the-build-gate-contract-never-says-green-red-is-the-exit-design.md) |
+| Plan | [2026-08-07-the-build-gate-contract-never-says-green-red-is-the-exit-plan.md](https://github.com/danielhanold/docket/blob/feat/the-build-gate-contract-never-says-green-red-is-the-exit-code/docs/superpowers/plans/2026-08-07-the-build-gate-contract-never-says-green-red-is-the-exit-plan.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
