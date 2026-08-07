@@ -512,6 +512,24 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # the same reading the gate-execution.md row took — so the multiple after: 315. 2831 words -> the
 # next multiple of 50 is 2850, which leaves 19 words (within the 25-word threshold), so the multiple
 # after it: 2900.
+# skills/docket-build/SKILL.md's budget was raised a third time 315/2900 -> 320/2950 by change
+# 0223's third review wave, which pulled the `0` budget's SEMANTICS onto the executing contract.
+# `.docket.example.yml` (mirrored in scripts/docket-config.sh) already said "0 is legal and means
+# observe once, then fail closed", but the posture said only that an EXHAUSTED budget fails closed —
+# and a 0-minute budget is exhausted before any observation, so the contract the agent runs delivered
+# zero observations where its own config promises one. Clause 5 now states the reading and clause 6
+# names where the verdict lands under it.
+# WHERE ELSE IT WAS CONSIDERED, per the naming requirement above:
+# skills/docket-build/references/gate-execution.md, and the config surfaces it was left on. Neither
+# can host it. (a) The reference is the per-HARNESS quarantine, re-measured when a harness version
+# moves; a boundary reading of docket's own POLICY value is not a harness fact and must not become
+# editable as a side effect of refreshing evidence. (b) The config surfaces are where the value is
+# declared, not where it is spent — that is the whole finding: a rule stated only on a surface the
+# executing agent does not read is a rule the agent does not execute, and this one must intervene at
+# the moment the budget is checked. Set per the rounding rule above from the measured actuals: 312
+# lines -> the next multiple of 5 is 315, which leaves 3 lines — the near-zero mode this block warns
+# about — so the multiple after: 320. 2876 words -> the next multiple of 50 is 2900, which leaves 24
+# words (within the 25-word threshold), so the multiple after it: 2950.
 # skills/docket-build/references/gate-execution.md's budget was raised 150/1350 -> 175/1650 by change
 # 0223's second review wave, which stopped each `supported` verdict claiming more than the probe
 # beneath it measured. Two coupled defects: § *Method* establishes only capabilities 1-3 (survival,
@@ -543,7 +561,7 @@ skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
 skills/docket-auto-groom/SKILL.md                           66 1237
 skills/docket-brainstorm/SKILL.md                           84  692
-skills/docket-build/SKILL.md                               315 2900
+skills/docket-build/SKILL.md                               320 2950
 skills/docket-build/references/gate-execution.md            175 1650
 skills/docket-build/references/task-routing.md              50  500
 skills/docket-build-task/SKILL.md                          125 1100
