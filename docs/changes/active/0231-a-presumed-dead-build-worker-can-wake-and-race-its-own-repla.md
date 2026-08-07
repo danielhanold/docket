@@ -17,7 +17,7 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/a-presumed-dead-build-worker-can-wake-and-race-its-own-repla
-claimed_at: 2026-08-07T16:13:34Z
+claimed_at: 2026-08-07T17:02:25Z
 pr:
 blocked_by:
 reconciled: true
@@ -130,3 +130,35 @@ Re-read the change, its spec, `related: [223, 224, 232]`, and the four target fi
   spec to a human's call ("belongs in its own stub if the human wants belt-and-braces") and guards
   a state A1's prohibition makes unreachable. It fails the materiality bar as discovered work; it
   is reported here rather than minted.
+
+### 2026-08-07 — resume re-reconcile (integration branch advanced)
+
+The run halted at the Step 6 fix loop and was resumed by a human. `origin/main` had advanced
+`f7fb123f` → `8c9cf509` in the interim, so the resume-safety rule required a fresh pass.
+**Design still holds; no scope change.**
+
+- **All three target files are byte-unchanged** between the old and new tip —
+  `skills/docket-build/SKILL.md`, `skills/docket-build-task/SKILL.md`, and
+  `skills/docket-implement-next/references/fix-loop.md`. Every anchor this change edits is exactly
+  where the first pass found it, so the built commits need no rework.
+- **Change 0234 merged** (the gate-execution split) and is the only overlap. It moved
+  `tests/test_skill_size_budgets.sh` and `tests/test_docket_review.sh`, and split
+  `skills/docket-build/references/gate-execution.md` into a non-blocking evidence sibling. This
+  branch touches none of the gate-execution surface. The budget rows are **disjoint** — 0234 raised
+  `gate-execution.md` and added `gate-execution-evidence.md`; this change raises
+  `docket-build/SKILL.md`, `docket-build-task/SKILL.md`, and `fix-loop.md` — so the table composes
+  at rebase per `concurrent-edits-compose-at-rebase`.
+- **0234's merge strengthened the case for review finding 1.** `tests/test_docket_review.sh` now
+  carries roughly thirty `fix-loop:`-prefixed asserts over `fix-loop.md`, with its own `FIX`
+  variable and non-vacuity floor — so it is unambiguously that file's guard owner, and the six new
+  fix-loop guards this change added to `tests/test_docket_build.sh` belong there instead.
+- **Changes 0226, 0211, 0217, 0173 also landed.** 0226 reframed the convention's auto-capture
+  section as gated capability discovery; that reframe governs this run's own capture decisions and
+  was read before triaging the review findings. None of it touches this change's scope.
+- **Auto-capture: still nothing minted** from this pass. The two gaps this run's own halt exposed —
+  the fix loop naming no disposition for a malformed fix-worker return, and no sanctioned way for a
+  later run to clear an abandoned worker's staged files — are real and are reported to the human in
+  the run report, but both are contract-design questions about the very rules this change is
+  editing. Filing them from inside this branch would pre-empt the human's groom gate on work whose
+  boundary is not yet settled, so they fail admission gate 4 (clear, defensible boundary) and are
+  reported rather than minted.
