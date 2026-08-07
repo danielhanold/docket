@@ -1476,8 +1476,15 @@ claimed_at: $AR_FRESH_CLAIM
 ---
 EOF
 ar19out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AR19/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+# Leg D (change 0219) fires on 235 BY DESIGN — `pr:` recorded while `status:` is still in-progress
+# is its entire subject — so plain aborted-run silence is no longer the right oracle for LEG C's
+# silence here. This keys on `pr: is unset`, the clause board-checks.md pins as leg-C-exclusive, and
+# the companion assert keeps it non-vacuous by pinning that leg D is what did speak.
+ar19_235="$(grep -E "$(printf "^aborted-run\t235\t")" <<<"$ar19out")"
 assert "aborted-run leg C SILENT when pr: is recorded — the delivered state (id 235)" \
-  '! has_finding "$ar19out" aborted-run 235'
+  '! grep -qF -- "pr: is unset" <<<"$ar19_235"'
+assert "the only aborted-run finding on 235 is leg D's, not leg C's (id 235)" \
+  'grep -qF -- "pr: records https://github.com/o/r/pull/7" <<<"$ar19_235"'
 
 # --- GREEN: NOTHING BUILT. The branch exists and is old, but carries ZERO commits of its own.
 # This is the 0109 signature — a run that stopped with nothing built — which is leg B's territory,
@@ -1674,6 +1681,115 @@ assert "the walk SURVIVED the declining leg: the later change 248 still reports 
 assert "the no-base run writes NOTHING to stderr — the count gate short-circuits before the expansion" \
   '[ ! -s "$ar24err" ]'
 rm -f "$ar24err"
+
+# ---------------- aborted-run, leg D: pr: recorded, status: never advanced (change 0219) ----------------
+# The Step 7 seam. docket-implement-next writes `status: implemented` and `pr:` in ONE field-write,
+# and no script under scripts/ writes pr: — so a manifest carrying pr: while still in-progress is an
+# anomaly BY CONSTRUCTION. Time-free for that reason, exactly like leg A: there is no healthy window
+# to wait out, so an idle floor would only delay a finding that is already certain.
+#
+# Leg D is the pr:-NON-empty arm of the same hoisted read whose pr:-empty arm is leg C, so the two
+# are mutually exclusive by construction and one fixture can never produce both.
+
+# --- RED: pr: set while status: is still in-progress ---
+read -r AR_D1 _ < <(new_repo)
+cat > "$AR_D1/docs/changes/active/0260-pr-recorded-status-stale.md" <<'EOF'
+---
+id: 260
+slug: pr-recorded-status-stale
+title: PR recorded, status never advanced
+status: in-progress
+priority: medium
+depends_on: []
+branch: feat/ar-d1
+plan: docs/superpowers/plans/2026-06-01-present.md
+results:
+pr: 314
+---
+EOF
+ard1out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AR_D1/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "aborted-run leg D fires when pr: is set but status: is still in-progress (id 260)" \
+  'has_finding "$ard1out" aborted-run 260'
+ard1line="$(grep -E "$(printf "^aborted-run\t260\t")" <<<"$ard1out")"
+assert "the leg-D finding names the recorded PR and the missing status write (id 260)" \
+  'grep -qF -- "pr: records 314" <<<"$ard1line" && grep -qF -- "status: is still in-progress" <<<"$ard1line"'
+assert "the leg-D remedy is a VERIFICATION, and names the status it should reach (id 260)" \
+  'grep -qF -- "verify the PR and set status: implemented" <<<"$ard1line"'
+# Leg D must not borrow leg C's or leg B's exclusive clause: board-checks.md pins `pr: is unset` as
+# leg-C-exclusive and `mid-step` as leg-B-exclusive so a message-shape assert can tell legs apart.
+assert "leg D does not reuse leg C's exclusive 'pr: is unset' clause (id 260)" \
+  '! grep -qF -- "pr: is unset" <<<"$ard1line"'
+assert "leg D does not reuse leg B's exclusive 'mid-step' phrasing (id 260)" \
+  '! grep -qF -- "mid-step" <<<"$ard1line"'
+assert "aborted-run fires exactly ONCE for id 260 (leg B stays silent on an absent claimed_at)" \
+  '[ "$(grep -cE "$(printf "^aborted-run\t260\t")" <<<"$ard1out")" = 1 ]'
+
+# --- GREEN: pr: set AND status: implemented — the delivered change, the whole point of the gate ---
+read -r AR_D2 _ < <(new_repo)
+cat > "$AR_D2/docs/changes/active/0261-pr-recorded-delivered.md" <<'EOF'
+---
+id: 261
+slug: pr-recorded-delivered
+title: PR recorded and status advanced
+status: implemented
+priority: medium
+depends_on: []
+branch: feat/ar-d2
+plan: docs/superpowers/plans/2026-06-01-present.md
+results:
+pr: 315
+---
+EOF
+ard2out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AR_D2/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "aborted-run SILENT when pr: is set and status: is implemented (id 261, status gate)" \
+  '! has_finding "$ard2out" aborted-run 261'
+
+# --- GREEN: pr: empty — leg C's domain, and leg D must not poach it ---
+read -r AR_D3 _ < <(new_repo)
+cat > "$AR_D3/docs/changes/active/0262-pr-empty.md" <<'EOF'
+---
+id: 262
+slug: pr-empty
+title: In-progress with no PR recorded and no branch
+status: in-progress
+priority: medium
+depends_on: []
+branch:
+plan: docs/superpowers/plans/2026-06-01-present.md
+results:
+pr:
+---
+EOF
+ard3out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AR_D3/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "aborted-run SILENT for an in-progress change with an empty pr: and no branch (id 262)" \
+  '! has_finding "$ard3out" aborted-run 262'
+
+# --- RED: the ANCHORED read. Frontmatter OMITS pr: entirely while the body opens a `pr:` line.
+# An unanchored read returns the body prose and fires leg D on a change that has no PR at all —
+# the ADR-0057 shape, here producing a FALSE POSITIVE (the mirror of leg A's false negative).
+# The natural fixture (a file that HAS pr:) passes under both implementations, so this
+# absent-key one is the only fixture that discriminates. Paired with mutation N below: the fixture
+# is inert without a mutation that reaches it, and the mutation is inert without this fixture.
+read -r AR_D4 _ < <(new_repo)
+cat > "$AR_D4/docs/changes/active/0263-pr-prose-only.md" <<'EOF'
+---
+id: 263
+slug: pr-prose-only
+title: Body prose mentions pr but frontmatter omits it
+status: in-progress
+priority: medium
+depends_on: []
+branch:
+plan: docs/superpowers/plans/2026-06-01-present.md
+results:
+---
+
+## Notes
+pr: 999 was never opened for this change
+EOF
+ard4out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$AR_D4/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "aborted-run leg D SILENT when only body prose mentions pr: (id 263, anchored read)" \
+  '! has_finding "$ard4out" aborted-run 263'
 
 # ---------------- aborted-run mutation tests (guards-are-code) ----------------
 # Each predicate is broken in a throwaway COPY of board-checks.sh and watched change the fixtures'
@@ -2029,7 +2145,11 @@ assert "mutation baseline: leg C fires on 240 (unpushed, quiet, ahead)" 'has_fin
 assert "mutation baseline: leg C fires on 242 (pushed, no PR)" 'has_finding "$arm0out" aborted-run 242'
 assert "mutation baseline: leg C fires on 246 (pr: only in body prose)" 'has_finding "$arm0out" aborted-run 246'
 assert "mutation baseline: leg C SILENT on 241 (live-run window)"   '! has_finding "$arm0out" aborted-run 241'
-assert "mutation baseline: leg C SILENT on 243 (pr: recorded)"      '! has_finding "$arm0out" aborted-run 243'
+# 243 carries a recorded pr: on an in-progress change, so leg D (change 0219) speaks on it at
+# baseline. Leg C's silence is measured through its exclusive `pr: is unset` clause instead.
+arm0_243="$(grep -E "$(printf "^aborted-run\t243\t")" <<<"$arm0out")"
+assert "mutation baseline: leg C SILENT on 243 (pr: recorded)" \
+  '! grep -qF -- "pr: is unset" <<<"$arm0_243"'
 assert "mutation baseline: leg C SILENT on 244 (nothing built)"     '! has_finding "$arm0out" aborted-run 244'
 assert "mutation baseline: leg C SILENT on 245 (stale local main)"  '! has_finding "$arm0out" aborted-run 245'
 
@@ -2238,16 +2358,19 @@ rm -rf "$armcopy"
 
 # Mutation I — drop leg C's pr:-empty gate: the delivered fixture 243 starts firing.
 armreseed
-armI_before="$(grep -cF 'if [ -z "$(fm_field "$f" pr)" ] && [ -n "$ar_ref" ]; then' "$ARMSCRIPT")"
-sed 's|if \[ -z "$(fm_field "$f" pr)" \] && \[ -n "$ar_ref" \]; then|if [ -n "$ar_ref" ]; then|' \
+armI_before="$(grep -cF 'if [ -z "$ar_pr" ] && [ -n "$ar_ref" ]; then' "$ARMSCRIPT")"
+sed 's|if \[ -z "$ar_pr" \] && \[ -n "$ar_ref" \]; then|if [ -n "$ar_ref" ]; then|' \
   "$ARMSCRIPT" > "$ARMSCRIPT.t"; mv "$ARMSCRIPT.t" "$ARMSCRIPT"
-armI_after="$(grep -cF 'if [ -z "$(fm_field "$f" pr)" ] && [ -n "$ar_ref" ]; then' "$ARMSCRIPT")"
+armI_after="$(grep -cF 'if [ -z "$ar_pr" ] && [ -n "$ar_ref" ]; then' "$ARMSCRIPT")"
 assert "mutation I landed: leg C's pr:-empty gate is gone (count 1 -> 0)" \
   '[ "$armI_before" = 1 ] && [ "$armI_after" = 0 ]'
 assert "mutation I landed: the mutated copy is still valid bash" 'bash -n "$ARMSCRIPT"'
 armIout="$(armrun)"
+# Keyed on leg C's exclusive clause, not on has_finding: leg D already speaks on 243 at baseline
+# (change 0219), so a bare aborted-run test here would pass whether or not the mutation landed.
+armI_243="$(grep -E "$(printf "^aborted-run\t243\t")" <<<"$armIout")"
 assert "mutation I (drop the pr: gate): the delivered fixture 243 starts firing" \
-  'has_finding "$armIout" aborted-run 243'
+  'grep -qF -- "pr: is unset" <<<"$armI_243"'
 rm -rf "$armcopy"
 
 # Mutation J — invert the message-selecting remote-ref probe: the two firing fixtures SWAP
@@ -2299,16 +2422,20 @@ rm -rf "$armcopy"
 # A FALSE NEGATIVE is the dangerous direction here: it makes the check certify the exact abort it
 # exists to catch.
 armreseed
-armL_before="$(grep -cF 'fm_field "$f" pr' "$ARMSCRIPT")"
-sed 's|\[ -z "$(fm_field "$f" pr)" \]|[ -z "$(field "$f" pr)" ]|' "$ARMSCRIPT" > "$ARMSCRIPT.t"
+# Since change 0219 the pr: read is HOISTED and shared with leg D, so the mutation target is that
+# one hoisted line — and its damage now runs in both directions at once: leg C goes silent on 246
+# (measured here) while leg D MISFIRES on a change with no PR at all (measured by mutation N).
+armL_before="$(grep -cF 'ar_pr="$(fm_field "$f" pr)"' "$ARMSCRIPT")"
+sed 's|ar_pr="$(fm_field "$f" pr)"|ar_pr="$(field "$f" pr)"|' "$ARMSCRIPT" > "$ARMSCRIPT.t"
 mv "$ARMSCRIPT.t" "$ARMSCRIPT"
-armL_after="$(grep -cF 'fm_field "$f" pr' "$ARMSCRIPT")"
+armL_after="$(grep -cF 'ar_pr="$(fm_field "$f" pr)"' "$ARMSCRIPT")"
 assert "mutation L landed: leg C's pr: read is unanchored (count 1 -> 0)" \
   '[ "$armL_before" = 1 ] && [ "$armL_after" = 0 ]'
 assert "mutation L landed: the mutated copy is still valid bash" 'bash -n "$ARMSCRIPT"'
 armLout="$(armrun)"
+armL_246="$(grep -E "$(printf "^aborted-run\t246\t")" <<<"$armLout")"
 assert "mutation L (unanchor the pr: read): the body-prose fixture 246 goes GREEN — proves the anchoring" \
-  '! has_finding "$armLout" aborted-run 246'
+  '! grep -qF -- "pr: is unset" <<<"$armL_246"'
 assert "mutation L: fixture 240, which has no body pr: line, still fires" \
   'has_finding "$armLout" aborted-run 240'
 rm -rf "$armcopy"
@@ -2362,6 +2489,23 @@ assert "mutation M: the run does NOT abort — exit 0, so the evidence above is 
 assert "mutation M: the walk is NOT truncated — 248's later finding survives in both worlds" \
   'has_finding "$armib_out" broken-spec 248'
 rm -rf "$armcopy"
+
+# Mutation N (change 0219) — unanchor leg D's pr: read. Fixture 263 omits pr: from frontmatter while
+# its body opens a `pr:` line, so an unanchored read returns the prose and leg D MISFIRES on a change
+# that has no PR at all. This is the ADR-0057 shape in its false-POSITIVE direction; the fixture and
+# the mutation only discriminate as a pair.
+mreseed
+mn_before="$(grep -cF -- 'ar_pr="$(fm_field "$f" pr)"' "$MUTSCRIPT")"
+perl -pi -e 's/ar_pr="\$\(fm_field "\$f" pr\)"/ar_pr="\$(field "\$f" pr)"/' "$MUTSCRIPT"
+mn_after="$(grep -cF -- 'ar_pr="$(fm_field "$f" pr)"' "$MUTSCRIPT")"
+mnout="$(NOW=$NOW_EPOCH bash "$MUTSCRIPT" --changes-dir "$AR_D4/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "mutation N landed: leg D's pr: read is unanchored (fm_field count 1 -> 0)" \
+  '[ "$mn_before" = 1 ] && [ "$mn_after" = 0 ]'
+assert "mutation N landed: the mutated copy is still valid bash" 'bash -n "$MUTSCRIPT"'
+assert "mutation N (unanchor leg D's pr: read): body prose 263 MISFIRES — proves the anchoring" \
+  'has_finding "$mnout" aborted-run 263'
+assert "mutation N: the misfire echoes the BODY value, not a frontmatter one" \
+  'grep -qF -- "pr: records 999" <<<"$mnout"'
 
 
 # ======================= board-row-dropped (change 0104, spec part 2) =======================
