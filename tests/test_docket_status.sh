@@ -1047,6 +1047,71 @@ assert "detect_orphan_pr says WHY it skipped on unparseable gh output" \
 assert "detect_orphan_pr with unparseable gh output returns success (best-effort)" \
   '[ $orphan_garbage_rc -eq 0 ]'
 
+# ---- the resolved repo must actually REACH the query ----
+# The leg resolves `repo` (from --repo, else a `gh repo view` subprocess) and then has to SPEND it:
+# a `gh pr list` with no --repo infers the repository from the process CWD, so with --repo given
+# this leg would silently query a DIFFERENT repository than board_pass and github-mirror.sh, which
+# both forward the flag. The witness must be a SIDE EFFECT: `gh repo view`'s stdout is captured
+# into a variable and never printed, so a stdout marker proves nothing about the pr list argv. The
+# stub records its own argv, the same idiom as the gh-was-invoked.log fixture above.
+cat > "$tmp/gh-orphan-argv.sh" <<EOF
+#!/usr/bin/env bash
+printf '%s\n' "\$*" >> "$tmp/gh-argv.log"
+if [ "\$1" = repo ] && [ "\$2" = view ]; then echo "x/y"; exit 0; fi
+if [ "\$1" = pr ] && [ "\$2" = list ]; then echo '[]'; exit 0; fi
+exit 1
+EOF
+chmod +x "$tmp/gh-orphan-argv.sh"
+
+rm -f "$tmp/gh-argv.log"
+orphan_argv_out="$( cd "$orphan_dir" && \
+  DOCKET_MODE=main CHANGES_DIR=docs/changes NOW=$ORPHAN_NOW INTEGRATION_BRANCH=${ORPHAN_IB:-main} GH="$tmp/gh-orphan-argv.sh" \
+  bash -c '. "'"$SCRIPT"'"; detect_orphan_pr' )"
+orphan_argv_prlist="$(grep -E '^pr list' "$tmp/gh-argv.log" || true)"
+assert "the pr list call happens at all (the argv witness is not vacuous)" \
+  '[ -n "$orphan_argv_prlist" ]'
+assert "the repo resolved from gh repo view REACHES the pr list call as --repo x/y" \
+  '[ -n "$orphan_argv_prlist" ] && ! grep -qvF -- "--repo x/y" <<<"$orphan_argv_prlist"'
+assert "the argv-witness run still emits findings (no --repo regression in the skip arms)" \
+  'grep -q "^check aborted-run 271 " <<<"$orphan_argv_out"'
+
+# REPO_FLAG end-to-end: --repo is parsed into REPO_FLAG at the top of the script, so the flag's
+# value — not the CWD-inferred repository — must be the one this leg queries. REPO_FLAG is assigned
+# AFTER sourcing on purpose: the source itself runs the script's argument-parsing prologue, which
+# resets REPO_FLAG to the empty string, so an environment value would be clobbered.
+rm -f "$tmp/gh-argv.log"
+orphan_flag_out="$( cd "$orphan_dir" && \
+  DOCKET_MODE=main CHANGES_DIR=docs/changes NOW=$ORPHAN_NOW INTEGRATION_BRANCH=${ORPHAN_IB:-main} GH="$tmp/gh-orphan-argv.sh" \
+  bash -c '. "'"$SCRIPT"'"; REPO_FLAG=someone/elsewhere; detect_orphan_pr' )"
+orphan_flag_prlist="$(grep -E '^pr list' "$tmp/gh-argv.log" || true)"
+assert "REPO_FLAG is honored end-to-end: every pr list call carries --repo someone/elsewhere" \
+  '[ -n "$orphan_flag_prlist" ] && ! grep -qvF -- "--repo someone/elsewhere" <<<"$orphan_flag_prlist"'
+assert "with REPO_FLAG set the leg never spends a gh repo view subprocess" \
+  '! grep -q "^repo view" "$tmp/gh-argv.log"'
+assert "the REPO_FLAG run still emits findings" \
+  'grep -q "^check aborted-run 271 " <<<"$orphan_flag_out"'
+
+# repo-unresolved is a DOCUMENTED skip reason (scripts/docket-status.md) and must be genuinely
+# reachable: a `gh repo view` that exits 0 and prints something that is not owner/name. Validated
+# detect_merged's way — split on the slash and reject the malformed shape.
+cat > "$tmp/gh-orphan-badrepo.sh" <<'EOF'
+#!/usr/bin/env bash
+if [ "$1" = repo ] && [ "$2" = view ]; then echo "no-slash-here"; exit 0; fi
+echo '[]'
+exit 0
+EOF
+chmod +x "$tmp/gh-orphan-badrepo.sh"
+orphan_badrepo_out="$( cd "$orphan_dir" && \
+  DOCKET_MODE=main CHANGES_DIR=docs/changes NOW=$ORPHAN_NOW INTEGRATION_BRANCH=${ORPHAN_IB:-main} GH="$tmp/gh-orphan-badrepo.sh" \
+  bash -c '. "'"$SCRIPT"'"; detect_orphan_pr' )"
+orphan_badrepo_rc=$?
+assert "a malformed repo string reports sweep-skipped repo-unresolved" \
+  'grep -q "^sweep-skipped repo-unresolved" <<<"$orphan_badrepo_out"'
+assert "a malformed repo string emits NO findings — it never queries with a bad repo" \
+  '! grep -q "^check aborted-run" <<<"$orphan_badrepo_out"'
+assert "a malformed repo string returns success (best-effort)" \
+  '[ $orphan_badrepo_rc -eq 0 ]'
+
 # ---- LEG C'S FULL PREDICATE: ahead-of-bases, and "pushed" as a claim about the REMOTE ----
 # The fixtures above cannot see either axis: orphan_branch gives EVERY branch a real own-commit
 # (so the ahead-of-bases gate is unconditionally satisfied) and $orphan_dir has no remote at all
