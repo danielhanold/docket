@@ -6,7 +6,7 @@ status: in-progress
 priority: medium
 type: feat
 created: 2026-08-01
-updated: 2026-08-01
+updated: 2026-08-07
 depends_on: []
 related: []
 discovered_from: [170]
@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/close-the-build-evidence-value-gap-a-post-gate-results-commi
-claimed_at: 2026-08-01T23:00:23Z
+claimed_at: 2026-08-07T15:18:03Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -73,6 +73,11 @@ Design detail, the smuggling-vector enumeration, the guard contract, and the rip
 the linked spec. The skip's trust boundary change is recorded as a dated Update note on ADR-0066
 (this change's `adrs:`).
 
+One ripple surface has **moved** since the spec was written: the "stale `head_sha` is EXPECTED"
+prose the extension must update now lives in
+`skills/docket-implement-next/references/edge-paths.md` (its *Build-evidence block* paragraph),
+not in that skill's `SKILL.md`. See the 2026-08-07 reconcile entry.
+
 ## Out of scope
 
 - Weakening any other condition of the skip predicate.
@@ -123,3 +128,56 @@ the reconcile pass has already run (`reconciled: true`) and must be re-run only 
 `origin/<integration_branch>` advances past `e108568a`.
 
 
+### 2026-08-07 (resume reconcile — base advanced)
+
+Re-reconciled against `origin/main` tip `f7fb123f` (0228's terminal publish). The base advanced
+~215 commits past the `e108568a` the previous pass and the spec both recorded, so the full pass
+re-ran per the resume-safety guard.
+
+**Design holds — no scope change, no kill.** All four premises re-verified on the live tree:
+
+- Finalize's skip predicate is still **equality-only**: `skills/docket-finalize-change/SKILL.md`
+  step 4, item *"Conditional skip of the local suite run"*, conjoins a no-op rebase, a parseable
+  green `docket:build-evidence` block, and `head_sha` **equal to** the branch HEAD, with the
+  fail-toward-running posture and the loud one-line skip log.
+- `docket-implement-next` Step 6.5 still commits the results file on the feature branch **after**
+  the gate mints the evidence.
+- ADR-0066 is still `Accepted` and its Consequences deferral sentence ("A docs-only ancestor
+  exemption was considered and deliberately deferred as separate design work") is still open. Its
+  one existing `## Update` (2026-08-02, change 0193) is about the `skills.review` default and does
+  not touch the skip. The new note appends as a **second** Update.
+- Suite-invisibility of `<results_dir>` still holds. Both exemption tokens are live —
+  `tests/test_docket_build.sh`'s `:!docs/results` path-exclusion and
+  `tests/test_readme_finalize_docs.sh`'s `--glob "!docs/results/**"` escape — and every other
+  occurrence is a fixture path, config-key reference, or comment. `tests/test_skip_allowlist_invisibility.sh`
+  does not yet exist; it ships in-build as designed.
+
+**Four measured deltas fold into the plan (revalidated, not discarded):**
+
+1. **Ripple surface moved.** The sentence the spec assigns to `skills/docket-implement-next/SKILL.md`
+   Step 7 — "finalize's SHA-equality condition simply fails, and the suite runs" — now lives in
+   `skills/docket-implement-next/references/edge-paths.md`, in its *Build-evidence block (change
+   0170)* paragraph. `SKILL.md`'s Step 7 delegates PR-body mechanics to that reference. Task 2
+   retargets; Task 4 must also budget-check `references/edge-paths.md`.
+2. **Budget caps moved in both directions.** The spec/plan cite finalize 193 ln / 4350 w and
+   implement-next 147 ln / 3950 w. The live rows in `tests/test_skill_size_budgets.sh` are
+   **finalize 180 / 3500** (actual 176 / 3445 — 4 ln, 55 w headroom), **implement-next 165 / 4300**
+   (actual 162 / 4285 — 3 ln, **15 w** headroom), and **edge-paths 35 / 450** (actual 28 / 411).
+   Implement-next's word headroom is now nearly nil, so the in-diff raise is not merely "expected"
+   but near-certain for any file the change touches. Re-measure at build time; do not trust these
+   numbers as caps.
+3. **Guard corpus grew.** The `docs/results` literal now occurs **54×** in the committed tree across
+   `tests/` (48), `scripts/` (5 incl. contracts), `skills/docket-convention/SKILL.md` (2),
+   `README.md` (2) and `.docket.example.yml` (1) — not the spec's "~38". The guard's population
+   floor must be **derived from a live count at build time**, never pinned to a stale constant.
+4. **Change 0218's fix loop is now live** and its post-revert re-run **refreshes** the evidence
+   record (asserted by `tests/test_docket_review.sh`). So in-branch fix commits are re-pinned and
+   the Step 6.5 results file remains the dominant post-gate delta — the allowlist stays minimal
+   (`<results_dir>/` alone) exactly as Assumption 3 argues.
+
+Frequency re-measured on the merged tree: **125 of 172** archived changes (73%) carry a `results:`
+field — the value premise is unchanged.
+
+The feature branch (plan-only, one commit) was rebased onto `f7fb123f` so the build runs against
+current code. No auto-capture mint: this pass surfaced no follow-up work distinct from the change
+itself.

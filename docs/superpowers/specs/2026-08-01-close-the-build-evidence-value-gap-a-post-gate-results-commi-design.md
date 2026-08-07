@@ -127,9 +127,11 @@ classification, not by being out of scope) and classifies every occurrence of th
 **consumed-as-content** (a hazard — a read/grep/cat of the tree) vs **benign** (fixture paths,
 config-key references, comments, the suite's own exemption constructs). The guard fails on any
 new or unclassified occurrence that is consumed-as-content, and — per the marker-scoped-guard
-population-floor rule — pins a floor: the *full* benign corpus (~38 committed occurrences: ~34
-in `tests/` + config-key refs in `scripts`/`skills`) must classify clean or the guard reddens on
-arrival — floor ≠ corpus, the cited "~10" was only a non-vacuity subset. Its positive claim —
+population-floor rule — pins a floor: the *full* benign corpus must classify clean or the guard
+reddens on arrival — floor ≠ corpus, the cited "~10" was only a non-vacuity subset. **Derive the
+floor from a live count at build time, never from a constant quoted here:** the corpus was ~38 at
+design time and measured **54** at the 2026-08-07 reconcile (`tests/` 48, `scripts/` 5,
+`skills/docket-convention/SKILL.md` 2, `README.md` 2, `.docket.example.yml` 1). Its positive claim —
 that the suite's genuine protective mechanism survives — is asserted by **machine-recognized
 shape, never the bare path**: key on the exclusion **magic token** (`test_docket_build.sh`'s
 `:!docs/results` path-exclusion construct at its armed-probe and `test_readme_finalize_docs.sh`'s
@@ -194,16 +196,20 @@ under <results_dir>/`), so the auditable decision records *why* it skipped.
 | Surface | Edit |
 |---|---|
 | `skills/docket-finalize-change/SKILL.md` | step 4's conditional-skip stanza: add the ancestor + allowlist disjunct, the loud log extension, and the degrade-off rule |
-| `skills/docket-implement-next/SKILL.md` | Step 7's build-evidence prose: replace "finalize's SHA-equality condition simply fails, and the suite runs" with the extended-predicate outcome |
+| `skills/docket-implement-next/references/edge-paths.md` | **Retargeted at the 2026-08-07 reconcile** (the prose moved out of `SKILL.md`): its *Build-evidence block (change 0170)* paragraph — replace "finalize's SHA-equality condition simply fails, and the suite runs" with the extended-predicate outcome |
 | `tests/test_skip_allowlist_invisibility.sh` | **new** — the live suite-invisibility guard (git grep over HEAD; hazard-vs-benign classification with a population floor; mutation-tested both ways) |
 | `README.md` | the evidence-chain section: document the docs-only skip and its per-repo verification rule, **and retract/qualify the existing "the skip is the clean-path optimization, not the majority path" caveat** (README ~line 750) — 0190's thesis inverts it, so leaving the clause untouched makes the section self-contradictory |
 | `docs/adrs/0066-docket-owns-the-review-role-suite-runs-in-the-build-gate.md` | a dated `## Update` note extending the skip decision with the ancestor+allowlist rule, which **also dates-and-closes the deferral sentence in 0066's Consequences** ("docs-only ancestor exemption… as separate design work" — now done, so the accepted ADR must not carry a stale open-deferral alongside the new rule) — 0066 is Accepted; the update-note form, never an edit to the Decision — dispatched via the `docket-adr` subagent at build time |
 | `tests/test_docket_review.sh` | the stanza's guardian file: its existing sentinels (no-op rebase / `result: green` / `head_sha` / fails-toward-running / local-only) all survive the extension as substrings, but **none binds the new ancestor+allowlist limb** — add one shape assert for the new disjunct, so an ever-widening allowlist cannot regress unguarded |
 | `docs/changes/active/0190-….md` | this change's `adrs:` gains `[66]` at spec-emission, so the ADR note is delivered atomically with the producing change (per the adr-update-delivery learning — never a standalone push) — the Field-write rule re-renders the `## Artifacts` block in the same commit |
 
-**Budget — expect an in-diff raise.** The caps are `test_skill_size_budgets.sh` 176/178: finalize
-193/4350, implement-next 147/3950 — but those are caps, and the live actuals leave thin headroom
-(finalize ~191 ln/4302 w, implement-next ~143 ln/3923 w). A realistic step-4 addition (the
+**Budget — expect an in-diff raise.** *(Numbers re-measured at the 2026-08-07 reconcile against
+`origin/main` tip `f7fb123f`; the originals below were written against `e108568a` and are stale.)*
+The live `test_skill_size_budgets.sh` rows are **finalize 180/3500** (actual 176/3445),
+**implement-next 165/4300** (actual 162/**4285** — 15 words of headroom), and
+**`docket-implement-next/references/edge-paths.md` 35/450** (actual 28/411). Re-measure again at
+build time; treat no number here as current. *(Originally recorded: caps finalize
+193/4350, implement-next 147/3950.)* A realistic step-4 addition (the
 disjunct + log extension + degrade-off rule) is likely to redden the suite, so the change ships
 its budget **raises in the same diff** (the file's own stated house rule) and re-reads the live
 caps at build time. The guard test's own prose should use the `<results_dir>` placeholder, not a
