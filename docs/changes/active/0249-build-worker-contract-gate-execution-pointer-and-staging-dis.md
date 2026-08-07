@@ -8,10 +8,10 @@ type: fix
 created: 2026-08-07
 updated: 2026-08-07
 depends_on: [224]
-related: []
+related: [231, 253]
 discovered_from: [232, 238]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-07-build-worker-contract-gate-execution-pointer-and-staging-dis-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-07-build-worker-contract-gate-execution-pointer-and-staging-dis-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-build-worker-contract-gate-execution-pointer-and-staging-dis-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -38,15 +41,33 @@ Verified 2026-08-07:
 
 ## What changes
 
-- Add the gate-execution-posture pointer to `docket-build-task/SKILL.md` (pointer, not restatement; decide whether the whole posture or just split-never-yield is referenced — default: the pointer covers the whole reference file).
-- Add the staging-discipline clause: a worker stages only paths its task touched — with an explicit carve-out for the escalation flow (a stronger worker dispatched into a worktree already holding the weaker worker's uncommitted changes must be able to revise/replace them). Address observability honestly: where a task regenerates a derived file, "what your task changed" is defined by the task contract, not by `git status` diffing.
-- Guards for both clauses in `tests/test_docket_build.sh`.
-- Raise `docket-build-task/SKILL.md`'s size-budget row if the additions require it (0224 is already raising `docket-build/SKILL.md`'s).
+Settled by the linked spec (2026-08-07, autonomous groom — its `## Assumptions` A1–A10 are the
+audit trail). Four edits, one diff:
+
+- **Gate-execution pointer** in `docket-build-task/SKILL.md` `## The cycle`: one paragraph pointing
+  at the whole of `skills/docket-build/references/gate-execution.md` (the harness-neutral
+  capability file — never at `docket-build`'s posture section, whose controller vocabulary a worker
+  must not import), plus the worker-shaped consequence inline: never yield, observe by blocking,
+  finite observation, unfinished-at-bound is not green (fail closed). Reaches the
+  `docket-implement-next` fix-loop workers for free — they run this same contract.
+- **Staging discipline** as a new `## Scope` bullet: stage by explicit path, only paths your task
+  changed; never `git add -A` / `git add .` / `git commit -a`. "What your task changed" is defined
+  by the task contract, not `git status` diffing; an unattributable dirty path is left in place and
+  named in NOTES. Escalation carve-out bounded by the task boundary: inherited paths accounted for
+  **within the task's scope** are the task's paths; out-of-task strays take leave-and-report.
+- **Guards** for both clauses in `tests/test_docket_build.sh` under a change-0249 banner, reusing
+  the 0231 Scope extractor; 0231's pins stay green.
+- **Size-budget raise** for `docket-build-task/SKILL.md` (measured 122/1087 vs `130 1150` — the
+  edits do not fit) per the row's documented rule, from the in-diff measured actual.
 
 ## Out of scope
 
 - Mechanical enforcement of staging scope (hooks, wrappers) — contract prose + guard only, matching how 0231's amend rule landed.
+- Restating any gate capability or per-harness verdict outside the reference file; edits to `docket-build`, `docket-implement-next`, or the references.
 
 ## Open questions
 
-- The exact escalation carve-out wording — the one genuinely normative decision here; the critic may push this to a human.
+Resolved by the spec (2026-08-07): the pointer covers the whole reference file (A1); the escalation
+carve-out was decidable without a human — its permission is merged 0231 contract text, and the
+critic-revised wording bounds it by the task boundary (A5). `depends_on: [224]` was `implemented`
+(PR #174 open, not merged) at groom time; build only after it merges (A9).
