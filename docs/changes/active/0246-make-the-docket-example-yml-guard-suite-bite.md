@@ -11,7 +11,7 @@ depends_on: []
 related: [150]
 discovered_from: [178, 187, 121]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-07-make-the-docket-example-yml-guard-suite-bite-design.md
 plan:
 results:
 trivial: false
@@ -25,25 +25,29 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-07-make-the-docket-example-yml-guard-suite-bite-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-make-the-docket-example-yml-guard-suite-bite-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-Consolidates #0178, #0187, and #0121 (2026-08-07 triage): three changes all editing `tests/test_docket_example_yml.sh`'s guard family. They must land together and in order, because #0178's defect means half the file's asserts — including the region #0187 hardens — may not execute at all on BSD-grep-first machines.
+Consolidates #0178, #0187, and #0121 (2026-08-07 triage): three changes all editing `tests/test_docket_example_yml.sh`'s guard family. They must land together and in order, because #0178's defect means 290 of the file's 393 asserts — including the whole region #0187 hardens — never execute under a system-bash-first environment.
 
-Verified 2026-08-07:
+Groomed autonomously 2026-08-07 with a live reproduction that **reframes #0178**: the truncation is not grep at all. With `PATH=/usr/bin:/bin`, `bash` resolves to `/bin/bash` 3.2.57, whose `$(...)` parser cannot see heredocs — it chokes on the backtick inside the `scope_guard_awk` heredoc (line 688), killing everything from line 684 to EOF (103/393 asserts run, exit 2, cryptic parse error). `scripts/run-tests.sh` is already protected by its Bash 4.3+ re-exec; the exposed path is direct invocation, the file's own documented run line. Current macOS `/usr/bin/grep` accepts ERE `\b` (probed live), and there is no repo-wide `\b` ban — but the three double-quoted-escaped `\\b` sites (:376, :409, :585) are converted anyway per this stub's commitment, with a portability-guard class scoped to that escaped form only (the ~26 single-quoted `\b` sites are blessed PATH-grep idiom).
 
-- **BSD-grep truncation (#0178).** The reported failure (a runtime parse error truncating the run to ~half its asserts while still reporting success) is PATH-dependent and needs a live reproduction; `bash -n` parses clean. Concrete leads: three ERE `\b` patterns at :374, :407, :568 — a class `AGENTS.md` and `tests/test_grep_portability.sh:50` explicitly ban (BSD/git-grep ERE returns zero silently); the portability guard only checks repetition bounds, so `\b` is unguarded. Reproduce under `/usr/bin/grep`-first PATH, fix, and extend the portability guard to the `\b` class.
-- **Mirror guards one-directional (#0187), all three legs confirmed and one grown:** (1) the agents-mirror loop at :951-963 iterates the sidecar only, proving `sidecar ⊆ example` — a stale example row passes; the example file still claims equality. (2) The resolver round-trip slice terminator at :980 stops at the cursor `finalize-change` row, so the cursor build rows are excluded — and since 0192 the **entire opencode block** (through example line ~440) is also outside the slice; the ":990-992 all thirty-nine rows" comment is wrong. (3) The slice terminator is prefix-weak: `build-max:.*claude-opus-5` matches cursor's `claude-opus-5-high` row too (harness-defaults.yml:38 vs :68).
-- **`elsewhere:` proves a word, not a read (#0121).** The :407 arm is a bare `grep -qE "\b$leaf_k\b"` over the consumer file — English prose in a SKILL.md or comment satisfies it. The consumer set has since grown (now includes `scripts/runners/opencode.sh`), widening the vocabulary surface. Note: killed #0147's analysis confirmed `(2b)`'s per-key checks are strictly stronger than `(2c)`'s union grep — the fix belongs here, on the `elsewhere:` arm, not on `(2c)`.
+#0187's three legs all verified: the mirror loop proves only `sidecar ⊆ example`; the round-trip slice terminator (cursor `finalize-change`, example :425) excludes the cursor build/review rows and, since 0192, the entire opencode block; the slice terminators are prefix-weak (`claude-opus-5` matches `claude-opus-5-high`). #0121's `elsewhere:` arm is a bare word grep; it is tightened to a code-shaped-context match with derived shapes, with `github_project` (whose only consumer mention is a bare fence-list token, documented as documentation-only) routed through an explicit one-key exemption mirroring `correspondence_exempt`.
 
 ## What changes
 
-1. First: reproduce and fix the BSD-grep truncation; convert the `\b` patterns to portable EREs; extend `test_grep_portability.sh` to guard the class.
-2. Then: make the agents mirror bidirectional (example ⊆ sidecar too, or an explicit documented asymmetry); fix the round-trip slice to cover cursor build rows and the opencode block; make slice terminators non-prefix-matchable; correct the row-count comment.
-3. Tighten the `elsewhere:` arm to evidence a code-shaped read (assignment/call shape, comment/prose excluded), per one of #0121's options — default to the shape-tightened grep rather than a new consumer-header convention.
+Per the linked spec, in binding order:
+
+1. Bash>=4 fail-fast gate in `test_docket_example_yml.sh` (kills the truncation loudly); convert the three `\\b` sites to portable EREs; extend `test_grep_portability.sh` with a banned class for the escaped `\\b`/`\\<`/`\\>` source form.
+2. Reverse mirror loop (key-set + per-harness arity, mutation-proven both directions); re-terminate the round-trip slice on the last harness block's sidecar-derived build-max row with a shipped-harness-headers assert; boundary-class the terminators so prefixes cannot match; fix the stale "thirty-nine rows" comment with derived phrasing.
+3. Shape-tightened `elsewhere:` grep (non-comment line + derived code shapes; five entries green, `github_project` via an asserted one-key exemption; the historical prose-heredoc false positive reddens).
 
 ## Out of scope
 
-- The suite-wide toolchain pin/report decision — that is #0150 (re-scoped separately).
+- The suite-wide toolchain pin/report decision — that is #0150 (related: its groomed spec touches `test_grep_portability.sh`'s prologue; disjoint regions, reconcile-time collision only, no dependency).
 - `(2c)` orphan-key nested-key extension — #0147 killed as subsumed by `(2b)`.
+- De-backticking the heredoc or auditing other files for the bash-3.2 `$()`-heredoc hazard — the version gate plus run-tests.sh's `$TEST_BASH` cover both paths.
