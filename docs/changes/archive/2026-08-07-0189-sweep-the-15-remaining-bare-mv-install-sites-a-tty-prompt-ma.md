@@ -2,11 +2,11 @@
 id: 189
 slug: sweep-the-15-remaining-bare-mv-install-sites-a-tty-prompt-ma
 title: Sweep the 15 remaining bare-mv install sites — a tty prompt makes their || die guards unreachable
-status: proposed
+status: killed
 priority: medium
 type: fix
 created: 2026-08-01
-updated: 2026-08-01
+updated: 2026-08-07
 depends_on: []
 related: []
 discovered_from: [186]
@@ -87,3 +87,7 @@ a human terminal is all it takes.
 - Re-litigating change 0186's site, which is already fixed and guarded.
 - A general BSD-vs-GNU audit of every tool in the tree. This change is scoped to the
   prompt-on-unwritable-destination class in `scripts/`.
+
+## Why killed
+
+Consolidated into #0254 at the 2026-08-07 backlog triage: the 15 bare-mv sites land with the mktemp templating sweep; git mv carve-out recorded there.
