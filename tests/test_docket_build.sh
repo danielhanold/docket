@@ -503,8 +503,12 @@ assert "controller: that bullet also forbids discarding the worktree and dispatc
 assert "controller: the bullet gives the still-running worker as the reason" \
   'grep -qiE "did not observe return cleanly.{0,120}still be running" <<<"$ctrl_malformed_flat"'
 
-assert "controller: the bullet preserves the worktree rather than cleaning it" \
-  'grep -qiE "leave the worktree" <<<"$ctrl_malformed_flat"'
+# No bullet-scoped worktree-preservation assert here on purpose. Preservation is the SECTION's
+# shared disposition — "the change stays `in-progress` and the worktree is preserved for
+# inspection or resume" — and the preamble instructs each rule to "name their condition and point
+# here rather than restating the disposition". That property is guarded above by
+# "controller: every halt returns halted, in-progress, worktree preserved". Re-asserting it on
+# this bullet would pin a restatement in place and redden on a legitimate consolidation.
 
 # The trigger is the observable event, never elapsed patience. An undefined time threshold in a
 # normative contract is unactionable and invites exactly the improvisation this change closes.
