@@ -1,16 +1,17 @@
 # Backlog
 
-**236 changes** — 🟢 3 in progress · 🟡 56 proposed · ⚪ 4 deferred · ✅ 145 done · 🗑️ 28 killed
+**236 changes** — 🟢 4 in progress · 🟡 55 proposed · ⚪ 4 deferred · ✅ 145 done · 🗑️ 28 killed
 
-## 🟢 In progress (3)
+## 🟢 In progress (4)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0190](active/0190-close-the-build-evidence-value-gap-a-post-gate-results-commi.md) | Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip | `medium` | `feat` | [spec](../superpowers/specs/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md) | `feat/close-the-build-evidence-value-gap-a-post-gate-results-commi` |
+| [0219](active/0219-aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d.md) | aborted-run's Step 7 seam — a fourth git-only leg, plus GitHub enrichment for leg C | `high` | `fix` | [spec](../superpowers/specs/2026-08-07-aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d-design.md) | `feat/aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d` |
 | [0231](active/0231-a-presumed-dead-build-worker-can-wake-and-race-its-own-repla.md) | A presumed-dead build worker can wake and race its own replacement in one worktree | `medium` | `fix` | [spec](../superpowers/specs/2026-08-07-a-presumed-dead-build-worker-can-wake-and-race-its-own-repla-design.md) | `feat/a-presumed-dead-build-worker-can-wake-and-race-its-own-repla` |
 | [0234](active/0234-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b.md) | Split gate-execution.md: probe evidence should not sit on a blocking-read surface | `medium` | `refactor` | [spec](../superpowers/specs/2026-08-07-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b-design.md) | `feat/split-gate-execution-md-probe-evidence-should-not-sit-on-a-b` |
 
-## 🟡 Proposed (56)
+## 🟡 Proposed (55)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -60,7 +61,6 @@
 | [0200](active/0200-clear-the-unfixed-review-findings-from-change-0191.md) | Board-checks and test-suite hardening — sanitize LF escape, mutation G, minor-finding clearance, mapfile floor | `medium` | `fix` | needs-brainstorm |
 | [0204](active/0204-restore-rationale-dropped-by-round-three-compression-finaliz.md) | Restore dropped doc rationale (compression losses) and complete AGENTS.md's frontmatter-edit rule | `medium` | `docs` | needs-brainstorm |
 | [0208](active/0208-runner-dispatch-worktree-gate-3-proves-repo-containment-not.md) | Harden runner-dispatch — worktree membership gate, feature-scoped coverage, flag-parse guards | `medium` | `fix` | needs-brainstorm |
-| [0219](active/0219-aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d.md) | aborted-run's Step 7 seam — a fourth git-only leg, plus GitHub enrichment for leg C | `high` | `fix` | build-ready |
 | [0221](active/0221-assert-executes-backticks-in-its-test-description-so-a-verba.md) | assert() executes backticks in its test description, so a verbatim-quoted anchor can run shell | `medium` | `fix` | needs-brainstorm |
 | [0222](active/0222-raise-docket-s-minimum-bash-from-4-to-4-4.md) | Raise docket's minimum Bash from 4+ to 4.4 | `medium` | `chore` | needs-brainstorm |
 | [0224](active/0224-the-build-gate-contract-never-says-green-red-is-the-exit-code.md) | The build gate contract never says green/red is the exit code, so an output-shape match passes as a gate | `high` | `docs` | needs-brainstorm |
