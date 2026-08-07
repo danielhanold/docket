@@ -1593,8 +1593,8 @@ assert "0207: the SECOND offender is named in the same run" 'grep -qF "docket-ad
 # required-model wording IS in $err against a correct implementation.
 #
 # Capture each offender's own lines FIRST, then grep the capture — never `grep … | head -n1`: an
-# early-exiting consumer under `set -o pipefail` (line 3) can SIGPIPE the producer and turn 141 into
-# an intermittent failure. Same spelling as the 0220/D6 block below.
+# early-exiting consumer under `set -o pipefail` (this file's `set -uo pipefail`) can SIGPIPE the
+# producer and turn 141 into an intermittent failure. Same spelling as the 0220/D6 block below.
 d4_adr_lines="$(grep -F "docket-adr" <<<"$err")"
 assert "0220/D4: (fixture) the unregistered offender produced a diagnostic line" '[ -n "$d4_adr_lines" ]'
 assert "0220/D4: the unregistered offender's OWN line reports the REGISTRATION rule" \
@@ -1720,6 +1720,22 @@ assert "0220/D1b: (fixture) the runner config is valid — no runner diagnostic 
 assert "0220/D1b: no false leg-(c) advisory for un-generated per-repo wrappers" \
   '! grep -qF "not generated on this machine" <<<"$d1b_err"'
 rm -rf "$SBX"
+
+# ---- change 0220 / D1c: prune_orphans' per-repo legs use the SAME named boundary ----------------
+# D1's thesis is that the per-repo wrapper-lifecycle boundary is spelled once and NAMED. Legs (1a)
+# and (2) delete exactly the files project_level_pass writes (`$REPO/.<harness>/agents/docket-*` and
+# the per-repo dispatch rule), so they gate on the same concept as the writer and must move with it.
+# Keyed on shape — the raw predicate appearing ANYWHERE in the function body is the failure — rather
+# than on a hand-listed set of call sites, so a fourth per-repo leg cannot slip past the assert.
+prune_body="$(awk '/^prune_orphans\(\)/{f=1} f{print} f&&/^}$/{exit}' "$REPO/sync-agents.sh")"
+assert "0220/D1c: (fixture) the prune_orphans body was extracted whole" \
+  '[ -n "$prune_body" ] && grep -qF "de-listed per-repo harness" <<<"$prune_body"'
+assert "0220/D1c: leg (1a) gates on the named predicate" \
+  'within "$REPO/sync-agents.sh" "(1a) per-repo removed-builtin dirs" "project_wrappers_generated" 200'
+assert "0220/D1c: leg (2) gates on the named predicate" \
+  'within "$REPO/sync-agents.sh" "(2) de-listed per-repo harness" "project_wrappers_generated" 400'
+assert "0220/D1c: and prune_orphans calls the raw per_repo_opted_in nowhere" \
+  '! grep -qF "per_repo_opted_in" <<<"$prune_body"'
 
 # ---- change 0220 / D2: the gate's USER-LEVEL leg, exercised through the GLOBAL layer -----------
 # Every other runner: fixture writes .docket.yml (the project layer), so the whole

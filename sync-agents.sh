@@ -229,12 +229,16 @@ per_repo_opted_in() {
   return 1
 }
 
-# Whether THIS run generates per-repo wrappers into <repo>/.<harness>/agents. The single predicate
-# shared by the writer (project_level_pass), the gate (validate_runner_config's project-level leg)
-# and --check's wrapper/dispatch-rule drift loops (check_project_level's leg (c)), so the gate can
-# never see fewer triples than a call site later resolves — the under-enumeration change 0220 fixed.
-# It is a delegation, not an alias: the three call sites must move together, and naming the concept
-# is what makes that reviewable. gitignore_block_wanted is deliberately NOT this predicate — it is
+# Whether THIS run generates per-repo wrappers into <repo>/.<harness>/agents.
+#
+# INVARIANT: every site that writes, gates, diffs, or prunes per-repo wrappers uses this predicate —
+# no site keyed on that concept calls per_repo_opted_in directly. That is what makes the gate unable
+# to see fewer triples than a call site later resolves (the under-enumeration change 0220 fixed),
+# and what keeps prune from deleting on a boundary the writer does not share. No count and no list
+# of sites is stated here on purpose: an enumeration would not notice the next site added.
+#
+# It is a delegation, not an alias: the sites move together, and naming the concept is what makes
+# that reviewable. gitignore_block_wanted is deliberately NOT this predicate — it is
 # strictly weaker (a .docket.local.yml, a docket branch, or a pre-existing block all satisfy it),
 # and legs (a)/(b) keep it because they are about the .gitignore block and tracked leftovers, which
 # exist independently of whether any wrapper was generated.
@@ -1351,8 +1355,8 @@ check_project_level() {  # three legs: (a) gitignore block current [CI-meaningfu
   # die here on the can't-happen assertion (change 0220); (2) diffing against wrappers this repo
   # never generates produced a "not generated on this machine" advisory for every agent, which was
   # simply false. A repo that WAS opted in, generated wrappers, then dropped its key keeps those
-  # wrappers and stops having them diffed — accepted, because prune_orphans' legs are themselves
-  # per-repo-opt-in gated, so leg (c) was the last survivor of a boundary drawn everywhere else.
+  # wrappers and stops having them diffed — accepted, because prune_orphans' per-repo legs are
+  # gated on this same predicate, so leg (c) was the last survivor of a boundary drawn elsewhere.
   if ! project_wrappers_generated; then
     return $rc
   fi
@@ -1418,7 +1422,7 @@ prune_orphans() {  # $1 = scope (all|per-repo)
   local scope="$1" dir f name tok pruned_agents pruned_rule
   local -a scan_dirs=()
   # (1a) per-repo removed-builtin dirs — only for a repo that opted into per-repo generation.
-  if per_repo_opted_in; then
+  if project_wrappers_generated; then
     for tok in $HARNESSES; do scan_dirs+=("$REPO/.$tok/agents"); done
   fi
   # (1b) user-level removed-builtin dirs — every present harness (normal run only).
@@ -1442,7 +1446,7 @@ prune_orphans() {  # $1 = scope (all|per-repo)
   # (2) de-listed per-repo harness — only for an opted-in repo. A known harness NOT in HARNESSES that
   # still holds docket-owned per-repo files (agents + dispatch rule) is pruned; only the specific
   # dirs docket actually emptied are rmdir'd (never a pre-existing / user dir).
-  if per_repo_opted_in; then
+  if project_wrappers_generated; then
     for tok in $VALID_HARNESS_TOKENS; do
       case " $HARNESSES " in *" $tok "*) continue;; esac      # still listed -> not de-listed
       pruned_agents=0; pruned_rule=0
