@@ -2,11 +2,11 @@
 id: 227
 slug: parallel-test-suite-runner
 title: Parallel test-suite runner — 4x+ wall-clock speedup
-status: proposed
+status: in-progress
 priority: medium
 type: chore
 created: 2026-08-06
-updated: 2026-08-06
+updated: 2026-08-07
 depends_on: []
 related: [225]
 discovered_from: []
@@ -16,8 +16,8 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
-claimed_at:
+branch: feat/parallel-test-suite-runner
+claimed_at: 2026-08-07T02:04:53Z
 pr:
 issue:
 blocked_by:
