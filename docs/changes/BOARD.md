@@ -1,13 +1,12 @@
 # Backlog
 
-**260 changes** — 🟢 2 in progress · 🟡 31 proposed · ⚪ 4 deferred · ✅ 151 done · 🗑️ 72 killed
+**260 changes** — 🟢 1 in progress · 🟡 31 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 151 done · 🗑️ 72 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0237](active/0237-prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical.md) | Prose levers fail to hold the step boundary — give the disposition contract a consumer | `high` | `fix` | [spec](../superpowers/specs/2026-08-07-prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical-design.md) | `feat/prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical` |
-| [0250](active/0250-repo-scope-detect-merged-s-fallback-and-guard-the-idle-secs.md) | Repo-scope detect-merged's fallback and guard the idle-secs duplication | `medium` | `fix` | [spec](../superpowers/specs/2026-08-07-repo-scope-detect-merged-s-fallback-and-guard-the-idle-secs-design.md) | `feat/repo-scope-detect-merged-s-fallback-and-guard-the-idle-secs` |
 
 ## 🟡 Proposed (31)
 
@@ -53,6 +52,12 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | Type | PR | Readiness |
+|---|-------|----------|------|----|-----------|
+| [0250](active/0250-repo-scope-detect-merged-s-fallback-and-guard-the-idle-secs.md) | Repo-scope detect-merged's fallback and guard the idle-secs duplication | `medium` | `fix` | [#175](https://github.com/danielhanold/docket/pull/175) |  |
 
 ```mermaid
 graph TD
