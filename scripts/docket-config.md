@@ -116,6 +116,7 @@ A value may not contain a literal `#` — it is treated as the start of an inlin
 | `gate` (finalize) | `local` | yes | read from `finalize.gate` leaf key; resolves repo-local > repo-committed > global |
 | `test_command` (finalize) | `` (empty) | yes | read from `finalize.test_command` leaf key; resolves repo-local > repo-committed > global. **`auto` ≡ unset** (change 0101): the literal lowercase `auto` resolves to the empty string so finalize auto-detects the suite, letting `.docket.example.yml` ship this default as an active value. Applied after layer resolution; any other value (including `AUTO`) is honored verbatim |
 | `require_pr_approval` (finalize) | `false` | yes | read from `finalize.require_pr_approval` leaf key; resolves repo-local > repo-committed > global; `true`/`false`, anything else aborts. Deliberately **not** coordination-fenced — `finalize.gate` is the precedent: both halves of one merge gate share a scope class (change 0102) |
+| `skip_results_only_delta` (finalize) | `false` | no (fenced) | read from `finalize.skip_results_only_delta` leaf key; **repo-committed layer only**; `true`/`false`, anything else aborts. Arms the second limb of finalize's post-rebase suite-skip predicate — the **`finalize.skip_results_only_delta` (change 0190)** paragraph below argues why this one finalize key IS coordination-fenced while its two siblings are not |
 | `board_surfaces` | `inline` | yes, minus `github` | YAML list `[a, b]` stripped of brackets/commas; **`[]` → the reserved token `none`** (change 0071 — an empty value is NEVER emitted; empty means "unresolved", a wiring bug); a `github` token arriving from either machine-scoped layer (repo-local or global) is dropped (Stage 2c), and a list left empty by that drop also resolves to `none` |
 | `auto_groom` | `false` | yes | resolves repo-local > repo-committed > global |
 | `change_types` | `[chore, docs, feat, fix, refactor, perf]` | yes | YAML list `[a, b]` stripped of brackets/commas; resolves repo-local > repo-committed > global with **WHOLE-LIST REPLACEMENT** — the first layer that sets it wins entirely, lists never merge, so a user can remove a built-in value instead of only adding (change 0127). Empty, duplicated, malformed (`[a-z][a-z0-9-]*`), or reserved (`all`/`untyped`) entries abort |
@@ -131,6 +132,27 @@ A value may not contain a literal `#` — it is treated as the start of an inlin
 | `review.min_fix_severity` | `minor` | yes | read from the nested `review:` block; `minor`/`important`/`blocker`, anything else aborts; resolves repo-local > repo-committed > global; behavioral, not coordination-fenced — the minimum finding severity that enters `docket-implement-next`'s Step 6 fix loop |
 | `review.max_fix_tasks` | `10` | yes | read from the nested `review:` block; non-negative integer, anything else aborts; resolves repo-local > repo-committed > global; behavioral, not coordination-fenced — the most non-blocker fix **tasks** `docket-implement-next`'s Step 6 fix loop dispatches per run |
 | `gate_observation_budget` | `30` | yes | flat top-level key; integer number of **minutes**; resolves repo-local > repo-committed > global; a non-integer aborts. Behavioral, not coordination-fenced — it bounds how long a caller awaits a terminal build-gate result and is legitimately per-machine. Deliberately **not** nested under `finalize:` (it binds `docket-build`'s gate too) and deliberately **not** a new top-level `gate:` block (which would collide with `finalize.gate`, the gate *mode*) |
+
+**`finalize.skip_results_only_delta` (change 0190).** The arming switch for the second limb of
+`docket-finalize-change`'s post-rebase suite-skip predicate: with the key unset or `false`, the
+skip requires the build-evidence `head_sha` to **equal** branch HEAD (change 0170's predicate,
+unchanged); with it `true`, the skip also fires when `head_sha` is a strict ancestor of HEAD and
+every path in the delta lies under `<results_dir>/`. Default `false` — a repo that never sets it
+gets the pre-0190 behavior.
+
+It is the one `finalize.*` key that **is** coordination-fenced, against the `finalize.gate` /
+`finalize.require_pr_approval` precedent, because it is a different kind of key. Those two express
+a **policy** the maintainer may legitimately hold differently on different machines. This one
+asserts a **fact about the repo's own test suite** — that no executable suite component reads the
+results tree as a content source, which is the sole reason skipping the suite over a results-only
+delta cannot change a verdict. That fact is established per repo, by a guard committed in that repo
+(this repo's is `tests/test_skip_allowlist_invisibility.sh`); a machine-scoped value would assert it
+for every repo the machine touches (global `config.yml`) or for a repo where no collaborator can see
+the claim was made (the gitignored `.docket.local.yml`). ADR-0019's rule classifies it the same way
+from the other direction: the armed key's effect is a merge pushed onto the shared integration
+branch on trust, i.e. shared state that is not deterministically re-derivable. Fails closed on a
+non-boolean, `require_pr_approval`'s argument inverted — defaulting a typo to `true` would arm a
+gate-weakening skip the repo never opted into.
 
 **`runtime.bash` (change 0132).** This is machine identity, not repo policy. Its only valid homes
 are global `config.yml` (normal) and a repo's gitignored `.docket.local.yml` (override), with
@@ -250,7 +272,8 @@ deliberately skips the committed layer. Map-valued `skills:` merges field-by-fie
 - `runtime.bash` in committed `.docket.yml` → warned as machine-local and ignored; local/global
   resolution continues.
 - **Coordination-key fence:** `metadata_branch`, `integration_branch`, `changes_dir`,
-  `adrs_dir`, `results_dir`, `github_project`, `terminal_publish` set in
+  `adrs_dir`, `results_dir`, `github_project`, `terminal_publish`,
+  `finalize.skip_results_only_delta` set in
   the global layer OR in `.docket.local.yml` → each warned "per-repo-only" (naming which file) and
   ignored. (Block-style `github_project:` with an empty value line is not detected — the fence
   reads the scalar value; nothing reads a global/local `github_project` regardless.)
@@ -354,6 +377,7 @@ RESULTS_DIR
 FINALIZE_GATE
 FINALIZE_TEST_COMMAND
 FINALIZE_REQUIRE_PR_APPROVAL
+FINALIZE_SKIP_RESULTS_ONLY_DELTA
 LEARNINGS_ENABLED
 LEARNINGS_CAP
 BOARD_SURFACES
@@ -376,7 +400,7 @@ SKILL_FINISH
 BOOTSTRAP
 ```
 
-32 lines in `shell` format; 33 in `plain` format, with `REPO_ROOT` inserted directly
+33 lines in `shell` format; 34 in `plain` format, with `REPO_ROOT` inserted directly
 after `METADATA_WORKTREE` and `DOCKET_BASH_PATH` following it (or following
 `METADATA_WORKTREE` in shell format). The last line is always `BOOTSTRAP=…`.
 
@@ -406,6 +430,7 @@ emits no `KEY=value` output.
 | `integration_branch` ref absent/unreadable (`ls-tree` non-zero) | 1 |
 | `metadata_branch` is neither `docket` nor `main` | 1 |
 | `terminal_publish` is neither `true` nor `false` | 1 |
+| `finalize.skip_results_only_delta` is neither `true` nor `false` | 1 |
 | `gate_observation_budget` is not a non-negative integer | 1 |
 | `runtime.bash` is absent, relative, non-executable, unversionable, nonnumeric, or Bash <4 | 1 |
 | `runtime.bash` is declared deeper than one level under `runtime:` | 1 |
@@ -431,7 +456,7 @@ emits no `KEY=value` output.
   post-write state, so the caller's `eval` sees `PROCEED` without a second invocation.
 - **`main`-mode skips the bootstrap guard entirely.** `DOCKET`/`LIVE` are not evaluated;
   `BOOTSTRAP` is always `PROCEED` in main-mode.
-- **32 `KEY=value` lines always emitted in the same order in `shell` format (33 in `plain`,
+- **33 `KEY=value` lines always emitted in the same order in `shell` format (34 in `plain`,
   `REPO_ROOT` inserted after `METADATA_WORKTREE` — change 0075).** Skills may rely on the order
   for pipe consumers, but should use the variable names (via `eval`) for correctness.
 - **The global layer never aborts a run — except on a malformed fail-closed value.** Every

@@ -241,7 +241,7 @@ assert "board fenced-to-empty: emits BOARD_SURFACES=none" \
 
 # --- (E) direct-pipe caller (LEARNINGS #22: $() hides a dropped trailing \n) -
 n="$(run "$tmp/c" --export | grep -c '=')"
-assert "direct-pipe: 32 KEY=value lines emitted"       '[ "$n" -eq 32 ]'
+assert "direct-pipe: 33 KEY=value lines emitted"       '[ "$n" -eq 33 ]'
 last="$(run "$tmp/c" --export | tail -n1)"
 assert "direct-pipe: last line is BOOTSTRAP"           'case "$last" in BOOTSTRAP=*) true;; *) false;; esac'
 
@@ -617,9 +617,9 @@ AUTO_GROOM=__poison__
 out="$(env -u XDG_CONFIG_HOME HOME="$tmp/q.home" bash "$SCRIPT" --repo-dir "$tmp/q" --export)"; eval "$out"
 assert "0050 Q: XDG unset -> \$HOME/.config fallback read"   '[ "$AUTO_GROOM" = true ]'
 
-# --- (E') emit-interface guard: exactly 32 lines with a global file present ---
+# --- (E') emit-interface guard: exactly 33 lines with a global file present ---
 n50="$(rung "$tmp/k.xdg" "$tmp/k" --export | grep -c '=')"
-assert "0050 E': 32 KEY=value lines with global layer" '[ "$n50" -eq 32 ]'
+assert "0050 E': 33 KEY=value lines with global layer" '[ "$n50" -eq 33 ]'
 
 # --- (M) coordination-key fence: warned-and-ignored, never honored, never fatal ---
 mkrepo "$tmp/m"
@@ -1973,6 +1973,105 @@ FINALIZE_REQUIRE_PR_APPROVAL=__poison__
 out="$(rung "$tmp/r9.xdg" "$tmp/r9" --export)"; eval "$out"
 assert "0102 R9: repo-local false beats global true (repo-committed unset)" \
   '[ "$FINALIZE_REQUIRE_PR_APPROVAL" = false ]'
+
+# ============================================================================
+# Change 0190 — finalize.skip_results_only_delta (the arming key)
+# ============================================================================
+# The ARMING switch for the second limb of finalize's post-rebase suite-skip predicate (the
+# docs-only ancestor delta). Default `false`, so a repo that never sets it keeps change 0170's
+# equality-only predicate byte-for-byte.
+#
+# UNLIKE its two finalize siblings this key IS coordination-fenced, and (S5) below is the
+# deliberate INVERSE of (R5) above — the two asserts contradict each other on purpose, so a later
+# "make the finalize keys consistent" edit cannot quietly move either one without reddening the
+# other. `gate` and `require_pr_approval` express a POLICY a maintainer may legitimately hold
+# differently per machine; this key asserts a FACT about the repo's own test suite (that no
+# executable suite component reads <results_dir> as a content source), and a machine-scoped layer
+# would assert that fact for every repo the machine touches.
+
+# --- (S1) built-in default when unset in every layer -------------------------
+mkrepo "$tmp/s1d"
+FINALIZE_SKIP_RESULTS_ONLY_DELTA=__poison__
+out="$(rung "$tmp/s1d.xdg" "$tmp/s1d" --export)"; eval "$out"
+assert "0190 S1: unset everywhere -> built-in false" \
+  '[ "$FINALIZE_SKIP_RESULTS_ONLY_DELTA" = false ]'
+
+# --- (S2) the repo-committed override is honored -----------------------------
+# Probed with `true`, the NON-default, for the 0084 terminal_publish reason: probing with `false`
+# would pass unchanged even if the committed read were dropped entirely.
+mkrepo "$tmp/s2d"
+printf 'metadata_branch: main\nfinalize:\n  skip_results_only_delta: true\n' > "$tmp/s2d/.docket.yml"
+git -C "$tmp/s2d" add .docket.yml; git -C "$tmp/s2d" commit --quiet -m cfg
+git -C "$tmp/s2d" push --quiet origin main
+FINALIZE_SKIP_RESULTS_ONLY_DELTA=__poison__
+out="$(rung "$tmp/s2d.xdg" "$tmp/s2d" --export)"; eval "$out"
+assert "0190 S2: repo-committed true is honored" \
+  '[ "$FINALIZE_SKIP_RESULTS_ONLY_DELTA" = true ]'
+
+# --- (S3) FENCED in the global layer: warned, ignored, never fatal -----------
+mkrepo "$tmp/s3d"
+mkdir -p "$tmp/s3d.xdg/docket"
+printf 'finalize:\n  skip_results_only_delta: true\n' > "$tmp/s3d.xdg/docket/config.yml"
+s3err="$(rung "$tmp/s3d.xdg" "$tmp/s3d" --export 2>&1 >/dev/null)"
+# Unset before the eval, the terminal_publish precedent: an aborting run emits nothing, so
+# eval "" would leave a value from an earlier block standing and the "stays false" assert would
+# pass on stale state rather than on this run's output.
+unset FINALIZE_SKIP_RESULTS_ONLY_DELTA
+out="$(rung "$tmp/s3d.xdg" "$tmp/s3d" --export 2>/dev/null)"; eval "$out"
+assert "0190 S3: global value warns"                     'grep -q "skip_results_only_delta" <<<"$s3err"'
+assert "0190 S3: warning says per-repo-only"             'grep -qi "per-repo-only" <<<"$s3err"'
+assert "0190 S3: global value NOT honored (stays false)" \
+  '[ "${FINALIZE_SKIP_RESULTS_ONLY_DELTA-unset}" = false ]'
+assert "0190 S3: a global value is not fatal" \
+  '[ "$(rung_rc "$tmp/s3d.xdg" "$tmp/s3d" --export)" -eq 0 ]'
+
+# --- (S4) FENCED in .docket.local.yml too ------------------------------------
+mkrepo "$tmp/s4d"
+printf 'finalize:\n  skip_results_only_delta: true\n' > "$tmp/s4d/.docket.local.yml"
+s4err="$(rung "$tmp/s4d.xdg" "$tmp/s4d" --export 2>&1 >/dev/null)"
+unset FINALIZE_SKIP_RESULTS_ONLY_DELTA
+out="$(rung "$tmp/s4d.xdg" "$tmp/s4d" --export 2>/dev/null)"; eval "$out"
+assert "0190 S4: .docket.local.yml value warns"       'grep -q "skip_results_only_delta" <<<"$s4err"'
+assert "0190 S4: the warning names .docket.local.yml" 'grep -q ".docket.local.yml" <<<"$s4err"'
+assert "0190 S4: repo-local value NOT honored (stays false)" \
+  '[ "${FINALIZE_SKIP_RESULTS_ONLY_DELTA-unset}" = false ]'
+
+# --- (S5) fence MEMBERSHIP, the structural inverse of (R5) -------------------
+assert "0190 S5: the key IS a member of the coordination-key fence loop" \
+  'grep -q "skip_results_only_delta" <<<"$(sed -n "/^for _fkey in /p" "$SCRIPT")"'
+
+# --- (S6) fail closed on a non-boolean --------------------------------------
+# Inverted from require_pr_approval's argument: there, defaulting a typo to `false` would DISARM a
+# gate the user believes is armed; here, defaulting a typo to `true` would ARM a gate-weakening
+# skip the repo never opted into. Both directions fail closed on the same `case`.
+mkrepo "$tmp/s6d"
+printf 'metadata_branch: main\nfinalize:\n  skip_results_only_delta: yes\n' > "$tmp/s6d/.docket.yml"
+git -C "$tmp/s6d" add .docket.yml; git -C "$tmp/s6d" commit --quiet -m cfg
+git -C "$tmp/s6d" push --quiet origin main
+rcs6="$(rung_rc "$tmp/s6d.xdg" "$tmp/s6d" --export)"
+errs6="$(XDG_CONFIG_HOME="$tmp/s6d.xdg" bash "$SCRIPT" --repo-dir "$tmp/s6d" --export 2>&1 >/dev/null)"
+assert "0190 S6: non-boolean aborts (non-zero exit)"   '[ "$rcs6" != "0" ]'
+assert "0190 S6: diagnostic names the key"             'grep -q "skip_results_only_delta" <<<"$errs6"'
+assert "0190 S6: diagnostic shows the offending value" 'grep -q "yes" <<<"$errs6"'
+assert "0190 S6: no KEY=value block on the abort path" \
+  '[ -z "$(XDG_CONFIG_HOME="$tmp/s6d.xdg" bash "$SCRIPT" --repo-dir "$tmp/s6d" --export 2>/dev/null)" ]'
+
+# --- (S7) export presence and POSITION --------------------------------------
+outs7="$(rung "$tmp/s1d.xdg" "$tmp/s1d" --export)"
+assert "0190 S7: FINALIZE_SKIP_RESULTS_ONLY_DELTA is emitted" \
+  'grep -q "^FINALIZE_SKIP_RESULTS_ONLY_DELTA=" <<<"$outs7"'
+assert "0190 S7: emitted directly after FINALIZE_REQUIRE_PR_APPROVAL" \
+  '[ "$(grep -n "^FINALIZE_SKIP_RESULTS_ONLY_DELTA=" <<<"$outs7" | cut -d: -f1)" \
+     = "$(( $(grep -n "^FINALIZE_REQUIRE_PR_APPROVAL=" <<<"$outs7" | cut -d: -f1) + 1 ))" ]'
+outs7_plain="$(rung "$tmp/s1d.xdg" "$tmp/s1d" --export --format plain)"
+assert "0190 S7: present in plain format too" \
+  'grep -q "^FINALIZE_SKIP_RESULTS_ONLY_DELTA=" <<<"$outs7_plain"'
+
+# --- (S8) the contract doc documents it -------------------------------------
+assert "0190 S8: docket-config.md has a skip_results_only_delta table row scoped no (fenced)" \
+  'grep -qE "^\| \`skip_results_only_delta\` \(finalize\) \| \`false\` \| no \(fenced\) \|" "$REPO/scripts/docket-config.md"'
+assert "0190 S8: docket-config.md lists the export name" \
+  'grep -q "^FINALIZE_SKIP_RESULTS_ONLY_DELTA$" "$REPO/scripts/docket-config.md"'
 
 # ============================================================================
 # Change 0132 — machine-local Bash runtime

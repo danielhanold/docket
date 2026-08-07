@@ -755,6 +755,28 @@ assert "finalize: the skip's second limb needs a strict-ancestor head_sha AND an
 assert "finalize: the delta derivation names --name-only, -z, and a rename-suppressing flag" \
   'grep -qF -- "--name-only" <<<"$skip_flat" && grep -qE -e "-z" <<<"$skip_flat" && grep -qE -e "--no-renames|-M0" <<<"$skip_flat"'
 
+# ARMING (change 0190 whole-branch review, finding 2). The two shape asserts above bind the second
+# limb's PREDICATE; neither binds its GATE. With both of them green the limb can still be stated as
+# unconditionally ON — which is exactly how it first shipped, carrying a trailing "degrade off"
+# sentence that no code read and every downstream repo would have had to self-apply. Bind the
+# arming key INTO the skip item (same flattened haystack, same non-vacuity anchor above), in three
+# independent directions: the exported name is present, the default reading is stated, and the
+# self-applied framing it replaced is gone. Deleting any one of the three reddens on its own.
+assert "finalize: the skip item names the exported key its second limb is gated on" \
+  'grep -qF -- "FINALIZE_SKIP_RESULTS_ONLY_DELTA" <<<"$skip_flat"'
+assert "finalize: the skip item states the unset/false reading (0170's equality-only predicate)" \
+  'grep -qiE "(unset|false)[^|]{0,140}equality-only" <<<"$skip_flat"'
+assert "finalize: the limb is no longer a self-applied degrade-off judgement" \
+  '! grep -qiF -- "degrade off" <<<"$skip_flat"'
+# ...and the key the prose names must be a REAL resolved key, not a plausible-looking literal. The
+# resolver has to BOTH assign it from its own leaf name and fence it to the repo-committed layer;
+# an arming switch settable from a machine-scoped layer would re-open the finding it closes (a
+# machine asserting a suite property for repos where nobody established it).
+assert "0190: the arming key is resolved from its own leaf by docket-config.sh" \
+  'grep -qE "^FINALIZE_SKIP_RESULTS_ONLY_DELTA=.*skip_results_only_delta" "$REPO/scripts/docket-config.sh"'
+assert "0190: the arming key is coordination-fenced (repo-committed layer only)" \
+  'grep -q "skip_results_only_delta" <<<"$(sed -n "/^for _fkey in /p" "$REPO/scripts/docket-config.sh")"'
+
 # --- documentation + the dogfood binding ---------------------------------------------------
 RM="$REPO/README.md"
 assert "README documents the docket-review role" 'grep -qF -- "docket-review" "$RM"'

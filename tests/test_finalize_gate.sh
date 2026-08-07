@@ -131,6 +131,18 @@ assert "finalize names the wrapper as the tier source" 'grep -Eqi "model/effort 
 assert "repo .docket.yml sets finalize gate to local" \
   '[ "$(gate_of "$DYML")" = "local" ] && grep -Eq "^finalize:" "$DYML" && grep -Eq "^[[:space:]]+gate[[:space:]]*:[[:space:]]*local" "$DYML"'
 
+# ---- 0190: the repo arms the results-only skip, and only because it PROVES the property -------
+# Arming `finalize.skip_results_only_delta` is a claim about THIS repo's own suite — that no
+# executable component of it reads the results tree as a content source. The claim and the guard
+# that establishes it are asserted as a PAIR, deliberately: asserting the arming alone would let
+# the guard be deleted while the merge-gate skip stayed on, which is the state the key exists to
+# make impossible. The guard's own contents are its file's business; what is checked here is that
+# the justification still ships in the suite the gate runs.
+assert "repo .docket.yml arms finalize.skip_results_only_delta" \
+  'grep -Eq "^[[:space:]]+skip_results_only_delta[[:space:]]*:[[:space:]]*true([[:space:]]|#|$)" "$DYML"'
+assert "0190: the invisibility guard that justifies the arming ships in the suite" \
+  '[ -f "$REPO/tests/test_skip_allowlist_invisibility.sh" ] && grep -q "results_dir" "$REPO/tests/test_skip_allowlist_invisibility.sh"'
+
 # ---- convention documents the gate + the two new wrappers --------------------
 assert "convention documents finalize.gate" 'grep -Eqi "finalize\.gate|finalize:" "$CONV" && grep -qi "gate" "$CONV"'
 assert "convention names the four gate modes" \

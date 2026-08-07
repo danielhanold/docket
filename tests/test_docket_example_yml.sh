@@ -100,6 +100,7 @@ map_for(){ # map_for <EXPORT_KEY> -> ERE matching the example's line, or empty i
     FINALIZE_GATE)         echo '^[[:space:]]+gate:[[:space:]]*local' ;;
     FINALIZE_TEST_COMMAND) echo '^[[:space:]]+test_command:[[:space:]]*auto' ;;
     FINALIZE_REQUIRE_PR_APPROVAL) echo '^[[:space:]]+require_pr_approval:[[:space:]]*false[[:space:]]*$' ;;
+    FINALIZE_SKIP_RESULTS_ONLY_DELTA) echo '^[[:space:]]+skip_results_only_delta:[[:space:]]*false[[:space:]]*$' ;;
     LEARNINGS_ENABLED)     echo '^[[:space:]]+enabled:[[:space:]]*true' ;;
     LEARNINGS_CAP)         echo '^[[:space:]]+cap:[[:space:]]*300' ;;
     BOARD_SURFACES)        echo '^board_surfaces:[[:space:]]*\[[[:space:]]*inline[[:space:]]*\]' ;;
@@ -180,6 +181,7 @@ classify_key(){ # classify_key <example-key-name> -> "resolved:EXPORT" | "elsewh
     finalize.gate)                echo 'resolved:FINALIZE_GATE' ;;
     finalize.test_command)        echo 'resolved:FINALIZE_TEST_COMMAND' ;;
     finalize.require_pr_approval) echo 'resolved:FINALIZE_REQUIRE_PR_APPROVAL' ;;
+    finalize.skip_results_only_delta) echo 'resolved:FINALIZE_SKIP_RESULTS_ONLY_DELTA' ;;
     learnings.enabled)            echo 'resolved:LEARNINGS_ENABLED' ;;
     learnings.cap)                echo 'resolved:LEARNINGS_CAP' ;;
     board_surfaces)       echo 'resolved:BOARD_SURFACES' ;;
@@ -443,7 +445,7 @@ assert "manifest: every elsewhere:HEADER entry is a real bare block opener (${ma
 # intentional-growth remedy this count is guarding. This is the single source for that count: the
 # condition and the failure message below both read it, so bumping it in one place updates both
 # instead of leaving one stale.
-expected_key_count=44
+expected_key_count=45
 # RAW FLOOR (change 0102 whole-branch review, MINOR 3): example_keys_raw feeds BOTH this section's
 # manifest loop (via example_keys, deduped) and the duplicate-leaf check directly below (also
 # fed from example_keys_raw, undeduped). Without this assert, an edit that makes the raw pipeline
@@ -536,6 +538,21 @@ assert "0102: require_pr_approval carries the any-layer scope tag" \
 assert "0102: the stale repo-committed-only note is gone" \
   '! grep -qF "read by the finalize SKILL BODY, not by the config" "$EX"'
 
+# change 0190: skip_results_only_delta is the ONE finalize leaf that IS coordination-fenced, so it
+# must carry the repo-only tag and NOT the any-layer tag its two siblings carry. Both directions
+# are pinned, on the key's OWN comment window: a sibling block copy-pasted for the new key would
+# document a scope the resolver contradicts — change 0102's exact failure, on this very block. The
+# window is captured into a variable first (never `awk | grep -q`, which SIGPIPEs the producer
+# under pipefail) and anchored for non-vacuity, so a renamed key yields a loud red rather than an
+# empty haystack both greps sail through.
+skip_delta_window="$(awk '/^  # skip_results_only_delta/,/^  skip_results_only_delta:/' "$EX")"
+assert "0190: the skip_results_only_delta comment window was located (non-vacuity anchor)" \
+  '[ -n "$skip_delta_window" ] && grep -qF "skip_results_only_delta: false" <<<"$skip_delta_window"'
+assert "0190: skip_results_only_delta carries the repo-only scope tag" \
+  'grep -qF "scope: repo-only (coordination-fenced, ADR-0019)" <<<"$skip_delta_window"'
+assert "0190: skip_results_only_delta does NOT carry its siblings' any-layer tag" \
+  '! grep -qF "scope: any layer" <<<"$skip_delta_window"'
+
 # (2c) The INVERSE direction. (2a)/(2b) prove every key the code reads is documented; neither
 # proves the converse, so without this the example can accrete keys NOTHING reads — a phantom key
 # passes (2a) (the loop iterates export keys, not example keys), passes the fidelity diff (the
@@ -611,6 +628,12 @@ assert "0102: the finalize skill states its sole channel positively (never by pa
 # require_pr_approval from .docket.yml") — the explicit no-fallback-by-design contract. The
 # positive assert above cannot catch an ADDED fallback sentence (it would leave "never by parsing"
 # untouched), so this is the second, independent mutation target.
+#
+# ORDERING COUPLING (change 0190): the positive assert above is a PROXIMITY guard — at most 20
+# characters may sit between `FINALIZE_REQUIRE_PR_APPROVAL` and "never by parsing". The finalize
+# SKILL's framing sentence names the exported keys the gate reads as a list, so
+# FINALIZE_REQUIRE_PR_APPROVAL must stay the LAST name in that list; a key appended after it pushes
+# the phrase out of range and reddens this pair for a reason that is not the contract it guards.
 assert "0102: the finalize skill documents no .docket.yml fallback for the key" \
   '! ( fb=$(grep -niE "fall(s|ing)?[ -]?back" "$REPO/skills/docket-finalize-change/SKILL.md"); grep -qiE "\.docket\.yml|require_pr_approval" <<<"$fb" )'
 
@@ -752,12 +775,14 @@ fi
 # guard's own pass reached zero nested keys, i.e. exactly the vacuity this assert exists to catch.
 #
 # EXACT, not >=. An at-least floor of 15 is satisfied by the PRE-0102 file and would tolerate a
-# regression that silently drops both runners.codex leaves. The 22: 3 finalize.*, 2 learnings.*,
+# regression that silently drops both runners.codex leaves. The 23: 4 finalize.* (change 0190 added
+# skip_results_only_delta, which carries its OWN `# scope: repo-only` tag — the only finalize leaf
+# that is coordination-fenced), 2 learnings.*,
 # 2 reclaim.*, 1 build.checkpoint, 2 review.* (change 0218 — min_fix_severity, and max_fix_tasks
 # added when the fix loop's cap became configurable; EACH carries its OWN `# scope: any layer` tag,
 # so both are covered by rule 1, not by adjacency), 2 auto_capture.*,
 # runners.codex + its 2 leaves, runners.opencode + its 1 leaf, 5 skills.*.
-expected_nested_key_count=22
+expected_nested_key_count=23
 assert "scope tag: the pass enumerated exactly $expected_nested_key_count keys at depth > 0 (got ${nested_key_count:-0}; if you added or removed a nested key in .docket.example.yml, first CONFIRM the new key carries its own scope: tag or sits directly under a tagged header — bumping expected_nested_key_count alone, with no tag and no header, ships an untagged key that this guard will never catch again — then bump expected_nested_key_count in the same commit)" \
   '[ "${nested_key_count:-0}" = "$expected_nested_key_count" ]'
 
