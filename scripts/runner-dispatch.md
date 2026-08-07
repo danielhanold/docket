@@ -125,6 +125,11 @@ traps are a deliberate deferral, not an oversight.
   `--worktree` (missing for a `build-*` agent, not a directory, or not a worktree of this repo).
 - `1` — the run gate's two-strikes abort: a delegated `implement-next` run was still
   `run-incomplete` after one re-dispatch. The change stays `in-progress` with its claim intact.
+- `3` — the run gate's **halt** stop: the delegated `implement-next` run wrote a `## Run halted`
+  section, so it stopped deliberately and needs a human. Distinct from `1` because it is not a
+  failure of the run — a driver that wants to tell "did not finish" from "stopped on purpose"
+  can. Never re-dispatched. The generated shim wrappers read any non-zero as
+  abort-and-report-stderr, which is the correct handling for both.
 - otherwise — the adapter's exit code, propagated verbatim.
 
 ## Invariants
@@ -134,7 +139,10 @@ traps are a deliberate deferral, not an oversight.
   argument inherits that cwd-independence rather than reintroducing the hazard.
 - Never runs a child harness itself; all child specifics live in the adapter.
 - The adapter's exit code is propagated verbatim whenever the run gate takes no action; the
-  two-strikes abort is the only new non-zero, and only on a path that was previously silent.
+  two-strikes abort (`1`) and the halt stop (`3`) are the only new non-zeros, and both are on paths
+  that were previously silent.
+- A `run-halted` verdict is terminal at this seam: never re-dispatched, never exit-0. Stop and
+  surface, per `docket-implement-next`'s disposition table.
 - The run gate is scoped to `--agent implement-next` and never writes docket state — it acts only
   by running an agent. It re-dispatches an unfinished change **at most once**.
 - The gate acts on at most one change per dispatch, and only on one whose `claimed_at` falls inside

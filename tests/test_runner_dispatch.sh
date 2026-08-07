@@ -513,12 +513,17 @@ assert "0237 gate: an empty diff verifies nothing" '! grep -qE "^[0-9]" "$SBX/vr
 assert "0237 gate: an empty diff dispatches exactly once" '[ "$(wc -l < "$SBX/ad.log" | tr -d " ")" = "1" ]'
 rm -rf "$SBX"
 
-# (d) run-halted NEVER re-dispatches — a halt means a human is needed.
+# (d) run-halted NEVER re-dispatches — a halt means a human is needed — AND it is a TERMINAL
+#     outcome at this seam: exit 3, its own code, distinct from the two-strikes abort's 1. Exiting
+#     with the adapter's (healthy) 0 would tell a `/loop` driver to draw the next change on a
+#     disposition the contract defines as stop + surface.
 make_gate_fixture
 printf '\n' > "$SNAP/current"; printf '%s\n' "9 $FUT" > "$SNAP/after.1"
 printf 'run-halted 9\n' > "$SNAP/verdict.9"
-run_gate --runner ad --agent implement-next >/dev/null 2>&1; rc=$?
-assert "0237 gate: run-halted exits 0" '[ "$rc" = "0" ]'
+err="$( run_gate --runner ad --agent implement-next 2>&1 >/dev/null )"; rc=$?
+assert "0237 gate: run-halted exits 3 (its own terminal code), never the adapter's 0" '[ "$rc" = "3" ]'
+assert "0237 gate: run-halted names the change on stderr" 'grep -qE "(^| )9( |$)" <<<"$err"'
+assert "0237 gate: run-halted says a human is needed" 'grep -qiF "human" <<<"$err"'
 assert "0237 gate: run-halted does NOT re-dispatch" '[ "$(wc -l < "$SBX/ad.log" | tr -d " ")" = "1" ]'
 rm -rf "$SBX"
 
@@ -571,8 +576,10 @@ assert "0237 two-strikes: caps the adapter at exactly TWO runs" \
   '[ "$(wc -l < "$SBX/ad.log" | tr -d " ")" = "2" ]'
 rm -rf "$SBX"
 
-# (h) the re-dispatch does NOT fire on run-complete / run-halted / run-unclaimed
-for v in run-complete run-halted run-unclaimed; do
+# (h) the re-dispatch does NOT fire on run-complete / run-unclaimed, and both keep the adapter's
+#     code. run-halted also never re-dispatches, but it is terminal rather than exit-0, so it has
+#     its own case (d) instead of a leg here.
+for v in run-complete run-unclaimed; do
   make_gate_fixture
   printf '\n' > "$SNAP/current"; printf '%s\n' "8 $FUT" > "$SNAP/after.1"
   printf '%s 8\n' "$v" > "$SNAP/verdict.8"
