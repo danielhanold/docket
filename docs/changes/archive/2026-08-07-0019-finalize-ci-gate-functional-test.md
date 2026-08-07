@@ -21,6 +21,14 @@ reconciled: false
 type: chore
 ---
 
+## Artifacts
+
+<!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| ADRs | [ADR-0010](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0010-finalize-merge-gate-split-agents.md) |
+<!-- docket:artifacts:end -->
+
 ## Why
 
 Change 0015 added the finalize **rebase-retest gate** with four modes (`local` ·
