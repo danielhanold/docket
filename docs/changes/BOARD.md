@@ -1,6 +1,6 @@
 # Backlog
 
-**230 changes** — 🟢 3 in progress · 🟡 53 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 141 done · 🗑️ 28 killed
+**230 changes** — 🟢 3 in progress · 🟡 53 proposed · ⚪ 4 deferred · ✅ 142 done · 🗑️ 28 killed
 
 ## 🟢 In progress (3)
 
@@ -77,12 +77,6 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | Type | PR | Readiness |
-|---|-------|----------|------|----|-----------|
-| [0227](active/0227-parallel-test-suite-runner.md) | Parallel test-suite runner — 4x+ wall-clock speedup | `medium` | `chore` | [#165](https://github.com/danielhanold/docket/pull/165) |  |
-
 ```mermaid
 graph TD
   0007
@@ -142,7 +136,6 @@ graph TD
   0223
   0224
   0218 --> 0226
-  0227
   0228
   0229
   0230
@@ -154,10 +147,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (169)</summary>
+<details><summary>✅🗑️ Archive — done + killed (170)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0227](archive/2026-08-07-0227-parallel-test-suite-runner.md) | Parallel test-suite runner — 4x+ wall-clock speedup | 2026-08-07 |
 | [0225](archive/2026-08-07-0225-the-test-suite-has-grown-into-the-harness-s-foreground-ceilin.md) | The test suite has grown into the harness's foreground ceiling — cut its wall-clock runtime | 2026-08-07 |
 | [0220](archive/2026-08-07-0220-clear-the-unfixed-review-findings-from-change-0207.md) | clear the unfixed review findings from change 0207 | 2026-08-07 |
 | [0203](archive/2026-08-07-0203-define-the-per-step-git-state-postcondition-docket-implement.md) | Define the per-step git-state postcondition docket-implement-next now names but never states | 2026-08-07 |
@@ -180,7 +174,6 @@ graph TD
 | [0194](archive/2026-08-03-0194-retire-the-retired-default-framing-from-the-docket-owned-rol.md) | Retire the retired-default framing from the docket-owned role skill bodies | 2026-08-03 |
 | [0191](archive/2026-08-03-0191-enforce-yaml-scalar-wellformedness-in-change-frontmatter.md) | Enforce YAML scalar well-formedness in change-file frontmatter | 2026-08-03 |
 | [0113](archive/2026-08-03-0113-suppressed-handoff-silently-ends-autonomous-run.md) | A suppressed hand-off can silently end an autonomous run — make step completion verifiable, not narrated | 2026-08-03 |
-| [0193](archive/2026-08-02-0193-default-build-review-roles-to-docket-owned-skills.md) | Default the build and review roles to docket-build and docket-review | 2026-08-02 |
 | [0183](archive/2026-08-01-0183-cursor-dispatch-head-ships-a-stale-unpinned-claim-its-guard.md) | Cursor dispatch head ships a stale unpinned claim; its guard retired itself | 2026-08-01 |
 | [0044](archive/2026-07-30-0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | 2026-07-30 |
 | [0162](archive/2026-07-28-0162-restore-the-machine-local-ignored-advisory-for-a-committed-t.md) | Restore the machine-local-ignored advisory for a committed too-deep runtime.bash | 2026-07-28 |
@@ -206,7 +199,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 8 done |
+| [2026-08](archive/) | 9 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
