@@ -201,7 +201,15 @@ write_stub(){
   mv "$tmp2" "$tmp"
   set_field "$tmp" id "$id"                  || die "set_field id failed for stub $id"
   set_field "$tmp" slug "$SLUG"               || die "set_field slug failed for stub $id"
-  set_field "$tmp" title "$TITLE"             || die "set_field title failed for stub $id"
+  # title is the ONE free-text prose value here (slug is slugified; id/created/updated/type are
+  # generated and discovered_from is a [..] list), and it is model-authored English that routinely
+  # carries a colon-space, an apostrophe, or a leading indicator. Quote it UNCONDITIONALLY rather
+  # than predicating on shape: a conditional is only as good as its enumeration, while the
+  # single-quoted form is well-formed for every input that clears the control-character gate above
+  # (ADR-0071). Deliberately NOT applied to the other six calls — quoting discovered_from would
+  # turn a YAML sequence into a string.
+  set_field "$tmp" title "$(docket_yaml_single_quote "$TITLE")" \
+                                              || die "set_field title failed for stub $id"
   set_field "$tmp" created "$TODAY"           || die "set_field created failed for stub $id"
   set_field "$tmp" updated "$TODAY"           || die "set_field updated failed for stub $id"
   set_field "$tmp" type "$TYPE"               || die "set_field type failed for stub $id"

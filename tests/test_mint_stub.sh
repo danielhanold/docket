@@ -396,4 +396,49 @@ assert "T: --type with an embedded newline is rejected (structural injection)" \
 assert "T: rejected injection writes nothing" \
   '[ "$(ls "$WTC/docs/changes/active" | grep -c .)" -eq 0 ]'
 
+# --- (Y) title is ALWAYS single-quoted, and round-trips byte-for-byte (change 0235, ADR-0071) ---
+# Validity is structural, not enumerated: single-quoted YAML interprets no escapes and has exactly
+# one rule (embedded ' doubles), so pinning the emitted BYTES is pinning validity — which is what
+# lets this suite prove well-formedness with no YAML parser anywhere (spec A5).
+# Every row is an adversarial shape from the spec's table; the apostrophe rows are MANDATORY —
+# they are the only ones that fail if the writer's doubling and the reader's undoubling are not
+# exact inverses.
+sq(){ printf "'%s'" "${1//\'/\'\'}"; }   # the expected shape, computed independently of the lib
+
+y_case(){ # y_case SLUG TITLE — mint TITLE, assert the raw line's exact bytes and the logical value
+  local yslug="$1" ytitle="$2" W B NEW want
+  W="$(new_repo)"
+  B="$(body 'discovered while building #235')"
+  run_mint "$W" --title "$ytitle" --slug "$yslug" --body-file "$B" --discovered-from 235 >/dev/null 2>&1
+  NEW="$W/docs/changes/active/0001-$yslug.md"
+  want="$(sq "$ytitle")"
+  assert "Y[$yslug]: raw title line is exactly the single-quoted form" \
+    "[ \"\$(field_raw '$NEW' title)\" = \"\$want\" ]"
+  assert "Y[$yslug]: field() returns the original title byte-for-byte" \
+    "[ \"\$(field '$NEW' title)\" = \"\$ytitle\" ]"
+}
+
+y_case apostrophe      "The manifest's elsewhere check"
+y_case apos-and-colon  "Clear change 0202's three findings: dead guard, stale comment"
+y_case colon-space     "Split gate-execution.md: probe evidence"
+y_case trailing-colon  "a model ID containing / or :"
+y_case leading-bracket "[WIP] rework the runner"
+y_case bare-boolean    "off"
+y_case hash-comment    "clear finding #3 from review"
+y_case trailing-space  "a title with a trailing space "
+y_case dquote-start    '"quoted" start of a title'
+y_case backslash       'a path C:\temp and a & ampersand'
+
+# The non-prose fields must be UNTOUCHED — this is the guard on quote-only-the-title.
+WY="$(new_repo)"; BY="$(body 'seed')"
+run_mint "$WY" --title "Ordinary title" --slug plainfields --body-file "$BY" --discovered-from 234 >/dev/null 2>&1
+NY="$WY/docs/changes/active/0001-plainfields.md"
+assert "Y: discovered_from is still an UNQUOTED list (never stringified)" \
+  '[ "$(field_raw "$NY" discovered_from)" = "[234]" ]'
+assert "Y: list_field still parses discovered_from" '[ "$(list_field "$NY" discovered_from)" = "234" ]'
+assert "Y: id is still unquoted"      '[ "$(field_raw "$NY" id)" = "1" ]'
+assert "Y: slug is still unquoted"    '[ "$(field_raw "$NY" slug)" = "plainfields" ]'
+assert "Y: type is still unquoted"    '[ "$(field_raw "$NY" type)" = "chore" ]'
+assert "Y: created is still unquoted" '[ "$(field_raw "$NY" created)" = "$FIXED_DAY" ]'
+
 exit $fail

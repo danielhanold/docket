@@ -64,7 +64,17 @@ Reached from a skill through the facade: `docket.sh mint-stub …`.
    `render-change-links.sh`), then the caller's body verbatim. Every frontmatter value — most notably
    `--title`, which is model-authored English prose, not a script constant — is written back
    byte-for-byte; a literal `|`, `&`, or `\` in the title is never reinterpreted as replacement
-   syntax. The stub is an ordinary needs-brainstorm change: `status: proposed`, no `spec:`,
+   syntax. `title:` is additionally emitted as a **single-quoted** YAML scalar on **every** mint,
+   with every embedded `'` doubled (`docket_yaml_single_quote`). Quoting is unconditional rather
+   than predicated on the value's shape: single-quoted YAML interprets no escapes and has exactly
+   one rule, so the form is well-formed for every input that clears the control-character gate, and
+   there is no dangerous-input enumeration to get wrong (ADR-0071). The byte-for-byte `ENVIRON`
+   write is unchanged — the doubling happens in **bash**, before the value is exported to `awk`, so
+   `|`, `&` and `\` are still never reinterpreted. The other six field writes (`id`, `slug`,
+   `created`, `updated`, `type`, `discovered_from`) are deliberately untouched: quoting
+   `discovered_from: [234]` would turn a YAML **sequence** into a string. On read, `field()` and
+   `fm_field()` invert the doubling, so consumers see the original title byte-for-byte.
+   The stub is an ordinary needs-brainstorm change: `status: proposed`, no `spec:`,
    `trivial: false`, `auto_groomable` left **unset** so it inherits the repo default — exactly like a
    scan-mode stub. Any failure in this step (a bad field write, a directory that still can't be
    created, the render itself) aborts before anything is staged or committed.
