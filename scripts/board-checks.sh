@@ -441,6 +441,32 @@ for f in "${FILES[@]}"; do
       fi
     fi
 
+    # ar_pr is read ONCE here and shared by legs D and C below, whose gates are exact
+    # complements. This path is cost-sensitive (change 0176) and a second read of the same field
+    # is a real regression.
+    ar_pr="$(fm_field "$f" pr)"
+
+    # Leg D — THE STEP 7 SEAM: pr: recorded, status: never advanced (change 0219).
+    # docket-implement-next writes `status: implemented` and `pr:` in ONE field-write, and no script
+    # under scripts/ writes pr:. A manifest showing pr: set while status: is still in-progress is
+    # therefore an anomaly BY CONSTRUCTION, not a run in flight — which is why this leg is TIME-FREE
+    # with no idle floor. Leg A is the precedent and the reasoning is identical: there is no healthy
+    # window to wait out, so a floor would only delay a finding that is already certain. The other
+    # three legs are all blind here: leg A finds no incoherence (plan: and results: are both recorded
+    # by then), leg C SHORT-CIRCUITS on a non-empty pr: by deliberate design, and leg B catches it
+    # only at 12h — the same lag change 0211 exists to close.
+    #
+    # KNOWN RESIDUAL, and it is narrower than it looks: this script reads change files off the
+    # FILESYSTEM, not out of a git blob. Combined with the single-stroke field-write, leg D's honest
+    # yield is uncommitted partial edits in the shared .docket worktree, plus non-compliant drivers
+    # that write the two fields separately. It is worth having as a cheap, additive completeness
+    # guarantee over the Step 7 seam, NOT because it is a frequent signature. No idle floor is
+    # constructible for an uncommitted edit, so no floor is correct here — but for that reason, not
+    # for the reason a first draft reaches for.
+    if [ -n "$ar_pr" ]; then
+      emit aborted-run "$id" "pr: records $ar_pr but status: is still in-progress — the run stopped before its final status write; verify the PR and set status: implemented"
+    fi
+
     # Leg C — BUILT BUT NOT DELIVERED (change 0211). The run finished its build and stopped before
     # delivering it: commits on the feature branch, no PR recorded. Legs A and B are both
     # STRUCTURALLY blind to this, which is why it is a third leg and not a widening:
@@ -462,31 +488,6 @@ for f in "${FILES[@]}"; do
     # A non-empty pr: short-circuits the WHOLE leg. A change whose PR is recorded has delivered;
     # "unpushed branch with a recorded PR" means the PR record and the remote disagree, which is a
     # different defect with a different remedy that leg C would be a misleading oracle for.
-    # Leg D — THE STEP 7 SEAM: pr: recorded, status: never advanced (change 0219).
-    # docket-implement-next writes `status: implemented` and `pr:` in ONE field-write, and no script
-    # under scripts/ writes pr:. A manifest showing pr: set while status: is still in-progress is
-    # therefore an anomaly BY CONSTRUCTION, not a run in flight — which is why this leg is TIME-FREE
-    # with no idle floor. Leg A is the precedent and the reasoning is identical: there is no healthy
-    # window to wait out, so a floor would only delay a finding that is already certain. The other
-    # three legs are all blind here: leg A finds no incoherence (plan: and results: are both recorded
-    # by then), leg C SHORT-CIRCUITS on a non-empty pr: by deliberate design, and leg B catches it
-    # only at 12h — the same lag change 0211 exists to close.
-    #
-    # KNOWN RESIDUAL, and it is narrower than it looks: this script reads change files off the
-    # FILESYSTEM, not out of a git blob. Combined with the single-stroke field-write, leg D's honest
-    # yield is uncommitted partial edits in the shared .docket worktree, plus non-compliant drivers
-    # that write the two fields separately. It is worth having as a cheap, additive completeness
-    # guarantee over the Step 7 seam, NOT because it is a frequent signature. No idle floor is
-    # constructible for an uncommitted edit, so no floor is correct here — but for that reason, not
-    # for the reason a first draft reaches for.
-    #
-    # The read is HOISTED and shared with leg C below, whose gate is its exact complement. This path
-    # is cost-sensitive (change 0176) and a second read of the same field here is a real regression.
-    ar_pr="$(fm_field "$f" pr)"
-    if [ -n "$ar_pr" ]; then
-      emit aborted-run "$id" "pr: records $ar_pr but status: is still in-progress — the run stopped before its final status write; verify the PR and set status: implemented"
-    fi
-
     if [ -z "$ar_pr" ] && [ -n "$ar_ref" ]; then
       # ar_ref is REUSED from leg A but RE-GUARDED: leg C runs OUTSIDE leg A's
       # `if ar_ref="$(branch_ref …)"`, and a failed branch_ref leaves ar_ref SET BUT EMPTY. The
