@@ -2,10 +2,10 @@
 id: 110
 slug: shared-metadata-worktree-contention
 title: Concurrent agents collide on the shared .docket worktree's dirty-tree window
-status: proposed
+status: killed
 priority: high
 created: 2026-07-20
-updated: 2026-07-20
+updated: 2026-08-07
 depends_on: []
 related: [8]
 discovered_from: [109]
@@ -100,3 +100,7 @@ To be settled in brainstorm. Candidate directions, none yet chosen:
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+## Why killed
+
+Consolidated into #0247 at the 2026-08-07 backlog triage: the contention architecture fork (retry vs per-session worktrees) and #0119's commit-scoping policy are one design conversation — as 0119's abstain itself concluded. Priority high carried over; interactive groom.
