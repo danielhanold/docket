@@ -8,14 +8,14 @@ type: fix
 created: 2026-08-07
 updated: 2026-08-07
 depends_on: []
-related: [96, 113, 109]
+related: [96, 113, 109, 219]
 discovered_from: [113]
 adrs: [24, 44]
 spec:
 plan:
 results:
 trivial: false
-auto_groomable: true
+auto_groomable: false
 branch:
 pr:
 blocked_by:
@@ -79,3 +79,73 @@ or actually detect this stop as a false completion — grooming should determine
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+## Auto-groom blocked
+
+### 2026-08-07
+
+Autonomous grooming drafted a full design, the critic returned two `wrong but fixable` verdicts and
+three design defects, the one bounded revision round was spent, and the re-check returned **four
+still-unresolved defects**. No spec was emitted. The design work is not wasted — the reconstructed
+evidence and the settled findings below are the useful output, and a human groom should start from
+them rather than from a blank page.
+
+**Settled during the attempt — carry these forward, they do not need re-deriving.**
+
+The 2026-08-07 abort on change 0231 has a recoverable git signature, and it reshapes the change's
+premise:
+
+| Fact | Evidence |
+|---|---|
+| Plan committed on the feature branch | `71d64d33`, 11:35:37 -0400 |
+| `plan:` landed on `metadata_branch` | `2107f884`, 11:36:02 -0400 |
+| Build commits at the moment of return | none — next branch commit `20b70b62` at 11:43:01, after the human's resume |
+| Branch pushed / `pr:` | no / unset |
+| Disposition declared in the fork's report | **none** |
+
+So **Step 4's postcondition held in full, on both trees.** The run stopped on a *satisfied
+intermediate row* — the stop `docket-implement-next` already forbids twice in prose ("a satisfied
+intermediate row is never licence to stop"; the invented/absent-disposition rule). Both rules were
+live. Both were violated in one report.
+
+This answers the third open question above: **yes, the family shares a root cause.** Every
+prevention lever docket has shipped (0096's ADR-0044 call-site pre-specification, 0113's split §5
+sentence, the *Step postconditions* table, the terminal-disposition obligation) is prose addressed
+to the agent that is failing. The one non-prose lever, `aborted-run`, is the only one that could
+ever catch an instance without a suspicious human — and it could not catch this one:
+
+- **leg A** (artifact committed, field unset) is blind — `plan:` *was* set.
+- **leg B** (12h claim age) — the claim was 15 minutes old.
+- **leg C** (commits ahead, unpushed, `pr:` unset) — gated on a 2h branch-idle floor; the human
+  resumed after ~8 minutes.
+
+The structural gap, stated once: **the terminal-disposition contract has a producer and no
+consumer.** `advanced` is defined as claimable only when Step 7's postcondition holds — a
+git-checkable statement nothing checks.
+
+The candidate design was a pure-reader, zero-floor, single-change verifier
+(`docket.sh verify-run <id> <declared-disposition>`) plus README wiring, adding no fourth prose
+rule. The critic kept the script and holed the wiring.
+
+**What a human needs to decide.**
+
+1. **Is a self-declared `halted` trustworthy?** The verifier's whole premise is that the failing
+   agent violates prose contracts it has read. `halted` and `contended` leave *identical* git state
+   to an abort, so an aborting agent that declares `halted` passes the oracle silently — the same
+   producer-with-no-consumer gap one level up. Either both are `unverifiable`, or someone must name
+   a git discriminator. This is the load-bearing call and it is a policy judgement about how much
+   the worker's self-report may be trusted, not something to default.
+2. **Does the fix stop at an attended verifier?** A verifier nobody is obliged to run reduces cost
+   for an already-suspicious human; it does not close the unattended path. Reaching that path means
+   reaching the dispatch mechanism, which docket does not own. That is a scope call about docket's
+   boundary.
+3. **Ordering against change 0219.** 0219 (`in-progress`, `high`) is adding a time-free **leg D** to
+   `aborted-run` keyed on `status: in-progress` + `pr:` set, enriching leg C, and rewriting
+   `board-checks.md`'s `## Not covered` paragraph — the same oracle, the same failure family, an
+   overlapping Step-7 predicate. `related: 219` has been recorded here, but `related:` is never a
+   readiness gate: decide whether this needs `depends_on: [219]` (noting 0219 itself hangs on
+   `depends_on: [211]`) or merely a "expect a rebase" note.
+
+**Recommendation: keep it, do not kill or defer.** The bug is real, reproducible, and this is its
+fourth instance. But it wants a human groom, and the human should resist a fourth point-fix — the
+evidence above is that another prose rule will be violated exactly as the first three were.
