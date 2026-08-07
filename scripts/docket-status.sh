@@ -610,12 +610,18 @@ detect_orphan_pr(){
   for f in "${files[@]}"; do
     status="$(field "$f" status)"
     [ "$status" = in-progress ] || continue
-    pr="$(field "$f" pr)"
+    # ANCHORED reads (ADR-0057) for both OPTIONAL keys, matching board-checks.sh leg D verbatim —
+    # the two legs share leg C's gate, so a disagreement here would break the "the two findings
+    # always agree" property this block's header sells. field() takes the first match ANYWHERE in
+    # the file, and this repo's change bodies routinely open a line with `pr:` or `branch:`: an
+    # unanchored pr: read would skip such a change as already-recorded (a SILENT false negative),
+    # and an unanchored branch: read would aim the tip probe at a ref named in prose.
+    pr="$(fm_field "$f" pr)"
     [ -z "$pr" ] || continue          # pr: recorded is leg D's domain, never this one
     id="$(int_field "$f" id)"
     [ -n "$id" ] || continue
     slug="$(field "$f" slug)"
-    branch="$(field "$f" branch)"
+    branch="$(fm_field "$f" branch)"
     [ -n "$branch" ] || branch="feat/$slug"
     # Tip age off the LOCAL ref, then the remote-tracking one — branch_ref's order in
     # board-checks.sh. An unresolvable branch yields empty stdout and is silence, never a finding:

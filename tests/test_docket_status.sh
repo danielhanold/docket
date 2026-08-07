@@ -798,6 +798,8 @@ orphan_branch(){  # orphan_branch BRANCH AGE_SECS
 orphan_branch feat/has-pr 10800
 orphan_branch feat/no-pr  10800
 orphan_branch feat/fresh   3600
+orphan_branch feat/omit-pr     10800
+orphan_branch feat/omit-branch 10800
 
 cat > "$orphan_dir/docs/changes/active/0270-has-pr.md" <<'EOF'
 ---
@@ -848,6 +850,53 @@ pr: 500
 ---
 EOF
 
+# --- ANCHORED-READ fixtures (ADR-0057). `pr:` and `branch:` are both OPTIONAL manifest keys, and
+# this repo's change bodies routinely open a line with either one — so an unanchored field() read
+# falls through frontmatter and picks up body prose. Every fixture ABOVE carries both keys in
+# frontmatter, which makes them blind to the distinction: they pass under an anchored AND an
+# unanchored read. These two OMIT the key under test while discussing it in the body, so they are
+# the only cases that discriminate. One fixture per read, mirroring the mutation arms below.
+#
+# 275 — `pr:` absent from frontmatter, `pr:` opening a body line. An unanchored read sees the prose
+# value as a recorded PR and `[ -z "$pr" ] || continue` skips the change: a SILENT FALSE NEGATIVE,
+# the very direction leg C's twin in board-checks.sh anchors against.
+cat > "$orphan_dir/docs/changes/active/0275-omit-pr.md" <<'EOF'
+---
+id: 275
+slug: omit-pr
+title: pr absent from frontmatter, discussed in the body
+status: in-progress
+priority: high
+depends_on: []
+branch: feat/omit-pr
+---
+
+## Notes
+
+pr: 999 was the number we expected, but it was never opened.
+EOF
+# 276 — `branch:` absent from frontmatter, `branch:` opening a body line that names a REAL ref
+# (feat/fresh, whose tip is inside the idle floor). An unanchored read aims the tip probe at that
+# fresh ref and the change drops out below the floor; the anchored read falls back to feat/<slug>,
+# which is 3h idle, and the finding names that branch.
+cat > "$orphan_dir/docs/changes/active/0276-omit-branch.md" <<'EOF'
+---
+id: 276
+slug: omit-branch
+title: branch absent from frontmatter, discussed in the body
+status: in-progress
+priority: high
+depends_on: []
+pr:
+---
+
+## Notes
+
+branch: feat/fresh
+
+was considered for this work and rejected.
+EOF
+
 cat > "$tmp/gh-orphan-ok.sh" <<'EOF'
 #!/usr/bin/env bash
 if [ "$1" = repo ] && [ "$2" = view ]; then echo "x/y"; exit 0; fi
@@ -887,6 +936,14 @@ assert "detect_orphan_pr SILENT when pr: is already recorded (id 273 — leg D's
   '! grep -q "^check aborted-run 273 " <<<"$orphan_out"'
 assert "detect_orphan_pr emits no sweep-skipped when gh works" \
   '! grep -q "^sweep-skipped" <<<"$orphan_out"'
+assert "detect_orphan_pr reads pr: ANCHORED: body prose never suppresses a candidate (id 275)" \
+  'grep -q "^check aborted-run 275 " <<<"$orphan_out"'
+# Extracted into a variable first: `producer | grep -q` takes SIGPIPE under pipefail (AGENTS.md).
+orphan_276="$(grep -E "^check aborted-run 276 " <<<"$orphan_out")"
+assert "detect_orphan_pr reads branch: ANCHORED: the tip probe uses feat/<slug>, not body prose (id 276)" \
+  'grep -qF "feat/omit-branch" <<<"$orphan_276"'
+assert "the branch-prose fixture's finding never names the prose ref (id 276)" \
+  '! grep -qF "feat/fresh" <<<"$orphan_276"'
 
 # A repo with NO candidate change must pay nothing — not even a `gh repo view`. The witness has to
 # be a SIDE EFFECT, not stdout: `gh repo view`'s stdout is captured into the repo variable, so a stub
@@ -984,6 +1041,60 @@ assert "detect_orphan_pr says WHY it skipped on unparseable gh output" \
   'grep -q "^sweep-skipped gh-unparseable" <<<"$orphan_garbage_out"'
 assert "detect_orphan_pr with unparseable gh output returns success (best-effort)" \
   '[ $orphan_garbage_rc -eq 0 ]'
+
+# ---- detect_orphan_pr anchored-read mutation arms (guards-are-code) ----
+# The block performs SEVERAL anchored reads, so the arms are PER READ: unanchor one read at a time
+# in a throwaway copy of the script and watch the matching fixture's outcome change. Every arm runs
+# against a FRESH pristine copy (never a cumulative chain) and is CONFIRMED LANDED with a grep -c
+# before/after before its red/green result is believed — the discipline board-checks.sh's own
+# aborted-run arms use.
+orphan_mutcopy=""
+orphan_mutreseed(){
+  [ -n "$orphan_mutcopy" ] && rm -rf "$orphan_mutcopy"
+  orphan_mutcopy="$(mktemp -d)"
+  cp -R "$REPO/scripts/." "$orphan_mutcopy/"
+  ORPHAN_MUTSCRIPT="$orphan_mutcopy/docket-status.sh"
+}
+orphan_mutrun(){
+  ( cd "$orphan_dir" && \
+    DOCKET_MODE=main CHANGES_DIR=docs/changes NOW=$ORPHAN_NOW GH="$tmp/gh-orphan-ok.sh" \
+    bash -c '. "'"$ORPHAN_MUTSCRIPT"'"; detect_orphan_pr' )
+}
+
+# Arm 1 — unanchor the pr: read (fm_field -> field). Fixture 275, whose body opens a `pr:` line,
+# goes SILENT: the prose value reads as a recorded PR and the candidate is skipped. Fixture 271,
+# which has no body pr: line, still fires — proving the arm broke the READ and not the leg.
+orphan_mutreseed
+omut1_before="$(grep -cF 'fm_field "$f" pr' "$ORPHAN_MUTSCRIPT")"
+awk '{ sub(/fm_field "\$f" pr\)/, "field \"$f\" pr)"); print }' "$ORPHAN_MUTSCRIPT" > "$ORPHAN_MUTSCRIPT.t"
+mv "$ORPHAN_MUTSCRIPT.t" "$ORPHAN_MUTSCRIPT"
+omut1_after="$(grep -cF 'fm_field "$f" pr' "$ORPHAN_MUTSCRIPT")"
+omut1_out="$(orphan_mutrun)"
+assert "orphan mutation 1 landed: the pr: read is unanchored (fm_field count 1 -> 0)" \
+  '[ "$omut1_before" = 1 ] && [ "$omut1_after" = 0 ]'
+assert "orphan mutation 1 landed: the mutated copy is still valid bash" 'bash -n "$ORPHAN_MUTSCRIPT"'
+assert "orphan mutation 1 (unanchor pr:): the body-prose fixture 275 goes SILENT — proves the anchoring" \
+  '! grep -q "^check aborted-run 275 " <<<"$omut1_out"'
+assert "orphan mutation 1: fixture 271, which has no body pr: line, still fires" \
+  'grep -q "^check aborted-run 271 " <<<"$omut1_out"'
+
+# Arm 2 — unanchor the branch: read (fm_field -> field). Fixture 276's tip probe follows the prose
+# ref feat/fresh, whose tip is inside the idle floor, so the change goes SILENT. Fixture 271, whose
+# branch: IS in frontmatter, still fires.
+orphan_mutreseed
+omut2_before="$(grep -cF 'fm_field "$f" branch' "$ORPHAN_MUTSCRIPT")"
+awk '{ sub(/fm_field "\$f" branch\)/, "field \"$f\" branch)"); print }' "$ORPHAN_MUTSCRIPT" > "$ORPHAN_MUTSCRIPT.t"
+mv "$ORPHAN_MUTSCRIPT.t" "$ORPHAN_MUTSCRIPT"
+omut2_after="$(grep -cF 'fm_field "$f" branch' "$ORPHAN_MUTSCRIPT")"
+omut2_out="$(orphan_mutrun)"
+assert "orphan mutation 2 landed: the branch: read is unanchored (fm_field count 1 -> 0)" \
+  '[ "$omut2_before" = 1 ] && [ "$omut2_after" = 0 ]'
+assert "orphan mutation 2 landed: the mutated copy is still valid bash" 'bash -n "$ORPHAN_MUTSCRIPT"'
+assert "orphan mutation 2 (unanchor branch:): the body-prose fixture 276 goes SILENT — proves the anchoring" \
+  '! grep -q "^check aborted-run 276 " <<<"$omut2_out"'
+assert "orphan mutation 2: fixture 271, whose branch: is in frontmatter, still fires" \
+  'grep -q "^check aborted-run 271 " <<<"$omut2_out"'
+rm -rf "$orphan_mutcopy"
 
 # sweep_execute: chained close-out (task 5). Mock the four shared scripts via the SCRIPTS_DIR
 # seam so the loop is hermetic — no network, no real docket-config.sh, no real close-out logic.
