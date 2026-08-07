@@ -56,6 +56,7 @@ tests/test_ensure_docket_env.sh	10	parallel
 tests/test_ensure_global_config.sh	10	parallel
 tests/test_finalize_disposition.sh	10	parallel
 tests/test_finalize_gate.sh	10	parallel
+tests/test_gate_execution_posture.sh	10	parallel
 tests/test_github_mirror.sh	10	parallel
 tests/test_grep_portability.sh	10	parallel
 tests/test_groom_recap.sh	10	parallel
