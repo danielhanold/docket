@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0190 — Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0190-close-the-build-evidence-value-gap-a-post-gate-results-commi.md)**
+> ↩ **[Change 0190 — Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-07-0190-close-the-build-evidence-value-gap-a-post-gate-results-commi.md)**
 <!-- docket:backlink:end -->
 
 # Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip — design
