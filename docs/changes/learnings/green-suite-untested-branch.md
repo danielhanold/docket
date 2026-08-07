@@ -2,9 +2,9 @@
 slug: green-suite-untested-branch
 hook: "Green tests are not proof the hard branch was exercised — a mock that omits the tool routes every test through the degrade path."
 topics: [testing, fixtures, mocks]
-changes: [16, 22, 25, 26, 35, 58, 62, 69, 91, 93, 117, 126, 186, 207]
+changes: [16, 22, 25, 26, 35, 58, 62, 69, 91, 93, 117, 126, 186, 207, 219]
 created: 2026-07-11
-updated: 2026-08-05
+updated: 2026-08-07
 promotion_state: retained
 promoted_to:
 ---
@@ -108,3 +108,17 @@ was exercised.
   a project-level location, at least one fixture must exercise **each**, and the way to prove it is
   deletion, not reading ([[config-layer-write-and-read-hazards]] on giving the two locations separate
   dirs).
+- 2026-08-07 (#219, PR #171) — **A witness written against a stream the code never writes to.** A
+  plan-supplied fixture pinned "no candidate ⇒ never calls `gh`" by asserting on stdout — but the
+  only `gh` call on that path captures its output into a variable and prints nothing, so the assert
+  was *permanently* vacuous: it passed identically whether the call happened or not. Rewritten as a
+  side-effect witness (the stub records its invocation) **plus a companion assert proving the
+  witness is not itself vacuous** — the second half matters, because a witness that never fires is
+  the same green as a code path that never runs ([[plan-supplied-test-code-is-unverified]]). A
+  second plan fixture failed to discriminate for the same reason and was likewise replaced. In the
+  same branch, two of the change's blockers were invisible to their fixtures for the structurally
+  identical reason (see [[frontmatter-anchored-read]] and
+  [[duplicated-gate-copies-the-whole-predicate]]): a fixture population authored from tidy,
+  well-formed inputs makes the correct and the incorrect implementation indistinguishable. Three in
+  one change is the tell that "would this fixture redden if the code were wrong?" belongs in the
+  build loop, not review.

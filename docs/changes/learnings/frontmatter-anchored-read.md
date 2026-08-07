@@ -2,9 +2,9 @@
 slug: frontmatter-anchored-read
 hook: "A first-match-anywhere field read is safe only for keys that are ALWAYS present — for an optional key it falls through into the body and returns prose."
 topics: [yaml, frontmatter, reads]
-changes: [127, 202]
+changes: [127, 202, 219]
 created: 2026-07-23
-updated: 2026-08-05
+updated: 2026-08-07
 promotion_state: candidate
 promoted_to:
 ---
@@ -51,3 +51,13 @@ green. One absent-key fixture and one mutation arm **per read**.
   body opens a `results:` line, branch carries an unrecorded results file) and a *second mutation
   arm*. Neither alone discriminates — the fixture is inert without a mutation that reaches it, and
   the mutation is inert without a fixture whose body prose it can fall through into.
+- 2026-08-07 (#219, PR #171) — **Two legs on the same branch, one honoring the rule and one not.**
+  `board-checks.sh`'s new `detect_orphan_pr` read the optional `pr:` and `branch:` keys with the
+  unanchored `field`, while the leg added beside it in the same change used `fm_field` correctly —
+  so the two legs could disagree about the same file, in a repo whose change bodies routinely open
+  lines with `pr:`. Review caught it as a blocker, and again *no existing fixture could tell the two
+  implementations apart*: every orphan fixture carried both keys in frontmatter, which is the
+  natural way to author one. Fixed with one absent-key fixture and one mutation arm per read, per
+  the per-key rule above. The recurrence inside a change whose author knew the rule is the argument
+  for the anchoring decision living in the *helper*: knowing the hazard did not prevent reaching for
+  `field` at a fresh call site.

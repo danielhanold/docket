@@ -17,6 +17,7 @@ One curated finding per file; this index is the hint surface. Load it, then read
 ## design
 
 - [best-effort-helper-on-a-sole-deliverable-path](best-effort-helper-on-a-sole-deliverable-path.md) — Reusing a deliberately best-effort helper on a path where its output IS the deliverable converts a soft failure into a silent exit 0. · also: shell, contracts
+- [duplicated-gate-copies-the-whole-predicate](duplicated-gate-copies-the-whole-predicate.md) — When a second site must AGREE with an existing gate, copy the whole predicate — copying only its threshold leaves a gate that agrees on the easy inputs and diverges on exactly the ones the original was written to exclude. · also: duplication, gates ⟨needs promotion⟩
 - [idempotency-keying](idempotency-keying.md) — Key a nothing-to-do probe on the state you PROMISED (it reached the remote), never on a local proxy a half-completed run also leaves behind. · also: idempotency, git
 - [presence-encoded-state](presence-encoded-state.md) — When state is encoded by an artifact's presence, every transition out of that state must remove the artifact. · also: state, views ⟨needs promotion⟩
 - [replacement-must-match-both-bounds](replacement-must-match-both-bounds.md) — When a new routing rule replaces a fixed escalation ladder, check the FLOOR as well as the ceiling — a matching ceiling makes the claim of equivalence look proven while the strongest tier silently becomes unreachable. · also: guards, review ⟨needs promotion⟩
