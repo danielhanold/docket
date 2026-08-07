@@ -1,0 +1,178 @@
+#!/usr/bin/env bash
+# tests/test_run_tests.sh — guard for scripts/run-tests.sh (change 0227). Every fixture test this
+# builds is deliberately trivial; this file must never invoke the real suite (it is itself IN the
+# real suite, so doing so would recurse).
+set -uo pipefail
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+fail=0
+assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
+
+RT="$REPO/scripts/run-tests.sh"
+assert "runner exists"                '[ -f "$RT" ]'
+assert "runner is executable"         '[ -x "$RT" ]'
+assert "runner has a contract"        '[ -f "$REPO/scripts/run-tests.md" ]'
+assert "runner is not a facade op"    '! grep -q "run-tests" "$REPO/scripts/docket.sh"'
+
+T="$(mktemp -d)"; mkdir -p "$T/tests"
+
+# Three fixture tests: two green, one red.
+cat > "$T/tests/test_alpha.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "ok - alpha one"
+echo "ok - alpha two"
+exit 0
+EOF
+cat > "$T/tests/test_beta.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "ok - beta one"
+exit 0
+EOF
+cat > "$T/tests/test_red.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "NOT OK - red one"
+exit 1
+EOF
+chmod +x "$T"/tests/test_*.sh
+
+# (1) all-green set exits 0 and reports the aggregate
+out="$(bash "$RT" -j 2 "$T/tests/test_alpha.sh" "$T/tests/test_beta.sh" 2>&1)"; rc=$?
+assert "green set exits 0"                    '[ "$rc" = "0" ]'
+assert "green set reports files=2 passed=2"   'grep -qE "^SUITE files=2 passed=2 failed=0 " <<<"$out"'
+assert "green set counts 3 assertions"        'grep -qE "^SUITE .* asserts=3 " <<<"$out"'
+
+# (2) a failing file propagates rc=1 and its log is printed even without --verbose
+out="$(bash "$RT" -j 2 "$T/tests/test_alpha.sh" "$T/tests/test_red.sh" 2>&1)"; rc=$?
+assert "failing file exits 1"                 '[ "$rc" = "1" ]'
+assert "failing file named in summary"        'grep -q "test_red" <<<"$out"'
+assert "failing file log is shown by default" 'grep -q "NOT OK - red one" <<<"$out"'
+assert "passing log hidden without --verbose" '! grep -q "ok - alpha one" <<<"$out"'
+# Captured first, then matched from a here-string: `producer | grep -q` under pipefail lets the
+# producer take SIGPIPE and turn a real result into an intermittent 141 (AGENTS.md, Shell).
+vout="$(bash "$RT" -j 2 --verbose "$T/tests/test_alpha.sh" 2>&1)"
+assert "passing log shown with --verbose"     'grep -q "ok - alpha one" <<<"$vout"'
+
+# A file with ZERO `ok` lines must still produce a well-formed stat record. `grep -c` prints 0 AND
+# exits 1 on no match, so the obvious `grep -c ... || echo 0` yields a TWO-LINE count field that
+# truncates the record and drops a column — green tests hide it, this is where it shows.
+out="$(bash "$RT" -j 1 "$T/tests/test_red.sh" 2>&1)"
+assert "a file with no ok lines still counts its NOT OKs" \
+  'grep -qE "^SUITE files=1 passed=0 failed=1 asserts=1 " <<<"$out"'
+
+# (3) -j 1 and -j 4 agree on the aggregate — parallelism changes wall time, never the verdict
+s1="$(bash "$RT" -j 1 "$T"/tests/test_alpha.sh "$T"/tests/test_beta.sh 2>&1 | grep -E "^SUITE ")"
+s4="$(bash "$RT" -j 4 "$T"/tests/test_alpha.sh "$T"/tests/test_beta.sh 2>&1 | grep -E "^SUITE " | sed -E "s/ wall=[0-9]+s$//")"
+assert "-j1 and -j4 agree on the aggregate" '[ "${s1% wall=*}" = "${s4% wall=*}" ] || [ "$(sed -E "s/ wall=[0-9]+s$//" <<<"$s1")" = "$s4" ]'
+
+# (4) per-file output is emitted in a deterministic (sorted) order regardless of -j.
+# Reads STDOUT only, deliberately: the deterministic report is what stdout carries. Stderr carries
+# the live progress ticker, which is emitted in COMPLETION order and is racy by construction —
+# folding it in with 2>&1 would test the ticker's order, which the runner does not promise.
+# `awk NR<=2`, never `head -2`: head exits early and SIGPIPEs the producer (AGENTS.md, Shell).
+ord(){ bash "$RT" -j "$1" "$T"/tests/test_beta.sh "$T"/tests/test_alpha.sh 2>/dev/null | grep -oE "test_(alpha|beta)" | awk 'NR<=2' | tr "\n" " "; }
+assert "per-file order is deterministic across -j" '[ "$(ord 1)" = "$(ord 4)" ]'
+assert "per-file order is sorted, not argv order"  '[ "$(ord 4)" = "test_alpha test_beta " ]'
+
+# (5) ISOLATION — a test cannot see the invoker's HOME, TMPDIR, or global git config.
+cat > "$T/tests/test_iso.sh" <<'EOF'
+#!/usr/bin/env bash
+[ "$HOME" != "$OUTER_HOME" ] && echo "ok - HOME is isolated" || echo "NOT OK - HOME leaked"
+[ "${TMPDIR%/}" != "${OUTER_TMPDIR%/}" ] && echo "ok - TMPDIR is isolated" || echo "NOT OK - TMPDIR leaked"
+[ "$(git config --get user.email)" = "test@docket.invalid" ] && echo "ok - git identity is synthetic" || echo "NOT OK - real git identity leaked"
+[ -w "$HOME" ] && echo "ok - HOME is writable" || echo "NOT OK - HOME not writable"
+exit 0
+EOF
+chmod +x "$T/tests/test_iso.sh"
+iso="$(OUTER_HOME="$HOME" OUTER_TMPDIR="${TMPDIR:-/tmp}" bash "$RT" -j 1 --verbose "$T/tests/test_iso.sh" 2>&1)"
+assert "job HOME is isolated"          'grep -q "ok - HOME is isolated" <<<"$iso"'
+assert "job TMPDIR is isolated"        'grep -q "ok - TMPDIR is isolated" <<<"$iso"'
+assert "job git identity is synthetic" 'grep -q "ok - git identity is synthetic" <<<"$iso"'
+assert "job HOME is writable"          'grep -q "ok - HOME is writable" <<<"$iso"'
+
+# Two jobs must not share a HOME — a shared shim is isolation from the developer but not from
+# each other, which is the race this runner exists to avoid.
+cat > "$T/tests/test_home_a.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "ok - home_a $HOME"
+exit 0
+EOF
+cp "$T/tests/test_home_a.sh" "$T/tests/test_home_b.sh"
+sed -i.bak 's/home_a/home_b/' "$T/tests/test_home_b.sh"; rm -f "$T/tests/test_home_b.sh.bak"
+homes="$(bash "$RT" -j 2 --verbose "$T/tests/test_home_a.sh" "$T/tests/test_home_b.sh" 2>&1 | grep -oE "ok - home_[ab] .*" | sed -E "s/^ok - home_[ab] //" | sort -u | wc -l | tr -d " ")"
+assert "each job gets its OWN HOME" '[ "$homes" = "2" ]'
+
+# (6) TIMINGS record
+tf="$T/timings.tsv"
+bash "$RT" -j 2 --timings "$tf" "$T/tests/test_alpha.sh" "$T/tests/test_beta.sh" >/dev/null 2>&1
+assert "timings file written"              '[ -s "$tf" ]'
+assert "timings has one row per file"      '[ "$(wc -l < "$tf" | tr -d " ")" = "2" ]'
+assert "timings rows are 5 tab fields"     '[ "$(awk -F"\t" "{print NF}" "$tf" | sort -u)" = "5" ]'
+assert "timings carries the assert counts" 'awk -F"\t" "\$1 ~ /test_alpha/ && \$4 == 2 {found=1} END{exit !found}" "$tf"'
+
+# (7) BUDGETS — an over-budget file reddens with exit 4, and the message says how to FIX it.
+cat > "$T/tests/test_slow.sh" <<'EOF'
+#!/usr/bin/env bash
+sleep 3
+echo "ok - slow one"
+exit 0
+EOF
+chmod +x "$T/tests/test_slow.sh"
+printf 'tests/test_slow.sh\t1\tparallel\n' > "$T/budgets.tsv"
+bout="$( cd "$T" && bash "$RT" -j 1 --budgets "$T/budgets.tsv" "$T/tests/test_slow.sh" 2>&1 )"; brc=$?
+assert "over-budget file exits 4 (green but slow)" '[ "$brc" = "4" ]'
+assert "over-budget file is named"                 'grep -q "test_slow" <<<"$bout"'
+assert "over-budget remedy says shard, not raise"  'grep -qi "shard this file or extend an existing shard" <<<"$bout"'
+assert "over-budget remedy does NOT say raise the budget" '! grep -qiE "raise (the )?(budget|ceiling|number)" <<<"$bout"'
+assert "--no-budget-check suppresses the breach" \
+  '( cd "$T" && bash "$RT" -j 1 --budgets "$T/budgets.tsv" --no-budget-check "$T/tests/test_slow.sh" >/dev/null 2>&1 )'
+
+# The budget check must not fire on a file that is comfortably inside its ceiling — otherwise the
+# assert above would pass for the wrong reason (a check that always fires).
+printf 'tests/test_slow.sh\t60\tparallel\n' > "$T/budgets_ok.tsv"
+( cd "$T" && bash "$RT" -j 1 --budgets "$T/budgets_ok.tsv" "$T/tests/test_slow.sh" >/dev/null 2>&1 )
+assert "in-budget file does NOT trip the check" '[ "$?" = "0" ]'
+
+# (8) SERIAL mode — a file pinned serial still runs and is still reported.
+printf 'tests/test_alpha.sh\t60\tserial\n' > "$T/budgets_serial.tsv"
+sout="$( cd "$T" && bash "$RT" -j 4 --budgets "$T/budgets_serial.tsv" "$T/tests/test_alpha.sh" "$T/tests/test_beta.sh" 2>&1 )"
+assert "serial-pinned file still runs"  'grep -qE "^SUITE files=2 passed=2 " <<<"$sout"'
+
+# A set that is ENTIRELY serial must still run — the parallel phase is then empty, and an empty
+# array under `set -u` is exactly where a slot scheduler falls over.
+printf 'tests/test_alpha.sh\t60\tserial\ntests/test_beta.sh\t60\tserial\n' > "$T/budgets_allser.tsv"
+aout="$( cd "$T" && bash "$RT" -j 4 --budgets "$T/budgets_allser.tsv" "$T/tests/test_alpha.sh" "$T/tests/test_beta.sh" 2>&1 )"
+assert "an all-serial set still runs"   'grep -qE "^SUITE files=2 passed=2 failed=0 asserts=3 " <<<"$aout"'
+
+# (9) SLOT ACCOUNTING — never more than -j N jobs in flight, and no fewer when work is waiting.
+# An off-by-one in the slot loop is invisible in the verdict (every file still passes and the
+# aggregate is identical), so overlap has to be observed directly. Each fixture appends a token on
+# entry and another on exit; O_APPEND makes those single-byte writes atomic, so the file is a true
+# interleaving and the running prefix sum is the concurrency at each instant.
+for n in 1 2 3 4; do
+  cat > "$T/tests/test_slot$n.sh" <<'EOF'
+#!/usr/bin/env bash
+printf '+\n' >> "$SLOTLOG"
+sleep 1
+printf -- '-\n' >> "$SLOTLOG"
+echo "ok - slot"
+exit 0
+EOF
+done
+chmod +x "$T"/tests/test_slot*.sh
+: > "$T/slotlog"
+SLOTLOG="$T/slotlog" bash "$RT" -j 2 "$T"/tests/test_slot1.sh "$T"/tests/test_slot2.sh \
+  "$T"/tests/test_slot3.sh "$T"/tests/test_slot4.sh >/dev/null 2>&1
+peak="$(awk '/^\+/{c++; if (c > m) m = c} /^-/{c--} END{print m + 0}' "$T/slotlog")"
+# Exactly 2 is two-sided on purpose: 3 means the slot loop leaks a job, 1 means it never actually
+# ran anything in parallel.
+assert "-j 2 holds exactly 2 jobs in flight" '[ "$peak" = "2" ]'
+: > "$T/slotlog"
+SLOTLOG="$T/slotlog" bash "$RT" -j 1 "$T"/tests/test_slot1.sh "$T"/tests/test_slot2.sh >/dev/null 2>&1
+peak1="$(awk '/^\+/{c++; if (c > m) m = c} /^-/{c--} END{print m + 0}' "$T/slotlog")"
+assert "-j 1 never overlaps two jobs" '[ "$peak1" = "1" ]'
+
+# (10) usage error
+bash "$RT" --bogus-flag >/dev/null 2>&1
+assert "unknown flag exits 2" '[ "$?" = "2" ]'
+
+rm -rf "$T"
+exit $fail
