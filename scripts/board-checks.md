@@ -199,7 +199,7 @@ message: `title: unquoted scalar contains ': ' — quote it or reword (well-form
 visible artifact, narrated success, and dropped the metadata write. The oracle is deliberately
 **external** — the agent that dropped the bookkeeping write is the least reliable narrator of
 whether it dropped it, and the observed incidents produced confident, specific, wrong reports, so a
-check keyed on hedging in the report catches nothing. Gated on `status: in-progress`. **Three**
+check keyed on hedging in the report catches nothing. Gated on `status: in-progress`. **Four**
 independent legs; any emits, and more than one may emit on one change.
 
 - **Leg A — manifest/git incoherence (time-free).** The change's `branch:` carries a file under
@@ -269,6 +269,32 @@ independent legs; any emits, and more than one may emit on one change.
   **Not covered:** the run that opens the PR, writes `pr:`, and dies before `status: implemented`.
   Leg C's `pr:`-empty gate makes it invisible and leg B catches it at 12h; its evidence is a
   manifest/GitHub comparison, and this script is git-only by contract.
+
+- **Leg D — the Step 7 seam: `pr:` recorded, `status:` never advanced (time-free, change 0219).**
+  `pr:` is non-empty while `status:` is still `in-progress`. `docket-implement-next` writes
+  `status: implemented` **and** `pr:` in a single field-write and no script under `scripts/` writes
+  `pr:`, so this state is an anomaly **by construction** rather than a run in flight — which is why
+  the leg carries **no idle floor**. Leg A is the precedent, time-free for the same reason. The
+  other three legs are all blind to it: leg A finds no incoherence (`plan:` and `results:` are both
+  recorded by then), leg C **short-circuits on a non-empty `pr:`** by deliberate design, and leg B
+  catches it only at 12h — the same lag change 0211 exists to close.
+
+  The message names the recorded PR, the field that was never written, and a remedy that stays a
+  verification: `pr: records <n> but status: is still in-progress — the run stopped before its final
+  status write; verify the PR and set status: implemented`. It deliberately borrows neither leg C's
+  exclusive `pr: is unset` clause nor leg B's exclusive `mid-step`, so message-shape asserts keep
+  telling the four legs apart.
+
+  **Cost: zero git invocations.** Leg D's predicate is a pure frontmatter test, and it shares its
+  `pr:` read with leg C — one anchored read (`ar_pr`) serves both, since the two gates are exact
+  complements. Adding a second read on this path would be a real regression (change 0176).
+
+  **Known residual, and it is narrower than it looks.** This script reads change files off the
+  filesystem, not out of a git blob. Combined with the single-stroke field-write, leg D's honest
+  yield is *uncommitted partial edits in the shared `.docket` worktree, plus non-compliant drivers*
+  that write the two fields separately — not a routine abort signature. It is worth having as a
+  cheap, additive completeness guarantee over the Step 7 seam, not because it is frequent. No idle
+  floor is constructible for an uncommitted edit, so no floor is correct here.
 
 **A separate check-id, not a widened `stale-in-progress`.** That check keys on the same
 `claimed_at:` field but at a *human-scale abandonment* horizon (the 72h lease TTL, plus a 3-day
