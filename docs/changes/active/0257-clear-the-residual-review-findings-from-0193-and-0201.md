@@ -8,10 +8,10 @@ type: chore
 created: 2026-08-07
 updated: 2026-08-07
 depends_on: []
-related: []
+related: [253]
 discovered_from: [197, 204]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-07-clear-the-residual-review-findings-from-0193-and-0201-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-07-clear-the-residual-review-findings-from-0193-and-0201-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-clear-the-residual-review-findings-from-0193-and-0201-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -47,9 +50,11 @@ Verified 2026-08-07 — #0197's five findings from 0193's merge (PR #152), all p
 
 ## What changes
 
-The eight concrete edits above: two README cells, one convention sketch comment, one non-vacuity companion assert, two entailed-assert removals, one anchored guard, one restored rationale sentence, one AGENTS.md clause — plus the bounded 0201-file sweep.
+Settled by the linked design spec (groomed 2026-08-07, critic-gated), eight edits E1–E8: two README roster cells ("opt-in" → "shipped default"), the convention sketch comment ("superpowers default" → "shipped default", live surface only), a non-vacuity companion assert through a factored shared extractor in the review test, removal of the two strictly-entailed `!=` asserts in the config test, the opt-back-in guard anchored to the `### docket-build` README section (0253-compatible shape), the anti-deadlock override rationale restated with its rule in `references/gate-failure.md`, a whitespace-class + read-back clause on AGENTS.md's anchoring bullet, and the bounded rationale-loss sweep of the four 0201-compressed SKILL.mds.
+
+Coupling: `related: [253]` — 0253 rewrites prose-anchored guards in the same two test files and its build-time site re-derivation would sweep the guard E5 anchors; no ordering constraint, whichever lands second reconciles. 0249/0224/0172 collisions on the same files are plain append/textual adjacency, left in prose (mirroring 0249's own spec).
 
 ## Out of scope
 
 - 0200's board-checks bundle (separate, larger, re-scoped).
-- Any new guard machinery beyond the anchoring fixes named.
+- Any new guard machinery beyond the anchoring fixes named; helper hoisting (0252); guard-pattern policy (0253); producer-pipe hygiene (0172).
