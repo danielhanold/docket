@@ -10,7 +10,7 @@ updated: 2026-08-07
 depends_on: []
 related: [234]
 discovered_from: [234]
-adrs: []
+adrs: [71]
 spec: docs/superpowers/specs/2026-08-07-writers-emit-unquoted-yaml-title-scalars-so-six-change-files-design.md
 plan:
 results:
@@ -28,6 +28,7 @@ reconciled: false
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-07-writers-emit-unquoted-yaml-title-scalars-so-six-change-files-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-writers-emit-unquoted-yaml-title-scalars-so-six-change-files-design.md) |
+| ADRs | [ADR-0071](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0071-writer-guarantees-yaml-validity-by-construction.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
