@@ -2,11 +2,11 @@
 id: 198
 slug: settle-the-role-self-description-rule-s-positive-half-docket
 title: Settle the role-self-description rule's positive half — docket-review names no skills.review binding
-status: proposed
+status: killed
 priority: medium
 type: docs
 created: 2026-08-03
-updated: 2026-08-03
+updated: 2026-08-07
 depends_on: []
 related: []
 discovered_from: [194]
@@ -62,3 +62,7 @@ survives; 0194 gave both of those an explicit binding mention, so they conform t
 
 - Re-litigating 0194's deletion of the default-status claims, or its budget raise.
 - The guard's other limitations (co-occurrence scoping, hardcoded population) — separate follow-up.
+
+## Why killed
+
+Consolidated into #0248 at the 2026-08-07 backlog triage: explicit sibling pair with #0199 (each named the other), same guard file; enforce-the-positive-half is the default taken.
