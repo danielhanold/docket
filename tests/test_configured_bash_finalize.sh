@@ -51,11 +51,17 @@ export DOCKET_BASH_PATH="$TMP/bin/configured-bash"
 export RUNTIME_LOG="$runtime_log"
 export EXECUTION_LOG="$execution_log"
 export FINALIZE_TEST_COMMAND=
+green_status=0
 (
   cd "$fixture" || exit 1
   /bin/bash -c "$contract"
-)
+) || green_status=$?
 
+# The success direction of the accumulator's trailing exit predicate. Without it, an always-red
+# auto-detect branch (a non-zero initializer, a negated predicate) keeps every -ne 0 assert green
+# while turning every green suite into a red gate at both consumers.
+assert "auto-detect reports zero when every test passes" \
+  '[ "$green_status" -eq 0 ]'
 assert "auto-detect executes both shell tests" \
   '[ "$(sort "$execution_log")" = "test_alpha.sh
 test_beta.sh" ]'
