@@ -2,7 +2,7 @@
 slug: exit-code-encodes-a-non-failure
 hook: "A new exit code for a non-failure condition reads as a hard failure at every bare non-zero consumer — enumerate the callers before minting it, and default the advisory case to 0."
 topics: [exit-codes, contracts, gates]
-changes: [227]
+changes: [227, 224]
 created: 2026-08-07
 updated: 2026-08-07
 promotion_state: candidate
@@ -57,3 +57,22 @@ it later.
   defect lived entirely in the **interaction** with two callers written before it existed, which is
   why it survived task-level review and surfaced only at whole-branch review
   ([[foundational-test-discipline]]).
+
+- 2026-08-07 (#224, PR #174) — the **consumer-side** half of the same problem, one day later and in
+  the same pair of consumers. Change 0224 was writing down what had never been stated: that
+  `docket-build`'s gate verdict is keyed on the suite's exit status. The spec accepted as a benign
+  residual that `run-tests.sh`'s non-failure exits (3 = produced no result at all, 4 = green but
+  slow) would read as **red** — and red in that contract means "turn the failure into exactly one
+  synthetic integration-repair task," i.e. dispatch an agent to root-cause zero failures. Review
+  reversed the residual: the contract now states **green / halt / red**, a tri-state, without naming
+  a single exit code.
+
+  The generalization worth keeping: the caller-side rule above (default the advisory case to 0) is
+  only half the fix, because it can only ever protect the codes the *producer* thought to soften. A
+  consumer whose verdict is **binary** has no state to put a non-failure in — it must flatten it
+  into one of the two, and the safe-looking choice (red) is the one that manufactures work. Give the
+  consumer a third verdict — a **halt** — and delegate the classification to the resolved runner's
+  own documented contract rather than to an exit-code taxonomy in the consumer, which would go stale
+  the moment a repo configures a different runner. That delegation is a real, stated cost (ADR-0074
+  names it): docket cannot mechanically enforce that a runner documents its non-failure exits.
+

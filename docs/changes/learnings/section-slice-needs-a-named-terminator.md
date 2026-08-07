@@ -2,7 +2,7 @@
 slug: section-slice-needs-a-named-terminator
 hook: "A generic /^## / terminator ends the slice at the first heading-shaped line — including one inside a fenced example — so name the terminator, and assert the terminator exists."
 topics: [testing, guards, markdown]
-changes: [226]
+changes: [226, 224]
 created: 2026-08-07
 updated: 2026-08-07
 promotion_state: retained
@@ -47,3 +47,11 @@ than care.
   since a later rename would widen the slice to end-of-file with every assert still green. The
   section under test was *about* stub bodies, so the collision was not a freak accident — a
   document that documents markdown is exactly where heading-shaped lines appear inside examples.
+- 2026-08-07 (#224, PR #174) — a re-hit one day later, with an aggravating detail: the slice used
+  the generic `/^#+ /` terminator inside a block whose **own comment cited this finding by name**.
+  Citing a learning is not applying it — the author had the rule in hand, wrote the reference, and
+  still shipped the shape. Fixed to the named `/^### Gate execution posture$/` plus the existence
+  assert, in this suite rather than only in the sibling. The replacement was verified empirically to
+  yield a byte-identical slice (47 non-blank lines both ways), so it hardened the guard with zero
+  behavioral drift — worth doing whenever a terminator is tightened, since a silently *narrower*
+  slice would quietly stop covering what the asserts claim to cover.

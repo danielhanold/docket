@@ -2,7 +2,7 @@
 slug: phrase-grep-over-wrapped-prose
 hook: "A grep whose pattern can span a line break silently doubles as a line-wrap guard — collapse whitespace before matching, or a pure re-flow reddens asserts about policy that never changed."
 topics: [testing, grep, docs]
-changes: [218, 231]
+changes: [218, 231, 224]
 created: 2026-08-06
 updated: 2026-08-07
 promotion_state: candidate
@@ -30,3 +30,11 @@ stream is identical.
   correctly survived it — a false proof of robustness, the inverse of #218's false failure. Counts
   were taken through a whitespace-flattened copy instead. The rule is the same one, and it binds
   the verification step as hard as it binds the assert.
+- 2026-08-07 (#224, PR #174) — the third hit, and again in the *verification* step: the plan's own
+  mutation probe used a `perl` deletion built with a literal-space `quotemeta`, which cannot match a
+  phrase that wraps mid-line. The one guarded phrase that happened to wrap was the change's central
+  claim — `green if and only if the resolved suite command exits zero` — so the probe reported
+  `before=1 after=1`. What caught it was not the probe but the harness around it: the `before/after`
+  count check reported `MUTATION DID NOT LAND` instead of letting a never-applied mutation read as a
+  guard that correctly survived. Two independent recurrences in the verification step (#231, #224)
+  say the mitigation belongs in the probe *template*, not in each author's care.
