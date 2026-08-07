@@ -6,12 +6,12 @@ status: proposed
 priority: high
 type: docs
 created: 2026-08-06
-updated: 2026-08-06
+updated: 2026-08-07
 depends_on: []
 related: [190, 223, 227]
 discovered_from: [203]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-07-the-build-gate-contract-never-says-green-red-is-the-exit-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-07-the-build-gate-contract-never-says-green-red-is-the-exit-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-the-build-gate-contract-never-says-green-red-is-the-exit-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -49,30 +52,57 @@ This is squarely the repo's own house rule from `AGENTS.md` — key a guard on *
 enumerated list of spellings** — turned on the gate itself, and the reason unguarded prose is
 treated as decoration.
 
+There is a second hole the same clause closes: `skills/docket-build/references/gate-execution.md`
+capability 5 requires the gate to distinguish *still running*, *completed successfully*, *completed
+unsuccessfully*, and *result unavailable* — but nothing defines **successfully**, and § *Gate
+execution posture* clause 3 forbids reading completion from the caller-visible signal of the command
+that started the gate.
+
 ## What changes
 
-- State **exit-code keying** normatively in `skills/docket-build/SKILL.md` § *The build gate*: a
-  run is green if and only if the resolved suite command exits zero; output text is diagnostic, never
-  the verdict.
-- Add a **guard test** that fails if the contract stops saying it — the same treatment docket's other
-  prose rules get. Per `AGENTS.md`, mutation-test the guard (strip the clause, watch it redden) or it
-  is decoration.
-- Confirm the rule reads correctly for a suite run as a **loop over per-file commands** (the shape
-  this repo actually uses), not only for a single aggregate command — the per-file loop is where the
-  0203 mistake became possible.
+- State the verdict rule normatively in `skills/docket-build/SKILL.md` § *The build gate*, in one
+  named slot (after the `configured-bash-finalize` command-boundary paragraph, before `**Green** →`):
+  green **iff** the resolved suite command exits zero; output text is diagnostic, never the verdict;
+  the deciding status is the one recorded in the **terminal result artifact**, which is where
+  *completed successfully* is settled; *still running* and *result unavailable* remain budget halts,
+  never red; under a **per-file loop** the deciding status is the block's aggregate. The rule binds
+  every full-suite run this role performs, including the repair worker's post-fix re-run.
+- Add the guard to the **existing** `tests/test_docket_build.sh` under a change-0224 banner — a
+  `/^#+ /`-terminated slice of § *The build gate*, flattened before phrase matching, with a
+  non-vacuity companion through the same extractor and one independently mutation-tested assert per
+  rule. Per `AGENTS.md`, an assert never seen red against its own mutation is decoration.
+- **Raise the `skills/docket-build/SKILL.md` size-budget row in the same diff.** Measured 2026-08-07
+  the file is 317/2938 against `325 3000` — the clause does not fit. Follow
+  `tests/test_skill_size_budgets.sh`'s documented raise rule and its change-0201 obligation to name
+  the `references/` candidate (`gate-execution.md`) and argue in-diff why the prose cannot live there.
+
+The per-file-loop confirmation is not a separate deliverable: it is one sentence in the clause plus
+its own assert, and it is already discharged against finalize's `configured-bash-finalize` block.
 
 ## Out of scope
 
-- The execution posture / timeout problem — that is change 0223.
-- Suite runtime — that is change 0227 (supersedes the killed 0225).
+- The execution posture / timeout problem — change 0223 (landed; this clause plugs into it).
+- Suite runtime — change 0227 (landed; supersedes the killed 0225).
 - Changing what green and red *do* (evidence record, repair ladder); only what decides them.
+- Any change to the `docket:build-evidence` record schema (adjacent to change 0190).
+- Any rule about what a suite *runner* should exit for a non-failure condition — the gate reads bare
+  non-zero and must not learn an exit-code taxonomy.
+- `docket-finalize-change`'s prose: its `configured-bash-finalize` block already *is* the
+  exit-status test, so the mechanism is present there even though the wording is not.
 
 ## Open questions
 
-- Does the guard belong in an existing contract-prose test or a new one?
-- Should the rule also bind the **repair** path's re-run and `finalize`'s post-rebase run, or is the
-  build gate the only site?
-- Is there a cheap assertion that catches a shape-matching gate at runtime, or is contract prose plus
-  a docs guard the whole of it?
+Resolved by the spec (2026-08-07, autonomous groom — see its `## Assumptions` for the audit trail):
+
+- **Existing test or a new one?** The existing `tests/test_docket_build.sh`, which already owns the
+  build gate's contract prose. A new file was 0223's answer because it spanned four surfaces.
+- **Does the rule bind the repair re-run and finalize?** The repair re-run yes; finalize no —
+  scoped out above.
+- **A cheap runtime assertion?** No. Contract prose plus the docs guard is the whole of it; an
+  `exit_code:` field on the evidence record would change a schema with three consumers while 0190 is
+  open, which is a human's call.
+
+Residual, accepted rather than fixed: under `green iff zero`, `scripts/run-tests.sh`'s exit 3 (a
+harness failure that certified nothing) reads as red. Fail-closed and identical to today's behavior.
 
 ## Reconcile log
