@@ -11,7 +11,7 @@ depends_on: []
 related: []
 discovered_from: [139, 100]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-07-tier-finalize-s-in-context-dispatches-and-name-the-push-deni-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-07-tier-finalize-s-in-context-dispatches-and-name-the-push-deni-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-tier-finalize-s-in-context-dispatches-and-name-the-push-deni-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -38,8 +41,11 @@ Verified 2026-08-07:
 
 ## What changes
 
-- Tier or carve out the two finalize dispatches in the convention's dispatch-capability section (default: an explicit carve-out stating halt/abort-and-report, per #0139's own reasoning), and rewire `test_dispatch_capability.sh`'s `PENDING_TIER` block into the real assertion in the same change.
-- Add the push-classifier-denial sentence to `gate-failure.md`'s abort-and-report enumeration, pointing at the harness-native-recovery remedy.
+Settled by the linked spec (9 audited assumptions):
+
+- An explicit **carve-out paragraph** (not a fourth tier) in the convention's dispatch-capability section: the two in-context-gating finalize dispatches sit outside the A/B/C taxonomy; when dispatch is genuinely unavailable the posture is finalize's existing **abort-and-report**, and inline substitution is forbidden (self-approval shape). Label literal: `carve-out`.
+- Site wiring lands in `gate-failure.md` (blocking-loaded at both dispatch moments), which also gains two new abort-and-report members: dispatch-unavailable, and a policy denial of the post-rebase `--force-with-lease` push (named by noun, never a step number — the old "step 5" now collides with gate-failure's own "gate-step-5" red-suite usage) pointing at the harness-native-recovery remedy; the stale "six distinct abort reasons" count is de-numeralized.
+- `test_dispatch_capability.sh`: the two sites become ordinary `check_site` rows; `PENDING_TIER` stays as an **empty-pinned** guard (count 0); the coherence loop skips non-`Tier`-shaped labels with a dedicated both-nouns assert against the convention's carve-out paragraph; floors re-derived. `test_finalize_gate.sh` gains sentinels for the two new enumeration members.
 
 ## Out of scope
 
