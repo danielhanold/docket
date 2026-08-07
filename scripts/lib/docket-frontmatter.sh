@@ -118,9 +118,15 @@ docket_scalar_quote_reason(){
   # ' #' opens a YAML comment: it TRUNCATES the value silently rather than aborting the parse,
   # which is the quieter and therefore worse failure. `finding #3` is ordinary auto-capture prose.
   case "$v" in *' #'*) printf 'comment-introducer'; return 0 ;; esac
-  # A leading YAML indicator: & and * silently lose meaning, the rest abort the parse.
+  # A leading YAML indicator: & and * silently lose meaning, # truncates, the rest abort the parse.
+  # A leading '#' is the MAXIMAL case of the leg above: the comment opens at character one, so the
+  # whole value parses to null rather than being merely shortened — the quietest failure of the set.
+  # It reaches this leg only when the value carries no ': ' and no ' #' of its own, which is an
+  # entirely ordinary docket shape (`#235 follow-up work`). A '#' that is neither leading nor
+  # whitespace-preceded (`issue#3 reopened`) is part of the value, exactly as YAML defines it, and
+  # stays silent here.
   case "$v" in
-    '['*|']'*|'{'*|'}'*|','*|'&'*|'*'*|'!'*|'|'*|'>'*|"'"*|'"'*|'%'*|'@'*|'`'*|'?'*|':'*|'- '*)
+    '['*|']'*|'{'*|'}'*|','*|'#'*|'&'*|'*'*|'!'*|'|'*|'>'*|"'"*|'"'*|'%'*|'@'*|'`'*|'?'*|':'*|'- '*)
                        printf 'indicator';          return 0 ;;
   esac
   return 0

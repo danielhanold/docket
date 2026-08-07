@@ -344,7 +344,9 @@ for f in "${FILES[@]}"; do
   #                        whole-value and case-insensitive (YAML 1.1).
   #   comment-introducer — the unquoted raw value contains a space-hash pair, which opens a YAML
   #                        comment and silently TRUNCATES the value rather than aborting the parse.
-  #   indicator          — the unquoted raw value opens with a YAML indicator character.
+  #   indicator          — the unquoted raw value opens with a YAML indicator character. A leading
+  #                        hash is one of them, and is the maximal form of the leg above: the
+  #                        comment opens at character one, so the WHOLE value parses to null.
   scalar_form_check(){ # scalar_form_check FIELD RAW
     local sfc_field="$1" sfc_raw="$2" sfc_reason
     case "$sfc_raw" in
