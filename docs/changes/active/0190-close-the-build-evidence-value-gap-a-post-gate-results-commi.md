@@ -2,7 +2,7 @@
 id: 190
 slug: close-the-build-evidence-value-gap-a-post-gate-results-commi
 title: "Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip"
-status: in-progress
+status: implemented
 priority: medium
 type: feat
 created: 2026-08-01
@@ -13,12 +13,12 @@ discovered_from: [170]
 adrs: [66]
 spec: docs/superpowers/specs/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md
 plan: docs/superpowers/plans/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi.md
-results:
+results: docs/results/2026-08-07-close-the-build-evidence-value-gap-a-post-gate-results-commi-results.md
 trivial: false
 auto_groomable: true
 branch: feat/close-the-build-evidence-value-gap-a-post-gate-results-commi
-claimed_at: 2026-08-07T15:18:03Z
-pr:
+claimed_at: 2026-08-07T18:20:51Z
+pr: https://github.com/danielhanold/docket/pull/173
 blocked_by:
 reconciled: true
 ---
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md) |
 | Plan | [2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi.md](https://github.com/danielhanold/docket/blob/feat/close-the-build-evidence-value-gap-a-post-gate-results-commi/docs/superpowers/plans/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi.md) |
+| Results | [2026-08-07-close-the-build-evidence-value-gap-a-post-gate-results-commi-results.md](https://github.com/danielhanold/docket/blob/feat/close-the-build-evidence-value-gap-a-post-gate-results-commi/docs/results/2026-08-07-close-the-build-evidence-value-gap-a-post-gate-results-commi-results.md) |
+| PR | [#173](https://github.com/danielhanold/docket/pull/173) |
 | ADRs | [ADR-0066](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0066-docket-owns-the-review-role-suite-runs-in-the-build-gate.md) |
 <!-- docket:artifacts:end -->
 
