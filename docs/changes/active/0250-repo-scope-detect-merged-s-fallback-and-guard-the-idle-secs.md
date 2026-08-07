@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/repo-scope-detect-merged-s-fallback-and-guard-the-idle-secs
-claimed_at: 2026-08-07T22:04:45Z
+claimed_at: 2026-08-07T22:05:51Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -55,3 +55,15 @@ Design settled 2026-08-07 (auto-groom); detail in the linked spec.
 - Refactoring the duplicated predicate into a shared helper (ADR-0072 decision stands).
 - Guarding the broader predicate *shape* (base handling, ref resolution) — narrowed to the idle-secs values at triage; shape stays prose-mitigated.
 - Any other `detect_*` leg; no other `gh` call sites; no change to `scripts/board-checks.sh`.
+
+## Reconcile log
+
+### 2026-08-07 — reconciled at claim (no scope change)
+
+Re-verified every premise against `origin/main` @ `483c5dad`:
+
+- `scripts/docket-status.sh:555` still carries the unscoped `"$GH" pr list --head "feat/$slug" --state merged --json number,mergedAt` — the `--repo` omission is live. The sibling `detect_orphan_pr` shape at `:728` still passes `--repo "$repo"`, so the mirror target is unchanged.
+- `ORPHAN_PR_IDLE_SECS=$(( 2 * 3600 ))` (docket-status.sh:577) and `ABORTED_RUN_IDLE_SECS=$(( 2 * 3600 ))` (board-checks.sh:189) are both still present, still equal, still by-value duplicates; `grep -c ORPHAN_PR_IDLE_SECS tests/test_docket_status.sh` is still `0` — no guard exists.
+- `scripts/docket-status.md:161` still quotes the fallback without `--repo`, so the mandatory doc touch of assumption 5 still resolves true.
+
+Nothing has been done elsewhere, no new ADR bears on the design, and no constraint has changed. Spec, scope, and out-of-scope list carry forward verbatim. `adrs: [72]` already set. No auto-capture candidates: everything this pass surfaced is inside the change's own scope.
