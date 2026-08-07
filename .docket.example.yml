@@ -196,6 +196,22 @@ review:
   max_fix_tasks: 10
 
 
+# ═══ Gate execution ════════════════════════════════════════════════════════════════════════
+
+# gate_observation_budget — (change 0223) how long, in MINUTES, docket is willing to await a
+# terminal result from a build gate it started. The gate must not assume the suite fits inside a
+# single foreground call: it runs durably, records its outcome to a durable artifact, and the
+# agent establishes completion from that artifact rather than from the completion signal of the
+# command that started it. This budget bounds that observation. When it expires with no terminal
+# result, the gate FAILS CLOSED — a halt for a human, never a red suite and never an
+# integration-repair task, because an unfinished run is not a failing suite.
+# It is docket execution policy, distinct from any foreground-call timeout a particular harness
+# imposes; no harness figure belongs here. 0 is legal and means "observe once, then fail closed".
+# Anything that is not a non-negative integer is a config error, not a silent fallback.
+# scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
+gate_observation_budget: 30
+
+
 # ═══ Board surfaces ════════════════════════════════════════════════════════════════════════
 
 # board_surfaces — which derived board view(s) to render. A list; [] disables the board entirely

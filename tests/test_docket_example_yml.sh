@@ -108,6 +108,7 @@ map_for(){ # map_for <EXPORT_KEY> -> ERE matching the example's line, or empty i
     AUTO_CAPTURE_ENABLED)  echo '^[[:space:]]+enabled:[[:space:]]*false' ;;
     AUTO_CAPTURE_TYPES)    echo '^[[:space:]]+types:[[:space:]]*all' ;;
     TERMINAL_PUBLISH)      echo '^terminal_publish:[[:space:]]*false' ;;
+    GATE_OBSERVATION_BUDGET) echo '^gate_observation_budget:[[:space:]]*30[[:space:]]*$' ;;
     RECLAIM_LEASE_TTL)     echo '^[[:space:]]+lease_ttl:[[:space:]]*72' ;;
     RECLAIM_AUTO)          echo '^[[:space:]]+auto:[[:space:]]*false' ;;
     BUILD_CHECKPOINT)      echo '^[[:space:]]+checkpoint:[[:space:]]*false' ;;
@@ -187,6 +188,7 @@ classify_key(){ # classify_key <example-key-name> -> "resolved:EXPORT" | "elsewh
     auto_capture.enabled) echo 'resolved:AUTO_CAPTURE_ENABLED' ;;
     auto_capture.types)   echo 'resolved:AUTO_CAPTURE_TYPES' ;;
     terminal_publish)     echo 'resolved:TERMINAL_PUBLISH' ;;
+    gate_observation_budget)      echo 'resolved:GATE_OBSERVATION_BUDGET' ;;
     reclaim.lease_ttl)            echo 'resolved:RECLAIM_LEASE_TTL' ;;
     reclaim.auto)                 echo 'resolved:RECLAIM_AUTO' ;;
     build.checkpoint)             echo 'resolved:BUILD_CHECKPOINT' ;;
@@ -436,11 +438,12 @@ assert "manifest: every elsewhere:HEADER entry is a real bare block opener (${ma
 # 0167 took it from 36 to 38 (the build: block header and its checkpoint leaf); change 0205 took
 # it from 38 to 40 (the runners.opencode header and its permissions leaf); change 0218 took it
 # from 40 to 42 (the review: block header and its min_fix_severity leaf), then from 42 to 43 when
-# the fix loop's hard-coded cap became the review.max_fix_tasks leaf.
+# the fix loop's hard-coded cap became the review.max_fix_tasks leaf; change 0223 took it from 43
+# to 44 (the flat top-level gate_observation_budget key).
 # intentional-growth remedy this count is guarding. This is the single source for that count: the
 # condition and the failure message below both read it, so bumping it in one place updates both
 # instead of leaving one stale.
-expected_key_count=43
+expected_key_count=44
 # RAW FLOOR (change 0102 whole-branch review, MINOR 3): example_keys_raw feeds BOTH this section's
 # manifest loop (via example_keys, deduped) and the duplicate-leaf check directly below (also
 # fed from example_keys_raw, undeduped). Without this assert, an edit that makes the raw pipeline
