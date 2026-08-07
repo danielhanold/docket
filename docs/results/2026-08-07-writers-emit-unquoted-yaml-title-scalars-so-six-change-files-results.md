@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0235 — Writers emit unquoted YAML title scalars, so six change files fail to parse](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0235-writers-emit-unquoted-yaml-title-scalars-so-six-change-files.md)**
+> ↩ **[Change 0235 — Writers emit unquoted YAML title scalars, so six change files fail to parse](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-07-0235-writers-emit-unquoted-yaml-title-scalars-so-six-change-files.md)**
 <!-- docket:backlink:end -->
 
 # Writers emit unquoted YAML title scalars, so six change files fail to parse — results
