@@ -636,6 +636,17 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # actuals: 100 lines -> 105, 971 words -> 1000. 100 is already a multiple of 5, so rounding up leaves
 # ZERO lines of margin — the near-zero-headroom failure mode this block records twice — hence the
 # multiple after it, 105; 1000 leaves 29 words (above the within-25 threshold).
+# The same change RATCHETED skills/docket-build/references/gate-execution.md DOWN, 175/1650 ->
+# 120/1000. A lowering needs no where-else clause either (that rule binds a raise), but the
+# ratchet is the discretionary half of 0234 and so is argued here: the file's defect was ACCUMULATED
+# evidence on a blocking-read surface, and leaving ~90 lines of headroom would leave the split
+# unenforced — the evidence would simply drift back. Per size-target-is-direction the number is a
+# direction, and the working margin the rounding rule leaves is the intended slack; a later change
+# that genuinely needs the room raises the row in-diff with its own justification, which is exactly
+# the audit trail wanted. Set per the rounding rule above from the measured actuals: 112 lines ->
+# 120, 957 words -> 1000. The next multiple of 5 is 115, but that leaves THREE lines of margin, which
+# this block has twice recorded raising past (TWO lines above, ZERO lines in the entry immediately
+# preceding) — so the multiple after it, 120. 1000 leaves 43 words (above the within-25 threshold).
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -643,7 +654,7 @@ skills/docket-auto-groom/SKILL.md                           66 1237
 skills/docket-brainstorm/SKILL.md                           84  692
 skills/docket-build/SKILL.md                               320 2950
 skills/docket-build/references/gate-execution-evidence.md  105 1000
-skills/docket-build/references/gate-execution.md            175 1650
+skills/docket-build/references/gate-execution.md            120 1000
 skills/docket-build/references/task-routing.md              50  500
 skills/docket-build-task/SKILL.md                          125 1100
 skills/docket-convention/SKILL.md                          345 5900
