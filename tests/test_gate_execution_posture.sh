@@ -397,5 +397,13 @@ evid_body="$(cat "$EVID" 2>/dev/null)"
 # still pass on an empty sibling.
 assert "evidence: is non-vacuous (>= 40 lines)" \
   '[ "$(printf "%s\n" "$evid_body" | grep -c .)" -ge 40 ]'
+assert "reference: points at the evidence file" \
+  'grep -qF "gate-execution-evidence.md" <<<"$ref_body"'
+# ABSENCE assert, deliberately: a guard asserting a removed class is ABSENT cannot go stale, because
+# the only way to redden it is to reintroduce the thing (learnings:
+# restatement-accumulates-its-own-guards, the 0194 entry). A positive assert that the evidence file
+# still CONTAINS the method section would instead pin a copy and rot on its next rewrite.
+assert "reference: carries no Method section (evidence stays off the blocking surface)" \
+  '! grep -qE "^## Method" <<<"$ref_body"'
 
 exit $fail
