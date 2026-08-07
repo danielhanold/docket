@@ -228,3 +228,66 @@ cannot invert defers the corruption rather than preventing it. Everything else h
 library on the read path, no new config knob, and no new check id, since `scalar-form` gains legs
 rather than a sibling check, leaving the `docket-status` check-id vocabulary and its consumers
 untouched.
+
+## Revision — 2026-08-07: the writer always quotes (ADR-0071)
+
+**Human decision, taken after grooming. This revises §1 and §2 on the write path and supersedes A1's
+"only when needed" and A3's no-key-enumeration stance for `set_field` alone.** The rest of the spec
+— §3 repair, §4 wording, §5 guards, and the whole checker side of §1 — stands as written. Recorded
+as **ADR-0071** (`relates_to: [62, 65]`).
+
+**What forced it.** §5 wanted proof that the writer emits valid YAML. The direct oracle is a real
+parser — and there is none available for free: Python ships **no** stdlib YAML module. Measured on
+this machine, `/opt/homebrew/bin/python3` has PyYAML 6.0.3 only because it was pip-installed, while
+`/usr/bin/python3` raises `ModuleNotFoundError: No module named 'yaml'`. The JSON precedent in
+`tests/test_cursor_permissions_docs.sh` falls back to `python3 -m json.tool` precisely because
+`json.tool` **is** stdlib; YAML has no equivalent. So a parser assert means a hard third-party
+dependency on an otherwise pure bash + git + `gh` repo (against ADR-0062), and a skip-when-absent
+assert is silently vacuous — the same "green suite that checked nothing" class this change exists to
+close.
+
+**The decision: remove the need for the oracle instead of paying for it.**
+
+1. **`set_field` always single-quotes `title`.** Not conditionally. The scope is one line —
+   `mint-stub.sh:204`. Of its seven `set_field` calls (`:202`–`:208`), `title` is the only free-text
+   prose: `slug` is slugified, and `id`/`created`/`updated`/`type`/`discovered_from` are an integer,
+   two ISO dates, an enum, and a `[…]` list.
+2. **Validity becomes structural rather than enumerated.** Single-quoted YAML interprets no escapes
+   and has exactly one rule — embedded `'` doubles to `''` — so a correctly-escaped single-quoted
+   scalar is valid for *every* input that already clears `set_field`'s control-character check
+   (`mint-stub.sh:77`). There is no dangerous-input class left to enumerate, and therefore no
+   predicate leg left to omit. That is the real objection to §1's five legs on the write path: they
+   are only as good as the enumeration, and a parser was attractive exactly because it catches the
+   class nobody thought of.
+3. **A byte assert is now sufficient.** With the output shape fully determined, asserting the
+   emitted line's exact bytes *is* asserting validity — provable by inspection instead of sampled.
+   §5's asserts keep their adversarial input table (apostrophe, colon-space, trailing colon, leading
+   `[`, bare boolean, ` #`, trailing space); what changes is that they now pin **one unconditional
+   shape** rather than a predicate's decision boundary.
+4. **The predicate survives, for the checker only.** `board-checks.sh`'s `scalar_form_check` reads
+   **hand-authored** files it did not write and must judge arbitrary scalars, so it still needs all
+   five legs plus the trailing-colon fix (§4) — that half of §1 is unchanged. A false negative there
+   costs a missed warn-only finding, never a corrupted file. Writer and checker stop being "one
+   shared rule" and become **two rules with different jobs**: guarantee vs. detect.
+
+**Consequences.**
+
+- **The round-two critic finding dissolves.** Leg 5 fired on `discovered_from: [234]`, turning a
+  sequence into a string; the flow-collection exemption existed to patch that. An always-quote rule
+  scoped to `title` never touches a list field, so the exemption is unnecessary on the write path
+  (it stays in the checker's predicate, where an arbitrary hand-authored value may still be a list).
+- **A2's reader inverse becomes load-bearing, and better tested.** `_docket_unwrap_quotes` must
+  undouble `''` inside a single-quoted token — now exercised on **every** mint rather than only on
+  apostrophe-bearing titles, so the path cannot rot unnoticed.
+- **Cosmetic cost, accepted.** Every newly minted title carries quotes in the raw file, including
+  ones that did not need them, and the quoting shows up in `git diff`. Uniformity is the point: it
+  is what removes the decision, and with it the possibility of deciding wrong.
+- **`archive-change.sh` has its own `set_field` copy** (`:67`) writing `status`, `updated`,
+  `claimed_at ""`, `results` — no free-text prose today. ADR-0071 states the rule so that copy
+  inherits it if it ever writes prose; this change does not edit it.
+
+**Open for the builder.** §5's rejection of a parse-every-real-change-file guard (A5) still holds —
+the hermetic suite cannot see the metadata branch where the six real violations live. The byte
+asserts above replace it. Do **not** reintroduce an optional-parser assert as a "bonus": on a
+machine without PyYAML it is a silent no-op, and a guard that sometimes checks nothing is worse than
+one that never claims to.
