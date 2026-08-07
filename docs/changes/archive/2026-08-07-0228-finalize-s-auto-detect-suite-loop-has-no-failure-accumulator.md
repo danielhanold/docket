@@ -29,8 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-07-finalize-s-auto-detect-suite-loop-has-no-failure-accumulator-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-finalize-s-auto-detect-suite-loop-has-no-failure-accumulator-design.md) |
-| Plan | [2026-08-07-finalize-auto-detect-suite-failure-accumulator.md](https://github.com/danielhanold/docket/blob/feat/finalize-s-auto-detect-suite-loop-has-no-failure-accumulator/docs/superpowers/plans/2026-08-07-finalize-auto-detect-suite-failure-accumulator.md) |
-| Results | [2026-08-07-finalize-s-auto-detect-suite-loop-has-no-failure-accumulator-results.md](https://github.com/danielhanold/docket/blob/feat/finalize-s-auto-detect-suite-loop-has-no-failure-accumulator/docs/results/2026-08-07-finalize-s-auto-detect-suite-loop-has-no-failure-accumulator-results.md) |
+| Plan | [2026-08-07-finalize-auto-detect-suite-failure-accumulator.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-07-finalize-auto-detect-suite-failure-accumulator.md) |
+| Results | [2026-08-07-finalize-s-auto-detect-suite-loop-has-no-failure-accumulator-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-07-finalize-s-auto-detect-suite-loop-has-no-failure-accumulator-results.md) |
 | PR | [#167](https://github.com/danielhanold/docket/pull/167) |
 <!-- docket:artifacts:end -->
 
