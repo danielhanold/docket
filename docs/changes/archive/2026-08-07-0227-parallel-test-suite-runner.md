@@ -2,7 +2,7 @@
 id: 227
 slug: parallel-test-suite-runner
 title: Parallel test-suite runner — 4x+ wall-clock speedup
-status: implemented
+status: done
 priority: medium
 type: chore
 created: 2026-08-06
@@ -17,7 +17,7 @@ results: docs/results/2026-08-07-parallel-test-suite-runner-results.md
 trivial: false
 auto_groomable:
 branch: feat/parallel-test-suite-runner
-claimed_at: 2026-08-07T06:05:44Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/165
 issue:
 blocked_by:
