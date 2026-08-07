@@ -2,11 +2,11 @@
 id: 147
 slug: extend-the-2c-orphan-key-check-past-its-column-0-anchor-to-n
 title: Extend the (2c) orphan-key check past its column-0 anchor to nested keys
-status: proposed
+status: killed
 priority: medium
 type: fix
 created: 2026-07-28
-updated: 2026-07-28
+updated: 2026-08-07
 depends_on: []
 related: [121, 149]
 discovered_from: [122]
@@ -127,3 +127,7 @@ Lean toward **kill**, or toward a deliberately tiny build. The defect the stub n
 the coverage it asks for already exists at greater strength in `(2b)`, and the honest remaining
 delta does not obviously justify a PR. A human should make that call.
 
+
+## Why killed
+
+Killed at the 2026-08-07 backlog triage: subsumed. (2b)'s per-key checks are strictly stronger than (2c)'s union grep for every classified key, so the column-0 residual is nearly empty — as this change's own auto-groom analysis concluded, leaning kill. Remaining example-yml guard hardening lives in #0246.
