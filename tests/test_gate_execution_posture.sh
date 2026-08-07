@@ -109,4 +109,41 @@ assert "build: the Halting conditions section was located (non-vacuity anchor)" 
 assert "build: Halting conditions carries the exhausted-budget bullet" \
   'grep -qiE "^- \*\*.*budget" <<<"$halt_blk"'
 
+# --- (8) finalize CITES the posture, never restates it -------------------------
+FIN="$REPO/skills/docket-finalize-change/SKILL.md"
+assert "finalize: SKILL.md exists" '[ -f "$FIN" ]'
+fin_body="$(cat "$FIN" 2>/dev/null)"
+fin_flat="$(flatten <<<"$fin_body")"
+assert "finalize: body is non-vacuous (>= 100 lines)" \
+  '[ "$(printf "%s\n" "$fin_body" | grep -c .)" -ge 100 ]'
+# The POSITIVES read the gate flow's item-5 `local` bullet, not the whole file. That bullet IS the
+# run this posture governs, and the plan's file-wide draft would be satisfied by the phrase turning
+# up anywhere in the file — including a mention that leaves the gate's own run uncited, which is the
+# exact mutation these asserts exist to catch. Same reasoning as groups (2)-(4)'s section slices.
+# A bullet-level anchor is deliberately tighter than a `## The rebase-retest merge gate` section
+# slice: the section also contains items 4, 6 and 7, and a citation parked beside the CI leg would
+# satisfy a section-scoped grep while leaving the local run — the only leg that runs a suite here —
+# uncited.
+fin_local="$(grep -E '^[[:space:]]*- `local` runs the suite' <<<"$fin_body")"
+local_flat="$(flatten <<<"$fin_local")"
+assert "finalize: the item-5 local-gate bullet was located (non-vacuity anchor)" \
+  '[ -n "$fin_local" ]'
+# The citation names the OWNER, so a reader lands on the single source.
+assert "finalize: local gate cites the gate execution posture" \
+  'grep -qiE "gate execution posture" <<<"$local_flat"'
+assert "finalize: the citation names docket-build as the owner" \
+  'grep -qiE "gate execution posture[^.]{0,120}docket-build|docket-build[^.]{0,120}gate execution posture" <<<"$local_flat"'
+# ...and does NOT restate it. Restatement accumulates its own guards and then goes stale; these
+# negatives are what keep the single source single. Deliberately WHOLE-FILE, unlike the positives
+# above: the no-restatement rule binds finalize everywhere, not only inside the bullet that cites.
+# Both phrases are absent from the pre-change file (measured: zero matches), so neither negative
+# arrives already red — each is mutation-tested by PLANTING the restatement it forbids. The file's
+# pre-existing "durable root" prose (change 0075) does not reach an "artifact" inside the window.
+# (The plan drafted the first as `durable[^.]{0,60}(result artifact|artifact)`; the first branch is
+# subsumed by the second, so this keys on `artifact` alone and matches strictly more.)
+assert "finalize: does not restate the durable-artifact clause" \
+  '! grep -qiE "durable[^.]{0,60}artifact" <<<"$fin_flat"'
+assert "finalize: does not restate the fail-closed clause" \
+  '! grep -qiE "fail[s]? closed" <<<"$fin_flat"'
+
 exit $fail
