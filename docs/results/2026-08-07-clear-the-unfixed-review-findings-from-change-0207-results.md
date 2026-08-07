@@ -1,0 +1,33 @@
+<!-- docket:backlink:start (generated — do not hand-edit) -->
+> ↩ **[Change 0220 — clear the unfixed review findings from change 0207](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0220-clear-the-unfixed-review-findings-from-change-0207.md)**
+<!-- docket:backlink:end -->
+
+# Clear the unfixed review findings from change 0207 — results
+Change: #0220 · Branch: feat/clear-the-unfixed-review-findings-from-change-0207 · PR: (opened at close-out) · Plan: docs/superpowers/plans/2026-08-06-clear-0207-review-findings.md · ADRs: none
+
+## Verify (human)
+
+- [ ] **BSD-grep suite pass.** The plan's final verification step (`PATH=/usr/bin:/bin bash tests/test_sync_agents.sh`) was never completed — three separate workers started it and each abandoned it past ten minutes, because real BSD grep runs the suite several times slower than the PATH ugrep. Each worker instead verified its own new greps against `/usr/bin/grep` directly (match, non-match, empty input, leading `--`), so the per-grep property is checked; what is unverified is the whole-file run. Worth one unattended run before merge, with a generous timeout.
+- [ ] **Pre-existing BSD-PATH failure.** Under `PATH=/usr/bin:/bin` the suite reports one failure, `0175 parser subprocess guard: dominant parser commands stay below 400`. It was reproduced with `sync-agents.sh` reverted to `origin/main`, so it is an environment artifact and not from this change — but confirm that reading when you run the check above, rather than seeing it fresh and treating it as a regression.
+
+## Findings
+
+Seven `docket-review-deep` findings from PR #159 were the *input* to this change; all seven are worked. The whole-branch review of **this** branch (`docket-review-standard`) returned seven more — 0 blocker, 2 important, 5 minor — and all seven were fixed in-branch before the PR opened. Their dispositions are in the PR body. What belongs here is the reasoning that does not fit a table row:
+
+1. **The reviewer's rationale for its own important #2 was factually wrong, and the corrected mechanism is the more useful lesson.** The reviewer claimed the `0220/D1` false-advisory assert was unconditionally non-discriminating — that reverting the guard would make leg (c) die inside `emit_wrapper`'s can't-happen assertion *before* any advisory line printed. In fact leg (c) walks `docket-*.md` alphabetically and the fixture pins its bad runner to `status`, so `docket-adr` and fourteen others reach the advisory first and the assert *does* redden. The assert is **order-dependent**, not vacuous: move the bad runner onto the alphabetically-first agent and the reviewer's description becomes exactly right. The complaint therefore stands — the guard rested on an incidental property of the fixture — and the requested `0220/D1b` fixture was built regardless, with a valid runner config so leg (c) runs to completion pre-fix. Both the in-file comment and the commit message record the corrected mechanism. This is the `verify-the-claim` learning firing on a *reviewer's* prose rather than a document's.
+
+2. **The new `emit_wrapper` abort message initially made the same class of false claim the change exists to correct.** D3's assertion was introduced with the diagnostic `"… No wrappers were written."` That is false: all three call sites invoke `emit_wrapper` under an output redirection, and bash truncates the target *before* the function body runs, so an abort there leaves a zero-length wrapper — the exact artifact 0207's atomicity design exists to prevent — and past the first loop iteration earlier wrappers are already written. Caught as review minor B and corrected. Worth recording because it is `fix-reintroduces-its-own-defect-class` landing squarely: a change whose stated purpose was correcting false in-source claims introduced a new one in its own additions.
+
+3. **Two `AGENTS.md` pipefail violations were introduced by plan-supplied test code, in a change that also cited that rule to reject plan-supplied test code.** Task 5's worker correctly refused the plan's `grep … | grep -qF …` spelling and captured into a variable first — but Task 4's worker had already accepted `grep -F … | head -n1` from the same plan, leaving the two blocks contradicting each other on a named repo rule. Fixed as review important #1. The plan is not an oracle (`plan-supplied-test-code-is-unverified`), and a worker honoring a repo rule in one block does not propagate it to the block a different worker wrote.
+
+4. **The `within()`-based "header states the contract" assert never tested the header.** `within()` searches forward from its anchor, and the CALLING CONTRACT comment sits *above* `emit_wrapper(){` — so the assert was satisfied by the `${RES_MODEL:-}` in the new body assertion roughly 200 characters below, and deleting the entire header comment left it green. Re-anchored on a verbatim clause from the comment itself. A `specified-but-unreachable` variant: the assert named a property it structurally could not reach.
+
+5. **Task 2's mutation predicted four reddening asserts; only three redden.** Without the gate's user-level leg the run still dies later, inside `emit_wrapper`'s can't-happen assertion, carrying the same `requires an explicit model` wording — so the three name-matching asserts stay green and only the "no wrapper written" and two `--check` asserts discriminate. That is the pre-0207 late-failure behavior showing through, and the fixture remains discriminating on the asserts that matter. No test was weakened to accommodate it.
+
+No decision arose during implementation that the spec had not already settled as D1–D6, so **no ADR was minted**. Review finding #7 extended D1's shared predicate to `prune_orphans`' two per-repo legs; that is an application of D1's own consistency argument (the spec's "Accepted cost" paragraph leans on those legs being the same boundary), not a new architectural choice, and it is documented in the predicate's header.
+
+## Follow-ups
+
+None minted. Every review finding was about this branch's own diff, so none was mintable under the fix loop's narrower auto-capture rule, and all seven were fixed rather than deferred.
+
+One observation deliberately left unacted, recorded for a future reader rather than filed: `gitignore_block_wanted`'s own `per_repo_opted_in && return 0` was **not** routed through `project_wrappers_generated`, and neither were `prune_orphans`' legs (1b) and (3). That is correct — legs (1b)/(3) operate on `$HARNESS_ROOT` rather than `$REPO` and are gated on `USER_HARNESSES_SET`/scope, a different concept, and `gitignore_block_wanted` is deliberately the weaker predicate (its header says so). The boundary now has a name; what it deliberately excludes is as load-bearing as what it covers.
