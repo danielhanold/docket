@@ -194,8 +194,12 @@ colon-space title from a bare one — and applies a skip leg plus **five** synta
   silently **truncates** the value rather than aborting the parse — the quieter, worse failure.
 - **Indicator leg:** the unquoted raw value opens with a YAML indicator character (`[`, `]`, `{`,
   `}`, `,`, `&`, `*`, `!`, `|`, `>`, `'`, `"`, `%`, `@`, a backtick, `?`, a leading `:`, or a
-  leading `- `). A well-formed flow collection (`[…]` or `{…}`) is exempt: quoting it would
-  silently change a sequence or map into a string.
+  leading `- `). A `[…]` or `{…}` is **not** exempt: the legs judge whether a value is well-formed
+  as a bare **scalar**, and a flow collection is not one — bare, `[234]` does not read back as the
+  string `[234]`. An exemption would have to run ahead of every other leg to protect that shape,
+  and there it silenced them all (`[a title: with colon]` stopped reporting `colon-space`), while
+  protecting nothing this checker reads: `title` and `blocked_by` are free text. A caller that
+  means a value as a sequence or a map does not route it through a scalar predicate.
 
 The five syntax legs live in **one** place — `lib/docket-frontmatter.sh`'s
 `docket_scalar_quote_reason`, which returns a single leg token — so this checker and any future

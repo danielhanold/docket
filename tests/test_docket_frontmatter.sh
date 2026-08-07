@@ -383,12 +383,20 @@ assert "silent: an interior asterisk"            '[ -z "$(reason "a b*c title")"
 assert "silent: an ordinary prose title"         '[ -z "$(reason "Cap the widget")" ]'
 assert "silent: the EMPTY value is exempt"       '[ -z "$(reason "")" ]'
 
-# Flow-collection exemption — a SHAPE test, never a key enumeration. Quoting a well-formed [..]
-# or {..} would turn a YAML sequence/map into a string for any real parser.
-assert "silent: a well-formed flow sequence" '[ -z "$(reason "[234]")" ]'
-assert "silent: a flow sequence with items"  '[ -z "$(reason "[4, 6]")" ]'
-assert "silent: a well-formed flow map"      '[ -z "$(reason "{owner: x}")" ]'
-# ...but an UNCLOSED bracket is not a collection, it is a broken scalar, and must still fire.
+# There is NO flow-collection exemption. The predicate answers one question — "is this value
+# well-formed as a BARE SCALAR" — and a flow collection is not a scalar at all, so `[234]` gets the
+# honest answer for the question asked: bare, it does not read back as the string `[234]`. A caller
+# that means a value as a sequence or a map must not route it through a scalar predicate. An
+# exemption here bought nothing (no consumer reads a collection-valued field) and cost the four
+# legs it shadowed, since it was necessarily evaluated ahead of them.
+assert "a flow sequence is not a scalar: indicator"      '[ "$(reason "[234]")" = indicator ]'
+assert "a flow sequence with items: indicator"           '[ "$(reason "[4, 6]")" = indicator ]'
+assert "a flow map hits the FIRST leg it matches"        '[ "$(reason "{owner: x}")" = colon-space ]'
+# The legs an exemption placed ahead of them made unreachable. Both fired under the pre-0235
+# checker; neither may go silent again.
+assert "a bracketed value with a colon-space still fires" '[ "$(reason "[a title: with colon]")" = colon-space ]'
+assert "a bracketed value ending in a colon still fires"  '[ "$(reason "[see the plan]:")" = trailing-colon ]'
+# An UNCLOSED bracket was never a collection under any reading — it must still fire.
 assert "leg indicator: an UNCLOSED bracket still fires" '[ "$(reason "[WIP")" = indicator ]'
 
 # The boolean wrapper agrees with the reason function in both directions.
