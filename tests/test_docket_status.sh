@@ -773,6 +773,218 @@ assert "detect_merged | sweep_execute: sweep-skipped reaches stdout through the 
 assert "detect_merged | sweep_execute: no bogus close-out output for the skip line" \
   '! printf "%s\n" "$pipe_out" | grep -Eq "^(swept|harvest|sweep-failed) "'
 
+# ============ detect_orphan_pr — the GitHub enrichment leg (change 0219) ============
+# Resolves the ambiguity board-checks.sh leg C leaves behind. Leg C is git-only by contract and can
+# only say "verify the PR exists"; two very different situations produce that one finding — a PR that
+# exists and merely went unrecorded (remedy: record it) versus a run that died before creating one
+# (remedy: create it). This leg asks GitHub which one it is. The GATE is leg C's own, so the two
+# findings always agree and the enrichment can never fire on a change leg C stayed silent about.
+orphan_dir="$tmp/orphan-pr"
+mkdir -p "$orphan_dir/docs/changes/active"
+git init -q "$orphan_dir"
+git -C "$orphan_dir" -c user.email=t@t -c user.name=t commit -q --allow-empty -m base
+
+# ORPHAN_NOW is the clock every case below is measured against; the branch tips are dated relative
+# to it. 3h > the 2h floor, 1h < it — the floor is the axis under test, so it must never be an
+# accident of the wall clock.
+ORPHAN_NOW=1750000000
+orphan_branch(){  # orphan_branch BRANCH AGE_SECS
+  local ob_when="@$(( ORPHAN_NOW - $2 ))"
+  git -C "$orphan_dir" checkout -q -b "$1"
+  GIT_AUTHOR_DATE="$ob_when" GIT_COMMITTER_DATE="$ob_when" \
+    git -C "$orphan_dir" -c user.email=t@t -c user.name=t commit -q --allow-empty -m "on $1"
+  git -C "$orphan_dir" checkout -q -
+}
+orphan_branch feat/has-pr 10800
+orphan_branch feat/no-pr  10800
+orphan_branch feat/fresh   3600
+
+cat > "$orphan_dir/docs/changes/active/0270-has-pr.md" <<'EOF'
+---
+id: 270
+slug: has-pr
+title: Pushed, PR open on GitHub, pr never recorded
+status: in-progress
+priority: high
+depends_on: []
+branch: feat/has-pr
+pr:
+---
+EOF
+cat > "$orphan_dir/docs/changes/active/0271-no-pr.md" <<'EOF'
+---
+id: 271
+slug: no-pr
+title: Pushed, no PR was ever opened
+status: in-progress
+priority: high
+depends_on: []
+branch: feat/no-pr
+pr:
+---
+EOF
+cat > "$orphan_dir/docs/changes/active/0272-fresh.md" <<'EOF'
+---
+id: 272
+slug: fresh
+title: Branch tip is fresher than the idle floor
+status: in-progress
+priority: high
+depends_on: []
+branch: feat/fresh
+pr:
+---
+EOF
+cat > "$orphan_dir/docs/changes/active/0273-recorded.md" <<'EOF'
+---
+id: 273
+slug: recorded
+title: pr already recorded — leg D's domain, not this one
+status: in-progress
+priority: high
+depends_on: []
+branch: feat/has-pr
+pr: 500
+---
+EOF
+
+cat > "$tmp/gh-orphan-ok.sh" <<'EOF'
+#!/usr/bin/env bash
+if [ "$1" = repo ] && [ "$2" = view ]; then echo "x/y"; exit 0; fi
+if [ "$1" = pr ] && [ "$2" = list ]; then
+  # --head <branch> is a flag/value pair somewhere in the argv; find it.
+  head=""
+  while [ $# -gt 1 ]; do
+    if [ "$1" = --head ]; then head="$2"; fi
+    shift
+  done
+  case "$head" in
+    feat/has-pr) echo '[{"number":777}]' ;;
+    *)           echo '[]' ;;
+  esac
+  exit 0
+fi
+echo "gh-orphan-ok: unexpected args: $*" >&2
+exit 1
+EOF
+chmod +x "$tmp/gh-orphan-ok.sh"
+
+orphan_out="$( cd "$orphan_dir" && \
+  DOCKET_MODE=main CHANGES_DIR=docs/changes NOW=$ORPHAN_NOW GH="$tmp/gh-orphan-ok.sh" \
+  bash -c '. "'"$SCRIPT"'"; detect_orphan_pr' )"
+
+assert "detect_orphan_pr reports the OPEN PR it found, by number (id 270)" \
+  'grep -q "^check aborted-run 270 " <<<"$orphan_out" && grep -qF "PR #777 is open" <<<"$orphan_out"'
+assert "the found-PR remedy is to RECORD it (id 270)" \
+  'grep -E "^check aborted-run 270 " <<<"$orphan_out" | grep -qF -- "pr: is unset — record it"'
+assert "detect_orphan_pr reports the NO-PR case distinctly (id 271)" \
+  'grep -q "^check aborted-run 271 " <<<"$orphan_out" && grep -E "^check aborted-run 271 " <<<"$orphan_out" | grep -qF "no PR on GitHub"'
+assert "the two outcomes are DISTINGUISHABLE — 271 never claims a PR is open" \
+  '! grep -E "^check aborted-run 271 " <<<"$orphan_out" | grep -qF "is open"'
+assert "detect_orphan_pr SILENT below the 2h idle floor (id 272)" \
+  '! grep -q "^check aborted-run 272 " <<<"$orphan_out"'
+assert "detect_orphan_pr SILENT when pr: is already recorded (id 273 — leg D's domain)" \
+  '! grep -q "^check aborted-run 273 " <<<"$orphan_out"'
+assert "detect_orphan_pr emits no sweep-skipped when gh works" \
+  '! grep -q "^sweep-skipped" <<<"$orphan_out"'
+
+# A repo with NO candidate change must pay nothing — not even a `gh repo view`. The witness has to
+# be a SIDE EFFECT, not stdout: `gh repo view`'s stdout is captured into the repo variable, so a stub
+# that merely echoes a marker is a permanently green, vacuous guard (caught by mutation-testing the
+# candidates-first early return). This stub touches a file instead, and the assert reads the file.
+orphan_none_dir="$tmp/orphan-pr-none"
+mkdir -p "$orphan_none_dir/docs/changes/active"
+git init -q "$orphan_none_dir"
+git -C "$orphan_none_dir" -c user.email=t@t -c user.name=t commit -q --allow-empty -m base
+cat > "$orphan_none_dir/docs/changes/active/0274-done-thing.md" <<'EOF'
+---
+id: 274
+slug: done-thing
+title: Nothing in progress here
+status: done
+priority: high
+depends_on: []
+branch: feat/done-thing
+pr: 600
+---
+EOF
+cat > "$tmp/gh-orphan-forbidden.sh" <<EOF
+#!/usr/bin/env bash
+printf '%s\n' "\$*" >> "$tmp/gh-was-invoked.log"
+echo "x/y"
+exit 0
+EOF
+chmod +x "$tmp/gh-orphan-forbidden.sh"
+rm -f "$tmp/gh-was-invoked.log"
+orphan_none_out="$( cd "$orphan_none_dir" && \
+  DOCKET_MODE=main CHANGES_DIR=docs/changes NOW=$ORPHAN_NOW GH="$tmp/gh-orphan-forbidden.sh" \
+  bash -c '. "'"$SCRIPT"'"; detect_orphan_pr' )"
+assert "detect_orphan_pr with no candidate change NEVER invokes gh — not even a repo view" \
+  '[ ! -e "$tmp/gh-was-invoked.log" ]'
+assert "detect_orphan_pr with no candidate change prints nothing" \
+  '[ -z "$orphan_none_out" ]'
+# The witness is real: the same stub DOES record an invocation when a candidate exists.
+rm -f "$tmp/gh-was-invoked.log"
+orphan_witness_out="$( cd "$orphan_dir" && \
+  DOCKET_MODE=main CHANGES_DIR=docs/changes NOW=$ORPHAN_NOW GH="$tmp/gh-orphan-forbidden.sh" \
+  bash -c '. "'"$SCRIPT"'"; detect_orphan_pr' )"
+assert "the never-invokes-gh witness is not vacuous: gh IS recorded when a candidate exists" \
+  '[ -e "$tmp/gh-was-invoked.log" ] && grep -q "^repo view" "$tmp/gh-was-invoked.log"'
+rm -f "$tmp/gh-was-invoked.log"
+
+# Best-effort posture, verbatim detect_merged's: a failing gh must go QUIET, never loud and never
+# fatal. This is what keeps board-checks.sh's offline guarantee intact — the offline-safe check keeps
+# emitting leg C's finding, and only the enrichment stops.
+cat > "$tmp/gh-orphan-fail.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "gh-orphan-fail: boom" >&2
+exit 1
+EOF
+chmod +x "$tmp/gh-orphan-fail.sh"
+
+orphan_fail_out="$( cd "$orphan_dir" && \
+  DOCKET_MODE=main CHANGES_DIR=docs/changes NOW=$ORPHAN_NOW GH="$tmp/gh-orphan-fail.sh" \
+  bash -c '. "'"$SCRIPT"'"; detect_orphan_pr' )"
+orphan_fail_rc=$?
+assert "detect_orphan_pr with a failing gh reports sweep-skipped" \
+  'grep -q "^sweep-skipped" <<<"$orphan_fail_out"'
+assert "detect_orphan_pr with a failing gh returns success (best-effort)" \
+  '[ $orphan_fail_rc -eq 0 ]'
+assert "detect_orphan_pr with a failing gh emits NO findings at all" \
+  '! grep -q "^check aborted-run" <<<"$orphan_fail_out"'
+
+# An ABSENT gh binary is a different failure path from a gh that runs and exits 1 — and it is the
+# common one offline. A mock that omits the tool routes everything through the degrade branch, so
+# both arms must be pinned separately.
+orphan_absent_out="$( cd "$orphan_dir" && \
+  DOCKET_MODE=main CHANGES_DIR=docs/changes NOW=$ORPHAN_NOW GH="$tmp/definitely-not-a-real-gh" \
+  bash -c '. "'"$SCRIPT"'"; detect_orphan_pr' )"
+orphan_absent_rc=$?
+assert "detect_orphan_pr with an ABSENT gh reports sweep-skipped and no findings" \
+  'grep -q "^sweep-skipped" <<<"$orphan_absent_out" && ! grep -q "^check aborted-run" <<<"$orphan_absent_out"'
+assert "detect_orphan_pr with an ABSENT gh returns success (best-effort)" \
+  '[ $orphan_absent_rc -eq 0 ]'
+
+# Malformed JSON is the third failure mode: gh exits 0 and prints something jq cannot parse. It is
+# reached only PAST the repo-resolution call, so the stub must serve `repo view` normally.
+cat > "$tmp/gh-orphan-garbage.sh" <<'EOF'
+#!/usr/bin/env bash
+if [ "$1" = repo ] && [ "$2" = view ]; then echo "x/y"; exit 0; fi
+echo 'not json at all'
+exit 0
+EOF
+chmod +x "$tmp/gh-orphan-garbage.sh"
+orphan_garbage_out="$( cd "$orphan_dir" && \
+  DOCKET_MODE=main CHANGES_DIR=docs/changes NOW=$ORPHAN_NOW GH="$tmp/gh-orphan-garbage.sh" \
+  bash -c '. "'"$SCRIPT"'"; detect_orphan_pr' )"
+orphan_garbage_rc=$?
+assert "detect_orphan_pr treats unparseable gh output as a skip, not a finding" \
+  '! grep -q "^check aborted-run" <<<"$orphan_garbage_out"'
+assert "detect_orphan_pr says WHY it skipped on unparseable gh output" \
+  'grep -q "^sweep-skipped gh-unparseable" <<<"$orphan_garbage_out"'
+assert "detect_orphan_pr with unparseable gh output returns success (best-effort)" \
+  '[ $orphan_garbage_rc -eq 0 ]'
+
 # sweep_execute: chained close-out (task 5). Mock the four shared scripts via the SCRIPTS_DIR
 # seam so the loop is hermetic — no network, no real docket-config.sh, no real close-out logic.
 sweep_dir="$tmp/sweep-case"

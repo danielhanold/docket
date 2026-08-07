@@ -226,6 +226,45 @@ would otherwise pass a nonexistent path and lose every health check at once, not
 `terminal_publish: true` config knob AND docket-mode (`metadata_branch: docket`) — in main-mode the
 metadata and integration refs coincide, so the comparison would be vacuous.
 
+### The `aborted-run` GitHub enrichment leg (change 0219)
+
+Full path only — never under `--board-only`. After the git-only health findings of step 7 are
+printed and before the reclaim gate of step 7a, `detect_orphan_pr` resolves the ambiguity
+`board-checks.sh`'s `aborted-run` **leg C** leaves behind.
+
+**Gate — leg C's own, reused rather than re-tuned.** A change under `active/` with
+`status: in-progress`, an empty `pr:`, and a branch whose newest commit is older than **2 hours**
+(`ORPHAN_PR_IDLE_SECS`, the same value as `board-checks.sh`'s `ABORTED_RUN_IDLE_SECS`, kept in sync
+by value — the two scripts share no library and `board-checks.sh` must stay independently runnable).
+Reusing the floor guarantees the enrichment never fires on a change leg C stayed silent about, so
+the two findings always agree. The branch is `branch:` when set, else `feat/<slug>`; an unresolvable
+branch is **silence**, never a finding.
+
+**Two outcomes, two remedies**, both rendered as `check aborted-run <id> <message>` — the same shape
+`health_checks` prints, so consumers read one vocabulary:
+
+- an open PR exists on the branch → `PR #<n> is open on <branch> but pr: is unset — record it`
+- no open PR exists → `<branch> is pushed (last commit Nh ago) but no PR on GitHub — the run stopped
+  before opening one`
+
+Unlike leg C's messages these do **not** hedge about the PR's existence — this leg has asked GitHub,
+so it states what it found. The remedy stays a bookkeeping act on the manifest and never a push or a
+merge: acting on the branch would race a run that is merely between commits. Advisory like every
+`aborted-run` leg — it flips no status, releases no claim, and writes no file.
+
+**Best-effort, verbatim `detect_merged`'s posture.** Any gh/network/parse failure emits
+`sweep-skipped <reason>` and returns 0; it never aborts the pass. The reasons are `gh-unavailable`
+(a `gh` that exits non-zero, and equally a `gh` that is not installed at all — the common offline
+case), `repo-unresolved`, and `gh-unparseable` (a `gh` that exits 0 and prints something `jq` cannot
+parse; that one skips the single change and the loop continues, since one bad response is not
+evidence about the others). A repo with no candidate change pays nothing — not even a
+`gh repo view`. This is what keeps `board-checks.sh`'s offline guarantee intact: offline, the
+git-only check keeps emitting leg C's finding and only the enrichment goes quiet.
+
+**Deliberately not folded into `health_checks`' output blob.** `reclaim_pass` keys a *mutating* gate
+on that blob (`RECLAIMABLE_LINE_RE`); widening what feeds it with network-derived lines would put a
+remote service inside a local mutation's trigger.
+
 **7a. Reclaim pass — opt-in mutation OR a state-valid remedy (change 0089). Full path only.** After
 the health-check lines are captured and printed, `reclaim_pass` keys on the stable `[reclaimable]`
 marker `board-checks.sh` stamps on the expired-lease-**and**-no-branch finding — the one case
@@ -413,7 +452,9 @@ All report lines are stdout, one shape per line, diagnostics go to stderr:
 - **Surface-specific failure postures.** See Failure postures above: board best-effort, sweep
   per-change log-and-continue, health checks warn-only, learnings best-effort. No single surface's failure aborts another
   surface's work within the same pass.
-- **Mock seams.** `GIT="${GIT:-git}"`, `GH="${GH:-gh}"`, `SCRIPTS_DIR="${SCRIPTS_DIR:-$SELF_DIR}"`
+- **Mock seams.** `GIT="${GIT:-git}"`, `GH="${GH:-gh}"`, `NOW="${NOW:-$(date +%s)}"` (the staleness
+  clock, spelled exactly as `board-checks.sh`'s so both suites drive their clocks the same way; read
+  by `detect_orphan_pr`'s idle floor), `SCRIPTS_DIR="${SCRIPTS_DIR:-$SELF_DIR}"`
   (where the chained scripts are looked up), and `CONFIG_EXPORT_CMD` (overrides the
   `docket-config.sh --export` call) — all overridable in tests for hermetic runs. The shared
   `docket_preflight` (`scripts/lib/docket-preflight.sh`) honors the same `GIT` and
