@@ -1,6 +1,6 @@
 # Backlog
 
-**227 changes** — 🟢 2 in progress · 🟡 52 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 140 done · 🗑️ 28 killed
+**227 changes** — 🟢 2 in progress · 🟡 52 proposed · ⚪ 4 deferred · ✅ 141 done · 🗑️ 28 killed
 
 ## 🟢 In progress (2)
 
@@ -75,12 +75,6 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | Type | PR | Readiness |
-|---|-------|----------|------|----|-----------|
-| [0220](active/0220-clear-the-unfixed-review-findings-from-change-0207.md) | clear the unfixed review findings from change 0207 | `medium` | `fix` | [#164](https://github.com/danielhanold/docket/pull/164) |  |
-
 ```mermaid
 graph TD
   0007
@@ -135,7 +129,6 @@ graph TD
   0204
   0208
   0211 --> 0219
-  0220
   0221
   0211 --> 0222
   0223
@@ -150,11 +143,12 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (168)</summary>
+<details><summary>✅🗑️ Archive — done + killed (169)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0225](archive/2026-08-07-0225-the-test-suite-has-grown-into-the-harness-s-foreground-ceilin.md) | The test suite has grown into the harness's foreground ceiling — cut its wall-clock runtime | 2026-08-07 |
+| [0220](archive/2026-08-07-0220-clear-the-unfixed-review-findings-from-change-0207.md) | clear the unfixed review findings from change 0207 | 2026-08-07 |
 | [0203](archive/2026-08-07-0203-define-the-per-step-git-state-postcondition-docket-implement.md) | Define the per-step git-state postcondition docket-implement-next now names but never states | 2026-08-07 |
 | [0218](archive/2026-08-06-0218-fix-review-findings-in-branch-instead-of-minting-a-stub-for.md) | Fix review findings in-branch instead of minting a stub for every one | 2026-08-06 |
 | [0217](archive/2026-08-05-0217-clear-change-0202-s-three-minor-findings-dead-guard-stale-ba.md) | Clear change 0202's three minor findings: dead guard, stale baseline comment, wrong plan pattern | 2026-08-05 |
@@ -176,7 +170,6 @@ graph TD
 | [0191](archive/2026-08-03-0191-enforce-yaml-scalar-wellformedness-in-change-frontmatter.md) | Enforce YAML scalar well-formedness in change-file frontmatter | 2026-08-03 |
 | [0113](archive/2026-08-03-0113-suppressed-handoff-silently-ends-autonomous-run.md) | A suppressed hand-off can silently end an autonomous run — make step completion verifiable, not narrated | 2026-08-03 |
 | [0193](archive/2026-08-02-0193-default-build-review-roles-to-docket-owned-skills.md) | Default the build and review roles to docket-build and docket-review | 2026-08-02 |
-| [0192](archive/2026-08-02-0192-opencode-profile-routed-build-support.md) | opencode support for profile-routed Docket builds | 2026-08-02 |
 | [0183](archive/2026-08-01-0183-cursor-dispatch-head-ships-a-stale-unpinned-claim-its-guard.md) | Cursor dispatch head ships a stale unpinned claim; its guard retired itself | 2026-08-01 |
 | [0044](archive/2026-07-30-0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | 2026-07-30 |
 | [0162](archive/2026-07-28-0162-restore-the-machine-local-ignored-advisory-for-a-committed-t.md) | Restore the machine-local-ignored advisory for a committed too-deep runtime.bash | 2026-07-28 |
@@ -202,7 +195,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 7 done |
+| [2026-08](archive/) | 8 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
