@@ -46,8 +46,7 @@
 | `tests/test_sync_agents_defaults.sh` | Shard 3 — shipped-sidecar layering (changes 0051, 0168). |
 | `tests/test_sync_agents_runners.sh` | Shard 4 — runner shims, atomic generation, pin injection. |
 | `tests/test_sync_agents_validator.sh` | Shard 5 — the change-0173 generation validator. |
-| `tests/test_harness_defaults_validator.sh` | Shard 2 of `test_harness_defaults.sh` — the malformed-shape validator + reader/source properties. |
-| `tests/test_docket_config_layers.sh` | Shard 2 of `test_docket_config.sh` — change 0102 onward. |
+| `tests/test_harness_defaults_validator.sh` | Shard 2 of `test_harness_defaults.sh` — the malformed-shape validator. Boundary chosen by measured cost; see Task 4. |
 
 **Modified:**
 
@@ -55,7 +54,6 @@
 |---|---|
 | `tests/test_sync_agents.sh` | Keeps shard 1 (wrapper sources + generator); prologue replaced by a `source` of `tests/lib/sync_agents_common.sh`. |
 | `tests/test_harness_defaults.sh` | Keeps shard 1. |
-| `tests/test_docket_config.sh` | Keeps shard 1. |
 | `tests/test_sync_agents_codex.sh` | Isolation-audit fixes only if the audit finds any; otherwise untouched. |
 | `.docket.yml` | `finalize.test_command: scripts/run-tests.sh` under the existing `finalize:` block. |
 | `AGENTS.md` | The "Guards and tests" bullet naming how the whole suite is run. |
@@ -641,92 +639,125 @@ git commit -m "test(0227): shard test_sync_agents.sh into five parts behind a sh
 
 ---
 
-### Task 4: Shard the remaining tail files
+### Task 4: Shard `test_harness_defaults.sh`
+
+> **Amended 2026-08-07, mid-build.** This task originally also split `test_docket_config.sh`, and
+> named line 169 as the `test_harness_defaults.sh` boundary. A worker executed both and returned
+> `BLOCKED` with evidence; both instructions were wrong and are corrected below. The two findings
+> are recorded here rather than silently dropped, because each is a durable fact about the file.
+>
+> **`test_docket_config.sh` is no longer split — it cannot be.** It carries the change-0126
+> prelude-correspondence guard, which scans `${BASH_SOURCE[0]}` — its own file — and asserts a
+> whole-file population floor:
+>
+> ```bash
+> assert "0126 T: guard reached a real population (>= 60 sites)" '[ "$t_sites" -ge 60 ]'
+> ```
+>
+> against a 64-site corpus, plus a derived cross-check `t_sites == t_raw - t_helper - t_comments -
+> t_selflit` over the same `BASH_SOURCE`. Any two-way split leaves both halves near 32 and
+> falsifies it; the measured split produced `sites=31` and one `NOT OK`. Making it pass means
+> lowering the floor or teaching the guard a multi-file corpus — both assertion changes, which the
+> Global Constraints forbid. The spec's own rule already covers this case: *"`test_docket_config.sh`
+> and `test_sync_agents_codex.sh` → 2 parts each **if section boundaries allow; otherwise leave and
+> accept the ~60s floor**."* Section boundaries do not allow it. The file measures **50s**, already
+> inside the ~60s ceiling, so leaving it whole costs the change nothing. Record the reason in
+> `tests/README.md` (Task 6) so the next person does not re-attempt it.
+>
+> **The line-169 boundary does not achieve the objective.** Measured, it yields shards of **4s and
+> 76s** against an 80s original — it buys 4s and leaves a shard over the ceiling. Essentially all
+> the cost sits in ~20 `hd_validate` calls inside the validator section. The boundary must be
+> chosen by measured cost, not by section title; Step 2 below now says so.
 
 **Files:**
-- Create: `tests/test_harness_defaults_validator.sh`, `tests/test_docket_config_layers.sh`
-- Modify: `tests/test_harness_defaults.sh`, `tests/test_docket_config.sh`
+- Create: `tests/test_harness_defaults_validator.sh` (and a third part if the measurement calls for one)
+- Modify: `tests/test_harness_defaults.sh`
 
 **Interfaces:**
-- Consumes: nothing from Task 3 — these files have their own small prologues and do not share `sync_agents_common.sh`.
-- Produces: two new test files that self-register via the discovery glob.
+- Consumes: nothing from Task 3 — this file has its own small prologue and does not share `sync_agents_common.sh`.
+- Produces: one (or two) new test files that self-register via the discovery glob.
 
-Both splits duplicate a short prologue rather than extracting a lib: each is a two-way split of a self-contained helper set, and a shared lib for two consumers buys less than it costs in indirection. (`test_sync_agents.sh` earned its lib at five consumers.)
+The split duplicates the short prologue rather than extracting a lib: it is a small self-contained helper set, and a lib for two consumers buys less than it costs in indirection. (`test_sync_agents.sh` earned its lib at five consumers.)
 
-**`tests/test_harness_defaults.sh`** (285 lines, ~85s) splits at line 169, the `# ---- validator rejects each malformed shape ----` banner:
-- Kept: lines 1–168 — the shipped file, the per-harness value blocks, set correspondence.
-- Moved to `tests/test_harness_defaults_validator.sh`: 169–end — the validator's malformed-shape rejections, the IFS-independence block, the behavior-only-template block. Its prologue must carry `set -uo pipefail`, `REPO`, `fail`, `assert`, the `harness-defaults.sh` source, `HD`, `T` (the temp dir), plus `mut`, `del_entry`, and `fm_has`.
+**Prologue the moved block needs** — verified by walking every reference in the moved range, not guessed: `set -uo pipefail`, `REPO`, `fail`, `assert`, the `scripts/lib/harness-defaults.sh` source, `HD`, and **`SRC`**. `T`, `mut`, `del_entry`, and `fm_has` are defined *inside* the moved block, so they travel with it — do not also put them in the prologue.
 
-**`tests/test_docket_config.sh`** (2673 lines, ~55s) splits at line 1250, the `# ====` banner introducing "Change 0218 — the review: block":
-- Kept: lines 1–1249 (86 of its 167 resolver invocations).
-- Moved to `tests/test_docket_config_layers.sh`: 1250–end (81 invocations). Its prologue must carry `set -uo pipefail`, `REPO`, `SCRIPT`, `fail`, `assert`, and the helpers `_mkrepo_build_template`, `mkrepo`, `run`, `fake_bash`, `ensure_test_runtime`, `rung`, `rung_rc`, `trace_external_commands`, `seed_live`.
+**`tests/test_sync_agents_codex.sh`** (296 lines, ~55s) is **not** split, under the same spec rule: it has no `# ----` section banners, so there is no mechanical boundary. Its budget row in Task 6 is set from its measured time with the standard margin. Record this decision in `tests/README.md` too.
 
-**`tests/test_sync_agents_codex.sh`** (296 lines, ~55s) is **not** split: it has no `# ----` section banners, so there is no mechanical boundary, and the spec's own rule is "2 parts each if section boundaries allow; otherwise leave and accept the ~60s floor". Its budget row in Task 6 is set from its measured time with the standard margin. Record this decision in `tests/README.md`.
-
-- [ ] **Step 1: Capture both baselines**
+- [ ] **Step 1: Capture the baseline (unrecoverable afterwards — do it first)**
 
 ```bash
 bash -c '
   scripts/run-tests.sh -j 1 --no-budget-check --timings /tmp/hd-before.tsv tests/test_harness_defaults.sh >/dev/null 2>&1
-  scripts/run-tests.sh -j 1 --no-budget-check --timings /tmp/dc-before.tsv tests/test_docket_config.sh  >/dev/null 2>&1
   echo "harness_defaults before (path secs rc ok notok):"; cat /tmp/hd-before.tsv
-  echo "docket_config    before (path secs rc ok notok):"; cat /tmp/dc-before.tsv
 '
 ```
 
-- [ ] **Step 2: Split `test_harness_defaults.sh`**
+Expect roughly `80s`, `rc=0`, `223` ok, `0` NOT OK.
 
-Move lines 169–end into `tests/test_harness_defaults_validator.sh`, duplicating the prologue named above. Header comment:
+- [ ] **Step 2: Locate the boundary by measured cost, then cut there**
+
+The expensive unit in this file is a `hd_validate` call over the full sidecar. Count them and find the line that halves them, rather than trusting a section title:
+
+```bash
+bash -c '
+  echo "== hd_validate call sites =="
+  command grep -n "hd_validate" tests/test_harness_defaults.sh
+  echo "== section banners =="
+  command grep -nE "^# ----" tests/test_harness_defaults.sh
+  echo "== total =="; command grep -c "hd_validate" tests/test_harness_defaults.sh
+'
+```
+
+Choose the `# ----` banner nearest to the median call site — **not** line 169, which sits before
+essentially all of them. If no single banner splits the calls acceptably, cut into **three** parts
+at two banners; the ceiling is the constraint and the part count is not. Name the third part
+`tests/test_harness_defaults_shapes.sh` if you need it.
+
+Each new part opens with the prologue named above and this header:
 
 ```bash
 #!/usr/bin/env bash
-# tests/test_harness_defaults_validator.sh — the harness-defaults validator's malformed-shape
-# rejections + reader/source properties (shard of test_harness_defaults.sh, change 0227).
-# Run: bash tests/test_harness_defaults_validator.sh
+# tests/test_harness_defaults_<part>.sh — <what this part covers> (shard of
+# test_harness_defaults.sh, change 0227). Run: bash tests/test_harness_defaults_<part>.sh
 set -uo pipefail
 ```
 
-Both parts keep the original's trailing report shape:
+Every part keeps the original's trailing report shape:
 
 ```bash
 [ "$fail" = 0 ] && echo "PASS" || echo "FAIL"
 exit "$fail"
 ```
 
-- [ ] **Step 3: Split `test_docket_config.sh`**
-
-Move lines 1250–end into `tests/test_docket_config_layers.sh`, duplicating the prologue named above. Both parts keep the original's trailing shape:
-
-```bash
-if [ "$fail" = 0 ]; then echo PASS; else echo FAIL; fi
-exit "$fail"
-```
-
-- [ ] **Step 4: Verify parity for both**
+- [ ] **Step 3: Verify parity and the ceiling**
 
 ```bash
 bash -c '
-  scripts/run-tests.sh --no-budget-check --timings /tmp/hd-after.tsv \
-    tests/test_harness_defaults.sh tests/test_harness_defaults_validator.sh >/dev/null 2>&1
-  scripts/run-tests.sh --no-budget-check --timings /tmp/dc-after.tsv \
-    tests/test_docket_config.sh tests/test_docket_config_layers.sh >/dev/null 2>&1
-  for p in hd dc; do
-    b="$(cut -f4 "/tmp/$p-before.tsv")"; a="$(awk -F"\t" "{s+=\$4} END{print s}" "/tmp/$p-after.tsv")"
-    bn="$(cut -f5 "/tmp/$p-before.tsv")"; an="$(awk -F"\t" "{s+=\$5} END{print s}" "/tmp/$p-after.tsv")"
-    echo "$p: ok before=$b after=$a  |  notok before=$bn after=$an"
-    [ "$b" = "$a" ] && [ "$bn" = "$an" ] && echo "  $p PARITY OK" || echo "  $p PARITY FAILED"
-  done
-  cat /tmp/hd-after.tsv /tmp/dc-after.tsv
+  scripts/run-tests.sh -j 1 --no-budget-check --timings /tmp/hd-after.tsv tests/test_harness_defaults*.sh >/dev/null 2>&1
+  b="$(cut -f4 /tmp/hd-before.tsv)"; a="$(awk -F"\t" "{s+=\$4} END{print s}" /tmp/hd-after.tsv)"
+  bn="$(cut -f5 /tmp/hd-before.tsv)"; an="$(awk -F"\t" "{s+=\$5} END{print s}" /tmp/hd-after.tsv)"
+  echo "ok before=$b after=$a  |  notok before=$bn after=$an"
+  [ "$b" = "$a" ] && [ "$bn" = "$an" ] && echo "PARITY OK" || echo "PARITY FAILED"
+  cat /tmp/hd-after.tsv
 '
 ```
 
-Expected: `PARITY OK` for both, every shard `rc=0`, no shard over ~60s.
+Expected: `PARITY OK` (223 ok, 0 NOT OK), every part `rc=0`, and **no part over ~60s measured
+serially**. A part still over the ceiling means the boundary is wrong — re-cut it; do not accept it.
 
-- [ ] **Step 5: Commit**
+Then confirm nothing else went red:
 
 ```bash
-git add tests/test_harness_defaults*.sh tests/test_docket_config*.sh
-git commit -m "test(0227): split the harness-defaults and docket-config tail files in two"
+scripts/run-tests.sh --no-budget-check
+```
+
+Expected: `failed=0`, and `files=` one or two higher than before this task.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add tests/test_harness_defaults*.sh
+git commit -m "test(0227): split the harness-defaults tail file by measured validator cost"
 ```
 
 ---
@@ -954,8 +985,15 @@ file that grows past its budget slows every future build, so placement is a real
 
 **Never grow a file past its budget and raise the number.** The budget guard counts over-ceiling
 rows separately from row completeness, so that edit reddens on its own. If a file legitimately
-cannot be split — `test_sync_agents_codex.sh` has no internal section boundaries, so it was left
-whole at change 0227 — that is a decision to argue in the diff, not a number to bump.
+cannot be split, that is a decision to argue in the diff, not a number to bump. Two files were
+argued that way at change 0227 and both are still whole:
+
+- `test_sync_agents_codex.sh` — no internal section banners, so there is no mechanical boundary.
+- `test_docket_config.sh` — it carries the change-0126 prelude-correspondence guard, which scans
+  its own `${BASH_SOURCE[0]}` and asserts a whole-file floor of **≥60 `eval` sites** against a
+  64-site corpus, with a derived cross-check over the same file. Any split halves the corpus and
+  falsifies both. Splitting it means changing that assertion — so do not re-attempt the split
+  without deciding, deliberately, what the guard's population should be across several files.
 
 ## Parallel-safety
 
@@ -1044,7 +1082,7 @@ git commit -m "chore(0227): point the merge gate and AGENTS.md at the parallel r
 
 ## Self-review
 
-**Spec coverage.** Spec §1 (`scripts/run-tests.sh` + contract) → Task 1. Spec §1's isolation and hidden-shared-state audit → Tasks 1 and 2. Spec §2 (shard the tail) → Tasks 3 and 4, with the `test_sync_agents_codex.sh` "otherwise leave it" branch taken explicitly and recorded. Spec §3 (budget table, guard test, `tests/README.md`) → Task 6. Spec "Integration" (`finalize.test_command`, `profile-asserts.sh` untouched) → Task 7 and the Global Constraints. Spec "Verification" (5954 assertions, 0 failures, <157s; `-j 1` matches serial; assertion-count parity per split) → Task 5 Step 2, plus the parity steps inside Tasks 3 and 4 and the `-j1`/`-j4` equivalence assertion in Task 1.
+**Spec coverage.** Spec §1 (`scripts/run-tests.sh` + contract) → Task 1. Spec §1's isolation and hidden-shared-state audit → Tasks 1 and 2. Spec §2 (shard the tail) → Tasks 3 and 4, with the spec's "otherwise leave and accept the ~60s floor" branch taken explicitly for **two** files and the reason recorded for each — `test_sync_agents_codex.sh` (no section boundaries) and `test_docket_config.sh` (a self-scanning population-floor guard no split can satisfy; see Task 4's amendment note). Spec §3 (budget table, guard test, `tests/README.md`) → Task 6. Spec "Integration" (`finalize.test_command`, `profile-asserts.sh` untouched) → Task 7 and the Global Constraints. Spec "Verification" (5954 assertions, 0 failures, <157s; `-j 1` matches serial; assertion-count parity per split) → Task 5 Step 2, plus the parity steps inside Tasks 3 and 4 and the `-j1`/`-j4` equivalence assertion in Task 1.
 
 **Placeholder scan.** No `TBD`/`TODO`; the runner, the guard, both test files, and the README are given in full. The two places that legitimately cannot be literal — which files the audit will find (Task 2) and the measured seconds (Tasks 5–6) — are handled by generating the artifact from the measurement rather than by predicting a value, which is the correct shape for a number that does not exist until it is measured.
 
