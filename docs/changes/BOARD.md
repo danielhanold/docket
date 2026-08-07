@@ -1,6 +1,6 @@
 # Backlog
 
-**226 changes** — 🟢 2 in progress · 🟡 53 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 139 done · 🗑️ 27 killed
+**226 changes** — 🟢 2 in progress · 🟡 53 proposed · ⚪ 4 deferred · ✅ 140 done · 🗑️ 27 killed
 
 ## 🟢 In progress (2)
 
@@ -76,12 +76,6 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | Type | PR | Readiness |
-|---|-------|----------|------|----|-----------|
-| [0203](active/0203-define-the-per-step-git-state-postcondition-docket-implement.md) | Define the per-step git-state postcondition docket-implement-next now names but never states | `medium` | `docs` | [#163](https://github.com/danielhanold/docket/pull/163) |  |
-
 ```mermaid
 graph TD
   0007
@@ -133,7 +127,6 @@ graph TD
   0198
   0199
   0200
-  0203
   0204
   0208
   0211 --> 0219
@@ -152,10 +145,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (166)</summary>
+<details><summary>✅🗑️ Archive — done + killed (167)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0203](archive/2026-08-07-0203-define-the-per-step-git-state-postcondition-docket-implement.md) | Define the per-step git-state postcondition docket-implement-next now names but never states | 2026-08-07 |
 | [0218](archive/2026-08-06-0218-fix-review-findings-in-branch-instead-of-minting-a-stub-for.md) | Fix review findings in-branch instead of minting a stub for every one | 2026-08-06 |
 | [0217](archive/2026-08-05-0217-clear-change-0202-s-three-minor-findings-dead-guard-stale-ba.md) | Clear change 0202's three minor findings: dead guard, stale baseline comment, wrong plan pattern | 2026-08-05 |
 | [0216](archive/2026-08-05-0216-guard-the-capture-shape-constraint-in-branch-only-artifact-w.md) | Guard the capture-shape constraint in branch_only_artifact with a mutation G | 2026-08-05 |
@@ -177,7 +171,6 @@ graph TD
 | [0113](archive/2026-08-03-0113-suppressed-handoff-silently-ends-autonomous-run.md) | A suppressed hand-off can silently end an autonomous run — make step completion verifiable, not narrated | 2026-08-03 |
 | [0193](archive/2026-08-02-0193-default-build-review-roles-to-docket-owned-skills.md) | Default the build and review roles to docket-build and docket-review | 2026-08-02 |
 | [0192](archive/2026-08-02-0192-opencode-profile-routed-build-support.md) | opencode support for profile-routed Docket builds | 2026-08-02 |
-| [0186](archive/2026-08-01-0186-bare-mv-prompts-on-a-tty-backfill-change-types-hangs-the-sui.md) | Bare mv prompts on a tty — backfill-change-types hangs the suite and can exit 0 without installing | 2026-08-01 |
 | [0183](archive/2026-08-01-0183-cursor-dispatch-head-ships-a-stale-unpinned-claim-its-guard.md) | Cursor dispatch head ships a stale unpinned claim; its guard retired itself | 2026-08-01 |
 | [0044](archive/2026-07-30-0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | 2026-07-30 |
 | [0162](archive/2026-07-28-0162-restore-the-machine-local-ignored-advisory-for-a-committed-t.md) | Restore the machine-local-ignored advisory for a committed too-deep runtime.bash | 2026-07-28 |
@@ -203,7 +196,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 6 done |
+| [2026-08](archive/) | 7 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
