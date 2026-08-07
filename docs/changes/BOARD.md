@@ -1,8 +1,14 @@
 # Backlog
 
-**243 changes** — 🟡 60 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 148 done · 🗑️ 29 killed
+**243 changes** — 🟢 1 in progress · 🟡 59 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 148 done · 🗑️ 29 killed
 
-## 🟡 Proposed (60)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch |
+|---|-------|----------|------|------|--------|
+| [0237](active/0237-prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical.md) | Prose levers fail to hold the step boundary — give the disposition contract a consumer | `high` | `fix` | [spec](../superpowers/specs/2026-08-07-prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical-design.md) | `feat/prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical` |
+
+## 🟡 Proposed (59)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -59,7 +65,6 @@
 | [0230](active/0230-a-self-scanning-population-floor-pins-test-docket-config-sh.md) | a self-scanning population floor pins test_docket_config.sh's size and blocks sharding | `medium` | `refactor` | needs-brainstorm |
 | [0232](active/0232-the-gate-execution-posture-never-reaches-the-build-workers-t.md) | The gate execution posture never reaches the build workers that also run the full suite | `medium` | `docs` | needs-brainstorm |
 | [0233](active/0233-guard-against-stacked-gap-ere-patterns-that-hang-instead-of.md) | Guard against stacked-gap ERE patterns that hang instead of failing | `medium` | `chore` | needs-brainstorm |
-| [0237](active/0237-prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical.md) | Prose levers fail to hold the step boundary — give the disposition contract a consumer | `high` | `fix` | build-ready |
 | [0238](active/0238-a-build-worker-may-stage-paths-its-task-never-touched.md) | A build worker may stage paths its task never touched | `medium` | `fix` | needs-brainstorm |
 | [0239](active/0239-detect-merged-s-gh-pr-list-fallback-ignores-repo-so-a-scoped.md) | detect_merged's gh pr list fallback ignores --repo, so a scoped pass queries the wrong repository | `medium` | `fix` | needs-brainstorm |
 | [0240](active/0240-audit-which-frontmatter-accessor-each-call-site-should-use-n.md) | Audit which frontmatter accessor each call site should use, now that three anchored read shapes exist | `medium` | `refactor` | needs-brainstorm |
