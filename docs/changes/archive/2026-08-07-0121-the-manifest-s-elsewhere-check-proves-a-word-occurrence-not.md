@@ -2,10 +2,10 @@
 id: 121
 slug: the-manifest-s-elsewhere-check-proves-a-word-occurrence-not
 title: "The manifest's elsewhere: check proves a word occurrence, not a real config read"
-status: proposed
+status: killed
 priority: medium
 created: 2026-07-21
-updated: 2026-07-21
+updated: 2026-08-07
 depends_on: []
 related: []
 discovered_from: [102]
@@ -64,3 +64,7 @@ Pick one deliberately; each trades false-red risk against strength.
 
 - The `resolved:` half, which change 0102 already ties back to the key's own leaf name.
 - Re-opening whether the manifest should exist.
+
+## Why killed
+
+Consolidated into #0246 at the 2026-08-07 backlog triage: the elsewhere: code-shaped-read tightening lands with the other guards of the same file, removing the concurrent-editor conflict #0147 recorded.
