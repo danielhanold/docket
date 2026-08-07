@@ -2,11 +2,11 @@
 id: 203
 slug: define-the-per-step-git-state-postcondition-docket-implement
 title: Define the per-step git-state postcondition docket-implement-next now names but never states
-status: implemented
+status: done
 priority: medium
 type: docs
 created: 2026-08-03
-updated: 2026-08-06
+updated: 2026-08-07
 depends_on: []
 related: [113, 202, 211, 212]
 discovered_from: [113]
@@ -17,7 +17,7 @@ results: docs/results/2026-08-06-define-the-per-step-git-state-postcondition-doc
 trivial: false
 auto_groomable: true
 branch: feat/define-the-per-step-git-state-postcondition-docket-implement
-claimed_at: 2026-08-06T22:53:21Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/163
 blocked_by:
 reconciled: true
