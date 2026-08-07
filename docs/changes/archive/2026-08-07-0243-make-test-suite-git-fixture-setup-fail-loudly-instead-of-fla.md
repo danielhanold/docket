@@ -2,7 +2,7 @@
 id: 243
 slug: make-test-suite-git-fixture-setup-fail-loudly-instead-of-fla
 title: Make test-suite git fixture setup fail loudly instead of flaking
-status: proposed
+status: killed
 priority: medium
 type: fix
 created: 2026-08-07
@@ -56,3 +56,7 @@ scope only as far as choosing between fail-loudly and retry.
 **Reason for deferral** — 0190's branch is a merge-gate predicate extension plus its trust-boundary
 guard. Reworking a shared test-fixture idiom across the suite is an orthogonal concern touching
 files 0190 has no reason to open, and folding it in would expand the branch well past its spec.
+
+## Why killed
+
+Consolidated into #0252 at the 2026-08-07 backlog triage: the checked git-fixture helper is the same tests/lib home as #0177's template hardening and #0182's hermeticity sweep.
