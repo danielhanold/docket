@@ -2,11 +2,11 @@
 id: 156
 slug: render-board-sh-exits-0-on-malformed-input-and-commits-a-cor
 title: render-board.sh exits 0 on malformed input and commits a corrupt board
-status: proposed
+status: killed
 priority: medium
 type: fix
 created: 2026-07-28
-updated: 2026-07-28
+updated: 2026-08-07
 depends_on: []
 related: []
 discovered_from: [143]
@@ -55,3 +55,7 @@ react. Pin it with a test that asserts the exit status, not just the output.
 
 - The specific triggers 0143 fixes.
 - Re-litigating `board-checks.sh`'s after-the-fact detection, which stays valuable either way.
+
+## Why killed
+
+Consolidated into #0259 at the 2026-08-07 backlog triage: the failure-contract half of the same render-board hardening; 0143's demonstrated corruptions are fixed, the contract gap is what remains.
