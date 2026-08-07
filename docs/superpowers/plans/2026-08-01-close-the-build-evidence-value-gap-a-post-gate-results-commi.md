@@ -30,6 +30,45 @@ operations (docket-build-task scope).
 **Tech Stack:** Bash 3.2-compatible shell, markdown skill contracts, the repo's flat `tests/test_*.sh`
 suite run with the configured `"$DOCKET_BASH_PATH" tests/test_<name>.sh`.
 
+## Reconcile amendments — 2026-08-07 (base `f7fb123f`; authoritative over the text below)
+
+The base advanced ~215 commits past the `e108568a` this plan was written against. The design is
+unchanged; four factual anchors moved and **override** any conflicting number later in this file:
+
+1. **Task 2 retargets.** The sentence "finalize's SHA-equality condition simply fails, and the suite
+   runs" now lives in **`skills/docket-implement-next/references/edge-paths.md`**, in its
+   *Build-evidence block (change 0170)* paragraph — **not** in `skills/docket-implement-next/SKILL.md`
+   (Step 7 there delegates PR-body mechanics to that reference). Edit the reference; leave `SKILL.md`
+   alone unless a sentence there genuinely conflicts.
+2. **Budget rows moved.** Live `tests/test_skill_size_budgets.sh` rows / actuals:
+   `docket-finalize-change/SKILL.md` **180 / 3500** (actual 176 / 3445);
+   `docket-implement-next/SKILL.md` **165 / 4300** (actual 162 / **4285** — 15 words spare);
+   `docket-implement-next/references/edge-paths.md` **35 / 450** (actual 28 / 411).
+   Task 4 must now also check the **edge-paths** row. Re-measure with `wc` before raising anything.
+3. **Guard corpus grew to 54** occurrences of the `docs/results` literal in the committed tree
+   (`tests/` 48, `scripts/` 5, `skills/docket-convention/SKILL.md` 2, `README.md` 2,
+   `.docket.example.yml` 1) — not the "~37" quoted below. **Derive the population floor from a live
+   count at build time; never hard-code a number copied from this plan or the spec.**
+4. **README anchor.** The clause to retract is in the evidence-chain paragraph, quoted verbatim as
+   "the skip is the clean-path optimization, not the majority path". Anchor on the quoted clause,
+   never a line number.
+
+**Learnings that bind this build** (read the finding file before writing the guard — index at
+`docs/changes/learnings/README.md` on the metadata branch):
+`marker-scoped-guard-needs-a-population-floor` (existence / attachment / **coverage** are three
+separate asserts; "at least one" pins a population, not coverage — close with a positive control on
+a throwaway mutated copy), `backstop-must-compute-not-reenumerate` (derive the hazard predicate from
+the consuming code, not a hand-written list of causes; mutation-test the **population**, not only the
+suppression), `guard-remedy-must-not-teach-the-evasion` (a count guard whose failure message says
+"bump the number" *is* the exploit — lead the remedy with the substantive check),
+`assert-detects-removal-not-replacement` (write the assert that detects the state you removed, and
+prove the mutation landed before believing the red), `plan-supplied-test-code-is-unverified` (any
+snippet this plan hands you is unverified — prove it CAN pass, then mutation-test its key),
+`phrase-grep-over-wrapped-prose` (collapse whitespace before matching prose, or a reflow reddens),
+`escape-ere-metacharacters-in-key`, `agent-shell-noop-reads-as-success` (a sweep over zero items
+prints success — assert the count), and `test-helper-interpolates-its-own-description` (no backticks
+in assert descriptions).
+
 ## Global Constraints
 
 - **Repo instructions bind.** `AGENTS.md` at the repo root is always in context. In particular:
@@ -51,7 +90,8 @@ suite run with the configured `"$DOCKET_BASH_PATH" tests/test_<name>.sh`.
   `configured-bash-finalize` fragment in `skills/docket-finalize-change/SKILL.md` contains none of
   `evidence|skip|head_sha`. The new skip prose lives in the prose item, never in that fragment.
 - **Size budgets are enforced.** `tests/test_skill_size_budgets.sh` fails on any file over its cap.
-  Current caps: `docket-finalize-change/SKILL.md` 193 ln / 4350 w; `docket-implement-next/SKILL.md`
+  Current caps (**see reconcile amendment 2 — these are stale**): `docket-finalize-change/SKILL.md`
+  193 ln / 4350 w; `docket-implement-next/SKILL.md`
   147 ln / 3950 w — both within 3 lines of their cap, so a raise is expected and ships in this same
   PR per the file's own house rule (re-measure the live actual, then round: lines → next multiple of
   5, words → next multiple of 50, taking the multiple *after* if within 25 words of the actual; add a
@@ -80,9 +120,9 @@ suite run with the configured `"$DOCKET_BASH_PATH" tests/test_<name>.sh`.
 |---|---|
 | `skills/docket-finalize-change/SKILL.md` | Step 4 conditional-skip: add the ancestor+allowlist disjunct, the loud log extension, the degrade-off rule; keep the fragment pure. |
 | `tests/test_docket_review.sh` | One new shape assert binding the new disjunct (ancestor + allowlist), plus a non-vacuity guard for it; existing sentinels untouched. |
-| `skills/docket-implement-next/SKILL.md` | Step 7 build-evidence prose: replace "finalize's SHA-equality condition simply fails, and the suite runs" with the extended-predicate outcome. |
+| `skills/docket-implement-next/references/edge-paths.md` | **(retargeted — amendment 1)** *Build-evidence block* paragraph: replace "finalize's SHA-equality condition simply fails, and the suite runs" with the extended-predicate outcome. |
 | `README.md` | Evidence-chain section: document the docs-only skip + per-repo verification rule; retract/qualify the "clean-path optimization, not the majority path" caveat. |
-| `tests/test_skill_size_budgets.sh` | Re-measure and raise the caps for `docket-finalize-change/SKILL.md` and `docket-implement-next/SKILL.md`; header-comment paragraphs. |
+| `tests/test_skill_size_budgets.sh` | Re-measure and raise the caps for `docket-finalize-change/SKILL.md` and `docket-implement-next/references/edge-paths.md` (and `SKILL.md` only if it grew); header-comment paragraphs. |
 
 ---
 
@@ -132,9 +172,9 @@ reddens under its mutation.
 
 **Build profile:** economy
 
-**Files:** `skills/docket-implement-next/SKILL.md`.
+**Files:** `skills/docket-implement-next/references/edge-paths.md` (**retargeted — amendment 1**).
 
-In step 7's "**Build-evidence block (change 0170)**" paragraph, replace the sentence that reads
+In its "**Build-evidence block (change 0170)**" paragraph, replace the sentence that reads
 "finalize's SHA-equality condition simply fails, and the suite runs" with the extended-predicate
 outcome: a step-6.5 results commit still moves HEAD past the minted `head_sha`, but finalize now skips
 when the post-gate delta is docs-only — the `head_sha` is a strict ancestor and every path changed in
@@ -179,8 +219,8 @@ and the base has not moved" arithmetic statement consistent with the extended pr
 **Files:** `tests/test_skill_size_budgets.sh`.
 
 After Tasks 1 and 2 have landed, re-measure the live actuals of the two edited SKILL files:
-`skills/docket-finalize-change/SKILL.md` and `skills/docket-implement-next/SKILL.md`. For each file
-over its cap, raise the budget per the file's own rounding rule (next multiple of 5 lines, next
+`skills/docket-finalize-change/SKILL.md`, `skills/docket-implement-next/references/edge-paths.md`,
+and `skills/docket-implement-next/SKILL.md`. For each file over its cap, raise the budget per the file's own rounding rule (next multiple of 5 lines, next
 multiple of 50 words; take the multiple *after* when within 25 words of the actual) and append a
 header-comment paragraph in the established house style explaining the raise (the extended skip
 predicate for finalize; the step-7 outcome sentence for implement-next). Do not raise a cap that does
