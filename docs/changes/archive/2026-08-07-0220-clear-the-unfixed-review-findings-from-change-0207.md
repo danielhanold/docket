@@ -2,7 +2,7 @@
 id: 220
 slug: clear-the-unfixed-review-findings-from-change-0207
 title: clear the unfixed review findings from change 0207
-status: implemented
+status: done
 priority: medium
 type: fix
 created: 2026-08-05
@@ -17,7 +17,7 @@ results: docs/results/2026-08-07-clear-the-unfixed-review-findings-from-change-0
 trivial: false
 auto_groomable: true
 branch: feat/clear-the-unfixed-review-findings-from-change-0207
-claimed_at: 2026-08-07T01:55:21Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/164
 blocked_by:
 reconciled: true
