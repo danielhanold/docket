@@ -563,6 +563,21 @@ assert "convention: the summary keeps its blocking drill-down pointer" \
   'grep -qF -- "references/auto-capture.md" <<<"$ac_sum_flat"'
 assert "convention: the drill-down pointer is BLOCKING" \
   'grep -qiE "blocking" <<<"$ac_sum_flat"'
+# The trigger must be MINT-SITE-scoped, not discovery-scoped. Keyed to detect the removal, not to
+# confirm the replacement (learnings: assert-detects-removal-not-replacement): the defect is the
+# pre-fix "Discovered follow-up work mid-run -> read ... now (blocking)" form, under which the
+# reference's own "What to look for" pass is loaded only by a reader who has ALREADY discovered
+# something — so the discovery pass is specified but unreachable, and every presence assert above
+# stays green. Requiring the mint-site scoping to sit in the SAME sentence as the read imperative is
+# what reddens on that mutation; a bare "mint site" presence grep would not (the *Mint sites*
+# paragraph directly above names them for a different purpose). Flattened, because the phrase wraps
+# across lines. The `[^.]` class scopes the gap to one sentence; the bound is under the 255 ERE
+# repetition ceiling BSD grep enforces. Exactly ONE bounded repeat, deliberately: a two-`{0,n}`
+# version of this pattern ("...read[^.]{0,60}auto-capture\.md") backtracks catastrophically on
+# NON-matching input — i.e. on the very mutation this assert exists to catch — and hung for minutes
+# instead of reddening (observed while mutation-testing it).
+assert "convention: the drill-down trigger fires at each mint site, not only after a discovery" \
+  'grep -qiE "at each mint site[^.]{0,200}auto-capture" <<<"$ac_sum_flat"'
 # Progressive disclosure, asserted as absence. Each of these is a thing the reference owns.
 assert "convention: the summary does NOT enumerate the discovery categories" \
   '! grep -qiE "reusable capabilit|tooling opportunit" <<<"$ac_sum_flat"'

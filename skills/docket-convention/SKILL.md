@@ -278,8 +278,9 @@ mint site** — a minted stub is itself autonomous-eligible, so minting would br
 provable-termination invariant. **Interactive skills need no auto-capture path** — a human is
 present to decide what gets filed.
 
-Discovered follow-up work mid-run → **read [`references/auto-capture.md`](references/auto-capture.md)
-now (blocking)** before minting or suppressing — it owns what to look for, the admission gates and
+**At each mint site — on arrival, before anything has surfaced — and again on any discovered
+follow-up work mid-run → read [`references/auto-capture.md`](references/auto-capture.md) now
+(blocking)** before minting or suppressing — it owns what to look for, the admission gates and
 the suppression list, the materiality bar, the per-site routing, what a captured discovery must say,
 and the deterministic mint with its exit codes and cross-site `--minted` carry-forward.
 

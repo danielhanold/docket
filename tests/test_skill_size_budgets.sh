@@ -588,6 +588,19 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # block's 0102 and 0137 entries exist to forbid. Set per the rounding rule above from the measured
 # actual: 3437 words -> the next multiple of 50 is 3450, within the 25-word threshold, so the
 # multiple after: 3500 (63 words of margin). The LINE budget was NOT raised (174 actual, 180 budget).
+# skills/docket-convention/SKILL.md's WORD budget was raised 5850 -> 5900 by a change 0226 review fix
+# (2026-08-07): the drill-down trigger for the auto-capture reference read "Discovered follow-up work
+# mid-run -> read ... now (blocking)", which fires only AFTER something has surfaced — so the
+# reference's headline addition, the active "What to look for" discovery pass, was reachable by
+# nobody who still needed it. The trigger is now scoped to the mint site itself ("At each mint site —
+# on arrival, before anything has surfaced — and again on any discovered follow-up work mid-run").
+# The considered home, skills/docket-convention/references/auto-capture.md, CANNOT hold it: it is the
+# very file the trigger decides whether to open, so a rule stating when to open it, parked inside it,
+# is read only by someone who already opened it — the same unreachability this fix exists to remove.
+# The convention is injected into every mint site's wrapper, which is why widening it here (rather
+# than rewording the three mint-site skill bodies) is what makes the pass reachable. Set per the
+# rounding rule above from the measured actual 341/5853: 5853 -> 5900 (47 words of margin, above the
+# within-25 threshold). The LINE budget was NOT raised (341 actual, 345 budget, 4 lines of margin).
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -597,7 +610,7 @@ skills/docket-build/SKILL.md                               320 2950
 skills/docket-build/references/gate-execution.md            175 1650
 skills/docket-build/references/task-routing.md              50  500
 skills/docket-build-task/SKILL.md                          125 1100
-skills/docket-convention/SKILL.md                          345 5850
+skills/docket-convention/SKILL.md                          345 5900
 skills/docket-convention/github-board-mirror.md             19  462
 skills/docket-convention/references/agent-layer.md         190 2150
 skills/docket-convention/references/auto-capture.md        125 1200
