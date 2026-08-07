@@ -2,7 +2,7 @@
 id: 235
 slug: writers-emit-unquoted-yaml-title-scalars-so-six-change-files
 title: Writers emit unquoted YAML title scalars, so six change files fail to parse
-status: proposed
+status: in-progress
 priority: medium
 type: fix
 created: 2026-08-07
@@ -16,7 +16,8 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch:
+branch: feat/writers-emit-unquoted-yaml-title-scalars-so-six-change-files
+claimed_at: 2026-08-07T16:03:34Z
 pr:
 blocked_by:
 reconciled: false
