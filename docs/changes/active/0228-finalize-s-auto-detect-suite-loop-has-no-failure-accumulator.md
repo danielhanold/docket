@@ -3,7 +3,7 @@ id: 228
 slug: finalize-s-auto-detect-suite-loop-has-no-failure-accumulator
 title: finalize's auto-detect suite loop has no failure accumulator, so a mid-suite red merges
 status: proposed
-priority: medium
+priority: high
 type: fix
 created: 2026-08-07
 updated: 2026-08-07
@@ -15,7 +15,7 @@ spec:
 plan:
 results:
 trivial: false
-auto_groomable:
+auto_groomable: true
 branch:
 pr:
 blocked_by:
@@ -68,4 +68,11 @@ by hand to get a trustworthy result.
 
 ## Open questions
 
-- Does `docket-build`'s own gate (which reuses this same detection) have the same hole?
+- ~~Does `docket-build`'s own gate (which reuses this same detection) have the same hole?~~ —
+  RESOLVED 2026-08-07 by inspection: **yes, but there is only one site to fix.**
+  `skills/docket-build/SKILL.md` (lines 189–192) deliberately does *not* copy the fragment — it
+  names finalize's `configured-bash-finalize` marker block as the single source and explicitly
+  instructs "Do not copy that fragment into this file," keeping the awkward `finalize` namespace
+  rather than introducing a second, driftable test command. So `docket-build`'s gate inherits the
+  missing accumulator, and repairing the marker block repairs both consumers at once. No second
+  edit site; the fixture should still cover both callers reading the same block.
