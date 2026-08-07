@@ -316,16 +316,20 @@ assert "0237 prose: the convention's entry names it presence-encoded" \
   'grep -F "## Run halted" "$CONV" | grep -qiF "presence-encoded"'
 
 # PRODUCER — anchored on the halted disposition prose that performs the write, not on a section
-# that merely defines what the write means.
-assert "0237 prose: the halted disposition WRITES the section" \
-  'flat "$IMPL" | grep -qiE "halted[^.]{0,250}(write|writing|append)[^.]{0,200}## Run halted|## Run halted[^.]{0,200}(commit|committed)"'
+# that merely defines what the write means. Scoped to Step 3 with awk FIRST, so each pattern needs
+# at most ONE bounded gap: stacking two bounded gaps in one alternation backtracks catastrophically
+# on non-matching input, so the assert would HANG instead of reddening on exactly the prose reflow
+# it exists to catch (learning `stacked-gap-regex-hangs-instead-of-failing`).
+step3="$(awk "/^### Step 3 — Reconcile/,/^### Step 4/" "$IMPL" | tr '\n' ' ' | tr -s ' ')"
+assert "0237 prose: Step 3's halted disposition WRITES the section" \
+  'grep -qiE "(write|writing|append)[^.]{0,250}## Run halted" <<<"$step3"'
 # WRITE SHAPE — the reader is a whole-line match, so a producer told to write a "dated" section
 # emits a heading the reader never sees. The instruction must name the heading as bare/undated,
 # exactly as the twin `## Finalize blocked` marker's doc already does.
 assert "0237 prose: the producer names the '## Run halted' heading as bare/undated" \
   'flat "$IMPL" | grep -qiE "## Run halted.{0,120}(bare|undated|never dated)"'
 assert "0237 prose: the halted write is described as a COMMITTED git act" \
-  'flat "$IMPL" | grep -qiE "## Run halted[^.]{0,250}commit"'
+  'grep -qiE "## Run halted[^.]{0,250}commit" <<<"$step3"'
 
 # REMOVAL — owned by Step 2's claim (presence-encoded-state: every transition out removes it).
 step2="$(awk "/^### Step 2 — Claim/,/^### Step 3/" "$IMPL" | tr '\n' ' ' | tr -s ' ')"
