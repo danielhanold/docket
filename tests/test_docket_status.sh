@@ -1383,6 +1383,75 @@ assert "orphan mutation 3: fixture 282, which has a real own-commit, still fires
   'grep -q "^check aborted-run 282 " <<<"$omut3_out"'
 rm -rf "$orphan_mutcopy"
 
+# ---- ADR-0072 correspondence guard: the two idle-secs constants agree BY VALUE (change 0250) ----
+# ORPHAN_PR_IDLE_SECS (docket-status.sh) is a deliberate by-value COPY of ABORTED_RUN_IDLE_SECS
+# (board-checks.sh): the two scripts share no library and board-checks.sh must stay independently
+# runnable offline, so ADR-0072 accepted the duplication and priced the drift. The price was that a
+# one-sided retune breaks the agreement silently. This guard is that price paid: pure textual
+# extraction of each assignment line, arithmetic evaluation in THIS shell, value comparison.
+# NOT by sourcing either script — docket scripts are not pure, and sourcing to probe has cost real
+# damage. NOT by string-comparing the RHS — 7200 and 2 * 3600 are the same constant. board-checks.sh
+# is read here as a FILE PATH, which adds nothing to either script's dependency graph.
+idle_secs_line(){  # idle_secs_line FILE VARNAME -> the single matching assignment line
+  grep -e "^$2=" "$1"
+}
+idle_secs_value(){  # idle_secs_value FILE VARNAME -> the evaluated integer, or empty on refusal
+  local isv_raw isv_expr
+  isv_raw="$(idle_secs_line "$1" "$2")" || return 1
+  isv_expr="${isv_raw#*=}"
+  # Unwrap $(( ... )) when present; a bare NAME=7200 form is tolerated unwrapped.
+  case "$isv_expr" in
+    '$(('*'))') isv_expr="${isv_expr#\$((}"; isv_expr="${isv_expr%))}" ;;
+  esac
+  # Refuse to evaluate anything that is not plain integer arithmetic. A trailing comment, a
+  # variable reference, or a command substitution reddens the guard rather than being mis-stripped.
+  case "$isv_expr" in
+    *[!0-9\ \(\)\*\+-]*) return 1 ;;
+    '') return 1 ;;
+  esac
+  printf '%s' "$(( isv_expr ))"
+}
+
+IDLE_DS="$REPO/scripts/docket-status.sh"
+IDLE_BC="$REPO/scripts/board-checks.sh"
+# Non-vacuity FIRST: each anchor must match EXACTLY ONE line. A rename, a removal, or a second
+# assignment makes the extraction meaningless, and that IS the finding — an extraction that quietly
+# returns nothing would otherwise read as the property holding.
+idle_ds_n="$(grep -c -e '^ORPHAN_PR_IDLE_SECS=' "$IDLE_DS" || true)"
+idle_bc_n="$(grep -c -e '^ABORTED_RUN_IDLE_SECS=' "$IDLE_BC" || true)"
+assert "ADR-0072 guard: ORPHAN_PR_IDLE_SECS is assigned exactly once in docket-status.sh" \
+  '[ "${idle_ds_n:-0}" -eq 1 ]'
+assert "ADR-0072 guard: ABORTED_RUN_IDLE_SECS is assigned exactly once in board-checks.sh" \
+  '[ "${idle_bc_n:-0}" -eq 1 ]'
+
+idle_ds_v="$(idle_secs_value "$IDLE_DS" ORPHAN_PR_IDLE_SECS || true)"
+idle_bc_v="$(idle_secs_value "$IDLE_BC" ABORTED_RUN_IDLE_SECS || true)"
+assert "ADR-0072 guard: both idle-secs values extract and evaluate to a positive integer" \
+  '[ -n "$idle_ds_v" ] && [ -n "$idle_bc_v" ] && [ "$idle_ds_v" -gt 0 ] && [ "$idle_bc_v" -gt 0 ]'
+assert "ADR-0072 guard: ORPHAN_PR_IDLE_SECS equals ABORTED_RUN_IDLE_SECS by value" \
+  '[ "$idle_ds_v" = "$idle_bc_v" ]'
+
+# The guard's own sensitivity, proven IN-SUITE rather than by a one-off manual check: retune one
+# side on a throwaway COPY and assert the comparison reddens. cp, never git checkout -- : the
+# restore-to-HEAD idiom discards uncommitted work and produces a meaningless reading.
+idle_mutcopy="$(mktemp -d)"
+cp "$IDLE_DS" "$idle_mutcopy/docket-status.sh"
+idle_mut_before="$(grep -c -e '^ORPHAN_PR_IDLE_SECS=' "$idle_mutcopy/docket-status.sh" || true)"
+sed 's|^ORPHAN_PR_IDLE_SECS=.*|ORPHAN_PR_IDLE_SECS=$(( 9 * 3600 ))|' \
+  "$idle_mutcopy/docket-status.sh" > "$idle_mutcopy/docket-status.sh.t"
+mv "$idle_mutcopy/docket-status.sh.t" "$idle_mutcopy/docket-status.sh"
+idle_mut_after="$(grep -c -e '^ORPHAN_PR_IDLE_SECS=$(( 9 \* 3600 ))' "$idle_mutcopy/docket-status.sh" || true)"
+assert "ADR-0072 guard: the one-sided retune mutation actually landed on the copy" \
+  '[ "${idle_mut_before:-0}" -eq 1 ] && [ "${idle_mut_after:-0}" -eq 1 ]'
+assert "ADR-0072 guard: the mutated copy is still valid bash" \
+  'bash -n "$idle_mutcopy/docket-status.sh"'
+idle_mut_v="$(idle_secs_value "$idle_mutcopy/docket-status.sh" ORPHAN_PR_IDLE_SECS || true)"
+assert "ADR-0072 guard: the mutated copy still extracts cleanly (the witness is not vacuous)" \
+  '[ -n "$idle_mut_v" ]'
+assert "ADR-0072 guard REDDENS on a one-sided retune — the guard can actually fail" \
+  '[ "$idle_mut_v" != "$idle_bc_v" ]'
+rm -rf "$idle_mutcopy"
+
 # sweep_execute: chained close-out (task 5). Mock the four shared scripts via the SCRIPTS_DIR
 # seam so the loop is hermetic — no network, no real docket-config.sh, no real close-out logic.
 sweep_dir="$tmp/sweep-case"
