@@ -2,11 +2,11 @@
 id: 171
 slug: settle-a-reflow-tolerant-house-pattern-for-prose-anchored-gu
 title: Settle a reflow-tolerant house pattern for prose-anchored guards
-status: proposed
+status: killed
 priority: medium
 type: refactor
 created: 2026-07-30
-updated: 2026-07-30
+updated: 2026-08-07
 depends_on: []
 related: []
 discovered_from: [167]
@@ -55,3 +55,7 @@ literal. Whatever is chosen should be written down once and reused, not re-deriv
 - Loosening any guard's bite. The completion bar stays mutation-testing in both directions: deleting the
   rule must redden, and a legitimate reword that preserves the rule must not.
 - The `producer | grep -q` / `| head` shell-form normalization — that is its own separate cleanup.
+
+## Why killed
+
+Consolidated into #0253 at the 2026-08-07 backlog triage: the reflow-tolerant house pattern and #0233's stacked-gap ban are one idiom ruling; the triplicated flatten() helper is the shared starting point.
