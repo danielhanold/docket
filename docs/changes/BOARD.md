@@ -1,15 +1,14 @@
 # Backlog
 
-**236 changes** — 🟢 5 in progress · 🟡 54 proposed · ⚪ 4 deferred · ✅ 145 done · 🗑️ 28 killed
+**236 changes** — 🟢 4 in progress · 🟡 54 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 145 done · 🗑️ 28 killed
 
-## 🟢 In progress (5)
+## 🟢 In progress (4)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0190](active/0190-close-the-build-evidence-value-gap-a-post-gate-results-commi.md) | Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip | `medium` | `feat` | [spec](../superpowers/specs/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md) | `feat/close-the-build-evidence-value-gap-a-post-gate-results-commi` |
 | [0219](active/0219-aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d.md) | aborted-run's Step 7 seam — a fourth git-only leg, plus GitHub enrichment for leg C | `high` | `fix` | [spec](../superpowers/specs/2026-08-07-aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d-design.md) | `feat/aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d` |
 | [0231](active/0231-a-presumed-dead-build-worker-can-wake-and-race-its-own-repla.md) | A presumed-dead build worker can wake and race its own replacement in one worktree | `medium` | `fix` | [spec](../superpowers/specs/2026-08-07-a-presumed-dead-build-worker-can-wake-and-race-its-own-repla-design.md) | `feat/a-presumed-dead-build-worker-can-wake-and-race-its-own-repla` |
-| [0234](active/0234-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b.md) | Split gate-execution.md: probe evidence should not sit on a blocking-read surface | `medium` | `refactor` | [spec](../superpowers/specs/2026-08-07-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b-design.md) | `feat/split-gate-execution-md-probe-evidence-should-not-sit-on-a-b` |
 | [0235](active/0235-writers-emit-unquoted-yaml-title-scalars-so-six-change-files.md) | Writers emit unquoted YAML title scalars, so six change files fail to parse | `medium` | `fix` | [spec](../superpowers/specs/2026-08-07-writers-emit-unquoted-yaml-title-scalars-so-six-change-files-design.md) | `feat/writers-emit-unquoted-yaml-title-scalars-so-six-change-files` |
 
 ## 🟡 Proposed (54)
@@ -69,7 +68,7 @@
 | [0230](active/0230-a-self-scanning-population-floor-pins-test-docket-config-sh.md) | a self-scanning population floor pins test_docket_config.sh's size and blocks sharding | `medium` | `refactor` | needs-brainstorm |
 | [0232](active/0232-the-gate-execution-posture-never-reaches-the-build-workers-t.md) | The gate execution posture never reaches the build workers that also run the full suite | `medium` | `docs` | needs-brainstorm |
 | [0233](active/0233-guard-against-stacked-gap-ere-patterns-that-hang-instead-of.md) | Guard against stacked-gap ERE patterns that hang instead of failing | `medium` | `chore` | needs-brainstorm |
-| [0236](active/0236-suppressed-execution-handoff-still-ends-run-at-plan.md) | A suppressed execution hand-off still ends the run at the plan — 0113 recurrence | `high` | `fix` | needs-brainstorm |
+| [0236](active/0236-suppressed-execution-handoff-still-ends-run-at-plan.md) | A suppressed execution hand-off still ends the run at the plan — 0113 recurrence | `high` | `fix` | auto-groom blocked — needs you |
 
 ## ⚪ Deferred (4)
 
@@ -79,6 +78,12 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | Type | PR | Readiness |
+|---|-------|----------|------|----|-----------|
+| [0234](active/0234-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b.md) | Split gate-execution.md: probe evidence should not sit on a blocking-read surface | `medium` | `refactor` | [#169](https://github.com/danielhanold/docket/pull/169) |  |
 
 ```mermaid
 graph TD
