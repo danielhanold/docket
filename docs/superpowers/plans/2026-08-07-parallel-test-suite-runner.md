@@ -815,10 +815,19 @@ git commit --allow-empty -m "perf(0227): suite wall time <serial>s -> <parallel>
 - Create: `tests/README.md`
 
 **Interfaces:**
-- Consumes: `/tmp/docket-final.tsv` from Task 5; `scripts/run-tests.sh`'s `--budgets` reader and `DEFAULT_CEILING`.
+- Consumes: `/tmp/docket-final-serial.tsv` from Task 5 (see Step 1 on why the serial file, not the parallel one); `scripts/run-tests.sh`'s `--budgets` reader and `DEFAULT_CEILING`.
 - Produces: the table the runner reads by default at `tests/runtime-budgets.tsv`, and the guard that keeps it complete.
 
 - [ ] **Step 1: Seed the table from the measurement**
+
+**Seed from the SERIAL timings — `/tmp/docket-final-serial.tsv`, not `/tmp/docket-final.tsv`.**
+(Corrected 2026-08-07 against Task 5's evidence: this step originally named the parallel file. Under
+full-suite contention per-file times inflate substantially — nine files exceed 60s in the parallel
+run, peaking at 101s for `test_board_checks.sh`, against a 53s serial maximum. Seeding from those
+numbers would write rows the plan's own "no row may exceed 60" rule forbids, and would encode this
+machine's core count into the table. A budget is a claim about a file's *own* cost, which is what
+the serial number measures; the runner's 3/2 slack factor is what absorbs contention at enforcement
+time.)
 
 Generate the rows from the measured times, never by hand. Round each measured time up to the next multiple of 5 and add a working margin of 5s, floored at 10s — near-zero headroom is a known failure mode in this repo's budget tables:
 
@@ -839,7 +848,7 @@ bash -c '
     echo "# NO row may exceed 60 seconds. If a file outgrows its ceiling, shard it or move the new"
     echo "# assertions into a shard with room. Raising a number here is not the remedy: the guard"
     echo "# counts over-ceiling rows separately, so laundering one still reddens."
-    LC_ALL=C sort -k1,1 /tmp/docket-final.tsv | while IFS=$'"'"'\t'"'"' read -r p secs rc ok notok; do
+    LC_ALL=C sort -k1,1 /tmp/docket-final-serial.tsv | while IFS=$'"'"'\t'"'"' read -r p secs rc ok notok; do
       ceil=$(( ((secs + 4) / 5) * 5 + 5 )); [ "$ceil" -lt 10 ] && ceil=10
       printf "%s\t%s\tparallel\n" "tests/$(basename "$p")" "$ceil"
     done
