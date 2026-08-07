@@ -2,7 +2,7 @@
 id: 226
 slug: reframe-auto-capture-as-capability-discovery-with-strict-adm
 title: Reframe auto-capture as capability discovery with strict admission gates
-status: implemented
+status: done
 priority: medium
 type: feat
 created: 2026-08-06
@@ -17,7 +17,7 @@ results: docs/results/2026-08-07-reframe-auto-capture-as-capability-discovery-wi
 trivial: false
 auto_groomable:
 branch: feat/reframe-auto-capture-as-capability-discovery-with-strict-adm
-claimed_at: 2026-08-07T13:15:24Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/168
 blocked_by:
 reconciled: true
