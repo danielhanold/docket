@@ -8,10 +8,10 @@ type: fix
 created: 2026-08-03
 updated: 2026-08-07
 depends_on: [224]
-related: [213, 215, 216, 217]
+related: [213, 215, 216, 217, 222]
 discovered_from: [191, 202]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-07-clear-the-unfixed-review-findings-from-change-0191-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-07-clear-the-unfixed-review-findings-from-change-0191-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-clear-the-unfixed-review-findings-from-change-0191-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -113,10 +116,15 @@ Capture-shape mutation (c):
 
 ## Open questions
 
-- Whether the sanitize premise (b) is relied on by any other `emit` caller passing a
-  non-frontmatter value.
-- Whether the capture-shape hazard (c) exists at any other `-z` read in the scripts, which would
-  make it a helper-level guard rather than a single mutation arm.
+None — both former questions are resolved in the spec (2026-08-07 auto-groom): (b)'s premise IS
+relied on by other `emit` callers passing non-frontmatter values (branch names, basenames, git
+paths), which is exactly why the LF escape lands inside `sanitize` and covers every caller; and
+(c)'s hazard exists at no other `-z` read — `branch_only_artifact` is the only NUL-delimited read
+in `scripts/`, so it gets one mutation arm (letter O), not a helper-level guard. The spec also
+prices two consequences the stub missed: the frozen-plans paragraph forces a minimal raise of the
+docket-convention row in `tests/test_skill_size_budgets.sh` (with the change-0201 in-diff
+argument), and the `scalar_form_check` hoist forces a redesign of mutation 4's marker-range
+extraction plus its missing `bash -n` landed assert.
 
 ## Consolidation note
 
