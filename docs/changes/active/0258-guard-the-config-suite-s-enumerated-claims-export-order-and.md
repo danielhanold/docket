@@ -11,7 +11,7 @@ depends_on: []
 related: [251]
 discovered_from: [123, 125]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-07-guard-the-config-suite-s-enumerated-claims-export-order-and-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-07-guard-the-config-suite-s-enumerated-claims-export-order-and-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-guard-the-config-suite-s-enumerated-claims-export-order-and-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -34,17 +37,17 @@ Consolidates #0123 and #0125 (2026-08-07 triage): the same meta-question — an 
 Verified 2026-08-07:
 
 - **Export-list order unguarded (#0123).** The fenced export list at `scripts/docket-config.md:344-374` (32/33 entries) is pinned only by per-key *presence* greps (`test_docket_config.sh:1248,1429,1581,1954`) and two runtime-only adjacency clusters (`:1643-1650`, `:1943`). No test reads the fence block and compares its **sequence** to `--export --format plain` output — a doc-side reorder stays green while R7 pins runtime order for a few pairs.
-- **Rung-pair completeness prose-only (#0125).** Section S pins all six ordered rung pairs (s4–s9), but the "six pairs" claim lives in a header comment (`test_docket_config.sh:1707-1716`); no `rung_count`-style derivation exists, so a fourth config layer silently leaves six cells unpinned. The blocker named in the stub has resolved: 0114 landed ADR-0054 ("convert, do not close"), so source-shape anchors are a live option.
+- **Rung-pair completeness prose-only (#0125).** Section S pins all six ordered rung pairs (s4–s9), but the "six pairs" claim lives only in the section header comment; no derivation from the resolver's layer set exists, so a fourth config layer silently leaves six cells unpinned. The blocker named in the stub has resolved: 0114 landed ADR-0054 ("convert, do not close"), so source-shape anchors are a live option.
 
-House bias, from ADR-0054 and the correspondence-guard learnings family: **guard the claim** rather than delete it — but each leg may independently conclude the claim should be re-specified (e.g. the doc list declared unordered) if guarding costs more than the claim is worth.
+Posture ruled at grooming (2026-08-07, autonomous, critic-gated): **guard both claims** — neither is re-specified away. Design detail lives in the spec.
 
 ## What changes
 
-- A machine check that the contract doc's fenced export list matches the resolver's emission (membership AND order, or membership with the doc explicitly re-specified as unordered).
-- Derive the rung-pair count/enumeration from the resolver's layer set (or an enumerated corpus with a completeness anchor), replacing the prose-only "six pairs" claim.
-- Both guards mutation-proved (reorder/removal must redden).
+- **Leg 1:** a whole-sequence equality guard — the doc's fenced export list (extracted at the `### Emit` heading anchor) vs the resolver's `--export` key emission, both formats (`plain` = fence; `shell` = fence minus `REPO_ROOT`), plus a derived check of the doc's "33/34 lines" prose numerals. Existing R7/AUTO_* adjacency asserts stay.
+- **Leg 2:** the rung-pair completeness claim becomes computed — expected ordered pairs derived from `config_scalar_get`'s layer-dispatch arms (n·(n−1)); pinned pairs declared by per-fixture `RUNG_PAIR:` markers collected across the `test_docket_config*.sh` family glob; verdict is set equality. The header comment's prose enumeration stops being the claim of record.
+- Both guards mutation-proved (reorder, removal, count-stable rename, and a simulated fourth layer must redden) and written corpus-indifferent to #0251's split (no `BASH_SOURCE` whole-file scans).
 
 ## Out of scope
 
-- Adding config layers or keys.
-- The population-floor/sharding rework of the same file — owned by the run-tests budget-regime change; coordinate at build time (same test file).
+- Adding config layers or keys; changing emission order.
+- The population-floor/sharding rework of the same file — owned by #0251; coordinate at build time (same test file; whichever lands second rebases, per 0251's spec assumptions 7/9).
