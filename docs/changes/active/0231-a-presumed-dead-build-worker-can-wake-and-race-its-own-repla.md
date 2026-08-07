@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/a-presumed-dead-build-worker-can-wake-and-race-its-own-repla
-claimed_at: 2026-08-07T15:21:10Z
+claimed_at: 2026-08-07T15:23:20Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -96,3 +96,36 @@ Resolved at groom time (see the spec's `## Assumptions`):
   outcome and forbids the recovery move.
 - *Does the hazard reach `docket-rebase-resolver` / `docket-integration-repair`?* Not today — both
   are single foreground dispatches and finalize has no discard-and-re-dispatch path. Out of scope.
+
+## Reconcile log
+
+### 2026-08-07 — build claim (docket-implement-next)
+
+Re-read the change, its spec, `related: [223, 224, 232]`, and the four target files on
+`origin/main` (tip `f7fb123f`). **No scope change; design holds as written.**
+
+- **Dependency satisfied, verified.** 0223 is archived `done` (PR #166, merged `fd4d14f4`). Its
+  post-0223 *Halting conditions* list — including the *A worker return is malformed or
+  unverifiable* bullet ending "Never re-dispatch a task to repair its own return." — is on the
+  integration branch. The spec's A6 gate has been passed; its inline `> Resolved 2026-08-07` note
+  is accurate.
+- **Every anchor the spec names still exists verbatim.** `docket-build/SKILL.md` § *Dispatching a
+  task* still reads "never dispatch two workers concurrently"; `docket-build-task/SKILL.md`
+  § *Scope* still reads "Never rewrite, amend, or revert earlier task commits"; `fix-loop.md`
+  already states abort-and-report with `claimed_at` refreshed in its own vocabulary, so edit 4
+  lands beside existing prose rather than importing a foreign disposition.
+- **A8's size-budget hazard re-measured on the current base and it is real.** Actual/budget:
+  `docket-build/SKILL.md` 312/320 lines, 2876/2950 words; `docket-build-task/SKILL.md` 119/125,
+  1051/1100; `fix-loop.md` 175/180, 1779/1850. The spec's figures were exact. Headroom is 5-8
+  lines per file, so at least one row in `tests/test_skill_size_budgets.sh` will likely need the
+  documented rationale-comment raise rather than prose compression.
+- **Collision partners are all still unbuilt**, so nothing has landed ahead of this change:
+  0224 and 0232 are `proposed` needs-brainstorm; 0234 is `proposed`. Change 0190 is `in-progress`
+  under a concurrent agent and touches `docket-build`'s gate/evidence surface — unmerged, so this
+  branch cuts clean from `origin/main`; keep every edit additive and reconcile by intent at rebase
+  per the `concurrent-edits-compose-at-rebase` learning.
+- **Auto-capture: nothing minted.** The one adjacent idea this pass surfaced — A9's belt-and-braces
+  controller check that the branch tip is still the accepted SHA — is explicitly deferred by the
+  spec to a human's call ("belongs in its own stub if the human wants belt-and-braces") and guards
+  a state A1's prohibition makes unreachable. It fails the materiality bar as discovered work; it
+  is reported here rather than minted.
