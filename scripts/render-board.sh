@@ -458,6 +458,19 @@ if [ "$archive_count" -gt 0 ]; then
   declare -A MONTH_DONE; month_order=()
   while IFS=$'\t' read -r date id st f; do
     [ -n "$id" ] || continue
+    # M4 (change 0259) — validate the tuple as RECEIVED, not only the values as read. M1-M3 cannot
+    # see a control character that never passed through a frontmatter read (a TAB in a FILENAME
+    # reaches the join directly), and a shifted split silently rebinds every later field. Two
+    # conjuncts, each catching a different corruption: a status that is not in the closed vocabulary
+    # means the tuple slid left/right; a path that does not resolve on disk means `f` is a fragment;
+    # and a residual TAB or CR still inside `f` means the tuple is NOT re-joinable. That third
+    # conjunct is the one a TAB in a filename actually trips — `read` assigns the unsplit remainder
+    # to the final field, so such a path resolves on disk and carries a valid status, yet emitting
+    # it would write a raw control character into the rendered link.
+    if ! docket_status_is_member "$st" || [ ! -e "$f" ] || [ "$f" != "${f//[$'\t\r']/}" ]; then
+      mark_malformed "${f:-<unresolvable>}" "archive feeder tuple did not read back cleanly (status '$(sanitize "$st")')"
+      continue
+    fi
     if [ "$st" = "done" ]; then
       done_seen=$(( done_seen + 1 ))
       if [ "$done_seen" -gt "$ARCHIVE_RECENT" ]; then
