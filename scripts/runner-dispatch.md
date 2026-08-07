@@ -40,7 +40,8 @@ docket.sh runner-dispatch --runner <name> --agent <agent> [--model <m>] [--effor
 
 Mock seams: `RUNNERS_DIR` (adapter directory), `GIT` (through `lib/docket-root.sh`), and — for the
 run gate (change 0237) — `VERIFY_RUN` (the disposition reader, default `scripts/verify-run.sh`) and
-`DOCKET_FACADE` (the facade used for the post-return metadata re-sync, default `scripts/docket.sh`).
+`DOCKET_FACADE` (the facade used for the metadata re-syncs on both sides of the handoff, default
+`scripts/docket.sh`).
 
 ## Behavior
 
@@ -73,10 +74,26 @@ run gate (change 0237) — `VERIFY_RUN` (the disposition reader, default `script
    [--effort e] -- <args…>`, foreground, **call-and-return** (change 0237 — no longer `exec`).
    The adapter's stdout/stderr pass through and its exit code is propagated **verbatim** on every
    path where the run gate takes no action.
-5. **Run gate (change 0237)** — engages **only** for `--agent implement-next`. Before the handoff
-   the facade records the set of `in-progress` change ids (`verify-run --in-progress-ids`); after
-   the handoff it re-syncs the metadata worktree and re-reads the set. Any id **not** in the
-   before-set is this run's claim, and each is checked with `verify-run <id>`:
+5. **Run gate (change 0237)** — engages **only** for `--agent implement-next`. The facade re-syncs
+   the metadata worktree and records the set of `in-progress` change ids
+   (`verify-run --in-progress-ids`), then stamps the clock; after the handoff it re-syncs **again**
+   and re-reads the set with `verify-run --in-progress-ids --with-claimed-at`. The re-sync is
+   **symmetric** by necessity: both reads must be of fresh origin state, or a change that is
+   `in-progress` on `origin/docket` but not yet in the local `.docket` worktree is absent from the
+   before-set, present in the after-set, and attributed to a run that never touched it.
+
+   **Attribution.** A candidate must clear three filters, because a set diff identifies a change of
+   state and not a claimant: (1) not in the before-set; (2) a `claimed_at` that parses — an absent
+   or unreadable stamp is no positive evidence of ownership; (3) `claimed_at` at or after the
+   dispatch stamp — a claim made before this run started cannot be ours however it became visible,
+   which is what excludes an **abandoned** in-progress change from an earlier session (the case
+   `board-checks`' `aborted-run` leg exists for) even on the path where the pre-handoff re-sync
+   itself failed. A timestamp cannot separate our claim from one a **concurrent** loop made during
+   our run — `claimed_at` is re-stamped at every phase boundary, so a live foreign run looks fresh
+   too — so ambiguity is resolved by counting instead: an `implement-next` run claims **at most
+   one** change, so two or more surviving candidates means none can be attributed and the gate
+   **stands down with a warning**. Each surviving id (at most one) is checked with
+   `verify-run <id>`:
 
    - `run-complete` / `run-halted` / `run-unclaimed` → nothing; exit the adapter's code.
    - `run-incomplete` → **one** bounded re-dispatch of the same adapter, with the change id and the
@@ -85,8 +102,11 @@ run gate (change 0237) — `VERIFY_RUN` (the disposition reader, default `script
 
    `run-halted` never re-dispatches — a halt means a human is needed. A `build-*` delegation leaves
    its change `in-progress` by design, which is why the agent gate is load-bearing rather than an
-   optimization. An unrecognised agent is a no-op, never a guess. A snapshot that cannot be read
-   **disables the gate with a warning** — it never converts a healthy dispatch into a failure.
+   optimization. An unrecognised agent is a no-op, never a guess. A snapshot that cannot be read, a
+   failed clock read, or an ambiguous claim set all **disable the gate with a warning** — none of
+   them ever converts a healthy dispatch into a failure. A failed metadata re-sync (either side) is
+   likewise best-effort: it warns and degrades the gate's freshness rather than failing a dispatch
+   that may well have succeeded.
 
    The re-dispatched run's own exit code is not propagated: the gate's verdict is read from git,
    not from the retry's status, so the outcome is either `$rc` (the first adapter's code) or the
@@ -117,6 +137,8 @@ traps are a deliberate deferral, not an oversight.
   two-strikes abort is the only new non-zero, and only on a path that was previously silent.
 - The run gate is scoped to `--agent implement-next` and never writes docket state — it acts only
   by running an agent. It re-dispatches an unfinished change **at most once**.
+- The gate acts on at most one change per dispatch, and only on one whose `claimed_at` falls inside
+  this dispatch's window. It never re-dispatches onto a claim it cannot attribute to itself.
 - Never degrades a delegation request to a native run.
 - Foreground only — the shim (and any native caller) blocks until the child exits.
 - The `runners.<name>:` parse handles simple `key: value` scalars only — by design; a runner

@@ -360,12 +360,21 @@ rm -rf "$SBX"
 # ---- 0237: the run gate — snapshot diff + agent gating ----------------------------
 # A stub verify-run records its argv and replies from files the fixture controls, so these asserts
 # pin the FACADE's diffing and gating, not verify-run's verdict logic (Task 1 owns that).
+#
+# Snapshot fixture files are `<id> <claimed_at-epoch>` lines, the shape verify-run's
+# `--in-progress-ids --with-claimed-at` emits. The stub serves the bare `--in-progress-ids` form by
+# projecting field 1, so a fixture describes ONE world and both reads agree about it. NOW/OLD/FUT
+# are relative to the run, because the facade compares against the clock it reads at dispatch time:
+# FUT is inside this run's claim window, OLD is a claim that predates it.
+NOW="$(date -u +%s)"; OLD=$(( NOW - 100000 )); FUT=$(( NOW + 60 ))
+
 make_gate_fixture(){
   make_fixture
   mkdir -p "$SBX/runners"
   cat > "$SBX/runners/ad.sh" <<'AD'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "${AD_LOG:?}"
+printf 'adapter\n' >> "${ORDER_LOG:?}"
 # each invocation advances the "after" snapshot to the next staged file, if one exists
 n=$(wc -l < "${AD_LOG:?}" | tr -d ' ')
 [ -f "${SNAP_DIR:?}/after.$n" ] && cp "${SNAP_DIR}/after.$n" "${SNAP_DIR}/current"
@@ -373,25 +382,45 @@ exit 0
 AD
   chmod +x "$SBX/runners/ad.sh"
   SNAP="$SBX/snap"; mkdir -p "$SNAP"
-  cat > "$SBX/fake-verify-run.sh" <<'VR'
-#!/usr/bin/env bash
-printf '%s\n' "$*" >> "${VR_LOG:?}"
-for a in "$@"; do [ "$a" = "--in-progress-ids" ] && { cat "${SNAP_DIR:?}/current"; exit 0; }; done
-id=""
-for a in "$@"; do case "$a" in [0-9]*) id="$a" ;; esac; done
-cat "${SNAP_DIR:?}/verdict.$id" 2>/dev/null || printf 'run-complete %s\n' "$id"
-VR
-  chmod +x "$SBX/fake-verify-run.sh"
-  : > "$SBX/ad.log"; : > "$SBX/vr.log"
+  write_fake_vr   # default: verdicts come from $SNAP/verdict.<id>
+  : > "$SBX/ad.log"; : > "$SBX/vr.log"; : > "$SBX/order.log"
+  # The re-sync seam. It logs, so the ORDER of re-sync vs adapter is assertable — an
+  # after-only re-sync (the pre-fix shape) leaves `adapter` as the first line.
   cat > "$SBX/fake-facade.sh" <<'FF'
 #!/usr/bin/env bash
+printf 'facade %s\n' "$*" >> "${ORDER_LOG:?}"
 exit 0
 FF
   chmod +x "$SBX/fake-facade.sh"
 }
+# write_fake_vr [VERDICT_BODY] — the stub reader. The snapshot half is shared by every case, so it
+# lives here once; a case needing its own verdict logic passes a body rather than restating the
+# snapshot half (and drifting from the real reader's two output shapes).
+write_fake_vr(){
+  { cat <<'VRHEAD'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "${VR_LOG:?}"
+withca=0
+for a in "$@"; do [ "$a" = "--with-claimed-at" ] && withca=1; done
+for a in "$@"; do
+  [ "$a" = "--in-progress-ids" ] || continue
+  if [ "$withca" = 1 ]; then cat "${SNAP_DIR:?}/current"
+  else awk '{print $1}' "${SNAP_DIR:?}/current"; fi
+  exit 0
+done
+VRHEAD
+    if [ $# -gt 0 ]; then printf '%s\n' "$1"; else cat <<'VRTAIL'
+id=""
+for a in "$@"; do case "$a" in [0-9]*) id="$a" ;; esac; done
+cat "${SNAP_DIR:?}/verdict.$id" 2>/dev/null || printf 'run-complete %s\n' "$id"
+VRTAIL
+    fi
+  } > "$SBX/fake-verify-run.sh"
+  chmod +x "$SBX/fake-verify-run.sh"
+}
 run_gate(){  # $@ = facade args
   ( cd "$SBX" && RUNNERS_DIR="$SBX/runners" DOCKET_HARNESS_ROOT="$SBX" \
-      SNAP_DIR="$SNAP" AD_LOG="$SBX/ad.log" VR_LOG="$SBX/vr.log" \
+      SNAP_DIR="$SNAP" AD_LOG="$SBX/ad.log" VR_LOG="$SBX/vr.log" ORDER_LOG="$SBX/order.log" \
       VERIFY_RUN="$SBX/fake-verify-run.sh" DOCKET_FACADE="$SBX/fake-facade.sh" \
       bash "$FACADE" "$@" )
 }
@@ -399,7 +428,7 @@ run_gate(){  # $@ = facade args
 # (a) a NON-implement-next agent never engages the gate — load-bearing, not an optimization:
 #     a build-* delegation leaves its change in-progress BY DESIGN.
 make_gate_fixture
-printf '5\n' > "$SNAP/current"; printf '5\n7\n' > "$SNAP/after.1"
+printf '%s\n' "5 $OLD" > "$SNAP/current"; printf '%s\n' "5 $OLD" "7 $FUT" > "$SNAP/after.1"
 run_gate --runner ad --agent status >/dev/null 2>&1; rc=$?
 assert "0237 gate: a status delegation exits 0" '[ "$rc" = "0" ]'
 assert "0237 gate: a status delegation never calls verify-run" '[ ! -s "$SBX/vr.log" ]'
@@ -408,20 +437,76 @@ run_gate --runner ad --agent build-standard --worktree "$SBX/.worktrees/w" >/dev
 assert "0237 gate: a build-* delegation never calls verify-run" '[ ! -s "$SBX/vr.log" ]'
 rm -rf "$SBX"
 
-# (b) implement-next: only the NEWLY-claimed id is verified; a pre-held claim is ignored,
-#     so concurrent runs never cross-fire.
+# (b) implement-next: an id that is new in AFTER *and* stamped inside this run's claim window is
+#     this run's claim and is verified; an id already held at the handoff is not. The name is
+#     deliberately narrow: what this case pins is that a claim held BEFORE the handoff is ignored,
+#     which is strictly weaker than "concurrent runs never cross-fire" — cases (b2)/(b3)/(b4) carry
+#     the attribution properties the set diff alone does not establish.
 make_gate_fixture
-printf '5\n' > "$SNAP/current"; printf '5\n7\n' > "$SNAP/after.1"
+printf '%s\n' "5 $OLD" > "$SNAP/current"; printf '%s\n' "5 $OLD" "7 $FUT" > "$SNAP/after.1"
 printf 'run-complete 7\n' > "$SNAP/verdict.7"
 run_gate --runner ad --agent implement-next >/dev/null 2>&1; rc=$?
 assert "0237 gate: implement-next exits 0 when the run completed" '[ "$rc" = "0" ]'
 assert "0237 gate: verify-run was called on the NEW id" 'grep -qw 7 "$SBX/vr.log"'
-assert "0237 gate: the pre-held claim (5) is NOT verified" '! grep -qE "(^| )5( |$)" "$SBX/vr.log"'
+assert "0237 gate: a claim HELD AT THE HANDOFF (5) is NOT verified" \
+  '! grep -qE "(^| )5( |$)" "$SBX/vr.log"'
+# Both snapshots must read FRESH ORIGIN state, so the re-sync is symmetric around the handoff.
+# An after-only re-sync (the pre-fix shape) leaves `adapter` as order.log's first line.
+assert "0237 gate: the BEFORE snapshot is preceded by a metadata re-sync" \
+  '[ "$(sed -n 1p "$SBX/order.log")" = "facade preflight" ]'
+assert "0237 gate: the adapter runs after that re-sync" \
+  '[ "$(sed -n 2p "$SBX/order.log")" = "adapter" ]'
+assert "0237 gate: the metadata is re-synced on BOTH sides of the handoff" \
+  '[ "$(grep -c "^facade preflight$" "$SBX/order.log" | tr -d " ")" = "2" ]'
+rm -rf "$SBX"
+
+# (b2) THE ATTRIBUTION PROPERTY the set diff cannot supply. An abandoned in-progress change from an
+#      earlier session — absent from the local tree, so absent from BEFORE even when the pre-handoff
+#      re-sync fails — is new in AFTER but carries an OLD `claimed_at`. It cannot be this run's
+#      claim, must not be verified, and must not spend an agent run being re-dispatched.
+make_gate_fixture
+printf '\n' > "$SNAP/current"; printf '%s\n' "7 $OLD" > "$SNAP/after.1"
+printf 'run-incomplete 7 status pr branch\n' > "$SNAP/verdict.7"
+err="$( run_gate --runner ad --agent implement-next 2>&1 >/dev/null )"; rc=$?
+assert "0237 attribution: a claim stamped before this dispatch exits 0" '[ "$rc" = "0" ]'
+assert "0237 attribution: it is never verified" '! grep -qE "(^| )7( |$)" "$SBX/vr.log"'
+assert "0237 attribution: and never re-dispatched" \
+  '[ "$(wc -l < "$SBX/ad.log" | tr -d " ")" = "1" ]'
+assert "0237 attribution: the skip is announced, not silent" 'grep -qiF "run gate" <<<"$err"'
+rm -rf "$SBX"
+
+# (b3) an UNREADABLE claim stamp is no positive evidence of ownership — the gate acts on a positive
+#      finding, never on a guess.
+make_gate_fixture
+printf '\n' > "$SNAP/current"; printf '%s\n' "7 -" > "$SNAP/after.1"
+printf 'run-incomplete 7 status pr branch\n' > "$SNAP/verdict.7"
+run_gate --runner ad --agent implement-next >/dev/null 2>&1; rc=$?
+assert "0237 attribution: an unreadable claimed_at exits 0" '[ "$rc" = "0" ]'
+assert "0237 attribution: an unreadable claimed_at is never verified" \
+  '! grep -qE "(^| )7( |$)" "$SBX/vr.log"'
+assert "0237 attribution: an unreadable claimed_at is never re-dispatched" \
+  '[ "$(wc -l < "$SBX/ad.log" | tr -d " ")" = "1" ]'
+rm -rf "$SBX"
+
+# (b4) TWO fresh claims inside the window — a concurrent loop claimed during our run. An
+#      implement-next run claims at most one change, so neither can be attributed to us and the
+#      gate must stand down rather than re-dispatch onto a change another agent is holding.
+make_gate_fixture
+printf '\n' > "$SNAP/current"; printf '%s\n' "7 $FUT" "9 $FUT" > "$SNAP/after.1"
+printf 'run-incomplete 7 status pr branch\n' > "$SNAP/verdict.7"
+printf 'run-incomplete 9 status pr branch\n' > "$SNAP/verdict.9"
+err="$( run_gate --runner ad --agent implement-next 2>&1 >/dev/null )"; rc=$?
+assert "0237 attribution: an ambiguous claim set exits 0" '[ "$rc" = "0" ]'
+assert "0237 attribution: an ambiguous claim set verifies nothing" \
+  '! grep -qE "^[0-9]" "$SBX/vr.log"'
+assert "0237 attribution: an ambiguous claim set dispatches exactly once" \
+  '[ "$(wc -l < "$SBX/ad.log" | tr -d " ")" = "1" ]'
+assert "0237 attribution: and it says why" 'grep -qiF "run gate" <<<"$err"'
 rm -rf "$SBX"
 
 # (c) an EMPTY diff (drained / contended — the run claimed nothing) is a no-op.
 make_gate_fixture
-printf '5\n' > "$SNAP/current"; printf '5\n' > "$SNAP/after.1"
+printf '%s\n' "5 $OLD" > "$SNAP/current"; printf '%s\n' "5 $OLD" > "$SNAP/after.1"
 run_gate --runner ad --agent implement-next >/dev/null 2>&1; rc=$?
 assert "0237 gate: an empty diff exits 0" '[ "$rc" = "0" ]'
 assert "0237 gate: an empty diff verifies nothing" '! grep -qE "^[0-9]" "$SBX/vr.log"'
@@ -430,7 +515,7 @@ rm -rf "$SBX"
 
 # (d) run-halted NEVER re-dispatches — a halt means a human is needed.
 make_gate_fixture
-printf '\n' > "$SNAP/current"; printf '9\n' > "$SNAP/after.1"
+printf '\n' > "$SNAP/current"; printf '%s\n' "9 $FUT" > "$SNAP/after.1"
 printf 'run-halted 9\n' > "$SNAP/verdict.9"
 run_gate --runner ad --agent implement-next >/dev/null 2>&1; rc=$?
 assert "0237 gate: run-halted exits 0" '[ "$rc" = "0" ]'
@@ -457,17 +542,11 @@ rm -rf "$SBX"
 
 # (f) run-incomplete -> ONE re-dispatch; a now-complete second verdict exits with the adapter's code
 make_gate_fixture
-printf '\n' > "$SNAP/current"; printf '4\n' > "$SNAP/after.1"
+printf '\n' > "$SNAP/current"; printf '%s\n' "4 $FUT" > "$SNAP/after.1"
 printf 'run-incomplete 4 status pr\n' > "$SNAP/verdict.4"
-cat > "$SBX/fake-verify-run.sh" <<'VR2'
-#!/usr/bin/env bash
-printf '%s\n' "$*" >> "${VR_LOG:?}"
-for a in "$@"; do [ "$a" = "--in-progress-ids" ] && { cat "${SNAP_DIR:?}/current"; exit 0; }; done
-# first verdict call is incomplete, second is complete
-n=$(grep -c '^4' "${VR_LOG:?}" || true)
-if [ "$n" -le 1 ]; then printf 'run-incomplete 4 status pr\n'; else printf 'run-complete 4\n'; fi
-VR2
-chmod +x "$SBX/fake-verify-run.sh"
+write_fake_vr "# first verdict call is incomplete, second is complete
+n=\$(grep -c '^4' \"\${VR_LOG:?}\" || true)
+if [ \"\$n\" -le 1 ]; then printf 'run-incomplete 4 status pr\\n'; else printf 'run-complete 4\\n'; fi"
 out="$( run_gate --runner ad --agent implement-next 2>"$SBX/e.log" )"; rc=$?
 assert "0237 redispatch: exits 0 once the second verdict is complete" '[ "$rc" = "0" ]'
 assert "0237 redispatch: the adapter ran exactly TWICE" \
@@ -482,14 +561,8 @@ rm -rf "$SBX"
 
 # (g) two strikes -> loud non-zero naming the change and the still-unmet conjuncts
 make_gate_fixture
-printf '\n' > "$SNAP/current"; printf '6\n' > "$SNAP/after.1"
-cat > "$SBX/fake-verify-run.sh" <<'VR3'
-#!/usr/bin/env bash
-printf '%s\n' "$*" >> "${VR_LOG:?}"
-for a in "$@"; do [ "$a" = "--in-progress-ids" ] && { cat "${SNAP_DIR:?}/current"; exit 0; }; done
-printf 'run-incomplete 6 status pr branch\n'
-VR3
-chmod +x "$SBX/fake-verify-run.sh"
+printf '\n' > "$SNAP/current"; printf '%s\n' "6 $FUT" > "$SNAP/after.1"
+write_fake_vr "printf 'run-incomplete 6 status pr branch\\n'"
 err="$( run_gate --runner ad --agent implement-next 2>&1 >/dev/null )"; rc=$?
 assert "0237 two-strikes: exits NON-ZERO" '[ "$rc" != "0" ]'
 assert "0237 two-strikes: names the change id" 'grep -qE "(^| )6( |$)" <<<"$err"'
@@ -501,7 +574,7 @@ rm -rf "$SBX"
 # (h) the re-dispatch does NOT fire on run-complete / run-halted / run-unclaimed
 for v in run-complete run-halted run-unclaimed; do
   make_gate_fixture
-  printf '\n' > "$SNAP/current"; printf '8\n' > "$SNAP/after.1"
+  printf '\n' > "$SNAP/current"; printf '%s\n' "8 $FUT" > "$SNAP/after.1"
   printf '%s 8\n' "$v" > "$SNAP/verdict.8"
   run_gate --runner ad --agent implement-next >/dev/null 2>&1; rc=$?
   assert "0237 redispatch: $v exits 0" '[ "$rc" = "0" ]'
