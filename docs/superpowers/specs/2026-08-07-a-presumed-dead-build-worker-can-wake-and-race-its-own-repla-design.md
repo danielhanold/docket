@@ -127,6 +127,10 @@ human merges it. That is the intended behavior, not a side effect. It is written
 not left in spec prose. 0224 is deliberately *not* a dependency despite touching the same file: it
 edits § *The build gate*, a different section, and none of its text is a premise here.
 
+> **Resolved 2026-08-07.** PR #166 merged (`fd4d14f4`); 0223 is `done` and archived. The gate A6
+> describes has been passed — 0223's *Halting conditions* text is on the integration branch and
+> 0231 is build-ready. The assumption above is left as written; this note records its outcome.
+
 **A7 — File-collision couplings as `related: [223, 224, 232]`.** Collisions, all additive:
 `skills/docket-build/SKILL.md` (0223 § *Halting conditions*, 0224 § *The build gate*),
 `skills/docket-build-task/SKILL.md` (0232 propagating the gate execution posture),

@@ -74,8 +74,9 @@ The settled design is in the spec. Four prose edits plus their guards:
   workers itself and never loads `docket-build`.
 - **Guards** in `tests/test_docket_build.sh` over all three prose surfaces, mutation-tested.
 
-Depends on change 0223: its branch rewrites the same *Halting conditions* list and introduces the
-false-completion rule this design reasons from.
+Depends on change 0223, which rewrote the same *Halting conditions* list and introduced the
+false-completion rule this design reasons from. 0223 reached `done` on 2026-08-07 (PR #166 merged as
+`fd4d14f4`), so that text is on the integration branch and this dependency is satisfied.
 
 ## Out of scope
 
