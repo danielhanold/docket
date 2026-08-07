@@ -10,7 +10,7 @@ updated: 2026-08-07
 depends_on: []
 related: [234]
 discovered_from: [234]
-adrs: [71]
+adrs: [71, 73]
 spec: docs/superpowers/specs/2026-08-07-writers-emit-unquoted-yaml-title-scalars-so-six-change-files-design.md
 plan: docs/superpowers/plans/2026-08-07-writers-emit-unquoted-yaml-title-scalars.md
 results:
@@ -30,7 +30,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-07-writers-emit-unquoted-yaml-title-scalars-so-six-change-files-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-writers-emit-unquoted-yaml-title-scalars-so-six-change-files-design.md) |
 | Plan | [2026-08-07-writers-emit-unquoted-yaml-title-scalars.md](https://github.com/danielhanold/docket/blob/feat/writers-emit-unquoted-yaml-title-scalars-so-six-change-files/docs/superpowers/plans/2026-08-07-writers-emit-unquoted-yaml-title-scalars.md) |
-| ADRs | [ADR-0071](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0071-writer-guarantees-yaml-validity-by-construction.md) |
+| ADRs | [ADR-0071](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0071-writer-guarantees-yaml-validity-by-construction.md), [ADR-0073](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0073-scalar-quote-predicate-has-no-flow-collection-exemption.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
