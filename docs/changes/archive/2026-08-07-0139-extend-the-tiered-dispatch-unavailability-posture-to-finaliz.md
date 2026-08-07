@@ -2,11 +2,11 @@
 id: 139
 slug: extend-the-tiered-dispatch-unavailability-posture-to-finaliz
 title: Extend the tiered dispatch-unavailability posture to finalize's two in-context-gating dispatches
-status: proposed
+status: killed
 priority: medium
 type: fix
 created: 2026-07-27
-updated: 2026-07-27
+updated: 2026-08-07
 depends_on: []
 related: []
 discovered_from: [137]
@@ -78,3 +78,7 @@ hole — which is exactly why it was judged safe to defer.
 - Re-litigating change 0137's four tiers; they are settled and shipped.
 - Any change to when finalize dispatches these helpers at all — this is only about what happens
   when the dispatch mechanism itself is unavailable.
+
+## Why killed
+
+Consolidated into #0260 at the 2026-08-07 backlog triage: the two untiered finalize dispatches get the halt/carve-out default this change's own body argued for; the PENDING_TIER test block is rewired in the same change.
