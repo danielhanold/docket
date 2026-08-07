@@ -8,10 +8,10 @@ type: refactor
 created: 2026-08-07
 updated: 2026-08-07
 depends_on: []
-related: []
+related: [231]
 discovered_from: [223]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-07-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-07-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -67,14 +70,23 @@ distinction for a blocking-read file is *instruction vs. evidence*.
 Split the file along that second axis:
 
 - **Keep on the runtime-read surface**: the six required capabilities, the mitigation and its
-  non-obvious precondition, the *Reading a verdict* rules, and a compact verdict table
-  (harness → token → version → scope qualifier).
-- **Move to the record**: § *Method* and the per-harness evidence narratives — to the results file,
-  an ADR, or a non-blocking sibling reference, with a pointer from the kept surface.
+  non-obvious precondition, the *Reading a verdict* rules, and one **compact `### <harness>`
+  section** per shipped harness carrying its version, its verdict token, and any scope qualifier.
+- **Move to a new non-blocking sibling**, `skills/docket-build/references/gate-execution-evidence.md`:
+  § *Method*, the one-variable-per-run ladder, the measured launch durations, and the per-harness
+  evidence narratives — with a pointer from the kept surface and a back-pointer to 0223's results
+  file.
+- **Ratchet** the kept file's size-budget row down to its new measured actual, and add a row for the
+  new file. The ratchet is the enforcement; without it the evidence drifts back.
 
-`tests/test_gate_execution_posture.sh` asserts a verdict for every harness in
-`HD_SHIPPED_HARNESSES`; that assertion must keep holding against the compact table, so the table is
-the structure to design first.
+The stub's "compact verdict table" was rejected during grooming on guard structure:
+`tests/test_gate_execution_posture.sh` requires `### <harness>` headings whose set equals
+`HD_SHIPPED_HARNESSES`, a verdict line inside each section slice, and per-harness *prose* about the
+measured mode. A markdown table satisfies none of those, and rewriting a guard file that is
+mutation-tested clause by clause is a larger, riskier diff than the one this change is for. The
+short-section shape is that compact row expressed in the structure the guards already enforce.
+
+Expected result: the kept file drops from 168 lines to roughly 93.
 
 ## Out of scope
 
@@ -83,11 +95,16 @@ the structure to design first.
 - Changing `docket-build` § *Gate execution posture* itself, or the `GATE_OBSERVATION_BUDGET`
   contract. The posture is correct; only where its supporting evidence lives is in question.
 - Relaxing the blocking-read requirement. The kept surface is still read before the gate.
+- Editing `docs/results/` in any way, or de-duplicating the version scoping it shares with this
+  file. The evidence file points at it instead.
+- Rewriting any existing assert in `tests/test_gate_execution_posture.sh`. New guards are additive.
 
 ## Open questions
 
-- Where does the evidence land — appended to 0223's results file (its natural home, but that file
-  is archived and terminal), a new ADR (durable and indexed, but ADRs record decisions rather than
-  measurements), or a sibling reference the skill body does *not* blocking-read?
-- Does the size-budget row for the kept file get ratcheted back down as part of this change, or
-  left with headroom? A ratchet is the only thing that prevents the evidence drifting back in.
+Both resolved during autonomous grooming; the reasoning and the rejected alternatives are in the
+spec's `## Assumptions` block.
+
+- **Where the evidence lands** → a new non-blocking sibling reference. The results file is a
+  published close-out record of a completed change, and an ADR's lifecycle is wrong for a
+  measurement that must be rewritten whenever a harness version moves.
+- **Budget ratchet** → yes, down to the new measured actual, with an in-diff justification.
