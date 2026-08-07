@@ -279,7 +279,7 @@ independent legs; any emits, and more than one may emit on one change.
   `detect_orphan_pr` (change 0219), beside `detect_merged` where `gh` already lives. That leg mirrors
   this leg's whole gate — the 2h floor **and** the ahead-of-both-bases predicate, with no-base-resolving
   as silence — so the two findings always agree. When `gh` is unavailable it emits
-  `sweep-skipped` and goes quiet; leg C's finding still fires, and a human still resolves the
+  `orphan-pr-skipped` and goes quiet; leg C's finding still fires, and a human still resolves the
   ambiguity by hand. **That degradation is the design, not a defect:** the offline-safe check stays
   offline-safe.
 
