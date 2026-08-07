@@ -644,6 +644,29 @@ case "$REVIEW_MAX_FIX_TASKS" in
   ''|*[!0-9]*) die "unparseable config: review.max_fix_tasks must be a non-negative integer, got '$REVIEW_MAX_FIX_TASKS'" ;;
 esac
 
+# --- gate_observation_budget: the build gate's artifact-observation budget (change 0223) ------
+# A FLAT top-level key, deliberately not nested. `finalize.gate_observation_budget` would be wrong
+# because the key binds docket-build's gate too, and a new top-level `gate:` block would collide
+# with `finalize.gate`, which already means the gate MODE — a permanent reading hazard for a key
+# read under time pressure.
+# Integer MINUTES. It bounds how long docket is willing to await a terminal durable gate result;
+# it does NOT control the timeout of any individual harness operation, and no harness's foreground
+# timeout may be encoded here.
+# Global-able, NOT coordination-fenced: local execution timing is legitimately per-machine, so it
+# resolves through the full chain repo-local > repo-committed > global > built-in, like auto_groom.
+# Fail closed on garbage (the learnings.cap / review.max_fix_tasks precedent): a typo'd budget
+# silently defaulting would make the fail-closed halt fire at a duration nobody chose. 0 is legal
+# and carries no magic — it means "observe once, then fail closed".
+# tests/test_docket_config.sh pins the chain, the fail-closed boundary, and the emit position
+# (GOB-a … GOB-g).
+GATE_OBSERVATION_BUDGET="$(lcl gate_observation_budget)"
+GATE_OBSERVATION_BUDGET="${GATE_OBSERVATION_BUDGET:-$(config_scalar_get committed gate_observation_budget)}"
+GATE_OBSERVATION_BUDGET="${GATE_OBSERVATION_BUDGET:-$(gbl gate_observation_budget)}"
+GATE_OBSERVATION_BUDGET="${GATE_OBSERVATION_BUDGET:-30}"
+case "$GATE_OBSERVATION_BUDGET" in
+  ''|*[!0-9]*) die "unparseable config: gate_observation_budget must be a non-negative integer (minutes), got '$GATE_OBSERVATION_BUDGET'" ;;
+esac
+
 # --- change_types + auto_capture: the typed-capture policy (change 0127) -------
 # change_types is a LIST resolved with WHOLE-LIST REPLACEMENT: the first layer that sets it wins
 # entirely. Merging would make a built-in value unremovable — a user could only ever add types,
@@ -834,6 +857,7 @@ if [ "$MODE" = export ]; then
   emit BUILD_CHECKPOINT "$BUILD_CHECKPOINT"
   emit REVIEW_MIN_FIX_SEVERITY "$REVIEW_MIN_FIX_SEVERITY"
   emit REVIEW_MAX_FIX_TASKS "$REVIEW_MAX_FIX_TASKS"
+  emit GATE_OBSERVATION_BUDGET "$GATE_OBSERVATION_BUDGET"
   emit SKILL_BRAINSTORM "$SKILL_BRAINSTORM"
   emit SKILL_PLAN "$SKILL_PLAN"
   emit SKILL_BUILD "$SKILL_BUILD"

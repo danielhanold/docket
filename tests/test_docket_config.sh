@@ -241,7 +241,7 @@ assert "board fenced-to-empty: emits BOARD_SURFACES=none" \
 
 # --- (E) direct-pipe caller (LEARNINGS #22: $() hides a dropped trailing \n) -
 n="$(run "$tmp/c" --export | grep -c '=')"
-assert "direct-pipe: 31 KEY=value lines emitted"       '[ "$n" -eq 31 ]'
+assert "direct-pipe: 32 KEY=value lines emitted"       '[ "$n" -eq 32 ]'
 last="$(run "$tmp/c" --export | tail -n1)"
 assert "direct-pipe: last line is BOOTSTRAP"           'case "$last" in BOOTSTRAP=*) true;; *) false;; esac'
 
@@ -617,9 +617,9 @@ AUTO_GROOM=__poison__
 out="$(env -u XDG_CONFIG_HOME HOME="$tmp/q.home" bash "$SCRIPT" --repo-dir "$tmp/q" --export)"; eval "$out"
 assert "0050 Q: XDG unset -> \$HOME/.config fallback read"   '[ "$AUTO_GROOM" = true ]'
 
-# --- (E') emit-interface guard: exactly 31 lines with a global file present ---
+# --- (E') emit-interface guard: exactly 32 lines with a global file present ---
 n50="$(rung "$tmp/k.xdg" "$tmp/k" --export | grep -c '=')"
-assert "0050 E': 31 KEY=value lines with global layer" '[ "$n50" -eq 31 ]'
+assert "0050 E': 32 KEY=value lines with global layer" '[ "$n50" -eq 32 ]'
 
 # --- (M) coordination-key fence: warned-and-ignored, never honored, never fatal ---
 mkrepo "$tmp/m"
@@ -2663,6 +2663,102 @@ r9_poison_site_line="$(awk '
 ' "${BASH_SOURCE[0]}")"
 assert "0148: the require_pr_approval site still has a non-empty need set (not exempt)" \
   '/usr/bin/grep -qE "^SITE $r9_poison_site_line (ok|viol)" <<<"$t_out"'
+
+# ============================================================================
+# Change 0223 — gate_observation_budget (GATE_OBSERVATION_BUDGET)
+# The build gate's artifact-observation budget, in MINUTES. A FLAT top-level key, so it resolves
+# through config_scalar_get's per-field chain repo-local > repo-committed > global > built-in,
+# exactly like auto_groom — behavioral local execution timing, not shared non-re-derivable state,
+# so ADR-0019's coordination fence does not apply and a global value must be HONORED, not warned.
+# Fail closed on garbage (the learnings.cap / review.max_fix_tasks precedent): a typo'd budget
+# silently defaulting to 30 would make a fail-closed halt fire at a duration nobody chose.
+#
+# Every assert below reads the EMITTED LINES rather than eval-ing the export block. Two reasons,
+# both the RMX block's: this is a brand-new export, so the asserts must survive it not existing at
+# all (under `set -u` an eval of an empty export block leaves the var unbound and assert()'s own
+# eval kills the suite instead of reddening), and the garbage fixtures deliberately ABORT, which
+# emits nothing at all.
+# Fixtures use this file's existing mkrepo/run/rung/run_resolver_with helpers — no second
+# fixture shape.
+# ============================================================================
+
+# --- (GOB-a) the built-in default with no config file anywhere ----------------
+mkrepo "$tmp/gob-a"
+gob_out_default="$(run "$tmp/gob-a" --export)"
+assert "GOB-a: default is 30 with no config" \
+  'grep -qxF "GATE_OBSERVATION_BUDGET=30" <<<"$gob_out_default"'
+assert "GOB-a: present in plain format too" \
+  'grep -q "^GATE_OBSERVATION_BUDGET=" <<<"$(run "$tmp/gob-a" --export --format plain)"'
+
+# --- (GOB-b) a repo-committed value wins over the built-in --------------------
+mkrepo "$tmp/gob-b"
+cat > "$tmp/gob-b/.docket.yml" <<'EOF'
+metadata_branch: main
+gate_observation_budget: 45
+EOF
+git -C "$tmp/gob-b" add .docket.yml; git -C "$tmp/gob-b" commit --quiet -m cfg
+git -C "$tmp/gob-b" push --quiet origin main
+gob_out_committed="$(run "$tmp/gob-b" --export)"
+assert "GOB-b: repo-committed value is honored" \
+  'grep -qxF "GATE_OBSERVATION_BUDGET=45" <<<"$gob_out_committed"'
+
+# --- (GOB-c) global-able (ADR-0019 — NOT coordination-fenced) -----------------
+mkrepo "$tmp/gob-c"
+mkdir -p "$tmp/gob-c.xdg/docket"
+printf 'gate_observation_budget: 15\n' > "$tmp/gob-c.xdg/docket/config.yml"
+gob_out_global="$(rung "$tmp/gob-c.xdg" "$tmp/gob-c" --export 2>/dev/null)"
+gob_err_global="$(rung "$tmp/gob-c.xdg" "$tmp/gob-c" --export 2>&1 >/dev/null)"
+assert "GOB-c: global-layer value is honored" \
+  'grep -qxF "GATE_OBSERVATION_BUDGET=15" <<<"$gob_out_global"'
+# Non-vacuity companion is the positive assert directly above: the fence would resolve the key to
+# the built-in AND warn, so only the pair distinguishes "honored" from "silently ignored".
+assert "GOB-c: no fence warning for gate_observation_budget" \
+  '! grep -qiE "gate_observation_budget.*per-repo-only" <<<"$gob_err_global"'
+
+# --- (GOB-d) machine-local beats repo-committed (the top of the chain) --------
+mkrepo "$tmp/gob-d"
+cat > "$tmp/gob-d/.docket.yml" <<'EOF'
+metadata_branch: main
+gate_observation_budget: 45
+EOF
+git -C "$tmp/gob-d" add .docket.yml; git -C "$tmp/gob-d" commit --quiet -m cfg
+git -C "$tmp/gob-d" push --quiet origin main
+printf 'gate_observation_budget: 5\n' > "$tmp/gob-d/.docket.local.yml"
+gob_out_local="$(run "$tmp/gob-d" --export)"
+assert "GOB-d: .docket.local.yml outranks the committed value" \
+  'grep -qxF "GATE_OBSERVATION_BUDGET=5" <<<"$gob_out_local"'
+
+# --- (GOB-e) fail closed on a non-integer -------------------------------------
+gob_out_bad="$(run_resolver_with "gate_observation_budget: many\n" 2>/dev/null)"; gob_rc_bad=$?
+gob_err_bad="$(run_resolver_with "gate_observation_budget: many\n" 2>&1 >/dev/null)"
+assert "GOB-e: a non-integer aborts" '[ "$gob_rc_bad" -ne 0 ]'
+assert "GOB-e: the diagnostic names the key" \
+  'grep -qF "gate_observation_budget" <<<"$gob_err_bad"'
+assert "GOB-e: a negative budget aborts nonzero" \
+  '! run_resolver_with "gate_observation_budget: -1\n" >/dev/null 2>&1'
+assert "GOB-e: a fractional budget aborts nonzero" \
+  '! run_resolver_with "gate_observation_budget: 2.5\n" >/dev/null 2>&1'
+
+# --- (GOB-f) 0 is legal --------------------------------------------------------
+# It means "observe once, then fail closed", matching the review.max_fix_tasks / learnings.cap
+# precedent that gives 0 no magic meaning.
+gob_out_zero="$(run_resolver_with "gate_observation_budget: 0\n" 2>/dev/null)"; gob_rc_zero=$?
+assert "GOB-f: 0 does not abort the resolver" '[ "$gob_rc_zero" -eq 0 ]'
+assert "GOB-f: 0 is legal" \
+  'grep -qxF "GATE_OBSERVATION_BUDGET=0" <<<"$gob_out_zero"'
+
+# --- (GOB-g) ORDER: after REVIEW_MAX_FIX_TASKS, before SKILL_BRAINSTORM -------
+# The contract doc promises a stable emit order and pipe consumers may rely on it. Line numbers
+# are derived per key rather than pattern-matched as a trio, so a missing key reads as an empty
+# extraction (and reddens the non-vacuity floor) instead of shifting a positional match.
+gob_ln(){ grep -n "^$1=" <<<"$gob_out_default" | cut -d: -f1; }
+gob_n_rmx="$(gob_ln REVIEW_MAX_FIX_TASKS)"
+gob_n_gob="$(gob_ln GATE_OBSERVATION_BUDGET)"
+gob_n_brs="$(gob_ln SKILL_BRAINSTORM)"
+assert "GOB-g: all three emit positions were extracted (rmx=$gob_n_rmx gob=$gob_n_gob brs=$gob_n_brs)" \
+  '[ -n "$gob_n_rmx" ] && [ -n "$gob_n_gob" ] && [ -n "$gob_n_brs" ]'
+assert "GOB-g: emitted between REVIEW_MAX_FIX_TASKS and SKILL_BRAINSTORM" \
+  '[ "${gob_n_gob:-0}" -gt "${gob_n_rmx:-0}" ] && [ "${gob_n_gob:-0}" -lt "${gob_n_brs:-0}" ]'
 
 assert "0174 template integrity: the shared template is unmutated after the full run" \
   '[ "$(git -C "$MKREPO_TEMPLATE.origin.git" for-each-ref --format="%(refname) %(objectname)" | LC_ALL=C sort)" = "$tplint_refs" ] &&
