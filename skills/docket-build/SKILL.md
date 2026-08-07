@@ -242,9 +242,13 @@ define the maximum duration of the build gate.
    `GATE_OBSERVATION_BUDGET` (default 30, in minutes) from the Step-0 config export: docket
    execution policy, distinct from any foreground-call timeout a particular harness imposes. The
    observation interval is an implementation detail; what the contract requires is that each
-   observation is short-lived and the whole period finite.
+   observation is short-lived and the whole period finite. A budget of `0` is legal and is not a
+   disabled gate: it buys exactly **one** observation of the artifact, taken once, before the
+   budget is spent.
 6. If no terminal result artifact exists when the budget is exhausted, **fail closed** — halt per
-   *Halting conditions*. Never infer success, and never turn it into a red suite: an unfinished run
+   *Halting conditions*. Under a `0` budget that verdict is reached after the single observation
+   clause 5 grants, never before it. Never infer success, and never turn it into a red suite: an
+   unfinished run
    is not a failing one, so it must **not** mint an integration-repair task. Same refusal the
    configuration-gap case above already gets.
 

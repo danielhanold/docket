@@ -61,6 +61,13 @@ assert "posture: names the resolved budget export" \
   'grep -qF "GATE_OBSERVATION_BUDGET" <<<"$posture_blk"'
 assert "posture: exhausting the budget FAILS CLOSED" \
   'grep -qiE "fail[s]? closed" <<<"$posture_flat"'
+# The `0` reading lives on the CONFIG surfaces (`.docket.example.yml`, mirrored in the resolver):
+# "0 is legal and means observe once, then fail closed". The contract the agent EXECUTES has to
+# carry it too, or a zero budget reads as exhausted before any observation — zero observations,
+# not the one observation the config promises. Keyed on the two poles of that reading (the value
+# and the single observation), not on either surface's wording.
+assert "posture: a zero budget still buys ONE observation" \
+  'grep -qiE "0[^.]{0,140}observ(e|ation)[^.]{0,40}once|once[^.]{0,60}0[^.]{0,80}fail" <<<"$posture_flat"'
 # Fail-closed is a HALT, never a red — the distinction that keeps an unfinished run from
 # manufacturing an integration-repair task.
 assert "posture: fail-closed must not mint a repair task" \
@@ -132,9 +139,18 @@ for mech in nohup setsid "&>" "process group" "shell id"; do
     '! grep -qiF -- "'"$mech"'" <<<"$build_body"'
 done
 # No harness FIGURE either. The one number the body may carry is docket's own default budget, so
-# the pattern deliberately excludes a bare "30" and targets duration-shaped literals.
+# the pattern requires a UNIT and therefore cannot catch a bare `30` — but it keys on the duration
+# SHAPE (digits, optional space or hyphen, a time unit, a non-alphanumeric boundary) rather than on
+# an enumerated list of spellings, per AGENTS.md § Guards and tests. The list this replaced was the
+# failure that rule names: `000 ms` was subsumed by `ms`, and `minute foreground` / `s timeout` were
+# ad-hoc literals, so the obvious leaks — `180s`, `5 minutes`, `a 2-minute ceiling`, `20 seconds` —
+# every one of them passed, and the invariant read as guarded while guarding almost nothing.
+# The trailing `([^[:alnum:]]|$)` is what keeps the bare `s`/`m` units honest: it is why "5 steps"
+# and "5 more" do not match. `[^[:alnum:]]` rather than `\b`, absent from BSD grep's ERE
+# (AGENTS.md § Shell). Docket's own "default 30, in minutes" is separated by a comma, so the unit
+# never abuts the digits and the policy default stays sayable.
 assert "neutrality: build body states no harness timeout figure" \
-  '! grep -qiE "[0-9]+[[:space:]]*(ms|milliseconds|000 ms|minute foreground|s timeout)" <<<"$build_body"'
+  '! grep -qiE "[0-9]+[[:space:]]*-?[[:space:]]*(milliseconds?|minutes?|seconds?|hours?|ms|secs?|mins?|hrs?|[sm])([^[:alnum:]]|$)" <<<"$build_body"'
 
 # --- (6) the blocking pointer to the quarantine --------------------------------
 assert "posture: points at the per-harness reference" \
@@ -143,9 +159,16 @@ assert "reference: the file exists" '[ -f "$REF" ]'
 ref_body="$(cat "$REF" 2>/dev/null)"
 assert "reference: is non-vacuous (>= 40 lines)" \
   '[ "$(printf "%s\n" "$ref_body" | grep -c .)" -ge 40 ]'
-# Six capabilities, counted rather than spot-checked: dropping one is the drift that matters.
+# Six capabilities, counted rather than spot-checked: dropping one is the drift that matters. The
+# count is SLICED to the section that owns the enumeration, using the same awk pattern group (10)
+# uses. A whole-file count over `^[0-9]+\. ` is the same defect the slices elsewhere in this file
+# exist to avoid, in both directions: a future numbered list under `## Method` breaks it with a
+# message about capabilities, and six numbered lines split across two sections would satisfy it.
+caps_blk="$(awk '$0 == "## The six required capabilities" {f=1;next} f && /^#+ /{f=0} f' <<<"$ref_body")"
+assert "reference: the capabilities section was located (non-vacuity anchor)" \
+  '[ "$(grep -c . <<<"$caps_blk")" -ge 12 ]'
 assert "reference: enumerates exactly 6 required capabilities" \
-  '[ "$(grep -cE "^[0-9]+\. " <<<"$ref_body")" -eq 6 ]'
+  '[ "$(grep -cE "^[0-9]+\. " <<<"$caps_blk")" -eq 6 ]'
 
 # --- (7) the halting condition --------------------------------------------------
 # LINE-anchored, and scoped to the section that owns the enumeration: `## Halting conditions` is
@@ -191,8 +214,15 @@ assert "finalize: the citation names docket-build as the owner" \
 # subsumed by the second, so this keys on `artifact` alone and matches strictly more.)
 assert "finalize: does not restate the durable-artifact clause" \
   '! grep -qiE "durable[^.]{0,60}artifact" <<<"$fin_flat"'
+# The fail-closed negative keys on the gate-specific PROPOSITION, not the bare phrase. The bare
+# phrase discriminated on orthography in both directions: the file's pre-existing "enforces the
+# bootstrap verdict fail-closed" (an unrelated concept, Step 0's bootstrap guard) was kept green
+# only by the hyphen, so ordinary copy-editing would redden it; and a genuine restatement spelled
+# "fails-closed" sailed through. So the spelling is now permissive (`fails?[- ]closed`) and the
+# DISCRIMINATION moved to co-occurrence with the gate's own subject — the budget or the observation
+# — inside a window `[^.]` cannot carry across a sentence end.
 assert "finalize: does not restate the fail-closed clause" \
-  '! grep -qiE "fail[s]? closed" <<<"$fin_flat"'
+  '! grep -qiE "fails?[- ]closed[^.]{0,120}(budget|observ)|(budget|observ)[^.]{0,120}fails?[- ]closed" <<<"$fin_flat"'
 
 # --- (9) the default budget agrees across every surface that states it ---------
 # Four independent statements of one value drift silently. Derive each from its own file with its
