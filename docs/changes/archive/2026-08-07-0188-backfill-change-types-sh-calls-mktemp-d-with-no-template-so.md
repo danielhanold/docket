@@ -2,11 +2,11 @@
 id: 188
 slug: backfill-change-types-sh-calls-mktemp-d-with-no-template-so
 title: backfill-change-types.sh calls mktemp -d with no template, so TMPDIR is ignored on macOS and uchg fixtures leak undeletable dirs
-status: proposed
+status: killed
 priority: medium
 type: fix
 created: 2026-08-01
-updated: 2026-08-01
+updated: 2026-08-07
 depends_on: []
 related: []
 discovered_from: [186]
@@ -76,3 +76,7 @@ inherited.
 
 - Any change to how the rollback fixtures force their install failure — `chflags uchg` is the right
   mechanism and is what change 0186's pty guard depends on.
+
+## Why killed
+
+Consolidated into #0254 at the 2026-08-07 backlog triage: same 0186 origin and same BSD-default root class as #0189; one sweep, one AGENTS.md rule promotion.
