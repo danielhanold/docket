@@ -4,14 +4,14 @@ slug: the-build-gate-contract-never-states-an-execution-posture-for
 title: The build gate contract never states an execution posture for a suite that outgrows a single foreground call
 status: proposed
 priority: high
-type: docs
+type: feat
 created: 2026-08-06
 updated: 2026-08-06
 depends_on: []
 related: [66, 190, 224, 225]
 discovered_from: [203]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-06-the-build-gate-contract-never-states-an-execution-posture-for-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-06-the-build-gate-contract-never-states-an-execution-posture-for-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-06-the-build-gate-contract-never-states-an-execution-posture-for-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -65,23 +68,36 @@ background log across a turn boundary) is avoided by writing to a stable path.
 
 ## What changes
 
-State an **execution posture** for the gate in `skills/docket-build/SKILL.md` § *The build gate*:
+State a **gate execution posture** in `skills/docket-build/SKILL.md` § *The build gate*,
+harness-neutral and stated by capability: the gate must not assume the suite fits inside a single
+foreground call, must record its outcome to a durable result artifact, must establish completion
+from that artifact rather than from any caller-visible completion signal, may yield while the gate
+runs, and must observe within a finite budget and fail closed when it expires. A companion
+false-completion rule covers the reciprocal error — a stale pre-yield report is not evidence of a
+crashed run.
 
-- the gate must not assume the suite fits inside a single foreground call;
-- it must be run so its result **survives a yield** (a durable result artifact, not a transient
-  in-context return);
-- completion is verified from **that artifact**, never from a caller-visible `completed` signal;
-- reconcile this against the convention's *Composition* never-yield rule so the boundary between a
-  dispatched subagent and a backgrounded test command is unambiguous.
+The contract lives in `docket-build` (the gate's owner); `docket-finalize-change`'s local gate
+**cites it by reference** rather than restating it, mirroring how build already points at finalize's
+single-source suite command.
 
-Also name the downstream reach: `finalize.gate: local` re-runs the same suite and hits the same
-wall.
+Product-specific detail is quarantined in a new
+`skills/docket-build/references/gate-execution.md` — six required capabilities, plus a per-harness
+evidence section carrying a `supported` / `unverified` / `incompatible` verdict for every shipped
+harness. That quarantine is what keeps the skill body neutral while the rule stays actionable.
 
-**Harness-neutrality is a hard constraint.** The convention requires skill prose to be
-harness-neutral and to never name product-specific syntax. "Bash tool", a literal timeout value, and
-"Monitor" are all Claude Code specifics and cannot appear normatively — the rule has to be phrased
-by **shape**. Finding a formulation that is both actionable and harness-neutral is the real design
-work here.
+Ship the observation budget as configuration end-to-end: a new top-level
+`gate_observation_budget` (integer minutes, default 30), exported as `GATE_OBSERVATION_BUDGET`, with
+resolver, example yml, README, and layer classification landing together. Classified global-able,
+not coordination-fenced.
+
+Guard the statically representable parts, mutation-tested — including a verdict recorded for every
+harness in `HD_SHIPPED_HARNESSES`, so a fifth harness cannot silently ship undeclared.
+
+Record the ADR-0024 boundary as a new ADR: the never-yield rule governs **dispatched subagents**,
+not an external gate process observed by its owner. Without it the change reads as a violation of a
+rule it does not touch.
+
+Type flipped `docs` → `feat` at grooming: the configuration knob is real code.
 
 ## Out of scope
 
@@ -91,9 +107,8 @@ work here.
 
 ## Open questions
 
-- Can the posture be stated normatively at all without a harness-specific escape hatch, or does it
-  belong partly in a per-harness reference?
-- Should this bind `finalize`'s gate too, or only the build gate?
-- Is a guard test feasible for a rule of this shape, or is it prose-only?
+- Does codex actually comply? Grooming research found the exec session is torn down at **turn** end,
+  which is where the contract's permitted yield lands. The spec directs a smoke test; if it confirms
+  teardown, record `incompatible` with evidence and leave the contract unweakened.
 
 ## Reconcile log
