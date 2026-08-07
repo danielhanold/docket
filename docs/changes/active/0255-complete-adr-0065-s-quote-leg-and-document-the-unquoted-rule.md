@@ -8,10 +8,10 @@ type: fix
 created: 2026-08-07
 updated: 2026-08-07
 depends_on: []
-related: []
+related: [256]
 discovered_from: [180, 181]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-07-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-07-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-complete-adr-0065-s-quote-leg-and-document-the-unquoted-rule-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -39,9 +42,12 @@ Verified 2026-08-07:
 
 ## What changes
 
-- Add the quote leg to `hd_validate`, copied from the sync-agents reference shape; fire/ignore probes.
-- Settle the `#`-strip corner: state that a `#`-bearing value is out of contract and validate it (default per #0180), rather than re-ordering the strip.
-- Document the unquoted-space-free rule at the point of use: both README `agents:` examples, the docket-convention schema block comment, and `.docket.example.yml` if its `agents:` sketch warrants it — reusing the existing diagnostic's wording.
+Settled design in the linked spec (auto-groomed 2026-08-07; critic-gated, one revision round):
+
+- Add the quote leg to `hd_validate`, an inline copy of the sync-agents reference condition (double and single quotes), merged into the existing byte-identical diagnostic; no shared helper — extraction is deferred to #0256.
+- Settle the `#`-strip corner: strip order unchanged; a `#` inside an entry's `{…}` flow map is out of contract and **validated** in BOTH validators via a pre-strip view of the entry line, with a distinct diagnostic. Exact firing rule, carve-outs (trailing comments, full-line comments, commented-out maps stay legal), and the hard-abort cost statement are in the spec. Ruling recorded in spec + docs + code comments; no ADR update.
+- Document one consistent sentence — unquoted, space-free, no `#` inside the flow map — at five points of use: both README `agents:` examples, docket-convention SKILL.md's schema block comment, `references/agent-layer.md`'s example block, and `.docket.example.yml`'s `agents:` intro.
+- Value-level fire/ignore probes in `test_harness_defaults_validator.sh` (quote legs + `#` leg) and `test_sync_agents_validator.sh` (`#` leg; 0173's quote probes untouched).
 
 ## Out of scope
 
