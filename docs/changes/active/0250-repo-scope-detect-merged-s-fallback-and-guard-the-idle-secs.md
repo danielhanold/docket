@@ -2,7 +2,7 @@
 id: 250
 slug: repo-scope-detect-merged-s-fallback-and-guard-the-idle-secs
 title: 'Repo-scope detect-merged''s fallback and guard the idle-secs duplication'
-status: proposed
+status: in-progress
 priority: medium
 type: fix
 created: 2026-08-07
@@ -16,7 +16,8 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch:
+branch: feat/repo-scope-detect-merged-s-fallback-and-guard-the-idle-secs
+claimed_at: 2026-08-07T22:04:45Z
 pr:
 blocked_by:
 reconciled: false
