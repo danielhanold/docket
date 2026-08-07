@@ -1,6 +1,6 @@
 # Backlog
 
-**226 changes** — 🟢 2 in progress · 🟡 53 proposed · ⚪ 4 deferred · ✅ 140 done · 🗑️ 27 killed
+**227 changes** — 🟢 2 in progress · 🟡 54 proposed · ⚪ 4 deferred · ✅ 140 done · 🗑️ 27 killed
 
 ## 🟢 In progress (2)
 
@@ -9,7 +9,7 @@
 | [0190](active/0190-close-the-build-evidence-value-gap-a-post-gate-results-commi.md) | Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip | `medium` | `feat` | [spec](../superpowers/specs/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md) | `feat/close-the-build-evidence-value-gap-a-post-gate-results-commi` |
 | [0220](active/0220-clear-the-unfixed-review-findings-from-change-0207.md) | clear the unfixed review findings from change 0207 | `medium` | `fix` | [spec](../superpowers/specs/2026-08-05-clear-0207-review-findings-design.md) | `feat/clear-the-unfixed-review-findings-from-change-0207` |
 
-## 🟡 Proposed (53)
+## 🟡 Proposed (54)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -66,6 +66,7 @@
 | [0224](active/0224-the-build-gate-contract-never-says-green-red-is-the-exit-code.md) | The build gate contract never says green/red is the exit code, so an output-shape match passes as a gate | `high` | `docs` | needs-brainstorm |
 | [0225](active/0225-the-test-suite-has-grown-into-the-harness-s-foreground-ceilin.md) | The test suite has grown into the harness's foreground ceiling — cut its wall-clock runtime | `medium` | `perf` | needs-brainstorm |
 | [0226](active/0226-reframe-auto-capture-as-capability-discovery-with-strict-adm.md) | Reframe auto-capture as capability discovery with strict admission gates | `medium` | `feat` | build-ready |
+| [0227](active/0227-parallel-test-suite-runner.md) | Parallel test-suite runner — 4x+ wall-clock speedup | `medium` | `chore` | build-ready |
 
 ## ⚪ Deferred (4)
 
@@ -137,6 +138,7 @@ graph TD
   0224
   0225
   0218 --> 0226
+  0227
   0015:::done
   0175:::done
   0192:::done
