@@ -1,15 +1,14 @@
 # Backlog
 
-**227 changes** — 🟢 2 in progress · 🟡 52 proposed · ⚪ 4 deferred · ✅ 141 done · 🗑️ 28 killed
+**230 changes** — 🟢 1 in progress · 🟡 55 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 141 done · 🗑️ 28 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0190](active/0190-close-the-build-evidence-value-gap-a-post-gate-results-commi.md) | Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip | `medium` | `feat` | [spec](../superpowers/specs/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md) | `feat/close-the-build-evidence-value-gap-a-post-gate-results-commi` |
-| [0227](active/0227-parallel-test-suite-runner.md) | Parallel test-suite runner — 4x+ wall-clock speedup | `medium` | `chore` | [spec](../superpowers/specs/2026-08-06-parallel-test-suite-runner-design.md) | `feat/parallel-test-suite-runner` |
 
-## 🟡 Proposed (52)
+## 🟡 Proposed (55)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -65,6 +64,9 @@
 | [0223](active/0223-the-build-gate-contract-never-states-an-execution-posture-for.md) | The build gate contract never states an execution posture for a suite that outgrows a single foreground call | `high` | `feat` | build-ready |
 | [0224](active/0224-the-build-gate-contract-never-says-green-red-is-the-exit-code.md) | The build gate contract never says green/red is the exit code, so an output-shape match passes as a gate | `high` | `docs` | needs-brainstorm |
 | [0226](active/0226-reframe-auto-capture-as-capability-discovery-with-strict-adm.md) | Reframe auto-capture as capability discovery with strict admission gates | `medium` | `feat` | build-ready |
+| [0228](active/0228-finalize-s-auto-detect-suite-loop-has-no-failure-accumulator.md) | finalize's auto-detect suite loop has no failure accumulator, so a mid-suite red merges | `medium` | `fix` | needs-brainstorm |
+| [0229](active/0229-the-runner-s-budget-slack-factor-is-a-hardware-dependent-con.md) | the runner's budget slack factor is a hardware-dependent constant | `medium` | `refactor` | needs-brainstorm |
+| [0230](active/0230-a-self-scanning-population-floor-pins-test-docket-config-sh.md) | a self-scanning population floor pins test_docket_config.sh's size and blocks sharding | `medium` | `refactor` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -74,6 +76,12 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | Type | PR | Readiness |
+|---|-------|----------|------|----|-----------|
+| [0227](active/0227-parallel-test-suite-runner.md) | Parallel test-suite runner — 4x+ wall-clock speedup | `medium` | `chore` | [#165](https://github.com/danielhanold/docket/pull/165) |  |
 
 ```mermaid
 graph TD
@@ -135,6 +143,9 @@ graph TD
   0224
   0218 --> 0226
   0227
+  0228
+  0229
+  0230
   0015:::done
   0175:::done
   0192:::done
