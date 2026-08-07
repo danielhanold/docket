@@ -333,10 +333,14 @@ for f in "${FILES[@]}"; do
   # ...` on the metadata branch would arrive as `PR` and pass silently). title needs no such twin —
   # field_raw has no comment strip. At most ONE finding per field — the predicate
   # reports the FIRST matching leg and stops, since one reason is enough to demand a quote; warn-only;
-  # never marks EXPLAINED (a malformed scalar does not drop a board row). One skip leg here plus
-  # the five syntax legs of docket_scalar_quote_reason, in that predicate's evaluation order:
+  # never marks EXPLAINED (a malformed scalar does not drop a board row). One skip leg here, then
+  # docket_scalar_quote_reason's own empty-value early return, then its five syntax legs — in
+  # evaluation order:
   #   skip               — empty, or the raw value opens with " or ' (quoted is well-formed by
-  #                        definition; never inspect the interior).
+  #                        definition; never inspect the interior). This leg lives here, not in the
+  #                        predicate.
+  #   empty              — the predicate's own first act is an early return on an empty value (an
+  #                        empty scalar is well-formed bare); the skip leg above already caught it.
   #   colon-space        — the unquoted raw value contains a colon followed by a space.
   #   trailing-colon     — the unquoted raw value ends in a colon (the shape that let change 0173
   #                        through unreported, change 0235).

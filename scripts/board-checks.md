@@ -180,10 +180,14 @@ finding per field: the predicate reports the first matching leg and stops, since
 enough to demand a quote.
 
 The check reads the **raw** token — never the quote-unwrapped value, which could not tell a quoted
-colon-space title from a bare one — and applies a skip leg plus **five** syntax legs, in order:
+colon-space title from a bare one — and applies a skip leg, then the predicate's empty-value early
+return, then **five** syntax legs, in that evaluation order:
 
 - **Skip leg:** the raw value is empty, **or opens with `"` or `'`** — a quoted scalar is
-  well-formed by definition (the 0190 quoted-title shape) and is never inspected further.
+  well-formed by definition (the 0190 quoted-title shape) and is never inspected further. This leg
+  lives in the script, not in the predicate.
+- **Empty-value early return:** the predicate's own first act, before any syntax leg — an empty
+  scalar is well-formed bare. The skip leg above has already caught it for this checker.
 - **Colon-space leg:** the unquoted raw value contains `: `.
 - **Trailing-colon leg:** the unquoted raw value ends in `:`. This leg closes a real miss: an
   archived change whose title ended in `/ or :` sat unreported because the colon-space leg alone

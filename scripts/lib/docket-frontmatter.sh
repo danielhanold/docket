@@ -24,7 +24,12 @@
 #   docket_scalar_quote_reason VALUE — one leg token (colon-space | trailing-colon | bare-boolean |
 #                           comment-introducer | indicator) when VALUE would not be well-formed as a
 #                           BARE YAML scalar; empty when it is safe bare. Checker-side (change 0235).
+#                           Its EXIT STATUS is always 0, on every path including a violation — the
+#                           answer travels on stdout. `if docket_scalar_quote_reason "$v"; then` is
+#                           therefore always true; read stdout, or use docket_scalar_needs_quoting.
 #   docket_scalar_needs_quoting VALUE — exit 0 iff docket_scalar_quote_reason printed a token.
+#                           CHECKER-SIDE ONLY: a writer must quote unconditionally (ADR-0071), never
+#                           predicate on this. It has no production caller — tests only.
 #   list_field FILE KEY   — `[a, b]` -> space-separated `a b` (empty for `[]` / unset).
 #   int_field FILE KEY    — like field(), but empty unless the value is a well-formed non-negative integer.
 #   has_section FILE STR  — exit 0 iff the body contains the literal line STR (whole-line match:
@@ -87,7 +92,10 @@ docket_yaml_single_quote(){
 # write and so must detect. The WRITER does not consume it — mint-stub quotes unconditionally, so
 # it has no enumeration to get wrong (ADR-0071). Two rules with different jobs, deliberately.
 #
-# Takes the LOGICAL value. The already-quoted skip leg lives in scalar_form_check, which is the only
+# Takes a value already known NOT to be quoted — the caller strips or skips quoted tokens before
+# calling, so for every value that reaches here the raw token and the logical value are the same
+# string. Do not hand it a genuinely raw token whose quotes are still attached.
+# The already-quoted skip leg lives in scalar_form_check, which is the only
 # site holding a raw token: applying it here would be unsound, since a value that logically STARTS
 # with a quote character must be quoted, not skipped.
 #
@@ -95,7 +103,10 @@ docket_yaml_single_quote(){
 # agree on bounded repetition, and a shape test has no business depending on which one is found.
 docket_scalar_quote_reason(){
   local v="$1"
-  [ -n "$v" ] || return 0          # empty is exempt EXPLICITLY: archive-change.sh writes claimed_at ""
+  # Empty is exempt because an empty scalar IS well-formed bare (`claimed_at:` parses to null, not
+  # to a broken document) — and scalar_form_check's skip leg short-circuits it before the call
+  # anyway. Not a writer accommodation: no writer consumes this predicate (ADR-0071).
+  [ -n "$v" ] || return 0
   # There is deliberately NO flow-collection exemption. The question this predicate answers is
   # "would VALUE be well-formed as a BARE SCALAR", and a `[..]` / `{..}` is not a scalar at all — so
   # `[234]` gets the honest answer for the question asked: bare, it does not read back as the string
@@ -132,6 +143,9 @@ docket_scalar_quote_reason(){
   return 0
 }
 # docket_scalar_needs_quoting VALUE — exit 0 iff the value would not be well-formed bare.
+# Checker-side only; a writer must quote unconditionally — ADR-0071. It has no production caller
+# today (tests/test_docket_frontmatter.sh is the only one), and that is not an invitation to add a
+# writer-side one: a conditional write is only as good as the leg enumeration below.
 docket_scalar_needs_quoting(){ [ -n "$(docket_scalar_quote_reason "$1")" ]; }
 # field_raw FILE KEY — the first matching scalar for KEY anywhere in the file, trimmed, with any
 # surrounding quotes LEFT INTACT (the raw YAML token). For the rare consumer that does its own

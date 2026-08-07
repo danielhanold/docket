@@ -31,7 +31,10 @@ means), this file does not restate them.
   script. Today's grep/awk reader tolerating it is not evidence it is well-formed. A **script**
   writing free-text prose into frontmatter quotes unconditionally at the write boundary rather
   than predicating on shape, because a conditional is only as good as its enumeration
-  (ADR-0071; `mint-stub.sh`'s `title` write is the reference).
+  (ADR-0071; `mint-stub.sh`'s `title` write is the reference). This rule reaches **scalars only**:
+  a flow collection (`depends_on: [3]`, `discovered_from: [234]`, `adrs: [71]`) is not a scalar, so
+  the rule does not apply to it and quoting one is a defect — it changes the parsed type from a
+  sequence to a string.
 - Before rewriting a marker-delimited managed block, validate marker **order and balance** — refuse
   on dangling/out-of-order/nested markers and leave the file untouched. Presence alone is not
   enough; an unbounded range consumes to EOF and eats the user's content.
