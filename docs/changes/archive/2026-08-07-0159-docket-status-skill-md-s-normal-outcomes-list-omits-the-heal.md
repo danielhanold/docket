@@ -2,11 +2,11 @@
 id: 159
 slug: docket-status-skill-md-s-normal-outcomes-list-omits-the-heal
 title: docket-status SKILL.md's normal-outcomes list omits the 'health checks failed <exit>' line
-status: proposed
+status: killed
 priority: medium
 type: docs
 created: 2026-07-28
-updated: 2026-07-28
+updated: 2026-08-07
 depends_on: []
 related: []
 discovered_from: [157]
@@ -64,3 +64,7 @@ change is trivial or a no-op.
   of that.
 - Re-auditing the rest of the skill's enumeration against the script contract. If that audit is
   worth doing it is its own change.
+
+## Why killed
+
+Absorbed into #0154's restatement sweep at the 2026-08-07 backlog triage: the omitted health-checks-failed outcome line is now a named seed instance of exactly the class 0154 sweeps.
