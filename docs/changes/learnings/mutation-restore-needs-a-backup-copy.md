@@ -2,7 +2,7 @@
 slug: mutation-restore-needs-a-backup-copy
 hook: "`git checkout -- <file>` restores to HEAD, not to your uncommitted edit — as a mutation-test restore step it silently destroys the work being tested and produces a meaningless reading."
 topics: [testing, git, mutation]
-changes: [226]
+changes: [226, 231]
 created: 2026-08-07
 updated: 2026-08-07
 promotion_state: candidate
@@ -39,3 +39,11 @@ which gets even less scrutiny than plan-supplied code.
   roughly 40 failures against the old file's content and briefly read as a genuine regression in
   the change. Later tasks in the same plan used a `cp` backup and behaved correctly. The rewrite was
   recoverable from the editor state, but the diagnostic cost was the real damage.
+- 2026-08-07 (#231, PR #170) — The same idiom arrived in a *different* plan five days later, again
+  as the restore step in every mutation block, again over prose files the task had just edited and
+  not committed. This time it was caught before the first probe ran: every task staged its edit with
+  `git add` before mutating, so `git checkout --` restored the staged edit rather than HEAD. Staging
+  is a second correct answer, and a cheap one when the worker is committing per task anyway — but it
+  works only because `git checkout -- <file>` reads the index, so it silently reverts to being wrong
+  the moment a plan step mutates before staging. The `cp` backup has no such precondition. The
+  recurrence is the point: a plan-supplied restore idiom does not get re-scrutinized per plan.

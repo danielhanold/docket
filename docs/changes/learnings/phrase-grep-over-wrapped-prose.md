@@ -2,9 +2,9 @@
 slug: phrase-grep-over-wrapped-prose
 hook: "A grep whose pattern can span a line break silently doubles as a line-wrap guard — collapse whitespace before matching, or a pure re-flow reddens asserts about policy that never changed."
 topics: [testing, grep, docs]
-changes: [218]
+changes: [218, 231]
 created: 2026-08-06
-updated: 2026-08-06
+updated: 2026-08-07
 promotion_state: candidate
 promoted_to:
 ---
@@ -24,3 +24,9 @@ stream is identical.
   once, with messages about policy that had not changed. The re-flow control also caught a defect
   in the first conversion attempt — `tr '\n' ' '` alone left indented continuations four spaces
   apart — which is why the helper collapses whitespace runs.
+- 2026-08-07 (#231, PR #170) — The same wrap-sensitivity showed up in the *mutation probe* rather
+  than in the assert: `grep -c` over a guarded phrase that happened to wrap reported 0 both before
+  and after the mutation, so a mutation that never landed was indistinguishable from a guard that
+  correctly survived it — a false proof of robustness, the inverse of #218's false failure. Counts
+  were taken through a whitespace-flattened copy instead. The rule is the same one, and it binds
+  the verification step as hard as it binds the assert.

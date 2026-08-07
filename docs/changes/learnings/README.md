@@ -84,6 +84,10 @@ One curated finding per file; this index is the hint surface. Load it, then read
 - [skill-extraction-and-stub-pointer](skill-extraction-and-stub-pointer.md) — Invoking a skill presents only its SKILL.md — extract only a section that is heavy AND off the common path, and leave a stub + pointer. · also: docs, refactoring
 - [skill-fallback-degrades-discipline](skill-fallback-degrades-discipline.md) — Read a skill fallback warning as a build-loop defect to investigate, never as boilerplate — a degraded binding silently drops the discipline. · also: subagents, process
 
+## subagents
+
+- [yielded-worker-return-closes-every-door](yielded-worker-return-closes-every-door.md) — A worker that backgrounds its work and yields returns its pre-yield text as if it were an outcome — and because the worker may still be running, every cheap recovery door is closed; halt and preserve the worktree. · also: process, worktrees ⟨needs promotion⟩
+
 ## testing
 
 - [assert-detects-removal-not-replacement](assert-detects-removal-not-replacement.md) — A guard written to CONFIRM the wording you just introduced detects nothing — write the assert that DETECTS the state you just removed, and prove the mutation actually landed before believing it passed. · also: guards, mutation ⟨needs promotion⟩
