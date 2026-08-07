@@ -17,7 +17,7 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/a-presumed-dead-build-worker-can-wake-and-race-its-own-repla
-claimed_at: 2026-08-07T15:35:48Z
+claimed_at: 2026-08-07T16:13:34Z
 pr:
 blocked_by:
 reconciled: true
