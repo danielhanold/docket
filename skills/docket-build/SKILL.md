@@ -199,6 +199,17 @@ block in `skills/docket-finalize-change/SKILL.md` is the single source, and the 
 namespace is deliberately kept rather than introducing a second, driftable test command. Do not
 copy that fragment into this file.
 
+The verdict is an **exit status, never output text**. A run is **green if and only if the resolved
+suite command exits zero**; any non-zero status is not green. A `PASS`/`FAIL` line, a summary count,
+or a progress ticker is **diagnostic only** — a gate that reads its verdict out of the output is not
+a gate. The deciding status is the one recorded in the **terminal result artifact** that *Gate
+execution posture* requires, and that recorded status is what **completed successfully** means:
+*still running* and *result unavailable* are not statuses at all, so they stay budget halts and are
+never red. When the resolved command is a **loop over per-file commands** — the shape finalize's
+`configured-bash-finalize` block takes when `FINALIZE_TEST_COMMAND` is unset — the deciding status
+is the **aggregate** that block exits with, never any individual file's. This rule binds every
+full-suite run this role performs, including the repair worker's post-fix re-run below.
+
 **Green** → the build is done. Emit the **build-evidence** record — a marker-bounded block carrying
 `command` (the exact full-suite command run), `result: green`, `head_sha` (the branch HEAD the run
 tested, from `git rev-parse HEAD`), and `ran_at` (UTC ISO-8601):

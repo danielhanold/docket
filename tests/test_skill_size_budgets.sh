@@ -770,12 +770,27 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # IS 3750, i.e. ZERO margin, so the multiple after it: 3800 (50 words of margin). 178 lines -> the next multiple of 5 is 180, which leaves TWO lines — the near-zero headroom
 # this block's 0102/0137 entries and three later fix rounds all record raising for — so the
 # multiple after it: 185.
+# skills/docket-build/SKILL.md's budget was raised 325/3000 -> 335/3150 by change 0224, which states
+# the build gate's verdict rule normatively: green iff the resolved suite command exits zero, with
+# output text diagnostic only, the deciding status read from the terminal result artifact, the
+# per-file-loop aggregate named, and the repair re-run bound by the same rule. The two references/
+# files under skills/docket-build/ were both considered and neither can hold it.
+# references/gate-execution.md is quarantined per-harness capability and probe evidence, read ONCE
+# before the gate starts; this rule must be in hand at the moment the verdict is formed, in the
+# section that already states what green and red DO. Splitting "what decides green" from "what green
+# does" across two files is precisely the drift that produced the gap this change closes — the
+# section defined both meanings and never their determinant. references/task-routing.md is the
+# profile-selection rubric shared with docket-implement-next's fix loop and has nothing to do with
+# the gate. Set per the rounding rule above from the measured actuals: 328 lines -> the next multiple
+# of 5 is 330, which leaves 2 lines — the near-zero mode this block repeatedly records raising past —
+# so the multiple after: 335. 3092 words -> the next multiple of 50 is 3100, an 8-word margin inside
+# the 25-word threshold, so the multiple after: 3150.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
 skills/docket-auto-groom/SKILL.md                           66 1237
 skills/docket-brainstorm/SKILL.md                           84  692
-skills/docket-build/SKILL.md                               325 3000
+skills/docket-build/SKILL.md                               335 3150
 skills/docket-build/references/gate-execution-evidence.md  110 1050
 skills/docket-build/references/gate-execution.md            120 1000
 skills/docket-build/references/task-routing.md              50  500
