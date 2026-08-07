@@ -256,5 +256,63 @@ assert "incomplete run is NOT told it exits 0"       '! grep -qi "does not fail"
 bash "$RT" --bogus-flag >/dev/null 2>&1
 assert "unknown flag exits 2" '[ "$?" = "2" ]'
 
+# (12) COLLIDING BASENAMES are a usage error, for the same reason a nonexistent target is one.
+# Logs, stat records and budget rows are keyed on basename, so two targets sharing one basename put
+# two concurrent jobs on the same $WORK/logs/<base>.log and $WORK/stat/<base>: interleaved logs,
+# doubled assert counts, a double-printed row. Unlike a mistyped path, nothing about that LOOKS
+# wrong in the output — which is why it has to be refused before any job launches.
+mkdir -p "$T/other"
+cp "$T/tests/test_alpha.sh" "$T/other/test_alpha.sh"
+dout="$(bash "$RT" -j 2 "$T/tests/test_alpha.sh" "$T/other/test_alpha.sh" 2>&1)"; drc=$?
+assert "colliding basenames are a usage error (exit 2)" '[ "$drc" = "2" ]'
+assert "the collision names the colliding basename"     'grep -q "duplicate test basename: test_alpha.sh" <<<"$dout"'
+assert "the collision names the FIRST path"             'grep -q "tests/test_alpha.sh" <<<"$dout"'
+assert "the collision names the SECOND path"            'grep -q "other/test_alpha.sh" <<<"$dout"'
+assert "the collision launches no job at all"           '! grep -q "^SUITE " <<<"$dout"'
+# The same path passed twice is the same collision, and is the likelier way to hit it.
+bash "$RT" -j 2 "$T/tests/test_alpha.sh" "$T/tests/test_alpha.sh" >/dev/null 2>&1; drc2=$?
+assert "the same path passed twice is a usage error"    '[ "$drc2" = "2" ]'
+# Negative control: the guard must key on the BASENAME colliding, not on two targets sharing a
+# directory or on any two-target run — otherwise the asserts above would pass for the wrong reason.
+cp "$T/tests/test_beta.sh" "$T/other/test_gamma.sh"
+nout12="$(bash "$RT" -j 2 "$T/tests/test_alpha.sh" "$T/other/test_gamma.sh" 2>&1)"; nrc12=$?
+assert "distinct basenames across directories still run" '[ "$nrc12" = "0" ]'
+assert "distinct basenames report both files"            'grep -qE "^SUITE files=2 passed=2 " <<<"$nout12"'
+
+# (13) INTERRUPTION must reap its jobs and say what was lost, not orphan them and delete $WORK.
+# Output is buffered until every job finishes, so an interrupted run has printed nothing; the EXIT
+# trap alone would remove $WORK while live jobs are still writing into it, and the jobs themselves
+# SURVIVE — a runner with no job control gives every async child SIGINT ignored, so Ctrl-C reaches
+# the runner and nothing else. The fixture publishes its own pid and then blocks; after the signal
+# that pid must be gone.
+cat > "$T/tests/test_hang.sh" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$$" > "$HANGPID"
+sleep 30
+echo "ok - hang finished"
+exit 0
+EOF
+chmod +x "$T/tests/test_hang.sh"
+: > "$T/hangpid"
+HANGPID="$T/hangpid" bash "$RT" -j 2 "$T/tests/test_hang.sh" > "$T/int.out" 2> "$T/int.err" &
+rtpid=$!
+# Poll rather than sleep a fixed interval: the wait is a few milliseconds in practice, and this
+# file is itself in the budget table.
+n=0; while [ ! -s "$T/hangpid" ] && [ "$n" -lt 100 ]; do sleep 0.1; n=$((n + 1)); done
+hpid="$(cat "$T/hangpid" 2>/dev/null)"
+kill -TERM "$rtpid" 2>/dev/null
+wait "$rtpid"; ircx=$?
+n=0; while kill -0 "$hpid" 2>/dev/null && [ "$n" -lt 100 ]; do sleep 0.1; n=$((n + 1)); done
+assert "an interrupted run leaves no orphaned test process" '[ -n "$hpid" ] && ! kill -0 "$hpid" 2>/dev/null'
+assert "an interrupted run says it was interrupted"         'grep -qi "interrupted" "$T/int.err"'
+assert "the interrupt report says what was lost"            'grep -qE "0 of 1 test files had finished" "$T/int.err"'
+assert "an interrupted run exits non-zero"                  '[ "$ircx" != "0" ]'
+assert "an interrupted run prints no SUITE line"            '! grep -q "^SUITE " "$T/int.out"'
+# Negative control: the handler must fire on a SIGNAL, not on every run — an uninterrupted run of
+# the same shape still reports normally and exits 0.
+cout13="$(bash "$RT" -j 2 "$T/tests/test_alpha.sh" 2>&1)"; crc13=$?
+assert "an uninterrupted run is not told it was interrupted" '! grep -qi "interrupted" <<<"$cout13"'
+assert "an uninterrupted run still exits 0"                  '[ "$crc13" = "0" ]'
+
 rm -rf "$T"
 exit $fail
