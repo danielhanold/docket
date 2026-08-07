@@ -17,8 +17,20 @@
 # tree the suite actually runs against, so an uncommitted scratch file cannot pad or fake the
 # corpus) for the <results_dir> literal and classifies EVERY occurrence it finds. Classification
 # runs over LOGICAL lines, with backslash continuations joined first: this repo's reads spell the
-# command on one physical line and its path operands on the next, so a raw per-line predicate
-# reports "no reading command here" on precisely the occurrences that are reads.
+# command on one physical line and its path operands on the next, so the words that give an
+# occurrence its role — the command that opens the line, the option or redirection in front of the
+# path — are routinely on a different physical line from the path itself.
+#
+# THE PREDICATE IS INVERTED, and that inversion is the design. The obvious guard asks "does this
+# line run a reading command?" and answers it from a list of verbs — but the list an author can
+# write is never the list of read forms the shell offers: `< redirection`, `source`, `.`, an
+# interpreter (`bash`, `python3`, `jq`), `ls`, `[ -f ]` each open a file and none of them looks
+# like `grep`. Every form missing from such a list passes SILENTLY, which is exactly the failure
+# backstop-must-compute-not-reenumerate names — a hand-written list of the causes an author
+# happened to think of, wearing the word invariant. So this file asks the complementary question,
+# "is this occurrence PROVABLY not consumed?", and treats every occurrence that is not as a
+# HAZARD. The enumeration still exists; it now sits on the BENIGN side, where a missing entry
+# fails CLOSED (a loud false positive) instead of open, and where every entry is budgeted.
 #
 #   INERT    the occurrence is in a file the suite cannot execute. Derived from the committed
 #            blob itself (no .sh suffix AND no shebang), never from a list of filenames.
@@ -28,29 +40,46 @@
 #            suite's own protective mechanisms, and they are separately asserted to survive.
 #   ASSIGN   the occurrence is a VALUE, not a path operand: it sits right of an `=` inside its own
 #            shell token (`RESULTS_DIR=<results_dir>`, `X="${X:-<results_dir>}"`).
-#   NOVERB   an executable, un-negated line that carries the path but runs no reading command.
-#   READ     an executable, un-negated occurrence CO-LOCATED WITH A READING COMMAND. This is the
-#            hazard predicate. It is derived from what the consuming line actually does — the
-#            verbs are the reading commands, matched as commands — never from a hand-written list
-#            of the causes an author happened to think of, which is exactly the list the specific
-#            checks already cover (repo learning: backstop-must-compute-not-reenumerate).
+#   DATA     the logical line is a data line, not a command — `key: <results_dir>/…` with no
+#            command separator or substitution anywhere on it. It invokes nothing, so it opens
+#            nothing.
+#   WRITE    the occurrence is CREATED, not read: the line's FIRST word is `mkdir`/`touch`/`rmdir`
+#            (again with no separator on the line), or the occurrence is the target of `>`/`>>`.
+#   OPTVAL   the occurrence is the value of a space-separated LONG option (`--results-dir <path>`)
+#            — a parameter handed to another program, not an operand this line opens.
+#   EXPECT   the occurrence is the right-hand side of a shell comparison word (`=`, `==`, `!=`):
+#            an expected value being compared against, not a path being opened.
+#   CURATED  a hand-declared occurrence that opens nothing but whose shape none of the above
+#            expresses — a path inside an assert DESCRIPTION, inside a regex pattern, or in a
+#            `for … in` word list.
+#   EXEMPT   a hand-declared genuine read that cannot be MOVED by an addition under the tree.
+#   HAZARD   THE DEFAULT. Every other executable, un-negated occurrence fails the guard.
 #
-# A READ occurrence fails the guard unless it carries a curated exemption naming why that
-# particular consumer cannot be moved by an addition under the tree. Exemptions are keyed on a
-# file plus a VERBATIM SOURCE SLICE, never a line number (AGENTS.md), they are counted by their
-# own independent counter, and a declared-but-unmatched exemption is itself a failure.
+# Both hand-declared classes are keyed on a file plus a VERBATIM SOURCE SLICE, never a line number
+# (AGENTS.md), and a declared-but-unmatched entry is itself a failure. Every route past the HAZARD
+# default carries its own independent counter: the four shape classes in aggregate, OPTVAL again
+# on its own, CURATED, and EXEMPT.
 #
 # HONEST LIMITS — this file claims no more than it mutates.
-#   (a) The HAZARD predicate is derived from the consuming code. The BENIGN residue is
-#       necessarily CURATED: a whole-tree grep can neither name a fixture path benign nor tell an
-#       expected-value string from a path operand. The curation is bounded by its own exact
-#       counter, so laundering a real read through a new exemption moves a number that no other
-#       assertion moves.
-#   (b) A co-located-verb detector cannot see an INDIRECT read — `r="$ROOT/docs/results"` on one
-#       logical line and `grep x "$r"` on another. The mutation evidence for this guard proves the
-#       DIRECT form reddens; the indirect form is out of reach of any single-line predicate and is
-#       left to review. This is a priced limitation, not an oversight, and there is a live
-#       instance of the shape: scripts/board-checks.sh defaults RESULTS_DIR_REL to the tree and
+#   (a) HAZARD is the DEFAULT, so it is the BENIGN side that is curated — and therefore the side
+#       that is counted. Six routes lead past the default: four shape classes and two hand-
+#       declared tables. The two tables are pinned individually; the four shape classes are pinned
+#       in AGGREGATE, so any ADDITION moves a number no other assertion moves, but a pure SWAP
+#       between two shape classes does not. The one swap worth pricing is priced: OPTVAL is the
+#       widest of the six — `--file`, `--include` and their kin are also long options and the
+#       receiving command READS what they name — so the space-separated spellings of those are
+#       denied the pass by name, and OPTVAL carries a second counter of its own. A swap among
+#       DATA, WRITE and EXPECT is left unpriced deliberately: none of the three can name a path a
+#       command opens (a data line invokes nothing, a WRITE line creates, an EXPECT operand is a
+#       comparison right-hand side), so the swap has nowhere to hide a read.
+#   (b) A single-logical-line predicate cannot see an INDIRECT read — `r="$ROOT/docs/results"` on
+#       one logical line and `grep x "$r"` on another. The mutation evidence for this guard proves
+#       the DIRECT forms redden; the indirect form is out of reach of any single-line predicate
+#       and is left to review. This is a priced limitation, not an oversight, and it has live
+#       instances: the `for p in … <results_dir>/; do` word list in tests/test_codex_runbook.sh is
+#       declared CURATED for precisely this reason (its loop body greps the runbook for the path
+#       as a citation and never opens the tree, but no line-scoped rule can see that), and
+#       scripts/board-checks.sh defaults RESULTS_DIR_REL to the tree and
 #       later reads it through that variable (its aborted-run leg A). It is safe for a reason this
 #       guard cannot express — every test invocation points board-checks.sh at a fixture repo in a
 #       tmpdir, never at this repo's own tree — so what protects it is fixture hygiene and review,
@@ -79,8 +108,8 @@ nok(){ printf 'NOT OK - %s\n' "$1"; fail=1; }
 assert(){ if eval "$2"; then ok "$1"; else nok "$1"; fi; }
 
 # The allowlisted tree, as the convention's default spells it. This assignment is the only place
-# this file writes the bare literal outside a data slice, and it carries no reading verb, so the
-# self-scan below classifies it NOVERB. Every other use interpolates it.
+# this file writes the bare literal, and it sits right of an `=` inside its own token, so the
+# self-scan below classifies it ASSIGN. Every other use interpolates it.
 RESULTS_DIR_REL="docs/results"
 
 # The rev to scan. HEAD is the committed tree the suite runs against.
@@ -89,9 +118,18 @@ REV="HEAD"
 # POPULATION FLOOR — measured live at build time (change 0190, base f7fb123f), never copied from a
 # plan or a spec. It is a floor, not an equality: benign occurrences legitimately accrue.
 FLOOR=56
-# COVERAGE-GRANTING PATH, BUDGETED. Every curated exemption is a hand-granted pass, so the count of
-# them is pinned exactly and independently of the floor: laundering a real content read through a
-# new exemption moves this number even though the floor and the hazard count both stay put.
+# COVERAGE-GRANTING PATHS, EACH BUDGETED. Every route past the HAZARD default is a pass, so each
+# count is pinned exactly and independently of the floor: laundering a real content read through
+# any of them moves a number even though the floor and the hazard count both stay green.
+#   BENIGN   the four SHAPE classes in aggregate (DATA + WRITE + OPTVAL + EXPECT).
+#   OPTVAL   pinned a second time on its own — it is the widest shape pass, so a swap that keeps
+#            the aggregate steady must still redden something.
+#   CURATED  hand-declared occurrences that open nothing but whose shape no rule expresses.
+#   EXEMPT   hand-declared genuine reads that an addition under the tree cannot move.
+# All four measured live at build time (change 0190, base f7fb123f), never copied from a plan.
+EXPECTED_BENIGN=15
+EXPECTED_OPTVAL=2
+EXPECTED_CURATED=3
 EXPECTED_EXEMPT=2
 
 TMP="$(mktemp -d)"
@@ -148,7 +186,11 @@ corpus_records(){
 
 # The classifier. stdin: records as emitted above. stdout: `<class>TAB<path>TAB<lineno>TAB<text>`,
 # one row per OCCURRENCE (a line carrying the literal twice yields two rows), plus one ORPHAN row
-# per declared exemption that matched nothing.
+# per declared table entry that matched nothing.
+#
+# HAZARD is the fall-through. Every rule below is a BENIGN rule — a reason this occurrence cannot
+# be a content read — so a shape nobody anticipated lands on HAZARD and is reported, which is the
+# opposite of what a verb enumeration does with a read form nobody anticipated.
 classify(){
   awk -F'\t' -v lit="$RESULTS_DIR_REL" -v exf="$1" '
     # The shell token the occurrence sits in: the run of non-whitespace around it.
@@ -161,7 +203,17 @@ classify(){
       }
       return out
     }
-    function class_of(isexec, text, pos,   pre, l1, l2) {
+    # The whitespace-delimited word immediately LEFT of the token holding the occurrence — the
+    # option, the redirection or the comparison operator that gives the occurrence its role.
+    function prev_word(text, pos,   i, c, out) {
+      i = pos - 1
+      while (i >= 1) { c = substr(text, i, 1); if (c == " " || c == "\t") break; i-- }
+      while (i >= 1) { c = substr(text, i, 1); if (c != " " && c != "\t") break; i-- }
+      out = ""
+      while (i >= 1) { c = substr(text, i, 1); if (c == " " || c == "\t") break; out = c out; i-- }
+      return out
+    }
+    function class_of(isexec, text, pos,   pre, l1, l2, pw) {
       if (isexec != "1")            return "INERT"
       if (text ~ /^[[:space:]]*#/)  return "COMMENT"
       pre = token_prefix(text, pos)
@@ -175,23 +227,35 @@ classify(){
       # cannot hide one; what it does hide is the INDIRECT form named in HONEST LIMITS (b) above,
       # which no single-line predicate reaches in either direction.
       if (index(pre, "=") > 0)      return "ASSIGN"
-      if (text ~ verb)              return "READ"
-      return "NOVERB"
+      pw = prev_word(text, pos)
+      # A data line invokes nothing. The no-separator clause is what makes that true rather than
+      # merely likely: `key: <lit>` with a pipe, a `;`, a redirect or a $( ) on it could still run
+      # something, so it is denied the pass and falls through to HAZARD.
+      if (text ~ datal && text !~ sepr)          return "DATA"
+      if (pw == ">" || pw == ">>")               return "WRITE"
+      if (text ~ writel && text !~ sepr)         return "WRITE"
+      # A long option value. SHORT options are deliberately excluded — `-f`, `-T`, `[ -f` and
+      # `stat -f%z` all name a path the command then opens, and there is no way to tell those from
+      # a benign short flag. Long options that are themselves file-consuming are denied by name.
+      if (pw ~ /^--[[:alpha:]]/ && pw !~ optread) return "OPTVAL"
+      if (pw == "=" || pw == "==" || pw == "!=") return "EXPECT"
+      return "HAZARD"
     }
     BEGIN {
-      # A reading command in command position: preceded by something that cannot be part of a
-      # name, followed by whitespace (it takes arguments). POSIX ERE only — no \b, no \<, which
-      # BSD grep and git grep silently fail to honor.
-      verb = "(^|[^[:alnum:]_./-])(cat|grep|egrep|fgrep|rg|awk|sed|head|tail|wc|sort|uniq|cut|nl|od|xxd|find|diff|cmp|ls-tree|ls-files|xargs)[[:space:]]"
-      inv  = "(^|[^[:alnum:]_-])(-v|--invert-match)([^[:alnum:]_-]|$)"
+      inv    = "(^|[^[:alnum:]_-])(-v|--invert-match)([^[:alnum:]_-]|$)"
+      # POSIX ERE only throughout — no \b, no \<, which BSD grep and git grep silently ignore.
+      datal  = "^[[:space:]]*[[:alpha:]_][[:alnum:]_-]*:[[:space:]]"
+      writel = "^[[:space:]]*(mkdir|touch|rmdir)([[:space:]]|$)"
+      sepr   = "[|;<>`]|\\$\\(|&&"
+      optread = "^--(file|include|exclude|exclude-from|from-file|pathspec-from-file|glob)$"
       ne = 0
       while ((getline el < exf) > 0) {
         if (el == "") continue
-        t = index(el, "\t")
-        if (t == 0) continue
+        if (split(el, a, "\t") < 3) continue
         ne++
-        ex_path[ne]  = substr(el, 1, t - 1)
-        ex_slice[ne] = substr(el, t + 1)
+        ex_class[ne] = a[1]
+        ex_path[ne]  = a[2]
+        ex_slice[ne] = a[3]
         ex_hit[ne]   = 0
       }
     }
@@ -205,30 +269,35 @@ classify(){
         if (q == 0) break
         pos = start + q - 1
         c = class_of(isexec, text, pos)
-        if (c == "READ") {
-          c = "HAZARD"
+        if (c == "HAZARD") {
           for (k = 1; k <= ne; k++) {
-            if (ex_path[k] == path && index(text, ex_slice[k]) > 0) { ex_hit[k] = 1; c = "EXEMPT"; break }
+            if (ex_path[k] == path && index(text, ex_slice[k]) > 0) { ex_hit[k] = 1; c = ex_class[k]; break }
           }
         }
         printf "%s\t%s\t%s\t%s\n", c, path, ln, substr(text, 1, 200)
         start = pos + length(lit)
       }
     }
-    END { for (k = 1; k <= ne; k++) if (!ex_hit[k]) printf "ORPHAN\t%s\t-\t%s\n", ex_path[k], ex_slice[k] }
+    END { for (k = 1; k <= ne; k++) if (!ex_hit[k]) printf "ORPHAN\t%s\t-\t%s %s\n", ex_class[k], ex_path[k], ex_slice[k] }
   '
 }
 
 count_class(){ awk -F'\t' -v c="$1" '$1 == c {n++} END {print n+0}' <<<"$2"; }
 
 # ---------------------------------------------------------------------------
-# The curated exemptions. Each is a READ-classified occurrence that is genuinely incapable of
-# being moved by an addition under the allowlisted tree, with the reason stated. Keyed on a
-# verbatim source slice, so drift shows up as an ORPHAN rather than as silence.
+# The two hand-declared tables, both keyed on a verbatim source slice so drift shows up as an
+# ORPHAN rather than as silence, and both budgeted by their own counter.
+#
+#   exempt — a genuine READ of the tree that is incapable of being MOVED by an addition under it.
+#   benign — an occurrence that opens nothing at all, but whose shape no mechanical rule expresses.
+#
+# They are kept apart on purpose: mixing them would let a real read be admitted under the softer
+# claim, and would blur the one number whose job is to price a read.
 # ---------------------------------------------------------------------------
 EXEMPTIONS="$TMP/exemptions.tsv"
 : > "$EXEMPTIONS"
-exempt(){ printf '%s\t%s\n' "$1" "$2" >> "$EXEMPTIONS"; }
+exempt(){ printf 'EXEMPT\t%s\t%s\n'  "$1" "$2" >> "$EXEMPTIONS"; }
+benign(){ printf 'CURATED\t%s\t%s\n' "$1" "$2" >> "$EXEMPTIONS"; }
 
 # test_docket_build.sh's armed-probe companion greps the EXEMPT HISTORY (four directories at once)
 # for a retired profile token and asserts the result is NON-EMPTY. It is the one deliberate read
@@ -242,6 +311,20 @@ exempt tests/test_docket_build.sh \
 # literal here is inside the grep PATTERN — a URL in the expected markdown — and the haystack is
 # the fixture, not the tree.
 exempt tests/test_render_change_links.sh '| Results | ['
+
+# The three occurrences the HAZARD default catches that open nothing. Each is a shape a
+# line-scoped rule cannot express without opening a hole wider than the case it closes.
+#
+# An assert DESCRIPTION string. The assertion body beside it is `! has_finding "$ar8_default" …`,
+# which reads a captured variable; the path here is prose naming board-checks.sh's default.
+benign tests/test_board_checks.sh "(default $RESULTS_DIR_REL)"
+# A `for … in` WORD LIST. The loop body greps $RUNBOOK for each path as a cited string — the
+# runbook is the haystack, the path is the needle, and the tree is never opened. This is the
+# indirect shape of HONEST LIMITS (b), which is why it is declared rather than ruled.
+benign tests/test_codex_runbook.sh "scripts/runners/codex.sh $RESULTS_DIR_REL/; do"
+# A regex PATTERN emitted by `echo` for a later match against .docket.example.yml. The literal is
+# inside the needle, not the haystack.
+benign tests/test_docket_example_yml.sh "^results_dir:[[:space:]]*$RESULTS_DIR_REL"
 
 # ---------------------------------------------------------------------------
 # 1. Scope soundness — the docs/ exclusion is asserted, not claimed.
@@ -257,8 +340,8 @@ assert "the skipped docs/ prefix is walked by nothing executable (mode 100755 or
 RECORDS="$(corpus_records)"
 RESULT="$(classify "$EXEMPTIONS" <<<"$RECORDS")"
 
-# ORPHAN rows are diagnostics about the exemption table, not occurrences — they are subtracted out
-# of the population, so a pair of stale exemptions cannot pad the floor a shrinking corpus fails.
+# ORPHAN rows are diagnostics about the declared tables, not occurrences — they are subtracted out
+# of the population, so a pair of stale entries cannot pad the floor a shrinking corpus fails.
 n_rows="$(grep -c . <<<"$RESULT" || true)"
 n_orphan="$(count_class ORPHAN  "$RESULT")"
 n_total="$((n_rows - n_orphan))"
@@ -266,11 +349,17 @@ n_inert="$(count_class INERT    "$RESULT")"
 n_comment="$(count_class COMMENT "$RESULT")"
 n_excl="$(count_class EXCL      "$RESULT")"
 n_assign="$(count_class ASSIGN  "$RESULT")"
-n_noverb="$(count_class NOVERB  "$RESULT")"
+n_data="$(count_class DATA      "$RESULT")"
+n_write="$(count_class WRITE    "$RESULT")"
+n_optval="$(count_class OPTVAL  "$RESULT")"
+n_expect="$(count_class EXPECT  "$RESULT")"
+n_curated="$(count_class CURATED "$RESULT")"
 n_exempt="$(count_class EXEMPT  "$RESULT")"
 n_hazard="$(count_class HAZARD  "$RESULT")"
-printf '  corpus: %s occurrences — inert %s, comment %s, exclusion %s, assignment %s, no-verb %s, exempt %s, hazard %s\n' \
-  "$n_total" "$n_inert" "$n_comment" "$n_excl" "$n_assign" "$n_noverb" "$n_exempt" "$n_hazard"
+n_benign="$((n_data + n_write + n_optval + n_expect))"
+printf '  corpus: %s occurrences — inert %s, comment %s, exclusion %s, assignment %s | benign shapes %s (data %s, write %s, optval %s, expect %s), curated %s, exempt %s | hazard %s\n' \
+  "$n_total" "$n_inert" "$n_comment" "$n_excl" "$n_assign" \
+  "$n_benign" "$n_data" "$n_write" "$n_optval" "$n_expect" "$n_curated" "$n_exempt" "$n_hazard"
 
 # ---------------------------------------------------------------------------
 # 3. POPULATION FLOOR — the scan still reaches the corpus it was measured against.
@@ -283,21 +372,31 @@ assert "the scan reaches at least $FLOOR committed occurrences of the results-di
 assert "the corpus contains executable-file occurrences, not only inert documentation" \
   '[ "$((n_total - n_inert))" -ge 40 ]'
 assert "every corpus occurrence carries a class" \
-  '[ "$((n_inert + n_comment + n_excl + n_assign + n_noverb + n_exempt + n_hazard))" = "$n_total" ]'
+  '[ "$((n_inert + n_comment + n_excl + n_assign + n_benign + n_curated + n_exempt + n_hazard))" = "$n_total" ]'
 
 # ---------------------------------------------------------------------------
 # 4. THE PROPERTY — no unexplained content read of the allowlisted tree.
 # ---------------------------------------------------------------------------
 assert "no executable suite component reads the allowlisted results tree as a content source" \
-  '[ "$n_hazard" = 0 ] || { grep "^HAZARD" <<<"$RESULT" >&2; echo "  Each line above is an executable, un-negated occurrence sitting on a line that also runs a reading command." >&2; echo "  FIRST establish whether it genuinely reads the tree as a content source. If it does, finalize'"'"'s post-gate skip is no longer sound for this repo and the READ must be removed or excluded (a :! pathspec, a ! glob) — that is the fix." >&2; echo "  Only when the occurrence provably cannot be moved by an addition under the tree does it earn a curated exemption, and adding one is a budgeted event: EXPECTED_EXEMPT moves with it, in the same diff, with the reason written down." >&2; false; }'
+  '[ "$n_hazard" = 0 ] || { grep "^HAZARD" <<<"$RESULT" >&2; echo "  Each line above is an executable, un-negated occurrence that no benign rule could prove harmless. HAZARD is the DEFAULT here, so this is also what an unanticipated read form looks like." >&2; echo "  FIRST establish what command, if any, opens that path — including the forms that do not look like reads: < redirection, source, ., an interpreter, ls, [ -f ]. If the tree is genuinely read as a content source, finalize'"'"'s post-gate skip is no longer sound for this repo and the read must be removed or excluded (a :! pathspec, a ! glob) — that is the fix." >&2; echo "  If instead the occurrence opens nothing, it belongs in the benign table (EXPECTED_CURATED); if it opens the tree but an addition under it cannot change the verdict, it belongs in the exemption table (EXPECTED_EXEMPT). Either way the budget moves in the same diff, with the reason written down." >&2; false; }'
 
 # ---------------------------------------------------------------------------
-# 5. THE COVERAGE-GRANTING PATH, with its own counter.
+# 5. THE COVERAGE-GRANTING PATHS, each with its own counter. Every one of these is a route past
+#    the HAZARD default, so every one is priced. Pinning only the hazard count would let a real
+#    read be laundered into any of them for free (repo learning: guard-remedy-must-not-teach-the-
+#    evasion) — and pinning only the aggregate would let one shape absorb another, which is why
+#    OPTVAL, the widest of them, is pinned a second time on its own.
 # ---------------------------------------------------------------------------
+assert "exactly $EXPECTED_BENIGN occurrences take a benign SHAPE pass (data/write/optval/expect)" \
+  '[ "$n_benign" = "$EXPECTED_BENIGN" ] || { grep -E "^(DATA|WRITE|OPTVAL|EXPECT)" <<<"$RESULT" >&2; echo "  found $n_benign (data $n_data, write $n_write, optval $n_optval, expect $n_expect), budget $EXPECTED_BENIGN." >&2; echo "  A shape class is a pass around the HAZARD default, so its total is pinned. FIRST confirm the new occurrence is genuinely not a content read: open the line and name the command that would open that path, then check that the rule which claimed it really rules it out — a DATA line that gained a \$( ), a WRITE line that gained a pipe, an OPTVAL whose option is one the receiving program reads from." >&2; echo "  Only once it provably opens nothing does the budget move, in the same diff." >&2; false; }'
+assert "exactly $EXPECTED_OPTVAL occurrences take the long-option pass" \
+  '[ "$n_optval" = "$EXPECTED_OPTVAL" ] || { grep "^OPTVAL" <<<"$RESULT" >&2; echo "  found $n_optval, budget $EXPECTED_OPTVAL." >&2; echo "  OPTVAL is the widest pass in this file: an option value LOOKS like a parameter handed onward, but --file, --include and their kin name a path the receiving command then READS. FIRST identify which program receives this option and whether it opens the path; if it does, the option belongs in the classifier'"'"'s optread denial list, not in this budget." >&2; false; }'
+assert "exactly $EXPECTED_CURATED occurrences are hand-declared benign" \
+  '[ "$n_curated" = "$EXPECTED_CURATED" ] || { grep "^CURATED" <<<"$RESULT" >&2; echo "  found $n_curated, budget $EXPECTED_CURATED." >&2; echo "  A benign declaration asserts the occurrence opens NOTHING — not that its read is harmless. FIRST re-read the line and confirm no command receives that path as a file operand. A read that cannot be moved by an addition is a different claim and belongs in the exemption table instead." >&2; false; }'
 assert "exactly $EXPECTED_EXEMPT occurrences are covered by a curated exemption" \
-  '[ "$n_exempt" = "$EXPECTED_EXEMPT" ] || { grep "^EXEMPT" <<<"$RESULT" >&2; echo "  An exemption is a hand-granted pass around the hazard predicate, so its count is pinned on its own: a real content read laundered through a new exemption moves THIS number while the hazard count and the floor both stay green." >&2; false; }'
-assert "no declared exemption is stale (every one still matches a live occurrence)" \
-  '[ "$n_orphan" = 0 ] || { grep "^ORPHAN" <<<"$RESULT" >&2; echo "  The exempted consumer moved or was rewritten. Re-read it and re-decide, rather than re-pointing the slice." >&2; false; }'
+  '[ "$n_exempt" = "$EXPECTED_EXEMPT" ] || { grep "^EXEMPT" <<<"$RESULT" >&2; echo "  found $n_exempt, budget $EXPECTED_EXEMPT." >&2; echo "  An exemption admits a REAL read and claims an addition under the tree cannot change its verdict. FIRST prove that claim — name the assertion the read feeds and show why adding a file under the tree leaves the verdict identical. Only then does this budget move, and it moves alone: the hazard count and the floor both stay green either way." >&2; false; }'
+assert "no declared table entry is stale (every one still matches a live occurrence)" \
+  '[ "$n_orphan" = 0 ] || { grep "^ORPHAN" <<<"$RESULT" >&2; echo "  The declared consumer moved or was rewritten. Re-read it and re-decide, rather than re-pointing the slice." >&2; false; }'
 
 # ---------------------------------------------------------------------------
 # 6. THE POSITIVE CLAIM — the suite's real exclusion mechanisms survive, keyed on their magic
@@ -353,6 +452,14 @@ synth(){ printf '%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "$4"; }
   synth 1 tests/test_synthetic_probe.sh 5 "  # grep the $RESULTS_DIR_REL tree"
   synth 0 README.md                     6 "run grep over $RESULTS_DIR_REL to see"
   synth 1 tests/test_synthetic_probe.sh 7 "  mkdir -p \"\$work/$RESULTS_DIR_REL\""
+  synth 1 tests/test_synthetic_probe.sh 8 "    results: $RESULTS_DIR_REL/2026-06-01-x-results.md"
+  synth 1 tests/test_synthetic_probe.sh 9 "  run_thing --results-dir $RESULTS_DIR_REL --flag"
+  synth 1 tests/test_synthetic_probe.sh 10 "  assert x '[ \"\$RESULTS_DIR\" = $RESULTS_DIR_REL ]'"
+  # THE STRUCTURAL CONTROL. A bare operand carrying no recognised reading command used to be the
+  # unbudgeted free pass this file shipped with; under the inverted predicate it is a HAZARD.
+  synth 1 tests/test_synthetic_probe.sh 11 "  some_helper \"\$ROOT/$RESULTS_DIR_REL\""
+  # A file-consuming LONG option must not buy the OPTVAL pass.
+  synth 1 tests/test_synthetic_probe.sh 12 "  grep --file $RESULTS_DIR_REL/pats \"\$F\""
 } > "$TMP/synth.tsv"
 SYNTH="$(classify "$NO_EXEMPTIONS" < "$TMP/synth.tsv")"
 synth_class(){ awk -F'\t' -v l="$1" '$3 == l {print $1}' <<<"$SYNTH"; }
@@ -362,8 +469,14 @@ assert "control: a ! glob operand classifies EXCL"             '[ "$(synth_class
 assert "control: an env-prefix value classifies ASSIGN"        '[ "$(synth_class 4)" = ASSIGN ]'
 assert "control: a comment line classifies COMMENT"            '[ "$(synth_class 5)" = COMMENT ]'
 assert "control: a non-executable file classifies INERT"       '[ "$(synth_class 6)" = INERT ]'
-assert "control: a bare operand with no reading command classifies NOVERB" \
-  '[ "$(synth_class 7)" = NOVERB ]'
+assert "control: a mkdir operand classifies WRITE"             '[ "$(synth_class 7)" = WRITE ]'
+assert "control: a frontmatter data line classifies DATA"      '[ "$(synth_class 8)" = DATA ]'
+assert "control: a long-option value classifies OPTVAL"        '[ "$(synth_class 9)" = OPTVAL ]'
+assert "control: a comparison right-hand side classifies EXPECT" '[ "$(synth_class 10)" = EXPECT ]'
+assert "control: a bare operand with no recognised reading command classifies HAZARD, not a free pass" \
+  '[ "$(synth_class 11)" = HAZARD ]'
+assert "control: a file-consuming long option is DENIED the OPTVAL pass and classifies HAZARD" \
+  '[ "$(synth_class 12)" = HAZARD ]'
 
 # 7b. Deleting the pathspec exclusion from a throwaway copy of test_docket_build.sh is REPORTED.
 MUT_TDB="$TMP/mutated_docket_build.sh"
@@ -400,11 +513,61 @@ tdb_exclusion_armed "$BLIND_TDB"; tdb_blind_rc=$?
 assert "control: a renamed probe anchor is reported as a broken extractor, not as armed" \
   '[ "$tdb_blind_rc" = 2 ]'
 
+# 7e. THE READ FORMS THE OLD VERB LIST MISSED. Each of these opens a file and none of them looks
+# like `grep`; under a verb enumeration every one classified as an unbudgeted free pass. They are
+# introduced into a THROWAWAY COPY of a real corpus file and run through the SAME logical_lines
+# extractor and the SAME classifier the live scan uses, so a control cannot stay green while the
+# real path goes blind. The mutation is proved to have landed by occurrence count first.
+NEW_FORMS="$TMP/new-read-forms.tsv"
+: > "$NEW_FORMS"
+form(){ printf '%s\t%s\n' "$1" "$2" >> "$NEW_FORMS"; }
+form '< redirection feeding a read loop' "done < \"\$ROOT/$RESULTS_DIR_REL/x\""
+form 'mapfile from a < redirection'      "mapfile -t X < \"\$ROOT/$RESULTS_DIR_REL/x\""
+form 'read from a < redirection'         "read -r a < \"\$ROOT/$RESULTS_DIR_REL/x\""
+form 'source'                            "source \"\$ROOT/$RESULTS_DIR_REL/lib.sh\""
+form 'dot-source'                        ". \"\$ROOT/$RESULTS_DIR_REL/lib.sh\""
+form 'a bash interpreter'                "bash \"\$ROOT/$RESULTS_DIR_REL/x.sh\""
+form 'an sh interpreter'                 "sh \"\$ROOT/$RESULTS_DIR_REL/x.sh\""
+form 'a python interpreter'              "python3 \"\$ROOT/$RESULTS_DIR_REL/x.py\""
+form 'a perl interpreter'                "perl -ne 'print' \"\$ROOT/$RESULTS_DIR_REL/x\""
+form 'a jq filter'                       "jq -r .a \"\$ROOT/$RESULTS_DIR_REL/x.json\""
+form 'a yq filter'                       "yq '.a' \"\$ROOT/$RESULTS_DIR_REL/x.yml\""
+form 'ls'                                "ls \"\$ROOT/$RESULTS_DIR_REL\""
+form 'stat'                              "stat -f%z \"\$ROOT/$RESULTS_DIR_REL/x\""
+form 'an existence test'                 "[ -f \"\$ROOT/$RESULTS_DIR_REL/x\" ] || fail"
+form 'a short-option file argument'      "grep -f \"\$ROOT/$RESULTS_DIR_REL/pats\" \"\$F\""
+n_forms="$(grep -c . "$NEW_FORMS" || true)"
+
+MUT_READS="$TMP/mutated_read_forms.sh"
+cp "$TDB" "$MUT_READS"
+printf '\n' >> "$MUT_READS"   # the appended forms must start on their own physical line
+reads_before="$(grep -c -F -e "$RESULTS_DIR_REL" "$MUT_READS" || true)"
+base_lines="$(awk 'END {print NR}' "$MUT_READS")"
+cut -f2 "$NEW_FORMS" >> "$MUT_READS"
+reads_after="$(grep -c -F -e "$RESULTS_DIR_REL" "$MUT_READS" || true)"
+assert "mutation landed: the throwaway copy gained one line per new read form" \
+  '[ "$((reads_after - reads_before))" = "$n_forms" ]'
+
+MUT_RECORDS="$TMP/mutated_read_forms.tsv"
+logical_lines "$MUT_READS" | awk -F'\t' -v p=tests/mutated_read_forms.sh -v lit="$RESULTS_DIR_REL" \
+  'index($0, lit) > 0 { ln = $1; sub(/^[^\t]*\t/, ""); printf "1\t%s\t%s\t%s\n", p, ln, $0 }' > "$MUT_RECORDS"
+MUT_RESULT="$(classify "$NO_EXEMPTIONS" < "$MUT_RECORDS")"
+form_i=0
+while IFS=$'\t' read -r form_label _; do
+  [ -n "$form_label" ] || continue
+  form_i=$((form_i + 1))
+  form_class="$(awk -F'\t' -v l="$((base_lines + form_i))" '$3 == l {print $1}' <<<"$MUT_RESULT")"
+  assert "control: $form_label reads the tree and is REPORTED as HAZARD" \
+    '[ "$form_class" = HAZARD ]'
+done < "$NEW_FORMS"
+assert "control: every declared new read form was actually classified" \
+  '[ "$form_i" = "$n_forms" ]'
+
 # ---------------------------------------------------------------------------
 # 8. SELF-MEMBERSHIP. This file is out of the corpus scan by pathspec, so its own text is scanned
 #    here instead, through the same classifier. Its policy prose says <results_dir>; the literal
-#    appears only in the assignment above and inside data slices, none of them next to a reading
-#    verb. Nothing here may read the allowlisted tree either.
+#    appears only in the assignment above and on comment lines, so under the inverted predicate
+#    every occurrence must land on ASSIGN or COMMENT. Nothing here may read the tree either.
 # ---------------------------------------------------------------------------
 SELF_RECORDS="$TMP/self.tsv"
 : > "$SELF_RECORDS"
