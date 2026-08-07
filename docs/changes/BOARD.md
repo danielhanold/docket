@@ -1,14 +1,13 @@
 # Backlog
 
-**232 changes** — 🟢 3 in progress · 🟡 54 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 142 done · 🗑️ 28 killed
+**232 changes** — 🟢 2 in progress · 🟡 54 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 142 done · 🗑️ 28 killed
 
-## 🟢 In progress (3)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0190](active/0190-close-the-build-evidence-value-gap-a-post-gate-results-commi.md) | Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip | `medium` | `feat` | [spec](../superpowers/specs/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md) | `feat/close-the-build-evidence-value-gap-a-post-gate-results-commi` |
 | [0226](active/0226-reframe-auto-capture-as-capability-discovery-with-strict-adm.md) | Reframe auto-capture as capability discovery with strict admission gates | `medium` | `feat` | [spec](../superpowers/specs/2026-08-06-auto-capture-capability-discovery-design.md) | `feat/reframe-auto-capture-as-capability-discovery-with-strict-adm` |
-| [0228](active/0228-finalize-s-auto-detect-suite-loop-has-no-failure-accumulator.md) | finalize's auto-detect suite loop has no failure accumulator, so a mid-suite red merges | `high` | `fix` | [spec](../superpowers/specs/2026-08-07-finalize-s-auto-detect-suite-loop-has-no-failure-accumulator-design.md) | `feat/finalize-s-auto-detect-suite-loop-has-no-failure-accumulator` |
 
 ## 🟡 Proposed (54)
 
@@ -78,11 +77,12 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (1)
+## 🔵 Implemented — awaiting merge (2)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0223](active/0223-the-build-gate-contract-never-states-an-execution-posture-for.md) | The build gate contract never states an execution posture for a suite that outgrows a single foreground call | `high` | `feat` | [#166](https://github.com/danielhanold/docket/pull/166) |  |
+| [0228](active/0228-finalize-s-auto-detect-suite-loop-has-no-failure-accumulator.md) | finalize's auto-detect suite loop has no failure accumulator, so a mid-suite red merges | `high` | `fix` | [#167](https://github.com/danielhanold/docket/pull/167) |  |
 
 ```mermaid
 graph TD
