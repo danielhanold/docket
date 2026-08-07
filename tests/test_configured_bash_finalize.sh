@@ -123,4 +123,29 @@ assert "auto-detect keeps going past the failure so every test still runs" \
 test_bravo.sh
 test_charlie.sh" ]'
 
+# --- empty suite: the literal glob must FAIL, never exit 0 having run zero tests (change 0228) -
+# No nullglob and no [ -e "$test" ] guard, deliberately: with no matching files the glob stays
+# literal, the invocation fails, and the block reports non-zero. nullglob would instead exit 0
+# with zero tests run — a green gate certifying nothing.
+assert "contract does not enable nullglob" \
+  '! grep -qi -- "nullglob" <<<"$contract"'
+
+empty_fixture="$TMP/repo-empty"
+mkdir -p "$empty_fixture/tests"
+empty_runtime_log="$TMP/runtime-empty.log"
+empty_execution_log="$TMP/execution-empty.log"
+: > "$empty_execution_log"
+
+empty_status=0
+(
+  cd "$empty_fixture" || exit 1
+  RUNTIME_LOG="$empty_runtime_log" EXECUTION_LOG="$empty_execution_log" FINALIZE_TEST_COMMAND= \
+    /bin/bash -c "$contract"
+) >/dev/null 2>&1 || empty_status=$?
+
+assert "empty suite reports non-zero rather than certifying nothing" \
+  '[ "$empty_status" -ne 0 ]'
+assert "empty suite runs zero tests" \
+  '[ ! -s "$empty_execution_log" ]'
+
 exit $fail
