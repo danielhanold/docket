@@ -1,6 +1,6 @@
 # Backlog
 
-**236 changes** — 🟢 4 in progress · 🟡 54 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 145 done · 🗑️ 28 killed
+**236 changes** — 🟢 4 in progress · 🟡 54 proposed · ⚪ 4 deferred · ✅ 146 done · 🗑️ 28 killed
 
 ## 🟢 In progress (4)
 
@@ -79,12 +79,6 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | Type | PR | Readiness |
-|---|-------|----------|------|----|-----------|
-| [0234](active/0234-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b.md) | Split gate-execution.md: probe evidence should not sit on a blocking-read surface | `medium` | `refactor` | [#169](https://github.com/danielhanold/docket/pull/169) |  |
-
 ```mermaid
 graph TD
   0007
@@ -147,7 +141,6 @@ graph TD
   0223 --> 0231
   0232
   0233
-  0234
   0235
   0236
   0015:::done
@@ -158,10 +151,11 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (173)</summary>
+<details><summary>✅🗑️ Archive — done + killed (174)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0234](archive/2026-08-07-0234-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b.md) | Split gate-execution.md: probe evidence should not sit on a blocking-read surface | 2026-08-07 |
 | [0228](archive/2026-08-07-0228-finalize-s-auto-detect-suite-loop-has-no-failure-accumulator.md) | finalize's auto-detect suite loop has no failure accumulator, so a mid-suite red merges | 2026-08-07 |
 | [0227](archive/2026-08-07-0227-parallel-test-suite-runner.md) | Parallel test-suite runner — 4x+ wall-clock speedup | 2026-08-07 |
 | [0226](archive/2026-08-07-0226-reframe-auto-capture-as-capability-discovery-with-strict-adm.md) | Reframe auto-capture as capability discovery with strict admission gates | 2026-08-07 |
@@ -184,7 +178,6 @@ graph TD
 | [0205](archive/2026-08-05-0205-opencode-runner-adapter.md) | opencode runner adapter — delegate build workers to OpenRouter models | 2026-08-05 |
 | [0202](archive/2026-08-05-0202-clear-the-unfixed-review-findings-from-change-0113.md) | Clear the unfixed review findings from change 0113 | 2026-08-05 |
 | [0078](archive/2026-08-05-0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | 2026-08-05 |
-| [0201](archive/2026-08-03-0201-skill-compression-round-three.md) | Skill compression round three — targeted progressive disclosure on the Big 4 + regrowth-guard ratchet | 2026-08-03 |
 | [0183](archive/2026-08-01-0183-cursor-dispatch-head-ships-a-stale-unpinned-claim-its-guard.md) | Cursor dispatch head ships a stale unpinned claim; its guard retired itself | 2026-08-01 |
 | [0044](archive/2026-07-30-0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | 2026-07-30 |
 | [0162](archive/2026-07-28-0162-restore-the-machine-local-ignored-advisory-for-a-committed-t.md) | Restore the machine-local-ignored advisory for a committed too-deep runtime.bash | 2026-07-28 |
@@ -210,7 +203,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 12 done |
+| [2026-08](archive/) | 13 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
