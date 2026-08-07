@@ -2247,5 +2247,27 @@ assert "0259: a clean changes dir renders the digest with exit 0" '[ "$clean_dg_
 assert "0259: a clean digest render writes nothing to stderr" '[ ! -s "$tmp/clean-digest-stderr.txt" ]'
 rm -f "$tmp/clean-stderr.txt" "$tmp/clean-digest-stderr.txt"
 
+# --- change 0259 (M4): a shifted feeder tuple is caught at the CONSUMER, not only at the producer ---
+# M1-M3 validate the values the producer reads from frontmatter. M4 validates the tuple the
+# consumer receives, catching a control-character path that never passes through a frontmatter read
+# at all — here, a TAB in the FILENAME. Without M4 the split misassigns fields and the loop renders
+# a row built from the wrong ones.
+m4="$(mktemp -d)"
+mkdir -p "$m4/active" "$m4/archive"
+printf -- '---\nid: 1\nslug: ok\ntitle: Fine Row\nstatus: done\ncreated: 2026-08-01\n---\n' \
+  > "$m4/archive/2026-08-01-0001-ok.md"
+printf -- '---\nid: 2\nslug: tabname\ntitle: Tab Name\nstatus: done\ncreated: 2026-08-02\n---\n' \
+  > "$m4/archive/$(printf '2026-08-02-0002-tab\tname.md')"
+m4_md="$(bash "$SCRIPT" --changes-dir "$m4" 2>/dev/null)"; m4_rc=$?
+m4_err="$(bash "$SCRIPT" --changes-dir "$m4" 2>&1 >/dev/null)"
+assert "0259 M4: the well-formed archive row still renders alongside the shifted tuple" \
+  '/usr/bin/grep -qF -- "| [0001](archive/2026-08-01-0001-ok.md) | Fine Row | 2026-08-01 |" <<<"$m4_md"'
+assert "0259 M4: a shifted feeder tuple produces no rendered row" \
+  '! /usr/bin/grep -qF -- "Tab Name" <<<"$m4_md"'
+assert "0259 M4: a shifted feeder tuple is diagnosed on stderr" \
+  '/usr/bin/grep -qF -- "archive feeder tuple" <<<"$m4_err"'
+assert "0259 M4: a shifted feeder tuple makes the run exit 3" '[ "$m4_rc" -eq 3 ]'
+rm -rf "$m4"
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
