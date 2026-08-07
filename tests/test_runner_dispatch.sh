@@ -357,4 +357,97 @@ assert "0237: the adapter runs as a CHILD of the facade, not as its replacement 
 unset RC_WANTED
 rm -rf "$SBX"
 
+# ---- 0237: the run gate — snapshot diff + agent gating ----------------------------
+# A stub verify-run records its argv and replies from files the fixture controls, so these asserts
+# pin the FACADE's diffing and gating, not verify-run's verdict logic (Task 1 owns that).
+make_gate_fixture(){
+  make_fixture
+  mkdir -p "$SBX/runners"
+  cat > "$SBX/runners/ad.sh" <<'AD'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "${AD_LOG:?}"
+# each invocation advances the "after" snapshot to the next staged file, if one exists
+n=$(wc -l < "${AD_LOG:?}" | tr -d ' ')
+[ -f "${SNAP_DIR:?}/after.$n" ] && cp "${SNAP_DIR}/after.$n" "${SNAP_DIR}/current"
+exit 0
+AD
+  chmod +x "$SBX/runners/ad.sh"
+  SNAP="$SBX/snap"; mkdir -p "$SNAP"
+  cat > "$SBX/fake-verify-run.sh" <<'VR'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "${VR_LOG:?}"
+for a in "$@"; do [ "$a" = "--in-progress-ids" ] && { cat "${SNAP_DIR:?}/current"; exit 0; }; done
+id=""
+for a in "$@"; do case "$a" in [0-9]*) id="$a" ;; esac; done
+cat "${SNAP_DIR:?}/verdict.$id" 2>/dev/null || printf 'run-complete %s\n' "$id"
+VR
+  chmod +x "$SBX/fake-verify-run.sh"
+  : > "$SBX/ad.log"; : > "$SBX/vr.log"
+  cat > "$SBX/fake-facade.sh" <<'FF'
+#!/usr/bin/env bash
+exit 0
+FF
+  chmod +x "$SBX/fake-facade.sh"
+}
+run_gate(){  # $@ = facade args
+  ( cd "$SBX" && RUNNERS_DIR="$SBX/runners" DOCKET_HARNESS_ROOT="$SBX" \
+      SNAP_DIR="$SNAP" AD_LOG="$SBX/ad.log" VR_LOG="$SBX/vr.log" \
+      VERIFY_RUN="$SBX/fake-verify-run.sh" DOCKET_FACADE="$SBX/fake-facade.sh" \
+      bash "$FACADE" "$@" )
+}
+
+# (a) a NON-implement-next agent never engages the gate — load-bearing, not an optimization:
+#     a build-* delegation leaves its change in-progress BY DESIGN.
+make_gate_fixture
+printf '5\n' > "$SNAP/current"; printf '5\n7\n' > "$SNAP/after.1"
+run_gate --runner ad --agent status >/dev/null 2>&1; rc=$?
+assert "0237 gate: a status delegation exits 0" '[ "$rc" = "0" ]'
+assert "0237 gate: a status delegation never calls verify-run" '[ ! -s "$SBX/vr.log" ]'
+mkdir -p "$SBX/.worktrees/w"
+run_gate --runner ad --agent build-standard --worktree "$SBX/.worktrees/w" >/dev/null 2>&1
+assert "0237 gate: a build-* delegation never calls verify-run" '[ ! -s "$SBX/vr.log" ]'
+rm -rf "$SBX"
+
+# (b) implement-next: only the NEWLY-claimed id is verified; a pre-held claim is ignored,
+#     so concurrent runs never cross-fire.
+make_gate_fixture
+printf '5\n' > "$SNAP/current"; printf '5\n7\n' > "$SNAP/after.1"
+printf 'run-complete 7\n' > "$SNAP/verdict.7"
+run_gate --runner ad --agent implement-next >/dev/null 2>&1; rc=$?
+assert "0237 gate: implement-next exits 0 when the run completed" '[ "$rc" = "0" ]'
+assert "0237 gate: verify-run was called on the NEW id" 'grep -qw 7 "$SBX/vr.log"'
+assert "0237 gate: the pre-held claim (5) is NOT verified" '! grep -qE "(^| )5( |$)" "$SBX/vr.log"'
+rm -rf "$SBX"
+
+# (c) an EMPTY diff (drained / contended — the run claimed nothing) is a no-op.
+make_gate_fixture
+printf '5\n' > "$SNAP/current"; printf '5\n' > "$SNAP/after.1"
+run_gate --runner ad --agent implement-next >/dev/null 2>&1; rc=$?
+assert "0237 gate: an empty diff exits 0" '[ "$rc" = "0" ]'
+assert "0237 gate: an empty diff verifies nothing" '! grep -qE "^[0-9]" "$SBX/vr.log"'
+assert "0237 gate: an empty diff dispatches exactly once" '[ "$(wc -l < "$SBX/ad.log" | tr -d " ")" = "1" ]'
+rm -rf "$SBX"
+
+# (d) run-halted NEVER re-dispatches — a halt means a human is needed.
+make_gate_fixture
+printf '\n' > "$SNAP/current"; printf '9\n' > "$SNAP/after.1"
+printf 'run-halted 9\n' > "$SNAP/verdict.9"
+run_gate --runner ad --agent implement-next >/dev/null 2>&1; rc=$?
+assert "0237 gate: run-halted exits 0" '[ "$rc" = "0" ]'
+assert "0237 gate: run-halted does NOT re-dispatch" '[ "$(wc -l < "$SBX/ad.log" | tr -d " ")" = "1" ]'
+rm -rf "$SBX"
+
+# (e) a broken snapshot disables the gate and warns — it never converts a healthy
+#     dispatch into a failure (the facade's standing tolerant posture on this live path).
+make_gate_fixture
+cat > "$SBX/fake-verify-run.sh" <<'VRB'
+#!/usr/bin/env bash
+echo "verify-run: boom" >&2; exit 2
+VRB
+chmod +x "$SBX/fake-verify-run.sh"
+err="$( run_gate --runner ad --agent implement-next 2>&1 >/dev/null )"; rc=$?
+assert "0237 gate: an unusable snapshot does not fail the dispatch" '[ "$rc" = "0" ]'
+assert "0237 gate: and it warns on stderr" 'grep -qiF "run gate" <<<"$err"'
+rm -rf "$SBX"
+
 exit $fail
