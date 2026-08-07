@@ -1618,8 +1618,10 @@ assert "0207: --check says a real run would refuse to write wrappers" \
 # (This assert was vacuous as written — leg (c) redirects into a mktemp -d, so --check never wrote
 # into .claude/agents even pre-0207. The property it was reaching for is pinned by the 0220/D1
 # fixture below, which proves --check reaches its own return rather than exiting mid-leg.)
+# Positive clause first: absence alone cannot tell "the gate exited before the legs" apart from
+# "the run died before reaching either log site". The gate's own line proves it was the gate.
 assert "0207: --check exits before check_project_level runs its legs" \
-  '! grep -qF "nothing else to check" <<<"$err" && ! grep -qF "advisory" <<<"$err"'
+  'grep -qF "check: runner configuration is invalid" <<<"$err" && ! grep -qF "nothing else to check" <<<"$err" && ! grep -qF "advisory" <<<"$err"'
 rm -rf "$SBX"
 
 # NON-VACUITY COMPANION for the whole 0207 block: the same shape with a VALID runner config must
@@ -1790,8 +1792,11 @@ d3_ok="$(
 )"
 assert "0220/D3: (non-vacuity) a matching \$2 still emits successfully" '[ "$d3_ok" = "RC=0" ]'
 # And the contract is stated where a caller reads it, not only enforced.
+# Anchored on a verbatim clause unique to the comment block: `within` indexes FORWARD from its
+# second argument, so anchoring on `emit_wrapper(){` searches only the body and would be satisfied
+# by the body's own assertion even with the whole header deleted.
 assert "0220/D3: emit_wrapper's header states the \$2 contract" \
-  'within "$REPO/sync-agents.sh" "emit_wrapper(){" "RES_MODEL" 900'
+  'grep -qF "CALLING CONTRACT (change 0220)" "$REPO/sync-agents.sh"'
 
 # ---- change 0220 / D6: each distinct diagnostic is reported exactly once ------------------------
 # A bad runner: in the GLOBAL layer is visible to BOTH gate legs — the user-level leg resolves over
@@ -1817,7 +1822,8 @@ assert "0220/D6: a diagnostic visible to both legs is reported exactly once" \
 assert "0220/D6: a distinct offender is NOT suppressed by the dedup" \
   '[ "$(grep -cF "docket-status" <<<"$d6_err")" -ge 1 ]'
 # Capture each offender's own lines FIRST, then grep the capture: a `grep … | grep -q` pipeline
-# under `set -o pipefail` (line 3) can take SIGPIPE and turn 141 into an intermittent failure.
+# under `set -o pipefail` (this file's `set -uo pipefail`) can take SIGPIPE and turn 141 into an
+# intermittent failure.
 d6_status_lines="$(grep -F "docket-status" <<<"$d6_err")"
 d6_adr_lines="$(grep -F "docket-adr" <<<"$d6_err")"
 assert "0220/D6: and it keeps its own rule" \
