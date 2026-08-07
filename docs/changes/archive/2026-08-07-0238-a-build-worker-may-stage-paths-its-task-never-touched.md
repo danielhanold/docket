@@ -2,7 +2,7 @@
 id: 238
 slug: a-build-worker-may-stage-paths-its-task-never-touched
 title: A build worker may stage paths its task never touched
-status: proposed
+status: killed
 priority: medium
 type: fix
 created: 2026-08-07
@@ -62,3 +62,7 @@ belongs in `## Scope` or `## The commit`, how it reads against the escalation in
 whether "stage only what your task changed" is even worker-observable when a task legitimately
 regenerates a derived file. Authoring that inside 0231 would be shipping un-designed normative
 contract text on a contract whose whole point is that its rules are argued before they bind.
+
+## Why killed
+
+Consolidated into #0249 at the 2026-08-07 backlog triage: the staging-discipline clause lands with #0232's gate-posture pointer in the same contract file.
