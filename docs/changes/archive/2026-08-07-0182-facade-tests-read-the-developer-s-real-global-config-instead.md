@@ -2,11 +2,11 @@
 id: 182
 slug: facade-tests-read-the-developer-s-real-global-config-instead
 title: Facade tests read the developer's real global config instead of a sandbox
-status: proposed
+status: killed
 priority: medium
 type: fix
 created: 2026-07-31
-updated: 2026-07-31
+updated: 2026-08-07
 depends_on: []
 related: []
 discovered_from: [173]
@@ -54,3 +54,7 @@ code, and differently on CI than on a developer's laptop.
 ## Out of scope
 
 - The value-class behavior itself (change 0173).
+
+## Why killed
+
+Consolidated into #0252 at the 2026-08-07 backlog triage: the hermeticity pin and cross-suite sweep land with the shared fixture helper that standardizes the pattern.
