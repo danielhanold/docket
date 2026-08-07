@@ -11,7 +11,7 @@ depends_on: []
 related: []
 discovered_from: [141, 142, 196, 82]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-07-harden-sync-agents-wrapper-generation-and-clear-the-0192-fin-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-07-harden-sync-agents-wrapper-generation-and-clear-the-0192-fin-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-harden-sync-agents-wrapper-generation-and-clear-the-0192-fin-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -40,10 +43,12 @@ Verified 2026-08-07:
 
 ## What changes
 
-- Factor `parse_wrapper_source()` out of the three emitters; generation output stays byte-identical (Claude/Cursor/Codex/opencode generation tests are the gate).
-- Make the unmapped-token path loud: WARN at generation time and surface in `--check`. (Removing the `agents` token from the vocabulary is a separate decision — see Out of scope.)
-- Clear the four Important 0192 findings plus the minors above: fix the codex setup.md de-list note, add a codex+opencode two-harness fixture, derive the :1341 diagnostic list from `AGENTS_MD_DISPATCH_HARNESSES`, scope the :1115 claim, assert the opencode emitter's body, probe or correct the effort-drop claim.
-- Add the #0082 advisory (option 1 of its stub, **scope pinned here**): when the global layer sets `agent_harnesses` but the repo has not opted in, print a pointed hint naming `.docket.local.yml`.
+Design settled 2026-08-07 (auto-groom; see the linked spec's Assumptions for every default taken and rejected):
+
+- Factor `parse_wrapper_source()` out of the three emitters — fixed `WSRC_*` result globals (the `RES_*` house pattern); serialization, skills-preamble sentences, and the deliberate per-emitter `inherit`/`auto` sentinel handling stay put. Byte-identity is the gate: build-time snapshot diff across all four harnesses plus the existing generation suites, unmodified.
+- Make the unmapped-token path loud: a shared `harness_has_named_emitter()` predicate; the `*)` arm WARNs once per harness per run, and `--check` gains a non-failing advisory leg. Behavioral test pins predicate/dispatch agreement. (Removing the `agents` token from the vocabulary is a separate decision — see Out of scope.)
+- Clear the four Important 0192 findings plus the minors: codex setup.md gets opencode's last-dispatch-harness caveat; a codex+opencode two-harness fixture lands in `test_sync_agents_opencode.sh` (block exactly once; last-harness strip); the :1341 diagnostic interpolates `AGENTS_MD_DISPATCH_HARNESSES`; the :1115 head claim is scoped to the shipped harnesses (an accepted committed-bytes change); the opencode emitter gains body/preamble asserts; the effort-drop claim gets a generation test plus a live probe that degrades to a comment reword if the opencode CLI is absent; the agent-layer.md table's opencode cell drops to a bare `.md`.
+- Add the #0082 advisory (option 1 of its stub, **scope pinned here**): when the global layer sets `agent_harnesses` but the repo has not opted in, `project_level_pass` prints one XDG-aware hint naming `.docket.local.yml` before its silent early return. Generation path only.
 
 ## Out of scope
 
