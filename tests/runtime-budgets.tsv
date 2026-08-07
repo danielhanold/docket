@@ -1,0 +1,100 @@
+# tests/runtime-budgets.tsv — per-file wall-clock ceilings (change 0227).
+# Format: <repo-relative test path><TAB><max seconds><TAB><parallel|serial>
+#
+# WHY: the suite was 629s because four files grew to 66% of it. A one-time split decays;
+# this table is the discipline made durable. Seeded from the measured post-shard run,
+# rounded up to the next multiple of 5 plus a 5s margin (min 10s).
+#
+# A new tests/test_*.sh with NO row here fails tests/test_runtime_budgets.sh. That is
+# deliberate: adding a test file is a conscious placement decision. Read tests/README.md
+# before adding one — the usual right answer is to EXTEND an existing shard.
+#
+# NO row may exceed 60 seconds. If a file outgrows its ceiling, shard it or move the new
+# assertions into a shard with room. Raising a number here is not the remedy: the guard
+# counts over-ceiling rows separately, so laundering one still reddens.
+tests/test_adr_checks.sh	10	parallel
+tests/test_artifact_backlink_coverage.sh	10	parallel
+tests/test_auto_groom.sh	10	parallel
+tests/test_backfill_change_types.sh	10	parallel
+tests/test_bash_runtime_install.sh	10	parallel
+tests/test_bash_runtime_routing.sh	10	parallel
+tests/test_board_checks.sh	55	parallel
+tests/test_board_refresh.sh	10	parallel
+tests/test_board_refresh_on_transition.sh	10	parallel
+tests/test_change_links_coverage.sh	10	parallel
+tests/test_change_types.sh	10	parallel
+tests/test_closeout.sh	20	parallel
+tests/test_codex_runbook.sh	10	parallel
+tests/test_comment_anchor_style.sh	10	parallel
+tests/test_composition_wiring.sh	10	parallel
+tests/test_config_read_channel.sh	10	parallel
+tests/test_configured_bash_finalize.sh	10	parallel
+tests/test_consultant_brainstorm.sh	10	parallel
+tests/test_consuming_repo_scripts.sh	10	parallel
+tests/test_convention_extraction.sh	10	parallel
+tests/test_cursor_contract_docs.sh	10	parallel
+tests/test_cursor_dispatch_rule.sh	10	parallel
+tests/test_cursor_permissions_docs.sh	10	parallel
+tests/test_dispatch_capability.sh	10	parallel
+tests/test_docket_build.sh	10	parallel
+tests/test_docket_config.sh	55	parallel
+tests/test_docket_example_yml.sh	15	parallel
+tests/test_docket_facade.sh	10	parallel
+tests/test_docket_frontmatter.sh	10	parallel
+tests/test_docket_gitignore_block.sh	10	parallel
+tests/test_docket_metadata_branch.sh	10	parallel
+tests/test_docket_preflight.sh	10	parallel
+tests/test_docket_review.sh	10	parallel
+tests/test_docket_root.sh	10	parallel
+tests/test_docket_runtime_lib.sh	10	parallel
+tests/test_docket_status.sh	35	parallel
+tests/test_ensure_claude_settings.sh	10	parallel
+tests/test_ensure_docket_env.sh	10	parallel
+tests/test_ensure_global_config.sh	10	parallel
+tests/test_finalize_disposition.sh	10	parallel
+tests/test_finalize_gate.sh	10	parallel
+tests/test_github_mirror.sh	10	parallel
+tests/test_grep_portability.sh	10	parallel
+tests/test_groom_recap.sh	10	parallel
+tests/test_harness_defaults.sh	45	parallel
+tests/test_harness_defaults_validator.sh	50	parallel
+tests/test_inline_role_stop_scoping.sh	10	parallel
+tests/test_install.sh	10	parallel
+tests/test_learnings_ledger.sh	10	parallel
+tests/test_link_skills.sh	10	parallel
+tests/test_loop_continuation.sh	10	parallel
+tests/test_mark_publish_deferred.sh	10	parallel
+tests/test_metadata_worktree_hooks.sh	10	parallel
+tests/test_mint_stub.sh	15	parallel
+tests/test_readme_finalize_docs.sh	10	parallel
+tests/test_readme_skill_catalog.sh	10	parallel
+tests/test_reclaim_claims.sh	10	parallel
+tests/test_render_adr_index.sh	10	parallel
+tests/test_render_artifact_backlink.sh	10	parallel
+tests/test_render_board.sh	25	parallel
+tests/test_render_change_links.sh	10	parallel
+tests/test_render_learnings_index.sh	10	parallel
+tests/test_results_artifact.sh	10	parallel
+tests/test_role_skill_self_description.sh	10	parallel
+tests/test_run_tests.sh	20	parallel
+tests/test_runner_cursor.sh	10	parallel
+tests/test_runner_dispatch.sh	10	parallel
+tests/test_runner_opencode.sh	10	parallel
+tests/test_runtime_budgets.sh	10	parallel
+tests/test_script_contracts_coverage.sh	10	parallel
+tests/test_skill_facade_wiring.sh	10	parallel
+tests/test_skill_fork_dispatch.sh	10	parallel
+tests/test_skill_handoff_precedence.sh	10	parallel
+tests/test_skill_size_budgets.sh	10	parallel
+tests/test_sync_agents.sh	50	parallel
+tests/test_sync_agents_codex.sh	55	parallel
+tests/test_sync_agents_cursor.sh	15	parallel
+tests/test_sync_agents_defaults.sh	50	parallel
+tests/test_sync_agents_drift_docs.sh	55	parallel
+tests/test_sync_agents_opencode.sh	10	parallel
+tests/test_sync_agents_runners.sh	60	parallel
+tests/test_sync_agents_validator.sh	15	parallel
+tests/test_sync_integration_branch.sh	10	parallel
+tests/test_terminal_publish.sh	10	parallel
+tests/test_typed_changes_docs.sh	10	parallel
+tests/test_worktree_hooks_wiring.sh	10	parallel
