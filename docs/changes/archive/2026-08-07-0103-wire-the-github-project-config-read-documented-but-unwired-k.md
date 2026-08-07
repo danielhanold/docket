@@ -1,0 +1,95 @@
+---
+id: 103
+slug: wire-the-github-project-config-read-documented-but-unwired-k
+title: Wire the github_project config read (documented-but-unwired key)
+status: killed
+priority: low
+created: 2026-07-19
+updated: 2026-08-07
+depends_on: []
+related: []
+discovered_from: [101]
+adrs: []
+spec:
+plan:
+results:
+trivial: false
+auto_groomable:
+branch:
+pr:
+blocked_by:
+reconciled: false
+type: fix
+---
+
+## Artifacts
+
+<!-- docket:artifacts:start (generated — do not hand-edit) -->
+<!-- docket:artifacts:end -->
+
+## Why
+
+`github_project` is documented in `.docket.yml.example`, coordination-fenced in
+`scripts/docket-config.sh:169`, and described in `docket-convention`'s config block as
+"minted-and-written-back on first sync if unset" — but **no script reads it from config**.
+
+Traced during change 0101's whole-branch review:
+
+- `scripts/github-mirror.sh` resolves its board solely from `--project` /
+  `--auto-create-project` (`github-mirror.sh:67`).
+- `scripts/docket-status.sh` populates those flags only from its own CLI flags
+  (`docket-status.sh:272`, `PROJECT_FLAG` / `AUTO_CREATE_PROJECT`), which **no skill passes**.
+- The resolver never emits `GITHUB_PROJECT`; the fence loop is the key's only live effect.
+
+So a user who follows the canonical reference — sets `board_surfaces: [inline, github]`, leaves
+`github_project: auto` (or writes an explicit `{owner, number}`) — gets **issues-only mirroring**,
+no Projects v2 board, and no diagnostic explaining why. The `project-minted` write-back path the
+convention describes only fires under the opt-in `--auto-create-project` flag that nothing passes.
+
+Change 0101 annotated the key as NOT-WIRED in `.docket.yml.example`, `scripts/github-mirror.md`,
+and `scripts/docket-config.md` rather than silently shipping a false claim — accurate documentation
+of a real gap, but the gap itself is untouched.
+
+## What changes
+
+Wire the config read end to end, or decide the key should not exist:
+
+- Resolve `github_project` in `docket-config.sh` (emitting an export key) and have the Board pass
+  forward it to `github-mirror.sh` as `--project` / `--auto-create-project`.
+- `auto` must resolve to the same "no board configured" state as an absent key, and the
+  `project-minted` write-back must **overwrite** a literal `auto` rather than mistake it for a
+  minted board reference (ADR-0048 / change 0101 established the sentinel's meaning).
+- Decide whether enabling `github` in `board_surfaces` should imply auto-create, or whether board
+  creation stays behind an explicit opt-in — today the flag exists but is unreachable from config.
+- Retire the NOT-WIRED annotations in the three files above once the read lands, and pin the
+  behavior with a test.
+
+`finalize.require_pr_approval` has the same shape (documented key, no working layer resolution) and
+is tracked separately as change 0102; the two could reasonably be groomed together as one
+"documented-but-unwired config keys" sweep.
+
+## Out of scope
+
+- Any change to the one-way mirror direction (change files stay the source of truth).
+- Projects v2 field/column semantics beyond what `github-mirror.sh` already implements.
+
+## Triage note (2026-07-26, change 0124)
+
+Confirmed still live, verbatim in three places: `scripts/github-mirror.md:117` — "nothing currently
+reads `github_project` from config at all"; `scripts/docket-config.md:146` — the resolver "never
+resolves or emits it"; `.docket.example.yml:175` repeats the caveat. `scripts/docket-config.sh:304`
+still lists the key only in the coordination-**fence** loop, and `scripts/docket-status.sh:42,362`
+still populate `--project` / `--auto-create-project` solely from their own CLI flags.
+
+**The "groom them together" option at the end of `## What changes` is now moot.** Its named sibling
+`finalize.require_pr_approval` shipped as change 0102 (done, 2026-07-21) without this one, so the
+sweep framing has no second member — 0103 is the last of that family and should be groomed on its
+own terms.
+
+Worth noting on the way in: 0102's build was where the config-guard family (changes 0120–0123) was
+discovered, and ADR-0052 now states the config-key resolution boundary this change would have to
+satisfy. That is a constraint 0102 did not have when it started.
+
+## Why killed
+
+Killed at the 2026-08-07 backlog triage (Daniel's ruling): the GitHub board mirror is off in this repo (board_surfaces: [inline]), so the documented-but-unwired github_project key stays as-is. The .docket.example.yml NOT-WIRED caveat and the test classification already record the gap honestly.
