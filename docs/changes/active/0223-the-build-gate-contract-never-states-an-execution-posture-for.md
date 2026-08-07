@@ -2,7 +2,7 @@
 id: 223
 slug: the-build-gate-contract-never-states-an-execution-posture-for
 title: The build gate contract never states an execution posture for a suite that outgrows a single foreground call
-status: in-progress
+status: implemented
 priority: high
 type: feat
 created: 2026-08-06
@@ -13,13 +13,13 @@ discovered_from: [203]
 adrs: []
 spec: docs/superpowers/specs/2026-08-06-the-build-gate-contract-never-states-an-execution-posture-for-design.md
 plan: docs/superpowers/plans/2026-08-07-the-build-gate-contract-never-states-an-execution-posture-for.md
-results:
+results: docs/results/2026-08-07-the-build-gate-contract-never-states-an-execution-posture-for-results.md
 trivial: false
 auto_groomable:
 branch: feat/the-build-gate-contract-never-states-an-execution-posture-for
-pr:
+pr: https://github.com/danielhanold/docket/pull/166
 blocked_by:
-claimed_at: 2026-08-07T06:35:00Z
+claimed_at: 2026-08-07T13:05:00Z
 reconciled: true
 ---
 
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-06-the-build-gate-contract-never-states-an-execution-posture-for-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-06-the-build-gate-contract-never-states-an-execution-posture-for-design.md) |
 | Plan | [2026-08-07-the-build-gate-contract-never-states-an-execution-posture-for.md](https://github.com/danielhanold/docket/blob/feat/the-build-gate-contract-never-states-an-execution-posture-for/docs/superpowers/plans/2026-08-07-the-build-gate-contract-never-states-an-execution-posture-for.md) |
+| Results | [2026-08-07-the-build-gate-contract-never-states-an-execution-posture-for-results.md](https://github.com/danielhanold/docket/blob/feat/the-build-gate-contract-never-states-an-execution-posture-for/docs/results/2026-08-07-the-build-gate-contract-never-states-an-execution-posture-for-results.md) |
+| PR | [#166](https://github.com/danielhanold/docket/pull/166) |
 <!-- docket:artifacts:end -->
 
 ## Why
