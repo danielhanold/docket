@@ -159,9 +159,12 @@ ok(){  printf 'ok   - %s\n' "$1"; }
 nok(){ printf 'NOT OK - %s\n' "$1"; fail=1; }
 assert(){ if eval "$2"; then ok "$1"; else nok "$1"; fi; }
 
-# The allowlisted tree, as the convention's default spells it. This assignment is the only place
-# this file writes the bare literal, and it sits right of an `=` inside its own token, so the
-# self-scan below classifies it ASSIGN. Every other use interpolates it.
+# The allowlisted tree. This assignment is the only place this file writes the bare literal, and it
+# sits right of an `=` inside its own token, so the self-scan below classifies it ASSIGN. Every
+# other use interpolates it — BOTH LIMBS, since limb 2's RESULTS_PARENT is derived from it too, so
+# binding this one name binds the whole file. What makes the literal legitimate rather than a
+# hard-coded guess is the CORRESPONDENCE section below, which ties it to the results_dir the
+# scanned revision actually configures.
 RESULTS_DIR_REL="docs/results"
 
 # The rev to scan. HEAD is the committed tree the suite runs against.
@@ -188,6 +191,95 @@ TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 NO_EXEMPTIONS="$TMP/no-exemptions.tsv"
 : > "$NO_EXEMPTIONS"
+
+# ---------------------------------------------------------------------------
+# 0. CORRESPONDENCE — the literal above IS the configured results_dir, asserted rather than assumed.
+#
+# docket-finalize-change is instructed to read the allowlisted tree from config and never to
+# hard-code a path name, so a literal here is one half of a two-part correspondence with nothing
+# binding it: retarget the config key and finalize allowlists the new tree while this guard goes on
+# certifying the old one — green, and certifying the wrong property (repo learning:
+# correspondence-guard-runs-one-way). This section is the binding. The literal is kept rather than
+# derived because every budget in this file was measured against THIS tree; a retarget must stop the
+# guard and force a recalibration, not silently re-aim a set of numbers that no longer describe
+# anything.
+#
+# THE VALUE COMES FROM THE SCANNED REVISION. Everything below scans $REV, so the config that governs
+# it is the one $REV carries — read straight out of the committed blob, never off the working tree
+# and never through a layer a single machine can set. results_dir is a coordination-fenced key in
+# scripts/docket-config.sh (its per-repo-only fence list), so a .docket.local.yml or a global
+# config.yml retargeting it is warned-and-ignored there; reading only the committed blob here gives
+# this guard the same immunity by construction rather than by trusting that fence to hold.
+# The parse mirrors the resolver's committed-layer reader (config_line_scalar_get): strip a `#`
+# comment, split on the first colon, trim, drop one layer of matching quotes, take the first match.
+CFG_YML="$TMP/rev-config-yml"
+git -C "$ROOT" show "$REV:.docket.yml" > "$CFG_YML" 2>/dev/null || : > "$CFG_YML"
+
+# The configured results_dir, or empty when the key is absent. Empty is NOT silently defaulted:
+# defaulting it to the built-in would make an unreadable or keyless config read as agreement, which
+# is the vacuous-green shape this whole file exists to refuse.
+configured_results_dir(){
+  awk -v key=results_dir '
+    BEGIN { sq = sprintf("%c", 39); dq = sprintf("%c", 34) }
+    {
+      line = $0
+      sub(/#.*/, "", line)
+      if (index(line, ":") == 0) next
+      k = substr(line, 1, index(line, ":") - 1)
+      v = substr(line, index(line, ":") + 1)
+      gsub(/^[[:space:]]+/, "", k); gsub(/[[:space:]]+$/, "", k)
+      gsub(/^[[:space:]]+/, "", v); gsub(/[[:space:]]+$/, "", v)
+      if (k != key) next
+      if (length(v) >= 2) {
+        f = substr(v, 1, 1); l = substr(v, length(v), 1)
+        if ((f == dq && l == dq) || (f == sq && l == sq)) v = substr(v, 2, length(v) - 2)
+      }
+      print v
+      exit
+    }
+  ' "$1"
+}
+
+# ONE implementation, shared by the live assert and the controls below, exactly as with the two
+# scanners: 0 bound, 1 retargeted (the literal is stale), 2 the key is absent (nothing to bind to,
+# or the reader went blind).
+results_dir_bound(){
+  local v
+  v="$(configured_results_dir "$1")"
+  [ -n "$v" ] || return 2
+  [ "$v" = "$RESULTS_DIR_REL" ]
+}
+
+results_dir_bound "$CFG_YML"; cfg_bind_rc=$?
+assert "the scanned rev configures a results_dir at all (this binding is not vacuous)" \
+  '[ "$cfg_bind_rc" != 2 ] || { echo "  no results_dir key in $REV:.docket.yml." >&2; echo "  Either the repo stopped configuring the tree — in which case finalize falls back to the built-in default and this guard must be re-pointed at that, deliberately — or this reader stopped matching how the key is spelled. Establish which before touching the literal." >&2; false; }'
+assert "the tree this guard scans is the results_dir the scanned rev configures" \
+  '[ "$cfg_bind_rc" = 0 ] || { printf "  configured %s, scanned %s.\n" "$(configured_results_dir "$CFG_YML")" "$RESULTS_DIR_REL" >&2; echo "  finalize resolves the allowlisted tree from config, so a retarget moves the tree whose invisibility has to hold. This guard does NOT follow it automatically on purpose: every budget below (the floor, the shape and table counts, the walk counts) was measured against the old tree and describes nothing about the new one. Re-point the literal AND re-measure every budget in the same diff." >&2; false; }'
+
+# MUTATION CONTROL for the binding, run through the SAME predicate: a retargeted key must be
+# REPORTED, and a deleted key must be reported as absent rather than as agreement. Both mutations
+# are confirmed to have landed by occurrence count before their result is believed (repo learning:
+# assert-detects-removal-not-replacement).
+MUT_CFG="$TMP/mutated-config-yml"
+BLIND_CFG="$TMP/keyless-config-yml"
+sed 's|^results_dir:.*|results_dir: docs/elsewhere|' "$CFG_YML" > "$MUT_CFG"
+sed '/^results_dir:/d' "$CFG_YML" > "$BLIND_CFG"
+# Keyed on the CONFIGURED value, not on the literal: a control whose precondition is the very
+# correspondence under test would go red as a duplicate of the assert above instead of reporting on
+# the mutation it exists to price.
+cfg_val="$(configured_results_dir "$CFG_YML")"
+cfg_before="$(grep -c -E -e "^results_dir:[[:space:]]*$cfg_val" "$CFG_YML" || true)"
+cfg_after="$(grep -c -E -e "^results_dir:[[:space:]]*$cfg_val" "$MUT_CFG" || true)"
+cfg_new="$(grep -c -F -e 'results_dir: docs/elsewhere' "$MUT_CFG" || true)"
+cfg_gone="$(grep -c -E -e '^results_dir:' "$BLIND_CFG" || true)"
+assert "mutation landed: the configured key is present before, retargeted after, and deletable" \
+  '[ "$cfg_before" = 1 ] && [ "$cfg_after" = 0 ] && [ "$cfg_new" = 1 ] && [ "$cfg_gone" = 0 ]'
+results_dir_bound "$MUT_CFG"; cfg_mut_rc=$?
+results_dir_bound "$BLIND_CFG"; cfg_blind_rc=$?
+assert "control: a retargeted results_dir is REPORTED as a stale literal" \
+  '[ "$cfg_mut_rc" = 1 ] && [ "$(configured_results_dir "$MUT_CFG")" = docs/elsewhere ]'
+assert "control: a deleted results_dir is REPORTED as absent, not read as agreement" \
+  '[ "$cfg_blind_rc" = 2 ]'
 
 # ---------------------------------------------------------------------------
 # Helpers — ONE implementation of each, shared by the live scan and the controls, so neutering a
