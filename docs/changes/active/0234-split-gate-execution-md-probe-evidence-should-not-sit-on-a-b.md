@@ -2,7 +2,7 @@
 id: 234
 slug: split-gate-execution-md-probe-evidence-should-not-sit-on-a-b
 title: Split gate-execution.md: probe evidence should not sit on a blocking-read surface
-status: in-progress
+status: implemented
 priority: medium
 type: refactor
 created: 2026-08-07
@@ -13,13 +13,13 @@ discovered_from: [223]
 adrs: []
 spec: docs/superpowers/specs/2026-08-07-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b-design.md
 plan: docs/superpowers/plans/2026-08-07-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b-plan.md
-results:
+results: docs/results/2026-08-07-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b-results.md
 trivial: false
 auto_groomable: true
 branch: feat/split-gate-execution-md-probe-evidence-should-not-sit-on-a-b
-pr:
+pr: https://github.com/danielhanold/docket/pull/169
 blocked_by:
-claimed_at: 2026-08-07T15:40:49Z
+claimed_at: 2026-08-07T16:14:12Z
 reconciled: true
 ---
 
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-07-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b-design.md) |
 | Plan | [2026-08-07-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b-plan.md](https://github.com/danielhanold/docket/blob/feat/split-gate-execution-md-probe-evidence-should-not-sit-on-a-b/docs/superpowers/plans/2026-08-07-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b-plan.md) |
+| Results | [2026-08-07-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b-results.md](https://github.com/danielhanold/docket/blob/feat/split-gate-execution-md-probe-evidence-should-not-sit-on-a-b/docs/results/2026-08-07-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b-results.md) |
+| PR | [#169](https://github.com/danielhanold/docket/pull/169) |
 <!-- docket:artifacts:end -->
 
 ## Why
