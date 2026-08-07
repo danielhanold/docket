@@ -68,7 +68,7 @@
 | [0230](active/0230-a-self-scanning-population-floor-pins-test-docket-config-sh.md) | a self-scanning population floor pins test_docket_config.sh's size and blocks sharding | `medium` | `refactor` | needs-brainstorm |
 | [0232](active/0232-the-gate-execution-posture-never-reaches-the-build-workers-t.md) | The gate execution posture never reaches the build workers that also run the full suite | `medium` | `docs` | needs-brainstorm |
 | [0233](active/0233-guard-against-stacked-gap-ere-patterns-that-hang-instead-of.md) | Guard against stacked-gap ERE patterns that hang instead of failing | `medium` | `chore` | needs-brainstorm |
-| [0235](active/0235-writers-emit-unquoted-yaml-title-scalars-so-six-change-files.md) | Writers emit unquoted YAML title scalars, so six change files fail to parse | `medium` | `fix` | needs-brainstorm |
+| [0235](active/0235-writers-emit-unquoted-yaml-title-scalars-so-six-change-files.md) | Writers emit unquoted YAML title scalars, so six change files fail to parse | `medium` | `fix` | build-ready |
 
 ## ⚪ Deferred (4)
 
