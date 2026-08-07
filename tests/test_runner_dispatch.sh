@@ -450,4 +450,64 @@ assert "0237 gate: an unusable snapshot does not fail the dispatch" '[ "$rc" = "
 assert "0237 gate: and it warns on stderr" 'grep -qiF "run gate" <<<"$err"'
 rm -rf "$SBX"
 
+# ---- 0237: one bounded re-dispatch, then abort-and-report -------------------------
+# Mirrors docket-build's one-escalation-per-task rule: exactly one more chance, then stop.
+# NOTE on `wc -l | tr -d " "`: BSD wc PADS its count with leading spaces, so a bare
+# `[ "$(wc -l < f)" = "1" ]` is false even when the count is right. The `tr` is load-bearing.
+
+# (f) run-incomplete -> ONE re-dispatch; a now-complete second verdict exits with the adapter's code
+make_gate_fixture
+printf '\n' > "$SNAP/current"; printf '4\n' > "$SNAP/after.1"
+printf 'run-incomplete 4 status pr\n' > "$SNAP/verdict.4"
+cat > "$SBX/fake-verify-run.sh" <<'VR2'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "${VR_LOG:?}"
+for a in "$@"; do [ "$a" = "--in-progress-ids" ] && { cat "${SNAP_DIR:?}/current"; exit 0; }; done
+# first verdict call is incomplete, second is complete
+n=$(grep -c '^4' "${VR_LOG:?}" || true)
+if [ "$n" -le 1 ]; then printf 'run-incomplete 4 status pr\n'; else printf 'run-complete 4\n'; fi
+VR2
+chmod +x "$SBX/fake-verify-run.sh"
+out="$( run_gate --runner ad --agent implement-next 2>"$SBX/e.log" )"; rc=$?
+assert "0237 redispatch: exits 0 once the second verdict is complete" '[ "$rc" = "0" ]'
+assert "0237 redispatch: the adapter ran exactly TWICE" \
+  '[ "$(wc -l < "$SBX/ad.log" | tr -d " ")" = "2" ]'
+assert "0237 redispatch: the retry carries the change id as task context" \
+  'grep -qF " 4" "$SBX/ad.log"'
+assert "0237 redispatch: the retry names the unmet conjuncts" \
+  'grep -qE "status|pr" "$SBX/ad.log"'
+assert "0237 redispatch: the retry keeps --agent implement-next" \
+  'grep -qF -- "--agent implement-next" "$SBX/ad.log"'
+rm -rf "$SBX"
+
+# (g) two strikes -> loud non-zero naming the change and the still-unmet conjuncts
+make_gate_fixture
+printf '\n' > "$SNAP/current"; printf '6\n' > "$SNAP/after.1"
+cat > "$SBX/fake-verify-run.sh" <<'VR3'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "${VR_LOG:?}"
+for a in "$@"; do [ "$a" = "--in-progress-ids" ] && { cat "${SNAP_DIR:?}/current"; exit 0; }; done
+printf 'run-incomplete 6 status pr branch\n'
+VR3
+chmod +x "$SBX/fake-verify-run.sh"
+err="$( run_gate --runner ad --agent implement-next 2>&1 >/dev/null )"; rc=$?
+assert "0237 two-strikes: exits NON-ZERO" '[ "$rc" != "0" ]'
+assert "0237 two-strikes: names the change id" 'grep -qE "(^| )6( |$)" <<<"$err"'
+assert "0237 two-strikes: names the still-unmet conjuncts" 'grep -qF "branch" <<<"$err"'
+assert "0237 two-strikes: caps the adapter at exactly TWO runs" \
+  '[ "$(wc -l < "$SBX/ad.log" | tr -d " ")" = "2" ]'
+rm -rf "$SBX"
+
+# (h) the re-dispatch does NOT fire on run-complete / run-halted / run-unclaimed
+for v in run-complete run-halted run-unclaimed; do
+  make_gate_fixture
+  printf '\n' > "$SNAP/current"; printf '8\n' > "$SNAP/after.1"
+  printf '%s 8\n' "$v" > "$SNAP/verdict.8"
+  run_gate --runner ad --agent implement-next >/dev/null 2>&1; rc=$?
+  assert "0237 redispatch: $v exits 0" '[ "$rc" = "0" ]'
+  assert "0237 redispatch: $v dispatches exactly once" \
+    '[ "$(wc -l < "$SBX/ad.log" | tr -d " ")" = "1" ]'
+  rm -rf "$SBX"
+done
+
 exit $fail
