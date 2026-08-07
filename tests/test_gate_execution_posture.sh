@@ -146,4 +146,81 @@ assert "finalize: does not restate the durable-artifact clause" \
 assert "finalize: does not restate the fail-closed clause" \
   '! grep -qiE "fail[s]? closed" <<<"$fin_flat"'
 
+# --- (9) the default budget agrees across every surface that states it ---------
+# Four independent statements of one value drift silently. Derive each from its own file with its
+# own extractor keyed on that file's own idiom, then compare — the number is hardcoded in exactly
+# one place (the resolver), which is the place that seeds it.
+EX="$REPO/.docket.example.yml"
+RM="$REPO/README.md"
+CFG="$REPO/scripts/docket-config.sh"
+
+# First line of an already-captured blob. Deliberately NOT `producer | head -n1`: head exits early
+# and SIGPIPEs the producer under `pipefail` (AGENTS.md § Shell), and a 141 here would arrive as an
+# empty extraction — i.e. as a drift report about a value nobody changed.
+first(){ sed -n '1p' <<<"$1"; }
+
+# Each extractor peels the digits off the END of its own match rather than splitting on a
+# separator. The plan drafted the resolver one as `sed 's/.*://'` over `GATE_OBSERVATION_BUDGET:-30`;
+# the greedy `.*:` stops at the parameter-expansion colon and yields `-30`, so the comparison tested
+# a value that appears on no surface and would have stayed green through a real drift on any of the
+# other three. `[0-9]+$` has no such seam.
+gob_resolver="$(first "$(grep -oE 'GATE_OBSERVATION_BUDGET:-[0-9]+' "$CFG")" | grep -oE '[0-9]+$')"
+gob_example="$(first "$(grep -oE '^gate_observation_budget:[[:space:]]*[0-9]+' "$EX")" | grep -oE '[0-9]+$')"
+gob_readme="$(first "$(grep -oE 'gate_observation_budget` \(default `[0-9]+' "$RM")" | grep -oE '[0-9]+$')"
+# The skill body states it in prose, so this one reads the flattened haystack; `[^.]{0,120}` cannot
+# cross a sentence end, which is what keeps it off the § Halting conditions mention of the same
+# export (that sentence carries no default).
+gob_skill="$(first "$(grep -oE 'GATE_OBSERVATION_BUDGET[^.]{0,120}default [0-9]+' <<<"$build_flat")" | grep -oE '[0-9]+$')"
+
+# NON-VACUITY first: each extractor must actually have extracted something. Without this, every
+# extraction failure — wrong path, renamed file, broken pattern — reads as the property holding,
+# and two empty strings compare equal.
+for pair in "resolver:$gob_resolver" "example:$gob_example" "readme:$gob_readme" "skill:$gob_skill"; do
+  assert "budget: the ${pair%%:*} extractor found a value (got '${pair#*:}')" \
+    '[ -n "'"${pair#*:}"'" ]'
+done
+assert "budget: resolver and example agree ($gob_resolver vs $gob_example)" \
+  '[ "$gob_resolver" = "$gob_example" ]'
+assert "budget: resolver and README agree ($gob_resolver vs $gob_readme)" \
+  '[ "$gob_resolver" = "$gob_readme" ]'
+assert "budget: resolver and skill body agree ($gob_resolver vs $gob_skill)" \
+  '[ "$gob_resolver" = "$gob_skill" ]'
+
+# --- (10) EVERY shipped harness has a recorded verdict ------------------------
+# The population is DERIVED from HD_SHIPPED_HARNESSES, never hand-listed: a fifth harness reddens
+# this automatically, which is the whole point. An allowlist here would be the enumerated floor
+# that ages directly into the gap it was written to close.
+HD="$REPO/scripts/lib/harness-defaults.sh"
+assert "verdicts: harness-defaults.sh exists" '[ -f "$HD" ]'
+# Sourced tolerantly and read through `:-` so a missing or broken sidecar reddens the population
+# floor below with a readable message, instead of aborting the whole file on `set -u` before the
+# remaining asserts ever run.
+# shellcheck source=/dev/null
+. "$HD" 2>/dev/null || true
+shipped="${HD_SHIPPED_HARNESSES:-}"
+# Floor on the POPULATION itself: a failed source would leave it empty and the loop below vacuous —
+# zero iterations are indistinguishable from success.
+n_shipped="$(grep -c . <<<"$(printf '%s\n' $shipped)")"
+assert "verdicts: HD_SHIPPED_HARNESSES is non-empty (got $n_shipped)" '[ "$n_shipped" -ge 4 ]'
+for h in $shipped; do
+  # Presence is a whole-FILE property, so this one is deliberately unscoped. `[[:space:]]*$` rather
+  # than `\b`: BSD grep's ERE has no `\b`, and a bounded trailing-space class is portable.
+  assert "verdicts: reference has a section for '$h'" \
+    'grep -qE "^### '"$h"'[[:space:]]*$" <<<"$ref_body"'
+  # The verdict must be one of the three legal tokens AND must belong to THIS harness's section. A
+  # file-wide grep would be satisfied by a neighbour's verdict line — the same defect the group
+  # (2)-(4) slices exist to avoid — so the haystack is a section slice. The slice is captured into a
+  # variable first: `awk … | grep -q` would SIGPIPE the awk under `pipefail`.
+  h_blk="$(awk -v h="$h" '$0 == "### " h {f=1;next} f && /^#+ /{f=0} f' <<<"$ref_body")"
+  assert "verdicts: '$h' records a legal verdict token" \
+    'grep -qE "^\*\*Verdict:\*\* .(supported|unverified|incompatible).$" <<<"$h_blk"'
+done
+# Reverse direction: no verdict section for a harness docket does not ship. The mirror check — a
+# guard over a correspondence proves only the direction it iterates, so the forward loop above would
+# pass unchanged with a phantom fifth section sitting in the file.
+ref_sections="$(grep -oE "^### [a-z-]+" <<<"$ref_body" | sed 's/^### //' | sort)"
+shipped_sorted="$(printf '%s\n' $shipped | sort)"
+assert "verdicts: the reference's harness sections EQUAL HD_SHIPPED_HARNESSES" \
+  '[ "$ref_sections" = "$shipped_sorted" ]'
+
 exit $fail
