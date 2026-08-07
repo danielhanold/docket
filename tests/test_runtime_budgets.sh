@@ -25,10 +25,13 @@ CEILING=60          # the hard ceiling; no row may exceed it
 EXPECTED_SERIAL=0   # files pinned serial by the change-0227 audit. RAISING THIS IS A FINDING:
                     # a serial pin removes a file from the parallel phase, so it must be justified
                     # in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=1335 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=1345 # the sum of every ceiling, seeded with the table from the measured serial run.
                     # 1325 -> 1335 (change 0223): the new-test-file case named below —
                     # tests/test_gate_execution_posture.sh brings its own row, measured serially at
                     # 1s (scripts/run-tests.sh -j 1), floored to the table's 10s minimum.
+                    # 1335 -> 1345 (change 0190): the same case again —
+                    # tests/test_skip_allowlist_invisibility.sh brings its own row, measured at
+                    # 0.4s standalone, floored to the table's 10s minimum.
                     # It is the whole suite's budget, and it moves only for a reason that is stated
                     # in the diff that moves it: a new test file brings its own row, and re-cutting
                     # a sharded file's rows redistributes cost that has to be re-measured.
