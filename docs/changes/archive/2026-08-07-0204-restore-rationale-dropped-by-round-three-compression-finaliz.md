@@ -2,11 +2,11 @@
 id: 204
 slug: restore-rationale-dropped-by-round-three-compression-finaliz
 title: Restore dropped doc rationale (compression losses) and complete AGENTS.md's frontmatter-edit rule
-status: proposed
+status: killed
 priority: medium
 type: docs
 created: 2026-08-03
-updated: 2026-08-05
+updated: 2026-08-07
 depends_on: []
 related: [214]
 discovered_from: [201, 206]
@@ -92,3 +92,7 @@ exactly the population AGENTS.md governs and no test can reach.
 
 2026-08-05: absorbed change 0214 (killed pointing here) — both restore a missing half of a rule
 on an always-loaded doc surface.
+
+## Why killed
+
+Consolidated into #0257 at the 2026-08-07 backlog triage: item 2 (auto-capture mint-site consequence) verified already restored by 0226 and dropped; the two surviving items carry over.
