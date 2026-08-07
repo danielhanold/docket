@@ -1676,12 +1676,47 @@ assert "0220/D1: no raw runner ERROR escapes from leg (c)" \
   '! grep -qF "requires an explicit model" <<<"$d1_err"'
 # The false advisory D1 removes as a side effect: project_level_pass writes nothing in a
 # non-opted-in repo, so leg (c) reporting "not generated on this machine" was always wrong.
+# This assert only discriminates here by accident of iteration order: leg (c) walks docket-*.md
+# alphabetically, and the bad runner in this fixture is pinned to `status`, so docket-adr et al.
+# reach the advisory before docket-status trips emit_wrapper's can't-happen exit. Move the bad
+# runner onto the first agent and the advisory would never print, leaving this line green under the
+# mutation it exists to catch. Kept (it is cheap and states leg (c)'s full silent shape), but the
+# D1b fixture below is the guard that does not depend on which agent aborts first.
 assert "0220/D1: no false leg-(c) advisory for un-generated per-repo wrappers" \
   '! grep -qF "not generated on this machine" <<<"$d1_err"'
 # Non-vacuity: the fixture really did put the weaker predicate in the TRUE state, so the assert
 # above is about the shared predicate and not about check_project_level having returned early.
 assert "0220/D1: (fixture) gitignore_block_wanted was true — leg (a) ran and passed" \
   '! grep -qF "nothing else to check" <<<"$d1_err"'
+rm -rf "$SBX"
+
+# ---- change 0220 / D1b: the same shape with a VALID runner — the DISCRIMINATING advisory guard --
+# One variable changes from the D1 fixture above: the global claude runner carries its required
+# `model:`, so nothing in leg (c) can abort. Pre-fix, leg (c) therefore ran to completion and
+# printed "not generated on this machine" once per built-in agent — the false advisory D1 removes
+# ("Consequence — a second bug fixed as a side effect" in the design spec), since a non-opted-in
+# repo's wrappers are not merely missing, they are never generated at all. Post-fix the shared
+# `project_wrappers_generated` early return fires first and the advisory is absent.
+#
+# Mutation-verified: deleting `if ! project_wrappers_generated; then return $rc; fi` from
+# check_project_level turns the advisory assert below NOT OK (16 advisory lines are emitted).
+mkgitrepo
+mkdir -p "$SBX/.config/docket"
+printf 'agent_harnesses: [codex]\nagents:\n  claude:\n    status: { runner: codex, model: some/model-id }\n' \
+  > "$SBX/.config/docket/config.yml"
+# As in D1: no .docket.yml and no .docket.local.yml => per_repo_opted_in false, while the
+# pre-written block keeps the weaker gitignore_block_wanted predicate true.
+( . "$REPO/scripts/lib/docket-gitignore-block.sh" && emit_docket_gitignore_block ) > "$SBX/.gitignore"
+d1b_err="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check 2>&1 >/dev/null )"; d1b_rc=$?
+assert "0220/D1b: --check completes (rc=0)" '[ "$d1b_rc" = "0" ]'
+assert "0220/D1b: (fixture) gitignore_block_wanted was true — leg (a) ran and passed" \
+  '! grep -qF "nothing else to check" <<<"$d1b_err"'
+# Non-vacuity for the negative below: this runner config is VALID, so leg (c) had no abort of its
+# own to hide behind — if it ran, it ran to the advisory.
+assert "0220/D1b: (fixture) the runner config is valid — no runner diagnostic at all" \
+  '! grep -qF "requires an explicit model" <<<"$d1b_err" && ! grep -qF "is not a registered runner" <<<"$d1b_err"'
+assert "0220/D1b: no false leg-(c) advisory for un-generated per-repo wrappers" \
+  '! grep -qF "not generated on this machine" <<<"$d1b_err"'
 rm -rf "$SBX"
 
 # ---- change 0220 / D2: the gate's USER-LEVEL leg, exercised through the GLOBAL layer -----------
