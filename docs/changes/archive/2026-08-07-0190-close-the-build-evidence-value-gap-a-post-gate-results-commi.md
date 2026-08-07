@@ -2,7 +2,7 @@
 id: 190
 slug: close-the-build-evidence-value-gap-a-post-gate-results-commi
 title: "Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip"
-status: implemented
+status: done
 priority: medium
 type: feat
 created: 2026-08-01
@@ -17,7 +17,7 @@ results: docs/results/2026-08-07-close-the-build-evidence-value-gap-a-post-gate-
 trivial: false
 auto_groomable: true
 branch: feat/close-the-build-evidence-value-gap-a-post-gate-results-commi
-claimed_at: 2026-08-07T18:20:51Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/173
 blocked_by:
 reconciled: true
