@@ -169,8 +169,7 @@ disposition.
   `NEEDS_ESCALATION` with no concrete reason. Never re-dispatch a task to repair its own return,
   and never discard the worktree and dispatch a fresh worker for that task either: a worker you
   did not observe return cleanly may still be running, and it wakes into the same worktree its
-  replacement is writing. Halt naming the task and the worktree, and leave the worktree exactly
-  as it stands.
+  replacement is writing. Name the task and the worktree.
 - **A task's escalation allowance is exhausted** — an initial `max` worker requests escalation,
   or an escalated worker still cannot finish.
 - **A failed attempt left a commit** — name the stray SHA; do not escalate onto it.

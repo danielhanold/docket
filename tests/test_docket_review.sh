@@ -414,9 +414,15 @@ assert "fix-loop: that disposition refreshes the claim lease" \
   'grep -qiE "never discard the worktree and dispatch a fresh worker.{0,240}claimed_at" <<<"$fix_flat"'
 
 # It must NOT import docket-build's build-outcome vocabulary, which is the mis-import this
-# separate sentence exists to avoid.
+# separate sentence exists to avoid. Keyed on the VOCABULARY, not on phrasings: any occurrence of
+# the outcome/section word (`halted`, `Halting conditions`) or of the build role itself (`build`,
+# which `\b` also matches inside `docket-build`) within the disposition window is the import.
+# Enumerating spellings — the pre-review form `(return .halted.|halted build outcome)` — stayed
+# green on the realistic mis-imports "halt per `docket-build`'s *Halting conditions*" and "halts
+# the build". Bare "Halt instead", the fix loop's own word for stopping, is deliberately still
+# allowed: only the inflected `halted`/`halting` and the role noun are banned.
 assert "fix-loop: does not import the build role halted outcome for this rule" \
-  '! grep -qiE "never discard the worktree and dispatch a fresh worker.{0,240}(return .halted.|halted build outcome)" <<<"$fix_flat"'
+  '! grep -qiE "never discard the worktree and dispatch a fresh worker.{0,240}(\bhalt(ed|ing)\b|\bbuild\b)" <<<"$fix_flat"'
 
 # A5: the prohibition must not claim to reach finalize, which has no discard-and-re-dispatch path.
 assert "fix-loop: the prohibition does not claim to cover docket-finalize-change" \

@@ -671,15 +671,22 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # there would reach the fix loop in docket-build's disposition vocabulary, which is the exact
 # mis-import change 0231 avoids by giving fix-loop.md its own sentence. A halting condition must
 # also sit in the halting-conditions list a controller reads at the moment it decides what to do
-# with a bad return; a rule in an unread reference cannot intervene at that moment. Set per the
-# rounding rule above from the measured actuals: 318 lines -> the next multiple of 5 is 320, which
-# leaves 2 lines — the near-zero mode this block warns about, and the same reading the rows above
-# took — so the multiple after: 325. 2947 words -> the next multiple of 50 is 2950, which leaves a
-# 3-word margin (well inside the 25-word threshold), so the multiple after: 3000.
+# with a bad return; a rule in an unread reference cannot intervene at that moment. A later 0231
+# review fix then trimmed that same bullet's restatement of the section's shared worktree-preserved
+# disposition, so the file measures BELOW where the raise was set; the row is a ceiling and was not
+# lowered, only these figures were corrected to the post-trim actuals. Set per the rounding rule
+# above from the measured actuals: 317 lines -> the next multiple of 5 is 320, which leaves 3
+# lines — the near-zero mode this block warns about, and the same reading the rows above took — so
+# the multiple after: 325. 2938 words -> the next multiple of 50 is 2950, which leaves a 12-word
+# margin (inside the 25-word threshold), so the multiple after: 3000.
 # skills/docket-build-task/SKILL.md's budget was raised 125/1100 -> 130/1150 by change 0231, which
 # widened ## Scope's amend ban from "earlier task commits" to ANY commit — including one this
-# worker just made — and added the correct-by-adding-another-commit direction plus the preserved
-# plan-wins escape. skills/docket-build-task/ has NO references/ tree, so the only candidate home
+# worker just made — and added the correct-by-adding-another-commit direction. (The raise also
+# covered a second copy of the plan-wins-on-commit-count escape in ## Scope; a later 0231 review
+# fix deleted that copy as a non-sequitur under an amend ban and a duplicate of the one in
+# ## The commit, so the file measures below where the raise was set. The row is a ceiling and was
+# not lowered — only these figures were corrected to the post-deletion actuals.)
+# skills/docket-build-task/ has NO references/ tree, so the only candidate home
 # is one that would have to be created, and creating it is wrong here for the same reason the 0212
 # entry above records for this file: the body reaches a worker's context by wrapper preload
 # (agents/docket-build-*.md carry skills: [docket-build-task]), and a rule that must bind a worker
@@ -687,8 +694,8 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # rounding rule above from the measured actuals: 122 lines -> the next multiple of 5 is 125, which
 # leaves 3 lines — the near-zero mode this block warns about, and the same reading 0212 took on
 # this very file (119 -> 120 left one line, so 125) and Task 1 of this change took on
-# docket-build/SKILL.md — so the multiple after: 130. 1099 words -> the next multiple of 50 is
-# 1100, which leaves a 1-word margin (the 0102 failure mode exactly), so the multiple after: 1150.
+# docket-build/SKILL.md — so the multiple after: 130. 1087 words -> the next multiple of 50 is
+# 1100, which leaves a 13-word margin (inside the 25-word threshold), so the multiple after: 1150.
 # skills/docket-implement-next/references/fix-loop.md's row was raised 180/1850 -> 185/1900 by
 # change 0231, which states the never-discard-and-re-dispatch prohibition in the fix loop's OWN
 # disposition vocabulary. This row BREACHED on lines rather than merely tightening: 181 measured
