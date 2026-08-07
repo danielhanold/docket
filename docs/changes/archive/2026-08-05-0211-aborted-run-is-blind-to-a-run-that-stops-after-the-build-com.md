@@ -1,7 +1,7 @@
 ---
 id: 211
 slug: aborted-run-is-blind-to-a-run-that-stops-after-the-build-com
-title: aborted-run is blind to a run that stops after the build: commits on an unpushed branch, every field coherent
+title: 'aborted-run is blind to a run that stops after the build: commits on an unpushed branch, every field coherent'
 status: done
 priority: high
 type: fix
