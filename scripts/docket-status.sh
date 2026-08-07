@@ -605,8 +605,9 @@ detect_orphan_pr(){
 
   # Collect candidates FIRST, and return before touching gh when there are none. A repo with no
   # candidate must pay nothing — not a `gh repo view`, not a subprocess.
-  local -a ids=() branches=() idles=()
-  local f id status pr slug branch tip
+  local -a ids=() branches=() idles=() pushes=()
+  local f id status pr slug branch tip ref b pushed
+  local -a bases
   for f in "${files[@]}"; do
     status="$(field "$f" status)"
     [ "$status" = in-progress ] || continue
@@ -623,14 +624,59 @@ detect_orphan_pr(){
     slug="$(field "$f" slug)"
     branch="$(fm_field "$f" branch)"
     [ -n "$branch" ] || branch="feat/$slug"
-    # Tip age off the LOCAL ref, then the remote-tracking one — branch_ref's order in
-    # board-checks.sh. An unresolvable branch yields empty stdout and is silence, never a finding:
-    # no positive evidence is the posture every aborted-run leg takes.
-    tip="$("$GIT" -C "$cd_dir" log -1 --format=%ct "$branch" 2>/dev/null)"
-    [ -n "$tip" ] || tip="$("$GIT" -C "$cd_dir" log -1 --format=%ct "origin/$branch" 2>/dev/null)"
+    # Resolve the ref board-checks.sh's `branch_ref` way — refs/heads/<branch>, then
+    # refs/remotes/origin/<branch>, each show-ref-verified. Full ref paths, never the bare name:
+    # the bare name is a rev-parse spelling that resolves through the DWIM rules, and this leg has
+    # to know WHICH of the two it got (see the pushed probe below). An unresolvable branch is
+    # silence, never a finding — no positive evidence is the posture every aborted-run leg takes.
+    ref=""
+    if "$GIT" -C "$cd_dir" show-ref --verify --quiet "refs/heads/$branch"; then
+      ref="refs/heads/$branch"
+    elif "$GIT" -C "$cd_dir" show-ref --verify --quiet "refs/remotes/origin/$branch"; then
+      ref="refs/remotes/origin/$branch"
+    fi
+    [ -n "$ref" ] || continue
+    tip="$("$GIT" -C "$cd_dir" log -1 --format=%ct "$ref" 2>/dev/null)"
     [ -n "$tip" ] || continue
     [ "$(( NOW - tip ))" -gt "$ORPHAN_PR_IDLE_SECS" ] || continue
-    ids+=("$id"); branches+=("$branch"); idles+=("$(( (NOW - tip) / 3600 ))")
+    # Ahead of BOTH bases — leg C's gate, mirrored predicate for predicate because "the two
+    # findings always agree" is this leg's whole premise, and an idle floor ALONE is not that gate.
+    # A run that died before its first commit leaves a branch whose tip IS the base commit, and a
+    # base commit is almost always older than the floor: without this, the leg fires "the run
+    # stopped before opening one" on the NOTHING-BUILT signature (0109) that belongs to leg B and
+    # that leg C deliberately stays silent about.
+    #
+    # Both bases, both show-ref-verified, for board-checks.sh's reason: feature branches are cut
+    # from origin/<integration_branch> while INTEGRATION_BRANCH names the LOCAL ref, which
+    # routinely lags origin (sync-integration-branch.sh is FF-only and best-effort), so the local
+    # ref alone makes a freshly-cut branch look arbitrarily far ahead. INTEGRATION_BRANCH is a
+    # config global (docket_preflight's `eval "$cfg"`); it is read defensively because
+    # detect_orphan_pr is also called directly, and an unset one resolves NO base.
+    #
+    # The count gate comes FIRST and short-circuits: bash >= 4.4 expands an empty "${bases[@]}"
+    # happily, so rev-list would exclude nothing, list the branch's WHOLE history, and fire on
+    # "ahead of nothing" — and older bash raises an unbound-variable error under set -u. No base
+    # resolving at all is SILENCE, the same posture leg C takes.
+    bases=()
+    if [ -n "${INTEGRATION_BRANCH:-}" ]; then
+      for b in "refs/heads/$INTEGRATION_BRANCH" "refs/remotes/origin/$INTEGRATION_BRANCH"; do
+        "$GIT" -C "$cd_dir" show-ref --verify --quiet "$b" && bases+=( "$b" )
+      done
+    fi
+    [ "${#bases[@]}" -gt 0 ] || continue
+    [ -n "$("$GIT" -C "$cd_dir" rev-list -n 1 "$ref" --not "${bases[@]}" 2>/dev/null)" ] || continue
+    # "Pushed" is a claim about the REMOTE, so it is keyed on the remote-tracking ref existing —
+    # leg C splits its two messages on exactly this probe. Resolving refs/heads/<branch> above
+    # says nothing about whether the branch was ever published, and asserting it anyway would send
+    # a human to a GitHub branch that is not there. A STALE remote-tracking ref left by a
+    # remote-side deletion reads as pushed; acceptable for an advisory whose remedy either way is
+    # "go look at this run" — leg C makes the same trade.
+    if "$GIT" -C "$cd_dir" show-ref --verify --quiet "refs/remotes/origin/$branch"; then
+      pushed=1
+    else
+      pushed=0
+    fi
+    ids+=("$id"); branches+=("$branch"); idles+=("$(( (NOW - tip) / 3600 ))"); pushes+=("$pushed")
   done
   [ ${#ids[@]} -gt 0 ] || return 0
 
@@ -661,8 +707,13 @@ detect_orphan_pr(){
     # push or a merge: acting on the branch would race a run that is merely between commits.
     if [ -n "$pl_num" ]; then
       echo "check aborted-run $id PR #$pl_num is open on $br but pr: is unset — record it"
-    else
+    elif [ "${pushes[$i]}" = 1 ]; then
       echo "check aborted-run $id $br is pushed (last commit ${idles[$i]}h ago) but no PR on GitHub — the run stopped before opening one"
+    else
+      # Never pushed: GitHub cannot hold a PR for a branch it has never seen, so "no PR on GitHub"
+      # is not the informative half here — the missing push is, and it names an EARLIER seam the
+      # human has to act on first. Leg C splits the same way for the same reason.
+      echo "check aborted-run $id $br was never pushed (last commit ${idles[$i]}h ago) and has no PR on GitHub — the run stopped before pushing it"
     fi
   done
   return 0

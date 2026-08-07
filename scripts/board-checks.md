@@ -276,8 +276,9 @@ independent legs; any emits, and more than one may emit on one change.
   *ambiguous by construction*: a PR that exists and merely went unrecorded, and a run that died
   before opening one, produce the identical evidence in git. Resolving them requires asking GitHub,
   which this script will not do — so the resolution lives in `docket-status.sh`'s
-  `detect_orphan_pr` (change 0219), beside `detect_merged` where `gh` already lives. That leg reuses
-  this leg's own 2h floor, so the two findings always agree. When `gh` is unavailable it emits
+  `detect_orphan_pr` (change 0219), beside `detect_merged` where `gh` already lives. That leg mirrors
+  this leg's whole gate — the 2h floor **and** the ahead-of-both-bases predicate, with no-base-resolving
+  as silence — so the two findings always agree. When `gh` is unavailable it emits
   `sweep-skipped` and goes quiet; leg C's finding still fires, and a human still resolves the
   ambiguity by hand. **That degradation is the design, not a defect:** the offline-safe check stays
   offline-safe.

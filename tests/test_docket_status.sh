@@ -788,6 +788,11 @@ git -C "$orphan_dir" -c user.email=t@t -c user.name=t commit -q --allow-empty -m
 # to it. 3h > the 2h floor, 1h < it — the floor is the axis under test, so it must never be an
 # accident of the wall clock.
 ORPHAN_NOW=1750000000
+# INTEGRATION_BRANCH is a CONFIG global — the real pass gets it from docket_preflight's
+# `eval "$cfg"`, which these fixtures never run because they source the script and call the
+# function directly. It is passed in the environment instead (env vars are shell vars, and nothing
+# on this path reassigns it), so the ahead-of-bases gate has the same bases it has in production.
+# ORPHAN_IB lets one case below override it to a name that resolves NO base.
 orphan_branch(){  # orphan_branch BRANCH AGE_SECS
   local ob_when="@$(( ORPHAN_NOW - $2 ))"
   git -C "$orphan_dir" checkout -q -b "$1"
@@ -919,7 +924,7 @@ EOF
 chmod +x "$tmp/gh-orphan-ok.sh"
 
 orphan_out="$( cd "$orphan_dir" && \
-  DOCKET_MODE=main CHANGES_DIR=docs/changes NOW=$ORPHAN_NOW GH="$tmp/gh-orphan-ok.sh" \
+  DOCKET_MODE=main CHANGES_DIR=docs/changes NOW=$ORPHAN_NOW INTEGRATION_BRANCH=${ORPHAN_IB:-main} GH="$tmp/gh-orphan-ok.sh" \
   bash -c '. "'"$SCRIPT"'"; detect_orphan_pr' )"
 
 assert "detect_orphan_pr reports the OPEN PR it found, by number (id 270)" \
@@ -974,7 +979,7 @@ EOF
 chmod +x "$tmp/gh-orphan-forbidden.sh"
 rm -f "$tmp/gh-was-invoked.log"
 orphan_none_out="$( cd "$orphan_none_dir" && \
-  DOCKET_MODE=main CHANGES_DIR=docs/changes NOW=$ORPHAN_NOW GH="$tmp/gh-orphan-forbidden.sh" \
+  DOCKET_MODE=main CHANGES_DIR=docs/changes NOW=$ORPHAN_NOW INTEGRATION_BRANCH=${ORPHAN_IB:-main} GH="$tmp/gh-orphan-forbidden.sh" \
   bash -c '. "'"$SCRIPT"'"; detect_orphan_pr' )"
 assert "detect_orphan_pr with no candidate change NEVER invokes gh — not even a repo view" \
   '[ ! -e "$tmp/gh-was-invoked.log" ]'
@@ -983,7 +988,7 @@ assert "detect_orphan_pr with no candidate change prints nothing" \
 # The witness is real: the same stub DOES record an invocation when a candidate exists.
 rm -f "$tmp/gh-was-invoked.log"
 orphan_witness_out="$( cd "$orphan_dir" && \
-  DOCKET_MODE=main CHANGES_DIR=docs/changes NOW=$ORPHAN_NOW GH="$tmp/gh-orphan-forbidden.sh" \
+  DOCKET_MODE=main CHANGES_DIR=docs/changes NOW=$ORPHAN_NOW INTEGRATION_BRANCH=${ORPHAN_IB:-main} GH="$tmp/gh-orphan-forbidden.sh" \
   bash -c '. "'"$SCRIPT"'"; detect_orphan_pr' )"
 assert "the never-invokes-gh witness is not vacuous: gh IS recorded when a candidate exists" \
   '[ -e "$tmp/gh-was-invoked.log" ] && grep -q "^repo view" "$tmp/gh-was-invoked.log"'
@@ -1000,7 +1005,7 @@ EOF
 chmod +x "$tmp/gh-orphan-fail.sh"
 
 orphan_fail_out="$( cd "$orphan_dir" && \
-  DOCKET_MODE=main CHANGES_DIR=docs/changes NOW=$ORPHAN_NOW GH="$tmp/gh-orphan-fail.sh" \
+  DOCKET_MODE=main CHANGES_DIR=docs/changes NOW=$ORPHAN_NOW INTEGRATION_BRANCH=${ORPHAN_IB:-main} GH="$tmp/gh-orphan-fail.sh" \
   bash -c '. "'"$SCRIPT"'"; detect_orphan_pr' )"
 orphan_fail_rc=$?
 assert "detect_orphan_pr with a failing gh reports sweep-skipped" \
@@ -1014,7 +1019,7 @@ assert "detect_orphan_pr with a failing gh emits NO findings at all" \
 # common one offline. A mock that omits the tool routes everything through the degrade branch, so
 # both arms must be pinned separately.
 orphan_absent_out="$( cd "$orphan_dir" && \
-  DOCKET_MODE=main CHANGES_DIR=docs/changes NOW=$ORPHAN_NOW GH="$tmp/definitely-not-a-real-gh" \
+  DOCKET_MODE=main CHANGES_DIR=docs/changes NOW=$ORPHAN_NOW INTEGRATION_BRANCH=${ORPHAN_IB:-main} GH="$tmp/definitely-not-a-real-gh" \
   bash -c '. "'"$SCRIPT"'"; detect_orphan_pr' )"
 orphan_absent_rc=$?
 assert "detect_orphan_pr with an ABSENT gh reports sweep-skipped and no findings" \
@@ -1032,7 +1037,7 @@ exit 0
 EOF
 chmod +x "$tmp/gh-orphan-garbage.sh"
 orphan_garbage_out="$( cd "$orphan_dir" && \
-  DOCKET_MODE=main CHANGES_DIR=docs/changes NOW=$ORPHAN_NOW GH="$tmp/gh-orphan-garbage.sh" \
+  DOCKET_MODE=main CHANGES_DIR=docs/changes NOW=$ORPHAN_NOW INTEGRATION_BRANCH=${ORPHAN_IB:-main} GH="$tmp/gh-orphan-garbage.sh" \
   bash -c '. "'"$SCRIPT"'"; detect_orphan_pr' )"
 orphan_garbage_rc=$?
 assert "detect_orphan_pr treats unparseable gh output as a skip, not a finding" \
@@ -1041,6 +1046,95 @@ assert "detect_orphan_pr says WHY it skipped on unparseable gh output" \
   'grep -q "^sweep-skipped gh-unparseable" <<<"$orphan_garbage_out"'
 assert "detect_orphan_pr with unparseable gh output returns success (best-effort)" \
   '[ $orphan_garbage_rc -eq 0 ]'
+
+# ---- LEG C'S FULL PREDICATE: ahead-of-bases, and "pushed" as a claim about the REMOTE ----
+# The fixtures above cannot see either axis: orphan_branch gives EVERY branch a real own-commit
+# (so the ahead-of-bases gate is unconditionally satisfied) and $orphan_dir has no remote at all
+# (so "is pushed" was asserted true against a branch that was never pushed). This repo has a real
+# bare origin — the way tests/test_board_checks.sh's `ar_push` helper builds leg C's own fixtures —
+# and its base commit is DATED, because a run that died before its first commit leaves the branch
+# tip AT that base and the base's age is the thing that carries such a branch past the idle floor.
+orphan_push_origin="$tmp/orphan-pr-origin.git"
+orphan_push_dir="$tmp/orphan-pr-push"
+git init -q --bare "$orphan_push_origin"
+mkdir -p "$orphan_push_dir/docs/changes/active"
+git init -q "$orphan_push_dir"
+git -C "$orphan_push_dir" remote add origin "$orphan_push_origin"
+orphan_push_base_when="@$(( ORPHAN_NOW - 86400 ))"   # a day old: far past the 2h floor
+GIT_AUTHOR_DATE="$orphan_push_base_when" GIT_COMMITTER_DATE="$orphan_push_base_when" \
+  git -C "$orphan_push_dir" -c user.email=t@t -c user.name=t commit -q --allow-empty -m base
+git -C "$orphan_push_dir" push -q origin main        # creates refs/remotes/origin/main — the second base
+
+orphan_push_branch(){  # orphan_push_branch BRANCH AGE_SECS — one own commit, cut from main
+  local opb_when="@$(( ORPHAN_NOW - $2 ))"
+  git -C "$orphan_push_dir" checkout -q -b "$1" main
+  GIT_AUTHOR_DATE="$opb_when" GIT_COMMITTER_DATE="$opb_when" \
+    git -C "$orphan_push_dir" -c user.email=t@t -c user.name=t commit -q --allow-empty -m "on $1"
+  git -C "$orphan_push_dir" checkout -q main
+}
+# NOTHING BUILT: cut from main and never committed on. Its tip IS the base commit, so `log -1` hands
+# back the base's date and the idle floor alone waves it straight through. This is 0109's signature —
+# leg B's, and one leg C deliberately stays silent about.
+git -C "$orphan_push_dir" checkout -q -b feat/nothing-built main
+git -C "$orphan_push_dir" checkout -q main
+orphan_push_branch feat/local-only 10800
+orphan_push_branch feat/really-pushed 10800
+git -C "$orphan_push_dir" push -q origin feat/really-pushed
+
+orphan_push_change(){  # orphan_push_change ID SLUG BRANCH
+  cat > "$orphan_push_dir/docs/changes/active/0$1-$2.md" <<EOF
+---
+id: $1
+slug: $2
+title: $2
+status: in-progress
+priority: high
+depends_on: []
+branch: $3
+pr:
+---
+EOF
+}
+orphan_push_change 280 nothing-built feat/nothing-built
+orphan_push_change 281 local-only    feat/local-only
+orphan_push_change 282 really-pushed feat/really-pushed
+
+orphan_push_out="$( cd "$orphan_push_dir" && \
+  DOCKET_MODE=main CHANGES_DIR=docs/changes NOW=$ORPHAN_NOW INTEGRATION_BRANCH=main GH="$tmp/gh-orphan-ok.sh" \
+  bash -c '. "'"$SCRIPT"'"; detect_orphan_pr' )"
+
+assert "detect_orphan_pr is SILENT on a NOTHING-BUILT branch (id 280 — leg B's signature, not this leg's)" \
+  '! grep -q "^check aborted-run 280 " <<<"$orphan_push_out"'
+orphan_281="$(grep -E "^check aborted-run 281 " <<<"$orphan_push_out")"
+assert "a LOCAL-ONLY branch still yields a finding (id 281)" \
+  '[ -n "$orphan_281" ]'
+assert "the LOCAL-ONLY finding never claims the branch is pushed (id 281)" \
+  '! grep -qF " is pushed" <<<"$orphan_281"'
+assert "the LOCAL-ONLY finding names the missing PUSH as the seam (id 281)" \
+  'grep -qF "never pushed" <<<"$orphan_281"'
+orphan_282="$(grep -E "^check aborted-run 282 " <<<"$orphan_push_out")"
+assert "a GENUINELY PUSHED branch yields a finding (id 282)" \
+  '[ -n "$orphan_282" ]'
+assert "the PUSHED finding says pushed — the word is earned by refs/remotes/origin/<branch> (id 282)" \
+  'grep -qF " is pushed" <<<"$orphan_282"'
+assert "the PUSHED finding still reports the missing PR (id 282)" \
+  'grep -qF "no PR on GitHub" <<<"$orphan_282"'
+# The remote-less fixtures above must obey the same rule: $orphan_dir has no origin at all, so 271
+# was only ever a LOCAL branch and the pre-fix message called it pushed.
+assert "the remote-less fixture 271 no longer claims to be pushed either" \
+  '! grep -E "^check aborted-run 271 " <<<"$orphan_out" | grep -qF " is pushed"'
+
+# NO BASE RESOLVES — neither refs/heads/<integration> nor refs/remotes/origin/<integration> exists.
+# That is SILENCE (no positive evidence), never a finding computed against an empty base set: with
+# no bases to exclude, rev-list would list the branch's WHOLE history and every candidate would
+# fire "ahead of nothing". Same posture leg C takes.
+orphan_nobase_out="$( cd "$orphan_push_dir" && \
+  DOCKET_MODE=main CHANGES_DIR=docs/changes NOW=$ORPHAN_NOW INTEGRATION_BRANCH=no-such-integration-branch \
+  GH="$tmp/gh-orphan-ok.sh" bash -c '. "'"$SCRIPT"'"; detect_orphan_pr' )"
+assert "detect_orphan_pr is SILENT when NO base resolves — never 'ahead of nothing'" \
+  '! grep -q "^check aborted-run" <<<"$orphan_nobase_out"'
+assert "the no-base run emits nothing at all — not even a sweep-skipped it has no evidence for" \
+  '[ -z "$orphan_nobase_out" ]'
 
 # ---- detect_orphan_pr anchored-read mutation arms (guards-are-code) ----
 # The block performs SEVERAL anchored reads, so the arms are PER READ: unanchor one read at a time
@@ -1057,7 +1151,7 @@ orphan_mutreseed(){
 }
 orphan_mutrun(){
   ( cd "$orphan_dir" && \
-    DOCKET_MODE=main CHANGES_DIR=docs/changes NOW=$ORPHAN_NOW GH="$tmp/gh-orphan-ok.sh" \
+    DOCKET_MODE=main CHANGES_DIR=docs/changes NOW=$ORPHAN_NOW INTEGRATION_BRANCH=${ORPHAN_IB:-main} GH="$tmp/gh-orphan-ok.sh" \
     bash -c '. "'"$ORPHAN_MUTSCRIPT"'"; detect_orphan_pr' )
 }
 
@@ -1094,6 +1188,29 @@ assert "orphan mutation 2 (unanchor branch:): the body-prose fixture 276 goes SI
   '! grep -q "^check aborted-run 276 " <<<"$omut2_out"'
 assert "orphan mutation 2: fixture 271, whose branch: is in frontmatter, still fires" \
   'grep -q "^check aborted-run 271 " <<<"$omut2_out"'
+
+# Arm 3 — defeat the ahead-of-bases gate (the rev-list predicate becomes a no-op), leaving the idle
+# floor as the only time gate. Fixture 280, the NOTHING-BUILT branch, starts firing: its tip is the
+# day-old base commit, which sails through the floor. Fixture 282, which has a real own-commit,
+# fires either way — proving the arm defeated the GATE and not the leg.
+orphan_push_mutrun(){
+  ( cd "$orphan_push_dir" && \
+    DOCKET_MODE=main CHANGES_DIR=docs/changes NOW=$ORPHAN_NOW INTEGRATION_BRANCH=main GH="$tmp/gh-orphan-ok.sh" \
+    bash -c '. "'"$ORPHAN_MUTSCRIPT"'"; detect_orphan_pr' )
+}
+orphan_mutreseed
+omut3_before="$(grep -cF 'rev-list -n 1 "$ref"' "$ORPHAN_MUTSCRIPT")"
+awk '/rev-list -n 1 "\$ref"/ { print "    :"; next } { print }' "$ORPHAN_MUTSCRIPT" > "$ORPHAN_MUTSCRIPT.t"
+mv "$ORPHAN_MUTSCRIPT.t" "$ORPHAN_MUTSCRIPT"
+omut3_after="$(grep -cF 'rev-list -n 1 "$ref"' "$ORPHAN_MUTSCRIPT")"
+omut3_out="$(orphan_push_mutrun)"
+assert "orphan mutation 3 landed: the ahead-of-bases predicate is gone (count 1 -> 0)" \
+  '[ "$omut3_before" = 1 ] && [ "$omut3_after" = 0 ]'
+assert "orphan mutation 3 landed: the mutated copy is still valid bash" 'bash -n "$ORPHAN_MUTSCRIPT"'
+assert "orphan mutation 3 (defeat ahead-of-bases): the NOTHING-BUILT fixture 280 starts firing" \
+  'grep -q "^check aborted-run 280 " <<<"$omut3_out"'
+assert "orphan mutation 3: fixture 282, which has a real own-commit, still fires" \
+  'grep -q "^check aborted-run 282 " <<<"$omut3_out"'
 rm -rf "$orphan_mutcopy"
 
 # sweep_execute: chained close-out (task 5). Mock the four shared scripts via the SCRIPTS_DIR

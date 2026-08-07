@@ -232,20 +232,33 @@ Full path only — never under `--board-only`. After the git-only health finding
 printed and before the reclaim gate of step 7a, `detect_orphan_pr` resolves the ambiguity
 `board-checks.sh`'s `aborted-run` **leg C** leaves behind.
 
-**Gate — leg C's own, reused rather than re-tuned.** A change under `active/` with
-`status: in-progress`, an empty `pr:`, and a branch whose newest commit is older than **2 hours**
-(`ORPHAN_PR_IDLE_SECS`, the same value as `board-checks.sh`'s `ABORTED_RUN_IDLE_SECS`, kept in sync
-by value — the two scripts share no library and `board-checks.sh` must stay independently runnable).
-Reusing the floor guarantees the enrichment never fires on a change leg C stayed silent about, so
-the two findings always agree. The branch is `branch:` when set, else `feat/<slug>`; an unresolvable
-branch is **silence**, never a finding.
+**Gate — leg C's own, mirrored predicate for predicate rather than re-tuned.** A change under
+`active/` with `status: in-progress`, an empty `pr:`, and a branch that is **both** idle past
+**2 hours** (`ORPHAN_PR_IDLE_SECS`, the same value as `board-checks.sh`'s `ABORTED_RUN_IDLE_SECS`,
+kept in sync by value — the two scripts share no library and `board-checks.sh` must stay
+independently runnable) **and ahead of at least one integration base**. The branch is `branch:` when
+set, else `feat/<slug>`, resolved as `refs/heads/<branch>` then `refs/remotes/origin/<branch>`; an
+unresolvable branch is **silence**, never a finding.
 
-**Two outcomes, two remedies**, both rendered as `check aborted-run <id> <message>` — the same shape
-`health_checks` prints, so consumers read one vocabulary:
+The ahead-of-bases half is not optional decoration on the floor — it is what makes "reuse leg C's
+gate" true. Bases are `refs/heads/<integration_branch>` and `refs/remotes/origin/<integration_branch>`,
+each `show-ref`-verified, and **no base resolving at all is silence**, never "ahead of nothing".
+Without it, a run that died before its first commit leaves a branch whose tip *is* the base commit,
+whose date is almost always past the floor — so the leg would fire on the nothing-built signature
+that belongs to **leg B** and that leg C deliberately stays silent about. `INTEGRATION_BRANCH` comes
+from the config resolved by `docket_preflight`.
+
+**Three outcomes, three remedies**, all rendered as `check aborted-run <id> <message>` — the same
+shape `health_checks` prints, so consumers read one vocabulary:
 
 - an open PR exists on the branch → `PR #<n> is open on <branch> but pr: is unset — record it`
-- no open PR exists → `<branch> is pushed (last commit Nh ago) but no PR on GitHub — the run stopped
-  before opening one`
+- no open PR, and the branch **is** on the remote (`refs/remotes/origin/<branch>` exists, the same
+  probe leg C splits its own two messages on) → `<branch> is pushed (last commit Nh ago) but no PR
+  on GitHub — the run stopped before opening one`
+- no open PR and no remote-tracking ref → `<branch> was never pushed (last commit Nh ago) and has no
+  PR on GitHub — the run stopped before pushing it`. "Pushed" is a claim about the remote and is
+  never asserted for a branch resolved purely locally; the missing push names the earlier seam a
+  human has to act on first.
 
 Unlike leg C's messages these do **not** hedge about the PR's existence — this leg has asked GitHub,
 so it states what it found. The remedy stays a bookkeeping act on the manifest and never a push or a
