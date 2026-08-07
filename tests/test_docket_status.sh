@@ -902,20 +902,16 @@ branch: feat/fresh
 was considered for this work and rejected.
 EOF
 
+# The leg queries the repository's open PRs ONCE and matches them to its candidates locally by
+# headRefName, so this stub serves the whole listing rather than a per-branch answer. The listing
+# deliberately carries an UNRELATED PR (#901, on a branch no candidate names) and puts it FIRST: a
+# local match that took `.[0]` instead of selecting on headRefName would hand #901 to every
+# candidate, and the "271 never claims a PR is open" assert below is what catches that.
 cat > "$tmp/gh-orphan-ok.sh" <<'EOF'
 #!/usr/bin/env bash
 if [ "$1" = repo ] && [ "$2" = view ]; then echo "x/y"; exit 0; fi
 if [ "$1" = pr ] && [ "$2" = list ]; then
-  # --head <branch> is a flag/value pair somewhere in the argv; find it.
-  head=""
-  while [ $# -gt 1 ]; do
-    if [ "$1" = --head ]; then head="$2"; fi
-    shift
-  done
-  case "$head" in
-    feat/has-pr) echo '[{"number":777}]' ;;
-    *)           echo '[]' ;;
-  esac
+  echo '[{"number":901,"headRefName":"feat/unrelated"},{"number":777,"headRefName":"feat/has-pr"}]'
   exit 0
 fi
 echo "gh-orphan-ok: unexpected args: $*" >&2
@@ -1047,6 +1043,29 @@ assert "detect_orphan_pr says WHY it skipped on unparseable gh output" \
 assert "detect_orphan_pr with unparseable gh output returns success (best-effort)" \
   '[ $orphan_garbage_rc -eq 0 ]'
 
+# A listing that comes back AT the --limit ceiling may have been truncated, and a truncated page is
+# not "no PR" — it is the WRONG message arm ("the run stopped before opening one") for a PR that
+# exists. The leg must go quiet instead of guessing. The stub returns exactly the ceiling's worth of
+# unrelated PRs, so under a no-truncation-guard implementation every candidate would fire a
+# confidently wrong finding.
+cat > "$tmp/gh-orphan-full.sh" <<'EOF'
+#!/usr/bin/env bash
+if [ "$1" = repo ] && [ "$2" = view ]; then echo "x/y"; exit 0; fi
+jq -n '[range(200) | {number: (. + 1), headRefName: ("feat/filler-" + (. | tostring))}]'
+exit 0
+EOF
+chmod +x "$tmp/gh-orphan-full.sh"
+orphan_full_out="$( cd "$orphan_dir" && \
+  DOCKET_MODE=main CHANGES_DIR=docs/changes NOW=$ORPHAN_NOW INTEGRATION_BRANCH=${ORPHAN_IB:-main} GH="$tmp/gh-orphan-full.sh" \
+  bash -c '. "'"$SCRIPT"'"; detect_orphan_pr' )"
+orphan_full_rc=$?
+assert "a pr list at the --limit ceiling says WHY it skipped (pr-list-truncated)" \
+  'grep -q "^sweep-skipped pr-list-truncated" <<<"$orphan_full_out"'
+assert "a possibly-truncated listing emits NO findings — it never guesses the message arm" \
+  '! grep -q "^check aborted-run" <<<"$orphan_full_out"'
+assert "a possibly-truncated listing returns success (best-effort)" \
+  '[ $orphan_full_rc -eq 0 ]'
+
 # ---- the resolved repo must actually REACH the query ----
 # The leg resolves `repo` (from --repo, else a `gh repo view` subprocess) and then has to SPEND it:
 # a `gh pr list` with no --repo infers the repository from the process CWD, so with --repo given
@@ -1074,6 +1093,22 @@ assert "the repo resolved from gh repo view REACHES the pr list call as --repo x
   '[ -n "$orphan_argv_prlist" ] && ! grep -qvF -- "--repo x/y" <<<"$orphan_argv_prlist"'
 assert "the argv-witness run still emits findings (no --repo regression in the skip arms)" \
   'grep -q "^check aborted-run 271 " <<<"$orphan_argv_out"'
+
+# ---- ONE network call, however many candidates ----
+# This leg sits on the same full-path pass as detect_merged, which is batched precisely to keep the
+# pass's network cost O(1); a per-candidate `gh pr list` made it O(candidates) on a backlog drain.
+# The argv log is the only witness that can see the call COUNT — stdout cannot — and $orphan_dir
+# carries four candidates (270, 271, 275, 276), so the counts genuinely differ between the batched
+# and per-candidate shapes. The findings count is asserted first: a fixture that stopped producing
+# 2+ candidates would make the count assert vacuously true at 1.
+orphan_argv_prlist_n="$(grep -c '^pr list' "$tmp/gh-argv.log" || true)"
+orphan_argv_findings_n="$(grep -c '^check aborted-run ' <<<"$orphan_argv_out" || true)"
+assert "the batching witness is not vacuous: the argv run really has 2+ candidates" \
+  '[ "${orphan_argv_findings_n:-0}" -ge 2 ]'
+assert "detect_orphan_pr issues EXACTLY ONE pr list call, however many candidates exist" \
+  '[ "${orphan_argv_prlist_n:-0}" = 1 ]'
+assert "the one batched call carries no --head — it lists and matches locally" \
+  '! grep -qF -- "--head" "$tmp/gh-argv.log"'
 
 # REPO_FLAG end-to-end: --repo is parsed into REPO_FLAG at the top of the script, so the flag's
 # value — not the CWD-inferred repository — must be the one this leg queries. REPO_FLAG is assigned
