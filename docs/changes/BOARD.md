@@ -1,6 +1,6 @@
 # Backlog
 
-**235 changes** — 🟢 3 in progress · 🟡 55 proposed · ⚪ 4 deferred · ✅ 145 done · 🗑️ 28 killed
+**236 changes** — 🟢 3 in progress · 🟡 56 proposed · ⚪ 4 deferred · ✅ 145 done · 🗑️ 28 killed
 
 ## 🟢 In progress (3)
 
@@ -10,7 +10,7 @@
 | [0231](active/0231-a-presumed-dead-build-worker-can-wake-and-race-its-own-repla.md) | A presumed-dead build worker can wake and race its own replacement in one worktree | `medium` | `fix` | [spec](../superpowers/specs/2026-08-07-a-presumed-dead-build-worker-can-wake-and-race-its-own-repla-design.md) | `feat/a-presumed-dead-build-worker-can-wake-and-race-its-own-repla` |
 | [0234](active/0234-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b.md) | Split gate-execution.md: probe evidence should not sit on a blocking-read surface | `medium` | `refactor` | [spec](../superpowers/specs/2026-08-07-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b-design.md) | `feat/split-gate-execution-md-probe-evidence-should-not-sit-on-a-b` |
 
-## 🟡 Proposed (55)
+## 🟡 Proposed (56)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -69,6 +69,7 @@
 | [0232](active/0232-the-gate-execution-posture-never-reaches-the-build-workers-t.md) | The gate execution posture never reaches the build workers that also run the full suite | `medium` | `docs` | needs-brainstorm |
 | [0233](active/0233-guard-against-stacked-gap-ere-patterns-that-hang-instead-of.md) | Guard against stacked-gap ERE patterns that hang instead of failing | `medium` | `chore` | needs-brainstorm |
 | [0235](active/0235-writers-emit-unquoted-yaml-title-scalars-so-six-change-files.md) | Writers emit unquoted YAML title scalars, so six change files fail to parse | `medium` | `fix` | build-ready |
+| [0236](active/0236-suppressed-execution-handoff-still-ends-run-at-plan.md) | A suppressed execution hand-off still ends the run at the plan — 0113 recurrence | `high` | `fix` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -143,6 +144,7 @@ graph TD
   0233
   0234
   0235
+  0236
   0015:::done
   0175:::done
   0192:::done
