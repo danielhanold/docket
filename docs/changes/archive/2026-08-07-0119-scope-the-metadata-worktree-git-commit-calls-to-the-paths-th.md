@@ -2,10 +2,10 @@
 id: 119
 slug: scope-the-metadata-worktree-git-commit-calls-to-the-paths-th
 title: Scope the metadata-worktree git commit calls to the paths they own
-status: proposed
+status: killed
 priority: medium
 created: 2026-07-21
-updated: 2026-07-26
+updated: 2026-08-07
 depends_on: []
 related: []
 discovered_from: [83]
@@ -154,3 +154,7 @@ lines plus a guard. It is blocked only on decision (1), which is a maintainer po
 should probably be settled alongside **#0110**, since #0110 could remove the shared tree that makes
 the whole invariant necessary. Re-arm by answering (1), deleting this section, and flipping
 `auto_groomable` back to `true` — (2) is fully specified above and needs no human input.
+
+## Why killed
+
+Consolidated into #0247 at the 2026-08-07 backlog triage: settled alongside #0110 per this change's own auto-groom abstain (the architecture choice decides the commit-scoping failure posture). The two defect sites and the shape-keyed guard ask carry over verbatim.
