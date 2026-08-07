@@ -2,7 +2,7 @@
 id: 227
 slug: parallel-test-suite-runner
 title: Parallel test-suite runner — 4x+ wall-clock speedup
-status: in-progress
+status: implemented
 priority: medium
 type: chore
 created: 2026-08-06
@@ -13,12 +13,12 @@ discovered_from: []
 adrs: []
 spec: docs/superpowers/specs/2026-08-06-parallel-test-suite-runner-design.md
 plan: docs/superpowers/plans/2026-08-07-parallel-test-suite-runner.md
-results:
+results: docs/results/2026-08-07-parallel-test-suite-runner-results.md
 trivial: false
 auto_groomable:
 branch: feat/parallel-test-suite-runner
-claimed_at: 2026-08-07T02:16:49Z
-pr:
+claimed_at: 2026-08-07T06:05:44Z
+pr: https://github.com/danielhanold/docket/pull/165
 issue:
 blocked_by:
 reconciled: true
@@ -29,6 +29,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-06-parallel-test-suite-runner-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-06-parallel-test-suite-runner-design.md) |
 | Plan | [2026-08-07-parallel-test-suite-runner.md](https://github.com/danielhanold/docket/blob/feat/parallel-test-suite-runner/docs/superpowers/plans/2026-08-07-parallel-test-suite-runner.md) |
+| Results | [2026-08-07-parallel-test-suite-runner-results.md](https://github.com/danielhanold/docket/blob/feat/parallel-test-suite-runner/docs/results/2026-08-07-parallel-test-suite-runner-results.md) |
+| PR | [#165](https://github.com/danielhanold/docket/pull/165) |
 <!-- docket:artifacts:end -->
 
 ## Why
