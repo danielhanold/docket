@@ -2,9 +2,9 @@
 slug: fix-reintroduces-its-own-defect-class
 hook: "New code added by a change that fixes a defect class is the likeliest place for that class to reappear — audit the change's OWN additions against its thesis before review, and check the twin it did not touch."
 topics: [review, refactoring, contracts]
-changes: [135, 173, 113, 212]
+changes: [135, 173, 113, 212, 220]
 created: 2026-07-28
-updated: 2026-08-05
+updated: 2026-08-07
 promotion_state: candidate
 promoted_to:
 ---
@@ -90,3 +90,19 @@ Related: [[escape-ere-metacharacters-in-key]] (the un-fixed twin of a duplicated
   failure mode for free. The audit move is mechanical and cheap: enumerate the readers of the new
   sentence, and check the discriminator is a property on which they actually **differ**. Employment
   status was not one; provenance was.
+- 2026-08-07 (#220, PR #164) — a change whose whole purpose was clearing **false claims made in
+  source comments and diagnostics** shipped a new one in its own additions. The abort message added
+  to `emit_wrapper` said "No wrappers were written." All three call sites invoke it under an output
+  redirection, and bash truncates the target before the function body runs — so the abort leaves a
+  zero-length wrapper (the precise artifact 0207's atomicity design exists to prevent), and past the
+  first loop iteration earlier wrappers are already on disk. Caught at whole-branch review, not by
+  the suite. In the same branch, two `AGENTS.md` pipefail violations arrived from plan-supplied test
+  code in a change that elsewhere cited that same rule to *reject* plan-supplied test code: one
+  worker refused the plan's `grep … | grep -qF …` spelling while another had already accepted
+  `grep -F … | head -n1` from the same plan.
+  What this adds: when the defect class is a false statement rather than a false value, the audit
+  target is every string the branch **writes for a human to read** — comment, diagnostic, commit
+  message — checked against what the code actually does at that point. And a repo rule honored by
+  one worker does not propagate to the block a different worker wrote: fan-out makes intra-branch
+  self-contradiction the default, not the exception. Related:
+  [[plan-supplied-test-code-is-unverified]], [[pipefail]].

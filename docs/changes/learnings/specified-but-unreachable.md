@@ -2,9 +2,9 @@
 slug: specified-but-unreachable
 hook: "Sentinels over prose assert a claim is PRESENT, never that it is REACHABLE — where a contract has a producer and a consumer, anchor one assert on the producer."
 topics: [testing, sentinels, review]
-changes: [87, 94, 203]
+changes: [87, 94, 203, 220]
 created: 2026-07-19
-updated: 2026-08-06
+updated: 2026-08-07
 promotion_state: candidate
 promoted_to:
 ---
@@ -53,3 +53,11 @@ this?* If the answer is only "the section that describes it," the feature is dec
   qualified the governing sentence once instead. Lesson: a specification with a *satisfaction*
   condition needs the same reachability question a sentinel does — walk the real path that must
   satisfy it, including the path this very change takes.
+- 2026-08-07 (#220, PR #164) — the anchor pointed the wrong **direction**. An assert meant to prove
+  a function's header comment states its calling contract used `within()`, whose window runs
+  *forward* from the anchor — and the header sits **above** `emit_wrapper(){`. The window therefore
+  covered the function body, where an unrelated `${RES_MODEL:-}` about 200 characters down
+  satisfied the match: deleting the entire header comment left the assert green. Re-anchored on a
+  verbatim clause of the comment itself. Lesson: a directional search helper makes "above the
+  anchor" structurally unreachable, so an assert about a *header* can never be anchored on the
+  declaration it heads. Mutation-test by deleting the thing the assert names, not by editing near it.
