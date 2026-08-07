@@ -26,9 +26,12 @@ means), this file does not restate them.
 
 - Anchor a frontmatter-field edit to the first `---…---` block, never a bare column-0 line match:
   docket's own change/ADR files discuss `status:`/`updated:` in body prose.
-- Quote any hand-authored YAML scalar carrying a colon-space or a boolean keyword
-  (`on/off/yes/no/true/false`). Today's grep/awk reader tolerating it is not evidence it is
-  well-formed.
+- Quote any YAML scalar carrying a colon-space, a trailing colon, a ` #`, a leading indicator
+  character, or a boolean keyword (`on/off/yes/no/true/false`) — whoever writes it, model or
+  script. Today's grep/awk reader tolerating it is not evidence it is well-formed. A **script**
+  writing free-text prose into frontmatter quotes unconditionally at the write boundary rather
+  than predicating on shape, because a conditional is only as good as its enumeration
+  (ADR-0071; `mint-stub.sh`'s `title` write is the reference).
 - Before rewriting a marker-delimited managed block, validate marker **order and balance** — refuse
   on dangling/out-of-order/nested markers and leave the file untouched. Presence alone is not
   enough; an unbounded range consumes to EOF and eats the user's content.
