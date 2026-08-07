@@ -8,10 +8,10 @@ type: fix
 created: 2026-08-07
 updated: 2026-08-07
 depends_on: []
-related: []
+related: [244]
 discovered_from: [155, 156]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-07-harden-render-board-sanitize-feeder-values-and-settle-the-fa-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-07-harden-render-board-sanitize-feeder-values-and-settle-the-fa-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-harden-render-board-sanitize-feeder-values-and-settle-the-fa-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -38,14 +41,18 @@ Verified 2026-08-07:
 
 ## What changes
 
-- Sanitize (or reject) control characters in feeder-interpolated frontmatter values, `board-checks.sh:142`-style, at the archive feeder and the `ARC_COUNT` subscript; regression fixture with an interior-TAB `status:`.
-- Settle the failure contract: the renderer detects malformed input and exits non-zero with a diagnostic (default posture — callers already gate on exit code / report lines: `board-refresh.sh` and `docket-status.sh` need no new branching, only honest signals). Enumerate what "malformed" means (unparseable frontmatter, impossible status, feeder field-count mismatch) and pin each with a fixture.
+Settled design (auto-groomed 2026-08-07; detail and audit trail in the spec's `## Assumptions`):
+
+- **Failure contract — render-complete, then fail loud.** Row-level skips stay (stdout complete modulo skipped rows, both formats), but every malformed file emits a sanitized stderr diagnostic (`render-board: malformed change file: <path>: <reason>`) and a non-zero count makes the run exit 3 (0 clean, 2 CLI-argument errors unchanged). Callers need no edits — `board-refresh.sh` already discards on non-zero, `docket-status.sh`'s `digest_only_pass` fails closed — so corruption becomes stale-with-a-named-cause instead of corrupt-and-committed.
+- **"Malformed" is a closed enumeration**, checked in one upfront pass: unusable id (M1), empty status (M2), status outside `DOCKET_STATUSES` (M3 — which subsumes interior TAB/CR in `status:`, so rejection-by-vocabulary is the sanitization and no control character reaches the TAB join or the `ARC_COUNT`/`SECTION` subscripts), plus a belt-and-suspenders read-back arity check at the archive consumer (M4). Placement-wrong-but-vocabulary-valid status (e.g. mid-sweep `done` in active/) is deliberately NOT malformed — that stays `board-row-dropped`'s territory.
+- **Tests:** interior-TAB-status regression fixture (per #0155), impossible-status fixture, contract flips on the existing exit-0 pins (including a loud, deliberate override of the pinned no-id-guard `ARC_COUNT` tally asserts), and new clean-path exit-0/empty-stderr pins.
 
 ## Out of scope
 
 - Structural fixes (replacing the TAB-join protocol entirely).
 - New board surfaces or digest fields.
+- Any edit to `board-checks.sh` (its `sanitize()` is duplicated, not hoisted); slug/title content hygiene in digest lines (spec-recorded narrowing).
 
 ## Open questions
 
-- Whether warn-and-skip-the-row is ever preferable to exit-nonzero for a single bad change file (availability vs correctness at the row level) — the one genuine posture fork; an abstain back to the human queue is acceptable.
+None — resolved at design time; see the spec's `## Assumptions`. The former posture fork (warn-and-skip vs exit-nonzero) is settled as both: skip the row for stdout completeness, exit 3 so callers gate honestly; the availability cost (one bad file halts board refresh and autonomous selection, loudly) is accepted in Assumption 1. `related: [244]` records a file-collision coupling (0244 migrates frontmatter read call sites in `render-board.sh`); no ordering constraint.
