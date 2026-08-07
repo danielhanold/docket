@@ -168,6 +168,14 @@ field(){
 # mint-stub.sh strips the same shape on WRITE for the same reason; this is the read-side half.
 # A `#` not preceded by whitespace is part of the value, exactly as YAML defines it.
 #
+# The strip is BARE-value territory only: a value that OPENS with `"` or `'` is skipped whole,
+# mirroring the skip leg board-checks's scalar_form_check already applies to the raw token — a
+# quoted scalar's interior is not comment territory, so `title: 'clear finding #3 from review'`
+# must come back whole rather than as the truncated, stray-quote-carrying `'clear finding`
+# (change 0235). This matters now that every minted title is unconditionally single-quoted: the
+# truncation would otherwise be the routine outcome for any `#`-bearing title, and
+# render-artifact-backlink.sh stamps that value into specs, plans, results files and PR bodies.
+#
 # fm_field_raw() is the RAW anchored twin: it runs the same ---...----scoped awk body as fm_field
 # but leaves any surrounding quotes INTACT (no _docket_unwrap_quotes call), for a consumer that
 # needs the raw YAML token — e.g. board-checks's scalar-form check, which must see the quotes to
@@ -186,15 +194,18 @@ field(){
 # whitespace-preceded `#…` before the value is taken; 0 keeps the line whole.
 _fm_scan(){ # _fm_scan FILE KEY STRIP_COMMENT -> raw scalar on stdout (empty when absent)
   local raw
-  raw="$(awk -v key="$2" -v strip="$3" '
+  raw="$(awk -v key="$2" -v strip="$3" -v sq="'" '
     BEGIN { n = 0 }
     /^---[[:space:]]*$/ { n++; if (n >= 2) exit; next }
     n == 1 {
       if ($0 ~ ("^" key ":")) {
-        if (strip == 1) sub(/[[:space:]]+#.*$/, "")
-        sub("^" key ":[[:space:]]*", "")
-        sub(/[[:space:]]+$/, "")
-        print
+        line = $0
+        val = line; sub("^" key ":[[:space:]]*", "", val)
+        lead = substr(val, 1, 1)
+        if (strip == 1 && lead != "\"" && lead != sq) sub(/[[:space:]]+#.*$/, "", line)
+        sub("^" key ":[[:space:]]*", "", line)
+        sub(/[[:space:]]+$/, "", line)
+        print line
         exit
       }
     }

@@ -295,6 +295,18 @@ assert "fm_field_raw strips the same inline-comment shape fm_field strips" \
 assert "fm_field_raw keeps a hash not preceded by whitespace in the value" \
   '[ "$(fm_field_raw "$fr/hash.md" type)" = "feat#1" ]'
 
+# ...but the strip is BARE-value territory only: a QUOTED scalar's interior is not comment territory,
+# so a ' #' inside the quotes must survive whole (change 0235). Every minted title is now
+# single-quoted, so without this skip the stray-quote truncation ('clear finding) is the ROUTINE
+# outcome for any '#'-bearing title — and render-artifact-backlink.sh stamps exactly that value into
+# specs, plans, results files and PR bodies. Mirrors the skip leg board-checks's scalar_form_check
+# already uses on the raw token.
+printf -- "---\ntitle: 'clear finding #3 from review'\n---\n" > "$fr/qhash.md"
+assert "fm_field returns a quoted '#'-bearing title whole" \
+  '[ "$(fm_field "$fr/qhash.md" title)" = "clear finding #3 from review" ]'
+assert "fm_field_raw keeps the quoted '#'-bearing token intact" \
+  '[ "$(fm_field_raw "$fr/qhash.md" title)" = "'"'"'clear finding #3 from review'"'"'" ]'
+
 # fm_field_verbatim(): the third tier — same anchored ---...--- scope, NEITHER strip. The value
 # arrives exactly as authored, because a consumer JUDGING a scalar's YAML form cannot be handed a
 # value the reader already repaired: the comment strip IS the truncation board-checks's
