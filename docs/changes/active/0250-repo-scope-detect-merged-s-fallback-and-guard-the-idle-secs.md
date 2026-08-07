@@ -12,12 +12,12 @@ related: []
 discovered_from: [239, 241]
 adrs: [72]
 spec: docs/superpowers/specs/2026-08-07-repo-scope-detect-merged-s-fallback-and-guard-the-idle-secs-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-07-repo-scope-detect-merged-fallback-and-guard-idle-secs.md
 results:
 trivial: false
 auto_groomable: true
 branch: feat/repo-scope-detect-merged-s-fallback-and-guard-the-idle-secs
-claimed_at: 2026-08-07T22:05:51Z
+claimed_at: 2026-08-07T22:10:52Z
 pr:
 blocked_by:
 reconciled: true
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-07-repo-scope-detect-merged-s-fallback-and-guard-the-idle-secs-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-repo-scope-detect-merged-s-fallback-and-guard-the-idle-secs-design.md) |
+| Plan | [2026-08-07-repo-scope-detect-merged-fallback-and-guard-idle-secs.md](https://github.com/danielhanold/docket/blob/feat/repo-scope-detect-merged-s-fallback-and-guard-the-idle-secs/docs/superpowers/plans/2026-08-07-repo-scope-detect-merged-fallback-and-guard-idle-secs.md) |
 | ADRs | [ADR-0072](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0072-leg-c-predicate-duplicated-by-value-across-two-scripts.md) |
 <!-- docket:artifacts:end -->
 
