@@ -712,6 +712,46 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # on a 50-word step, so 185 stands. 1850 words -> the next multiple of 50 strictly above the actual
 # is 1900 (50 words of margin); leaving the row at 1850 would sit exactly on the actual, which is
 # the 0102 near-zero failure mode in its purest form.
+# skills/docket-finalize-change/SKILL.md's WORD budget was raised 3500 -> 3700 by change 0190, which
+# extended item 4's third condition from bare SHA equality to a disjunction: equality, OR a strict
+# ancestor `head_sha` whose whole `head_sha..HEAD` delta lies under the configured `<results_dir>/`.
+# The prose grew because every word of it is PREDICATE — the allowlist prefix and where it is read
+# from, the fresh null-delimited `git diff --name-only -z` derivation, tracked paths only, the
+# empty-diff-is-doubt rule, the enlarged anything-else list, the permit named in the skip log, and
+# the degrade-off tie to the invisibility guard. A shortened form is a predicate the agent guesses
+# at, and guessing wrong here merges an untested branch onto the integration branch.
+# WHERE ELSE IT WAS CONSIDERED, per the naming requirement above:
+# skills/docket-finalize-change/references/gate-failure.md, the only reference this skill has. It
+# cannot host this. That file owns the FAILURE posture — what finalize does once the merge gate has
+# already gone wrong (the two-agent split, repair sign-off, the abort-and-report set, the
+# `## Finalize blocked` write) — and it is read only after that has happened. This is the opposite
+# moment: a merge-GATING predicate evaluated on the ordinary green path, at the instant the agent
+# decides whether the suite runs at all. A predicate sitting in a reference nobody reads on that
+# path does not gate the merge — it silently permits it, which is the same argument the 0137 and
+# 0113 entries above record. Set per the rounding rule above from the measured actual: 3625 words ->
+# the next multiple of 50 is 3650, which leaves exactly 25 words (within the 25-word threshold), so
+# the multiple after it: 3700 (75 words of margin). The LINE budget was NOT raised (176 actual, 180
+# budget) — the growth is all inside one numbered item's single line.
+# skills/docket-implement-next/references/edge-paths.md's WORD budget was raised 450 -> 500 by change
+# 0190, which rewrote Step 7's build-evidence paragraph: a post-gate results commit no longer always
+# defeats finalize's skip, so the prose now states the rule (write the block with the pre-commit
+# `head_sha`; expect a skip when the delta is docs-only under `<results_dir>/`, a suite run when it
+# is not) instead of the flat "the suite simply runs" it replaced. The row is raised even though the
+# test currently PASSES: the file measures 448 words against 450, TWO words of headroom, which is
+# precisely the near-zero failure mode this comment block's 0102 and 0137 entries exist to forbid —
+# the next one-word edit to this file reddens CI on arrival. The raise is taken now rather than
+# deferred onto whoever makes that edit.
+# WHERE ELSE IT WAS CONSIDERED, per the naming requirement above: there is no further reference to
+# consider, because this file IS the reference. The prose already lives at its extracted home —
+# change 0201 moved the implementer's rare edges here out of skills/docket-implement-next/SKILL.md,
+# and pushing it back into SKILL.md is the reverse of the extraction (and would raise the parent's
+# budget instead, for prose that is conditionally read by construction). The naming rule's question
+# is answered by exhaustion rather than by argument against a candidate. Set per the rounding rule
+# above from the measured actual: 448 words -> the next multiple of 50 is 450, which leaves 2 words
+# (far inside the 25-word threshold), so the multiple after it: 500 (52 words of margin). The LINE
+# budget was NOT raised (28 actual, 35 budget).
+# skills/docket-implement-next/SKILL.md was NOT raised by change 0190: it measures 162/4285, inside
+# the existing 165/4300.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -728,11 +768,11 @@ skills/docket-convention/references/agent-layer.md         190 2150
 skills/docket-convention/references/auto-capture.md        130 1250
 skills/docket-convention/references/learnings.md            84  580
 skills/docket-convention/references/terminal-close-out.md  173 1458
-skills/docket-finalize-change/SKILL.md                     180 3500
+skills/docket-finalize-change/SKILL.md                     180 3700
 skills/docket-finalize-change/references/gate-failure.md    35  900
 skills/docket-groom-next/SKILL.md                           77 1484
 skills/docket-implement-next/SKILL.md                      165 4300
-skills/docket-implement-next/references/edge-paths.md       35  450
+skills/docket-implement-next/references/edge-paths.md       35  500
 skills/docket-implement-next/references/fix-loop.md        185 1900
 skills/docket-implement-next/results-template.md            25  250
 skills/docket-review/SKILL.md                              110  900
