@@ -2,7 +2,7 @@
 id: 232
 slug: the-gate-execution-posture-never-reaches-the-build-workers-t
 title: The gate execution posture never reaches the build workers that also run the full suite
-status: proposed
+status: killed
 priority: medium
 type: docs
 created: 2026-08-07
@@ -70,3 +70,7 @@ same contract.
 - Does a worker need the whole posture, or only the "split, never yield" operational consequence?
 - Should the controller pass the suite-execution instruction in the dispatch prompt instead, so the
   worker contract stays silent? That trades a durable rule for a per-dispatch one.
+
+## Why killed
+
+Consolidated into #0249 at the 2026-08-07 backlog triage: one-clause sibling of #0238 in the same worker contract file and guard file; depends on 0224's merge (same test file in flight).
