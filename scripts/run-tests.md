@@ -285,7 +285,9 @@ signal — the `NO RESULT:` block is printed either way.
   waits for them, reports how much had finished, and only then removes the work directory. It is
   not `kill 0` — the runner shares its caller's process group whenever job control is off, which is
   every non-interactive invocation. See "Interruption" above.
-- **Audited for parallel-execution races on 2026-08-06 — 80 files inspected, none found.** Every
+- **Audited for parallel-execution races on 2026-08-06 — the 80 files that existed then, none
+  found.** The suite is now 86 files; the six added by the later sharding commits were never in
+  this sweep or in the equivalence proof below. Every
   `tests/test_*.sh` was swept for the shapes that make a file unsafe to run beside its neighbours:
   a read of — or a write through — the ambient `$HOME`, a `git config --global` or `--system`
   write, a write into this repo's working tree (its `.docket/` metadata worktree or a `.worktrees/`
@@ -300,7 +302,8 @@ signal — the `NO RESULT:` block is printed either way.
   races. Three fresh full parallel runs at the default `-j` (11 on the audit machine, 245–247s
   each) were diffed per file against the `-j 1` baseline on **both** exit status and per-file
   assert counts — six diffs, all empty. Every run and the baseline reported
-  `SUITE files=80 passed=80 failed=0 asserts=6040`. 593s of per-file work compressing into ~246s of
+  `SUITE files=80 passed=80 failed=0 asserts=6040`, i.e. the proof covers the 80-file set as of the
+  audit commit, not the six files sharded in afterwards. 593s of per-file work compressing into ~246s of
   wall clock confirms the runs were genuinely concurrent rather than accidentally serialized, and
   both working trees stayed clean throughout — which is the direct evidence for the "not a
   container" residual above: nothing in this suite writes into the repo.
