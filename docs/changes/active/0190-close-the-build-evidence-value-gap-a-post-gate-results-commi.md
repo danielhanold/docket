@@ -20,7 +20,7 @@ branch: feat/close-the-build-evidence-value-gap-a-post-gate-results-commi
 claimed_at: 2026-08-01T23:00:23Z
 pr:
 blocked_by:
-reconciled: true
+reconciled: false
 ---
 
 ## Artifacts
