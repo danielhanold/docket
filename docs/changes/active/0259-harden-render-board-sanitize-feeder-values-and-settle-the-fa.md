@@ -12,12 +12,12 @@ related: [244]
 discovered_from: [155, 156]
 adrs: []
 spec: docs/superpowers/specs/2026-08-07-harden-render-board-sanitize-feeder-values-and-settle-the-fa-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-07-harden-render-board-sanitize-feeder-values-and-settle-the-fa.md
 results:
 trivial: false
 auto_groomable: true
 branch: feat/harden-render-board-sanitize-feeder-values-and-settle-the-fa
-claimed_at: 2026-08-07T22:52:18Z
+claimed_at: 2026-08-07T22:58:59Z
 pr:
 blocked_by:
 reconciled: true
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-07-harden-render-board-sanitize-feeder-values-and-settle-the-fa-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-harden-render-board-sanitize-feeder-values-and-settle-the-fa-design.md) |
+| Plan | [2026-08-07-harden-render-board-sanitize-feeder-values-and-settle-the-fa.md](https://github.com/danielhanold/docket/blob/feat/harden-render-board-sanitize-feeder-values-and-settle-the-fa/docs/superpowers/plans/2026-08-07-harden-render-board-sanitize-feeder-values-and-settle-the-fa.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
