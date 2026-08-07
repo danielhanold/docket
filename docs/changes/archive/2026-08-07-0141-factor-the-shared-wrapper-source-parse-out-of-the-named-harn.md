@@ -2,11 +2,11 @@
 id: 141
 slug: factor-the-shared-wrapper-source-parse-out-of-the-named-harn
 title: Factor the shared wrapper-source parse out of the named harness emitters
-status: proposed
+status: killed
 priority: medium
 type: refactor
 created: 2026-07-27
-updated: 2026-07-27
+updated: 2026-08-07
 depends_on: []
 related: []
 discovered_from: [135]
@@ -63,3 +63,7 @@ set of variables) or by emitting parseable output, given Bash 3.2 has no associa
 
 - Adding a new harness emitter. This is the enabling refactor, not the next harness.
 - Changing any emitted wrapper's bytes. A diff in generated output means the refactor is wrong.
+
+## Why killed
+
+Consolidated into #0245 at the 2026-08-07 backlog triage: the shared-parse factor lands with its sibling emitter work on one branch. The trigger condition has fired since filing — three duplicated emitters now, not two (opencode added by 0192).
