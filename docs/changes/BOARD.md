@@ -1,17 +1,16 @@
 # Backlog
 
-**237 changes** — 🟢 4 in progress · 🟡 55 proposed · ⚪ 4 deferred · ✅ 146 done · 🗑️ 28 killed
+**238 changes** — 🟢 3 in progress · 🟡 56 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 146 done · 🗑️ 28 killed
 
-## 🟢 In progress (4)
+## 🟢 In progress (3)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0190](active/0190-close-the-build-evidence-value-gap-a-post-gate-results-commi.md) | Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip | `medium` | `feat` | [spec](../superpowers/specs/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md) | `feat/close-the-build-evidence-value-gap-a-post-gate-results-commi` |
 | [0219](active/0219-aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d.md) | aborted-run's Step 7 seam — a fourth git-only leg, plus GitHub enrichment for leg C | `high` | `fix` | [spec](../superpowers/specs/2026-08-07-aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d-design.md) | `feat/aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d` |
-| [0231](active/0231-a-presumed-dead-build-worker-can-wake-and-race-its-own-repla.md) | A presumed-dead build worker can wake and race its own replacement in one worktree | `medium` | `fix` | [spec](../superpowers/specs/2026-08-07-a-presumed-dead-build-worker-can-wake-and-race-its-own-repla-design.md) | `feat/a-presumed-dead-build-worker-can-wake-and-race-its-own-repla` |
 | [0235](active/0235-writers-emit-unquoted-yaml-title-scalars-so-six-change-files.md) | Writers emit unquoted YAML title scalars, so six change files fail to parse | `medium` | `fix` | [spec](../superpowers/specs/2026-08-07-writers-emit-unquoted-yaml-title-scalars-so-six-change-files-design.md) | `feat/writers-emit-unquoted-yaml-title-scalars-so-six-change-files` |
 
-## 🟡 Proposed (55)
+## 🟡 Proposed (56)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -70,6 +69,7 @@
 | [0233](active/0233-guard-against-stacked-gap-ere-patterns-that-hang-instead-of.md) | Guard against stacked-gap ERE patterns that hang instead of failing | `medium` | `chore` | needs-brainstorm |
 | [0236](active/0236-suppressed-execution-handoff-still-ends-run-at-plan.md) | A suppressed execution hand-off still ends the run at the plan — 0113 recurrence | `high` | `fix` | auto-groom blocked — needs you |
 | [0237](active/0237-prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical.md) | Prose levers fail to hold the step boundary — consider a mechanical end-of-run gate | `high` | `fix` | needs-brainstorm |
+| [0238](active/0238-a-build-worker-may-stage-paths-its-task-never-touched.md) | A build worker may stage paths its task never touched | `medium` | `fix` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -79,6 +79,12 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | Type | PR | Readiness |
+|---|-------|----------|------|----|-----------|
+| [0231](active/0231-a-presumed-dead-build-worker-can-wake-and-race-its-own-repla.md) | A presumed-dead build worker can wake and race its own replacement in one worktree | `medium` | `fix` | [#170](https://github.com/danielhanold/docket/pull/170) |  |
 
 ```mermaid
 graph TD
@@ -145,6 +151,7 @@ graph TD
   0235
   0236
   0237
+  0238
   0015:::done
   0175:::done
   0192:::done
