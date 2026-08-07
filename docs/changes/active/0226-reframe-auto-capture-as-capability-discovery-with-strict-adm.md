@@ -12,12 +12,12 @@ related: [91, 127, 204, 218]
 discovered_from: [218]
 adrs: []
 spec: docs/superpowers/specs/2026-08-06-auto-capture-capability-discovery-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-07-auto-capture-capability-discovery.md
 results:
 trivial: false
 auto_groomable:
 branch: feat/reframe-auto-capture-as-capability-discovery-with-strict-adm
-claimed_at: 2026-08-07T11:01:21Z
+claimed_at: 2026-08-07T11:07:58Z
 pr:
 blocked_by:
 reconciled: true
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-06-auto-capture-capability-discovery-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-06-auto-capture-capability-discovery-design.md) |
+| Plan | [2026-08-07-auto-capture-capability-discovery.md](https://github.com/danielhanold/docket/blob/feat/reframe-auto-capture-as-capability-discovery-with-strict-adm/docs/superpowers/plans/2026-08-07-auto-capture-capability-discovery.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
