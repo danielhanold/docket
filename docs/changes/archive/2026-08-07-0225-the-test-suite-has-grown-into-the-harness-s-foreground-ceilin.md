@@ -2,11 +2,11 @@
 id: 225
 slug: the-test-suite-has-grown-into-the-harness-s-foreground-ceilin
 title: The test suite has grown into the harness's foreground ceiling — cut its wall-clock runtime
-status: proposed
+status: killed
 priority: medium
 type: perf
 created: 2026-08-06
-updated: 2026-08-06
+updated: 2026-08-07
 depends_on: []
 related: [150, 175, 185, 223, 224]
 discovered_from: [203]
@@ -79,3 +79,7 @@ Reduce full-suite wall-clock materially. Scope to be settled at grooming, but th
 - Does change 0150's toolchain resolution change per-file startup cost, and should these be sequenced?
 
 ## Reconcile log
+
+## Why killed
+
+Superseded by change 0227 (parallel test-suite runner). 0227 is the groomed, build-ready realization of this problem statement: it profiled the suite (629s, 5954 assertions, a four-file tail at 66% of wall time), and specs a parallel runner plus tail sharding to a <157s target, answering all four of this change's open questions. 0223 (execution posture) and 0224 (exit-code keying) remain independent and now point at 0227. The one lever 0227 leaves out of scope — per-invocation cost of sync-agents/resolver calls — is self-surfacing via 0227's per-file runtime-budget guard and can be re-proposed with data if the tail regrows.
