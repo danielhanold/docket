@@ -2,9 +2,9 @@
 slug: concurrent-edits-compose-at-rebase
 hook: "When two open changes touch one function, keep each additive and funnel through a shared chokepoint; at rebase reconcile by INTENT — compose, don't choose."
 topics: [git, rebase, concurrency]
-changes: [79, 89, 113]
+changes: [79, 89, 113, 223]
 created: 2026-07-16
-updated: 2026-08-03
+updated: 2026-08-07
 promotion_state: retained
 promoted_to:
 ---
@@ -20,6 +20,12 @@ merged truth is a third number. Derive it by counting the merged artifact itself
 a side or by arithmetic on the two claims. Then hunt the count's SEMANTIC TWINS — the same fact
 restated in files that auto-merged cleanly, where git's line-based merge saw no conflict at all.
 A clean auto-merge is not evidence of a correct merge for any fact stated in more than one place.
+
+The two branches need not touch a single common file. When main introduces a REGISTRY with a
+completeness invariant over some set — every test file has a budget row, every check id appears on
+three surfaces, every script has a contract — any open branch that ADDS A MEMBER to that set is
+already red, with zero textual overlap and nothing for a conflict resolver to see. Ask at rebase
+what sets your branch adds a member to, and whether the base started policing one of them.
 
 ## War story
 - 2026-07-16 (#79, PR #86) — Two in-flight changes (0077 codex-TOML emission, 0079 runner shim)
@@ -58,3 +64,17 @@ A clean auto-merge is not evidence of a correct merge for any fact stated in mor
   auto-merged — they are in files the conflict could not reach at all**, and a build's own results
   or plan prose is the most likely place, since it was written before the rebase and is never
   re-read after it.
+- 2026-08-07 (#223, PR #166 — merged) — **The disjoint-file case: a textually clean rebase, red on
+  arrival.** 0223 added `tests/test_gate_execution_posture.sh`; change 0227 had independently landed
+  `tests/runtime-budgets.tsv` on main, whose guard asserts a two-directional correspondence between
+  the table's key column and `find tests -maxdepth 1 -name 'test_*.sh'`. Neither branch opened a
+  file the other touched, so all 12 commits rebased clean and the resolver had nothing to resolve —
+  the failure surfaced only at the gate's post-rebase suite run, as `> tests/test_gate_execution_posture.sh`
+  in a one-line diff. The fix was two lines (the row, plus the `EXPECTED_TOTAL` sum the table pins
+  precisely so a raise cannot be quiet), so the cost was not the repair but the full 87-file gate
+  cycle spent discovering it. **The generalization worth carrying: a completeness registry converts
+  every concurrent branch that adds a member into a semantic conflict, and the conflict is invisible
+  to git by construction** — the registry's whole point is to live in one file that no member's
+  author edits. The counterpart to the previous entry's lesson: there the twin was a fact restated
+  in a file the conflict could not reach; here it is a fact about a file that does not exist yet on
+  the other side.
