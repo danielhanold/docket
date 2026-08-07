@@ -1754,6 +1754,39 @@ assert "0220/D3: (non-vacuity) a matching \$2 still emits successfully" '[ "$d3_
 assert "0220/D3: emit_wrapper's header states the \$2 contract" \
   'within "$REPO/sync-agents.sh" "emit_wrapper(){" "RES_MODEL" 900'
 
+# ---- change 0220 / D6: each distinct diagnostic is reported exactly once ------------------------
+# A bad runner: in the GLOBAL layer is visible to BOTH gate legs — the user-level leg resolves over
+# $GLOBAL_CFG, the project-level leg over local ⊕ committed ⊕ global — so it was logged twice,
+# verbatim identically, against a README that promises every offender "in one pass".
+#
+# This fixture is ALSO the over-dedupe guard, which is the failure mode the dedup code introduces.
+# The two legs here yield DISTINCT diagnostics: .docket.yml sets an unregistered runner on status
+# (project leg only — the global layer has no status entry), while the global config sets a
+# registered-but-model-less runner on adr (visible to BOTH legs, hence the duplicate). Deduping on
+# the rendered string must collapse adr's two identical copies while leaving status's different
+# diagnostic untouched.
+mkgitrepo
+mkdir -p "$SBX/.claude" "$SBX/.config/docket"
+printf 'agents:\n  claude:\n    status: { runner: gemini-cli }\n' > "$SBX/.docket.yml"
+printf 'agents:\n  claude:\n    adr: { runner: codex }\n' > "$SBX/.config/docket/config.yml"
+d6_err="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" 2>&1 >/dev/null )"; d6_rc=$?
+assert "0220/D6: (fixture) the run still fails nonzero" '[ "$d6_rc" != "0" ]'
+# The dedup itself: the doubly-visible global offender is logged ONCE, not once per leg.
+assert "0220/D6: a diagnostic visible to both legs is reported exactly once" \
+  '[ "$(grep -cF "docket-adr" <<<"$d6_err")" = "1" ]'
+# The OVER-dedupe guard: a genuinely different offender must survive the filter.
+assert "0220/D6: a distinct offender is NOT suppressed by the dedup" \
+  '[ "$(grep -cF "docket-status" <<<"$d6_err")" -ge 1 ]'
+# Capture each offender's own lines FIRST, then grep the capture: a `grep … | grep -q` pipeline
+# under `set -o pipefail` (line 3) can take SIGPIPE and turn 141 into an intermittent failure.
+d6_status_lines="$(grep -F "docket-status" <<<"$d6_err")"
+d6_adr_lines="$(grep -F "docket-adr" <<<"$d6_err")"
+assert "0220/D6: and it keeps its own rule" \
+  'grep -qF "is not a registered runner" <<<"$d6_status_lines"'
+assert "0220/D6: while the deduped one keeps its own, different rule" \
+  'grep -qF "requires an explicit model" <<<"$d6_adr_lines"'
+rm -rf "$SBX"
+
 # no runner config anywhere: native (un-shimmed) output (regression fence)
 make_sandbox
 ( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 )

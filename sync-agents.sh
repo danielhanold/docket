@@ -616,6 +616,24 @@ validate_user_agent_values() {
   return $rc
 }
 
+# Log an accumulated gate diagnostic AT MOST ONCE per exact string (change 0220). Reads and appends
+# to the caller's `seen` (bash dynamic scoping; bash-3.2-safe — no associative arrays).
+#
+# Keyed on the RENDERED DIAGNOSTIC, not on the (harness, agent) triple: a bad runner: in the GLOBAL
+# layer is visible to both gate legs and produces two byte-identical lines, while two genuinely
+# different offenders that happen to share a harness and agent produce two different lines and must
+# both survive. Deduping by layer provenance was rejected — the gate's loops deliberately do not do
+# provenance, and it would suppress a project diagnostic that merely happens to read identically.
+# Suppressing a repeat never changes the caller's rc: the caller sets rc=1 unconditionally.
+report_runner_error_once(){  # $1=diagnostic ; requires a caller-scoped `seen`
+  # `if ... ; then ... fi`, never `grep ... && return 0`: `set -e` is active, and a failing grep as
+  # the last element of an && list aborts the whole run.
+  if grep -F -x -q -- "$1" <<<"$seen"; then return 0; fi
+  log "ERROR $1"
+  seen="$seen$1"$'\n'
+  return 0
+}
+
 # Gate 3 (change 0207): every `runner:` rule, checked across every candidate triple, BEFORE the
 # first wrapper write. Wrapper generation is atomic — a run regenerates every WRAPPER or changes no
 # wrapper on disk, so a configuration error leaves the previously generated wrappers in place on
@@ -640,7 +658,7 @@ validate_user_agent_values() {
 # applicability — narrowing to `claude` here would put the rule's scope in a second place, and the
 # day that scope moves this gate would silently under-enumerate.
 validate_runner_config() {
-  local rc=0 src name harness err
+  local rc=0 src name harness err seen=""
   # USER_TARGETS is computed by user_level_pass, which runs BELOW this gate; on the --check path
   # neither compute_user_targets nor resolve_global_agent_harnesses has run at all, so under `set -u`
   # both USER_TARGETS and USER_HARNESSES_SET are unset. Resolve them here rather than reading
@@ -657,7 +675,7 @@ validate_runner_config() {
     for harness in $USER_TARGETS; do
       resolve_agent_layers "$harness" "$name" "$GLOBAL_CFG"
       if ! err="$(runner_config_error "$harness" "$name" "$RES_RUNNER" "$(user_flag_model)")"; then
-        log "ERROR $err"; rc=1
+        report_runner_error_once "$err"; rc=1
       fi
     done
     # project-level pass: HARNESSES resolved over local + committed + global.
@@ -667,7 +685,7 @@ validate_runner_config() {
     for harness in $HARNESSES; do
       resolve_agent_layers "$harness" "$name" "$LOCAL_CFG" "$DOCKET_YML" "$GLOBAL_CFG"
       if ! err="$(runner_config_error "$harness" "$name" "$RES_RUNNER" "$(user_flag_model)")"; then
-        log "ERROR $err"; rc=1
+        report_runner_error_once "$err"; rc=1
       fi
     done
   done
