@@ -2,11 +2,11 @@
 id: 155
 slug: interior-tabs-in-a-frontmatter-value-shift-the-render-board
 title: Interior TABs in a frontmatter value shift the render-board sort feeder's fields
-status: proposed
+status: killed
 priority: medium
 type: fix
 created: 2026-07-28
-updated: 2026-07-28
+updated: 2026-08-07
 depends_on: []
 related: []
 discovered_from: [143]
@@ -53,3 +53,7 @@ for exactly this class of reason; the gap is hand-edited manifests, which no scr
 
 - Change 0143's empty-field collapse, which is its own change and should land first.
 - A general frontmatter schema validator.
+
+## Why killed
+
+Consolidated into #0259 at the 2026-08-07 backlog triage: with a premise correction — the live TAB carrier is status: (archive feeder), not title:; the sanitize precedent is board-checks.sh:142.
