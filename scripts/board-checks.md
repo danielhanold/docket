@@ -193,8 +193,11 @@ colon-space title from a bare one — and applies a skip leg plus **five** synta
 - **Comment-introducer leg:** the unquoted raw value contains ` #`, which opens a YAML comment and
   silently **truncates** the value rather than aborting the parse — the quieter, worse failure.
 - **Indicator leg:** the unquoted raw value opens with a YAML indicator character (`[`, `]`, `{`,
-  `}`, `,`, `&`, `*`, `!`, `|`, `>`, `'`, `"`, `%`, `@`, a backtick, `?`, a leading `:`, or a
-  leading `- `). A `[…]` or `{…}` is **not** exempt: the legs judge whether a value is well-formed
+  `}`, `,`, `#`, `&`, `*`, `!`, `|`, `>`, `'`, `"`, `%`, `@`, a backtick, `?`, a leading `:`, or a
+  leading `- `). A leading `#` is the **maximal** form of the comment-introducer leg above — the
+  comment opens at character one, so the whole value parses to null rather than merely being
+  shortened; it reaches this leg only when the value carries no `: ` and no ` #` of its own. A
+  `[…]` or `{…}` is **not** exempt: the legs judge whether a value is well-formed
   as a bare **scalar**, and a flow collection is not one — bare, `[234]` does not read back as the
   string `[234]`. An exemption would have to run ahead of every other leg to protect that shape,
   and there it silenced them all (`[a title: with colon]` stopped reporting `colon-space`), while

@@ -372,6 +372,13 @@ assert "leg indicator star"     '[ "$(reason "*star* emphasis")" = indicator ]'
 assert "leg indicator at"       '[ "$(reason "@mention someone")" = indicator ]'
 assert "leg indicator quote"    '[ "$(reason "\"quoted\" start")" = indicator ]'
 assert "leg indicator dash-sp"  '[ "$(reason "- a list-looking title")" = indicator ]'
+# A LEADING '#' is the maximal case of the failure the comment-introducer leg exists to catch: the
+# comment opens at character one, so the ENTIRE value parses to null. It reaches this leg only when
+# the value carries no ': ' and no ' #' of its own — hence the second fixture, which must land on
+# comment-introducer instead (first leg matched wins) and not on indicator.
+assert "leg indicator leading-hash" '[ "$(reason "#235 follow-up work")" = indicator ]'
+assert "a leading hash with a later ' #' takes the earlier leg" \
+  '[ "$(reason "#235 clears finding #3")" = comment-introducer ]'
 
 # Near-misses: each is well-formed bare YAML and must stay SILENT.
 assert "silent: a colon with no following space" '[ -z "$(reason "a:b ratio")" ]'

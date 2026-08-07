@@ -782,6 +782,19 @@ s78line="$(grep -E "$(printf "^scalar-form\t78\t")" <<<"$s78out")"
 assert "the blocked_by comment-introducer finding names blocked_by (id 78)" \
   'grep -qF -- "blocked_by: unquoted scalar contains" <<<"$s78line"'
 
+# A LEADING '#' in blocked_by — reachable only because the blocked_by read is now comment-strip-free
+# (id 78's leg). The comment opens at character one, so the WHOLE value parses to null: the maximal
+# form of the truncation, and the quietest. It carries no ': ' and no ' #', so it must reach the
+# indicator leg rather than any earlier one.
+read -r S75 _ < <(new_repo)
+mk_sf "$S75" 75 leading-hash-blocked 'blocked_by: #235 follow-up work'
+s75out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$S75/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "scalar-form fires for a blocked_by opening with '#' (id 75, indicator leg)" \
+  'has_finding "$s75out" scalar-form 75'
+s75line="$(grep -E "$(printf "^scalar-form\t75\t")" <<<"$s75out")"
+assert "the leading-hash blocked_by finding names the indicator shape (id 75)" \
+  'grep -qF -- "blocked_by: unquoted scalar opens with a YAML indicator character" <<<"$s75line"'
+
 # GREEN near-miss on the same field: a '#' NOT preceded by whitespace is part of the value, and the
 # quoted form of the ' #' shape is well-formed — neither may fire now that the comment survives the
 # read.
