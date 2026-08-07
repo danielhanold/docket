@@ -147,39 +147,51 @@ still reaches the report. `board-refresh.sh` remains the sole gated writer of `B
 
 ### Malformed input — render complete, then fail loud (change 0259)
 
-A single upfront pass validates every change file in `active/` and `archive/` before any projection
-is built. A file is **malformed** under a closed enumeration:
+Two validation passes run before any projection is built — an upfront pass over every change file in
+`active/` and `archive/`, then a feeder pass that builds the archive table's rows once. A file is
+**malformed** under a closed enumeration:
 
 | | Condition | Where it runs |
 |---|---|---|
 | M1 | Unusable `id:` — absent, empty, or non-integer. | upfront pass |
 | M2 | Empty `status:`. | upfront pass |
 | M3 | `status:` outside the seven-name `DOCKET_STATUSES` vocabulary. This **subsumes** any status carrying an interior TAB or CR: a control-character value can never match a closed vocabulary name, so rejection-by-vocabulary *is* the sanitization — no such value ever reaches the archive TAB join or an `ARC_COUNT`/`SECTION` array subscript. | upfront pass |
-| M4 | The archive sort feeder's tuple did not read back cleanly at the consumer. | archive loop |
+| M4 | The archive sort feeder's `date<TAB>id<TAB>status<TAB>path` tuple did not survive a round trip through the consumer's own split. | feeder pass |
 
-M1–M3 validate the values the producer **reads**; M4 validates the tuple the consumer **receives**,
-which is a different failure surface — a control character in a *filename* reaches the TAB join
-without passing through any frontmatter read, so no upfront value check can see it. M4 is therefore
-belt-and-suspenders against a future control-character path, not a duplicate of M3, and its guard
-has **three** conjuncts, each catching a different corruption of the `date<TAB>id<TAB>status<TAB>path`
-tuple:
+M1–M3 validate the values the producer **reads**; M4 validates the tuple as **split**, which is a
+different failure surface — a control character in a *filename* reaches the TAB join without passing
+through any frontmatter read, so no upfront value check can see it. M4 is therefore
+belt-and-suspenders against a future control-character path, not a duplicate of M3. It is a genuine
+round trip rather than a re-derivation: the feeder joins the tuple, splits it back with the
+consumer's own `IFS=$'\t' read -r date id st f`, and requires
 
-1. the status is not in the closed vocabulary — the split slid, so every later field is rebound;
-2. the path does not resolve on disk — `f` is a fragment of a longer value;
-3. the path still contains a TAB or CR — the tuple is not re-joinable.
+1. every field to arrive **unchanged** — any stray TAB, in whatever field it originated, slides the
+   split and rebinds every later field; and
+2. the path to carry **no residual TAB or CR** — otherwise the tuple is not re-joinable.
 
-The third conjunct is the one a TAB in a filename actually trips, and it is why the first two are
-not sufficient on their own: `IFS=$'\t' read -r date id st f` assigns the **unsplit remainder** to
-the final field, so an embedded TAB lands wholly inside `f` without shifting anything. Such a path
-resolves on disk and carries a valid status, yet rendering it would write a raw control character
-into the emitted link.
+The second requirement is the one a TAB in a filename actually trips, and it is why the first is not
+sufficient on its own: `read` assigns the **unsplit remainder** to the final field, so an embedded
+TAB lands wholly inside `f` and round-trips intact without shifting anything. Such a path resolves
+on disk and carries a valid status, yet rendering it would write a raw control character into the
+emitted link. Rejection keys on the **authoritative** path the feeder started from, never on the
+field that came back out — a slid tuple's final field is a fragment, and marking a fragment would
+leave the real file counted.
 
-A malformed file is excluded from every projection — the section table, the per-status tallies, and
-the digest — and diagnosed once on stderr. It is still counted in the header's total-changes number:
-an unaccounted-for file is exactly the state `board-checks.sh`'s `board-row-dropped` exists to
-report (change 0115). Because M4 runs inside the archive loop rather than in the upfront pass, its
-diagnostic is interleaved with the render; the exit code is unaffected, since both emission paths
-(markdown fall-off-the-end and the digest's early exit) test the malformed count last.
+A malformed file is excluded from every projection — the section table, the per-status tallies, the
+archive table and its `<summary>` count, the mermaid graph, and the digest — and diagnosed once on
+stderr, with any control character in the path itself escaped the same way an offending value is. It
+is still counted in the header's total-changes number: an unaccounted-for file is exactly the state
+`board-checks.sh`'s `board-row-dropped` exists to report (change 0115).
+
+**Both passes run above the digest projection's exit**, which is load-bearing rather than incidental.
+Were M4 to run at its render-time consumer instead, it would sit below that exit and below both tally
+loops: `--format digest` would never evaluate it, so the two enumerated consumers would report
+opposite verdicts over identical input — `board-refresh.sh` freezing `BOARD.md` while
+`docket-status.sh` handed the selector a queue built from the corrupt archive — and a rejected file
+would still inflate `ARC_COUNT`, so the `<summary>` would claim more rows than it printed. Both
+emission paths therefore test the same finished malformed count last, and neither format can report
+success over input the other rejects. The check that remains in the archive loop is unreachable
+defence in depth, kept so a future edit that feeds that loop from elsewhere fails loud.
 
 **Deliberately not malformed:** a vocabulary-valid status in the "wrong" directory (`done` in
 `active/`, `proposed` in `archive/`) — legitimate mid-sweep state, and failing on it would turn
