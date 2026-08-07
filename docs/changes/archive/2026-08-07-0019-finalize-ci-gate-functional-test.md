@@ -2,10 +2,10 @@
 id: 19
 slug: finalize-ci-gate-functional-test
 title: Finalize ci/both gate — functional test against real GitHub CI (poll/retry)
-status: proposed
+status: killed
 priority: low
 created: 2026-06-17
-updated: 2026-06-17
+updated: 2026-08-07
 depends_on: [15]
 related: [15]
 adrs: [10]
@@ -64,3 +64,7 @@ abort, and a **timeout** abort.
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+## Why killed
+
+Killed at the 2026-08-07 backlog triage (Daniel's ruling): the repo has no CI at all, and standing up CI infrastructure for a low-priority functional test of the ci/both finalize gate modes is not worth it. Revisit if CI ever exists.
