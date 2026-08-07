@@ -601,6 +601,28 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # than rewording the three mint-site skill bodies) is what makes the pass reachable. Set per the
 # rounding rule above from the measured actual 341/5853: 5853 -> 5900 (47 words of margin, above the
 # within-25 threshold). The LINE budget was NOT raised (341 actual, 345 budget, 4 lines of margin).
+# skills/docket-convention/references/auto-capture.md's budget was raised 125/1200 -> 130/1250 by a
+# change 0226 review fix (2026-08-07): the `## Admission gates` section stated the six gates as
+# universal, with the site-C carve-out standing two sections downstream in *Routing* and no forward
+# pointer. Gates 1, 2, 3 and 6 are written against "the active change" / the active branch, neither of
+# which exists at the docket-finalize-change / docket-status harvest, so a reader who stops at the
+# gates and applies them literally suppresses precisely the cheap-to-fix follow-up the *Materiality
+# bar*'s 0218 exemption exists to protect. The section now carries the scoping clause and a pointer to
+# *Routing*, and `## Per discovery`'s parenthetical says WHICH bar the site applies rather than naming
+# both unconditionally. The prose has no other home for the same reason every raise above records for
+# this file: it IS the definition every mint site reads before minting, and an exception parked away
+# from the rule it qualifies is unread exactly when it must intervene — that is the failure being
+# fixed here, one section's distance already being enough. The considered home,
+# skills/docket-implement-next/references/fix-loop.md, is read ONLY by the implementer's Step 6, i.e.
+# by sites A and B, the two the unscoped gates already bind correctly; the harvest reader who needs
+# the carve-out never opens it. Compression was considered and rejected: every other paragraph in the
+# section is held by an assert in tests/test_docket_review.sh's change 0226 block (six numbered gates,
+# six gate phrases, four never-mint clauses), so there is nothing to cut that is not guarded. Set per
+# the rounding rule above from the measured actual 123/1202 (the `## Per discovery` paragraph was
+# re-wrapped, which recovered one line): 125 is the next multiple of 5 but leaves TWO lines of
+# margin, the near-zero headroom this block records raising past twice for this very file, so the
+# multiple after it, 130; 1200 is already exceeded and 1250 leaves 48 words (above the within-25
+# threshold).
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -613,7 +635,7 @@ skills/docket-build-task/SKILL.md                          125 1100
 skills/docket-convention/SKILL.md                          345 5900
 skills/docket-convention/github-board-mirror.md             19  462
 skills/docket-convention/references/agent-layer.md         190 2150
-skills/docket-convention/references/auto-capture.md        125 1200
+skills/docket-convention/references/auto-capture.md        130 1250
 skills/docket-convention/references/learnings.md            84  580
 skills/docket-convention/references/terminal-close-out.md  173 1458
 skills/docket-finalize-change/SKILL.md                     180 3500
