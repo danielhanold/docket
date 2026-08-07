@@ -2150,6 +2150,8 @@ assert "mutation baseline: leg C SILENT on 241 (live-run window)"   '! has_findi
 arm0_243="$(grep -E "$(printf "^aborted-run\t243\t")" <<<"$arm0out")"
 assert "mutation baseline: leg C SILENT on 243 (pr: recorded)" \
   '! grep -qF -- "pr: is unset" <<<"$arm0_243"'
+assert "mutation baseline: leg D SPEAKS on 243 (pr: records …) — the aborted-run line exists, so leg C's silence above is not vacuous" \
+  'grep -qF -- "pr: records" <<<"$arm0_243"'
 assert "mutation baseline: leg C SILENT on 244 (nothing built)"     '! has_finding "$arm0out" aborted-run 244'
 assert "mutation baseline: leg C SILENT on 245 (stale local main)"  '! has_finding "$arm0out" aborted-run 245'
 
@@ -2436,6 +2438,8 @@ armLout="$(armrun)"
 armL_246="$(grep -E "$(printf "^aborted-run\t246\t")" <<<"$armLout")"
 assert "mutation L (unanchor the pr: read): the body-prose fixture 246 goes GREEN — proves the anchoring" \
   '! grep -qF -- "pr: is unset" <<<"$armL_246"'
+assert "mutation L: leg D misfires on 246 with the body pr: value — the aborted-run line exists, so the silence above is not vacuous" \
+  'grep -qF -- "pr: records" <<<"$armL_246"'
 assert "mutation L: fixture 240, which has no body pr: line, still fires" \
   'has_finding "$armLout" aborted-run 240'
 rm -rf "$armcopy"
