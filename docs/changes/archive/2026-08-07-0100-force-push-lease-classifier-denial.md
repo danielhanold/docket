@@ -2,10 +2,10 @@
 id: 100
 slug: force-push-lease-classifier-denial
 title: Force-push-with-lease denied by the auto-mode classifier — unblock finalize's merge gate
-status: proposed
+status: killed
 priority: medium
 created: 2026-07-19
-updated: 2026-07-19
+updated: 2026-08-07
 depends_on: []
 related: []
 discovered_from: [91]
@@ -108,3 +108,7 @@ Two residuals survive and are what remains worth grooming:
    not assumed.
 
 Kept in the human queue: residual 2 is a security-posture reversal, which is a human call.
+
+## Why killed
+
+Consolidated into #0260 at the 2026-08-07 backlog triage: narrowed long before — the generic remedy shipped as the convention's harness-native-recovery section; the surviving residual (the push-denial sentence in gate-failure.md) lands with #0139's posture work. The settings-posture reversal stays rejected.
