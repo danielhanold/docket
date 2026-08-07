@@ -2,7 +2,7 @@
 id: 236
 slug: suppressed-execution-handoff-still-ends-run-at-plan
 title: A suppressed execution hand-off still ends the run at the plan — 0113 recurrence
-status: proposed
+status: killed
 priority: high
 type: fix
 created: 2026-08-07
@@ -149,3 +149,7 @@ rule. The critic kept the script and holed the wiring.
 **Recommendation: keep it, do not kill or defer.** The bug is real, reproducible, and this is its
 fourth instance. But it wants a human groom, and the human should resist a fourth point-fix — the
 evidence above is that another prose rule will be violated exactly as the first three were.
+
+## Why killed
+
+Absorbed into change 0237. The two stubs were filed the same day as two step boundaries (Step 4/5 and Step 5/6) of one failure family, and each independently concluded the family shares a root cause: every remedy docket has shipped is prose addressed to the agent that is failing. A per-boundary split reproduces that family's own failure mode — each fix misses the boundary it did not name. 0237 carries the settled evidence from this stub's auto-groom abstain (the reconstructed 0231 git signature, the producer-with-no-consumer statement, and the three aborted-run legs' blindness) and grooms it to a design covering every boundary at once.
