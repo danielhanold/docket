@@ -71,6 +71,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0070](0070-fix-loop-profile-envelope-blocker-floor-and-max-ceiling.md) — The fix loop's profile envelope — a blocker floor at standard, a ceiling below max (Accepted) ← change #218 · relates to ADR-0066
 - [ADR-0071](0071-writer-guarantees-yaml-validity-by-construction.md) — A writer guarantees YAML validity by construction; a checker's predicate is detection only (Accepted) ← change #235 · relates to ADR-0062, ADR-0065
 - [ADR-0072](0072-leg-c-predicate-duplicated-by-value-across-two-scripts.md) — Leg C's predicate is duplicated by value across two scripts, never shared (Accepted) ← change #219
+- [ADR-0073](0073-scalar-quote-predicate-has-no-flow-collection-exemption.md) — The needs-quoting predicate answers a scalar-domain question, so it carries no flow-collection exemption (Accepted) ← change #235 · relates to ADR-0065, ADR-0071
 
 ## Superseded / Reversed
 
