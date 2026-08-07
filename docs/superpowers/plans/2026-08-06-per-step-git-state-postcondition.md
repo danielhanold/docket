@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0203 — Define the per-step git-state postcondition docket-implement-next now names but never states](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0203-define-the-per-step-git-state-postcondition-docket-implement.md)**
+> ↩ **[Change 0203 — Define the per-step git-state postcondition docket-implement-next now names but never states](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-07-0203-define-the-per-step-git-state-postcondition-docket-implement.md)**
 <!-- docket:backlink:end -->
 
 # Per-step git-state postcondition Implementation Plan
