@@ -2,7 +2,7 @@
 id: 233
 slug: guard-against-stacked-gap-ere-patterns-that-hang-instead-of
 title: Guard against stacked-gap ERE patterns that hang instead of failing
-status: proposed
+status: killed
 priority: medium
 type: chore
 created: 2026-08-07
@@ -61,3 +61,7 @@ already fixed in-branch; what remains is a repo-wide sweep of unrelated test fil
 portability-style guard, which would expand an approved documentation change into a test-suite
 audit. It also wants its own mutation proof — a pattern that hangs rather than fails needs a
 timeout-shaped assert, which is a design question worth its own groom.
+
+## Why killed
+
+Consolidated into #0253 at the 2026-08-07 backlog triage: the stacked-gap hang class (now four files, grown since filing) is guarded as part of the same house-pattern change.
