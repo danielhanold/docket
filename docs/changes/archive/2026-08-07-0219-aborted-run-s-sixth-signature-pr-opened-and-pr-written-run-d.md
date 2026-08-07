@@ -2,12 +2,12 @@
 id: 219
 slug: aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d
 title: aborted-run's Step 7 seam — a fourth git-only leg, plus GitHub enrichment for leg C
-status: implemented
+status: done
 priority: high
 type: fix
 created: 2026-08-05
 updated: 2026-08-07
-claimed_at: 2026-08-07T17:43:28Z
+claimed_at: 
 depends_on: [211]
 related: [200, 222]
 discovered_from: [211]
