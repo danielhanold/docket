@@ -1591,16 +1591,20 @@ assert "0207: the SECOND offender is named in the same run" 'grep -qF "docket-ad
 # swapping the if-blocks in runner_config_error left this green. A whole-output negative assert is
 # not available either: docket-status in this same fixture is legitimately model-less, so the
 # required-model wording IS in $err against a correct implementation.
-adr_line="$(grep -F "docket-adr" <<<"$err" | head -n1)"
-assert "0220/D4: (fixture) the unregistered offender produced a diagnostic line" '[ -n "$adr_line" ]'
+#
+# Capture each offender's own lines FIRST, then grep the capture — never `grep … | head -n1`: an
+# early-exiting consumer under `set -o pipefail` (line 3) can SIGPIPE the producer and turn 141 into
+# an intermittent failure. Same spelling as the 0220/D6 block below.
+d4_adr_lines="$(grep -F "docket-adr" <<<"$err")"
+assert "0220/D4: (fixture) the unregistered offender produced a diagnostic line" '[ -n "$d4_adr_lines" ]'
 assert "0220/D4: the unregistered offender's OWN line reports the REGISTRATION rule" \
-  'grep -qF "is not a registered runner" <<<"$adr_line"'
+  'grep -qF "is not a registered runner" <<<"$d4_adr_lines"'
 assert "0220/D4: and that same line does NOT report the required-model rule" \
-  '! grep -qF "requires an explicit model" <<<"$adr_line"'
+  '! grep -qF "requires an explicit model" <<<"$d4_adr_lines"'
 # The companion direction: the registered-but-model-less agent reports the OTHER rule on its line.
-status_line="$(grep -F "docket-status" <<<"$err" | head -n1)"
+d4_status_lines="$(grep -F "docket-status" <<<"$err")"
 assert "0220/D4: the model-less offender's own line reports the required-model rule" \
-  '[ -n "$status_line" ] && grep -qF "requires an explicit model" <<<"$status_line"'
+  '[ -n "$d4_status_lines" ] && grep -qF "requires an explicit model" <<<"$d4_status_lines"'
 rm -rf "$SBX"
 
 # (4) --check reports the failure and exits nonzero (docket's `nginx -t`).
