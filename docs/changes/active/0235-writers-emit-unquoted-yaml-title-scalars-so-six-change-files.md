@@ -12,12 +12,12 @@ related: [234]
 discovered_from: [234]
 adrs: [71]
 spec: docs/superpowers/specs/2026-08-07-writers-emit-unquoted-yaml-title-scalars-so-six-change-files-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-07-writers-emit-unquoted-yaml-title-scalars.md
 results:
 trivial: false
 auto_groomable: true
 branch: feat/writers-emit-unquoted-yaml-title-scalars-so-six-change-files
-claimed_at: 2026-08-07T16:14:00Z
+claimed_at: 2026-08-07T16:26:00Z
 pr:
 blocked_by:
 reconciled: true
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-07-writers-emit-unquoted-yaml-title-scalars-so-six-change-files-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-writers-emit-unquoted-yaml-title-scalars-so-six-change-files-design.md) |
+| Plan | [2026-08-07-writers-emit-unquoted-yaml-title-scalars.md](https://github.com/danielhanold/docket/blob/feat/writers-emit-unquoted-yaml-title-scalars-so-six-change-files/docs/superpowers/plans/2026-08-07-writers-emit-unquoted-yaml-title-scalars.md) |
 | ADRs | [ADR-0071](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0071-writer-guarantees-yaml-validity-by-construction.md) |
 <!-- docket:artifacts:end -->
 
