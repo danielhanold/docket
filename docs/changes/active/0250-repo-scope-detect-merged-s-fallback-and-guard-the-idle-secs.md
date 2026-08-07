@@ -2,7 +2,7 @@
 id: 250
 slug: repo-scope-detect-merged-s-fallback-and-guard-the-idle-secs
 title: 'Repo-scope detect-merged''s fallback and guard the idle-secs duplication'
-status: in-progress
+status: implemented
 priority: medium
 type: fix
 created: 2026-08-07
@@ -13,12 +13,12 @@ discovered_from: [239, 241]
 adrs: [72]
 spec: docs/superpowers/specs/2026-08-07-repo-scope-detect-merged-s-fallback-and-guard-the-idle-secs-design.md
 plan: docs/superpowers/plans/2026-08-07-repo-scope-detect-merged-fallback-and-guard-idle-secs.md
-results:
+results: docs/results/2026-08-07-repo-scope-detect-merged-s-fallback-and-guard-the-idle-secs-results.md
 trivial: false
 auto_groomable: true
 branch: feat/repo-scope-detect-merged-s-fallback-and-guard-the-idle-secs
-claimed_at: 2026-08-07T22:10:52Z
-pr:
+claimed_at: 2026-08-07T22:46:10Z
+pr: https://github.com/danielhanold/docket/pull/175
 blocked_by:
 reconciled: true
 ---
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-07-repo-scope-detect-merged-s-fallback-and-guard-the-idle-secs-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-repo-scope-detect-merged-s-fallback-and-guard-the-idle-secs-design.md) |
 | Plan | [2026-08-07-repo-scope-detect-merged-fallback-and-guard-idle-secs.md](https://github.com/danielhanold/docket/blob/feat/repo-scope-detect-merged-s-fallback-and-guard-the-idle-secs/docs/superpowers/plans/2026-08-07-repo-scope-detect-merged-fallback-and-guard-idle-secs.md) |
+| Results | [2026-08-07-repo-scope-detect-merged-s-fallback-and-guard-the-idle-secs-results.md](https://github.com/danielhanold/docket/blob/feat/repo-scope-detect-merged-s-fallback-and-guard-the-idle-secs/docs/results/2026-08-07-repo-scope-detect-merged-s-fallback-and-guard-the-idle-secs-results.md) |
+| PR | [#175](https://github.com/danielhanold/docket/pull/175) |
 | ADRs | [ADR-0072](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0072-leg-c-predicate-duplicated-by-value-across-two-scripts.md) |
 <!-- docket:artifacts:end -->
 
