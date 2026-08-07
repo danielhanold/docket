@@ -2,7 +2,7 @@
 id: 229
 slug: the-runner-s-budget-slack-factor-is-a-hardware-dependent-con
 title: the runner's budget slack factor is a hardware-dependent constant
-status: proposed
+status: killed
 priority: medium
 type: refactor
 created: 2026-08-07
@@ -72,3 +72,7 @@ its own serial cost — the regrowth the table exists to catch.
 
 - Is a wall-clock assertion in the merge gate the right instrument at all, or should budget
   enforcement be advisory in CI and hard only in a dedicated performance check?
+
+## Why killed
+
+Consolidated into #0251 at the 2026-08-07 backlog triage: both 0227-discovered budget-regime legs (slack factor + population floor) constrain each other and land as one design.
