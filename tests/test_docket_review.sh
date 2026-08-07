@@ -391,6 +391,37 @@ for d in fixed deferred reverted recorded minted; do
     'grep -qE "^\| \*\*'"$d"'\*\* \|" <<<"$disp_section"'
 done
 
+# --- change 0231: the discard-and-re-dispatch prohibition in the fix loop's OWN vocabulary ---
+#
+# docket-implement-next Step 6 dispatches docket-build-task workers directly and never loads
+# docket-build's SKILL.md, so it cannot inherit the docket-build controller rule and must not
+# import docket-build's `halted` BUILD outcome. Its disposition is abort-and-report with the
+# change left in-progress and claimed_at refreshed. These asserts pin that it says so in its own
+# terms. The docket-build side of the same rule is guarded in tests/test_docket_build.sh, on
+# $ctrl_malformed_flat and $ctrl_dispatch_flat.
+#
+# No separate non-vacuity floor: these read $fix_flat, which the section's own
+# "fix-loop: reference is non-vacuous (>= 30 lines)" assert above already arms against an
+# unreadable or moved $FIX turning every negative grep below into a permanent green.
+assert "fix-loop: forbids discarding the worktree and dispatching a fresh worker" \
+  'grep -qiF -- "never discard the worktree and dispatch a fresh worker" <<<"$fix_flat"'
+
+# The disposition must be the fix loop's own, stated with the prohibition rather than imported.
+assert "fix-loop: gives that prohibition the abort-and-report disposition" \
+  'grep -qiE "never discard the worktree and dispatch a fresh worker.{0,240}abort-and-report" <<<"$fix_flat"'
+
+assert "fix-loop: that disposition refreshes the claim lease" \
+  'grep -qiE "never discard the worktree and dispatch a fresh worker.{0,240}claimed_at" <<<"$fix_flat"'
+
+# It must NOT import docket-build's build-outcome vocabulary, which is the mis-import this
+# separate sentence exists to avoid.
+assert "fix-loop: does not import the build role halted outcome for this rule" \
+  '! grep -qiE "never discard the worktree and dispatch a fresh worker.{0,240}(return .halted.|halted build outcome)" <<<"$fix_flat"'
+
+# A5: the prohibition must not claim to reach finalize, which has no discard-and-re-dispatch path.
+assert "fix-loop: the prohibition does not claim to cover docket-finalize-change" \
+  '! grep -qiE "never discard the worktree and dispatch a fresh worker.{0,200}finalize" <<<"$fix_flat"'
+
 # --- change 0218: auto-capture no longer absorbs this branch's own findings ---
 # Extended by change 0226, which reframed this reference as a capability-discovery pipeline. The
 # 0218 clauses below are RE-ANCHORED to the new wording, never dropped: the reframe adds the
