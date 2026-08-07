@@ -2,7 +2,7 @@
 slug: fix-reintroduces-its-own-defect-class
 hook: "New code added by a change that fixes a defect class is the likeliest place for that class to reappear — audit the change's OWN additions against its thesis before review, and check the twin it did not touch."
 topics: [review, refactoring, contracts]
-changes: [135, 173, 113, 212, 220]
+changes: [135, 173, 113, 212, 220, 228]
 created: 2026-07-28
 updated: 2026-08-07
 promotion_state: candidate
@@ -106,3 +106,14 @@ Related: [[escape-ere-metacharacters-in-key]] (the un-fixed twin of a duplicated
   one worker does not propagate to the block a different worker wrote: fan-out makes intra-branch
   self-contradiction the default, not the exception. Related:
   [[plan-supplied-test-code-is-unverified]], [[pipefail]].
+- 2026-08-07 (#228, PR #167) — the change fixed an **uninspected exit status** (a `for` loop with
+  no failure accumulator, so the block's status was the last test's). Its own new guard then
+  reproduced that exact class: the assert checked only the failure direction (`-ne 0`) and threw
+  away the status of its one all-green run, so a regression making the block *always* non-zero
+  would have kept all 6123 asserts green while turning every green suite into a red gate at both
+  consumers. Caught at whole-branch review; the fix's mutation (`suite_status=1` as the
+  initializer) reddens the new success-direction assert and nothing else.
+  What this adds: the audit target generalizes past *code* to the change's **guards** — when the
+  defect class is "a status nobody looked at," the new assert that looks at only one direction is
+  the same defect wearing a test's clothes. Both directions, or it is decoration
+  ([[guards-are-code]], [[assert-pins-outcome-not-mechanism]]).

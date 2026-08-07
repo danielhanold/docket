@@ -2,9 +2,9 @@
 slug: plan-supplied-test-code-is-unverified
 hook: "Test code a plan hands you is unverified code, not an oracle — prove the assert CAN pass, and mutation-test its own key."
 topics: [testing, plan, guards]
-changes: [94, 104, 112, 130, 133, 157, 168, 170, 173, 174, 194, 113, 212, 211, 203]
+changes: [94, 104, 112, 130, 133, 157, 168, 170, 173, 174, 194, 113, 212, 211, 203, 228]
 created: 2026-07-19
-updated: 2026-08-06
+updated: 2026-08-07
 promotion_state: candidate
 promoted_to:
 ---
@@ -246,3 +246,13 @@ implementer. It is not a reason to distrust plans — it is a reason to run the 
   generalization: a plan author writes guard shell without running it against the repo's own
   meta-suite, so plan-supplied test code must clear the *project's* conventions checks, not just
   produce the right answer.
+- 2026-08-07 (#228, PR #167) — the plan's Task 2 shipped `assert "empty suite runs zero tests"
+  '[ ! -s "$empty_execution_log" ]'` over a fixture directory created empty with the log truncated
+  immediately before the run. Nothing could ever write to that log, so **no reachable mutation
+  could redden the assert** — it read as coverage while carrying none, and was deleted at review in
+  favor of a mechanism pin. The tell was written down in the plan itself: it predicted the assert
+  would "stay `ok` under this mutation" and shipped it anyway.
+  What this adds: alongside "can it pass at all," ask the mirror question — **can it fail at all?**
+  A supplied assert whose own plan text concedes it stays green under the mutation it is paired
+  with is green-by-construction, and the concession is the evidence. See
+  [[assert-pins-outcome-not-mechanism]].
