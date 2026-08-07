@@ -1,12 +1,11 @@
 # Backlog
 
-**243 changes** — 🟢 2 in progress · 🟡 58 proposed · ⚪ 4 deferred · ✅ 150 done · 🗑️ 29 killed
+**243 changes** — 🟢 1 in progress · 🟡 58 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 150 done · 🗑️ 29 killed
 
-## 🟢 In progress (2)
+## 🟢 In progress (1)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
-| [0224](active/0224-the-build-gate-contract-never-says-green-red-is-the-exit-code.md) | The build gate contract never says green/red is the exit code, so an output-shape match passes as a gate | `high` | `docs` | [spec](../superpowers/specs/2026-08-07-the-build-gate-contract-never-says-green-red-is-the-exit-design.md) | `feat/the-build-gate-contract-never-says-green-red-is-the-exit-code` |
 | [0237](active/0237-prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical.md) | Prose levers fail to hold the step boundary — give the disposition contract a consumer | `high` | `fix` | [spec](../superpowers/specs/2026-08-07-prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical-design.md) | `feat/prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical` |
 
 ## 🟡 Proposed (58)
@@ -80,6 +79,12 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | Type | PR | Readiness |
+|---|-------|----------|------|----|-----------|
+| [0224](active/0224-the-build-gate-contract-never-says-green-red-is-the-exit-code.md) | The build gate contract never says green/red is the exit code, so an output-shape match passes as a gate | `high` | `docs` | [#174](https://github.com/danielhanold/docket/pull/174) |  |
 
 ```mermaid
 graph TD
