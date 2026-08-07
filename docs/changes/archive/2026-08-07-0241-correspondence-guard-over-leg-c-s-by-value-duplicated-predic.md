@@ -2,7 +2,7 @@
 id: 241
 slug: correspondence-guard-over-leg-c-s-by-value-duplicated-predic
 title: Correspondence guard over leg C's by-value duplicated predicate (ADR-0072 drift risk)
-status: proposed
+status: killed
 priority: medium
 type: chore
 created: 2026-08-07
@@ -55,3 +55,7 @@ behavior.
 **Reason for deferral** — #0219's branch is merged; it was scoped to building leg D and the leg C
 enrichment, and its own results file records this as explicitly left to a human's judgment rather
 than repaired in-branch.
+
+## Why killed
+
+Consolidated into #0250 at the 2026-08-07 backlog triage: same file, same 0219 harvest as #0239; #0250 also fixes this change's adrs frontmatter omission (ADR-0072).
