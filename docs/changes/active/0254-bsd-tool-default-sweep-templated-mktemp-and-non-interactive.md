@@ -8,10 +8,10 @@ type: fix
 created: 2026-08-07
 updated: 2026-08-07
 depends_on: []
-related: []
+related: [118]
 discovered_from: [188, 189]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-07-bsd-tool-default-sweep-templated-mktemp-and-non-interactive-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-07-bsd-tool-default-sweep-templated-mktemp-and-non-interactive-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-bsd-tool-default-sweep-templated-mktemp-and-non-interactive-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -38,13 +41,32 @@ Verified 2026-08-07:
 
 ## What changes
 
-- Template every bare `mktemp -d` in `scripts/` (`"${TMPDIR:-/tmp}/<name>.XXXXXX"` form).
-- Convert the 15 bare atomic-replace `mv` sites to `mv -f`. Carve out `archive-change.sh:95`'s `git mv` explicitly — different tool, different prompting semantics.
-- Add a shape-keyed repo-wide guard for both classes (new bare `mktemp -d` or bare `mv "` in `scripts/` reddens), designed to avoid the brittleness the 0186 test comment named.
-- Promote both rules to `AGENTS.md` (non-interactive flags; TMPDIR-respecting mktemp).
-- Audit `cp`/`rm` interactive-prompt analogues while sweeping (expected outcome per #0188: none — verify).
+Settled — see the spec (2026-08-07). Groom-time audit widened the sweep along the stub's own
+title ("templated mktemp"): bare *file* `mktemp` is probe-verified equally TMPDIR-ignoring on
+macOS, so both forms are swept (23 sites), not only `-d`. Scope includes the repo-root entry
+scripts the stub itself names (`sync-agents.sh`) plus `install.sh`/`migrate-to-docket.sh` and
+`scripts/lib`+`scripts/runners`; `tests/` stays excluded.
+
+- Template every untemplated `mktemp` (both forms) to `"${TMPDIR:-/tmp}/<script-name>.XXXXXX"`
+  (the `migrate-to-docket.sh` precedent). Six existing beside-destination templated sites are
+  correct (atomic same-filesystem rename) and stay untouched.
+- Convert the 17 bare atomic-replace/rename `mv` sites (15 in `scripts/` + 2 repo-root) to
+  `mv -f`. Carve out `archive-change.sh:95`'s `git mv` — different tool, different prompting
+  semantics; the guard's allowance keys on its actual `$GIT … mv` spelling.
+- New shape-keyed guard `tests/test_bsd_tool_defaults.sh`: no bare `mv "` (two split ERE
+  patterns under a pinned `/usr/bin/grep` — the combined spelling is vacuous under PATH ugrep,
+  probe-verified), and every `$(mktemp` line must carry an `XXXXXX` template (deliberately
+  template-required, not TMPDIR-required). Population floors + mutation tests; avoids the
+  brittleness the 0186 test comment named.
+- Behavioral pin where a fixture already depends on TMPDIR: `test_backfill_change_types.sh`
+  asserts the stage remnant lands under the redirected fixture tmpdir.
+- Promote both rules to `AGENTS.md` `## Shell` directly via this PR (not a learnings
+  promotion): non-interactive `mv -f` on install paths; always-template `mktemp`
+  (TMPDIR-rooted unless beside-destination for atomic rename).
+- `cp`/`rm` audit closed with corrected shapes (`cp -i`; any `rm` lacking `-f` — BSD `rm`
+  prompts *without* `-i` on a write-protected target with a tty): zero sites; build re-verifies.
 
 ## Out of scope
 
 - Sweeping existing leaked `uchg` debris from past runs (age-gated cleanup, if ever, is separate).
-- `tests/` fixtures (this change is `scripts/`-scoped; the tests/lib fixture change owns test-side hygiene).
+- `tests/` fixtures (test-side hygiene is owned by the tests/lib fixture change).
