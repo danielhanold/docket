@@ -29,6 +29,10 @@ One curated finding per file; this index is the hint surface. Load it, then read
 - [restatement-accumulates-its-own-guards](restatement-accumulates-its-own-guards.md) — Deleting a restatement is never a one-file edit — tests grep the COPY, not the source, so the copy has quietly become load-bearing. · also: testing, refactoring ⟨needs promotion⟩
 - [shared-resource-keeps-first-owner-assumptions](shared-resource-keeps-first-owner-assumptions.md) — When a single-owner resource gains a second owner, the prose and predicates written for the first owner stay valid-looking and become wrong — and single-owner fixtures pass against the old predicate, so nothing goes red. · also: testing, guards ⟨needs promotion⟩
 
+## exit-codes
+
+- [exit-code-encodes-a-non-failure](exit-code-encodes-a-non-failure.md) — A new exit code for a non-failure condition reads as a hard failure at every bare non-zero consumer — enumerate the callers before minting it, and default the advisory case to 0. · also: contracts, gates ⟨needs promotion⟩
+
 ## git
 
 - [cas-re-read-fresh-origin](cas-re-read-fresh-origin.md) — A CAS retry must re-derive eligibility from FRESH ORIGIN state — re-reading the working tree you just wrote always reads back your own write and mislabels every real race as a no-op. · also: concurrency, scripts ⟨needs promotion⟩
@@ -99,6 +103,10 @@ One curated finding per file; this index is the hint surface. Load it, then read
 - [specified-but-unreachable](specified-but-unreachable.md) — Sentinels over prose assert a claim is PRESENT, never that it is REACHABLE — where a contract has a producer and a consumer, anchor one assert on the producer. · also: sentinels, review ⟨needs promotion⟩
 - [test-helper-interpolates-its-own-description](test-helper-interpolates-its-own-description.md) — A helper that interpolates a caller-supplied description into a double-quoted string executes any backticks in it — a guard's own harness can mutate the tree it is testing. · also: shell, guards ⟨needs promotion⟩
 - [test-premise-deleted-not-regated](test-premise-deleted-not-regated.md) — When a change invalidates a test's premise, ask what the block GUARDS, not what it asserts. · also: guards, refactoring
+
+## thresholds
+
+- [tolerance-constant-calibrated-on-one-machine](tolerance-constant-calibrated-on-one-machine.md) — A tolerance constant measured on one machine's contention profile is wrong in both directions elsewhere — too tight it flakes, too loose enforcement goes vacuous; record the measurement, not just the number. · also: performance, portability
 
 ## ux
 

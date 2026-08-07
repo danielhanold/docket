@@ -2,9 +2,9 @@
 slug: guard-remedy-must-not-teach-the-evasion
 hook: "A count-based guard whose failure message says 'bump the expected count' teaches the evasion — budget the coverage-granting path with its own counter."
 topics: [guards, testing, invariants]
-changes: [122, 167]
+changes: [122, 167, 227]
 created: 2026-07-28
-updated: 2026-07-30
+updated: 2026-08-07
 promotion_state: candidate
 promoted_to:
 ---
@@ -59,3 +59,26 @@ guard's *unit of admission* was the hole.
   block, not by re-budgeting. Read a count-bump in a diff as a **finding to investigate**, never as
   bookkeeping: the guard is reporting that something grew, and the interesting question is always
   whether the growth earned its lines.
+- 2026-08-07 (#227, PR #165 — merged) — The relief counter itself was **documented as exhaustive and
+  was not**. The runtime-budget guard carried two "relief counters" whose stated purpose was to make
+  laundering a number impossible. Review found three holes: counter A only fired **above 60s**, so
+  raising any row to ≤60 evaded all five assertions; and a fourth relief path nobody had counted —
+  adding `--no-budget-check` at the **wiring site** — turned the entire budget table into decoration
+  with the suite fully green.
+
+  The lesson sharpens rule 2 above: enumerating relief paths is the work, and a *claim* that you
+  enumerated them is not evidence. Two things closed it, and note that neither is another per-row
+  counter — both are properties no single row can move:
+
+  1. **Pin the aggregate.** The table's **total** is asserted at `EXPECTED_TOTAL`. A row edited from
+     35 to 60 breaks no ceiling and pins nothing serial, but it moves the sum, so the quiet edit
+     reddens on its own.
+  2. **Assert the guard is still wired.** The check now asserts the resolved `finalize.test_command`
+     runs the runner and does **not** pass `--no-budget-check`. A guard that can be disabled at its
+     call site has a relief path that no amount of internal counting will ever see
+     ([[specified-but-unreachable]]).
+
+  Generalize: when auditing a count-based guard, include **"disable the check"** and **"stay under
+  the threshold that arms the counter"** in the list of evasions. The first is usually a flag at the
+  wiring site; the second is a counter whose own guard condition is narrower than the property it
+  claims to protect.
