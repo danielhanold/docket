@@ -326,24 +326,47 @@ for f in "${FILES[@]}"; do
   # bare true/false BY DESIGN and are not scanned. Reads the RAW token (field_raw / fm_field_raw):
   # field()/fm_field() unwrap surrounding quotes, which would make a quoted colon-space look exactly
   # like a bad bare one. blocked_by is read via the anchored fm_field_raw so an ABSENT blocked_by
-  # does not fall through to a body-prose line. One finding per violated leg per field; warn-only;
-  # never marks EXPLAINED (a malformed scalar does not drop a board row). Three legs:
-  #   skip        — empty, or the raw value opens with " or ' (quoted is well-formed by definition;
-  #                 never inspect the interior).
-  #   colon-space — the unquoted raw value contains ': '.
-  #   boolean     — the unquoted raw value is exactly one of on off yes no true false, whole-value
-  #                 and case-insensitive (YAML 1.1).
+  # does not fall through to a body-prose line. At most ONE finding per field — the predicate
+  # reports the FIRST matching leg and stops, since one reason is enough to demand a quote; warn-only;
+  # never marks EXPLAINED (a malformed scalar does not drop a board row). One skip leg here plus
+  # the five syntax legs of docket_scalar_quote_reason, in that predicate's evaluation order:
+  #   skip               — empty, or the raw value opens with " or ' (quoted is well-formed by
+  #                        definition; never inspect the interior).
+  #   colon-space        — the unquoted raw value contains a colon followed by a space.
+  #   trailing-colon     — the unquoted raw value ends in a colon (the shape that let change 0173
+  #                        through unreported, change 0235).
+  #   bare-boolean       — the unquoted raw value is exactly one of on off yes no true false,
+  #                        whole-value and case-insensitive (YAML 1.1).
+  #   comment-introducer — the unquoted raw value contains a space-hash pair, which opens a YAML
+  #                        comment and silently TRUNCATES the value rather than aborting the parse.
+  #   indicator          — the unquoted raw value opens with a YAML indicator character.
   scalar_form_check(){ # scalar_form_check FIELD RAW
-    local sfc_field="$1" sfc_raw="$2"
+    local sfc_field="$1" sfc_raw="$2" sfc_reason
     case "$sfc_raw" in
       ''|\"*|\'*) return 0 ;;   # skip leg: empty, or opens with a quote -> well-formed, never inspected
     esac
-    case "$sfc_raw" in
-      *': '*) emit scalar-form "$cid" "$sfc_field: unquoted scalar contains ': ' — quote it or reword (well-formed YAML)" ;;
-    esac
-    case "$sfc_raw" in
-      [Oo][Nn]|[Oo][Ff][Ff]|[Yy][Ee][Ss]|[Nn][Oo]|[Tt][Rr][Uu][Ee]|[Ff][Aa][Ll][Ss][Ee])
-        emit scalar-form "$cid" "$sfc_field: unquoted bare YAML boolean ($sfc_raw) — quote it or reword (well-formed YAML)" ;;
+    # The syntax legs live in ONE place — lib/docket-frontmatter.sh's docket_scalar_quote_reason —
+    # so the checker and any future consumer cannot drift into two copies of the same rule
+    # (change 0235). The skip arm above stays here: it is the only leg that needs the RAW token,
+    # and pushing it into the predicate would wrongly skip a value that logically STARTS with a
+    # quote character. The messages stay here too, because a finding is this script's output shape.
+    sfc_reason="$(docket_scalar_quote_reason "$sfc_raw")"
+    case "$sfc_reason" in
+      colon-space)
+        emit scalar-form "$cid" "$sfc_field: unquoted scalar contains ': ' — quote it or reword (well-formed YAML)"
+        ;;
+      trailing-colon)
+        emit scalar-form "$cid" "$sfc_field: unquoted scalar ends with ':' — quote it or reword (well-formed YAML)"
+        ;;
+      bare-boolean)
+        emit scalar-form "$cid" "$sfc_field: unquoted bare YAML boolean ($sfc_raw) — quote it or reword (well-formed YAML)"
+        ;;
+      comment-introducer)
+        emit scalar-form "$cid" "$sfc_field: unquoted scalar contains ' #', a YAML comment introducer that silently truncates it — quote it or reword (well-formed YAML)"
+        ;;
+      indicator)
+        emit scalar-form "$cid" "$sfc_field: unquoted scalar opens with a YAML indicator character — quote it or reword (well-formed YAML)"
+        ;;
     esac
   }
   sf_title="$(field_raw "$f" title)"

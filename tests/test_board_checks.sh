@@ -697,6 +697,56 @@ s85line="$(grep -E "$(printf "^scalar-form\t85\t")" <<<"$s85out")"
 assert "the uppercase-boolean finding quotes the TRUE value (id 85)" \
   'grep -qF -- "unquoted bare YAML boolean (TRUE)" <<<"$s85line"'
 
+# Trailing colon — the leg whose absence let change 0173 sit unreported (change 0235).
+read -r S86 _ < <(new_repo)
+mk_sf "$S86" 86 trailing-colon-title 'title: a model ID containing / or :'
+s86out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$S86/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "scalar-form fires for a title ENDING in a colon (id 86, trailing-colon leg)" \
+  'has_finding "$s86out" scalar-form 86'
+s86line="$(grep -E "$(printf "^scalar-form\t86\t")" <<<"$s86out")"
+assert "the trailing-colon finding names the title field and the shape (id 86)" \
+  'grep -qF -- "title: unquoted scalar ends with" <<<"$s86line"'
+
+# ' #' opens a YAML comment: it TRUNCATES silently rather than aborting, so it is the quieter defect.
+read -r S84 _ < <(new_repo)
+mk_sf "$S84" 84 hash-title 'title: clear finding #3 from review'
+s84out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$S84/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "scalar-form fires for a title containing ' #' (id 84, comment-introducer leg)" \
+  'has_finding "$s84out" scalar-form 84'
+
+# A leading YAML indicator character.
+read -r S83 _ < <(new_repo)
+mk_sf "$S83" 83 indicator-title 'title: [WIP] rework the runner'
+s83out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$S83/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "scalar-form fires for a title opening with a YAML indicator (id 83, indicator leg)" \
+  'has_finding "$s83out" scalar-form 83'
+
+# --- GREEN near-misses for the new legs: each is well-formed bare YAML and must stay SILENT ---
+read -r S82 _ < <(new_repo)
+mk_sf "$S82" 82 hash-nospace-title 'title: issue#3 reopened by the reporter'
+s82out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$S82/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "scalar-form SILENT for a '#' not preceded by whitespace (id 82)" \
+  '! has_finding "$s82out" scalar-form 82'
+
+read -r S81 _ < <(new_repo)
+mk_sf "$S81" 81 interior-dash-title 'title: a well-formed title with an interior dash'
+s81out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$S81/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "scalar-form SILENT for an interior dash (id 81)" \
+  '! has_finding "$s81out" scalar-form 81'
+
+read -r S80 _ < <(new_repo)
+mk_sf "$S80" 80 colon-nospace-title 'title: the a:b ratio holds'
+s80out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$S80/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "scalar-form SILENT for a colon with no following space (id 80)" \
+  '! has_finding "$s80out" scalar-form 80'
+
+# The SINGLE-quoted shape mint-stub now always writes must be accepted by the checker it will meet.
+read -r S79 _ < <(new_repo)
+mk_sf "$S79" 79 minted-shape-title "title: 'The manifest''s elsewhere: check proves a word occurrence'"
+s79out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$S79/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "scalar-form SILENT for the exact shape mint-stub now writes (id 79, skip leg)" \
+  '! has_finding "$s79out" scalar-form 79'
+
 # Unquoted colon-space blocked_by.
 read -r S92 _ < <(new_repo)
 mk_sf "$S92" 92 colonspace-blocked 'blocked_by: a: b'
