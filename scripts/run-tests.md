@@ -114,8 +114,19 @@ loaded laptop, and a flaky gate teaches people to pass `--no-budget-check`, whic
 gate. Second, and larger: a ceiling is a claim about a file's cost measured *serially*, but
 enforcement happens inside a parallel run where every job competes for the machine. Measured
 contention inflation on the change-0227 hardware reached 2.22x, so the original 3/2 factor rejected
-11 healthy files. 5/2 covers that worst case with margin and still catches regrowth — a file that
-doubles its own serial cost breaches, because its ceiling did not move.
+11 healthy files. 5/2 covers that worst case with margin.
+
+**What that leaves the comparison able to catch, stated honestly.** A breach needs `measured >
+ceiling * 2.5`, and the seeded ceiling already sits 5–10s *above* the file's measured serial cost
+(rounded up to the next multiple of 5, plus a 5s margin, minimum 10s). So the growth multiple a
+file must actually reach is not 2x — it runs from roughly **2.75x** for the largest rows to about
+**25x** for a ~1s file sitting on the 10s floor, and 69 of the table's 86 rows are on that floor.
+This comparison is therefore a check on the **tail**: it catches a big file getting much bigger,
+which is the shape that produced the original 629s suite. It does not notice a small file tripling.
+What covers the small rows is not this comparison at all but the table itself — `EXPECTED_TOTAL` in
+`tests/test_runtime_budgets.sh` pins the sum of every ceiling, so a row cannot be raised to absorb
+growth without reddening. A contention-independent basis that would let the per-file comparison
+bite lower down is change **0229**'s.
 
 A breach does not mask a failure. Failures win: a run with both reports exit 1.
 
@@ -153,14 +164,17 @@ report — and turns fatal only for a caller that opted in.
 
 **What this costs, stated plainly.** Nothing in this repo runs `--strict-budget` automatically
 today (there is no CI; the suite is the gate). So the third pillar of change 0227 — a runtime
-budget so the tail cannot regrow — is currently defended by three things, none of which is an
-automatic red:
+budget so the tail cannot regrow — is currently defended by three things, none of which turns a
+*measured* breach into an automatic red:
 
 1. Every default run **prints** `OVER BUDGET:` with the offending files and the shard remedy,
    including the merge-gate run, whose output a human or agent reads.
-2. `tests/test_runtime_budgets.sh` still hard-fails on the table's *structure* — a missing row for
-   a new test file, a row above the 60s ceiling, any `serial` pin. The table cannot be laundered,
-   only ignored.
+2. `tests/test_runtime_budgets.sh` still hard-fails on the table itself — a missing row for a new
+   test file, a row above the 60s ceiling, any `serial` pin, **any change to the sum of every
+   ceiling**, and a configured `finalize.test_command` that passes `--no-budget-check`. The last
+   two are what make this a real defence rather than a structural one: a row raised from 35 to 60
+   breaks no ceiling and pins nothing serial, and disarming the check at the merge gate leaves
+   every other assertion green. Both now redden on their own.
 3. `--strict-budget` exists for a caller that knows what it is asking for. Run it at `-j 1`, where
    a serial ceiling is the honest comparison, if you want the sharp answer today.
 

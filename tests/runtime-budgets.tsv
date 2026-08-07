@@ -10,8 +10,11 @@
 # before adding one — the usual right answer is to EXTEND an existing shard.
 #
 # NO row may exceed 60 seconds. If a file outgrows its ceiling, shard it or move the new
-# assertions into a shard with room. Raising a number here is not the remedy: the guard
-# counts over-ceiling rows separately, so laundering one still reddens.
+# assertions into a shard with room. Raising a number here is not the remedy, and it is not
+# a quiet edit either: tests/test_runtime_budgets.sh pins the SUM of every ceiling in this
+# table (EXPECTED_TOTAL), so a raise of any size reddens whether or not it breaks the 60s
+# ceiling. The total does legitimately move when a new test file brings its own row, or when
+# a sharded file's rows are re-cut — re-seed it from a measured serial run and say which.
 tests/test_adr_checks.sh	10	parallel
 tests/test_artifact_backlink_coverage.sh	10	parallel
 tests/test_auto_groom.sh	10	parallel
