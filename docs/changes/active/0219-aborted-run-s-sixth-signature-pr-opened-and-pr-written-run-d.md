@@ -7,11 +7,11 @@ priority: high
 type: fix
 created: 2026-08-05
 updated: 2026-08-07
-claimed_at: 2026-08-07T16:07:03Z
+claimed_at: 2026-08-07T17:40:09Z
 depends_on: [211]
 related: [200, 222]
 discovered_from: [211]
-adrs: []
+adrs: [72]
 spec: docs/superpowers/specs/2026-08-07-aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d-design.md
 plan: docs/superpowers/plans/2026-08-07-aborted-run-step-7-seam.md
 results:
@@ -30,6 +30,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-07-aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d-design.md) |
 | Plan | [2026-08-07-aborted-run-step-7-seam.md](https://github.com/danielhanold/docket/blob/feat/aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d/docs/superpowers/plans/2026-08-07-aborted-run-step-7-seam.md) |
+| ADRs | [ADR-0072](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0072-leg-c-predicate-duplicated-by-value-across-two-scripts.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
