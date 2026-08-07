@@ -545,6 +545,11 @@ assert "auto-capture: site C keeps its own admission bar, not the six gates" \
 # the section embeds a fenced example body whose first line is the literal `## Why` that
 # `mint-stub.sh` requires, so a generic top-level-heading terminator cuts the slice off immediately
 # before the very heading — and the five fields — this block exists to guard.
+# The named terminator is itself asserted: a marker-keyed extractor only validates the markers it
+# finds, so renaming `## Per discovery` would silently widen the slice to end-of-file with every
+# positive AND negative assert below still green.
+assert "auto-capture: the capture-fields terminator section exists" \
+  'grep -qE "^## Per discovery$" "$AC"'
 ac_fields="$(awk '/^## What a captured discovery says/{f=1;next} /^## Per discovery/{f=0} f' "$AC")"
 assert "auto-capture: the capture-fields section was located (non-vacuity anchor)" \
   '[ -n "$ac_fields" ]'
@@ -556,8 +561,24 @@ for fld in Trigger Opportunity "Independent value" Boundary "Reason for deferral
   assert "auto-capture: capture field '$fld' is NOT a top-level heading (mint-stub body contract)" \
     '! grep -qiE "^## '"$fld"'" <<<"$ac_fields"'
 done
+# Keyed on the CONTRACT, not the token: a bare `mint-stub` grep stays green if the "start with
+# `## Why`" clause is reworded to its opposite or demoted to a passing mention. Exactly ONE bounded
+# gap (ugrep backtracks catastrophically on non-matching input — the mutated file — when two are
+# stacked), and the class is `[^;]` rather than `[^.]` because the very next character after the
+# anchor is the `.` in `mint-stub.sh`. The bound stays under the 255 ERE repetition ceiling BSD
+# grep enforces.
+ac_fields_flat="$(flatten <<<"$ac_fields")"
 assert "auto-capture: the mint-stub '## Why' body contract is stated where the fields are" \
-  'grep -qiF -- "mint-stub" <<<"$(flatten <<<"$ac_fields")"'
+  'grep -qiE "mint-stub[^;]{0,200}start with \`## Why\`" <<<"$ac_fields_flat"'
+# The invariant is POSITIONAL: mint-stub.sh rejects a body that does not START with `## Why`, so an
+# example rewritten with the five fields first and the heading last would satisfy every presence
+# assert above while documenting a body the script exits 1 on. Assert the order directly.
+ac_why_ln="$(awk '/^## Why$/{print NR; exit}' <<<"$ac_fields")"
+ac_trigger_ln="$(awk '/^\*\*Trigger\*\*/{print NR; exit}' <<<"$ac_fields")"
+assert "auto-capture: the '## Why' heading and the first field line were both located" \
+  '[ -n "$ac_why_ln" ] && [ -n "$ac_trigger_ln" ]'
+assert "auto-capture: the '## Why' heading precedes the labelled field lines" \
+  '[ -n "$ac_why_ln" ] && [ -n "$ac_trigger_ln" ] && [ "$ac_why_ln" -lt "$ac_trigger_ln" ]'
 
 # --- change 0226: the convention SUMMARY stays a summary (progressive disclosure) -----------
 # The summary is what a mint site reads inline before deciding whether to drill down. It must carry
