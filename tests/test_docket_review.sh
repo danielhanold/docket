@@ -541,6 +541,43 @@ done
 assert "auto-capture: the mint-stub '## Why' body contract is stated where the fields are" \
   'grep -qiF -- "mint-stub" <<<"$(flatten <<<"$ac_fields")"'
 
+# --- change 0226: the convention SUMMARY stays a summary (progressive disclosure) -----------
+# The summary is what a mint site reads inline before deciding whether to drill down. It must carry
+# the intent and the pointer; the categories, gates, fields, and routing table live ONLY in the
+# reference. The negative asserts are the load-bearing half: a well-meaning future edit that copies
+# the gates up here is exactly the restatement class this project keeps paying for, and a
+# presence-only guard would never see it.
+CONV="$REPO/skills/docket-convention/SKILL.md"
+ac_sum="$(awk '/^### Auto-capture \(shared definition\)/{f=1;next} /^### /{f=0} f' "$CONV")"
+assert "convention: the Auto-capture summary section was located (non-vacuity anchor)" \
+  '[ -n "$ac_sum" ]'
+ac_sum_flat="$(flatten <<<"$ac_sum")"
+assert "convention: the summary leads with capability-discovery intent" \
+  'grep -qiE "(capability|independently valuable)[^.]{0,160}(discover|discovery)" <<<"$ac_sum_flat"'
+# Keyed on "admission gate", not the plan's looser "admission|gate": the pre-change summary already
+# said "waits at the human's groom gate", so the loose alternation was satisfied by prose about a
+# different gate entirely and stayed green through the very rewrite it exists to demand.
+assert "convention: the summary names the strict admission gating without enumerating it" \
+  'grep -qiE "admission gate" <<<"$ac_sum_flat"'
+assert "convention: the summary keeps its blocking drill-down pointer" \
+  'grep -qF -- "references/auto-capture.md" <<<"$ac_sum_flat"'
+assert "convention: the drill-down pointer is BLOCKING" \
+  'grep -qiE "blocking" <<<"$ac_sum_flat"'
+# Progressive disclosure, asserted as absence. Each of these is a thing the reference owns.
+assert "convention: the summary does NOT enumerate the discovery categories" \
+  '! grep -qiE "reusable capabilit|tooling opportunit" <<<"$ac_sum_flat"'
+assert "convention: the summary does NOT enumerate the six admission gates" \
+  '! grep -qE "^[0-9]+\. " <<<"$ac_sum"'
+assert "convention: the summary does NOT carry the routing table" \
+  '! grep -qE "^\| " <<<"$ac_sum"'
+assert "convention: the summary does NOT carry the five capture fields" \
+  '! grep -qiE "reason for deferral" <<<"$ac_sum_flat"'
+# Mechanics that MUST stay inline — the summary is not a bare pointer either.
+for tok in AUTO_CAPTURE_ENABLED AUTO_CAPTURE_TYPES policy-suppressed docket-auto-groom; do
+  assert "convention: the summary keeps the '$tok' mechanic inline" \
+    'grep -qF -- "'"$tok"'" <<<"$ac_sum_flat"'
+done
+
 # --- the PR body records a disposition, not a wishlist ------------------------
 EP="$REPO/skills/docket-implement-next/references/edge-paths.md"
 ep_body="$(cat "$EP" 2>/dev/null)"

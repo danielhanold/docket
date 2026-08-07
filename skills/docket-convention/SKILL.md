@@ -262,14 +262,15 @@ A stub is **autonomous-eligible** — selectable by `docket-auto-groom` — when
 
 ### Auto-capture (shared definition)
 
-`auto_capture` (a map: `enabled` default `false`, `types` default `all`; global-able — resolved as
-`AUTO_CAPTURE_ENABLED` / `AUTO_CAPTURE_TYPES`) governs what an **autonomous** skill does with
-genuine follow-up work it discovers mid-run. Disabled, the model reports it in prose; enabled, it
-**classifies** the work and — only if that type is admitted — mints an ordinary `proposed`
-needs-brainstorm stub (`mint-stub --type`, one per call) with `discovered_from:` and `type:` set.
-Capture fidelity, **not** autonomy: every stub still waits at the human's groom gate. A type
-outside policy is reported as **policy-suppressed**, never minted — and type filtering runs
-**before the cap** is consumed.
+Auto-capture is **capability discovery under strict admission gates**: an autonomous skill actively
+looks for independently valuable work it discovers mid-run — and files it only if that work clears
+every gate. `auto_capture` (a map: `enabled` default `false`, `types` default `all`; global-able —
+resolved as `AUTO_CAPTURE_ENABLED` / `AUTO_CAPTURE_TYPES`) governs what happens then. Disabled, the
+model reports it in prose; enabled, it **classifies** the work and — only if that type is admitted —
+mints an ordinary `proposed` needs-brainstorm stub (`mint-stub --type`, one per call) with
+`discovered_from:` and `type:` set. Capture fidelity, **not** autonomy: every stub still waits at
+the human's groom gate. A type outside policy is reported as **policy-suppressed**, never minted —
+and type filtering runs **before the cap** is consumed.
 
 **Mint sites** are the autonomous *single-change* skills: `docket-implement-next` (reconcile and
 review) and the `docket-finalize-change` / `docket-status` harvest. **`docket-auto-groom` is never a
@@ -278,9 +279,9 @@ provable-termination invariant. **Interactive skills need no auto-capture path**
 present to decide what gets filed.
 
 Discovered follow-up work mid-run → **read [`references/auto-capture.md`](references/auto-capture.md)
-now (blocking)** before minting or suppressing — it owns the materiality bar, the
-classify → admit → suppress sequence, the deterministic mint invocation with its exit codes, and
-the cross-site `--minted` count carry-forward.
+now (blocking)** before minting or suppressing — it owns what to look for, the admission gates and
+the suppression list, the materiality bar, the per-site routing, what a captured discovery must say,
+and the deterministic mint with its exit codes and cross-site `--minted` carry-forward.
 
 ### Learnings ledger
 
