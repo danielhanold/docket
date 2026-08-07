@@ -660,12 +660,28 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # 120, 957 words -> 1000. The next multiple of 5 is 115, but that leaves THREE lines of margin, which
 # this block has twice recorded raising past (TWO lines above, ZERO lines in the entry immediately
 # preceding) — so the multiple after it, 120. 1000 leaves 43 words (above the within-25 threshold).
+# skills/docket-build/SKILL.md's budget was raised 320/2950 -> 325/3000 by change 0231, which
+# extended the *A worker return is malformed or unverifiable* halting bullet with the sibling
+# prohibition on discard-and-re-dispatch, and extended § *Dispatching a task*'s concurrency ban to
+# a controller who believes the first worker is gone. The two references/ files that exist under
+# skills/docket-build/ were both considered and neither can hold this prose. gate-execution.md is
+# scoped to the build GATE's execution posture — how to run the suite and observe its result — and
+# this rule fires at worker dispatch, before any gate runs. task-routing.md is the profile-selection
+# rubric, shared with docket-implement-next's fix loop, and a dispatch-safety prohibition stated
+# there would reach the fix loop in docket-build's disposition vocabulary, which is the exact
+# mis-import change 0231 avoids by giving fix-loop.md its own sentence. A halting condition must
+# also sit in the halting-conditions list a controller reads at the moment it decides what to do
+# with a bad return; a rule in an unread reference cannot intervene at that moment. Set per the
+# rounding rule above from the measured actuals: 318 lines -> the next multiple of 5 is 320, which
+# leaves 2 lines — the near-zero mode this block warns about, and the same reading the rows above
+# took — so the multiple after: 325. 2947 words -> the next multiple of 50 is 2950, which leaves a
+# 3-word margin (well inside the 25-word threshold), so the multiple after: 3000.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
 skills/docket-auto-groom/SKILL.md                           66 1237
 skills/docket-brainstorm/SKILL.md                           84  692
-skills/docket-build/SKILL.md                               320 2950
+skills/docket-build/SKILL.md                               325 3000
 skills/docket-build/references/gate-execution-evidence.md  110 1050
 skills/docket-build/references/gate-execution.md            120 1000
 skills/docket-build/references/task-routing.md              50  500

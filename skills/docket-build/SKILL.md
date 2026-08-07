@@ -76,9 +76,11 @@ Dispatch the profile agent **by name**, foreground, one task at a time — later
 earlier task commits and share the worktree, so workers are strictly sequential. Give the worker:
 the plan task text, the branch and worktree, the applicable repository instructions, the selected
 profile and routing reason, and the completion schema. Never dispatch a task reviewer, and
-never dispatch two workers concurrently. Never preload a review skill either — for a **named**
-agent the wrapper's own `skills:` frontmatter is the operative protection, so what this rule
-actually forbids is bolting a review skill or a review instruction onto the dispatch prompt.
+never dispatch two workers concurrently — that binds a controller who *believes the first worker
+is gone* exactly as it binds one dispatching deliberately. Never preload a review skill either —
+for a **named** agent the wrapper's own `skills:` frontmatter is the operative protection, so what
+this rule actually forbids is bolting a review skill or a review instruction onto the dispatch
+prompt.
 A worker reached through a runner delegation receives its worktree through the facade's
 `--worktree` flag, not through the prompt body alone.
 
@@ -164,7 +166,11 @@ disposition.
   to a default.
 - **A worker return is malformed or unverifiable** — a missing or unparsable outcome, a `COMPLETE`
   whose commit is absent, unresolvable, or not an ancestor of the branch tip, or a
-  `NEEDS_ESCALATION` with no concrete reason. Never re-dispatch a task to repair its own return.
+  `NEEDS_ESCALATION` with no concrete reason. Never re-dispatch a task to repair its own return,
+  and never discard the worktree and dispatch a fresh worker for that task either: a worker you
+  did not observe return cleanly may still be running, and it wakes into the same worktree its
+  replacement is writing. Halt naming the task and the worktree, and leave the worktree exactly
+  as it stands.
 - **A task's escalation allowance is exhausted** — an initial `max` worker requests escalation,
   or an escalated worker still cannot finish.
 - **A failed attempt left a commit** — name the stray SHA; do not escalate onto it.

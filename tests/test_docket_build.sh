@@ -10,6 +10,11 @@ ROUTING="$REPO/skills/docket-build/references/task-routing.md"
 fail=0
 assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
 
+# Collapse runs of whitespace so a phrase assert survives a pure re-flow of hard-wrapped markdown
+# (learnings: phrase-grep-over-wrapped-prose). Runs, not only newlines: an indented list
+# continuation leaves several spaces behind, and `tr '\n' ' '` alone would not close them up.
+flat(){ tr -s '[:space:]' ' ' <<<"$1"; }
+
 # ---------------------------------------------------------------------------
 # docket-build-task — the worker contract
 # ---------------------------------------------------------------------------
@@ -431,6 +436,64 @@ assert "controller: an undetectable suite is a configuration gap, not a red suit
 # commits and the exactly-one-commit accounting is already contaminated.
 assert "controller: does not escalate onto a commit left by a failed attempt" \
   'grep -qiE "\b(do not|does not|never)\b escalate onto a stray commit" <<<"$ctrl_body"'
+
+# ---------------------------------------------------------------------------
+# Change 0231 — never discard a dispatched worker's tree and re-dispatch.
+#
+# A worker that did not return with a schema-valid outcome may still be RUNNING; discarding its
+# tree and dispatching a replacement puts two workers in one worktree, which is how change 0223's
+# double-write happened. Both asserts below are region-scoped rather than whole-file: the phrase
+# "dispatch a fresh worker" would also match a future summary line or the frontmatter description,
+# and a whole-file grep cannot observe the rule being removed from the bullet that owns it.
+# ---------------------------------------------------------------------------
+
+# The malformed-return halting bullet, sliced from its own "- **" line to the next one.
+ctrl_malformed="$(awk '
+  /^- \*\*A worker return is malformed/ {inb=1; print; next}
+  inb && /^- \*\*/ {exit}
+  inb {print}
+' <<<"$ctrl_body")"
+ctrl_malformed_flat="$(flat "$ctrl_malformed")"
+
+# Non-vacuity through the SAME extractor: a renamed bullet, a reflowed heading, or a broken awk
+# range would empty $ctrl_malformed and turn the negative assert below into a permanent green.
+# The companion reads a clause that predates this change and must still be there.
+assert "controller: the malformed-return halting bullet is extractable" \
+  '[ -n "$ctrl_malformed_flat" ] &&
+   grep -qF -- "Never re-dispatch a task to repair its own return" <<<"$ctrl_malformed_flat"'
+
+assert "controller: that bullet also forbids discarding the worktree and dispatching a fresh worker" \
+  'grep -qiF -- "never discard the worktree and dispatch a fresh worker" <<<"$ctrl_malformed_flat"'
+
+assert "controller: the bullet gives the still-running worker as the reason" \
+  'grep -qiE "did not observe return cleanly.{0,120}still be running" <<<"$ctrl_malformed_flat"'
+
+assert "controller: the bullet preserves the worktree rather than cleaning it" \
+  'grep -qiE "leave the worktree" <<<"$ctrl_malformed_flat"'
+
+# The trigger is the observable event, never elapsed patience. An undefined time threshold in a
+# normative contract is unactionable and invites exactly the improvisation this change closes.
+assert "controller: the bullet keys on the return, not on elapsed time" \
+  '! grep -qiE "(minutes|elapsed|timed out|timeout|too long|patience)" <<<"$ctrl_malformed_flat"'
+
+# A5: the rule must not claim it reaches finalize, which neither loads nor references docket-build.
+# Scoped by proximity rather than banning the word file-wide — the build gate legitimately cites
+# skills/docket-finalize-change/SKILL.md as the single source of the suite-command block.
+assert "controller: the prohibition does not claim to cover docket-finalize-change" \
+  '! grep -qiE "never discard the worktree and dispatch a fresh worker.{0,200}finalize" <<<"$(flat "$ctrl_body")"'
+
+# The concurrency ban in the dispatch section, sliced to that section.
+ctrl_dispatch="$(awk '/^## Dispatching a task/{f=1;next} f&&/^## /{exit} f' <<<"$ctrl_body")"
+ctrl_dispatch_flat="$(flat "$ctrl_dispatch")"
+
+assert "controller: the Dispatching a task section is extractable" \
+  '[ -n "$ctrl_dispatch_flat" ] &&
+   grep -qF -- "Dispatch the profile agent" <<<"$ctrl_dispatch_flat"'
+
+# Detect the REMOVED state: the bare concurrency ban that stopped at deliberate dispatch and did
+# not reach a controller acting on a belief. Mutating the clause back to its bare form reddens this.
+assert "controller: the concurrency ban binds a controller that believes the first worker is gone" \
+  'grep -qiE "never dispatch two workers concurrently.{0,160}believes the first worker is gone" <<<"$ctrl_dispatch_flat"'
 
 # ---------------------------------------------------------------------------
 # The four build-profile wrappers (change 0167; retiered to four by change 0184)
