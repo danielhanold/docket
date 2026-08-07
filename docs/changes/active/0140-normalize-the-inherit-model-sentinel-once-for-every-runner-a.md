@@ -8,10 +8,10 @@ type: fix
 created: 2026-07-27
 updated: 2026-08-07
 depends_on: []
-related: []
+related: [135, 205]
 discovered_from: [135]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-07-normalize-the-inherit-model-sentinel-once-for-every-runner-a-design.md
 plan:
 results:
 trivial: false
@@ -25,42 +25,47 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-07-normalize-the-inherit-model-sentinel-once-for-every-runner-a-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-normalize-the-inherit-model-sentinel-once-for-every-runner-a-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
 Change 0135 fixed the `inherit` model sentinel in `scripts/runners/cursor.sh` — the adapter was
 receiving the literal string and passing `--model inherit[effort=xhigh]` to `cursor-agent`, silently
-destroying both the model pin and the effort pin and bypassing the adapter's own WARN branch (which
-keys on `-z "$MODEL"`). That was I-1 of 0135's final whole-branch review: the change's own thesis
-turned on itself, since 0135 exists because a silently-dropped pin was reported as honored.
+destroying both the model pin and the effort pin and bypassing the adapter's own WARN branch.
 
-The fix was made in the Cursor adapter only. **The twin is still live in the Codex adapter**, and
-the root cause is upstream of both: `sync-agents.sh`'s `emit_shim` bakes `--model $2` whenever the
-resolved override is non-empty, and `model: inherit` is a legal config value (it is exercised in
-`tests/test_sync_agents_cursor.sh`). `scripts/runners/codex.sh` then forwards `-m inherit` verbatim.
-Codex degrades less badly than Cursor did — it applies effort through its own separate
-`-c model_reasoning_effort=` flag, so the effort pin survives — but it still hands a non-existent
-model ID to the child.
-
-The asymmetry is the real defect: `emit_cursor_md` normalizes the sentinel, `emit_shim` does not,
-and now one adapter normalizes while the other does not. Four sites, two behaviors, one sentinel.
+Grooming (2026-08-07) re-verified the stub against today's tree; the defect is smaller than the stub
+claimed but still real. The stub's upstream root cause is **already fixed**: since changes 0168 and
+0205 (ADR-0067), a generated shim can never carry `--model inherit` — `sync-agents.sh` rejects an
+empty-or-`inherit` model for any `runner:`-bearing agent at generation time. What remains is the
+**hand-invocation path**, which every adapter contract documents: `cursor.sh` and the newer
+`opencode.sh` each normalize `inherit` → no-pin locally, while **`codex.sh` still forwards
+`-m inherit` verbatim** to the child (effort survives via its separate
+`-c model_reasoning_effort=` flag, but the child gets a non-existent model ID). And
+`runner-dispatch.sh` — the layer every adapter is dispatched through — does not normalize at all, so
+nothing owns the sentinel: three adapters, two behaviors.
 
 ## What changes
 
-Normalize docket's own `inherit` sentinel **once**, at the layer that serves every adapter — most
-likely `scripts/runner-dispatch.sh`, which already resolves config and exports the
-`DOCKET_RUNNER_CFG_*` environment — rather than per adapter. Then remove the now-redundant
-per-adapter normalization, or keep it as a defensive no-op with a comment pointing at the single
-owner.
+Per the linked spec:
 
-Fold in the small contract drift 0135 left behind: `scripts/runners/cursor.md`'s `--model` bullet
-still describes only "verbatim passthrough / omitted implies child default" and does not record that
-`inherit` is normalized to no-pin. In a repo where the co-located `.md` is the contract, behavior
-that lives only in the script is drift.
-
-Note the ADR-0015 boundary explicitly in whatever lands: `inherit` is **docket's own sentinel**, not
-a vendor value, so normalizing it is not model-ID validation and introduces no vendor allowlist.
+- **Single owner:** `scripts/runner-dispatch.sh` normalizes `inherit` → empty right after argument
+  parsing, so no adapter re-decides it. Normalize, not reject — ADR-0067 already rejects the
+  sentinel at generation time, so a dispatch-time `inherit` is a hand invocation, and the adapters'
+  documented model-less hand contract is tolerant.
+- **Defensive twins:** `codex.sh` gains the same one-line normalization the other two adapters
+  already carry; `cursor.sh`/`opencode.sh` keep theirs, with comments retargeted to point at the
+  single owner. Adapters are hand-invocable and directly tested, so removal would regress the 0135
+  defect on that path.
+- **Docs:** `runner-dispatch.md` records the sentinel rule and the ADR-0015 boundary (`inherit` is
+  docket's own sentinel — normalizing it is not model-ID validation, no vendor allowlist);
+  `cursor.md` and `codex.md` `--model` bullets record the normalization (folding in 0135's doc
+  drift; `opencode.md` already has it).
+- **Tests:** dispatch-level and codex-adapter inherit asserts in `tests/test_runner_dispatch.sh`,
+  mirroring the existing cursor/opencode adapter inherit tests, which stay untouched.
+- **No new ADR** — ADR-0015 and ADR-0067 already carry the decisions this leans on.
 
 ## Out of scope
 
