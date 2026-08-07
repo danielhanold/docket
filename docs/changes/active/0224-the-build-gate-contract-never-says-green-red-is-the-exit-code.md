@@ -10,14 +10,14 @@ updated: 2026-08-07
 depends_on: []
 related: [190, 223, 227]
 discovered_from: [203]
-adrs: []
+adrs: [74]
 spec: docs/superpowers/specs/2026-08-07-the-build-gate-contract-never-says-green-red-is-the-exit-design.md
 plan: docs/superpowers/plans/2026-08-07-the-build-gate-contract-never-says-green-red-is-the-exit-plan.md
 results:
 trivial: false
 auto_groomable: true
 branch: feat/the-build-gate-contract-never-says-green-red-is-the-exit-code
-claimed_at: 2026-08-07T18:43:30Z
+claimed_at: 2026-08-07T19:21:11Z
 pr:
 blocked_by:
 reconciled: true
@@ -30,6 +30,7 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-07-the-build-gate-contract-never-says-green-red-is-the-exit-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-the-build-gate-contract-never-says-green-red-is-the-exit-design.md) |
 | Plan | [2026-08-07-the-build-gate-contract-never-says-green-red-is-the-exit-plan.md](https://github.com/danielhanold/docket/blob/feat/the-build-gate-contract-never-says-green-red-is-the-exit-code/docs/superpowers/plans/2026-08-07-the-build-gate-contract-never-says-green-red-is-the-exit-plan.md) |
+| ADRs | [ADR-0074](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0074-build-gate-verdict-is-tri-state-runner-defined-non-failure-exit-is-a-halt.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
