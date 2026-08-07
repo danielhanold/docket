@@ -2,11 +2,11 @@
 id: 142
 slug: make-the-unmapped-harness-wrapper-gap-loud-at-generation-tim
 title: Make the unmapped-harness wrapper gap loud at generation time
-status: proposed
+status: killed
 priority: medium
 type: fix
 created: 2026-07-27
-updated: 2026-07-27
+updated: 2026-08-07
 depends_on: []
 related: []
 discovered_from: [135]
@@ -64,3 +64,7 @@ removal, not a warning.
 - Writing a real emitter for `kiro` or `windsurf`. That needs each vendor's documented contract and
   is its own change per harness (ADR-0060).
 - Changing the `*)` arm's output for tokens that keep using it.
+
+## Why killed
+
+Consolidated into #0245 at the 2026-08-07 backlog triage: the loud-unmapped-token gap lands with the shared-parse factor (#0141's leg) it depends on for cheapness. WARN posture; token-vocabulary removal stays out of scope there.
