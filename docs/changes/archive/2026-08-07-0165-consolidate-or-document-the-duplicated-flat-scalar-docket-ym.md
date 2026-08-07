@@ -2,11 +2,11 @@
 id: 165
 slug: consolidate-or-document-the-duplicated-flat-scalar-docket-ym
 title: Consolidate or document the duplicated flat-scalar .docket.yml reader in migrate-to-docket.sh
-status: proposed
+status: killed
 priority: medium
 type: refactor
 created: 2026-07-28
-updated: 2026-07-28
+updated: 2026-08-07
 depends_on: []
 related: []
 discovered_from: [18]
@@ -62,3 +62,7 @@ Decide between the two honest outcomes and execute it:
 
 - Can `migrate-to-docket.sh` source `scripts/lib/*` at the point it reads `.docket.yml`, or does it run
   before that path is guaranteed to exist? This decides which of the two outcomes applies.
+
+## Why killed
+
+Consolidated into #0256 at the 2026-08-07 backlog triage: premise was stale (the readers are no longer identical and the cited comment is gone) — #0256 restates current shapes and folds this family into the same one-owner-or-ADR ruling.
