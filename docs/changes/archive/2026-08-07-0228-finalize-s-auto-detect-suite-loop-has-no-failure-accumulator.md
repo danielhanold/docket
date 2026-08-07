@@ -2,7 +2,7 @@
 id: 228
 slug: finalize-s-auto-detect-suite-loop-has-no-failure-accumulator
 title: finalize's auto-detect suite loop has no failure accumulator, so a mid-suite red merges
-status: implemented
+status: done
 priority: high
 type: fix
 created: 2026-08-07
@@ -17,7 +17,7 @@ results: docs/results/2026-08-07-finalize-s-auto-detect-suite-loop-has-no-failur
 trivial: false
 auto_groomable: true
 branch: feat/finalize-s-auto-detect-suite-loop-has-no-failure-accumulator
-claimed_at: 2026-08-07T13:00:00Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/167
 blocked_by:
 reconciled: true
