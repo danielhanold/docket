@@ -171,7 +171,7 @@ test; none enumerates bad values.
 **`scalar-form`** — The well-formedness leg of the house yaml-scalar rule: a frontmatter scalar
 that is *syntactically malformed* YAML even though today's grep/awk readers happen to tolerate it.
 It covers the only two free-text string scalars docket reads that are not already gated — `title`
-(via `field_raw`) and the optional `blocked_by:` (via the new `fm_field_raw`). This field set is a
+(via `field_raw`) and the optional `blocked_by:` (via `fm_field_verbatim`). This field set is a
 **derivation**, never a hand-listed "bad fields" enumeration: the natively-boolean fields are
 deliberately excluded (`trivial`, `auto_groomable`, `reconciled`) because a bare `true`/`false`
 there is *correct* well-formed YAML, and the shape/domain-gated fields (`status`, `slug`,
@@ -208,9 +208,16 @@ asymmetry with the **writer**: `mint-stub.sh` quotes `title` unconditionally and
 predicate at all (ADR-0071); the checker needs one because it judges hand-authored scalars it did
 not write. Guarantee vs. detect — two rules with different jobs.
 
-The `blocked_by:` read is **anchored** to the first `---…---` block via `fm_field_raw` (ADR-0057):
-the field is optional, so a change that omits it while its body happens to open a `blocked_by:`
-line must stay silent — an unanchored read would mistake body prose for the field and misfire.
+The `blocked_by:` read is **anchored** to the first `---…---` block via `fm_field_verbatim`
+(ADR-0057): the field is optional, so a change that omits it while its body happens to open a
+`blocked_by:` line must stay silent — an unanchored read would mistake body prose for the field and
+misfire. `fm_field_verbatim` is the anchored accessor that strips **neither** the quotes nor a
+whitespace-preceded `#…`, and both halves are load-bearing here. Its sibling `fm_field_raw` strips
+the inline comment before returning — deliberately, for the change-template's
+`type: feat   # chosen at creation` line — and that strip *is* the truncation the comment-introducer
+leg exists to report, so reading `blocked_by` through it would make that leg structurally
+unreachable for this field (`blocked_by: PR #69 is stale …` would arrive as `PR` and pass silently).
+`title` needs no such twin: `field_raw` has no comment strip.
 
 Warn-only, like every check here: it never marks `EXPLAINED`, never touches `board-row-dropped` (a
 malformed *scalar* never drops a row), and never auto-fixes or rewrites the change file. Example

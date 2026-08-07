@@ -294,6 +294,27 @@ assert "fm_field_raw strips the same inline-comment shape fm_field strips" \
   '[ "$(fm_field_raw "$fr/commented.md" type)" = feat ]'
 assert "fm_field_raw keeps a hash not preceded by whitespace in the value" \
   '[ "$(fm_field_raw "$fr/hash.md" type)" = "feat#1" ]'
+
+# fm_field_verbatim(): the third tier — same anchored ---...--- scope, NEITHER strip. The value
+# arrives exactly as authored, because a consumer JUDGING a scalar's YAML form cannot be handed a
+# value the reader already repaired: the comment strip IS the truncation board-checks's
+# comment-introducer leg exists to report (change 0235). The contrast pair against fm_field_raw on
+# the same fixture is the whole point of the tier.
+printf -- '---\nblocked_by: PR #69 is stale, predating the rework\n---\n' > "$fr/hashval.md"
+assert "fm_field_verbatim keeps a whitespace-preceded '#...' in the value" \
+  '[ "$(fm_field_verbatim "$fr/hashval.md" blocked_by)" = "PR #69 is stale, predating the rework" ]'
+assert "fm_field_raw TRUNCATES that same value at the ' #' (the contrast the tier exists for)" \
+  '[ "$(fm_field_raw "$fr/hashval.md" blocked_by)" = "PR" ]'
+assert "fm_field_verbatim keeps the template's inline comment too (no strip at all)" \
+  '[ "$(fm_field_verbatim "$fr/commented.md" type)" = "feat   # chosen at creation" ]'
+assert "fm_field_verbatim preserves surrounding quotes" \
+  '[ "$(fm_field_verbatim "$qd/dq.md" title)" = "\"Comma, title\"" ]'
+assert "fm_field_verbatim leaves a bare value unchanged" \
+  '[ "$(fm_field_verbatim "$qd/bare.md" title)" = "Bare title" ]'
+assert "fm_field_verbatim empty when the key is absent" \
+  '[ -z "$(fm_field_verbatim "$qd/dq.md" nonesuch)" ]'
+assert "fm_field_verbatim is anchored: empty when the key is absent but the body opens with it" \
+  '[ -z "$(fm_field_verbatim "$fr/body.md" blocked_by)" ]'
 rm -rf "$fr"
 
 # field_raw() is the RAW reader — surrounding quotes are LEFT INTACT (change 0138)
