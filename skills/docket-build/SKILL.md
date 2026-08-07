@@ -233,7 +233,11 @@ define the maximum duration of the build gate.
    per-harness decision, not a contract value.
 3. Gate completion is established **from that artifact**, never from the caller-visible completion
    signal of the command that started the gate.
-4. You **may** yield while the gate executes, then make short observations of that artifact.
+4. Whether you may **yield** while the gate runs is decided by *your own* dispatch posture, never by
+   the gate's. Only a **top-level session agent**, able to receive a resumption signal, may yield and
+   then make short observations of that artifact. A build role running as a **dispatched or forked
+   child** has no such channel, so it may **never** yield: it observes by *blocking* instead —
+   repeated short foreground reads of the artifact, control never handed back to its caller mid-gate.
 5. Observation is **bounded** by a finite budget — never wait indefinitely. That budget is
    `GATE_OBSERVATION_BUDGET` (default 30, in minutes) from the Step-0 config export: docket
    execution policy, distinct from any foreground-call timeout a particular harness imposes. The
@@ -254,7 +258,12 @@ it holds for the gate.
 **dispatched subagent** yielding control in violation of its execution contract, and an external
 **gate process** continuing independently while the responsible agent performs bounded observations
 of its durable result. Only the second is permitted here, and it is never permission for dispatched
-agents to yield across execution phases.
+agents to yield across execution phases. Which branch of clause 4 applies is therefore settled by
+*who observes*, not by what is running: the yield belongs to a **top-level session agent** only, and
+on docket's own default path there is none — this role is invoked inside `docket-implement-next`
+Step 5, which is itself dispatched. Blocking observation is the norm here; the yield is the
+exception. Not hypothetical: dispatched build workers here have yielded to await a gate completion
+event and gone unresumed.
 
 Which capabilities a harness must have to host such a gate, and the measured verdict for each
 harness docket ships, are quarantined in

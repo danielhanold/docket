@@ -74,6 +74,54 @@ assert "posture: a stale pre-yield report is not evidence of a crash" \
 assert "posture: distinguishes a dispatched subagent from an external gate process" \
   'grep -qiE "dispatched subagent" <<<"$posture_flat"'
 
+# (4a)/(4b) read TWO slices tighter than $posture_blk — the numbered clause list, and the "does not
+# relax" paragraph — for the same reason groups (2)-(4) read a section slice at all. The scoping
+# below is deliberately stated in BOTH places (the clause is where the rule is performed; the
+# paragraph is where a reader goes to resolve the ADR-0024 conflict), so a section-wide grep would
+# let either statement be deleted while the other kept every assert green — a guard that cannot fail
+# on the mutation it exists to catch. The clause slice ends at the first column-0 `**` line, which is
+# the list's own terminator shape: continuation lines are indented, so none can close it early.
+clauses_blk="$(awk '/^1\. /{f=1} f && /^\*\*/{f=0} f' <<<"$posture_blk")"
+clauses_flat="$(flatten <<<"$clauses_blk")"
+assert "posture: the numbered clause list was located (non-vacuity anchor)" \
+  '[ "$(grep -c . <<<"$clauses_blk")" -ge 12 ]'
+# Anchored on the RULE NAME (`never-yield`) in a bolded lead-in, not on the sentence's wording, so a
+# faithful rewrite of the paragraph still locates it.
+relax_blk="$(awk '/^\*\*.*never-yield/{f=1} f && /^[[:space:]]*$/{f=0} f' <<<"$posture_blk")"
+relax_flat="$(flatten <<<"$relax_blk")"
+assert "posture: the 'does not relax' paragraph was located (non-vacuity anchor)" \
+  '[ "$(grep -c . <<<"$relax_blk")" -ge 4 ]'
+
+# (4a) The yield permission is SCOPED BY THE OBSERVING AGENT'S OWN DISPATCH POSTURE. An unqualified
+# "you may yield" contradicts ADR-0024 on docket's DEFAULT path, not an exotic one: this role is
+# invoked inside `docket-implement-next` Step 5, and that role is itself dispatched — so the agent
+# doing the yielding is a dispatched agent, which by ADR-0024 has no channel to receive the
+# resumption signal it is waiting on and comes back half-done reading as `completed`. Observed live
+# on change 0223: three dispatched build workers yielded to await a gate completion event, none was
+# resumed by it, and one run had to be discarded. Keyed on the rule's two poles — who may yield, and
+# what the one who may not does instead — never on a single phrasing.
+assert "posture: the yield is available only to a top-level session agent" \
+  'grep -qiE "(top-level|top level)[^.]{0,200}yield|yield[^.]{0,200}(top-level|top level)" <<<"$clauses_flat"'
+# Boundary class is `[^[:alnum:]]`, not `\b` (absent from BSD grep's ERE, AGENTS.md § Shell) and not
+# `[[:space:]]` — the negation is bolded in the body, so `**never**` has no space on its left. The
+# negation-to-`yield` window is TIGHT (12) where the other windows are loose, and that is mutation
+# evidence rather than taste: at 120 the semantic inversion "a dispatched or forked child has no
+# such channel, so it may yield" stayed GREEN, because the sentence's own "has **no** such channel"
+# sat 24 characters from the un-negated verb and satisfied the pair. The negation has to attach to
+# the verb it negates, so only a short gap counts.
+assert "posture: a dispatched or forked build role may NEVER yield" \
+  'grep -qiE "(dispatched|forked)[^.]{0,200}[^[:alnum:]](never|not|no)[^[:alnum:]][^.]{0,12}yield" <<<"$clauses_flat"'
+assert "posture: the non-yielding path observes by BLOCKING instead" \
+  'grep -qiE "block(ing|s)?[^.]{0,160}observ|observ[^.]{0,160}block(ing|s)?" <<<"$clauses_flat"'
+
+# (4b) ...and the conflict-resolving paragraph states the same scoping, since that is where a reader
+# lands when clause 4 and ADR-0024 appear to disagree. It must also name docket's own default path
+# as the dispatched case, or the reader reads the blocking branch as the exotic one.
+assert "relax: scopes the yield to a top-level session agent" \
+  'grep -qiE "(top-level|top level)[^.]{0,200}yield|yield[^.]{0,200}(top-level|top level)" <<<"$relax_flat"'
+assert "relax: names docket's own default path as the dispatched case" \
+  'grep -qF "docket-implement-next" <<<"$relax_blk"'
+
 # --- (5) HARNESS NEUTRALITY: the body names no mechanism -----------------------
 # This is the negative that keeps the quarantine real, and it is deliberately WHOLE-FILE: the
 # neutrality invariant binds the skill body everywhere, not only inside the posture section.

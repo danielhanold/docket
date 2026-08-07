@@ -482,12 +482,38 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # mode this block records raising for repeatedly — so the multiple after it: 305. 2689 words -> the
 # next multiple of 50 is 2700, which leaves 11 words (within the 25-word threshold), so the multiple
 # after it: 2750.
+# skills/docket-build/SKILL.md's budget was raised again 305/2750 -> 315/2900 by change 0223's
+# review-fix wave, which SCOPED the posture's yield permission to the observing agent's own dispatch
+# posture: clause 4 now grants the yield only to a top-level session agent able to receive a
+# resumption signal, and requires bounded BLOCKING observation from a dispatched or forked build
+# role; the "does not relax" paragraph states the same scoping, because that is where a reader goes
+# to resolve the apparent ADR-0024 conflict. The unqualified permission it replaces was wrong on
+# docket's DEFAULT path rather than an exotic one — this role is invoked inside docket-implement-next
+# Step 5, and that role is itself dispatched — and wrong empirically: dispatched build workers on
+# this very change yielded to await a gate completion event and none was resumed by it.
+# WHERE ELSE IT WAS CONSIDERED, per the naming requirement above:
+# skills/docket-build/references/gate-execution.md. It cannot live there, for the two reasons the
+# rows above record, both sharpened here. (a) That file is the per-HARNESS quarantine — what a
+# harness must provide, re-measured whenever a harness version moves — whereas this states what THIS
+# ROLE must do given its own dispatch posture: a fact about docket's own composition that no harness
+# measurement can change. Parking it there would make an ADR-0024 boundary condition editable as a
+# side effect of refreshing evidence. (b) It is a QUALIFIER on clause 4 and on the paragraph that
+# resolves the conflict; splitting a rule from its own scope leaves the unqualified rule standing at
+# the point of action, which is precisely the defect being fixed. COMPRESSION WAS TAKEN FIRST on the
+# addition: clause 4's "each returning on its own" was deleted (subsumed by "short foreground
+# reads"), and the empirical sentence dropped its restatement of the half-done/`completed`
+# consequence, which the false-completion rule immediately above already states. Pre-existing prose
+# is otherwise untouched. Set per the rounding rule above from the measured actuals: 308 lines -> the
+# next multiple of 5 is 310, which leaves 2 lines — the near-zero mode this block warns about, and
+# the same reading the gate-execution.md row took — so the multiple after: 315. 2831 words -> the
+# next multiple of 50 is 2850, which leaves 19 words (within the 25-word threshold), so the multiple
+# after it: 2900.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
 skills/docket-auto-groom/SKILL.md                           66 1237
 skills/docket-brainstorm/SKILL.md                           84  692
-skills/docket-build/SKILL.md                               305 2750
+skills/docket-build/SKILL.md                               315 2900
 skills/docket-build/references/gate-execution.md            150 1350
 skills/docket-build/references/task-routing.md              50  500
 skills/docket-build-task/SKILL.md                          125 1100
