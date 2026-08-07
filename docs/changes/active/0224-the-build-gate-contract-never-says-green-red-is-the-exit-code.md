@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/the-build-gate-contract-never-says-green-red-is-the-exit-code
-claimed_at: 2026-08-07T18:36:58Z
+claimed_at: 2026-08-07T18:38:29Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -107,3 +107,28 @@ Residual, accepted rather than fixed: under `green iff zero`, `scripts/run-tests
 harness failure that certified nothing) reads as red. Fail-closed and identical to today's behavior.
 
 ## Reconcile log
+
+### 2026-08-07 — reconciled against current `origin/main` (`4a11ddf0`)
+
+Spec and stub both hold as written; scope unchanged, nothing dropped, nothing folded in.
+
+- **Placement slot still exists verbatim.** `skills/docket-build/SKILL.md` § *The build gate* is
+  unrestructured: the `configured-bash-finalize` command-boundary paragraph is still immediately
+  followed by `**Green** →`, and `### Gate execution posture` is still the next `###` inside the
+  section. Assumption 7's re-derive escape hatch is not needed.
+- **The size-budget raise is still required and its numbers still hold.**
+  `skills/docket-build/SKILL.md` measures **317 lines / 2938 words** against row `325 3000` in
+  `tests/test_skill_size_budgets.sh` — 8 lines / 62 words of headroom, exactly as the spec measured
+  on 2026-08-07. The raise stays part of this diff. The row's own most recent history (raised
+  `320/2950 -> 325/3000` by change 0231) confirms the documented raise rule is the live one.
+- **Dependencies confirmed satisfied.** `depends_on:` is empty. Changes 0223 and 0227 are archived,
+  so `### Gate execution posture` and `scripts/run-tests.sh` are read as current tree state rather
+  than as assumptions. Change 0190 remains non-terminal, which is precisely why assumption 3's
+  refusal to touch the `docket:build-evidence` schema stands.
+- **Guard home unchanged.** `tests/test_docket_build.sh` still owns the build gate's contract prose
+  and still uses the banner-per-change discipline the spec's edit 2 follows.
+
+Residual carried forward, not fixed here: `docket-finalize-change`'s prose stays silent on the
+verdict rule (spec assumption 2). Not captured as a stub — the spec's own rationale rejects the
+restatement (`restatement-accumulates-its-own-guards`), so filing it would be backlog churn against
+a decision already argued.
