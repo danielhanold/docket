@@ -40,6 +40,24 @@ call returns**, or the harness's teardown wins the race.
 measured inconclusively; treat as unknown, never as working. `incompatible` — measured and
 established as unable to meet a required capability.
 
+**A verdict covers only what § *Method* measured — capabilities 1, 2 and 3** (survival past the
+initiating call; every stream redirected to a durable location; an unambiguous terminal sentinel) —
+**plus any further capability its own section names.** It is not a claim about the other three: the
+standard probe leaves them unmeasured, so read them as `unverified` in the sense above unless a
+section records otherwise.
+
+- **Capability 4** is *not* measured by the standard probe — § *Method* observes from **outside**
+  the harness after it exited, which establishes that the result is durable, not that the harness
+  can look again. Credit it only where a section records a re-observation the harness itself
+  performed.
+- **Capability 5**'s four-state distinction was never produced: the stand-in gate always succeeds,
+  so *completed unsuccessfully* and *result unavailable* went unobserved on every harness.
+- **Capability 6** was not probed at all.
+
+Where a row's evidence is narrower still — a mode, launch shape, or variant left unmeasured — that
+limit belongs **on its verdict line**, written as ` — <scope>` after the token. A bare token claims
+no more than the bound above.
+
 Verdicts are **version-scoped**. A verdict is an observation about the version named in its section,
 not a property of the product. Re-probe when the version moves; never inherit a row on faith. Docket
 does not weaken the common contract to preserve nominal support for a harness that cannot meet it —
@@ -93,14 +111,21 @@ redirection alone does not save the gate, and a race-free new session does.
 sentinel, observed in a later, separate foreground call. Launch exited before the gate's terminal
 write, and the gate ran as the leader of its own session, detached from the launching call.
 
-Evidence grade: the launch and the observation were performed as two separate foreground calls of a
-live session, which is the boundary the posture is about. The stricter variant — a non-interactive
-`claude -p` child observed from a shell outside it — was **not** obtainable on this machine: the
-permission classifier denied granting the child process Bash access (both `--allowedTools Bash` and
-the bypass flag), while a plain `claude -p` with no tool grant runs fine. The capability is measured;
-the outside-observer variant is not.
+Evidence grade, and the mode it is scoped to: the launch and the observation were performed as two
+separate foreground calls of one **interactive live session**, so this row additionally measures
+capability 4 — in that mode, and only there. Docket's own default path is **not** that mode: the
+gate runs inside `docket-build`, which is invoked inline by the **forked** `docket-implement-next`,
+and a forked or dispatched agent has no channel on which a resumption signal can arrive. That is why
+`docket-build` § *Gate execution posture* clause 4 grants the yield to a top-level session agent
+only and requires a dispatched child to observe by blocking — on this change, three dispatched build
+workers backgrounded the suite and yielded, and none was resumed by the completion event. The
+stricter variant that would have measured it — a non-interactive `claude -p` child observed from a
+shell outside it — was **not** obtainable on this machine: the permission classifier denied granting
+the child process Bash access (both `--allowedTools Bash` and the bypass flag), while a plain
+`claude -p` with no tool grant runs fine. The forked/dispatched mode is therefore **unmeasured**, and
+the verdict says nothing about it.
 
-**Verdict:** `supported`
+**Verdict:** `supported` — interactive session, two foreground calls; forked mode unmeasured
 
 ### cursor
 
@@ -140,4 +165,4 @@ Only the standard shape was probed here, so this section does not establish whet
 also kill an un-detached gate the way Codex and cursor do. That is unmeasured, and the verdict claims
 nothing about it.
 
-**Verdict:** `supported`
+**Verdict:** `supported` — standard launch shape only; un-detached behavior unmeasured

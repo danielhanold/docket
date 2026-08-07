@@ -456,9 +456,13 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # moves, which SKILL.md is not. Set per the rounding rule above from the measured actuals: 143
 # lines -> the next multiple of 5 is 145, which leaves 2 lines of margin — the near-zero mode this
 # block warns about, and the same reading the edge-paths.md row took — so the multiple after: 150;
-# 1290 words -> 1300 is within the 25-word threshold (10 words of margin), so the multiple after:
+# 1296 words -> 1300 is within the 25-word threshold (4 words of margin), so the multiple after:
 # 1350. This row is a build-time consequence of creating the file, not a discretionary raise: the
-# completeness check below rejects any skills/**/*.md without one.
+# completeness check below rejects any skills/**/*.md without one. (The word actual read `1290` as
+# first recorded — a mis-measurement, corrected here by change 0223's second review wave against
+# `wc -w`. The conclusion is unchanged: 1290 and 1296 both land inside the 25-word threshold and
+# both round on to 1350. Recorded rather than silently overwritten, because a justification block
+# whose stated basis does not reproduce is the thing that makes the next raise unauditable.)
 # skills/docket-build/SKILL.md's budget was raised 280/2500 -> 305/2750 by that same change 0223,
 # which added the `### Gate execution posture` subsection to `## The build gate` plus one
 # `## Halting conditions` bullet for the exhausted observation budget. WHERE ELSE IT WAS CONSIDERED,
@@ -508,13 +512,39 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # the same reading the gate-execution.md row took — so the multiple after: 315. 2831 words -> the
 # next multiple of 50 is 2850, which leaves 19 words (within the 25-word threshold), so the multiple
 # after it: 2900.
+# skills/docket-build/references/gate-execution.md's budget was raised 150/1350 -> 175/1650 by change
+# 0223's second review wave, which stopped each `supported` verdict claiming more than the probe
+# beneath it measured. Two coupled defects: § *Method* establishes only capabilities 1-3 (survival,
+# redirection, terminal sentinel) while the token was defined against all six — capability 5's
+# four-state distinction is never produced at all, since the stand-in gate always succeeds, and
+# capability 6 was never probed; and the `claude` row called its measured mode "the boundary the
+# posture is about" when that mode is an INTERACTIVE session, which is precisely the mode docket does
+# not run in (this gate runs inside docket-build, invoked inline by the forked docket-implement-next,
+# and the section itself records that the non-interactive variant was unobtainable on this machine).
+# WHERE ELSE IT WAS CONSIDERED, per the naming requirement above: the parent
+# skills/docket-build/SKILL.md, and a further sub-reference under skills/docket-build/references/.
+# Neither can host it. (a) SKILL.md is bound by the harness-neutrality rule the suite asserts
+# NEGATIVELY — a per-row mode scope cannot be stated without naming the harness whose row it scopes,
+# which is the exact defect this quarantine file exists to prevent. (b) A sub-reference splits a
+# verdict from the bound on what that verdict means; the whole finding is that a reader takes the
+# token at face value, and a qualifier one file further away is read even less often than one three
+# paragraphs up — which is why the per-row limits sit ON the verdict line and the guard now enforces
+# that shape. COMPRESSION WAS TAKEN FIRST, and it also chose between the two available fixes: rather
+# than a coverage line per harness section (four repetitions of one bound), the bound is stated ONCE
+# in § *Reading a verdict* where the token is defined, and only the two rows narrower than it — the
+# mode scope on `claude`, the launch-shape scope on `opencode` — say anything further. The `claude`
+# paragraph's closing "The capability is measured; the outside-observer variant is not." was DELETED
+# as subsumed by that shared bound. Set per the rounding rule above from the measured actuals: 168
+# lines -> the next multiple of 5 is 170, which leaves 2 lines — the near-zero mode this block warns
+# about, and the same reading both rows above took — so the multiple after: 175. 1612 words -> 1650
+# leaves 38 words, clear of the 25-word threshold, so 1650 stands.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
 skills/docket-auto-groom/SKILL.md                           66 1237
 skills/docket-brainstorm/SKILL.md                           84  692
 skills/docket-build/SKILL.md                               315 2900
-skills/docket-build/references/gate-execution.md            150 1350
+skills/docket-build/references/gate-execution.md            175 1650
 skills/docket-build/references/task-routing.md              50  500
 skills/docket-build-task/SKILL.md                          125 1100
 skills/docket-convention/SKILL.md                          345 5850
