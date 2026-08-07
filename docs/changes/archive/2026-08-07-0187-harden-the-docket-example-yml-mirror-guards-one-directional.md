@@ -2,11 +2,11 @@
 id: 187
 slug: harden-the-docket-example-yml-mirror-guards-one-directional
 title: Harden the .docket.example.yml mirror guards — one-directional coverage, an unexercised round-trip slice, and a prefix-weak terminator
-status: proposed
+status: killed
 priority: medium
 type: chore
 created: 2026-08-01
-updated: 2026-08-01
+updated: 2026-08-07
 depends_on: []
 related: []
 discovered_from: [184]
@@ -71,3 +71,7 @@ be a prefix of a neighbouring block's value.
 - Any change to the shipped pins themselves.
 - The `agents/harness-defaults.yml` validator, which already checks its own correspondence
   in both directions.
+
+## Why killed
+
+Consolidated into #0246 at the 2026-08-07 backlog triage: all three legs verified (one-directional mirror, round-trip slice now also missing the opencode block, prefix-weak terminator); lands after the truncation fix in the same file.
