@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0227 — Parallel test-suite runner — 4x+ wall-clock speedup](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0227-parallel-test-suite-runner.md)**
+> ↩ **[Change 0227 — Parallel test-suite runner — 4x+ wall-clock speedup](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-07-0227-parallel-test-suite-runner.md)**
 <!-- docket:backlink:end -->
 
 # Parallel test-suite runner — results
