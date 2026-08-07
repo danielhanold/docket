@@ -1,6 +1,6 @@
 # Backlog
 
-**241 changes** — 🟢 1 in progress · 🟡 59 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 148 done · 🗑️ 28 killed
+**242 changes** — 🟢 1 in progress · 🟡 59 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 148 done · 🗑️ 29 killed
 
 ## 🟢 In progress (1)
 
@@ -65,12 +65,12 @@
 | [0230](active/0230-a-self-scanning-population-floor-pins-test-docket-config-sh.md) | a self-scanning population floor pins test_docket_config.sh's size and blocks sharding | `medium` | `refactor` | needs-brainstorm |
 | [0232](active/0232-the-gate-execution-posture-never-reaches-the-build-workers-t.md) | The gate execution posture never reaches the build workers that also run the full suite | `medium` | `docs` | needs-brainstorm |
 | [0233](active/0233-guard-against-stacked-gap-ere-patterns-that-hang-instead-of.md) | Guard against stacked-gap ERE patterns that hang instead of failing | `medium` | `chore` | needs-brainstorm |
-| [0236](active/0236-suppressed-execution-handoff-still-ends-run-at-plan.md) | A suppressed execution hand-off still ends the run at the plan — 0113 recurrence | `high` | `fix` | auto-groom blocked — needs you |
-| [0237](active/0237-prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical.md) | Prose levers fail to hold the step boundary — consider a mechanical end-of-run gate | `high` | `fix` | needs-brainstorm |
+| [0237](active/0237-prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical.md) | Prose levers fail to hold the step boundary — give the disposition contract a consumer | `high` | `fix` | build-ready |
 | [0238](active/0238-a-build-worker-may-stage-paths-its-task-never-touched.md) | A build worker may stage paths its task never touched | `medium` | `fix` | needs-brainstorm |
 | [0239](active/0239-detect-merged-s-gh-pr-list-fallback-ignores-repo-so-a-scoped.md) | detect_merged's gh pr list fallback ignores --repo, so a scoped pass queries the wrong repository | `medium` | `fix` | needs-brainstorm |
 | [0240](active/0240-audit-which-frontmatter-accessor-each-call-site-should-use-n.md) | Audit which frontmatter accessor each call site should use, now that three anchored read shapes exist | `medium` | `refactor` | needs-brainstorm |
 | [0241](active/0241-correspondence-guard-over-leg-c-s-by-value-duplicated-predic.md) | Correspondence guard over leg C's by-value duplicated predicate (ADR-0072 drift risk) | `medium` | `chore` | needs-brainstorm |
+| [0242](active/0242-close-the-claude-gap-in-the-run-completion-gate-with-a-comma.md) | Close the Claude gap in the run-completion gate with a command-type Stop hook | `medium` | `feat` | ⏳ waiting on #237 — not yet built |
 
 ## ⚪ Deferred (4)
 
@@ -148,23 +148,25 @@ graph TD
   0232
   0233
   0235
-  0236
-  0237
+  0219 --> 0237
   0238
   0239
   0240
   0241
+  0237 --> 0242
   0015:::done
   0175:::done
   0192:::done
   0211:::done
+  0219:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (176)</summary>
+<details><summary>✅🗑️ Archive — done + killed (177)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
+| [0236](archive/2026-08-07-0236-suppressed-execution-handoff-still-ends-run-at-plan.md) | A suppressed execution hand-off still ends the run at the plan — 0113 recurrence | 2026-08-07 |
 | [0234](archive/2026-08-07-0234-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b.md) | Split gate-execution.md: probe evidence should not sit on a blocking-read surface | 2026-08-07 |
 | [0231](archive/2026-08-07-0231-a-presumed-dead-build-worker-can-wake-and-race-its-own-repla.md) | A presumed-dead build worker can wake and race its own replacement in one worktree | 2026-08-07 |
 | [0228](archive/2026-08-07-0228-finalize-s-auto-detect-suite-loop-has-no-failure-accumulator.md) | finalize's auto-detect suite loop has no failure accumulator, so a mid-suite red merges | 2026-08-07 |
