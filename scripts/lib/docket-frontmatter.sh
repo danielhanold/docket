@@ -126,9 +126,14 @@ docket_scalar_quote_reason(){
     [Oo][Nn]|[Oo][Ff][Ff]|[Yy][Ee][Ss]|[Nn][Oo]|[Tt][Rr][Uu][Ee]|[Ff][Aa][Ll][Ss][Ee])
                        printf 'bare-boolean';       return 0 ;;
   esac
-  # ' #' opens a YAML comment: it TRUNCATES the value silently rather than aborting the parse,
-  # which is the quieter and therefore worse failure. `finding #3` is ordinary auto-capture prose.
-  case "$v" in *' #'*) printf 'comment-introducer'; return 0 ;; esac
+  # Whitespace followed by '#' opens a YAML comment: it TRUNCATES the value silently rather than
+  # aborting the parse, which is the quieter and therefore worse failure. `finding #3` is ordinary
+  # auto-capture prose. The leg keys on the [[:space:]] CLASS, not a literal space: a TAB opens a
+  # comment just as well, and the detector must be at least as wide as the reader it warns about —
+  # fm_field_raw's own inline-comment strip is `[[:space:]]+#`, so a tab-preceded '#' is truncated on
+  # the read path whether or not this leg speaks up. mint-stub's control-character gate keeps tabs off
+  # the WRITE path, but this predicate's consumer judges HAND-AUTHORED files, which have no such gate.
+  case "$v" in *[[:space:]]'#'*) printf 'comment-introducer'; return 0 ;; esac
   # A leading YAML indicator: & and * silently lose meaning, # truncates, the rest abort the parse.
   # A leading '#' is the MAXIMAL case of the leg above: the comment opens at character one, so the
   # whole value parses to null rather than being merely shortened — the quietest failure of the set.

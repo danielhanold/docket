@@ -346,8 +346,9 @@ for f in "${FILES[@]}"; do
   #                        through unreported, change 0235).
   #   bare-boolean       — the unquoted raw value is exactly one of on off yes no true false,
   #                        whole-value and case-insensitive (YAML 1.1).
-  #   comment-introducer — the unquoted raw value contains a space-hash pair, which opens a YAML
-  #                        comment and silently TRUNCATES the value rather than aborting the parse.
+  #   comment-introducer — the unquoted raw value contains whitespace (a space OR a tab, the
+  #                        [[:space:]] class) followed by a hash, which opens a YAML comment and
+  #                        silently TRUNCATES the value rather than aborting the parse.
   #   indicator          — the unquoted raw value opens with a YAML indicator character. A leading
   #                        hash is one of them, and is the maximal form of the leg above: the
   #                        comment opens at character one, so the WHOLE value parses to null.
@@ -361,6 +362,17 @@ for f in "${FILES[@]}"; do
     # (change 0235). The skip arm above stays here: it is the only leg that needs the RAW token,
     # and pushing it into the predicate would wrongly skip a value that logically STARTS with a
     # quote character. The messages stay here too, because a finding is this script's output shape.
+    #
+    # The capture below FORKS — twice per change file, once for title and once for blocked_by.
+    # Deliberate, and recorded here rather than left silent (change 0235 review). The house
+    # "no subshell, no fork" property lib/docket-frontmatter.sh states for _docket_unwrap_quotes is
+    # a property of a helper's BODY — use bash parameter expansion, not sed/tr — and
+    # docket_scalar_quote_reason honours it exactly: its body is nothing but `case` arms. Neither
+    # helper avoids the caller's capture subshell; field() spends the identical one on
+    # $(_docket_unwrap_quotes …). Making the predicate assign a global instead would buy back two of
+    # the ~38 command substitutions this per-file loop already spends — most of them forking sed or
+    # awk — in exchange for an order-dependent out-parameter that every assert and the
+    # docket_scalar_needs_quoting wrapper would have to read. Stdout stays the contract.
     sfc_reason="$(docket_scalar_quote_reason "$sfc_raw")"
     case "$sfc_reason" in
       colon-space)
@@ -373,7 +385,7 @@ for f in "${FILES[@]}"; do
         emit scalar-form "$cid" "$sfc_field: unquoted bare YAML boolean ($sfc_raw) — quote it or reword (well-formed YAML)"
         ;;
       comment-introducer)
-        emit scalar-form "$cid" "$sfc_field: unquoted scalar contains ' #', a YAML comment introducer that silently truncates it — quote it or reword (well-formed YAML)"
+        emit scalar-form "$cid" "$sfc_field: unquoted scalar contains whitespace followed by '#', a YAML comment introducer that silently truncates it — quote it or reword (well-formed YAML)"
         ;;
       indicator)
         emit scalar-form "$cid" "$sfc_field: unquoted scalar opens with a YAML indicator character — quote it or reword (well-formed YAML)"
