@@ -291,4 +291,70 @@ assert "0173 rd: and it still MASKS the lower layer (per-key precedence preserve
   '[ "$tol_out" = "<unset>" ]'
 rm -rf "$SBX"
 
+# ---- 0237: exec -> call-and-return, exit code preserved verbatim -------------------
+# The facade must regain control after the adapter (that is the whole seam the run gate hangs on),
+# and every path where the gate takes no action must be byte-identical to the pre-0237 exec.
+make_fixture
+mkdir -p "$SBX/runners"
+cat > "$SBX/runners/rc.sh" <<'RCA'
+#!/usr/bin/env bash
+# echoes a marker, then exits with the code named in $RC_WANTED
+printf 'adapter-ran\n'
+printf 'adapter-stderr\n' >&2
+exit "$(cat "${RC_WANTED:?}")"
+RCA
+chmod +x "$SBX/runners/rc.sh"
+export RC_WANTED="$SBX/rc-wanted"
+
+for want in 0 3 7; do
+  printf '%s\n' "$want" > "$RC_WANTED"
+  out="$( cd "$SBX" && RUNNERS_DIR="$SBX/runners" DOCKET_HARNESS_ROOT="$SBX" \
+      bash "$FACADE" --runner rc --agent status 2>"$SBX/e.log" )"; rc=$?
+  assert "0237: adapter exit code $want is preserved verbatim" '[ "$rc" = "$want" ]'
+  assert "0237: adapter stdout still relayed (rc=$want)" '[ "$out" = "adapter-ran" ]'
+  assert "0237: adapter stderr still relayed (rc=$want)" 'grep -qF "adapter-stderr" "$SBX/e.log"'
+done
+
+# The facade must no longer exec its adapter. Two independent guards, because neither alone is
+# sufficient:
+#
+# (1) A STATIC guard keyed on syntactic SHAPE — an `exec` in command position — not on the one
+#     spelling of the handoff line. The obvious spelling-anchored form
+#       ! grep -qE "…exec…\"\$DOCKET_BASH_PATH\"…" "$FACADE"
+#     is a trap: `assert` evals its expression, so bash's double-quote processing collapses `\$`
+#     to a bare `$`, the ERE engine reads that as an end-anchor, the pattern can never match, and
+#     the negated assert is permanently green — a vacuous guard (AGENTS.md: a bare leading `--`
+#     and a mis-escaped metacharacter both invert a negated assert into decoration). The pattern
+#     below carries no `$` at all.
+assert "0237: the facade no longer execs in command position" \
+  '! grep -qE "^[[:space:]]*exec[[:space:]]" "$FACADE"'
+
+# (2) A RUNTIME guard, which is the fact that actually matters: the facade must still be alive to
+#     run the gate after the adapter returns. Under `exec` the adapter REPLACES the facade's
+#     process image, so the adapter's parent is whatever launched the facade; under
+#     call-and-return the adapter's parent is the facade process itself. Comparing the two pids
+#     discriminates by execution, so a future rewrite that reintroduces `exec` under any spelling
+#     still reddens here.
+cat > "$SBX/runners/ppid.sh" <<'PPA'
+#!/usr/bin/env bash
+printf '%s\n' "$PPID" > "${PPID_OUT:?}"
+PPA
+chmod +x "$SBX/runners/ppid.sh"
+cat > "$SBX/wrap.sh" <<'WRAP'
+#!/usr/bin/env bash
+printf '%s\n' "$$" > "${WRAP_OUT:?}"
+bash "${FACADE_PATH:?}" --runner ppid --agent status
+st=$?        # keeps the facade off the last-command slot so bash cannot turn this
+exit "$st"   # call into an implicit exec of its own and forge the result
+WRAP
+chmod +x "$SBX/wrap.sh"
+( cd "$SBX" && RUNNERS_DIR="$SBX/runners" DOCKET_HARNESS_ROOT="$SBX" \
+    PPID_OUT="$SBX/adapter.ppid" WRAP_OUT="$SBX/wrap.pid" FACADE_PATH="$FACADE" \
+    bash "$SBX/wrap.sh" >/dev/null 2>&1 )
+assert "0237: the adapter runs as a CHILD of the facade, not as its replacement image" \
+  '[ -s "$SBX/adapter.ppid" ] && [ -s "$SBX/wrap.pid" ] &&
+   [ "$(cat "$SBX/adapter.ppid")" != "$(cat "$SBX/wrap.pid")" ]'
+unset RC_WANTED
+rm -rf "$SBX"
+
 exit $fail

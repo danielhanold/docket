@@ -2,9 +2,11 @@
 # scripts/runner-dispatch.sh — the runner-neutral delegation facade (change 0079), behind
 # `docket.sh runner-dispatch`. Validates arguments, anchors the repo root (ADR-0034),
 # resolves the runners.<name>: config block across layers (repo-local > repo-committed >
-# global; per-key), exports it as DOCKET_RUNNER_CFG_<KEY>, and execs the named adapter
-# scripts/runners/<name>.sh. Registration IS the adapter file's existence. Unknown runner
-# => loud nonzero (abort-and-report). Contract: scripts/runner-dispatch.md.
+# global; per-key), exports it as DOCKET_RUNNER_CFG_<KEY>, and CALLS the named adapter
+# scripts/runners/<name>.sh in the foreground, returning with its verbatim exit code (change 0237
+# replaced the original `exec` so the facade regains control at that seam). Registration IS the
+# adapter file's existence. Unknown runner => loud nonzero (abort-and-report).
+# Contract: scripts/runner-dispatch.md.
 # Mock seams: RUNNERS_DIR, GIT (via lib/docket-root.sh).
 set -uo pipefail
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -121,4 +123,28 @@ done
 args=( --agent "$AGENT" )
 [ -n "$MODEL" ]  && args+=( --model "$MODEL" )
 [ -n "$EFFORT" ] && args+=( --effort "$EFFORT" )
-exec "$DOCKET_BASH_PATH" "$ADAPTER" "${args[@]}" -- "$@"
+# CALL-AND-RETURN, not exec (change 0237). The facade must regain control so the run gate can read
+# what the delegated run actually left in git — that seam is the whole point, and `exec` made it
+# unreachable by replacing this process with the adapter's image. Removing `exec` shifts process
+# semantics: the adapter is now a CHILD rather than a replacement image, so it gets its own pid and
+# this process stays alive as its parent. Two consequences are deliberate. (1) The adapter's exit
+# code is captured and propagated VERBATIM on every path where the gate takes no action, so no
+# existing caller observes a behavior change.
+#
+# (2) SIGNAL DELIVERY, measured rather than assumed (spec Risk 2; change 0237 build). The facade
+# installs NO traps, so behavior splits by how the signal is addressed:
+#   - GROUP-directed (what a terminal Ctrl-C does — it signals the whole foreground process group):
+#     UNCHANGED. The adapter is in that group and gets the signal directly, its own trap fires
+#     immediately, and the facade dies of the same signal (130 on INT, 143 on TERM). This is the
+#     interactive path, and it is the reason no trap is added here.
+#   - PID-directed (a supervisor doing `kill -INT <facade pid>`, e.g. `timeout`): CHANGED, because
+#     the facade is now a separate process that absorbs the signal instead of being the adapter.
+#     A pid-directed INT is deferred while this shell waits on its child and is then discarded
+#     (exit 0); a pid-directed TERM kills this shell at once and ORPHANS the still-running adapter.
+#     Under `exec` neither was possible — there was only one process to signal. Nothing in docket
+#     signals the facade by pid today; forwarding traps are deliberately NOT added here because
+#     that is a design decision for the run gate's own error posture, not a silent side effect of
+#     this refactor.
+"$DOCKET_BASH_PATH" "$ADAPTER" "${args[@]}" -- "$@"
+rc=$?
+exit "$rc"
