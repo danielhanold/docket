@@ -266,9 +266,21 @@ independent legs; any emits, and more than one may emit on one change.
   self-clearing once the next commit lands or the PR is recorded; a floor loose enough never to
   misfire would be loose enough to stop detecting.
 
-  **Not covered:** the run that opens the PR, writes `pr:`, and dies before `status: implemented`.
-  Leg C's `pr:`-empty gate makes it invisible and leg B catches it at 12h; its evidence is a
-  manifest/GitHub comparison, and this script is git-only by contract.
+  **Now covered, by leg D (change 0219):** the run that opens the PR, writes `pr:`, and dies before
+  `status: implemented`. Leg C's `pr:`-empty gate still makes it invisible *here* — that gate is
+  deliberate — but the state is manifest-internal and detectable git-only, so it needed no widening
+  of leg C and no relaxation of this script's contract. Leg D is its complement on the same hoisted
+  `pr:` read.
+
+  **The surviving residual is offline, or `gh` unavailable.** Leg C's `pr:`-unset finding is
+  *ambiguous by construction*: a PR that exists and merely went unrecorded, and a run that died
+  before opening one, produce the identical evidence in git. Resolving them requires asking GitHub,
+  which this script will not do — so the resolution lives in `docket-status.sh`'s
+  `detect_orphan_pr` (change 0219), beside `detect_merged` where `gh` already lives. That leg reuses
+  this leg's own 2h floor, so the two findings always agree. When `gh` is unavailable it emits
+  `sweep-skipped` and goes quiet; leg C's finding still fires, and a human still resolves the
+  ambiguity by hand. **That degradation is the design, not a defect:** the offline-safe check stays
+  offline-safe.
 
 - **Leg D — the Step 7 seam: `pr:` recorded, `status:` never advanced (time-free, change 0219).**
   `pr:` is non-empty while `status:` is still `in-progress`. `docket-implement-next` writes
