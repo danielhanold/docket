@@ -371,7 +371,9 @@ for h in $shipped; do
   # `[^-]` is load-bearing, not decoration: the same paragraph names the stricter variant it could
   # NOT obtain as a "non-interactive `claude -p` child", so a bare `interactive` stayed GREEN through
   # a mutation that deleted the measured mode's name outright — the negative spelling of the word
-  # stood in for the positive one.
+  # stood in for the positive one. Change 0234 moved that negative spelling off this surface into
+  # `gate-execution-evidence.md`, so the compressed `### claude` section here no longer contains
+  # `non-interactive` at all; `[^-]` is retained against its return, not as live evidence.
   assert "modes: '$h' names the mode its evidence WAS measured in" \
     'grep -qiE "(^|[^-])interactive" <<<"$h_flat"'
   assert "modes: '$h' records the forked/dispatched mode as UNMEASURED" \

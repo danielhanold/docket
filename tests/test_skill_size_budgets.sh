@@ -633,9 +633,13 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # file is a close-out record of a completed change, while this content must be rewritten whenever a
 # harness version moves) and a new ADR (rejected — an Accepted ADR is immutable except its status
 # line, the wrong lifecycle for a measurement). Set per the rounding rule above from the measured
-# actuals: 100 lines -> 105, 971 words -> 1000. 100 is already a multiple of 5, so rounding up leaves
-# ZERO lines of margin — the near-zero-headroom failure mode this block records twice — hence the
-# multiple after it, 105; 1000 leaves 29 words (above the within-25 threshold).
+# actuals: 100 lines -> 110, 971 words -> 1000. 100 is already a multiple of 5, so rounding up leaves
+# ZERO lines of margin — the near-zero-headroom failure mode this block records twice — and 105
+# leaves five, which is the same near-zero reading the sibling row below took when it rejected 115;
+# hence the multiple after it, 110. 1000 leaves 29 words (above the within-25 threshold). This row is
+# expected to be RAISED again on a re-probe or a fifth harness — each per-harness narrative runs
+# 8-12 lines — unlike the ratcheted instruction row below, which is frozen instruction and is
+# expected to hold.
 # The same change RATCHETED skills/docket-build/references/gate-execution.md DOWN, 175/1650 ->
 # 120/1000. A lowering needs no where-else clause either (that rule binds a raise), but the
 # ratchet is the discretionary half of 0234 and so is argued here: the file's defect was ACCUMULATED
@@ -653,7 +657,7 @@ skills/docket-adr/adr-template.md                           26   90
 skills/docket-auto-groom/SKILL.md                           66 1237
 skills/docket-brainstorm/SKILL.md                           84  692
 skills/docket-build/SKILL.md                               320 2950
-skills/docket-build/references/gate-execution-evidence.md  105 1000
+skills/docket-build/references/gate-execution-evidence.md  110 1000
 skills/docket-build/references/gate-execution.md            120 1000
 skills/docket-build/references/task-routing.md              50  500
 skills/docket-build-task/SKILL.md                          125 1100
