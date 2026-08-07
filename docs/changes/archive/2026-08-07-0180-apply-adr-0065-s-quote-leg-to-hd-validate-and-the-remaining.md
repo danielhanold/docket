@@ -2,11 +2,11 @@
 id: 180
 slug: apply-adr-0065-s-quote-leg-to-hd-validate-and-the-remaining
 title: Apply ADR-0065's quote leg to hd_validate and the remaining flow-map truncation corners
-status: proposed
+status: killed
 priority: medium
 type: fix
 created: 2026-07-31
-updated: 2026-07-31
+updated: 2026-08-07
 depends_on: []
 related: []
 discovered_from: [173]
@@ -60,3 +60,7 @@ but it is the same defect wearing different clothes.
 
 - Any vendor model allowlist or availability lookup (ADR-0015 forbids it).
 - Re-litigating ADR-0065 itself.
+
+## Why killed
+
+Consolidated into #0255 at the 2026-08-07 backlog triage: the hd_validate quote leg (correctness half) and #0181's rule documentation land together under ADR-0065.
