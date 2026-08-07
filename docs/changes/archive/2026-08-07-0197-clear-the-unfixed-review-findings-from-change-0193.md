@@ -2,11 +2,11 @@
 id: 197
 slug: clear-the-unfixed-review-findings-from-change-0193
 title: Clear the unfixed review findings from change 0193
-status: proposed
+status: killed
 priority: medium
 type: chore
 created: 2026-08-02
-updated: 2026-08-02
+updated: 2026-08-07
 depends_on: []
 related: []
 discovered_from: [193]
@@ -55,3 +55,7 @@ they belong in their own pass rather than in a hotfix.
 ## Open questions
 
 - Whether the two entailed `!=` asserts are worth re-aiming at all, or simply removing.
+
+## Why killed
+
+Consolidated into #0257 at the 2026-08-07 backlog triage: the small review-finding clearance class (0193 residue) lands with #0204's rationale restorations as one sweep.
