@@ -6,7 +6,8 @@
 # scripts/runners/<name>.sh in the foreground, returning with its verbatim exit code (change 0237
 # replaced the original `exec` so the facade regains control at that seam). On that seam sits the
 # RUN GATE: for an `implement-next` delegation only, an unfinished run gets ONE re-dispatch and a
-# second strike exits 1 — the sole path where the facade does not return the adapter's own code.
+# second strike exits 1, and a halted run stops the caller with 3 — the only two paths where the
+# facade does not return the adapter's own code.
 # Registration IS the adapter file's existence. Unknown runner => loud nonzero (abort-and-report).
 # Contract: scripts/runner-dispatch.md.
 # Mock seams: RUNNERS_DIR, GIT (via lib/docket-root.sh).
@@ -261,7 +262,7 @@ if [ "${#NEW_IDS[@]}" -gt 1 ]; then
   exit "$rc"
 fi
 
-STILL_INCOMPLETE=()
+STILL_INCOMPLETE=(); HALTED=()
 for nid in "${NEW_IDS[@]:-}"; do
   [ -n "$nid" ] || continue
   verdict="$("$DOCKET_BASH_PATH" "$VERIFY_RUN" "$nid" 2>/dev/null)"
@@ -269,8 +270,13 @@ for nid in "${NEW_IDS[@]:-}"; do
   case "$verdict" in
     run-incomplete*) : ;;
     # run-halted NEVER re-dispatches: a halt means a human is needed, and spending a second full
-    # agent run on it is waste. run-complete and run-unclaimed need nothing. An empty/unparseable
-    # verdict falls here too — the gate acts only on a POSITIVE finding, never on a guess.
+    # agent run on it is waste. But it is not a no-op either — docket-implement-next's disposition
+    # table pins `halted` to STOP + SURFACE, and returning the adapter's (healthy) 0 here would tell
+    # a driver to draw the next change, which is exactly the prose-level failure this change exists
+    # to replace. It gets its OWN terminal code at this seam (see below).
+    run-halted*) HALTED+=("$verdict"); continue ;;
+    # run-complete and run-unclaimed need nothing. An empty/unparseable verdict falls here too —
+    # the gate acts only on a POSITIVE finding, never on a guess.
     *) continue ;;
   esac
 
@@ -298,6 +304,23 @@ if [ "${#STILL_INCOMPLETE[@]}" -gt 0 ]; then
   printf 'runner-dispatch: RUN GATE FAILED after one re-dispatch — a delegated implement-next run did not reach its PR:\n' >&2
   for v in "${STILL_INCOMPLETE[@]}"; do printf '  %s\n' "$v" >&2; done
   exit 1
+fi
+
+if [ "${#HALTED[@]}" -gt 0 ]; then
+  # STOP + SURFACE, with its own code. 3, not 1: the two-strikes abort above is a run that FAILED
+  # to finish, whereas a halt is the delegated run deliberately stopping because a human is needed —
+  # two different terminal outcomes deserve two different codes, and a driver that wants to
+  # distinguish them can. The consumer that exists today is the generated shim wrapper
+  # (sync-agents.sh's emit_shim), whose rule is bare-non-zero: "if the dispatch exits non-zero,
+  # abort-and-report its stderr diagnostic — never retry silently". That reading is CORRECT for a
+  # halt — abort-and-report IS stop + surface — so the new code costs nothing there and the stderr
+  # lines below carry the distinction. This is the one place the facade returns non-zero for
+  # something that is not a failure of the dispatch itself; it is deliberate, and it is why the code
+  # is distinct rather than folded into 1.
+  printf 'runner-dispatch: RUN HALTED — a delegated implement-next run stopped and needs a human:\n' >&2
+  for v in "${HALTED[@]}"; do printf '  %s\n' "$v" >&2; done
+  printf 'runner-dispatch: not continuing — read the change file'"'"'s "## Run halted" section.\n' >&2
+  exit 3
 fi
 
 exit "$rc"
