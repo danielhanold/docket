@@ -97,8 +97,12 @@ run gate (change 0237) — `VERIFY_RUN` (the disposition reader, default `script
 
    - `run-complete` / `run-halted` / `run-unclaimed` → nothing; exit the adapter's code.
    - `run-incomplete` → **one** bounded re-dispatch of the same adapter, with the change id and the
-     unmet conjuncts as task context. If the second verdict is still `run-incomplete`, the facade
-     aborts loudly with exit `1`, naming the change and the still-unmet conjuncts.
+     unmet conjuncts as task context. The **second** verdict then decides: still `run-incomplete` ⇒
+     abort loudly with exit `1`, naming the change and the still-unmet conjuncts; `run-halted` ⇒
+     exit `3`, the same terminal halt as a first-verdict halt (a re-dispatched run stopping
+     deliberately is not a success); `run-complete` / `run-unclaimed` ⇒ exit **`0`**; anything
+     else (empty, unparseable) ⇒ the adapter's code, since the gate acts only on a positive
+     finding.
 
    `run-halted` never re-dispatches — a halt means a human is needed. A `build-*` delegation leaves
    its change `in-progress` by design, which is why the agent gate is load-bearing rather than an
@@ -109,8 +113,13 @@ run gate (change 0237) — `VERIFY_RUN` (the disposition reader, default `script
    that may well have succeeded.
 
    The re-dispatched run's own exit code is not propagated: the gate's verdict is read from git,
-   not from the retry's status, so the outcome is either `$rc` (the first adapter's code) or the
-   two-strikes `1`.
+   not from the retry's status. By the same rule, once a re-dispatch has actually run, a **positive**
+   second verdict of `run-complete` / `run-unclaimed` supersedes the **first** adapter's code and the
+   facade exits `0` — that first code describes the attempt the gate just superseded, and a non-zero
+   one is a common accompaniment to a run that stopped short, so propagating it would report a
+   run the gate has just proved complete as a failure. The override is scoped to the re-dispatch
+   path only: where the gate took **no** action, the adapter's code is still propagated verbatim,
+   including when the first verdict alone was `run-complete` / `run-unclaimed`.
 
 **Signals.** The facade installs no traps. A **group**-directed signal (a terminal's Ctrl-C) is
 unchanged by the loss of `exec` — the adapter is in the same process group and receives it
@@ -128,9 +137,16 @@ traps are a deliberate deferral, not an oversight.
 - `3` — the run gate's **halt** stop: the delegated `implement-next` run wrote a `## Run halted`
   section, so it stopped deliberately and needs a human. Distinct from `1` because it is not a
   failure of the run — a driver that wants to tell "did not finish" from "stopped on purpose"
-  can. Never re-dispatched. The generated shim wrappers read any non-zero as
-  abort-and-report-stderr, which is the correct handling for both.
+  can. Never re-dispatched, and it applies to a halt seen on either verdict — a halt after a
+  re-dispatch is terminal too, never folded into the success below. The generated shim wrappers
+  read any non-zero as abort-and-report-stderr, which is the correct handling for both.
+- `0` — a re-dispatch ran and the **second** verdict was `run-complete` or `run-unclaimed`. The
+  gate's git-read verdict outranks the first adapter's (possibly non-zero, now stale) code. Only
+  on this path — a gate that took no action never overrides.
 - otherwise — the adapter's exit code, propagated verbatim.
+
+The full post-re-dispatch matrix, second verdict → exit: `run-complete` → `0`, `run-unclaimed` → `0`,
+`run-halted` → `3`, `run-incomplete` → `1`, anything else → the adapter's code.
 
 ## Invariants
 
@@ -141,8 +157,10 @@ traps are a deliberate deferral, not an oversight.
 - The adapter's exit code is propagated verbatim whenever the run gate takes no action; the
   two-strikes abort (`1`) and the halt stop (`3`) are the only new non-zeros, and both are on paths
   that were previously silent.
-- A `run-halted` verdict is terminal at this seam: never re-dispatched, never exit-0. Stop and
-  surface, per `docket-implement-next`'s disposition table.
+- The adapter's code is overridden with `0` on exactly one path: a re-dispatch ran **and** the
+  second verdict positively showed the run finished. No re-dispatch ⇒ no override, ever.
+- A `run-halted` verdict is terminal at this seam whichever verdict surfaces it: never
+  re-dispatched, never exit-0. Stop and surface, per `docket-implement-next`'s disposition table.
 - The run gate is scoped to `--agent implement-next` and never writes docket state — it acts only
   by running an agent. It re-dispatches an unfinished change **at most once**.
 - The gate acts on at most one change per dispatch, and only on one whose `claimed_at` falls inside

@@ -378,7 +378,11 @@ printf 'adapter\n' >> "${ORDER_LOG:?}"
 # each invocation advances the "after" snapshot to the next staged file, if one exists
 n=$(wc -l < "${AD_LOG:?}" | tr -d ' ')
 [ -f "${SNAP_DIR:?}/after.$n" ] && cp "${SNAP_DIR}/after.$n" "${SNAP_DIR}/current"
-exit 0
+# Per-invocation exit code: line $n of $AD_RC_FILE, defaulting to 0. Lets a case stage a FIRST
+# adapter that exits non-zero (the asymmetry case (f) alone does not reach).
+adrc=""
+[ -n "${AD_RC_FILE:-}" ] && [ -f "$AD_RC_FILE" ] && adrc="$(sed -n "${n}p" "$AD_RC_FILE")"
+exit "${adrc:-0}"
 AD
   chmod +x "$SBX/runners/ad.sh"
   SNAP="$SBX/snap"; mkdir -p "$SNAP"
@@ -545,7 +549,7 @@ rm -rf "$SBX"
 # NOTE on `wc -l | tr -d " "`: BSD wc PADS its count with leading spaces, so a bare
 # `[ "$(wc -l < f)" = "1" ]` is false even when the count is right. The `tr` is load-bearing.
 
-# (f) run-incomplete -> ONE re-dispatch; a now-complete second verdict exits with the adapter's code
+# (f) run-incomplete -> ONE re-dispatch; a now-complete second verdict exits 0
 make_gate_fixture
 printf '\n' > "$SNAP/current"; printf '%s\n' "4 $FUT" > "$SNAP/after.1"
 printf 'run-incomplete 4 status pr\n' > "$SNAP/verdict.4"
@@ -562,6 +566,41 @@ assert "0237 redispatch: the retry names the unmet conjuncts" \
   'grep -qE "status|pr" "$SBX/ad.log"'
 assert "0237 redispatch: the retry keeps --agent implement-next" \
   'grep -qF -- "--agent implement-next" "$SBX/ad.log"'
+rm -rf "$SBX"
+
+# (f2) THE ASYMMETRY case (f) cannot reach: the FIRST adapter exits NON-ZERO (a common
+#      accompaniment to a run that stopped short) and the re-dispatch drives the change to
+#      run-complete. `$rc` is the first adapter's code and is stale by then — the gate's git-read
+#      verdict is the stronger fact, so the facade must exit 0 rather than report a run it has just
+#      proved complete as a failure. The override is scoped to the re-dispatch path; the
+#      propagate-verbatim fence for a gate that took NO action is pinned by the 0/3/7 loop above
+#      and by case (h).
+make_gate_fixture
+printf '\n' > "$SNAP/current"; printf '%s\n' "4 $FUT" > "$SNAP/after.1"
+export AD_RC_FILE="$SBX/ad.rc"; printf '%s\n' 7 0 > "$AD_RC_FILE"
+write_fake_vr "# first verdict call is incomplete, second is complete
+n=\$(grep -c '^4' \"\${VR_LOG:?}\" || true)
+if [ \"\$n\" -le 1 ]; then printf 'run-incomplete 4 status pr\\n'; else printf 'run-complete 4\\n'; fi"
+run_gate --runner ad --agent implement-next >/dev/null 2>&1; rc=$?
+assert "0237 redispatch: a non-zero FIRST adapter code does not survive a verified-complete retry" \
+  '[ "$rc" = "0" ]'
+assert "0237 redispatch: (f2) the adapter still ran exactly TWICE" \
+  '[ "$(wc -l < "$SBX/ad.log" | tr -d " ")" = "2" ]'
+unset AD_RC_FILE
+rm -rf "$SBX"
+
+# (f3) …and the override stops at SUCCESS. A halt discovered on the SECOND verdict is the same
+#      terminal disposition as one discovered on the first — exit 3, never folded into the 0 above,
+#      because a run that stopped deliberately is not a success.
+make_gate_fixture
+printf '\n' > "$SNAP/current"; printf '%s\n' "4 $FUT" > "$SNAP/after.1"
+write_fake_vr "# first verdict call is incomplete, second is a halt
+n=\$(grep -c '^4' \"\${VR_LOG:?}\" || true)
+if [ \"\$n\" -le 1 ]; then printf 'run-incomplete 4 status pr\\n'; else printf 'run-halted 4\\n'; fi"
+err="$( run_gate --runner ad --agent implement-next 2>&1 >/dev/null )"; rc=$?
+assert "0237 redispatch: a halt on the SECOND verdict is terminal (exit 3), not a success" \
+  '[ "$rc" = "3" ]'
+assert "0237 redispatch: that halt says a human is needed" 'grep -qiF "human" <<<"$err"'
 rm -rf "$SBX"
 
 # (g) two strikes -> loud non-zero naming the change and the still-unmet conjuncts

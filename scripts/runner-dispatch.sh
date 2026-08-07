@@ -6,8 +6,9 @@
 # scripts/runners/<name>.sh in the foreground, returning with its verbatim exit code (change 0237
 # replaced the original `exec` so the facade regains control at that seam). On that seam sits the
 # RUN GATE: for an `implement-next` delegation only, an unfinished run gets ONE re-dispatch and a
-# second strike exits 1, and a halted run stops the caller with 3 — the only two paths where the
-# facade does not return the adapter's own code.
+# second strike exits 1, a halted run stops the caller with 3, and a re-dispatch that drove the run
+# to completion exits 0 over a stale first code — the only three paths where the facade does not
+# return the adapter's own code.
 # Registration IS the adapter file's existence. Unknown runner => loud nonzero (abort-and-report).
 # Contract: scripts/runner-dispatch.md.
 # Mock seams: RUNNERS_DIR, GIT (via lib/docket-root.sh).
@@ -262,7 +263,7 @@ if [ "${#NEW_IDS[@]}" -gt 1 ]; then
   exit "$rc"
 fi
 
-STILL_INCOMPLETE=(); HALTED=()
+STILL_INCOMPLETE=(); HALTED=(); GATE_VERIFIED_DONE=0
 for nid in "${NEW_IDS[@]:-}"; do
   [ -n "$nid" ] || continue
   verdict="$("$DOCKET_BASH_PATH" "$VERIFY_RUN" "$nid" 2>/dev/null)"
@@ -292,6 +293,16 @@ for nid in "${NEW_IDS[@]:-}"; do
   printf 'runner-dispatch: run gate — after re-dispatch: %s\n' "${verdict:-run-unverifiable $nid}" >&2
   case "$verdict" in
     run-incomplete*) STILL_INCOMPLETE+=("$verdict") ;;
+    # A halt discovered on the SECOND verdict is the same disposition as one discovered on the
+    # first: terminal, exit 3. The re-dispatched run stopping deliberately is not a success, so it
+    # never reaches the override below.
+    run-halted*) HALTED+=("$verdict") ;;
+    # The re-dispatch DROVE THE RUN HOME. From here the gate's own git-read verdict is a stronger
+    # fact than the first adapter's status: that first code very often accompanies a run that
+    # stopped short, and returning it would report a now-verified-complete run as a failure. Only a
+    # POSITIVE second verdict qualifies — an empty or unparseable one falls through to `$rc`, since
+    # the gate never acts on a guess.
+    run-complete*|run-unclaimed*) GATE_VERIFIED_DONE=1 ;;
   esac
 done
 
@@ -322,5 +333,13 @@ if [ "${#HALTED[@]}" -gt 0 ]; then
   printf 'runner-dispatch: not continuing — read the change file'"'"'s "## Run halted" section.\n' >&2
   exit 3
 fi
+
+# A re-dispatch ran and the second verdict positively showed the run finished. `$rc` is the FIRST
+# adapter's code and is stale here — it describes the attempt the gate just superseded, and a
+# non-zero first code is a common accompaniment to a run that stopped short. This is the one path
+# where the facade drops the adapter's code without aborting; every path where NO re-dispatch ran
+# still returns it verbatim, which is why the override keys on GATE_VERIFIED_DONE (set only inside
+# the retry loop) rather than on the verdict alone.
+[ "$GATE_VERIFIED_DONE" = 1 ] && exit 0
 
 exit "$rc"
