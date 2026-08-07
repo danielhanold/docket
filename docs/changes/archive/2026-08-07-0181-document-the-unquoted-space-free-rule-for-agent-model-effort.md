@@ -2,11 +2,11 @@
 id: 181
 slug: document-the-unquoted-space-free-rule-for-agent-model-effort
 title: Document the unquoted, space-free rule for agent model/effort config values
-status: proposed
+status: killed
 priority: medium
 type: docs
 created: 2026-07-31
-updated: 2026-07-31
+updated: 2026-08-07
 depends_on: []
 related: []
 discovered_from: [173]
@@ -53,3 +53,7 @@ you trigger it, but a documented rule prevents the trigger.
 ## Out of scope
 
 - Changing the gate's posture or its diagnostic wording (ADR-0065, change 0173).
+
+## Why killed
+
+Consolidated into #0255 at the 2026-08-07 backlog triage: the docs half of the same ADR-0065 rule; target files and wording carried over.
