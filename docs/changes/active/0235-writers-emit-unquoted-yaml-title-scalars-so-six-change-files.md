@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/writers-emit-unquoted-yaml-title-scalars-so-six-change-files
-claimed_at: 2026-08-07T16:03:34Z
+claimed_at: 2026-08-07T16:14:00Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -34,17 +34,22 @@ reconciled: false
 
 ## Why
 
-Six change files on `docket` have frontmatter that a real YAML parser rejects
+Five change files on `docket` have frontmatter that a real YAML parser rejects
 (`mapping values are not allowed here`). Every one is an unquoted `title:` scalar carrying a colon:
 
-| id | title fragment |
-|---|---|
-| 0121 | `The manifest's elsewhere: check proves...` |
-| 0173 | `...a model ID containing / or :` (trailing colon, end of value) |
-| 0211 | `...stops after the build: commits on an unpushed branch...` |
-| 0217 | `Clear change 0202's three minor findings: dead guard...` |
-| 0219 | `aborted-run's sixth signature: PR opened and pr: written...` |
-| 0234 | `Split gate-execution.md: probe evidence should not sit...` |
+| id | where | title fragment |
+|---|---|---|
+| 0121 | active | `The manifest's elsewhere: check proves...` |
+| 0173 | archive | `...a model ID containing / or :` (trailing colon, end of value) |
+| 0211 | archive | `...stops after the build: commits on an unpushed branch...` |
+| 0217 | archive | `Clear change 0202's three minor findings: dead guard...` |
+| 0234 | active | `Split gate-execution.md: probe evidence should not sit...` |
+
+(Grooming counted six. 0219 was the sixth; its title has since been reworded to
+`aborted-run's Step 7 seam — a fourth git-only leg, plus GitHub enrichment for leg C`, which carries
+no colon and now parses. Confirmed at reconcile — the repair set is five, and the fact that a
+violation left the tree by unrelated editing rather than by any guard is itself the argument for
+fixing the writer.)
 
 **docket already knows this rule and still writes violations.** AGENTS.md carries the promoted
 `yaml-scalar` finding ("Quote any hand-authored YAML scalar carrying a colon-space or a boolean
@@ -59,8 +64,8 @@ is explicit about this). That protection is against *shell and regex* injection.
 about *YAML syntax*: a title containing `: ` produces a file no YAML consumer can read. The write
 path has no quoting step at all.
 
-`scalar-form` also has a hole of its own, which is why the count above is six and the check reports
-five: it tests for `': '` (colon-space) and for bare booleans, but **not for a colon at the end of
+`scalar-form` also has a hole of its own, which is why the count above is five and the check reports
+four: it tests for `': '` (colon-space) and for bare booleans, but **not for a colon at the end of
 the value**. 0173's title ends in `/ or :` — invalid YAML, undetected.
 
 Impact today is bounded but not zero: docket's own readers are grep/awk (`docket-frontmatter.sh`)
@@ -74,7 +79,7 @@ failure mode is a parse abort over the whole manifest rather than one bad field.
   a properly quoted YAML scalar when the value needs it. Byte-for-byte fidelity of the value must
   survive — the B1 property is not to be traded away, and quoting must handle a value that itself
   contains quotes.
-- **Repair the six existing files**, active and archive alike — and republish the three archived
+- **Repair the five existing files**, active and archive alike — and republish the three archived
   ones onto `main`, where `terminal_publish: true` already put the broken copies. An archived file
   is immutable as a *record*, but a syntactically broken one is not a record anyone can read.
 - **Close the `scalar-form` gap**: a value ending in `:` is as invalid as one containing `': '` —
@@ -115,3 +120,53 @@ Scope grew in two places during design: the predicate also covers a value contai
 with a YAML indicator character (silent truncation, not just a loud abort), and the three archived
 repairs are **republished onto `main`**, where `terminal_publish: true` already put the broken
 copies.
+
+## Reconcile log
+
+### 2026-08-07
+
+Re-read the change, its spec (including the **2026-08-07 always-quote revision / ADR-0071**),
+`related: [234]`, and the current code on `origin/main` (035e8eba). **The design holds; one factual
+correction to the repair set.**
+
+**Repair set is five, not six.** 0219's title was reworded since grooming — it now reads
+`aborted-run's Step 7 seam — a fourth git-only leg, plus GitHub enrichment for leg C`, carrying no
+colon, so it parses. Verified in the metadata tree. Remaining targets, all confirmed still broken
+verbatim as the spec describes them:
+
+| id | tree | shape |
+|---|---|---|
+| 0121 | `active/` | colon-space |
+| 0234 | `active/` | colon-space |
+| 0173 | `archive/` | **trailing colon** (the leg `scalar-form` is missing) |
+| 0211 | `archive/` | colon-space |
+| 0217 | `archive/` | colon-space |
+
+The three archived copies were re-verified on `origin/main` — all three still carry the broken line,
+so §3's republish leg is still required and still has work to do.
+
+Code anchors re-verified against current `main`; every one still reads as the spec describes:
+
+- `scripts/mint-stub.sh` — `set_field` at line 138 still writes `print key ": " val` with no quoting
+  step; the seven `set_field` calls sit at lines 202–208 with `title` at 204, and `title` is still
+  the only free-text prose among them (`slug` slugified, `id`/`created`/`updated`/`type` generated,
+  `discovered_from` a `[…]` list). The control-character gate is at line 77 as cited.
+- `scripts/lib/docket-frontmatter.sh` — `_docket_unwrap_quotes` (line 44) still strips exactly one
+  matched pair and does **no** unescaping, so the `''`-undoubling leg ADR-0071 makes load-bearing is
+  genuinely absent today. `field_raw`/`fm_field_raw` still preserve quotes for the checker.
+- `scripts/board-checks.sh` — `scalar_form_check` at line 336 carries the skip leg, the `': '` leg,
+  and the boolean leg, and **no trailing-colon leg**; it is called for `title` and `blocked_by` at
+  lines 351–352. The predicate does not exist yet in the library.
+- `AGENTS.md:29` and `docs/changes/learnings/yaml-scalar.md` both still say **"hand-authored"** — §4's
+  widening is unstarted.
+
+Scope unchanged otherwise. `depends_on: []`; ADR-0071 is present and `Accepted` on `docket`.
+
+**Concurrency note for the build:** 0234 is `in-progress` under another autonomous run right now,
+and its change file is one of the two `active/` repair targets. Its title line is not something that
+run edits, but the repair must re-read the file immediately before writing and stage only that path.
+
+Auto-capture: the discovery pass surfaced no adjacent work clearing the six admission gates. The
+`|`-in-title sibling is already change 0189, and A7's re-confirmation of the `archive-change.sh` /
+`reclaim-claims.sh` `set_field` copies is in-scope verification work for this branch, not a separate
+change. Nothing minted.
