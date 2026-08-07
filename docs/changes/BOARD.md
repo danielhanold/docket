@@ -64,7 +64,7 @@
 | [0221](active/0221-assert-executes-backticks-in-its-test-description-so-a-verba.md) | assert() executes backticks in its test description, so a verbatim-quoted anchor can run shell | `medium` | `fix` | needs-brainstorm |
 | [0222](active/0222-raise-docket-s-minimum-bash-from-4-to-4-4.md) | Raise docket's minimum Bash from 4+ to 4.4 | `medium` | `chore` | needs-brainstorm |
 | [0224](active/0224-the-build-gate-contract-never-says-green-red-is-the-exit-code.md) | The build gate contract never says green/red is the exit code, so an output-shape match passes as a gate | `high` | `docs` | needs-brainstorm |
-| [0228](active/0228-finalize-s-auto-detect-suite-loop-has-no-failure-accumulator.md) | finalize's auto-detect suite loop has no failure accumulator, so a mid-suite red merges | `high` | `fix` | needs-brainstorm |
+| [0228](active/0228-finalize-s-auto-detect-suite-loop-has-no-failure-accumulator.md) | finalize's auto-detect suite loop has no failure accumulator, so a mid-suite red merges | `high` | `fix` | build-ready |
 | [0229](active/0229-the-runner-s-budget-slack-factor-is-a-hardware-dependent-con.md) | the runner's budget slack factor is a hardware-dependent constant | `medium` | `refactor` | needs-brainstorm |
 | [0230](active/0230-a-self-scanning-population-floor-pins-test-docket-config-sh.md) | a self-scanning population floor pins test_docket_config.sh's size and blocks sharding | `medium` | `refactor` | needs-brainstorm |
 
