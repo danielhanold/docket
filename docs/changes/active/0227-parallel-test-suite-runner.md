@@ -66,7 +66,8 @@ Target: <157s suite wall time (expected ~8–10x with ~8 workers).
 
 ## Open questions
 
-- Whether finalize's suite auto-detect should route through the runner or
-  `finalize.test_command` should name it explicitly (decide at build time).
+- ~~Whether finalize's suite auto-detect should route through the runner or
+  `finalize.test_command` should name it explicitly~~ — RESOLVED 2026-08-06: set
+  `finalize.test_command` explicitly to the new runner once built.
 
 ## Reconcile log

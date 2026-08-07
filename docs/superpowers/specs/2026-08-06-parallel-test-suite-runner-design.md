@@ -83,9 +83,9 @@ pattern: `test_skill_size_budgets.sh`):
 
 ### Integration
 
-- `finalize.test_command` stays unset (auto-detect) or is pointed at
-  `scripts/run-tests.sh`; decided at build time by what finalize's auto-detect does
-  with a runner script present.
+- `finalize.test_command` is set explicitly to `scripts/run-tests.sh` in `.docket.yml`
+  as part of this change (decided 2026-08-06) — no reliance on auto-detect, so the
+  merge gate deterministically runs the parallel suite.
 - `profile-asserts.sh` is untouched (profiling stays serial by design).
 
 ## Out of scope
