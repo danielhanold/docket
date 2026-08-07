@@ -248,11 +248,22 @@ whose date is almost always past the floor — so the leg would fire on the noth
 that belongs to **leg B** and that leg C deliberately stays silent about. `INTEGRATION_BRANCH` comes
 from the config resolved by `docket_preflight`.
 
-The query is `gh pr list --repo <repo> --head <branch> --state open`, where `<repo>` is `--repo` when
-given and `gh repo view`'s `owner/name` otherwise — the same resolution `detect_merged` performs.
-Passing it explicitly is what keeps this leg on the **same repository as the rest of the pass**:
-without `--repo`, `gh` infers the repository from the process CWD, which a `--repo` invocation
-(forwarded by `board_pass` and `github-mirror.sh`) is precisely saying not to trust.
+The query is **one batched call for the whole candidate set** —
+`gh pr list --repo <repo> --state open --json number,headRefName --limit 200` — whose result is
+matched to each candidate locally by `headRefName`. This leg shares the full-path pass with
+`detect_merged`, which is batched for exactly this reason, so its network cost is **O(1) per pass**
+and not O(candidates): a per-candidate query made a backlog drain with several in-progress changes
+the slowest thing in the pass. `<repo>` is `--repo` when given and `gh repo view`'s `owner/name`
+otherwise — the same resolution `detect_merged` performs. Passing it explicitly is what keeps this
+leg on the **same repository as the rest of the pass**: without `--repo`, `gh` infers the repository
+from the process CWD, which a `--repo` invocation (forwarded by `board_pass` and `github-mirror.sh`)
+is precisely saying not to trust.
+
+`--limit 200` because `gh`'s default of 30 would silently truncate a busy repository, and a
+truncated listing does not read as "no PR" — it reads as the *wrong message arm* below. 200 is two
+100-item API pages inside the one invocation, against an open-PR count bounded by a repo's in-flight
+changes. A listing that comes back **at** the ceiling is treated as possibly truncated and skips the
+leg (see `pr-list-truncated`) rather than guessing.
 
 **Three outcomes, three remedies**, all rendered as `check aborted-run <id> <message>` — the same
 shape `health_checks` prints, so consumers read one vocabulary:
@@ -275,10 +286,13 @@ merge: acting on the branch would race a run that is merely between commits. Adv
 `sweep-skipped <reason>` and returns 0; it never aborts the pass. The reasons are `gh-unavailable`
 (a `gh` that exits non-zero, and equally a `gh` that is not installed at all — the common offline
 case), `repo-unresolved` (`--repo` unset *and* `gh repo view` returning something that is not
-`owner/name` — validated by the same owner/name split `detect_merged` uses), and `gh-unparseable`
-(a `gh` that exits 0 and prints something `jq` cannot
-parse; that one skips the single change and the loop continues, since one bad response is not
-evidence about the others). A repo with no candidate change pays nothing — not even a
+`owner/name` — validated by the same owner/name split `detect_merged` uses), `gh-unparseable`
+(a `gh` that exits 0 and prints something `jq` cannot parse), and `pr-list-truncated` (the listing
+came back at the `--limit` ceiling, so a candidate with no match can no longer be distinguished from
+one whose PR fell off the page). Because the listing is **one batched response for the whole
+candidate set**, both of the latter are *global*: the one response was all the evidence there was,
+so the leg goes quiet entirely rather than skipping a single change. A repo with no candidate change
+pays nothing — not even a
 `gh repo view`. This is what keeps `board-checks.sh`'s offline guarantee intact: offline, the
 git-only check keeps emitting leg C's finding and only the enrichment goes quiet.
 

@@ -589,6 +589,10 @@ ORPHAN_PR_IDLE_SECS=$(( 2 * 3600 ))
 # stayed silent about. Advisory like every aborted-run leg: it flips no status, releases no claim, and
 # writes no file.
 #
+# Network cost is O(1) per pass, VERBATIM detect_merged's discipline: ONE batched `gh pr list` for
+# the whole candidate set (plus the shared `gh repo view` when --repo is unset), matched to the
+# candidates locally by headRefName. See the query below for the --limit choice.
+#
 # Best-effort, VERBATIM detect_merged's posture: any gh/network/parse failure emits
 # "sweep-skipped <reason>" and returns 0. That is what keeps board-checks.sh's offline guarantee
 # intact — offline, the git-only check keeps emitting leg C's finding and only the enrichment goes
@@ -695,24 +699,49 @@ detect_orphan_pr(){
     return 0
   fi
 
-  local i br pl_json pl_num
+  # ONE network call for the WHOLE candidate set, then matched locally by headRefName. detect_merged
+  # is batched for exactly this reason — this leg sits on the same full-path pass, and a per-candidate
+  # `gh pr list` made the pass's network cost O(candidates) during a backlog drain. The `pr list`
+  # form is preferred over detect_merged's aliased graphql because this leg keys on BRANCH NAME, not
+  # on a known PR number: a graphql alias per candidate would need one `pullRequests(headRefName:)`
+  # connection each and buys nothing over a single open-PR listing.
+  #
+  # --limit 200: gh's default is 30, which a busy repo would silently truncate — and a truncated
+  # listing does not read as "no PR", it reads as the WRONG message arm ("the run stopped before
+  # opening one" for a PR that exists). 200 is two 100-item API pages inside the one invocation,
+  # while a docket-managed repo's open-PR count is bounded by its in-flight changes (single digits
+  # in practice), so it is two orders of magnitude of headroom at a fixed cost. The guard below
+  # makes the choice safe rather than merely hopeful: at the ceiling the leg goes quiet instead of
+  # guessing, because a missing match can no longer be distinguished from a truncated page.
+  local pl_list_limit=200
+  local pl_json pl_count
+  # --repo "$repo" is what SPENDS the resolution above. Without it gh infers the repository from
+  # the process CWD, so a pass invoked with --repo would query one repository here and a
+  # different one in board_pass / github-mirror.sh, which both forward the flag.
+  pl_json="$("$GH" pr list --repo "$repo" --state open --json number,headRefName --limit "$pl_list_limit" 2>/dev/null)" || {
+    echo "sweep-skipped gh-unavailable"
+    return 0
+  }
+  # A gh that exits 0 and prints something jq cannot parse is a THIRD failure mode, distinct from
+  # a non-zero exit and from an absent binary. With one batched response this failure is GLOBAL —
+  # the one response is all the evidence there was — so it skips the whole leg rather than a single
+  # change. The reason is unchanged; only its blast radius is, and it is documented that way in
+  # scripts/docket-status.md.
+  if ! printf '%s' "$pl_json" | jq -e . >/dev/null 2>&1; then
+    echo "sweep-skipped gh-unparseable"
+    return 0
+  fi
+  pl_count="$(printf '%s' "$pl_json" | jq -r 'if type == "array" then length else 0 end' 2>/dev/null)"
+  if [ "${pl_count:-0}" -ge "$pl_list_limit" ]; then
+    echo "sweep-skipped pr-list-truncated"
+    return 0
+  fi
+
+  local i br pl_num
   for i in "${!ids[@]}"; do
     id="${ids[$i]}"; br="${branches[$i]}"
-    # --repo "$repo" is what SPENDS the resolution above. Without it gh infers the repository from
-    # the process CWD, so a pass invoked with --repo would query one repository here and a
-    # different one in board_pass / github-mirror.sh, which both forward the flag.
-    pl_json="$("$GH" pr list --repo "$repo" --head "$br" --state open --json number 2>/dev/null)" || {
-      echo "sweep-skipped gh-unavailable"
-      return 0
-    }
-    # A gh that exits 0 and prints something jq cannot parse is a THIRD failure mode, distinct from
-    # a non-zero exit and from an absent binary. Treat it as a skip for THIS change and keep going:
-    # one unparseable response is not evidence about the others.
-    if ! printf '%s' "$pl_json" | jq -e . >/dev/null 2>&1; then
-      echo "sweep-skipped gh-unparseable"
-      continue
-    fi
-    pl_num="$(printf '%s' "$pl_json" | jq -r '.[0].number // empty' 2>/dev/null)"
+    pl_num="$(printf '%s' "$pl_json" | jq -r --arg b "$br" \
+      'map(select(.headRefName == $b)) | .[0].number // empty' 2>/dev/null)"
     # Both messages HEDGE nothing about the PR's existence — unlike leg C, this leg has ASKED, so it
     # states what it found as fact. The remedy stays a bookkeeping act on the manifest, never a
     # push or a merge: acting on the branch would race a run that is merely between commits.
