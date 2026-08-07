@@ -97,3 +97,45 @@ first-release hedge pending evidence, and `docket-review` had by then been exerc
 repo to be trusted as the default. Setting `skills.review` explicitly at any config layer remains
 the escape hatch.
 
+## Update — 2026-08-07 (change 0190)
+
+The Consequences above close with a deferral: *"A docs-only ancestor exemption was considered and
+deliberately deferred as separate design work rather than weakening the invariant here."* Change
+0190 **is** that separate design work, and this note discharges the deferral — the exemption exists
+now, so that sentence should be read as closed, not open. The Consequences text itself is unedited.
+
+**The trust boundary moves from "state provably identical" to "state provably identical OR delta
+provably suite-invisible."** The Decision's third skip condition — `head_sha` **equals** the branch
+HEAD being merged — gains a disjunct: the skip also fires when `head_sha` is a **strict ancestor**
+of the branch HEAD and every path changed in `head_sha..HEAD` lies under the repo's configured
+`<results_dir>/` (trailing-slash prefix match, config-derived). The delta is derived **fresh by
+finalize at skip time** from `git diff --name-only -z --no-renames <head_sha>..HEAD` — tracked paths
+only, never filesystem traversal. Three load-bearing design points:
+
+- **Consumer-side, not producer-side.** Re-minting the evidence at Step 7 was rejected: a block
+  certifies the state it tested, so a re-mint requires re-running the suite — net-neutral on the
+  common path and net-negative when the base moved (gate + re-mint + finalize = three runs). Only a
+  *proof of suite-invisibility* can reduce the run count, and that proof is a git-side read that
+  belongs in the adversarial consumer.
+- **No attestation field.** A producer-written `post_gate_delta: docs-only` field was rejected
+  because finalize re-derives the delta from git state; an attestation would move the trust
+  judgment to the party being trusted.
+- **`--no-renames` is load-bearing, not incidental.** Git's rename detection is on by default and
+  `--name-only` emits only the destination path of a rename pair, so without it a post-gate
+  `git mv` of a script or test into the results tree would read as a 100% docs-only delta and
+  smuggle a suite-composition change past the gate. Caught in whole-branch review of 0190.
+
+**The limb is armed per repo by a default-off, coordination-fenced config key.** The allowlist's
+safety rests on a property of a *specific* repo's own test suite — that no executable suite
+component reads the results tree as a content source — which is not assumable from a path name. So
+arming is explicit repo-committed config (`finalize.skip_results_only_delta`, default `false`),
+never an agent's judgement about whether verification "could be established". Unset or false
+reproduces this ADR's original equality-only predicate exactly. In docket's own repo the property is
+verified and made durable by a live guard test (`tests/test_skip_allowlist_invisibility.sh`) that
+classifies every occurrence of the results-dir literal hazard-vs-benign and separately derives every
+whole-tree walk site to confirm each excludes the tree; the key is armed here on that basis. It is
+classified **per-repo-only (coordination-key fenced)** rather than global-able: sibling `finalize.*`
+keys express a policy a maintainer may hold differently per machine, whereas this one asserts a fact
+about one repo's suite, and its armed effect is a merge pushed onto a shared integration branch on
+trust.
+
