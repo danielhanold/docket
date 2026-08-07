@@ -2,10 +2,10 @@
 id: 123
 slug: machine-check-the-docket-config-md-export-list-order-against
 title: Machine-check the docket-config.md export list order against the resolver
-status: proposed
+status: killed
 priority: medium
 created: 2026-07-21
-updated: 2026-07-21
+updated: 2026-08-07
 depends_on: []
 related: []
 discovered_from: [102]
@@ -63,3 +63,7 @@ Filing it rather than letting it decay in a results file.
   it)? Decide this first — it may make the guard unnecessary.
 - If ordered: does the resolver's emission order have a stable derivation, or is it incidental to
   the code's layout and therefore a churn source on every future edit?
+
+## Why killed
+
+Consolidated into #0258 at the 2026-08-07 backlog triage: the export-list-order claim and #0125's rung-pair claim are the same guard-or-delete meta-question in the same suite; house bias (ADR-0054) is to guard.
