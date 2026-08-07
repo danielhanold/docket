@@ -6,7 +6,7 @@ status: proposed
 priority: medium
 type: fix
 created: 2026-07-28
-updated: 2026-07-28
+updated: 2026-08-07
 depends_on: []
 related: []
 discovered_from: [135]
@@ -14,7 +14,7 @@ adrs: []
 spec:
 plan:
 results:
-trivial: false
+trivial: true
 auto_groomable:
 branch:
 pr:

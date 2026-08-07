@@ -6,7 +6,7 @@ status: proposed
 priority: medium
 type: chore
 created: 2026-07-28
-updated: 2026-07-28
+updated: 2026-08-07
 depends_on: []
 related: []
 discovered_from: [164]
@@ -15,7 +15,7 @@ spec:
 plan:
 results:
 trivial: false
-auto_groomable:
+auto_groomable: true
 branch:
 pr:
 blocked_by:

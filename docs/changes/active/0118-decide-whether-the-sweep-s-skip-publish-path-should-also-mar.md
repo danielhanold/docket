@@ -5,7 +5,7 @@ title: Decide whether the sweep's skip-publish path should also mark an unpublis
 status: proposed
 priority: medium
 created: 2026-07-21
-updated: 2026-07-21
+updated: 2026-08-07
 depends_on: []
 related: []
 discovered_from: [83]
@@ -14,7 +14,7 @@ spec:
 plan:
 results:
 trivial: false
-auto_groomable:
+auto_groomable: true
 branch:
 pr:
 blocked_by:

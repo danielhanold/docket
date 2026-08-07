@@ -1,13 +1,13 @@
 ---
 id: 200
 slug: clear-the-unfixed-review-findings-from-change-0191
-title: Board-checks and test-suite hardening — sanitize LF escape, mutation G, minor-finding clearance, mapfile floor
+title: Board-checks hardening — sanitize LF escape, capture-shape mutation, minor-finding clearance
 status: proposed
 priority: medium
 type: fix
 created: 2026-08-03
-updated: 2026-08-05
-depends_on: []
+updated: 2026-08-07
+depends_on: [224]
 related: [213, 215, 216, 217]
 discovered_from: [191, 202]
 adrs: []
@@ -15,7 +15,7 @@ spec:
 plan:
 results:
 trivial: false
-auto_groomable:
+auto_groomable: true
 branch:
 pr:
 blocked_by:
@@ -59,11 +59,14 @@ guard rule.
 **(d) 0202's three minor findings (absorbed from 0217).** Same class 0202 exists to close —
 accurate-looking prose sitting beside code that no longer matches it.
 
-**(e) The bash 4.4 `mapfile -d` floor drift (absorbed from 0213).** The shipped-script floor is
-bash 4.0 (what `ensure-docket-env.sh` enforces), and 0202's spec rejected `mapfile -d` for
-shipped code on that basis — yet `tests/test_grep_portability.sh:102` already uses it, an
-unexplained inconsistency that would fail on a bash 4.0–4.3 host with a confusing
-`mapfile: -d: invalid option` instead of a clear floor diagnostic.
+**Re-scoped 2026-08-07 (triage).** Three items verified already-resolved or superseded and
+dropped: the comment-strip asymmetry (change 0235 moved `blocked_by` to `fm_field_verbatim` and
+documented the accessor choice in `board-checks.md:226-235` — the asymmetry as stated no longer
+exists); the count-pin provenance comment (now reads "15 since change 0113…" against a `= 15`
+assert); and the whole `mapfile -d` leg (e) from 0213 — Daniel ruled 2026-08-07 to raise the
+bash floor to 4.4 (change 0222), which makes `mapfile -d` legal and the drift moot. Also: the
+mutation letter G is now **taken** (`tests/test_board_checks.sh:2511`, the aborted-run
+idle-floor arm) — the new capture-shape mutation below must take the next free letter.
 
 ## What changes
 
@@ -71,13 +74,6 @@ unexplained inconsistency that would fail on a bash 4.0–4.3 host with a confus
 
 1. `scripts/board-checks.sh` — hoist `scalar_form_check(){...}` out of the per-file walk loop (it is
    redefined per file) to sit alongside `renders_row` with the file's other top-level helpers.
-2. `scripts/board-checks.sh` + `scripts/board-checks.md` — document the comment-strip asymmetry:
-   `blocked_by` is read via `fm_field_raw` (strips a whitespace-preceded inline `#...` comment) while
-   `title` is read via `field_raw` (keeps it), so `title: Fix thing # see: notes` flags while the same
-   shape on `blocked_by` does not. Add a sentence to the block comment and the doc section, or pin it
-   with a fixture.
-3. `tests/test_board_checks.sh` — the count-pin provenance comment above the `BOARD_CHECK_IDS` assert
-   still reads "13 since change 0117..." while the assert now says 14; reword for the next bumper.
 
 Sanitize LF (b):
 
@@ -86,11 +82,12 @@ Sanitize LF (b):
 5. `tests/test_board_checks.sh` — a fixture whose branch carries a path with an embedded newline,
    asserting the finding stays one TSV record.
 
-Mutation G (c):
+Capture-shape mutation (c):
 
-6. `tests/test_board_checks.sh` — add a mutation G that rewrites the consumption to the capture
-   shape while keeping `-z`, and asserts fixture 230 goes GREEN (i.e. the check stops firing), so
-   the constraint the comment states is enforced by execution.
+6. `tests/test_board_checks.sh` — add a mutation arm (next free letter — G is taken by the
+   aborted-run idle-floor arm) that rewrites the consumption to the capture shape while keeping
+   `-z`, and asserts fixture 230 goes GREEN (i.e. the check stops firing), so the constraint the
+   comment states is enforced by execution.
 
 0202 minor findings (d):
 
@@ -105,25 +102,17 @@ Mutation G (c):
    build records** (never edited), record that decision where a future build will read it, and
    leave the plan file untouched.
 
-Mapfile floor (e):
-
-10. Drop `mapfile -d` from `tests/test_grep_portability.sh` in favor of the
-    `while IFS= read -r -d ''` shape 0202 adopts for shipped code, keeping one bash 4.0 floor
-    everywhere; state the rule once where a future author writing `mapfile -d` will read it, so
-    the next instance is a decision rather than a repeat of this drift.
-
 ## Out of scope
 
 - Any behavior change to the `scalar-form` check itself, and fixing change 0121's flagged title.
 - Any further change to the `-z` read itself (0202 settled that shape); `branch_only_artifact`'s
   current shape is correct, and mutation F's existing arm stays as-is.
-- Raising the validated bash floor to 4.4 or declaring a two-floor policy — rejected in favor of
-  option (10) above; revisit only if the `read -r -d ''` rewrite proves unworkable.
+- The bash floor — settled the other way: change 0222 raises it to 4.4 (Daniel, 2026-08-07);
+  the former item 10 (`mapfile -d` rewrite) is dropped, not deferred.
 - Any change to which shell the suite selects at runtime (change 0150's territory).
 
 ## Open questions
 
-- Whether (a)'s finding 2 warrants a pinning fixture in addition to the prose, or prose alone.
 - Whether the sanitize premise (b) is relied on by any other `emit` caller passing a
   non-frontmatter value.
 - Whether the capture-shape hazard (c) exists at any other `-z` read in the scripts, which would

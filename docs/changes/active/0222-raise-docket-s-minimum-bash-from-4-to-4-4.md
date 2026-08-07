@@ -6,7 +6,7 @@ status: proposed
 priority: medium
 type: chore
 created: 2026-08-05
-updated: 2026-08-05
+updated: 2026-08-07
 depends_on: [211]
 related: [150, 117]
 discovered_from: [211]
@@ -15,7 +15,7 @@ spec:
 plan:
 results:
 trivial: false
-auto_groomable:
+auto_groomable: true
 branch:
 pr:
 blocked_by:
@@ -59,6 +59,14 @@ construction**:
 
 A repo whose stated discipline is refusing tests that prove less than they claim is currently
 carrying a standing set of compatibility claims that nothing can falsify.
+
+**Ruled 2026-08-07 (Daniel, triage):** raise the floor to 4.4. The competing resolution — 0200's
+former item 10, rewriting `test_grep_portability.sh`'s `mapfile -d` to stay 4.0-compatible — is
+dropped from 0200's scope; `mapfile -d` becomes legal. Breakage posture: **hard error at the
+validators** (a 4.0–4.3 install gets a clear floor diagnostic, not warn-and-degrade). Note the
+guarded-expansion population has grown since filing — now five sites, adding `run-tests.sh:270,
+:278` (0227) and `docket-status.sh:407,:938` to the table above; the stale change-0064
+cross-references at `docket-status.sh:909,:926` go with them.
 
 ## What changes
 
