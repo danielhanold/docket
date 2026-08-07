@@ -47,8 +47,15 @@ TEST_BASH="${DOCKET_BASH_PATH:-$(command -v bash)}"
 # asserts no row exceeds.
 DEFAULT_CEILING=60
 # A wall-clock assertion on a shared developer machine must tolerate load, or it becomes a flake
-# that teaches people to pass --no-budget-check. Breach = measured > ceiling * 3/2.
-SLACK_NUM=3; SLACK_DEN=2
+# that teaches people to pass --no-budget-check. It must ALSO tolerate this runner's own
+# contention: a budget row is a claim about a file's cost measured SERIALLY, but enforcement
+# happens during a parallel run where every job competes. Measured inflation on the change-0227
+# hardware reached 2.22x (test_render_board.sh 18s -> 40s; test_harness_defaults.sh 39s -> 86s),
+# so 3/2 rejected 11 healthy files. 5/2 covers the measured worst case with margin while still
+# catching the regrowth this table exists to prevent — a file that doubles its OWN serial cost
+# breaches, because the ceiling it is measured against did not move.
+# Breach = measured > ceiling * 5/2.
+SLACK_NUM=5; SLACK_DEN=2
 
 cpu_count(){
   if command -v nproc >/dev/null 2>&1; then nproc

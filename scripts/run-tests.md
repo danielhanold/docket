@@ -102,9 +102,14 @@ exit status, never a scraped count.
 ### Budget enforcement
 
 When a budget table is in effect, each file's measured wall clock is compared against its ceiling
-with a 3/2 slack factor — a breach is `measured > ceiling * 1.5`. The slack is deliberate: a
-wall-clock assertion with no headroom becomes a flake on a loaded laptop, and a flaky gate teaches
-people to pass `--no-budget-check`, which is worse than no gate.
+with a 5/2 slack factor — a breach is `measured > ceiling * 2.5`. The slack is deliberate, and it
+covers two distinct effects. First, a wall-clock assertion with no headroom becomes a flake on a
+loaded laptop, and a flaky gate teaches people to pass `--no-budget-check`, which is worse than no
+gate. Second, and larger: a ceiling is a claim about a file's cost measured *serially*, but
+enforcement happens inside a parallel run where every job competes for the machine. Measured
+contention inflation on the change-0227 hardware reached 2.22x, so the original 3/2 factor rejected
+11 healthy files. 5/2 covers that worst case with margin and still catches regrowth — a file that
+doubles its own serial cost breaches, because its ceiling did not move.
 
 A breach does not mask a failure. Failures win: a run with both reports exit 1.
 
