@@ -102,4 +102,5 @@ tests/test_sync_agents_validator.sh	15	parallel
 tests/test_sync_integration_branch.sh	10	parallel
 tests/test_terminal_publish.sh	10	parallel
 tests/test_typed_changes_docs.sh	10	parallel
+tests/test_verify_run.sh	10	parallel
 tests/test_worktree_hooks_wiring.sh	10	parallel

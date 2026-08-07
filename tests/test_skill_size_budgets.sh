@@ -785,6 +785,22 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # of 5 is 330, which leaves 2 lines — the near-zero mode this block repeatedly records raising past —
 # so the multiple after: 335. 3092 words -> the next multiple of 50 is 3100, an 8-word margin inside
 # the 25-word threshold, so the multiple after: 3150.
+# Change 0237 raised TWO word budgets to give the `## Run halted` section a definition and a
+# PRODUCER. docket-convention/SKILL.md 5900 -> 6000: one bullet added to the *Change body sections*
+# list, which is the enumeration `verify-run` now reads against — a section defined nowhere is a
+# section no author writes. The references/ file considered and rejected is
+# skills/docket-convention/references/terminal-close-out.md: the body-sections list is a single
+# enumeration in SKILL.md and half of it living in a reference makes the list unreadable as a list.
+# Measured 5942 words -> the next multiple of 50 is 5950, which leaves 8 words (within the 25-word
+# threshold), so the multiple after: 6000. The LINE budget was NOT raised (343 actual, 345 budget).
+# docket-implement-next/SKILL.md 4300 -> 4500: the producer (Step 3's halted escape must WRITE and
+# COMMIT the section) plus its removal rule (Step 2's claim deletes a stale one). The references/
+# file considered and rejected is skills/docket-implement-next/references/edge-paths.md: both are
+# rules that must fire at the exact moment of action — the write is what makes a `halted`
+# disposition verifiable in git instead of an untrusted self-report, and the removal is a step of
+# the claim commit itself. A rule parked in a rare-edges reference is unread precisely when it must
+# intervene (the same argument the 0113 and 0137 entries above record). Measured 4467 words -> 4500
+# (33 words of margin, above the 25-word threshold). The LINE budget was NOT raised.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -795,7 +811,7 @@ skills/docket-build/references/gate-execution-evidence.md  110 1050
 skills/docket-build/references/gate-execution.md            120 1000
 skills/docket-build/references/task-routing.md              50  500
 skills/docket-build-task/SKILL.md                          130 1150
-skills/docket-convention/SKILL.md                          345 5900
+skills/docket-convention/SKILL.md                          345 6000
 skills/docket-convention/github-board-mirror.md             19  462
 skills/docket-convention/references/agent-layer.md         190 2150
 skills/docket-convention/references/auto-capture.md        130 1250
@@ -804,7 +820,7 @@ skills/docket-convention/references/terminal-close-out.md  173 1458
 skills/docket-finalize-change/SKILL.md                     185 3800
 skills/docket-finalize-change/references/gate-failure.md    35  900
 skills/docket-groom-next/SKILL.md                           77 1484
-skills/docket-implement-next/SKILL.md                      165 4300
+skills/docket-implement-next/SKILL.md                      165 4500
 skills/docket-implement-next/references/edge-paths.md       35  500
 skills/docket-implement-next/references/fix-loop.md        185 1900
 skills/docket-implement-next/results-template.md            25  250

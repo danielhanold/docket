@@ -207,4 +207,39 @@ err="$( cd "$SBX" && bash "$VR" abc --changes-dir "$CH" 2>&1 >/dev/null )"; rc=$
 assert "non-numeric id is rejected up front" '[ "$rc" != "0" ]'
 rm -rf "$SBX"
 
+# ---- 0237: `## Run halted` — producer coverage, not just definition ----------------
+# LEARNINGS specified-but-unreachable: a contract can be fully specified and ship INERT because
+# nothing writes it. Consumer-side asserts pass identically in both worlds, so at least one assert
+# must anchor on the paragraph that performs the WRITE.
+CONV="$ROOT/skills/docket-convention/SKILL.md"
+IMPL="$ROOT/skills/docket-implement-next/SKILL.md"
+BCMD="$ROOT/scripts/board-checks.md"
+
+# collapse wrapped prose before matching, so a pure re-flow never reddens a policy assert
+flat(){ tr '\n' ' ' < "$1" | tr -s ' '; }
+
+assert "0237 prose: the convention lists '## Run halted' as a body section" \
+  'grep -qF -- "- \`## Run halted\`" "$CONV"'
+assert "0237 prose: the convention's entry names it presence-encoded" \
+  'grep -F "## Run halted" "$CONV" | grep -qiF "presence-encoded"'
+
+# PRODUCER — anchored on the halted disposition prose that performs the write, not on a section
+# that merely defines what the write means.
+assert "0237 prose: the halted disposition WRITES the section" \
+  'flat "$IMPL" | grep -qiE "halted[^.]{0,250}(write|writing|append)[^.]{0,200}## Run halted|## Run halted[^.]{0,200}(commit|committed)"'
+assert "0237 prose: the halted write is described as a COMMITTED git act" \
+  'flat "$IMPL" | grep -qiE "## Run halted[^.]{0,250}commit"'
+
+# REMOVAL — owned by Step 2's claim (presence-encoded-state: every transition out removes it).
+step2="$(awk "/^### Step 2 — Claim/,/^### Step 3/" "$IMPL" | tr '\n' ' ' | tr -s ' ')"
+assert "0237 prose: Step 2's claim removes a stale '## Run halted'" \
+  'grep -qF "## Run halted" <<<"$step2"'
+assert "0237 prose: and states removal, not merely mentions the section" \
+  'grep -qiE "(remove|delete|strip)[^.]{0,120}## Run halted|## Run halted[^.]{0,120}(remove|delete|strip)" <<<"$step2"'
+
+# board-checks.md gains the pointer sentence and NOTHING in board-checks.sh changed.
+assert "0237 prose: board-checks.md points at verify-run" 'grep -qF "verify-run" "$BCMD"'
+assert "0237 prose: the pointer says the check is floor-free at a dispatch seam" \
+  'flat "$BCMD" | grep -qiE "verify-run[^.]{0,200}(floor-free|no floor|without a floor|dispatch seam)"'
+
 exit $fail

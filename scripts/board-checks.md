@@ -326,6 +326,12 @@ independent legs; any emits, and more than one may emit on one change.
   ambiguity by hand. **That degradation is the design, not a defect:** the offline-safe check stays
   offline-safe.
 
+  A **floor-free** check of the same postcondition does exist, but only where a board pass cannot
+  reach: `verify-run` (change 0237) evaluates Step 7's postcondition with **no time floor at all**,
+  because it is called at a **dispatch seam** where the child process has already returned and
+  "stopped" is therefore unambiguous. That is why this script keeps its floors and is otherwise
+  untouched — the two checks answer the same question from positions with different information.
+
 - **Leg D — the Step 7 seam: `pr:` recorded, `status:` never advanced (time-free, change 0219).**
   `pr:` is non-empty while `status:` is still `in-progress`. `docket-implement-next` writes
   `status: implemented` **and** `pr:` in a single field-write and no script under `scripts/` writes
