@@ -11,6 +11,10 @@
 set -uo pipefail
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RUNNERS_DIR="${RUNNERS_DIR:-$SELF_DIR/runners}"
+# Run-gate seams (change 0237): the disposition reader, and the facade used for the post-return
+# metadata re-sync that makes the "after" snapshot a read of fresh origin state.
+VERIFY_RUN="${VERIFY_RUN:-$SELF_DIR/verify-run.sh}"
+DOCKET_FACADE="${DOCKET_FACADE:-$SELF_DIR/docket.sh}"
 # shellcheck source=lib/docket-root.sh
 . "$SELF_DIR/lib/docket-root.sh"
 
@@ -123,6 +127,31 @@ done
 args=( --agent "$AGENT" )
 [ -n "$MODEL" ]  && args+=( --model "$MODEL" )
 [ -n "$EFFORT" ] && args+=( --effort "$EFFORT" )
+
+# --- run gate (change 0237), part 1: the "before" snapshot --------------------------
+# Engages ONLY for an implement-next delegation. That scoping is load-bearing, not an
+# optimization: a build-* delegation leaves its change `in-progress` BY DESIGN (the build role
+# does not reach Step 7), so gating one would fire on every healthy build. status / adr /
+# review-* / finalize-change / auto-groom are likewise out of scope, and an unrecognised agent is
+# a no-op — never a guess.
+#
+# The snapshot must be taken BEFORE the handoff: the gate's subject is what THIS run claimed, and
+# that is only knowable as a diff across the hand-off. A snapshot that cannot be read disables the
+# gate with a warning and leaves the dispatch untouched — the facade's standing tolerant posture on
+# this live path (the same reason an unparseable runners.<name>: value `continue`s rather than
+# dying): the gate must never convert a healthy dispatch into a failure.
+GATE=0; [ "$AGENT" = "implement-next" ] && GATE=1
+
+in_progress_ids(){ "$DOCKET_BASH_PATH" "$VERIFY_RUN" --in-progress-ids 2>/dev/null; }
+
+BEFORE=""
+if [ "$GATE" = 1 ]; then
+  if ! BEFORE="$(in_progress_ids)"; then
+    printf 'runner-dispatch: run gate disabled — could not read the in-progress set\n' >&2
+    GATE=0
+  fi
+fi
+
 # CALL-AND-RETURN, not exec (change 0237). The facade must regain control so the run gate can read
 # what the delegated run actually left in git — that seam is the whole point, and `exec` made it
 # unreachable by replacing this process with the adapter's image. Removing `exec` shifts process
@@ -147,4 +176,36 @@ args=( --agent "$AGENT" )
 #     this refactor.
 "$DOCKET_BASH_PATH" "$ADAPTER" "${args[@]}" -- "$@"
 rc=$?
+
+# --- run gate, part 2: the "after" snapshot, the diff, and the verdicts -------------
+[ "$GATE" = 1 ] || exit "$rc"
+
+# The "after" read must come from FRESH ORIGIN state, never from the local tree the child just
+# wrote (LEARNINGS: cas-re-read-fresh-origin). Best-effort: a failed re-sync degrades the gate's
+# freshness, it does not fail a dispatch that may well have succeeded.
+"$DOCKET_BASH_PATH" "$DOCKET_FACADE" preflight >/dev/null 2>&1 \
+  || printf 'runner-dispatch: run gate — metadata re-sync failed; verifying against local state\n' >&2
+
+AFTER="$(in_progress_ids)" || {
+  printf 'runner-dispatch: run gate disabled — could not re-read the in-progress set\n' >&2
+  exit "$rc"
+}
+
+# This run's claim = any id in AFTER that was not in BEFORE. A change another agent already held
+# was in BEFORE and is ignored, so concurrent runs never cross-fire; a run that claimed nothing
+# (drained, or contended where the CAS was lost) yields an empty diff and the gate is a no-op.
+NEW_IDS=()
+while IFS= read -r nid; do
+  [ -n "$nid" ] || continue
+  grep -qxF "$nid" <<<"$BEFORE" || NEW_IDS+=("$nid")
+done <<<"$AFTER"
+
+# Reporting only — the bounded re-dispatch and the two-strikes abort extend this loop (change 0237
+# Task 5); the shape is deliberately left extensible.
+for nid in "${NEW_IDS[@]:-}"; do
+  [ -n "$nid" ] || continue
+  verdict="$("$DOCKET_BASH_PATH" "$VERIFY_RUN" "$nid" 2>/dev/null)"
+  printf 'runner-dispatch: run gate — %s\n' "${verdict:-run-unverifiable $nid}" >&2
+done
+
 exit "$rc"
