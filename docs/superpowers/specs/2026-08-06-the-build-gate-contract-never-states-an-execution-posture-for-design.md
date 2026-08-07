@@ -174,26 +174,35 @@ supersedes anything below that has changed.
 | Harness | Foreground timeout | Survives the boundary? | Provisional verdict |
 |---|---|---|---|
 | claude | default 120 000 ms, max 600 000 ms (`BASH_DEFAULT_TIMEOUT_MS` / `BASH_MAX_TIMEOUT_MS`) | Documented background execution returning a shell id, with separate output-read and kill operations; corroborated empirically by change 0203 | `supported` |
-| cursor | undocumented and reported to have changed; 900 s+ failures reported | An experimental background-terminal setting exists alongside a silence-timeout setting | `unverified` — smoke-test |
+| cursor | undocumented and reported to have changed; 900 s+ failures reported | **Smoke-tested 2026-08-06 (cursor-agent 2026.01.23, `--print --force --sandbox disabled`).** Gate survived the session ending under both detach variants **when streams were redirected**. With stdout inherited the gate was **killed mid-run** — and a disambiguating run proved redirection, not `nohup`, is the operative variable: `nohup` with stdout inherited was killed too. The call never blocked | `supported` — requires stream redirection |
 | opencode | default 2 min, SIGTERM on expiry; overridable by environment variable and per-command field | **Smoke-tested 2026-08-06 (opencode 1.18.14).** Gate survived the session ending under **both** plain-background and new-session detach. But an **unredirected** launch blocked the call for the job's full duration (51s call for a 45s job) — the inherited-FD hang, reproduced; the same launch with streams redirected returned in 5–7s | `supported` — requires stream redirection |
 | codex | per-call, not the binding limit | **Smoke-tested 2026-08-06 (codex-cli 0.146.1, `--sandbox danger-full-access`).** A gate launched into a **new session** (fork + `setsid`) survived the entire `codex exec` session ending; the same gate launched with plain `nohup … &` was killed before writing its first line, while the launch command reported success | `supported` — **only** via new-session detach |
 
 Two findings shape the design.
 
-**The portable hazard is attachment to the caller, not the absence of backgrounding.** This is now
-measured on two harnesses rather than inferred, and the two fail by **opposite** mechanisms from the
-same cause:
+**The portable hazard is attachment to the caller, not the absence of backgrounding.** All four
+shipped harnesses were tested. Every one of them can host a durable gate, and three of the four
+**break under a naive launch** — by three different symptoms arising from the same cause:
 
-- **Codex kills the gate.** Teardown is a process-group kill, so a plain-backgrounded child dies
-  before writing its first byte — while the launch command reports success.
-- **OpenCode blocks the caller.** An unredirected child keeps the caller's output pipes open, so the
-  call does not return until the job finishes (measured: a 51s call for a 45s job), which collapses
-  the gate back into the foreground call the contract exists to escape.
+| Harness | Symptom of the naive launch | Operative variable |
+|---|---|---|
+| claude | none — documented background mechanism | — |
+| codex | gate **killed** before its first byte, while the launch reports success | new-session detach |
+| opencode | caller **blocked** for the job's full duration (51s call, 45s job) | stream redirection |
+| cursor | gate **killed** mid-run; call returns normally | stream redirection (`nohup` alone is insufficient — proven by a disambiguating run) |
 
-One mitigation fixes both: **detach into a new session and redirect every stream to a durable
+Two of these are silent in the worst way: Codex's launch **reports success** while the gate is
+already dead, and OpenCode's gate produces a perfectly valid artifact while having quietly stopped
+being asynchronous. Only Cursor fails in a way a casual check would notice.
+
+One mitigation covers all four: **detach into a new session and redirect every stream to a durable
 location.** That is the same act that produces the durable result artifact — one requirement, three
-payoffs. The convergence is what justifies stating this as a common capability rather than
-per-harness advice.
+payoffs. This convergence, measured rather than assumed, is what justifies stating the rule as a
+common capability instead of per-harness advice.
+
+It also settles the change's original open question in the affirmative: the posture **can** be stated
+normatively without a harness-specific escape hatch, because a single discipline satisfies every
+supported harness.
 
 **Detachment must survive a process-GROUP kill, not merely a parent exit.** This is the smoke test's
 main finding, and it is a correction to the design's own starting assumption. Codex was expected to
@@ -284,9 +293,17 @@ appears. OpenCode's failure mode leaves the artifact perfectly intact and is inv
 survival-only check — the gate "works," it has simply stopped being asynchronous. A blocked launch
 is a contract failure even though every artifact assertion passes.
 
+A probe that changes two variables at once proves nothing about either. The first Cursor
+hang-probe dropped both `nohup` and the redirection and the gate died; only a second run holding
+`nohup` while inheriting stdout established that redirection was the operative variable. The
+implementer re-verifies each verdict before writing it, and disambiguates the same way.
+
 ## Risks
 
-- **Cursor remains unverified.** The only shipped harness without a smoke test.
+- **The verdicts are version-scoped.** Each row names the version tested. Per the repo's own
+  learning that harness behavior is mode- and version-scoped, the implementer re-probes rather than
+  inheriting these rows on faith — particularly Cursor, whose timeout behavior is undocumented and
+  reported to have changed.
 - **The neutrality constraint is the hard part.** A rule stated so abstractly that no implementer can
   act on it fails as surely as a harness-specific one. The reference file is what carries the
   actionable detail; if the skill-body prose cannot be made actionable with the reference in hand,

@@ -107,19 +107,22 @@ Type flipped `docs` → `feat` at grooming: the configuration knob is real code.
 
 ## Open questions
 
-- Does cursor comply? The one shipped harness still `unverified`.
+None outstanding. All four shipped harnesses were smoke-tested at grooming (2026-08-06) and all four
+are **`supported`** — but three of the four break under a naive launch, by three different symptoms:
 
-Codex and opencode were both resolved at grooming by smoke test (2026-08-06) and both are
-**`supported`** — but each fails the naive launch, by **opposite** mechanisms:
+- **codex-cli 0.146.1** — gate **killed** before writing any output, while the launch command reports
+  success. Requires new-session detach.
+- **opencode 1.18.14** — caller **blocked** for the job's full duration (51s call, 45s job). Requires
+  stream redirection.
+- **cursor-agent 2026.01.23** — gate **killed** mid-run, call returns normally. Requires stream
+  redirection; `nohup` alone is insufficient (proven by a disambiguating run).
+- **claude** — documented background mechanism; no naive-launch failure.
 
-- **codex-cli 0.146.1** kills the gate. Teardown is a process-group kill, so plain `nohup … &` dies
-  before writing any output while the launch command reports success. Requires new-session detach.
-- **opencode 1.18.14** blocks the caller. An unredirected child holds the caller's output pipes open,
-  so the launch does not return until the job finishes (51s call for a 45s job). Requires every
-  stream redirected away from the call.
+One mitigation covers all four — detach into a new session, redirect every stream to a durable
+location — which is also what produces the durable artifact. That convergence sharpened required
+capabilities 1 and 2, and answers the stub's original question: the posture **can** be stated
+normatively with no harness-specific escape hatch.
 
-One mitigation covers both — detach into a new session, redirect every stream to a durable location —
-which is also what produces the durable artifact. That convergence is why the rule is stated as a
-common capability rather than per-harness advice, and it sharpened required capabilities 1 and 2.
+Verdicts are version-scoped; the implementer re-probes rather than inheriting them on faith.
 
 ## Reconcile log
