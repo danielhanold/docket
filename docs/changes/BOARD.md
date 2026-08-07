@@ -1,16 +1,17 @@
 # Backlog
 
-**230 changes** — 🟢 3 in progress · 🟡 53 proposed · ⚪ 4 deferred · ✅ 142 done · 🗑️ 28 killed
+**230 changes** — 🟢 4 in progress · 🟡 52 proposed · ⚪ 4 deferred · ✅ 142 done · 🗑️ 28 killed
 
-## 🟢 In progress (3)
+## 🟢 In progress (4)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0190](active/0190-close-the-build-evidence-value-gap-a-post-gate-results-commi.md) | Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip | `medium` | `feat` | [spec](../superpowers/specs/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md) | `feat/close-the-build-evidence-value-gap-a-post-gate-results-commi` |
 | [0223](active/0223-the-build-gate-contract-never-states-an-execution-posture-for.md) | The build gate contract never states an execution posture for a suite that outgrows a single foreground call | `high` | `feat` | [spec](../superpowers/specs/2026-08-06-the-build-gate-contract-never-states-an-execution-posture-for-design.md) | `feat/the-build-gate-contract-never-states-an-execution-posture-for` |
 | [0226](active/0226-reframe-auto-capture-as-capability-discovery-with-strict-adm.md) | Reframe auto-capture as capability discovery with strict admission gates | `medium` | `feat` | [spec](../superpowers/specs/2026-08-06-auto-capture-capability-discovery-design.md) | `feat/reframe-auto-capture-as-capability-discovery-with-strict-adm` |
+| [0228](active/0228-finalize-s-auto-detect-suite-loop-has-no-failure-accumulator.md) | finalize's auto-detect suite loop has no failure accumulator, so a mid-suite red merges | `high` | `fix` | [spec](../superpowers/specs/2026-08-07-finalize-s-auto-detect-suite-loop-has-no-failure-accumulator-design.md) | `feat/finalize-s-auto-detect-suite-loop-has-no-failure-accumulator` |
 
-## 🟡 Proposed (53)
+## 🟡 Proposed (52)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -64,7 +65,6 @@
 | [0221](active/0221-assert-executes-backticks-in-its-test-description-so-a-verba.md) | assert() executes backticks in its test description, so a verbatim-quoted anchor can run shell | `medium` | `fix` | needs-brainstorm |
 | [0222](active/0222-raise-docket-s-minimum-bash-from-4-to-4-4.md) | Raise docket's minimum Bash from 4+ to 4.4 | `medium` | `chore` | needs-brainstorm |
 | [0224](active/0224-the-build-gate-contract-never-says-green-red-is-the-exit-code.md) | The build gate contract never says green/red is the exit code, so an output-shape match passes as a gate | `high` | `docs` | needs-brainstorm |
-| [0228](active/0228-finalize-s-auto-detect-suite-loop-has-no-failure-accumulator.md) | finalize's auto-detect suite loop has no failure accumulator, so a mid-suite red merges | `high` | `fix` | build-ready |
 | [0229](active/0229-the-runner-s-budget-slack-factor-is-a-hardware-dependent-con.md) | the runner's budget slack factor is a hardware-dependent constant | `medium` | `refactor` | needs-brainstorm |
 | [0230](active/0230-a-self-scanning-population-floor-pins-test-docket-config-sh.md) | a self-scanning population floor pins test_docket_config.sh's size and blocks sharding | `medium` | `refactor` | needs-brainstorm |
 
