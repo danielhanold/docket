@@ -2,23 +2,23 @@
 id: 220
 slug: clear-the-unfixed-review-findings-from-change-0207
 title: clear the unfixed review findings from change 0207
-status: in-progress
+status: implemented
 priority: medium
 type: fix
 created: 2026-08-05
-updated: 2026-08-06
+updated: 2026-08-07
 depends_on: []
 related: [82, 140, 141, 207]
 discovered_from: [207]
 adrs: []
 spec: docs/superpowers/specs/2026-08-05-clear-0207-review-findings-design.md
 plan: docs/superpowers/plans/2026-08-06-clear-0207-review-findings.md
-results:
+results: docs/results/2026-08-07-clear-the-unfixed-review-findings-from-change-0207-results.md
 trivial: false
 auto_groomable: true
 branch: feat/clear-the-unfixed-review-findings-from-change-0207
-claimed_at: 2026-08-06T21:38:49Z
-pr:
+claimed_at: 2026-08-07T01:55:21Z
+pr: https://github.com/danielhanold/docket/pull/164
 blocked_by:
 reconciled: true
 ---
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-05-clear-0207-review-findings-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-05-clear-0207-review-findings-design.md) |
 | Plan | [2026-08-06-clear-0207-review-findings.md](https://github.com/danielhanold/docket/blob/feat/clear-the-unfixed-review-findings-from-change-0207/docs/superpowers/plans/2026-08-06-clear-0207-review-findings.md) |
+| Results | [2026-08-07-clear-the-unfixed-review-findings-from-change-0207-results.md](https://github.com/danielhanold/docket/blob/feat/clear-the-unfixed-review-findings-from-change-0207/docs/results/2026-08-07-clear-the-unfixed-review-findings-from-change-0207-results.md) |
+| PR | [#164](https://github.com/danielhanold/docket/pull/164) |
 <!-- docket:artifacts:end -->
 
 ## Why
