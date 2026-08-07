@@ -2,7 +2,7 @@
 id: 231
 slug: a-presumed-dead-build-worker-can-wake-and-race-its-own-repla
 title: A presumed-dead build worker can wake and race its own replacement in one worktree
-status: proposed
+status: in-progress
 priority: medium
 type: fix
 created: 2026-08-07
@@ -16,7 +16,8 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch:
+branch: feat/a-presumed-dead-build-worker-can-wake-and-race-its-own-repla
+claimed_at: 2026-08-07T15:21:10Z
 pr:
 blocked_by:
 reconciled: false
