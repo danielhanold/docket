@@ -8,10 +8,10 @@ type: chore
 created: 2026-07-30
 updated: 2026-08-07
 depends_on: []
-related: []
+related: [253]
 discovered_from: [167]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-07-normalize-the-banned-producer-pipe-shape-across-tests-and-he-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-07-normalize-the-banned-producer-pipe-shape-across-tests-and-he-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-normalize-the-banned-producer-pipe-shape-across-tests-and-he-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -48,13 +51,22 @@ large or the status is load-bearing.
 
 ## What changes
 
-Sweep `tests/` and the `scripts/` helpers for the banned producer-pipe shape, derive the true site list
-from a whole-repo grep rather than the instances listed above, and convert each to the capture-then-match
-form (`var="$(producer)"; grep <<<"$var"`) or another form that is safe under `pipefail`. Where a site is
-deliberately exempt, say so in a comment at the site so the next reader does not re-open it.
+Sweep all tracked `*.sh` under `tests/` and `scripts/` (via `git ls-files`, no executable-bit
+filter — most of the population is not chmod +x) for the banned producer-pipe shape, derive the
+true site list from that whole-repo grep rather than the instances listed above, and convert each
+to a `pipefail`-safe canonical form: here-string for variable producers (`grep -q P <<<"$var"`),
+status-preserving capture for live producers (`var="$(cmd)" && grep -q P <<<"$var"`), and a
+single-`awk` collapse for first-match helper chains (`fmv()`, `fm()`). Safe look-alikes in the
+same assert families (`… | grep -c .` floors) convert too so the band moves together. Where a site
+is deliberately exempt, a standard `# pipefail-ok: <reason>` comment says so, and a new grep-based
+guard test (`tests/test_pipefail_shape.sh`, mutation-tested, visible skips, self-excluded,
+budgets-registered) keeps the sweep from decaying. Design detail, hazard taxonomy, per-form
+verdict-equivalence arguments, and batching order are in the linked spec.
 
 ## Out of scope
 
 - Changing what any assert checks. This is a mechanical shape normalization; every test's verdict before
   and after must be identical.
-- The prose-anchor reflow-fragility cleanup, which is its own separate change.
+- The prose-anchor reflow-fragility cleanup, which is its own separate change (0253 — related; it
+  touches two of the same test files, so the two changes collide textually but are orderable
+  either way).
