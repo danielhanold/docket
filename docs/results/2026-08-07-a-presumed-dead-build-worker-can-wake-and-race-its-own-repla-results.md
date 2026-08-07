@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0231 — A presumed-dead build worker can wake and race its own replacement in one worktree](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0231-a-presumed-dead-build-worker-can-wake-and-race-its-own-repla.md)**
+> ↩ **[Change 0231 — A presumed-dead build worker can wake and race its own replacement in one worktree](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-07-0231-a-presumed-dead-build-worker-can-wake-and-race-its-own-repla.md)**
 <!-- docket:backlink:end -->
 
 # A presumed-dead build worker can wake and race its own replacement in one worktree — results
