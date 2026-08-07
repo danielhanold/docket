@@ -155,3 +155,27 @@ this are change 0224's, not this script's.
   path. The corollary: two targets with the same basename in different directories would collide.
   The suite is flat, so this does not arise; a future `tests/<topic>/` layout would have to
   revisit it.
+- **Audited for parallel-execution races on 2026-08-06 — 80 files inspected, none found.** Every
+  `tests/test_*.sh` was swept for the shapes that make a file unsafe to run beside its neighbours:
+  a read of — or a write through — the ambient `$HOME`, a `git config --global` or `--system`
+  write, a write into this repo's working tree (its `.docket/` metadata worktree or a `.worktrees/`
+  entry), a fixed path under `/tmp`, network access, and a fixed port. Every `HOME=` in the suite
+  turned out to be an *assignment* into a fixture sandbox, never a read of the developer's home;
+  there are no `--global` or `--system` config writes; every `worktree add` targets a `mktemp -d`
+  fixture rather than this repo; every sandbox root comes from `mktemp -d`, which follows the
+  per-job `TMPDIR`; no test writes to a relative path, so none depends on the invoker's cwd; and
+  there is no network or port use at all. The suite's one direct `/tmp` write, `test_render_board`'s
+  `/tmp/render-board-stderr.$$`, is PID-suffixed and so cannot collide between concurrent jobs.
+- **That audit was proven by running, not by reading.** Inspection finds shapes; only a run finds
+  races. Three fresh full parallel runs at the default `-j` (11 on the audit machine, 245–247s
+  each) were diffed per file against the `-j 1` baseline on **both** exit status and per-file
+  assert counts — six diffs, all empty. Every run and the baseline reported
+  `SUITE files=80 passed=80 failed=0 asserts=6040`. 593s of per-file work compressing into ~246s of
+  wall clock confirms the runs were genuinely concurrent rather than accidentally serialized, and
+  both working trees stayed clean throughout — which is the direct evidence for the "not a
+  container" residual above: nothing in this suite writes into the repo.
+- **No file needs `serial` mode.** The budget table therefore carries `parallel` on every row and
+  its serial-pin count is **0**. A row that later asks for `serial` must arrive with the shared
+  resource named in a comment at the top of that test file: "it went flaky" is the symptom the
+  audit exists to root-cause, not a reason to pin. Equally, a race is never resolved by loosening
+  the assertion that caught it.
