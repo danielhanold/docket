@@ -744,6 +744,16 @@ assert "finalize: the conditional-skip item was located (non-vacuity anchor)" \
   '[ -n "$skip_flat" ] && grep -qF -- "build-evidence" <<<"$skip_flat"'
 assert "finalize: the skip's second limb needs a strict-ancestor head_sha AND an allowlisted-prefix path set" \
   'grep -qiE "strict ancestor" <<<"$skip_flat" && grep -qiE "(every|all) paths? changed[^|]{0,120}(under|within)[^|]{0,60}allowlist" <<<"$skip_flat"'
+# The derivation's FLAGS are load-bearing, not incidental spelling. git's rename detection is on by
+# default and `--name-only` emits only a rename pair's DESTINATION, so without rename detection
+# disabled a post-gate `git mv tests/foo.sh <results_dir>/foo.sh` yields a delta that is 100%
+# docs-only by the prefix test — the skip fires and a branch whose suite composition changed after
+# the gate merges unvalidated. Bind the three tokens as CO-PRESENT in the skip item (the
+# rename-suppressing flag by shape, either spelling, since `-M0` is equivalent), so a later reflow
+# or a "simplify the command" edit cannot silently drop the guard. Same flattened haystack, whose
+# non-vacuity is anchored by the "conditional-skip item was located" assert above.
+assert "finalize: the delta derivation names --name-only, -z, and a rename-suppressing flag" \
+  'grep -qF -- "--name-only" <<<"$skip_flat" && grep -qE -e "-z" <<<"$skip_flat" && grep -qE -e "--no-renames|-M0" <<<"$skip_flat"'
 
 # --- documentation + the dogfood binding ---------------------------------------------------
 RM="$REPO/README.md"
