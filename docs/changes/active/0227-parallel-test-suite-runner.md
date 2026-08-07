@@ -17,11 +17,11 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/parallel-test-suite-runner
-claimed_at: 2026-08-07T02:04:53Z
+claimed_at: 2026-08-07T02:06:32Z
 pr:
 issue:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
@@ -71,3 +71,31 @@ Target: <157s suite wall time (expected ~8–10x with ~8 workers).
   `finalize.test_command` explicitly to the new runner once built.
 
 ## Reconcile log
+
+### 2026-08-07
+
+Reconciled at claim. Scope stands unchanged — nothing in it has been built or overtaken:
+
+- `scripts/run-tests.sh` and `scripts/run-tests.md` do not exist; there is still no top-level
+  runner, and every prior results file records the suite as an ad-hoc
+  `for t in tests/test_*.sh; do bash "$t"; done` loop.
+- `tests/` holds exactly **79** `test_*.sh` files — the count the spec profiled against — with no
+  `tests/README.md` and no `tests/lib/` shared-helper directory yet, so the shard split must
+  duplicate each file's helper prologue or introduce that directory as part of the work.
+- `tests/runtime-budgets.tsv` does not exist; the budget guard is entirely new. The house pattern
+  it copies (`tests/test_skill_size_budgets.sh`) is present.
+- `.docket.yml` has no `finalize.test_command`, so the merge gate still auto-detects. Setting it
+  explicitly to the new runner (resolved 2026-08-06) remains part of this change.
+- `scripts/profile-asserts.sh` / `profile-one-test.sh` (change 0185) are present and untouched by
+  this scope, as the spec intends.
+
+Related-change check: **0225** — the umbrella "suite has grown into the harness's foreground
+ceiling" change — was **killed** on 2026-08-07 in favor of this concrete design, so no work is
+duplicated. Its two siblings stay independent and out of scope here: **0223** (build-gate execution
+posture, still `proposed`/build-ready) and **0224** (green/red exit-code keying). **0150** (pin the
+resolved shell toolchain across the suite, still `proposed`) remains adjacent — the runner picks the
+bash it executes under, so 0150 should be built against the runner once it exists rather than the
+other way around; no sequencing constraint is added here.
+
+No ADRs cited by this change; none recently accepted that bear on it. Scope, spec, and the
+verification criteria (5954 assertions, 0 failures, <157s) all carry forward as written.
