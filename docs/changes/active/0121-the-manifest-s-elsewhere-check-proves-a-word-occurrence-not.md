@@ -1,7 +1,7 @@
 ---
 id: 121
 slug: the-manifest-s-elsewhere-check-proves-a-word-occurrence-not
-title: The manifest's elsewhere: check proves a word occurrence, not a real config read
+title: "The manifest's elsewhere: check proves a word occurrence, not a real config read"
 status: proposed
 priority: medium
 created: 2026-07-21

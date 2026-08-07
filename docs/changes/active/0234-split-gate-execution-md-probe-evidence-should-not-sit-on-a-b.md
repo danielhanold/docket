@@ -1,7 +1,7 @@
 ---
 id: 234
 slug: split-gate-execution-md-probe-evidence-should-not-sit-on-a-b
-title: Split gate-execution.md: probe evidence should not sit on a blocking-read surface
+title: 'Split gate-execution.md: probe evidence should not sit on a blocking-read surface'
 status: implemented
 priority: medium
 type: refactor

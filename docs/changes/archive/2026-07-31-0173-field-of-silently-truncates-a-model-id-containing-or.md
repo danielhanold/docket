@@ -1,7 +1,7 @@
 ---
 id: 173
 slug: field-of-silently-truncates-a-model-id-containing-or
-title: field_of() silently truncates a model ID containing / or :
+title: 'field_of() silently truncates a model ID containing / or :'
 status: done
 priority: medium
 type: fix
