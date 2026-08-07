@@ -259,9 +259,17 @@ for h in $shipped; do
   # file-wide grep would be satisfied by a neighbour's verdict line — the same defect the group
   # (2)-(4) slices exist to avoid — so the haystack is a section slice. The slice is captured into a
   # variable first: `awk … | grep -q` would SIGPIPE the awk under `pipefail`.
+  #
+  # GRAMMAR (widened by change 0223's second review wave): the token may be followed by an em-dash
+  # SCOPE clause — `**Verdict:** `token` — <scope>` — which is how a row whose evidence is narrower
+  # than the capability list declares that limit where the verdict is read rather than three
+  # paragraphs above it. The clause is optional but its SHAPE is not: the separator is required and
+  # the scope must be non-empty, so `token` followed by loose trailing prose still reddens. Keeping
+  # `$` anchored is the whole point — without it the token check degenerates into "contains a legal
+  # word somewhere on the line".
   h_blk="$(awk -v h="$h" '$0 == "### " h {f=1;next} f && /^#+ /{f=0} f' <<<"$ref_body")"
   assert "verdicts: '$h' records a legal verdict token" \
-    'grep -qE "^\*\*Verdict:\*\* .(supported|unverified|incompatible).$" <<<"$h_blk"'
+    'grep -qE "^\*\*Verdict:\*\* .(supported|unverified|incompatible).( — .+)?$" <<<"$h_blk"'
 done
 # Reverse direction: no verdict section for a harness docket does not ship. The mirror check — a
 # guard over a correspondence proves only the direction it iterates, so the forward loop above would
@@ -270,5 +278,80 @@ ref_sections="$(grep -oE "^### [a-z-]+" <<<"$ref_body" | sed 's/^### //' | sort)
 shipped_sorted="$(printf '%s\n' $shipped | sort)"
 assert "verdicts: the reference's harness sections EQUAL HD_SHIPPED_HARNESSES" \
   '[ "$ref_sections" = "$shipped_sorted" ]'
+
+# --- (10b) a verdict TOKEN claims no more than the probe measured ---------------
+# Group (10) proves every shipped harness HAS a verdict; it says nothing about what that verdict is
+# entitled to mean. § *Method* measures three of the six capabilities — survival past the initiating
+# call, redirection to a durable location, and a terminal sentinel — so a token defined against all
+# six overclaims on every row at once. The bound therefore has to sit in `## Reading a verdict`,
+# where the token is DEFINED: a bound stated only inside one harness's prose leaves the definition
+# itself unbounded for the other rows.
+#
+# Sliced to that section for the same reason groups (2)-(4) slice at all. § *Method* already
+# discusses at length what it did and did not do, so a file-wide grep for "unmeasured" is satisfied
+# by prose that was there before this guard existed — a guard that cannot fail on the mutation it
+# exists to catch.
+verdict_def="$(awk '/^## Reading a verdict$/{f=1;next} f && /^## /{f=0} f' <<<"$ref_body")"
+verdict_flat="$(flatten <<<"$verdict_def")"
+assert "verdict scope: the 'Reading a verdict' section was located (non-vacuity anchor)" \
+  '[ "$(grep -c . <<<"$verdict_def")" -ge 12 ]'
+assert "verdict scope: a verdict covers ONLY what Method measured" \
+  'grep -qiE "verdict[^.]{0,80}only[^.]{0,80}measur" <<<"$verdict_flat"'
+# Per capability, because they are unmeasured for three DIFFERENT reasons (4: the observer sits
+# outside the harness; 5: the stand-in gate only ever succeeds; 6: never probed), and a single
+# "some capabilities are unmeasured" sentence would let any two of them be quietly re-claimed. The
+# numbers are the reference's own structure — an assert above already counts exactly six — not an
+# enumeration of spellings. The negation must attach NEAR the capability it qualifies: `[^.]` cannot
+# cross a sentence end, so a neighbouring bullet's "not" cannot stand in for a missing one.
+for c in 4 5 6; do
+  assert "verdict scope: capability $c is declared unmeasured" \
+    'grep -qiE "capability \**'"$c"'\**[^.]{0,120}[^[:alnum:]](not|never|un(measured|observed|probed))" <<<"$verdict_flat"'
+done
+# ...and the escape hatch is named where it is used: a row narrower than the general bound puts the
+# limit ON its verdict line, which is what the widened grammar in group (10) accepts.
+assert "verdict scope: a narrower row carries its limit on the verdict line" \
+  'grep -qiE "verdict line" <<<"$verdict_flat"'
+
+# --- (10c) the mode a row was measured in, where docket does not run in it -------
+# The `supported` row for the harness docket itself runs under was measured as two foreground calls
+# of an INTERACTIVE session. That is not docket's execution mode: this gate runs inside
+# `docket-build`, invoked inline by the forked `docket-implement-next`, and a forked child has no
+# channel on which a resumption signal can arrive — which is exactly why the posture's clause 4
+# forbids that child to yield. So the one mode matching docket's real topology is the mode NOT
+# measured, and an unqualified verdict reads as though it were.
+#
+# DERIVED, never hand-listed: the loop asks which section addresses the forked/dispatched mode
+# rather than naming a harness, because which product docket runs under can change while the claim
+# being guarded — that the measured mode is not the running mode — does not. The counter is the
+# non-vacuity floor: deleting the mode discussion outright would otherwise leave the loop with zero
+# iterations, which is indistinguishable from success.
+mode_secs=0
+for h in $shipped; do
+  h_blk="$(awk -v h="$h" '$0 == "### " h {f=1;next} f && /^#+ /{f=0} f' <<<"$ref_body")"
+  # The PROSE asserts read the section with its verdict line REMOVED, and that is mutation evidence
+  # rather than tidiness: at full-section scope both of them were satisfied by the scope clause on
+  # the verdict line itself, so gutting the evidence paragraph — the statement they exist to
+  # protect — left them green while only the verdict-line assert reddened. Three asserts that
+  # collapse onto one line are one assert. The verdict-line assert below keeps the full slice,
+  # because the line is exactly what it is about.
+  h_prose="$(grep -v '^\*\*Verdict:\*\*' <<<"$h_blk")"
+  h_flat="$(flatten <<<"$h_prose")"
+  grep -qiE "forked|dispatched" <<<"$h_flat" || continue
+  mode_secs=$((mode_secs + 1))
+  # `[^-]` is load-bearing, not decoration: the same paragraph names the stricter variant it could
+  # NOT obtain as a "non-interactive `claude -p` child", so a bare `interactive` stayed GREEN through
+  # a mutation that deleted the measured mode's name outright — the negative spelling of the word
+  # stood in for the positive one.
+  assert "modes: '$h' names the mode its evidence WAS measured in" \
+    'grep -qiE "(^|[^-])interactive" <<<"$h_flat"'
+  assert "modes: '$h' records the forked/dispatched mode as UNMEASURED" \
+    'grep -qiE "(forked|dispatched)[^.]{0,120}(unmeasured|not measured)|(unmeasured|not measured)[^.]{0,120}(forked|dispatched)" <<<"$h_flat"'
+  # The scope has to be on the VERDICT line: a caveat buried in the evidence paragraph is not what
+  # a reader scanning rows sees, and the row is the artifact other skills cite.
+  assert "modes: '$h' carries the mode scope on its verdict line" \
+    'grep -qE "^\*\*Verdict:\*\* .(supported|unverified|incompatible). — .+$" <<<"$h_blk"'
+done
+assert "modes: some harness section addresses the forked/dispatched mode (got $mode_secs)" \
+  '[ "$mode_secs" -ge 1 ]'
 
 exit $fail
