@@ -159,10 +159,13 @@ sanitize(){ local v="$1"; v="${v//$'\t'/\\t}"; v="${v//$'\r'/\\r}"; printf '%s' 
 # row); a malformed created: (change 0094's 9999-99-99 sentinel already owns it).
 declare -A BAD       # file path -> 1 when excluded from every projection
 MALFORMED=0
+# The PATH is sanitized too, not only the offending value: a control character can live in a
+# filename (M4's case), and the diagnostic stream must never carry a raw one. `BAD` is still keyed
+# on the verbatim path, because that is what every consumer's gate compares against.
 mark_malformed(){    # mark_malformed FILE REASON
   BAD["$1"]=1
   MALFORMED=$(( MALFORMED + 1 ))
-  printf 'render-board: malformed change file: %s: %s\n' "$1" "$2" >&2
+  printf 'render-board: malformed change file: %s: %s\n' "$(sanitize "$1")" "$2" >&2
 }
 
 # Collect active files by status (ascending id), and archive rows.
@@ -213,10 +216,48 @@ done
 rows_sorted(){ printf '%s' "${SECTION[$1]:-}" | sed '/^$/d' | sort -t$'\t' -k1,1n; }
 count_of(){ rows_sorted "$1" | grep -c . ; }
 
+# --- archive feeder + read-back validation, M4 (change 0259) -----------------------------------
+# Build the archive table's `date<TAB>id<TAB>status<TAB>path` rows ONCE, here, ABOVE every
+# projection — and validate each tuple as it is built. Both halves of that placement are
+# load-bearing, and each fixes a hole this check had while it lived at the render-time consumer:
+#   * it sat inside the markdown archive block, BELOW the digest projection's own exit, so
+#     `--format digest` never evaluated M4 at all — the two enumerated consumers then disagreed
+#     over identical input, which is exactly the two-cases-one-signal collapse this change exists
+#     to close;
+#   * it fired after the tally loops, so a rejected file still counted in ARC_COUNT, in the
+#     `<summary>` header, and in the digest rollup — the header claimed two rows above one.
+# Running the check here restores ONE meaning for `BAD` at every consumer: "excluded from every
+# projection".
+#
+# The check is a genuine ROUND TRIP, not a re-derivation: join the tuple, split it back with the
+# consumer's own `IFS=$'\t' read -r`, and require every field to arrive unchanged. That catches any
+# split that slid left or right, whatever field the stray TAB came from, and it keys rejection on
+# the AUTHORITATIVE path — a shifted tuple's final field is a fragment, and marking a fragment BAD
+# would leave the real file counted. The second conjunct then rejects a residual TAB or CR inside
+# the path, which round-trips intact precisely because `read` assigns the unsplit remainder to the
+# final field: such a path resolves on disk and carries a valid status, yet emitting it would write
+# a raw control character into the rendered link. That is the conjunct a TAB in a FILENAME trips,
+# and it is why M4 is not a duplicate of M1-M3 — a filename never passes through a frontmatter read.
+ARC_ROWS=()
+for f in "${ARCFILES[@]}"; do
+  [ -z "${BAD[$f]:-}" ] || continue
+  base="$(basename "$f")"; d="${base:0:10}"; id="$(int_field "$f" id)"; st="$(field "$f" status)"
+  [ -n "$id" ] && [ -n "$st" ] || continue
+  tuple="$d"$'\t'"$id"$'\t'"$st"$'\t'"$f"
+  IFS=$'\t' read -r r_d r_id r_st r_f <<<"$tuple"
+  if [ "$r_d" != "$d" ] || [ "$r_id" != "$id" ] || [ "$r_st" != "$st" ] || [ "$r_f" != "$f" ] \
+     || [ "$r_f" != "${r_f//[$'\t\r']/}" ]; then
+    mark_malformed "$f" "archive feeder tuple did not read back cleanly (status '$(sanitize "$st")')"
+    continue
+  fi
+  ARC_ROWS+=("$tuple")
+done
+
 declare -A ARC_COUNT  # terminal-status counts (archive)
-# The BAD gate is what narrows the 0143-era "header counts what the table drops" mismatch: an
-# unusable-id archive file is now excluded from the tally as well as from the table, so the
-# remaining mismatch can only come from PLACEMENT divergence — board-row-dropped's territory.
+# Runs AFTER the feeder pass so `BAD` already carries M4's rejections. The BAD gate is what narrows
+# the 0143-era "header counts what the table drops" mismatch: a file excluded from the table is now
+# excluded from the tally too, so the remaining mismatch can only come from PLACEMENT divergence —
+# board-row-dropped's territory.
 for f in "${ARCFILES[@]}"; do
   [ -z "${BAD[$f]:-}" ] || continue
   st="$(field "$f" status)"; [ -n "$st" ] || continue
@@ -425,7 +466,12 @@ done < <(
 # Done nodes (ascending id): style :::done ONLY for a done id an active change depends on;
 # unreferenced done ids carry no edge and are dropped. Killed omitted entirely. Emit the classDef
 # line only when at least one :::done node remains (no dangling def). (change 0093)
+# The BAD gate carries "excluded from every projection" into the graph as well: the M1/M2/M3 cases
+# were already unreachable here (no usable id, or a status that cannot be `done`), but an M4
+# rejection has a usable id AND `status: done`, so without this gate a rejected file would still be
+# stylable as a node while being absent from the table, the tally, and the digest.
 mapfile -t DONE_IDS < <(for f in "${ARCFILES[@]}"; do
+  [ -z "${BAD[$f]:-}" ] || continue
   [ "$(field "$f" status)" = "done" ] && { v="$(int_field "$f" id)"; [ -n "$v" ] && printf '%s\n' "$v"; }; done | sort -n)
 done_shown=0
 for id in "${DONE_IDS[@]}"; do
@@ -458,15 +504,11 @@ if [ "$archive_count" -gt 0 ]; then
   declare -A MONTH_DONE; month_order=()
   while IFS=$'\t' read -r date id st f; do
     [ -n "$id" ] || continue
-    # M4 (change 0259) — validate the tuple as RECEIVED, not only the values as read. M1-M3 cannot
-    # see a control character that never passed through a frontmatter read (a TAB in a FILENAME
-    # reaches the join directly), and a shifted split silently rebinds every later field. Two
-    # conjuncts, each catching a different corruption: a status that is not in the closed vocabulary
-    # means the tuple slid left/right; a path that does not resolve on disk means `f` is a fragment;
-    # and a residual TAB or CR still inside `f` means the tuple is NOT re-joinable. That third
-    # conjunct is the one a TAB in a filename actually trips — `read` assigns the unsplit remainder
-    # to the final field, so such a path resolves on disk and carries a valid status, yet emitting
-    # it would write a raw control character into the rendered link.
+    # Pure DEFENCE IN DEPTH, and unreachable by construction: every tuple in ARC_ROWS already
+    # survived M4's round trip in the feeder pass above ("The check is a genuine ROUND TRIP, not a
+    # re-derivation"). It stays so that a future edit which feeds this loop from somewhere else
+    # fails LOUD rather than emitting a corrupt row — hence mark_malformed, not a bare `continue`.
+    # Removing this line reddens no assert; M4's own coverage lives on the feeder pass.
     if ! docket_status_is_member "$st" || [ ! -e "$f" ] || [ "$f" != "${f//[$'\t\r']/}" ]; then
       mark_malformed "${f:-<unresolvable>}" "archive feeder tuple did not read back cleanly (status '$(sanitize "$st")')"
       continue
@@ -481,14 +523,7 @@ if [ "$archive_count" -gt 0 ]; then
       fi
     fi
     printf '| [%s](archive/%s) | %s | %s |\n' "$(pad "$id")" "$(basename "$f")" "$(field "$f" title)" "$date"
-  done < <(
-    for f in "${ARCFILES[@]}"; do
-      [ -z "${BAD[$f]:-}" ] || continue
-      base="$(basename "$f")"; d="${base:0:10}"; id="$(int_field "$f" id)"; st="$(field "$f" status)"
-      [ -n "$id" ] && [ -n "$st" ] || continue
-      printf '%s\t%s\t%s\t%s\n' "$d" "$id" "$st" "$f"
-    done | sort -t$'\t' -k1,1r -k2,2nr
-  )
+  done < <(printf '%s\n' ${ARC_ROWS[@]+"${ARC_ROWS[@]}"} | sort -t$'\t' -k1,1r -k2,2nr)
   if [ "${#month_order[@]}" -gt 0 ]; then
     printf '\n**Older done (collapsed)**\n\n'
     printf '| Month | Done |\n|-------|------|\n'
@@ -501,6 +536,9 @@ fi
 
 # Render-complete, then fail loud (change 0259). stdout above is the full projection modulo the
 # skipped rows; a non-zero malformed count makes the RUN non-zero so every caller gates honestly.
+# BOTH emission paths reach this test over the same MALFORMED count, because every check that can
+# raise it — M1-M3's upfront pass and M4's feeder pass — runs above the digest projection's own
+# exit. Neither format can report success over input the other rejects.
 # Callers need no new branching, and this was verified against each of them rather than assumed:
 #   board-refresh.sh    — captures the render into a temp file and, on any non-zero rc, leaves
 #                         BOARD.md byte-identical and propagates the code (its

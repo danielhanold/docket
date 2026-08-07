@@ -2258,6 +2258,11 @@ printf -- '---\nid: 1\nslug: ok\ntitle: Fine Row\nstatus: done\ncreated: 2026-08
   > "$m4/archive/2026-08-01-0001-ok.md"
 printf -- '---\nid: 2\nslug: tabname\ntitle: Tab Name\nstatus: done\ncreated: 2026-08-02\n---\n' \
   > "$m4/archive/$(printf '2026-08-02-0002-tab\tname.md')"
+# An active change that DEPENDS ON the rejected file's id, so the rejected id enters the mermaid
+# REFERENCED set. Without this, the graph projection's BAD gate would be unobservable: an
+# unreferenced done id is dropped anyway and no assert could tell the gate from its absence.
+printf -- '---\nid: 3\nslug: dependent\ntitle: Dependent\nstatus: proposed\npriority: medium\ncreated: 2026-08-03\ndepends_on: [2]\nspec: docs/x.md\n---\n' \
+  > "$m4/active/0003-dependent.md"
 m4_md="$(bash "$SCRIPT" --changes-dir "$m4" 2>/dev/null)"; m4_rc=$?
 m4_err="$(bash "$SCRIPT" --changes-dir "$m4" 2>&1 >/dev/null)"
 assert "0259 M4: the well-formed archive row still renders alongside the shifted tuple" \
@@ -2267,6 +2272,37 @@ assert "0259 M4: a shifted feeder tuple produces no rendered row" \
 assert "0259 M4: a shifted feeder tuple is diagnosed on stderr" \
   '/usr/bin/grep -qF -- "archive feeder tuple" <<<"$m4_err"'
 assert "0259 M4: a shifted feeder tuple makes the run exit 3" '[ "$m4_rc" -eq 3 ]'
+# The diagnostic names a path that itself carries the TAB. It must be escaped for the same reason a
+# malformed VALUE is: the stderr stream must never carry a raw control character.
+assert "0259 M4: no raw TAB survives into the diagnostic stream" \
+  '! /usr/bin/grep -q "$(printf "\t")" <<<"$m4_err"'
+# TALLY INVARIANT. An M4-rejected file must land in BAD, so it is excluded from ARC_COUNT and the
+# <summary> header count — not merely from the table. Header count vs. rendered rows, compared:
+# before this was fixed the header said 2 above exactly one row.
+m4_hdr="$(/usr/bin/grep -oE 'Archive — done \([0-9]+\)' <<<"$m4_md")"
+m4_rows="$(/usr/bin/grep -cE '^\| \[[0-9]{4}\]\(archive/' <<<"$m4_md")"
+assert "0259 M4: the <summary> tally excludes the rejected file" \
+  '[ "$m4_hdr" = "Archive — done (1)" ]'
+assert "0259 M4: the <summary> tally matches the number of rendered archive rows" \
+  '[ "$m4_hdr" = "Archive — done ($m4_rows)" ]'
+# BOTH projections, not just markdown. M4 used to live below the digest block'"'"'s own exit, so
+# `--format digest` returned 0 over the identical corrupt archive that made markdown exit 3 —
+# board-refresh.sh froze BOARD.md while docket-status.sh handed the selector a queue built from it.
+m4_dg="$(bash "$SCRIPT" --changes-dir "$m4" --format digest 2>/dev/null)"; m4_dg_rc=$?
+m4_dg_err="$(bash "$SCRIPT" --changes-dir "$m4" --format digest 2>&1 >/dev/null)"
+assert "0259 M4: the digest render also exits 3 on a shifted feeder tuple" '[ "$m4_dg_rc" -eq 3 ]'
+assert "0259 M4: the digest render also diagnoses the shifted tuple on stderr" \
+  '/usr/bin/grep -qF -- "archive feeder tuple" <<<"$m4_dg_err"'
+assert "0259 M4: the rejected file is excluded from the digest done rollup" \
+  '/usr/bin/grep -qxF "backlog done 1" <<<"$m4_dg"'
+assert "0259 M4: the digest still emits its ready line under the rejection" \
+  '/usr/bin/grep -qxF "ready 3" <<<"$m4_dg"'
+# "Excluded from every projection" reaches the GRAPH too. The rejected id is referenced by an
+# active change, so it is a candidate :::done node; the BAD gate is the only thing keeping it out.
+assert "0259 M4: the rejected file is styled as no mermaid done node" \
+  '! /usr/bin/grep -qxF "  0002:::done" <<<"$m4_md"'
+assert "0259 M4: no dangling classDef when every done node was rejected" \
+  '! /usr/bin/grep -qF -- "classDef done" <<<"$m4_md"'
 rm -rf "$m4"
 
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
