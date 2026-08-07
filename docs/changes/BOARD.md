@@ -1,14 +1,15 @@
 # Backlog
 
-**227 changes** — 🟢 1 in progress · 🟡 53 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 140 done · 🗑️ 28 killed
+**227 changes** — 🟢 2 in progress · 🟡 52 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 140 done · 🗑️ 28 killed
 
-## 🟢 In progress (1)
+## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
 | [0190](active/0190-close-the-build-evidence-value-gap-a-post-gate-results-commi.md) | Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip | `medium` | `feat` | [spec](../superpowers/specs/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md) | `feat/close-the-build-evidence-value-gap-a-post-gate-results-commi` |
+| [0227](active/0227-parallel-test-suite-runner.md) | Parallel test-suite runner — 4x+ wall-clock speedup | `medium` | `chore` | [spec](../superpowers/specs/2026-08-06-parallel-test-suite-runner-design.md) | `feat/parallel-test-suite-runner` |
 
-## 🟡 Proposed (53)
+## 🟡 Proposed (52)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -64,7 +65,6 @@
 | [0223](active/0223-the-build-gate-contract-never-states-an-execution-posture-for.md) | The build gate contract never states an execution posture for a suite that outgrows a single foreground call | `high` | `feat` | build-ready |
 | [0224](active/0224-the-build-gate-contract-never-says-green-red-is-the-exit-code.md) | The build gate contract never says green/red is the exit code, so an output-shape match passes as a gate | `high` | `docs` | needs-brainstorm |
 | [0226](active/0226-reframe-auto-capture-as-capability-discovery-with-strict-adm.md) | Reframe auto-capture as capability discovery with strict admission gates | `medium` | `feat` | build-ready |
-| [0227](active/0227-parallel-test-suite-runner.md) | Parallel test-suite runner — 4x+ wall-clock speedup | `medium` | `chore` | build-ready |
 
 ## ⚪ Deferred (4)
 
