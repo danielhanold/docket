@@ -2,11 +2,11 @@
 id: 179
 slug: revisit-factoring-a-shared-config-value-extractor-across-the
 title: Revisit factoring a shared config value extractor across the three readers
-status: proposed
+status: killed
 priority: medium
 type: refactor
 created: 2026-07-31
-updated: 2026-07-31
+updated: 2026-08-07
 depends_on: [175]
 related: [168, 173]
 discovered_from: [173]
@@ -68,3 +68,7 @@ than never.
 - Is the right artifact a shared function, or an ADR recording that the readers stay separate?
 - Does `docket-frontmatter.sh`'s `field`/`field_raw` pair belong in the same consolidation, or is
   its quote-style split genuinely a different concern from the reader-capability split?
+
+## Why killed
+
+Consolidated into #0256 at the 2026-08-07 backlog triage: the consolidate-or-record decision now covers both reader families (this one and #0165's); the 0175 blocker has expired.
