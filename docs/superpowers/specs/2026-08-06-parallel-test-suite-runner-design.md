@@ -66,6 +66,21 @@ exceeds ~60s:
 Expected result: floor ≈ max shard (~60s) with ~8 workers ⇒ **~8–10x** on suite wall
 time; comfortably past 4x even with contention.
 
+### 3. Keep the tail from regrowing — a runtime-budget guard
+
+A one-time split decays as new tests land. Ship the discipline as a guard (house
+pattern: `test_skill_size_budgets.sh`):
+
+- A budget table (e.g. `tests/runtime-budgets.tsv`) assigning every test file a
+  wall-clock ceiling; default ceiling ~60s.
+- A guard test asserting (a) every `tests/test_*.sh` has a budget row — a new file
+  without one fails loudly, forcing a conscious placement decision, and (b) no file's
+  measured runtime (from the runner's own timing output) exceeds its ceiling —
+  the failure message says "shard this file or extend an existing shard."
+- A short "where new tests go" section in `tests/README.md` (create if absent):
+  extend the topical shard the assertion belongs to; a new file only for a new
+  subsystem; never grow a file past its budget.
+
 ### Integration
 
 - `finalize.test_command` stays unset (auto-detect) or is pointed at

@@ -50,6 +50,9 @@ must also shard the tail to reach the 4x goal.
   `test_harness_defaults.sh`, and where section boundaries allow `test_docket_config.sh`
   / `test_sync_agents_codex.sh`, into 2) so no shard exceeds ~60s. Assertion count
   before == after.
+- Runtime-budget guard so the tail never regrows: a per-file wall-clock budget table,
+  a guard test failing on unbudgeted new files or budget-exceeding files (~60s
+  ceiling), and a "where new tests go" section in `tests/README.md`.
 - One-time audit for hidden shared state (real `$HOME`, global git config, repo
   worktrees, network); offenders fixed or pinned serial.
 
