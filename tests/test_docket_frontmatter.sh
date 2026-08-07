@@ -231,6 +231,17 @@ assert "active helper rejects empty" '! docket_status_is_active ""'
 assert "terminal helper accepts killed" 'docket_status_is_terminal killed'
 assert "terminal helper rejects active implemented" '! docket_status_is_terminal implemented'
 assert "terminal helper rejects empty" '! docket_status_is_terminal ""'
+assert "member-status helper is defined" 'declare -F docket_status_is_member >/dev/null'
+assert "member helper accepts an active status" 'docket_status_is_member proposed'
+assert "member helper accepts a terminal status" 'docket_status_is_member done'
+assert "member helper rejects a status outside the vocabulary" '! docket_status_is_member bogus'
+assert "member helper rejects empty" '! docket_status_is_member ""'
+# An interior TAB can never match a closed-vocabulary name — this is the rejection that IS the
+# sanitization for `status:` in render-board.sh (change 0259, spec assumption 4).
+assert "member helper rejects a vocabulary name carrying an interior TAB" \
+  '! docket_status_is_member "$(printf "done\tx")"'
+assert "member helper accepts every DOCKET_STATUSES entry" \
+  'for _m_s in "${DOCKET_STATUSES[@]}"; do docket_status_is_member "$_m_s" || exit 1; done'
 assert "priority membership accepts high" 'docket_priority_is_member high'
 assert "priority membership rejects empty" '! docket_priority_is_member ""'
 assert "priority membership rejects unknown" '! docket_priority_is_member urgent'
