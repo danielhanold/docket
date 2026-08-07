@@ -729,6 +729,22 @@ assert "finalize: the executable fragment was located (non-vacuity anchor)" \
 assert "finalize: the executable bash fragment is untouched by the skip logic" \
   '! grep -qiE "evidence|skip|head_sha" <<<"$frag"'
 
+# --- change 0190: the docs-only ancestor limb of the skip predicate -------------------------
+# The sentinels above all survive 0190 as substrings, but none of them binds the NEW disjunct:
+# with every one of them green the allowlist limb could widen to "any path" — or vanish — unseen.
+# Keyed on syntactic SHAPE (an ancestor condition co-present with a paths-under-the-allowlisted-
+# prefix condition), not on one blessed spelling, and read from a newline-flattened haystack so a
+# reflow of this very long prose item cannot silently unbind it. The extraction runs to the next
+# top-level numbered item, and its non-vacuity is anchored first: an awk range over a renamed or
+# deleted item yields an EMPTY haystack, on which the shape grep would fail loudly rather than a
+# negated grep passing on nothing.
+skip_item="$(awk '/^4\. \*\*Conditional skip/{f=1} f && /^5\. /{f=0} f' "$FIN")"
+skip_flat="$(flatten <<<"$skip_item")"
+assert "finalize: the conditional-skip item was located (non-vacuity anchor)" \
+  '[ -n "$skip_flat" ] && grep -qF -- "build-evidence" <<<"$skip_flat"'
+assert "finalize: the skip's second limb needs a strict-ancestor head_sha AND an allowlisted-prefix path set" \
+  'grep -qiE "strict ancestor" <<<"$skip_flat" && grep -qiE "(every|all) paths? changed[^|]{0,120}(under|within)[^|]{0,60}allowlist" <<<"$skip_flat"'
+
 # --- documentation + the dogfood binding ---------------------------------------------------
 RM="$REPO/README.md"
 assert "README documents the docket-review role" 'grep -qF -- "docket-review" "$RM"'
