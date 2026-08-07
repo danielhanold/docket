@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0219 — aborted-run's Step 7 seam — a fourth git-only leg, plus GitHub enrichment for leg C](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0219-aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d.md)**
+> ↩ **[Change 0219 — aborted-run's Step 7 seam — a fourth git-only leg, plus GitHub enrichment for leg C](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-07-0219-aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d.md)**
 <!-- docket:backlink:end -->
 
 # aborted-run's fourth leg and its GitHub enrichment
