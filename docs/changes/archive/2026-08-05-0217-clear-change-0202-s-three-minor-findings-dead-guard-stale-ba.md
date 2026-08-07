@@ -1,7 +1,7 @@
 ---
 id: 217
 slug: clear-change-0202-s-three-minor-findings-dead-guard-stale-ba
-title: Clear change 0202's three minor findings: dead guard, stale baseline comment, wrong plan pattern
+title: "Clear change 0202's three minor findings: dead guard, stale baseline comment, wrong plan pattern"
 status: killed
 priority: medium
 type: chore
