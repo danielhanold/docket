@@ -8,10 +8,10 @@ type: docs
 created: 2026-07-28
 updated: 2026-08-07
 depends_on: []
-related: []
+related: [111, 144, 157, 159]
 discovered_from: [145]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-07-audit-skill-bodies-for-the-stale-restatement-class-change-01-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-07-audit-skill-bodies-for-the-stale-restatement-class-change-01-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-audit-skill-bodies-for-the-stale-restatement-class-change-01-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -57,22 +60,38 @@ list and `board_surfaces` token semantics, owned by `docket-config.md`).
 
 ## What changes
 
-Sweep the `skills/` tree (and, where cheap, the `scripts/*.md` contracts) for the same restatement
-class and decide per hit whether to delete-and-point or to pin.
+Groomed 2026-08-07 (auto-groom; two critic passes — all eleven assumptions sound). The linked spec
+settles scope, the per-hit decision rule, the named dispositions, and the guard question; this body
+stays at proposal altitude.
 
-- Enumerate every skill-body occurrence of a closed vocabulary owned elsewhere: check-ids, exit
-  codes, report-line tokens, `docket.sh` flag lists, status/state enumerations, counts of any of
-  these.
-- For each, apply 0145's rule: prefer **removal plus a pointer to the owning contract** over adding
-  another pinned surface, since removal makes drift impossible rather than merely detected.
-- Where a restatement genuinely must stay (the skill owns the posture, not just the words), pin it
-  the way change 0111 pins its four surfaces.
-- Consider whether a single generalized guard — "no skill body names a check-id outside a sanctioned
-  section" — is worth building, or whether per-site removal is enough.
+One docs-type PR sweeping every markdown file under `skills/` (the 12 SKILL.md files plus skill
+references; `scripts/*.md` contracts are the *owners* and are out of the sweep — contract-to-contract
+duplication is report-only) under one decision rule, disposition preference strictly
+**delete-and-point > compress-to-owned-judgment > pin** (expected pins: zero).
+
+- **Named hits, committed:** `skills/docket-status/SKILL.md:35` (outcome + error-cause
+  enumerations → delete-and-point, which absorbs killed #0159 by construction — no list, nothing
+  to omit) and `:90` (the ~400-word sweep-posture restatement → compress to the judgment kernel
+  the skill owns + pointer); `skills/docket-convention/SKILL.md:55` (fence-key list → delete, but
+  the surviving sentence keeps `terminal_publish` named beside the fence phrase — two test pins
+  constrain it) and `:63` (`board_surfaces` → keep the definitional sentence, repoint/relocate the
+  restated resolver behaviors to their actual owners; one behavior is stated nowhere else and must
+  be relocated, never deleted).
+- **Exempt, verified:** single-item cross-references (e.g. `publish-deferred`,
+  `stale-finalize-blocked` mentions) and the convention's Agent-layer wrapper counts, which are an
+  **already-pinned surface** (`test_finalize_gate.sh:152-156`, change 0170) — left alone.
+- **Generalized guard: NO** — a repo-wide check-id lint needs its own drifting sanction list;
+  removal plus the existing guards (0111's four surfaces, 0145's section guard, 0170's count pins)
+  covers what survives.
+- **Collateral-test protocol, mandatory per edit:** grep `tests/` for a block's distinctive
+  phrases before deleting it; retarget pins to surviving text, never to vacuity (0145 precedent).
+- The build completes the inventory mechanically (token sets sourced from the owning lib/contracts,
+  never hand-copied) plus one full manual read; results recorded in the plan/results artifacts.
 
 ## Out of scope
 
 - Changing any vocabulary, exit code, or script behavior.
-- Re-litigating the four surfaces change 0111 already pins.
-- `skills/docket-status/SKILL.md`'s `### Health checks` section, which change 0145 already closed
-  and guarded.
+- Re-litigating the four surfaces change 0111 already pins, 0145's guarded `### Health checks`
+  section, or 0170's count pins.
+- `scripts/*.md` contract-to-contract duplication and the convention's `.docket.yml` schema
+  snippet (verify + report only).
