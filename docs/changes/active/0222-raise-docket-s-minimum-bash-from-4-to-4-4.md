@@ -8,10 +8,10 @@ type: chore
 created: 2026-08-05
 updated: 2026-08-07
 depends_on: [211]
-related: [150, 117]
+related: [150, 117, 200, 227]
 discovered_from: [211]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-07-raise-docket-s-minimum-bash-from-4-to-4-4-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-07-raise-docket-s-minimum-bash-from-4-to-4-4-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-raise-docket-s-minimum-bash-from-4-to-4-4-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -71,19 +74,26 @@ cross-references at `docket-status.sh:909,:926` go with them.
 ## What changes
 
 Raise the enforced runtime floor from Bash 4+ to **Bash 4.4** — the exact version that fixes the
-defect being worked around, and no higher.
+defect being worked around, and no higher. Design settled in the linked spec; headline shape:
 
-- Flip the five validators to require >= 4.4 (a major+minor comparison; the current checks are
-  major-only), with matching remedy strings.
-- Delete the guarded-expansion idioms and the explanatory comments that exist only for 4.0–4.3.
-- Retire fixture I1 in `tests/test_board_checks.sh` and the `test_comment_anchor_style.sh`
-  empty-population skip.
-- Drop mutation M's dead 4.0–4.3 arm in the leg-C tests (change 0211).
-- Fix the stale cross-reference in the `scripts/docket-status.sh:721` comment, which cites a
-  "change-0064 crash shape"; change 0064 is *Optional terminal-publish* and does not concern this
-  bug. The real precedent is change 0117 / commit `0695b921`.
-- Update the user-facing docs and remedy text (`scripts/docket.md`, `scripts/docket-config.md`,
-  `scripts/ensure-docket-env.md`, `scripts/ensure-global-config.md`, README install guidance).
+- The comparison is implemented three times, not five: the shared lib validator
+  (`docket_runtime_validate_bash`), docket.sh's inline pre-exec check, and — groom-discovered —
+  `run-tests.sh`'s prologue self-check, whose own threshold (4.3, for `wait -n`) must bump to 4.4
+  or a 4.3 host bash crashes on this change's now-unguarded expansions. All go major+minor >= 4.4
+  with matching remedy strings; the reason token `old-major` renames to `old-version`.
+- Delete the guarded-expansion idioms `${ARR[@]+"${ARR[@]}"}` and their 4.0–4.3 comments (five
+  sites). The two empty-array *count gates* (board-checks leg C, docket-status bases) STAY —
+  they encode "ahead of nothing" semantics on >= 4.4, not back-compat.
+- Retire fixture I1 in `tests/test_board_checks.sh`, the `test_comment_anchor_style.sh`
+  empty-population skip, and mutation M's dead 4.0–4.3 arm (change 0211).
+- Cross-reference fix is `docket-status.sh` ~926 ONLY (real precedent: change 0117 /
+  `0695b921`); the ~909 change-0064 citation is correct provenance for a version-independent
+  scalar guard and stays.
+- Update `tests/test_bash_runtime_routing.sh` (a named maintenance obligation: fixtures, remedy
+  asserts, REAL_BASH picker, new 4.3 reject fixture) and `test_docket_runtime_lib.sh`.
+- Update user-facing docs and remedy text (`scripts/docket.md`, `scripts/docket-config.md`,
+  `scripts/ensure-docket-env.md`, `scripts/ensure-global-config.md`, README install guidance,
+  profiler prologue wording).
 
 **4.4 rather than 5.0.** An earlier draft of this stub proposed 5.0, to collapse docket's two
 de-facto floors into one — `scripts/profile-asserts.sh` and `scripts/profile-one-test.sh` already
@@ -117,17 +127,16 @@ they are *written in*.
 
 ## Open questions
 
-- **Minor-version comparison.** The five validators currently check the major version only. A 4.4
-  floor needs major+minor parsing, which is marginally *more* validator code than a 5.0 floor would
-  have needed — confirm the change is still a net simplification once the guards are deleted, and
-  settle where the shared comparison lives (`lib/docket-runtime.sh` already owns the validator).
-- **Failure posture for an existing install on 4.0–4.3** — hard error at preflight, or a
-  warn-and-degrade window? The five validators currently `die`.
-- **Sequencing against change 0150** (pin or report the resolved shell toolchain across the test
-  suite). A tightened floor makes that check simpler to state, so decide whether 0150 lands first,
-  after, or is folded in.
-- **Does the unverifiability argument imply a CI follow-up** should be filed alongside? Without CI,
-  a 4.4 floor is no better exercised than the 4.0 one — the claims just get cheaper to make.
+All resolved by the 2026-08-07 groom (details in the spec's Assumptions):
+
+- **Minor-version comparison**: net simplification confirmed (~6 added lines vs. deleting five
+  guarded idioms with comments, fixture I1, the anchor-style skip, and mutation M's dead arm);
+  the comparison stays in the three existing implementations, no new shared helper.
+- **Failure posture**: hard error (`die`) at all validators — ruled by Daniel, triage 2026-08-07.
+- **Sequencing vs 0150**: independent, no ordering coupling; 0150's check merely gets simpler to
+  state if 0222 lands first. Not folded in.
+- **CI follow-up**: worth filing as a separate change (auto-groom does not mint stubs); this
+  change stands regardless — it deletes unfalsifiable claims rather than needing new ones.
 
 ## Reconcile log
 
