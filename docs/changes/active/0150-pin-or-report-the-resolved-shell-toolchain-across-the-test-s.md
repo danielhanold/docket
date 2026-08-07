@@ -8,10 +8,10 @@ type: chore
 created: 2026-07-28
 updated: 2026-08-07
 depends_on: []
-related: [151]
+related: [151, 227]
 discovered_from: [130]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-07-pin-or-report-the-resolved-shell-toolchain-across-the-test-s-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-07-pin-or-report-the-resolved-shell-toolchain-across-the-test-s-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-pin-or-report-the-resolved-shell-toolchain-across-the-test-s-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -56,13 +59,21 @@ carried forward as settled here:
 
 ## What changes
 
-- A `tests/lib/toolchain-report.sh` helper printing the resolved path and version of `grep`,
-  `sed`, `awk`, `date`, `readlink` — gating nothing, permanently. Lift the implementation from
-  0130's existing block in `tests/test_grep_portability.sh` (:87-93) verbatim, including its
-  capture-then-here-string SIGPIPE discipline, and replace that block with a call to the helper
-  so there is one implementation.
-- Emit the report once per suite run from `scripts/run-tests.sh` (the seam that now exists), so
-  every gate log records which toolchain actually ran.
+Groomed 2026-08-07 (auto-groom); the linked spec settles the design — 7 assumptions, all
+critic-confirmed sound.
+
+- A `tests/lib/toolchain-report.sh` sourceable helper (`toolchain_report()`) printing the resolved
+  path and best-effort version of `grep`, `sed`, `awk`, `date`, `readlink` — gating nothing,
+  permanently. Implementation lifted from 0130's block in `tests/test_grep_portability.sh`
+  (:87-93), generalized to a loop, keeping its capture-then-here-string SIGPIPE discipline; that
+  block becomes a source-and-call plus a structural smoke assert, so there is one implementation.
+- `scripts/run-tests.sh` emits the report once per suite run on stdout, after arg/target
+  validation and before the launch loop, plus a runner-owned `test bash` line naming `$TEST_BASH`
+  (which `command -v bash` could misreport). Gate logs thereby record which toolchain actually
+  ran; the report is `-j`-independent, so the stdout byte-stability contract holds.
+- Prose amendments only where the header falsifies them: the interruption comments/docs claiming
+  an interrupted run "has printed nothing but the stderr ticker" (runner, run-tests.md,
+  test_run_tests.sh) — no assert keys on them.
 
 ## Out of scope
 
