@@ -1,6 +1,6 @@
 # Backlog
 
-**239 changes** — 🟢 2 in progress · 🟡 57 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 146 done · 🗑️ 28 killed
+**239 changes** — 🟢 2 in progress · 🟡 57 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 147 done · 🗑️ 28 killed
 
 ## 🟢 In progress (2)
 
@@ -80,12 +80,11 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0219](active/0219-aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d.md) | aborted-run's Step 7 seam — a fourth git-only leg, plus GitHub enrichment for leg C | `high` | `fix` | [#171](https://github.com/danielhanold/docket/pull/171) |  |
-| [0231](active/0231-a-presumed-dead-build-worker-can-wake-and-race-its-own-repla.md) | A presumed-dead build worker can wake and race its own replacement in one worktree | `medium` | `fix` | [#170](https://github.com/danielhanold/docket/pull/170) |  |
 
 ```mermaid
 graph TD
@@ -146,7 +145,6 @@ graph TD
   0224
   0229
   0230
-  0223 --> 0231
   0232
   0233
   0235
@@ -158,15 +156,15 @@ graph TD
   0175:::done
   0192:::done
   0211:::done
-  0223:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (174)</summary>
+<details><summary>✅🗑️ Archive — done + killed (175)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0234](archive/2026-08-07-0234-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b.md) | Split gate-execution.md: probe evidence should not sit on a blocking-read surface | 2026-08-07 |
+| [0231](archive/2026-08-07-0231-a-presumed-dead-build-worker-can-wake-and-race-its-own-repla.md) | A presumed-dead build worker can wake and race its own replacement in one worktree | 2026-08-07 |
 | [0228](archive/2026-08-07-0228-finalize-s-auto-detect-suite-loop-has-no-failure-accumulator.md) | finalize's auto-detect suite loop has no failure accumulator, so a mid-suite red merges | 2026-08-07 |
 | [0227](archive/2026-08-07-0227-parallel-test-suite-runner.md) | Parallel test-suite runner — 4x+ wall-clock speedup | 2026-08-07 |
 | [0226](archive/2026-08-07-0226-reframe-auto-capture-as-capability-discovery-with-strict-adm.md) | Reframe auto-capture as capability discovery with strict admission gates | 2026-08-07 |
@@ -188,7 +186,6 @@ graph TD
 | [0206](archive/2026-08-05-0206-delegated-runner-runs-are-anchored-at-the-main-worktree-not.md) | Delegated runner runs are anchored at the main worktree, not the feature worktree | 2026-08-05 |
 | [0205](archive/2026-08-05-0205-opencode-runner-adapter.md) | opencode runner adapter — delegate build workers to OpenRouter models | 2026-08-05 |
 | [0202](archive/2026-08-05-0202-clear-the-unfixed-review-findings-from-change-0113.md) | Clear the unfixed review findings from change 0113 | 2026-08-05 |
-| [0078](archive/2026-08-05-0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | 2026-08-05 |
 | [0183](archive/2026-08-01-0183-cursor-dispatch-head-ships-a-stale-unpinned-claim-its-guard.md) | Cursor dispatch head ships a stale unpinned claim; its guard retired itself | 2026-08-01 |
 | [0044](archive/2026-07-30-0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | 2026-07-30 |
 | [0162](archive/2026-07-28-0162-restore-the-machine-local-ignored-advisory-for-a-committed-t.md) | Restore the machine-local-ignored advisory for a committed too-deep runtime.bash | 2026-07-28 |
@@ -214,7 +211,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 13 done |
+| [2026-08](archive/) | 14 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
