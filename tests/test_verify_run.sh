@@ -181,6 +181,30 @@ out="$( cd "$SBX" && vr 23 )"
 assert "branch conjunct: a LOCAL branch does not satisfy 'delivered'" \
   '[ "$out" = "run-incomplete 23 branch" ]'
 
+# --- a zero-padded id is the SAME id --------------------------------------------
+# Docket displays the padded form everywhere (filenames, board, commit scopes, "change 0237"), and
+# the validator admits it. Bash `printf %d`/`$((…))` read a leading 0 as OCTAL, so an uncanonicalized
+# id silently resolves a DIFFERENT change (0237 -> 159) — and for a padded id containing 8 or 9 the
+# arithmetic fails outright while the script, under `set -uo pipefail` with no `-e`, carries on.
+# The verdict line echoes the CANONICAL id, so the answer can never name an id we did not read.
+write_change 19 implemented feat/slug19 "https://github.com/o/r/pull/15"
+push_branch feat/slug19
+out="$( cd "$SBX" && vr 0010 )"; rc=$?
+assert "padded id: 0010 resolves change 10, verdict echoes the canonical id" \
+  '[ "$out" = "run-complete 10" ]'
+assert "padded id: 0010 exits 0" '[ "$rc" = "0" ]'
+out="$( cd "$SBX" && vr 0011 )"
+assert "padded id: 0011 gives the same verdict as 11" \
+  '[ "$out" = "run-incomplete 11 status pr branch" ]'
+# 0019 is not a valid octal literal — the uncanonicalized form errors here.
+err="$( cd "$SBX" && bash "$VR" 0019 --changes-dir "$CH" 2>&1 >/dev/null )"
+out="$( cd "$SBX" && vr 0019 )"; rc=$?
+assert "padded id with a 9: resolves change 19 rather than failing arithmetic" \
+  '[ "$out" = "run-complete 19" ]'
+assert "padded id with a 9: exits 0 on a real verdict, not a mangled one" '[ "$rc" = "0" ]'
+assert "padded id with a 9: no arithmetic diagnostic on stderr" \
+  '! grep -qiF "octal" <<<"$err"'
+
 # --- snapshot mode ------------------------------------------------------------
 make_sbx
 write_change 30 in-progress feat/slug30 ""
