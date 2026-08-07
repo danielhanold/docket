@@ -1,6 +1,6 @@
 # Backlog
 
-**243 changes** — 🟢 2 in progress · 🟡 58 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 149 done · 🗑️ 29 killed
+**243 changes** — 🟢 2 in progress · 🟡 58 proposed · ⚪ 4 deferred · ✅ 150 done · 🗑️ 29 killed
 
 ## 🟢 In progress (2)
 
@@ -81,12 +81,6 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | Type | PR | Readiness |
-|---|-------|----------|------|----|-----------|
-| [0190](active/0190-close-the-build-evidence-value-gap-a-post-gate-results-commi.md) | Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip | `medium` | `feat` | [#173](https://github.com/danielhanold/docket/pull/173) |  |
-
 ```mermaid
 graph TD
   0007
@@ -131,7 +125,6 @@ graph TD
   0187
   0188
   0189
-  0190
   0192 --> 0195
   0196
   0197
@@ -162,7 +155,7 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (178)</summary>
+<details><summary>✅🗑️ Archive — done + killed (179)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
@@ -178,6 +171,7 @@ graph TD
 | [0220](archive/2026-08-07-0220-clear-the-unfixed-review-findings-from-change-0207.md) | clear the unfixed review findings from change 0207 | 2026-08-07 |
 | [0219](archive/2026-08-07-0219-aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d.md) | aborted-run's Step 7 seam — a fourth git-only leg, plus GitHub enrichment for leg C | 2026-08-07 |
 | [0203](archive/2026-08-07-0203-define-the-per-step-git-state-postcondition-docket-implement.md) | Define the per-step git-state postcondition docket-implement-next now names but never states | 2026-08-07 |
+| [0190](archive/2026-08-07-0190-close-the-build-evidence-value-gap-a-post-gate-results-commi.md) | Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip | 2026-08-07 |
 | [0218](archive/2026-08-06-0218-fix-review-findings-in-branch-instead-of-minting-a-stub-for.md) | Fix review findings in-branch instead of minting a stub for every one | 2026-08-06 |
 | [0217](archive/2026-08-05-0217-clear-change-0202-s-three-minor-findings-dead-guard-stale-ba.md) | Clear change 0202's three minor findings: dead guard, stale baseline comment, wrong plan pattern | 2026-08-05 |
 | [0216](archive/2026-08-05-0216-guard-the-capture-shape-constraint-in-branch-only-artifact-w.md) | Guard the capture-shape constraint in branch_only_artifact with a mutation G | 2026-08-05 |
@@ -189,7 +183,6 @@ graph TD
 | [0210](archive/2026-08-05-0210-a-valueless-trailing-flag-hangs-runner-dispatch-forever-inst.md) | A valueless trailing flag hangs runner-dispatch forever instead of aborting | 2026-08-05 |
 | [0209](archive/2026-08-05-0209-the-worktree-requirement-covers-build-only-leaving-three-fea.md) | The --worktree requirement covers build-* only, leaving three feature-scoped agent families ungated | 2026-08-05 |
 | [0207](archive/2026-08-05-0207-sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a.md) | sync-agents aborts mid-loop on a bad runner config, leaving a zero-length wrapper and stale siblings | 2026-08-05 |
-| [0206](archive/2026-08-05-0206-delegated-runner-runs-are-anchored-at-the-main-worktree-not.md) | Delegated runner runs are anchored at the main worktree, not the feature worktree | 2026-08-05 |
 | [0183](archive/2026-08-01-0183-cursor-dispatch-head-ships-a-stale-unpinned-claim-its-guard.md) | Cursor dispatch head ships a stale unpinned claim; its guard retired itself | 2026-08-01 |
 | [0044](archive/2026-07-30-0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | 2026-07-30 |
 | [0162](archive/2026-07-28-0162-restore-the-machine-local-ignored-advisory-for-a-committed-t.md) | Restore the machine-local-ignored advisory for a committed too-deep runtime.bash | 2026-07-28 |
@@ -215,7 +208,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 16 done |
+| [2026-08](archive/) | 17 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
