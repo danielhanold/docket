@@ -12,12 +12,12 @@ related: [225]
 discovered_from: []
 adrs: []
 spec: docs/superpowers/specs/2026-08-06-parallel-test-suite-runner-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-07-parallel-test-suite-runner.md
 results:
 trivial: false
 auto_groomable:
 branch: feat/parallel-test-suite-runner
-claimed_at: 2026-08-07T02:06:32Z
+claimed_at: 2026-08-07T02:16:49Z
 pr:
 issue:
 blocked_by:
@@ -28,6 +28,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-06-parallel-test-suite-runner-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-06-parallel-test-suite-runner-design.md) |
+| Plan | [2026-08-07-parallel-test-suite-runner.md](https://github.com/danielhanold/docket/blob/feat/parallel-test-suite-runner/docs/superpowers/plans/2026-08-07-parallel-test-suite-runner.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
