@@ -205,7 +205,10 @@ or a progress ticker is **diagnostic only** — a gate that reads its verdict ou
 a gate. The deciding status is the one recorded in the **terminal result artifact** that *Gate
 execution posture* requires, and that recorded status is what **completed successfully** means:
 *still running* and *result unavailable* are not statuses at all, so they stay budget halts and are
-never red. When the resolved command is a **loop over per-file commands** — the shape finalize's
+never red. Nor is every non-zero status red: a completed run whose recorded status the resolved
+runner defines as a **non-failure** outcome is a halt per *Halting conditions*, the same refusal the
+configuration gap gets — neither has a failure to repair. **Red** is a completed run that is neither
+green nor one of those halts. When the resolved command is a **loop over per-file commands** — the shape finalize's
 `configured-bash-finalize` block takes when `FINALIZE_TEST_COMMAND` is unset — the deciding status
 is the **aggregate** that block exits with, never any individual file's. This rule binds every
 full-suite run this role performs, including the repair worker's post-fix re-run below.

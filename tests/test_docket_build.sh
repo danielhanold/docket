@@ -822,6 +822,15 @@ assert "0224: still running and result unavailable are the two named non-statuse
   'grep -qiE "still running[^.]{0,40}result unavailable" <<<"$gate_flat"'
 assert "0224: the non-statuses stay budget halts and are never red" \
   'grep -qiE "are not statuses at all[^.]{0,120}never red" <<<"$gate_flat"'
+# The symmetric half: green's determinant is fixed above, so red's must be too, or the section's only
+# remaining branch is "manufacture a repair task" — reachable from a run this repo's own configured
+# runner (scripts/run-tests.md) documents as having zero failing tests. Three asserts, one gap each.
+assert "0224: not every non-zero status is red" \
+  'grep -qiF -- "nor is every non-zero status red" <<<"$gate_flat"'
+assert "0224: a runner-defined non-failure status is a halt, not red" \
+  'grep -qiE "non-failure[^.]{0,60}halt per" <<<"$gate_flat"'
+assert "0224: red is a completed run that is neither green nor one of those halts" \
+  'grep -qiF -- "neither green nor one of those halts" <<<"$gate_flat"'
 
 # (d) The per-file-loop aggregate. Confirmed against finalize's configured-bash-finalize block,
 # which accumulates suite_status=1 per failing file and exits on [ "$suite_status" -eq 0 ] — the
