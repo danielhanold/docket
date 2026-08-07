@@ -26,7 +26,7 @@ only by reading git state.
 
 ## Non-goals
 
-- Reducing suite runtime (change 0225).
+- Reducing suite runtime (change 0227, which supersedes the killed 0225).
 - Keying green/red on the exit code (change 0224).
 - Any change to ADR-0024 or the dispatched-subagent never-yield rule.
 
@@ -308,6 +308,13 @@ implementer re-verifies each verdict before writing it, and disambiguates the sa
   act on it fails as surely as a harness-specific one. The reference file is what carries the
   actionable detail; if the skill-body prose cannot be made actionable with the reference in hand,
   that is the signal to revisit placement rather than to relax neutrality.
+- **Change 0227 (parallel test runner) is `implemented` with PR #165 open but unmerged.** It adds
+  `scripts/run-tests.sh` and points `finalize.test_command` at it, cutting suite wall-clock well
+  under the foreground ceiling. It does **not** retire this contract: the posture is stated by
+  capability precisely so it holds for any suite that outgrows a foreground call, and a repo whose
+  suite fits comfortably simply satisfies it on the first observation. It touches neither
+  `skills/docket-build/SKILL.md` nor `skills/docket-finalize-change/SKILL.md`, so the only rebase
+  surface is `.docket.example.yml`/`tests/`.
 - **Overlap with the in-progress #0190.** That change touches the build-evidence record and
   finalize's suite-skip predicate. This one touches how the gate *runs*, not what it mints, but the
   two land in adjacent prose; expect to reconcile at rebase by intent rather than by choosing.

@@ -19,8 +19,8 @@ auto_groomable:
 branch: feat/the-build-gate-contract-never-states-an-execution-posture-for
 pr:
 blocked_by:
-claimed_at: 2026-08-07T06:09:20Z
-reconciled: false
+claimed_at: 2026-08-07T06:20:00Z
+reconciled: true
 ---
 
 ## Artifacts
@@ -102,7 +102,8 @@ Type flipped `docs` → `feat` at grooming: the configuration knob is real code.
 
 ## Out of scope
 
-- Reducing suite runtime — that is change 0227 (supersedes the killed 0225).
+- Reducing suite runtime — that is change 0227 (supersedes the killed 0225). 0227 is `implemented`
+  (PR #165, unmerged) and does not retire this contract; see the reconcile log.
 - The green/red keying gap — that is change 0224.
 - Any change to ADR-0024 or the subagent never-yield rule.
 
@@ -127,3 +128,42 @@ normatively with no harness-specific escape hatch.
 Verdicts are version-scoped; the implementer re-probes rather than inheriting them on faith.
 
 ## Reconcile log
+
+### 2026-08-07 — reconciled at claim
+
+Scope stands unchanged; nothing in it has been built elsewhere. Verified against current `main`:
+
+- `skills/docket-build/SKILL.md` § *The build gate* still says nothing about execution posture, and
+  `skills/docket-build/references/` holds only `task-routing.md` — the new `gate-execution.md` is
+  net-new.
+- No `gate_observation_budget` / `GATE_OBSERVATION_BUDGET` exists anywhere in the tree. The
+  resolver's nearest precedents for the write are the flat top-level scalar `terminal_publish`
+  (`config_scalar_get committed`, fail-closed on garbage) and the global-able layered scalar
+  `auto_groom` (`lcl` → committed → `gbl` → built-in). This key is **global-able**, so it follows
+  the `auto_groom` layering shape with an integer-minutes fail-closed check, not the fenced
+  `terminal_publish` shape.
+- `skills/docket-finalize-change/SKILL.md` § *The rebase-retest merge gate* still owns the
+  `configured-bash-finalize` marker block and carries no citation of a gate execution posture — the
+  cite-by-reference edit lands in its step 5 `local` leg.
+- `HD_SHIPPED_HARNESSES` in `scripts/lib/harness-defaults.sh` is still the four-harness
+  `claude cursor codex opencode`, and the derive-the-population-from-it test idiom is already
+  established (`tests/test_docket_review.sh`, `tests/test_docket_example_yml.sh`,
+  `tests/test_cursor_contract_docs.sh`) — the per-harness-verdict guard reuses it, including its
+  non-vacuity floor.
+
+Two related changes moved since grooming, neither invalidating the design:
+
+- **0227 (parallel test-suite runner)** is `implemented` with PR #165 open but **unmerged**. It adds
+  `scripts/run-tests.sh` and a `finalize.test_command` pointing at it, so once merged the suite runs
+  far below the foreground ceiling. That is a mitigation of the symptom, not of the gap: the posture
+  is stated by capability so it binds any suite that outgrows a foreground call on any harness, and
+  a fast suite simply satisfies it on the first observation. Its diff touches neither
+  `docket-build/SKILL.md` nor `docket-finalize-change/SKILL.md`, so the only shared rebase surface
+  with this change is `.docket.example.yml` and `tests/`.
+- **0190** remains `in-progress` and stale (branch idle 5 days). It touches the build-evidence
+  record and finalize's suite-skip predicate — adjacent prose, disjoint intent. Unchanged from the
+  spec's risk note: reconcile at rebase by intent.
+
+The spec's non-goal citing the killed 0225 was corrected to 0227, and the 0227 status was added to
+its risk list. The harness verdicts stay version-scoped: all four are re-probed during the build
+rather than inherited.
