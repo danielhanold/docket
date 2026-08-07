@@ -16,6 +16,7 @@ results_dir: docs/results
 
 finalize:
   gate: local                  # rebase onto main + re-run the suite locally before merging
+  test_command: scripts/run-tests.sh   # the parallel runner (change 0227), not auto-detect
 
 board_surfaces: [inline]       # BOARD.md only; the GitHub mirror stays off
 

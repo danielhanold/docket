@@ -42,7 +42,9 @@ means), this file does not restate them.
 - Never hand-list the sites of a literal or an operation you are gating — derive them from a
   whole-repo grep, then sort them into prose vs executable. Only the executable ones can violate a
   gate, and a docs-shaped reading skips right past them.
-- Run the whole suite at the build gate, never only the tests the spec enumerated.
+- Run the whole suite at the build gate, never only the tests the spec enumerated. Use
+  `scripts/run-tests.sh` — it runs the files in parallel with per-job isolation and enforces each
+  file's wall-clock budget. `tests/README.md` covers where a new test belongs.
 
 ## Comments and cross-references
 
