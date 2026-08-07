@@ -2,23 +2,23 @@
 id: 219
 slug: aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d
 title: aborted-run's Step 7 seam — a fourth git-only leg, plus GitHub enrichment for leg C
-status: in-progress
+status: implemented
 priority: high
 type: fix
 created: 2026-08-05
 updated: 2026-08-07
-claimed_at: 2026-08-07T17:40:09Z
+claimed_at: 2026-08-07T17:43:28Z
 depends_on: [211]
 related: [200, 222]
 discovered_from: [211]
 adrs: [72]
 spec: docs/superpowers/specs/2026-08-07-aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d-design.md
 plan: docs/superpowers/plans/2026-08-07-aborted-run-step-7-seam.md
-results:
+results: docs/results/2026-08-07-aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d-results.md
 trivial: false
 auto_groomable: false
 branch: feat/aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d
-pr:
+pr: https://github.com/danielhanold/docket/pull/171
 blocked_by:
 reconciled: true
 ---
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-07-aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d-design.md) |
 | Plan | [2026-08-07-aborted-run-step-7-seam.md](https://github.com/danielhanold/docket/blob/feat/aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d/docs/superpowers/plans/2026-08-07-aborted-run-step-7-seam.md) |
+| Results | [2026-08-07-aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d-results.md](https://github.com/danielhanold/docket/blob/feat/aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d/docs/results/2026-08-07-aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d-results.md) |
+| PR | [#171](https://github.com/danielhanold/docket/pull/171) |
 | ADRs | [ADR-0072](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0072-leg-c-predicate-duplicated-by-value-across-two-scripts.md) |
 <!-- docket:artifacts:end -->
 
