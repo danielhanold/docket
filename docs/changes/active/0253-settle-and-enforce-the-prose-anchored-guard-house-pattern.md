@@ -8,10 +8,10 @@ type: chore
 created: 2026-08-07
 updated: 2026-08-07
 depends_on: []
-related: [252]
+related: [252, 172]
 discovered_from: [171, 233]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-07-settle-and-enforce-the-prose-anchored-guard-house-pattern-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-07-settle-and-enforce-the-prose-anchored-guard-house-pattern-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-settle-and-enforce-the-prose-anchored-guard-house-pattern-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -39,11 +42,13 @@ Verified 2026-08-07:
 
 ## What changes
 
-- Hoist `flatten()` into `tests/lib/` as the house helper; state the pattern rule: flatten the haystack, single bounded gap, bounds < 255, no stacked `{0,n}` gaps.
-- Convert the 63 line-scoped guards (and the 4 flatten copies) to the house pattern, mutation-proving each conversion (deletion of the guarded prose must still redden).
-- Add the stacked-gap leg to `test_grep_portability.sh` — a static source guard over `tests/*.sh` detecting two `[^…]{0,n}` gaps in one pattern; the hang-vs-fail proof needs a `timeout`-shaped assert.
+Settled by the linked design spec (groomed 2026-08-07, critic-gated):
+
+- Hoist `flatten()` into a sourced `tests/lib/prose_guard.sh` (the three identical copies; `flatten_yaml` stays local as a documented-distinct contract) whose header states the house rule: flatten the haystack, at most one gap per alternation branch (mirrored `A[gap]B|B[gap]A` alternations are safe), bounds ≤ 255, negated-class gaps widened where tables could bridge, deliberate line-anchored structure guards stay with a why-comment.
+- Convert the reflow-fragile line-scoped guards to the house pattern — site list re-derived at build time (the filed 63/4-file tally is a floor-check) — mutation-proving each conversion in both directions (deletion reddens; a rewrap stays green).
+- Rewrite the sequential stacked-gap population (~50+ pattern-strings across ~a dozen test files, dot-gap and unbounded stacks included) to single-gap shapes, then add the stacked-gap leg to `test_grep_portability.sh`: a static per-pattern-string scan with paren-depth-aware top-level-`|` detection, visible `# stacked-gap-ok` exemptions, and five mutation controls including the grouped-`|` defeat shape. The hang-vs-fail proof runs watchdog-wrapped at build verification and is recorded in results, not committed as a runtime assert.
 
 ## Out of scope
 
-- The SIGPIPE producer-pipe sweep (#0172 — separate change, same hygiene family).
-- Guards over non-prose (code-shaped) anchors.
+- The SIGPIPE producer-pipe sweep (#0172 — separate change, same hygiene family; textual collision on `test_docket_build.sh`/`test_docket_review.sh`, hence `related:`).
+- Guards over non-prose (code-shaped) anchors; loosening any guard's bite.
