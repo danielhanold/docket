@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0224 — The build gate contract never says green/red is the exit code, so an output-shape match passes as a gate](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0224-the-build-gate-contract-never-says-green-red-is-the-exit-code.md)**
+> ↩ **[Change 0224 — The build gate contract never says green/red is the exit code, so an output-shape match passes as a gate](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-07-0224-the-build-gate-contract-never-says-green-red-is-the-exit-code.md)**
 <!-- docket:backlink:end -->
 
 # Design — the build gate's green/red verdict is the exit code (change 0224)
