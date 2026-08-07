@@ -372,6 +372,25 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # binds — putting the exemption there leaves the harvest reader with the unscoped rule and nothing
 # to correct it. Set per the rounding rule above from the measured actual: 51 lines -> 55; 544 words
 # -> 550 would leave 6 (within the 25-word threshold), so 600.
+# skills/docket-convention/references/auto-capture.md's budget was raised 55/600 -> 125/1200 by
+# change 0226, which reframed the file from a suppression rule into a capability-discovery pipeline:
+# it ADDS the positive half the file never had — six discovery categories to search for, six
+# admission gates the discovery must clear, the five capture fields a minted body carries, and a
+# per-site routing table — on top of every suppression rule, which is carried forward unweakened.
+# The prose has no other home. This file IS the definition every mint site reads before minting, and
+# each added part is a rule applied at that same moment: the categories are what the reader searches
+# with, the gates are what admits, the fields are what the body must contain to survive
+# mint-stub.sh's `## Why` contract, and the routing table is what tells a site whether fix-in-branch
+# even exists for it. The considered home was skills/docket-implement-next/references/fix-loop.md
+# (already the considered-and-rejected home for the 0218 raises above): it is read ONLY by the
+# implementer's Step 6, so the finalize/status harvest — a mint site that never reads the
+# implementer's references — would get the reframe's gates and none of its site-C carve-out. The
+# convention's SKILL.md summary was considered and rejected under progressive disclosure: it is
+# loaded on every skill invocation, and the detail here is read only when a discovery is in hand.
+# Set per the rounding rule above from the measured actual: 119 lines -> 120 is the next multiple of
+# 5 but leaves ONE line of margin, the same near-zero headroom the docket-build-task row above was
+# corrected for in a fix round, so the multiple after it, 125; 1142 words -> 1150 would leave 8
+# (within the 25-word threshold), so 1200.
 # skills/docket-implement-next/results-template.md's budget was raised 24/172 -> 25/250 by change
 # 0218, which narrowed `## Verify (human)` to genuinely manual checks and said where a fixed
 # finding's outcome IS read instead (the PR body's disposition table). The prose is a template
@@ -581,7 +600,7 @@ skills/docket-build-task/SKILL.md                          125 1100
 skills/docket-convention/SKILL.md                          345 5850
 skills/docket-convention/github-board-mirror.md             19  462
 skills/docket-convention/references/agent-layer.md         190 2150
-skills/docket-convention/references/auto-capture.md         55  600
+skills/docket-convention/references/auto-capture.md        125 1200
 skills/docket-convention/references/learnings.md            84  580
 skills/docket-convention/references/terminal-close-out.md  173 1458
 skills/docket-finalize-change/SKILL.md                     180 3500
