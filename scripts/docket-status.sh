@@ -552,7 +552,12 @@ detect_merged(){
         printf '%s\t%s\t%s\t%s\n' "$id" "$slug" "$pr" "$date"
       fi
     else
-      pl_json="$("$GH" pr list --head "feat/$slug" --state merged --json number,mergedAt 2>/dev/null)"
+      # --repo "$repo" is what SPENDS the resolution above. Without it gh infers the repository
+      # from the process CWD, so a pass invoked with --repo would query one repository here and a
+      # different one in board_pass / github-mirror.sh, which both forward the flag. Unconditional,
+      # not ${repo:+...}: the early returns above guarantee $repo is resolved and shape-valid by
+      # the time this arm runs. Same shape as detect_orphan_pr's single batched call.
+      pl_json="$("$GH" pr list --repo "$repo" --head "feat/$slug" --state merged --json number,mergedAt 2>/dev/null)"
       if [ $? -ne 0 ] || ! printf '%s' "$pl_json" | jq -e . >/dev/null 2>&1; then
         continue
       fi
