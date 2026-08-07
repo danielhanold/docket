@@ -8,7 +8,7 @@ type: feat
 created: 2026-08-06
 updated: 2026-08-06
 depends_on: []
-related: [66, 190, 224, 225]
+related: [66, 190, 224, 227]
 discovered_from: [203]
 adrs: []
 spec: docs/superpowers/specs/2026-08-06-the-build-gate-contract-never-states-an-execution-posture-for-design.md
@@ -101,7 +101,7 @@ Type flipped `docs` → `feat` at grooming: the configuration knob is real code.
 
 ## Out of scope
 
-- Reducing suite runtime — that is change 0225.
+- Reducing suite runtime — that is change 0227 (supersedes the killed 0225).
 - The green/red keying gap — that is change 0224.
 - Any change to ADR-0024 or the subagent never-yield rule.
 

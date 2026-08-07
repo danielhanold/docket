@@ -8,7 +8,7 @@ type: docs
 created: 2026-08-06
 updated: 2026-08-06
 depends_on: []
-related: [190, 223, 225]
+related: [190, 223, 227]
 discovered_from: [203]
 adrs: []
 spec:
@@ -64,7 +64,7 @@ treated as decoration.
 ## Out of scope
 
 - The execution posture / timeout problem — that is change 0223.
-- Suite runtime — that is change 0225.
+- Suite runtime — that is change 0227 (supersedes the killed 0225).
 - Changing what green and red *do* (evidence record, repair ladder); only what decides them.
 
 ## Open questions
