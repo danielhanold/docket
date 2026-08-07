@@ -1,6 +1,6 @@
 # Backlog
 
-**260 changes** — 🟢 1 in progress · 🟡 32 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 150 done · 🗑️ 72 killed
+**260 changes** — 🟢 1 in progress · 🟡 32 proposed · ⚪ 4 deferred · ✅ 151 done · 🗑️ 72 killed
 
 ## 🟢 In progress (1)
 
@@ -22,7 +22,7 @@
 | [0166](active/0166-retune-the-interactive-skills-advisory-session-model-recomme.md) | Retune the interactive skills' advisory session-model recommendation | `medium` | `chore` | build-ready |
 | [0172](active/0172-normalize-the-banned-producer-pipe-shape-across-tests-and-he.md) | Normalize the banned producer-pipe shape across tests and helpers | `medium` | `chore` | build-ready |
 | [0195](active/0195-retune-the-opencode-shipped-model-defaults-for-cost.md) | Retune the opencode shipped model defaults for cost | `medium` | `chore` | needs-brainstorm |
-| [0200](active/0200-clear-the-unfixed-review-findings-from-change-0191.md) | Board-checks hardening — sanitize LF escape, capture-shape mutation, minor-finding clearance | `medium` | `fix` | ⏳ waiting on #224 — needs your merge |
+| [0200](active/0200-clear-the-unfixed-review-findings-from-change-0191.md) | Board-checks hardening — sanitize LF escape, capture-shape mutation, minor-finding clearance | `medium` | `fix` | build-ready |
 | [0208](active/0208-runner-dispatch-worktree-gate-3-proves-repo-containment-not.md) | Harden runner-dispatch — worktree membership gate, feature-scoped coverage, flag-parse guards | `medium` | `fix` | ⏳ waiting on #237 — not yet built |
 | [0221](active/0221-assert-executes-backticks-in-its-test-description-so-a-verba.md) | assert() executes backticks in its test description, so a verbatim-quoted anchor can run shell | `medium` | `fix` | build-ready |
 | [0222](active/0222-raise-docket-s-minimum-bash-from-4-to-4-4.md) | Raise docket's minimum Bash from 4+ to 4.4 | `medium` | `chore` | build-ready |
@@ -32,7 +32,7 @@
 | [0246](active/0246-make-the-docket-example-yml-guard-suite-bite.md) | Make the docket-example-yml guard suite bite | `medium` | `fix` | build-ready |
 | [0247](active/0247-make-shared-metadata-worktree-contention-survivable-and-scop.md) | Make shared metadata worktree contention survivable and scope its commits | `high` | `fix` | needs-brainstorm |
 | [0248](active/0248-role-self-description-enforce-the-positive-half-and-harden-t.md) | Role self-description: enforce the positive half and harden the guard | `medium` | `chore` | build-ready |
-| [0249](active/0249-build-worker-contract-gate-execution-pointer-and-staging-dis.md) | Build-worker contract: gate-execution pointer and staging discipline | `medium` | `fix` | ⏳ waiting on #224 — needs your merge |
+| [0249](active/0249-build-worker-contract-gate-execution-pointer-and-staging-dis.md) | Build-worker contract: gate-execution pointer and staging discipline | `medium` | `fix` | build-ready |
 | [0250](active/0250-repo-scope-detect-merged-s-fallback-and-guard-the-idle-secs.md) | Repo-scope detect-merged's fallback and guard the idle-secs duplication | `medium` | `fix` | build-ready |
 | [0251](active/0251-retune-the-run-tests-budget-regime-for-portability-and-shard.md) | Retune the run-tests budget regime for portability and sharding | `medium` | `refactor` | build-ready |
 | [0252](active/0252-harden-test-fixtures-and-hermeticity-into-tests-lib.md) | Harden test fixtures and hermeticity into tests-lib | `medium` | `chore` | build-ready |
@@ -54,12 +54,6 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | Type | PR | Readiness |
-|---|-------|----------|------|----|-----------|
-| [0224](active/0224-the-build-gate-contract-never-says-green-red-is-the-exit-code.md) | The build gate contract never says green/red is the exit code, so an output-shape match passes as a gate | `high` | `docs` | [#174](https://github.com/danielhanold/docket/pull/174) |  |
-
 ```mermaid
 graph TD
   0007
@@ -80,7 +74,6 @@ graph TD
   0237 --> 0208
   0221
   0211 --> 0222
-  0224
   0219 --> 0237
   0237 --> 0242
   0244
@@ -103,10 +96,11 @@ graph TD
   0192:::done
   0211:::done
   0219:::done
+  0224:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (222)</summary>
+<details><summary>✅🗑️ Archive — done + killed (223)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
@@ -127,6 +121,7 @@ graph TD
 | [0227](archive/2026-08-07-0227-parallel-test-suite-runner.md) | Parallel test-suite runner — 4x+ wall-clock speedup | 2026-08-07 |
 | [0226](archive/2026-08-07-0226-reframe-auto-capture-as-capability-discovery-with-strict-adm.md) | Reframe auto-capture as capability discovery with strict admission gates | 2026-08-07 |
 | [0225](archive/2026-08-07-0225-the-test-suite-has-grown-into-the-harness-s-foreground-ceilin.md) | The test suite has grown into the harness's foreground ceiling — cut its wall-clock runtime | 2026-08-07 |
+| [0224](archive/2026-08-07-0224-the-build-gate-contract-never-says-green-red-is-the-exit-code.md) | The build gate contract never says green/red is the exit code, so an output-shape match passes as a gate | 2026-08-07 |
 | [0223](archive/2026-08-07-0223-the-build-gate-contract-never-states-an-execution-posture-for.md) | The build gate contract never states an execution posture for a suite that outgrows a single foreground call | 2026-08-07 |
 | [0220](archive/2026-08-07-0220-clear-the-unfixed-review-findings-from-change-0207.md) | clear the unfixed review findings from change 0207 | 2026-08-07 |
 | [0219](archive/2026-08-07-0219-aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d.md) | aborted-run's Step 7 seam — a fourth git-only leg, plus GitHub enrichment for leg C | 2026-08-07 |
@@ -176,7 +171,6 @@ graph TD
 | [0211](archive/2026-08-05-0211-aborted-run-is-blind-to-a-run-that-stops-after-the-build-com.md) | aborted-run is blind to a run that stops after the build: commits on an unpushed branch, every field coherent | 2026-08-05 |
 | [0210](archive/2026-08-05-0210-a-valueless-trailing-flag-hangs-runner-dispatch-forever-inst.md) | A valueless trailing flag hangs runner-dispatch forever instead of aborting | 2026-08-05 |
 | [0209](archive/2026-08-05-0209-the-worktree-requirement-covers-build-only-leaving-three-fea.md) | The --worktree requirement covers build-* only, leaving three feature-scoped agent families ungated | 2026-08-05 |
-| [0207](archive/2026-08-05-0207-sync-agents-aborts-mid-loop-on-a-bad-runner-config-leaving-a.md) | sync-agents aborts mid-loop on a bad runner config, leaving a zero-length wrapper and stale siblings | 2026-08-05 |
 | [0183](archive/2026-08-01-0183-cursor-dispatch-head-ships-a-stale-unpinned-claim-its-guard.md) | Cursor dispatch head ships a stale unpinned claim; its guard retired itself | 2026-08-01 |
 | [0044](archive/2026-07-30-0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | 2026-07-30 |
 | [0162](archive/2026-07-28-0162-restore-the-machine-local-ignored-advisory-for-a-committed-t.md) | Restore the machine-local-ignored advisory for a committed too-deep runtime.bash | 2026-07-28 |
@@ -202,7 +196,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 17 done |
+| [2026-08](archive/) | 18 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
