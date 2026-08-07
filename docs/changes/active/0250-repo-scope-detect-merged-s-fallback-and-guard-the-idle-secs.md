@@ -9,13 +9,13 @@ created: 2026-08-07
 updated: 2026-08-07
 depends_on: []
 related: []
-discovered_from: [239]
-adrs: []
+discovered_from: [239, 241]
+adrs: [72]
 spec:
 plan:
 results:
 trivial: false
-auto_groomable:
+auto_groomable: true
 branch:
 pr:
 blocked_by:
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| ADRs | [ADR-0072](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0072-leg-c-predicate-duplicated-by-value-across-two-scripts.md) |
 <!-- docket:artifacts:end -->
 
 ## Why

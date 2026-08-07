@@ -8,14 +8,14 @@ type: fix
 created: 2026-08-07
 updated: 2026-08-07
 depends_on: []
-related: []
-discovered_from: [178]
+related: [150]
+discovered_from: [178, 187, 121]
 adrs: []
 spec:
 plan:
 results:
 trivial: false
-auto_groomable:
+auto_groomable: true
 branch:
 pr:
 blocked_by:

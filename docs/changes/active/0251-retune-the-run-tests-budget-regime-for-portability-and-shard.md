@@ -8,14 +8,14 @@ type: refactor
 created: 2026-08-07
 updated: 2026-08-07
 depends_on: []
-related: []
-discovered_from: [229]
+related: [258]
+discovered_from: [229, 230]
 adrs: []
 spec:
 plan:
 results:
 trivial: false
-auto_groomable:
+auto_groomable: true
 branch:
 pr:
 blocked_by:

@@ -7,15 +7,15 @@ priority: medium
 type: fix
 created: 2026-08-07
 updated: 2026-08-07
-depends_on: []
+depends_on: [224]
 related: []
-discovered_from: [232]
+discovered_from: [232, 238]
 adrs: []
 spec:
 plan:
 results:
 trivial: false
-auto_groomable:
+auto_groomable: true
 branch:
 pr:
 blocked_by:

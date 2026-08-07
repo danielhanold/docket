@@ -9,13 +9,13 @@ created: 2026-08-07
 updated: 2026-08-07
 depends_on: []
 related: []
-discovered_from: [134]
+discovered_from: [134, 240]
 adrs: []
 spec:
 plan:
 results:
 trivial: false
-auto_groomable:
+auto_groomable: true
 branch:
 pr:
 blocked_by:
