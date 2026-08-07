@@ -2,7 +2,7 @@
 id: 240
 slug: audit-which-frontmatter-accessor-each-call-site-should-use-n
 title: Audit which frontmatter accessor each call site should use, now that three anchored read shapes exist
-status: proposed
+status: killed
 priority: medium
 type: refactor
 created: 2026-08-07
@@ -83,3 +83,7 @@ which is the reason the comment strip exists at all and must keep working.
 checker. Touching `render-artifact-backlink.sh`, `board-checks.sh`'s `aborted-run` reads, and the
 template-comment contract would expand a bounded YAML-quoting fix into a reader-contract refactor
 across consumers whose tests live in different files.
+
+## Why killed
+
+Consolidated into #0244 at the 2026-08-07 backlog triage: near-duplicate of #0134 (same library, same audit verb); #0244 carries the merged census and the selection-rule deliverable.
