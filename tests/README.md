@@ -1,29 +1,38 @@
 # docket's test suite
 
-79-plus standalone Bash files, discovered by the `tests/test_*.sh` glob — there is no registry, so
-a new file self-registers. Each file is hermetic: `set -uo pipefail`, its own tmpdir fixtures, no
+86 standalone Bash files, discovered by the `tests/test_*.sh` glob — so a new file self-registers
+with the runner. It does **not** self-register with the budget table: every file also needs a row in
+`tests/runtime-budgets.tsv`, which is a registry, or `tests/test_runtime_budgets.sh` fails. Each
+file is hermetic: `set -uo pipefail`, its own tmpdir fixtures, no
 ordering dependencies, runnable on its own as `bash tests/test_X.sh`.
 
 ## Running it
 
 ```
-scripts/run-tests.sh             # parallel, all files, budgets enforced
+scripts/run-tests.sh             # parallel, all files, budgets measured and reported
 scripts/run-tests.sh -j 1        # serial reference
 scripts/run-tests.sh --verbose tests/test_docket_config.sh   # one file, full output
 ```
 
-`scripts/run-tests.md` is the contract. Exit `0` green, `1` a test failed, `4` green but a file
-blew its wall-clock budget, `2` usage error.
+`scripts/run-tests.md` is the contract. A budget breach is **advisory by default**: it is reported
+loudly as an `OVER BUDGET:` block and the run still exits `0`. `--strict-budget` opts into the
+failing exit; `--no-budget-check` skips the comparison entirely, so nothing is measured or reported.
+
+Exit `0` green (including a green run that breached a budget), `1` a test failed, `3` green but at
+least one target produced no result at all — the run certified nothing about it, `4` a breach under
+`--strict-budget`, `2` usage error, `130`/`143` interrupted by `SIGINT`/`SIGTERM`.
 
 ## Where new tests go
 
-The suite is parallel, and its wall-clock floor is its **slowest single file** — not its total. A
-file that grows past its budget slows every future build, so placement is a real decision:
+The suite is parallel, so its wall-clock floor is `max(slowest single file, total work / -j)`, and
+contention inflates both terms — change 0227 measured ~120s of wall clock against a ~53s slowest
+file, so the total, not the tail, was binding. Either way an added file costs the suite its full
+serial cost plus a scheduling tail, so placement is a real decision:
 
 1. **Extend the topical shard your assertion belongs to.** This is almost always right. Find the
    file already covering that subsystem and add to it — if it has room in `tests/runtime-budgets.tsv`.
 2. **If that shard has no room, extend a sibling shard or start a new one.** `test_sync_agents*.sh`
-   and `test_docket_config*.sh` are already split this way; adding `_<topic>` to the family is
+   and `test_harness_defaults*.sh` are already split this way; adding `_<topic>` to the family is
    cheap and keeps every part under its ceiling.
 3. **A brand-new file is for a brand-new subsystem** — a new script, a new surface. It needs a row
    in `tests/runtime-budgets.tsv`, or `tests/test_runtime_budgets.sh` fails.
@@ -34,8 +43,12 @@ added assertion's placement there should follow **whether it calls `hd_validate`
 it nominally belongs to: a non-validating assertion is nearly free in either shard, and a validating
 one costs the same wherever it lands.
 
-**Never grow a file past its budget and raise the number.** The budget guard counts over-ceiling
-rows separately from row completeness, so that edit reddens on its own. If a file legitimately
+**Never grow a file past its budget and raise the number.** `tests/test_runtime_budgets.sh` checks
+row completeness (every test file has a row, and no row is orphaned), counts over-ceiling rows
+separately from it, counts `serial` pins, pins the table's **total** at `EXPECTED_TOTAL`, and
+asserts that the resolved `finalize.test_command` runs the runner and does not pass
+`--no-budget-check`. The total is what catches the quiet edit: a row moved from 35 to 60 breaks no
+ceiling and pins nothing serial, but it moves the sum, so it reddens on its own. If a file legitimately
 cannot be split, that is a decision to argue in the diff, not a number to bump. Two files were
 argued that way at change 0227 and both are still whole:
 
