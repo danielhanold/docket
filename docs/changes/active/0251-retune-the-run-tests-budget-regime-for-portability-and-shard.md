@@ -11,7 +11,7 @@ depends_on: []
 related: [258]
 discovered_from: [229, 230]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-07-retune-the-run-tests-budget-regime-for-portability-and-shard-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-07-retune-the-run-tests-budget-regime-for-portability-and-shard-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-retune-the-run-tests-budget-regime-for-portability-and-shard-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -38,14 +41,40 @@ Verified 2026-08-07:
 
 ## What changes
 
-- Replace the fixed 5/2 slack with a portable regime — candidates from #0229: normalize by measured contention (e.g. re-measure a canary serially), derive slack from host parallelism, or demote the wall-clock check to report-only outside `--strict-budget`. Decide whether a wall-clock assertion belongs in the merge gate at all; if kept, it must not teach `--no-budget-check`.
-- Rework `prelude_report`/`r9_poison_site_line` to a population unit that survives splitting `test_docket_config.sh` (family floor across shards / scaled per-file floor / enumerated corpus — pick one, then split the file with assertion-count parity).
+Settled design (2026-08-07 auto-groom; detail in the linked spec):
+
+- **Budget leg — verdict by serial confirmation.** The parallel-phase `5/2` comparison is demoted
+  from verdict to *screen*; a screened candidate is re-run once serially after the parallel phase
+  and the breach verdict compares that serial re-measure against `ceiling * 3/2` (at `-j 1`, direct
+  3/2 comparison, no confirm). The advisory-by-default posture and the 0/1/3/4 exit contract are
+  unchanged; `--strict-budget` stays the opt-in gate, now honest across hosts on the contention
+  axis. A failed confirm never clears a candidate (unconfirmed; breach under `--strict-budget`),
+  and the confirm re-run never changes the suite pass/fail verdict. Mutation-proved in
+  `tests/test_run_tests.sh` (a ~3x-cost fixture over an unpadded row confirms at any `-j`).
+- **Floor leg — family-corpus guard, then the split.** `prelude_report`, the raw-grep cross-check
+  extractors, and the r9 site derivation move to a glob-discovered corpus over
+  `tests/test_docket_config*.sh` (computed membership, ADR-0050 shape; whole-corpus floors keep
+  today's values; new `>= 2` files corpus floor; SITE lines gain file attribution). Then
+  `tests/test_docket_config.sh` (2868 lines, ~50s vs a 55s budget) is split two ways at a measured
+  section boundary with summed assertion-count parity, budget rows re-cut and `EXPECTED_TOTAL`
+  re-seeded.
+- Docs move in the same change: run-tests.sh comment block, run-tests.md budget sections,
+  tests/README.md ("argued whole" paragraph + placement guidance), stale 0229/0230 references
+  repointed to 0251, suite file counts corrected (88 today, 89 post-split).
 
 ## Out of scope
 
-- Rewriting the budgets themselves (`runtime-budgets.tsv` values).
-- Any non-config-suite shard.
+- Rewriting the budgets themselves (`runtime-budgets.tsv` values) beyond the mechanical re-cut of
+  the split file's two rows.
+- Any non-config-suite shard; no new default gating (advisory posture not revisited).
 
 ## Open questions
 
-- Both legs are genuine design forks with no stated house preference — an auto-groom abstain back to the human queue is acceptable.
+Resolved at grooming: the stub's "genuine forks with no house preference" read was too pessimistic —
+run-tests.md and the budget learnings state the direction (contention-independent measurement so the
+gate can be sharp again), and the critic passed the design with 0 needs-human verdicts across two
+rounds. Coordination with #0258 (same test file) is at build time: whichever lands second rebases;
+the glob corpus makes the guard indifferent to where 0258's asserts land. Residual (parked, in the
+spec's assumption 2): budget table values still encode the calibration host's absolute speed —
+confined to the opt-in strict path; a serial-canary rescale is the named follow-up shape if that
+path proves flaky on slower hosts.
