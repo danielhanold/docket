@@ -2,10 +2,10 @@
 id: 82
 slug: global-harnesses-per-repo-generation
 title: Global agent_harnesses doesn't reach per-repo generation — silent no-op
-status: proposed
+status: killed
 priority: low
 created: 2026-07-15
-updated: 2026-07-15
+updated: 2026-08-07
 depends_on: []
 related: [77, 78, 51]
 adrs: [36, 19, 20]
@@ -78,3 +78,7 @@ design conversation starts informed:
 ## Reconcile log
 
 <!-- Appended by docket-implement-next's reconcile pass: dated entries of what changed. -->
+
+## Why killed
+
+Consolidated into #0245 at the 2026-08-07 backlog triage, scope pinned to option 1 (the advisory): options 2/3 reopen ADR-0019's coordination-key fence and stay rejected.
