@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0228 — finalize's auto-detect suite loop has no failure accumulator, so a mid-suite red merges](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0228-finalize-s-auto-detect-suite-loop-has-no-failure-accumulator.md)**
+> ↩ **[Change 0228 — finalize's auto-detect suite loop has no failure accumulator, so a mid-suite red merges](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-07-0228-finalize-s-auto-detect-suite-loop-has-no-failure-accumulator.md)**
 <!-- docket:backlink:end -->
 
 # finalize auto-detect suite failure accumulator — Implementation Plan
