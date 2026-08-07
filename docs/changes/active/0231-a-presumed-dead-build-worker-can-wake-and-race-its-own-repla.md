@@ -2,7 +2,7 @@
 id: 231
 slug: a-presumed-dead-build-worker-can-wake-and-race-its-own-repla
 title: A presumed-dead build worker can wake and race its own replacement in one worktree
-status: in-progress
+status: implemented
 priority: medium
 type: fix
 created: 2026-08-07
@@ -13,12 +13,12 @@ discovered_from: [223]
 adrs: []
 spec: docs/superpowers/specs/2026-08-07-a-presumed-dead-build-worker-can-wake-and-race-its-own-repla-design.md
 plan: docs/superpowers/plans/2026-08-07-a-presumed-dead-build-worker-can-wake-and-race-its-own-repla-plan.md
-results:
+results: docs/results/2026-08-07-a-presumed-dead-build-worker-can-wake-and-race-its-own-repla-results.md
 trivial: false
 auto_groomable: true
 branch: feat/a-presumed-dead-build-worker-can-wake-and-race-its-own-repla
-claimed_at: 2026-08-07T17:02:25Z
-pr:
+claimed_at: 2026-08-07T17:21:13Z
+pr: https://github.com/danielhanold/docket/pull/170
 blocked_by:
 reconciled: true
 ---
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-07-a-presumed-dead-build-worker-can-wake-and-race-its-own-repla-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-a-presumed-dead-build-worker-can-wake-and-race-its-own-repla-design.md) |
 | Plan | [2026-08-07-a-presumed-dead-build-worker-can-wake-and-race-its-own-repla-plan.md](https://github.com/danielhanold/docket/blob/feat/a-presumed-dead-build-worker-can-wake-and-race-its-own-repla/docs/superpowers/plans/2026-08-07-a-presumed-dead-build-worker-can-wake-and-race-its-own-repla-plan.md) |
+| Results | [2026-08-07-a-presumed-dead-build-worker-can-wake-and-race-its-own-repla-results.md](https://github.com/danielhanold/docket/blob/feat/a-presumed-dead-build-worker-can-wake-and-race-its-own-repla/docs/results/2026-08-07-a-presumed-dead-build-worker-can-wake-and-race-its-own-repla-results.md) |
+| PR | [#170](https://github.com/danielhanold/docket/pull/170) |
 <!-- docket:artifacts:end -->
 
 ## Why
