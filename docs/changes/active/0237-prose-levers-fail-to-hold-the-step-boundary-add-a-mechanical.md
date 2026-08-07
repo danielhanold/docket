@@ -12,12 +12,12 @@ related: [96, 113, 212, 235, 236, 242]
 discovered_from: [235]
 adrs: [69]
 spec: docs/superpowers/specs/2026-08-07-prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-07-prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical.md
 results:
 trivial: false
 auto_groomable: false
 branch: feat/prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical
-claimed_at: 2026-08-07T18:37:56Z
+claimed_at: 2026-08-07T21:47:25Z
 pr:
 blocked_by:
 reconciled: true
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-07-prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical-design.md) |
+| Plan | [2026-08-07-prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical.md](https://github.com/danielhanold/docket/blob/feat/prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical/docs/superpowers/plans/2026-08-07-prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical.md) |
 | ADRs | [ADR-0069](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0069-mode-conditioned-clause-discriminates-on-provenance.md) |
 <!-- docket:artifacts:end -->
 
