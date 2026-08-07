@@ -145,12 +145,64 @@ what lets `board_surfaces: []` keep meaning "no board is rendered or committed" 
 still reaches the report. `board-refresh.sh` remains the sole gated writer of `BOARD.md`:
 **board-refresh gates the surface, render-board serves the report.**
 
+### Malformed input — render complete, then fail loud (change 0259)
+
+A single upfront pass validates every change file in `active/` and `archive/` before any projection
+is built. A file is **malformed** under a closed enumeration:
+
+| | Condition | Where it runs |
+|---|---|---|
+| M1 | Unusable `id:` — absent, empty, or non-integer. | upfront pass |
+| M2 | Empty `status:`. | upfront pass |
+| M3 | `status:` outside the seven-name `DOCKET_STATUSES` vocabulary. This **subsumes** any status carrying an interior TAB or CR: a control-character value can never match a closed vocabulary name, so rejection-by-vocabulary *is* the sanitization — no such value ever reaches the archive TAB join or an `ARC_COUNT`/`SECTION` array subscript. | upfront pass |
+| M4 | The archive sort feeder's tuple did not read back cleanly at the consumer. | archive loop |
+
+M1–M3 validate the values the producer **reads**; M4 validates the tuple the consumer **receives**,
+which is a different failure surface — a control character in a *filename* reaches the TAB join
+without passing through any frontmatter read, so no upfront value check can see it. M4 is therefore
+belt-and-suspenders against a future control-character path, not a duplicate of M3, and its guard
+has **three** conjuncts, each catching a different corruption of the `date<TAB>id<TAB>status<TAB>path`
+tuple:
+
+1. the status is not in the closed vocabulary — the split slid, so every later field is rebound;
+2. the path does not resolve on disk — `f` is a fragment of a longer value;
+3. the path still contains a TAB or CR — the tuple is not re-joinable.
+
+The third conjunct is the one a TAB in a filename actually trips, and it is why the first two are
+not sufficient on their own: `IFS=$'\t' read -r date id st f` assigns the **unsplit remainder** to
+the final field, so an embedded TAB lands wholly inside `f` without shifting anything. Such a path
+resolves on disk and carries a valid status, yet rendering it would write a raw control character
+into the emitted link.
+
+A malformed file is excluded from every projection — the section table, the per-status tallies, and
+the digest — and diagnosed once on stderr. It is still counted in the header's total-changes number:
+an unaccounted-for file is exactly the state `board-checks.sh`'s `board-row-dropped` exists to
+report (change 0115). Because M4 runs inside the archive loop rather than in the upfront pass, its
+diagnostic is interleaved with the render; the exit code is unaffected, since both emission paths
+(markdown fall-off-the-end and the digest's early exit) test the malformed count last.
+
+**Deliberately not malformed:** a vocabulary-valid status in the "wrong" directory (`done` in
+`active/`, `proposed` in `archive/`) — legitimate mid-sweep state, and failing on it would turn
+`docket-status`'s own sweep window into a renderer failure; an unknown or absent `type:` (change
+0127); a malformed `created:` (change 0094's `9999-99-99` sentinel already owns it).
+
+**Callers need no new branching, and the accepted cost is real.** `board-refresh.sh` already leaves
+`BOARD.md` byte-identical and propagates any non-zero code; `docket-status.sh`'s `backlog_pass`
+tests a bare non-zero and emits no digest lines, after which `digest_only_pass` fails closed on the
+empty capture. The wiring is asserted end to end, not assumed: `tests/test_board_refresh.sh`'s
+change-0259 case runs the real renderer over a real malformed changes dir and pins exit 3, the
+untouched `BOARD.md`, and the per-file diagnostic. The consequence is that **one malformed file
+anywhere freezes `BOARD.md` and halts autonomous selection** until a human fixes the named file —
+accepted deliberately, because corruption-adjacent state should stop the loop loudly rather than
+let it run beside an unrenderable backlog.
+
 ## Exit codes
 
 | Code | Meaning |
 |---|---|
-| 0 | The requested projection (the markdown board, or the digest under `--format digest`) was written to stdout successfully. |
+| 0 | The requested projection (the markdown board, or the digest under `--format digest`) was written to stdout successfully, and every change file was well-formed. |
 | 2 | Missing or invalid argument (`--changes-dir` absent or not a directory; unknown flag; unknown `--format` value). |
+| 3 | One or more change files were malformed (change 0259). stdout still carries the complete projection **modulo the skipped rows**; stderr carries one `render-board: malformed change file: <path>: <reason>` line per offending file. |
 
 ## Invariants
 
