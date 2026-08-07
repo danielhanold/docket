@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/finalize-s-auto-detect-suite-loop-has-no-failure-accumulator
-claimed_at: 2026-08-07T12:02:21Z
+claimed_at: 2026-08-07T12:05:00Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -90,3 +90,33 @@ by hand to get a trustworthy result.
 Note: the stub's original claim that the existing guard's assertions "pin the command's *text*" is
 wrong — the guard executes the extracted fragment and never inspects its exit status. That single
 uninspected status is the gap.
+
+## Reconcile log
+
+### 2026-08-07
+
+Re-read the change, its spec, `related: [190, 223, 224]`, and the current tree. The design holds
+unchanged — no scope adjustment, no fold-in, no kill.
+
+Verified against the tree at `origin/main`:
+
+- The `configured-bash-finalize` marker block in `skills/docket-finalize-change/SKILL.md`
+  (lines 126–136) is still the accumulator-free `for` loop the spec describes; the marker pair is
+  balanced and ordered.
+- `skills/docket-build/SKILL.md` still names finalize's block as the single source
+  (now line 189, not the spec's 183-187 — prose drift only) and opens no second marker block, so
+  the one-edit-repairs-both-consumers premise stands.
+- `tests/test_configured_bash_finalize.sh` is unchanged from what the spec's fixture-isolation
+  constraint was written against: the shared `RUNTIME_LOG` is still pinned at exactly 2 lines
+  (line 90) and `FINALIZE_TEST_COMMAND` is still exported non-empty at line 77. The new case must
+  therefore carry its own fixture dir and its own log paths.
+- Skill size budget: `tests/test_skill_size_budgets.sh` still pins the file at `180 3450`, and the
+  file is still 174 lines — the spec's number, not 0190's stale "193 / 4350". Re-measure after the
+  edit rather than assuming the ~2 added lines fit the word cap.
+- The four prose sites the spec checked (`scripts/run-tests.md:192`, `scripts/run-tests.sh:70`,
+  `tests/test_run_tests.sh:114`, `skills/docket-build/SKILL.md`) all still read true after the fix.
+
+Couplings re-checked: 0223 and 0190 are both `in-progress` with live branches, and both touch
+`skills/docket-build/SKILL.md` / `skills/docket-finalize-change/SKILL.md` respectively — but
+outside this marker block, so they remain rebase compositions rather than conflicts. 0224 is still
+`proposed`; the code/prose boundary in *Out of scope* is unchanged.
