@@ -12,14 +12,14 @@ related: [231]
 discovered_from: [223]
 adrs: []
 spec: docs/superpowers/specs/2026-08-07-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-07-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b-plan.md
 results:
 trivial: false
 auto_groomable: true
 branch: feat/split-gate-execution-md-probe-evidence-should-not-sit-on-a-b
 pr:
 blocked_by:
-claimed_at: 2026-08-07T15:36:31Z
+claimed_at: 2026-08-07T15:40:49Z
 reconciled: true
 ---
 
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-07-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b-design.md) |
+| Plan | [2026-08-07-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b-plan.md](https://github.com/danielhanold/docket/blob/feat/split-gate-execution-md-probe-evidence-should-not-sit-on-a-b/docs/superpowers/plans/2026-08-07-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b-plan.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
