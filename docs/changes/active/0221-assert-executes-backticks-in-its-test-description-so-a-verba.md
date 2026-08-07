@@ -11,7 +11,7 @@ depends_on: []
 related: []
 discovered_from: [212]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-07-assert-executes-backticks-in-its-test-description-so-a-verba-design.md
 plan:
 results:
 trivial: false
@@ -25,45 +25,47 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-07-assert-executes-backticks-in-its-test-description-so-a-verba-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-assert-executes-backticks-in-its-test-description-so-a-verba-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
 
-`tests/test_inline_role_stop_scoping.sh` (and the sibling test files sharing the same idiom) define
-their assertion helper as roughly:
+During change 0212's build, running `tests/test_inline_role_stop_scoping.sh` executed a backticked
+`git checkout .` embedded in a verbatim-quoted guard anchor, silently reverting the worker's own
+uncommitted edits while the test printed `ok`. The hazard is structural for this repo: docket's
+guards deliberately anchor on verbatim clauses from skill bodies (AGENTS.md / ADR-0054), and those
+clauses routinely contain backticked code spans, so the mandated guard style is exactly the style
+that feeds backticks into test source. 0212's mitigation was a per-file comment forbidding backticks
+in one SITES table — a convention, not an enforcement, covering none of the ~74 sibling files that
+copy-paste the same `assert` idiom.
 
-```bash
-assert(){ if ( eval "$2" ); then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi; }
-```
-
-The description `$1` is interpolated into a **double-quoted** string, so a backtick inside a test
-description is command-substituted by the shell and **executed**.
-
-This is not theoretical. During change 0212's build a worker anchored a guard site on the verbatim
-clause ``never `git checkout .` over them``. Running the test executed `git checkout .` in the
-feature worktree, reverting the worker's own uncommitted edits. The tree was otherwise clean so
-nothing was lost, but a dirtier tree would have destroyed unrelated work — and the failure is
-completely silent: the test still prints `ok`.
-
-The hazard is structural for this repo specifically, because docket's guards deliberately anchor on
-**verbatim-quoted clauses** from markdown skill bodies (AGENTS.md / ADR-0054), and those clauses
-routinely contain backticked code spans. So the guard style the repo mandates is exactly the style
-that feeds backticks into `assert`.
-
-0212 mitigated it locally by forbidding backticks in that one file's SITES anchors, recorded in a
-comment. That is a convention, not an enforcement, and it does not cover the sibling files.
+Grooming corrected the stub's original diagnosis (see the spec's "Corrected diagnosis", verified by
+probe): the helper's `echo "ok - $1"` is provably NOT the executing vector — parameter expansion
+does not re-trigger command substitution. The backtick executes at **parse time**: in double-quoted
+source literals and multi-line double-quoted data assignments (0212's actual site), at `eval "$2"`'s
+re-parse of literal backticks in a condition, and in unquoted-delimiter heredoc bodies. The fix must
+therefore land at call sites and data blocks, with enforcement — not just in the helper.
 
 ## What changes
 
-- Harden the `assert` helper at the source so a description is never evaluated — e.g. `printf '%s'`
-  the description rather than interpolating it, keeping `eval "$2"` (the condition) as-is.
-- Derive the real site list from a whole-repo grep of the `assert(){` definition rather than
-  hand-listing files; the helper is copy-pasted across many `tests/test_*.sh`.
-- Decide whether the fix is a per-file edit or a shared sourced helper, given the suite has no
-  common library today.
-- Consider a guard that fails a test file whose `assert` interpolates its description unquoted.
+- Normalize every `assert(){` definition under `tests/` (grep-derived list, never hand-listed) to a
+  canonical `printf 'ok - %s\n'` / `printf 'NOT OK - %s\n'` form — safety-neutral, but it aligns the
+  ledger, preserves the runner's `^NOT OK` contract, and gives the guard a byte-exact anchor.
+  Per-file edit; no shared sourced library (hermeticity is suite contract).
+- Add `tests/test_assert_hygiene.sh` (+ its `runtime-budgets.tsv` row): (a) every assert definition
+  must match the canonical allowlist; (b) a heredoc-aware quoting scanner — every backtick in
+  executable context must be single-quoted or backslash-escaped, calibrated to zero false positives
+  before landing, with a documented shrink rule if a class can't be soundly lexed.
+- Write the quoting rule into `tests/README.md`.
+
+Full design, decision audit trail (9 critic-gated assumptions), and acceptance criteria are in the
+linked spec.
 
 ## Out of scope
 
-- Changing what any individual guard asserts.
-- Introducing a test framework.
+- Changing what any individual guard asserts; introducing a test framework.
+- Rewriting call sites away from `eval "$2"`.
+- Editing the 0212 learning file or its in-file comment (recommended human follow-ups, noted in the
+  spec's Assumptions 1 and 7).
