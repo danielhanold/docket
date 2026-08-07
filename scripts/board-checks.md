@@ -175,17 +175,38 @@ It covers the only two free-text string scalars docket reads that are not alread
 **derivation**, never a hand-listed "bad fields" enumeration: the natively-boolean fields are
 deliberately excluded (`trivial`, `auto_groomable`, `reconciled`) because a bare `true`/`false`
 there is *correct* well-formed YAML, and the shape/domain-gated fields (`status`, `slug`,
-`priority`, `type`, `id`) are already covered by `field-domain` or `malformed-id`. One finding per
-violated leg per field.
+`priority`, `type`, `id`) are already covered by `field-domain` or `malformed-id`. At most **one**
+finding per field: the predicate reports the first matching leg and stops, since one reason is
+enough to demand a quote.
 
 The check reads the **raw** token — never the quote-unwrapped value, which could not tell a quoted
-colon-space title from a bare one — and applies three legs, in order:
+colon-space title from a bare one — and applies a skip leg plus **five** syntax legs, in order:
 
 - **Skip leg:** the raw value is empty, **or opens with `"` or `'`** — a quoted scalar is
   well-formed by definition (the 0190 quoted-title shape) and is never inspected further.
 - **Colon-space leg:** the unquoted raw value contains `: `.
-- **Boolean leg:** the unquoted raw value is, whole-value and case-insensitive, exactly one of
+- **Trailing-colon leg:** the unquoted raw value ends in `:`. This leg closes a real miss: an
+  archived change whose title ended in `/ or :` sat unreported because the colon-space leg alone
+  never sees a colon at end-of-value (change 0235).
+- **Bare-boolean leg:** the unquoted raw value is, whole-value and case-insensitive, exactly one of
   `on`/`off`/`yes`/`no`/`true`/`false` (YAML 1.1).
+- **Comment-introducer leg:** the unquoted raw value contains ` #`, which opens a YAML comment and
+  silently **truncates** the value rather than aborting the parse — the quieter, worse failure.
+- **Indicator leg:** the unquoted raw value opens with a YAML indicator character (`[`, `]`, `{`,
+  `}`, `,`, `&`, `*`, `!`, `|`, `>`, `'`, `"`, `%`, `@`, a backtick, `?`, a leading `:`, or a
+  leading `- `). A well-formed flow collection (`[…]` or `{…}`) is exempt: quoting it would
+  silently change a sequence or map into a string.
+
+The five syntax legs live in **one** place — `lib/docket-frontmatter.sh`'s
+`docket_scalar_quote_reason`, which returns a single leg token — so this checker and any future
+consumer cannot drift into two copies of the same rule. Only the **skip leg** and the finding
+**messages** stay in the script: the skip leg is the one leg that needs the *raw* token (a value
+that logically *starts* with a quote character must be quoted, not skipped), and a finding's
+wording is this script's output shape, not the predicate's. The check **id is unchanged** — it
+gained legs, not a sibling check, so the `docket-status` check-id vocabulary is untouched. Note the
+asymmetry with the **writer**: `mint-stub.sh` quotes `title` unconditionally and consumes no
+predicate at all (ADR-0071); the checker needs one because it judges hand-authored scalars it did
+not write. Guarantee vs. detect — two rules with different jobs.
 
 The `blocked_by:` read is **anchored** to the first `---…---` block via `fm_field_raw` (ADR-0057):
 the field is optional, so a change that omits it while its body happens to open a `blocked_by:`
