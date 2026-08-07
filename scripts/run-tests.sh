@@ -15,15 +15,18 @@
 # ticker in COMPLETION order, which is racy by construction — that is the point of a ticker, and it
 # is why nothing keys on its order.
 #
-# Usage: run-tests.sh [-j N] [--verbose] [--timings PATH] [--budgets PATH] [--no-budget-check] [TEST ...]
+# Usage: run-tests.sh [-j N] [--verbose] [--timings PATH] [--budgets PATH] [--no-budget-check]
+#                     [--strict-budget] [TEST ...]
 #   -j N               parallel jobs (default: CPU count; -j 1 is serial)
 #   --verbose          print every file's output, not only failing files'
 #   --timings PATH     write <relpath>\t<seconds>\t<rc>\t<passes>\t<failures> per file
 #   --budgets PATH     budget table (default: tests/runtime-budgets.tsv when present)
-#   --no-budget-check  run the tests, report the times, never fail on a breach
+#   --no-budget-check  skip the budget comparison entirely — no breach is measured or reported
+#   --strict-budget    make a breach FATAL (exit 4); by default a breach is reported, not fatal
 #   TEST ...           test files to run (default: tests/test_*.sh)
-# Exit: 0 green and in budget; 1 a test file failed; 4 all green but a budget was exceeded;
-#       2 usage error or unmet Bash floor.
+# Exit: 0 every test file passed — including green-but-over-budget, which is reported loudly and
+#       is fatal only under --strict-budget; 1 a test file failed; 4 --strict-budget and every
+#       test passed but a budget was exceeded; 2 usage error or unmet Bash floor.
 #
 # Dev tooling for THIS repo's suite — deliberately NOT a docket.sh facade op, like profile-asserts.sh.
 set -uo pipefail
@@ -55,6 +58,20 @@ DEFAULT_CEILING=60
 # catching the regrowth this table exists to prevent — a file that doubles its OWN serial cost
 # breaches, because the ceiling it is measured against did not move.
 # Breach = measured > ceiling * 5/2.
+#
+# AND THAT IS WHY A BREACH IS ADVISORY BY DEFAULT. This constant is calibrated to ONE machine's
+# measured contention, so the comparison it drives is hardware- and load-dependent in both
+# directions (change 0229 tracks settling a contention-independent basis for it). A measurement
+# that shaky may inform a merge, but it must not BLOCK one — and it especially must not block one
+# by exiting non-zero, because "non-zero" is the only budget vocabulary this runner's callers
+# have. finalize's configured-bash-finalize block and docket-build's build gate both read any
+# non-zero exit as "the suite is red" and answer it by dispatching a repair agent to root-cause
+# failing tests, of which a breach has none. The breach therefore leaves by the channel every
+# caller does read — the report — and turns fatal only for a caller that opted in with
+# --strict-budget. What that costs is stated plainly in scripts/run-tests.md: nothing in this repo
+# runs the strict path automatically today, so the guard against regrowth is a loud line in every
+# run's output plus tests/test_runtime_budgets.sh's structural discipline, and closing that gap is
+# change 0229's job.
 SLACK_NUM=5; SLACK_DEN=2
 
 cpu_count(){
@@ -63,7 +80,7 @@ cpu_count(){
   else echo 4; fi
 }
 
-JOBS=""; VERBOSE=0; TIMINGS=""; BUDGETS=""; BUDGET_CHECK=1; TARGETS=()
+JOBS=""; VERBOSE=0; TIMINGS=""; BUDGETS=""; BUDGET_CHECK=1; BUDGET_STRICT=0; TARGETS=()
 while [ $# -gt 0 ]; do
   case "$1" in
     -j) JOBS="${2:-}"; shift 2 || exit 2 ;;
@@ -72,6 +89,7 @@ while [ $# -gt 0 ]; do
     --timings) TIMINGS="${2:-}"; shift 2 || exit 2 ;;
     --budgets) BUDGETS="${2:-}"; shift 2 || exit 2 ;;
     --no-budget-check) BUDGET_CHECK=0; shift ;;
+    --strict-budget) BUDGET_STRICT=1; shift ;;
     # Range ends at the blank comment line AFTER the Exit block, not at `# Exit:` itself — Exit
     # wraps onto a continuation line, and a range ending on its first line silently drops the rest.
     -h|--help) sed -n '/^# Usage:/,/^#$/p' "${BASH_SOURCE[0]}" | sed -e '/^# *$/d' -e 's/^# \{0,1\}//'; exit 0 ;;
@@ -82,6 +100,14 @@ while [ $# -gt 0 ]; do
 done
 JOBS="${JOBS:-$(cpu_count)}"
 case "$JOBS" in ''|*[!0-9]*|0) printf 'run-tests: -j needs a positive integer, got "%s"\n' "$JOBS" >&2; exit 2 ;; esac
+
+# Contradictory, and the contradiction is the dangerous direction: --no-budget-check measures no
+# breach at all, so silently letting it win would hand a caller that explicitly asked to be gated
+# on budgets a guard that is disarmed and green. Refuse instead of picking a winner.
+if [ "$BUDGET_CHECK" = 0 ] && [ "$BUDGET_STRICT" = 1 ]; then
+  printf 'run-tests: --no-budget-check and --strict-budget contradict — one skips the comparison, the other gates on it\n' >&2
+  exit 2
+fi
 
 if [ "${#TARGETS[@]}" -eq 0 ]; then
   while IFS= read -r f; do TARGETS+=("$f"); done < <(find "$REPO/tests" -maxdepth 1 -name 'test_*.sh' | LC_ALL=C sort)
@@ -216,8 +242,23 @@ if [ -n "$over_names" ]; then
   # The remedy leads with the substantive fix. It must NOT suggest raising the ceiling — a budget
   # guard whose remedy is "raise the number" teaches the evasion it exists to catch.
   printf 'Remedy: shard this file or extend an existing shard so each part stays under its ceiling.\n'
+  # Say the posture out loud in the same breath, both ways round. A reader who sees a breach and an
+  # exit of 0 must not conclude the check is broken, and a caller that wants to be gated on this
+  # must be told the flag exists here, where the evidence for using it is on screen.
+  #
+  # The red branch comes FIRST because the other two would otherwise state something false: a
+  # breach is reported even when the run is red, and "the tests all passed" is exactly the sentence
+  # a reader of a failing run must not be handed.
+  if [ "$failed" -gt 0 ]; then
+    printf 'Note: this run already fails on test failures (exit 1). The breach above is a separate finding.\n'
+  elif [ "$BUDGET_STRICT" = 1 ]; then
+    printf 'Strict: --strict-budget was given, so this breach fails the run (exit 4). The tests themselves passed.\n'
+  else
+    printf 'Advisory: the tests all passed, so this run does not fail on the breach (exit 0).\n'
+    printf 'Pass --strict-budget to gate on it — but see scripts/run-tests.md first: the slack factor is calibrated to one machine (change 0229).\n'
+  fi
 fi
 
 [ "$failed" -gt 0 ] && exit 1
-[ "$overbudget" -gt 0 ] && exit 4
+[ "$overbudget" -gt 0 ] && [ "$BUDGET_STRICT" = 1 ] && exit 4
 exit 0

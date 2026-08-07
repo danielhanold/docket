@@ -17,7 +17,8 @@ deliberately **not** a `docket.sh` facade op.
 ## Usage
 
 ```
-run-tests.sh [-j N] [--verbose] [--timings PATH] [--budgets PATH] [--no-budget-check] [TEST ...]
+run-tests.sh [-j N] [--verbose] [--timings PATH] [--budgets PATH] [--no-budget-check]
+             [--strict-budget] [TEST ...]
 ```
 
 | Flag | Required | Description |
@@ -25,9 +26,14 @@ run-tests.sh [-j N] [--verbose] [--timings PATH] [--budgets PATH] [--no-budget-c
 | `-j N` | no | Parallel jobs. Default: the CPU count (`nproc`, else `sysctl -n hw.ncpu`, else 4). `-j 1` is serial. |
 | `--verbose` | no | Print every file's output, not only failing files'. |
 | `--timings PATH` | no | Write `<path>\t<seconds>\t<rc>\t<passes>\t<failures>`, one row per file. |
-| `--budgets PATH` | no | Budget table to enforce. Default: `tests/runtime-budgets.tsv` when it exists. |
-| `--no-budget-check` | no | Run the tests and report the times, but never fail on a breach. |
+| `--budgets PATH` | no | Budget table to compare against. Default: `tests/runtime-budgets.tsv` when it exists. |
+| `--no-budget-check` | no | Skip the comparison entirely — no breach is measured, and none is reported. |
+| `--strict-budget` | no | Make a breach **fatal** (exit 4). By default a breach is reported and the run still exits 0. |
 | `TEST ...` | no | Test files to run, repo-relative or absolute. Default: `tests/test_*.sh`. |
+
+`--no-budget-check` and `--strict-budget` together are a usage error (exit 2), not a
+winner-takes-all: letting the first silently win would hand a caller that explicitly asked to be
+gated on budgets a guard that is disarmed and green.
 
 Tests run under `$DOCKET_BASH_PATH` when it is set (docket's configured `runtime.bash`), otherwise
 under the first `bash` on `PATH`.
@@ -120,19 +126,62 @@ number teaches the evasion it exists to catch (repo learning `guard-remedy-must-
 A malformed seconds field in the table falls back to the default ceiling rather than crashing the
 run; making a malformed row loud is `tests/test_runtime_budgets.sh`'s job, not the runner's.
 
+#### Why a breach is advisory by default
+
+A breach is **reported, not fatal**, unless the caller passes `--strict-budget`. That is a
+deliberate reversal of this script's first posture, and the reasoning is worth keeping.
+
+The slack factor above is calibrated to **one machine's** measured contention. The comparison it
+drives is therefore hardware- and load-dependent in both directions: on a smaller machine relative
+to the job count, inflation exceeds 2.5x and healthy files breach; on a much larger one, 2.5x makes
+enforcement nearly vacuous. Change **0229** exists to settle a contention-independent basis for it.
+A measurement that shaky may usefully *inform* a merge. It must not *block* one.
+
+And blocking is exactly what a non-zero exit does here, because "non-zero" is the only budget
+vocabulary this runner's callers have. All three read any non-zero exit as *the suite is red*:
+
+- `docket-finalize-change`'s `configured-bash-finalize` block is a bare `eval` of the configured
+  test command, and its step 5 answers red by dispatching `docket-integration-repair`;
+- `docket-build`'s build gate turns red into a synthetic repair task on the
+  `premium → max → halt` ladder;
+- a human or agent following `AGENTS.md` reads a non-zero exit the same way.
+
+None of them can tell 4 from 1, and the first two would send a repair agent to root-cause failing
+tests when `failed=0`. Encoding a diagnostic as a failure exit only works if every caller is
+budget-aware; here, none is. So the breach leaves by the channel every caller *does* read — the
+report — and turns fatal only for a caller that opted in.
+
+**What this costs, stated plainly.** Nothing in this repo runs `--strict-budget` automatically
+today (there is no CI; the suite is the gate). So the third pillar of change 0227 — a runtime
+budget so the tail cannot regrow — is currently defended by three things, none of which is an
+automatic red:
+
+1. Every default run **prints** `OVER BUDGET:` with the offending files and the shard remedy,
+   including the merge-gate run, whose output a human or agent reads.
+2. `tests/test_runtime_budgets.sh` still hard-fails on the table's *structure* — a missing row for
+   a new test file, a row above the 60s ceiling, any `serial` pin. The table cannot be laundered,
+   only ignored.
+3. `--strict-budget` exists for a caller that knows what it is asking for. Run it at `-j 1`, where
+   a serial ceiling is the honest comparison, if you want the sharp answer today.
+
+Closing that gap — an automatic, contention-independent regrowth check — is **change 0229's job,
+and it is explicitly deferred to it**, not quietly dropped.
+
 ## Exit codes
 
 | Code | Meaning |
 |---|---|
-| 0 | Every test file exited 0 and every file was inside its budget. |
+| 0 | Every test file exited 0 — **including** a run where a file exceeded its budget, which is reported and not fatal without `--strict-budget`. |
 | 1 | At least one test file exited non-zero. Takes precedence over a budget breach. |
-| 4 | Every test file exited 0, but at least one exceeded its budget. |
-| 2 | Usage error — unknown flag, a flag missing its argument, a non-positive `-j`, a `TEST` that does not exist, an unwritable `--timings` path, an empty test set — or the interpreter is pre-Bash-4.3 and no usable `runtime.bash` was configured to re-exec under. |
+| 4 | `--strict-budget` was given, every test file exited 0, and at least one exceeded its budget. |
+| 2 | Usage error — unknown flag, a flag missing its argument, a non-positive `-j`, a `TEST` that does not exist, an unwritable `--timings` path, an empty test set, `--no-budget-check` together with `--strict-budget` — or the interpreter is pre-Bash-4.3 and no usable `runtime.bash` was configured to re-exec under. |
 
 Exit **4** is separated from **1** on purpose: "the suite is red" and "the suite is green but
 something got slow" are different problems with different owners, and collapsing them would make
-the budget table's failures indistinguishable from real regressions. Exit-code semantics beyond
-this are change 0224's, not this script's.
+the budget table's failures indistinguishable from real regressions. It is behind `--strict-budget`
+for the mirror-image reason — a caller that cannot tell 4 from 1 collapses them right back, and
+every caller wired to this script today is such a caller (see "Why a breach is advisory by
+default"). Exit-code semantics beyond this are change 0224's, not this script's.
 
 ## Invariants
 
@@ -146,8 +195,11 @@ this are change 0224's, not this script's.
   environment and reads exit status; it injects nothing into the test's shell.
 - **Read-only against the repo.** It writes only into its own temp directory and, if asked, the
   `--timings` path. It touches no branch, no change file, and no board surface.
-- **The budget check is on by default and off by flag.** `--no-budget-check` is for measurement
-  runs, where enforcing a ceiling against the number you are trying to measure is circular.
+- **The budget comparison is on by default; its teeth are opt-in.** Three states, not two: on and
+  advisory (the default — measured, reported, exit 0), on and fatal (`--strict-budget` — exit 4),
+  and off (`--no-budget-check` — not measured, not reported, for measurement runs where enforcing a
+  ceiling against the number you are trying to measure is circular). The middle state is what the
+  merge gate runs, so a breach stays visible there without being mistaken for a red suite.
 - **Not a facade op.** `run-tests` is absent from `WRAPPED_OPS` in `scripts/docket.sh` and from its
   dispatch `case`, which `tests/test_docket_facade.sh` enforces. It is repo-local dev tooling, like
   `profile-asserts.sh`; a consuming repo gets nothing from it.
