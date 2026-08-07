@@ -2,11 +2,11 @@
 id: 196
 slug: shared-agents-md-dispatch-block-restate-and-test-the-single
 title: Shared AGENTS.md dispatch block — restate and test the single-owner assumptions
-status: proposed
+status: killed
 priority: medium
 type: fix
 created: 2026-08-02
-updated: 2026-08-02
+updated: 2026-08-07
 depends_on: []
 related: []
 discovered_from: [192]
@@ -62,3 +62,7 @@ learnings finding `shared-resource-keeps-first-owner-assumptions`.
 
 The human merge-gate items recorded in 0192's results file (OpenRouter entitlement, live rung
 certification, one real end-to-end dispatch) — those are verification acts, not code changes.
+
+## Why killed
+
+Consolidated into #0245 at the 2026-08-07 backlog triage: the four unfixed 0192 review findings land with the emitter refactor touching the same functions.
