@@ -2,7 +2,7 @@
 id: 230
 slug: a-self-scanning-population-floor-pins-test-docket-config-sh
 title: a self-scanning population floor pins test_docket_config.sh's size and blocks sharding
-status: proposed
+status: killed
 priority: medium
 type: refactor
 created: 2026-08-07
@@ -71,3 +71,7 @@ to green will be raising a budget number — the exact evasion the budget guard 
 - Are there other self-scanning `${BASH_SOURCE[0]}` guards in the suite with the same
   file-size-pinning side effect? `tests/test_docket_config.sh` was found by attempting a split;
   nothing surfaces them proactively.
+
+## Why killed
+
+Consolidated into #0251 at the 2026-08-07 backlog triage: the population-floor rework is designed jointly with the slack-factor retune; headroom is tighter than filed (~5s at the 55s budget).
