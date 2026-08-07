@@ -130,6 +130,7 @@ A value may not contain a literal `#` — it is treated as the start of an inlin
 | `build.checkpoint` | `false` | yes | read from the nested `build:` block; `true`/`false`, anything else aborts; resolves repo-local > repo-committed > global; behavioral, not coordination-fenced — gates whether `docket-build` persists a resume ledger |
 | `review.min_fix_severity` | `minor` | yes | read from the nested `review:` block; `minor`/`important`/`blocker`, anything else aborts; resolves repo-local > repo-committed > global; behavioral, not coordination-fenced — the minimum finding severity that enters `docket-implement-next`'s Step 6 fix loop |
 | `review.max_fix_tasks` | `10` | yes | read from the nested `review:` block; non-negative integer, anything else aborts; resolves repo-local > repo-committed > global; behavioral, not coordination-fenced — the most non-blocker fix **tasks** `docket-implement-next`'s Step 6 fix loop dispatches per run |
+| `gate_observation_budget` | `30` | yes | flat top-level key; integer number of **minutes**; resolves repo-local > repo-committed > global; a non-integer aborts. Behavioral, not coordination-fenced — it bounds how long a caller awaits a terminal build-gate result and is legitimately per-machine. Deliberately **not** nested under `finalize:` (it binds `docket-build`'s gate too) and deliberately **not** a new top-level `gate:` block (which would collide with `finalize.gate`, the gate *mode*) |
 
 **`runtime.bash` (change 0132).** This is machine identity, not repo policy. Its only valid homes
 are global `config.yml` (normal) and a repo's gitignored `.docket.local.yml` (override), with
@@ -366,6 +367,7 @@ RECLAIM_AUTO
 BUILD_CHECKPOINT
 REVIEW_MIN_FIX_SEVERITY
 REVIEW_MAX_FIX_TASKS
+GATE_OBSERVATION_BUDGET
 SKILL_BRAINSTORM
 SKILL_PLAN
 SKILL_BUILD
@@ -374,7 +376,7 @@ SKILL_FINISH
 BOOTSTRAP
 ```
 
-31 lines in `shell` format; 32 in `plain` format, with `REPO_ROOT` inserted directly
+32 lines in `shell` format; 33 in `plain` format, with `REPO_ROOT` inserted directly
 after `METADATA_WORKTREE` and `DOCKET_BASH_PATH` following it (or following
 `METADATA_WORKTREE` in shell format). The last line is always `BOOTSTRAP=…`.
 
@@ -404,6 +406,7 @@ emits no `KEY=value` output.
 | `integration_branch` ref absent/unreadable (`ls-tree` non-zero) | 1 |
 | `metadata_branch` is neither `docket` nor `main` | 1 |
 | `terminal_publish` is neither `true` nor `false` | 1 |
+| `gate_observation_budget` is not a non-negative integer | 1 |
 | `runtime.bash` is absent, relative, non-executable, unversionable, nonnumeric, or Bash <4 | 1 |
 | `runtime.bash` is declared deeper than one level under `runtime:` | 1 |
 | `mktree`/`commit-tree`/push failed during orphan create | 1 |
@@ -428,7 +431,7 @@ emits no `KEY=value` output.
   post-write state, so the caller's `eval` sees `PROCEED` without a second invocation.
 - **`main`-mode skips the bootstrap guard entirely.** `DOCKET`/`LIVE` are not evaluated;
   `BOOTSTRAP` is always `PROCEED` in main-mode.
-- **26 `KEY=value` lines always emitted in the same order in `shell` format (27 in `plain`,
+- **32 `KEY=value` lines always emitted in the same order in `shell` format (33 in `plain`,
   `REPO_ROOT` inserted after `METADATA_WORKTREE` — change 0075).** Skills may rely on the order
   for pipe consumers, but should use the variable names (via `eval`) for correctness.
 - **The global layer never aborts a run — except on a malformed fail-closed value.** Every
