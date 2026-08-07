@@ -2,11 +2,11 @@
 id: 223
 slug: the-build-gate-contract-never-states-an-execution-posture-for
 title: The build gate contract never states an execution posture for a suite that outgrows a single foreground call
-status: proposed
+status: in-progress
 priority: high
 type: feat
 created: 2026-08-06
-updated: 2026-08-06
+updated: 2026-08-07
 depends_on: []
 related: [66, 190, 224, 227]
 discovered_from: [203]
@@ -16,9 +16,10 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/the-build-gate-contract-never-states-an-execution-posture-for
 pr:
 blocked_by:
+claimed_at: 2026-08-07T06:09:20Z
 reconciled: false
 ---
 
