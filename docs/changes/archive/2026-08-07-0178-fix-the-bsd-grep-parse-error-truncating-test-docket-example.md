@@ -2,11 +2,11 @@
 id: 178
 slug: fix-the-bsd-grep-parse-error-truncating-test-docket-example
 title: Fix the BSD-grep parse error truncating test_docket_example_yml.sh
-status: proposed
+status: killed
 priority: medium
 type: fix
 created: 2026-07-31
-updated: 2026-07-31
+updated: 2026-08-07
 depends_on: []
 related: []
 discovered_from: [168]
@@ -59,3 +59,7 @@ test file that can be fixed on its own, ahead of and independent of that design.
 ## Open questions
 
 - Is the same construct present in any other test file?
+
+## Why killed
+
+Consolidated into #0246 at the 2026-08-07 backlog triage: sequenced first there — the BSD-grep truncation must be fixed before #0187's guards (which sit in the possibly-skipped half of the file) can be trusted.
