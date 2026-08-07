@@ -2,7 +2,7 @@
 id: 224
 slug: the-build-gate-contract-never-says-green-red-is-the-exit-code
 title: The build gate contract never says green/red is the exit code, so an output-shape match passes as a gate
-status: implemented
+status: done
 priority: high
 type: docs
 created: 2026-08-06
@@ -17,7 +17,7 @@ results: docs/results/2026-08-07-the-build-gate-contract-never-says-green-red-is
 trivial: false
 auto_groomable: true
 branch: feat/the-build-gate-contract-never-says-green-red-is-the-exit-code
-claimed_at: 2026-08-07T19:23:47Z
+claimed_at: 
 pr: https://github.com/danielhanold/docket/pull/174
 blocked_by:
 reconciled: true
