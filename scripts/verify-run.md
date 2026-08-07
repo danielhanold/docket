@@ -83,7 +83,10 @@ deliberately untouched by change 0237.
 ## Invariants
 
 - Never writes: no status flip, no claim release, no file write, no `gh`, no network.
-- Every frontmatter read is `fm_field`, never `field` — `pr:`, `branch:` and `claimed_at:` are
-  optional keys and this repo's change bodies routinely open lines with them.
+- Every *conjunct* read (`status`, `pr`, `branch`) is `fm_field`, never `field` — `pr:`, `branch:`
+  and `claimed_at:` are optional keys and this repo's change bodies routinely open lines with
+  them. The `id` read uses the shared `int_field` (unanchored, whole-file); `id:` is a mandatory
+  key always on line 2 of the template, so the exposure is low-likelihood but real and untested —
+  tracked by change 0237, not fixed here.
 - A verdict is always exactly one line on stdout; diagnostics always go to stderr.
 - `run-incomplete` never exits non-zero.

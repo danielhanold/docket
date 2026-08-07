@@ -45,6 +45,7 @@ while [ $# -gt 0 ]; do
   shift
 done
 [ "$WITH_CLAIMED_AT" = 0 ] || [ "$MODE" = "ids" ] || die "--with-claimed-at is only valid with --in-progress-ids"
+[ "$MODE" != "ids" ] || [ -z "$ID" ] || die "an <id> cannot be combined with --in-progress-ids"
 
 # --- changes dir: an explicit flag, else the resolver -------------------------
 # Resolving here (rather than making every caller pass it) is what makes `docket.sh verify-run <id>`
@@ -121,9 +122,12 @@ done
 [ -n "$FILE" ] || die "no change file for id $ID under $CHANGES_DIR"
 [ -r "$FILE" ] || die "change file is unreadable: $FILE"
 
-# EVERY read is fm_field, never field: `pr:` and `branch:` are optional keys, and this repo's
-# change bodies routinely open lines with them (LEARNINGS: frontmatter-anchored-read). One
-# absent-key fixture and one mutation arm per read live in tests/test_verify_run.sh.
+# Every CONJUNCT read here is fm_field, never field: `pr:` and `branch:` are optional keys, and
+# this repo's change bodies routinely open lines with them (LEARNINGS: frontmatter-anchored-read).
+# One absent-key fixture and one mutation arm per read live in tests/test_verify_run.sh. The `id`
+# read above (`int_field`, via the shared `field`) is UNANCHORED and has no absent-key fixture —
+# `id:` is mandatory and always line 2 of the template, so the exposure is low-likelihood but real;
+# tracked, not fixed, by change 0237 (see also change 0134's repo-wide accessor audit).
 status="$(fm_field "$FILE" status)"
 pr="$(fm_field "$FILE" pr)"
 branch="$(fm_field "$FILE" branch)"

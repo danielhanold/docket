@@ -297,6 +297,8 @@ err="$( cd "$SBX" && bash "$VR" 10 --changes-dir "$SBX/nope" 2>&1 >/dev/null )";
 assert "bad --changes-dir: non-zero with a diagnostic" '[ "$rc" != "0" ] && [ -n "$err" ]'
 err="$( cd "$SBX" && bash "$VR" abc --changes-dir "$CH" 2>&1 >/dev/null )"; rc=$?
 assert "non-numeric id is rejected up front" '[ "$rc" != "0" ]'
+err="$( cd "$SBX" && bash "$VR" 30 --in-progress-ids --changes-dir "$CH" 2>&1 >/dev/null )"; rc=$?
+assert "id combined with --in-progress-ids: non-zero with a diagnostic" '[ "$rc" != "0" ] && [ -n "$err" ]'
 rm -rf "$SBX"
 
 # ---- 0237: `## Run halted` — producer coverage, not just definition ----------------
