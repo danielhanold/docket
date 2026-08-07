@@ -16,7 +16,10 @@ subagent, and never load a review skill.
 ## Scope
 
 - Implement only that task. Work outside its boundary belongs to another worker.
-- Never rewrite, amend, or revert earlier task commits, and never touch unrelated user work.
+- Never rewrite, amend, or revert **any** commit — an earlier task's, or one you just made
+  yourself — and never touch unrelated user work. Correct a commit of your own by adding another
+  commit, never by amending: another agent's work may already be inside it, and you cannot
+  observe that. If the task text prescribes more than one commit, the plan wins.
 - Stay **inside the feature worktree, on its branch**, performing **no docket metadata operations**:
   never write to `.docket/`, the metadata branch, change files, ADRs, the board, or the
   learnings ledger; never push, force-push, `reset --hard`, or rebase — `docket-implement-next`

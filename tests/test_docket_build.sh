@@ -137,6 +137,39 @@ for field in OUTCOME PROFILE VERIFICATION TDD COMMIT NOTES; do
 done
 
 # ---------------------------------------------------------------------------
+# Change 0231 — the amend ban covers the worker's OWN commit, not only earlier tasks'.
+#
+# The 0223 incident had the woken worker commit and then amend inside its own turn, sweeping the
+# replacement's work in. A "never amend after emitting your return" clause would not have reached
+# that, and "after a rival has written to the same files" is not worker-observable. Widening the
+# existing Scope line to any commit is observable, absolute, and binds the woken worker.
+# ---------------------------------------------------------------------------
+worker_scope="$(awk '/^## Scope/{f=1;next} f&&/^## /{exit} f' <<<"$worker_body")"
+worker_scope_flat="$(flat "$worker_scope")"
+
+# Non-vacuity through the SAME extractor, so a renamed heading cannot green the negative below.
+assert "worker: the Scope section is extractable" \
+  '[ -n "$worker_scope_flat" ] &&
+   grep -qF -- "Implement only that task" <<<"$worker_scope_flat"'
+
+assert "worker: the amend ban covers any commit, including one this worker just made" \
+  'grep -qiE "never rewrite, amend, or revert \*\*any\*\* commit" <<<"$worker_scope_flat"'
+
+assert "worker: directs correcting by adding a commit rather than amending" \
+  'grep -qiE "adding another commit, never by amending" <<<"$worker_scope_flat"'
+
+# Detect the REMOVED state. The pre-0231 wording scoped the ban to earlier task commits, which is
+# exactly the gap the woken worker walked through; its return must redden this.
+assert "worker: the narrow earlier-task-only amend ban is gone" \
+  '! grep -qiE "amend, or revert earlier task commits" <<<"$worker_scope_flat"'
+
+# The escalated-worker allowance is a deliberate carve-out and must survive the widening: an
+# escalated worker still revises the weaker worker's UNCOMMITTED changes. Widening the COMMIT ban
+# into a ban on touching uncommitted work would break escalation, so pin that it did not.
+assert "worker: the escalated-worker allowance for uncommitted work survives" \
+  'grep -qiF -- "You may revise or replace them" <<<"$worker_scope_flat"'
+
+# ---------------------------------------------------------------------------
 # docket-build — the controller contract
 # ---------------------------------------------------------------------------
 CTRL="$REPO/skills/docket-build/SKILL.md"

@@ -676,6 +676,19 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # leaves 2 lines — the near-zero mode this block warns about, and the same reading the rows above
 # took — so the multiple after: 325. 2947 words -> the next multiple of 50 is 2950, which leaves a
 # 3-word margin (well inside the 25-word threshold), so the multiple after: 3000.
+# skills/docket-build-task/SKILL.md's budget was raised 125/1100 -> 130/1150 by change 0231, which
+# widened ## Scope's amend ban from "earlier task commits" to ANY commit — including one this
+# worker just made — and added the correct-by-adding-another-commit direction plus the preserved
+# plan-wins escape. skills/docket-build-task/ has NO references/ tree, so the only candidate home
+# is one that would have to be created, and creating it is wrong here for the same reason the 0212
+# entry above records for this file: the body reaches a worker's context by wrapper preload
+# (agents/docket-build-*.md carry skills: [docket-build-task]), and a rule that must bind a worker
+# at the moment it is about to amend cannot sit in a file the wrapper does not preload. Set per the
+# rounding rule above from the measured actuals: 122 lines -> the next multiple of 5 is 125, which
+# leaves 3 lines — the near-zero mode this block warns about, and the same reading 0212 took on
+# this very file (119 -> 120 left one line, so 125) and Task 1 of this change took on
+# docket-build/SKILL.md — so the multiple after: 130. 1099 words -> the next multiple of 50 is
+# 1100, which leaves a 1-word margin (the 0102 failure mode exactly), so the multiple after: 1150.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -685,7 +698,7 @@ skills/docket-build/SKILL.md                               325 3000
 skills/docket-build/references/gate-execution-evidence.md  110 1050
 skills/docket-build/references/gate-execution.md            120 1000
 skills/docket-build/references/task-routing.md              50  500
-skills/docket-build-task/SKILL.md                          125 1100
+skills/docket-build-task/SKILL.md                          130 1150
 skills/docket-convention/SKILL.md                          345 5900
 skills/docket-convention/github-board-mirror.md             19  462
 skills/docket-convention/references/agent-layer.md         190 2150
