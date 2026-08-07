@@ -935,8 +935,8 @@ assert "detect_orphan_pr SILENT below the 2h idle floor (id 272)" \
   '! grep -q "^check aborted-run 272 " <<<"$orphan_out"'
 assert "detect_orphan_pr SILENT when pr: is already recorded (id 273 — leg D's domain)" \
   '! grep -q "^check aborted-run 273 " <<<"$orphan_out"'
-assert "detect_orphan_pr emits no sweep-skipped when gh works" \
-  '! grep -q "^sweep-skipped" <<<"$orphan_out"'
+assert "detect_orphan_pr emits no orphan-pr-skipped when gh works" \
+  '! grep -q "^orphan-pr-skipped" <<<"$orphan_out"'
 assert "detect_orphan_pr reads pr: ANCHORED: body prose never suppresses a candidate (id 275)" \
   'grep -q "^check aborted-run 275 " <<<"$orphan_out"'
 # Extracted into a variable first: `producer | grep -q` takes SIGPIPE under pipefail (AGENTS.md).
@@ -1004,8 +1004,15 @@ orphan_fail_out="$( cd "$orphan_dir" && \
   DOCKET_MODE=main CHANGES_DIR=docs/changes NOW=$ORPHAN_NOW INTEGRATION_BRANCH=${ORPHAN_IB:-main} GH="$tmp/gh-orphan-fail.sh" \
   bash -c '. "'"$SCRIPT"'"; detect_orphan_pr' )"
 orphan_fail_rc=$?
-assert "detect_orphan_pr with a failing gh reports sweep-skipped" \
-  'grep -q "^sweep-skipped" <<<"$orphan_fail_out"'
+assert "detect_orphan_pr with a failing gh reports orphan-pr-skipped" \
+  'grep -q "^orphan-pr-skipped" <<<"$orphan_fail_out"'
+# THE finding: this leg's skip token must be DISTINGUISHABLE from detect_merged's. `sweep-skipped`
+# is detect_merged's machine contract with sweep_execute and means "the MERGE SWEEP did not run";
+# reusing it here made an advisory enrichment skip read as a sweep skip in the same pass log. The
+# posture is verbatim detect_merged's, the TOKEN is not — and without this assert the two could
+# silently converge again.
+assert "a detect_orphan_pr skip NEVER emits detect_merged's sweep-skipped token" \
+  '! grep -q "sweep-skipped" <<<"$orphan_fail_out"'
 assert "detect_orphan_pr with a failing gh returns success (best-effort)" \
   '[ $orphan_fail_rc -eq 0 ]'
 assert "detect_orphan_pr with a failing gh emits NO findings at all" \
@@ -1018,8 +1025,10 @@ orphan_absent_out="$( cd "$orphan_dir" && \
   DOCKET_MODE=main CHANGES_DIR=docs/changes NOW=$ORPHAN_NOW INTEGRATION_BRANCH=${ORPHAN_IB:-main} GH="$tmp/definitely-not-a-real-gh" \
   bash -c '. "'"$SCRIPT"'"; detect_orphan_pr' )"
 orphan_absent_rc=$?
-assert "detect_orphan_pr with an ABSENT gh reports sweep-skipped and no findings" \
-  'grep -q "^sweep-skipped" <<<"$orphan_absent_out" && ! grep -q "^check aborted-run" <<<"$orphan_absent_out"'
+assert "detect_orphan_pr with an ABSENT gh reports orphan-pr-skipped and no findings" \
+  'grep -q "^orphan-pr-skipped" <<<"$orphan_absent_out" && ! grep -q "^check aborted-run" <<<"$orphan_absent_out"'
+assert "the ABSENT-gh skip never emits sweep-skipped either" \
+  '! grep -q "sweep-skipped" <<<"$orphan_absent_out"'
 assert "detect_orphan_pr with an ABSENT gh returns success (best-effort)" \
   '[ $orphan_absent_rc -eq 0 ]'
 
@@ -1039,7 +1048,7 @@ orphan_garbage_rc=$?
 assert "detect_orphan_pr treats unparseable gh output as a skip, not a finding" \
   '! grep -q "^check aborted-run" <<<"$orphan_garbage_out"'
 assert "detect_orphan_pr says WHY it skipped on unparseable gh output" \
-  'grep -q "^sweep-skipped gh-unparseable" <<<"$orphan_garbage_out"'
+  'grep -q "^orphan-pr-skipped gh-unparseable" <<<"$orphan_garbage_out"'
 assert "detect_orphan_pr with unparseable gh output returns success (best-effort)" \
   '[ $orphan_garbage_rc -eq 0 ]'
 
@@ -1060,7 +1069,7 @@ orphan_full_out="$( cd "$orphan_dir" && \
   bash -c '. "'"$SCRIPT"'"; detect_orphan_pr' )"
 orphan_full_rc=$?
 assert "a pr list at the --limit ceiling says WHY it skipped (pr-list-truncated)" \
-  'grep -q "^sweep-skipped pr-list-truncated" <<<"$orphan_full_out"'
+  'grep -q "^orphan-pr-skipped pr-list-truncated" <<<"$orphan_full_out"'
 assert "a possibly-truncated listing emits NO findings — it never guesses the message arm" \
   '! grep -q "^check aborted-run" <<<"$orphan_full_out"'
 assert "a possibly-truncated listing returns success (best-effort)" \
@@ -1140,8 +1149,8 @@ orphan_badrepo_out="$( cd "$orphan_dir" && \
   DOCKET_MODE=main CHANGES_DIR=docs/changes NOW=$ORPHAN_NOW INTEGRATION_BRANCH=${ORPHAN_IB:-main} GH="$tmp/gh-orphan-badrepo.sh" \
   bash -c '. "'"$SCRIPT"'"; detect_orphan_pr' )"
 orphan_badrepo_rc=$?
-assert "a malformed repo string reports sweep-skipped repo-unresolved" \
-  'grep -q "^sweep-skipped repo-unresolved" <<<"$orphan_badrepo_out"'
+assert "a malformed repo string reports orphan-pr-skipped repo-unresolved" \
+  'grep -q "^orphan-pr-skipped repo-unresolved" <<<"$orphan_badrepo_out"'
 assert "a malformed repo string emits NO findings — it never queries with a bad repo" \
   '! grep -q "^check aborted-run" <<<"$orphan_badrepo_out"'
 assert "a malformed repo string returns success (best-effort)" \
@@ -1233,7 +1242,7 @@ orphan_nobase_out="$( cd "$orphan_push_dir" && \
   GH="$tmp/gh-orphan-ok.sh" bash -c '. "'"$SCRIPT"'"; detect_orphan_pr' )"
 assert "detect_orphan_pr is SILENT when NO base resolves — never 'ahead of nothing'" \
   '! grep -q "^check aborted-run" <<<"$orphan_nobase_out"'
-assert "the no-base run emits nothing at all — not even a sweep-skipped it has no evidence for" \
+assert "the no-base run emits nothing at all — not even an orphan-pr-skipped it has no evidence for" \
   '[ -z "$orphan_nobase_out" ]'
 
 # ---- detect_orphan_pr anchored-read mutation arms (guards-are-code) ----
@@ -2026,8 +2035,8 @@ rm -f "$sync_marker_bo"
   "$SCRIPT" --board-only >"$tmp/full-boardonly-out.txt" 2>"$tmp/full-boardonly-err.txt")
 rc=$?
 assert "--board-only exits zero" '[ $rc -eq 0 ]'
-assert "--board-only emits no check/swept/judgment/sweep-skipped lines" \
-  '! grep -Eq "^(check|swept|judgment|sweep-skipped|sweep-failed|harvest) " "$tmp/full-boardonly-out.txt"'
+assert "--board-only emits no check/swept/judgment/sweep-skipped/orphan-pr-skipped lines" \
+  '! grep -Eq "^(check|swept|judgment|sweep-skipped|orphan-pr-skipped|sweep-failed|harvest) " "$tmp/full-boardonly-out.txt"'
 assert "--board-only does not invoke integration_sync" '[ ! -f "$sync_marker_bo" ]'
 
 # --board-only fast mode (task 7): LOCK that the early exit sits immediately after board_pass,
@@ -2096,8 +2105,8 @@ write_board_fixture inline
 rc=$?
 assert "board-only-lock: exits zero" '[ $rc -eq 0 ]'
 assert "board-only-lock: emits board inline line" 'grep -qw "board" "$tmp/bo-out.txt" && grep -qw "inline" "$tmp/bo-out.txt"'
-assert "board-only-lock: no swept/harvest/check/judgment/sweep-failed/sweep-skipped lines" \
-  '! grep -Eq "^(swept|harvest|check|judgment|sweep-failed|sweep-skipped) " "$tmp/bo-out.txt"'
+assert "board-only-lock: no swept/harvest/check/judgment/sweep-failed/sweep-skipped/orphan-pr-skipped lines" \
+  '! grep -Eq "^(swept|harvest|check|judgment|sweep-failed|sweep-skipped|orphan-pr-skipped) " "$tmp/bo-out.txt"'
 assert "board-only-lock: board-checks.sh never invoked" '[ ! -f "$bo_marker_checks" ]'
 assert "board-only-lock: sync-integration-branch.sh never invoked" '[ ! -f "$bo_marker_sync" ]'
 assert "board-only-lock: archive-change.sh never invoked" '[ ! -f "$bo_marker_archive" ]'

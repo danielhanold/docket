@@ -282,8 +282,11 @@ so it states what it found. The remedy stays a bookkeeping act on the manifest a
 merge: acting on the branch would race a run that is merely between commits. Advisory like every
 `aborted-run` leg — it flips no status, releases no claim, and writes no file.
 
-**Best-effort, verbatim `detect_merged`'s posture.** Any gh/network/parse failure emits
-`sweep-skipped <reason>` and returns 0; it never aborts the pass. The reasons are `gh-unavailable`
+**Best-effort, verbatim `detect_merged`'s posture — but not its token.** Any gh/network/parse failure
+emits `orphan-pr-skipped <reason>` and returns 0; it never aborts the pass. The prefix is this leg's
+own on purpose: `sweep-skipped` is `detect_merged`'s machine contract with `sweep_execute` and means
+"the merge sweep did not run", so reusing it here would have made an advisory enrichment skip read
+as a sweep skip in the same pass log. The reasons are `gh-unavailable`
 (a `gh` that exits non-zero, and equally a `gh` that is not installed at all — the common offline
 case), `repo-unresolved` (`--repo` unset *and* `gh repo view` returning something that is not
 `owner/name` — validated by the same owner/name split `detect_merged` uses), `gh-unparseable`
@@ -434,7 +437,8 @@ All report lines are stdout, one shape per line, diagnostics go to stderr:
 | `harvest <id> <path>` | The archived file path for a swept change — a hook for the caller to harvest learnings. `<path>` is absolute (since change 0075, anchored to the main worktree via `lib/docket-root.sh`) — previously relative to the process CWD. |
 | `sweep-failed <id> <step> <reason>` | Step `<step>` (`sync`, `archive`, `render-change-links`, `terminal-publish`, or `cleanup`) failed for change `<id>` with `<reason>`; that change's remaining close-out steps were abandoned — **except** for `cleanup` and for the artifacts-refresh reasons `commit-failed` / `push-failed` (step 6a), after which the close-out continues and the change still reports `swept`/`harvest`. |
 | `sweep-failed <id> render-change-links commit-failed\|push-failed` | The refreshed `## Artifacts` block could not be committed/pushed on `metadata_branch` (step 6a). Cosmetic and non-terminal: `terminal-publish.sh` and `cleanup-feature-branch.sh` **still ran**, and the change is still reported `swept`. The archived record on `metadata_branch` keeps its previous link block until a manual re-render. |
-| `sweep-skipped <reason>` | Batched merge detection itself was skipped (`gh-unavailable` or `repo-unresolved`); no changes were evaluated this pass. |
+| `sweep-skipped <reason>` | Batched **merge** detection itself was skipped (`gh-unavailable` or `repo-unresolved`); no changes were evaluated this pass. Emitted only by `detect_merged` (and passed through `sweep_execute`) — never by the `aborted-run` enrichment, which has its own token below. |
+| `orphan-pr-skipped <reason>` | The `aborted-run` GitHub enrichment (`detect_orphan_pr`, full path only) was skipped: `gh-unavailable`, `repo-unresolved`, `gh-unparseable`, or `pr-list-truncated`. Advisory and global — no candidate was enriched this pass, the git-only `aborted-run` findings are unaffected, and the pass continues normally. |
 | `check <check-id> <change-id> <message>` | One `board-checks.sh` finding, passed through with the `check` prefix. `<check-id>` ∈ {aborted-run, adr-unpublished, board-row-dropped, broken-spec, broken-plan-results, dep-cycle, field-domain, scalar-form, publish-deferred, stale-in-progress, stale-finalize-blocked, merge-gate-stall, merged-orphan, unknown-commit-ref, malformed-id}. |
 | `judgment blocked <id> <text>` | Change `<id>` is `status: blocked`, with its `blocked_by:` text, for the caller to re-judge. |
 | `reclaim: <n> expired-lease change(s) can self-heal — run: docket.sh reclaim-claims` | Step 7a, `reclaim.auto: false`: `<n>` `[reclaimable]` findings (expired lease, no branch) can be reclaimed. A state-valid remedy — printed only when at least one such finding exists, never under `reclaim.auto: true`, never under `--board-only`. |
@@ -453,7 +457,8 @@ All report lines are stdout, one shape per line, diagnostics go to stderr:
 ## Exit codes
 
 - `0` — the pass completed (and printed `pass ok` as its last line). Findings, `sweep-failed`,
-  `sweep-skipped`, `board *-failed`, `board off`, and `judgment` lines on stdout are all normal,
+  `sweep-skipped`, `orphan-pr-skipped`, `board *-failed`, `board off`, and `judgment` lines on
+  stdout are all normal,
   expected pass outcomes, not errors — **a thin report is the success case.** Exception:
   `--digest-only` (change 0094) exits 0 **only when the digest actually reaches stdout**, and
   prints **no** `pass ok` even then — it is a read, not a pass, so that completion marker does not

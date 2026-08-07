@@ -593,11 +593,18 @@ ORPHAN_PR_IDLE_SECS=$(( 2 * 3600 ))
 # the whole candidate set (plus the shared `gh repo view` when --repo is unset), matched to the
 # candidates locally by headRefName. See the query below for the --limit choice.
 #
-# Best-effort, VERBATIM detect_merged's posture: any gh/network/parse failure emits
-# "sweep-skipped <reason>" and returns 0. That is what keeps board-checks.sh's offline guarantee
+# Best-effort, VERBATIM detect_merged's POSTURE: any gh/network/parse failure emits
+# "orphan-pr-skipped <reason>" and returns 0. That is what keeps board-checks.sh's offline guarantee
 # intact — offline, the git-only check keeps emitting leg C's finding and only the enrichment goes
 # quiet. Prints "check aborted-run <id> <message>" lines, matching health_checks' own render so
 # consumers read one vocabulary.
+#
+# The posture is detect_merged's; the TOKEN deliberately is not. "sweep-skipped" is detect_merged's
+# machine contract with sweep_execute (which recognizes those lines and passes them through) and it
+# means "the MERGE SWEEP did not run". These lines are printed raw onto the same stdout by an
+# advisory enrichment and mean "the PR-ORPHAN CHECK did not run" — two unrelated subsystems, so a
+# reader of one pass log would have attributed an enrichment skip to the sweep. The reasons are
+# shared verbatim; only the prefix separates them.
 detect_orphan_pr(){
   local mw
   mw="$(docket_metadata_worktree)"   # ABSOLUTE (change 0075) — see board_pass.
@@ -687,7 +694,7 @@ detect_orphan_pr(){
   local repo="${REPO_FLAG:-}"
   if [ -z "$repo" ]; then
     repo="$("$GH" repo view --json owner,name -q '(.owner.login)+"/"+(.name)' 2>/dev/null)" \
-      || { echo "sweep-skipped gh-unavailable"; return 0; }
+      || { echo "orphan-pr-skipped gh-unavailable"; return 0; }
   fi
   # Validated detect_merged's way — split on the slash and reject the malformed shape. A bare
   # non-empty test is not enough: `gh repo view` can exit 0 and print something that is not
@@ -695,7 +702,7 @@ detect_orphan_pr(){
   # check with detect_merged is what makes `repo-unresolved` mean the same thing in both legs.
   local owner="${repo%%/*}" name="${repo#*/}"
   if [ -z "$owner" ] || [ -z "$name" ] || [ "$owner" = "$repo" ]; then
-    echo "sweep-skipped repo-unresolved"
+    echo "orphan-pr-skipped repo-unresolved"
     return 0
   fi
 
@@ -719,7 +726,7 @@ detect_orphan_pr(){
   # the process CWD, so a pass invoked with --repo would query one repository here and a
   # different one in board_pass / github-mirror.sh, which both forward the flag.
   pl_json="$("$GH" pr list --repo "$repo" --state open --json number,headRefName --limit "$pl_list_limit" 2>/dev/null)" || {
-    echo "sweep-skipped gh-unavailable"
+    echo "orphan-pr-skipped gh-unavailable"
     return 0
   }
   # A gh that exits 0 and prints something jq cannot parse is a THIRD failure mode, distinct from
@@ -728,12 +735,12 @@ detect_orphan_pr(){
   # change. The reason is unchanged; only its blast radius is, and it is documented that way in
   # scripts/docket-status.md.
   if ! printf '%s' "$pl_json" | jq -e . >/dev/null 2>&1; then
-    echo "sweep-skipped gh-unparseable"
+    echo "orphan-pr-skipped gh-unparseable"
     return 0
   fi
   pl_count="$(printf '%s' "$pl_json" | jq -r 'if type == "array" then length else 0 end' 2>/dev/null)"
   if [ "${pl_count:-0}" -ge "$pl_list_limit" ]; then
-    echo "sweep-skipped pr-list-truncated"
+    echo "orphan-pr-skipped pr-list-truncated"
     return 0
   fi
 
