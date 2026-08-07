@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable:
 branch: feat/reframe-auto-capture-as-capability-discovery-with-strict-adm
-claimed_at: 2026-08-07T10:59:44Z
+claimed_at: 2026-08-07T11:01:21Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -90,3 +90,26 @@ non-qualifying current-branch finding in tests.
   build time by measuring, not by guessing.
 - Sequencing against active change 0204, which edits the same two files. Neither blocks the other;
   whichever lands second rebases.
+
+## Reconcile log
+
+### 2026-08-07
+
+Reconciled against `origin/main` at `c34f42dc` and `origin/docket`. No drift — every measurement and
+anchor the spec depends on still holds:
+
+- `skills/docket-convention/references/auto-capture.md` measures **51 lines / 544 words** against its
+  budget row `55 600` (unchanged), so the raise the spec calls for is still required.
+- `skills/docket-convention/SKILL.md` measures **339 lines / 5804 words** against `345 5850` — the
+  same 6 lines / 46 words of headroom the spec recorded. The summary reframe stays an in-place,
+  approximately byte-neutral rewrite; the open question resolves by measuring at build time.
+- Change 0218's guard block is present in `tests/test_docket_review.sh` (the `--- change 0218 ---`
+  section), still keying on `current run will fix in-branch … fails the bar`, `harvest … exempt`,
+  `no open branch … no fix loop`, the *Materiality bar* section extractor, and a `>= 20` line floor.
+  All five survive the rewrite, re-anchored rather than removed; the floor rises with the file.
+- Dependency 0226 → 0218 is satisfied (0218 archived `done`, 2026-08-06).
+- The file collision with change **0204** is unchanged: 0204 is still `proposed` /
+  needs-brainstorm, so nothing of its edit has landed. This build lands first; 0204 rebases.
+
+Scope, out-of-scope, and acceptance criteria carry forward unmodified. No auto-capture candidates
+surfaced during this pass.
