@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0223 — The build gate contract never states an execution posture for a suite that outgrows a single foreground call](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0223-the-build-gate-contract-never-states-an-execution-posture-for.md)**
+> ↩ **[Change 0223 — The build gate contract never states an execution posture for a suite that outgrows a single foreground call](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-07-0223-the-build-gate-contract-never-states-an-execution-posture-for.md)**
 <!-- docket:backlink:end -->
 
 # Gate execution posture — Implementation Plan
