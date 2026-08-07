@@ -61,7 +61,9 @@ live session**, so this row additionally measures capability 4 — in that mode,
 Docket's own default path is not that mode: the gate runs inside `docket-build`, which is invoked
 inline by the forked `docket-implement-next`, and a forked or dispatched agent has no channel on
 which a resumption signal can arrive. On change 0223 itself, three dispatched build workers
-backgrounded the suite and yielded, and none was resumed by the completion event.
+backgrounded the suite and yielded, and none was resumed by the completion event. That is why
+`docket-build` § *Gate execution posture* clause 4 grants the yield to a top-level session agent
+only and requires a dispatched child to observe by blocking.
 
 The stricter variant that would have measured that mode — a non-interactive `claude -p` child
 observed from a shell outside it — was **not obtainable on this machine**: the permission classifier
