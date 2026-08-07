@@ -15,6 +15,8 @@
 #   fm_field_raw FILE KEY — the RAW anchored twin of fm_field: same ---...--- scope and inline
 #                           comment strip, but leaves any surrounding quotes INTACT for a consumer
 #                           doing its own quote/escape decoding (change 0191).
+#   docket_yaml_single_quote VALUE — VALUE as a single-quoted YAML scalar (interior `'` doubled);
+#                           the exact inverse of field()/fm_field()'s undoubling (change 0235).
 #   list_field FILE KEY   — `[a, b]` -> space-separated `a b` (empty for `[]` / unset).
 #   int_field FILE KEY    — like field(), but empty unless the value is a well-formed non-negative integer.
 #   has_section FILE STR  — exit 0 iff the body contains the literal line STR (whole-line match:
@@ -59,6 +61,15 @@ _docket_unwrap_quotes(){
     fi
   fi
   printf '%s' "$v"
+}
+# docket_yaml_single_quote VALUE -> a single-quoted YAML scalar on stdout, NO trailing newline.
+# Single-quoted YAML interprets no escapes and has exactly one rule: an embedded ' is written ''.
+# That makes the output well-formed for EVERY input that carries no control character — so a caller
+# quoting unconditionally needs no dangerous-input enumeration, and therefore has no leg to omit
+# (ADR-0071). The doubling happens here, in bash, so the value never meets awk's gsub replacement
+# syntax (where a literal & would be reinterpreted). _docket_unwrap_quotes is its exact inverse.
+docket_yaml_single_quote(){
+  printf "'%s'" "${1//\'/\'\'}"
 }
 # field_raw FILE KEY — the first matching scalar for KEY anywhere in the file, trimmed, with any
 # surrounding quotes LEFT INTACT (the raw YAML token). For the rare consumer that does its own
