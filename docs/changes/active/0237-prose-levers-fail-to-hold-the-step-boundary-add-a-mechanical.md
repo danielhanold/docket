@@ -2,7 +2,7 @@
 id: 237
 slug: prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical
 title: "Prose levers fail to hold the step boundary — give the disposition contract a consumer"
-status: proposed
+status: in-progress
 priority: high
 type: fix
 created: 2026-08-07
@@ -16,7 +16,8 @@ plan:
 results:
 trivial: false
 auto_groomable: false
-branch:
+branch: feat/prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical
+claimed_at: 2026-08-07T18:36:15Z
 pr:
 blocked_by:
 reconciled: false
