@@ -149,7 +149,7 @@ worker_scope_flat="$(flat "$worker_scope")"
 
 # Non-vacuity through the SAME extractor, so a renamed heading cannot green the negative below.
 assert "worker: the Scope section is extractable" \
-  '[ -n "$worker_scope_flat" ] &&
+  '[ -n "$worker_scope" ] &&
    grep -qF -- "Implement only that task" <<<"$worker_scope_flat"'
 
 assert "worker: the amend ban covers any commit, including one this worker just made" \
@@ -494,7 +494,7 @@ ctrl_malformed_flat="$(flat "$ctrl_malformed")"
 # range would empty $ctrl_malformed and turn the negative assert below into a permanent green.
 # The companion reads a clause that predates this change and must still be there.
 assert "controller: the malformed-return halting bullet is extractable" \
-  '[ -n "$ctrl_malformed_flat" ] &&
+  '[ -n "$ctrl_malformed" ] &&
    grep -qF -- "Never re-dispatch a task to repair its own return" <<<"$ctrl_malformed_flat"'
 
 assert "controller: that bullet also forbids discarding the worktree and dispatching a fresh worker" \
@@ -522,7 +522,7 @@ ctrl_dispatch="$(awk '/^## Dispatching a task/{f=1;next} f&&/^## /{exit} f' <<<"
 ctrl_dispatch_flat="$(flat "$ctrl_dispatch")"
 
 assert "controller: the Dispatching a task section is extractable" \
-  '[ -n "$ctrl_dispatch_flat" ] &&
+  '[ -n "$ctrl_dispatch" ] &&
    grep -qF -- "Dispatch the profile agent" <<<"$ctrl_dispatch_flat"'
 
 # Detect the REMOVED state: the bare concurrency ban that stopped at deliberate dispatch and did
