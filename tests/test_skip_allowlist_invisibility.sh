@@ -13,7 +13,19 @@
 # ever starts reading the allowlisted tree, the skip becomes a hole, and this guard reddens the
 # build gate before the extension can ship on a stale justification.
 #
-# HOW IT WORKS. It scans the COMMITTED tree (git grep over a rev — committed tracked blobs, the
+# TWO LIMBS HOLD THAT CLAIM UP, because either one alone leaves a whole shape of consumer invisible.
+# LIMB 1 (sections 1-8) is keyed on the results-dir LITERAL: it finds every component that NAMES the
+# tree and proves none of them opens it. LIMB 2 (section 9) is keyed on the WALK: it finds every
+# component that enumerates a tree at all — ls-files, ls-tree, find — and proves each one is scoped
+# away from the results tree. The second exists because the first cannot see a whole-tree walker
+# that drops the tree at a broader prefix and so never spells the literal: tests/
+# test_grep_portability.sh enumerates every tracked path and excludes the tree only through
+# `case "$f" in docs/*)`, and tests/test_comment_anchor_style.sh excludes it only by never listing
+# docs/ in its pathspec. Narrow the first one component — to docs/changes/ — or widen the second to
+# name docs/, and the results tree becomes a live content source for a suite scan while limb 1 goes
+# on reporting hazard 0. Both mutations are run below, and both redden limb 2.
+#
+# HOW LIMB 1 WORKS. It scans the COMMITTED tree (git grep over a rev — committed tracked blobs, the
 # tree the suite actually runs against, so an uncommitted scratch file cannot pad or fake the
 # corpus) for the <results_dir> literal and classifies EVERY occurrence it finds. Classification
 # runs over LOGICAL lines, with backslash continuations joined first: this repo's reads spell the
@@ -60,7 +72,30 @@
 # default carries its own independent counter: the four shape classes in aggregate, OPTVAL again
 # on its own, CURATED, and EXEMPT.
 #
-# HONEST LIMITS — this file claims no more than it mutates.
+# HOW LIMB 2 WORKS. Its population is DERIVED from the consuming code, never hand-listed: every
+# ls-files / ls-tree / find invocation on a live (non-comment, non-string) logical line of an
+# executable file under tests/ and scripts/. Each site is then asked one computed question — can
+# its scope reach a file under <results_dir>/? — answered from the walk root, the pathspecs and the
+# find depth bound, with the prefix relation computed from the literal rather than spelled out. As
+# in limb 1 the predicate is INVERTED: reaching-and-unbounded is the DEFAULT, and every route past
+# it is a named, budgeted class.
+#
+#   SCOPED    the walk PROVABLY cannot reach <results_dir>/… — rooted in another tree, or in a
+#             subtree off the results chain, or every pathspec is off that chain, or its find
+#             -maxdepth is shallower than the tree is deep. This is the by-construction shape, and
+#             it is what test_comment_anchor_style.sh earns from its explicit non-docs pathspec
+#             list — a recognised shape, not an exception entry.
+#   EXCLUDED  the invocation itself carries an exclusion pathspec at or ABOVE <results_dir>/.
+#   FILTERED  the invocation is unscoped, but its FILE applies a path-prefix exclusion at or above
+#             <results_dir>/ to the walk output — test_grep_portability.sh's `case` arm. The widest
+#             pass of the five, and pinned on its own.
+#   WRAPPED   a git walk whose REPOSITORY is chosen by a wrapper rather than by `git -C` — which
+#             tree it enumerates is decided by the wrapper definition, out of reach of any
+#             line-scoped rule. Budgeted, so a second one cannot appear quietly.
+#   DECLARED  a hand-declared reaching walk that an addition under the tree cannot move.
+#   HAZARD    THE DEFAULT, exactly as in limb 1.
+#
+# HONEST LIMITS — this file claims no more than it mutates. (a)-(e) bound LIMB 1, (f) bounds LIMB 2.
 #   (a) HAZARD is the DEFAULT, so it is the BENIGN side that is curated — and therefore the side
 #       that is counted. Six routes lead past the default: four shape classes and two hand-
 #       declared tables. The two tables are pinned individually; the four shape classes are pinned
@@ -90,8 +125,8 @@
 #       into the population it measures. The exclusion is not a blind spot: its prose says
 #       <results_dir> rather than the literal, and the same classifier is run over this file's own
 #       working-tree text with a zero-hazard assertion, below.
-#   (d) SCOPE. The walk is every tracked path except docs/ — exclusion by walk scope, never by
-#       exception entry (ADR-0050), so a new top-level directory is in scope automatically. docs/
+#   (d) SCOPE (limb 1). The corpus is every tracked path except docs/ — exclusion by scan scope,
+#       never by exception entry (ADR-0050), so a new top-level directory is in scope. docs/
 #       holds point-in-time records (results, specs, plans, archived changes, ADRs) that the
 #       convention forbids rewriting, and the metadata branch is absent from this checkout
 #       entirely. That the exclusion is safe is asserted mechanically rather than claimed: no
@@ -99,6 +134,23 @@
 #   (e) TRACKED-AND-COMMITTED ONLY. A brand-new consumer is invisible here until it is committed.
 #       Accepted: this guard runs at the build gate over committed work, which is the same tree
 #       finalize's skip decision is made against.
+#   (f) LIMB 2 has three named gaps, and all three fail in a direction the budgets can see.
+#       INDIRECT SCOPE, the same family as (b): a walk root or pathspec held in a variable this
+#       file cannot tie back to the repo root — `find "$SBX"`, `-- "$CHANGES_DIR/active"` — reads
+#       as another tree, so a variable that happened to hold the results tree would pass. The
+#       repo-root variables ARE derived rather than listed (any name assigned from BASH_SOURCE in
+#       the same file), which is what makes `find "$ROOT/docs"` reaching and `find "$ROOT/skills"`
+#       scoped, but a root computed some other way is out of reach. WRAPPED is the same gap for
+#       git, isolated into its own budgeted class so it cannot spread silently.
+#       FILE-SCOPED FILTERS: the FILTERED pass looks for the path-prefix exclusion anywhere in the
+#       walker's own file, not bound to the walk it protects, so a file could in principle satisfy
+#       it with an exclusion belonging to a different invocation. What prices that is the exact
+#       FILTERED budget — a second unscoped walk in the same file moves the number even though the
+#       hazard count stays at zero.
+#       EXCLUSION SPELLINGS: three shapes are recognised as a path-prefix exclusion — a `:!`/
+#       `:(exclude)` pathspec, a `!`-negated glob, and a `case` arm ending in `*)`. A fourth
+#       spelling (a `[[ ]]` test, a `grep -v`) fails CLOSED, as a loud HAZARD, which is the same
+#       direction limb 1 chose and the reason it is safe to recognise shapes at all.
 set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 SELF_REL="tests/$(basename "${BASH_SOURCE[0]}")"
@@ -585,6 +637,452 @@ assert "self-scan is armed (this file does carry the literal it excludes itself 
   '[ "$self_total" -ge 1 ]'
 assert "this guard does not itself read the allowlisted results tree" \
   '[ "$self_hazard" = 0 ] || { grep "^HAZARD" <<<"$SELF_RESULT" >&2; false; }'
+
+# ---------------------------------------------------------------------------
+# 9. LIMB 2 — THE WHOLE-TREE WALKERS. Everything above is keyed on the results-dir LITERAL, so a
+#    component that enumerates the whole repo and drops the tree at a BROADER prefix never enters
+#    it. This limb closes that shape by deriving the walk sites from the consuming code and asking
+#    each one whether its scope can reach a file under the results tree. See HOW LIMB 2 WORKS.
+# ---------------------------------------------------------------------------
+
+# Classify every tree-walk invocation in the files named. stdout is one row per site,
+# `<class>TAB<path>TAB<lineno>TAB<text>`. ONE implementation, shared by the live scan, the synthetic
+# controls and the mutation controls, so neutering the derivation anywhere neuters it everywhere.
+#
+# It takes MANY files in one awk process rather than one file per call: the live population is every
+# executable blob under tests/ and scripts/, and a process pair per file costs more wall clock than
+# this whole file is budgeted. That is also why the backslash-continuation join is inlined below
+# instead of piping through logical_lines — a per-file pipeline is what the batching removes.
+#
+# $1 declarations table, $2 prefix to strip from each name to get its repo path, $3 label override
+# ("" derives the label from the name), $4.. the files.
+walk_classify(){
+  local decf="$1" pre="$2" lbl="$3"; shift 3
+  awk -v lit="$RESULTS_DIR_REL" -v decf="$decf" -v pre="$pre" -v lbl="$lbl" '
+    # --- the prefix arithmetic, computed from the literal, never spelled out -------------------
+    # covers(): pp is an exclusion prefix AT or ABOVE the results tree, so excluding it excludes
+    # the tree. docs -> yes. docs/results -> yes. docs/changes -> NO, and that NO is the whole
+    # point of this limb.
+    function covers(pp) {
+      if (pp == "") return 0
+      if (pp == lit) return 1
+      if (substr(lit, 1, length(pp) + 1) == pp "/") return 1
+      return 0
+    }
+    # onchain(): s and the results tree lie on one root-to-leaf chain, so a walk scoped to s can
+    # reach a file under the tree (or is inside it already).
+    function onchain(s) {
+      if (s == "") return 1
+      if (s == lit) return 1
+      if (substr(lit, 1, length(s) + 1) == s "/") return 1
+      if (substr(s, 1, length(lit) + 1) == lit "/") return 1
+      return 0
+    }
+    function comps(s,   a) { if (s == "") return 0; return split(s, a, "/") }
+    function strip(t) { gsub(qcls, "", t); gsub(/^[({]+/, "", t); gsub(/[)}]+$/, "", t); sub(/\/+$/, "", t); return t }
+    # Resolve a walk root or pathspec to a repo-relative path, or OTHER when it is rooted in a tree
+    # this file cannot tie back to the repo root. The repo-root variable names are DERIVED from the
+    # file being scanned (anything assigned from BASH_SOURCE), never enumerated here.
+    function resolve(t,   v, rest) {
+      t = strip(t)
+      if (t == "" || t == ".") return ""
+      if (substr(t, 1, 1) == "$") {
+        rest = substr(t, 2)
+        if (substr(rest, 1, 1) == "{") { sub(/^\{/, "", rest); sub(/}/, "", rest) }
+        v = rest; sub(/\/.*$/, "", v)
+        rest = (index(rest, "/") ? substr(rest, index(rest, "/") + 1) : "")
+        if (!(v in repovar)) return "OTHER"
+        if (index(rest, "$") > 0) return ""
+        sub(/\/+$/, "", rest)
+        return rest
+      }
+      if (index(t, "$") > 0) return ""
+      return t
+    }
+    # --- is this occurrence CODE, or is it text? -----------------------------------------------
+    # Mark every character that sits inside a double-quoted span carrying no command substitution:
+    # such a span is data (a diagnostic message, a sed script, an expected string), and the walk
+    # words inside it invoke nothing. A `$(` opens a FRESH quoting context, which is why the state
+    # is stacked — `x="$(git -C "$ROOT" ls-tree …)"` is a real invocation even though it opens
+    # inside a double quote, and a flat scanner phases the quotes wrong and calls it text.
+    function build_dead(text,   i, n, c, insq, indq, st, sb, d, k) {
+      n = length(text); insq = 0; indq = 0; st = 0; sb = 0; d = 0
+      for (i = 1; i <= n; i++) dead[i] = 0
+      for (i = 1; i <= n; i++) {
+        c = substr(text, i, 1)
+        if (c == "\\") { i++; continue }
+        if (insq) { if (c == sq) insq = 0; continue }
+        if (c == "$" && substr(text, i + 1, 1) == "(") {
+          if (indq) sb = 1
+          d++; sv_q[d] = indq; sv_s[d] = st; sv_b[d] = sb
+          indq = 0; st = 0; sb = 0; i++
+          continue
+        }
+        if (c == ")" && d > 0 && !indq) { indq = sv_q[d]; st = sv_s[d]; sb = sv_b[d]; d--; continue }
+        if (indq) { if (c == dq) { if (!sb) for (k = st; k <= i; k++) dead[k] = 1; indq = 0 } ; continue }
+        if (c == sq) { insq = 1; continue }
+        if (c == dq) { indq = 1; st = i; sb = 0 }
+      }
+    }
+    function tokenize(text,   i, n, c, cur, pos) {
+      ntok = 0; n = length(text); cur = ""; pos = 0
+      for (i = 1; i <= n; i++) {
+        c = substr(text, i, 1)
+        if (c == " " || c == "\t") { if (cur != "") { ntok++; tok[ntok] = cur; tpos[ntok] = pos; cur = "" } }
+        else { if (cur == "") pos = i; cur = cur c }
+      }
+      if (cur != "") { ntok++; tok[ntok] = cur; tpos[ntok] = pos }
+    }
+    # The command word a token ends in, past any shell punctuation glued to its front:
+    # `<(find` -> find, `x="$(git` -> git, `$($GIT` -> GIT.
+    function cmdword(t,   i, c, last) {
+      last = 0
+      for (i = 1; i <= length(t); i++) { c = substr(t, i, 1); if (index(brk, c) > 0) last = i }
+      return substr(t, last + 1)
+    }
+    function tail_strip(t) { gsub(tailcls, "", t); return t }
+    function declared(t,   z) { for (z = 1; z <= nd; z++) if (d_path[z] == pathlabel && index(t, d_slice[z]) > 0) return 1; return 0 }
+    # --- the verdict for one walk site ---------------------------------------------------------
+    function site(kind, k, t,   j, m, r, md, reach, npos, anyx, e, cw, hasC, argC) {
+      reach = 0; npos = 0; anyx = 0
+      if (kind == "FIND") {
+        md = -1
+        for (j = k + 1; j <= ntok; j++) if (tok[j] == "-maxdepth" && j < ntok) md = tok[j + 1] + 0
+        for (j = k + 1; j <= ntok; j++) {
+          if (tok[j] ~ /^[-(!]/) break
+          r = resolve(tok[j])
+          if (r == "OTHER" || !onchain(r)) continue
+          # A depth bound shallower than the tree is deep cannot reach a file inside it. The
+          # threshold is computed from the literal, so a deeper results_dir relaxes it by itself.
+          if (md >= 0 && md < (comps(lit) - comps(r) + 1)) continue
+          reach = 1
+        }
+        if (!reach) return "SCOPED"
+        if (fb) return "FILTERED"
+        return declared(t) ? "DECLARED" : "HAZARD"
+      }
+      for (j = k + 1; j <= ntok; j++) {
+        if (tok[j] != "--") continue
+        for (m = j + 1; m <= ntok; m++) {
+          if (tok[m] ~ /^[|;&]/ || tok[m] ~ /^[0-9]*[<>]/) break
+          e = strip(tok[m]); if (e == "") continue
+          if (e ~ /^:(!|\(exclude\))/) {
+            sub(/^:(!|\(exclude\))/, "", e); sub(/\/?\*+$/, "", e); sub(/\/+$/, "", e)
+            if (covers(e)) anyx = 1
+            continue
+          }
+          npos++
+          # A :(glob) pathspec with no slash matches the repo ROOT level only — git glob magic
+          # stops * at a path separator — so it cannot descend into docs/ at all. Without the magic
+          # the same pattern crosses separators, so it is treated as reaching.
+          if (e ~ /^:\(glob\)/) { sub(/^:\(glob\)/, "", e); if (index(e, "/") == 0) continue }
+          sub(/^:[^)]*\)/, "", e)
+          r = resolve(e)
+          if (r == "OTHER") continue
+          if (index(e, "*") > 0) { reach = 1; continue }
+          if (onchain(r)) reach = 1
+        }
+        break
+      }
+      if (anyx) return "EXCLUDED"
+      if (npos > 0 && !reach) return "SCOPED"
+      hasC = 0
+      for (j = 1; j < k; j++) if (tok[j] == "-C" && j < ntok) { hasC = 1; argC = tok[j + 1] }
+      if (hasC) { r = resolve(argC); if (r == "OTHER" || !onchain(r)) return "SCOPED" }
+      else {
+        cw = ""
+        for (j = k - 1; j >= 1; j--) {
+          if (tok[j] ~ /^-/) continue
+          if (j > 1 && (tok[j - 1] == "-C" || tok[j - 1] == "-c")) continue
+          cw = cmdword(tok[j]); break
+        }
+        if (cw != "git") return "WRAPPED"
+      }
+      if (declared(t)) return "DECLARED"
+      # An EXPLICIT pathspec into the results chain is a deliberate walk of that tree, so the
+      # file-scoped FILTERED fallback is denied it: a filter belonging to some other invocation
+      # must not launder a walk that was aimed at the tree on purpose.
+      if (npos > 0) return "HAZARD"
+      return fb ? "FILTERED" : "HAZARD"
+    }
+    BEGIN {
+      dq = "\""; sq = sprintf("%c", 39)
+      qcls = "[" dq sq "]"
+      brk  = "(){}|;&<>$=" dq sq
+      tailcls = "[)}|;&<>" dq sq "]+$"
+      # Characters that, sitting immediately left of the word, mean it is part of a larger literal
+      # rather than a command: a quote opens a pattern, a slash is inside a sed script.
+      bad = "[[:alnum:]_./=" dq sq "-]"
+      nd = 0
+      while ((getline dl < decf) > 0) {
+        if (dl == "") continue
+        if (split(dl, a, "\t") < 3) continue
+        nd++; d_path[nd] = a[2]; d_slice[nd] = a[3]
+      }
+    }
+    function rel(f) { if (pre != "" && index(f, pre) == 1) f = substr(f, length(pre) + 1); return f }
+    # One file finished; classify what was accumulated for it, then reset. Called at the first line
+    # of the NEXT file and at END, so pathlabel/fb/repovar still describe the file being flushed.
+    function emit_file(   i, t, s, e, k, w, kind, q, b, v) {
+      if (pend != "") { ln[++N] = pstart; tx[N] = pend; pend = "" }
+      for (i = 1; i <= N; i++)
+        if (tx[i] ~ /^[[:space:]]*[[:alpha:]_][[:alnum:]_]*=.*BASH_SOURCE/) {
+          v = tx[i]; sub(/^[[:space:]]*/, "", v); sub(/=.*$/, "", v); repovar[v] = 1
+        }
+      # File-level path-prefix exclusions, in the three recognised shapes (HONEST LIMITS (f)).
+      for (i = 1; i <= N; i++) {
+        t = tx[i]
+        if (t ~ /^[[:space:]]*#/) continue
+        s = t
+        while (match(s, /:(!|\(exclude\))[^[:space:]]+/)) {
+          e = substr(s, RSTART, RLENGTH); s = substr(s, RSTART + RLENGTH)
+          sub(/^:(!|\(exclude\))/, "", e); e = strip(e); sub(/\/?\*+$/, "", e); sub(/\/+$/, "", e)
+          if (covers(e)) fb = 1
+        }
+        s = t
+        while (match(s, /!\/?[[:alnum:]_.\/-]+/)) {
+          e = substr(s, RSTART, RLENGTH); s = substr(s, RSTART + RLENGTH)
+          sub(/^!/, "", e); sub(/\/?\*+$/, "", e); sub(/\/+$/, "", e)
+          if (covers(e)) fb = 1
+        }
+        if (match(t, /^[[:space:]]*[[:alnum:]_.\/-]+\*+\)/)) {
+          e = substr(t, RSTART, RLENGTH); sub(/^[[:space:]]*/, "", e); sub(/\*+\)$/, "", e); sub(/\/+$/, "", e)
+          if (covers(e)) fb = 1
+        }
+      }
+      for (i = 1; i <= N; i++) {
+        t = tx[i]
+        if (t ~ /^[[:space:]]*#/) continue
+        build_dead(t); tokenize(t)
+        for (k = 1; k <= ntok; k++) {
+          w = tok[k]; kind = ""
+          if (tail_strip(w) == "ls-files" || tail_strip(w) == "ls-tree") kind = "GIT"
+          else if (cmdword(w) == "find") kind = "FIND"
+          if (kind == "") continue
+          q = tpos[k] + (kind == "FIND" ? length(w) - 4 : 0)
+          if (dead[q]) continue
+          b = (q > 1) ? substr(t, q - 1, 1) : " "
+          if (b ~ bad) continue
+          if (kind == "FIND" && k >= ntok) continue
+          printf "%s\t%s\t%s\t%s\n", site(kind, k, t), pathlabel, ln[i], substr(t, 1, 190)
+        }
+      }
+      N = 0
+    }
+    FNR == 1 {
+      emit_file()
+      pend = ""; pstart = 0; fb = 0
+      split("", repovar)
+      pathlabel = (lbl != "" ? lbl : rel(FILENAME))
+      # Executability is derived from the blob itself — a .sh name or a shebang — never from a list
+      # of filenames, exactly as the corpus scan derives INERT.
+      keep = (FILENAME ~ /\.sh$/ || $0 ~ /^#!/)
+    }
+    keep {
+      line = $0
+      if (pend != "") { line = pend line; ls = pstart } else { ls = FNR }
+      if (line ~ /\\$/) { sub(/\\$/, "", line); pend = line; pstart = ls; next }
+      pend = ""
+      ln[++N] = ls; tx[N] = line
+    }
+    END { emit_file() }
+  '  "$@"
+}
+
+# The live population: every executable blob under tests/ and scripts/ at the scanned REV — the
+# committed tree the suite runs against, so an uncommitted scratch file can neither pad the walk
+# population nor hide a walker from it. THIS file is then overlaid from its working-tree text, the
+# same treatment and the same reason as the self-membership section above.
+WROOT="$TMP/walkroot"
+walk_records(){
+  local f; local -a WFILES
+  mkdir -p "$WROOT"
+  git -C "$ROOT" archive "$REV" tests scripts | tar -x -C "$WROOT" || return 0
+  cp "${BASH_SOURCE[0]}" "$WROOT/$SELF_REL"
+  WFILES=()
+  while IFS= read -r f; do [ -n "$f" ] || continue; WFILES+=("$f"); done \
+    < <(find "$WROOT" -type f | LC_ALL=C sort)
+  [ "${#WFILES[@]}" -gt 0 ] || return 0
+  walk_classify "$1" "$WROOT/" "" "${WFILES[@]}"
+}
+
+# The parent prefix the walkers actually exclude, derived from the literal rather than spelled.
+RESULTS_PARENT="${RESULTS_DIR_REL%/*}"
+WALK_DECL="$TMP/walk-declarations.tsv"
+NO_WALK_DECL="$TMP/no-walk-declarations.tsv"
+: > "$WALK_DECL"
+: > "$NO_WALK_DECL"
+walk_declare(){ printf 'DECLARED\t%s\t%s\n' "$1" "$2" >> "$WALK_DECL"; }
+
+# The one declared reaching walk: section 1 above walks docs/ ON PURPOSE, to prove the prefix limb
+# 1 skips holds nothing executable. It reads the TREE LISTING — mode and path — never file content,
+# and its predicate is exactly the property whose violation would be a hazard. A results file added
+# by Step 6.5 is mode 100644 with an .md suffix, so it is not listed and the verdict is unchanged;
+# an EXECUTABLE appearing under the tree would redden it, and that is the detection working.
+walk_declare "$SELF_REL" "-- '$RESULTS_PARENT/'"
+
+WALK_RESULT="$(walk_records "$WALK_DECL")"
+
+# POPULATION, measured live at build time (change 0190), never copied from a plan.
+#   WALK_FLOOR       the whole derived population. A FLOOR, not an equality, and deliberately so:
+#                    an exact total over every fixture walk in the suite would be bumped as
+#                    bookkeeping by unrelated tests, which is the evasion this limb exists to deny
+#                    (repo learning: guard-remedy-must-not-teach-the-evasion). Coverage is pinned
+#                    instead by the REACHING count and by the named probes below.
+#   WALK_REACHING    the sites whose scope touches the results chain at all — the population that
+#                    actually needs a bound, pinned EXACTLY.
+#   WALK_FILTERED / WALK_EXCLUDED / WALK_WRAPPED / WALK_DECLARED
+#                    every individual route past the HAZARD default, each pinned on its own so a
+#                    swap between two of them cannot keep the aggregate steady.
+WALK_FLOOR=80
+EXPECTED_WALK_REACHING=2
+EXPECTED_WALK_FILTERED=1
+EXPECTED_WALK_EXCLUDED=0
+EXPECTED_WALK_WRAPPED=1
+EXPECTED_WALK_DECLARED=1
+
+n_walk_total="$(grep -c . <<<"$WALK_RESULT" || true)"
+n_walk_scoped="$(count_class SCOPED   "$WALK_RESULT")"
+n_walk_excluded="$(count_class EXCLUDED "$WALK_RESULT")"
+n_walk_filtered="$(count_class FILTERED "$WALK_RESULT")"
+n_walk_wrapped="$(count_class WRAPPED  "$WALK_RESULT")"
+n_walk_declared="$(count_class DECLARED "$WALK_RESULT")"
+n_walk_hazard="$(count_class HAZARD    "$WALK_RESULT")"
+n_walk_reaching="$((n_walk_excluded + n_walk_filtered + n_walk_declared + n_walk_hazard))"
+printf '  walks:  %s sites — scoped %s, wrapped %s | reaching %s (excluded %s, filtered %s, declared %s) | hazard %s\n' \
+  "$n_walk_total" "$n_walk_scoped" "$n_walk_wrapped" \
+  "$n_walk_reaching" "$n_walk_excluded" "$n_walk_filtered" "$n_walk_declared" "$n_walk_hazard"
+
+walk_class_at(){ awk -F'\t' -v f="$1" -v l="$2" '$2 == f && $3 == l {print $1}' <<<"$3"; }
+
+assert "the walk derivation reaches at least $WALK_FLOOR tree-walk sites under tests/ and scripts/" \
+  '[ "$n_walk_total" -ge "$WALK_FLOOR" ]  || { echo "  found $n_walk_total, floor $WALK_FLOOR." >&2; echo "  A DROP means the derivation went blind, not that the suite stopped walking: check that the rev and the tests/scripts pathspec still resolve, and that the invocation shapes this file recognises still match how the suite spells a walk." >&2; false; }'
+# Coverage, not just population: an exact total cannot promise that the two walkers this limb
+# EXISTS for are among the sites reached, because the property migrates to whichever site satisfies
+# it most cheaply (repo learning: marker-scoped-guard-needs-a-population-floor). So both are named,
+# with the class each is supposed to earn.
+assert "the derivation reaches test_grep_portability.sh's whole-index walk, and it is FILTERED" \
+  '[ "$(walk_class_at tests/test_grep_portability.sh 102 "$WALK_RESULT")" = FILTERED ] || { grep "test_grep_portability" <<<"$WALK_RESULT" >&2; echo "  This is the walk that enumerates every tracked path and drops the results tree only through its docs/ case arm. If it moved, re-find it and re-point the probe; if it lost the filter, that is the finding." >&2; false; }'
+assert "the derivation reaches test_comment_anchor_style.sh's pathspec walk, and it is SCOPED" \
+  '[ -n "$(awk -F"\t" '"'"'$2 == "tests/test_comment_anchor_style.sh" && $1 == "SCOPED"'"'"' <<<"$WALK_RESULT")" ]'
+
+assert "no whole-tree walk in tests/ or scripts/ can reach a file under the allowlisted results tree" \
+  '[ "$n_walk_hazard" = 0 ] || { grep "^HAZARD" <<<"$WALK_RESULT" >&2; echo "  Each line above is a tree walk whose scope reaches the results tree with nothing bounding it — which makes the tree a live content source for a suite scan WITHOUT the scan ever naming it, the shape limb 1 cannot see." >&2; echo "  FIRST work out what the walk feeds: if its output is scanned, a results file added after the build gate can move a verdict and finalize'"'"'s post-gate skip is no longer sound. The fix is to bound the walk — a :! pathspec, a narrower root, a -maxdepth, or a docs-level filter on its output — not to widen this budget." >&2; false; }'
+
+assert "exactly $EXPECTED_WALK_REACHING walk sites reach the results chain at all" \
+  '[ "$n_walk_reaching" = "$EXPECTED_WALK_REACHING" ] || { grep -E "^(EXCLUDED|FILTERED|DECLARED|HAZARD)" <<<"$WALK_RESULT" >&2; echo "  found $n_walk_reaching (excluded $n_walk_excluded, filtered $n_walk_filtered, declared $n_walk_declared, hazard $n_walk_hazard), budget $EXPECTED_WALK_REACHING." >&2; echo "  A walk that reaches the tree is the population this limb exists to bound. FIRST establish what the new one enumerates and whether anything reads its output; a walk that does not need to see docs/ at all should be re-scoped rather than admitted." >&2; false; }'
+assert "exactly $EXPECTED_WALK_FILTERED walk sites are bounded only by a downstream file-level filter" \
+  '[ "$n_walk_filtered" = "$EXPECTED_WALK_FILTERED" ] || { grep "^FILTERED" <<<"$WALK_RESULT" >&2; echo "  found $n_walk_filtered, budget $EXPECTED_WALK_FILTERED." >&2; echo "  FILTERED is the widest pass here: the exclusion is found anywhere in the walker'"'"'s file, not bound to the walk it protects. FIRST open the file and confirm the prefix exclusion really is applied to THIS walk output, and that it sits at or above the results tree. Bounding the walk at its own invocation is the better fix." >&2; false; }'
+assert "exactly $EXPECTED_WALK_EXCLUDED walk sites carry an exclusion pathspec at the invocation" \
+  '[ "$n_walk_excluded" = "$EXPECTED_WALK_EXCLUDED" ]'
+assert "exactly $EXPECTED_WALK_WRAPPED git walks select their repository through a wrapper" \
+  '[ "$n_walk_wrapped" = "$EXPECTED_WALK_WRAPPED" ] || { grep "^WRAPPED" <<<"$WALK_RESULT" >&2; echo "  found $n_walk_wrapped, budget $EXPECTED_WALK_WRAPPED." >&2; echo "  A wrapper decides which repository is walked, and this file cannot resolve it. FIRST read the wrapper definition and establish whether the walk can ever run against this repo rather than a fixture; if it can, spell the repository as git -C so the derivation can see it." >&2; false; }'
+assert "exactly $EXPECTED_WALK_DECLARED walk sites are hand-declared reaching walks" \
+  '[ "$n_walk_declared" = "$EXPECTED_WALK_DECLARED" ] || { grep "^DECLARED" <<<"$WALK_RESULT" >&2; echo "  found $n_walk_declared, budget $EXPECTED_WALK_DECLARED." >&2; echo "  A declaration admits a walk that DOES reach the tree and claims an addition under it cannot change the verdict. FIRST prove that: name the assertion the walk feeds and show that a new results file leaves it identical." >&2; false; }'
+
+walk_orphans=""
+while IFS=$'\t' read -r _ dpath dslice; do
+  [ -n "${dpath:-}" ] || continue
+  awk -F'\t' -v pp="$dpath" '$1 == "DECLARED" && $2 == pp {n++} END {exit !(n > 0)}' <<<"$WALK_RESULT" \
+    || walk_orphans="${walk_orphans}${dpath} ${dslice}"$'\n'
+done < "$WALK_DECL"
+assert "no declared walk is stale (every declaration still matches a live walk site)" \
+  '[ -z "$walk_orphans" ] || { printf "  %s" "$walk_orphans" >&2; echo "  The declared walk moved or was rewritten. Re-read it and re-decide, rather than re-pointing the slice." >&2; false; }'
+
+# ---------------------------------------------------------------------------
+# 9b. POSITIVE CONTROLS for limb 2. Same shape as section 7: the asserts above are all absence
+#     claims, so each class is exercised against throwaway input through the SAME classifier, and
+#     each real-file mutation is confirmed to have landed by occurrence count before its result is
+#     believed. The synthetic lines are written with printf rather than a heredoc on purpose — a
+#     heredoc body is indistinguishable from live code to this file's own self-scan.
+# ---------------------------------------------------------------------------
+WS1="$TMP/walk-synth-1.sh"
+: > "$WS1"
+wsynth(){ printf '%s\n' "$2" >> "$1"; }
+wsynth "$WS1" "ROOT=\"\$(cd \"\$(dirname \"\${BASH_SOURCE[0]}\")/..\" && pwd -P)\""
+wsynth "$WS1" "  find \"\$ROOT\" -type f"
+wsynth "$WS1" "  find \"\$ROOT\" -maxdepth 1 -type f"
+wsynth "$WS1" "  find \"\$ROOT/$RESULTS_DIR_REL\" -type f"
+wsynth "$WS1" "  find \"\$ROOT/skills\" -type f"
+wsynth "$WS1" "  find \"\$SBX\" -type f"
+wsynth "$WS1" "  git ls-files -z"
+wsynth "$WS1" "  git ls-files -- scripts tests ':(glob)*.md'"
+wsynth "$WS1" "  git -C \"\$ROOT\" ls-tree -r HEAD -- '$RESULTS_PARENT/'"
+wsynth "$WS1" "  git -C \"\$W\" ls-tree -r --name-only origin/main"
+wsynth "$WS1" "  landed=\"\$(\$GIT ls-files)\""
+WS1_RESULT="$(walk_classify "$NO_WALK_DECL" "" tests/synthetic_walk_probe.sh "$WS1")"
+ws1_class(){ awk -F'\t' -v l="$1" '$3 == l {print $1}' <<<"$WS1_RESULT"; }
+assert "control: an unbounded find at the repo root classifies HAZARD"        '[ "$(ws1_class 2)" = HAZARD ]'
+assert "control: a find bounded by -maxdepth above the tree classifies SCOPED" '[ "$(ws1_class 3)" = SCOPED ]'
+assert "control: a find rooted at the results tree itself classifies HAZARD"   '[ "$(ws1_class 4)" = HAZARD ]'
+assert "control: a find rooted off the chain classifies SCOPED"               '[ "$(ws1_class 5)" = SCOPED ]'
+assert "control: a find rooted in another tree classifies SCOPED"             '[ "$(ws1_class 6)" = SCOPED ]'
+assert "control: an unbounded whole-index ls-files classifies HAZARD"         '[ "$(ws1_class 7)" = HAZARD ]'
+assert "control: an explicit non-docs pathspec list classifies SCOPED"        '[ "$(ws1_class 8)" = SCOPED ]'
+assert "control: a pathspec aimed INTO the results chain classifies HAZARD"   '[ "$(ws1_class 9)" = HAZARD ]'
+assert "control: a walk of another repository classifies SCOPED"             '[ "$(ws1_class 10)" = SCOPED ]'
+assert "control: a git walk through a wrapper classifies WRAPPED"            '[ "$(ws1_class 11)" = WRAPPED ]'
+
+# The declared route, and the proof that its SLICE is what binds it — a declaration for the right
+# file with the wrong slice leaves the site HAZARD and reports itself as stale.
+WD_OK="$TMP/walk-decl-ok.tsv"
+WD_BAD="$TMP/walk-decl-bad.tsv"
+printf 'DECLARED\t%s\t%s\n' tests/synthetic_walk_probe.sh "-- '$RESULTS_PARENT/'"  > "$WD_OK"
+printf 'DECLARED\t%s\t%s\n' tests/synthetic_walk_probe.sh "-- 'nomatch/'"       > "$WD_BAD"
+WS1_OK="$(walk_classify "$WD_OK" "" tests/synthetic_walk_probe.sh "$WS1")"
+WS1_BAD="$(walk_classify "$WD_BAD" "" tests/synthetic_walk_probe.sh "$WS1")"
+assert "control: a matching declaration turns that HAZARD into DECLARED" \
+  '[ "$(awk -F"\t" '"'"'$3 == 9 {print $1}'"'"' <<<"$WS1_OK")" = DECLARED ]'
+assert "control: a declaration whose slice does not match leaves the site HAZARD" \
+  '[ "$(awk -F"\t" '"'"'$3 == 9 {print $1}'"'"' <<<"$WS1_BAD")" = HAZARD ] && [ "$(count_class DECLARED "$WS1_BAD")" = 0 ]'
+
+# The exclusion routes, each in its own throwaway file: the file-level filter is file-scoped, so
+# these cannot share one fixture without contaminating each other.
+WS2="$TMP/walk-synth-2.sh"; : > "$WS2"
+wsynth "$WS2" "  git ls-files -- ':!$RESULTS_DIR_REL'"
+WS3="$TMP/walk-synth-3.sh"; : > "$WS3"
+wsynth "$WS3" "  git ls-files -- ':!$RESULTS_DIR_REL/inner'"
+WS4="$TMP/walk-synth-4.sh"; : > "$WS4"
+wsynth "$WS4" "  git ls-files -z"
+wsynth "$WS4" "    $RESULTS_PARENT/*) continue ;;"
+assert "control: an exclusion pathspec at or above the tree classifies EXCLUDED" \
+  '[ "$(walk_classify "$NO_WALK_DECL" "" tests/synthetic_walk_probe.sh "$WS2" | cut -f1)" = EXCLUDED ]'
+assert "control: an exclusion BELOW the tree buys nothing and still classifies HAZARD" \
+  '[ "$(walk_classify "$NO_WALK_DECL" "" tests/synthetic_walk_probe.sh "$WS3" | cut -f1)" = HAZARD ]'
+assert "control: an unscoped walk with a docs-level output filter classifies FILTERED" \
+  '[ "$(walk_classify "$NO_WALK_DECL" "" tests/synthetic_walk_probe.sh "$WS4" | cut -f1)" = FILTERED ]'
+
+# THE MUTATION THIS LIMB EXISTS FOR. Narrowing test_grep_portability.sh's docs/ exclusion one
+# component — to a prefix BELOW the results tree — turns its whole-index walk into a live reader of
+# the tree, with limb 1 still reporting hazard 0. Run against a throwaway copy of the real file,
+# through the same derivation, and confirmed to have landed by occurrence count first.
+GP="$ROOT/tests/test_grep_portability.sh"
+MUT_GP="$TMP/mutated_grep_portability.sh"
+sed "s|$RESULTS_PARENT/\\*) continue|$RESULTS_PARENT/changes/*) continue|" "$GP" > "$MUT_GP"
+gp_before="$(grep -c -F -e "$RESULTS_PARENT/*) continue" "$GP" || true)"
+gp_after="$(grep -c -F -e "$RESULTS_PARENT/*) continue" "$MUT_GP" || true)"
+gp_narrow="$(grep -c -F -e "$RESULTS_PARENT/changes/*) continue" "$MUT_GP" || true)"
+assert "mutation landed: the docs/ walk filter is present before and narrowed after" \
+  '[ "$gp_before" -ge 1 ] && [ "$gp_after" = 0 ] && [ "$gp_narrow" -ge 1 ]'
+GP_CLEAN="$(walk_classify "$NO_WALK_DECL" "" tests/test_grep_portability.sh "$GP")"
+GP_MUT="$(walk_classify "$NO_WALK_DECL" "" tests/test_grep_portability.sh "$MUT_GP")"
+assert "control: the UNMUTATED file reports no hazard (the mutation is what reddens, not the extractor)" \
+  '[ "$(count_class HAZARD "$GP_CLEAN")" = 0 ] && [ "$(count_class FILTERED "$GP_CLEAN")" -ge 1 ]'
+assert "control: narrowing the filter below the results tree is REPORTED as a HAZARD walk" \
+  '[ "$(count_class HAZARD "$GP_MUT")" -ge 1 ]'
+
+# The same, for the other invisible shape: test_comment_anchor_style.sh excludes docs/ only by
+# never naming it, so widening its pathspec is the way that walk goes bad.
+CAS="$ROOT/tests/test_comment_anchor_style.sh"
+MUT_CAS="$TMP/mutated_comment_anchor_style.sh"
+sed "s|ls-files -- scripts|ls-files -- $RESULTS_PARENT scripts|" "$CAS" > "$MUT_CAS"
+cas_before="$(grep -c -F -e "ls-files -- $RESULTS_PARENT scripts" "$CAS" || true)"
+cas_after="$(grep -c -F -e "ls-files -- $RESULTS_PARENT scripts" "$MUT_CAS" || true)"
+assert "mutation landed: the pathspec gained docs/ in the throwaway copy only" \
+  '[ "$cas_before" = 0 ] && [ "$cas_after" -ge 1 ]'
+CAS_MUT="$(walk_classify "$NO_WALK_DECL" "" tests/test_comment_anchor_style.sh "$MUT_CAS")"
+assert "control: widening the pathspec to docs/ is REPORTED as a HAZARD walk" \
+  '[ "$(count_class HAZARD "$CAS_MUT")" -ge 1 ]'
 
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
