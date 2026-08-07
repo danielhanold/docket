@@ -16,7 +16,7 @@ status, releases no claim, and writes no file. The only thing that acts on a ver
 
 ```
 docket.sh verify-run <id>
-docket.sh verify-run --in-progress-ids
+docket.sh verify-run --in-progress-ids [--with-claimed-at]
 ```
 
 - `<id>` — the change id (integer; the file is located by its zero-padded name in `active/`, then
@@ -24,6 +24,14 @@ docket.sh verify-run --in-progress-ids
   line always echoes the canonical unpadded id, never the typed one.
 - `--in-progress-ids` — print the id of every `status: in-progress` change in `active/`, one per
   line, numerically sorted. This is the snapshot half `runner-dispatch.sh` diffs across a hand-off.
+- `--with-claimed-at` — only with `--in-progress-ids` (a hard error otherwise). Widens each line to
+  `<id> <claimed_at-epoch>`, or `<id> -` when the change carries no `claimed_at:` or one that does
+  not parse. The conversion happens **here**, through the shared `iso_to_epoch` (GNU and BSD
+  `date`), so the consumer compares two integers and no second frontmatter reader or timestamp
+  parser has to exist: `runner-dispatch.sh`'s run gate needs the claim instant to tell its own
+  claim from a foreign one, and this script stays the single owner of that read. `-` is deliberate
+  — an unreadable stamp is **no positive evidence** of anything, the same posture
+  `reclaim-claims.sh` and `board-checks.sh` take on an unreadable lease.
 - `--changes-dir DIR` — bypass config resolution and read this directory. For hermetic tests and
   for a caller that has already resolved a repo root.
 
@@ -75,7 +83,7 @@ deliberately untouched by change 0237.
 ## Invariants
 
 - Never writes: no status flip, no claim release, no file write, no `gh`, no network.
-- Every frontmatter read is `fm_field`, never `field` — `pr:` and `branch:` are optional keys and
-  this repo's change bodies routinely open lines with them.
+- Every frontmatter read is `fm_field`, never `field` — `pr:`, `branch:` and `claimed_at:` are
+  optional keys and this repo's change bodies routinely open lines with them.
 - A verdict is always exactly one line on stdout; diagnostics always go to stderr.
 - `run-incomplete` never exits non-zero.

@@ -8,7 +8,11 @@
 # file writes, no claim release. The only thing that ACTS on a verdict is runner-dispatch.sh.
 #
 # Usage: verify-run.sh <id> [--changes-dir DIR]
-#        verify-run.sh --in-progress-ids [--changes-dir DIR]
+#        verify-run.sh --in-progress-ids [--with-claimed-at] [--changes-dir DIR]
+#   --with-claimed-at widens each snapshot line to `<id> <claimed_at-epoch>`, or `<id> -` when the
+#   change carries no `claimed_at:` or one that does not parse. This script stays the SINGLE owner
+#   of frontmatter reading for the run gate: runner-dispatch.sh needs the claim instant to tell its
+#   own claim from a foreign one, and it gets it from here rather than growing a second reader.
 #   Verdict lines (one, on stdout):
 #     run-complete <id>                    every conjunct holds
 #     run-halted <id>                      a `## Run halted` record is present — deliberate stop
@@ -28,10 +32,11 @@ SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 die(){ printf 'verify-run: %s\n' "$*" >&2; exit 2; }
 
-ID=""; CHANGES_DIR=""; MODE="verdict"
+ID=""; CHANGES_DIR=""; MODE="verdict"; WITH_CLAIMED_AT=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --in-progress-ids) MODE="ids" ;;
+    --with-claimed-at) WITH_CLAIMED_AT=1 ;;
     --changes-dir) CHANGES_DIR="${2:-}"; shift ;;
     -h|--help) grep '^#' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     -*) die "unknown argument: $1" ;;
@@ -39,6 +44,7 @@ while [ $# -gt 0 ]; do
   esac
   shift
 done
+[ "$WITH_CLAIMED_AT" = 0 ] || [ "$MODE" = "ids" ] || die "--with-claimed-at is only valid with --in-progress-ids"
 
 # --- changes dir: an explicit flag, else the resolver -------------------------
 # Resolving here (rather than making every caller pass it) is what makes `docket.sh verify-run <id>`
@@ -72,10 +78,25 @@ source "$SELF_DIR/lib/docket-frontmatter.sh"
 
 if [ "$MODE" = "ids" ]; then
   # The snapshot half. Numerically sorted so a caller's `comm`/diff is stable.
+  #
+  # --with-claimed-at adds the claim instant as epoch seconds. It is converted HERE, through the
+  # shared `iso_to_epoch` (which already handles GNU and BSD `date`), so no caller has to own a
+  # portable timestamp parse of its own — the consumer compares two integers. `claimed_at` is read
+  # with the ANCHORED `fm_field`: the key is optional, and a change body discussing `claimed_at:`
+  # in prose would otherwise be read as the value (LEARNINGS: frontmatter-anchored-read).
+  # An absent or unparseable stamp prints `-`, never a number: "no positive evidence", the same
+  # posture reclaim-claims.sh and board-checks.sh take on an unreadable lease.
   for f in "$CHANGES_DIR"/active/*.md; do
     [ -f "$f" ] || continue
     [ "$(fm_field "$f" status)" = "in-progress" ] || continue
-    id="$(int_field "$f" id)"; [ -n "$id" ] && printf '%s\n' "$id"
+    id="$(int_field "$f" id)"; [ -n "$id" ] || continue
+    if [ "$WITH_CLAIMED_AT" = 1 ]; then
+      claimed="$(fm_field "$f" claimed_at)"; epoch=""
+      [ -n "$claimed" ] && epoch="$(iso_to_epoch "$claimed")"
+      printf '%s %s\n' "$id" "${epoch:--}"
+    else
+      printf '%s\n' "$id"
+    fi
   done | sort -n
   exit 0
 fi

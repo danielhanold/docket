@@ -232,6 +232,60 @@ ids="$( cd "$SBX" && vr --in-progress-ids )"
 assert "snapshot: an implemented change is not in-progress" \
   '! grep -qx 33 <<<"$ids"'
 
+# --- snapshot mode: --with-claimed-at -----------------------------------------
+# runner-dispatch's run gate must tell ITS claim from a foreign one, and a set diff cannot do that.
+# This script owns the read (single frontmatter reader for the feature) and converts to epoch here
+# through the shared `iso_to_epoch`, so the consumer compares integers and needs no `date` of its
+# own. An absent or unparseable stamp prints `-` — no positive evidence, never a number.
+make_sbx
+write_claimed(){  # write_claimed ID CLAIMED_AT [BODY]
+  printf -v padded '%04d' "$1"
+  cat > "$CH/active/$padded-slug$1.md" <<EOF
+---
+id: $1
+slug: slug$1
+status: in-progress
+branch: feat/slug$1
+claimed_at: $2
+---
+
+## Why
+${3:-}
+EOF
+}
+write_claimed 40 "2026-08-07T12:00:00Z"
+line="$( cd "$SBX" && vr --in-progress-ids --with-claimed-at )"
+assert "with-claimed-at: line is '<id> <epoch>'" '[ "$line" = "40 1786104000" ]'
+ids="$( cd "$SBX" && vr --in-progress-ids )"
+assert "with-claimed-at: the PLAIN snapshot is unchanged (ids only)" '[ "$ids" = "40" ]'
+
+write_claimed 41 "not-a-timestamp"
+line="$( cd "$SBX" && vr --in-progress-ids --with-claimed-at | grep '^41 ' )"
+assert "with-claimed-at: an unparseable claimed_at prints '-', never a number" '[ "$line" = "41 -" ]'
+
+printf -v p '%04d' 42
+cat > "$CH/active/$p-slug42.md" <<'EOF'
+---
+id: 42
+slug: slug42
+status: in-progress
+branch: feat/slug42
+---
+
+## Why
+
+claimed_at: 2026-08-07T12:00:00Z
+EOF
+line="$( cd "$SBX" && vr --in-progress-ids --with-claimed-at | grep '^42 ' )"
+assert "with-claimed-at: an absent key is '-' and body prose is NOT read as the stamp" \
+  '[ "$line" = "42 -" ]'
+
+err="$( cd "$SBX" && bash "$VR" 40 --with-claimed-at --changes-dir "$CH" 2>&1 >/dev/null )"; rc=$?
+assert "with-claimed-at: rejected outside snapshot mode" '[ "$rc" != "0" ] && [ -n "$err" ]'
+rm -rf "$SBX"
+make_sbx
+write_change 30 in-progress feat/slug30 ""
+
 # --- errors: the check could not run => non-zero, no verdict ------------------
 out="$( cd "$SBX" && bash "$VR" 999 --changes-dir "$CH" 2>/dev/null )"; rc=$?
 assert "missing id: non-zero" '[ "$rc" != "0" ]'

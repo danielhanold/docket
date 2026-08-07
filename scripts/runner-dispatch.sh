@@ -13,8 +13,8 @@
 set -uo pipefail
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RUNNERS_DIR="${RUNNERS_DIR:-$SELF_DIR/runners}"
-# Run-gate seams (change 0237): the disposition reader, and the facade used for the post-return
-# metadata re-sync that makes the "after" snapshot a read of fresh origin state.
+# Run-gate seams (change 0237): the disposition reader, and the facade used for the metadata
+# re-syncs that make BOTH snapshots — "before" and "after" — reads of fresh origin state.
 VERIFY_RUN="${VERIFY_RUN:-$SELF_DIR/verify-run.sh}"
 DOCKET_FACADE="${DOCKET_FACADE:-$SELF_DIR/docket.sh}"
 # shellcheck source=lib/docket-root.sh
@@ -142,16 +142,43 @@ args=( --agent "$AGENT" )
 # gate with a warning and leaves the dispatch untouched — the facade's standing tolerant posture on
 # this live path (the same reason an unparseable runners.<name>: value `continue`s rather than
 # dying): the gate must never convert a healthy dispatch into a failure.
+#
+# BOTH reads must come from FRESH ORIGIN state (LEARNINGS: cas-re-read-fresh-origin), which is why
+# the re-sync below is symmetric with the one after the handoff. An asymmetric pair is not merely
+# imprecise, it is actively wrong: a change that is `in-progress` on origin/docket but not yet in
+# the local .docket worktree is absent from a stale BEFORE and present in the freshly-synced AFTER,
+# so an ABANDONED claim from an earlier session (exactly what board-checks' `aborted-run` leg
+# exists for) would be attributed to this run and spend a whole agent run being re-dispatched.
 GATE=0; [ "$AGENT" = "implement-next" ] && GATE=1
 
 in_progress_ids(){ "$DOCKET_BASH_PATH" "$VERIFY_RUN" --in-progress-ids 2>/dev/null; }
+in_progress_claims(){ "$DOCKET_BASH_PATH" "$VERIFY_RUN" --in-progress-ids --with-claimed-at 2>/dev/null; }
+# Best-effort metadata re-sync, used on BOTH sides of the handoff. A failure degrades the gate's
+# freshness; it never fails a dispatch.
+resync_metadata(){
+  "$DOCKET_BASH_PATH" "$DOCKET_FACADE" preflight >/dev/null 2>&1 \
+    || { printf 'runner-dispatch: run gate — metadata re-sync failed; verifying against local state\n' >&2; return 1; }
+}
 
-BEFORE=""
+BEFORE=""; DISPATCH_EPOCH=""
 if [ "$GATE" = 1 ]; then
+  resync_metadata || :
   if ! BEFORE="$(in_progress_ids)"; then
     printf 'runner-dispatch: run gate disabled — could not read the in-progress set\n' >&2
     GATE=0
   fi
+  # The claim window opens here — AFTER the before-read, so a claim landing in the gap between the
+  # two is either already in BEFORE or stamped before the window, and is excluded either way.
+  # `date -u +%s` is UTC epoch seconds on GNU and BSD alike, and is the ONLY timestamp work done
+  # here: the ISO->epoch direction (which is where the two `date` dialects actually diverge) stays
+  # in verify-run, on the shared `iso_to_epoch`. The claim writer stamps UTC ISO-8601
+  # (`date -u +%Y-%m-%dT%H:%M:%SZ`), so the two ends meet on the same clock.
+  DISPATCH_EPOCH="$(date -u +%s 2>/dev/null)"
+  case "$DISPATCH_EPOCH" in
+    ''|*[!0-9]*)
+      printf 'runner-dispatch: run gate disabled — could not read the clock\n' >&2
+      GATE=0 ;;
+  esac
 fi
 
 # CALL-AND-RETURN, not exec (change 0237). The facade must regain control so the run gate can read
@@ -185,22 +212,54 @@ rc=$?
 # The "after" read must come from FRESH ORIGIN state, never from the local tree the child just
 # wrote (LEARNINGS: cas-re-read-fresh-origin). Best-effort: a failed re-sync degrades the gate's
 # freshness, it does not fail a dispatch that may well have succeeded.
-"$DOCKET_BASH_PATH" "$DOCKET_FACADE" preflight >/dev/null 2>&1 \
-  || printf 'runner-dispatch: run gate — metadata re-sync failed; verifying against local state\n' >&2
+resync_metadata || :
 
-AFTER="$(in_progress_ids)" || {
+AFTER="$(in_progress_claims)" || {
   printf 'runner-dispatch: run gate disabled — could not re-read the in-progress set\n' >&2
   exit "$rc"
 }
 
-# This run's claim = any id in AFTER that was not in BEFORE. A change another agent already held
-# was in BEFORE and is ignored, so concurrent runs never cross-fire; a run that claimed nothing
-# (drained, or contended where the CAS was lost) yields an empty diff and the gate is a no-op.
+# ATTRIBUTION. A candidate for "this run's claim" must clear THREE filters, because the set diff
+# alone does not identify a claimant — it only identifies a change of state:
+#
+#   1. not in BEFORE — a claim already held at the handoff is another run's (or an earlier
+#      session's), and both reads are of fresh origin so BEFORE really is the whole prior set;
+#   2. `claimed_at` readable — an absent or unparseable stamp is NO POSITIVE EVIDENCE of ownership,
+#      and the gate acts only on a positive finding, never on a guess;
+#   3. `claimed_at` at or after DISPATCH_EPOCH — a claim stamped before this run started cannot be
+#      ours however it came to be visible. This is what excludes the abandoned in-progress change
+#      that the pre-handoff re-sync above pulled in for the first time, even on the path where that
+#      re-sync FAILED and BEFORE is stale — belt and braces, deliberately.
+#
+# WHAT THIS DOES NOT ESTABLISH, stated plainly so no later reader trusts more than it holds: a
+# timestamp cannot separate our claim from one a CONCURRENT loop made during our run, and
+# `claimed_at` is re-stamped at every phase boundary, so a foreign live run's stamp is fresh too.
+# The ambiguity is therefore handled by COUNTING rather than by the clock: an implement-next run
+# claims at most ONE change, so two or more candidates means at least one is not ours and none can
+# be told apart — the gate disables itself rather than re-dispatching onto a change another agent
+# is holding. A run that claimed nothing (drained, or contended where the CAS was lost) yields an
+# empty set and the gate is a no-op.
 NEW_IDS=()
-while IFS= read -r nid; do
+while IFS=' ' read -r nid nclaimed; do
   [ -n "$nid" ] || continue
-  grep -qxF "$nid" <<<"$BEFORE" || NEW_IDS+=("$nid")
+  grep -qxF "$nid" <<<"$BEFORE" && continue
+  case "${nclaimed:-}" in
+    ''|*[!0-9]*)
+      printf 'runner-dispatch: run gate — ignoring change %s: no readable claimed_at\n' "$nid" >&2
+      continue ;;
+  esac
+  [ "$nclaimed" -ge "$DISPATCH_EPOCH" ] || {
+    printf 'runner-dispatch: run gate — ignoring change %s: claimed before this dispatch started\n' "$nid" >&2
+    continue
+  }
+  NEW_IDS+=("$nid")
 done <<<"$AFTER"
+
+if [ "${#NEW_IDS[@]}" -gt 1 ]; then
+  printf 'runner-dispatch: run gate disabled — %s changes were claimed during this dispatch (%s); this run claims at most one, so none can be attributed to it\n' \
+    "${#NEW_IDS[@]}" "${NEW_IDS[*]}" >&2
+  exit "$rc"
+fi
 
 STILL_INCOMPLETE=()
 for nid in "${NEW_IDS[@]:-}"; do
