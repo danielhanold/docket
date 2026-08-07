@@ -1,3 +1,7 @@
+<!-- docket:backlink:start (generated — do not hand-edit) -->
+> ↩ **[Change 0235 — Writers emit unquoted YAML title scalars, so six change files fail to parse](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0235-writers-emit-unquoted-yaml-title-scalars-so-six-change-files.md)**
+<!-- docket:backlink:end -->
+
 # Design — Writers emit unquoted YAML title scalars, so six change files fail to parse
 
 Change: 0235 · Type: fix · Drafted by `docket-auto-groom` (autonomous; see `## Assumptions`).
@@ -47,10 +51,22 @@ not be well-formed. It takes the **logical value** and carries only syntax legs:
    rather than aborting (`finding #3` in a title is entirely plausible from auto-capture);
 5. the value's first character is a YAML indicator: one of ``[ ] { } , & * ! | > ' " % @ ` ? :``,
    or a leading `-`/`?`/`:` followed by a space. `&anchor …` silently loses its first word;
-   `[WIP] …`, `*star* …` and `@mention …` abort the parse.
+   `[WIP] …`, `*star* …` and `@mention …` abort the parse. **Exemption:** a value that is already a
+   well-formed flow collection — it opens with `[` and closes with `]`, or opens with `{` and closes
+   with `}` — does not fire. `set_field` writes `discovered_from: [234]` through this same path, and
+   quoting it would turn a YAML *sequence* into a *string* for any real parser: a silent,
+   parser-visible regression on the very field this change cites. docket's own `list_field` would
+   not notice (it unwraps quotes first), which is exactly what makes it worth an explicit leg.
+
+   The exemption is a **shape** test, keeping A3's no-key-enumeration stance — it never asks which
+   key is being written.
 
 Legs 4 and 5 are prospective — no title in the tree hits them today — but they are the same defect
 class reached by ordinary English, two `case` statements away, in a file this change already opens.
+
+An **empty** value is explicitly exempt, not incidentally so: no leg would fire on `""` in a careful
+`case` implementation, but `archive-change.sh:101` writes `claimed_at ""` through its own
+`set_field`, so the day that copy adopts the predicate the empty case must already be stated.
 
 **Domain discipline.** The predicate never inspects quoting: it answers "would this logical value
 be safe bare?". The *already-quoted* skip leg (raw token opens with `"` or `'`) stays where the raw
@@ -68,24 +84,42 @@ quoted, not skipped.
 
 `set_field` gains a quoting step: when `docket_scalar_needs_quoting` fires for the value, the value
 is emitted as a **single-quoted** YAML scalar with every embedded `'` doubled; otherwise it is
-emitted bare, exactly as today. The ENVIRON mechanism is unchanged — the transformation happens on
-the value inside `awk`, so B1 byte-fidelity of the *logical* value survives and no `sed`/replacement
-metacharacter is ever reinterpreted.
+emitted bare, exactly as today. The doubling happens **in bash, before the value is exported** to
+`awk`'s `MINT_SF_VAL` — never through `awk`'s `gsub`, whose replacement string reinterprets `&` on
+model-authored prose. The ENVIRON read stays the write mechanism, so B1 byte-fidelity survives with
+no new metacharacter surface.
+
+**The reader must be the exact inverse.** `_docket_unwrap_quotes` today strips one matched quote
+pair and deliberately does no unescaping, so a written `'…manifest''s…'` would read back as
+`manifest''s` — visible in `BOARD.md` (`render-board.sh` renders `field "$f" title` directly) and in
+`mint-stub`'s `dup_of` slug comparison. Three of the six repair targets carry apostrophes, so this
+is not hypothetical. `_docket_unwrap_quotes` therefore gains one leg: inside a **single-quoted**
+token, `''` collapses to `'`. Double-quoted tokens are untouched — no escape interpretation is added
+there, and the two existing double-quoted titles (0190, 0137) contain no escapes.
 
 Only-when-needed is load-bearing, not cosmetics: `set_field` also writes `id`, dates, `type` and the
-**list** `discovered_from: [234]`, and unconditional quoting would turn a list into a string that
-`list_field` can no longer parse. Because the predicate's three legs can never fire on an integer,
-an ISO date, a slug, or a `[…]` list, a narrow predicate is also the safe one.
+**list** `discovered_from: [234]`, and unconditional quoting would turn a YAML sequence into a
+string. None of the predicate's legs can fire on an integer, an ISO date, or a slug, and leg 5's
+flow-collection exemption keeps it off a `[…]` list — so a narrow predicate is also the safe one.
+`§5`'s "`discovered_from` is still an unquoted list" assert is the guard on precisely this.
 
-Reader compatibility is already in place: `field()` unwraps one matched pair of surrounding quotes
-(change 0138), and `field_raw()`/`fm_field_raw()` keep them for the checker. Both quoting forms stay
-accepted on read — the writer merely picks one.
+The rest of the reader contract already holds: `field()` unwraps one matched pair of surrounding
+quotes (change 0138) and `field_raw()`/`fm_field_raw()` keep them for the checker; both quoting
+forms stay accepted on read — the writer merely picks one.
 
-### 3. Repair the six files
+### 3. Repair the six files — on `docket` **and** on the integration branch
 
 One commit on `docket` quoting the six `title:` values, active and archive alike. No word of any
 title changes; an archived record stays the same record, in a form a parser can read. (An archived
-file is immutable as a *record*; a syntactically broken one is not a record anyone can read.)
+file is immutable as a *record*; a syntactically broken one is not a record anyone can read. Nothing
+in the convention makes an archived change file immutable — that rule covers `Accepted` ADRs only.)
+
+This repo runs `terminal_publish: true`, and all three archived targets (0173, 0211, 0217) are
+already published on `origin/main` with the broken line intact. A `docket`-only repair would leave
+main's copies unparseable and the two branches divergent — the stated goal half-met. The three
+archived files are therefore **republished onto the integration branch** with
+`terminal-publish.sh`, in the same change (`adr-update-delivery`: an edit to an already-published
+record has to reach the branch it was published to).
 
 ### 4. Widen the rule's wording
 
@@ -100,8 +134,12 @@ is unchanged and is not edited.
   interior colon-space inside an already-quoted value, `offset` vs `off`) stays silent.
 - `set_field` round-trip: mint a stub whose `--title` carries each malformed shape, then assert the
   written file's `field_raw` is quoted, `field` returns the original value byte-for-byte, and
-  `discovered_from` is still an unquoted list. Mutation-test by stripping the quoting step and
-  watching the asserts redden (`guards-are-code`, `assert-detects-removal-not-replacement`).
+  `discovered_from` is still an unquoted list. **The apostrophe cases are mandatory fixtures**, not
+  an extra — a title carrying both `'` and `': '` (all three of 0121/0217/0219 do) is the one shape
+  that fails if the writer's doubling and the reader's undoubling are not exact inverses. Include a
+  title that logically starts with `"`, which must be quoted rather than skipped. Mutation-test by
+  stripping the quoting step, and separately the undoubling leg, and watching the asserts redden
+  (`guards-are-code`, `assert-detects-removal-not-replacement`).
 - `board-checks.sh`: add the trailing-colon RED fixture alongside the existing colon-space and
   boolean ones, and keep the quoted-value SILENT fixtures.
 - The **live-tree** backstop stays `scalar-form` under `board-checks`, which already runs over the
@@ -124,19 +162,32 @@ abort and loses the discovery. *Rejected:* refuse and make the caller reword (ke
 maximally readable, but converts a formatting nit into a run-halting error on an unattended path);
 warn-and-write-anyway (leaves the malformed file, which is the status quo).
 
-**A2 — Single-quoted output.** Single-quoted YAML interprets no escapes, so only `'` needs doubling
-and a title containing `\` or `"` survives untouched. *Rejected:* double-quoted (must escape `\` and
-`"`; more ways to get it wrong), even though the two already-correct files (0190, 0137) use it — both
-stay valid, since the checker's skip leg accepts either form.
+**A2 — Single-quoted output, with the reader taught its exact inverse.** Single-quoted YAML
+interprets no escapes, so only `'` needs doubling and a title containing `\` or `"` survives
+untouched. The cost is that `_docket_unwrap_quotes` does not undouble `''` today, so the writer's
+form must be matched by one new reader leg (§2) — a producer whose escaping the reader cannot invert
+would corrupt every apostrophe-bearing title in `BOARD.md` and in `dup_of`'s slug comparison, and
+three of the six repair targets carry apostrophes. *Rejected:* double-quoted (needs `\` **and** `"`
+escaped — two escapes to invert instead of one), even though the two already-correct files (0190,
+0137) use it; both stay valid, since the checker's skip leg accepts either form and the reader's
+double-quote handling is unchanged. *Rejected:* picking a form per value (single-quote unless the
+value has an apostrophe, then double-quote) to avoid touching the reader — it dodges the read-path
+edit only until a value carries both an apostrophe and a `"`, and a branching writer with no
+inverse is harder to reason about than one rule plus its inverse.
 
 **A3 — Quote only when needed, not always.** Unconditional quoting would quote
 `discovered_from: [234]` and break `list_field`. *Rejected:* always-quote (simpler rule, breaks list
 and integer fields); quote only the `title` key by name (a hand-listed field enumeration — the exact
 shape `board-checks.md` already argues against, and it would miss the next free-text field added).
 
-**A4 — One shared predicate in `lib/docket-frontmatter.sh`, not two copies.** The writer and the
-checker enforcing the same rule from one definition is what makes the trailing-colon fix land in
-both at once. *Rejected:* fixing the two sites independently (the drift that produced this change).
+**A4 — One shared predicate in `lib/docket-frontmatter.sh`, scoped to the logical value.** The
+writer and the checker enforcing the same rule from one definition is what makes the trailing-colon
+fix land in both at once, and both scripts already source the library. The predicate takes the
+**logical value** and holds only the syntax legs; the already-quoted skip leg stays in
+`scalar_form_check`, which is the only site holding a raw token. Sharing the skip leg too would be
+unsound in the writer's domain — a title logically starting with `"` would be skipped and written
+bare, which does not parse. *Rejected:* fixing the two sites independently (the drift that produced
+this change); one predicate over the raw token for both (wrong answer on the writer's side).
 
 **A5 — No YAML-parser-based test.** The change stub proposes "a test that parses every change file's
 frontmatter as YAML" as the real backstop. Rejected on two grounds: the hermetic suite cannot see
@@ -148,8 +199,12 @@ deterministically and with no new dependency. *Rejected alternatives:* an option
 skips when absent (vacuous); a hard `yq` dependency for the suite (a new install-time requirement
 for a shape check three `case` statements can do).
 
-**A6 — Repair archived files in place.** *Rejected:* leave archive alone as immutable history
-(leaves a permanently unparseable record); re-archive with a note (churn for a syntax fix).
+**A6 — Repair archived files in place, and republish them.** No convention rule is violated:
+immutability covers `Accepted` ADRs, not archived change files. Because `terminal_publish: true` has
+already put the three archived targets on `origin/main`, the repair is only complete when it reaches
+main too (§3). *Rejected:* leave archive alone as immutable history (leaves a permanently
+unparseable record); repair on `docket` only (leaves main's published copies broken and the branches
+divergent); re-archive with a note (churn for a syntax fix).
 
 **A7 — Only `mint-stub`'s `set_field` is a script-side offender.** `archive-change.sh` and
 `reclaim-claims.sh` carry their own `set_field` copies but only ever write generated constants
@@ -166,6 +221,10 @@ already checks it on read.
 nothing, though 0234 is one of the six broken files and 0189's `|`-in-title finding is its declared
 out-of-scope sibling; neither gates this work.
 
-**A10 — Scope stays at the write boundary and the checker.** No change to the read path, no new
-config knob, no new check id — `scalar-form` gains a leg rather than a sibling check, so the
-`docket-status` check-id vocabulary and its consumers are untouched.
+**A10 — Scope stays at the write boundary, its reader inverse, and the checker.** The read path
+takes exactly one edit — `_docket_unwrap_quotes` learns to undouble `''` inside a single-quoted
+token, the inverse of the writer's one escape (A2). It is not avoidable: a quoting form the reader
+cannot invert defers the corruption rather than preventing it. Everything else holds — no YAML
+library on the read path, no new config knob, and no new check id, since `scalar-form` gains legs
+rather than a sibling check, leaving the `docket-status` check-id vocabulary and its consumers
+untouched.

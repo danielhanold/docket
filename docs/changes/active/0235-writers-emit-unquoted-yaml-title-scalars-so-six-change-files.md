@@ -8,10 +8,10 @@ type: fix
 created: 2026-08-07
 updated: 2026-08-07
 depends_on: []
-related: []
+related: [234]
 discovered_from: [234]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-07-writers-emit-unquoted-yaml-title-scalars-so-six-change-files-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-07-writers-emit-unquoted-yaml-title-scalars-so-six-change-files-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-writers-emit-unquoted-yaml-title-scalars-so-six-change-files-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -69,11 +72,14 @@ failure mode is a parse abort over the whole manifest rather than one bad field.
   a properly quoted YAML scalar when the value needs it. Byte-for-byte fidelity of the value must
   survive — the B1 property is not to be traded away, and quoting must handle a value that itself
   contains quotes.
-- **Repair the six existing files**, active and archive alike. An archived file is immutable as a
-  *record*, but a syntactically broken one is not a record anyone can read.
-- **Close the `scalar-form` gap**: a value ending in `:` is as invalid as one containing `': '`.
-- **Guard it.** A test that parses every change file's frontmatter as YAML would have caught all six
-  at once and is the real backstop; the per-leg `scalar-form` unit assertions are the diagnostic.
+- **Repair the six existing files**, active and archive alike — and republish the three archived
+  ones onto `main`, where `terminal_publish: true` already put the broken copies. An archived file
+  is immutable as a *record*, but a syntactically broken one is not a record anyone can read.
+- **Close the `scalar-form` gap**: a value ending in `:` is as invalid as one containing `': '` —
+  along with a value containing ` #` or opening with a YAML indicator, which truncate *silently*.
+- **Guard it** with one predicate shared by the writer and the checker, so the two can never drift
+  again: hermetic unit + round-trip tests over the predicate and `set_field`, with `board-checks`
+  over the live metadata branch as the backstop. No YAML library is introduced anywhere.
 
 ## Out of scope
 
@@ -86,13 +92,24 @@ failure mode is a parse abort over the whole manifest rather than one bad field.
 
 ## Open questions
 
-- Quote-vs-reject at the write boundary: does `mint-stub` quote silently, or refuse a title that
-  needs quoting and make the caller reword? Silent quoting is friendlier and matches "the script
-  does the mint"; refusal keeps titles readable in the raw file.
-- Which quoting form — single-quoted (only `'` needs doubling) is simpler than double-quoted for
-  prose that may contain backslashes.
-- Does the guard belong in the suite (hermetic, sees only fixtures) or in `board-checks` (sees the
-  live tree)? The six real violations live where the suite cannot see them, which is precisely how
-  they survived.
-- Do the interactive creation paths (`docket-new-change`'s template fill) share the same hole, or
-  does a human-authored title get quoted by the model per AGENTS.md today?
+Settled by the linked spec (autonomous groom; every decision and its rejected alternatives are in
+the spec's `## Assumptions`):
+
+- **Quote-vs-reject:** `mint-stub` quotes **silently**. It runs unattended via auto-capture, where a
+  refusal turns a valid capture into an aborted run.
+- **Quoting form:** **single-quoted**, with `''` doubling done in bash before the ENVIRON export —
+  and `_docket_unwrap_quotes` gains the exact inverse leg, without which every apostrophe-bearing
+  title would render as `manifest''s` in `BOARD.md`.
+- **Where the guard lives:** both, by construction. One shared needs-quoting predicate in
+  `lib/docket-frontmatter.sh` serves the writer and `board-checks`'s `scalar-form`; the hermetic
+  suite covers the predicate and the `set_field` round-trip, while the live-tree backstop stays
+  `board-checks`. No YAML-library dependency is added — a parser guard gated on an optional install
+  goes silently vacuous, which is the failure class this change exists to fix.
+- **Other write paths:** only `mint-stub`'s `set_field` writes free text; the `archive-change` and
+  `reclaim-claims` copies write generated constants. Model-authored frontmatter edits stay covered
+  by the AGENTS.md rule, whose wording is widened from "hand-authored" to any writer.
+
+Scope grew in two places during design: the predicate also covers a value containing ` #` or opening
+with a YAML indicator character (silent truncation, not just a loud abort), and the three archived
+repairs are **republished onto `main`**, where `terminal_publish: true` already put the broken
+copies.
