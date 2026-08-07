@@ -11,7 +11,7 @@ depends_on: []
 related: []
 discovered_from: [239, 241]
 adrs: [72]
-spec:
+spec: docs/superpowers/specs/2026-08-07-repo-scope-detect-merged-s-fallback-and-guard-the-idle-secs-design.md
 plan:
 results:
 trivial: false
@@ -27,6 +27,7 @@ reconciled: false
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
 | Artifact | Link |
 |---|---|
+| Spec | [2026-08-07-repo-scope-detect-merged-s-fallback-and-guard-the-idle-secs-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-repo-scope-detect-merged-s-fallback-and-guard-the-idle-secs-design.md) |
 | ADRs | [ADR-0072](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0072-leg-c-predicate-duplicated-by-value-across-two-scripts.md) |
 <!-- docket:artifacts:end -->
 
@@ -41,11 +42,15 @@ Verified 2026-08-07:
 
 ## What changes
 
-- Add `--repo "$repo"` (when resolved) to the `detect_merged` fallback; argv-recording stub assert per the 0219 fixture idiom.
-- Add a correspondence guard asserting the two idle-secs values stay equal — via whatever minimal shared sentinel the two scripts can be compared against; explicitly NOT a shared-helper refactor (ADR-0072 rejected that).
-- Set this change's `adrs: [72]` (the killed #0241 leaned on ADR-0072 but left its frontmatter `adrs:` empty).
+Design settled 2026-08-07 (auto-groom); detail in the linked spec.
+
+- Add `--repo "$repo"` — unconditionally, since detect_merged's early returns guarantee `$repo` is resolved before the fallback runs — to the `gh pr list` fallback, mirroring `detect_orphan_pr`'s shape and call-site comment; new dedicated argv-recording GH stub asserts per the 0219 fixture idiom, including the REPO_FLAG end-to-end rerun.
+- Add a correspondence guard in `tests/test_docket_status.sh`: textual extraction of the two `NAME=` assignment lines (exactly-one-match anchors), arithmetic evaluation in the test shell (no sourcing, no shared file, no third component — ADR-0072 stands), value-equality assert, plus an in-suite sed-mutation witness proving the guard reddens on a one-sided retune.
+- Update `scripts/docket-status.md`, which quotes the fallback command verbatim without `--repo` (mandatory doc touch). No `## Update` note on ADR-0072 (optional, reversible via docket-adr later).
+- `adrs: [72]` set (repairs the killed #0241's frontmatter omission).
 
 ## Out of scope
 
 - Refactoring the duplicated predicate into a shared helper (ADR-0072 decision stands).
-- Any other `detect_*` leg.
+- Guarding the broader predicate *shape* (base handling, ref resolution) — narrowed to the idle-secs values at triage; shape stays prose-mitigated.
+- Any other `detect_*` leg; no other `gh` call sites; no change to `scripts/board-checks.sh`.
