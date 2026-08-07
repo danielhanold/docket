@@ -33,6 +33,10 @@ Capture only when the discovery clears **all six**. It must:
 6. be work that cannot reasonably be completed on the active branch **without expanding** that
    branch's intended scope.
 
+**These six bind where a branch and a fix loop exist** — sites A and B. The `docket-finalize-change`
+/ `docket-status` harvest is exempt: with neither, it keeps the *Materiality bar*'s own *would a
+human file this as its own change / PR* test instead — see *Routing*.
+
 **Never mint** for: a review finding about the active diff; a bug or regression the active change
 introduced; work `docket-implement-next` is expected to fix in the current branch; minor cleanup or
 refactoring with no independent value; documentation needed to complete the active change; a vague
@@ -92,13 +96,13 @@ leading heading — never five top-level sections:
 
 ## Per discovery
 
-**Per discovery** (after the gates and the materiality bar): assign exactly one type from
-`CHANGE_TYPES` — the model classifies, the script never infers (ADR-0012). `AUTO_CAPTURE_ENABLED:
-false` ⇒ report, mint nothing. Enabled but the type is outside `AUTO_CAPTURE_TYPES` (the literal
-`all`, or a subset) ⇒ mint nothing, report it as **policy-suppressed**. Enabled and admitted ⇒
-`mint-stub --type`. Every outcome keeps ADR-0045's best-effort posture. **Type filtering runs before
-the cap is consumed** — a suppressed candidate must never spend a mint slot; dedup stays after
-admission.
+**Per discovery** (after whichever bar the site applies — the six gates at A and B, the materiality
+bar at the harvest): assign exactly one type from `CHANGE_TYPES` — the model classifies, the script
+never infers (ADR-0012). `AUTO_CAPTURE_ENABLED: false` ⇒ report, mint nothing. Enabled but the type
+is outside `AUTO_CAPTURE_TYPES` (the literal `all`, or a subset) ⇒ mint nothing, report it as
+**policy-suppressed**. Enabled and admitted ⇒ `mint-stub --type`. Every outcome keeps ADR-0045's
+best-effort posture. **Type filtering runs before the cap is consumed** — a suppressed candidate
+must never spend a mint slot; dedup stays after admission.
 
 ## The deterministic mint
 

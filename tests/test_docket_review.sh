@@ -467,6 +467,24 @@ for gate in "outside the scope" "independently valuable" "more than a defect" \
   assert "auto-capture: admission gate names '$gate'" \
     'grep -qiF -- "'"$gate"'" <<<"$ac_gates_flat"'
 done
+# The site-C carve-out must be stated HERE, in the gates section, not only in *Routing* two sections
+# downstream. Gates 1, 2, 3 and 6 are written against "the active change" / the active branch, which
+# do not exist at the docket-finalize-change / docket-status harvest; a harvest reader who stops at
+# this section and applies them literally suppresses exactly the cheap-to-fix follow-up the
+# *Materiality bar*'s change-0218 exemption exists to protect. The existing carve-out assert keys on
+# `$ac_route_flat`, so without these two the gates section can stay unscoped forever with every
+# assert green. Keyed to detect the UNSCOPED state (learnings: assert-detects-removal-not-
+# replacement): deleting the scoping clause reddens both.
+#
+# Exactly ONE bounded repeat per pattern, deliberately: an ERE stacking two `{0,n}` gaps backtracks
+# catastrophically on NON-matching input — the very mutation these exist to catch — and hangs for
+# minutes instead of reddening (recorded on the *drill-down trigger* assert below). The `[^.]` class
+# scopes each gap to one sentence, and both bounds sit under the 255 ERE repetition ceiling BSD grep
+# enforces (PATH `grep` here is ugrep, which accepts more; tests/test_grep_portability.sh does not).
+assert "auto-capture: the six gates are scoped to sites with a branch and a fix loop" \
+  'grep -qiE "(these six|the six|all six)[^.]{0,120}(branch and a fix loop|sites A and B)" <<<"$ac_gates_flat"'
+assert "auto-capture: the gates section names the harvest exemption and its own bar" \
+  'grep -qiE "harvest[^.]{0,160}Materiality bar" <<<"$ac_gates_flat"'
 
 # Case two: a current-branch finding that must NOT become a change. The never-mint list is the
 # suppression half; it lives with the gates so a reader who reaches the gates cannot miss it.
