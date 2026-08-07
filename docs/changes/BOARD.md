@@ -1,6 +1,6 @@
 # Backlog
 
-**234 changes** — 🟢 2 in progress · 🟡 55 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 144 done · 🗑️ 28 killed
+**234 changes** — 🟢 2 in progress · 🟡 55 proposed · ⚪ 4 deferred · ✅ 145 done · 🗑️ 28 killed
 
 ## 🟢 In progress (2)
 
@@ -78,12 +78,6 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (1)
-
-| # | Title | Priority | Type | PR | Readiness |
-|---|-------|----------|------|----|-----------|
-| [0226](active/0226-reframe-auto-capture-as-capability-discovery-with-strict-adm.md) | Reframe auto-capture as capability discovery with strict admission gates | `medium` | `feat` | [#168](https://github.com/danielhanold/docket/pull/168) |  |
-
 ```mermaid
 graph TD
   0007
@@ -141,7 +135,6 @@ graph TD
   0221
   0211 --> 0222
   0224
-  0218 --> 0226
   0229
   0230
   0223 --> 0231
@@ -152,17 +145,17 @@ graph TD
   0175:::done
   0192:::done
   0211:::done
-  0218:::done
   0223:::done
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (172)</summary>
+<details><summary>✅🗑️ Archive — done + killed (173)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0228](archive/2026-08-07-0228-finalize-s-auto-detect-suite-loop-has-no-failure-accumulator.md) | finalize's auto-detect suite loop has no failure accumulator, so a mid-suite red merges | 2026-08-07 |
 | [0227](archive/2026-08-07-0227-parallel-test-suite-runner.md) | Parallel test-suite runner — 4x+ wall-clock speedup | 2026-08-07 |
+| [0226](archive/2026-08-07-0226-reframe-auto-capture-as-capability-discovery-with-strict-adm.md) | Reframe auto-capture as capability discovery with strict admission gates | 2026-08-07 |
 | [0225](archive/2026-08-07-0225-the-test-suite-has-grown-into-the-harness-s-foreground-ceilin.md) | The test suite has grown into the harness's foreground ceiling — cut its wall-clock runtime | 2026-08-07 |
 | [0223](archive/2026-08-07-0223-the-build-gate-contract-never-states-an-execution-posture-for.md) | The build gate contract never states an execution posture for a suite that outgrows a single foreground call | 2026-08-07 |
 | [0220](archive/2026-08-07-0220-clear-the-unfixed-review-findings-from-change-0207.md) | clear the unfixed review findings from change 0207 | 2026-08-07 |
@@ -183,7 +176,6 @@ graph TD
 | [0202](archive/2026-08-05-0202-clear-the-unfixed-review-findings-from-change-0113.md) | Clear the unfixed review findings from change 0113 | 2026-08-05 |
 | [0078](archive/2026-08-05-0078-codex-cli-validation-runbook.md) | Codex CLI live-validation runbook — prove docket works end-to-end under Codex | 2026-08-05 |
 | [0201](archive/2026-08-03-0201-skill-compression-round-three.md) | Skill compression round three — targeted progressive disclosure on the Big 4 + regrowth-guard ratchet | 2026-08-03 |
-| [0194](archive/2026-08-03-0194-retire-the-retired-default-framing-from-the-docket-owned-rol.md) | Retire the retired-default framing from the docket-owned role skill bodies | 2026-08-03 |
 | [0183](archive/2026-08-01-0183-cursor-dispatch-head-ships-a-stale-unpinned-claim-its-guard.md) | Cursor dispatch head ships a stale unpinned claim; its guard retired itself | 2026-08-01 |
 | [0044](archive/2026-07-30-0044-configurable-build-model.md) | Configurable SDD build models for docket-implement-next | 2026-07-30 |
 | [0162](archive/2026-07-28-0162-restore-the-machine-local-ignored-advisory-for-a-committed-t.md) | Restore the machine-local-ignored advisory for a committed too-deep runtime.bash | 2026-07-28 |
@@ -209,7 +201,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 11 done |
+| [2026-08](archive/) | 12 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
