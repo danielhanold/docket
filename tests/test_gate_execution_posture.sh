@@ -397,6 +397,10 @@ evid_body="$(cat "$EVID" 2>/dev/null)"
 # still pass on an empty sibling.
 assert "evidence: is non-vacuous (>= 40 lines)" \
   '[ "$(printf "%s\n" "$evid_body" | grep -c .)" -ge 40 ]'
+# Closes the reverse direction of the absence assert below: that one proves the Method section LEFT
+# the kept file, this one proves it ARRIVED here rather than being deleted outright. Keyed on the
+# heading, so it pins structure, not prose — a rewrite of the evidence text does not rot it.
+assert "evidence: carries the Method section" 'grep -qE "^## Method" <<<"$evid_body"'
 assert "reference: points at the evidence file" \
   'grep -qF "gate-execution-evidence.md" <<<"$ref_body"'
 # ABSENCE assert, deliberately: a guard asserting a removed class is ABSENT cannot go stale, because
