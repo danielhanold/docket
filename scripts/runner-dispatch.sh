@@ -219,7 +219,7 @@ for nid in "${NEW_IDS[@]:-}"; do
   # One re-dispatch is a real cost (a false `run-incomplete` spends a full agent run), which is
   # exactly why the bound is one and not a loop: the second strike stops and tells a human.
   unmet="${verdict#run-incomplete "$nid" }"
-  retry_ctx="docket-implement-next $nid — the previous run left Step 7 unmet (${unmet}); resume that change and finish it: push the branch, open the PR, and write status: implemented + pr:. If it genuinely cannot proceed, write a dated '## Run halted' section into the change file and commit it."
+  retry_ctx="docket-implement-next $nid — the previous run left Step 7 unmet (${unmet}); resume that change and finish it: push the branch, open the PR, and write status: implemented + pr:. If it genuinely cannot proceed, write a '## Run halted' section into the change file and commit it — the heading must be bare and undated (the reader matches the whole line), so put the date inside the body."
   printf 'runner-dispatch: run gate — re-dispatching once for change %s (%s)\n' "$nid" "$unmet" >&2
   "$DOCKET_BASH_PATH" "$ADAPTER" "${args[@]}" -- "$@" "$retry_ctx"
 
