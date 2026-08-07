@@ -8,10 +8,10 @@ type: refactor
 created: 2026-08-07
 updated: 2026-08-07
 depends_on: []
-related: []
+related: [244, 255]
 discovered_from: [179, 165]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-07-config-reader-consolidation-one-extractor-or-a-recorded-adr-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-07-config-reader-consolidation-one-extractor-or-a-recorded-adr-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-config-reader-consolidation-one-extractor-or-a-recorded-adr-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -38,14 +41,15 @@ Verified 2026-08-07:
 
 ## What changes
 
-One deliberate ruling, then its artifact:
+Settled by the 2026-08-07 auto-groom spec (see Artifacts): **one extractor where readers must agree; a recorded ADR where divergence is deliberate.**
 
-- Either factor a shared extractor (likely home: `scripts/lib/`) that the flow-map readers — and possibly `migrate-to-docket.sh`'s `yaml_get` — consume, with byte-identical behavior gates; or
-- Record an ADR that the copies stay separate (per-reader constraints: runner-dispatch's tolerance is deliberate; migrate's standalone posture), and add a correspondence guard so the value-class and quote-leg rules cannot drift one-sided again.
+- Consolidate the flow-map pair: line-level `hd_line_field`/`hd_line_field_raw` helpers in `scripts/lib/harness-defaults.sh`; `hd_field*` and sync-agents' `field_of*` become delegating wrappers (sync-agents already sources the lib). The lib's :8-12 non-reuse header is rewritten — its concern is directional and the delegation runs the other way. Byte-identical behavior gated by the existing test pins plus a correspondence probe on the ADR-0065 rows.
+- The block-mapping reader (`runner-dispatch.sh`, deliberately tolerant) and the flat-scalar family (`migrate-to-docket.sh`'s `yaml_get` vs `docket-config.sh`'s `config_*`) stay separate: one new ADR records the ruling and each survivor's true constraint — including that #0165's standalone premise was re-derived and found false (migrate already sources `scripts/lib/`; the real reason is contract divergence). Cross-reference comment additions at each surviving copy.
 
-Both #0179's and #0165's bodies carried stale premises (see above) — the spec must restate the current shapes, not inherit theirs.
+Grooming note: #0165's "standalone pre-install" claim lived in the killed stub, not the code — `yaml_get`'s no-YAML-dependency comment is still true and stays.
 
 ## Out of scope
 
-- `docket-frontmatter.sh`'s `field`/`fm_field*` family — owned by the frontmatter-accessor audit change.
-- Changing any reader's accepted-value semantics (ADR-0065 validation posture stands).
+- `docket-frontmatter.sh`'s `field`/`fm_field*` family — owned by #0244 (boundary checked: 0244's census guard patterns do not match `field_of*` call sites).
+- Changing any reader's accepted-value semantics (ADR-0065 validation posture stands); the validators' quote legs are #0255's territory (same file, disjoint functions — either merge order is fine).
+- Any vendor model allowlist (ADR-0015).
