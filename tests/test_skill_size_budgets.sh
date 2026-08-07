@@ -556,6 +556,19 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # lines -> the next multiple of 5 is 170, which leaves 2 lines — the near-zero mode this block warns
 # about, and the same reading both rows above took — so the multiple after: 175. 1612 words -> 1650
 # leaves 38 words, clear of the 25-word threshold, so 1650 stands.
+# skills/docket-finalize-change/SKILL.md's WORD budget was raised 3450 -> 3500 by change 0223, which
+# added the gate-execution-posture citation to item 5's `local` leg: finalize's own suite run obeys
+# the posture `docket-build` owns, including the `GATE_OBSERVATION_BUDGET` bound on observing it.
+# The prose is already the minimum form — a CITATION, not a restatement (it is the deliberate mirror
+# of build citing this file's `configured-bash-finalize` block for the suite command), so the
+# considered home question resolves the other way from the usual: the rule's home IS
+# skills/docket-build/references/gate-execution.md, and only the pointer lives here. A pointer
+# cannot live in a reference file, because it must be read at the moment the agent is about to run
+# the gate. Every other row this change touched was re-set and this one was not: the file measures
+# 3437 words against 3450, thirteen words of headroom, which is the near-zero failure mode this
+# block's 0102 and 0137 entries exist to forbid. Set per the rounding rule above from the measured
+# actual: 3437 words -> the next multiple of 50 is 3450, within the 25-word threshold, so the
+# multiple after: 3500 (63 words of margin). The LINE budget was NOT raised (174 actual, 180 budget).
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -571,7 +584,7 @@ skills/docket-convention/references/agent-layer.md         190 2150
 skills/docket-convention/references/auto-capture.md         55  600
 skills/docket-convention/references/learnings.md            84  580
 skills/docket-convention/references/terminal-close-out.md  173 1458
-skills/docket-finalize-change/SKILL.md                     180 3450
+skills/docket-finalize-change/SKILL.md                     180 3500
 skills/docket-finalize-change/references/gate-failure.md    35  900
 skills/docket-groom-next/SKILL.md                           77 1484
 skills/docket-implement-next/SKILL.md                      165 4300
