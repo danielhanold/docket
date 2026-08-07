@@ -4,8 +4,10 @@
 # resolves the runners.<name>: config block across layers (repo-local > repo-committed >
 # global; per-key), exports it as DOCKET_RUNNER_CFG_<KEY>, and CALLS the named adapter
 # scripts/runners/<name>.sh in the foreground, returning with its verbatim exit code (change 0237
-# replaced the original `exec` so the facade regains control at that seam). Registration IS the
-# adapter file's existence. Unknown runner => loud nonzero (abort-and-report).
+# replaced the original `exec` so the facade regains control at that seam). On that seam sits the
+# RUN GATE: for an `implement-next` delegation only, an unfinished run gets ONE re-dispatch and a
+# second strike exits 1 — the sole path where the facade does not return the adapter's own code.
+# Registration IS the adapter file's existence. Unknown runner => loud nonzero (abort-and-report).
 # Contract: scripts/runner-dispatch.md.
 # Mock seams: RUNNERS_DIR, GIT (via lib/docket-root.sh).
 set -uo pipefail
@@ -200,12 +202,43 @@ while IFS= read -r nid; do
   grep -qxF "$nid" <<<"$BEFORE" || NEW_IDS+=("$nid")
 done <<<"$AFTER"
 
-# Reporting only — the bounded re-dispatch and the two-strikes abort extend this loop (change 0237
-# Task 5); the shape is deliberately left extensible.
+STILL_INCOMPLETE=()
 for nid in "${NEW_IDS[@]:-}"; do
   [ -n "$nid" ] || continue
   verdict="$("$DOCKET_BASH_PATH" "$VERIFY_RUN" "$nid" 2>/dev/null)"
   printf 'runner-dispatch: run gate — %s\n' "${verdict:-run-unverifiable $nid}" >&2
+  case "$verdict" in
+    run-incomplete*) : ;;
+    # run-halted NEVER re-dispatches: a halt means a human is needed, and spending a second full
+    # agent run on it is waste. run-complete and run-unclaimed need nothing. An empty/unparseable
+    # verdict falls here too — the gate acts only on a POSITIVE finding, never on a guess.
+    *) continue ;;
+  esac
+
+  # ONE bounded re-dispatch — docket-build's one-escalation-per-task rule, applied at this seam.
+  # One re-dispatch is a real cost (a false `run-incomplete` spends a full agent run), which is
+  # exactly why the bound is one and not a loop: the second strike stops and tells a human.
+  unmet="${verdict#run-incomplete "$nid" }"
+  retry_ctx="docket-implement-next $nid — the previous run left Step 7 unmet (${unmet}); resume that change and finish it: push the branch, open the PR, and write status: implemented + pr:. If it genuinely cannot proceed, write a dated '## Run halted' section into the change file and commit it."
+  printf 'runner-dispatch: run gate — re-dispatching once for change %s (%s)\n' "$nid" "$unmet" >&2
+  "$DOCKET_BASH_PATH" "$ADAPTER" "${args[@]}" -- "$@" "$retry_ctx"
+
+  verdict="$("$DOCKET_BASH_PATH" "$VERIFY_RUN" "$nid" 2>/dev/null)"
+  printf 'runner-dispatch: run gate — after re-dispatch: %s\n' "${verdict:-run-unverifiable $nid}" >&2
+  case "$verdict" in
+    run-incomplete*) STILL_INCOMPLETE+=("$verdict") ;;
+  esac
 done
+
+if [ "${#STILL_INCOMPLETE[@]}" -gt 0 ]; then
+  # Abort-and-report. The change stays `in-progress` with its claim intact; board-checks'
+  # `aborted-run` remains the standing backstop. This is the only NEW non-zero this change
+  # introduces, and it is on a path that is presently silent. The retry's own exit code is
+  # deliberately NOT propagated: `$rc` (the first adapter's code) is what every no-action path
+  # returns, and this abort supersedes it with 1 rather than reporting a second, different code.
+  printf 'runner-dispatch: RUN GATE FAILED after one re-dispatch — a delegated implement-next run did not reach its PR:\n' >&2
+  for v in "${STILL_INCOMPLETE[@]}"; do printf '  %s\n' "$v" >&2; done
+  exit 1
+fi
 
 exit "$rc"

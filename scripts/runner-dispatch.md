@@ -4,12 +4,16 @@
 
 The runner-neutral entry point of the cross-harness runner delegation framework (change 0079).
 Generated shim wrappers make exactly one call to it (via `docket.sh runner-dispatch`); it
-validates the request, anchors the repo root, resolves the per-runner config block, and hands
-off — foreground — to the named per-runner adapter `scripts/runners/<name>.sh`, which owns
-everything child-specific. Adding a future runner touches only the seams: a new adapter script
-+ contract in `scripts/runners/`, and a registry token in `sync-agents.sh`'s
-`REGISTERED_RUNNERS` (generation-time); the facade itself never changes — it has now absorbed
-three adapters (`codex`, `cursor`, `opencode`) without a line of change.
+validates the request, anchors the repo root, resolves the per-runner config block, and **calls
+and returns** — foreground — to the named per-runner adapter `scripts/runners/<name>.sh`, which
+owns everything child-specific. Adding a future runner touches only the seams: a new adapter
+script + contract in `scripts/runners/`, and a registry token in `sync-agents.sh`'s
+`REGISTERED_RUNNERS` (generation-time) — it absorbed three adapters (`codex`, `cursor`,
+`opencode`) without a line of change.
+
+Change 0237 replaced the original `exec` with a call-and-return so the facade regains control
+after the adapter, and hung a **run gate** on that seam: for an `implement-next` delegation only,
+the facade verifies in git that the delegated run actually reached its PR.
 
 ## Usage
 
@@ -34,7 +38,9 @@ docket.sh runner-dispatch --runner <name> --agent <agent> [--model <m>] [--effor
   than a silent run in the primary checkout on the integration branch.
 - `-- <args…>` — forwarded to the adapter as caller task context.
 
-Mock seams: `RUNNERS_DIR` (adapter directory), `GIT` (through `lib/docket-root.sh`).
+Mock seams: `RUNNERS_DIR` (adapter directory), `GIT` (through `lib/docket-root.sh`), and — for the
+run gate (change 0237) — `VERIFY_RUN` (the disposition reader, default `scripts/verify-run.sh`) and
+`DOCKET_FACADE` (the facade used for the post-return metadata re-sync, default `scripts/docket.sh`).
 
 ## Behavior
 
@@ -63,14 +69,43 @@ Mock seams: `RUNNERS_DIR` (adapter directory), `GIT` (through `lib/docket-root.s
    dispatch. The key is still claimed for its layer before its value is parsed, so a malformed
    high-precedence value masks the same key in lower layers (precedence is per-key, not
    per-value).
-4. **Handoff** — `exec "$DOCKET_BASH_PATH" scripts/runners/<name>.sh --agent <agent> [--model m] [--effort e]
-   -- <args…>`, foreground. The facade's stdout/stderr/exit code are the adapter's.
+4. **Handoff** — `"$DOCKET_BASH_PATH" scripts/runners/<name>.sh --agent <agent> [--model m]
+   [--effort e] -- <args…>`, foreground, **call-and-return** (change 0237 — no longer `exec`).
+   The adapter's stdout/stderr pass through and its exit code is propagated **verbatim** on every
+   path where the run gate takes no action.
+5. **Run gate (change 0237)** — engages **only** for `--agent implement-next`. Before the handoff
+   the facade records the set of `in-progress` change ids (`verify-run --in-progress-ids`); after
+   the handoff it re-syncs the metadata worktree and re-reads the set. Any id **not** in the
+   before-set is this run's claim, and each is checked with `verify-run <id>`:
+
+   - `run-complete` / `run-halted` / `run-unclaimed` → nothing; exit the adapter's code.
+   - `run-incomplete` → **one** bounded re-dispatch of the same adapter, with the change id and the
+     unmet conjuncts as task context. If the second verdict is still `run-incomplete`, the facade
+     aborts loudly with exit `1`, naming the change and the still-unmet conjuncts.
+
+   `run-halted` never re-dispatches — a halt means a human is needed. A `build-*` delegation leaves
+   its change `in-progress` by design, which is why the agent gate is load-bearing rather than an
+   optimization. An unrecognised agent is a no-op, never a guess. A snapshot that cannot be read
+   **disables the gate with a warning** — it never converts a healthy dispatch into a failure.
+
+   The re-dispatched run's own exit code is not propagated: the gate's verdict is read from git,
+   not from the retry's status, so the outcome is either `$rc` (the first adapter's code) or the
+   two-strikes `1`.
+
+**Signals.** The facade installs no traps. A **group**-directed signal (a terminal's Ctrl-C) is
+unchanged by the loss of `exec` — the adapter is in the same process group and receives it
+directly. A **pid**-directed signal to the facade now behaves differently, because the facade is a
+separate process: `INT` is deferred while it waits on its child and then discarded, and `TERM`
+kills the facade and orphans the adapter. Nothing in docket signals the facade by pid; forwarding
+traps are a deliberate deferral, not an oversight.
 
 ## Exit codes
 
 - `1` — validation failure, unknown runner, not inside a git repository, or a rejected
   `--worktree` (missing for a `build-*` agent, not a directory, or not a worktree of this repo).
-- otherwise — the adapter's exit code (the facade `exec`s it).
+- `1` — the run gate's two-strikes abort: a delegated `implement-next` run was still
+  `run-incomplete` after one re-dispatch. The change stays `in-progress` with its claim intact.
+- otherwise — the adapter's exit code, propagated verbatim.
 
 ## Invariants
 
@@ -78,6 +113,10 @@ Mock seams: `RUNNERS_DIR` (adapter directory), `GIT` (through `lib/docket-root.s
   worktree (ADR-0034 unamended). A relative `--worktree` joins to the main worktree, so the
   argument inherits that cwd-independence rather than reintroducing the hazard.
 - Never runs a child harness itself; all child specifics live in the adapter.
+- The adapter's exit code is propagated verbatim whenever the run gate takes no action; the
+  two-strikes abort is the only new non-zero, and only on a path that was previously silent.
+- The run gate is scoped to `--agent implement-next` and never writes docket state — it acts only
+  by running an agent. It re-dispatches an unfinished change **at most once**.
 - Never degrades a delegation request to a native run.
 - Foreground only — the shim (and any native caller) blocks until the child exits.
 - The `runners.<name>:` parse handles simple `key: value` scalars only — by design; a runner
