@@ -2,11 +2,11 @@
 id: 177
 slug: harden-the-0174-fixture-template-helpers-sticky-failure-ungu
 title: Harden the 0174 fixture-template helpers (sticky failure, unguarded mktemp, destructive pre-clean, leaked root)
-status: proposed
+status: killed
 priority: medium
 type: chore
 created: 2026-07-31
-updated: 2026-07-31
+updated: 2026-08-07
 depends_on: []
 related: []
 discovered_from: [174]
@@ -65,3 +65,7 @@ does not clobber its existing `EXIT` trap.
 - Whether the four helpers should converge on a shared `tests/lib/` at this point, or stay
   independent as 0174 decided — hardening four near-identical bodies is the first real pressure on
   that call.
+
+## Why killed
+
+Consolidated into #0252 at the 2026-08-07 backlog triage: all four 0174-template robustness gaps verified and carried over; lands with the shared fixture-helper work.
