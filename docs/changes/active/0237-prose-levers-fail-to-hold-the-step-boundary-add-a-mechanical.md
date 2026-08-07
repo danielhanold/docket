@@ -8,7 +8,7 @@ type: fix
 created: 2026-08-07
 updated: 2026-08-07
 depends_on: [219]
-related: [96, 113, 212, 235, 236]
+related: [96, 113, 212, 235, 236, 242]
 discovered_from: [235]
 adrs: [69]
 spec: docs/superpowers/specs/2026-08-07-prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical-design.md
@@ -85,7 +85,7 @@ linked spec.
 - **A Claude Code `Stop` / `SubagentStop` hook**, and all `settings.json` and installer work. It was
   investigated and confirmed workable, but it covers exactly one harness and is the only candidate
   whose code docket does not own. Filed as its own stub — it is a small wiring job onto the oracle
-  this change builds.
+  this change builds — filed as change 0242.
 - **Any change to `board-checks.sh`'s legs or floors.** A board pass cannot distinguish a stopped run
   from a live one, so its floors are correct; and change 0219 rewrote that block hours before this
   design. `board-checks.md` gains one pointer sentence, nothing more.

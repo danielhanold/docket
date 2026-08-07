@@ -214,9 +214,10 @@ floor-free check available at a dispatch seam. Documentation only.
   snapshot diff, the agent gate, the bounded re-dispatch, and exit-code preservation.
 
 **Out:**
-- Any Claude Code `Stop` / `SubagentStop` hook, and any `settings.json` or installer work. Files as
-  its own stub — it is the only path that catches a **Claude** run at the moment it stops, which is
-  where all six incidents occurred, so it should be tracked, not forgotten.
+- Any Claude Code `Stop` / `SubagentStop` hook, and any `settings.json` or installer work. Filed as
+  **change 0242** (`depends_on: [237]`) — it is the only path that catches a **Claude** run at the
+  moment it stops, which is where all six incidents occurred, so it is tracked rather than
+  forgotten.
 - Any change to `board-checks.sh`'s legs or floors (§4).
 - Any new config knob. The gate is unconditional for `implement-next` delegations and bounded at one
   re-dispatch, matching `aborted-run`'s hardcoded-horizon precedent.
