@@ -397,7 +397,7 @@ esac
 # Coordination-key fence: a key whose effect writes SHARED state (commits on shared
 # branches, committed generated files, external GitHub objects) is per-repo-only; a global
 # value is loudly warned-and-ignored — never honored, never fatal. (ADR records the rule.)
-for _fkey in metadata_branch integration_branch changes_dir adrs_dir results_dir github_project terminal_publish; do
+for _fkey in metadata_branch integration_branch changes_dir adrs_dir results_dir github_project terminal_publish skip_results_only_delta; do
   if [ -n "$(config_scalar_get global "$_fkey")" ]; then
     printf "docket-config: warning: global config key %s is per-repo-only — set it in the repo's committed .docket.yml; ignored\n" "$_fkey" >&2
   fi
@@ -445,6 +445,29 @@ FINALIZE_REQUIRE_PR_APPROVAL="${FINALIZE_REQUIRE_PR_APPROVAL:-false}"
 case "$FINALIZE_REQUIRE_PR_APPROVAL" in
   true|false) ;;
   *) die "unparseable config: finalize.require_pr_approval must be 'true' or 'false', got '$FINALIZE_REQUIRE_PR_APPROVAL'" ;;
+esac
+# change 0190: skip_results_only_delta — the ARMING switch for the second limb of finalize's
+# post-rebase suite-skip predicate (skip when the evidence head_sha is a strict ancestor of HEAD
+# and the whole delta lies under <results_dir>/). Default `false`, so a repo that never sets it
+# keeps change 0170's equality-only predicate unchanged.
+# Coordination-fenced (per-repo-only), UNLIKE its two finalize siblings, and deliberately so.
+# `gate` and `require_pr_approval` express a POLICY a maintainer may legitimately hold differently
+# per machine. This key instead asserts a FACT about the repo's own test suite — that no executable
+# suite component reads the results tree as a content source, which is the ONLY reason skipping the
+# suite over a results-only delta is safe. A machine-scoped value asserts that fact for every repo
+# the machine touches (global config) or for a repo where no collaborator can see it was claimed
+# (.docket.local.yml, gitignored), i.e. arms a merge-gating skip on a property nobody verified
+# there. ADR-0019's own rule reaches the same classification: the armed key's effect is a merge
+# pushed onto the shared integration branch on trust, which is shared state that is not
+# deterministically re-derivable. So: committed layer only, no lcl/gbl rungs — a machine-scoped
+# value is warned-and-ignored by the Stage 2c fence above.
+# Fails CLOSED on a non-boolean, require_pr_approval's argument inverted: defaulting a typo to
+# `true` would ARM a gate-weakening skip the repo never opted into.
+FINALIZE_SKIP_RESULTS_ONLY_DELTA="$(config_scalar_get committed skip_results_only_delta)"
+FINALIZE_SKIP_RESULTS_ONLY_DELTA="${FINALIZE_SKIP_RESULTS_ONLY_DELTA:-false}"
+case "$FINALIZE_SKIP_RESULTS_ONLY_DELTA" in
+  true|false) ;;
+  *) die "unparseable .docket.yml: finalize.skip_results_only_delta must be 'true' or 'false', got '$FINALIZE_SKIP_RESULTS_ONLY_DELTA'" ;;
 esac
 AUTO_GROOM="$(lcl auto_groom)"; AUTO_GROOM="${AUTO_GROOM:-$(config_scalar_get committed auto_groom)}"; AUTO_GROOM="${AUTO_GROOM:-$(gbl auto_groom)}"; AUTO_GROOM="${AUTO_GROOM:-false}"
 # change 0127: auto_capture became a MAP (change_types + the nested block are resolved together,
@@ -844,6 +867,7 @@ if [ "$MODE" = export ]; then
   emit FINALIZE_GATE "$FINALIZE_GATE"
   emit FINALIZE_TEST_COMMAND "$FINALIZE_TEST_COMMAND"
   emit FINALIZE_REQUIRE_PR_APPROVAL "$FINALIZE_REQUIRE_PR_APPROVAL"
+  emit FINALIZE_SKIP_RESULTS_ONLY_DELTA "$FINALIZE_SKIP_RESULTS_ONLY_DELTA"
   emit LEARNINGS_ENABLED "$LEARNINGS_ENABLED"
   emit LEARNINGS_CAP "$LEARNINGS_CAP"
   emit BOARD_SURFACES "$BOARD_SURFACES"

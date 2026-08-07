@@ -19,6 +19,12 @@ finalize:
   # The parallel runner (change 0227), not auto-detect. No --strict-budget: the gate reads any
   # non-zero exit as a red suite, and a wall-clock breach is not one. See scripts/run-tests.md.
   test_command: scripts/run-tests.sh
+  # Arms the gate's docs-only post-gate skip (change 0190). Default is false everywhere, because
+  # the skip is only safe where no executable suite component reads docs/results/ as a content
+  # source. This repo PROVES that property on every run, in
+  # tests/test_skip_allowlist_invisibility.sh — which is what earns the opt-in here. Delete that
+  # guard and this line must go with it.
+  skip_results_only_delta: true
 
 board_surfaces: [inline]       # BOARD.md only; the GitHub mirror stays off
 

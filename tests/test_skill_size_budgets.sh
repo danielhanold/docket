@@ -752,6 +752,24 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # budget was NOT raised (28 actual, 35 budget).
 # skills/docket-implement-next/SKILL.md was NOT raised by change 0190: it measures 162/4285, inside
 # the existing 165/4300.
+# docket-finalize-change/SKILL.md's budget was raised again, 180/3700 -> 185/3800, by change 0190's
+# whole-branch review fix (finding 2): the skip's second limb had shipped ON by default everywhere,
+# with a trailing "degrade off" sentence an agent was expected to self-apply. It is now armed by a
+# real, default-off, coordination-fenced config key, so step 4 states the arming rule
+# (FINALIZE_SKIP_RESULTS_ONLY_DELTA, read from the Step-0 export block; unset or false means change
+# 0170's equality-only predicate and the disjunct is not evaluated at all; the key is
+# repo-committed only because arming it asserts a property of that repo's own suite), and the
+# gate's configured-block sample plus its export-block sentence name the key beside its siblings.
+# WHERE ELSE IT WAS CONSIDERED, per the naming requirement above: the same and only candidate the
+# entry above names, skills/docket-finalize-change/references/gate-failure.md, and it is rejected
+# for the same reason with more force. That file is read only AFTER the gate has already gone
+# wrong; the arming rule is evaluated on the ordinary GREEN path, at the instant the agent decides
+# whether the suite runs at all — the one run that never opens it. An arming rule parked in the
+# failure reference does not withhold the skip from an unverified repo, it silently grants it.
+# Set per the rounding rule above from the measured actuals: 3750 words -> the next multiple of 50
+# IS 3750, i.e. ZERO margin, so the multiple after it: 3800 (50 words of margin). 178 lines -> the next multiple of 5 is 180, which leaves TWO lines — the near-zero headroom
+# this block's 0102/0137 entries and three later fix rounds all record raising for — so the
+# multiple after it: 185.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -768,7 +786,7 @@ skills/docket-convention/references/agent-layer.md         190 2150
 skills/docket-convention/references/auto-capture.md        130 1250
 skills/docket-convention/references/learnings.md            84  580
 skills/docket-convention/references/terminal-close-out.md  173 1458
-skills/docket-finalize-change/SKILL.md                     180 3700
+skills/docket-finalize-change/SKILL.md                     185 3800
 skills/docket-finalize-change/references/gate-failure.md    35  900
 skills/docket-groom-next/SKILL.md                           77 1484
 skills/docket-implement-next/SKILL.md                      165 4300

@@ -24,7 +24,7 @@
 #   - The PRESENCE-SENSITIVE keys ship commented because uncommenting them changes behavior even
 #     at their default values.
 #   - In the two MACHINE-SCOPED layers (`.docket.local.yml`, global `config.yml`), a full copy
-#     makes the seven `scope: repo-only` keys warn on EVERY docket invocation — they are
+#     makes the eight `scope: repo-only` keys warn on EVERY docket invocation — they are
 #     coordination-fenced and warned-and-ignored there. Copy only `scope: any layer` keys into
 #     those two files.
 #
@@ -113,6 +113,20 @@ finalize:
   # naming the id IS the authorization.
   # scope: any layer (.docket.yml, .docket.local.yml, or global config.yml)
   require_pr_approval: false
+
+  # skip_results_only_delta — (change 0190) arms the SECOND limb of the gate's post-rebase
+  # suite-skip. false (default): the skip fires only when the PR's green build-evidence `head_sha`
+  # EQUALS the branch HEAD being merged (change 0170). true: it ALSO fires when that `head_sha` is
+  # a strict ancestor of HEAD and every path in the delta lies under `results_dir` above — the
+  # shape a post-gate results commit produces. Arm it only in a repo that has PROVEN no executable
+  # component of its test suite reads that tree as a content source (docket's own proof is
+  # tests/test_skip_allowlist_invisibility.sh); otherwise the skip can merge a branch whose suite
+  # verdict really did change after the gate ran.
+  # This is the one finalize key that is repo-only. Its siblings above are POLICY, which may
+  # legitimately differ per machine; this one asserts a FACT about a specific repo's test suite, so
+  # a global or machine-local value would claim that fact for repos where nobody established it.
+  # scope: repo-only (coordination-fenced, ADR-0019)
+  skip_results_only_delta: false
 
 
 # ═══ learnings — the build loop's memory ═══════════════════════════════════════════════════
