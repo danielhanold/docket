@@ -17,7 +17,7 @@ results:
 trivial: false
 auto_groomable: false
 branch: feat/prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical
-claimed_at: 2026-08-07T18:36:15Z
+claimed_at: 2026-08-07T18:37:56Z
 pr:
 blocked_by:
 reconciled: true
