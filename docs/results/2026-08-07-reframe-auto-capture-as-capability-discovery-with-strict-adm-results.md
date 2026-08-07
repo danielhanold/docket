@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0226 — Reframe auto-capture as capability discovery with strict admission gates](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0226-reframe-auto-capture-as-capability-discovery-with-strict-adm.md)**
+> ↩ **[Change 0226 — Reframe auto-capture as capability discovery with strict admission gates](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-07-0226-reframe-auto-capture-as-capability-discovery-with-strict-adm.md)**
 <!-- docket:backlink:end -->
 
 # Reframe auto-capture as capability discovery with strict admission gates — results
