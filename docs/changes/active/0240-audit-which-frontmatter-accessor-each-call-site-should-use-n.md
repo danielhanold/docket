@@ -40,8 +40,32 @@ not audit the other call sites.
 different silent behaviors: `fm_field` (quote-stripped, comment-stripped), `fm_field_raw` (quotes
 kept, comment-stripped), and `fm_field_verbatim` (neither). Nothing states which shape each call
 site *should* use, and the difference is invisible until a value happens to contain ` #` or a
-quote. `fm_field_verbatim` currently has exactly one caller, which is what a fresh distinction
-looks like before anyone has checked whether its siblings were right all along.
+quote.
+
+**Call-site census (measured 2026-08-07 against `feat/writers-emit-unquoted-yaml-title-scalars-so-six-change-files`, PR #172).** The distribution is
+known, so the audit does not have to start by discovering it:
+
+| Accessor | Production call sites | Consumers |
+|---|---|---|
+| `fm_field` | the large majority | `backfill-change-types.sh`, `board-checks.sh`, `github-mirror.sh`, `render-artifact-backlink.sh`, `render-board.sh` |
+| `fm_field_verbatim` | 1 | `board-checks.sh` (`blocked_by`, added by 0235 fix 1) |
+| `fm_field_raw` | **0** | none — only a prose mention survives, in a `board-checks.sh` comment |
+
+Two consequences worth carrying into the design:
+
+- **`fm_field_raw` is now an orphan, and 0235 orphaned it.** Fix 1 moved its only caller to
+  `fm_field_verbatim`. It is *not* dead application code — it is a documented public accessor in a
+  shared library, exercised by `tests/test_docket_frontmatter.sh` — so removing it is a real
+  decision, not a cleanup. The default disposition should be to keep it and record that it has no
+  in-repo caller, mirroring how 0235 resolved review finding 7 for `docket_scalar_needs_quoting`.
+- **The `fm_field` sites are the actual subject.** 0235's fix 4 edited the shared `_fm_scan` body,
+  changing what `fm_field` returns for quoted values. The suite is green across all 87 files, but
+  green proves only that no test encodes the old behavior — not that each consumer *wants* the new
+  one. That verification is the work, and it spans five consumers whose tests live in five
+  different files.
+
+This census was taken after PR #172 was reviewed and is recorded here rather than acted on there:
+0235 was already twice-expanded, and its fix loop has no re-review round.
 
 **Independent value** — with 0235 fully reverted, the three accessors still exist minus
 `fm_field_verbatim`, and the question of which reads may legitimately lose data to a comment strip
