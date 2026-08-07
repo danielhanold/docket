@@ -70,6 +70,7 @@ Immutable, numbered record of *why*. ADRs are never archived or rewritten; once 
 - [ADR-0069](0069-mode-conditioned-clause-discriminates-on-provenance.md) — A mode-conditioned clause in a loadable skill body discriminates on provenance, and the second person belongs to the continue branch (Accepted) ← change #212 · relates to ADR-0024, ADR-0044
 - [ADR-0070](0070-fix-loop-profile-envelope-blocker-floor-and-max-ceiling.md) — The fix loop's profile envelope — a blocker floor at standard, a ceiling below max (Accepted) ← change #218 · relates to ADR-0066
 - [ADR-0071](0071-writer-guarantees-yaml-validity-by-construction.md) — A writer guarantees YAML validity by construction; a checker's predicate is detection only (Accepted) ← change #235 · relates to ADR-0062, ADR-0065
+- [ADR-0072](0072-leg-c-predicate-duplicated-by-value-across-two-scripts.md) — Leg C's predicate is duplicated by value across two scripts, never shared (Accepted) ← change #219
 
 ## Superseded / Reversed
 
