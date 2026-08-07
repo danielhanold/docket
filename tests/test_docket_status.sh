@@ -1424,6 +1424,15 @@ assert "ADR-0072 guard: ORPHAN_PR_IDLE_SECS is assigned exactly once in docket-s
 assert "ADR-0072 guard: ABORTED_RUN_IDLE_SECS is assigned exactly once in board-checks.sh" \
   '[ "${idle_bc_n:-0}" -eq 1 ]'
 
+# A population floor, not just an assignment floor: the two exactly-once anchors above are
+# satisfied even if a constant is assigned once and never read anywhere else — e.g. a predicate
+# that inlines a literal instead of referencing the name. Require at least one occurrence of each
+# name OUTSIDE its own assignment line (>= 2 total: the assignment plus at least one consumer).
+assert "ADR-0072 guard: ORPHAN_PR_IDLE_SECS is actually CONSUMED, not just assigned" \
+  '[ "$(grep -c -e "ORPHAN_PR_IDLE_SECS" "$IDLE_DS")" -ge 2 ]'
+assert "ADR-0072 guard: ABORTED_RUN_IDLE_SECS is actually CONSUMED, not just assigned" \
+  '[ "$(grep -c -e "ABORTED_RUN_IDLE_SECS" "$IDLE_BC")" -ge 2 ]'
+
 idle_ds_v="$(idle_secs_value "$IDLE_DS" ORPHAN_PR_IDLE_SECS || true)"
 idle_bc_v="$(idle_secs_value "$IDLE_BC" ABORTED_RUN_IDLE_SECS || true)"
 assert "ADR-0072 guard: both idle-secs values extract and evaluate to a positive integer" \
@@ -1440,7 +1449,11 @@ idle_mut_before="$(grep -c -e '^ORPHAN_PR_IDLE_SECS=' "$idle_mutcopy/docket-stat
 sed 's|^ORPHAN_PR_IDLE_SECS=.*|ORPHAN_PR_IDLE_SECS=$(( 9 * 3600 ))|' \
   "$idle_mutcopy/docket-status.sh" > "$idle_mutcopy/docket-status.sh.t"
 mv "$idle_mutcopy/docket-status.sh.t" "$idle_mutcopy/docket-status.sh"
-idle_mut_after="$(grep -c -e '^ORPHAN_PR_IDLE_SECS=$(( 9 \* 3600 ))' "$idle_mutcopy/docket-status.sh" || true)"
+# -F (fixed-string): a mid-pattern $ reads as an end-of-line anchor under some grep implementations
+# (e.g. ugrep 7.5.0, the PATH grep on this machine), which would falsely return 0 against a file
+# that genuinely contains this line. The ^ anchor is dropped as redundant: idle_mut_before already
+# pins the assignment to exactly one line-start match.
+idle_mut_after="$(grep -cF -- 'ORPHAN_PR_IDLE_SECS=$(( 9 * 3600 ))' "$idle_mutcopy/docket-status.sh" || true)"
 assert "ADR-0072 guard: the one-sided retune mutation actually landed on the copy" \
   '[ "${idle_mut_before:-0}" -eq 1 ] && [ "${idle_mut_after:-0}" -eq 1 ]'
 assert "ADR-0072 guard: the mutated copy is still valid bash" \
