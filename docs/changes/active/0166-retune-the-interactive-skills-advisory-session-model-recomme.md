@@ -8,10 +8,10 @@ type: chore
 created: 2026-07-28
 updated: 2026-08-07
 depends_on: []
-related: []
+related: [168, 227]
 discovered_from: [164]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-07-retune-the-interactive-skills-advisory-session-model-recomme-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-07-retune-the-interactive-skills-advisory-session-model-recomme-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-retune-the-interactive-skills-advisory-session-model-recomme-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -47,14 +50,26 @@ autonomously), and folding it in would have made a values-only retune also decid
 
 ## What changes
 
-Decide what the two interactive skills should advise post-0164, and apply it — to the advisory
-lines in `skills/docket-new-change/SKILL.md` and `skills/docket-groom-next/SKILL.md`, and to the
-two string assertions in `tests/test_sync_agents.sh` that pin them.
+Settled by the linked spec (2026-08-07). Both advisories anchor to the shipped claude
+`brainstorm-consultant` default in `agents/harness-defaults.yml` — today `claude-opus-5`:
+`docket-new-change` recommends `claude-opus-5` with effort left at model default;
+`docket-groom-next` mirrors the consultant pair, `claude-opus-5` / `medium`. Each advisory names
+its anchor and adds one sentence pointing non-claude harnesses at their harness's
+`brainstorm-consultant` row.
 
-Worth settling as part of that: whether the advisory should name a literal model at all, or point
-at the resolved `agents:` tier so it cannot drift out of sync again.
+The advisory keeps a literal model ID (actionable as a `/model` command), and the drift class is
+closed on the test side: the assertions — which have moved to the Task 6 block of
+`tests/test_sync_agents_drift_docs.sh` (change 0227 shard), not `tests/test_sync_agents.sh` as
+originally cited — stop hardcoding the value and instead resolve it from
+`agents/harness-defaults.yml` via `hd_field` at test time, the mirror rule ADR-0039 → ADR-0048 →
+ADR-0064 applied to the advisory surface. A future retune that misses the SKILL.md advisories
+fails the suite instead of drifting.
+
+Surfaces: the two advisory paragraphs, plus the Task 6 test block. Nothing else moves.
 
 ## Out of scope
 
-- The wrapper defaults themselves — that is change 0164.
+- The wrapper defaults themselves — that is change 0164 (done).
 - Any mechanism for a skill to actually set the session model. The advisory is advisory.
+- Per-harness advisory literals for cursor/codex/opencode — a prose row-pointer only, so no new
+  drift surfaces are minted.
