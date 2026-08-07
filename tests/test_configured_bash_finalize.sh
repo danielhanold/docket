@@ -133,14 +133,20 @@ test_charlie.sh" ]'
 # No nullglob and no [ -e "$test" ] guard, deliberately: with no matching files the glob stays
 # literal, the invocation fails, and the block reports non-zero. nullglob would instead exit 0
 # with zero tests run — a green gate certifying nothing.
-assert "contract does not enable nullglob" \
-  '! grep -qi -- "nullglob" <<<"$contract"'
-
+#
+# The pair below pins that property behaviorally, by effect rather than by spelling: the outcome
+# assert pins the non-zero exit, and the mechanism assert pins WHY it is non-zero — the
+# `configured-bash` wrapper records its "$1", so an unexpanded "tests/test_*.sh" in the runtime log
+# is positive evidence the literal glob actually reached the runtime and failed there, not that the
+# subshell died early on a bad cd or a broken contract. Any suppression of the literal glob —
+# `shopt -s nullglob`, a `[ -e "$test" ] || continue`, a `compgen`/array rewrite — empties that log
+# and reddens the mechanism assert, whatever the spelling. That is why there is no text-shape grep
+# for the word "nullglob" here: it could only enumerate spellings, and it would false-red against a
+# maintainer who hardens the fragment with `shopt -u nullglob`, which SATISFIES this invariant.
 empty_fixture="$TMP/repo-empty"
 mkdir -p "$empty_fixture/tests"
 empty_runtime_log="$TMP/runtime-empty.log"
 empty_execution_log="$TMP/execution-empty.log"
-: > "$empty_execution_log"
 
 empty_status=0
 (
@@ -151,7 +157,7 @@ empty_status=0
 
 assert "empty suite reports non-zero rather than certifying nothing" \
   '[ "$empty_status" -ne 0 ]'
-assert "empty suite runs zero tests" \
-  '[ ! -s "$empty_execution_log" ]'
+assert "empty suite invokes the unexpanded glob" \
+  '[ "$(cat "$empty_runtime_log" 2>/dev/null)" = "tests/test_*.sh" ]'
 
 exit $fail
