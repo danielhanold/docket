@@ -2,11 +2,11 @@
 id: 151
 slug: vacuous-docket-bash-path-asserts-sit-in-eval-free-blocks-out
 title: Vacuous DOCKET_BASH_PATH asserts sit in eval-free blocks, out of the poison-prelude guard's reach
-status: proposed
+status: killed
 priority: medium
 type: fix
 created: 2026-07-28
-updated: 2026-07-28
+updated: 2026-08-07
 depends_on: []
 related: [148, 149, 150]
 discovered_from: [126]
@@ -111,3 +111,7 @@ guard-widening should a third instance ever appear.
 there with the evidence attached. Killing before 0148 merges would lose the tracking thread if 0148
 is reworked, so the kill should follow the merge rather than precede it.
 
+
+## Why killed
+
+Killed at the 2026-08-07 backlog triage: discharged. Change 0148 (merged) removed both vacuous DOCKET_BASH_PATH asserts with in-file attribution (test_docket_config.sh:2095,:2116), and the guard-widening ask was answered no in 0148's assumption 4. Nothing remains.
