@@ -37,16 +37,25 @@
 # --- frontmatter accessors (lifted from github-mirror.sh, which now sources them here) --------
 # _docket_unwrap_quotes VALUE -> logical scalar on stdout, with NO trailing newline.
 # Strips a SINGLE matched pair of surrounding quotes (both " or both ') when VALUE is at least two
-# characters and its first and last characters are the same quote char. Interior bytes are left
-# byte-for-byte: this is NOT YAML unescaping (\" and \\ are untouched — see change 0138, spec
-# Assumption 3). Pure bash parameter expansion — no subshell, no fork, no external tool — so it is
-# pipefail-safe and portable across GNU/BSD hosts. field() and fm_field() are its only callers.
+# characters and its first and last characters are the same quote char. The ONE escape it inverts is
+# single-quoted YAML's only rule: an interior `''` collapses to `'` (change 0235, ADR-0071). A
+# DOUBLE-quoted interior stays byte-for-byte — no unescaping is added there (\" and \\ are untouched
+# — see change 0138, spec Assumption 3), and a BARE value is never rewritten at all. Pure bash
+# parameter expansion — no subshell, no fork, no external tool — so it is pipefail-safe and portable
+# across GNU/BSD hosts. field() and fm_field() are its only callers.
 _docket_unwrap_quotes(){
   local v="$1" q
   if [ "${#v}" -ge 2 ]; then
     q="${v:0:1}"
     if { [ "$q" = '"' ] || [ "$q" = "'" ]; } && [ "${v: -1}" = "$q" ]; then
       v="${v:1:${#v}-2}"
+      # Single-quoted YAML interprets NO escapes and has exactly one rule: an embedded ' is
+      # written ''. Undouble it here — the exact inverse of docket_yaml_single_quote, which
+      # mint-stub now applies to every title (change 0235, ADR-0071). Without this leg an
+      # apostrophe-bearing title reads back as manifest''s in BOARD.md and mis-compares in dup_of.
+      # Double-quoted tokens are deliberately UNTOUCHED: no escape interpretation is added there
+      # (change 0138's stance), and the two double-quoted titles in the tree carry no escapes.
+      if [ "$q" = "'" ]; then v="${v//\'\'/\'}"; fi
     fi
   fi
   printf '%s' "$v"

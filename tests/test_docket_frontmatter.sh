@@ -303,5 +303,36 @@ assert "field_raw leaves a bare value unchanged"    '[ "$(field_raw "$qd/bare.md
 assert "field_raw emits exactly one trailing newline" '[ "$(field_raw "$qd/dq.md" title | wc -l | tr -d " ")" = "1" ]'
 rm -rf "$qd"
 
+# --- _docket_unwrap_quotes: the single-quote escape inverse (change 0235, ADR-0071) -------------
+# Single-quoted YAML interprets no escapes and has exactly ONE rule: an embedded ' is written ''.
+# The reader must be the exact inverse of docket_yaml_single_quote's doubling, or every
+# apostrophe-bearing title renders as manifest''s in BOARD.md and mis-compares in dup_of.
+uq="$(mktemp -d)"
+printf -- "---\ntitle: 'The manifest''s elsewhere: check'\n---\n" > "$uq/sq-apos.md"
+printf -- "---\ntitle: 'plain single quoted'\n---\n"              > "$uq/sq-plain.md"
+printf -- '---\ntitle: "a b'"''"'c"\n---\n'                       > "$uq/dq-doubled.md"
+printf -- "---\ntitle: it''s bare\n---\n"                         > "$uq/bare-doubled.md"
+printf -- "---\ntitle: ''\n---\n"                                 > "$uq/sq-empty.md"
+printf -- "---\ntitle: ''''''''\n---\n"                           > "$uq/sq-only-quotes.md"
+
+assert "unwrap undoubles '' inside a single-quoted token" \
+  '[ "$(field "$uq/sq-apos.md" title)" = "The manifest'"'"'s elsewhere: check" ]'
+assert "unwrap leaves a single-quoted token with no doubling unchanged" \
+  '[ "$(field "$uq/sq-plain.md" title)" = "plain single quoted" ]'
+# The double-quoted arm adds NO escape interpretation: a literal '' inside "..." stays two bytes.
+assert "unwrap does NOT undouble '' inside a DOUBLE-quoted token" \
+  '[ "$(field "$uq/dq-doubled.md" title)" = "a b'"''"'c" ]'
+# Undoubling is scoped to a token that was actually quoted — a BARE value is never rewritten.
+assert "unwrap does NOT undouble '' in a BARE (unquoted) value" \
+  '[ "$(field "$uq/bare-doubled.md" title)" = "it'"''"'s bare" ]'
+assert "unwrap maps the empty single-quoted scalar '"'"''"'"' to the empty string" \
+  '[ -z "$(field "$uq/sq-empty.md" title)" ]'
+# Interior of '''''''' (8 quotes stripped to 6) is three doubled pairs -> three apostrophes.
+assert "unwrap collapses every doubled pair, not just the first" \
+  '[ "$(field "$uq/sq-only-quotes.md" title)" = "'"'''"'" ]'
+assert "field_raw still preserves the doubling (the RAW token is not decoded)" \
+  '[ "$(field_raw "$uq/sq-apos.md" title)" = "'"'"'The manifest'"''"'s elsewhere: check'"'"'" ]'
+rm -rf "$uq"
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
