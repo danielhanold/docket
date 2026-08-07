@@ -159,11 +159,11 @@ closed (exit 1, naming the resolved path and pointing at `docket.sh preflight`) 
 **5. Batched sweep detection.** `detect_merged` scans `active/*.md` for `status: implemented`
 changes, resolves each PR's merge state with one batched `gh api graphql` call keyed by change ID
 (for changes with a known `pr:` number) plus a per-change `gh pr list --repo <repo> --head
-feat/<slug> --state merged` fallback for changes without one — the fallback is repo-scoped with the
-same resolved `<repo>` as the batched arm, so a `--repo`-scoped pass never falls back to the
-repository the process CWD implies — and emits merged changes as TAB-separated
-`<id>\t<slug>\t<pr>\t<merged-date>` (merged-date is the UTC date portion of GitHub's `mergedAt`,
-never derived from local time / `now()`). Any `gh`/network/parse failure is swallowed and reported
+feat/<slug> --state merged` fallback for changes without one, and emits merged changes as
+TAB-separated `<id>\t<slug>\t<pr>\t<merged-date>` (merged-date is the UTC date portion of GitHub's
+`mergedAt`, never derived from local time / `now()`). The fallback is repo-scoped with the same
+resolved `<repo>` as the batched arm, so a `--repo`-scoped pass never queries the repository the
+process CWD implies. Any `gh`/network/parse failure is swallowed and reported
 as `sweep-skipped <reason>` (`gh-unavailable` or `repo-unresolved`); detection never aborts the
 pass.
 
