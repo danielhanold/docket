@@ -8,10 +8,10 @@ type: fix
 created: 2026-08-07
 updated: 2026-08-07
 depends_on: []
-related: []
+related: [190, 223, 224]
 discovered_from: [227]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-07-finalize-s-auto-detect-suite-loop-has-no-failure-accumulator-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-07-finalize-s-auto-detect-suite-loop-has-no-failure-accumulator-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-finalize-s-auto-detect-suite-loop-has-no-failure-accumulator-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -52,27 +55,37 @@ by hand to get a trustworthy result.
 
 ## What changes
 
-- Add a failure accumulator to the marker block's auto-detect loop — the shape every results file
-  in this repo already uses ad hoc (`suite_status=0; ... || suite_status=1; ... exit "$suite_status"`).
-- Decide whether the block should also keep going after the first failure (report all reds) or
-  stop at the first; the ad-hoc shape in `docs/results/` keeps going, which is more useful.
-- Check `tests/test_configured_bash_finalize.sh` for a regression fixture that would have caught
-  this — a suite where a non-final test fails and the block must report non-zero. Its current
-  assertions pin the command's *text* and `DOCKET_BASH_PATH` propagation, not its exit status
-  under a mid-suite failure.
+- Replace the `configured-bash-finalize` marker block's auto-detect branch with a keep-going
+  accumulator, reporting non-zero if **any** test failed:
+  `suite_status=0; for … do "$DOCKET_BASH_PATH" "$test" || suite_status=1; done; [ "$suite_status" -eq 0 ]`.
+  The `FINALIZE_TEST_COMMAND` branch stays byte-identical. One edit site repairs both consumers.
+- Keep the literal-glob (no test files) failure exactly as-is — no `nullglob` — and add a guard
+  for it, since a suiteless repo exiting 0 with zero tests run would be a worse bug than this one.
+- Add the regression case to `tests/test_configured_bash_finalize.sh`: a fixture whose **non-final**
+  test fails, asserting the extracted fragment reports non-zero and that every test still ran.
+  Mutation-check it (restore the accumulator-free loop; it must redden).
 
 ## Out of scope
 
 - The `FINALIZE_TEST_COMMAND` branch — user-authored shell text is executed unchanged by
   contract, so its exit semantics are the user's to get right.
+- Stating the green/red-is-the-exit-code rule normatively — that is change **0224**'s scope. 0228
+  fixes the fragment; 0224 states the rule.
+- Rebinding auto-detect onto `scripts/run-tests.sh` (a separate design question with its own
+  consumers).
 
 ## Open questions
 
 - ~~Does `docket-build`'s own gate (which reuses this same detection) have the same hole?~~ —
   RESOLVED 2026-08-07 by inspection: **yes, but there is only one site to fix.**
-  `skills/docket-build/SKILL.md` (lines 189–192) deliberately does *not* copy the fragment — it
-  names finalize's `configured-bash-finalize` marker block as the single source and explicitly
-  instructs "Do not copy that fragment into this file," keeping the awkward `finalize` namespace
-  rather than introducing a second, driftable test command. So `docket-build`'s gate inherits the
-  missing accumulator, and repairing the marker block repairs both consumers at once. No second
-  edit site; the fixture should still cover both callers reading the same block.
+  `skills/docket-build/SKILL.md` deliberately does *not* copy the fragment — it names finalize's
+  `configured-bash-finalize` marker block as the single source. Repairing the block repairs both
+  consumers at once.
+- ~~Keep going after the first failure, or stop at the first?~~ — RESOLVED at grooming: **keep
+  going**; see the spec's `## Assumptions`.
+- ~~How should the status leave the block?~~ — RESOLVED at grooming: a trailing
+  `[ "$suite_status" -eq 0 ]`, not `exit`. Reversed under critic review; rationale in the spec.
+
+Note: the stub's original claim that the existing guard's assertions "pin the command's *text*" is
+wrong — the guard executes the extracted fragment and never inspects its exit status. That single
+uninspected status is the gap.
