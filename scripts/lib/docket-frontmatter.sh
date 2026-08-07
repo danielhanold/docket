@@ -15,6 +15,10 @@
 #   fm_field_raw FILE KEY — the RAW anchored twin of fm_field: same ---...--- scope and inline
 #                           comment strip, but leaves any surrounding quotes INTACT for a consumer
 #                           doing its own quote/escape decoding (change 0191).
+#   fm_field_verbatim FILE KEY — the same anchored scope with NEITHER strip: quotes AND a
+#                           whitespace-preceded `#...` are left intact, so the value arrives exactly
+#                           as authored. For a consumer JUDGING the scalar's YAML form, which must
+#                           not be handed a value the reader already truncated (change 0235).
 #   docket_yaml_single_quote VALUE — VALUE as a single-quoted YAML scalar (interior `'` doubled);
 #                           the exact inverse of field()/fm_field()'s undoubling (change 0235).
 #   docket_scalar_quote_reason VALUE — one leg token (colon-space | trailing-colon | bare-boolean |
@@ -156,14 +160,25 @@ field(){
 # needs the raw YAML token — e.g. board-checks's scalar-form check, which must see the quotes to
 # know whether a colon-space is quoted or bare (change 0191). Single source for the awk body;
 # fm_field delegates so the reader shape lives in exactly one place.
-fm_field_raw(){ # fm_field_raw FILE KEY -> raw scalar on stdout (quotes intact, empty when absent)
+#
+# fm_field_verbatim() is the third tier: the same anchored scan with NEITHER the quote strip NOR the
+# inline-comment strip. It exists because a consumer that JUDGES a scalar's YAML form cannot be
+# handed a value the reader already repaired — the comment strip is exactly the truncation the
+# `comment-introducer` leg is trying to report, so a checker reading through fm_field_raw sees the
+# remnant and stays silent on the real defect (`blocked_by: PR #69 is stale …` reaches it as `PR`).
+# Judgement needs the line as AUTHORED; the ordinary readers keep their strip, which is deliberate
+# and load-bearing for the change-template's `type: feat   # chosen at creation` line (change 0235).
+#
+# _fm_scan is the single anchored awk body all three share. STRIP_COMMENT=1 removes a
+# whitespace-preceded `#…` before the value is taken; 0 keeps the line whole.
+_fm_scan(){ # _fm_scan FILE KEY STRIP_COMMENT -> raw scalar on stdout (empty when absent)
   local raw
-  raw="$(awk -v key="$2" '
+  raw="$(awk -v key="$2" -v strip="$3" '
     BEGIN { n = 0 }
     /^---[[:space:]]*$/ { n++; if (n >= 2) exit; next }
     n == 1 {
       if ($0 ~ ("^" key ":")) {
-        sub(/[[:space:]]+#.*$/, "")
+        if (strip == 1) sub(/[[:space:]]+#.*$/, "")
         sub("^" key ":[[:space:]]*", "")
         sub(/[[:space:]]+$/, "")
         print
@@ -172,6 +187,12 @@ fm_field_raw(){ # fm_field_raw FILE KEY -> raw scalar on stdout (quotes intact, 
     }
   ' "$1")"
   printf '%s' "$raw"
+}
+fm_field_raw(){ # fm_field_raw FILE KEY -> raw scalar on stdout (quotes intact, empty when absent)
+  _fm_scan "$1" "$2" 1
+}
+fm_field_verbatim(){ # fm_field_verbatim FILE KEY -> the scalar as authored (quotes AND `#…` intact)
+  _fm_scan "$1" "$2" 0
 }
 fm_field(){ # fm_field FILE KEY -> logical scalar on stdout (empty when absent from the first block)
   _docket_unwrap_quotes "$(fm_field_raw "$1" "$2")"

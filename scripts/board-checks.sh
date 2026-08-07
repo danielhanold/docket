@@ -323,10 +323,15 @@ for f in "${FILES[@]}"; do
   # ambiguously by any YAML consumer, so it must be quoted or reworded. Covers the only two
   # free-text string scalars docket reads that are not already shape/domain-gated — title and the
   # optional blocked_by. The natively-boolean fields (trivial, auto_groomable, reconciled) hold a
-  # bare true/false BY DESIGN and are not scanned. Reads the RAW token (field_raw / fm_field_raw):
-  # field()/fm_field() unwrap surrounding quotes, which would make a quoted colon-space look exactly
-  # like a bad bare one. blocked_by is read via the anchored fm_field_raw so an ABSENT blocked_by
-  # does not fall through to a body-prose line. At most ONE finding per field — the predicate
+  # bare true/false BY DESIGN and are not scanned. Reads the RAW token (field_raw for title,
+  # fm_field_verbatim for blocked_by): field()/fm_field() unwrap surrounding quotes, which would make
+  # a quoted colon-space look exactly like a bad bare one. blocked_by goes through the ANCHORED
+  # accessor so an ABSENT blocked_by does not fall through to a body-prose line, and through the
+  # VERBATIM one so the value arrives as authored: fm_field_raw strips a whitespace-preceded `#...`
+  # before returning, which IS the truncation the comment-introducer leg exists to report, so reading
+  # through it would make that leg unreachable for this field (the real `blocked_by: PR #69 is stale
+  # ...` on the metadata branch would arrive as `PR` and pass silently). title needs no such twin —
+  # field_raw has no comment strip. At most ONE finding per field — the predicate
   # reports the FIRST matching leg and stops, since one reason is enough to demand a quote; warn-only;
   # never marks EXPLAINED (a malformed scalar does not drop a board row). One skip leg here plus
   # the five syntax legs of docket_scalar_quote_reason, in that predicate's evaluation order:
@@ -370,7 +375,7 @@ for f in "${FILES[@]}"; do
     esac
   }
   sf_title="$(field_raw "$f" title)"
-  sf_blocked_by="$(fm_field_raw "$f" blocked_by)"
+  sf_blocked_by="$(fm_field_verbatim "$f" blocked_by)"
   scalar_form_check title "$sf_title"
   scalar_form_check blocked_by "$sf_blocked_by"
 

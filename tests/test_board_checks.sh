@@ -651,7 +651,8 @@ assert "field-domain SILENT for a piped 'type:' line in the BODY of an untyped c
 # frontmatter scalar that carries ': ' (colon-space) or is exactly a YAML 1.1 bare boolean keyword
 # (on/off/yes/no/true/false, case-insensitive) is read ambiguously by any YAML consumer. Covers the
 # only two free-text string scalars docket reads that are not already shape/domain-gated — title
-# (field_raw) and the optional blocked_by (the anchored fm_field_raw). A scalar that OPENS with "
+# (field_raw) and the optional blocked_by (the anchored, comment-strip-free fm_field_verbatim; see
+# mutation 3b for why the comment-stripping fm_field_raw cannot serve here). A scalar that OPENS with "
 # or ' is well-formed by definition and never inspected (the 0190 quoted-title shape is the ACCEPT
 # case); the natively-boolean fields (trivial, auto_groomable, reconciled) hold a bare true/false
 # BY DESIGN and are not scanned. One finding per violated leg per field; warn-only (never EXPLAINED,
@@ -767,6 +768,34 @@ s93line="$(grep -E "$(printf "^scalar-form\t93\t")" <<<"$s93out")"
 assert "the blocked_by boolean finding quotes the value (id 93)" \
   'grep -qF -- "unquoted bare YAML boolean (off)" <<<"$s93line"'
 
+# ' #' in blocked_by — the real shape on the metadata branch (`blocked_by: PR #69 is stale …`).
+# The comment-introducer leg is pinned in BOTH fields, not just title: a reader that strips the
+# inline comment BEFORE the predicate sees it (fm_field_raw does, deliberately, for its own
+# consumers) hands the check a truncated remnant and the leg can never fire on blocked_by. The
+# blocked_by read therefore goes through the comment-strip-free anchored accessor.
+read -r S78 _ < <(new_repo)
+mk_sf "$S78" 78 hash-blocked 'blocked_by: PR #69 is stale, predating the facade rework'
+s78out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$S78/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "scalar-form fires for a blocked_by containing ' #' (id 78, comment-introducer leg)" \
+  'has_finding "$s78out" scalar-form 78'
+s78line="$(grep -E "$(printf "^scalar-form\t78\t")" <<<"$s78out")"
+assert "the blocked_by comment-introducer finding names blocked_by (id 78)" \
+  'grep -qF -- "blocked_by: unquoted scalar contains" <<<"$s78line"'
+
+# GREEN near-miss on the same field: a '#' NOT preceded by whitespace is part of the value, and the
+# quoted form of the ' #' shape is well-formed — neither may fire now that the comment survives the
+# read.
+read -r S77 _ < <(new_repo)
+mk_sf "$S77" 77 hash-nospace-blocked 'blocked_by: PR#69 is stale'
+s77out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$S77/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "scalar-form SILENT for a blocked_by '#' not preceded by whitespace (id 77)" \
+  '[ -z "$s77out" ]'
+read -r S76 _ < <(new_repo)
+mk_sf "$S76" 76 quoted-hash-blocked "blocked_by: 'PR #69 is stale'"
+s76out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$S76/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "scalar-form SILENT for a single-quoted ' #' blocked_by (id 76, skip leg)" \
+  '[ -z "$s76out" ]'
+
 # --- GREEN: must NOT fire a scalar-form finding (and nothing else on these clean fixtures) ---
 # Quoted colon-space TITLE — double-quoted and single-quoted (the 0190 ACCEPT shape; the quote leg
 # keeps it green). Exact empty output: no scalar-form and no other check fires.
@@ -844,6 +873,7 @@ mk_sf "$MUT" 92  colonspace-blocked     'blocked_by: a: b'
 mk_sf "$MUT" 93  bool-blocked           'blocked_by: off'
 mk_sf "$MUT" 94  quoted-colonspace      'title: "a: b"'
 mk_sf "$MUT" 98  absent-blocked-by      'title: Omits blocked_by'
+mk_sf "$MUT" 78  hash-blocked           'blocked_by: PR #69 is stale, predating the facade rework'
 cat >> "$MUT/docs/changes/active/0098-absent-blocked-by.md" <<'EOF'
 
 ## Notes
@@ -891,19 +921,36 @@ assert "mutation 2 (strip quote skip): the QUOTED colon-space title 94 REDDENS (
 assert "mutation 2 (strip quote skip): the absent blocked_by 98 stays GREEN (empty is not a shape)" \
   '! has_finding "$m2out" scalar-form 98'
 
-# Mutation 3 — replace fm_field_raw with field_raw for blocked_by: the absent-blocked_by +
+# Mutation 3 — replace fm_field_verbatim with field_raw for blocked_by: the absent-blocked_by +
 # body-prose fixture 98 MISFires (the unanchored read takes the body prose), proving the anchoring.
 mreseed
-m3_before="$(grep -cF 'fm_field_raw "$f" blocked_by' "$MUTSCRIPT")"
-awk '{ if ($0 ~ /sf_blocked_by=/) sub(/fm_field_raw/, "field_raw"); print }' "$MUTSCRIPT" > "$MUTSCRIPT.trim"; mv "$MUTSCRIPT.trim" "$MUTSCRIPT"
-m3_after="$(grep -cF 'fm_field_raw "$f" blocked_by' "$MUTSCRIPT")"
+m3_before="$(grep -cF 'fm_field_verbatim "$f" blocked_by' "$MUTSCRIPT")"
+awk '{ if ($0 ~ /sf_blocked_by=/) sub(/fm_field_verbatim/, "field_raw"); print }' "$MUTSCRIPT" > "$MUTSCRIPT.trim"; mv "$MUTSCRIPT.trim" "$MUTSCRIPT"
+m3_after="$(grep -cF 'fm_field_verbatim "$f" blocked_by' "$MUTSCRIPT")"
 m3out="$(mrun)"
-assert "mutation 3 landed: the blocked_by read is unanchored (fm_field_raw count 1 -> 0)" \
+assert "mutation 3 landed: the blocked_by read is unanchored (fm_field_verbatim count 1 -> 0)" \
   '[ "$m3_before" = 1 ] && [ "$m3_after" = 0 ]'
-assert "mutation 3 (replace fm_field_raw with field_raw): absent-blocked_by fixture 98 MISFires — proves the anchoring" \
+assert "mutation 3 (replace fm_field_verbatim with field_raw): absent-blocked_by fixture 98 MISFires — proves the anchoring" \
   'has_finding "$m3out" scalar-form 98'
 assert "mutation 3: the colon-space blocked_by 92 still fires under the unanchored read" \
   'has_finding "$m3out" scalar-form 92'
+
+# Mutation 3b — read blocked_by through fm_field_raw (the comment-STRIPPING anchored twin) instead:
+# the ' #' fixture 78 goes GREEN because the reader truncated the value to `PR` before the predicate
+# saw it, while the colon-space fixture 92 stays red. This is the exact defect the verbatim accessor
+# exists to close: the comment-introducer leg is structurally unreachable through a stripping reader,
+# and only a fixture on THIS field can see it (change 0235).
+mreseed
+m3b_before="$(grep -cF 'fm_field_verbatim "$f" blocked_by' "$MUTSCRIPT")"
+awk '{ if ($0 ~ /sf_blocked_by=/) sub(/fm_field_verbatim/, "fm_field_raw"); print }' "$MUTSCRIPT" > "$MUTSCRIPT.trim"; mv "$MUTSCRIPT.trim" "$MUTSCRIPT"
+m3b_after="$(grep -cF 'fm_field_verbatim "$f" blocked_by' "$MUTSCRIPT")"
+m3bout="$(mrun)"
+assert "mutation 3b landed: the blocked_by read strips inline comments (fm_field_verbatim count 1 -> 0)" \
+  '[ "$m3b_before" = 1 ] && [ "$m3b_after" = 0 ]'
+assert "mutation 3b (read blocked_by through the comment-stripping fm_field_raw): the ' #' fixture 78 goes GREEN" \
+  '! has_finding "$m3bout" scalar-form 78'
+assert "mutation 3b: the colon-space blocked_by 92 still fires (only the comment leg is blinded)" \
+  'has_finding "$m3bout" scalar-form 92'
 
 # Mutation 4 — drop the whole scalar-form probe block: every red fixture goes GREEN.
 mreseed
