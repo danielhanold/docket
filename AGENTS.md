@@ -43,8 +43,10 @@ means), this file does not restate them.
   whole-repo grep, then sort them into prose vs executable. Only the executable ones can violate a
   gate, and a docs-shaped reading skips right past them.
 - Run the whole suite at the build gate, never only the tests the spec enumerated. Use
-  `scripts/run-tests.sh` — it runs the files in parallel with per-job isolation and enforces each
-  file's wall-clock budget. `tests/README.md` covers where a new test belongs.
+  `scripts/run-tests.sh` — it runs the files in parallel with per-job isolation and measures each
+  file against its wall-clock budget. A trailing `OVER BUDGET:` line is a finding to act on, not noise:
+  it does not fail the run (a wall-clock number is machine-dependent; see `scripts/run-tests.md`),
+  so nothing else will catch it for you. `tests/README.md` covers where a new test belongs.
 
 ## Comments and cross-references
 

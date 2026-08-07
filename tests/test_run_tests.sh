@@ -108,7 +108,14 @@ assert "timings has one row per file"      '[ "$(wc -l < "$tf" | tr -d " ")" = "
 assert "timings rows are 5 tab fields"     '[ "$(awk -F"\t" "{print NF}" "$tf" | sort -u)" = "5" ]'
 assert "timings carries the assert counts" 'awk -F"\t" "\$1 ~ /test_alpha/ && \$4 == 2 {found=1} END{exit !found}" "$tf"'
 
-# (7) BUDGETS — an over-budget file reddens with exit 4, and the message says how to FIX it.
+# (7) BUDGETS — a breach is REPORTED loudly, and it is fatal only for a caller that asked
+# (`--strict-budget`). The default posture is the load-bearing part: a non-zero exit is read as
+# "the suite is red" by every caller that only knows the universal `non-zero = failed` rule, which
+# is all three of this runner's — finalize's `configured-bash-finalize` block, docket-build's build
+# gate, and a human or agent following AGENTS.md. None of them can tell 4 from 1, and the first two
+# answer red by dispatching a repair agent to root-cause failing tests that do not exist. So a
+# green-but-slow run exits 0 while saying so out loud. See scripts/run-tests.md, "Budget
+# enforcement", for the full argument and for what is deferred to change 0229.
 cat > "$T/tests/test_slow.sh" <<'EOF'
 #!/usr/bin/env bash
 sleep 3
@@ -117,19 +124,62 @@ exit 0
 EOF
 chmod +x "$T/tests/test_slow.sh"
 printf 'tests/test_slow.sh\t1\tparallel\n' > "$T/budgets.tsv"
+
+# A second, CHEAPER breach fixture for the asserts below that are about posture and reporting
+# rather than about the slack arithmetic. `test_slow` at a 1s ceiling is the one that exercises
+# the 5/2 boundary (3s breaches, 2s would not); these only need *a* breach, and a 1s sleeper at a
+# 0s ceiling is the shortest one that exists. Cost matters here: this file is itself in the budget
+# table, and padding it out is the regrowth the table exists to catch.
+cat > "$T/tests/test_slowish.sh" <<'EOF'
+#!/usr/bin/env bash
+sleep 1
+echo "ok - slowish one"
+exit 0
+EOF
+chmod +x "$T/tests/test_slowish.sh"
+printf 'tests/test_slowish.sh\t0\tparallel\n' > "$T/budgets_cheap.tsv"
 bout="$( cd "$T" && bash "$RT" -j 1 --budgets "$T/budgets.tsv" "$T/tests/test_slow.sh" 2>&1 )"; brc=$?
-assert "over-budget file exits 4 (green but slow)" '[ "$brc" = "4" ]'
+assert "over-budget green suite exits 0 by default" '[ "$brc" = "0" ]'
 assert "over-budget file is named"                 'grep -q "test_slow" <<<"$bout"'
+assert "over-budget breach is still reported"      'grep -q "OVER BUDGET" <<<"$bout"'
+assert "advisory breach says the run did not fail" 'grep -qi "does not fail" <<<"$bout"'
+assert "advisory breach names the strict opt-in"   'grep -q -- "--strict-budget" <<<"$bout"'
 assert "over-budget remedy says shard, not raise"  'grep -qi "shard this file or extend an existing shard" <<<"$bout"'
 assert "over-budget remedy does NOT say raise the budget" '! grep -qiE "raise (the )?(budget|ceiling|number)" <<<"$bout"'
-assert "--no-budget-check suppresses the breach" \
-  '( cd "$T" && bash "$RT" -j 1 --budgets "$T/budgets.tsv" --no-budget-check "$T/tests/test_slow.sh" >/dev/null 2>&1 )'
 
-# The budget check must not fire on a file that is comfortably inside its ceiling — otherwise the
-# assert above would pass for the wrong reason (a check that always fires).
+# The strict path is what a budget-aware caller opts into, and it still yields 4: the code that
+# tells "green but slow" apart from "red" has not gone anywhere — only its default audience has.
+sout7="$( cd "$T" && bash "$RT" -j 1 --budgets "$T/budgets_cheap.tsv" --strict-budget "$T/tests/test_slowish.sh" 2>&1 )"; src7=$?
+assert "--strict-budget makes an over-budget file exit 4" '[ "$src7" = "4" ]'
+assert "--strict-budget still reports the breach"         'grep -q "OVER BUDGET" <<<"$sout7"'
+
+# --no-budget-check is strictly stronger than the advisory default: it suppresses the comparison
+# itself, so the breach is not even reported. That gap is the whole reason advisory exists as a
+# third state rather than being spelled `--no-budget-check` at the merge gate.
+nout="$( cd "$T" && bash "$RT" -j 1 --budgets "$T/budgets_cheap.tsv" --no-budget-check "$T/tests/test_slowish.sh" 2>&1 )"; nrc=$?
+assert "--no-budget-check exits 0"           '[ "$nrc" = "0" ]'
+assert "--no-budget-check reports no breach" '! grep -q "OVER BUDGET" <<<"$nout"'
+
+# Asking for both is a contradiction, and a silently disarmed guard is the exact failure this
+# section exists to prevent — so it is a usage error, not a winner-takes-all.
+( cd "$T" && bash "$RT" -j 1 --budgets "$T/budgets_cheap.tsv" --no-budget-check --strict-budget "$T/tests/test_slowish.sh" >/dev/null 2>&1 ); crc=$?
+assert "--no-budget-check with --strict-budget is a usage error" '[ "$crc" = "2" ]'
+
+# Failures still win, and the advisory text must not contradict them. A run that is BOTH red and
+# over budget exits 1 — and must not print "the tests all passed" at a reader whose tests did not.
+printf 'tests/test_slowish.sh\t0\tparallel\ntests/test_red.sh\t60\tparallel\n' > "$T/budgets_mixed.tsv"
+mout="$( cd "$T" && bash "$RT" -j 2 --budgets "$T/budgets_mixed.tsv" "$T/tests/test_slowish.sh" "$T/tests/test_red.sh" 2>&1 )"; mrc=$?
+assert "red + over budget exits 1, not 0 or 4" '[ "$mrc" = "1" ]'
+assert "red + over budget still reports the breach" 'grep -q "OVER BUDGET" <<<"$mout"'
+assert "red run is NOT told its tests all passed" '! grep -qi "tests all passed" <<<"$mout"'
+
+# The check must not fire on a file comfortably inside its ceiling — otherwise the strict assert
+# above would pass for the wrong reason (a check that always fires). Run it STRICT: under the
+# advisory default an rc of 0 here would prove nothing at all.
 printf 'tests/test_slow.sh\t60\tparallel\n' > "$T/budgets_ok.tsv"
-( cd "$T" && bash "$RT" -j 1 --budgets "$T/budgets_ok.tsv" "$T/tests/test_slow.sh" >/dev/null 2>&1 )
-assert "in-budget file does NOT trip the check" '[ "$?" = "0" ]'
+iout="$( cd "$T" && bash "$RT" -j 1 --budgets "$T/budgets_ok.tsv" --strict-budget "$T/tests/test_slow.sh" 2>&1 )"; irc=$?
+assert "in-budget file does NOT trip the check, even strict" '[ "$irc" = "0" ]'
+assert "in-budget file reports no breach"                    '! grep -q "OVER BUDGET" <<<"$iout"'
 
 # (8) SERIAL mode — a file pinned serial still runs and is still reported.
 printf 'tests/test_alpha.sh\t60\tserial\n' > "$T/budgets_serial.tsv"
