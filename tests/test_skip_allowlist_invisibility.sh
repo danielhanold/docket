@@ -50,8 +50,10 @@
 #   EXCL     the occurrence is the operand of an EXCLUSION construct — a `:!` pathspec exclusion,
 #            a `!` glob negation, or a `^`-anchored pattern on an invert-match line. These are the
 #            suite's own protective mechanisms, and they are separately asserted to survive.
-#   ASSIGN   the occurrence is a VALUE, not a path operand: it sits right of an `=` inside its own
-#            shell token (`RESULTS_DIR=<results_dir>`, `X="${X:-<results_dir>}"`).
+#   ASSIGN   the occurrence is a VALUE, not a path operand: its own shell token opens with a
+#            genuine ASSIGNMENT shape, `NAME=` — directly (`RESULTS_DIR=<results_dir>`) or through
+#            a default expansion on the right of one (`X="${X:-<results_dir>}"`). NOT any token
+#            carrying an `=`: `--include=<results_dir>/*.md` is a read and classifies HAZARD.
 #   DATA     the logical line is a data line, not a command — `key: <results_dir>/…` with no
 #            command separator or substitution anywhere on it. It invokes nothing, so it opens
 #            nothing.
@@ -68,9 +70,14 @@
 #   HAZARD   THE DEFAULT. Every other executable, un-negated occurrence fails the guard.
 #
 # Both hand-declared classes are keyed on a file plus a VERBATIM SOURCE SLICE, never a line number
-# (AGENTS.md), and a declared-but-unmatched entry is itself a failure. Every route past the HAZARD
-# default carries its own independent counter: the four shape classes in aggregate, OPTVAL again
-# on its own, CURATED, and EXEMPT.
+# (AGENTS.md), and a declared-but-unmatched entry is itself a failure. The slice is matched against
+# the OCCURRENCE, not the logical line: it must SPAN the matched position, so a read appended to an
+# already-declared line cannot inherit the pass — which matters most for the read a line-scoped
+# occurrence count cannot see at all, one spelled through a shell variable. Every route past the
+# HAZARD default carries its own independent counter: the four shape classes in aggregate, OPTVAL
+# again on its own, CURATED, and EXEMPT — and the two tables carry a SECOND, independent counter
+# each, the number of entries DECLARED, so the corpus side and the author side of a declaration are
+# budgeted separately.
 #
 # HOW LIMB 2 WORKS. Its population is DERIVED from the consuming code, never hand-listed: every
 # ls-files / ls-tree / find invocation on a live (non-comment, non-string) logical line of an
@@ -100,10 +107,13 @@
 #       that is counted. Six routes lead past the default: four shape classes and two hand-
 #       declared tables. The two tables are pinned individually; the four shape classes are pinned
 #       in AGGREGATE, so any ADDITION moves a number no other assertion moves, but a pure SWAP
-#       between two shape classes does not. The one swap worth pricing is priced: OPTVAL is the
+#       between two shape classes does not. The two tables carry an entry counter each on top of
+#       their occurrence counter. The one swap worth pricing is priced: OPTVAL is the
 #       widest of the six — `--file`, `--include` and their kin are also long options and the
 #       receiving command READS what they name — so the space-separated spellings of those are
-#       denied the pass by name, and OPTVAL carries a second counter of its own. A swap among
+#       denied the pass by name, and the `=`-joined spellings (`--include=<tree>`) are denied it by
+#       the ASSIGN shape being a real assignment rather than any token carrying an `=`. OPTVAL
+#       carries a second counter of its own. A swap among
 #       DATA, WRITE and EXPECT is left unpriced deliberately: none of the three can name a path a
 #       command opens (a data line invokes nothing, a WRITE line creates, an EXPECT operand is a
 #       comparison right-hand side), so the swap has nowhere to hide a read.
@@ -186,6 +196,13 @@ EXPECTED_BENIGN=15
 EXPECTED_OPTVAL=2
 EXPECTED_CURATED=3
 EXPECTED_EXEMPT=2
+# ...and the DECLARATION counts, pinned separately from the occurrence counts above. The two are
+# independent budgets on purpose: an occurrence count is moved by the corpus, a declaration count by
+# the author of this file. Adding a table entry to cover a new read moves the entry budget even in
+# the case where the occurrence budget would not — a slice widened to span a second occurrence, or
+# an entry re-pointed at a different line — so neither number can absorb the other silently.
+EXPECTED_EXEMPT_ENTRIES=2
+EXPECTED_CURATED_ENTRIES=3
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
@@ -357,7 +374,22 @@ classify(){
       while (i >= 1) { c = substr(text, i, 1); if (c == " " || c == "\t") break; out = c out; i-- }
       return out
     }
-    function class_of(isexec, text, pos,   pre, l1, l2, pw) {
+    # Does some occurrence of slice in text SPAN the occurrence at pos? A declared table entry
+    # scopes to the OCCURRENCE, not to the logical line: a line-wide `index(text, slice) > 0` lets
+    # a read appended to an already-declared line inherit the pass, and a read spelled through a
+    # shell variable moves no counter at all while it does so.
+    function slice_spans(text, slice, pos, plen,   s, off) {
+      if (slice == "") return 0
+      off = 1
+      while (1) {
+        s = index(substr(text, off), slice)
+        if (s == 0) return 0
+        s = off + s - 1
+        if (s <= pos && pos + plen - 1 <= s + length(slice) - 1) return 1
+        off = s + 1
+      }
+    }
+    function class_of(isexec, text, pos,   pre, l1, l2, pw, ap) {
       if (isexec != "1")            return "INERT"
       if (text ~ /^[[:space:]]*#/)  return "COMMENT"
       pre = token_prefix(text, pos)
@@ -366,11 +398,22 @@ classify(){
       if (l2 == ":!")               return "EXCL"
       if (l1 == "!")                return "EXCL"
       if (l1 == "^" && text ~ inv)  return "EXCL"
-      # An assignment or env-prefix VALUE, not a path operand: the occurrence sits to the right of
-      # an = inside its own shell token. A genuine read spells the tree as a bare operand, so this
-      # cannot hide one; what it does hide is the INDIRECT form named in HONEST LIMITS (b) above,
-      # which no single-line predicate reaches in either direction.
-      if (index(pre, "=") > 0)      return "ASSIGN"
+      # An assignment or env-prefix VALUE, not a path operand. The shape is a GENUINE SHELL
+      # ASSIGNMENT and nothing looser: a `NAME=` token prefix (optionally opened by a quote, as in
+      # a quoted env line inside a printf word list), and nothing else. A `${NAME:-<lit>}` default
+      # expansion earns the class only through that same prefix — `X="${X:-<lit>}"` opens with
+      # `X=` — and DELIBERATELY not on its own: a defaulted expansion sitting in OPERAND position,
+      # `some_cmd "${DIR:-<lit>}"`, is a read, and the one live instance of the shape is an option
+      # value that belongs in the budgeted OPTVAL class rather than in this unbudgeted one.
+      # The looser "the token prefix contains an =" test this replaced also handed the pass to
+      # `--include=<lit>` and `--file=<lit>` — long options whose RECEIVING COMMAND opens what they
+      # name, i.e. genuine reads — and it was tested ahead of every verb rule, so those were
+      # counted nowhere at all. They now fall through to HAZARD, and section 7a asserts exactly
+      # that. What this class still cannot see is the INDIRECT form named in HONEST LIMITS (b)
+      # above, which no single-line predicate reaches in either direction.
+      ap = pre
+      sub(qstrip, "", ap)
+      if (ap ~ asgnl)               return "ASSIGN"
       pw = prev_word(text, pos)
       # A data line invokes nothing. The no-separator clause is what makes that true rather than
       # merely likely: `key: <lit>` with a pipe, a `;`, a redirect or a $( ) on it could still run
@@ -392,6 +435,10 @@ classify(){
       writel = "^[[:space:]]*(mkdir|touch|rmdir)([[:space:]]|$)"
       sepr   = "[|;<>`]|\\$\\(|&&"
       optread = "^--(file|include|exclude|exclude-from|from-file|pathspec-from-file|glob)$"
+      # The ASSIGN shape, spelled without an apostrophe anywhere: this whole program is a
+      # single-quoted shell word, so 39 has to be built with sprintf.
+      qstrip = "^[" sprintf("%c", 39) "\"]+"
+      asgnl  = "^[[:alpha:]_][[:alnum:]_]*="
       ne = 0
       while ((getline el < exf) > 0) {
         if (el == "") continue
@@ -415,7 +462,7 @@ classify(){
         c = class_of(isexec, text, pos)
         if (c == "HAZARD") {
           for (k = 1; k <= ne; k++) {
-            if (ex_path[k] == path && index(text, ex_slice[k]) > 0) { ex_hit[k] = 1; c = ex_class[k]; break }
+            if (ex_path[k] == path && slice_spans(text, ex_slice[k], pos, length(lit))) { ex_hit[k] = 1; c = ex_class[k]; break }
           }
         }
         printf "%s\t%s\t%s\t%s\n", c, path, ln, substr(text, 1, 200)
@@ -453,8 +500,10 @@ exempt tests/test_docket_build.sh \
 
 # test_render_change_links.sh greps a FIXTURE change file for the rendered Results row. The
 # literal here is inside the grep PATTERN — a URL in the expected markdown — and the haystack is
-# the fixture, not the tree.
-exempt tests/test_render_change_links.sh '| Results | ['
+# the fixture, not the tree. The slice SPANS the occurrence rather than merely preceding it,
+# because the match is scoped to the occurrence: a bare `| Results | [` would cover the whole
+# logical line and hand its pass to anything else that line later grew.
+exempt tests/test_render_change_links.sh "blob/feat/build/$RESULTS_DIR_REL/2026-06-21-build-results.md) |"
 
 # The three occurrences the HAZARD default catches that open nothing. Each is a shape a
 # line-scoped rule cannot express without opening a hole wider than the case it closes.
@@ -539,17 +588,34 @@ assert "exactly $EXPECTED_CURATED occurrences are hand-declared benign" \
   '[ "$n_curated" = "$EXPECTED_CURATED" ] || { grep "^CURATED" <<<"$RESULT" >&2; echo "  found $n_curated, budget $EXPECTED_CURATED." >&2; echo "  A benign declaration asserts the occurrence opens NOTHING — not that its read is harmless. FIRST re-read the line and confirm no command receives that path as a file operand. A read that cannot be moved by an addition is a different claim and belongs in the exemption table instead." >&2; false; }'
 assert "exactly $EXPECTED_EXEMPT occurrences are covered by a curated exemption" \
   '[ "$n_exempt" = "$EXPECTED_EXEMPT" ] || { grep "^EXEMPT" <<<"$RESULT" >&2; echo "  found $n_exempt, budget $EXPECTED_EXEMPT." >&2; echo "  An exemption admits a REAL read and claims an addition under the tree cannot change its verdict. FIRST prove that claim — name the assertion the read feeds and show why adding a file under the tree leaves the verdict identical. Only then does this budget move, and it moves alone: the hazard count and the floor both stay green either way." >&2; false; }'
+table_entries(){ awk -F'\t' -v c="$1" '$1 == c {n++} END {print n+0}' "$2"; }
+n_exempt_entries="$(table_entries EXEMPT "$EXEMPTIONS")"
+n_curated_entries="$(table_entries CURATED "$EXEMPTIONS")"
+assert "exactly $EXPECTED_EXEMPT_ENTRIES exemption entries are declared" \
+  '[ "$n_exempt_entries" = "$EXPECTED_EXEMPT_ENTRIES" ] || { echo "  declared $n_exempt_entries, budget $EXPECTED_EXEMPT_ENTRIES." >&2; echo "  This counts TABLE ENTRIES, not occurrences: it is the budget a widened slice or a re-pointed entry moves even when the occurrence total holds. Every entry admits a real read of the tree, so a new one needs its claim written down beside it." >&2; false; }'
+assert "exactly $EXPECTED_CURATED_ENTRIES benign entries are declared" \
+  '[ "$n_curated_entries" = "$EXPECTED_CURATED_ENTRIES" ] || { echo "  declared $n_curated_entries, budget $EXPECTED_CURATED_ENTRIES." >&2; false; }'
 assert "no declared table entry is stale (every one still matches a live occurrence)" \
   '[ "$n_orphan" = 0 ] || { grep "^ORPHAN" <<<"$RESULT" >&2; echo "  The declared consumer moved or was rewritten. Re-read it and re-decide, rather than re-pointing the slice." >&2; false; }'
 
 # ---------------------------------------------------------------------------
 # 6. THE POSITIVE CLAIM — the suite's real exclusion mechanisms survive, keyed on their magic
-#    token and bound to the probe that uses it. A bare-path assert is NOT enough here: both files
-#    carry the bare literal elsewhere (a comment and an armed probe in one, nothing but the escape
-#    in the other), so the real exclusion can be deleted with the bare path untouched.
+#    token and bound to the probe that uses it. A bare-path assert is NOT enough here: two of the
+#    three files carry the bare literal elsewhere (a comment and an armed probe in one, nothing but
+#    the escape in the other), so the real exclusion can be deleted with the bare path untouched.
+#
+#    THE LIST IS THE LIVE ONE, and it is three long. The classifier files each of these three under
+#    EXCL and moves on, which is a statement that the occurrence is not a read — not a statement
+#    that the exclusion still WORKS. So each gets a named extractor and a mutation control:
+#    test_docket_build.sh's `:!` pathspec, test_readme_finalize_docs.sh's rg `--glob` escape, and
+#    test_cursor_contract_docs.sh's `grep -v` prefix alternation. The third is the one shape the
+#    walk limb (section 9) explicitly does NOT recognise — HONEST LIMITS (f), EXCLUSION SPELLINGS,
+#    names `grep -v` as failing closed there — so this section is the only place it is asserted at
+#    all, and it would otherwise rest on the population floor alone.
 # ---------------------------------------------------------------------------
 TDB="$ROOT/tests/test_docket_build.sh"
 RMF="$ROOT/tests/test_readme_finalize_docs.sh"
+CCD="$ROOT/tests/test_cursor_contract_docs.sh"
 
 # Returns 0 armed, 1 token missing, 2 anchor missing (the extractor itself went blind).
 tdb_exclusion_armed(){
@@ -566,11 +632,24 @@ rmf_exclusion_armed(){
   case "$probe" in *"rg "*) ;; *) return 2 ;; esac
   grep -qF -e "--glob \"!$RESULTS_DIR_REL/**\"" <<<"$probe"
 }
+# Same contract, same three return codes, for the third mechanism: test_cursor_contract_docs.sh
+# pipes a whole-repo `git grep -l` through a `grep -v` alternation of point-in-time prefixes. The
+# anchor is the extractor function the file defines, and the invert-match pipe is what makes the
+# probe the exclusion rather than a bare mention.
+ccd_exclusion_armed(){
+  local probe
+  probe="$(flatten "$1" | grep -F -e 'stale_grep()' || true)"
+  [ -n "$probe" ] || return 2
+  case "$probe" in *"grep -v"*) ;; *) return 2 ;; esac
+  grep -qF -e "^$RESULTS_DIR_REL/" <<<"$probe"
+}
 
 assert "test_docket_build.sh's live-tree probe still excludes the results tree by pathspec" \
   'tdb_exclusion_armed "$TDB"'
 assert "test_readme_finalize_docs.sh's doc-content search still escapes the results tree by glob" \
   'rmf_exclusion_armed "$RMF"'
+assert "test_cursor_contract_docs.sh's stale-claim sweep still drops the results tree by prefix" \
+  'ccd_exclusion_armed "$CCD"'
 
 # Attachment: the one exempted read is still the armed-history probe it was exempted as, not some
 # other consumer that inherited the exemption slice.
@@ -604,6 +683,17 @@ synth(){ printf '%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "$4"; }
   synth 1 tests/test_synthetic_probe.sh 11 "  some_helper \"\$ROOT/$RESULTS_DIR_REL\""
   # A file-consuming LONG option must not buy the OPTVAL pass.
   synth 1 tests/test_synthetic_probe.sh 12 "  grep --file $RESULTS_DIR_REL/pats \"\$F\""
+  # ...nor may its `=`-JOINED spelling buy the ASSIGN pass. `--include=` and `--file=` put an `=`
+  # in the token prefix, and ASSIGN is tested ahead of every verb rule, so under a bare
+  # "the prefix contains an =" test these two genuine reads were classified benign and counted
+  # nowhere at all. They are the reason ASSIGN keys on a real assignment shape.
+  synth 1 tests/test_synthetic_probe.sh 13 "  grep --include=$RESULTS_DIR_REL/*.md -r \"\$ROOT\""
+  synth 1 tests/test_synthetic_probe.sh 14 "  rg --file=$RESULTS_DIR_REL/pat \"\$ROOT\""
+  # The positive half of the same rule, and its boundary. 15 is a default expansion whose token
+  # DOES open with an assignment (`X=`), so it keeps the class; 16 is the same expansion in operand
+  # position, which is a read and must not.
+  synth 1 tests/test_synthetic_probe.sh 15 "  X=\"\${X:-$RESULTS_DIR_REL}\""
+  synth 1 tests/test_synthetic_probe.sh 16 "  some_cmd \"\${DIR:-$RESULTS_DIR_REL}\""
 } > "$TMP/synth.tsv"
 SYNTH="$(classify "$NO_EXEMPTIONS" < "$TMP/synth.tsv")"
 synth_class(){ awk -F'\t' -v l="$1" '$3 == l {print $1}' <<<"$SYNTH"; }
@@ -621,6 +711,40 @@ assert "control: a bare operand with no recognised reading command classifies HA
   '[ "$(synth_class 11)" = HAZARD ]'
 assert "control: a file-consuming long option is DENIED the OPTVAL pass and classifies HAZARD" \
   '[ "$(synth_class 12)" = HAZARD ]'
+assert "control: --include=<tree> is DENIED the ASSIGN pass and classifies HAZARD" \
+  '[ "$(synth_class 13)" = HAZARD ]'
+assert "control: --file=<tree> is DENIED the ASSIGN pass and classifies HAZARD" \
+  '[ "$(synth_class 14)" = HAZARD ]'
+assert "control: a \${NAME:-} default on the right of an assignment still classifies ASSIGN" \
+  '[ "$(synth_class 15)" = ASSIGN ]'
+assert "control: the same default expansion in OPERAND position classifies HAZARD" \
+  '[ "$(synth_class 16)" = HAZARD ]'
+
+# 7a-bis. THE EXEMPTION IS SCOPED TO THE OCCURRENCE, NOT THE LINE. The declared slice is run
+# against a synthetic record that reproduces the exempted line and then APPENDS a second read to
+# it — the shape a reflow or a one-line addition produces. The first occurrence must keep its
+# EXEMPT; the second must be REPORTED as HAZARD rather than inheriting the line-wide pass. Both
+# rows come out of the SAME classifier and the SAME live $EXEMPTIONS table the corpus scan uses.
+EX_SLICE="'docs/changes/archive' '$RESULTS_DIR_REL' 'docs/superpowers' 'docs/adrs'"
+{
+  synth 1 tests/test_docket_build.sh 1 "  h=\"\$(git grep -Il x -- $EX_SLICE)\""
+  synth 1 tests/test_docket_build.sh 2 "  h=\"\$(git grep -Il x -- $EX_SLICE)\"; some_helper \"\$ROOT/$RESULTS_DIR_REL\""
+} > "$TMP/inherit.tsv"
+INHERIT="$(classify "$EXEMPTIONS" < "$TMP/inherit.tsv")"
+assert "mutation landed: the appended line carries the exempted slice AND a second occurrence" \
+  '[ "$(awk -F"\t" '"'"'$3 == 2'"'"' <<<"$INHERIT" | wc -l | tr -d " ")" = 2 ]'
+assert "control: the declared occurrence on the exempted line still classifies EXEMPT" \
+  '[ "$(awk -F"\t" '"'"'$3 == 1 {print $1}'"'"' <<<"$INHERIT")" = EXEMPT ]'
+assert "control: a second read appended to the exempted line does NOT inherit and classifies HAZARD" \
+  '[ "$(awk -F"\t" '"'"'$3 == 2 {print $1}'"'"' <<<"$INHERIT" | tr "\n" " ")" = "EXEMPT HAZARD " ]'
+
+# ...and the ENTRY counter is a second, independent budget: adding a table entry moves it even
+# though the occurrence counts above are computed from the corpus.
+MORE_EX="$TMP/more-exemptions.tsv"
+cp "$EXEMPTIONS" "$MORE_EX"
+printf 'EXEMPT\t%s\t%s\n' tests/test_synthetic_probe.sh "$RESULTS_DIR_REL/x" >> "$MORE_EX"
+assert "control: declaring one more exemption moves the entry counter on its own" \
+  '[ "$(table_entries EXEMPT "$MORE_EX")" = "$((EXPECTED_EXEMPT_ENTRIES + 1))" ] && [ "$(table_entries CURATED "$MORE_EX")" = "$EXPECTED_CURATED_ENTRIES" ]'
 
 # 7b. Deleting the pathspec exclusion from a throwaway copy of test_docket_build.sh is REPORTED.
 MUT_TDB="$TMP/mutated_docket_build.sh"
@@ -645,6 +769,27 @@ assert "mutation landed: the glob escape is present before and gone after" \
   '[ "$rmf_before" -ge 1 ] && [ "$rmf_after" = 0 ]'
 rmf_exclusion_armed "$MUT_RMF"; rmf_mut_rc=$?
 assert "control: the glob-escape check REPORTS the deleted escape" '[ "$rmf_mut_rc" = 1 ]'
+
+# 7c-bis. The same, for the grep -v prefix alternation. Deleting the results-tree alternative alone
+# leaves the pipeline, the two sibling prefixes and the whole invocation shape intact — which is
+# precisely why the extractor keys on the alternative and not on the pipe.
+MUT_CCD="$TMP/mutated_cursor_contract.sh"
+awk -v tok="^$RESULTS_DIR_REL/\\\\|" '{ while ((p = index($0, tok)) > 0) $0 = substr($0, 1, p - 1) substr($0, p + length(tok)); print }' \
+  "$CCD" > "$MUT_CCD"
+ccd_before="$(grep -c -F -e "^$RESULTS_DIR_REL/" "$CCD" || true)"
+ccd_after="$(grep -c -F -e "^$RESULTS_DIR_REL/" "$MUT_CCD" || true)"
+ccd_siblings="$(grep -c -F -e '^docs/superpowers/' "$MUT_CCD" || true)"
+assert "mutation landed: the results-tree alternative is present before, gone after, siblings intact" \
+  '[ "$ccd_before" -ge 1 ] && [ "$ccd_after" = 0 ] && [ "$ccd_siblings" -ge 1 ]'
+ccd_exclusion_armed "$MUT_CCD"; ccd_mut_rc=$?
+assert "control: the prefix-alternation check REPORTS the deleted alternative" '[ "$ccd_mut_rc" = 1 ]'
+BLIND_CCD="$TMP/blind_cursor_contract.sh"
+sed 's/stale_grep/renamed_grep/g' "$CCD" > "$BLIND_CCD"
+assert "mutation landed: the stale-claim extractor anchor is gone from the blinded copy" \
+  '[ "$(grep -c -F -e "stale_grep()" "$BLIND_CCD" || true)" = 0 ]'
+ccd_exclusion_armed "$BLIND_CCD"; ccd_blind_rc=$?
+assert "control: a renamed stale-claim extractor is reported as a broken extractor, not as armed" \
+  '[ "$ccd_blind_rc" = 2 ]'
 
 # 7d. Vacuity control — if the anchor the extractor keys on disappears, that is reported as a
 # BROKEN EXTRACTOR (2), never as an armed guard. An absence assert whose extractor silently
@@ -712,16 +857,21 @@ assert "control: every declared new read form was actually classified" \
 #    here instead, through the same classifier. Its policy prose says <results_dir>; the literal
 #    appears only in the assignment above and on comment lines, so under the inverted predicate
 #    every occurrence must land on ASSIGN or COMMENT. Nothing here may read the tree either.
+#
+#    It runs over LOGICAL lines, through the same logical_lines join the corpus scan uses — not
+#    over physical ones. A bespoke per-physical-line loop here would contradict the header's own
+#    reason for the join: a read in THIS file spelled with the command on one physical line and
+#    its path operand on the next would be handed a free-pass class for exactly the reason a raw
+#    per-line predicate is wrong everywhere else.
 # ---------------------------------------------------------------------------
 SELF_RECORDS="$TMP/self.tsv"
 : > "$SELF_RECORDS"
-self_ln=0
-while IFS= read -r sline; do
-  self_ln=$((self_ln + 1))
+while IFS=$'\t' read -r self_ln sline; do
+  [ -n "$self_ln" ] || continue
   case "$sline" in
     *"$RESULTS_DIR_REL"*) printf '%s\t%s\t%s\t%s\n' 1 "$SELF_REL" "$self_ln" "$sline" >> "$SELF_RECORDS" ;;
   esac
-done < "${BASH_SOURCE[0]}"
+done < <(logical_lines "${BASH_SOURCE[0]}")
 SELF_RESULT="$(classify "$NO_EXEMPTIONS" < "$SELF_RECORDS")"
 self_total="$(grep -c . <<<"$SELF_RESULT" || true)"
 self_hazard="$(count_class HAZARD "$SELF_RESULT")"

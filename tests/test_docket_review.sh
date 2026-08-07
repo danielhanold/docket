@@ -755,6 +755,33 @@ assert "finalize: the skip's second limb needs a strict-ancestor head_sha AND an
 assert "finalize: the delta derivation names --name-only, -z, and a rename-suppressing flag" \
   'grep -qF -- "--name-only" <<<"$skip_flat" && grep -qE -e "-z" <<<"$skip_flat" && grep -qE -e "--no-renames|-M0" <<<"$skip_flat"'
 
+# THE REMAINING NORMATIVE CLAUSES OF THE SAME ITEM. The flags above are bound; these three are the
+# rest of what step 4 actually promises, and every one of them is a sentence a reflow or a
+# "tighten the prose" edit deletes without moving any assert already written. Each is keyed on
+# SHAPE — a claim co-present with its counter-claim — never on one blessed spelling, and read from
+# the same flattened haystack whose non-vacuity the "conditional-skip item was located" assert
+# above establishes.
+#
+# (1) TRACKED PATHS ONLY. The prefix test is a statement about the DIFF, not about the working
+# tree: a filesystem walk of the results directory would see untracked scratch files and ignore a
+# tracked deletion, so "all under <results_dir>/" would stop meaning what the skip needs it to
+# mean. The shape is a tracked-only claim co-present with a refusal to traverse the filesystem.
+assert "finalize: the delta is tested over tracked paths only, never by filesystem traversal" \
+  'grep -qiE "tracked[^|]{0,20}paths?[^|]{0,30}only" <<<"$skip_flat" && grep -qiE "never[^|]{0,40}(filesystem|traversal|traverse)" <<<"$skip_flat"'
+# (2) EMPTY DIFF OVER A NON-EMPTY RANGE IS DOUBT. `head_sha..HEAD` can be non-empty on the graph
+# while `git diff` reports nothing — an empty commit, a revert pair, a merge collapsed away. An
+# empty path list trivially satisfies "every path is under the allowlist", so without this clause
+# the widest possible uncertainty produces the strongest possible permit. The shape is the
+# graph/diff disagreement co-present with the run-the-suite disposition.
+assert "finalize: a range non-empty on the graph but empty in the diff is doubt and runs the suite" \
+  'grep -qiE "(non-?empty|not empty)[^|]{0,40}graph[^|]{0,80}empty[^|]{0,40}diff" <<<"$skip_flat" && grep -qiE "diff[^|]{0,60}(doubt|runs? the suite)" <<<"$skip_flat"'
+# (3) THE LOG NAMES WHICH PERMIT MATCHED. 0170 already required a skip to be logged (asserted over
+# the whole file above), and that assert survives 0190 unchanged while the log goes on saying only
+# "skipped" — which makes the two permits indistinguishable in the audit trail, exactly when a
+# second, weaker permit has just been added. The shape is a matched-permit log line naming both.
+assert "finalize: the skip log names which permit matched (exact-SHA vs the ancestor permit)" \
+  'grep -qiE "(match|name)[^|]{0,40}permit" <<<"$skip_flat" && grep -qiE "exact-?SHA[^|]{0,120}(ancestor|docs-only)" <<<"$skip_flat"'
+
 # ARMING (change 0190 whole-branch review, finding 2). The two shape asserts above bind the second
 # limb's PREDICATE; neither binds its GATE. With both of them green the limb can still be stated as
 # unconditionally ON — which is exactly how it first shipped, carrying a trailing "degrade off"
