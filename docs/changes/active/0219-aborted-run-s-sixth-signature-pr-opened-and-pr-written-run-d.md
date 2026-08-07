@@ -7,7 +7,7 @@ priority: high
 type: fix
 created: 2026-08-05
 updated: 2026-08-07
-claimed_at: 2026-08-07T15:59:04Z
+claimed_at: 2026-08-07T16:01:09Z
 depends_on: [211]
 related: [200, 222]
 discovered_from: [211]
@@ -20,7 +20,7 @@ auto_groomable: false
 branch: feat/aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -72,3 +72,40 @@ enrichment that makes leg C's existing finding actionable.
 - Any status flip or claim release — the advisory posture holds.
 - Relaxing `board-checks.sh`'s git-only contract. Rejected at grooming: the GitHub work goes where
   `gh` already lives, so the offline-safe check stays offline-safe.
+
+## Reconcile log
+
+### 2026-08-07
+
+Re-read the change, its spec, `related: [200, 222]`, and the current code on `origin/main`
+(035e8eba). **The design holds unchanged — no scope adjustment needed.**
+
+Verified against current code, every anchor the spec names still exists and still reads as
+described:
+
+- `scripts/board-checks.sh` — the `aborted-run` block gates on `status: in-progress` (line ~414);
+  leg C's `[ -z "$(fm_field "$f" pr)" ]` short-circuit is at line ~462 and is the read leg D must
+  share via the hoisted `ar_pr`. The stale preamble comment still reads "Two INDEPENDENT legs;
+  either emits, and both can emit on one change" (line ~401) — both halves stale since 0211 made it
+  three, exactly as the spec states.
+- `ABORTED_RUN_STALE_SECS` (12h, line 172) and `ABORTED_RUN_IDLE_SECS` (2h, line 189) both remain
+  hardcoded with no config knob, so the spec's "reuse leg C's floor, do not introduce a second magic
+  number" reasoning still stands on its stated precedent.
+- `scripts/docket-status.sh` — `detect_merged` is at line 483 and still carries both the batched
+  sweep and the documented "per-change `gh pr list` fallback only for changes with no `pr:` set",
+  plus the `sweep-skipped <reason>` / `return 0` posture at lines 514, 518, 535. The enrichment leg's
+  reuse target is intact.
+- `scripts/board-checks.md` — the `## Not covered` paragraph is at lines 269–271 and still defers
+  the case citing the git-only contract, the exact text the spec directs be rewritten rather than
+  deleted.
+
+Coupling re-checked: `related: [200, 222]` are both still `proposed` and unbuilt, so neither has
+landed a conflicting edit to `board-checks.sh` or its suite. The expected rebase compose is a future
+concern, not a present one. `depends_on: [211]` is satisfied (`done`), and 0211's leg C is present
+in the code as described.
+
+Confirmed the spec's test guidance is still live: `tests/test_board_checks.sh` fixture ids must not
+be hardcoded.
+
+Auto-capture: the discovery pass surfaced no adjacent work clearing the six admission gates. Both
+code legs and all four doc repairs sit inside this change's own declared scope; nothing minted.
