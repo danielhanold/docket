@@ -241,5 +241,38 @@ assert "empty render: no leftover temp file in changes dir (only BOARD.md remain
   '[ "$(count_files)" -eq 1 ]'
 assert "empty render: reports empty output on stderr" 'grep -qF "empty output" "$work/err11"'
 
+# --- 12 (change 0259): the REAL renderer's exit 3 reaches board-refresh, and BOARD.md survives it
+# Test #9 above proves board-refresh honors a non-zero code from an INJECTED stub that
+# `exit 7`s. This proves the real render-board.sh produces one on real malformed input, and that
+# the two are wired together end to end — the claim a documented exit-code table cannot make on
+# its own. The asserts pin the MECHANISM, not merely "something failed": the code is exactly 3
+# (not the empty-output 1 of case #11, not a crash), and the renderer's own per-file diagnostic
+# naming the offending path arrives on board-refresh's stderr.
+mkdir -p "$tmp/active"
+cat > "$tmp/active/0099-malformed.md" <<'EOF'
+---
+id: 99
+slug: malformed
+title: Malformed Status
+status: not-a-status
+priority: medium
+depends_on: []
+---
+EOF
+cp "$tmp/BOARD.md" "$work/pre-malformed-board.md"
+"$SCRIPT" --changes-dir "$tmp" --surfaces "inline" >"$work/out12" 2>"$work/err12"; rc12=$?
+assert "0259: board-refresh exits non-zero when the real renderer reports malformed input" \
+  '[ "$rc12" -ne 0 ]'
+assert "0259: board-refresh propagates the renderer's exit 3 verbatim" '[ "$rc12" -eq 3 ]'
+assert "0259: BOARD.md is left byte-identical after a malformed render" \
+  'diff -u "$work/pre-malformed-board.md" "$tmp/BOARD.md"'
+assert "0259: the renderer's diagnostic names the offending file on board-refresh's stderr" \
+  '/usr/bin/grep -qF -- "malformed change file: $tmp/active/0099-malformed.md: status '"'"'not-a-status'"'"'" "$work/err12"'
+assert "0259: board-refresh reports the failed render and the code it saw" \
+  '/usr/bin/grep -qF -- "render-board.sh failed (exit 3)" "$work/err12"'
+assert "0259: malformed render leaves no temp file in the changes dir" \
+  '[ "$(count_files)" -eq 1 ]'
+rm -f "$tmp/active/0099-malformed.md"
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
