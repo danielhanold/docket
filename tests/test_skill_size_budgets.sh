@@ -446,12 +446,26 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # rejection above already argued cannot leave SKILL.md; splitting a rule from its own exception is
 # strictly worse than either whole. Set per the rounding rule from the measured actual 160/4243:
 # 4243 -> 4250 leaves 7 words (within the 25-word threshold), so the multiple after it, 4300.
+# skills/docket-build/references/gate-execution.md is a NEW row added by change 0223, which states
+# the build gate's EXECUTION POSTURE by capability in docket-build's SKILL.md and quarantines every
+# product-specific name, setting, and measured figure here. The quarantine is the point, not a size
+# argument: the parent body is bound by a harness-neutrality rule the suite asserts negatively, so
+# per-harness verdicts, launch shapes, and observed durations have no other home by construction —
+# naming a tool in SKILL.md is the defect this file exists to prevent. It is also read on a
+# different cadence (blocking, once, at gate start) and re-measured whenever a harness version
+# moves, which SKILL.md is not. Set per the rounding rule above from the measured actuals: 143
+# lines -> the next multiple of 5 is 145, which leaves 2 lines of margin — the near-zero mode this
+# block warns about, and the same reading the edge-paths.md row took — so the multiple after: 150;
+# 1290 words -> 1300 is within the 25-word threshold (10 words of margin), so the multiple after:
+# 1350. This row is a build-time consequence of creating the file, not a discretionary raise: the
+# completeness check below rejects any skills/**/*.md without one.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
 skills/docket-auto-groom/SKILL.md                           66 1237
 skills/docket-brainstorm/SKILL.md                           84  692
 skills/docket-build/SKILL.md                               280 2500
+skills/docket-build/references/gate-execution.md            150 1350
 skills/docket-build/references/task-routing.md              50  500
 skills/docket-build-task/SKILL.md                          125 1100
 skills/docket-convention/SKILL.md                          345 5850
