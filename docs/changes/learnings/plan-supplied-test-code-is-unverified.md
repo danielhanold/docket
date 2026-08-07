@@ -2,7 +2,7 @@
 slug: plan-supplied-test-code-is-unverified
 hook: "Test code a plan hands you is unverified code, not an oracle — prove the assert CAN pass, and mutation-test its own key."
 topics: [testing, plan, guards]
-changes: [94, 104, 112, 130, 133, 157, 168, 170, 173, 174, 194, 113, 212, 211, 203, 228, 226]
+changes: [94, 104, 112, 130, 133, 157, 168, 170, 173, 174, 194, 113, 212, 211, 203, 228, 226, 234]
 created: 2026-07-19
 updated: 2026-08-07
 promotion_state: candidate
@@ -269,3 +269,17 @@ implementer. It is not a reason to distrust plans — it is a reason to run the 
   idiom that destroyed an uncommitted edit mid-mutation-test (see
   [[mutation-restore-needs-a-backup-copy]]) — three defects, one plan, all in supplied *procedure*
   rather than supplied code, which is the part that reads least like code.
+- 2026-08-07 (#234, PR #169) — **The rule extends past the plan to the *reviewer*: a pattern
+  suggested in a review finding is unverified code with the same authority problem.** A minor
+  finding proposed `returned in \*\*[0-9]+s\*\*` to catch duration figures regrowing on the kept
+  surface. Validated against the real prose it matched only three of the four narratives — one
+  narrative line-wraps between "returned in" and `**19s**`, and `grep` is line-oriented, so a paste
+  of exactly the sentence the guard was written to catch would have slipped past it. Adopted instead
+  a pattern keyed on the figure shape alone (`\*\*[0-9]+s\*\*`). Same wrap-fragility as #212's
+  prose anchors, arriving through the review channel rather than the plan.
+  Two smaller procedure defects in the same branch, both in the class that fabricates a reading:
+  a `perl -0pi -e 's/^…$/…/m'` mutation silently substituted **nothing** and produced a false "the
+  guard did not redden" — two workers hit it independently, so *confirm the mutation landed (diff
+  the file) before believing the guard's response*; and the plan's own verification greps were
+  written `^(NOT )?ok` while this runner prints `NOT OK` uppercase, so a RED line was invisible to
+  the filter rather than reported.

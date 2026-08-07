@@ -2,9 +2,9 @@
 slug: correspondence-guard-runs-one-way
 hook: "A guard over a correspondence between two sets proves only the direction it iterates — write the reverse loop too, and anchor it on the consuming code, not an allowlist."
 topics: [testing, coverage, sentinels]
-changes: [101, 107, 104, 102, 111]
+changes: [101, 107, 104, 102, 111, 234]
 created: 2026-07-20
-updated: 2026-07-21
+updated: 2026-08-07
 promotion_state: candidate
 promoted_to:
 ---
@@ -108,3 +108,14 @@ change existed to end ([[verify-the-claim]]).
   Mutating one site to a variable kept every set compare green at 12 (the id is emitted elsewhere
   too) and was visible only in the call-site count, 17 → 16. That is one assert in the file that can
   see it — see [[guards-are-code]] on discovery guards, where site-count is part of the contract.
+- 2026-08-07 (#234, PR #169) — **The one-way shape applied to a file *move* rather than to two sets.**
+  A blocking-read reference was split in two: probe evidence out of `gate-execution.md` into a
+  sibling. All three planned guards asserted only *removal* from the kept surface — `## Method` is
+  gone, the pointer to the sibling exists, the sibling is non-vacuous by a `>= 40` line floor.
+  Nothing asserted the evidence **landed**. Deleting `## Method` and the measurement ladder from the
+  sibling left it above the floor with every assert green and the moved content gone from the repo
+  entirely. The forward/reverse question for a move is not "does each set contain the other's
+  entries" but **"is the destination asserted by content, or only by size?"** — a line-count floor is
+  the enumerated-floor failure ([[enumerated-floor]]) wearing a different hat, since it proves the
+  file is big, never that it is the right file. Closed by content-shaped asserts on the destination
+  (the ladder's distinguishing figures) alongside the removal asserts on the source.
