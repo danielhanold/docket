@@ -17,10 +17,10 @@ results:
 trivial: false
 auto_groomable: true
 branch: feat/harden-render-board-sanitize-feeder-values-and-settle-the-fa
-claimed_at: 2026-08-07T22:50:37Z
+claimed_at: 2026-08-07T22:52:18Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -57,3 +57,16 @@ Settled design (auto-groomed 2026-08-07; detail and audit trail in the spec's `#
 ## Open questions
 
 None — resolved at design time; see the spec's `## Assumptions`. The former posture fork (warn-and-skip vs exit-nonzero) is settled as both: skip the row for stdout completeness, exit 3 so callers gate honestly; the availability cost (one bad file halts board refresh and autonomous selection, loudly) is accepted in Assumption 1. `related: [244]` records a file-collision coupling (0244 migrates frontmatter read call sites in `render-board.sh`); no ordering constraint.
+
+## Reconcile log
+
+### 2026-08-07 — reconciled at claim (implement-next)
+
+Every premise in the change body and the spec re-verified against `origin/main` at `483c5dad`. **No scope change; the design stands as groomed.**
+
+- **Feeder hazard still live.** `scripts/render-board.sh` (415 lines) still interpolates the raw `status:` value into the archive sort feeder's TAB join and reads it back under `IFS=$'\t' read -r date id st f`; the guard on that line is still emptiness-only (`[ -n "$id" ] && [ -n "$st" ] || continue`). `ARC_COUNT["$st"]` and `SECTION["$st"]` still take the raw value as an associative-array subscript, guarded only for emptiness.
+- **Exit-0-on-corruption still live.** The digest block still ends with an unconditional `exit 0`; markdown still falls off the end. Non-zero exits remain CLI-argument errors only.
+- **Line numbers drifted, targets did not.** The spec's `:400-405` / `:388` / `:154` / `:141` / `:247` citations are approximate against the current file; the code shapes they name are all present and unchanged in substance. Implementation should locate by code shape, not by the spec's line numbers.
+- **Test pins confirmed present** in `tests/test_render_board.sh` (2170 lines): the exit-0-on-malformed-id assert, the 0143 block's `Archive — done (2)` / `backlog done 2` tally asserts (pinned deliberately so no silent fix lands), and the golden byte-compare render that discards stderr and never captures an exit code. The spec's contract-flip plan applies verbatim.
+- **Coupling unchanged.** `related: [244]` — change 0244 is still `proposed` and unbuilt, so no frontmatter-read-helper migration has landed in `render-board.sh`; no ordering constraint, whichever lands second reconciles mechanically. `depends_on:` stays empty; all other cited changes (0143, 0155, 0156, 0157, 0104, 0115, 0127, 0094) remain terminal.
+- **Auto-capture:** enabled this run; the pass surfaced no discovery clearing the six admission gates. Nothing minted.
