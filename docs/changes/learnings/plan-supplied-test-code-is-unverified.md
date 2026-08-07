@@ -2,9 +2,9 @@
 slug: plan-supplied-test-code-is-unverified
 hook: "Test code a plan hands you is unverified code, not an oracle — prove the assert CAN pass, and mutation-test its own key."
 topics: [testing, plan, guards]
-changes: [94, 104, 112, 130, 133, 157, 168, 170, 173, 174, 194, 113, 212, 211]
+changes: [94, 104, 112, 130, 133, 157, 168, 170, 173, 174, 194, 113, 212, 211, 203]
 created: 2026-07-19
-updated: 2026-08-05
+updated: 2026-08-06
 promotion_state: candidate
 promoted_to:
 ---
@@ -233,3 +233,16 @@ implementer. It is not a reason to distrust plans — it is a reason to run the 
   picking an "obvious" filename has no way to know which paths are load-bearing. And a mutation
   that passes proves nothing until you have shown it can *fail*: neutering each mutation's `sed`
   to `cat` and re-running is what surfaced both defects here.
+- 2026-08-06 (#203, PR #163) — the results file names this finding as "earning itself," and three
+  distinct plan-supplied defects fired in one branch. The plan's `## Verification` block asserted
+  `grep -c 'git-state postcondition'` would return **2**; the delivered design deliberately never
+  repeats the term, so the true value is **1** — an expected value derived from an imagined
+  implementation, not a measured one. The plan also supplied its guard as literal shell, two lines
+  of which were unusable as written: `flatten < f | grep -q` is the producer-piped-into-an-
+  early-exiting-consumer hazard under `set -o pipefail` (see [[pipefail]]) and goes intermittently
+  red at 141, and a comment anchored as `path:193` is exactly the filename-plus-line form
+  `tests/test_comment_anchor_style.sh` rejects. **Both were caught by execution, neither by
+  reading** — the plan's shell was syntactically fine and locally plausible in each case. The
+  generalization: a plan author writes guard shell without running it against the repo's own
+  meta-suite, so plan-supplied test code must clear the *project's* conventions checks, not just
+  produce the right answer.

@@ -2,9 +2,9 @@
 slug: specified-but-unreachable
 hook: "Sentinels over prose assert a claim is PRESENT, never that it is REACHABLE — where a contract has a producer and a consumer, anchor one assert on the producer."
 topics: [testing, sentinels, review]
-changes: [87, 94]
+changes: [87, 94, 203]
 created: 2026-07-19
-updated: 2026-07-19
+updated: 2026-08-06
 promotion_state: candidate
 promoted_to:
 ---
@@ -42,3 +42,14 @@ this?* If the answer is only "the section that describes it," the feature is dec
   **order** comparison anchored on the executable line `docket_preflight "$SCRIPTS_DIR"`. Lesson:
   a sentinel that names the producer is not yet a sentinel that *reaches* it — when the anchor
   string also occurs in prose, the region is bounded by the comment, not the code.
+- 2026-08-06 (#203, PR #163) — the unreachability was in the **contract prose itself**, not a
+  sentinel. A new `### Step postconditions` table made each row cumulative and gave row 6 a
+  `head_sha == HEAD` conjunct; because the Step-6.5 results commit moves HEAD after the evidence is
+  minted, that row could never hold at Step 7 — and Step 7's row is the sole licence for the
+  `advanced` disposition. The skill's own `references/edge-paths.md` already declared that
+  staleness EXPECTED, so the new table contradicted a rule in the same file, and the defect would
+  have fired on the very run that shipped it (this change wrote a results file). The reviewer
+  proposed scoping or exempting row 6; the fix found row 5 carried the identical defect and
+  qualified the governing sentence once instead. Lesson: a specification with a *satisfaction*
+  condition needs the same reachability question a sentinel does — walk the real path that must
+  satisfy it, including the path this very change takes.
