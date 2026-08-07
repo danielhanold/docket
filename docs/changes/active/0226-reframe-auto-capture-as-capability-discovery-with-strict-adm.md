@@ -2,11 +2,11 @@
 id: 226
 slug: reframe-auto-capture-as-capability-discovery-with-strict-adm
 title: Reframe auto-capture as capability discovery with strict admission gates
-status: proposed
+status: in-progress
 priority: medium
 type: feat
 created: 2026-08-06
-updated: 2026-08-06
+updated: 2026-08-07
 depends_on: [218]
 related: [91, 127, 204, 218]
 discovered_from: [218]
@@ -16,7 +16,8 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/reframe-auto-capture-as-capability-discovery-with-strict-adm
+claimed_at: 2026-08-07T10:59:44Z
 pr:
 blocked_by:
 reconciled: false
