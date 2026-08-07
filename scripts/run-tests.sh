@@ -25,8 +25,9 @@
 #   --strict-budget    make a breach FATAL (exit 4); by default a breach is reported, not fatal
 #   TEST ...           test files to run (default: tests/test_*.sh)
 # Exit: 0 every test file passed — including green-but-over-budget, which is reported loudly and
-#       is fatal only under --strict-budget; 1 a test file failed; 4 --strict-budget and every
-#       test passed but a budget was exceeded; 2 usage error or unmet Bash floor.
+#       is fatal only under --strict-budget; 1 a test file failed; 3 a job produced no result at
+#       all, so the run certified nothing (harness failure, not a test failure); 4 --strict-budget
+#       and every test passed but a budget was exceeded; 2 usage error or unmet Bash floor.
 #
 # Dev tooling for THIS repo's suite — deliberately NOT a docket.sh facade op, like profile-asserts.sh.
 set -uo pipefail
@@ -208,8 +209,8 @@ for t in ${SER[@]+"${SER[@]}"}; do launch "$t"; wait; done
 SUITE_WALL=$(( $(date +%s) - SUITE_START ))
 
 # ---- report: deterministic, sorted by basename, independent of completion order ----------------
-files=0; passed=0; failed=0; asserts=0; overbudget=0
-failed_names=""; over_names=""
+files=0; passed=0; failed=0; asserts=0; overbudget=0; noresult=0
+failed_names=""; over_names=""; noresult_names=""
 
 mapfile -t ORDERED < <(
   for t in "${TARGETS[@]}"; do printf '%s\t%s\n' "${t##*/}" "$t"; done |
@@ -218,7 +219,16 @@ mapfile -t ORDERED < <(
 
 for t in "${ORDERED[@]}"; do
   base="${t##*/}"; base="${base%.sh}"
-  [ -f "$WORK/stat/$base" ] || continue
+  # No stat record means the job's subshell died between launch and its write — an OOM kill under
+  # -j, a full disk, an external signal. `files` counts records that EXIST, so skipping quietly
+  # would drop the file from the report and still exit 0, certifying a suite that ran fewer files
+  # than it was asked to. Name it here and answer it below; the run is not trustworthy.
+  if [ ! -f "$WORK/stat/$base" ]; then
+    noresult=$((noresult + 1)); noresult_names="$noresult_names $base"
+    printf '%-52s %4ss  rc=%-3s ok=%-5s notok=%-4s  NO RESULT (the job died before writing one)\n' \
+      "$base" "?" "?" "?" "?"
+    continue
+  fi
   IFS=$'\t' read -r rc secs p f < "$WORK/stat/$base"
   files=$((files + 1)); asserts=$((asserts + p + f))
   ceil="$(ceiling_of "$t")"
@@ -237,6 +247,14 @@ done
 
 printf 'SUITE files=%s passed=%s failed=%s asserts=%s wall=%ss\n' "$files" "$passed" "$failed" "$asserts" "$SUITE_WALL"
 [ -n "$failed_names" ] && printf 'FAILED:%s\n' "$failed_names"
+if [ "$noresult" -gt 0 ]; then
+  # Named, not counted: a bare count sends the reader hunting through 80-odd basenames for the one
+  # that is absent from a report that is sorted but no longer complete.
+  printf 'NO RESULT:%s\n' "$noresult_names"
+  printf '%s of %s test files produced no result — those jobs died before recording one (OOM kill under -j, a full disk, an external signal).\n' \
+    "$noresult" "${#TARGETS[@]}"
+  printf 'This run certified nothing about them: re-run, and if it recurs lower -j.\n'
+fi
 if [ -n "$over_names" ]; then
   printf 'OVER BUDGET:%s\n' "$over_names"
   # The remedy leads with the substantive fix. It must NOT suggest raising the ceiling — a budget
@@ -251,6 +269,8 @@ if [ -n "$over_names" ]; then
   # a reader of a failing run must not be handed.
   if [ "$failed" -gt 0 ]; then
     printf 'Note: this run already fails on test failures (exit 1). The breach above is a separate finding.\n'
+  elif [ "$noresult" -gt 0 ]; then
+    printf 'Note: this run already fails on missing results (exit 3). The breach above is a separate finding.\n'
   elif [ "$BUDGET_STRICT" = 1 ]; then
     printf 'Strict: --strict-budget was given, so this breach fails the run (exit 4). The tests themselves passed.\n'
   else
@@ -260,5 +280,11 @@ if [ -n "$over_names" ]; then
 fi
 
 [ "$failed" -gt 0 ] && exit 1
+# 3, not 1: no test file failed here, so a caller that answers 1 by dispatching a repair agent to
+# root-cause failing tests would send it hunting for something that is not in any log. It is still
+# non-zero, which is the only part every caller reads — a run missing a file's verdict must never
+# certify the suite. It ranks BELOW a real failure: when a run is both red and incomplete, exit 1
+# is the more actionable signal and the NO RESULT block above is printed either way.
+[ "$noresult" -gt 0 ] && exit 3
 [ "$overbudget" -gt 0 ] && [ "$BUDGET_STRICT" = 1 ] && exit 4
 exit 0

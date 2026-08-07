@@ -186,7 +186,8 @@ and it is explicitly deferred to it**, not quietly dropped.
 | Code | Meaning |
 |---|---|
 | 0 | Every test file exited 0 — **including** a run where a file exceeded its budget, which is reported and not fatal without `--strict-budget`. |
-| 1 | At least one test file exited non-zero. Takes precedence over a budget breach. |
+| 1 | At least one test file exited non-zero. Takes precedence over a budget breach and over a missing result. |
+| 3 | Every target that produced a result passed, but at least one produced **no result at all** — its job died before recording one. The run certified nothing about that file. |
 | 4 | `--strict-budget` was given, every test file exited 0, and at least one exceeded its budget. |
 | 2 | Usage error — unknown flag, a flag missing its argument, a non-positive `-j`, a `TEST` that does not exist, an unwritable `--timings` path, an empty test set, `--no-budget-check` together with `--strict-budget` — or the interpreter is pre-Bash-4.3 and no usable `runtime.bash` was configured to re-exec under. |
 
@@ -196,6 +197,18 @@ the budget table's failures indistinguishable from real regressions. It is behin
 for the mirror-image reason — a caller that cannot tell 4 from 1 collapses them right back, and
 every caller wired to this script today is such a caller (see "Why a breach is advisory by
 default"). Exit-code semantics beyond this are change 0224's, not this script's.
+
+Exit **3** is the harness saying it lost a job. A per-file verdict is a stat record written by the
+job's own subshell after the test exits; if that subshell dies first — an OOM kill under
+`-j <CPU count>` with git-heavy jobs, a full disk, an external `kill` — the record is never
+written. `files=` counts the records that exist, so without this check the file simply drops out of
+a well-formed report and the run still exits 0, certifying a suite that ran fewer files than it was
+asked to. The runner therefore compares `files` against the number of targets, prints a
+`NO RESULT:` line naming each absent file, and exits non-zero. It is **3** rather than **1**
+because no test failed: a caller that answers 1 by dispatching a repair agent to root-cause failing
+tests would find none, and the remedy here is to re-run (and, if it recurs, lower `-j`). It ranks
+below **1** because when a run is both red and incomplete the real failure is the more actionable
+signal — the `NO RESULT:` block is printed either way.
 
 ## Invariants
 

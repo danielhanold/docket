@@ -220,7 +220,39 @@ SLOTLOG="$T/slotlog" bash "$RT" -j 1 "$T"/tests/test_slot1.sh "$T"/tests/test_sl
 peak1="$(awk '/^\+/{c++; if (c > m) m = c} /^-/{c--} END{print m + 0}' "$T/slotlog")"
 assert "-j 1 never overlaps two jobs" '[ "$peak1" = "1" ]'
 
-# (10) usage error
+# (10) A JOB THAT PRODUCES NO RESULT AT ALL must be loud, not silently dropped. Per-file verdicts
+# are stat records the job's own subshell writes AFTER the test exits; if that subshell dies first
+# (OOM kill under -j, a full disk, an external signal) no record is written, and a report loop that
+# skips a missing record counts `files` from what survived — an incomplete run that still exits 0.
+# The fixture reproduces exactly that: the runner's per-job subshell is this script's parent, so
+# SIGKILLing $PPID drops the record between launch and its write. No sleep is needed — the parent
+# is blocked waiting on this process, so the signal lands before it can reach the printf.
+cat > "$T/tests/test_vanish.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "ok - vanish ran"
+kill -KILL "$PPID" 2>/dev/null
+exit 0
+EOF
+chmod +x "$T/tests/test_vanish.sh"
+gout="$(bash "$RT" -j 2 "$T/tests/test_alpha.sh" "$T/tests/test_vanish.sh" 2>&1)"; grc=$?
+assert "a job with no stat record does NOT exit 0"   '[ "$grc" != "0" ]'
+assert "a job with no stat record exits 3"           '[ "$grc" = "3" ]'
+assert "the file with no result is NAMED, not just counted" 'grep -qE "^NO RESULT:.* test_vanish" <<<"$gout"'
+assert "the no-result report gives the counts"       'grep -q "1 of 2 test files produced no result" <<<"$gout"'
+assert "the surviving file is still reported"        'grep -qE "^SUITE files=1 passed=1 failed=0 " <<<"$gout"'
+# Negative control: the check must key on an ABSENT record, not fire on every run — otherwise the
+# asserts above would pass for the wrong reason.
+cout="$(bash "$RT" -j 2 "$T/tests/test_alpha.sh" "$T/tests/test_beta.sh" 2>&1)"; crc10=$?
+assert "a complete run reports no missing result"    '! grep -q "NO RESULT" <<<"$cout"'
+assert "a complete run still exits 0"                '[ "$crc10" = "0" ]'
+
+# It must also not leave the budget block telling the reader something false about the exit: the
+# advisory sentence claims exit 0, which a run missing a result is not.
+vbout="$( cd "$T" && bash "$RT" -j 2 --budgets "$T/budgets_cheap.tsv" "$T/tests/test_slowish.sh" "$T/tests/test_vanish.sh" 2>&1 )"; vbrc=$?
+assert "missing result outranks an advisory breach"  '[ "$vbrc" = "3" ]'
+assert "incomplete run is NOT told it exits 0"       '! grep -qi "does not fail" <<<"$vbout"'
+
+# (11) usage error
 bash "$RT" --bogus-flag >/dev/null 2>&1
 assert "unknown flag exits 2" '[ "$?" = "2" ]'
 
