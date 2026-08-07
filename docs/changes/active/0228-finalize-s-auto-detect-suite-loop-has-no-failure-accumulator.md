@@ -12,12 +12,12 @@ related: [190, 223, 224]
 discovered_from: [227]
 adrs: []
 spec: docs/superpowers/specs/2026-08-07-finalize-s-auto-detect-suite-loop-has-no-failure-accumulator-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-07-finalize-auto-detect-suite-failure-accumulator.md
 results:
 trivial: false
 auto_groomable: true
 branch: feat/finalize-s-auto-detect-suite-loop-has-no-failure-accumulator
-claimed_at: 2026-08-07T12:05:00Z
+claimed_at: 2026-08-07T12:20:00Z
 pr:
 blocked_by:
 reconciled: true
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-07-finalize-s-auto-detect-suite-loop-has-no-failure-accumulator-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-finalize-s-auto-detect-suite-loop-has-no-failure-accumulator-design.md) |
+| Plan | [2026-08-07-finalize-auto-detect-suite-failure-accumulator.md](https://github.com/danielhanold/docket/blob/feat/finalize-s-auto-detect-suite-loop-has-no-failure-accumulator/docs/superpowers/plans/2026-08-07-finalize-auto-detect-suite-failure-accumulator.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
