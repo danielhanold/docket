@@ -7,11 +7,11 @@ priority: medium
 type: fix
 created: 2026-08-07
 updated: 2026-08-07
-depends_on: []
-related: []
+depends_on: [223]
+related: [223, 224, 232]
 discovered_from: [223]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-07-a-presumed-dead-build-worker-can-wake-and-race-its-own-repla-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-07-a-presumed-dead-build-worker-can-wake-and-race-its-own-repla-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-a-presumed-dead-build-worker-can-wake-and-race-its-own-repla-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -56,19 +59,38 @@ Three separate hazards compose here:
 
 ## What changes
 
-Decide the protocol for a non-responsive worker. Candidates, not conclusions: a liveness probe the
-controller must pass before discarding; a lease file in the worktree that a second worker refuses to
-write over; making discard-and-redispatch illegal outright, so a stalled worker is always a halt for
-a human rather than a race the controller opens itself.
+The settled design is in the spec. Four prose edits plus their guards:
+
+- **`skills/docket-build/SKILL.md`** — extend the existing *A worker return is malformed or
+  unverifiable* halting bullet with the sibling prohibition: never discard the worktree and dispatch
+  a fresh worker for that task. The trigger is the observable event — control returned without a
+  schema-valid outcome — never elapsed time.
+- **`skills/docket-build/SKILL.md` § *Dispatching a task*** — one sentence extending "never dispatch
+  two workers concurrently" to a controller that *believes* the first worker is gone.
+- **`skills/docket-build-task/SKILL.md` § *Scope*** — widen "never rewrite, amend, or revert earlier
+  task commits" to **any** commit, including one this worker just made; correct by adding a commit.
+- **`skills/docket-implement-next/references/fix-loop.md`** — the same prohibition in the fix loop's
+  own disposition vocabulary (abort-and-report, `claimed_at` refreshed), because Step 6 dispatches
+  workers itself and never loads `docket-build`.
+- **Guards** in `tests/test_docket_build.sh` over all three prose surfaces, mutation-tested.
+
+Depends on change 0223: its branch rewrites the same *Halting conditions* list and introduces the
+false-completion rule this design reasons from.
 
 ## Out of scope
 
-- The yield defect that caused the stall — change 0223 fixed the gate execution posture that
-  produced it. This stub is about what the controller does when a worker stalls for any reason.
+- The yield defect that caused the stall (change 0223).
+- Reducing suite runtime (change 0227).
+- `docket-finalize-change`'s resolver/repair dispatches — no discard-and-re-dispatch path exists
+  there.
+- Detection of a stray post-acceptance commit; the prohibition makes that state unreachable.
 
 ## Open questions
 
-- Is a liveness probe even available to a controller, or is the honest fix to make presumed-dead a
-  halt condition?
-- Does the same hazard reach the `docket-rebase-resolver` / `docket-integration-repair` dispatches,
-  which also act in a shared feature worktree?
+Resolved at groom time (see the spec's `## Assumptions`):
+
+- *Is a liveness probe available to a controller?* No — a foreground controller blocks and has no
+  clock; presumed-dead is not an observable state. The rule keys on a return without a schema-valid
+  outcome and forbids the recovery move.
+- *Does the hazard reach `docket-rebase-resolver` / `docket-integration-repair`?* Not today — both
+  are single foreground dispatches and finalize has no discard-and-re-dispatch path. Out of scope.
