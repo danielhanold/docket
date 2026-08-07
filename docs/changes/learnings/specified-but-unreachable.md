@@ -2,7 +2,7 @@
 slug: specified-but-unreachable
 hook: "Sentinels over prose assert a claim is PRESENT, never that it is REACHABLE — where a contract has a producer and a consumer, anchor one assert on the producer."
 topics: [testing, sentinels, review]
-changes: [87, 94, 203, 220]
+changes: [87, 94, 203, 220, 226]
 created: 2026-07-19
 updated: 2026-08-07
 promotion_state: candidate
@@ -61,3 +61,13 @@ this?* If the answer is only "the section that describes it," the feature is dec
   verbatim clause of the comment itself. Lesson: a directional search helper makes "above the
   anchor" structurally unreachable, so an assert about a *header* can never be anchored on the
   declaration it heads. Mutation-test by deleting the thing the assert names, not by editing near it.
+- 2026-08-07 (#226, PR #168) — The change's headline addition was an instruction telling agents to
+  *actively search* for capability discoveries, backed by six categories in a reference file. Every
+  test asserted the categories were present; the suite was fully green and the implementation was
+  faithful to the spec. Review found the real defect: the only trigger loading that reference fired
+  **after** something had already surfaced, so the six categories were read only by a reader who no
+  longer needed them. The change's central instruction was dead prose. Fix: the convention's
+  drill-down trigger now fires at **each mint site on arrival**. Lesson for prose deliverables
+  specifically — reachability is not just "does some path write this," it is **does the path that
+  reads it fire early enough to change behavior**. A reference loaded after the decision it exists
+  to inform is as inert as one nothing loads at all.

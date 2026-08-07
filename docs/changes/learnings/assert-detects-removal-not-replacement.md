@@ -2,9 +2,9 @@
 slug: assert-detects-removal-not-replacement
 hook: "A guard written to CONFIRM the wording you just introduced detects nothing — write the assert that DETECTS the state you just removed, and prove the mutation actually landed before believing it passed."
 topics: [testing, guards, mutation]
-changes: [135, 167, 193]
+changes: [135, 167, 193, 226]
 created: 2026-07-28
-updated: 2026-08-02
+updated: 2026-08-07
 promotion_state: candidate
 promoted_to:
 ---
@@ -75,3 +75,13 @@ sentinel does and does not pin).
   renamed file, a wrong path, or an `awk` that stopped matching, i.e. green for reasons that have
   nothing to do with the block being gone. Same edit, same session, same shape; only one of them
   can fail. **The inversion is the moment to add the companion, not a later hardening pass.**
+- 2026-08-07 (#226, PR #168) — Two guards passed green **through the very rewrite they existed to
+  demand**, both by matching a token that survives in unrelated prose. The `admission gate` assert
+  was satisfied by the pre-change summary's incidental "waits at the human's groom **gate**"; the
+  `mint-stub` contract assert was satisfied by the bare token `mint-stub` while the rule-bearing
+  clause it guarded ("start with `## Why`") could be rewritten to say the **opposite** and stay
+  green. Neither guard could distinguish "the reframe landed" from "the file still contains an
+  English word." Both tightened onto the rule-bearing clause. The tell: an assert whose match term
+  is a **common noun or a bare identifier** rather than a verbatim slice of the claim — such a term
+  is almost always present for reasons unrelated to the property, so the guard is satisfied before
+  the change it demands is even written.

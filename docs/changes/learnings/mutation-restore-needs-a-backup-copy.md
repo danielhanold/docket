@@ -1,0 +1,41 @@
+---
+slug: mutation-restore-needs-a-backup-copy
+hook: "`git checkout -- <file>` restores to HEAD, not to your uncommitted edit — as a mutation-test restore step it silently destroys the work being tested and produces a meaningless reading."
+topics: [testing, git, mutation]
+changes: [226]
+created: 2026-08-07
+updated: 2026-08-07
+promotion_state: candidate
+promoted_to:
+---
+
+## Apply
+A mutation test is three steps: break the guarded thing, run the assert, restore. The reflexive
+restore idiom is `git checkout -- <file>` — and it is wrong for the case that matters, because the
+mutation is nearly always performed on a file you have **just edited and not yet committed**.
+`git checkout --` restores to **HEAD**, so it discards the edit under test along with the mutation.
+
+What follows is worse than losing work, because the run keeps going. The suite now executes against
+the pre-change file, so the asserts fail en masse — a large, confident, entirely meaningless red
+reading. The natural next move is to debug the *asserts*, which are fine.
+
+**Back up and copy back:**
+
+```
+cp "$f" "$f.bak"; <mutate>; <run assert>; mv "$f.bak" "$f"
+```
+
+Restore-to-backup is correct whether or not the edit is committed, so it is the idiom to write into
+plans unconditionally rather than the one to reach for only when you remember the state. Two
+adjacent tells that the reading is bogus rather than real: the failure count is far larger than the
+mutation's blast radius, and asserts unrelated to the mutated claim are among the failures.
+Related: [[plan-supplied-test-code-is-unverified]] — this arrived as plan-supplied *procedure*,
+which gets even less scrutiny than plan-supplied code.
+
+## War story
+- 2026-08-07 (#226, PR #168) — The plan's Step 6/7 mutation procedure specified
+  `git checkout -- <file>` as the restore. The file was a reference the task had just rewritten and
+  not committed, so the restore reverted the rewrite mid-mutation-test; the following run produced
+  roughly 40 failures against the old file's content and briefly read as a genuine regression in
+  the change. Later tasks in the same plan used a `cp` backup and behaved correctly. The rewrite was
+  recoverable from the editor state, but the diagnostic cost was the real damage.

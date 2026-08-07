@@ -2,7 +2,7 @@
 slug: plan-supplied-test-code-is-unverified
 hook: "Test code a plan hands you is unverified code, not an oracle — prove the assert CAN pass, and mutation-test its own key."
 topics: [testing, plan, guards]
-changes: [94, 104, 112, 130, 133, 157, 168, 170, 173, 174, 194, 113, 212, 211, 203, 228]
+changes: [94, 104, 112, 130, 133, 157, 168, 170, 173, 174, 194, 113, 212, 211, 203, 228, 226]
 created: 2026-07-19
 updated: 2026-08-07
 promotion_state: candidate
@@ -256,3 +256,16 @@ implementer. It is not a reason to distrust plans — it is a reason to run the 
   A supplied assert whose own plan text concedes it stays green under the mutation it is paired
   with is green-by-construction, and the concession is the evidence. See
   [[assert-pins-outcome-not-mechanism]].
+- 2026-08-07 (#226, PR #168) — A *new shape* of this: the plan supplied the site-C assert
+  `grep -qiE "unavailable|\*\*no\*\*" <<<"$c_row"` for a routing-table row. The row's own
+  *Branch + fix loop* column independently says `**no**`, so the alternation stayed satisfied with
+  the fix-in-branch exemption — the thing the assert existed to guard — deleted. The mutation
+  proved it. Fix: split into two cell-scoped asserts using `[^|]` so each pattern stays inside the
+  cell that owns its claim. The generalization: an alternation is only as strong as its weakest
+  branch, and a *plan* author writing against a table that does not exist yet cannot see which
+  branch some other cell will satisfy for free. Same session also caught a plan-supplied generic
+  `/^## /` awk terminator that sliced a section short (see
+  [[section-slice-needs-a-named-terminator]]) and a plan-supplied `git checkout -- <file>` restore
+  idiom that destroyed an uncommitted edit mid-mutation-test (see
+  [[mutation-restore-needs-a-backup-copy]]) — three defects, one plan, all in supplied *procedure*
+  rather than supplied code, which is the part that reads least like code.
