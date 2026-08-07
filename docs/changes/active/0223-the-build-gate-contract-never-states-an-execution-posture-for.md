@@ -12,14 +12,14 @@ related: [66, 190, 224, 227]
 discovered_from: [203]
 adrs: []
 spec: docs/superpowers/specs/2026-08-06-the-build-gate-contract-never-states-an-execution-posture-for-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-07-the-build-gate-contract-never-states-an-execution-posture-for.md
 results:
 trivial: false
 auto_groomable:
 branch: feat/the-build-gate-contract-never-states-an-execution-posture-for
 pr:
 blocked_by:
-claimed_at: 2026-08-07T06:20:00Z
+claimed_at: 2026-08-07T06:35:00Z
 reconciled: true
 ---
 
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-06-the-build-gate-contract-never-states-an-execution-posture-for-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-06-the-build-gate-contract-never-states-an-execution-posture-for-design.md) |
+| Plan | [2026-08-07-the-build-gate-contract-never-states-an-execution-posture-for.md](https://github.com/danielhanold/docket/blob/feat/the-build-gate-contract-never-states-an-execution-posture-for/docs/superpowers/plans/2026-08-07-the-build-gate-contract-never-states-an-execution-posture-for.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
