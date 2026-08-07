@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0234 — Split gate-execution.md: probe evidence should not sit on a blocking-read surface](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0234-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b.md)**
+> ↩ **[Change 0234 — Split gate-execution.md: probe evidence should not sit on a blocking-read surface](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-07-0234-split-gate-execution-md-probe-evidence-should-not-sit-on-a-b.md)**
 <!-- docket:backlink:end -->
 
 # Split `gate-execution.md`: probe evidence off the blocking-read surface — design
