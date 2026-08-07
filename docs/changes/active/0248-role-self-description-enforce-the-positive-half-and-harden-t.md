@@ -8,10 +8,10 @@ type: chore
 created: 2026-08-07
 updated: 2026-08-07
 depends_on: []
-related: []
+related: [194]
 discovered_from: [198, 199]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-07-role-self-description-enforce-the-positive-half-and-harden-t-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-07-role-self-description-enforce-the-positive-half-and-harden-t-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-role-self-description-enforce-the-positive-half-and-harden-t-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -38,8 +41,14 @@ Verified 2026-08-07:
 
 ## What changes
 
-- Add the binding-key mention to `skills/docket-review/SKILL.md` (and any other role skill missing it) per the rule's positive half; add the positive assert.
-- Close or disclose the three guard gaps: derive the population by auto-discovery, disclose or fix the co-occurrence scope, tighten the `default` matcher with fire/ignore probes.
+Groomed 2026-08-07 (auto-groom; two critic passes, PASS on re-check). The settled design — detail in the linked spec:
+
+- **Enforce the positive half**: add a house-patterned "bound by `skills.review`" clause to `skills/docket-review/SKILL.md`'s opening (docket-build and docket-brainstorm already conform), and add a per-role positive assert (`grep -qF "skills.$role"`) that doubles as a stronger non-vacuity anchor.
+- **Derive the guard population** from the convention's five role nouns filtered by directory existence, double-anchored: a population floor (today's three role skills) plus a SET-EQUALITY anchor against the `SKILL_*` variables `scripts/docket-config.sh` emits, so an added sixth role reddens the guard.
+- **Close the co-occurrence gap** with a second matcher (role-noun co-occurrence, hyphen-compound-excluding shape `\b$role role\b|docket-$role([^-]|$)`) with its own fire/ignore probes, and update the header's disclosed-limitations block honestly.
+- **Tighten WORDS** to claim-shaped, modifier-tolerant phrasing (`the ([a-z]+ )?default|by default|instead of|alternative to|opt-in`) so operational "defaults to" sentences stop false-positiving while the house phrasing "the shipped default" still fires; new ignore probe added.
+
+All matcher shapes were empirically verified against the current tree under both ugrep and `/usr/bin/grep` (zero hits on conforming bodies; probes fire/ignore as specified).
 
 ## Out of scope
 
