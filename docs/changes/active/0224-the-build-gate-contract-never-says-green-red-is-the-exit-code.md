@@ -2,7 +2,7 @@
 id: 224
 slug: the-build-gate-contract-never-says-green-red-is-the-exit-code
 title: The build gate contract never says green/red is the exit code, so an output-shape match passes as a gate
-status: in-progress
+status: implemented
 priority: high
 type: docs
 created: 2026-08-06
@@ -13,12 +13,12 @@ discovered_from: [203]
 adrs: [74]
 spec: docs/superpowers/specs/2026-08-07-the-build-gate-contract-never-says-green-red-is-the-exit-design.md
 plan: docs/superpowers/plans/2026-08-07-the-build-gate-contract-never-says-green-red-is-the-exit-plan.md
-results:
+results: docs/results/2026-08-07-the-build-gate-contract-never-says-green-red-is-the-exit-code-results.md
 trivial: false
 auto_groomable: true
 branch: feat/the-build-gate-contract-never-says-green-red-is-the-exit-code
-claimed_at: 2026-08-07T19:21:11Z
-pr:
+claimed_at: 2026-08-07T19:23:47Z
+pr: https://github.com/danielhanold/docket/pull/174
 blocked_by:
 reconciled: true
 ---
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-07-the-build-gate-contract-never-says-green-red-is-the-exit-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-the-build-gate-contract-never-says-green-red-is-the-exit-design.md) |
 | Plan | [2026-08-07-the-build-gate-contract-never-says-green-red-is-the-exit-plan.md](https://github.com/danielhanold/docket/blob/feat/the-build-gate-contract-never-says-green-red-is-the-exit-code/docs/superpowers/plans/2026-08-07-the-build-gate-contract-never-says-green-red-is-the-exit-plan.md) |
+| Results | [2026-08-07-the-build-gate-contract-never-says-green-red-is-the-exit-code-results.md](https://github.com/danielhanold/docket/blob/feat/the-build-gate-contract-never-says-green-red-is-the-exit-code/docs/results/2026-08-07-the-build-gate-contract-never-says-green-red-is-the-exit-code-results.md) |
+| PR | [#174](https://github.com/danielhanold/docket/pull/174) |
 | ADRs | [ADR-0074](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0074-build-gate-verdict-is-tri-state-runner-defined-non-failure-exit-is-a-halt.md) |
 <!-- docket:artifacts:end -->
 
