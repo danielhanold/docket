@@ -7,13 +7,13 @@ priority: high
 type: fix
 created: 2026-08-05
 updated: 2026-08-07
-claimed_at: 2026-08-07T16:01:09Z
+claimed_at: 2026-08-07T16:07:03Z
 depends_on: [211]
 related: [200, 222]
 discovered_from: [211]
 adrs: []
 spec: docs/superpowers/specs/2026-08-07-aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-07-aborted-run-step-7-seam.md
 results:
 trivial: false
 auto_groomable: false
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-07-aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d-design.md) |
+| Plan | [2026-08-07-aborted-run-step-7-seam.md](https://github.com/danielhanold/docket/blob/feat/aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d/docs/superpowers/plans/2026-08-07-aborted-run-step-7-seam.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
