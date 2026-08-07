@@ -107,8 +107,13 @@ Type flipped `docs` → `feat` at grooming: the configuration knob is real code.
 
 ## Open questions
 
-- Does codex actually comply? Grooming research found the exec session is torn down at **turn** end,
-  which is where the contract's permitted yield lands. The spec directs a smoke test; if it confirms
-  teardown, record `incompatible` with evidence and leave the contract unweakened.
+- Do cursor and opencode comply? Both are `unverified` pending the same smoke test codex passed.
+  Opencode is the likelier failure, and by the opposite mechanism — blocking the launch rather than
+  killing the gate.
+
+Codex was resolved at grooming (smoke-tested 2026-08-06, codex-cli 0.146.1): **`supported`, but only
+via new-session detach.** Its teardown is a process-group kill, so plain `nohup … &` is killed before
+writing any output while the launch command reports success. That result sharpened required
+capability 1 — detachment must survive a process-group kill, not merely a parent exit.
 
 ## Reconcile log

@@ -147,7 +147,9 @@ It holds two things. First, the six required capabilities, as a table — these 
 capabilities, not required mechanisms, and each harness may satisfy them differently:
 
 1. Starting a gate whose execution continues beyond the lifetime or timeout of the foreground call
-   that initiated it.
+   that initiated it — **including the harness's teardown of that call's process group**, not merely
+   the exit of its immediate parent. See the Codex evidence below for why the weaker reading is not
+   sufficient.
 2. Preserving gate output in a durable location.
 3. Recording an unambiguous terminal result.
 4. Performing subsequent short-lived observations of that result.
@@ -172,7 +174,7 @@ supersedes anything below that has changed.
 | claude | default 120 000 ms, max 600 000 ms (`BASH_DEFAULT_TIMEOUT_MS` / `BASH_MAX_TIMEOUT_MS`) | Documented background execution returning a shell id, with separate output-read and kill operations; corroborated empirically by change 0203 | `supported` |
 | cursor | undocumented and reported to have changed; 900 s+ failures reported | An experimental background-terminal setting exists alongside a silence-timeout setting | `unverified` — smoke-test |
 | opencode | default 2 min, SIGTERM on expiry; overridable by environment variable and per-command field | No first-class background mechanism; shell-level backgrounding is reported to hang the tool when the child inherits the caller's output pipes | `unverified` — smoke-test |
-| codex | per-call, not the binding limit | Negative signal: the exec session is torn down at **turn** end and anything spawned from it dies with it; no cross-turn background mechanism | likely `incompatible` — smoke-test to confirm |
+| codex | per-call, not the binding limit | **Smoke-tested 2026-08-06 (codex-cli 0.146.1, `--sandbox danger-full-access`).** A gate launched into a **new session** (fork + `setsid`) survived the entire `codex exec` session ending; the same gate launched with plain `nohup … &` was killed before writing its first line, while the launch command reported success | `supported` — **only** via new-session detach |
 
 Two findings shape the design.
 
@@ -181,16 +183,24 @@ Codex's teardown are both really *the child is still attached to the caller*. Th
 matters is detachment plus durable redirection of every stream — the same act that produces the
 durable artifact. One requirement, two payoffs.
 
-**Codex breaks at the turn boundary, not the foreground-call boundary.** The contract permits the
-agent to yield while the gate runs; on Codex, yielding ends the turn and kills the gate. So the
-incompatibility is precise: Codex could satisfy "outlive a foreground call" only by never yielding,
-which re-caps the gate at the foreground timeout — the exact constraint the contract exists to
-escape.
+**Detachment must survive a process-GROUP kill, not merely a parent exit.** This is the smoke test's
+main finding, and it is a correction to the design's own starting assumption. Codex was expected to
+be incompatible on the strength of maintainer reports that the exec session is torn down at turn
+end. It is in fact **compatible** — the teardown is a process-group kill, so a gate placed in a new
+session survives it, and survives even the whole session ending. The reported failures were
+describing the mechanism accurately and the consequence incorrectly.
 
-If the smoke test confirms it, the implementer records `incompatible` with its evidence, mints a
-follow-up stub, and leaves the contract unweakened. Docket MUST NOT weaken the common contract to
-preserve nominal support for a harness that cannot meet it. Change 0203's empirical evidence
-supports the Claude Code verdict only and MUST NOT be generalized.
+The consequence for the contract is that "run it in the background" is too weak a formulation. Plain
+`nohup … &` satisfies the plain-language reading and still fails here — and fails in the worst
+available way, with the launch command **reporting success** while the gate is killed before writing
+its first output. A contract that licenses that shape ships a gate that lies. Required capability 1
+is therefore stated as surviving the harness's teardown of the initiating call *and its process
+group*, not as surviving the parent's exit.
+
+Docket MUST NOT weaken the common contract to preserve nominal support for a harness that cannot
+meet it. Should a future harness prove genuinely incompatible, the implementer records
+`incompatible` with its evidence and mints a follow-up stub rather than relaxing the requirement.
+Change 0203's empirical evidence supports the Claude Code verdict only and MUST NOT be generalized.
 
 Where official documentation establishes the semantics clearly, the implementer may rely on it
 without an exploratory test. Where documentation is absent, ambiguous, or contradicted by observed
@@ -250,10 +260,18 @@ configuration contract while the reference records the external capability evide
 
 This flips the change from `type: docs` to `type: feat` — the configuration knob is real code.
 
+The probe script used for the Codex verdict is worth re-deriving rather than preserving: it launches
+a gate that writes its sentinel **last**, ends the harness session immediately, and then observes
+from **outside** the agent, so the agent's own report is never the evidence. An inconclusive run
+(gate never started) establishes nothing and MUST NOT be recorded as `incompatible` — the first two
+Codex runs were inconclusive for unrelated reasons (a `setsid` EPERM caused by the harness running
+the launcher as a process-group leader) and would have produced a false verdict if believed.
+
 ## Risks
 
-- **Codex may not comply.** Handled explicitly above: surface the incompatibility, do not weaken the
-  contract. The change ships either way.
+- **Cursor and OpenCode remain unverified.** OpenCode is the more likely of the two to fail, and to
+  fail by *blocking the launch* rather than by killing the gate — the opposite failure mode from
+  Codex, and one the probe measures separately.
 - **The neutrality constraint is the hard part.** A rule stated so abstractly that no implementer can
   act on it fails as surely as a harness-specific one. The reference file is what carries the
   actionable detail; if the skill-body prose cannot be made actionable with the reference in hand,
