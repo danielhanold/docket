@@ -96,12 +96,19 @@ docket_yaml_single_quote(){
 docket_scalar_quote_reason(){
   local v="$1"
   [ -n "$v" ] || return 0          # empty is exempt EXPLICITLY: archive-change.sh writes claimed_at ""
-  # Flow-collection exemption: a well-formed [..] or {..} is a SEQUENCE/MAP, and quoting it would
-  # silently change its parsed type (discovered_from: [234] is exactly this shape). A shape test —
-  # it never asks which key is being written.
-  case "$v" in
-    '['*']'|'{'*'}') return 0 ;;
-  esac
+  # There is deliberately NO flow-collection exemption. The question this predicate answers is
+  # "would VALUE be well-formed as a BARE SCALAR", and a `[..]` / `{..}` is not a scalar at all — so
+  # `[234]` gets the honest answer for the question asked: bare, it does not read back as the string
+  # `[234]`. A caller holding a value it MEANS as a sequence or a map (mint-stub's discovered_from
+  # write is the one such site, and it quotes nothing) must simply not route it through a scalar
+  # predicate; that is a call-site decision, not something a shape test can infer.
+  # An exemption cannot be had cheaply here: to protect `[234]` it must run ahead of the legs below,
+  # and there it silences all five for any value that merely opens and closes with the matching
+  # bracket — `[a title: with colon]` went from a colon-space finding to silence, and a malformed
+  # `[WIP] rework]` read as a well-formed collection. It also bought nothing: scalar_form_check, its
+  # only consumer, reads `title` and `blocked_by`, and a sweep of every change file on the metadata
+  # branch found both to be free-text prose everywhere, never a collection; and
+  # the WRITE path consumes no predicate at all (ADR-0071).
   case "$v" in *': '*) printf 'colon-space';        return 0 ;; esac
   case "$v" in *':')   printf 'trailing-colon';     return 0 ;; esac
   case "$v" in
