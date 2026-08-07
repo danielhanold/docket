@@ -2,10 +2,10 @@
 id: 134
 slug: audit-field-call-sites-for-frontmatter-anchored-reads
 title: Audit field() call sites for frontmatter-anchored reads
-status: proposed
+status: killed
 priority: medium
 created: 2026-07-22
-updated: 2026-07-22
+updated: 2026-08-07
 depends_on: []
 related: []
 discovered_from: [127]
@@ -92,3 +92,7 @@ Kept in the human queue deliberately: the open question is a repo-wide read-sema
 (invert the default vs. keep `fm_field` opt-in), and ADR-0058 already split these readers into two
 tiers on purpose — changing the default would touch that decision, which is a call worth making
 consciously rather than by a default-biased autonomous groom.
+
+## Why killed
+
+Consolidated into #0244 at the 2026-08-07 backlog triage: near-duplicate of #0240 (same library, same audit verb); #0244 carries the merged census — this change's residual unanchored field() sites plus 0240's fresher three-shape accessor data — and ADR-0057's follow-up pointer.
