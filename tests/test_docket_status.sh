@@ -773,6 +773,67 @@ assert "detect_merged | sweep_execute: sweep-skipped reaches stdout through the 
 assert "detect_merged | sweep_execute: no bogus close-out output for the skip line" \
   '! printf "%s\n" "$pipe_out" | grep -Eq "^(swept|harvest|sweep-failed) "'
 
+# ---- detect_merged's FALLBACK arm is repo-scoped (change 0250) ----
+# The graphql arm names owner/name inside the query, so it always honored the resolution. The
+# per-change `gh pr list` fallback did not pass --repo at all, so under a --repo-scoped pass it
+# queried whatever repository the process CWD implies — a different repository than board_pass and
+# github-mirror.sh, which both forward the flag. Same defect, same fix, and the same witness shape
+# as the detect_orphan_pr argv block below: stdout cannot see an argv, so the stub records its own.
+detect_fb_dir="$tmp/detect-fallback-case"
+mkdir -p "$detect_fb_dir/docs/changes/active"
+# pr: is EMPTY on purpose — that is the only way the fallback arm is reached.
+cat > "$detect_fb_dir/docs/changes/active/0012-fallback-thing.md" <<'EOF'
+---
+id: 12
+slug: fallback-thing
+title: Fallback thing
+status: implemented
+priority: high
+depends_on: []
+branch: feat/fallback-thing
+pr:
+EOF
+
+cat > "$tmp/gh-detect-argv.sh" <<EOF
+#!/usr/bin/env bash
+printf '%s\n' "\$*" >> "$tmp/gh-detect-argv.log"
+if [ "\$1" = repo ] && [ "\$2" = view ]; then echo "x/y"; exit 0; fi
+if [ "\$1" = pr ] && [ "\$2" = list ]; then
+  echo '[{"number":301,"mergedAt":"2026-07-06T10:00:00Z"}]'
+  exit 0
+fi
+exit 1
+EOF
+chmod +x "$tmp/gh-detect-argv.sh"
+
+rm -f "$tmp/gh-detect-argv.log"
+detect_fb_out="$( cd "$detect_fb_dir" && \
+  DOCKET_MODE=main CHANGES_DIR=docs/changes GH="$tmp/gh-detect-argv.sh" \
+  bash -c '. "'"$SCRIPT"'"; detect_merged' )"
+detect_fb_prlist="$(grep -E '^pr list' "$tmp/gh-detect-argv.log" || true)"
+assert "detect_merged fallback: the pr list call happens at all (the argv witness is not vacuous)" \
+  '[ -n "$detect_fb_prlist" ]'
+assert "detect_merged fallback: the resolved repo REACHES the pr list call as --repo x/y" \
+  '[ -n "$detect_fb_prlist" ] && ! grep -qvF -- "--repo x/y" <<<"$detect_fb_prlist"'
+detect_fb_expected="$(printf '12\tfallback-thing\t301\t2026-07-06')"
+assert "detect_merged fallback: the argv-witness run still emits its merged candidate" \
+  'printf "%s\n" "$detect_fb_out" | grep -qF "$detect_fb_expected"'
+
+# REPO_FLAG end-to-end. REPO_FLAG is assigned AFTER sourcing on purpose: the source runs the
+# script's argument-parsing prologue, which resets REPO_FLAG to the empty string, so an environment
+# value would be clobbered. Mirrors the detect_orphan_pr REPO_FLAG block below.
+rm -f "$tmp/gh-detect-argv.log"
+detect_fb_flag_out="$( cd "$detect_fb_dir" && \
+  DOCKET_MODE=main CHANGES_DIR=docs/changes GH="$tmp/gh-detect-argv.sh" \
+  bash -c '. "'"$SCRIPT"'"; REPO_FLAG=someone/elsewhere; detect_merged' )"
+detect_fb_flag_prlist="$(grep -E '^pr list' "$tmp/gh-detect-argv.log" || true)"
+assert "detect_merged fallback: REPO_FLAG is honored end-to-end on every pr list call" \
+  '[ -n "$detect_fb_flag_prlist" ] && ! grep -qvF -- "--repo someone/elsewhere" <<<"$detect_fb_flag_prlist"'
+assert "detect_merged fallback: with REPO_FLAG set no gh repo view subprocess is spent" \
+  '! grep -q "^repo view" "$tmp/gh-detect-argv.log"'
+assert "detect_merged fallback: the REPO_FLAG run still emits its merged candidate" \
+  'printf "%s\n" "$detect_fb_flag_out" | grep -qF "$detect_fb_expected"'
+
 # ============ detect_orphan_pr — the GitHub enrichment leg (change 0219) ============
 # Resolves the ambiguity board-checks.sh leg C leaves behind. Leg C is git-only by contract and can
 # only say "verify the PR exists"; two very different situations produce that one finding — a PR that
