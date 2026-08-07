@@ -2,7 +2,7 @@
 id: 228
 slug: finalize-s-auto-detect-suite-loop-has-no-failure-accumulator
 title: finalize's auto-detect suite loop has no failure accumulator, so a mid-suite red merges
-status: in-progress
+status: implemented
 priority: high
 type: fix
 created: 2026-08-07
@@ -13,12 +13,12 @@ discovered_from: [227]
 adrs: []
 spec: docs/superpowers/specs/2026-08-07-finalize-s-auto-detect-suite-loop-has-no-failure-accumulator-design.md
 plan: docs/superpowers/plans/2026-08-07-finalize-auto-detect-suite-failure-accumulator.md
-results:
+results: docs/results/2026-08-07-finalize-s-auto-detect-suite-loop-has-no-failure-accumulator-results.md
 trivial: false
 auto_groomable: true
 branch: feat/finalize-s-auto-detect-suite-loop-has-no-failure-accumulator
-claimed_at: 2026-08-07T12:20:00Z
-pr:
+claimed_at: 2026-08-07T13:00:00Z
+pr: https://github.com/danielhanold/docket/pull/167
 blocked_by:
 reconciled: true
 ---
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-07-finalize-s-auto-detect-suite-loop-has-no-failure-accumulator-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-finalize-s-auto-detect-suite-loop-has-no-failure-accumulator-design.md) |
 | Plan | [2026-08-07-finalize-auto-detect-suite-failure-accumulator.md](https://github.com/danielhanold/docket/blob/feat/finalize-s-auto-detect-suite-loop-has-no-failure-accumulator/docs/superpowers/plans/2026-08-07-finalize-auto-detect-suite-failure-accumulator.md) |
+| Results | [2026-08-07-finalize-s-auto-detect-suite-loop-has-no-failure-accumulator-results.md](https://github.com/danielhanold/docket/blob/feat/finalize-s-auto-detect-suite-loop-has-no-failure-accumulator/docs/results/2026-08-07-finalize-s-auto-detect-suite-loop-has-no-failure-accumulator-results.md) |
+| PR | [#167](https://github.com/danielhanold/docket/pull/167) |
 <!-- docket:artifacts:end -->
 
 ## Why
