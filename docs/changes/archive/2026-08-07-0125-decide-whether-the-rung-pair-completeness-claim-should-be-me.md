@@ -2,10 +2,10 @@
 id: 125
 slug: decide-whether-the-rung-pair-completeness-claim-should-be-me
 title: Decide whether the rung-pair completeness claim should be mechanically enforced
-status: proposed
+status: killed
 priority: medium
 created: 2026-07-22
-updated: 2026-07-22
+updated: 2026-08-07
 depends_on: []
 related: []
 discovered_from: [112]
@@ -91,3 +91,7 @@ default.
 The genuine open question survives and is still a human call: whether the completeness claim is
 worth enforcing at all, or is better closed as a documented non-goal. Left in the human queue for
 that reason, not for the 0114 dependency.
+
+## Why killed
+
+Consolidated into #0258 at the 2026-08-07 backlog triage: the 0114/ADR-0054 blocker has resolved, and the completeness claim is guarded (or re-specified) jointly with #0123's ordering claim.
