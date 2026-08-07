@@ -11,7 +11,7 @@ depends_on: []
 related: [253]
 discovered_from: [243, 177, 182]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-07-harden-test-fixtures-and-hermeticity-into-tests-lib-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-07-harden-test-fixtures-and-hermeticity-into-tests-lib-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-harden-test-fixtures-and-hermeticity-into-tests-lib-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -39,9 +42,11 @@ Verified 2026-08-07:
 
 ## What changes
 
-- Stand up a checked git-fixture helper in `tests/lib/` (fail-loud on every fixture git/cp step) and adopt it at the `mkrepo` sites.
-- Harden the 0174 template helpers: assign the template global only after a successful build, guard `mktemp -d`, document the pre-clean, fix the leaked root (compose with the existing trap).
-- Hermeticity sweep: pin `XDG_CONFIG_HOME` (sandbox dir) and/or `DOCKET_HARNESS_ROOT` at file scope in `test_runner_dispatch.sh`, then sweep the suite for the same fall-through; standardize the pattern in the shared helper.
+Settled design (see spec): a narrow, sourceable mechanics library `tests/lib/fixture_lib.sh` — not a prologue — plus adoption at the existing sites. Fixture builders stay per-file (their bodies genuinely differ); only the mechanics are shared.
+
+- `fx` checked fixture-step runner (hard `exit 1`, loud marker, no retry; `|| true` expected-failure steps are exempt), `fx_mktemp_d` guarded mktemp, `fx_defer_rm` single lib-owned EXIT trap with path registration (fixes closeout's leaked template root and the trap-replacement hazard), `fx_pin_hermetic_config` pin-XDG-to-void — with a self-test file `tests/test_fixture_lib.sh` exercising the failure branches.
+- Adopt `fx` at the 8 `mkrepo`/`new_repo` fixture-builder files; assign template globals only after a successful build; add a vacuity check at every substitution consumer of a builder; document `mkrepo`'s destructive pre-clean in the code.
+- Hermeticity sweep, per-reader (`docket-config.sh` ignores `DOCKET_HARNESS_ROOT`; only an XDG pin is universally honored): pin-to-void at file scope in `test_runner_dispatch.sh`, then classify every `unset XDG_CONFIG_HOME` site against the reader it actually reaches; exposure is direct-invocation-only (run-tests.sh sandboxes the gate).
 
 ## Out of scope
 
