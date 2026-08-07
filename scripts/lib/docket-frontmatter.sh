@@ -17,6 +17,10 @@
 #                           doing its own quote/escape decoding (change 0191).
 #   docket_yaml_single_quote VALUE — VALUE as a single-quoted YAML scalar (interior `'` doubled);
 #                           the exact inverse of field()/fm_field()'s undoubling (change 0235).
+#   docket_scalar_quote_reason VALUE — one leg token (colon-space | trailing-colon | bare-boolean |
+#                           comment-introducer | indicator) when VALUE would not be well-formed as a
+#                           BARE YAML scalar; empty when it is safe bare. Checker-side (change 0235).
+#   docket_scalar_needs_quoting VALUE — exit 0 iff docket_scalar_quote_reason printed a token.
 #   list_field FILE KEY   — `[a, b]` -> space-separated `a b` (empty for `[]` / unset).
 #   int_field FILE KEY    — like field(), but empty unless the value is a well-formed non-negative integer.
 #   has_section FILE STR  — exit 0 iff the body contains the literal line STR (whole-line match:
@@ -71,6 +75,47 @@ _docket_unwrap_quotes(){
 docket_yaml_single_quote(){
   printf "'%s'" "${1//\'/\'\'}"
 }
+# docket_scalar_quote_reason VALUE -> ONE leg token when emitting VALUE as a BARE YAML scalar would
+# not be well-formed; empty when it is safe bare. Tokens: colon-space | trailing-colon |
+# bare-boolean | comment-introducer | indicator.
+#
+# Consumer: board-checks.sh's scalar_form_check, which judges HAND-AUTHORED scalars it did not
+# write and so must detect. The WRITER does not consume it — mint-stub quotes unconditionally, so
+# it has no enumeration to get wrong (ADR-0071). Two rules with different jobs, deliberately.
+#
+# Takes the LOGICAL value. The already-quoted skip leg lives in scalar_form_check, which is the only
+# site holding a raw token: applying it here would be unsound, since a value that logically STARTS
+# with a quote character must be quoted, not skipped.
+#
+# All legs are `case` patterns, never regex — /usr/bin/grep (BSD) and PATH grep (ugrep here) do not
+# agree on bounded repetition, and a shape test has no business depending on which one is found.
+docket_scalar_quote_reason(){
+  local v="$1"
+  [ -n "$v" ] || return 0          # empty is exempt EXPLICITLY: archive-change.sh writes claimed_at ""
+  # Flow-collection exemption: a well-formed [..] or {..} is a SEQUENCE/MAP, and quoting it would
+  # silently change its parsed type (discovered_from: [234] is exactly this shape). A shape test —
+  # it never asks which key is being written.
+  case "$v" in
+    '['*']'|'{'*'}') return 0 ;;
+  esac
+  case "$v" in *': '*) printf 'colon-space';        return 0 ;; esac
+  case "$v" in *':')   printf 'trailing-colon';     return 0 ;; esac
+  case "$v" in
+    [Oo][Nn]|[Oo][Ff][Ff]|[Yy][Ee][Ss]|[Nn][Oo]|[Tt][Rr][Uu][Ee]|[Ff][Aa][Ll][Ss][Ee])
+                       printf 'bare-boolean';       return 0 ;;
+  esac
+  # ' #' opens a YAML comment: it TRUNCATES the value silently rather than aborting the parse,
+  # which is the quieter and therefore worse failure. `finding #3` is ordinary auto-capture prose.
+  case "$v" in *' #'*) printf 'comment-introducer'; return 0 ;; esac
+  # A leading YAML indicator: & and * silently lose meaning, the rest abort the parse.
+  case "$v" in
+    '['*|']'*|'{'*|'}'*|','*|'&'*|'*'*|'!'*|'|'*|'>'*|"'"*|'"'*|'%'*|'@'*|'`'*|'?'*|':'*|'- '*)
+                       printf 'indicator';          return 0 ;;
+  esac
+  return 0
+}
+# docket_scalar_needs_quoting VALUE — exit 0 iff the value would not be well-formed bare.
+docket_scalar_needs_quoting(){ [ -n "$(docket_scalar_quote_reason "$1")" ]; }
 # field_raw FILE KEY — the first matching scalar for KEY anywhere in the file, trimmed, with any
 # surrounding quotes LEFT INTACT (the raw YAML token). For the rare consumer that does its own
 # quote/escape decoding and needs the quote style preserved (render-learnings-index.sh's `dequote`

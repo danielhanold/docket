@@ -334,5 +334,46 @@ assert "field_raw still preserves the doubling (the RAW token is not decoded)" \
   '[ "$(field_raw "$uq/sq-apos.md" title)" = "'"'"'The manifest'"''"'s elsewhere: check'"'"'" ]'
 rm -rf "$uq"
 
+# --- docket_scalar_quote_reason: the CHECKER's needs-quoting predicate (change 0235) ------------
+# Scoped to the logical value and to SYNTAX only. The writer does not consume this (it quotes
+# unconditionally, ADR-0071); board-checks does, because it judges scalars it did not write.
+reason(){ docket_scalar_quote_reason "$1"; }
+
+assert "leg colon-space"        '[ "$(reason "a: b")" = colon-space ]'
+assert "leg trailing-colon"     '[ "$(reason "ends in a colon:")" = trailing-colon ]'
+assert "leg bare-boolean yes"   '[ "$(reason "yes")" = bare-boolean ]'
+assert "leg bare-boolean TRUE"  '[ "$(reason "TRUE")" = bare-boolean ]'
+assert "leg bare-boolean off"   '[ "$(reason "off")" = bare-boolean ]'
+assert "leg comment-introducer" '[ "$(reason "clear finding #3")" = comment-introducer ]'
+assert "leg indicator bracket"  '[ "$(reason "[WIP] rework")" = indicator ]'
+assert "leg indicator anchor"   '[ "$(reason "&anchor thing")" = indicator ]'
+assert "leg indicator star"     '[ "$(reason "*star* emphasis")" = indicator ]'
+assert "leg indicator at"       '[ "$(reason "@mention someone")" = indicator ]'
+assert "leg indicator quote"    '[ "$(reason "\"quoted\" start")" = indicator ]'
+assert "leg indicator dash-sp"  '[ "$(reason "- a list-looking title")" = indicator ]'
+
+# Near-misses: each is well-formed bare YAML and must stay SILENT.
+assert "silent: a colon with no following space" '[ -z "$(reason "a:b ratio")" ]'
+assert "silent: offset is not off"               '[ -z "$(reason "offset")" ]'
+assert "silent: nobody is not no"                '[ -z "$(reason "nobody")" ]'
+assert "silent: a hash not preceded by space"    '[ -z "$(reason "issue#3 reopened")" ]'
+assert "silent: an interior dash"                '[ -z "$(reason "a well-formed title")" ]'
+assert "silent: an interior asterisk"            '[ -z "$(reason "a b*c title")" ]'
+assert "silent: an ordinary prose title"         '[ -z "$(reason "Cap the widget")" ]'
+assert "silent: the EMPTY value is exempt"       '[ -z "$(reason "")" ]'
+
+# Flow-collection exemption — a SHAPE test, never a key enumeration. Quoting a well-formed [..]
+# or {..} would turn a YAML sequence/map into a string for any real parser.
+assert "silent: a well-formed flow sequence" '[ -z "$(reason "[234]")" ]'
+assert "silent: a flow sequence with items"  '[ -z "$(reason "[4, 6]")" ]'
+assert "silent: a well-formed flow map"      '[ -z "$(reason "{owner: x}")" ]'
+# ...but an UNCLOSED bracket is not a collection, it is a broken scalar, and must still fire.
+assert "leg indicator: an UNCLOSED bracket still fires" '[ "$(reason "[WIP")" = indicator ]'
+
+# The boolean wrapper agrees with the reason function in both directions.
+assert "needs_quoting true for a colon-space value" 'docket_scalar_needs_quoting "a: b"'
+assert "needs_quoting false for a clean value"      '! docket_scalar_needs_quoting "Cap the widget"'
+assert "needs_quoting false for the empty value"    '! docket_scalar_needs_quoting ""'
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
