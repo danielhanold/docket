@@ -685,12 +685,23 @@ detect_orphan_pr(){
     repo="$("$GH" repo view --json owner,name -q '(.owner.login)+"/"+(.name)' 2>/dev/null)" \
       || { echo "sweep-skipped gh-unavailable"; return 0; }
   fi
-  [ -n "$repo" ] || { echo "sweep-skipped repo-unresolved"; return 0; }
+  # Validated detect_merged's way — split on the slash and reject the malformed shape. A bare
+  # non-empty test is not enough: `gh repo view` can exit 0 and print something that is not
+  # owner/name, and that string would then be handed straight to --repo below. Sharing the shape
+  # check with detect_merged is what makes `repo-unresolved` mean the same thing in both legs.
+  local owner="${repo%%/*}" name="${repo#*/}"
+  if [ -z "$owner" ] || [ -z "$name" ] || [ "$owner" = "$repo" ]; then
+    echo "sweep-skipped repo-unresolved"
+    return 0
+  fi
 
   local i br pl_json pl_num
   for i in "${!ids[@]}"; do
     id="${ids[$i]}"; br="${branches[$i]}"
-    pl_json="$("$GH" pr list --head "$br" --state open --json number 2>/dev/null)" || {
+    # --repo "$repo" is what SPENDS the resolution above. Without it gh infers the repository from
+    # the process CWD, so a pass invoked with --repo would query one repository here and a
+    # different one in board_pass / github-mirror.sh, which both forward the flag.
+    pl_json="$("$GH" pr list --repo "$repo" --head "$br" --state open --json number 2>/dev/null)" || {
       echo "sweep-skipped gh-unavailable"
       return 0
     }

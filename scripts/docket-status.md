@@ -248,6 +248,12 @@ whose date is almost always past the floor — so the leg would fire on the noth
 that belongs to **leg B** and that leg C deliberately stays silent about. `INTEGRATION_BRANCH` comes
 from the config resolved by `docket_preflight`.
 
+The query is `gh pr list --repo <repo> --head <branch> --state open`, where `<repo>` is `--repo` when
+given and `gh repo view`'s `owner/name` otherwise — the same resolution `detect_merged` performs.
+Passing it explicitly is what keeps this leg on the **same repository as the rest of the pass**:
+without `--repo`, `gh` infers the repository from the process CWD, which a `--repo` invocation
+(forwarded by `board_pass` and `github-mirror.sh`) is precisely saying not to trust.
+
 **Three outcomes, three remedies**, all rendered as `check aborted-run <id> <message>` — the same
 shape `health_checks` prints, so consumers read one vocabulary:
 
@@ -268,7 +274,9 @@ merge: acting on the branch would race a run that is merely between commits. Adv
 **Best-effort, verbatim `detect_merged`'s posture.** Any gh/network/parse failure emits
 `sweep-skipped <reason>` and returns 0; it never aborts the pass. The reasons are `gh-unavailable`
 (a `gh` that exits non-zero, and equally a `gh` that is not installed at all — the common offline
-case), `repo-unresolved`, and `gh-unparseable` (a `gh` that exits 0 and prints something `jq` cannot
+case), `repo-unresolved` (`--repo` unset *and* `gh repo view` returning something that is not
+`owner/name` — validated by the same owner/name split `detect_merged` uses), and `gh-unparseable`
+(a `gh` that exits 0 and prints something `jq` cannot
 parse; that one skips the single change and the loop continues, since one bad response is not
 evidence about the others). A repo with no candidate change pays nothing — not even a
 `gh repo view`. This is what keeps `board-checks.sh`'s offline guarantee intact: offline, the
