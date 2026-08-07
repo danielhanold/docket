@@ -411,5 +411,23 @@ assert "reference: points at the evidence file" \
 # still CONTAINS the method section would instead pin a copy and rot on its next rewrite.
 assert "reference: carries no Method section (evidence stays off the blocking surface)" \
   '! grep -qE "^## Method" <<<"$ref_body"'
+# The heading assert above detects ONE heading, not the CLASS of content the split removed
+# (learnings: assert-detects-removal-not-replacement). What moved out is measured probe FIGURES, and
+# the likeliest regrowth path is the launch-duration sentences pasted back under the `### <harness>`
+# headings they lived under before 0223's structure settled — which leaves the heading assert green
+# and is caught only once regrowth exceeds the ratcheted budget. So pair it with a SHAPE assert on
+# the figures themselves: a bold duration figure, `**<digits>s**`.
+# Verified in BOTH directions against live content at the time of writing:
+#   (a) it does NOT match the kept file — `gate-execution.md` contains no `[0-9]+s` at all; its only
+#       reference to the timings is the prose pointer "measured launch durations", which carries no
+#       figure.
+#   (b) it DOES match every one of the four harness narratives in `gate-execution-evidence.md`
+#       (`**0s**`, `**19s**`, `**11s**`, `**5s**`). The reviewer's proposed `returned in \*\*[0-9]+s\*\*`
+#       was checked and REJECTED: the phrasing is uniform but the `claude -p` narrative wraps between
+#       "returned in" and "**19s**", and grep is line-oriented, so that form matches only 3 of 4 and
+#       would miss a paste of the wrapped sentence. Keyed on the figure's shape rather than on the
+#       four literal values, which would age straight into the gap this closes.
+assert "reference: carries no measured launch-duration figures (shape: bold **Ns**)" \
+  '! grep -qE "\*\*[0-9]+s\*\*" <<<"$ref_body"'
 
 exit $fail

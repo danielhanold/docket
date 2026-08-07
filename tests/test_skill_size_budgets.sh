@@ -640,6 +640,15 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # expected to be RAISED again on a re-probe or a fifth harness — each per-harness narrative runs
 # 8-12 lines — unlike the ratcheted instruction row below, which is frozen instruction and is
 # expected to hold.
+# That WORD budget was then RE-SET within the same change, 1000 -> 1050. The 1000 above was derived
+# from a 971-word actual; an in-branch review fix then added a sentence to the file, taking it to
+# 102/999 — one word of headroom, which is precisely the near-zero failure mode this block records
+# having been burned by three times (the 0102, 0137, and 0167 entries above): the next word added
+# reddens CI on arrival. Re-applying the rounding rule to the ACTUAL 999: the next multiple of 50 is
+# 1000, which leaves 1 word (inside the within-25 threshold), so the multiple after it, 1050. The
+# LINE budget is untouched — 102 against 110 is eight lines of working margin, not near-zero. No
+# where-else clause is owed: the raise buys headroom against a rule this block itself imposes, and
+# moves no content.
 # The same change RATCHETED skills/docket-build/references/gate-execution.md DOWN, 175/1650 ->
 # 120/1000. A lowering needs no where-else clause either (that rule binds a raise), but the
 # ratchet is the discretionary half of 0234 and so is argued here: the file's defect was ACCUMULATED
@@ -657,7 +666,7 @@ skills/docket-adr/adr-template.md                           26   90
 skills/docket-auto-groom/SKILL.md                           66 1237
 skills/docket-brainstorm/SKILL.md                           84  692
 skills/docket-build/SKILL.md                               320 2950
-skills/docket-build/references/gate-execution-evidence.md  110 1000
+skills/docket-build/references/gate-execution-evidence.md  110 1050
 skills/docket-build/references/gate-execution.md            120 1000
 skills/docket-build/references/task-routing.md              50  500
 skills/docket-build-task/SKILL.md                          125 1100
