@@ -20,7 +20,7 @@ branch: feat/split-gate-execution-md-probe-evidence-should-not-sit-on-a-b
 pr:
 blocked_by:
 claimed_at: 2026-08-07T15:34:49Z
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -109,3 +109,34 @@ spec's `## Assumptions` block.
   published close-out record of a completed change, and an ADR's lifecycle is wrong for a
   measurement that must be rewritten whenever a harness version moves.
 - **Budget ratchet** → yes, down to the new measured actual, with an in-diff justification.
+
+## Reconcile log
+
+### 2026-08-07 — implementer reconcile
+
+Verified against `origin/main` @ `035e8eba`. Everything the spec asserts about current reality still
+holds, so the design carries forward unchanged:
+
+- `skills/docket-build/references/gate-execution.md` is **168 lines / 1612 words**, exactly the
+  figure the spec measured; its `BUDGETS` row in `tests/test_skill_size_budgets.sh:632` is still
+  `175 1650`, and `references/` holds only `gate-execution.md` + `task-routing.md` — no evidence
+  sibling exists yet.
+- The guard shapes the spec plans around are unchanged in `tests/test_gate_execution_posture.sh`
+  (387 lines): the `>= 40` non-blank floor, the (10b) `verdict[^.]{0,80}only[^.]{0,80}measur`
+  window, and the (10c) per-harness `forked|dispatched` slice with its `[^-]interactive` and
+  co-occurrence asserts. The line citations in the spec are accurate.
+- The three § *Method* citations on the kept surface (`:34`, `:43`, `:49-50`) and the fourth inside
+  `### cursor` (`:136`) are all present as described.
+
+**A8 rechecked — the 0231 coupling is live, not hypothetical.** Change 0231 went `in-progress` at
+`2026-08-07T15:35:48Z`, roughly one minute after this claim, and its branch
+`feat/a-presumed-dead-build-worker-can-wake-and-race-its-own-repla` exists locally. Both branches
+are cut from the same `origin/main` tip, so if 0231 does add or raise a `BUDGETS` row it will land
+an adjacent row plus a justification-comment entry in the same block this change edits. Handling is
+unchanged from A8: keep this change's budgets edit minimal and scoped to the two rows it owns
+(`gate-execution.md` ratcheted down, `gate-execution-evidence.md` added), append the justification
+entry at the end of the comment block rather than inserting mid-block, and let whichever PR merges
+second rebase. No scope change follows from it.
+
+Scope, out-of-scope, and all eight assumptions stand as written. No obsolescence, no invalidation.
+
