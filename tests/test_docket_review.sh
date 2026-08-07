@@ -392,16 +392,30 @@ for d in fixed deferred reverted recorded minted; do
 done
 
 # --- change 0218: auto-capture no longer absorbs this branch's own findings ---
+# Extended by change 0226, which reframed this reference as a capability-discovery pipeline. The
+# 0218 clauses below are RE-ANCHORED to the new wording, never dropped: the reframe adds the
+# positive half (what to look for, and the gates it must clear) and must not soften the negative.
 AC="$REPO/skills/docket-convention/references/auto-capture.md"
 ac_body="$(cat "$AC" 2>/dev/null)"
-assert "auto-capture: reference is non-vacuous (>= 20 lines)" \
-  '[ "$(printf "%s\n" "$ac_body" | grep -c .)" -ge 20 ]'
+# Floor raised 20 -> 60 by 0226: the file roughly doubled, and a floor that a half-deleted file
+# still clears is not a non-vacuity anchor.
+assert "auto-capture: reference is non-vacuous (>= 60 lines)" \
+  '[ "$(printf "%s\n" "$ac_body" | grep -c .)" -ge 60 ]'
+ac_flat="$(flatten <<<"$ac_body")"
 # Scoped to the Materiality bar SECTION, not the whole file: a whole-file grep would match the
 # clause wherever it landed, including a passing mention in the mint paragraph, which is not where
 # the bar is applied. The section extractor gets its own non-vacuity anchor for the same reason.
+# The extractor keeps NEWLINE-BEARING input on purpose — an awk range over a flattened file has one
+# line to range over, so the slice would become the whole file.
 ac_bar="$(awk '/^## Materiality bar/{f=1;next} /^## /{f=0} f' "$AC")"
 assert "auto-capture: the Materiality bar section was located (non-vacuity anchor)" \
   '[ -n "$ac_bar" ]'
+# The three clause asserts below read a FLATTENED slice (learnings: phrase-grep-over-wrapped-prose):
+# each pattern can span a line break, so against raw prose they double as line-wrap guards and a
+# pure re-flow reddens asserts about policy that never changed.
+ac_bar_flat="$(flatten <<<"$ac_bar")"
+assert "auto-capture: the Materiality bar slice survives flattening (non-vacuity anchor)" \
+  '[ -n "$ac_bar_flat" ]'
 # Proximity-shaped, not a bare "in-branch" presence check. The clause this guards is "work THE
 # CURRENT RUN WILL FIX in-branch FAILS THE BAR"; the sentence after it independently says the
 # finding "is fixed in-branch", so a presence grep stayed GREEN when the rule-bearing clause was
@@ -414,13 +428,118 @@ assert "auto-capture: the Materiality bar section was located (non-vacuity ancho
 # Dropping the scope back to the unscoped "work fixable by a small in-branch edit" wording must
 # redden here, so the run-will-fix qualifier is load-bearing in the pattern.
 assert "auto-capture: work the current run will fix in-branch fails the bar" \
-  'grep -qiE "current run will fix in-branch[^.]{0,40}fails the bar" <<<"$ac_bar"'
+  'grep -qiE "current run will fix in-branch[^.]{0,40}fails the bar" <<<"$ac_bar_flat"'
 # The other half of the scoping: the harvest sites must be told the clause does not reach them,
 # or a harvest-time reader applies the fix-loop caller's rule with no fix loop to apply it with.
 assert "auto-capture: the harvest sites are exempt from the in-branch clause" \
-  'grep -qiE "harvest[^.]{0,20}exempt" <<<"$ac_bar"'
+  'grep -qiE "harvest[^.]{0,20}exempt" <<<"$ac_bar_flat"'
 assert "auto-capture: the exemption says why — no branch, no fix loop at harvest" \
-  'grep -qiE "no open branch[^.]{0,20}no fix loop" <<<"$ac_bar"'
+  'grep -qiE "no open branch[^.]{0,20}no fix loop" <<<"$ac_bar_flat"'
+
+# --- change 0226: the reference is a DISCOVERY pipeline, gated -----------------------------
+# Case one of the two the spec requires: a discovery that QUALIFIES as a new change. The file must
+# actively instruct a search, not merely permit one, and must state the gates that search clears.
+ac_look="$(awk '/^## What to look for/{f=1;next} /^## /{f=0} f' "$AC")"
+assert "auto-capture: the 'What to look for' section was located (non-vacuity anchor)" \
+  '[ -n "$ac_look" ]'
+ac_look_flat="$(flatten <<<"$ac_look")"
+# Shape, not spelling: an imperative to LOOK FOR work, near the property that makes it mintable.
+assert "auto-capture: the reader is told to look for independently valuable work" \
+  'grep -qiE "look for[^.]{0,200}(worth its own change|independently valuable)" <<<"$ac_look_flat"'
+# The six discovery categories the spec enumerates. Keyed one per assert so deleting any single
+# category reddens by name — a single "the categories are present" assert would not.
+for cat in "reusable capabilit" "product or workflow feature" "policy or lifecycle" \
+           "tooling opportunit" "architectural gap" "outlives the active change"; do
+  assert "auto-capture: discovery category present: '$cat'" \
+    'grep -qiF -- "'"$cat"'" <<<"$ac_look_flat"'
+done
+ac_gates="$(awk '/^## Admission gates/{f=1;next} /^## /{f=0} f' "$AC")"
+assert "auto-capture: the 'Admission gates' section was located (non-vacuity anchor)" \
+  '[ -n "$ac_gates" ]'
+# All SIX gates, as an ordered list — a prose paragraph that merely mentions them would let the
+# count drift silently. Six numbered items is the shape the spec pins.
+n_gates="$(grep -cE '^[0-9]+\. ' <<<"$ac_gates")"
+assert "auto-capture: exactly six numbered admission gates (found $n_gates)" \
+  '[ "$n_gates" -eq 6 ]'
+ac_gates_flat="$(flatten <<<"$ac_gates")"
+for gate in "outside the scope" "independently valuable" "more than a defect" \
+            "boundary" "separate change" "without expanding"; do
+  assert "auto-capture: admission gate names '$gate'" \
+    'grep -qiF -- "'"$gate"'" <<<"$ac_gates_flat"'
+done
+
+# Case two: a current-branch finding that must NOT become a change. The never-mint list is the
+# suppression half; it lives with the gates so a reader who reaches the gates cannot miss it.
+#
+# The gap is `[^.]*`, NOT a counted bound. The never-mint list is one semicolon-separated sentence,
+# so the `[^.]` class already scopes each pattern to it — and its last entry sits 279 characters past
+# "never mint", past the 255 ERE repetition ceiling BSD grep enforces (PATH `grep` here is ugrep,
+# which accepts a larger bound and hides the defect; tests/test_grep_portability.sh does not).
+assert "auto-capture: a review finding about the active diff is never minted" \
+  'grep -qiE "never mint[^.]*review finding about the active diff" <<<"$ac_gates_flat"'
+assert "auto-capture: work implement-next fixes in the current branch is never minted" \
+  'grep -qiE "never mint[^.]*fix in the current branch" <<<"$ac_gates_flat"'
+assert "auto-capture: cleanup with no independent value is never minted" \
+  'grep -qiE "never mint[^.]*no independent value" <<<"$ac_gates_flat"'
+assert "auto-capture: a vague idea with no boundary is never minted" \
+  'grep -qiE "never mint[^.]*(vague idea|no clear outcome)" <<<"$ac_gates_flat"'
+
+# --- change 0226: routing is site-dependent, and site C keeps its own bar -------------------
+ac_route="$(awk '/^## Routing/{f=1;next} /^## /{f=0} f' "$AC")"
+assert "auto-capture: the 'Routing' section was located (non-vacuity anchor)" \
+  '[ -n "$ac_route" ]'
+for route in "fix-in-branch" "record-as-learning" "report-only" "capture-as-new-change"; do
+  assert "auto-capture: routing names the '$route' route" \
+    'grep -qF -- "'"$route"'" <<<"$ac_route"'
+done
+# Row-shaped, deliberately NOT flattened: flattening the table would let one row's cells satisfy a
+# pattern keyed on another row (the bridging failure the fix-loop guards above record).
+assert "auto-capture: routing has a row for the implement-next reconcile site" \
+  'grep -qE "^\| A [^|]*\|" <<<"$ac_route"'
+assert "auto-capture: routing has a row for the implement-next review site" \
+  'grep -qE "^\| B [^|]*\|" <<<"$ac_route"'
+assert "auto-capture: routing has a row for the finalize/status harvest site" \
+  'grep -qE "^\| C [^|]*\|" <<<"$ac_route"'
+# The load-bearing asymmetry: fix-in-branch is UNAVAILABLE at site C. A guard that only checked the
+# row exists would pass with the whole exemption flattened away.
+#
+# The two properties are asserted per CELL, not over the whole row. A single row-wide
+# "unavailable|**no**" alternation stayed GREEN when the routing cell's "fix-in-branch
+# **unavailable**" was rewritten to "all four routes" (observed while mutation-testing this assert):
+# the row's *branch + fix loop* column independently says `**no**`, so it satisfied the alternation
+# with the exemption itself deleted. `[^|]` keeps each pattern inside the cell that owns the claim —
+# the same cell-bridging failure the routing table is deliberately left unflattened for.
+c_row="$(grep -E "^\| C [^|]*\|" <<<"$ac_route")"
+assert "auto-capture: site C has neither an open branch nor a fix loop" \
+  'grep -qiE "^\| C [^|]*\| *\*\*no\*\* *\|" <<<"$c_row"'
+assert "auto-capture: site C's routing cell marks fix-in-branch unavailable" \
+  'grep -qiE "fix-in-branch[^|]{0,20}(unavailable|\*\*no\*\*)" <<<"$c_row"'
+ac_route_flat="$(flatten <<<"$ac_route")"
+assert "auto-capture: site C keeps its own admission bar, not the six gates" \
+  'grep -qiE "site C[^.]{0,120}own admission bar" <<<"$ac_route_flat"'
+
+# --- change 0226: the five capture fields live UNDER a leading `## Why` ---------------------
+# mint-stub.sh hard-rejects a body that does not START with `## Why`, so the fields must be labelled
+# lines under that one heading. The negative assert is the load-bearing one (learnings:
+# assert-detects-removal-not-replacement): promoting any field to a top-level `##` is the exact
+# defect that would ship a body mint-stub rejects, and a presence-only guard would stay green.
+# This extractor terminates on the NAMED next section, not the generic `^## ` the slices above use:
+# the section embeds a fenced example body whose first line is the literal `## Why` that
+# `mint-stub.sh` requires, so a generic top-level-heading terminator cuts the slice off immediately
+# before the very heading — and the five fields — this block exists to guard.
+ac_fields="$(awk '/^## What a captured discovery says/{f=1;next} /^## Per discovery/{f=0} f' "$AC")"
+assert "auto-capture: the capture-fields section was located (non-vacuity anchor)" \
+  '[ -n "$ac_fields" ]'
+assert "auto-capture: the capture body starts with a leading '## Why'" \
+  'grep -qE "^## Why$" <<<"$ac_fields"'
+for fld in Trigger Opportunity "Independent value" Boundary "Reason for deferral"; do
+  assert "auto-capture: capture field present: '$fld'" \
+    'grep -qF -- "**'"$fld"'**" <<<"$ac_fields"'
+  assert "auto-capture: capture field '$fld' is NOT a top-level heading (mint-stub body contract)" \
+    '! grep -qiE "^## '"$fld"'" <<<"$ac_fields"'
+done
+assert "auto-capture: the mint-stub '## Why' body contract is stated where the fields are" \
+  'grep -qiF -- "mint-stub" <<<"$(flatten <<<"$ac_fields")"'
 
 # --- the PR body records a disposition, not a wishlist ------------------------
 EP="$REPO/skills/docket-implement-next/references/edge-paths.md"
