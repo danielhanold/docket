@@ -1,6 +1,6 @@
 # Backlog
 
-**236 changes** — 🟢 4 in progress · 🟡 54 proposed · ⚪ 4 deferred · ✅ 146 done · 🗑️ 28 killed
+**237 changes** — 🟢 4 in progress · 🟡 55 proposed · ⚪ 4 deferred · ✅ 146 done · 🗑️ 28 killed
 
 ## 🟢 In progress (4)
 
@@ -11,7 +11,7 @@
 | [0231](active/0231-a-presumed-dead-build-worker-can-wake-and-race-its-own-repla.md) | A presumed-dead build worker can wake and race its own replacement in one worktree | `medium` | `fix` | [spec](../superpowers/specs/2026-08-07-a-presumed-dead-build-worker-can-wake-and-race-its-own-repla-design.md) | `feat/a-presumed-dead-build-worker-can-wake-and-race-its-own-repla` |
 | [0235](active/0235-writers-emit-unquoted-yaml-title-scalars-so-six-change-files.md) | Writers emit unquoted YAML title scalars, so six change files fail to parse | `medium` | `fix` | [spec](../superpowers/specs/2026-08-07-writers-emit-unquoted-yaml-title-scalars-so-six-change-files-design.md) | `feat/writers-emit-unquoted-yaml-title-scalars-so-six-change-files` |
 
-## 🟡 Proposed (54)
+## 🟡 Proposed (55)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -69,6 +69,7 @@
 | [0232](active/0232-the-gate-execution-posture-never-reaches-the-build-workers-t.md) | The gate execution posture never reaches the build workers that also run the full suite | `medium` | `docs` | needs-brainstorm |
 | [0233](active/0233-guard-against-stacked-gap-ere-patterns-that-hang-instead-of.md) | Guard against stacked-gap ERE patterns that hang instead of failing | `medium` | `chore` | needs-brainstorm |
 | [0236](active/0236-suppressed-execution-handoff-still-ends-run-at-plan.md) | A suppressed execution hand-off still ends the run at the plan — 0113 recurrence | `high` | `fix` | auto-groom blocked — needs you |
+| [0237](active/0237-prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical.md) | Prose levers fail to hold the step boundary — consider a mechanical end-of-run gate | `high` | `fix` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -143,6 +144,7 @@ graph TD
   0233
   0235
   0236
+  0237
   0015:::done
   0175:::done
   0192:::done
