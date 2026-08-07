@@ -107,13 +107,19 @@ Type flipped `docs` → `feat` at grooming: the configuration knob is real code.
 
 ## Open questions
 
-- Do cursor and opencode comply? Both are `unverified` pending the same smoke test codex passed.
-  Opencode is the likelier failure, and by the opposite mechanism — blocking the launch rather than
-  killing the gate.
+- Does cursor comply? The one shipped harness still `unverified`.
 
-Codex was resolved at grooming (smoke-tested 2026-08-06, codex-cli 0.146.1): **`supported`, but only
-via new-session detach.** Its teardown is a process-group kill, so plain `nohup … &` is killed before
-writing any output while the launch command reports success. That result sharpened required
-capability 1 — detachment must survive a process-group kill, not merely a parent exit.
+Codex and opencode were both resolved at grooming by smoke test (2026-08-06) and both are
+**`supported`** — but each fails the naive launch, by **opposite** mechanisms:
+
+- **codex-cli 0.146.1** kills the gate. Teardown is a process-group kill, so plain `nohup … &` dies
+  before writing any output while the launch command reports success. Requires new-session detach.
+- **opencode 1.18.14** blocks the caller. An unredirected child holds the caller's output pipes open,
+  so the launch does not return until the job finishes (51s call for a 45s job). Requires every
+  stream redirected away from the call.
+
+One mitigation covers both — detach into a new session, redirect every stream to a durable location —
+which is also what produces the durable artifact. That convergence is why the rule is stated as a
+common capability rather than per-harness advice, and it sharpened required capabilities 1 and 2.
 
 ## Reconcile log

@@ -150,7 +150,9 @@ capabilities, not required mechanisms, and each harness may satisfy them differe
    that initiated it — **including the harness's teardown of that call's process group**, not merely
    the exit of its immediate parent. See the Codex evidence below for why the weaker reading is not
    sufficient.
-2. Preserving gate output in a durable location.
+2. Preserving gate output in a durable location — with **every stream redirected away from the
+   initiating call**, since a stream left attached blocks that call on at least one supported
+   harness (see the OpenCode evidence below), independently of durability.
 3. Recording an unambiguous terminal result.
 4. Performing subsequent short-lived observations of that result.
 5. Distinguishing *still running* from *completed successfully*, *completed unsuccessfully*, and
@@ -173,15 +175,25 @@ supersedes anything below that has changed.
 |---|---|---|---|
 | claude | default 120 000 ms, max 600 000 ms (`BASH_DEFAULT_TIMEOUT_MS` / `BASH_MAX_TIMEOUT_MS`) | Documented background execution returning a shell id, with separate output-read and kill operations; corroborated empirically by change 0203 | `supported` |
 | cursor | undocumented and reported to have changed; 900 s+ failures reported | An experimental background-terminal setting exists alongside a silence-timeout setting | `unverified` — smoke-test |
-| opencode | default 2 min, SIGTERM on expiry; overridable by environment variable and per-command field | No first-class background mechanism; shell-level backgrounding is reported to hang the tool when the child inherits the caller's output pipes | `unverified` — smoke-test |
+| opencode | default 2 min, SIGTERM on expiry; overridable by environment variable and per-command field | **Smoke-tested 2026-08-06 (opencode 1.18.14).** Gate survived the session ending under **both** plain-background and new-session detach. But an **unredirected** launch blocked the call for the job's full duration (51s call for a 45s job) — the inherited-FD hang, reproduced; the same launch with streams redirected returned in 5–7s | `supported` — requires stream redirection |
 | codex | per-call, not the binding limit | **Smoke-tested 2026-08-06 (codex-cli 0.146.1, `--sandbox danger-full-access`).** A gate launched into a **new session** (fork + `setsid`) survived the entire `codex exec` session ending; the same gate launched with plain `nohup … &` was killed before writing its first line, while the launch command reported success | `supported` — **only** via new-session detach |
 
 Two findings shape the design.
 
-**The portable hazard is inherited file descriptors, not backgrounding.** OpenCode's hang and
-Codex's teardown are both really *the child is still attached to the caller*. The capability that
-matters is detachment plus durable redirection of every stream — the same act that produces the
-durable artifact. One requirement, two payoffs.
+**The portable hazard is attachment to the caller, not the absence of backgrounding.** This is now
+measured on two harnesses rather than inferred, and the two fail by **opposite** mechanisms from the
+same cause:
+
+- **Codex kills the gate.** Teardown is a process-group kill, so a plain-backgrounded child dies
+  before writing its first byte — while the launch command reports success.
+- **OpenCode blocks the caller.** An unredirected child keeps the caller's output pipes open, so the
+  call does not return until the job finishes (measured: a 51s call for a 45s job), which collapses
+  the gate back into the foreground call the contract exists to escape.
+
+One mitigation fixes both: **detach into a new session and redirect every stream to a durable
+location.** That is the same act that produces the durable result artifact — one requirement, three
+payoffs. The convergence is what justifies stating this as a common capability rather than
+per-harness advice.
 
 **Detachment must survive a process-GROUP kill, not merely a parent exit.** This is the smoke test's
 main finding, and it is a correction to the design's own starting assumption. Codex was expected to
@@ -267,11 +279,14 @@ from **outside** the agent, so the agent's own report is never the evidence. An 
 Codex runs were inconclusive for unrelated reasons (a `setsid` EPERM caused by the harness running
 the launcher as a process-group leader) and would have produced a false verdict if believed.
 
+The probe must also measure the **duration of the launch call**, not only whether the artifact
+appears. OpenCode's failure mode leaves the artifact perfectly intact and is invisible to a
+survival-only check — the gate "works," it has simply stopped being asynchronous. A blocked launch
+is a contract failure even though every artifact assertion passes.
+
 ## Risks
 
-- **Cursor and OpenCode remain unverified.** OpenCode is the more likely of the two to fail, and to
-  fail by *blocking the launch* rather than by killing the gate — the opposite failure mode from
-  Codex, and one the probe measures separately.
+- **Cursor remains unverified.** The only shipped harness without a smoke test.
 - **The neutrality constraint is the hard part.** A rule stated so abstractly that no implementer can
   act on it fails as surely as a harness-specific one. The reference file is what carries the
   actionable detail; if the skill-body prose cannot be made actionable with the reference in hand,
