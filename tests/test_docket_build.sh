@@ -776,11 +776,19 @@ assert "retirement grep is armed (the exempt history still contains the tokens)"
 # mint a valid-looking build-evidence record for a branch nobody verified. These asserts pin the
 # determinant.
 #
-# Terminator is /^#+ /, NOT /^## /: the level-2 form would swallow ### Gate execution posture,
-# which tests/test_gate_execution_posture.sh separately owns, and a bounded-gap assert over that
-# wider slice could match across sections and survive its own mutation
-# (learnings: section-slice-needs-a-named-terminator).
-gate_blk="$(awk '/^## The build gate$/{f=1;next} f && /^#+ /{f=0} f' <<<"$ctrl_body")"
+# Terminator is the NAMED heading /^### Gate execution posture$/, not a shape like /^#+ / or
+# /^## /: the level-2 form would swallow the posture subsection (which
+# tests/test_gate_execution_posture.sh separately owns) and let a bounded-gap assert match across
+# sections and survive its own mutation, while /^#+ / is worse still — the guarded section carries
+# fenced blocks, so any heading-SHAPED line at any level (a `#` comment inside a fenced example)
+# would silently truncate the slice. A name cannot be spoofed by shape
+# (learnings: section-slice-needs-a-named-terminator). Verified: the named form yields byte-for-byte
+# the same slice the shape form did. The learning's other rule — assert the terminator EXISTS — is
+# discharged just below rather than deferred to the sibling suite, so this suite alone can tell a
+# renamed heading from a real one.
+gate_blk="$(awk '/^## The build gate$/{f=1;next} f && /^### Gate execution posture$/{f=0} f' <<<"$ctrl_body")"
+assert "0224: the named slice terminator heading exists" \
+  'grep -qE "^### Gate execution posture$" <<<"$ctrl_body"'
 # Flatten before phrase matching so a pure re-flow of the hard-wrapped paragraph does not redden
 # asserts about policy that never changed (learnings: phrase-grep-over-wrapped-prose).
 gate_flat="$(flat "$gate_blk")"
@@ -809,19 +817,27 @@ assert "0224: reading the verdict out of the output is named as not a gate" \
 
 # (c) The verdict is read from the terminal result artifact — which is also where the definition of
 # "completed successfully" that references/gate-execution.md capability 5 requires finally lands —
-# and the two non-statuses stay halts. One bounded gap per ERE, never two.
+# and the two non-verdicts stay halts. One bounded gap per ERE, never two.
 assert "0224: the deciding status is the one in the terminal result artifact" \
   'grep -qiE "deciding status[^.]{0,120}terminal result artifact" <<<"$gate_flat"'
-assert "0224: the recorded status is what completed successfully means" \
-  'grep -qiF -- "completed successfully" <<<"$gate_flat"'
-# The non-status rule is a three-part claim — the two names, their classification, and the halt/red
-# consequence — so it is two asserts with one gap each, not one ERE with two. Neither anchor may
-# span the emphasis markers the prose puts around the two names (`*result unavailable*`), so the
-# split falls at the marker rather than mid-clause.
-assert "0224: still running and result unavailable are the two named non-statuses" \
-  'grep -qiE "still running[^.]{0,40}result unavailable" <<<"$gate_flat"'
-assert "0224: the non-statuses stay budget halts and are never red" \
-  'grep -qiE "are not statuses at all[^.]{0,120}never red" <<<"$gate_flat"'
+# The DEFINITION, bound end to end: a bare presence check for the two-word phrase would stay green
+# on a rewrite that merely mentions "completed successfully" in a diagnostic aside while the
+# definitional link — the definiendum and the zero status that defines it — was gone.
+assert "0224: completed successfully is defined as the artifact recording a zero status" \
+  'grep -qiE "completed successfully[^.]{0,60}records a zero status" <<<"$gate_flat"'
+# The non-verdict rule is a three-part claim — the two names, their classification, and the
+# halt/red consequence — so it is three asserts with ONE gap each, never one ERE with two (stacked
+# gaps backtrack catastrophically on non-matching input). Each name is bound to the classification
+# on its own, and the classification to its consequence: an INVERTING rewrite that made the two
+# names statuses the artifact may hold and moved "never red" onto some other subject would redden,
+# where a pair of asserts pinning only name-adjacency and a subjectless consequence would not.
+# No anchor spans the emphasis markers the prose puts around the two names (`*result unavailable*`).
+assert "0224: still running is classified as not a verdict" \
+  'grep -qiE "still running[^.]{0,60}are not verdicts" <<<"$gate_flat"'
+assert "0224: result unavailable is classified as not a verdict" \
+  'grep -qiE "result unavailable[^.]{0,40}are not verdicts" <<<"$gate_flat"'
+assert "0224: the non-verdicts stay budget halts and are never red" \
+  'grep -qiE "are not verdicts[^.]{0,120}never red" <<<"$gate_flat"'
 # The symmetric half: green's determinant is fixed above, so red's must be too, or the section's only
 # remaining branch is "manufacture a repair task" — reachable from a run this repo's own configured
 # runner (scripts/run-tests.md) documents as having zero failing tests. Three asserts, one gap each.

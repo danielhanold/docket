@@ -203,8 +203,8 @@ The verdict is an **exit status, never output text**. A run is **green if and on
 suite command exits zero**; any non-zero status is not green. A `PASS`/`FAIL` line, a summary count,
 or a progress ticker is **diagnostic only** — a gate that reads its verdict out of the output is not
 a gate. The deciding status is the one recorded in the **terminal result artifact** that *Gate
-execution posture* requires, and that recorded status is what **completed successfully** means:
-*still running* and *result unavailable* are not statuses at all, so they stay budget halts and are
+execution posture* requires: **completed successfully** means that artifact records a zero status.
+*Still running* and *result unavailable* are not verdicts, so they stay budget halts and are
 never red. Nor is every non-zero status red: a completed run whose recorded status the resolved
 runner defines as a **non-failure** outcome is a halt per *Halting conditions*, the same refusal the
 configuration gap gets — neither has a failure to repair. **Red** is a completed run that is neither
