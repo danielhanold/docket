@@ -2,10 +2,10 @@
 id: 103
 slug: wire-the-github-project-config-read-documented-but-unwired-k
 title: Wire the github_project config read (documented-but-unwired key)
-status: proposed
+status: killed
 priority: low
 created: 2026-07-19
-updated: 2026-07-19
+updated: 2026-08-07
 depends_on: []
 related: []
 discovered_from: [101]
@@ -89,3 +89,7 @@ own terms.
 Worth noting on the way in: 0102's build was where the config-guard family (changes 0120–0123) was
 discovered, and ADR-0052 now states the config-key resolution boundary this change would have to
 satisfy. That is a constraint 0102 did not have when it started.
+
+## Why killed
+
+Killed at the 2026-08-07 backlog triage (Daniel's ruling): the GitHub board mirror is off in this repo (board_surfaces: [inline]), so the documented-but-unwired github_project key stays as-is. The .docket.example.yml NOT-WIRED caveat and the test classification already record the gap honestly.
