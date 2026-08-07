@@ -809,7 +809,29 @@ git commit --allow-empty -m "perf(0227): suite wall time <serial>s -> <parallel>
 
 ### Task 6: The runtime-budget guard
 
+> **Amended 2026-08-07, mid-build (second correction).** A worker built this task's three files
+> green and then returned `BLOCKED`: with the table seeded from serial times and no row above 60,
+> the *enforced* full-suite run still exits 4, because 11 files breach. The cause is that this
+> task's three requirements — seed from serial, no row above 60, enforced suite green — are
+> jointly unsatisfiable at the slack factor Task 1 shipped. **The runner's `SLACK_NUM=3;
+> SLACK_DEN=2` (1.5x) is too tight: measured contention inflation reaches 2.22x**, reproduced
+> across two independent full-run pairs:
+>
+> | file | serial | parallel | ratio |
+> |---|---|---|---|
+> | `test_render_board.sh` | 18s | 40s | 2.22 |
+> | `test_harness_defaults.sh` | 39s | 86s | 2.21 |
+> | `test_harness_defaults_validator.sh` | 42s | 91s | 2.17 |
+> | `test_board_checks.sh` | 48s | 101s | 2.10 |
+>
+> This is oversubscription inherent to `-j <CPU count>`, not a loaded machine. Every other lever is
+> forbidden by design: raising the table's numbers is the exact evasion the guard exists to catch,
+> and weakening the guard defeats the task. **Step 0 below is therefore added to this task** — a
+> single, scoped constant change in `scripts/run-tests.sh`, which supersedes the `SLACK_NUM=3;
+> SLACK_DEN=2` line in Task 1's code block.
+
 **Files:**
+- Modify: `scripts/run-tests.sh` and `scripts/run-tests.md` (the slack constant only — Step 0)
 - Create: `tests/runtime-budgets.tsv`
 - Create: `tests/test_runtime_budgets.sh`
 - Create: `tests/README.md`
@@ -817,6 +839,41 @@ git commit --allow-empty -m "perf(0227): suite wall time <serial>s -> <parallel>
 **Interfaces:**
 - Consumes: `/tmp/docket-final-serial.tsv` from Task 5 (see Step 1 on why the serial file, not the parallel one); `scripts/run-tests.sh`'s `--budgets` reader and `DEFAULT_CEILING`.
 - Produces: the table the runner reads by default at `tests/runtime-budgets.tsv`, and the guard that keeps it complete.
+
+- [ ] **Step 0: Widen the runner's slack factor to 5/2**
+
+In `scripts/run-tests.sh`, replace the slack constants and their comment:
+
+```bash
+# A wall-clock assertion on a shared developer machine must tolerate load, or it becomes a flake
+# that teaches people to pass --no-budget-check. It must ALSO tolerate this runner's own
+# contention: a budget row is a claim about a file's cost measured SERIALLY, but enforcement
+# happens during a parallel run where every job competes. Measured inflation on the change-0227
+# hardware reached 2.22x (test_render_board.sh 18s -> 40s; test_harness_defaults.sh 39s -> 86s),
+# so 3/2 rejected 11 healthy files. 5/2 covers the measured worst case with margin while still
+# catching the regrowth this table exists to prevent — a file that doubles its OWN serial cost
+# breaches, because the ceiling it is measured against did not move.
+# Breach = measured > ceiling * 5/2.
+SLACK_NUM=5; SLACK_DEN=2
+```
+
+Update the corresponding sentence in `scripts/run-tests.md` under Behavior/Invariants so the
+contract states 5/2 and why. This is the whole of Step 0 — change nothing else in either file.
+
+Verify the constant is live rather than assumed:
+
+```bash
+bash -c '
+  command grep -n "SLACK_NUM\|SLACK_DEN\|5/2" scripts/run-tests.sh scripts/run-tests.md
+  bash tests/test_run_tests.sh | command grep -cE "^NOT OK"
+'
+```
+
+Expected: the constants read `5` and `2`, the contract mentions 5/2, and `tests/test_run_tests.sh`
+still reports `0` failures — its budget-breach fixture uses a 1s ceiling against a 3s sleep, which
+breaches at either slack value, and its in-budget control uses 60s against 3s, which passes at
+either. If that test goes red, the fixtures were tuned to the old constant and that is a finding to
+report, not something to silently retune.
 
 - [ ] **Step 1: Seed the table from the measurement**
 
