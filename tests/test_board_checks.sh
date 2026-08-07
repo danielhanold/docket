@@ -714,6 +714,22 @@ mk_sf "$S84" 84 hash-title 'title: clear finding #3 from review'
 s84out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$S84/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
 assert "scalar-form fires for a title containing ' #' (id 84, comment-introducer leg)" \
   'has_finding "$s84out" scalar-form 84'
+s84line="$(grep -E "$(printf "^scalar-form\t84\t")" <<<"$s84out")"
+assert "the comment-introducer finding names the title field and the comment shape (id 84)" \
+  'grep -qF -- "title: unquoted scalar contains whitespace followed by '"'"'#'"'"', a YAML comment introducer" <<<"$s84line"'
+
+# Any WHITESPACE before the '#' opens the comment, not a literal space alone. This is the
+# hand-authored case the check exists for: mint-stub's control-character gate keeps a tab off the
+# WRITE path, but nothing gates a file a human typed — and fm_field_raw's own strip is
+# `[[:space:]]+#`, so the reader would truncate here whether or not the detector spoke up.
+read -r S73 _ < <(new_repo)
+mk_sf "$S73" 73 tab-hash-title "$(printf 'title: a stalled run\t#3 in the queue')"
+s73out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$S73/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "scalar-form fires for a title whose '#' is preceded by a TAB (id 73, comment-introducer leg)" \
+  'has_finding "$s73out" scalar-form 73'
+s73line="$(grep -E "$(printf "^scalar-form\t73\t")" <<<"$s73out")"
+assert "the TAB-preceded finding lands on the comment-introducer leg, not another (id 73)" \
+  'grep -qF -- "a YAML comment introducer that silently truncates it" <<<"$s73line"'
 
 # A leading YAML indicator character.
 read -r S83 _ < <(new_repo)
@@ -721,6 +737,22 @@ mk_sf "$S83" 83 indicator-title 'title: [WIP] rework the runner'
 s83out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$S83/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
 assert "scalar-form fires for a title opening with a YAML indicator (id 83, indicator leg)" \
   'has_finding "$s83out" scalar-form 83'
+s83line="$(grep -E "$(printf "^scalar-form\t83\t")" <<<"$s83out")"
+assert "the indicator finding names the title field and the indicator shape (id 83)" \
+  'grep -qF -- "title: unquoted scalar opens with a YAML indicator character" <<<"$s83line"'
+
+# A CLOSED flow collection — the shape a flow-collection exemption would have waved through. There
+# is no such exemption: the legs judge whether a value is well-formed as a bare SCALAR, and `[234]`
+# is not one, so end-to-end this is a RED fixture on the indicator leg. A field docket MEANS as a
+# sequence (depends_on, adrs) is simply never routed through this check.
+read -r S74 _ < <(new_repo)
+mk_sf "$S74" 74 flow-collection-title 'title: [234]'
+s74out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$S74/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "scalar-form fires for a title that is a closed flow collection (id 74, indicator leg — no exemption)" \
+  'has_finding "$s74out" scalar-form 74'
+s74line="$(grep -E "$(printf "^scalar-form\t74\t")" <<<"$s74out")"
+assert "the flow-collection finding lands on the indicator leg (id 74)" \
+  'grep -qF -- "title: unquoted scalar opens with a YAML indicator character" <<<"$s74line"'
 
 # --- GREEN near-misses for the new legs: each is well-formed bare YAML and must stay SILENT ---
 read -r S82 _ < <(new_repo)
@@ -767,6 +799,19 @@ assert "scalar-form fires for an unquoted bare-boolean blocked_by (id 93)" \
 s93line="$(grep -E "$(printf "^scalar-form\t93\t")" <<<"$s93out")"
 assert "the blocked_by boolean finding quotes the value (id 93)" \
   'grep -qF -- "unquoted bare YAML boolean (off)" <<<"$s93line"'
+
+# Trailing colon in blocked_by — the third new leg mirrored onto the SECOND field. scalar_form_check
+# is invoked once per field, so a leg pinned on `title` alone proves only that the predicate has it,
+# never that both call sites reach it (the ' #' leg was reachable on title and structurally dead on
+# blocked_by for exactly that reason — see mutation 3b).
+read -r S88 _ < <(new_repo)
+mk_sf "$S88" 88 trailing-colon-blocked 'blocked_by: waiting on the model ID containing / or :'
+s88out="$(NOW=$NOW_EPOCH bash "$SCRIPT" --changes-dir "$S88/docs/changes" --metadata-branch docket --integration-branch main 2>/dev/null)"
+assert "scalar-form fires for a blocked_by ENDING in a colon (id 88, trailing-colon leg)" \
+  'has_finding "$s88out" scalar-form 88'
+s88line="$(grep -E "$(printf "^scalar-form\t88\t")" <<<"$s88out")"
+assert "the blocked_by trailing-colon finding names blocked_by and the shape (id 88)" \
+  'grep -qF -- "blocked_by: unquoted scalar ends with" <<<"$s88line"'
 
 # ' #' in blocked_by — the real shape on the metadata branch (`blocked_by: PR #69 is stale …`).
 # The comment-introducer leg is pinned in BOTH fields, not just title: a reader that strips the
@@ -887,6 +932,7 @@ mk_sf "$MUT" 93  bool-blocked           'blocked_by: off'
 mk_sf "$MUT" 94  quoted-colonspace      'title: "a: b"'
 mk_sf "$MUT" 98  absent-blocked-by      'title: Omits blocked_by'
 mk_sf "$MUT" 78  hash-blocked           'blocked_by: PR #69 is stale, predating the facade rework'
+mk_sf "$MUT" 86  trailing-colon-title   'title: a model ID containing / or :'
 cat >> "$MUT/docs/changes/active/0098-absent-blocked-by.md" <<'EOF'
 
 ## Notes
@@ -918,6 +964,24 @@ assert "mutation 1 (strip colon-space leg): boolean title 91 still fires (leg su
   'has_finding "$m1out" scalar-form 91'
 assert "mutation 1 (strip colon-space leg): boolean blocked_by 93 still fires (leg survives)" \
   'has_finding "$m1out" scalar-form 93'
+
+# Mutation 1b — strip the trailing-colon leg (change 0235's newest, and the one whose absence let
+# change 0173 sit unreported): fixture 86 goes GREEN while the colon-space leg SURVIVES on 90/92.
+# Mutation 1 above cannot stand in for it — the two are separate emit arms reading separate predicate
+# tokens, and a leg no mutation has ever reddened is decoration.
+mreseed
+m1b_before="$(grep -cF -- "unquoted scalar ends with" "$MUTSCRIPT")"
+awk '!/unquoted scalar ends with/' "$MUTSCRIPT" > "$MUTSCRIPT.trim"; mv "$MUTSCRIPT.trim" "$MUTSCRIPT"
+m1b_after="$(grep -cF -- "unquoted scalar ends with" "$MUTSCRIPT")"
+m1bout="$(mrun)"
+assert "mutation 1b landed: the trailing-colon emit arm is gone (count 1 -> 0)" \
+  '[ "$m1b_before" = 1 ] && [ "$m1b_after" = 0 ]'
+assert "mutation 1b (strip trailing-colon leg): trailing-colon title 86 goes GREEN" \
+  '! has_finding "$m1bout" scalar-form 86'
+assert "mutation 1b (strip trailing-colon leg): colon-space title 90 still fires (leg survives)" \
+  'has_finding "$m1bout" scalar-form 90'
+assert "mutation 1b (strip trailing-colon leg): colon-space blocked_by 92 still fires (leg survives)" \
+  'has_finding "$m1bout" scalar-form 92'
 
 # Mutation 2 — strip the quote/empty skip leg: the QUOTED colon-space title 94 REDDENS (the wrong
 # direction, proving the quote leg is load-bearing); an EMPTY raw value (98, absent blocked_by)
@@ -983,6 +1047,8 @@ assert "mutation 4 (drop whole probe block): boolean blocked_by 93 goes GREEN" \
   '! has_finding "$m4out" scalar-form 93'
 assert "mutation 4 (drop whole probe block): uppercase boolean title 85 goes GREEN" \
   '! has_finding "$m4out" scalar-form 85'
+assert "mutation 4 (drop whole probe block): trailing-colon title 86 goes GREEN" \
+  '! has_finding "$m4out" scalar-form 86'
 rm -rf "$mcopy"
 
 # ============================ aborted-run, leg A (change 0113) ============================

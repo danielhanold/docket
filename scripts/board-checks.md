@@ -194,8 +194,12 @@ return, then **five** syntax legs, in that evaluation order:
   never sees a colon at end-of-value (change 0235).
 - **Bare-boolean leg:** the unquoted raw value is, whole-value and case-insensitive, exactly one of
   `on`/`off`/`yes`/`no`/`true`/`false` (YAML 1.1).
-- **Comment-introducer leg:** the unquoted raw value contains ` #`, which opens a YAML comment and
-  silently **truncates** the value rather than aborting the parse — the quieter, worse failure.
+- **Comment-introducer leg:** the unquoted raw value contains **whitespace** (the `[[:space:]]`
+  class — a tab opens a comment exactly as a space does) followed by `#`, which opens a YAML comment
+  and silently **truncates** the value rather than aborting the parse — the quieter, worse failure.
+  The leg is deliberately as wide as the *reader* it warns about: `fm_field_raw`'s own inline-comment
+  strip is `[[:space:]]+#`, so a narrower detector would stay silent about a truncation the reader
+  performs. A `#` with no whitespace before it (`issue#3 reopened`) is part of the value.
 - **Indicator leg:** the unquoted raw value opens with a YAML indicator character (`[`, `]`, `{`,
   `}`, `,`, `#`, `&`, `*`, `!`, `|`, `>`, `'`, `"`, `%`, `@`, a backtick, `?`, a leading `:`, or a
   leading `- `). A leading `#` is the **maximal** form of the comment-introducer leg above — the

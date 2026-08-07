@@ -378,6 +378,13 @@ assert "leg bare-boolean yes"   '[ "$(reason "yes")" = bare-boolean ]'
 assert "leg bare-boolean TRUE"  '[ "$(reason "TRUE")" = bare-boolean ]'
 assert "leg bare-boolean off"   '[ "$(reason "off")" = bare-boolean ]'
 assert "leg comment-introducer" '[ "$(reason "clear finding #3")" = comment-introducer ]'
+# YAML opens a comment on ANY whitespace before the '#', not on a literal space alone — a TAB does
+# it just as silently. The leg must be at least as wide as the READER it warns about: fm_field_raw's
+# own inline-comment strip is `[[:space:]]+#`, so a tab-preceded '#' WOULD be truncated on the read
+# path while a space-only detector stayed silent about it. mint-stub's control-character gate keeps
+# tabs off the WRITE path, but scalar_form_check judges hand-authored files, which have no such gate.
+assert "leg comment-introducer with a TAB before the hash" \
+  '[ "$(reason "$(printf "a\t#b")")" = comment-introducer ]'
 assert "leg indicator bracket"  '[ "$(reason "[WIP] rework")" = indicator ]'
 assert "leg indicator anchor"   '[ "$(reason "&anchor thing")" = indicator ]'
 assert "leg indicator star"     '[ "$(reason "*star* emphasis")" = indicator ]'
