@@ -8,10 +8,10 @@ type: fix
 created: 2026-08-05
 updated: 2026-08-07
 depends_on: [237]
-related: [209, 210]
+related: [209, 210, 220, 237]
 discovered_from: [206]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-07-runner-dispatch-worktree-gate-3-proves-repo-containment-not-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-07-runner-dispatch-worktree-gate-3-proves-repo-containment-not-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-runner-dispatch-worktree-gate-3-proves-repo-containment-not-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -80,41 +83,53 @@ the four older flags (`--runner`, `--agent`, `--model`, `--effort`); 0206 added 
 
 ## What changes
 
+Settled design in the linked spec; the shape:
+
 Membership gate (a):
 
-- Test real membership rather than containment: capture `git -C "$ANCHOR" worktree list --porcelain`
-  into a variable (never pipe into `grep -q` under `pipefail`) and require an exact
-  `worktree <ANCHOR>` line.
-- For `build-*` specifically, reject `ANCHOR == REPO_ROOT` with a diagnostic naming the
+- Gate 3 becomes a real membership test: one `git -C "$ANCHOR" worktree list --porcelain` capture
+  (into a variable, never piped into `grep -q` under `pipefail`); same-repo is the **first** line
+  equalling `$REPO_ROOT` (an anywhere-match admits stale foreign-list records), membership an
+  exact `worktree $ANCHOR` line; `$ANCHOR` is `pwd -P`-normalized first (git prints physical
+  paths). Diagnostic wording now matches what is verified.
+- Feature-scoped agents additionally reject `ANCHOR == REPO_ROOT` with a diagnostic naming the
   integration-branch hazard.
-- Align the gate's wording with what it actually verifies.
-- Close the paired test gap the same review raised: no assert covers the change's central success
-  path — a `build-*` agent *with* `--worktree` succeeding and anchoring at the named tree. Legs (b)
-  and (c) use `--agent status`; leg (d) uses `build-economy` only in its rejected state. A mutation
-  making `build-*` abort unconditionally leaves the suite green.
+- Close the paired test gap: a success-path leg — `build-*` *with* a real `--worktree` succeeding
+  and anchoring at the named tree (fixture worktrees become real `git worktree add` members).
 
 Feature-scoped coverage (b):
 
-- Widen the facade's gate from the `build-*` shape to the feature-scoped set, or better, key it on
-  a **declared agent scope** rather than a name list — a name list is an enumerated floor that ages
-  into the gap it was written to close.
-- Add the corresponding `sync-agents.sh` `emit_shim` required slot for the same set.
-- Keep the generation guard bidirectional, as 0206 established.
+- The gate keys on a **declared agent scope**: a required `worktree-scope: feature|metadata`
+  frontmatter key on every built-in agent source, validated loudly by `sync-agents.sh` at
+  generation, read tolerantly by the facade at runtime via a new `${AGENTS_SRC:-}` seam. No name
+  list anywhere. Feature set: the four `build-*` profiles, `rebase-resolver`,
+  `integration-repair`, the three `review-*` rungs.
+- `emit_shim`'s required `--worktree` slot keys on the same declaration with one generalized rule
+  text; metadata shims stay byte-identical (0206's bidirectional guard, now scope-keyed).
+- The dispatcher skills of the newly gated set (`docket-implement-next` §6 review dispatch,
+  `docket-finalize-change` gate prose) each gain the docket-build-shaped sentence naming the
+  feature worktree in the dispatch payload — without it every delegated dispatch of the widened
+  set would abort on the shim's no-worktree rule.
+- One new ADR (scope is a declared fact; gates key on the declaration) plus a dated `## Update`
+  on ADR-0068, both ids delivered via this change's `adrs:`.
 
 Flag-parse guards (c):
 
-- Guard the value before consuming it, e.g.
-  `--worktree) [ $# -ge 2 ] || die "--worktree requires a value"; WORKTREE="$2"; shift 2 ;;`
-- Apply the same shape to all five flags — derive the site list from a grep of the parse loop, not
-  by hand.
-- Add a test leg per flag asserting a trailing valueless flag exits nonzero rather than hanging
-  (bound it with a timeout so a regression fails fast instead of wedging the suite).
+- Guard the value before consuming it —
+  `--worktree) [ $# -ge 2 ] || die "--worktree requires a value"; WORKTREE="$2"; shift 2 ;;` —
+  same shape at all five flag sites, site list derived from a grep of the parse loop.
+- A test leg per flag asserting a trailing valueless flag exits nonzero rather than hanging,
+  bounded by a background+poll+kill helper (no `timeout(1)` on stock macOS).
 
 ## Out of scope
 
-- Any change to what the flags mean or how their values are resolved.
+- Any change to what the flags mean or how their values are resolved; arg-shaped flag values
+  (`--model --effort high`) — a wrong-value problem, not a hang.
 - The `sync-agents.sh` gate findings from change 0207's review — change 0220's territory, being
-  groomed separately.
+  groomed separately (the `worktree-scope` validation added here is a new gate, not one of
+  0220's findings).
+- The facade's exec→call-and-return tail rewrite — change 0237's territory; build after 0237
+  merges (same file, disjoint regions).
 
 ## Consolidation note
 
