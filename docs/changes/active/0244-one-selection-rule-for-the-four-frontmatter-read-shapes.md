@@ -8,10 +8,10 @@ type: refactor
 created: 2026-08-07
 updated: 2026-08-07
 depends_on: []
-related: []
+related: [235]
 discovered_from: [134, 240]
 adrs: []
-spec:
+spec: docs/superpowers/specs/2026-08-07-one-selection-rule-for-the-four-frontmatter-read-shapes-design.md
 plan:
 results:
 trivial: false
@@ -25,6 +25,9 @@ reconciled: false
 ## Artifacts
 
 <!-- docket:artifacts:start (generated — do not hand-edit) -->
+| Artifact | Link |
+|---|---|
+| Spec | [2026-08-07-one-selection-rule-for-the-four-frontmatter-read-shapes-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-one-selection-rule-for-the-four-frontmatter-read-shapes-design.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
@@ -41,16 +44,16 @@ Verified 2026-08-07:
 
 ## What changes
 
-- Re-take the census: every `field()` / `fm_field*` call site in `scripts/` and `scripts/lib/`, classified by key optionality and the silent-behavior difference that matters at that site.
-- Record one selection rule (library header + `board-checks.md`-style contract note): when to use each of the four shapes. Default disposition for `fm_field_raw` per #0240: keep it, record that it has no in-repo caller (mirroring how 0235 resolved its finding 7).
-- Migrate the call sites the rule says are wrong — the unanchored optional-key `field()` reads above are the primary suspects.
-- Guard: a test that pins the rule's load-bearing claims (e.g. the orphan status of `fm_field_raw`, or per-site accessor choices) in a mutation-detectable shape.
+Designed 2026-08-07 (auto-groom; see spec for the census, the rule table, the per-site migration list, and the decision audit trail):
+
+- Re-take the census at build time: every `field()` / `field_raw()` / `fm_field*` / `int_field` / `list_field` call site in `scripts/` and `scripts/lib/`, classified by key optionality, ` #`-in-value risk, and caller decoding/judging needs.
+- Record one selection rule as a decision table in the library header (canonical) plus a cross-reference note in `scripts/board-checks.md`; no new ADR — ADR-0057/0058 remain the decision record. This resolves the former open question: the table lives in the header, not a separate per-tier document.
+- Migrate the ~10 consumers' optional-key `field()` reads to the anchored tier: `fm_field` for structured values; `fm_field_verbatim` for the free-prose `blocked_by` (its ` #…` is data — `fm_field`'s comment strip would truncate it).
+- Keep `fm_field_raw` as a documented orphan (zero production callers; tests pin it).
+- Guard: a static (accessor, key) census-allowlist test + an orphan pin for `fm_field_raw` + one absent-key behavioral fixture through `render-change-links.sh`.
 
 ## Out of scope
 
 - Inverting `field()`'s whole-file default (ADR-0058's deliberate two-tier split stays; per-site migration only).
-- New read shapes.
-
-## Open questions
-
-- Whether the ADR-0058 two-tier split should gain a written per-tier decision table, or the selection rule lives purely in the library header.
+- New read shapes (including a fifth "anchored, quote-strip, no comment-strip" tier — `fm_field_verbatim` serves `blocked_by`).
+- The `list_field`/`int_field` wrappers and mint-stub's write path.
