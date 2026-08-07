@@ -689,6 +689,22 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # this very file (119 -> 120 left one line, so 125) and Task 1 of this change took on
 # docket-build/SKILL.md — so the multiple after: 130. 1099 words -> the next multiple of 50 is
 # 1100, which leaves a 1-word margin (the 0102 failure mode exactly), so the multiple after: 1150.
+# skills/docket-implement-next/references/fix-loop.md's row was raised 180/1850 -> 185/1900 by
+# change 0231, which states the never-discard-and-re-dispatch prohibition in the fix loop's OWN
+# disposition vocabulary. This row BREACHED on lines rather than merely tightening: 181 measured
+# against a 180 budget, with the word count landing exactly on 1850 for zero margin. The considered
+# home is skills/docket-build/SKILL.md, which owns the controller-side rule and states it there in
+# the same change. It cannot be the only home: docket-implement-next Step 6 dispatches
+# docket-build-task workers itself and never loads docket-build's SKILL.md, so a pointer would
+# import docket-build's `halted` BUILD outcome where the fix loop's disposition is abort-and-report
+# with the change left in-progress and claimed_at refreshed. That is one sentence duplicated into
+# two vocabularies, which is the shape this file's owner already uses for shared rules, rather than
+# a restatement of the same sentence. Set per the rounding rule above from the measured actuals:
+# 181 lines -> the next multiple of 5 is 185, leaving 4 lines, which clears the near-zero reading
+# the two rows above took (2 and 3 lines) and is the proportional analogue of the 25-word threshold
+# on a 50-word step, so 185 stands. 1850 words -> the next multiple of 50 strictly above the actual
+# is 1900 (50 words of margin); leaving the row at 1850 would sit exactly on the actual, which is
+# the 0102 near-zero failure mode in its purest form.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -710,7 +726,7 @@ skills/docket-finalize-change/references/gate-failure.md    35  900
 skills/docket-groom-next/SKILL.md                           77 1484
 skills/docket-implement-next/SKILL.md                      165 4300
 skills/docket-implement-next/references/edge-paths.md       35  450
-skills/docket-implement-next/references/fix-loop.md        180 1850
+skills/docket-implement-next/references/fix-loop.md        185 1900
 skills/docket-implement-next/results-template.md            25  250
 skills/docket-review/SKILL.md                              110  900
 skills/docket-new-change/SKILL.md                           61 1330

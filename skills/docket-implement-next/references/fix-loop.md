@@ -87,6 +87,12 @@ Every fix runs the **`docket-build-task`** contract (focused test → implement 
 self-review → one commit), dispatched by profile name, **foreground and sequential** — fixes share
 one worktree, so two concurrent workers would collide.
 
+A fix worker that returns without a schema-valid outcome may still be **running**: never discard
+the worktree and dispatch a fresh worker for that finding, however dead the first one looks. Halt
+instead — abort-and-report, the change staying `in-progress` with `claimed_at` refreshed and the
+reason recorded, the worktree left exactly as it stands. The trigger is the malformed return you
+observed, never elapsed time; a blocked foreground controller has no clock.
+
 **If profile dispatch is unavailable** — established only per the convention's
 *Dispatch-capability resolution*, **never from a tool name**; an unregistered profile wrapper is
 the same condition reached by a concrete rejection — the fix dispatch is **Tier C**, on the same

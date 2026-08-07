@@ -529,6 +529,41 @@ assert "controller: the concurrency ban binds a controller that believes the fir
   'grep -qiE "never dispatch two workers concurrently.{0,160}believes the first worker is gone" <<<"$ctrl_dispatch_flat"'
 
 # ---------------------------------------------------------------------------
+# Change 0231 — the same prohibition in the fix loop's OWN vocabulary.
+#
+# docket-implement-next Step 6 dispatches docket-build-task workers directly and never loads
+# docket-build's SKILL.md, so it cannot inherit the controller rule and must not import
+# docket-build's `halted` BUILD outcome. Its disposition is abort-and-report with the change left
+# in-progress and claimed_at refreshed. These asserts pin that it says so in its own terms.
+# ---------------------------------------------------------------------------
+impl_fix_body="$(cat "$IMPL_FIX" 2>/dev/null)"
+impl_fix_flat="$(flat "$impl_fix_body")"
+
+# Non-vacuity floor: every assert below reads $impl_fix_flat, so an unreadable or moved file must
+# redden HERE rather than passing every negative grep by default.
+assert "fix loop: the reference is non-vacuous (at least 100 lines)" \
+  '[ "$(grep -c . <<<"$impl_fix_body")" -ge 100 ]'
+
+assert "fix loop: forbids discarding the worktree and dispatching a fresh worker" \
+  'grep -qiF -- "never discard the worktree and dispatch a fresh worker" <<<"$impl_fix_flat"'
+
+# The disposition must be the fix loop's own, stated with the prohibition rather than imported.
+assert "fix loop: gives that prohibition the abort-and-report disposition" \
+  'grep -qiE "never discard the worktree and dispatch a fresh worker.{0,240}abort-and-report" <<<"$impl_fix_flat"'
+
+assert "fix loop: that disposition refreshes the claim lease" \
+  'grep -qiE "never discard the worktree and dispatch a fresh worker.{0,240}claimed_at" <<<"$impl_fix_flat"'
+
+# It must NOT import docket-build's build-outcome vocabulary, which is the mis-import this
+# separate sentence exists to avoid.
+assert "fix loop: does not import the build role halted outcome for this rule" \
+  '! grep -qiE "never discard the worktree and dispatch a fresh worker.{0,240}(return .halted.|halted build outcome)" <<<"$impl_fix_flat"'
+
+# A5: the prohibition must not claim to reach finalize, which has no discard-and-re-dispatch path.
+assert "fix loop: the prohibition does not claim to cover docket-finalize-change" \
+  '! grep -qiE "never discard the worktree and dispatch a fresh worker.{0,200}finalize" <<<"$impl_fix_flat"'
+
+# ---------------------------------------------------------------------------
 # The four build-profile wrappers (change 0167; retiered to four by change 0184)
 # ---------------------------------------------------------------------------
 fmv(){ awk 'NR==1 && $0=="---"{f=1;next} f && $0=="---"{exit} f{print}' "$1" \
