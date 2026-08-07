@@ -27,7 +27,9 @@
 # Exit: 0 every test file passed — including green-but-over-budget, which is reported loudly and
 #       is fatal only under --strict-budget; 1 a test file failed; 3 a job produced no result at
 #       all, so the run certified nothing (harness failure, not a test failure); 4 --strict-budget
-#       and every test passed but a budget was exceeded; 2 usage error or unmet Bash floor.
+#       and every test passed but a budget was exceeded; 2 usage error (including two targets that
+#       share a basename) or unmet Bash floor; 130/143 interrupted by SIGINT/SIGTERM, which reaps
+#       the in-flight jobs and reports what was lost instead of producing a report.
 #
 # Dev tooling for THIS repo's suite — deliberately NOT a docket.sh facade op, like profile-asserts.sh.
 set -uo pipefail
@@ -117,11 +119,28 @@ fi
 
 # A mistyped path must be a usage error, not a silent rc=127 "test failure": the two read the same
 # in the summary, and only one of them is a bug in the suite.
-missing=0
+#
+# The same posture covers colliding BASENAMES, and for the same reason. Logs, stat records and
+# budget rows are all keyed on the basename (see "Basename is the join key" in run-tests.md), so
+# `a/test_x.sh b/test_x.sh` — or one path passed twice — launches two jobs writing the same
+# $WORK/logs/<base>.log and $WORK/stat/<base> concurrently: interleaved logs, doubled assert
+# counts, a double-printed report row, and a SUITE line that is quietly wrong. That is strictly
+# worse than the mistyped path above, because nothing about it looks like an error. Reject it here,
+# before any job launches, rather than corrupting the run.
+missing=0; collide=0
+declare -A FIRST_PATH_OF=()
 for t in "${TARGETS[@]}"; do
-  [ -f "$t" ] || { printf 'run-tests: no such test file: %s\n' "$t" >&2; missing=1; }
+  [ -f "$t" ] || { printf 'run-tests: no such test file: %s\n' "$t" >&2; missing=1; continue; }
+  tbase="${t##*/}"
+  if [ -n "${FIRST_PATH_OF[$tbase]:-}" ]; then
+    printf 'run-tests: duplicate test basename: %s (%s and %s) — logs, stat records and budget rows are keyed on basename, so both jobs would write the same files\n' \
+      "$tbase" "${FIRST_PATH_OF[$tbase]}" "$t" >&2
+    collide=1
+  else
+    FIRST_PATH_OF[$tbase]="$t"
+  fi
 done
-[ "$missing" = 0 ] || exit 2
+{ [ "$missing" = 0 ] && [ "$collide" = 0 ]; } || exit 2
 
 [ -n "$BUDGETS" ] || { [ -f "$REPO/tests/runtime-budgets.tsv" ] && BUDGETS="$REPO/tests/runtime-budgets.tsv"; }
 
@@ -160,8 +179,50 @@ if [ "${#PAR[@]}" -gt 1 ]; then
   )
 fi
 
+# Started here rather than at the launch loop so the interrupt handler below can always report an
+# elapsed time under `set -u`; the difference is a mkdir and a trap install.
+SUITE_START=$(date +%s)
 WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
 mkdir -p "$WORK/logs" "$WORK/stat" "$WORK/jobs"
+
+# ---- interruption ------------------------------------------------------------------------------
+# Without this, Ctrl-C is a data-destroying operation. Output is buffered until every job finishes,
+# so an interrupted run has printed nothing but the stderr ticker; the EXIT trap then deletes $WORK
+# out from under jobs that are still running and still writing into it. Worse, the jobs SURVIVE:
+# this runner has no job control, so bash sets SIGINT to ignored in every async child, and the test
+# processes those children forked inherit that — the terminal's Ctrl-C reaches the runner and
+# nothing else. The result is orphaned test processes writing into a deleted directory and no
+# report at all, on a run whose likeliest interactive ending is exactly Ctrl-C.
+#
+# NOT `kill 0`. A group-wide kill is only safe when the runner is a process-group leader, which it
+# is solely when an interactive shell's job control made it one. Invoked the way this script
+# actually gets invoked in anger — from another script, from finalize's `eval`, from a test file —
+# job control is off and the runner shares its caller's process group, so `kill 0` would take the
+# caller and its siblings down with it. It would also re-enter this handler by signalling the
+# runner itself. So signal exactly what we launched, by pid, and nothing else.
+#
+# Order matters: reap first, THEN remove $WORK. Removing it concurrently is the same race the EXIT
+# trap already loses.
+on_signal(){  # on_signal <signame> <exit-code>
+  trap - INT TERM  # a second Ctrl-C must not re-enter this while it is reaping
+  local pf sp tp
+  # Each in-flight job publishes "<subshell-pid> <test-pid>" and unlinks it on the way out, so this
+  # glob is the set of jobs still running. Test process first, then the subshell waiting on it.
+  for pf in "$WORK"/jobs/*/pid; do
+    [ -f "$pf" ] || continue
+    while read -r sp tp; do kill -TERM "$tp" "$sp" 2>/dev/null; done < "$pf"
+  done
+  wait 2>/dev/null
+  local finished; finished="$(find "$WORK/stat" -type f 2>/dev/null | wc -l | tr -d ' ')"
+  # Say what was lost. A run that dies silently after two minutes teaches the reader nothing about
+  # whether it was nearly done or had barely started.
+  printf 'run-tests: interrupted (%s) after %ss — %s of %s test files had finished; their output is discarded and no report is produced.\n' \
+    "$1" "$(( $(date +%s) - SUITE_START ))" "$finished" "${#TARGETS[@]}" >&2
+  rm -rf "$WORK"
+  exit "$2"
+}
+trap 'on_signal INT 130' INT
+trap 'on_signal TERM 143' TERM
 
 launch(){  # launch <test-path>
   local t="$1" base; base="${t##*/}"; base="${base%.sh}"
@@ -183,8 +244,18 @@ launch(){  # launch <test-path>
     export GIT_TERMINAL_PROMPT=0 GIT_ASKPASS=true GIT_EDITOR=true EDITOR=true VISUAL=true
     export GIT_PAGER=cat PAGER=cat GIT_MERGE_AUTOEDIT=no
     start=$(date +%s)
-    "$TEST_BASH" "$t" > "$WORK/logs/$base.log" 2>&1
+    # Backgrounded and waited on, rather than run in the foreground, for one reason: it is the only
+    # way this subshell can learn the test process's pid. The interrupt handler needs BOTH — killing
+    # the subshell alone would leave the test itself orphaned, which is half of what the handler
+    # exists to prevent. `wait` yields the test's own exit status, so rc is unchanged.
+    "$TEST_BASH" "$t" > "$WORK/logs/$base.log" 2>&1 &
+    tpid=$!
+    printf '%s %s\n' "$BASHPID" "$tpid" > "$jobdir/pid"
+    wait "$tpid"
     rc=$?
+    # Unlink on the way out so the handler's glob is the set of jobs still IN FLIGHT — a finished
+    # job's pid is reusable, and signalling a recycled pid is a worse bug than the one being fixed.
+    rm -f "$jobdir/pid"
     end=$(date +%s)
     # NOT `grep -c ... || echo 0`: grep -c PRINTS 0 and EXITS 1 on no match, so the `||` branch
     # appends a second 0 and the field becomes a two-line value that corrupts the stat record.
@@ -195,7 +266,6 @@ launch(){  # launch <test-path>
   ) &
 }
 
-SUITE_START=$(date +%s)
 running=0
 for t in ${PAR[@]+"${PAR[@]}"}; do
   # Hold at most $JOBS in flight. `wait -n` returns as soon as ONE job finishes, so the slot frees

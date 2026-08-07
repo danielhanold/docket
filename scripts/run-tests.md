@@ -47,6 +47,16 @@ always used, so a new shard self-registers by existing. Explicit arguments repla
 entirely; a `TEST` that does not exist is a **usage error** (exit 2), not a silent `rc=127` row,
 because a mistyped path and a genuinely broken test read identically in a summary.
 
+Two targets that share a **basename** are a usage error too, checked in the same pre-flight pass and
+reported the same way — the message names the colliding basename and both paths that produced it.
+Everything downstream is keyed on the basename (see "Basename is the join key" below), so
+`a/test_x.sh b/test_x.sh` — or one path passed twice, which is the likelier way to hit it — would
+put two concurrent jobs on the same log file and the same stat record: interleaved output, doubled
+assert counts, a double-printed report row, and a `SUITE` line that is quietly wrong. It is a
+stricter case than the mistyped path, because nothing about the result *looks* like an error. The
+default glob cannot produce a collision; explicit arguments can, so the check runs before any job
+launches.
+
 Files are launched **longest budget first**, ties broken by path, so the tail starts while there is
 still work to overlap it with. A file with no budget row is ordered at `DEFAULT_CEILING` (60s).
 Files whose budget row says `serial` are held out of the parallel phase entirely and run one at a
@@ -94,6 +104,34 @@ Two streams, two contracts:
 - **stderr** — a live progress ticker, one `<test> PASS|FAIL` line as each job finishes. It is in
   **completion order**, which is racy by construction. Nothing keys on it; redirect it away if you
   want a stable capture.
+
+### Interruption
+
+Ctrl-C (or a `SIGTERM`) is handled, not left to the default action. On a two-minute gate run it is
+the likeliest interactive ending, and untrapped it is a data-destroying one: output is buffered
+until every job finishes, so an interrupted run has printed nothing but the ticker, and the `EXIT`
+trap would then delete the work directory while live jobs are still writing into it.
+
+The jobs would also **survive**. The runner has no job control, so bash sets `SIGINT` to ignored in
+every async child, and the test processes those children fork inherit it — the terminal's Ctrl-C
+reaches the runner and nothing else. Orphaned test processes writing into a deleted directory is
+the actual untrapped outcome.
+
+So the handler reaps first and removes the work directory second, and it signals **exactly the
+processes this runner launched**, by pid. Each in-flight job publishes its subshell pid and its test
+pid and unlinks that record on the way out, so the handler's view is the set of jobs still running
+and it never signals a pid that has been reused. Both pids are needed: killing the subshell alone
+leaves the test itself orphaned, which is half of what the handler exists to prevent.
+
+It is deliberately **not** `kill 0`. A process-group kill is only contained when the runner leads
+its own process group, which happens only when an interactive shell's job control made it one.
+Invoked the way this script is actually invoked in anger — from another script, from
+`docket-finalize-change`'s `eval`, from a test file — job control is off, the runner shares its
+caller's process group, and `kill 0` would take the caller and its siblings down with it. It would
+also re-enter the handler by signalling the runner itself.
+
+The handler then says what was lost — elapsed seconds and how many of the targets had finished —
+and exits `130` (`INT`) or `143` (`TERM`). No report is produced; a partial run certifies nothing.
 
 The summary line is stable and greppable:
 
@@ -189,7 +227,8 @@ and it is explicitly deferred to it**, not quietly dropped.
 | 1 | At least one test file exited non-zero. Takes precedence over a budget breach and over a missing result. |
 | 3 | Every target that produced a result passed, but at least one produced **no result at all** — its job died before recording one. The run certified nothing about that file. |
 | 4 | `--strict-budget` was given, every test file exited 0, and at least one exceeded its budget. |
-| 2 | Usage error — unknown flag, a flag missing its argument, a non-positive `-j`, a `TEST` that does not exist, an unwritable `--timings` path, an empty test set, `--no-budget-check` together with `--strict-budget` — or the interpreter is pre-Bash-4.3 and no usable `runtime.bash` was configured to re-exec under. |
+| 2 | Usage error — unknown flag, a flag missing its argument, a non-positive `-j`, a `TEST` that does not exist, **two `TEST`s that share a basename**, an unwritable `--timings` path, an empty test set, `--no-budget-check` together with `--strict-budget` — or the interpreter is pre-Bash-4.3 and no usable `runtime.bash` was configured to re-exec under. |
+| 130 / 143 | Interrupted by `SIGINT` / `SIGTERM`. The in-flight jobs are reaped, the work directory is removed after them, and a one-line loss report goes to stderr. No report is produced. |
 
 Exit **4** is separated from **1** on purpose: "the suite is red" and "the suite is green but
 something got slow" are different problems with different owners, and collapsing them would make
@@ -236,9 +275,16 @@ signal — the `NO RESULT:` block is printed either way.
   itself pre-4.3 from re-exec'ing forever. Test files gain no new floor from this.
 - **Basename is the join key.** Budget rows, log files, and stat records are all keyed on the test
   file's basename, so a table row written repo-relative matches a target passed as an absolute
-  path. The corollary: two targets with the same basename in different directories would collide.
-  The suite is flat, so this does not arise; a future `tests/<topic>/` layout would have to
-  revisit it.
+  path. The corollary is **defended, not merely noted**: two targets sharing a basename would write
+  the same log and the same stat record, so the pre-flight pass rejects them as a usage error
+  (exit 2) naming the basename and both paths. The suite is flat, so the collision only arises from
+  explicit arguments today; a future `tests/<topic>/` layout would have to re-key the joins rather
+  than relax this check.
+- **An interrupted run reaps before it cleans up, and never signals its caller.** `SIGINT` and
+  `SIGTERM` are trapped: the handler kills each in-flight job's test process and subshell by pid,
+  waits for them, reports how much had finished, and only then removes the work directory. It is
+  not `kill 0` — the runner shares its caller's process group whenever job control is off, which is
+  every non-interactive invocation. See "Interruption" above.
 - **Audited for parallel-execution races on 2026-08-06 — 80 files inspected, none found.** Every
   `tests/test_*.sh` was swept for the shapes that make a file unsafe to run beside its neighbours:
   a read of — or a write through — the ambient `$HOME`, a `git config --global` or `--system`
