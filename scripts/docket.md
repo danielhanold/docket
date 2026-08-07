@@ -70,6 +70,7 @@ rather than a `bash` selected from `PATH`.
 | `backfill-change-types` | `backfill-change-types.sh` | apply a human-approved `id=type` mapping to ACTIVE change files, all-or-nothing and idempotent; never touches `archive/` (change 0127) |
 | `runner-dispatch` | `runner-dispatch.sh` | delegate one agent run to a child harness via a registered runner adapter (change 0079) |
 | `mark-publish-deferred` | `mark-publish-deferred.sh` | add/remove the `## Publish deferred` marker on a change file (terminal-publish gap visibility, change 0083) |
+| `verify-run` | `verify-run.sh` | evaluate docket-implement-next's Step 7 postcondition for one change and report a verdict (change 0237) |
 
 Operation name = wrapped helper basename for every row except the three verbs `preflight`, `env`,
 and `bootstrap`, whose `Wraps` column names an implementation or a flagged resolver invocation
