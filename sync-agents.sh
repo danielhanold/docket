@@ -969,7 +969,7 @@ emit_wrapper(){  # $1=src $2=model $3=effort $4=runner $5=harness $6=agent-name 
   # short-circuit deliberately: the header states the contract for EVERY call, so enforcing it only
   # on the delegated path would leave the documented rule unenforced on the native one.
   if [ "$2" != "${RES_MODEL:-}" ]; then
-    log "ERROR emit_wrapper called for $5/docket-$6 with model '$2', which is not the resolved RES_MODEL '${RES_MODEL:-}' — see emit_wrapper's calling contract. No wrappers were written."
+    log "ERROR emit_wrapper called for $5/docket-$6 with model '$2', which is not the resolved RES_MODEL '${RES_MODEL:-}' — see emit_wrapper's calling contract. This is a can't-happen assertion; the run aborts here and wrappers already written this run are left in place."
     exit 1
   fi
   local runner="$4"
