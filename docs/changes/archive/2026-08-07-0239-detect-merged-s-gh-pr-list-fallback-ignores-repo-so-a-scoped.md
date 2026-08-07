@@ -2,7 +2,7 @@
 id: 239
 slug: detect-merged-s-gh-pr-list-fallback-ignores-repo-so-a-scoped
 title: detect_merged's gh pr list fallback ignores --repo, so a scoped pass queries the wrong repository
-status: proposed
+status: killed
 priority: medium
 type: fix
 created: 2026-08-07
@@ -58,3 +58,7 @@ the GitHub enrichment that resolves leg C's ambiguity. `detect_merged` is the *m
 different subsystem with its own tests and its own failure posture; repairing it on 0219's branch
 would put an unrelated behavior change inside a diff a human is reviewing for the abort oracle, and
 0219's own review already flagged it as out of scope for the finding that surfaced it.
+
+## Why killed
+
+Consolidated into #0250 at the 2026-08-07 backlog triage: the 0219-harvest pair (repo-scoped fallback + idle-secs correspondence guard) lands as one small test-heavy change in docket-status.sh.
