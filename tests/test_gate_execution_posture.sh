@@ -384,4 +384,18 @@ done
 assert "modes: some harness section addresses the forked/dispatched mode (got $mode_secs)" \
   '[ "$mode_secs" -ge 1 ]'
 
+# --- (11) the SPLIT: probe evidence lives OFF the blocking-read surface (change 0234) ---
+# `gate-execution.md` is read blocking before every gate run (docket-build § Gate execution
+# posture). The probe design, the launch-duration ladder, and the per-harness measurement
+# narratives are a measurement report, not instruction, and they rot on an external schedule —
+# so they live in a sibling that no gate run loads. These four asserts pin that split.
+EVID="$REPO/skills/docket-build/references/gate-execution-evidence.md"
+assert "evidence: the file exists" '[ -f "$EVID" ]'
+evid_body="$(cat "$EVID" 2>/dev/null)"
+# Population floor, same shape as the kept file's: without it the split could silently collapse
+# back into one file with the evidence DELETED rather than moved, and every assert here would
+# still pass on an empty sibling.
+assert "evidence: is non-vacuous (>= 40 lines)" \
+  '[ "$(printf "%s\n" "$evid_body" | grep -c .)" -ge 40 ]'
+
 exit $fail
