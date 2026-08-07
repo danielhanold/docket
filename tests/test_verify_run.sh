@@ -97,6 +97,20 @@ out="$( cd "$SBX" && vr 15 )"
 assert "halted: a prose mention does not fire the section" \
   '! grep -q "^run-halted" <<<"$out"'
 
+# --- a DATED heading is not the section either (the producer-instruction trap) -
+# `has_section` is `grep -qxF`, so `## Run halted — 2026-08-07` is invisible to the reader and the
+# run gate reads a deliberate halt as `run-incomplete`. This fixture is why every producer
+# instruction must say the heading is BARE; the prose assert below pins that wording.
+write_change 19 in-progress feat/slug19 "" "
+## Run halted — 2026-08-07
+
+Design fundamentally invalidated; needs a human."
+out="$( cd "$SBX" && vr 19 )"
+assert "halted: a DATED heading does not fire the section" \
+  '! grep -q "^run-halted" <<<"$out"'
+assert "halted: and the dated form degrades to run-incomplete" \
+  '[ "$out" = "run-incomplete 19 status pr branch" ]'
+
 # --- run-unclaimed: no live run to verify -------------------------------------
 write_change 16 proposed "" ""
 out="$( cd "$SBX" && vr 16 )"
@@ -251,6 +265,11 @@ assert "0237 prose: the convention's entry names it presence-encoded" \
 # that merely defines what the write means.
 assert "0237 prose: the halted disposition WRITES the section" \
   'flat "$IMPL" | grep -qiE "halted[^.]{0,250}(write|writing|append)[^.]{0,200}## Run halted|## Run halted[^.]{0,200}(commit|committed)"'
+# WRITE SHAPE — the reader is a whole-line match, so a producer told to write a "dated" section
+# emits a heading the reader never sees. The instruction must name the heading as bare/undated,
+# exactly as the twin `## Finalize blocked` marker's doc already does.
+assert "0237 prose: the producer names the '## Run halted' heading as bare/undated" \
+  'flat "$IMPL" | grep -qiE "## Run halted.{0,120}(bare|undated|never dated)"'
 assert "0237 prose: the halted write is described as a COMMITTED git act" \
   'flat "$IMPL" | grep -qiE "## Run halted[^.]{0,250}commit"'
 
