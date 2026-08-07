@@ -91,3 +91,16 @@ this rule the moment it ever writes prose.
 - ADR-[[0065]] made the complementary point about *reading* — that a bare-scalar claim built on a
   raw-vs-consumed comparison needs an explicit quote leg. This ADR is its write-side counterpart:
   quoting is now the writer's default rather than a case it must detect.
+
+## Update — 2026-08-07 (change 0235)
+
+The Consequences above say the flow-collection exemption "becomes unnecessary on the write path" but
+"stays in the checker's predicate, where an arbitrary hand-authored value may still be a list." That
+last clause no longer holds: change 0235's whole-branch review removed the exemption from
+`docket_scalar_quote_reason` entirely. Evaluated first, it suppressed all five syntax legs rather
+than only the indicator leg, making previously-reachable findings unreachable — and no ordering
+rescues it, since a flow map's `key: value` is a colon-space by construction.
+
+The **Decision** is unchanged and unreversed — `mint-stub.sh`'s writer still quotes `title`
+unconditionally, validity still holds by construction, and the byte-level assert still stands in for
+a parser oracle. Only the checker-side disposition of the exemption changed. See ADR-[[0073]].
