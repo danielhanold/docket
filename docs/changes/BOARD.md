@@ -1,6 +1,6 @@
 # Backlog
 
-**242 changes** — 🟢 1 in progress · 🟡 59 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 148 done · 🗑️ 29 killed
+**243 changes** — 🟢 1 in progress · 🟡 60 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 148 done · 🗑️ 29 killed
 
 ## 🟢 In progress (1)
 
@@ -8,7 +8,7 @@
 |---|-------|----------|------|------|--------|
 | [0190](active/0190-close-the-build-evidence-value-gap-a-post-gate-results-commi.md) | Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip | `medium` | `feat` | [spec](../superpowers/specs/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md) | `feat/close-the-build-evidence-value-gap-a-post-gate-results-commi` |
 
-## 🟡 Proposed (59)
+## 🟡 Proposed (60)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -71,6 +71,7 @@
 | [0240](active/0240-audit-which-frontmatter-accessor-each-call-site-should-use-n.md) | Audit which frontmatter accessor each call site should use, now that three anchored read shapes exist | `medium` | `refactor` | needs-brainstorm |
 | [0241](active/0241-correspondence-guard-over-leg-c-s-by-value-duplicated-predic.md) | Correspondence guard over leg C's by-value duplicated predicate (ADR-0072 drift risk) | `medium` | `chore` | needs-brainstorm |
 | [0242](active/0242-close-the-claude-gap-in-the-run-completion-gate-with-a-comma.md) | Close the Claude gap in the run-completion gate with a command-type Stop hook | `medium` | `feat` | ⏳ waiting on #237 — not yet built |
+| [0243](active/0243-make-test-suite-git-fixture-setup-fail-loudly-instead-of-fla.md) | Make test-suite git fixture setup fail loudly instead of flaking | `medium` | `fix` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -154,6 +155,7 @@ graph TD
   0240
   0241
   0237 --> 0242
+  0243
   0015:::done
   0175:::done
   0192:::done
