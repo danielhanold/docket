@@ -459,12 +459,35 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # 1290 words -> 1300 is within the 25-word threshold (10 words of margin), so the multiple after:
 # 1350. This row is a build-time consequence of creating the file, not a discretionary raise: the
 # completeness check below rejects any skills/**/*.md without one.
+# skills/docket-build/SKILL.md's budget was raised 280/2500 -> 305/2750 by that same change 0223,
+# which added the `### Gate execution posture` subsection to `## The build gate` plus one
+# `## Halting conditions` bullet for the exhausted observation budget. WHERE ELSE IT WAS CONSIDERED,
+# per the naming requirement above: skills/docket-build/references/gate-execution.md, created by
+# this same change one commit earlier. The posture cannot live there, for two reasons that are not
+# size arguments. (a) That file is the QUARANTINE for product-specific evidence — per-harness launch
+# shapes, versions, measured durations — and it is re-measured and rewritten whenever a harness
+# version moves; parking the contract inside it would make docket's own rule editable as a side
+# effect of refreshing evidence, and what it enumerates is what a HARNESS must provide, not what
+# this role must do. (b) The plan's next task has skills/docket-finalize-change/SKILL.md cite this
+# posture by name as `docket-build`'s, and a cross-skill citation must anchor in the owning skill
+# body — a citation pointing into a reference file names no owner. The halting bullet is fixed in
+# place for a mechanical reason on top of that: tests/test_docket_build.sh enumerates the halts
+# inside a `## Halting conditions` section slice precisely so a halt stated anywhere else does not
+# count. COMPRESSION WAS TAKEN FIRST on the addition itself, per this block's posture: the drafted
+# standalone "the observation interval is an implementation detail" paragraph was folded into
+# clause 5, and the false-completion rule's provenance sentence became a one-clause pointer at this
+# file's own `## Reading a worker's return` section rather than a restatement of it. Pre-existing
+# prose is untouched by the diff. Set per the rounding rule above from the measured actuals: 299
+# lines -> the next multiple of 5 is 300, which leaves ONE line of margin — the near-zero failure
+# mode this block records raising for repeatedly — so the multiple after it: 305. 2689 words -> the
+# next multiple of 50 is 2700, which leaves 11 words (within the 25-word threshold), so the multiple
+# after it: 2750.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
 skills/docket-auto-groom/SKILL.md                           66 1237
 skills/docket-brainstorm/SKILL.md                           84  692
-skills/docket-build/SKILL.md                               280 2500
+skills/docket-build/SKILL.md                               305 2750
 skills/docket-build/references/gate-execution.md            150 1350
 skills/docket-build/references/task-routing.md              50  500
 skills/docket-build-task/SKILL.md                          125 1100
