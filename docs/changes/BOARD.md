@@ -1,6 +1,6 @@
 # Backlog
 
-**225 changes** — 🟢 2 in progress · 🟡 52 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 139 done · 🗑️ 27 killed
+**226 changes** — 🟢 2 in progress · 🟡 53 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 139 done · 🗑️ 27 killed
 
 ## 🟢 In progress (2)
 
@@ -9,7 +9,7 @@
 | [0190](active/0190-close-the-build-evidence-value-gap-a-post-gate-results-commi.md) | Close the build-evidence value gap: a post-gate results commit always defeats finalize's suite skip | `medium` | `feat` | [spec](../superpowers/specs/2026-08-01-close-the-build-evidence-value-gap-a-post-gate-results-commi-design.md) | `feat/close-the-build-evidence-value-gap-a-post-gate-results-commi` |
 | [0220](active/0220-clear-the-unfixed-review-findings-from-change-0207.md) | clear the unfixed review findings from change 0207 | `medium` | `fix` | [spec](../superpowers/specs/2026-08-05-clear-0207-review-findings-design.md) | `feat/clear-the-unfixed-review-findings-from-change-0207` |
 
-## 🟡 Proposed (52)
+## 🟡 Proposed (53)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -65,6 +65,7 @@
 | [0223](active/0223-the-build-gate-contract-never-states-an-execution-posture-for.md) | The build gate contract never states an execution posture for a suite that outgrows a single foreground call | `high` | `docs` | needs-brainstorm |
 | [0224](active/0224-the-build-gate-contract-never-says-green-red-is-the-exit-code.md) | The build gate contract never says green/red is the exit code, so an output-shape match passes as a gate | `high` | `docs` | needs-brainstorm |
 | [0225](active/0225-the-test-suite-has-grown-into-the-harness-s-foreground-ceilin.md) | The test suite has grown into the harness's foreground ceiling — cut its wall-clock runtime | `medium` | `perf` | needs-brainstorm |
+| [0226](active/0226-reframe-auto-capture-as-capability-discovery-with-strict-adm.md) | Reframe auto-capture as capability discovery with strict admission gates | `medium` | `feat` | build-ready |
 
 ## ⚪ Deferred (4)
 
@@ -142,10 +143,12 @@ graph TD
   0223
   0224
   0225
+  0218 --> 0226
   0015:::done
   0175:::done
   0192:::done
   0211:::done
+  0218:::done
   classDef done fill:#d3f9d8;
 ```
 
