@@ -768,5 +768,70 @@ armed_hits="$(git -C "$REPO" grep -IlE 'build-(low|medium|high)' -- \
 assert "retirement grep is armed (the exempt history still contains the tokens)" \
   '[ -n "$armed_hits" ]'
 
+# ---------------------------------------------------------------------------
+# Change 0224: the gate's VERDICT is the exit status, never output text
+# ---------------------------------------------------------------------------
+# § The build gate defined what green and red MEAN but never what DETERMINES which one a run is,
+# so a gate keyed on an output-shape match (`tail -1 | grep PASS`) satisfied the contract and could
+# mint a valid-looking build-evidence record for a branch nobody verified. These asserts pin the
+# determinant.
+#
+# Terminator is /^#+ /, NOT /^## /: the level-2 form would swallow ### Gate execution posture,
+# which tests/test_gate_execution_posture.sh separately owns, and a bounded-gap assert over that
+# wider slice could match across sections and survive its own mutation
+# (learnings: section-slice-needs-a-named-terminator).
+gate_blk="$(awk '/^## The build gate$/{f=1;next} f && /^#+ /{f=0} f' <<<"$ctrl_body")"
+# Flatten before phrase matching so a pure re-flow of the hard-wrapped paragraph does not redden
+# asserts about policy that never changed (learnings: phrase-grep-over-wrapped-prose).
+gate_flat="$(flat "$gate_blk")"
+
+# Non-vacuity companion through the SAME extractor. Without it, a renamed heading or a broken awk
+# range empties $gate_blk and turns every assert below into a permanent green. The anchor is a
+# clause that PREDATES this change and sits inside the slice, so it cannot be satisfied by the
+# prose this change just added (learnings: assert-detects-removal-not-replacement, rule 5).
+assert "0224: the build gate section slice is non-vacuous" \
+  '[ "$(grep -c . <<<"$gate_blk")" -ge 20 ]'
+assert "0224: the build gate slice extractor still resolves (pre-existing clause present)" \
+  'grep -qiF -- "configuration gap, not a red suite" <<<"$gate_flat"'
+
+# (a) The iff — an exit status decides green. Anchored on a verbatim slice of the claim, never on a
+# bare common noun like "exit" or "gate" (learnings: assert-detects-removal-not-replacement, #226).
+assert "0224: green is defined as the suite command exiting zero" \
+  'grep -qiF -- "green if and only if the resolved suite command exits zero" <<<"$gate_flat"'
+
+# (b) The negative — output text is not the verdict. Two separate asserts rather than one ERE with
+# two bounded gaps: stacked gaps backtrack catastrophically on NON-matching input, so the mutation
+# test hangs instead of reddening (learnings: stacked-gap-regex-hangs-instead-of-failing).
+assert "0224: output text is classified as diagnostic, not the verdict" \
+  'grep -qiF -- "diagnostic only" <<<"$gate_flat"'
+assert "0224: reading the verdict out of the output is named as not a gate" \
+  'grep -qiF -- "reads its verdict out of the output is not a gate" <<<"$gate_flat"'
+
+# (c) The verdict is read from the terminal result artifact — which is also where the definition of
+# "completed successfully" that references/gate-execution.md capability 5 requires finally lands —
+# and the two non-statuses stay halts. One bounded gap per ERE, never two.
+assert "0224: the deciding status is the one in the terminal result artifact" \
+  'grep -qiE "deciding status[^.]{0,120}terminal result artifact" <<<"$gate_flat"'
+assert "0224: the recorded status is what completed successfully means" \
+  'grep -qiF -- "completed successfully" <<<"$gate_flat"'
+# The non-status rule is a three-part claim — the two names, their classification, and the halt/red
+# consequence — so it is two asserts with one gap each, not one ERE with two. Neither anchor may
+# span the emphasis markers the prose puts around the two names (`*result unavailable*`), so the
+# split falls at the marker rather than mid-clause.
+assert "0224: still running and result unavailable are the two named non-statuses" \
+  'grep -qiE "still running[^.]{0,40}result unavailable" <<<"$gate_flat"'
+assert "0224: the non-statuses stay budget halts and are never red" \
+  'grep -qiE "are not statuses at all[^.]{0,120}never red" <<<"$gate_flat"'
+
+# (d) The per-file-loop aggregate. Confirmed against finalize's configured-bash-finalize block,
+# which accumulates suite_status=1 per failing file and exits on [ "$suite_status" -eq 0 ] — the
+# aggregate IS the status, so the wording holds unchanged.
+assert "0224: under a per-file loop the aggregate is the deciding status" \
+  'grep -qiE "loop over per-file commands[^.]{0,220}aggregate" <<<"$gate_flat"'
+
+# (e) The rule binds the repair worker's post-fix re-run, whose green is what ends the ladder.
+assert "0224: the rule binds the repair worker's post-fix re-run" \
+  'grep -qiF -- "including the repair worker'"'"'s post-fix re-run" <<<"$gate_flat"'
+
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
