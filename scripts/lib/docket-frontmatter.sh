@@ -379,6 +379,13 @@ _docket_array_has(){
 }
 docket_status_is_active(){ _docket_array_has "$1" "${DOCKET_STATUSES_ACTIVE[@]}"; }
 docket_status_is_terminal(){ _docket_array_has "$1" "${DOCKET_STATUSES_TERMINAL[@]}"; }
+# Membership over the FULL seven-name vocabulary — the union its two siblings partition. Distinct
+# from both: `_active` and `_terminal` each answer "which half", and a consumer that only needs
+# "is this a status at all" would otherwise have to call both or restate the list. render-board.sh's
+# malformed-file validation (change 0259) is that consumer: a status outside this vocabulary can
+# never be a legal array subscript or a legal TAB-join field, so rejecting by vocabulary IS the
+# sanitization — a value carrying an interior TAB or CR cannot match any of the seven names.
+docket_status_is_member(){ _docket_array_has "$1" "${DOCKET_STATUSES[@]}"; }
 docket_priority_is_member(){ _docket_array_has "$1" "${DOCKET_PRIORITIES[@]}"; }
 
 # Membership over the EFFECTIVE list the caller resolved — never over the built-in array. A change
