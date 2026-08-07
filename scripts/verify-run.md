@@ -20,7 +20,8 @@ docket.sh verify-run --in-progress-ids
 ```
 
 - `<id>` — the change id (integer; the file is located by its zero-padded name in `active/`, then
-  `archive/`).
+  `archive/`). Either form is accepted — `237` and `0237` name the same change — and the verdict
+  line always echoes the canonical unpadded id, never the typed one.
 - `--in-progress-ids` — print the id of every `status: in-progress` change in `active/`, one per
   line, numerically sorted. This is the snapshot half `runner-dispatch.sh` diffs across a hand-off.
 - `--changes-dir DIR` — bypass config resolution and read this directory. For hermetic tests and

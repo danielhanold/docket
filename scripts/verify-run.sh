@@ -82,6 +82,12 @@ fi
 
 [ -n "$ID" ] || die "an <id> is required (or --in-progress-ids)"
 case "$ID" in ''|*[!0-9]*) die "invalid id: $ID (must be a non-negative integer)" ;; esac
+# CANONICALIZE before ANY arithmetic. Docket displays the padded form everywhere (filenames, board,
+# commit scopes, "change 0237") and the validator above admits it — but bash reads a leading `0` as
+# octal, so `0237` becomes 159 and `0219` is not a number at all. Base-10 forced, matching
+# board-checks.sh / adr-checks.sh. Every later use — the `%04d` glob, the die text, and the verdict
+# line — is this canonical value, so the id we PRINT is always the id we READ.
+ID=$((10#$ID))
 
 # Locate the change: active/ first, then archive/. An archived change is a legitimate
 # `run-unclaimed` (terminal — there is no run to verify); a change that exists NOWHERE is a caller
