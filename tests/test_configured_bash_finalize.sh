@@ -89,4 +89,38 @@ assert "explicit command receives configured Bash in its environment" \
 assert "explicit command does not traverse the configured runtime" \
   '[ "$(wc -l < "$runtime_log" | tr -d "[:space:]")" = 2 ]'
 
+# --- keep-going accumulator: a NON-FINAL red must still report non-zero (change 0228) ---------
+# Own fixture dir and own log paths on purpose: the asserts above pin the SHARED runtime_log at
+# exactly 2 lines and the explicit-command case exports a non-empty FINALIZE_TEST_COMMAND, so
+# reusing either resource would redden a passing guard or skip the auto-detect branch entirely.
+acc_fixture="$TMP/repo-accumulator"
+mkdir -p "$acc_fixture/tests"
+acc_runtime_log="$TMP/runtime-accumulator.log"
+acc_execution_log="$TMP/execution-accumulator.log"
+
+# test_bravo.sh is 2nd of 3 and exits 1; test_charlie.sh is last and passes. Without an
+# accumulator the loop's status is the LAST test's, so the block reads green on a red suite.
+for name in test_alpha.sh test_bravo.sh test_charlie.sh; do
+  cat > "$acc_fixture/tests/$name" <<'SH'
+#!/usr/bin/env bash
+printf '%s\n' "$(basename "$0")" >> "$EXECUTION_LOG"
+[ "$(basename "$0")" != "test_bravo.sh" ]
+SH
+  chmod +x "$acc_fixture/tests/$name"
+done
+
+acc_status=0
+(
+  cd "$acc_fixture" || exit 1
+  RUNTIME_LOG="$acc_runtime_log" EXECUTION_LOG="$acc_execution_log" FINALIZE_TEST_COMMAND= \
+    /bin/bash -c "$contract"
+) || acc_status=$?
+
+assert "auto-detect reports non-zero when a NON-FINAL test fails" \
+  '[ "$acc_status" -ne 0 ]'
+assert "auto-detect keeps going past the failure so every test still runs" \
+  '[ "$(sort "$acc_execution_log")" = "test_alpha.sh
+test_bravo.sh
+test_charlie.sh" ]'
+
 exit $fail

@@ -128,9 +128,11 @@ finalize:
 if [ -n "${FINALIZE_TEST_COMMAND:-}" ]; then
   eval "$FINALIZE_TEST_COMMAND"
 else
+  suite_status=0
   for test in tests/test_*.sh; do
-    "$DOCKET_BASH_PATH" "$test"
+    "$DOCKET_BASH_PATH" "$test" || suite_status=1
   done
+  [ "$suite_status" -eq 0 ]
 fi
 ```
 <!-- configured-bash-finalize:end -->
