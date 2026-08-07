@@ -28,11 +28,15 @@
 #   --project-owner OWNER  owner to create the project under (later task)
 #
 # Contract: scripts/docket-status.md.
-# Mock seams: GIT="${GIT:-git}", GH="${GH:-gh}", CONFIG_EXPORT_CMD (config export override).
+# Mock seams: GIT="${GIT:-git}", GH="${GH:-gh}", NOW="${NOW:-$(date +%s)}" (staleness clock),
+# CONFIG_EXPORT_CMD (config export override).
 set -uo pipefail
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GIT="${GIT:-git}"
 GH="${GH:-gh}"
+# Staleness clock, spelled exactly as board-checks.sh's NOW seam so both suites drive their clocks
+# the same way. Read by detect_orphan_pr's idle floor (change 0219).
+NOW="${NOW:-$(date +%s)}"
 SCRIPTS_DIR="${SCRIPTS_DIR:-$SELF_DIR}"
 # shellcheck source=lib/docket-frontmatter.sh
 . "$SELF_DIR"/lib/docket-frontmatter.sh
@@ -563,6 +567,101 @@ detect_merged(){
   return 0
 }
 
+# Branch-idle floor for the GitHub enrichment leg (change 0219). This is leg C's OWN floor
+# (board-checks.sh's ABORTED_RUN_IDLE_SECS), reused rather than re-tuned, and the reuse is
+# load-bearing: it guarantees the enrichment never fires on a change leg C stayed silent about, so
+# the git-only finding and its GitHub resolution always agree. Hardcoded with no config knob — the
+# same precedent ABORTED_RUN_STALE_SECS and ABORTED_RUN_IDLE_SECS set; a second magic number would
+# need its own justification and this one has none to offer. Kept in sync BY VALUE, not by import:
+# the two scripts share no library, and board-checks.sh must stay independently runnable.
+ORPHAN_PR_IDLE_SECS=$(( 2 * 3600 ))
+
+# detect_orphan_pr — the GitHub enrichment leg for board-checks.sh's aborted-run leg C (change 0219).
+#
+# Leg C fires on "branch has commits, pr: is unset, tip idle > 2h" and can only tell a human to "verify
+# the PR exists": board-checks.sh is git-only BY CONTRACT and shells no gh. Two very different
+# situations produce that one finding — a PR that exists and merely went unrecorded (remedy: record
+# it) versus a run that died before opening one (remedy: open it) — and today only a manual check
+# distinguishes them. This leg asks GitHub which it is. It adds NO detection; it RESOLVES an
+# ambiguity, which is why it lives here (where gh already lives) rather than widening leg C.
+#
+# The gate is leg C's own, so the two findings always agree and this can never fire on a change leg C
+# stayed silent about. Advisory like every aborted-run leg: it flips no status, releases no claim, and
+# writes no file.
+#
+# Best-effort, VERBATIM detect_merged's posture: any gh/network/parse failure emits
+# "sweep-skipped <reason>" and returns 0. That is what keeps board-checks.sh's offline guarantee
+# intact — offline, the git-only check keeps emitting leg C's finding and only the enrichment goes
+# quiet. Prints "check aborted-run <id> <message>" lines, matching health_checks' own render so
+# consumers read one vocabulary.
+detect_orphan_pr(){
+  local mw
+  mw="$(docket_metadata_worktree)"   # ABSOLUTE (change 0075) — see board_pass.
+  local cd_dir="$mw/$CHANGES_DIR"
+
+  local -a files
+  mapfile -t files < <(find "$cd_dir/active" -maxdepth 1 -name '*.md' 2>/dev/null | sort)
+  [ ${#files[@]} -gt 0 ] || return 0
+
+  # Collect candidates FIRST, and return before touching gh when there are none. A repo with no
+  # candidate must pay nothing — not a `gh repo view`, not a subprocess.
+  local -a ids=() branches=() idles=()
+  local f id status pr slug branch tip
+  for f in "${files[@]}"; do
+    status="$(field "$f" status)"
+    [ "$status" = in-progress ] || continue
+    pr="$(field "$f" pr)"
+    [ -z "$pr" ] || continue          # pr: recorded is leg D's domain, never this one
+    id="$(int_field "$f" id)"
+    [ -n "$id" ] || continue
+    slug="$(field "$f" slug)"
+    branch="$(field "$f" branch)"
+    [ -n "$branch" ] || branch="feat/$slug"
+    # Tip age off the LOCAL ref, then the remote-tracking one — branch_ref's order in
+    # board-checks.sh. An unresolvable branch yields empty stdout and is silence, never a finding:
+    # no positive evidence is the posture every aborted-run leg takes.
+    tip="$("$GIT" -C "$cd_dir" log -1 --format=%ct "$branch" 2>/dev/null)"
+    [ -n "$tip" ] || tip="$("$GIT" -C "$cd_dir" log -1 --format=%ct "origin/$branch" 2>/dev/null)"
+    [ -n "$tip" ] || continue
+    [ "$(( NOW - tip ))" -gt "$ORPHAN_PR_IDLE_SECS" ] || continue
+    ids+=("$id"); branches+=("$branch"); idles+=("$(( (NOW - tip) / 3600 ))")
+  done
+  [ ${#ids[@]} -gt 0 ] || return 0
+
+  local repo="${REPO_FLAG:-}"
+  if [ -z "$repo" ]; then
+    repo="$("$GH" repo view --json owner,name -q '(.owner.login)+"/"+(.name)' 2>/dev/null)" \
+      || { echo "sweep-skipped gh-unavailable"; return 0; }
+  fi
+  [ -n "$repo" ] || { echo "sweep-skipped repo-unresolved"; return 0; }
+
+  local i br pl_json pl_num
+  for i in "${!ids[@]}"; do
+    id="${ids[$i]}"; br="${branches[$i]}"
+    pl_json="$("$GH" pr list --head "$br" --state open --json number 2>/dev/null)" || {
+      echo "sweep-skipped gh-unavailable"
+      return 0
+    }
+    # A gh that exits 0 and prints something jq cannot parse is a THIRD failure mode, distinct from
+    # a non-zero exit and from an absent binary. Treat it as a skip for THIS change and keep going:
+    # one unparseable response is not evidence about the others.
+    if ! printf '%s' "$pl_json" | jq -e . >/dev/null 2>&1; then
+      echo "sweep-skipped gh-unparseable"
+      continue
+    fi
+    pl_num="$(printf '%s' "$pl_json" | jq -r '.[0].number // empty' 2>/dev/null)"
+    # Both messages HEDGE nothing about the PR's existence — unlike leg C, this leg has ASKED, so it
+    # states what it found as fact. The remedy stays a bookkeeping act on the manifest, never a
+    # push or a merge: acting on the branch would race a run that is merely between commits.
+    if [ -n "$pl_num" ]; then
+      echo "check aborted-run $id PR #$pl_num is open on $br but pr: is unset — record it"
+    else
+      echo "check aborted-run $id $br is pushed (last commit ${idles[$i]}h ago) but no PR on GitHub — the run stopped before opening one"
+    fi
+  done
+  return 0
+}
+
 # sweep_execute — chains the shared ADR-0035 close-out scripts (archive-change.sh →
 # render-change-links.sh → terminal-publish.sh → cleanup-feature-branch.sh) for each merged
 # change fed on stdin as TAB-separated "<id>\t<slug>\t<pr>\t<merged-date>" (detect_merged's
@@ -953,6 +1052,13 @@ main(){
   local health_out
   health_out="$(health_checks)"
   [ -n "$health_out" ] && printf '%s\n' "$health_out"
+  # Change 0219: the GitHub enrichment for leg C, printed immediately after the git-only findings so
+  # a leg-C finding and its resolution read together. Deliberately NOT folded into $health_out:
+  # reclaim_pass keys a MUTATING gate on that blob (RECLAIMABLE_LINE_RE), and widening what feeds it
+  # with network-derived lines would put a remote service inside a local mutation's trigger. This is
+  # advisory output only. FULL PATH ONLY — never under --board-only, which early-exits above and is
+  # invoked by many callers as a must-land board write.
+  detect_orphan_pr
   reclaim_pass "$health_out"
   emit_judgment
   # Change 0067: the learnings pass runs on the FULL path only — never under --board-only, which
