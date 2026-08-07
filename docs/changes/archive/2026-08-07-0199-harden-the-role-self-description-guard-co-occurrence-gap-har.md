@@ -2,11 +2,11 @@
 id: 199
 slug: harden-the-role-self-description-guard-co-occurrence-gap-har
 title: Harden the role-self-description guard — co-occurrence gap, hardcoded population, broad default matcher
-status: proposed
+status: killed
 priority: medium
 type: chore
 created: 2026-08-03
-updated: 2026-08-03
+updated: 2026-08-07
 depends_on: []
 related: []
 discovered_from: [194]
@@ -67,3 +67,7 @@ discipline, not a new one.
 
 - The rule's positive half (docket-review naming no `skills.review`) — separate follow-up.
 - Widening the guard to other skill files or to the whole `skills/` restatement class (#0154).
+
+## Why killed
+
+Consolidated into #0248 at the 2026-08-07 backlog triage: the three guard gaps land with #0198's positive-half enforcement in the same file.
