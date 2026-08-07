@@ -20,7 +20,7 @@ branch: feat/prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical
 claimed_at: 2026-08-07T18:36:15Z
 pr:
 blocked_by:
-reconciled: false
+reconciled: true
 ---
 
 ## Artifacts
@@ -93,3 +93,27 @@ linked spec.
 - Any new config knob, status flip, or claim release.
 
 ## Reconcile log
+
+### 2026-08-07 — reconcile (implement-next)
+
+Verified against current `origin/docket` + `origin/main`:
+
+- **Dependencies and lineage hold.** 0219 is archived `done` (leg D shipped, `detect_orphan_pr`
+  landed); 0236 is archived `killed` into this change, exactly as the spec records. 0242 exists as a
+  `proposed` stub `waiting-on-237`, so the deferred Claude-hook scope stays tracked elsewhere.
+- **Nothing in scope has been built elsewhere.** `scripts/verify-run.sh` and
+  `scripts/verify-run.md` do not exist; `scripts/runner-dispatch.sh` still ends at the
+  `exec "$DOCKET_BASH_PATH" "$ADAPTER" …` hand-off (line 124), so §2's call-and-return conversion is
+  untouched work. `verify-run` is absent from `WRAPPED_OPS` in `scripts/docket.sh` and from the
+  operations table in `scripts/docket.md`.
+- **`board-checks.sh` remains untouched** per §4, and change 0219's rewrite of the `aborted-run`
+  block is the current state — confirming the spec's rejection of a delegation refactor.
+- **One drift, scope-adjusting only.** The spec directs a pointer sentence into
+  `scripts/board-checks.md`'s `## Not covered` paragraph. That heading **does not exist** in the
+  file today; the document's headings are Purpose / Usage / Behavior / Exit codes / Invariants, and
+  the not-covered material lives inside the `aborted-run` narrative as its *Known residual* /
+  *surviving residual* prose. The sentence therefore lands in that residual prose, pointing at
+  `verify-run` as the floor-free check available at a dispatch seam. Same content, same
+  documentation-only scope, correct anchor.
+
+No other scope change. Design intact; proceeding to plan.
