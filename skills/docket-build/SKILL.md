@@ -170,6 +170,9 @@ disposition.
 - **A failed attempt left a commit** — name the stray SHA; do not escalate onto it.
 - **No suite is detectable** — no `FINALIZE_TEST_COMMAND` and nothing finalize's auto-detection
   recognizes. Remedy: set `finalize.test_command`. Never convert this into a repair task.
+- **The observation budget is exhausted with no terminal gate result** — `GATE_OBSERVATION_BUDGET`
+  ran out and no durable result artifact reports a terminal state. Fail closed: an unfinished run is
+  not a failing suite, so never convert this into a repair task and never infer success.
 - **The suite is still red after the max repair** — there is no second repair round.
 - **Continuation is unsafe** — a worker's `BLOCKED`: contradictory requirements, missing authority,
   or an absent dependency.
@@ -216,6 +219,47 @@ coverage where appropriate, fixes it, re-runs the full suite, and commits the re
 starts one rung above the default deliberately: repair is cross-task diagnosis, never routine work.
 There is no repeated repair/review loop; failure after the max repair path halts per
 *Halting conditions*.
+
+### Gate execution posture
+
+The suite may take longer than the harness will hold a foreground call open, so the gate is
+specified by capability rather than by mechanism. A harness's foreground-call timeout does **not**
+define the maximum duration of the build gate.
+
+1. Do **not** depend on a single foreground call remaining attached until the suite completes. Gate
+   execution must be able to outlive any individual foreground call used to start or observe it.
+2. The gate writes its eventual outcome to a **durable result artifact** — readable after a yield,
+   outside the committed tree, and non-colliding between concurrent gates. Where it lives is a
+   per-harness decision, not a contract value.
+3. Gate completion is established **from that artifact**, never from the caller-visible completion
+   signal of the command that started the gate.
+4. You **may** yield while the gate executes, then make short observations of that artifact.
+5. Observation is **bounded** by a finite budget — never wait indefinitely. That budget is
+   `GATE_OBSERVATION_BUDGET` (default 30, in minutes) from the Step-0 config export: docket
+   execution policy, distinct from any foreground-call timeout a particular harness imposes. The
+   observation interval is an implementation detail; what the contract requires is that each
+   observation is short-lived and the whole period finite.
+6. If no terminal result artifact exists when the budget is exhausted, **fail closed** — halt per
+   *Halting conditions*. Never infer success, and never turn it into a red suite: an unfinished run
+   is not a failing one, so it must **not** mint an integration-repair task. Same refusal the
+   configuration-gap case above already gets.
+
+**The false-completion rule.** A caller-visible completion signal is never gate completion.
+Reciprocally, a **stale pre-yield report is not evidence of a crashed run**: an observer seeing a
+completion signal that carries pre-yield text resolves the run's state from git and from the durable
+artifact before concluding anything. *Reading a worker's return* states this for a worker's report;
+it holds for the gate.
+
+**This does not relax the never-yield rule for dispatched subagents.** Two boundaries are in play: a
+**dispatched subagent** yielding control in violation of its execution contract, and an external
+**gate process** continuing independently while the responsible agent performs bounded observations
+of its durable result. Only the second is permitted here, and it is never permission for dispatched
+agents to yield across execution phases.
+
+Which capabilities a harness must have to host such a gate, and the measured verdict for each
+harness docket ships, are quarantined in
+[`references/gate-execution.md`](references/gate-execution.md) — **read it now (blocking) before
+starting the gate.**
 
 ## Review boundary
 
