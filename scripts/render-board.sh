@@ -132,10 +132,78 @@ spec_link(){ printf '../%s' "${1#docs/}"; }   # docs/superpowers/specs/X -> ../s
 
 resolve_deps "$CHANGES_DIR"
 
+# sanitize VALUE — render TAB and CR as the visible two-character escapes \t and \r. Duplicated
+# from board-checks.sh's `sanitize VALUE — render TAB and CR as the visible two-character escapes`
+# rather than hoisted to the shared lib: hoisting would edit board-checks.sh, which change 0259
+# holds explicitly out of scope for a three-line dedupe.
+# Pure bash parameter expansion — BSD sed does not interpret \t in a pattern, so a sed form would
+# be silently wrong. Used ONLY in diagnostics: a malformed value is REJECTED before it can reach a
+# feeder, never laundered into one.
+sanitize(){ local v="$1"; v="${v//$'\t'/\\t}"; v="${v//$'\r'/\\r}"; printf '%s' "$v"; }
+
+# --- malformed-input validation (change 0259) -------------------------------------------------
+# One upfront pass over every change file, BEFORE the section/tally loops read anything. The
+# renderer's contract is "render complete output modulo skipped rows, then fail loud": a malformed
+# file is excluded from every projection, diagnosed on stderr, and makes the whole run exit 3.
+#
+# "Malformed" is a CLOSED enumeration, deliberately narrow:
+#   M1 unusable id     — int_field yields nothing (absent, empty, or non-integer).
+#   M2 empty status    — field yields nothing.
+#   M3 status outside DOCKET_STATUSES — which SUBSUMES any status carrying an interior TAB or CR,
+#      because a control-char value can never match one of the seven closed names. Rejection by
+#      vocabulary IS the sanitization for `status:`, applied before the value ever reaches the
+#      archive TAB join or an ARC_COUNT/SECTION array subscript.
+# Deliberately NOT malformed: a vocabulary-valid status in the "wrong" directory (`done` in
+# active/ is legitimate mid-sweep state — failing on it would make docket-status's own sweep window
+# a renderer failure); an unknown or absent type: (change 0127 — a type problem must never affect a
+# row); a malformed created: (change 0094's 9999-99-99 sentinel already owns it).
+declare -A BAD       # file path -> 1 when excluded from every projection
+MALFORMED=0
+mark_malformed(){    # mark_malformed FILE REASON
+  BAD["$1"]=1
+  MALFORMED=$(( MALFORMED + 1 ))
+  printf 'render-board: malformed change file: %s: %s\n' "$1" "$2" >&2
+}
+
 # Collect active files by status (ascending id), and archive rows.
 declare -A SECTION         # status -> newline-separated "id\tfile"
 mapfile -t AFILES < <(find "$CHANGES_DIR/active" -maxdepth 1 -name '*.md' 2>/dev/null | sort)
+mapfile -t ARCFILES < <(find "$CHANGES_DIR/archive" -maxdepth 1 -name '*.md' 2>/dev/null | sort)
+
+# --- count line ---
+# `total` deliberately still counts malformed files — an unaccounted-for file is exactly what
+# board-checks.sh's `board-row-dropped` reports, and change 0115 owns that.
+total=${#AFILES[@]}
+total=$(( total + ${#ARCFILES[@]} ))
+
+# Both directories, one pass. Iterates FILES, never the status array: render-board.sh's
+# full-vocabulary iteration count is pinned at 2 by tests/test_render_board.sh, and membership here
+# goes through docket_status_is_member so the vocabulary keeps exactly one source.
+for f in ${AFILES[@]+"${AFILES[@]}"} ${ARCFILES[@]+"${ARCFILES[@]}"}; do
+  v_id="$(int_field "$f" id)"
+  if [ -z "$v_id" ]; then
+    mark_malformed "$f" "unusable id (absent, empty, or non-integer)"
+    continue
+  fi
+  v_st="$(field "$f" status)"
+  if [ -z "$v_st" ]; then
+    mark_malformed "$f" "empty status"
+    continue
+  fi
+  if ! docket_status_is_member "$v_st"; then
+    mark_malformed "$f" "status '$(sanitize "$v_st")' is not one of the seven lifecycle statuses"
+    continue
+  fi
+done
+
+# The BAD gate here is DEFENCE IN DEPTH and is currently unobservable — deliberately recorded so a
+# reader does not mistake it for tested behaviour. M1/M2 are each already caught by this loop's own
+# `[ -n … ]` guards, and an M3 status can only ever become a SECTION key nobody reads (every
+# consumer iterates DOCKET_STATUSES_ACTIVE). Removing this line reddens no assert. It stays so that
+# `BAD` means exactly one thing — "excluded from every projection" — at all three consumers, which
+# is what keeps a future consumer from inheriting the hole.
 for f in "${AFILES[@]}"; do
+  [ -z "${BAD[$f]:-}" ] || continue
   id="$(int_field "$f" id)"; [ -n "$id" ] || continue
   st="$(field "$f" status)"; [ -n "$st" ] || continue
   SECTION["$st"]+="$id"$'\t'"$f"$'\n'
@@ -145,13 +213,15 @@ done
 rows_sorted(){ printf '%s' "${SECTION[$1]:-}" | sed '/^$/d' | sort -t$'\t' -k1,1n; }
 count_of(){ rows_sorted "$1" | grep -c . ; }
 
-# --- count line ---
-total=${#AFILES[@]}
-mapfile -t ARCFILES < <(find "$CHANGES_DIR/archive" -maxdepth 1 -name '*.md' 2>/dev/null | sort)
-total=$(( total + ${#ARCFILES[@]} ))
-
 declare -A ARC_COUNT  # terminal-status counts (archive)
-for f in "${ARCFILES[@]}"; do st="$(field "$f" status)"; [ -n "$st" ] || continue; ARC_COUNT["$st"]=$(( ${ARC_COUNT[$st]:-0} + 1 )); done
+# The BAD gate is what narrows the 0143-era "header counts what the table drops" mismatch: an
+# unusable-id archive file is now excluded from the tally as well as from the table, so the
+# remaining mismatch can only come from PLACEMENT divergence — board-row-dropped's territory.
+for f in "${ARCFILES[@]}"; do
+  [ -z "${BAD[$f]:-}" ] || continue
+  st="$(field "$f" status)"; [ -n "$st" ] || continue
+  ARC_COUNT["$st"]=$(( ${ARC_COUNT[$st]:-0} + 1 ))
+done
 
 # --- digest projection (change 0069) --------------------------------------------------------
 # A second, line-oriented projection of the SAME dependency-resolution/readiness pass the board
@@ -244,6 +314,7 @@ if [ "$FORMAT" = digest ]; then
     done < <(rows_sorted proposed) | sort -t$'\t' -k1,1n -k2,2 -k3,3n | cut -f3
   )
   printf 'ready%s\n' "$ready_ids"
+  [ "$MALFORMED" -eq 0 ] || exit 3
   exit 0
 fi
 
@@ -399,6 +470,7 @@ if [ "$archive_count" -gt 0 ]; then
     printf '| [%s](archive/%s) | %s | %s |\n' "$(pad "$id")" "$(basename "$f")" "$(field "$f" title)" "$date"
   done < <(
     for f in "${ARCFILES[@]}"; do
+      [ -z "${BAD[$f]:-}" ] || continue
       base="$(basename "$f")"; d="${base:0:10}"; id="$(int_field "$f" id)"; st="$(field "$f" status)"
       [ -n "$id" ] && [ -n "$st" ] || continue
       printf '%s\t%s\t%s\t%s\n' "$d" "$id" "$st" "$f"
@@ -413,3 +485,20 @@ if [ "$archive_count" -gt 0 ]; then
   fi
   printf '\n</details>\n'
 fi
+
+# Render-complete, then fail loud (change 0259). stdout above is the full projection modulo the
+# skipped rows; a non-zero malformed count makes the RUN non-zero so every caller gates honestly.
+# Callers need no new branching, and this was verified against each of them rather than assumed:
+#   board-refresh.sh    — captures the render into a temp file and, on any non-zero rc, leaves
+#                         BOARD.md byte-identical and propagates the code (its
+#                         `render-board.sh failed (exit %d); BOARD.md left untouched` branch).
+#   docket-status.sh    — backlog_pass tests `if ! out="$(… 2>&2)"`, a BARE non-zero check, so it
+#                         reports "backlog digest failed; continuing without it" and emits no
+#                         digest lines; digest_only_pass then fails closed on that empty capture.
+# The consequence is deliberate and is the accepted cost of this change (spec assumption 1): ONE
+# malformed file anywhere freezes BOARD.md and halts autonomous selection until a human fixes the
+# named file. That is the trade — corruption-adjacent state stops the loop loudly rather than
+# letting it run beside an unrenderable backlog. Exit 3, not 1 or 2: 2 is the established
+# CLI-argument-error code and 1 is indistinguishable from an unexpected crash.
+[ "$MALFORMED" -eq 0 ] || exit 3
+exit 0

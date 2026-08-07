@@ -1445,9 +1445,14 @@ assert "complementarity OVERLAP: REDIRECT_RE also flags comp-capture-write.sh (t
 printf -- '---\nid: abc\nslug: bad\ntitle: Bad Active\nstatus: proposed\npriority: low\ndepends_on: []\n---\n' > "$tmp/active/0099-bad.md"
 printf -- '---\nid: nope\nslug: badarc\ntitle: Bad Archive\nstatus: done\npriority: low\ndepends_on: []\n---\n' > "$tmp/archive/2026-06-01-0098-badarc.md"
 mout="$("$SCRIPT" --changes-dir "$tmp" 2>/tmp/render-board-stderr.$$)"; mrc=$?
-assert "render-board exits 0 with a malformed-id file present" '[ "$mrc" -eq 0 ]'
+# Contract flip (change 0259): a malformed-id file is still SKIPPED row-wise — that assertion is
+# unchanged — but the run no longer exits 0. Exiting 0 here was the silent-corruption channel 0259
+# exists to close.
+assert "render-board exits 3 with a malformed-id file present" '[ "$mrc" -eq 3 ]'
 assert "render-board skips malformed active row (title absent)"  '! printf "%s" "$mout" | grep -q "Bad Active"'
 assert "render-board skips malformed archive row (title absent)" '! printf "%s" "$mout" | grep -q "Bad Archive"'
+assert "render-board diagnoses both malformed-id files on stderr" \
+  '[ "$(/usr/bin/grep -c "malformed change file:" /tmp/render-board-stderr.$$)" = 2 ]'
 rm -f "$tmp/active/0099-bad.md" "$tmp/archive/2026-06-01-0098-badarc.md" /tmp/render-board-stderr.$$
 
 # --- change 0069: --format digest (the line-oriented backlog projection) ---
@@ -2138,7 +2143,7 @@ printf -- '---\nid: 7\nslug: bad-active\ntitle: Bad Active\nstatus:\npriority: m
 printf -- '---\nid: 8\nslug: good-active\ntitle: Good Active\nstatus: proposed\npriority: medium\ncreated: 2026-07-05\nspec: docs/x.md\n---\n' \
   > "$c143/active/0008-good-active.md"
 
-c143_md="$(bash "$SCRIPT" --changes-dir "$c143" 2>/dev/null)"
+c143_md="$(bash "$SCRIPT" --changes-dir "$c143" 2>/dev/null)"; c143_md_rc=$?
 c143_err="$(bash "$SCRIPT" --changes-dir "$c143" 2>&1 >/dev/null)"
 c143_digest="$(bash "$SCRIPT" --changes-dir "$c143" --format digest 2>/dev/null)"
 
@@ -2151,20 +2156,96 @@ assert "0143: no corrupt archive row with an empty basename" \
   '! /usr/bin/grep -qE "^\| \[[0-9]{4}\]\(archive/\) \|" <<<"$c143_md"'
 assert "0143: the well-formed archive row still renders" \
   '/usr/bin/grep -qF -- "| [0006](archive/2026-07-03-0006-ok.md) | Fine | 2026-07-03 |" <<<"$c143_md"'
-assert "0143: render stderr is clean (no subscript abort, no printf/sed noise)" \
-  '[ -z "$c143_err" ]'
-# The header counts BOTH done files while only one row renders. This mismatch is INTENDED: it is
-# the case-(B) state change 0115's board-row-dropped check exists to report, so ARC_COUNT keeps no
-# id guard. Asserted so a later "fix" to that loop cannot land silently.
-assert "0143: the archive header tally is not truncated by the abort" \
-  '/usr/bin/grep -qF -- "Archive — done (2)" <<<"$c143_md"'
-assert "0143: digest counts both done files" \
-  '/usr/bin/grep -qxF "backlog done 2" <<<"$c143_digest"'
+# Contract flip (change 0259): the fixture's files ARE malformed (empty id, empty status), so the
+# render is now expected to exit 3 and to say why. What the original assert guarded — no subscript
+# abort, no printf/sed noise — is PRESERVED by narrowing rather than deleting: stderr must contain
+# the 0259 diagnostics and NOTHING else.
+assert "0143: render exits 3 on the malformed fixture" '[ "$c143_md_rc" -eq 3 ]'
+assert "0143: render stderr carries only 0259 diagnostics (no subscript abort, no printf/sed noise)" \
+  '[ -z "$(/usr/bin/grep -v "^render-board: malformed change file: " <<<"$c143_err" | /usr/bin/grep -v "^$")" ]'
+# CONTRACT FLIP, deliberate and loud. The original pair pinned "Archive — done (2)" / "backlog
+# done 2" precisely so no silent fix to the id-guard-less ARC_COUNT loop could land — change 0259
+# IS that fix, landing loudly. The empty-ID archive file (status: done) is now excluded by M1, so
+# the tally drops to 1. The empty-STATUS files were already uncounted by the pre-existing guards
+# and move no tally. The residual header/table mismatch this pair once described now arises only
+# from PLACEMENT divergence, which stays board-row-dropped's report (change 0115).
+assert "0259 flip: the archive header tally excludes the unusable-id file" \
+  '/usr/bin/grep -qF -- "Archive — done (1)" <<<"$c143_md"'
+assert "0259 flip: digest counts only the usable-id done file" \
+  '/usr/bin/grep -qxF "backlog done 1" <<<"$c143_digest"'
 assert "0143: digest still reaches the active change behind the empty-status file" \
   '/usr/bin/grep -qxF "backlog proposed 1" <<<"$c143_digest"'
 assert "0143: the ready queue line is not emptied by the tally abort" \
   '/usr/bin/grep -qxF "ready 8" <<<"$c143_digest"'
 rm -rf "$c143"
+
+# --- change 0259: interior-TAB status must not shift the archive feeder; malformed => exit 3 ---
+# The archive sort feeder joins `date<TAB>id<TAB>status<TAB>file` and the consumer splits it with
+# `IFS=$'\t' read -r date id st f`. A TAB *inside* the status value adds a field and shifts every
+# later field RIGHT — the mirror of 0143's empty-field left-shift, which `[ -n "$st" ]` cannot see.
+# Rejection is by VOCABULARY: `done\tx` is not one of the seven statuses, so it never reaches the
+# join, the ARC_COUNT subscript, or the SECTION subscript (spec assumption 4).
+c259="$(mktemp -d)"
+mkdir -p "$c259/active" "$c259/archive"
+printf -- '---\nid: 1\nslug: tabbed\ntitle: Tabbed Status\nstatus: done\tx\ncreated: 2026-08-01\n---\n' \
+  > "$c259/archive/2026-08-01-0001-tabbed.md"
+printf -- '---\nid: 2\nslug: sibling\ntitle: Well Formed\nstatus: done\ncreated: 2026-08-02\n---\n' \
+  > "$c259/archive/2026-08-02-0002-sibling.md"
+printf -- '---\nid: 3\nslug: bogus-status\ntitle: Impossible Status\nstatus: bogus\npriority: medium\ncreated: 2026-08-03\n---\n' \
+  > "$c259/active/0003-bogus-status.md"
+printf -- '---\nid: 4\nslug: good\ntitle: Good Active\nstatus: proposed\npriority: medium\ncreated: 2026-08-04\nspec: docs/x.md\n---\n' \
+  > "$c259/active/0004-good.md"
+
+c259_md="$(bash "$SCRIPT" --changes-dir "$c259" 2>/dev/null)"; c259_md_rc=$?
+c259_err="$(bash "$SCRIPT" --changes-dir "$c259" 2>&1 >/dev/null)"
+c259_digest="$(bash "$SCRIPT" --changes-dir "$c259" --format digest 2>/dev/null)"; c259_dg_rc=$?
+
+assert "0259: markdown render exits 3 when a change file is malformed" '[ "$c259_md_rc" -eq 3 ]'
+assert "0259: digest render exits 3 when a change file is malformed" '[ "$c259_dg_rc" -eq 3 ]'
+# No field-shifted archive row (0143's corrupt-row ERE; the YYYY-MM collapse key is not 4 digits).
+assert "0259: no field-shifted archive row from the interior-TAB status" \
+  '! /usr/bin/grep -qE "^\| \[[0-9]{4}\]\(archive/\) \|" <<<"$c259_md"'
+assert "0259: the interior-TAB row is skipped entirely" \
+  '! /usr/bin/grep -qF -- "Tabbed Status" <<<"$c259_md"'
+assert "0259: the well-formed archive sibling still renders" \
+  '/usr/bin/grep -qF -- "| [0002](archive/2026-08-02-0002-sibling.md) | Well Formed | 2026-08-02 |" <<<"$c259_md"'
+assert "0259: the impossible-status active row is skipped" \
+  '! /usr/bin/grep -qF -- "Impossible Status" <<<"$c259_md"'
+assert "0259: the well-formed active row still renders" \
+  '/usr/bin/grep -qF -- "Good Active" <<<"$c259_md"'
+# Diagnostics: one line per malformed FILE, naming the path and the reason, with the TAB rendered
+# as the visible two-character escape so the diagnostic itself cannot smuggle a control character.
+assert "0259: stderr names the interior-TAB file with the TAB escaped" \
+  '/usr/bin/grep -qF -- "render-board: malformed change file: $c259/archive/2026-08-01-0001-tabbed.md: status '"'"'done\\tx'"'"' is not one of the seven lifecycle statuses" <<<"$c259_err"'
+assert "0259: stderr names the impossible-status file" \
+  '/usr/bin/grep -qF -- "render-board: malformed change file: $c259/active/0003-bogus-status.md: status '"'"'bogus'"'"' is not one of the seven lifecycle statuses" <<<"$c259_err"'
+assert "0259: stderr carries exactly one diagnostic per malformed file" \
+  '[ "$(/usr/bin/grep -c "malformed change file:" <<<"$c259_err")" = 2 ]'
+assert "0259: no raw TAB survives into the diagnostic stream" \
+  '! /usr/bin/grep -q "$(printf "\t")" <<<"$c259_err"'
+# The digest stays COMPLETE modulo skipped rows — the ready line is still emitted, and the
+# well-formed proposed change is still selectable content-wise. Exit 3 is what gates the caller;
+# the stdout projection is not degraded beyond the skipped rows.
+assert "0259: the digest still emits a ready line naming the well-formed change" \
+  '/usr/bin/grep -qxF "ready 4" <<<"$c259_digest"'
+assert "0259: the digest does not count the impossible status in any backlog rollup" \
+  '! /usr/bin/grep -q "^backlog bogus" <<<"$c259_digest"'
+assert "0259: the malformed archive file is excluded from the done tally" \
+  '/usr/bin/grep -qxF "backlog done 1" <<<"$c259_digest"'
+rm -rf "$c259"
+
+# --- change 0259: the CLEAN path stays exit 0 with empty stderr ---
+# Written fresh, not claimed as existing: the golden byte-compare above discards stderr and never
+# captures an exit code, so nothing previously pinned either half. Without this, "exit 3 on
+# malformed" could be satisfied by a renderer that exits 3 on EVERYTHING.
+clean_rc_out="$(bash "$SCRIPT" --changes-dir "$tmp" --repo o/r 2>"$tmp/clean-stderr.txt")"; clean_rc=$?
+assert "0259: a clean changes dir renders markdown with exit 0" '[ "$clean_rc" -eq 0 ]'
+assert "0259: a clean markdown render writes nothing to stderr" '[ ! -s "$tmp/clean-stderr.txt" ]'
+assert "0259: the clean render is still non-empty" '[ -n "$clean_rc_out" ]'
+bash "$SCRIPT" --changes-dir "$tmp" --repo o/r --format digest >/dev/null 2>"$tmp/clean-digest-stderr.txt"; clean_dg_rc=$?
+assert "0259: a clean changes dir renders the digest with exit 0" '[ "$clean_dg_rc" -eq 0 ]'
+assert "0259: a clean digest render writes nothing to stderr" '[ ! -s "$tmp/clean-digest-stderr.txt" ]'
+rm -f "$tmp/clean-stderr.txt" "$tmp/clean-digest-stderr.txt"
 
 if [ "$fail" = 0 ]; then echo "PASS"; else echo "FAIL"; fi
 exit "$fail"
