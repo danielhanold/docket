@@ -98,6 +98,7 @@ One curated finding per file; this index is the hint surface. Load it, then read
 
 ## testing
 
+- [agent-executed-markdown-is-code](agent-executed-markdown-is-code.md) — A `.md` file that carries a runnable command block is executable surface — a repo-wide shell guard that scans only `*.sh` leaves every skill body, script contract, and reference doc unguarded. · also: sentinels, shell-portability ⟨needs promotion⟩
 - [assert-detects-removal-not-replacement](assert-detects-removal-not-replacement.md) — A guard written to CONFIRM the wording you just introduced detects nothing — write the assert that DETECTS the state you just removed, and prove the mutation actually landed before believing it passed. · also: guards, mutation ⟨needs promotion⟩
 - [assert-pins-outcome-not-mechanism](assert-pins-outcome-not-mechanism.md) — An assert on the outcome alone ("it failed") is satisfied by every unrelated way of failing — pin the mechanism with positive evidence the fixture is already collecting. · also: guards, mutation ⟨needs promotion⟩
 - [backstop-must-compute-not-reenumerate](backstop-must-compute-not-reenumerate.md) — A backstop that re-enumerates the causes it backs up is a fourth restatement wearing the word invariant — derive its predicate from the real consumer, and mutation-test its POPULATION, not only its suppression. · also: guards, invariants ⟨needs promotion⟩

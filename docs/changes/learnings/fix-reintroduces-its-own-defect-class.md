@@ -2,7 +2,7 @@
 slug: fix-reintroduces-its-own-defect-class
 hook: "New code added by a change that fixes a defect class is the likeliest place for that class to reappear — audit the change's OWN additions against its thesis before review, and check the twin it did not touch."
 topics: [review, refactoring, contracts]
-changes: [135, 173, 113, 212, 220, 228, 259]
+changes: [135, 173, 113, 212, 220, 228, 259, 254]
 created: 2026-07-28
 updated: 2026-08-08
 promotion_state: candidate
@@ -125,3 +125,18 @@ Related: [[escape-ere-metacharacters-in-key]] (the un-fixed twin of a duplicated
   away. Found at whole-branch review, not by the change that wrote M4. The fix chose an **upfront
   rejection class (M5)** over a per-consumer guard precisely because guarding one of four sites
   leaves three open plus any fifth added later ([[enumerated-floor]]).
+- 2026-08-08 (#254, PR #180 — merged) — **A guard against "a default that silently defeats a guard"
+  was itself silently defeated — by a path.** The change hardened bare `mv` (which self-answers its
+  prompt and exits 0, making every `|| die` unreachable). Its new `tests/test_bsd_tool_defaults.sh`
+  carried a `git mv` carve-out applied to the whole `path:lineno:content` match string, and
+  `[^|]*` spans both `/` and `:` — so any file whose **path** contained `git` was exempt.
+  `scripts/lib/docket-gitignore-block.sh` is in scope and matched; worse, the entire mv guard
+  collapsed for any checkout living under `~/git/…` or `~/github/…`. A second finding in the same
+  branch: the predicate keyed on `mv "`, so `mv -i "$t" "$f"` — the precise interactive behavior the
+  change exists to prevent — was invisible, and the downstream `mv -f` filter was dead code.
+  What this adds: when the fix ships a **guard whose input is a joined string**, the carve-out must
+  be anchored to the field it means (the content), not applied to the join — the other fields are
+  attacker-controlled in the mundane sense that a developer chooses their checkout path. And the
+  predicate must be keyed on the **command**, not on an incidental token of one common spelling.
+  Related: [[guards-are-code]], [[agent-executed-markdown-is-code]] (the third finding in the same
+  review — the sweep's own missed surface).
