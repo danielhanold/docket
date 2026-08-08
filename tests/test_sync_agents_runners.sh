@@ -102,6 +102,52 @@ assert "0269: .docket.local.yml wins for shim_model" '[ "$(fm "$G" model)" = "fr
 assert "0269: precedence is PER KEY — committed shim_effort still applies" \
   '[ "$(fm "$G" effort)" = "high" ]'
 
+# ---- change 0269: shim_model / shim_effort take the bare-scalar rule --------------------------
+# Generation-time refusal, matching sync-agents.sh's loud posture for user config (the tolerant
+# posture belongs to runner-dispatch.sh, which runs mid-handoff on a live dispatch).
+mkgitrepo
+mkdir -p "$SBX/.claude"
+printf 'agents:\n  claude:\n    status: { model: gpt-5.1-codex, runner: codex }\nrunners:\n  codex:\n    shim_model: "claude-haiku-4-5-20251001"\n' > "$SBX/.docket.yml"
+err="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" 2>&1 >/dev/null )"; rc=$?
+assert "0269: a QUOTED shim_model fails generation nonzero" '[ "$rc" != "0" ]'
+assert "0269: the quoted-shim_model diagnostic names the key" 'grep -qF "shim_model" <<<"$err"'
+assert "0269: the quoted-shim_model diagnostic names the runner" 'grep -qF "codex" <<<"$err"'
+assert "0269: a refused run writes NO wrapper" '[ ! -f "$SBX/.claude/agents/docket-status.md" ]'
+
+mkgitrepo
+mkdir -p "$SBX/.claude"
+printf 'agents:\n  claude:\n    status: { model: gpt-5.1-codex, runner: codex }\nrunners:\n  codex:\n    shim_effort: very low\n' > "$SBX/.docket.yml"
+err="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" 2>&1 >/dev/null )"; rc=$?
+assert "0269: a SPACED shim_effort fails generation nonzero" '[ "$rc" != "0" ]'
+assert "0269: the spaced-shim_effort diagnostic names the key" 'grep -qF "shim_effort" <<<"$err"'
+
+mkgitrepo
+mkdir -p "$SBX/.claude"
+printf 'agents:\n  claude:\n    status: { model: gpt-5.1-codex, runner: codex }\nrunners:\n  codex:\n    shim_model:\n' > "$SBX/.docket.yml"
+err="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" 2>&1 >/dev/null )"; rc=$?
+# A DIFFERENT diagnostic from the not-a-bare-scalar one, on purpose: without the split, a
+# present-but-empty key blames absence for what the user reads as "I set it".
+assert "0269: a present-but-empty shim_model fails generation nonzero" '[ "$rc" != "0" ]'
+assert "0269: the empty-shim_model diagnostic says present but has no value" \
+  'grep -qiF "present but has no value" <<<"$err"'
+
+# --check reports the same failure without writing anything (parity with the other two gates).
+mkgitrepo
+mkdir -p "$SBX/.claude"
+printf 'agents:\n  claude:\n    status: { model: gpt-5.1-codex, runner: codex }\nrunners:\n  codex:\n    shim_model: "quoted"\n' > "$SBX/.docket.yml"
+err="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" --check 2>&1 >/dev/null )"; rc=$?
+assert "0269: --check also refuses a bad shim value" '[ "$rc" != "0" ]'
+assert "0269: --check wrote no wrapper" '[ ! -f "$SBX/.claude/agents/docket-status.md" ]'
+
+# A VALID bare scalar is accepted — the positive control, without which every assert above is
+# consistent with a gate that refuses everything.
+mkgitrepo
+mkdir -p "$SBX/.claude"
+printf 'agents:\n  claude:\n    status: { model: gpt-5.1-codex, runner: codex }\nrunners:\n  codex:\n    shim_model: claude-haiku-4-5-20251001\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$SBX" bash "$SYNC" >/dev/null 2>&1 ); rc=$?
+assert "0269: a bare-scalar shim_model generates cleanly" '[ "$rc" = "0" ]'
+assert "0269: the accepted run DID write the wrapper" '[ -f "$SBX/.claude/agents/docket-status.md" ]'
+
 # ---- change 0206: build-* shims bake --worktree as a required slot -------------------
 # BIDIRECTIONAL by construction (LEARNINGS: correspondence-guard-runs-one-way). This is a MIRROR
 # correspondence, not a subset: build-* shims must carry the flag AND non-build shims must not, so
