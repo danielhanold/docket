@@ -2,11 +2,11 @@
 id: 258
 slug: guard-the-config-suite-s-enumerated-claims-export-order-and
 title: 'Guard the config-suite''s enumerated claims: export order and rung pairs'
-status: proposed
+status: in-progress
 priority: medium
 type: chore
 created: 2026-08-07
-updated: 2026-08-07
+updated: 2026-08-08
 depends_on: []
 related: [251]
 discovered_from: [123, 125]
@@ -16,7 +16,8 @@ plan:
 results:
 trivial: false
 auto_groomable: true
-branch:
+branch: feat/guard-the-config-suite-s-enumerated-claims-export-order-and
+claimed_at: 2026-08-08T18:34:30Z
 pr:
 blocked_by:
 reconciled: false
