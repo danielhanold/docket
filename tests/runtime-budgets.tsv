@@ -24,6 +24,7 @@ tests/test_bash_runtime_routing.sh	10	parallel
 tests/test_board_checks.sh	55	parallel
 tests/test_board_refresh.sh	10	parallel
 tests/test_board_refresh_on_transition.sh	10	parallel
+tests/test_bsd_tool_defaults.sh	10	parallel
 tests/test_change_links_coverage.sh	10	parallel
 tests/test_change_types.sh	10	parallel
 tests/test_closeout.sh	20	parallel

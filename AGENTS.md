@@ -21,6 +21,14 @@ means), this file does not restate them.
   assert (`! grep …`), that error inverts into a permanently green, vacuous guard.
 - awk indent classes are `[^[:space:]]`, never `[^ ]` — a literal-space class silently drops
   tab-indented input.
+- Non-interactive flags on tools that can prompt are load-bearing, not style: BSD `mv` on an
+  unwritable destination with a tty prompts, self-answers `n` at EOF, and **exits 0**, so `|| die`
+  guards are unreachable and the write is silently lost — always `mv -f` on install/replace paths
+  (`git mv` excepted; there `-f` means force-overwrite a tracked target).
+- Bare `mktemp` — with or without `-d` — ignores `TMPDIR` on macOS, so a redirect meant to contain
+  a script's scratch dir is a no-op. Always pass a template: `"${TMPDIR:-/tmp}/<name>.XXXXXX"`,
+  unless the temp file must sit **beside its destination** for a same-filesystem atomic rename, in
+  which case template it there instead.
 
 ## Frontmatter and generated blocks
 
