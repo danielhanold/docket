@@ -822,9 +822,8 @@ rm -rf "$SBX" "$HROOTINH"
 # The provenance boundary. `runner:` delegates this agent to a DIFFERENT harness's CLI, so the
 # baked --model/--effort flags are read by that child, not by Claude. A shipped
 # agents/harness-defaults.yml value is a CLAUDE default; baking it into a Codex dispatch sends a
-# Claude model ID to a Codex child. Only a USER-configured value may cross that boundary — the
-# resolved pair still pins the wrapper's own native frontmatter, which is bookkeeping for the
-# Claude parent and never reaches the child.
+# Claude model ID to a Codex child. Only a USER-configured value may cross that boundary. What the
+# wrapper's own frontmatter carries is a separate question, settled by the change-0269 note below.
 #
 # CHANGE 0205 NARROWED THIS TEST'S REACH, and the narrowing is a strengthening, not lost coverage.
 # The fixture used to configure a bare `runner: codex` with no model; that is now a generation-time

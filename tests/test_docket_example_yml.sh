@@ -803,10 +803,10 @@ assert "completeness: runners.codex.network present" \
   'grep -Eq "^[[:space:]]+network:[[:space:]]*true[[:space:]]*(#.*)?$" "$EX"'
 assert "completeness: runners.opencode.permissions present" \
   'grep -Eq "^[[:space:]]+permissions:[[:space:]]*ask[[:space:]]*(#.*)?$" "$EX"'
-assert "completeness: runners.codex.shim_model present" \
-  'grep -Eq "^[[:space:]]*shim_model:" "$EX"'
-assert "completeness: runners.codex.shim_effort present" \
-  'grep -Eq "^[[:space:]]*shim_effort:" "$EX"'
+assert "completeness: runners.codex.shim_model present AND documents the code default (inherit)" \
+  'grep -Eq "^[[:space:]]+shim_model:[[:space:]]*inherit[[:space:]]*(#.*)?$" "$EX"'
+assert "completeness: runners.codex.shim_effort present AND documents the code default (low)" \
+  'grep -Eq "^[[:space:]]+shim_effort:[[:space:]]*low[[:space:]]*(#.*)?$" "$EX"'
 assert "completeness: runners block header present" 'grep -Eq "^runners:" "$EX"'
 
 # change 0102: require_pr_approval is now RESOLVER-read and global-able, so it carries the
