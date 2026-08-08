@@ -182,6 +182,66 @@ assert "awk validator accepts: the shipped sidecar is unaffected (rc=0)" '[ "$vh
 assert "awk validator accepts: and emits no bare-scalar complaint" \
   '! /usr/bin/grep -qF "is not a bare scalar" <<<"$vhd_ok"'
 
+# ---- three-way parity of the `#`-inside-the-flow-map predicate --------------------------------
+# The rule now exists in THREE copies, duplicated by value on purpose (harness-defaults.sh's header
+# forbids coupling the shipped-data reader to the user-config readers; extracting the shared helper
+# is change #0256's scope):
+#   1. `_hd_flow_map_has_comment` in scripts/lib/harness-defaults.sh
+#   2. `flow_map_has_comment`     in sync-agents.sh
+#   3. `flow_comment()`           inside validate_harness_defaults's awk program in sync-agents.sh
+# Each is reached only through its own validator, on disjoint fixtures, so a one-clause edit to any
+# one of them drifts silently. Every copy's comment ASSERTS the correspondence in prose — which is
+# the strongest hint it was assumed rather than established. This block establishes it: ONE vector
+# of raw entry lines, run through all three, asserting the verdicts AGREE and that they are the
+# EXPECTED verdicts. Agreement alone would be satisfied by all three being uniformly broken.
+#
+# Copy 3 is exercised by extracting the awk function's source text out of sync-agents.sh and
+# running it under a one-line driver. Re-declaring it in the test would prove only that the test's
+# own copy is self-consistent; reading the real bytes is what makes the row a guard.
+parity_vec=(
+  '    adr: { model: claude-opus-5, effort: lo#w }'          # in-map `#`                -> fires
+  '    adr: # { model: claude-opus-5, effort: low }'         # `#` before the first `{`  -> no
+  '    adr: { model: claude-opus-5, effort: low }   # note'  # trailing comment after `}`-> no
+  '  #  adr: { model: claude-opus-5, effort: low }'          # commented-out map         -> no
+  # The DISCRIMINATING row for the `#`-before-the-first-`{` guard: a commented-out map that also
+  # carries a `#` INSIDE its braces. Without that guard the in-map `#` fires and a legal
+  # commented-out entry is rejected — and no row whose only `#` precedes the `{` can see it,
+  # because such a line has no `#` left after the brace to trip the later clauses.
+  '  #  adr: { model: c#5, effort: low }'                    # commented-out, `#` in map -> no
+  '    adr: claude-opus-5   # no flow map at all'            # no `{` at all             -> no
+  '    adr: { model: claude-opus-5, effort: lo#w'            # `#` with no `}` at all    -> fires
+  '    adr: { model: claude-opus-5, effort: low }'           # clean map, no `#`         -> no
+)
+parity_expected=(1 0 0 0 0 0 1 0)
+
+# awk copy: the real function text, lifted verbatim, plus a print-the-verdict driver.
+awk_fn="$(awk '/^    function flow_comment\(/,/^    }$/' "$REPO/sync-agents.sh")"
+assert "parity: the awk flow_comment source was located in sync-agents.sh" \
+  '[ -n "$awk_fn" ] && /usr/bin/grep -qF "shut = index(after" <<<"$awk_fn"'
+
+parity_report="$(
+  . "$REPO/sync-agents.sh" >/dev/null 2>&1
+  set +e   # sync-agents.sh enables errexit for direct invocation
+  for l in "${parity_vec[@]}"; do
+    _hd_flow_map_has_comment "$l"; hd=$((1 - $?))
+    flow_map_has_comment "$l";     sa=$((1 - $?))
+    aw="$(printf '%s\n' "$l" | awk "$awk_fn"' { print (flow_comment($0) ? 1 : 0) }')"
+    printf '%s %s %s\n' "$hd" "$sa" "$aw"
+  done
+)"
+
+i=0
+while IFS=' ' read -r p_hd p_sa p_aw; do
+  want="${parity_expected[$i]}"
+  desc="row $i: ${parity_vec[$i]}"
+  assert "parity: all three predicates agree on $desc" \
+    '[ "$p_hd" = "$p_sa" ] && [ "$p_sa" = "$p_aw" ]'
+  assert "parity: verdict is $want for $desc" \
+    '[ "$p_hd" = "$want" ] && [ "$p_sa" = "$want" ] && [ "$p_aw" = "$want" ]'
+  i=$((i + 1))
+done <<<"$parity_report"
+assert "parity: every vector row was judged" '[ "$i" = "${#parity_vec[@]}" ]'
+
 rm -rf "$T"
 
 [ "$fail" = 0 ] && echo "PASS" || echo "FAIL"
