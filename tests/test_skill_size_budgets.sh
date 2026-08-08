@@ -832,6 +832,21 @@ assert(){ if eval "$2"; then echo "ok - $1"; else echo "NOT OK - $1"; fail=1; fi
 # line — the near-zero mode this block's 0102 and 0137 entries exist to forbid — so the multiple
 # after: 145. 1319 words -> the next multiple of 50 is 1350, a 31-word margin, above the 25-word
 # threshold, so 1350 stands.
+# Change 0255 raised docket-convention/SKILL.md 6100 -> 6150 and references/agent-layer.md
+# 2150 -> 2200 (WORDS only; both LINE budgets stand). The change states the unquoted /
+# no-`#` flow-map rule at its five points of use, and two of those points are these files: the
+# `agents:` schema line in SKILL.md and the `agents:` example block in agent-layer.md. The growth
+# is the documented rule itself, not drift — a rule that only self-describes once the gate has
+# already tripped is stated where the value is written or nowhere useful, so it cannot move to a
+# references/ file (agent-layer.md IS that file for the layer; SKILL.md's copy has to sit on the
+# schema line an agent reads while writing the pin). The first attempt shrank the prose to fit
+# instead — agent-layer.md's explanatory clause was cut from three lines to two "to stay under a
+# skill size budget", which is the budget driving the documentation rather than the reverse; that
+# clause is restored here. Set per the rounding rule above from the measured actuals: SKILL.md
+# 6099 words -> the next multiple of 50 is 6100, ONE word of margin — the exact 0102 failure mode
+# — so the multiple after: 6150 (51 words). agent-layer.md 2160 words -> 2200 (40 words of margin,
+# above the 25-word threshold). Lines: 352/355 and 187/190, 3 lines each, the half-step margin the
+# 0167 and 0201 entries above accept.
 BUDGETS="
 skills/docket-adr/SKILL.md                                  86 1408
 skills/docket-adr/adr-template.md                           26   90
@@ -842,9 +857,9 @@ skills/docket-build/references/gate-execution-evidence.md  110 1050
 skills/docket-build/references/gate-execution.md            120 1000
 skills/docket-build/references/task-routing.md              50  500
 skills/docket-build-task/SKILL.md                          145 1350
-skills/docket-convention/SKILL.md                          355 6100
+skills/docket-convention/SKILL.md                          355 6150
 skills/docket-convention/github-board-mirror.md             19  462
-skills/docket-convention/references/agent-layer.md         190 2150
+skills/docket-convention/references/agent-layer.md         190 2200
 skills/docket-convention/references/auto-capture.md        130 1250
 skills/docket-convention/references/learnings.md            84  580
 skills/docket-convention/references/terminal-close-out.md  173 1458
