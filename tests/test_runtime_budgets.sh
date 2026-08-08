@@ -25,7 +25,18 @@ CEILING=60          # the hard ceiling; no row may exceed it
 EXPECTED_SERIAL=0   # files pinned serial by the change-0227 audit. RAISING THIS IS A FINDING:
                     # a serial pin removes a file from the parallel phase, so it must be justified
                     # in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=1490 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=1510 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # +20 (change 0242 review): the new-test-file case again —
+                    # tests/test_sync_agents_surface_containment.sh brings its own row. The
+                    # containment guard (docket writes and strips its dispatch block only inside
+                    # the checkout it was run in) could not go into
+                    # tests/test_sync_agents_claude_surface.sh: that file already measures ~40s
+                    # against its 45s row, and the combined file measured 56.8s — past the 60s hard
+                    # ceiling, so the table's own remedy is a sibling shard, not a bigger number.
+                    # The new file runs sync-agents.sh five times (three generations and two
+                    # --check re-reads) plus two source-and-call probes of resolve_physical_path,
+                    # and measures 11.8/14.1/11.2s across three consecutive standalone runs; the
+                    # sizing rule (next multiple of 5 plus a 5s margin, min 10s) puts that at 20.
                     # 1475 -> 1490 (change 0242): still the SAME new-test-file case as the line
                     # below, re-seeded on the finished file rather than on a mid-change snapshot.
                     # tests/test_sync_agents_claude_surface.sh was sized at 30 when it covered the
