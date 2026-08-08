@@ -2,7 +2,7 @@
 slug: section-slice-needs-a-named-terminator
 hook: "A generic /^## / terminator ends the slice at the first heading-shaped line — including one inside a fenced example — so name the terminator, and assert the terminator exists."
 topics: [testing, guards, markdown]
-changes: [226, 224, 246]
+changes: [226, 224, 246, 242]
 created: 2026-08-07
 updated: 2026-08-08
 promotion_state: retained
@@ -73,3 +73,9 @@ than care.
   harness headers. Rule 1 of this finding says *name* the terminator; this adds the next turn of the
   screw — **a name is an identity claim, so bound it and derive it**, or the slice silently narrows
   every time the file grows.
+
+- 2026-08-08 (#242, PR #186) — a `slice_gate` helper the plan supplied terminated on a marker that
+  exists only in `AGENTS.md`, so for the *cursor* rendering the slice had no terminator at all and
+  ran to EOF. Replaced with a bound derived from the template's own line count — which incidentally
+  upgraded the assert from "the two renderings share a prefix" to "the template renders verbatim
+  into both". A terminator that exists in only one of the surfaces you slice is not a terminator.

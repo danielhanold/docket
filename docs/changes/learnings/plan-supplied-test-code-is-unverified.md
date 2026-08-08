@@ -2,7 +2,7 @@
 slug: plan-supplied-test-code-is-unverified
 hook: "Test code a plan hands you is unverified code, not an oracle — prove the assert CAN pass, and mutation-test its own key."
 topics: [testing, plan, guards]
-changes: [94, 104, 112, 130, 133, 157, 168, 170, 173, 174, 194, 113, 212, 211, 203, 228, 226, 234, 237, 200, 244]
+changes: [94, 104, 112, 130, 133, 157, 168, 170, 173, 174, 194, 113, 212, 211, 203, 228, 226, 234, 237, 200, 244, 242]
 created: 2026-07-19
 updated: 2026-08-08
 promotion_state: candidate
@@ -312,3 +312,9 @@ implementer. It is not a reason to distrust plans — it is a reason to run the 
   "never touched". Worse, the render call discarded its exit status, so a renderer crashing with
   exit 2 left all three asserts green. Carried over verbatim from the plan because it *looked* like
   a floor. A floor has to be a claim the un-run case fails.
+
+- 2026-08-08 (#242, PR #186) — five of six tasks had to correct plan-supplied code before it could
+  be trusted: a slice helper with no terminator on one surface, a path predicate that trusted a
+  symlink target's spelling, a `--check` leg gated on the weaker of two predicates, and an assert
+  that flattened a whole SKILL.md and matched its keywords from unrelated paragraphs (mutation-proven
+  vacuous). Each was found by building the thing, never by reading the plan.

@@ -2,9 +2,9 @@
 slug: prose-guard-binds-phrase-to-claim
 hook: "A guard that asserts a phrase is PRESENT survives a rewrite that keeps the words and drops the claim — bind the phrase to what it is asserted about, with a bounded gap."
 topics: [testing, guards, docs]
-changes: [224]
+changes: [224, 242]
 created: 2026-08-07
-updated: 2026-08-07
+updated: 2026-08-08
 promotion_state: candidate
 promoted_to:
 ---
@@ -51,3 +51,9 @@ instead of behavior.
   sentence, would have left the guard defending nothing. Fixed by binding each claim with a single
   bounded gap. Three separate instances in one branch is the signal that this is a default authoring
   habit, not a slip: the natural way to guard a sentence is to grep for it.
+
+- 2026-08-08 (#242, PR #186) — a convention-pointer assert flattened the entire SKILL.md and matched
+  `verify-run` and `once` from unrelated paragraphs; it stayed green with the guarded sentence
+  deleted (mutation-proven). Fixed by binding the window to the *Composition* paragraph and adding an
+  anchor-existence assert, so a renamed paragraph fails loudly instead of silently matching nothing —
+  the companion rule to binding the phrase: **also assert the window you bound it to still exists.**
