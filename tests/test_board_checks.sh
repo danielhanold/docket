@@ -2341,7 +2341,9 @@ armrun_ib(){
   armib_err="$(cat "$aib_errf")"; rm -f "$aib_errf"
 }
 
-# Baseline: the un-mutated copy fires exactly the three expected findings.
+# Baseline: the un-mutated copy fires the expected findings, pinned one by one below. Deliberately
+# no count here (change 0200) — the per-fixture asserts beneath ARE the guard, and the number this
+# line used to carry had already drifted past what follows it with nothing to redden.
 armreseed
 arm0out="$(armrun)"
 assert "mutation baseline: unmutated copy fires leg A on 220 (plan)" 'has_finding "$arm0out" aborted-run 220'
