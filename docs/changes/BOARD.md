@@ -1,6 +1,6 @@
 # Backlog
 
-**263 changes** — 🟡 30 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 155 done · 🗑️ 72 killed
+**263 changes** — 🟡 30 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 156 done · 🗑️ 72 killed
 
 ## 🟡 Proposed (30)
 
@@ -46,12 +46,11 @@
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
 
-## 🔵 Implemented — awaiting merge (2)
+## 🔵 Implemented — awaiting merge (1)
 
 | # | Title | Priority | Type | PR | Readiness |
 |---|-------|----------|------|----|-----------|
 | [0246](active/0246-make-the-docket-example-yml-guard-suite-bite.md) | Make the docket-example-yml guard suite bite | `medium` | `fix` | [#179](https://github.com/danielhanold/docket/pull/179) |  |
-| [0254](active/0254-bsd-tool-default-sweep-templated-mktemp-and-non-interactive.md) | BSD tool-default sweep: templated mktemp and non-interactive mv | `medium` | `fix` | [#180](https://github.com/danielhanold/docket/pull/180) |  |
 
 ```mermaid
 graph TD
@@ -82,7 +81,6 @@ graph TD
   0251
   0252
   0253
-  0254
   0255
   0256
   0257
@@ -98,11 +96,12 @@ graph TD
   classDef done fill:#d3f9d8;
 ```
 
-<details><summary>✅🗑️ Archive — done + killed (227)</summary>
+<details><summary>✅🗑️ Archive — done + killed (228)</summary>
 
 | # | Title | Merged |
 |---|-------|--------|
 | [0259](archive/2026-08-08-0259-harden-render-board-sanitize-feeder-values-and-settle-the-fa.md) | Harden render-board: sanitize feeder values and settle the failure contract | 2026-08-08 |
+| [0254](archive/2026-08-08-0254-bsd-tool-default-sweep-templated-mktemp-and-non-interactive.md) | BSD tool-default sweep: templated mktemp and non-interactive mv | 2026-08-08 |
 | [0250](archive/2026-08-08-0250-repo-scope-detect-merged-s-fallback-and-guard-the-idle-secs.md) | Repo-scope detect-merged's fallback and guard the idle-secs duplication | 2026-08-08 |
 | [0249](archive/2026-08-08-0249-build-worker-contract-gate-execution-pointer-and-staging-dis.md) | Build-worker contract: gate-execution pointer and staging discipline | 2026-08-08 |
 | [0237](archive/2026-08-08-0237-prose-levers-fail-to-hold-the-step-boundary-add-a-mechanical.md) | Prose levers fail to hold the step boundary — give the disposition contract a consumer | 2026-08-08 |
@@ -128,7 +127,6 @@ graph TD
 | [0220](archive/2026-08-07-0220-clear-the-unfixed-review-findings-from-change-0207.md) | clear the unfixed review findings from change 0207 | 2026-08-07 |
 | [0219](archive/2026-08-07-0219-aborted-run-s-sixth-signature-pr-opened-and-pr-written-run-d.md) | aborted-run's Step 7 seam — a fourth git-only leg, plus GitHub enrichment for leg C | 2026-08-07 |
 | [0204](archive/2026-08-07-0204-restore-rationale-dropped-by-round-three-compression-finaliz.md) | Restore dropped doc rationale (compression losses) and complete AGENTS.md's frontmatter-edit rule | 2026-08-07 |
-| [0203](archive/2026-08-07-0203-define-the-per-step-git-state-postcondition-docket-implement.md) | Define the per-step git-state postcondition docket-implement-next now names but never states | 2026-08-07 |
 | [0199](archive/2026-08-07-0199-harden-the-role-self-description-guard-co-occurrence-gap-har.md) | Harden the role-self-description guard — co-occurrence gap, hardcoded population, broad default matcher | 2026-08-07 |
 | [0198](archive/2026-08-07-0198-settle-the-role-self-description-rule-s-positive-half-docket.md) | Settle the role-self-description rule's positive half — docket-review names no skills.review binding | 2026-08-07 |
 | [0197](archive/2026-08-07-0197-clear-the-unfixed-review-findings-from-change-0193.md) | Clear the unfixed review findings from change 0193 | 2026-08-07 |
@@ -194,7 +192,7 @@ graph TD
 
 | Month | Done |
 |-------|------|
-| [2026-08](archive/) | 22 done |
+| [2026-08](archive/) | 23 done |
 | [2026-07](archive/) | 86 done |
 | [2026-06](archive/) | 32 done |
 
