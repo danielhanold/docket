@@ -35,7 +35,9 @@ bash scripts/runners/opencode.sh --agent <name> [--model <m>] [--effort <e>] [--
 - `--model <m>` (optional here, required in practice by the generation-time rule) — passed to
   `opencode run --model` **verbatim** (ADR-0015 opaque passthrough). OpenRouter IDs are
   double-prefixed (`openrouter/<vendor>/<model>`); opencode splits that itself. Docket's own
-  `inherit` no-pin sentinel is normalized to "no flag" and never reaches opencode.
+  `inherit` no-pin sentinel is normalized to "no flag" and never reaches opencode;
+  `runner-dispatch.sh` owns that normalization for every adapter and this adapter keeps a
+  defensive twin for the hand path above.
 - `--effort <e>` (optional) — mapped to `opencode run --variant`, opencode's provider-specific
   reasoning-effort knob. Values pass through **verbatim, with no mapping table**: `--variant`
   accepts docket's `max` natively, unlike codex where `max` becomes `xhigh`. `auto` and an unset
