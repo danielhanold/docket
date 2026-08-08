@@ -856,6 +856,24 @@ parse_wrapper_source(){  # $1=src md -> sets WSRC_NAME WSRC_DESC WSRC_SKILLS_CSV
 # Map a harness token to the on-disk extension docket generates for it.
 harness_ext(){ case "$1" in codex) printf 'toml';; *) printf 'md';; esac; }
 
+# Does this harness token have a NAMED emitter, or does it fall through to the generic
+# Claude-shaped one? Named once, used by both consumers — emit_for_harness's `*)` arm and
+# check_project_level's advisory leg — so the two cannot drift into disagreeing about which
+# tokens are supported (learnings: duplicated-gate-copies-the-whole-predicate).
+harness_has_named_emitter(){  # $1=harness
+  case "$1" in claude|codex|cursor|opencode) return 0;; *) return 1;; esac
+}
+
+# Space-padded list of harness tokens already warned about in THIS run. A run generates one wrapper
+# per agent (16+), so a per-wrapper warn would bury the message under its own repetition; the
+# emitters run in the main shell, not subshells, so a plain global is sufficient state.
+WARNED_UNMAPPED=" "
+warn_unmapped_harness(){  # $1=harness
+  case "$WARNED_UNMAPPED" in *" $1 "*) return 0;; esac
+  WARNED_UNMAPPED="$WARNED_UNMAPPED$1 "
+  log "WARN harness '$1' has no named emitter — its wrappers are Claude-shaped and unverified for '$1', so the model and effort docket reports may never be honored (ADR-0060). Give '$1' its own emitter, or accept the unverified shape."
+}
+
 # Dispatch to the harness-appropriate emitter. MODEL/EFFORT are the FINAL resolved values
 # (change 0168: shipped sidecar ⊕ user layers; empty => emit no pin), identical in meaning to
 # emit()'s args.
@@ -870,7 +888,7 @@ emit_for_harness(){  # $1=src md  $2=harness  $3=model  $4=effort
     # without a named emitter is how the Cursor defect (change 0135) shipped: the token inherited
     # Claude's frontmatter, and docket reported pins the harness never read. Give a new harness its
     # own emitter, or accept that its wrapper is unverified.
-    *)        emit            "$1" "$3" "$4";;
+    *)        warn_unmapped_harness "$2"; emit "$1" "$3" "$4";;
   esac
 }
 
@@ -1465,6 +1483,16 @@ check_project_level() {  # three legs: (a) gitignore block current [CI-meaningfu
     log "check: legacy bare-agent-key agents: shape ($(printf '%s' "$legacy" | tr '\n' ' ')) — reshape to agents.default.<agent> (run: bash sync-agents.sh)"
     rc=1
   fi
+  # Unmapped-harness advisory (change 0245). ADVISORY: reported, never fails CI — existing repos
+  # that list such a token today keep working, and hard refusal is deliberately out of scope. Same
+  # substance as the generation-time WARN, same predicate; a token may surface twice on this path
+  # (leg (c)'s emit_wrapper reaches the `*)` arm's own once-per-harness WARN), which is accepted —
+  # each is deduped, and suppressing one would couple the legs.
+  local uh
+  for uh in $HARNESSES; do
+    harness_has_named_emitter "$uh" && continue
+    log "advisory: harness '$uh' has no named emitter — its wrappers are Claude-shaped and unverified for '$uh' (ADR-0060). Not a check failure."
+  done
   # leg (c) — local staleness (ADVISORY: reported, never fails CI; vacuous on a fresh clone).
   # Gated on project_wrappers_generated, the SAME predicate project_level_pass writes under. Two
   # reasons, one predicate: (1) this loop calls emit_wrapper, so a triple the gate skipped would

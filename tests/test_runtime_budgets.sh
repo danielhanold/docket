@@ -25,7 +25,11 @@ CEILING=60          # the hard ceiling; no row may exceed it
 EXPECTED_SERIAL=0   # files pinned serial by the change-0227 audit. RAISING THIS IS A FINDING:
                     # a serial pin removes a file from the parallel phase, so it must be justified
                     # in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=1415 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=1435 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 1415 -> 1435 (change 0245): the new-test-file case named below —
+                    # tests/test_sync_agents_harness_gaps.sh brings its own row; it runs four full
+                    # sync-agents generations (two real, two --check), sized to 20s against the
+                    # 10s-15s the sibling sync-agents suites measure for one or two.
                     # 1405 -> 1415 (change 0244): the new-test-file case named below —
                     # tests/test_frontmatter_read_shapes.sh brings its own row, floored to the
                     # table's 10s minimum.
