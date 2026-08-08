@@ -115,7 +115,8 @@ assert "opencode: body preamble tells the child to LOAD its skills" \
   'grep -qiF "load these docket skills" "$OC"'
 assert "opencode: preamble names the opencode skills directory" \
   'grep -qiF "opencode skills directory" "$OC"'
-assert "opencode: preamble names the agent's own skill" 'grep -qF "docket-status" "$OC"'
+assert "opencode: preamble names the agent's own skill" \
+  'grep -q "load these docket skills from your opencode skills directory: docket-status" "$OC"'
 assert "opencode: preamble names docket-convention"     'grep -qF "docket-convention" "$OC"'
 assert "opencode: wrapper body survives verbatim"       'grep -qi "refresh docket state" "$OC"'
 

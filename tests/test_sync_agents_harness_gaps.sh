@@ -74,6 +74,16 @@ assert "#0082: the hint names .docket.local.yml" \
 assert "#0082: the hint names the global config path it read" \
   'grep -qF "docket/config.yml" "$WORK/cell-global-noopt.err"'
 
+# The hint is deliberately generation-path-only (design decision, see the `*)` comment above
+# warn_unmapped_harness and the code comment near the hint's emission): --check has its own
+# advisory for unmapped tokens (case (2) above) but no copy of THIS hint. Assert it stays absent
+# under --check so a "for symmetry" addition to check_project_level would redden this, not slip in
+# silently.
+( cd "$WORK/cell-global-noopt" && XDG_CONFIG_HOME="$GH" DOCKET_HARNESS_ROOT="$WORK/h-global-noopt" bash "$REPO/sync-agents.sh" --check ) \
+  >/dev/null 2>"$WORK/cell-global-noopt-check.err" || true
+assert "#0082: global set + no repo opt-in stays silent under --check (no hint copy there)" \
+  '! grep -qF "'"$HINT"'" "$WORK/cell-global-noopt-check.err"'
+
 run_cell global-opted 1 'agent_harnesses: [claude]'
 assert "#0082: global set + repo OPTED IN stays silent" \
   '! grep -qF "'"$HINT"'" "$WORK/cell-global-opted.err"'
