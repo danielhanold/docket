@@ -56,4 +56,115 @@ BC_MD="$ROOT/scripts/board-checks.md"
 assert "board-checks.md points at the library header rule" \
   'grep -qF "docket-frontmatter.sh" "$BC_MD" && grep -qF "selection rule" "$BC_MD"'
 
+# ---------------------------------------------------------------------------
+# (4) Behavioral: absent optional keys must read EMPTY, not fall through to body prose.
+#
+# Driven through render-change-links.sh — the highest-blast-radius consumer, since the values it
+# reads get stamped into specs, plans, results files and PR bodies. Two fixtures, because the five
+# optional reads are not all observable in one file: fixture 1 discriminates spec/plan/results/pr
+# (each renders its own row), fixture 2 discriminates branch (visible only via the plan row's ref).
+# One absent-key fixture and one mutation arm PER READ — a fixture that supplies body prose for
+# only one key proves exactly one read, and its mirrors can be unanchored later with a green suite.
+# ---------------------------------------------------------------------------
+CL="$ROOT/scripts/render-change-links.sh"
+tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
+cat > "$tmp/docket-config.sh" <<'CFG'
+#!/usr/bin/env bash
+echo "METADATA_BRANCH=docket"
+echo "INTEGRATION_BRANCH=main"
+echo "ADRS_DIR=docs/adrs"
+echo "METADATA_WORKTREE="
+CFG
+chmod +x "$tmp/docket-config.sh"
+
+render_cl(){ # render_cl CHANGEFILE
+  DOCKET_CONFIG="$tmp/docket-config.sh" GIT=git \
+    bash "$CL" --change-file "$1" --repo danielhanold/docket --adrs-dir "$tmp"
+}
+
+# --- Fixture 1: spec/plan/results/pr ABSENT from frontmatter, PRESENT as body prose ---
+cf1="$tmp/0900-absent-keys.md"
+cat > "$cf1" <<'EOF'
+---
+id: 900
+slug: absent-keys
+title: Absent optional keys
+status: in-progress
+priority: medium
+created: 2026-08-08
+updated: 2026-08-08
+branch: feat/absent-keys
+adrs: []
+---
+
+## Artifacts
+
+<!-- docket:artifacts:start (generated — do not hand-edit) -->
+<!-- docket:artifacts:end -->
+
+## Why
+
+This body deliberately opens lines with the optional keys, which is ordinary content for a repo
+whose subject matter is the field names:
+
+spec: docs/superpowers/specs/PROSE-NOT-A-VALUE.md
+plan: docs/superpowers/plans/PROSE-NOT-A-VALUE.md
+results: docs/results/PROSE-NOT-A-VALUE.md
+pr: https://github.com/danielhanold/docket/pull/99999
+EOF
+render_cl "$cf1" >/dev/null 2>&1
+# Scope the assertion to the RENDERED block: the fixture's own body carries the prose lines by
+# construction, so a whole-file grep can never distinguish a leak from the bait.
+block(){ awk '/docket:artifacts:start/,/docket:artifacts:end/' "$1"; }
+body1="$(block "$cf1")"
+for leaked in \
+  'PROSE-NOT-A-VALUE' \
+  '99999' ; do
+  if printf '%s\n' "$body1" | grep -qF -- "$leaked"; then
+    no "absent-key read leaked body prose into the Artifacts block ($leaked)"
+  else
+    ok "absent-key read returned empty rather than body prose ($leaked)"
+  fi
+done
+# Positive floor: the renderer DID run and DID rewrite the block, so the two asserts above are
+# not passing vacuously against an unwritten file.
+assert "renderer rewrote the marker-bounded block" \
+  'printf "%s\n" "$body1" | grep -qF "docket:artifacts:end"'
+
+# --- Fixture 2: branch ABSENT from frontmatter, PRESENT as body prose, plan SET ---
+# branch is invisible in fixture 1 (it only selects the blob ref for plan/results rows), so it
+# needs its own fixture or its read can be unanchored later with the suite still green.
+cf2="$tmp/0901-absent-branch.md"
+cat > "$cf2" <<'EOF'
+---
+id: 901
+slug: absent-branch
+title: Absent branch key
+status: in-progress
+priority: medium
+created: 2026-08-08
+updated: 2026-08-08
+plan: docs/superpowers/plans/2026-08-08-absent-branch.md
+adrs: []
+---
+
+## Artifacts
+
+<!-- docket:artifacts:start (generated — do not hand-edit) -->
+<!-- docket:artifacts:end -->
+
+## Why
+
+branch: feat/PROSE-NOT-A-BRANCH
+EOF
+render_cl "$cf2" >/dev/null 2>&1
+body2="$(block "$cf2")"
+if printf '%s\n' "$body2" | grep -qF -- 'PROSE-NOT-A-BRANCH'; then
+  no "absent branch: read leaked body prose into the plan row's blob ref"
+else
+  ok "absent branch: read returned empty rather than body prose"
+fi
+assert "plan row rendered (fixture 2 is not vacuous)" \
+  'printf "%s\n" "$body2" | grep -qF "2026-08-08-absent-branch.md"'
+
 exit "$fail"

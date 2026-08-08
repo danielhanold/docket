@@ -84,11 +84,15 @@ blob(){ printf 'https://github.com/%s/blob/%s/%s' "$REPO" "$1" "$2"; }  # ref, r
 
 # Read frontmatter (command substitution strips trailing newline — safe).
 status="$(field "$CHANGE_FILE" status)"
-branch="$(field "$CHANGE_FILE" branch)"
-spec="$(field "$CHANGE_FILE" spec)"
-plan="$(field "$CHANGE_FILE" plan)"
-results="$(field "$CHANGE_FILE" results)"
-pr="$(field "$CHANGE_FILE" pr)"
+# The five optional keys take the ANCHORED read (ADR-0057; the rule table in
+# lib/docket-frontmatter.sh). Absent from frontmatter, an unanchored field() runs past the closing
+# --- and returns body prose — and this renderer stamps what it reads into specs, plans, results
+# files and PR bodies.
+branch="$(fm_field "$CHANGE_FILE" branch)"
+spec="$(fm_field "$CHANGE_FILE" spec)"
+plan="$(fm_field "$CHANGE_FILE" plan)"
+results="$(fm_field "$CHANGE_FILE" results)"
+pr="$(fm_field "$CHANGE_FILE" pr)"
 adrs="$(list_field "$CHANGE_FILE" adrs)"   # space-separated ids, "" when [] / unset
 
 # plan/results ref: integration branch once done, else the feature branch.
