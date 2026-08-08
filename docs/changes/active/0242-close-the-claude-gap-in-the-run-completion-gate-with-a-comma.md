@@ -12,12 +12,12 @@ related: [212, 237]
 discovered_from: [237]
 adrs: []
 spec: docs/superpowers/specs/2026-08-08-close-the-claude-gap-in-the-run-completion-gate-with-a-comma-design.md
-plan:
+plan: docs/superpowers/plans/2026-08-08-close-the-claude-gap-caller-side-run-gate.md
 results:
 trivial: false
 auto_groomable:
 branch: feat/close-the-claude-gap-in-the-run-completion-gate-with-a-comma
-claimed_at: 2026-08-08T16:07:36Z
+claimed_at: 2026-08-08T16:12:39Z
 pr:
 blocked_by:
 reconciled: true
@@ -29,6 +29,7 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-08-close-the-claude-gap-in-the-run-completion-gate-with-a-comma-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-08-close-the-claude-gap-in-the-run-completion-gate-with-a-comma-design.md) |
+| Plan | [2026-08-08-close-the-claude-gap-caller-side-run-gate.md](https://github.com/danielhanold/docket/blob/feat/close-the-claude-gap-in-the-run-completion-gate-with-a-comma/docs/superpowers/plans/2026-08-08-close-the-claude-gap-caller-side-run-gate.md) |
 <!-- docket:artifacts:end -->
 
 ## Why
