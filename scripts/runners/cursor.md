@@ -22,7 +22,11 @@ bash scripts/runners/cursor.sh --agent <name> [--model <m>] [--effort <e>] [--] 
   **verbatim** (ADR-0015 opaque passthrough; docket never validates or rewrites model IDs). Omitted
   here ⇒ the child's own default — but since change 0205 a `runner:`-bearing agent with no
   user-configured model is a **generation-time error** (ADR-0067), so a generated shim never omits
-  it. The model-less case is reachable only by invoking this adapter by hand.
+  it. The model-less case is reachable only by invoking this adapter by hand. Docket's own
+  `inherit` no-pin sentinel is normalized to "no flag" and never reaches `cursor-agent`;
+  `runner-dispatch.sh` owns that normalization for every adapter and this adapter keeps a
+  defensive twin for the hand path above. Because Cursor encodes effort inside the model value,
+  the sentinel behaves exactly like no model at all — the effort-dropped WARN below fires.
 - `--effort <e>` (optional) — Cursor has **no effort flag**. Reasoning effort is a model parameter
   encoded inside the model value, so the adapter passes `--model <model>[effort=<effort>]` — the
   same encoding the wrapper emitter uses. With **no model resolved** the effort has nowhere to

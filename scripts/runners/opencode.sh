@@ -88,9 +88,11 @@ fi
 # ADR-0015: the model ID is passed VERBATIM and never validated. Unlike codex — whose vocabulary
 # tops out at xhigh, forcing a max->xhigh mapping — opencode's --variant takes docket's `max`
 # natively, so the effort vocabulary passes straight through with NO mapping table.
-# `inherit` is DOCKET'S OWN "no pin" sentinel (never a vendor model ID), so it is normalized to
-# empty here — the same normalization emit_opencode_md performs — BEFORE the mapping below.
-# Without this, `--model inherit` would reach opencode as a literal provider/model string.
+# `inherit` is DOCKET'S OWN "no pin" sentinel (never a vendor model ID). DEFENSIVE TWIN:
+# runner-dispatch.sh's normalization is the single owner and a dispatched run never arrives here
+# holding the sentinel — this line covers the direct hand invocation opencode.md documents, which
+# bypasses the facade. Without it, `--model inherit` would reach opencode as a literal
+# provider/model string. Sentinel normalization, not model-ID validation (ADR-0015).
 if [ "$MODEL" = "inherit" ]; then MODEL=""; fi
 if [ -z "$MODEL" ] && [ -n "$EFFORT" ] && [ "$EFFORT" != "auto" ]; then
   warn "WARN effort '$EFFORT' dropped — --variant is a provider-specific model option and no model is resolved. Set an explicit model to pin effort on opencode."
