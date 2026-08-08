@@ -2537,6 +2537,53 @@ assert "mutation F: the branch-only fixture 230 still fires (the arm itself surv
   'has_finding "$armFsan" aborted-run 230'
 rm -rf "$armcopy"
 
+# Mutation O — rewrite branch_only_artifact's consumption into the FORBIDDEN capture shape (change
+# 0200). Letters A-N are taken; O is the next free one. This arm is the enforcement the comment
+# above the function ("The NUL listing CANNOT be captured into a variable first") never had.
+#
+# Everything that LOOKS like a correctness signal survives the rewrite, which is the entire trap:
+# -z stays, `read -r -d ''` stays, and `bash -n` still passes. But `$(…)` strips NUL bytes, so the
+# here-string carries one NUL-free blob, `read -d ''` hits EOF on the first iteration, the loop body
+# never runs, and the function returns 1 for EVERY input. Leg A would go permanently, silently
+# false-negative with a fully green suite.
+#
+# The GREEN assert is not vacuous: fixture 230's baseline firing is pinned in the ARQ1 block above.
+# The two "still present" asserts matter as much as the landed ones — they prove this arm reproduces
+# the CAPTURE defect specifically and has not accidentally degenerated into mutation F.
+armreseed
+armO_ps_before="$(grep -cF 'done < <("$GIT" -C "$CHANGES_DIR" ls-tree -r -z' "$ARMSCRIPT")"
+awk '
+  $0 ~ /^  while IFS= read -r -d .. boa_p; do$/ {
+    print "  boa_list=\"$(\"$GIT\" -C \"$CHANGES_DIR\" ls-tree -r -z --name-only --full-tree \"$boa_ref\" -- \"$boa_dir\" 2>/dev/null)\"";
+    print; next
+  }
+  $0 ~ /^  done < <\("\$GIT" -C "\$CHANGES_DIR" ls-tree -r -z/ { print "  done <<<\"$boa_list\""; next }
+  { print }
+' "$ARMSCRIPT" > "$ARMSCRIPT.t"; mv "$ARMSCRIPT.t" "$ARMSCRIPT"
+armO_ps_after="$(grep -cF 'done < <("$GIT" -C "$CHANGES_DIR" ls-tree -r -z' "$ARMSCRIPT")"
+armO_hs="$(grep -cF 'done <<<"$boa_list"' "$ARMSCRIPT")"
+armO_cap="$(grep -cF 'boa_list="$("$GIT" -C "$CHANGES_DIR" ls-tree -r -z' "$ARMSCRIPT")"
+# 1, not 2: the rewrite REPLACES the `done < <(…)` line, so the only surviving occurrence of the
+# `-z --name-only` text is the capture line the awk inserts. Measured on a hand-built mutant, not
+# reasoned about. The exact count is load-bearing — under mutation F this same grep reads 0, which
+# is what makes this assert discriminate the capture defect from the -z revert.
+armO_z="$(grep -cF 'ls-tree -r -z --name-only' "$ARMSCRIPT")"
+armO_d="$(grep -cF "read -r -d ''" "$ARMSCRIPT")"
+assert "mutation O landed: the process-substituted listing is gone (count 1 -> 0)" \
+  '[ "$armO_ps_before" = 1 ] && [ "$armO_ps_after" = 0 ]'
+assert "mutation O landed: the forbidden here-string consumption is in place" '[ "$armO_hs" = 1 ]'
+assert "mutation O landed: the listing is captured into a variable first" '[ "$armO_cap" = 1 ]'
+assert "mutation O landed: the mutated copy is still valid bash — the broken shape is SYNTACTICALLY FINE" \
+  'bash -n "$ARMSCRIPT"'
+assert "mutation O is the CAPTURE defect, not mutation F: -z survives the rewrite" \
+  '[ "$armO_z" = 1 ]'
+assert "mutation O is the CAPTURE defect, not mutation F: the NUL read form survives the rewrite" \
+  '[ "$armO_d" = 1 ]'
+armOout="$(armrun_at "$ARQ1")"
+assert "mutation O (capture the -z listing): the branch-only fixture 230 goes GREEN — NULs stripped, the loop never runs" \
+  '! has_finding "$armOout" aborted-run 230'
+rm -rf "$armcopy"
+
 # ---------------- leg C mutations (change 0211) ----------------
 # Mutation G — neutralize leg C's idle floor (the > comparison becomes a tautology): the live-run
 # fixture 241 starts firing. NOTE the blast radius: without the floor, every ARM branch fixture
