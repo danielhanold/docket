@@ -394,7 +394,11 @@ for k in $example_keys; do
       case " $correspondence_exempt " in
         *" $exp_name "*) ;;
         *)
-          grep -qE "^$exp_name=.*\\b$leaf_k\\b" "$CFGSCRIPT" \
+          # Boundary by explicit class, never \b: BSD grep's and git-grep's ERE do not support \b
+          # and return zero SILENTLY, so a \b guard goes blind rather than red off-GNU (change
+          # 0246). The leading class needs no (^|...) alternative — `^$exp_name=.*` already
+          # guarantees at least one character precedes the key.
+          grep -qE "^$exp_name=.*[^[:alnum:]_]$leaf_k([^[:alnum:]_]|$)" "$CFGSCRIPT" \
             || manifest_bad_correspondence="$manifest_bad_correspondence $k($exp_name not tied to $k in docket-config.sh)"
           ;;
       esac
@@ -427,7 +431,7 @@ for k in $example_keys; do
       # often not even a real path, so grepping it here only prints an unsuppressed "No such file
       # or directory" and adds a second, redundant failure entry for the same root cause.
       if [ "$allowlisted" -eq 1 ]; then
-        grep -qE "\\b$leaf_k\\b" "$REPO/$consumer" \
+        grep -qE "(^|[^[:alnum:]_])$leaf_k([^[:alnum:]_]|$)" "$REPO/$consumer" \
           || manifest_bad_consumer="$manifest_bad_consumer $k(not in $consumer)"
       fi
       ;;
@@ -603,7 +607,7 @@ assert "(2c) every consumer path exists (${consumers_missing:-none missing})" \
 orphan_keys=""
 for k in $(sed -nE 's/^([A-Za-z_][A-Za-z0-9_]*):.*/\1/p' "$EX"); do
   # shellcheck disable=SC2086
-  grep -qlE "\\b$k\\b" $consumers >/dev/null 2>&1 || orphan_keys="$orphan_keys $k"
+  grep -qlE "(^|[^[:alnum:]_])$k([^[:alnum:]_]|$)" $consumers >/dev/null 2>&1 || orphan_keys="$orphan_keys $k"
 done
 assert "no orphan keys: every active top-level key is read by a consumer (${orphan_keys:-none})" \
   '[ -z "$orphan_keys" ]'
