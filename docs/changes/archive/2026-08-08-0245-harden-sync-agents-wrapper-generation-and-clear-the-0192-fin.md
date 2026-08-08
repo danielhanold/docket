@@ -2,7 +2,7 @@
 id: 245
 slug: harden-sync-agents-wrapper-generation-and-clear-the-0192-fin
 title: 'Harden sync-agents wrapper generation and clear the 0192 findings'
-status: implemented
+status: done
 priority: medium
 type: refactor
 created: 2026-08-07
@@ -19,7 +19,7 @@ auto_groomable: true
 branch: feat/harden-sync-agents-wrapper-generation-and-clear-the-0192-fin
 pr: https://github.com/danielhanold/docket/pull/185
 blocked_by:
-claimed_at: 2026-08-08T12:21:41Z
+claimed_at: 
 reconciled: true
 ---
 
