@@ -179,6 +179,13 @@ reconciled: false         # set true after the just-in-time reconcile pass
 ---
 ```
 
+**Merged plans and results are frozen build records.** Once a change's PR merges, its `plan:` and
+`results:` files are never edited again — not to correct a stale line reference, not to update a
+superseded instruction. They record what a build was *told* to do at the time it ran, which is the
+only thing that makes a completed run auditable; editing one destroys that record while silently
+changing what a re-read of the artifact would say the build was asked for. Corrections go in a new
+change, never in the merged artifact.
+
 ### Change body sections
 
 - `## Artifacts` — **first body section** (immediately after the frontmatter closing `---`, above `## Why`). Marker-bounded (`<!-- docket:artifacts:start (generated — do not hand-edit) -->` / `<!-- docket:artifacts:end -->`); rendered by `render-change-links.sh` from frontmatter; **never hand-edited** — the renderer is the sole writer. Seeded empty by the template; regenerated after every frontmatter field write. Its **reciprocal** is the `docket:backlink` block (markers `<!-- docket:backlink:start … -->` / `<!-- docket:backlink:end -->`) stamped at the TOP of each artifact (spec, plan, results, PR body) pointing home to the change on `metadata_branch`, written solely by `render-artifact-backlink.sh` (change 0136; ADRs excluded, back-referenced by `change:`).
