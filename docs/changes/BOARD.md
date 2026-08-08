@@ -1,8 +1,8 @@
 # Backlog
 
-**265 changes** — 🟡 29 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 158 done · 🗑️ 72 killed
+**266 changes** — 🟡 30 proposed · ⚪ 4 deferred · 🔵 2 implemented · ✅ 158 done · 🗑️ 72 killed
 
-## 🟡 Proposed (29)
+## 🟡 Proposed (30)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -35,6 +35,7 @@
 | [0263](active/0263-guard-the-remaining-agents-md-shell-rules-across-scripts-tes.md) | Guard the remaining AGENTS.md Shell rules across scripts, tests, and agent-executed markdown | `medium` | `chore` | needs-brainstorm |
 | [0264](active/0264-measure-the-claude-harness-s-forked-mode-gate-verdict-and-pi.md) | Measure the claude harness's forked-mode gate verdict and pin a surviving launch shape | `medium` | `docs` | needs-brainstorm |
 | [0265](active/0265-branch-the-adr-0065-quote-leg-diagnostic-so-it-stops-claimin.md) | Branch the ADR-0065 quote-leg diagnostic so it stops claiming a truncation that did not happen | `medium` | `fix` | needs-brainstorm |
+| [0266](active/0266-deterministic-frontmatter-field-writer-no-skill-hand-rolls-a.md) | Deterministic frontmatter field writer — no skill hand-rolls a manifest edit | `medium` | `feat` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -89,6 +90,7 @@ graph TD
   0263
   0264
   0265
+  0266
   0192:::done
   0211:::done
   0237:::done
