@@ -1400,7 +1400,17 @@ user_level_pass() {  # built-in ⊕ global -> each user-level target harness, re
 }
 
 project_level_pass() {  # built-in ⊕ local ⊕ committed ⊕ global -> <repo>/.<H>/agents for each H in HARNESSES
-  project_wrappers_generated || return 0
+  if ! project_wrappers_generated; then
+    # #0082: a user-level agent_harnesses cannot drive per-repo generation — per-repo targeting is
+    # deliberately repo-owned so the committed artifacts stay deterministic across every clone
+    # (ADR-0019's coordination-key fence; change 0050). What was wrong was the SILENCE: the user
+    # set a knob, ran the tool, and got neither wrappers nor a word. Generation path only — one
+    # authoritative copy of the hint, at the moment the user acted and the no-op bit.
+    if [ "${USER_HARNESSES_SET:-0}" = "1" ]; then
+      log "global agent_harnesses is set (${XDG_CONFIG_HOME:-$HOME/.config}/docket/config.yml) but this repo has not opted in, so no per-repo wrappers were generated. To opt in, add 'agent_harnesses:' to .docket.local.yml (machine-local) or .docket.yml (committed)."
+    fi
+    return 0
+  fi
   local src name harness dir cfg_h cfgname layer_f
   for layer_f in "$LOCAL_CFG" "$DOCKET_YML"; do
     warn_legacy_shape "$layer_f" 1

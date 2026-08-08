@@ -48,4 +48,42 @@ assert "--check advisory does NOT fail the run (rc unchanged)" '[ "'"$chk_rc"'" 
 assert "--check prints no unmapped advisory for named harnesses" \
   '! grep -q "advisory: harness" "$WORK/chk2.err"'
 
+# --- (3) #0082: global agent_harnesses + no repo opt-in is no longer silent ---
+# Four cells, because the hint must fire in exactly ONE of them. A test of only the firing cell
+# cannot separate "fires correctly" from "fires always".
+GH="$WORK/gcfg"; mkdir -p "$GH/docket"
+printf 'agent_harnesses: [claude, cursor]\n' > "$GH/docket/config.yml"
+
+run_cell(){  # $1=label  $2=global-set(1|0)  $3=repo .docket.yml body or empty
+  local d="$WORK/cell-$1"; mkdir -p "$d"; git -C "$d" init -q 2>/dev/null || true
+  [ -n "$3" ] && printf '%s\n' "$3" > "$d/.docket.yml"
+  if [ "$2" = 1 ]; then
+    ( cd "$d" && XDG_CONFIG_HOME="$GH" DOCKET_HARNESS_ROOT="$WORK/h-$1" bash "$REPO/sync-agents.sh" ) >/dev/null 2>"$WORK/cell-$1.err" || true
+  else
+    ( cd "$d" && XDG_CONFIG_HOME="$WORK/empty-xdg" DOCKET_HARNESS_ROOT="$WORK/h-$1" bash "$REPO/sync-agents.sh" ) >/dev/null 2>"$WORK/cell-$1.err" || true
+  fi
+}
+mkdir -p "$WORK/empty-xdg"
+HINT="has not opted in"
+
+run_cell global-noopt 1 ''
+assert "#0082: global set + no repo opt-in PRINTS the hint" \
+  'grep -qF "'"$HINT"'" "$WORK/cell-global-noopt.err"'
+assert "#0082: the hint names .docket.local.yml" \
+  'grep -qF ".docket.local.yml" "$WORK/cell-global-noopt.err"'
+assert "#0082: the hint names the global config path it read" \
+  'grep -qF "docket/config.yml" "$WORK/cell-global-noopt.err"'
+
+run_cell global-opted 1 'agent_harnesses: [claude]'
+assert "#0082: global set + repo OPTED IN stays silent" \
+  '! grep -qF "'"$HINT"'" "$WORK/cell-global-opted.err"'
+
+run_cell noglobal-noopt 0 ''
+assert "#0082: no global + no opt-in stays silent" \
+  '! grep -qF "'"$HINT"'" "$WORK/cell-noglobal-noopt.err"'
+
+run_cell noglobal-opted 0 'agent_harnesses: [claude]'
+assert "#0082: no global + repo opted in stays silent" \
+  '! grep -qF "'"$HINT"'" "$WORK/cell-noglobal-opted.err"'
+
 echo "---"; [ "$fail" = "0" ] && echo "ALL PASS" || echo "FAILURES"; exit $fail
