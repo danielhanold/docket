@@ -45,7 +45,7 @@ TODAY="$(date -u +%Y-%m-%d)"
 cur_branch="$($GIT -C "$WT" rev-parse --abbrev-ref HEAD)"
 
 set_field(){ # set_field FILE KEY VALUE — replace a scalar in the first ---…--- block only (portable sed).
-  local f="$1" k="$2" v="$3" t; t="$(mktemp)"     # clearing a field ⇒ VALUE="" (leaves "key: ").
+  local f="$1" k="$2" v="$3" t; t="$(mktemp "${TMPDIR:-/tmp}/reclaim-claims.XXXXXX")"     # clearing a field ⇒ VALUE="" (leaves "key: ").
   sed -E "/^---$/,/^---$/ s|^($k:)[[:space:]]*.*|\1 $v|" "$f" > "$t" && mv -f "$t" "$f"
 }
 any_branch_ref(){ # 0 iff ANY given branch name resolves to a local OR remote-tracking ref.

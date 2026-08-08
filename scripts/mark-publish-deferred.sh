@@ -91,7 +91,7 @@ strip_marker(){
 # write_atomic FILE CONTENT-PRODUCER... — render to a temp file, then move into place. Never
 # redirect a producer straight into the file it rewrites: `>` truncates on open, so a failed
 # render would destroy the last-good file before its exit code is read (atomic-generated-write).
-tmp="$(mktemp)" || die "mktemp failed"
+tmp="$(mktemp "${TMPDIR:-/tmp}/mark-publish-deferred.XXXXXX")" || die "mktemp failed"
 # Every intermediate this script writes is derived from $tmp, so one trap covers them all. Listing
 # them explicitly (rather than `rm -f "$tmp"*`) keeps the cleanup from depending on a glob that a
 # future intermediate could silently escape.

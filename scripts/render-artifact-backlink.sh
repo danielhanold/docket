@@ -87,7 +87,7 @@ relpath="$CHANGES_DIR/$sub/$(basename "$CHANGE_FILE")"
 # printf '%s' — VERBATIM, never a sed/string interpolation (which reinterprets & and \1 in a real
 # title); the awk step below inserts the block bytes literally (LEARNINGS
 # model-authored-values-are-untrusted-input). fm_field returns a single line => no newline injection.
-block_file="$(mktemp)"; trap 'rm -f "$block_file"' EXIT
+block_file="$(mktemp "${TMPDIR:-/tmp}/render-artifact-backlink.XXXXXX")"; trap 'rm -f "$block_file"' EXIT
 {
   printf '%s\n' "$START_MARKER"
   if [ "$GITHUB" = 1 ]; then
@@ -98,7 +98,7 @@ block_file="$(mktemp)"; trap 'rm -f "$block_file"' EXIT
   printf '%s\n' "$END_MARKER"
 } > "$block_file"
 
-out="$(mktemp)"
+out="$(mktemp "${TMPDIR:-/tmp}/render-artifact-backlink.XXXXXX")"
 if grep -qF "$START_MARKER" "$ARTIFACT_FILE"; then
   # Replace the inclusive marker region in place (fixed-string match via index()).
   awk -v startm="$START_MARKER" -v endm="$END_MARKER" -v blk="$block_file" '

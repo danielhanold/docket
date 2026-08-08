@@ -109,7 +109,7 @@ fi
 $GIT fetch "$REMOTE" "$META_BRANCH" >/dev/null 2>&1 || die "fetch $REMOTE/$META_BRANCH failed"
 metaref="$REMOTE/$META_BRANCH"
 
-tmpd="$(mktemp -d)"
+tmpd="$(mktemp -d "${TMPDIR:-/tmp}/terminal-publish.XXXXXX")"
 trap 'rm -rf "$tmpd"' EXIT
 
 # Tracks whether the copy-set includes ≥1 ADR file (change 0040). When true, the publish also
@@ -267,7 +267,7 @@ else
 fi
 
 # --- provision a transient integration checkout on a throwaway branch ---
-pub="$(mktemp -d)/pub"
+pub="$(mktemp -d "${TMPDIR:-/tmp}/terminal-publish.XXXXXX")/pub"
 $GIT worktree prune
 $GIT worktree add -B "pub-$T" "$pub" "$REMOTE/$INT_BRANCH" >/dev/null 2>&1 \
   || die "could not provision pub-$T worktree"

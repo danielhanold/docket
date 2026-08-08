@@ -136,7 +136,7 @@ cur_branch="$($GIT -C "$WT" rev-parse --abbrev-ref HEAD)"
 # non-zero (and removes its own temp file) on any awk/mv failure; every call site checks this so a
 # failed field write can never reach the commit/push below.
 set_field(){
-  local f="$1" k="$2" t; t="$(mktemp)" || return 1
+  local f="$1" k="$2" t; t="$(mktemp "${TMPDIR:-/tmp}/mint-stub.XXXXXX")" || return 1
   if ! MINT_SF_VAL="$3" awk -v key="$k" '
         BEGIN { val = ENVIRON["MINT_SF_VAL"]; dash = 0 }
         /^---$/ { dash++; print; next }
@@ -189,7 +189,7 @@ write_stub(){
   pad="$(printf '%04d' "$id")"
   file="$WT/$REL/active/$pad-$SLUG.md"
   mkdir -p "$WT/$REL/active" || die "mkdir -p active dir failed for stub $id"
-  tmp="$(mktemp)"; tmp2="$(mktemp)"
+  tmp="$(mktemp "${TMPDIR:-/tmp}/mint-stub.XXXXXX")"; tmp2="$(mktemp "${TMPDIR:-/tmp}/mint-stub.XXXXXX")"
   # frontmatter: everything up to and including the SECOND '---'
   awk 'NR==1&&$0=="---"{print;next} /^---$/{print;exit} {print}' "$TEMPLATE" > "$tmp"
   # Strip the template's instructional "  # comment" scaffolding (e.g. `spec:   # path under ...`)

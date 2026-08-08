@@ -70,7 +70,7 @@ cd "$ROOT" || exit 2
 
 # Not removed on exit: the trace and the captured stdout are this script's artifacts and their
 # paths are printed for follow-up reading.
-tmp="$(mktemp -d)"
+tmp="$(mktemp -d "${TMPDIR:-/tmp}/profile-one-test.XXXXXX")"
 : "${TRACE:=$tmp/trace.log}"
 out="$tmp/stdout.log"
 

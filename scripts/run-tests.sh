@@ -182,7 +182,7 @@ fi
 # Started here rather than at the launch loop so the interrupt handler below can always report an
 # elapsed time under `set -u`; the difference is a mkdir and a trap install.
 SUITE_START=$(date +%s)
-WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
+WORK="$(mktemp -d "${TMPDIR:-/tmp}/run-tests.XXXXXX")"; trap 'rm -rf "$WORK"' EXIT
 mkdir -p "$WORK/logs" "$WORK/stat" "$WORK/jobs"
 
 # ---- interruption ------------------------------------------------------------------------------
