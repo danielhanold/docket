@@ -1,15 +1,15 @@
 # Backlog
 
-**269 changes** — 🟢 2 in progress · 🟡 29 proposed · ⚪ 4 deferred · ✅ 162 done · 🗑️ 72 killed
+**272 changes** — 🟢 2 in progress · 🟡 31 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 162 done · 🗑️ 72 killed
 
 ## 🟢 In progress (2)
 
 | # | Title | Priority | Type | Spec | Branch |
 |---|-------|----------|------|------|--------|
-| [0242](active/0242-close-the-claude-gap-in-the-run-completion-gate-with-a-comma.md) | Close the Claude gap in the run-completion gate with a caller-side verify in the dispatch rules | `high` | `feat` | [spec](../superpowers/specs/2026-08-08-close-the-claude-gap-in-the-run-completion-gate-with-a-comma-design.md) | `feat/close-the-claude-gap-in-the-run-completion-gate-with-a-comma` |
 | [0258](active/0258-guard-the-config-suite-s-enumerated-claims-export-order-and.md) | Guard the config-suite's enumerated claims: export order and rung pairs | `medium` | `chore` | [spec](../superpowers/specs/2026-08-07-guard-the-config-suite-s-enumerated-claims-export-order-and-design.md) | `feat/guard-the-config-suite-s-enumerated-claims-export-order-and` |
+| [0269](active/0269-decouple-the-shim-wrapper-s-own-pin-from-the-delegated-child.md) | Decouple the shim wrapper's own pin from the delegated child's | `high` | `fix` | [spec](../superpowers/specs/2026-08-08-decouple-the-shim-wrapper-s-own-pin-from-the-delegated-child-design.md) | `feat/decouple-the-shim-wrapper-s-own-pin-from-the-delegated-child` |
 
-## 🟡 Proposed (29)
+## 🟡 Proposed (31)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -41,7 +41,9 @@
 | [0266](active/0266-deterministic-frontmatter-field-writer-no-skill-hand-rolls-a.md) | Deterministic frontmatter field writer — no skill hand-rolls a manifest edit | `medium` | `feat` | needs-brainstorm |
 | [0267](active/0267-correct-the-stale-field-quote-handling-claim-in-script-contr.md) | Correct the stale field() quote-handling claim in script contracts | `medium` | `docs` | needs-brainstorm |
 | [0268](active/0268-de-flake-the-reclaim-leg-of-test-docket-status-under-paralle.md) | De-flake the reclaim leg of test_docket_status under parallel contention | `medium` | `fix` | needs-brainstorm |
-| [0269](active/0269-decouple-the-shim-wrapper-s-own-pin-from-the-delegated-child.md) | Decouple the shim wrapper's own pin from the delegated child's | `high` | `fix` | build-ready |
+| [0270](active/0270-machine-local-runner-config-is-unreachable-from-a-feature-wo.md) | Machine-local runner config is unreachable from a feature worktree (opencode permissions locality) | `medium` | `fix` | needs-brainstorm |
+| [0271](active/0271-runner-delegation-has-no-execution-posture-for-a-child-that.md) | Runner delegation has no execution posture for a child that outlives its foreground call | `high` | `fix` | needs-brainstorm |
+| [0272](active/0272-de-duplicate-the-gitignore-block-writer-s-second-copy-of-the.md) | De-duplicate the gitignore-block writer's second copy of the write orchestration | `medium` | `fix` | needs-brainstorm |
 
 ## ⚪ Deferred (4)
 
@@ -51,6 +53,12 @@
 | [0008](active/0008-parallel-backlog-drain.md) | Parallel backlog drain — fan out concurrent implement-next runs over independent build-ready changes | `medium` | `feat` |
 | [0009](active/0009-human-escalation-loop.md) | Human escalation loop — structured questions-for-you in the change file, answered asynchronously in git | `medium` | `feat` |
 | [0010](active/0010-board-analytics.md) | Board analytics — throughput and cycle-time stats derived from git history, rendered on BOARD.md | `low` | `feat` |
+
+## 🔵 Implemented — awaiting merge (1)
+
+| # | Title | Priority | Type | PR | Readiness |
+|---|-------|----------|------|----|-----------|
+| [0242](active/0242-close-the-claude-gap-in-the-run-completion-gate-with-a-comma.md) | Close the Claude gap in the run-completion gate with a caller-side verify in the dispatch rules | `high` | `feat` | [#186](https://github.com/danielhanold/docket/pull/186) |  |
 
 ```mermaid
 graph TD
@@ -89,6 +97,9 @@ graph TD
   0267
   0268
   0269
+  0270
+  0271
+  0272
   0192:::done
   0211:::done
   0237:::done
