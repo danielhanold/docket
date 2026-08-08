@@ -2,23 +2,23 @@
 id: 259
 slug: harden-render-board-sanitize-feeder-values-and-settle-the-fa
 title: 'Harden render-board: sanitize feeder values and settle the failure contract'
-status: in-progress
+status: implemented
 priority: medium
 type: fix
 created: 2026-08-07
-updated: 2026-08-07
+updated: 2026-08-08
 depends_on: []
 related: [244]
 discovered_from: [155, 156]
 adrs: []
 spec: docs/superpowers/specs/2026-08-07-harden-render-board-sanitize-feeder-values-and-settle-the-fa-design.md
 plan: docs/superpowers/plans/2026-08-07-harden-render-board-sanitize-feeder-values-and-settle-the-fa.md
-results:
+results: docs/results/2026-08-07-harden-render-board-sanitize-feeder-values-and-settle-the-fa-results.md
 trivial: false
 auto_groomable: true
 branch: feat/harden-render-board-sanitize-feeder-values-and-settle-the-fa
-claimed_at: 2026-08-07T22:58:59Z
-pr:
+claimed_at: 2026-08-08T00:15:45Z
+pr: https://github.com/danielhanold/docket/pull/177
 blocked_by:
 reconciled: true
 ---
@@ -30,6 +30,8 @@ reconciled: true
 |---|---|
 | Spec | [2026-08-07-harden-render-board-sanitize-feeder-values-and-settle-the-fa-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-harden-render-board-sanitize-feeder-values-and-settle-the-fa-design.md) |
 | Plan | [2026-08-07-harden-render-board-sanitize-feeder-values-and-settle-the-fa.md](https://github.com/danielhanold/docket/blob/feat/harden-render-board-sanitize-feeder-values-and-settle-the-fa/docs/superpowers/plans/2026-08-07-harden-render-board-sanitize-feeder-values-and-settle-the-fa.md) |
+| Results | [2026-08-07-harden-render-board-sanitize-feeder-values-and-settle-the-fa-results.md](https://github.com/danielhanold/docket/blob/feat/harden-render-board-sanitize-feeder-values-and-settle-the-fa/docs/results/2026-08-07-harden-render-board-sanitize-feeder-values-and-settle-the-fa-results.md) |
+| PR | [#177](https://github.com/danielhanold/docket/pull/177) |
 <!-- docket:artifacts:end -->
 
 ## Why
