@@ -191,6 +191,15 @@ done
 #   intermediates (ct_raw / ct_body) and the built-in fallback reads a library array, so no
 #   `CHANGE_TYPES=` assignment line ever carries the literal leaf key "change_types".
 correspondence_exempt="BOARD_SURFACES DOCKET_BASH_PATH CHANGE_TYPES"
+# The one elsewhere: key whose consumer mention cannot be code-shaped, and why (change 0246).
+# .docket.example.yml says github_project is NOT WIRED TODAY — no script reads it. Its only match in
+# docket-config.sh is the coordination-key FENCE list (`for _fkey in … github_project …`), which
+# warns-and-ignores the key in machine-scoped layers rather than reading it, so the mention is a
+# bare space-delimited token with no code shape at all. The classifier's own comment on that arm
+# already calls the anchor "documentation-only, unlike every other elsewhere: entry". Exempting the
+# one honest outlier is right; widening the shape set until a fence-list token counts as code would
+# re-admit the English-prose match the shapes exist to reject. Asserted to hold exactly this key.
+elsewhere_shape_exempt="github_project"
 classify_key(){ # classify_key <example-key-name> -> "resolved:EXPORT" | "elsewhere:path" | ""
   case "$1" in
     runtime)              echo 'resolved:DOCKET_BASH_PATH' ;;
@@ -256,6 +265,44 @@ classify_key(){ # classify_key <example-key-name> -> "resolved:EXPORT" | "elsewh
 # tabs are handled identically. Mutation-tested (task-4-report.md): all six real headers
 # (codex/finalize/learnings/reclaim/runners/skills) still pass; relabeling require_pr_approval to
 # elsewhere:HEADER still reddens; a bare childless "newsub:" injected under finalize: reddens too.
+# code_shaped_mention <leaf-key> <file> -> exit 0 iff a NON-COMMENT line of the file mentions the
+# key in a code-shaped context. Backs the elsewhere: arm, replacing a bare word-boundary grep that
+# a sentence of English prose satisfied (change 0102's `timeout`-in-a-heredoc false positive).
+#
+# Two conditions: the line is not a comment (first non-space character is not `#`), and the key
+# occurs in one of three shapes, each DERIVED from a real mention in the six entries' named
+# consumers rather than guessed:
+#
+#   1. `:`-adjacency   — `agents[[:space:]]*:` (sync-agents.sh, a quoted YAML-key regex) and
+#                        `runners.opencode.permissions: auto-approve` (opencode.sh). The optional
+#                        literal `[[:space:]]*` is matched because the real mentions are grep
+#                        patterns that spell the gap that way.
+#   2. dot-qualified   — `codex.network`, `opencode.permissions`: the key as the leaf of a config
+#                        path, which is how the runner adapters name it in their die messages.
+#   3. flag argument   — `--sandbox` (codex.sh, the `exec … --sandbox "$SANDBOX"` invocation).
+#                        runners.codex.sandbox's QUALIFIED form appears nowhere in its consumer;
+#                        the flag is the only real mention, which is why this shape is required
+#                        and not decorative.
+#
+# Deliberately NOT added: assignment/`$var` shapes, or anything else no current entry needs. Every
+# shape widens what counts as an anchor, and the failure mode being closed is over-permissiveness.
+# All six current targets are shell scripts, so shell shapes suffice; if a PROSE consumer (a
+# SKILL.md) is ever reclassified to elsewhere:, this shape set must be revisited rather than
+# stretched.
+#
+# The non-comment filter is captured into a variable rather than piped into `grep -q`: this file
+# runs under `set -o pipefail`, and a producer feeding an early-exiting consumer takes SIGPIPE, so
+# the pipeline's 141 would intermittently invert a real match into "not code-shaped" (AGENTS.md,
+# Shell). `|| true` absorbs grep -v's exit 1 on an all-comment file, which is a legitimate empty
+# body and not an error. The ERE uses explicit character classes, never `\b`/`\<`/`\>` — BSD grep
+# does not support those and fails silently (change 0246; tests/test_grep_portability.sh).
+code_shaped_mention(){ # $1=leaf key  $2=file
+  local k="$1" f="$2" body
+  [ -f "$f" ] || return 1
+  body="$(grep -vE '^[[:space:]]*#' "$f")" || true
+  grep -qE "($k(\[\[:space:\]\]\*)?:)|([A-Za-z0-9_]\.$k)|(--?$k)" <<<"$body"
+}
+
 is_header_key(){
   awk -v k="$1" '
     { line[NR] = $0 }
@@ -430,9 +477,23 @@ for k in $example_keys; do
       # check above already failed (change 0102 whole-branch review, MINOR 4): the target is then
       # often not even a real path, so grepping it here only prints an unsuppressed "No such file
       # or directory" and adds a second, redundant failure entry for the same root cause.
+      # SHAPE-TIGHTENED (change 0246). A bare word-boundary grep here was satisfied by the key
+      # appearing in a comment or in a sentence of English prose — 0102's heredoc-prompt false
+      # positive — which anchors nothing. See code_shaped_mention above for the three derived
+      # shapes, and elsewhere_shape_exempt for the single documented outlier.
       if [ "$allowlisted" -eq 1 ]; then
-        grep -qE "(^|[^[:alnum:]_])$leaf_k([^[:alnum:]_]|$)" "$REPO/$consumer" \
-          || manifest_bad_consumer="$manifest_bad_consumer $k(not in $consumer)"
+        case " $elsewhere_shape_exempt " in
+          *" $leaf_k "*)
+            # Exempt from the SHAPE requirement, never from the mention requirement: the key must
+            # still actually appear in its named consumer, or the entry has no anchor at all.
+            grep -qE "(^|[^[:alnum:]_])$leaf_k([^[:alnum:]_]|$)" "$REPO/$consumer" \
+              || manifest_bad_consumer="$manifest_bad_consumer $k(not in $consumer)"
+            ;;
+          *)
+            code_shaped_mention "$leaf_k" "$REPO/$consumer" \
+              || manifest_bad_consumer="$manifest_bad_consumer $k(no code-shaped mention in $consumer)"
+            ;;
+        esac
       fi
       ;;
   esac
@@ -448,6 +509,30 @@ assert "manifest: every elsewhere: entry's named consumer mentions the key (${ma
   '[ -z "$manifest_bad_consumer" ]'
 assert "manifest: every elsewhere:HEADER entry is a real bare block opener (${manifest_bad_header:-none bad})" \
   '[ -z "$manifest_bad_header" ]'
+# --- elsewhere: shape guard, its exemption, and its false-positive fixture (change 0246) ---------
+# The exemption list is asserted to hold EXACTLY the one key it is allowed to hold. An exemption
+# list that can grow silently is a bare allowlist wearing a different name — the drift this whole
+# manifest exists to prevent. Widening this list is a deliberate act that must redden here first.
+assert "elsewhere: the shape exemption holds exactly github_project (got '$elsewhere_shape_exempt')" \
+  '[ "$elsewhere_shape_exempt" = "github_project" ]'
+# Positive control: the shape predicate must FIRE on a real consumer mention, or every green
+# above it is consistent with a predicate that can never match anything.
+assert "elsewhere: shape control — a real flag-argument mention is code-shaped" \
+  'code_shaped_mention sandbox "$REPO/scripts/runners/codex.sh"'
+# NEGATIVE control reproducing the historical false positive (change 0102): a key appearing ONLY as
+# an English word in prose, inside an embedded heredoc prompt, on non-comment lines. A bare
+# word-boundary grep passes this; the shape predicate must not. Comment-region exclusion alone
+# would also fail here, which is why the shapes exist.
+_shape_fx="$tmp/shape-prose.sh"
+{
+  printf 'run_it(){\n'
+  printf '  cat <<PROMPT\n'
+  printf 'Please choose an appropriate timeout before you continue running the job.\n'
+  printf 'PROMPT\n'
+  printf '}\n'
+} > "$_shape_fx"
+assert "elsewhere: shape control — a key appearing only in heredoc prose is NOT code-shaped" \
+  '! code_shaped_mention timeout "$_shape_fx"'
 # NON-VACUITY, EXACT COUNT not a floor: the loop above must actually iterate, AND classify_key
 # carries exactly expected_key_count key TOKENS — not "expected_key_count arms": it is 28 case
 # arms carrying 33 key tokens, because the header arm alone
