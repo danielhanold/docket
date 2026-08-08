@@ -2,9 +2,9 @@
 slug: verify-the-claim
 hook: "A document asserting a fact about another artifact is not an oracle — verify it against the artifact or the RUNNING CODE before acting on it."
 topics: [process, review, spec]
-changes: [12, 21, 47, 65, 67, 74, 96, 101, 102, 109, 112, 138, 130, 157, 164, 170, 212, 211]
+changes: [12, 21, 47, 65, 67, 74, 96, 101, 102, 109, 112, 138, 130, 157, 164, 170, 212, 211, 200]
 created: 2026-06-12
-updated: 2026-08-05
+updated: 2026-08-08
 promotion_state: retained
 promoted_to:
 ---
@@ -211,3 +211,11 @@ mid-build; leave the re-scope to the human. Reject false positives with evidence
   mechanism they attributed to it was a prediction about runtime behavior, and a test built on that
   prediction inherits it as an unexamined premise — passing for reasons neither the reviewer nor the
   implementer ever checked.
+- 2026-08-08 (#200, PR #181) — A new convention rule ("build artifacts are frozen after merge") was
+  written unconditionally and was falsified by docket's own publisher: `terminal-publish.sh`'s
+  `restamp_build_artifacts` re-renders the `docket:backlink` block on merged `plan:`/`results:`
+  files *after* the merge. The rule read as obviously true and had a counterexample in the same
+  repo, in code the change's own close-out path would run. Fixed by carving out the generated block,
+  mirroring how `## Artifacts` is already scoped. **Before stating an unconditional rule about your
+  own system's artifacts, grep for the code that writes them** — the exception is usually already
+  shipped, and prose is the only place it is missing.

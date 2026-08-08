@@ -2,7 +2,7 @@
 slug: fix-reintroduces-its-own-defect-class
 hook: "New code added by a change that fixes a defect class is the likeliest place for that class to reappear — audit the change's OWN additions against its thesis before review, and check the twin it did not touch."
 topics: [review, refactoring, contracts]
-changes: [135, 173, 113, 212, 220, 228, 259, 254]
+changes: [135, 173, 113, 212, 220, 228, 259, 254, 200]
 created: 2026-07-28
 updated: 2026-08-08
 promotion_state: candidate
@@ -140,3 +140,16 @@ Related: [[escape-ere-metacharacters-in-key]] (the un-fixed twin of a duplicated
   predicate must be keyed on the **command**, not on an incidental token of one common spelling.
   Related: [[guards-are-code]], [[agent-executed-markdown-is-code]] (the third finding in the same
   review — the sweep's own missed surface).
+- 2026-08-08 (#200, PR #181) — The change existed to fix a vacuous-green mutation arm (mutation 4:
+  its only discriminating assert was an absence over legitimately-empty output). Review found the
+  **sibling arm it did not touch** — mutation O — carrying the identical hole: a GREEN assert that
+  is an absence over output that is legitimately empty, passing whether the defect reproduced or
+  the mutant never ran at all. The thesis was applied to the arm named in the stub and not to the
+  arm one screen away in the same file. Fixed by pinning exit code plus no-abort-diagnostic — and
+  notably *not* by copying mutation 4's silence clause, since bash prints `ignored null byte in
+  input` for O's capture, so the sibling's assert would have been permanently red. The audit rule
+  earns its keep twice here: check the untouched twin, and check that the fix you copy is valid in
+  the twin's environment. Separately, the branch demonstrated the defect live — after the hoist and
+  before the rewrite, the plan predicted mutation 4 would go red and it stayed 419/419 green; that
+  green *was* the defect, since the old awk applied to the hoisted script left a `bash -n` syntax
+  error and a script that never ran, with every "goes GREEN" assert passing.

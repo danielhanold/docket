@@ -2,7 +2,7 @@
 slug: plan-supplied-test-code-is-unverified
 hook: "Test code a plan hands you is unverified code, not an oracle — prove the assert CAN pass, and mutation-test its own key."
 topics: [testing, plan, guards]
-changes: [94, 104, 112, 130, 133, 157, 168, 170, 173, 174, 194, 113, 212, 211, 203, 228, 226, 234, 237]
+changes: [94, 104, 112, 130, 133, 157, 168, 170, 173, 174, 194, 113, 212, 211, 203, 228, 226, 234, 237, 200]
 created: 2026-07-19
 updated: 2026-08-08
 promotion_state: candidate
@@ -292,3 +292,16 @@ implementer. It is not a reason to distrust plans — it is a reason to run the 
   entry adds is the provenance: this finding is already `promotion_state: candidate` and the plan
   that tripped it was authored inside the same repo that carries the finding. A rule that must fire
   unprompted does not fire because it is written down nearby.
+- 2026-08-08 (#200, PR #181) — Three plan-supplied test defects in one branch, each caught by the
+  builder that owned the task. (a) Mutation O's expected count of the inserted capture line was
+  `2`; the real count is `1`, because the awk **replaces** the `done < <(…)` line rather than
+  inserting beside it — derived empirically on a hand-built mutant, and deliberately not weakened
+  to `-ge 1`, since the sibling arm reads `0` through the same grep and the exact count is the only
+  thing separating them. (b) Mutation 4's anchor assumed a single top-level `for f in ` walk; the
+  script has two, so the assert was re-pinned as a before/after pair rather than a bare literal.
+  (c) Mutation 4's own **non-vacuity** assert was wrong for its arm: the plan wrote `[ -n "$m4out" ]`,
+  but the fixture repo is built so scalar-form is the only check that fires — empty output is the
+  *correct* result, and the assert failed on first run. The replacement re-runs capturing stderr
+  (`2>&1 >/dev/null`) and demands empty stderr plus rc 0 — exactly what the runner's `2>/dev/null`
+  was hiding. The general shape: a plan's non-vacuity assert is as unverified as the assert it
+  guards, and it is written by the same author who could not run either.
