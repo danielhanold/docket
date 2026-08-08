@@ -1,8 +1,14 @@
 # Backlog
 
-**263 changes** — 🟡 30 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 156 done · 🗑️ 72 killed
+**263 changes** — 🟢 1 in progress · 🟡 29 proposed · ⚪ 4 deferred · 🔵 1 implemented · ✅ 156 done · 🗑️ 72 killed
 
-## 🟡 Proposed (30)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch |
+|---|-------|----------|------|------|--------|
+| [0200](active/0200-clear-the-unfixed-review-findings-from-change-0191.md) | Board-checks hardening — sanitize LF escape, capture-shape mutation, minor-finding clearance | `medium` | `fix` | [spec](../superpowers/specs/2026-08-07-clear-the-unfixed-review-findings-from-change-0191-design.md) | `feat/clear-the-unfixed-review-findings-from-change-0191` |
+
+## 🟡 Proposed (29)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -16,7 +22,6 @@
 | [0166](active/0166-retune-the-interactive-skills-advisory-session-model-recomme.md) | Retune the interactive skills' advisory session-model recommendation | `medium` | `chore` | build-ready |
 | [0172](active/0172-normalize-the-banned-producer-pipe-shape-across-tests-and-he.md) | Normalize the banned producer-pipe shape across tests and helpers | `medium` | `chore` | build-ready |
 | [0195](active/0195-retune-the-opencode-shipped-model-defaults-for-cost.md) | Retune the opencode shipped model defaults for cost | `medium` | `chore` | needs-brainstorm |
-| [0200](active/0200-clear-the-unfixed-review-findings-from-change-0191.md) | Board-checks hardening — sanitize LF escape, capture-shape mutation, minor-finding clearance | `medium` | `fix` | build-ready |
 | [0208](active/0208-runner-dispatch-worktree-gate-3-proves-repo-containment-not.md) | Harden runner-dispatch — worktree membership gate, feature-scoped coverage, flag-parse guards | `medium` | `fix` | build-ready |
 | [0221](active/0221-assert-executes-backticks-in-its-test-description-so-a-verba.md) | assert() executes backticks in its test description, so a verbatim-quoted anchor can run shell | `medium` | `fix` | build-ready |
 | [0222](active/0222-raise-docket-s-minimum-bash-from-4-to-4-4.md) | Raise docket's minimum Bash from 4+ to 4.4 | `medium` | `chore` | build-ready |
