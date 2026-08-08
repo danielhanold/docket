@@ -51,6 +51,49 @@ assert "0173 validator: single-quoted value exits non-zero" '[ "$s_rc" != "0" ]'
 assert "0173 validator: single-quoted value writes no wrapper" '[ ! -e "$SBX/.claude/agents/docket-status.md" ]'
 rm -rf "$SBX" "$HROOT173S"
 
+# -- 0255: a `#` INSIDE the flow map. harness_agent_line strips comments on BOTH bash paths before
+#    either reader runs, so `{ model: c#5 }` truncates to `c` and every value-comparison leg agrees
+#    it is fine — the silent truncation this validator family exists to close, in the one corner the
+#    value legs structurally cannot see. Generation must abort before any wrapper is written. --
+make_sandbox
+HROOT255H="$(mktemp -d)"; mkdir -p "$HROOT255H/.claude"
+printf 'agents:\n  default:\n    status: { model: c#5, effort: high }\n' > "$SBX/.docket.yml"
+h_err="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT255H" bash "$SYNC" 2>&1 >/dev/null )"; h_rc=$?
+assert "0255 validator: '#' inside the flow map exits non-zero" '[ "$h_rc" != "0" ]'
+assert "0255 validator: '#' diagnostic names the harness/agent" '/usr/bin/grep -qF "default/status" <<<"$h_err"'
+assert "0255 validator: '#' diagnostic names the flow map" '/usr/bin/grep -qF "inside the flow map" <<<"$h_err"'
+assert "0255 validator: '#' diagnostic names the layer file" '/usr/bin/grep -qF ".docket.yml" <<<"$h_err"'
+# A diagnostic that blames the wrong cause is the defect the split messages here exist to prevent:
+# "write it unquoted" is not the remedy for a truncating `#`.
+assert "0255 validator: '#' diagnostic does not blame quoting" \
+  '! /usr/bin/grep -qF "unquoted and space-free" <<<"$h_err"'
+assert "0255 validator: '#' value writes no wrapper" '[ ! -e "$SBX/.claude/agents/docket-status.md" ]'
+rm -rf "$SBX" "$HROOT255H"
+
+# -- the carve-outs. Over-rejecting either of these would hard-abort generation on the documented,
+#    legitimate comment styles used throughout .docket.example.yml and agent-layer.md's own example. --
+make_sandbox
+HROOT255T="$(mktemp -d)"; mkdir -p "$HROOT255T/.claude"
+printf 'agents:\n  default:\n    status: { model: claude-opus-5, effort: high }   # trailing note\n' > "$SBX/.docket.yml"
+( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT255T" bash "$SYNC" >/dev/null 2>&1 ); t_rc=$?
+assert "0255 validator: a trailing comment AFTER the brace still generates (rc=0)" '[ "$t_rc" = "0" ]'
+assert "0255 validator: and the trailing-comment wrapper IS written" \
+  '[ "$(fm_anchored "$SBX/.claude/agents/docket-status.md" model)" = "claude-opus-5" ]'
+rm -rf "$SBX" "$HROOT255T"
+
+# A commented-out map is field-absent post-strip, which is LEGAL in user config (every field is
+# optional) — and it is the natural workaround for this very gate, so it must not fire.
+make_sandbox
+HROOT255C="$(mktemp -d)"; mkdir -p "$HROOT255C/.claude"
+printf 'agents:\n  default:\n    status: # { model: c#5, effort: high }\n    adr: { model: claude-opus-5, effort: low }\n' > "$SBX/.docket.yml"
+c_err="$( cd "$SBX" && DOCKET_HARNESS_ROOT="$HROOT255C" bash "$SYNC" 2>&1 >/dev/null )"; c_rc=$?
+assert "0255 validator: a commented-out map still generates (rc=0)" '[ "$c_rc" = "0" ]'
+assert "0255 validator: and it fires no flow-map complaint" \
+  '! /usr/bin/grep -qF "inside the flow map" <<<"$c_err"'
+assert "0255 validator: and the sibling entry still resolves" \
+  '[ "$(fm_anchored "$SBX/.claude/agents/docket-adr.md" model)" = "claude-opus-5" ]'
+rm -rf "$SBX" "$HROOT255C"
+
 # -- a genuinely MISSING value is a DIFFERENT diagnostic. Without this distinction a clip that
 #    lands empty makes the error blame ABSENCE for what is really a quoting problem. --
 make_sandbox
