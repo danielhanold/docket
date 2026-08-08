@@ -29,8 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-08-close-the-claude-gap-in-the-run-completion-gate-with-a-comma-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-08-close-the-claude-gap-in-the-run-completion-gate-with-a-comma-design.md) |
-| Plan | [2026-08-08-close-the-claude-gap-caller-side-run-gate.md](https://github.com/danielhanold/docket/blob/feat/close-the-claude-gap-in-the-run-completion-gate-with-a-comma/docs/superpowers/plans/2026-08-08-close-the-claude-gap-caller-side-run-gate.md) |
-| Results | [2026-08-08-close-the-claude-gap-caller-side-run-gate-results.md](https://github.com/danielhanold/docket/blob/feat/close-the-claude-gap-in-the-run-completion-gate-with-a-comma/docs/results/2026-08-08-close-the-claude-gap-caller-side-run-gate-results.md) |
+| Plan | [2026-08-08-close-the-claude-gap-caller-side-run-gate.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-08-close-the-claude-gap-caller-side-run-gate.md) |
+| Results | [2026-08-08-close-the-claude-gap-caller-side-run-gate-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-08-close-the-claude-gap-caller-side-run-gate-results.md) |
 | PR | [#186](https://github.com/danielhanold/docket/pull/186) |
 | ADRs | [ADR-0078](https://github.com/danielhanold/docket/blob/docket/docs/adrs/0078-parent-facing-gate-surface-for-claude-one-physical-instructions-file.md) |
 <!-- docket:artifacts:end -->
