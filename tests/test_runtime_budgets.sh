@@ -25,7 +25,10 @@ CEILING=60          # the hard ceiling; no row may exceed it
 EXPECTED_SERIAL=0   # files pinned serial by the change-0227 audit. RAISING THIS IS A FINDING:
                     # a serial pin removes a file from the parallel phase, so it must be justified
                     # in the same diff with the shared state that forced it.
-EXPECTED_TOTAL=1405 # the sum of every ceiling, seeded with the table from the measured serial run.
+EXPECTED_TOTAL=1415 # the sum of every ceiling, seeded with the table from the measured serial run.
+                    # 1405 -> 1415 (change 0244): the new-test-file case named below —
+                    # tests/test_frontmatter_read_shapes.sh brings its own row, floored to the
+                    # table's 10s minimum.
                     # 1365 -> 1405 (change 0255): the new-test-file case named below —
                     # tests/test_harness_defaults_flow_map.sh brings its own row, measured
                     # standalone at 9.8s and sized to 40s to cover the `#`-leg probes task 2

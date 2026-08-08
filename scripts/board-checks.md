@@ -234,6 +234,12 @@ leg exists to report, so reading `blocked_by` through it would make that leg str
 unreachable for this field (`blocked_by: PR #69 is stale …` would arrive as `PR` and pass silently).
 `title` needs no such twin: `field_raw` has no comment strip.
 
+The full **selection rule** for all four read shapes — which accessor a call site must use, keyed
+on whether the key can be absent — is recorded once, canonically, in the
+`scripts/lib/docket-frontmatter.sh` header (change 0244). It is not restated here: a copy would
+accumulate its own guards and quietly become load-bearing. The rule is enforced by the
+(accessor, key) census in `tests/test_frontmatter_read_shapes.sh`.
+
 Warn-only, like every check here: it never marks `EXPLAINED`, never touches `board-row-dropped` (a
 malformed *scalar* never drops a row), and never auto-fixes or rewrites the change file. Example
 message: `title: unquoted scalar contains ': ' — quote it or reword (well-formed YAML)`.
