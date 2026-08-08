@@ -53,10 +53,28 @@ n_files="$(scope_files | wc -l | tr -d ' ')"
 assert "the scan reaches at least $MIN_FILES in-scope files (it reached $n_files)" \
   '[ "$n_files" -ge "$MIN_FILES" ]'
 
-# Every `mv` invocation whose first argument is a double-quoted word, minus the allowances. Two
-# patterns, never one combined alternation: column-0 `mv`, and `mv` preceded by any character that
-# is not part of a longer word or a trailing option cluster. They are disjoint, so no line is
-# reported twice.
+# Every `mv` invocation, minus the allowances. Two patterns, never one combined alternation:
+# column-0 `mv`, and `mv` preceded by any character that is not part of a longer word, a path
+# segment, or a trailing option cluster.
+#
+# KEYED ON THE COMMAND, NOT ON ITS FIRST ARGUMENT. An earlier spelling required the literal `mv "`,
+# which saw only the quoted-first-argument form. It was blind to `mv -- "$t" "$f"` (the portable
+# spelling a future author reaches for), to unquoted `mv $t $f`, and — the sharpest miss — to
+# `mv -i "$t" "$f"`, the exact interactive call this rule exists to forbid. It also made the
+# `mv -f ` filter dead code, since no line ending the pattern in `"` could carry `-f`. The
+# predicate now matches any `mv` followed by whitespace, so the filters below are load-bearing.
+#
+# COMMENTS ARE NOT INVOCATIONS. Matching the bare command means the scan also reaches prose that
+# names `mv` — including the rationale comments this very rule motivated authors to write. A
+# comment cannot prompt on a tty, so reddening on one would punish documenting the rule. Whole-line
+# comments are therefore dropped before the allowances run. This is a filter on shape, not an
+# allowlist of files (ADR-0050), and it cannot hollow the guard out: a comment marker can only ever
+# hide a line that is already inert, and the `mv -f ` population floor below plus the mutation
+# tests pin the predicate against collapsing to nothing.
+#
+# `-i`/`-n` ARE DENIED OUTRIGHT, not merely unexempted. They are the interactive and no-clobber
+# defaults themselves, so a line carrying one is an offender even if some later `mv -f ` on the
+# same line would otherwise satisfy the exemption filter.
 #
 # ALLOWANCES MATCH CONTENT, NOT LOCATION. The allowance filters run BEFORE the `$f:` path prefix is
 # prepended, so only the source line itself can satisfy them. Prefixing first would let a *path*
@@ -72,12 +90,15 @@ assert "the scan reaches at least $MIN_FILES in-scope files (it reached $n_files
 # semantics change, not a hardening. Its gap class excludes every shell command separator, not just
 # `|`: `$GIT rev-parse …; mv "$t" "$f"` is two commands on one line, and only the first is git.
 offenders_mv(){
-  local f
+  local f lines
   while IFS= read -r f; do
-    { "$GREP" -nE '^mv "' "$f"; "$GREP" -nE '[^-[:alnum:]]mv "' "$f"; } \
-      | "$GREP" -vE 'mv -f ' \
-      | "$GREP" -vE '(git|\$GIT)[^|;&]* mv ' \
-      | sed "s|^|$f:|"
+    # `grep -n` prefixes each hit with `LINENO:`; the whole-line-comment drop is anchored to that.
+    lines="$({ "$GREP" -nE '^mv[[:space:]]' "$f"; "$GREP" -nE '[^-[:alnum:]_./]mv[[:space:]]' "$f"; } \
+      | "$GREP" -vE '^[0-9][0-9]*:[[:space:]]*#')"
+    [ -n "$lines" ] || continue
+    { printf '%s\n' "$lines" | "$GREP" -vE 'mv -f ' | "$GREP" -vE '(git|\$GIT)[^|;&]* mv '
+      printf '%s\n' "$lines" | "$GREP" -E 'mv -[in][[:space:]]'
+    } | sort -u | sed "s|^|$f:|"
   done < <(scope_files)
 }
 
