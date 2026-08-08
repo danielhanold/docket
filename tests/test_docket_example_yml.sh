@@ -1060,18 +1060,53 @@ assert "mirror: at least four harnesses were mirrored (got $n_shipped)" '[ "$n_s
 # garbage right along with the agents: block. So this ISOLATES the exact commented region first
 # (unique start/end anchors, verified against this file) and transforms ONLY that slice.
 #
-agents_block="$(sed -n '/^# agents:$/,/finalize-change:.*cursor-grok-4\.5-high-fast/p' "$EX")"
-# Guard the range's END address: if the cursor finalize-change literal ever drifts away from this
-# anchor, the sed range never closes and silently runs to EOF, swallowing the runners: block and
-# surrounding prose — while every assert below it still passes on the over-wide slice. Pinning the
-# slice's LAST line to the anchor catches both over-run (anchor never matched, slice hits EOF) and
-# under-run (anchor matched somewhere earlier than intended).
-assert "round-trip: the agents slice terminates at its cursor finalize-change anchor (not EOF)" \
-  '[ -n "$agents_block" ] && printf "%s\n" "$agents_block" | tail -n1 | grep -q "finalize-change:.*cursor-grok-4\.5-high-fast"'
-# Since change 0169 all three harness blocks sit at the SAME single-comment level, so one strip
-# uncomments agents:, its three harness blocks, and all thirty-nine rows. (Before 0169 codex and
-# cursor sat a level deeper and needed a second, block-scoped strip; that stage is gone with the
-# asymmetry it existed for.)
+# TERMINATOR DERIVED, NOT WRITTEN (change 0246). This anchor used to be the hand-written cursor
+# finalize-change literal, which sits ABOVE cursor's own build rows and above the entire opencode
+# block — so cursor's build/review rows and all sixteen opencode rows never reached the real
+# resolver, while every assert below stayed green on the short slice. That is precisely what went
+# stale when 0192 appended opencode, so the replacement must not be another literal.
+#
+# Derivation: find which shipped harness block comes LAST in the example (file order, which is NOT
+# HD_SHIPPED_HARNESSES order — the sidecar lists claude cursor codex opencode, the example writes
+# claude codex cursor opencode), then anchor on that block's build-max row with the model read from
+# the sidecar. build-max is the ladder's top rung and closes every block.
+last_ex_harness=""; _last_ex_ln=0
+for _h in $HD_SHIPPED_HARNESSES; do
+  _ln="$(grep -nE "^#[[:space:]]*$_h:[[:space:]]*$" "$EX" | head -n1 | cut -d: -f1)"
+  if [ -n "$_ln" ] && [ "$_ln" -gt "$_last_ex_ln" ]; then _last_ex_ln="$_ln"; last_ex_harness="$_h"; fi
+done
+assert "round-trip: a last shipped harness block was located in the example (got ${last_ex_harness:-none})" \
+  '[ -n "$last_ex_harness" ]'
+rt_bm="$(hd_field "$HD" "$last_ex_harness" build-max model)"
+assert "round-trip: the sidecar supplies a build-max model to anchor the slice on (got ${rt_bm:-none})" \
+  '[ -n "$rt_bm" ]'
+# Same boundary class as the mirror slice, for the same prefix-weakness reason, and the same
+# address-delimiter escaping: opencode's OpenRouter IDs carry `/`, which would close sed's address
+# and kill the expression with "invalid command code" — surfacing as an empty slice that reads like
+# a missing block rather than a quoting bug.
+rt_term="build-max:.*$(ere_escape "$rt_bm")[,[:space:]}]"
+agents_block="$(sed -n "/^# agents:\$/,/${rt_term//\//\\/}/p" "$EX")"
+rt_last="${agents_block##*$'\n'}"
+assert "round-trip: the agents slice terminates at the last block's build-max anchor (not EOF)" \
+  '[ -n "$agents_block" ] && grep -q "build-max:" <<<"$rt_last" && grep -qF "$rt_bm" <<<"$rt_last"'
+# GUARD THE ORDERING ASSUMPTION rather than trusting it. The derivation above assumes the last
+# shipped harness header in the example is also the last CONTENT in the agents: block. A re-ordered
+# example, or a fifth harness appended after this anchor, would silently shrink coverage back to
+# exactly the bug this change fixes — with every assert below still green on the short slice. So
+# assert the slice reaches every shipped harness. Derived population, never a literal list.
+rt_missing=""
+for _h in $HD_SHIPPED_HARNESSES; do
+  grep -qE "^#[[:space:]]*$_h:[[:space:]]*$" <<<"$agents_block" || rt_missing="$rt_missing $_h"
+done
+assert "round-trip: the slice reaches every shipped harness block (${rt_missing:-none missing})" \
+  '[ -z "$rt_missing" ]'
+# Since change 0169 every harness block sits at the SAME single-comment level, so one strip
+# uncomments agents:, all of its shipped harness blocks, and every row of every one of them.
+# (Before 0169 codex and cursor sat a level deeper and needed a second, block-scoped strip; that
+# stage is gone with the asymmetry it existed for.) No count is written here on purpose: the
+# previous wording said "all three harness blocks" and "all thirty-nine rows", both of which went
+# stale the moment 0192 shipped a fourth block — and a restated number is the thing this suite
+# exists to catch elsewhere. The population is asserted from HD_SHIPPED_HARNESSES above.
 stage2="$(printf '%s\n' "$agents_block" | sed -E 's/^#[[:space:]]?//')"
 # Derive the harness list from the REAL commented agent_harnesses: line (proving IT is valid too)
 # rather than hand-writing an unrelated literal, then extend it to enable cursor.
@@ -1096,6 +1131,14 @@ assert "round-trip: claude status model mirrors the shipped sidecar" \
 assert "round-trip: a cursor wrapper was generated" '[ -f "$SB/.cursor/agents/docket-status.md" ]'
 assert "round-trip: cursor status model came from the example block" \
   '[ "$(fm "$SB/.cursor/agents/docket-status.md" model)" = "cursor-grok-4.5-low-fast" ]'
+# A cursor BUILD row (change 0246). Before the terminator was re-derived, the slice ended above
+# cursor's build rows entirely, so no build profile on this harness was ever resolved. Same
+# "both sides move together" caveat as the codex and opencode legs — this catches a VALUE drift
+# between example and sidecar, not a missing example row; the sentinel block below owns provenance.
+assert "round-trip: a cursor build-max wrapper was generated" '[ -f "$SB/.cursor/agents/docket-build-max.md" ]'
+assert "round-trip: cursor build-max model came from the example block" \
+  '[ -n "$(hd_field "$HD" cursor build-max model)" ] &&
+   [ "$(fm "$SB/.cursor/agents/docket-build-max.md" model)" = "$(hd_field "$HD" cursor build-max model)" ]'
 # Codex evidence (change 0169): the example's codex rows must survive the REAL generator into real
 # Codex TOML, which is what proves they are executable YAML rather than text that merely happens to
 # match the sidecar reader. Read from the generated wrapper, compared against the sidecar.
