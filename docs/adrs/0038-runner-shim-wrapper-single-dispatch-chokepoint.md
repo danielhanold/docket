@@ -2,7 +2,7 @@
 id: 38
 slug: runner-shim-wrapper-single-dispatch-chokepoint
 title: Runner delegation rides a generated shim wrapper body, not per-skill dispatch branching
-status: Accepted
+status: Superseded by ADR-79
 date: 2026-07-15
 supersedes: []
 reverses: []
