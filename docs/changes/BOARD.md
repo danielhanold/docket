@@ -1,8 +1,14 @@
 # Backlog
 
-**261 changes** — 🟡 30 proposed · ⚪ 4 deferred · 🔵 4 implemented · ✅ 151 done · 🗑️ 72 killed
+**261 changes** — 🟢 1 in progress · 🟡 29 proposed · ⚪ 4 deferred · 🔵 4 implemented · ✅ 151 done · 🗑️ 72 killed
 
-## 🟡 Proposed (30)
+## 🟢 In progress (1)
+
+| # | Title | Priority | Type | Spec | Branch |
+|---|-------|----------|------|------|--------|
+| [0246](active/0246-make-the-docket-example-yml-guard-suite-bite.md) | Make the docket-example-yml guard suite bite | `medium` | `fix` | [spec](../superpowers/specs/2026-08-07-make-the-docket-example-yml-guard-suite-bite-design.md) | `feat/make-the-docket-example-yml-guard-suite-bite` |
+
+## 🟡 Proposed (29)
 
 | # | Title | Priority | Type | Readiness |
 |---|-------|----------|------|-----------|
@@ -23,7 +29,6 @@
 | [0242](active/0242-close-the-claude-gap-in-the-run-completion-gate-with-a-comma.md) | Close the Claude gap in the run-completion gate with a command-type Stop hook | `medium` | `feat` | ⏳ waiting on #237 — needs your merge |
 | [0244](active/0244-one-selection-rule-for-the-four-frontmatter-read-shapes.md) | One selection rule for the four frontmatter read shapes | `medium` | `refactor` | build-ready |
 | [0245](active/0245-harden-sync-agents-wrapper-generation-and-clear-the-0192-fin.md) | Harden sync-agents wrapper generation and clear the 0192 findings | `medium` | `refactor` | build-ready |
-| [0246](active/0246-make-the-docket-example-yml-guard-suite-bite.md) | Make the docket-example-yml guard suite bite | `medium` | `fix` | build-ready |
 | [0247](active/0247-make-shared-metadata-worktree-contention-survivable-and-scop.md) | Make shared metadata worktree contention survivable and scope its commits | `high` | `fix` | needs-brainstorm |
 | [0248](active/0248-role-self-description-enforce-the-positive-half-and-harden-t.md) | Role self-description: enforce the positive half and harden the guard | `medium` | `chore` | build-ready |
 | [0251](active/0251-retune-the-run-tests-budget-regime-for-portability-and-shard.md) | Retune the run-tests budget regime for portability and sharding | `medium` | `refactor` | build-ready |
