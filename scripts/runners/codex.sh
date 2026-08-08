@@ -78,6 +78,13 @@ case "$NETWORK" in true|false) ;; *) die "runners.codex.network must be 'true' o
 # hand invocation, which the adapter contracts explicitly contemplate, and it makes the shared
 # "`auto` behaves identically on every runner" claim true at the adapter layer too (change 0205).
 case "$EFFORT" in auto) EFFORT="" ;; esac
+# `inherit` is DOCKET'S OWN "no pin" sentinel for the MODEL, the twin of the `auto` effort sentinel
+# directly above and never a vendor model ID. DEFENSIVE TWIN: runner-dispatch.sh's normalization is
+# the single owner and a dispatched run never arrives here holding the sentinel — this line covers
+# the direct hand invocation codex.md documents, which bypasses the facade entirely. Without it,
+# `codex exec -m inherit` hands the child a non-existent model ID. Sentinel normalization, not
+# model-ID validation (ADR-0015): no vendor value is inspected.
+case "$MODEL" in inherit) MODEL="" ;; esac
 case "$EFFORT" in max) EFFORT="xhigh" ;; esac   # codex's reasoning-effort vocabulary tops out at xhigh
 
 cmd=( "$CODEX_BIN" exec -C "$DOCKET_REPO_ROOT" --sandbox "$SANDBOX" --color never )

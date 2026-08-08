@@ -23,7 +23,12 @@ bash scripts/runners/codex.sh --agent <name> [--model <m>] [--effort <e>] [--] [
   **verbatim** (ADR-0015 opaque passthrough; docket never validates model IDs). Omitted here ⇒ the
   child's own default model — but since change 0205 a `runner:`-bearing agent with no
   user-configured model is a **generation-time error** (ADR-0067), so a generated shim never omits
-  it. The model-less case is reachable only by invoking this adapter by hand.
+  it. The model-less case is reachable only by invoking this adapter by hand. Docket's own
+  `inherit` no-pin sentinel is normalized to "no flag" and never reaches `codex exec`;
+  `runner-dispatch.sh` owns that normalization for every adapter and this adapter keeps a
+  defensive twin for the hand path above. Unlike Cursor, **effort survives** the model-less case
+  here, because `model_reasoning_effort` is a separate flag rather than an encoding inside the
+  model value.
 - `--effort <e>` (optional) — mapped to Codex's `model_reasoning_effort` config override.
   Values pass through verbatim except docket's `max`, which maps to codex's `xhigh` (the top
   of Codex's vocabulary). Omitted ⇒ no override (child default). Effort stays genuinely optional,
