@@ -6,9 +6,9 @@ status: proposed
 priority: medium
 type: refactor
 created: 2026-08-07
-updated: 2026-08-07
+updated: 2026-08-08
 depends_on: []
-related: [258]
+related: [258, 273]
 discovered_from: [229, 230]
 adrs: []
 spec: docs/superpowers/specs/2026-08-07-retune-the-run-tests-budget-regime-for-portability-and-shard-design.md
