@@ -34,12 +34,20 @@ assert "reject: double-quoted space-free diagnostic names the remedy" \
 mut; sed -i.bak "s|^    adr:.*|    adr:                   { model: 'claude-opus-5', effort: low }|" "$T/hd.yml"
 assert "reject: single-quoted SPACE-FREE scalar" '! hd_validate "$T/hd.yml" "$SRC" 2>/dev/null'
 
-# 0255: a `#` INSIDE the flow map. _hd_block strips comments before either reader runs, so
-# `{ model: c#5 }` truncates to `c` with v == raw == c and slides past every leg above — the same
-# silent-truncation class the quote leg exists to close, in a corner the value-comparison legs
-# structurally cannot see. The strip ORDER is deliberately unchanged (reordering it would break
-# legitimate trailing and full-line comments everywhere); the corner is caught on a PRE-STRIP view.
-mut; sed -i.bak 's|^    adr:.*|    adr:                   { model: c#5, effort: low }|' "$T/hd.yml"
+# 0255: a `#` INSIDE the flow map. _hd_block strips comments before either reader runs, so the
+# truncated remainder slides past every leg above — the same silent-truncation class the quote leg
+# exists to close, in a corner the value-comparison legs structurally cannot see. The strip ORDER is
+# deliberately unchanged (reordering it would break legitimate trailing and full-line comments
+# everywhere); the corner is caught on a PRE-STRIP view.
+#
+# `{ model: claude-opus-5, effort: lo#w }` is THE DISCRIMINATING PROBE and must not be "simplified"
+# to a shorter-looking input. Post-strip it leaves BOTH fields readable (`claude-opus-5` / `lo`), so
+# every other leg passes and pre-change hd_validate returned 0 — ACCEPTING a truncated sidecar. Only
+# with the `#` leg present does rc flip 0 -> 1, so this rc assert detects the state the change
+# REMOVED. A `#` in the MODEL field instead (`{ model: c#5, … }`) does not discriminate: it strips
+# to an unterminated map, `effort` reads as missing, and rc was already 1 before the change — such
+# an input makes the rc assert vacuous no matter how the diagnostic reads.
+mut; sed -i.bak 's|^    adr:.*|    adr:                   { model: claude-opus-5, effort: lo#w }|' "$T/hd.yml"
 assert "reject: '#' inside the flow map" '! hd_validate "$T/hd.yml" "$SRC" 2>/dev/null'
 h_diag="$(hd_validate "$T/hd.yml" "$SRC" 2>&1 || true)"
 assert "reject: '#' diagnostic names the flow map, not bareness" \
@@ -48,6 +56,17 @@ assert "reject: '#' diagnostic names the flow map, not bareness" \
 # cause is the defect the split diagnostics in this file exist to prevent.
 assert "reject: '#' diagnostic does not blame quoting" \
   '! grep -q "unquoted and space-free" <<<"$h_diag"'
+
+# The non-discriminating twin, kept deliberately as a SECOND case: a `#` in the model field strips
+# to an unterminated map, so the flow-map complaint and the missing-`effort` complaint must BOTH
+# fire. Its rc proves nothing (see above); what it pins is that the new leg does not swallow the
+# pre-existing absence diagnostic when the truncation eats a whole field.
+mut; sed -i.bak 's|^    adr:.*|    adr:                   { model: c#5, effort: low }|' "$T/hd.yml"
+hm_diag="$(hd_validate "$T/hd.yml" "$SRC" 2>&1 || true)"
+assert "reject: a model-field '#' still names the flow map" \
+  'grep -q "inside the flow map" <<<"$hm_diag"'
+assert "reject: a model-field '#' also keeps the missing-field complaint" \
+  'grep -q "missing a non-empty" <<<"$hm_diag"'
 
 # Ignore probes — the carve-outs. Over-rejection here would hard-abort generation on config styles
 # used throughout .docket.example.yml and this very sidecar.
@@ -122,6 +141,12 @@ assert "awk validator rejects: space-bearing control keeps the shared sentence" 
 # input only incidentally, and with the wrong cause — it blames bareness, names neither the `#` nor
 # the flow map, and offers no remedy: exactly the failure the hd_validate probes above forbid. The
 # two validators duplicate this rule by value, so only this block holds them in parity.
+#
+# Note what the rc assert below can and cannot do. On the awk path NO input discriminates: the
+# program judges `nc`, and stripping a `#` from anywhere inside `{…}` always eats the closing brace,
+# so the absence branch already returned nonzero for every such input before this change. The rc
+# assert is therefore a floor, not evidence; the two DIAGNOSTIC asserts are the load-bearing ones —
+# they are what redden if the flow-map leg is removed here.
 mut; sed -i.bak 's|^    adr:.*|    adr:                   { model: claude-opus-5, effort: lo#w }|' "$T/hd.yml"
 vhd_h="$(vhd "$T/hd.yml")"; vhd_h_rc=$?
 assert "awk validator rejects: '#' inside the flow map" '[ "$vhd_h_rc" != "0" ]'
