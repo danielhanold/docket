@@ -154,5 +154,12 @@ a solo-maintainer macOS project.
   rows on the merge-base as well as on this branch, with 20–25% spread between loaded and quiet
   passes on the *same commit*. Either the rows were seeded on a faster machine-state than today's or
   the table has drifted; a per-file wall-clock table that breaches on an untouched base is a table
-  nobody will read. This is the contention-independent basis change **0229** already owns — worth
-  attaching the numbers above to it rather than opening a second change.
+  nobody will read. Filed as **#0273**, which carries the table above as its evidence.
+
+  An earlier draft of this bullet routed the numbers to **#0229** instead. That was wrong twice
+  over: 0229 was killed at the 2026-08-07 triage (consolidated into **#0251**), and 0251 is not the
+  right home either. 0251 fixes the **contention** axis — the parallel `5/2` comparison demoted to a
+  screen, verdict by a serial re-run against `ceiling * 3/2` — and explicitly puts rewriting the
+  budget values out of scope, parking absolute-host-speed drift as a residual in its spec's
+  assumption 2 ("a serial-canary rescale is the named follow-up shape"). The numbers above measure
+  that parked axis, not 0251's. #0273 is that named follow-up and `depends_on: [251]`.
