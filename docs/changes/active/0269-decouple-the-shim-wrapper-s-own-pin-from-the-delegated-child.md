@@ -2,7 +2,7 @@
 id: 269
 slug: decouple-the-shim-wrapper-s-own-pin-from-the-delegated-child
 title: Decouple the shim wrapper's own pin from the delegated child's
-status: proposed
+status: in-progress
 priority: high
 type: fix
 created: 2026-08-08
@@ -16,7 +16,8 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/decouple-the-shim-wrapper-s-own-pin-from-the-delegated-child
+claimed_at: 2026-08-08T19:27:10Z
 pr:
 blocked_by:
 reconciled: false
