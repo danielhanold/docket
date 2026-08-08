@@ -823,6 +823,35 @@ emit() {  # $1=src file  $2=model  $3=effort
   ' "$1"
 }
 
+# --- shared wrapper-source parse (change 0245) -------------------------------
+# The three named emitters (codex/cursor/opencode) each re-derived the same four values from the
+# wrapper source with byte-identical sed/awk. A parse fix that reached one and missed its twins is
+# exactly the defect class this removes (learnings: escape-ere-metacharacters-in-key).
+#
+# Scope is deliberately SOURCE-DERIVED FIELDS ONLY. Three things stay per-emitter and must not
+# migrate here:
+#   * serialization (TOML vs YAML frontmatter),
+#   * the skills-preamble sentence, which differs by one phrase per harness
+#     (learnings: consolidation-flattens-caller-variance — templating it flattens real variance),
+#   * the `inherit`/`auto` sentinel handling, which is ASYMMETRIC BY DESIGN: codex tests
+#     `!= "inherit"` at emit position, cursor/opencode normalize to empty up front, and claude's
+#     emit() passes `inherit` through verbatim (0168 whole-branch review, IMPORTANT 2). Folding it
+#     in here is the regression that review caught.
+# emit() itself is untouched: it is a stream transform and parses no fields.
+#
+# Result convention is fixed globals (the RES_*/resolve_agent_layers house pattern), not stdout
+# key=value (a subshell per call, and escaping a multi-line body is the fragility being removed)
+# and not namerefs (bash 4.3+; docket's floor is 3.2).
+parse_wrapper_source(){  # $1=src md -> sets WSRC_NAME WSRC_DESC WSRC_SKILLS_CSV WSRC_BODY
+  local src="$1"
+  WSRC_NAME="$(sed -n '/^name:/{s/^name:[[:space:]]*//;p;q;}' "$src")"
+  [ -n "$WSRC_NAME" ] || WSRC_NAME="docket-$(short_name "$src")"
+  WSRC_DESC="$(agent_description "$src")"
+  WSRC_SKILLS_CSV="$(sed -n '/^skills:/{s/^skills:[[:space:]]*//;p;q;}' "$src" | sed -e 's/^\[//' -e 's/\][[:space:]]*$//' -e 's/[[:space:]]*$//')"
+  # body = everything after the frontmatter closing --- , leading blank lines trimmed.
+  WSRC_BODY="$(awk '/^---[[:space:]]*$/ && d<2 {d++; next} d>=2 {print}' "$src" | awk 'NF{p=1} p{print}')"
+}
+
 # --- per-harness emitter registry (change 0077) ------------------------------
 # Map a harness token to the on-disk extension docket generates for it.
 harness_ext(){ case "$1" in codex) printf 'toml';; *) printf 'md';; esac; }
@@ -858,17 +887,16 @@ toml_escape_basic(){ printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'; }
 emit_codex_toml(){  # $1=src md  $2=model  $3=effort   (both FINAL resolved values)
   local src="$1" mo="$2" eo="$3"
   local name desc model effort skills_csv body dev esc
-  name="$(sed -n '/^name:/{s/^name:[[:space:]]*//;p;q;}' "$src")"
-  [ -n "$name" ] || name="docket-$(short_name "$src")"
-  desc="$(agent_description "$src")"
+  parse_wrapper_source "$src"
+  name="$WSRC_NAME"
+  desc="$WSRC_DESC"
+  skills_csv="$WSRC_SKILLS_CSV"
+  body="$WSRC_BODY"
   # change 0168: FINAL resolved values (shipped sidecar ⊕ user layers). The source frontmatter is
   # no longer a default store, so there is nothing to fall back to: an unresolved field means the
   # wrapper is honestly UNPINNED and Codex applies its own default.
   model="$mo"
   effort="$eo"
-  skills_csv="$(sed -n '/^skills:/{s/^skills:[[:space:]]*//;p;q;}' "$src" | sed -e 's/^\[//' -e 's/\][[:space:]]*$//' -e 's/[[:space:]]*$//')"
-  # body = everything after the frontmatter closing --- , leading blank lines trimmed.
-  body="$(awk '/^---[[:space:]]*$/ && d<2 {d++; next} d>=2 {print}' "$src" | awk 'NF{p=1} p{print}')"
   # developer_instructions text: skills-preload preamble (if any) + the wrapper body.
   if [ -n "$skills_csv" ]; then
     dev="Before acting, load these docket skills from your linked Codex skills directory: ${skills_csv}.
@@ -917,9 +945,11 @@ ${body}"
 emit_cursor_md(){  # $1=src md  $2=model  $3=effort   (both FINAL resolved values)
   local src="$1" mo="$2" eo="$3"
   local name desc model effort skills_csv body
-  name="$(sed -n '/^name:/{s/^name:[[:space:]]*//;p;q;}' "$src")"
-  [ -n "$name" ] || name="docket-$(short_name "$src")"
-  desc="$(agent_description "$src")"
+  parse_wrapper_source "$src"
+  name="$WSRC_NAME"
+  desc="$WSRC_DESC"
+  skills_csv="$WSRC_SKILLS_CSV"
+  body="$WSRC_BODY"
   # change 0168: FINAL resolved values (shipped sidecar ⊕ user layers). The source frontmatter is
   # no longer a default store, so there is nothing to fall back to. An agent with no cursor entry
   # in agents/harness-defaults.yml and no user override is emitted UNPINNED — which is the point:
@@ -930,9 +960,6 @@ emit_cursor_md(){  # $1=src md  $2=model  $3=effort   (both FINAL resolved value
   # Normalize the two "no pin" sentinels to empty, so the emit logic below has one shape to test.
   [ "$model" = "inherit" ] && model=""
   [ "$effort" = "auto" ] && effort=""
-  skills_csv="$(sed -n '/^skills:/{s/^skills:[[:space:]]*//;p;q;}' "$src" | sed -e 's/^\[//' -e 's/\][[:space:]]*$//' -e 's/[[:space:]]*$//')"
-  # body = everything after the frontmatter closing --- , leading blank lines trimmed.
-  body="$(awk '/^---[[:space:]]*$/ && d<2 {d++; next} d>=2 {print}' "$src" | awk 'NF{p=1} p{print}')"
   printf -- '---\n'
   printf 'name: %s\n' "$name"
   printf 'description: %s\n' "$desc"
@@ -973,7 +1000,10 @@ emit_cursor_md(){  # $1=src md  $2=model  $3=effort   (both FINAL resolved value
 emit_opencode_md(){  # $1=src md  $2=model  $3=effort   (both FINAL resolved values)
   local src="$1" mo="$2" eo="$3"
   local desc model effort skills_csv body
-  desc="$(agent_description "$src")"
+  parse_wrapper_source "$src"
+  desc="$WSRC_DESC"
+  skills_csv="$WSRC_SKILLS_CSV"
+  body="$WSRC_BODY"
   # change 0168: FINAL resolved values (shipped sidecar ⊕ user layers). The source frontmatter is
   # no longer a default store, so an unresolved field means the wrapper is honestly UNPINNED and
   # opencode applies its own default.
@@ -984,9 +1014,6 @@ emit_opencode_md(){  # $1=src md  $2=model  $3=effort   (both FINAL resolved val
   # here exactly as it does in emit_cursor_md/emit_codex_toml rather than passing through.
   [ "$model" = "inherit" ] && model=""
   [ "$effort" = "auto" ] && effort=""
-  skills_csv="$(sed -n '/^skills:/{s/^skills:[[:space:]]*//;p;q;}' "$src" | sed -e 's/^\[//' -e 's/\][[:space:]]*$//' -e 's/[[:space:]]*$//')"
-  # body = everything after the frontmatter closing --- , leading blank lines trimmed.
-  body="$(awk '/^---[[:space:]]*$/ && d<2 {d++; next} d>=2 {print}' "$src" | awk 'NF{p=1} p{print}')"
   printf -- '---\n'
   printf 'description: %s\n' "$desc"
   printf 'mode: subagent\n'
