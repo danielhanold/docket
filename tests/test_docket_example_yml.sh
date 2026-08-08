@@ -284,6 +284,17 @@ classify_key(){ # classify_key <example-key-name> -> "resolved:EXPORT" | "elsewh
 #                        the flag is the only real mention, which is why this shape is required
 #                        and not decorative.
 #
+# Every shape carries a LEFT boundary (change 0246 whole-branch review, IMPORTANT 2). Without one,
+# shapes 1 and 3 matched the key as a SUBSTRING of the consumer's own name: `sync-agents:` in a log
+# helper satisfied shape 1 and `-agents` satisfied shape 3, so the agents entry was anchored by the
+# script's filename and could never fail — strip every `agents:` reader out of sync-agents.sh and
+# the manifest assert stayed green, which is precisely the prose-match failure these shapes exist
+# to reject. Shape 1's boundary class excludes `-` as well as alnum/underscore, since a hyphen is
+# exactly what `sync-agents:` interposes; shape 3's keeps `-` boundary-eligible because `--sandbox`
+# needs a hyphen to its left. Shape 2 already had a boundary (the mandatory `[A-Za-z0-9_].` prefix).
+# `\b`/`\<`/`\>` are unavailable here (BSD grep), so these are explicit classes — the same form the
+# sibling exempt-branch and correspondence greps use. See the two shape controls below.
+#
 # Deliberately NOT added: assignment/`$var` shapes, or anything else no current entry needs. Every
 # shape widens what counts as an anchor, and the failure mode being closed is over-permissiveness.
 # All six current targets are shell scripts, so shell shapes suffice; if a PROSE consumer (a
@@ -300,7 +311,7 @@ code_shaped_mention(){ # $1=leaf key  $2=file
   local k="$1" f="$2" body
   [ -f "$f" ] || return 1
   body="$(grep -vE '^[[:space:]]*#' "$f")" || true
-  grep -qE "($k(\[\[:space:\]\]\*)?:)|([A-Za-z0-9_]\.$k)|(--?$k)" <<<"$body"
+  grep -qE "(^|[^[:alnum:]_-])$k(\[\[:space:\]\]\*)?:|(^|[^[:alnum:]_])--?$k|[A-Za-z0-9_]\.$k" <<<"$body"
 }
 
 is_header_key(){
@@ -533,6 +544,23 @@ _shape_fx="$tmp/shape-prose.sh"
 } > "$_shape_fx"
 assert "elsewhere: shape control — a key appearing only in heredoc prose is NOT code-shaped" \
   '! code_shaped_mention timeout "$_shape_fx"'
+# NEGATIVE control for the LEFT boundary (change 0246 whole-branch review, IMPORTANT 2). Shapes 1
+# and 3 originally carried no left boundary, so `agents` was anchored by its consumer's own NAME:
+# `sync-agents:` satisfies the `<key>:` shape as a substring and `-agents` satisfies the flag
+# shape. That made the agents entry UNFALSIFIABLE — every `agents:` reader could be stripped out of
+# sync-agents.sh and the manifest assert above would stay green. This fixture is the reviewer's
+# reproduction: a file whose entire content is a log helper naming the script, with zero `agents:`
+# key handling. It must NOT be code-shaped. Note the boundary class for shape 1 excludes `-` as
+# well (a hyphen is what `sync-agents:` interposes), while shape 3 keeps `-` boundary-eligible
+# because `--sandbox` needs it.
+_shape_fx_name="$tmp/shape-selfname.sh"
+printf '%s\n' 'log(){ printf "%s\n" "sync-agents: $*" >&2; }' > "$_shape_fx_name"
+assert "elsewhere: shape control — a consumer's own hyphenated NAME is NOT a code-shaped mention of the key" \
+  '! code_shaped_mention agents "$_shape_fx_name"'
+# Positive counterpart, so the control above cannot pass by the predicate simply never matching in
+# this file: the REAL reader in sync-agents.sh must still anchor the agents entry.
+assert "elsewhere: shape control — the real '^agents[[:space:]]*:' reader IS a code-shaped mention" \
+  'code_shaped_mention agents "$REPO/sync-agents.sh"'
 # NON-VACUITY, EXACT COUNT not a floor: the loop above must actually iterate, AND classify_key
 # carries exactly expected_key_count key TOKENS — not "expected_key_count arms": it is 28 case
 # arms carrying 33 key tokens, because the header arm alone
