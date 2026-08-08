@@ -51,6 +51,13 @@ rule_says "structured anchored values use fm_field"       'ordinary structured v
 rule_says "free-prose blocked_by uses fm_field_verbatim"  'is DATA (blocked_by)       | fm_field_verbatim'
 rule_says "own-decoding callers use the raw tier"         'caller decodes quotes itself   | field_raw'
 rule_says "when unsure, anchor"                           'When unsure'
+# The criterion for GUARANTEED PRESENT is possibility-of-omission, not template presence and not
+# how many files carry the key today — seven absent-capable keys ARE shipped by the current change
+# template, so a template-presence criterion would contradict the rule's own classification.
+rule_says "guaranteed-present is 'can it be omitted', not 'does the template ship it'" \
+  'legitimately omit the key'
+rule_says "corpus presence today is not a guarantee" \
+  'presence-in-the-corpus-today is a snapshot, not a guarantee'
 rule_says "the rule cites ADR-0057"                       'ADR-0057'
 rule_says "the rule cites ADR-0058"                       'ADR-0058'
 
@@ -118,8 +125,10 @@ if [ -z "$census_violations" ]; then
 else
   no "census: unanchored read of a key that may be ABSENT — use fm_field (or fm_field_verbatim for
 free-prose values where a whitespace-preceded '#' is data). See the selection rule in
-scripts/lib/docket-frontmatter.sh. If the key really is present in EVERY file the site reads,
-add it to this test's ALLOW_FIELD/ALLOW_FIELD_RAW deliberately. Offending sites:
+scripts/lib/docket-frontmatter.sh. Only if NO file the site reads can legitimately omit the key --
+not a hand-authored one, not one minted under an earlier template -- add it to this test's
+ALLOW_FIELD/ALLOW_FIELD_RAW deliberately; the key being present in every file TODAY is not that.
+Offending sites:
 $census_violations"
 fi
 

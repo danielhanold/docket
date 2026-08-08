@@ -60,15 +60,26 @@
 #   key may be ABSENT, caller JUDGES the YAML form as authored, or the value is free prose where
 #     a whitespace-preceded `#` is DATA (blocked_by)       | fm_field_verbatim
 #
-# GUARANTEED PRESENT means every file the call site reads carries the key, by template. Today that
-# is: change files — id, status, slug, title, priority, created, updated; ADRs — id, status, title,
-# change, date; learnings findings — slug, hook, topics. Those sites stay on field()/field_raw()
-# with no churn: the frontmatter line is necessarily the first match, so whole-file scanning is a
+# GUARANTEED PRESENT is decided by one question: CAN any file this call site reads
+# legitimately omit the key — a hand-authored file, a file minted under an EARLIER template, a key
+# whose writer may drop the line? If it can, the key is not guaranteed, however many files carry it
+# today. A key the current template does not ship is by that alone not guaranteed. The converse does
+# NOT hold: template presence would prove a key guaranteed only if every file had been minted by
+# today's template and no human ever edited one, and neither holds here — change files are
+# hand-edited constantly and hundreds of them predate various template revisions. So
+# presence-in-the-corpus-today is a snapshot, not a guarantee, and the guaranteed set below is a
+# deliberate hand-maintained list rather than anything measured. Today that is: change files — id,
+# status, slug, title, priority, created, updated; ADRs — id, status, title, change, date;
+# learnings findings — slug, hook, topics. Those sites stay on field()/field_raw() with no churn: the frontmatter line is necessarily the first match, so whole-file scanning is a
 # safe optimization, grandfathered rather than recommended.
 #
 # EVERY OTHER KEY takes an anchored read — never field() (ADR-0057). In docket's own schema the
 # absent-capable set is spec, plan, results, branch, pr, issue, blocked_by, type, claimed_at,
-# trivial, auto_groomable, promotion_state, promoted_to, discovered_from.
+# trivial, auto_groomable, promotion_state, promoted_to, discovered_from. Several of those — spec,
+# plan, results, branch, pr, blocked_by, trivial — ARE shipped by today's change template and do sit
+# in every change file on the metadata branch right now. They are absent-capable regardless: each is
+# semantically OPTIONAL and hand-authorable, so a writer may drop the line and an older file may
+# never have carried it. Do not promote a key into the guaranteed set on the strength of a census.
 #
 # Within the anchored tier, fm_field is the default. fm_field_verbatim is for exactly two jobs:
 # a consumer JUDGING the scalar's YAML form as authored (board-checks's scalar_form_check, which
