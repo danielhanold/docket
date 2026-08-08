@@ -132,14 +132,30 @@ declare -A ID_ACTIVE ID_EXISTS                # id -> 1; populated in the FILES 
 declare -A EXPLAINED DROPPED DROPPED_DIR      # change-id -> 1 / -> dir kind; drive board-row-dropped
 FINDINGS=""                            # accumulate "<check>\t<id>\t<msg>\n"; sorted + printed at the end
 
-# sanitize VALUE — render TAB and CR as the visible two-character escapes \t and \r (change 0104).
+# sanitize VALUE — render TAB, CR, and LF as the visible two-character escapes \t, \r and \n
+# (change 0104; the LF leg added by change 0200).
+#
 # Findings are TAB-separated and the caller splits them with `IFS=$'\t' read -r check_id change_id
-# message` (docket-status.sh's `health_checks`), so an interior TAB in ANY embedded value
-# shifts every later
-# field. field() truncates at the first newline and strips trailing whitespace, but an interior TAB
-# survives it — these values are untrusted frontmatter, not program constants. Pure bash parameter
-# expansion: BSD sed does not interpret \t in a pattern, so a sed form would be silently wrong.
-sanitize(){ local v="$1"; v="${v//$'\t'/\\t}"; v="${v//$'\r'/\\r}"; printf '%s' "$v"; }
+# message` (docket-status.sh's `health_checks`). An interior TAB in ANY embedded value shifts every
+# later field; an interior LF is worse — it splits one finding into TWO records, and the caller
+# reads the orphaned tail as a finding in its own right, with the trailing `sort` free to move it
+# anywhere in the output.
+#
+# Do NOT re-justify the escape set by where the values come from. That premise is what went stale:
+# it once read "every embedded value arrives via field()/fm_field(), which truncate at the first
+# newline". Since change 0202, leg A's $ar_hit is a GIT PATH read NUL-delimited
+# (`ls-tree -r -z`) — and a git path may hold any byte but NUL, newline included — so it reaches
+# emit raw. The escape therefore lives HERE, wrapping both embedded columns of every emit, rather
+# than at that one call site: every current and future caller is covered without an audit.
+#
+# The LF coverage is deliberately partial and record-shaped, not a completeness guarantee: leg A's
+# call sites capture branch_only_artifact through $(…), which strips a TRAILING newline before
+# sanitize is ever reached, so only INTERIOR newlines are ever seen here. That is the whole job —
+# keep one finding on one record.
+#
+# Pure bash parameter expansion: BSD sed does not interpret \t in a pattern, so a sed form would be
+# silently wrong.
+sanitize(){ local v="$1"; v="${v//$'\t'/\\t}"; v="${v//$'\r'/\\r}"; v="${v//$'\n'/\\n}"; printf '%s' "$v"; }
 
 emit(){ FINDINGS+="$1"$'\t'"$(sanitize "$2")"$'\t'"$(sanitize "$3")"$'\n'; }
 

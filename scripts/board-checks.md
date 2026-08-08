@@ -467,10 +467,13 @@ were emitted; otherwise it always exits 0.
 - **`blocked_by:` re-examination is model-driven.** The skill, not this script, evaluates
   whether a `blocked` change's blocking reason still holds. That judgment is intentionally
   outside the mechanical checker.
-- **The findings channel's COLUMNS are not forgeable.** `emit` escapes TAB and CR to visible
-  `\t` / `\r` in both embedded columns, and the change-id column never carries a raw frontmatter
-  value. The caller splits findings with `IFS=$'\t' read -r check_id change_id message`, so an
-  un-escaped TAB in an untrusted value would shift every later field.
+- **The findings channel's COLUMNS and RECORDS are not forgeable.** `emit` escapes TAB, CR and LF
+  to the visible `\t` / `\r` / `\n` in both embedded columns, and the change-id column never
+  carries a raw frontmatter value. The caller splits findings with `IFS=$'\t' read -r check_id
+  change_id message`, so an un-escaped TAB in an untrusted value would shift every later field and
+  an un-escaped LF would split one finding into two records. The LF case is not hypothetical: since
+  change 0202 the `aborted-run` legs embed a git path read NUL-delimited, which may legally contain
+  a newline (change 0200).
 - **Message TEXT is untrusted; consumers must anchor on the check-id column.** The guarantee above
   is about column integrity, *not* content: `field-domain` messages quote raw frontmatter —
   including free-form `title` prose — verbatim by design, so any token a consumer keys on
