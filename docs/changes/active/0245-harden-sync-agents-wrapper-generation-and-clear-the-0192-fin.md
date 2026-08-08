@@ -19,8 +19,8 @@ auto_groomable: true
 branch: feat/harden-sync-agents-wrapper-generation-and-clear-the-0192-fin
 pr:
 blocked_by:
-claimed_at: 2026-08-08T10:32:46Z
-reconciled: false
+claimed_at: 2026-08-08T10:35:01Z
+reconciled: true
 ---
 
 ## Artifacts
@@ -56,3 +56,30 @@ Design settled 2026-08-07 (auto-groom; see the linked spec's Assumptions for eve
 - #0082's options 2/3 (letting global config drive per-repo artifacts) — they reopen ADR-0019's coordination-key fence and change 0050's determinism argument. Advisory only.
 - Removing `agents`/`kiro`/`windsurf` from the token vocabulary (gitignore-block consequences; separate decision if wanted).
 - Hard-refusal posture for unmapped tokens — WARN is the default this change ships.
+
+## Reconcile log
+
+### 2026-08-08 — reconcile at claim (implement-next)
+
+Re-read the change + its spec against current `origin/main` (`cbca5feb`), the cited ADRs (0015, 0019, 0059, 0060), and the code. **All four defect families are still present and unfixed; the design stands unchanged.** Scope, out-of-scope, and every spec assumption survive; nothing was dropped or added.
+
+The only drift is **line numbers** — the spec and the `## Why` above cite pre-0205/0220 offsets. Current, verified positions in `sync-agents.sh` (1636 lines; the file is at the **repo root**, not under `scripts/`):
+
+| Spec cite | Current | Subject |
+|---|---|---|
+| :769 | **:858** | `emit_codex_toml` |
+| :828 | **:917** | `emit_cursor_md` |
+| :884 | **:973** | `emit_opencode_md` |
+| :744-757 / :750-755 | **:833-846** | `emit_for_harness`, whose `*)` arm is at **:844** |
+| :1117 | **:1206** | the AGENTS.md head "on every harness it supports" overreach |
+| :1342 | **:1431** | the hand-listed `(codex, opencode)` `--check` diagnostic |
+| :1267 | **:1355** | `project_level_pass` (its silent `project_wrappers_generated \|\| return 0` is :1356) |
+| :222-243 | **:222-230** | `per_repo_opted_in` (unchanged) |
+| :875-884, :908 | **:993-998** | the opencode effort-drop branch |
+| :262 | **:262** | `AGENTS_MD_DISPATCH_HARNESSES="codex opencode"` (unchanged) |
+
+Two further cites confirmed unchanged: a second hand-written `(codex, opencode)` sits in the **comment** at :1225 (the spec names only the :1431 diagnostic — the comment is prose about the block, not an emitted string, so it stays out of scope); `docs/codex/setup.md:52` still lacks the last-harness caveat that `docs/opencode/setup.md:59-62` carries; `skills/docket-convention/references/agent-layer.md:131` still holds the full path where its three siblings hold a bare extension.
+
+No `parse_wrapper_source` and no `harness_has_named_emitter` exist. The three emitters still repeat the `name:`/`description:`/`skills:`/body parse lines verbatim. `emit_for_harness`'s `*)` arm still emits silently with only a comment. `project_level_pass` still returns wordlessly for a non-opted-in repo. Assumption 11 (no new couplings) re-verified: `depends_on` stays empty; no in-flight branch touches these emitters.
+
+Eight `test_sync_agents*` suites exist (`.sh`, `_codex`, `_cursor`, `_defaults`, `_drift_docs`, `_opencode`, `_runners`, `_validator`) — the byte-identity gate's "existing generation suites, unmodified" is well-defined.
