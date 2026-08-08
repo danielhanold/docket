@@ -29,8 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-07-harden-render-board-sanitize-feeder-values-and-settle-the-fa-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-harden-render-board-sanitize-feeder-values-and-settle-the-fa-design.md) |
-| Plan | [2026-08-07-harden-render-board-sanitize-feeder-values-and-settle-the-fa.md](https://github.com/danielhanold/docket/blob/feat/harden-render-board-sanitize-feeder-values-and-settle-the-fa/docs/superpowers/plans/2026-08-07-harden-render-board-sanitize-feeder-values-and-settle-the-fa.md) |
-| Results | [2026-08-07-harden-render-board-sanitize-feeder-values-and-settle-the-fa-results.md](https://github.com/danielhanold/docket/blob/feat/harden-render-board-sanitize-feeder-values-and-settle-the-fa/docs/results/2026-08-07-harden-render-board-sanitize-feeder-values-and-settle-the-fa-results.md) |
+| Plan | [2026-08-07-harden-render-board-sanitize-feeder-values-and-settle-the-fa.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-07-harden-render-board-sanitize-feeder-values-and-settle-the-fa.md) |
+| Results | [2026-08-07-harden-render-board-sanitize-feeder-values-and-settle-the-fa-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-07-harden-render-board-sanitize-feeder-values-and-settle-the-fa-results.md) |
 | PR | [#177](https://github.com/danielhanold/docket/pull/177) |
 <!-- docket:artifacts:end -->
 
