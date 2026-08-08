@@ -1,7 +1,7 @@
 ---
 id: 242
 slug: close-the-claude-gap-in-the-run-completion-gate-with-a-comma
-title: Close the Claude gap in the run-completion gate with a command-type Stop hook
+title: Close the Claude gap in the run-completion gate with a caller-side verify in the dispatch rules
 status: proposed
 priority: high
 type: feat
@@ -45,32 +45,32 @@ That gap is the whole point: all six observed instances of the half-run family (
 covers exactly one harness and is the only candidate whose code docket does not own — but with the
 oracle built, closing it becomes a small wiring job rather than a design problem.
 
-Investigated and confirmed available during 0237's grooming (2026-08-07, Claude Code 2.1.x):
-`Stop` and `SubagentStop` are live hook events, documented for "enforce completion standards".
-A **command**-type hook receives `session_id`, `transcript_path`, `cwd`, and `hook_event_name` as
-JSON on stdin, and **exit 2 blocks the stop and feeds stderr back to the agent** — so the block
-signal doubles as the continue instruction, with the agent still alive to act on it. A
-**prompt**-type hook is another model reading prose and would reintroduce the exact defect this
-family is about; only the command type qualifies.
+The precise uncovered surface: for every CLI-driven harness the autonomous path runs through
+`runner-dispatch.sh` and is gated; a Claude **interactive** session dispatches the skill as a
+fork itself, and the parent session — the one context that regains control after the failing
+agent has stopped — checks nothing. A `Stop`/`SubagentStop` hook was this stub's original
+candidate and was groomed to a full draft, then rejected the same day as too heavy: user-level
+registration intercepts every turn end and subagent completion machine-wide, and couples to
+harness surface docket does not own. The draft is preserved in the spec's *Rejected* section as
+the escalation path.
 
 ## What changes
 
-A Claude-specific adapter onto 0237's oracle: `scripts/claude-stop-hook.sh` (+ contract),
-registered for both `Stop` and `SubagentStop` as a command-type hook in user-level
-`~/.claude/settings.json` via the existing `ensure-docket-env.sh` install seam — one
-registration per machine, covering every docket repo on it, self-gating to a fast exit 0
-everywhere else. The hook attributes the stopping session to its run transcript-derivedly
-(harness-written evidence, with a `claimed_at`-epoch fallback via
-`verify-run --in-progress-ids --with-claimed-at`), shells `docket.sh verify-run <id>`, and on
-`run-incomplete` exits 2 — blocking the stop and feeding the unmet conjuncts back to the
-still-alive agent — at most once per session×change, then allows. Fail-open on any internal
-error. A blocking build-time spike re-probes the hook protocol and transcript format at the
-current Claude Code version. Full design in the linked spec.
+The caller-side gate, carried by machinery docket already generates: the per-harness
+`docket-implement-next` dispatch rule (written by `sync-agents.sh` into each harness's
+agent-instructions file, read by the parent session) grows 0237's gate shape executed by the
+parent — snapshot the in-progress set before dispatching (`verify-run --in-progress-ids`), diff
+after the fork returns to attribute this run's claim, `verify-run <id>`, and on
+`run-incomplete` one bounded re-dispatch with the unmet conjuncts, then stop-and-report loudly.
+`run-halted` never re-dispatches. Same oracle, same discriminator, same cap as the runner-side
+gate; every step a single transcript-visible facade command. Plus a one-sentence pointer in the
+convention's *Composition* prose naming this as the mechanical form of the caller's
+verify-the-child obligation. Full design in the linked spec.
 
 ## Out of scope
 
 - Re-deriving 0237's verdict logic. This wires to the existing oracle or it is not worth doing.
-- Any prompt-type hook.
-- Any second harness's stop event or shared stop-gate abstraction; any change to
-  `verify-run.sh` / `runner-dispatch.sh` / `board-checks.sh`; any metadata write by the hook;
-  any new config knob.
+- Any Claude Code hook (rejected — recorded in the spec), any `settings.json` or installer work.
+- Any loop-specific mechanism or documentation; any headless-Claude runner adapter.
+- Any change to `verify-run.sh` / `runner-dispatch.sh` / `board-checks.sh`; any metadata write
+  by the gate; any new config knob.
