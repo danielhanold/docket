@@ -29,8 +29,8 @@ reconciled: true
 | Artifact | Link |
 |---|---|
 | Spec | [2026-08-07-build-worker-contract-gate-execution-pointer-and-staging-dis-design.md](https://github.com/danielhanold/docket/blob/docket/docs/superpowers/specs/2026-08-07-build-worker-contract-gate-execution-pointer-and-staging-dis-design.md) |
-| Plan | [2026-08-08-build-worker-contract-gate-execution-pointer-and-staging-dis.md](https://github.com/danielhanold/docket/blob/feat/build-worker-contract-gate-execution-pointer-and-staging-dis/docs/superpowers/plans/2026-08-08-build-worker-contract-gate-execution-pointer-and-staging-dis.md) |
-| Results | [2026-08-08-build-worker-contract-gate-execution-pointer-and-staging-dis-results.md](https://github.com/danielhanold/docket/blob/feat/build-worker-contract-gate-execution-pointer-and-staging-dis/docs/results/2026-08-08-build-worker-contract-gate-execution-pointer-and-staging-dis-results.md) |
+| Plan | [2026-08-08-build-worker-contract-gate-execution-pointer-and-staging-dis.md](https://github.com/danielhanold/docket/blob/main/docs/superpowers/plans/2026-08-08-build-worker-contract-gate-execution-pointer-and-staging-dis.md) |
+| Results | [2026-08-08-build-worker-contract-gate-execution-pointer-and-staging-dis-results.md](https://github.com/danielhanold/docket/blob/main/docs/results/2026-08-08-build-worker-contract-gate-execution-pointer-and-staging-dis-results.md) |
 | PR | [#178](https://github.com/danielhanold/docket/pull/178) |
 <!-- docket:artifacts:end -->
 

@@ -1,5 +1,5 @@
 <!-- docket:backlink:start (generated — do not hand-edit) -->
-> ↩ **[Change 0249 — Build-worker contract: gate-execution pointer and staging discipline](https://github.com/danielhanold/docket/blob/docket/docs/changes/active/0249-build-worker-contract-gate-execution-pointer-and-staging-dis.md)**
+> ↩ **[Change 0249 — Build-worker contract: gate-execution pointer and staging discipline](https://github.com/danielhanold/docket/blob/docket/docs/changes/archive/2026-08-08-0249-build-worker-contract-gate-execution-pointer-and-staging-dis.md)**
 <!-- docket:backlink:end -->
 
 # Build-worker contract: gate-execution pointer and staging discipline — design
