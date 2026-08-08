@@ -81,7 +81,7 @@ fi
 # substitutes something and takes the effort pin down with it, while the WARN branch below stays
 # unreachable — change 0135's defect, reproduced on the hand path.
 # This is sentinel normalization, not model-ID validation (ADR-0015): no vendor value is inspected.
-if [ "$MODEL" = "inherit" ]; then MODEL=""; fi
+case "$MODEL" in inherit) MODEL="" ;; esac
 if [ -n "$MODEL" ] && [ -n "$EFFORT" ] && [ "$EFFORT" != "auto" ]; then
   MODEL="${MODEL}[effort=${EFFORT}]"   # braces only to keep `$MODEL[` out of array-index territory
 elif [ -z "$MODEL" ] && [ -n "$EFFORT" ] && [ "$EFFORT" != "auto" ]; then

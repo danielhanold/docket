@@ -93,7 +93,7 @@ fi
 # holding the sentinel — this line covers the direct hand invocation opencode.md documents, which
 # bypasses the facade. Without it, `--model inherit` would reach opencode as a literal
 # provider/model string. Sentinel normalization, not model-ID validation (ADR-0015).
-if [ "$MODEL" = "inherit" ]; then MODEL=""; fi
+case "$MODEL" in inherit) MODEL="" ;; esac
 if [ -z "$MODEL" ] && [ -n "$EFFORT" ] && [ "$EFFORT" != "auto" ]; then
   warn "WARN effort '$EFFORT' dropped — --variant is a provider-specific model option and no model is resolved. Set an explicit model to pin effort on opencode."
   EFFORT=""
