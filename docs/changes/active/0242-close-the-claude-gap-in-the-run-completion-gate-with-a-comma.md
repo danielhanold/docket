@@ -2,7 +2,7 @@
 id: 242
 slug: close-the-claude-gap-in-the-run-completion-gate-with-a-comma
 title: Close the Claude gap in the run-completion gate with a caller-side verify in the dispatch rules
-status: proposed
+status: in-progress
 priority: high
 type: feat
 created: 2026-08-07
@@ -16,7 +16,8 @@ plan:
 results:
 trivial: false
 auto_groomable:
-branch:
+branch: feat/close-the-claude-gap-in-the-run-completion-gate-with-a-comma
+claimed_at: 2026-08-08T15:36:05Z
 pr:
 blocked_by:
 reconciled: false
